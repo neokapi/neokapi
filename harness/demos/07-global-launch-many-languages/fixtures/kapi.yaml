@@ -1,0 +1,22 @@
+# Lumen Notes: one catalog of interface strings, four markets.
+#
+# The four target languages are the only thing that makes this project
+# multilingual. `kapi up` reconciles the catalog against them and writes each
+# locale beside the source.
+version: v1
+name: lumen-notes
+defaults:
+  source_language: en
+  target_languages: [de, es, fr, ja]
+  # The loop owns delivery: each pass drafts into a run-local tree, and a locale
+  # that clears its gate has its file written where the recipe points.
+  materialize: on-converge
+
+collections:
+  - name: lumen-app
+    base: src
+    content:
+      - path: en.json
+        format:
+          name: json
+        target: "{lang}.json"

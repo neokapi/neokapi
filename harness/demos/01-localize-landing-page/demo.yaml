@@ -1,6 +1,6 @@
 id: 01-localize-landing-page
 title: Translate a landing page to French
-subtitle: A plain request — translate this page — and the kapi skill drives the rest, keeping the HTML intact.
+subtitle: A plain request to translate this page, and the kapi skill drives the rest, keeping the HTML intact.
 kind: zero-to-hero
 aspects:
   - AI translation
@@ -16,13 +16,13 @@ prompt: >
 
 artifacts:
   - id: before
-    caption: "index.html — the English page"
+    caption: "index.html: the English page"
     source: html
     path: index.html
     width: 1280
     height: 900
   - id: after
-    caption: "index.fr.html — the same page, text in French"
+    caption: "index.fr.html: the same page, text in French"
     source: html
     path: index.fr.html
     width: 1280
@@ -43,8 +43,8 @@ narration:
     kind: terminal
     text: >
       Claude reads the page, recognises a translation task, and calls kapi translate. kapi
-      parses the HTML, separates the readable text from the markup, reuses any translation
-      memory it has, sends the rest to the configured AI provider, and runs deterministic
+      parses the HTML, separates the readable text from the markup, reuses the content memory it
+      holds, sends the rest to the configured AI provider, and runs deterministic
       checks over the result before writing it back into the same structure.
     caption: "Claude calls kapi translate; the text round-trips back into the HTML"
   - id: before

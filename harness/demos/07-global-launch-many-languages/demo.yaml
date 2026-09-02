@@ -9,27 +9,31 @@ aspects:
 needsAi: true
 model: sonnet
 captureTimeoutSec: 360
+# The sandbox IS the project: a recipe at its root naming the four target
+# languages, so the commands read the way a user types them. The sandbox lives
+# in os.tmpdir(), outside the repo.
+project: true
 
 prompt: >
-  We're launching our notes app in more markets. Can you translate our app strings,
-  src/en.json, into German, Spanish, French and Japanese? Save each one next to it as
-  src/de.json, src/es.json, src/fr.json and src/ja.json.
+  We're launching our notes app in more markets. The recipe already lists German,
+  Spanish, French and Japanese. Can you bring the project up to date so each language
+  has a catalog beside src/en.json? Show me the plan before you spend anything.
 
 artifacts:
   - id: ja
-    caption: "src/ja.json — Japanese, placeholders intact"
+    caption: "src/ja.json: Japanese, placeholders intact"
     source: report
     report: catalog
-    reportTitle: "src/ja.json — 日本語"
+    reportTitle: "src/ja.json (日本語)"
     reportSub: "kapi · {{name}} and {{price}} preserved"
     path: src/ja.json
     width: 1120
     height: 720
   - id: de
-    caption: "src/de.json — German, same keys"
+    caption: "src/de.json: German, same keys"
     source: report
     report: catalog
-    reportTitle: "src/de.json — Deutsch"
+    reportTitle: "src/de.json (Deutsch)"
     reportSub: "kapi · keys and placeholders intact"
     path: src/de.json
     width: 1120
@@ -44,15 +48,17 @@ narration:
   - id: prompt
     kind: prompt
     text: >
-      The request lists the languages and where each file should go. It doesn't say how —
-      the skill sets the four locales as project targets and lets kapi reconcile them.
+      The request names the outcome and asks to see the plan first. The four target
+      languages are already in the recipe, so there is one project to bring up to date
+      rather than four translation jobs to run.
   - id: work
     kind: terminal
     text: >
-      kapi up --plan first previews the pending work — the units, the content-memory
-      leverage, and a token estimate — before anything is spent. Then one kapi up pass
-      converges all four locales together. Because kapi parses the JSON, every key and every
-      interpolation placeholder is carried through; only the values change.
+      kapi up --plan previews the pending work first: the units missing a target, the exact
+      content-memory leverage, and a rough token estimate per locale, computed locally with no
+      provider calls. Then one kapi up pass converges all four locales together. Because kapi
+      parses the JSON, every key and every interpolation placeholder is carried through; only
+      the values change.
     caption: "kapi up --plan previews the work; one up pass converges all four locales"
   - id: ja
     kind: artifact

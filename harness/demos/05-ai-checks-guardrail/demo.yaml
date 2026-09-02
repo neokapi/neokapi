@@ -1,7 +1,7 @@
 id: 05-ai-checks-guardrail
 title: Check AI output like you test code
 subtitle: An AI translated the app into German. kapi check reads the translation against the source and reports exactly what would break in production.
-tagline: do-not-translate, placeholders and terminology — deterministic checks that gate a bad translation before it ships.
+tagline: deterministic checks that gate a bad translation before it ships.
 kind: use-case
 publishAs: kapi-checks-guardrail
 # A scripted plain-shell demo (no Claude): the checks are deterministic, so the
@@ -23,9 +23,9 @@ aspects:
 script:
   - comment: An AI translated app.json into German. Is it safe to ship?
   - command: cat app.de.json
-  - comment: Check the translation against the source — like running tests.
+  - comment: Check the translation against the source, the way you run tests.
   - command: kapi check app.json --target app.de.json --target-lang de --dnt "Acme Cloud" --no-fail 2>/dev/null
-  - comment: Two real breakages — a dropped placeholder and a translated product name. Apply the fixes.
+  - comment: "Two real breakages: a dropped placeholder and a translated product name. Apply the fixes."
   - command: cp -f app.de.fixed.json app.de.json && cat app.de.json
   - comment: Run the same check again.
   - command: kapi check app.json --target app.de.json --target-lang de --dnt "Acme Cloud" --no-fail 2>/dev/null
@@ -34,28 +34,28 @@ narration:
   - id: title
     kind: title
     text: >
-      An AI translated this app into German. Most of it is fine — but two things
-      would break in production: a placeholder was dropped, and the product name
-      was translated.
+      An AI translated this app into German. Most of it is fine. Two things would
+      break in production: a placeholder was dropped, and the product name was
+      translated.
   - id: check
     kind: terminal
     text: >
-      kapi check reads the German against the English and runs the rules like
-      tests — do-not-translate, placeholder integrity, terminology. It reports
-      exactly what broke: the count placeholder is missing, and Acme Cloud was
+      kapi check reads the German against the English and runs the rules the way
+      tests run: do-not-translate, placeholder integrity, terminology. It reports
+      exactly what broke. The count placeholder is missing, and Acme Cloud was
       translated.
     caption: "kapi check reports the do-not-translate and placeholder findings"
   - id: fix
     kind: terminal
     text: >
-      We apply the two corrections — restore the placeholder, keep the product
-      name verbatim — and run the very same check again.
+      We apply the two corrections, restoring the placeholder and keeping the
+      product name verbatim, then run the very same check again.
     caption: "apply the fixes, re-run the check"
   - id: pass
     kind: terminal
     text: >
       Now it passes. With the gate on, this is what stops a bad translation from
-      shipping — in continuous integration, or inside an assistant's fix-loop.
+      shipping, in continuous integration or inside an assistant's fix-loop.
   - id: outro
     kind: outro
     text: >

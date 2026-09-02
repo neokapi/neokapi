@@ -1,0 +1,6 @@
+{
+  "site.add": "Ajouter un site",
+  "meter.register": "Enregistrer un compteur",
+  "reading.late": "Cette lecture est arrivée après la clôture de la période de facturation.",
+  "billing.export": "Exporter la période comptable"
+}

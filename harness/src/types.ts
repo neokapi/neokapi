@@ -64,12 +64,13 @@ export interface DemoManifest {
    */
   fixturesFrom?: string;
   /**
-   * Opt a `terminal: "shell"` demo back into kapi project discovery, for a demo
-   * whose sandbox IS a kapi project (a recipe at its root). The sandbox lives in
-   * os.tmpdir(), outside the repo, so the dogfood project is unreachable from
-   * it; the rest of the isolation contract — config dir, XDG roots,
-   * plugins-dir-only — still applies. Without this every command would have to
-   * carry `-p`, which is chrome the viewer has to learn to ignore.
+   * Opt a demo back into kapi project discovery, for a demo whose sandbox IS a
+   * kapi project (a recipe at its root). Applies to both scripted-shell and
+   * Claude-driven captures. The sandbox lives in os.tmpdir(), outside the repo,
+   * so the dogfood project is unreachable from it; the rest of the isolation
+   * contract (config dir, XDG roots, plugins-dir-only) still applies. Without
+   * this every command would have to carry `-p`, which is chrome the viewer has
+   * to learn to ignore.
    */
   project?: boolean;
   /** The task prompt handed to Claude Code (required unless `terminal: "shell"`). */

@@ -1,29 +1,44 @@
 id: 08-mcp-tools
 title: Reach kapi over MCP
-subtitle: The same engine, exposed to the assistant as Model Context Protocol tools.
+subtitle: The same engine, exposed to the assistant as Model Context Protocol tools, including the review queue.
 kind: integration
 aspects:
   - MCP integration
-  - extract & stats
-  - pseudo-translate
+  - size before you act
+  - the review queue
+  - a decision with a name on it
 needsAi: false
 mcp: true
 model: sonnet
 captureTimeoutSec: 300
+# The sandbox IS the project: a recipe at its root with a drafted French
+# catalog, so the project-scoped tools (review_queue, review_unit, approve_unit)
+# have a real queue to work. The sandbox lives in os.tmpdir(), outside the repo.
+project: true
 
 prompt: >
-  Using kapi, take a look at content.json for me: what format is it, how many translatable
-  words does it have, and what could kapi do with it? Then show me a quick pseudo-translated
-  preview of the content.
+  Using kapi, take a look at content.json for me: what format is it, and how much
+  translatable content does it hold? Then show me what is waiting for review in French,
+  open the first unit with everything that governs it, and approve it if the wording
+  holds up.
 
 artifacts:
   - id: wordcount
-    caption: "kapi stats on content.json — the real figure"
+    caption: "kapi stats on content.json: the real figure"
     source: command
     command: kapi stats content.json --json
     report: stats
     width: 1000
     height: 640
+  - id: queue
+    caption: "the review queue as the assistant reads it, one unit shorter"
+    source: command
+    command: kapi status --review -p . --json
+    report: json
+    reportTitle: "review_queue"
+    reportSub: "every unit awaiting a person, addressed by file, key and locale"
+    width: 1100
+    height: 760
 
 narration:
   - id: title
@@ -34,30 +49,46 @@ narration:
   - id: prompt
     kind: prompt
     text: >
-      The request is an ordinary one — what is this file, how big is it, what can we do with
-      it. In this session the shell is switched off, so the only way to reach kapi is its tools.
+      The request is an ordinary one. What is this file, how big is it, and what still needs
+      a person. In this session the shell is switched off, so the only way to reach kapi is
+      its tools.
   - id: tools
     kind: terminal
     text: >
       Each step is a typed tool call with a structured result, not text scraped from a
-      console. Claude asks kapi to detect the format, size the content with the stats tool,
-      and list the flows it offers — the same registry tools kapi up and the porcelain verbs
-      drive; on the command line, kapi exec is the raw doorway to them.
+      console. Claude asks kapi to detect the format and to size the content, and gets back
+      the same JSON the command line prints. The default surface is small on purpose: the
+      tools an assistant needs, rather than every verb kapi has.
     caption: "Typed MCP tool calls into kapi, each returning structured data"
-  - id: pseudo
+  - id: review
     kind: terminal
     text: >
-      It runs a pseudo-translation through the same interface. This is how kapi plugs into
-      other MCP clients, such as Cursor or Windsurf — the same engine, a different doorway.
-    caption: "Pseudo-translate over MCP — the same engine, reached as a tool"
+      Then the review queue. One call lists every unit waiting for a person, filtered to
+      French, with a count per language beside it. A second call opens one unit and returns
+      what the decision is made in: the point governing the file, the voice in force there,
+      the blocks either side of it, the prior approved version, and the findings.
+    caption: "review_queue lists the work; review_unit returns the context around one unit"
+  - id: approve
+    kind: terminal
+    text: >
+      Approving is its own call, and it records the decision in the project store against
+      the current translation. The record carries who made it, so a decision by an assistant
+      is marked as one, and the same queue in Kapi Desktop is one unit shorter.
+    caption: "approve_unit records the decision, with the agent's identity on it"
   - id: wordcount
     kind: artifact
     artifact: wordcount
     text: >
       The figures came straight from the engine: the detected format, and the translatable
       word and segment counts for the file. No guesswork.
+  - id: queue
+    kind: artifact
+    artifact: queue
+    text: >
+      And the queue itself, in the shape the assistant read. Every row addresses a unit by
+      file, key and locale, which is exactly what the approve call takes back.
   - id: outro
     kind: outro
     text: >
-      Skill or MCP, the assistant calls a real content engine — local, and the same
-      either way.
+      Skill or MCP, the assistant calls a real content engine, locally, and reaches the same
+      review record a person does.

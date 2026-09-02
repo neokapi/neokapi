@@ -1,0 +1,25 @@
+# Taskly: one catalog of marketing strings, one target language.
+#
+# The French catalog beside it is drafted and unreviewed, so the project has a
+# review queue for an assistant to work through over MCP.
+version: v1
+name: taskly
+defaults:
+  source_language: en
+  target_languages: [fr]
+  voice:
+    profile_file: .kapi/voice.yaml
+
+profiles:
+  taskly:
+    channels: [site]
+    voice: .kapi/voice.yaml
+
+collections:
+  - name: taskly-site
+    channel: taskly/site
+    content:
+      - path: content.json
+        format:
+          name: json
+        target: "content.{lang}.json"

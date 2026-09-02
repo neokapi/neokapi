@@ -22,7 +22,7 @@ script:
   - command: kapi workspace list
   - comment: Before sending for real translation, pseudo-translate to test layout.
   - command: kapi pseudo-translate src/locales/en.json
-  - comment: Padded, accented copy (qps) — surfaces truncation and layout bugs early.
+  - comment: Padded, accented copy (qps) surfaces truncation and layout bugs early.
   - command: cat src/locales/qps.json
 
 narration:
@@ -36,21 +36,21 @@ narration:
     kind: terminal
     text: >
       kapi auth status shows the server and account this checkout is connected
-      to — useful when you work across more than one Bowrain server.
-    caption: "kapi auth status — server + account"
+      to, which matters when you work across more than one Bowrain server.
+    caption: "kapi auth status: server and account"
   - id: workspace
     kind: terminal
     text: >
       kapi workspace list shows every workspace you belong to. A project is
-      pushed into one of them, and each keeps its own projects, memory, and
-      terminology.
-    caption: "kapi workspace list — where you can push"
+      pushed into one of them, and each keeps its own projects, its own content
+      memory and its own terms.
+    caption: "kapi workspace list: where you can push"
   - id: pseudo
     kind: terminal
     text: >
       And because kapi is still the file toolchain underneath, you can
-      pseudo-translate locally first — padded, accented copy that surfaces
-      layout and truncation problems before a translator ever sees the file.
-    caption: "kapi pseudo-translate — test layout locally"
+      pseudo-translate locally first. The padded, accented copy surfaces layout
+      and truncation problems before a translator ever sees the file.
+    caption: "kapi pseudo-translate tests layout locally"
   - id: outro
     kind: outro

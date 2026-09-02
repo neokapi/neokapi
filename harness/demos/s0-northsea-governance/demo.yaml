@@ -1,15 +1,15 @@
 id: s0-northsea-governance
 title: Govern the content you already have
-subtitle: One repository, one language, three surfaces — discovered, gated, corrected and converged, with no server and no model.
+subtitle: "One repository, one language, three surfaces: discovered, gated, corrected and converged, with no server and no model."
 tagline: checks for prose, the way tests work for code.
 kind: use-case
 publishAs: monolingual-governance
 # A scripted plain-shell demo: every command is deterministic, so it runs for
 # real and its output is recorded exactly. Nothing here reaches a network.
 #
-# Two `kapi check --strict` runs exit 3 on purpose — a failing gate is the point
-# of acts 3 and 4 — and each declares it with `expectExit: 3`, so a take where
-# the gate silently passed would fail the capture instead of shipping.
+# Three `kapi check` runs exit 3 on purpose, because a failing gate is the point
+# of acts 3 and 4. Each declares it with `expectExit: 3`, so a take where the
+# gate silently passed would fail the capture instead of shipping.
 terminal: shell
 brand: kapi
 cwd: ~/northsea
@@ -25,7 +25,7 @@ aspects:
   - offline gates
   - decisions, not edits
 
-# The sample ships the context graph as the assistant drafted it — untracked,
+# The sample ships the context graph as the assistant drafted it, untracked,
 # next to content that is already committed. That is the state a review starts
 # from, so the first act can be the review rather than a re-enactment of it.
 setup:
@@ -39,9 +39,9 @@ script:
   # --- 1. Discover: the graph arrives as files you review -------------------
   - comment: A company repository. Operator documentation, interface strings, one marketing page. One language.
   - command: ls
-  - comment: An assistant read all three surfaces and proposed a context graph. It is files, in the repo — untracked, waiting for you.
+  - comment: An assistant read all three surfaces and proposed a context graph. It is files in the repo, untracked, waiting for you.
   - command: git status --short
-  - comment: The recipe binds each surface to a point — the product, then the channel it ships on.
+  - comment: The recipe binds each surface to a point, naming the product and then the channel it ships on.
   - command: cat kapi.yaml
   - comment: The voice profile it drafted is schema-valid.
   - command: kapi voice validate .kapi/voice.yaml
@@ -53,7 +53,7 @@ script:
   # --- 2. Ask where you are ------------------------------------------------
   - comment: The first question an agent asks. Where am I, and what governs here?
   - command: kapi context docs/berths.md | head -6
-  - comment: The same question, three directories away — a different point, a different register.
+  - comment: The same question, three directories away, at a different point and in a different register.
   - command: kapi context landing/index.html | head -6
   - comment: The second question. What do we call this, and why?
   - command: kapi context search mooring
@@ -63,15 +63,18 @@ script:
   # The gate must fail here: one major finding is the substance of this beat.
   - command: kapi check --strict
     expectExit: 3
-  - comment: The same run, in the shape CI reads.
-  - command: kapi check --json --no-fail > findings.json
+  - comment: The same findings, in the shape CI reads.
+  # Same gate, same exit code: the JSON a reader inspects is the failing run,
+  # not a second run with the gate turned off.
+  - command: kapi check --strict --json > findings.json
+    expectExit: 3
 
   # --- 4. Corrections teach the graph --------------------------------------
   - comment: Three of those are wording the source got wrong, so correct the source.
   - command: ksed -i 's/our seamless integration/our unified integration/' landing/index.html
   - command: ksed -i 's/Release a mooring earlier/Release a berth earlier/' docs/berths.md
   - command: ksed -i 's/by ship name/by vessel name/' app/strings.en.json
-  - comment: The reviewer also spots a word the graph has never been told about — "dock", where Northsea says berth. That is a decision, not an edit.
+  - comment: The reviewer also spots a word the graph has never been told about. Northsea says berth, and the page says dock. That is a decision rather than an edit.
   - command: echo '{"kind":"term","op":"upsert","term":"dock","locale":"en-GB","status":"forbidden","replacement":"berth"}' > decisions.jsonl
   - command: kapi apply decisions.jsonl
   - comment: The graph learned. The next check finds what the last one passed.
@@ -84,18 +87,18 @@ script:
   - comment: Converge, and read where you stand.
   - command: kapi up
   - command: kapi status
-  - comment: Green. What is left is the changelog keeping a name the vocabulary retired — advisory, never blocking.
+  - comment: Green. What is left is the changelog keeping a name the vocabulary retired, which is advisory and never blocking.
   - command: kapi check --strict
 
 artifacts:
   - id: landing
-    caption: "landing/index.html — the surface the landing channel governs"
+    caption: "landing/index.html, the surface the landing channel governs"
     source: html
     path: landing/index.html
     width: 1200
     height: 900
   - id: findings
-    caption: "kapi check --json — rule, point and replacement, per finding"
+    caption: "kapi check --json: rule, point and replacement, per finding"
     source: report
     report: json
     path: findings.json
@@ -108,8 +111,8 @@ narration:
   - id: title
     kind: title
     text: >
-      Most content work is not translation. It is a team, a repository, and one
-      language — and the question of whether what was just written still sounds
+      Most content work is not translation. It is a team, a repository and one
+      language, and the question of whether what was just written still sounds
       like the company. This is that journey, start to finish, with no server
       and no model anywhere in it.
 
@@ -118,7 +121,7 @@ narration:
     text: >
       Northsea sells software to port operators. Its repository holds operator
       documentation, the strings inside its app, and a marketing page. An
-      assistant read all three and proposed a context graph — a recipe, a voice
+      assistant read all three and proposed a context graph: a recipe, a voice
       profile, a vocabulary. It arrives as untracked files, so the first thing
       that happens to it is review.
     caption: "the graph arrives as files, not as a service"
@@ -128,16 +131,16 @@ narration:
     text: >
       The recipe binds each surface to a point. The product is the profile; the
       channel is the surface it ships on. Nothing declares a taxonomy beside the
-      content — the space is read out of what the recipe already says. Commit
-      it, and one verb reconciles the graph with the sources. There is no second
-      pipeline, and nothing to sign in to.
-    caption: "committed, then converged — no target languages needed"
+      content, because the space is read out of what the recipe already says.
+      Commit it, and one verb reconciles the graph with the sources. There is no
+      second pipeline, and nothing to sign in to.
+    caption: "committed, then converged, with no target languages needed"
 
   - id: landing
     kind: artifact
     artifact: landing
     text: >
-      This is one of the three surfaces — the marketing page. It sits at
+      This is one of the three surfaces, the marketing page. It sits at
       northsea slash landing, and the register there is warmer than the
       documentation's. The vocabulary is not: a word the company does not use is
       not used here either.
@@ -147,7 +150,7 @@ narration:
     text: >
       Now the two questions any assistant needs answered. First, by location:
       where am I, and what governs here? The documentation and the landing page
-      are three directories apart and get different answers — the same voice, a
+      are three directories apart and get different answers: the same voice, a
       different register.
     caption: "by location: you are at northsea/docs"
 
@@ -155,10 +158,10 @@ narration:
     kind: terminal
     text: >
       Second, by content. Northsea renamed a place alongside from mooring to
-      berth. The graph answers with both halves — mooring is discouraged, say
+      berth. The graph answers with both halves. Mooring is discouraged, say
       berth; the API field mooring underscore i-d is admitted, because the wire
-      contract keeps the name the vocabulary retired — and with every place each
-      one is actually used, and which surface it is used on.
+      contract keeps the name the vocabulary retired. It answers with every place
+      each one is actually used, and which surface it is used on.
     caption: "by content: the decision, and everywhere it lands"
 
   - id: check
@@ -166,7 +169,7 @@ narration:
     text: >
       Then the gates run the way tests run. A banned word on the marketing page,
       major. A retired term still in the documentation and in an interface
-      string, minor — because retiring a word should never fail somebody's
+      string, minor, because retiring a word should never fail somebody's
       build. Each finding names the rule, the point it is scoped to, and the
       fix.
     caption: "one major, the rest advisory"
@@ -175,18 +178,19 @@ narration:
     kind: artifact
     artifact: findings
     text: >
-      The same run in machine shape. Every finding carries its rule, the file
-      and block it sits at, and the replacement — which is what a pull request
-      check and an assistant both read.
+      The same findings in machine shape, from the same failing run. Every
+      finding carries its rule, the file and block it sits at, and the
+      replacement, which is what a pull request check and an assistant both
+      read.
 
   - id: correct
     kind: terminal
     text: >
       Three of those are simply wrong wording, so the source is corrected. The
-      fourth is different. A reviewer notices the word dock on the landing page —
-      Northsea says berth — and the graph has never been told. That is a
-      decision, not an edit, so it is written down as one: a single entry, in
-      the vocabulary the whole project reads.
+      fourth is different. A reviewer notices the word dock on the landing page.
+      Northsea says berth, and the graph has never been told. That is a decision
+      rather than an edit, so it is written down as one: a single entry, in the
+      vocabulary the whole project reads.
     caption: "a correction the graph keeps"
 
   - id: learned
@@ -194,7 +198,7 @@ narration:
     text: >
       Run the check again and it finds what the previous run passed. One
       decision reached both the record and the gate. Fix the last one, converge,
-      and the project is green — with one language, no server, and no
+      and the project is green, on one language, with no server and no
       credential. What remains is the changelog keeping a name the vocabulary
       retired, which the gate reports and never blocks.
     caption: "the next check enforces the decision"
@@ -203,5 +207,5 @@ narration:
     kind: outro
     text: >
       One repository, one language, one loop. Discover the graph, ask it where
-      you are, gate the prose, and let corrections teach it. A second language is
-      an extension of this — not the reason to start.
+      you are, gate the prose, and let corrections teach it. A second language
+      extends this rather than being the reason to start.
