@@ -173,6 +173,11 @@ describe("the queue's neighbourhood", () => {
             { ph: { id: "1", type: "code:variable", data: "{{.Email}}", equiv: "{{.Email}}" } },
             { text: "." },
           ],
+          target_runs: [
+            { text: "Nous avons envoyé un lien à " },
+            { ph: { id: "1", type: "code:variable", data: "{{.Email}}", equiv: "{{.Email}}" } },
+            { text: "." },
+          ],
         },
       }),
     );
@@ -180,8 +185,10 @@ describe("the queue's neighbourhood", () => {
     const table = screen.getByTestId("reviewer-neighbourhood");
     expect(table.textContent).toContain("We sent a link to ");
     // The projection answers for the placeholder kind; a text-only loop would
-    // have rendered "We sent a link to ." and lost the variable.
-    expect(table.textContent).toContain("{{.Email}}");
+    // have rendered "We sent a link to ." and lost the variable. Both sides go
+    // through it, so the chip survives on the target line too.
+    expect(table.textContent).toContain("Nous avons envoyé un lien à ");
+    expect(table.textContent.match(/{{\.Email}}/g)).toHaveLength(2);
     // The neighbour is keyed by the block the payload names, so a reviewer can
     // find it in the document rather than guessing which line it was.
     expect(table.textContent).toContain("b0");
@@ -191,8 +198,12 @@ describe("the queue's neighbourhood", () => {
     reviewer(
       {},
       emptyContext({
-        previous: { block_id: "b0", source_runs: [{ text: "Enter your email" }] },
-        next: { block_id: "b2", source_runs: [{ text: "We sent a link" }] },
+        previous: {
+          block_id: "b0",
+          source_runs: [{ text: "Enter your email" }],
+          target_runs: [{ text: "Saisissez votre adresse e-mail" }],
+        },
+        next: { block_id: "b2", source_runs: [{ text: "We sent a link" }], target_runs: [] },
       }),
     );
 
@@ -203,6 +214,29 @@ describe("the queue's neighbourhood", () => {
     expect(rows[0].textContent).toContain("Enter your email");
     expect(rows[1].getAttribute("data-slot")).toBe("review-neighbour-unit");
     expect(rows[2].textContent).toContain("We sent a link");
+  });
+
+  it("draws a source line alone for a neighbour nothing has translated", () => {
+    reviewer(
+      {},
+      emptyContext({
+        previous: {
+          block_id: "b0",
+          source_runs: [{ text: "Enter your email" }],
+          target_runs: [{ text: "Saisissez votre adresse e-mail" }],
+        },
+        next: { block_id: "b2", source_runs: [{ text: "We sent a link" }], target_runs: [] },
+      }),
+    );
+
+    const rows = screen
+      .getByTestId("reviewer-neighbourhood")
+      .querySelectorAll("li[data-slot^=review-neighbour]");
+    // A settled neighbour reads on both sides; one with nothing on the target
+    // side is its key and its source and no more, rather than repeating the
+    // source as if it were the translation.
+    expect(rows[0].textContent).toBe("b0Enter your emailSaisissez votre adresse e-mail");
+    expect(rows[2].textContent).toBe("b2We sent a link");
   });
 
   it("says the unit is alone rather than drawing empty boxes for its neighbours", () => {

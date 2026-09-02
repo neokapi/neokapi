@@ -57,6 +57,7 @@ const context: ReviewContext = {
   previous: {
     block_id: "b0",
     source_runs: [{ text: "Enter the email you signed up with" }],
+    target_runs: [{ text: "Saisissez l'adresse e-mail utilisée à l'inscription" }],
     status: "reviewed",
   },
   next: {
@@ -66,6 +67,7 @@ const context: ReviewContext = {
       { ph: { id: "1", type: "code:variable", data: "{{.Email}}", equiv: "{{.Email}}" } },
       { text: "." },
     ],
+    target_runs: [],
   },
   memory_match: {
     source: "Reset your password",

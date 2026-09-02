@@ -62,8 +62,8 @@ type reviewContextResponse struct {
 	// Neighbourhood ----------------------------------------------------------
 
 	// Previous and Next are the units either side of this one in the item, each
-	// carrying its source as a run sequence so a surface projects it rather
-	// than concatenating it. Absent at the ends of the item.
+	// carrying both sides as run sequences so a surface projects them rather
+	// than concatenating them. Absent at the ends of the item.
 	Previous *reviewNeighbour `json:"previous,omitempty"`
 	Next     *reviewNeighbour `json:"next,omitempty"`
 
@@ -119,6 +119,11 @@ type reviewNeighbour struct {
 	// SourceRuns is the run sequence, so a surface projects every kind through
 	// its own RunSpec rather than concatenating the text runs.
 	SourceRuns []model.Run `json:"source_runs"`
+	// TargetRuns is the same sequence on the target side in the locale under
+	// review, empty for a neighbour nothing has translated yet. A reviewer
+	// reads a neighbour to see how the wording around this unit was handled,
+	// which the source alone does not say.
+	TargetRuns []model.Run `json:"target_runs"`
 	// Status is the neighbour's rung in this locale ("" when it has no target).
 	Status string `json:"status,omitempty"`
 }
@@ -313,9 +318,10 @@ func (s *Server) reviewNeighbours(ctx context.Context, pid, stream string, sb *v
 			return nil
 		}
 		b := blocks[0].Block
-		n := &reviewNeighbour{BlockID: b.ID, SourceRuns: b.Source}
+		n := &reviewNeighbour{BlockID: b.ID, SourceRuns: b.Source, TargetRuns: []model.Run{}}
 		if t := b.Target(model.LocaleID(locale)); t != nil {
 			n.Status = string(t.Status)
+			n.TargetRuns = append(n.TargetRuns, t.Runs...)
 		}
 		return n
 	}

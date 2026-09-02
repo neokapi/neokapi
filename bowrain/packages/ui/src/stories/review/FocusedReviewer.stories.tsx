@@ -75,6 +75,7 @@ const resolvedContext: ReviewContext = {
   previous: {
     block_id: "b0",
     source_runs: [{ text: "Enter the email you signed up with" }],
+    target_runs: [{ text: "Saisissez l'adresse e-mail utilisée à l'inscription" }],
     status: "reviewed",
   },
   next: {
@@ -84,6 +85,12 @@ const resolvedContext: ReviewContext = {
       { ph: { id: "1", type: "code:variable", data: "{{.Email}}", equiv: "{{.Email}}" } },
       { text: "." },
     ],
+    target_runs: [
+      { text: "Nous avons envoyé un lien à " },
+      { ph: { id: "1", type: "code:variable", data: "{{.Email}}", equiv: "{{.Email}}" } },
+      { text: "." },
+    ],
+    status: "draft",
   },
   memory_match: {
     source: "Reset your password",

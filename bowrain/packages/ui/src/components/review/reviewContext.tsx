@@ -360,7 +360,14 @@ export function TermChip({ term }: { term: BlockTermMatch }) {
 
 /** One adjacent unit, as the shared table reads it. */
 function neighbourRows(neighbour: ReviewNeighbour | undefined): NeighbourhoodEntry[] {
-  return neighbour ? [{ key: neighbour.block_id, source: neighbour.source_runs }] : [];
+  if (!neighbour) return [];
+  return [
+    {
+      key: neighbour.block_id,
+      source: neighbour.source_runs,
+      target: neighbour.target_runs,
+    },
+  ];
 }
 
 /**
@@ -370,9 +377,10 @@ function neighbourRows(neighbour: ReviewNeighbour | undefined): NeighbourhoodEnt
  * declared run projection, so a placeholder in a neighbour reads as a chip
  * rather than disappearing.
  *
- * The server sends one neighbour each side and sends the source alone, so a
- * neighbour row here carries no target line. Its key and its source are what
- * the payload holds (`reviewNeighbour` in the review-context handler).
+ * The server sends one neighbour each side, each with its key, its source and
+ * what the locale under review says there (`reviewNeighbour` in the
+ * review-context handler). A neighbour nothing has translated yet arrives with
+ * an empty target sequence and draws a source line alone.
  */
 export function NeighbourhoodView({
   context,

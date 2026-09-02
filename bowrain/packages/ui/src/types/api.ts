@@ -1360,6 +1360,8 @@ export interface ReviewTermRule {
 export interface ReviewNeighbour {
   block_id: string;
   source_runs: Run[];
+  /** What the locale under review says here, empty when nothing does yet. */
+  target_runs: Run[];
   status?: string;
 }
 
