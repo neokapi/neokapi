@@ -60,10 +60,12 @@ script:
   # --- 4. One queue, two lanes ----------------------------------------------
   - comment: Where the project stands. French is drafted and translated; nothing in either language has been read by a person.
   - command: kapi status
-  - comment: One queue holds every language, the source among them. The tail says what each lane needs.
-  - command: kapi status --review | tail -8
-  - comment: Narrow it to the language you are reviewing.
+  - comment: One queue holds every language. Ask it for the source lane, and every row carries its own marker.
+  - command: kapi status --review --lang en | head -8
+  - comment: Ask it for the language you are reviewing, and you get that lane alone.
   - command: kapi status --review --lang fr
+  - comment: The footers say where each lane is decided.
+  - command: kapi status --review | tail -3
   - comment: The queue is already the shape of a change-set, so approving is one pass over it.
   - command: >-
       kapi status --review --lang fr --json --jq '.pending[]|{kind:"review",op:"add",file,id:.key,locale,status:"reviewed"}' > reviewed.json
@@ -84,13 +86,12 @@ artifacts:
     width: 1200
     height: 1000
   - id: queue
-    caption: "kapi status --review: one queue, the source language among the rest"
+    caption: "kapi status --review --json: the queue an assistant reads"
     source: command
-    command: kapi status --review
-    from: fixture
-    report: markdown
-    reportTitle: "kapi status --review"
-    reportSub: "what is waiting for a person, in every language"
+    command: kapi status --review -p . --json
+    report: json
+    reportTitle: "kapi status --review --json"
+    reportSub: "every language waiting for a person, the source among them"
     width: 1200
     height: 900
 
