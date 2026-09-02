@@ -7,6 +7,10 @@ English reads as broken rather than as unfinished.
 
 So the targets that ship are pruned to the keys that actually have an answer,
 and the files that cannot be pruned that way are not shipped at all.
+
+The same holds for the record beside them: the sample ships the review decisions
+and leaves the derived per-unit bookkeeping behind, and one source is committed
+translated with no decision at all so the review queue opens with work in it.
 """
 
 import datetime
@@ -20,6 +24,25 @@ import sys
 # regenerated produces a diff that says nothing, so every timestamp is derived
 # from the unit it belongs to rather than read off a clock.
 SPREAD_DAYS = 90
+
+# Source files whose translations ship without an approval.
+#
+# The sample opens on the Review page, and a project where every translated unit
+# is already approved opens it empty. These files converge and are committed
+# like the rest, and the approval step skips them, so their units arrive in the
+# shipped project as translated and awaiting review: the queue has work in it,
+# and its detail pane has a unit to draw.
+#
+# Paths are project-relative SOURCE paths, matched against the `relative` field
+# of `kapi status --review --json`. Naming the source rather than a state shard
+# keeps this readable against kapi.yaml, where `src/en/error-messages.properties`
+# is the first content item of the Online Store collection.
+#
+# `approvals` fails when an entry here matches nothing, so a renamed or dropped
+# source is reported rather than quietly restoring a fully approved sample.
+UNREVIEWED_SOURCES = [
+    "src/en/error-messages.properties",
+]
 
 
 # ── formats ──────────────────────────────────────────────────────────────────
@@ -185,18 +208,39 @@ def answer(work, spec_path):
 
 
 def approvals(review_path, out_path):
-    """A review decision for every unit whose target says something new."""
+    """A review decision for every unit whose target says something new.
+
+    The sources listed in UNREVIEWED_SOURCES are held back: their targets ship,
+    their approvals do not, and the sample opens with those units pending.
+    """
     pending = json.load(open(review_path, encoding="utf-8"))["pending"]
-    rows = [
-        {"kind": "review", "file": u["file"], "id": u["key"],
-         "locale": u["locale"], "status": "reviewed"}
-        for u in pending
-        if u.get("source") != u.get("target")
-    ]
+    held = {src: 0 for src in UNREVIEWED_SOURCES}
+    rows = []
+    for u in pending:
+        if u.get("source") == u.get("target"):
+            continue
+        src = u.get("relative", "")
+        if src in held:
+            held[src] += 1
+            continue
+        rows.append({"kind": "review", "file": u["file"], "id": u["key"],
+                     "locale": u["locale"], "status": "reviewed"})
+
+    missed = [src for src, n in held.items() if n == 0]
+    if missed:
+        raise SystemExit(
+            "approvals: UNREVIEWED_SOURCES matched no pending unit for "
+            + ", ".join(missed)
+            + ". Check the path against kapi.yaml; the review queue is keyed on "
+            "the project-relative source path."
+        )
+
     with open(out_path, "w", encoding="utf-8") as fh:
         for row in rows:
             fh.write(json.dumps(row) + "\n")
     print(f"    {len(rows)} approval(s)")
+    for src, n in sorted(held.items()):
+        print(f"    {n} unit(s) held back unreviewed: {src}")
 
 
 def _approved_at(unit):
@@ -274,10 +318,43 @@ def install(work, sample, spec_path):
     shutil.copyfile(os.path.join(work, ".kapi", "memory", "memory.json"),
                     os.path.join(sample, ".kapi", "memory", "memory.json"))
 
-    state_dst = os.path.join(sample, ".kapi", "state")
+    _install_state(os.path.join(work, ".kapi", "state"),
+                   os.path.join(sample, ".kapi", "state"))
+
+
+def _install_state(state_src, state_dst):
+    """Ship the decisions the record holds, and only those.
+
+    `kapi commit` also writes a `translated` row for every unit the block store
+    holds, the prose collections included, and the prune step removed those
+    target files before the commit ran. A shipped row saying `translated` for a
+    file the sample does not carry describes a project the user never gets, so
+    the write-back keeps the rows that carry a review decision. A shard left
+    with none of them is dropped: the units under it are translated and awaiting
+    review, which is what an absent decision already says.
+    """
     if os.path.isdir(state_dst):
         shutil.rmtree(state_dst)
-    shutil.copytree(os.path.join(work, ".kapi", "state"), state_dst)
+    os.makedirs(state_dst, exist_ok=True)
+
+    kept = dropped = 0
+    for name in sorted(os.listdir(state_src)):
+        rows = []
+        for line in open(os.path.join(state_src, name), encoding="utf-8"):
+            line = line.strip()
+            if not line:
+                continue
+            if json.loads(line).get("decision"):
+                rows.append(line)
+            else:
+                dropped += 1
+        if not rows:
+            continue
+        kept += len(rows)
+        with open(os.path.join(state_dst, name), "w", encoding="utf-8") as fh:
+            fh.write("\n".join(rows) + "\n")
+
+    print(f"    {kept} decision(s) shipped, {dropped} derived row(s) left behind")
 
 
 def summary(sample):
@@ -293,6 +370,7 @@ def summary(sample):
     print(f"    carrying a unit   {sum(1 for e in entries if e.get('unit'))}")
     print(f"    carrying a point  {sum(1 for e in entries if e.get('point'))}")
     print(f"  unit-state rows     {rows}")
+    print("  awaiting review     " + ", ".join(UNREVIEWED_SOURCES))
 
 
 if __name__ == "__main__":

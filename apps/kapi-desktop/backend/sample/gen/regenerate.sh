@@ -20,8 +20,14 @@
 # Everything else stays untranslated on purpose. A file is committed only when
 # the historic translations cover it well enough to ship without English
 # standing in for the target language; the rest is the work the project still
-# has in front of it, which is what the convergence hero, the plan and Review
-# are there to show.
+# has in front of it, which is what the convergence hero and the plan are there
+# to show.
+#
+# One source translates and stays unapproved: the message catalogue named in
+# lib/targets.py's UNREVIEWED_SOURCES. Its targets are committed and no approval
+# change-set is written for them, so the shipped project opens with those units
+# in the review queue and Review has a unit to draw. Edit that list to change
+# which content arrives that way; nothing here is keyed on a state-shard name.
 #
 # Deterministic: the only thing that moves between runs is the clock, and every
 # timestamp is rewritten to a fixed instant at the end.
@@ -91,7 +97,7 @@ python3 "$GEN/lib/targets.py" answer "$P" "$GEN/authored.json"
 echo "==> the contested answer"
 python3 "$GEN/lib/targets.py" answer "$P" "$GEN/contested.json"
 
-echo "==> approve what the loop produced"
+echo "==> approve what the loop produced, apart from the sources held for review"
 "$KAPI" status -p "$P/kapi.yaml" --review --json > "$WORK/review.json" 2>/dev/null
 python3 "$GEN/lib/targets.py" approvals "$WORK/review.json" "$WORK/approve.jsonl"
 "$KAPI" apply -p "$P/kapi.yaml" "$WORK/approve.jsonl" >/dev/null
