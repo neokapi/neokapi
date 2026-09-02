@@ -87,12 +87,17 @@ func TestWorkerBilling_RetryAfterPartialRunChargesOnce(t *testing.T) {
 		retried  = "ws-retried"
 		straight = "ws-straight"
 	)
+	// Two items of the same shape, one per job. A run records the source each
+	// target it wrote was translated from, so a second job over the SAME item
+	// would find every unit settled and translate nothing: the control needs
+	// content of its own to price.
 	f.seedChunkedItem(t, "chunked.json", 3*translationProgressChunk)
+	f.seedChunkedItem(t, "chunked-control.json", 3*translationProgressChunk)
 	require.NoError(t, f.billing.GrantCredits(ctx, retried, grant, billing.SourcePlan))
 	require.NoError(t, f.billing.GrantCredits(ctx, straight, grant, billing.SourcePlan))
 
 	// The control: the same content, translated once, with nothing going wrong.
-	control := f.chunkedJob("job-straight", straight, "chunked.json")
+	control := f.chunkedJob("job-straight", straight, "chunked-control.json")
 	require.NoError(t, f.deps.JobStore.CreateJob(ctx, control))
 	claimed, epoch, err := f.deps.JobStore.ClaimJob(ctx, control.ID)
 	require.NoError(t, err)

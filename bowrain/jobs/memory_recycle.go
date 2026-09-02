@@ -61,26 +61,33 @@ const defaultMemoryMinScore = 0.7
 //
 // The tool fills a target only for near-exact and better matches, guarded so a
 // fill never drops an inline code the source carries; a block is counted as
-// content memory-filled when it carries a fresh target for the locale after the
-// pass. minScore comes from the project's recipe content memory threshold when
-// present (default fuzzy at defaultMemoryMinScore, matching the CLI recycle flow).
-func recycleBlocks(ctx context.Context, tm memory.Store, storedBlocks []*venue.StoredBlock, sourceLocale, targetLocale model.LocaleID, minScore float64) (recycleResult, error) {
+// content memory-filled when the pass put a target on it. minScore comes from
+// the project's recipe content memory threshold when present (default fuzzy at
+// defaultMemoryMinScore, matching the CLI recycle flow).
+//
+// ledger is the stream's recorded bases, which decide which blocks are
+// candidates at all: see decisionLedger.needsDraft.
+func recycleBlocks(ctx context.Context, tm memory.Store, storedBlocks []*venue.StoredBlock, sourceLocale, targetLocale model.LocaleID, minScore float64, ledger decisionLedger) (recycleResult, error) {
 	if minScore <= 0 {
 		minScore = defaultMemoryMinScore
 	}
 
-	// Blocks that already carry a target for this locale are neither recycled
-	// nor re-translated — they are already done. Keep them out of both buckets
-	// so we never re-pay or double-count them.
+	// A block whose target for this locale translates the source the project
+	// holds now is neither recycled nor re-translated. It is done, so keep it out
+	// of both buckets so we never re-pay or double-count it. A block whose
+	// recorded basis names wording that has since been rewritten is candidate
+	// work, and so is one with no target at all.
 	var candidates []*venue.StoredBlock
+	priorTarget := map[string]string{}
 	for _, sb := range storedBlocks {
 		if sb == nil || sb.Block == nil {
 			continue
 		}
-		if hasLocaleTarget(sb.Block, targetLocale) {
+		if !ledger.needsDraft(sb, targetLocale) {
 			continue
 		}
 		candidates = append(candidates, sb)
+		priorTarget[sb.Block.ID] = model.RunsText(localeTargetRuns(sb.Block, targetLocale))
 	}
 
 	//nolint:contextcheck // the recycle tool threads its operation context through the tool VariantView, not this constructor
@@ -92,9 +99,15 @@ func recycleBlocks(ctx context.Context, tm memory.Store, storedBlocks []*venue.S
 		return recycleResult{}, err
 	}
 
+	// A candidate is filled when the pass PUT a target on it, which is the
+	// wording it carries now differing from the wording it carried before. A
+	// stale candidate arrives carrying its previous translation, so asking only
+	// whether a target exists would count every one of them as recycled and send
+	// none of them to the translator that has to redo them.
 	var res recycleResult
 	for _, b := range partsToBlocks(outParts) {
-		if hasLocaleTarget(b, targetLocale) {
+		text := model.RunsText(localeTargetRuns(b, targetLocale))
+		if text != "" && text != priorTarget[b.ID] {
 			res.filled = append(res.filled, b)
 		} else {
 			res.remainder = append(res.remainder, b)

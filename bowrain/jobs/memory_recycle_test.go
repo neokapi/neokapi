@@ -47,7 +47,7 @@ func TestRecycleBlocks_FillsFromMemoryAndLeavesRemainder(t *testing.T) {
 		storedBlock("b2", "Brand new string"),
 	}
 
-	res, err := recycleBlocks(ctx, tm, blocks, "en", "fr", 1.0)
+	res, err := recycleBlocks(ctx, tm, blocks, "en", "fr", 1.0, nil)
 	require.NoError(t, err)
 
 	assert.Equal(t, 1, res.memoryCount, "one block should be filled from content memory")
@@ -72,7 +72,7 @@ func TestRecycleBlocks_SkipsAlreadyTranslated(t *testing.T) {
 	done.Block.Targets = map[model.VariantKey]*model.Target{
 		model.Variant("fr"): {Runs: []model.Run{{Text: &model.TextRun{Text: "Salut"}}}},
 	}
-	res, err := recycleBlocks(ctx, tm, []*venue.StoredBlock{done}, "en", "fr", 1.0)
+	res, err := recycleBlocks(ctx, tm, []*venue.StoredBlock{done}, "en", "fr", 1.0, nil)
 	require.NoError(t, err)
 	assert.Zero(t, res.memoryCount)
 	assert.Empty(t, res.filled)
@@ -187,7 +187,7 @@ func TestRecycleBlocks_FillsUnambiguousLeavesAmbiguous(t *testing.T) {
 	}
 
 	// minScore 0 → the default fuzzy floor.
-	res, err := recycleBlocks(ctx, tm, blocks, "en", "fr", 0)
+	res, err := recycleBlocks(ctx, tm, blocks, "en", "fr", 0, nil)
 	require.NoError(t, err)
 
 	require.Len(t, res.filled, 1, "the unambiguous exact match fills")

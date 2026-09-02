@@ -510,10 +510,6 @@ func (s *EventEmittingStore) ListBlockNotes(ctx context.Context, projectID, stre
 	return s.inner.ListBlockNotes(ctx, projectID, stream, blockID)
 }
 
-func (s *EventEmittingStore) ClearBlockTargets(ctx context.Context, projectID, stream, blockID string) error {
-	return s.inner.ClearBlockTargets(ctx, projectID, stream, blockID)
-}
-
 func (s *EventEmittingStore) DeleteBlockNote(ctx context.Context, projectID, stream, noteID string) error {
 	return s.inner.DeleteBlockNote(ctx, projectID, stream, noteID)
 }

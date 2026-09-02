@@ -13,6 +13,8 @@ import (
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/state"
+	"github.com/neokapi/neokapi/core/venue"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -67,14 +69,16 @@ func seedMultiLocaleProject(t *testing.T, s *Server, wsID string, blocks []*mode
 	return proj.ID, ids
 }
 
-// TestSourceProposal_ProposeApproveReDraftsAllLocales (RV-F) is the required
+// TestSourceProposal_ProposeApproveDemotesEveryLocale (RV-F) is the required
 // end-to-end proof for the back-to-source lane: a reviewer working on fr proposes
 // a source-text fix; a reviewer WITHOUT PermEditSource cannot approve it; a source
 // owner (PermEditSource) approves it, which applies the change to the block's
-// source and INVALIDATES every target locale (fr AND de) so the next convergence
-// pass re-drafts them — the fan-out from one reviewer's find to all locales. A
-// convergence run is started (the re-draft nudge) and the proposal is closed.
-func TestSourceProposal_ProposeApproveReDraftsAllLocales(t *testing.T) {
+// source and DEMOTES every target locale (fr AND de), the fan-out from one
+// reviewer's find to all locales. Each translation stays where it is, carrying a
+// basis that now names wording the block no longer holds, which is what the
+// recycle pass re-drafts on. A convergence run is started (the re-draft nudge)
+// and the proposal is closed.
+func TestSourceProposal_ProposeApproveDemotesEveryLocale(t *testing.T) {
 	s, wsID, ownerID := newRecheckHarness(t)
 	ctx := context.Background()
 
@@ -89,6 +93,23 @@ func TestSourceProposal_ProposeApproveReDraftsAllLocales(t *testing.T) {
 	projID, ids := seedMultiLocaleProject(t, s, wsID, []*model.Block{b1})
 	blockID := ids["Colour picker"]
 	require.NotEmpty(t, blockID)
+
+	// The ledger holds the fr approval, recorded against the source as it reads
+	// now. The source change is about to make that basis stale.
+	ds, isLedger := s.ContentStore.(platstore.DecisionStore)
+	require.True(t, isLedger)
+	_, uerr := ds.UpsertUnitDecisions(ctx, projID, "main", []venue.UnitDecision{{
+		ItemName:    "ui.json",
+		Unit:        "b1",
+		Variant:     "fr",
+		Status:      string(model.TargetStatusReviewed),
+		TargetHash:  state.TargetHash("Sélecteur de couleur"),
+		ContentHash: state.SourceHash("Colour picker"),
+		ReviewState: "approved",
+		DecidedBy:   "reviewer-1",
+		Updated:     "2026-01-01T00:00:00Z",
+	}})
+	require.NoError(t, uerr)
 
 	// A reviewer on fr proposes fixing the source spelling. PermReview is enough to
 	// PROPOSE — no PermEditSource needed yet.
@@ -123,15 +144,32 @@ func TestSourceProposal_ProposeApproveReDraftsAllLocales(t *testing.T) {
 	assert.Equal(t, true, decideResp["applied"])
 	assert.Equal(t, true, decideResp["run_started"], "approval starts a convergence run to re-draft")
 
-	// The source is updated and EVERY target locale is invalidated (the fan-out) —
-	// the worker skips a block that still has a target, so clearing is what forces a
-	// re-draft.
+	// The source is updated and EVERY target locale is demoted (the fan-out). The
+	// translations stay: they are what the content memory recycles from and what a
+	// reviewer compares the new draft against.
 	sb, err := s.ContentStore.GetBlock(ctx, projID, "main", blockID)
 	require.NoError(t, err)
 	assert.Equal(t, "Color picker", sb.Block.SourceText(), "the approved source change is applied")
-	assert.Nil(t, sb.Block.Target("fr"), "fr target invalidated → re-drafted from the new source")
-	assert.Nil(t, sb.Block.Target("de"), "de target invalidated too → fan-out to ALL locales, not just the finder's")
+	require.NotNil(t, sb.Block.Target("fr"), "the fr translation is kept")
+	assert.Equal(t, "Sélecteur de couleur", sb.Block.TargetText("fr"))
+	assert.Equal(t, model.TargetStatusTranslated, sb.Block.Target("fr").Status,
+		"the fr approval blessed wording the source no longer carries → back to the presence baseline")
+	require.NotNil(t, sb.Block.Target("de"), "the de translation is kept too, so the fan-out reaches ALL locales")
+	assert.Equal(t, "Farbwähler", sb.Block.TargetText("de"))
+	assert.Equal(t, model.TargetStatusTranslated, sb.Block.Target("de").Status)
 	assert.Equal(t, model.SourceStatusNew, sb.Block.SourceStatus, "the changed source re-settles on the next pass")
+
+	// The ledger grades the kept translation against the source the project holds
+	// now: the fr approval's basis names wording that is gone.
+	tallies, terr := ds.TallyDecisionBasis(ctx, projID, "main")
+	require.NoError(t, terr)
+	stale := 0
+	for _, tl := range tallies {
+		if tl.Variant == "fr" {
+			stale += tl.Stale
+		}
+	}
+	assert.Equal(t, 1, stale, "the fr decision reads stale against the rewritten source")
 
 	// A convergence run was started to drive the re-draft.
 	runs, err := s.ConvergenceRunStore.ListRuns(ctx, projID, 20)
