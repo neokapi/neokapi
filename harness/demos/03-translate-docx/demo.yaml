@@ -1,6 +1,6 @@
 id: 03-translate-docx
 title: Translate a document, structure intact
-subtitle: A Word announcement, translated into Japanese with kapi — headings, lists, and formatting preserved.
+subtitle: A Word announcement, translated into Japanese with kapi, keeping its headings, lists and formatting.
 kind: use-case
 publishAs: claude-translate-document
 aspects:
@@ -16,16 +16,16 @@ prompt: >
 
 artifacts:
   - id: before
-    caption: "announcement.docx — the original English document"
+    caption: "announcement.docx: the original English document"
     source: docx
     path: announcement.docx
     from: fixture
     reportTitle: "announcement.docx"
-    reportSub: "English — the original Word document"
+    reportSub: "English, the original Word document"
     width: 1100
     height: 860
   - id: after
-    caption: "announcement.ja.docx — translated, structure and formatting intact"
+    caption: "announcement.ja.docx: translated, structure and formatting intact"
     source: docx
     path: announcement.ja.docx
     reportTitle: "announcement.ja.docx"
@@ -42,21 +42,22 @@ narration:
   - id: prompt
     kind: prompt
     text: >
-      The developer just asks to translate the document — nothing about the file format or
-      how to keep the layout.
+      The developer just asks to translate the document, and says nothing about the file
+      format or how to keep the layout.
   - id: work
     kind: terminal
     text: >
       Claude hands the document to kapi, which reads the Word format directly. It translates
-      the text into Japanese and writes a new document back — a structured round-trip, the
-      same one command for any document or language. Just a simple and unverified AI translation
-      in this demo, but kapi could also route this through human review and do compliance checks.
+      the text into Japanese and writes a new document back. It is a structured round-trip,
+      the same one command for any document or language. This demo shows a plain, unverified
+      AI translation; kapi can also route the same result through human review and hold it to
+      the project's terminology and voice checks.
     caption: "kapi reads the .docx, translates the text, writes a new document"
   - id: before
     kind: artifact
     artifact: before
     text: >
-      Here's the original — headings, a bullet list, bold dates, a contact line.
+      Here's the original: headings, a bullet list, bold dates, a contact line.
   - id: after
     kind: artifact
     artifact: after
@@ -66,5 +67,5 @@ narration:
   - id: outro
     kind: outro
     text: >
-      One command, and the document speaks Japanese — its structure intact. The same approach
-      can be applied to over 50 file formats with kapi.
+      One command, and the document speaks Japanese with its structure intact. The same
+      command reads every document and catalog format kapi supports.
