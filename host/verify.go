@@ -92,7 +92,7 @@ func (o verifyOutput) FormatText(w io.Writer) error {
 		if !g.Pass {
 			result = gs.Error.Render("FAIL")
 		}
-		gates.Rowf(g.Gate, result, len(g.Findings))
+		gates.Rowf(gateDisplayName(g.Gate), result, len(g.Findings))
 	}
 	gates.Render()
 
@@ -103,7 +103,7 @@ func (o verifyOutput) FormatText(w io.Writer) error {
 			continue
 		}
 		fmt.Fprintln(w)
-		output.Title(w, g.Gate+":")
+		output.Title(w, gateDisplayName(g.Gate)+":")
 		t := output.NewTable(w).Headers("severity", "location", "message")
 		s := t.Styles()
 		for _, f := range g.Findings {
@@ -132,7 +132,7 @@ func (o verifyOutput) FormatText(w io.Writer) error {
 	if !o.Pass {
 		verdict = gs.Error.Render("FAIL")
 	}
-	fmt.Fprintf(w, "%s — %d gate(s), %d passed, %d failed, %d finding(s) (%d error, %d warning)\n",
+	fmt.Fprintf(w, "%s: %d gate(s), %d passed, %d failed, %d finding(s) (%d error, %d warning)\n",
 		verdict, o.Summary.Gates, o.Summary.Passed, o.Summary.Failed,
 		o.Summary.Findings, o.Summary.Errors, o.Summary.Warnings)
 	return nil
@@ -176,6 +176,24 @@ const gateFlagName = "gate"
 // selectableGates are the gate names --gate accepts, in the order they run.
 var selectableGates = []string{gateVoice, gateTerms, gateChecks}
 
+// gateDisplayNames maps a gate id to the label the human-readable output shows.
+// The id is the contract: --gate takes it, the JSON result carries it, and a
+// recipe key names it. A gate whose id reads as an abbreviation gets a label
+// here rather than a rename, so a reader sees the repo's own vocabulary while
+// every machine-readable surface keeps the byte-identical id.
+var gateDisplayNames = map[string]string{
+	gateChecks: "checks",
+}
+
+// gateDisplayName returns the label for a gate id in human-readable output, or
+// the id itself when the label and the id are the same word.
+func gateDisplayName(id string) string {
+	if label, ok := gateDisplayNames[id]; ok {
+		return label
+	}
+	return id
+}
+
 // CmdContext returns the command's context, or context.Background() when the
 // command was invoked outside cobra's Execute (e.g. in unit tests) and has no
 // context set. Format readers select on ctx.Done(), so a nil context panics.
@@ -203,7 +221,7 @@ func resolveGateSelection(cmd Command) (gateSelection, error) {
 		case gateChecks:
 			sel.qa = true
 		default:
-			return gateSelection{}, fmt.Errorf("unknown gate %q — pass one of: %s",
+			return gateSelection{}, fmt.Errorf("unknown gate %q; pass one of: %s",
 				n, strings.Join(selectableGates, ", "))
 		}
 	}
@@ -474,7 +492,7 @@ func (a *App) verifyShip(cmd Command, proj *project.KapiProject, root string, un
 				Gate:     gateShip,
 				Locale:   lc.Locale,
 				Severity: "error",
-				Message: fmt.Sprintf("%s: %d unit(s) stale — the source changed since the translation was decided",
+				Message: fmt.Sprintf("%s: %d unit(s) stale, so the source changed since the translation was decided",
 					scope, lc.Stale),
 				Suggestion: "re-review the stale units (kapi status --review) or retranslate them",
 			})
@@ -540,7 +558,7 @@ func unboundGate(gate, binding string) verifyGateResult {
 		Findings: []verifyFinding{{
 			Gate:       gate,
 			Severity:   "error",
-			Message:    fmt.Sprintf("%s gate was requested with %s but the project binds no %s — nothing to check", gate, flag, binding),
+			Message:    fmt.Sprintf("%s gate was requested with %s but the project binds no %s, so there is nothing to check", gate, flag, binding),
 			Suggestion: fmt.Sprintf("add %s to the kapi.yaml recipe, or drop %s to skip this gate", binding, flag),
 		}},
 	}
@@ -1204,7 +1222,7 @@ func (a *App) verifyChecks(cmd Command, proj *project.KapiProject, root string, 
 			// path (a directory occupying it, say) is not pending translation
 			// work — it is an obstruction the user must clear, and saying
 			// "translate the source content" would send them the wrong way.
-			message := "target file is missing — content is untranslated"
+			message := "target file is missing, so the content is untranslated"
 			suggestion := "translate the source content for this locale"
 			if berr := blockedTargetPath(u.TargetPath); berr != nil {
 				message = berr.Error()
@@ -1338,7 +1356,7 @@ func checkFindingSuggestion(f check.Finding) string {
 	case "extra-code", "non-cloneable-span-duplicated":
 		return "remove placeholders/tags that are not present in the source"
 	case "target-same-as-source":
-		return "translate the target — it is identical to the source"
+		return "translate the target; it is identical to the source"
 	}
 	return ""
 }
@@ -1720,6 +1738,6 @@ func AddVerifyFlags(cmd Command) {
 	cmd.Flags().String("locale", "", "scope terminology and the rule-based checks to a single target locale (e.g. fr)")
 	cmd.Flags().String("termstore", "", "named terms or path to a terms store (defaults to the project terms store)")
 	cmd.Flags().Bool("json", false, "output the structured result as JSON")
-	cmd.Flags().Bool("ship", false, "also enforce the project's ship gates: fail if any locale's coverage is below its gate (the pre-release bar). Off by default — target drift is non-blocking; see 'kapi status'.")
+	cmd.Flags().Bool("ship", false, "also enforce the project's ship gates: fail if any locale's coverage is below its gate (the pre-release bar). Off by default, because target drift is non-blocking; see 'kapi status'.")
 	cmd.Flags().Bool("no-fail", false, "report only: exit 0 even when a gate fails (verdict is in the output/--json). Use inside an assistant fix-loop; omit for CI gating.")
 }
