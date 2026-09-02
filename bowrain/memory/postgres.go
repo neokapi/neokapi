@@ -28,6 +28,10 @@ type PostgresStore struct {
 	workspaceID string
 }
 
+// PostgresStore answers a block's version chain, so the platform translate
+// assembly and the review context both reach the prior version they bind for.
+var _ fw.VersionReader = (*PostgresStore)(nil)
+
 // NewPostgresStoreFromDB creates a PostgresStore using an existing shared PgDB
 // connection. workspaceID scopes all entries to a specific workspace.
 func NewPostgresStoreFromDB(db *storage.PgDB, workspaceID string) (*PostgresStore, error) {
@@ -61,12 +65,24 @@ func NewPostgresStoreFromDB(db *storage.PgDB, workspaceID string) (*PostgresStor
 // migrate pass quietly destroyed the content memory it exists to preserve.
 //
 // Baseline is version 6, above every number issued. Retired numbers are never
-// reused; the next migration is version 7.
+// reused; the next migration is version 8.
+//
+//	7  the version chain: unit, point, and the governing context per origin
+//
+// Version 7 is an ALTER rather than an edit to the baseline. A live database
+// has already recorded 6, so the runner skips it forever; folding a column into
+// the baseline would reach a fresh database and no other, and the server would
+// keep answering an empty chain wherever it already runs.
 var Migrations = []storage.Migration{
 	{
 		Version:     6,
 		Description: "content memory baseline (folds 4-5; 1-3 retired earlier)",
 		SQL:         schema.RenderMemoryPostgresBaseline("workspace_id"),
+	},
+	{
+		Version:     7,
+		Description: "version chain: unit, point, and the origin's governing context",
+		SQL:         schema.RenderMemoryPostgresVersionChain("workspace_id"),
 	},
 }
 
@@ -119,17 +135,20 @@ func (tm *PostgresStore) AddWithStream(ctx context.Context, entry fw.Entry, stre
 
 	if _, err := tm.db.ExecContext(ctx, `
 		INSERT INTO tm_entries
-			(workspace_id, id, project_id, stream, hint_src_lang, properties, note, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9)
+			(workspace_id, id, project_id, stream, hint_src_lang, properties, note, point, unit, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, $10, $11)
 		ON CONFLICT (workspace_id, id) DO UPDATE SET
 			project_id    = EXCLUDED.project_id,
 			stream        = EXCLUDED.stream,
 			hint_src_lang = EXCLUDED.hint_src_lang,
 			properties    = EXCLUDED.properties,
 			note          = EXCLUDED.note,
+			point         = EXCLUDED.point,
+			unit          = EXCLUDED.unit,
 			updated_at    = EXCLUDED.updated_at
 	`, tm.workspaceID, entry.ID, entry.ProjectID, stream,
 		string(entry.HintSrcLang), string(propsJSON), entry.Note,
+		entry.Point, entry.Unit,
 		entry.CreatedAt, entry.UpdatedAt); err != nil {
 		return fmt.Errorf("upsert entry: %w", err)
 	}
@@ -202,10 +221,10 @@ func (tm *PostgresStore) AddWithStream(ctx context.Context, entry fw.Entry, stre
 			addedAt = now
 		}
 		if _, err := tm.db.ExecContext(ctx, `INSERT INTO tm_entry_origins
-			(workspace_id, entry_id, ordinal, source, key, reference, added_at, added_by, session_id)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+			(workspace_id, entry_id, ordinal, source, key, reference, added_at, added_by, session_id, context_fp)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
 			tm.workspaceID, entry.ID, i, o.Source, o.Key, o.Reference,
-			addedAt, o.AddedBy, o.SessionID); err != nil {
+			addedAt, o.AddedBy, o.SessionID, o.ContextFingerprint); err != nil {
 			return fmt.Errorf("insert origin: %w", err)
 		}
 	}
@@ -229,6 +248,57 @@ func (tm *PostgresStore) Delete(ctx context.Context, id string) error {
 		return fmt.Errorf("entry not found: %s", id)
 	}
 	return nil
+}
+
+// --- versions ---
+
+// Versions returns a block's prior answers from the server corpus.
+//
+// The var _ fw.VersionReader assertion above is what binds this to the
+// capability: the platform translate assembly and the review context both
+// type-assert for VersionReader and skip the prior-version section when the
+// store lacks it, so a dropped method shows up as an empty panel rather than as
+// a build failure.
+//
+// Entries written before the version chain existed carry no unit and answer no
+// chain. Nothing backfills them: a unit is resolved by reconciliation over a
+// project's own content, and inventing one from stored text would link answers
+// that were never the same block. The standing decision is to reset the data
+// rather than migrate it while the dogfood setup is the only tenant
+// (bowrain-infra/docs/runbooks/data-reset.md).
+func (tm *PostgresStore) Versions(ctx context.Context, q fw.VersionQuery, excludeID string) ([]fw.Version, error) {
+	if q.Unit == "" {
+		return nil, fw.ErrVersionQueryNeedsUnit
+	}
+
+	where := "workspace_id = $1 AND unit = $2"
+	args := []any{tm.workspaceID, q.Unit}
+	if q.Point != "" {
+		where += " AND point = $3"
+		args = append(args, q.Point)
+	}
+
+	rows, err := tm.db.QueryContext(ctx,
+		`SELECT id FROM tm_entries WHERE `+where+` ORDER BY updated_at DESC, id DESC`, args...)
+	if err != nil {
+		return nil, fmt.Errorf("select versions: %w", err)
+	}
+	defer rows.Close()
+	ids, err := scanStringColumn(rows)
+	if err != nil {
+		return nil, fmt.Errorf("scan version ids: %w", err)
+	}
+	if len(ids) == 0 {
+		return nil, nil
+	}
+
+	// Hydrated through the same path every other read uses, so a version carries
+	// the variants, entities and origins a caller needs to judge it.
+	entries, err := tm.loadEntriesByIDs(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	return fw.VersionsFrom(entries, q, excludeID), nil
 }
 
 // --- lookup ---
@@ -401,7 +471,7 @@ func (tm *PostgresStore) loadEntriesByIDs(ctx context.Context, ids []string) ([]
 	}
 	inClause := strings.Join(placeholders, ",")
 
-	entryQ := `SELECT id, project_id, hint_src_lang, properties::text, note, created_at, updated_at
+	entryQ := `SELECT id, project_id, hint_src_lang, properties::text, note, point, unit, created_at, updated_at
 		FROM tm_entries WHERE workspace_id = $1 AND id IN (` + inClause + `)`
 	rows, err := tm.db.QueryContext(ctx, entryQ, args...)
 	if err != nil {
@@ -414,7 +484,7 @@ func (tm *PostgresStore) loadEntriesByIDs(ctx context.Context, ids []string) ([]
 		var e fw.Entry
 		var hint, propsJSON, note string
 		var createdAt, updatedAt time.Time
-		if err := rows.Scan(&e.ID, &e.ProjectID, &hint, &propsJSON, &note, &createdAt, &updatedAt); err != nil {
+		if err := rows.Scan(&e.ID, &e.ProjectID, &hint, &propsJSON, &note, &e.Point, &e.Unit, &createdAt, &updatedAt); err != nil {
 			return nil, fmt.Errorf("scan entry: %w", err)
 		}
 		e.HintSrcLang = model.LocaleID(hint)
@@ -534,7 +604,7 @@ func (tm *PostgresStore) loadEntriesByIDs(ctx context.Context, ids []string) ([]
 
 	// Origins.
 	originRows, err := tm.db.QueryContext(ctx, `
-		SELECT entry_id, source, key, reference, added_at, added_by, session_id
+		SELECT entry_id, source, key, reference, added_at, added_by, session_id, context_fp
 		FROM tm_entry_origins WHERE workspace_id = $1 AND entry_id IN (`+inClause+`)
 		ORDER BY entry_id, ordinal
 	`, args...)
@@ -544,7 +614,7 @@ func (tm *PostgresStore) loadEntriesByIDs(ctx context.Context, ids []string) ([]
 	for originRows.Next() {
 		var eid string
 		var o fw.Origin
-		if err := originRows.Scan(&eid, &o.Source, &o.Key, &o.Reference, &o.AddedAt, &o.AddedBy, &o.SessionID); err != nil {
+		if err := originRows.Scan(&eid, &o.Source, &o.Key, &o.Reference, &o.AddedAt, &o.AddedBy, &o.SessionID, &o.ContextFingerprint); err != nil {
 			originRows.Close()
 			return nil, fmt.Errorf("scan origin: %w", err)
 		}

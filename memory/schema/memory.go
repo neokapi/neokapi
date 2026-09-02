@@ -37,28 +37,34 @@ var (
 			// has_codes is added by a later migration (v3 SQLite); Postgres
 			// derives the facet at query time and never stores it.
 			{Name: "has_codes", SQLite: "INTEGER NOT NULL DEFAULT 0"},
-			// point is added by a later migration (v4 SQLite): the context
-			// point an answer was approved at. SQLite only — the point resolves
-			// from a recipe, which is a project's own artifact, and the server
-			// scopes a decision by the item it belongs to instead.
-			{Name: "point", SQLite: "TEXT NOT NULL DEFAULT ''"},
-			// unit is added by a later migration (v5 SQLite): the durable block
+			// point is added by a later migration (v4 SQLite, v7 Postgres): the
+			// context point an answer was approved at. A project resolves it
+			// from its recipe and the server renders it from the collection a
+			// decision belongs to, so both backends store it and a chain
+			// narrows to one place on either.
+			{Name: "point", SQLite: "TEXT NOT NULL DEFAULT ''", PG: "TEXT NOT NULL DEFAULT ''"},
+			// unit is added by a later migration (v5 SQLite, v7 Postgres): the durable block
 			// identity this answer was approved for (model.Block.Unit), and the
 			// only thing that links successive approvals of one block into a
 			// version chain. The corpus already holds every version — a changed
 			// source writes a new entry beside the old rather than replacing it
 			// — but keyed by text, nothing said the two were the same block.
 			//
-			// SQLite only, for the same reason as point: a unit is resolved by
-			// reconciliation over a project's own content, and the server scopes
-			// by the item a decision belongs to instead.
-			{Name: "unit", SQLite: "TEXT NOT NULL DEFAULT ''"},
+			// A unit is resolved by reconciliation over a project's own content
+			// and travels the sync protocol to the server, so both backends
+			// store it and the same chain is answerable wherever the corpus
+			// lives.
+			{Name: "unit", SQLite: "TEXT NOT NULL DEFAULT ''", PG: "TEXT NOT NULL DEFAULT ''"},
 		},
 		PGPK: []string{"id"},
 		Indexes: []sq.Index{
 			{Name: "idx_tm_project", PGName: "idx_tm_ws_project", Cols: []string{"project_id"}},
 			{Name: "idx_tm_updated", PGName: "idx_tm_ws_updated", Cols: []string{"updated_at DESC"}},
 			{Name: "idx_tm_stream", PGName: "idx_tm_ws_stream", Cols: []string{"stream"}},
+			// The chain lookup's index. (unit, point) in that order because the
+			// question is always "this block, near here": a unit alone spans
+			// every point the block has ever sat at.
+			{Name: "idx_tm_unit", PGName: "idx_tm_ws_unit", Cols: []string{"unit", "point"}},
 		},
 	}
 
@@ -163,9 +169,10 @@ var (
 			{Name: "added_at", SQLite: "TEXT NOT NULL", PG: "TIMESTAMPTZ NOT NULL DEFAULT NOW()"},
 			{Name: "added_by", SQLite: "TEXT NOT NULL DEFAULT ''", PG: "TEXT NOT NULL DEFAULT ''"},
 			{Name: "session_id", SQLite: "TEXT NOT NULL DEFAULT ''", PG: "TEXT NOT NULL DEFAULT ''"},
-			// context_fp is added by a later migration (v5 SQLite): the
-			// governing context in force when this answer was produced, as
-			// model.Origin.ContextFingerprint records it on the target.
+			// context_fp is added by a later migration (v5 SQLite, v7
+			// Postgres): the governing context in force when this answer was
+			// produced, as model.Origin.ContextFingerprint records it on the
+			// target.
 			//
 			// The corpus needs it because an answer is only reusable under the
 			// rules it was approved under. Without it a prior version can be
@@ -173,7 +180,7 @@ var (
 			// would anchor on wording the rules in force may since have
 			// rejected. Per origin rather than per entry, so re-absorbing under
 			// moved governance appends rather than overwrites.
-			{Name: "context_fp", SQLite: "TEXT NOT NULL DEFAULT ''"},
+			{Name: "context_fp", SQLite: "TEXT NOT NULL DEFAULT ''", PG: "TEXT NOT NULL DEFAULT ''"},
 		},
 		PK:  []string{"entry_id", "ordinal"},
 		FKs: []sq.FK{{Cols: []string{"entry_id"}, RefTable: "tm_entries", RefCols: []string{"id"}, SQLiteInline: true}},
@@ -292,7 +299,7 @@ func RenderMemorySQLiteV4() string {
 func RenderMemorySQLiteV5() string {
 	o := sq.Opt{}
 	return "\n" + memoryEntries.AddColumn(sq.SQLite, o, "unit") +
-		"\t\tCREATE INDEX IF NOT EXISTS idx_tm_unit ON tm_entries(unit, point);\n" +
+		memoryEntries.CreateIndexes(sq.SQLite, sq.Opt{IfNotExists: true}, "idx_tm_unit") +
 		memoryEntryOrigins.AddColumn(sq.SQLite, o, "context_fp") + "\t\t"
 }
 
@@ -373,4 +380,20 @@ func RenderMemoryPostgresConceptID(tenantColumn string) string {
 	o := sq.Opt{TenantColumn: tenantColumn, IfNotExists: true}
 	return memoryEntryEntities.AddColumn(sq.Postgres, o, "concept_id") +
 		memoryEntryEntities.CreateIndexes(sq.Postgres, o, "idx_entities_concept")
+}
+
+// RenderMemoryPostgresVersionChain renders the Postgres migration that lets the
+// server corpus answer a version chain: the block an answer was approved for,
+// the point it was approved at, the governing context each origin recorded, and
+// the index the chain lookup walks.
+//
+// ALTER rather than a wider baseline, because the baseline sits below the
+// version every live database has already recorded and so never runs again
+// there. A column folded into it would reach a fresh database and no other.
+func RenderMemoryPostgresVersionChain(tenantColumn string) string {
+	o := sq.Opt{TenantColumn: tenantColumn, IfNotExists: true}
+	return memoryEntries.AddColumn(sq.Postgres, o, "point") +
+		memoryEntries.AddColumn(sq.Postgres, o, "unit") +
+		memoryEntryOrigins.AddColumn(sq.Postgres, o, "context_fp") +
+		memoryEntries.CreateIndexes(sq.Postgres, o, "idx_tm_unit")
 }
