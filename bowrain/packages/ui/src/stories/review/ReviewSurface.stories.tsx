@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { fn } from "storybook/test";
+import { expect, fn, userEvent, within } from "storybook/test";
 import { ReviewSurface } from "../../components/ReviewSurface";
 import { createProvidersDecorator } from "../decorators";
 import { sampleBlocks, sampleProject } from "../fixtures";
@@ -48,4 +48,30 @@ export const WithFindings: Story = {
       ],
     }),
   ],
+};
+
+/**
+ * A block opened with everything the server resolved behind it: the
+ * content-memory wording the bulk pass would otherwise apply unseen, the
+ * findings behind its voice score with their suggestions, the last decision
+ * and its note, and how the target was produced.
+ */
+export const InspectorWithContext: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(await canvas.findByTestId("review-block-blk-1"));
+    await expect(await canvas.findByTestId("review-inspector")).toBeInTheDocument();
+  },
+};
+
+/**
+ * The same inspector for a block nothing governs, nothing matched and nobody
+ * has decided. Every layer names its own emptiness rather than leaving a gap.
+ */
+export const InspectorWithoutContext: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(await canvas.findByTestId("review-block-blk-3"));
+    await expect(await canvas.findByTestId("review-inspector")).toBeInTheDocument();
+  },
 };

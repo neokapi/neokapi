@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -1018,6 +1019,13 @@ func sqliteBlockFilter(query platstore.BlockQuery, withStatus bool) blockFilterS
 		where = append(where, "b.id > ?")
 		whereArgs = append(whereArgs, query.AfterID)
 	}
+	// The cursor pointing the other way — see BlockQuery.BeforeID. The rows are
+	// selected in descending id order so a Limit takes the NEAREST predecessors;
+	// GetBlocks puts them back in ascending order.
+	if query.BeforeID != "" {
+		where = append(where, "b.id < ?")
+		whereArgs = append(whereArgs, query.BeforeID)
+	}
 	if query.Translatable != nil {
 		v := 0
 		if *query.Translatable {
@@ -1058,7 +1066,11 @@ func (s *SQLiteStore) GetBlocks(ctx context.Context, query platstore.BlockQuery)
 	// value binds through args. Limit and offset are ints, formatted.
 	const skeleton = `SELECT b.id, b.project_id, b.item_name, b.source_id, b.name, b.type, b.mime_type, b.translatable,
 			b.content_hash, b.context_hash, b.source_json, b.properties, b.overlays, b.stored_at, b.updated_at
-		 FROM blocks b %s WHERE %s ORDER BY b.id%s`
+		 FROM blocks b %s WHERE %s ORDER BY b.id%s%s`
+	order := ""
+	if query.BeforeID != "" {
+		order = " DESC"
+	}
 	page := ""
 	if query.Limit > 0 {
 		page += fmt.Sprintf(" LIMIT %d", query.Limit)
@@ -1067,13 +1079,16 @@ func (s *SQLiteStore) GetBlocks(ctx context.Context, query platstore.BlockQuery)
 		page += fmt.Sprintf(" OFFSET %d", query.Offset)
 	}
 
-	rows, err := s.db.QueryContext(ctx, fmt.Sprintf(skeleton, f.join, f.where, page), f.args...)
+	rows, err := s.db.QueryContext(ctx, fmt.Sprintf(skeleton, f.join, f.where, order, page), f.args...)
 	if err != nil {
 		return nil, fmt.Errorf("query blocks: %w", err)
 	}
 	result, err := storage.ScanRows(rows, scanStoredBlock)
 	if err != nil {
 		return nil, err
+	}
+	if order != "" {
+		slices.Reverse(result)
 	}
 	if err := bstore.HydrateOverlays(ctx, s.db.DB, "sqlite", query.ProjectID, storeutil.DefaultStream(query.Stream), result); err != nil {
 		return nil, err

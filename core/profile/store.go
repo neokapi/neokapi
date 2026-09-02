@@ -46,6 +46,19 @@ type Store interface {
 	Close() error
 }
 
+// BlockScoreReader reads the latest score for ONE block in one locale, with the
+// findings behind it. A surface showing why a block scored what it did asks for
+// that block; GetScoresByStream answers for the whole stream, and every finding
+// it carries is deserialized whether the caller wants one block's or not.
+//
+// Optional — assert for it — so a store that only lists scores keeps compiling.
+type BlockScoreReader interface {
+	// GetBlockScore returns the newest score for (block, locale) on a stream, or
+	// nil with no error when nothing has scored it. An unscored block is the
+	// ordinary case: no profile is bound, or the block predates the scoring pass.
+	GetBlockScore(ctx context.Context, projectID, stream, blockID string, loc model.LocaleID) (*StoredScore, error)
+}
+
 // RuleDecisionStatus is the governance state of a correction-derived candidate
 // rule for a given profile.
 type RuleDecisionStatus string

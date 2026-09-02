@@ -600,6 +600,17 @@ func (s *EventEmittingStore) ListUnitDecisions(ctx context.Context, projectID, s
 	return ds.ListUnitDecisions(ctx, projectID, stream)
 }
 
+// GetUnitDecision forwards the optional UnitDecisionReader capability. A store
+// without it holds no ledger to read, which reads as "no decision yet" — the
+// same answer a unit awaiting its first decision gives.
+func (s *EventEmittingStore) GetUnitDecision(ctx context.Context, projectID, stream, itemName, unit, variant string) (*venue.UnitDecision, error) {
+	dr, ok := s.inner.(store.UnitDecisionReader)
+	if !ok {
+		return nil, nil
+	}
+	return dr.GetUnitDecision(ctx, projectID, stream, itemName, unit, variant)
+}
+
 // TallyDecisionBasis forwards the optional DecisionStore capability. A store
 // that keeps no ledger grades nothing, which the dashboard reads as no stale
 // units — the same answer a project with no decisions gives.

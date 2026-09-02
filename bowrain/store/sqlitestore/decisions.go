@@ -213,6 +213,29 @@ func (s *SQLiteStore) ListUnitDecisions(ctx context.Context, projectID, stream s
 	return out, rows.Err()
 }
 
+// GetUnitDecision implements platstore.UnitDecisionReader.
+func (s *SQLiteStore) GetUnitDecision(ctx context.Context, projectID, stream, itemName, unit, variant string) (*venue.UnitDecision, error) {
+	stream = storeutil.DefaultStream(stream)
+	d := venue.UnitDecision{ProjectID: projectID, Stream: stream}
+	var parked int
+	err := s.db.QueryRowContext(ctx,
+		`SELECT item_name, unit, variant, status, target_hash, content_hash, review_state,
+			decided_by, decided_at, note, parked, assignee, updated
+		 FROM unit_decisions
+		 WHERE project_id=? AND stream=? AND item_name=? AND unit=? AND variant=?`,
+		projectID, stream, itemName, unit, variant).
+		Scan(&d.ItemName, &d.Unit, &d.Variant, &d.Status, &d.TargetHash, &d.ContentHash,
+			&d.ReviewState, &d.DecidedBy, &d.DecidedAt, &d.Note, &parked, &d.Assignee, &d.Updated)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get decision: %w", err)
+	}
+	d.Parked = parked != 0
+	return &d, nil
+}
+
 // TallyDecisionBasis implements platstore.DecisionStore — the SQLite mirror of
 // the Postgres grading, joining each decision's recorded basis to the block's
 // current source hash.

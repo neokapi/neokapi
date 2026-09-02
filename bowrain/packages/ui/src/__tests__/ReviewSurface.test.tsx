@@ -338,26 +338,56 @@ describe("ReviewSurface — bulk actions are one request", () => {
     expect(screen.getByTestId("review-block-b2")).toHaveAttribute("data-status", "reviewed");
   });
 
-  it("applies content memory across the batch in one request", async () => {
+  it("asks the pass what it would write before writing it", async () => {
     const user = userEvent.setup();
     const { adapter } = renderSurface();
-    const bulk = vi.spyOn(adapter, "bulkApplyMemory");
+    const bulk = vi.spyOn(adapter, "bulkApplyMemory").mockResolvedValue({
+      applied: [{ block_id: "b1", text: "Bonjour le monde", score: 1 }],
+      skipped: [{ block_id: "b2", reason: "no match above threshold" }],
+    });
     const lookup = vi.spyOn(adapter, "lookupMemoryForBlock");
     await waitForDocument();
 
     await user.click(screen.getByTestId("mark-all-shown"));
     await user.click(screen.getByTestId("bulk-apply-tm"));
 
+    // The first request is the preview: nothing is written yet.
     await waitFor(() => expect(bulk).toHaveBeenCalledTimes(1));
-    const req = bulk.mock.calls[0][1];
-    expect([...req.block_ids].sort()).toEqual(["b1", "b2", "b3"]);
-    expect(req).toMatchObject({ project_id: sampleProject.id, target_locale: "fr-FR" });
+    const previewReq = bulk.mock.calls[0][1];
+    expect([...previewReq.block_ids].sort()).toEqual(["b1", "b2", "b3"]);
+    expect(previewReq).toMatchObject({
+      project_id: sampleProject.id,
+      target_locale: "fr-FR",
+      preview: true,
+    });
+
+    // The reviewer reads the wording that is about to land, then commits.
+    const dialog = await screen.findByTestId("apply-memory-dialog");
+    expect(dialog.textContent).toContain("Bonjour le monde");
+    await user.click(screen.getByTestId("apply-memory-confirm"));
+
+    await waitFor(() => expect(bulk).toHaveBeenCalledTimes(2));
+    expect(bulk.mock.calls[1][1].preview).toBeUndefined();
     // No per-block lookup + write pair anymore.
     expect(lookup).not.toHaveBeenCalled();
-    // The mock holds no content memory, so nothing clears the threshold.
     await waitFor(() =>
-      expect(screen.getByText("Applied 0 exact content-memory match(es)")).toBeInTheDocument(),
+      expect(screen.getByText("Applied 1 exact content-memory match(es)")).toBeInTheDocument(),
     );
+  });
+
+  it("says so when the batch matches nothing, and applies nothing", async () => {
+    const user = userEvent.setup();
+    const { adapter } = renderSurface();
+    const bulk = vi.spyOn(adapter, "bulkApplyMemory");
+    await waitForDocument();
+
+    await user.click(screen.getByTestId("mark-all-shown"));
+    await user.click(screen.getByTestId("bulk-apply-tm"));
+
+    const dialog = await screen.findByTestId("apply-memory-dialog");
+    expect(dialog.textContent).toContain("Nothing to apply");
+    expect(screen.getByTestId("apply-memory-confirm")).toBeDisabled();
+    expect(bulk).toHaveBeenCalledTimes(1);
   });
 });
 

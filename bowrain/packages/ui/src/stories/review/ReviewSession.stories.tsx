@@ -117,7 +117,12 @@ const meta: Meta<typeof ReviewSession> = {
 export default meta;
 type Story = StoryObj<typeof ReviewSession>;
 
-/** The queue + focused reviewer, with the "Approve all passing" fast path. */
+/**
+ * The queue + focused reviewer, with the "Approve all passing" fast path and
+ * the five layers of context the server resolved for the unit under the cursor:
+ * the point rail, the neighbours, the anchored findings, the content-memory
+ * match, and the provenance.
+ */
 export const Default: Story = {
   args: { project: sampleProject, dashboardStats: pendingStats, stream: "main" },
 };
@@ -125,4 +130,27 @@ export const Default: Story = {
 /** All-clear: nothing pending review. */
 export const AllClear: Story = {
   args: { project: sampleProject, dashboardStats: clearStats, stream: "main" },
+};
+
+/**
+ * The same queue for a unit nothing governs: no profile bound, no terms
+ * matched, no neighbours, no content-memory match and no decision recorded.
+ * The layers each name their own emptiness, so an ungoverned project reads as
+ * ungoverned rather than as a surface that failed to load.
+ */
+export const NothingResolved: Story = {
+  args: { project: sampleProject, dashboardStats: pendingStats, stream: "main" },
+  decorators: [
+    createProvidersDecorator(blocks, {
+      getReviewContext: async (_ws, _projectId, itemName, blockId, targetLocale) => ({
+        block_id: blockId,
+        item_name: itemName,
+        locale: targetLocale,
+        terms: [],
+        collection_id: "",
+        notes: [],
+        voice_findings: [],
+      }),
+    }),
+  ],
 };

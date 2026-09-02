@@ -24,6 +24,7 @@ import type {
   AddConceptRequest,
   UpdateConceptRequest,
   BlockTermMatch,
+  ReviewContext,
   BlockNote,
   BlockHistoryEntry,
   LocaleInfo,
@@ -723,6 +724,18 @@ export interface ApiAdapter {
     targetLocale: string,
     stream?: string,
   ): Promise<BlockTermMatch[]>;
+  /**
+   * The five layers of context one unit is decided in, gathered server-side.
+   * Both review surfaces call it for the unit under decision.
+   */
+  getReviewContext(
+    workspaceSlug: string,
+    projectId: string,
+    itemName: string,
+    blockId: string,
+    targetLocale: string,
+    stream?: string,
+  ): Promise<ReviewContext>;
 
   // Block notes
   addBlockNote(

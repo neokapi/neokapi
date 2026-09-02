@@ -11,6 +11,7 @@ import type {
   ProjectInfo,
   MemoryMatchInfo,
   BlockTermMatch,
+  ReviewVoiceProfile,
   QAIssue,
   FileQAResult,
   BlockNote,
@@ -1802,3 +1803,23 @@ export const sampleRoleTemplates: RoleTemplate[] = [
     updated_at: "2026-03-01T10:00:00Z",
   },
 ];
+
+/**
+ * The voice profile a review surface shows as "in force here": the name a
+ * reviewer reads, the guidance the producer was given, and the vocabulary the
+ * check enforces.
+ */
+export const sampleReviewVoiceProfile: ReviewVoiceProfile = {
+  id: "vp-1",
+  name: "Bowrain Voice",
+  guidance:
+    "Voice profile — personality: precise, plain; formality: neutral; use active voice. " +
+    "Tone guidance: say what the product does for the reader, in their words. " +
+    "Never use these terms (use the replacement): leverage → use; utilize → use.",
+  compliance_bar: 90,
+  term_rules: [
+    { term: "leverage", replacement: "use", severity: "major" },
+    { term: "utilize", replacement: "use", severity: "minor" },
+    { term: "best-in-class", note: "Rephrase without a superlative.", severity: "critical" },
+  ],
+};

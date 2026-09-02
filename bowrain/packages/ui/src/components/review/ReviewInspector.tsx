@@ -9,11 +9,19 @@ import {
 } from "@neokapi/ui-primitives";
 import { BlockInspector } from "@neokapi/ui-primitives/preview";
 import type { ContentNode } from "@neokapi/ui-primitives/preview";
-import type { BlockInfo, BlockTermMatch, QAIssue } from "../../types/api";
+import type { BlockInfo, BlockTermMatch, QAIssue, ReviewContext } from "../../types/api";
 import { CollapsedTargetCell } from "../editor/GridTargetRenderer";
 import { UnifiedTargetEditor, type UnifiedSaveResult } from "../UnifiedTargetEditor";
 import { getBlockStatus, getTargetText, statusConfig } from "../editor/blockStatus";
-import { AlertTriangle, Check, CircleCheck, Pencil, Tag, X } from "../icons";
+import {
+  ContextHeading,
+  ContextEmpty,
+  FindingsList,
+  MemoryMatchCard,
+  ProvenanceBlock,
+  TermChip,
+} from "./reviewContext";
+import { Check, Pencil, X } from "../icons";
 
 export interface ReviewInspectorProps {
   /** The block under review; null closes the panel. */
@@ -32,6 +40,12 @@ export interface ReviewInspectorProps {
   terms: BlockTermMatch[];
   /** The term lookup is still in flight. */
   termsLoading?: boolean;
+  /**
+   * The context the server resolved for this block: the content-memory match
+   * with its wording, the last decision and its note, the target's origin, and
+   * the findings behind its voice score. Null until it lands.
+   */
+  context?: ReviewContext | null;
   /** The target editor is open. */
   editing: boolean;
   /** A review decision or a batch is in flight — decisions are held. */
@@ -72,6 +86,7 @@ export function ReviewInspector({
   issues,
   terms,
   termsLoading,
+  context = null,
   editing,
   busy,
   canApprove = true,
@@ -183,67 +198,60 @@ export function ReviewInspector({
             )}
           </section>
 
-          {/* QA findings — positioned findings already mark the document; these
-              are the check results the payload gives no position for. */}
+          {/* Findings — the check results and the findings behind the block's
+              voice score, read as one list. A positioned finding is already
+              marked in the document; each says what it was raised against and
+              what to say instead. */}
           <section className="space-y-2" data-testid="inspector-qa">
-            <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Checks
-            </span>
-            {issues.length === 0 ? (
-              <div className="flex items-center gap-2 rounded-md border border-success/25 bg-success/5 px-3 py-2 text-sm text-success">
-                <CircleCheck className="h-4 w-4 shrink-0" />
-                No findings from the last run.
-              </div>
-            ) : (
-              <ul className="space-y-1 rounded-md border border-border bg-muted/20 p-2">
-                {issues.map((issue, i) => (
-                  <li key={i} className="flex items-start gap-1.5 text-xs">
-                    <AlertTriangle
-                      className={cn(
-                        "mt-0.5 h-3 w-3 shrink-0",
-                        issue.severity === "error" ? "text-destructive" : "text-warning",
-                      )}
-                    />
-                    <span
-                      className={issue.severity === "error" ? "text-destructive" : "text-warning"}
-                    >
-                      <span className="font-medium">{issue.type}:</span> {issue.message}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
+            <ContextHeading>Findings</ContextHeading>
+            <FindingsList issues={issues} findings={context?.voice_findings ?? []} />
           </section>
 
           {/* Terms — a per-block lookup, so it is asked for when a block is
               opened rather than once per block of the whole document. */}
           <section className="space-y-2" data-testid="inspector-terms">
-            <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Terms
-            </span>
+            <ContextHeading>Terms</ContextHeading>
             {termsLoading ? (
-              <p className="text-xs text-muted-foreground">Looking up terms…</p>
+              <ContextEmpty>Looking up terms…</ContextEmpty>
             ) : terms.length === 0 ? (
-              <p className="text-xs text-muted-foreground">No terms matched this block.</p>
+              <ContextEmpty>No terms matched this block.</ContextEmpty>
             ) : (
               <ul className="flex flex-wrap gap-1.5">
                 {terms.map((term, i) => (
-                  <li
-                    key={`${term.source_term}-${i}`}
-                    className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/30 px-2 py-0.5 text-xs"
-                    title={term.domain ? `Domain: ${term.domain}` : undefined}
-                  >
-                    <Tag className="h-3 w-3 text-muted-foreground" />
-                    <span className="font-medium">{term.source_term}</span>
-                    {term.target_terms?.length > 0 && (
-                      <span className="text-muted-foreground">
-                        &rarr; {term.target_terms.join(", ")}
-                      </span>
-                    )}
-                  </li>
+                  <TermChip key={`${term.source_term}-${i}`} term={term} />
                 ))}
               </ul>
             )}
+          </section>
+
+          {/* Content memory — the wording the corpus already blessed for this
+              source. The bulk pass writes these; the reviewer reads them. */}
+          <section className="space-y-2" data-testid="inspector-memory">
+            <ContextHeading>Content memory</ContextHeading>
+            <MemoryMatchCard
+              match={context?.memory_match}
+              onUse={
+                context?.memory_match && block && !editing
+                  ? () =>
+                      void onSaveEdit({
+                        kind: "flat",
+                        codedText: context.memory_match?.target ?? "",
+                        spans: [],
+                      })
+                  : undefined
+              }
+            />
+          </section>
+
+          {/* Provenance — how this target was produced, and what was last
+              decided about it. */}
+          <section className="space-y-2" data-testid="inspector-provenance">
+            <ContextHeading>Provenance</ContextHeading>
+            <ProvenanceBlock
+              origin={context?.origin}
+              decision={context?.decision}
+              note={context?.notes?.[context.notes.length - 1]?.text}
+            />
           </section>
         </div>
 

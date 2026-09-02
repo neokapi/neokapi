@@ -1,12 +1,22 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Button, Badge, cn, directionAttrs } from "@neokapi/ui-primitives";
-import type { EntityInfo, ComplianceBasis } from "../../types/api";
+import type { EntityInfo, ComplianceBasis, ReviewContext } from "../../types/api";
 import { ComplianceRateChip } from "../ComplianceRateChip";
 import { entityLabel } from "../editor/entityMarks";
 import { FormattedSourceDisplay } from "../editor/FormattedSourceDisplay";
 import { CollapsedTargetCell } from "../editor/GridTargetRenderer";
 import { UnifiedTargetEditor, type UnifiedSaveResult } from "../UnifiedTargetEditor";
-import { getBlockStatus, statusConfig } from "../editor/blockStatus";
+import { getBlockStatus, getTargetText, statusConfig } from "../editor/blockStatus";
+import { blockToContentNode } from "../../preview/toContentTree";
+import {
+  AnchoredTarget,
+  ContextHeading,
+  FindingsList,
+  MemoryMatchCard,
+  NeighbourCell,
+  PointRail,
+  ProvenanceBlock,
+} from "./reviewContext";
 import {
   Check,
   X,
@@ -61,6 +71,16 @@ export interface FocusedReviewerProps {
   reChecking?: boolean;
   /** When set, the source-side + brand-correction affordances are enabled. */
   voiceProfileId?: string;
+  /**
+   * The five layers of context the server resolved for this unit: what governs
+   * it, what surrounds it, what the corpus and the ledger already said, what
+   * the scoring pass found, and how the target was produced. Null while the
+   * fetch is in flight or when it failed — the reviewer still decides, on the
+   * source, the target and the checks.
+   */
+  context?: ReviewContext | null;
+  /** The context fetch is in flight for this entry. */
+  contextLoading?: boolean;
   onApprove: () => void;
   onReject: () => void;
   onEditToggle: () => void;
@@ -123,6 +143,8 @@ export function FocusedReviewer({
   canApprove = true,
   reChecking,
   voiceProfileId,
+  context = null,
+  contextLoading,
   onApprove,
   onReject,
   onEditToggle,
@@ -159,6 +181,28 @@ export function FocusedReviewer({
 
   const entities: EntityInfo[] = block.entities ?? [];
   const errorCount = issues.filter((i) => i.severity === "error").length;
+
+  const voiceFindings = context?.voice_findings ?? [];
+  const targetText = getTargetText(block, locale);
+  // The same declared projection the document surface reads through: the block
+  // plus its evidence, layered as run-anchored overlays. The reviewer then sees
+  // a positioned finding on the words it names rather than as a line of prose
+  // detached from the text.
+  const node = useMemo(
+    () =>
+      blockToContentNode(block, {
+        evidence: {
+          issues,
+          issueLocale: locale,
+          terms: context?.terms,
+          findings: voiceFindings.map((finding) => ({ ...finding, side: locale })),
+        },
+        locales: [locale],
+        sourceLocale,
+      }),
+    [block, issues, locale, sourceLocale, context?.terms, voiceFindings],
+  );
+  const memoryMatch = context?.memory_match;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col" data-testid="focused-reviewer">
@@ -229,207 +273,239 @@ export function FocusedReviewer({
         </span>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-auto p-4">
-        {/* Source vs target, generous side-by-side */}
-        <div className="grid gap-4 lg:grid-cols-2">
-          {/* Source */}
-          <section className="space-y-2">
-            <div className="flex h-6 items-center justify-between">
-              <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Source ({sourceLocale})
-              </span>
-            </div>
-            <div
-              className={CELL}
-              onMouseUp={captureSelection}
-              onKeyUp={captureSelection}
-              data-testid="reviewer-source"
-              {...directionAttrs(sourceLocale)}
-            >
-              <FormattedSourceDisplay
-                codedText={block.source_coded ?? block.source ?? ""}
-                spans={block.source_spans ?? []}
-                entities={entities}
-                locale={sourceLocale}
-              />
-            </div>
-            {/* Marked entities. The document marks them where they occur; this
+      {/* The unit on the left, the context it is decided in on the right. The
+          rail is a column rather than a footer because a reviewer reads the
+          governance WHILE reading the text, and a block that has to be scrolled
+          past the decision bar is a block nobody reads. */}
+      <div className="grid min-h-0 flex-1 gap-4 overflow-auto p-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
+        <div className="min-w-0">
+          {/* The unit before this one. The document surface has the neighbourhood
+            by construction; the queue is a flat list across items, so it says
+            what this block sits between. */}
+          <div className="mb-2">
+            <NeighbourCell neighbour={context?.previous} where="previous" />
+          </div>
+
+          {/* Source vs target, generous side-by-side */}
+          <div className="grid gap-4 lg:grid-cols-2">
+            {/* Source */}
+            <section className="space-y-2">
+              <div className="flex h-6 items-center justify-between">
+                <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Source ({sourceLocale})
+                </span>
+              </div>
+              <div
+                className={CELL}
+                onMouseUp={captureSelection}
+                onKeyUp={captureSelection}
+                data-testid="reviewer-source"
+                {...directionAttrs(sourceLocale)}
+              >
+                <FormattedSourceDisplay
+                  codedText={block.source_coded ?? block.source ?? ""}
+                  spans={block.source_spans ?? []}
+                  entities={entities}
+                  locale={sourceLocale}
+                />
+              </div>
+              {/* Marked entities. The document marks them where they occur; this
                 lane is where they can be acted on — a tooltip cannot hold a
                 button. */}
-            {entities.length > 0 && (
-              <div className="flex flex-wrap items-center gap-1.5" data-testid="source-entities">
-                {entities.map((entity) => (
-                  <span
-                    key={entity.key}
-                    className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2 py-0.5 text-xs"
-                  >
-                    <span className="text-muted-foreground">{entityLabel(entity.type)}</span>
-                    <span className="font-medium">{entity.text}</span>
-                    {entity.dnt && (
-                      <span className="rounded bg-muted px-1 text-[10px] uppercase tracking-wide text-muted-foreground">
-                        dnt
-                      </span>
-                    )}
-                    {onEntityPromote && (
-                      <button
-                        type="button"
-                        className="text-primary hover:underline"
-                        onClick={() => onEntityPromote(entity.key)}
-                        data-testid={`promote-entity-${entity.key}`}
-                      >
-                        Promote
-                      </button>
-                    )}
-                  </span>
-                ))}
-              </div>
-            )}
-            {/* Source-side review lane. Mark-as-term and suggest-rule act on a
+              {entities.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1.5" data-testid="source-entities">
+                  {entities.map((entity) => (
+                    <span
+                      key={entity.key}
+                      className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2 py-0.5 text-xs"
+                    >
+                      <span className="text-muted-foreground">{entityLabel(entity.type)}</span>
+                      <span className="font-medium">{entity.text}</span>
+                      {entity.dnt && (
+                        <span className="rounded bg-muted px-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+                          dnt
+                        </span>
+                      )}
+                      {onEntityPromote && (
+                        <button
+                          type="button"
+                          className="text-primary hover:underline"
+                          onClick={() => onEntityPromote(entity.key)}
+                          data-testid={`promote-entity-${entity.key}`}
+                        >
+                          Promote
+                        </button>
+                      )}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {/* Source-side review lane. Mark-as-term and suggest-rule act on a
                 selection (annotate → re-check the locales); propose-source-change
                 is the back-to-source lane (transform → re-draft all locales). */}
-            <div className="flex flex-wrap items-center gap-2" data-testid="source-lane">
-              {selection && (
-                <>
-                  <span
-                    className="max-w-[16rem] truncate text-xs text-muted-foreground"
-                    title={selection}
+              <div className="flex flex-wrap items-center gap-2" data-testid="source-lane">
+                {selection && (
+                  <>
+                    <span
+                      className="max-w-[16rem] truncate text-xs text-muted-foreground"
+                      title={selection}
+                    >
+                      &ldquo;{selection}&rdquo;
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 px-2 text-xs"
+                      onClick={() => onMarkTerm(selection)}
+                      data-testid="source-mark-term"
+                    >
+                      <Tag className="mr-1 h-3.5 w-3.5" /> Mark as term
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 px-2 text-xs"
+                      disabled={!voiceProfileId}
+                      onClick={() => onSuggestVoiceRule(selection)}
+                      data-testid="source-suggest-rule"
+                    >
+                      <Wand2 className="mr-1 h-3.5 w-3.5" /> Suggest brand rule
+                    </Button>
+                  </>
+                )}
+                {onProposeSourceChange && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 px-2 text-xs"
+                    onClick={() => onProposeSourceChange(selection || block.source)}
+                    data-testid="source-propose-change"
+                    title="Propose a fix to the source text — a source change re-drafts every locale"
                   >
-                    &ldquo;{selection}&rdquo;
+                    <FileText className="mr-1 h-3.5 w-3.5" /> Propose source change
+                  </Button>
+                )}
+                {!selection && (
+                  <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                    <Info className="h-3 w-3" /> Select source text to mark a term, or propose a
+                    source change for the whole block.
                   </span>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-7 px-2 text-xs"
-                    onClick={() => onMarkTerm(selection)}
-                    data-testid="source-mark-term"
-                  >
-                    <Tag className="mr-1 h-3.5 w-3.5" /> Mark as term
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-7 px-2 text-xs"
-                    disabled={!voiceProfileId}
-                    onClick={() => onSuggestVoiceRule(selection)}
-                    data-testid="source-suggest-rule"
-                  >
-                    <Wand2 className="mr-1 h-3.5 w-3.5" /> Suggest brand rule
-                  </Button>
-                </>
-              )}
-              {onProposeSourceChange && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-7 px-2 text-xs"
-                  onClick={() => onProposeSourceChange(selection || block.source)}
-                  data-testid="source-propose-change"
-                  title="Propose a fix to the source text — a source change re-drafts every locale"
-                >
-                  <FileText className="mr-1 h-3.5 w-3.5" /> Propose source change
-                </Button>
-              )}
-              {!selection && (
-                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                  <Info className="h-3 w-3" /> Select source text to mark a term, or propose a
-                  source change for the whole block.
-                </span>
-              )}
-            </div>
-          </section>
+                )}
+              </div>
+            </section>
 
-          {/* Target */}
-          <section className="space-y-2">
-            <div className="flex h-6 items-center justify-between">
-              <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Target ({locale})
-              </span>
-              {!editing && (
+            {/* Target */}
+            <section className="space-y-2">
+              <div className="flex h-6 items-center justify-between">
+                <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Target ({locale})
+                </span>
+                {!editing && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-6 px-2 text-xs"
+                    onClick={onEditToggle}
+                    data-testid="reviewer-edit"
+                  >
+                    <Pencil className="mr-1 h-3 w-3" /> Edit
+                  </Button>
+                )}
+              </div>
+              {editing ? (
+                <div
+                  className="rounded-lg border border-primary/40 bg-card p-2"
+                  data-testid="reviewer-editor"
+                >
+                  <UnifiedTargetEditor
+                    block={block}
+                    locale={locale}
+                    onSave={onSaveEdit}
+                    onCancel={onCancelEdit}
+                    compact
+                  />
+                </div>
+              ) : (
+                <div className={CELL} data-testid="reviewer-target" {...directionAttrs(locale)}>
+                  <CollapsedTargetCell
+                    block={block}
+                    locale={locale}
+                    testId="reviewer-target-cell"
+                  />
+                </div>
+              )}
+              {voiceProfileId && !editing && (
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="h-6 px-2 text-xs"
-                  onClick={onEditToggle}
-                  data-testid="reviewer-edit"
+                  className="h-7 px-2 text-xs text-muted-foreground"
+                  onClick={onMakeRule}
+                  data-testid="reviewer-make-rule"
                 >
-                  <Pencil className="mr-1 h-3 w-3" /> Edit
+                  <Wand2 className="mr-1 h-3.5 w-3.5" /> Turn a fix into a brand rule
                 </Button>
               )}
-            </div>
-            {editing ? (
-              <div
-                className="rounded-lg border border-primary/40 bg-card p-2"
-                data-testid="reviewer-editor"
-              >
-                <UnifiedTargetEditor
-                  block={block}
-                  locale={locale}
-                  onSave={onSaveEdit}
-                  onCancel={onCancelEdit}
-                  compact
-                />
-              </div>
-            ) : (
-              <div className={CELL} data-testid="reviewer-target" {...directionAttrs(locale)}>
-                <CollapsedTargetCell block={block} locale={locale} testId="reviewer-target-cell" />
-              </div>
-            )}
-            {voiceProfileId && !editing && (
+            </section>
+          </div>
+
+          {/* The unit after this one. */}
+          <div className="mt-2">
+            <NeighbourCell neighbour={context?.next} where="next" />
+          </div>
+
+          {/* Findings, from both checkers, anchored where they name a span. The
+            check findings and the voice findings judge the same target, so they
+            are read as one list rather than as a score beside a list. */}
+          <section className="mt-4 space-y-2" data-testid="reviewer-checks">
+            <div className="flex items-center gap-2">
+              <ContextHeading>Findings</ContextHeading>
               <Button
                 size="sm"
                 variant="ghost"
-                className="h-7 px-2 text-xs text-muted-foreground"
-                onClick={onMakeRule}
-                data-testid="reviewer-make-rule"
+                className="h-6 px-2 text-xs"
+                onClick={onReCheck}
+                disabled={reChecking}
+                data-testid="reviewer-recheck"
               >
-                <Wand2 className="mr-1 h-3.5 w-3.5" /> Turn a fix into a brand rule
+                <RefreshCw className={cn("mr-1 h-3 w-3", reChecking && "animate-spin")} /> Re-check
               </Button>
+            </div>
+            {targetText && (issues.length > 0 || voiceFindings.length > 0) && (
+              <div className={CELL} {...directionAttrs(locale)}>
+                <AnchoredTarget node={node} side={locale} text={targetText} />
+              </div>
             )}
+            <FindingsList issues={issues} findings={voiceFindings} />
           </section>
         </div>
 
-        {/* Checks + compliance, inline: why this block is flagged (or why it passed) */}
-        <section className="mt-4 space-y-2" data-testid="reviewer-checks">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Checks
-            </span>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-6 px-2 text-xs"
-              onClick={onReCheck}
-              disabled={reChecking}
-              data-testid="reviewer-recheck"
-            >
-              <RefreshCw className={cn("mr-1 h-3 w-3", reChecking && "animate-spin")} /> Re-check
-            </Button>
+        {/* What governs this point, what the corpus already said about it, and
+            how the target came to say what it says. */}
+        <div className="min-w-0 space-y-4" data-testid="reviewer-context-rail">
+          <PointRail context={context} loading={contextLoading} />
+          <div className="space-y-4">
+            <section className="space-y-2" data-testid="reviewer-memory">
+              <ContextHeading>Content memory</ContextHeading>
+              <MemoryMatchCard
+                match={memoryMatch}
+                onUse={
+                  memoryMatch && !editing
+                    ? () =>
+                        void onSaveEdit({ kind: "flat", codedText: memoryMatch.target, spans: [] })
+                    : undefined
+                }
+              />
+            </section>
+            <section className="space-y-2" data-testid="reviewer-provenance">
+              <ContextHeading>Provenance</ContextHeading>
+              <ProvenanceBlock
+                origin={context?.origin}
+                decision={context?.decision}
+                note={context?.notes?.[context.notes.length - 1]?.text}
+              />
+            </section>
           </div>
-          {issues.length === 0 ? (
-            <div className="flex items-center gap-2 rounded-md border border-success/25 bg-success/5 px-3 py-2 text-sm text-success">
-              <CircleCheck className="h-4 w-4 shrink-0" />
-              Passes checks.
-            </div>
-          ) : (
-            <ul className="space-y-1 rounded-md border border-border bg-muted/20 p-2">
-              {issues.map((issue, i) => (
-                <li key={i} className="flex items-start gap-1.5 text-xs">
-                  <AlertTriangle
-                    className={cn(
-                      "mt-0.5 h-3 w-3 shrink-0",
-                      issue.severity === "error" ? "text-destructive" : "text-warning",
-                    )}
-                  />
-                  <span
-                    className={issue.severity === "error" ? "text-destructive" : "text-warning"}
-                  >
-                    <span className="font-medium">{issue.type}:</span> {issue.message}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+        </div>
       </div>
 
       {/* Decision bar + keyboard hints */}

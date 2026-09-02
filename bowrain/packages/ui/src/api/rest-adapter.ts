@@ -29,6 +29,7 @@ import type {
   AddConceptRequest,
   UpdateConceptRequest,
   BlockTermMatch,
+  ReviewContext,
   BlockNote,
   BlockHistoryEntry,
   LocaleInfo,
@@ -1734,6 +1735,19 @@ export class RestApiAdapter implements ApiAdapter {
   ): Promise<BlockTermMatch[]> {
     return this.fetchJSON(
       `${this.projectEp(workspaceSlug, projectId)}/blocks/${this.ref(stream)}/${blockId}/term-matches?item=${encodeURIComponent(itemName)}&target_locale=${targetLocale}`,
+    );
+  }
+
+  async getReviewContext(
+    workspaceSlug: string,
+    projectId: string,
+    itemName: string,
+    blockId: string,
+    targetLocale: string,
+    stream?: string,
+  ): Promise<ReviewContext> {
+    return this.fetchJSON(
+      `${this.projectEp(workspaceSlug, projectId)}/blocks/${this.ref(stream)}/${blockId}/review-context?item=${encodeURIComponent(itemName)}&target_locale=${encodeURIComponent(targetLocale)}`,
     );
   }
 

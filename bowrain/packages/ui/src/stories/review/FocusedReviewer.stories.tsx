@@ -3,7 +3,8 @@ import type { ReactNode } from "react";
 import { fn } from "storybook/test";
 import { FocusedReviewer } from "../../components/review/FocusedReviewer";
 import type { ReviewEntry } from "../../components/review/reviewQueue";
-import type { BlockInfo } from "../../types/api";
+import type { BlockInfo, ReviewContext } from "../../types/api";
+import { sampleReviewVoiceProfile } from "../fixtures";
 
 function block(over: Partial<BlockInfo>): BlockInfo {
   return {
@@ -39,8 +40,10 @@ function entry(over: Partial<ReviewEntry>): ReviewEntry {
   };
 }
 
+// Tall enough to read the unit and the context rail beside it without
+// scrolling the pane, which is what the reviewer's own window gives them.
 const Frame = (Story: () => ReactNode) => (
-  <div className="flex h-[560px] flex-col overflow-hidden rounded-lg border border-border bg-background">
+  <div className="flex h-[860px] flex-col overflow-hidden rounded-lg border border-border bg-background">
     {Story()}
   </div>
 );
@@ -173,5 +176,139 @@ export const WithVoiceProfile: Story = {
     entry: entry({}),
     voiceProfileId: "prof-1",
     compliance: { rate: 0.88, basis: "voice+checks", compliantBlocks: 44, translatedBlocks: 50 },
+  },
+};
+
+/**
+ * The unit under decision with everything the server resolved for it: what
+ * governs the point, what sits either side of it, what the corpus and the
+ * ledger already said, what the scoring pass found, and how the target was
+ * produced.
+ */
+const resolvedContext: ReviewContext = {
+  block_id: "b1",
+  item_name: "auth.json",
+  locale: "fr-FR",
+  voice_profile: sampleReviewVoiceProfile,
+  terms: [
+    {
+      source_term: "password",
+      target_terms: ["mot de passe"],
+      domain: "account",
+      status: "preferred",
+      start: 11,
+      end: 19,
+    },
+  ],
+  collection_id: "col-1",
+  collection_name: "Product UI",
+  coordinates: { product: "kapi", channel: "app" },
+  previous: {
+    block_id: "b0",
+    source_runs: [{ text: "Enter the email you signed up with" }],
+    status: "reviewed",
+  },
+  next: {
+    block_id: "b2",
+    source_runs: [
+      { text: "We sent a link to " },
+      { ph: { id: "1", type: "code:variable", equiv: "{{.Email}}" } },
+      { text: "." },
+    ],
+  },
+  memory_match: {
+    source: "Reset your password",
+    target: "Réinitialisez votre mot de passe",
+    score: 1,
+    match_type: "exact",
+  },
+  decision: {
+    state: "rejected",
+    status: "draft",
+    by: "maria@bowrain.test",
+    at: "2026-08-30T09:12:00Z",
+    note: "Reads as machine output; soften the imperative.",
+    source_moved: true,
+  },
+  notes: [
+    {
+      id: "note-1",
+      blockId: "b1",
+      author: "maria@bowrain.test",
+      text: "Legal asked us to keep the product name unchanged.",
+      createdAt: "2026-08-30T09:15:00Z",
+    },
+  ],
+  voice_findings: [
+    {
+      category: "compliance",
+      severity: "major",
+      message: "Uses a term the profile forbids.",
+      original_text: "Réinitialisez",
+      suggestion: "Changez",
+      position: { kind: "range", start: { run: 0, offset: 0 }, end: { run: 0, offset: 13 } },
+    },
+  ],
+  voice_score: 62,
+  voice_bar: 90,
+  origin: {
+    kind: "ai",
+    engine: "claude-sonnet",
+    tool: "translate",
+    timestamp: "2026-08-29T18:40:00Z",
+    profile: "vp-1",
+  },
+};
+
+/**
+ * All five layers populated: the point rail names the profile and its guidance,
+ * the neighbours sit above and below the unit, the findings carry their anchor
+ * and their suggestion, the content-memory match shows both sides with a
+ * one-click use, and the provenance block says who decided what, when.
+ */
+export const WithResolvedContext: Story = {
+  args: {
+    entry: entry({
+      termCompliance: "violation",
+      voiceScore: 62,
+      voiceBar: 90,
+      issues: [
+        {
+          type: "placeholder",
+          severity: "error",
+          message: "Target is missing the {name} placeholder.",
+          original_text: "{name}",
+          suggestion: "Réinitialisez votre {name}",
+        },
+      ],
+    }),
+    voiceProfileId: "vp-1",
+    context: resolvedContext,
+    compliance: {
+      rate: 0.66,
+      basis: "voice+checks+terms",
+      compliantBlocks: 33,
+      translatedBlocks: 50,
+    },
+  },
+};
+
+/**
+ * The same layout with nothing resolved: no profile bound, no terms matched, no
+ * neighbours, no content-memory match, no decision recorded. Each layer says
+ * which of those it is, so an ungoverned unit does not read as a broken panel.
+ */
+export const WithoutResolvedContext: Story = {
+  args: {
+    entry: entry({}),
+    context: {
+      block_id: "b1",
+      item_name: "auth.json",
+      locale: "fr-FR",
+      terms: [],
+      collection_id: "",
+      notes: [],
+      voice_findings: [],
+    },
   },
 };

@@ -18,10 +18,12 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { ErrorNotice } from "../errors";
 import type {
   ProjectInfo,
+  AppliedMemory,
   BlockInfo,
   BlockCounts,
   BlockTermMatch,
   FileQAResult,
+  ReviewContext,
   ReviewDemotion,
 } from "../types/api";
 import { useEditorApi } from "../hooks/useEditorApi";
@@ -30,6 +32,7 @@ import { useCallerPermissions } from "../hooks/useCallerPermissions";
 import { useAnalytics } from "../context/AnalyticsContext";
 import { AnalyticsEvents } from "../analytics-events";
 import { ProblemsPanel } from "./editor/ProblemsPanel";
+import { ApplyMemoryDialog } from "./review/ApplyMemoryDialog";
 import { ReviewInspector } from "./review/ReviewInspector";
 import { blocksToContentTree, type BlockEvidence } from "../preview/toContentTree";
 import type { UnifiedSaveResult } from "./UnifiedTargetEditor";
@@ -129,6 +132,11 @@ export function ReviewSurface({
   const [showProblems, setShowProblems] = useState(false);
   const [termsByBlock, setTermsByBlock] = useState<Record<string, BlockTermMatch[]>>({});
   const [termsLoading, setTermsLoading] = useState(false);
+  const [contextByBlock, setContextByBlock] = useState<Record<string, ReviewContext>>({});
+  // What a bulk content-memory pass would write, as the pass itself answers.
+  // Null closes the confirm step; an empty list is a real answer (the batch
+  // matches nothing) and says so.
+  const [memoryPreview, setMemoryPreview] = useState<AppliedMemory[] | null>(null);
 
   const [counts, setCounts] = useState<BlockCounts>(EMPTY_COUNTS);
 
@@ -238,6 +246,32 @@ export function ReviewSurface({
     };
   }, [api, selectedId, project.id, fileName, targetLocale, termsByBlock]);
 
+  // The rest of what governs and precedes the open block: the content-memory
+  // match with its wording, the last decision and its note, the target's
+  // origin, and the findings behind its voice score. Asked for once per block
+  // opened, like the term lookup beside it, and cached for the session.
+  useEffect(() => {
+    if (!selectedId || !targetLocale) return;
+    // Keyed by block AND locale: the memory match, the decision and the origin
+    // are all per-locale, so a locale switch asks again rather than showing the
+    // previous language's answer.
+    const key = `${selectedId}::${targetLocale}`;
+    if (contextByBlock[key]) return;
+    let cancelled = false;
+    api
+      .getReviewContext(project.id, fileName, selectedId, targetLocale)
+      .then((ctx) => {
+        if (!cancelled) setContextByBlock((prev) => ({ ...prev, [key]: ctx }));
+      })
+      .catch(() => {
+        // Non-fatal: the inspector draws its empty states and the decision
+        // buttons keep working.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [api, selectedId, project.id, fileName, targetLocale, contextByBlock]);
+
   // Persist a per-block review decision: optimistic per-locale Target.Status
   // write (matches what a reload fetches), server call, rollback on failure.
   // The rollback snapshot is captured inside the setBlocks updater — from the
@@ -345,14 +379,45 @@ export function ReviewSurface({
     }
   }, [marked, blocks, api, capture, project.id, fileName, targetLocale, loadCounts]);
 
+  /** The blocks a bulk pass would carry: marked, and translatable. */
+  const memoryBatchIds = useCallback(
+    () => blocks.filter((b) => marked.has(b.id) && b.translatable).map((b) => b.id),
+    [blocks, marked],
+  );
+
+  // What the pass would write, asked of the pass itself. The reviewer reads the
+  // wording before it lands: this batch used to be applied unseen, so a match
+  // the corpus held for a different context arrived in the document with no
+  // step at which anyone could have noticed.
+  const previewApplyMemory = useCallback(async () => {
+    if (bulkInFlight.current || marked.size === 0) return;
+    const targetIds = memoryBatchIds();
+    if (targetIds.length === 0) return;
+    setBulkBusy(true);
+    try {
+      const result = await api.bulkApplyMemory({
+        project_id: project.id,
+        block_ids: targetIds,
+        target_locale: targetLocale,
+        preview: true,
+      });
+      setMemoryPreview(result.applied ?? []);
+    } catch (e) {
+      setError({ title: "Couldn't read what the content memory would apply", cause: e });
+    } finally {
+      setBulkBusy(false);
+    }
+  }, [marked, memoryBatchIds, api, project.id, targetLocale]);
+
   // Exact content-memory leverage across the batch: one request, and the server
   // decides which blocks clear the threshold.
   const bulkApplyMemory = useCallback(async () => {
     if (bulkInFlight.current || marked.size === 0) return;
     bulkInFlight.current = true;
     setBulkBusy(true);
+    setMemoryPreview(null);
     try {
-      const targetIds = blocks.filter((b) => marked.has(b.id) && b.translatable).map((b) => b.id);
+      const targetIds = memoryBatchIds();
       setMarked(new Set());
       if (targetIds.length === 0) return;
       const result = await api.bulkApplyMemory({
@@ -374,7 +439,7 @@ export function ReviewSurface({
       bulkInFlight.current = false;
       setBulkBusy(false);
     }
-  }, [marked, blocks, api, project.id, targetLocale, loadBlocks, loadCounts]);
+  }, [marked, memoryBatchIds, api, project.id, targetLocale, loadBlocks, loadCounts]);
 
   // A correction made while reviewing is the same write the Translate editor
   // makes: coded text plus spans, with the status the server would derive.
@@ -471,8 +536,18 @@ export function ReviewSurface({
     for (const [id, terms] of Object.entries(termsByBlock)) {
       if (terms.length > 0) out[id] = { ...out[id], terms };
     }
+    // The findings behind an opened block's voice score. They carry their own
+    // run anchor, so they mark the target where the scoring pass raised them
+    // rather than sitting in a panel beside the text.
+    for (const [key, ctx] of Object.entries(contextByBlock)) {
+      if (!key.endsWith(`::${targetLocale}`) || ctx.voice_findings.length === 0) continue;
+      out[ctx.block_id] = {
+        ...out[ctx.block_id],
+        findings: ctx.voice_findings.map((finding) => ({ ...finding, side: targetLocale })),
+      };
+    }
     return out;
-  }, [fileQAResults, termsByBlock, targetLocale]);
+  }, [fileQAResults, termsByBlock, contextByBlock, targetLocale]);
 
   const tree = useMemo(
     () =>
@@ -689,7 +764,7 @@ export function ReviewSurface({
         <Button
           variant="outline"
           size="sm"
-          onClick={bulkApplyMemory}
+          onClick={previewApplyMemory}
           disabled={marked.size === 0 || bulkBusy}
           data-testid="bulk-apply-tm"
         >
@@ -802,6 +877,7 @@ export function ReviewSurface({
         issues={selectedId ? (qaByBlock.get(selectedId)?.issues ?? []) : []}
         terms={selectedId ? (termsByBlock[selectedId] ?? []) : []}
         termsLoading={termsLoading}
+        context={selectedId ? (contextByBlock[`${selectedId}::${targetLocale}`] ?? null) : null}
         editing={editing}
         busy={bulkBusy}
         canApprove={canApprove}
@@ -820,6 +896,16 @@ export function ReviewSurface({
         }}
         onCancelEdit={() => setEditing(false)}
         onToggleMark={() => selectedId && toggleMark(selectedId)}
+      />
+
+      {/* What a bulk content-memory pass would write, before it writes it. */}
+      <ApplyMemoryDialog
+        preview={memoryPreview}
+        blocks={blocks}
+        locale={targetLocale}
+        busy={bulkBusy}
+        onCancel={() => setMemoryPreview(null)}
+        onConfirm={() => void bulkApplyMemory()}
       />
 
       {/* QA problems panel (reused) */}

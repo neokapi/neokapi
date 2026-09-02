@@ -607,6 +607,30 @@ export function ReviewSession({
     return () => window.removeEventListener("keydown", onKey);
   }, [editing, busy, move, approve, reject, current]);
 
+  // The context the current unit is decided in. It is fetched for the unit
+  // under the cursor rather than carried on every queue row: a page of the
+  // queue already holds a full block payload each, and the neighbours, the
+  // memory lookup and the term lookup are per-block work. Moving j/k re-asks
+  // for one block; the query cache holds what has already been read, so moving
+  // back is free.
+  const { data: reviewContext = null, isFetching: contextLoading } = useQuery({
+    queryKey: [
+      "review-context",
+      ws,
+      project.id,
+      stream,
+      current?.itemName ?? "",
+      current?.block.id ?? "",
+      current?.locale ?? "",
+    ],
+    queryFn: () =>
+      current
+        ? api.getReviewContext(project.id, current.itemName, current.block.id, current.locale)
+        : Promise.resolve(null),
+    enabled: current != null,
+    staleTime: 30_000,
+  });
+
   const localeName = useCallback((code: string) => getDisplayName(code), [getDisplayName]);
 
   // ── Filter controls (locale + verdict pills, item select) ─────────────────
@@ -817,6 +841,8 @@ export function ReviewSession({
               canApprove={can("review", current.locale)}
               reChecking={recheckingId === current.id}
               voiceProfileId={voiceProfileId}
+              context={reviewContext}
+              contextLoading={contextLoading}
               onApprove={approve}
               onReject={reject}
               onEditToggle={() => setEditing((v) => !v)}

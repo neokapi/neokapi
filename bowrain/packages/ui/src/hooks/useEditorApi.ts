@@ -18,6 +18,7 @@ import type {
   WordCountResult,
   MemoryMatchInfo,
   BlockTermMatch,
+  ReviewContext,
   BlockNote,
   BlockHistoryEntry,
   QAIssue,
@@ -147,6 +148,17 @@ export function useEditorApi() {
       targetLocale: string,
     ): Promise<BlockTermMatch[]> =>
       api.lookupTermsForBlock(ws, projectId, itemName, blockId, targetLocale, activeStream),
+    [api, ws, activeStream],
+  );
+
+  const getReviewContext = useCallback(
+    async (
+      projectId: string,
+      itemName: string,
+      blockId: string,
+      targetLocale: string,
+    ): Promise<ReviewContext> =>
+      api.getReviewContext(ws, projectId, itemName, blockId, targetLocale, activeStream),
     [api, ws, activeStream],
   );
 
@@ -282,6 +294,7 @@ export function useEditorApi() {
       exportTranslatedFile,
       lookupMemoryForBlock,
       lookupTermsForBlock,
+      getReviewContext,
       getBlockHistory,
       rollbackBlock,
       reviewBlock,
@@ -313,6 +326,7 @@ export function useEditorApi() {
       exportTranslatedFile,
       lookupMemoryForBlock,
       lookupTermsForBlock,
+      getReviewContext,
       getBlockHistory,
       rollbackBlock,
       reviewBlock,
