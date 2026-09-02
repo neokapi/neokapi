@@ -2,8 +2,10 @@ package host
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
+	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/state"
@@ -93,6 +95,8 @@ func (a *App) recordProducedBasis(ctx context.Context, proj *project.KapiProject
 		return err
 	}
 	docs := a.documentIndexOrEmpty(ctx, root)
+	origins := a.newProducedOrigins(ctx, root)
+	defer origins.close()
 	now := nowRFC3339()
 	recorded := 0
 
@@ -128,7 +132,16 @@ func (a *App) recordProducedBasis(ctx context.Context, proj *project.KapiProject
 			}
 			th := targetHash(target)
 			ch := state.SourceHash(b.SourceText())
-			if hadPrev && prev.TargetHash == th && prev.ContentHash == ch {
+			// What governed the translation now sitting in the file. The
+			// producer's own stamp where it survives, and prev's where the run
+			// produced nothing this record can speak for: a unit whose target
+			// was written before the stamp existed keeps reading as unstamped
+			// rather than acquiring a governance claim from a neighbour.
+			origin := prev.Origin
+			if o, ok := origins.at(u, b, loc); ok {
+				origin = o
+			}
+			if hadPrev && prev.TargetHash == th && prev.ContentHash == ch && origin == prev.Origin {
 				continue // already recorded for this exact pairing
 			}
 			next := state.UnitState{
@@ -139,12 +152,12 @@ func (a *App) recordProducedBasis(ctx context.Context, proj *project.KapiProject
 				ContentHash: ch,
 				Updated:     now,
 				Scope:       scope,
+				Origin:      origin,
 			}
 			if hadPrev {
 				// Advisory state rides along, exactly as it does across a
 				// decision write: a run producing a translation is not a reason
 				// to forget what was noted about the unit.
-				next.Origin = prev.Origin
 				next.SourceStatus = prev.SourceStatus
 				next.ContextHash = prev.ContextHash
 				if prev.AIReview.Fresh(th) {
@@ -164,4 +177,119 @@ func (a *App) recordProducedBasis(ctx context.Context, proj *project.KapiProject
 	// never reads as a decision somebody owes a review, and the committed shards
 	// it lands in are what carry the basis to the next clone.
 	return st.PersistRecords(ctx)
+}
+
+// The provenance half of the record.
+//
+// A basis says which source a translation renders. The staleness gate asks a
+// different question, what governed the answer when it was produced, and it
+// asks it of the same store, so the record has to carry the producer's Origin
+// as well. Every translation producer stamps one on the block it writes
+// (core/ai/tools, core/mt/tools, recycle), but only a bilingual target format
+// keeps it: a JSON catalog holds strings, so re-reading the delivered file
+// finds a translation with no statement about what shaped it, and the gate had
+// nothing to compare (#2344).
+//
+// So the origin comes from the file where the file carries one, and otherwise
+// from the run's own `targets/<locale>` overlay in the project block store,
+// which every convergence writes through the implicit commit-targets step and
+// which carries the stamp beside the words.
+
+// producedOrigins answers "what governed the translation this file now holds",
+// per (unit, block, locale), for a run that has just finished writing.
+//
+// The block store session is opened on first use and held for the pass. A
+// project with no store (the browser build, a run outside a project) has no
+// fallback, and every unit is answered by the file itself.
+type producedOrigins struct {
+	ctx   context.Context
+	root  string
+	store blockstore.Store
+	sess  blockstore.Session
+	tried bool
+}
+
+func (a *App) newProducedOrigins(ctx context.Context, root string) *producedOrigins {
+	return &producedOrigins{ctx: ctx, root: root, store: a.openProjectBlockStore(ctx)}
+}
+
+func (p *producedOrigins) close() {
+	if p != nil && p.sess != nil {
+		_ = p.sess.Close()
+		p.sess = nil
+	}
+}
+
+// session opens the block store session once, and reports nil when the project
+// has no readable store.
+func (p *producedOrigins) session() blockstore.Session {
+	if p.sess != nil || p.tried {
+		return p.sess
+	}
+	p.tried = true
+	if p.store == nil {
+		return nil
+	}
+	sess, err := p.store.Begin(p.ctx)
+	if err != nil {
+		return nil
+	}
+	p.sess = sess
+	return p.sess
+}
+
+// at returns the origin to record for one block's target, and whether one was
+// found at all. A false answer leaves the previous record's origin standing,
+// which is the difference between "this run has nothing to say about the
+// provenance here" and "this target was produced under no governance".
+func (p *producedOrigins) at(u VerifyUnit, b *model.Block, locale model.LocaleID) (model.Origin, bool) {
+	if t := b.Target(locale); t != nil && t.Origin != (model.Origin{}) {
+		// The delivered artifact's own stamp. It is what absorbCommittedRecord
+		// reads, and a format that keeps it makes the most direct statement
+		// there is about the file in front of the reader.
+		return t.Origin, true
+	}
+	sess := p.session()
+	if sess == nil || b.ID == "" {
+		return model.Origin{}, false
+	}
+	// The same key the run wrote under: the source file's project-relative
+	// namespace plus the file-local block id (blockstore.StoreKey), which is
+	// what core/flow's runner tags each file's context with.
+	key := blockstore.StoreKey(blockstore.SourceNamespace(p.root, u.SourcePath), b.ID, b.SourceText())
+	o, err := sess.GetOverlay("targets/"+string(locale), key)
+	if err != nil || len(o.Payload) == 0 {
+		return model.Origin{}, false
+	}
+	var payload struct {
+		Runs   []model.Run   `json:"runs"`
+		Text   string        `json:"text"`
+		Target string        `json:"target"`
+		Origin *model.Origin `json:"origin"`
+	}
+	if json.Unmarshal(o.Payload, &payload) != nil || payload.Origin == nil {
+		return model.Origin{}, false
+	}
+	// Only when the overlay describes the words the file actually holds. An
+	// overlay outlives the run that wrote it, so a target somebody edited by
+	// hand since would otherwise be recorded as machine-produced under the
+	// context of a run that never wrote those words.
+	if overlayTargetText(payload.Runs, payload.Text, payload.Target) != b.TargetText(locale) {
+		return model.Origin{}, false
+	}
+	return *payload.Origin, true
+}
+
+// overlayTargetText renders a target overlay's payload as the text a writer
+// would put in the file, over the three shapes the translate-family tools write
+// (runs, text, target).
+func overlayTargetText(runs []model.Run, text, target string) string {
+	switch {
+	case len(runs) > 0:
+		return model.RunsText(runs)
+	case text != "":
+		return text
+	default:
+		return target
+	}
 }

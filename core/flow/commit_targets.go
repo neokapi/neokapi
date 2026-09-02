@@ -42,10 +42,27 @@ func newCommitTargetsTool(locale model.LocaleID) *commitTargetsTool {
 // is the fallback for run-free targets. Status carries the target's lifecycle
 // state, which is what makes re-affirming an already-hydrated block a true no-op
 // rather than a silent downgrade of its review state.
+//
+// Origin carries the provenance the producer stamped: how the target was made,
+// and the governing context it was made under. It travels here because most
+// target formats have nowhere to keep it. A plain JSON catalog holds strings
+// and nothing else, so for those the overlay is the only durable record of
+// what governed the answer, and the staleness gate reads its stamp from there.
 type targetOverlayPayload struct {
-	Runs   []model.Run `json:"runs,omitempty"`
-	Text   string      `json:"text,omitempty"`
-	Status string      `json:"status,omitempty"`
+	Runs   []model.Run   `json:"runs,omitempty"`
+	Text   string        `json:"text,omitempty"`
+	Status string        `json:"status,omitempty"`
+	Origin *model.Origin `json:"origin,omitempty"`
+}
+
+// overlayOrigin is the provenance an overlay carries for a target, or nil when
+// the producer stamped none. A pointer, so an unstamped target writes no
+// `origin` key at all and reads back as the absence it is.
+func overlayOrigin(o model.Origin) *model.Origin {
+	if o == (model.Origin{}) {
+		return nil
+	}
+	return &o
 }
 
 func (t *commitTargetsTool) SessionProcess(ctx context.Context, sess blockstore.Session, in <-chan *model.Part, out chan<- *model.Part) error {
@@ -82,7 +99,11 @@ func (t *commitTargetsTool) commitOne(ctx context.Context, sess blockstore.Sessi
 	if tgt == nil || len(tgt.Runs) == 0 {
 		return nil
 	}
-	payload, err := json.Marshal(targetOverlayPayload{Runs: tgt.Runs, Status: string(tgt.Status)})
+	payload, err := json.Marshal(targetOverlayPayload{
+		Runs:   tgt.Runs,
+		Status: string(tgt.Status),
+		Origin: overlayOrigin(tgt.Origin),
+	})
 	if err != nil {
 		return fmt.Errorf("commit-targets: encode overlay: %w", err)
 	}

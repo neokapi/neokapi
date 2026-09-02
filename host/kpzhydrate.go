@@ -77,10 +77,11 @@ func (t *hydrateTargetsTool) SessionProcess(ctx context.Context, sess blockstore
 // read is a fault in the workspace, not an absent translation.
 func applyTargetOverlay(b *model.Block, locale model.LocaleID, payload []byte) error {
 	var p struct {
-		Runs   []model.Run `json:"runs"`
-		Text   string      `json:"text"`
-		Target string      `json:"target"`
-		Status string      `json:"status"`
+		Runs   []model.Run   `json:"runs"`
+		Text   string        `json:"text"`
+		Target string        `json:"target"`
+		Status string        `json:"status"`
+		Origin *model.Origin `json:"origin"`
 	}
 	if err := json.Unmarshal(payload, &p); err != nil {
 		return fmt.Errorf("decode target overlay for block %s (%s): %w", blockKey(b), locale, err)
@@ -93,12 +94,20 @@ func applyTargetOverlay(b *model.Block, locale model.LocaleID, payload []byte) e
 	case p.Target != "":
 		b.SetTargetText(locale, p.Target)
 	}
-	// Carry the lifecycle status the overlay recorded (additive; absent in
-	// older overlays) onto the hydrated target, so review state survives the
-	// extract → workspace → merge round-trip.
-	if p.Status != "" {
+	// Carry the lifecycle status and the provenance the overlay recorded
+	// (additive; absent in older overlays) onto the hydrated target, so review
+	// state and the governing context that produced the answer survive the
+	// extract → workspace → merge round-trip. A merge that dropped the origin
+	// would deliver a file whose translations claim to have been produced under
+	// no governance at all.
+	if p.Status != "" || p.Origin != nil {
 		if t := b.Target(locale); t != nil {
-			t.Status = model.TargetStatus(p.Status)
+			if p.Status != "" {
+				t.Status = model.TargetStatus(p.Status)
+			}
+			if p.Origin != nil {
+				t.Origin = *p.Origin
+			}
 		}
 	}
 	return nil
