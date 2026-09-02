@@ -331,6 +331,11 @@ func emptyTableCells(line string) int {
 // against the file's allowance. Fenced code blocks hold CLI output and config,
 // where a dash is data, so they are skipped for both the count and the word
 // total that sets the allowance.
+//
+// The word-derived allowance belongs to prose. A file that is not Markdown in
+// this tier is an authored manifest, a set of fields rather than a document, so
+// its allowance is zero however long it runs: a demo manifest carrying a
+// thousand words of narration would otherwise buy itself a dash.
 func scanDocSource(path, src string) []finding {
 	var (
 		inFence bool
@@ -352,7 +357,10 @@ func scanDocSource(path, src string) []finding {
 			lines = append(lines, i+1)
 		}
 	}
-	allowance := words / wordsPerDash
+	allowance := 0
+	if ext := strings.ToLower(filepath.Ext(path)); ext == ".md" || ext == ".mdx" {
+		allowance = words / wordsPerDash
+	}
 	if dashes <= allowance {
 		return nil
 	}
@@ -728,6 +736,21 @@ func selfTestDocs() error {
 	prose := fixture("# Title\n\n| a | b |\n| --- | --- |\n| x | y @ z |\n")
 	if got := scanDocSource("prose-table.md", prose); len(got) != 1 {
 		return fmt.Errorf("docs: a dash inside a table cell's prose was not flagged: %v", got)
+	}
+
+	manifest := fixture("id: a-demo\ntitle: A demo @ with a dash\n")
+	if got := scanDocSource("demo.yaml", manifest); len(got) != 1 {
+		return fmt.Errorf("docs: a manifest with one dash should fail, got %v", got)
+	}
+
+	longManifest := fixture("id: a-demo\n" + strings.Repeat("# word\n", 1200) + "title: A demo @ with a dash\n")
+	if got := scanDocSource("long.yaml", longManifest); len(got) != 1 {
+		return fmt.Errorf("docs: a manifest buys no allowance by being long, got %v", got)
+	}
+
+	cleanManifest := "id: a-demo\ntitle: A demo with no dash\n"
+	if got := scanDocSource("clean.yaml", cleanManifest); len(got) != 0 {
+		return fmt.Errorf("docs: a clean manifest was flagged: %v", got)
 	}
 	return nil
 }

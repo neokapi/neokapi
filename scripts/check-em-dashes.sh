@@ -58,11 +58,24 @@
 #                    entry, so the inputs alone would leave a gap.
 #
 #   --part docs      Every .md/.mdx under web/docs, docs/internals and
-#                    cli/skills/data, plus the sample READMEs. Fenced code
-#                    blocks hold CLI output and config, where a dash is data, so
-#                    they are skipped for both the count and the word total
-#                    behind the allowance. Each file may hold floor(words/1000),
-#                    CLAUDE.md's ceiling.
+#                    cli/skills/data, plus the sample READMEs and every
+#                    harness/demos/*/demo.yaml. Fenced code blocks hold CLI
+#                    output and config, where a dash is data, so they are
+#                    skipped for both the count and the word total behind the
+#                    allowance. Each page may hold floor(words/1000),
+#                    CLAUDE.md's ceiling; a manifest is a set of authored fields
+#                    rather than a document and is allowed none however long its
+#                    narration runs.
+#
+#                    The demo manifests are here because their title, subtitle,
+#                    tagline and captions are typeset into a video and their
+#                    narration is read aloud, so they reach a viewer the way a
+#                    page reaches a reader, and nothing else checked them. Only
+#                    demo.yaml is read: demo.<locale>.yaml sidecars are
+#                    generated target-language artefacts, which never gate a
+#                    source change. demos/_retired/ is excluded because the
+#                    harness itself skips it, so nothing there is recorded,
+#                    typeset or spoken.
 #
 #                    web/walkthroughs/ is deliberately outside this list. Those
 #                    files are the authored unit the demo pipeline records and
@@ -272,12 +285,13 @@ check_docs() {
       'docs/internals/**/*.md' 'docs/internals/**/*.mdx' \
       'cli/skills/data/**/*.md' 'cli/skills/data/**/*.mdx' \
       'web/blog/**/*.md' 'web/blog/**/*.mdx' \
-      'samples/README.md' 'samples/*/README.md' |
+      'samples/README.md' 'samples/*/README.md' \
+      'harness/demos/*/demo.yaml' ':!harness/demos/_retired/*' |
       "$MATCHER" -part docs 2>&1); then
     echo "✓ docs: every page is within its em-dash allowance"
     return 0
   fi
-  echo "✖ docs: each file is allowed floor(words/1000); target zero."
+  echo "✖ docs: each page is allowed floor(words/1000), a manifest none; target zero."
   printf '%s\n' "$out"
   return 1
 }

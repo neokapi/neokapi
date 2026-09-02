@@ -83,6 +83,10 @@ run_check "Reference dataset provenance" ./scripts/check-reference-provenance.sh
 # text", and it fails by showing less content rather than by failing. ~1s.
 run_check "Run projections are declared" ./scripts/check-run-projection.sh
 
+# Ungated: a walk selector dies in the app, not in the recorder that names it,
+# so gating this on the recorder's own path would never fire. ~2s.
+run_check "Walk selectors still exist" ./scripts/check-walk-selectors.sh
+
 # Ungated because an em dash lands wherever prose is written, in any of the
 # three tiers a reader sees it through: a Go string, an extracted catalog, a
 # docs page. The catalogs part reports rather than fails on a surface the local

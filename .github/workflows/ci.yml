@@ -1050,6 +1050,10 @@ jobs:
         run: ./scripts/check-deploy-paths.sh
       - name: Guard — every run projection is declared, never hand-rolled
         run: ./scripts/check-run-projection.sh
+      # The recorded walkthroughs are the only reader of the apps' testids and
+      # rail labels from outside the apps, and nothing compiles them together.
+      - name: Guard — every walk selector is still rendered by an app
+        run: ./scripts/check-walk-selectors.sh
       - name: Guard — every language is shown by name, not by its code alone
         run: ./scripts/check-locale-display.sh
       # The docs jobs build two sites in two locales and sit late in CI, so an
