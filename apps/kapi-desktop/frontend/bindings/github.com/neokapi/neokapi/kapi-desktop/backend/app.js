@@ -2712,6 +2712,26 @@ export function VoiceStarterPacks() {
     }));
 }
 
+/**
+ * WrittenBackFile returns one of the open project's content files as its format
+ * writer emits it for a locale, with the targets the project store holds applied
+ * to it. An empty locale returns the source file through the same round trip,
+ * which is what a reader sees when no locale is in view.
+ * 
+ * It is the text behind the preview's File view: a reader looking at a catalog's
+ * keys can ask what the file itself will look like, marked at the unit in focus.
+ * The bytes come from the same reader, writer and recipe configuration `kapi
+ * merge` materializes with, so what the preview shows is what the next merge
+ * writes.
+ * @param {string} tabID
+ * @param {string} filePath
+ * @param {string} locale
+ * @returns {$CancellablePromise<string>}
+ */
+export function WrittenBackFile(tabID, filePath, locale) {
+    return $Call.ByID(53811222, tabID, filePath, locale);
+}
+
 // Private type creation functions
 const $$createType0 = $Create.Array($Create.Any);
 const $$createType1 = $models.RelationDTO.createFrom;

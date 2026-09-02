@@ -542,6 +542,11 @@ export const api = {
   inspectFile: (tabID: string, filePath: string) => call<string>("InspectFile", tabID, filePath),
   inspectFileAnnotated: (tabID: string, filePath: string) =>
     call<string>("InspectFileAnnotated", tabID, filePath),
+  // The file as the next merge will write it for a locale: the same reader,
+  // writer and recipe configuration `kapi merge` materializes with. An empty
+  // locale returns the source file.
+  writtenBackFile: (tabID: string, filePath: string, locale: string) =>
+    call<string>("WrittenBackFile", tabID, filePath, locale),
   // Archive (ZIP/TAR/TAR.GZ) container support — list inner entries and preview
   // one of them (the desktop equivalent of the `archive.zip!entry` locator).
   listArchiveEntries: (filePath: string) =>

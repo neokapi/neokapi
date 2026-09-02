@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Loader2, FileWarning } from "lucide-react";
 import {
@@ -152,6 +152,18 @@ export function FilePreview({
     },
   });
 
+  // The written-back file behind the preview's File view. Catalog formats read
+  // as a key table, and a reader looking at keys can ask what the file itself
+  // will look like. Fetched only when asked for: it re-reads the source and
+  // applies the stored targets.
+  const [codeWanted, setCodeWanted] = useState(false);
+  const codeLocale = side && side !== "source" ? side : "";
+  const codeQuery = useQuery({
+    queryKey: qk.writtenBackFile(tabID, filePath ?? "", codeLocale),
+    enabled: codeWanted && !!filePath && !entryPath,
+    queryFn: () => api.writtenBackFile(tabID, filePath!, codeLocale),
+  });
+
   const tree = presetTree ?? previewQuery.data?.tree ?? null;
   const mediaUrls = previewQuery.data?.mediaUrls ?? {};
   const loading = !presetTree && !!filePath && previewQuery.isLoading;
@@ -273,6 +285,24 @@ export function FilePreview({
               selectedBlockId={focusID}
               blockAttrs={blockAttrs}
               defaultSide={side}
+              code={
+                entryPath
+                  ? undefined
+                  : {
+                      ...(codeQuery.data != null ? { text: codeQuery.data } : {}),
+                      filename: codeLocale ? `${filename} (${codeLocale})` : filename,
+                      loading: codeQuery.isFetching,
+                      ...(codeQuery.error
+                        ? {
+                            error:
+                              codeQuery.error instanceof Error
+                                ? codeQuery.error.message
+                                : String(codeQuery.error),
+                          }
+                        : {}),
+                      onRequest: () => setCodeWanted(true),
+                    }
+              }
             />
           )}
         </div>
