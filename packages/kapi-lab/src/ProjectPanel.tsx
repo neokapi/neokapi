@@ -67,7 +67,7 @@ export default function ProjectPanel({
         <div className="flex-1 min-w-0">
           <div className="text-sm font-semibold text-foreground">Project</div>
           <div className="text-[11px] leading-snug text-muted-foreground">
-            The canvas serializes to this <code>.kapi</code> recipe — the committed file kapi works
+            The canvas serializes to this <code>.kapi</code> recipe, the committed file kapi works
             from.
           </div>
         </div>
@@ -101,7 +101,7 @@ export default function ProjectPanel({
             <div className="flex flex-col gap-3 px-3 py-2.5">
               <p className="text-[11px] leading-relaxed text-muted-foreground">
                 Project scope: <code>defaults.tools</code> pins per-tool config every flow in the
-                project inherits. A step&apos;s own config overrides it per key — the step&apos;s
+                project inherits. A step&apos;s own config overrides it per key, and the step&apos;s
                 panel shows what it inherited.
               </p>
               {presetTools.length === 0 && (
@@ -150,7 +150,7 @@ export default function ProjectPanel({
           <ScrollArea className="h-full">
             <div className="flex flex-col gap-1.5 px-3 py-2.5">
               <p className="m-0 text-[11px] leading-relaxed text-muted-foreground">
-                Edit the flow and watch the YAML follow. Highlighted: <code>defaults</code> — the
+                Edit the flow and watch the YAML follow. Highlighted: <code>defaults</code>, the
                 project scope.
               </p>
               <CodeView text={recipe} lang="yaml" changedLines={scopeLines} />

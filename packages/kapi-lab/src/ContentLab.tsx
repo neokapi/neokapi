@@ -287,7 +287,7 @@ export default function ContentLab({
         <GateOverlay
           gate={gate}
           title="Content model"
-          description="See how kapi reads your file into the content model — live, in your browser."
+          description="See how kapi reads your file into the content model, live, in your browser."
         />
       </div>
     </PortalThemeProvider>

@@ -29,7 +29,7 @@ function RecipePreview({ sampleId }: { sampleId: string }) {
   return (
     <div style={{ maxWidth: 640 }}>
       <p style={{ fontSize: "0.85rem", opacity: 0.8 }}>
-        {sample.label} ({sample.kind}) — targets {TARGETS.join(", ")}, flows{" "}
+        {sample.label} ({sample.kind}), targets {TARGETS.join(", ")}, flows{" "}
         {FLOWS.map((f) => f.id).join(", ")}
       </p>
       <pre
@@ -48,17 +48,17 @@ function RecipePreview({ sampleId }: { sampleId: string }) {
 }
 
 export const RecipeJson: Story = {
-  name: "Recipe — JSON catalog",
+  name: "Recipe: JSON catalog",
   render: () => <RecipePreview sampleId="json" />,
 };
 
 export const RecipeDocx: Story = {
-  name: "Recipe — Word document",
+  name: "Recipe: Word document",
   render: () => <RecipePreview sampleId="docx" />,
 };
 
 export const RecipeAll: Story = {
-  name: "Recipe — every sample",
+  name: "Recipe: every sample",
   render: () => (
     <div style={{ display: "grid", gap: "1rem" }}>
       {WORKSPACE_SAMPLES.map((w) => (

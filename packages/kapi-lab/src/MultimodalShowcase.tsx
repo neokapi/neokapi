@@ -136,7 +136,7 @@ interface Chapter {
 const CHAPTERS: Chapter[] = [
   {
     id: "image",
-    title: "Image — OCR + translate",
+    title: "Image: OCR + translate",
     blurb:
       "kapi-vision reads the text in an image as geometry-anchored blocks; translating them round-trips a localized alt-text (and the whole image is replaceable per locale).",
     durationMs: 0,
@@ -146,7 +146,7 @@ const CHAPTERS: Chapter[] = [
   },
   {
     id: "audio",
-    title: "Audio — speech → subtitles",
+    title: "Audio: speech → subtitles",
     blurb:
       "kapi-asr transcribes speech into timing-anchored cues; translate fills the target, and the audio-to-subtitles flow writes a translated .vtt/.srt.",
     durationMs: 8000,
@@ -154,7 +154,7 @@ const CHAPTERS: Chapter[] = [
   },
   {
     id: "video",
-    title: "Video — speech + on-screen text",
+    title: "Video: speech + on-screen text",
     blurb:
       "kapi-av demuxes the video; the speech track becomes the subtitle track (frame OCR is filtered out of it), while on-screen frame text is overlaid at its timecode.",
     durationMs: 6000,
@@ -229,7 +229,7 @@ export default function MultimodalShowcase({
               : "bg-muted text-muted-foreground hover:bg-muted/70")
           }
         >
-          {i + 1}. {c.title.split(" — ")[0]}
+          {i + 1}. {c.title.split(": ")[0]}
         </button>
       )),
     [chapterIdx],

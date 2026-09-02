@@ -34,11 +34,26 @@
 #                    workflow does, where `make l10n-build` has just run) to
 #                    make that a failure instead.
 #
+#   --part ui        The TS/TSX that renders text no catalog covers, today
+#                    packages/kapi-lab/src. It is a dependency of both the docs
+#                    site and the desktop app, and it sits in no extract glob,
+#                    so its strings reach a reader without passing through a
+#                    catalog the part above could read. An em dash outside a
+#                    comment is reported: in JS/TSX the character can only
+#                    otherwise sit in a string, a template or JSX text. The
+#                    durable fix is to add the directory to an extract glob, at
+#                    which point this list shrinks to nothing.
+#
 #   --part docs      Every .md/.mdx under web/docs, docs/internals and
 #                    cli/skills/data. Fenced code blocks hold CLI output and
 #                    config, where a dash is data, so they are skipped for both
 #                    the count and the word total behind the allowance. Each
 #                    file may hold floor(words/1000), CLAUDE.md's ceiling.
+#
+#                    web/walkthroughs/ is deliberately outside this list. Those
+#                    files are the authored unit the demo pipeline records and
+#                    narrates from, so they are swept with the demos rather than
+#                    with the docs. Add them here when that sweep lands.
 #
 # With no --part, all three run and the script exits non-zero if any failed.
 #
@@ -46,11 +61,12 @@
 #     ./scripts/check-em-dashes.sh                     # every part
 #     ./scripts/check-em-dashes.sh --part go
 #     ./scripts/check-em-dashes.sh --part catalogs --require-extracted
+#     ./scripts/check-em-dashes.sh --part ui
 #     ./scripts/check-em-dashes.sh --self-test         # prove the matchers
 #
 # Wired into `make check-em-dashes` (part of `make lint`), `make pre-push`, the
-# repo-guards job in .github/workflows/ci.yml (go and docs, last in the job so a
-# failure hides no other guard), and the catalogs job in
+# repo-guards job in .github/workflows/ci.yml (go, ui and docs, last in the job
+# so a failure hides no other guard), and the catalogs job in
 # .github/workflows/l10n.yml, where the extract has just run.
 set -euo pipefail
 
@@ -87,9 +103,9 @@ while [ $# -gt 0 ]; do
 done
 
 case "$PART" in
-  all|go|catalogs|docs) ;;
+  all|go|catalogs|docs|ui) ;;
   *)
-    echo "check-em-dashes.sh: unknown part $PART (want go, catalogs or docs)" >&2
+    echo "check-em-dashes.sh: unknown part $PART (want go, catalogs, docs or ui)" >&2
     exit 2
     ;;
 esac
@@ -185,6 +201,27 @@ check_catalogs() {
   return "$rc"
 }
 
+# ── ui ───────────────────────────────────────────────────────────────────────
+
+# Shipped UI source that no extract glob reaches, so no catalog carries its
+# strings. Remove a directory from this list when it joins an extract glob.
+readonly UNEXTRACTED_UI_DIRS=(
+  packages/kapi-lab/src
+)
+
+check_ui() {
+  local out
+  if out=$(git ls-files -- "${UNEXTRACTED_UI_DIRS[@]}" |
+      grep -E '\.tsx?$' |
+      "$MATCHER" -part ui 2>&1); then
+    echo "✓ ui: no em dash in the UI source no catalog covers"
+    return 0
+  fi
+  echo "✖ ui: rewrite each as two sentences, or with a comma or colon."
+  printf '%s\n' "$out"
+  return 1
+}
+
 # ── docs ─────────────────────────────────────────────────────────────────────
 
 check_docs() {
@@ -210,6 +247,9 @@ if [ "$PART" = all ] || [ "$PART" = go ]; then
 fi
 if [ "$PART" = all ] || [ "$PART" = catalogs ]; then
   check_catalogs || status=1
+fi
+if [ "$PART" = all ] || [ "$PART" = ui ]; then
+  check_ui || status=1
 fi
 if [ "$PART" = all ] || [ "$PART" = docs ]; then
   check_docs || status=1

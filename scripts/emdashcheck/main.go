@@ -19,6 +19,12 @@
 //	-part docs      Markdown and MDX prose. Fenced code blocks are skipped, and
 //	                each file is allowed floor(words/1000) dashes, CLAUDE.md's
 //	                ceiling.
+//	-part ui        TypeScript and TSX that renders text no catalog covers. An
+//	                em dash outside a comment is reported: in JS/TSX, the
+//	                character can only otherwise appear inside a string, a
+//	                template or JSX text, which is all shipped text. The scan
+//	                tracks comment and string state so `//` inside a string
+//	                starts no comment.
 //
 // The caller owns file selection, so what the guard checks is what the guard
 // was handed.
@@ -110,8 +116,10 @@ func main() {
 		findings, err = scanCatalogFiles(paths)
 	case "docs":
 		findings, err = scanDocFiles(paths)
+	case "ui":
+		findings, err = scanUIFiles(paths)
 	default:
-		fmt.Fprintf(os.Stderr, "emdashcheck: unknown -part %q (want go, catalogs or docs)\n", *part)
+		fmt.Fprintf(os.Stderr, "emdashcheck: unknown -part %q (want go, catalogs, docs or ui)\n", *part)
 		os.Exit(2)
 	}
 	if err != nil {
@@ -329,6 +337,133 @@ func scanDocSource(path, src string) []finding {
 	}}
 }
 
+// ── ui ───────────────────────────────────────────────────────────────────────
+
+func scanUIFiles(paths []string) ([]finding, error) {
+	var out []finding
+	for _, p := range paths {
+		if strings.HasSuffix(p, ".test.ts") || strings.HasSuffix(p, ".test.tsx") ||
+			strings.Contains(filepath.ToSlash(p), "/__tests__/") {
+			continue
+		}
+		raw, err := os.ReadFile(p)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, scanUISource(p, string(raw))...)
+	}
+	return out, nil
+}
+
+// scanUISource reports every em dash in a TS/TSX file that is not inside a
+// comment. A comment is the one place the character is not shipped text: an em
+// dash anywhere else in JavaScript is inside a string, a template literal or
+// JSX text, since no operator, keyword or identifier can carry it.
+//
+// The scan tracks string state as well as comment state, because a `//` inside
+// a string ("https://…") starts no comment, and a quote inside a comment starts
+// no string. An empty cell (the character on its own, between JSX tags or as a
+// whole string literal) is allowed, as it is in Go.
+func scanUISource(path, src string) []finding {
+	type state int
+	const (
+		code state = iota
+		lineComment
+		blockComment
+		single
+		double
+		backtick
+	)
+
+	st := code
+	line := 1
+	var out []finding
+	runes := []rune(src)
+	for i := 0; i < len(runes); i++ {
+		c := runes[i]
+		next := rune(0)
+		if i+1 < len(runes) {
+			next = runes[i+1]
+		}
+		if c == '\n' {
+			line++
+			if st == lineComment {
+				st = code
+			}
+			continue
+		}
+		switch st {
+		case code:
+			switch {
+			case c == '/' && next == '/':
+				st = lineComment
+				i++
+			case c == '/' && next == '*':
+				st = blockComment
+				i++
+			case c == '\'':
+				st = single
+			case c == '"':
+				st = double
+			case c == '`':
+				st = backtick
+			case string(c) == emDash && !uiEmptyCell(runes, i):
+				out = append(out, finding{
+					Path:  path,
+					Where: fmt.Sprintf("%d", line),
+					Value: uiExcerptAround(runes, i),
+				})
+			}
+		case lineComment:
+			// consumed at the newline above
+		case blockComment:
+			if c == '*' && next == '/' {
+				st = code
+				i++
+			}
+		case single, double, backtick:
+			if c == '\\' {
+				i++
+				continue
+			}
+			if (st == single && c == '\'') || (st == double && c == '"') || (st == backtick && c == '`') {
+				st = code
+				continue
+			}
+			if string(c) == emDash && !uiEmptyCell(runes, i) {
+				out = append(out, finding{
+					Path:  path,
+					Where: fmt.Sprintf("%d", line),
+					Value: uiExcerptAround(runes, i),
+				})
+			}
+		}
+	}
+	return out
+}
+
+// uiEmptyCell reports whether the dash at i is the whole rendered value: `>—<`
+// between JSX tags, or "—" / '—' / `—` as an entire literal. Both are the empty
+// cell the Go allowlist admits.
+func uiEmptyCell(runes []rune, i int) bool {
+	if i == 0 || i+1 >= len(runes) {
+		return false
+	}
+	before, after := runes[i-1], runes[i+1]
+	if before == '>' && after == '<' {
+		return true
+	}
+	return (before == '"' && after == '"') ||
+		(before == '\'' && after == '\'') ||
+		(before == '`' && after == '`')
+}
+
+func uiExcerptAround(runes []rune, i int) string {
+	lo := max(i-40, 0)
+	hi := min(i+40, len(runes))
+	return strings.TrimSpace(string(runes[lo:hi]))
+}
+
 // ── shared ───────────────────────────────────────────────────────────────────
 
 func excerpt(v string) string {
@@ -351,7 +486,10 @@ func selfTest() error {
 	if err := selfTestCatalogs(); err != nil {
 		return err
 	}
-	return selfTestDocs()
+	if err := selfTestDocs(); err != nil {
+		return err
+	}
+	return selfTestUI()
 }
 
 func fixture(s string) string { return strings.ReplaceAll(s, "@", emDash) }
@@ -458,6 +596,36 @@ func selfTestDocs() error {
 	tooMany := fixture("# Title\n\n" + strings.Repeat("word ", 1200) + "\n\nTwo @ dashes @ here.\n")
 	if got := scanDocSource("many.md", tooMany); len(got) != 1 {
 		return fmt.Errorf("docs: two dashes in a 1200-word document should fail, got %v", got)
+	}
+	return nil
+}
+
+func selfTestUI() error {
+	dirty := fixture(`// A line comment with an em dash @ exempt.
+/* A block comment @ exempt too. */
+const label = "Nothing written yet @ press Run";
+const url = "https://example.com/a@b"; // the // in a string starts no comment
+export function Cell() {
+  return <span>{value || <em>@</em>}</span>;
+}
+const jsx = <p>Run the flow @ the engine executes your code.</p>;
+`)
+	got := scanUISource("Panel.tsx", dirty)
+	if len(got) != 3 {
+		return fmt.Errorf("ui: expected 3 findings (string, url, jsx text), got %d: %v", len(got), got)
+	}
+	for _, f := range got {
+		if strings.Contains(f.Value, "exempt") {
+			return fmt.Errorf("ui: a comment was flagged: %v", f)
+		}
+	}
+
+	clean := fixture(`const cell = "@";
+const nothing = <span>@</span>;
+// @ and /* @ */
+`)
+	if got := scanUISource("Clean.tsx", clean); len(got) != 0 {
+		return fmt.Errorf("ui: an empty cell or a comment was flagged: %v", got)
 	}
 	return nil
 }

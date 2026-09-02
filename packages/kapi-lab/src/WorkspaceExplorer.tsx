@@ -154,7 +154,7 @@ export default function WorkspaceExplorer({
             const bytes = runtime.readBytes(outPath);
             setOutput(
               bytes
-                ? `✓ produced ${sample.filename} — ${bytes.length} bytes, valid OOXML zip: ${bytes[0] === 0x50 && bytes[1] === 0x4b}`
+                ? `✓ produced ${sample.filename}: ${bytes.length} bytes, valid OOXML zip: ${bytes[0] === 0x50 && bytes[1] === 0x4b}`
                 : "(no output)",
             );
           } else {
@@ -189,7 +189,7 @@ export default function WorkspaceExplorer({
             >
               {WORKSPACE_SAMPLES.map((w) => (
                 <option key={w.id} value={w.id}>
-                  {w.label} — {w.kind}
+                  {w.label}: {w.kind}
                 </option>
               ))}
             </select>
@@ -222,9 +222,9 @@ export default function WorkspaceExplorer({
           {!info && <div className={s.binaryNote}>Run “extract” to create the workspace.</div>}
           {resumed && (
             <div className={s.binaryNote}>
-              ↻ reopened on a fresh path — the working cache started empty here, so kapi rebuilt the
-              whole workspace from the packed <code>.kpz</code> alone. The work below is the work
-              you left, picked up unchanged.
+              ↻ reopened on a fresh path, so the working cache started empty here, so kapi rebuilt
+              the whole workspace from the packed <code>.kpz</code> alone. The work below is the
+              work you left, picked up unchanged.
             </div>
           )}
           {info && <InfoView info={info} />}

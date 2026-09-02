@@ -214,7 +214,7 @@ function geo(x: number, y: number, w: number, h: number) {
 
 export const doclangTree = tree("doclang", [
   layer("report.dclg.xml", [
-    block("ph", "page_header", "Confidential — Q1", {
+    block("ph", "page_header", "Confidential, Q1", {
       structure: { role: "page-header", layer: "furniture" },
       geometry: geo(40, 16, 200, 18),
     }),

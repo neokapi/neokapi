@@ -41,9 +41,9 @@ export interface ContentLesson {
 export const CONTENT_LESSONS: ContentLesson[] = [
   {
     id: "anatomy",
-    label: "Anatomy — layers, blocks, runs",
+    label: "Anatomy: layers, blocks, runs",
     description:
-      "A reader turns the file into the content model: nested Layers and Groups holding Blocks whose text is a flat sequence of Runs. Open a Block to read its runs — an HTML <strong> becomes a paired inline code; a JSON {name} stays literal text. That is format-awareness.",
+      "A reader turns the file into the content model: nested Layers and Groups holding Blocks whose text is a flat sequence of Runs. Open a Block to read its runs: an HTML <strong> becomes a paired inline code; a JSON {name} stays literal text. That is format-awareness.",
     sampleId: "page-html",
     spec: { tab: "blocks" },
   },
@@ -67,7 +67,7 @@ export const CONTENT_LESSONS: ContentLesson[] = [
     id: "bilingual",
     label: "Source ↔ target",
     description:
-      "A target is a first-class, variant-keyed record on the Block — not a second copy of the file. This bilingual XLIFF already carries a French target for every segment: the Preview's source↔target toggle swaps between them, and each Block lists its target alongside its source.",
+      "A target is a first-class, variant-keyed record on the Block rather than a second copy of the file. This bilingual XLIFF already carries a French target for every segment: the Preview's source↔target toggle swaps between them, and each Block lists its target alongside its source.",
     sampleId: "greeting-bilingual-xliff",
     spec: { tab: "preview" },
   },
@@ -75,15 +75,15 @@ export const CONTENT_LESSONS: ContentLesson[] = [
     id: "structure",
     label: "Document structure",
     description:
-      "Beyond text, a Block carries its semantic role and reading order (heading, paragraph, list-item, table-cell…). The Structure tab outlines the document logically — the same model whatever format stored it.",
+      "Beyond text, a Block carries its semantic role and reading order (heading, paragraph, list-item, table-cell…). The Structure tab outlines the document logically, the same model whatever format stored it.",
     sampleId: "report-doclang",
     spec: { tab: "structure" },
   },
   {
     id: "roundtrip",
-    label: "Round-trip — skeleton preserved",
+    label: "Round-trip: skeleton preserved",
     description:
-      "The writer splices block text back into the original file's skeleton. Pseudo-translate every block, then diff the output against the input: only the block text changed — structure, markup and key order are byte-for-byte intact. That is the round-trip guarantee.",
+      "The writer splices block text back into the original file's skeleton. Pseudo-translate every block, then diff the output against the input: only the block text changed, and structure, markup and key order are byte-for-byte intact. That is the round-trip guarantee.",
     sampleId: "messages-json",
     spec: { run: { argv: ["pseudo-translate", "{in}", "-o", "{out}"], diff: true }, tab: "raw" },
   },

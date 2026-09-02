@@ -243,9 +243,9 @@ export default function KbfExplorer({
             <span className={styles.label}>Canonical write-back (engine output)</span>
             <CodeView text={canonical.output} lang="json" maxHeight="20rem" />
             <p className={styles.status}>
-              The serializer is deterministic — 2-space indent, pinned field order, sorted map keys,
-              trailing newline — so these bytes, and the content hash above, are identical across
-              the Go and TypeScript implementations.
+              The serializer is deterministic: 2-space indent, pinned field order, sorted map keys,
+              trailing newline, so these bytes, and the content hash above, are identical across the
+              Go and TypeScript implementations.
             </p>
           </div>
         )}
@@ -253,7 +253,7 @@ export default function KbfExplorer({
       {!hideAnnotations && (
         <div className={styles.section}>
           <span className={styles.label}>
-            .overlays.jsonl annotation overlay — stand-off anchors
+            .overlays.jsonl annotation overlay: stand-off anchors
           </span>
           <textarea
             className={`${styles.editor} ${styles.editorSmall}`}
@@ -263,7 +263,7 @@ export default function KbfExplorer({
           />
           <p className={styles.status}>
             Each record anchors to a location in a block. Click one to resolve it against the live
-            document and highlight what it points at — or see the machine-readable reason it failed.
+            document and highlight what it points at, or see the machine-readable reason it failed.
           </p>
           <div className={styles.annList}>
             {annotations.map((a) => (
@@ -574,7 +574,7 @@ function AnnotationRow({
         )}
       </div>
       <div className={styles.annResolution}>
-        {ann.resolution.ok ? ann.resolution.detail : `did not resolve — ${ann.resolution.reason}`}
+        {ann.resolution.ok ? ann.resolution.detail : `did not resolve: ${ann.resolution.reason}`}
       </div>
     </div>
   );

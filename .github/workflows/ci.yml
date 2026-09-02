@@ -1147,6 +1147,8 @@ jobs:
       # and the docs allowance is the one here most likely to fail.
       - name: Guard — no em dash in any Go string literal
         run: ./scripts/check-em-dashes.sh --part go
+      - name: Guard — no em dash in the UI source no catalog covers
+        run: ./scripts/check-em-dashes.sh --part ui
       - name: Guard — docs prose stays within its em-dash allowance
         run: ./scripts/check-em-dashes.sh --part docs
 

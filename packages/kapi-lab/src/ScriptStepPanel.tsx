@@ -89,7 +89,7 @@ export default function ScriptStepPanel({
           </div>
         </div>
         <div className="text-[10px] text-muted-foreground">
-          A JavaScript transform run over each Part — edit with completions, or load an example.
+          A JavaScript transform run over each Part. Edit with completions, or load an example.
         </div>
       </PanelHeader>
 
@@ -120,7 +120,7 @@ export default function ScriptStepPanel({
       </div>
 
       <div className="border-t border-border px-3 py-1.5 text-[10px] leading-snug text-muted-foreground">
-        The code lands on the step as <code>config.code</code> — press Run in the toolbar and this
+        The code lands on the step as <code>config.code</code>. Press Run in the toolbar and this
         exact script processes every part.
       </div>
     </div>

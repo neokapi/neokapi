@@ -179,7 +179,7 @@ export default function KbfConformance({ assets }: KbfConformanceProps): React.R
                 </td>
                 <td>
                   {r.tsPass == null ? (
-                    <span className={`${styles.verdict} ${styles.na}`}>— canonical only</span>
+                    <span className={`${styles.verdict} ${styles.na}`}>n/a (canonical only)</span>
                   ) : (
                     <span className={`${styles.verdict} ${r.tsPass ? styles.pass : styles.fail}`}>
                       {r.tsPass ? "✓ pass" : "✗ fail"}
@@ -639,7 +639,7 @@ const CASES: ConfCase[] = [
   {
     id: "tgt-optional",
     name: "Allow dropping optional placeholders",
-    description: "Optional jsx:node placeholders may be dropped — still valid in both engines.",
+    description: "Optional jsx:node placeholders may be dropped, and stay valid in both engines.",
     category: "target",
     expected: "valid",
     runGo: (rt) => goValidateTarget(rt, tagChip, tagChipOptionalTarget),

@@ -40,7 +40,7 @@ export default function RecipeView({ recipe }: RecipeViewProps): React.ReactElem
         </span>
       </div>
       <p className="text-[11px] leading-relaxed text-muted-foreground">
-        Everything you design here serializes to a <code>.kapi</code> recipe — the committed file
+        Everything you design here serializes to a <code>.kapi</code> recipe, the committed file
         kapi works from. <code>defaults.tools</code> is project scope (every flow inherits it; a
         step&apos;s own config wins per key); the flow&apos;s steps are the nodes on the canvas.
         Edit the flow and watch the YAML follow.

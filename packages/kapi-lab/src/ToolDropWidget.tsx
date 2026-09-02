@@ -376,7 +376,7 @@ export default function ToolDropWidget({
                 </Badge>
                 {input.binary ? (
                   <pre className="overflow-auto rounded bg-muted/40 p-2 text-xs">
-                    (binary input — download to inspect)
+                    (binary input, download to inspect)
                   </pre>
                 ) : (
                   <CodeView
@@ -393,7 +393,7 @@ export default function ToolDropWidget({
                 </Badge>
                 {input.binary ? (
                   <pre className="overflow-auto rounded bg-muted/40 p-2 text-xs">
-                    (binary output — download to inspect)
+                    (binary output, download to inspect)
                   </pre>
                 ) : (
                   <CodeView

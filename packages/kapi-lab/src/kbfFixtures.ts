@@ -288,7 +288,7 @@ export const KBF_SAMPLES: KbfSample[] = [
   {
     id: "plural",
     label: "Plural",
-    blurb: "A structured plural run — each CLDR form holds its own Run[].",
+    blurb: "A structured plural run: each CLDR form holds its own Run[].",
     file: fileWith([shoppingCart]),
   },
   {
@@ -366,6 +366,6 @@ export const ANNOTATIONS_KBFL = [
     id: "orphan-1",
     block: "tag-chip",
     anchor: { kind: "run", path: [2], runId: "99" },
-    data: { kind: "protected-term", term: "label", note: "stale runId — should not resolve" },
+    data: { kind: "protected-term", term: "label", note: "stale runId, should not resolve" },
   }),
 ].join("\n");

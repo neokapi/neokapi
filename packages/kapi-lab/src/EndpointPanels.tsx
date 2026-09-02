@@ -58,7 +58,7 @@ export function SourceContentPanel({ runtime, file }: SourceContentPanelProps): 
         <code className="text-[10px]">{file.filename}</code>
       </div>
       <p className="text-[11px] leading-relaxed text-muted-foreground">
-        The reader turns these bytes into the content model — Layers and Groups containing Blocks
+        The reader turns these bytes into the content model: Layers and Groups containing Blocks
         whose text is a sequence of Runs. This tree is exactly what flows into the first tool.
       </p>
       {!runtime.ready && (
@@ -94,7 +94,7 @@ export function SinkOutputPanel({
   if (!outPath) {
     return (
       <div className="py-4 text-center text-[11px] italic text-muted-foreground">
-        Nothing written yet — press Run and the output the writer produces lands here.
+        Nothing written yet. Press Run and the output the writer produces lands here.
       </div>
     );
   }
@@ -102,7 +102,7 @@ export function SinkOutputPanel({
     <div className="flex flex-col gap-2">
       <p className="text-[11px] leading-relaxed text-muted-foreground">
         The writer splices the processed blocks back into the document&apos;s structural skeleton.
-        In the <strong>Native</strong> tab, lines that differ from the input are highlighted — only
+        In the <strong>Native</strong> tab, lines that differ from the input are highlighted, only
         the block text changes; the structure round-trips exactly.
       </p>
       <OutputView

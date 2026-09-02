@@ -84,7 +84,7 @@ export const LAB_SCENARIOS: LabScenario[] = [
       },
       {
         prose:
-          "redact is a recoverable transformer — it rewrites the source (placeholders in, originals vaulted) and the placement check keeps it ahead of any step that sends content off-machine. Run the flow.",
+          "redact is a recoverable transformer: it rewrites the source (placeholders in, originals vaulted) and the placement check keeps it ahead of any step that sends content off-machine. Run the flow.",
         run: true,
         select: null,
       },
@@ -96,13 +96,13 @@ export const LAB_SCENARIOS: LabScenario[] = [
       },
       {
         prose:
-          "unredact restores the vaulted originals into the translated target — the names are back, in the right places, in the translation.",
+          "unredact restores the vaulted originals into the translated target, so the names are back, in the right places, in the translation.",
         select: "tool-3",
         mode: "inspect",
       },
       {
         prose:
-          "And the written file: the Sink shows the output with its Native lines diffed against the input — structure intact, block text translated, secrets restored.",
+          "And the written file: the Sink shows the output with its Native lines diffed against the input: structure intact, block text translated, secrets restored.",
         select: "endpoint-sink",
       },
     ],
@@ -111,7 +111,7 @@ export const LAB_SCENARIOS: LabScenario[] = [
     id: "redaction-ner",
     label: "Redaction (on-device NER)",
     description:
-      "Entity-driven redaction with nothing leaving your browser: a GLiNER model (ONNX, run by onnxruntime-web) detects people, organizations and locations on-device, redact replaces them using the entity overlay, and unredact restores the originals after translation. Because the detector is local, the placement check has no remote egress to object to — the first run downloads the model (~175 MB) once.",
+      "Entity-driven redaction with nothing leaving your browser: a GLiNER model (ONNX, run by onnxruntime-web) detects people, organizations and locations on-device, redact replaces them using the entity overlay, and unredact restores the originals after translation. Because the detector is local, the placement check has no remote egress to object to, and the first run downloads the model (~175 MB) once.",
     steps: [
       { tool: "entity-extract", config: { engine: "ner" } },
       {
@@ -125,19 +125,19 @@ export const LAB_SCENARIOS: LabScenario[] = [
     walkthrough: [
       {
         prose:
-          "Same protection, but entity-driven and fully on-device: entity-extract runs a GLiNER model in your browser (engine: ner) — nothing leaves the page, so the placement check has no remote egress to object to.",
+          "Same protection, but entity-driven and fully on-device: entity-extract runs a GLiNER model in your browser (engine: ner), so nothing leaves the page, so the placement check has no remote egress to object to.",
         select: "tool-0",
         mode: "configure",
       },
       {
         prose:
-          "Run it. The first run downloads the model (~175 MB, cached by the browser) — watch the progress bar under the canvas.",
+          "Run it. The first run downloads the model (~175 MB, cached by the browser). Watch the progress bar under the canvas.",
         run: true,
         select: null,
       },
       {
         prose:
-          "The extractor attached an entity overlay — the people, organizations and locations it found, with confidence scores.",
+          "The extractor attached an entity overlay: the people, organizations and locations it found, with confidence scores.",
         select: "tool-0",
         mode: "inspect",
       },
@@ -159,13 +159,13 @@ export const LAB_SCENARIOS: LabScenario[] = [
     walkthrough: [
       {
         prose:
-          "Start at the Source: the reader hands the first tool whole blocks — one run of text each, no sentence boundaries yet.",
+          "Start at the Source: the reader hands the first tool whole blocks, one run of text each, no sentence boundaries yet.",
         select: "endpoint-source",
       },
       { prose: "Run the flow.", run: true, select: null },
       {
         prose:
-          "Open the segmentation step: each block now carries sentence spans — a stand-off overlay anchored to the runs. The text itself was never cut apart.",
+          "Open the segmentation step: each block now carries sentence spans, a stand-off overlay anchored to the runs. The text itself was never cut apart.",
         select: "tool-0",
         mode: "inspect",
       },
@@ -192,12 +192,12 @@ export const LAB_SCENARIOS: LabScenario[] = [
     walkthrough: [
       {
         prose:
-          "Start at the Source: the reader turns the file into the content model — Layers and Groups containing Blocks whose text is a sequence of Runs. Inspect the tree; it is what the first tool receives.",
+          "Start at the Source: the reader turns the file into the content model: Layers and Groups containing Blocks whose text is a sequence of Runs. Inspect the tree; it is what the first tool receives.",
         select: "endpoint-source",
       },
       {
         prose:
-          "Run the flow, then watch one block accumulate stand-off state as it passes each step — nothing rewrites the text; tools communicate by attaching overlays and annotations.",
+          "Run the flow, then watch one block accumulate stand-off state as it passes each step. Nothing rewrites the text; tools communicate by attaching overlays and annotations.",
         run: true,
         select: null,
       },
@@ -207,13 +207,13 @@ export const LAB_SCENARIOS: LabScenario[] = [
         mode: "inspect",
       },
       {
-        prose: "translate wrote the fr target — a first-class, locale-keyed record on the block.",
+        prose: "translate wrote the fr target, a first-class, locale-keyed record on the block.",
         select: "tool-1",
         mode: "inspect",
       },
       {
         prose:
-          "term-check and qa attach findings without touching text or target — open each and read the +overlay / +annotation delta chips.",
+          "term-check and qa attach findings without touching text or target. Open each and read the +overlay / +annotation delta chips.",
         // The prose invites the learner to open the panels themselves; the
         // step only points at the node.
         select: "tool-2",
@@ -221,7 +221,7 @@ export const LAB_SCENARIOS: LabScenario[] = [
       },
       {
         prose:
-          "Now scrub the transport under the canvas to replay the run — the dots on the edges are the parts in flight between steps.",
+          "Now scrub the transport under the canvas to replay the run: the dots on the edges are the parts in flight between steps.",
         select: null,
       },
     ],
@@ -234,7 +234,7 @@ export const LAB_SCENARIOS: LabScenario[] = [
     steps: [{ tool: "pseudo-translate" }, { tool: "qa" }],
     sampleId: "support-reply",
     walkthrough: [
-      { prose: "The quickest end-to-end pipeline — run it.", run: true, select: null },
+      { prose: "The quickest end-to-end pipeline. Run it.", run: true, select: null },
       {
         prose:
           "pseudo-translate wrote an accented, padded target for every block, so layout and encoding issues surface before any real translation is bought.",
@@ -243,7 +243,7 @@ export const LAB_SCENARIOS: LabScenario[] = [
       },
       {
         prose:
-          "Inspect the Sink: the Native tab diffs the written file against the input — the structure is byte-identical, only the block text changed. That is the round-trip guarantee.",
+          "Inspect the Sink: the Native tab diffs the written file against the input: the structure is byte-identical, only the block text changed. That is the round-trip guarantee.",
         select: "endpoint-sink",
       },
     ],
@@ -252,7 +252,7 @@ export const LAB_SCENARIOS: LabScenario[] = [
     id: "project",
     label: "Project & recipe",
     description:
-      "The canvas is a view over a .kapi recipe — the committed file kapi works from. Project scope (defaults.tools) pins presets every flow inherits; the flow's steps are the nodes; Source and Sink are bindings, not steps.",
+      "The canvas is a view over a .kapi recipe, the committed file kapi works from. Project scope (defaults.tools) pins presets every flow inherits; the flow's steps are the nodes; Source and Sink are bindings, not steps.",
     steps: [{ tool: "segmentation" }, { tool: "redact" }, { tool: "translate" }],
     presets: {
       redact: {
@@ -264,32 +264,32 @@ export const LAB_SCENARIOS: LabScenario[] = [
     walkthrough: [
       {
         prose:
-          "A flow never lives alone: everything on this canvas serializes to a .kapi recipe — the same committed YAML kapi uses on disk. The Project panel that just opened shows it live: the highlighted defaults block is PROJECT scope, the flow's steps are your nodes.",
+          "A flow never lives alone: everything on this canvas serializes to a .kapi recipe, the same committed YAML kapi uses on disk. The Project panel that just opened shows it live: the highlighted defaults block is PROJECT scope, the flow's steps are your nodes.",
         recipe: true,
         select: null,
       },
       {
         prose:
-          "Project scope in action: the redact step is bare on the canvas, but defaults.tools.redact pins its rules for every flow in the project — the step's config panel shows the inherited preset (with an Edit project defaults shortcut), and any key the step sets itself would win.",
+          "Project scope in action: the redact step is bare on the canvas, but defaults.tools.redact pins its rules for every flow in the project: the step's config panel shows the inherited preset (with an Edit project defaults shortcut), and any key the step sets itself would win.",
         select: "tool-1",
         mode: "configure",
         recipe: false,
       },
       {
         prose:
-          "Source and Sink are BINDINGS, not steps — the flow itself owns no I/O. In a real project, extract reads the recipe's content globs into the project store, an in-project run is process-only over that store, and merge writes localized files back out. Here the bindings are file in → file out, so you can watch the whole loop.",
+          "Source and Sink are BINDINGS rather than steps, and the flow itself owns no I/O. In a real project, extract reads the recipe's content globs into the project store, an in-project run is process-only over that store, and merge writes localized files back out. Here the bindings are file in → file out, so you can watch the whole loop.",
         // About the binding pills themselves, not the inspector's content.
         select: "endpoint-source",
         mode: "highlight",
       },
       {
-        prose: "Run the flow — exactly what `kapi run` does with this recipe.",
+        prose: "Run the flow, exactly what `kapi run` does with this recipe.",
         run: true,
         select: null,
       },
       {
         prose:
-          "The run wrote through the sink binding: the output file, structure intact. Edit the flow — add a tool, change a config — then open Project again: the YAML follows the canvas.",
+          "The run wrote through the sink binding: the output file, structure intact. Edit the flow (add a tool, change a config) then open Project again: the YAML follows the canvas.",
         select: "endpoint-sink",
         recipe: false,
       },
@@ -299,7 +299,7 @@ export const LAB_SCENARIOS: LabScenario[] = [
     id: "scripting",
     label: "Scripting",
     description:
-      "When no built-in tool fits, the script step runs a small JavaScript program over each Part — modify text, filter parts, or log() what flows through. The step IS the script: its code editor (with typed completions) lives in the step's config panel.",
+      "When no built-in tool fits, the script step runs a small JavaScript program over each Part: modify text, filter parts, or log() what flows through. The step IS the script: its code editor (with typed completions) lives in the step's config panel.",
     steps: [
       {
         tool: "script",
@@ -316,18 +316,18 @@ export const LAB_SCENARIOS: LabScenario[] = [
     walkthrough: [
       {
         prose:
-          "A script step is a tool you write yourself: open its config and the panel is a real code editor — typed completions for part / emit / skip / log, plus a library of examples to start from. This one rewrites the source, so it declares allowSourceMutation — the source is read-only for scripts unless they opt into being a transformer.",
+          "A script step is a tool you write yourself: open its config and the panel is a real code editor with typed completions for part / emit / skip / log, plus a library of examples to start from. This one rewrites the source, so it declares allowSourceMutation: the source is read-only for scripts unless they opt into being a transformer.",
         select: "tool-0",
         mode: "configure",
       },
       {
-        prose: "Run the flow — the engine executes your exact code over every part.",
+        prose: "Run the flow, and the engine executes your exact code over every part.",
         run: true,
         select: null,
       },
       {
         prose:
-          "What the script did: every block's text was rewritten (this one shouts). Edit the code — try a different example — and run again.",
+          "What the script did: every block's text was rewritten (this one shouts). Edit the code, try a different example, and run again.",
         select: "tool-0",
         mode: "inspect",
       },
@@ -337,7 +337,7 @@ export const LAB_SCENARIOS: LabScenario[] = [
     id: "build-your-own",
     label: "Build your own",
     description:
-      "Start from the classic prepare-translate-check chain and reshape it: add tools from the palette, reorder, configure — the placement check flags an unsafe transformer slot before you run.",
+      "Start from the classic prepare-translate-check chain and reshape it: add tools from the palette, reorder, configure, and the placement check flags an unsafe transformer slot before you run.",
     steps: [
       {
         tool: "search-replace",
