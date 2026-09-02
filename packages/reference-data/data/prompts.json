@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-08-28T12:40:29Z",
-  "version": "v3",
+  "generatedAt": "2026-09-01T22:19:13Z",
+  "version": "v4",
   "prompts": [
     {
       "id": "translate.single",
@@ -13,7 +13,7 @@
             {
               "kind": "task",
               "origin": "framework",
-              "text": "You are an expert linguist with deep command of both languages and of the subject domain. Translate the user's text from en to fr, rendering it as a specialist writing natively in that domain and language would. Return ONLY the translation, with no explanation, preamble or quoting."
+              "text": "You are an expert linguist with deep command of both languages and of the subject domain. Translate the user's text from English (en) to French (fr), rendering it as a specialist writing natively in that domain and language would. Return ONLY the translation, with no explanation, preamble or quoting."
             },
             {
               "kind": "constraint",
@@ -50,7 +50,7 @@
             {
               "kind": "task",
               "origin": "framework",
-              "text": "You are an expert linguist with deep command of both languages and of the subject domain. Translate each segment in the user's JSON payload from en to fr, rendering each as a specialist writing natively in that domain and language would. Return one translation per segment, echoing each segment's id exactly. Return every id you were given, and no others."
+              "text": "You are an expert linguist with deep command of both languages and of the subject domain. Translate each segment in the user's JSON payload from English (en) to French (fr), rendering each as a specialist writing natively in that domain and language would. Return one translation per segment, echoing each segment's id exactly. Return every id you were given, and no others."
             },
             {
               "kind": "constraint",
@@ -216,7 +216,7 @@
             {
               "kind": "content",
               "origin": "source and translation",
-              "text": "Source (en): \u003cyour content\u003e\nTranslation (fr): \u003cthe translation\u003e"
+              "text": "Source (English (en)): \u003cyour content\u003e\nTranslation (French (fr)): \u003cthe translation\u003e"
             }
           ]
         }
@@ -243,7 +243,7 @@
             {
               "kind": "content",
               "origin": "source and translation",
-              "text": "Source (en): \u003cyour content\u003e\nTranslation (fr): \u003cthe translation\u003e"
+              "text": "Source (English (en)): \u003cyour content\u003e\nTranslation (French (fr)): \u003cthe translation\u003e"
             }
           ]
         }

@@ -4,12 +4,12 @@ import { t } from "@neokapi/i18n-react/runtime";
 import { ChevronRight } from "lucide-react";
 import type { AIActivityEntry, AIExchange, AIMessage } from "../types/api";
 
-/** Flatten a message to text: a multimodal call carries parts, not a string. */
+/** Flatten a message to text. A message is a list of parts, always: a text-only
+ *  call is one text part, and a multimodal one carries media parts beside it. */
 function messageText(m: AIMessage): string {
-  if (typeof m.content === "string" && m.content !== "") return m.content;
   if (!m.parts) return "";
   return m.parts
-    .map((p) => p.text ?? "")
+    .map((p) => (p.kind === "text" ? (p.text ?? "") : `[${p.kind}]`))
     .filter(Boolean)
     .join("\n");
 }
@@ -56,7 +56,7 @@ export function AIExchangeView({ exchange }: { exchange: AIExchange }) {
         {exchange.prompt && (
           <span translate="no">
             {exchange.prompt}
-            {exchange.prompt_version ? ` v${exchange.prompt_version}` : ""}
+            {exchange.prompt_version ? ` ${exchange.prompt_version}` : ""}
           </span>
         )}
         {tokens && <span>{tokens}</span>}
@@ -69,9 +69,18 @@ export function AIExchangeView({ exchange }: { exchange: AIExchange }) {
             <p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
               {roleLabel(m.role)}
             </p>
-            <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words font-mono text-[11px] leading-relaxed">
-              {text}
-            </pre>
+            {text ? (
+              <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words font-mono text-[11px] leading-relaxed">
+                {text}
+              </pre>
+            ) : (
+              // A message with no readable text is a defect in this view, not an
+              // empty prompt. Saying so beats an empty box that reads as "kapi
+              // sent nothing" — which is the one thing it never does.
+              <p className="text-[11px] italic text-muted-foreground">
+                {t("This message carried no text this view could render.")}
+              </p>
+            )}
           </div>
         );
       })}

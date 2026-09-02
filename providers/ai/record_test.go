@@ -2,6 +2,7 @@ package aiprovider
 
 import (
 	"context"
+	"encoding/json"
 	"sync"
 	"testing"
 
@@ -176,4 +177,59 @@ func TestRecorderReceivesTheCallContext(t *testing.T) {
 	mu.Lock()
 	defer mu.Unlock()
 	assert.Equal(t, []string{"review:fix-findings"}, seen)
+}
+
+// The wire shape a reader depends on.
+//
+// ContentPart carried no JSON tags, so it serialized as Kind/Text/Media inside
+// an Exchange whose every other field was lower-case. Anything reading the
+// container's convention got an undefined text for every message: the desktop's
+// disclosure drew its system and user panels empty while the reply beside them
+// rendered, and `kapi --explain-prompts` wrote the same inconsistency to disk.
+//
+// A frontend test could not catch it — it asserts against a fixture, and the
+// fixture was written from the same wrong assumption as the reader. This
+// asserts the actual bytes.
+func TestExchangeJSONShape(t *testing.T) {
+	ex := Exchange{
+		Prompt:   "translate.single",
+		Version:  "v3",
+		Provider: "ollama",
+		Model:    "gemma4:e2b",
+		Messages: []Message{
+			TextMessage(RoleSystem, "You translate from en to nb."),
+			TextMessage(RoleUser, "Order Confirmed!"),
+		},
+		Response: "Ordre bekreftet!",
+		Usage:    TokenUsage{InputTokens: 172, OutputTokens: 5},
+	}
+
+	raw, err := json.Marshal(ex)
+	require.NoError(t, err)
+
+	var got map[string]any
+	require.NoError(t, json.Unmarshal(raw, &got))
+
+	msgs, ok := got["messages"].([]any)
+	require.True(t, ok, "messages is a list")
+	require.Len(t, msgs, 2)
+
+	first, ok := msgs[0].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "system", first["role"])
+
+	parts, ok := first["parts"].([]any)
+	require.True(t, ok, "a message carries parts, not a content string")
+	require.Len(t, parts, 1)
+
+	part, ok := parts[0].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "text", part["kind"], "lower-case, like every other key here")
+	assert.Equal(t, "You translate from en to nb.", part["text"])
+
+	// Nothing capitalized survives: a reader following the container's
+	// convention must find every field it needs.
+	assert.NotContains(t, part, "Text")
+	assert.NotContains(t, part, "Kind")
+	assert.NotContains(t, first, "Role")
 }

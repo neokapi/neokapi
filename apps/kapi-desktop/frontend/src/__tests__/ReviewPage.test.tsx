@@ -77,6 +77,28 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+/** Answer the page's one-field dialog. window.prompt does nothing in the app's
+ *  webview, so the dialog is the only path the real UI takes. */
+async function answerAsk(text: string) {
+  const input = await waitFor(() => {
+    const el = document.querySelector<HTMLTextAreaElement>("[data-slot='review-ask-input']");
+    expect(el).not.toBeNull();
+    return el!;
+  });
+  if (text !== "") await userEvent.type(input, text);
+  await userEvent.click(
+    document.querySelector<HTMLButtonElement>("[data-slot='review-ask-confirm']")!,
+  );
+}
+
+/** Dismiss the one-field dialog without answering. */
+async function cancelAsk() {
+  await waitFor(() =>
+    expect(document.querySelector("[data-slot='review-ask-input']")).not.toBeNull(),
+  );
+  await userEvent.click(screen.getByRole("button", { name: /^Cancel$/ }));
+}
+
 describe("ReviewPage", () => {
   it("renders the queue grouped by file, findings-first", async () => {
     renderPage();
@@ -160,26 +182,64 @@ describe("ReviewPage", () => {
     await waitFor(() => expect(activeKey()).toBe(first));
   });
 
-  it("rejecting prompts for a note and records it", async () => {
-    const promptSpy = vi.spyOn(window, "prompt").mockReturnValue("too literal");
+  it("rejecting asks for a note and records it", async () => {
     const { onDecide } = renderPage();
     await waitFor(() =>
       expect(document.querySelector("[data-slot='review-queue-item'][data-active]")).not.toBeNull(),
     );
     fireEvent.keyDown(window, { key: "r" });
+    await answerAsk("too literal");
     await waitFor(() => expect(onDecide).toHaveBeenCalledTimes(1));
-    expect(promptSpy).toHaveBeenCalled();
     expect(onDecide.mock.calls[0][1]).toBe("rejected");
     expect(onDecide.mock.calls[0][2]).toBe("too literal");
   });
 
-  it("cancelling the reject prompt records nothing", async () => {
-    vi.spyOn(window, "prompt").mockReturnValue(null);
+  // window.prompt returns null in the app's webview without ever showing
+  // anything, and both callers read null as "cancelled". Retranslate and Reject
+  // therefore did nothing at all, silently. These tests mocked window.prompt, so
+  // they passed against a UI that could not work.
+  it("never calls window.prompt", async () => {
+    const promptSpy = vi.spyOn(window, "prompt");
+    renderPage();
+    await waitFor(() =>
+      expect(document.querySelector("[data-slot='review-queue-item'][data-active]")).not.toBeNull(),
+    );
+
+    fireEvent.keyDown(window, { key: "r" });
+    await waitFor(() =>
+      expect(document.querySelector("[data-slot='review-ask-input']")).not.toBeNull(),
+    );
+    await userEvent.click(screen.getByRole("button", { name: /^Cancel$/ }));
+
+    await userEvent.click(await screen.findByRole("button", { name: /Retranslate/ }));
+    await waitFor(() =>
+      expect(document.querySelector("[data-slot='review-ask-input']")).not.toBeNull(),
+    );
+    expect(promptSpy).not.toHaveBeenCalled();
+  });
+
+  // Retranslate needs an instruction; the dialog must not let an empty one
+  // through, which is the case the old code silently swallowed.
+  it("will not retranslate on an empty instruction", async () => {
+    const onAIAction = vi.fn(async () => ({ proposed_target: "x" }));
+    renderPage({ onAIAction });
+    await userEvent.click(await screen.findByRole("button", { name: /Retranslate/ }));
+    const confirm = await waitFor(() => {
+      const el = document.querySelector<HTMLButtonElement>("[data-slot='review-ask-confirm']");
+      expect(el).not.toBeNull();
+      return el!;
+    });
+    expect(confirm.hasAttribute("disabled")).toBe(true);
+    expect(onAIAction).not.toHaveBeenCalled();
+  });
+
+  it("cancelling the reject dialog records nothing", async () => {
     const { onDecide } = renderPage();
     await waitFor(() =>
       expect(document.querySelector("[data-slot='review-queue-item'][data-active]")).not.toBeNull(),
     );
     fireEvent.keyDown(window, { key: "r" });
+    await cancelAsk();
     await new Promise((r) => setTimeout(r, 20));
     expect(onDecide).not.toHaveBeenCalled();
   });
@@ -271,12 +331,12 @@ describe("ReviewPage", () => {
   });
 
   it("retranslate prompts for an instruction, shows the diff, and Accept saves", async () => {
-    vi.spyOn(window, "prompt").mockReturnValue("more informal");
     const onAIAction = vi.fn(async () => ({ proposed_target: "Hallo {name}!" }));
     const onSaveTarget = vi.fn(async () => {});
     renderPage({ onAIAction, onSaveTarget });
     const retranslate = await screen.findByRole("button", { name: /Retranslate/ });
     await userEvent.click(retranslate);
+    await answerAsk("more informal");
     await waitFor(() => expect(onAIAction).toHaveBeenCalledTimes(1));
     expect(onAIAction.mock.calls[0][1]).toBe("retranslate");
     expect(onAIAction.mock.calls[0][2]).toBe("more informal");
@@ -300,7 +360,6 @@ describe("ReviewPage", () => {
   // A reviewer accepting a proposal is accepting an answer. The question has to
   // be reachable, or the only basis for the decision is that the model said so.
   it("discloses what was sent to the model behind an AI proposal", async () => {
-    vi.spyOn(window, "prompt").mockReturnValue("more informal");
     const onAIAction = vi.fn(async () => ({
       proposed_target: "Hallo {name}!",
       exchanges: [
@@ -314,9 +373,16 @@ describe("ReviewPage", () => {
           exchange: {
             provider: "anthropic",
             model: "claude-opus-5",
+            // The shape the Go side actually serializes: a message is a list of
+            // parts, never a plain string. The first version of this test
+            // invented a `content` field, so it passed while the panels it was
+            // meant to prove rendered empty against real backend output.
             messages: [
-              { role: "system", content: "You translate from en to de." },
-              { role: "user", content: "Hello {name}!\nInstruction: more informal" },
+              { role: "system", parts: [{ kind: "text", text: "You translate from en to de." }] },
+              {
+                role: "user",
+                parts: [{ kind: "text", text: "Hello {name}!\nInstruction: more informal" }],
+              },
             ],
             response: "Hallo {name}!",
             usage: { input_tokens: 120, output_tokens: 8 },
@@ -326,6 +392,7 @@ describe("ReviewPage", () => {
     }));
     renderPage({ onAIAction });
     await userEvent.click(await screen.findByRole("button", { name: /Retranslate/ }));
+    await answerAsk("more informal");
     await waitFor(() =>
       expect(document.querySelector("[data-slot='review-ai-proposal']")).not.toBeNull(),
     );
@@ -348,11 +415,11 @@ describe("ReviewPage", () => {
   });
 
   it("discarding an AI proposal writes nothing", async () => {
-    vi.spyOn(window, "prompt").mockReturnValue("shorter");
     const onAIAction = vi.fn(async () => ({ proposed_target: "Hi" }));
     const onSaveTarget = vi.fn(async () => {});
     renderPage({ onAIAction, onSaveTarget });
     await userEvent.click(await screen.findByRole("button", { name: /Retranslate/ }));
+    await answerAsk("more informal");
     await waitFor(() =>
       expect(document.querySelector("[data-slot='review-ai-proposal']")).not.toBeNull(),
     );
@@ -362,7 +429,6 @@ describe("ReviewPage", () => {
   });
 
   it("cancelling the retranslate prompt calls nothing", async () => {
-    vi.spyOn(window, "prompt").mockReturnValue(null);
     const onAIAction = vi.fn(async () => ({ proposed_target: "Hi" }));
     renderPage({ onAIAction });
     await userEvent.click(await screen.findByRole("button", { name: /Retranslate/ }));
