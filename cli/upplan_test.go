@@ -276,7 +276,7 @@ func TestUpPlan_RecycleOnlyFlowPricesNothingItCannotProduce(t *testing.T) {
 	out, err := runUp(t, processOnlyApp(t), recipe, "--plan")
 	require.NoError(t, err, out)
 	assert.Contains(t, out, "out of reach")
-	assert.Contains(t, out, "calls no provider — this run spends nothing")
+	assert.Contains(t, out, "calls no provider, so this run spends nothing")
 	assert.NotContains(t, out, "AI provider:")
 }
 
@@ -300,7 +300,7 @@ func TestUpPlan_LocalDraftingFlowIsNotAProviderBill(t *testing.T) {
 
 	out, err := runUp(t, processOnlyApp(t), recipe, "--plan")
 	require.NoError(t, err, out)
-	assert.Contains(t, out, "produces its drafts locally — no provider is called and nothing is spent")
+	assert.Contains(t, out, "produces its drafts locally: no provider is called and nothing is spent")
 }
 
 // TestUpPlan_UnresolvableFlowIsAnError: a recipe naming a flow it does not

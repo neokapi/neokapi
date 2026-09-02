@@ -34,8 +34,8 @@ func newGrepCmd(a *App) *cobra.Command {
 		Short:   "Search the text/content inside files for a pattern",
 		GroupID: "advanced",
 		Long: `Search the human-readable text inside any supported format for a regular
-expression — the prose of a Word .docx, the values of a JSON catalog, the
-segments of an XLIFF file — skipping markup and structure. Output mirrors grep:
+expression: the prose of a Word .docx, the values of a JSON catalog, the
+segments of an XLIFF file, skipping markup and structure. Output mirrors grep:
 one matching block per line, optionally prefixed with the file name and the
 block number.
 

@@ -145,12 +145,12 @@ func TestKapiProject_RetiredKeys(t *testing.T) {
 		{
 			"a stray content: key is rejected by name",
 			"version: v1\ncontent:\n  - path: a.md\n",
-			"content: is no longer a recipe key — use collections",
+			"content: is no longer a recipe key. Use collections",
 		},
 		{
 			"a stray coordinates: block names what replaced it",
 			"version: v1\ncoordinates:\n  product: [a]\n",
-			"coordinates: is no longer a recipe key — use profiles",
+			"coordinates: is no longer a recipe key. Use profiles",
 		},
 	}
 	for _, tt := range tests {

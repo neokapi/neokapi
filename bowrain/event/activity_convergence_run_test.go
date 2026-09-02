@@ -35,7 +35,7 @@ func TestMapEventToActivity_ConvergenceRunCompleted(t *testing.T) {
 		assert.Equal(t, bstore.ActivityFlowCompleted, a.Type)
 		assert.Equal(t, "run", a.EntityType)
 		assert.Equal(t, "run-7", a.EntityID)
-		assert.Equal(t, "convergence run converged — 3 languages · 128 translations produced", a.Summary)
+		assert.Equal(t, "convergence run converged: 3 languages · 128 translations produced", a.Summary)
 		assert.Equal(t, "system", a.ActorID, "a run has no human actor")
 		// The locale list rides the data for drill-down; the summary counts it.
 		assert.Equal(t, "fr,de,ja", a.Data["locales"])
@@ -89,22 +89,22 @@ func TestConvergenceRunSummary(t *testing.T) {
 		{
 			name: "converged with work done",
 			data: map[string]string{"state": "converged", "locales_count": "3", "produced_count": "128"},
-			want: "convergence run converged — 3 languages · 128 translations produced",
+			want: "convergence run converged: 3 languages · 128 translations produced",
 		},
 		{
 			name: "singular language and translation",
 			data: map[string]string{"state": "converged", "locales_count": "1", "produced_count": "1"},
-			want: "convergence run converged — 1 language · 1 translation produced",
+			want: "convergence run converged: 1 language · 1 translation produced",
 		},
 		{
 			name: "converged with nothing new to produce",
 			data: map[string]string{"state": "converged", "locales_count": "2", "produced_count": "0"},
-			want: "convergence run converged — 2 languages · 0 translations produced",
+			want: "convergence run converged: 2 languages · 0 translations produced",
 		},
 		{
 			name: "parked names the reason it stopped",
 			data: map[string]string{"state": "parked", "stall_reason": "needs_credits", "locales_count": "2", "produced_count": "4"},
-			want: "convergence run parked (needs_credits) — 2 languages · 4 translations produced",
+			want: "convergence run parked (needs_credits): 2 languages · 4 translations produced",
 		},
 		{
 			name: "held on source before any locale was worked",
@@ -114,7 +114,7 @@ func TestConvergenceRunSummary(t *testing.T) {
 		{
 			name: "large counts are grouped, never enumerated",
 			data: map[string]string{"state": "converged", "locales_count": "12", "produced_count": "20345"},
-			want: "convergence run converged — 12 languages · 20,345 translations produced",
+			want: "convergence run converged: 12 languages · 20,345 translations produced",
 		},
 		{
 			name: "an event with no state still reads as an outcome",

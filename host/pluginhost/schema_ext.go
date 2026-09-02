@@ -55,7 +55,7 @@ func RegisterSchemaExtensions(host *Host, onWarn func(msg string)) {
 		// key we own) is worth a warning.
 		if existing, ok := project.ExtensionRegistered(scope, reg.Extension.Name); ok {
 			if existing != group {
-				onWarn(fmt.Sprintf("plugin %q: schema_extension %q at scope %s already registered by %q — keeping existing entry", reg.Plugin.Name(), reg.Extension.Name, reg.Extension.Scope, existing))
+				onWarn(fmt.Sprintf("plugin %q: schema_extension %q at scope %s already registered by %q, keeping the existing entry", reg.Plugin.Name(), reg.Extension.Name, reg.Extension.Scope, existing))
 			}
 			continue
 		}
@@ -76,7 +76,7 @@ func RegisterSchemaExtensions(host *Host, onWarn func(msg string)) {
 		func() {
 			defer func() {
 				if r := recover(); r != nil {
-					onWarn(fmt.Sprintf("plugin %q: schema_extension %q at scope %s already registered — keeping existing entry", reg.Plugin.Name(), reg.Extension.Name, reg.Extension.Scope))
+					onWarn(fmt.Sprintf("plugin %q: schema_extension %q at scope %s already registered, keeping the existing entry", reg.Plugin.Name(), reg.Extension.Name, reg.Extension.Scope))
 				}
 			}()
 			project.RegisterExtension(ext)
@@ -113,7 +113,7 @@ func loadSchemaDecoder(reg SchemaExtensionRegistration, onWarn func(msg string))
 	data, err := os.ReadFile(schemaPath)
 	if err != nil {
 		onWarn(fmt.Sprintf(
-			"plugin %q: schema_extension %q: cannot read JSON Schema %q: %v — falling back to structural validation",
+			"plugin %q: schema_extension %q: cannot read JSON Schema %q: %v. Falling back to structural validation",
 			reg.Plugin.Name(), reg.Extension.Name, schemaPath, err,
 		))
 		return structural
@@ -122,7 +122,7 @@ func loadSchemaDecoder(reg SchemaExtensionRegistration, onWarn func(msg string))
 	var schema jsonschema.Schema
 	if err := json.Unmarshal(data, &schema); err != nil {
 		onWarn(fmt.Sprintf(
-			"plugin %q: schema_extension %q: cannot parse JSON Schema %q: %v — falling back to structural validation",
+			"plugin %q: schema_extension %q: cannot parse JSON Schema %q: %v. Falling back to structural validation",
 			reg.Plugin.Name(), reg.Extension.Name, schemaPath, err,
 		))
 		return structural
@@ -131,7 +131,7 @@ func loadSchemaDecoder(reg SchemaExtensionRegistration, onWarn func(msg string))
 	resolved, err := schema.Resolve(nil)
 	if err != nil {
 		onWarn(fmt.Sprintf(
-			"plugin %q: schema_extension %q: cannot compile JSON Schema %q: %v — falling back to structural validation",
+			"plugin %q: schema_extension %q: cannot compile JSON Schema %q: %v. Falling back to structural validation",
 			reg.Plugin.Name(), reg.Extension.Name, schemaPath, err,
 		))
 		return structural

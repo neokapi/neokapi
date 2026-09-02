@@ -275,9 +275,9 @@ func (r *runner) requireDaemon() (Status, string, error) {
 	if r.daemon == nil {
 		if budget := r.startupBudgetExpired; budget > 0 {
 			return Skip, fmt.Sprintf(
-				"the daemon printed no handshake within the %s startup budget — see modeC.handshake", budget), nil
+				"the daemon printed no handshake within the %s startup budget (see modeC.handshake)", budget), nil
 		}
-		return Skip, "the daemon did not start — see modeC.handshake", nil
+		return Skip, "the daemon did not start (see modeC.handshake)", nil
 	}
 	return "", "", nil
 }
@@ -466,13 +466,13 @@ func checkModeCSocketPrivate(_ context.Context, r *runner) (Status, string, erro
 	}
 	info, err := os.Stat(r.daemon.hs.Socket)
 	if err != nil {
-		return Skip, "the socket is not stattable — see modeC.socket-listening", nil
+		return Skip, "the socket is not stattable (see modeC.socket-listening)", nil
 	}
 	perm := info.Mode().Perm()
 	if perm&0o077 != 0 {
 		return Fail, fmt.Sprintf("socket mode %v grants access to group/other; the host dials it with insecure transport on the assumption that it is user-private", perm), nil
 	}
-	return Pass, fmt.Sprintf("socket mode %v — owner only", perm), nil
+	return Pass, fmt.Sprintf("socket mode %v, owner only", perm), nil
 }
 
 // dial opens the gRPC client connection the remaining Mode-C checks share.
@@ -538,7 +538,7 @@ func checkModeCBridgeService(ctx context.Context, r *runner) (Status, string, er
 	}
 	conn, err := r.dial(ctx)
 	if err != nil {
-		return Skip, "the connection is not READY — see modeC.grpc-ready", nil
+		return Skip, "the connection is not READY (see modeC.grpc-ready)", nil
 	}
 
 	// Open a Process stream and close the send side immediately. A daemon with
@@ -574,14 +574,14 @@ func checkModeCFormatProbe(ctx context.Context, r *runner) (Status, string, erro
 	}
 	probe := r.suite.FormatProbe
 	if probe == nil {
-		return Skip, "no Suite.FormatProbe configured — the suite never reads a document through a declared format on its own", nil
+		return Skip, "no Suite.FormatProbe configured: the suite never reads a document through a declared format on its own", nil
 	}
 	if !declaresFormat(r, probe.Format) {
 		return Fail, fmt.Sprintf("probe names format %q, which the manifest does not declare", probe.Format), nil
 	}
 	conn, err := r.dial(ctx)
 	if err != nil {
-		return Skip, "the connection is not READY — see modeC.grpc-ready", nil
+		return Skip, "the connection is not READY (see modeC.grpc-ready)", nil
 	}
 
 	// Stage the input on disk: the protocol prefers a path over inline bytes so
@@ -688,7 +688,7 @@ func checkModeCSegmentRPC(ctx context.Context, r *runner) (Status, string, error
 	}
 	conn, err := r.dial(ctx)
 	if err != nil {
-		return Skip, "the connection is not READY — see modeC.grpc-ready", nil
+		return Skip, "the connection is not READY (see modeC.grpc-ready)", nil
 	}
 	client := pb.NewBridgeServiceClient(conn)
 
@@ -766,7 +766,7 @@ func checkModeCShutdownRPC(ctx context.Context, r *runner) (Status, string, erro
 	}
 	conn, err := r.dial(ctx)
 	if err != nil {
-		return Skip, "the connection is not READY — see modeC.grpc-ready", nil
+		return Skip, "the connection is not READY (see modeC.grpc-ready)", nil
 	}
 	if _, err := pb.NewBridgeServiceClient(conn).Shutdown(ctx, &pb.ShutdownRequest{}); err != nil {
 		// A daemon that shuts down while answering legitimately drops the

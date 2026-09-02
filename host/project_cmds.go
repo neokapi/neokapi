@@ -259,7 +259,7 @@ func ScaffoldRecipe(name, sourceLocale string, targetLocales []string, content [
 #     target: "src/locales/{lang}/*.json"
 #
 # A named collection binds the point in the context space its content sits at,
-# and its base: is the directory it lives in — every path and target below is
+# and its base: is the directory it lives in. Every path and target below is
 # written relative to that base and joined onto it:
 #
 # profiles:

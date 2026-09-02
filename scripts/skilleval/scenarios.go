@@ -133,7 +133,7 @@ vocabulary:
 // A term seed with real entries. EVALS.md records that scenario 7 shipped with
 // no terms and therefore tested nothing it claimed to; this is the fix.
 const glossaryCSV = `source,target_fr,target_de,note
-Northwind,Northwind,Northwind,product name — never translated
+Northwind,Northwind,Northwind,product name, never translated
 workspace,espace de travail,Arbeitsbereich,
 dashboard,tableau de bord,Übersicht,
 sign in,se connecter,anmelden,
@@ -644,7 +644,7 @@ var scenarios = []Scenario{
 				Note: "names the OLD product, and kapi can parse it; must not be rewritten before approval"},
 			{As: "docs/intro.md", Body: "# Tidewatch\n\nTidewatch keeps an eye on your tides.\n"},
 			{As: "support/faq.md", Body: "# Tideguard support\n\nTideguard is the new name for Tidewatch.\n",
-				Note: "the undeclared surface, using the new name — the drift to be found"},
+				Note: "the undeclared surface, using the new name: the drift to be found"},
 		},
 		Turns: 14,
 		// The scenario is that the agent must NOT rewrite the profile before

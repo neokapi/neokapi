@@ -171,7 +171,7 @@ func TestCLIContractText(t *testing.T) {
 	buf.Reset()
 	require.NoError(t, pres.FormatText(&buf))
 	assert.Equal(t,
-		"Committed overlays for messages.json to the project store — run `kapi merge` to write target files.\n",
+		"Committed overlays for messages.json to the project store. Run `kapi merge` to write target files.\n",
 		buf.String())
 }
 

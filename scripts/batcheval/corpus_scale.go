@@ -72,7 +72,7 @@ var (
 	phTemplates = []string{
 		"You have %[2]d unread %[1]ss",
 		"Uploaded {0} of {1} %[1]ss",
-		"Welcome back, {{name}} — you have {count} %[1]ss waiting",
+		"Welcome back, {{name}}, you have {count} %[1]ss waiting",
 		"Could not sync %%s: the %[1]s was modified by {user}",
 		"{used} of {total} %[1]ss used this month",
 		"%[1]s {id} was updated on {date} by {{author}}",

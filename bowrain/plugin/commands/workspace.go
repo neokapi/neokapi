@@ -61,7 +61,7 @@ var workspaceCreateCmd = &cobra.Command{
 		}
 		name := strings.TrimSpace(workspaceCreateName)
 		if name == "" {
-			return errors.New("workspace name required — use --name")
+			return errors.New("workspace name required. Use --name")
 		}
 		slug := strings.TrimSpace(workspaceCreateSlug)
 		if slug == "" {
@@ -83,7 +83,7 @@ var workspaceCreateCmd = &cobra.Command{
 func workspaceAuth() (serverURL, token string, err error) {
 	stored, err := config.LoadAuth()
 	if err != nil || stored == nil {
-		return "", "", errors.New("not authenticated — run: kapi auth login")
+		return "", "", errors.New("not authenticated. Run: kapi auth login")
 	}
 	// resolveServerURLFrom already prefers the stored login's server; the
 	// hosted default only applies when nothing is configured anywhere.

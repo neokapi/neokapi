@@ -194,7 +194,7 @@ func TestDemoProvider_NoticeOnce(t *testing.T) {
 	_, _ = p.Translate(context.Background(), TranslateRequest{Source: "Bye", TargetLocale: "fr"})
 
 	assert.Equal(t, 1, strings.Count(buf.String(), DemoNotice))
-	assert.Contains(t, buf.String(), "not a real language model")
+	assert.Contains(t, buf.String(), "rather than a real language model")
 }
 
 func TestDemoProvider_ImplementsStreaming(t *testing.T) {

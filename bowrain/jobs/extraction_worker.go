@@ -224,7 +224,7 @@ func processExtractionJob(ctx context.Context, deps *ExtractionWorkerDeps, jobID
 	}
 
 	emitExtractionLog(deps, job.StepID, "info",
-		fmt.Sprintf("Extraction completed: %s — %d review items created", job.ItemName, job.ItemsCreated),
+		fmt.Sprintf("Extraction completed: %s, %d review items created", job.ItemName, job.ItemsCreated),
 		map[string]string{"item": job.ItemName, "items_created": strconv.Itoa(job.ItemsCreated)})
 	return nil
 }

@@ -30,13 +30,13 @@ also reconciles local terminology edits against that baseline. Ordinary edits
 (definitions, notes, proposed terms, non-governed relations) apply directly,
 while governed edits (a term set to forbidden/preferred, a REPLACED_BY
 relation, a concept delete) are bundled into a single change-set proposal for
-review — the same separation of duties the web hub enforces. Push reports what
+review, the same separation of duties the web hub enforces. Push reports what
 applied directly versus what was proposed.
 
 Push also carries the project's declared context: the collections the recipe
 names, the point each occupies in the project's context space, and the brand
 voice governing it. They travel inside the push, so the collections a pushed
-item belongs to exist server-side by the time the item is stored — created on
+item belongs to exist server-side by the time the item is stored. They are created on
 first push, unchanged content is a no-op, and a changed voice lands as a new
 version with server-side edits archived rather than overwritten. A collection
 the recipe no longer names is reported, never deleted. Use the recipe to carry

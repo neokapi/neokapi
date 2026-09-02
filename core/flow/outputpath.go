@@ -66,22 +66,22 @@ type OutputPathError struct {
 func (e *OutputPathError) Error() string {
 	switch e.Kind {
 	case OutputPathIsDir:
-		return fmt.Sprintf("cannot write %s: a directory occupies that path — remove or rename the directory, or point the target at a different path", e.Path)
+		return fmt.Sprintf("cannot write %s: a directory occupies that path. Remove or rename the directory, or point the target at a different path", e.Path)
 	case OutputPathIrregular:
-		return fmt.Sprintf("cannot write %s: the path is not a regular file (mode %s) — remove it, or point the target at a different path", e.Path, e.Mode)
+		return fmt.Sprintf("cannot write %s: the path is not a regular file (mode %s). Remove it, or point the target at a different path", e.Path, e.Mode)
 	case OutputPathParentNotDir:
 		// "is not a directory" rather than "is a file": the obstruction is often
 		// a device or a symlink to one (`-o /dev/null`), and calling that a file
 		// would be wrong where being precise costs nothing.
-		return fmt.Sprintf("cannot write %s: %s is not a directory — the output directory cannot be created under it", e.Path, e.Dir)
+		return fmt.Sprintf("cannot write %s: %s is not a directory, so the output directory cannot be created under it", e.Path, e.Dir)
 	case OutputPathPermission:
 		where := e.Dir
 		if where == "" {
 			where = e.Path
 		}
-		return fmt.Sprintf("cannot write %s: permission denied — check the write permissions on %s", e.Path, where)
+		return fmt.Sprintf("cannot write %s: permission denied. Check the write permissions on %s", e.Path, where)
 	case OutputPathReadOnly:
-		return fmt.Sprintf("cannot write %s: the filesystem is mounted read-only — write to a writable location", e.Path)
+		return fmt.Sprintf("cannot write %s: the filesystem is mounted read-only. Write to a writable location", e.Path)
 	default:
 		if e.Err != nil {
 			return fmt.Sprintf("cannot write %s: %v", e.Path, e.Err)

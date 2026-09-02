@@ -77,7 +77,7 @@ func runDoctor() int {
 		fmt.Fprintln(os.Stderr, "kapi-pdfium: self-check failed: PDFium extracted no text from the sample PDF")
 		return 1
 	}
-	fmt.Printf("kapi-pdfium %s — PDFium backend OK (extracted %d block(s) from the sample PDF)\n", version.Version, blocks)
+	fmt.Printf("kapi-pdfium %s: PDFium backend OK (extracted %d block(s) from the sample PDF)\n", version.Version, blocks)
 	return 0
 }
 

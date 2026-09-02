@@ -35,14 +35,14 @@ export interface FlowDef {
 export const FLOWS: FlowDef[] = [
   {
     id: "translate",
-    label: "translate — content-memory leverage (exact + fuzzy)",
+    label: "translate: content-memory leverage (exact + fuzzy)",
     yaml: `  translate:
     steps:
       - tool: recycle`,
   },
   {
     id: "translate-exact",
-    label: "translate-exact — content-memory leverage (100% only)",
+    label: "translate-exact: content-memory leverage (100% only)",
     yaml: `  translate-exact:
     steps:
       - tool: recycle
@@ -146,15 +146,15 @@ export default function ProjectExplorer({
         const bytes = runtime.readBytes(outPath(lang));
         setOutput(
           bytes
-            ? `✓ produced ${sample.filename} — ${bytes.length} bytes, valid OOXML zip: ${
+            ? `✓ produced ${sample.filename}: ${bytes.length} bytes, valid OOXML zip: ${
                 bytes[0] === 0x50 && bytes[1] === 0x4b
               }`
-            : `(no ${lang} output — this flow left ${lang} untranslated)`,
+            : `(no ${lang} output, this flow left ${lang} untranslated)`,
         );
       } else {
         setOutput(
           runtime.readFile(outPath(lang)) ??
-            `(no ${lang} output — this flow left ${lang} untranslated)`,
+            `(no ${lang} output, this flow left ${lang} untranslated)`,
         );
       }
     },
@@ -245,7 +245,7 @@ export default function ProjectExplorer({
               >
                 {WORKSPACE_SAMPLES.map((w) => (
                   <option key={w.id} value={w.id}>
-                    {w.label} — {w.kind}
+                    {w.label}: {w.kind}
                   </option>
                 ))}
               </select>
@@ -283,7 +283,7 @@ export default function ProjectExplorer({
 
       <div className={s.panel}>
         <div className={s.card}>
-          <div className={s.cardTitle}>demo.kapi (the recipe — committed config)</div>
+          <div className={s.cardTitle}>demo.kapi (the recipe, committed config)</div>
           <CodeView text={recipe} lang="yaml" lineNumbers={false} maxHeight="18rem" />
         </div>
 
@@ -368,13 +368,13 @@ export default function ProjectExplorer({
 
       <p style={{ fontSize: "0.85rem", opacity: 0.8, marginTop: "0.6rem" }}>
         A <strong>project</strong> keeps config in a committed <code>kapi.yaml</code> recipe and its
-        working state in a <code>.kapi/</code> dir — built for teams and servers. A run is{" "}
+        working state in a <code>.kapi/</code> dir, built for teams and servers. A run is{" "}
         <strong>process-only</strong>: it commits to the project store, then <code>merge</code>{" "}
         writes the files. A <strong>.kpz workspace</strong> folds the same content + work into one
-        portable file — built for ad-hoc, single-file hand-off. Same engine underneath.
+        portable file, built for ad-hoc, single-file hand-off. Same engine underneath.
       </p>
       <p style={{ fontSize: "0.85rem", opacity: 0.8, marginTop: "0.4rem" }}>
-        The <code>.kapi/work/store.db</code> store is <strong>regenerable</strong> — delete it and a
+        The <code>.kapi/work/store.db</code> store is <strong>regenerable</strong>: delete it and a
         re-run rebuilds it from what you committed. The one thing it can&rsquo;t rebuild is your{" "}
         <strong>authored decisions</strong>: approving a translation lands in{" "}
         <code>.kapi/state/</code>, one JSONL shard per document, which you keep in git alongside

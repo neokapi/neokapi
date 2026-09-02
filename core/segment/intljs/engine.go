@@ -40,7 +40,7 @@ func init() {
 	segment.Register(segment.EngineDescriptor{
 		Name:        "intl",
 		Label:       "Unicode baseline (Intl.Segmenter)",
-		Description: "Browser-native Unicode sentence boundaries via Intl.Segmenter — zero-download, no companion wasm.",
+		Description: "Browser-native Unicode sentence boundaries via Intl.Segmenter: zero-download, no companion wasm.",
 		Order:       15,
 		New: func(base segment.BaseConfig, _ map[string]any) (segment.Segmenter, error) {
 			return &engine{lang: base.Language, mask: base.Mask}, nil
@@ -76,7 +76,7 @@ func (e *engine) Segment(ctx context.Context, runs []model.Run, loc model.Locale
 
 	fn := js.Global().Get(jsFuncName)
 	if !fn.Truthy() {
-		return nil, errors.New("intljs: host did not define " + jsFuncName + " — Intl.Segmenter bridge not installed")
+		return nil, errors.New("intljs: host did not define " + jsFuncName + " (Intl.Segmenter bridge not installed)")
 	}
 	res := fn.Invoke(string(text), locale)
 	if res.Type() != js.TypeObject {

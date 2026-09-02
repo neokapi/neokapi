@@ -214,7 +214,7 @@ func TestFormatTextNamesTheLocaleBehindEachVerdict(t *testing.T) {
 	var buf strings.Builder
 	require.NoError(t, res.FormatText(&buf))
 
-	assert.Contains(t, buf.String(), `discouraged — say "terms store" (en, deprecated)`)
+	assert.Contains(t, buf.String(), `discouraged, say "terms store" (en, deprecated)`)
 	assert.Contains(t, buf.String(), "ok (nb, admitted)")
 	// The domain segments the graph; a verdict without it does not say which
 	// body of context the concept belongs to.

@@ -12,7 +12,7 @@ import (
 func NewExtractCmd(a *App, _ ExtractCmdOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "extract",
-		Short:   "Emit a bilingual file for a translator — native .kpz or XLIFF/PO",
+		Short:   "Emit a bilingual file for a translator: native .kpz or XLIFF/PO",
 		GroupID: "advanced",
 		Long: `Emit bilingual XLIFF 2.x (default) or PO files for each target locale
 declared in a kapi project, pre-filled from the project's content memory.

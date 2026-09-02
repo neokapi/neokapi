@@ -132,7 +132,7 @@ func resolveModel() string {
 
 func modelStatus(m string) string {
 	if m == "" {
-		return "(none — set KAPI_ASR_MODEL or bundle a ggml-*.bin beside the binary)"
+		return "(none: set KAPI_ASR_MODEL or bundle a ggml-*.bin beside the binary)"
 	}
 	if fileExists(m) {
 		return m

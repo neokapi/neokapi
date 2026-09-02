@@ -231,7 +231,7 @@ func termList(p profileShape) []string {
 func reportInfer(r *InferResult) {
 	fmt.Printf("\nvoice-infer-quality\n")
 	if r.Blocked != "" {
-		fmt.Printf("  NOT MEASURED — %s\n", r.Blocked)
+		fmt.Printf("  NOT MEASURED: %s\n", r.Blocked)
 		return
 	}
 	fmt.Printf("  recovered %d/%d fields (%.0f%%) from %d documents\n",

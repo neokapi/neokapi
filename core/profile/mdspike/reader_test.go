@@ -151,7 +151,7 @@ func TestExtendsCycleIsDiagnosed(t *testing.T) {
 	}
 	_, err := mdspike.LoadFS(context.Background(), fsys, "a.md", mdspike.Options{})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "cycle?")
+	assert.Contains(t, err.Error(), "possibly a cycle")
 }
 
 // TestFromTermsWithoutStoreFails keeps a sourced ban list from evaporating into

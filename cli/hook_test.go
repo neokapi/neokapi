@@ -168,7 +168,7 @@ func TestHookStop_WarnsOnEmptyPayload(t *testing.T) {
 	assert.Contains(t, hookNoticeOf(t, raw), "the payload on stdin was empty",
 		"the notice must say why the guard did not run")
 	assert.Contains(t, stderr, "kapi hook stop", "the warning must name the hook")
-	assert.Contains(t, stderr, "it never ran",
+	assert.Contains(t, stderr, "the guard never ran",
 		"the warning must distinguish an un-evaluated guard from one that passed")
 }
 
@@ -425,7 +425,7 @@ func TestHookPreEdit_WarnsOnMalformedPayload(t *testing.T) {
 		"a broken payload must never deny — the guard fails open")
 	assert.Contains(t, hookNoticeOf(t, raw), "not the JSON this hook expects")
 	assert.Contains(t, stderr, "kapi hook pre-edit", "the warning must name the hook")
-	assert.Contains(t, stderr, "it never ran",
+	assert.Contains(t, stderr, "the guard never ran",
 		"the warning must distinguish an un-evaluated guard from one that passed")
 }
 

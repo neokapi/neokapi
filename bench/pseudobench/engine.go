@@ -492,7 +492,7 @@ func (e *OkapiPseudoEngine) ProcessBatch(ctx context.Context, files []TestFile, 
 		fileResults[i] = FileResult{Name: f.Name, Format: f.Format, Success: true}
 		if f.FilterClass == "" {
 			fileResults[i].Success = false
-			fileResults[i].Error = "no filter class — fixture not in parity corpus"
+			fileResults[i].Error = "no filter class: fixture not in parity corpus"
 			continue
 		}
 		key := pseudoGroupKey{FilterClass: f.FilterClass, Fprm: f.OkapiFprm}

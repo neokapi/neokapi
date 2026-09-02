@@ -80,7 +80,7 @@ const SkipBinary = "binary corpus not in repo (rely on okapi-bridge testdata/ wh
 // spec.yaml `parity.skip`; this const now serves only the residual
 // no-spec.yaml okf_table family rows (okf_tabseparatedvalues,
 // okf_basetable, okf_table).
-const SkipDivergence453 = "documented divergence — see #453"
+const SkipDivergence453 = "documented divergence, see #453"
 
 // SkipBridgeConfig marks the okf_xml/okf_xmlstream config-preset formats
 // (DITA, DocBook, ResX) whose native side is wired (xml reader + the Go
@@ -89,7 +89,7 @@ const SkipDivergence453 = "documented divergence — see #453"
 // configId/rules parameter, so a head-to-head comparison would run the
 // bridge with default rules against the native preset (a false divergence).
 // Head-to-head enables once okapi-bridge gains config-by-name support (#613).
-const SkipBridgeConfig = "native xml config preset wired; bridge config-by-name not yet supported — see okapi-bridge #613"
+const SkipBridgeConfig = "native xml config preset wired; bridge config-by-name not yet supported, see okapi-bridge #613"
 
 // FormatInput is one named sample input.
 //

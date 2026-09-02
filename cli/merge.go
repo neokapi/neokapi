@@ -20,7 +20,7 @@ returned by a translator back onto the project's source locales.
 With no -i in a project, merge writes the target-language files from the
 project block store: a process-only "kapi run" (in a project, no -o)
 commits its work as targets/<locale> overlays, and merge is the matching
-sink — it reads each source, applies the stored overlays, and writes the
+sink: it reads each source, applies the stored overlays, and writes the
 target-language file via the source format's skeleton round-trip.
 
 With -i, merge applies one or more bilingual files returned by a
@@ -28,7 +28,7 @@ translator back onto the project's source locales, using the skeleton
 captured by kapi extract. Each input carries the extraction
 batch id in a file-level <note>, so merge finds the right extraction
 manifest without guessing from the filename. Mixed target locales in one
-batch are fine — merge handles each input independently.`,
+batch are fine, and merge handles each input independently.`,
 		Example: `  kapi merge                     # materialize target-language files from the project store
   kapi merge -i out/app.en-to-fr.xliff
   kapi merge -i file1.xliff -i file2.xliff

@@ -52,15 +52,15 @@ func (e *OllamaError) Error() string {
 	switch e.Kind {
 	case OllamaErrUnreachable:
 		return fmt.Sprintf(
-			"ollama: cannot reach Ollama at %s — is it running? Start it with `ollama serve`, or install it from https://ollama.com (underlying error: %v)",
+			"ollama: cannot reach Ollama at %s. Is it running? Start it with `ollama serve`, or install it from https://ollama.com (underlying error: %v)",
 			e.BaseURL, e.Err)
 	case OllamaErrModelNotInstalled:
 		if e.Detail != "" {
 			return fmt.Sprintf(
-				"ollama: model %q is not installed — pull it first with `ollama pull %s` (server said: %s)",
+				"ollama: model %q is not installed. Pull it first with `ollama pull %s` (server said: %s)",
 				e.Model, e.Model, e.Detail)
 		}
-		return fmt.Sprintf("ollama: model %q is not installed — pull it first with `ollama pull %s`",
+		return fmt.Sprintf("ollama: model %q is not installed. Pull it first with `ollama pull %s`",
 			e.Model, e.Model)
 	default:
 		if e.Status != 0 {

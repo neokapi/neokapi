@@ -56,14 +56,14 @@ func (o VoiceCheckOutput) FormatText(w io.Writer) error {
 	t.Render()
 
 	if len(o.Findings) == 0 {
-		fmt.Fprintln(w, "  No findings — on brand.")
+		fmt.Fprintln(w, "  No findings. Reads on brand.")
 		return nil
 	}
 	fmt.Fprintf(w, "\n%d finding(s):\n", len(o.Findings))
 	for _, f := range o.Findings {
 		fmt.Fprintf(w, "  [%s/%s] %s", string(f.Severity), f.Category, f.Message)
 		if f.Suggestion != "" {
-			fmt.Fprintf(w, " — %s", f.Suggestion)
+			fmt.Fprintf(w, " (%s)", f.Suggestion)
 		}
 		fmt.Fprintln(w)
 	}
@@ -161,7 +161,7 @@ func (o VoiceValidateOutput) FormatText(w io.Writer) error {
 
 	switch {
 	case len(blocking) > 0:
-		fmt.Fprintf(w, "INVALID  %s — %d problem(s):\n", src, len(blocking))
+		fmt.Fprintf(w, "INVALID  %s: %d problem(s):\n", src, len(blocking))
 		for _, p := range blocking {
 			writeProblem(w, p)
 		}

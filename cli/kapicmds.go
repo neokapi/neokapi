@@ -18,7 +18,7 @@ const (
 	KapiRootShort = "A format-aware content engine that knows your project's context"
 	KapiRootLong  = `kapi parses any format into one unified content model, edits the content
 inside it, checks it, and writes it back byte-for-byte. It holds a project's
-content context — the terms, the voice and the rules it goes by — so you can
+content context (the terms, the voice and the rules it goes by) so you can
 convert formats, translate with AI, and run quality checks against what
 actually applies.`
 )

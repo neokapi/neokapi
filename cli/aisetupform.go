@@ -82,7 +82,7 @@ func (formPrompter) APIKey(providerLabel string) (string, error) {
 				Value(&key).
 				Validate(func(s string) error {
 					if s == "" {
-						return errors.New("a key is required — or press Esc and set the provider's API-key env var instead")
+						return errors.New("a key is required, or press Esc and set the provider's API-key env var instead")
 					}
 					return nil
 				}),

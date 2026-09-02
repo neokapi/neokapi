@@ -158,7 +158,7 @@ func NewHost(plugins []*Plugin, conflicts func(msg string)) *Host {
 	for _, p := range sortedPlugins {
 		if existing, ok := seenName[p.Name()]; ok {
 			conflicts(fmt.Sprintf(
-				"plugin %q declared in both %s and %s — using %s; remove the other to silence this warning",
+				"plugin %q declared in both %s and %s. Using %s; remove the other to silence this warning",
 				p.Name(), existing.Source.Label, p.Source.Label, existing.Source.Label,
 			))
 			continue
@@ -186,7 +186,7 @@ func NewHost(plugins []*Plugin, conflicts func(msg string)) *Host {
 		}
 		for _, c := range p.Manifest.Capabilities.Commands {
 			if existing, ok := h.commandDispatch[c.Name]; ok {
-				conflicts(fmt.Sprintf("command %q is provided by plugins %q and %q — neither will dispatch until one is removed", c.Name, existing.Plugin.Name(), p.Name()))
+				conflicts(fmt.Sprintf("command %q is provided by plugins %q and %q, and neither will dispatch until one is removed", c.Name, existing.Plugin.Name(), p.Name()))
 				delete(h.commandDispatch, c.Name)
 				continue
 			}
@@ -194,7 +194,7 @@ func NewHost(plugins []*Plugin, conflicts func(msg string)) *Host {
 		}
 		for _, t := range p.Manifest.Capabilities.MCPTools {
 			if existing, ok := h.mcpDispatch[t.Name]; ok {
-				conflicts(fmt.Sprintf("MCP tool %q is provided by plugins %q and %q — neither will dispatch until one is removed", t.Name, existing.Plugin.Name(), p.Name()))
+				conflicts(fmt.Sprintf("MCP tool %q is provided by plugins %q and %q, and neither will dispatch until one is removed", t.Name, existing.Plugin.Name(), p.Name()))
 				delete(h.mcpDispatch, t.Name)
 				continue
 			}
@@ -202,7 +202,7 @@ func NewHost(plugins []*Plugin, conflicts func(msg string)) *Host {
 		}
 		for _, f := range p.Manifest.Capabilities.Formats {
 			if existing, ok := h.formatDispatch[f.Name]; ok {
-				conflicts(fmt.Sprintf("format %q is provided by plugins %q and %q — neither will dispatch until one is removed", f.Name, existing.Plugin.Name(), p.Name()))
+				conflicts(fmt.Sprintf("format %q is provided by plugins %q and %q, and neither will dispatch until one is removed", f.Name, existing.Plugin.Name(), p.Name()))
 				delete(h.formatDispatch, f.Name)
 				continue
 			}
@@ -210,7 +210,7 @@ func NewHost(plugins []*Plugin, conflicts func(msg string)) *Host {
 		}
 		for _, s := range p.Manifest.Capabilities.Segmenters {
 			if existing, ok := h.segmenterDispatch[s.Name]; ok {
-				conflicts(fmt.Sprintf("segmenter %q is provided by plugins %q and %q — neither will dispatch until one is removed", s.Name, existing.Plugin.Name(), p.Name()))
+				conflicts(fmt.Sprintf("segmenter %q is provided by plugins %q and %q, and neither will dispatch until one is removed", s.Name, existing.Plugin.Name(), p.Name()))
 				delete(h.segmenterDispatch, s.Name)
 				continue
 			}
@@ -227,7 +227,7 @@ func NewHost(plugins []*Plugin, conflicts func(msg string)) *Host {
 				continue
 			}
 			if existing, ok := h.configNS[ns.Prefix]; ok {
-				conflicts(fmt.Sprintf("config namespace %q is claimed by plugins %q and %q — neither will resolve until one is removed", ns.Prefix, existing.Plugin.Name(), p.Name()))
+				conflicts(fmt.Sprintf("config namespace %q is claimed by plugins %q and %q, and neither will resolve until one is removed", ns.Prefix, existing.Plugin.Name(), p.Name()))
 				delete(h.configNS, ns.Prefix)
 				continue
 			}

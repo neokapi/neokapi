@@ -186,7 +186,7 @@ Examples:
 			pluginDir := filepath.Join(pluginhost.InstallTarget(), name)
 			if _, err := os.Stat(pluginDir); err != nil {
 				if os.IsNotExist(err) {
-					return fmt.Errorf("plugin %q is not installed under %s — install with `kapi plugin install %s`", name, pluginhost.InstallTarget(), name)
+					return fmt.Errorf("plugin %q is not installed under %s. Install it with `kapi plugin install %s`", name, pluginhost.InstallTarget(), name)
 				}
 				return err
 			}
@@ -277,16 +277,16 @@ func newPluginPruneCmd(a *App) *cobra.Command {
 				}
 			}
 			if len(retired) == 0 {
-				fmt.Fprintln(out, "Nothing to prune — no retired plugins installed.")
+				fmt.Fprintln(out, "Nothing to prune: no retired plugins are installed.")
 				return nil
 			}
 
 			fmt.Fprintln(out, "Retired plugins still installed:")
 			for _, p := range retired {
-				fmt.Fprintf(out, "  • %s %s  — %s\n      %s\n", p.Name(), p.Version(), p.Dir, p.Retired.Because)
+				fmt.Fprintf(out, "  • %s %s: %s\n      %s\n", p.Name(), p.Version(), p.Dir, p.Retired.Because)
 			}
 			if dryRun {
-				fmt.Fprintln(out, "\n(dry run — nothing removed)")
+				fmt.Fprintln(out, "\n(dry run: nothing removed)")
 				return nil
 			}
 			if !yes {
@@ -464,8 +464,8 @@ func newPluginDoctorCmd(a *App) *cobra.Command {
 		Long: `Check the health of installed plugins.
 
 For each plugin, doctor verifies the binary is present and its reported
-version matches the manifest, then — for plugins that provide a
-self-check — runs the plugin's own diagnostics (e.g. confirming bundled
+version matches the manifest, then, for plugins that provide a
+self-check, runs the plugin's own diagnostics (e.g. confirming bundled
 binaries, models, or engines resolve at runtime).
 
 With no argument, doctor checks every installed plugin and prints a

@@ -322,7 +322,7 @@ func (p *KapiProject) ResolveChannel(ref string) (ChannelRef, error) {
 			}
 		}
 		if len(owners) > 0 {
-			return ChannelRef{}, fmt.Errorf("channel %q must name its profile — write %s", ref, strings.Join(owners, " or "))
+			return ChannelRef{}, fmt.Errorf("channel %q must name its profile. Write %s", ref, strings.Join(owners, " or "))
 		}
 		return ChannelRef{}, fmt.Errorf("channel %q must be `profile/channel`, and no profile declares %q (declared: %s)",
 			ref, ref, p.declaredChannels())

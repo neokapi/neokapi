@@ -461,7 +461,7 @@ func (p *DaemonPool) watchIdle(client *DaemonClient, idle time.Duration) {
 				continue
 			}
 			delete(p.clients, client.Plugin.Name())
-			p.opts.Logger("daemon pool: %q idle for %s — terminating", client.Plugin.Name(), time.Since(client.LastUsed()))
+			p.opts.Logger("daemon pool: %q idle for %s, terminating", client.Plugin.Name(), time.Since(client.LastUsed()))
 			p.mu.Unlock()
 			client.close(p.opts.ShutdownGrace)
 			return

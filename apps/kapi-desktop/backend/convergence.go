@@ -19,7 +19,7 @@ import (
 // (the directory was moved or deleted — e.g. mid sample reset). The frontend
 // renders it as a quiet state instead of raw open-errors; the underlying
 // ENOENT is logged once per disappearance, not per poll.
-var errProjectFilesMissing = errors.New("project files are missing or moved — reopen the project")
+var errProjectFilesMissing = errors.New("project files are missing or moved. Reopen the project")
 
 // checkProjectOnDisk verifies the tab's recipe still exists before a derive.
 // Missing → errProjectFilesMissing (logged once until the file reappears).
@@ -29,7 +29,7 @@ func (a *App) checkProjectOnDisk(op *openProject) error {
 	}
 	if _, err := os.Stat(op.Path); err != nil {
 		if op.missingWarned.CompareAndSwap(false, true) {
-			a.logger.Printf("project tab %s: recipe unreadable at %s (%v) — reporting missing/moved to the UI", op.ID, op.Path, err)
+			a.logger.Printf("project tab %s: recipe unreadable at %s (%v), reporting missing/moved to the UI", op.ID, op.Path, err)
 		}
 		return errProjectFilesMissing
 	}
@@ -169,7 +169,7 @@ func (a *App) BringUpToDate(tabID string) error {
 	a.runState.mu.Lock()
 	if a.runState.running {
 		a.runState.mu.Unlock()
-		return errors.New("a flow is already running — cancel it first")
+		return errors.New("a flow is already running. Cancel it first")
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	a.runState.state = RunStateRunning
@@ -299,7 +299,7 @@ func (a *App) executeConvergeRun(ctx context.Context, tabID, projectPath, flowNa
 	parked := len(out.ParkedScopes)
 	msg := fmt.Sprintf("Up to date in %d pass(es) in %s", out.Passes, time.Since(start).Round(time.Millisecond))
 	if !out.Converged {
-		msg = fmt.Sprintf("Finished %d pass(es) in %s — %d scope(s) parked for review",
+		msg = fmt.Sprintf("Finished %d pass(es) in %s: %d scope(s) parked for review",
 			out.Passes, time.Since(start).Round(time.Millisecond), parked)
 	}
 	a.emitRunEvent(RunEvent{

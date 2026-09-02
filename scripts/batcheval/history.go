@@ -158,7 +158,7 @@ func recostHistory(path string) error {
 	for _, u := range unpriced {
 		// Named, not silently skipped: a model missing from the price table shows a
 		// blank on the dashboard, and a blank nobody was told about looks like zero.
-		fmt.Printf("  no price for %s — add it to scripts/batcheval/prices.json\n", u)
+		fmt.Printf("  no price for %s. Add it to scripts/batcheval/prices.json\n", u)
 	}
 	return nil
 }

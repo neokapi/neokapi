@@ -47,7 +47,7 @@ func NewKnowledgeClient(project *Project) (*apiclient.BowrainClient, error) {
 		return nil, fmt.Errorf("%w: server URL not configured in the recipe's `%s:` block", ErrNotWorkspaceClaimed, schema.VenueKey)
 	}
 	if workspace == "" {
-		return nil, fmt.Errorf("%w: the brand knowledge graph is workspace-scoped — claim this project into a workspace (kapi auth claim) so its recipe URL is <server>/<workspace>/<project>", ErrNotWorkspaceClaimed)
+		return nil, fmt.Errorf("%w: the brand knowledge graph is workspace-scoped. Claim this project into a workspace (kapi auth claim) so its recipe URL is <server>/<workspace>/<project>", ErrNotWorkspaceClaimed)
 	}
 
 	// An absent or unreadable credential is NOT a skip. The project says it

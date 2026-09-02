@@ -274,7 +274,7 @@ export default function VisionExplorer({
       <GateOverlay
         gate={visionGate}
         title="Vision Lab"
-        description="Reads the text in the sample — and where every line sits on the page — with the PP-OCRv5 model (~21 MB, downloaded on first run), right here in your browser."
+        description="Reads the text in the sample, and where every line sits on the page, with the PP-OCRv5 model (~21 MB, downloaded on first run), right here in your browser."
         engine={false}
       />
       <div

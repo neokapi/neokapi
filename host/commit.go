@@ -38,7 +38,7 @@ func (a *App) RunCommit(cmd Command, _ []string) error {
 
 	out := cmd.OutOrStdout()
 	if n == 0 {
-		fmt.Fprintln(out, "Nothing staged — the committed record is up to date.")
+		fmt.Fprintln(out, "Nothing staged. The committed record is up to date.")
 		return nil
 	}
 

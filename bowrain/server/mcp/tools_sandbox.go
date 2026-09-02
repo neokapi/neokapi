@@ -39,7 +39,7 @@ func (s *MCPServer) handleExecuteScript(ctx context.Context, req *sdkmcp.CallToo
 
 	validLangs := map[string]bool{"python": true, "bash": true, "node": true}
 	if !validLangs[input.Language] {
-		return nil, executeScriptOutput{}, fmt.Errorf("unsupported language %q — use python, bash, or node", input.Language)
+		return nil, executeScriptOutput{}, fmt.Errorf("unsupported language %q. Use python, bash, or node", input.Language)
 	}
 
 	// Convert string files to byte slices.

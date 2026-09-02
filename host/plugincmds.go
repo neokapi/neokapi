@@ -79,7 +79,7 @@ func WriteDoctorReport(w io.Writer, p *pluginhost.Plugin, res doctorResult) {
 	if !res.Healthy {
 		status = "UNHEALTHY"
 	}
-	fmt.Fprintf(w, "%s %s — %s\n", p.Name(), p.Version(), status)
+	fmt.Fprintf(w, "%s %s: %s\n", p.Name(), p.Version(), status)
 	fmt.Fprintf(w, "  binary: %s\n", p.BinaryPath)
 	for _, c := range res.Checks {
 		fmt.Fprintf(w, "  %s\n", c)

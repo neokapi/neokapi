@@ -175,7 +175,7 @@ func run(bridgeDir, pluginsDir, metaPath, nativeDocsDir, outDir string) error {
 		return err
 	}
 
-	fmt.Printf("wrote %s/{formats,format-families,tools,reference-gaps,commands,prompts,models,mcp-tools}.json — %d formats, %d tools, %d commands, %d prompts, %d models, %d MCP tools\n",
+	fmt.Printf("wrote %s/{formats,format-families,tools,reference-gaps,commands,prompts,models,mcp-tools}.json: %d formats, %d tools, %d commands, %d prompts, %d models, %d MCP tools\n",
 		outDir, len(formatEntries), len(toolEntries), len(cmdDataset.Commands), len(promptDataset.Prompts), len(modelDataset.Models), len(mcpDataset.Tools))
 	printGapSummary(report)
 	return nil

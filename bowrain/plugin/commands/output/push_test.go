@@ -26,7 +26,7 @@ func TestPushOutput_FormatText_LoopFooter(t *testing.T) {
 			},
 			contains: []string{
 				"Pushed 12 blocks (12 uploaded), 240 words (scanned 3 files)",
-				"Convergence: on-push — the server now translates, checks, and queues review for this push",
+				"Convergence: on-push. The server now translates, checks, and queues review for this push",
 				"Project: https://bowrain.example.com/acme/p/proj123/s/main",
 				"Review:  https://bowrain.example.com/acme/tasks",
 			},
@@ -39,7 +39,7 @@ func TestPushOutput_FormatText_LoopFooter(t *testing.T) {
 				ProjectURL:   "https://bowrain.example.com/acme/p/proj123/s/main",
 			},
 			contains: []string{
-				"Convergence: manual — run 'kapi up' (or start a run from the web) to converge",
+				"Convergence: manual. Run 'kapi up' (or start a run from the web) to converge",
 				"Project: https://bowrain.example.com/acme/p/proj123/s/main",
 			},
 			absent: []string{"Review:"},

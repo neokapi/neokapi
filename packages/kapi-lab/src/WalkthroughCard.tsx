@@ -111,7 +111,7 @@ export default function WalkthroughCard({
         )}
         {last && !step.run && (
           <span className="text-[11px] italic text-muted-foreground">
-            End of the walkthrough — keep exploring, or pick another scenario.
+            End of the walkthrough. Keep exploring, or pick another scenario.
           </span>
         )}
       </div>

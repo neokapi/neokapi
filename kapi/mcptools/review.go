@@ -90,7 +90,7 @@ func resolveReviewProject(explicit string) (string, error) {
 		return "", err
 	}
 	if path == "" {
-		return "", errors.New("no kapi project found — pass the project input (path to the kapi.yaml recipe)")
+		return "", errors.New("no kapi project found. Pass the project input (path to the kapi.yaml recipe)")
 	}
 	return path, nil
 }

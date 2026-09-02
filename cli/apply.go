@@ -20,17 +20,17 @@ func NewApplyCmd(a *App) *cobra.Command {
 	)
 	cmd := &cobra.Command{
 		Use:     "apply [flags] [CHANGESET]",
-		Short:   "Apply a typed change-set (content + asset edits) — the one write verb",
+		Short:   "Apply a typed change-set (content + asset edits): the one write verb",
 		GroupID: "work",
 		Long: `Apply a typed change-set: the write sibling of 'kapi inspect'. Each entry is
-one reviewed change — a content edit, an asset edit (term, content-memory pair,
+one reviewed change: a content edit, an asset edit (term, content-memory pair,
 voice rule, recipe field), or a review outcome (kind:"review"). Content edits
 land through the same byte-faithful round-trip the engine's writers use (structure and
 inline codes preserved), drift-guarded by content_hash; asset edits are written
 into their committed source artifact and the existing import compiles them into
 the cache; a review outcome is recorded as unit state in the project store.
 
-A content memory pair (kind:"memory") is recycle leverage for future translation — it does not
+A content memory pair (kind:"memory") is recycle leverage for future translation. It does not
 promote a unit to reviewed. To approve a translated unit, use a kind:"review"
 entry addressed by its file/id/locale (as 'kapi status --review' lists it), with
 status "reviewed" (default) or "signed-off"; the unit state is staged in the

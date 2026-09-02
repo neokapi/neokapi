@@ -88,7 +88,7 @@ func (a *App) governanceNotes(cmd Command) []string {
 	}
 
 	return []string{listComponents(moved) +
-		" moved since this was last read here — re-read the project's context before continuing"}
+		" moved since this was last read here. Re-read the project's context before continuing"}
 }
 
 // listComponents renders the moved components as a readable list. The note is

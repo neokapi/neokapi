@@ -51,7 +51,7 @@ The server URL is determined from (first match wins):
   1. --server flag
   2. BOWRAIN_SERVER_URL environment variable / server.url in ~/.config/bowrain/bowrain.yaml
   3. Existing auth state (from kapi auth login)
-  4. The hosted service (https://app.bowrain.cloud) — used only when init
+  4. The hosted service (https://app.bowrain.cloud), used only when init
      contacts a server (sign-in, --anonymous, --email, --project); a plain
      init with nothing configured writes a recipe with no bowrain: block
 

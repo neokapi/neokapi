@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-02T17:27:33Z",
+  "generatedAt": "2026-09-02T20:39:28Z",
   "kind": "tool",
   "entries": [
     {
@@ -127,7 +127,7 @@
           "engine": {
             "type": "string",
             "title": "Extraction Engine",
-            "description": "llm (AI provider; default) / ner (local on-device model — nothing leaves the machine) / hybrid (both)",
+            "description": "llm (AI provider; default) / ner (local on-device model: nothing leaves the machine) / hybrid (both)",
             "default": "llm",
             "options": [
               {
@@ -147,7 +147,7 @@
             "ui:enum-descriptions": {
               "hybrid": "Run the local model and the LLM, merging results.",
               "llm": "Extract with an AI provider.",
-              "ner": "On-device model — no credentials, nothing leaves the machine."
+              "ner": "On-device model: no credentials, nothing leaves the machine."
             }
           },
           "knownTerms": {
@@ -280,7 +280,7 @@
           {
             "name": "ner",
             "label": "Local NER (on-device)",
-            "description": "On-device model — no credentials, nothing leaves the machine.",
+            "description": "On-device model: no credentials, nothing leaves the machine.",
             "hasSchema": false
           },
           {
@@ -2386,7 +2386,7 @@
             "ui:widget": "select",
             "ui:enum-descriptions": {
               "ai": "LLM-judged quality review via an AI provider.",
-              "rules": "Local rule-based checks — no credentials, no network."
+              "rules": "Local rule-based checks: no credentials, no network."
             }
           },
           "model": {
@@ -2663,7 +2663,7 @@
           {
             "name": "rules",
             "label": "Deterministic rules",
-            "description": "Local rule-based checks — no credentials, no network.",
+            "description": "Local rule-based checks: no credentials, no network.",
             "hasSchema": true
           },
           {
@@ -3670,7 +3670,7 @@
             ],
             "ui:widget": "select",
             "ui:enum-descriptions": {
-              "llm": "Semantic chunking via an AI provider — produces meaning-based chunks rather than sentence boundaries.",
+              "llm": "Semantic chunking via an AI provider: produces meaning-based chunks rather than sentence boundaries.",
               "srx": "Faithful sentence segmentation: ICU UAX-29 boundaries refined by Okapi SRX exceptions where ICU is available, pure-Go SRX rules otherwise. No configuration required.",
               "uax29": "Unicode default sentence boundaries (ICU UAX-29). A language-agnostic baseline with no exceptions."
             },
@@ -3844,7 +3844,7 @@
           {
             "name": "llm",
             "label": "LLM (semantic chunks)",
-            "description": "Semantic chunking via an AI provider — produces meaning-based chunks rather than sentence boundaries.",
+            "description": "Semantic chunking via an AI provider: produces meaning-based chunks rather than sentence boundaries.",
             "hasSchema": true
           }
         ]

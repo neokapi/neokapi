@@ -65,11 +65,11 @@ function FieldDemo({ multiple }: { multiple?: boolean }) {
 }
 
 export const CompactFieldSingle: Story = {
-  name: "Compact field — single",
+  name: "Compact field: single",
   render: () => <FieldDemo />,
 };
 
 export const CompactFieldGlob: Story = {
-  name: "Compact field — glob",
+  name: "Compact field: glob",
   render: () => <FieldDemo multiple />,
 };

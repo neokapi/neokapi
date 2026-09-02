@@ -205,7 +205,7 @@ func aiSetupLiveCheck(ctx context.Context, provider, model, apiKey string) error
 // errAISetupNotInteractive is returned when setup is required but stdin is not
 // a terminal; the message is the complete non-TTY guidance.
 var errAISetupNotInteractive = errors.New(
-	"no AI provider is configured and stdin is not a terminal — configure one non-interactively:\n" +
+	"no AI provider is configured and stdin is not a terminal. Configure one non-interactively:\n" +
 		"  • set an API key env var (ANTHROPIC_API_KEY, OPENAI_API_KEY, or GEMINI_API_KEY), or\n" +
 		"  • kapi config set ai.provider claude-code   # use the local Claude Code login\n" +
 		"  • kapi config set ai.provider ollama        # local models via Ollama\n" +
@@ -229,7 +229,7 @@ func BuildAISetupChoices(det AIDetection) []AISetupChoice {
 		add(AISetupChoice{
 			Provider: string(aiprovider.ClaudeCode),
 			model:    aiprovider.DefaultClaudeCodeModel,
-			label:    "Claude Code (sonnet) — detected · uses your Claude subscription, no API key",
+			label:    "Claude Code (sonnet): detected · uses your Claude subscription, no API key",
 		})
 	}
 	for _, p := range det.EnvKeyProviders {
@@ -240,14 +240,14 @@ func BuildAISetupChoices(det AIDetection) []AISetupChoice {
 		add(AISetupChoice{
 			Provider: p,
 			model:    info.DefaultModel,
-			label:    fmt.Sprintf("%s (%s) — API key found in environment", info.Label, info.DefaultModel),
+			label:    fmt.Sprintf("%s (%s): API key found in environment", info.Label, info.DefaultModel),
 		})
 	}
 	if det.Ollama {
 		add(AISetupChoice{
 			Provider: string(aiprovider.Ollama),
 			model:    aiprovider.DefaultOllamaModel,
-			label:    fmt.Sprintf("Ollama (%s) — detected · local models, content stays on this machine", aiprovider.DefaultOllamaModel),
+			label:    fmt.Sprintf("Ollama (%s): detected · local models, content stays on this machine", aiprovider.DefaultOllamaModel),
 		})
 	}
 	for _, id := range []aiprovider.ProviderID{aiprovider.Anthropic, aiprovider.OpenAI, aiprovider.Gemini} {
@@ -255,7 +255,7 @@ func BuildAISetupChoices(det AIDetection) []AISetupChoice {
 		add(AISetupChoice{
 			Provider: string(id),
 			model:    info.DefaultModel,
-			label:    fmt.Sprintf("%s (%s) — paste an API key", info.Label, info.DefaultModel),
+			label:    fmt.Sprintf("%s (%s): paste an API key", info.Label, info.DefaultModel),
 			needsKey: true,
 		})
 	}
@@ -263,13 +263,13 @@ func BuildAISetupChoices(det AIDetection) []AISetupChoice {
 		add(AISetupChoice{
 			Provider: string(aiprovider.Ollama),
 			model:    aiprovider.DefaultOllamaModel,
-			label:    "Ollama — local models (not running; start it with `kapi models ollama install`)",
+			label:    "Ollama: local models (not running; start it with `kapi models ollama install`)",
 		})
 	}
 	add(AISetupChoice{
 		Provider: string(aiprovider.Demo),
 		model:    "",
-		label:    "Demo engine — deterministic illustrative output, no AI and no key",
+		label:    "Demo engine: deterministic illustrative output, no AI and no key",
 	})
 	return choices
 }
@@ -301,7 +301,7 @@ func (a *App) RunAISetupWizard(ctx context.Context, io AISetupIO, compact bool) 
 		// here sent people looking for a setting that was already there.
 		fmt.Fprintf(w, "\nAn AI provider is needed to continue. Currently: %s.\n\n", det.StandingLine())
 	case compact:
-		fmt.Fprintf(w, "\nNo AI provider is configured yet — pick one to continue (see `kapi models setup`).\n\n")
+		fmt.Fprintf(w, "\nNo AI provider is configured yet. Pick one to continue (see `kapi models setup`).\n\n")
 	default:
 		fmt.Fprintf(w, "\nConnect an AI provider\n\n")
 		if det.Configured() {
@@ -311,10 +311,10 @@ func (a *App) RunAISetupWizard(ctx context.Context, io AISetupIO, compact bool) 
 	if det.ClaudeCode || det.Ollama || len(det.EnvKeyProviders) > 0 {
 		fmt.Fprintf(w, "Detected on this machine:\n")
 		if det.ClaudeCode {
-			fmt.Fprintf(w, "  ✓ Claude Code detected — uses your Claude subscription\n")
+			fmt.Fprintf(w, "  ✓ Claude Code detected: uses your Claude subscription\n")
 		}
 		if det.Ollama {
-			fmt.Fprintf(w, "  ✓ Ollama running — local models, no key needed\n")
+			fmt.Fprintf(w, "  ✓ Ollama running: local models, no key needed\n")
 		}
 		for _, p := range det.EnvKeyProviders {
 			fmt.Fprintf(w, "  ✓ %s API key set in environment\n", aiProviderDisplayLabel(p))
@@ -346,7 +346,7 @@ func (a *App) RunAISetupWizard(ctx context.Context, io AISetupIO, compact bool) 
 		}
 		apiKey = strings.TrimSpace(entered)
 		if apiKey == "" {
-			return "", fmt.Errorf("no API key entered — run `kapi models setup` again, or set %s_API_KEY", strings.ToUpper(choice.Provider))
+			return "", fmt.Errorf("no API key entered. Run `kapi models setup` again, or set %s_API_KEY", strings.ToUpper(choice.Provider))
 		}
 		if a.Credentials == nil {
 			return "", errors.New("credential store unavailable")

@@ -62,7 +62,7 @@ func resolveRedaction(cmd Command, ctx *project.ProjectContext, rootDir string) 
 		eff.Detectors = []string{"rules"}
 	}
 	if eff.Rules == "" {
-		return nil, errors.New("extract: redaction enabled but no rules file — set defaults.redaction.rules in the recipe or pass --redact-rules")
+		return nil, errors.New("extract: redaction is enabled but no rules file is set. Set defaults.redaction.rules in the recipe or pass --redact-rules")
 	}
 	if !filepath.IsAbs(eff.Rules) {
 		eff.Rules = filepath.Join(rootDir, eff.Rules)
@@ -98,11 +98,11 @@ func (a *App) RunExtract(cmd Command) error {
 			case "missing":
 				fmt.Fprintf(os.Stderr, "Warning: plugin %q required by project but not installed\n", issue.Plugin)
 			case "version_mismatch":
-				fmt.Fprintf(os.Stderr, "Warning: plugin %q version mismatch — requires %s, installed %s\n",
+				fmt.Fprintf(os.Stderr, "Warning: plugin %q version mismatch: requires %s, installed %s\n",
 					issue.Plugin, issue.Required, issue.InstalledVersion)
 			}
 		}
-		return fmt.Errorf("project plugin requirements not met — install missing plugins or adjust version constraints in %s", projectPath)
+		return fmt.Errorf("project plugin requirements not met. Install missing plugins or adjust version constraints in %s", projectPath)
 	}
 	// pctx is a *project.ProjectContext (not context.Context); renamed to avoid
 	// shadowing the cancellation context (cmd.Context()) used later in this function.
@@ -137,7 +137,7 @@ func (a *App) RunExtract(cmd Command) error {
 		return err
 	}
 	if len(targets) == 0 {
-		return fmt.Errorf("extract: no target locales — set defaults.target_languages in %s or pass --target-lang", projectPath)
+		return fmt.Errorf("extract: no target locales. Set defaults.target_languages in %s or pass --target-lang", projectPath)
 	}
 
 	files, err := pctx.ResolveContent(a.FormatReg)
@@ -146,7 +146,7 @@ func (a *App) RunExtract(cmd Command) error {
 	}
 	files = filterFiles(files, only, pattern, layout.Root)
 	if len(files) == 0 {
-		return errors.New("extract: no source files matched — check content patterns / --only / --pattern")
+		return errors.New("extract: no source files matched. Check content patterns / --only / --pattern")
 	}
 
 	outDir, _ := cmd.Flags().GetString("out-dir")
@@ -361,7 +361,7 @@ func (a *App) RunExtract(cmd Command) error {
 	}
 
 	if failures > 0 {
-		return fmt.Errorf("extract: %d source/target pair(s) failed — see errors above", failures)
+		return fmt.Errorf("extract: %d source/target pair(s) failed. See errors above", failures)
 	}
 	// A truncated progress feed is reported after the result, so the deliverable
 	// still lands and the consumer still learns its feed was incomplete.
@@ -964,7 +964,7 @@ func (a *App) RunExtractKpz(cmd Command) error {
 		return err
 	}
 	if len(targets) == 0 {
-		return fmt.Errorf("extract: no target locales — set defaults.target_languages in %s or pass --target-lang", projectPath)
+		return fmt.Errorf("extract: no target locales. Set defaults.target_languages in %s or pass --target-lang", projectPath)
 	}
 
 	files, err := pctx.ResolveContent(a.FormatReg)
@@ -973,7 +973,7 @@ func (a *App) RunExtractKpz(cmd Command) error {
 	}
 	files = filterFiles(files, only, pattern, layout.Root)
 	if len(files) == 0 {
-		return errors.New("extract: no source files matched — check content patterns / --only / --pattern")
+		return errors.New("extract: no source files matched. Check content patterns / --only / --pattern")
 	}
 
 	outDir, _ := cmd.Flags().GetString("out-dir")
@@ -1003,7 +1003,7 @@ func (a *App) RunExtractKpz(cmd Command) error {
 	db, derr := a.ProjectDB(cmd.Context(), layout.Root)
 	if derr != nil {
 		fmt.Fprintf(cmd.ErrOrStderr(), "Warning: extract: open project store: %v "+
-			"(continuing with no leverage — the packages will report zero recycling and no vocabulary)\n", derr)
+			"(continuing with no leverage: the packages will report zero recycling and no vocabulary)\n", derr)
 	}
 	if !noMemory && a.MemoryBackend != nil {
 		mem = a.MemoryBackend

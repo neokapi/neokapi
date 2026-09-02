@@ -48,7 +48,7 @@ func (c *Config) Schema() *schema.FormatSchema {
 				Type:        "boolean",
 				Default:     true,
 				Title:       "Extract non-translatable content",
-				Description: "If true (default), non-translatable contextual content — image accessibility text (svg:title/svg:desc alt-text and long descriptions) and form-control display strings (form:label/form:title/form:help-text) — is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton.",
+				Description: "If true (default), non-translatable contextual content, namely image accessibility text (svg:title/svg:desc alt-text and long descriptions) and form-control display strings (form:label/form:title/form:help-text), is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton.",
 			}),
 		},
 	}

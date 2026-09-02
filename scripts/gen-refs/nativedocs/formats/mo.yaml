@@ -2,7 +2,7 @@
 # Schema source: core/formats/mo/{config.go,schema.go,reader.go,writer.go}.
 # Upstream analogue: gettext PO/MO tooling (msgfmt). The MO catalog is the
 # compiled runtime form of a PO file.
-description: Write compiled GNU gettext MO catalogs — the binary runtime form of a PO file.
+description: Write compiled GNU gettext MO catalogs, the binary runtime form of a PO file.
 overview: |
   MO (Machine Object) is the compiled binary catalog that GNU gettext loads
   at runtime. It stores one entry per `(msgctxt, msgid)` pair together with

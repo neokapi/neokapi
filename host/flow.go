@@ -1090,14 +1090,14 @@ func (a *App) resolveOutputPathFrom(inputPath, outputTemplate, base string) (str
 			return out, nil
 		}
 		if a.TargetLang == "" {
-			return "", fmt.Errorf("%s: no output destination — give the collection a target: template, or pass -o",
+			return "", fmt.Errorf("%s: no output destination. Give the collection a target: template, or pass -o",
 				filepath.Base(inputPath))
 		}
 		ext := format.Ext(inputPath)
 		name := filepath.Base(inputPath[:len(inputPath)-len(ext)])
 		out := filepath.Join(filepath.Dir(inputPath), fmt.Sprintf("%s_%s%s", name, a.TargetLang, ext))
 		if pattern, tracked := a.collectionTracking(out); tracked {
-			return "", fmt.Errorf("%s: writing %s beside its source would land inside the collection %q, which tracks it as source on the next run — give the collection a target: template, or pass -o",
+			return "", fmt.Errorf("%s: writing %s beside its source would land inside the collection %q, which tracks it as source on the next run. Give the collection a target: template, or pass -o",
 				filepath.Base(inputPath), filepath.Base(out), pattern)
 		}
 		return out, nil

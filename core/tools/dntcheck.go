@@ -142,7 +142,7 @@ func NewDNTCheckTool(cfg *DNTCheckConfig) *tool.BaseTool {
 			findings = append(findings, check.Finding{
 				Category:     "do-not-translate",
 				Severity:     check.SeverityCritical,
-				Message:      fmt.Sprintf("Do-not-translate term %q is missing from the %s target — it appears to have been translated or altered", term, conf.TargetLocale),
+				Message:      fmt.Sprintf("Do-not-translate term %q is missing from the %s target: it appears to have been translated or altered", term, conf.TargetLocale),
 				Suggestion:   fmt.Sprintf("Keep %q verbatim in the target", term),
 				Position:     model.RangeAnchorForBytes(sourceRuns, hits[0][0], hits[0][1]),
 				OriginalText: source[hits[0][0]:hits[0][1]],

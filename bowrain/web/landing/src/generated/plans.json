@@ -1,5 +1,5 @@
 {
-  "_note": "GENERATED from bowrain/billing/plans.go by `go generate ./...` (directive in billing/gen.go). Do not edit by hand: change the facts in plans.go and regenerate. Facts only (ids, names, credits, limits, flags) — dollar prices are marketing copy in Plans.tsx / Stripe.",
+  "_note": "GENERATED from bowrain/billing/plans.go by `go generate ./...` (directive in billing/gen.go). Do not edit by hand: change the facts in plans.go and regenerate. Facts only (ids, names, credits, limits, flags). Dollar prices are marketing copy in Plans.tsx / Stripe.",
   "trialGrantCredits": 200000,
   "plans": [
     {

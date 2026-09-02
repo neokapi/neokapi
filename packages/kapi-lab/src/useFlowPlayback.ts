@@ -165,7 +165,7 @@ function describeDelta(
   parts: Record<string, PartSnapshotSet>,
 ): string {
   if (events.length === 0)
-    return "Ready — nothing in the pipeline yet. Press Next to read the first part.";
+    return "Ready. Nothing in the pipeline yet. Press Next to read the first part.";
   const labelOf = (id: string) => nodes.find((n) => n.id === id)?.label ?? id;
 
   // Group by (type, nodeId), collecting distinct parts.

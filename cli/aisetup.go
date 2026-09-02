@@ -8,9 +8,9 @@ func newModelsSetupCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "setup",
 		Short: "Interactively pick and verify the default AI provider",
-		Long: "Detects the AI options on this machine — the Claude Code CLI (uses your\n" +
+		Long: "Detects the AI options on this machine: the Claude Code CLI (uses your\n" +
 			"Claude subscription, no API key), a running Ollama server (local models),\n" +
-			"and API keys already present in the environment — then walks through picking\n" +
+			"and API keys already present in the environment. Then walks through picking\n" +
 			"the default provider, storing an API key when one is needed, and verifying\n" +
 			"the choice with a tiny test call. Writes ai.provider / ai.model to the global\n" +
 			"config (shared with Kapi Desktop).\n\n" +

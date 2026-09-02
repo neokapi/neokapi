@@ -110,7 +110,7 @@ func TestGovernanceNotesReadTheCacheAndNotTheNetwork(t *testing.T) {
 	notes := a.governanceNotes(cmd)
 	require.Len(t, notes, 1)
 	assert.Contains(t, notes[0], "terms moved")
-	assert.Contains(t, notes[0], "re-read the project's context")
+	assert.Contains(t, notes[0], "Re-read the project's context")
 
 	assert.Empty(t, a.governanceNotes(cmd), "the same change is not reported twice")
 }

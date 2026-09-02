@@ -244,7 +244,7 @@ vet: ## Run go vet (all modules)
 	@$(MAKE) --no-print-directory _fw-vet
 	@$(MAKE) -C bowrain vet
 
-lint: check-abs-paths check-eval-publishable check-local-actions check-deploy-paths check-vocabulary check-desktop-interchange check-vocab-packs check-comment-history check-reference-provenance check-run-projection check-locale-display check-sidebar-ids check-package-licenses check-archive-licenses check-plugin-licenses check-plugin-release-latest check-tracked-binaries check-extract-fixtures check-gofmt ## Run golangci-lint (all modules) + repo hygiene guards
+lint: check-abs-paths check-em-dashes check-eval-publishable check-local-actions check-deploy-paths check-vocabulary check-desktop-interchange check-vocab-packs check-comment-history check-reference-provenance check-run-projection check-locale-display check-sidebar-ids check-package-licenses check-archive-licenses check-plugin-licenses check-plugin-release-latest check-tracked-binaries check-extract-fixtures check-gofmt ## Run golangci-lint (all modules) + repo hygiene guards
 	@$(MAKE) --no-print-directory _fw-lint
 	@$(MAKE) -C bowrain lint
 
@@ -266,6 +266,15 @@ check-deploy-paths: ## Guard: the deploy workflow triggers on every framework di
 
 check-run-projection: ## Guard: a Run sequence is projected through a declared RunSpec, never a hand-rolled walk
 	@./scripts/check-run-projection.sh
+
+# Three tiers carry the same prose to a reader: Go string literals, the
+# extracted source catalogs, and the Markdown docs. CLAUDE.md's ceiling applied
+# to one of them, so the other two drifted to about 600 and 2,600 dashes. The
+# catalogs part reports (rather than fails on) a surface `make l10n-extract` has
+# not produced yet, so this target is useful before a full extract; the l10n
+# workflow runs it with --require-extracted, where the extract has just run.
+check-em-dashes: ## Guard: no em dash in Go string literals, extracted source catalogs, or docs prose
+	@./scripts/check-em-dashes.sh
 
 check-ts-license-boundary: ## Guard: no Apache TypeScript imports the AGPL tree under bowrain/
 	@./scripts/check-ts-license-boundary.sh
@@ -3012,7 +3021,7 @@ help: ## Show this help
 .PHONY: all help $(BOTH_TARGETS) test test-fast test-unit test-race test-verbose test-integration \
         parity-sandbox parity-test parity-publish parity-clean regen-okapi-fixtures check-eval batch-eval batch-eval-publish context-eval context-eval-publish context-eval-validate check-models update-model-prices update-model-catalog \
         contract-audit contract-audit-all contract-audit-clean okapi-failsafe-reports \
-        fmt vet lint check check-framework check-bowrain check-abs-paths check-vocabulary check-desktop-interchange check-comment-history check-run-projection check-locale-display check-sidebar-ids check-lockfile-idempotent check-package-licenses check-archive-licenses check-plugin-licenses check-tracked-binaries check-gofmt workspace-paths test-parallel \
+        fmt vet lint check check-framework check-bowrain check-abs-paths check-em-dashes check-vocabulary check-desktop-interchange check-comment-history check-run-projection check-locale-display check-sidebar-ids check-lockfile-idempotent check-package-licenses check-archive-licenses check-plugin-licenses check-tracked-binaries check-gofmt workspace-paths test-parallel \
         test-framework test-cli test-kapi test-platform test-bowrain-plugin test-bowrain \
         test-plugins test-sat-plugin test-check-plugin test-vision-plugin test-asr-plugin test-pdfium-plugin \
         bowrain-desktop-test \

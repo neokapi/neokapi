@@ -13,7 +13,7 @@ export const SCRIPT_API_DTS = `
 declare interface Part {
   /** The kind of part. Only "block" parts carry translatable text. */
   readonly type: "block" | "data" | "media" | "layer-start" | "layer-end" | "group-start" | "group-end";
-  /** The translatable block — present only when type === "block". */
+  /** The translatable block, present only when type === "block". */
   block?: Block;
 }
 
@@ -39,12 +39,12 @@ declare const part: Part;
 
 /**
  * Emit a part downstream. Call it once for each part you want to keep
- * (optionally after modifying it). If you call neither emit() nor skip() — and
- * a process() function returns nothing — the part passes through unchanged.
+ * (optionally after modifying it). If you call neither emit() nor skip(), and
+ * a process() function returns nothing, the part passes through unchanged.
  */
 declare function emit(part: Part): void;
 
-/** Drop the current part — it will not be emitted. */
+/** Drop the current part; it will not be emitted. */
 declare function skip(): void;
 
 /** Write a message to the run log (shown below the editor). */
@@ -133,7 +133,7 @@ function process(part) {
   {
     id: "log-by-type",
     label: "Log each part",
-    blurb: "Inspect the stream with log() — output appears below.",
+    blurb: "Inspect the stream with log(); output appears below.",
     code: `/** @param {Part} part */
 function process(part) {
   if (part.type === "block") {
@@ -193,7 +193,7 @@ export const DEFAULT_SCRIPT = `// process(part) runs once for every Part in the 
 /** @param {Part} part */
 function process(part) {
   if (part.type === "block") {
-    // Edit the block's source text — here, shout it.
+    // Edit the block's source text, here by shouting it.
     part.block.source[0].content.text =
       part.block.source[0].content.text.toUpperCase();
   }

@@ -54,7 +54,7 @@ func (r *stubReader) Signature() format.FormatSignature {
 
 func (r *stubReader) Open(ctx context.Context, doc *model.RawDocument) error {
 	return errors.New(
-		"the exec format has no reader — kapi does not extract content by " +
+		"the exec format has no reader: kapi does not extract content by " +
 			"running a subprocess. Name the file's real format instead " +
 			"(`kapi formats` lists them), or convert it to one kapi reads",
 	)

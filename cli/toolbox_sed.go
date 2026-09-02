@@ -24,7 +24,7 @@ func newSedCmd(a *App) *cobra.Command {
 		GroupID: "advanced",
 		Long: `Apply sed-style substitutions to the human-readable text inside any supported
 format, then write the document back in the same format. Only the editable text
-changes — a .docx keeps its styles, a JSON catalog keeps its keys and shape.
+changes: a .docx keeps its styles, a JSON catalog keeps its keys and shape.
 
 SCRIPT is a substitution command: s/regexp/replacement/flags. Backreferences
 (\1, &), and the g (global) and i (ignore-case) flags are supported. Any
@@ -35,8 +35,8 @@ to edit files in place, optionally keeping a backup (-i.bak). Edits apply to the
 source text unless --target LOCALE selects a translation.
 
 Editing a binary document (.docx, .idml, .epub, …) writes a binary document, so
-when standard output is a terminal that is refused rather than streamed at it —
-use -i, redirect stdout, or pass --force. Redirected or piped output is never
+when standard output is a terminal that is refused rather than streamed at it.
+Use -i, redirect stdout, or pass --force. Redirected or piped output is never
 touched.
 
 Directory arguments are walked with -R. It is spelled -R rather than -r because

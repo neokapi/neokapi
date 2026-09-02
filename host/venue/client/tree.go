@@ -32,7 +32,7 @@ import (
 // from the recipe's server: block, which is absent until the project is
 // connected, and a nil-pointer panic in streamPrefix says nothing useful.
 func errNotConnected() error {
-	return errors.New("bowrain: project is not connected to a server — run 'kapi init --server <url>' to connect")
+	return errors.New("bowrain: project is not connected to a server. Run 'kapi init --server <url>' to connect")
 }
 
 // TreeResponse is the venue's content for a scope, reduced to hashes.

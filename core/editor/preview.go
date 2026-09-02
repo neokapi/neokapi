@@ -24,7 +24,7 @@ func PreviewBoilerplateStart() string {
 <meta charset="UTF-8">
 <style>
   /* The document scrolls itself. A host that instead grows the frame to the
-     content height and scrolls its own page — the inline visual editor — sends
+     content height and scrolls its own page (the inline visual editor) sends
      kat-fit-height to suppress this, so only that host gets the clipped
      document it actually wants. Hiding it by default is what left a long file
      unreadable in the preview panel: a fixed-height frame, and no way to reach

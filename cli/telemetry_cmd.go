@@ -61,7 +61,7 @@ func newTelemetryStatusCmd(a *App) *cobra.Command {
 			if st.Enabled {
 				fmt.Fprintln(out, "Telemetry: enabled")
 			} else {
-				fmt.Fprintf(out, "Telemetry: disabled — %s\n", st.Reason)
+				fmt.Fprintf(out, "Telemetry: disabled, %s\n", st.Reason)
 			}
 			id := cfg.GetString(telemetry.KeyMachineID)
 			if id == "" {

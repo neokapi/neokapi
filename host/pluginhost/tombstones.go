@@ -51,7 +51,7 @@ func LookupTombstone(name string) (Tombstone, bool) {
 // Notice renders the multi-line retirement message shown in `kapi plugins list`,
 // `doctor`, and `prune`.
 func (t Tombstone) Notice() string {
-	msg := fmt.Sprintf("plugin %q was retired in kapi %s — it is installed but no longer loaded.\n  Reason: %s.", t.Plugin, t.RetiredIn, t.Because)
+	msg := fmt.Sprintf("plugin %q was retired in kapi %s. It is installed but no longer loaded.\n  Reason: %s.", t.Plugin, t.RetiredIn, t.Because)
 	if t.ReplacementMsg != "" {
 		msg += "\n  Replacement: " + t.ReplacementMsg
 	}

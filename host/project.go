@@ -121,7 +121,7 @@ func RequireProjectPath(cmd Command) (string, error) {
 		return "", err
 	}
 	if path == "" {
-		return "", errors.New("no kapi project found — pass -p <path to kapi.yaml> or run from inside a kapi project directory")
+		return "", errors.New("no kapi project found. Pass -p <path to kapi.yaml> or run from inside a kapi project directory")
 	}
 	return path, nil
 }

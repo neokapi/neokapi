@@ -22,11 +22,11 @@ func NewTermsCmd(a *App) *cobra.Command {
 		GroupID: "assets",
 		Long: `Manage project terminology.
 
-A terms store holds approved terminology — concepts and their renderings per
-locale — as a SQLite database. Use these commands to import, export, look up,
+A terms store holds approved terminology (concepts and their renderings per
+locale) as a SQLite database. Use these commands to import, export, look up,
 and manage terms.
 
-Inside a project, no flag means the project's own terms — a subsystem of
+Inside a project, no flag means the project's own terms, a subsystem of
 .kapi/work/store.db, which is why it is not addressed by path. Use -p to name the
 project explicitly.
 
@@ -129,7 +129,7 @@ func newTermsImportCmd(a *App) *cobra.Command {
 				// Name the reader that ran: with --format left at auto the
 				// choice was made from the extension, so a parse error from
 				// inside a CSV or TBX reader is otherwise unattributable.
-				return fmt.Errorf("read %s as %s: %w — pass --format (%s) if that is the wrong reader",
+				return fmt.Errorf("read %s as %s: %w. Pass --format (%s) if that is the wrong reader",
 					filepath.Base(args[0]), format, err, strings.Join(TermsFileFormats, ", "))
 			}
 
@@ -381,7 +381,7 @@ under every term it carries, in every language, so an approved English term is
 found in the source text and its counterpart in the translated text.
 
 Matching folds case, spans any whitespace between a term's words, and requires a
-word boundary — "AI" is not a use of "again". Scripts written without word
+word boundary, so "AI" is not a use of "again". Scripts written without word
 separators are matched without that rule.
 
 The project must have been extracted: occurrences are read from the block cache

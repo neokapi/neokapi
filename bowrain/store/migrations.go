@@ -99,7 +99,7 @@ var Migrations = []storage.Migration{
 				locked      BOOLEAN NOT NULL DEFAULT FALSE,
 				locked_by   TEXT NOT NULL DEFAULT '',
 				locked_at   TIMESTAMPTZ,
-				-- Extensible key/value metadata, like projects and items carry —
+				-- Extensible key/value metadata, like projects and items carry:
 				-- most immediately the stream-level voice binding
 				-- (voice_profile_id), a rung in the hierarchical profile
 				-- resolver.
@@ -151,7 +151,7 @@ var Migrations = []storage.Migration{
 				context          TEXT NOT NULL DEFAULT '{}',
 				-- 'recipe' or 'workspace': which side is authoritative. Rows
 				-- created by the web hub, the editor or a connector default to
-				-- 'workspace' — reading them as recipe-owned would hand authority
+				-- 'workspace', because reading them as recipe-owned would hand authority
 				-- over them to a kapi.yaml that never mentioned them.
 				owner            TEXT NOT NULL DEFAULT 'workspace',
 				-- Hash of the context entry the row was reconciled from. It is
@@ -214,7 +214,7 @@ var Migrations = []storage.Migration{
 				-- row written before the column existed; readers decode its
 				-- source_json once and every rewrite fills the column in. Deriving
 				-- coverage used to deserialize every block's source runs on every
-				-- call — minutes at corpus scale, for numbers the write path
+				-- call: minutes at corpus scale, for numbers the write path
 				-- already knew.
 				word_count   INTEGER,
 				properties   TEXT NOT NULL DEFAULT '{}',
@@ -223,8 +223,8 @@ var Migrations = []storage.Migration{
 				-- borrowing the review ladder's words: open (normal perms),
 				-- restricted (review perms or ownership), published (re-opening is
 				-- privileged). The column was called status and read 'draft' /
-				-- 'in_review' — one letter from 'reviewed' on the other side of the
-				-- same block — until version 19 renamed it.
+				-- 'in_review' (one letter from 'reviewed' on the other side of the
+				-- same block) until version 19 renamed it.
 				access       TEXT NOT NULL DEFAULT 'open',
 				stored_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -473,7 +473,7 @@ var Migrations = []storage.Migration{
 				current_locale TEXT NOT NULL DEFAULT '',
 				last_activity  TEXT NOT NULL DEFAULT '',
 				-- Source-first convergence: how many source blocks are held below
-				-- the source gate (settle-then-translate) — what the UI renders as
+				-- the source gate (settle-then-translate): what the UI renders as
 				-- "N segments need source review before translating", and the
 				-- signal behind a source_not_ready hold.
 				blocked_on_source INTEGER NOT NULL DEFAULT 0,
@@ -554,8 +554,8 @@ var Migrations = []storage.Migration{
 				priority   TEXT NOT NULL DEFAULT 'normal',
 
 				-- The bus event this notification came from. One user hears
-				-- about one event once: a redelivery — which every deploy
-				-- rollover produces — must not put a second row in the inbox
+				-- about one event once: a redelivery, which every deploy
+				-- rollover produces, must not put a second row in the inbox
 				-- and a second email in the mailbox.
 				source_event_id TEXT NOT NULL DEFAULT '',
 
@@ -664,7 +664,7 @@ var Migrations = []storage.Migration{
 
 				-- The bus event this row records. A failed append leaves its
 				-- event pending for redelivery, and the reclaim sweep re-runs
-				-- handlers whose consumer died after finishing — so the append
+				-- handlers whose consumer died after finishing, so the append
 				-- has to be keyed on something the event carries, or recovery
 				-- would trade a lost record for a doubled one.
 				event_id      TEXT NOT NULL DEFAULT '',
@@ -889,14 +889,14 @@ var Migrations = []storage.Migration{
 
 			-- ---- folded from version 5: workspace-scoped connector configs (durable connectors) ----
 
-			-- RETIRED VERSION NUMBERS — never reuse: 3 ("Live Preview: per-project
+			-- RETIRED VERSION NUMBERS, never reuse: 3 ("Live Preview: per-project
 			-- settings + block content key", AD-023/AD-036) and 4 ("block occurrences",
 			-- AD-036) ran on live databases before being folded into the v1 baseline.
 			-- A live database records those numbers as applied, so a new migration
 			-- reusing them is silently skipped. New migrations start at 5.
 			-- Per-workspace connector configurations. The ConnectorService keeps
-			-- only live instances in memory, so without this table a connector —
-			-- and its credentials — is lost on restart. On boot the server reads
+			-- only live instances in memory, so without this table a connector,
+			-- and its credentials, is lost on restart. On boot the server reads
 			-- these rows and re-instantiates each connector.
 			--
 			-- config is a JSON map (stored as TEXT, like collections.connector_config)
@@ -929,7 +929,7 @@ var Migrations = []storage.Migration{
 
 			-- ---- folded from version 6: stream properties (extensible metadata, incl. voice binding) ----
 			-- Streams carry extensible key/value metadata like projects and items
-			-- do — most immediately the stream-level voice binding
+			-- do: most immediately the stream-level voice binding
 			-- (voice_profile_id), a rung in the hierarchical profile
 			-- resolver. Stored as a JSON TEXT map, matching items.properties.
 
@@ -993,8 +993,8 @@ var Migrations = []storage.Migration{
 				ON proposed_source_changes(project_id, status);
 
 			-- ---- folded from version 12: block stand-off overlays column (persist term/entity/segmentation/qa overlays across store round-trip) ----
-			-- Block.Overlays — the positional, run-anchored stand-off layers
-			-- (segmentation, term, entity, term-candidate, qa, alignment) — persist
+			-- Block.Overlays, the positional, run-anchored stand-off layers
+			-- (segmentation, term, entity, term-candidate, qa, alignment), persist
 			-- alongside source_json so they survive a store round-trip. Without this
 			-- column GetBlocks dropped every overlay, breaking entity/term handlers
 			-- and the entity→concept promote path (which worked only while the block
@@ -1006,7 +1006,7 @@ var Migrations = []storage.Migration{
 			-- ---- folded from version 13: GitHub App installation ownership (an installation belongs to one workspace) ----
 			-- Which workspace a GitHub App installation belongs to. One registered
 			-- app serves every workspace on a shared instance, and an installation
-			-- id is a bare integer that carries no tenancy of its own — so the
+			-- id is a bare integer that carries no tenancy of its own, so the
 			-- post-install setup endpoints have nothing to answer "may THIS
 			-- workspace act on installation N?" with unless the answer is written
 			-- down. This table is that record, and it is the sole authority: an
@@ -1017,7 +1017,7 @@ var Migrations = []storage.Migration{
 			--   - the app-level 'installation' webhook records the installation as
 			--     soon as GitHub reports it. It is authentic (signed with the app's
 			--     webhook secret) but names no workspace, so it can only ever
-			--     record — never claim;
+			--     record, never claim;
 			--   - the post-install redirect carries the signed setup state minted
 			--     when the workspace started the install, which names the
 			--     workspace and is what claims the row.
@@ -1044,27 +1044,27 @@ var Migrations = []storage.Migration{
 			-- server-side existence instead of being a name items merely
 			-- mentioned.
 			--
-			-- context      — the point the collection's content occupies in the
+			-- context      is the point the collection's content occupies in the
 			--                project's context space (axis → value), as the
 			--                recipe declares under 'context:'. Slugs a recipe
 			--                writes in plain sight, so unlike connector_config
 			--                (credentials) this column is not sealed.
-			-- owner        — 'recipe' or 'workspace': which side is
+			-- owner        is 'recipe' or 'workspace': which side is
 			--                authoritative. Existing rows were created by the web
 			--                hub, the editor or a connector, so they backfill to
-			--                'workspace' — the conservative default, since
+			--                'workspace', the conservative default, since
 			--                reading them as recipe-owned would hand authority
 			--                over them to a kapi.yaml that never mentioned them.
-			-- context_hash — the hash of the context entry the row was
+			-- context_hash is the hash of the context entry the row was
 			--                reconciled from. It is what makes a re-push
 			--                idempotent: an unchanged hash leaves the row, and
 			--                its updated_at, untouched. Empty until a push
 			--                reconciles the row.
 
 			-- ---- folded from version 16: unit decisions ledger (decisions travel the sync protocol) ----
-			-- The latest workflow decision per (item, unit, variant) — the
+			-- The latest workflow decision per (item, unit, variant): the
 			-- server side of core/state.UnitState. A decision is a FACT (who,
-			-- when, which rung, and the hashes of the pairing it blesses — the
+			-- when, which rung, and the hashes of the pairing it blesses: the
 			-- translation, and the source it was blessed for); freshness against
 			-- current content is derived by readers, never stored. History lives in block_history (change_type 'decision');
 			-- this table is the fold of that log, kept because joins and
@@ -1073,7 +1073,7 @@ var Migrations = []storage.Migration{
 			-- unit is the durable identity (blocks.source_id), scoped by
 			-- item_name because structural names recur across items. item_name
 			-- may be '' when a decision arrives for content this store has
-			-- never held — stored rather than dropped, so the ledger cannot
+			-- never held, stored rather than dropped, so the ledger cannot
 			-- lose what the corpus has not caught up to.
 			CREATE TABLE IF NOT EXISTS unit_decisions (
 				project_id  TEXT NOT NULL,
@@ -1098,7 +1098,7 @@ var Migrations = []storage.Migration{
 			-- The BASIS a decision blessed: the hash of the SOURCE it approved a
 			-- translation FOR. Declared in the CREATE above for an empty database
 			-- and added here for one that already ran 16-23. Empty means the
-			-- record predates the column — unknown, which a reader must not read
+			-- record predates the column: unknown, which a reader must not read
 			-- as a source that has moved.
 			ALTER TABLE unit_decisions ADD COLUMN IF NOT EXISTS content_hash TEXT NOT NULL DEFAULT '';
 
@@ -1106,7 +1106,7 @@ var Migrations = []storage.Migration{
 			--
 			-- A workspace owns EQUIVALENCE, never RESOLUTION. Two projects that
 			-- spell one channel differently fragment the workspace's view of it,
-			-- and the server can see that where neither project can — but it may
+			-- and the server can see that where neither project can, though it may
 			-- not fix it: a project resolves its own coordinates from its own
 			-- recipe, offline, and a server that rewrote a pushed slug would make
 			-- the same recipe mean different things depending on whether it had
@@ -1168,8 +1168,8 @@ var Migrations = []storage.Migration{
 			-- ships, and carried on the collection's context entry, so these
 			-- move with the coordinates and the voice rather than separately.
 			--
-			-- kind names how a view is FOUND within that host — a Storybook
-			-- resolves an item to a story through its published index — and a
+			-- kind names how a view is FOUND within that host (a Storybook
+			-- resolves an item to a story through its published index), and a
 			-- kind this server does not recognise is stored and served
 			-- unchanged: the client decides what it can read.
 			ALTER TABLE collections ADD COLUMN IF NOT EXISTS preview_kind TEXT NOT NULL DEFAULT '';
@@ -1189,7 +1189,7 @@ var Migrations = []storage.Migration{
 			--
 			-- Derived, and says so: gate fingerprints the governance in force,
 			-- basis names the source hash and target revision judged. A row
-			-- whose gate or basis has moved is not counted — it is recomputed.
+			-- whose gate or basis has moved is not counted: it is recomputed.
 			-- Nothing here is authored, so the table can be truncated at any
 			-- time and the next dashboard load rebuilds it.
 			--
@@ -1219,12 +1219,12 @@ var Migrations = []storage.Migration{
 			--
 			-- ONE: a stream owns its content. CreateStream copied item rows and
 			-- left blocks shared, so two branches could not differ in source by
-			-- construction — a branch was a translation branch, and MergeStream
+			-- construction: a branch was a translation branch, and MergeStream
 			-- counted changes without moving any. blocks gains the stream every
 			-- table describing a block already carries.
 			--
 			-- TWO: a file is identified by what it IS. items_pkey was
-			-- (project_id, stream, name) — the PATH was the primary key — so a
+			-- (project_id, stream, name), making the PATH the primary key, so a
 			-- rename was a delete and an insert, and every row pointing at the
 			-- old name was orphaned. unit_decisions had the path in its key too,
 			-- which is how renaming a file dropped its approvals.
@@ -1264,7 +1264,7 @@ var Migrations = []storage.Migration{
 			-- was authored on, which is main; the column default says so.
 			--
 			-- Branches that already exist are NOT carried over, and nothing here
-			-- tries to. They held no blocks of their own — they read main's —
+			-- tries to. They held no blocks of their own (they read main's)
 			-- and MergeStream never moved a row, so there is no branch work to
 			-- preserve. Content this migration reshapes is re-pushed rather than
 			-- repaired: see bowrain-infra/docs/runbooks/data-reset.md.
@@ -1273,7 +1273,7 @@ var Migrations = []storage.Migration{
 			ALTER TABLE blocks ADD PRIMARY KEY (project_id, stream, id);
 
 			-- The reader's id is unique within an item, and an item is within a
-			-- stream — the old index spanned streams and would now collide
+			-- stream: the old index spanned streams and would now collide
 			-- between a branch and its parent.
 			DROP INDEX IF EXISTS idx_blocks_source_id;
 			CREATE UNIQUE INDEX IF NOT EXISTS idx_blocks_source_id
@@ -1316,7 +1316,7 @@ var Migrations = []storage.Migration{
 			-- subsystem, identifier AND stored value. Both columns are plain
 			-- TEXT with no CHECK, so rows written before the rename keep the
 			-- former spelling and the two coexist indefinitely: nothing errors,
-			-- and nothing today reads the value exactly — the feed matches on
+			-- and nothing today reads the value exactly: the feed matches on
 			-- "drift" being present and preferences key on the category. The
 			-- first consumer that does match exactly would silently miss every
 			-- historical row.
@@ -1357,7 +1357,7 @@ var Migrations = []storage.Migration{
 				created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				applied_at   TIMESTAMPTZ
 			);
-			-- The pull asks one question — what is pending for this project —
+			-- The pull asks one question, what is pending for this project,
 			-- so that is the index.
 			CREATE INDEX IF NOT EXISTS idx_pending_recipe_changes_project
 				ON pending_recipe_changes(project_id, status);

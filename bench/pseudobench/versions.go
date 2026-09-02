@@ -37,7 +37,7 @@ func buildVersions(repoRoot, outputDir string, tags []string) error {
 		return fmt.Errorf("git status: %w", err)
 	}
 	if strings.TrimSpace(status) != "" {
-		return fmt.Errorf("working tree is dirty — commit or stash changes first")
+		return fmt.Errorf("working tree is dirty. Commit or stash changes first")
 	}
 
 	for _, tag := range tags {

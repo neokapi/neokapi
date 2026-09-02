@@ -76,7 +76,7 @@ type listProjectsInput struct {
 	// WorkspaceID is ignored — the MCP server is already scoped to the
 	// authenticated workspace. Kept for backward compatibility but the
 	// filter is no longer applied (agents were passing wrong values).
-	WorkspaceID string `json:"workspace_id,omitempty" jsonschema:"deprecated — ignored, workspace is determined by auth token"`
+	WorkspaceID string `json:"workspace_id,omitempty" jsonschema:"deprecated and ignored; workspace is determined by auth token"`
 }
 type listProjectsOutput struct {
 	Projects []projectSummaryContent `json:"projects"`

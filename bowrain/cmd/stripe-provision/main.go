@@ -85,7 +85,7 @@ func main() {
 
 func run() error {
 	webhookURL := flag.String("webhook-url", "", "public URL of the Bowrain webhook endpoint (e.g. https://app.bowrain.cloud/api/webhooks/stripe); omit to skip webhook setup")
-	env := flag.String("env", "", "environment name (e.g. prod) — prints the aws ssm put-parameter commands for /bowrain/<env>/…")
+	env := flag.String("env", "", "environment name (e.g. prod): prints the aws ssm put-parameter commands for /bowrain/<env>/…")
 	flag.Parse()
 
 	key := os.Getenv("STRIPE_SECRET_KEY")
@@ -172,7 +172,7 @@ func run() error {
 	} else if *webhookURL == "" {
 		fmt.Println("STRIPE_WEBHOOK_SECRET=  (no -webhook-url given; for local testing use `stripe listen`, which prints its own secret)")
 	} else {
-		fmt.Println("STRIPE_WEBHOOK_SECRET=  (endpoint already existed — Stripe only reveals the signing secret at creation; read it from the dashboard, or delete and re-create the endpoint)")
+		fmt.Println("STRIPE_WEBHOOK_SECRET=  (endpoint already existed: Stripe only reveals the signing secret at creation; read it from the dashboard, or delete and re-create the endpoint)")
 	}
 
 	if *env != "" {
@@ -241,11 +241,11 @@ func ensurePrice(ctx context.Context, sc *stripe.Client, spec priceSpec) (string
 		}
 		fmt.Printf("price    %-20s exists  %s (%s)\n", spec.lookupKey, p.ID, formatAmount(p.UnitAmount))
 		if got := p.Metadata["bowrain_plan"]; got != spec.metadata["bowrain_plan"] {
-			fmt.Printf("  WARNING: price metadata bowrain_plan=%q, expected %q — plan detection will fall back to guessing\n",
+			fmt.Printf("  WARNING: price metadata bowrain_plan=%q, expected %q, so plan detection will fall back to guessing\n",
 				got, spec.metadata["bowrain_plan"])
 		}
 		if p.UnitAmount != spec.cents {
-			fmt.Printf("  WARNING: price is %s, expected %s — Stripe prices are immutable; migrate deliberately if this is wrong\n",
+			fmt.Printf("  WARNING: price is %s, expected %s. Stripe prices are immutable; migrate deliberately if this is wrong\n",
 				formatAmount(p.UnitAmount), formatAmount(spec.cents))
 		}
 		return p.ID, nil

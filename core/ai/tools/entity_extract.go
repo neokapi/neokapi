@@ -47,7 +47,7 @@ const (
 
 // AIEntityExtractConfig holds configuration for the entity extraction tool.
 type AIEntityExtractConfig struct {
-	Engine      string         `json:"engine,omitempty" schema:"title=Extraction Engine,description=llm (AI provider; default) / ner (local on-device model — nothing leaves the machine) / hybrid (both),enum=llm|ner|hybrid,default=llm"`
+	Engine      string         `json:"engine,omitempty" schema:"title=Extraction Engine,description=llm (AI provider; default) / ner (local on-device model: nothing leaves the machine) / hybrid (both),enum=llm|ner|hybrid,default=llm"`
 	Provider    string         `json:"provider,omitempty" schema:"title=AI Provider,description=AI provider,default=anthropic,group=provider"`
 	APIKey      string         `json:"apiKey,omitempty" schema:"title=API Key,description=API key for the AI provider,group=provider"`
 	Model       string         `json:"model,omitempty" schema:"title=Model,description=AI model name,group=provider"`
@@ -121,7 +121,7 @@ func entityExtractMembers() []registry.ToolGroupMember {
 	}}
 	return []registry.ToolGroupMember{
 		{Name: EngineLLM, Label: "LLM (AI provider)", Description: "Extract with an AI provider.", Schema: llmParams, When: usesLLM},
-		{Name: EngineNER, Label: "Local NER (on-device)", Description: "On-device model — no credentials, nothing leaves the machine."},
+		{Name: EngineNER, Label: "Local NER (on-device)", Description: "On-device model: no credentials, nothing leaves the machine."},
 		{Name: EngineHybrid, Label: "Hybrid (NER + LLM)", Description: "Run the local model and the LLM, merging results."},
 	}
 }
@@ -160,7 +160,7 @@ func NewAIEntityExtractFromConfig(config map[string]any, _ string) (tool.Tool, e
 	if cfg.Engine == EngineNER || cfg.Engine == EngineHybrid {
 		nerProvider = ner.LocalProvider()
 		if nerProvider == nil {
-			return nil, fmt.Errorf("entity-extract: engine %q needs a local NER model, but none is available in this environment — in the browser load the local NER model first; natively use the default llm engine", cfg.Engine)
+			return nil, fmt.Errorf("entity-extract: engine %q needs a local NER model, but none is available in this environment. In the browser load the local NER model first; natively use the default llm engine", cfg.Engine)
 		}
 	}
 	if cfg.Engine == EngineNER {

@@ -172,9 +172,9 @@ func (w *DigestWorker) renderDigest(groups []categoryGroup, ds bstore.DigestSett
 	}
 
 	if w.frequency == bstore.DigestWeekly {
-		subject = fmt.Sprintf("Your weekly summary — %d updates", total)
+		subject = fmt.Sprintf("Your weekly summary: %d updates", total)
 	} else {
-		subject = fmt.Sprintf("Your daily digest — %d updates", total)
+		subject = fmt.Sprintf("Your daily digest: %d updates", total)
 	}
 
 	// Build a simple, clean HTML digest.

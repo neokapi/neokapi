@@ -37,7 +37,7 @@ func (r checkReport) FormatText(w io.Writer) error {
 	if !r.Pass {
 		verdict = s.Error.Render("FAIL")
 	}
-	fmt.Fprintf(w, "%s — ", verdict)
+	fmt.Fprintf(w, "%s: ", verdict)
 	writeFindingsCounts(w, r.Summary)
 	for _, reason := range r.Gate.Failed {
 		fmt.Fprintf(w, "  gate: %s\n", reason)
@@ -108,7 +108,7 @@ func (a *App) checkProjectSources(cmd Command) ([]string, error) {
 		return nil, err
 	}
 	if projectPath == "" {
-		return nil, errors.New("at least one file is required — or run inside a kapi project to check its declared content")
+		return nil, errors.New("at least one file is required, or run inside a kapi project to check its declared content")
 	}
 	proj, err := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
@@ -119,7 +119,7 @@ func (a *App) checkProjectSources(cmd Command) ([]string, error) {
 		return nil, err
 	}
 	if len(files) == 0 {
-		return nil, fmt.Errorf("%s declares no content to check — add some with `kapi add <glob>`", DisplayName(projectPath))
+		return nil, fmt.Errorf("%s declares no content to check. Add some with `kapi add <glob>`", DisplayName(projectPath))
 	}
 	// The content resolver returns absolute paths; findings should read the way
 	// the user would type them, like the ones from a named file do.
@@ -517,7 +517,7 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 	if opts.voice {
 		refs := voiceExamples(opts.profile)
 		if len(refs) == 0 {
-			return nil, errors.New("--voice needs a voice profile with examples — bind one in the recipe, or name it with --profile/--pack/--profile-file")
+			return nil, errors.New("--voice needs a voice profile with examples. Bind one in the recipe, or name it with --profile/--pack/--profile-file")
 		}
 		t, closeT, derr := dialVoicePlugin(ctx)
 		if derr != nil {

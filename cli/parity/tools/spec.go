@@ -24,12 +24,12 @@ package tools
 // because they depend on pipeline-wide state (TM matches, batch
 // statistics, multi-doc inputs, RawDocument access, …). Tracked
 // upstream as #454.
-const SkipNeedsContext = "step needs pipeline context not provided by ProcessStep — see #454"
+const SkipNeedsContext = "step needs pipeline context not provided by ProcessStep, see #454"
 
 // SkipNeedsParams marks steps whose default parameters force an
 // unconfigured fast-failure (e.g. XSLT needs a stylesheet path; search
 // & replace needs a pattern). Tracked under #454.
-const SkipNeedsParams = "step needs required parameters — see #454"
+const SkipNeedsParams = "step needs required parameters, see #454"
 
 // ToolSpec describes one step parity row.
 type ToolSpec struct {

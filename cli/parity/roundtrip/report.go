@@ -417,7 +417,7 @@ func writeDivergentDetail(w io.Writer, records []parityRecord) error {
 		groups[k] = append(groups[k], r)
 	}
 	if len(groups) == 0 {
-		_, err := fmt.Fprintln(w, "## Divergent detail\n\n_no divergent fixtures — every engine reached its required tier_")
+		_, err := fmt.Fprintln(w, "## Divergent detail\n\n_no divergent fixtures, every engine reached its required tier_")
 		return err
 	}
 

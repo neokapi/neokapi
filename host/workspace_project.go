@@ -54,7 +54,7 @@ func (a *App) RunPack(cmd Command) error {
 		sanitized, removed := kpz.SanitizeRecipe(recipe)
 		pkg.Recipe = sanitized
 		for _, r := range removed {
-			fmt.Fprintf(os.Stderr, "Note: pack: %s stays behind — a package travels inert\n", r)
+			fmt.Fprintf(os.Stderr, "Note: pack: %s stays behind, because a package travels inert\n", r)
 		}
 	} else {
 		fmt.Fprintf(os.Stderr, "Warning: pack: load recipe %s: %v (packing content only)\n", projectPath, lerr)
@@ -134,7 +134,7 @@ func (a *App) RunPack(cmd Command) error {
 	// nothing worth packing; its intent is the .kapi recipe, which is shared via
 	// git, not a .kpz.
 	if !pkg.HasContent() {
-		return fmt.Errorf("pack: nothing to pack — %s has no extracted content, content memory, or terminology yet; run `kapi extract` (and translate) first, or share the kapi.yaml recipe directly", filepath.Base(projectPath))
+		return fmt.Errorf("pack: %s has no extracted content, content memory, or terminology yet, so there is nothing to pack; run `kapi extract` (and translate) first, or share the kapi.yaml recipe directly", filepath.Base(projectPath))
 	}
 
 	if err := saveWorkspace(pkg, outPath); err != nil {
@@ -342,7 +342,7 @@ func (a *App) reconstituteProject(cmd Command, snapshotPath string, pkg *kpz.Pac
 	base := filepath.Base(snapshotPath)
 	if pkg.Recipe == nil {
 		return project.Layout{}, fmt.Errorf(
-			"unpack: no project here and %s carries no recipe to reconstitute one from — run this inside a project, or name one with --project",
+			"unpack: no project here and %s carries no recipe to reconstitute one from. Run this inside a project, or name one with --project",
 			base)
 	}
 
@@ -360,7 +360,7 @@ func (a *App) reconstituteProject(cmd Command, snapshotPath string, pkg *kpz.Pac
 	}
 	if !ok {
 		return project.Layout{}, fmt.Errorf(
-			"unpack: no project here, and the recipe %s carries was not adopted — there is nowhere to unpack into",
+			"unpack: no project here, and the recipe %s carries was not adopted, so there is nowhere to unpack into",
 			base)
 	}
 
@@ -393,7 +393,7 @@ func (a *App) confirmAdoptRecipe(cmd Command, snapshotPath string) (bool, error)
 	w := cmd.ErrOrStderr()
 	if !isTTY() {
 		fmt.Fprintf(w, "Note: %s carries its own project recipe; this directory has none.\n"+
-			"      Not adopting it — re-run with --yes to use the packaged recipe as %s.\n",
+			"      Not adopting it. Re-run with --yes to use the packaged recipe as %s.\n",
 			filepath.Base(snapshotPath), project.RecipeFileName)
 		return false, nil
 	}

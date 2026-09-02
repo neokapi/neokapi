@@ -29,7 +29,7 @@ type LandingPlanCatalog struct {
 	Plans             []LandingPlan `json:"plans"`
 }
 
-const landingCatalogNote = "GENERATED from bowrain/billing/plans.go by `go generate ./...` (directive in billing/gen.go). Do not edit by hand: change the facts in plans.go and regenerate. Facts only (ids, names, credits, limits, flags) — dollar prices are marketing copy in Plans.tsx / Stripe."
+const landingCatalogNote = "GENERATED from bowrain/billing/plans.go by `go generate ./...` (directive in billing/gen.go). Do not edit by hand: change the facts in plans.go and regenerate. Facts only (ids, names, credits, limits, flags). Dollar prices are marketing copy in Plans.tsx / Stripe."
 
 // BuildLandingPlanCatalog assembles the landing catalog from the plan tables in
 // plans.go, in tier order. It is the single source the generator writes and the

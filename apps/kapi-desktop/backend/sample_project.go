@@ -36,7 +36,7 @@ func (a *App) CreateSampleProject(name string) (*TabInfo, error) {
 		if tab, err := a.OpenProject(kapiPath); err == nil {
 			return tab, nil
 		}
-		a.logger.Printf("sample %q recipe is stale/unparseable — re-scaffolding", name)
+		a.logger.Printf("sample %q recipe is stale/unparseable, re-scaffolding", name)
 		// Drop the store first: one left by an older app version carries an
 		// incompatible migration history, so re-seeding into it fails ("apply
 		// migration N: no such table ..."). Deleting it is enough and costs

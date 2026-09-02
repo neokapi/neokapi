@@ -9,7 +9,7 @@ func NewCommitCmd(a *App) *cobra.Command {
 		GroupID: "work",
 		Short:   "Write staged unit state into the project's committed record",
 		Long: `Write the unit state recorded since the last commit into the project's committed
-record — the JSON Lines shards under .kapi/state/ that git tracks.
+record: the JSON Lines shards under .kapi/state/ that git tracks.
 
 Recording a review and publishing it are separate acts. The state record is
 durable the moment it is written; committing is what puts it in the record a

@@ -380,7 +380,7 @@ func (a *App) startPluginWatch() {
 	ctx, cancel := context.WithCancel(context.Background())
 	a.watchCancel = cancel
 	go a.pluginRuntime.Watch(ctx, 3*time.Second, func(*pluginhost.Host) {
-		a.logger.Println("plugin change detected on disk — rescanned")
+		a.logger.Println("plugin change detected on disk, rescanned")
 		a.emitEvent("plugins-changed", nil)
 		a.emitEvent("registries-changed", nil)
 	})

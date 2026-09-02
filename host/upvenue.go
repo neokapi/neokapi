@@ -83,9 +83,9 @@ func (a *App) ResolveUpVenue(projectPath string, opts UpVenueOptions) (UpVenueDe
 	if opts.ForceServer {
 		switch {
 		case !hasServer:
-			return dec, fmt.Errorf("--server needs a recipe connected to a bowrain server%s — run 'kapi init --server <url>' to connect this project", venueBlockHint())
+			return dec, fmt.Errorf("--server needs a recipe connected to a bowrain server%s. Run 'kapi init --server <url>' to connect this project", venueBlockHint())
 		case route == nil:
-			return dec, errors.New("--server needs the server venue plumbing, which no installed plugin provides — install the bowrain plugin (kapi plugin install bowrain)")
+			return dec, errors.New("--server needs the server venue plumbing, which no installed plugin provides. Install the bowrain plugin (kapi plugin install bowrain)")
 		}
 	}
 

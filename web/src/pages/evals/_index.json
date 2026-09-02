@@ -208,7 +208,7 @@
       "method": "comparative",
       "status": "partial",
       "spends": false,
-      "corpus": "The Okapi Framework's own integration-test resources — real .docx, .pptx and .xlsx collected by another project for another purpose, which is what makes them a fair test rather than a demonstration.",
+      "corpus": "The Okapi Framework's own integration-test resources: real .docx, .pptx and .xlsx collected by another project for another purpose, which is what makes them a fair test rather than a demonstration.",
       "covers": "Text-extraction completeness against ground truth read from each document's own XML parts, so no converter's output stands in for the answer, plus how long each conversion took. Compared per format, because the tools accept different ones and a single column would rank them by what they declined.",
       "misses": "Text only. Structure and ordering are not compared, so a converter that flattens every heading scores the same as one that keeps the outline. Headers, footnotes, comments and speaker notes are excluded because converters disagree about whether they belong in the output. Only the converters installed on the machine that ran it appear.",
       "reproduce": "make conversion-eval",
@@ -236,7 +236,7 @@
       "data": "web/src/pages/coordinate/_coordinate.json",
       "page": "/coordinate",
       "fresh": {
-        "date": "2026-09-01T22:31:17Z"
+        "date": "2026-09-02T17:09:10Z"
       },
       "headline": {
         "value": "4",
@@ -378,7 +378,7 @@
       "spends": false,
       "corpus": "10 hand-labelled cases.",
       "covers": "do-not-translate and placeholder checks.",
-      "misses": "Ten cases is too few to separate a real precision difference from noise. The voice checks are measured separately by authoring-checks; term-check is not measured by either, and belongs to neither — its examples are XLIFF with a target, so it scores translations against approved terms rather than source prose.",
+      "misses": "Ten cases is too few to separate a real precision difference from noise. The voice checks are measured separately by authoring-checks; term-check is not measured by either, and belongs to neither: its examples are XLIFF with a target, so it scores translations against approved terms rather than source prose.",
       "reproduce": "make check-eval",
       "data": "web/src/pages/check-eval/_eval.json",
       "page": "/check-eval",

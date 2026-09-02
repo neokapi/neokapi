@@ -134,7 +134,7 @@ func TestOllamaTransportErrorIsActionable(t *testing.T) {
 	p := NewOllamaProvider(Config{BaseURL: url, Model: "m"})
 	_, err := p.Chat(context.Background(), []Message{TextMessage("user", "hi")})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "is it running")
+	assert.Contains(t, err.Error(), "Is it running")
 	assert.Contains(t, err.Error(), "ollama.com")
 }
 

@@ -51,7 +51,7 @@ func kpzWorkspaceInput(inputs []string) bool {
 
 // errKpzTransformOutput explains that a tool/flow on a .kpz mutates it in
 // place; emitting files is `kapi merge`'s job.
-var errKpzTransformOutput = errors.New("running a tool on a .kpz updates it in place — use `kapi merge <work.kpz> -o <dir>` to write output files")
+var errKpzTransformOutput = errors.New("running a tool on a .kpz updates it in place. Use `kapi merge <work.kpz> -o <dir>` to write output files")
 
 // errKpzCreateWithExtract explains that a .kpz workspace is created with
 // `kapi extract`, not by giving a tool/flow a .kpz output.
@@ -86,7 +86,7 @@ func (a *App) ExtractToKpz(ctx context.Context, sources []string, outKpz, target
 	// wherever the package is merged. Say so now rather than at merge time in
 	// someone else's checkout.
 	if !kpz.IsLocalOutTemplate(outLayout) {
-		return fmt.Errorf("extract: --out %q must be relative to the merge directory (e.g. 'l10n/{lang}/{name}.{ext}') — a workspace records this layout for whoever merges it; pass an absolute destination to `kapi merge -o` instead", outLayout)
+		return fmt.Errorf("extract: --out %q must be relative to the merge directory (e.g. 'l10n/{lang}/{name}.{ext}'). A workspace records this layout for whoever merges it; pass an absolute destination to `kapi merge -o` instead", outLayout)
 	}
 
 	recipe := newWorkspaceRecipe(a.SourceLocale(), splitLocales(targetLang), outLayout)
@@ -275,7 +275,7 @@ func (a *App) transformKpzInPlace(ctx context.Context, kpzPath, flowName string,
 		a.printlnUnlessQuiet(fmt.Sprintf("Updated and packed %s (%d document(s), locales: %s)", kpzPath, len(c.meta.Sources), strings.Join(recipeTargetLangs(c.meta.Recipe), ", ")))
 		return nil
 	}
-	a.printlnUnlessQuiet(fmt.Sprintf("Updated %s [dirty] (%d document(s), locales: %s) — run `kapi pack %s` to share", kpzPath, len(c.meta.Sources), strings.Join(recipeTargetLangs(c.meta.Recipe), ", "), filepath.Base(kpzPath)))
+	a.printlnUnlessQuiet(fmt.Sprintf("Updated %s [dirty] (%d document(s), locales: %s). Run `kapi pack %s` to share", kpzPath, len(c.meta.Sources), strings.Join(recipeTargetLangs(c.meta.Recipe), ", "), filepath.Base(kpzPath)))
 	return nil
 }
 
@@ -293,7 +293,7 @@ func (a *App) MergeFromKpz(ctx context.Context, kpzPath, outOverride string) err
 	}
 	locales := recipeTargetLangs(c.meta.Recipe)
 	if len(locales) == 0 {
-		return errors.New("merge: workspace has no translated locales yet — run a tool on it first")
+		return errors.New("merge: workspace has no translated locales yet. Run a tool on it first")
 	}
 	// -o is the user speaking, and an absolute destination there is legitimate.
 	// The recipe's own layout is the PACKAGE speaking, and a package describes
@@ -305,7 +305,7 @@ func (a *App) MergeFromKpz(ctx context.Context, kpzPath, outOverride string) err
 	if layout == "" {
 		layout = recipeOut(c.meta.Recipe)
 		if !kpz.IsLocalOutTemplate(layout) {
-			return fmt.Errorf("merge: the workspace's recorded output layout %q names a destination outside the merge directory — pass `-o <dir>` to choose one deliberately", layout)
+			return fmt.Errorf("merge: the workspace's recorded output layout %q names a destination outside the merge directory. Pass `-o <dir>` to choose one deliberately", layout)
 		}
 	}
 	if sl := recipeSourceLang(c.meta.Recipe); sl != "" {
@@ -349,7 +349,7 @@ type workspaceInfo struct {
 func (o workspaceInfo) FormatText(w io.Writer) error {
 	state := "clean (packed)"
 	if o.Dirty {
-		state = "dirty — run `kapi pack " + filepath.Base(o.Workspace) + "` to update the .kpz"
+		state = "dirty: run `kapi pack " + filepath.Base(o.Workspace) + "` to update the .kpz"
 	}
 	fmt.Fprintf(w, "%s\n  documents: %d (%s)\n  locales:   %s\n  output:    %s\n",
 		o.Workspace, len(o.Documents), strings.Join(o.Documents, ", "),

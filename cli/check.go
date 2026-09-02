@@ -30,7 +30,7 @@ func NewCheckCmd(a *App) *cobra.Command {
 		GroupID: "work",
 		Args:    cobra.ArbitraryArgs,
 		Long: `Run content checks over one or more files and return structured findings
-plus a pass/fail, gating on severity — the content-first counterpart to a test
+plus a pass/fail, gating on severity: the content-first counterpart to a test
 runner.
 
 The default checkset is source-side and needs no translation: text hygiene
@@ -47,14 +47,14 @@ so an assistant can fix the exact block and track rules across iterations. Outpu
 is a human table by default; --output-format json|yaml emits the kapi.check/v1
 Report.
 
-Positional paths accept glob patterns and directories, expanded by kapi itself —
-quote the pattern and ` + "`**`" + ` recurses identically in every shell. Inside a .kapi
+Positional paths accept glob patterns and directories, expanded by kapi itself.
+Quote the pattern and ` + "`**`" + ` recurses identically in every shell. Inside a .kapi
 project, check with no file arguments checks the project's declared content;
 naming files narrows it to those.
 
 Project gate mode (--ship): it runs the project's bound quality gates (voice,
 terminology, rule-based checks) plus its ship/source coverage gates over the
-project's content, and exits non-zero when any gate is unmet — the pre-release
+project's content, and exits non-zero when any gate is unmet: the pre-release
 bar. Target drift never blocks an ordinary build (see 'kapi status'); --ship is
 the explicit, opt-in enforcement point. With no file arguments it inspects the
 project's content x target languages; pass files to gate just those.
@@ -66,7 +66,7 @@ Exit codes: 0 pass, 3 when the gate fails, 1 operational. --no-fail always exits
 		},
 	}
 	f := cmd.Flags()
-	f.String("target", "", "translated target file to check against the (single) source — enables bilingual checks")
+	f.String("target", "", "translated target file to check against the (single) source, enabling bilingual checks")
 	f.String("target-lang", "", "locale of the --target file (e.g. de)")
 	f.StringSlice("dnt", nil, "do-not-translate terms that must survive verbatim into the target (with --target)")
 	f.Int("max-chars", 0, "flag content longer than this many characters (0 = off)")
@@ -90,7 +90,7 @@ Exit codes: 0 pass, 3 when the gate fails, 1 operational. --no-fail always exits
 
 	// Project gate mode (--ship): the project gates surface.
 	AddProjectFlag(cmd)
-	f.Bool("ship", false, "project gate mode: run the project's bound gates (voice, terminology, rule-based checks) plus its ship/source coverage gates; exit non-zero when unmet — the pre-release bar")
+	f.Bool("ship", false, "project gate mode: run the project's bound gates (voice, terminology, rule-based checks) plus its ship/source coverage gates; exit non-zero when unmet: the pre-release bar")
 	AddGateFlag(cmd)
 	f.String("locale", "", "with --ship: scope the target-side gates to a single target locale (e.g. fr)")
 	f.String("termstore", "", "with --ship: named terms or terms-store path for the terminology gate (defaults to the project terms store)")

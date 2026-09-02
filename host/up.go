@@ -17,14 +17,14 @@ import (
 func formatPlanLine(plan UpPlanOutput) string {
 	t := plan.Totals
 	if plan.Monolingual {
-		return "plan: no target languages — reconciling the source only"
+		return "plan: no target languages, reconciling the source only"
 	}
 	if t.MissingTarget == 0 && t.Stale == 0 && t.Unanswered == 0 {
 		if t.UnreadTargets > 0 {
-			return fmt.Sprintf("plan: %d produced unit(s) not priced — the store has not read their committed "+
+			return fmt.Sprintf("plan: %d produced unit(s) not priced: the store has not read their committed "+
 				"translations yet, and this run reads them first", t.UnreadTargets)
 		}
-		return "plan: every unit has a committed target the content memory answers — verifying gates"
+		return "plan: every unit has a committed target the content memory answers, so this run verifies gates"
 	}
 	// The kinds of work the run will do, then what it costs. Each is named
 	// separately because the reader is being told something different about it —
@@ -38,7 +38,7 @@ func formatPlanLine(plan UpPlanOutput) string {
 		work = append(work, fmt.Sprintf("%d unit(s) missing", t.MissingTarget))
 	}
 	if t.Stale > 0 {
-		work = append(work, fmt.Sprintf("re-drafting %d stale unit(s) — their source changed since the translation was decided", t.Stale))
+		work = append(work, fmt.Sprintf("re-drafting %d stale unit(s): their source changed since the translation was decided", t.Stale))
 	}
 	if t.Unanswered > 0 {
 		work = append(work, fmt.Sprintf("drafting %d unit(s) the content memory does not answer", t.Unanswered))
@@ -76,7 +76,7 @@ func AddUpFlags(cmd Command) {
 	cmd.Flags().Bool("no-extract", false, "skip the pre-pass source-drift check and block-store re-extraction")
 	cmd.Flags().Bool("no-checks", false, "skip the bound checks in the loop (produced units count as translated even when failing guardrails)")
 	cmd.Flags().Bool("materialize", false, "after the loop, write target-language files from the project store for every shippable locale (forces defaults.materialize: on-converge)")
-	cmd.Flags().Bool("plan", false, "dry run: report pending work, content-memory leverage, and a token estimate per (collection, locale) — no provider calls, no writes")
+	cmd.Flags().Bool("plan", false, "dry run: report pending work, content-memory leverage, and a token estimate per (collection, locale), with no provider calls and no writes")
 	cmd.Flags().Bool("json", false, "output the structured result as JSON")
 }
 
@@ -111,8 +111,8 @@ func (a *App) WarnIfServerRecipeConvergingLocally(cmd Command, projectPath strin
 		return
 	}
 	fmt.Fprintf(cmd.ErrOrStderr(),
-		"warning: this project declares a %s: block, but the bowrain plugin is not installed — "+
-			"running the loop locally on your own AI provider; results are NOT pushed to the server. "+
+		"warning: this project declares a %s: block, but the bowrain plugin is not installed. "+
+			"Running the loop locally on your own AI provider; results are NOT pushed to the server. "+
 			"Install kapi-bowrain to run `kapi up` on the server (org keys, shared content memory, team review).\n",
 		venue.Key)
 }

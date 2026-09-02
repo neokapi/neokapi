@@ -392,7 +392,7 @@ func (s *Server) createTranslationJobs(ctx context.Context, proj *store.Project,
 	// orchestrator) can't drive the ledger deeply negative. Self-hosted/unbilled
 	// deployments are never blocked.
 	if s.insufficientPlatformCredits(ctx, proj.WorkspaceID, "platform") {
-		slog.Warn("translation jobs: skipped — workspace out of credits",
+		slog.Warn("translation jobs: skipped, workspace out of credits",
 			"workspace_id", proj.WorkspaceID, "project", proj.ID)
 		return nil, errStallNeedsCredits
 	}

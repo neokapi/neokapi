@@ -24,17 +24,17 @@ func NewContextCmd(a *App) *cobra.Command {
 		Use:     "context [path]",
 		Short:   "Ask what this project's content context says",
 		GroupID: "work",
-		Long: `Retrieve the content context this project goes by — the terms, the
-voice and the rules that hold — without needing to know which store holds the
+		Long: `Retrieve the content context this project goes by: the terms, the
+voice and the rules that hold, without needing to know which store holds the
 answer.
 
 Two questions, and every asset-shaped lookup is one of them:
 
-  kapi context <path>          what applies HERE — the voice in force at that
+  kapi context <path>          what applies HERE: the voice in force at that
                                location, its guidance, the terms bound there
   kapi context --profile <n>   the same answer for a named profile, when you
                                have no file in hand
-  kapi context search <query>  what we know about THIS — terms, prior wording
+  kapi context search <query>  what we know about THIS: terms, prior wording
 
 Communication is contextual: a legal notice is not a help article. Ask what the
 project says before you write, rather than learning it from a failing check

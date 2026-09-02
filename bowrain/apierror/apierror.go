@@ -126,7 +126,7 @@ var messages = map[string]string{
 	// Workspace resolution. A lookup that could not be completed is not the
 	// same as a workspace that is not there, and the sentence says so: the
 	// client is told to retry rather than told its workspace is gone.
-	"workspace_lookup_failed": "The workspace could not be looked up just now. This is temporary — try again.",
+	"workspace_lookup_failed": "The workspace could not be looked up just now. This is temporary, so try again.",
 
 	// Server components not configured.
 	"auth not configured":          "Authentication is not configured on this server.",

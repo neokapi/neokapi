@@ -17,13 +17,13 @@ func (s *MCPServer) registerPhase1Tools() {
 	// check_vocabulary — validate text against brand terms.
 	mcp.AddTool(s.server, &mcp.Tool{
 		Name:        "check_vocabulary",
-		Description: "Check text against the vocabulary rules the governing profile holds. Returns forbidden and competitor term violations with suggested replacements. Prefer retrieving the guidance first (get_voice_guide) and writing to it — this reports what a rule caught after the fact.",
+		Description: "Check text against the vocabulary rules the governing profile holds. Returns forbidden and competitor term violations with suggested replacements. Prefer retrieving the guidance first (get_voice_guide) and writing to it. This reports what a rule caught after the fact.",
 	}, s.handleCheckVocabulary)
 
 	// list_profiles — list available voice profiles in a workspace.
 	mcp.AddTool(s.server, &mcp.Tool{
 		Name:        "list_profiles",
-		Description: "Context discovery: list the profiles this workspace holds — the named bundles of coordinates content is written under (audience, surface, register, market). Start here when you do not yet know which profile governs the content at hand.",
+		Description: "Context discovery: list the profiles this workspace holds: the named bundles of coordinates content is written under (audience, surface, register, market). Start here when you do not yet know which profile governs the content at hand.",
 	}, s.handleListProfiles)
 
 	// get_voice_guide — formatted voice guide for LLM consumption.

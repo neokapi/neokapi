@@ -57,7 +57,7 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprint(os.Stderr, `kapi-check `+version+` — in-process ML checker (sentence-embedding similarity)
+	fmt.Fprint(os.Stderr, `kapi-check `+version+`: in-process ML checker (sentence-embedding similarity)
 
 Usage:
   kapi-check version              print the plugin version
@@ -78,7 +78,7 @@ libtokenizers) for the real backend; the default build is a stub.
 // kapi (not the plugin) downloads, verifies against pinned digests, and caches
 // the model. See `kapi models pull check`.
 func cmdPull([]string) error {
-	return fmt.Errorf("`kapi-check pull` has moved — run `kapi models pull check` " +
+	return fmt.Errorf("`kapi-check pull` has moved. Run `kapi models pull check` " +
 		"(the host downloads, verifies against the manifest's pinned digest, and caches the model)")
 }
 
@@ -92,7 +92,7 @@ func cmdInfo() {
 		if s.Default {
 			def = " (default)"
 		}
-		fmt.Printf("%s%s — %dd, %s\n", s.Name, def, s.Dim, state)
+		fmt.Printf("%s%s: %dd, %s\n", s.Name, def, s.Dim, state)
 	}
 }
 
@@ -108,7 +108,7 @@ func runDoctor() int {
 	}
 	defer func() { _ = eng.Close() }()
 
-	fmt.Printf("kapi-check %s — ML checker (sentence-embedding similarity) ready\n", version)
+	fmt.Printf("kapi-check %s: ML checker (sentence-embedding similarity) ready\n", version)
 	fmt.Println("models:")
 	for _, s := range model.Registry {
 		state := "not installed (run `kapi models pull check`)"
@@ -119,7 +119,7 @@ func runDoctor() int {
 		if s.Default {
 			def = " (default)"
 		}
-		fmt.Printf("  - %s%s — %s\n", s.Name, def, state)
+		fmt.Printf("  - %s%s: %s\n", s.Name, def, state)
 	}
 	return 0
 }

@@ -66,7 +66,7 @@ func (icu4xBaseBreaker) BaseBreaks(ctx context.Context, text []rune, locale stri
 	}
 	fn := js.Global().Get(jsFuncName)
 	if !fn.Truthy() {
-		return nil, errors.New("icu4xjs: host did not define " + jsFuncName + " — ICU4X not loaded")
+		return nil, errors.New("icu4xjs: host did not define " + jsFuncName + " (ICU4X not loaded)")
 	}
 	res := fn.Invoke(string(text), locale)
 	if res.Type() != js.TypeObject {
@@ -111,7 +111,7 @@ func (e *engine) Segment(ctx context.Context, runs []model.Run, loc model.Locale
 
 	fn := js.Global().Get(jsFuncName)
 	if !fn.Truthy() {
-		return nil, errors.New("icu4xjs: host did not define " + jsFuncName + " — ICU4X segmenter not loaded")
+		return nil, errors.New("icu4xjs: host did not define " + jsFuncName + " (ICU4X segmenter not loaded)")
 	}
 	res := fn.Invoke(string(text), locale)
 	if res.Type() != js.TypeObject {

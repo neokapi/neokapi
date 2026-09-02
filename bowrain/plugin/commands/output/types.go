@@ -129,7 +129,7 @@ func (o InitOutput) FormatText(w io.Writer) error {
 	fmt.Fprintln(w)
 	if o.Server != "" {
 		fmt.Fprintln(w, "Next steps:")
-		fmt.Fprintln(w, "  1. Run: kapi push    — upload content to the server")
+		fmt.Fprintln(w, "  1. Run: kapi push    (upload content to the server)")
 		if o.ClaimEmail != "" {
 			fmt.Fprintln(w, "  2. Check your email for the claim link to take ownership")
 			fmt.Fprintln(w, "  3. Invite translators from the web dashboard")
@@ -200,7 +200,7 @@ func (o PullOutput) FormatText(w io.Writer) error {
 			fmt.Fprintf(w, "Updated %d file(s)\n", o.FilesWritten)
 		}
 		if o.DecisionsStaged > 0 {
-			fmt.Fprintf(w, "Staged %d unit-state update(s) from the server ledger — `kapi commit` publishes them\n", o.DecisionsStaged)
+			fmt.Fprintf(w, "Staged %d unit-state update(s) from the server ledger. `kapi commit` publishes them\n", o.DecisionsStaged)
 		}
 		if o.ItemsRetired > 0 {
 			fmt.Fprintf(w, "Skipped %d retired item(s): the server still holds them, this checkout no longer does\n", o.ItemsRetired)
@@ -226,7 +226,7 @@ func (o PullOutput) FormatText(w io.Writer) error {
 		}
 		fmt.Fprintf(w, "The server governs these collections differently from this recipe: %s\n",
 			strings.Join(listed, "; "))
-		fmt.Fprintln(w, "The recipe still decides locally — reconcile them in kapi.yaml, not by pulling.")
+		fmt.Fprintln(w, "The recipe still decides locally. Reconcile them in kapi.yaml rather than by pulling.")
 	}
 	return nil
 }
@@ -338,7 +338,7 @@ func (o PushOutput) formatAssets(w io.Writer) {
 func (o PushOutput) formatIngest(w io.Writer) {
 	switch o.Ingest {
 	case "queued":
-		fmt.Fprintln(w, "The server accepted this push and is still applying it — `kapi status` shows when it lands")
+		fmt.Fprintln(w, "The server accepted this push and is still applying it. `kapi status` shows when it lands")
 	case "unknown":
 		fmt.Fprintln(w, "The server accepted this push; it could not be asked whether it has been applied yet")
 	}
@@ -391,9 +391,9 @@ func (o PushOutput) formatLoopStatus(w io.Writer) {
 	fmt.Fprintln(w)
 	switch o.Converge {
 	case "on-push":
-		fmt.Fprintln(w, "Convergence: on-push — the server now translates, checks, and queues review for this push")
+		fmt.Fprintln(w, "Convergence: on-push. The server now translates, checks, and queues review for this push")
 	case "manual":
-		fmt.Fprintln(w, "Convergence: manual — run 'kapi up' (or start a run from the web) to converge")
+		fmt.Fprintln(w, "Convergence: manual. Run 'kapi up' (or start a run from the web) to converge")
 	}
 	if o.ProjectURL != "" {
 		fmt.Fprintf(w, "Project: %s\n", o.ProjectURL)
@@ -428,7 +428,7 @@ func (o PushOutput) formatConcepts(w io.Writer) {
 			fmt.Fprintf(w, " (%s)", o.ChangesetID)
 		}
 		if o.ChangesetUnchanged {
-			fmt.Fprint(w, " — unchanged since the last push, still in review")
+			fmt.Fprint(w, ", unchanged since the last push, still in review")
 		}
 		fmt.Fprintln(w)
 		if o.ChangesetURL != "" {
@@ -515,7 +515,7 @@ func (o TokenCreateOutput) FormatText(w io.Writer) error {
 		fmt.Fprintf(w, "Expires: %s\n", o.ExpiresAt.Format("2006-01-02 15:04:05"))
 	}
 	fmt.Fprintf(w, "\n  %s\n\n", o.Token)
-	fmt.Fprintln(w, "Save this token — it will not be shown again.")
+	fmt.Fprintln(w, "Save this token. It will not be shown again.")
 	return nil
 }
 
@@ -735,7 +735,7 @@ type StreamMergeOutput struct {
 
 func (o StreamMergeOutput) FormatText(w io.Writer) error {
 	if o.DryRun {
-		fmt.Fprintf(w, "Dry run — would merge %d blocks from %q:\n", o.MergedBlocks, o.Stream)
+		fmt.Fprintf(w, "Dry run: would merge %d blocks from %q:\n", o.MergedBlocks, o.Stream)
 	} else {
 		fmt.Fprintf(w, "Merged %d blocks from %q:\n", o.MergedBlocks, o.Stream)
 	}
@@ -899,7 +899,7 @@ func (o DiffOutput) FormatText(w io.Writer) error {
 	if len(o.Files) == 0 {
 		if !o.Connected {
 			fmt.Fprintln(w, "No local changes since the last sync.")
-			fmt.Fprintln(w, "  (no server configured — comparing against the local sync cache)")
+			fmt.Fprintln(w, "  (no server configured, comparing against the local sync cache)")
 		} else if o.PendingPull != 0 {
 			printPendingPull(w, o.PendingPull)
 		} else {
@@ -921,7 +921,7 @@ func (o DiffOutput) FormatText(w io.Writer) error {
 					label = b.BlockID
 				}
 				if b.Preview != "" {
-					fmt.Fprintf(w, "      %s %s — %s\n", sigil, label, s.Dim(b.Preview))
+					fmt.Fprintf(w, "      %s %s: %s\n", sigil, label, s.Dim(b.Preview))
 				} else {
 					fmt.Fprintf(w, "      %s %s\n", sigil, label)
 				}

@@ -36,7 +36,7 @@ func TestOllamaManagerUnreachable(t *testing.T) {
 	m := NewOllamaManager(url)
 	_, err := m.Version(context.Background())
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "is it running")
+	assert.Contains(t, err.Error(), "Is it running")
 	assert.False(t, m.Reachable(context.Background()))
 }
 

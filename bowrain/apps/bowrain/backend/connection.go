@@ -181,7 +181,7 @@ func (a *App) ConnectToServer(serverURL string) error {
 		a.mu.Lock()
 		a.connState = StateDisconnected
 		a.mu.Unlock()
-		return errors.New("not authenticated — use StartLogin first")
+		return errors.New("not authenticated. Use StartLogin first")
 	}
 
 	// Check if token has expired.
@@ -189,7 +189,7 @@ func (a *App) ConnectToServer(serverURL string) error {
 		a.mu.Lock()
 		a.connState = StateDisconnected
 		a.mu.Unlock()
-		return errors.New("token expired — please log in again")
+		return errors.New("token expired. Log in again")
 	}
 
 	editorClient := editorclient.New(serverURL, stored.AccessToken)
@@ -290,7 +290,7 @@ func (a *App) WaitForLogin() (bool, error) {
 	a.mu.RUnlock()
 
 	if resultCh == nil {
-		return false, errors.New("no active login flow — call StartLogin first")
+		return false, errors.New("no active login flow. Call StartLogin first")
 	}
 
 	// Wait for the callback with a 10-minute timeout.

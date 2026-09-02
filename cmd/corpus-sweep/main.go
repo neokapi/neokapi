@@ -139,7 +139,7 @@ func resolveFormats(repoRoot, arg string) ([]string, error) {
 
 // printReport renders the human-readable taxonomy table.
 func printReport(w *os.File, rep sweepReport) {
-	fmt.Fprintf(w, "corpus-sweep %s — timeout %s, RSS cap %d MiB\n", rep.GeneratedAt, rep.Timeout, rep.RSSCapMB)
+	fmt.Fprintf(w, "corpus-sweep %s: timeout %s, RSS cap %d MiB\n", rep.GeneratedAt, rep.Timeout, rep.RSSCapMB)
 	if rep.CorpusRoot == "" {
 		fmt.Fprintln(w, "Tier B corpus: none fetched (run `make fetch-corpus`); sweeping Tier A committed testdata as a smoke corpus.")
 	} else {

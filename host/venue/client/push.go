@@ -324,7 +324,7 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 	// block, which is absent until the project is connected. Return a clear
 	// error instead of a nil-pointer panic in projectPrefix/streamPrefix.
 	if c == nil {
-		return nil, errors.New("bowrain: project is not connected to a server — run 'kapi init --server <url>' to connect")
+		return nil, errors.New("bowrain: project is not connected to a server. Run 'kapi init --server <url>' to connect")
 	}
 	// 1. Hashes over the blocks being sent, for init's fast path only. They are
 	//    change indicators, not authoritative roots — what this push claims

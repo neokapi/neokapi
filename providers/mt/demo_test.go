@@ -83,7 +83,7 @@ func TestDemoMTProvider_NoticeOnce(t *testing.T) {
 	_, _ = p.Translate(context.Background(), TranslateRequest{Source: "Bye", TargetLocale: "fr"})
 
 	assert.Equal(t, 1, strings.Count(buf.String(), DemoNotice))
-	assert.Contains(t, buf.String(), "not a real machine-translation engine")
+	assert.Contains(t, buf.String(), "rather than a real machine-translation engine")
 }
 
 func TestDemoMTToolConfig(t *testing.T) {

@@ -116,7 +116,7 @@ var ErrBinaryContent = errors.New("binary file")
 // The message names the escape hatch, because a binary file kapi *does*
 // understand is exactly what --format is for.
 func errBinaryInput() error {
-	return fmt.Errorf("%w — no text format detected; pass -f FORMAT to read it as one anyway", ErrBinaryContent)
+	return fmt.Errorf("%w: no text format detected; pass -f FORMAT to read it as one anyway", ErrBinaryContent)
 }
 
 // ResolveFormatName picks the format for a path + content. An explicit --format
@@ -269,7 +269,7 @@ func (a *App) EditDocument(ctx context.Context, path string, t *tool.BaseTool, w
 	}
 	writer, err := a.FormatReg.NewWriter(registry.FormatID(fmtName))
 	if err != nil {
-		return fmt.Errorf("%q is not editable (no writer) — read it with kcat; see editable formats with `kapi formats`", fmtName)
+		return fmt.Errorf("%q is not editable (no writer). Read it with kcat; see editable formats with `kapi formats`", fmtName)
 	}
 
 	// Wire skeleton store when both sides support it (byte-for-byte round-trip).
@@ -396,7 +396,7 @@ func expandInputs(args []string, recursive bool, onSkip func(path string, err er
 			return []string{StdinName}, nil
 		}
 		return nil, WithExitCode(ExitUsage, fmt.Errorf(
-			"no input — pass files or a glob, pipe content in, or pass `-` to read standard input: %w", ErrNoInput))
+			"no input. Pass files or a glob, pipe content in, or pass `-` to read standard input: %w", ErrNoInput))
 	}
 	return expandArgs(args, opts)
 }

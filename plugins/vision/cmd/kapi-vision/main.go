@@ -129,7 +129,7 @@ func runDoctor() int {
 	}
 	defer func() { _ = engine.Close() }()
 
-	fmt.Printf("kapi-vision %s — document vision (OCR) ready\n", version.Version)
+	fmt.Printf("kapi-vision %s: document vision (OCR) ready\n", version.Version)
 	fmt.Println("model assets:")
 	for _, a := range models.Registry {
 		fmt.Printf("  - %s (%s)\n", a.File, a.Key)

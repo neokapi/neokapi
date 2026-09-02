@@ -126,7 +126,7 @@ func TestUp_MonolingualProjectConverges(t *testing.T) {
 	out, err := runCLI(t, NewUpCmd(a), "--project", recipe)
 	require.NoError(t, err, out)
 
-	assert.Contains(t, out, "no target languages configured")
+	assert.Contains(t, out, "No target languages are configured")
 	assert.Contains(t, out, "Reconciled the source")
 	assert.Contains(t, out, "Up to date")
 

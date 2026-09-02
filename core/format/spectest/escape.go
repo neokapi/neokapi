@@ -147,7 +147,7 @@ func (p ModifyProbe) runCase(t *testing.T, c EscapeCase) {
 		return
 	}
 	if rejected {
-		t.Fatalf("%s: writer accepted U+%04X, which the format cannot represent — output %q",
+		t.Fatalf("%s: writer accepted U+%04X, which the format cannot represent: output %q",
 			p.Format, c.R, string(out))
 	}
 

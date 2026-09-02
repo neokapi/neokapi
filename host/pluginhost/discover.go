@@ -98,7 +98,7 @@ func Discover(opts DiscoverOptions) []*Plugin {
 				continue
 			}
 			if m.Plugin != e.Name() {
-				warn(fmt.Sprintf("plugin discovery: %s declares plugin name %q but is installed as %q — skipping",
+				warn(fmt.Sprintf("plugin discovery: %s declares plugin name %q but is installed as %q, skipping",
 					manifestPath, m.Plugin, e.Name()))
 				continue
 			}

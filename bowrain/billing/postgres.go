@@ -115,7 +115,7 @@ var Migrations = []storage.Migration{
 			-- past the first entry for one (workspace, operation, reference,
 			-- allocation). Deleting them and giving the credits back is both the
 			-- repair and what lets the index below be created on a database that
-			-- already double-charged. Only debits qualify — a positive amount is
+			-- already double-charged. Only debits qualify: a positive amount is
 			-- a grant, and grants carry no reference.
 			WITH surplus AS (
 				SELECT id, allocation_id, amount FROM (

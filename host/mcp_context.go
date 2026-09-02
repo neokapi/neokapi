@@ -33,7 +33,7 @@ func init() { RegisterMCPToolFactory(registerContextMCPTools) }
 func registerContextMCPTools(server *mcp.Server, a *App) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "context_search",
-		Description: "Ask what this project's content context says about a word or phrase — " +
+		Description: "Ask what this project's content context says about a word or phrase: " +
 			"what it is called here, whether it is discouraged and what to say instead, " +
 			"and wording the project has already approved. One question across every store " +
 			"the project binds; you do not need to know which one holds the answer. " +
@@ -77,7 +77,7 @@ func registerContextResources(server *mcp.Server, a *App) {
 		Title:       "Context of a named profile",
 		URITemplate: contextURIScheme + contextProfilePrefix + "{name}{?format}",
 		MIMEType:    "text/markdown",
-		Description: description + " Addresses a governance profile by name — for a caller with " +
+		Description: description + " Addresses a governance profile by name, for a caller with " +
 			"no file in hand, e.g. `context://profile/marketing`.",
 	}, a.handleContextResource)
 }

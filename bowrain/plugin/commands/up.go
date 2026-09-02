@@ -44,8 +44,8 @@ flow over all content across every target language, looping until every gated
 scope ships or is parked for a human.
 
 In a server-connected project (a recipe with a bowrain: block) the loop runs on
-the Bowrain server by default — on the org's keys, against the org's Memory and
-terminology — and this command pushes local changes, streams the server run's
+the Bowrain server by default, on the org's keys, against the org's Memory and
+terminology, and this command pushes local changes, streams the server run's
 live progress, and pulls the produced targets when the run finishes. Parked
 units land in the team's review queue on the server.
 
@@ -73,7 +73,7 @@ func runUp(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 	if projectPath == "" {
-		return errors.New("kapi up needs a project — run inside a kapi project directory or pass -p <recipe>")
+		return errors.New("kapi up needs a project. Run inside a kapi project directory or pass -p <recipe>")
 	}
 	recipe, err := project.LoadRecipe(projectPath)
 	if err != nil {
@@ -178,7 +178,7 @@ func reportConceptPush(cmd *cobra.Command, stream *output.NDJSONStream, res *Pus
 			res.ConceptsApplied, res.RelationsApplied)
 	}
 	if res.ConceptsProposed > 0 {
-		fmt.Fprintf(w, "Proposed %d governed terminology edit(s) in change-set %s — they take effect when reviewed.\n",
+		fmt.Fprintf(w, "Proposed %d governed terminology edit(s) in change-set %s. They take effect when reviewed.\n",
 			res.ConceptsProposed, res.ChangesetID)
 		if res.ChangesetURL != "" {
 			fmt.Fprintf(w, "Review it at %s\n", res.ChangesetURL)
@@ -274,7 +274,7 @@ func runServerUp(cmd *cobra.Command, server *project.ServerSpec) error {
 	}
 	if !proceed {
 		if !app.Quiet && !jsonOut {
-			fmt.Fprintln(stderr, "Aborted — no run started. Settle your source or add credits, then re-run kapi up.")
+			fmt.Fprintln(stderr, "Aborted, no run started. Settle your source or add credits, then re-run kapi up.")
 		}
 		return nil
 	}
@@ -518,7 +518,7 @@ func printEstimate(w io.Writer, est *apiclient.ConvergenceEstimate) {
 	fmt.Fprintln(w, "\nPre-flight estimate:")
 	// Source readiness FIRST (epic 019): held source is the honest, cheap message.
 	if src.Held > 0 {
-		fmt.Fprintf(w, "  Source: %d of %d blocks ready; %d held on source — settle your source first (terminology, brand, source checks), or set defaults.source_gate: none to translate anyway.\n",
+		fmt.Fprintf(w, "  Source: %d of %d blocks ready; %d held on source. Settle your source first (terminology, brand, source checks), or set defaults.source_gate: none to translate anyway.\n",
 			src.Ready, src.Total, src.Held)
 	} else if src.Total > 0 {
 		fmt.Fprintf(w, "  Source: all %d blocks ready.\n", src.Total)
@@ -534,9 +534,9 @@ func printEstimate(w io.Writer, est *apiclient.ConvergenceEstimate) {
 		fmt.Fprintf(w, "  Credits: ~%d credits (~$%.2f) for the AI work; balance %d",
 			c.EstimatedCredits, c.EstimatedUSD, c.Balance)
 		if c.CoversAllAI {
-			fmt.Fprintln(w, " — covers all AI work.")
+			fmt.Fprintln(w, ", covering all AI work.")
 		} else {
-			fmt.Fprintf(w, " — covers ~%d of %d AI units. Add credits to translate the rest.\n", c.CoversAIUnits, est.Totals.ViaAI)
+			fmt.Fprintf(w, ", covering ~%d of %d AI units. Add credits to translate the rest.\n", c.CoversAIUnits, est.Totals.ViaAI)
 		}
 	}
 }

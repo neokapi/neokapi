@@ -193,7 +193,7 @@ func ExtractToBlockStore(
 		return stats, errors.New("project: extract to block store: nil project context")
 	}
 	if stamper == nil {
-		return stats, errors.New("project: extract to block store: nil stamper — an unstamped store " +
+		return stats, errors.New("project: extract to block store: nil stamper: an unstamped store " +
 			"reads as drifted forever, so extraction refuses rather than write one")
 	}
 
@@ -274,8 +274,8 @@ func ExtractToBlockStore(
 		stamp, serr := sourceStampFor(rf.Path)
 		if serr != nil {
 			_ = sess.Rollback()
-			return stats, fmt.Errorf("stamp source %q for drift detection: %w — without a stamp "+
-				"this file would be re-extracted on every run and always report as drifted", rf.Relative, serr)
+			return stats, fmt.Errorf("stamp source %q for drift detection: %w. Without a stamp "+
+				"This file would be re-extracted on every run and always report as drifted", rf.Relative, serr)
 		}
 		stamps[rf.Relative] = stamp
 	}
@@ -305,18 +305,18 @@ func ExtractToBlockStore(
 	if adopter, ok := stamper.(DocumentAdopter); ok {
 		if _, aerr := adopter.AdoptDocuments(ctx, docs); aerr != nil {
 			stats.Warnings = append(stats.Warnings, fmt.Sprintf(
-				"could not resolve document identity: %v — decisions will be filed against file paths, "+
+				"could not resolve document identity: %v. Decisions will be filed against file paths, "+
 					"so renaming a file will detach the approvals inside it", aerr))
 		}
 	}
 
 	if err := stamper.StampBlockStoreVersion(ctx); err != nil {
 		stats.Warnings = append(stats.Warnings, fmt.Sprintf(
-			"could not record the block-store version stamp: %v — the store will read as stale and re-extract on every run", err))
+			"could not record the block-store version stamp: %v. The store will read as stale and re-extract on every run", err))
 	}
 	if err := stamper.SaveSourceStamps(ctx, stamps); err != nil {
 		stats.Warnings = append(stats.Warnings, fmt.Sprintf(
-			"could not record the source drift stamps: %v — every source file will read as drifted and re-extract on every run", err))
+			"could not record the source drift stamps: %v. Every source file will read as drifted and re-extract on every run", err))
 	}
 	return stats, nil
 }

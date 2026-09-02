@@ -74,14 +74,14 @@ func run() error {
 	var (
 		models      = flag.String("models", "demo:", "provider:model pairs to sweep, comma-separated (e.g. claude-code:sonnet,gemini:gemini-3.5-flash)")
 		sizes       = flag.String("n", "1,4,8,16,32,64,100", "batch sizes to sweep")
-		target      = flag.String("target", "de", "target locale — pick one that runs long (de, fi) to stress the output budget")
+		target      = flag.String("target", "de", "target locale: pick one that runs long (de, fi) to stress the output budget")
 		repeat      = flag.Int("repeat", 1, "runs per N (a single run of a stochastic model is an anecdote)")
 		concurrency = flag.Int("concurrency", 4, "concurrent calls (orthogonal to N: it changes wall-clock, not what is measured)")
 		date        = flag.String("date", time.Now().Format(dateLayout), "run date recorded in the history")
 		appendTo    = flag.String("append", "", "merge the runs into this history file (the /batch-eval dashboard's data)")
 		dump        = flag.Bool("dump", false, "print every source→target pair that scored as a break, so a count can be inspected rather than trusted")
 		recost      = flag.String("recost", "", "re-price an existing history from prices.json and exit (no model calls)")
-		blocks      = flag.Int("blocks", 30, "corpus size. A sweep to N=32 over 30 blocks does not test a batch of 32 — it tests the whole document in one call. To find where a model actually breaks, the corpus must be several times the largest N.")
+		blocks      = flag.Int("blocks", 30, "corpus size. A sweep to N=32 over 30 blocks does not test a batch of 32: it tests the whole document in one call. To find where a model actually breaks, the corpus must be several times the largest N.")
 	)
 	flag.Parse()
 	dumpBreaks = *dump
@@ -215,7 +215,7 @@ func sweep(ctx context.Context, mt modelTarget, corpus TestCorpus, ns []int, opt
 			// throttling punishes small batches (many calls) and would draw a curve
 			// that "proves" batching helps.
 			if throttled(lastErr) {
-				fmt.Fprintf(os.Stderr, "  %s N=%d: THROTTLED — not measured (lower -concurrency and re-run)\n", mt, n)
+				fmt.Fprintf(os.Stderr, "  %s N=%d: THROTTLED, not measured (lower -concurrency and re-run)\n", mt, n)
 				out.Results = append(out.Results, Result{
 					N: n, Unmeasured: true, Error: lastErr.Error(),
 				})

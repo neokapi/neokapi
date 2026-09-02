@@ -98,7 +98,7 @@ func FindOkapiTestdataRoot() (string, error) {
 	base := filepath.Join(root, "okapi-testdata")
 	entries, err := os.ReadDir(base)
 	if err != nil {
-		return "", fmt.Errorf("okapi-testdata not found at %s — run scripts/fetch-okapi-testdata.sh", base)
+		return "", fmt.Errorf("okapi-testdata not found at %s. Run scripts/fetch-okapi-testdata.sh", base)
 	}
 	var latest string
 	for _, e := range entries {
@@ -130,7 +130,7 @@ func FindCorpusRoot() (string, error) {
 	base := filepath.Join(root, "corpus")
 	entries, err := os.ReadDir(base)
 	if err != nil {
-		return "", fmt.Errorf("corpus not found at %s — run `make fetch-corpus`", base)
+		return "", fmt.Errorf("corpus not found at %s. Run `make fetch-corpus`", base)
 	}
 	var latest string
 	for _, e := range entries {
@@ -139,7 +139,7 @@ func FindCorpusRoot() (string, error) {
 		}
 	}
 	if latest == "" {
-		return "", fmt.Errorf("corpus: no %s* version directories under %s — run `make fetch-corpus`", corpusTagPrefix, base)
+		return "", fmt.Errorf("corpus: no %s* version directories under %s. Run `make fetch-corpus`", corpusTagPrefix, base)
 	}
 	return filepath.Join(base, latest), nil
 }

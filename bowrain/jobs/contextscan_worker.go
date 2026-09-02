@@ -834,7 +834,7 @@ func setContextScanProgress(ctx context.Context, deps *ContextScanWorkerDeps, jo
 
 func setContextScanLogDone(deps *ContextScanWorkerDeps, jobID string, termCount, tokens int) {
 	emitContextScanLog(deps, jobID, "info",
-		fmt.Sprintf("Context scan completed — draft profile with %d candidate terms, %d tokens", termCount, tokens),
+		fmt.Sprintf("Context scan completed: draft profile with %d candidate terms, %d tokens", termCount, tokens),
 		map[string]string{"terms": strconv.Itoa(termCount), "tokens": strconv.Itoa(tokens)})
 }
 

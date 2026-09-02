@@ -22,7 +22,7 @@ func NewOllamaCmd(a *App) *cobra.Command {
 		Short: "Manage the local Ollama runtime for on-device translation",
 		Long: "Detect, inspect, and feed the local Ollama runtime kapi uses for on-device\n" +
 			"(GPU-accelerated) translation. Ollama itself is a one-time install from\n" +
-			"https://ollama.com; kapi drives the rest — `kapi models ollama pull <model>` installs\n" +
+			"https://ollama.com; kapi drives the rest: `kapi models ollama pull <model>` installs\n" +
 			"a model, and `kapi translate --provider ollama --model <model>` uses it.",
 	}
 	cmd.PersistentFlags().String("url", "", "Ollama server URL (default $OLLAMA_HOST or "+aiprovider.DefaultOllamaBaseURL+")")

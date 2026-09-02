@@ -96,7 +96,7 @@ func (s *NDJSONStream) Report(name string) error {
 	if s.err == nil {
 		return nil
 	}
-	return fmt.Errorf("%s: the event stream truncated — %d record(s) written, %d lost: %w",
+	return fmt.Errorf("%s: the event stream truncated after %d record(s) written, %d lost: %w",
 		name, s.written, s.dropped, s.err)
 }
 

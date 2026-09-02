@@ -77,7 +77,7 @@ func (r *NativeRunner) Run(t *testing.T) {
 func (r *NativeRunner) runExample(t *testing.T, feat spec.Feature, ex spec.Example) {
 	t.Helper()
 	if ex.BridgeOnly {
-		t.Skip("bridge_only example — skipped by native runner")
+		t.Skip("bridge_only example, skipped by native runner")
 		return
 	}
 	input, err := spec.ResolveInput(r.Spec, ex)
@@ -127,7 +127,7 @@ func (r *NativeRunner) runExample(t *testing.T, feat spec.Feature, ex spec.Examp
 
 	if ex.ExpectedFail != "" {
 		if len(failed) == 0 {
-			t.Logf("expected_fail (%s): assertions now pass — remove the expected_fail tag", ex.ExpectedFail)
+			t.Logf("expected_fail (%s): assertions now pass. Remove the expected_fail tag", ex.ExpectedFail)
 			return
 		}
 		for _, msg := range failed {
@@ -255,7 +255,7 @@ func (r *NativeRunner) checkBlocks(t *testing.T, ex spec.Example, parts []*model
 	}
 
 	if diff := spec.FirstDiffLine(want, string(got)); diff != "" {
-		return []string{"blocks view mismatch — " + diff}
+		return []string{"blocks view mismatch: " + diff}
 	}
 	return nil
 }
@@ -288,7 +288,7 @@ func (r *NativeRunner) checkRoundtrip(t *testing.T, feat spec.Feature, ex spec.E
 	switch rt.Mode {
 	case spec.RoundtripByteExact:
 		if !bytesEqual(output, input) {
-			failed = append(failed, "roundtrip byte_exact mismatch — "+spec.FirstDiffLine(string(input), string(output)))
+			failed = append(failed, "roundtrip byte_exact mismatch: "+spec.FirstDiffLine(string(input), string(output)))
 		}
 	case spec.RoundtripIdempotent:
 		reparts, rerr := r.read(feat, ex, output)
@@ -301,7 +301,7 @@ func (r *NativeRunner) checkRoundtrip(t *testing.T, feat spec.Feature, ex spec.E
 			t.Fatalf("roundtrip idempotent re-write: %v", werr)
 		}
 		if !bytesEqual(output, output2) {
-			failed = append(failed, "roundtrip idempotent fixpoint not reached — "+spec.FirstDiffLine(string(output), string(output2)))
+			failed = append(failed, "roundtrip idempotent fixpoint not reached: "+spec.FirstDiffLine(string(output), string(output2)))
 		}
 	case spec.RoundtripNormalized:
 		if AcceptMode() {
@@ -322,7 +322,7 @@ func (r *NativeRunner) checkRoundtrip(t *testing.T, feat spec.Feature, ex spec.E
 			return append(failed, fmt.Sprintf("roundtrip output_file not found: %s (run with KAPI_SPEC_UPDATE=1 to generate)", path))
 		}
 		if !bytesEqual(output, data) {
-			failed = append(failed, "roundtrip normalized mismatch — "+spec.FirstDiffLine(string(data), string(output)))
+			failed = append(failed, "roundtrip normalized mismatch: "+spec.FirstDiffLine(string(data), string(output)))
 		}
 	}
 	return failed

@@ -79,7 +79,7 @@ func (p *browserMTProvider) Translate(ctx context.Context, req mtprovider.Transl
 	fn := js.Global().Get(browserTranslateJSFunc)
 	if !fn.Truthy() {
 		return nil, errors.New("browser translator not available: host did not define globalThis." +
-			browserTranslateJSFunc + " — requires desktop Chrome 138+ with the Translator API; call installBrowserTranslateBridge() on the page")
+			browserTranslateJSFunc + ". Requires desktop Chrome 138+ with the Translator API; call installBrowserTranslateBridge() on the page")
 	}
 	payload := map[string]any{
 		"text":       req.Source,

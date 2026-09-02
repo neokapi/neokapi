@@ -99,7 +99,7 @@ var ContextScanMigrations = []storage.Migration{
 			-- This subsystem's ledger table was renamed with it, so the baseline
 			-- replays against an empty ledger on a database that already has the
 			-- jobs table under its former name. The CREATE below would then make
-			-- a second, empty table and strand every existing row beside it —
+			-- a second, empty table and strand every existing row beside it,
 			-- which is exactly how a rename that reached only the CREATE took
 			-- production down (auth v10). So the rename runs first, guarded,
 			-- and the CREATE is the no-op it should be.

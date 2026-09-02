@@ -380,7 +380,7 @@ func checkModeBStdoutClean(ctx context.Context, r *runner) (Status, string, erro
 		if _, ok := errors.AsType[*json.SyntaxError](err); ok {
 			return Fail, fmt.Sprintf("stdout carries non-JSON output: %v", err), err
 		}
-		return Skip, "the initialize handshake did not complete — see modeB.initialize", nil
+		return Skip, "the initialize handshake did not complete (see modeB.initialize)", nil
 	}
 	return Pass, "stdout parsed as pure JSON-RPC through the handshake", nil
 }
@@ -397,7 +397,7 @@ func checkModeBStdinClose(ctx context.Context, r *runner) (Status, string, error
 	// than a server that happens to exit before it is used.
 	if _, err := s.initialize(); err != nil {
 		s.close()
-		return Skip, "the initialize handshake did not complete — see modeB.initialize", nil
+		return Skip, "the initialize handshake did not complete (see modeB.initialize)", nil
 	}
 
 	grace := max(r.suite.timeout()/4, time.Second)

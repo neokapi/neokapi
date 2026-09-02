@@ -168,7 +168,7 @@ func seedSecondaryTerms(path string) {
 	tb, err := terms.NewSQLiteStore(path)
 	must(err)
 	concepts := []terms.Concept{
-		{Domain: "Brand", Definition: "The product name — never translated.", Terms: []terms.Term{
+		{Domain: "Brand", Definition: "The product name, never translated.", Terms: []terms.Term{
 			{Text: "Acme", Locale: "en", Status: model.TermPreferred},
 			{Text: "Acme", Locale: "fr", Status: model.TermForbidden, Note: "Do not translate."},
 		}},

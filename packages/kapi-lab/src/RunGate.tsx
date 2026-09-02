@@ -100,7 +100,7 @@ export default function RunGate({
     }),
   ];
   const downloadNote = warm
-    ? "engine already running — starts instantly"
+    ? "engine already running, so it starts instantly"
     : parts.length > 0
       ? parts.join(" + ")
       : "first download on demand";
@@ -120,7 +120,7 @@ export default function RunGate({
               {label ?? "Run in your browser"}
             </Button>
             <p className="m-0 text-xs text-muted-foreground">
-              {downloadNote} · runs locally — nothing leaves your machine
+              {downloadNote} · runs locally, nothing leaves your machine
             </p>
           </>
         )}
@@ -184,7 +184,7 @@ export default function RunGate({
             {label ?? "Run in your browser"}
           </Button>
           <p className="text-xs text-muted-foreground">
-            {downloadNote} · runs locally — nothing leaves your machine
+            {downloadNote} · runs locally, nothing leaves your machine
           </p>
         </>
       )}

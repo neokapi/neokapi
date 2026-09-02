@@ -1136,6 +1136,22 @@ jobs:
       - name: Guard — every tracked .go file is gofmt-clean
         run: make check-gofmt
 
+      # Two of the three em-dash parts run here, behind the same toolchain: the
+      # matcher builds from its own module with GOWORK=off and imports only the
+      # standard library, so it needs Go and no module download. The catalogs
+      # part reads the extracted source catalogs, which are build artefacts
+      # `make l10n-extract` produces from JSX, so it runs in the l10n workflow
+      # instead, where that extract has just happened.
+      #
+      # Last in the job, because a step that fails hides every step after it,
+      # and the docs allowance is the one here most likely to fail.
+      - name: Guard — no em dash in any Go string literal
+        run: ./scripts/check-em-dashes.sh --part go
+      - name: Guard — no em dash in the UI source no catalog covers
+        run: ./scripts/check-em-dashes.sh --part ui
+      - name: Guard — docs prose stays within its em-dash allowance
+        run: ./scripts/check-em-dashes.sh --part docs
+
   # ── GitHub Actions Lint ──────────────────────────────────────────────────
   gha-lint:
     name: Actions Lint

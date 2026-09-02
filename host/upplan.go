@@ -128,25 +128,25 @@ const upPlanNote = "content-memory leverage counts exact-hash hits only; token e
 
 // upPlanSubscriptionNote replaces the metered-cost framing when the resolved
 // provider bills a personal subscription instead of per-token API usage.
-const upPlanSubscriptionNote = "AI work runs on your Claude subscription — the token estimate is scale, not a metered cost. Content-memory leverage counts exact-hash hits only; token estimate is source chars / 4 (no tokenizer, no provider calls)."
+const upPlanSubscriptionNote = "AI work runs on your Claude subscription, so the token estimate is scale rather than a metered cost. Content-memory leverage counts exact-hash hits only; token estimate is source chars / 4 (no tokenizer, no provider calls)."
 
 // FormatText renders the plan as a table.
 func (o UpPlanOutput) FormatText(w io.Writer) error {
 	if o.Monolingual {
-		fmt.Fprintln(w, "No target languages configured: `kapi up` reconciles the source — it seeds the committed context, re-extracts the working tree and refreshes the occurrence graph. Nothing is translated and no provider is called.")
+		fmt.Fprintln(w, "No target languages configured: `kapi up` reconciles the source. It seeds the committed context, re-extracts the working tree and refreshes the occurrence graph. Nothing is translated and no provider is called.")
 		return nil
 	}
 	if len(o.Scopes) == 0 {
 		if o.Totals.UnreadTargets > 0 {
 			fmt.Fprintf(w, "Not priced yet: this project's store has not read its committed translations, so "+
-				"what a run would recycle — and what it would draft — is not known. `kapi up` reads them "+
+				"what a run would recycle, and what it would draft, is not known. `kapi up` reads them "+
 				"before the pass; %d produced unit(s) wait on that.\n", o.Totals.UnreadTargets)
 			return nil
 		}
 		fmt.Fprintln(w, "Nothing to do: every unit has a committed target the project's content memory answers.")
 		return nil
 	}
-	fmt.Fprintf(w, "Plan for flow %q (dry run — nothing written, no provider calls):\n\n", o.Flow)
+	fmt.Fprintf(w, "Plan for flow %q (dry run: nothing written, no provider calls):\n\n", o.Flow)
 	t := output.NewTable(w).Accent(0).
 		Headers("scope", "missing", "stale", "unanswered", "content memory exact",
 			"drafted by flow", "out of reach", "~tokens")
@@ -164,7 +164,7 @@ func (o UpPlanOutput) FormatText(w io.Writer) error {
 	if o.Totals.Stale > 0 {
 		fmt.Fprintf(w, "\n  %d unit(s) stale: their source changed since the translation was decided. "+
 			"They are re-drafted against the current source (priced above) and return to review "+
-			"un-approved — `kapi status --review`.\n", o.Totals.Stale)
+			"un-approved. See `kapi status --review`.\n", o.Totals.Stale)
 	}
 	if o.Totals.Unanswered > 0 {
 		fmt.Fprintf(w, "\n  %d unit(s) unanswered: they hold a target the project's content memory does not "+
@@ -177,7 +177,7 @@ func (o UpPlanOutput) FormatText(w io.Writer) error {
 	}
 	if o.Totals.OutOfReach > 0 {
 		fmt.Fprintf(w, "\n  %d unit(s) out of reach of flow %q: it has no step that would produce them, "+
-			"so this run leaves them as they are. They are not priced — add a drafting step, or "+
+			"so this run leaves them as they are. They are not priced. Add a drafting step, or "+
 			"converge them at a venue whose flow has one.\n", o.Totals.OutOfReach, o.Flow)
 	}
 	// The flow decides whether there is a bill at all, so it is read before the
@@ -185,9 +185,9 @@ func (o UpPlanOutput) FormatText(w io.Writer) error {
 	// how a run with no credentials was quoted 487k tokens (#1866).
 	if !o.FlowCallsProvider {
 		if o.Totals.AIRemaining > 0 {
-			fmt.Fprintf(w, "\n  Flow %q produces its drafts locally — no provider is called and nothing is spent.\n", o.Flow)
+			fmt.Fprintf(w, "\n  Flow %q produces its drafts locally: no provider is called and nothing is spent.\n", o.Flow)
 		} else {
-			fmt.Fprintf(w, "\n  Flow %q calls no provider — this run spends nothing.\n", o.Flow)
+			fmt.Fprintf(w, "\n  Flow %q calls no provider, so this run spends nothing.\n", o.Flow)
 		}
 		fmt.Fprintf(w, "\n%s\n", o.Note)
 		return nil
@@ -198,11 +198,11 @@ func (o UpPlanOutput) FormatText(w io.Writer) error {
 	// picked up, which is exactly what silently failed before.
 	switch {
 	case o.Subscription:
-		fmt.Fprintf(w, "\n  AI provider: %s — runs on your Claude subscription (no per-token API cost).\n", o.Provider)
+		fmt.Fprintf(w, "\n  AI provider: %s, running on your Claude subscription (no per-token API cost).\n", o.Provider)
 	case o.Provider != "":
 		fmt.Fprintf(w, "\n  AI provider: %s\n", o.Provider)
 	default:
-		fmt.Fprintf(w, "\n  AI provider: none configured — `kapi models setup`, or `kapi models default <model>`.\n")
+		fmt.Fprintf(w, "\n  AI provider: none configured. Run `kapi models setup`, or `kapi models default <model>`.\n")
 	}
 	fmt.Fprintf(w, "\n%s\n", o.Note)
 	return nil
@@ -273,7 +273,7 @@ func (a *App) computeProjectPlan(ctx context.Context, proj *project.KapiProject,
 	if _, statErr := os.Stat(layout.StorePath()); statErr == nil {
 		db, derr := a.ProjectDB(ctx, layout.Root)
 		if derr != nil {
-			return UpPlanOutput{}, fmt.Errorf("open project store at %s: %w — the plan's "+
+			return UpPlanOutput{}, fmt.Errorf("open project store at %s: %w. The plan's "+
 				"leverage, token and cost figures are computed against it, so they would understate "+
 				"the work and overstate the spend; fix or remove the store before planning",
 				layout.StorePath(), derr)

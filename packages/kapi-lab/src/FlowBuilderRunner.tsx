@@ -798,12 +798,12 @@ export default function FlowBuilderRunner({
             !busy &&
             !error &&
             trace &&
-            `Run complete${Object.keys(runs).length > 1 ? ` (${Object.keys(runs).length} files)` : ""} — scrub the transport, click a node to inspect what it did, or Inspect the Sink for what was written.`}
+            `Run complete${Object.keys(runs).length > 1 ? ` (${Object.keys(runs).length} files)` : ""}. Scrub the transport, click a node to inspect what it did, or Inspect the Sink for what was written.`}
           {runtime.ready &&
             !busy &&
             !error &&
             !trace &&
-            "Edit the flow, then press Run in its toolbar — the run plays back on the same nodes you designed."}
+            "Edit the flow, then press Run in its toolbar, and the run plays back on the same nodes you designed."}
         </div>
 
         {/* The Run gate: a shared zero-shift overlay over the fully laid-out

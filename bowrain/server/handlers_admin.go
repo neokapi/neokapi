@@ -722,7 +722,7 @@ func (s *Server) HandleAdminImpersonate(c echo.Context) error {
 		_ = s.BillingStore.AddNote(ctx, &billing.WorkspaceNote{
 			WorkspaceID: wsID,
 			AuthorEmail: adminEmail,
-			Content:     fmt.Sprintf("Admin impersonation by %s — token %s expires %s", adminEmail, token.TokenPrefix, expiresAt.Format(time.RFC3339)),
+			Content:     fmt.Sprintf("Admin impersonation by %s: token %s expires %s", adminEmail, token.TokenPrefix, expiresAt.Format(time.RFC3339)),
 		})
 	}
 

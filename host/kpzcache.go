@@ -311,7 +311,7 @@ func (a *App) ensureKpzCache(ctx context.Context, kpzPath string) (*kpzCache, er
 			return nil, derr
 		}
 		if dirty {
-			fmt.Fprintf(os.Stderr, "Warning: %s changed on disk but the workspace cache has unpacked work — keeping the cache (run `kapi unpack %s` to discard it)\n", filepath.Base(kpzPath), filepath.Base(kpzPath))
+			fmt.Fprintf(os.Stderr, "Warning: %s changed on disk but the workspace cache has unpacked work. Keeping the cache (run `kapi unpack %s` to discard it)\n", filepath.Base(kpzPath), filepath.Base(kpzPath))
 			return c, nil
 		}
 		return buildKpzCache(ctx, kpzPath)

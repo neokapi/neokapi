@@ -182,7 +182,7 @@ func runLLMCheck(ctx context.Context, bin, workdir, provider, model string) (Che
 	// to survive onto the page.
 	if acc.Findings == 0 {
 		acc.Blocked = "the tool returned no findings on any document, including the six written to violate the profile. " +
-			"It writes nothing to stdout and exits 0 under every provider and profile tried — see issue #2225. " +
+			"It writes nothing to stdout and exits 0 under every provider and profile tried. See issue #2225. " +
 			"Until it emits results there is nothing here to score."
 		acc.Recall = 0
 	}

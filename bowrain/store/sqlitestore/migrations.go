@@ -341,7 +341,7 @@ var storeMigrations = []storage.Migration{
 				finished_at    TEXT
 			);
 			CREATE INDEX idx_convergence_runs_project ON convergence_runs(project_id, created_at DESC);
-			-- At most one running run per project — a DB-level guard so the
+			-- At most one running run per project: a DB-level guard so the
 			-- one-run-per-project constraint is atomic (F8), not a racy SELECT.
 			CREATE UNIQUE INDEX idx_convergence_runs_one_active ON convergence_runs(project_id) WHERE state = 'running';
 
@@ -729,7 +729,7 @@ var storeMigrations = []storage.Migration{
 			-- context space, which side owns the row ('recipe' or 'workspace',
 			-- backfilled to 'workspace' for everything created before the context
 			-- content type existed), and the hash of the context entry it was
-			-- reconciled from — the value that makes a re-push idempotent.
+			-- reconciled from: the value that makes a re-push idempotent.
 			-- SQLite ALTER TABLE ADD COLUMN adds one column per statement.
 			ALTER TABLE collections ADD COLUMN context      TEXT NOT NULL DEFAULT '{}';
 			ALTER TABLE collections ADD COLUMN owner        TEXT NOT NULL DEFAULT 'workspace';
@@ -802,7 +802,7 @@ var storeMigrations = []storage.Migration{
 		Description: "a decision records the source it blessed, not only the translation",
 		SQL: `
 			-- Mirrors the Postgres baseline's unit_decisions.content_hash: the
-			-- BASIS a decision blessed — the hash of the SOURCE it approved a
+			-- BASIS a decision blessed: the hash of the SOURCE it approved a
 			-- translation FOR. Empty means the record predates the column, which
 			-- a reader must not read as a source that has moved.
 			ALTER TABLE unit_decisions ADD COLUMN content_hash TEXT NOT NULL DEFAULT '';
@@ -825,7 +825,7 @@ var storeMigrations = []storage.Migration{
 		Description: "a stream owns its content, and a file is identified by what it is",
 		SQL: `
 			-- Mirrors bowrain/store/migrations.go version 27. One contract, two
-			-- backends — and unlike the server's, this database belongs to
+			-- backends, and unlike the server's, this database belongs to
 			-- whoever installed the desktop app, so it is migrated rather than
 			-- reset.
 			--

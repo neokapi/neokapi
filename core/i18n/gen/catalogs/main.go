@@ -16,7 +16,7 @@ import (
 )
 
 func main() {
-	root := flag.String("root", ".", "repository root — the directory holding kapi.yaml")
+	root := flag.String("root", ".", "repository root: the directory holding kapi.yaml")
 	flag.Parse()
 	if _, err := gen.CompileCatalogs(*root, os.Stdout); err != nil {
 		fmt.Fprintf(os.Stderr, "kapi-i18n-catalogs: %v\n", err)

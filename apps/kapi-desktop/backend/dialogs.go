@@ -204,7 +204,7 @@ func (a *App) OpenProjectDialog() (*TabInfo, error) {
 
 	recipe := filepath.Join(dir, project.RecipeFileName)
 	if _, err := os.Stat(recipe); err != nil {
-		return nil, fmt.Errorf("no %s in %q — choose a folder that contains a kapi project", project.RecipeFileName, dir)
+		return nil, fmt.Errorf("no %s in %q. Choose a folder that contains a kapi project", project.RecipeFileName, dir)
 	}
 
 	return a.OpenProject(recipe)

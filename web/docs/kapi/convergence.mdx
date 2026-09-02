@@ -403,7 +403,7 @@ kapi status
 # de        42   100%         98%       98%         0%   █████████░  99%  blocked: stale
 #
 # 1 unit(s) stale: the source changed since the translation was decided.
-# They do not ship — re-review them with `kapi status --review`.
+# They do not ship until you re-review them with `kapi status --review`.
 ```
 
 One pass closes what a machine can close. A stale unit is **work**: the loop
@@ -418,10 +418,10 @@ kapi up --plan
 #
 # 1 unit(s) stale: their source changed since the translation was decided.
 # They are re-drafted against the current source (priced above) and return
-# to review un-approved — `kapi status --review`.
+# to review un-approved. See `kapi status --review`.
 
 kapi up --passes 1
-# Re-drafted 1 stale unit(s) against the current source — they return to
+# Re-drafted 1 stale unit(s) against the current source. They return to
 # review un-approved (the earlier approval is not restored).
 kapi status
 # scope  units  draft  translated  reviewed  signed-off  pipeline         ship

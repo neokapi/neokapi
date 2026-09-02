@@ -160,7 +160,7 @@ func (c *DeviceFlowClient) TryToken(ctx context.Context, deviceCode string) (*To
 			case "authorization_pending", "slow_down":
 				return nil, true, nil // keep polling
 			case "expired_token":
-				return nil, false, errors.New("device code expired — please restart the login flow")
+				return nil, false, errors.New("device code expired. Restart the login flow")
 			case "access_denied":
 				return nil, false, errors.New("authorization denied by user")
 			}

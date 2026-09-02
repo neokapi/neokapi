@@ -83,6 +83,12 @@ run_check "Reference dataset provenance" ./scripts/check-reference-provenance.sh
 # text", and it fails by showing less content rather than by failing. ~1s.
 run_check "Run projections are declared" ./scripts/check-run-projection.sh
 
+# Ungated because an em dash lands wherever prose is written, in any of the
+# three tiers a reader sees it through: a Go string, an extracted catalog, a
+# docs page. The catalogs part reports rather than fails on a surface the local
+# tree has not extracted; the l10n workflow runs it with --require-extracted.
+run_check "Em dashes in shipped prose" ./scripts/check-em-dashes.sh
+
 # Ungated because the gate it proves runs only in the nightly convergence:
 # nothing else here would notice it losing its teeth. ~1s, all in a scratch repo.
 run_check "Sync backing gate" ./scripts/check-sync-backed.sh --self-test

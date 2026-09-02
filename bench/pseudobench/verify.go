@@ -80,7 +80,7 @@ func verifyPseudoOutput(outputPath string, inputLetterCount int) (VerifyResult, 
 		res.Reason = "input has no letters to pseudo-translate"
 	case res.PseudoChars == 0:
 		res.Verified = false
-		res.Reason = fmt.Sprintf("zero pseudo runes in output (input has %d letters) — pseudo may have silently no-op'd or content was dropped", inputLetterCount)
+		res.Reason = fmt.Sprintf("zero pseudo runes in output (input has %d letters): pseudo may have silently no-op'd or content was dropped", inputLetterCount)
 	default:
 		res.Verified = true
 	}

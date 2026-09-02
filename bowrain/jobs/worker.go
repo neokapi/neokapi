@@ -540,7 +540,7 @@ func processJobWithDeps(ctx context.Context, deps *WorkerDeps, jobID string) err
 	}
 
 	emitLog(deps, job.StepID, "info",
-		fmt.Sprintf("Completed %s for %s — %d blocks, %d tokens",
+		fmt.Sprintf("Completed %s for %s: %d blocks, %d tokens",
 			job.ItemName, job.TargetLocale, job.DoneBlocks, job.TokensUsed),
 		map[string]string{"item": job.ItemName, "locale": job.TargetLocale,
 			"blocks": strconv.Itoa(job.DoneBlocks), "tokens": strconv.Itoa(job.TokensUsed)})

@@ -59,7 +59,7 @@ func ProjectRel(projectRoot, path string) (string, error) {
 	if rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 		return "", fmt.Errorf("%s lies outside the project root %s: a process-only run stores its "+
 			"work under the file's project-relative path, and merge only ever looks up files the "+
-			"recipe resolves — so this work could never be collected. Write the result directly with "+
+			"recipe resolves, so this work could never be collected. Write the result directly with "+
 			"-o, add the file to the recipe's content, or run outside the project", absPath, absRoot)
 	}
 	return rel, nil

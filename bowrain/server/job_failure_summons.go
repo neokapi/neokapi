@@ -338,7 +338,7 @@ func jobFailureTitle(ev platev.Event) string {
 func jobFailureBody(ev platev.Event) string {
 	subject := jobFailureSubject(ev)
 	if reason := ev.Data["error"]; reason != "" {
-		return subject + " — " + reason
+		return subject + ": " + reason
 	}
 	return subject + " stopped before it finished, with no reason recorded."
 }

@@ -87,7 +87,7 @@ type Lens struct {
 var lenses = []Lens{
 	{
 		ID: "grounding",
-		Question: "Find the three most specific factual claims in each document — a flag's " +
+		Question: "Find the three most specific factual claims in each document: a flag's " +
 			"exact behaviour, a file path, a default value, a name. For each, say whether the " +
 			"repository supports it. Then answer: which document has fewer claims the source " +
 			"does not support?",
@@ -109,7 +109,7 @@ var lenses = []Lens{
 	{
 		ID: "voice",
 		Question: "Compare each document against the project's own prose in the repository " +
-			"(README, GUIDE, FAQ). Name two habits the project's writing has — how it treats " +
+			"(README, GUIDE, FAQ). Name two habits the project's writing has: how it treats " +
 			"its own name, whether it makes claims or shows them, how it refers to other " +
 			"tools. Then answer: which document follows those habits more closely?",
 		Why: "Whether it sounds like the project rather than like a model, judged " +
@@ -261,7 +261,7 @@ func summarise(vs []Verdict) JudgeSummary {
 			"(4/7, 5/8, 4/8), and between two runs on the SAME documents one lens reversed " +
 			"direction. A proportion over 8 has a 95% interval near 40 points wide, so these " +
 			"numbers cannot separate a lens from a coin. What is published is what the judges " +
-			"pointed at — a quoted passage is checkable in a way a preference count is not.",
+			"pointed at: a quoted passage is checkable in a way a preference count is not.",
 	}
 
 	type key struct{ lens, model, audience, kind string }

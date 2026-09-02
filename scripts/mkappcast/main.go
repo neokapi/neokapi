@@ -34,13 +34,13 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprint(os.Stderr, `mkappcast — generate a signed AppCast feed for the Wails v3 native updater.
+	fmt.Fprint(os.Stderr, `mkappcast: generate a signed AppCast feed for the Wails v3 native updater.
 
 Usage:
   mkappcast keygen
       Generate an ed25519 key pair. Prints the base64 PUBLIC key (commit it to
       each desktop app's build/update-ed25519.pub) and the base64 PRIVATE key
-      (store as the UPDATE_ED25519_PRIVATE_KEY CI secret — never commit it).
+      (store as the UPDATE_ED25519_PRIVATE_KEY CI secret, and never commit it).
 
   mkappcast gen --title <name> --version <x.y.z> [--channel beta] [--os macos] \
       --url-prefix <https://.../download/vX.Y.Z> --out <appcast.xml> <artifact>

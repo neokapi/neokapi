@@ -44,7 +44,7 @@ func catalogModels() []checkable {
 		out = append(out, checkable{
 			provider: string(m.Provider),
 			model:    m.ID,
-			where:    fmt.Sprintf("catalog: %s (%s) — providers/ai/models.json", m.Label, m.Status),
+			where:    fmt.Sprintf("catalog: %s (%s) in providers/ai/models.json", m.Label, m.Status),
 		})
 	}
 	return out

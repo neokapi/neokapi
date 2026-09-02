@@ -157,7 +157,7 @@ func RenderVoiceGuideCompact(p *VoiceProfile) string {
 
 	var b strings.Builder
 	if len(parts) > 0 {
-		fmt.Fprintf(&b, "Voice profile — %s.", strings.Join(parts, "; "))
+		fmt.Fprintf(&b, "Voice profile (%s).", strings.Join(parts, "; "))
 	}
 
 	if g := strings.TrimSpace(p.Tone.Guidelines); g != "" {
@@ -307,7 +307,7 @@ func patternHint(pat Pattern) string {
 		qualifiers = append(qualifiers, "in headings only")
 	}
 	if len(qualifiers) > 0 {
-		suffix := " — " + strings.Join(qualifiers, ", ")
+		suffix := ", " + strings.Join(qualifiers, ", ")
 		if desc != "" && words != "" {
 			return desc + " (" + words + ")" + suffix
 		}

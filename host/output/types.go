@@ -248,7 +248,7 @@ func (o FlowRunOutput) FormatText(w io.Writer) error {
 	s := Theme(w)
 	if o.ProcessOnly {
 		fmt.Fprintf(w,
-			"Committed overlays for %s to the project store — run `kapi merge` to write target files.\n",
+			"Committed overlays for %s to the project store. Run `kapi merge` to write target files.\n",
 			s.Accent.Render(filepath.Base(o.InputPath)))
 		return nil
 	}
@@ -305,7 +305,7 @@ func (o ExtractOutput) FormatText(w io.Writer) error {
 
 	if o.RedactionVault != "" {
 		fmt.Fprintln(w, s.Warn.Render(fmt.Sprintf(
-			"Redaction enabled (rules=%s) — originals stay in %s",
+			"Redaction enabled (rules=%s): originals stay in %s",
 			o.RedactionRules, o.RedactionVault)))
 	}
 	fmt.Fprintf(w, "Extracting batch %s (format=%s, targets=%s, sources=%d)\n\n",
@@ -647,7 +647,7 @@ func (o FormatInfoOutput) FormatText(w io.Writer) error {
 			fmt.Fprintln(w)
 			label := "[" + g.Label + "]"
 			if g.Description != "" {
-				label += " — " + g.Description
+				label += ": " + g.Description
 			}
 			Title(w, label)
 

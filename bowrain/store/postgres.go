@@ -831,7 +831,7 @@ func storeBlocksTx(ctx context.Context, tx Runner, projectID, stream, itemName s
 			content_hash, context_hash, source_json, properties, overlays, word_count, stored_at, updated_at)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
 		 ON CONFLICT(project_id, stream, id) DO UPDATE SET
-			-- An item-less write (StoreBlocks — the editor saving one target)
+			-- An item-less write (StoreBlocks, the editor saving one target)
 			-- carries no item, and must not be read as the block having lost the
 			-- one it has. Blank means unsaid, exactly as it does one level up in
 			-- keepUndeclaredProperties.

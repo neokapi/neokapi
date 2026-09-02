@@ -91,7 +91,7 @@ export function TraceImportControl({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-72">
           <DropdownMenuLabel className="text-[10px] uppercase tracking-wide text-muted-foreground">
-            Recorded native runs — things a live wasm run can&apos;t show
+            Recorded native runs: things a live wasm run can&apos;t show
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           {(traces ?? []).map((t) => (

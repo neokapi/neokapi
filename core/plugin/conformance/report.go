@@ -44,7 +44,7 @@ func (r *Report) Text() string {
 		r.Elapsed.Round(time.Millisecond))
 
 	if fails := r.Failures(); len(fails) > 0 {
-		b.WriteString("\n  NOT CONFORMANT — required checks failed:\n")
+		b.WriteString("\n  NOT CONFORMANT: required checks failed:\n")
 		for _, f := range fails {
 			fmt.Fprintf(&b, "    %s: %s\n      %s\n", f.ID, f.Title, f.Why)
 		}

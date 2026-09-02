@@ -17,7 +17,7 @@ export const SAMPLES: LabSample[] = [
     id: "messages-json",
     label: "messages.json",
     filename: "messages.json",
-    blurb: "Nested JSON — structure becomes layers and groups; values are literal text.",
+    blurb: "Nested JSON: structure becomes layers and groups; values are literal text.",
     content: `{
   "greeting": "Hello, {name}!",
   "cart": {
@@ -33,7 +33,7 @@ export const SAMPLES: LabSample[] = [
     label: "page.html",
     filename: "page.html",
     blurb:
-      "HTML — inline tags (<strong>, <a>, <img>) become paired codes inside a block's runs, and a <table> becomes table-cell blocks. The preview reconstructs the grid and inline formatting from the content model.",
+      "HTML: inline tags (<strong>, <a>, <img>) become paired codes inside a block's runs, and a <table> becomes table-cell blocks. The preview reconstructs the grid and inline formatting from the content model.",
     content: `<!doctype html>
 <html lang="en">
   <head>
@@ -57,7 +57,7 @@ export const SAMPLES: LabSample[] = [
     id: "app-properties",
     label: "app.properties",
     filename: "app.properties",
-    blurb: "Java properties — comments become non-translatable Data between Blocks.",
+    blurb: "Java properties: comments become non-translatable Data between Blocks.",
     content: `# Application strings
 # Shown on first launch
 app.title = Welcome aboard
@@ -72,7 +72,7 @@ cart.checkout = Proceed to checkout
     id: "app-xliff",
     label: "app.xliff",
     filename: "app.xliff",
-    blurb: "XLIFF 2.x — a bilingual exchange format with explicit source (and target) segments.",
+    blurb: "XLIFF 2.x: a bilingual exchange format with explicit source (and target) segments.",
     content: `<?xml version="1.0" encoding="UTF-8"?>
 <xliff xmlns="urn:oasis:names:tc:xliff:document:2.2" version="2.2" srcLang="en" trgLang="fr">
   <file id="app.json" original="app.json">
@@ -88,7 +88,7 @@ cart.checkout = Proceed to checkout
     label: "article.md",
     filename: "article.md",
     blurb:
-      "Markdown — headings, a list, inline styling, an image, a GFM table, and a fenced code block. Convert it to HTML or AsciiDoc to watch the table and inline formatting survive the format crossing.",
+      "Markdown: headings, a list, inline styling, an image, a GFM table, and a fenced code block. Convert it to HTML or AsciiDoc to watch the table and inline formatting survive the format crossing.",
     content: `# Release notes
 
 The **2.0** release adds format-aware conversion. See the [docs](/docs) for details.
@@ -119,7 +119,7 @@ fmt.Println("hello, world")
     label: "report.dclg.xml",
     filename: "report.dclg.xml",
     blurb:
-      "DocLang — a structured document with roles, a table, and geometry. Convert it to markdown/html to see the structure re-expressed.",
+      "DocLang: a structured document with roles, a table, and geometry. Convert it to markdown/html to see the structure re-expressed.",
     content: `<?xml version="1.0" encoding="UTF-8"?>
 <doclang xmlns="https://www.doclang.ai/ns/v0" version="0.6">
   <heading level="1">Quarterly Report</heading>
@@ -137,7 +137,7 @@ fmt.Println("hello, world")
     label: "support-reply.json",
     filename: "support-reply.json",
     blurb:
-      "A support reply carrying a brand name (Acme Corp) and a person name (Jane Doe) — good targets for redaction — plus US spelling (color) that a search-replace normaliser can settle to British English before translation.",
+      "A support reply carrying a brand name (Acme Corp) and a person name (Jane Doe), both good targets for redaction, plus US spelling (color) that a search-replace normaliser can settle to British English before translation.",
     content: `{
   "subject": "Your Acme Corp order",
   "body": "Hi, we love the color of your order. Jane Doe will follow up tomorrow.",
@@ -150,7 +150,7 @@ fmt.Println("hello, world")
     label: "greeting.xliff",
     filename: "greeting.xliff",
     blurb:
-      "A bilingual XLIFF 2.x already carrying a French target for every segment — each Block holds both source and target, so the content model shows the source↔target pair directly.",
+      "A bilingual XLIFF 2.x already carrying a French target for every segment, so each Block holds both source and target, so the content model shows the source↔target pair directly.",
     content: `<?xml version="1.0" encoding="UTF-8"?>
 <xliff xmlns="urn:oasis:names:tc:xliff:document:2.2" version="2.2" srcLang="en" trgLang="fr">
   <file id="app.json" original="app.json">

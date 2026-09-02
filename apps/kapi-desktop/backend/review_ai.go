@@ -121,7 +121,7 @@ func (a *App) ReviewAIAction(tabID, locale, file, key, action, instruction strin
 		res, err = a.reviewAIPropose(ctx, op, unit, b, sourceLang, instruction)
 	case ReviewAIRetranslate:
 		if strings.TrimSpace(instruction) == "" {
-			return nil, errors.New("retranslate needs an instruction — tell the model what to change")
+			return nil, errors.New("retranslate needs an instruction. Tell the model what to change")
 		}
 		res, err = a.reviewAIPropose(ctx, op, unit, b, sourceLang, instruction)
 	default:
@@ -155,7 +155,7 @@ func (a *App) reviewAIPropose(ctx context.Context, op *openProject, unit host.Un
 	}
 	proposed := b.TargetText(model.LocaleID(unit.TargetLang))
 	if strings.TrimSpace(proposed) == "" {
-		return nil, errors.New("the model returned an empty translation — try a more specific instruction")
+		return nil, errors.New("the model returned an empty translation. Try a more specific instruction")
 	}
 	return &ReviewAIActionResult{ProposedTarget: proposed}, nil
 }
@@ -195,7 +195,7 @@ func renderReviewExplanation(res *aitools.ReviewResult) string {
 	for _, f := range res.Findings {
 		fmt.Fprintf(&sb, "• [%s] %s", f.Severity, f.Message)
 		if f.Suggestion != "" {
-			fmt.Fprintf(&sb, " — suggestion: %s", f.Suggestion)
+			fmt.Fprintf(&sb, " (suggestion: %s)", f.Suggestion)
 		}
 		sb.WriteString("\n")
 	}
@@ -338,11 +338,11 @@ func (a *App) reviewToolConfig(ctx context.Context, op *openProject, name string
 func friendlyAIProviderError(err error) error {
 	var amb *credentials.AmbiguousCredentialError
 	if errors.As(err, &amb) {
-		return fmt.Errorf("multiple AI credentials are configured (%s) — set a default in Settings → AI Models",
+		return fmt.Errorf("multiple AI credentials are configured (%s). Set a default in Settings → AI Models",
 			strings.Join(amb.Candidates, ", "))
 	}
 	if strings.Contains(err.Error(), "no saved credentials") {
-		return errors.New("no AI provider is configured — add one in Settings → AI Models, then try again")
+		return errors.New("no AI provider is configured. Add one in Settings → AI Models, then try again")
 	}
 	return err
 }

@@ -69,7 +69,7 @@ func (c *TermCheckConfig) Validate() error {
 			return fmt.Errorf("term-check: term rule %d has no term", i)
 		}
 		if rule.Replacement == "" {
-			return fmt.Errorf("term-check: term rule %d (%q) has no replacement — a rule here says what to use INSTEAD, so both halves are required", i, rule.Term)
+			return fmt.Errorf("term-check: term rule %d (%q) has no replacement: a rule here says what to use INSTEAD, so both halves are required", i, rule.Term)
 		}
 	}
 	return nil

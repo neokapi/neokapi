@@ -310,7 +310,7 @@ func contextFor(target string) Context {
 	profile := &coreprofile.VoiceProfile{
 		ID:          "northsea-voice",
 		Name:        "Northsea",
-		Description: "Synthetic voice profile for the context eval — engineered for trap density, resembling no real customer.",
+		Description: "Synthetic voice profile for the context eval, engineered for trap density, resembling no real customer.",
 		Tone: coreprofile.ToneProfile{
 			Personality: []string{"precise", "calm"},
 			Formality:   "formal",
@@ -504,7 +504,7 @@ func allFixtures() []Fixture {
 		{
 			Key:    "safety.notice.shallow",
 			Source: "Give the shallow bank a wide berth.",
-			Note:   "distractor: idiomatic 'berth' — forcing the technical mandate here is wrong",
+			Note:   "distractor: idiomatic 'berth', where forcing the technical mandate is wrong",
 			Checks: map[string][]Check{
 				"de": {{Dimension: DimTerminology, Kind: "term-distractor", MustNotMatch: `(?i)anlegeplatz`}},
 				"fr": {{Dimension: DimTerminology, Kind: "term-distractor", MustNotMatch: `(?i)appontement`}},
@@ -514,7 +514,7 @@ func allFixtures() []Fixture {
 		{
 			Key:    "account.link.label",
 			Source: "Enter your user ID to link the mobile app.",
-			Note:   "declared conflict: a rule pins 'Nutzer-ID' while the profile forbids 'Nutzer' — the pin wins",
+			Note:   "declared conflict: a rule pins 'Nutzer-ID' while the profile forbids 'Nutzer', and the pin wins",
 			Checks: map[string][]Check{
 				"de": {
 					{Dimension: DimTerminology, Kind: "term-conflict", Term: &coreprofile.TermRule{Term: "user ID", Replacement: "Nutzer-ID"}},
@@ -531,7 +531,7 @@ func allFixtures() []Fixture {
 			// would punish obedience. Inflection-aware term matching is a
 			// term-check concern, not this corpus's.
 			Source: "Each workboat appears in amber on the map.",
-			Note:   "declared conflict: a rule pins 'bateau de service' while the profile forbids 'bateau' — the pin wins",
+			Note:   "declared conflict: a rule pins 'bateau de service' while the profile forbids 'bateau', and the pin wins",
 			Checks: map[string][]Check{
 				"fr": {
 					{Dimension: DimTerminology, Kind: "term-conflict", Term: &coreprofile.TermRule{Term: "workboat", Replacement: "bateau de service"}},
@@ -578,7 +578,7 @@ func allFixtures() []Fixture {
 		{
 			Key:    "nav.instrument.calibrate",
 			Source: "Calibrate the ship's compass before departure.",
-			Note:   "distractor: a real compass, lowercase — it must be translated, not protected",
+			Note:   "distractor: a real compass, lowercase, which must be translated rather than protected",
 			Checks: map[string][]Check{
 				// (?i)kompass so the idiomatic compound ("Schiffskompass") passes;
 				// requiring \bKompass would fail the more natural translation.
@@ -612,7 +612,7 @@ func allFixtures() []Fixture {
 		{
 			Key:    "cli.report.hint",
 			Source: "Run `tidectl report --daily` before you export.",
-			Note:   "verbatim span containing a ruled word ('report') — the backtick rule wins inside the span",
+			Note:   "verbatim span containing a ruled word ('report'), and the backtick rule wins inside the span",
 			Checks: map[string][]Check{
 				"de": {
 					{Dimension: DimTerminology, Kind: "dnt", DNT: "tidectl"},
@@ -645,7 +645,7 @@ func allFixtures() []Fixture {
 		},
 		{
 			Key:    "files.share.hint",
-			Source: "Share your files with your crew — they'll see updates as you make them.",
+			Source: "Share your files with your crew, and they'll see updates as you make them.",
 			Checks: map[string][]Check{
 				"de":    {{Dimension: DimVoice, Kind: "formality", MustNotMatch: informalDE}},
 				"fr":    {{Dimension: DimVoice, Kind: "formality", MustNotMatch: informalFR}},
@@ -766,7 +766,7 @@ func allFixtures() []Fixture {
 			Key: "docs.getting_started.body",
 			Source: "Getting started takes about five minutes. Sign in, open the dashboard, and Compass " +
 				"will chart every vessel it can see. If anything looks off, you can reach us at any " +
-				"time — just don't wait for the next tide!",
+				"time, and don't wait for the next tide!",
 			Note: "prose where terminology, voice and instruction apply simultaneously",
 			Checks: map[string][]Check{
 				"de": {

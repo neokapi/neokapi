@@ -24,7 +24,7 @@ type statsInput struct {
 func registerStatsMCPTools(server *mcp.Server, a *App) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "stats",
-		Description: "Size files before processing them: per-file and total content metrics — blocks (translatable " +
+		Description: "Size files before processing them. Reports per-file and total content metrics: blocks (translatable " +
 			"and not), words, characters (with and without spaces, plus the unique-character inventory), segments " +
 			"when available, and a by-role breakdown. Works on any supported format (Word, PowerPoint, JSON, XLIFF, " +
 			"Markdown, HTML, …) and returns the same JSON `kapi stats --json` emits.",

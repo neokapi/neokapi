@@ -43,7 +43,7 @@ func newIngestFetcher(cs store.ContentStore, configs *bstore.ConnectorConfigStor
 	if appKey == "" {
 		if path := os.Getenv("GITHUB_APP_PRIVATE_KEY_FILE"); path != "" {
 			if pemBytes, err := os.ReadFile(path); err != nil {
-				slog.Error("GITHUB_APP_PRIVATE_KEY_FILE unreadable — app-mode forge ingest disabled", "error", err)
+				slog.Error("GITHUB_APP_PRIVATE_KEY_FILE unreadable, app-mode forge ingest disabled", "error", err)
 			} else {
 				appKey = string(pemBytes)
 			}
@@ -52,7 +52,7 @@ func newIngestFetcher(cs store.ContentStore, configs *bstore.ConnectorConfigStor
 	if appID != "" || appKey != "" {
 		app, err := forge.NewGitHubApp(appID, appKey, os.Getenv("GITHUB_APP_WEBHOOK_SECRET"))
 		if err != nil {
-			slog.Error("github app misconfigured — app-mode forge ingest disabled", "error", err)
+			slog.Error("github app misconfigured, app-mode forge ingest disabled", "error", err)
 		} else {
 			bowconn.RegisterForgeApp(connReg, formatReg, app)
 			slog.Info("github app enabled for forge ingest", "app_id", appID)

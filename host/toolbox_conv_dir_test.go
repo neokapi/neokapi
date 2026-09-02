@@ -135,7 +135,7 @@ func TestConvSingleOutputFileStillRejectsMultipleInputs(t *testing.T) {
 	err := app.RunConv(context.Background(), []string{a, b},
 		ConvOptions{To: "html", Output: filepath.Join(dir, "out.html")})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "pass a directory")
+	assert.Contains(t, err.Error(), "Pass a directory")
 }
 
 // TestResolveTargetFormatFromOutputDir: an output directory has no extension to

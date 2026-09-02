@@ -310,7 +310,7 @@ func printApplyReport(w io.Writer, out *applyOutput) {
 	if n := len(c.Applied) + len(c.Skipped) + len(c.Stale) + len(c.GuardFailed); n > 0 {
 		fmt.Fprintf(w, "content: %d applied, %d unchanged", len(c.Applied), len(c.Skipped))
 		if len(c.Stale) > 0 {
-			fmt.Fprintf(w, ", %d stale (source drifted — re-inspect)", len(c.Stale))
+			fmt.Fprintf(w, ", %d stale (source drifted, re-inspect)", len(c.Stale))
 		}
 		if len(c.GuardFailed) > 0 {
 			fmt.Fprintf(w, ", %d rejected (would corrupt inline codes)", len(c.GuardFailed))

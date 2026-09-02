@@ -265,7 +265,7 @@ type Conflict struct {
 // Error renders the conflict as the instruction it implies. A caller that
 // cannot fetch first cannot resolve it, and no retry of the same write will.
 func (c *Conflict) Error() string {
-	return fmt.Sprintf("%s governance moved since it was last observed (expected %s, found %s) — pull first",
+	return fmt.Sprintf("%s governance moved since it was last observed (expected %s, found %s). Pull first",
 		c.Component, shortIdentity(c.Expected), shortIdentity(c.Actual))
 }
 

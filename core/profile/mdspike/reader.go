@@ -57,7 +57,7 @@ func LoadFS(ctx context.Context, fsys fs.FS, name string, opts Options) (*profil
 
 func loadFS(ctx context.Context, fsys fs.FS, name string, opts Options, depth int) (*profile.VoiceProfile, error) {
 	if depth > maxExtendsDepth {
-		return nil, fmt.Errorf("%s: extends chain deeper than %d — cycle?", name, maxExtendsDepth)
+		return nil, fmt.Errorf("%s: extends chain deeper than %d, possibly a cycle", name, maxExtendsDepth)
 	}
 	data, err := fs.ReadFile(fsys, name)
 	if err != nil {

@@ -115,7 +115,7 @@ func runInitConnect(cmd *cobra.Command, _ []string) error {
 			targetServer = auth.ServerURL
 		}
 		if targetServer == "" {
-			return errors.New("server URL not configured — pass --server or set BOWRAIN_SERVER_URL")
+			return errors.New("server URL not configured. Pass --server or set BOWRAIN_SERVER_URL")
 		}
 		fmt.Printf("Creating project on %s...\n", targetServer)
 		// connectWorkspace ("" → resolve the account's workspace; non-empty →

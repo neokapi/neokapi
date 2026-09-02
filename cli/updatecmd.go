@@ -30,7 +30,7 @@ func NewUpdateCmd(a *App) *cobra.Command {
 		Long: `Update the kapi binary itself.
 
 If kapi was installed via a package manager (Homebrew, winget, apt, …), this
-prints the exact upgrade command — pass --run to execute it for you. If kapi was
+prints the exact upgrade command. Pass --run to execute it for you. If kapi was
 installed by direct download, it downloads the latest release, verifies its
 SHA-256 and cosign signature, and replaces the binary in place.
 

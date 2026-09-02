@@ -989,7 +989,7 @@ func (p *KapiProject) validate(opts LoadOptions) error {
 	}
 	for _, key := range sortedKeys(p.Extras) {
 		if replacement, retired := retiredProjectKeys[key]; retired {
-			return fmt.Errorf("%s: is no longer a recipe key — use %s", key, replacement)
+			return fmt.Errorf("%s: is no longer a recipe key. Use %s", key, replacement)
 		}
 	}
 	if err := p.Defaults.Merge.validate(); err != nil {

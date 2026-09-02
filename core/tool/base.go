@@ -167,7 +167,7 @@ func (b *BaseTool) ValidateHandlers() error {
 		set = append(set, "Transform")
 	}
 	if len(set) > 1 {
-		return fmt.Errorf("tool %q sets %d capability handlers (%s): a BaseTool sets exactly one of Annotate, Produce, or Transform — the handler is the tool's capability declaration (AD-006)",
+		return fmt.Errorf("tool %q sets %d capability handlers (%s): a BaseTool sets exactly one of Annotate, Produce, or Transform, and the handler is the tool's capability declaration (AD-006)",
 			b.ToolName, len(set), strings.Join(set, ", "))
 	}
 	return nil
@@ -324,10 +324,10 @@ func (b *BaseTool) runAnnotate(ctx context.Context, part *model.Part) (*model.Pa
 		return nil, err
 	}
 	if blockSourceSig(block) != srcBefore {
-		return nil, fmt.Errorf("immutability: annotate tool %q changed source of block %q — annotators write only overlays/annotations/properties", b.ToolName, block.ID)
+		return nil, fmt.Errorf("immutability: annotate tool %q changed source of block %q: annotators write only overlays/annotations/properties", b.ToolName, block.ID)
 	}
 	if blockTargetsSig(block) != tgtBefore {
-		return nil, fmt.Errorf("immutability: annotate tool %q changed target of block %q — use a Translate handler to write targets", b.ToolName, block.ID)
+		return nil, fmt.Errorf("immutability: annotate tool %q changed target of block %q. Use a Translate handler to write targets", b.ToolName, block.ID)
 	}
 	return v.result(part), nil
 }
@@ -350,7 +350,7 @@ func (b *BaseTool) runProduce(ctx context.Context, part *model.Part) (*model.Par
 		return nil, err
 	}
 	if blockSourceSig(block) != srcBefore {
-		return nil, fmt.Errorf("immutability: translate tool %q changed source of block %q — use a Transform handler to rewrite source", b.ToolName, block.ID)
+		return nil, fmt.Errorf("immutability: translate tool %q changed source of block %q. Use a Transform handler to rewrite source", b.ToolName, block.ID)
 	}
 	return v.result(part), nil
 }
@@ -377,10 +377,10 @@ func (b *BaseTool) runTransform(ctx context.Context, part *model.Part) (*model.P
 	}
 	if enforce {
 		if blockSourceSig(block) != srcBefore {
-			return nil, fmt.Errorf("immutability: transform tool %q changed source of block %q in place — a transform is a read-only producer; return the rewrite in its EditPlan", b.ToolName, block.ID)
+			return nil, fmt.Errorf("immutability: transform tool %q changed source of block %q in place: a transform is a read-only producer; return the rewrite in its EditPlan", b.ToolName, block.ID)
 		}
 		if blockTargetsSig(block) != tgtBefore {
-			return nil, fmt.Errorf("immutability: transform tool %q changed target of block %q in place — return target replacements in its EditPlan", b.ToolName, block.ID)
+			return nil, fmt.Errorf("immutability: transform tool %q changed target of block %q in place. Return target replacements in its EditPlan", b.ToolName, block.ID)
 		}
 	}
 	if v.dropped {

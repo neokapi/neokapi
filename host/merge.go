@@ -102,7 +102,7 @@ func (a *App) RunMerge(cmd Command) error {
 		return err
 	}
 	if len(expanded) == 0 {
-		return errors.New("merge: no input files matched — check -i paths and globs")
+		return errors.New("merge: no input files matched. Check -i paths and globs")
 	}
 
 	noMemoryUpdate := BoolFlagAny(cmd, "no-memory-update", "no-tm-update")
@@ -197,7 +197,7 @@ func (a *App) RunMerge(cmd Command) error {
 	}
 
 	if failures > 0 {
-		return fmt.Errorf("merge: %d input file(s) failed — see errors above", failures)
+		return fmt.Errorf("merge: %d input file(s) failed. See errors above", failures)
 	}
 	// A truncated progress feed is reported after the result, so the deliverable
 	// still lands and the consumer still learns its feed was incomplete.
@@ -753,7 +753,7 @@ func (a *App) mergeOneXLIFF(ctx context.Context, task mergeTask) (mergeStats, er
 	// 2. Resolve the extraction batch via the file-level note.
 	batchID := xliff2.BatchIDFromLayer(layer)
 	if batchID == "" {
-		return stats, fmt.Errorf("merge: no kapi batch id in %s — was this file produced by kapi extract?", task.input)
+		return stats, fmt.Errorf("merge: no kapi batch id in %s. Was this file produced by kapi extract?", task.input)
 	}
 	manifest, err := project.LoadExtractionManifest(task.layout, batchID)
 	if err != nil {
@@ -921,7 +921,7 @@ func (a *App) mergeOnePO(ctx context.Context, task mergeTask) (mergeStats, error
 		return stats, fmt.Errorf("po read: %w", err)
 	}
 	if po.BatchID == "" {
-		return stats, fmt.Errorf("merge: no kapi-batch comment in %s — was this file produced by kapi extract?", task.input)
+		return stats, fmt.Errorf("merge: no kapi-batch comment in %s. Was this file produced by kapi extract?", task.input)
 	}
 	manifest, err := project.LoadExtractionManifest(task.layout, po.BatchID)
 	if err != nil {
@@ -1208,7 +1208,7 @@ func writeMergedSourceWithSkeleton(ctx context.Context, reg *registry.FormatRegi
 			if _, statErr := os.Stat(skelPath); statErr == nil {
 				store, oerr := format.OpenSkeletonStore(skelPath)
 				if oerr != nil {
-					return fmt.Errorf("cannot write %s: its skeleton %s exists but could not be opened, so the source's exact formatting cannot be restored — re-run `kapi extract`: %w",
+					return fmt.Errorf("cannot write %s: its skeleton %s exists but could not be opened, so the source's exact formatting cannot be restored. Re-run `kapi extract`: %w",
 						targetPath, skelPath, oerr)
 				}
 				consumer.SetSkeletonStore(store)

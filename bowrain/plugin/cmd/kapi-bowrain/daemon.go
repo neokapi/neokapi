@@ -130,7 +130,7 @@ func runDaemon(cmd *cobra.Command, args []string) error {
 	for {
 		select {
 		case sig := <-sigCh:
-			fmt.Fprintf(os.Stderr, "daemon: signal %s — shutting down\n", sig)
+			fmt.Fprintf(os.Stderr, "daemon: signal %s, shutting down\n", sig)
 			d.gracefulStop(server)
 			_ = os.Remove(socketPath)
 			return nil
@@ -141,13 +141,13 @@ func runDaemon(cmd *cobra.Command, args []string) error {
 			}
 			return nil
 		case <-d.shutdownCh:
-			fmt.Fprintf(os.Stderr, "daemon: Shutdown RPC — exiting\n")
+			fmt.Fprintf(os.Stderr, "daemon: Shutdown RPC, exiting\n")
 			d.gracefulStop(server)
 			_ = os.Remove(socketPath)
 			return nil
 		case now := <-idleTicker.C:
 			if d.idleSince(now) >= daemonIdleTimeout {
-				fmt.Fprintf(os.Stderr, "daemon: idle for %s — exiting\n", daemonIdleTimeout)
+				fmt.Fprintf(os.Stderr, "daemon: idle for %s, exiting\n", daemonIdleTimeout)
 				d.gracefulStop(server)
 				_ = os.Remove(socketPath)
 				return nil

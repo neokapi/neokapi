@@ -275,7 +275,7 @@ func recostHistory(path string) error {
 	}
 	fmt.Printf("re-priced %d/%d runs at rates as of %s → %s\n", priced, len(h.Runs), prices.AsOf, path)
 	for _, u := range unpriced {
-		fmt.Printf("  no price for %s — add it to scripts/batcheval/prices.json and run make update-model-prices\n", u)
+		fmt.Printf("  no price for %s. Add it to scripts/batcheval/prices.json and run make update-model-prices\n", u)
 	}
 	return nil
 }

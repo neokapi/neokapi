@@ -71,7 +71,7 @@ func LoadSandbox() (*Sandbox, error) {
 		if root == "" {
 			discovered, err := discoverSandbox()
 			if err != nil {
-				sandboxErr = fmt.Errorf("KAPI_PARITY_SANDBOX is not set and no `.parity/` directory was found in any parent of cwd — run `make parity-test` from the repo root: %w", err)
+				sandboxErr = fmt.Errorf("KAPI_PARITY_SANDBOX is not set and no `.parity/` directory was found in any parent of cwd. Run `make parity-test` from the repo root: %w", err)
 				return
 			}
 			root = discovered
@@ -186,7 +186,7 @@ func RequireOkapiTestData(t *testing.T, rel string) string {
 	t.Helper()
 	s := RequireSandbox(t)
 	if s.OkapiTestDataDir == "" {
-		t.Fatalf("okapi test resources tarball not present in sandbox — scripts/parity-sandbox.sh failed to fetch it (network? GitHub release missing?). Rerun with PARITY_FORCE=1 make parity-test.")
+		t.Fatalf("okapi test resources tarball not present in sandbox: scripts/parity-sandbox.sh failed to fetch it (network? GitHub release missing?). Rerun with PARITY_FORCE=1 make parity-test.")
 	}
 	abs := filepath.Join(s.OkapiTestDataDir, rel)
 	if _, err := os.Stat(abs); err != nil {
