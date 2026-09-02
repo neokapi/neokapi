@@ -60,7 +60,7 @@ describe("formatBinding (internal FlowBinding → wire locator)", () => {
 
 const tools: ToolInfo[] = [
   { name: "translate", description: "Translate with AI", category: "translate" },
-  { name: "qa", description: "QA check", category: "validate" },
+  { name: "qa", description: "Rule-based checks", category: "validate" },
   {
     name: "redact",
     description: "Redact sensitive content",

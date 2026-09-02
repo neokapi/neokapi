@@ -445,7 +445,7 @@
           "description": "Character count above which text is considered long for the minimum length check"
         },
         "mode": {
-          "title": "QA Mode",
+          "title": "Check mode",
           "description": "How to check quality: deterministic local rules, or an AI provider's review",
           "options": {
             "ai": {

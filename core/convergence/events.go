@@ -90,7 +90,7 @@ const (
 	StageDerive       = "derive"        // coverage + bound-check derivation
 	StageRecycle      = "recycle"       // Memory-leverage stage of production
 	StageAITranslate  = "ai_translate"  // AI/MT drafting stage of production
-	StageChecks       = "checks"        // post-production QA checks
+	StageChecks       = "checks"        // post-production checks
 	StageMaterialize  = "materialize"   // writing shippable output
 )
 
@@ -118,7 +118,7 @@ const (
 	// below the gate, so the locale parks on failing terminology/length checks.
 	StallChecksFailing StallReason = "checks_failing"
 	// StallSourceNotReady: the source itself is below the source-first gate
-	// (terminology/voice/source-QA not settled, or human source review pending),
+	// (terminology/voice/source hygiene not settled, or human source review pending),
 	// so the fan-out is HELD on source rather than translating an unsettled,
 	// non-compliant source into N locales (strategy 2026-07-dogfood doc 07 / roadmap
 	// epic 019). The run creates a source-review task and parks; settling the

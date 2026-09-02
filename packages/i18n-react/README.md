@@ -148,7 +148,7 @@ Kapi reads the KBF directory directly; every command appends or
 updates a target locale on each block in place:
 
 ```bash
-# Pseudo-translate for visual QA.
+# Pseudo-translate for a visual check.
 kapi pseudo-translate i18n/ --target-lang qps
 
 # Real translations — each call accumulates a target locale:
@@ -808,8 +808,8 @@ neokapi({ mode: "runtime", review: true });
 - **Saving writes straight into the local `.kbf.json` file** — your
   review is a git diff — and the live UI repaints in place (no
   reload).
-- **terms/QA** in the floating toolbar paints terminology matches
-  and QA findings from stand-off annotation files (`*.overlays.jsonl`, e.g.
+- **terms/checks** in the floating toolbar paints terminology matches
+  and findings from stand-off annotation files (`*.overlays.jsonl`, e.g.
   produced by `kapi run term-check` / `qa` over `i18n/`) onto the
   live page via the CSS Custom Highlight API — zero DOM mutation,
   no layout shift.
@@ -858,7 +858,7 @@ initKapiReviewHosted(); // fetches <base>translations/review.json
   no specific block hash required. A filter box narrows the list.
 - **Deep link** `?kapi-focus=<hash>` scrolls to the element with that
   block's `data-kapi-id`, outlines it, and opens a read-only panel:
-  source, target for the active locale, note, other locales, and term/QA
+  source, target for the active locale, note, other locales, and term/check
   annotations. Point a "view in context" link at
   `https://your-site/?kapi-focus=<hash>`.
 - **⌥/Alt+click** opens the same panel for any translated element; its
@@ -943,7 +943,7 @@ npx neokapi-i18n explain <file-or-glob>... [--extracted]
 The boundary is: `neokapi-i18n` emits extracted blocks (as KBF files
 or an NDJSON stream) and compiles translated KBFs back to the
 runtime dictionary. Everything in between — pseudo-translate, AI
-translate, content memory matching, QA, review — goes through the `kapi` CLI.
+translate, content memory matching, checks, review — goes through the `kapi` CLI.
 
 ### Two output modes for extract
 

@@ -25,7 +25,7 @@
   --kdx-io: #2e8555; /* readers & writers (brand primary) */
   --kdx-annotate: #6d5ae6; /* annotators — overlays (indigo) */
   --kdx-translate: #0e9aab; /* translators — targets (cyan) */
-  --kdx-qa: #b45309; /* QA / enforce (amber) */
+  --kdx-qa: #b45309; /* checks / enforce (amber) */
   --kdx-resource: #0e7490; /* Memory / terms */
   --kdx-plugin: #7c3aed; /* plugin system / gRPC */
   --kdx-file: #2e8555; /* file chips */
@@ -214,7 +214,7 @@
   font-family: var(--kdx-mono, ui-monospace, "Source Code Pro", monospace);
 }
 /* The "held" branch — where under-ready work waits for a person, drawn as a
-   muted amber (QA/attention) dashed edge to a review node. */
+   muted amber (checks / attention) dashed edge to a review node. */
 .kdx-hold {
   fill: none;
   stroke: var(--kdx-qa);

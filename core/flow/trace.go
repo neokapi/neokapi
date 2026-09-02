@@ -48,7 +48,7 @@ type PartSnapshot struct {
 // "drill into a part" inspector. Source/Targets are run sequences (not flattened
 // strings) so inline placeholders and paired codes survive. Overlays and
 // Annotations carry the block's stand-off state so an inspector can show what
-// each tool attached (AD-002): segmentation spans, term/entity tags, QA
+// each tool attached (AD-002): segmentation spans, term/entity tags, check
 // findings, the redaction secret annotation. They are summarized eagerly at
 // snapshot time — blocks mutate in place as they flow, so a snapshot must not
 // alias live maps.
@@ -79,7 +79,7 @@ type SpanSnapshot struct {
 	Start int    `json:"start"` // rune offset, half-open [Start, End)
 	End   int    `json:"end"`
 	Text  string `json:"text,omitempty"` // covered text (clipped to 80 runes)
-	Note  string `json:"note,omitempty"` // compact payload summary (entity type, QA message, …)
+	Note  string `json:"note,omitempty"` // compact payload summary (entity type, check message, …)
 }
 
 // AnnotationSnapshot is one block-scoped annotation (key + compact summary).

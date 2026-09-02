@@ -159,7 +159,7 @@ func TestDemoProvider_BatchTranslations(t *testing.T) {
 }
 
 func TestDemoProvider_NeutralSchema(t *testing.T) {
-	// QA-style schema must yield an empty issues array, not fabricated findings.
+	// A check-style schema must yield an empty issues array, not fabricated findings.
 	p := newTestDemo()
 	qa := JSONSchema{
 		Name: "qa_check",

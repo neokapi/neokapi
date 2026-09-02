@@ -4,7 +4,7 @@
  * Reads a KBF tree — the source catalog plus its `i18n-<locale>` siblings, and
  * any `.overlays.jsonl` stand-off annotation files — and produces one JSON manifest keyed
  * by block hash: source text, per-locale targets, translator properties, and
- * term/QA annotations. It is the read-only, deploy-time counterpart to the dev
+ * term/check annotations. It is the read-only, deploy-time counterpart to the dev
  * review middleware (`review/store.ts`): the hosted overlay (`review/hosted.ts`)
  * fetches this manifest from the deployed site, so a reviewer can open the live
  * page in context with no dev server. Emitted by `neokapi-i18n compile --review`.
@@ -30,7 +30,7 @@ export interface ReviewManifestEntry {
     element?: string;
     locNote?: string;
   };
-  /** Term / QA annotations, summarized for display. */
+  /** Term / check annotations, summarized for display. */
   annotations: Array<{ type: string; summary: string }>;
 }
 

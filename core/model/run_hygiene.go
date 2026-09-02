@@ -84,7 +84,7 @@ func RunsHaveContent(runs []Run) bool {
 // hash and TM key is anchored in.
 //
 // Both halves are needed together. A rule that only answers yes/no can read the
-// flattened string on its own, but one that reports *where* (a QA overlay
+// flattened string on its own, but one that reports *where* (a check overlay
 // highlighting the offending characters) must map its offsets back, because the
 // sentinel occupies bytes the anchor coordinate space does not have. Reading the
 // shape from one string and anchoring to another is how a range ends up

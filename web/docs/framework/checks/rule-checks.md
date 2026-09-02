@@ -1,23 +1,23 @@
 ---
 sidebar_position: 2
-title: QA Checks
-description: "Quality assurance in neokapi: deterministic rule-based checks and LLM-assisted review that annotate translated blocks with findings without modifying content, composable as pipeline stages."
-keywords: [QA checks, quality assurance, translation QA, rule-based, LLM review, pipeline, multilingual content]
+title: Rule-based checks
+description: "Rule-based checks in neokapi: deterministic rules and LLM-assisted review that annotate translated blocks with findings without modifying content, composable as pipeline stages."
+keywords: [rule-based checks, translation checks, deterministic rules, findings, LLM review, pipeline, multilingual content]
 ---
 
 import RunnableSnippet from "@site/src/components/KapiPlayground/RunnableSnippet";
 import { ThemedVideo } from "@neokapi/docs-shared";
 
-# Quality Assurance Checks
+# Rule-based checks
 
-Quality assurance in neokapi is a kind of [tool](/framework/tools): a QA check
-reads translated [blocks](/framework/content-model), inspects each one against a
-set of rules, and **reports findings without modifying the content**. Findings
-are recorded as stand-off overlays on the block (see
+A rule-based check is a kind of [tool](/framework/tools): it reads translated
+[blocks](/framework/content-model), inspects each one against a set of rules,
+and **reports findings without modifying the content**. Findings are recorded
+as stand-off overlays on the block (see
 [Checks](/framework/checks#one-model-findings)) and surfaced to the CLI, an
-editor, or a downstream tool, so a QA pass slots into any
+editor, or a downstream tool, so a check pass slots into any
 [flow](/framework/flows) as an ordinary stage. neokapi offers two complementary
-approaches: fast, deterministic rule-based checks, and LLM-assisted review.
+approaches: fast, deterministic rules, and LLM-assisted review.
 
 Run as a gate, these checks behave like tests for AI output: deterministic and
 repeatable, they read translated content against its source and report exactly
@@ -34,7 +34,7 @@ caught in CI, or in an assistant's fix-loop, the same way a failing test is.
   maxWidth="820px"
 />
 
-## Rule-based checks
+## Deterministic rules
 
 By default, with no `--provider`, the `qa` tool runs a battery of
 deterministic rules over each block, comparing source and target. It needs no
@@ -87,8 +87,8 @@ its own validator, `term-check`. The full set is in the
 
 ## LLM-assisted review
 
-Where rule-based checks catch the mechanical errors, running `qa` with an LLM
-`--provider` uses that [LLM provider](/framework/translation) to assess
+Where the deterministic rules catch the mechanical errors, running `qa` with an
+LLM `--provider` uses that [LLM provider](/framework/translation) to assess
 qualities a rule expresses poorly (fluency, accuracy against the source,
 and terminology appropriateness) and attaches its assessment to each block. It
 is the natural companion to `translate`: the built-in `translate-qa` flow runs
@@ -111,6 +111,6 @@ gate) can read every kind of finding from one place.
 ## Related reading
 
 - [Tools](/framework/tools): how a check fits the tool model.
-- [Tool Reference](/tools): the generated list of QA tools and their parameters.
-- [Terminology](/framework/terminology): terminology enforcement as a QA concern.
+- [Tool Reference](/tools): the generated list of check tools and their parameters.
+- [Terminology](/framework/terminology): terminology enforcement as its own check family.
 - [Implementing a Tool](/contribute/tools): writing a custom check.

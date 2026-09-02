@@ -157,7 +157,7 @@ func TestCompatBlockCorpus(t *testing.T) {
 	})
 
 	// Stand-off overlays: source-side term overlay with props + typed payload,
-	// and a variant-scoped, layered QA overlay.
+	// and a variant-scoped, layered check overlay.
 	b.Overlays = append(b.Overlays, model.Overlay{
 		Type: model.OverlayType("term"),
 		Spans: []model.Span{{

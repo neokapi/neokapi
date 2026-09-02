@@ -1,7 +1,7 @@
 ---
 sidebar_position: 9
 title: Translating neokapi-i18n Projects with kapi
-description: "How to use the kapi CLI to translate a neokapi-i18n KBF archive: pseudo-translation for QA, AI translation with the provider of your choice, and review and QA flows that write results back to the archive in place."
+description: "How to use the kapi CLI to translate a neokapi-i18n KBF archive: pseudo-translation for layout checks, AI translation with the provider of your choice, and review and check flows that write results back to the archive in place."
 keywords: [kapi, translate, KBF, pseudo-translate, AI translation, neokapi-i18n, translation workflow]
 ---
 
@@ -9,7 +9,7 @@ keywords: [kapi, translate, KBF, pseudo-translate, AI translation, neokapi-i18n,
 
 `neokapi-i18n` produces a KBF directory archive. The `kapi` CLI translates it. This page walks through the three most useful flows.
 
-## Pseudo-translation for UI QA
+## Pseudo-translation for UI checks
 
 Pseudo-translation is the fastest way to see what has been picked up for translation, and what has not.
 
@@ -83,7 +83,7 @@ kapi exec translate i18n/ --target-lang fr --skip-matched
 
 Only the blocks added since the last pass are sent to the LLM; everything already translated is left as-is.
 
-## Quality assurance
+## Checks
 
 `kapi exec qa` runs placeholder, inline-code, whitespace, and length checks against a translated archive; `kapi exec term-check` enforces approved terminology:
 
@@ -98,9 +98,9 @@ kapi exec term-check i18n/ --target-lang fr --termstore terms/fr.db   # terminol
 - **Length bounds**: flag targets that grow or shrink beyond configurable percentages of the source (useful for fixed-width UI containers).
 - **Consistency**: double spaces, doubled words, leading/trailing whitespace, target-identical-to-source, and more (each individually toggleable).
 
-`term-check` flags targets that diverge from an approved term, for example a product name that must stay untranslated. (`kapi exec qa --check-terminology` folds the project terms store into the QA pass instead of running a separate command.)
+`term-check` flags targets that diverge from an approved term, for example a product name that must stay untranslated. (`kapi exec qa --check-terminology` folds the project terms store into the check pass instead of running a separate command.)
 
-QA results can fail your build. A common CI pattern is `extract → translate → qa`, exiting non-zero on any category you gate on.
+Findings can fail your build. A common CI pattern is `extract → translate → qa`, exiting non-zero on any category you gate on.
 
 ## Content memory leverage
 
@@ -207,11 +207,11 @@ Define a `translate` flow in the recipe (for example `recycle` → `translate` �
 
 The same flows run from your AI assistant. With the [kapi MCP server](/reference/mcp)
 connected, point Claude at your extracted strings and ask it to translate and check
-them. It calls `kapi` to translate the KBF archive, runs the QA checks, and fixes
+them. It calls `kapi` to translate the KBF archive, runs the checks, and fixes
 anything that breaks, the same author → check → revise loop you'd run by hand:
 
 > "Translate the strings in `i18n/` to French and German, keep the placeholders and
-> inline elements intact, then run QA and fix anything that fails."
+> inline elements intact, then run the checks and fix anything that fails."
 
 Claude translates in place (locale-additive), runs `kapi exec qa` / `kapi exec term-check`, and
 loops on the findings until the archive passes; you `neokapi-i18n compile` the result as

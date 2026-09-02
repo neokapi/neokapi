@@ -33,7 +33,7 @@ const MANIFEST_FILENAME = "translations-manifest.json";
  * default fetch URL (`<base>translations/review.json`), so a static
  * build is self-sufficient: stamps + this file → `initKapiReviewHosted`
  * works with no dev server and no app i18n runtime (AD-035). Richer
- * manifests (all locales, term/QA annotations) still come from
+ * manifests (all locales, term/check annotations) still come from
  * `neokapi-i18n compile --review`, which reads the whole KBF tree.
  */
 const REVIEW_FILENAME = "translations/review.json";

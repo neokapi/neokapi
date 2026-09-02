@@ -12,7 +12,7 @@ import (
 // This file is the one home of the content-*shape* predicates: where the content
 // begins and ends, what sits next to what, whether anything is there at all.
 // Every venue that judges shape — the source-side `kapi check` hygiene family,
-// the bilingual `qa.*` family, and the editor/lab QA overlays — calls these, so
+// the bilingual `qa.*` family, and the editor/lab check overlays — calls these, so
 // a rule cannot mean one thing in the CLI and another in a preview.
 //
 // They all read a [HygieneText] flattening rather than a plain SourceText,
@@ -126,7 +126,7 @@ func DoubledWord(text, exceptions string) string {
 }
 
 // HygieneOverlay returns the shape findings that carry a *range* — double spaces
-// and doubled words — as a source-anchored QA overlay, one span per occurrence,
+// and doubled words — as a source-anchored check overlay, one span per occurrence,
 // or nil when the content is clean. It is the overlay form of the same rules
 // `kapi check` reports as `hygiene.double-spaces` / `hygiene.doubled-word`, and
 // backs the desktop and lab annotators so a preview highlight and a CLI finding

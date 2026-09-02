@@ -179,7 +179,7 @@ export const Swimlane: Story = {
       ]}
       messages={[
         { from: 0, to: 1, label: "kapi push" },
-        { from: 1, to: 1, label: "translate / QA" },
+        { from: 1, to: 1, label: "translate / checks" },
         { from: 1, to: 2, label: "assign" },
         { from: 2, to: 1, label: "review, approve" },
         { from: 0, to: 1, label: "kapi pull" },
@@ -391,7 +391,7 @@ export const GatedLoop: Story = {
           kind: "phase",
           role: "source",
           label: "settle source",
-          steps: ["term-check + protect", "voice-check", "source QA"],
+          steps: ["term-check + protect", "voice-check", "source checks"],
         },
         {
           kind: "gate",
@@ -403,7 +403,7 @@ export const GatedLoop: Story = {
           kind: "phase",
           role: "translate",
           label: "translate approved source",
-          steps: ["recycle (content memory-first)", "AI remainder", "target QA"],
+          steps: ["recycle (content memory-first)", "AI remainder", "target checks"],
         },
         {
           kind: "gate",
@@ -427,7 +427,7 @@ export const GatedLoopMonolingual: Story = {
           kind: "phase",
           role: "source",
           label: "settle source",
-          steps: ["term-check + protect", "voice-check", "source QA"],
+          steps: ["term-check + protect", "voice-check", "source checks"],
         },
         {
           kind: "gate",

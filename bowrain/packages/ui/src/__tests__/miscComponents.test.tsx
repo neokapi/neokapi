@@ -734,12 +734,12 @@ describe("TaskIndicator", () => {
   it("renders task titles when opened", async () => {
     const tasks = [
       makeTask({ id: "t1", title: "Review French" }),
-      makeTask({ id: "t2", title: "QA German" }),
+      makeTask({ id: "t2", title: "Check German" }),
     ];
     render(<TaskIndicator tasks={tasks} />);
     await userEvent.click(screen.getByTitle("My tasks"));
     expect(screen.getByText("Review French")).toBeInTheDocument();
-    expect(screen.getByText("QA German")).toBeInTheDocument();
+    expect(screen.getByText("Check German")).toBeInTheDocument();
   });
 
   it("calls onCompleteTask with stopPropagation when Done is clicked", async () => {

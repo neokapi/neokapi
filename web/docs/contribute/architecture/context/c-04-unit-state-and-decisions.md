@@ -252,13 +252,13 @@ other pair: a person read the pairing and said this wording is right, which is
 what proper nouns, product names and short labels look like when they are
 correct.
 
-**A decision settles the check that guesses at it.** The QA rule
+**A decision settles the check that guesses at it.** The rule
 `target-same-as-source` is a heuristic for "nobody translated this", and an
 approval is a person having read that exact pairing and answered the question it
 asks, so an approved identical target is not reported and does not fail the ship
 gate. The project's terms settle it the same way, for an entry whose target is
 its source. Both are one rule (`host.identicalTargetRule`) because two surfaces
-consult it: the QA gate `kapi check` fails on, and the check exclusions that
+consult it: the gate `kapi check` fails on, and the check exclusions that
 demote a unit below `translated` during `kapi up`. Only that one finding is
 settled; a dropped placeholder on an approved unit is still a defect, and an
 approval licenses nothing about it.

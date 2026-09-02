@@ -179,7 +179,7 @@ custom shape.
 
 Gate pull requests on the project's release bar whenever content files
 change. `kapi check --ship` runs the project's bound quality gates (voice,
-terms, QA) plus its ship/source coverage gates, and exits `3`, failing
+terms, rule-based checks) plus its ship/source coverage gates, and exits `3`, failing
 the job, when any gate is unmet:
 
 ```yaml
@@ -381,4 +381,4 @@ Use `latest` (the default) for workflows where you always want the newest releas
 - [kapi up](/cli/commands/up): run the kapi loop on the server (push → catch up → pull)
 - [kapi push](/cli/commands/push) and [kapi pull](/cli/commands/pull)
 - [kapi auth](/cli/commands/auth)
-- [Source Language Preparation](/cli/use-cases/source-prep): QA on source content in CI
+- [Source Language Preparation](/cli/use-cases/source-prep): checks on source content in CI

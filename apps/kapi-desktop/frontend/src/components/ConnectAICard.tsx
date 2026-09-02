@@ -129,7 +129,7 @@ export function ConnectAICard({ detection: propDetection, onConfigured }: Connec
       </div>
       <p className="mb-4 text-xs text-muted-foreground">
         {t(
-          "Translation and QA run through an AI model of your choice. Pick one to get started — you can change it any time in Settings.",
+          "Translation and checks run through an AI model of your choice. Pick one to get started — you can change it any time in Settings.",
         )}
       </p>
 

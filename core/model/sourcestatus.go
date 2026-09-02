@@ -70,7 +70,7 @@ const (
 	// passes. (Effectively a no-op gate, provided for completeness/symmetry.)
 	SourceGateAuthored SourceGateLevel = "authored"
 	// SourceGateChecked is the DEFAULT: the source must clear its automated
-	// terminology + voice + source-QA checks (no human bottleneck).
+	// terminology + voice + source hygiene checks (no human bottleneck).
 	SourceGateChecked SourceGateLevel = "checked"
 	// SourceGateApproved requires a human/agent source sign-off — for
 	// brand-critical or regulated projects.

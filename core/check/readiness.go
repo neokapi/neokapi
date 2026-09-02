@@ -14,7 +14,7 @@ import (
 // authored→checked derivation both venues share (the Bowrain server's
 // settleBlockStatus and the local converge's source-gate leading stage), so the
 // server and CLI promote/demote a block from identical findings. Content-lint
-// supplies the source-QA hygiene findings; the readiness tool promotes a clean
+// supplies the source-side hygiene findings; the readiness tool promotes a clean
 // block to `checked` and demotes a block with a major+ finding to `authored`,
 // leaving an already-`approved` clean source untouched.
 //
@@ -28,7 +28,7 @@ func SettleSourceStatus(ctx context.Context, b *model.Block) {
 	}
 	part := &model.Part{Type: model.PartBlock, Resource: b}
 
-	// Source-QA hygiene (empty/whitespace, doubled words, stray control chars…).
+	// Source hygiene (empty/whitespace, doubled words, stray control chars…).
 	lint := NewContentLintTool()
 	_, _ = lint.ApplyContext(ctx, part)
 

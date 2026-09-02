@@ -14,8 +14,8 @@
 # (/kapi/direct-execution-layer).
 #
 # Fully offline: recycle leverages the pre-seeded/in-memory content memory, the composed
-# flow is recycle + deterministic qa, and extract/merge are pure filesystem +
-# skeleton round-trip. Every runnable step works in the wasm embed.
+# flow is recycle + deterministic rule-based checks, and extract/merge are pure
+# filesystem + skeleton round-trip. Every runnable step works in the wasm embed.
 
 id: kapi-under-the-hood
 scene: under-the-hood
@@ -26,7 +26,7 @@ mode: interactive
 # matching French so recycle has real leverage. kapi.yaml declares
 # the content (with a target template) and two non-shadowing flows: tm-recycle
 # (the single content memory step) and leverage-check (recycle composed with the
-# deterministic qa checks).
+# deterministic rule-based checks).
 seed:
   - messages.json
 files:
@@ -123,7 +123,7 @@ steps:
     smoke: true
   - comment: One named pipeline, one pass — kapi run.
   - command: kapi run leverage-check -i messages.json
-    narration: run executes a composed flow once — recycle, then the deterministic qa checks. In a project the pass commits to the project store. up is this pass, looped until every gate is met or the rest parks.
+    narration: run executes a composed flow once — recycle, then the deterministic rule-based checks. In a project the pass commits to the project store. up is this pass, looped until every gate is met or the rest parks.
     # smoke:false — consumes the content memory seeded by the prior memory import step; W7 would
     # run it in isolation (no content memory) and leverage nothing.
     smoke: false

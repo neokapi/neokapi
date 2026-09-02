@@ -68,7 +68,7 @@ export interface VisualEditorCardProps {
   onInsertTerm: (text: string) => void;
   referenceLocales?: string[];
   project: ProjectInfo;
-  // QA
+  // Findings
   qaIssues?: QAIssue[];
   // Block history
   history?: BlockHistoryEntry[];
@@ -205,7 +205,7 @@ export function VisualEditorCard({
           <Badge variant="secondary" className={cn("text-[10px] px-1.5 py-0 h-4", sc.className)}>
             {sc.label}
           </Badge>
-          {/* QA issue badges */}
+          {/* Finding badges */}
           {qaErrors.length > 0 && (
             <button
               type="button"
@@ -251,7 +251,7 @@ export function VisualEditorCard({
         </Tabs>
       </div>
 
-      {/* ── QA issues (expanded) ─────────────────────────── */}
+      {/* ── Findings (expanded) ──────────────────────────── */}
       {qaExpanded && qaIssues && qaIssues.length > 0 && (
         <div className="px-4 pb-2" data-testid="qa-issues-list">
           <div className="rounded-md border border-border bg-muted/30 p-2 space-y-1">

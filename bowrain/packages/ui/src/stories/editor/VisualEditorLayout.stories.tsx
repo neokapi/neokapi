@@ -154,7 +154,7 @@ export const EnrichMode: Story = {
 };
 
 /**
- * Interactive layout with all panels: content memory, terms, QA, history, notes,
+ * Interactive layout with all panels: content memory, terms, findings, history, notes,
  * presence slot. Full editing flow is functional.
  */
 export const FullFeatured: Story = {
@@ -230,7 +230,7 @@ export const WithTermSidebar: Story = {
   },
 };
 
-/** Static snapshot: QA issues and file QA results */
+/** Static snapshot: block findings and file findings */
 export const WithQAIssues: Story = {
   args: {
     qaIssues: sampleQAIssues,

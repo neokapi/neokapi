@@ -2052,7 +2052,7 @@ export class RestApiAdapter implements ApiAdapter {
     );
   }
 
-  // ── QA ─────────────────────────────────────────────────────────────────
+  // ── Checks ─────────────────────────────────────────────────────────────
 
   async runQACheck(
     workspaceSlug: string,

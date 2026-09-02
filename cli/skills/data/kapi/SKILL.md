@@ -105,7 +105,7 @@ don't impose a project on a genuine one-off. See
 files is not the finish line — a clean verify is. Don't trust a single pass of your
 own output: in a project, run `kapi check --ship` after writing or translating content. It
 checks the work against the project's gates — voice profile score, terminology, and
-translation QA (placeholders intact, nothing left untranslated) — and prints the
+translation checks (placeholders intact, nothing left untranslated) — and prints the
 specific findings. Fix what it flags and run it again, until it passes (exit 0). kapi
 is the gate; keep iterating until it's green. (The kapi Claude Code plugin also wires
 this in as a Stop hook, so a failing gate keeps you working automatically.)

@@ -136,7 +136,7 @@ func TestUpPlan_PlaceholderOnlyTargetIsAlreadyProduced(t *testing.T) {
 // placeholder-only target, so it reached the ship gate having never been checked.
 // The symptom is silence — the unit ships, and no finding was ever reported about
 // it. Here the placeholder-only target drops its source's placeholder, which the
-// QA checkset reports as a missing code; before the fix nothing looked.
+// rule-based checkset reports as a missing code; before the fix nothing looked.
 func TestLoopChecks_PlaceholderOnlyTargetIsCheckable(t *testing.T) {
 	root := t.TempDir()
 	source := []model.Run{ph("1", "p.price"), ph("2", "p.unit")}

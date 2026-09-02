@@ -62,7 +62,7 @@ func TestQADispatch(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, det)
 
-	// Provider set → LLM-judged QA.
+	// Provider set → the LLM judge.
 	llm, err := reg.NewToolWithConfig("qa", map[string]any{"provider": "anthropic", "apiKey": "test"}, "fr")
 	require.NoError(t, err)
 	require.NotNil(t, llm)

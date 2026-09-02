@@ -111,7 +111,7 @@ func kapiIn(t *testing.T, dir string, args ...string) string {
 }
 
 // kapiAllowFail runs kapi and returns combined output + error WITHOUT failing
-// the test. Use for QA gates (qa, term-check) that exit non-zero when
+// the test. Use for check gates (qa, term-check) that exit non-zero when
 // they find issues — a non-zero exit is a result to assert on, not a harness
 // failure. Same isolation env as kapi().
 func kapiAllowFail(t *testing.T, args ...string) (string, error) {
@@ -122,10 +122,10 @@ func kapiAllowFail(t *testing.T, args ...string) (string, error) {
 	return string(out), err
 }
 
-// ─── User Story 1: Terminology QA ───────────────────────────────────────────
+// ─── User Story 1: Terminology checks ───────────────────────────────────────
 // Verifies the complete workflow from terminology-qa.md:
 //   Import terms → inspect stats → lookup terms → search →
-//   run QA on translations → export terms
+//   run the checks on translations → export terms
 
 func TestTermsImport(t *testing.T) {
 	tb := tempDB(t, "tb")
@@ -190,10 +190,10 @@ func TestTermsExportJSON(t *testing.T) {
 	assert.Contains(t, content, "chiffrement")
 }
 
-// TestTermCheckWithTerms exercises terminology QA on a pseudo-translated
+// TestTermCheckWithTerms exercises terminology checks on a pseudo-translated
 // file. Steps: pseudo-translate → term-check with terms.
 // The pseudo-translated output will not use correct French terminology, so
-// term-check flags violations and exits non-zero (a QA gate, not a failure).
+// term-check flags violations and exits non-zero (a check gate, not a failure).
 func TestTermCheckWithTerms(t *testing.T) {
 	tb := importedTerms(t)
 	tmp := t.TempDir()
@@ -206,7 +206,7 @@ func TestTermCheckWithTerms(t *testing.T) {
 	assert.FileExists(t, pseudoOut)
 
 	// Step 2: term-check against the terms store — exercises flag parsing,
-	// terms loading and processing. It runs as an informational QA pass
+	// terms loading and processing. It runs as an informational check pass
 	// (exit 0; no stdout), so a clean run is the assertion. term-check is not
 	// in the curated TopLevelTools tier, so it executes via `kapi exec`.
 	// The store selector is --termstore (#1505): --terms is a different flag,
@@ -241,7 +241,7 @@ func TestQACheckWithoutTerms(t *testing.T) {
 // ─── User Story 2: Pre-Translation with content memory + Terminology ────────────────────
 // Verifies the complete workflow from terminology-pretranslation.md:
 //   Import content memory → inspect stats → lookup entries → search →
-//   content-memory leverage → pseudo-translate remaining → QA with terms
+//   content-memory leverage → pseudo-translate remaining → check with terms
 
 func TestMemoryImport(t *testing.T) {
 	memoryFile := tempDB(t, "memory")
@@ -316,7 +316,7 @@ func TestMemoryLeverage(t *testing.T) {
 	assert.Contains(t, content, "Téléversement de fichier")
 }
 
-// ─── Full Pipeline: content memory Leverage → Pseudo-Translate → QA + Terms ──────────
+// ─── Full Pipeline: content memory Leverage → Pseudo-Translate → Checks + Terms ──────
 
 // TestFullPipeline runs the supported standalone pipeline end-to-end:
 // pseudo-translate → qa → term-check against the project terms.
@@ -332,7 +332,7 @@ func TestFullPipeline(t *testing.T) {
 		"--target-lang", "fr")
 	assert.FileExists(t, pseudoOut)
 
-	// Step 2: Rule-based QA — writes annotated output.
+	// Step 2: The rule-based checks — write annotated output.
 	qaOut := filepath.Join(tmp, "step2_qa.json")
 	_, _ = kapiAllowFail(t, "exec", "qa", pseudoOut,
 		"-o", qaOut,
@@ -340,7 +340,7 @@ func TestFullPipeline(t *testing.T) {
 		"--target-lang", "fr")
 	assert.FileExists(t, qaOut)
 
-	// Step 3: Terminology QA against the terms (informational, exit 0, no
+	// Step 3: Terminology checks against the terms (informational, exit 0, no
 	// stdout). Executes via `kapi exec` (not a curated top-level verb).
 	kapi(t, "exec", "term-check", pseudoOut,
 		"--source-lang", "en",

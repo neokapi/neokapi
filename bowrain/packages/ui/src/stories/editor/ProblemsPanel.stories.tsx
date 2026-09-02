@@ -43,7 +43,7 @@ export const NoIssues: Story = {
   },
 };
 
-/** Loading state while QA checks are running */
+/** Loading state while the checks are running */
 export const Loading: Story = {
   args: {
     issues: [],

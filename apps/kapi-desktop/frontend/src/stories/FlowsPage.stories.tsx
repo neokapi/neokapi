@@ -26,7 +26,7 @@ const SAMPLE_FLOWS: Record<string, FlowSpec> = {
       {
         tool: "",
         parallel: [
-          { tool: "qa", label: "QA Check" },
+          { tool: "qa", label: "Quality Check" },
           { tool: "voice-vocab-check", label: "Brand Check" },
         ],
       },

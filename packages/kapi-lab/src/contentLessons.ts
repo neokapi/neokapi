@@ -13,7 +13,7 @@ export type ContentTab = NonNullable<DocumentViewerProps["defaultTab"]>;
 export interface ContentInspectSpec {
   /**
    * Read-only annotators to run before building the tree, so their overlays show
-   * (segmentation boundaries, term matches, QA + voice findings). Omitted = a
+   * (segmentation boundaries, term matches, check + voice findings). Omitted = a
    * plain structural inspect (anatomy only).
    */
   annotate?: AnnotateOptions;
@@ -57,9 +57,9 @@ export const CONTENT_LESSONS: ContentLesson[] = [
   },
   {
     id: "annotations",
-    label: "Terms & QA overlays",
+    label: "Terms & check overlays",
     description:
-      "Tools communicate by attaching stand-off state, never by rewriting text: terminology matches and rule-based QA ride as overlays on the source. The Preview highlights each span in place; open a Block to read the overlay's properties.",
+      "Tools communicate by attaching stand-off state, never by rewriting text: terminology matches and rule-based checks ride as overlays on the source. The Preview highlights each span in place; open a Block to read the overlay's properties.",
     sampleId: "support-reply",
     spec: { annotate: { term: true, qa: true, brand: true }, tab: "preview" },
   },

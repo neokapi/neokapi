@@ -262,6 +262,11 @@ const config: Config = {
             from: "/kapi/recipes/gate-localization-in-ci",
             to: "/kapi/recipes/ship-gates-and-ci",
           },
+          // The page at the old `qa-checks` slug documented the deterministic
+          // rules and is now Rule-based checks. The published route is indexed,
+          // so it redirects. The registered tool is still `qa`; only the page
+          // name changed.
+          { from: "/framework/checks/qa-checks", to: "/framework/checks/rule-checks" },
           // The architecture corpus is organized by concern in six series, each
           // a directory. Every retired numeric slug keeps a redirect, and the
           // pre-existing renames below point straight at the final route rather

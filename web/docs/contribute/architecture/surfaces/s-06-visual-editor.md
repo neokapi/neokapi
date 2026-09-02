@@ -171,10 +171,10 @@ work, and each embodies a decision.
 
 **The accent key is the effective category.** A voice-vocabulary violation rides
 on the generic `qa` overlay type, so an accent chosen on type alone would paint
-it as an ordinary QA finding. The resolver therefore reads the span's own
+it as an ordinary finding. The resolver therefore reads the span's own
 category: a `qa` span categorised as voice vocabulary resolves to the voice
 accent, and everything else resolves on its type. The style table gives
-terminology a violet "Vocabulary" accent, voice a pink "Voice", other QA an
+terminology a violet "Vocabulary" accent, voice a pink "Voice", other findings an
 amber, entities a sky blue, segmentation and alignment their own muted accents,
 and redaction an entry whose label and tooltip are used while the renderer paints
 a censor bar instead of a background. Unknown keys fall back to a neutral
@@ -271,7 +271,7 @@ Within the content model and its interchange family
 - **The skeleton** is the binary skeleton store ([E-02](../engine/e-02-format-system.md)).
 
 **Overlays are reconstructed on demand** rather than serialized as positional
-structure: segmentation is recomputed from the runs, and term, entity, and QA
+structure: segmentation is recomputed from the runs, and term, entity, and check
 overlays are re-attached by the tools that produce them within a session. Because
 overlay spans anchor to run ranges, a source rewrite shifts or drops them through
 the framework's overlay remapping; targets and annotations are unaffected.
@@ -306,7 +306,7 @@ the framework's overlay remapping; targets and annotations are unaffected.
 
 - **Overlay persistence.** The framework has no persistence layer for positional
   overlays; the JSON-Lines sidecar is defined but not yet read or written by the
-  preview kit. Whether term, entity, and QA overlays should persist rather than
+  preview kit. Whether term, entity, and check overlays should persist rather than
   always be re-derived is unsettled.
 - **`BlockIndex` lifecycle on edit.** Whether a frontend holds its own index and
   sends delta edits, or re-derives it after each commit, is not pinned down.

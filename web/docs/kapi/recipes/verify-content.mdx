@@ -78,9 +78,9 @@ Field-by-field, the Report is documented in [Checks](/framework/checks); the fla
 
 ## In a project: the ship gate
 
-Inside a [kapi project](/kapi/get-started/first-project), `kapi check` with no file arguments checks the project's declared content with the recipe's bound rules. **`kapi check --ship`** is the project gate mode: it runs the bound quality gates (voice, terminology, QA, staleness) plus the ship/source coverage gates over the project's content, and exits non-zero when any gate is unmet. It is the pre-release bar. Ordinary builds never fail on target drift; `--ship` is the explicit enforcement point. See [Ship gates & CI](/kapi/recipes/ship-gates-and-ci).
+Inside a [kapi project](/kapi/get-started/first-project), `kapi check` with no file arguments checks the project's declared content with the recipe's bound rules. **`kapi check --ship`** is the project gate mode: it runs the bound quality gates (voice, terminology, rule-based checks, staleness) plus the ship/source coverage gates over the project's content, and exits non-zero when any gate is unmet. It is the pre-release bar. Ordinary builds never fail on target drift; `--ship` is the explicit enforcement point. See [Ship gates & CI](/kapi/recipes/ship-gates-and-ci).
 
-The QA gate reads the project's own record where a rule can only guess. A target
+The gate reads the project's own record where a rule can only guess. A target
 identical to its source is normally a unit nobody translated, so it fails the
 gate, unless the project has settled it: an approval bound to that exact pairing
 (a person read it and said the wording is right), or a terms entry whose target

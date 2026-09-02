@@ -28,7 +28,7 @@ const DefaultOllamaModel = "llama3.2:3b"
 
 // ollamaTranslateTemperature is the default sampling temperature for Ollama when
 // the caller leaves Config.Temperature unset. kapi's local-model use is
-// overwhelmingly translation and QA, where deterministic, terminology-faithful
+// overwhelmingly translation and checks, where deterministic, terminology-faithful
 // output matters far more than creative variety — Ollama's own default (0.8) is
 // too loose and degrades terminology obedience.
 const ollamaTranslateTemperature = 0.2
@@ -73,7 +73,7 @@ func (p *OllamaProvider) ChatStructured(ctx context.Context, messages []Message,
 }
 
 // ChatStream sends a chat message and streams the response token-by-token. It
-// satisfies StreamingLLMProvider, giving the translate/QA tools live progress
+// satisfies StreamingLLMProvider, giving the translate and check tools live progress
 // instead of one long opaque wait on a local model.
 func (p *OllamaProvider) ChatStream(ctx context.Context, messages []Message, onEvent func(ChatStreamEvent)) (*ChatResponse, error) {
 	return p.stream(ctx, messages, nil, onEvent)

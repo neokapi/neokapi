@@ -16,7 +16,7 @@ import (
 // but the type set is XLIFF 2-specific: <ph>, <pc>, <sc>, <ec>, <mrk>,
 // <sm>/<em>, <cp>. Every spec attribute (XLIFF 2.2 Part 1 §3.3) is a
 // typed Go field — no string-keyed attribute bags — so downstream tools
-// (QA, MT, segmentation) can act on attribute semantics directly.
+// (checks, MT, segmentation) can act on attribute semantics directly.
 
 // Content is the body of a <source>, <target>, <pc>, or <mrk> element:
 // an ordered sequence of inline nodes (text + inline elements). The

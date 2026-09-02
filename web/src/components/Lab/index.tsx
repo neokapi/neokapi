@@ -100,7 +100,7 @@ export interface ContentLabProps {
 
 // ContentLab — the consolidated content-model inspect surface (replaces
 // AnatomyExplorer + RoundTripExplorer). A lesson picks the lens (anatomy,
-// segmentation, terms/QA, source↔target, structure, round-trip).
+// segmentation, terms/checks, source↔target, structure, round-trip).
 export function ContentLab(props: ContentLabProps): React.ReactElement {
   return (
     <BrowserOnly fallback={<Loading />}>

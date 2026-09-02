@@ -12,9 +12,9 @@ import (
 // kind that must survive a store round-trip: segmentation (incl. an ignorable
 // span), an entity overlay carrying a typed *EntityAnnotation Value (the
 // entity→concept promote path), a term overlay carrying a typed
-// *TermAnnotation Value, a term-candidate overlay, a QA overlay carrying only
-// props, and a target-side (Variant-bearing) alignment overlay. Anchors use
-// real run-index ranges.
+// *TermAnnotation Value, a term-candidate overlay, a check-findings overlay
+// (model.OverlayQA) carrying only props, and a target-side (Variant-bearing)
+// alignment overlay. Anchors use real run-index ranges.
 func overlaysFixture() []model.Overlay {
 	frVariant := model.VariantKey{Locale: model.LocaleFrench}
 	return []model.Overlay{

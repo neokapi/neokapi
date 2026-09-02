@@ -26,7 +26,7 @@ Implement `SessionTool` when your tool:
   the LLM for a block whose target is already cached is wasted
   money and latency.
 - **Writes annotations** that a downstream tool (same flow or next
-  run) wants to consult. Memory fuzzy matches, term hits, QA findings.
+  run) wants to consult. Memory fuzzy matches, term hits, check findings.
 - **Needs block-by-hash lookup** for cross-reference (rare, but
   e.g. "inline-code alignment against the last-known target").
 

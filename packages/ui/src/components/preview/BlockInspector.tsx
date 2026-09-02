@@ -43,7 +43,7 @@ function wordCount(runs: Run[] | undefined): number {
 
 // BlockInspector shows a translatable Block in full: its source run sequence,
 // every committed target variant with lifecycle status and provenance, the
-// stand-off overlays interpreting it (segmentation, terms, entities, QA,
+// stand-off overlays interpreting it (segmentation, terms, entities, checks,
 // alignment), block-level annotations, properties and flags. Collapsed it reads
 // as a compact one-liner; expanded it reveals everything the content model
 // carries on the part — so a learner can see what a pipeline produced.

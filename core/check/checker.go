@@ -60,8 +60,9 @@ func Annotate(v tool.BlockView, source string, findings []Finding, opts ...Score
 
 // Findings returns the findings already recorded on the block under
 // AnnotationKey, or nil when none are present. It is the read counterpart to
-// Annotate: consumers (verify gates, the QA handler, the desktop Checks panel)
-// read one shape regardless of which checker produced the findings.
+// Annotate: consumers (verify gates, the server's checks handler, the desktop
+// Checks panel) read one shape regardless of which checker produced the
+// findings.
 func Findings(v tool.BlockView) []Finding {
 	if a, ok := v.Annotations()[AnnotationKey].(*FindingsAnnotation); ok {
 		return a.Findings

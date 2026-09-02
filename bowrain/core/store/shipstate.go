@@ -5,10 +5,10 @@ package store
 type ShipState string
 
 const (
-	// ShipStateGoverned — fully translated, no failing QA checks, and every
+	// ShipStateGoverned — fully translated, no failing checks, and every
 	// block's target carries a review decision (human-approved).
 	ShipStateGoverned ShipState = "governed"
-	// ShipStateAIShippable — fully translated with no failing QA checks, but
+	// ShipStateAIShippable — fully translated with no failing checks, but
 	// not fully reviewed: shippable on machine review only.
 	ShipStateAIShippable ShipState = "ai_shippable"
 	// ShipStatePending — anything less: partial coverage, failing checks, or

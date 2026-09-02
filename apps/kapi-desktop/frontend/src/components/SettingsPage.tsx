@@ -208,7 +208,7 @@ export function SettingsPage({ theme: propTheme, uiLanguage: propLang }: Setting
                   ))}
                 </div>
                 <p className="mt-2 text-[10px] text-muted-foreground">
-                  Pseudo English expands strings and adds accents — useful for multilingual QA.
+                  Pseudo English expands strings and adds accents — useful for multilingual checks.
                 </p>
               </CardContent>
             </Card>

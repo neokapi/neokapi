@@ -31,7 +31,7 @@ import shared from "./styles.module.css";
 // and annotations), Structure / Layout, and the Raw source with a round-trip
 // diff. A lesson chooses the lens — which annotators to run, whether to run a
 // command and inspect its output, and which tab to open — so the same surface
-// specializes to what each page teaches (anatomy, segmentation, terms/QA,
+// specializes to what each page teaches (anatomy, segmentation, terms/checks,
 // source↔target, structure, round-trip). It replaces AnatomyExplorer and
 // RoundTripExplorer.
 //

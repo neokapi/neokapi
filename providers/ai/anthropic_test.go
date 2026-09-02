@@ -79,13 +79,13 @@ func TestAnthropicChatStructuredLiftsSystem(t *testing.T) {
 
 	got := captureAnthropic(t, func(p *AnthropicProvider) error {
 		_, err := p.ChatStructured(t.Context(), []Message{
-			TextMessage(RoleSystem, "You are a QA reviewer."),
+			TextMessage(RoleSystem, "You are a translation reviewer."),
 			TextMessage(RoleUser, "Check this."),
 		}, JSONSchema{Name: "structured_output", Schema: map[string]any{"type": "object"}})
 		return err
 	})
 
-	assert.Equal(t, "You are a QA reviewer.", got.System)
+	assert.Equal(t, "You are a translation reviewer.", got.System)
 	require.Len(t, got.Messages, 1)
 	assert.Equal(t, RoleUser, got.Messages[0].Role)
 }

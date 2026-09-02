@@ -52,7 +52,7 @@ Translation composes with other LLM-backed tools in the same [flow](/framework/f
 
 The `qa` tool runs deterministic rule-based checks without `--provider`, and
 switches to LLM-judged review when a provider is given. See
-[QA checks](/framework/checks/qa-checks) for the full check catalogue.
+[Rule-based checks](/framework/checks/rule-checks) for the full check catalogue.
 
 ## Composing in flows
 

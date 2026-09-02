@@ -88,7 +88,7 @@ survive. The rule, applied per code, is:
   that deletes the text around it.
 - Codes outside the edited range are unaffected.
 
-Because the deletability of each code is resolved from the same vocabulary the QA
+Because the deletability of each code is resolved from the same vocabulary the
 checks consult, an edit and a translation are held to one definition of which
 codes are required. The framework primitive is `model.ApplyTextEdits`.
 

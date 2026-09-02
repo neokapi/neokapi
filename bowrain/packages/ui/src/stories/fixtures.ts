@@ -405,7 +405,7 @@ export const deprecatedTermMatch: BlockTermMatch = {
 };
 
 // ---------------------------------------------------------------------------
-// QA Issue samples
+// Finding samples
 // ---------------------------------------------------------------------------
 
 export const sampleQAIssues: QAIssue[] = [
@@ -946,7 +946,7 @@ export const sampleAutomationRules: AutomationRule[] = [
   {
     id: "rule-2",
     project_id: "proj-demo-1",
-    name: "QA check after translation",
+    name: "Checks after translation",
     trigger: "translation.completed",
     conditions: [],
     actions: [{ Type: "run_flow", Config: { flow: "qa" } }],

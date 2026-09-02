@@ -18,7 +18,7 @@ the pipeline that produces the drift: close what a machine can close, deliver
 it as a reviewable pull request, and enforce the release bar on merges, with
 content quality treated like any other test. This covers the source language
 too: the ship gate includes the source gates (voice, terminology) alongside
-translation coverage and QA.
+translation coverage and the rule-based checks.
 
 <PhaseFlow
   nodes={[
@@ -136,8 +136,8 @@ jobs via dotenv.
 
 ## Gate merges on content quality
 
-`kapi check --ship` runs the project's bound quality gates (voice,
-terminology, QA, staleness) plus its ship/source coverage gates, and exits `3`
+`kapi check --ship` runs the project's bound quality gates (voice, terminology,
+rule-based checks, staleness) plus its ship/source coverage gates, and exits `3`
 when any gate is unmet. Machine-produced translations fail quietly: a dropped
 placeholder, a competitor's term, wording that drifts off the approved
 vocabulary. The gate makes the pipeline find them before a reader does.

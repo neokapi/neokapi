@@ -85,7 +85,7 @@ export interface LabRuntime {
   inspect: (filename: string, data: string | Uint8Array) => Promise<InspectOutcome>;
   /**
    * Inspect like {@link inspect}, but with the engine's read-only annotators
-   * (terminology, voice vocabulary, rule-based QA) run first so the blocks carry
+   * (terminology, voice vocabulary, rule-based checks) run first so the blocks carry
    * stand-off overlays. `opts` toggles individual annotators (default all on).
    */
   inspectAnnotated: (

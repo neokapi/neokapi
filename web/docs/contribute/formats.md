@@ -148,7 +148,7 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 Most document formats contain inline markup: bold, italic, links, images,
 line breaks, variables, placeholders. The framework must preserve this markup
 through the entire pipeline (extraction, content-memory lookup, MT, AI
-translation, QA, reconstruction) without corruption.
+translation, checks, reconstruction) without corruption.
 
 neokapi solves this with the **Run** model: a block's content is a flat
 `[]model.Run` sequence. Text travels as `TextRun`s; inline markup becomes
@@ -411,7 +411,7 @@ tags, whitespace, and attributes, which risks losing information.
 ## Run Metadata Fields
 
 An inline-code run carries more than just the raw markup. These fields help
-tools, editors, and QA checks work with inline codes intelligently:
+tools, editors, and checks work with inline codes intelligently:
 
 | Field         | Purpose                                          | Example                                  |
 | ------------- | ------------------------------------------------ | ---------------------------------------- |

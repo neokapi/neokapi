@@ -11,7 +11,7 @@ import "./diagram.css";
       Developer                    Bowrain Server                 Translator
           |                              |                             |
           |  kapi push ───────────────► |                             |
-          |                             | translate / QA              |
+          |                             | translate / checks          |
           |  kapi pull ◄─────────────── |                             |
           |                             | ◄──────────── review, approve|
 

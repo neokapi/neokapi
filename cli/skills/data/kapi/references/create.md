@@ -42,7 +42,8 @@ and parse again.
 ## 3. Gate on voice and terminology
 
 Run the content rules. For a one-off file, `kapi check`; in a project,
-`kapi check --ship` runs every bound gate (voice profile, terminology, QA) together:
+`kapi check --ship` runs every bound gate (voice profile, terminology,
+rule-based checks) together:
 
 ```bash
 kapi check draft.md --profile-file voice.yaml --json   # one-off

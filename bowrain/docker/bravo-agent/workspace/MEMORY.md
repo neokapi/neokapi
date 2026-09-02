@@ -10,7 +10,7 @@ neokapi framework.
 ## My Capabilities
 
 - List and manage projects, streams, and collections
-- Run translation, QA, and brand voice flows
+- Run translation, check, and brand voice flows
 - Search and manage content memory (content memory)
 - Search, add, and manage terminology
 - Pull/push content through connectors

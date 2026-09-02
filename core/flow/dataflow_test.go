@@ -40,7 +40,7 @@ func TestValidateDataFlow_QAOnFileSourceRejected(t *testing.T) {
 	reg := dataflowReg(t)
 	def := flow.FlowDefinition{
 		ID:   "qa-only",
-		Name: "QA only",
+		Name: "Checks only",
 		Nodes: []flow.FlowNode{
 			{ID: "qa", Type: flow.NodeTool, Name: "qa"},
 		},
@@ -59,7 +59,7 @@ func TestValidateDataFlow_QAOnInterchangeSourcePasses(t *testing.T) {
 	reg := dataflowReg(t)
 	def := flow.FlowDefinition{
 		ID:   "qa-xliff",
-		Name: "QA xliff",
+		Name: "Checks xliff",
 		Nodes: []flow.FlowNode{
 			{ID: "qa", Type: flow.NodeTool, Name: "qa"},
 		},
@@ -75,7 +75,7 @@ func TestValidateDataFlow_TranslateThenQAPasses(t *testing.T) {
 	reg := dataflowReg(t)
 	def := flow.FlowDefinition{
 		ID:   "pseudo-qa",
-		Name: "Pseudo then QA",
+		Name: "Pseudo then checks",
 		Nodes: []flow.FlowNode{
 			{ID: "p", Type: flow.NodeTool, Name: "pseudo-translate"},
 			{ID: "qa", Type: flow.NodeTool, Name: "qa"},
@@ -95,7 +95,7 @@ func TestValidateDataFlow_QABeforeTranslateRejected(t *testing.T) {
 	reg := dataflowReg(t)
 	def := flow.FlowDefinition{
 		ID:   "qa-then-pseudo",
-		Name: "QA then pseudo",
+		Name: "Checks then pseudo",
 		Nodes: []flow.FlowNode{
 			{ID: "qa", Type: flow.NodeTool, Name: "qa"},
 			{ID: "p", Type: flow.NodeTool, Name: "pseudo-translate"},

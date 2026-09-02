@@ -21,7 +21,7 @@ import (
 )
 
 // phRun returns the shared inline placeholder used by the ship-state fixtures:
-// dropping it from a target trips the default code-difference QA check with
+// dropping it from a target trips the default code-difference check with
 // error severity (the same trigger convergence's countFailingBlocks tests use).
 func phRun() model.Run {
 	return model.Run{Ph: &model.PlaceholderRun{ID: "1", Disp: "{name}"}}
@@ -108,7 +108,7 @@ func collByID(t *testing.T, stats []platstore.CollectionTranslationStats, id str
 }
 
 // TestApplyShipStates covers the server-side derivation over a real content
-// store: approved counts ride GetBlockStats, the QA pass runs only for
+// store: approved counts ride GetBlockStats, the check pass runs only for
 // coverage-complete locales, failing blocks are attributed to their
 // collection, and every scope gets the derived ship state.
 func TestApplyShipStates(t *testing.T) {

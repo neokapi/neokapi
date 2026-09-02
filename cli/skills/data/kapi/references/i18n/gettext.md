@@ -106,7 +106,7 @@ only translation values change. No preset needed; run on the files directly:
 ```bash
 kapi pseudo-translate po/en.po --target-lang qps       # readiness gate first
 kapi translate po/en.po --target-lang fr -o po/fr.po   # or start from the .pot
-kapi run translate-qa -i po/en.po --target-lang fr --json   # translate + QA in one flow
+kapi run translate-qa -i po/en.po --target-lang fr --json   # translate + checks in one flow
 ```
 
 For recurring locales scaffold a project (`kapi init --target-locale fr …`) so

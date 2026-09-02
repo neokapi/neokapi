@@ -77,7 +77,7 @@ func (s *Server) HandlePublicShipManifest(c echo.Context) error {
 
 // shipDashboardStats returns the project's ship-state-enriched dashboard stats,
 // sharing the authenticated dashboard's cache so an anonymous feed hit does not
-// re-run the bounded QA pass the dashboard already paid for.
+// re-run the bounded check pass the dashboard already paid for.
 func (s *Server) shipDashboardStats(ctx context.Context, proj *store.Project, stream string) (*store.TranslationDashboardStats, error) {
 	key := dashboardCacheKey(proj.WorkspaceID, proj.ID, stream)
 	if cached, ok := s.dashboardCache.Load(key); ok {

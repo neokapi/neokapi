@@ -27,7 +27,7 @@ const (
 	DefaultAbsoluteMaxChars = 255 // absolute max character count
 )
 
-// QACheckConfig holds configuration for the QA check tool.
+// QACheckConfig holds configuration for the rule-based check tool.
 type QACheckConfig struct {
 	TargetLocale model.LocaleID `json:"targetLocale,omitempty" schema:"-"`
 
@@ -86,7 +86,7 @@ type QACheckConfig struct {
 	MaxWords                   int  `json:"maxWords,omitempty"                   schema:"title=Maximum Words,description=Maximum number of words allowed in any target segment,default=0,group=length"`
 }
 
-// QAPattern defines a source/target regex pattern pair for pattern-based QA checks.
+// QAPattern defines a source/target regex pattern pair for pattern-based checks.
 // With Forbidden set, Source is instead a pattern that must NOT match the target
 // text (Target is ignored) — the forbidden-pattern rule family.
 type QAPattern struct {
@@ -162,7 +162,7 @@ func (c *QACheckConfig) Validate() error {
 	return c.validatePatterns()
 }
 
-// validatePatterns rejects QA patterns whose regexes do not compile.
+// validatePatterns rejects check patterns whose regexes do not compile.
 //
 // This is the whole point of surfacing them: a pattern that fails to compile
 // can never match, so a typo'd rule is indistinguishable from a rule that
@@ -227,7 +227,7 @@ func NewQACheckFromConfig(config map[string]any, targetLang string) (tool.Tool, 
 // qaCheckHandler holds the config reference and provides methods for each check category.
 type qaCheckHandler struct {
 	tool *tool.BaseTool
-	// patterns are the config's QA patterns with their source/target regexes
+	// patterns are the config's check patterns with their source/target regexes
 	// compiled once at construction, instead of per block.
 	patterns []compiledQAPattern
 	// Consistency state (used only when the consistency checks are enabled):
@@ -625,7 +625,7 @@ func (h *qaCheckHandler) checkPatternAndCodeIssues(conf *QACheckConfig, v tool.B
 	return findings
 }
 
-// NewQACheckTool creates a rule-based QA check tool.
+// NewQACheckTool creates the rule-based check tool.
 // It examines source and target text for common translation quality issues
 // and records them as core/check.Finding under the unified quality.findings
 // annotation (check.Annotate), where they accumulate alongside any other
@@ -732,7 +732,7 @@ func runConstraints(r model.Run, reference []model.Run) (deletable, cloneable bo
 
 // findPcOpen walks `runs` looking for a PcOpen with the given id.
 // Recurses into plural / select forms so the search respects the
-// same scope rules as the rest of the QA checks.
+// same scope rules as the rest of the checks.
 func findPcOpen(runs []model.Run, id string) *model.PcOpenRun {
 	for _, r := range runs {
 		if r.PcOpen != nil && r.PcOpen.ID == id {
@@ -844,7 +844,7 @@ func inlineCodeFingerprints(runs []model.Run) (map[string]int, map[string]model.
 }
 
 // splitFingerprint decomposes "type|kind" into its two halves. Used
-// by the QA issue message formatters.
+// by the finding message formatters.
 func splitFingerprint(key string) (kind, typ string) {
 	for i := len(key) - 1; i >= 0; i-- {
 		if key[i] == '|' {
@@ -855,7 +855,7 @@ func splitFingerprint(key string) (kind, typ string) {
 }
 
 // mapKindToSpanName renders a Run kind back to the human-friendly
-// SpanType name the QA messages used to print ("Opening" / "Closing"
+// SpanType name the check messages used to print ("Opening" / "Closing"
 // / "Placeholder") so migrating tests only need to care about the
 // issue Type field, not the exact wording.
 func mapKindToSpanName(kind string) string {

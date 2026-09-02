@@ -4,7 +4,7 @@
 # prose, in shipped product strings, or in the metadata a build stamps into an
 # installer and a signed binary.
 #
-# Two rule sets, each with its own scope:
+# Three rule sets, each with its own scope:
 #
 #   FRAMING     — the positioning phrases the R12 canon retires, listed with
 #                 their replacements in this script's failure output. Scope:
@@ -13,6 +13,11 @@
 #                 (content memory, terms, voice profile). Scope: VOCAB_SURFACES,
 #                 a narrower set, because a Go or TSX file names identifiers as
 #                 well as prose and the two cannot be told apart by a grep.
+#   CASED       — retired vocabulary that is a word in prose and an identifier
+#                 in code, told apart by case. Scope: SWEPT_SURFACES, matched
+#                 case-sensitively. "QA" is the whole rule today: the product's
+#                 family is checks, while `qa` stays the registered tool name,
+#                 the flow id, the overlay type and the gate id.
 #
 # Prose drifts back to a retired phrase the way an absolute home path creeps
 # into a Makefile: nobody decides to, and nothing fails. It re-enters through a
@@ -46,6 +51,14 @@
 # CLI's own help text is held to the same list by
 # TestConvention_HelpTextUsesCurrentVocabulary in cli/, which walks the built
 # command tree rather than grepping Go source.
+#
+# What fails under CASED: the standalone word QA, and "quality assurance". A
+# check reads content and reports findings; the families are the rule-based
+# checks, terminology checks and voice checks. Case is what separates the word
+# from the name: `qa` names the tool a recipe invokes, `translate-qa` a flow,
+# "qa" the overlay type and the gate id, and every one of those is a wire or
+# persisted value a rename may not touch. The same split is asserted on help
+# text by TestConvention_HelpTextUsesCurrentVocabulary.
 #
 # What this guard is NOT for: prose kapi can read AND CI gates. Both halves of
 # the rule now live in .kapi/voice.yaml — the vocabulary as forbidden_terms, the
@@ -84,18 +97,22 @@ root="$(cd "$(dirname "$0")/.." && pwd)"
 
 # ── the matchers ─────────────────────────────────────────────────────────────
 #
-# Case-insensitive, and tolerant of the line wrapping and markdown emphasis that
-# prose actually contains: "brand **memory**" and a "brand\nmemory" split across
-# two lines both count. Matching is per-line, so the wrap case is handled by
+# Each pattern carries its own case flag, because CASED needs to tell a word
+# from an identifier and the other two do not. The leading (?i) is what makes
+# FRAMING and VOCABULARY case-insensitive; drop it and a rule matches exactly.
+#
+# All three are tolerant of the line wrapping and markdown emphasis that prose
+# actually contains: "brand **memory**" and a "brand\nmemory" split across two
+# lines both count. Matching is per-line, so the wrap case is handled by
 # normalising whitespace before the scan rather than by the pattern.
-readonly RETIRED_RE='brand[[:space:]*_]+memor(y|ies)|brand-first|Kapi[[:space:]*_]+drafts|for your whole team|locali[sz]ation[[:space:]*_]+platform'
+readonly RETIRED_RE='(?i)brand[[:space:]*_]+memor(y|ies)|brand-first|Kapi[[:space:]*_]+drafts|for your whole team|locali[sz]ation[[:space:]*_]+platform'
 
 # The inflections are the point: a noun-only search misses "localized", which is
 # how most of these survive a sweep. TMX and TBX are deliberately absent — they
 # are external file-format standards we do not own, and naming them is correct.
 # This is the same pattern the CLI help-text convention test carries; keep the
 # two in step.
-readonly RETIRED_VOCAB_RE='termbases?|glossar(y|ies)|locali[sz](e|es|ed|ing|ation|ations)|l10n|translation memor(y|ies)|brand[[:space:]*_-]+voice'
+readonly RETIRED_VOCAB_RE='(?i)termbases?|glossar(y|ies)|locali[sz](e|es|ed|ing|ation|ations)|l10n|translation memor(y|ies)|brand[[:space:]*_-]+voice'
 
 # Rename-boundary identifiers, deleted from a line before the VOCABULARY match
 # runs. Each names something a rename may not touch, so the retired word inside
@@ -107,6 +124,18 @@ readonly RETIRED_VOCAB_RE='termbases?|glossar(y|ies)|locali[sz](e|es|ed|ing|atio
 #
 # Quoted deliberately: the bare word `termbase` in prose stays a failure.
 readonly VOCAB_BOUNDARY_RE='"termbases"'
+
+# The cased rule. \bQA\b matches the word and nothing else: the boundaries fail
+# inside QAIssue and FileQAResult, so an identifier a later rename will take is
+# not reported here as prose. Lowercase `qa` never matches, and that is the
+# point: it names the tool, the flow id, the overlay type and the gate id.
+readonly RETIRED_CASED_RE='\bQA\b|[Qq]uality [Aa]ssurance'
+
+# Deleted from a line before the CASED match runs:
+#
+#   QA: "634"    ISO 3166-1 alpha-2 for Qatar, in the country-code table the
+#                locale-demand view reads. The code is the standard's, not ours.
+readonly CASED_BOUNDARY_RE='QA: "634"'
 
 # ── scope ────────────────────────────────────────────────────────────────────
 #
@@ -187,6 +216,7 @@ readonly VOCAB_SURFACES=(
 # when it means "the prose we swept is clean".
 readonly PENDING_SURFACES=(
   "cli/skills (vocabulary) — the i18n playbooks name third-party libraries (@angular/localize, expo-localization) and the eval table quotes user prompts verbatim, and the skill description is intent-matching vocabulary: it must contain the words a user types. No sweep is scheduled; deciding what a matching surface owes the vocabulary rule comes first."
+  "the review surfaces (cased) — apps/kapi-desktop/frontend/src/components/FilePreview.tsx and bowrain/packages/ui/src/components/review/ carry QA in comments and prop docs. They sit in CASED_ALLOWED_FILES rather than being swept here, because the review-surface work has them open; the entries go when it lands."
 )
 
 # Files inside a swept surface that legitimately spell a retired phrase. Each
@@ -222,6 +252,26 @@ readonly ALLOWED_FILES=(
   apps/kapi-desktop/frontend/src/stories/prototype/v2/ProjectLanguages.stories.tsx
 )
 
+# Files the CASED rule alone excuses, on top of ALLOWED_FILES. Kept separate so
+# a file excused one word is still held to the other two rule sets.
+readonly CASED_ALLOWED_FILES=(
+  # A captured dataset: the transcripts an assistant produced against this
+  # repo, stored verbatim as the evidence a skill eval reports on. Editing the
+  # words in it would make the record say something that was never said.
+  web/src/pages/skill-eval/_skilleval.json
+  # A target-locale catalog. Translations are written by the loop and land here
+  # compiled; a source string that changes orphans its entry until the next
+  # convergence, which is the normal drift and never a build failure.
+  apps/kapi-desktop/frontend/public/translations/nb.json
+  # Open in the review-surface work, and swept there rather than here. Both
+  # entries are named in PENDING_SURFACES so a green run does not read as "every
+  # file is clean". Remove them once that lands.
+  apps/kapi-desktop/frontend/src/components/FilePreview.tsx
+  bowrain/packages/ui/src/components/review/ReviewInspector.tsx
+  bowrain/packages/ui/src/components/review/ReviewSession.tsx
+  bowrain/packages/ui/src/components/review/reviewQueue.ts
+)
+
 # list_files prints NUL-separated paths for one surface.
 #
 # A relative path is a surface inside this repo, enumerated with git so the
@@ -240,11 +290,21 @@ list_files() {
   done
 }
 
+# allow_re joins an allowlist of paths into the anchored alternation scan_paths
+# takes, and prints nothing for an empty list.
+#
+# The ${a[@]+"${a[@]}"} form: under `set -u` an empty array expansion is an
+# unbound-variable error on bash 3.2, which is what /bin/bash still is on macOS.
+allow_re() {
+  printf '%s\n' ${@+"$@"} | paste -sd'|' -
+}
+
 # scan_paths prints "file:line:match" for every hit of regex $1 under the paths
-# from $3 on, and "file: (phrase wrapped across a line break)" for a file that
+# from $4 on, and "file: (phrase wrapped across a line break)" for a file that
 # is dirty only once its newlines are flattened. $2 is the boundary pattern
-# deleted before matching (empty: nothing is deleted). Returns 1 if it printed
-# anything.
+# deleted before matching (empty: nothing is deleted). $3 is an alternation of
+# paths this rule excuses, passed per rule so a file excused one word is still
+# scanned for the others. Returns 1 if it printed anything.
 #
 # Two matches per file rather than one: a per-line match gives exact line
 # numbers for the ordinary case, and a flattened whole-file match catches a
@@ -255,17 +315,13 @@ list_files() {
 # set is several thousand files, and three subprocesses each put this guard at
 # twenty seconds inside `make lint`.
 scan_paths() {
-  local re="$1" boundary="$2"
-  shift 2
-  local hits exclude_re
-  # The ${a[@]+"${a[@]}"} form: under `set -u` an empty array expansion is an
-  # unbound-variable error on bash 3.2, which is what /bin/bash still is on
-  # macOS.
-  exclude_re="$(printf '%s\n' ${ALLOWED_FILES[@]+"${ALLOWED_FILES[@]}"} | paste -sd'|' -)"
+  local re="$1" boundary="$2" exclude_re="$3"
+  shift 3
+  local hits
 
   hits="$(list_files "$@" | RE="$re" BOUNDARY="$boundary" ALLOWED="$exclude_re" perl -0 -ne '
     BEGIN {
-      $re      = qr/$ENV{RE}/i;
+      $re      = qr/$ENV{RE}/;
       $bound   = $ENV{BOUNDARY} ne "" ? qr/$ENV{BOUNDARY}/ : undef;
       $allowed = $ENV{ALLOWED}  ne "" ? qr/^(?:$ENV{ALLOWED})$/ : undef;
     }
@@ -340,13 +396,29 @@ EOF
   cat >"$tmp/surface/vocab-clean.md" <<'EOF'
 Kapi — the context-aware content workbench
 Import your terms store; the content memory holds approved wording.
-Useful for multilingual QA and for translated builds.
+Useful for multilingual checks and for translated builds.
 Score a draft against its voice profile.
 The desktop's view id "termbases" is persisted and keeps its spelling.
 EOF
 
+  # The cased rule set, which both other rule sets deliberately let pass.
+  cat >"$tmp/surface/cased.md" <<'EOF'
+Run QA over the target before you ship.
+Quality assurance is what the gate does.
+The QA report lists every finding.
+EOF
+
+  cat >"$tmp/surface/cased-clean.md" <<'EOF'
+Run the checks over the target before you ship.
+The rule-based checks report every finding.
+`kapi exec qa` runs the tool, and `translate-qa` is the flow it sits in.
+The overlay type is "qa" and so is the gate id.
+QAIssue and FileQAResult are identifiers, and a rename takes them together.
+QA: "634" is Qatar in the ISO 3166-1 table.
+EOF
+
   local out n
-  if out=$(scan_paths "$RETIRED_RE" "" "$tmp/surface/retired.md"); then
+  if out=$(scan_paths "$RETIRED_RE" "" "" "$tmp/surface/retired.md"); then
     echo "✖ self-test: the matcher did NOT flag planted retired framing"
     status=1
   else
@@ -360,14 +432,14 @@ EOF
     fi
   fi
 
-  if out=$(scan_paths "$RETIRED_RE" "" "$tmp/surface/wrapped.md"); then
+  if out=$(scan_paths "$RETIRED_RE" "" "" "$tmp/surface/wrapped.md"); then
     echo "✖ self-test: the matcher did NOT flag a phrase wrapped across lines"
     status=1
   else
     echo "✓ self-test: flags a retired phrase split across a line break"
   fi
 
-  if out=$(scan_paths "$RETIRED_RE" "" "$tmp/surface/clean.md"); then
+  if out=$(scan_paths "$RETIRED_RE" "" "" "$tmp/surface/clean.md"); then
     echo "✓ self-test: settled vocabulary passes (content memory, brand as a coordinate)"
   else
     echo "✖ self-test: the matcher flagged settled vocabulary:"
@@ -375,7 +447,7 @@ EOF
     status=1
   fi
 
-  if out=$(scan_paths "$RETIRED_VOCAB_RE" "$VOCAB_BOUNDARY_RE" "$tmp/surface/vocab.md"); then
+  if out=$(scan_paths "$RETIRED_VOCAB_RE" "$VOCAB_BOUNDARY_RE" "" "$tmp/surface/vocab.md"); then
     echo "✖ self-test: the vocabulary matcher did NOT flag planted retired vocabulary"
     status=1
   else
@@ -389,10 +461,34 @@ EOF
     fi
   fi
 
-  if out=$(scan_paths "$RETIRED_VOCAB_RE" "$VOCAB_BOUNDARY_RE" "$tmp/surface/vocab-clean.md"); then
+  if out=$(scan_paths "$RETIRED_VOCAB_RE" "$VOCAB_BOUNDARY_RE" "" "$tmp/surface/vocab-clean.md"); then
     echo "✓ self-test: settled vocabulary and the persisted \"termbases\" view id pass"
   else
     echo "✖ self-test: the vocabulary matcher flagged settled vocabulary:"
+    printf '%s\n' "$out"
+    status=1
+  fi
+
+  if out=$(scan_paths "$RETIRED_CASED_RE" "$CASED_BOUNDARY_RE" "" "$tmp/surface/cased.md"); then
+    echo "✖ self-test: the cased matcher did NOT flag planted QA"
+    status=1
+  else
+    n=$(printf '%s\n' "$out" | grep -c . || true)
+    if [ "$n" -ne 3 ]; then
+      echo "✖ self-test: expected 3 hits in the planted file, got ${n}:"
+      printf '%s\n' "$out"
+      status=1
+    else
+      echo "✓ self-test: flags QA and quality assurance (3 hits)"
+    fi
+  fi
+
+  # The case split is the whole rule, so assert it rather than assuming it: a
+  # matcher that also caught the tool name would fail every recipe in the docs.
+  if out=$(scan_paths "$RETIRED_CASED_RE" "$CASED_BOUNDARY_RE" "" "$tmp/surface/cased-clean.md"); then
+    echo "✓ self-test: the qa tool name, the QA identifiers and the Qatar code pass"
+  else
+    echo "✖ self-test: the cased matcher flagged a boundary:"
     printf '%s\n' "$out"
     status=1
   fi
@@ -419,7 +515,7 @@ fi
 
 status=0
 
-if hits=$(scan_paths "$RETIRED_RE" "" "${SWEPT_SURFACES[@]}"); then
+if hits=$(scan_paths "$RETIRED_RE" "" "$(allow_re ${ALLOWED_FILES[@]+"${ALLOWED_FILES[@]}"})" "${SWEPT_SURFACES[@]}"); then
   echo "✓ no retired framing in the swept surfaces"
 else
   status=1
@@ -443,7 +539,7 @@ else
   echo ""
 fi
 
-if hits=$(scan_paths "$RETIRED_VOCAB_RE" "$VOCAB_BOUNDARY_RE" "${VOCAB_SURFACES[@]}"); then
+if hits=$(scan_paths "$RETIRED_VOCAB_RE" "$VOCAB_BOUNDARY_RE" "$(allow_re ${ALLOWED_FILES[@]+"${ALLOWED_FILES[@]}"})" "${VOCAB_SURFACES[@]}"); then
   echo "✓ no retired vocabulary in the product strings and build metadata"
 else
   status=1
@@ -462,6 +558,35 @@ else
   echo ""
   echo "An identifier a rename may not touch — a persisted id, a wire field, an"
   echo "analytics id — belongs in VOCAB_BOUNDARY_RE with the reason it is one."
+  echo ""
+fi
+
+cased_allowed="$(allow_re \
+  ${ALLOWED_FILES[@]+"${ALLOWED_FILES[@]}"} \
+  ${CASED_ALLOWED_FILES[@]+"${CASED_ALLOWED_FILES[@]}"})"
+if hits=$(scan_paths "$RETIRED_CASED_RE" "$CASED_BOUNDARY_RE" "$cased_allowed" "${SWEPT_SURFACES[@]}"); then
+  echo "✓ no QA in the swept prose"
+else
+  status=1
+  echo "✖ QA found in user-facing prose:"
+  printf '%s\n' "$hits"
+  echo ""
+  echo "The product family is checks. A check reads content and reports"
+  echo "findings without modifying it, and kapi check is the verb:"
+  echo ""
+  echo "  QA (checks in general)  → the checks. Run QA → run the checks."
+  echo "  QA results, QA issues   → findings."
+  echo "  a QA check              → a check."
+  echo "  QA (the rule-based one, → rule-based checks, as against the"
+  echo "  against voice or terms)   terminology checks and the voice checks."
+  echo "  quality assurance       → checks, or verification. Recast the"
+  echo "                            sentence rather than swapping one word."
+  echo ""
+  echo "Lowercase qa is a different thing and never matches here: it names the"
+  echo "registered tool, the flow id, the overlay type and the gate id, and"
+  echo "every one of those is a value a rename may not touch. A Go or TS"
+  echo "identifier does not match either, because QAIssue and FileQAResult"
+  echo "carry no word boundary around it."
   echo ""
 fi
 

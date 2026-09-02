@@ -33,7 +33,7 @@ type Story = StoryObj<typeof ReviewSurface>;
 /** The document, read on the target locale. */
 export const Default: Story = {};
 
-/** With QA findings loaded, the flagged blocks are tinted where they sit. */
+/** With findings loaded, the flagged blocks are tinted where they sit. */
 export const WithFindings: Story = {
   decorators: [
     createProvidersDecorator(sampleBlocks, {

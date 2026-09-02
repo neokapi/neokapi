@@ -2,13 +2,14 @@
 // blocks per LLM call and scoring each N.
 //
 // It exists because kapi shipped a batch ceiling (tools.MaxBlocksPerCall) chosen
-// from evidence about *adjacent* tasks — batch prompting on QA and classification,
-// BatchGEMBA on MT evaluation — because no quality-versus-N curve for segment
-// translation had ever been published. That was a guess. This measured it, and the
-// guess did not survive: translation shows no degradation with N up to 600 blocks
-// per call, and what damage there is sits at the *small* end. The ceiling moved to
-// 64, and the real constraint turned out to be the output-token budget, which bills
-// (a truncated reply is re-translated in halves) rather than breaks.
+// from evidence about *adjacent* tasks — batch prompting on question answering
+// and classification, BatchGEMBA on MT evaluation — because no quality-versus-N
+// curve for segment translation had ever been published. That was a guess. This
+// measured it, and the guess did not survive: translation shows no degradation
+// with N up to 600 blocks per call, and what damage there is sits at the *small*
+// end. The ceiling moved to 64, and the real constraint turned out to be the
+// output-token budget, which bills (a truncated reply is re-translated in halves)
+// rather than breaks.
 //
 // Keep running it. An alias like `sonnet` or `gemini-3.5-flash` points at different
 // weights over time, and a ceiling measured once is folklore by the next release.

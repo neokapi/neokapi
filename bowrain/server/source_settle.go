@@ -20,7 +20,7 @@ import (
 // smaller, consistent change.
 //
 // Settlement is deliberately provider-free: the automated gate (`checked`) is
-// satisfied by deterministic source checks (source-QA content hygiene today;
+// satisfied by deterministic source checks (source content hygiene today;
 // terminology/brand extensible), so holding an unsettled corpus never itself
 // burns AI credits — exactly the "no surprise AI spend" the first-run decision
 // demands. Deeper, LLM-backed source brand-checking is layered on top later

@@ -410,7 +410,7 @@ Individual content items can override `redaction` per entry (`ContentItem.redact
 status a block must reach before the loop translates it. It gates the fan-out,
 and is distinct from the top-level [`source_gate`](#source_gate) coverage bar
 that `kapi check --ship` evaluates. Source-first convergence settles the source
-(terminology, voice, source QA) and holds the fan-out on it, so an unsettled,
+(terminology, voice, source checks) and holds the fan-out on it, so an unsettled,
 non-compliant, un-term-checked source is never translated into every locale only
 to be redone when it changes. See
 [Convergence: source first](/kapi/convergence#source-first).
@@ -418,7 +418,7 @@ to be redone when it changes. See
 ```yaml
 defaults:
   source_gate: checked   # the default: source cleared its automated terminology,
-                         # voice, and source-QA checks (no human bottleneck)
+                         # voice, and source checks (no human bottleneck)
   # source_gate: approved  # require a human/agent source sign-off first
   # source_gate: none      # opt out: raw fan-out, no source gate
 ```
@@ -427,7 +427,7 @@ defaults:
 | ---------- | ----------------------------------------------------------------------- |
 | _(unset)_  | Runner applies the default (`checked`)                                   |
 | `authored` | Presence baseline: any non-empty source qualifies                       |
-| `checked`  | **Default**: source passed its automated terminology, voice and source-QA checks |
+| `checked`  | **Default**: source passed its automated terminology, voice and source checks |
 | `approved` | A human or agent signed off the source (voice-critical or regulated content) |
 | `none`     | Deliberate opt-out: translate without settling the source first         |
 

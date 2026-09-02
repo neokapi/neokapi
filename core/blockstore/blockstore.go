@@ -84,7 +84,7 @@ type Store interface {
 type Overlay struct {
 	// Kind namespaces the overlay. Conventions:
 	//   "targets/<locale>"            → translated targets
-	//   "annotations/<name>"          → term matches, content memory fuzzies, QA
+	//   "annotations/<name>"          → term matches, content memory fuzzies, findings
 	//   "skeletons/<format>"          → round-trip skeletons
 	// Dots and slashes in Kind are allowed; stores must not interpret
 	// them beyond indexing.

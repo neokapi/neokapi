@@ -35,7 +35,7 @@ run-anchored `Block.Overlays` (`core/model/block.go:20`). Crucial distinction
 (`core/model/overlay.go:16-17`, `:62`, `:77-79`):
 
 - **Overlay** (`Block.Overlays []Overlay`) = typed, **run-anchored** (carries a
-  `RunRange`), positional — segmentation, terms, entities, QA, alignment.
+  `RunRange`), positional — segmentation, terms, entities, checks, alignment.
   Source rewrites invalidate it.
 - **Annotation** (`Block.Annotations`) = typed, **positionless**, block-scoped.
   Structure/Geometry/Relations are here, so "a source rewrite never invalidates

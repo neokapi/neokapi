@@ -113,7 +113,7 @@ export interface KapiRuntime {
   inspect(path: string): Promise<InspectResult>;
   /**
    * Inspect a file like {@link inspect}, but run the engine's read-only
-   * annotators (terminology, brand vocabulary, rule-based QA) first so the
+   * annotators (terminology, brand vocabulary, rule-based checks) first so the
    * parsed blocks carry stand-off overlays. `opts` toggles individual annotators
    * (term/brand/qa); all default to true. Wraps the `labInspectAnnotated` global.
    */

@@ -57,7 +57,7 @@ export const WithError: Story = {
         type: "error",
         nodeId: "tool-1",
         partId: "p1",
-        meta: { error: "QA check failed: missing translation" },
+        meta: { error: "check failed: missing translation" },
       },
     ],
     nodeNames,

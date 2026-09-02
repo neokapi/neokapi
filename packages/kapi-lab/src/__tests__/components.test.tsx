@@ -42,7 +42,7 @@ describe("BlockInspector", () => {
   it("renders source, target provenance, overlays and annotations", () => {
     render(<BlockInspector node={richBlock} defaultOpen />);
     expect(screen.getByText("greeting")).toBeTruthy();
-    // target variant + lifecycle ("fr-FR" also appears as the QA overlay side)
+    // target variant + lifecycle ("fr-FR" also appears as the check overlay side)
     expect(screen.getAllByText("fr-FR").length).toBeGreaterThan(0);
     expect(screen.getByText("reviewed")).toBeTruthy();
     // overlay + annotation section labels

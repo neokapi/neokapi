@@ -22,7 +22,7 @@ graph TB
         T1[Tool 1<br/>Segmentation]
         T2[Tool 2<br/>content memory Leverage]
         T3[Tool 3<br/>AI Translation]
-        T4[Tool N<br/>QA Check]
+        T4[Tool N<br/>Checks]
         T1 -->|"chan Part"| T2
         T2 -->|"chan Part"| T3
         T3 -->|"chan Part"| T4

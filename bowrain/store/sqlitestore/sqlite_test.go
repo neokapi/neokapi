@@ -198,8 +198,9 @@ func TestGetBlockStats_ApprovedLocales(t *testing.T) {
 // overlaysFixture builds a block's worth of stand-off overlays covering every
 // kind that must survive a store round-trip: segmentation (incl. an ignorable
 // span), an entity overlay carrying a typed *EntityAnnotation Value (the
-// entity→concept promote path), a term overlay, a term-candidate overlay, a QA
-// overlay, and a target-side alignment overlay. Anchors use real run ranges.
+// entity→concept promote path), a term overlay, a term-candidate overlay, a
+// check-findings overlay (model.OverlayQA), and a target-side alignment
+// overlay. Anchors use real run ranges.
 func overlaysFixture() []model.Overlay {
 	frVariant := model.VariantKey{Locale: model.LocaleFrench}
 	return []model.Overlay{

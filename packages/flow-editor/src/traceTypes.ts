@@ -14,7 +14,7 @@ export interface SpanSnapshot {
   end: number;
   /** The covered text (clipped). */
   text?: string;
-  /** Compact payload summary — entity type, term concept, QA message, … */
+  /** Compact payload summary — entity type, term concept, check message, … */
   note?: string;
 }
 

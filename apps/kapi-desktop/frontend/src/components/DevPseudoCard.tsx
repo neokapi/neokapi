@@ -211,7 +211,7 @@ function DevPseudoControls() {
             </div>
             <p className="mt-1 text-[10px] text-muted-foreground">
               Applies pseudo to every translatable string on the fly — works without a loaded
-              catalog. Useful for QAing layout expansion and spotting strings that bypass
+              catalog. Useful for checking layout expansion and spotting strings that bypass
               translation.
             </p>
           </div>

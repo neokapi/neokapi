@@ -6,7 +6,7 @@
  * target edits back into the `.kbf.json` files — git-diffable review.
  * Stand-off annotation files (`*.overlays.jsonl`, e.g. from `kapi run
  * term-check` / `qa`) found under the same tree are passed through
- * per block hash so the overlay can paint term/QA highlights.
+ * per block hash so the overlay can paint term/check highlights.
  *
  * Endpoints (mounted at `/__kapi/review` by the Vite plugin):
  *

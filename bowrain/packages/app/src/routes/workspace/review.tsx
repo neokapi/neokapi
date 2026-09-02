@@ -8,7 +8,7 @@ import { useEditorSurfaceNav } from "./useEditorSurfaceNav";
 
 /**
  * ReviewRoute is the block-level translation review surface — a sibling of the
- * translate route, scoped to the same file. It lists blocks by status, runs QA,
+ * translate route, scoped to the same file. It lists blocks by status, runs the checks,
  * and supports bulk review actions. Brand-rule promotion stays in
  * /context/voice/review.
  */

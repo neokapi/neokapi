@@ -38,7 +38,7 @@ const sampleSchemas: Record<string, ComponentSchema> = {
     },
   },
   qa: {
-    title: "QA Check",
+    title: "Quality Check",
     type: "object",
     toolMeta: { id: "qa", category: "validate" },
     "ui:groups": [
@@ -149,7 +149,7 @@ const sampleDocs: Record<string, ToolDoc> = {
   qa: {
     displayName: "Quality Check",
     overview:
-      "Runs rule-based quality assurance checks on translations. Detects whitespace mismatches, missing translations, broken inline codes, and pattern inconsistencies between source and target.",
+      "Runs rule-based checks over translations. Detects whitespace mismatches, missing translations, broken inline codes, and pattern inconsistencies between source and target.",
     parameters: {
       checkLeadingWhitespace: {
         description: "Verify that leading whitespace in target matches source.",
@@ -508,7 +508,7 @@ export const ThreeWayParallel: Story = {
         {
           tool: "",
           parallel: [
-            { tool: "qa", label: "QA" },
+            { tool: "qa", label: "Checks" },
             { tool: "voice-vocab-check", label: "Brand" },
             { tool: "entity-extract", label: "Entities" },
           ],
@@ -771,7 +771,7 @@ export const SecureTranslate: Story = {
 
 /**
  * Two leading transformers as plain ordered steps: normalise, then redact,
- * before translation and QA.
+ * before translation and checks.
  */
 export const LeadingTransformers: Story = {
   name: "Transformers (normalise → redact → translate)",

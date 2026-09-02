@@ -343,7 +343,7 @@ func renderBodyWithSegmentsOpts(nc *NativeContent, segs []segView, opts renderOp
 
 // mrkAttrIsSeg reports whether a Mrk node is an mtype="seg"
 // segmentation marker (vs. some other annotation marker like
-// mtype="x-…" used for QA notes etc.).
+// mtype="x-…" used for check notes etc.).
 func mrkAttrIsSeg(m *Mrk) bool {
 	return AttrLookup(m.Attrs, "mtype") == "seg"
 }

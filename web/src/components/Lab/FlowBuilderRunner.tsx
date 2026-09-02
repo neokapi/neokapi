@@ -54,8 +54,8 @@ const RECORDED_TRACES = [
     path: "/data/traces/translate-parallel.json",
   },
   {
-    name: "Translate + QA (parallel)",
-    description: "Two parallel stages: AI translate then QA check",
+    name: "Translate + Quality Check (parallel)",
+    description: "Two parallel stages: AI translate then checks",
     path: "/data/traces/translate-qa-parallel.json",
   },
 ];

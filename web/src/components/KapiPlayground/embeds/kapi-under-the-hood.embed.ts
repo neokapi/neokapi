@@ -33,7 +33,7 @@ const config: WalkthroughEmbedConfig = {
     {
       command: "kapi run leverage-check -i messages.json",
       narration:
-        "run executes a composed flow once — recycle, then the deterministic qa checks. In a project the pass commits to the project store. up is this pass, looped until every gate is met or the rest parks.",
+        "run executes a composed flow once — recycle, then the deterministic rule-based checks. In a project the pass commits to the project store. up is this pass, looped until every gate is met or the rest parks.",
     },
     {
       command: "kapi extract --target-lang fr",

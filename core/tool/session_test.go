@@ -14,7 +14,7 @@ import (
 
 // annotatingTool is a minimal example of a SessionTool that reads
 // each incoming Part from the stream but also consults the session
-// for a pre-existing terms annotation, and writes a QA overlay
+// for a pre-existing terms annotation, and writes a check overlay
 // per block. Purpose: assert the SessionTool contract composes with
 // the existing streaming contract end-to-end.
 type annotatingTool struct {

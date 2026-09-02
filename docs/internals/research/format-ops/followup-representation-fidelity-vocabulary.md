@@ -30,7 +30,7 @@ concrete formats. Section 2.1 of the spec enumerates the full set
     key-value files)
 13. Id Value (stable unique ID / context key for a unit)
 14. Preserve Space (whitespace semantics)
-15. Localization Quality Issue (QA findings, typed + severity)
+15. Localization Quality Issue (check findings, typed + severity)
 16. Localization Quality Rating (doc/unit-level quality score)
 17. MT Confidence (per-segment MT score)
 18. Allowed Characters (character-class constraints on target)

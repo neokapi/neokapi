@@ -46,8 +46,8 @@ discovery); the recommended config below buys it down to T2's best case.
     on `count == 0` or use a separate plain string.
   - **A bad placeholder crashes only in that locale:** `%s` mistyped in one
     translation means `getString` format crashes for those users only —
-    invisible in English QA. kapi preserves printf placeholders and
-    `translate-qa` validates them; that plus pseudo-translation is the guard.
+    invisible when only English is checked. kapi preserves printf placeholders
+    and `translate-qa` validates them; that plus pseudo-translation is the guard.
   - Wrap non-translatable fragments in `<xliff:g id="…" example="…">` so
     translators (human or machine) can't touch them.
   - `MissingQuantity`/`UnusedQuantity` lint police per-language CLDR category
@@ -67,7 +67,7 @@ discovery); the recommended config below buys it down to T2's best case.
   `values/` — so incremental locale fills are safe to commit.
 - **Footguns:**
   - Missing translations are masked at runtime by fallback to the default
-    locale — gaps surface in QA at best. The lint-as-error config is the fix;
+    locale — gaps surface in the checks at best. The lint-as-error config is the fix;
     without it, tell the user they're at the stock S2/R2 grade.
   - Escaping rules (`\'`, `%%`, `formatted="false"`) trip translators —
     another reason to route through kapi rather than hand-edit targets.

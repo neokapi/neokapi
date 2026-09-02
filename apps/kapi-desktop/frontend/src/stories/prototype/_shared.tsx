@@ -473,9 +473,9 @@ export const configuredFlows: FlowDef[] = [
     kind: "content",
   },
   {
-    name: "Translate & QA",
+    name: "Translate & checks",
     description:
-      "Translate from content memory + AI, then run terminology and placeholder QA on the targets.",
+      "Translate from content memory + AI, then run terminology and placeholder checks on the targets.",
     steps: ["recycle", "translate", "qa-check"],
     kind: "localization",
   },

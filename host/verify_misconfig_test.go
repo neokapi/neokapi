@@ -13,9 +13,8 @@ import (
 
 // writeUnboundProject creates a project that binds neither a voice profile nor a
 // terms (and has no convention voice.yaml, no committed terms source, and no
-// concept in its store), with a clean
-// en→fr translation so the QA gate passes. The voice and terminology gates have
-// no binding to run against.
+// concept in its store), with a clean en→fr translation so the checks gate
+// passes. The voice and terminology gates have no binding to run against.
 func writeUnboundProject(t *testing.T) string {
 	t.Helper()
 	t.Setenv("KAPI_NO_PROJECT", "")
@@ -116,7 +115,7 @@ func TestVerify_UnboundMisconfigNoFailReportsOnly(t *testing.T) {
 
 // TestVerify_DefaultRunSkipsUnboundGates asserts that with no gate flags, unbound
 // voice and terminology gates are skipped silently (kept out of the result) and
-// only the binding-free QA gate runs.
+// only the binding-free checks gate runs.
 func TestVerify_DefaultRunSkipsUnboundGates(t *testing.T) {
 	t.Chdir(writeUnboundProject(t))
 
@@ -131,7 +130,7 @@ func TestVerify_DefaultRunSkipsUnboundGates(t *testing.T) {
 	assert.False(t, hasTerms, "unbound terminology gate must be skipped in a default run")
 
 	qa, hasQA := gateByName(out, gateQA)
-	require.True(t, hasQA, "the QA gate always runs (no binding required)")
+	require.True(t, hasQA, "the checks gate always runs (no binding required)")
 	assert.True(t, qa.Pass)
 }
 

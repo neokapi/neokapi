@@ -13,7 +13,7 @@ import (
 )
 
 // TestUp_ChecksInLoop_FailingPlaceholderParks: a produced unit that drops a
-// printf placeholder fails the loop's QA check and holds the locale out of
+// printf placeholder fails the loop's checks and holds the locale out of
 // shipping — parked, with the failing count surfaced. The unit still counts as
 // translated: the finding withholds the verdict, not the percentage. Fixing the
 // source lets the next up converge.

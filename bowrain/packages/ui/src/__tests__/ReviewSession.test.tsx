@@ -176,9 +176,9 @@ describe("ReviewSession", () => {
     expect(adapter.reviewBlockCalls[0]).toMatchObject({ reviewed: false, demoteTo: "draft" });
   });
 
-  it("runs the QA pass only over the scopes the loaded queue holds", async () => {
+  it("runs the check pass only over the scopes the loaded queue holds", async () => {
     // A second item the dashboard flags as failing, with nothing pending in
-    // the server's queue: it must cost no QA request.
+    // the server's queue: it must cost no check request.
     const withQuietFailingItem: TranslationDashboardStats = {
       ...stats,
       item_stats: [

@@ -64,7 +64,7 @@ func NewUppercaseTool() *tool.BaseTool {
 | ------------- | ------------------------------- | --------------------------------------------- |
 | **Transform** | Modify content in-place         | case change, search/replace, redaction        |
 | **Enrich**    | Add metadata or overlays        | segmentation, content-memory leveraging, AI translation, terminology |
-| **Validate**  | Check quality without modifying | QA checks, word count, spell check            |
+| **Validate**  | Check quality without modifying | rule-based checks, word count, spell check    |
 | **Convert**   | Transform representations       | Encoding conversion, line break normalization |
 
 ## Overriding Process
@@ -144,7 +144,7 @@ Individual tools can also be constructed directly. Each takes a config struct
 // Segmentation with default SRX-like rules
 segTool := tools.NewSegmentationTool(&tools.SegmentationConfig{})
 
-// QA check: configured via per-rule flags on QACheckConfig
+// Rule-based check: configured via per-rule flags on QACheckConfig
 qaTool := tools.NewQACheckTool(tools.NewQACheckConfig(model.LocaleID("fr")))
 
 // Content-memory leverage with a custom fuzzy threshold and a memory provider

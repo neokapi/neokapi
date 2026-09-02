@@ -23,7 +23,7 @@ type AIQACheckTool struct {
 	checks       []string // e.g., "terminology", "fluency", "accuracy", "consistency"
 }
 
-// AIQAConfig holds configuration for the QA check tool.
+// AIQAConfig holds configuration for the LLM-judged check tool.
 type AIQAConfig struct {
 	SourceLocale model.LocaleID `json:"sourceLocale,omitempty" schema:"-"`
 	TargetLocale model.LocaleID `json:"targetLocale,omitempty" schema:"-"`
@@ -33,7 +33,7 @@ type AIQAConfig struct {
 	Checks       []string       `json:"checks,omitempty"       schema:"title=Quality Checks,description=Quality checks to perform (e.g. terminology fluency accuracy consistency)"`
 }
 
-// NewAIQAFromConfig creates an AI QA tool from a config map.
+// NewAIQAFromConfig creates an LLM-judged check tool from a config map.
 func NewAIQAFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
 	var cfg AIQAConfig
 	if err := schema.ApplyConfig(config, &cfg); err != nil {
@@ -66,7 +66,7 @@ func NewAIQACheckTool(p aiprovider.LLMProvider, cfg AIQAConfig) *AIQACheckTool {
 	return t
 }
 
-// qaSchema returns a JSON schema for structured QA check output.
+// qaSchema returns a JSON schema for structured check output.
 func qaSchema() aiprovider.JSONSchema {
 	return aiprovider.JSONSchema{
 		Name:        "qa_check",
@@ -96,7 +96,7 @@ func qaSchema() aiprovider.JSONSchema {
 	}
 }
 
-// qaResult is the JSON structure returned by structured QA check.
+// qaResult is the JSON structure returned by the structured check.
 type qaResult struct {
 	Issues []aiprovider.QAIssue `json:"issues"`
 }
@@ -131,7 +131,7 @@ func (t *AIQACheckTool) annotate(v tool.BlockView) error {
 		}}
 	}
 
-	// Map the model's structured QA output onto the unified core/check model so
+	// Map the model's structured output onto the unified core/check model so
 	// the LLM judge feeds the same findings/score pipeline as the deterministic
 	// checkers. aiprovider.QAIssue stays the structured-output wire type; the
 	// findings are what every consumer reads.

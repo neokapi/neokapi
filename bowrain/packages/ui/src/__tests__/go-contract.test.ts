@@ -447,8 +447,8 @@ describe("VoiceFinding mirrors check.Finding", () => {
   });
 });
 
-describe("QAIssueResponse mirrors the QA issue", () => {
-  it("declares everything the QA endpoints report about a finding", () => {
+describe("QAIssueResponse mirrors the TS finding type", () => {
+  it("declares everything the check endpoints report about a finding", () => {
     expectSameMembers(
       "QAIssueResponse",
       { path: GO.handlersQA, members: goStructJSONFields(src.handlersQA, "QAIssueResponse") },

@@ -7,7 +7,7 @@ import (
 )
 
 // Variant is one selectable backend of a pluggable-backend tool — a
-// segmentation engine, a translation provider, a QA check-set — that contributes
+// segmentation engine, a translation provider, a check-set — that contributes
 // its own parameter sub-schema under a shared discriminator field.
 //
 // Variants are the building block for the canonical "umbrella tool" shape: the

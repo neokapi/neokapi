@@ -1213,7 +1213,7 @@ export class WailsApiAdapter implements ApiAdapter {
     throw new Error("Block notes not yet supported in desktop mode");
   }
 
-  // --- QA (desktop: not yet backed by Wails bindings) ---
+  // --- Checks (desktop: not yet backed by Wails bindings) ---
   async runQACheck(
     _ws: string,
     _projectId: string,

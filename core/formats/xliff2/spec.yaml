@@ -331,7 +331,7 @@ features:
       The `state` attribute on `<segment>` (`initial`, `translated`,
       `reviewed`, `final`) is captured as a Block property. Downstream
       tools use it to drive workflow gates — e.g. only push translated
-      segments back to the CMS, only run QA on reviewed ones.
+      segments back to the CMS, only run the checks on reviewed ones.
     spec_refs:
       - "XLIFF 2.1 §4.3.1.31 state attribute"
     examples:

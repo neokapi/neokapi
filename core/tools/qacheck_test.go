@@ -366,7 +366,7 @@ func TestQACheckToolEmptyTargetText(t *testing.T) {
 	assert.Equal(t, "empty-target", findings[0].Category)
 }
 
-// ─── Coverage gate for the retired Okapi QA fragments ───────────────────────
+// ─── Coverage gate for the retired Okapi check fragments ────────────────────
 //
 // chars-check, length-check, pattern-check, and inconsistency-check were
 // CheckMate-era fragments of qa. TestQACoversRetiredFragments takes each

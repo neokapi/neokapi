@@ -52,7 +52,7 @@ export const MultiWordSelection: Story = {
 export const JapaneseTarget: Story = {
   args: {
     open: true,
-    selectedText: "quality assurance",
+    selectedText: "voice profile",
     targetLocale: "ja-JP",
   },
 };

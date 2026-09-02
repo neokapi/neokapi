@@ -192,7 +192,7 @@ project's content memory.
 - **AI translation**: translating per segment keeps each unit small and
   self-contained, which improves consistency and lets partial matches and
   full-segment matches coexist in one block.
-- **Checks**: length, consistency, and other [QA checks](/framework/checks)
+- **Checks**: length, consistency, and other [checks](/framework/checks)
   operate per segment when an overlay is present, so a finding points at the
   offending sentence rather than the whole block.
 

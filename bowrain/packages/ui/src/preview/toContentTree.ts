@@ -5,7 +5,7 @@
 // `targets` run sequences, per-locale `targetMeta`, and run-anchored
 // `overlays`. Bowrain's REST surfaces carry the same content plus a flat
 // evidence layer alongside it — term matches and entities positioned by byte
-// offset into the block's plain source text, voice/QA findings already anchored
+// offset into the block's plain source text, voice and rule-based findings already anchored
 // to a Anchor, and check results with no position at all. This module is the
 // one place those are reconciled, so a rendering surface consumes a ContentTree
 // and never re-derives positions itself.
@@ -38,7 +38,7 @@ import type { VoiceFinding } from "../voice/types";
 import type { BlockInfo, BlockTermMatch, EntityInfo, QAIssue } from "../types/api";
 
 /**
- * A run-anchored voice or QA finding, as `core/check.Finding` serializes it —
+ * A run-anchored voice or rule-based finding, as `core/check.Finding` serializes it —
  * the shape the voice-vocabulary check, the /check endpoint and the stored
  * brand scores all emit. `position` is already run-anchored, so it needs no
  * offset conversion.
@@ -58,7 +58,7 @@ export interface BlockFinding extends VoiceFinding {
 export interface BlockEvidence {
   /** Terminology hits over the source text (byte offsets, server-reported). */
   terms?: BlockTermMatch[];
-  /** Voice / QA findings carrying their own run range. */
+  /** Voice and rule-based findings carrying their own run range. */
   findings?: BlockFinding[];
   /**
    * Check results from the `qa-check` endpoints. One that carries a position
@@ -188,7 +188,7 @@ function findingSpan(finding: BlockFinding, index: number): OverlaySpan {
 }
 
 /**
- * A QA issue is a `core/check.Finding` under the Problems panel's names —
+ * A check issue is a `core/check.Finding` under the Problems panel's names —
  * `type` is the finding's category, and the two-valued severity is the
  * collapsed one that endpoint has always reported. A positioned issue is
  * therefore a span like any other finding's.
@@ -208,12 +208,12 @@ function issueSpan(issue: QAIssue, index: number): OverlaySpan {
 }
 
 /**
- * Findings and positioned QA issues become `qa` overlays grouped by side,
+ * Findings and positioned check issues become `qa` overlays grouped by side,
  * carrying their category in span props — the anchoring the preview kit's
  * `overlayHighlight` reads to give a voice-vocabulary violation its own accent.
  *
  * One overlay per side, not one per source of evidence: a block whose voice
- * check and QA check both flagged the same target must not produce two `qa`
+ * check and rule-based check both flagged the same target must not produce two `qa`
  * overlays for that locale.
  */
 function qaOverlays(

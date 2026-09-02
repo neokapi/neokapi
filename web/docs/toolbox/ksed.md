@@ -90,7 +90,7 @@ linked span — `s/Hello world/Hi/` matches even when *world* is bold. Editing a
 word inside a `<b>` span keeps the span around the new word.
 
 When an edit removes the text a code applied to, what happens depends on whether
-the code is *deletable* — the same vocabulary constraint the QA checks use (see
+the code is *deletable* — the same vocabulary constraint the checks use (see
 [Inline Formatting](/framework/inline-formatting#editing-text-that-carries-inline-codes)).
 A deletable formatting span (bold, italic, a link) that is emptied collapses —
 ksed will not leave an empty `<b></b>`. A non-deletable code (a line break, a

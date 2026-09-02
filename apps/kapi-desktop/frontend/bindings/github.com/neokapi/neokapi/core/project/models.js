@@ -441,7 +441,7 @@ export class Defaults {
             /**
              * SourceGate is the source-first convergence gate: the SourceStatus a
              * source block must reach before its translations are produced. Source-first
-             * convergence settles the source (terminology + voice + source-QA) and gates
+             * convergence settles the source (terminology + voice + source hygiene) and gates
              * the fan-out on it, so an unsettled, non-compliant, un-term-checked source is
              * never translated into N locales only to be redone when it changes
              * (strategy 2026-07-dogfood doc 07 / roadmap epic 019).
@@ -450,7 +450,7 @@ export class Defaults {
              *   ""         — unset; the runner applies the default gate (`checked`).
              *   "authored" — the presence baseline (any non-empty source qualifies).
              *   "checked"  — the DEFAULT: source cleared its automated terminology,
-             *                voice, and source-QA checks (no human bottleneck).
+             *                voice, and source hygiene checks (no human bottleneck).
              *   "approved" — a human/agent signed off the source (voice-critical or
              *                regulated projects).
              *   "none"     — the deliberate opt-out: no gate, raw MT / fan-out on push

@@ -52,13 +52,12 @@ quote the pattern and ` + "`**`" + ` recurses identically in every shell. Inside
 project, check with no file arguments checks the project's declared content;
 naming files narrows it to those.
 
-Project gate mode (--ship): it runs the
-project's bound quality gates (brand, terminology, QA) plus its ship/source
-coverage gates over the project's content, and exits non-zero when any gate is
-unmet — the pre-release bar. Target drift never blocks an ordinary build (see
-'kapi status'); --ship is the explicit, opt-in enforcement point. With no file
-arguments it inspects the project's content x target languages; pass files to
-gate just those.
+Project gate mode (--ship): it runs the project's bound quality gates (voice,
+terminology, rule-based checks) plus its ship/source coverage gates over the
+project's content, and exits non-zero when any gate is unmet — the pre-release
+bar. Target drift never blocks an ordinary build (see 'kapi status'); --ship is
+the explicit, opt-in enforcement point. With no file arguments it inspects the
+project's content x target languages; pass files to gate just those.
 
 Exit codes: 0 pass, 3 when the gate fails, 1 operational. --no-fail always exits
 0 (report mode) for a fix-loop.`,
@@ -91,7 +90,7 @@ Exit codes: 0 pass, 3 when the gate fails, 1 operational. --no-fail always exits
 
 	// Project gate mode (--ship): the project gates surface.
 	AddProjectFlag(cmd)
-	f.Bool("ship", false, "project gate mode: run the project's bound gates (brand, terminology, QA) plus its ship/source coverage gates; exit non-zero when unmet — the pre-release bar")
+	f.Bool("ship", false, "project gate mode: run the project's bound gates (voice, terminology, rule-based checks) plus its ship/source coverage gates; exit non-zero when unmet — the pre-release bar")
 	AddGateFlag(cmd)
 	f.String("locale", "", "with --ship: scope the target-side gates to a single target locale (e.g. fr)")
 	f.String("termstore", "", "with --ship: named terms or terms-store path for the terminology gate (defaults to the project terms store)")

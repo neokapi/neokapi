@@ -86,7 +86,7 @@ Three things are **not** ours to rename, and must stay factual:
 
 ## Don't frame the shared engine as translation
 
-Source-language work (brand guardrails, terminology, QA) and translation share
+Source-language work (brand guardrails, terminology, checks) and translation share
 one engine. Wording that frames the shared mechanism as translation undersells
 the source-language half: the reader doing brand work shouldn't feel the docs
 are about something else.

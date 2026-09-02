@@ -19,12 +19,12 @@ Common source problems:
 - **Length problems**: strings too long for UI constraints
 - **Missing translations**: source strings without corresponding target entries
 
-## QA on Source Content
+## Checks on Source Content
 
 Run quality checks directly on source files without any server connection:
 
 ```bash
-# Run QA checks on source content
+# Run the rule-based checks on source content
 kapi exec qa -i src/locales/en/ --source-lang en
 
 # Check term consistency
@@ -34,7 +34,7 @@ kapi exec term-check -i src/locales/en/ --termstore terms.tbx
 kapi xml-validation -i src/locales/en/
 ```
 
-### Built-In QA Rules
+### Built-In Rules
 
 The `qa` tool validates:
 
@@ -129,9 +129,9 @@ steps:
 
 ## CI Integration
 
-### Pre-Push QA Gate
+### Pre-Push Check Gate
 
-Add source QA to your CI pipeline so content that fails validation never reaches the server. Declare local automation rules at the top level of your `kapi.yaml` recipe:
+Add the source checks to your CI pipeline so content that fails validation never reaches the server. Declare local automation rules at the top level of your `kapi.yaml` recipe:
 
 ```yaml
 automations:
@@ -146,10 +146,10 @@ automations:
 
 ### GitHub Actions
 
-Run source QA on every pull request that modifies content files:
+Run the source checks on every pull request that modifies content files:
 
 ```yaml
-name: Source QA
+name: Source checks
 
 on:
   pull_request:
@@ -166,7 +166,7 @@ jobs:
         with:
           plugins: bowrain
 
-      - name: Run source QA
+      - name: Run the source checks
         run: kapi run source-qa
 
       - name: Content stats report
@@ -179,5 +179,5 @@ This catches source-language issues at the PR stage, before they propagate to tr
 
 - [Flows](/cli/flows/overview): available tools and flow configuration
 - [Terms](https://neokapi.github.io/framework/terminology): managing terms stores
-- [QA Checks](https://neokapi.github.io/framework/checks/qa-checks): rule-based quality checks
+- [Rule-based checks](https://neokapi.github.io/framework/checks/rule-checks): rule-based content checks
 - [GitHub Actions](/cli/use-cases/github-actions): CI/CD integration

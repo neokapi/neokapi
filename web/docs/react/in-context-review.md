@@ -1,8 +1,8 @@
 ---
 sidebar_position: 10
 title: In-Context Review
-description: "Review and fix translations on the running React app: ALT+click any string to see its source and edit its target, with terminology and QA findings marked on the live text."
-keywords: [in-context review, translation review, live editing, QA, terminology, neokapi-i18n]
+description: "Review and fix translations on the running React app: ALT+click any string to see its source and edit its target, with terminology and check findings marked on the live text."
+keywords: [in-context review, translation review, live editing, checks, terminology, neokapi-i18n]
 ---
 
 # In-context review
@@ -30,7 +30,7 @@ Hold **ALT**: hovering now outlines every translatable element. **ALT+click** on
 - **Source**: the original text, with its links, bold spans, and placeholders shown the way a translator sees them.
 - **Target**: the current translation, editable.
 - **Note**: the context the developer left, if any (`data-i18n-note`, or `t(text, context)`).
-- **Findings**: terminology and QA issues against this string.
+- **Findings**: terminology and check findings against this string.
 
 Type a fix, save, and the app repaints immediately with the new text.
 
@@ -61,7 +61,7 @@ A **head/SEO** button appears in the review toolbar whenever a page has such str
 
 Head translation resolves through the runtime dictionary, so it applies in OTA / [runtime mode](./modes). Identically-worded slots, a `<title>` and its `og:title` say, share one translation.
 
-## See terminology and QA on the page
+## See terminology and check findings on the page
 
 Run kapi's checks against the same `i18n/` directory and their findings appear on the rendered text:
 
@@ -92,7 +92,7 @@ To let a reviewer **edit** on that static page, pass `edit: true` and an endpoin
 initKapiReviewHosted({ edit: true, endpoint: "https://staging.example.com/review" });
 ```
 
-Saving PUTs to `{endpoint}/{hash}` (the same write-back a body string uses) and repaints the element's text in place, independent of any app i18n runtime. Repaint is text-only: a string with inline markup (a link, a bold span) or an ICU plural saves to the store but is not repainted live; a reload picks up the real rendering. For a manifest that also carries every locale's target and the terminology/QA findings, generate it over the whole KBF tree instead:
+Saving PUTs to `{endpoint}/{hash}` (the same write-back a body string uses) and repaints the element's text in place, independent of any app i18n runtime. Repaint is text-only: a string with inline markup (a link, a bold span) or an ICU plural saves to the store but is not repainted live; a reload picks up the real rendering. For a manifest that also carries every locale's target and the terminology and check findings, generate it over the whole KBF tree instead:
 
 ```bash
 neokapi-i18n compile i18n --out public/translations --review
@@ -108,6 +108,6 @@ initKapiReview({ endpoint: "https://staging.example.com/review" });
 
 ## Next
 
-- [Translating with kapi](./translating-with-kapi): where the terminology and QA findings come from.
+- [Translating with kapi](./translating-with-kapi): where the terminology and check findings come from.
 - [Configuration](./configuration#review--reviewkbfdir): the `review` and `reviewKbfDir` options.
 - [S-05](/contribute/architecture/surfaces/s-05-i18n-runtime): how it works underneath, and why.

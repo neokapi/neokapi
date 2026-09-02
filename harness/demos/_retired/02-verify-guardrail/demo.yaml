@@ -5,7 +5,7 @@ kind: use-case
 aspects:
   - verify loop
   - terminology
-  - placeholder QA
+  - placeholder checks
   - voice profile
 needsAi: false
 model: sonnet

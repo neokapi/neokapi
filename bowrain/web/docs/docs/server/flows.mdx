@@ -148,7 +148,7 @@ project.
 ## Composing multi-step work
 
 Multi-step work composes *inside* a single flow definition: the node graph
-above chains translate and QA in one run. There is no flow-to-flow chaining.
+above chains `translate` and `qa` in one run. There is no flow-to-flow chaining.
 Automations react to content events such as `connector.push.completed` with a
 fixed set of actions (see [Automation](/server/automation)), and no automation
 trigger fires when a flow finishes, so a rule cannot chain on one. See

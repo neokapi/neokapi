@@ -4,7 +4,7 @@ subtitle: A readiness check on a UI dialog, before any real translation. Offline
 kind: use-case
 aspects:
   - pseudo-translation
-  - localization QA
+  - readiness checks
   - offline
 needsAi: false
 model: sonnet

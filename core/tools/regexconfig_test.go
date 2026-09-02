@@ -12,7 +12,7 @@ import (
 // TestQACheckRejectsUninvokableRegex is the regression test for a rule that
 // quietly never fires.
 //
-// A QA pattern whose regex does not compile was skipped at construction, so the
+// A check pattern whose regex does not compile was skipped at construction, so the
 // check it described simply never ran. Nothing failed, nothing was logged, and
 // the report came back clean — which the person who wrote the rule reads as
 // "my content passes", the exact opposite of the truth. A checker that cannot
@@ -79,7 +79,7 @@ func TestQACheckRejectsUninvokableRegex(t *testing.T) {
 			_, err := tools.NewQACheckFromConfig(map[string]any{
 				"patterns": []any{tt.pattern},
 			}, "fr")
-			require.Error(t, err, "an uninvokable QA rule must not build a tool that silently never fires")
+			require.Error(t, err, "an uninvokable check rule must not build a tool that silently never fires")
 			for _, want := range tt.wantIn {
 				assert.Contains(t, err.Error(), want,
 					"the error must quote what the author actually wrote")

@@ -42,7 +42,7 @@ make up the [content model](/framework/content-model).
   once.
 
 - **Overlay**: stand-off annotation anchored to a range of Run indices:
-  segmentation, terms, entities, QA findings, alignment. Overlays describe the
+  segmentation, terms, entities, check findings, alignment. Overlays describe the
   content without altering the source. *Analogy:* a margin note pinned to a span
   of text. See [Content Model](/framework/content-model).
 
@@ -114,8 +114,8 @@ make up the [content model](/framework/content-model).
 
 ## Checks
 
-- **Check**: a test that runs over content and emits findings (the QA analogue
-  of a unit test). See [Checks](/framework/checks).
+- **Check**: a test that runs over content and emits findings (the content
+  analogue of a unit test). See [Checks](/framework/checks).
 
 - **Finding**: a single issue a check reports, anchored to where it occurs and
   carrying a severity. Findings travel with the content as overlays.

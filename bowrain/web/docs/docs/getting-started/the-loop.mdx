@@ -91,7 +91,7 @@ is incurred.
       kind: "phase",
       role: "source",
       label: "settle source",
-      steps: ["source checks", "protect DNT", "source QA"],
+      steps: ["source checks", "protect DNT", "rule-based checks"],
     },
     {
       kind: "gate",
@@ -103,7 +103,7 @@ is incurred.
       kind: "phase",
       role: "translate",
       label: "translate approved source",
-      steps: ["recycle (memory-first)", "AI remainder", "target QA"],
+      steps: ["recycle (memory-first)", "AI remainder", "target checks"],
     },
     {
       kind: "gate",
@@ -118,7 +118,7 @@ is incurred.
 
 - **Settle the source.** A server run's first pass runs the source stage over the
   source locale only (source checks, do-not-translate terms marked and
-  **protected** so translation can never touch them, source QA) and stamps each
+  **protected** so translation can never touch them, the rule-based checks) and stamps each
   unit's source status up the authoring ladder (*authored → checked → approved*).
 - **Hold at the source ship-gate.** The project's `source_gate`
   (`defaults.source_gate`, default `checked`) is the source-side counterpart of

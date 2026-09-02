@@ -24,7 +24,7 @@ The loop has a gate before the target work: `kapi up` **settles your source and 
       kind: "phase",
       role: "source",
       label: "settle source",
-      steps: ["terminology + protect DNT", "voice check", "source QA"],
+      steps: ["terminology + protect DNT", "voice check", "source checks"],
     },
     {
       kind: "gate",
@@ -45,7 +45,7 @@ The loop has a gate before the target work: `kapi up` **settles your source and 
 
 The local source-settle loop, end to end:
 
-1. **Run.** `kapi up` settles each source block (terminology, voice, source QA), stamps its authoring status (*authored → checked → approved*), and holds any block below the gate. Ready blocks translate; held blocks do not. A run that could translate nothing surfaces as *held on source* rather than as a silent skip.
+1. **Run.** `kapi up` settles each source block (terminology, voice, source checks), stamps its authoring status (*authored → checked → approved*), and holds any block below the gate. Ready blocks translate; held blocks do not. A run that could translate nothing surfaces as *held on source* rather than as a silent skip.
 2. **See what's held.** `kapi status` shows source readiness alongside coverage; `kapi check --ship` enforces the same source bar and lists the blocks that fail it.
 3. **Settle.** Fix the flagged terms, voice findings, or source text, through the round-trip (`kapi apply`) or your editor, so the next check clears them. An explicit source sign-off is a `kind:"review"` entry on the source, for the strict `approved` gate.
 4. **Re-run.** `kapi up` re-settles only the blocks whose source changed and translates the newly-cleared ones. Repeat until nothing is held.
@@ -55,7 +55,7 @@ The gate level is `defaults.source_gate` in the recipe:
 ```yaml
 defaults:
   source_gate: checked   # the default: source must clear its automated
-                         # terminology + voice + source-QA checks before translating
+                         # terminology, voice and source checks before translating
 ```
 
 `checked` is the default when unset: the same bar the server holds to, with no human bottleneck. `approved` additionally requires a human source sign-off (voice-critical or regulated content). `none` disables the gate entirely, the deliberate "draft freely, raw MT" opt-out for single-player work that wants translations regardless of source state:

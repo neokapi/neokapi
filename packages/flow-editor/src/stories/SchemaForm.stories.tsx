@@ -89,7 +89,7 @@ const pseudoTranslateSchema: ComponentSchema = {
 };
 
 const qaCheckSchema: ComponentSchema = {
-  title: "QA Check",
+  title: "Quality Check",
   type: "object",
   toolMeta: { id: "qa", category: "validate" },
   "ui:groups": [

@@ -94,7 +94,7 @@ function NewProject() {
             footer={
               <ul className="space-y-1.5">
                 <ScaffoldItem>Source &amp; target languages</ScaffoldItem>
-                <ScaffoldItem>Translate + QA flow</ScaffoldItem>
+                <ScaffoldItem>Translate + Quality Check flow</ScaffoldItem>
                 <ScaffoldItem>Content memory &amp; terms</ScaffoldItem>
                 <ScaffoldItem>Voice &amp; checks</ScaffoldItem>
               </ul>

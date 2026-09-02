@@ -185,7 +185,7 @@ function stallBanner(
         title="Source not ready"
         body={
           n > 0
-            ? `${n} block${n === 1 ? "" : "s"} need settling or source review before translating. Settle your source first (terminology, brand, source QA).`
+            ? `${n} block${n === 1 ? "" : "s"} need settling or source review before translating. Settle your source first (terminology, brand, source checks).`
             : "Some blocks need settling or source review before translating."
         }
         action={

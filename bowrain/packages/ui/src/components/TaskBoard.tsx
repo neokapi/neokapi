@@ -42,7 +42,7 @@ const typeLabels: Record<string, string> = {
   translate: "Translation",
   review: "Review",
   review_terms: "Term Review",
-  fix_quality: "QA Fix",
+  fix_quality: "Quality Fix",
   fix_brand_voice: "Brand Fix",
   fix_terminology: "Terminology Fix",
   connector_setup: "Connector Setup",

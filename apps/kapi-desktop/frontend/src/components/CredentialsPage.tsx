@@ -255,7 +255,7 @@ export function CredentialsPage({
     <div className="p-6">
       <PageHeader
         title="AI Models"
-        subtitle="Pick the default model for translation and QA — the provider follows from the model. API keys are stored in your OS keychain."
+        subtitle="Pick the default model for translation and checks — the provider follows from the model. API keys are stored in your OS keychain."
       />
 
       {/* What a run will actually use, resolved by the same shared precedence

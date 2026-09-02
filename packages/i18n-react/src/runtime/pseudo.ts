@@ -35,7 +35,7 @@ export interface PseudoConfig {
    * Extra expansion relative to the text length, 0..100. Fillers
    * (`expansionChar`) are distributed *between* the characters of the
    * source, so the expansion is visible mid-word — handy for layout
-   * QA at any scale. 0 = off.
+   * checks at any scale. 0 = off.
    */
   expansion?: number;
   /** Character inserted between letters for expansion. Default `"·"` (middle dot). */
@@ -360,7 +360,7 @@ let active: PseudoConfig | null = null;
  * it off. Pass `{}` to activate with default markers.
  *
  * Composes with real dicts: if a real translation is loaded, the
- * pseudo transform runs on THAT — handy for QAing a specific locale
+ * pseudo transform runs on THAT — handy for checking a specific locale
  * with accents + expansion without touching the catalog.
  */
 export function setPseudoMode(config: PseudoConfig | null): void {

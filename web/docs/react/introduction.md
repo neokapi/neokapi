@@ -76,9 +76,9 @@ The source text is the identifier. When the copy changes, you change the JSX, wi
 - **`<Plural>` / `<Select>` authoring components** with CLDR-aware runtime resolution via `Intl.PluralRules`, and ICU number/date/time formatting through `Intl`, so a translator can write `{n, number}` or `{d, date, long}` into a target without a code change.
 - **`t()` escape hatch** for the small set of strings that genuinely belong in data.
 - **Two build modes**: inline (zero runtime, builds per locale) and runtime (single bundle, dict loaded OTA).
-- **[In-context review](./in-context-review) on the running app**: ALT+click any string to see its source, edit its translation, and write it straight back to the `.kbf.json`; terms and QA findings paint onto the live text.
+- **[In-context review](./in-context-review) on the running app**: ALT+click any string to see its source, edit its translation, and write it straight back to the `.kbf.json`; terms and check findings paint onto the live text.
 - **A proper exchange format**, KBF (see [C-01](/contribute/architecture/context/c-01-project-model)), carrying structural context, placeholders, plural forms, and annotation overlays rather than a flat key-value JSON.
-- **Full integration with `kapi`** for pseudo-translation, AI translation, QA, content-memory leverage, and terminology. The same toolchain that handles XLIFF, JSON, Markdown, HTML, and every other format kapi supports.
+- **Full integration with `kapi`** for pseudo-translation, AI translation, checks, content-memory leverage, and terminology. The same toolchain that handles XLIFF, JSON, Markdown, HTML, and every other format kapi supports.
 
 ## When neokapi-i18n isn't the right fit
 

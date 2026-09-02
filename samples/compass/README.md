@@ -218,7 +218,7 @@ the reviewer's approval discarded with it
 ([#1927](https://github.com/neokapi/neokapi/issues/1927)); a source rewrite
 mispairing every locale that held no decision, so `nb` and `nl` went on serving
 the translation of a deleted sentence
-([#1964](https://github.com/neokapi/neokapi/issues/1964)); the QA gate reporting
+([#1964](https://github.com/neokapi/neokapi/issues/1964)); the checks gate reporting
 that approved identical translation as untranslated, and disagreeing with the
 checks the loop runs about which units it holds back
 ([#1973](https://github.com/neokapi/neokapi/issues/1973)); the plan pricing a

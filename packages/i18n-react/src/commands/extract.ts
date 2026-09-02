@@ -98,7 +98,7 @@ export async function runExtract(args: string[], io: RunExtractIO = {}): Promise
 
   // Per-file KBF under --out. One file per source document — the
   // human-readable, git-diffable on-disk shape. Kapi reads these
-  // directly for translation / compile / QA flows.
+  // directly for translation / compile / check flows.
   mkdirSync(opts.outDir, { recursive: true });
   for (const doc of documents) {
     const kbf = buildKBF(doc, opts);

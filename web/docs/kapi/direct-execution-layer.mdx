@@ -87,7 +87,7 @@ lists what your build ships), and a project recipe defines its own under
 `flows:`.
 
 ```bash
-kapi run translate-qa -i app.xliff --target-lang fr   # translate, then LLM-judged QA
+kapi run translate-qa -i app.xliff --target-lang fr   # translate, then LLM-judged review
 kapi run secure-translate -i notes.md --target-lang de # redact → translate → unredact
 kapi run pseudo -p kapi.yaml                           # a project-defined flow
 ```

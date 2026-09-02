@@ -59,7 +59,7 @@ Three properties follow from choosing an overlay over a structural split:
 - **Identity-preserving.** The block content hash is computed over the runs
   ([F-03](../foundations/f-03-identity.md)), which segmentation does not touch.
   A project can turn segmentation on or off between extractions without
-  invalidating the memory, the QA overlays, or a merge's join key
+  invalidating the memory, the check overlays, or a merge's join key
   ([M-01](m-01-bilingual-interop.md)).
 
 Runs that no span covers are implicit inter-segment material. A span can also be

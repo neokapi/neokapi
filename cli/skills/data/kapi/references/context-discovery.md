@@ -132,7 +132,7 @@ compile the committed context and verify the whole thing locally:
 
 ```bash
 kapi up                      # reconcile the graph and the sources
-kapi check --ship --json     # voice + terminology (+ QA) gates: all green
+kapi check --ship --json     # voice + terminology (+ rule-based) gates: all green
 ```
 
 The recipe carries the bindings; the thresholds ride on the check itself: the

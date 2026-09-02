@@ -213,7 +213,7 @@ const PORT_TYPES: Record<PortType, PortTypeDef> = {
   // Quality
   qa: {
     get label() {
-      return t("QA findings", "port type");
+      return t("Findings", "port type");
     },
     family: "quality",
     icon: ShieldAlert,

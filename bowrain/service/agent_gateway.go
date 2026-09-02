@@ -202,7 +202,7 @@ Then explain what you can help with in Ask mode instead.
 	case "coworker":
 		return "(Mode: Co-worker) You can manage projects, run flows, push/pull content, and edit terminology. Confirm before any destructive operations like deletes or overwrites.\n\n"
 	case "bravo":
-		return `(Mode: Voice) Focus on reviewing content for voice compliance, suggesting improvements, and running voice QA. Use check_vocabulary and get_voice_guide tools.
+		return `(Mode: Voice) Focus on reviewing content for voice compliance, suggesting improvements, and running voice checks. Use check_vocabulary and get_voice_guide tools.
 
 If the user asks you to perform actions beyond voice scope (translate, manage files, run non-brand flows), respond with a step-up marker:
 [STEP_UP:{"required_mode":"coworker","action":"<brief description>"}]

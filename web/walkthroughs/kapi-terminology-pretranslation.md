@@ -27,7 +27,7 @@ flow `kapi up` loops over a project, run here one move at a time.
 ## Scene 1 — terms-pretranslation (terminal)
 
 Set up language assets (terms + content memory), then run the three-step pipeline:
-content-memory leverage → pseudo-translate the misses → QA check against the terms store.
+content-memory leverage → pseudo-translate the misses → check against the terms store.
 The output of each step is the input to the next.
 
 ## Closing

@@ -99,7 +99,7 @@ func TestQAIssuesFromFindings_KeepsWhatTheFindingLocated(t *testing.T) {
 		string(raw))
 }
 
-// No QA checker populates Position yet — core/tools/qacheck.go judges whole
+// No checker populates Position yet — core/tools/qacheck.go judges whole
 // texts and the shape flattenings it works over are not run offsets — so the
 // endpoint is honest about locating nothing rather than inventing a range.
 // This pins that: when the tools start locating, this test says so.

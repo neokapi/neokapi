@@ -26,8 +26,8 @@ func newSourceGateProject(t *testing.T, gate string) (*App, *EnvCommand, string)
 }
 
 // newSourceGateProjectWith is newSourceGateProject with an explicit source JSON
-// body, so a test can control which blocks settle clean vs. flag a source-QA
-// finding.
+// body, so a test can control which blocks settle clean vs. flag a source-side
+// check finding.
 func newSourceGateProjectWith(t *testing.T, gate, sourceJSON string) (*App, *EnvCommand, string) {
 	t.Helper()
 	dir := t.TempDir()
@@ -160,10 +160,11 @@ func TestConvergeSourceGate_AtGateTranslates(t *testing.T) {
 
 // TestConvergeSourceGate_PartialTranslatesReadyReportsHeld: with the default
 // (checked) gate over a mixed source — one clean block (settles to checked →
-// translates) and one whitespace-only block (a source-QA major finding keeps it
-// at the authored baseline → held) — the run translates the ready block, holds
-// the un-ready one, reports the held count, and is NOT source_not_ready (partial
-// progress advanced), mirroring the server's partial-item handling (epic 019).
+// translates) and one whitespace-only block (a major source-side check finding
+// keeps it at the authored baseline → held) — the run translates the ready
+// block, holds the un-ready one, reports the held count, and is NOT
+// source_not_ready (partial progress advanced), mirroring the server's
+// partial-item handling (epic 019).
 func TestConvergeSourceGate_PartialTranslatesReadyReportsHeld(t *testing.T) {
 	a, cmd, recipe := newSourceGateProjectWith(t, string(model.SourceGateChecked),
 		`{"greeting":"Hello world","blank":"   "}`)

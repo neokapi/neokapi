@@ -25,7 +25,7 @@ export const FLOW_TEMPLATES: FlowTemplate[] = [
   {
     id: "translate-qa",
     get name() {
-      return t("Translate + QA", "flow template name");
+      return t("Translate + Quality Check", "flow template name");
     },
     get description() {
       return t("AI-translate content then run quality checks to catch errors.");
@@ -100,7 +100,7 @@ export const FLOW_TEMPLATES: FlowTemplate[] = [
         {
           tool: "qa",
           get label() {
-            return t("Validate", "flow step label");
+            return t("Quality Check", "flow step label");
           },
         },
       ],
@@ -109,10 +109,12 @@ export const FLOW_TEMPLATES: FlowTemplate[] = [
   {
     id: "parallel-qa",
     get name() {
-      return t("Translate + Parallel QA", "flow template name");
+      return t("Translate + Parallel Checks", "flow template name");
     },
     get description() {
-      return t("Translate, then run QA and brand checks in parallel for faster validation.");
+      return t(
+        "Translate, then run rule-based and brand checks in parallel for faster validation.",
+      );
     },
     category: "quality",
     stepCount: 4,
@@ -131,7 +133,7 @@ export const FLOW_TEMPLATES: FlowTemplate[] = [
             {
               tool: "qa",
               get label() {
-                return t("QA Check", "flow step label");
+                return t("Quality Check", "flow step label");
               },
             },
             {
@@ -158,7 +160,7 @@ export const FLOW_TEMPLATES: FlowTemplate[] = [
     },
     get description() {
       return t(
-        "Complete workflow: content-memory leverage, AI translate, parallel QA + brand check, word count.",
+        "Complete workflow: content-memory leverage, AI translate, parallel rule-based and brand checks, word count.",
       );
     },
     category: "pipeline",
@@ -184,7 +186,7 @@ export const FLOW_TEMPLATES: FlowTemplate[] = [
             {
               tool: "qa",
               get label() {
-                return t("QA Check", "flow step label");
+                return t("Quality Check", "flow step label");
               },
             },
             {

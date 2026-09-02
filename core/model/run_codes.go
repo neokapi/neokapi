@@ -146,7 +146,7 @@ func sortedCodeKeys(m map[string]int) []string {
 // DiffRunCodes compares the inline-code multisets of a source Run sequence and
 // a candidate target Run sequence. It is the shared placeholder-integrity
 // predicate for every stage that commits a machine-selected target: TM
-// leverage, diff leverage, and the placeholder QA check all key off it, so
+// leverage, diff leverage, and the placeholder check all key off it, so
 // "a target carries its source's codes" means one thing across the pipeline.
 func DiffRunCodes(source, target []Run) RunCodeDiff {
 	src := RunCodeCounts(source)

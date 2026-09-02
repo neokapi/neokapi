@@ -23,7 +23,7 @@ export const sampleConversations: BravoConversation[] = [
     workspace_id: "ws-1",
     user_id: "user-1",
     project_id: "proj-1",
-    title: "Review QA issues",
+    title: "Review findings",
     status: "completed",
     created_at: new Date(Date.now() - 86400000).toISOString(),
     updated_at: new Date(Date.now() - 86400000).toISOString(),

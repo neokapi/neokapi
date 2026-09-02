@@ -1412,7 +1412,7 @@ export function InspectFile(tabID, filePath) {
  *   - voice-vocabulary overlays (type "qa", props.category="voice-vocabulary")
  *     from the voice profile governing the point this file sits at
  *     (voiceResolver via coreprofile.MatchVocabulary);
- *   - rule-based QA overlays (type "qa") from the shared source-only shape rules
+ *   - rule-based check overlays (type "qa") from the shared source-only shape rules
  *     (double spaces, doubled words — check.HygieneOverlay).
  * 
  * These mirror the overlay shapes the docs "Anatomy" explorer produces in
