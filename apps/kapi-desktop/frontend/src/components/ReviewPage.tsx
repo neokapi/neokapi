@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  BookOpen,
   Check,
   CheckCheck,
   CheckCircle2,
@@ -34,7 +35,13 @@ import { VirtualList } from "@neokapi/editor-grid";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
 import { AIExchangeDisclosure } from "./AIExchangeView";
+import { FilePreview } from "./FilePreview";
 import { SourceLane } from "./SourceLane";
+import { AIPreReview } from "./review/AIPreReview";
+import { HistoryCard } from "./review/HistoryCard";
+import { NeighbourhoodCard } from "./review/NeighbourhoodCard";
+import { PointRail } from "./review/PointRail";
+import { ProvenanceCard } from "./review/ProvenanceCard";
 import { useActiveFilter } from "../context/ActiveFilterContext";
 import type {
   DesktopFinding,
@@ -208,6 +215,11 @@ export function ReviewPage({
   const [preReviewRunning, setPreReviewRunning] = useState(false);
   const [preReviewResult, setPreReviewResult] = useState<PreReviewResult | null>(null);
   const [reviewerModel, setReviewerModel] = useState<string>("");
+  // The read-only document view, opened at the selected unit. It reads the file
+  // and never commits: approve, reject, retranslate and sign off stay here on
+  // the queue, and closing it returns to the queue with this unit still
+  // selected and the list where it was.
+  const [documentOpen, setDocumentOpen] = useState(false);
   const editRef = useRef<HTMLTextAreaElement>(null);
 
   const refreshQueue = useCallback(async () => {
@@ -290,6 +302,11 @@ export function ReviewPage({
 
   // Load the unit detail when the selection changes. Any pending AI proposal
   // or explanation belongs to the previous unit — drop it.
+  //
+  // The detail carries the whole review model (the point, the neighbourhood,
+  // the history), which costs more than the queue row it was picked from. The
+  // two strings the queue already holds render straight away and the model
+  // fills in behind them, so j/k stays as fast as the list.
   useEffect(() => {
     setAIProposal(null);
     setAIExplanation(null);
@@ -299,6 +316,8 @@ export function ReviewPage({
       setEditText("");
       return;
     }
+    setUnit(null);
+    setEditText(selected.target ?? "");
     let cancelled = false;
     setUnitLoading(true);
     const load =
@@ -320,6 +339,30 @@ export function ReviewPage({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId, tabID, loadUnit]);
+
+  // The review model for the selected unit: the point governing its file, the
+  // blocks either side of it, what it said before, what the checks found, and
+  // who decided last. The host assembles it, so the queue, an agent and the CLI
+  // read one answer.
+  const model = unit?.context;
+
+  // The document to open the unit in is its SOURCE file, which carries the
+  // source↔target toggle. The point names it project-relative; the queue's own
+  // file is the target rendering, and answers until the model arrives.
+  const documentFile = model?.point.path || selected?.file || "";
+
+  // What the queue knows about the rest of this file: every unit listed here is
+  // awaiting a decision, and the marked ones trip a check.
+  const unitStates = useMemo(() => {
+    if (!selected) return {};
+    const out: Record<string, string> = {};
+    for (const it of queue ?? []) {
+      if (it.file !== selected.file || it.locale !== selected.locale) continue;
+      out[it.key] = it.hasFindings ? t("findings") : t("awaiting review");
+    }
+    if (unit?.review_state) out[selected.key] = unit.review_state;
+    return out;
+  }, [queue, selected, unit?.review_state]);
 
   const move = useCallback(
     (delta: number) => {
@@ -564,6 +607,10 @@ export function ReviewPage({
         return;
       }
       if (e.metaKey || e.ctrlKey || e.altKey) return;
+      // The document view reads; it decides nothing. While it is open the
+      // decision keys belong to it (Escape closes it) rather than to the queue
+      // behind it.
+      if (documentOpen) return;
       switch (e.key) {
         case "j":
         case "ArrowDown":
@@ -600,7 +647,7 @@ export function ReviewPage({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [move, approve, reject, signOff]);
+  }, [move, approve, reject, signOff, documentOpen]);
 
   // Phase 2 batch: approve every clean unit in the current filter.
   const cleanVisible = useMemo(() => visible.filter((it) => it.hasFindings === false), [visible]);
@@ -1110,7 +1157,9 @@ export function ReviewPage({
             )}
           />
 
-          {/* Center: the unit — SOURCE / TARGET, findings, context, actions. */}
+          {/* Center: the unit — the point it sits at, SOURCE / TARGET, the
+              document around it, what was approved before, the checks and the
+              provenance. */}
           <div className="flex min-h-0 flex-col" data-slot="review-unit">
             <ScrollArea className="min-h-0 flex-1">
               <div className="space-y-3 pr-3">
@@ -1132,8 +1181,21 @@ export function ReviewPage({
                       </Badge>
                     )}
                     {unitLoading && <Loader2 size={12} className="animate-spin" />}
+                    <Button
+                      variant="outline"
+                      size="xs"
+                      className="ml-auto"
+                      onClick={() => setDocumentOpen(true)}
+                      disabled={!documentFile}
+                      data-slot="review-open-document"
+                    >
+                      <BookOpen size={12} />
+                      {t("Open in document")}
+                    </Button>
                   </div>
                 )}
+
+                <PointRail point={model?.point} loading={unitLoading} />
 
                 <Card>
                   <CardContent className="p-3">
@@ -1331,7 +1393,30 @@ export function ReviewPage({
                   </Card>
                 )}
 
-                {/* CHECKS: the unit's findings. */}
+                {/* The unit in its document: the blocks either side of it, in
+                    document order, as the translate prompt read them. */}
+                <NeighbourhoodCard
+                  neighbourhood={model?.neighbourhood}
+                  unitKey={selected?.key}
+                  unitSource={unit?.source ?? selected?.source}
+                  unitTarget={unit?.target ?? selected?.target}
+                  sourceLocale={unit?.source_locale ?? selected?.sourceLocale}
+                  locale={unit?.locale ?? selected?.locale}
+                  loading={unitLoading}
+                />
+
+                {/* What was approved for this unit before, and the wording the
+                    content memory already holds for it. */}
+                <HistoryCard
+                  history={model?.history}
+                  sourceLocale={unit?.source_locale ?? selected?.sourceLocale}
+                  locale={unit?.locale ?? selected?.locale}
+                  loading={unitLoading}
+                  fallbackMemoryScore={unit?.tm_score}
+                />
+
+                {/* What has already been said about this translation: the
+                    checks, and the AI pre-review that scored it. */}
                 <Card data-slot="review-findings">
                   <CardContent className="p-3">
                     <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -1383,61 +1468,21 @@ export function ReviewPage({
                         ))}
                       </ul>
                     )}
+                    <AIPreReview
+                      score={model?.judgement.ai_score ?? unit?.ai_review_score}
+                      model={model?.judgement.ai_model ?? unit?.ai_review_model}
+                      findings={model?.judgement.ai_findings}
+                    />
                   </CardContent>
                 </Card>
 
-                {/* CONTEXT: provenance, prior decision, content-memory match. */}
-                <Card data-slot="review-context">
-                  <CardContent className="space-y-1 p-3 text-xs">
-                    <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      {t("Context")}
-                    </div>
-                    {unit?.origin?.kind && (
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-muted-foreground">{t("Origin")}</span>
-                        <span translate="no">
-                          {unit.origin.kind}
-                          {unit.origin.engine ? ` · ${unit.origin.engine}` : ""}
-                        </span>
-                      </div>
-                    )}
-                    {(unit?.tm_score ?? 0) > 0 && (
-                      <div className="flex items-center gap-1.5" data-slot="review-tm-score">
-                        <span className="text-muted-foreground">{t("Memory best match")}</span>
-                        <span className="tabular-nums">{unit?.tm_score}%</span>
-                      </div>
-                    )}
-                    {unit?.ai_review_score !== undefined && (
-                      <div className="flex items-center gap-1.5" data-slot="review-ai-score">
-                        <span className="text-muted-foreground">{t("AI review")}</span>
-                        <span className="tabular-nums">
-                          {unit.ai_review_score}
-                          {unit.ai_review_model ? ` (${unit.ai_review_model})` : ""}
-                        </span>
-                      </div>
-                    )}
-                    {unit?.review_state && (
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-muted-foreground">{t("Last decision")}</span>
-                        <span>{unit.review_state}</span>
-                      </div>
-                    )}
-                    {unit?.note && (
-                      <div className="flex items-start gap-1.5" data-slot="review-note">
-                        <span className="text-muted-foreground">{t("Note")}</span>
-                        <span>{unit.note}</span>
-                      </div>
-                    )}
-                    {!unit?.origin?.kind &&
-                      !(unit?.tm_score ?? 0) &&
-                      !unit?.review_state &&
-                      !unit?.note && (
-                        <div className="text-muted-foreground">
-                          {t("No provenance recorded for this translation.")}
-                        </div>
-                      )}
-                  </CardContent>
-                </Card>
+                {/* Where this translation came from, and the decision in force. */}
+                <ProvenanceCard
+                  provenance={model?.provenance}
+                  origin={unit?.origin}
+                  reviewState={unit?.review_state}
+                  note={unit?.note}
+                />
               </div>
             </ScrollArea>
 
@@ -1501,6 +1546,19 @@ export function ReviewPage({
           </div>
         </div>
       )}
+
+      {/* The unit in its document. The queue stays mounted behind the sheet, so
+          closing it lands back on this unit with the list where it was. */}
+      <FilePreview
+        tabID={tabID}
+        filePath={documentOpen && selected ? documentFile : null}
+        filename={documentFile}
+        focusKey={selected?.key ?? null}
+        unitStates={unitStates}
+        side={selected?.locale}
+        backLabel={t("Back to the queue")}
+        onClose={() => setDocumentOpen(false)}
+      />
     </div>
   );
 }

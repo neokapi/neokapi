@@ -4,7 +4,15 @@ import userEvent from "@testing-library/user-event";
 
 import { ReviewPage, type ReviewDecision } from "../components/ReviewPage";
 import { ErrorProvider } from "../components/ErrorBanner";
-import type { PreReviewResult, ReviewItem, ReviewUnitDetail } from "../types/api";
+import type { PreReviewResult, ReviewContext, ReviewItem, ReviewUnitDetail } from "../types/api";
+
+/** A date placeholder, the kind a concatenating run walk deletes silently. */
+const DATE_PH = {
+  id: "1",
+  type: "var",
+  data: "{date}",
+  equiv: "date",
+};
 
 const ITEMS: ReviewItem[] = [
   {
@@ -436,7 +444,7 @@ describe("ReviewPage", () => {
     expect(onAIAction).not.toHaveBeenCalled();
   });
 
-  it("shows the AI review score in CONTEXT and on queue items", async () => {
+  it("shows the AI pre-review score beside the checks and on queue items", async () => {
     const items: ReviewItem[] = ITEMS.map((it) =>
       it.key === "greeting" && it.locale === "fr-FR"
         ? { ...it, aiScore: 92, aiModel: "claude-x" }
@@ -453,7 +461,8 @@ describe("ReviewPage", () => {
       </ErrorProvider>,
     );
     await screen.findByText("ai 92");
-    // Select the annotated unit → CONTEXT shows "AI review: 92 (claude-x)".
+    // Select the annotated unit: the AI pre-review reads inside the checks
+    // group, with the model that scored it.
     const annotated = Array.from(document.querySelectorAll("[data-slot='review-queue-item']")).find(
       (el) => el.textContent?.includes("ai 92"),
     ) as HTMLElement;
@@ -461,9 +470,14 @@ describe("ReviewPage", () => {
     await waitFor(() =>
       expect(document.querySelector("[data-slot='review-ai-score']")).not.toBeNull(),
     );
-    expect(document.querySelector("[data-slot='review-ai-score']")?.textContent).toContain(
-      "92 (claude-x)",
-    );
+    const score = document.querySelector("[data-slot='review-ai-score']");
+    expect(score?.textContent).toContain("92");
+    expect(score?.textContent).toContain("claude-x");
+    expect(
+      document
+        .querySelector("[data-slot='review-findings']")
+        ?.contains(document.querySelector("[data-slot='review-ai-prereview']")),
+    ).toBe(true);
   });
 
   it("opens the pre-review modal and runs annotate-only by default", async () => {
@@ -513,5 +527,193 @@ describe("ReviewPage", () => {
     expect(onPreReview.mock.calls[0][0]).toBe("fr-FR");
     expect(onPreReview.mock.calls[0][1]).toEqual({ collection: "Docs" });
     expect(onPreReview.mock.calls[0][2]).toEqual({ autoApprove: true, minScore: 90 });
+  });
+});
+
+/** One unit's review model, as the host assembles it. */
+const CONTEXT: ReviewContext = {
+  point: {
+    path: "content/app.json",
+    profile: "retail",
+    channel: "web",
+    collection: "App",
+    ref: "retail/web",
+    default: false,
+    coordinates: { product: "kapimart", channel: "web" },
+    voice: {
+      name: "Kapimart retail",
+      source: "pack:retail",
+      field: "defaults.voice",
+      guide: "Write in the second person. Keep sentences under twenty words.",
+    },
+    term_rules: [
+      { term: "cart", replacement: "basket", severity: "major" },
+      { term: "Kapimart", do_not_translate: true },
+    ],
+    terms_total: 40,
+    profiles: [{ name: "retail", valid_from: "2026-01-01", state: "active" }],
+    notes: ["The terms store was read three days ago."],
+  },
+  neighbourhood: {
+    key: "greeting",
+    before: [{ key: "intro", source: [{ text: "Welcome back." }] }],
+    after: [
+      {
+        key: "credits",
+        source: [{ text: "Your credits reset on " }, { ph: DATE_PH }, { text: "." }],
+        target: [{ text: "Vos crédits sont réinitialisés le " }, { ph: DATE_PH }, { text: "." }],
+      },
+    ],
+    window: 2,
+  },
+  history: {
+    prior: {
+      source: "Hello {name}",
+      target: "Salut {name}",
+      context_fingerprint: "abc123",
+      governed: false,
+    },
+    match: { score: 88, source: "Hello {name}!", target: "Bonjour {name} !" },
+  },
+  judgement: {
+    ai_score: 74,
+    ai_model: "claude-x",
+    ai_findings: [{ severity: "minor", message: "The greeting is more formal than the source." }],
+  },
+  provenance: {
+    origin: { kind: "ai", engine: "claude-x" },
+    review_state: "rejected",
+    by: "agent/desktop",
+    at: "2026-08-30T10:00:00Z",
+    note: "Too formal for this surface.",
+    stale: true,
+  },
+};
+
+describe("ReviewPage review model", () => {
+  function renderWithContext() {
+    const loadUnit = vi.fn(async (item: ReviewItem) => ({
+      ...unitFor(item),
+      context: CONTEXT,
+    }));
+    return render(
+      <ErrorProvider>
+        <ReviewPage tabID="t1" items={ITEMS} loadUnit={loadUnit} />
+      </ErrorProvider>,
+    );
+  }
+
+  it("renders the point rail: ref, collection, coordinates, voice and term rules", async () => {
+    renderWithContext();
+    await waitFor(() =>
+      expect(document.querySelector("[data-slot='review-point-ref']")?.textContent).toBe(
+        "retail/web",
+      ),
+    );
+    expect(document.querySelector("[data-slot='review-point-voice']")?.textContent).toBe(
+      "Kapimart retail",
+    );
+    const coordinates = Array.from(
+      document.querySelectorAll("[data-slot='review-point-coordinate']"),
+    ).map((el) => el.textContent?.trim());
+    expect(coordinates).toContain("product: kapimart");
+    const terms = Array.from(document.querySelectorAll("[data-slot='review-point-term']")).map(
+      (el) => el.textContent,
+    );
+    expect(terms[0]).toContain("cart");
+    expect(terms[0]).toContain("basket");
+    // A capped list says what it is part of.
+    expect(document.querySelector("[data-slot='review-point-terms-total']")?.textContent).toContain(
+      "40",
+    );
+    // The rendered guidance is prose, so it sits behind a disclosure.
+    expect(document.querySelector("[data-slot='review-point-guide']")).toBeNull();
+    await userEvent.click(
+      document.querySelector("[data-slot='review-point-guide-toggle']") as HTMLElement,
+    );
+    expect(document.querySelector("[data-slot='review-point-guide']")?.textContent).toContain(
+      "second person",
+    );
+  });
+
+  it("renders the neighbourhood in document order, placeholders and all", async () => {
+    renderWithContext();
+    const rows = await waitFor(() => {
+      const els = document.querySelectorAll("[data-slot='review-neighbour']");
+      expect(els).toHaveLength(2);
+      return els;
+    });
+    expect(rows[0].textContent).toContain("Welcome back.");
+    // The placeholder survives the projection: a concatenating loop would have
+    // rendered "Your credits reset on ." with the variable gone.
+    expect(rows[1].textContent).toContain("Your credits reset on");
+    expect(rows[1].textContent).toContain("date");
+    // The unit sits between its neighbours, keyed in full.
+    expect(document.querySelector("[data-slot='review-neighbour-unit']")?.textContent).toContain(
+      "greeting",
+    );
+  });
+
+  it("renders the prior version and the content memory's wording", async () => {
+    renderWithContext();
+    const prior = await waitFor(() => {
+      const el = document.querySelector("[data-slot='review-history-prior']");
+      expect(el).not.toBeNull();
+      return el!;
+    });
+    expect(prior.textContent).toContain("Salut {name}");
+    // The fingerprint no longer matches, so the prompt would have withheld it.
+    expect(prior.textContent).toContain("context has moved");
+    const match = document.querySelector("[data-slot='review-history-match']");
+    expect(match?.textContent).toContain("88%");
+    expect(match?.textContent).toContain("Bonjour {name} !");
+  });
+
+  it("names the provenance card and carries the decision in force", async () => {
+    renderWithContext();
+    const card = await waitFor(() => {
+      const el = document.querySelector("[data-slot='review-provenance']");
+      expect(el).not.toBeNull();
+      return el!;
+    });
+    expect(card.textContent).toContain("Provenance");
+    expect(card.textContent).toContain("rejected");
+    expect(card.textContent).toContain("agent/desktop");
+    expect(card.textContent).toContain("Too formal for this surface.");
+    expect(document.querySelector("[data-slot='review-provenance-stale']")).not.toBeNull();
+    // The card that called itself Context is gone, and the memory match with it.
+    expect(document.querySelector("[data-slot='review-context']")).toBeNull();
+    expect(card.textContent).not.toContain("88%");
+  });
+
+  it("opens the unit in the document view and comes back to the same unit", async () => {
+    renderWithContext();
+    const open = await waitFor(() => {
+      const el = document.querySelector("[data-slot='review-open-document']") as HTMLButtonElement;
+      expect(el).not.toBeNull();
+      return el;
+    });
+    const before = document.querySelector("[data-slot='review-queue-item'][data-active]");
+    expect(before?.getAttribute("data-key")).toBe("greeting");
+    await userEvent.click(open);
+    const focus = await waitFor(() => {
+      const el = document.querySelector("[data-slot='file-preview-focus']");
+      expect(el).not.toBeNull();
+      return el!;
+    });
+    expect(focus.textContent).toContain("greeting");
+    // No decision action is reachable from inside the document view: pressing
+    // the approve key while it is open decides nothing.
+    fireEvent.keyDown(window, { key: "a" });
+    expect(document.querySelector("[data-slot='file-preview-focus']")).not.toBeNull();
+    await userEvent.click(document.querySelector("[data-slot='file-preview-back']") as HTMLElement);
+    await waitFor(() =>
+      expect(document.querySelector("[data-slot='file-preview-focus']")).toBeNull(),
+    );
+    expect(
+      document
+        .querySelector("[data-slot='review-queue-item'][data-active]")
+        ?.getAttribute("data-key"),
+    ).toBe("greeting");
   });
 });

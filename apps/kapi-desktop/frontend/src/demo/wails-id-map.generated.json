@@ -149,6 +149,7 @@
   "3099976578": "GetRunState",
   "3150431689": "OpenProjectDialog",
   "3160388915": "GetUserFlow",
+  "3164157746": "GetSourceUnitContext",
   "3214150005": "GetLastRunError",
   "3256035612": "SetActiveFilter",
   "3258718056": "GetRunEvents",

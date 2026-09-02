@@ -28,6 +28,7 @@
     "@neokapi/flow-editor": "*",
     "@neokapi/kapi-lab": "*",
     "@neokapi/i18n-react": "*",
+    "@neokapi/kapi-format": "*",
     "@neokapi/reference-data": "*",
     "@neokapi/status-views": "*",
     "@neokapi/ui-primitives": "*",

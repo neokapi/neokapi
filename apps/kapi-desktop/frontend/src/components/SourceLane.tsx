@@ -13,7 +13,9 @@ import { t } from "@neokapi/i18n-react/runtime";
 import { Check, Loader2, PauseCircle } from "lucide-react";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
-import type { ProjectFilter, SourceQueueItem } from "../types/api";
+import { NeighbourhoodCard } from "./review/NeighbourhoodCard";
+import { PointRail } from "./review/PointRail";
+import type { ProjectFilter, ReviewContext, SourceQueueItem } from "../types/api";
 
 const itemId = (it: SourceQueueItem) => `${it.file}:${it.key}`;
 
@@ -30,6 +32,9 @@ export interface SourceLaneProps {
   /** Refetch owned by the parent, so the lane toggle's count and the lane never
    *  disagree about how much source work is left. */
   onChanged?: () => Promise<void> | void;
+  /** Override the review-model loader (Storybook/tests); defaults to the
+   *  GetSourceUnitContext binding. */
+  loadContext?: (item: SourceQueueItem) => Promise<ReviewContext | null>;
 }
 
 /**
@@ -52,6 +57,7 @@ export function SourceLane({
   onApprove,
   onSaveSource,
   onChanged,
+  loadContext,
 }: SourceLaneProps) {
   const { showError } = useError();
   const [queue, setQueue] = useState<SourceQueueItem[] | null>(propItems ?? null);
@@ -60,6 +66,11 @@ export function SourceLane({
   const [editText, setEditText] = useState("");
   const [busy, setBusy] = useState(false);
   const [awaiting, setAwaiting] = useState<string[] | null>(null);
+  // The point this unit's file sits at, and the blocks around it. Both lanes
+  // render one model, so the wording is judged against the voice that governs
+  // it rather than on its own.
+  const [model, setModel] = useState<ReviewContext | null>(null);
+  const [modelLoading, setModelLoading] = useState(false);
 
   const refresh = useCallback(async () => {
     if (onChanged) {
@@ -101,6 +112,36 @@ export function SourceLane({
     setEditText(selected?.source ?? "");
     setAwaiting(null);
   }, [selected?.file, selected?.key, selected?.source]);
+
+  // The model costs more than the row it was picked from, so the wording shows
+  // straight away and the point fills in behind it.
+  useEffect(() => {
+    if (!selected) {
+      setModel(null);
+      return;
+    }
+    const item = selected;
+    let cancelled = false;
+    setModel(null);
+    setModelLoading(true);
+    const load =
+      loadContext ?? ((it: SourceQueueItem) => api.getSourceUnitContext(tabID, it.file, it.key));
+    load(item)
+      .then((ctx) => {
+        if (!cancelled) setModel(ctx ?? null);
+      })
+      .catch(() => {
+        // The point is context around the decision, so failing to read it
+        // leaves the lane usable rather than taking it down.
+        if (!cancelled) setModel(null);
+      })
+      .finally(() => {
+        if (!cancelled) setModelLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [tabID, selected?.file, selected?.key, loadContext]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const approve = useCallback(async () => {
     if (!selected) return;
@@ -181,66 +222,81 @@ export function SourceLane({
       </div>
 
       {selected && (
-        <Card>
-          <CardContent className="space-y-3 p-3">
-            <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-              <span translate="no">
-                {selected.file}:{selected.key}
-              </span>
-              {selected.sourceLocale && <LocalePill locale={selected.sourceLocale} />}
-              {selected.held && (
-                <Badge variant="outline" className="border-amber-500/40 text-[10px] text-amber-600">
-                  {t("holding every language")}
-                </Badge>
-              )}
-            </div>
+        <div className="min-w-0 space-y-3 overflow-auto">
+          <PointRail point={model?.point} loading={modelLoading} />
 
-            <div>
-              <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                {t("Source")}
+          <Card>
+            <CardContent className="space-y-3 p-3">
+              <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                <span translate="no">
+                  {selected.file}:{selected.key}
+                </span>
+                {selected.sourceLocale && <LocalePill locale={selected.sourceLocale} />}
+                {selected.held && (
+                  <Badge
+                    variant="outline"
+                    className="border-amber-500/40 text-[10px] text-amber-600"
+                  >
+                    {t("holding every language")}
+                  </Badge>
+                )}
+              </div>
+
+              <div>
+                <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  {t("Source")}
+                </p>
+                <textarea
+                  className="min-h-24 w-full resize-y rounded-md border bg-background p-2 text-sm"
+                  value={editText}
+                  onChange={(e) => setEditText(e.target.value)}
+                  data-slot="source-lane-editor"
+                  {...directionAttrs(selected.sourceLocale)}
+                />
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <Button size="xs" onClick={() => void approve()} disabled={busy}>
+                  {busy ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+                  {t("Approve source")}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="xs"
+                  onClick={() => void save()}
+                  disabled={busy || editText.trim() === "" || editText === selected.source}
+                  data-slot="source-lane-save"
+                >
+                  {t("Save and re-draft")}
+                </Button>
+              </div>
+
+              <p className="text-[11px] text-muted-foreground">
+                {t(
+                  "Approving binds to this exact wording: editing it later drops the approval. Saving an edit leaves every translation in place, and the next run re-drafts the ones it wrote.",
+                )}
               </p>
-              <textarea
-                className="min-h-24 w-full resize-y rounded-md border bg-background p-2 text-sm"
-                value={editText}
-                onChange={(e) => setEditText(e.target.value)}
-                data-slot="source-lane-editor"
-                {...directionAttrs(selected.sourceLocale)}
-              />
-            </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <Button size="xs" onClick={() => void approve()} disabled={busy}>
-                {busy ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
-                {t("Approve source")}
-              </Button>
-              <Button
-                variant="outline"
-                size="xs"
-                onClick={() => void save()}
-                disabled={busy || editText.trim() === "" || editText === selected.source}
-                data-slot="source-lane-save"
-              >
-                {t("Save and re-draft")}
-              </Button>
-            </div>
-
-            <p className="text-[11px] text-muted-foreground">
-              {t(
-                "Approving binds to this exact wording: editing it later drops the approval. Saving an edit leaves every translation in place, and the next run re-drafts the ones it wrote.",
+              {awaiting !== null && (
+                <p className="text-[11px] text-muted-foreground" data-slot="source-lane-awaiting">
+                  {awaiting.length === 0
+                    ? t("Source saved. No language has a translation of this unit yet.")
+                    : t("Source saved. {langs} will be re-drafted on the next run.", {
+                        langs: awaiting.join(", "),
+                      })}
+                </p>
               )}
-            </p>
+            </CardContent>
+          </Card>
 
-            {awaiting !== null && (
-              <p className="text-[11px] text-muted-foreground" data-slot="source-lane-awaiting">
-                {awaiting.length === 0
-                  ? t("Source saved. No language has a translation of this unit yet.")
-                  : t("Source saved. {langs} will be re-drafted on the next run.", {
-                      langs: awaiting.join(", "),
-                    })}
-              </p>
-            )}
-          </CardContent>
-        </Card>
+          <NeighbourhoodCard
+            neighbourhood={model?.neighbourhood}
+            unitKey={selected.key}
+            unitSource={selected.source}
+            sourceLocale={selected.sourceLocale}
+            loading={modelLoading}
+          />
+        </div>
       )}
     </div>
   );
