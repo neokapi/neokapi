@@ -37,7 +37,10 @@ work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 
 # A phrase only the Apache-2.0 text contains, so a placeholder file or the wrong
-# license fails rather than passing on file existence alone.
+# license fails rather than passing on file existence alone. The markers are
+# matched with a bash substring test, never `printf | grep -q`: under pipefail,
+# grep exiting on its first match leaves printf a broken pipe, and the check
+# reports a correct license as the wrong one whenever that race is lost.
 readonly APACHE_MARKER='Apache License'
 
 # kapi-av bundles LGPL-2.1+ ffmpeg/ffprobe, so its own Apache-2.0 grant is not
@@ -107,7 +110,7 @@ for row in "asr:kapi-asr/LICENSE" "av:kapi-av/LICENSE" "sourcecode:LICENSE"; do
     echo "       Stage the repo LICENSE in package-$plugin-plugin.sh (and name it" >&2
     echo "       in the tar member list if that script lists its members)." >&2
     rc=1
-  elif ! printf '%s' "$text" | grep -q "$APACHE_MARKER"; then
+  elif [[ $text != *"$APACHE_MARKER"* ]]; then
     echo "ERROR: $(basename "$archive"): $path is not Apache-2.0 text" >&2
     rc=1
   fi
@@ -119,7 +122,7 @@ for row in "asr:kapi-asr/LICENSE" "av:kapi-av/LICENSE" "sourcecode:LICENSE"; do
       echo "ERROR: $(basename "$archive") bundles LGPL ffmpeg but ships no LGPL text" >&2
       echo "       at kapi-av/COPYING.LGPLv2.1. See plugins/av/licenses/README.md." >&2
       rc=1
-    elif ! printf '%s' "$lgpl" | grep -q "$LGPL_MARKER"; then
+    elif [[ $lgpl != *"$LGPL_MARKER"* ]]; then
       echo "ERROR: $(basename "$archive"): kapi-av/COPYING.LGPLv2.1 is not LGPL text" >&2
       rc=1
     fi

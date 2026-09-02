@@ -45,6 +45,9 @@ kapi-bowrain_:bowrain/LICENSE:Apache-2.0
 "
 
 # Identify a license by a phrase only that license contains.
+# Markers are matched with a bash substring test, never `printf | grep -q`:
+# under pipefail, grep exiting on its first match leaves printf a broken pipe,
+# and a correct license text is then reported as the wrong one.
 license_marker() {
   case "$1" in
     Apache-2.0) printf '%s' 'Apache License' ;;
@@ -71,7 +74,7 @@ for row in $EXPECTED; do
     if [ -z "$text" ]; then
       echo "ERROR: $(basename "$archive") ships no license text at $path" >&2
       rc=1
-    elif ! printf '%s' "$text" | grep -q "$marker"; then
+    elif [[ $text != *"$marker"* ]]; then
       echo "ERROR: $(basename "$archive"): $path is not $spdx text" >&2
       rc=1
     fi
