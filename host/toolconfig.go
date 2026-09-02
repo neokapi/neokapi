@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"maps"
 
-	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
 )
@@ -103,37 +102,4 @@ func (a *App) unitCommand(ctx context.Context, recipePath string) (Command, erro
 		}
 	}
 	return cmd, nil
-}
-
-// stepConfigForUnit is ToolConfigForUnit expressed as the flow step it stands
-// in for: what toolFromStep would assemble for a step running toolName with
-// base as its config, at the unit's point and locale. Tests use it to hold the
-// two paths against each other.
-func (a *App) stepConfigForUnit(
-	ctx context.Context,
-	proj *project.KapiProject,
-	recipePath, toolName string,
-	unit UnitRef,
-	base map[string]any,
-) (map[string]any, func(), error) {
-	cmd, err := a.unitCommand(ctx, recipePath)
-	if err != nil {
-		return nil, func() {}, err
-	}
-	savedTarget, savedBindings := a.TargetLang, a.ProjectBindings
-	defer func() { a.TargetLang, a.ProjectBindings = savedTarget, savedBindings }()
-	a.TargetLang = unit.TargetLang
-
-	if proj != nil && recipePath != "" {
-		defer a.scopeSourceLang()()
-		a.ResolveSourceLang(proj.Defaults.SourceLanguage)
-
-		point := a.GovernancePointFor(unit.Collection, unit.Path)
-		b, berr := a.resolveProjectBindings(cmd, proj, recipePath, point)
-		if berr != nil {
-			return nil, func() {}, berr
-		}
-		a.ProjectBindings = b
-	}
-	return a.stepToolConfig(flow.FlowStep{Tool: toolName, Config: base}, cmd, nil)
 }

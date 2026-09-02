@@ -9,6 +9,7 @@ import (
 	"time"
 
 	aitools "github.com/neokapi/neokapi/core/ai/tools"
+	"github.com/neokapi/neokapi/core/flow"
 	corememory "github.com/neokapi/neokapi/core/memory"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
@@ -133,6 +134,41 @@ func builtinToolReg() *registry.ToolRegistry {
 	return reg
 }
 
+// stepConfigForUnit is the flow-runner side of the comparison: what
+// toolFromStep assembles for a step running toolName with base as its config,
+// with the App put in the state a run over this unit's point and locale puts it
+// in. The assembly itself is stepToolConfig, which toolFromStep calls, so this
+// exercises the runner's own path rather than a second copy of it.
+func stepConfigForUnit(
+	a *App,
+	ctx context.Context,
+	proj *project.KapiProject,
+	recipePath, toolName string,
+	unit UnitRef,
+	base map[string]any,
+) (map[string]any, func(), error) {
+	cmd, err := a.unitCommand(ctx, recipePath)
+	if err != nil {
+		return nil, func() {}, err
+	}
+	savedTarget, savedBindings := a.TargetLang, a.ProjectBindings
+	defer func() { a.TargetLang, a.ProjectBindings = savedTarget, savedBindings }()
+	a.TargetLang = unit.TargetLang
+
+	if proj != nil && recipePath != "" {
+		defer a.scopeSourceLang()()
+		a.ResolveSourceLang(proj.Defaults.SourceLanguage)
+
+		point := a.GovernancePointFor(unit.Collection, unit.Path)
+		b, berr := a.resolveProjectBindings(cmd, proj, recipePath, point)
+		if berr != nil {
+			return nil, func() {}, berr
+		}
+		a.ProjectBindings = b
+	}
+	return a.stepToolConfig(flow.FlowStep{Tool: toolName, Config: base}, cmd, nil)
+}
+
 // contextBearing is the set of translate config keys that carry context: the
 // fields AITranslateConfig reads governance from. A run and a per-unit surface
 // have to agree on every one of them; the defect was that they agreed on none.
@@ -182,7 +218,7 @@ func TestToolConfigForUnit_MatchesTheFlowRunner(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			runCfg, runRelease, rerr := a.stepConfigForUnit(ctx, proj, recipe, "translate", tc.unit, cloneConfig(tc.base))
+			runCfg, runRelease, rerr := stepConfigForUnit(a, ctx, proj, recipe, "translate", tc.unit, cloneConfig(tc.base))
 			require.NoError(t, rerr)
 			defer runRelease()
 
@@ -276,7 +312,7 @@ func TestToolConfigForUnit_TermRuleMapIsUnchanged(t *testing.T) {
 	ctx := t.Context()
 	unit := UnitRef{Path: srcFile, TargetLang: "nb"}
 
-	runCfg, runRelease, rerr := a.stepConfigForUnit(ctx, proj, recipe, "translate", unit, nil)
+	runCfg, runRelease, rerr := stepConfigForUnit(a, ctx, proj, recipe, "translate", unit, nil)
 	require.NoError(t, rerr)
 	defer runRelease()
 	unitCfg, unitRelease, uerr := a.ToolConfigForUnit(ctx, proj, recipe, "translate", unit, nil)
