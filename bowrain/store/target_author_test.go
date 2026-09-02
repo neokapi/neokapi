@@ -84,6 +84,28 @@ func TestLastTargetAuthors(t *testing.T) {
 			"the translator stays the author after the block is approved")
 	})
 
+	t.Run("a settled projection does not make system the author", func(t *testing.T) {
+		// Moving the source re-derives the projections of every decision the
+		// unit carries, and each flip is logged against the block with the
+		// author "system". Reading the newest attributed row of any kind would
+		// name "system" as the translator, which nobody can conflict with, so
+		// the four-eyes check would pass for the person who wrote the wording.
+		sb, err := s.GetBlock(ctx, p.ID, "main", bid)
+		require.NoError(t, err)
+		sb.Block.SetSourceText("Hello again")
+		require.NoError(t, s.StoreBlocks(ctx, p.ID, "main", []*model.Block{sb.Block}))
+
+		var settled int
+		require.NoError(t, s.db.QueryRowContext(ctx,
+			`SELECT count(*) FROM block_history WHERE project_id = $1 AND block_id = $2 AND author = 'system'`,
+			p.ID, bid).Scan(&settled))
+		require.Positive(t, settled, "the source move must have logged a settled projection")
+
+		got, err := s.LastTargetAuthors(ctx, p.ID, "main", []string{bid}, []string{"fr"})
+		require.NoError(t, err)
+		assert.Equal(t, "u-second", got[platstore.TargetRef{BlockID: bid, Locale: "fr"}])
+	})
+
 	t.Run("an empty request reads nothing", func(t *testing.T) {
 		got, err := s.LastTargetAuthors(ctx, p.ID, "main", nil, []string{"fr"})
 		require.NoError(t, err)

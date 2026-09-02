@@ -924,9 +924,6 @@ type BlockAccessStore interface {
 	// SetBlockAccess updates a block's access state and (when non-empty) its
 	// owner.
 	SetBlockAccess(ctx context.Context, projectID, stream, blockID, access, ownerID string) error
-	// GetLastEditor returns the author of the most recent attributed content
-	// change (separation of duties at approval).
-	GetLastEditor(ctx context.Context, projectID, stream, blockID string) (string, error)
 }
 
 // TargetRef names one block's target in one locale.
@@ -936,9 +933,10 @@ type TargetRef struct {
 }
 
 // TargetAuthorStore is the optional capability that names who last wrote each
-// target by hand. Separation of duties at approval asks the question per
-// language: approving the French wording you typed is a conflict of interest,
-// approving the German wording somebody else typed is not.
+// target by hand. Separation of duties asks the question per language, both
+// where a reviewer approves a target and where one is published: approving the
+// French wording you typed is a conflict of interest, approving the German
+// wording somebody else typed is not.
 //
 // Two filters make the answer mean "who wrote this translation". Only content
 // changes count, so the decision rows the ledger files against the same block
