@@ -7,6 +7,7 @@ import {
   Circle,
   FileText,
   Loader2,
+  PauseCircle,
   RefreshCw,
   Sparkles,
   Undo2,
@@ -34,13 +35,13 @@ import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
 import { AIExchangeDisclosure } from "./AIExchangeView";
 import { FilePreview } from "./FilePreview";
-import { SourceLane } from "./SourceLane";
 import { HistoryCard } from "./review/HistoryCard";
 import { JudgementCard } from "./review/JudgementCard";
 import { NeighbourhoodCard } from "./review/NeighbourhoodCard";
 import { PointRail } from "./review/PointRail";
 import { ProvenanceCard } from "./review/ProvenanceCard";
 import { ReviewLanguageSelect } from "./review/ReviewLanguageSelect";
+import { SourceUnitPane } from "./review/SourceUnitPane";
 import { useActiveFilter } from "../context/ActiveFilterContext";
 import type {
   PreReviewPolicy,
@@ -48,6 +49,7 @@ import type {
   PreReviewScope,
   ReviewAIActionKind,
   ReviewAIActionResult,
+  ReviewContext,
   ReviewItem,
   ReviewLanguage,
   ReviewUnitDetail,
@@ -78,6 +80,14 @@ export interface ReviewPageProps {
   onDecide?: (item: ReviewItem, decision: ReviewDecision, note?: string) => Promise<void>;
   /** Override the target-save handler (Storybook/tests); defaults to api.updateReviewTarget. */
   onSaveTarget?: (item: ReviewItem, text: string) => Promise<void>;
+  /** Override the source approve handler (Storybook/tests); defaults to api.approveSourceUnit. */
+  onApproveSource?: (item: ReviewItem) => Promise<void>;
+  /** Override the source-save handler (Storybook/tests); defaults to
+   *  api.updateSourceText. Resolves to the locales the next run will re-draft. */
+  onSaveSource?: (item: ReviewItem, text: string) => Promise<string[]>;
+  /** Override the source review-model loader (Storybook/tests); defaults to
+   *  api.getSourceUnitContext. */
+  loadSourceContext?: (item: ReviewItem) => Promise<ReviewContext | null>;
   /** Override the per-unit AI action (Storybook/tests); defaults to api.reviewAIAction. */
   onAIAction?: (
     item: ReviewItem,
@@ -139,12 +149,22 @@ function shortFile(p: string): string {
   return parts.slice(-2).join("/") || p;
 }
 
-/** Queue ordering: findings first, then file, then key (Phase 2). */
+/**
+ * Queue ordering: source rows first, then findings-first among the targets,
+ * then file, then key.
+ *
+ * Source first is where convergence.SortReviewQueue puts them, so this list and
+ * `kapi status --review` read in the same order. Findings-first applies to the
+ * target rows: a source row carries no findings enrichment to sort on.
+ */
 function orderItems(items: ReviewItem[]): ReviewItem[] {
   return [...items].sort((a, b) => {
-    const fa = a.hasFindings ? 0 : 1;
-    const fb = b.hasFindings ? 0 : 1;
-    if (fa !== fb) return fa - fb;
+    if (!!a.isSource !== !!b.isSource) return a.isSource ? -1 : 1;
+    if (!a.isSource) {
+      const fa = a.hasFindings ? 0 : 1;
+      const fb = b.hasFindings ? 0 : 1;
+      if (fa !== fb) return fa - fb;
+    }
     if (a.file !== b.file) return a.file.localeCompare(b.file);
     if (a.key !== b.key) return a.key.localeCompare(b.key);
     return a.locale.localeCompare(b.locale);
@@ -158,17 +178,20 @@ function orderItems(items: ReviewItem[]): ReviewItem[] {
  * the reviewer picks the one they are working in. Picking the source language
  * puts the author's own wording in front of them; picking a target puts
  * translations of it there; "All languages" lists everything with each row
- * saying which language it belongs to. The queue behind all three is the one
- * the engine derives, so a count in the selector and the rows under it are the
+ * saying which language it belongs to and the source rows leading. One list
+ * holds both kinds, so a count in the selector and the rows under it are the
  * same answer.
  *
- * A keyboard-first three-pane page: the queue on the left (findings-first,
- * filterable by findings and collection), the unit in the center (its source
- * read-only, its translation editable), and the five layers of the review model
- * below, each headed by its own verdict. Every decision (a approve / r reject /
- * s sign off) records through host.ApplyReviewDecision, hash-bound to the text
- * it judged; editing the translation re-runs the unit's checks and re-bases the
- * next approval on the new text.
+ * A keyboard-first three-pane page: the queue on the left (source first, then
+ * findings-first, filterable by findings and collection), the unit in the
+ * center, and the five layers of the review model below, each headed by its own
+ * verdict. A target row shows its source read-only with its translation
+ * editable; a source row shows the author's wording editable, in SourceUnitPane.
+ * A target decision (a approve / r reject / s sign off) records through
+ * host.ApplyReviewDecision, hash-bound to the text it judged; editing the
+ * translation re-runs the unit's checks and re-bases the next approval on the
+ * new text. A source unit has one decision, approve, so `a` is the only
+ * decision key a source row answers.
  *
  * The AI paths are explicit clicks: per-unit actions (Fix with AI, Retranslate,
  * Explain) yield a proposal diff that Accept routes through the same save path
@@ -184,6 +207,9 @@ export function ReviewPage({
   loadUnit,
   onDecide,
   onSaveTarget,
+  onApproveSource,
+  onSaveSource,
+  loadSourceContext,
   onAIAction,
   onPreReview,
 }: ReviewPageProps) {
@@ -271,27 +297,21 @@ export function ReviewPage({
     () => queueLanguages ?? summarizeLanguages(queue ?? []),
     [queueLanguages, queue],
   );
-  // The project's source language, so choosing it selects source review. The
-  // summary marks it; a queue with no source rows says so on the rows instead.
-  const sourceLanguage = useMemo(
-    () => languages.find((l) => l.source)?.language ?? (queue ?? [])[0]?.sourceLocale ?? "",
-    [languages, queue],
-  );
-  const reviewingSource = language !== "" && language === sourceLanguage;
-
   const collections = useMemo(
     () =>
       Array.from(new Set((queue ?? []).map((it) => it.collection ?? "").filter(Boolean))).sort(),
     [queue],
   );
 
-  // The source rows of the queue: the author's own wording awaiting attention.
-  const sourceItems = useMemo(() => (queue ?? []).filter((it) => it.isSource), [queue]);
-
   // The visible queue: the chosen language, the collection, the findings chip,
-  // findings-first order. Source rows are shown by SourceLane and never list here.
+  // source-first then findings-first order. Both kinds of row list here, which
+  // is what makes the selector's count and the rows under it agree.
+  //
+  // The chips read the findings enrichment, which the queue computes for
+  // translations only. A source row is therefore neither "with findings" nor
+  // "clean", and lists under All alone.
   const visible = useMemo(() => {
-    let items = (queue ?? []).filter((it) => !it.isSource);
+    let items = queue ?? [];
     if (language) items = items.filter((it) => rowLanguage(it) === language);
     if (collectionFilter) items = items.filter((it) => (it.collection ?? "") === collectionFilter);
     if (chip === "findings") items = items.filter((it) => it.hasFindings === true);
@@ -324,7 +344,9 @@ export function ReviewPage({
     setAIProposal(null);
     setAIExplanation(null);
     setAIExchanges([]);
-    if (!selected) {
+    // A source row has no translation to load: SourceUnitPane loads its own
+    // model from GetSourceUnitContext.
+    if (!selected || selected.isSource) {
       setUnit(null);
       setEditText("");
       return;
@@ -413,16 +435,37 @@ export function ReviewPage({
     [tabID, onDecide, showError],
   );
 
+  // A source unit has one decision: a human approval bound to this exact
+  // wording (host.ApproveSourceUnit). There is no source reject and no second
+  // rung above it, so `a` is the only decision key a source row answers.
+  const approveSource = useCallback(
+    async (item: ReviewItem) => {
+      setDeciding(true);
+      try {
+        if (onApproveSource) await onApproveSource(item);
+        else await api.approveSourceUnit(tabID, item.file, item.key);
+        setQueue((q) => (q ?? []).filter((it) => itemId(it) !== itemId(item)));
+      } catch (err) {
+        showError("Could not approve the source", err);
+      } finally {
+        setDeciding(false);
+      }
+    },
+    [tabID, onApproveSource, showError],
+  );
+
   const approve = useCallback(() => {
-    if (selected && !deciding) void decide(selected, "approved");
-  }, [selected, deciding, decide]);
+    if (!selected || deciding) return;
+    if (selected.isSource) void approveSource(selected);
+    else void decide(selected, "approved");
+  }, [selected, deciding, decide, approveSource]);
 
   const signOff = useCallback(() => {
-    if (selected && !deciding) void decide(selected, "signed-off");
+    if (selected && !selected.isSource && !deciding) void decide(selected, "signed-off");
   }, [selected, deciding, decide]);
 
   const reject = useCallback(() => {
-    if (!selected || deciding) return;
+    if (!selected || selected.isSource || deciding) return;
     setAskValue("");
     setAskText({
       kind: "reject",
@@ -587,7 +630,7 @@ export function ReviewPage({
         ((locale: string, sc: PreReviewScope, policy: PreReviewPolicy) =>
           api.runAIPreReview(tabID, locale, sc, policy));
       const res = await run(
-        reviewingSource ? "" : language,
+        language,
         { collection: collectionFilter || undefined },
         { autoApprove: preReviewAuto, minScore: preReviewMinScore },
       );
@@ -602,7 +645,6 @@ export function ReviewPage({
     tabID,
     onPreReview,
     language,
-    reviewingSource,
     collectionFilter,
     preReviewAuto,
     preReviewMinScore,
@@ -763,11 +805,7 @@ export function ReviewPage({
             total={(queue ?? []).length}
             data-slot="review-language-select"
           />
-          <div
-            className="flex items-center gap-1"
-            data-slot="review-chips"
-            hidden={reviewingSource}
-          >
+          <div className="flex items-center gap-1" data-slot="review-chips">
             {chips.map((c) => (
               <Button
                 key={c.id}
@@ -780,7 +818,7 @@ export function ReviewPage({
               </Button>
             ))}
           </div>
-          {!reviewingSource && collections.length > 1 && (
+          {collections.length > 1 && (
             <select
               className="h-7 rounded-md border border-input bg-transparent px-2 text-xs"
               value={collectionFilter}
@@ -796,21 +834,19 @@ export function ReviewPage({
               ))}
             </select>
           )}
-          {!reviewingSource && (
-            <Button
-              variant="outline"
-              size="xs"
-              onClick={() => {
-                setPreReviewResult(null);
-                setPreReviewOpen(true);
-              }}
-              disabled={loadingQueue || preReviewPending.length === 0}
-              data-slot="review-prereview-open"
-            >
-              <Sparkles size={12} />
-              {t("AI pre-review…")}
-            </Button>
-          )}
+          <Button
+            variant="outline"
+            size="xs"
+            onClick={() => {
+              setPreReviewResult(null);
+              setPreReviewOpen(true);
+            }}
+            disabled={loadingQueue || preReviewPending.length === 0}
+            data-slot="review-prereview-open"
+          >
+            <Sparkles size={12} />
+            {t("AI pre-review…")}
+          </Button>
           <Button
             variant="outline"
             size="xs"
@@ -1000,17 +1036,9 @@ export function ReviewPage({
         </DialogContent>
       </Dialog>
 
-      {reviewingSource && (
-        <SourceLane
-          tabID={tabID}
-          items={sourceItems}
-          loading={loadingQueue && !queue}
-          onChanged={refreshQueue}
-        />
-      )}
-
-      {/* Batch bar: approve every clean unit in the current view. */}
-      {!reviewingSource && cleanVisible.length > 0 && (
+      {/* Batch bar: approve every clean unit in the current view. Source rows
+          carry no findings enrichment, so they never count here. */}
+      {cleanVisible.length > 0 && (
         <div
           className="mb-3 flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-1.5 text-xs"
           data-slot="review-batch"
@@ -1041,7 +1069,7 @@ export function ReviewPage({
         </div>
       )}
 
-      {reviewingSource ? null : loadingQueue && !queue ? (
+      {loadingQueue && !queue ? (
         <div className="p-4 text-sm text-muted-foreground">{t("Loading review queue…")}</div>
       ) : visible.length === 0 ? (
         <Card className="border-dashed" data-slot="review-empty">
@@ -1095,8 +1123,18 @@ export function ReviewPage({
                         data-active={active || undefined}
                         data-key={it.key}
                         data-language={rowLanguage(it)}
+                        data-source={it.isSource || undefined}
                       >
-                        {it.hasFindings ? (
+                        {/* A source row carries no findings enrichment, so it
+                            takes the neutral marker and says what it is in the
+                            language affix beside its key. */}
+                        {it.isSource ? (
+                          <Circle
+                            size={8}
+                            className="mt-1 shrink-0 text-muted-foreground/40"
+                            aria-label={t("Source wording")}
+                          />
+                        ) : it.hasFindings ? (
                           <Circle
                             size={8}
                             className="mt-1 shrink-0 fill-warning text-warning"
@@ -1111,12 +1149,21 @@ export function ReviewPage({
                         )}
                         <span className="min-w-0 flex-1">
                           <span className="flex items-center gap-1.5">
+                            {it.held && (
+                              <PauseCircle
+                                size={11}
+                                className="shrink-0 text-warning"
+                                aria-label={t("holding every language")}
+                              />
+                            )}
                             <span className="truncate font-medium" translate="no">
                               {it.key}
                             </span>
                             {/* Every row says which language it belongs to,
-                                because the queue holds them all at once. */}
-                            <LocaleLabel locale={rowLanguage(it)} compact />
+                                because the queue holds them all at once, and a
+                                source row wears the same source marker the
+                                selector and the detail pane use. */}
+                            <LocaleLabel locale={rowLanguage(it)} compact source={it.isSource} />
                             {it.aiScore !== undefined && (
                               <SimpleTooltip
                                 content={
@@ -1153,7 +1200,8 @@ export function ReviewPage({
 
           {/* Center: the unit. The point it sits at, the source wording and
               the translation under each language's own name, the document
-              around it, what was approved before, the checks, the provenance. */}
+              around it, what was approved before, the checks, the provenance.
+              A source row takes the same header and its own pane below it. */}
           <div className="flex min-h-0 flex-col" data-slot="review-unit">
             <ScrollArea className="min-h-0 flex-1">
               <div className="space-y-3 pr-3">
@@ -1164,15 +1212,24 @@ export function ReviewPage({
                         {selected.file}:{selected.key}
                       </span>
                     </SimpleTooltip>
-                    <LocaleLabel locale={selected.locale} compact />
-                    {unit?.status && (
-                      <StatusBadge
-                        ladder="content"
-                        status={unit.status}
-                        compact
-                        data-slot="review-status"
-                      />
-                    )}
+                    <LocaleLabel locale={selected.locale} compact source={selected.isSource} />
+                    {selected.isSource
+                      ? selected.status && (
+                          <StatusBadge
+                            ladder="source"
+                            status={selected.status}
+                            compact
+                            data-slot="review-status"
+                          />
+                        )
+                      : unit?.status && (
+                          <StatusBadge
+                            ladder="content"
+                            status={unit.status}
+                            compact
+                            data-slot="review-status"
+                          />
+                        )}
                     {unitLoading && <Loader2 size={12} className="animate-spin" />}
                     <Button
                       variant="outline"
@@ -1188,256 +1245,276 @@ export function ReviewPage({
                   </div>
                 )}
 
-                <PointRail point={model?.point} loading={unitLoading} />
+                {selected?.isSource ? (
+                  <SourceUnitPane
+                    tabID={tabID}
+                    item={selected}
+                    onSaveSource={onSaveSource}
+                    onChanged={refreshQueue}
+                    loadContext={loadSourceContext}
+                  />
+                ) : (
+                  <>
+                    <PointRail point={model?.point} loading={unitLoading} />
 
-                <Card>
-                  <CardContent className="p-3">
-                    {/* Headed by the language, named. A reviewer reads "French
+                    <Card>
+                      <CardContent className="p-3">
+                        {/* Headed by the language, named. A reviewer reads "French
                         (France)", never a code in capitals. */}
-                    <div className="mb-1 text-[11px] font-medium text-muted-foreground">
-                      <LocaleLabel
-                        locale={unit?.source_locale ?? selected?.sourceLocale ?? ""}
-                        source
-                        data-slot="review-source-language"
-                      />
-                    </div>
-                    <div
-                      className="whitespace-pre-wrap text-sm"
-                      data-slot="review-source"
-                      translate="no"
-                      {...directionAttrs(unit?.source_locale)}
-                    >
-                      {unit?.source ?? selected?.source ?? ""}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardContent className="p-3">
-                    <div className="mb-1 flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
-                      <LocaleLabel
-                        locale={unit?.locale ?? selected?.locale ?? ""}
-                        data-slot="review-target-language"
-                      />
-                      {unit && !unit.editable && (
-                        <span className="font-normal">{t("(formatted content, read-only)")}</span>
-                      )}
-                    </div>
-                    <textarea
-                      ref={editRef}
-                      className="min-h-20 w-full resize-y rounded-md border border-input bg-transparent p-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-60"
-                      value={editText}
-                      onChange={(e) => setEditText(e.target.value)}
-                      disabled={!unit || !unit.editable || saving}
-                      aria-label={t("Edit the translation")}
-                      data-slot="review-target"
-                      translate="no"
-                      {...directionAttrs(unit?.locale ?? selected?.locale)}
-                    />
-                    {unit && unit.editable && editText !== unit.target && (
-                      <div className="mt-2 flex items-center gap-2">
-                        <Button
-                          size="xs"
-                          onClick={() => void saveTarget()}
-                          disabled={saving}
-                          data-slot="review-save"
+                        <div className="mb-1 text-[11px] font-medium text-muted-foreground">
+                          <LocaleLabel
+                            locale={unit?.source_locale ?? selected?.sourceLocale ?? ""}
+                            source
+                            data-slot="review-source-language"
+                          />
+                        </div>
+                        <div
+                          className="whitespace-pre-wrap text-sm"
+                          data-slot="review-source"
+                          translate="no"
+                          {...directionAttrs(unit?.source_locale)}
                         >
-                          {saving ? (
-                            <Loader2 size={12} className="animate-spin" />
-                          ) : (
-                            <Check size={12} />
+                          {unit?.source ?? selected?.source ?? ""}
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardContent className="p-3">
+                        <div className="mb-1 flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
+                          <LocaleLabel
+                            locale={unit?.locale ?? selected?.locale ?? ""}
+                            data-slot="review-target-language"
+                          />
+                          {unit && !unit.editable && (
+                            <span className="font-normal">
+                              {t("(formatted content, read-only)")}
+                            </span>
                           )}
-                          {t("Save & re-check")}
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="xs"
-                          onClick={() => setEditText(unit.target)}
-                          disabled={saving}
+                        </div>
+                        <textarea
+                          ref={editRef}
+                          className="min-h-20 w-full resize-y rounded-md border border-input bg-transparent p-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-60"
+                          value={editText}
+                          onChange={(e) => setEditText(e.target.value)}
+                          disabled={!unit || !unit.editable || saving}
+                          aria-label={t("Edit the translation")}
+                          data-slot="review-target"
+                          translate="no"
+                          {...directionAttrs(unit?.locale ?? selected?.locale)}
+                        />
+                        {unit && unit.editable && editText !== unit.target && (
+                          <div className="mt-2 flex items-center gap-2">
+                            <Button
+                              size="xs"
+                              onClick={() => void saveTarget()}
+                              disabled={saving}
+                              data-slot="review-save"
+                            >
+                              {saving ? (
+                                <Loader2 size={12} className="animate-spin" />
+                              ) : (
+                                <Check size={12} />
+                              )}
+                              {t("Save & re-check")}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="xs"
+                              onClick={() => setEditText(unit.target)}
+                              disabled={saving}
+                            >
+                              <Undo2 size={12} />
+                              {t("Revert")}
+                            </Button>
+                          </div>
+                        )}
+                        {/* Per-unit AI actions (phase 3): explicit clicks only. */}
+                        <div
+                          className="mt-2 flex flex-wrap items-center gap-2"
+                          data-slot="review-ai-actions"
                         >
-                          <Undo2 size={12} />
-                          {t("Revert")}
-                        </Button>
-                      </div>
-                    )}
-                    {/* Per-unit AI actions (phase 3): explicit clicks only. */}
-                    <div
-                      className="mt-2 flex flex-wrap items-center gap-2"
-                      data-slot="review-ai-actions"
-                    >
-                      <Button
-                        variant="outline"
-                        size="xs"
-                        onClick={() => void runAIAction("fix-findings")}
-                        disabled={!unit || !unit.editable || aiBusy !== null || saving}
-                        data-slot="review-ai-fix"
-                      >
-                        {aiBusy === "fix-findings" ? (
-                          <Loader2 size={12} className="animate-spin" />
-                        ) : (
-                          <Sparkles size={12} />
-                        )}
-                        {t("Fix with AI")}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="xs"
-                        onClick={() => void runAIAction("retranslate")}
-                        disabled={!unit || !unit.editable || aiBusy !== null || saving}
-                        data-slot="review-ai-retranslate"
-                      >
-                        {aiBusy === "retranslate" ? (
-                          <Loader2 size={12} className="animate-spin" />
-                        ) : (
-                          <Sparkles size={12} />
-                        )}
-                        {t("Retranslate…")}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="xs"
-                        onClick={() => void runAIAction("explain")}
-                        disabled={!unit || aiBusy !== null}
-                        data-slot="review-ai-explain"
-                      >
-                        {aiBusy === "explain" ? (
-                          <Loader2 size={12} className="animate-spin" />
-                        ) : (
-                          <Sparkles size={12} />
-                        )}
-                        {t("Explain")}
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
+                          <Button
+                            variant="outline"
+                            size="xs"
+                            onClick={() => void runAIAction("fix-findings")}
+                            disabled={!unit || !unit.editable || aiBusy !== null || saving}
+                            data-slot="review-ai-fix"
+                          >
+                            {aiBusy === "fix-findings" ? (
+                              <Loader2 size={12} className="animate-spin" />
+                            ) : (
+                              <Sparkles size={12} />
+                            )}
+                            {t("Fix with AI")}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="xs"
+                            onClick={() => void runAIAction("retranslate")}
+                            disabled={!unit || !unit.editable || aiBusy !== null || saving}
+                            data-slot="review-ai-retranslate"
+                          >
+                            {aiBusy === "retranslate" ? (
+                              <Loader2 size={12} className="animate-spin" />
+                            ) : (
+                              <Sparkles size={12} />
+                            )}
+                            {t("Retranslate…")}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="xs"
+                            onClick={() => void runAIAction("explain")}
+                            disabled={!unit || aiBusy !== null}
+                            data-slot="review-ai-explain"
+                          >
+                            {aiBusy === "explain" ? (
+                              <Loader2 size={12} className="animate-spin" />
+                            ) : (
+                              <Sparkles size={12} />
+                            )}
+                            {t("Explain")}
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
 
-                {/* AI proposal: current vs proposed, Accept / Discard. Accept
+                    {/* AI proposal: current vs proposed, Accept / Discard. Accept
                     routes through the same save path as a manual edit. */}
-                {aiProposal !== null && unit && (
-                  <Card data-slot="review-ai-proposal">
-                    <CardContent className="space-y-2 p-3">
-                      <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                        {t("AI proposal")}
-                      </div>
-                      <div className="space-y-1 text-sm">
-                        {/* The wording in force, drawn neutrally: a proposal is
+                    {aiProposal !== null && unit && (
+                      <Card data-slot="review-ai-proposal">
+                        <CardContent className="space-y-2 p-3">
+                          <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                            {t("AI proposal")}
+                          </div>
+                          <div className="space-y-1 text-sm">
+                            {/* The wording in force, drawn neutrally: a proposal is
                             an offer, and painting the reviewer's own text red
                             says a check rejected it. */}
-                        <div className="rounded-md border bg-muted/40 px-2 py-1">
-                          <span className="mr-1 text-[10px] uppercase text-muted-foreground">
-                            {t("Current")}
-                          </span>
-                          <span
-                            className="whitespace-pre-wrap"
-                            translate="no"
-                            {...directionAttrs(unit.locale)}
-                          >
-                            {unit.target}
-                          </span>
-                        </div>
-                        <div className="rounded-md border border-primary/30 bg-primary/5 px-2 py-1">
-                          <span className="mr-1 text-[10px] uppercase text-muted-foreground">
-                            {t("Proposed")}
-                          </span>
-                          <span
-                            className="whitespace-pre-wrap"
-                            translate="no"
-                            {...directionAttrs(unit.locale)}
-                          >
-                            {aiProposal}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          size="xs"
-                          onClick={() => void acceptProposal()}
-                          disabled={saving}
-                          data-slot="review-ai-accept"
-                        >
-                          {saving ? (
-                            <Loader2 size={12} className="animate-spin" />
-                          ) : (
-                            <Check size={12} />
-                          )}
-                          {t("Accept")}
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="xs"
-                          onClick={() => setAIProposal(null)}
-                          disabled={saving}
-                          data-slot="review-ai-discard"
-                        >
-                          <X size={12} />
-                          {t("Discard")}
-                        </Button>
-                      </div>
-                      <AIExchangeDisclosure entries={aiExchanges} />
-                    </CardContent>
-                  </Card>
-                )}
+                            <div className="rounded-md border bg-muted/40 px-2 py-1">
+                              <span className="mr-1 text-[10px] uppercase text-muted-foreground">
+                                {t("Current")}
+                              </span>
+                              <span
+                                className="whitespace-pre-wrap"
+                                translate="no"
+                                {...directionAttrs(unit.locale)}
+                              >
+                                {unit.target}
+                              </span>
+                            </div>
+                            <div className="rounded-md border border-primary/30 bg-primary/5 px-2 py-1">
+                              <span className="mr-1 text-[10px] uppercase text-muted-foreground">
+                                {t("Proposed")}
+                              </span>
+                              <span
+                                className="whitespace-pre-wrap"
+                                translate="no"
+                                {...directionAttrs(unit.locale)}
+                              >
+                                {aiProposal}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              size="xs"
+                              onClick={() => void acceptProposal()}
+                              disabled={saving}
+                              data-slot="review-ai-accept"
+                            >
+                              {saving ? (
+                                <Loader2 size={12} className="animate-spin" />
+                              ) : (
+                                <Check size={12} />
+                              )}
+                              {t("Accept")}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="xs"
+                              onClick={() => setAIProposal(null)}
+                              disabled={saving}
+                              data-slot="review-ai-discard"
+                            >
+                              <X size={12} />
+                              {t("Discard")}
+                            </Button>
+                          </div>
+                          <AIExchangeDisclosure entries={aiExchanges} />
+                        </CardContent>
+                      </Card>
+                    )}
 
-                {/* AI explanation (read-only). */}
-                {aiExplanation !== null && (
-                  <Card data-slot="review-ai-explanation">
-                    <CardContent className="space-y-1 p-3">
-                      <div className="flex items-center justify-between">
-                        <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                          {t("AI explanation")}
-                        </div>
-                        <Button variant="ghost" size="xs" onClick={() => setAIExplanation(null)}>
-                          <X size={12} />
-                        </Button>
-                      </div>
-                      <div className="whitespace-pre-wrap text-xs">{aiExplanation}</div>
-                      <AIExchangeDisclosure entries={aiExchanges} />
-                    </CardContent>
-                  </Card>
-                )}
+                    {/* AI explanation (read-only). */}
+                    {aiExplanation !== null && (
+                      <Card data-slot="review-ai-explanation">
+                        <CardContent className="space-y-1 p-3">
+                          <div className="flex items-center justify-between">
+                            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                              {t("AI explanation")}
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="xs"
+                              onClick={() => setAIExplanation(null)}
+                            >
+                              <X size={12} />
+                            </Button>
+                          </div>
+                          <div className="whitespace-pre-wrap text-xs">{aiExplanation}</div>
+                          <AIExchangeDisclosure entries={aiExchanges} />
+                        </CardContent>
+                      </Card>
+                    )}
 
-                {/* The unit in its document: the blocks either side of it, in
+                    {/* The unit in its document: the blocks either side of it, in
                     document order, as the translate prompt read them. */}
-                <NeighbourhoodCard
-                  neighbourhood={model?.neighbourhood}
-                  unitKey={selected?.key}
-                  unitSource={unit?.source ?? selected?.source}
-                  unitTarget={unit?.target ?? selected?.target}
-                  sourceLocale={unit?.source_locale ?? selected?.sourceLocale}
-                  locale={unit?.locale ?? selected?.locale}
-                  loading={unitLoading}
-                />
+                    <NeighbourhoodCard
+                      neighbourhood={model?.neighbourhood}
+                      unitKey={selected?.key}
+                      unitSource={unit?.source ?? selected?.source}
+                      unitTarget={unit?.target ?? selected?.target}
+                      sourceLocale={unit?.source_locale ?? selected?.sourceLocale}
+                      locale={unit?.locale ?? selected?.locale}
+                      loading={unitLoading}
+                    />
 
-                {/* What was approved for this unit before, and the wording the
+                    {/* What was approved for this unit before, and the wording the
                     content memory already holds for it. */}
-                <HistoryCard
-                  history={model?.history}
-                  sourceLocale={unit?.source_locale ?? selected?.sourceLocale}
-                  locale={unit?.locale ?? selected?.locale}
-                  loading={unitLoading}
-                  fallbackMemoryScore={unit?.tm_score}
-                />
+                    <HistoryCard
+                      history={model?.history}
+                      sourceLocale={unit?.source_locale ?? selected?.sourceLocale}
+                      locale={unit?.locale ?? selected?.locale}
+                      loading={unitLoading}
+                      fallbackMemoryScore={unit?.tm_score}
+                    />
 
-                {/* What has already been said about this translation: the
+                    {/* What has already been said about this translation: the
                     checks, and the AI pre-review that scored it. */}
-                <JudgementCard
-                  findings={unit?.findings}
-                  aiScore={model?.judgement.ai_score ?? unit?.ai_review_score}
-                  aiModel={model?.judgement.ai_model ?? unit?.ai_review_model}
-                  aiFindings={model?.judgement.ai_findings}
-                />
+                    <JudgementCard
+                      findings={unit?.findings}
+                      aiScore={model?.judgement.ai_score ?? unit?.ai_review_score}
+                      aiModel={model?.judgement.ai_model ?? unit?.ai_review_model}
+                      aiFindings={model?.judgement.ai_findings}
+                    />
 
-                {/* Where this translation came from, and the decision in force. */}
-                <ProvenanceCard
-                  provenance={model?.provenance}
-                  origin={unit?.origin}
-                  reviewState={unit?.review_state}
-                  note={unit?.note}
-                />
+                    {/* Where this translation came from, and the decision in force. */}
+                    <ProvenanceCard
+                      provenance={model?.provenance}
+                      origin={unit?.origin}
+                      reviewState={unit?.review_state}
+                      note={unit?.note}
+                    />
+                  </>
+                )}
               </div>
             </ScrollArea>
 
-            {/* Action bar: the keyboard verbs, spelled out. */}
+            {/* Action bar: the keyboard verbs, spelled out. A source unit has
+                one decision, so Sign off and Reject are absent on a source row
+                and their keys answer nothing there. */}
             <div
               className="mt-3 flex flex-wrap items-center gap-2 rounded-md border bg-muted/30 px-3 py-2"
               data-slot="review-actions"
@@ -1450,34 +1527,38 @@ export function ReviewPage({
                 data-slot="review-approve"
               >
                 <Check size={13} />
-                {t("Approve")}
+                {selected?.isSource ? t("Approve source") : t("Approve")}
                 <kbd className="ml-1 rounded bg-black/10 px-1 text-[10px]">a</kbd>
               </Button>
-              <Button
-                variant="success"
-                size="sm"
-                onClick={signOff}
-                disabled={!selected || deciding}
-                data-slot="review-signoff"
-              >
-                <CheckCheck size={13} />
-                {t("Sign off")}
-                <kbd className="ml-1 rounded bg-black/10 px-1 text-[10px]">s</kbd>
-              </Button>
+              {!selected?.isSource && (
+                <Button
+                  variant="success"
+                  size="sm"
+                  onClick={signOff}
+                  disabled={!selected || deciding}
+                  data-slot="review-signoff"
+                >
+                  <CheckCheck size={13} />
+                  {t("Sign off")}
+                  <kbd className="ml-1 rounded bg-black/10 px-1 text-[10px]">s</kbd>
+                </Button>
+              )}
               {/* Reject takes destructive, which is where the shared scale puts
                   it (packages/ui/docs/judgement-colours.md): it undoes the
                   translation in force rather than accepting it. */}
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={reject}
-                disabled={!selected || deciding}
-                data-slot="review-reject"
-              >
-                <X size={13} />
-                {t("Reject")}
-                <kbd className="ml-1 rounded bg-black/10 px-1 text-[10px]">r</kbd>
-              </Button>
+              {!selected?.isSource && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={reject}
+                  disabled={!selected || deciding}
+                  data-slot="review-reject"
+                >
+                  <X size={13} />
+                  {t("Reject")}
+                  <kbd className="ml-1 rounded bg-black/10 px-1 text-[10px]">r</kbd>
+                </Button>
+              )}
               <div className="ml-auto flex items-center gap-3 text-[11px] text-muted-foreground">
                 <span>
                   <kbd className="rounded bg-muted px-1">j</kbd>/
@@ -1504,7 +1585,7 @@ export function ReviewPage({
         filename={documentFile}
         focusKey={selected?.key ?? null}
         unitStates={unitStates}
-        side={selected?.locale}
+        side={selected?.isSource ? "source" : selected?.locale}
         backLabel={t("Back to the queue")}
         onClose={() => setDocumentOpen(false)}
       />
