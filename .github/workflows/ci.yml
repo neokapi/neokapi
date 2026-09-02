@@ -50,6 +50,7 @@ jobs:
       workflows: ${{ github.event_name == 'push' || steps.filter.outputs.workflows }}
       plugins: ${{ github.event_name == 'push' || steps.filter.outputs.plugins }}
       faces: ${{ github.event_name == 'push' || steps.filter.outputs.faces }}
+      ts_boundary: ${{ github.event_name == 'push' || steps.filter.outputs.ts_boundary }}
       # Every operand is compared to 'true' on purpose. GitHub's `||` returns
       # the first TRUTHY operand rather than a boolean, and a non-empty string
       # is truthy — so a bare `steps.filter.outputs.cli` yields the *string*
@@ -139,6 +140,11 @@ jobs:
           # Each leg lives in the module of the face it drives, so a PR touching
           # one face would otherwise run one leg and merge a disagreement.
           check_paths faces '^(cli|host)/' '^apps/kapi-desktop/backend/' '^kapi/'
+          # The TypeScript half of the licence boundary. Its inputs are every JS
+          # or TS source, every manifest and tsconfig that can alias one, the
+          # workspace globs that decide which package names resolve, and the
+          # LICENSE files that draw the line itself.
+          check_paths ts_boundary '\.(ts|tsx|js|jsx|mjs|cjs)$' '(^|/)package\.json$' '(^|/)tsconfig[^/]*\.json$' '(^|/)LICENSE$' '^pnpm-workspace\.yaml$'
 
   # ── Frontend checks & builds ─────────────────────────────────────────────
   frontend:
@@ -1168,7 +1174,9 @@ jobs:
     needs: changes
     # any_go covers a bowrain/core regression; kapi_desktop covers a desktop-only
     # PR reaching for cobra/cli — which any_go (no apps/kapi-desktop filter) skips.
-    if: needs.changes.outputs.any_go == 'true' || needs.changes.outputs.kapi_desktop == 'true'
+    # ts_boundary covers a frontend-only PR, whose licence crossing lives in
+    # TypeScript and shows up in neither of the other two filters.
+    if: needs.changes.outputs.any_go == 'true' || needs.changes.outputs.kapi_desktop == 'true' || needs.changes.outputs.ts_boundary == 'true'
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-go-modules

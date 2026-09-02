@@ -267,6 +267,9 @@ check-deploy-paths: ## Guard: the deploy workflow triggers on every framework di
 check-run-projection: ## Guard: a Run sequence is projected through a declared RunSpec, never a hand-rolled walk
 	@./scripts/check-run-projection.sh
 
+check-ts-license-boundary: ## Guard: no Apache TypeScript imports the AGPL tree under bowrain/
+	@./scripts/check-ts-license-boundary.sh
+
 .PHONY: check-locale-display
 check-locale-display: ## Guard: a language is shown by name, not by its code alone
 	@./scripts/check-locale-display.sh
@@ -800,6 +803,7 @@ audit-modules: i18n-catalogs ## Assert module isolation + go.mod/go.sum tidiness
 	  [ -f "$$dir/go.sum.audit.bak" ] && mv "$$dir/go.sum.audit.bak" "$$dir/go.sum" || true; \
 	done; \
 	[ $$rc -eq 0 ] || exit 1
+	@$(ROOT_DIR)/scripts/check-ts-license-boundary.sh
 	@echo "audit-modules: all module boundaries clean and go.mod/go.sum tidy"
 
 # check-module-boundaries asserts the package-level license/architecture
@@ -816,9 +820,17 @@ audit-modules: i18n-catalogs ## Assert module isolation + go.mod/go.sum tidiness
 # needs to be read from both sides, it belongs below the line rather than on an
 # allowlist above it.
 #
-# Wired into CI as the `module-boundaries` job, gated on any_go OR kapi_desktop so
-# a desktop-only PR that reaches for cobra is still caught (any_go has no
-# apps/kapi-desktop filter).
+# The same line is asserted on the TypeScript side by
+# scripts/check-ts-license-boundary.sh, which this target runs last. Go import
+# closures say nothing about a React component under packages/ importing
+# @neokapi/ui (the AGPL bowrain/packages/ui), and the pnpm workspace resolves
+# every internal dependency from source, so that import compiles and bundles
+# into the Apache desktop app with nothing to notice it.
+#
+# Wired into CI as the `module-boundaries` job, gated on any_go OR kapi_desktop OR
+# ts_boundary so a desktop-only PR that reaches for cobra is still caught (any_go
+# has no apps/kapi-desktop filter) and a TypeScript-only PR still gets the
+# licence check.
 APACHE_MODULES := . host cli kapi apps/kapi-desktop
 
 check-module-boundaries: i18n-catalogs ## Assert kapi-desktop cli/cobra-free + Apache modules link no AGPL
@@ -848,7 +860,8 @@ check-module-boundaries: i18n-catalogs ## Assert kapi-desktop cli/cobra-free + A
 	    echo "  Either move what it needs below the line, or the declaration is false on three public surfaces."; \
 	    exit 1; \
 	  fi
-	@echo "check-module-boundaries: kapi-desktop cli/cobra-free, bowrain/core framework-only, Apache modules AGPL-free, kapi-bowrain Apache-clean"
+	@$(ROOT_DIR)/scripts/check-ts-license-boundary.sh
+	@echo "check-module-boundaries: kapi-desktop cli/cobra-free, bowrain/core framework-only, Apache modules AGPL-free, kapi-bowrain Apache-clean, no Apache TypeScript reaching AGPL"
 
 # ── Parity (head-to-head against okapi-bridge) ──────────────────────────────
 #
@@ -3006,7 +3019,7 @@ help: ## Show this help
         ci-test-framework ci-test-cli ci-test-kapi ci-test-platform \
         ci-test-bowrain ci-test-kapi-desktop ci-test-bowrain-desktop ci-test-all \
         ci-frontend ci-kapi-desktop-frontend ci-bowrain-desktop-frontend ci-i18n-react ci-build ci-tidy \
-        audit-modules audit-vite-alias \
+        audit-modules audit-vite-alias check-module-boundaries check-ts-license-boundary \
         build build-all build-server build-worker build-kapi-bowrain-plugin build-bowrain-plugin build-bowrain build-headless \
         plugin-bundle dev-skills \
         install install-kapi-bowrain-plugin \
