@@ -217,6 +217,26 @@ Both the extractor and every lint rule in `@neokapi/i18n-react-lint` walk up the
 
 `translate="no"` is also the right answer when you're intentionally rendering an already-translated value (see "Module-level `t()` gotcha" below), or when your content is code-like and shouldn't be flagged as missing translation.
 
+Inside a sentence, a marked child stays an island. Its text is kept out of the message and the element travels as one placeholder, so a translator sees the sentence around it and the reader sees the element exactly as you wrote it:
+
+```tsx
+<div>
+  Saved to <span translate="no">{path}</span> just now
+</div>
+// message: Saved to {=m0} just now
+```
+
+A parent whose only text sits inside such a child carries no translatable text at all, so it stays out of the catalog:
+
+```tsx
+<SimpleTooltip content={full}>
+  <span translate="no">
+    {file}:{key}
+  </span>
+</SimpleTooltip>
+// ✗ no message
+```
+
 ### Rules for recurring patterns
 
 For patterns where you don't want to sprinkle `translate="no"` everywhere, use rules in your plugin config:
