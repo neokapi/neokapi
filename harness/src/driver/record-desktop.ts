@@ -293,7 +293,12 @@ async function startRealStack(): Promise<{ url: string; teardown: () => Promise<
   await waitPort(5175, 60_000);
 
   console.log("  · starting frontend dev server (:5174)");
-  const vite = spawn("vp", ["dev"], { cwd: FRONTEND_DIR, env: { ...process.env, FORCE_COLOR: "0" }, stdio: "ignore" });
+  // --force re-optimizes deps on every recording, ignoring node_modules/.vite/deps.
+  // A prebundle cached by an older toolchain raises "__name is not defined" when
+  // the app mounts, and a recording carries on over a page that failed to render:
+  // the walk times out on its first selector, or films an empty frame. The
+  // bowrain dev server below already forces it for exactly this; both need it.
+  const vite = spawn("vp", ["dev", "--force"], { cwd: FRONTEND_DIR, env: { ...process.env, FORCE_COLOR: "0" }, stdio: "ignore" });
   await waitPort(5174, 120_000);
 
   return {
@@ -512,7 +517,7 @@ function contextSection(page: Page, label: string): Locator {
 async function explorerWalk(c: WalkCtx): Promise<void> {
   const { page, beat, beatEls, cursorTo, sidebar } = c;
   await beat("intro", null, async () => {
-    await page.waitForSelector('[data-testid="sample-kapimart"]', { timeout: 15_000 });
+    await landOnHome(page);
     await idle(page, 2200);
   });
   await beat("open-termbases", null, async () => {
@@ -571,6 +576,9 @@ async function explorerWalk(c: WalkCtx): Promise<void> {
 async function projectsWalk(c: WalkCtx): Promise<void> {
   const { page, beat, beatEls, cursorTo, sidebar } = c;
   await beat("intro", null, async () => {
+    // The light pass created a project and left it open; New Project is on the
+    // home screen, so the dark pass has to get back there first.
+    await landOnHome(page);
     await idle(page, 2000);
   });
   // Open the New Project dialog and name the project.
@@ -633,10 +641,30 @@ async function configWalk(c: WalkCtx): Promise<void> {
   });
 }
 
-/** Open the KapiMart sample project from the home screen. Idempotent: the
- *  scaffold is re-created under the isolated home on each theme pass. */
+/**
+ * Land on the app home, whichever state the app restored.
+ *
+ * Both themes of a demo record against one backend, and the app persists its
+ * session: the second pass reopens the project the first one opened
+ * (useTabManager restores lastOpenProjects on start) and lands on that
+ * project, not on the home screen. `Home` is the one rail item that stays
+ * enabled with no project open, so it reaches the sample card from either
+ * state.
+ */
+async function landOnHome(page: Page): Promise<void> {
+  const home = page.locator('button[aria-label="Home"]');
+  if (await home.count()) {
+    await humanClick(page, home).catch(() => {});
+    await page.waitForTimeout(700);
+  }
+  await page.waitForSelector('[data-testid="sample-kapimart"]', { timeout: 20_000 });
+}
+
+/** Open the KapiMart sample project from the home screen. Idempotent across
+ *  theme passes: the scaffold is re-created under the isolated home, and a
+ *  project the previous pass left open is reached through the home screen. */
 async function openSample(page: Page, testid: string, readyLabel: string): Promise<void> {
-  await page.waitForSelector(`[data-testid="${testid}"]`, { timeout: 15_000 });
+  await landOnHome(page);
   await humanClick(page, page.getByTestId(testid));
   // Wait until the project has opened and its plugins resolve (the gated sidebar
   // item becomes enabled), so subsequent clicks land on a ready project.
@@ -700,7 +728,7 @@ async function closePreview(page: Page): Promise<void> {
 async function contentWalk(c: WalkCtx): Promise<void> {
   const { page, beat, beatEls, cursorTo, sidebar } = c;
   await beat("intro", null, async () => {
-    await page.waitForSelector('[data-testid="sample-kapimart"]', { timeout: 15_000 });
+    await landOnHome(page);
     await idle(page, 2000);
   });
   // Open the KapiMart sample → its project home.
@@ -763,7 +791,7 @@ async function contentWalk(c: WalkCtx): Promise<void> {
 async function flowsWalk(c: WalkCtx): Promise<void> {
   const { page, beat, beatEls, sidebar } = c;
   await beat("intro", null, async () => {
-    await page.waitForSelector('[data-testid="sample-kapimart"]', { timeout: 15_000 });
+    await landOnHome(page);
     await idle(page, 2000);
   });
   // Open the KapiMart sample project.
@@ -828,7 +856,7 @@ async function reviewWalk(c: WalkCtx): Promise<void> {
   };
 
   await beat("intro", null, async () => {
-    await page.waitForSelector('[data-testid="sample-kapimart"]', { timeout: 15_000 });
+    await landOnHome(page);
     await idle(page, 2000);
   });
   // Open KapiMart. Review is locale-gated: it appears because the project
