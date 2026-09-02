@@ -21,22 +21,45 @@ with a continuous British-English narration track explaining the story.
 
 ## The demos
 
-| # | id | Aspect of the kapi skill it exercises |
-|---|----|----------------------------------------|
-| 1 | `01-localize-landing-page`        | AI translation + HTML format round-trip (zero-to-hero) |
-| 2 | `02-nextjs-zero-to-i18n`          | A Next.js app wired up with `neokapi-i18n` and shipped in Japanese |
-| 3 | `03-translate-docx`               | A Word document translated with headings, lists and formatting intact |
-| 4 | `04-i18n-react-catalogs`          | i18n setup: react-i18next catalogs, presets, pseudo readiness, fr+de |
-| 5 | `05-ai-checks-guardrail`          | Checks read an AI translation against its source — a **scripted shell** demo |
-| 6 | `06-multi-format-publishing`      | Format breadth: Markdown + Java `.properties` round-trip |
-| 7 | `07-global-launch-many-languages` | Multi-locale incl. non-Latin (de/es/fr/**ja**) |
-| 8 | `08-mcp-tools`                    | The MCP integration path: kapi run as an MCP server |
-| 9 | `09-toolbox-find-replace`         | The toolbox (kcat/kgrep/ksed) — a **scripted shell** demo, no Claude |
-| S0 | `s0-northsea-governance`         | The monolingual journey end to end — discover, retrieve, gate, decide, converge. A **scripted shell** demo seeded from `samples/northsea` via `fixturesFrom`, offline throughout |
+Every directory under `demos/` (bar `_retired/`) is one demo. A row with no mode
+tag runs a live Claude session; **shell** marks a scripted shell demo and
+**desktop** one recorded against a running app.
 
-Between them the demos exercise the task sections of the kapi skill —
-`references/localize.md`, `references/i18n.md`, `references/voice.md`,
-`references/toolbox.md` — plus the MCP tool surface.
+| # | id | What it shows |
+|---|----|----------------|
+| 1 | `01-localize-landing-page`        | Translate a landing page to French: a plain request, and the kapi skill keeps the HTML intact |
+| 2 | `02-nextjs-zero-to-i18n`          | A working English Next.js app wired up with `neokapi-i18n` and shipped in Japanese |
+| 3 | `03-translate-docx`               | A Word announcement translated into Japanese, headings, lists and formatting preserved |
+| 4 | `04-i18n-react-catalogs`          | An existing react-i18next project, and a request for two more languages |
+| 5 | `05-ai-checks-guardrail`          | **shell.** `kapi check` reads an AI translation against its source and reports what would break in production |
+| 6 | `06-multi-format-publishing`      | Two files in two formats, one request, each round-tripped back into its own format |
+| 7 | `07-global-launch-many-languages` | One source file, four target languages, including a non-Latin script |
+| 8 | `08-mcp-tools`                    | The same engine, exposed to the assistant as Model Context Protocol tools |
+| 9 | `09-toolbox-find-replace`         | **shell.** kcat, kgrep and ksed work on the text kapi reads out of a document, not on raw bytes |
+| 10 | `s0-northsea-governance`         | **shell.** One repository, one language, three surfaces: discovered, gated, corrected and converged, with no server and no model |
+| 11 | `s1-compass-multilingual`        | **shell.** The same project at the same point in three more languages, converged, reviewed, and gated at the edge where a reader sees it |
+| 12 | `s2-tidewatch-docs`              | **shell.** Four handbook pages, two more languages, and a CI job that reports what is behind instead of failing on it |
+| 13 | `kapi-bilingual-workflow`        | **shell.** kapi emits a clean bilingual XLIFF, accepts the translated one back, and keeps the project content memory in the loop on both sides |
+| 14 | `kapi-desktop-projects`          | **desktop.** Set up a multilingual content project in Kapi Desktop |
+| 15 | `kapi-desktop-content`           | **desktop.** The files a project translates, and how they map |
+| 16 | `kapi-desktop-flows`             | **desktop.** The pipelines a project runs over its content |
+| 17 | `kapi-desktop-explorer`          | **desktop.** A visual tour of terminology and content memory in Kapi Desktop |
+| 18 | `kapi-desktop-config`            | **desktop.** Appearance, AI providers, and plugins in one place |
+| 19 | `bowrain-cli-getting-started`    | **shell.** `kapi init` connects local files to a Bowrain server; push and pull move content like git, and `kapi up` runs the loop on the server |
+| 20 | `bowrain-cli-auth-and-workspaces` | **shell.** `kapi auth` and `kapi workspace` show who and where you are connected; pseudo-translate checks layout before you send for real translation |
+| 21 | `bowrain-desktop-dashboard`      | **desktop.** The Bowrain desktop app as an equal, real-time client of the shared workspace |
+| 22 | `bowrain-desktop-automations`    | **desktop.** Rules run the loop on the server; runs show each pass catching the project up |
+| 23 | `bowrain-web-editor`             | **desktop.** The shared translation editor: every locale, with the team's memory and terms inline |
+| 24 | `bowrain-web-review`             | **desktop.** Review and approve, the team workflow on content synced from kapi |
+| 25 | `bowrain-web-governance`         | **desktop.** One governed source of voice, terms, and translations for a team |
+| 26 | `bowrain-web-collaboration`      | **desktop.** Two people, one document, live |
+| 27 | `bowrain-web-correction-loop`    | **desktop.** Every correction becomes a versioned check |
+| 28 | `bowrain-sizzle`                 | **desktop.** A reel of the Bowrain platform: governance, collaboration, and quality |
+
+Rows 1 to 13 exercise the task sections of the kapi skill
+(`references/translate.md`, `references/i18n.md`, `references/voice.md`,
+`references/toolbox.md`) plus the MCP tool surface. Rows 14 to 18 record Kapi
+Desktop, and rows 19 to 28 record the Bowrain CLI, desktop app and web app.
 
 ### Scripted shell demos (no Claude)
 
@@ -240,7 +263,7 @@ bundler.
 1. `mkdir -p demos/<id>/fixtures` and add the starting project files.
 2. Write `demos/<id>/demo.yaml` (see any existing demo). Pin output filenames in the
    `prompt` and point `artifacts[].path` at them. Keep prompts to the **reliable
-   standalone** kapi surface: `translate`, `pseudo-translate`, `brand`, `terms`,
+   standalone** kapi surface: `translate`, `pseudo-translate`, `voice`, `terms`,
    `stats`, `formats`, `extract`, or the MCP tools.
 3. `pnpm run demo <id>`.
 

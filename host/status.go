@@ -169,7 +169,7 @@ func writeStagedLine(w io.Writer, staged int) {
 	if staged == 1 {
 		noun = "change"
 	}
-	fmt.Fprintf(w, "\n%d unit-state %s staged, not committed — run `kapi commit` to write them to the project record.\n",
+	fmt.Fprintf(w, "\n%d unit-state %s staged, not committed. Run `kapi commit` to write them to the project record.\n",
 		staged, noun)
 }
 
@@ -231,14 +231,14 @@ func (o StatusOutput) writeBasisLines(w io.Writer) {
 	}
 	if stale > 0 {
 		fmt.Fprintf(w, "\n%d unit(s) stale: the source changed since the translation was decided. "+
-			"They do not ship — re-review them with `kapi status --review`.\n", stale)
+			"They do not ship. Re-review them with `kapi status --review`.\n", stale)
 	}
 	// Named as units, because `kapi check` counts findings over the same tree and
 	// one unit can carry several. The percentages above are unaffected: these
 	// units are translated, and some are reviewed.
 	if failing > 0 {
 		fmt.Fprintf(w, "\n%d unit(s) fail the project's bound checks. They do not ship until the "+
-			"findings are fixed — `kapi check --ship` lists them.\n", failing)
+			"findings are fixed. `kapi check --ship` lists them.\n", failing)
 	}
 	if unknown > 0 {
 		fmt.Fprintf(w, "\n%d unit(s) hold a decision recorded before its source basis; they count as current "+
@@ -379,10 +379,10 @@ func writeGovernanceLine(w io.Writer, g *StatusGovernance) {
 	div, compared := g.Divergence()
 	if !compared {
 		if g.ObservedAt == "" {
-			fmt.Fprintln(w, "never observed — a push or pull records what the venue holds")
+			fmt.Fprintln(w, "never observed; a push or pull records what the venue holds")
 			return
 		}
-		fmt.Fprintf(w, "not checked — the venue could not be reached (last observed %s)\n", g.ObservedAt)
+		fmt.Fprintf(w, "not checked; the venue could not be reached (last observed %s)\n", g.ObservedAt)
 		return
 	}
 
@@ -432,7 +432,7 @@ func writeTermsLine(w io.Writer, t *StatusTerminology) {
 	statusLabel(w, "terms")
 	switch {
 	case t == nil:
-		fmt.Fprintln(w, "never synced — kapi pull snapshots the workspace terminology for offline checks")
+		fmt.Fprintln(w, "never synced; kapi pull snapshots the workspace terminology for offline checks")
 		return
 	case t.PulledAt != "":
 		fmt.Fprintf(w, "synced %s · %d concepts · %d relations", t.PulledAt, t.Concepts, t.Relations)
@@ -687,7 +687,7 @@ func (a *App) statusVenue(proj *project.KapiProject) *StatusVenue {
 		return v
 	}
 	v.Venue = "local"
-	v.Note = "bowrain plugin not installed — kapi up runs on this machine and does not push"
+	v.Note = "bowrain plugin not installed; kapi up runs on this machine and does not push"
 	return v
 }
 
@@ -700,6 +700,6 @@ func AddStatusFlags(cmd Command) {
 	cmd.Flags().Bool("review", false, "list the units awaiting review in every language, the source language among them, instead of the coverage grid; approve a translated unit with `kapi apply` (kind:\"review\")")
 	cmd.Flags().StringSlice("lang", nil, "with --review, list only these languages (repeatable, or comma-separated); the source language is one of them")
 	cmd.Flags().Bool("json", false, "output the structured result as JSON")
-	cmd.Flags().Bool("ship", false, "emit the minimal ship.json picker manifest (locale → {shippable, verified}) instead of the coverage grid — the shape a language picker consumes to hide un-shippable locales and badge unverified ones AI")
+	cmd.Flags().Bool("ship", false, "emit the minimal ship.json picker manifest (locale → {shippable, verified}) instead of the coverage grid; a language picker reads it to offer only shippable locales and to badge the unverified ones as AI-translated")
 	cmd.Flags().String("emit", "", "with --ship, write the manifest to this path (e.g. ship.json) instead of stdout")
 }

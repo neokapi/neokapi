@@ -26,8 +26,10 @@ func AddResourceFlags(cmd Command) {
 }
 
 // resolveResourcePath resolves a resource file path from the --name, --local, and
-// --file flags. The kind parameter is the subdirectory name ("terms" or "tm")
-// and defaultFilename is the default filename for --local mode (e.g. "terms.db").
+// --file flags. The kind parameter is the subdirectory name ("terms", "memory"
+// or "voice") and defaultFilename is the default filename for --local mode
+// (e.g. "terms.db"). The same subdirectory names are what core/flow resolves a
+// `memory:` or `terms:` reference against, so the two paths agree.
 //
 // Resolution order:
 //   - --name <n>    → ~/.config/kapi/<kind>/<n>.db
@@ -124,10 +126,10 @@ func ListNamedResources(kind string) ([]ResourceInfo, error) {
 	return resources, nil
 }
 
-// ConfigDir returns the kapi config root — named resources (terms stores, tm,
-// brands), flows, format presets, and the plugin dir all hang off it. It
-// honors the KAPI_CONFIG_DIR env override (the isolation contract), else
-// resolves to <os.UserConfigDir()>/kapi (~/.config/kapi on Linux,
+// ConfigDir returns the kapi config root. Named resources (terms stores,
+// content memories, voice profiles), flows, format presets, and the plugin dir
+// all hang off it. It honors the KAPI_CONFIG_DIR env override (the isolation
+// contract), else resolves to <os.UserConfigDir()>/kapi (~/.config/kapi on Linux,
 // ~/Library/Application Support/kapi on macOS). Shared by every surface that
 // derives kapi paths (the CLI, the Kapi Desktop backend), so the chain is
 // defined once.

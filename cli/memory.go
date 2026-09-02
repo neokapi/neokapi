@@ -19,16 +19,16 @@ func NewMemoryCmd(a *App) *cobra.Command {
 		GroupID: "assets",
 		Long: `Manage content memory.
 
-A content memory stores previously produced content — source segments with the
-targets settled for them — as a SQLite database. Use these commands to
-import/export TMX, look up matches, and manage entries.
+A content memory stores previously produced content as a SQLite database: source
+segments with the targets settled for them. Use these commands to import/export
+TMX, look up matches, and manage entries.
 
-Inside a project, no flag means the project's own content memory — a subsystem
-of .kapi/work/store.db, which is why it is not addressed by path. Use -p to name the
-project explicitly.
+Inside a project, no flag means the project's own content memory, a subsystem of
+.kapi/work/store.db, which is why it is addressed by project rather than by path.
+Use -p to name the project explicitly.
 
 Standalone store instead (mutually exclusive):
-  --name <n>      Named content memory in KAPI_HOME (~/.config/kapi/tm/<n>.db)
+  --name <n>      Named content memory in the kapi config dir (memory/<n>.db)
   --local         Content memory in current directory (./memory.db)
   --file <path>   Explicit file path
 
@@ -82,7 +82,7 @@ overrides.
 
 By default, imports entries matching the given --source-locale and --target-locale.
 Use --all-pairs to emit entries for every (src, tgt) language pair present in
-each TU — useful for multilingual TMX files (e.g. EUR-Lex Euramis exports, where
+each TU. Multilingual TMX files need this (e.g. EUR-Lex Euramis exports, where
 a single TU may carry every official EU language). Combine with --locales to
 restrict the pair set (e.g. --all-pairs --locales en-GB,fr,de).
 
@@ -271,12 +271,12 @@ func newMemoryExportCmd(a *App) *cobra.Command {
 TMX: each entry is written as a single <tu> with one <tuv> per language
 variant present (or the subset requested via --locales). Inline markup is
 preserved as TMX <ph>/<bpt>/<ept>/<it>/<hi>. TMX is the lossy interchange
-tier — entity mappings, provenance origins, properties, and notes are
+tier: entity mappings, provenance origins, properties, and notes are
 dropped.
 
 bundle (--format bundle, or a -o path ending in .memory.json): the
-deterministic, lossless native serialization — the right form for committing a
-content memory to git and for seeding a fresh content memory exactly. It stays
+deterministic, lossless native serialization. It is the form to commit a
+content memory to git in, and the form that seeds a fresh one exactly. It stays
 plain JSON, so it reviews line by line in a diff. --locales does not apply.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			outputPath, _ := cmd.Flags().GetString("output")
@@ -501,7 +501,7 @@ func newMemoryListCmd(a *App) *cobra.Command {
 		Use:   "list",
 		Short: "List named Memories in KAPI_HOME",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resources, err := ListNamedResources("tm")
+			resources, err := ListNamedResources("memory")
 			if err != nil {
 				return fmt.Errorf("list Memories: %w", err)
 			}
