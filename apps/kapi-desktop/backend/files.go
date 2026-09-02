@@ -89,7 +89,7 @@ func (a *App) DetectFormat(path string) string {
 // ValidateContentPath checks if a content path pattern is safe (no .., no absolute).
 func (a *App) ValidateContentPath(path string) error {
 	if strings.Contains(path, "..") {
-		return errors.New("path must not contain '..' — all paths are relative to the project directory")
+		return errors.New("path must not contain '..': all paths are relative to the project directory")
 	}
 	if filepath.IsAbs(path) {
 		return errors.New("path must be relative to the project directory")

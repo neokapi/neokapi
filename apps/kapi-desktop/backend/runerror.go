@@ -150,7 +150,7 @@ func classifyRunError(err error) *RunError {
 		case aiprovider.OllamaErrModelNotInstalled:
 			re.Kind = RunErrModelNotInstalled
 			re.Headline = fmt.Sprintf("Model %s isn't installed", oe.Model)
-			re.Remediation = "Pull the model, then run again — or pick a different one in Settings → AI Models."
+			re.Remediation = "Pull the model, then run again, or pick a different one in Settings → AI Models."
 			re.Actions = []RunErrorAction{
 				{Kind: ActionCommand, Label: "Pull the model", Command: oe.Remediation()},
 				{Kind: ActionOpenSettings, Label: "Choose another model", Target: "settings"},

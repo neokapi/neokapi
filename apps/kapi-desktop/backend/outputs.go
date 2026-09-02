@@ -63,7 +63,7 @@ func (a *App) ListOutputs(tabID string) (map[string][]OutputFileInfo, error) {
 			// in the desktop.
 			matches, err := project.ExpandGlob(basePath, item.Path, defaults.Exclude...)
 			if err != nil {
-				return nil, fmt.Errorf("content pattern %q cannot be expanded, so its outputs cannot be listed — fix the pattern in the recipe: %w", item.Path, err)
+				return nil, fmt.Errorf("content pattern %q cannot be expanded, so its outputs cannot be listed. Fix the pattern in the recipe: %w", item.Path, err)
 			}
 			ofiFor := func(lang, sourceRel string) OutputFileInfo {
 				outRel := project.ResolveTargetPath(item.Path, item.Base, item.Target, sourceRel, lang)

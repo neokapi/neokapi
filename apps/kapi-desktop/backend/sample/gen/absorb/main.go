@@ -49,7 +49,7 @@ func main() {
 
 	if res.Record.Learned == 0 && res.Record.Reconciled == 0 {
 		fmt.Fprintln(os.Stderr,
-			"kapimart-absorb: the record taught the memory nothing — every pair was already answered, "+
+			"kapimart-absorb: the record taught the memory nothing: every pair was already answered, "+
 				"already stamped, or refused. The seed corpus must be empty and the store rebuilt before this runs.")
 		os.Exit(1)
 	}

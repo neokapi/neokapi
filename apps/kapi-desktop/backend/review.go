@@ -557,7 +557,7 @@ func (a *App) UpdateReviewTarget(tabID, locale, file, key, text string) error {
 		return errors.New("project has no recipe loaded")
 	}
 	if strings.TrimSpace(text) == "" {
-		return errors.New("the edited translation is empty — reject the unit instead to send it back to draft")
+		return errors.New("the edited translation is empty. Reject the unit instead to send it back to draft")
 	}
 	loc, lerr := requireLocale(locale)
 	if lerr != nil {

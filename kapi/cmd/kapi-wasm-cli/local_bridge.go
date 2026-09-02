@@ -107,7 +107,7 @@ func (p *localBrowserProvider) Close() error { return nil }
 func (p *localBrowserProvider) generate(ctx context.Context, messages []aiprovider.Message, schema json.RawMessage) (*aiprovider.ChatResponse, error) {
 	fn := js.Global().Get(localJSFunc)
 	if !fn.Truthy() {
-		return nil, errors.New("local model (in-browser) not loaded: host did not define globalThis." + localJSFunc + " — call installLocalLLMBridge() on the page")
+		return nil, errors.New("local model (in-browser) not loaded: host did not define globalThis." + localJSFunc + ". Call installLocalLLMBridge() on the page")
 	}
 	payload := map[string]any{
 		"messages":   toLocalMessages(messages),

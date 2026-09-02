@@ -139,7 +139,7 @@ func (a *App) RunFlow(tabID, flowName string, inputPaths []string, targetLangs [
 	a.runState.mu.Lock()
 	if a.runState.running {
 		a.runState.mu.Unlock()
-		return errors.New("a flow is already running — cancel it first")
+		return errors.New("a flow is already running. Cancel it first")
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())

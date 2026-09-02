@@ -52,7 +52,7 @@ func registerKapiTools(server *mcp.Server, a *cli.App) {
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "extract_content",
-		Description: "Parse a file into translatable content blocks — each block's id, content_hash, source text (inline codes rendered as <x id=\"…\"/> placeholders), and word count. The read leg of the edit loop: edit a block's text keeping the placeholders, then send it back via apply_edits (or kapi apply).",
+		Description: "Parse a file into translatable content blocks: each block's id, content_hash, source text (inline codes rendered as <x id=\"…\"/> placeholders), and word count. The read leg of the edit loop: edit a block's text keeping the placeholders, then send it back via apply_edits (or kapi apply).",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input ExtractContentInput) (*mcp.CallToolResult, ExtractContentOutput, error) {
 		return handleExtractContent(ctx, a, input)
 	})
@@ -353,7 +353,7 @@ func handleRunFlowWithProject(ctx context.Context, a *cli.App, input RunFlowInpu
 				return nil, RunFlowOutput{}, fmt.Errorf("resolve content: %w", err)
 			}
 			if len(resolved) == 0 {
-				return nil, RunFlowOutput{}, errors.New("no input files — specify path or add content patterns")
+				return nil, RunFlowOutput{}, errors.New("no input files. Specify path or add content patterns")
 			}
 			inputPath = resolved[0].Path
 		}
@@ -372,7 +372,7 @@ func handleRunFlowWithProject(ctx context.Context, a *cli.App, input RunFlowInpu
 			return nil, RunFlowOutput{}, fmt.Errorf("resolve content: %w", err)
 		}
 		if len(resolved) == 0 {
-			return nil, RunFlowOutput{}, errors.New("no input files — specify path or add content patterns")
+			return nil, RunFlowOutput{}, errors.New("no input files. Specify path or add content patterns")
 		}
 		inputPath = resolved[0].Path
 	}

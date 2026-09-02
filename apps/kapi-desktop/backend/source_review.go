@@ -114,7 +114,7 @@ func (a *App) UpdateSourceText(tabID, file, key, text string) ([]string, error) 
 		return nil, errors.New("project has no recipe loaded")
 	}
 	if strings.TrimSpace(text) == "" {
-		return nil, errors.New("the edited source is empty — a source unit with no text has nothing to translate")
+		return nil, errors.New("the edited source is empty: a source unit with no text has nothing to translate")
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
