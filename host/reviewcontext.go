@@ -150,6 +150,12 @@ type ReviewHistory struct {
 	// wording. A percentage alone tells a reviewer that something close exists
 	// and never what it says.
 	Match *ReviewMemoryMatch `json:"match,omitempty"`
+	// Unseeded reports a project whose committed context sources have never
+	// been compiled into the store this history reads: a fresh clone, before
+	// anything ran. The store answers, and answers empty, which a reviewer
+	// cannot tell from a memory that genuinely holds nothing close. `kapi up`
+	// compiles the sources; until it has, an empty Match means unread.
+	Unseeded bool `json:"unseeded,omitempty"`
 }
 
 // ReviewPriorVersion is one block's previous source and the target approved for
@@ -530,6 +536,9 @@ func leadWithScopedRules(rules []coreprofile.TermRule, sourceText string) []core
 // with the wording it holds.
 func (a *App) reviewHistory(ctx context.Context, req ReviewContextRequest, b *model.Block, loc model.LocaleID) ReviewHistory {
 	var h ReviewHistory
+	if req.Root != "" {
+		h.Unseeded = a.ContextSourcesUnseeded(ctx, req.Root)
+	}
 	if req.Memory == nil {
 		return h
 	}
