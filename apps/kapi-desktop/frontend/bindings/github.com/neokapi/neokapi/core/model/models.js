@@ -7,6 +7,137 @@
 import { Create as $Create } from "@wailsio/runtime";
 
 /**
+ * An Anchor says where inside a block something is: the whole block, one run, a
+ * span of characters, or a branch of a structured run. Findings, annotations
+ * and overlays all address content with it, so a position means the same thing
+ * wherever it is recorded and whatever produced it.
+ * 
+ * Two properties shape it.
+ * 
+ * Positions are RUN-RELATIVE, not offsets into flattened text. A boundary given
+ * as (run index, rune offset into that run) stays where it was put when a
+ * neighbouring run is rewritten, and it can sit either side of a placeholder —
+ * a flat character offset can do neither, because placeholders contribute no
+ * text and every offset after an edit shifts.
+ * 
+ * Positions are PATHED. A block's content is a tree, not a list: a plural run
+ * holds a sequence per form and a select run one per case. Path walks to the
+ * sequence being addressed, so a term inside the `other` form of a plural is
+ * addressable rather than approximated by a position in the flattening.
+ */
+export class Anchor {
+    /**
+     * Creates a new Anchor instance.
+     * @param {Partial<Anchor>} [$$source = {}] - The source object to create the Anchor.
+     */
+    constructor($$source = {}) {
+        if (!("kind" in $$source)) {
+            /**
+             * @member
+             * @type {AnchorKind}
+             */
+            this["kind"] = AnchorKind.$zero;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Path is the run sequence being addressed. Empty means the block's own
+             * top-level runs.
+             * @member
+             * @type {RunPath | undefined}
+             */
+            this["path"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * RunID identifies the run, for AnchorRun.
+             * @member
+             * @type {string | undefined}
+             */
+            this["runId"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Start and End bound a half-open span [Start, End), for AnchorRange.
+             * @member
+             * @type {RunPos | undefined}
+             */
+            this["start"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {RunPos | undefined}
+             */
+            this["end"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Key names the branch, for AnchorForm: a plural form or a select case.
+             * @member
+             * @type {string | undefined}
+             */
+            this["key"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Anchor instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {Anchor}
+     */
+    static createFrom($$source = {}) {
+        const $$createField1_0 = $$createType0;
+        const $$createField3_0 = $$createType2;
+        const $$createField4_0 = $$createType2;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("path" in $$parsedSource) {
+            $$parsedSource["path"] = $$createField1_0($$parsedSource["path"]);
+        }
+        if ("start" in $$parsedSource) {
+            $$parsedSource["start"] = $$createField3_0($$parsedSource["start"]);
+        }
+        if ("end" in $$parsedSource) {
+            $$parsedSource["end"] = $$createField4_0($$parsedSource["end"]);
+        }
+        return new Anchor(/** @type {Partial<Anchor>} */($$parsedSource));
+    }
+}
+
+/**
+ * AnchorKind discriminates what an Anchor addresses.
+ * @readonly
+ * @enum {string}
+ */
+export const AnchorKind = {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero: "",
+
+    /**
+     * AnchorBlock addresses a whole block.
+     */
+    AnchorBlock: "block",
+
+    /**
+     * AnchorRun addresses one run by id.
+     */
+    AnchorRun: "run",
+
+    /**
+     * AnchorRange addresses a half-open span of characters.
+     */
+    AnchorRange: "range",
+
+    /**
+     * AnchorForm addresses one branch of a plural or select run.
+     */
+    AnchorForm: "form",
+};
+
+/**
  * LocaleID represents a BCP 47 language tag.
  * @readonly
  * @enum {string}
@@ -122,7 +253,7 @@ export class Media {
      */
     static createFrom($$source = {}) {
         const $$createField2_0 = $Create.ByteSlice;
-        const $$createField8_0 = $$createType0;
+        const $$createField8_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("Data" in $$parsedSource) {
             $$parsedSource["Data"] = $$createField2_0($$parsedSource["Data"]);
@@ -268,5 +399,66 @@ export class Origin {
  * @typedef {any} Run
  */
 
+/**
+ * RunPath walks into a block's nested run structure. Each step is an index into
+ * a sequence, a plural form, or a select case.
+ * @typedef {RunPathStep[]} RunPath
+ */
+
+/**
+ * RunPathStep is one hop of a RunPath. Kind says which of the other fields
+ * carries the step.
+ * @typedef {any} RunPathStep
+ */
+
+/**
+ * RunPos is a character boundary in a run sequence: an index into the sequence
+ * and a rune offset into that run's text. A run carrying no text — a
+ * placeholder, either half of a paired code — takes offset 0, and an index of
+ * len(runs) with offset 0 is the boundary past the last run.
+ */
+export class RunPos {
+    /**
+     * Creates a new RunPos instance.
+     * @param {Partial<RunPos>} [$$source = {}] - The source object to create the RunPos.
+     */
+    constructor($$source = {}) {
+        if (!("run" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["run"] = 0;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {number | undefined}
+             */
+            this["offset"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new RunPos instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {RunPos}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new RunPos(/** @type {Partial<RunPos>} */($$parsedSource));
+    }
+}
+
 // Private type creation functions
-const $$createType0 = $Create.Map($Create.Any, $Create.Any);
+var $$createType0 = /** @type {(...args: any[]) => any} */(function $$initCreateType0(...args) {
+    if ($$createType0 === $$initCreateType0) {
+        $$createType0 = $$createType1;
+    }
+    return $$createType0(...args);
+});
+const $$createType1 = $Create.Array($Create.Any);
+const $$createType2 = RunPos.createFrom;
+const $$createType3 = $Create.Map($Create.Any, $Create.Any);

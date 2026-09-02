@@ -97,6 +97,38 @@ func TestHandleReviewUnit(t *testing.T) {
 	require.Error(t, err)
 }
 
+// TestHandleReviewUnit_CarriesTheContext holds the bar for the agent surface:
+// an agent asked to judge a translation is handed at least what the model that
+// produced it was handed.
+func TestHandleReviewUnit_CarriesTheContext(t *testing.T) {
+	root := writeMCPReviewProject(t)
+	a := testApp()
+	proj := filepath.Join(root, "kapi.yaml")
+
+	_, queue, err := handleReviewQueue(t.Context(), a, ReviewQueueInput{Project: proj})
+	require.NoError(t, err)
+	require.Len(t, queue.Pending, 2)
+
+	_, out, err := handleReviewUnit(t.Context(), a, ReviewUnitInput{
+		Project: proj, Locale: "nb", File: "nb.json", Key: "a",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, out.Unit)
+	require.NotNil(t, out.Unit.Context, "review_unit answers with the review model")
+
+	rc := out.Unit.Context
+	assert.Equal(t, "app", rc.Point.Collection)
+	assert.Equal(t, "en.json", rc.Point.Path, "the point is the SOURCE file's coordinate")
+	assert.Equal(t, "a", rc.Neighbourhood.Key)
+	assert.Equal(t, host.DefaultReviewWindow, rc.Neighbourhood.Window)
+	assert.Empty(t, rc.Neighbourhood.Before, "`a` is the first unit in the file")
+	require.Len(t, rc.Neighbourhood.After, 1)
+	assert.Equal(t, "b", rc.Neighbourhood.After[0].Key)
+	require.Len(t, rc.Neighbourhood.After[0].Source, 1)
+	require.NotNil(t, rc.Neighbourhood.After[0].Source[0].Text)
+	assert.Equal(t, "Banana", rc.Neighbourhood.After[0].Source[0].Text.Text)
+}
+
 // TestHandleReviewDecision_ApproveRejectSignOff drives the three decision
 // tools end to end: identities land in the state store as agent-class, the
 // queue shrinks, and a redundant call reports changed=false.

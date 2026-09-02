@@ -8,7 +8,19 @@ import { Create as $Create } from "@wailsio/runtime";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as check$0 from "../core/check/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as convergence$0 from "../core/convergence/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as model$0 from "../core/model/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as profile$0 from "../core/profile/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as state$0 from "../core/state/models.js";
 
 /**
  * AIModelOrigin says which layer supplied the effective value.
@@ -1185,14 +1197,680 @@ export class ParkedScope {
 }
 
 /**
- * The convergence report MODEL and the per-block ladder helpers live in the
- * framework (core/convergence) so any surface derives the same shape from the
- * same rules. The CLI owns the file-IO orchestration that feeds them
- * (UnitsFromProject, readBlocks, bilingualBlocks, the state-store review index)
- * and re-exports the types via aliases so existing CLI + desktop callers — and
- * the generated Wails bindings — are unchanged.
+ * ReviewContext binds one review decision to the context it is made in.
  */
-export const ReviewItem = convergence$0.ReviewItem;
+export class ReviewContext {
+    /**
+     * Creates a new ReviewContext instance.
+     * @param {Partial<ReviewContext>} [$$source = {}] - The source object to create the ReviewContext.
+     */
+    constructor($$source = {}) {
+        if (!("point" in $$source)) {
+            /**
+             * Point is where the content sits and what governs it there.
+             * @member
+             * @type {ReviewPoint}
+             */
+            this["point"] = (new ReviewPoint());
+        }
+        if (!("neighbourhood" in $$source)) {
+            /**
+             * Neighbourhood is the unit's key and the blocks around it in document
+             * order.
+             * @member
+             * @type {ReviewNeighbourhood}
+             */
+            this["neighbourhood"] = (new ReviewNeighbourhood());
+        }
+        if (!("history" in $$source)) {
+            /**
+             * History is what this unit said before, and the wording the content memory
+             * already holds for it.
+             * @member
+             * @type {ReviewHistory}
+             */
+            this["history"] = (new ReviewHistory());
+        }
+        if (!("judgement" in $$source)) {
+            /**
+             * Judgement is what the checks and the AI pre-review found.
+             * @member
+             * @type {ReviewJudgement}
+             */
+            this["judgement"] = (new ReviewJudgement());
+        }
+        if (!("provenance" in $$source)) {
+            /**
+             * Provenance is where the current target came from and who decided on it.
+             * @member
+             * @type {ReviewProvenance}
+             */
+            this["provenance"] = (new ReviewProvenance());
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ReviewContext instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ReviewContext}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType17;
+        const $$createField1_0 = $$createType18;
+        const $$createField2_0 = $$createType19;
+        const $$createField3_0 = $$createType20;
+        const $$createField4_0 = $$createType21;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("point" in $$parsedSource) {
+            $$parsedSource["point"] = $$createField0_0($$parsedSource["point"]);
+        }
+        if ("neighbourhood" in $$parsedSource) {
+            $$parsedSource["neighbourhood"] = $$createField1_0($$parsedSource["neighbourhood"]);
+        }
+        if ("history" in $$parsedSource) {
+            $$parsedSource["history"] = $$createField2_0($$parsedSource["history"]);
+        }
+        if ("judgement" in $$parsedSource) {
+            $$parsedSource["judgement"] = $$createField3_0($$parsedSource["judgement"]);
+        }
+        if ("provenance" in $$parsedSource) {
+            $$parsedSource["provenance"] = $$createField4_0($$parsedSource["provenance"]);
+        }
+        return new ReviewContext(/** @type {Partial<ReviewContext>} */($$parsedSource));
+    }
+}
+
+/**
+ * ReviewHistory is what has already been approved for this unit.
+ */
+export class ReviewHistory {
+    /**
+     * Creates a new ReviewHistory instance.
+     * @param {Partial<ReviewHistory>} [$$source = {}] - The source object to create the ReviewHistory.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * Prior is the last answer approved for this block, with the source it was
+             * approved for. Either half alone is worse than neither: a target with no
+             * source is an anchor with no explanation.
+             * @member
+             * @type {ReviewPriorVersion | null | undefined}
+             */
+            this["prior"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Match is the content memory's best answer for this source, with its
+             * wording. A percentage alone tells a reviewer that something close exists
+             * and never what it says.
+             * @member
+             * @type {ReviewMemoryMatch | null | undefined}
+             */
+            this["match"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ReviewHistory instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ReviewHistory}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType23;
+        const $$createField1_0 = $$createType25;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("prior" in $$parsedSource) {
+            $$parsedSource["prior"] = $$createField0_0($$parsedSource["prior"]);
+        }
+        if ("match" in $$parsedSource) {
+            $$parsedSource["match"] = $$createField1_0($$parsedSource["match"]);
+        }
+        return new ReviewHistory(/** @type {Partial<ReviewHistory>} */($$parsedSource));
+    }
+}
+
+/**
+ * ReviewJudgement is what has already been said about this translation.
+ */
+export class ReviewJudgement {
+    /**
+     * Creates a new ReviewJudgement instance.
+     * @param {Partial<ReviewJudgement>} [$$source = {}] - The source object to create the ReviewJudgement.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * Findings are the registered checkers' results for this unit, each with
+             * the run range it applies to, so a surface can point at the text rather
+             * than describe it.
+             * @member
+             * @type {check$0.Finding[] | undefined}
+             */
+            this["findings"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * AIScore, AIModel and AIFindings are the fresh AI pre-review annotation
+             * from the state store. They repeat what ReviewUnitInfo carries flat, so a
+             * client rendering judgement reads one group rather than two places.
+             * @member
+             * @type {number | null | undefined}
+             */
+            this["ai_score"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["ai_model"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {state$0.AIReviewFinding[] | undefined}
+             */
+            this["ai_findings"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ReviewJudgement instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ReviewJudgement}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType27;
+        const $$createField3_0 = $$createType29;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("findings" in $$parsedSource) {
+            $$parsedSource["findings"] = $$createField0_0($$parsedSource["findings"]);
+        }
+        if ("ai_findings" in $$parsedSource) {
+            $$parsedSource["ai_findings"] = $$createField3_0($$parsedSource["ai_findings"]);
+        }
+        return new ReviewJudgement(/** @type {Partial<ReviewJudgement>} */($$parsedSource));
+    }
+}
+
+/**
+ * ReviewMemoryMatch is the content memory's best answer for this unit's source.
+ */
+export class ReviewMemoryMatch {
+    /**
+     * Creates a new ReviewMemoryMatch instance.
+     * @param {Partial<ReviewMemoryMatch>} [$$source = {}] - The source object to create the ReviewMemoryMatch.
+     */
+    constructor($$source = {}) {
+        if (!("score" in $$source)) {
+            /**
+             * Score is the match percent (0-100).
+             * @member
+             * @type {number}
+             */
+            this["score"] = 0;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Source is the wording the corpus holds for the source locale, and Target
+             * the answer approved for it.
+             * @member
+             * @type {string | undefined}
+             */
+            this["source"] = undefined;
+        }
+        if (!("target" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["target"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ReviewMemoryMatch instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ReviewMemoryMatch}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ReviewMemoryMatch(/** @type {Partial<ReviewMemoryMatch>} */($$parsedSource));
+    }
+}
+
+/**
+ * ReviewNeighbour is one neighbouring block.
+ */
+export class ReviewNeighbour {
+    /**
+     * Creates a new ReviewNeighbour instance.
+     * @param {Partial<ReviewNeighbour>} [$$source = {}] - The source object to create the ReviewNeighbour.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * Key is the neighbour's stable unit key, so a reviewer can address it.
+             * @member
+             * @type {string | undefined}
+             */
+            this["key"] = undefined;
+        }
+        if (!("source" in $$source)) {
+            /**
+             * Source is the neighbour's source content. The prompt carries this half.
+             * @member
+             * @type {model$0.Run[]}
+             */
+            this["source"] = [];
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Target is what the locale under review says for the neighbour, absent
+             * when nothing is translated there. The prompt never carries it; a reviewer
+             * reading a paragraph in sequence does.
+             * @member
+             * @type {model$0.Run[] | undefined}
+             */
+            this["target"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ReviewNeighbour instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ReviewNeighbour}
+     */
+    static createFrom($$source = {}) {
+        const $$createField1_0 = $$createType30;
+        const $$createField2_0 = $$createType30;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("source" in $$parsedSource) {
+            $$parsedSource["source"] = $$createField1_0($$parsedSource["source"]);
+        }
+        if ("target" in $$parsedSource) {
+            $$parsedSource["target"] = $$createField2_0($$parsedSource["target"]);
+        }
+        return new ReviewNeighbour(/** @type {Partial<ReviewNeighbour>} */($$parsedSource));
+    }
+}
+
+/**
+ * ReviewNeighbourhood is the unit in its document: its key, and the blocks
+ * either side of it in the order the file holds them.
+ * 
+ * The blocks travel as Run sequences rather than as text. Flattening a run
+ * sequence into a string reads as "concatenate the text" and behaves as
+ * "delete every placeholder, every paired code, every plural", so a reader
+ * gets a sentence with the variables silently missing from it.
+ */
+export class ReviewNeighbourhood {
+    /**
+     * Creates a new ReviewNeighbourhood instance.
+     * @param {Partial<ReviewNeighbourhood>} [$$source = {}] - The source object to create the ReviewNeighbourhood.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * Key is the block's key or path: `app.settings.title` rather than `Save`.
+             * The cheapest disambiguation signal there is, and the one the prompt always
+             * carries.
+             * @member
+             * @type {string | undefined}
+             */
+            this["key"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Before and After are the neighbouring blocks, nearest last in Before and
+             * nearest first in After, so reading the three lists in order reads the
+             * document in order.
+             * @member
+             * @type {ReviewNeighbour[] | undefined}
+             */
+            this["before"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {ReviewNeighbour[] | undefined}
+             */
+            this["after"] = undefined;
+        }
+        if (!("window" in $$source)) {
+            /**
+             * Window is how many blocks either side were asked for. A list shorter than
+             * the window means the document ended, rather than that blocks were
+             * dropped.
+             * @member
+             * @type {number}
+             */
+            this["window"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ReviewNeighbourhood instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ReviewNeighbourhood}
+     */
+    static createFrom($$source = {}) {
+        const $$createField1_0 = $$createType32;
+        const $$createField2_0 = $$createType32;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("before" in $$parsedSource) {
+            $$parsedSource["before"] = $$createField1_0($$parsedSource["before"]);
+        }
+        if ("after" in $$parsedSource) {
+            $$parsedSource["after"] = $$createField2_0($$parsedSource["after"]);
+        }
+        return new ReviewNeighbourhood(/** @type {Partial<ReviewNeighbourhood>} */($$parsedSource));
+    }
+}
+
+/**
+ * ReviewPoint is the coordinate the unit's file sits at, with the governance in
+ * force there: the same answer `kapi context <path>` and the `context://`
+ * resources serve, so a reviewer and a run are never told different things
+ * about one file.
+ */
+export class ReviewPoint {
+    /**
+     * Creates a new ReviewPoint instance.
+     * @param {Partial<ReviewPoint>} [$$source = {}] - The source object to create the ReviewPoint.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * Path is the SOURCE file, project-relative and slash-separated.
+             * @member
+             * @type {string | undefined}
+             */
+            this["path"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Profile is the governance profile in force, empty at the project's
+             * default point.
+             * @member
+             * @type {string | undefined}
+             */
+            this["profile"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Channel is the surface the content ships on, empty when it binds none.
+             * @member
+             * @type {string | undefined}
+             */
+            this["channel"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Collection is the content collection claiming the path.
+             * @member
+             * @type {string | undefined}
+             */
+            this["collection"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Ref renders Profile and Channel as the recipe writes the binding
+             * (`profile/channel`).
+             * @member
+             * @type {string | undefined}
+             */
+            this["ref"] = undefined;
+        }
+        if (!("default" in $$source)) {
+            /**
+             * Default reports that resolution fell through to the project's default
+             * point, which is a real place rather than an absent one.
+             * @member
+             * @type {boolean}
+             */
+            this["default"] = false;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Coordinates place the point on the declared axes: product, channel, and
+             * the brand a recipe states once under `defaults:`.
+             * @member
+             * @type {{ [_ in string]?: string } | undefined}
+             */
+            this["coordinates"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Voice is the profile in force with the guidance it renders: the same
+             * prose `kapi voice guide` prints and the translate prompt carries.
+             * @member
+             * @type {ContextVoice | null | undefined}
+             */
+            this["voice"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * TermRules are the constraints on wording in force here, in the shape
+             * every governed tool takes them (`term_rules:`).
+             * @member
+             * @type {profile$0.TermRule[] | undefined}
+             */
+            this["term_rules"] = undefined;
+        }
+        if (!("terms_total" in $$source)) {
+            /**
+             * TermsTotal is how many rules the point binds in all, so a capped list
+             * says what it is a part of.
+             * @member
+             * @type {number}
+             */
+            this["terms_total"] = 0;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Profiles are the recipe's bounded governance profiles read against now:
+             * which voice is in force, and until when.
+             * @member
+             * @type {ContextProfileHit[] | undefined}
+             */
+            this["profiles"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Notes carries the freshness and scope caveats the resolution produced, so
+             * a thin point is never ambiguous between "nothing governs here" and
+             * "nothing could be read".
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["notes"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ReviewPoint instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ReviewPoint}
+     */
+    static createFrom($$source = {}) {
+        const $$createField6_0 = $$createType33;
+        const $$createField7_0 = $$createType2;
+        const $$createField8_0 = $$createType35;
+        const $$createField10_0 = $$createType6;
+        const $$createField11_0 = $$createType7;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("coordinates" in $$parsedSource) {
+            $$parsedSource["coordinates"] = $$createField6_0($$parsedSource["coordinates"]);
+        }
+        if ("voice" in $$parsedSource) {
+            $$parsedSource["voice"] = $$createField7_0($$parsedSource["voice"]);
+        }
+        if ("term_rules" in $$parsedSource) {
+            $$parsedSource["term_rules"] = $$createField8_0($$parsedSource["term_rules"]);
+        }
+        if ("profiles" in $$parsedSource) {
+            $$parsedSource["profiles"] = $$createField10_0($$parsedSource["profiles"]);
+        }
+        if ("notes" in $$parsedSource) {
+            $$parsedSource["notes"] = $$createField11_0($$parsedSource["notes"]);
+        }
+        return new ReviewPoint(/** @type {Partial<ReviewPoint>} */($$parsedSource));
+    }
+}
+
+/**
+ * ReviewPriorVersion is one block's previous source and the target approved for
+ * it, read from the content memory's version chain.
+ */
+export class ReviewPriorVersion {
+    /**
+     * Creates a new ReviewPriorVersion instance.
+     * @param {Partial<ReviewPriorVersion>} [$$source = {}] - The source object to create the ReviewPriorVersion.
+     */
+    constructor($$source = {}) {
+        if (!("source" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["source"] = "";
+        }
+        if (!("target" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["target"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * ContextFingerprint is the governing context that answer was produced
+             * under. A translate prompt withholds a prior version whose fingerprint no
+             * longer matches; a reviewer is shown it together with what it was approved
+             * under, because judging whether the rules moved is the reviewer's job.
+             * @member
+             * @type {string | undefined}
+             */
+            this["context_fingerprint"] = undefined;
+        }
+        if (!("governed" in $$source)) {
+            /**
+             * Governed reports that the fingerprint still matches the context the
+             * decision was recorded under, which is the condition under which the
+             * prompt would have carried this pair.
+             * @member
+             * @type {boolean}
+             */
+            this["governed"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ReviewPriorVersion instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ReviewPriorVersion}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ReviewPriorVersion(/** @type {Partial<ReviewPriorVersion>} */($$parsedSource));
+    }
+}
+
+/**
+ * ReviewProvenance is where the current target came from and who decided on it.
+ */
+export class ReviewProvenance {
+    /**
+     * Creates a new ReviewProvenance instance.
+     * @param {Partial<ReviewProvenance>} [$$source = {}] - The source object to create the ReviewProvenance.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * Origin is the target's provenance when the state store or the format
+             * records one.
+             * @member
+             * @type {model$0.Origin | null | undefined}
+             */
+            this["origin"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * ReviewState, By, At and Note are the decision in force. There is one per
+             * (scope, unit, variant) and a new decision overwrites it, so this is the
+             * current decision rather than the most recent of several.
+             * @member
+             * @type {string | undefined}
+             */
+            this["review_state"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["by"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["at"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["note"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Stale reports a decision recorded against source wording that has since
+             * changed: the reviewer blessed a rendering of a sentence the project no
+             * longer has.
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["stale"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ReviewProvenance instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ReviewProvenance}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType37;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("origin" in $$parsedSource) {
+            $$parsedSource["origin"] = $$createField0_0($$parsedSource["origin"]);
+        }
+        return new ReviewProvenance(/** @type {Partial<ReviewProvenance>} */($$parsedSource));
+    }
+}
 
 /**
  * The convergence report MODEL and the per-block ladder helpers live in the
@@ -1201,7 +1879,17 @@ export const ReviewItem = convergence$0.ReviewItem;
  * (UnitsFromProject, readBlocks, bilingualBlocks, the state-store review index)
  * and re-exports the types via aliases so existing CLI + desktop callers — and
  * the generated Wails bindings — are unchanged.
- * @typedef {convergence$0.ReviewItem} ReviewItem
+ */
+export const ReviewQueueItem = convergence$0.ReviewQueueItem;
+
+/**
+ * The convergence report MODEL and the per-block ladder helpers live in the
+ * framework (core/convergence) so any surface derives the same shape from the
+ * same rules. The CLI owns the file-IO orchestration that feeds them
+ * (UnitsFromProject, readBlocks, bilingualBlocks, the state-store review index)
+ * and re-exports the types via aliases so existing CLI + desktop callers — and
+ * the generated Wails bindings — are unchanged.
+ * @typedef {convergence$0.ReviewQueueItem} ReviewQueueItem
  */
 
 /**
@@ -1404,8 +2092,8 @@ export class UpPlanOutput {
      * @returns {UpPlanOutput}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType18;
-        const $$createField4_0 = $$createType17;
+        const $$createField3_0 = $$createType39;
+        const $$createField4_0 = $$createType38;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("scopes" in $$parsedSource) {
             $$parsedSource["scopes"] = $$createField3_0($$parsedSource["scopes"]);
@@ -1585,5 +2273,26 @@ const $$createType13 = ConvergeLocaleResult.createFrom;
 const $$createType14 = $Create.Array($$createType13);
 const $$createType15 = ParkedScope.createFrom;
 const $$createType16 = $Create.Array($$createType15);
-const $$createType17 = UpPlanScope.createFrom;
-const $$createType18 = $Create.Array($$createType17);
+const $$createType17 = ReviewPoint.createFrom;
+const $$createType18 = ReviewNeighbourhood.createFrom;
+const $$createType19 = ReviewHistory.createFrom;
+const $$createType20 = ReviewJudgement.createFrom;
+const $$createType21 = ReviewProvenance.createFrom;
+const $$createType22 = ReviewPriorVersion.createFrom;
+const $$createType23 = $Create.Nullable($$createType22);
+const $$createType24 = ReviewMemoryMatch.createFrom;
+const $$createType25 = $Create.Nullable($$createType24);
+const $$createType26 = check$0.Finding.createFrom;
+const $$createType27 = $Create.Array($$createType26);
+const $$createType28 = state$0.AIReviewFinding.createFrom;
+const $$createType29 = $Create.Array($$createType28);
+const $$createType30 = $Create.Array($Create.Any);
+const $$createType31 = ReviewNeighbour.createFrom;
+const $$createType32 = $Create.Array($$createType31);
+const $$createType33 = $Create.Map($Create.Any, $Create.Any);
+const $$createType34 = profile$0.TermRule.createFrom;
+const $$createType35 = $Create.Array($$createType34);
+const $$createType36 = model$0.Origin.createFrom;
+const $$createType37 = $Create.Nullable($$createType36);
+const $$createType38 = UpPlanScope.createFrom;
+const $$createType39 = $Create.Array($$createType38);

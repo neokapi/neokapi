@@ -263,7 +263,7 @@ func TestReview_ApplyReviewKindPromotesViaStateStore(t *testing.T) {
 	a := &App{}
 	rep, err := a.ProjectConvergence(context.Background(), filepath.Join(root, "kapi.yaml"), "en")
 	require.NoError(t, err)
-	var item ReviewItem
+	var item ReviewQueueItem
 	for _, it := range rep.Review {
 		if it.Source == "Apple" {
 			item = it

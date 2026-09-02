@@ -1147,7 +1147,7 @@ export function GetRelations(handle, conceptID) {
  * hid rows afterwards would still pay for all of them.
  * @param {string} tabID
  * @param {$models.ProjectFilter} filter
- * @returns {$CancellablePromise<host$0.ReviewItem[]>}
+ * @returns {$CancellablePromise<host$0.ReviewQueueItem[]>}
  */
 export function GetReviewQueue(tabID, filter) {
     return $Call.ByID(3360875527, tabID, filter).then(/** @type {($result: any) => any} */(($result) => {
@@ -2751,7 +2751,7 @@ const $$createType60 = $Create.Nullable($$createType59);
 const $$createType61 = $models.ProjectStatus.createFrom;
 const $$createType62 = $Create.Nullable($$createType61);
 const $$createType63 = $Create.Array($$createType1);
-const $$createType64 = convergence$0.ReviewItem.createFrom;
+const $$createType64 = convergence$0.ReviewQueueItem.createFrom;
 const $$createType65 = $Create.Array($$createType64);
 const $$createType66 = $models.ReviewUnitDetail.createFrom;
 const $$createType67 = $Create.Nullable($$createType66);

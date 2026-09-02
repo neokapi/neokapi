@@ -20,10 +20,10 @@ import (
 
 // Report is the full derived convergence picture for a project.
 type Report struct {
-	Project string           `json:"project,omitempty"`
-	Source  *SourceCoverage  `json:"source,omitempty"`
-	Locales []LocaleCoverage `json:"locales"`
-	Review  []ReviewItem     `json:"review"`
+	Project string            `json:"project,omitempty"`
+	Source  *SourceCoverage   `json:"source,omitempty"`
+	Locales []LocaleCoverage  `json:"locales"`
+	Review  []ReviewQueueItem `json:"review"`
 }
 
 // LocaleCoverage is the ship-gate view for one (collection, locale) scope: the
@@ -103,9 +103,11 @@ type SourceCoverage struct {
 	Unreadable []string `json:"unreadable,omitempty"`
 }
 
-// ReviewItem is one translatable unit awaiting human review (a translated unit not
-// yet approved), with short previews for listing.
-type ReviewItem struct {
+// ReviewQueueItem is one translatable unit awaiting human review (a translated
+// unit not yet approved), with short previews for listing. Named for the queue
+// it is a row of, so it reads apart from the governance review item a connected
+// workspace holds.
+type ReviewQueueItem struct {
 	Locale string `json:"locale"`
 	File   string `json:"file"`
 	Key    string `json:"key"`

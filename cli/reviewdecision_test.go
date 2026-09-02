@@ -15,7 +15,7 @@ import (
 )
 
 // itemBySource finds the queued review item whose source preview matches.
-func itemBySource(t *testing.T, items []ReviewItem, source string) ReviewItem {
+func itemBySource(t *testing.T, items []ReviewQueueItem, source string) ReviewQueueItem {
 	t.Helper()
 	for _, it := range items {
 		if it.Source == source {
@@ -23,7 +23,7 @@ func itemBySource(t *testing.T, items []ReviewItem, source string) ReviewItem {
 		}
 	}
 	t.Fatalf("no review item with source %q in %v", source, items)
-	return ReviewItem{}
+	return ReviewQueueItem{}
 }
 
 // TestApplyReviewDecision_ApprovedMatchesApprove verifies the generalized entry
