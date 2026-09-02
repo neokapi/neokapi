@@ -1,6 +1,6 @@
 id: 09-toolbox-find-replace
-title: grep, sed and cat — for any format
-subtitle: kcat, kgrep and ksed work on the text kapi reads out of a document — Word, Excel, Markdown — not raw bytes.
+title: grep, sed and cat for any format
+subtitle: kcat, kgrep and ksed work on the text kapi reads out of a Word file, a spreadsheet or a Markdown page, rather than on raw bytes.
 tagline: muscle memory from the tools you already know, on content those tools can't see into.
 kind: use-case
 publishAs: toolbox-explainer
@@ -20,27 +20,27 @@ aspects:
 # Each comment names exactly what the command below it does. Wildcards (`*`)
 # fan a single pattern or substitution across every file, regardless of format.
 script:
-  - comment: A sales team's collateral — one product name, three formats.
+  - comment: "A sales team's collateral: one product name, three formats."
   - command: ls
-  - comment: kcat the Word proposal — its prose, as plain lines.
+  - comment: kcat the Word proposal, and its prose comes out as plain lines.
   - command: kcat proposal.docx
-  - comment: kcat the Excel price list — one cell per line.
+  - comment: kcat the Excel price list, one cell per line.
   - command: kcat pricing.xlsx
   - comment: kgrep every "SalesPilot" across all three files at once.
   - command: kgrep -n SalesPilot *
   - comment: ksed renames SalesPilot to Northstar, in place, in all three.
   - command: ksed -i 's/SalesPilot/Northstar/g' *
-  - comment: kgrep the new name to confirm — same matches, renamed.
+  - comment: kgrep the new name to confirm the same matches, renamed.
   - command: kgrep -c Northstar *
   - command: kcat proposal.docx
 
 artifacts:
   - id: after
-    caption: "proposal.docx — renamed to Northstar, heading and bold intact"
+    caption: "proposal.docx: renamed to Northstar, heading and bold intact"
     source: docx
     path: proposal.docx
     reportTitle: "proposal.docx"
-    reportSub: "still a valid Word document — only the words changed"
+    reportSub: "still a valid Word document, with only the words changed"
     width: 1100
     height: 760
 
@@ -48,8 +48,8 @@ narration:
   - id: title
     kind: title
     text: >
-      What if you could run classic CLI tools — like cat and grep, or even sed —
-      across both text and the content inside binary formats, like Word and Excel
+      What if you could run the classic CLI tools, cat and grep and sed, across
+      plain text and across the content inside binary formats like Word and Excel
       documents? Well, now you can.
   - id: cat
     kind: terminal
@@ -67,17 +67,17 @@ narration:
   - id: sed
     kind: terminal
     text: >
-      And one ksed renames the product everywhere, in place — each file saved back
-      in its own format.
+      And one ksed renames the product everywhere, in place, with each file saved
+      back in its own format.
     caption: "one ksed renames across all three, in place"
   - id: after
     kind: artifact
     artifact: after
     text: >
-      The proposal is still a valid Word document — heading and structure intact.
+      The proposal is still a valid Word document, heading and structure intact.
       Only the words changed.
   - id: outro
     kind: outro
     text: >
-      kcat, kgrep and ksed: grep, sed and cat, for the words inside any of the
-      more than fifty file formats neokapi reads.
+      kcat, kgrep and ksed: grep, sed and cat, for the words inside every document
+      and catalog format neokapi reads.
