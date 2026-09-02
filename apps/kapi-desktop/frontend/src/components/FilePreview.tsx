@@ -88,6 +88,8 @@ export interface FilePreviewProps {
   unitStates?: Record<string, string>;
   /** Label for the button that returns the reader where they came from. */
   backLabel?: string;
+  /** Which side the document opens on: the source, or a target locale key. */
+  side?: string;
 }
 
 // FilePreview is the desktop's project-content preview surface. It reuses the
@@ -117,6 +119,7 @@ export function FilePreview({
   focusKey,
   unitStates,
   backLabel,
+  side,
 }: FilePreviewProps) {
   // Inspect the file (or one archive entry) and serve any media bytes in a single
   // query fn — the Wails bindings are the data source, react-query owns caching.
@@ -269,6 +272,7 @@ export function FilePreview({
               resolveMediaUrl={(node) => mediaUrls[node.id] ?? node.media?.uri}
               selectedBlockId={focusID}
               blockAttrs={blockAttrs}
+              defaultSide={side}
             />
           )}
         </div>

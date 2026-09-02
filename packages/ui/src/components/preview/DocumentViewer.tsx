@@ -63,6 +63,11 @@ export interface DocumentViewerProps {
   selectedBlockId?: string;
   /** Called with a block's id when its element is activated in the Preview. */
   onSelectBlock?: (id: string) => void;
+  /**
+   * Which side the Preview opens on: "source", or a target locale key. A host
+   * arriving to look at one language starts there and toggles from it.
+   */
+  defaultSide?: PreviewSide;
   /** Per-block class name and `data-*` markers, drawn on the block's element. */
   blockAttrs?: (id: string) => BlockAttrs | undefined;
   /** Raw-view line numbers changed by a recent run — highlighted in Raw. */
@@ -135,6 +140,7 @@ export default function DocumentViewer({
   selectedBlockId,
   onSelectBlock,
   blockAttrs,
+  defaultSide = "source",
   rawChangedLines,
   resolveMediaUrl = defaultResolveMediaUrl,
   className,
@@ -163,7 +169,11 @@ export default function DocumentViewer({
     [bytes, ft.binary],
   );
 
-  const [side, setSide] = useState<PreviewSide>("source");
+  // A requested side the tree has no runs for would render an empty document,
+  // so an unknown locale falls back to the source.
+  const [side, setSide] = useState<PreviewSide>(() =>
+    defaultSide === "source" || locales.includes(defaultSide) ? defaultSide : "source",
+  );
 
   // Per-structure counts for the Stats tab.
   const stats = useMemo(() => {

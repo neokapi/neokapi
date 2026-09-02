@@ -1555,6 +1555,7 @@ export function ReviewPage({
         filename={documentFile}
         focusKey={selected?.key ?? null}
         unitStates={unitStates}
+        side={selected?.locale}
         backLabel={t("Back to the queue")}
         onClose={() => setDocumentOpen(false)}
       />

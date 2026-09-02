@@ -61,8 +61,14 @@ export interface PointRailProps {
   loading?: boolean;
 }
 
+/** How many term rules the rail draws before the rest go behind a toggle. The
+ *  rules bearing on this unit's own wording lead the list, so the first few are
+ *  the ones a reviewer is looking for. */
+const RULES_SHOWN = 8;
+
 export function PointRail({ point, loading }: PointRailProps) {
   const [guideOpen, setGuideOpen] = useState(false);
+  const [rulesOpen, setRulesOpen] = useState(false);
 
   if (!point) {
     return (
@@ -84,6 +90,8 @@ export function PointRail({ point, loading }: PointRailProps) {
 
   const coordinates = Object.entries(point.coordinates ?? {}).filter(([, v]) => v);
   const rules = point.term_rules ?? [];
+  const shown = rulesOpen ? rules : rules.slice(0, RULES_SHOWN);
+  const hidden = rules.length - shown.length;
   const capped = point.terms_total > rules.length;
   const profiles = point.profiles ?? [];
   const notes = point.notes ?? [];
@@ -182,15 +190,26 @@ export function PointRail({ point, loading }: PointRailProps) {
             </span>
           ) : (
             <>
-              {rules.map((rule, i) => (
+              {shown.map((rule, i) => (
                 <TermRuleChip key={`${rule.term}-${i}`} rule={rule} />
               ))}
+              {hidden > 0 && (
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  className="h-5 px-1 text-[10px] text-muted-foreground"
+                  onClick={() => setRulesOpen(true)}
+                  data-slot="review-point-terms-more"
+                >
+                  {t("{count} more", { count: hidden })}
+                </Button>
+              )}
               {capped && (
                 <span
                   className="text-[10px] text-muted-foreground"
                   data-slot="review-point-terms-total"
                 >
-                  {t("{shown} of {total} rules", {
+                  {t("{shown} of {total} rules bound here", {
                     shown: rules.length,
                     total: point.terms_total,
                   })}
