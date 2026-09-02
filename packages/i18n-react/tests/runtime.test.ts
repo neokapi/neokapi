@@ -153,13 +153,11 @@ describe("__tx() — hash-based JSX lookup", () => {
       "=m0": link,
       "=m1": strong,
     });
-    const rawChildren = (result as { props: { children: unknown } }).props.children;
-    const children = Array.isArray(rawChildren) ? rawChildren : [rawChildren];
-    const outerLink = children.find(
-      (c) => isValidElement(c) && (c as { type: unknown }).type === "a",
-    ) as { props: { children: unknown } } | undefined;
-    expect(outerLink).toBeTruthy();
-    const innerRaw = outerLink?.props.children;
+    // The whole message is the outer <a>, so __tx returns that element
+    // rather than a Fragment holding it.
+    expect(isValidElement(result)).toBe(true);
+    expect((result as { type: unknown }).type).toBe("a");
+    const innerRaw = (result as { props: { children: unknown } }).props.children;
     const innerArr = Array.isArray(innerRaw) ? innerRaw : [innerRaw];
     const inner = innerArr.find(
       (c) => isValidElement(c) && (c as { type: unknown }).type === "strong",
