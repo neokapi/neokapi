@@ -7,7 +7,7 @@ publishAs: kapi-desktop-explorer
 terminal: desktop
 brand: desktop
 needsAi: false
-# One continuous narration read — uniform voice speed and tone across scenes.
+# One continuous narration read: uniform voice speed and tone across scenes.
 oneshot: true
 aspects:
   - Terms
@@ -25,33 +25,33 @@ narration:
   - id: title
     kind: title
     text: >-
-      Kapi Desktop — the visual companion to the kapi command line.
+      Kapi Desktop, the visual companion to the kapi command line.
 
   - id: intro
     kind: desktop
     beat: intro
     text: >-
-      It opens to a calm home screen. Everything a translator leans on — the
-      agreed terms and the remembered translations — sits one click away in the
-      sidebar.
+      It opens to a calm home screen. We'll open the KapiMart sample, because
+      the terms a project has agreed and the wording it has already approved
+      belong to a project.
 
-  # The sidebar sections are Terms and Content Memory (renamed in #1442); the
-  # `beat` ids stay as recorded.
+  # Terms and Content Memory are sections of the Context pillar; the `beat`
+  # ids stay as recorded.
   - id: termbases
     kind: desktop
     beat: open-termbases
-    caption: The Terms section lists each terms file on disk.
+    caption: Context holds the terms and the memory.
     text: >-
-      The Terms section lists each terms file stored on disk, with its size
-      and when it last changed.
+      Context is where a project's own reference lives, and Terms is the first
+      of its stores. It opens straight onto the concepts KapiMart has agreed.
 
   - id: glossary
     kind: desktop
     beat: open-glossary
-    caption: Opening one shows every concept it holds.
+    caption: Every concept the project has agreed.
     text: >-
-      Opening the product terms brings up every concept it holds — eight here
-      — with an activity chart of recent edits across the top.
+      Every concept the project holds is listed, with an activity chart of
+      recent edits across the top.
 
   - id: concept
     kind: desktop
@@ -67,16 +67,16 @@ narration:
     beat: search-term
     caption: Full-text search finds a term fast.
     text: >-
-      Full-text search finds a term in an instant. Here, the invoice concept,
-      with its approved translations.
+      Full-text search finds a term in an instant. Here, the shopping cart
+      concept, with its approved translations.
 
   - id: open-tm
     kind: desktop
     beat: open-tm
     caption: Content Memory works the same way.
     text: >-
-      Content Memory works the same way. We cross over and open the memory for
-      the Acme app.
+      Content Memory works the same way, one section across. It holds every
+      translation this project has already approved.
 
   - id: inspect-tm
     kind: desktop
@@ -99,11 +99,11 @@ narration:
     beat: search-tm
     caption: The memory is searchable too.
     text: >-
-      And the memory is searchable too — every string that mentions the word
-      invite.
+      And the memory is searchable too. Every string that mentions checkout,
+      in one query.
 
   - id: outro
     kind: outro
     text: >-
-      That's the terminology and content memory at the heart of kapi,
-      browsable in one place.
+      That's the terms and the content memory at the heart of kapi, read at
+      the project that agreed them.

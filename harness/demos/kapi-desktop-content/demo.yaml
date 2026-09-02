@@ -1,18 +1,18 @@
 id: kapi-desktop-content
-title: Manage content in a project
-subtitle: The files a project translates, and how they map.
+title: The content a project translates
+subtitle: Collections on the project home, and what one file holds.
 tagline: the visual companion to the kapi command line
 kind: use-case
 publishAs: kapi-desktop-content
 terminal: desktop
 brand: desktop
 needsAi: false
-# One continuous narration read — uniform voice speed and tone across scenes.
+# One continuous narration read: uniform voice speed and tone across scenes.
 oneshot: true
 aspects:
   - Content collections
   - File patterns
-  - Source & target files
+  - Keyed file preview
   - Format detection
 
 narration:
@@ -30,51 +30,73 @@ narration:
   - id: open-project
     kind: desktop
     beat: open-project
-    caption: KapiMart — a ready-made sample project.
+    caption: KapiMart, a ready-made sample project.
     text: >-
-      KapiMart is a ready-made sample — a small store with documentation, a
+      KapiMart is a ready-made sample. A small store with documentation, a
       storefront, contracts and templates.
 
   - id: overview
     kind: desktop
     beat: overview
-    caption: Source and target languages sit across the top.
+    caption: Where the content sits, and what governs it there.
     text: >-
-      The source language and the locales it translates into sit across the top
-      of the project.
+      The project opens on its standing. Where the content sits, the voice
+      governing it there, and how far each language has come.
 
   - id: content
     kind: desktop
     beat: content
-    caption: Content is one card per collection.
+    caption: Collections sit on the same surface.
     text: >-
-      Content is organised as one card per collection: each card carries the
-      patterns that define what belongs to it, and the files they match.
+      The collections sit on that same surface, one row each. A collection is a
+      set of glob patterns, the files they match, and the coverage of every
+      language across them.
 
   - id: patterns
     kind: desktop
     beat: patterns
-    caption: Patterns are grouped into named collections.
+    caption: A collection opens to its patterns and files.
     text: >-
-      Patterns are grouped into collections — the website, the online store, the
-      contracts and the templates — each a glob that the engine reads from and
-      writes back to.
+      Opening one shows the patterns that define it. Each output pattern is a
+      row that opens to the source file above its language files, every one
+      carrying the format Kapi detected for it.
 
-  # The matched-files table is two levels since #1442: one row per output
-  # pattern, opening to the source file and the per-locale language files.
   - id: files
     kind: desktop
     beat: files
-    caption: Each pattern opens to its source and language files.
+    caption: A JSON catalog, read as keys and values.
     text: >-
-      Inside a collection, each output pattern is one row. Open it and the
-      source file sits above the language files, every one with the format Kapi
-      detected for it — Markdown, JSON, properties, Office documents and more.
-      A locale that hasn't been generated yet stays listed, marked pending.
+      Opening a file raises the preview. A JSON catalog is a list of keys with
+      text against them, so Kapi reads it as a table rather than as a document.
+
+  - id: keys
+    kind: desktop
+    beat: keys
+    caption: The key beside the text it names.
+    text: >-
+      The key column is what makes this file navigable. It is the same key that
+      names the block in Review, so a decision and a line in the file point at
+      one another.
+
+  - id: code
+    kind: desktop
+    beat: code
+    caption: The file itself, one click away.
+    text: >-
+      The file view shows what is written to disk, with the line for the
+      selected key highlighted. Structure on one tab, bytes on the other.
+
+  - id: properties
+    kind: desktop
+    beat: properties
+    caption: A properties catalog, read the same way.
+    text: >-
+      A Java properties catalog reads the same way, and so do YAML and the other
+      keyed formats. These messages are the ones the review queue opens with.
 
   - id: outro
     kind: outro
     text: >-
-      Edit a source file and the project re-extracts it automatically — the
-      content stays in step with the working tree. That's a project's content:
-      grouped, matched, and ready to bring up to date.
+      Edit a source file and the project re-extracts it, so the content stays in
+      step with the working tree. That is a project's content: grouped, matched,
+      and ready to bring up to date.

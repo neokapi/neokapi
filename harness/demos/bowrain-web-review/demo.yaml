@@ -1,6 +1,6 @@
 id: bowrain-web-review
-title: Review and approve
-subtitle: The team workflow on content synced from kapi.
+title: Review and approve as a team
+subtitle: One queue, one decision, and a second pair of eyes.
 tagline: the server-side platform companion to kapi
 kind: use-case
 publishAs: bowrain-web-review
@@ -8,69 +8,92 @@ terminal: desktop
 target: web
 brand: bowrain
 needsAi: false
-# One continuous narration read — uniform voice across scenes.
+# One continuous narration read: uniform voice across scenes.
 oneshot: true
 aspects:
   - Content synced from kapi
   - A focused review surface
-  - Approve block by block
-  - Progress toward done
+  - The context behind a decision
+  - Separation of duties
 
 narration:
   - id: title
     kind: title
     text: >-
-      From kapi to a reviewed translation — the approval loop a team runs on
-      Bowrain.
+      From kapi to a reviewed translation, on a workspace two people share.
 
   - id: intro
     kind: desktop
     beat: intro
     text: >-
-      With kapi alone, review is single-player: kapi status --review lists what
-      awaits a decision, and kapi apply records it in the project state store.
-      Push the project to Bowrain and the same decisions get a team surface —
-      projects a workspace reviews together.
+      With kapi alone, review is single-player. Push the project to Bowrain and
+      the same decisions get a team surface. The review inbox rolls up every
+      project in the workspace that is waiting on someone, the busiest first.
 
   - id: open-project
     kind: desktop
     beat: open-project
+    caption: Into one project's review session.
     text: >-
-      Open a project to see its files and how far along each one is.
+      Opening a project lands on its review session: one queue of everything
+      translated but not yet decided, and one unit in focus beside it.
 
-  - id: open-file
+  - id: scope
     kind: desktop
-    beat: open-file
+    beat: scope
+    caption: One language selector, with the source marked.
     text: >-
-      Open a file to start working through it.
+      The language selector scopes the queue, marks which language is the
+      source, and carries how much is pending in each. The verdict filters cut
+      it to what clears every bar, or what does not.
 
   - id: focus
     kind: desktop
     beat: focus
-    caption: A focused, one-block-at-a-time review.
+    caption: The verdict against every bar the server applies.
     text: >-
-      Focus mode takes it one block at a time — source, target, and the status
-      that tracks where each block stands.
+      A unit in focus opens with its verdict. Checks, terminology and the voice
+      bar are the three the server applies when someone approves, so the chip
+      says in advance whether an approval will hold.
 
-  - id: review
+  - id: context
     kind: desktop
-    beat: review
-    caption: Approve a block, move to the next.
+    beat: context
+    caption: What governs here, what is nearby, what was already approved.
     text: >-
-      A reviewer approves a block and moves to the next — every change recorded
-      against the workspace, not a local file.
+      Beside it sits the context that shaped the translation. The profile and
+      term rules in force at this point, the blocks around it, the approved
+      wording the content memory already holds, and who decided what before.
 
-  - id: progress
+  - id: approve
     kind: desktop
-    beat: progress
-    caption: Progress toward done, across the file.
+    beat: approve
+    caption: Approve, and the queue moves on.
     text: >-
-      The status counts track the file from draft to translated to reviewed, so
-      the team always knows what is left.
+      Approving records the decision against the workspace rather than a local
+      file, and the queue moves to the next unit.
+
+  - id: duties
+    kind: desktop
+    beat: duties
+    caption: You cannot approve your own writing.
+    text: >-
+      This one she wrote herself, and the workspace refuses it. Separation of
+      duties is a policy the workspace sets, and when it is set to block, the
+      server declines an approval of the approver's own work and says so.
+
+  - id: second-reviewer
+    kind: desktop
+    beat: second-reviewer
+    caption: A colleague decides it instead.
+    text: >-
+      A colleague with the review permission for that language decides it
+      instead, and the count drops. Two people, one record, and a rule that no
+      surface can talk its way around.
 
   - id: outro
     kind: outro
     text: >-
-      Reviewed on the server, then pulled back into the repository with kapi —
-      the same review state the single-player loop records, now carried by the
-      workspace. One round trip, governed end to end.
+      Reviewed on the server, then pulled back into the repository with kapi.
+      The same review state the single-player loop records, now carried by the
+      workspace and governed end to end.

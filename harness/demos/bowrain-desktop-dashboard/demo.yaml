@@ -19,13 +19,13 @@ narration:
   - id: title
     kind: title
     text: >-
-      Bowrain Desktop — a native, real-time client of your team's server.
+      Bowrain Desktop is a native, real-time client of your team's server.
 
   - id: intro
     kind: desktop
     beat: intro
     text: >-
-      Bowrain also ships as a native desktop app — the same shared app the
+      Bowrain also ships as a native desktop app, the same shared app the
       browser runs, mounted natively. It opens the very same workspace, with
       presence and edits shared live, and an offline edit queue that keeps you
       working without a connection and syncs back when you reconnect.
@@ -35,8 +35,8 @@ narration:
     beat: stats
     caption: The workspace at a glance.
     text: >-
-      The dashboard sums up the workspace — projects, words, languages, and
-      files — pulled live from the server.
+      The Overview sums up the workspace: projects, words, languages and files,
+      pulled live from the server.
 
   - id: projects
     kind: desktop
@@ -52,11 +52,11 @@ narration:
     caption: Connect remote content sources.
     text: >-
       Connectors are wired per project. Open one, and its Connectors view
-      attaches remote content sources — a CMS, a design tool — so content flows
-      in and finished translations flow back out.
+      attaches remote content sources such as a CMS or a design tool, so content
+      flows in and finished translations flow back out.
 
   - id: outro
     kind: outro
     text: >-
-      The same governed workspace, in a native app — the desktop side of the
+      The same governed workspace, in a native app. The desktop side of the
       platform that stewards a team's work on top of the open kapi tools.

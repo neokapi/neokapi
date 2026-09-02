@@ -8,7 +8,7 @@ terminal: desktop
 target: web
 brand: bowrain
 needsAi: false
-# One continuous narration read — uniform voice across scenes.
+# One continuous narration read: uniform voice across scenes.
 oneshot: true
 aspects:
   - Shared content memory
@@ -20,8 +20,8 @@ narration:
   - id: title
     kind: title
     text: >-
-      Bowrain — where a team's terminology and content memory live, shared
-      and governed.
+      Bowrain is where a team's terms and content memory live, shared and
+      governed.
 
   - id: intro
     kind: desktop
@@ -51,15 +51,15 @@ narration:
     beat: tm-search
     caption: Full-text search across the memory.
     text: >-
-      It is searchable in an instant — here, every remembered string about the
+      It is searchable in an instant. Here, every remembered string about the
       company's mission.
 
   - id: open-concepts
     kind: desktop
     beat: open-concepts
-    caption: Brand, then Concepts — governed terminology.
+    caption: Context, then Concepts, for governed terminology.
     text: >-
-      Terminology is governed the same way, in the Brand hub, as concepts — the
+      Terms are governed the same way, in the Context hub, as concepts. The
       ideas behind the words, held in one place rather than scattered across
       checkouts.
 
@@ -76,12 +76,12 @@ narration:
     beat: concept-detail
     caption: One concept, one truth, every language.
     text: >-
-      Open a concept and its whole story is here — its terms across every
+      Open a concept and its whole story is here: its terms across every
       language and their agreed status. One truth, shared by every editor,
       every AI call, and every run of the loop.
 
   - id: outro
     kind: outro
     text: >-
-      Shared, versioned, governed — the memory and the concepts a team stewards
-      over time, on top of the open kapi tools.
+      Shared, versioned and governed. The memory and the concepts a team
+      stewards over time, on top of the open kapi tools.

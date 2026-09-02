@@ -1,59 +1,57 @@
 id: kapi-desktop-flows
-title: Compose flows for a project
-subtitle: The pipelines a project runs over its content.
+title: The Toolbox of a project
+subtitle: The tools and pipelines a project runs over its content.
 tagline: the visual companion to the kapi command line
 kind: use-case
 publishAs: kapi-desktop-flows
 terminal: desktop
 brand: desktop
 needsAi: false
-# One continuous narration read — uniform voice speed and tone across scenes.
+# One continuous narration read: uniform voice speed and tone across scenes.
 oneshot: true
 aspects:
+  - The Toolbox pillar
   - Project flows
   - Pipelines of steps
-  - AI translation & checks
   - Composable tools
 
 narration:
   - id: title
     kind: title
     text: >-
-      A project needs no flow definitions to translate: Kapi ships a built-in
-      default flow — translation-memory reuse, then AI translation, then
-      checks.
+      A project needs no flow definitions to translate. Kapi ships a default
+      flow: content memory reuse, then AI translation, then checks.
 
   - id: intro
     kind: desktop
     beat: intro
     text: >-
       Bring up to date runs that default flow as it stands. We'll open the
-      KapiMart sample to see when a project defines its own.
+      KapiMart sample to see where a project keeps its own.
 
   - id: open-project
     kind: desktop
     beat: open-project
-    caption: KapiMart — opened from the home screen.
+    caption: KapiMart, opened from the home screen.
     text: >-
       KapiMart opens from the home screen, with its own content, settings and
-      flows.
+      toolbox.
 
   - id: library
     kind: desktop
     beat: library
-    caption: The Flows tab lists the pipelines defined in the project.
+    caption: The Toolbox holds Tools and Flows.
     text: >-
-      The Flows tab in the Toolbox is the escape hatch: pipelines the project
-      defines when the default is not enough, saved alongside it and shared
-      through version control.
+      The Toolbox is where a project keeps what it runs over its content. Tools
+      on one tab, and on the other the flows that chain them.
 
   - id: library-zoom
     kind: desktop
     beat: library-zoom
     caption: Each flow is a named sequence of steps.
     text: >-
-      Each one is a named sequence of steps — a plain translate, a translate
-      with quality checks, and a pseudo-translation for testing.
+      Each flow is a named sequence of steps: a plain translate, a translate
+      with quality checks, and a pseudo-translation for testing layout.
 
   - id: open-flow
     kind: desktop
@@ -65,22 +63,22 @@ narration:
   - id: pipeline
     kind: desktop
     beat: pipeline
-    caption: Source flows through AI translation, then a quality check.
+    caption: Source runs through AI translation, then a quality check.
     text: >-
-      The source flows through AI translation and then a quality check before
-      it is written back — the same shape as the built-in default, now yours
-      to reorder, add to, or extend.
+      The source runs through AI translation and then a quality check before it
+      is written back. The same shape as the built-in default, now yours to
+      reorder, add to, or extend.
 
   - id: outro
     kind: outro
     text: >-
-      The default flow covers most projects with zero configuration. When it
-      doesn't, compose your own — visually, saved with the project, run
-      anywhere.
+      The default flow covers most projects with no configuration at all. When
+      it does not, compose your own visually, save it with the project, and run
+      it anywhere.
 
 # Norwegian Bokmål narration is generated, not authored here: `make l10n`
 # recycles this file into the sibling demo.nb.yaml sidecar, which the harness
 # overlays at load time. Fix a translation in the demo-narration seed under
-# .kapi/memory/ and regenerate — never edit the sidecar.
+# .kapi/memory/ and regenerate; never edit the sidecar.
 # Terminology follows .kapi/voice.yaml (nb) and .kapi/terms.json
-# (flow → flyt; "pipeline" stays English in nb).
+# (flow becomes flyt; "pipeline" stays English in nb).

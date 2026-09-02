@@ -59,7 +59,7 @@ export const DEMOS: RegistryEntry[] = [
   },
   {
     "id": "bowrain-sizzle",
-    "title": "Bowrain — the team platform for multilingual content"
+    "title": "Bowrain, the team platform for multilingual content"
   },
   {
     "id": "bowrain-web-collaboration",
@@ -79,7 +79,7 @@ export const DEMOS: RegistryEntry[] = [
   },
   {
     "id": "bowrain-web-review",
-    "title": "Review and approve"
+    "title": "Review and approve as a team"
   },
   {
     "id": "kapi-bilingual-workflow",
@@ -91,7 +91,7 @@ export const DEMOS: RegistryEntry[] = [
   },
   {
     "id": "kapi-desktop-content",
-    "title": "Manage content in a project"
+    "title": "The content a project translates"
   },
   {
     "id": "kapi-desktop-explorer",
@@ -99,11 +99,15 @@ export const DEMOS: RegistryEntry[] = [
   },
   {
     "id": "kapi-desktop-flows",
-    "title": "Compose flows for a project"
+    "title": "The Toolbox of a project"
   },
   {
     "id": "kapi-desktop-projects",
     "title": "Create and manage a project"
+  },
+  {
+    "id": "kapi-desktop-review",
+    "title": "Review a translation in context"
   },
   {
     "id": "s0-northsea-governance",

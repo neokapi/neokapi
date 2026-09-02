@@ -8,20 +8,20 @@ terminal: desktop
 target: web
 brand: bowrain
 needsAi: false
-# One continuous narration read — uniform voice across scenes.
+# One continuous narration read: uniform voice across scenes.
 oneshot: true
 aspects:
-  - Side-by-side source and target
+  - A visual editing card
   - Live document preview
-  - Shared Memory and terminology inline
+  - Shared content memory and terms inline
   - Every locale in one place
 
 narration:
   - id: title
     kind: title
     text: >-
-      Bowrain's editor — every locale, with the team's memory and terms right
-      where the work happens.
+      Bowrain's editor holds every locale, with the team's memory and terms
+      right where the work happens.
 
   - id: intro
     kind: desktop
@@ -46,10 +46,11 @@ narration:
   - id: split
     kind: desktop
     beat: split
-    caption: Source and target, side by side.
+    caption: The visual card over a live document.
     text: >-
-      Source and target sit side by side, with progress across the file — and
-      the workspace memory already applied to the blocks it matched.
+      The visual view puts an editing card over the rendered document, with
+      progress across the file and the workspace memory already applied to the
+      blocks it matched.
 
   - id: context
     kind: desktop
@@ -57,15 +58,15 @@ narration:
     caption: Shared memory and terminology, inline.
     text: >-
       As you translate, matches from the shared content memory and the
-      approved terminology surface right beside the block — the same governed
-      sources, where the work happens.
+      approved terms surface right beside the block. The same governed sources,
+      where the work happens.
 
   - id: locale
     kind: desktop
     beat: locale
     caption: One editor, every target locale.
     text: >-
-      One editor serves every target locale — switch from French to German
+      One editor serves every target locale. Switch from French to German
       without leaving the file.
 
   - id: preview
@@ -79,5 +80,5 @@ narration:
   - id: outro
     kind: outro
     text: >-
-      The governed memory and terminology, now in the editor itself — shared
-      across the team, on top of the open kapi tools.
+      The governed memory and terms, now in the editor itself, shared across
+      the team and built on the open kapi tools.
