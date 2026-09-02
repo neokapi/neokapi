@@ -446,6 +446,10 @@
           "description": "Only list units in this content collection",
           "type": "string"
         },
+        "language": {
+          "description": "Only list units in this language; the project's source language lists its source units",
+          "type": "string"
+        },
         "locale": {
           "description": "Only list units for this target locale",
           "type": "string"
@@ -464,7 +468,7 @@
       "additionalProperties": false,
       "properties": {
         "file": {
-          "description": "Target file path, as listed by review_queue",
+          "description": "File path, as listed by review_queue: the target file for a translation, the source file for a source unit",
           "type": "string"
         },
         "key": {
@@ -472,7 +476,7 @@
           "type": "string"
         },
         "locale": {
-          "description": "Target locale, as listed by review_queue",
+          "description": "Language of the unit, as listed by review_queue: a target locale, or the project's source language for a source unit",
           "type": "string"
         },
         "project": {

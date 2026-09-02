@@ -193,6 +193,8 @@ The registry tools on that surface are exactly the CLI-visible ones: a built-in 
 
 The `up` tool takes an optional `local` field, mirroring `kapi up --local`: in a project connected to a server the run happens at that venue by default (the same decision the command makes) and `local` keeps the loop on this machine, pushing the results afterwards.
 
+`review_queue` takes an optional `language` field, mirroring `kapi status --review --lang`: the queue holds every language the project has work in, so `language` narrows it to one, the project's source language included. The rows carry `language`, `isSource`, `status` and `held`, and the result carries `languages` with the pending count per language.
+
 ## Running commands a recipe names
 
 `external-command` and `script` run code the configuration chooses. They stay
