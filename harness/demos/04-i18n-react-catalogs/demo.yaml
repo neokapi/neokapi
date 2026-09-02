@@ -38,7 +38,7 @@ narration:
   - id: title
     kind: title
     text: >
-      Most apps already have an i18n setup — message catalogs in a folder, waiting to be
+      Most apps already have an i18n setup: message catalogs in a folder, waiting to be
       filled. This one uses react-i18next, and needs two more languages.
   - id: prompt
     kind: prompt
@@ -51,7 +51,7 @@ narration:
       Claude checks how kapi expects react-i18next catalogs to be laid out, runs a
       pseudo-translation pass to confirm the English file is ready, then runs kapi translate
       for French and for German. Because kapi understands the i18next format, the
-      interpolation placeholders and the plural keys are carried through unchanged — and the
+      interpolation placeholders and the plural keys are carried through unchanged, and the
       built-in checks verify they survived.
     caption: "Claude confirms the layout, checks readiness, then translates fr and de"
   - id: fr
