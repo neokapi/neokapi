@@ -54,7 +54,3 @@ narration:
     caption: "kapi pseudo-translate tests layout locally"
   - id: outro
     kind: outro
-    text: >
-      The plugin answers for the server, and kapi answers for the files. Sign in
-      once, see where you can push, and check the layout locally before anything
-      leaves the machine.

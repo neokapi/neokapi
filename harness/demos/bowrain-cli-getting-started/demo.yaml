@@ -71,8 +71,3 @@ narration:
     caption: "kapi up runs the loop on the server"
   - id: outro
     kind: outro
-    text: >
-      One command connects the project, one moves the source, and one runs the
-      loop. The files stay in your repository, in the format you started with,
-      and the server holds what a team needs to share: the memory, the terms and
-      the decisions.
