@@ -7,6 +7,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/reconcile"
 	"github.com/neokapi/neokapi/core/state"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -98,17 +99,22 @@ func TestARenamedDocumentKeepsItsApprovals(t *testing.T) {
 	assert.Equal(t, "reviewer", got.Decision.By)
 }
 
-// TestDocumentScopeFallsBackToTheAddress: a project whose store holds no
-// identities answers with the path, which is what every surface did before
-// documents had keys and is still right for a fresh checkout.
-func TestDocumentScopeFallsBackToTheAddress(t *testing.T) {
+// TestDocumentScopeDerivesTheKeyBeforeAnythingIsExtracted: a project whose store
+// holds no identities names each file by the key its path derives to, which is
+// the key the next extraction mints for it. Answering with the path instead made
+// a fresh checkout unable to read its own committed record: every decision and
+// every recorded basis in it is filed under a key, and a reader asking about
+// paths matched none of them.
+func TestDocumentScopeDerivesTheKeyBeforeAnythingIsExtracted(t *testing.T) {
 	a, root, _ := renameProject(t)
 	path := filepath.Join(root, "src", "guides", "intro.en.json")
+	want := reconcile.DocumentKeyFor("src/guides/intro.en.json")
 
 	docs, err := a.DocumentIndex(t.Context(), root)
 	require.NoError(t, err)
-	assert.Equal(t, "src/guides/intro.en.json", docs.Scope(root, path),
-		"nothing extracted yet, so the address is the identity")
-	assert.Equal(t, DecisionScope(root, path), DocumentIndex{}.Scope(root, path),
-		"and the zero index is exactly the old behaviour")
+	assert.Equal(t, want, docs.Scope(root, path),
+		"nothing extracted yet, so the key is the one the path derives to")
+	assert.Equal(t, want, DocumentIndex{}.Scope(root, path),
+		"and the zero index answers the same way")
+	assert.True(t, reconcile.IsDocumentKey(want))
 }

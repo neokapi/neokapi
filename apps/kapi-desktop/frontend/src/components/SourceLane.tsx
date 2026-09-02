@@ -24,7 +24,8 @@ export interface SourceLaneProps {
   items?: SourceQueueItem[];
   /** Override the approve handler (Storybook/tests). */
   onApprove?: (item: SourceQueueItem) => Promise<void>;
-  /** Override the edit handler (Storybook/tests); resolves to the locales cleared. */
+  /** Override the edit handler (Storybook/tests); resolves to the locales the
+   *  next run will re-draft. */
   onSaveSource?: (item: SourceQueueItem, text: string) => Promise<string[]>;
   /** Refetch owned by the parent, so the lane toggle's count and the lane never
    *  disagree about how much source work is left. */
@@ -39,11 +40,10 @@ export interface SourceLaneProps {
  * right at all. A unit here is holding every locale's translation, or waiting on
  * the signature an `approved` source gate asks for.
  *
- * Editing a source here clears that unit's translation in every locale, so the
- * next run re-drafts them. That is the point of editing it at review time: the
- * converge flow skips a block that still carries a target, so a source fixed
- * without clearing would leave every language holding a translation of a
- * sentence that no longer exists.
+ * Editing a source here leaves every translation of it in place. The loop
+ * records the source it translated for each target it writes, so the next run
+ * reads the edit as drift and re-drafts those units against the wording the
+ * project has now. The lane names the languages that are waiting for it.
  */
 export function SourceLane({
   tabID,
@@ -59,7 +59,7 @@ export function SourceLane({
   const [selectedID, setSelectedID] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
   const [busy, setBusy] = useState(false);
-  const [cleared, setCleared] = useState<string[] | null>(null);
+  const [awaiting, setAwaiting] = useState<string[] | null>(null);
 
   const refresh = useCallback(async () => {
     if (onChanged) {
@@ -99,7 +99,7 @@ export function SourceLane({
   // A new selection replaces the editor's contents and drops the last result.
   useEffect(() => {
     setEditText(selected?.source ?? "");
-    setCleared(null);
+    setAwaiting(null);
   }, [selected?.file, selected?.key, selected?.source]);
 
   const approve = useCallback(async () => {
@@ -123,7 +123,7 @@ export function SourceLane({
       const locales = onSaveSource
         ? await onSaveSource(selected, editText)
         : await api.updateSourceText(tabID, selected.file, selected.key, editText);
-      setCleared(locales ?? []);
+      setAwaiting(locales ?? []);
       await refresh();
     } catch (err) {
       showError("Could not save the source", err);
@@ -226,16 +226,16 @@ export function SourceLane({
 
             <p className="text-[11px] text-muted-foreground">
               {t(
-                "Approving binds to this exact wording: editing it later drops the approval. Saving an edit clears this unit's translation in every language so the next run re-drafts it.",
+                "Approving binds to this exact wording: editing it later drops the approval. Saving an edit leaves every translation in place, and the next run re-drafts the ones it wrote.",
               )}
             </p>
 
-            {cleared !== null && (
-              <p className="text-[11px] text-muted-foreground" data-slot="source-lane-cleared">
-                {cleared.length === 0
-                  ? t("Source saved. No language had a translation to clear.")
-                  : t("Source saved. Cleared {langs} for re-drafting.", {
-                      langs: cleared.join(", "),
+            {awaiting !== null && (
+              <p className="text-[11px] text-muted-foreground" data-slot="source-lane-awaiting">
+                {awaiting.length === 0
+                  ? t("Source saved. No language has a translation of this unit yet.")
+                  : t("Source saved. {langs} will be re-drafted on the next run.", {
+                      langs: awaiting.join(", "),
                     })}
               </p>
             )}

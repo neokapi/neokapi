@@ -114,8 +114,10 @@ func TestAbsorbPairing_RewrittenSourceIsWorkInEveryLocale(t *testing.T) {
 		[]byte(`{"a":"Apricot","b":"Compass"}`), 0o644))
 
 	out := runReviewUp(t, proj)
-	assert.Equal(t, 1, out.RedraftedUnits(),
-		"staleness is a decision's basis moving, and only de recorded one")
+	assert.Equal(t, 3, out.RedraftedUnits(),
+		"the loop records what it translated in every locale, so the rewrite is drift in all three")
+	assert.Equal(t, 1, out.StaleUnits(),
+		"the re-draft settles the two undecided locales; de waits on a person to review the new pairing")
 
 	for _, loc := range []string{"nb", "de", "nl"} {
 		after := localeTargets(t, root, loc)

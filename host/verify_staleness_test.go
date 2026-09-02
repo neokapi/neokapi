@@ -127,7 +127,7 @@ func (f *stalenessFixture) record(t *testing.T, fingerprint string) {
 		require.NoError(t, st.Put(ctx, state.UnitState{
 			Unit:       key,
 			Variant:    model.Variant(model.LocaleID(f.units[0].Locale)),
-			Scope:      DecisionScope(f.root, f.units[0].SourcePath),
+			Scope:      f.app.DocumentScope(ctx, f.root, f.units[0].SourcePath),
 			Status:     model.TargetStatusTranslated,
 			TargetHash: "h-" + key,
 			Origin: model.Origin{
@@ -261,21 +261,29 @@ func TestStalenessGate_JoinsTheShipGateSet(t *testing.T) {
 	assert.False(t, out.Pass, "a superseded stamp blocks ship state")
 }
 
-// TestProducedTargets_IgnoresWhatWasNeverProduced: a unit the project knows
-// about and has not translated has no provenance to be stale. Counting it would
-// report every untranslated string in the project as unstamped.
-func TestProducedTargets_IgnoresWhatWasNeverProduced(t *testing.T) {
+// TestProducedTargets_KeepsOnlyWhatCarriesProvenance: the gate asks what
+// governed a target when it was written, so it reads records that answer that —
+// a producer's stamp, or a person's decision. A record carrying only the basis
+// the loop wrote for a translation says which source that translation renders,
+// which is a different question; reading it here would report the whole project
+// as produced under no context at all.
+func TestProducedTargets_KeepsOnlyWhatCarriesProvenance(t *testing.T) {
 	recorded := []state.UnitState{
 		{Scope: "docs/index.md", Unit: "a", Variant: model.Variant("fr")},
 		{Scope: "docs/index.md", Unit: "b", Variant: model.Variant("fr"), TargetHash: "h"},
 		{Scope: "docs/index.md", Unit: "c", Variant: model.Variant("fr"), Origin: model.Origin{Kind: model.OriginHuman}},
+		{Scope: "docs/index.md", Unit: "d", Variant: model.Variant("fr"), TargetHash: "h",
+			Decision: state.Decision{ReviewState: "approved"}},
 	}
 	produced := producedTargets(recorded)
 
 	assert.Len(t, produced, 2)
-	assert.NotContains(t, produced, reviewUnitKey("docs/index.md", "a", "fr"))
-	assert.Contains(t, produced, reviewUnitKey("docs/index.md", "b", "fr"))
+	assert.NotContains(t, produced, reviewUnitKey("docs/index.md", "a", "fr"),
+		"a unit the project has not translated has no provenance to be stale")
+	assert.NotContains(t, produced, reviewUnitKey("docs/index.md", "b", "fr"),
+		"a basis the loop recorded is not a governance stamp")
 	assert.Contains(t, produced, reviewUnitKey("docs/index.md", "c", "fr"))
+	assert.Contains(t, produced, reviewUnitKey("docs/index.md", "d", "fr"))
 }
 
 // TestMovedComponent_AttributesTheDivergence: the fingerprint folds voice and

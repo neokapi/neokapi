@@ -26,10 +26,19 @@ import (
 // new source and CLEARS the block's targets for every locale, then starts a
 // convergence run. Clearing the targets (not merely demoting their status) is
 // what forces the re-draft: the translation worker skips any block that still
-// carries a non-empty target (memory_recycle.hasLocaleTarget), so a demoted-but-kept
-// target would never be regenerated. This mirrors the CLI's source-drift
-// mechanism, where a changed source mints a new block identity whose targets do
-// not carry over, leaving it untranslated → re-drafted on the next pass.
+// carries a non-empty target (memory_recycle.hasLocaleTarget), so a
+// demoted-but-kept target would never be regenerated.
+//
+// The local loop keeps the previous translation on disk instead: it records the
+// source each target was translated from (host/basisrecord.go), reads the
+// rewrite as drift against that basis, and re-drafts the unit with the old
+// wording still there for the corpus to recycle and a reviewer to compare
+// against. The ledger here carries the same basis (unit_decisions.content_hash),
+// storeBlocks re-derives each target's projection when a block's source moves
+// (store.settleDecisionProjectionsPg), and the tally grades it
+// (store.TallyDecisionBasis); the recycle job and the estimate read none of it,
+// because hasLocaleTarget asks only whether a target exists. Clearing stays
+// until that predicate reads the basis (#2325).
 
 // CreateSourceProposalRequest proposes a change to a block's source. Sent from
 // the review session by any reviewer.
@@ -218,8 +227,9 @@ func (s *Server) HandleDecideSourceProposal(c echo.Context) error {
 // hasLocaleTarget), so a target kept at draft would never be regenerated. Clearing
 // the targets removes them from every locale's coverage, the locale re-enters the
 // pending set, and the next convergence pass re-drafts the block from the new
-// source — the server-side analog of the CLI's source-drift → new-identity →
-// untranslated path.
+// source. Demoting instead is what the local loop does, and it costs the previous
+// translation less; it waits on the producer learning to read the basis the ledger
+// already carries (see the note at the top of this file, and #2325).
 func (s *Server) applySourceProposal(ctx context.Context, p *bstore.ProposedSourceChange, actor string) (bool, error) {
 	stream := p.Stream
 	if stream == "" {

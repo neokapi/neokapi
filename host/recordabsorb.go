@@ -723,17 +723,23 @@ func supersededSource(
 	b *model.Block, u recordUnit, e reviewedEntry, basis basisVerdict,
 	srcRuns, tgtRuns []model.Run, prior *priorSourceIndex, corpus *memoryAnswers,
 ) (blessed []model.Run, superseded bool, err error) {
-	// The decision's own basis contradicts the adjacency: it blessed source
-	// wording that is gone, and the translation it blessed is still on disk.
-	// Recovering that wording by the basis hash is verified by construction — a
-	// block whose hash IS the basis is the pairing the reviewer approved,
+	// The record's own basis contradicts the adjacency: it names source wording
+	// that is gone, and the translation it names is still on disk. Recovering
+	// that wording by the basis hash is verified by construction — a block whose
+	// hash IS the basis is the pairing the record was made against,
 	// reconstructed rather than guessed at.
 	//
-	// Scoped to the decision's other half still holding. Once the target has
-	// moved on too — the loop re-drafted it, or a person rewrote it — the record
-	// describes neither side of what is on disk, and the pair is absorbed like
-	// any undecided one. That is also what keeps the re-draft from repeating: the
-	// next run learns the fresh draft and recycles it rather than paying to
+	// A decision and a basis the loop recorded for a target it wrote answer here
+	// alike, which is what lets a source rewrite under an undecided translation
+	// be caught where the block store cannot help: on a fresh clone the prior
+	// wording is unrecoverable, so nothing is written for the pair at all, and
+	// the loop re-drafts against the source the project now has.
+	//
+	// Scoped to the record's other half still holding. Once the target has moved
+	// on too — the loop re-drafted it, or a person rewrote it — the record
+	// describes neither side of what is on disk, and the pair is absorbed as the
+	// fresh pairing it is. That is also what keeps the re-draft from repeating:
+	// the next run learns the fresh draft and recycles it rather than paying to
 	// produce it again.
 	if basis == basisStale && e.blessesTarget(b, u.locale) {
 		runs, _ := prior.runsFor(e.contentHash)

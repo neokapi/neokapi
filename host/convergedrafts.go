@@ -123,7 +123,7 @@ func (a *App) draftedTargetPath(locale, targetPath string) string {
 }
 
 // deliverDrafts moves one locale's drafted files to the destinations the recipe
-// resolved for them, and reports how many it moved.
+// resolved for them, and returns those destinations.
 //
 // This is the delivery the ship gate governs: it runs for a locale that cleared
 // its gate and for no other, so a parked locale's files are genuinely absent
@@ -131,15 +131,19 @@ func (a *App) draftedTargetPath(locale, targetPath string) string {
 // re-deriving it, because the pass is what produced the bytes — the block store
 // is a second, independent record of the same work and is written on top
 // afterwards, but it is not guaranteed to hold a target for every flow.
-func (a *App) deliverDrafts(locale model.LocaleID) (int, error) {
+//
+// The destinations are named rather than counted because they are also the run's
+// answer to "which translations on disk did I write", which is what entitles it
+// to record a basis for the units inside them (host/basisrecord.go).
+func (a *App) deliverDrafts(locale model.LocaleID) ([]string, error) {
 	if a.convergeDraftDir == "" || a.convergeDraftRoot == "" {
-		return 0, nil
+		return nil, nil
 	}
 	base := filepath.Join(a.convergeDraftDir, string(locale))
 	if _, err := os.Stat(base); err != nil {
-		return 0, nil
+		return nil, nil
 	}
-	delivered := 0
+	var delivered []string
 	err := filepath.WalkDir(base, func(path string, d fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
@@ -166,7 +170,7 @@ func (a *App) deliverDrafts(locale model.LocaleID) (int, error) {
 				return fmt.Errorf("deliver %s: %w", rel, writeErr)
 			}
 		}
-		delivered++
+		delivered = append(delivered, dest)
 		return nil
 	})
 	return delivered, err

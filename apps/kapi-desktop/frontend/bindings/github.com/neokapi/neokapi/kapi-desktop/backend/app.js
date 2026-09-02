@@ -2594,17 +2594,16 @@ export function UpdateReviewTarget(tabID, locale, file, key, text) {
 }
 
 /**
- * UpdateSourceText rewrites one source unit and clears that unit's translation
- * in every target locale, so the next run re-drafts them.
+ * UpdateSourceText rewrites one source unit and reports the locales whose
+ * translation the next run will re-draft.
  * 
- * Clearing is the whole point, and it is not the obvious half. The converge flow
- * translates with `skipMatched`, so a block that still carries a target is
- * skipped: leaving the old translations in place would leave every language
- * holding a translation of a sentence that no longer exists, and the loop would
- * never notice. This is the local counterpart of the server's
- * applySourceProposal, which clears targets for exactly the same reason.
- * 
- * It returns the locales whose target was cleared.
+ * The translations stay where they are. Each one renders the sentence that was
+ * there a moment ago, and the loop knows that: `kapi up` records the source it
+ * translated for every target it writes, so the rewrite reads as drift on the
+ * next run, the unit is re-drafted against the wording the project has now, and
+ * the run reports how many it re-drafted. Emptying them here destroyed the
+ * previous translation, which is what the content memory recycles from and what
+ * a reviewer compares the new draft against.
  * @param {string} tabID
  * @param {string} file
  * @param {string} key

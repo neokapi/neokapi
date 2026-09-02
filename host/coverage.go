@@ -12,6 +12,7 @@ import (
 	"github.com/neokapi/neokapi/core/gate"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/reconcile"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/state"
 )
@@ -171,14 +172,23 @@ type reviewedIndex struct {
 type reviewedEntry struct {
 	status     model.TargetStatus
 	targetHash string
-	// contentHash is the decision's BASIS: the source wording it blessed
-	// (state.SourceHash). Empty on a record written before the basis was
-	// tracked — unknown, not stale.
+	// contentHash is the record's BASIS: the source wording it was recorded
+	// against (state.SourceHash) — what a decider blessed, or what the loop
+	// translated. Empty on a record written before the basis was tracked —
+	// unknown, not stale.
 	contentHash string
 	// by is the recorded decider identity ("" for a plain human decision,
 	// "ai/<model>" for an autonomous AI approval, "agent/<client>" for an MCP
 	// agent). Gate evaluation distinguishes only the "ai/" prefix.
 	by string
+	// decided separates the two kinds of record that share this index. A
+	// decision moves a unit up or down the ladder and is a person's; a basis the
+	// loop recorded for a target it wrote moves nothing and belongs to no one.
+	// Both carry the same two hashes, which is the point: source drift is
+	// derived on read from the basis, whoever wrote it. Only a decision may
+	// promote a unit, so an undecided record that reached the ladder would read
+	// as a rejection and demote every translation the loop produced.
+	decided bool
 }
 
 // blessesTarget reports whether the decision's target half still holds: the
@@ -195,21 +205,25 @@ func (e reviewedEntry) blessesTarget(b *model.Block, locale model.LocaleID) bool
 	return e.targetHash == "" || targetHash(b.TargetText(locale)) == e.targetHash
 }
 
-// basisVerdict grades a recorded decision against the source in front of the
-// reader — the derived half of the basis: a decision is a fact and is never
+// basisVerdict grades a recorded basis against the source in front of the
+// reader — the derived half of the basis: a record is a fact and is never
 // rewritten, so what a source edit changes is not the record but whether it
 // still describes the project.
 type basisVerdict int
 
 const (
-	// basisNone — no decision is recorded for this unit and locale.
+	// basisNone — nothing is recorded for this unit and locale. A target here is
+	// one the project knows nothing about: written by hand, or present before
+	// kapi ever ran. Nothing can call it stale, and the loop leaves it alone.
 	basisNone basisVerdict = iota
-	// basisUnknown — a decision with no basis. It keeps its rung; only the
-	// count of such records is reported.
+	// basisUnknown — a record whose basis says nothing about the source in front
+	// of the reader: a decision written before the basis was tracked, or a basis
+	// the loop recorded for a translation somebody has since rewritten. It keeps
+	// its rung; only the count of such records is reported.
 	basisUnknown
-	// basisCurrent — the decision blesses the source the project holds now.
+	// basisCurrent — the record was made against the source the project holds now.
 	basisCurrent
-	// basisStale — the source moved since the decision was recorded.
+	// basisStale — the source moved since the record was made.
 	basisStale
 )
 
@@ -229,16 +243,25 @@ func reviewUnitKey(scope, unit, locale string) string {
 	return scope + "\x00" + unit + "\x00" + locale
 }
 
-// grade looks a block's recorded decision up once and reports everything a
-// reader needs from it: the entry, how its basis stands against the CURRENT
-// source, and whether the decision still applies at all.
+// grade looks a block's record up once and reports everything a reader needs
+// from it: the entry, how its basis stands against the CURRENT source, and
+// whether a decision on it still applies at all.
 //
-// It applies only while both halves of the pairing it blessed still hold — the
-// translation it judged, and the source it judged it for. Either having moved
-// retires it, and the basis is reported separately because the two demotions
-// mean different things to a caller: a moved translation puts the unit back at
-// its presence baseline, a moved source says the target no longer translates
-// anything the project has.
+// A decision applies only while both halves of the pairing it blessed still hold
+// — the translation it judged, and the source it judged it for. Either having
+// moved retires it, and the basis is reported separately because the two
+// demotions mean different things to a caller: a moved translation puts the unit
+// back at its presence baseline, a moved source says the target no longer
+// translates anything the project has.
+//
+// A basis the loop recorded decides nothing, so `applies` is false for it
+// throughout. Its target half is read more strictly than a decision's: a
+// decision whose translation was rewritten is still a decision about a source,
+// and coverage says so, but a loop-recorded basis whose translation was
+// rewritten describes work somebody has taken over. Their wording translates
+// whatever they had in front of them, which the record cannot name, so the
+// pairing grades unknown, and the loop, which re-drafts what it reads as stale,
+// leaves a person's edit where they put it.
 func (r reviewedIndex) grade(scope string, b *model.Block, locale string) (e reviewedEntry, basis basisVerdict, applies bool) {
 	if r.byUnit == nil {
 		return reviewedEntry{}, basisNone, false
@@ -246,6 +269,10 @@ func (r reviewedIndex) grade(scope string, b *model.Block, locale string) (e rev
 	e, ok := r.byUnit[reviewUnitKey(scope, blockKey(b), locale)]
 	if !ok {
 		return reviewedEntry{}, basisNone, false
+	}
+	blesses := e.blessesTarget(b, model.LocaleID(locale))
+	if !e.decided && !blesses {
+		return reviewedEntry{}, basisUnknown, false
 	}
 	switch {
 	case e.contentHash == "":
@@ -255,14 +282,14 @@ func (r reviewedIndex) grade(scope string, b *model.Block, locale string) (e rev
 	default:
 		basis = basisCurrent
 	}
-	if e.targetHash != "" && targetHash(b.TargetText(model.LocaleID(locale))) != e.targetHash {
+	if !blesses {
 		return e, basis, false // the translation changed since the decision
 	}
-	return e, basis, basis != basisStale
+	return e, basis, e.decided && basis != basisStale
 }
 
-// entryFor returns a block's applicable review entry for the locale, or
-// ok=false when none applies.
+// entryFor returns a block's applicable review DECISION for the locale, or
+// ok=false when none applies. A basis the loop recorded is not one.
 func (r reviewedIndex) entryFor(scope string, b *model.Block, locale string) (reviewedEntry, bool) {
 	e, _, applies := r.grade(scope, b, locale)
 	if !applies {
@@ -271,8 +298,8 @@ func (r reviewedIndex) entryFor(scope string, b *model.Block, locale string) (re
 	return e, true
 }
 
-// basisFor grades the decision recorded for (block, locale) against the block's
-// current source.
+// basisFor grades the basis recorded for (block, locale) — a decision's, or the
+// loop's own — against the block's current source.
 func (r reviewedIndex) basisFor(scope string, b *model.Block, locale string) basisVerdict {
 	_, basis, _ := r.grade(scope, b, locale)
 	return basis
@@ -315,8 +342,9 @@ func approvesTarget(e reviewedEntry, applies bool) bool {
 // basis is how the recorded decision grades against the current source.
 //
 // A unit with no target at all grades basisNone whatever the store holds: there
-// is no pairing for a decision to have blessed, so there is nothing a source
-// edit could invalidate, and reading one would promote an untranslated unit.
+// is no pairing for a record to have been made against, so there is nothing a
+// source edit could invalidate, and reading one would promote an untranslated
+// unit.
 func (r reviewedIndex) apply(base, scope string, b *model.Block, locale string) (st string, aiDecided bool, basis basisVerdict) {
 	if base == "" {
 		return base, false, basisNone
@@ -365,20 +393,62 @@ func (a *App) loadReviewedCorrections(ctx context.Context, proj *project.KapiPro
 		return idx, err
 	}
 	for _, u := range all {
+		locale := string(u.Variant.Locale)
 		switch u.Status {
 		case model.TargetStatusReviewed, model.TargetStatusSignedOff, model.TargetStatusDraft:
-			idx.byUnit[reviewUnitKey(u.Scope, u.Unit, string(u.Variant.Locale))] = reviewedEntry{
+			idx.putUnit(u.Scope, u.Unit, locale, reviewedEntry{
 				status: u.Status, targetHash: u.TargetHash,
-				contentHash: u.ContentHash, by: u.Decision.By,
+				contentHash: u.ContentHash, by: u.Decision.By, decided: true,
+			})
+		default:
+			// The loop's own record of a target it wrote: the source it
+			// translated and the translation it produced, with no decision on
+			// it. It is what lets a source rewrite under an UNDECIDED
+			// translation be derived on read exactly as one under a decided
+			// translation is. A record carrying neither hash describes no
+			// pairing (a source approval, an AI annotation on a unit nobody has
+			// decided) and answers no question this index is asked.
+			if u.TargetHash != "" && u.Decision.ReviewState == "" {
+				idx.putUnit(u.Scope, u.Unit, locale, reviewedEntry{
+					status: u.Status, targetHash: u.TargetHash, contentHash: u.ContentHash,
+				})
 			}
 		}
 		if u.AIReview != nil {
-			idx.aiReviews[reviewUnitKey(u.Scope, u.Unit, string(u.Variant.Locale))] = aiReviewEntry{
-				score: u.AIReview.Score, model: u.AIReview.Model, targetHash: u.AIReview.TargetHash,
+			e := aiReviewEntry{score: u.AIReview.Score, model: u.AIReview.Model, targetHash: u.AIReview.TargetHash}
+			idx.aiReviews[reviewUnitKey(u.Scope, u.Unit, locale)] = e
+			for _, alias := range scopeAliases(u.Scope) {
+				idx.aiReviews[reviewUnitKey(alias, u.Unit, locale)] = e
 			}
 		}
 	}
 	return idx, nil
+}
+
+// putUnit files a record under the scope it carries and under every other
+// spelling of that scope a reader may ask by.
+func (r reviewedIndex) putUnit(scope, unit, locale string, e reviewedEntry) {
+	r.byUnit[reviewUnitKey(scope, unit, locale)] = e
+	for _, alias := range scopeAliases(scope) {
+		if _, taken := r.byUnit[reviewUnitKey(alias, unit, locale)]; !taken {
+			r.byUnit[reviewUnitKey(alias, unit, locale)] = e
+		}
+	}
+}
+
+// scopeAliases returns the other spellings of one recorded scope.
+//
+// A record acquires a document's ADDRESS rather than its key whenever it is
+// written before the project has resolved identity, and AdoptDocuments sweeps
+// those onto the key at the next extraction. A reader always asks by the key
+// (DocumentIndex.Scope), so until that sweep runs a record filed under an
+// address answers nothing, which is every record a project committed before it
+// had a store, read on a checkout that has extracted nothing.
+func scopeAliases(scope string) []string {
+	if scope == "" || reconcile.IsDocumentKey(scope) {
+		return nil
+	}
+	return []string{reconcile.DocumentKeyFor(scope)}
 }
 
 // ComputeShipCoverage rolls up per-locale coverage over the verify units and

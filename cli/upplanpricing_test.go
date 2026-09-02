@@ -60,8 +60,9 @@ func TestUpPlan_PricesWhatTheRunDrafts(t *testing.T) {
 
 	// One locale's translation is approved, and then the source sentence it was
 	// written against is rewritten. The key survives, so every locale's old
-	// translation sits beside a sentence it never translated: work in all three,
-	// stale in the one that decided it.
+	// translation sits beside a sentence it never translated. Each locale holds
+	// the basis the loop recorded when it wrote that translation, so the rewrite
+	// reads as drift in all three rather than as an unanswered pairing in two.
 	approveUnit(t, root, "de", "Apple")
 	require.NoError(t, os.WriteFile(filepath.Join(root, "en.json"),
 		[]byte(`{"a":"Apricot","b":"Compass"}`), 0o644))
@@ -72,10 +73,10 @@ func TestUpPlan_PricesWhatTheRunDrafts(t *testing.T) {
 	_, ai2 := runCounts(t, out2)
 	assert.Equal(t, 3, ai2, "the rewritten unit is drafted in every locale: %s", out2)
 	assert.Contains(t, out2, "3 AI", "and the header says so before the tokens burn: %s", out2)
-	assert.Contains(t, out2, "re-drafting 1 stale unit(s)",
-		"only de recorded a decision, so only de is stale")
-	assert.Contains(t, out2, "drafting 2 unit(s) the content memory does not answer",
-		"the two undecided locales are work on their own axis")
+	assert.Contains(t, out2, "re-drafting 3 stale unit(s)",
+		"every locale recorded what it translated, so the rewrite is drift in all three")
+	assert.NotContains(t, out2, "does not answer",
+		"drift is named as drift, not as a pairing the corpus happens not to hold")
 }
 
 // TestUpPlan_DryRunPricesTheRunThatFollows: `kapi up --plan` reaches the same

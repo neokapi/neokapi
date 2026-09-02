@@ -58,9 +58,9 @@ describe("SourceLane", () => {
     expect(onApprove.mock.calls[0][0].key).toBe("greeting");
   });
 
-  // Editing here is only correct because it clears the targets. Saying which
-  // languages were cleared is how the reviewer knows the re-draft is coming.
-  it("saves an edit and names the languages cleared for re-drafting", async () => {
+  // The translations stay where they are and the loop supersedes them. Naming
+  // the languages is how the reviewer knows the re-draft is coming.
+  it("saves an edit and names the languages awaiting a re-draft", async () => {
     const onSaveSource = vi.fn(async () => ["de", "fr"]);
     renderLane({ onSaveSource });
 
@@ -72,7 +72,7 @@ describe("SourceLane", () => {
     await waitFor(() => expect(onSaveSource).toHaveBeenCalledTimes(1));
     expect(onSaveSource.mock.calls[0][1]).toBe("Hi there");
     await waitFor(() =>
-      expect(document.querySelector("[data-slot='source-lane-cleared']")?.textContent).toContain(
+      expect(document.querySelector("[data-slot='source-lane-awaiting']")?.textContent).toContain(
         "de, fr",
       ),
     );
