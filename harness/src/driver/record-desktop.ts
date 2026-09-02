@@ -524,27 +524,32 @@ async function explorerWalk(c: WalkCtx): Promise<void> {
     await landOnHome(page);
     await idle(page, 2200);
   });
+  // Terms in a project is the concept workspace (ConceptsView over
+  // @neokapi/concept-ui), which carries no testids: its search box is the one
+  // labelled control, and each concept is a button in the divided list.
+  const conceptSearch = 'input[aria-label="Search concepts"]';
+  const conceptRow = "ul.divide-y li button";
   await beat("open-termbases", null, async () => {
     await openSample(page, "sample-kapimart", "Context");
     await humanClick(page, sidebar("Context"));
     await page.waitForTimeout(800);
     await humanClick(page, contextSection(page, "Terms"));
-    await page.waitForSelector('[data-testid^="concept-"]', { timeout: 30_000 });
+    await page.waitForSelector(conceptSearch, { timeout: 30_000 });
+    await page.waitForSelector(conceptRow, { timeout: 30_000 });
     await page.waitForTimeout(900);
   });
-  await beatEls("open-glossary", ['[data-testid^="concept-"]'], async () => {
+  await beatEls("open-glossary", [conceptRow], async () => {
     await moveTo(page, WIDTH * 0.5, HEIGHT * 0.45, 700);
     await page.waitForTimeout(2000);
   });
-  await beatEls("inspect-concept", ['[data-testid^="concept-"]'], async () => {
-    const first = page.locator('[data-testid^="concept-"]').first();
-    await first.scrollIntoViewIfNeeded().catch(() => {});
+  await beatEls("inspect-concept", [conceptRow], async () => {
+    await page.locator(conceptRow).first().scrollIntoViewIfNeeded().catch(() => {});
     await page.waitForTimeout(300);
-    await cursorTo('[data-testid^="concept-"]');
+    await cursorTo(conceptRow);
     await page.waitForTimeout(2200);
   });
-  await beatEls("search-term", ['[data-testid="filterbar-search"]', '[data-testid^="concept-"]'], async () => {
-    await humanType(page, page.getByTestId("filterbar-search"), "cart", { submit: true });
+  await beatEls("search-term", [conceptSearch, conceptRow], async () => {
+    await humanType(page, page.locator(conceptSearch), "cart", { submit: true });
     await page.waitForTimeout(1600);
   });
   await beat("open-tm", null, async () => {
@@ -687,7 +692,6 @@ async function openSample(page: Page, testid: string, readyLabel: string): Promi
  * name and try again, so both shapes reach the same sheet.
  */
 async function openCollectionFile(page: Page, collection: string, filename: string): Promise<void> {
-  const stem = filename.replace(/\.[^.]+$/, "");
   const expand = page.locator('button[aria-label="Expand"]').filter({ hasText: collection }).first();
   if (await expand.count()) {
     await humanClick(page, expand);
@@ -697,16 +701,21 @@ async function openCollectionFile(page: Page, collection: string, filename: stri
     .locator('tr[data-slot="matched-source-row"]')
     .filter({ hasText: filename })
     .first();
+  // A pattern row is a disclosure, and which one hides this file is not
+  // knowable from the file name: the row's cells carry the output pattern and
+  // the glob, either of which may spell the stem differently. Open them in turn
+  // until the source row is on the page, rather than guess once and then wait
+  // out a timeout on a row that never appeared.
   if (!(await sourceRow.count())) {
-    const patternRow = page
-      .locator('tr[data-slot="matched-pattern-row"]')
-      .filter({ hasText: stem })
-      .first();
-    if (await patternRow.count()) {
-      await humanClick(page, patternRow);
-      await page.waitForTimeout(700);
+    const patterns = page.locator('tr[data-slot="matched-pattern-row"]');
+    const n = await patterns.count();
+    for (let i = 0; i < n; i++) {
+      await humanClick(page, patterns.nth(i));
+      await page.waitForTimeout(500);
+      if (await sourceRow.count()) break;
     }
   }
+  await sourceRow.waitFor({ state: "visible", timeout: 15_000 });
   await sourceRow.scrollIntoViewIfNeeded().catch(() => {});
   await humanClick(page, sourceRow);
   await page.waitForSelector('[data-preview="keyed-table"], [data-preview="data"]', { timeout: 30_000 });
@@ -816,10 +825,13 @@ async function flowsWalk(c: WalkCtx): Promise<void> {
     await page.waitForTimeout(2200);
   });
   // Open a flow → its pipeline graph (AI translate, then a quality check).
+  // The editor is open once its back button renders; the React Flow canvas
+  // stays hidden until it has measured itself, so waiting on the canvas to be
+  // visible waits out the timeout instead.
   await beat("open-flow", null, async () => {
     await humanClick(page, page.getByText("translate-and-qa", { exact: true }));
-    await page.waitForSelector(".react-flow", { timeout: 30_000 });
-    await page.waitForTimeout(1500);
+    await page.waitForSelector('button[aria-label="Back to flow list"]', { timeout: 30_000 });
+    await page.waitForTimeout(2200);
   });
   // Zoom the pipeline canvas.
   await beatEls("pipeline", [".react-flow"], async () => {
