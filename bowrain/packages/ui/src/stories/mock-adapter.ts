@@ -21,6 +21,8 @@ import type {
   WordCountResult,
   MemoryMatchInfo,
   BlockTermMatch,
+  ReviewContext,
+  ReviewVoiceProfile,
   BlockNote,
   BlockHistoryEntry,
   QAIssue,
@@ -67,6 +69,7 @@ import {
   sampleAutomationEvents,
   sampleAutomationHistory,
   sampleRoleTemplates,
+  sampleReviewVoiceProfile,
 } from "./fixtures";
 
 /**
@@ -944,6 +947,94 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
         end: 12,
       },
     ],
+
+    // The five layers of context one unit is decided in. The document surface
+    // asks for it when a block is opened; the queue asks for the unit under the
+    // cursor. `blk-3` is the ungoverned, undecided, unmatched block, so a story
+    // can show the empty states without a second adapter.
+    getReviewContext: async (
+      _ws,
+      _projectId,
+      itemName,
+      blockId,
+      targetLocale,
+    ): Promise<ReviewContext> =>
+      blockId === "blk-3"
+        ? {
+            block_id: blockId,
+            item_name: itemName,
+            locale: targetLocale,
+            terms: [],
+            collection_id: "",
+            notes: [],
+            voice_findings: [],
+          }
+        : {
+            block_id: blockId,
+            item_name: itemName,
+            locale: targetLocale,
+            voice_profile: sampleReviewVoiceProfile,
+            terms: [
+              {
+                source_term: "app",
+                target_terms: ["application"],
+                domain: "product",
+                status: "preferred",
+                start: 0,
+                end: 3,
+              },
+            ],
+            collection_id: "col-1",
+            collection_name: "Marketing site",
+            coordinates: { product: "kapi", channel: "web" },
+            previous: { block_id: "blk-0", source_runs: [{ text: "Sign in to continue" }] },
+            next: { block_id: "blk-2", source_runs: [{ text: "Click here to continue" }] },
+            memory_match: {
+              source: "Welcome to Neokapi",
+              target: "Bienvenue sur Neokapi",
+              score: 1,
+              match_type: "exact",
+            },
+            decision: {
+              state: "rejected",
+              status: "draft",
+              by: "maria@bowrain.test",
+              at: "2026-08-30T09:12:00Z",
+              note: "Reads as machine output; soften the imperative.",
+            },
+            notes: [
+              {
+                id: "note-1",
+                blockId,
+                author: "maria@bowrain.test",
+                text: "Legal asked us to keep the product name unchanged.",
+                createdAt: "2026-08-30T09:15:00Z",
+              },
+            ],
+            voice_findings: [
+              {
+                category: "compliance",
+                severity: "major",
+                message: "Uses a term the profile forbids.",
+                original_text: "Neokapi",
+                suggestion: "the platform",
+                position: {
+                  kind: "range",
+                  start: { run: 0, offset: 12 },
+                  end: { run: 0, offset: 19 },
+                },
+              },
+            ],
+            voice_score: 62,
+            voice_bar: 90,
+            origin: {
+              kind: "ai",
+              engine: "claude-sonnet",
+              tool: "translate",
+              timestamp: "2026-08-29T18:40:00Z",
+              profile: "vp-1",
+            },
+          },
 
     // --- Block notes ----------------------------------------------------
     addBlockNote: async (_ws, _projectId, blockId, text): Promise<BlockNote> => ({

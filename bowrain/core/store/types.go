@@ -119,6 +119,15 @@ type BlockQuery struct {
 	// A whole-project read is what memory is spent on, so reach for this rather
 	// than for a limitless query. See EachBlockBatch, which is that walk.
 	AfterID string
+
+	// BeforeID is the same keyset cursor pointing the other way: the blocks
+	// whose id sorts before the one it names, nearest first. A surface asking
+	// "what precedes this block" pairs `BeforeID` with `Limit: 1` and pays for
+	// one row, where a scan from the start of the item pays for the item.
+	//
+	// Results still arrive in ascending id order, so a caller can hand them to
+	// the same projection an AfterID page goes through.
+	BeforeID string
 }
 
 // The per-locale status buckets a block falls into, as the editor names them.
@@ -785,6 +794,22 @@ type DecisionStore interface {
 	// store holds no block for are omitted — there is nothing to grade them
 	// against.
 	TallyDecisionBasis(ctx context.Context, projectID, stream string) ([]DecisionBasisTally, error)
+}
+
+// UnitDecisionReader reads ONE unit's latest decision. It sits beside
+// DecisionStore rather than inside it because the two answer different
+// questions: a reconciliation pass wants the project's ledger, and a surface
+// showing who decided the unit in front of the reviewer wants one row. Asking
+// the first question to answer the second reads the whole project's decisions
+// on every block a reviewer opens.
+//
+// Optional — assert for it — so a store that has only the ledger keeps
+// compiling; both real stores implement it.
+type UnitDecisionReader interface {
+	// GetUnitDecision returns the latest decision for (item, unit, variant), or
+	// nil with no error when the ledger holds none: a unit awaiting its first
+	// decision is the ordinary case, not a failure.
+	GetUnitDecision(ctx context.Context, projectID, stream, itemName, unit, variant string) (*venue.UnitDecision, error)
 }
 
 // DecisionBasisTally is one (item, variant) scope's standing of recorded

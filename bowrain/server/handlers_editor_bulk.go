@@ -201,6 +201,12 @@ type BulkApplyMemoryRequest struct {
 	BlockIDs     []string `json:"block_ids"`
 	TargetLocale string   `json:"target_locale"`
 	Threshold    *float64 `json:"threshold,omitempty"`
+	// Preview asks what the pass WOULD write and writes nothing. The response
+	// is the same one the pass returns, so a surface can name every match and
+	// every skip before a reviewer commits to them — the point of the flag is
+	// that the answer comes from the pass itself rather than from a second
+	// prediction of it.
+	Preview bool `json:"preview,omitempty"`
 }
 
 // AppliedMemory names a block that took a match, and what it took.
@@ -320,12 +326,15 @@ func (s *Server) HandleBulkApplyMemory(c echo.Context) error {
 			continue
 		}
 		best := matches[0]
+		// The edit is applied to the block this request read, which a preview
+		// then never stores — the mutation dies with the request, and the
+		// preview's verdict is the pass's own rather than a second copy of it.
 		applyTargetTextEdit(b, loc, best.Target)
 		toStore = append(toStore, b)
 		resp.Applied = append(resp.Applied, AppliedMemory{BlockID: bid, Text: best.Target, Score: best.Score})
 	}
 
-	if len(toStore) > 0 {
+	if len(toStore) > 0 && !req.Preview {
 		if err := s.ContentStore.StoreBlocks(ctx, pid, stream, toStore); err != nil {
 			return serverErr(c, fmt.Errorf("store blocks: %w", err))
 		}

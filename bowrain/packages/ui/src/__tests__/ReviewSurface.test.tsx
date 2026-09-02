@@ -338,26 +338,56 @@ describe("ReviewSurface — bulk actions are one request", () => {
     expect(screen.getByTestId("review-block-b2")).toHaveAttribute("data-status", "reviewed");
   });
 
-  it("applies content memory across the batch in one request", async () => {
+  it("asks the pass what it would write before writing it", async () => {
     const user = userEvent.setup();
     const { adapter } = renderSurface();
-    const bulk = vi.spyOn(adapter, "bulkApplyMemory");
+    const bulk = vi.spyOn(adapter, "bulkApplyMemory").mockResolvedValue({
+      applied: [{ block_id: "b1", text: "Bonjour le monde", score: 1 }],
+      skipped: [{ block_id: "b2", reason: "no match above threshold" }],
+    });
     const lookup = vi.spyOn(adapter, "lookupMemoryForBlock");
     await waitForDocument();
 
     await user.click(screen.getByTestId("mark-all-shown"));
     await user.click(screen.getByTestId("bulk-apply-tm"));
 
+    // The first request is the preview: nothing is written yet.
     await waitFor(() => expect(bulk).toHaveBeenCalledTimes(1));
-    const req = bulk.mock.calls[0][1];
-    expect([...req.block_ids].sort()).toEqual(["b1", "b2", "b3"]);
-    expect(req).toMatchObject({ project_id: sampleProject.id, target_locale: "fr-FR" });
+    const previewReq = bulk.mock.calls[0][1];
+    expect([...previewReq.block_ids].sort()).toEqual(["b1", "b2", "b3"]);
+    expect(previewReq).toMatchObject({
+      project_id: sampleProject.id,
+      target_locale: "fr-FR",
+      preview: true,
+    });
+
+    // The reviewer reads the wording that is about to land, then commits.
+    const dialog = await screen.findByTestId("apply-memory-dialog");
+    expect(dialog.textContent).toContain("Bonjour le monde");
+    await user.click(screen.getByTestId("apply-memory-confirm"));
+
+    await waitFor(() => expect(bulk).toHaveBeenCalledTimes(2));
+    expect(bulk.mock.calls[1][1].preview).toBeUndefined();
     // No per-block lookup + write pair anymore.
     expect(lookup).not.toHaveBeenCalled();
-    // The mock holds no content memory, so nothing clears the threshold.
     await waitFor(() =>
-      expect(screen.getByText("Applied 0 exact content-memory match(es)")).toBeInTheDocument(),
+      expect(screen.getByText("Applied 1 exact content-memory match(es)")).toBeInTheDocument(),
     );
+  });
+
+  it("says so when the batch matches nothing, and applies nothing", async () => {
+    const user = userEvent.setup();
+    const { adapter } = renderSurface();
+    const bulk = vi.spyOn(adapter, "bulkApplyMemory");
+    await waitForDocument();
+
+    await user.click(screen.getByTestId("mark-all-shown"));
+    await user.click(screen.getByTestId("bulk-apply-tm"));
+
+    const dialog = await screen.findByTestId("apply-memory-dialog");
+    expect(dialog.textContent).toContain("Nothing to apply");
+    expect(screen.getByTestId("apply-memory-confirm")).toBeDisabled();
+    expect(bulk).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -384,6 +414,45 @@ describe("ReviewSurface — the inspector carries the block's evidence", () => {
     await user.keyboard("{Escape}");
     await openBlock(user, "b1");
     expect(terms).toHaveBeenCalledTimes(1);
+  });
+
+  it("asks for the block's context once, and once more for another block", async () => {
+    const user = userEvent.setup();
+    const { adapter } = renderSurface();
+    const ctx = vi.spyOn(adapter, "getReviewContext");
+    await waitForDocument();
+
+    await openBlock(user, "b1");
+    await waitFor(() => expect(ctx).toHaveBeenCalledTimes(1));
+    expect(ctx.mock.calls[0].slice(1, 5)).toEqual([
+      sampleProject.id,
+      "messages.json",
+      "b1",
+      "fr-FR",
+    ]);
+
+    // The answer lands in state, and the render that shows it must not ask
+    // again — an effect that lists its own cache as a dependency does.
+    await user.keyboard("{Escape}");
+    await openBlock(user, "b1");
+    expect(ctx).toHaveBeenCalledTimes(1);
+
+    // A different block is a different point, so it is asked for.
+    await user.keyboard("{Escape}");
+    await openBlock(user, "b2");
+    await waitFor(() => expect(ctx).toHaveBeenCalledTimes(2));
+  });
+
+  it("draws the same point rail the queue draws", async () => {
+    const user = userEvent.setup();
+    renderSurface();
+    await waitForDocument();
+    await openBlock(user, "b1");
+
+    // One review model, two surfaces: the document's inspector names what
+    // governs the block as the queue's reviewer does.
+    const point = await screen.findByTestId("inspector-point");
+    await waitFor(() => expect(point.textContent).toContain("In force here"));
   });
 
   it("lists the QA findings the payload gives no position for", async () => {

@@ -722,6 +722,40 @@ func (s *SQLiteStore) DeleteProfileTag(ctx context.Context, profileID, tagName s
 	return nil
 }
 
+// GetBlockScore implements coreprofile.BlockScoreReader. The locale is
+// normalized to match how StoreScore writes it.
+func (s *SQLiteStore) GetBlockScore(ctx context.Context, projectID, stream, blockID string, loc model.LocaleID) (*coreprofile.StoredScore, error) {
+	if stream == "" {
+		stream = "main"
+	}
+	var sc coreprofile.StoredScore
+	var dimsJSON, findingsJSON, checkedStr string
+	err := s.db.QueryRowContext(ctx,
+		`SELECT id, project_id, stream, block_id, profile_id, profile_version, locale, score, dimensions, findings, checked_at
+		 FROM voice_scores
+		 WHERE project_id = ? AND stream = ? AND block_id = ? AND locale = ?
+		 ORDER BY checked_at DESC LIMIT 1`,
+		projectID, stream, blockID, string(locale.Normalize(loc))).
+		Scan(&sc.ID, &sc.ProjectID, &sc.Stream, &sc.BlockID, &sc.ProfileID,
+			&sc.ProfileVersion, &sc.Locale, &sc.Score, &dimsJSON, &findingsJSON, &checkedStr)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get block score: %w", err)
+	}
+	if err := json.Unmarshal([]byte(dimsJSON), &sc.Dimensions); err != nil {
+		return nil, fmt.Errorf("score %s: unmarshal dimensions: %w", sc.ID, err)
+	}
+	if err := json.Unmarshal([]byte(findingsJSON), &sc.Findings); err != nil {
+		return nil, fmt.Errorf("score %s: unmarshal findings: %w", sc.ID, err)
+	}
+	if sc.CheckedAt, err = parseStoredTime(checkedStr); err != nil {
+		return nil, fmt.Errorf("score %s: parse checked_at: %w", sc.ID, err)
+	}
+	return &sc, nil
+}
+
 func (s *SQLiteStore) GetScoresByStream(ctx context.Context, projectID, stream string) ([]*coreprofile.StoredScore, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT id, project_id, stream, block_id, profile_id, profile_version, locale, score, dimensions, findings, checked_at

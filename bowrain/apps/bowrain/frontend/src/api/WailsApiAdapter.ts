@@ -33,6 +33,7 @@ import type {
   AddConceptRequest,
   UpdateConceptRequest,
   BlockTermMatch,
+  ReviewContext,
   BlockNote,
   BlockHistoryEntry,
   LocaleInfo,
@@ -885,6 +886,36 @@ export class WailsApiAdapter implements ApiAdapter {
     return Backend.LookupTermsForBlock(projectId, itemName, blockId, targetLocale) as Promise<
       BlockTermMatch[]
     >;
+  }
+
+  /**
+   * The context one unit is decided in. The desktop backend binds the memory
+   * and term lookups but neither the decision ledger nor the voice scores, so
+   * those layers arrive empty and the review surfaces draw their empty states.
+   * They are absent here rather than fetched from the server, because a desktop
+   * project is the local one.
+   */
+  async getReviewContext(
+    _ws: string,
+    projectId: string,
+    itemName: string,
+    blockId: string,
+    targetLocale: string,
+  ): Promise<ReviewContext> {
+    const [memory, terms] = await Promise.all([
+      this.lookupMemoryForBlock(_ws, projectId, itemName, blockId, targetLocale),
+      this.lookupTermsForBlock(_ws, projectId, itemName, blockId, targetLocale),
+    ]);
+    return {
+      block_id: blockId,
+      item_name: itemName,
+      locale: targetLocale,
+      terms,
+      collection_id: "",
+      memory_match: memory[0],
+      notes: [],
+      voice_findings: [],
+    };
   }
 
   // --- Content Memory ---

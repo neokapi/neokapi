@@ -1882,6 +1882,9 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.DELETE("/:id/blocks/:ref/:bid/notes/:nid", s.HandleDeleteBlockNote)
 	g.GET("/:id/blocks/:ref/:bid/tm-matches", s.HandleLookupMemoryForBlock)
 	g.GET("/:id/blocks/:ref/:bid/term-matches", s.HandleLookupTermsForBlock)
+	// The context a reviewer decides in, for one unit: what governs it, what
+	// surrounds it, what was decided about it, what the checks found.
+	g.GET("/:id/blocks/:ref/:bid/review-context", s.HandleGetReviewContext)
 	g.GET("/:id/blocks/:ref/:bid/html", s.HandleRenderBlockHTML)
 
 	// Entities on blocks — Bowrain AD-011: /:ws/:id/blocks/:ref/:bid/entities

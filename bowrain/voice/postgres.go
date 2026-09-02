@@ -678,6 +678,28 @@ func (s *PostgresVoiceStore) GetScoresByStream(ctx context.Context, projectID, s
 	return result, rows.Err()
 }
 
+// GetBlockScore implements coreprofile.BlockScoreReader. The locale is
+// normalized to match how StoreScore writes it.
+func (s *PostgresVoiceStore) GetBlockScore(ctx context.Context, projectID, stream, blockID string, loc model.LocaleID) (*coreprofile.StoredScore, error) {
+	if stream == "" {
+		stream = "main"
+	}
+	row := s.run().QueryRowContext(ctx,
+		`SELECT id, project_id, stream, block_id, profile_id, profile_version, locale, score, dimensions, findings, checked_at
+		 FROM voice_scores
+		 WHERE project_id = $1 AND stream = $2 AND block_id = $3 AND locale = $4
+		 ORDER BY checked_at DESC LIMIT 1`,
+		projectID, stream, blockID, string(locale.Normalize(loc)))
+	sc, err := scanScore(row)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return sc, nil
+}
+
 // ---------------------------------------------------------------------------
 // Scan helpers
 // ---------------------------------------------------------------------------
