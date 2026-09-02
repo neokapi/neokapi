@@ -1,4 +1,4 @@
-# Format Ops — The Operating Process for Format Maturity
+# Format Ops: The Operating Process for Format Maturity
 
 > New here? Start with the one-page [format-ops-overview.md](./format-ops-overview.md).
 
@@ -13,8 +13,8 @@ behind the design in `docs/internals/research/format-ops/`.
 
 **The maintainer's whole job** is to point Claude at the runbook skill on a
 loose cadence (weekly to fortnightly is plenty; a 4–6 week absence produces
-stale badges and a longer next session, never breakage — due work accumulates,
-is ranked, and is budgeted):
+stale badges and a longer next session, never breakage, because due work
+accumulates, is ranked, and is budgeted):
 
 ```
 "Run the format-ops runbook."        # → .skills/format-ops/SKILL.md
@@ -25,7 +25,7 @@ and live signals and computes what is due, (3) proposes a ranked, budgeted
 plan, (4) executes within the budget, (5) ends every ritual with executable
 evidence (test output, regenerated data, diffs) committed **in the same commit
 as its ledger update**, (6) presents all pending approvals as one batch, and
-(7) closes with a reflection note in the learnings file — proposed
+(7) closes with a reflection note in the learnings file. Proposed
 improvements go to the pending queue, never silently applied.
 
 ## 1. Design principles
@@ -44,7 +44,7 @@ improvements go to the pending queue, never silently applied.
   `cadence_days: 0` means **watermark-only** (never due by time alone).
   `ci_owned: true` rituals are **watch-only**: the skill never executes them,
   it only compares the latest CI run state against the watermark and raises a
-  finding when CI is red or stale — they have no cadence term at all.
+  finding when CI is red or stale. They have no cadence term at all.
 - **Every artifact is a cache; every cache has a freshness contract.** The
   dashboard, the docs snapshot block, the parity report, and the contract
   audit are caches over the code. Each is owned by a ritual whose job
@@ -56,7 +56,7 @@ improvements go to the pending queue, never silently applied.
   output (exit status + output hash) is recorded in `runs[].evidence`. K3 and
   the anti-gaming rules gate on these recorded outputs, not on bare
   watermarks. Rituals whose checks cannot run (sandbox missing, tool absent)
-  end `blocked`, which is a safe, durable state — not a failure to hide.
+  end `blocked`, which is a safe, durable state rather than a failure to hide.
 - **Deterministic oracles make autonomy safe.** Spec assertions, parity,
   external validators (CI conclusions), externally re-verified corpus hashes,
   and snapshot-resolved citations are ground truth the model cannot argue
@@ -67,7 +67,7 @@ improvements go to the pending queue, never silently applied.
   [format-maturity.md §3](./format-maturity.md)). Tier changes, rubric edits,
   demotions, radar decisions, and adjudications are proposed into the pending
   queue and approved by the maintainer.
-- **Demotion, rejection, and decay are normal outcomes**, recorded — never
+- **Demotion, rejection, and decay are normal outcomes**, recorded rather than
   re-litigated from scratch (`format-demotions.md`, radar `rejected` entries
   with `revisit_after`, certification decay on the dashboard).
 
@@ -99,7 +99,7 @@ runs are the system's own documented failure mode:
 3. **Orphan adoption.** For each cache artifact, compare its `generated_at`
    against the ledger watermark: an artifact *newer* than its watermark with
    no `runs[]` entry is adopted by fast-forwarding the watermark with a
-   `runs[]` entry `outcome: "adopted-orphan"` — never silently regenerated.
+   `runs[]` entry `outcome: "adopted-orphan"`, never silently regenerated.
 4. **Atomicity.** Each ritual lands its artifact changes and its ledger update
    in the **same commit**; history-snapshot appends are idempotent, keyed on
    `generated_at`.
@@ -113,7 +113,7 @@ runs are the system's own documented failure mode:
 
 The ranked plan executes at most **2 heavy rituals per run** by default
 (maintainer-overridable in the invocation: "run everything that's due" /
-"only the top one"). The remainder stays due — watermarks make deferral safe.
+"only the top one"). The remainder stays due; watermarks make deferral safe.
 `remediate` additionally respects `max_fixes_per_run` (ledger field, default
 3). The 90-day horizon rituals are seeded with staggered `last_run` offsets at
 bootstrap (0/−30/−60 days) so quarterly work rotates instead of clumping.
@@ -133,17 +133,17 @@ issues, listed in §9) and report `blocked` until those land.
 | 2 | `remediate` | 30d | carryover non-empty; dashboard shows gating-axis gaps vs declared tiers | ≤ `max_fixes_per_run` top-gap fixes (one commit each), verified by `make test` (package tests alone are insufficient for shared surfaces); mutation-check evidence recorded per added test; carryover updated; dashboard + docs block refreshed if scores moved |
 | 3 | `parity-publish` | 30d | parity-affecting paths changed since report `generated_at` | Fresh `make parity-publish` dashboard data |
 | 4 | `contract-audit` | watch-only (`ci_owned`) | CI cron red or stale vs watermark | Finding raised; fix delegated to remediate |
-| 5 | `upstream-watch` | 30d | any watermark family moved: Okapi issues (`updated_at` > watermark), Okapi release tag ≠ pinned `OKAPI_VERSION`, any dossier spec-source or implementation `watch` feed shows a new version | Per-spec/per-implementation drift notes written into dossiers; un-xfail candidates and backport list; an Okapi **version-bump plan** when the tag moved (all pin locations enumerated: Makefile, parity sandbox, fixtures regen, contract-audit, okapi-bridge matrix) — execution is its own approved follow-up. Annual deep window: Oct–Nov Unicode/CLDR/ICU train; quarterly: MS-* revision pages, OASIS, DTCG, W3C timed-text |
+| 5 | `upstream-watch` | 30d | any watermark family moved: Okapi issues (`updated_at` > watermark), Okapi release tag ≠ pinned `OKAPI_VERSION`, any dossier spec-source or implementation `watch` feed shows a new version | Per-spec/per-implementation drift notes written into dossiers; un-xfail candidates and backport list; an Okapi **version-bump plan** when the tag moved (all pin locations enumerated: Makefile, parity sandbox, fixtures regen, contract-audit, okapi-bridge matrix), whose execution is its own approved follow-up. Annual deep window: Oct–Nov Unicode/CLDR/ICU train; quarterly: MS-* revision pages, OASIS, DTCG, W3C timed-text |
 | 6 | `xfail-hygiene` | 60d | any tracked issue in `expected_fail`/annotations changed state (`gh issue` watermarks) | Stale xfails removed; `divergence_kind` coverage raised toward 100%; annotations reconciled; recorded checker output |
 | 7 | `corpus-census` | 90d | any `corpus.yaml` sha mismatch; corpus release respun | Manifests verified (sha256); `origin: url` entries **re-fetched and externally verified**; licensing red-lines checked; SOURCES.md regenerated; harvest shortlist for thin formats; corpus release updated |
-| 8 | `corpus-sweep` | 60d | **blocked** until the sweep harness ships (issue) | Tier B corpora executed read→write→read, one file one subprocess, wall-clock/RSS caps; per-file `OK/OK_ROUNDTRIP/EXPECTED_REJECT/CRASH/HANG/OOM/ROUNDTRIP_DRIFT`; counts diffed against the previous sweep — due-fail on unexplained deltas; minimized CRASH/HANG/OOM/DRIFT files auto-promote to `testdata/fuzz/` + `origin: bug` corpus entries |
+| 8 | `corpus-sweep` | 60d | **blocked** until the sweep harness ships (issue) | Tier B corpora executed read→write→read, one file one subprocess, wall-clock/RSS caps; per-file `OK/OK_ROUNDTRIP/EXPECTED_REJECT/CRASH/HANG/OOM/ROUNDTRIP_DRIFT`; counts diffed against the previous sweep, with a due-fail on unexplained deltas; minimized CRASH/HANG/OOM/DRIFT files auto-promote to `testdata/fuzz/` + `origin: bug` corpus entries |
 | 9 | `case-gen` | 60d | **blocked** until the multi-view spec-case runner ships (issue); then: spec-watch landed clause changes; a new format accepted; per-section coverage below floor | Schema-validated candidate cases (positive + negative) generated from section-anchored clauses, classified by the neokapi × okapi-bridge differential oracle; only disagreements queued for human review ([format-spec-cases.md](./format-spec-cases.md)) |
-| 10 | `format-radar` | 90d | — | Updated `docs/internals/format-radar.yaml`: emergence scan, candidates scored against the adoption-evidence bar, accept/reject **proposals** (with `as: format\|connector\|watch`) into the pending queue |
+| 10 | `format-radar` | 90d | cadence only | Updated `docs/internals/format-radar.yaml`: emergence scan, candidates scored against the adoption-evidence bar, accept/reject **proposals** (with `as: format\|connector\|watch`) into the pending queue |
 | 11 | `process-health` | 90d | scorer/rubric/prompt/skill files changed (`prompt_sha`/`rubric_sha`); `model_id` changed (then **blocking**, §2.1); learnings file grew | Phase 1 *calibration*: anchor-free re-score of the adjudicated golden set; agreement report; spot-replay of one recorded mutation/citation check. Phase 2 (only if phase 1 found drift or learnings demand it) *improvement*: versioned prompt/skill/rubric edit proposals, each gated by a paired old-vs-new benchmark run; learnings pruned+archived; resolved open questions pruned from the rubric doc |
 | 12 | `tier-review` | watermark-only | vector suggests promotion; certification decayed; countersign requests (`na` claims) pending | Tier-change/demotion/na-countersign **proposals** into the pending queue; approved ones applied to `support.yaml` + `format-demotions.md` |
 
 **Radar scan sources** (ritual 10) span the wider content world, not just
-text/code: GitHub Octoverse growth data, standards-body announcements (W3C —
+text/code: GitHub Octoverse growth data, standards-body announcements (W3C,
 including timed-text/DAPT, OASIS, Unicode, Khronos glTF, AOUSD/USD), TMS
 supported-format pages (demand signal), CMS rich-text schemas, subtitle/
 caption and dubbing-exchange ecosystems, game-engine string-table formats,
@@ -161,18 +161,18 @@ grants no license to crawled content: fetch-on-demand only,
 **Ranking when several rituals are due:** blocking items first (§2.1 model
 check, path drift), then freshness contracts (triage-score), then correctness
 (remediate, xfail-hygiene, upstream-watch), then horizon work (corpus rituals,
-format-radar, case-gen), then process work (process-health — except when
+format-radar, case-gen), then process work (process-health, except when
 blocking). The skill proposes; the maintainer can reorder.
 
 ## 4. The ledger
 
-`docs/internals/format-ops-ledger.json` — committed (so `git log` on it is
+`docs/internals/format-ops-ledger.json` is committed (so `git log` on it is
 itself a signal), small enough to hand-audit, schema-checked by
 `scripts/format-ops/validate-ledger.mjs`. The validator runs in
 `reference-data-drift.yml`, whose path filters **must include**
 `docs/internals/format-ops-ledger.json`, `core/formats/support.yaml`, and
 `scripts/format-ops/**` (without these path entries the wiring is
-decorative — they are part of the implementation, not an aspiration).
+decorative; they are part of the implementation, not an aspiration).
 
 ```jsonc
 {
@@ -220,18 +220,18 @@ decorative — they are part of the implementation, not an aspiration).
 
 Structured fields with non-obvious semantics:
 
-- **`pending[]`** — the approval queue:
+- **`pending[]`** is the approval queue:
   `{id, ritual, type: tier-change|demotion|rubric-edit|radar-decision|adjudication|na-countersign,
   proposal, evidence, created, expires?}`. Rituals append proposals instead of
   deciding; every run ends by presenting all pending items as one batch; the
   maintainer approves/rejects in plain language ("approve pending 3"), and the
   skill applies + records the outcome in `runs[]`. Proposals survive between
-  sessions — they never live only in a chat transcript.
+  sessions; they never live only in a chat transcript.
 - **`remediate.carryover[]`**: `{format, axis, gap, attempt_date,
-  outcome: "test_failed|landed|skipped|blocked", evidence}` — failed attempts
+  outcome: "test_failed|landed|skipped|blocked", evidence}`. Failed attempts
   stop evaporating and feed the next run's plan ordering.
 - **`process-health.adjudicated`**: `{rubric_sha, grades: {<format>:
-  {<axis>: <grade>}}}` — the human-graded answers for the golden set,
+  {<axis>: <grade>}}}`, the human-graded answers for the golden set,
   **versioned by the rubric they were graded under**. Calibration refuses
   cross-rubric comparison; a rubric change queues a re-adjudication `pending`
   item scoped to the axes the change touched. The golden set uses `po`, not
@@ -239,7 +239,7 @@ Structured fields with non-obvious semantics:
   is itself a recorded procedure (adjudicate the substitute, note the
   discontinuity in `runs[]`).
 - **`corpus-census.external_verification`**: per-file results of re-fetching
-  `origin: url|archive-member` sources (`{path: {verified_at, ok}}`) — the C3
+  `origin: url|archive-member` sources (`{path: {verified_at, ok}}`). The C3
   wild-files floor reads this, not the self-computed manifest hash.
 - **`runs[]`** (append-only): `{date, ritual, commit, model_id, outcome,
   evidence: [{check, exit, output_sha}], followups[], duration_min?}`. Each
@@ -260,7 +260,7 @@ Structured fields with non-obvious semantics:
 ## 5. The self-improvement loop
 
 The prompts, the rubric, and the skill are versioned artifacts with a
-regression gate — generic "improvements" are not monotonic, so:
+regression gate, because generic "improvements" are not monotonic:
 
 1. **Every run feeds the loop.** Rituals end with a short reflection: what in
    the prompt/rubric/process fought the work? Observations land in the
@@ -270,12 +270,12 @@ regression gate — generic "improvements" are not monotonic, so:
    It re-scores the golden set anchor-free and compares against the
    adjudicated grades *for the same `rubric_sha`*. It runs on cadence **and**
    whenever the rubric, the scorer, any ritual prompt, or the model
-   generation changes — and on model change it **blocks** scoring/remediation
+   generation changes, and on model change it **blocks** scoring/remediation
    until it passes (§2.1). Disagreement >20–25% on any axis means the rubric
-   or the prompts drifted — stop and fix before the next fleet sweep.
+   or the prompts drifted, so stop and fix before the next fleet sweep.
 3. **Edits are benchmark-gated per surface.** Each ritual owns a benchmark
    under `.skills/format-ops/benchmarks/<ritual>/`: a frozen input snapshot
-   (ledger state + captured signals — dashboard JSON, canned `gh`/GitLab
+   (ledger state + captured signals: dashboard JSON, canned `gh`/GitLab
    responses, dossier watch states) plus named assertions on the ritual's
    proposed plan/output (spec-watch must flag the planted version drift and
    not the unchanged specs; remediate must rank the planted gating-axis gap
@@ -288,7 +288,7 @@ regression gate — generic "improvements" are not monotonic, so:
    only then remove stale model-specific workarounds, one at a time.
 5. **Constraints migrate downward.** Anything a prompt repeats forever
    (formats list, JSON contracts, citation regex shapes) belongs in a
-   validator, a schema, or a script — prompts hold judgment, not facts the
+   validator, a schema, or a script; prompts hold judgment, not facts the
    repo already knows.
 
 ## 6. New-format adoption funnel
@@ -305,7 +305,7 @@ The **adoption-evidence bar** (all required before an accept proposal): real
 demand signal (TMS format pages, ecosystem growth data, user requests), a
 harvestable or generatable corpus, an identifiable spec source for the
 dossier, and a statement of what kapi uniquely adds
-(faithfulness/vocabulary/editor angle). Outcomes are three-valued — some
+(faithfulness/vocabulary/editor angle). Outcomes are three-valued: some
 candidates are **connectors** (Figma REST, cmi5/SCORM) and some are
 **watch-only** (USD/glTF today); the radar records all three so they are not
 re-litigated. Prefer configuring existing readers (JSON/YAML) over new
@@ -315,17 +315,17 @@ lives in `docs/internals/format-radar.yaml`.
 
 Retirement runs the same funnel backwards: tier-review proposes, the
 maintainer approves, the format drops to plugin tier or is archived with its
-corpus and dossier intact (never deleted — `mo` is the standing candidate).
+corpus and dossier intact (never deleted; `mo` is the standing candidate).
 
 Engineering build-out work (multi-view spec runner, sweep harness, Security
 axis prerequisites, formatSpecs retirement, harvest spec.yaml migration) is
-**not** radar material — those are GitHub issues (§9), per the house rule
+**not** radar material; those are GitHub issues (§9), per the house rule
 that implementation plans live in the tracker.
 
 ## 7. Artifact map
 
 Single-sourced in `.skills/format-ops/artifacts.yaml`; this table is its
-human rendering — when they disagree, the YAML wins and the run preamble
+human rendering. When they disagree, the YAML wins and the run preamble
 flags the drift.
 
 | Artifact | Path | Written by |
@@ -360,12 +360,12 @@ flags the drift.
   budget (default 2 heavy rituals; say "run everything that's due" or "only
   the top one" to override), executed rituals with evidence, one batch of
   pending approvals, a ledger commit.
-- **Zero-cost status check:** `node .skills/format-ops/scripts/due.mjs` —
+- **Zero-cost status check:** `node .skills/format-ops/scripts/due.mjs`
   prints due/blocked/pending without executing anything (no LLM cost). Run it
   whenever you wonder whether a session is worth starting.
 - **Approvals:** proposals wait in the ledger's `pending[]` (they survive
-  between sessions). Approve or reject in plain language — "approve pending
-  2, reject 3 because …" — the skill applies and records. Always yours: tier
+  between sessions). Approve or reject in plain language ("approve pending
+  2, reject 3 because …") and the skill applies and records. Always yours: tier
   changes, demotions, rubric/prompt edits, radar decisions, adjudicated
   grades, `na` countersigns.
 - **After an absence:** 4–6 weeks ⇒ stale tier badges on the dashboard and a
@@ -374,12 +374,12 @@ flags the drift.
 - **A `blocked` outcome is safe to leave.** It stays due; the evidence is in
   the last `runs[]` entry and the learnings file. Blocked-on-issue rituals
   (corpus-sweep, case-gen) unblock themselves when their prerequisite lands.
-- **When a new model generation lands:** nothing to remember — the run
+- **When a new model generation lands:** nothing to remember, because the run
   preamble detects the model change and forces calibration before any
   scoring. Saying so just gets it done sooner.
 - **When you want a new format:** add it to the radar (or just ask); the
   funnel (§6) takes it from evidence to tier.
-- **First ever run:** expect everything due and a bootstrap plan (§9) — that
+- **First ever run:** expect everything due and a bootstrap plan (§9). That
   is the design, not a malfunction.
 
 ## 9. Bootstrap
@@ -391,18 +391,18 @@ normal ritual run, so half-completing is safe):
    artifacts' own dates; staggered offsets for the 90-day rituals: radar 0,
    corpus-census −30, process-health −60).
 2. **Seed `support.yaml`** from current Engine levels with
-   `grandfathered: true` on every entry — the under-run rule and certification
+   `grandfathered: true` on every entry: the under-run rule and certification
    decay are suspended per-format until its first multi-axis triage-score
    publishes; tier-review then proposes lifting the flag (or adjusting the
    tier) format by format.
-3. **Backfill the axis artifacts** in tier order — dossier.yaml +
+3. **Backfill the axis artifacts** in tier order (dossier.yaml +
    corpus.yaml + vocabulary.yaml for the intended-Supported set first, the
-   long tail after — seeded into `remediate.carryover` so the existing
+   long tail after), seeded into `remediate.carryover` so the existing
    ranking machinery drives the burndown.
 4. **Adjudication session** (the largest single approval event in the
-   design, scheduled explicitly): the maintainer grades the golden set —
-   6 formats × 5 axes = 30 grades, ~an hour with the audit's floor output as
-   the starting point — recorded as `adjudicated` with the current
+   design, scheduled explicitly): the maintainer grades the golden set,
+   6 formats × 5 axes = 30 grades, roughly an hour with the audit's floor
+   output as the starting point, recorded as `adjudicated` with the current
    `rubric_sha`.
 5. **Scorer v3 + skill scaffolding** land before the first fleet sweep
    (change-controlled commit: scorer + audit + mirror + rubric together).

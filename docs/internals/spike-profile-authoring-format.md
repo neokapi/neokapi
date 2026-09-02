@@ -12,7 +12,7 @@ Branch: `spike/profile-authoring-format`.
 
 ## Recommendation
 
-**Adopt with changes — and the changes are not the format.**
+**Adopt with changes, and the changes are not the format.**
 
 Split into three decisions, because they were bundled in the question and they
 have very different costs:
@@ -25,9 +25,9 @@ have very different costs:
 
 The direct answer to the format question: **YAML is the right shape for the
 rules and markdown is the right shape for the prose, and today's file is mostly
-rules.** The prose that is trapped in folded scalars is real — it is what a
-non-engineer reviews and it diffs as a whole block rather than per line — but
-that is a review-ergonomics complaint, and it does not on its own justify a
+rules.** The prose trapped in folded scalars is real: it is what a
+non-engineer reviews and it diffs as a whole block rather than per line. That
+is a review-ergonomics complaint, and it does not on its own justify a
 second decoder, a second writer, and a second thing `kapi voice new` can emit.
 
 The two defects that actually bite are composition and duplication. Neither
@@ -37,7 +37,7 @@ separable, and separating them is the recommendation.
 
 ## What was built
 
-`core/profile/mdspike/` — a reader that produces the same `*profile.VoiceProfile`
+`core/profile/mdspike/` holds a reader producing the same `*profile.VoiceProfile`
 the YAML loader produces, so `RenderVoiceGuide`, `MatchVocabulary`,
 `CalculateScore` and `ValidateProfile` all work on it unchanged.
 
@@ -51,17 +51,17 @@ The document splits along the line the profile already draws:
 The split is mechanical, not conventional. The frontmatter struct has no
 `guidelines` and no `cultural_notes` field and is decoded with `KnownFields`,
 so prose in the frontmatter fails to load rather than quietly bypassing review
-of the body. An unrecognized `##` heading is also an error — the standing
+of the body. An unrecognized `##` heading is also an error. The standing
 objection to markdown as a config format is that prose degrades silently, and
 this form does not let it.
 
 Worked example in `core/profile/mdspike/testdata/`:
 
-- `house.md` — the four prohibitions and three bans that both committed profiles
+- `house.md`: the four prohibitions and three bans that both committed profiles
   carry verbatim today, declared once.
-- `bowrain-voice.md` — `.kapi/profiles/bowrain/voice.yaml` re-expressed, inheriting the
+- `bowrain-voice.md`: `.kapi/profiles/bowrain/voice.yaml` re-expressed, inheriting the
   house rules instead of copying them.
-- `bowrain-voice-from-terms.md` — the same profile with vocabulary sourced from
+- `bowrain-voice-from-terms.md`: the same profile with vocabulary sourced from
   `.kapi/terms.json` instead of restated.
 
 ## What the spike proves
@@ -70,15 +70,15 @@ Each claim below is a test in `core/profile/mdspike/`, not an assertion.
 
 **The markdown form loses nothing.** `TestMarkdownFormEqualsYAMLForm` asserts
 deep equality of the whole `VoiceProfile` struct against the one
-`.kapi/profiles/bowrain/voice.yaml` decodes to — not a chosen subset. The
+`.kapi/profiles/bowrain/voice.yaml` decodes to, rather than a chosen subset. The
 paragraph normalization (hard-wrapped lines joined with single spaces) is what
 makes a markdown paragraph and a YAML `>-` scalar compare equal. The assertion
 was verified to fail on a one-word change to the body.
 
 **Nothing reaching the model changes.** `TestRenderedGuideIsByteIdentical`:
 `RenderVoiceGuide` and `RenderVoiceGuideCompact` produce byte-identical output
-from both forms. Those four consumers — the AI translate prompt, the voice check
-tool, `kapi voice guide`, the cloud MCP `get_voice_guide` — see no difference.
+from both forms. Those four consumers (the AI translate prompt, the voice check
+tool, `kapi voice guide`, the cloud MCP `get_voice_guide`) see no difference.
 
 **The duplication is real and has already drifted.**
 `TestHouseRulesAreDuplicatedToday` reads the two committed profiles and finds
@@ -103,7 +103,7 @@ YAML's order exactly.
 **Deduplicating a restated rule is load-bearing.**
 `TestRestatingAnInheritedRuleDoesNotDoubleIt`: a child that repeats an inherited
 prohibition to tighten its severity must replace it, not append. Two copies raise
-two findings for one violation and double the score penalty — a composition
+two findings for one violation and double the score penalty. A composition
 feature that silently changes whether content ships is exactly what the question
 was worried about, and it lives in the merge, not in the format.
 
@@ -119,7 +119,7 @@ The four added bans are exactly the retired spellings the project already
 forbids in prose. Text that scores 100 under the committed profile scores less
 under the sourced one. Every derived ban carries its concept ID and the
 concept's preferred term as the replacement, so a finding can pivot back to the
-concept — a link that is populated today only when the platform promotes a rule
+concept, a link that is populated today only when the platform promotes a rule
 from a correction.
 
 **Status mapping is something the profile cannot express at all.**
@@ -142,10 +142,10 @@ leaves it alone. A profile has no way to say "acceptable but not preferred".
 
 **The committed profile is already machine-written.**
 `TestCommittedProfileIsMachineRewritten`: `host.applyBrandEntry` does not patch
-the file — it loads it, upserts the rule, and writes the whole struct back with
+the file. It loads it, upserts the rule, and writes the whole struct back with
 `yaml.Marshal` (`host/apply_assets.go:723`). Struct marshalling emits no
-comments, so the header on `.kapi/profiles/bowrain/voice.yaml` — the one recording that
-the house rules are duplicated because composition does not exist — does not
+comments, so the header on `.kapi/profiles/bowrain/voice.yaml` (the one recording
+that the house rules are duplicated because composition does not exist) does not
 survive the first applied rule. This is the finding that decides the
 recommendation.
 
@@ -158,7 +158,7 @@ recommendation.
   conversion done by someone who was not holding the target struct in mind would
   be a different measurement.
 - **`channels:` and `personas:` were not exercised.** No committed profile uses
-  either — they are keyed override maps carrying nested `*ToneProfile` and
+  either. They are keyed override maps carrying nested `*ToneProfile` and
   `*StyleRules`, and the body/frontmatter split for a nested override is
   unanswered.
 - **There is no writer, so there is no round-trip.** Everything above is the
@@ -184,20 +184,20 @@ Plus an unbounded number of store rows, which no file-format change reaches.
 (`core/profile/packs/embed.go`, `host/apply_assets.go` ×2, `host/mcp_voice.go`,
 `host/voice.go` ×2, `cli/voice.go` ×2) plus `DecodeProfileStrict` in
 `cli/voice.go`. Adding a second decoder in front of the same
-`ValidateProfile` is cheap — `TestMarkdownFormValidates` shows the semantic
+`ValidateProfile` is cheap; `TestMarkdownFormValidates` shows the semantic
 validator needs no new rules. The expensive pieces:
 
-- `host.writeProfileYAML` (`apply_assets.go:723`) — the write-back. A markdown
+- `host.writeProfileYAML` (`apply_assets.go:723`) is the write-back. A markdown
   writer must *patch the frontmatter in place*. Marshalling the resolved profile
   back would inline every inherited house rule into the child and silently undo
   the composition, and would flatten the body prose the author wrote.
-- `host.VoiceProfileTemplate` — the commented YAML `kapi voice new` emits.
+- `host.VoiceProfileTemplate` is the commented YAML `kapi voice new` emits.
 - Two authoring surfaces would then disagree. The Bowrain web editor
   (`bowrain/packages/ui/src/brand/BrandProfileEditor.tsx`, `BrandProfileWizard.tsx`)
   edits store rows through the JSON shape and never sees a file. A file-format
   change reaches neither it nor the profiles it edits.
 
-**Does terms-store sourcing change check behaviour? Yes — say so plainly.**
+**Does terms-store sourcing change check behaviour? Yes, and say so plainly.**
 Four new prohibitions on the dogfood corpus: `sievepen`, `glossary`, `termbase`,
 `translation memory`. At `forbid_severity: minor` each costs 1 point; left unset
 they default to major and cost 5, so a paragraph carrying four of them lands
@@ -212,7 +212,7 @@ side effect of a refactoring.
    to a format with no writer, for a review benefit nobody has measured.
 2. **Not write a markdown writer that marshals the resolved profile.** If markdown
    is ever adopted, `apply` must patch frontmatter in place. Anything else undoes
-   inheritance and destroys the body prose — and the current YAML writer already
+   inheritance and destroys the body prose, and the current YAML writer already
    destroys the file's comments, so this failure mode has a precedent here.
 3. **Not source `preferred_terms` from the terms store.** It triples the list,
    grows the prompt 39%, drops the brand coinages the store has no concept for,
@@ -222,7 +222,7 @@ side effect of a refactoring.
 5. **Not move a pattern's `description` into the body.** It reads like prose, but
    it is what `patternHints` sends to the model for that prohibition, and it
    belongs next to the regex it explains.
-6. **Not let a generator own the frontmatter — but not for the stated reason.**
+6. **Not let a generator own the frontmatter, though not for the stated reason.**
    See below.
 
 ## Where I disagree with the evaluation I was given
@@ -230,17 +230,17 @@ side effect of a refactoring.
 **"AI must not generate the structured part" is directionally right, stated too
 strongly, and the codebase already has the better version of it.**
 `core/ai/tools/brandinfer.go` already has a model generate a complete
-`VoiceProfile`, severities included, and it is safe — because the output is a
+`VoiceProfile`, severities included, and it is safe, because the output is a
 *draft* carrying `DraftEvidence` (per-field confidence and corpus rationale),
 and because `core/profile/promote.go`, `blastradius.go` and
 `Store.RecordRuleDecision` make promotion a recorded human decision. The
 invariant is not "AI must not generate structure". It is **structure enters
-through a recorded decision, never through a regeneration** — regeneration is
-not idempotent-safe, a recorded decision is durable. That invariant is
+through a recorded decision, never through a regeneration**, because
+regeneration is not idempotent-safe and a recorded decision is durable. That invariant is
 already implemented, and the authoring format does not touch it either way.
 
 **"The prose parts are what actually reach the model" is not right.**
-`RenderVoiceGuideCompact` — the one inlined into the translation system prompt —
+`RenderVoiceGuideCompact`, the one inlined into the translation system prompt,
 sends pattern descriptions and term swaps and bans, which are structured fields.
 `RenderVoiceGuide` renders every structured field. The model sees both halves;
 the structure reaches it *as* prose. The frontmatter/body line is a split in who
@@ -250,7 +250,7 @@ stayed in the frontmatter.
 **"`PreferredTerms`/`ForbiddenTerms` say the same thing as `.kapi/terms.json`"
 is half right, and the halves point opposite ways.** `ForbiddenTerms` genuinely
 duplicates the store's deprecated and forbidden statuses, and the store is
-strictly richer — it has the replacement, the concept, the locale and the
+strictly richer: it has the replacement, the concept, the locale and the
 validity window. `PreferredTerms` does not duplicate anything: 57 governed
 concepts against a five-item editorial selection, with two of the five absent
 from the store entirely. Merging those two is not deduplication, it is

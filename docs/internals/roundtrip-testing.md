@@ -23,8 +23,8 @@ in practice. The harness exercises:
   - The writer (re-serializes the document with translations applied).
   - The skeleton path (preserves untranslatable structure verbatim).
 
-Anything that breaks one of those — broken whitespace handling, a
-writer that drops attributes, a skeleton that misses a region —
+Anything that breaks one of those (broken whitespace handling, a
+writer that drops attributes, a skeleton that misses a region)
 surfaces as a divergence between the engines or a re-extraction that
 doesn't yield the expected text.
 
@@ -64,7 +64,7 @@ and is free to mutate `Targets`. The bridge engine wires it to the
 same `applyPseudoToBlock` helper the native engine uses (in
 `cli/parity/roundtrip/pseudo.go`).
 
-### `OkapiEngine` (the comparator — hard-required)
+### `OkapiEngine` (the comparator, hard-required)
 
 Shells out to the okapi-bridge launcher's `pseudo` subcommand
 (implemented at `bridge-core/.../PseudoCommand.java`), which composes
@@ -99,8 +99,8 @@ in-process pipeline with no XLIFF round-trip in between.
 The okapi engine is the **comparator**, not a tested engine. The
 harness runs the okapi engine once per fixture to obtain the live
 reference output, then byte-compares native and bridge against its
-bytes. There is no "okapi" subtest — asserting okapi-against-itself
-would be circular.
+bytes. There is no "okapi" subtest, because asserting
+okapi-against-itself would be circular.
 
 ## The pseudo-translation transform
 
@@ -121,17 +121,17 @@ N→Ń n→ń O→Ō o→ō P→Ƥ p→ƥ Q→Ǫ q→ǫ R→Ŕ r→ŕ S→Ś s�
 T→Ţ t→ţ U→Ũ u→ũ W→Ŵ w→ŵ Y→Ŷ y→ŷ Z→Ź z→ź
 ```
 
-(M, V, X have no entries and pass through unchanged — same quirks as
+(M, V, X have no entries and pass through unchanged, the same quirks as
 upstream `oldChars[0]`.)
 
 The accented variants are deliberate:
 
   - Survives every text-bearing format (no XML/JSON/CSV/YAML escape
-    issues — every replacement codepoint is in the Latin-Extended
+    issues, since every replacement codepoint is in the Latin-Extended
     Unicode block).
   - Visually distinct from the source so failure dumps clearly show
     "this is the translated text".
-  - Locale-agnostic — no MT, no model dependency, deterministic
+  - Locale-agnostic: no MT, no model dependency, deterministic
     bytes.
 
 ## Comparison strategy
@@ -142,7 +142,7 @@ read → `TextModificationStep` → write), then runs each tested
 engine (native, bridge) and byte-compares its output against the
 okapi reference. The okapi engine is the comparator; native and
 bridge are the engines under test. There are no committed golden
-files — upstream Okapi's behavior IS the reference, captured fresh
+files. Upstream Okapi's behavior IS the reference, captured fresh
 every run, so there is no risk of "the golden is from Okapi v1.47,
 but we're on v1.48 now" drift.
 
@@ -150,7 +150,7 @@ For formats where the okapi engine itself can't produce a usable
 reference (intentionally-malformed test fixtures, files referencing
 sibling resources that aren't copied to the harness's tempdir,
 read-only filters like `okf_xliff2`), per-file `skip` entries with
-`Engines: ["okapi"]` skip the whole sub-test — no reference, no
+`Engines: ["okapi"]` skip the whole sub-test: no reference, no
 engine assertions. We deliberately do not fall back to the native
 engine here: that would make native judge itself, the exact
 circularity this whole approach was built to remove. These rows are
@@ -170,7 +170,7 @@ writer produced different bytes from the reference at offset 251."
 
 ## Hard requirements
 
-The **parity sandbox** is the only mandatory dependency — there is
+The **parity sandbox** is the only mandatory dependency, with
 no "skip if missing" path:
 
   - The `okapi-bridge` launcher binary inside the sandbox is checked
@@ -217,7 +217,7 @@ first.
 
 For formats where the bridge filter expects different parameter names
 than neokapi's canonical config, supply `BridgeEngine.FilterParams`
-in already-translated form — same approach as the spec runner's
+in already-translated form, the same approach as the spec runner's
 `BridgeConfig` hook (see `cli/parity/formats/csv_bridge_config.go`).
 For Okapi-side parameter overrides on the reference engine (e.g.
 disabling `mergeCaptions` on subtitle filters), supply
@@ -265,7 +265,7 @@ KAPI_PARITY_SANDBOX="$(pwd)/.parity" \
 ```
 
 Without the sandbox, `TestMain` aborts the binary immediately with
-a clear error — no test runs. The bridge daemon is acquired through
+a clear error, and no test runs. The bridge daemon is acquired through
 the same `parity.AcquireBridgeDaemon` used by the spec runner; a
 single daemon process is shared across the whole `go test` run and
 torn down in `TestMain`.
@@ -332,10 +332,10 @@ and every file with a matching extension becomes one sub-test.
      the whole sub-test then skips with the reason.
    - For long per-file maps (idml: 46 entries, openxml: 124),
      extract them into a helper in `coverage_skips_test.go` to
-     keep `coverage_test.go` readable — see `idmlBridgeSkips()`.
+     keep `coverage_test.go` readable; see `idmlBridgeSkips()`.
 
    Treat every skip the way `expected_fail:` is treated in
-   spec.yaml — a tracked, real divergence, not a workaround for a
+   spec.yaml: a tracked, real divergence, not a workaround for a
    config you forgot to set.
 
 ## Relationship to the spec runner
@@ -363,9 +363,9 @@ formats × ~25 files each ≈ 1100+ sub-tests** in ~10 minutes. With
 the parity sandbox built the suite is fully green (0 fail, 765
 engine assertions pass, ~990 documented engine skips).
 
-After the okapi-bridge per-field code-hydrate fix (the daemon now
-clones source `Code` metadata across the wire — `outerData`,
-`originalId`, `referenceFlag` — instead of rebuilding from the
+After the okapi-bridge per-field code-hydrate fix (the daemon
+clones source `Code` metadata across the wire, `outerData`,
+`originalId` and `referenceFlag`, instead of rebuilding from the
 FragmentDTO), inline-code-bearing formats fully recovered: idml
 70/70 bridge, openxml 185/185, mif 41/41, icml 9/9, xml 199/199.
 The remaining 51 known divergences cluster in three buckets: PO/TS
@@ -377,9 +377,9 @@ list.
 Highlights of the upstream-mirroring discovery:
 
   - **html** runs against all 69 fixtures from
-    `integration-tests/okapi/src/test/resources/html/` — same set as
+    `integration-tests/okapi/src/test/resources/html/`, the same set as
     upstream's `RoundTripHtmlIT`.
-  - **json** 70 (all pass bridge), **idml** 70, **openxml** 185 —
+  - **json** 70 (all pass bridge), **idml** 70, **openxml** 185, the
     same fixtures upstream roundtrips with their own `RoundTrip<X>IT`.
     json got bumped from "all skipped" to "all bridge passes" as a
     direct result of switching the comparator to the in-process
@@ -390,7 +390,7 @@ Highlights of the upstream-mirroring discovery:
     `integration-tests/okapi/src/test/resources/xml/`. Bridge passes
     14 of 22, with 8 inline-code marker divergences flagged
     per-file.
-  - **paraplaintext** / **splicedlines** / **mosestext** —
+  - **paraplaintext** / **splicedlines** / **mosestext** are
     sub-filters of `okf_plaintext` with no dedicated upstream
     integration-test directory; cherry-picked via `explicitFiles`
     against the canonical fixtures referenced by their unit tests
@@ -402,15 +402,15 @@ Highlights of the upstream-mirroring discovery:
 
 Formats intentionally **omitted** from coverage:
 
-  - `txml`, `rtf`, `epub` — upstream Okapi can't produce a usable
+  - `txml`, `rtf`, `epub`: upstream Okapi can't produce a usable
     reference (txml NPE on merge, rtf only ships as `okf_tradosrtf`,
     no `okf_epub` in this distribution).
-  - `jsx-kbf`, `versifiedtext`, `messageformat` — neokapi-only
+  - `jsx-kbf`, `versifiedtext`, `messageformat`: neokapi-only
     formats with no upstream Okapi peer to compare against.
-  - `srt` — needs SRT-specific regex rules loaded as a sizable
+  - `srt`: needs SRT-specific regex rules loaded as a sizable
     `.fprm` against the bridge's `okf_regex` filter; wire that in
     when there's a real signal worth catching.
-  - `odf` — no test fixtures committed in the framework yet.
+  - `odf`: no test fixtures committed in the framework yet.
 
 These are covered by per-format unit tests under `core/formats/<x>/`
 instead.
@@ -430,7 +430,7 @@ workaround. The skip mechanism has three layers:
     different bug).
   - `Engines: ["okapi"]` on a per-file entry means the okapi
     reference engine itself can't produce a usable reference for
-    that file — the whole sub-test skips. Common causes:
+    that file, so the whole sub-test skips. Common causes:
     intentionally-malformed test fixtures (`tmx/code_fail.tmx`),
     files referencing sibling resources Okapi can't find when
     invoked on a single file (`xml/Translate2.xml`,
@@ -440,7 +440,7 @@ workaround. The skip mechanism has three layers:
 Common bug classes the skips encode:
 
   - **Native writer byte-shape divergence** (most formats):
-    serialization choices differ from upstream Okapi — XML
+    serialization choices differ from upstream Okapi in XML
     attribute order, YAML quoting style, properties escape case,
     trailing newlines.
   - **Native skips target on merge** (html, openxml): writer doesn't
@@ -450,33 +450,33 @@ Common bug classes the skips encode:
     `StreamingTranslationApplier` rebuilds `TextFragment` from Go-
     side fragments via `OkapiCodeConverter`, and the result diverges
     from what an in-process Okapi pipeline would have written for
-    the same source — usually around inline-code id assignment,
+    the same source, usually around inline-code id assignment,
     paired-code restoration, or alt-trans/extension element
     placement.
   - **Native YAML reader infinite loop** (4 files with self-
     referencing anchors): a real reader bug worth fixing.
 
 When an engine bug gets fixed, the corresponding skip entry can be
-deleted — the next run will then assert against the okapi reference
+deleted, and the next run then asserts against the okapi reference
 byte-for-byte, catching any regression.
 
 ## Formats not yet covered
 
 Some registered formats don't fit the generic harness today:
 
-  - **regex** — needs an explicit rule set; native + bridge configs
+  - **regex**: needs an explicit rule set; native + bridge configs
     don't line up enough to share a fixture.
-  - **vignette** — requires the `<importContentInstance>` shape with
+  - **vignette**: requires the `<importContentInstance>` shape with
     a paired source/target instance via `SOURCE_ID` / `LOCALE_ID`,
     which is too verbose for inline fixtures and doesn't work without
     config aliasing.
-  - **ttx** — UTF-16-encoded; the harness's re-extraction pass uses
+  - **ttx**: UTF-16-encoded; the harness's re-extraction pass uses
     Go's `encoding/xml` without a CharsetReader.
-  - **odf** — no `core/formats/odf/testdata/*.odt` fixture committed
+  - **odf**: no `core/formats/odf/testdata/*.odt` fixture committed
     to the framework yet.
-  - **pdf** — no native writer (extract-only).
-  - **mo** — write-only stub on the read side.
+  - **pdf**: no native writer (extract-only).
+  - **mo**: write-only stub on the read side.
 
-Adding any of these is a follow-up — usually one fixture row plus,
+Adding any of these is a follow-up, usually one fixture row plus,
 for the harder cases, a small bit of per-format wiring (charset
 reader for ttx, BridgeConfig hook for regex, fixture commit for odf).
