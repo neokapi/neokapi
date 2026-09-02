@@ -206,13 +206,18 @@ func TestGetReviewUnit_NotFound(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestGetReviewQueue_MarksFindings(t *testing.T) {
+func TestReviewQueue_MarksFindings(t *testing.T) {
 	app := NewApp()
 	tab, _ := newReviewProject(t, app)
 
-	items, err := app.GetReviewQueue(tab.ID, ProjectFilter{})
+	queue, err := app.ReviewQueue(tab.ID, ProjectFilter{})
 	require.NoError(t, err)
+	items := queue.Pending
 	require.Len(t, items, 4, "two units × two locales await review")
+	assert.Equal(t, []host.ReviewLanguage{
+		{Language: "de-DE", Pending: 2},
+		{Language: "fr-FR", Pending: 2},
+	}, queue.Languages, "the summary counts what the listing holds")
 
 	byID := map[string]host.ReviewQueueItem{}
 	for _, it := range items {
@@ -348,10 +353,10 @@ func TestUpdateReviewTarget_RecordsAHumanOrigin(t *testing.T) {
 	assert.Empty(t, edited.ReviewState)
 	assert.Equal(t, "translated", edited.Status)
 
-	queue, err := app.GetReviewQueue(tab.ID, ProjectFilter{Languages: []string{"fr-FR"}})
+	queue, err := app.ReviewQueue(tab.ID, ProjectFilter{Languages: []string{"fr-FR"}})
 	require.NoError(t, err)
 	pending := false
-	for _, it := range queue {
+	for _, it := range queue.Pending {
 		if it.Key == "greeting" && it.Locale == "fr-FR" {
 			pending = true
 		}
@@ -370,12 +375,13 @@ func TestUpdateReviewTarget_RefusesEmptyText(t *testing.T) {
 // ignored it left two controls that look alike behaving differently, and made
 // the page enrich (and run every checker over) thousands of units the user had
 // already narrowed away.
-func TestGetReviewQueue_HonoursTheActiveFilter(t *testing.T) {
+func TestReviewQueue_HonoursTheActiveFilter(t *testing.T) {
 	app := newAIReviewApp(t, aiprovider.NewMockProvider())
 	tab, _ := newReviewProject(t, app)
 
-	all, err := app.GetReviewQueue(tab.ID, ProjectFilter{})
+	whole, err := app.ReviewQueue(tab.ID, ProjectFilter{})
 	require.NoError(t, err)
+	all := whole.Pending
 	require.NotEmpty(t, all)
 
 	locales := map[string]bool{}
@@ -384,26 +390,29 @@ func TestGetReviewQueue_HonoursTheActiveFilter(t *testing.T) {
 	}
 	require.Greater(t, len(locales), 1, "the fixture needs more than one locale to narrow")
 
-	only, err := app.GetReviewQueue(tab.ID, ProjectFilter{Languages: []string{"fr-FR"}})
+	french, err := app.ReviewQueue(tab.ID, ProjectFilter{Languages: []string{"fr-FR"}})
 	require.NoError(t, err)
+	only := french.Pending
 	require.NotEmpty(t, only)
 	for _, it := range only {
 		assert.Equal(t, "fr-FR", it.Locale)
 	}
 	assert.Less(t, len(only), len(all))
+	assert.Equal(t, []host.ReviewLanguage{{Language: "fr-FR", Pending: len(only)}},
+		french.Languages, "a narrowed queue offers only the languages it still holds")
 
 	// A glob is written about the content, so it matches the SOURCE path.
 	for _, it := range all {
 		assert.Equal(t, "locales/en.json", it.Relative, "an item carries its source-relative path")
 	}
-	onSource, err := app.GetReviewQueue(tab.ID, ProjectFilter{Glob: "locales/en.json"})
+	onSource, err := app.ReviewQueue(tab.ID, ProjectFilter{Glob: "locales/en.json"})
 	require.NoError(t, err)
-	assert.Len(t, onSource, len(all), "a glob naming the source keeps every item")
+	assert.Len(t, onSource.Pending, len(all), "a glob naming the source keeps every item")
 
 	// The same glob written against a TARGET path matches nothing. This is the
 	// assertion that distinguishes the two: locales/de-DE.json is a real file in
 	// this project, and a queue matching the target path would return its units.
-	onTarget, err := app.GetReviewQueue(tab.ID, ProjectFilter{Glob: "locales/de-DE.json"})
+	onTarget, err := app.ReviewQueue(tab.ID, ProjectFilter{Glob: "locales/de-DE.json"})
 	require.NoError(t, err)
-	assert.Empty(t, onTarget, "the glob is matched against the source, never the target")
+	assert.Empty(t, onTarget.Pending, "the glob is matched against the source, never the target")
 }

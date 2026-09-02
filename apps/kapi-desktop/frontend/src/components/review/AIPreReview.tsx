@@ -1,6 +1,7 @@
 import { Badge, SimpleTooltip } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
 import type { AIReviewFinding } from "../../types/api";
+import { severityBadgeClass } from "./severity";
 
 /**
  * The AI pre-review's verdict on this unit, read from the state store: a score,
@@ -14,19 +15,6 @@ export interface AIPreReviewProps {
   score?: number;
   model?: string;
   findings?: AIReviewFinding[];
-}
-
-function severityClass(severity: string | undefined): string {
-  switch ((severity ?? "").toLowerCase()) {
-    case "critical":
-      return "border-destructive/40 bg-destructive/10 text-destructive";
-    case "major":
-      return "border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400";
-    case "minor":
-      return "border-amber-500/30 bg-amber-500/5 text-amber-600/90 dark:text-amber-400/90";
-    default:
-      return "text-muted-foreground";
-  }
 }
 
 export function AIPreReview({ score, model, findings }: AIPreReviewProps) {
@@ -62,7 +50,7 @@ export function AIPreReview({ score, model, findings }: AIPreReviewProps) {
         <ul className="mt-1 space-y-1">
           {remarks.map((f, i) => (
             <li key={i} className="flex items-start gap-2 text-xs" data-slot="review-ai-finding">
-              <Badge variant="outline" className={severityClass(f.severity)}>
+              <Badge variant="outline" className={severityBadgeClass(f.severity)}>
                 {f.severity ?? t("note")}
               </Badge>
               <span className="min-w-0">

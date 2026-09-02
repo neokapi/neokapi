@@ -1,7 +1,8 @@
-import { AlertTriangle } from "lucide-react";
-import { Badge, Card, CardContent } from "@neokapi/ui-primitives";
+import { AlertTriangle, Fingerprint } from "lucide-react";
+import { Badge } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
 import type { ReviewProvenance, TargetOrigin } from "../../types/api";
+import { LayerCard } from "./LayerCard";
 
 /**
  * Where this translation came from, and the decision in force over it.
@@ -53,23 +54,34 @@ export function ProvenanceCard({ provenance, origin, reviewState, note }: Proven
   const decisionNote = provenance?.note ?? note;
   const empty = !kind && !state && !decisionNote && !by;
 
-  return (
-    <Card data-slot="review-provenance">
-      <CardContent className="space-y-1 p-3 text-xs">
-        <div className="mb-1.5 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          {t("Provenance")}
-          {provenance?.stale && (
-            <Badge
-              variant="outline"
-              className="border-amber-500/40 text-[10px] normal-case text-amber-600 dark:text-amber-400"
-              data-slot="review-provenance-stale"
-            >
-              <AlertTriangle size={10} />
-              {t("decided on wording that has since changed")}
-            </Badge>
-          )}
-        </div>
+  const summary = (
+    <>
+      <span className="text-foreground">
+        {label ?? (kind ? kind : t("No provenance recorded."))}
+      </span>
+      {state && <Badge variant="outline">{state}</Badge>}
+      {provenance?.stale && (
+        <Badge
+          variant="outline"
+          className="border-warning/40 text-[10px] text-warning"
+          data-slot="review-provenance-stale"
+        >
+          <AlertTriangle size={10} />
+          {t("decided on wording that has since changed")}
+        </Badge>
+      )}
+    </>
+  );
 
+  return (
+    <LayerCard
+      title={t("Provenance")}
+      icon={<Fingerprint size={12} className="mt-0.5 shrink-0 text-muted-foreground" aria-hidden />}
+      summary={summary}
+      dataSlot="review-provenance"
+      toggleLabel={t("Where this translation came from")}
+    >
+      <div className="space-y-1">
         {kind && (
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="text-muted-foreground">{t("Origin")}</span>
@@ -114,7 +126,7 @@ export function ProvenanceCard({ provenance, origin, reviewState, note }: Proven
             {t("No provenance recorded for this translation.")}
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </LayerCard>
   );
 }

@@ -34,14 +34,13 @@ import type {
   RunError,
   ProjectServer,
   ReviewContext,
-  ReviewItem,
+  ReviewQueue,
   ReviewUnitDetail,
   ReviewAIActionResult,
   ReviewAIActionKind,
   PreReviewScope,
   PreReviewPolicy,
   AIActivityResult,
-  SourceQueueItem,
   PreReviewResult,
   AdoptFlowResult,
   ProjectHandles,
@@ -128,8 +127,11 @@ export const api = {
 
   // Review surface — queue with findings enrichment, per-unit detail, and the
   // decision verbs (all recorded through cli.ApplyReviewDecision).
-  getReviewQueue: (tabID: string, filter: ProjectFilter) =>
-    call<ReviewItem[]>("GetReviewQueue", tabID, filter),
+  /** The unified review queue: every unit awaiting a person across the
+   *  project's languages, the source language among them, plus the pending
+   *  count per language. */
+  reviewQueue: (tabID: string, filter: ProjectFilter) =>
+    call<ReviewQueue>("ReviewQueue", tabID, filter),
   getReviewUnit: (tabID: string, locale: string, file: string, key: string) =>
     call<ReviewUnitDetail>("GetReviewUnit", tabID, locale, file, key),
   rejectReviewItem: (tabID: string, locale: string, file: string, key: string, note: string) =>
@@ -148,9 +150,6 @@ export const api = {
     action: ReviewAIActionKind,
     instruction: string,
   ) => call<ReviewAIActionResult>("ReviewAIAction", tabID, locale, file, key, action, instruction),
-  /** Batch AI pre-review over the pending queue for a locale. */
-  getSourceQueue: (tabID: string, filter: ProjectFilter) =>
-    call<SourceQueueItem[]>("GetSourceQueue", tabID, filter),
   /** The point and the neighbourhood for one source unit, so the source lane
    *  judges wording against the same context the target lane does. */
   getSourceUnitContext: (tabID: string, file: string, key: string) =>

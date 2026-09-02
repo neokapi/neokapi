@@ -594,25 +594,58 @@ export interface SourceCoverage {
   aiReviewed?: number;
 }
 
-/** One translated-but-unreviewed unit awaiting human review. */
+/** One unit awaiting a person: a translation not yet approved, or a source unit
+ *  the project's source gate is waiting on (matches Go
+ *  convergence.ReviewQueueItem). */
 export interface ReviewItem {
   locale: string;
   file: string;
   key: string;
+  /** The language this row belongs to: the target locale for a translation, the
+   *  project's source language for a source unit. */
+  language?: string;
+  /** The author's own wording awaiting attention, rather than a translation. */
+  isSource?: boolean;
+  /** The row's rung on its own ladder: `translated` for a queued translation,
+   *  and the settled source rung (authored | checked | approved) for a source
+   *  unit. */
+  status?: string;
+  /** A source unit ranked below the project's source gate, so the loop holds
+   *  its translations. */
+  held?: boolean;
   /** Parent content-collection name (empty/absent for a bare entry). */
   collection?: string;
+  /** The SOURCE file's project-relative path. */
+  relative?: string;
   /** The project's source language, for the source preview's direction. */
   sourceLocale?: string;
   source: string;
   target?: string;
-  /** Whether the unit currently trips a check — set by GetReviewQueue's
-   * enrichment; absent when not computed. */
+  /** Whether the unit currently trips a check, set by ReviewQueue's
+   * enrichment. Absent when not computed, as it always is for a source row. */
   hasFindings?: boolean;
   /** AI pre-review score (0–100) when a fresh annotation exists for the
    * current translation — read from the state store, never a live call. */
   aiScore?: number;
   /** Model that produced aiScore. */
   aiModel?: string;
+}
+
+/** One language present in the review queue (matches Go
+ *  convergence.ReviewLanguage). */
+export interface ReviewLanguage {
+  language: string;
+  pending: number;
+  /** The project's source language. */
+  source?: boolean;
+}
+
+/** The review queue as a whole: every unit awaiting a person across the
+ *  project's languages, and the languages they belong to (matches Go
+ *  convergence.ReviewQueue). */
+export interface ReviewQueue {
+  pending: ReviewItem[] | null;
+  languages: ReviewLanguage[] | null;
 }
 
 /** Provenance of a translation (matches Go model.Origin). */
@@ -930,23 +963,6 @@ export interface AIActivityResult {
   dropped: number;
   /** The window size. */
   cap: number;
-}
-
-/** One source unit awaiting authoring attention: it sits below the project's
- *  source gate, or below `approved` when the gate asks for a human. */
-export interface SourceQueueItem {
-  file: string;
-  relative?: string;
-  key: string;
-  collection?: string;
-  sourceLocale?: string;
-  source: string;
-  /** The settled source rung: authored | checked | approved. */
-  status: string;
-  /** The loop is holding this unit's translations. */
-  held: boolean;
-  /** A committed approval still blesses this exact wording. */
-  approved: boolean;
 }
 
 /** Narrowing for an AI pre-review run. */

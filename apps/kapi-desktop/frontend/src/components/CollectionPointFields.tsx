@@ -9,6 +9,7 @@ import { Plus, Trash2 } from "lucide-react";
 import {
   Badge,
   Button,
+  CoordinateChip,
   Input,
   Label,
   Select,
@@ -160,20 +161,21 @@ export function CollectionPointBadge({
   /** The project's own declared axes, which a collection inherits. */
   defaults?: Record<string, string>;
 }) {
-  const declared = { ...defaults, ...coll.coordinates };
-  const axes = Object.entries(declared)
-    .map(([axis, value]) => `${axis}:${value}`)
-    .join(" · ");
-  const point = coll.channel || axes;
-  if (!point) return null;
+  const declared = Object.entries({ ...defaults, ...coll.coordinates });
+  if (!coll.channel && declared.length === 0) return null;
   return (
-    <Badge
-      variant="outline"
-      className="font-mono text-[10px] font-normal text-muted-foreground"
-      title={[coll.channel, axes].filter(Boolean).join(" · ")}
-      data-testid="collection-point-badge"
-    >
-      {point}
-    </Badge>
+    <span className="inline-flex flex-wrap items-center gap-1" data-testid="collection-point-badge">
+      {coll.channel ? (
+        <Badge
+          variant="outline"
+          className="font-mono text-[10px] font-normal text-muted-foreground"
+          title={coll.channel}
+        >
+          {coll.channel}
+        </Badge>
+      ) : (
+        declared.map(([axis, value]) => <CoordinateChip key={axis} axis={axis} value={value} />)
+      )}
+    </span>
   );
 }

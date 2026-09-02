@@ -23,12 +23,12 @@ func TestSampleOpensWithAReviewQueue(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(func() { app.CloseProject(tab.ID) })
 
-	queue, err := app.GetReviewQueue(tab.ID, ProjectFilter{})
+	queue, err := app.ReviewQueue(tab.ID, ProjectFilter{})
 	require.NoError(t, err)
-	require.NotEmpty(t, queue, "the sample must open with a review queue")
+	require.NotEmpty(t, queue.Pending, "the sample must open with a review queue")
 
 	perLocale := map[string]int{}
-	for _, it := range queue {
+	for _, it := range queue.Pending {
 		assert.Equal(t, "src/en/error-messages.properties", it.Relative,
 			"only the message catalogue ships unreviewed")
 		assert.Equal(t, "Online Store", it.Collection)

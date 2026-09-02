@@ -5,8 +5,9 @@ import {
   Card,
   CardContent,
   EmptyState,
-  LocalePill,
+  LocaleLabel,
   Skeleton,
+  StatusBadge,
   directionAttrs,
 } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
@@ -15,26 +16,27 @@ import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
 import { NeighbourhoodCard } from "./review/NeighbourhoodCard";
 import { PointRail } from "./review/PointRail";
-import type { ProjectFilter, ReviewContext, SourceQueueItem } from "../types/api";
+import type { ReviewContext, ReviewItem } from "../types/api";
 
-const itemId = (it: SourceQueueItem) => `${it.file}:${it.key}`;
+const itemId = (it: ReviewItem) => `${it.file}:${it.key}`;
 
 export interface SourceLaneProps {
   tabID: string;
-  filter: ProjectFilter | null;
-  /** Pre-loaded queue for Storybook/tests — skips api.getSourceQueue(). */
-  items?: SourceQueueItem[];
+  /** The source rows of the unified review queue, owned by the page. */
+  items: ReviewItem[];
+  /** The queue is still on its way. */
+  loading?: boolean;
   /** Override the approve handler (Storybook/tests). */
-  onApprove?: (item: SourceQueueItem) => Promise<void>;
+  onApprove?: (item: ReviewItem) => Promise<void>;
   /** Override the edit handler (Storybook/tests); resolves to the locales the
    *  next run will re-draft. */
-  onSaveSource?: (item: SourceQueueItem, text: string) => Promise<string[]>;
-  /** Refetch owned by the parent, so the lane toggle's count and the lane never
-   *  disagree about how much source work is left. */
+  onSaveSource?: (item: ReviewItem, text: string) => Promise<string[]>;
+  /** Refetch owned by the parent, so the language selector's count and the lane
+   *  never disagree about how much source work is left. */
   onChanged?: () => Promise<void> | void;
   /** Override the review-model loader (Storybook/tests); defaults to the
    *  GetSourceUnitContext binding. */
-  loadContext?: (item: SourceQueueItem) => Promise<ReviewContext | null>;
+  loadContext?: (item: ReviewItem) => Promise<ReviewContext | null>;
 }
 
 /**
@@ -52,59 +54,31 @@ export interface SourceLaneProps {
  */
 export function SourceLane({
   tabID,
-  filter,
-  items: propItems,
+  items,
+  loading = false,
   onApprove,
   onSaveSource,
   onChanged,
   loadContext,
 }: SourceLaneProps) {
   const { showError } = useError();
-  const [queue, setQueue] = useState<SourceQueueItem[] | null>(propItems ?? null);
-  const [loading, setLoading] = useState(!propItems);
   const [selectedID, setSelectedID] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
   const [busy, setBusy] = useState(false);
   const [awaiting, setAwaiting] = useState<string[] | null>(null);
-  // The point this unit's file sits at, and the blocks around it. Both lanes
-  // render one model, so the wording is judged against the voice that governs
-  // it rather than on its own.
+  // The point this unit's file sits at, and the blocks around it. Source review
+  // and target review render one model, so the wording is judged against the
+  // voice that governs it rather than on its own.
   const [model, setModel] = useState<ReviewContext | null>(null);
   const [modelLoading, setModelLoading] = useState(false);
 
   const refresh = useCallback(async () => {
-    if (onChanged) {
-      await onChanged();
-      return;
-    }
-    if (propItems) {
-      setQueue(propItems);
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    try {
-      setQueue((await api.getSourceQueue(tabID, filter ?? { id: "", name: "" })) ?? []);
-    } catch (err) {
-      showError("Failed to load the source queue", err);
-      setQueue([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [tabID, filter, propItems, onChanged, showError]);
-
-  useEffect(() => {
-    if (propItems) {
-      setQueue(propItems);
-      setLoading(false);
-      return;
-    }
-    void refresh();
-  }, [propItems, refresh]);
+    await onChanged?.();
+  }, [onChanged]);
 
   const selected = useMemo(
-    () => (queue ?? []).find((it) => itemId(it) === selectedID) ?? (queue ?? [])[0],
-    [queue, selectedID],
+    () => items.find((it) => itemId(it) === selectedID) ?? items[0],
+    [items, selectedID],
   );
 
   // A new selection replaces the editor's contents and drops the last result.
@@ -125,7 +99,7 @@ export function SourceLane({
     setModel(null);
     setModelLoading(true);
     const load =
-      loadContext ?? ((it: SourceQueueItem) => api.getSourceUnitContext(tabID, it.file, it.key));
+      loadContext ?? ((it: ReviewItem) => api.getSourceUnitContext(tabID, it.file, it.key));
     load(item)
       .then((ctx) => {
         if (!cancelled) setModel(ctx ?? null);
@@ -182,7 +156,6 @@ export function SourceLane({
     );
   }
 
-  const items = queue ?? [];
   if (items.length === 0) {
     return (
       <EmptyState
@@ -208,13 +181,19 @@ export function SourceLane({
             }`}
           >
             <span className="flex items-center gap-1.5">
-              {it.held && <PauseCircle size={12} className="shrink-0 text-amber-500" />}
+              {it.held && (
+                <PauseCircle
+                  size={12}
+                  className="shrink-0 text-warning"
+                  aria-label={t("holding every language")}
+                />
+              )}
               <span className="truncate font-mono text-xs" translate="no">
                 {it.key}
               </span>
-              <Badge variant="outline" className="ml-auto text-[10px]">
-                {it.status}
-              </Badge>
+              {it.status && (
+                <StatusBadge ladder="source" status={it.status} compact className="ml-auto" />
+              )}
             </span>
             <span className="truncate text-xs text-muted-foreground">{it.source}</span>
           </button>
@@ -231,20 +210,21 @@ export function SourceLane({
                 <span translate="no">
                   {selected.file}:{selected.key}
                 </span>
-                {selected.sourceLocale && <LocalePill locale={selected.sourceLocale} />}
+                {selected.status && <StatusBadge ladder="source" status={selected.status} />}
                 {selected.held && (
-                  <Badge
-                    variant="outline"
-                    className="border-amber-500/40 text-[10px] text-amber-600"
-                  >
+                  <Badge variant="outline" className="border-warning/40 text-[10px] text-warning">
                     {t("holding every language")}
                   </Badge>
                 )}
               </div>
 
               <div>
-                <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  {t("Source")}
+                <p className="mb-1 text-[11px] font-medium text-muted-foreground">
+                  <LocaleLabel
+                    locale={selected.sourceLocale ?? selected.language ?? selected.locale}
+                    source
+                    data-slot="source-lane-language"
+                  />
                 </p>
                 <textarea
                   className="min-h-24 w-full resize-y rounded-md border bg-background p-2 text-sm"
@@ -256,7 +236,7 @@ export function SourceLane({
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                <Button size="xs" onClick={() => void approve()} disabled={busy}>
+                <Button variant="success" size="xs" onClick={() => void approve()} disabled={busy}>
                   {busy ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
                   {t("Approve source")}
                 </Button>

@@ -1,6 +1,8 @@
-import { Badge, Card, CardContent, Skeleton, directionAttrs } from "@neokapi/ui-primitives";
+import { History } from "lucide-react";
+import { Badge, Skeleton, directionAttrs } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
 import type { ReviewHistory } from "../../types/api";
+import { LayerCard } from "./LayerCard";
 
 /**
  * What this unit said before, and the wording the content memory already holds
@@ -9,7 +11,9 @@ import type { ReviewHistory } from "../../types/api";
  * A percentage on its own tells a reviewer that something close exists and
  * never what it says, so both halves carry their text. The prior version is
  * marked when its fingerprint no longer matches the context the decision was
- * recorded under, which is exactly when a translate prompt withholds it.
+ * recorded under, which is exactly when a translate prompt withholds it. That
+ * mark stays neutral: it describes the context this unit sits in, and the
+ * severities belong to the Checks card.
  */
 export interface HistoryCardProps {
   history?: ReviewHistory;
@@ -31,14 +35,31 @@ export function HistoryCard({
   const prior = history?.prior;
   const match = history?.match;
   const bareScore = !match && fallbackMemoryScore ? fallbackMemoryScore : undefined;
+  const score = match?.score ?? bareScore;
+
+  // The verdict, in the order a reviewer weighs it: what this unit said before,
+  // then what the content memory holds for something like it.
+  const summary = prior
+    ? prior.governed
+      ? t("Approved before, still governed")
+      : t("Approved before, under a context that has moved")
+    : score !== undefined
+      ? t("Content memory best match {score}%", { score })
+      : !history && loading
+        ? t("Reading what was approved before…")
+        : history?.unseeded
+          ? t("The committed content memory has not been read into this copy yet.")
+          : t("Nothing approved yet, and no close match.");
 
   return (
-    <Card data-slot="review-history">
-      <CardContent className="space-y-2 p-3 text-xs">
-        <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          {t("Already approved")}
-        </div>
-
+    <LayerCard
+      title={t("Already approved")}
+      icon={<History size={12} className="mt-0.5 shrink-0 text-muted-foreground" aria-hidden />}
+      summary={summary}
+      dataSlot="review-history"
+      toggleLabel={t("What was approved for this unit before")}
+    >
+      <div className="space-y-2">
         {!history && loading && <Skeleton className="h-4 w-3/5" />}
 
         {prior && (
@@ -52,7 +73,7 @@ export function HistoryCard({
               ) : (
                 <Badge
                   variant="outline"
-                  className="border-amber-500/40 text-[10px] text-amber-600 dark:text-amber-400"
+                  className="text-[10px] text-muted-foreground"
                   title={t(
                     "The governing context has moved since this was approved, so the translate prompt would not have carried it.",
                   )}
@@ -127,7 +148,7 @@ export function HistoryCard({
                 )}
           </p>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </LayerCard>
   );
 }

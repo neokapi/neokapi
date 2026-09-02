@@ -13,7 +13,6 @@ import {
   X,
 } from "lucide-react";
 import {
-  Badge,
   Button,
   Card,
   CardContent,
@@ -22,10 +21,9 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  LocalePill,
-  LocaleSelect,
+  LocaleLabel,
+  StatusBadge,
   localeLabel,
-  resolveLocaleName,
   ScrollArea,
   SimpleTooltip,
   directionAttrs,
@@ -37,23 +35,23 @@ import { useError } from "./ErrorBanner";
 import { AIExchangeDisclosure } from "./AIExchangeView";
 import { FilePreview } from "./FilePreview";
 import { SourceLane } from "./SourceLane";
-import { AIPreReview } from "./review/AIPreReview";
 import { HistoryCard } from "./review/HistoryCard";
+import { JudgementCard } from "./review/JudgementCard";
 import { NeighbourhoodCard } from "./review/NeighbourhoodCard";
 import { PointRail } from "./review/PointRail";
 import { ProvenanceCard } from "./review/ProvenanceCard";
+import { ReviewLanguageSelect } from "./review/ReviewLanguageSelect";
 import { useActiveFilter } from "../context/ActiveFilterContext";
 import type {
-  DesktopFinding,
   PreReviewPolicy,
   PreReviewResult,
   PreReviewScope,
   ReviewAIActionKind,
   ReviewAIActionResult,
   ReviewItem,
+  ReviewLanguage,
   ReviewUnitDetail,
   AIActivityEntry,
-  SourceQueueItem,
 } from "../types/api";
 
 /** Initial queue narrowing handed in by an entry point (a ship-gate cell or a
@@ -69,8 +67,11 @@ export interface ReviewPageProps {
   tabID: string;
   /** Narrow the queue to a (collection, locale) on entry. */
   scope?: ReviewScope;
-  /** Pre-loaded queue for Storybook/tests — skips api.getReviewQueue(). */
+  /** Pre-loaded queue for Storybook/tests, in place of api.reviewQueue(). */
   items?: ReviewItem[];
+  /** Pre-loaded per-language counts (Storybook/tests). Derived from `items`
+   *  when absent. */
+  languages?: ReviewLanguage[];
   /** Override the unit loader (Storybook/tests); defaults to api.getReviewUnit. */
   loadUnit?: (item: ReviewItem) => Promise<ReviewUnitDetail | null>;
   /** Override the decision recorder (Storybook/tests); defaults to the Wails calls. */
@@ -92,7 +93,33 @@ export interface ReviewPageProps {
 }
 
 type Chip = "all" | "findings" | "clean";
-type Lane = "target" | "source";
+
+/** The language this row belongs to: a target locale, or the source language. */
+const rowLanguage = (it: ReviewItem) => it.language || it.locale;
+
+/**
+ * Count the pending units per language, source language first.
+ *
+ * The backend sends this with the queue; this is the same summary for a
+ * pre-loaded queue (Storybook, tests), so a selector reads one shape either way.
+ */
+function summarizeLanguages(items: ReviewItem[]): ReviewLanguage[] {
+  const byLanguage = new Map<string, ReviewLanguage>();
+  for (const it of items) {
+    const language = rowLanguage(it);
+    const at = byLanguage.get(language);
+    if (at) {
+      at.pending += 1;
+      if (it.isSource) at.source = true;
+      continue;
+    }
+    byLanguage.set(language, { language, pending: 1, source: it.isSource || undefined });
+  }
+  return [...byLanguage.values()].sort((a, b) => {
+    if (!!a.source !== !!b.source) return a.source ? -1 : 1;
+    return a.language.localeCompare(b.language);
+  });
+}
 
 /** A one-field question the page asks before acting. */
 interface AskPrompt {
@@ -124,40 +151,36 @@ function orderItems(items: ReviewItem[]): ReviewItem[] {
   });
 }
 
-function severityBadgeClass(severity: string): string {
-  switch (severity) {
-    case "critical":
-      return "border-destructive/40 bg-destructive/10 text-destructive";
-    case "major":
-      return "border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400";
-    case "minor":
-      return "border-amber-500/30 bg-amber-500/5 text-amber-600/90 dark:text-amber-400/90";
-    default:
-      return "text-muted-foreground";
-  }
-}
-
 /**
- * The translation review surface (issue #1077, phases 1–3): a keyboard-first
- * three-pane page — the queue on the left (findings-first, filterable by
- * findings/locale/collection), the unit in the center (read-only SOURCE,
- * editable TARGET), and the unit's CHECKS findings + CONTEXT (state, note,
- * provenance, content-memory match, AI review score) below. Every decision (a approve /
- * r reject / s sign off) records through cli.ApplyReviewDecision, hash-bound
- * to the translation it judged; editing the target re-runs the unit's checks
- * and re-bases the next approval on the new text.
+ * The review surface: one queue, one language selector.
  *
- * Phase 3 adds AI: per-unit actions (Fix with AI / Retranslate… / Explain)
- * that yield a proposal diff — nothing is written until Accept, which routes
- * through the same save path as a manual edit — and the AI pre-review modal
- * (annotate-only by default; optional auto-approve recorded as ai/<model>,
- * which human-required gates deliberately ignore). Provider calls happen only
- * on these explicit clicks, never while listing or loading the queue.
+ * A project has work in several languages, the source language among them, and
+ * the reviewer picks the one they are working in. Picking the source language
+ * puts the author's own wording in front of them; picking a target puts
+ * translations of it there; "All languages" lists everything with each row
+ * saying which language it belongs to. The queue behind all three is the one
+ * the engine derives, so a count in the selector and the rows under it are the
+ * same answer.
+ *
+ * A keyboard-first three-pane page: the queue on the left (findings-first,
+ * filterable by findings and collection), the unit in the center (its source
+ * read-only, its translation editable), and the five layers of the review model
+ * below, each headed by its own verdict. Every decision (a approve / r reject /
+ * s sign off) records through host.ApplyReviewDecision, hash-bound to the text
+ * it judged; editing the translation re-runs the unit's checks and re-bases the
+ * next approval on the new text.
+ *
+ * The AI paths are explicit clicks: per-unit actions (Fix with AI, Retranslate,
+ * Explain) yield a proposal diff that Accept routes through the same save path
+ * as a manual edit, and the pre-review modal annotates by default (an optional
+ * auto-approve is recorded as ai/<model>, which human-required gates ignore).
+ * Listing or loading the queue calls no provider.
  */
 export function ReviewPage({
   tabID,
   scope,
   items: propItems,
+  languages: propLanguages,
   loadUnit,
   onDecide,
   onSaveTarget,
@@ -166,9 +189,14 @@ export function ReviewPage({
 }: ReviewPageProps) {
   const { showError } = useError();
   const [queue, setQueue] = useState<ReviewItem[] | null>(propItems ?? null);
+  const [queueLanguages, setQueueLanguages] = useState<ReviewLanguage[] | null>(
+    propLanguages ?? null,
+  );
   const [loadingQueue, setLoadingQueue] = useState(!propItems);
   const [chip, setChip] = useState<Chip>("all");
-  const [localeFilter, setLocaleFilter] = useState(scope?.locale ?? "");
+  // The one language control: "" is every language, and the project's source
+  // language selects source review.
+  const [language, setLanguage] = useState(scope?.locale ?? "");
   const [collectionFilter, setCollectionFilter] = useState(scope?.collection ?? "");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [unit, setUnit] = useState<ReviewUnitDetail | null>(null);
@@ -186,16 +214,6 @@ export function ReviewPage({
   // rather than replacing it, so a reviewer can jump between languages without
   // editing the project-wide filter.
   const { active: activeFilter } = useActiveFilter();
-  // The two lanes of one page. Target review asks whether a translation is right
-  // for its source; source review asks the question underneath it, once for
-  // every language rather than once per language.
-  const [lane, setLane] = useState<Lane>("target");
-  // Owned here rather than inside the lane, so the toggle can carry the count.
-  // A source hold is the reason a whole project's translations are not moving,
-  // and it was reaching the app already: SourceCoverage rides in every
-  // convergence report and nothing rendered it, so the one number that explains
-  // a stalled run sat in memory and off the screen.
-  const [sourceQueue, setSourceQueue] = useState<SourceQueueItem[] | null>(null);
   // window.prompt is a no-op in the app's webview: it returns null without ever
   // showing anything, and both callers read null as "cancelled". Retranslate and
   // Reject therefore did nothing at all, silently, with no error to explain it.
@@ -225,66 +243,61 @@ export function ReviewPage({
   const refreshQueue = useCallback(async () => {
     if (propItems) {
       setQueue(propItems);
+      setQueueLanguages(propLanguages ?? null);
       setLoadingQueue(false);
       return;
     }
     setLoadingQueue(true);
     try {
-      const items = await api.getReviewQueue(tabID, activeFilter ?? { id: "", name: "" });
-      setQueue(items ?? []);
+      const result = await api.reviewQueue(tabID, activeFilter ?? { id: "", name: "" });
+      setQueue(result?.pending ?? []);
+      setQueueLanguages(result?.languages ?? null);
     } catch (err) {
       showError("Failed to load the review queue", err);
       setQueue([]);
+      setQueueLanguages(null);
     } finally {
       setLoadingQueue(false);
     }
-  }, [tabID, propItems, activeFilter, showError]);
+  }, [tabID, propItems, propLanguages, activeFilter, showError]);
 
   useEffect(() => {
     void refreshQueue();
   }, [refreshQueue]);
 
-  const refreshSourceQueue = useCallback(async () => {
-    if (propItems) return; // Storybook/tests drive the lane directly.
-    try {
-      setSourceQueue((await api.getSourceQueue(tabID, activeFilter ?? { id: "", name: "" })) ?? []);
-    } catch {
-      // The source lane is a second view of the same project. A failure to read
-      // it must not take down the target queue the reviewer came here for.
-      setSourceQueue([]);
-    }
-  }, [tabID, activeFilter, propItems]);
-
-  useEffect(() => {
-    void refreshSourceQueue();
-  }, [refreshSourceQueue]);
-
-  // Filter options derived from the full queue.
-  const locales = useMemo(
-    () => Array.from(new Set((queue ?? []).map((it) => it.locale))).sort(),
-    [queue],
+  // The languages the selector offers, with the count behind each. The engine
+  // sends them with the queue; a pre-loaded queue is summarized the same way.
+  const languages = useMemo(
+    () => queueLanguages ?? summarizeLanguages(queue ?? []),
+    [queueLanguages, queue],
   );
-  // The picker takes names, not codes: a reviewer choosing between fr and ar
-  // reads "French" and "Arabic".
-  const localeOptions = useMemo(
-    () => locales.map((code) => ({ code, displayName: resolveLocaleName(code) })),
-    [locales],
+  // The project's source language, so choosing it selects source review. The
+  // summary marks it; a queue with no source rows says so on the rows instead.
+  const sourceLanguage = useMemo(
+    () => languages.find((l) => l.source)?.language ?? (queue ?? [])[0]?.sourceLocale ?? "",
+    [languages, queue],
   );
+  const reviewingSource = language !== "" && language === sourceLanguage;
+
   const collections = useMemo(
     () =>
       Array.from(new Set((queue ?? []).map((it) => it.collection ?? "").filter(Boolean))).sort(),
     [queue],
   );
 
-  // The visible queue: scope filters + findings chip, findings-first order.
+  // The source rows of the queue: the author's own wording awaiting attention.
+  const sourceItems = useMemo(() => (queue ?? []).filter((it) => it.isSource), [queue]);
+
+  // The visible queue: the chosen language, the collection, the findings chip,
+  // findings-first order. Source rows are shown by SourceLane and never list here.
   const visible = useMemo(() => {
-    let items = queue ?? [];
-    if (localeFilter) items = items.filter((it) => it.locale === localeFilter);
+    let items = (queue ?? []).filter((it) => !it.isSource);
+    if (language) items = items.filter((it) => rowLanguage(it) === language);
     if (collectionFilter) items = items.filter((it) => (it.collection ?? "") === collectionFilter);
     if (chip === "findings") items = items.filter((it) => it.hasFindings === true);
     if (chip === "clean") items = items.filter((it) => it.hasFindings === false);
     return orderItems(items);
-  }, [queue, localeFilter, collectionFilter, chip]);
+  }, [queue, language, collectionFilter, chip]);
 
   const selectedIndex = visible.findIndex((it) => itemId(it) === selectedId);
   const selected = selectedIndex >= 0 ? visible[selectedIndex] : null;
@@ -557,12 +570,13 @@ export function ReviewPage({
     });
   }, [preReviewOpen]);
 
+  // The pre-review reads translations, so it never counts a source row.
   const preReviewPending = useMemo(() => {
-    let items = queue ?? [];
-    if (localeFilter) items = items.filter((it) => it.locale === localeFilter);
+    let items = (queue ?? []).filter((it) => !it.isSource);
+    if (language) items = items.filter((it) => rowLanguage(it) === language);
     if (collectionFilter) items = items.filter((it) => (it.collection ?? "") === collectionFilter);
     return items;
-  }, [queue, localeFilter, collectionFilter]);
+  }, [queue, language, collectionFilter]);
 
   const runPreReview = useCallback(async () => {
     setPreReviewRunning(true);
@@ -573,7 +587,7 @@ export function ReviewPage({
         ((locale: string, sc: PreReviewScope, policy: PreReviewPolicy) =>
           api.runAIPreReview(tabID, locale, sc, policy));
       const res = await run(
-        localeFilter,
+        reviewingSource ? "" : language,
         { collection: collectionFilter || undefined },
         { autoApprove: preReviewAuto, minScore: preReviewMinScore },
       );
@@ -587,7 +601,8 @@ export function ReviewPage({
   }, [
     tabID,
     onPreReview,
-    localeFilter,
+    language,
+    reviewingSource,
     collectionFilter,
     preReviewAuto,
     preReviewMinScore,
@@ -741,33 +756,17 @@ export function ReviewPage({
           )}
         </div>
         <div className="ml-auto flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-1" data-slot="review-lane-toggle">
-            {(
-              [
-                { id: "target", label: t("Target") },
-                {
-                  id: "source",
-                  label: sourceQueue?.length
-                    ? t("Source ({count})", { count: sourceQueue.length })
-                    : t("Source"),
-                },
-              ] as Array<{ id: Lane; label: string }>
-            ).map((l) => (
-              <Button
-                key={l.id}
-                variant={lane === l.id ? "default" : "outline"}
-                size="xs"
-                onClick={() => setLane(l.id)}
-                aria-pressed={lane === l.id}
-              >
-                {l.label}
-              </Button>
-            ))}
-          </div>
+          <ReviewLanguageSelect
+            value={language}
+            onChange={setLanguage}
+            languages={languages}
+            total={(queue ?? []).length}
+            data-slot="review-language-select"
+          />
           <div
             className="flex items-center gap-1"
             data-slot="review-chips"
-            hidden={lane !== "target"}
+            hidden={reviewingSource}
           >
             {chips.map((c) => (
               <Button
@@ -781,19 +780,7 @@ export function ReviewPage({
               </Button>
             ))}
           </div>
-          {lane === "target" && locales.length > 1 && (
-            <LocaleSelect
-              value={localeFilter}
-              onChange={setLocaleFilter}
-              locales={localeOptions}
-              clearLabel={t("All languages")}
-              compact
-              className="h-7"
-              aria-label={t("Filter by language")}
-              data-slot="review-locale-filter"
-            />
-          )}
-          {lane === "target" && collections.length > 1 && (
+          {!reviewingSource && collections.length > 1 && (
             <select
               className="h-7 rounded-md border border-input bg-transparent px-2 text-xs"
               value={collectionFilter}
@@ -809,7 +796,7 @@ export function ReviewPage({
               ))}
             </select>
           )}
-          {lane === "target" && (
+          {!reviewingSource && (
             <Button
               variant="outline"
               size="xs"
@@ -817,7 +804,7 @@ export function ReviewPage({
                 setPreReviewResult(null);
                 setPreReviewOpen(true);
               }}
-              disabled={loadingQueue || (queue ?? []).length === 0}
+              disabled={loadingQueue || preReviewPending.length === 0}
               data-slot="review-prereview-open"
             >
               <Sparkles size={12} />
@@ -870,7 +857,7 @@ export function ReviewPage({
               <div>
                 {t("Scope")}:{" "}
                 <span className="text-foreground">
-                  {localeFilter ? localeLabel(localeFilter) : t("all languages")}
+                  {language ? localeLabel(language) : t("all languages")}
                   {collectionFilter ? ` · ${collectionFilter}` : ""}
                 </span>{" "}
                 · {t("{count} pending units", { count: preReviewPending.length })}
@@ -1013,17 +1000,17 @@ export function ReviewPage({
         </DialogContent>
       </Dialog>
 
-      {lane === "source" && (
+      {reviewingSource && (
         <SourceLane
           tabID={tabID}
-          filter={activeFilter ?? null}
-          items={sourceQueue ?? undefined}
-          onChanged={refreshSourceQueue}
+          items={sourceItems}
+          loading={loadingQueue && !queue}
+          onChanged={refreshQueue}
         />
       )}
 
-      {/* Batch bar (Phase 2): approve all clean units in the current filter. */}
-      {lane === "target" && cleanVisible.length > 0 && (
+      {/* Batch bar: approve every clean unit in the current view. */}
+      {!reviewingSource && cleanVisible.length > 0 && (
         <div
           className="mb-3 flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-1.5 text-xs"
           data-slot="review-batch"
@@ -1054,12 +1041,12 @@ export function ReviewPage({
         </div>
       )}
 
-      {lane !== "target" ? null : loadingQueue && !queue ? (
+      {reviewingSource ? null : loadingQueue && !queue ? (
         <div className="p-4 text-sm text-muted-foreground">{t("Loading review queue…")}</div>
       ) : visible.length === 0 ? (
         <Card className="border-dashed" data-slot="review-empty">
           <CardContent className="p-10 text-center">
-            <CheckCircle2 size={24} className="mx-auto mb-2 text-primary" />
+            <CheckCircle2 size={24} className="mx-auto mb-2 text-success" />
             <p className="text-sm text-muted-foreground">
               {(queue ?? []).length === 0
                 ? t("Review queue empty. Every translated unit is reviewed.")
@@ -1107,17 +1094,18 @@ export function ReviewPage({
                         data-slot="review-queue-item"
                         data-active={active || undefined}
                         data-key={it.key}
+                        data-language={rowLanguage(it)}
                       >
                         {it.hasFindings ? (
                           <Circle
                             size={8}
-                            className="mt-1 shrink-0 fill-amber-500 text-amber-500"
+                            className="mt-1 shrink-0 fill-warning text-warning"
                             aria-label={t("Has findings")}
                           />
                         ) : (
                           <Circle
                             size={8}
-                            className={`mt-1 shrink-0 ${it.hasFindings === false ? "text-primary" : "text-muted-foreground/40"}`}
+                            className={`mt-1 shrink-0 ${it.hasFindings === false ? "text-success" : "text-muted-foreground/40"}`}
                             aria-label={it.hasFindings === false ? t("Clean") : t("Not checked")}
                           />
                         )}
@@ -1126,7 +1114,9 @@ export function ReviewPage({
                             <span className="truncate font-medium" translate="no">
                               {it.key}
                             </span>
-                            <LocalePill locale={it.locale} />
+                            {/* Every row says which language it belongs to,
+                                because the queue holds them all at once. */}
+                            <LocaleLabel locale={rowLanguage(it)} compact />
                             {it.aiScore !== undefined && (
                               <SimpleTooltip
                                 content={
@@ -1161,9 +1151,9 @@ export function ReviewPage({
             )}
           />
 
-          {/* Center: the unit — the point it sits at, SOURCE / TARGET, the
-              document around it, what was approved before, the checks and the
-              provenance. */}
+          {/* Center: the unit. The point it sits at, the source wording and
+              the translation under each language's own name, the document
+              around it, what was approved before, the checks, the provenance. */}
           <div className="flex min-h-0 flex-col" data-slot="review-unit">
             <ScrollArea className="min-h-0 flex-1">
               <div className="space-y-3 pr-3">
@@ -1174,15 +1164,14 @@ export function ReviewPage({
                         {selected.file}:{selected.key}
                       </span>
                     </SimpleTooltip>
-                    <LocalePill locale={selected.locale} />
+                    <LocaleLabel locale={selected.locale} compact />
                     {unit?.status && (
-                      <Badge
-                        variant="outline"
-                        className="text-muted-foreground"
+                      <StatusBadge
+                        ladder="content"
+                        status={unit.status}
+                        compact
                         data-slot="review-status"
-                      >
-                        {unit.status}
-                      </Badge>
+                      />
                     )}
                     {unitLoading && <Loader2 size={12} className="animate-spin" />}
                     <Button
@@ -1203,8 +1192,14 @@ export function ReviewPage({
 
                 <Card>
                   <CardContent className="p-3">
-                    <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      {t("Source")}
+                    {/* Headed by the language, named. A reviewer reads "French
+                        (France)", never a code in capitals. */}
+                    <div className="mb-1 text-[11px] font-medium text-muted-foreground">
+                      <LocaleLabel
+                        locale={unit?.source_locale ?? selected?.sourceLocale ?? ""}
+                        source
+                        data-slot="review-source-language"
+                      />
                     </div>
                     <div
                       className="whitespace-pre-wrap text-sm"
@@ -1219,12 +1214,13 @@ export function ReviewPage({
 
                 <Card>
                   <CardContent className="p-3">
-                    <div className="mb-1 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      {t("Target")}
+                    <div className="mb-1 flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
+                      <LocaleLabel
+                        locale={unit?.locale ?? selected?.locale ?? ""}
+                        data-slot="review-target-language"
+                      />
                       {unit && !unit.editable && (
-                        <span className="normal-case font-normal">
-                          {t("(formatted content, read-only)")}
-                        </span>
+                        <span className="font-normal">{t("(formatted content, read-only)")}</span>
                       )}
                     </div>
                     <textarea
@@ -1324,7 +1320,10 @@ export function ReviewPage({
                         {t("AI proposal")}
                       </div>
                       <div className="space-y-1 text-sm">
-                        <div className="rounded-md border border-destructive/30 bg-destructive/5 px-2 py-1">
+                        {/* The wording in force, drawn neutrally: a proposal is
+                            an offer, and painting the reviewer's own text red
+                            says a check rejected it. */}
+                        <div className="rounded-md border bg-muted/40 px-2 py-1">
                           <span className="mr-1 text-[10px] uppercase text-muted-foreground">
                             {t("Current")}
                           </span>
@@ -1421,64 +1420,12 @@ export function ReviewPage({
 
                 {/* What has already been said about this translation: the
                     checks, and the AI pre-review that scored it. */}
-                <Card data-slot="review-findings">
-                  <CardContent className="p-3">
-                    <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      {t("Checks")}
-                    </div>
-                    {!unit || unit.findings.length === 0 ? (
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <CheckCircle2 size={12} className="text-primary" />
-                        {t("No findings for this unit.")}
-                      </div>
-                    ) : (
-                      <ul className="space-y-1.5">
-                        {unit.findings.map((f: DesktopFinding, i: number) => (
-                          <li
-                            key={i}
-                            className="flex items-start gap-2 text-xs"
-                            data-slot="review-finding"
-                          >
-                            <Badge variant="outline" className={severityBadgeClass(f.severity)}>
-                              {f.severity}
-                            </Badge>
-                            {/* Which side of the unit the finding is about. A
-                                voice or terminology finding is judged on the
-                                SOURCE, and unlabelled it reads as a defect in
-                                the translation: a reviewer saw `Forbidden term
-                                "cart"` on a Norwegian target containing no such
-                                word, with nothing to act on and no way to tell
-                                why. */}
-                            {f.field === "source" && (
-                              <Badge
-                                variant="outline"
-                                className="shrink-0 text-[10px] text-muted-foreground"
-                                title={t(
-                                  "This finding is about the source text, not the translation.",
-                                )}
-                              >
-                                {t("source")}
-                              </Badge>
-                            )}
-                            <span className="min-w-0">
-                              <span>{f.message}</span>
-                              {f.suggestion && (
-                                <span className="block text-muted-foreground">
-                                  ↳ {f.suggestion}
-                                </span>
-                              )}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                    <AIPreReview
-                      score={model?.judgement.ai_score ?? unit?.ai_review_score}
-                      model={model?.judgement.ai_model ?? unit?.ai_review_model}
-                      findings={model?.judgement.ai_findings}
-                    />
-                  </CardContent>
-                </Card>
+                <JudgementCard
+                  findings={unit?.findings}
+                  aiScore={model?.judgement.ai_score ?? unit?.ai_review_score}
+                  aiModel={model?.judgement.ai_model ?? unit?.ai_review_model}
+                  aiFindings={model?.judgement.ai_findings}
+                />
 
                 {/* Where this translation came from, and the decision in force. */}
                 <ProvenanceCard
@@ -1490,12 +1437,13 @@ export function ReviewPage({
               </div>
             </ScrollArea>
 
-            {/* Action bar — the keyboard verbs, spelled out. */}
+            {/* Action bar: the keyboard verbs, spelled out. */}
             <div
               className="mt-3 flex flex-wrap items-center gap-2 rounded-md border bg-muted/30 px-3 py-2"
               data-slot="review-actions"
             >
               <Button
+                variant="success"
                 size="sm"
                 onClick={approve}
                 disabled={!selected || deciding}
@@ -1503,25 +1451,10 @@ export function ReviewPage({
               >
                 <Check size={13} />
                 {t("Approve")}
-                <kbd className="ml-1 rounded bg-muted px-1 text-[10px] text-muted-foreground">
-                  a
-                </kbd>
+                <kbd className="ml-1 rounded bg-black/10 px-1 text-[10px]">a</kbd>
               </Button>
               <Button
-                variant="outline"
-                size="sm"
-                onClick={reject}
-                disabled={!selected || deciding}
-                data-slot="review-reject"
-              >
-                <X size={13} />
-                {t("Reject")}
-                <kbd className="ml-1 rounded bg-muted px-1 text-[10px] text-muted-foreground">
-                  r
-                </kbd>
-              </Button>
-              <Button
-                variant="outline"
+                variant="success"
                 size="sm"
                 onClick={signOff}
                 disabled={!selected || deciding}
@@ -1529,9 +1462,21 @@ export function ReviewPage({
               >
                 <CheckCheck size={13} />
                 {t("Sign off")}
-                <kbd className="ml-1 rounded bg-muted px-1 text-[10px] text-muted-foreground">
-                  s
-                </kbd>
+                <kbd className="ml-1 rounded bg-black/10 px-1 text-[10px]">s</kbd>
+              </Button>
+              {/* Reject takes destructive, which is where the shared scale puts
+                  it (packages/ui/docs/judgement-colours.md): it undoes the
+                  translation in force rather than accepting it. */}
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={reject}
+                disabled={!selected || deciding}
+                data-slot="review-reject"
+              >
+                <X size={13} />
+                {t("Reject")}
+                <kbd className="ml-1 rounded bg-black/10 px-1 text-[10px]">r</kbd>
               </Button>
               <div className="ml-auto flex items-center gap-3 text-[11px] text-muted-foreground">
                 <span>

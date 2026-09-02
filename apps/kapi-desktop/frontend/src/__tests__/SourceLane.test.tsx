@@ -4,10 +4,13 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SourceLane } from "../components/SourceLane";
 import { ErrorProvider } from "../components/ErrorBanner";
-import type { SourceQueueItem } from "../types/api";
+import type { ReviewItem } from "../types/api";
 
-const items: SourceQueueItem[] = [
+const items: ReviewItem[] = [
   {
+    locale: "en",
+    language: "en",
+    isSource: true,
     file: "src/en.json",
     relative: "src/en.json",
     key: "greeting",
@@ -16,9 +19,11 @@ const items: SourceQueueItem[] = [
     source: "Hello world",
     status: "checked",
     held: true,
-    approved: false,
   },
   {
+    locale: "en",
+    language: "en",
+    isSource: true,
     file: "src/en.json",
     relative: "src/en.json",
     key: "farewell",
@@ -26,14 +31,13 @@ const items: SourceQueueItem[] = [
     source: "Goodbye now",
     status: "checked",
     held: true,
-    approved: false,
   },
 ];
 
 function renderLane(props: Partial<React.ComponentProps<typeof SourceLane>> = {}) {
   return render(
     <ErrorProvider>
-      <SourceLane tabID="t1" filter={null} items={items} {...props} />
+      <SourceLane tabID="t1" items={items} {...props} />
     </ErrorProvider>,
   );
 }
@@ -94,7 +98,7 @@ describe("SourceLane", () => {
   // Both lanes render one model. Approving source wording without seeing the
   // voice it is approved against is the target defect in reverse.
   it("renders the point and the neighbourhood for the selected source unit", async () => {
-    const loadContext = vi.fn(async (item: SourceQueueItem) => ({
+    const loadContext = vi.fn(async (item: ReviewItem) => ({
       point: {
         collection: "App",
         ref: "retail/web",

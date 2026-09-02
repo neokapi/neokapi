@@ -7,6 +7,8 @@ export {
     EventType,
     LocaleCoverage,
     Report,
+    ReviewLanguage,
+    ReviewQueue,
     ReviewQueueItem,
     SourceCoverage,
     StallReason

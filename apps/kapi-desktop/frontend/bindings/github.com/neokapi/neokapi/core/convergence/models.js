@@ -530,6 +530,104 @@ export class Report {
 }
 
 /**
+ * ReviewLanguage is one language present in the review queue.
+ */
+export class ReviewLanguage {
+    /**
+     * Creates a new ReviewLanguage instance.
+     * @param {Partial<ReviewLanguage>} [$$source = {}] - The source object to create the ReviewLanguage.
+     */
+    constructor($$source = {}) {
+        if (!("language" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["language"] = "";
+        }
+        if (!("pending" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["pending"] = 0;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Source marks the project's source language.
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["source"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ReviewLanguage instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ReviewLanguage}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ReviewLanguage(/** @type {Partial<ReviewLanguage>} */($$parsedSource));
+    }
+}
+
+/**
+ * ReviewQueue is the review queue as a whole: the units awaiting a person, and
+ * the languages they belong to. One queue holds every language, the source
+ * language among them.
+ */
+export class ReviewQueue {
+    /**
+     * Creates a new ReviewQueue instance.
+     * @param {Partial<ReviewQueue>} [$$source = {}] - The source object to create the ReviewQueue.
+     */
+    constructor($$source = {}) {
+        if (!("pending" in $$source)) {
+            /**
+             * @member
+             * @type {ReviewQueueItem[]}
+             */
+            this["pending"] = [];
+        }
+        if (!("languages" in $$source)) {
+            /**
+             * Languages counts the pending units per language, so a surface can offer
+             * the languages that have work without scanning the rows. It summarises the
+             * whole queue, before any language filter, so a filtered listing still
+             * renders every choice.
+             * @member
+             * @type {ReviewLanguage[]}
+             */
+            this["languages"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ReviewQueue instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ReviewQueue}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType9;
+        const $$createField1_0 = $$createType11;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("pending" in $$parsedSource) {
+            $$parsedSource["pending"] = $$createField0_0($$parsedSource["pending"]);
+        }
+        if ("languages" in $$parsedSource) {
+            $$parsedSource["languages"] = $$createField1_0($$parsedSource["languages"]);
+        }
+        return new ReviewQueue(/** @type {Partial<ReviewQueue>} */($$parsedSource));
+    }
+}
+
+/**
  * ReviewQueueItem is one unit awaiting human review, with short previews for
  * listing. A translated unit not yet approved is one row; a source unit the
  * project's source gate is waiting on is another, carrying IsSource. Named for
@@ -862,3 +960,5 @@ const $$createType6 = LocaleCoverage.createFrom;
 const $$createType7 = $Create.Array($$createType6);
 const $$createType8 = ReviewQueueItem.createFrom;
 const $$createType9 = $Create.Array($$createType8);
+const $$createType10 = ReviewLanguage.createFrom;
+const $$createType11 = $Create.Array($$createType10);

@@ -72,6 +72,27 @@ the tooltip. The tag itself is rendered exactly as it was given: case carries
 meaning in BCP 47, so `zh-Hant` and `sr-Latn-RS` never take an `uppercase`
 class.
 
+## Context is neutral; judgement carries the severity
+
+A review surface draws two different things. The layers above the verdict say
+what the model was told: the coordinates a unit sits at, the voice profile in
+force, the term rules bound at the point, what the content memory already holds.
+The verdict says what was found in this unit.
+
+Only the verdict takes a severity colour. Term rules on a Point card render in a
+neutral chip whatever their `severity`, with the bite ("blocks approval" /
+"warns only") in the tooltip and a do-not-translate rule marked by a lock rather
+than by a fill. A red chip there reads as a defect, and a rule resolved from a
+terms store carries no severity at all, so painting by severity turned a whole
+card into a wall of red pairs a reviewer had nothing to do about. The findings
+in `ReviewJudgement.Findings` and `AIFindings` are where a term rule turns red,
+because a finding says this unit broke one.
+
+The same holds for the other context a review page shows: a prior approval whose
+governing context has moved is marked in muted ink, and the wording currently in
+force under an AI proposal is drawn on a neutral ground rather than as the
+rejected half of a diff.
+
 ## What is out of scope here
 
 Findings severity has its own scale. A voice finding, a term violation and a tag
