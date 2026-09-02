@@ -27,16 +27,16 @@ type TranslateScopeStore interface {
 // TranslateBinding is where a server-side AI translation reads its governing
 // context from.
 //
-// One struct for both surfaces. A translation started from a keystroke in the
-// editor and one started from the queue translate the same content under the
-// same governance, and assembling that twice is how the two drifted: the worker
-// gained do-not-translate terms months before the editor did, and neither ever
-// bound the content memory, the surrounding blocks, or the point.
+// One struct for every server-side surface: the interactive editor translate,
+// the worker's queued jobs, and the model sweep that measures under the context
+// those jobs run with. A translation started from a keystroke and one started
+// from the queue carry the same content under the same governance, so both read
+// it from here.
 //
-// Every field is optional. A zero binding produces the bare config a
-// context-free translation has always run with, and a store that cannot answer
-// leaves its field unset rather than failing the translation: the governing
-// context is advisory, and the checks still report what the model got wrong.
+// Every field is optional. A zero binding produces a bare config, and a store
+// that cannot answer leaves its field unset rather than failing the
+// translation: the governing context is advisory, and the checks still report
+// what the model got wrong.
 type TranslateBinding struct {
 	// Store reads the project, stream, collection and item.
 	Store TranslateScopeStore

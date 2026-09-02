@@ -16,12 +16,11 @@ import (
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 )
 
-// The check endpoints judged every block by the locale alone: one checker set
-// for a whole workspace, whatever governed the content. A project that governs
-// two products by two voices had half its content checked against rules that do
-// not apply to it, which is the defect the framework's per-point resolution
-// exists to prevent (host/check.go). They also read the stream from nowhere and
-// answered for "main" whichever stream the request named.
+// These tests pin how the check endpoints choose what to run and what to read:
+// the checker set comes from the point the item sits at, so a project governing
+// two products by two voices judges each by the voice that governs it (the
+// selection host/check.go makes per file), and the stream, block id, item and
+// locale come from the request.
 
 // seedCheckPoint stores a collection bound to a voice profile, an item inside
 // it, and one block whose source carries the term under test.

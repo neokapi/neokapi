@@ -252,8 +252,8 @@ func runChecksOnBlock(ctx context.Context, block *model.Block, checks pointCheck
 	_, _ = tools.NewQACheckTool(tools.NewQACheckConfig(checks.TargetLocale)).ApplyContext(ctx, part)
 
 	// Protected terms, when the project declares any. A term that must survive
-	// verbatim is checked here in the same pass the editor already asks for,
-	// rather than only after a batch job has run.
+	// verbatim is checked in the same pass the editor asks for, so a person
+	// sees it on the block they are editing.
 	if len(checks.DNT) > 0 {
 		dntCfg := tools.NewDNTCheckConfig(checks.TargetLocale)
 		dntCfg.Terms = checks.DNT

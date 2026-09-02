@@ -20,17 +20,12 @@ import (
 	"github.com/neokapi/neokapi/terms"
 )
 
-// The interactive translate config used to carry the voice profile, the term
-// rules and the protected terms, and nothing else. Three fields the framework
-// fills on every project run were left empty: the content memory, the
-// surrounding blocks, and the point. A block was therefore translated with no
-// access to what it said before, no sight of the strings around it, and no way
-// to prefer the wording approved where it actually sits.
-//
-// These tests pin all eight context-bearing fields of the translate config, and
-// prove the point is a real coordinate rather than a string nobody reads: the
-// prior version seeded at this collection's point comes back, and the same
-// entry at another point does not.
+// These tests pin all eight context-bearing fields of the interactive translate
+// config: the voice profile, the term rules, the protected terms, the content
+// memory, the point, the reuse setting, and the neighbourhood policy with its
+// window. They also pin the point as a coordinate the corpus reads rather than
+// a string nobody looks at: the prior version seeded at this collection's point
+// comes back, and the same unit approved at another point does not.
 
 // translatePointFixture builds a project whose item sits in a collection at a
 // declared point, governed by a voice profile bound on that collection, with
