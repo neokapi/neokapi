@@ -57,6 +57,15 @@ func seedConcept(t *testing.T, tb terms.Terminology, id, projectID, source, targ
 // source→preferred-target pairs; other projects' concepts are excluded; a
 // concept with no target-locale rendering contributes nothing; and a
 // project-scoped rendering beats a workspace-scoped one for the same source
+// jobTermRules is the term-rule half of the shared assembly, resolved the way a
+// job resolves it: the worker's terms resolver, this job's project, and the
+// locale pair under test.
+func jobTermRules(ctx context.Context, deps *WorkerDeps, job *TranslationJob, source, target model.LocaleID) []coreprofile.TermRule {
+	b := jobTranslateBinding(deps, job, nil)
+	b.TargetLocale = target
+	return b.termRules(ctx, source)
+}
+
 // term.
 func TestResolveJobTermRules_BuildsFromConcepts(t *testing.T) {
 	tb := terms.NewInMemoryStore()
@@ -77,7 +86,7 @@ func TestResolveJobTermRules_BuildsFromConcepts(t *testing.T) {
 	}
 	job := &TranslationJob{ID: "j1", WorkspaceSlug: "acme", ProjectID: "proj-1", TargetLocale: "fr"}
 
-	got := resolveJobTermRules(t.Context(), deps, job, "en", "fr")
+	got := jobTermRules(t.Context(), deps, job, "en", "fr")
 	// Ordered by term, so one terms store yields one prompt every run.
 	assert.Equal(t, []coreprofile.TermRule{
 		{Term: "alert", Replacement: "avis de vigilance"},
@@ -102,7 +111,7 @@ func TestResolveJobTermRules_PrefersApprovedTargetTerm(t *testing.T) {
 	deps := &WorkerDeps{TermsResolver: TermsResolverFunc(func(string) (terms.Terminology, error) { return tb, nil })}
 	job := &TranslationJob{ID: "j1", WorkspaceSlug: "acme", ProjectID: "p", TargetLocale: "fr"}
 
-	got := resolveJobTermRules(t.Context(), deps, job, "en", "fr")
+	got := jobTermRules(t.Context(), deps, job, "en", "fr")
 	assert.Equal(t, []coreprofile.TermRule{{Term: "sync", Replacement: "rapprochement des données"}}, got)
 }
 
@@ -112,19 +121,19 @@ func TestResolveJobTermRules_PrefersApprovedTargetTerm(t *testing.T) {
 func TestResolveJobTermRules_DegradesGracefully(t *testing.T) {
 	job := &TranslationJob{ID: "j1", WorkspaceSlug: "acme", ProjectID: "p", TargetLocale: "fr"}
 
-	assert.Nil(t, resolveJobTermRules(t.Context(), &WorkerDeps{}, job, "en", "fr"), "no TermsResolver → bare")
+	assert.Nil(t, jobTermRules(t.Context(), &WorkerDeps{}, job, "en", "fr"), "no TermsResolver → bare")
 
 	failing := &WorkerDeps{TermsResolver: TermsResolverFunc(func(string) (terms.Terminology, error) {
 		return nil, errors.New("db down")
 	})}
-	assert.Nil(t, resolveJobTermRules(t.Context(), failing, job, "en", "fr"), "resolver failure → bare, not fatal")
+	assert.Nil(t, jobTermRules(t.Context(), failing, job, "en", "fr"), "resolver failure → bare, not fatal")
 
 	empty := &WorkerDeps{TermsResolver: TermsResolverFunc(func(string) (terms.Terminology, error) {
 		return terms.NewInMemoryStore(), nil
 	})}
-	assert.Nil(t, resolveJobTermRules(t.Context(), empty, job, "en", "fr"), "no terms for the pair → nil, not an empty slice")
+	assert.Nil(t, jobTermRules(t.Context(), empty, job, "en", "fr"), "no terms for the pair → nil, not an empty slice")
 
-	assert.Nil(t, resolveJobTermRules(t.Context(), empty, job, "", "fr"), "missing source locale → bare")
+	assert.Nil(t, jobTermRules(t.Context(), empty, job, "", "fr"), "missing source locale → bare")
 }
 
 // TestResolveJobVoiceProfile_WorkspaceDefault resolves the base rung of the

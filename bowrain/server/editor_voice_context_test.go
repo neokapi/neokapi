@@ -98,7 +98,7 @@ func TestEditorTranslateConfigCarriesVoiceContext(t *testing.T) {
 	cs, voiceCtx, proj := editorVoiceContextFixture(t)
 
 	cfg := editorTranslateConfig(t.Context(), cs, voiceCtx, proj,
-		"p1", "main", "ws-1", "acme", TranslateRequest{TargetLocale: "fr", Provider: "demo"})
+		"p1", "main", "hello.txt", "ws-1", "acme", TranslateRequest{TargetLocale: "fr", Provider: "demo"})
 
 	require.NotNil(t, cfg.Profile)
 	assert.Equal(t, "Acme Voice", cfg.Profile.Name)
@@ -122,7 +122,7 @@ func TestEditorTranslateConfigBareWithoutVoiceContext(t *testing.T) {
 	require.NoError(t, cs.CreateProject(t.Context(), proj))
 
 	cfg := editorTranslateConfig(t.Context(), cs, editorVoiceContext{}, proj,
-		"p1", "main", "ws-1", "acme", TranslateRequest{TargetLocale: "fr", BatchSize: 7, Concurrency: 2})
+		"p1", "main", "hello.txt", "ws-1", "acme", TranslateRequest{TargetLocale: "fr", BatchSize: 7, Concurrency: 2})
 
 	assert.Nil(t, cfg.Profile)
 	assert.Nil(t, cfg.TermRules)
@@ -148,7 +148,7 @@ func TestEditorTranslateConfigCarriesDNTTerms(t *testing.T) {
 	require.NoError(t, cs.CreateProject(t.Context(), proj))
 
 	cfg := editorTranslateConfig(t.Context(), cs, editorVoiceContext{}, proj,
-		"p1", "main", "ws-1", "acme", TranslateRequest{TargetLocale: "fr"})
+		"p1", "main", "hello.txt", "ws-1", "acme", TranslateRequest{TargetLocale: "fr"})
 
 	assert.Equal(t, []string{"Kapi", "Bowrain"}, cfg.DNT)
 	assert.Equal(t, jobs.ProjectDNTTerms(proj), cfg.DNT,
@@ -173,7 +173,7 @@ func TestEditorTranslateConfigDegradesGracefully(t *testing.T) {
 	}
 
 	cfg := editorTranslateConfig(t.Context(), cs, voiceCtx, proj,
-		"p1", "main", "ws-1", "acme", TranslateRequest{TargetLocale: "fr"})
+		"p1", "main", "hello.txt", "ws-1", "acme", TranslateRequest{TargetLocale: "fr"})
 
 	assert.Nil(t, cfg.Profile, "unresolvable profile → bare, not fatal")
 	assert.Nil(t, cfg.TermRules, "unopenable terms → bare, not fatal")

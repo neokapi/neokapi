@@ -992,13 +992,11 @@ func estimateTokens(blocks []*venue.StoredBlock) int {
 	return totalChars / 4
 }
 
-// jobTranslateConfig builds the AI translate tool config for a translation
-// job. Beyond the locale/batching plumbing, it binds the project's standing
-// brand context — the resolved voice profile and the per-locale
-// term rules — so every server-side AI translation carries the same
-// guidance the CLI flow injects via ApplyProjectBindings. Both bindings are
-// best-effort: absence or a resolution failure leaves the corresponding field
-// unset and the job runs bare.
+// jobTranslateConfig builds the AI translate tool config for a translation job:
+// the locale/batching plumbing this queue decides, and the governing context
+// the shared assembly binds (BuildTranslateConfig), so a queued translation and
+// an interactive one carry the same voice, terminology, protected terms,
+// content memory, neighbourhood and point.
 func jobTranslateConfig(ctx context.Context, deps *WorkerDeps, job *TranslationJob, proj *store.Project) tools.AITranslateConfig {
 	// Default batch/concurrency for automation jobs if not explicitly set.
 	batchSz := 20
@@ -1010,26 +1008,42 @@ func jobTranslateConfig(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 		concurrency = job.Concurrency
 	}
 
-	srcLocale := proj.DefaultSourceLanguage
-	tgtLocale := model.LocaleID(job.TargetLocale)
-	return tools.AITranslateConfig{
-		SourceLocale:     srcLocale,
-		TargetLocale:     tgtLocale,
-		BatchSize:        batchSz,
-		BatchConcurrency: concurrency,
-		// Voice → prompt guidance, resolved through the platform's
-		// binding ladder (collection → stream → project → workspace default).
-		Profile: resolveJobVoiceProfile(ctx, deps, job),
-		// Terminology → the advisory term-rule section of the prompt, so the
-		// model is told the mandated renderings at generation time instead of
-		// term-check only flagging them afterwards.
-		TermRules: resolveJobTermRules(ctx, deps, job, srcLocale, tgtLocale),
-		// Do-not-translate terms are ENFORCED, not merely prompted: the tool
-		// masks each protected span before the model and restores it verbatim
-		// after, so a product name / trademark / code identifier cannot be
-		// translated (epic 019, item 4). Sourced from project settings.
-		DNT: ProjectDNTTerms(proj),
+	b := jobTranslateBinding(deps, job, proj)
+	b.BatchSize = batchSz
+	b.BatchConcurrency = concurrency
+	return BuildTranslateConfig(ctx, b)
+}
+
+// jobTranslateBinding gathers what a job's translation is governed by: the
+// stores the worker was wired with, the project it runs over, and the item
+// whose collection places the content.
+func jobTranslateBinding(deps *WorkerDeps, job *TranslationJob, proj *store.Project) TranslateBinding {
+	b := TranslateBinding{
+		Project:      proj,
+		WorkspaceID:  job.WorkspaceID,
+		ProjectID:    job.ProjectID,
+		Stream:       jobStreamName(job),
+		ItemName:     job.ItemName,
+		TargetLocale: model.LocaleID(job.TargetLocale),
 	}
+	if deps == nil {
+		return b
+	}
+	b.Store = deps.ContentStore
+	b.Voice = deps.VoiceStore
+	b.WorkspaceDefault = deps.WorkspaceDefault
+	b.Terms = resolveJobTerms(deps, job)
+	b.Memory = resolveJobMemory(deps, job)
+	return b
+}
+
+// jobStreamName is the stream a job reads and writes. Empty means "main", so an
+// old row and a stream-naive caller keep their behavior.
+func jobStreamName(job *TranslationJob) string {
+	if job == nil || job.Stream == "" {
+		return "main"
+	}
+	return job.Stream
 }
 
 // ProjectDNTTerms reads the project's do-not-translate terms from settings

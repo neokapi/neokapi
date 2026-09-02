@@ -724,10 +724,7 @@ func (s *Server) HandleAITranslate(c echo.Context) error {
 	// Bind the project's standing brand context from the server's own stores —
 	// the same instances the voice and terminology surfaces use. Everything in
 	// it is optional: missing stores mean a bare translation, never an error.
-	voiceCtx := editorVoiceContext{Voice: s.VoiceStore, Stores: s.wsStores}
-	if s.AuthStore != nil {
-		voiceCtx.WorkspaceDefault = &mcpWorkspaceDefaultAdapter{auth: s.AuthStore}
-	}
+	voiceCtx := s.editorVoiceContext()
 
 	wsID, _ := c.Get("workspace_id").(string)
 	stats, err := editorAITranslate(c.Request().Context(), s.ContentStore, s.ProviderStore, s.QuotaStore,

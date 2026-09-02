@@ -435,11 +435,15 @@ func applyCompliance(ls *store.LocaleTranslationStats, compliantCount int, voice
 }
 
 // blockFailsChecks reports whether a block's target for a locale carries an
-// error-severity QA finding — the "fails the ship gate" predicate shared by the
+// error-severity finding — the "fails the ship gate" predicate shared by the
 // dashboard ship-state pass (applyShipStates), the convergence derive
 // (countFailingBlocks), and the bulk approve-passing endpoint.
+//
+// The standard per-locale set only. These callers sweep a whole project a block
+// at a time and hold no item, so they resolve no point; the editor's check
+// endpoints, which do hold one, add what the governance there declares.
 func blockFailsChecks(ctx context.Context, block *model.Block, loc model.LocaleID) bool {
-	for _, issue := range runQAOnBlock(ctx, block, loc) {
+	for _, issue := range runChecksOnBlock(ctx, block, pointChecks{TargetLocale: loc}) {
 		if issue.Severity == "error" {
 			return true
 		}
