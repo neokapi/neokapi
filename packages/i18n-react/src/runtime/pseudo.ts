@@ -360,7 +360,7 @@ let active: PseudoConfig | null = null;
  * it off. Pass `{}` to activate with default markers.
  *
  * Composes with real dicts: if a real translation is loaded, the
- * pseudo transform runs on THAT — handy for QAing a specific locale
+ * pseudo transform runs on THAT — handy for checking a specific locale
  * with accents + expansion without touching the catalog.
  */
 export function setPseudoMode(config: PseudoConfig | null): void {
