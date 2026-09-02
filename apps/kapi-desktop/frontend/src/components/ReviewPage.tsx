@@ -886,7 +886,8 @@ export function ReviewPage({
                 <span>
                   <span className="font-medium">{t("Annotate only")}</span>{" "}
                   <span className="text-muted-foreground">
-                    {t("— store score and findings; every decision stays yours.")}
+                    {"· "}
+                    {t("Store score and findings; every decision stays yours.")}
                   </span>
                 </span>
               </label>
@@ -912,7 +913,8 @@ export function ReviewPage({
                     aria-label={t("Minimum score")}
                   />{" "}
                   <span className="text-muted-foreground">
-                    {t("— approvals are recorded as ai/<model>; human-required gates ignore them.")}
+                    {"· "}
+                    {t("Approvals are recorded as ai/<model>; human-required gates ignore them.")}
                   </span>
                 </span>
               </label>
@@ -1219,7 +1221,7 @@ export function ReviewPage({
                       {t("Target")}
                       {unit && !unit.editable && (
                         <span className="normal-case font-normal">
-                          {t("(formatted content — read-only)")}
+                          {t("(formatted content, read-only)")}
                         </span>
                       )}
                     </div>
