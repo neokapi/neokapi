@@ -168,6 +168,67 @@ func TestScaffoldShipsTheUnitStateLedger(t *testing.T) {
 	assert.Positive(t, approved, "the ledger must record approvals, not just states")
 }
 
+// The message catalogue ships translated with no decision behind it, so the
+// sample opens with a review queue instead of an empty one. It is held back by
+// gen/lib/targets.py's UNREVIEWED_SOURCES, and the ledger is where that shows.
+func TestScaffoldLeavesTheMessageCatalogueUnreviewed(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, Scaffold("kapimart", dir))
+
+	decided := map[string]bool{}
+	shards, err := filepath.Glob(filepath.Join(dir, project.StateDirName, "state", "*.jsonl"))
+	require.NoError(t, err)
+	for _, shard := range shards {
+		data, rerr := os.ReadFile(shard)
+		require.NoError(t, rerr)
+		for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
+			if line == "" {
+				continue
+			}
+			var row struct {
+				Unit     string `json:"unit"`
+				Decision struct {
+					ReviewState string `json:"reviewState"`
+				} `json:"decision"`
+			}
+			require.NoError(t, json.Unmarshal([]byte(line), &row))
+			if row.Decision.ReviewState != "" {
+				decided[row.Unit] = true
+			}
+		}
+	}
+
+	catalogue, err := os.ReadFile(filepath.Join(dir, "src", "de", "error-messages.properties"))
+	require.NoError(t, err)
+	var keys int
+	for _, line := range strings.Split(strings.TrimSpace(string(catalogue)), "\n") {
+		key, _, ok := strings.Cut(line, "=")
+		if !ok {
+			continue
+		}
+		keys++
+		assert.Falsef(t, decided[strings.TrimSpace(key)],
+			"%s ships translated and must carry no review decision", key)
+	}
+	assert.Positive(t, keys, "the catalogue must ship translated, or there is nothing to review")
+
+	// The storefront catalogue is the other half: it ships approved, so the
+	// sample still shows reviewed work beside the queue.
+	storefront, err := os.ReadFile(filepath.Join(dir, "src", "de", "store-ui.json"))
+	require.NoError(t, err)
+	var ui map[string]map[string]string
+	require.NoError(t, json.Unmarshal(storefront, &ui))
+	var approvedUI int
+	for group, entries := range ui {
+		for key := range entries {
+			if decided[group+"."+key] {
+				approvedUI++
+			}
+		}
+	}
+	assert.Positive(t, approvedUI, "the storefront catalogue must ship approved")
+}
+
 func TestScaffoldUnknown(t *testing.T) {
 	err := Scaffold("unknown", t.TempDir())
 	require.Error(t, err)

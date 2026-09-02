@@ -15,7 +15,7 @@ import (
 // binary version: a plain upgrade should not prompt when the sample itself did
 // not change.
 var Revision = map[string]int{
-	"kapimart": 5, // r5: history — committed targets, memory absorbed from the record, unit-state ledger
+	"kapimart": 6, // r6: the message catalogue ships translated and unreviewed, so Review opens with a queue
 }
 
 // CurrentRevision returns the embedded content revision for a sample (0 if the
