@@ -13,7 +13,7 @@ import type {
   RenderSheet,
   RenderSlide,
 } from "./renderDoc";
-import { colLabel, treeToRenderDoc } from "./renderDoc";
+import { colLabel, lineSideText, treeToRenderDoc } from "./renderDoc";
 import RenderedDocument from "./RenderedDocument";
 import type { ContentTree } from "./types";
 import {
@@ -131,11 +131,12 @@ function useCtx(): PreviewCtx {
 
 /**
  * The locale of the text currently rendered for a line: the chosen target
- * locale, or the block's (else the document's) source locale on the source side.
+ * locale when the line has that target, else the block's (or the document's)
+ * source locale, which is also what the line falls back to showing.
  */
 function activeLocale(line: RenderLine | undefined, ctx: PreviewCtx): string | undefined {
-  if (ctx.side !== "source") return ctx.side;
-  return line?.sourceLocale ?? ctx.sourceLocale;
+  if (!line) return ctx.side !== "source" ? ctx.side : ctx.sourceLocale;
+  return lineSideText(line, ctx.side, ctx.sourceLocale).locale;
 }
 
 /**
@@ -358,15 +359,12 @@ function RedactMarkerFilter(): React.ReactElement {
  */
 function LineText({ line, seq = 0 }: { line: RenderLine; seq?: number }): React.ReactElement {
   const ctx = useCtx();
-  const isSource = ctx.side === "source";
   // A block with no translation yet reads as its source rather than as a hole
-  // in the document — a partially translated document is still a document, and
-  // it is the block's status, not a gap, that says the target is outstanding.
-  const target = isSource ? undefined : line.targets?.[ctx.side];
-  const fullText = target || line.text;
-  // The codes belong to whichever side's text is being read, so a target that
-  // fell back to its source shows the source's codes rather than none.
-  const codes = (target ? line.targetCodes?.[ctx.side] : line.codes) ?? [];
+  // in the document: a partially translated document is still a document, and
+  // the block's status says the target is outstanding. The codes and the
+  // writing direction follow the text that is read, so a fallback shows the
+  // source's codes in the source's direction.
+  const { text: fullText, codes } = lineSideText(line, ctx.side, ctx.sourceLocale);
 
   // Remember the previously-rendered text so a slot roll can start from it.
   const prevFullText = React.useRef(fullText);

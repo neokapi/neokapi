@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { ContentNode, ContentTree } from "./types";
-import { treeToRenderDoc, entryKey } from "./renderDoc";
+import { treeToRenderDoc, entryKey, lineSideText } from "./renderDoc";
 
 function cell(ref: string, text: string, siIndex?: string): ContentNode {
   return {
@@ -110,5 +110,38 @@ describe("renderDoc — entryKey surfaces structured keys", () => {
       "checkout.button",
     );
     expect(entryKey({ kind: "block", id: "4" } as ContentNode)).toBeUndefined();
+  });
+});
+
+describe("renderDoc: lineSideText pairs text, codes and locale", () => {
+  const line = {
+    text: "Add to cart",
+    codes: [{ offset: 0, span: { id: "c1" } as never }],
+    targets: { ar: "أضف إلى السلة" },
+    targetCodes: { ar: [{ offset: 3, span: { id: "c1" } as never }] },
+    sourceLocale: "en",
+  };
+
+  it("reads the target with the target's codes and locale", () => {
+    const got = lineSideText(line, "ar");
+    expect(got.fromTarget).toBe(true);
+    expect(got.text).toBe("أضف إلى السلة");
+    expect(got.locale).toBe("ar");
+    expect(got.codes[0]?.offset).toBe(3);
+  });
+
+  it("falls back to the source in the source's locale, with the source's codes", () => {
+    const got = lineSideText(line, "nb");
+    expect(got.fromTarget).toBe(false);
+    expect(got.text).toBe("Add to cart");
+    expect(got.locale).toBe("en");
+    expect(got.codes[0]?.offset).toBe(0);
+  });
+
+  it("uses the document's source locale for a line that names none", () => {
+    const { sourceLocale: _omit, ...bare } = line;
+    expect(lineSideText(bare, "ar").locale).toBe("ar");
+    expect(lineSideText(bare, "nb", "en").locale).toBe("en");
+    expect(lineSideText(bare, "source", "en").locale).toBe("en");
   });
 });
