@@ -12,24 +12,23 @@ import { StreamDiagram, TypeDiagram } from "@neokapi/docs-shared";
 # Content Model
 
 The content model is the vocabulary every part of neokapi shares. Whatever the
-input format — JSON, HTML, Markdown, a Word document — a [reader](/framework/formats)
+input format (JSON, HTML, Markdown, a Word document), a [reader](/framework/formats)
 turns it into the same handful of types, so [tools](/framework/tools),
 [flows](/framework/flows), [content memory](/framework/content-memory),
 and editors all work against one representation rather than against each format's
 quirks. It is a deliberate, format-independent abstraction over the content inside
-a document — the unit you read, check, edit, and write back.
+a document: the unit you read, check, edit, and write back.
 
 **By analogy:** read it as a *streaming DOM* (Parts flow past instead of sitting
 in one tree), where each translatable node is a *record with variants* (one source,
 many keyed targets) and annotations are *margin notes* pinned to spans rather than
-edits to the text. Every term below — Part, Layer, Block, Run, Target, Overlay,
-VariantKey — is defined once in [Concepts](/framework/concepts); this page
-develops them.
+edits to the text. Part, Layer, Block, Run, Target, Overlay and VariantKey are
+each defined once in [Concepts](/framework/concepts); this page develops them.
 
-:::tip Try it — the content model, every way
+:::tip Try it: the content model, every way
 Pick a lesson and a sample (or drop in your own file) and watch the real `kapi`
 reader decompose it in your browser via WebAssembly. **Anatomy** shows the Layers,
-Groups, Blocks and **Runs** — notice an HTML `<strong>` becomes a paired inline
+Groups, Blocks and **Runs**, so an HTML `<strong>` shows up as a paired inline
 code while a JSON `{name}` stays literal text. The other lessons reveal what rides
 on a Block without touching its text: **segmentation** boundaries, **terms &
 findings** overlays, a variant-keyed **source ↔ target**, the document **structure**, and a
@@ -88,7 +87,7 @@ both the content you read, edit, or translate and the structure that surrounds i
       name: "Layer",
       col: 0,
       role: "io",
-      self: "child Layers — embedded content",
+      self: "child Layers (embedded content)",
       fields: [
         { name: "Format", type: "string" },
         { name: "ParentID", type: "string" },
@@ -147,43 +146,43 @@ both the content you read, edit, or translate and the structure that surrounds i
   ]}
 />
 
-- **Layer** — a structural grouping: a whole document, a section, or embedded
-  content. Layers nest. Embedded content — HTML inside a JSON value, CDATA inside
-  XML — becomes a **child layer** with its own format, so the right reader handles
+- **Layer** is a structural grouping: a whole document, a section, or embedded
+  content. Layers nest. Embedded content (HTML inside a JSON value, CDATA inside
+  XML) becomes a **child layer** with its own format, so the right reader handles
   it and inline markup is preserved at every level rather than being flattened.
-- **Block** — the primary modifiable content unit. Its
-  `Source` is a single flat `[]Run` — the content you read, check, and edit. When
+- **Block** is the primary modifiable content unit. Its
+  `Source` is a single flat `[]Run`, the content you read, check, and edit. When
   a workflow translates, the results are first-class `Target` records keyed by
   a **VariantKey** (locale plus optional tone and channel); a monolingual pass
   leaves `Targets` empty. It carries a `Translatable` flag (a parse-time
   classification marking content the reader extracted versus inert skeleton),
   opaque pass-through `Properties`, and the two stand-off
-  carriers described in [Two ways to annotate a block](#two-ways-to-annotate-a-block)
-  — positional `Overlays` and block-scoped `Annotations`.
-- **Overlay** — a typed, run-anchored interpretation _of_ a block's runs:
+  carriers described in [Two ways to annotate a block](#two-ways-to-annotate-a-block):
+  positional `Overlays` and block-scoped `Annotations`.
+- **Overlay** is a typed, run-anchored interpretation _of_ a block's runs:
   sentence segmentation, terminology, entities, check findings, source↔target
   alignment. Each overlay is a **positional stand-off layer** over one side of the
   block, layered over the runs rather than baked into the structure. There is no
   structural `Segment` type: a segment is just a span in the segmentation overlay,
   so segmentation is opt-in, multi-layer, and reversible (drop the overlay to get
   the unsegmented content back). The `segmentation` tool writes that overlay from
-  a pluggable engine chosen with `--engine` — `srx` (the default SRX 2.0 rule
+  a pluggable engine chosen with `--engine`: `srx` (the default SRX 2.0 rule
   engine), `uax29` (the ICU Unicode baseline), `llm` (semantic chunks), or `sat`
   (the wtpsplit ML model, run via the `kapi-sat` plugin). See
   [Segmentation](/framework/segmentation) and
   [F-02](/contribute/architecture/foundations/f-02-content-model).
-- **Run** — one element of a block's inline content: a chunk of text, an opening
+- **Run** is one element of a block's inline content: a chunk of text, an opening
   or closing inline tag, a self-closing placeholder, or a structured plural/select
   construct (see below).
-- **Data** and **Media** — non-translatable document structure and binary
+- **Data** and **Media** carry non-translatable document structure and binary
   content, which flow through so the writer can reconstruct the original
   byte-for-byte.
 
 ## Two ways to annotate a block
 
 A block's content is just its `Source []Run` and its variant-keyed `Targets`.
-Every typed interpretation _of_ that content is **stand-off** — kept separate
-from the runs — so the same content can carry segmentation, terminology, check
+Every typed interpretation _of_ that content is **stand-off**, kept separate
+from the runs, so the same content can carry segmentation, terminology, check
 findings, notes, and analysis results at once without rewriting it. A block
 holds stand-off interpretations in two carriers, chosen by whether the
 interpretation has a position:
@@ -193,12 +192,12 @@ interpretation has a position:
   set = a target variant), an optional `Layer` (segmentation granularity; `""` =
   the primary sentence segmentation), and a list of `Spans`. A `Span` carries a
   run `Range` (its position), an `ID`, optional `Props`, and a typed payload
-  `Value`. Because spans anchor to runs, a source rewrite moves them — when a
+  `Value`. Because spans anchor to runs, a source rewrite moves them. When a
   transformer rewrites the runs, the framework applier rebases surviving spans
   onto the new runs and drops any span that overlaps a rewritten range.
 - **Annotations** (`Block.Annotations`) are **block-scoped**: typed metadata keyed
   by type name, with no position. A source rewrite does not invalidate them.
-  Multiplicity lives inside the value, never in numbered keys — every alternative
+  Multiplicity lives inside the value, never in numbered keys: every alternative
   translation is one `AltTranslations` collection under the single
   `alt-translation` key, not `alt-translation-1`, `-2`, and so on.
 
@@ -231,11 +230,12 @@ with one payload registry (`RegisterPayload` / `NewPayload`) keyed by type name,
 so the plugin gRPC bridge and store layers can rehydrate the concrete type on the
 far side of the wire.
 
-`Properties` is a separate map for opaque pass-through metadata only — connector
-keys, format round-trip hints. Analytic or interpretive results are overlays or
-annotations, never properties. A few round-trip hints follow a **normalized
-convention** so writers and the editor read them the same way across formats —
-e.g. `code.language` (a code block's language key), `picture.subclass` (a chart
+`Properties` is a separate map for opaque pass-through metadata only, such as
+connector keys and format round-trip hints. Analytic or interpretive results
+are overlays or annotations, never properties. A few round-trip hints follow a
+**normalized convention** so writers and the editor read them the same way
+across formats:
+`code.language` (a code block's language key), `picture.subclass` (a chart
 kind), `table.header-kind` (an OTSL header's column/row/corner/section role), and
 the `checkbox.checked` / `field.fillable` form-state flags. These are fine
 structural subtypes that have no typed home on the structure annotation; the
@@ -246,7 +246,7 @@ canonical keys live in `core/model/structure.go`.
 The Run sequence is where neokapi solves a hard problem: how to let a tool, a
 translation engine, or content memory operate on the words while keeping inline markup like
 `<b>`, `**`, or `{count}` intact. A block's source (and each target) is a flat
-`[]Run` — a discriminated union where each run is exactly one of:
+`[]Run`, a discriminated union where each run is exactly one of:
 
 | Run kind        | Field      | Represents                                     |
 | --------------- | ---------- | ---------------------------------------------- |
@@ -275,7 +275,7 @@ Source runs:
 A tool can project the runs to plain text (`block.SourceText()` returns
 `"Click here for info"`); a translation engine sees text with opaque tokens it
 must preserve; and the writer re-emits each run's `Data` at its position to
-reconstruct the source faithfully — attributes and all. Because the same `<b>`,
+reconstruct the source faithfully, attributes and all. Because the same `<b>`,
 Markdown `**`, and DOCX `<w:b/>` all reduce to a `PcOpen`/`PcClose` pair of the
 same semantic `Type`, the representation is format-independent.
 [Inline Formatting](/framework/inline-formatting) and
@@ -285,7 +285,7 @@ metadata they carry.
 ## See it on a real file
 
 The clearest way to understand the content model is to watch a reader produce it.
-Below, kapi parses a small JSON message catalog into blocks — each with an
+Below, kapi parses a small JSON message catalog into blocks, each with an
 identifier and its source text:
 
 <BlockPreview
@@ -298,12 +298,12 @@ chips mark the `PcOpen`/`PcClose`/`Ph` runs lifted out of the text):
 
 <BlockPreview
   sample="page.html"
-  caption="An HTML page — note the span markers where inline elements were extracted."
+  caption="An HTML page. The span markers show where inline elements were extracted."
 />
 
 ## Reconstruction with skeletons
 
-Translatable blocks are only part of a document; the rest is structure —
+Translatable blocks are only part of a document; the rest is structure:
 surrounding tags, whitespace, keys, attributes. A **skeleton** captures that
 non-translatable structure interleaved with references to block content, so the
 writer can rebuild the document exactly, substituting translated content where a
@@ -314,9 +314,9 @@ back with only the changed text differing.
 ## A monolingual path: no targets at all
 
 Translation is the most visible thing the content model carries, but it is not a
-requirement. A block's `Targets` map can stay empty for the whole run — the model
-works the same way when the only locale in play is the source. This is the path a
-voice or terminology pass takes: read a file, check the source content, edit it in
+requirement. A block's `Targets` map can stay empty for the whole run, and the
+model works the same way when the only locale in play is the source. This is
+the path a voice or terminology pass takes: read a file, check the source content, edit it in
 place, and write the original back with only the edited text changed.
 
 Take a Markdown file with one off-brand sentence. The reader produces blocks whose
@@ -331,7 +331,7 @@ Block "intro"
 A [check](/framework/checks) reads each block's `SourceText()`, compares it
 against a voice profile or the project [terms store](/framework/terminology),
 and records each problem as a stand-off `qa` overlay anchored to the offending
-runs — it annotates, it does not rewrite (see
+runs. A check annotates and leaves the text alone (see
 [the immutability model](/framework/tools)):
 
 ```
@@ -352,13 +352,13 @@ Block "intro"
 
 Finally the writer reconstructs the file from the Part stream. Because every
 untouched block is replayed from its skeleton byte-for-byte, only the one sentence
-that changed differs in the output — the same round-trip guarantee a translation
-run relies on, with zero targets in sight.
+that changed differs in the output. It is the same round-trip guarantee a
+translation run relies on, with zero targets in sight.
 
 ## Related reading
 
-- [Formats](/framework/formats) — the readers and writers that produce and consume the model.
-- [Inline Formatting](/framework/inline-formatting) and [Vocabularies](/framework/vocabularies) — how inline-code runs are represented and classified.
-- [Pipeline](/framework/pipeline) — how Parts stream through the executor.
-- [Interface Reference](/contribute/interfaces) — the concrete Go types and method signatures.
-- [F-02: Content Model](/contribute/architecture/foundations/f-02-content-model) — the design rationale.
+- [Formats](/framework/formats): the readers and writers that produce and consume the model.
+- [Inline Formatting](/framework/inline-formatting) and [Vocabularies](/framework/vocabularies): how inline-code runs are represented and classified.
+- [Pipeline](/framework/pipeline): how Parts stream through the executor.
+- [Interface Reference](/contribute/interfaces): the concrete Go types and method signatures.
+- [F-02: Content Model](/contribute/architecture/foundations/f-02-content-model): the design rationale.

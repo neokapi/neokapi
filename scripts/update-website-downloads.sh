@@ -93,7 +93,7 @@ section() { # <heading> <label> <asset> [<label> <asset> …]
   while [ "$#" -ge 2 ]; do
     local label="$1" asset="$2"; shift 2
     if have "$asset"; then
-      lines+="$(printf -- '- **%s** — [`%s`](%s/%s)' "$label" "$asset" "$BASE" "$asset")"$'\n'
+      lines+="$(printf -- '- **%s**: [`%s`](%s/%s)' "$label" "$asset" "$BASE" "$asset")"$'\n'
       hits=$((hits + 1))
     else
       MISSING=$((MISSING + 1))

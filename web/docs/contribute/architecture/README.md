@@ -6,7 +6,7 @@ description: Index of Architecture Decisions for the neokapi open content and la
 keywords: [architecture decisions, neokapi, framework design, content model, context, plugin system, framework architecture]
 ---
 
-# Architecture Decisions — neokapi
+# Architecture Decisions: neokapi
 
 These are the Architecture Decisions for the **neokapi framework**, the open
 content and language engine. Everything here is Apache-2.0 and describes the
@@ -17,7 +17,7 @@ Each decision describes the **current** state of its subsystem, not the history
 of how it got there. When a subsystem evolves, its decision is updated in place;
 the history lives in version control.
 
-Tactical detail — SQL schemas, wire formats, algorithm pseudocode — is separated
+Tactical detail (SQL schemas, wire formats, algorithm pseudocode) is separated
 into [Implementation Notes](/contribute/implementation/index).
 
 ## How the corpus is organized
@@ -28,18 +28,18 @@ retired:
 
 | Series | Concern |
 | --- | --- |
-| **F — Foundations** | what the framework is, what a unit of content is, and how it is identified and serialized |
-| **E — Engine** | how content is read, processed, written, and extended |
-| **C — Context** | what a project knows, where it keeps it, and what governs it |
-| **S — Surfaces** | the CLI, the desktop app, agent surfaces, and the runtime libraries |
-| **M — Multilingual** | what it takes for content to exist in more than one language |
-| **A — Assurance** | how the framework proves it works |
+| **F: Foundations** | what the framework is, what a unit of content is, and how it is identified and serialized |
+| **E: Engine** | how content is read, processed, written, and extended |
+| **C: Context** | what a project knows, where it keeps it, and what governs it |
+| **S: Surfaces** | the CLI, the desktop app, agent surfaces, and the runtime libraries |
+| **M: Multilingual** | what it takes for content to exist in more than one language |
+| **A: Assurance** | how the framework proves it works |
 
 Each series is a directory, and its decisions sort by `sidebar_position` within
 it. The sidebar is generated from the directory: adding a decision means adding a
 file, never editing a list.
 
-## F — Foundations
+## F: Foundations
 
 | AD | Title | Scope |
 | --- | --- | --- |
@@ -48,7 +48,7 @@ file, never editing a list.
 | [F-03](foundations/f-03-identity.md) | Identity | short ids, the durable content key, occurrences |
 | [F-04](foundations/f-04-wire-schema.md) | The content-model wire schema | the canonical proto, `protoconvert`, frozen field numbers, the drift guard |
 
-## E — Engine
+## E: Engine
 
 | AD | Title | Scope |
 | --- | --- | --- |
@@ -61,7 +61,7 @@ file, never editing a list.
 | [E-07](engine/e-07-model-providers.md) | Model and translation providers | the model provider interface, machine-translation backends, credentials |
 | [E-08](engine/e-08-document-structure-tiers.md) | Document structure tiers | tagged structure versus geometric reconstruction, the native and browser readers |
 
-## C — Context
+## C: Context
 
 | AD | Title | Scope |
 | --- | --- | --- |
@@ -76,7 +76,7 @@ file, never editing a list.
 | [C-09](context/c-09-content-memory.md) | Content memory | tiered matching, entity generalization, version chains and governed reuse, the two-stage rebuild |
 | [C-10](context/c-10-redaction.md) | Redaction and clearance | the placeholder model, the local vault, the three policy readers |
 
-## S — Surfaces
+## S: Surfaces
 
 | AD | Title | Scope |
 | --- | --- | --- |
@@ -87,7 +87,7 @@ file, never editing a list.
 | [S-05](surfaces/s-05-i18n-runtime.md) | The i18n runtime for React | the runtime, build-time extraction, re-attach, in-context review |
 | [S-06](surfaces/s-06-visual-editor.md) | The visual editor data model | the render projection, the shared preview kit, the edit round-trip |
 
-## M — Multilingual
+## M: Multilingual
 
 | AD | Title | Scope |
 | --- | --- | --- |
@@ -99,7 +99,7 @@ file, never editing a list.
 | [M-06](multilingual/m-06-content-packages.md) | Content packages | the block bundle and the project parcel |
 | [M-07](multilingual/m-07-metadata-i18n.md) | Metadata in other languages | tool, format and plugin metadata, compiled catalogs |
 
-## A — Assurance
+## A: Assurance
 
 | AD | Title | Scope |
 | --- | --- | --- |

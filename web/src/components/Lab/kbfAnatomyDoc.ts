@@ -275,7 +275,7 @@ export const TERMS: AnatomyTerm[] = [
   {
     id: "run-text",
     title: "Run — text",
-    spec: "/reference/serialization/content-bundle#text--a-plain-text-chunk",
+    spec: "/reference/serialization/content-bundle#text-a-plain-text-chunk",
     body: [
       "A plain text chunk: the only run kind that carries translatable characters. Everything else in the sequence is structure.",
     ],
@@ -283,7 +283,7 @@ export const TERMS: AnatomyTerm[] = [
   {
     id: "run-pc",
     title: "Run — pcOpen / pcClose",
-    spec: "/reference/serialization/content-bundle#pcopen--pcclose--paired-codes",
+    spec: "/reference/serialization/content-bundle#pcopen--pcclose-paired-codes",
     body: [
       "A paired code: an inline element that opens and closes around translatable content, split into two runs so the enclosed text stays part of the flat sequence. The shared id pairs them; equiv is the stable name a target uses to reference the pair; data preserves the original markup for write-back.",
     ],
@@ -291,7 +291,7 @@ export const TERMS: AnatomyTerm[] = [
   {
     id: "run-ph",
     title: "Run — ph",
-    spec: "/reference/serialization/content-bundle#ph--a-self-closing-placeholder",
+    spec: "/reference/serialization/content-bundle#ph-a-self-closing-placeholder",
     body: [
       "A self-closing placeholder: a variable or void element that contributes no translatable text of its own. equiv names it, disp is a display hint for editors, and data preserves the source expression for write-back. Validation rejects a target that drops a required placeholder.",
     ],
@@ -299,7 +299,7 @@ export const TERMS: AnatomyTerm[] = [
   {
     id: "run-plural",
     title: "Run — plural",
-    spec: "/reference/serialization/content-bundle#plural--a-structured-plural-construct",
+    spec: "/reference/serialization/content-bundle#plural-a-structured-plural-construct",
     body: [
       "A structured plural construct: each CLDR plural form holds its own run sequence, keyed by the pivot placeholder that selects the form at render time. Plurals are structured data, not flattened strings — a target language supplies exactly the forms its plural rules require.",
     ],

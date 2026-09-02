@@ -9,7 +9,7 @@ keywords: [ksed, sed, substitution, replace, docx, json, xliff, multilingual con
 
 Apply `sed`-style substitutions to the human-readable text inside any supported
 format, then write the document back in the same format. Only the editable text
-changes — a `.docx` keeps its styles, a JSON catalog keeps its keys and shape.
+changes: a `.docx` keeps its styles, a JSON catalog keeps its keys and shape.
 
 ```bash
 ksed [flags] SCRIPT [FILE...]
@@ -17,8 +17,8 @@ ksed [flags] SCRIPT [FILE...]
 
 `SCRIPT` is a substitution command, `s/regexp/replacement/flags`:
 
-- Any single-byte delimiter works, so `s|a|b|` is equivalent to `s/a/b/` — handy
-  when the text contains slashes.
+- Any single-byte delimiter works, so `s|a|b|` is equivalent to `s/a/b/`, which
+  helps when the text contains slashes.
 - The `g` flag replaces every match in a block (otherwise only the first); the
   `i` flag makes the match case-insensitive.
 - Replacements support backreferences `\1`…`\9` and `&` for the whole match.
@@ -30,7 +30,7 @@ file, or when the file is `-`, standard input is read.
 
 Editing a binary document produces a binary document: a `.docx` goes back out as
 a zip. When standard output is a terminal, that is refused rather than streamed
-at it — use `-i`, redirect stdout to a file, or pass `--force` to ask for the
+at it. Use `-i`, redirect stdout to a file, or pass `--force` to ask for the
 bytes anyway. Redirected and piped output is never inspected, so `ksed … >
 out.docx` and `ksed … | kcat -` behave exactly as they always did. It is the
 same convention `gzip` and `xz` follow, for the same reason.
@@ -79,20 +79,20 @@ is therefore left unbound, and typing it is an error rather than a surprise.
 
 `ksed` reuses kapi's reader/writer pipeline, so editing a structured format and
 writing it back preserves everything that is not the edited text. For formats
-with a skeleton — Office Open XML among them — the document's structure, styles
+with a skeleton (Office Open XML among them) the document's structure, styles
 and non-translatable content round-trip unchanged; the fidelity is *semantic*
 (the same text and structure), not a byte-for-byte copy. Only the `s///`
 substitution command is supported; compose multiple with `-e`.
 
 Inline formatting *within* a block is preserved as well. The pattern matches the
 block's text with its inline codes removed, so a substitution can span a bold or
-linked span — `s/Hello world/Hi/` matches even when *world* is bold. Editing a
+linked span: `s/Hello world/Hi/` matches even when *world* is bold. Editing a
 word inside a `<b>` span keeps the span around the new word.
 
 When an edit removes the text a code applied to, what happens depends on whether
-the code is *deletable* — the same vocabulary constraint the checks use (see
+the code is *deletable*, the same vocabulary constraint the checks use (see
 [Inline Formatting](/framework/inline-formatting#editing-text-that-carries-inline-codes)).
-A deletable formatting span (bold, italic, a link) that is emptied collapses —
-ksed will not leave an empty `<b></b>`. A non-deletable code (a line break, a
+A deletable formatting span (bold, italic, a link) that is emptied collapses, so
+ksed leaves no empty `<b></b>` behind. A non-deletable code (a line break, a
 variable, a placeholder, a subblock reference) is always kept, even when the text
 around it is replaced.

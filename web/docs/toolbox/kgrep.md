@@ -8,8 +8,8 @@ keywords: [kgrep, grep, search, regex, docx, json, xliff, multilingual content]
 # kgrep
 
 Search the human-readable text inside any supported format for a regular
-expression — the prose of a Word `.docx`, the values of a JSON catalog, the
-segments of an XLIFF file — skipping markup and structure. Output mirrors
+expression: the prose of a Word `.docx`, the values of a JSON catalog, the
+segments of an XLIFF file, skipping markup and structure. Output mirrors
 `grep`: one matching block per line, optionally prefixed with the file name and
 the block number.
 
@@ -19,8 +19,8 @@ kgrep [flags] PATTERN [FILE...]
 
 The pattern is a [Go regular expression](https://pkg.go.dev/regexp/syntax). With
 no file, or when the file is `-`, standard input is read. Exit status is `0` if
-any block matched, `1` if none did, `2` on error — the same convention as
-`grep`, so `kgrep` composes in shell conditionals.
+any block matched, `1` if none did, `2` on error. That is the same convention
+as `grep`, so `kgrep` composes in shell conditionals.
 
 ## Examples
 

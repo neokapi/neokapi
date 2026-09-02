@@ -47,10 +47,10 @@ application, and keep the bundle on the pipeline side.
 The bundle has two reference implementations kept byte-for-byte equivalent by
 shared golden fixtures:
 
-- **Go — canonical.**
+- **Go, canonical.**
   [`core/kbf`](https://github.com/neokapi/neokapi/tree/main/core/kbf) in the
   framework module. Where the two differ, the Go source governs.
-- **TypeScript — mirror.**
+- **TypeScript, mirror.**
   [`@neokapi/kapi-format`](https://github.com/neokapi/neokapi/tree/main/packages/kapi-format),
   used by the React extractor and the in-browser tooling.
 
@@ -78,9 +78,9 @@ implementations.
 The current schema version is `1.0`, carried in the `schemaVersion` field of
 every file. Versions follow a `MAJOR.MINOR` contract:
 
-- **Major** — a breaking change. A consumer **must reject** a file whose major
-  version it does not recognize.
-- **Minor** — a forward-compatible addition. A consumer **should accept** unknown
+- **Major** means a breaking change. A consumer **must reject** a file whose
+  major version it does not recognize.
+- **Minor** means a forward-compatible addition. A consumer **should accept** unknown
   minor versions within a major it understands, ignoring fields it does not
   recognize.
 
@@ -91,8 +91,8 @@ the version the build speaks.
 ## File envelope
 
 The top-level `File` object is the `.kbf.json` document. Field order and shape are
-normative — deterministic serialization is what keeps the content hash stable
-across the Go and TypeScript implementations.
+normative, because deterministic serialization is what keeps the content hash
+stable across the Go and TypeScript implementations.
 
 | Field           | Type          | Required | Description                                                                  |
 | --------------- | ------------- | -------- | ---------------------------------------------------------------------------- |
@@ -219,17 +219,17 @@ key. A run object with zero or more than one discriminator is rejected on decode
 The seven kinds are `text`, `ph`, `pcOpen`, `pcClose`, `sub`, `plural`, and
 `select`.
 
-Text is the one kind serialized flat — `{"text": "..."}` — where the
+Text is the one kind serialized flat, as `{"text": "..."}`, where the
 discriminator's value is the string itself. Every other kind nests its object
 under the discriminator key.
 
-### text — a plain text chunk
+### text: a plain text chunk
 
 ```json
 { "text": "Files " }
 ```
 
-### ph — a self-closing placeholder
+### ph: a self-closing placeholder
 
 A `ph` run is a self-contained inline token: a variable interpolation, a
 conditional JSX expression, a `<br/>`, an icon, a redaction, and so on.
@@ -257,11 +257,11 @@ conditional JSX expression, a `<br/>`, an icon, a redaction, and so on.
 }
 ```
 
-### pcOpen / pcClose — paired codes
+### pcOpen / pcClose: paired codes
 
 A paired code is split into an opening run (`pcOpen`) and a closing run
 (`pcClose`) that share the same `id` within a runs scope. They wrap the content
-between them — the analogue of an opening and closing HTML/JSX tag.
+between them, the analogue of an opening and closing HTML/JSX tag.
 
 `pcOpen` carries the same fields as `ph` (`id`, `type`, `subType`, `data`,
 `equiv`, `disp`, `constraints`). `pcClose` carries `id`, `type`, `subType`,
@@ -293,7 +293,7 @@ the closing half on its own).
 }
 ```
 
-### sub — a reference to a subblock
+### sub: a reference to a subblock
 
 A `sub` run references another `Block` by id. It is emitted when an outer format
 extracts a field whose value is itself a mini-document in another format: a
@@ -309,7 +309,7 @@ subfilter produces a separate block, and the outer block points at it.
 { "sub": { "id": "1", "ref": "subblock-7", "equiv": "body" } }
 ```
 
-### plural — a structured plural construct
+### plural: a structured plural construct
 
 A `plural` run carries an ICU plural construct as first-class structure: a
 `pivot` variable that drives selection, and a `forms` map keyed by plural form.
@@ -351,7 +351,7 @@ CLDR order for display.
 }
 ```
 
-### select — a structured select construct
+### select: a structured select construct
 
 A `select` run is symmetric to `plural`, but its `cases` map is keyed by
 arbitrary string values (such as `male` / `female` / `other`) rather than fixed
@@ -389,7 +389,7 @@ run overrides its vocabulary defaults.
 ## Targets
 
 A block's committed translations live in `targets`, a map keyed by BCP-47 locale
-whose value is a `Run[]` — the translated content for that locale, using exactly
+whose value is a `Run[]`, the translated content for that locale, using exactly
 the same run primitives as `source`. The field is omitted entirely when a block
 has no targets. Locale keys are sorted on the wire.
 
@@ -430,7 +430,7 @@ forms and select cases as their own scopes.
 | ----------------------- | --------------------------------------------------------------------------------------------------------------- |
 | `missing-placeholder`   | A target dropped a required (non-optional) source placeholder.                                                  |
 | `extra-placeholder`     | A target introduced a placeholder not present in the source.                                                    |
-| `malformed-runs`        | A run is not a well-formed discriminated union — it has zero or more than one discriminator key set.            |
+| `malformed-runs`        | A run is not a well-formed discriminated union: it has zero or more than one discriminator key set.             |
 | `unknown-placeholder`   | A source run references a placeholder (or plural/select pivot) not declared in the block's `placeholders` list. |
 | `unclosed-paired-code`  | A `pcOpen` has no matching `pcClose` in the same runs scope.                                                    |
 | `unmatched-close-code`  | A `pcClose` has no matching `pcOpen`.                                                                           |
@@ -441,8 +441,8 @@ on the [KBF Tests page](/kbf-tests).
 
 ## Companion annotation file (`.overlays.jsonl`)
 
-Stand-off annotations — review status, protected terms, MT confidence,
-terminology matches — live in a companion `.overlays.jsonl` file rather than
+Stand-off annotations (review status, protected terms, MT confidence,
+terminology matches) live in a companion `.overlays.jsonl` file rather than
 inside the `.kbf.json` itself. A `.overlays.jsonl` file is **JSON-Lines**: each line
 is one compact JSON record (no indentation, LF-terminated), which keeps it
 grep- and diff-friendly. The first
@@ -450,7 +450,7 @@ non-empty line is a header record (`"type": "header"`); every subsequent non-emp
 line is an annotation record (`"type": "annotation"`).
 
 The header carries `annotationType`, `annotationVersion`, a `producer` (`id` +
-`version`), a `created` timestamp, and `targetArchive` — the archive state the
+`version`), a `created` timestamp, and `targetArchive`, the archive state the
 annotations were produced against. Each annotation record carries a `type`, an
 `id`, the `block` it is about, an `anchor` saying where inside that block, and a
 producer-specific `data` payload (the framework imposes no schema on `data`).
@@ -461,7 +461,7 @@ check finding. Its `kind` discriminates four shapes:
 
 | Anchor kind | Meaningful fields      | Targets                                                         |
 | ----------- | ---------------------- | --------------------------------------------------------------- |
-| `block`     | —                      | Block-level metadata.                                           |
+| `block`     | n/a                    | Block-level metadata.                                           |
 | `run`       | `path`, `runId`        | A specific run, identified by path and matched against `runId`. |
 | `range`     | `path`, `start`, `end` | A half-open span of the run sequence at `path`.                 |
 | `form`      | `path`, `key`          | A specific plural form or select case, selected by `key`.       |
@@ -474,8 +474,8 @@ refers to the block's top-level source runs.
 `start` and `end` are each a **run position**: `{"run": <index>, "offset":
 <runes>}`, where `offset` is a rune offset into that run's text and defaults to
 0. Bounding a range by run positions rather than by a flat character offset is
-what lets a span cross run boundaries — a phrase running through a bold segment
-is one range rather than three — and lets a boundary sit either side of a
+what lets a span cross run boundaries, so a phrase running through a bold
+segment is one range rather than three, and lets a boundary sit either side of a
 placeholder, which carries no text of its own.
 
 Resolving an anchor against a block either succeeds or returns one of six
@@ -498,13 +498,13 @@ An example header and run-level annotation record:
 ```
 
 The [KBF anatomy page](/kbf-lab) lets you edit a `.overlays.jsonl` overlay and watch each
-anchor resolve — or fail with one of the reasons above — against a live document.
+anchor resolve against a live document, or fail with one of the reasons above.
 
 ## Worked examples
 
 These examples walk through the run model one kind at a time, then show a
 complete document and its annotation overlay. The schema above is the normative
-reference; this half is the readable companion. Every example is real — they
+reference; this half is the readable companion. Every example is real: they
 are the golden fixtures shared between the Go and TypeScript implementations.
 
 ### A block is a flat run sequence
@@ -517,8 +517,8 @@ placeholder and tag stays first-class and accounted for.
 #### Paired code wrapping a variable
 
 `files-heading` extracts `Files <span className="muted">({count} matched)</span>`.
-The `<span>` becomes a **paired code** — an opening `pcOpen` and a closing
-`pcClose` that share an `id` — and `{count}` becomes a **`ph`** placeholder
+The `<span>` becomes a **paired code**, an opening `pcOpen` and a closing
+`pcClose` that share an `id`, and `{count}` becomes a **`ph`** placeholder
 between them:
 
 ```json
@@ -586,7 +586,7 @@ between them:
 ```
 
 A French target re-orders the readable text but keeps both the `muted` paired
-code and the `count` variable — so it validates clean:
+code and the `count` variable, so it validates clean:
 
 ```json
 {
@@ -626,8 +626,8 @@ code and the `count` variable — so it validates clean:
 
 #### Optional nodes
 
-`tag-chip` carries two **optional** `jsx:node` placeholders — conditional JSX
-expressions that may or may not render — around a required `{label}` variable.
+`tag-chip` carries two **optional** `jsx:node` placeholders (conditional JSX
+expressions that may or may not render) around a required `{label}` variable.
 Because `badge` and `required` are declared `"optional": true`, a target may drop
 them; it may not drop `label`:
 
@@ -788,20 +788,21 @@ run of `tag-chip`; `entity-1` anchors to a character range; `qa-1` anchors to th
 ### Try it live
 
 The lab below runs the real `core/kbf` engine in your browser. Pick a sample or
-edit the `.kbf.json` directly — it re-parses, canonicalizes, renders each block, and
+edit the `.kbf.json` directly. It re-parses, canonicalizes, renders each block, and
 validates the run structure as you type. Edit the `.overlays.jsonl` overlay and click an
 annotation to resolve it against the live document and see exactly what it points
 at (or why it does not resolve).
 
 <KbfExplorer defaultSampleId="full" />
 
-For the cross-engine conformance suite — these same operations run against both
-the Go engine and the TypeScript mirror — see the [KBF Tests page](/kbf-tests).
+For the cross-engine conformance suite, where these same operations run against
+both the Go engine and the TypeScript mirror, see the
+[KBF Tests page](/kbf-tests).
 
 ## See also
 
-- [Overview](/reference/serialization/overview) — how the bundle relates to kapi's other formats.
-- [Overlays](/reference/serialization/overlays) — the `.overlays.jsonl` sidecar specified in full.
-- [Choosing a format](/reference/serialization/choosing) — the mapping onto XLIFF 2.x, and when to use it.
-- [Content model](/framework/content-model) — the in-memory `Block`/`Run` model this serializes.
-- [Project file](/reference/project-file) — the `kapi.yaml` recipe driving extraction and merge.
+- [Overview](/reference/serialization/overview): how the bundle relates to kapi's other formats.
+- [Overlays](/reference/serialization/overlays): the `.overlays.jsonl` sidecar specified in full.
+- [Choosing a format](/reference/serialization/choosing): the mapping onto XLIFF 2.x, and when to use it.
+- [Content model](/framework/content-model): the in-memory `Block`/`Run` model this serializes.
+- [Project file](/reference/project-file): the `kapi.yaml` recipe driving extraction and merge.

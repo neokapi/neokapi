@@ -6,7 +6,7 @@ description: Index of Implementation Notes for the neokapi framework — SQL sch
 keywords: [implementation notes, neokapi, reference, SQL schema, wire protocol, algorithms, Go interfaces]
 ---
 
-# Implementation Notes — neokapi Framework
+# Implementation Notes: neokapi Framework
 
 Implementation notes contain tactical details for the neokapi framework
 (Apache-2.0): SQL schemas, wire protocols, algorithm pseudocode, Go interface
@@ -14,19 +14,19 @@ signatures, and other reference material. They exist alongside the
 [Architecture Decisions](/contribute/architecture/index), which describe the
 design choices; notes describe the implementation.
 
-The notes are grouped into the same series as the decisions — **F**
-foundations, **E** engine, **C** context, **S** surfaces, **M** multilingual —
-so a note sits under the heading of the AD it details. A final group holds the
+The notes are grouped into the same series as the decisions (**F** foundations,
+**E** engine, **C** context, **S** surfaces, **M** multilingual), so a note sits
+under the heading of the AD it details. A final group holds the
 notes that describe this repository's own infrastructure rather than a
 subsystem of the engine.
 
-## F — Foundations
+## F: Foundations
 
 | Note                                                                        | Parent AD                                                                                                                                 | Content                                                                                                                                        |
 | --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | [Content-Model Parity Across Wire Projections](foundations/content-parity.md) | [F-04](/contribute/architecture/foundations/f-04-wire-schema) · [F-02](/contribute/architecture/foundations/f-02-content-model)              | The lossless model↔proto↔store round-trip invariant, what must round-trip, and the extend-without-breaking checklist gated by a conformance test |
 
-## E — Engine
+## E: Engine
 
 | Note                                                              | Parent AD                                                                                                                  | Content                                                                                                                                          |
 | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -38,7 +38,7 @@ subsystem of the engine.
 | [Plugin Model](engine/plugin-model.md)                             | [E-05](/contribute/architecture/engine/e-05-plugin-system)                                                                    | In-process registry contract for plugin binaries                                                                                                   |
 | [Plugin protocol v1](engine/plugin-protocol-v1.md)                 | [E-05](/contribute/architecture/engine/e-05-plugin-system)                                                                    | The versioned plugin contract: manifest rules, the three transports, the Mode-C gRPC surface and wire format, and the conformance suite             |
 
-## C — Context
+## C: Context
 
 | Note                                                                     | Parent AD                                                        | Content                                                                                        |
 | -------------------------------------------------------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
@@ -46,7 +46,7 @@ subsystem of the engine.
 | [Terminology Data Model](context/terminology-data-model.md)               | [C-08](/contribute/architecture/context/c-08-terms)                | Go structs, Terminology interface                                                                |
 | [Content Memory Matching Algorithm](context/memory-matching-algorithm.md) | [C-09](/contribute/architecture/context/c-09-content-memory)       | Tiered matching, version chains, TMX mapping                                                     |
 
-## S — Surfaces
+## S: Surfaces
 
 | Note                                                    | Parent AD                                                            | Content                                                                                            |
 | --------------------------------------------------------- | ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
@@ -54,7 +54,7 @@ subsystem of the engine.
 | [MCP Tools Reference](surfaces/mcp-tools-reference.md)   | [S-03](/contribute/architecture/surfaces/s-03-agent-surfaces)          | Where the MCP tool handlers live, how a tool reaches the server, and what shape its result takes     |
 | [WASM Engine ABI](surfaces/wasm-engine-abi.md)           | [S-01](/contribute/architecture/surfaces/s-01-kapi-cli)                | The JS contract the browser build of the CLI exposes to `@neokapi/engine`, and its reverse bridges   |
 
-## M — Multilingual
+## M: Multilingual
 
 | Note                                                        | Parent AD                                                                     | Content                                                                                    |
 | ------------------------------------------------------------- | ------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |

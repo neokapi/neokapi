@@ -17,15 +17,15 @@ When documents are processed through the pipeline, neokapi preserves inline form
 ## Seeing inline codes in the content model
 
 When kapi reads a file with inline markup, the markup does not stay in the text.
-Each inline element becomes an **inline-code run** — a `PcOpen`/`PcClose` pair
-for paired tags, a `Ph` for self-closing tokens — sitting in the run sequence
+Each inline element becomes an **inline-code run** (a `PcOpen`/`PcClose` pair
+for paired tags, a `Ph` for self-closing tokens) sitting in the run sequence
 between text runs. Below, kapi parses an HTML page; in the parsed source text the
 inline `<strong>` and `<a>` elements appear as inline-code runs (rendered here as
 chips) rather than as literal tags:
 
 <BlockPreview
   sample="page.html"
-  caption="kapi parsing HTML — inline elements become inline-code runs in the source text."
+  caption="kapi parsing HTML: inline elements become inline-code runs in the source text."
 />
 
 This is the same representation regardless of the source format: the inline-code
@@ -69,7 +69,7 @@ Editors can use these constraints to prevent invalid changes and provide real-ti
 
 ## Editing text that carries inline codes
 
-The constraints are not only advice for a human translator — they govern what
+The constraints go beyond advice for a human translator. They govern what
 automated edits may do to a code when the surrounding text changes. A tool that
 rewrites a block's text (a find/replace such as [`ksed`](/toolbox/ksed), a
 normalization or redaction transform) works on the text-only flattening of the
@@ -78,13 +78,13 @@ survive. The rule, applied per code, is:
 
 - A **paired code** (`PcOpen`/`PcClose`) is treated as a span over the text.
   After the edit its endpoints are re-anchored. If the span still covers text it
-  is kept, balanced — editing a word inside a bold span keeps the span around the
+  is kept, balanced: editing a word inside a bold span keeps the span around the
   new word. If the edit empties the span, a **deletable** span (bold, italic, a
   link) is removed rather than left as an empty `<b></b>`, and a non-deletable
   span is kept (empty) so it is never silently dropped.
 - A **standalone code** (`Ph`, `Sub`) that sits in text the edit removes is
   dropped when **deletable** and kept (re-anchored to the edit boundary) when
-  not — so a line break, a variable, or a subblock reference survives an edit
+  not, so a line break, a variable, or a subblock reference survives an edit
   that deletes the text around it.
 - Codes outside the edited range are unaffected.
 
@@ -96,7 +96,7 @@ codes are required. The framework primitive is `model.ApplyTextEdits`.
 
 ### HTML Files
 
-HTML inline elements (`<b>`, `<a href="...">`, `<br/>`) are extracted as inline-code runs — paired tags as `PcOpen`/`PcClose`, void elements as `Ph`. Block-level elements form Block boundaries.
+HTML inline elements (`<b>`, `<a href="...">`, `<br/>`) are extracted as inline-code runs: paired tags as `PcOpen`/`PcClose`, void elements as `Ph`. Block-level elements form Block boundaries.
 
 **Example:**
 
@@ -119,4 +119,4 @@ i18n variables like `{userName}` or `{count}` become `Ph` runs marked as non-del
 
 ### XLIFF Exchange Files
 
-XLIFF `<pc>` maps to a `PcOpen`/`PcClose` pair, `<ph>` to a `Ph` run, and `<sc>`/`<ec>` to a `PcOpen`/`PcClose` pair — the same run model, enabling consistent processing regardless of exchange format.
+XLIFF `<pc>` maps to a `PcOpen`/`PcClose` pair, `<ph>` to a `Ph` run, and `<sc>`/`<ec>` to a `PcOpen`/`PcClose` pair. It is the same run model, enabling consistent processing regardless of exchange format.

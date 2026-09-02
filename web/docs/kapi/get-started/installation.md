@@ -9,9 +9,9 @@ keywords: [kapi, install, homebrew, winget, binary download, macos, linux, windo
 
 neokapi ships two artifacts you can install independently:
 
-- the **`kapi` CLI** — a single self-contained binary that runs offline by
+- the **`kapi` CLI**, a single self-contained binary that runs offline by
   default and operates directly on your files;
-- **Kapi Desktop** — the visual companion app, which bundles the CLI.
+- **Kapi Desktop**, the visual companion app, which bundles the CLI.
 
 The two sections below cover each. If you only want the command line, you need
 the first section alone.
@@ -23,7 +23,7 @@ the binary to run it locally against your own files.
 
 :::tip Recommended right now: the beta channel
 kapi 1.2.0 is in its release-candidate phase and has **no stable release yet**, so
-the **beta channel** is the recommended way to install today — it carries the
+the **beta channel** is the recommended way to install today. It carries the
 current build (the latest release candidate) and, once 1.2.0 ships, every stable
 release too. The plain stable formulae still track the previous stable, which is
 behind 1.2.0. The Homebrew commands below show the beta install first; see
@@ -63,19 +63,19 @@ Pre-built binaries for all platforms are available on the
 Direct downloads for **kapi 1.2.0-rc13** (CLI):
 
 **macOS** (Apple Silicon)
-- **macOS arm64** — [`kapi-cli_1.2.0-rc13_darwin_arm64.tar.gz`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc13/kapi-cli_1.2.0-rc13_darwin_arm64.tar.gz)
+- **macOS arm64**: [`kapi-cli_1.2.0-rc13_darwin_arm64.tar.gz`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc13/kapi-cli_1.2.0-rc13_darwin_arm64.tar.gz)
 
 **Linux**
-- **Linux amd64 (tar.gz)** — [`kapi-cli_1.2.0-rc13_linux_amd64.tar.gz`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc13/kapi-cli_1.2.0-rc13_linux_amd64.tar.gz)
-- **Linux arm64 (tar.gz)** — [`kapi-cli_1.2.0-rc13_linux_arm64.tar.gz`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc13/kapi-cli_1.2.0-rc13_linux_arm64.tar.gz)
-- **Linux amd64 (.deb)** — [`kapi-cli_1.2.0-rc13_amd64.deb`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc13/kapi-cli_1.2.0-rc13_amd64.deb)
-- **Linux arm64 (.deb)** — [`kapi-cli_1.2.0-rc13_arm64.deb`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc13/kapi-cli_1.2.0-rc13_arm64.deb)
-- **Linux amd64 (.rpm)** — [`kapi-cli_1.2.0-rc13_amd64.rpm`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc13/kapi-cli_1.2.0-rc13_amd64.rpm)
-- **Linux arm64 (.rpm)** — [`kapi-cli_1.2.0-rc13_arm64.rpm`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc13/kapi-cli_1.2.0-rc13_arm64.rpm)
+- **Linux amd64 (tar.gz)**: [`kapi-cli_1.2.0-rc13_linux_amd64.tar.gz`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc13/kapi-cli_1.2.0-rc13_linux_amd64.tar.gz)
+- **Linux arm64 (tar.gz)**: [`kapi-cli_1.2.0-rc13_linux_arm64.tar.gz`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc13/kapi-cli_1.2.0-rc13_linux_arm64.tar.gz)
+- **Linux amd64 (.deb)**: [`kapi-cli_1.2.0-rc13_amd64.deb`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc13/kapi-cli_1.2.0-rc13_amd64.deb)
+- **Linux arm64 (.deb)**: [`kapi-cli_1.2.0-rc13_arm64.deb`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc13/kapi-cli_1.2.0-rc13_arm64.deb)
+- **Linux amd64 (.rpm)**: [`kapi-cli_1.2.0-rc13_amd64.rpm`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc13/kapi-cli_1.2.0-rc13_amd64.rpm)
+- **Linux arm64 (.rpm)**: [`kapi-cli_1.2.0-rc13_arm64.rpm`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc13/kapi-cli_1.2.0-rc13_arm64.rpm)
 
 **Windows** (Authenticode-signed, portable zip)
-- **Windows amd64** — [`kapi-cli_1.2.0-rc13_windows_amd64.zip`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc13/kapi-cli_1.2.0-rc13_windows_amd64.zip)
-- **Windows arm64** — [`kapi-cli_1.2.0-rc13_windows_arm64.zip`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc13/kapi-cli_1.2.0-rc13_windows_arm64.zip)
+- **Windows amd64**: [`kapi-cli_1.2.0-rc13_windows_amd64.zip`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc13/kapi-cli_1.2.0-rc13_windows_amd64.zip)
+- **Windows arm64**: [`kapi-cli_1.2.0-rc13_windows_arm64.zip`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc13/kapi-cli_1.2.0-rc13_windows_arm64.zip)
 
 Verify a download against [`checksums.txt`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc13/checksums.txt).
 <!-- END:downloads-cli -->
@@ -88,20 +88,20 @@ kapi version
 
 ### Connect an AI (optional)
 
-The rule-based commands — pseudo-translate, stats, voice checks against a
-profile file — need no AI at all. For LLM-backed translation, checks, and review,
+The rule-based commands (pseudo-translate, stats, voice checks against a
+profile file) need no AI at all. For LLM-backed translation, checks, and review,
 one command finds what you already have and confirms it:
 
 ```bash
 kapi models setup
 ```
 
-Setup detects the AI options on your machine — the Claude Code CLI (uses your
+Setup detects the AI options on your machine: the Claude Code CLI (uses your
 Claude subscription, no API key), a running Ollama server, and API keys already
-in your environment — then verifies your pick with a small test call and saves
+in your environment. It then verifies your pick with a small test call and saves
 it as the default, shared with Kapi Desktop. Usually that's one confirm, not a
 key paste. To store a key explicitly (or in CI, where a key is the right
-choice), use `kapi credentials add <name> --provider <p> --api-key …` — keys
+choice), use `kapi credentials add <name> --provider <p> --api-key …`. Keys
 live in your OS keychain. See [Use with Claude](/kapi/get-started/use-with-claude)
 for the subscription option and the
 [Quick Start](/kapi/get-started/quickstart) for what to run next.
@@ -137,23 +137,23 @@ on the [GitHub Releases](https://github.com/neokapi/neokapi/releases) page.
 Direct downloads for **Kapi Desktop 1.2.0-rc13**:
 
 **macOS** (Apple Silicon)
-- **macOS arm64 (.dmg)** — [`kapi-1.2.0-rc13-macOS-arm64.dmg`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc13/kapi-1.2.0-rc13-macOS-arm64.dmg)
+- **macOS arm64 (.dmg)**: [`kapi-1.2.0-rc13-macOS-arm64.dmg`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc13/kapi-1.2.0-rc13-macOS-arm64.dmg)
 
 **Windows** (signed installer)
-- **Windows amd64 (installer)** — [`kapi-1.2.0-rc13-windows-amd64-setup.exe`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc13/kapi-1.2.0-rc13-windows-amd64-setup.exe)
-- **Windows arm64 (installer)** — [`kapi-1.2.0-rc13-windows-arm64-setup.exe`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc13/kapi-1.2.0-rc13-windows-arm64-setup.exe)
-- **Windows amd64 (portable zip)** — [`kapi-1.2.0-rc13-windows-amd64.zip`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc13/kapi-1.2.0-rc13-windows-amd64.zip)
-- **Windows arm64 (portable zip)** — [`kapi-1.2.0-rc13-windows-arm64.zip`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc13/kapi-1.2.0-rc13-windows-arm64.zip)
+- **Windows amd64 (installer)**: [`kapi-1.2.0-rc13-windows-amd64-setup.exe`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc13/kapi-1.2.0-rc13-windows-amd64-setup.exe)
+- **Windows arm64 (installer)**: [`kapi-1.2.0-rc13-windows-arm64-setup.exe`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc13/kapi-1.2.0-rc13-windows-arm64-setup.exe)
+- **Windows amd64 (portable zip)**: [`kapi-1.2.0-rc13-windows-amd64.zip`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc13/kapi-1.2.0-rc13-windows-amd64.zip)
+- **Windows arm64 (portable zip)**: [`kapi-1.2.0-rc13-windows-arm64.zip`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc13/kapi-1.2.0-rc13-windows-arm64.zip)
 
 **Linux**
-- **Linux amd64 (tar.gz)** — [`kapi-1.2.0-rc13-linux-amd64.tar.gz`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc13/kapi-1.2.0-rc13-linux-amd64.tar.gz)
-- **Linux arm64 (tar.gz)** — [`kapi-1.2.0-rc13-linux-arm64.tar.gz`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc13/kapi-1.2.0-rc13-linux-arm64.tar.gz)
+- **Linux amd64 (tar.gz)**: [`kapi-1.2.0-rc13-linux-amd64.tar.gz`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc13/kapi-1.2.0-rc13-linux-amd64.tar.gz)
+- **Linux arm64 (tar.gz)**: [`kapi-1.2.0-rc13-linux-arm64.tar.gz`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc13/kapi-1.2.0-rc13-linux-arm64.tar.gz)
 <!-- END:downloads-desktop -->
 
 ## Beta channel
 
 The **beta channel** is a fast ring: it receives release candidates *and* every
-stable release, so a beta install is never behind stable — it just gets things
+stable release, so a beta install is never behind stable and simply gets things
 sooner. **While 1.2.0 is in release candidates, it is the recommended channel**
 (see above); once 1.2.0 stable ships it returns to being an opt-in early-adopter
 ring. It ships as separate Homebrew packages.
@@ -178,7 +178,7 @@ brew install --cask neokapi/tap/kapi@beta
 ```
 
 For the CLI only, skip the cask: `brew install neokapi/tap/kapi-cli-beta`.
-`kapi-pdfium` is a shared dependency with no beta variant — leave it installed.
+`kapi-pdfium` is a shared dependency with no beta variant, so leave it installed.
 
 A beta build is clearly marked: `kapi version` prints a `(beta)` badge, and the
 desktop window title reads **Kapi (Beta)**. For direct downloads, beta builds are
@@ -201,6 +201,6 @@ override it for a single shell.
 
 > Beta packages are a Homebrew concept (separate formula/cask). WinGet tracks the
 > stable release. The version-pinned direct downloads above point to the current
-> release — during the 1.2.0 release-candidate phase that is the latest RC (a beta
+> release. During the 1.2.0 release-candidate phase that is the latest RC (a beta
 > build); the full set, including any stable, is on the
 > [Releases](https://github.com/neokapi/neokapi/releases) page.

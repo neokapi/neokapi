@@ -34,7 +34,7 @@ kcat --target fr messages.xliff
 cat raw.txt | kcat -f plaintext
 ```
 
-`kcat` pairs naturally with the shell tools you already have — pipe its output
+`kcat` pairs naturally with the shell tools you already have. Pipe its output
 into the real `grep`, `wc`, or `sort` when you want byte-level line behaviour
 rather than the block-aware `kgrep`.
 

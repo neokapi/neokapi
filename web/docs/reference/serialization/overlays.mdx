@@ -18,16 +18,16 @@ keywords:
 # Overlays
 
 "Overlay" names two different serializations in kapi. They are the same idea at
-two granularities — data held *beside* content rather than inside it — but they
-are distinct formats with different schemas, different suffixes, and their own
-independent version numbers.
+two granularities, both holding data *beside* content rather than inside it.
+They are distinct formats with different schemas, different suffixes, and their
+own independent version numbers.
 
 This page specifies both. If you are looking for one in particular:
 
-- [Annotation sidecar](#spec-a-annotation-sidecar-overlaysjsonl) —
+- [Annotation sidecar](#spec-a-annotation-sidecar-overlaysjsonl):
   `.overlays.jsonl`, per document, one record per annotation, anchored into a
   block's run structure.
-- [Overlay set](#spec-b-overlay-set-overlaysjson) — `.overlays.json`, one
+- [Overlay set](#spec-b-overlay-set-overlaysjson): `.overlays.json`, one
   member inside a [`.kpz`](/reference/serialization/project-archive), keyed by
   block hash.
 
@@ -37,7 +37,7 @@ Annotating content in place would mean rewriting the content to record an
 opinion about it. Stand-off keeps the two separable: the same extracted
 document can carry a segmentation overlay from one tool, a terminology overlay
 from another, and a check overlay from a third, with no tool needing write access
-to another's output — and none of them modifying the content itself.
+to another's output, and none of them modifying the content itself.
 
 The cost is that an anchor can go stale when the content it points at changes,
 which is why anchor resolution is specified rather than best-effort.
@@ -48,8 +48,9 @@ A JSON Lines file: **one header record, then zero or more annotation records**,
 one per line. It sits beside a [content bundle](/reference/serialization/content-bundle),
 and inside a project archive it lives at `annotations/<id>.overlays.jsonl`.
 
-JSON Lines is right here — unlike content memory — because this genuinely *is*
-a flat record stream that a producing tool appends to as it works.
+JSON Lines is right here, where content memory uses a different shape, because
+this genuinely *is* a flat record stream that a producing tool appends to as it
+works.
 
 Implemented in Go at
 [`core/kbf`](https://github.com/neokapi/neokapi/tree/main/core/kbf).
@@ -61,7 +62,7 @@ Implemented in Go at
 | `type` | string | Record discriminator. |
 | `annotationType` | string | What kind of annotation this file carries. Consumers negotiate on this. |
 | `annotationVersion` | string | Version of that annotation type. |
-| `producer` | object | `{id, version}` — the tool that wrote the file. |
+| `producer` | object | `{id, version}` of the tool that wrote the file. |
 | `created` | string | Timestamp. |
 | `targetArchive` | string | The archive state these annotations were produced against. |
 
@@ -77,18 +78,18 @@ older state.
 | `id` | string | Annotation identity. |
 | `block` | string | The block this annotation is about. |
 | `anchor` | object | Where inside that block it applies. See below. |
-| `data` | any | Producer-specific payload. **The framework imposes no schema here** — consumers that understand `annotationType` interpret it. |
+| `data` | any | Producer-specific payload. **The framework imposes no schema here**, so consumers that understand `annotationType` interpret it. |
 
 ### The anchoring model
 
 An anchor says where inside a block something is. It is the same shape the
-engine records every position with — overlay spans, check findings — so an
-annotation written here means what it means anywhere else. Its `kind` field
+engine records every position with, overlay spans and check findings alike, so
+an annotation written here means what it means anywhere else. Its `kind` field
 discriminates which of the other fields are meaningful:
 
 | `kind` | Meaningful fields | Points at |
 | --- | --- | --- |
-| `block` | — | A whole block. |
+| `block` | n/a | A whole block. |
 | `run` | `path`, `runId` | One run, identified by path and matched against `runId`. |
 | `range` | `path`, `start`, `end` | A half-open span of the run sequence at `path`. |
 | `form` | `path`, `key` | One plural form or select case. |
@@ -98,15 +99,15 @@ structure. An empty path refers to the block's top-level source runs. Each step
 serializes as one of three shapes, which is how a path descends into ICU
 constructs:
 
-- a bare number — an index into a run sequence
-- `{"plural": "<form>"}` — into a plural run's form
-- `{"select": "<value>"}` — into a select run's case
+- a bare number: an index into a run sequence
+- `{"plural": "<form>"}`: into a plural run's form
+- `{"select": "<value>"}`: into a select run's case
 
 So `["1", {"plural": "other"}, 0]` reads as: run 1, its `other` form, the first
 run inside it.
 
-`start` and `end` are each a **run position** — `{"run": <index>, "offset":
-<runes>}` — where `offset` is a rune offset into that run's text. Both the
+`start` and `end` are each a **run position**, `{"run": <index>, "offset":
+<runes>}`, where `offset` is a rune offset into that run's text. Both the
 position and its offset default to zero and are omitted when they are zero, so
 a range over the first run of a sequence carries no `start` at all.
 
@@ -117,8 +118,8 @@ either side of a placeholder, which carries no text of its own.
 
 ## Spec B: overlay set (`.overlays.json`)
 
-A single JSON document carrying **in-progress overlay layers** — targets,
-annotations, segmentation — for a resumable workspace. Inside a project archive
+A single JSON document carrying **in-progress overlay layers** (targets,
+annotations, segmentation) for a resumable workspace. Inside a project archive
 it is the one `overlays.json` member.
 
 Implemented in Go at
@@ -156,7 +157,7 @@ empty for a whole-project snapshot, whose overlays share one block store.
 Overlays are sorted by `(source, kind, blockHash)` and each `payload` is
 re-marshaled through a canonical pass, so two semantically identical payloads
 hash identically regardless of how the producing tool spaced its JSON. That is
-what keeps the member bytes — and therefore the package root hash — stable for
+what keeps the member bytes, and therefore the package root hash, stable for
 a given workspace state.
 
 ## How the two relate
@@ -187,6 +188,6 @@ can be resumed. A `.kpz` can contain both: per-document sidecars under
 
 ## See also
 
-- [Content bundle](/reference/serialization/content-bundle) — the content overlays anchor into, and the full anchor-failure reasons.
-- [Project archive](/reference/serialization/project-archive) — the container carrying both overlay forms.
-- [Bundle anatomy](/kbf-lab) — edit an overlay and watch each anchor resolve or fail against a live document.
+- [Content bundle](/reference/serialization/content-bundle): the content overlays anchor into, and the full anchor-failure reasons.
+- [Project archive](/reference/serialization/project-archive): the container carrying both overlay forms.
+- [Bundle anatomy](/kbf-lab): edit an overlay and watch each anchor resolve or fail against a live document.

@@ -9,7 +9,7 @@ keywords: [kdiff, diff, compare, changeset, coverage, docx, json, xliff, multili
 
 Compare the human-readable text inside any supported format, **block by block**,
 rather than byte by byte. A reflowed Word `.docx`, a re-zipped container or a
-reordered JSON catalog do not register as a diff — only the prose that actually
+reordered JSON catalog do not register as a diff. Only the prose that actually
 changed does. This is the changeset a translator (or a translation engine) cares
 about: what content moved, was added, was removed, or was rewritten.
 
@@ -22,7 +22,7 @@ of `-` reads standard input.
 
 ## Two modes
 
-### Revision diff — two files
+### Revision diff: two files
 
 What text changed between two versions of a document.
 
@@ -37,10 +37,10 @@ kdiff proposal.docx proposal-v2.docx
 kdiff --target fr old.xliff new.xliff
 ```
 
-### Coverage diff — one file against its own translation
+### Coverage diff: one file against its own translation
 
 Pass a single file with `--target LOCALE` to compare a translation against the
-source *within that file* — a quick coverage report of which blocks are still
+source *within that file*, a quick coverage report of which blocks are still
 untranslated or are a verbatim copy of the source.
 
 ```bash
@@ -57,15 +57,15 @@ app [fr]: 18 translated, 3 untranslated, 1 identical to source
 
 ## How blocks are aligned
 
-`kdiff` does not compare line positions — it aligns the document's **blocks**.
-The alignment strategy is chosen automatically:
+`kdiff` aligns the document's **blocks** rather than its line positions. The
+alignment strategy is chosen automatically:
 
-- **Keyed formats** (JSON, XLIFF, PO, `.resx`, … — anything with a stable block
-  key) align **by key**. Reordering keys is therefore not a diff; renaming the
+- **Keyed formats** (JSON, XLIFF, PO, `.resx`, and anything else with a stable
+  block key) align **by key**. Reordering keys is therefore not a diff; renaming the
   value under a key is a *change*; a new key is an *addition*. Reordered keys are
   reported as `moved`, not as a wholesale rewrite the way a line diff would show
   them.
-- **Prose formats** (Word, Markdown, HTML — whose block identities are
+- **Prose formats** (Word, Markdown, HTML, whose block identities are
   positional) align **by content**, using a longest-common-subsequence match
   over the block text. Inserting a paragraph shows up as a single added block,
   not as a cascade of "everything after it changed".
