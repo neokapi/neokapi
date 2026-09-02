@@ -46,7 +46,7 @@ func (a *App) InspectFile(tabID, filePath string) (string, error) {
 //   - voice-vocabulary overlays (type "qa", props.category="voice-vocabulary")
 //     from the voice profile governing the point this file sits at
 //     (voiceResolver via coreprofile.MatchVocabulary);
-//   - rule-based QA overlays (type "qa") from the shared source-only shape rules
+//   - rule-based check overlays (type "qa") from the shared source-only shape rules
 //     (double spaces, doubled words — check.HygieneOverlay).
 //
 // These mirror the overlay shapes the docs "Anatomy" explorer produces in
@@ -287,7 +287,7 @@ func blocksFromParts(parts []*model.Part) []*model.Block {
 // annotateParts walks the part stream and writes source-anchored stand-off
 // overlays onto every translatable Block, in place, using the project's real
 // resources: its terms store (term overlays), its voice profile
-// (voice-vocabulary QA overlays) and the shared source-only shape rules
+// (voice-vocabulary check overlays) and the shared source-only shape rules
 // (check.HygieneOverlay). It mirrors
 // the wasm "Anatomy" annotator (kapi/cmd/kapi-wasm-cli/lab_annotate.go) so the
 // content tree's `overlays` view is populated identically, but sources its term
@@ -333,7 +333,7 @@ func (a *App) annotateParts(ctx context.Context, op *openProject, parts []*model
 				b.Overlays = append(b.Overlays, *ov)
 			}
 		}
-		// Shape QA (double spaces, doubled words) comes from the shared
+		// Shape checks (double spaces, doubled words) come from the shared
 		// check.HygieneOverlay, which judges the run-aware flattening and maps
 		// its ranges back onto the runs. A preview highlight and a `kapi check`
 		// finding therefore agree by construction rather than by coincidence.
@@ -385,7 +385,7 @@ func termOverlay(ctx context.Context, tb terms.Terminology, runs []model.Run, so
 // voiceOverlay builds an OverlayQA over the source runs from the project's voice
 // profile — both halves of its deterministic gate, vocabulary
 // (coreprofile.MatchVocabulary) and prohibited style patterns
-// (coreprofile.MatchPatterns). Findings ride on the QA overlay type (the model's
+// (coreprofile.MatchPatterns). Findings ride on the "qa" overlay type (the model's
 // overlay enum has no dedicated voice type) tagged with
 // category="voice-vocabulary" or category="voice-pattern" plus the matched term
 // or rule, severity, kind and any preferred replacement. Returns nil when

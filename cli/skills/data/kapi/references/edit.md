@@ -89,7 +89,7 @@ A written file is not the finish line — a clean check is. In a project, run
 
 ```bash
 kapi check report.docx --json     # one-off: deterministic content rules
-kapi check --ship --json                 # in a project: voice + terminology + QA gates
+kapi check --ship --json                 # in a project: voice + terminology + rule-based gates
 ```
 
 Read the findings, fix the flagged blocks through another `apply` pass, and

@@ -420,7 +420,7 @@ describe("ProblemsPanel", () => {
       onNavigateToBlock: vi.fn(),
       onClose: vi.fn(),
     });
-    expect(screen.getByText("Running QA checks...")).toBeInTheDocument();
+    expect(screen.getByText("Running checks...")).toBeInTheDocument();
   });
 
   it("calls onClose when close button is clicked", async () => {

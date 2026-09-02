@@ -38,4 +38,4 @@ loop, not the translation pipeline.
 
 When the UI holds up, `kapi translate` produces the real translations for
 ad-hoc files, and `kapi up` catches a whole project up to its ship gates.
-For deeper QA, see [Quality checks](/docs/features/qa-checks).
+For deeper checks, see [Rule-based checks](/framework/checks/rule-checks).

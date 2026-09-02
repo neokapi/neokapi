@@ -26,7 +26,7 @@ layers](/kapi/direct-execution-layer).
 Three layers, three verbs. `kapi exec <tool>` runs exactly one registry tool
 with nothing around it — here `recycle`, the content memory step of `up`'s default flow.
 `kapi run <flow>` executes one pass of one composed pipeline — here
-`leverage-check`, recycle followed by the deterministic qa checks; inside a
+`leverage-check`, recycle followed by the deterministic rule-based checks; inside a
 project the pass commits to the project store, not to files. And
 `kapi extract` / `kapi merge` are the interchange doors: a bilingual XLIFF
 pre-filled from the content memory goes out to a human translator, and the returned file

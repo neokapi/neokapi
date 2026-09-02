@@ -14,7 +14,7 @@ import "./diagram.css";
         phases={[
           {
             kind: "phase", role: "source", label: "settle source",
-            steps: ["term-check + protect", "voice-check", "source QA"],
+            steps: ["term-check + protect", "voice-check", "source checks"],
           },
           {
             kind: "gate", label: "source ship-gate", sub: "source_gate",
@@ -22,7 +22,7 @@ import "./diagram.css";
           },
           {
             kind: "phase", role: "translate", label: "translate approved source",
-            steps: ["recycle (content memory-first)", "AI remainder", "target QA"],
+            steps: ["recycle (content memory-first)", "AI remainder", "target checks"],
           },
           {
             kind: "gate", label: "target ship-gate", sub: "ship_gate",

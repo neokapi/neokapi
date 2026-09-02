@@ -28,7 +28,7 @@ source runs are written once, settled, and then read by everything downstream.
     { label: "recognize", sub: "terms · entities", role: "annotate" },
     { label: "recycle", sub: "memory reuse", role: "translate" },
     { label: "translate", sub: "AI · LLMProvider", role: "translate" },
-    { label: "check", sub: "QA findings", role: "qa" },
+    { label: "check", sub: "findings", role: "qa" },
     { label: "sink", sub: "binding", role: "io" },
   ]}
 />

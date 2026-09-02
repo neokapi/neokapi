@@ -6,7 +6,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { ToolConfig } from "../_lib/schema-story";
 
 const meta: Meta = {
-  title: "Formats & Tools/Tools/Quality Assurance/Extraction Verification",
+  title: "Formats & Tools/Tools/Checks/Extraction Verification",
   parameters: { layout: "padded" },
 };
 export default meta;

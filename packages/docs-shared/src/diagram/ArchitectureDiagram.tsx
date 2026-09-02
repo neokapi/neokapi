@@ -7,7 +7,7 @@ import "./diagram.css";
   It tells the whole story in one frame, left to right:
 
       sources ─▶ Reader ─chan─▶ Annotate ─chan─▶ ⟨fan-out⟩ Translate ⟨fan-in⟩
-              ─chan─▶ QA ─chan─▶ Writer ─▶ file or store
+              ─chan─▶ Checks ─chan─▶ Writer ─▶ file or store
 
   with three things layered on:
     · resources (Memory, terms, translation provider) feed annotate/translate
@@ -131,9 +131,9 @@ export function ArchitectureDiagram({
             <desc id="kdx-arch-desc">
               A streaming pipeline: a format reader at the left edge and a writer at the right that
               sinks to a file (round-trip) or a content store (overlays); a serial chain of
-              annotate, translate and QA tools in the middle, with the translate stage fanning out
-              across parallel goroutines; content-memory, terms and a translation provider (LLM or
-              MT) feeding it from above; and a gRPC plugin band (Okapi bridge, tier-3
+              annotate, translate and check tools in the middle, with the translate stage fanning
+              out across parallel goroutines; content-memory, terms and a translation provider (LLM
+              or MT) feeding it from above; and a gRPC plugin band (Okapi bridge, tier-3
               segmenter/media/OCR plugins, remote plugins) feeding it from below. Each stage is a
               goroutine joined by Part channels, and the whole pipeline runs over many documents in
               parallel.
@@ -320,11 +320,11 @@ export function ArchitectureDiagram({
               r={2.6}
             />
 
-            {/* ── fan-in → QA ── */}
+            {/* ── fan-in → checks ── */}
             <Channel x1={622} x2={654} />
 
-            {/* ── QA ── */}
-            <Stage x={654} w={96} role="qa" title="QA" sub="qa · enforce" />
+            {/* ── checks ── */}
+            <Stage x={654} w={96} role="qa" title="Checks" sub="qa · enforce" />
 
             <Channel x1={750} x2={786} />
             <FlowDot path="M750,196 L786,196" dur={1.5} begin={0.4} cls="kdx-dot--io" />
@@ -396,7 +396,7 @@ export function ArchitectureDiagram({
             </text>
             <path d="M388,400 L314,228" className="kdx-link kdx-link--plugin" />
 
-            {/* remote / native → QA (a tool stage) */}
+            {/* remote / native → checks (a tool stage) */}
             <rect x={560} y={400} width={200} height={48} rx={9} className="kdx-chip" />
             <text x={660} y={420} textAnchor="middle" fontSize={11.5} className="kdx-chip-t">
               Remote / native plugin

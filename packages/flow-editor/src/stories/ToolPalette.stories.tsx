@@ -94,7 +94,7 @@ const transformerTools: ToolInfo[] = [
   },
   {
     name: "qa",
-    display_name: "QA Check",
+    display_name: "Quality Check",
     description: "Run rule-based quality checks",
     category: "validate",
     has_schema: true,

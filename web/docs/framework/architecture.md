@@ -36,8 +36,8 @@ store, a `.kpz` workspace, or an interchange file, with no reader or writer
 Between the edges runs a [flow](/framework/flows): a serial chain of
 [tools](/framework/tools) connected by buffered channels of Parts. The tools divide by capability: **annotators** attach stand-off
 [overlays and annotations](/framework/content-model#two-ways-to-annotate-a-block)
-(segmentation, terminology, entities, QA findings, analysis results),
-**translators** fill in targets, and **QA** tools check and enforce, while
+(segmentation, terminology, entities, check findings, analysis results),
+**translators** fill in targets, and **validators** check and enforce, while
 [content memory](/framework/content-memory) and the
 [terms store](/framework/terminology) feed the relevant stages.
 

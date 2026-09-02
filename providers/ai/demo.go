@@ -33,7 +33,7 @@ const DemoNotice = "demo mode: illustrative output from a built-in stub — not 
 // It is NOT a translation engine. It applies a small built-in lexicon for
 // common UI words and a deterministic, visibly-marked transform for everything
 // else, so the result is plausible-looking but obviously a stub. Quality-style
-// schemas (QA, voice profile) deliberately return empty/neutral results rather
+// schemas (checks, voice profile) deliberately return empty/neutral results rather
 // than inventing findings.
 type DemoProvider struct {
 	config Config
@@ -94,8 +94,8 @@ func (p *DemoProvider) Chat(ctx context.Context, messages []Message) (*ChatRespo
 // schema (emitted by voice-infer) is honoured by deterministic surface
 // heuristics over the corpus embedded in the prompt — a generative onboarding
 // draft, clearly marked as illustrative. All other schemas get a neutral,
-// schema-valid response (empty arrays / zero values) so that QA and
-// voice check tools run without fabricating findings.
+// schema-valid response (empty arrays / zero values) so that the `qa` and
+// voice-check tools run without fabricating findings.
 func (p *DemoProvider) ChatStructured(ctx context.Context, messages []Message, schema JSONSchema) (*ChatResponse, error) {
 	noticeOnce()
 	userTurn := lastUserMessage(messages)
@@ -594,7 +594,7 @@ func demoChatReply(ctx context.Context, userTurn string) string {
 
 // neutralSchemaJSON builds a minimal schema-valid JSON document: arrays become
 // empty arrays, strings empty, numbers zero, booleans false, objects recursed.
-// Used for QA / voice style schemas where inventing findings would be
+// Used for check / voice style schemas where inventing findings would be
 // dishonest.
 func neutralSchemaJSON(s JSONSchema) string {
 	v := neutralValue(s.Schema)

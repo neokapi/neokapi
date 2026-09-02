@@ -18,7 +18,7 @@ import styles from "./styles.module.css";
 //     does no new engine work (it can never hang).
 //   • Annotate + translate is an explicit, on-demand action in the detail bar:
 //     `inspectAnnotated` adds the read-only annotator overlays (vocabulary,
-//     brand, rule-based QA) and a real pseudo-translate run produces an fr-FR
+//     brand, rule-based checks) and a real pseudo-translate run produces an fr-FR
 //     target merged back on, lighting up the viewer's source↔target toggle.
 //
 // Download (source + transformed) and a "your own files" drop entry round it
@@ -284,7 +284,7 @@ export default function ModalBody(): React.ReactElement {
           </button>
           <span className={styles.detailHint} style={{ marginInlineEnd: "auto" }}>
             {opened.enriched
-              ? "Vocabulary, brand & QA annotations · real pseudo-translate target"
+              ? "Vocabulary, brand & check annotations · real pseudo-translate target"
               : "Live extraction — annotate & translate to see overlays and an fr target"}
           </span>
           <button

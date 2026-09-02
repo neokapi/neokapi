@@ -457,7 +457,7 @@ func TestResumeSeq(t *testing.T) {
 }
 
 func TestCountFailingBlocks(t *testing.T) {
-	// A translated block that drops a source placeholder fails QA (an
+	// A translated block that drops a source placeholder fails its checks (an
 	// error-severity finding); a clean block and a non-translatable block do not
 	// count (F6).
 	fr := model.LocaleFrench

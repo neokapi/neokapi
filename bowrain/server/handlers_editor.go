@@ -1347,7 +1347,7 @@ func (s *Server) HandleGetTranslationDashboard(c echo.Context) error {
 	}
 
 	// Derive per-locale + per-collection ship states and compliance rates
-	// (bounded QA pass + deterministic term compliance + persisted voice scores)
+	// (bounded check pass + deterministic term compliance + persisted voice scores)
 	// so the cached result carries them for every paged slice. The term gate
 	// resolves the workspace terms snapshot + per-locale voice profile once
 	// (never per block) — a nil gate (no terms, no voice store) is a no-op.

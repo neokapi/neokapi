@@ -17,7 +17,7 @@ func RegisterAll(reg *registry.ToolRegistry) {
 	// ai-translate command and the per-engine <provider>-translate commands.
 	reg.RegisterGroup(translateGroup())
 
-	// QA — a tool group with two members: deterministic rule checks (default,
+	// Quality check — a tool group with two members: deterministic rule checks (default,
 	// no credentials) and LLM-judged review; `--mode` selects (see unified.go).
 	reg.RegisterGroup(qaGroup())
 

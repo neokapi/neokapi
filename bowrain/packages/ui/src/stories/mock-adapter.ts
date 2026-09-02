@@ -852,7 +852,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
                 locale: loc,
                 block: b,
                 collection_id: adapter.itemCollections[itemName] ?? "",
-                // The two bars beyond QA the server judges on, absent unless a
+                // The two bars beyond the checks the server judges on, absent unless a
                 // test seeds them — the same shape the real payload carries.
                 term_compliance: evidence?.term_compliance,
                 voice_score: evidence?.voice_score,
@@ -1094,7 +1094,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
     approvePassingReview: async (_ws, _projectId, req = {}) => {
       approvePassingReviewCalls.push(req);
       if (adapter.approvePassingResult) return adapter.approvePassingResult;
-      // Default: promote every pending block passing checks (mock has no QA),
+      // Default: promote every pending block passing checks (the mock runs none),
       // marking them reviewed so a re-read reflects the emptied queue.
       const locales = req.locales;
       let approved = 0;
@@ -1219,7 +1219,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
     setRoleOverride: async () => {},
     demoteVoiceRule: async () => {},
 
-    // --- QA --------------------------------------------------------------
+    // --- Checks ----------------------------------------------------------
     runQACheck: async (): Promise<QAIssue[]> => sampleQAIssues,
     runFileQACheck: async (): Promise<FileQAResult[]> => sampleFileQAResults,
 

@@ -117,7 +117,7 @@ violations.
 
 The terminology tools run as ordinary pipeline stages ([E-03](/contribute/architecture/engine/e-03-tool-system)). Every governed step takes its rules under one key, `term_rules:`, as `[]profile.TermRule`:
 
-**`term-lookup`** (Enrich). Runs `terms.Locate` over the source with the store and the step's `term_rules:`, and attaches a `TermAnnotation` per occurrence as an overlay span whose `Range` is the occurrence's `model.Anchor`. Downstream tools (AI translate, QA) use these annotations for context.
+**`term-lookup`** (Enrich). Runs `terms.Locate` over the source with the store and the step's `term_rules:`, and attaches a `TermAnnotation` per occurrence as an overlay span whose `Range` is the occurrence's `model.Anchor`. Downstream tools (AI translate, checks) use these annotations for context.
 
 **`term-check`** (Validate). Holds the target to the renderings its `term_rules:` mandate. Both sides match on containment rather than word boundaries, so an inflected form of a lemma counts; a rule's severity sorts a violation into `term-check-errors` or `term-check-warnings`, and a rule with no replacement is skipped.
 

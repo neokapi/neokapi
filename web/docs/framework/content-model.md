@@ -31,8 +31,8 @@ Pick a lesson and a sample (or drop in your own file) and watch the real `kapi`
 reader decompose it in your browser via WebAssembly. **Anatomy** shows the Layers,
 Groups, Blocks and **Runs** — notice an HTML `<strong>` becomes a paired inline
 code while a JSON `{name}` stays literal text. The other lessons reveal what rides
-on a Block without touching its text: **segmentation** boundaries, **terms & QA**
-overlays, a variant-keyed **source ↔ target**, the document **structure**, and a
+on a Block without touching its text: **segmentation** boundaries, **terms &
+findings** overlays, a variant-keyed **source ↔ target**, the document **structure**, and a
 **round-trip** that proves only the text changed.
 :::
 
@@ -161,7 +161,7 @@ both the content you read, edit, or translate and the structure that surrounds i
   carriers described in [Two ways to annotate a block](#two-ways-to-annotate-a-block)
   — positional `Overlays` and block-scoped `Annotations`.
 - **Overlay** — a typed, run-anchored interpretation _of_ a block's runs:
-  sentence segmentation, terminology, entities, QA findings, source↔target
+  sentence segmentation, terminology, entities, check findings, source↔target
   alignment. Each overlay is a **positional stand-off layer** over one side of the
   block, layered over the runs rather than baked into the structure. There is no
   structural `Segment` type: a segment is just a span in the segmentation overlay,
@@ -183,7 +183,7 @@ both the content you read, edit, or translate and the structure that surrounds i
 
 A block's content is just its `Source []Run` and its variant-keyed `Targets`.
 Every typed interpretation _of_ that content is **stand-off** — kept separate
-from the runs — so the same content can carry segmentation, terminology, QA
+from the runs — so the same content can carry segmentation, terminology, check
 findings, notes, and analysis results at once without rewriting it. A block
 holds stand-off interpretations in two carriers, chosen by whether the
 interpretation has a position:

@@ -70,8 +70,8 @@ collections:
 `
 	require.NoError(t, os.WriteFile(filepath.Join(root, "locales", "en", "app.json"), []byte(src), 0o644))
 
-	// Target: drops the {name} placeholder (QA fail) and mistranslates "Save"
-	// (terminology fail — the rule requires "Enregistrer").
+	// Target: drops the {name} placeholder (a check failure) and mistranslates
+	// "Save" (terminology fail — the rule requires "Enregistrer").
 	bad := `{
   "greeting": "Bonjour, bienvenue chez Globex!",
   "save": "Sauvegarder"
@@ -394,7 +394,7 @@ func TestVerify_PreferredTermsFromTermsSourceWithAnEmptyStorePresent(t *testing.
 
 // TestVerify_DoNotTranslateNotFlagged asserts that a do-not-translate
 // term whose target legitimately equals the source (e.g. the brand "KapiMart")
-// is not reported as untranslated by the QA gate.
+// is not reported as untranslated by the checks gate.
 func TestVerify_DoNotTranslateNotFlagged(t *testing.T) {
 	root := writeTermsSourceProject(t)
 	t.Chdir(root)

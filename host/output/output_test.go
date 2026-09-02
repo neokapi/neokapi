@@ -99,7 +99,7 @@ func TestToolsListOutputGroupsByCategory(t *testing.T) {
 		Tools: []ToolInfo{
 			{Name: "translate", Description: "Translate with AI", Category: "translation"},
 			{Name: "pseudo-translate", Description: "Pseudo-translate", Category: "translation"},
-			{Name: "qa", Description: "Run QA checks", Category: "quality"},
+			{Name: "qa", Description: "Run the rule-based checks", Category: "quality"},
 			{Name: "word-count", Description: "Count words", Category: "analysis"},
 			{Name: "search-replace", Description: "Find and replace", Category: "text-processing"},
 		},
@@ -149,7 +149,7 @@ func TestToolsListOutputEmpty(t *testing.T) {
 func TestToolsListOutputJSON(t *testing.T) {
 	out := ToolsListOutput{
 		Tools: []ToolInfo{
-			{Name: "qa", Description: "Run QA", Category: "quality", Source: "builtin"},
+			{Name: "qa", Description: "Run the checks", Category: "quality", Source: "builtin"},
 		},
 		Total: 1,
 	}

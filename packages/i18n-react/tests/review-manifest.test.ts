@@ -67,7 +67,7 @@ describe("buildReviewManifest", () => {
     });
   });
 
-  it("attaches .overlays.jsonl term/QA annotations to the matching block", () => {
+  it("attaches .overlays.jsonl term/check annotations to the matching block", () => {
     const dir = tempDir("review-ann");
     mkdirSync(dir, { recursive: true });
     writeFileSync(join(dir, "App.kbf.json"), marshalFile(fileWith(block())));

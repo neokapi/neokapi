@@ -157,7 +157,7 @@ func KitchenSinkBlock() *model.Block {
 }
 
 // KitchenSinkOverlays returns one overlay of every kind (segmentation with an
-// ignorable span, entity + term + term-candidate carrying typed Values, a QA
+// ignorable span, entity + term + term-candidate carrying typed Values, a check
 // finding with props, and a target-side alignment) — the full OverlayType
 // vocabulary the sync wire must carry.
 func KitchenSinkOverlays() []model.Overlay {

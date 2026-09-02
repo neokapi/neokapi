@@ -23,7 +23,7 @@
  *
  *   - Deep link `?kapi-focus=<hash>` on load → scrolls to the element carrying
  *     that block's `data-kapi-id`, outlines it, and opens a read-only panel
- *     (source, target for the active locale, translator note, term/QA
+ *     (source, target for the active locale, translator note, term/check
  *     annotations). A Bowrain reviewer opens a translation unit in context in
  *     one click.
  *   - Whole-page review: `?kapi-review` on load (or clicking the toolbar pill)

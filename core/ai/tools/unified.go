@@ -24,7 +24,7 @@ import (
 //
 // `qa` mirrors that shape: with no `--provider` it runs the deterministic,
 // rule-based quality checks (no credentials needed); with `--provider` set it
-// runs LLM-judged QA. Both underlying implementations (core/tools' rule checks
+// runs the LLM judge. Both underlying implementations (core/tools' rule checks
 // and core/ai/tools' LLM judge) are reached through one verb.
 
 // isMTProvider reports whether a provider id names a machine-translation engine
@@ -139,7 +139,7 @@ func TranslateSchema() *schema.ComponentSchema {
 	return registry.ComposeGroupSchema(translateGroup())
 }
 
-// qaToolMeta is the QA tool metadata shared by the schema and contract resolver.
+// qaToolMeta is the `qa` tool metadata shared by the schema and contract resolver.
 // The contract is the AI-path superset (credentials + API egress); rule mode
 // drops those at runtime via ResolveQAContract.
 func qaToolMeta() schema.ToolMeta {
@@ -172,7 +172,7 @@ func qaCommonSchema() *schema.ComponentSchema {
 		Properties: map[string]schema.PropertySchema{
 			qaModeField: {
 				Type:        "string",
-				Title:       "QA Mode",
+				Title:       "Check mode",
 				Description: "How to check quality: deterministic local rules, or an AI provider's review",
 				Default:     qaModeRules,
 			},
@@ -181,7 +181,7 @@ func qaCommonSchema() *schema.ComponentSchema {
 	}
 }
 
-// qaMembers are the two QA backends: deterministic rules and an LLM judge.
+// qaMembers are the two check backends: deterministic rules and an LLM judge.
 func qaMembers() []registry.ToolGroupMember {
 	rules := schema.FromStruct(libtools.NewQACheckConfig(model.LocaleEnglish), schema.ToolMeta{ID: "qa-rules"})
 	ai := schema.FromStruct(&AIQAConfig{}, schema.ToolMeta{ID: "qa-ai"})
@@ -225,7 +225,7 @@ func NewTranslateFromConfig(config map[string]any, targetLang string) (tool.Tool
 	return NewAITranslateFromConfig(config, targetLang)
 }
 
-// QA mode discriminator: the `qa` tool selects its backend with `mode`
+// Check mode discriminator: the `qa` tool selects its backend with `mode`
 // (Deterministic rules vs AI review), replacing the old "provider-presence"
 // heuristic. The values double as the ComposeVariants variant names.
 const (

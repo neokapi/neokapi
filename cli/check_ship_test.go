@@ -8,8 +8,9 @@ import (
 )
 
 // TestCheckShip_AbsorbsVerify: `kapi check --ship` runs the project's bound
-// quality gates through the shared verify engine — brand, terminology, and QA
-// findings on the failing fixture — and returns the quality-gate sentinel.
+// quality gates through the shared verify engine — voice, terminology, and
+// rule-based findings on the failing fixture — and returns the quality-gate
+// sentinel.
 func TestCheckShip_AbsorbsVerify(t *testing.T) {
 	root, _ := writeVerifyProject(t)
 	t.Chdir(root)
@@ -25,7 +26,7 @@ func TestCheckShip_AbsorbsVerify(t *testing.T) {
 	require.ErrorIs(t, runErr, ErrQualityGate, "unmet gates exit non-zero (exit 3)")
 	assert.Contains(t, out, "voice", "voice gate runs (Globex drops the score below the default 80)")
 	assert.Contains(t, out, "terminology", "terminology gate runs against the project terms store")
-	assert.Contains(t, out, "qa", "QA gate runs over the target files")
+	assert.Contains(t, out, "qa", "the rule-based check gate runs over the target files")
 	assert.Contains(t, out, "FAIL")
 }
 

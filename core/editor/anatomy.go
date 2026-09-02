@@ -81,7 +81,7 @@ type ContentNode struct {
 	TargetMeta map[string]*TargetMeta `json:"targetMeta,omitempty"`
 	Segments   []SegmentSpan          `json:"segments,omitempty"`
 	// Overlays are the block's stand-off interpretations (segmentation, terms,
-	// entities, QA findings, alignment), each with its spans' extracted text.
+	// entities, check findings, alignment), each with its spans' extracted text.
 	Overlays []OverlayView `json:"overlays,omitempty"`
 	// Annotations are block-level metadata (alt-translations, notes, generic).
 	Annotations []AnnotationView `json:"annotations,omitempty"`

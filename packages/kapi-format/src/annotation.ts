@@ -3,7 +3,7 @@
  *
  * Annotations are non-authoritative analytical overlays on a
  * Block/Run graph. They describe properties of content (protected
- * terms, glossary matches, review status, MT confidence, QA flags,
+ * terms, glossary matches, review status, MT confidence, check flags,
  * translator notes) without changing how the content is stored,
  * edited, or served back. A tool that doesn't understand an
  * annotation type MUST ignore it and process the authoritative
@@ -149,7 +149,7 @@ export interface RangeAnchor {
 
 /**
  * One plural form or select case — "this 'few' form has been professionally
- * reviewed", "this 'female' case is flagged by QA".
+ * reviewed", "this 'female' case is flagged by a check".
  */
 export interface FormAnchor {
   kind: "form";

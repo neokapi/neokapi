@@ -84,7 +84,7 @@ Paraglide's typed-function model gives strong refactoring support but requires t
 Two properties follow from choices the tables above don't capture:
 
 - **Keys survive refactoring.** The key is derived from the source text *and the element's own tag*, and deliberately not from its ancestors. Wrapping a section in a new `<div>`, moving a paragraph into a `<Card>`, restructuring the page around it: none of these change a key, so none of them orphan a translation. The element is still enough to keep a button's "Open" distinct from a menu item's; where it isn't, you disambiguate explicitly with a note.
-- **[Review happens on the running app](./in-context-review).** ALT+click a string to see its source and edit its target, with terminology and QA findings painted onto the live text, and the edit written straight back to the `.kbf.json` as a git diff. Review needs no account and no network: the strings are files in your repository, so a reviewer with a checkout is a reviewer.
+- **[Review happens on the running app](./in-context-review).** ALT+click a string to see its source and edit its target, with terminology and check findings painted onto the live text, and the edit written straight back to the `.kbf.json` as a git diff. Review needs no account and no network: the strings are files in your repository, so a reviewer with a checkout is a reviewer.
 
 ## Which to pick
 

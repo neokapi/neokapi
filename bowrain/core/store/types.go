@@ -614,8 +614,8 @@ type LocaleTranslationStats struct {
 	// carries a review decision (Target.Status reviewed or signed-off).
 	ApprovedBlocks int `json:"approved_blocks"`
 	// FailingChecks counts translated blocks whose target for this locale fails
-	// the project's ship gate — a QA check with error severity, OR a terminology
-	// violation (a forbidden/competitor term used, or a mandated preferred/
+	// the project's ship gate — a rule-based check with error severity, OR a
+	// terminology violation (a forbidden/competitor term used, or a mandated preferred/
 	// approved rendering missing). Only computed for locales at full coverage in
 	// some scope (checks cannot promote an under-covered locale, so the expensive
 	// pass is skipped below the coverage gate).
@@ -636,8 +636,8 @@ type LocaleTranslationStats struct {
 	// ShipState is the derived per-locale ship state (see DeriveShipState).
 	// Empty when the producer did not derive it.
 	ShipState ShipState `json:"ship_state,omitempty"`
-	// CompliantBlocks counts translated blocks that pass the project's QA checks
-	// with no error-severity finding, are term-compliant for the locale (no
+	// CompliantBlocks counts translated blocks that pass the project's rule-based
+	// checks with no error-severity finding, are term-compliant for the locale (no
 	// forbidden/competitor term, no missing mandated rendering), AND — where a
 	// persisted voice score exists for the block+locale — carry a score at
 	// or above the scoring profile's minimum bar. Additive: producers that do not
@@ -646,39 +646,40 @@ type LocaleTranslationStats struct {
 	// ComplianceRate is CompliantBlocks / TranslatedBlocks, in [0,1]. Nil when the
 	// producer did not derive it or the scope has no translated blocks.
 	ComplianceRate *float64 `json:"compliance_rate,omitempty"`
-	// ComplianceBasis states what informed ComplianceRate (see ComplianceBasisFor): QA
-	// checks always, plus "+terms" when term governance was active for the scope
-	// and plus "voice" when at least one block's persisted voice score also
-	// informed it. Empty when the rate was not derived — consumers hide the
+	// ComplianceBasis states what informed ComplianceRate (see ComplianceBasisFor):
+	// rule-based checks always, plus "+terms" when term governance was active for
+	// the scope and plus "voice" when at least one block's persisted voice score
+	// also informed it. Empty when the rate was not derived — consumers hide the
 	// metric then.
 	ComplianceBasis ComplianceBasis `json:"compliance_basis,omitempty"`
 }
 
 // ComplianceBasis names the evidence behind a derived compliance rate, so consumers
 // can present the number honestly: a checks-only rate says nothing about voice.
-// QA checks always inform the rate; terms and voice are added when they were
-// actually applied to the scope (term governance active / a persisted voice
+// Rule-based checks always inform the rate; terms and voice are added when they
+// were actually applied to the scope (term governance active / a persisted voice
 // score present), so the basis never claims evidence that did not contribute.
 type ComplianceBasis string
 
 const (
-	// ComplianceBasisChecks — the rate reflects QA check results only; no term
-	// governance was active and no voice scores existed for the scope.
+	// ComplianceBasisChecks — the rate reflects rule-based check findings only; no
+	// term governance was active and no voice scores existed for the scope.
 	ComplianceBasisChecks ComplianceBasis = "checks"
-	// ComplianceBasisChecksTerms — QA checks plus deterministic terminology
+	// ComplianceBasisChecksTerms — rule-based checks plus deterministic terminology
 	// compliance (forbidden/competitor presence, mandated-rendering absence).
 	ComplianceBasisChecksTerms ComplianceBasis = "checks+terms"
-	// ComplianceBasisVoice — QA checks plus persisted voice scores measured
+	// ComplianceBasisVoice — rule-based checks plus persisted voice scores measured
 	// against the scoring profile's minimum bar.
 	ComplianceBasisVoice ComplianceBasis = "voice+checks"
-	// ComplianceBasisVoiceTerms — QA checks plus terminology compliance plus
+	// ComplianceBasisVoiceTerms — rule-based checks plus terminology compliance plus
 	// persisted voice scores: the fullest basis.
 	ComplianceBasisVoiceTerms ComplianceBasis = "voice+checks+terms"
 )
 
 // ComplianceBasisFor names the evidence behind a derived compliance rate from whether
-// a persisted voice score and active term governance informed it. QA checks are
-// always part of the basis; terms and voice are added when they contributed.
+// a persisted voice score and active term governance informed it. Rule-based
+// checks are always part of the basis; terms and voice are added when they
+// contributed.
 func ComplianceBasisFor(voice, terms bool) ComplianceBasis {
 	switch {
 	case voice && terms:

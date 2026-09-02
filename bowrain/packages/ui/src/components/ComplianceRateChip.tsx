@@ -4,7 +4,7 @@ import { ShieldCheck } from "./icons";
 
 /**
  * ComplianceRateChip renders the per-locale compliance rate the server derives from
- * the loop's own evidence — QA check results plus, where the worker's draft
+ * the loop's own evidence — rule-based check results plus, where the worker's draft
  * scoring has run, persisted voice scores against the profile's minimum
  * bar. The tooltip states the basis explicitly, so a checks-only rate is never
  * mistaken for a voice-informed one. Rendered only when the server sent the
@@ -23,12 +23,12 @@ export interface ComplianceRateChipProps {
 }
 
 const basisExplanations: Record<ComplianceBasis, string> = {
-  checks: "Based on QA checks only — no voice scores exist for this locale yet.",
-  "checks+terms": "Based on QA checks plus terminology compliance for this locale.",
+  checks: "Based on rule-based checks only. No voice scores exist for this locale yet.",
+  "checks+terms": "Based on rule-based checks plus terminology compliance for this locale.",
   "voice+checks":
-    "Based on QA checks plus voice scores measured against the profile's minimum bar.",
+    "Based on rule-based checks plus voice scores measured against the profile's minimum bar.",
   "voice+checks+terms":
-    "Based on QA checks, terminology compliance, and voice scores measured against the profile's minimum bar.",
+    "Based on rule-based checks, terminology compliance, and voice scores measured against the profile's minimum bar.",
 };
 
 export function ComplianceRateChip({

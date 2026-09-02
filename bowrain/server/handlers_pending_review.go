@@ -26,8 +26,8 @@ type pendingReviewEntry struct {
 	CollectionID string `json:"collection_id"`
 	// TermCompliance is this target's terminology verdict, empty when no
 	// terminology governance was active for the locale. It is one of the two
-	// bars beyond QA checks that approve-passing applies, so a queue that
-	// bucketed on checks alone called blocks passing that the server refuses.
+	// bars beyond the rule-based checks that approve-passing applies, so a queue
+	// that bucketed on checks alone called blocks passing that the server refuses.
 	TermCompliance store.TermCompliance `json:"term_compliance,omitempty"`
 	// VoiceScore is the latest persisted voice score for this block and
 	// locale, and VoiceBar the compliance bar of the profile that produced it
@@ -129,12 +129,13 @@ func (s *Server) HandleListPendingReview(c echo.Context) error {
 		}
 	}
 
-	// The two bars beyond QA checks that approve-passing applies, resolved ONCE
-	// for the page: the terminology gate (one terms snapshot + a voice profile
-	// per locale, then offline per block) and the project's persisted voice
-	// scores (one read, latest per block+locale, each paired with the bar of the
-	// profile that produced it). Both are the same helpers shipstate.go uses, so
-	// the queue's verdict is the predicate the bulk pass will actually apply.
+	// The two bars beyond the rule-based checks that approve-passing applies,
+	// resolved ONCE for the page: the terminology gate (one terms snapshot + a
+	// voice profile per locale, then offline per block) and the project's
+	// persisted voice scores (one read, latest per block+locale, each paired with
+	// the bar of the profile that produced it). Both are the same helpers
+	// shipstate.go uses, so the queue's verdict is the predicate the bulk pass
+	// will actually apply.
 	wsID, _ := c.Get("workspace_id").(string)
 	gate := s.resolveTermGate(ctx, proj, streamParam(c), wsID)
 	scores := latestVoiceScores(ctx, s.VoiceStore, pid, streamParam(c))

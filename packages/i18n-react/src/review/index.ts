@@ -8,10 +8,10 @@
  *
  *   - Hold ⌥/Alt: hovering a translated element outlines it.
  *   - ⌥/Alt+click: opens the review panel — source text, editable
- *     target for the active locale, translator note, term/QA
+ *     target for the active locale, translator note, term/check
  *     annotations. Saving writes back into the local `.kbf.json` file
  *     (git-diffable review) and repaints the live UI in place.
- *   - "Highlight terms & QA": paints run-level term matches and QA
+ *   - "Highlight terms & checks": paints run-level term matches and
  *     findings onto the live page via the CSS Custom Highlight API —
  *     zero DOM mutation, no layout shift.
  *
@@ -310,7 +310,7 @@ function closePanel(): void {
   document.getElementById("kapi-review-panel")?.remove();
 }
 
-// ─── Term / QA highlight painting ────────────────────────────
+// ─── Term / check highlight painting ─────────────────────────
 
 let highlightsOn = false;
 
@@ -363,7 +363,7 @@ async function toggleHighlights(endpoint: string, button: HTMLElement): Promise<
   if (qaRanges.length > 0) highlights.set("kapi-qa", new HighlightCtor(...qaRanges));
   highlightsOn = true;
   button.classList.add("kapi-on");
-  showToast(`kapi review: ${termRanges.length} term / ${qaRanges.length} QA highlights`);
+  showToast(`kapi review: ${termRanges.length} term / ${qaRanges.length} check highlights`);
 }
 
 /** The string to locate in the rendered text for an annotation. */
@@ -427,7 +427,7 @@ function installToolbar(endpoint: string): void {
   bar.id = "kapi-review-toolbar";
   bar.innerHTML =
     `<span>⌥ kapi review</span>` +
-    `<button id="kapi-review-hl" title="Highlight terms & QA">terms/QA</button>` +
+    `<button id="kapi-review-hl" title="Highlight terms & checks">terms/checks</button>` +
     `<button id="kapi-review-head-btn" title="Review head & SEO strings (title, meta, og)" hidden>head/SEO</button>`;
   document.body.appendChild(bar);
   const button = bar.querySelector("#kapi-review-hl") as HTMLElement;

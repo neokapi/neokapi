@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// qaCheckBlock runs the LLM QA tool over one translated block with a scripted
+// qaCheckBlock runs the LLM check tool over one translated block with a scripted
 // structured response and returns the resulting block.
 func qaCheckBlock(t *testing.T, fn func(context.Context, []aiprovider.Message, aiprovider.JSONSchema) (*aiprovider.ChatResponse, error)) *model.Block {
 	t.Helper()

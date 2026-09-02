@@ -17,7 +17,7 @@ export interface ShipStateBadgeProps {
   approvedBlocks?: number;
   /** Total translatable blocks in the scope, for the tooltip detail line. */
   totalBlocks?: number;
-  /** Translated blocks failing QA checks, for the tooltip detail line. */
+  /** Translated blocks failing the checks, for the tooltip detail line. */
   failingChecks?: number;
   className?: string;
 }
@@ -26,18 +26,18 @@ const stateStyles: Record<ShipState, { label: string; className: string; explana
   governed: {
     label: "Governed",
     className: "border-success/40 bg-success/15 text-success",
-    explanation: "Fully translated, QA checks pass, and every translation is human-approved.",
+    explanation: "Fully translated, the checks pass, and every translation is human-approved.",
   },
   ai_shippable: {
     label: "AI-shippable",
     className: "border-info/40 bg-info/15 text-info",
     explanation:
-      "Fully translated and QA checks pass, but not fully human-reviewed — shippable on machine review only.",
+      "Fully translated and the checks pass, but not fully human-reviewed. Shippable on machine review only.",
   },
   pending: {
     label: "Pending",
     className: "border-border/60 bg-muted text-muted-foreground",
-    explanation: "Not ready to ship: translation, QA checks, or review is still in progress.",
+    explanation: "Not ready to ship: translation, checks, or review is still in progress.",
   },
 };
 

@@ -3,7 +3,7 @@
 > neokapi is an open-source, format-aware content engine written in Go. It parses
 > localization, document, and data formats into a faithful content model, then
 > translates, leverages content memory, and runs verification checks for
-> terminology, QA, and brand voice — for content written by people or AI agents.
+> terminology, content rules, and brand voice — for content written by people or AI agents.
 > `kapi` is the command-line and desktop application built on the engine.
 
 neokapi reimagines the Okapi Framework in Go. The engine extracts translatable

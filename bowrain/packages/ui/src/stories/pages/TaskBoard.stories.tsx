@@ -44,8 +44,8 @@ const sampleTasks: TaskInfo[] = [
     type: "fix_quality",
     status: "open",
     priority: "urgent",
-    title: "Fix QA issues in Japanese build",
-    description: "3 critical QA issues found in the latest Japanese translation batch.",
+    title: "Fix findings in Japanese build",
+    description: "3 critical findings in the latest Japanese translation batch.",
     created_by: "user-1",
     due_at: ago(60), // overdue
     created_at: ago(480),

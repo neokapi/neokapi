@@ -47,7 +47,7 @@ interface VisualEditorLayoutProps {
   onApplyMemory: (index: number) => void;
   onInsertTerm: (text: string) => void;
   presenceSlot?: React.ReactNode;
-  // QA
+  // Findings
   qaIssues?: QAIssue[];
   fileQAResults?: FileQAResult[];
   qaLoading?: boolean;
@@ -173,7 +173,7 @@ export function VisualEditorLayout({
     );
   }, []);
 
-  // Total file QA issue count for badge
+  // Total file finding count for badge
   const fileQAIssueCount = fileQAResults
     ? fileQAResults.reduce((acc, r) => acc + r.issues.length, 0)
     : 0;
@@ -253,7 +253,7 @@ export function VisualEditorLayout({
 
         {!presenceSlot && <div className="flex-1" />}
 
-        {/* QA check / Problems toggle */}
+        {/* Checks / Problems toggle */}
         {onRunFileQA && (
           <Button
             size="sm"

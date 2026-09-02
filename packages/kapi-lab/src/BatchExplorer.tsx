@@ -26,7 +26,7 @@ const TOOLS: BatchTool[] = [
   },
   {
     id: "translate-qa",
-    label: "AI translate + QA (demo)",
+    label: "AI translate + checks (demo)",
     build: (i, o) => ["run", "translate-qa", "-i", i, "-o", o, "--target-lang", "fr"],
   },
 ];

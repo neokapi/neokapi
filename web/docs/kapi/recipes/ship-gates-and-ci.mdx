@@ -13,7 +13,7 @@ import { PendingMedia } from "@neokapi/docs-shared";
 
 # Ship gates & CI
 
-**Goal:** treat content quality like any other test. A **ship gate** is the project's release bar: coverage thresholds over the translation lifecycle plus the bound quality gates (voice, terminology, QA, staleness). `kapi check --ship` evaluates all of it in one shot and exits non-zero when a gate is unmet, so a regression never merges. Ordinary builds never fail on target drift; a language that is behind is pending work, and `--ship` is the explicit, opt-in enforcement point. The model is [the kapi loop](/kapi/convergence); this guide is the task. Needs a committed [kapi project](/kapi/get-started/first-project).
+**Goal:** treat content quality like any other test. A **ship gate** is the project's release bar: coverage thresholds over the translation lifecycle plus the bound quality gates (voice, terminology, rule-based checks, staleness). `kapi check --ship` evaluates all of it in one shot and exits non-zero when a gate is unmet, so a regression never merges. Ordinary builds never fail on target drift; a language that is behind is pending work, and `--ship` is the explicit, opt-in enforcement point. The model is [the kapi loop](/kapi/convergence); this guide is the task. Needs a committed [kapi project](/kapi/get-started/first-project).
 
 <Tabs groupId="surface" queryString>
 <TabItem value="desktop" label="Desktop" default>
@@ -62,7 +62,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: neokapi/setup-kapi@v1
-      # Exits 3 (failing the job) when a voice, terminology, QA,
+      # Exits 3 (failing the job) when a voice, terminology, check,
       # staleness or coverage gate is unmet.
       - run: kapi check --ship
 ```

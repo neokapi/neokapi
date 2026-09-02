@@ -228,7 +228,7 @@ describe("blockToContentNode — overlays", () => {
     const text = runsPlainText(node.source);
     const spans = resolveOverlaySpans(node.overlays, "source", text);
     expect(spans.map((s) => text.slice(s.start, s.end))).toEqual(["Utilize", "Acme", "console"]);
-    // The voice-vocabulary finding takes the dedicated accent, not generic QA.
+    // The voice-vocabulary finding takes the dedicated accent, not the generic check accent.
     expect(spans[0].style.label).toBe("Voice");
   });
 
@@ -275,7 +275,7 @@ describe("blockToContentNode — annotations", () => {
     expect(node.overlays).toBeUndefined();
   });
 
-  // The QA endpoints dropped core/check.Finding's Position at the boundary, so
+  // The check endpoints dropped core/check.Finding's Position at the boundary, so
   // every issue reached this projection unpositioned and could only ever be an
   // annotation. It rides along now, and a located issue is a span like any
   // other finding.

@@ -34,14 +34,15 @@ Run these as written; don't guess flags. When in doubt, `kapi <cmd> --help`.
 ```bash
 kapi extract --target-lang fr                  # → out/<name>.en-to-fr.xliff (comma-separate for several locales)
 kapi merge -i out/*.xliff                       # XLIFF/PO come via -i (repeatable); only a .kpz may be positional
-kapi check --ship --json                              # the gate: voice + terminology + QA in one shot (prefer this)
+kapi check --ship --json                              # the gate: voice + terminology + rule-based checks in one shot (prefer this)
 kapi exec term-check ./locales/fr.json --target-lang fr   # file is POSITIONAL; there is no --source/--target
 kapi terms lookup "board" -t fr              # approved wording; terms uses -s/-t, not --*-lang
 kapi voice guide                                # the voice to follow (no flag inside a project)
 ```
 
-Inside a project, prefer `kapi check --ship` over running `term-check`/QA by hand: it
-runs every bound gate together and pairs source↔target for you.
+Inside a project, prefer `kapi check --ship` over running `term-check` or the
+rule-based checks by hand: it runs every bound gate together and pairs
+source↔target for you.
 
 ## Translate the content yourself, through kapi (don't hand-translate files)
 
@@ -67,13 +68,13 @@ it back, and treat the task as unfinished until kapi confirms the result:
 
 ```bash
 kapi merge -i out/*.xliff            # write translations back into the target files + content memory
-kapi check --ship --json                   # in a project: voice + terminology + QA in one gate
+kapi check --ship --json                   # in a project: voice + terminology + rule-based checks in one gate
 kapi exec term-check ./locales/fr.json --termstore <store>   # one-off, no project: name the terms store
 ```
 
 `kapi check --ship` is the gate inside a project: read its findings, fix them, and re-run
-until it passes. For a one-off file with no project, `kapi exec term-check` (plus the QA in
-`kapi run translate-qa`) plays the same role. Either way, a clean result, not a
+until it passes. For a one-off file with no project, `kapi exec term-check` (plus the
+checks in `kapi run translate-qa`) plays the same role. Either way, a clean result, not a
 written file, is the finish line.
 
 ## Or have kapi call a provider (unattended / CI)
@@ -86,7 +87,7 @@ inline `--api-key` resolves before an endpoint is attached and calls the public
 host.
 
 ```bash
-kapi run translate-qa -i ./locales/en.json --target-lang fr --json   # translate + QA
+kapi run translate-qa -i ./locales/en.json --target-lang fr --json   # translate + checks
 kapi translate ./deck.pptx --target-lang ja -o ./out/deck.ja.pptx
 ```
 
@@ -141,9 +142,9 @@ kapi apply <<<'{"kind":"review","file":"src/nb.json","id":"save.label","locale":
 
 The unit state lands in the project store and counts the unit as `reviewed`,
 so the next `kapi up` sees it shipped. `kapi check --ship` is the opt-in release
-bar: it runs the project's voice/terminology/QA gates plus the `ship_gate` /
-`source_gate` coverage gates and exits non-zero only when you ask for it; ordinary
-target drift never blocks.
+bar: it runs the project's voice, terminology and rule-based gates plus the
+`ship_gate` / `source_gate` coverage gates and exits non-zero only when you ask
+for it; ordinary target drift never blocks.
 
 ## Keep terminology consistent
 

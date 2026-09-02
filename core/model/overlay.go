@@ -2,7 +2,7 @@ package model
 
 // This file defines the stand-off overlay model (AD-002). A Block's content
 // is a flat []Run per locale; every interpretation *of* that content —
-// sentence segmentation, terminology, entities, QA findings, source↔target
+// sentence segmentation, terminology, entities, check findings, source↔target
 // alignment — is a typed, run-anchored Overlay layered over the runs rather
 // than baked into the structure. Overlays are produced on demand and never
 // rewrite the runs they describe, so segmentation is opt-in, multi-layer, and
@@ -56,7 +56,7 @@ func (s Span) Ignorable() bool { return s.Props[SpanPropIgnorable] == "true" }
 
 // Overlay is a typed, positional (run-anchored) stand-off layer over one side
 // of a Block: the source (Variant nil) or a specific target variant. Its spans
-// carry real ranges into the runs — segmentation, terminology, entities, QA
+// carry real ranges into the runs — segmentation, terminology, entities, check
 // findings, alignment. Block-scoped metadata that has no position (notes,
 // alt-translations, analysis results, format round-trip state) is not an
 // overlay; it rides on Block.Annotations (see annotation.go). Spans are ordered

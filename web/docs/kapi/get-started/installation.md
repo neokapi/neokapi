@@ -89,7 +89,7 @@ kapi version
 ### Connect an AI (optional)
 
 The rule-based commands — pseudo-translate, stats, voice checks against a
-profile file — need no AI at all. For LLM-backed translation, QA, and review,
+profile file — need no AI at all. For LLM-backed translation, checks, and review,
 one command finds what you already have and confirms it:
 
 ```bash

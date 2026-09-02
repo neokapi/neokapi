@@ -34,7 +34,7 @@ const config: WalkthroughEmbedConfig = {
     },
     {
       command: "kapi pseudo-translate messages_en.json -o pseudo_fr.json",
-      narration: "Produce a target file to QA.",
+      narration: "Produce a target file to check.",
     },
     {
       command: "kapi exec term-check pseudo_fr.json --source-lang en --target-lang fr",

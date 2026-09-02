@@ -43,7 +43,7 @@ function tree(format: string, root: ContentNode[]): ContentTree {
 // Mirror the REAL `labInspectAnnotated` shapes: term overlays carry the matched
 // surface + its `target` translation + `domain`; voice-vocabulary violations
 // ride on the `qa` overlay type with props.category="voice-vocabulary" + a
-// `replacement`; other QA findings are `qa` overlays carrying a `message`.
+// `replacement`; other findings are `qa` overlays carrying a `message`.
 const termOverlay: OverlayView = {
   type: "term",
   side: "source",
@@ -195,10 +195,10 @@ describe("overlayHighlight", () => {
   it("distinguishes voice-vocabulary qa from plain qa by span props", () => {
     const [voice] = resolveOverlaySpans([voiceOverlay], "source", "Welcome to Acme");
     const [plainQa] = resolveOverlaySpans([qaOverlay], "fr-FR", "Acme aide");
-    // Voice violation = pink accent + "Voice" label; plain qa = amber "QA".
+    // Voice violation = pink accent + "Voice" label; plain qa = amber "Check".
     expect(voice.style.label).toBe("Voice");
     expect(voice.style.className).toContain("pink");
-    expect(plainQa.style.label).toBe("QA");
+    expect(plainQa.style.label).toBe("Check");
     expect(plainQa.style.className).toContain("amber");
     expect(voice.style.className).not.toBe(plainQa.style.className);
     // The voice tooltip surfaces the human message.
@@ -218,7 +218,7 @@ describe("overlayHighlight", () => {
   it("color-codes by type with distinct accents", () => {
     expect(overlayStyle("term").className).not.toBe(overlayStyle("qa").className);
     expect(overlayStyle("term").label).toBe("Vocabulary");
-    expect(overlayStyle("qa").label).toBe("QA");
+    expect(overlayStyle("qa").label).toBe("Check");
     // A voice-vocabulary qa span resolves to the dedicated voice accent.
     expect(overlayStyle("qa", voiceOverlay.spans[0]).label).toBe("Voice");
     expect(overlayStyle("totally-unknown").label).toBe("Totally Unknown");

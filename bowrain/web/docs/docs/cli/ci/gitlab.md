@@ -67,7 +67,7 @@ include:
 ```
 
 The `kapi_check` job runs on merge-request pipelines, runs
-`kapi check --ship`, and fails on exit `3`: a voice, terms, QA, or
+`kapi check --ship`, and fails on exit `3`: a voice, terms, rule-based check, or
 coverage gate is unmet. It posts one threaded MR note with the failing gates
 and findings, updated in place on re-runs, and keeps the full `kapi.check/v1`
 report as a job artifact. Ordinary pushes never fail on target-language

@@ -5,7 +5,7 @@ import type { ContentTree } from "@neokapi/ui-primitives/preview";
 
 // A small ContentTree shaped exactly like editor.BuildContentTree's JSON, with a
 // source run sequence, a committed fr target, and source-anchored term + brand +
-// QA overlays — the shape InspectFileAnnotated returns. Supplying it as the
+// check overlays — the shape InspectFileAnnotated returns. Supplying it as the
 // `tree` prop drives the real DocumentViewer without a Wails backend.
 const sampleTree: ContentTree = {
   format: "json",

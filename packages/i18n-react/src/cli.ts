@@ -21,7 +21,7 @@
  *                        lazy loading alongside code-split JS (#406).
  *
  * The boundary: neokapi-i18n extracts and compiles; everything in between
- * (pseudo-translate, AI translate, content memory, QA, …) goes through `kapi`.
+ * (pseudo-translate, AI translate, content memory, checks, …) goes through `kapi`.
  */
 
 import { runExtract } from "./commands/extract.ts";

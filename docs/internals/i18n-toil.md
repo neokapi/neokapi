@@ -41,7 +41,7 @@ Derived from the `recommended` vector: `total` = sum of the five axes.
 
 | Grade | Meaning (agent-facing) | Criteria |
 |---|---|---|
-| **T0: add and forget** | A dev who has never heard of the i18n setup ships a correctly translated feature by writing plain source-language UI text; extraction, fill, QA, and sync happen in the build/CI. Residual human work: approving translation review. | total ≤ 2, no axis > 1, **and W = 0** (a wrap habit, however light, is T1 by definition) |
+| **T0: add and forget** | A dev who has never heard of the i18n setup ships a correctly translated feature by writing plain source-language UI text; extraction, fill, checks, and sync happen in the build/CI. Residual human work: approving translation review. | total ≤ 2, no axis > 1, **and W = 0** (a wrap habit, however light, is T1 by definition) |
 | **T1: one habit** | One habitual step per feature (wrap with source text, run extract); tooling catches everything else. | total 3–5 **and** no axis = 3 |
 | **T2: standing chore** | Someone owns key hygiene and catalog sync; translation work shows up in sprint planning. | total 6–9 **and** no axis = 3 |
 | **T3: recurring project** | Releases gate on manual translation passes; drift and untranslated leakage reach prod routinely. Warn the user. | total 10–12, **or** any axis = 3 |
@@ -162,7 +162,7 @@ adjusts axes the same way any other tool does, by criteria rather than by fiat:
   visible state (`kapi check`). Stacks at S2 typically land at S1; stacks
   whose catalog kapi fully mediates can reach S0.
 - **R**: `kapi pseudo-translate --target-lang qps` provides the pseudo-loc
-  path; translate-QA gates validate placeholders/ICU before merge. R2 stacks
+  path; the `translate-qa` gates validate placeholders/ICU before merge. R2 stacks
   typically land at R1; R1 stacks at R0.
 - **W, X, E**: kapi does not change these (except neokapi-i18n, which is its
   own stack). A stack with no extractor still has no extractor; be honest

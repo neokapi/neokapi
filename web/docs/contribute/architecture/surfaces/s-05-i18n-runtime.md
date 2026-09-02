@@ -272,7 +272,7 @@ first argument to `t()`, concatenation or interpolation inside `t()`,
 concatenation or a ternary in a translatable attribute, a bare string literal in
 a JSX expression container, a ternary with string-literal branches as a child,
 and label props or expressions that should be wrapped. It validates the *source*,
-not translated output: translation QA routes through kapi, and the compile step
+not translated output: translation checks route through kapi, and the compile step
 only flattens target runs into per-locale dictionaries.
 
 ### Head strings have no DOM node
@@ -341,7 +341,7 @@ Node HTTP so it ports to any dev server, over the local interchange directory:
 | `GET {base}/events` | server-sent events, broadcast to every open tab |
 
 The index rebuilds whenever a block file or an overlay sidecar changes on disk,
-so an out-of-band translation or QA pass shows up without a restart.
+so an out-of-band translation or check pass shows up without a restart.
 
 ### A review is a diff
 
@@ -350,7 +350,7 @@ obvious alternative, a review database with comments, states, and an approve
 button, was rejected.
 
 That file tree is *already* the contract between developers and translators:
-extraction produces it, translation fills it, QA reads it, compilation ships it.
+extraction produces it, translation fills it, the checks read it, compilation ships it.
 Writing a reviewed target into it makes the review a **git diff**: reviewable in
 a pull request, revertable, attributable, and consumed by the very next compile
 with no synchronisation step. A reviewer's fix travels the identical path as a
@@ -396,12 +396,12 @@ index, and read-only inspection all work on a plain static deploy. With editing
 enabled it writes through the identical `PUT` protocol and repaints by patching
 the element's text directly; text-only, so blocks with inline codes or ICU
 plurals save to the store but are not repainted live. Richer manifests, covering
-every locale and the term and QA annotations, still come from the compile step
+every locale and the term and check annotations, still come from the compile step
 over the whole tree.
 
 ### Findings are painted beside the DOM
 
-Terminology and QA results are stand-off annotations anchored to run-index
+Terminology and check findings are stand-off annotations anchored to run-index
 ranges, the framework's existing overlay model
 ([F-02](../foundations/f-02-content-model.md)). The browser renders them through
 the CSS Custom Highlight API: `Range` objects are registered in named highlights
@@ -454,7 +454,7 @@ mean.
   term that reads wrong next to the button beside it: all visible at review time.
 - **Review is a diff.** No import, no export, no sync step, no platform
   dependency for the local tier.
-- **QA and terminology become visual.** The checks kapi already runs stop being a
+- **Checks and terminology become visual.** The checks kapi already runs stop being a
   list of line numbers and become marks on the words they are about, which is the
   only form in which a reviewer acts on them.
 - **The stamp is the seam.** The same identifier that lets a local overlay find a

@@ -160,7 +160,7 @@ func TestInspectFileAnnotatedPopulatesOverlays(t *testing.T) {
 	}
 	assert.True(t, sawTerm, "expected a term overlay for the seeded terms term")
 	assert.True(t, sawBrand, "expected a voice-vocabulary overlay for the forbidden term")
-	assert.True(t, sawDoubledWord, "expected a doubled-word QA overlay (\"the the\")")
+	assert.True(t, sawDoubledWord, "expected a doubled-word check overlay (\"the the\")")
 }
 
 // kbfShapeFixture is a Kapi Bundle Format document whose blocks carry real

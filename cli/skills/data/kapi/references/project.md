@@ -160,7 +160,7 @@ kapi merge -i out/*.xliff            # writes translations into the target files
 
 Treat your output as a draft until kapi passes it. `kapi check --ship` runs the project's
 gates together (voice profile score, terminology against the bound terms store, and
-translation QA: placeholders preserved, nothing left untranslated) and reports
+translation checks: placeholders preserved, nothing left untranslated) and reports
 the exact findings:
 
 ```bash

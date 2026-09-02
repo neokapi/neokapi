@@ -12,7 +12,7 @@ oneshot: true
 aspects:
   - Project flows
   - Pipelines of steps
-  - AI translation & QA
+  - AI translation & checks
   - Composable tools
 
 narration:

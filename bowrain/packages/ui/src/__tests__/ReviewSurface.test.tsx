@@ -455,7 +455,7 @@ describe("ReviewSurface — the inspector carries the block's evidence", () => {
     await waitFor(() => expect(point.textContent).toContain("In force here"));
   });
 
-  it("lists the QA findings the payload gives no position for", async () => {
+  it("lists the findings the payload gives no position for", async () => {
     const user = userEvent.setup();
     renderSurface(testBlocks, (adapter) => {
       vi.spyOn(adapter, "runFileQACheck").mockResolvedValue([

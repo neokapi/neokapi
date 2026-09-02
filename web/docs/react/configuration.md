@@ -313,7 +313,7 @@ export default {
 };
 ```
 
-A globe icon appears in the Storybook toolbar; switching locale re-renders every story. Useful for design review, translator QA, and RTL layout testing.
+A globe icon appears in the Storybook toolbar; switching locale re-renders every story. Useful for design review, translation checks, and RTL layout testing.
 
 ## HTML `lang` and `dir` attributes
 

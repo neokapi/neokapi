@@ -33,15 +33,16 @@ import (
 // meaningful below full coverage — it rates the blocks that ARE translated — so
 // it is derived for every locale with translated blocks.
 //
-// On-brand definition: a translated block is compliant when the project's QA
-// checks report no error-severity finding, AND its target is term-compliant for
-// the locale (deterministic, offline — it uses no forbidden/competitor term and
-// omits no mandated preferred/approved rendering; see termGate/blockTermCompliant),
-// AND — where a persisted voice score exists for the block+locale (written
-// by the worker's draft scoring, zero AI) — the score meets the scoring profile's
-// minimum bar (VoiceProfile.ComplianceBar). A term-non-compliant block is treated
-// exactly like a failing check: it counts against the compliance rate AND, at full
-// coverage, against FailingChecks, so it can never be governed or ai_shippable.
+// On-brand definition: a translated block is compliant when the project's
+// rule-based checks report no error-severity finding, AND its target is
+// term-compliant for the locale (deterministic, offline — it uses no
+// forbidden/competitor term and omits no mandated preferred/approved rendering;
+// see termGate/blockTermCompliant), AND — where a persisted voice score exists
+// for the block+locale (written by the worker's draft scoring, zero AI) — the
+// score meets the scoring profile's minimum bar (VoiceProfile.ComplianceBar).
+// A term-non-compliant block is treated exactly like a failing check: it counts
+// against the compliance rate AND, at full coverage, against FailingChecks, so
+// it can never be governed or ai_shippable.
 // Scopes with no voice scores fall back to checks(+terms), and ComplianceBasis says
 // which evidence produced the number so consumers can present it honestly. Voice
 // scores are read best-effort: a voice store hiccup degrades the rate rather than
@@ -212,7 +213,7 @@ func deriveShipGate(
 	verdicts := make([]store.ShipGateVerdict, 0, min(len(stale), store.DefaultBlockBatch*4))
 	judge := func(block *model.Block, itemName, localeStr, basis string) {
 		loc := model.LocaleID(localeStr)
-		// A block fails the ship gate when its QA checks flag an
+		// A block fails the ship gate when its rule-based checks flag an
 		// error-severity finding OR its target is not term-compliant for the
 		// locale — the two are treated identically for both FailingChecks and
 		// the compliance rate. gate.compliant is offline (in-memory snapshot).
@@ -421,8 +422,8 @@ func tallyDecisionBasis(ctx context.Context, cs store.ContentStore, projectID, s
 // scope with nothing translated gets no rate (nothing to rate — the additive
 // fields stay omitted). The count is clamped to the translated denominator so
 // a stats/block-read skew can never report a rate above 1. The basis names the
-// evidence that informed the rate: QA checks always, plus terms when term
-// governance was active for the locale, plus voice when a persisted score
+// evidence that informed the rate: rule-based checks always, plus terms when
+// term governance was active for the locale, plus voice when a persisted score
 // informed at least one block.
 func applyCompliance(ls *store.LocaleTranslationStats, compliantCount int, voice, terms bool) {
 	if ls.TranslatedBlocks <= 0 {
@@ -452,9 +453,9 @@ func blockFailsChecks(ctx context.Context, block *model.Block, loc model.LocaleI
 }
 
 // blockCompliantAndPassing reports whether a translated block+locale is clean
-// enough to ship without a person's review: it passes the QA checks with no
-// error-severity finding, is term-compliant for the locale (via the shared
-// gate), AND — where a persisted voice score exists for the block — the
+// enough to ship without a person's review: it passes the rule-based checks
+// with no error-severity finding, is term-compliant for the locale (via the
+// shared gate), AND — where a persisted voice score exists for the block — the
 // score meets the scoring profile's compliance bar. This is exactly the per-block
 // compliant predicate applyShipStates aggregates into the compliance rate (#1365);
 // the bulk approve-passing endpoint reuses it to pick which pending drafts to

@@ -8,7 +8,7 @@ import (
 )
 
 // ToolGroupMember defines one selectable backend of a tool group: a
-// self-describing member (a segmentation engine, an AI/MT provider, a QA mode)
+// self-describing member (a segmentation engine, an AI/MT provider, a check mode)
 // with its own parameter schema. Members are never merged into one another —
 // the group selects exactly one at a time.
 type ToolGroupMember struct {

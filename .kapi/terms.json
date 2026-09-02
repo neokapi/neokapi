@@ -288,7 +288,7 @@
     {
       "id": "term:2d7abd023a",
       "domain": "quality",
-      "definition": "QA tools run over translated content.",
+      "definition": "Check tools run over translated content.",
       "source": "terminology",
       "terms": [
         {
@@ -892,7 +892,7 @@
     {
       "id": "term:b4b33d2441",
       "domain": "content-model",
-      "definition": "Stand-off annotation layer on a block (segmentation, terms, QA).",
+      "definition": "Stand-off annotation layer on a block (segmentation, terms, findings).",
       "source": "terminology",
       "terms": [
         {

@@ -35,7 +35,7 @@ export interface PseudoConfig {
    * Extra expansion relative to the text length, 0..100. Fillers
    * (`expansionChar`) are distributed *between* the characters of the
    * source, so the expansion is visible mid-word — handy for layout
-   * QA at any scale. 0 = off.
+   * checks at any scale. 0 = off.
    */
   expansion?: number;
   /** Character inserted between letters for expansion. Default `"·"` (middle dot). */

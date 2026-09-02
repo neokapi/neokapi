@@ -871,7 +871,7 @@ export interface ApiAdapter {
   setRoleOverride(workspaceSlug: string, role: string, permissions: string[]): Promise<void>;
   demoteVoiceRule(workspaceSlug: string, profileId: string, term: string): Promise<void>;
 
-  // QA
+  // Checks
   runQACheck(
     workspaceSlug: string,
     projectId: string,

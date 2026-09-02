@@ -917,7 +917,7 @@ export interface WordCountResult {
 export type ShipState = "governed" | "ai_shippable" | "pending";
 
 /**
- * Evidence behind a derived compliance rate (store.ComplianceBasis). QA checks
+ * Evidence behind a derived compliance rate (store.ComplianceBasis). Rule-based checks
  * always inform it; `+terms` is added when term governance was active for the
  * scope, and `voice` when at least one block's persisted voice score, measured
  * against its profile's minimum bar, also informed it.
@@ -935,7 +935,7 @@ export interface LocaleTranslationStats {
   percentage: number;
   /** Blocks whose translation carries a review decision (reviewed/signed-off). */
   approved_blocks?: number;
-  /** Translated blocks failing QA checks with error severity (computed at full coverage). */
+  /** Translated blocks failing the checks with error severity (computed at full coverage). */
   failing_checks?: number;
   /** Derived ship state; absent from producers that do not derive it (e.g. pulse). */
   ship_state?: ShipState;
@@ -1240,7 +1240,7 @@ export interface BlockNote {
 }
 
 // ---------------------------------------------------------------------------
-// QA types
+// Check types
 // ---------------------------------------------------------------------------
 
 /** A single block history entry */
@@ -1258,7 +1258,7 @@ export interface BlockHistoryEntry {
 }
 
 /**
- * A single QA check finding.
+ * A single check finding.
  *
  * `type`, `severity` and `message` are what the Problems panel has always
  * listed. `position` is the run-anchored span the underlying
@@ -1275,7 +1275,7 @@ export interface QAIssue {
   original_text?: string;
 }
 
-/** QA results for a single block within a file */
+/** Findings for a single block within a file */
 export interface FileQAResult {
   blockId: string;
   issues: QAIssue[];

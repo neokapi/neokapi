@@ -52,7 +52,7 @@ func TestRemapOverlays_DropsEmptyOverlayAndKeepsTargetSide(t *testing.T) {
 
 	assert.Equal(t, 1, dropped)
 	assert.Nil(t, b.OverlayOf(model.OverlayTerm), "now-empty source overlay is removed")
-	// The target-side QA overlay survives.
+	// The target-side check overlay survives.
 	var qaKept bool
 	for _, o := range b.Overlays {
 		if o.Type == model.OverlayQA && !o.OnSource() {

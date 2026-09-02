@@ -112,7 +112,7 @@ Gotenberg's 2026 hardening is the model: OOXML/RTF/ODF "files can embed external
 ### 15. Output-side: pandoc arbitrary-file-write & Trojan Source
 
 - **pandoc `CVE-2023-35936`**: "specially crafted image element … when generating files using `--extract-media` or outputting to PDF" → arbitrary file write via percent-encoded `../` in a `data:` URI. Disclosed via **GitHub Security Advisory** with a clean workaround ("disallow PDF output and `--extract-media`") — a model disclosure. Directly relevant: any neokapi feature that writes media/output paths derived from document content must unescape *before* the traversal check. (https://github.com/jgm/pandoc/security/advisories/GHSA-xj5q-fv23-575g)
-- **Trojan Source `CVE-2021-42574`**: invisible Unicode BiDi override chars reorder displayed text vs. parsed/compiled meaning. For a *localization* tool this is acute — translated content can carry BiDi/zero-width chars that look benign but render/inject differently downstream. A "contains-suspicious-Unicode-controls" lint belongs in neokapi's QA/check family. (https://access.redhat.com/security/vulnerabilities/RHSB-2021-007)
+- **Trojan Source `CVE-2021-42574`**: invisible Unicode BiDi override chars reorder displayed text vs. parsed/compiled meaning. For a *localization* tool this is acute — translated content can carry BiDi/zero-width chars that look benign but render/inject differently downstream. A "contains-suspicious-Unicode-controls" lint belongs in neokapi's check family. (https://access.redhat.com/security/vulnerabilities/RHSB-2021-007)
 
 ### 16. Vulnerability intake & advisory practice for parser-heavy OSS
 

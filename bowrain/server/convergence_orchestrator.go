@@ -602,7 +602,7 @@ func (o *convergenceOrchestrator) driveWith(ctx context.Context, run *bstore.Con
 }
 
 // deriveFunc builds the server venue's Derive: coverage from the block store,
-// gated on full block coverage AND the project's bound QA checks — the same
+// gated on full block coverage AND the project's bound checks — the same
 // two conditions the local venue applies (F6). A locale reaches its gate only
 // when every translatable block has a target AND none fails the checks; a
 // failing block demotes its unit below the gate, so a connected `kapi up`
@@ -781,10 +781,10 @@ func blockCoverage(
 	return out, nil
 }
 
-// countFailingBlocks runs the project's QA checks over each locale's translated
+// countFailingBlocks runs the project's checks over each locale's translated
 // blocks and returns how many carry an error-severity finding — the units the
 // gate must demote. At full coverage every translatable block has a target for
-// the locale, so the QA tool always reads a real translation.
+// the locale, so the check tool always reads a real translation.
 //
 // Batched, and every locale answered in the one walk: a count per locale is all
 // that outlives a batch.
@@ -1093,7 +1093,7 @@ var errStallNoTargetLocales = &stallError{
 // an out-of-credits stall (strategy 2026-07-dogfood doc 07 / roadmap epic 019).
 var errStallSourceNotReady = &stallError{
 	reason:  convergence.StallSourceNotReady,
-	message: "source not ready — settle your source first (terminology, brand, source QA), or set defaults.source_gate: none to translate anyway",
+	message: "source not ready — settle your source first (terminology, brand, source checks), or set defaults.source_gate: none to translate anyway",
 }
 
 // parkedStallReason labels an ordinary parked outcome (no typed stall error):

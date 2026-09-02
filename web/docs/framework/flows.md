@@ -238,7 +238,7 @@ look-alikes:
 
 The framework ships a set of built-in flows covering common workflows:
 AI translation, AI translation with a quality pass, pseudo-translation for
-layout testing, memory leverage, rule-based QA, a redact-translate-restore flow
+layout testing, memory leverage, rule-based checks, a redact-translate-restore flow
 for [sensitive content](/framework/redaction), and media-to-subtitles flows that
 turn audio and video into translated subtitle tracks (see
 [Translate audio &amp; video](/kapi/recipes/translate-media)). Rather than maintain a

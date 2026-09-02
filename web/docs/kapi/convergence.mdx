@@ -171,7 +171,7 @@ is ready.
       kind: "phase",
       role: "source",
       label: "settle source",
-      steps: ["term-check + protect", "voice check", "source QA"],
+      steps: ["term-check + protect", "voice check", "source checks"],
     },
     {
       kind: "gate",
@@ -183,7 +183,7 @@ is ready.
       kind: "phase",
       role: "translate",
       label: "translate approved source",
-      steps: ["recycle (memory-first)", "AI remainder", "target QA"],
+      steps: ["recycle (memory-first)", "AI remainder", "target checks"],
     },
     {
       kind: "gate",
@@ -199,8 +199,8 @@ is ready.
 Read the loop left to right:
 
 1. **Settle the source.** Check terminology and mark the terms that must not be
-   translated, check voice profile, run source QA. This lifts source units up the
-   authoring ladder (*authored → checked → approved*).
+   translated, check voice profile, run the source checks. This lifts source
+   units up the authoring ladder (*authored → checked → approved*).
 2. **Hold at the source ship-gate.** The optional `source_gate` (for example,
    `{ checked: 100 }`) is the source-side counterpart of `ship_gate`. Source
    that has not cleared its bar **holds**: settling the source first is cheaper
@@ -252,9 +252,9 @@ kapi status
 ```
 
 `kapi check --ship` is the enforcing counterpart, the pre-release bar. It runs
-the project's bound quality gates (voice, terminology, QA, staleness) together
-with the ship and source coverage gates over the project's content, and exits non-zero when any
-gate is unmet (for a release tag or a `main` check). Target drift never blocks an
+the project's bound quality gates (voice, terminology, rule-based checks,
+staleness) together with the ship and source coverage gates over the project's
+content, and exits non-zero when any gate is unmet (for a release tag or a `main` check). Target drift never blocks an
 ordinary build; `--ship` is the explicit, opt-in enforcement point. (A bare
 `kapi check <files>` runs a checkset over the files you name, the content-first
 counterpart to a test runner.) See

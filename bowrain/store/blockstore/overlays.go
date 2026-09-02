@@ -52,7 +52,7 @@ func splitKindOnce(kind string) (prefix, rest string) {
 // <name> is the key Block.SetAnno files it under, and the payload is that
 // annotation's body. The adapter therefore hands the store the same three
 // coordinates the block round-trip does — the block's row id, the bare key, and
-// a typed payload — so a QA tool's findings written through a flow reach the
+// a typed payload — so a check tool's findings written through a flow reach the
 // editor that reads the block, and a note the editor writes reaches the flow.
 
 // annotationKey returns the annotation key an `annotations/<name>` kind names.

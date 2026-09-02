@@ -133,7 +133,7 @@ If `merge: true` is passed to `setTranslations` or `loadTranslations`, the incom
 
 ### Runtime pseudo-translation
 
-Runtime mode can apply pseudo-translation **on the fly**, with no build step and no catalog; useful for dev ergonomics, layout QA, and debugging which strings flow through the translation system:
+Runtime mode can apply pseudo-translation **on the fly**, with no build step and no catalog; useful for dev ergonomics, layout checks, and debugging which strings flow through the translation system:
 
 ```tsx
 import { setPseudoMode } from "@neokapi/i18n-react/runtime/pseudo";
@@ -297,5 +297,5 @@ The mode decision is purely about how the translated output lands in the user's 
 
 ## Next
 
-- [Translating with kapi](./translating-with-kapi): AI translation, pseudo-translation, round-trip QA.
+- [Translating with kapi](./translating-with-kapi): AI translation, pseudo-translation, round-trip checks.
 - [Configuration](./configuration): componentMap, rules, Storybook, custom warning routing.

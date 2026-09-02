@@ -136,7 +136,7 @@ export const ReviewMode: Story = {
 };
 
 /**
- * Interactive card with all panels: content memory, QA, history, terms, ref locales.
+ * Interactive card with all panels: content memory, findings, history, terms, ref locales.
  * Full editing flow is functional.
  */
 export const FullFeatured: Story = {
@@ -169,7 +169,7 @@ export const TranslateModeEditing: Story = {
   },
 };
 
-/** Static snapshot: QA issues badge display */
+/** Static snapshot: finding badge display */
 export const WithQAIssues: Story = {
   args: {
     qaIssues: sampleQAIssues,

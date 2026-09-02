@@ -9,14 +9,14 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 )
 
-// qaCategoryTargetSameAsSource is the QA finding raised for a target identical
-// to its source.
+// qaCategoryTargetSameAsSource is the check finding raised for a target
+// identical to its source.
 const qaCategoryTargetSameAsSource = "target-same-as-source"
 
 // identicalTargetRule is the one definition of when a target identical to its
 // source is a settled outcome rather than a unit nobody translated. Both
 // surfaces that feed the ship gate ask it, and they must ask it the same way:
-// `kapi check`'s QA gate reports the finding and fails on it, and
+// `kapi check`'s checks gate reports the finding and fails on it, and
 // computeLoopCheckExclusions demotes the unit below `translated` for the same
 // gate during `kapi up`. With the suppression on one surface and not the other,
 // the same project, the same string and the same gate got two answers — check
@@ -76,7 +76,7 @@ func (a *App) newIdenticalTargetRule(ctx context.Context, cmd Command, proj *pro
 	// re-introduced as a degradation.
 	idx, err := a.loadReviewedCorrections(ctx, proj, root)
 	if err != nil {
-		return nil, fmt.Errorf("read the project's decisions for the QA gate: %w", err)
+		return nil, fmt.Errorf("read the project's decisions for the checks gate: %w", err)
 	}
 	r.reviewed = idx
 	return r, nil
@@ -95,7 +95,7 @@ func (r *identicalTargetRule) settles(sourcePath string, b *model.Block, locale 
 	return approvesTarget(e, applies)
 }
 
-// suppresses reports whether a QA finding is answered by the project's record,
+// suppresses reports whether a check finding is answered by the project's record,
 // and so is not a defect to report or to gate on.
 func (r *identicalTargetRule) suppresses(f check.Finding, sourcePath string, b *model.Block, locale string) bool {
 	return f.Category == qaCategoryTargetSameAsSource && r.settles(sourcePath, b, locale)

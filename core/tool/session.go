@@ -13,7 +13,7 @@ import (
 //
 // Why this exists: the channel-based `Tool.Process` is a one-shot
 // forward-only transform. Tools that need to look up a block by
-// hash, read prior overlays (content-memory matches, QA findings, prior target
+// hash, read prior overlays (content-memory matches, check findings, prior target
 // translations), or incrementally skip work that's already done
 // can't do it through the stream alone. SessionTool gives them a
 // `blockstore.Session` opened by the executor on whichever provider

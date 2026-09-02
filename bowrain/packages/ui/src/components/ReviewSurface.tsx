@@ -99,7 +99,7 @@ function isTypingTarget(target: EventTarget | null): boolean {
  *
  * What the document cannot state, it does not fake. The status filter and the
  * histogram beside it are server queries over the whole file (the pane holds one
- * page of the selected bucket, and says so). QA findings the payload gives no
+ * page of the selected bucket, and says so). Findings the payload gives no
  * position for tint their block and are listed in the inspector rather than
  * being guessed onto a span. Terms are a per-block lookup, so they are asked for
  * when a block is opened — one request, not one per block of the document.
@@ -680,7 +680,7 @@ export function ReviewSurface({
           data-testid="run-qa-btn"
         >
           <AlertTriangle className="w-3.5 h-3.5 mr-1" />
-          Run QA
+          Run checks
           {qaIssueCount > 0 && (
             <span className="ml-1 text-[10px] px-1 rounded-full bg-destructive/15 text-destructive font-bold">
               {qaIssueCount}
@@ -901,7 +901,7 @@ export function ReviewSurface({
         onConfirm={() => void bulkApplyMemory()}
       />
 
-      {/* QA problems panel (reused) */}
+      {/* Problems panel (reused) */}
       {showProblems && (
         <ProblemsPanel
           issues={fileQAResults}

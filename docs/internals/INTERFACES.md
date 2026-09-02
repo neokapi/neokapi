@@ -98,7 +98,7 @@ func (l *Layer) IsEmbedded() bool { return l.ParentID != "" && l.Format != "" }
 // Block is the primary modifiable content unit (Okapi: TextUnit). Source is
 // a single flat run sequence; translations are first-class Target records keyed
 // by VariantKey; every interpretation of the runs (segmentation, terms, entities,
-// QA, alignment) is a stand-off Overlay. There is no structural Segment type.
+// checks, alignment) is a stand-off Overlay. There is no structural Segment type.
 type Block struct {
     ID           string
     Name         string
@@ -200,7 +200,7 @@ type Span struct {
     ID    string
     Range Anchor
     Props map[string]string
-    Value string // type-specific payload (a term's concept, a QA finding, …)
+    Value string // type-specific payload (a term's concept, a check finding, …)
 }
 
 // Anchor says where inside a block something is, and every producer records

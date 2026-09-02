@@ -17,7 +17,7 @@ interface FlatIssue {
 }
 
 /**
- * ProblemsPanel slides up from the bottom to display QA check results,
+ * ProblemsPanel slides up from the bottom to display findings,
  * similar to VS Code's problems panel.
  */
 export function ProblemsPanel({ issues, loading, onNavigateToBlock, onClose }: ProblemsPanelProps) {
@@ -114,7 +114,7 @@ export function ProblemsPanel({ issues, loading, onNavigateToBlock, onClose }: P
         {loading ? (
           <div className="flex items-center justify-center py-8">
             <div className="animate-spin rounded-full h-5 w-5 border-2 border-primary border-t-transparent" />
-            <span className="ml-2 text-sm text-muted-foreground">Running QA checks...</span>
+            <span className="ml-2 text-sm text-muted-foreground">Running checks...</span>
           </div>
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-8 gap-2">

@@ -44,8 +44,8 @@ func (a *App) WithDocumentCache(root string, fn func() error) error {
 // OverlayTargets pairs target-file blocks onto source blocks by their stable
 // unit key (Name when set, else ID — convergence.BlockKey) and copies each
 // target block's text/runs onto the matching source block as the given target
-// locale. Source blocks with no matching target keep an empty target, so QA
-// flags them as untranslated. It is the pairing leg of the bilingual check
+// locale. Source blocks with no matching target keep an empty target, so the
+// checks flag them as untranslated. It is the pairing leg of the bilingual check
 // pipeline (the core of the CLI's bilingualBlocks).
 //
 // # Why the key is not enough on its own
@@ -96,7 +96,7 @@ func OverlayTargets(sourceBlocks, targetBlocks []*model.Block, locale model.Loca
 		}
 		if !ok {
 			if !positional {
-				continue // no target → empty; QA flags as untranslated.
+				continue // no target → empty; the checks flag it as untranslated.
 			}
 			tb = targetBlocks[i]
 		}

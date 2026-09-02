@@ -52,11 +52,11 @@ func (e *CheckExclusions) totalFailing() int {
 }
 
 // computeLoopCheckExclusions runs the project's bound target-side checks over
-// the produced units — the same engines `kapi check --ship` gates on: the QA
-// checkset (placeholder/tag integrity, plus the default placeholder patterns)
-// always, and the terminology check when the project binds a terms store. A unit
-// whose findings fail the ship predicate (any critical/major finding, or an
-// integrity category like pattern-mismatch) enters the set.
+// the produced units — the same engines `kapi check --ship` gates on: the
+// rule-based checkset (placeholder/tag integrity, plus the default placeholder
+// patterns) always, and the terminology check when the project binds a terms
+// store. A unit whose findings fail the ship predicate (any critical/major
+// finding, or an integrity category like pattern-mismatch) enters the set.
 //
 // Cost: checks only run over units whose target exists and is readable — an
 // untranslated unit has nothing to check — and they are annotate-only over
@@ -66,7 +66,7 @@ func (e *CheckExclusions) totalFailing() int {
 func (a *App) computeLoopCheckExclusions(ctx context.Context, cmd Command, proj *project.KapiProject, root string, units []VerifyUnit) (*CheckExclusions, error) {
 	excl := &CheckExclusions{Failing: map[string]bool{}, ByLocale: map[string]int{}}
 
-	// The same rule `kapi check`'s QA gate applies to a target identical to its
+	// The same rule `kapi check`'s checks gate applies to a target identical to its
 	// source. This set feeds the ship gate, so a question the two surfaces answer
 	// differently is a unit that passes the check and is held back by the
 	// coverage, in one project, on one run.

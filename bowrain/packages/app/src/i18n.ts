@@ -19,7 +19,7 @@ export const UI_LOCALE_STORAGE_KEY = "bowrain.ui-locale";
 
 export type UILocale = "en" | "nb" | "qps";
 
-/** Locales offered by the language picker. `qps` (pseudo) is dev/QA-only. */
+/** Locales offered by the language picker. `qps` (pseudo) is for development and verification only. */
 export const UI_LOCALES: ReadonlyArray<{ value: UILocale; label: string }> = [
   { value: "en", label: "English" },
   { value: "nb", label: "Norsk bokmål" },

@@ -18,7 +18,7 @@ import (
 // A target identical to its source is a heuristic's guess at "nobody translated
 // this", and the project has two ways of answering it outright: its terms, and a
 // decision bound to that exact pairing. Both surfaces that feed the ship gate
-// have to take the same answer — the QA gate `kapi check` fails on, and the
+// have to take the same answer — the checks gate `kapi check` fails on, and the
 // exclusion set that demotes a unit below `translated` during `kapi up`. They
 // did not: the gate suppressed the finding for do-not-translate terms and the
 // coverage did not, so one project, one term and one gate got two verdicts.
@@ -76,7 +76,7 @@ func identicalApp() *App {
 	return a
 }
 
-// gateFindings runs the QA gate over the fixture and returns the messages it
+// gateFindings runs the checks gate over the fixture and returns the messages it
 // reported, plus whether the gate passed.
 func gateFindings(t *testing.T, root string) (msgs []string, pass bool) {
 	t.Helper()
@@ -189,7 +189,7 @@ func TestIdenticalTarget_BothGateSurfacesReadTheSameRule(t *testing.T) {
 				}
 			}
 			assert.Equal(t, tc.identicalReported, identical,
-				"the QA gate's reading of the identical target: %v", msgs)
+				"the checks gate's reading of the identical target: %v", msgs)
 			// The placeholder drop fails the gate in every case, so a passing gate
 			// would mean the fixture stopped exercising it.
 			assert.False(t, pass, "the placeholder-dropping unit fails the gate throughout")

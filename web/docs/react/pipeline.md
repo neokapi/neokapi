@@ -159,7 +159,7 @@ Each run **accumulates** a target locale into the same `.kbf.json`. The writer i
 
 ### Path B: Pseudo-translate
 
-For UI-layout QA, pseudo-translation generates visibly-altered strings without any real translation:
+For UI-layout checks, pseudo-translation generates visibly-altered strings without any real translation:
 
 ```bash
 kapi pseudo-translate i18n/
@@ -367,5 +367,5 @@ The extractor is stateless: it always produces the same `.kbf.json` for the same
 ## Next
 
 - [Runtime vs. inline modes](./modes): shipping one bundle with OTA dicts vs. one bundle per locale.
-- [Translating with kapi](./translating-with-kapi): pseudo-translation, AI translation, QA.
+- [Translating with kapi](./translating-with-kapi): pseudo-translation, AI translation, checks.
 - [Configuration](./configuration): componentMap, rules, Storybook, custom warning handlers.

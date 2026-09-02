@@ -49,7 +49,7 @@ attached to a single language-neutral concept.
 | `admitted`   | Allowed but not recommended   | Show with lower priority        |
 | `deprecated` | Being phased out              | Warn when found in translations |
 | `proposed`   | Under review, not yet approved | Show as suggestion with caveat |
-| `forbidden`  | Must not be used              | Flag as error in QA             |
+| `forbidden`  | Must not be used              | Flag as an error in checks      |
 
 ## Concept relations
 

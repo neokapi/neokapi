@@ -11,14 +11,14 @@ import { PendingMedia } from "@neokapi/docs-shared";
 
 Bowrain has two layers of automation: **local rules** declared on the `kapi.yaml`
 recipe (top-level `automations:`) that run on the developer machine
-(for example pre-push QA), and the **server side**: the project's converge-on-push
+(for example a pre-push check gate), and the **server side**: the project's converge-on-push
 policy and CI pipelines. Together they make sync fully automated:
 code lands, results follow.
 
 ## Local rules
 
 Declare `automations:` at the top level of the `kapi.yaml` recipe. A
-pre-push QA rule, for example, fires before `kapi push` completes, so source
+pre-push check rule, for example, fires before `kapi push` completes, so source
 never reaches the server without passing your checks. Local rules give a
 developer guardrails on their own machine. (The recipe also accepts a `hooks:`
 block, but hooks are schema-only, [not executed](/cli/flows/hooks);

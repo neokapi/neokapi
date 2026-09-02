@@ -703,7 +703,7 @@ func codeLanguageFromPre(pre *html.Node) string {
 // applyStructureFacets derives a block's plane (layout layer) and visibility
 // (presence condition) from the element and its ancestors — entirely from
 // markup, no layout engine (structure-geometry-landscape.md §8). These are
-// additive structural facets the editor/QA consume; writers ignore them.
+// additive structural facets the editor and the checks consume; writers ignore them.
 func (r *Reader) applyStructureFacets(block *model.Block, n *html.Node) {
 	if plane := htmlPlane(n); plane != "" {
 		block.SetLayoutLayer(plane)

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-02T09:28:34Z",
+  "generatedAt": "2026-09-02T10:24:46Z",
   "kind": "tool",
   "entries": [
     {
@@ -1006,7 +1006,7 @@
         }
       },
       "doc": {
-        "overview": "The **Create Target** tool ensures every block has a target segment for a\ngiven locale. It is the standard first step when preparing content for\ntranslation: it creates the empty (or source-seeded) target containers that\nlater tools — translation, leverage, QA — fill and check.\n\nA target locale is required. By default existing targets are left untouched;\nenable overwriting to replace them. Targets can be created for\nnon-translatable blocks as well, which keeps bilingual structure complete\nacross an entire document.\n",
+        "overview": "The **Create Target** tool ensures every block has a target segment for a\ngiven locale. It is the standard first step when preparing content for\ntranslation: it creates the empty (or source-seeded) target containers that\nlater tools — translation, leverage, verification — fill and check.\n\nA target locale is required. By default existing targets are left untouched;\nenable overwriting to replace them. Targets can be created for\nnon-translatable blocks as well, which keeps bilingual structure complete\nacross an entire document.\n",
         "parameters": {
           "copySource": {
             "description": "Seed the new target with the source text.",
@@ -2370,7 +2370,7 @@
           },
           "mode": {
             "type": "string",
-            "title": "QA Mode",
+            "title": "Check mode",
             "description": "How to check quality: deterministic local rules, or an AI provider's review",
             "default": "rules",
             "options": [
@@ -2456,7 +2456,7 @@
         }
       },
       "doc": {
-        "overview": "The **Quality Check** tool runs a battery of rule-based checks over each\ntranslation and records the findings on the block's properties as a JSON array\nof QA issues, along with a pass/fail flag. The checks span several categories:\ngeneral text issues (empty target, whitespace mismatches, double spaces,\ndoubled words, target identical to source, corrupted characters), inline-code\nconsistency, span constraint violations, regex pattern preservation, and length\nratios. A target locale is required; when a block has no translation, only the\nempty-target check applies.\n\nWith no `--provider`, the checks are deterministic and need no credentials.\nSetting `--provider` instead runs LLM-judged QA: the chosen model reviews each\ntranslation for terminology, fluency, and accuracy. The rule-based toggles\nbelow apply to the deterministic mode; `model` and `checks` apply to the LLM\nmode. Every rule check can be toggled independently, and the length checks\nshare the long/short ratio model used by the dedicated length-check tool.\n",
+        "overview": "The **Quality Check** tool runs a battery of rule-based checks over each\ntranslation and records the findings on the block's properties as a JSON array\nof findings, along with a pass/fail flag. The checks span several categories:\ngeneral text issues (empty target, whitespace mismatches, double spaces,\ndoubled words, target identical to source, corrupted characters), inline-code\nconsistency, span constraint violations, regex pattern preservation, and length\nratios. A target locale is required; when a block has no translation, only the\nempty-target check applies.\n\nWith no `--provider`, the checks are deterministic and need no credentials.\nSetting `--provider` instead runs LLM-judged checks: the chosen model reviews each\ntranslation for terminology, fluency, and accuracy. The rule-based toggles\nbelow apply to the deterministic mode; `model` and `checks` apply to the LLM\nmode. Every rule check can be toggled independently, and the length checks\nshare the long/short ratio model used by the dedicated length-check tool.\n",
         "parameters": {
           "absoluteMaxCharLength": {
             "description": "Maximum number of characters allowed in any target segment.",
@@ -2547,7 +2547,7 @@
           },
           "checkTerminology": {
             "description": "Enable terminology checks.",
-            "help": "Enables terminology verification within QA check. Disabled by default.\n",
+            "help": "Enables terminology verification within the check. Disabled by default.\n",
             "values": "`true` / `false` (default `false`)"
           },
           "checkTrailingWhitespace": {
@@ -2603,12 +2603,12 @@
           },
           "model": {
             "description": "The model name to request (LLM mode).",
-            "help": "The provider-specific model identifier for LLM-judged QA. When omitted, the\nprovider's default model is used.\n",
+            "help": "The provider-specific model identifier for LLM-judged checks. When omitted, the\nprovider's default model is used.\n",
             "values": "string"
           },
           "provider": {
-            "description": "LLM provider for AI-judged QA (omit for rule-based checks).",
-            "help": "When set, QA runs as an LLM judge using this provider instead of the\ndeterministic rule checks. Options are populated from the provider\nregistry. Leave empty to run the rule-based checks with no credentials.\n",
+            "description": "LLM provider for AI-judged checks (omit for rule-based checks).",
+            "help": "When set, the tool runs as an LLM judge using this provider instead of the\ndeterministic rule checks. Options are populated from the provider\nregistry. Leave empty to run the rule-based checks with no credentials.\n",
             "values": "`anthropic` / `openai` / `gemini` / `azureopenai` / `ollama` (default: unset → rule-based)"
           },
           "strictCodeOrder": {
@@ -2641,7 +2641,7 @@
         "processingNotes": [
           "Operates on translatable blocks; non-translatable structure passes through unchanged.",
           "When a block has no translation, only the empty-target check applies.",
-          "Findings are stored on the block as a JSON array of QA issues with a pass/fail flag."
+          "Findings are stored on the block as a JSON array with a pass/fail flag."
         ],
         "examples": [
           {
@@ -3233,7 +3233,7 @@
         }
       },
       "doc": {
-        "overview": "The **Review** tool asks a configured LLM provider to review each\ntranslation and return a concise assessment: a score from 1 to 10, a brief\njudgement of accuracy and fluency, and a suggested improvement where warranted.\nThe review text is recorded on the block's properties along with the provider\nname. Blocks without a translation for the target locale are skipped.\n\nBoth a target locale and provider credentials are required, since the tool makes\nan external API call per block. Unlike the AI QA check, which returns structured\nissues, this tool produces a free-form review intended for human reviewers\ndeciding whether a translation needs revision.\n",
+        "overview": "The **Review** tool asks a configured LLM provider to review each\ntranslation and return a concise assessment: a score from 1 to 10, a brief\njudgement of accuracy and fluency, and a suggested improvement where warranted.\nThe review text is recorded on the block's properties along with the provider\nname. Blocks without a translation for the target locale are skipped.\n\nBoth a target locale and provider credentials are required, since the tool makes\nan external API call per block. Unlike the AI-judged check, which returns\nstructured findings, this tool produces a free-form review intended for human\nreviewers deciding whether a translation needs revision.\n",
         "parameters": {
           "apiKey": {
             "description": "API key for the AI provider.",
@@ -3253,7 +3253,7 @@
         },
         "limitations": [
           "Requires AI provider credentials and a target locale; makes an external API call per block.",
-          "The review is free-form model output, not structured QA issues.",
+          "The review is free-form model output, not structured findings.",
           "Blocks without a translation for the target locale are skipped."
         ],
         "processingNotes": [

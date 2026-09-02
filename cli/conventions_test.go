@@ -199,6 +199,17 @@ func runCommand(t *testing.T, args ...string) string {
 // brand") lives on the docs and landing surfaces, not in help text.
 var retiredVocabulary = regexp.MustCompile(`(?i)termbases?|glossar(?:y|ies)|locali[sz](?:e|es|ed|ing|ation|ations)|l10n|translation memor(?:y|ies)|brand[- ]voice`)
 
+// retiredCasedVocabulary matches the retired wording that case alone separates
+// from a name a rename may not touch. The checks family retired the uppercase
+// initialism as a word for itself; lowercase `qa` is the tool `kapi exec qa`
+// runs, the flow id in `kapi run translate-qa`, the overlay type and the gate
+// id, and help text spells all of those. The word boundaries keep an identifier
+// out too: QAIssue carries none around it.
+//
+// scripts/check-vocabulary.sh holds the file-backed surfaces to the same rule;
+// keep the two in step.
+var retiredCasedVocabulary = regexp.MustCompile(`\bQA\b|[Qq]uality [Aa]ssurance`)
+
 // TestConvention_HelpTextUsesCurrentVocabulary holds the CLI's own help to the
 // vocabulary rule in CLAUDE.md.
 //
@@ -226,7 +237,9 @@ func TestConvention_HelpTextUsesCurrentVocabulary(t *testing.T) {
 	walk = func(cmd *cobra.Command, path string) {
 		check := func(field, text string) {
 			for line := range strings.SplitSeq(text, "\n") {
-				if found := retiredVocabulary.FindAllString(line, -1); found != nil {
+				found := retiredVocabulary.FindAllString(line, -1)
+				found = append(found, retiredCasedVocabulary.FindAllString(line, -1)...)
+				if found != nil {
 					t.Errorf("%s (%s) uses retired vocabulary %v: %s",
 						path, field, found, strings.TrimSpace(line))
 				}

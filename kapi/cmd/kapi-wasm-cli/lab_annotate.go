@@ -24,15 +24,16 @@ import (
 // labInspectAnnotated reads a file through the kapi format reader exactly like
 // labInspect, then runs a small pipeline of read-only annotators over the parsed
 // blocks so they gain stand-off overlays — terminology, voice vocabulary and
-// rule-based QA — before serializing the content tree. Where plain labInspect
-// only parses, this surfaces the engine's interpretations so the docs "Anatomy"
-// explorer can highlight vocabulary terms and QA findings on a rendered document.
+// rule-based checks — before serializing the content tree. Where plain
+// labInspect only parses, this surfaces the engine's interpretations so the
+// docs "Anatomy" explorer can highlight vocabulary terms and check findings on
+// a rendered document.
 //
 // The annotators are deterministic and offline: term overlays come from the
 // seeded in-memory terms (LookupAll over the source text), brand overlays
 // from profile.MatchVocabulary against the seeded voice profile (wasm_backends.go),
-// and QA overlays from the shared source-only shape rules (double spaces, doubled
-// words — check.HygieneOverlay).
+// and check overlays from the shared source-only shape rules (double spaces,
+// doubled words — check.HygieneOverlay).
 // Each is a source-anchored overlay (Variant nil) carrying its matched span text
 // and type-specific props, picked up by the existing OverlayView serializer.
 //
@@ -174,7 +175,7 @@ func annotateParts(ctx context.Context, parts []*model.Part, opts annotateOption
 			}
 		}
 		if opts.QA {
-			// Shape QA (double spaces, doubled words) comes from the shared
+			// The shape checks (double spaces, doubled words) come from the shared
 			// check.HygieneOverlay, which judges the run-aware flattening and
 			// maps its ranges back onto the runs — the same rules, and the same
 			// verdicts, as the `hygiene.*` findings `kapi check` reports.
@@ -249,7 +250,7 @@ func termOverlay(ctx context.Context, runs []model.Run, source string) *model.Ov
 // voiceOverlay builds an OverlayQA over the source runs from the seeded voice
 // profile — both halves of its deterministic gate, vocabulary
 // (profile.MatchVocabulary) and prohibited style patterns
-// (profile.MatchPatterns). Findings ride on the QA overlay type (the model's
+// (profile.MatchPatterns). Findings ride on the `OverlayQA` type (the model's
 // fixed overlay enum has no dedicated voice type) and are tagged with
 // category="voice-vocabulary" or category="voice-pattern" plus the matched term
 // or rule, severity and any preferred replacement. Returns nil when nothing

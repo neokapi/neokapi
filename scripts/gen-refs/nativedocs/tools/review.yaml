@@ -9,9 +9,9 @@ overview: |
   name. Blocks without a translation for the target locale are skipped.
 
   Both a target locale and provider credentials are required, since the tool makes
-  an external API call per block. Unlike the AI QA check, which returns structured
-  issues, this tool produces a free-form review intended for human reviewers
-  deciding whether a translation needs revision.
+  an external API call per block. Unlike the AI-judged check, which returns
+  structured findings, this tool produces a free-form review intended for human
+  reviewers deciding whether a translation needs revision.
 parameters:
   provider:
     description: The LLM provider backend to use.
@@ -33,7 +33,7 @@ parameters:
     values: "string"
 limitations:
   - Requires AI provider credentials and a target locale; makes an external API call per block.
-  - The review is free-form model output, not structured QA issues.
+  - The review is free-form model output, not structured findings.
   - Blocks without a translation for the target locale are skipped.
 processingNotes:
   - Operates on blocks that have a translation for the target locale.

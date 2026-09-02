@@ -42,7 +42,7 @@ export const ContentPreparation: Story = {
         { label: "settle", sub: "transformers" },
         { label: "segment", sub: "sentence overlay", role: "annotate" },
         { label: "recognize", sub: "terms · entities", role: "annotate" },
-        { label: "check", sub: "QA findings", role: "qa" },
+        { label: "check", sub: "findings", role: "qa" },
         { label: "translate", sub: "Memory · AI · MT", role: "translate" },
       ]}
     />

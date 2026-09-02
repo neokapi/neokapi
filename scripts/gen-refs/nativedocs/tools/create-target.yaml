@@ -5,7 +5,7 @@ overview: |
   The **Create Target** tool ensures every block has a target segment for a
   given locale. It is the standard first step when preparing content for
   translation: it creates the empty (or source-seeded) target containers that
-  later tools — translation, leverage, QA — fill and check.
+  later tools — translation, leverage, verification — fill and check.
 
   A target locale is required. By default existing targets are left untouched;
   enable overwriting to replace them. Targets can be created for

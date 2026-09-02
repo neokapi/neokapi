@@ -43,7 +43,7 @@ the session's working directory and both **fail-open** (outside a project, or if
 they cannot run, the assistant proceeds normally):
 
 - **`Stop` → `kapi hook stop`.** When the assistant tries to finish, it runs the
-  project's `kapi check --ship` gates — brand voice, terminology, translation QA —
+  project's `kapi check --ship` gates — brand voice, terminology, translation checks —
   and, if a gate is failing, keeps the assistant working with the findings to fix.
   The skill makes the check loop the default; this hook makes it a guarantee.
 - **`PreToolUse` (Edit/Write/MultiEdit) → `kapi hook pre-edit`.** Denies direct

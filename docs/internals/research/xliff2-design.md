@@ -111,7 +111,7 @@ We do not interpret module semantics in the v1 implementation — but because we
 
 Specific exceptions where we DO interpret modules in v1:
 - `mda:metadata` on `<file>` → expose select keys as Layer.Properties (e.g. tool name/version) for downstream display.
-- `mtc:matches` on `<unit>` → exposed as `MatchesAnnotation` so QA tools can leverage existing translation candidates without re-deserializing.
+- `mtc:matches` on `<unit>` → exposed as `MatchesAnnotation` so check tools can leverage existing translation candidates without re-deserializing.
 
 ## 4. Reader contract
 
@@ -217,7 +217,7 @@ Three tiers:
 
 ## 10. Decisions
 
-- **Code attrs**: **typed Go fields** (`CodeAttrs` struct as defined in §3). Full DX for downstream tools (QA, MT, segmentation) at the cost of a deeper change.
+- **Code attrs**: **typed Go fields** (`CodeAttrs` struct as defined in §3). Full DX for downstream tools (checks, MT, segmentation) at the cost of a deeper change.
 - **`<cp hex="X"/>` on read**: **resolve to the actual code point** in `Run.Text`. Loses the `<cp>` marker but produces a clean text stream for tools. The writer re-encodes invalid XML characters as `<cp>` on output per spec §3.7.2 processing requirement.
 - **Skeleton**: **treated as a separate flow** — out of scope for the v1 reader/writer. External `<skeleton href>` is captured in `Layer.Properties["xliff2:skeleton-href"]` for future consumers; inline `<skeleton>` is preserved opaquely. The kapi merge step will gain a dedicated skeleton-aware path later.
 - **Patching strategy**: round-trip mode walks the etree subtree and surgically replaces TextRun content within `<target>`; generation mode re-serializes the full `<target>` from the model. (Refined during implementation as needed.)

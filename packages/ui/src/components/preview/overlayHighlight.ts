@@ -19,7 +19,7 @@ import type { OverlaySpan, OverlayView } from "./types";
 // and every other `qa` overlay is a rule-based check (double spaces, doubled
 // words). So a span's accent is decided by its overlay type AND its span props,
 // not the type alone: term = violet (vocabulary), voice-vocabulary = pink (a
-// voice QA), other qa = amber. Other model overlay types
+// voice check), other qa = amber. Other model overlay types
 // (entity/segmentation/alignment) keep stable accents in case a future
 // annotator emits them.
 
@@ -50,8 +50,8 @@ const OVERLAY_STYLES: Record<string, OverlayStyle> = {
     className: "bg-pink-500/20 text-pink-700 dark:text-pink-300",
     label: "Voice",
   },
-  // Rule-based and LLM-judged QA findings (double spaces, doubled words, …).
-  qa: { className: "bg-amber-500/25 text-amber-700 dark:text-amber-300", label: "QA" },
+  // Rule-based and LLM-judged findings (double spaces, doubled words, …).
+  qa: { className: "bg-amber-500/25 text-amber-700 dark:text-amber-300", label: "Check" },
   // Other model overlay types (not currently produced, but kept stable).
   entity: { className: "bg-sky-500/20 text-sky-700 dark:text-sky-300", label: "Entity" },
   entities: { className: "bg-sky-500/20 text-sky-700 dark:text-sky-300", label: "Entity" },
@@ -87,7 +87,7 @@ function effectiveKey(type: string, span?: OverlaySpan): string {
 /**
  * Resolve the accent + label for an overlay span. Pass the span so a
  * voice-vocabulary violation (a `qa` overlay with category=voice-vocabulary)
- * gets the voice accent rather than the generic QA accent. Unknown keys fall
+ * gets the voice accent rather than the generic check accent. Unknown keys fall
  * back to emerald.
  */
 export function overlayStyle(type: string, span?: OverlaySpan): OverlayStyle {
@@ -118,7 +118,7 @@ export interface ResolvedSpan {
 // The props worth surfacing in the tooltip, per overlay identity — chosen so a
 // reader sees the actionable fact, not the raw prop bag. Terms show their target
 // translation (+ domain); voice-vocabulary violations show the suggested
-// replacement (or the human message); other QA shows its message. Anything not
+// replacement (or the human message); other check findings show their message. Anything not
 // listed falls back to a compact key:value join.
 const TOOLTIP_PROPS: Record<string, string[]> = {
   term: ["target", "domain"],
@@ -185,7 +185,7 @@ export function resolveOverlaySpans(
         end: idx + needle.length,
         type: ov.type,
         // Style/tooltip key on the span too, so a voice-vocabulary qa span gets
-        // the voice accent rather than the generic QA accent.
+        // the voice accent rather than the generic check accent.
         style: overlayStyle(ov.type, span),
         span,
         tooltip: tooltipFor(ov.type, span),

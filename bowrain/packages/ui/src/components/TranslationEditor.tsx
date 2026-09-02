@@ -117,7 +117,7 @@ export function TranslationEditor({
   const [memoryMatches, setTmMatches] = useState<MemoryMatchInfo[]>([]);
   const [termMatches, setTermMatches] = useState<BlockTermMatch[]>([]);
 
-  // Visual-card extended state (QA, history, notes) — loaded for the selected
+  // Visual-card extended state (findings, history, notes) — loaded for the selected
   // block; only surfaced in the Visual view's card.
   const [blockQAIssues, setBlockQAIssues] = useState<QAIssue[]>([]);
   const [fileQAResults, setFileQAResults] = useState<FileQAResult[] | undefined>(undefined);
@@ -309,7 +309,7 @@ export function TranslationEditor({
     void Promise.all([memoryPromise, termPromise]);
   }, [selectedIndex, blocks, targetLocale, project.id, fileName, api]);
 
-  // Load QA issues, history, and notes for the selected block (Visual card).
+  // Load findings, history, and notes for the selected block (Visual card).
   useEffect(() => {
     if (view !== "visual") return;
     const block = blocks[selectedIndex];

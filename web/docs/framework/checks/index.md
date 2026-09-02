@@ -2,14 +2,14 @@
 sidebar_position: 0
 title: Checks
 description: "Checks are tests for AI output: read-only verifiers that inspect content against rules and return one machine-readable Report (pass, score, gate, located findings) without modifying it. A content-first checkset (hygiene, length, patterns, voice) plus opt-in bilingual checks, all one family."
-keywords: [checks, content verification, tests for AI, findings, QA, voice profile, terminology, gate, CI]
+keywords: [checks, content verification, tests for AI, findings, voice profile, terminology, gate, CI]
 ---
 
 # Checks
 
 A **check** reads content, inspects it against a set of rules, and **reports
 findings without modifying it**. neokapi runs every kind of verification through
-one engine: deterministic QA rules, terminology enforcement, placeholder and
+one engine: deterministic rule-based checks, terminology enforcement, placeholder and
 do-not-translate integrity, and [voice profile](/framework/checks/voice) are
 check families that share one model rather than separate systems.
 
@@ -106,8 +106,9 @@ against its source):
 - **Terminology enforcement**: verifies the right term was used, drawing on the
   project [terms store](/framework/terminology).
 
-The full QA family (whitespace, inline-code integrity, cross-block consistency,
-optional LLM review) is documented under [QA Checks](/framework/checks/qa-checks).
+The full rule-based family (whitespace, inline-code integrity, cross-block
+consistency, optional LLM review) is documented under
+[Rule-based checks](/framework/checks/rule-checks).
 
 > **Document structure & encoding validity** is a format-reader concern rather
 > than a content check: the readers extract leniently by default. Surface it on

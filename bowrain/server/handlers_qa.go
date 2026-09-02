@@ -16,10 +16,10 @@ import (
 	"github.com/neokapi/neokapi/terms"
 )
 
-// QAIssueResponse is a single QA finding returned by the API.
+// QAIssueResponse is a single finding returned by the API.
 //
 // {type, severity ("error"|"warning"), message} is the shape the editor's
-// Problems panel has always read, and it is unchanged. The QA tools emit
+// Problems panel has always read, and it is unchanged. The check tools emit
 // core/check.Finding, which also locates the finding; dropping that at the
 // boundary left the caller with an issue it could name but not point at, so a
 // run-native consumer could only record it as a block-level annotation
@@ -41,7 +41,7 @@ type QAIssueResponse struct {
 	OriginalText string        `json:"original_text,omitempty"`
 }
 
-// FileQAResultResponse holds QA results for a single block.
+// FileQAResultResponse holds the findings for a single block.
 type FileQAResultResponse struct {
 	BlockID string            `json:"blockId"`
 	Issues  []QAIssueResponse `json:"issues"`
@@ -277,7 +277,7 @@ func runChecksOnBlock(ctx context.Context, block *model.Block, checks pointCheck
 	return issues
 }
 
-// qaIssuesFromFindings maps core/check.Finding onto the QA wire shape.
+// qaIssuesFromFindings maps core/check.Finding onto the QAIssueResponse wire shape.
 //
 // Everything the finding locates or suggests rides along; only the severity is
 // narrowed, to the two values the Problems panel has always styled. The result
@@ -301,8 +301,9 @@ func qaIssuesFromFindings(findings []check.Finding) []QAIssueResponse {
 	return result
 }
 
-// qaWireSeverity maps a core/check.Severity onto the two-valued severity the QA
-// API has always returned: critical/major are "error", minor/neutral "warning".
+// qaWireSeverity maps a core/check.Severity onto the two-valued severity the
+// endpoint has always returned: critical/major are "error", minor/neutral
+// "warning".
 func qaWireSeverity(s check.Severity) string {
 	switch s {
 	case check.SeverityCritical, check.SeverityMajor:

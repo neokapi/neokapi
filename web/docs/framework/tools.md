@@ -1,8 +1,8 @@
 ---
 sidebar_position: 7
 title: Tools
-description: Tools are the composable processing stages in a neokapi pipeline — each reads Parts from an input channel, transforms them, and writes to an output channel. Built-in tools cover translation, QA, segmentation, memory leverage, and more.
-keywords: [tools, pipeline stage, processing, translation, QA, memory leverage, segmentation, composable]
+description: Tools are the composable processing stages in a neokapi pipeline — each reads Parts from an input channel, transforms them, and writes to an output channel. Built-in tools cover translation, checks, segmentation, memory leverage, and more.
+keywords: [tools, pipeline stage, processing, translation, checks, memory leverage, segmentation, composable]
 ---
 
 import { FlowLab } from "@site/src/components/Lab/FlowBuilderRunner";
@@ -191,13 +191,13 @@ what a tool does, the built-in tools fall into a few broad kinds:
 | ------------- | ----------------------------------------- | --------------------------------------------------- |
 | **Transform** | Modify content in place                   | case change, search/replace, redact                 |
 | **Enrich**    | Attach matches or metadata to content     | segmentation, memory leverage, terminology lookup, AI translation |
-| **Validate**  | Check content without modifying it        | QA checks, length checks, terminology enforcement    |
+| **Validate**  | Check content without modifying it        | rule-based checks, length checks, terminology enforcement |
 | **Analyze**   | Accumulate statistics across the stream   | word count, repetition analysis, character inventory |
 | **Convert**   | Adjust representation                     | encoding conversion, line-break normalization        |
 
 Enrich and validate tools commonly use the [Block annotation
 system](/framework/content-model) rather than rewriting text: the `recycle` tool
-attaches candidate memory matches, a QA tool attaches findings, and downstream tools
+attaches candidate memory matches, a check tool attaches findings, and downstream tools
 or an editor read those annotations. This shared annotation channel is how
 [content memory](/framework/content-memory),
 [terminology](/framework/terminology), and [voice profile](/framework/checks/voice)

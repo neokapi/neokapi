@@ -25,7 +25,7 @@ export const Default: Story = {
     projectId: "proj-demo-1",
     ruleNames: {
       "rule-1": "Auto-translate on upload",
-      "rule-2": "QA check after translation",
+      "rule-2": "Checks after translation",
       "rule-3": "Notify on sync",
     },
   },

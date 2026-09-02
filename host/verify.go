@@ -430,7 +430,7 @@ func (a *App) verifySourceGate(ctx context.Context, proj *project.KapiProject, r
 // and fails the gate. It is the enforcing counterpart of `kapi status`.
 //
 // It runs the project's bound checks first, so the ship gate answers the same
-// guardrail question the QA gate in this very command answers: one invocation
+// guardrail question the checks gate in this very command answers: one invocation
 // reporting `qa FAIL` beside `ship PASS` over one tree is a contradiction
 // needing no second command to see (#2024).
 func (a *App) verifyShip(cmd Command, proj *project.KapiProject, root string, units []VerifyUnit) (verifyGateResult, error) {
@@ -792,8 +792,8 @@ func (a *App) projectSourceFiles(proj *project.KapiProject, root string) ([]stri
 // --- verify units (source/target pairing) ----------------------------------
 
 // VerifyUnit is one source file paired with one target file for a locale.
-// The QA and terminology gates read the source file for source text and the
-// target file for translated text, then pair blocks by name.
+// The rule-based and terminology gates read the source file for source text
+// and the target file for translated text, then pair blocks by name.
 type VerifyUnit struct {
 	SourcePath string
 	TargetPath string
@@ -867,9 +867,9 @@ func unitFormatBinding(proj *project.KapiProject, rf project.ResolvedFile, targe
 }
 
 // resolveVerifyUnits builds the list of (source, target, locale) units the
-// terminology and QA gates inspect. With explicit file args, each arg is
-// treated as a target file paired with itself as the source (so monolingual
-// QA still flags placeholder/empty issues against the file's own content) —
+// terminology and rule-based gates inspect. With explicit file args, each arg
+// is treated as a target file paired with itself as the source (so monolingual
+// checks still flag placeholder/empty issues against the file's own content) —
 // unless the file matches a project content target template, in which case the
 // matching source file is paired. With no args, units come from the project's
 // content × target languages.
@@ -965,9 +965,9 @@ func (a *App) SourceUnitsFromProject(proj *project.KapiProject, root string) ([]
 
 // unitsFromArgs treats each file argument as a target file. When the file
 // matches a project content target template, the source file and locale are
-// recovered so QA/terminology run bilingually; otherwise the file is paired
-// with itself and the locale falls back to --locale or the first project
-// target language.
+// recovered so the checks and terminology run bilingually; otherwise the file
+// is paired with itself and the locale falls back to --locale or the first
+// project target language.
 func (a *App) unitsFromArgs(proj *project.KapiProject, root string, args []string, localeFilter string) ([]VerifyUnit, error) {
 	files, err := resolveFiles(args)
 	if err != nil {
@@ -1065,7 +1065,7 @@ func expandTargetTemplate(itemPath, base, tmpl, sourceRel, locale, root, localeF
 // content, so a unit whose source sits under a per-item `channel:` override is
 // checked against the vocabulary in force there. A locale with no rules
 // contributes no findings; a missing target file (untranslated) is flagged by
-// the QA gate, so terminology skips it.
+// the checks gate, so terminology skips it.
 func (a *App) verifyTerminology(cmd Command, units []VerifyUnit) (verifyGateResult, error) {
 	ctx := CmdContext(cmd)
 	gate := verifyGateResult{Gate: gateTerms, Pass: true, Findings: []verifyFinding{}}
@@ -1108,8 +1108,9 @@ func (a *App) verifyTerminology(cmd Command, units []VerifyUnit) (verifyGateResu
 			return gate, err
 		}
 		if missing {
-			// Untranslated target — terminology can't be checked; QA reports
-			// the missing file, so skip here to avoid duplicate noise.
+			// Untranslated target — terminology can't be checked; the checks
+			// gate reports the missing file, so skip here to avoid duplicate
+			// noise.
 			continue
 		}
 		cfg := &coretools.TermCheckConfig{
@@ -1222,7 +1223,7 @@ func (a *App) verifyQA(cmd Command, proj *project.KapiProject, root string, unit
 		}
 
 		cfg := coretools.NewQACheckConfig(model.LocaleID(u.Locale))
-		// Check placeholder integrity so the QA gate flags dropped placeholders
+		// Check placeholder integrity so the checks gate flags dropped placeholders
 		// even in plain-text formats where the reader does not extract them as
 		// inline codes (e.g. {name}, {{var}}, %s, ${x}). The inline-code
 		// difference check still runs for formats that do extract codes; the
@@ -1291,7 +1292,7 @@ func verifySeverity(s check.Severity) string {
 	}
 }
 
-// qaFailingCategories are the QA finding categories verify treats as gate
+// qaFailingCategories are the finding categories verify treats as gate
 // failures: integrity problems that break the translation (dropped/extra
 // placeholders or tags, missing required codes, untranslated/empty targets).
 // Cosmetic issues (whitespace, doubled words, length ratios) are reported as
@@ -1312,7 +1313,7 @@ var qaFailingCategories = map[string]bool{
 	"target-same-as-source": true,
 }
 
-// qaFindingFails reports whether a QA finding should fail the verify QA gate.
+// qaFindingFails reports whether a finding should fail the verify checks gate.
 func qaFindingFails(f check.Finding) bool {
 	if qaFailingCategories[f.Category] {
 		return true
@@ -1348,9 +1349,9 @@ func qaFindingSuggestion(f check.Finding) string {
 // (translated text), overlaying each target block's text onto the matching
 // source block as the unit's target locale. Blocks are paired by Name (the
 // format's stable key, e.g. the JSON key path), falling back to ID. Source
-// blocks with no matching target keep an empty target so QA flags them as
-// untranslated. Returns missing=true when the target file does not exist — or
-// when the path is BLOCKED (see below), which is the same thing as far as
+// blocks with no matching target keep an empty target so the checks flag them
+// as untranslated. Returns missing=true when the target file does not exist —
+// or when the path is BLOCKED (see below), which is the same thing as far as
 // measurement is concerned.
 // errTargetUnreadable signals that a unit's target file exists but its format
 // cannot be read back to measure it (a write-only compiled catalog like .mo).
@@ -1366,7 +1367,7 @@ func (a *App) bilingualBlocks(ctx context.Context, u VerifyUnit) ([]*model.Block
 	// A blocked path holds no translation, whatever it holds. Report it as
 	// missing so every measurement path (coverage, plan, checks, review) treats
 	// the locale as untranslated. The reason is not lost: it is reported where a
-	// person can act on it — the QA gate's finding (qaGate) and the run that
+	// person can act on it — the checks gate's finding (qaGate) and the run that
 	// refuses to write the path (core/flow.OutputPathError).
 	if blockedTargetPath(u.TargetPath) != nil {
 		return nil, true, nil
@@ -1716,7 +1717,7 @@ func AddVerifyFlags(cmd Command) {
 	cmd.Flags().String("source-lang", "", "source language (overrides the project's source_language)")
 	AddGateFlag(cmd)
 	cmd.Flags().Int("min-score", DefaultVoiceMinScore, "voice compliance score below which the voice gate fails")
-	cmd.Flags().String("locale", "", "scope terminology and QA to a single target locale (e.g. fr)")
+	cmd.Flags().String("locale", "", "scope terminology and the rule-based checks to a single target locale (e.g. fr)")
 	cmd.Flags().String("termstore", "", "named terms or path to a terms store (defaults to the project terms store)")
 	cmd.Flags().Bool("json", false, "output the structured result as JSON")
 	cmd.Flags().Bool("ship", false, "also enforce the project's ship gates: fail if any locale's coverage is below its gate (the pre-release bar). Off by default — target drift is non-blocking; see 'kapi status'.")
