@@ -1,7 +1,7 @@
 id: bowrain-cli-getting-started
 title: Connect a project and bring it up to date
 subtitle: kapi init connects your local files to a Bowrain server; push and pull move content like git, and kapi up runs the loop on the server.
-tagline: your files stay yours — the server adds the team, the memory, and the governance.
+tagline: your files stay yours, and the server adds the team, the memory and the governance.
 kind: use-case
 publishAs: bowrain-cli-getting-started
 # A scripted plain-shell demo (no Claude): the bowrain CLI runs for real against
@@ -19,17 +19,17 @@ aspects:
   - the loop, run on the server
 
 script:
-  - comment: BowMart's help-center copy — English, sitting in your repo.
+  - comment: BowMart's help-center copy, in English, sitting in your repo.
   - command: cat src/locales/en.json
   - comment: Connect this project to your Bowrain server.
-  - command: kapi init --name help-center --source en --targets fr,de --server $BOWRAIN_SERVER_URL -y
+  - command: kapi init --name help-center --source-locale en --target-locale fr --target-locale de --server $BOWRAIN_SERVER_URL -y
   - comment: Track the files you want translated.
   - command: kapi add "src/locales/*.json"
-  - comment: Push the source up — pure transport, like git push.
+  - comment: Push the source up. Pure transport, like git push.
   - command: kapi push
-  - comment: Check standing — coverage and what's pending, like git status.
+  - comment: Check standing, the coverage and what's pending, like git status.
   - command: kapi status
-  - comment: Catch the project up — kapi up runs the loop on the server and pulls the results back.
+  - comment: Catch the project up. kapi up runs the loop on the server and pulls the results back.
   - command: kapi up
 
 narration:
@@ -42,32 +42,37 @@ narration:
   - id: init
     kind: terminal
     text: >
-      Here is BowMart's help-center copy — a few English strings in a JSON file.
+      Here is BowMart's help-center copy, a few English strings in a JSON file.
       kapi init scaffolds the project and creates it in your workspace on the
       Bowrain server, with the source and target languages set.
-    caption: "kapi init — connect the project to Bowrain"
+    caption: "kapi init connects the project to Bowrain"
   - id: push
     kind: terminal
     text: >
-      Track the files you want translated, then push. Push is pure transport — it
-      moves the source up to the server, like git push; it does not translate on
-      its own. kapi status then shows the standing on two axes: the content line
+      Track the files you want translated, then push. Push is pure transport: it
+      moves the source up to the server, the way git push does, and translates
+      nothing. kapi status then shows the standing on two axes. The content line
       counts what is waiting to move in each direction, and the governance line
       says whether the context, the terms and the decisions are still the ones
       this project observed. Beneath them the terms line and the venue line say
       what the org's vocabulary requires and where the loop will run.
-    caption: "kapi push — source up to the server"
+    caption: "kapi push moves the source up to the server"
   - id: up
     kind: terminal
     text: >
       kapi up runs the loop, and it prints its venue first: server, because the
       recipe declares one. Everything behind catches up on the Bowrain server,
-      with the team's keys, shared memory, and gates — memory first, then AI,
-      then checks — and it streams the progress back into your terminal, pulling
+      with the team's keys, shared memory and gates, in the order memory, then
+      AI, then checks. It streams the progress back into your terminal and pulls
       the results into the same files and format you started with. Anything that
       needs a person is parked for review. Before spending anything, kapi up
       --plan previews the pending work and its cost. This is the command your CI
       runs.
-    caption: "kapi up — run the loop on the server"
+    caption: "kapi up runs the loop on the server"
   - id: outro
     kind: outro
+    text: >
+      One command connects the project, one moves the source, and one runs the
+      loop. The files stay in your repository, in the format you started with,
+      and the server holds what a team needs to share: the memory, the terms and
+      the decisions.
