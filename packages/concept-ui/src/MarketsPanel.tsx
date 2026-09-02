@@ -80,7 +80,7 @@ export function MarketsPanel({ concept, source, capabilities }: ConceptSectionPr
               )}
               {anyBanned && (
                 <LegendItem icon={<Ban className="size-3 text-destructive" />}>
-                  banned — do not use
+                  banned: do not use
                 </LegendItem>
               )}
             </div>

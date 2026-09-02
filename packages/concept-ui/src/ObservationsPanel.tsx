@@ -30,7 +30,7 @@ export function ObservationsPanel({ concept, source, capabilities }: ConceptSect
     <ConceptSection
       title="Observations"
       icon={<MessageSquareQuote />}
-      description="What others say — external evidence, not rules."
+      description="What others say: external evidence, not rules."
     >
       {obs.error ? (
         <ErrorHint title="Could not load observations" description={obs.error.message} />

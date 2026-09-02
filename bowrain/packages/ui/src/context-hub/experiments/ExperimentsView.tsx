@@ -72,7 +72,7 @@ export function ExperimentsView({ onOpenExperiment }: ExperimentsViewProps) {
   return (
     <ContextHub
       title="Changes"
-      description="Governed changes travel as change-sets — a reviewable draft whose impact on published content is measured before it merges."
+      description="Governed changes travel as change-sets: a reviewable draft whose impact on published content is measured before it merges."
       width="wide"
       actions={
         <Button size="sm" onClick={() => setWizardOpen(true)}>
@@ -106,7 +106,7 @@ export function ExperimentsView({ onOpenExperiment }: ExperimentsViewProps) {
         <EmptyState
           icon={<FlaskConical />}
           title="No changes yet"
-          description="Start a change-set to propose a governed change — banning a term, changing a preferred term, or piloting a rule on real content."
+          description="Start a change-set to propose a governed change: banning a term, changing a preferred term, or piloting a rule on real content."
           action={
             <Button size="sm" variant="outline" onClick={() => setWizardOpen(true)}>
               <Plus />

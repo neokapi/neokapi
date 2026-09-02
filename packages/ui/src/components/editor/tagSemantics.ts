@@ -41,13 +41,13 @@ export function semanticLabel(span: SpanInfo): string {
   return getDefaultRegistry().chipLabel(span);
 }
 
-/** Tooltip with semantic name and raw data: e.g. "Bold open — <b>" */
+/** Tooltip with semantic name and raw data: e.g. "Bold open: <b>" */
 export function semanticTooltip(span: SpanInfo): string {
   const registry = getDefaultRegistry();
   const info = registry.lookupOrFallback(span.type);
   const spanTypeLabel =
     span.span_type === "opening" ? "open" : span.span_type === "closing" ? "close" : "placeholder";
-  return `${info.label} ${spanTypeLabel} — ${span.data}`;
+  return `${info.label} ${spanTypeLabel}: ${span.data}`;
 }
 
 // --- Pair Analysis ---

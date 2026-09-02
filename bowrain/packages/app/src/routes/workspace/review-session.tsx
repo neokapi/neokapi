@@ -30,7 +30,7 @@ export function ReviewSessionRoute() {
   );
 
   useEffect(() => {
-    document.title = `Review — ${project.name} — Bowrain`;
+    document.title = `Review · ${project.name} · Bowrain`;
   }, [project.name]);
 
   const baseParams = { workspace: wsParam, projectId: project.id, stream: streamParam };

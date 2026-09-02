@@ -49,7 +49,7 @@ function ComponentRow({ name, comp }: { name: string; comp: ComponentStatus }) {
             {comp.providers
               .map(
                 (p) =>
-                  `${p.name}${p.model ? ` (${p.model})` : ""}${p.configured ? "" : " — not configured"}`,
+                  `${p.name}${p.model ? ` (${p.model})` : ""}${p.configured ? "" : " (not configured)"}`,
               )
               .join(", ")}
           </p>
@@ -89,11 +89,11 @@ function BreakerRow({ breaker }: { breaker: CircuitBreakerStatus }) {
         </div>
         <p className="mt-0.5 text-xs text-muted-foreground">
           {!breaker.enabled
-            ? "Breakers are switched off — calls are never rejected."
+            ? "Breakers are switched off, so calls are never rejected."
             : breaker.state === "open"
               ? `Calls are being rejected without being attempted. Next recovery probe in ~${breaker.retry_after_seconds ?? 0}s.`
               : breaker.state === "half_open"
-                ? "Probing recovery — a bounded number of calls is being let through."
+                ? "Probing recovery: a bounded number of calls is being let through."
                 : "Calls are passing through normally."}
         </p>
       </div>
@@ -114,7 +114,7 @@ function BreakersCard({ breakers }: { breakers: CircuitBreakerStatus[] }) {
           <CardTitle>Circuit Breakers</CardTitle>
           <p className="mt-1 text-sm text-muted-foreground">
             Outbound dependencies the platform has called. An open circuit means calls are being
-            declined rather than attempted — jobs queue and wait instead of failing.
+            declined rather than attempted, so jobs queue and wait instead of failing.
           </p>
         </div>
         <StatusPill status={open.length > 0 ? "degraded" : "up"} />
@@ -237,9 +237,9 @@ export function HealthRoute() {
                 <CardTitle>Observability</CardTitle>
               </CardHeader>
               <CardContent className="flex flex-wrap gap-2">
-                <LinkButton href={data.links.sentry} label="Sentry — errors & traces" />
-                <LinkButton href={data.links.posthog} label="PostHog — product & replays" />
-                <LinkButton href={data.links.cloudwatch} label="CloudWatch — infra & alarms" />
+                <LinkButton href={data.links.sentry} label="Sentry · errors & traces" />
+                <LinkButton href={data.links.posthog} label="PostHog · product & replays" />
+                <LinkButton href={data.links.cloudwatch} label="CloudWatch · infra & alarms" />
               </CardContent>
             </Card>
           )}

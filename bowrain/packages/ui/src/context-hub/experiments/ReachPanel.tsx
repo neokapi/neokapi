@@ -60,7 +60,7 @@ export function ReachPanel({ impact, className }: ReachPanelProps) {
                   </Plural>
                   {reach.annotate.approved > 0 && (
                     <>
-                      {" — "}
+                      {" · "}
                       <span className="text-warning">
                         {reach.annotate.approved} already approved
                       </span>

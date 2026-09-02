@@ -789,7 +789,7 @@ export function TranslationEditor({
           data-testid="progress-text"
         >
           {progress}% ({translatedCount}/{translatableCount} translated)
-          {progressBreakdown.length > 0 && ` — ${progressBreakdown.join(", ")}`}
+          {progressBreakdown.length > 0 && ` · ${progressBreakdown.join(", ")}`}
         </span>
       </div>
 

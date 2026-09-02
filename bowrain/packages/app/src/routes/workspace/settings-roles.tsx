@@ -6,7 +6,7 @@ export function SettingsRolesRoute() {
 
   useEffect(() => {
     if (activeWorkspace) {
-      document.title = `Roles — ${activeWorkspace.name} — Bowrain`;
+      document.title = `Roles · ${activeWorkspace.name} · Bowrain`;
     }
   }, [activeWorkspace]);
 

@@ -256,7 +256,7 @@ function PaletteItem({
             )}
             <div className="text-[11.5px] font-medium text-foreground">{displayName}</div>
             {tool.isSourceTransform && (
-              <SimpleTooltip content="Transformer: rewrites the source. Place it before translation and remote-egress steps — the placement check flags an unsafe slot.">
+              <SimpleTooltip content="Transformer: rewrites the source. Place it before translation and remote-egress steps. The placement check flags an unsafe slot.">
                 <span className="inline-flex shrink-0 items-center gap-0.5 rounded border border-sky-500/40 bg-sky-500/10 px-1 py-px text-[8px] font-semibold text-sky-600 dark:text-sky-400">
                   <Layers size={7} />
                   rewrites source

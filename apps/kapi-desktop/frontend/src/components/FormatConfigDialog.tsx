@@ -301,7 +301,7 @@ export function FormatConfigDialog({
                         {activePresets.map((p) => (
                           <SelectItem key={p.name} value={p.name} translate="no">
                             {p.name}
-                            {p.description ? ` — ${p.description}` : ""}
+                            {p.description ? ` · ${p.description}` : ""}
                           </SelectItem>
                         ))}
                       </SelectContent>

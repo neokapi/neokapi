@@ -100,7 +100,7 @@ export function SettingsProvidersRoute() {
 
   useEffect(() => {
     if (activeWorkspace) {
-      document.title = `Providers — ${activeWorkspace.name} — Bowrain`;
+      document.title = `Providers · ${activeWorkspace.name} · Bowrain`;
     }
   }, [activeWorkspace]);
 
@@ -293,7 +293,7 @@ export function SettingsProvidersRoute() {
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                   setForm((f) => ({ ...f, model: e.target.value }))
                 }
-                placeholder="Optional — leave blank for the provider default"
+                placeholder="Optional: leave blank for the provider default"
                 className="mt-1"
               />
             </div>
@@ -305,7 +305,7 @@ export function SettingsProvidersRoute() {
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                   setForm((f) => ({ ...f, baseURL: e.target.value }))
                 }
-                placeholder="Optional — custom or self-hosted endpoint"
+                placeholder="Optional: custom or self-hosted endpoint"
                 className="mt-1"
               />
             </div>

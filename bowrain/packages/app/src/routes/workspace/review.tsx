@@ -32,7 +32,7 @@ export function ReviewRoute() {
   const surfaceTabs = useEditorSurfaceNav("review");
 
   useEffect(() => {
-    document.title = `Review · ${fileName} — ${project.name} — Bowrain`;
+    document.title = `Review · ${fileName} · ${project.name} · Bowrain`;
   }, [fileName, project.name]);
 
   const { connectedUsers } = useCollaboration({

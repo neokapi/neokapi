@@ -208,7 +208,8 @@ export function SettingsPage({ theme: propTheme, uiLanguage: propLang }: Setting
                   ))}
                 </div>
                 <p className="mt-2 text-[10px] text-muted-foreground">
-                  Pseudo English expands strings and adds accents — useful for multilingual checks.
+                  Pseudo English expands strings and adds accents, which is useful for multilingual
+                  checks.
                 </p>
               </CardContent>
             </Card>
@@ -222,7 +223,7 @@ export function SettingsPage({ theme: propTheme, uiLanguage: propLang }: Setting
                   <div className="flex items-center justify-between gap-4">
                     <span className="text-xs text-muted-foreground">
                       {t(
-                        "Share anonymous usage statistics — screen views and feature usage, never your content, project names, or file paths.",
+                        "Share anonymous usage statistics: screen views and feature usage, never your content, project names, or file paths.",
                       )}
                     </span>
                     <Switch

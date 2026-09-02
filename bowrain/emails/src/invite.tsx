@@ -67,8 +67,8 @@ export const InviteEmail = ({ workspaceName, role, joinURL }: InviteEmailProps) 
           </Text>
 
           <Text style={paragraph}>
-            Accept the invitation to work with the workspace's shared context — its terms, its
-            voice, and the rules your content goes by.
+            Accept the invitation to work with the workspace's shared context: its terms, its voice,
+            and the rules your content goes by.
           </Text>
 
           <Section style={btnWrapper}>

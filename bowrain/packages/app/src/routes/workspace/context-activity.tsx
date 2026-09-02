@@ -10,7 +10,7 @@ export function ContextActivityRoute() {
 
   useEffect(() => {
     if (activeWorkspace) {
-      document.title = `Activity — Context — ${activeWorkspace.name} — Bowrain`;
+      document.title = `Activity · Context · ${activeWorkspace.name} · Bowrain`;
     }
   }, [activeWorkspace]);
 

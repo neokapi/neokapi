@@ -82,7 +82,7 @@ export function GovernanceSettings() {
   }, [reload]);
 
   useEffect(() => {
-    if (activeWorkspace) document.title = `Governance — ${activeWorkspace.name} — Bowrain`;
+    if (activeWorkspace) document.title = `Governance · ${activeWorkspace.name} · Bowrain`;
   }, [activeWorkspace]);
 
   const changeSod = async (mode: SoDMode) => {
@@ -148,7 +148,7 @@ export function GovernanceSettings() {
       <div>
         <h2 className="text-xl font-semibold">Governance</h2>
         <p className="text-[13px] text-muted-foreground">
-          Access controls for collaborative work — teams, deny rules, role tuning, and separation of
+          Access controls for collaborative work: teams, deny rules, role tuning, and separation of
           duties.
         </p>
       </div>

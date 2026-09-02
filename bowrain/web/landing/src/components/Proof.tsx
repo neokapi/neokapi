@@ -20,14 +20,14 @@ export function Proof() {
       <div ref={ref} className="reveal">
         <div className="mx-auto max-w-3xl text-center">
           <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-border px-3 py-1 font-mono text-xs text-muted-foreground">
-            TRY IT — THE CHECK RUNS IN THIS PAGE
+            TRY IT: THE CHECK RUNS IN THIS PAGE
           </div>
           <h2 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">
             {t("A check is")} <span className="prism-text">{t("a test for prose.")}</span>
           </h2>
           <p className="mt-3 text-muted-foreground">
             {t(
-              "A rule in a document is advice. Bound to a point, it is executable: the check resolves the profile in force, scores the draft against it, and reports what it penalised and why. The bar is yours — under it, the run fails. Pick a point below to see the rules in force there, and edit the draft to watch the score follow.",
+              "A rule in a document is advice. Bound to a point, it is executable: the check resolves the profile in force, scores the draft against it, and reports what it penalised and why. The bar is yours, and under it the run fails. Pick a point below to see the rules in force there, and edit the draft to watch the score follow.",
             )}
           </p>
         </div>
@@ -36,7 +36,7 @@ export function Proof() {
 
         <p className="mx-auto mt-6 max-w-2xl text-center text-sm text-muted-foreground">
           {t(
-            "Findings carry a severity, severity carries a penalty, and the score is what is left of 100 — the arithmetic in this page is the arithmetic in the product. The same check gates a pull request, sits in the editor beside the draft, and answers your agents before they write, because all three resolve the same point.",
+            "Findings carry a severity, severity carries a penalty, and the score is what is left of 100. The arithmetic in this page is the arithmetic in the product. The same check gates a pull request, sits in the editor beside the draft, and answers your agents before they write, because all three resolve the same point.",
           )}
         </p>
 

@@ -71,7 +71,7 @@ export const DigestEmail = ({
     <Html lang="en" dir="ltr">
       <Head />
       <Preview>
-        {title} — {totalUpdates} updates
+        {title} · {totalUpdates} updates
       </Preview>
       <Body style={main}>
         <Container style={digestContainer}>

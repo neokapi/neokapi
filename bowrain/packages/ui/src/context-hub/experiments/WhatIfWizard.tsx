@@ -86,8 +86,8 @@ function NameStep({ onCreated }: { onCreated: (id: string) => void }) {
   return (
     <form onSubmit={submit} className="space-y-4 p-5">
       <p className="text-sm text-muted-foreground">
-        Give the experiment a name. It starts as a draft you can keep building or abandon — nothing
-        touches the live graph until it merges.
+        Give the experiment a name. It starts as a draft you can keep building or abandon, and
+        nothing touches the live graph until it merges.
       </p>
       <div className="space-y-1.5">
         <Label htmlFor="wiz-name">Name</Label>
@@ -188,7 +188,7 @@ function ComposeStep({
         {governed > 0 && (
           <Badge variant="outline" className="gap-1 border-primary/40 text-[10px] text-primary">
             <Lock className="size-3" />
-            Governed — needs a second approval
+            Governed: needs a second approval
           </Badge>
         )}
         <div className="ml-auto flex items-center gap-2">

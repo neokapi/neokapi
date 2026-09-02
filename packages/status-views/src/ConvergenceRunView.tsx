@@ -144,7 +144,7 @@ export function ConvergenceRunView({
           >
             <XCircle size={13} />
             {t(
-              "Cancelled — the run stopped before reaching the gates. Nothing is lost: run Bring up to date again to continue.",
+              "Cancelled. The run stopped before reaching the gates. Nothing is lost: run Bring up to date again to continue.",
             )}
           </p>
         )}
@@ -239,7 +239,7 @@ function ConvergeOutcomeBlock({
       {result.converged ? (
         <p className="flex items-center gap-1.5 text-xs text-green-600 dark:text-green-500">
           <CheckCircle2 size={13} />
-          {t("Up to date in {count} pass(es) — every gated scope is shippable.", {
+          {t("Up to date in {count} pass(es). Every gated scope is shippable.", {
             count: result.passes,
           })}
         </p>
@@ -247,7 +247,7 @@ function ConvergeOutcomeBlock({
         <div className="space-y-1.5">
           <p className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-500">
             <PauseCircle size={13} />
-            {t("{count} scope(s) parked — they need a human to advance.", {
+            {t("{count} scope(s) parked. They need a human to advance.", {
               count: parked.length,
             })}
           </p>

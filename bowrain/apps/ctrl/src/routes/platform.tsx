@@ -109,8 +109,8 @@ function PlatformSettings({
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
       <div className="flex flex-col gap-1">
         <p className="text-sm text-muted-foreground">
-          Instance-wide runtime settings. Changes apply to every server and worker within seconds —
-          no redeploy required.
+          Instance-wide runtime settings. Changes apply to every server and worker within seconds,
+          with no redeploy required.
         </p>
       </div>
 
@@ -409,7 +409,7 @@ function ModelSweepsCard({
         <CardTitle>Model sweeps</CardTitle>
         <CardDescription>
           Measured steerability: periodically translate a small fixture set from each project's own
-          content — with and without its brand context — on every enabled model, and recommend the
+          content, with and without its brand context, on every enabled model, and recommend the
           model with the highest measured lift. Sweeps run on the platform provider and never deduct
           customer credits; the recommendation also steers platform model resolution for workspaces
           without a pinned model.
@@ -525,7 +525,7 @@ function MaintenanceCard({
       <CardHeader>
         <CardTitle>Maintenance banner</CardTitle>
         <CardDescription>
-          Show an instance-wide banner to every user — e.g. to announce scheduled work.
+          Show an instance-wide banner to every user, e.g. to announce scheduled work.
           Informational; it does not block access.
         </CardDescription>
       </CardHeader>

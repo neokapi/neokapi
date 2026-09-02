@@ -165,7 +165,7 @@ export function PostHogConnectCard({
         <CardTitle>Connect PostHog</CardTitle>
         <CardDescription>
           Read-only: language and market demand from your $pageview events. The personal API key
-          stays on the server — it is stored encrypted and never sent back to the browser.
+          stays on the server, stored encrypted and never sent back to the browser.
         </CardDescription>
       </CardHeader>
       <CardContent>

@@ -92,7 +92,7 @@ export const JobFailedEmail = ({
 
           <Text style={paragraph}>
             The work was retried where retrying could help, and stopped when it could not. Nothing
-            was left half-applied — the content it was working on is unchanged.
+            was left half-applied, and the content it was working on is unchanged.
           </Text>
 
           <Section style={btnWrapper}>

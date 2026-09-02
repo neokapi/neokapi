@@ -15,7 +15,7 @@ export function ContextGovernanceProfilesRoute() {
 
   useEffect(() => {
     if (activeWorkspace) {
-      document.title = `Profiles — Context — ${activeWorkspace.name} — Bowrain`;
+      document.title = `Profiles · Context · ${activeWorkspace.name} · Bowrain`;
     }
   }, [activeWorkspace]);
 

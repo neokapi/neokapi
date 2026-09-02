@@ -358,7 +358,7 @@ export function ProjectMemberManager({
             <div>
               <Label className="text-muted-foreground">Governs</Label>
               <p className="text-xs text-muted-foreground mt-0.5 mb-2">
-                The region of the context space this member governs, as axis=value pairs —
+                The region of the context space this member governs, as axis=value pairs such as
                 brand=acme,channel=support. Leave empty for the whole space. Paired with a role that
                 can edit voice or terms, a region makes this member its custodian.
               </p>

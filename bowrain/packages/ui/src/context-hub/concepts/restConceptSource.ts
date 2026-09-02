@@ -122,7 +122,7 @@ export function asGovernedEditError(error: unknown, conceptId: string): Governed
     detail,
     hint,
     message: detail
-      ? `This change needs review — ${detail}. Open it as an experiment to submit it for review.`
+      ? `This change needs review: ${detail}. Open it as an experiment to submit it for review.`
       : "This change needs review. Open it as an experiment to submit it for review.",
   });
 }

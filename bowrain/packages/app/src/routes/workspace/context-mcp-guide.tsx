@@ -8,7 +8,7 @@ export function ContextMCPGuideRoute() {
 
   useEffect(() => {
     if (activeWorkspace) {
-      document.title = `MCP Guide — Voice — ${activeWorkspace.name} — Bowrain`;
+      document.title = `MCP Guide · Voice · ${activeWorkspace.name} · Bowrain`;
     }
   }, [activeWorkspace]);
 

@@ -20,7 +20,7 @@ export function ContextScanJobRoute() {
 
   useEffect(() => {
     if (activeWorkspace) {
-      document.title = `Context scan — ${activeWorkspace.name} — Bowrain`;
+      document.title = `Context scan · ${activeWorkspace.name} · Bowrain`;
     }
   }, [activeWorkspace]);
 

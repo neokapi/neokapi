@@ -224,9 +224,9 @@ const RULES: Record<string, Rule[]> = {
 };
 
 const SAMPLE_TEXTS: Record<string, string> = {
-  help: `Just simply open the settings panel. It's obviously very easy — please note that you can utilize the search box to find anything.`,
+  help: `Just simply open the settings panel. It's obviously very easy. Please note that you can utilize the search box to find anything.`,
   reference: `Simply rename your workspace with a PATCH request. Our powerful endpoint makes renaming a workspace easy.`,
-  disclosure: `We'll never share your data — guaranteed! You aren't giving up any rights, and we always delete backups on request.`,
+  disclosure: `We'll never share your data, guaranteed! You aren't giving up any rights, and we always delete backups on request.`,
   campaign: `We leverage cutting-edge AI to utilize synergy across your whole workflow. It's a real game-changer!!`,
 };
 
@@ -410,7 +410,7 @@ export function VoiceCheck() {
                       penalty > 0 ? "font-mono text-warning" : "font-mono text-muted-foreground/50"
                     }
                   >
-                    {penalty > 0 ? `${issues} · −${penalty}` : "—"}
+                    {penalty > 0 ? `${issues} · −${penalty}` : "·"}
                   </span>
                 </div>
               );

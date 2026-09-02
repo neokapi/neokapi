@@ -245,7 +245,7 @@ function FilterEditorDialog({
           </label>
           {narrowsNothing && (
             <p className="text-xs text-muted-foreground">
-              {t("This filter narrows nothing yet — it will behave like “All”.")}
+              {t("This filter narrows nothing yet. It will behave like “All”.")}
             </p>
           )}
         </div>

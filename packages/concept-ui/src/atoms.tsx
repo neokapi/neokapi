@@ -169,17 +169,17 @@ export function ErrorHint({
 
 /** Compact absolute date, e.g. "14 Jun 2026". Empty/invalid input renders "—". */
 export function formatDate(iso?: string): string {
-  if (!iso) return "—";
+  if (!iso) return "·";
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
+  if (Number.isNaN(d.getTime())) return "·";
   return d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
 }
 
 /** Relative time ("3h ago", "just now"); falls back to absolute date past a week. */
 export function formatRelative(iso?: string): string {
-  if (!iso) return "—";
+  if (!iso) return "·";
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
+  if (Number.isNaN(d.getTime())) return "·";
   const secs = Math.round((Date.now() - d.getTime()) / 1000);
   if (secs < 45) return "just now";
   const mins = Math.round(secs / 60);

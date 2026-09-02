@@ -29,7 +29,7 @@ export function RollupMatrix({ onOpenProject }: RollupMatrixProps) {
             Compliance across projects
           </h3>
           <p className="text-xs text-muted-foreground">
-            Every project's brand health at a glance — effective profile, latest score, and drift.
+            Every project's brand health at a glance: effective profile, latest score, and drift.
           </p>
         </div>
 
@@ -126,7 +126,7 @@ function RollupRow({
       </td>
       <td className="px-3 py-2.5 text-right tabular-nums">
         {row.overall === null ? (
-          <span className="text-muted-foreground/60">—</span>
+          <span className="text-muted-foreground/60">·</span>
         ) : (
           <span
             data-testid="rollup-score"
@@ -147,7 +147,7 @@ function RollupRow({
             Drifting
           </Badge>
         ) : row.overall === null ? (
-          <span className="text-muted-foreground/60">—</span>
+          <span className="text-muted-foreground/60">·</span>
         ) : (
           <span className="text-xs text-muted-foreground">Stable</span>
         )}
@@ -183,6 +183,6 @@ function TrendCell({ trend }: { trend: VoiceTrend }) {
         </span>
       );
     default:
-      return <span className="text-muted-foreground/60">—</span>;
+      return <span className="text-muted-foreground/60">·</span>;
   }
 }

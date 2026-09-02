@@ -117,16 +117,16 @@ export function StarterPromptCard({
           </div>
           {repoUrl ? (
             <p className="mb-4 text-sm leading-relaxed text-muted-foreground">
-              Point Claude — or any AI assistant with the kapi skill — at{" "}
+              Point Claude, or any AI assistant with the kapi skill, at{" "}
               <span className="font-medium text-foreground">{repoUrl}</span>. It reads the
               repository, drafts a voice profile and terminology, and pushes both to this workspace,
               so every translation starts on brand.
             </p>
           ) : (
             <p className="mb-4 text-sm leading-relaxed text-muted-foreground">
-              Point Claude — or any AI assistant with the kapi skill — at your website or
-              repository. It reads your material, drafts a voice profile and terminology, and pushes
-              both to this workspace, so every translation starts on brand.
+              Point Claude, or any AI assistant with the kapi skill, at your website or repository.
+              It reads your material, drafts a voice profile and terminology, and pushes both to
+              this workspace, so every translation starts on brand.
             </p>
           )}
           <a

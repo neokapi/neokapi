@@ -58,7 +58,7 @@ export function VoiceDashboardView({
   return (
     <ContextHub
       title="Dashboard"
-      description="The state of your brand language at a glance — pending decisions, compliance, coverage, and recent change."
+      description="The state of your brand language at a glance: pending decisions, compliance, coverage, and recent change."
       width="wide"
     >
       <div className="space-y-6">

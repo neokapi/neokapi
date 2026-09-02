@@ -31,7 +31,7 @@ export function SettingsBravoRoute() {
 
   useEffect(() => {
     if (activeWorkspace) {
-      document.title = `@bravo Agent — ${activeWorkspace.name} — Bowrain`;
+      document.title = `@bravo Agent · ${activeWorkspace.name} · Bowrain`;
     }
   }, [activeWorkspace]);
 

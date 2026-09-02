@@ -13,7 +13,7 @@ const CAPABILITIES = [
     icon: PenTool,
     title: t("A shared editor for every format"),
     body: t(
-      "In-context visual preview for HTML, Markdown, MDX, and JSX; structured block editing for everything else — app strings, subtitles, office documents, interchange files. Suggestions from memory, term highlights, and checks inline.",
+      "In-context visual preview for HTML, Markdown, MDX, and JSX; structured block editing for everything else: app strings, subtitles, office documents, interchange files. Suggestions from memory, term highlights, and checks inline.",
     ),
     detail: [
       t("Visual preview · web formats"),
@@ -25,7 +25,7 @@ const CAPABILITIES = [
     icon: ClipboardCheck,
     title: t("Review with a memory"),
     body: t(
-      "Block statuses, notes, and per-block history with rollback. A workspace audit log records who changed what — and can be cryptographically verified.",
+      "Block statuses, notes, and per-block history with rollback. A workspace audit log records who changed what, and can be cryptographically verified.",
     ),
     detail: [t("Draft → reviewed → approved"), t("History & rollback"), t("Verifiable audit log")],
   },
@@ -61,7 +61,7 @@ const CAPABILITIES = [
     icon: Plug,
     title: t("Connected to where content lives"),
     body: t(
-      "WordPress, Figma, and HubSpot connectors sync content in and publish approved text back. A GitHub or GitLab repository connects with no pipeline at all — or a developer drives it from their own checkout with kapi.",
+      "WordPress, Figma, and HubSpot connectors sync content in and publish approved text back. A GitHub or GitLab repository connects with no pipeline at all, or a developer drives it from their own checkout with kapi.",
     ),
     detail: [t("WordPress · Figma · HubSpot"), t("GitHub · GitLab"), t("kapi (developer & CI)")],
   },
@@ -80,7 +80,7 @@ export function Product() {
           </h2>
           <p className="mt-3 text-muted-foreground">
             {t(
-              "One editor, one review trail, one terms store and one content memory, shared by every project in the workspace — and the connectors that reach the systems your content already lives in.",
+              "One editor, one review trail, one terms store and one content memory, shared by every project in the workspace, and the connectors that reach the systems your content already lives in.",
             )}
           </p>
         </div>

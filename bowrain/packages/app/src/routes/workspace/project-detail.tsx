@@ -93,7 +93,7 @@ export function ProjectDetailRoute() {
   const { data: voiceProfiles } = useQuery(voiceProfilesQueryOptions(adapter, ws));
 
   useEffect(() => {
-    document.title = `${project.name} — ${activeWorkspace.name} — Bowrain`;
+    document.title = `${project.name} · ${activeWorkspace.name} · Bowrain`;
   }, [project.name, activeWorkspace.name]);
 
   // ── File handlers ────────────────────────────────────────────────────
@@ -355,7 +355,7 @@ export function ProjectDetailRoute() {
             <ul className="list-disc pl-4">
               {uploadSkipped.map((f) => (
                 <li key={f.name}>
-                  <span className="font-medium">{f.name}</span> — {f.reason}
+                  <span className="font-medium">{f.name}</span>: {f.reason}
                 </li>
               ))}
             </ul>

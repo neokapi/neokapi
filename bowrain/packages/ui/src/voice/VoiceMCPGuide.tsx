@@ -182,8 +182,8 @@ export function VoiceMCPGuide({
         <CardContent className="space-y-3 text-sm">
           <p className="text-muted-foreground">
             Where interactive <code className="text-xs bg-muted px-1 rounded">kapi auth login</code>{" "}
-            isn&rsquo;t possible, generate an API token from Settings and pass it — with the server
-            URL — through the process environment instead:
+            isn&rsquo;t possible, generate an API token from Settings and pass it, with the server
+            URL, through the process environment instead:
           </p>
           <ConfigBlock title="token auth (CI)" config={ciConfig} />
         </CardContent>

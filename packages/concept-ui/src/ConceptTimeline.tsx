@@ -88,7 +88,7 @@ export function ConceptTimeline({
     <ConceptSection
       title="Timeline"
       icon={<History />}
-      description="How this concept evolved — terms, renames, and reach over time."
+      description="How this concept evolved: terms, renames, and reach over time."
       actions={
         model.eventCount > 1 ? (
           <ToggleGroup
@@ -122,7 +122,8 @@ export function ConceptTimeline({
 
       {!error && model.derived && model.eventCount > 0 && (
         <p className="mt-4 border-t pt-3 text-[11px] text-muted-foreground">
-          Derived from the local terms — status and relation changes inferred from validity windows.
+          Derived from the local terms. Status and relation changes are inferred from validity
+          windows.
         </p>
       )}
     </ConceptSection>

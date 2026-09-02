@@ -156,7 +156,7 @@ export function MarketsPanel() {
       ) : list.length === 0 ? (
         <EmptyState
           title="No markets defined"
-          description="Define a market — a name plus the locales it covers — to scope terms by region."
+          description="Define a market, a name plus the locales it covers, to scope terms by region."
           className="py-6"
         />
       ) : (

@@ -48,9 +48,9 @@ function creditLine(estimate: ConvergenceEstimate): string | null {
   if (!c) return null;
   const usd = c.estimated_usd >= 0.005 ? ` (~$${c.estimated_usd.toFixed(2)})` : "";
   if (c.covers_all_ai) {
-    return `~${c.estimated_credits.toLocaleString()} credits${usd} for the AI work — your balance of ${c.balance.toLocaleString()} covers it.`;
+    return `~${c.estimated_credits.toLocaleString()} credits${usd} for the AI work. Your balance of ${c.balance.toLocaleString()} covers it.`;
   }
-  return `~${c.estimated_credits.toLocaleString()} credits${usd} for the AI work — your balance of ${c.balance.toLocaleString()} covers ~${c.covers_ai_units.toLocaleString()} of ${estimate.totals.via_ai.toLocaleString()} AI units.`;
+  return `~${c.estimated_credits.toLocaleString()} credits${usd} for the AI work. Your balance of ${c.balance.toLocaleString()} covers ~${c.covers_ai_units.toLocaleString()} of ${estimate.totals.via_ai.toLocaleString()} AI units.`;
 }
 
 export function ConvergenceRunNowDialog({
@@ -107,7 +107,7 @@ export function ConvergenceRunNowDialog({
                 <div className="text-sm">
                   <p>
                     <span className="font-medium">{ready}</span> of {total} blocks ready;{" "}
-                    <span className="font-medium text-warning">{held} held</span> — settle these
+                    <span className="font-medium text-warning">{held} held</span>. Settle these
                     first.
                   </p>
                   {onSettleSource && (
@@ -126,7 +126,7 @@ export function ConvergenceRunNowDialog({
             {/* 2. Translation estimate for the READY source. */}
             {nothingToTranslate ? (
               <p className="text-sm text-muted-foreground">
-                Nothing pending over the ready source — everything is already translated.
+                Nothing pending over the ready source. Everything is already translated.
               </p>
             ) : (
               <section className="space-y-1">

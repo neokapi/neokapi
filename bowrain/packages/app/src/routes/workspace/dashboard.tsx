@@ -55,7 +55,7 @@ export function ProjectDashboardRoute() {
   const ws = activeWorkspace.slug;
 
   useEffect(() => {
-    document.title = `${activeWorkspace.name} — Bowrain`;
+    document.title = `${activeWorkspace.name} · Bowrain`;
   }, [activeWorkspace.name]);
 
   const { data: projects } = useSuspenseQuery(projectsQueryOptions(adapter, ws));

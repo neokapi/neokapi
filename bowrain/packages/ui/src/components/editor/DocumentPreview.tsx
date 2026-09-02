@@ -531,7 +531,7 @@ export function DocumentPreview({
         >
           <Languages className="h-3.5 w-3.5 shrink-0" />
           {coverage.translated === 0
-            ? `Nothing is translated into ${localeName} yet — reading the source.`
+            ? `Nothing is translated into ${localeName} yet, so this is the source.`
             : `${coverage.translated} of ${coverage.total} blocks are translated into ${localeName}; the rest read as the source.`}
         </div>
       )}

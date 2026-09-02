@@ -42,7 +42,7 @@ function triggerLabel(trigger: string): string {
 /** Compact "3 shippable · 1 parked" summary from a run's locale standing. */
 function localeSummary(run: ConvergenceRun): string {
   const locales = run.locales ?? [];
-  if (locales.length === 0) return "—";
+  if (locales.length === 0) return "·";
   const counts: Record<string, number> = {};
   for (const l of locales) counts[l.state] = (counts[l.state] ?? 0) + 1;
   const order = ["shippable", "pending", "parked"];
@@ -51,7 +51,7 @@ function localeSummary(run: ConvergenceRun): string {
 }
 
 function ts(value?: string): string {
-  if (!value) return "—";
+  if (!value) return "·";
   return new Date(value).toLocaleString();
 }
 
@@ -88,7 +88,7 @@ export function ConvergenceRunsList({
         <div>
           <h2 className="text-sm font-semibold">Runs</h2>
           <p className="text-[11px] text-muted-foreground">
-            Runs on the server — the team's <code>kapi up</code> for this project.
+            Runs on the server: the team's <code>kapi up</code> for this project.
           </p>
         </div>
         <Button size="sm" onClick={onRunNow} disabled={starting}>

@@ -36,7 +36,7 @@ export function ContextEditorRoute() {
 
   useEffect(() => {
     const name = isNew ? "New Profile" : (profile?.name ?? "Edit Profile");
-    document.title = `${name} — Voice — ${activeWorkspace?.name ?? ""} — Bowrain`;
+    document.title = `${name} · Voice · ${activeWorkspace?.name ?? ""} · Bowrain`;
   }, [isNew, profile?.name, activeWorkspace?.name]);
 
   // Auto-show picker for new profiles on initial load

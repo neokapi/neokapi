@@ -25,7 +25,7 @@ function ReferenceChip({ reference, testId }: { reference: string; testId: strin
       type="button"
       onClick={copy}
       data-testid={`${testId}-reference`}
-      title="Copy reference — quote this to support"
+      title="Copy reference: quote this to support"
       className={cn(
         "inline-flex items-center gap-1 rounded border border-border/60 bg-muted/40 px-1.5 py-0.5",
         "font-mono text-[11px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer",
@@ -85,7 +85,7 @@ export function ErrorNotice({
   // When a contextual title is given, demote the parsed message to the detail
   // line — unless there was no underlying error value to parse.
   const secondary = title && error != null && parsed.title !== title ? parsed.title : undefined;
-  const detail = [secondary, parsed.detail].filter((t): t is string => Boolean(t)).join(" — ");
+  const detail = [secondary, parsed.detail].filter((t): t is string => Boolean(t)).join(" · ");
   const recovery = hint ?? parsed.hint;
   const showDetails = hasStructuredRaw(parsed);
   const referenceChip = parsed.reference && (
@@ -143,7 +143,7 @@ export function ErrorNotice({
           <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" aria-hidden />
           <span className="min-w-0 break-words">
             <span className="font-medium">{headline}</span>
-            {detail && <span className="text-destructive/80"> — {detail}</span>}
+            {detail && <span className="text-destructive/80"> · {detail}</span>}
             {recovery && <span className="text-muted-foreground"> {recovery}</span>}
           </span>
           <span className="ml-auto flex shrink-0 items-center gap-2 pl-2">

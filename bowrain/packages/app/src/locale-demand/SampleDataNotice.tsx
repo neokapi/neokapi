@@ -26,7 +26,7 @@ export function SampleDataNotice({ action, degradedReason, className }: SampleDa
       )}
     >
       <FlaskConical className="text-amber-600 dark:text-amber-400" />
-      <AlertTitle>Sample data — connect PostHog to see your own</AlertTitle>
+      <AlertTitle>Sample data: connect PostHog to see your own</AlertTitle>
       <AlertDescription>
         {degradedReason
           ? `PostHog could not be read, so every market, language and session count below comes from a fabricated dataset that ships with the product. None of it is this workspace's traffic. Reported cause: ${degradedReason}`

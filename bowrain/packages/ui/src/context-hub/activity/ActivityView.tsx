@@ -135,7 +135,7 @@ export function ActivityView({ onOpenConcept, onOpenExperiment }: ActivityViewPr
   return (
     <ContextHub
       title="Activity"
-      description="What's changing across your brand language — experiments moving through review, and edits to concepts, observations, and discussions."
+      description="What's changing across your brand language: experiments moving through review, and edits to concepts, observations, and discussions."
       toolbar={toolbar}
     >
       {feedQuery.isError ? (

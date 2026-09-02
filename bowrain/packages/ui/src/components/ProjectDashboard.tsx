@@ -449,19 +449,19 @@ function OnboardingView({
                 <Plural count={pendingFileCount}>
                   <One>
                     <span>
-                      {pendingFileCount} file ready to import — added right after the project is
+                      {pendingFileCount} file ready to import, added right after the project is
                       created
                     </span>
                   </One>
                   <Other>
                     <span>
-                      {pendingFileCount} files ready to import — added right after the project is
+                      {pendingFileCount} files ready to import, added right after the project is
                       created
                     </span>
                   </Other>
                 </Plural>
               ) : (
-                <span>Drop files here — they are imported right after the project is created</span>
+                <span>Drop files here. They are imported right after the project is created</span>
               )}
             </div>
             <div className="mt-auto">

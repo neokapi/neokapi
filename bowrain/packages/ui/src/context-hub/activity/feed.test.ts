@@ -151,7 +151,7 @@ describe("groupByDay", () => {
     expect(dayLabel("2026-06-13T09:00:00Z", now)).toBe("Today");
     expect(dayLabel("2026-06-12T09:00:00Z", now)).toBe("Yesterday");
     expect(dayLabel("2026-06-01T09:00:00Z", now)).toContain("2026");
-    expect(dayLabel("not-a-date", now)).toBe("—");
+    expect(dayLabel("not-a-date", now)).toBe("·");
   });
 
   it("buckets a sorted page into days, preserving order", () => {

@@ -24,8 +24,8 @@ export function DriftAlert({ drift, showStable = false, className }: DriftAlertP
           className,
         )}
       >
-        Voice compliance is stable — recent average {drift.recent_avg.toFixed(1)} over the last{" "}
-        {drift.recent_days} days.
+        Voice compliance is stable, with a recent average of {drift.recent_avg.toFixed(1)} over the
+        last {drift.recent_days} days.
       </div>
     );
   }
@@ -45,7 +45,7 @@ export function DriftAlert({ drift, showStable = false, className }: DriftAlertP
         baseline{" "}
         <span className="font-medium text-foreground">{drift.baseline_avg.toFixed(1)}</span> (down{" "}
         {drift.drop.toFixed(1)} over {drift.recent_days} days)
-        {drift.reason ? ` — ${drift.reason}.` : "."}
+        {drift.reason ? `. ${drift.reason}.` : "."}
       </p>
     </div>
   );

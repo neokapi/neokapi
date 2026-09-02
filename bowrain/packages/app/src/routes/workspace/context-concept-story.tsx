@@ -10,7 +10,7 @@ export function ConceptStoryRoute() {
 
   useEffect(() => {
     if (activeWorkspace) {
-      document.title = `Concept — Context — ${activeWorkspace.name} — Bowrain`;
+      document.title = `Concept · Context · ${activeWorkspace.name} · Bowrain`;
     }
   }, [activeWorkspace]);
 

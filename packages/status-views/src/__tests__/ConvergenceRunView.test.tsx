@@ -86,7 +86,7 @@ describe("ConvergenceRunView — structured outcome (kapi-desktop)", () => {
       />,
     );
     expect(
-      screen.getByText("Up to date in 1 pass(es) — every gated scope is shippable."),
+      screen.getByText("Up to date in 1 pass(es). Every gated scope is shippable."),
     ).toBeInTheDocument();
     expect(
       screen.getByText("Materialized 4 localized file(s) from the project store."),
@@ -95,7 +95,7 @@ describe("ConvergenceRunView — structured outcome (kapi-desktop)", () => {
 
   it("renders the cancelled affordance", () => {
     render(<ConvergenceRunView model={liveModel} canceled />);
-    expect(screen.getByText(/Cancelled — the run stopped/)).toBeInTheDocument();
+    expect(screen.getByText(/Cancelled\. The run stopped/)).toBeInTheDocument();
   });
 });
 

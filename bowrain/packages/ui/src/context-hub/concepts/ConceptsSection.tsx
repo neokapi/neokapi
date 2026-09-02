@@ -37,7 +37,7 @@ export function ConceptsSection({ onOpenConcept, onOpenChangeSet }: ConceptsSect
   return (
     <ContextHub
       title="Concepts"
-      description="The language-neutral units of your content — each with its terms, status by locale, and direct relations."
+      description="The language-neutral units of your content, each with its terms, status by locale, and direct relations."
       width="wide"
       toolbar={<PendingConceptChanges onOpenChangeSet={onOpenChangeSet} />}
     >

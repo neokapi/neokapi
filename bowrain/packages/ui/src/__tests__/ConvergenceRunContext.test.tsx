@@ -94,7 +94,7 @@ describe("ConvergenceRunContext awaiting review", () => {
   it("folds the count into the parked banner instead of a second element", () => {
     render(<ConvergenceRunContext run={makeRun({ state: "parked" })} />);
 
-    expect(screen.getByText("Parked — pending review")).toBeInTheDocument();
+    expect(screen.getByText("Parked, pending review")).toBeInTheDocument();
     expect(
       screen.getByText(/20 blocks awaiting review \(fr-FR 12 · de-DE 8\)/),
     ).toBeInTheDocument();
@@ -120,6 +120,6 @@ describe("ConvergenceRunContext no target languages", () => {
     expect(screen.getByText("No target languages configured")).toBeInTheDocument();
     expect(screen.getByText(/nothing to converge toward/)).toBeInTheDocument();
     // Not the generic pending-review park: the next action is configuration.
-    expect(screen.queryByText("Parked — pending review")).not.toBeInTheDocument();
+    expect(screen.queryByText("Parked, pending review")).not.toBeInTheDocument();
   });
 });

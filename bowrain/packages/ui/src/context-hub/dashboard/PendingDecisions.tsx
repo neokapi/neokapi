@@ -145,7 +145,7 @@ function BlastRadiusStrip({ impact }: { impact?: ImpactSummary }) {
   if (impact.affected_blocks === 0) {
     return (
       <p className="mt-2 text-xs text-muted-foreground">
-        No published content is affected — safe to merge.
+        No published content is affected, so this is safe to merge.
       </p>
     );
   }

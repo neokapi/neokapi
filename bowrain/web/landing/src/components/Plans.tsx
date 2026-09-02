@@ -60,7 +60,7 @@ const MARKETING: Record<PlanId, Marketing> = {
       t("All formats and workflow tools"),
       t("Content memory & terminology"),
       t("Shared editor with review"),
-      t("Bring your own AI key — uses no credits"),
+      t("Bring your own AI key: uses no credits"),
       t("REST API access"),
       t("Community support"),
     ],
@@ -76,7 +76,7 @@ const MARKETING: Record<PlanId, Marketing> = {
       t("Everything in Free, plus:"),
       t("{credits} AI credits / month", { credits: formatCredits(f.monthlyCredits) }),
       t("Up to {markets} markets, {brands} brand", { markets: f.maxMarkets, brands: f.maxBrands }),
-      t("{custodians} custodian — someone who governs a brand, product or channel", {
+      t("{custodians} custodian: someone who governs a brand, product or channel", {
         custodians: f.maxCustodians,
       }),
       t("Git connector"),
@@ -181,8 +181,8 @@ export function Plans() {
           <p className="mt-3 text-muted-foreground">
             Paid plans include a monthly allowance of AI credits, refreshed automatically; every new
             workspace starts with a one-time grant of trial credits. Top-up packs are $5 for 200K
-            credits and never expire — and if you bring your own AI key, those runs use no credits
-            at all.
+            credits and never expire, and if you bring your own AI key, those runs use no credits at
+            all.
           </p>
         </div>
 
@@ -271,7 +271,7 @@ export function Plans() {
           <code className="rounded bg-secondary px-1.5 py-0.5 text-xs text-secondary-foreground">
             kapi
           </code>{" "}
-          toolchain is free — formats, workflow tools, and AI translation, on your own machine. No
+          toolchain is free: formats, workflow tools, and AI translation, on your own machine. No
           account required.
         </p>
       </div>

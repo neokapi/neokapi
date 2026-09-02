@@ -339,8 +339,8 @@ export default function DocumentViewer({
               <SubtitleTimeline tree={tree} side={side} />
             ) : (
               <p className="py-3 text-sm text-muted-foreground">
-                Media is attached but no URL could be resolved — provide{" "}
-                <code>resolveMediaUrl</code> to view it.
+                Media is attached but no URL could be resolved. Provide <code>resolveMediaUrl</code>{" "}
+                to view it.
               </p>
             )}
           </TabsContent>
@@ -369,7 +369,7 @@ export default function DocumentViewer({
           <TabsContent value="raw" className="pt-2">
             {ft.binary ? (
               <div className="flex items-center gap-2 py-3 text-sm text-muted-foreground">
-                <FileWarning className="size-4" /> Binary {ft.label} — use Preview, or download to
+                <FileWarning className="size-4" /> Binary {ft.label}. Use Preview, or download to
                 inspect the raw bytes.
               </div>
             ) : (

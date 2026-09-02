@@ -46,7 +46,7 @@ export function Apps() {
           </h2>
           <p className="mt-3 text-muted-foreground">
             {t(
-              "Same projects, same context, same review queue, whichever door you come through — because all three read the graph rather than a copy of it.",
+              "Same projects, same context, same review queue, whichever door you come through, because all three read the graph rather than a copy of it.",
             )}
           </p>
         </div>

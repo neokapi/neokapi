@@ -23,7 +23,7 @@ const RULES = [
   },
   {
     surface: t("The changelog"),
-    rule: t("Keeps the old name — that is what shipped"),
+    rule: t("Keeps the old name, which is what shipped"),
     tone: "hold" as const,
   },
   {
@@ -58,7 +58,7 @@ export function Rename() {
           </h2>
           <p className="mt-3 text-muted-foreground">
             {t(
-              "You rename a feature. That is one decision — and it lands differently in every place the words appear.",
+              "You rename a feature. That is one decision, and it lands differently in every place the words appear.",
             )}
           </p>
         </div>
@@ -85,7 +85,7 @@ export function Rename() {
 
         <p className="mx-auto mt-8 max-w-2xl text-center text-muted-foreground">
           {t(
-            "Written down as a list of preferred and banned terms, that is wrong nearly everywhere it lands. Which rule applies depends entirely on where the words sit — so the thing worth writing down is not the list. It is the place.",
+            "Written down as a list of preferred and banned terms, that is wrong nearly everywhere it lands. Which rule applies depends entirely on where the words sit, so the thing worth writing down is the place rather than the list.",
           )}
         </p>
       </div>

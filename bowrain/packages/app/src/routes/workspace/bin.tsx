@@ -10,7 +10,7 @@ export function BinRoute() {
 
   useEffect(() => {
     if (activeWorkspace) {
-      document.title = `Recycle Bin — ${activeWorkspace.name} — Bowrain`;
+      document.title = `Recycle Bin · ${activeWorkspace.name} · Bowrain`;
     }
   }, [activeWorkspace]);
 

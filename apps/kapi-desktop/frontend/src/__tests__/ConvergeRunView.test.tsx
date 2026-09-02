@@ -102,7 +102,7 @@ describe("ConvergeRunView — live locale rows", () => {
     };
     render(<ConvergeRunView events={[...liveEvents, converged]} />);
     expect(
-      screen.getByText("Up to date in 1 pass(es) — every gated scope is shippable."),
+      screen.getByText("Up to date in 1 pass(es). Every gated scope is shippable."),
     ).toBeInTheDocument();
     expect(
       screen.getByText("Materialized 4 localized file(s) from the project store."),
@@ -111,6 +111,6 @@ describe("ConvergeRunView — live locale rows", () => {
 
   it("renders the cancelled affordance", () => {
     render(<ConvergeRunView events={liveEvents} canceled />);
-    expect(screen.getByText(/Cancelled — the run stopped/)).toBeInTheDocument();
+    expect(screen.getByText(/Cancelled\. The run stopped/)).toBeInTheDocument();
   });
 });

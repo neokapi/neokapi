@@ -6,7 +6,7 @@ export function SettingsMembersRoute() {
 
   useEffect(() => {
     if (activeWorkspace) {
-      document.title = `Members — ${activeWorkspace.name} — Bowrain`;
+      document.title = `Members · ${activeWorkspace.name} · Bowrain`;
     }
   }, [activeWorkspace]);
 

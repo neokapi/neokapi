@@ -16,7 +16,7 @@ export function ContextProfileDetailRoute() {
 
   useEffect(() => {
     if (activeWorkspace) {
-      document.title = `${profileSlug} — Profiles — ${activeWorkspace.name} — Bowrain`;
+      document.title = `${profileSlug} · Profiles · ${activeWorkspace.name} · Bowrain`;
     }
   }, [activeWorkspace, profileSlug]);
 

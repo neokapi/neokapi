@@ -27,7 +27,7 @@ export function ContextScanLocalLaneCard({
             <h3 className="text-sm font-semibold">Have a codebase?</h3>
             <p className="text-xs text-muted-foreground leading-relaxed mt-1">
               The kapi Agent Skill lets your own AI assistant read the whole repository and draft a
-              richer profile locally — deeper and free.
+              richer profile locally, deeper and free.
             </p>
             {onLearnMore && (
               <button

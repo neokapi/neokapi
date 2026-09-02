@@ -49,7 +49,7 @@ describe("LoopStatusRow", () => {
 
   it("shows a placeholder while the review count loads", () => {
     render(<LoopStatusRow status={{}} />);
-    expect(within(screen.getByTestId("loop-card-review")).getByText("—")).toBeInTheDocument();
+    expect(within(screen.getByTestId("loop-card-review")).getByText("·")).toBeInTheDocument();
   });
 
   it("hides the brand card when the rollup is unavailable", () => {

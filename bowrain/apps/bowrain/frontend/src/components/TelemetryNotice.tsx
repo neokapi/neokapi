@@ -41,7 +41,7 @@ export function TelemetryNotice() {
         <DialogHeader>
           <DialogTitle>Anonymous usage statistics</DialogTitle>
           <DialogDescription>
-            Bowrain collects anonymous usage statistics — page views and feature usage, never your
+            Bowrain collects anonymous usage statistics: page views and feature usage, never your
             content, project names, or file paths. This helps prioritize improvements. You can turn
             it off now, or at any time in Settings.
           </DialogDescription>

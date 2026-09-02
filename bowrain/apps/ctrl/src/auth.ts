@@ -154,7 +154,7 @@ export async function login(): Promise<void> {
 export async function handleCallback(code: string): Promise<void> {
   const verifier = sessionStorage.getItem(VERIFIER_KEY);
   if (!verifier) {
-    throw new Error("Missing PKCE verifier — please restart the login flow.");
+    throw new Error("Missing PKCE verifier. Please restart the login flow.");
   }
   sessionStorage.removeItem(VERIFIER_KEY);
 

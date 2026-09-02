@@ -125,11 +125,11 @@ function ServedOutcome({ servedRate }: { servedRate: number | null }) {
                     className="text-lg font-semibold text-muted-foreground/60"
                     data-testid="served-rate-unavailable"
                   >
-                    —
+                    ·
                   </span>
                 </TooltipTrigger>
                 <TooltipContent>
-                  Not derivable from this source — the served locale can't be read from your URL
+                  Not derivable from this source. The served locale can't be read from your URL
                   paths yet.
                 </TooltipContent>
               </Tooltip>
@@ -183,7 +183,7 @@ function AddLocaleBlock({ code, estimate }: { code: string; estimate?: PlanEstim
               Add {localeDisplayName(code) ?? code} to the project
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Prototype — not wired up yet</TooltipContent>
+          <TooltipContent>Prototype, not wired up yet</TooltipContent>
         </Tooltip>
       </TooltipProvider>
     </section>

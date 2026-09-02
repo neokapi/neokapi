@@ -33,7 +33,7 @@ export function SettingsSystemRoute() {
 
   useEffect(() => {
     if (activeWorkspace) {
-      document.title = `System Info — ${activeWorkspace.name} — Bowrain`;
+      document.title = `System Info · ${activeWorkspace.name} · Bowrain`;
     }
   }, [activeWorkspace]);
 

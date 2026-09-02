@@ -159,7 +159,7 @@ export function computePlacement(
           rule: RULE_TRANSFORMER_AFTER_TARGET,
           stepIndex: i,
           tool: info.tool,
-          message: `"${info.tool}" follows "${up.tool}", which produces targets: rewriting source orphans the targets that anchor to it — move it before any target-producing step`,
+          message: `"${info.tool}" follows "${up.tool}", which produces targets: rewriting source orphans the targets that anchor to it. Move it before any target-producing step`,
         });
       }
 
@@ -173,7 +173,7 @@ export function computePlacement(
           rule: RULE_TRANSFORMER_AFTER_EGRESS,
           stepIndex: i,
           tool: info.tool,
-          message: `"${info.tool}" must run before "${up.tool}", which sends source to a remote sink: unprotected content leaks before redaction applies — move it earlier, or use a local provider`,
+          message: `"${info.tool}" must run before "${up.tool}", which sends source to a remote sink: unprotected content leaks before redaction applies. Move it earlier, or use a local provider`,
         });
       }
     }
@@ -200,7 +200,7 @@ export function computePlacement(
         rule: RULE_TRANSFORMER_LATE,
         stepIndex: i,
         tool: info.tool,
-        message: `"${info.tool}" is placed later than needed: the ${rebased.join(", ")} overlay(s) produced before it must be rebased across its rewrite — move it right after its last required input`,
+        message: `"${info.tool}" is placed later than needed: the ${rebased.join(", ")} overlay(s) produced before it must be rebased across its rewrite. Move it right after its last required input`,
       });
     }
   });

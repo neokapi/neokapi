@@ -327,7 +327,7 @@ export function ToolNode({ data, selected }: NodeProps) {
             across a row for straight connectors. */}
         {unmet && unmet.length > 0 && (
           <SimpleTooltip
-            content={`Needs upstream: ${unmet.join(", ")} — add a tool that produces ${unmet.length > 1 ? "these" : "this"} earlier in the flow.`}
+            content={`Needs upstream: ${unmet.join(", ")}. Add a tool that produces ${unmet.length > 1 ? "these" : "this"} earlier in the flow.`}
           >
             <div
               className="absolute left-1/2 top-full z-[1] mt-1 flex -translate-x-1/2 items-center gap-1 whitespace-nowrap text-[8px] font-medium"

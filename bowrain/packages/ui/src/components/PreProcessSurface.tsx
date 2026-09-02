@@ -126,7 +126,7 @@ export function PreProcessSurface({
     {
       key: "memory",
       title: "Bulk recycle",
-      desc: "Pre-fill targets from the content memory across the whole file — exact and high-confidence fuzzy matches land as drafts you can review.",
+      desc: "Pre-fill targets from the content memory across the whole file: exact and high-confidence fuzzy matches land as drafts you can review.",
       icon: <Languages className="w-4 h-4" />,
       run: runMemory,
       cta: "Recycle from memory",

@@ -131,7 +131,7 @@ export default function LayoutView({
   if (placed.length === 0) {
     return (
       <p className="py-3 text-sm text-muted-foreground">
-        No page geometry in this document — the layout view applies to layout-aware sources (PDF,
+        No page geometry in this document. The layout view applies to layout-aware sources (PDF,
         Docling/DocLang, slides). Use the Structure tab for the reflowable outline.
       </p>
     );

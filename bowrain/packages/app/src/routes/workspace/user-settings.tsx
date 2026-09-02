@@ -37,7 +37,7 @@ function TelemetryCard({ optOut }: { optOut: TelemetryOptOut }) {
       <CardHeader>
         <CardTitle>Usage statistics</CardTitle>
         <CardDescription>
-          Share anonymous usage statistics — page views and feature usage, never your content,
+          Share anonymous usage statistics: page views and feature usage, never your content,
           project names, or file paths.
         </CardDescription>
       </CardHeader>
@@ -109,7 +109,7 @@ export function UserSettingsRoute() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    document.title = "User Settings — Bowrain";
+    document.title = "User Settings · Bowrain";
   }, []);
 
   // Fetch digest settings on mount.
