@@ -17,7 +17,7 @@ prompt: >
 
 artifacts:
   - id: md-before
-    caption: "README.md — the English guide, rendered"
+    caption: "README.md: the English guide, rendered"
     source: report
     report: markdown
     reportTitle: "README.md (English)"
@@ -25,7 +25,7 @@ artifacts:
     width: 1100
     height: 820
   - id: md-after
-    caption: "README.fr.md — same headings, lists and quote, in French"
+    caption: "README.fr.md: same headings, lists and quote, in French"
     source: report
     report: markdown
     reportTitle: "README.fr.md (Français)"
@@ -33,7 +33,7 @@ artifacts:
     width: 1100
     height: 820
   - id: props
-    caption: "messages.fr.properties — keys preserved, values translated"
+    caption: "messages.fr.properties: keys preserved, values translated"
     source: report
     report: catalog
     reportTitle: "messages.fr.properties"
@@ -52,7 +52,7 @@ narration:
     kind: prompt
     text: >
       The request names both files and asks to keep each in its own format. It doesn't
-      explain how the two formats differ — kapi already knows.
+      explain how the two formats differ, because kapi already knows.
   - id: markdown
     kind: terminal
     text: >
@@ -65,7 +65,7 @@ narration:
     text: >
       For the properties file, it keeps every key on the left of the equals sign and
       translates only the message on the right.
-    caption: "messages.properties — keys untouched, only the values translated"
+    caption: "messages.properties: keys untouched, only the values translated"
   - id: md-before
     kind: artifact
     artifact: md-before
@@ -75,8 +75,8 @@ narration:
     kind: artifact
     artifact: md-after
     text: >
-      The French version, with the same structure — because kapi treated it as Markdown
-      throughout, not as a block of text.
+      The French version, with the same structure, because kapi read it as Markdown
+      throughout rather than as a block of text.
   - id: props
     kind: artifact
     artifact: props
@@ -86,5 +86,6 @@ narration:
   - id: outro
     kind: outro
     text: >
-      kapi reads and writes the formats content actually ships in — catalogs, documents,
-      and data — so a translation request doesn't turn into a pile of conversion scripts.
+      kapi reads and writes the formats content actually ships in, from catalogs to
+      documents to data, so a translation request doesn't turn into a pile of conversion
+      scripts.
