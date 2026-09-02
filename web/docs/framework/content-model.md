@@ -231,9 +231,10 @@ so the plugin gRPC bridge and store layers can rehydrate the concrete type on th
 far side of the wire.
 
 `Properties` is a separate map for opaque pass-through metadata only, such as
-connector keys and format round-trip hints. Analytic or interpretive results are overlays or
-annotations, never properties. A few round-trip hints follow a **normalized
-convention** so writers and the editor read them the same way across formats:
+connector keys and format round-trip hints. Analytic or interpretive results
+are overlays or annotations, never properties. A few round-trip hints follow a
+**normalized convention** so writers and the editor read them the same way
+across formats:
 `code.language` (a code block's language key), `picture.subclass` (a chart
 kind), `table.header-kind` (an OTSL header's column/row/corner/section role), and
 the `checkbox.checked` / `field.fillable` form-state flags. These are fine
@@ -314,8 +315,8 @@ back with only the changed text differing.
 
 Translation is the most visible thing the content model carries, but it is not a
 requirement. A block's `Targets` map can stay empty for the whole run, and the
-model works the same way when the only locale in play is the source. This is the path a
-voice or terminology pass takes: read a file, check the source content, edit it in
+model works the same way when the only locale in play is the source. This is
+the path a voice or terminology pass takes: read a file, check the source content, edit it in
 place, and write the original back with only the edited text changed.
 
 Take a Markdown file with one off-brand sentence. The reader produces blocks whose
