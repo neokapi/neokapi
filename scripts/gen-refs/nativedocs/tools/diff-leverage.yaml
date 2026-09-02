@@ -6,7 +6,7 @@ overview: |
   block in a previous version of the document and carries forward the previous
   translation when the source is unchanged. It avoids re-translating content
   that has not changed between versions, and tags each block with its diff
-  status — `new`, `unchanged`, `modified`, or `leveraged`. A target language is
+  status: `new`, `unchanged`, `modified`, or `leveraged`. A target language is
   required.
 
   The previous version's source and target texts are supplied programmatically

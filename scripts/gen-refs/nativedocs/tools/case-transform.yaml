@@ -4,8 +4,8 @@ description: Change the letter case of source and/or target text to upper, lower
 overview: |
   The **Case Transform** tool rewrites the case of text in translatable blocks.
   It can uppercase, lowercase, or title-case the source text, the target text,
-  or both. It is useful for normalizing display strings — for example forcing
-  UI labels to upper case — or for preparing case-insensitive comparisons.
+  or both. It is useful for normalizing display strings (for example forcing
+  UI labels to upper case) or for preparing case-insensitive comparisons.
 
   When applying to the target, a target locale must be set; the tool only
   transforms locales that already have a target. Non-translatable blocks pass

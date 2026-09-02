@@ -14,7 +14,7 @@ overview: |
   The reader emits one translatable block per message: in the default
   bilingual mode the `msgid` is the source text and the `msgstr` is the
   target. In monolingual mode the `msgid` is treated purely as an
-  identifier and the `msgstr` provides the source text instead — the
+  identifier and the `msgstr` provides the source text instead, the
   shape used by catalogues that ship message IDs rather than English
   strings. Comments, context, and references are preserved on the block
   and written back. This mirrors Okapi's PO filter.
@@ -25,7 +25,7 @@ parameters:
       When enabled (the default), each message is read bilingually: the
       `msgid` is the source text and the `msgstr` is the target
       translation. When disabled (monolingual mode), the `msgid` is used
-      only as an identifier and the `msgstr` is taken as the source text —
+      only as an identifier and the `msgstr` is taken as the source text,
       the layout used by catalogues whose message IDs are symbolic rather
       than English.
     values: "`true` / `false` (default `true`)"
@@ -71,8 +71,8 @@ parameters:
       when `useCodeFinder` is enabled; invalid patterns are skipped.
     values: "Array of regular-expression strings"
     examples:
-      - "`%[0-9]*[sd]` — protect `printf`-style format specifiers"
-      - "`\\{[0-9]+\\}` — protect numbered placeholders like `{0}`"
+      - "`%[0-9]*[sd]` protects `printf`-style format specifiers"
+      - "`\\{[0-9]+\\}` protects numbered placeholders like `{0}`"
     dependsOn:
       - property: useCodeFinder
         condition: must be enabled for the rules to take effect

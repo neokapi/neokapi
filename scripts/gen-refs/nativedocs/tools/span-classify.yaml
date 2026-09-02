@@ -1,9 +1,9 @@
 # Native reference doc for the built-in `span-classify` tool.
-# Schema source: core/tools/span_classify.go (SpanClassifyConfig — no parameters).
+# Schema source: core/tools/span_classify.go (SpanClassifyConfig, no parameters).
 description: Reclassify generic markup inline codes into semantic vocabulary types.
 overview: |
-  The **Span Classify** tool reclassifies generic `code:markup` inline codes —
-  placeholders and paired open/close codes — into proper semantic vocabulary
+  The **Span Classify** tool reclassifies generic `code:markup` inline codes
+  (placeholders and paired open/close codes) into proper semantic vocabulary
   types such as bold, italic, hyperlink, or image. It is designed to run after
   readers that emit generic markup codes (for example bridge XLIFF or Okapi
   readers), so that later tools and editors see meaningful inline-code types

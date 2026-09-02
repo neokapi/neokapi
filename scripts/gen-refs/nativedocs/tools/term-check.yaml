@@ -1,5 +1,5 @@
 # Native reference doc for the built-in `term-check` tool.
-# Schema source: core/tools/termcheck.go (TermCheckConfig — term pairs set programmatically).
+# Schema source: core/tools/termcheck.go (TermCheckConfig, term pairs set programmatically).
 description: Verify that required target terms appear when their source terms are present.
 overview: |
   The **Terminology Check** tool checks each translation against a set of

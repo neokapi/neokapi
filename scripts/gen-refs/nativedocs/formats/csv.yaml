@@ -17,7 +17,7 @@ parameters:
   separator:
     description: Field delimiter character.
     help: |
-      The character separating fields — a comma for CSV, a tab for TSV.
+      The character separating fields, a comma for CSV and a tab for TSV.
     values: Single character (default `,`)
   textQualifier:
     description: Quote character for fields with delimiters or newlines.
@@ -49,18 +49,18 @@ parameters:
     help: |
       The 0-based column indices whose cells are extracted as translatable
       content. When empty, every column is treated as translatable.
-    values: Array of 0-based integers (default empty — all columns)
+    values: Array of 0-based integers (default empty, all columns)
     examples:
-      - "`[1, 2]` — extract the second and third columns"
+      - "`[1, 2]` extracts the second and third columns"
   keyColumns:
     description: 0-based indices of columns providing the block ID.
     help: |
       The 0-based column indices whose values supply each block's ID
       (source/record identifier). When several are given, their values are
       joined with `.`. When empty, row-based IDs are used.
-    values: Array of 0-based integers (default empty — row-based IDs)
+    values: Array of 0-based integers (default empty, row-based IDs)
     examples:
-      - "`[0]` — use the first column as the record ID"
+      - "`[0]` uses the first column as the record ID"
   commentColumns:
     description: 0-based indices of columns holding comments or notes.
     help: |

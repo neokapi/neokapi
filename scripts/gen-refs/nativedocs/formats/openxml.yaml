@@ -5,15 +5,15 @@
 displayName: OpenXML (Office)
 description: Extract and write text from Word, Excel, and PowerPoint Office Open XML files.
 overview: |
-  The OpenXML format handles Microsoft Office Open XML documents — Word
+  The OpenXML format handles Microsoft Office Open XML documents: Word
   (`.docx`), Excel (`.xlsx`), and PowerPoint (`.pptx`). All three share a
   ZIP-and-XML package, so one filter serves them and auto-detects the
   variant from the package contents, per ECMA-376 / ISO/IEC 29500.
 
   Extraction is selective: by default the reader pulls the main body text
-  plus the parts that are normally user-visible — document properties,
+  plus the parts that are normally user-visible (document properties,
   headers and footers, footnotes, comments, and hyperlink text in Word;
-  shared strings in Excel; and speaker notes in PowerPoint — while leaving
+  shared strings in Excel; and speaker notes in PowerPoint) while leaving
   hidden, structural, or rarely translated content out unless you opt in.
   A set of style and colour filters lets you include or exclude runs by
   paragraph/character style or highlight colour. This mirrors Okapi's
@@ -24,8 +24,8 @@ parameters:
   translateDocProperties:
     description: Extract document properties (title, subject, keywords).
     help: |
-      When enabled (the default), the metadata in `docProps/core.xml` —
-      title, subject, keywords — is extracted for translation. Disable it
+      When enabled (the default), the metadata in `docProps/core.xml`
+      (title, subject, keywords) is extracted for translation. Disable it
       to leave document properties untouched.
     values: "`true` / `false` (default `true`)"
   translateHiddenText:
@@ -77,7 +77,7 @@ parameters:
     description: Extract shared strings from Excel workbooks.
     help: |
       When enabled (the default), the cell text held in the workbook's
-      shared-strings table is extracted — this is where most Excel text
+      shared-strings table is extracted, which is where most Excel text
       lives. Disable it to skip cell content.
     values: "`true` / `false` (default `true`)"
   translateSheetNames:
@@ -233,7 +233,7 @@ parameters:
       when `useCodeFinder` is enabled.
     values: "Array of regular-expression strings"
     examples:
-      - "`\\{[0-9]+\\}` — protect numbered placeholders like `{0}`"
+      - "`\\{[0-9]+\\}` protects numbered placeholders like `{0}`"
     dependsOn:
       - property: useCodeFinder
         condition: must be enabled for the rules to take effect
@@ -243,7 +243,7 @@ parameters:
     help: |
       A list of complex-field instruction prefixes whose cached display
       text is extracted for translation. The default is `["HYPERLINK"]`,
-      matching Okapi — without it the user-visible anchor text of HYPERLINK
+      matching Okapi. Without it the user-visible anchor text of HYPERLINK
       fields would round-trip in the source language. Add prefixes such as
       `REF` to translate the display text of other field types.
     values: "Array of field-prefix strings (default `[\"HYPERLINK\"]`)"
@@ -284,7 +284,7 @@ limitations:
   - One filter covers Word, Excel, and PowerPoint; some options apply only to the relevant variant (for example, the slide options affect PowerPoint only).
 processingNotes:
   - The document variant (Word / Excel / PowerPoint) is auto-detected from the package contents.
-  - The writer is faithful by default — source run properties are preserved inline rather than rewritten into synthesised styles.
+  - The writer is faithful by default, preserving source run properties inline rather than rewriting them into synthesised styles.
 examples:
   - title: Translate everything in a Word document
     description: Include comments, hidden text, and slide masters that are off by default.

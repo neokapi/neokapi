@@ -12,7 +12,7 @@ overview: |
   narrow extraction with a key-exception or extraction pattern, control how
   block names are derived from keys, route specific keys to notes, IDs, or
   metadata, and hand embedded markup (HTML inside a value) to a subfilter.
-  Two presets are provided — *Chrome Extension* and *i18next* — as starting
+  Two presets are provided (*Chrome Extension* and *i18next*) as starting
   points for those layouts.
 parameters:
   extractAllPairs:
@@ -20,7 +20,7 @@ parameters:
     help: |
       When enabled (the default), every string value associated with a key is
       extracted. When disabled, nothing is extracted unless a key matches the
-      `exceptions` pattern (the meaning of `exceptions` inverts — see below) or
+      `exceptions` pattern (the meaning of `exceptions` inverts; see below) or
       an `extractionRules` pattern is set.
     values: "`true` / `false` (default `true`)"
   exceptions:
@@ -33,15 +33,15 @@ parameters:
       key path when `useFullKeyPath` is enabled.
     values: Regular expression (default empty)
     examples:
-      - "`^message$` — with `extractAllPairs: false`, extract only the `message` key"
+      - "`^message$` with `extractAllPairs: false` extracts only the `message` key"
     dependsOn:
       - property: extractAllPairs
         condition: determines whether matches are excluded (true) or included (false)
   extractIsolatedStrings:
     description: Extract standalone string values inside arrays.
     help: |
-      String values that appear directly in arrays — without an associated
-      key — are not extracted by default. Enable this to treat such isolated
+      String values that appear directly in arrays, without an associated
+      key, are not extracted by default. Enable this to treat such isolated
       strings as translatable blocks.
     values: "`true` / `false` (default `false`)"
   extractionRules:
@@ -52,7 +52,7 @@ parameters:
       and it overrides `extractAllPairs`.
     values: Regular expression (default empty)
     examples:
-      - "`/messages/.*|/labels/.*` — extract only keys under `messages` or `labels`"
+      - "`/messages/.*|/labels/.*` extracts only keys under `messages` or `labels`"
   useKeyAsName:
     description: Use the JSON key as the block name.
     help: |
@@ -89,7 +89,7 @@ parameters:
       `useKeyAsName`.
     values: Regular expression (default empty)
     examples:
-      - "`/id|/key` — use the value of an `id` or `key` field as the block ID"
+      - "`/id|/key` uses the value of an `id` or `key` field as the block ID"
   noteRules:
     description: Regex over key names whose values become translator notes.
     help: |
@@ -97,7 +97,7 @@ parameters:
       key is attached as a translator note to the next translatable block.
     values: Regular expression (default empty)
     examples:
-      - "`/description|/comment` — attach a `description` or `comment` value as a note"
+      - "`/description|/comment` attaches a `description` or `comment` value as a note"
   genericMetaRules:
     description: Regex over key names whose values become generic metadata.
     help: |
@@ -130,7 +130,7 @@ parameters:
       keys.
     values: Format name (default empty)
     examples:
-      - "`html` — parse HTML inside JSON string values"
+      - "`html` parses HTML inside JSON string values"
   subfilterRules:
     description: Regex over key names selecting which values are subfiltered.
     help: |
@@ -142,7 +142,7 @@ parameters:
       - property: subfilter
         condition: only takes effect when a subfilter format is set
     examples:
-      - "`_html$` — subfilter only keys ending in `_html`"
+      - "`_html$` subfilters only keys ending in `_html`"
   subfilters:
     description: Per-pattern subfilter mappings for embedded content.
     help: |
@@ -175,7 +175,7 @@ parameters:
       - property: useCodeFinder
         condition: must be enabled for these patterns to apply
 limitations:
-  - The match target for the rule-based regex patterns is either the immediate key or the full key path, depending on `useFullKeyPath` — not both.
+  - The match target for the rule-based regex patterns is either the immediate key or the full key path, depending on `useFullKeyPath`, never both.
 processingNotes:
   - String values become translatable blocks; objects, arrays, and non-string scalars form the surrounding non-translatable structure.
   - Note, ID, generic-metadata, and max-width rules attach to the next translatable block rather than producing content of their own.

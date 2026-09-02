@@ -4,7 +4,7 @@
 # mirroring Okapi's TMX filter (okf_tmx) and the LISA TMX 1.4 standard.
 description: Read and write TMX bilingual exchange files, one block per translation unit.
 overview: |
-  TMX is the XML interchange format for content memories — the portable form
+  TMX is the XML interchange format for content memories, the portable form
   in which bilingual segment pairs move between tools. A TMX document holds
   a header declaring the source language (`srclang`) and a body of `<tu>`
   translation units; each unit carries one `<tuv>` translation-unit variant
@@ -25,7 +25,7 @@ parameters:
       When enabled (the default), all non-source `<tuv>` variants of a
       `<tu>` are read, producing a target segment for each language. When
       disabled, only the first non-source variant is read and the rest are
-      skipped — useful when a multilingual memory should be reduced to a
+      skipped, which suits a multilingual memory that should be reduced to a
       single target language.
     values: "`true` / `false` (default `true`)"
   exitOnInvalid:
@@ -33,8 +33,8 @@ parameters:
     help: |
       Governs error handling for malformed `<tu>` elements. When disabled
       (the default), invalid units are skipped silently and parsing
-      continues. When enabled, the first invalid unit aborts processing —
-      use it to fail fast on corrupt or non-conformant input.
+      continues. When enabled, the first invalid unit aborts processing.
+      Use it to fail fast on corrupt or non-conformant input.
     values: "`true` / `false` (default `false`)"
   escapeGT:
     description: Escape the greater-than character as `&gt;` in output XML.
@@ -61,7 +61,7 @@ parameters:
       effect when `useCodeFinder` is enabled; invalid patterns are skipped.
     values: "Array of regular-expression strings"
     examples:
-      - "`\\{[0-9]+\\}` — protect numbered placeholders like `{0}`"
+      - "`\\{[0-9]+\\}` protects numbered placeholders like `{0}`"
     dependsOn:
       - property: useCodeFinder
         condition: must be enabled for the rules to take effect

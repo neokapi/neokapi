@@ -2,7 +2,7 @@
   "manifest_version": "1",
   "plugin": "pdfium",
   "version": "0.1.0",
-  "description": "PDFium-backed PDF reader — extracts correct text (incl. CID/CJK) and per-segment geometry from PDFs via Google's PDFium. Runs as an isolated daemon so a malformed PDF can't crash kapi.",
+  "description": "PDFium-backed PDF reader. It extracts correct text (incl. CID/CJK) and per-segment geometry from PDFs via Google's PDFium. Runs as an isolated daemon so a malformed PDF can't crash kapi.",
   "homepage": "https://github.com/neokapi/neokapi/tree/main/plugins/pdfium",
   "author": "Neokapi <hello@neokapi.dev>",
   "license": "Apache-2.0",

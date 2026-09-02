@@ -1,9 +1,9 @@
 # Native reference doc for the built-in `xcstrings` format.
 # Schema source: core/formats/xcstrings/config.go (Config) + schema.go.
-# No Okapi equivalent — Apple String Catalogs postdate the Okapi filter set.
+# No Okapi equivalent: Apple String Catalogs postdate the Okapi filter set.
 description: Extract and update translations in Apple String Catalog (.xcstrings) files used by Xcode 15+ projects.
 overview: |
-  The **Apple String Catalog** format reads `.xcstrings` files — the default
+  The **Apple String Catalog** format reads `.xcstrings` files, the default
   string-resource container for iOS, macOS, and other Apple-platform projects
   since Xcode 15. Unlike legacy `.strings`/`.stringsdict`, a single catalog
   holds the source language and every translation in one JSON document,
@@ -35,7 +35,7 @@ parameters:
       newly populated locales.
     values: "String (default `translated`)"
 processingNotes:
-  - A catalog is multilingual — one file carries the source language and all targets, so reading yields blocks with a source plus multiple target locales.
+  - A catalog is multilingual, so one file carries the source language and all targets, and reading yields blocks with a source plus multiple target locales.
   - Plural (CLDR categories), device (iphone/ipad/mac/…), and substitution variations each expand into their own leaf blocks, keyed by the variation path.
   - printf specifiers and Apple's substitution `%arg` token are extracted as inline placeholders and must not be translated.
   - "Output is byte-faithful: an unchanged catalog round-trips exactly; only modified values and states are rewritten."

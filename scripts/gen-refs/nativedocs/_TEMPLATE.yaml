@@ -2,7 +2,7 @@
 # Copy to formats/<id>.yaml, tools/<id>.yaml or checks/<id>.yaml and fill in.
 # Delete unused keys. The file name is the id it binds to, and gen-refs fails on
 # one that binds to nothing.
-# Every statement must be grounded in the code/spec — see README.md.
+# Every statement must be grounded in the code/spec; see README.md.
 
 # Optional. Overrides the registry display name on the card.
 displayName: ""
@@ -28,7 +28,7 @@ parameters:
     notes:
       - Optional caveat or warning.
     examples:
-      - "`foo` — matches ..."
+      - "`foo` matches ..."
     dependsOn:
       - property: otherParam
         condition: must be enabled for this to take effect

@@ -9,8 +9,8 @@ overview: |
   MessageFormat pattern.
 
   A plain-text pattern extracts as a single translatable block. A
-  pattern with simple placeholders — `{0}`, `{name}`, `{name, type}`,
-  `{name, type, style}` — also extracts as a single block, with the
+  pattern with simple placeholders (`{0}`, `{name}`, `{name, type}`,
+  `{name, type, style}`) also extracts as a single block, with the
   placeholders carried as inline runs around the literal text so they
   cannot be accidentally translated or reordered. A pattern with a
   plural, select, or selectordinal picker splits into one block per

@@ -5,7 +5,7 @@ overview: |
   The **Search and Replace** tool performs find-and-replace on block text. The
   search/replace pairs themselves are supplied programmatically or by the
   configured command; the schema-visible options here control matching
-  behaviour — literal versus regular-expression mode, case sensitivity, and
+  behaviour: literal versus regular-expression mode, case sensitivity, and
   whether the replacement scans source, target, or both.
 
   When regular-expression mode is on, the case, dot-all, and multiline flags are

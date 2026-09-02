@@ -8,8 +8,8 @@ overview: |
   translations back while preserving the surrounding markup. Inline elements
   become inline codes within a block, so formatting tags survive translation.
 
-  Extraction is rule-driven. The simple lists — `translatableElements`,
-  `translatableAttributes`, `inlineElements`, `excludedElements` — cover most
+  Extraction is rule-driven. The simple lists (`translatableElements`,
+  `translatableAttributes`, `inlineElements`, `excludedElements`) cover most
   cases. The advanced `elements` and `attributes` maps express richer,
   ITS-style rules with attribute conditions, ID and translatable-attribute
   mappings, and explicit include/exclude behaviour. When no translatable
@@ -21,9 +21,9 @@ parameters:
     help: |
       A list of element names whose text content is extracted as translatable.
       When empty, all text content is treated as translatable.
-    values: Array of element names (default empty — all text translatable)
+    values: Array of element names (default empty, all text translatable)
     examples:
-      - "`[title, para]` — extract the text of `title` and `para` elements"
+      - "`[title, para]` extracts the text of `title` and `para` elements"
   translatableAttributes:
     description: Attribute names that are translatable across all elements.
     help: |
@@ -31,7 +31,7 @@ parameters:
       on any element that carries them.
     values: Array of attribute names (default empty)
     examples:
-      - "`[title, alt]` — extract `title` and `alt` attribute values"
+      - "`[title, alt]` extracts `title` and `alt` attribute values"
   excludeByDefault:
     description: Exclude all elements unless a rule includes them.
     help: |
@@ -42,11 +42,11 @@ parameters:
   inlineElements:
     description: Element names treated as inline spans.
     help: |
-      A list of element names treated as inline — represented as inline codes
+      A list of element names treated as inline, represented as inline codes
       within the surrounding text block rather than as block boundaries.
     values: Array of element names (default empty)
     examples:
-      - "`[b, i, span]` — treat these as inline formatting within text"
+      - "`[b, i, span]` treats these as inline formatting within text"
   excludedElements:
     description: Element names whose content is excluded.
     help: |
@@ -54,7 +54,7 @@ parameters:
       text would otherwise be translatable.
     values: Array of element names (default empty)
     examples:
-      - "`[script, style]` — never extract the content of these elements"
+      - "`[script, style]` never extracts the content of these elements"
   preserveWhitespaceElements:
     description: Element names that always preserve whitespace.
     help: |
@@ -62,7 +62,7 @@ parameters:
       regardless of the global `preserveWhitespace` setting.
     values: Array of element names (default empty)
     examples:
-      - "`[pre, code]` — preserve whitespace inside these elements"
+      - "`[pre, code]` preserves whitespace inside these elements"
   groupElements:
     description: Element names that produce group/layer boundaries.
     help: |
@@ -77,7 +77,7 @@ parameters:
       as a fallback.
     values: Array of attribute names (default empty)
     examples:
-      - "`[name, key]` — use a `name` or `key` attribute as the block ID"
+      - "`[name, key]` uses a `name` or `key` attribute as the block ID"
   preserveWhitespace:
     description: Preserve whitespace globally instead of collapsing it.
     help: |
@@ -94,7 +94,7 @@ parameters:
       fire only when an attribute matches, mirroring ITS-style selectors.
     values: "Map of element name → rule object (default empty)"
     examples:
-      - "`{ p: { ruleTypes: [TEXTUNIT] } }` — extract `p` element text"
+      - "`{ p: { ruleTypes: [TEXTUNIT] } }` extracts `p` element text"
   attributes:
     description: Advanced attribute-specific rules.
     help: |
@@ -120,7 +120,7 @@ parameters:
       non-empty `pattern` and `format`.
     values: "Array of `{pattern, format}` objects (default empty)"
     examples:
-      - "`[{pattern: 'root.body', format: html}]` — parse `body` content as HTML"
+      - "`[{pattern: 'root.body', format: html}]` parses `body` content as HTML"
   useCodeFinder:
     description: Enable regex-based inline-code detection.
     help: |

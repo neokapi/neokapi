@@ -1,13 +1,13 @@
 {
-  "credits-exhausted": "▒ Ýöüŕ ÀÎ çŕéđîţš àŕé éẋĥàüšţéđ — {{.WorkspaceName}} ▒",
-  "credits-warning": "▒ Ýöüŕ ÀÎ çŕéđîţš àŕé ŕüññîñĝ ļöŵ — {{.WorkspaceName}} ▒",
+  "credits-exhausted": "▒ Ýöüŕ ÀÎ çŕéđîţš àŕé éẋĥàüšţéđ ({{.WorkspaceName}}) ▒",
+  "credits-warning": "▒ Ýöüŕ ÀÎ çŕéđîţš àŕé ŕüññîñĝ ļöŵ ({{.WorkspaceName}}) ▒",
   "email-change-verify": "▒ Çöñƒîŕḿ ýöüŕ ñéŵ Ƃöŵŕàîñ éḿàîļ ▒",
   "invite": "▒ Ýöü'ṽé ƃééñ îñṽîţéđ ţö ĵöîñ {{.WorkspaceName}} öñ Ƃöŵŕàîñ ▒",
-  "job-failed": "▒ À {{.JobKind}} ĵöƃ đîđ ñöţ ƒîñîšĥ — {{.WorkspaceName}} ▒",
-  "notification": "▒ {{.Title}} — Ƃöŵŕàîñ ▒",
-  "payment-failed": "▒ Þàýḿéñţ ƒàîļéđ ƒöŕ ýöüŕ šüƃšçŕîþţîöñ — {{.WorkspaceName}} ▒",
-  "review-request": "▒ Ŵàîţîñĝ ƒöŕ ýöüŕ ŕéṽîéŵ: {{.ChangeSetName}} — {{.WorkspaceName}} ▒",
-  "subscription-changed": "▒ Ýöüŕ šüƃšçŕîþţîöñ ĥàš ƃééñ üþđàţéđ — {{.WorkspaceName}} ▒",
-  "task-assigned": "▒ {{.Priority}}: {{.TaskTitle}} — {{.WorkspaceName}} ▒",
-  "welcome": "▒ Ŵéļçöḿé ţö Ƃöŵŕàîñ — {{.WorkspaceName}} ▒"
+  "job-failed": "▒ À {{.JobKind}} ĵöƃ đîđ ñöţ ƒîñîšĥ ({{.WorkspaceName}}) ▒",
+  "notification": "▒ {{.Title}} (Ƃöŵŕàîñ) ▒",
+  "payment-failed": "▒ Þàýḿéñţ ƒàîļéđ ƒöŕ ýöüŕ šüƃšçŕîþţîöñ ({{.WorkspaceName}}) ▒",
+  "review-request": "▒ Ŵàîţîñĝ ƒöŕ ýöüŕ ŕéṽîéŵ: {{.ChangeSetName}} ({{.WorkspaceName}}) ▒",
+  "subscription-changed": "▒ Ýöüŕ šüƃšçŕîþţîöñ ĥàš ƃééñ üþđàţéđ ({{.WorkspaceName}}) ▒",
+  "task-assigned": "▒ {{.Priority}}: {{.TaskTitle}} ({{.WorkspaceName}}) ▒",
+  "welcome": "▒ Ŵéļçöḿé ţö Ƃöŵŕàîñ ({{.WorkspaceName}}) ▒"
 }

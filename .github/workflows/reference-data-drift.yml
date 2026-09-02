@@ -1,4 +1,4 @@
-name: Reference Data — Drift Gate
+name: Reference Data Drift Gate
 
 # CI gate: the committed reference dataset under packages/reference-data/data
 # must match what `make generate-reference-docs` produces from the current

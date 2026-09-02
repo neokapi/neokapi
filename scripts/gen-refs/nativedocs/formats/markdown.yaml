@@ -5,7 +5,7 @@ description: Extract and reinsert text from Markdown, keeping headings, lists, l
 overview: |
   The **Markdown** format reads Markdown documents, extracts prose as
   translatable blocks, and writes the translations back while preserving the
-  document's structure — headings, lists, emphasis, links, and code. Inline
+  document's structure: headings, lists, emphasis, links, and code. Inline
   markup (bold, italic, links, inline code) is exposed as inline codes inside
   each block so the surrounding syntax survives translation.
 
@@ -70,7 +70,7 @@ parameters:
       structurally instead of as opaque text.
     values: Format name (default empty)
     examples:
-      - "`html` — parse embedded HTML through the HTML format"
+      - "`html` parses embedded HTML through the HTML format"
   useCodeFinder:
     description: Enable regex-based inline-code detection.
     help: |

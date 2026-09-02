@@ -1,9 +1,9 @@
 # Native reference doc for the built-in `arb` format.
 # Schema source: core/formats/arb/config.go (Config) + schema.go.
-# No Okapi equivalent — ARB is Flutter/Dart specific.
+# No Okapi equivalent: ARB is Flutter/Dart specific.
 description: Extract and update translatable messages in Flutter Application Resource Bundle (.arb) files.
 overview: |
-  The **Flutter ARB** format reads `.arb` files — the JSON message-resource
+  The **Flutter ARB** format reads `.arb` files, the JSON message-resource
   format used by Flutter's `gen-l10n` tooling and the Dart `intl` package.
   Each file is monolingual: one locale (named by `@@locale`, or inferred from
   the filename), where resource keys map to ICU MessageFormat message strings.

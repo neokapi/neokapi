@@ -70,7 +70,7 @@ parameters:
   includeVerticalWS:
     description: Include vertical whitespace in corrections.
     help: |
-      When enabled, vertical whitespace — line feeds and carriage returns — is
+      When enabled, vertical whitespace (line feeds and carriage returns) is
       treated as removable after punctuation.
     values: "`true` / `false` (default `true`)"
   includeHorizontalWS:

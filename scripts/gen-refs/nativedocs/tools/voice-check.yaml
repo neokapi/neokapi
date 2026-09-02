@@ -4,8 +4,8 @@ description: Judge each block's source text against a voice profile with an LLM 
 overview: |
   The **AI Voice Check** tool sends each block's source text to a configured LLM
   provider alongside the guidelines a voice profile carries, and reads back
-  structured findings over four dimensions — tone, style, clarity and brand
-  compliance — each with a severity, a message and a suggested rewrite. It
+  structured findings over four dimensions (tone, style, clarity and brand
+  compliance), each with a severity, a message and a suggested rewrite. It
   computes an overall compliance score, records the score and any findings on the
   block's properties, and attaches a `voice` annotation carrying both. A block
   whose source text is empty or whitespace-only is skipped.
@@ -19,8 +19,8 @@ overview: |
   the model is asked to judge against nothing.
 
   This is the judged half of a pair. `voice-vocab-check` is the deterministic
-  half — the profile's vocabulary and style patterns matched as rules, needing
-  no credentials and no network — and it is the one to run first, so the model
+  half, the profile's vocabulary and style patterns matched as rules, needing
+  no credentials and no network. Run it first, so that the model
   is spent on what rules cannot decide.
 parameters:
   provider:

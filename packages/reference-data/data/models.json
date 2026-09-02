@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-02T20:39:28Z",
+  "generatedAt": "2026-09-02T21:04:44Z",
   "asOf": "2026-08-27",
   "note": "Generated from providers/ai/models.json via scripts/gen-refs. Do not edit here; edit the catalog and run `make generate-reference-docs`.",
   "models": [
@@ -166,7 +166,7 @@
       "status": "superseded",
       "introduced": "2026-04-03",
       "supersededBy": "gpt-5.6",
-      "note": "Superseded on the OpenAI API, but still the Azure OpenAI default — Azure deployments lag the public API, so the default is deliberately conservative."
+      "note": "Superseded on the OpenAI API, but still the Azure OpenAI default, because Azure deployments lag the public API and the default is deliberately conservative."
     },
     {
       "id": "o3",

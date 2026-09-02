@@ -5,7 +5,7 @@
 description: Extract and update translatable strings in Microsoft .NET RESX 2.0 and .resw resource files.
 overview: |
   The **.NET RESX** format reads Microsoft ResX 2.0 resource files and their
-  string-only `.resw` variant — the standard container for translatable
+  string-only `.resw` variant, the standard container for translatable
   resources in .NET applications (locale by satellite filename, e.g.
   `Strings.fr.resx`).
 
@@ -15,7 +15,7 @@ overview: |
   placeholders such as `{0}` and `{1:t}` are protected as inline codes. Typed
   and binary `<data>` (those carrying `type`/`mimetype`), `<metadata>`,
   `<assembly>`, name-reference entries, and the `<resheader>` boilerplate pass
-  through untouched. Round-trips are byte-faithful — only changed `<value>`
+  through untouched. Round-trips are byte-faithful, and only changed `<value>`
   content is spliced back into the original document.
 parameters:
   extractComments:

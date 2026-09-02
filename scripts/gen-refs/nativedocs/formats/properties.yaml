@@ -39,7 +39,7 @@ parameters:
       - property: useKeyCondition
         condition: only consulted when key filtering is enabled
     examples:
-      - "`.*text.*` — match keys containing the substring `text`"
+      - "`.*text.*` matches keys containing the substring `text`"
   extractOnlyMatchingKey:
     description: Direction of the key filter.
     help: |

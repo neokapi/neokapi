@@ -9,7 +9,7 @@ overview: |
   terms that would benefit from a terms entry). Each entity carries a
   suggested do-not-translate flag; each term candidate carries a category and a
   translatability classification (do-not-translate, consistent, or free). It is
-  read-only — it writes annotations only and never changes the source or target.
+  read-only: it writes annotations only and never changes the source or target.
 
   Extraction can optionally combine the LLM with a NER provider for fast entity
   detection; the LLM classification is preferred where the two overlap. Blocks
@@ -67,7 +67,7 @@ limitations:
   - Entity and term suggestions (including the do-not-translate flag and translatability) are model proposals and should be reviewed before acting on them.
 processingNotes:
   - Operates on translatable blocks with non-empty source; other parts pass through unchanged.
-  - Read-only — writes entity and term-candidate annotations and never modifies source or target.
+  - Read-only, writing entity and term-candidate annotations and never modifying source or target.
   - When both an LLM and a NER provider produce an entity at the same span, the LLM classification is kept.
   - Dates, times, currencies, and measurements are not defaulted to do-not-translate, since they need locale-specific formatting.
 examples:

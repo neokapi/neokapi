@@ -10,7 +10,7 @@ overview: |
   rewrites content.
 
   Placeholders are detected with a built-in pattern covering the common
-  interpolation styles — `{{name}}`, `${name}`, `%(name)s` (Python),
+  interpolation styles: `{{name}}`, `${name}`, `%(name)s` (Python),
   `%1$s` (positional), `%s` / `%d` / `%@` (printf / Objective-C),
   `{name}` / `{0}` (ICU / .NET), and numbered tags such as `<0>…</0>`. A target
   locale is required; blocks without a target for that locale are skipped.
@@ -19,7 +19,7 @@ parameters:
     description: Report placeholders present in the target but absent from the source.
     help: |
       When enabled (the default), a placeholder that appears in the target but
-      not the source — usually a stray token — is reported as a major issue, in
+      not the source, usually a stray token, is reported as a major issue, in
       addition to the always-critical report of placeholders dropped from the
       target.
     values: "`true` / `false` (default `true`)"
