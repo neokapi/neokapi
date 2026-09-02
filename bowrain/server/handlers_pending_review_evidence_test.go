@@ -206,6 +206,6 @@ func TestApprovePassing_SkipsAreNamedByTheBarTheyMissed(t *testing.T) {
 	assert.Equal(t, 1, res.SkippedTermViolations, "the forbidden-term target is named as such")
 	assert.Equal(t, 1, res.SkippedBelowVoiceBar, "the below-bar target is named as such")
 	assert.Equal(t, res.Skipped,
-		res.SkippedFailingChecks+res.SkippedTermViolations+res.SkippedBelowVoiceBar,
+		res.SkippedFailingChecks+res.SkippedTermViolations+res.SkippedBelowVoiceBar+res.SkippedSelfAuthored,
 		"every skip is attributed to exactly one bar")
 }

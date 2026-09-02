@@ -1768,6 +1768,10 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.POST("/:id/restore", s.HandleRestoreProject)
 	g.DELETE("/:id/permanent", s.HandlePermanentlyDeleteProject)
 
+	// What the caller may do here, so a surface offers only what the server
+	// will accept.
+	g.GET("/:id/permissions", s.HandleGetCallerPermissions)
+
 	// Project members — Bowrain AD-011: /:ws/:id/members
 	g.GET("/:id/members", s.HandleListProjectMembers)
 	g.POST("/:id/members", s.HandleAddProjectMember)

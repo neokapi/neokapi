@@ -3,6 +3,7 @@ import type {
   Workspace,
   Membership,
   ProjectInfo,
+  CallerPermissions,
   ProjectReadOptions,
   ConfigResponse,
   PublicPlatformConfig,
@@ -407,6 +408,12 @@ export interface ApiAdapter {
     stream?: string,
     opts?: ProjectReadOptions,
   ): Promise<ProjectInfo>;
+  /**
+   * What the caller may do on this project, as the server resolved it. A
+   * surface offers only the actions the server will accept, so a translator
+   * sees no Approve button rather than a 403 after clicking it.
+   */
+  getCallerPermissions(workspaceSlug: string, projectId: string): Promise<CallerPermissions>;
   updateProject(
     workspaceSlug: string,
     projectId: string,

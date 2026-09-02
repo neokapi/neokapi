@@ -36,6 +36,11 @@ export interface ReviewInspectorProps {
   editing: boolean;
   /** A review decision or a batch is in flight — decisions are held. */
   busy?: boolean;
+  /**
+   * Whether the viewer may approve this language. Approving needs the `review`
+   * permission, which a translator does not hold. Defaults to true.
+   */
+  canApprove?: boolean;
   /** The block is in the batch the bulk actions will carry. */
   marked: boolean;
   onClose: () => void;
@@ -69,6 +74,7 @@ export function ReviewInspector({
   termsLoading,
   editing,
   busy,
+  canApprove = true,
   marked,
   onClose,
   onApprove,
@@ -246,7 +252,10 @@ export function ReviewInspector({
           <Button
             size="sm"
             onClick={onApprove}
-            disabled={busy || status === "reviewed" || !hasTarget}
+            disabled={busy || status === "reviewed" || !hasTarget || !canApprove}
+            title={
+              canApprove ? undefined : "Approving needs the review permission for this language"
+            }
             className="bg-success text-white hover:bg-success/90"
             data-testid={block ? `approve-${block.id}` : undefined}
           >

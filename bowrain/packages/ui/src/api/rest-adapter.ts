@@ -7,6 +7,7 @@ import type {
   Workspace,
   Membership,
   ProjectInfo,
+  CallerPermissions,
   ProjectReadOptions,
   UploadFilesResult,
   ConfigResponse,
@@ -1066,6 +1067,10 @@ export class RestApiAdapter implements ApiAdapter {
     // block read per item to build.
     const query = opts?.view === "summary" ? "?view=summary" : "";
     return this.fetchJSON(this.projectEp(workspaceSlug, projectId) + query);
+  }
+
+  async getCallerPermissions(workspaceSlug: string, projectId: string): Promise<CallerPermissions> {
+    return this.fetchJSON(this.projectEp(workspaceSlug, projectId) + "/permissions");
   }
 
   async updateProject(

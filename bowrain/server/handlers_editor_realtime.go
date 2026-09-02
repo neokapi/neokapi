@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -12,102 +11,25 @@ import (
 	"github.com/labstack/echo/v4"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
-	platstore "github.com/neokapi/neokapi/bowrain/core/store"
-	"github.com/neokapi/neokapi/bowrain/jobs"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/venue"
 )
 
 // recordReviewDecision appends a server-made review to the decision ledger
 // with the decider's identity, the time, and the hash of the translation it
-// blesses. Best-effort by design: the projected status is already written, so
-// a store without the ledger capability (or a failed write, which is logged
-// by the store) must not fail the review the user just made — but the ledger
-// is what makes the review a decision rather than an enum flip, so the write
-// is attempted on every rung change.
+// blesses, then promotes the wording into the workspace content memory. It
+// opens a ledger for the single decision it writes; a pass over many blocks
+// opens one and writes batches through it instead.
 func (s *Server) recordReviewDecision(ctx context.Context, c echo.Context, projectID, stream string, sb *venue.StoredBlock, locale string, status model.TargetStatus, approved bool) {
-	ds, ok := s.ContentStore.(platstore.DecisionStore)
-	if !ok || sb == nil || sb.SourceID == "" {
+	if sb == nil || sb.SourceID == "" {
 		return
 	}
-	// The decider, as readably as the auth store can name them. Falls back to
-	// the opaque user id — an identity, if a terse one.
-	decider, _ := c.Get("user_id").(string)
-	if s.AuthStore != nil && decider != "" {
-		if u, err := s.AuthStore.GetUser(ctx, decider); err == nil && u != nil && u.Email != "" {
-			decider = u.Email
-		}
-	}
-	reviewState := ""
-	switch {
-	case approved && status == model.TargetStatusSignedOff:
-		reviewState = "signed-off"
-	case approved:
-		reviewState = "approved"
-	case status == model.TargetStatusDraft:
-		reviewState = "rejected"
-	}
-	now := time.Now().UTC().Format(time.RFC3339)
-	if _, err := ds.UpsertUnitDecisions(ctx, projectID, stream, []venue.UnitDecision{{
-		ItemName:    sb.ItemName,
-		Unit:        sb.SourceID,
-		Variant:     locale,
-		Status:      string(status),
-		TargetHash:  state.TargetHash(sb.Block.TargetText(model.LocaleID(locale))),
-		ContentHash: state.SourceHash(sb.Block.SourceText()),
-		ReviewState: reviewState,
-		DecidedBy:   decider,
-		DecidedAt:   now,
-		Updated:     now,
-	}}); err != nil {
-		// Best-effort must still be observed: the projected status is written,
-		// but a ledger that quietly misses reviews is worse than none.
-		slog.WarnContext(ctx, "review decision not recorded in ledger",
-			"project", projectID, "block", sb.SourceID, "locale", locale, "error", err)
+	ledger := s.newReviewLedger(ctx, c, projectID, stream)
+	if ledger == nil {
 		return
 	}
-
-	// The corpus follows the decision: an approval promotes its wording into
-	// the workspace content memory, a rejection evicts it — the same single
-	// door the push-ingest path uses (jobs.PromoteDecisionsToMemory), so the
-	// two entry points cannot disagree about what an approval admits.
-	if reviewState == "" {
-		return // a plain un-review is not a corpus verdict
-	}
-	proj, perr := s.ContentStore.GetProject(ctx, projectID)
-	if perr != nil || proj == nil || proj.DefaultSourceLanguage == "" {
-		slog.WarnContext(ctx, "memory promotion skipped: project unresolved",
-			"project", projectID, "error", perr)
-		return
-	}
-	slug := ""
-	if s.AuthStore != nil && proj.WorkspaceID != "" {
-		if ws, werr := s.AuthStore.GetWorkspace(ctx, proj.WorkspaceID); werr == nil && ws != nil {
-			slug = ws.Slug
-		}
-	}
-	if slug == "" {
-		slog.WarnContext(ctx, "memory promotion skipped: no workspace slug", "project", projectID)
-		return
-	}
-	tm, terr := s.wsStores.getMemory(slug)
-	if terr != nil {
-		slog.WarnContext(ctx, "memory promotion skipped: workspace memory unavailable",
-			"workspace", slug, "error", terr)
-		return
-	}
-	jobs.PromoteDecisionsToMemory(ctx, s.ContentStore, tm, projectID, stream, proj.DefaultSourceLanguage, []venue.UnitDecision{{
-		ItemName:    sb.ItemName,
-		Unit:        sb.SourceID,
-		Variant:     locale,
-		Status:      string(status),
-		TargetHash:  state.TargetHash(sb.Block.TargetText(model.LocaleID(locale))),
-		ContentHash: state.SourceHash(sb.Block.SourceText()),
-		ReviewState: reviewState,
-		DecidedBy:   decider,
-	}})
+	ledger.write(ctx, []venue.UnitDecision{unitDecisionFor(sb, locale, status, approved, ledger.decider)})
 }
 
 // This file gives the two real-time editor operations that used to travel over
@@ -156,14 +78,22 @@ const legacyTranslationStatusProperty = "translation-status"
 //
 // It is deliberately separate from HandleSetBlockStatus, which drives the
 // governance workflow lifecycle (draft → in_review → published, PG-only,
-// four-eyes on publish). Marking review status is part of the translation
-// workflow, so it requires PermTranslate (the same gate as editing the target),
-// not the privileged review/publish permission — with one exception: a target
-// at TargetStatusSignedOff (the rung ABOVE reviewed) is protected. Re-approving
-// it is an idempotent no-op that keeps signed-off, and demoting it
-// (reviewed=false) requires the elevated PermReview, so a translator's ordinary
-// un-review click cannot silently undo a sign-off (and the ship gates keyed on
-// "at least signed-off" coverage) two rungs down to translated.
+// four-eyes on publish).
+//
+// Approving is the review permission for the language being approved:
+// PermReview, language-scoped. Withdrawing an approval (reviewed=false) and
+// rejecting (status:"draft") stay with PermTranslate, the same gate that edits
+// the target, so a translator can still take back their own work. A target at
+// TargetStatusSignedOff (the rung ABOVE reviewed) is protected either way:
+// re-approving it is an idempotent no-op that keeps signed-off, and demoting it
+// requires PermReview, so a translator's ordinary un-review click cannot
+// silently undo a sign-off (and the ship gates keyed on "at least signed-off"
+// coverage) two rungs down to translated.
+//
+// An approval also passes the workspace separation-of-duties policy: whoever
+// last wrote the translation by hand may not be the one who approves it, unless
+// the workspace has the policy off or set to warn. A target a run produced has
+// no human author and stays approvable by one person.
 //
 // No-target decision (documented per epic 006 task 3): approving a block that
 // has no non-empty translation for the locale is a 422. The visual editor lets
@@ -181,9 +111,6 @@ const legacyTranslationStatusProperty = "translation-status"
 //
 // PUT /:ws/:id/blocks/:ref/:bid/review  { "target_locale": "fr", "reviewed": true }
 func (s *Server) HandleReviewBlock(c echo.Context) error {
-	if err := s.requirePermission(c, platauth.PermTranslate); err != nil {
-		return err
-	}
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
@@ -213,14 +140,22 @@ func (s *Server) HandleReviewBlock(c echo.Context) error {
 	if req.Reviewed && req.Status != "" {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "status only applies when reviewed is false (approval always lands on reviewed)"})
 	}
-	if err := s.requireLanguagePermission(c, platauth.PermTranslate, req.TargetLocale); err != nil {
+	// Approving is the review permission, for the language being approved.
+	// Un-reviewing and rejecting stay with the translate permission that edits
+	// the target, so a translator can still withdraw their own work.
+	if err := s.requireLanguagePermission(c, reviewGateFor(req.Reviewed), req.TargetLocale); err != nil {
 		return err
 	}
 
 	ctx := c.Request().Context()
+	sod, err := s.newReviewSoD(ctx, c, pid, stream, []string{bid}, []string{req.TargetLocale})
+	if err != nil {
+		return serverErr(c, err)
+	}
 	out, err := s.applyBlockReview(ctx, c, blockReviewInput{
 		ProjectID: pid, Stream: stream, BlockID: bid, Request: req, DemoteTo: demoteTo,
 		Elevate: func() error { return s.requireLanguagePermission(c, platauth.PermReview, req.TargetLocale) },
+		Vet:     sod.vet,
 	})
 	if err != nil {
 		if fault, ok := errors.AsType[reviewFault](err); ok {
@@ -230,6 +165,10 @@ func (s *Server) HandleReviewBlock(c echo.Context) error {
 			return err // Elevate already wrote the 403
 		}
 		return serverErr(c, err)
+	}
+
+	if out.Changed {
+		s.emitReviewDecisionAudit(c, pid, stream, bid, req.TargetLocale, out.From, out.Status, req.Reviewed, "")
 	}
 
 	wsID, _ := c.Get("workspace_id").(string)
@@ -272,6 +211,10 @@ func (e reviewFault) Error() string { return e.msg }
 // target: the single-block route hands over the standard language-permission
 // gate (which writes its own 403), the bulk route a plain predicate so one
 // protected block cannot answer for the whole batch.
+//
+// Vet is the separation-of-duties gate, called before an approval that actually
+// promotes a target. It answers with a reviewFault, so one refused block is
+// recorded against that block rather than failing a whole selection.
 type blockReviewInput struct {
 	ProjectID string
 	Stream    string
@@ -279,6 +222,7 @@ type blockReviewInput struct {
 	Request   ReviewBlockRequest
 	DemoteTo  model.TargetStatus
 	Elevate   func() error
+	Vet       func(blockID, locale string) error
 }
 
 // blockReviewOutcome reports what the review did to one block.
@@ -286,12 +230,18 @@ type blockReviewOutcome struct {
 	// HadTarget is false when the locale had no target at all — an
 	// un-review with nothing to demote.
 	HadTarget bool
+	// From is the rung the target held before the call, for the audit trail.
+	From model.TargetStatus
 	// Status is the rung the target now holds.
 	Status model.TargetStatus
 	// Approval is true when the call moved the target UP to reviewed from
 	// below: the signal the governed review continuation keys on, so an
 	// idempotent re-approve advances nothing.
 	Approval bool
+	// Changed is false when the call moved no rung: an idempotent re-approve
+	// of a signed-off target, or an un-review with nothing to demote. Nothing
+	// happened, so nothing is audited.
+	Changed bool
 }
 
 // applyBlockReview moves one block's target for one locale to the requested
@@ -320,7 +270,15 @@ func (s *Server) applyBlockReview(ctx context.Context, c echo.Context, in blockR
 		if target.Status == model.TargetStatusSignedOff {
 			// Signed-off sits above reviewed on the ladder; re-approving must
 			// not demote it. Idempotent success, keeping the higher rung.
-			return blockReviewOutcome{HadTarget: true, Status: target.Status}, nil
+			return blockReviewOutcome{HadTarget: true, From: target.Status, Status: target.Status}, nil
+		}
+		// Separation of duties applies to a real promotion. Re-approving a
+		// target already at reviewed moves nothing, so there is no decision to
+		// refuse.
+		if in.Vet != nil && target.Status.Rank() < model.TargetStatusReviewed.Rank() {
+			if err := in.Vet(in.BlockID, req.TargetLocale); err != nil {
+				return blockReviewOutcome{}, err
+			}
 		}
 		status = model.TargetStatusReviewed
 	} else {
@@ -347,8 +305,9 @@ func (s *Server) applyBlockReview(ctx context.Context, c echo.Context, in blockR
 		}
 		status = in.DemoteTo
 	}
+	from := target.Status
 	approval := req.Reviewed && status == model.TargetStatusReviewed &&
-		target.Status.Rank() < model.TargetStatusReviewed.Rank()
+		from.Rank() < model.TargetStatusReviewed.Rank()
 	target.Status = status
 
 	if err := s.ContentStore.StoreBlocks(ctx, in.ProjectID, in.Stream, []*model.Block{sb.Block}); err != nil {
@@ -363,7 +322,7 @@ func (s *Server) applyBlockReview(ctx context.Context, c echo.Context, in blockR
 	s.recordReviewDecision(ctx, c, in.ProjectID, in.Stream, sb, req.TargetLocale, status, req.Reviewed)
 	s.emitEditorBlockChange(c, in.ProjectID, in.BlockID, req.ItemName, in.Stream, "updated")
 
-	return blockReviewOutcome{HadTarget: true, Status: status, Approval: approval}, nil
+	return blockReviewOutcome{HadTarget: true, From: from, Status: status, Approval: approval, Changed: from != status}, nil
 }
 
 // PresenceRequest reports the caller's current editing focus in a project.

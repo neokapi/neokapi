@@ -51,6 +51,12 @@ export interface FocusedReviewerProps {
   editing: boolean;
   /** Disables the action buttons while a decision is in flight. */
   busy?: boolean;
+  /**
+   * Whether the viewer may approve this language. Approving needs the `review`
+   * permission, which a translator does not hold, so the button is disabled and
+   * says why rather than failing on click. Defaults to true.
+   */
+  canApprove?: boolean;
   /** Shows the re-check spinner. */
   reChecking?: boolean;
   /** When set, the source-side + brand-correction affordances are enabled. */
@@ -114,6 +120,7 @@ export function FocusedReviewer({
   compliance,
   editing,
   busy,
+  canApprove = true,
   reChecking,
   voiceProfileId,
   onApprove,
@@ -430,7 +437,8 @@ export function FocusedReviewer({
         <Button
           size="sm"
           onClick={onApprove}
-          disabled={busy}
+          disabled={busy || !canApprove}
+          title={canApprove ? undefined : "Approving needs the review permission for this language"}
           className="bg-success text-white hover:bg-success/90"
           data-testid="reviewer-approve"
         >

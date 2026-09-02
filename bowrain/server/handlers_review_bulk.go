@@ -3,9 +3,11 @@ package server
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/labstack/echo/v4"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
+	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/locale"
 	"github.com/neokapi/neokapi/core/model"
@@ -31,13 +33,17 @@ type ApprovePassingRequest struct {
 // three the review queue's entries now carry, so the surface that previewed the
 // pass and the response that reports it speak in one vocabulary. A target can
 // miss more than one bar; it is counted against the first in gate order
-// (checks, then terminology, then voice), so the three sum to Skipped.
+// (checks, then terminology, then voice). SkippedSelfAuthored is the fourth bar
+// and the only one about the caller rather than the content: a translation the
+// caller wrote, in a workspace whose separation-of-duties policy blocks
+// self-approval. The four sum to Skipped.
 type ApprovePassingResponse struct {
 	Approved              int  `json:"approved"`
 	Skipped               int  `json:"skipped"`
 	SkippedFailingChecks  int  `json:"skipped_failing_checks"`
 	SkippedTermViolations int  `json:"skipped_term_violations"`
 	SkippedBelowVoiceBar  int  `json:"skipped_below_voice_bar"`
+	SkippedSelfAuthored   int  `json:"skipped_self_authored"`
 	RemainingPending      int  `json:"remaining_pending"`
 	ReviewCompleted       bool `json:"review_completed"`
 }
@@ -50,6 +56,12 @@ type ApprovePassingResponse struct {
 // promoted to reviewed; the locales that clear their review queue have their
 // review task(s) closed, and if that empties the project's whole review queue
 // the loop continues to a completing convergence run → delivery (RV-B).
+//
+// Every promotion is a decision: it goes to the decision ledger with the
+// decider and the hash of the translation it blesses, and from there into the
+// workspace content memory, exactly as a per-block approval does. A translation
+// the caller wrote themselves is left pending when the workspace's
+// separation-of-duties policy blocks self-approval.
 //
 // POST /:ws/:id/review/approve-passing  { "stream"?: "main", "locales"?: ["fr"] }
 func (s *Server) HandleApprovePassing(c echo.Context) error {
@@ -111,6 +123,22 @@ func (s *Server) HandleApprovePassing(c echo.Context) error {
 	approved, skipped, remaining := 0, 0, 0
 	skippedBy := map[approveBlocker]int{}
 	touchedSet := map[model.LocaleID]bool{}
+	perLocale := map[model.LocaleID]int{}
+	sodRefused, sodViolations := 0, 0
+	sodActor, _ := c.Get("user_id").(string)
+	sodMode := platauth.SoDOff
+
+	// The decision ledger and the separation-of-duties policy both apply here,
+	// per batch rather than per block: opening the ledger resolves the decider
+	// and the workspace memory once, and one authorship query answers for a
+	// whole batch. A block whose translation the caller wrote themselves is
+	// left pending under a blocking policy, the same outcome a failing check
+	// produces.
+	ledger := s.newReviewLedger(ctx, c, pid, stream)
+	localeStrings := make([]string, 0, len(locales))
+	for _, loc := range locales {
+		localeStrings = append(localeStrings, string(loc))
+	}
 
 	// A batch at a time: decide it, write back the blocks it changed, count
 	// what it leaves pending, drop it. Reading a whole project's blocks — and
@@ -130,7 +158,20 @@ func (s *Server) HandleApprovePassing(c echo.Context) error {
 		platstore.BlockQuery{ProjectID: pid, Stream: stream},
 		platstore.DefaultBlockBatch,
 		func(batch []*venue.StoredBlock) error {
+			blockIDs := make([]string, 0, len(batch))
+			for _, sb := range batch {
+				if sb != nil && sb.Block != nil {
+					blockIDs = append(blockIDs, sb.Block.ID)
+				}
+			}
+			sod, err := s.newReviewSoD(ctx, c, pid, stream, blockIDs, localeStrings)
+			if err != nil {
+				return err
+			}
+			sod.quiet()
+
 			var toStore []*model.Block
+			var decisions []venue.UnitDecision
 			for _, sb := range batch {
 				if sb == nil || sb.Block == nil || !sb.Block.Translatable {
 					continue
@@ -142,16 +183,26 @@ func (s *Server) HandleApprovePassing(c echo.Context) error {
 					}
 					scored := scores[string(locale.Normalize(loc))]
 					blocker := blockApproveBlocker(ctx, sb.Block, loc, scored, gate)
-					if blocker == approveBlockerNone {
-						sb.Block.Target(loc).Status = model.TargetStatusReviewed
-						approved++
-						touchedSet[loc] = true
-						modified = true
-					} else {
+					switch {
+					case blocker != approveBlockerNone:
 						// Failing/non-compliant: left pending for a person, and named
 						// by the bar it missed rather than lumped into one count.
 						skipped++
 						skippedBy[blocker]++
+					case sod.vet(sb.Block.ID, string(loc)) != nil:
+						// The caller wrote this translation and the workspace
+						// blocks self-approval: left pending for someone else.
+						sodRefused++
+					default:
+						sb.Block.Target(loc).Status = model.TargetStatusReviewed
+						approved++
+						perLocale[loc]++
+						touchedSet[loc] = true
+						modified = true
+						if ledger != nil && sb.SourceID != "" {
+							decisions = append(decisions, unitDecisionFor(sb, string(loc),
+								model.TargetStatusReviewed, true, ledger.decider))
+						}
 					}
 				}
 				if modified {
@@ -164,6 +215,14 @@ func (s *Server) HandleApprovePassing(c echo.Context) error {
 					return fmt.Errorf("store blocks: %w", err)
 				}
 			}
+			// The ledger follows the write, batch by batch. Holding every
+			// decision until the pass ends would reintroduce the unbounded
+			// accumulation the batching exists to avoid, and the ledger write
+			// is idempotent, so a pass that fails part-way leaves the batches
+			// it finished consistent with the statuses it stored.
+			ledger.write(ctx, decisions)
+			sodViolations += sod.violations
+			sodMode = sod.mode
 
 			// What this batch leaves pending: the excluded (failing/non-compliant)
 			// targets. Counted after the promotion above, over the same blocks,
@@ -193,12 +252,41 @@ func (s *Server) HandleApprovePassing(c echo.Context) error {
 
 	s.invalidateDashboardCache(wsID, pid)
 
+	// One separation-of-duties record for the pass, with how many targets it
+	// covered. A record per block would flood the bus a corpus-sized pass
+	// shares with every other subscriber.
+	if sodViolations > 0 {
+		s.recordSoDViolation(c, sodActor, "approve_passing:"+pid+":"+stream, sodMode, sodViolations)
+	}
+
+	// One audit record per locale the pass promoted. The unit is the pass
+	// because that is what the person decided: they approved a rule, and the
+	// server applied it to whatever cleared the bar. Which blocks it took, and
+	// who took them, is the decision ledger written above, block by block.
+	for loc, n := range perLocale {
+		s.emitAudit(c, auditEvent{
+			Type:         platev.EventReviewBulkApproved,
+			ProjectID:    pid,
+			ResourceType: "project",
+			ResourceID:   pid,
+			Data: map[string]string{
+				"locale":                string(loc),
+				"stream":                stream,
+				"approved":              strconv.Itoa(n),
+				"skipped":               strconv.Itoa(skipped + sodRefused),
+				"skipped_self_authored": strconv.Itoa(sodRefused),
+			},
+			After: map[string]string{"status": string(model.TargetStatusReviewed)},
+		})
+	}
+
 	return c.JSON(http.StatusOK, ApprovePassingResponse{
 		Approved:              approved,
-		Skipped:               skipped,
+		Skipped:               skipped + sodRefused,
 		SkippedFailingChecks:  skippedBy[approveBlockerChecks],
 		SkippedTermViolations: skippedBy[approveBlockerTerms],
 		SkippedBelowVoiceBar:  skippedBy[approveBlockerVoice],
+		SkippedSelfAuthored:   sodRefused,
 		RemainingPending:      remaining,
 		ReviewCompleted:       reviewCompleted,
 	})

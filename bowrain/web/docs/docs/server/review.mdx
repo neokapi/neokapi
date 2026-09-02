@@ -38,14 +38,17 @@ item and locale filters narrow the queue further.
 
 For each block:
 
-- **Approve** marks the target reviewed for that locale.
+- **Approve** marks the target reviewed for that locale. It needs the `review`
+  permission for that language, which the built-in **Reviewer** template
+  carries; a translator can edit and reject, but not approve.
 - **Reject** sends it back to draft for another pass.
 - **Edit** fixes the draft in place. A fix is a correction made at a point, and
   corrections are what the context learns from (see
   [Voice and corrections](/server/context-voice)).
 
 Review status is tracked **per locale**. A block's status is a property of each
-target, so approving the French target never changes the German one.
+target, so approving the French target never changes the German one, and a
+reviewer scoped to French can approve only French.
 
 ### Correct the context from the session
 
@@ -72,15 +75,33 @@ checks report no error-severity finding and whose voice score meets the
 profile's compliance bar. Blocks that fail a check or fall below the bar are
 left pending for a person. The same predicate decides a locale's ship state
 below, so what bulk approval accepts is exactly what was already shippable on
-machine review.
+machine review. The response names each bar that left a target pending,
+including the targets the caller wrote themselves in a workspace that blocks
+self-approval.
 
 ### Machine authorship
 
-Drafts a run produced are recorded as machine-authored. Separation of duties
-(see [Members and roles](/server/members-and-roles#governance-controls)) stops
-a person from approving their own writing; it does not stop the one person in a
-small workspace from approving what the machine wrote. The approval is recorded
-in the audit log like any other.
+A draft a run produced carries no human author, because a run writes it with
+nobody acting. Separation of duties (see
+[Members and roles](/server/members-and-roles#governance-controls)) stops a
+person from approving a translation they wrote by hand, and leaves the one
+person in a small workspace free to approve what the machine wrote. It applies
+to every way of approving: block by block, over a selection, and through
+**Approve everything passing**.
+
+### What an approval leaves behind
+
+Two records, written for every approval whichever route made it:
+
+- **A decision**, in the project's ledger, naming who decided, when, and the
+  hash of the exact wording they blessed. That record travels to a working copy
+  on `kapi pull`, and it is what promotes the wording into the workspace
+  [content memory](/server/translation-memory).
+- **An audit entry**, in the workspace [audit log](/server/security-and-privacy#the-audit-log), naming
+  the actor, the block, the locale, and the rungs the target moved between. A
+  rejection and a withdrawn approval are recorded the same way. **Approve
+  everything passing** records the pass and its counts per language, because
+  the pass is what the person decided; which blocks it took is in the ledger.
 
 ### The reviewer is summoned
 

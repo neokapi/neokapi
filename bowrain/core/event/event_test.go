@@ -160,6 +160,8 @@ func pinnedEventTypes() []struct {
 		{event.EventPushAutomationsCompleted, "push.automations.completed"},
 		{event.EventSourceReviewCompleted, "source.review.completed"},
 		{event.EventReviewCompleted, "review.completed"},
+		{event.EventReviewDecided, "review.decided"},
+		{event.EventReviewBulkApproved, "review.bulk_approved"},
 		{event.EventAgentConversationCreated, "agent.conversation.created"},
 		{event.EventAgentMessageSent, "agent.message.sent"},
 		{event.EventAgentToolExecuted, "agent.tool.executed"},

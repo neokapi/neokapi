@@ -498,6 +498,7 @@ export type {
 
 // Hooks
 export { useProjectApi, useProjects } from "./hooks/useProjectApi";
+export { useCallerPermissions } from "./hooks/useCallerPermissions";
 export { useEditorApi } from "./hooks/useEditorApi";
 export {
   useMemoryBrowserAdapter,
@@ -854,6 +855,11 @@ export type {
   PendingRecipeChange,
   ContextScanApproveResult,
 } from "./types/api";
+
+// What the signed-in user may do on a project, and the catalog of permission
+// names a role editor renders.
+export { ALL_PERMISSIONS, PERMISSION_LABELS } from "./types/api";
+export type { CallerPermissions, PermissionName } from "./types/api";
 
 // Brand knowledge graph (AD-021) — concepts, graph, markets, change-sets
 export {
