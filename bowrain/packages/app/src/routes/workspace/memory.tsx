@@ -10,7 +10,7 @@ export function MemoryRoute() {
 
   useEffect(() => {
     if (activeWorkspace) {
-      document.title = `Content memory — ${activeWorkspace.name} — Bowrain`;
+      document.title = `Content memory · ${activeWorkspace.name} · Bowrain`;
     }
   }, [activeWorkspace]);
 

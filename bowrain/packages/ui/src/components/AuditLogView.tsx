@@ -443,7 +443,7 @@ export function AuditLogView({
                         {entry.actor && (
                           <span className="text-sm font-medium text-primary">{entry.actor}</span>
                         )}
-                        {entry.actor && <span className="text-muted-foreground/40">—</span>}
+                        {entry.actor && <span className="text-muted-foreground/40">·</span>}
                         <Badge variant="secondary" className="text-[11px] font-mono px-1.5 py-0">
                           {entry.event_type}
                         </Badge>
@@ -516,10 +516,10 @@ export function AuditLogView({
                                   {key}
                                 </td>
                                 <td className="px-3 py-1.5 font-mono break-all text-destructive/80">
-                                  {before[key] ?? "—"}
+                                  {before[key] ?? "·"}
                                 </td>
                                 <td className="px-3 py-1.5 font-mono break-all text-emerald-600 dark:text-emerald-400">
-                                  {after[key] ?? "—"}
+                                  {after[key] ?? "·"}
                                 </td>
                               </tr>
                             ))}

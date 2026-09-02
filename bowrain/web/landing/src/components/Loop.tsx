@@ -11,7 +11,7 @@ const STEPS = [
     icon: SearchCheck,
     title: t("Discover"),
     body: t(
-      "Point it at what you already publish — the repository, the site, whatever style guide exists. It proposes the profiles, the coordinates they sit at and the starting vocabulary, and you correct a first draft instead of authoring one.",
+      "Point it at what you already publish: the repository, the site, whatever style guide exists. It proposes the profiles, the coordinates they sit at and the starting vocabulary, and you correct a first draft instead of authoring one.",
     ),
   },
   {
@@ -25,7 +25,7 @@ const STEPS = [
     icon: GitCompareArrows,
     title: t("Decide"),
     body: t(
-      "Recurring corrections surface as candidate rules. A proposal shows its reach over existing content before anyone approves it, and can be trialled on one stream of real content before it merges — so a rule change is a measured experiment rather than a leap.",
+      "Recurring corrections surface as candidate rules. A proposal shows its reach over existing content before anyone approves it, and can be trialled on one stream of real content before it merges, so a rule change is a measured experiment rather than a leap.",
     ),
   },
   {

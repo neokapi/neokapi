@@ -6,7 +6,7 @@ export function SettingsTokensRoute() {
 
   useEffect(() => {
     if (activeWorkspace) {
-      document.title = `API Tokens — ${activeWorkspace.name} — Bowrain`;
+      document.title = `API Tokens · ${activeWorkspace.name} · Bowrain`;
     }
   }, [activeWorkspace]);
 

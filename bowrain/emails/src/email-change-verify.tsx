@@ -60,7 +60,7 @@ export const EmailChangeVerifyEmail = ({
           </Heading>
 
           <Text style={paragraph}>
-            Someone — hopefully you — asked to change a Bowrain account&apos;s email to{" "}
+            Someone, hopefully you, asked to change a Bowrain account&apos;s email to{" "}
             <strong>{newEmail}</strong>. Click the button below to confirm and finish the switch.
           </Text>
 
@@ -88,7 +88,7 @@ export const EmailChangeVerifyEmail = ({
         <Section style={footer}>
           <Text style={footerText}>© Bowrain. All rights reserved.</Text>
           <Text style={footerText}>
-            If you didn&apos;t request this change, you can safely ignore this email — your account
+            If you didn&apos;t request this change, you can safely ignore this email. Your account
             stays as-is.
           </Text>
         </Section>

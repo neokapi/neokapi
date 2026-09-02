@@ -210,7 +210,7 @@ function DevPseudoControls() {
               </span>
             </div>
             <p className="mt-1 text-[10px] text-muted-foreground">
-              Applies pseudo to every translatable string on the fly — works without a loaded
+              Applies pseudo to every translatable string on the fly, and works without a loaded
               catalog. Useful for checking layout expansion and spotting strings that bypass
               translation.
             </p>
@@ -237,7 +237,7 @@ function DevPseudoControls() {
             >
               {ALPHABET_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
-                  {opt.label} — {opt.sample}
+                  {opt.label} · {opt.sample}
                 </option>
               ))}
             </select>

@@ -117,8 +117,8 @@ export function BlastRadiusPanel({
       <StatRow impact={impact} />
       {empty ? (
         <p className="rounded-lg border border-dashed bg-muted/20 px-4 py-6 text-center text-sm text-muted-foreground">
-          This draft touches none of the {impact.total_blocks.toLocaleString()} stored blocks — no
-          measurable impact on published content.
+          This draft touches none of the {impact.total_blocks.toLocaleString()} stored blocks, so
+          there is no measurable impact on published content.
         </p>
       ) : (
         <BreakdownChart impact={impact} partial={impact.partial} />
@@ -147,7 +147,7 @@ function PartialNotice({ reason }: { reason?: string }) {
       <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" />
       <p className="text-muted-foreground">
         <span className="font-medium text-foreground">Partial measurement.</span> The scan did not
-        cover the whole workspace, so anything it did not reach counts as nothing here — including
+        cover the whole workspace, so anything it did not reach counts as nothing here, including
         projects missing from the breakdown below.
         {reason ? ` (${reason})` : null}
       </p>

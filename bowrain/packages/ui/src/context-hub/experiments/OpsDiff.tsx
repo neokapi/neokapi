@@ -107,7 +107,7 @@ function DiffRow({
         <Badge
           variant="outline"
           className="hidden shrink-0 gap-1 border-primary/40 text-[10px] text-primary sm:inline-flex"
-          title="Governed — needs a second approval to merge"
+          title="Governed: needs a second approval to merge"
         >
           <GitMerge className="size-3" />
           governed

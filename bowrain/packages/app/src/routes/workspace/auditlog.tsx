@@ -18,7 +18,7 @@ export function AuditLogRoute() {
 
   useEffect(() => {
     if (activeWorkspace) {
-      document.title = `Audit Log — ${activeWorkspace.name} — Bowrain`;
+      document.title = `Audit Log · ${activeWorkspace.name} · Bowrain`;
     }
   }, [activeWorkspace]);
 

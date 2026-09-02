@@ -18,7 +18,7 @@ export function ContextVoiceProfilesRoute() {
 
   useEffect(() => {
     if (activeWorkspace) {
-      document.title = `Voice — Context — ${activeWorkspace.name} — Bowrain`;
+      document.title = `Voice · Context · ${activeWorkspace.name} · Bowrain`;
     }
   }, [activeWorkspace]);
 

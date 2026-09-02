@@ -113,7 +113,7 @@ function ConflictView({ conflicts }: { conflicts: OpConflict[] }) {
       </div>
       <p className="text-xs text-muted-foreground">
         These operations were authored against concept revisions that have since changed. Re-base
-        them — reopen the op, re-validate against the current concept, and resubmit — then merge
+        them (reopen the op, re-validate against the current concept, and resubmit), then merge
         again.
       </p>
       <ul className="space-y-1.5">

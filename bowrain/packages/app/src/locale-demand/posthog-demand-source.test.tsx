@@ -289,7 +289,7 @@ describe("LocaleDemandPage source selection", () => {
       <LocaleDemandPage api={api} workspaceSlug="acme" projectId="p1" projectLocales={["en"]} />,
     );
     const notice = await screen.findByTestId("sample-data-notice");
-    expect(notice).toHaveTextContent("Sample data — connect PostHog to see your own");
+    expect(notice).toHaveTextContent("Sample data: connect PostHog to see your own");
     expect(within(notice).getByTestId("posthog-connect-open")).toHaveTextContent("Connect PostHog");
     expect(screen.getByTestId("page-demand-provenance")).toHaveTextContent(
       /sample dataset \(web beacon \+ app telemetry ingest\)/i,

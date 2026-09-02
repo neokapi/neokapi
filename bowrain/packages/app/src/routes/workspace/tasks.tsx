@@ -21,7 +21,7 @@ export function TasksRoute() {
 
   useEffect(() => {
     if (activeWorkspace) {
-      document.title = `Tasks — ${activeWorkspace.name} — Bowrain`;
+      document.title = `Tasks · ${activeWorkspace.name} · Bowrain`;
     }
   }, [activeWorkspace]);
 

@@ -261,7 +261,7 @@ export function ContextScanInput({ onStarted, initialRequest }: ContextScanInput
           <Upload className="w-4 h-4 text-muted-foreground" />
           <h2 className="text-sm font-semibold">Files</h2>
           <span className="text-xs text-muted-foreground">
-            brand guides, docs, marketing copy — up to {MAX_SCAN_FILES} files, 10 MB each
+            brand guides, docs, marketing copy; up to {MAX_SCAN_FILES} files, 10 MB each
           </span>
         </div>
         <div
@@ -331,7 +331,7 @@ export function ContextScanInput({ onStarted, initialRequest }: ContextScanInput
             <ul className="text-xs text-muted-foreground space-y-0.5">
               {skipped.map((s) => (
                 <li key={s.name}>
-                  <span className="font-medium text-foreground/80">{s.name}</span> — {s.reason}
+                  <span className="font-medium text-foreground/80">{s.name}</span>: {s.reason}
                 </li>
               ))}
             </ul>

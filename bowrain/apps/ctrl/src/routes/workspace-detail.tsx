@@ -234,7 +234,7 @@ export function WorkspaceDetailRoute() {
             <div className="rounded-lg border p-4 space-y-2">
               <h3 className="text-sm font-medium">Billing Period</h3>
               <p className="text-sm text-muted-foreground">
-                {new Date(workspace.current_period_start).toLocaleDateString()} &mdash;{" "}
+                {new Date(workspace.current_period_start).toLocaleDateString()} to{" "}
                 {new Date(workspace.current_period_end).toLocaleDateString()}
               </p>
               {workspace.cancel_at && (

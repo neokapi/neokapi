@@ -66,7 +66,7 @@ const SCOPE_ACTIONS: { value: ScopeAction; label: string; description: string }[
     value: "contribute",
     label: "Contribute",
     description:
-      "Push, pull, translate, and propose terminology — cannot review or approve. Made for CI",
+      "Push, pull, translate, and propose terminology, but never review or approve. Made for CI",
   },
   { value: "review", label: "Review", description: "View, translate, and review" },
   { value: "manage", label: "Manage", description: "All except project & member management" },
@@ -462,13 +462,13 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
                   {agentName.trim() ? (
                     <>
                       Change-sets pushed with this token will be authored by{" "}
-                      <span className="font-mono">agent/{agentName.trim()}</span> — so you can
-                      review them.
+                      <span className="font-mono">agent/{agentName.trim()}</span>, so you can review
+                      them.
                     </>
                   ) : (
                     <>
                       Name the runner or agent that will hold this token, and its work is authored
-                      by the machine instead of by you — which leaves you free to review it. Leave
+                      by the machine instead of by you, which leaves you free to review it. Leave
                       empty for a personal token.
                     </>
                   )}
@@ -532,7 +532,7 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
                       data-testid="scope-full-radio"
                     />
                     <span className="text-sm">Full access</span>
-                    <span className="text-xs text-muted-foreground">— unrestricted API access</span>
+                    <span className="text-xs text-muted-foreground">unrestricted API access</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
@@ -544,9 +544,7 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
                       data-testid="scope-custom-radio"
                     />
                     <span className="text-sm">Restricted</span>
-                    <span className="text-xs text-muted-foreground">
-                      — limit to specific actions
-                    </span>
+                    <span className="text-xs text-muted-foreground">limit to specific actions</span>
                   </label>
                 </div>
               </div>
@@ -567,7 +565,7 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
                             data-testid={`scope-action-${a.value}`}
                           />
                           <span className="text-sm font-medium">{a.label}</span>
-                          <span className="text-xs text-muted-foreground">— {a.description}</span>
+                          <span className="text-xs text-muted-foreground">{a.description}</span>
                         </label>
                       ))}
                     </div>

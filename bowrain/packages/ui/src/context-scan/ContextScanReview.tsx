@@ -357,7 +357,7 @@ function ContextScanReviewEditor({
               <h2 className="text-sm font-semibold">Candidate terms</h2>
               <p className="text-xs text-muted-foreground mt-1">
                 Terms the scan found in your material. Checked terms are created as concepts when
-                you approve — {selectedTerms.size} of {proposedTerms.length} selected.
+                you approve: {selectedTerms.size} of {proposedTerms.length} selected.
               </p>
             </div>
             <ul className="divide-y divide-border/50">

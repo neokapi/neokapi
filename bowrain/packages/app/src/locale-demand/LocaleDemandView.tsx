@@ -140,8 +140,8 @@ export function LocaleDemandView({
               <CardHeader>
                 <CardTitle>Demand by market</CardTitle>
                 <CardDescription>
-                  Share of {snapshot.totalSessions.toLocaleString("en-US")} sessions by country —
-                  click a market to drill down.
+                  Share of {snapshot.totalSessions.toLocaleString("en-US")} sessions by country.
+                  Click a market to drill down.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -163,7 +163,7 @@ export function LocaleDemandView({
               <CardHeader>
                 <CardTitle>Demand vs coverage</CardTitle>
                 <CardDescription>
-                  Demanded languages against the project's current locales — click a row to drill
+                  Demanded languages against the project's current locales. Click a row to drill
                   down.
                 </CardDescription>
                 {isSample && (

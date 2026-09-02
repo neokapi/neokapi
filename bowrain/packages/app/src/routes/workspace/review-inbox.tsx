@@ -21,7 +21,7 @@ export function ReviewInboxRoute() {
   const wsParam = workspace ?? ws;
 
   useEffect(() => {
-    document.title = `Review inbox — ${activeWorkspace.name} — Bowrain`;
+    document.title = `Review inbox · ${activeWorkspace.name} · Bowrain`;
   }, [activeWorkspace.name]);
 
   const { data: rollup, isLoading } = useQuery({

@@ -10,7 +10,7 @@ export function ExperimentDetailRoute() {
 
   useEffect(() => {
     if (activeWorkspace) {
-      document.title = `Change — Context — ${activeWorkspace.name} — Bowrain`;
+      document.title = `Change · Context · ${activeWorkspace.name} · Bowrain`;
     }
   }, [activeWorkspace]);
 

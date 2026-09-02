@@ -208,7 +208,7 @@ export function ConceptList({
           // Honest cut: the server pages this list, so say so instead of
           // letting the count silently disagree with the rows shown.
           <p className="text-xs text-muted-foreground">
-            Showing first {concepts.length} of {result.data.total} concepts — refine the search or
+            Showing first {concepts.length} of {result.data.total} concepts. Refine the search or
             filters to narrow the list.
           </p>
         ) : (

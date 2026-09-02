@@ -116,8 +116,8 @@ function GovernedEditDialog({
           </DialogTitle>
           <DialogDescription>
             {error?.detail
-              ? `Changing ${error.detail} is governed — it must travel through a reviewed change-set before it reaches the live graph.`
-              : "This change is governed — it must travel through a reviewed change-set before it reaches the live graph."}
+              ? `Changing ${error.detail} is governed: it must travel through a reviewed change-set before it reaches the live graph.`
+              : "This change is governed: it must travel through a reviewed change-set before it reaches the live graph."}
           </DialogDescription>
         </DialogHeader>
         <p className="text-sm text-muted-foreground">

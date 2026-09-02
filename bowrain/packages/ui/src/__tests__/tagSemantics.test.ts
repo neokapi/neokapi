@@ -122,17 +122,17 @@ describe("semanticLabel", () => {
 describe("semanticTooltip", () => {
   it("generates tooltip for bold opening", () => {
     const tooltip = semanticTooltip(span("opening", "fmt:bold", "<b>"));
-    expect(tooltip).toBe("Bold open — <b>");
+    expect(tooltip).toBe("Bold open: <b>");
   });
 
   it("generates tooltip for italic closing", () => {
     const tooltip = semanticTooltip(span("closing", "fmt:italic", "</i>"));
-    expect(tooltip).toBe("Italic close — </i>");
+    expect(tooltip).toBe("Italic close: </i>");
   });
 
   it("generates tooltip for break placeholder", () => {
     const tooltip = semanticTooltip(span("placeholder", "struct:break", "<br/>"));
-    expect(tooltip).toBe("Line Break placeholder — <br/>");
+    expect(tooltip).toBe("Line Break placeholder: <br/>");
   });
 });
 

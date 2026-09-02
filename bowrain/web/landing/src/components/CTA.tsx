@@ -21,11 +21,11 @@ export function CTA() {
 
       <div ref={ref} className="reveal relative z-10 mx-auto max-w-3xl text-center">
         <h2 className="font-display text-3xl font-semibold tracking-tight sm:text-4xl">
-          Every project, every person, every agent — plugged into{" "}
+          Every project, every person, every agent, plugged into{" "}
           <span className="prism-text">one context graph</span>.
         </h2>
         <p className="mt-4 text-muted-foreground">
-          Start with one project and the content you already publish. The free plan needs no card —
+          Start with one project and the content you already publish. The free plan needs no card,
           and the loop starts learning from your first correction.
         </p>
 

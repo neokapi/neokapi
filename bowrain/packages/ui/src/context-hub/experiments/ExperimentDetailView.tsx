@@ -106,7 +106,7 @@ export function ExperimentDetailView({
               className="h-6 gap-1 px-2 text-[11px]"
               onClick={() => onOpenChangeset?.(cs.superseded_by ?? "")}
             >
-              Superseded by a newer proposal — open it
+              Superseded by a newer proposal. Open it
             </Button>
           )}
           <span>by {nameOf(cs.created_by)}</span>
@@ -199,7 +199,7 @@ function lifecycleHint(cs: ChangeSetDetail): string {
     case "in_review":
       return "Awaiting approval from someone other than the author.";
     case "approved":
-      return "Approved — merge to apply these changes to the live graph.";
+      return "Approved. Merge to apply these changes to the live graph.";
     case "merged":
       return cs.merged_at ? `Merged ${formatRelative(cs.merged_at)}.` : "Merged.";
     case "abandoned":

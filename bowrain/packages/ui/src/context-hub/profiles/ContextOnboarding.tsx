@@ -38,8 +38,8 @@ export function ContextOnboarding({
                 <h3 className="text-base font-semibold">Scan your brand instead</h3>
               </div>
               <p className="max-w-xl text-sm leading-relaxed text-muted-foreground">
-                Paste text, add links, or drop your marketing files — the scan drafts a voice
-                profile and candidate terms for your review. No assistant required.
+                Paste text, add links, or drop your marketing files. The scan drafts a voice profile
+                and candidate terms for your review. No assistant required.
               </p>
             </div>
             <Button

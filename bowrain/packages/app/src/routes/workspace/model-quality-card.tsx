@@ -50,8 +50,8 @@ export function ModelQualityCard({ ws, projectId }: { ws: string; projectId: str
       <CardHeader>
         <CardTitle>Model quality</CardTitle>
         <CardDescription>
-          How much each candidate model actually follows this project's brand context — voice,
-          terminology, and protected terms — measured on segments from your own content. Lift is the
+          How much each candidate model actually follows this project's brand context (voice,
+          terminology, and protected terms), measured on segments from your own content. Lift is the
           gain over running the same model with no context.
         </CardDescription>
       </CardHeader>
@@ -96,8 +96,8 @@ export function ModelQualityCard({ ws, projectId }: { ws: string; projectId: str
               (enabled
                 ? "Sweeps run on the platform provider and never use your credits."
                 : "Model sweeps are disabled on this instance.")}
-            {refreshState === "queued" && " Sweep queued — results appear once it completes."}
-            {refreshState === "failed" && " Refresh failed — try again."}
+            {refreshState === "queued" && " Sweep queued. Results appear once it completes."}
+            {refreshState === "failed" && " Refresh failed. Try again."}
           </p>
           <Button
             size="sm"

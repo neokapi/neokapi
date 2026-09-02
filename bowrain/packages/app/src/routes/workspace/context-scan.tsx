@@ -31,7 +31,7 @@ export function ContextScanRoute() {
 
   useEffect(() => {
     if (activeWorkspace) {
-      document.title = `Scan your brand — ${activeWorkspace.name} — Bowrain`;
+      document.title = `Scan your brand · ${activeWorkspace.name} · Bowrain`;
     }
   }, [activeWorkspace]);
 
@@ -76,7 +76,7 @@ export function ContextScanRoute() {
       <div>
         <h1 className="text-lg font-semibold">Scan your brand</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Give the scan anything that carries your voice — pasted text, web pages, marketing files,
+          Give the scan anything that carries your voice: pasted text, web pages, marketing files,
           or a repository. It drafts a voice profile and candidate terms, with the evidence behind
           each field; nothing is saved until you review and approve.
         </p>

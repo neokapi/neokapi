@@ -108,7 +108,7 @@ function FlatTarget({
             {candidates.map((c) => (
               <option key={c.name} value={c.name}>
                 {c.label}
-                {c.sourcePivot ? t(" — source pivot") : ""}
+                {c.sourcePivot ? t(" (source pivot)") : ""}
               </option>
             ))}
           </select>

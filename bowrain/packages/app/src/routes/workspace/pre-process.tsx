@@ -31,7 +31,7 @@ export function PreProcessRoute() {
   const surfaceTabs = useEditorSurfaceNav("pre-process");
 
   useEffect(() => {
-    document.title = `Pre-process · ${fileName} — ${project.name} — Bowrain`;
+    document.title = `Pre-process · ${fileName} · ${project.name} · Bowrain`;
   }, [fileName, project.name]);
 
   return (

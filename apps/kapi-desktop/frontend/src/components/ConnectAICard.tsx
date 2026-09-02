@@ -129,7 +129,7 @@ export function ConnectAICard({ detection: propDetection, onConfigured }: Connec
       </div>
       <p className="mb-4 text-xs text-muted-foreground">
         {t(
-          "Translation and checks run through an AI model of your choice. Pick one to get started — you can change it any time in Settings.",
+          "Translation and checks run through an AI model of your choice. Pick one to get started. You can change it any time in Settings.",
         )}
       </p>
 
@@ -223,7 +223,7 @@ export function ConnectAICard({ detection: propDetection, onConfigured }: Connec
           disabled={busy !== null}
           className="block text-xs text-muted-foreground/70 hover:text-muted-foreground hover:underline"
         >
-          {t("Skip — use the demo engine (illustrative output, no AI)")}
+          {t("Skip: use the demo engine (illustrative output, no AI)")}
         </button>
       </div>
     </section>

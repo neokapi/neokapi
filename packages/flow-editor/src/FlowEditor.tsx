@@ -1303,7 +1303,7 @@ export function FlowEditor({
           )}
         >
           <SimpleTooltip
-            content={panelCollapsed ? t("Show panel") : t("Hide panel — give the flow full width")}
+            content={panelCollapsed ? t("Show panel") : t("Hide panel to give the flow full width")}
           >
             <button
               type="button"

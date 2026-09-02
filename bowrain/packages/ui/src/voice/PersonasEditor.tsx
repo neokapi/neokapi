@@ -32,7 +32,7 @@ const termLabels: Record<TermField, string> = {
 
 const termDescriptions: Record<TermField, string> = {
   preferred_terms:
-    "Words this author leans on (added on top of the brand's — a brand-forbidden term is never re-allowed)",
+    "Words this author leans on (added on top of the brand's; a brand-forbidden term is never re-allowed)",
   avoided_terms:
     "Words this author personally steers clear of (added to the brand's forbidden set)",
 };
@@ -77,7 +77,7 @@ export function PersonasEditor({ personas, onChange, seedTone, seedStyle }: Pers
         <Label>Personas</Label>
         <p className="text-xs text-muted-foreground mt-0.5">
           Give individual authors a personal voice inside the brand's guardrails. Select a persona
-          when checking or rewriting to apply it — attribution is explicit, never automatic.
+          when checking or rewriting to apply it. Attribution is explicit, never automatic.
         </p>
       </div>
 

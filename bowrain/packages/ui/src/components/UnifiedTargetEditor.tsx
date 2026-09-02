@@ -316,7 +316,7 @@ function ModeHeader({
           {candidates.map((c) => (
             <SelectItem key={c.name} value={c.name}>
               {c.label}
-              {c.sourcePivot ? " — source pivot" : ""}
+              {c.sourcePivot ? " (source pivot)" : ""}
             </SelectItem>
           ))}
         </SelectContent>

@@ -45,7 +45,7 @@ export function PortChip({
   const verbText = verb === "consumes" ? t("Consumes") : t("Produces");
   const optText = optional ? t(" (optional)") : "";
   return (
-    <SimpleTooltip content={`${verbText}: ${pt.label}${sideText}${optText} — ${pt.description}`}>
+    <SimpleTooltip content={`${verbText}: ${pt.label}${sideText}${optText} · ${pt.description}`}>
       <span
         className={cn(
           "inline-flex items-center gap-0.5 rounded px-1 py-px text-[8px] font-medium leading-none",

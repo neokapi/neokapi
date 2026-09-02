@@ -63,8 +63,8 @@ export function Hero() {
 
         <p className="animate-fade-in-up-delay-2 mx-auto mt-6 max-w-xl text-lg text-muted-foreground md:text-xl">
           Human communication is contextual. Bowrain is the graph your people and your AI agents
-          plug into — a legal notice is not a help article, so the rules that fix voice and tone
-          move with the audience, the surface and the moment. Recorded once, applied everywhere,
+          plug into. A legal notice is not a help article, so the rules that fix voice and tone move
+          with the audience, the surface and the moment. Recorded once, applied everywhere,
           connected to the systems your content already lives in.
         </p>
 
@@ -86,7 +86,7 @@ export function Hero() {
 
         {/* kapi is the open foundation, deliberately a footnote to the outcome above. */}
         <p className="mt-6 text-sm text-muted-foreground/80">
-          Open core — built on the Apache-2.0 {kapiLink} toolchain. {githubLink}
+          Open core, built on the Apache-2.0 {kapiLink} toolchain. {githubLink}
         </p>
       </div>
     </section>

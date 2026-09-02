@@ -246,7 +246,7 @@ const CAP_TITLE: Record<SpanCap, string> = {
   open: "current",
   bounded: "valid until",
   expired: "expired",
-  banned: "banned — do not use after",
+  banned: "banned: do not use after",
 };
 
 /**

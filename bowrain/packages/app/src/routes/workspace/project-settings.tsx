@@ -32,7 +32,7 @@ export function ProjectSettingsRoute() {
   const { data: voiceProfiles } = useQuery(voiceProfilesQueryOptions(adapter, ws));
 
   useEffect(() => {
-    document.title = `Settings — ${project.name} — ${activeWorkspace.name} — Bowrain`;
+    document.title = `Settings · ${project.name} · ${activeWorkspace.name} · Bowrain`;
   }, [project.name, activeWorkspace.name]);
 
   const invalidateProject = useCallback(() => {

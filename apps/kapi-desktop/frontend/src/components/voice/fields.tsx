@@ -40,7 +40,7 @@ export function Field({
   );
 }
 
-const NONE = "—none—";
+const NONE = "__none__";
 
 /**
  * A value from a constrained set.

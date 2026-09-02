@@ -1,4 +1,4 @@
-// PendingConceptChanges — the Concepts page's summons.
+// PendingConceptChanges: the Concepts page's summons.
 //
 // A governed change to the workspace terms travels through a change-set, and
 // until it merges the Concepts list shows nothing of it: the concepts are
@@ -8,7 +8,7 @@
 //
 // This is the indication. It sits above the list, names what is waiting, who
 // proposed it and how long ago, and goes one click to the change-set. It shows
-// only what is genuinely pending review — a draft is its author's business.
+// only what is genuinely pending review, because a draft is its author's business.
 import { Button, Card, Skeleton } from "@neokapi/ui-primitives";
 import { One, Other, Plural } from "@neokapi/i18n-react/runtime";
 import { Shield, ArrowRight } from "../../components/icons";
@@ -82,7 +82,7 @@ export function PendingConceptChanges({ onOpenChangeSet }: PendingConceptChanges
 function PendingRow({ changeset, onOpen }: { changeset: ChangeSet; onOpen?: () => void }) {
   const { nameOf } = useUserDisplayNames();
   // The list route counts each change-set's ops, so the count that makes this
-  // concrete — "57 changes" rather than "a change" — costs no extra request.
+  // concrete ("57 changes" rather than "a change") costs no extra request.
   const count = changeset.ops_count;
 
   return (

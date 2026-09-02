@@ -249,7 +249,7 @@ describe("ConvergePlanDialog subscription wording", () => {
       />,
     );
     expect(
-      screen.getByText("AI work runs on your Claude subscription — no per-token API cost."),
+      screen.getByText("AI work runs on your Claude subscription, with no per-token API cost."),
     ).toBeInTheDocument();
   });
 

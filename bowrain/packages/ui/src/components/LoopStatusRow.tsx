@@ -279,7 +279,7 @@ export function LoopStatusRow({
       >
         {typeof openReviewTasks !== "number" ? (
           <p className="text-sm text-muted-foreground" translate="no">
-            —
+            ·
           </p>
         ) : openReviewTasks > 0 ? (
           <div className="flex items-baseline gap-2">

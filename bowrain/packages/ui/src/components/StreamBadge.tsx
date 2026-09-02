@@ -36,7 +36,7 @@ export function StreamBadge({ stream, compact }: StreamBadgeProps) {
     return (
       <span
         className="inline-flex items-center gap-1 text-xs text-muted-foreground"
-        title={`${stream.name} (${stream.visibility})${stream.locked ? " — locked" : ""}`}
+        title={`${stream.name} (${stream.visibility})${stream.locked ? " (locked)" : ""}`}
       >
         <span
           className={`inline-block h-1.5 w-1.5 rounded-full ${visibilityColor[stream.visibility]}`}

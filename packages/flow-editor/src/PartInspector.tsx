@@ -72,7 +72,7 @@ export function PartInspector({ nodeId, nodeName, parts }: PartInspectorProps) {
       <PanelHeader className="py-2.5 flex-col items-start gap-0.5">
         <div className="text-[11px] font-semibold text-foreground">Part Inspector</div>
         <div className="text-[10px] text-muted-foreground">
-          {nodeName} &mdash; {relevantParts.length} block{relevantParts.length !== 1 ? "s" : ""}
+          {nodeName} &middot; {relevantParts.length} block{relevantParts.length !== 1 ? "s" : ""}
         </div>
       </PanelHeader>
 

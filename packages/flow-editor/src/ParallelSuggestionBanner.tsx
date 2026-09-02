@@ -36,7 +36,7 @@ export function ParallelSuggestionBanner({
       <Zap size={13} className="text-accent-foreground shrink-0" />
       <span className="text-muted-foreground flex-1">
         <strong className="text-foreground">{suggestion.toolNames.join(", ")}</strong> can run in
-        parallel &mdash; {suggestion.reason}
+        parallel: {suggestion.reason}
       </span>
     </PanelHeader>
   );

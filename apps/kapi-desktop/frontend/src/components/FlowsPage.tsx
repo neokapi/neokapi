@@ -577,7 +577,7 @@ export function FlowsPage({
           <DialogHeader>
             <DialogTitle>Import Flow</DialogTitle>
             <DialogDescription>
-              Copy a built-in or user flow into this project. The flow will be independent — changes
+              Copy a built-in or user flow into this project. The flow will be independent. Changes
               won't affect the original.
             </DialogDescription>
           </DialogHeader>

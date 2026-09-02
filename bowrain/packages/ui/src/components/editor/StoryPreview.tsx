@@ -131,7 +131,7 @@ export function StoryPreview({
     return (
       <Empty>
         No story renders this item&rsquo;s components, so there is nothing to read it in. A story
-        beside the component — <Mono>Component.stories.tsx</Mono> — is what this looks for.
+        beside the component, named <Mono>Component.stories.tsx</Mono>, is what this looks for.
       </Empty>
     );
   }
@@ -173,7 +173,7 @@ export function StoryPreview({
         // and that separation is gone — which is a reason to publish it
         // somewhere else, not to break the frame.)
         sandbox="allow-scripts allow-same-origin"
-        title={`${storyLabel(story)} — in context`}
+        title={`${storyLabel(story)} · in context`}
         data-testid="story-frame"
       />
     </div>

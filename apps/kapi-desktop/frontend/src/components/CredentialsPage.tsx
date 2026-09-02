@@ -255,7 +255,7 @@ export function CredentialsPage({
     <div className="p-6">
       <PageHeader
         title="AI Models"
-        subtitle="Pick the default model for translation and checks — the provider follows from the model. API keys are stored in your OS keychain."
+        subtitle="Pick the default model for translation and checks. The provider follows from the model. API keys are stored in your OS keychain."
       />
 
       {/* What a run will actually use, resolved by the same shared precedence
@@ -474,7 +474,7 @@ export function CredentialsPage({
                 </div>
               </div>
               {editingIsLocal ? (
-                <Badge variant="secondary">{t("Runs on-device — no API key needed")}</Badge>
+                <Badge variant="secondary">{t("Runs on-device, no API key needed")}</Badge>
               ) : (
                 <div>
                   <Label htmlFor="cred-apikey" className="mb-1 block text-xs text-muted-foreground">

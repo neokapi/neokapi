@@ -112,13 +112,13 @@ export function InlineCodeLegend({ spans, onClose }: InlineCodeLegendProps) {
       <div className="px-3 py-2 bg-muted/20 border-t border-border/30">
         <div className="text-[9px] text-muted-foreground space-y-0.5">
           <div className="flex items-center gap-1">
-            <Lock className="w-2.5 h-2.5" /> Required — must be kept in the translation
+            <Lock className="w-2.5 h-2.5" /> Required: must be kept in the translation
           </div>
           <div className="flex items-center gap-1">
-            <Copy className="w-2.5 h-2.5" /> No duplicates — cannot be repeated
+            <Copy className="w-2.5 h-2.5" /> No duplicates: cannot be repeated
           </div>
           <div className="flex items-center gap-1">
-            <Shuffle className="w-2.5 h-2.5" /> Fixed position — order must be preserved
+            <Shuffle className="w-2.5 h-2.5" /> Fixed position: order must be preserved
           </div>
         </div>
       </div>
@@ -143,7 +143,7 @@ function LegendEntry({ span, label, constraints }: LegendEntryProps) {
       </span>
       <div className="flex items-center gap-1 shrink-0">
         {!constraints.deletable && (
-          <span title="Required — cannot be removed">
+          <span title="Required: cannot be removed">
             <Lock className={cn("w-2.5 h-2.5 text-destructive")} />
           </span>
         )}

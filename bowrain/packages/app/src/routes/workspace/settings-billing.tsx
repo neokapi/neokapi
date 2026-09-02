@@ -87,10 +87,10 @@ function IntendedPlanBanner({
 
   if (info?.current) {
     title = `You're on the ${name} plan`;
-    body = `You're already subscribed to ${name} — nothing more to do here.`;
+    body = `You're already subscribed to ${name}, so there is nothing more to do here.`;
   } else if (info?.purchasable) {
     if (isOwner) {
-      body = `You selected ${name} on bowrain.cloud. One step left — continue to checkout to activate it for this workspace.`;
+      body = `You selected ${name} on bowrain.cloud. One step left: continue to checkout to activate it for this workspace.`;
       action = (
         <Button size="sm" onClick={() => onUpgrade(plan, seats)}>
           Complete your {name} upgrade
@@ -153,7 +153,7 @@ export function SettingsBillingRoute() {
 
   useEffect(() => {
     if (activeWorkspace) {
-      document.title = `Billing — ${activeWorkspace.name} — Bowrain`;
+      document.title = `Billing · ${activeWorkspace.name} · Bowrain`;
     }
   }, [activeWorkspace]);
 
@@ -342,8 +342,8 @@ export function SettingsBillingRoute() {
           </div>
           {subscription.status === "trialing" && subscription.trialEndsAt && (
             <p className="text-sm text-muted-foreground">
-              Your Pro trial ends on {formatDate(subscription.trialEndsAt)}. No card is needed —
-              after that the workspace moves to the Free plan unless you subscribe.
+              Your Pro trial ends on {formatDate(subscription.trialEndsAt)}. No card is needed.
+              After that the workspace moves to the Free plan unless you subscribe.
             </p>
           )}
           {subscription.cancelAt && (
@@ -382,7 +382,7 @@ export function SettingsBillingRoute() {
             <CardDescription>
               {hasPlanAllowance
                 ? "Plan credits reset on the 1st of each month at 00:00 UTC"
-                : "Your workspace draws on its one-time trial credits — upgrade for a monthly allowance"}
+                : "Your workspace draws on its one-time trial credits. Upgrade for a monthly allowance"}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">

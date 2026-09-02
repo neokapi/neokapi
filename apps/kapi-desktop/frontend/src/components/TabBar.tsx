@@ -122,7 +122,7 @@ export function TabBar({ tabs, activeTabID, onSelect, onClose, onRename }: TabBa
                 aria-label="Rename project"
               />
             ) : (
-              <SimpleTooltip content={tab.path ? `${tab.name} — ${tab.path}` : tab.name}>
+              <SimpleTooltip content={tab.path ? `${tab.name} · ${tab.path}` : tab.name}>
                 <span onDoubleClick={() => startEditing(tab)} className="max-w-[140px] truncate">
                   {tab.name}
                 </span>

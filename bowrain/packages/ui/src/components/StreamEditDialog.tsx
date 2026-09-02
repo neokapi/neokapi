@@ -75,7 +75,7 @@ export function StreamEditDialog({
         onInteractOutside={(e: Event) => e.preventDefault()}
       >
         <DialogHeader>
-          <DialogTitle>Edit Stream — {stream?.name}</DialogTitle>
+          <DialogTitle>Edit Stream · {stream?.name}</DialogTitle>
         </DialogHeader>
 
         <div className="flex flex-col gap-4 py-2">

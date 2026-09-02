@@ -97,7 +97,7 @@ export function ContextScanProgress({ job, onRetry }: ContextScanProgressProps) 
       </ul>
 
       <p className="text-xs text-muted-foreground">
-        This usually takes under a minute. The draft opens for review when it is ready — the scan
+        This usually takes under a minute. The draft opens for review when it is ready. The scan
         never writes a profile on its own.
       </p>
     </Card>

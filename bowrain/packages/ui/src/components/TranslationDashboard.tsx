@@ -155,7 +155,7 @@ export function TranslationDashboard({
     return (
       <div data-testid="translation-dashboard" className={cn("space-y-6", className)}>
         <h1 className="text-lg font-semibold">
-          {projectName ? `${projectName} — Overview` : "Overview"}
+          {projectName ? `${projectName} · Overview` : "Overview"}
         </h1>
         <Card className="flex flex-col items-center gap-4 p-8 text-center">
           <p className="text-sm text-muted-foreground">
@@ -188,7 +188,7 @@ export function TranslationDashboard({
     <div data-testid="translation-dashboard" className={cn("space-y-6", className)}>
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold">
-          {projectName ? `${projectName} — Overview` : "Overview"}
+          {projectName ? `${projectName} · Overview` : "Overview"}
         </h1>
         <span className="text-sm text-muted-foreground">{overallPct}% complete</span>
       </div>

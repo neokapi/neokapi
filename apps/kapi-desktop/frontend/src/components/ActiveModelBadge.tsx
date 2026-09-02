@@ -23,7 +23,7 @@ const ORIGIN_LABEL: Record<AIModelOrigin, () => string> = {
   "locale-preset": () => t("from this language's recipe defaults"),
   "project-preset": () => t("from the project recipe"),
   "app-config": () => t("from your kapi default (kapi models default)"),
-  "built-in": () => t("built-in fallback — no model configured"),
+  "built-in": () => t("built-in fallback, no model configured"),
 };
 
 export interface ActiveModelBadgeProps {
@@ -60,12 +60,12 @@ export function ActiveModelBadge({
     <SimpleTooltip
       content={
         res.configured
-          ? t("{provider} · {model} — {origin}", {
+          ? t("{provider} · {model} · {origin}", {
               provider: res.provider,
               model: modelLabel,
               origin: origin(),
             })
-          : t("No model configured — runs fall back to {provider}. Set one in AI Models.", {
+          : t("No model configured. Runs fall back to {provider}. Set one in AI Models.", {
               provider: res.provider,
             })
       }

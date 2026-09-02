@@ -106,8 +106,8 @@ export function VoiceProfileList({
             </div>
             {onScanVoice && (
               <p className="text-xs text-muted-foreground">
-                Paste text, add links, or drop your marketing files — the scan drafts a voice
-                profile and candidate terms for your review.
+                Paste text, add links, or drop your marketing files. The scan drafts a voice profile
+                and candidate terms for your review.
               </p>
             )}
           </div>

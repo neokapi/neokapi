@@ -159,7 +159,7 @@ export function SettingsIndexRoute() {
 
   useEffect(() => {
     if (activeWorkspace) {
-      document.title = `Settings — ${activeWorkspace.name} — Bowrain`;
+      document.title = `Settings · ${activeWorkspace.name} · Bowrain`;
     }
   }, [activeWorkspace]);
 

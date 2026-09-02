@@ -21,7 +21,7 @@ const typeStyles: Record<ProjectType, { label: string; className: string; explan
     label: "Connected",
     className: "border-info/40 bg-info/15 text-info",
     explanation:
-      "Content is synced from a connector (kapi push, the GitHub App, or a git repository). The source is read-only here — edit it at source and it re-syncs. Review, governance, and configuration still apply.",
+      "Content is synced from a connector (kapi push, the GitHub App, or a git repository). The source is read-only here: edit it at source and it re-syncs. Review, governance, and configuration still apply.",
   },
   managed: {
     label: "Managed",

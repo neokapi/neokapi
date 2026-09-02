@@ -145,7 +145,7 @@ export function ParameterField({
             value={String(value ?? schema.default ?? "")}
             onChange={(e) => onChange(e.target.value)}
           >
-            <option value="">—</option>
+            <option value="">None</option>
             {schema.enum.map((v) => (
               <option key={String(v)} value={String(v)}>
                 {String(v)}

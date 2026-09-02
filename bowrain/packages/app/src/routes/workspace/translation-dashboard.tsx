@@ -201,7 +201,7 @@ export function TranslationDashboardRoute() {
   });
 
   useEffect(() => {
-    document.title = `Overview — ${project.name} — ${activeWorkspace.name} — Bowrain`;
+    document.title = `Overview · ${project.name} · ${activeWorkspace.name} · Bowrain`;
   }, [project.name, activeWorkspace.name]);
 
   const routeParams = {

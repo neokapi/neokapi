@@ -227,7 +227,7 @@ export function RunInspectorPanel({
           </div>
         </div>
         <div className="text-[10px] text-muted-foreground">
-          {stepLabel} — {transitions.length} block{transitions.length !== 1 ? "s" : ""}
+          {stepLabel} · {transitions.length} block{transitions.length !== 1 ? "s" : ""}
         </div>
       </PanelHeader>
 

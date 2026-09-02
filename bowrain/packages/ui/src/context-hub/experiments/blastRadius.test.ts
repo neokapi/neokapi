@@ -142,7 +142,7 @@ describe("formatting", () => {
   });
   it("estimates review effort from words", () => {
     expect(effortHours(500)).toBe(1);
-    expect(formatEffort(0)).toBe("—");
+    expect(formatEffort(0)).toBe("·");
     expect(formatEffort(210)).toBe("~25 min");
     expect(formatEffort(2000)).toBe("~4.0 h");
   });

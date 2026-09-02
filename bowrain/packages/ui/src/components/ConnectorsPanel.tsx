@@ -87,7 +87,7 @@ const CONNECTOR_TYPES: ConnectorType[] = [
     label: "GitHub",
     category: "Code",
     description:
-      "Deliver this project's translations to a GitHub repository as one pull request the loop keeps up to date. Uses the server's GitHub App — install it on the repository first; no tokens to paste.",
+      "Deliver this project's translations to a GitHub repository as one pull request the loop keeps up to date. Uses the server's GitHub App. Install it on the repository first; there are no tokens to paste.",
     docsSlug: "",
     icon: <GitPullRequest className="size-4" />,
     projectScoped: true,
@@ -590,10 +590,10 @@ function ContentBrowserSheet({
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
             <FileText className="size-4 shrink-0" />
-            <span className="truncate">Content — {connectorName}</span>
+            <span className="truncate">Content · {connectorName}</span>
           </SheetTitle>
           <SheetDescription>
-            Items this connector can see. Read-only — use “Fetch now” to pull them into the project.
+            Items this connector can see. Read-only: use “Fetch now” to pull them into the project.
           </SheetDescription>
         </SheetHeader>
 
@@ -715,8 +715,8 @@ function EmptyState({ onAdd, docsBaseUrl }: { onAdd: () => void; docsBaseUrl: st
       <h2 className="text-foreground text-base font-medium">No connectors yet</h2>
       <p className="text-muted-foreground max-w-md text-sm">
         Connect a CMS, design tool, or marketing platform to fetch its content into this project and
-        publish translations back. Fetching and publishing are manual — automations can react once
-        content is pushed.
+        publish translations back. Fetching and publishing are manual, and automations can react
+        once content is pushed.
       </p>
       <div className="mt-1 flex items-center gap-3">
         <Button onClick={onAdd} data-testid="add-connector-btn">

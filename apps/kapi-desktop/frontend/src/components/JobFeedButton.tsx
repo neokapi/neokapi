@@ -67,7 +67,7 @@ export function JobFeedButton({ onViewJob }: { onViewJob?: (job: Job) => void })
   };
 
   const jobTitle = (job: Job) => {
-    if (job.projectName) return `${job.projectName} — ${job.flowName}`;
+    if (job.projectName) return `${job.projectName} · ${job.flowName}`;
     return job.flowName;
   };
 

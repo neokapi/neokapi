@@ -103,7 +103,7 @@ export function Languages() {
           </h2>
           <p className="mt-3 text-muted-foreground">
             {t(
-              "Staying on profile in Norwegian is the same question as staying on profile in a help article. So the profiles you already have carry the language, the terms you already approved travel with it, and the same checks decide whether a locale is ready. Nothing above needed a second language to be worth having — and adding one widens the graph by an axis rather than starting a second process.",
+              "Staying on profile in Norwegian is the same question as staying on profile in a help article. So the profiles you already have carry the language, the terms you already approved travel with it, and the same checks decide whether a locale is ready. Nothing above needed a second language to be worth having, and adding one widens the graph by an axis rather than starting a second process.",
             )}
           </p>
         </div>
@@ -148,7 +148,7 @@ export function Languages() {
                   pending
                 </dt>
                 <dd className="mt-1 text-muted-foreground">
-                  {t("Anything less — partial coverage, a failing check, or nothing to ship yet.")}
+                  {t("Anything less: partial coverage, a failing check, or nothing to ship yet.")}
                 </dd>
               </div>
             </dl>
@@ -227,7 +227,7 @@ export function Languages() {
                         translate="no"
                         className="px-4 py-2.5 font-mono text-xs text-muted-foreground"
                       >
-                        {row.failingChecks === 0 ? "—" : `−${row.failingChecks}`}
+                        {row.failingChecks === 0 ? "·" : `−${row.failingChecks}`}
                       </td>
                       <td className="px-4 py-2.5">
                         <span
@@ -247,7 +247,7 @@ export function Languages() {
 
         <p className="mx-auto mt-10 max-w-2xl text-center text-muted-foreground">
           {t(
-            "Set the bar where the content sits: a legal notice waits for a person, a help article may not have to. The delivery view answers one question — what can go out today — and answers it the same way every time.",
+            "Set the bar where the content sits: a legal notice waits for a person, a help article may not have to. The delivery view answers one question (what can go out today) and answers it the same way every time.",
           )}
         </p>
       </div>

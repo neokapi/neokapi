@@ -71,8 +71,8 @@ export const WelcomeEmail = ({ workspaceName, workspaceURL }: WelcomeEmailProps)
           </Text>
 
           <Text style={paragraph}>
-            Bowrain is the context graph people and agents plug into: the coordinates — voice,
-            audience, surface, register, market, validity — that fix how a piece of content should
+            Bowrain is the context graph people and agents plug into: the coordinates (voice,
+            audience, surface, register, market, validity) that fix how a piece of content should
             read, held at workspace scope so every project draws on the same memory and adds to it.
           </Text>
 
@@ -87,9 +87,10 @@ export const WelcomeEmail = ({ workspaceName, workspaceURL }: WelcomeEmailProps)
           </Text>
 
           <Text style={paragraph}>
-            <strong>Create a project.</strong> A project is one body of content — a repository, a
-            site, a set of documents — bound to the coordinates that govern it. Create one from the
-            workspace home, or connect a checkout from the command line with kapi init.
+            <strong>Create a project.</strong> A project is one body of content, such as a
+            repository, a site or a set of documents, bound to the coordinates that govern it.
+            Create one from the workspace home, or connect a checkout from the command line with
+            kapi init.
           </Text>
 
           <Text style={paragraph}>

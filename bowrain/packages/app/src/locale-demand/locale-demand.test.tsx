@@ -168,7 +168,7 @@ describe("sample-data label", () => {
       const marks = screen.queryAllByTestId("sample-data-mark");
       if (labeled) {
         expect(notice).toBeVisible();
-        expect(notice).toHaveTextContent("Sample data — connect PostHog to see your own");
+        expect(notice).toHaveTextContent("Sample data: connect PostHog to see your own");
         expect(marks).toHaveLength(2);
       } else {
         expect(notice).not.toBeInTheDocument();

@@ -45,7 +45,7 @@ const categoryDescriptions: Record<string, string> = {
   formatting:
     "Visual text styles like bold, italic, and underline that should be preserved in translations.",
   linking:
-    "Hyperlinks and cross-references — the linked text is translated but the URL is preserved.",
+    "Hyperlinks and cross-references: the linked text is translated but the URL is preserved.",
   media: "Embedded images, videos, and other media that appear inline within text.",
   structure: "Structural elements like line breaks and footnotes that control document layout.",
   code: "Variables, placeholders, and function calls that must not be modified during translation.",

@@ -10,7 +10,7 @@ export function ContextDashboardRoute() {
 
   useEffect(() => {
     if (activeWorkspace) {
-      document.title = `Dashboard — Context — ${activeWorkspace.name} — Bowrain`;
+      document.title = `Dashboard · Context · ${activeWorkspace.name} · Bowrain`;
     }
   }, [activeWorkspace]);
 

@@ -71,7 +71,7 @@ export function AIModelPromptDialog({
           <DialogTitle>{t("Choose an AI model")}</DialogTitle>
           <DialogDescription>
             {t(
-              "This flow uses AI but no default model is set. Pick one to run with — the provider follows from the model. You can change it later in Settings → AI Models.",
+              "This flow uses AI but no default model is set. Pick one to run with. The provider follows from the model. You can change it later in Settings → AI Models.",
             )}
           </DialogDescription>
         </DialogHeader>

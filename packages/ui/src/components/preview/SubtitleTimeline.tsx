@@ -78,7 +78,7 @@ export default function SubtitleTimeline({
   if (cues.length === 0) {
     return (
       <p className={cn("py-3 text-sm text-muted-foreground", className)}>
-        No timed cues in this document — the subtitle timeline applies to time-based sources
+        No timed cues in this document. The subtitle timeline applies to time-based sources
         (subtitles, audio/video transcripts).
       </p>
     );

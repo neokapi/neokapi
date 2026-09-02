@@ -402,7 +402,7 @@ export function VenueBadge({ server }: { server: ProjectServer }) {
         </TooltipTrigger>
         <TooltipContent className="max-w-xs">
           {t(
-            "This project is connected to Bowrain — kapi up runs on the server. Bringing it up to date here runs the same engine locally.",
+            "This project is connected to Bowrain, so kapi up runs on the server. Bringing it up to date here runs the same engine locally.",
           )}
         </TooltipContent>
       </Tooltip>
@@ -459,7 +459,7 @@ export function ConvergePlanDialog({
         <DialogHeader>
           <DialogTitle>{t("Catch-up plan")}</DialogTitle>
           <DialogDescription>
-            {t("A dry run of the pending work — nothing is written and no provider is called.")}
+            {t("A dry run of the pending work. Nothing is written and no provider is called.")}
           </DialogDescription>
         </DialogHeader>
 
@@ -471,24 +471,24 @@ export function ConvergePlanDialog({
             <Cloud size={12} className="shrink-0" />
             {server.host
               ? t(
-                  "Connected to Bowrain ({host}) — kapi up runs on the server; bringing up to date here runs the same engine locally.",
+                  "Connected to Bowrain ({host}): kapi up runs on the server; bringing up to date here runs the same engine locally.",
                   { host: server.host },
                 )
               : t(
-                  "Connected to Bowrain — kapi up runs on the server; bringing up to date here runs the same engine locally.",
+                  "Connected to Bowrain: kapi up runs on the server; bringing up to date here runs the same engine locally.",
                 )}
           </p>
         )}
 
         {plan?.storeMissing && (
           <p className="text-xs text-muted-foreground">
-            {t("The project has not been extracted yet — the run extracts it first.")}
+            {t("The project has not been extracted yet. The run extracts it first.")}
           </p>
         )}
         {changed > 0 && (
           <p className="text-xs text-muted-foreground">
             {t(
-              "{count} source file(s) changed since the last extract — the run re-extracts them first.",
+              "{count} source file(s) changed since the last extract. The run re-extracts them first.",
               {
                 count: changed,
               },
@@ -563,7 +563,7 @@ export function ConvergePlanDialog({
 
         {subscription && (
           <p className="text-xs font-medium" data-slot="plan-subscription">
-            {t("AI work runs on your Claude subscription — no per-token API cost.")}
+            {t("AI work runs on your Claude subscription, with no per-token API cost.")}
           </p>
         )}
 

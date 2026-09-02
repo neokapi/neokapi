@@ -30,7 +30,7 @@ export function TranslateRoute() {
   const fileName = _splat ?? "";
 
   useEffect(() => {
-    document.title = `${fileName} — ${project.name} — Bowrain`;
+    document.title = `${fileName} · ${project.name} · Bowrain`;
   }, [fileName, project.name]);
 
   const surfaceTabs = useEditorSurfaceNav("translate");

@@ -141,7 +141,7 @@ export function ProfileDetailView({
             <Stat
               label="Workspace vocabulary"
               value={`${data?.terms.concept_count ?? 0} concepts`}
-              hint="Governed per workspace and scoped by market, not by coordinates — so every profile shares this base."
+              hint="Governed per workspace and scoped by market, not by coordinates, so every profile shares this base."
             />
             {profile.voice ? (
               <Stat
@@ -217,8 +217,8 @@ export function ProfileDetailView({
             </p>
           ) : (
             <p className="text-sm text-muted-foreground">
-              Nothing in review for this profile. A governed edit to its voice — banning a term,
-              changing a preferred one — arrives here as a change-set.
+              Nothing in review for this profile. A governed edit to its voice, such as banning a
+              term or changing a preferred one, arrives here as a change-set.
             </p>
           )}
         </Section>
@@ -364,7 +364,7 @@ function CollectionTable({ profile }: { profile: ContextProfile }) {
               <td className="py-2 pr-4 font-medium text-foreground">{c.name}</td>
               <td className="py-2 pr-4 text-muted-foreground">{c.project_name}</td>
               <td className="py-2 pr-4 font-mono text-xs text-muted-foreground">
-                {c.stream || "—"}
+                {c.stream || "·"}
               </td>
               <td className="py-2">
                 <Badge variant="outline" className="font-normal">

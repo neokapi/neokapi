@@ -48,7 +48,7 @@ export function EnumSelectField({
           disabled && "opacity-50 pointer-events-none",
         )}
       >
-        <option value="">—</option>
+        <option value="">None</option>
         {values.map((v) => {
           const val = String(v);
           return (

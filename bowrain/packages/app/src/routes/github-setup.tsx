@@ -119,8 +119,8 @@ function Shell({ children }: { children: React.ReactNode }) {
           <div>
             <h1 className="text-xl font-semibold leading-tight">Connect your repositories</h1>
             <p className="text-sm text-muted-foreground">
-              Translations come back as one pull request the loop keeps up to date — no CI, no
-              tokens.
+              Translations come back as one pull request the loop keeps up to date, with no CI and
+              no tokens.
             </p>
           </div>
         </div>
@@ -489,7 +489,7 @@ export function GithubSetupRoute() {
             Choose <span className="font-medium text-foreground">Configure</span> next to Bowrain.
           </li>
           <li>
-            Press <span className="font-medium text-foreground">Save</span> — GitHub redirects back
+            Press <span className="font-medium text-foreground">Save</span>. GitHub redirects back
             here with the installation id filled in.
           </li>
         </ol>
@@ -547,8 +547,8 @@ export function GithubSetupRoute() {
     return (
       <Shell>
         <p className="text-sm text-muted-foreground">
-          Welcome. Create your workspace to continue — you&apos;ll come right back here to connect
-          your repositories.
+          Welcome. Create your workspace to continue, and you&apos;ll come right back here to
+          connect your repositories.
         </p>
         <Button
           className="mt-5"
@@ -584,7 +584,7 @@ export function GithubSetupRoute() {
           <p className="text-sm text-muted-foreground">
             This GitHub installation is not connected to{" "}
             <span className="font-medium text-foreground">{activeSlug}</span>. Connect it from this
-            workspace — GitHub brings you straight back.
+            workspace, and GitHub brings you straight back.
           </p>
           {/* Only offer the link once the state is minted: following it
               without one installs the app all over again and lands back
@@ -672,7 +672,7 @@ export function GithubSetupRoute() {
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">
-              The import runs in the background — the prompt above works while it does.
+              The import runs in the background. The prompt above works while it does.
             </p>
           )}
         </div>
@@ -706,7 +706,7 @@ function detectionConclusion(d: RepoDetection): string {
   }
   const head = parts.length > 0 ? `Detected: ${parts.join(" · ")}` : "No known catalogs detected";
   const files = d.match_count === 1 ? "1 file matches" : `${d.match_count} files match`;
-  return `${head} — ${files}`;
+  return `${head} · ${files}`;
 }
 
 function RepoRow({
@@ -1042,7 +1042,7 @@ function RepoRow({
           className="mt-2 text-xs text-muted-foreground"
           data-testid={`import-slow-${repo.full_name}`}
         >
-          Taking longer than expected — large repositories can take a few minutes.
+          Taking longer than expected. Large repositories can take a few minutes.
         </p>
       )}
 
@@ -1055,7 +1055,7 @@ function RepoRow({
             data-testid={`import-error-${repo.full_name}`}
           />
           <p className="mt-1 text-xs text-muted-foreground">
-            The repository stays connected — retry here or from the{" "}
+            The repository stays connected. Retry here or from the{" "}
             <Link
               to="/$workspace/p/$projectId/s/$stream/connectors"
               params={{
@@ -1175,14 +1175,14 @@ function RepoRow({
                   className="mt-2 text-xs font-medium text-amber-600 dark:text-amber-500"
                   data-testid={`detect-zero-match-${repo.full_name}`}
                 >
-                  No translatable files match these patterns — adjust them before connecting, or the
+                  No translatable files match these patterns. Adjust them before connecting, or the
                   import will bring in nothing.
                 </p>
               )}
 
               {detect.data.truncated && (
                 <p className="mt-1 text-[11px] text-muted-foreground">
-                  Large repository — the scan read part of the tree; counts are a lower bound.
+                  Large repository: the scan read part of the tree, so counts are a lower bound.
                 </p>
               )}
             </>

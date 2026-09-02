@@ -180,7 +180,7 @@ export function LanguageDemandTable({
                 <td className="px-3 py-2 text-muted-foreground">
                   {lang.coverage.status !== "covered" && lang.planEstimate
                     ? formatGapEstimate(lang.planEstimate)
-                    : "—"}
+                    : "·"}
                 </td>
               </tr>
             );

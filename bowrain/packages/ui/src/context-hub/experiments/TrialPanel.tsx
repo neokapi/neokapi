@@ -130,7 +130,7 @@ function Provenance({ report }: { report: TrialReport }) {
     <p className="text-[11px] leading-relaxed text-muted-foreground">
       {report.voice_bound ? (
         <>
-          Voice resolves through this draft on this stream — the pilot bound a candidate profile, so
+          Voice resolves through this draft on this stream. The pilot bound a candidate profile, so
           a check running here reads it.{" "}
         </>
       ) : (

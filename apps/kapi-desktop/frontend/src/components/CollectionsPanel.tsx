@@ -114,7 +114,7 @@ interface Rung {
 function rungFor(lc?: LocaleCoverage): Rung {
   const translated = lc?.pct?.translated ?? 0;
   if (!lc || translated === 0) {
-    return { key: "none", label: "—", short: "—", color: "var(--muted-foreground)", pct: 0 };
+    return { key: "none", label: "·", short: "·", color: "var(--muted-foreground)", pct: 0 };
   }
   if (lc.shippable) {
     return {
@@ -433,7 +433,7 @@ function LanguageTimeline({
                 <SimpleTooltip
                   content={
                     onSelect
-                      ? `${it.lang}: ${it.pct}% translated — ${t("click to review")}`
+                      ? `${it.lang}: ${it.pct}% translated · ${t("click to review")}`
                       : `${it.lang}: ${it.pct}% translated`
                   }
                 >
@@ -972,7 +972,7 @@ export function CollectionsPanel({
           <Label className="mb-0.5 block text-xs text-muted-foreground">
             Base{" "}
             <span className="font-normal text-muted-foreground/60">
-              (optional — outputs mirror source paths relative to this; defaults to the path prefix
+              (optional: outputs mirror source paths relative to this; defaults to the path prefix
               before the first wildcard)
             </span>
           </Label>
@@ -1051,7 +1051,7 @@ export function CollectionsPanel({
               onOpenChange={(o) => !o && setDialogKey(null)}
               title={t("Configure formats")}
               description={t(
-                "This pattern auto-detects a format per file. Tune any of them here — settings apply project-wide.",
+                "This pattern auto-detects a format per file. Tune any of them here. Settings apply project-wide.",
               )}
               formats={matchedFormats}
               allFormats={formats}
@@ -1060,7 +1060,7 @@ export function CollectionsPanel({
               values={projectFormatValues}
               onChange={updateProjectFormat}
               scopeNote={t(
-                "Stored in the project's defaults.formats — shared by every content item.",
+                "Stored in the project's defaults.formats, shared by every content item.",
               )}
             />
           ) : (
@@ -1247,7 +1247,7 @@ export function CollectionsPanel({
         content={
           o.exists
             ? t("Inspect {file}", { file: o.relative })
-            : t("Not generated yet — run a flow to create it")
+            : t("Not generated yet. Run a flow to create it")
         }
       >
         <tr
@@ -1265,7 +1265,7 @@ export function CollectionsPanel({
           </td>
           <td className="px-3 py-1">
             {o.exists ? (
-              <Badge variant="secondary">{o.format || "—"}</Badge>
+              <Badge variant="secondary">{o.format || "·"}</Badge>
             ) : (
               <span className="text-[10px] text-muted-foreground">{t("pending")}</span>
             )}
@@ -1479,7 +1479,7 @@ export function CollectionsPanel({
                           {f.format ? (
                             <Badge variant="secondary">{f.format}</Badge>
                           ) : (
-                            <span>&mdash;</span>
+                            <span>&middot;</span>
                           )}
                         </td>
                         <td className="px-3 py-1.5 text-right">{formatSize(f.size)}</td>
@@ -1660,10 +1660,10 @@ export function CollectionsPanel({
     if (hasGates) {
       const r = rungFor(scopeCov(coll, lang));
       if (r.key === "none") {
-        return <span className="text-center text-[10px] text-muted-foreground/40">&mdash;</span>;
+        return <span className="text-center text-[10px] text-muted-foreground/40">&middot;</span>;
       }
       const cellTitle = onOpenReview
-        ? `${localeLabel(lang)}: ${r.label} · ${r.pct}% translated — ${t("click to review")}`
+        ? `${localeLabel(lang)}: ${r.label} · ${r.pct}% translated · ${t("click to review")}`
         : `${localeLabel(lang)}: ${r.label} · ${r.pct}% translated`;
       const openReview = onOpenReview
         ? () =>
@@ -1707,7 +1707,7 @@ export function CollectionsPanel({
     }
     const p = covPct(coll, lang);
     if (p === null) {
-      return <span className="text-center text-[10px] text-muted-foreground/40">&mdash;</span>;
+      return <span className="text-center text-[10px] text-muted-foreground/40">&middot;</span>;
     }
     return heatmap ? (
       <SimpleTooltip content={`${localeLabel(lang)}: ${p}%`}>
@@ -1860,7 +1860,7 @@ export function CollectionsPanel({
             ))}
           <SimpleTooltip
             content={t(
-              "Manual override — Bring up to date re-extracts changed sources automatically.",
+              "Manual override. Bring up to date re-extracts changed sources automatically.",
             )}
           >
             <span className="inline-flex">
@@ -1892,7 +1892,7 @@ export function CollectionsPanel({
           <Filter size={12} className="shrink-0 text-muted-foreground" />
           <span className="text-muted-foreground">
             {hiddenCount > 0
-              ? t("Filtered by {name} — {count} collection(s) hidden", {
+              ? t("Filtered by {name} · {count} collection(s) hidden", {
                   name: activeFilter.name,
                   count: hiddenCount,
                 })
@@ -1985,7 +1985,7 @@ export function CollectionsPanel({
           <Card className="mb-3 flex items-center gap-3 p-4">
             <PackageOpen size={18} className="shrink-0 text-muted-foreground/50" />
             <div className="flex-1 text-xs text-muted-foreground">
-              {t("Nothing extracted yet — run extract to read your content and analyze coverage.")}
+              {t("Nothing extracted yet. Run extract to read your content and analyze coverage.")}
             </div>
             <Button
               size="sm"
@@ -2133,7 +2133,7 @@ export function CollectionsPanel({
                       {files.length}
                     </span>
                     <span className="text-right text-xs tabular-nums">
-                      {hasData && cs ? cs.blockCount : "—"}
+                      {hasData && cs ? cs.blockCount : "·"}
                     </span>
                     {showCoverageCols ? (
                       columnLangs.map((l) => <Fragment key={l}>{langCell(coll, l)}</Fragment>)

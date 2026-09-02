@@ -46,7 +46,7 @@ export function RunsRoute() {
 
   useEffect(() => {
     if (activeWorkspace) {
-      document.title = `Runs — ${activeWorkspace.name} — Bowrain`;
+      document.title = `Runs · ${activeWorkspace.name} · Bowrain`;
     }
   }, [activeWorkspace]);
 

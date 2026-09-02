@@ -30,7 +30,7 @@ export function OpenSource() {
           </h2>
           <p className="mt-3 text-muted-foreground">
             Bowrain is built on {kapiLink}, the Apache-2.0 toolchain for format-aware content
-            processing — the same engine that reads and writes your formats, runs the checks, and
+            processing: the same engine that reads and writes your formats, runs the checks, and
             keeps the memory. Your content, terminology, and memory stay in open formats you can
             take anywhere.
           </p>
@@ -41,8 +41,8 @@ export function OpenSource() {
             <Shield className="mx-auto mb-3 h-8 w-8 text-success" />
             <h3 className="text-base font-semibold">Open toolchain</h3>
             <p className="mt-2 text-sm text-muted-foreground">
-              kapi and the neokapi framework are Apache-2.0. Inspect, fork, contribute — and run
-              them on their own, without Bowrain.
+              kapi and the neokapi framework are Apache-2.0. Inspect, fork, contribute, and run them
+              on their own, without Bowrain.
             </p>
           </div>
 

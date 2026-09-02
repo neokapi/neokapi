@@ -144,7 +144,7 @@ function tooltipFor(type: string, span: OverlaySpan): string {
   } else if (span.text) {
     parts.push(`“${span.text}”`);
   }
-  return parts.join(" — ");
+  return parts.join(" · ");
 }
 
 /**

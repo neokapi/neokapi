@@ -236,7 +236,7 @@ export function HomePage({
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
                 {t(
-                  "This sample was created by an earlier version of kapi. Reset it to get the latest content and configuration — your current copy is backed up first.",
+                  "This sample was created by an earlier version of kapi. Reset it to get the latest content and configuration. Your current copy is backed up first.",
                 )}
               </p>
               <div className="mt-3 flex gap-2">

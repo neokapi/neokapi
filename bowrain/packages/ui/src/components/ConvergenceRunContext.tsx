@@ -243,7 +243,7 @@ function stallBanner(
     return (
       <BannerAlert
         variant="warning"
-        title="Parked — pending review"
+        title="Parked, pending review"
         body={body}
         action={actions.onOpenReview && { label: "Open review", onClick: actions.onOpenReview }}
       />

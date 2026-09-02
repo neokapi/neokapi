@@ -25,7 +25,7 @@ export function ExplorerRoute() {
 
   useEffect(() => {
     if (activeWorkspace) {
-      document.title = `Explorer — Context — ${activeWorkspace.name} — Bowrain`;
+      document.title = `Explorer · Context · ${activeWorkspace.name} · Bowrain`;
     }
   }, [activeWorkspace]);
 

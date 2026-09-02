@@ -123,7 +123,7 @@ function startOfDay(ms: number): number {
 /** dayLabel renders a day relative to `now`: "Today", "Yesterday", or an absolute date. */
 export function dayLabel(iso: string, now: number = Date.now()): string {
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
+  if (Number.isNaN(d.getTime())) return "·";
   const diffDays = Math.round((startOfDay(now) - startOfDay(d.getTime())) / 86_400_000);
   if (diffDays <= 0) return "Today";
   if (diffDays === 1) return "Yesterday";

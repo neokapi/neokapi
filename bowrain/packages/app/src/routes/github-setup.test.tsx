@@ -467,7 +467,7 @@ describe("GithubSetupRoute content detection", () => {
 
     const conclusion = await screen.findByTestId("detect-conclusion-acme/website");
     expect(conclusion).toHaveTextContent(
-      "Detected: locale catalogs in src/locales — 2 files match",
+      "Detected: locale catalogs in src/locales · 2 files match",
     );
     expect(api.detectInstallationRepo).toHaveBeenCalledWith("ada", "147350515", "acme/website", {
       scope: undefined,
@@ -531,7 +531,7 @@ describe("GithubSetupRoute content detection", () => {
     const warning = await screen.findByTestId("detect-zero-match-acme/website");
     expect(warning).toHaveTextContent(/No translatable files match/);
     expect(screen.getByTestId("detect-conclusion-acme/website")).toHaveTextContent(
-      "No known catalogs detected — 0 files match",
+      "No known catalogs detected · 0 files match",
     );
   });
 
@@ -558,7 +558,7 @@ describe("GithubSetupRoute content detection", () => {
 
     const conclusion = await screen.findByTestId("detect-conclusion-acme/website");
     expect(conclusion).toHaveTextContent(
-      "Detected: pnpm monorepo · i18next catalogs in apps/web/public/locales — 3 files match",
+      "Detected: pnpm monorepo · i18next catalogs in apps/web/public/locales · 3 files match",
     );
 
     fireEvent.change(screen.getByTestId("detect-scope-acme/website"), {

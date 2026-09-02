@@ -17,7 +17,7 @@ export function LocaleDemandRoute() {
   const api = useApi();
 
   useEffect(() => {
-    document.title = `Locale demand — ${activeWorkspace.name} — Bowrain`;
+    document.title = `Locale demand · ${activeWorkspace.name} · Bowrain`;
   }, [activeWorkspace.name]);
 
   const { data: projects, isPending } = useQuery(projectsQueryOptions(api, activeWorkspace.slug));

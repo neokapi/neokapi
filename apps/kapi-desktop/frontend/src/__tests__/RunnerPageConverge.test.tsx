@@ -115,7 +115,7 @@ describe("RunnerPage converge mode (Bring up to date)", () => {
 
     await waitFor(() => expect(bringUpToDateMock).toHaveBeenCalledWith("t1"));
     // The converge view shows the terminal cancelled row…
-    expect(await screen.findByText(/Cancelled — the run stopped/)).toBeInTheDocument();
+    expect(await screen.findByText(/Cancelled\. The run stopped/)).toBeInTheDocument();
     // …and the Cancel control has returned to idle (gone).
     await waitFor(() =>
       expect(

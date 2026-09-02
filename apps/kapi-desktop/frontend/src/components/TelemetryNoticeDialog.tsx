@@ -34,7 +34,7 @@ export function TelemetryNoticeDialog({ onClose }: { onClose: () => void }) {
           <DialogTitle>{t("Anonymous usage statistics", "Telemetry")}</DialogTitle>
           <DialogDescription>
             {t(
-              "Kapi collects anonymous usage statistics — screen views and feature usage, never your content, project names, or file paths. This helps prioritize improvements. You can turn it off now, or at any time in Settings.",
+              "Kapi collects anonymous usage statistics: screen views and feature usage, never your content, project names, or file paths. This helps prioritize improvements. You can turn it off now, or at any time in Settings.",
               "Telemetry",
             )}
           </DialogDescription>

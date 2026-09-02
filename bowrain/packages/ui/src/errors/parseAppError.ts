@@ -48,7 +48,7 @@ interface Phrase {
 const CODE_PHRASES: Record<string, Phrase> = {
   unauthorized: {
     title: "You need to sign in",
-    hint: "Your session may have expired — sign in and try again.",
+    hint: "Your session may have expired. Sign in and try again.",
   },
   forbidden: {
     title: "You don't have permission to do that",
@@ -89,7 +89,7 @@ const ENVELOPE_CODE_PHRASES: Record<string, (obj: Record<string, unknown>) => Ph
   }),
   custodian_limit_reached: (obj) => ({
     title: limitTitle("custodian", obj),
-    hint: "A custodian governs a brand, product or channel. Every other member is free — add them without a custodian's region, or upgrade for another custodian.",
+    hint: "A custodian governs a brand, product or channel. Every other member is free: add them without a custodian's region, or upgrade for another custodian.",
   }),
   upgrade_required: (obj) => ({
     title: "This feature is not included in the workspace's current plan",

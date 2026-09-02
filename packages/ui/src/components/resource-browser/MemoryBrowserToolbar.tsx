@@ -62,7 +62,7 @@ export function MemoryBrowserToolbar({
             className="text-[11px] rounded border border-input bg-background px-1.5 py-0.5"
             aria-label="Bilingual source locale"
           >
-            <option value="">— src —</option>
+            <option value="">src</option>
             {allLocales.map((l) => (
               <option key={l} value={l}>
                 {l}
@@ -76,7 +76,7 @@ export function MemoryBrowserToolbar({
             className="text-[11px] rounded border border-input bg-background px-1.5 py-0.5"
             aria-label="Bilingual target locale"
           >
-            <option value="">— tgt —</option>
+            <option value="">tgt</option>
             {allLocales.map((l) => (
               <option key={l} value={l}>
                 {l}

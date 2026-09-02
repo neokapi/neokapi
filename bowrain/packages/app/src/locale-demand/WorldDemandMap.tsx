@@ -128,7 +128,7 @@ export function WorldDemandMap({
                 onSelectCountry(isSelected ? null : demand.code);
               }}
             >
-              {!demand && <title>{`${f.name} — no demand data`}</title>}
+              {!demand && <title>{`${f.name}: no demand data`}</title>}
             </path>
           );
         })}
@@ -165,11 +165,11 @@ export function WorldDemandMap({
                 }
               >
                 Served their language:{" "}
-                {hoveredCountry.servedRate === null ? "—" : formatShare(hoveredCountry.servedRate)}
+                {hoveredCountry.servedRate === null ? "·" : formatShare(hoveredCountry.servedRate)}
               </div>
             </>
           ) : (
-            <div className="text-muted-foreground">{hoveredFeature.name} — no demand data</div>
+            <div className="text-muted-foreground">{hoveredFeature.name}: no demand data</div>
           )}
         </div>
       )}

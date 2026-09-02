@@ -6,7 +6,7 @@ export function SettingsLanguagesRoute() {
 
   useEffect(() => {
     if (activeWorkspace) {
-      document.title = `Languages — ${activeWorkspace.name} — Bowrain`;
+      document.title = `Languages · ${activeWorkspace.name} · Bowrain`;
     }
   }, [activeWorkspace]);
 

@@ -87,15 +87,15 @@ const faqItems = [
   },
   {
     q: "How do credits work on the Free plan?",
-    a: "Every new workspace receives a one-time grant of 200K trial credits. They never expire, but they also don't renew — once spent, you can upgrade to a paid plan with a monthly allowance, buy a credit pack, or bring your own AI key.",
+    a: "Every new workspace receives a one-time grant of 200K trial credits. They never expire, but they also don't renew. Once spent, you can upgrade to a paid plan with a monthly allowance, buy a credit pack, or bring your own AI key.",
   },
   {
     q: "What happens when I run out of credits?",
-    a: "AI features pause. On a paid plan they resume at the next monthly reset; you can also buy a credit pack ($5 for 200K credits) at any time — nothing is ever purchased automatically on your behalf.",
+    a: "AI features pause. On a paid plan they resume at the next monthly reset; you can also buy a credit pack ($5 for 200K credits) at any time, and nothing is ever purchased automatically on your behalf.",
   },
   {
     q: "Can I use my own AI provider key?",
-    a: "Yes, on every plan including Free. Work that runs on your own key uses no credits at all — you pay your provider directly, and Bowrain's credit balance stays untouched.",
+    a: "Yes, on every plan including Free. Work that runs on your own key uses no credits at all: you pay your provider directly, and Bowrain's credit balance stays untouched.",
   },
   {
     q: "Can I change plans at any time?",
@@ -107,11 +107,11 @@ const faqItems = [
   },
   {
     q: "Do unused credits roll over?",
-    a: "Monthly plan credits do not roll over — they reset on the 1st of each month, which keeps costs predictable. Trial credits and credit packs are different: they never expire, and packs are only drawn from after your plan and trial credits run out.",
+    a: "Monthly plan credits do not roll over. They reset on the 1st of each month, which keeps costs predictable. Trial credits and credit packs are different: they never expire, and packs are only drawn from after your plan and trial credits run out.",
   },
   {
     q: "Is there a free trial?",
-    a: "Every new workspace starts with a 14-day Pro trial — no card required — plus the one-time 200K trial credits. When the trial ends, the workspace moves to the Free plan and keeps whatever trial credits remain, along with full access to the translation editor.",
+    a: "Every new workspace starts with a 14-day Pro trial, no card required, plus the one-time 200K trial credits. When the trial ends, the workspace moves to the Free plan and keeps whatever trial credits remain, along with full access to the translation editor.",
   },
 ];
 

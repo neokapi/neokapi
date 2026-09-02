@@ -36,7 +36,7 @@ export function AppHome({
         <div>
           <h1 className="text-xl font-semibold">Welcome to Kapi</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Your project&apos;s context, applied to real files — for people and agents.
+            Your project&apos;s context, applied to real files, for people and agents.
           </p>
         </div>
       </div>
@@ -133,7 +133,7 @@ export function AppHome({
               <div className="text-sm font-medium">KapiMart</div>
               <p className="mt-1 text-xs text-muted-foreground font-normal">
                 A realistic multilingual project with docs, store UI, Office documents, and
-                templates — 4 content collections, 5 target languages, 1000+ memory entries. No
+                templates: 4 content collections, 5 target languages, 1000+ memory entries. No
                 plugins needed.
               </p>
             </Button>

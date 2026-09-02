@@ -27,7 +27,7 @@ const stepStatusIcon: Record<StepStatus, string> = {
   running: "\u25CF", // ●
   completed: "\u2713", // ✓
   failed: "\u2717", // ✗
-  skipped: "\u2014", // —
+  skipped: "\u00B7", // ·
 };
 
 const stepStatusColor: Record<StepStatus, string> = {

@@ -447,7 +447,7 @@ function HomeView({ onGo }: { onGo: (v: string) => void }) {
       <div>
         <h1 className="text-3xl font-semibold tracking-tight">Kapi Desktop</h1>
         <p className="mt-2 max-w-xl text-muted-foreground">
-          Browse the terminology and content memory behind your content — every concept, every
+          Browse the terminology and content memory behind your content: every concept, every
           approved term, every remembered translation.
         </p>
       </div>

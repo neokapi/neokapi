@@ -55,7 +55,7 @@ export function CollapsedTargetCell({
         />
         <span
           className="ml-2 inline-flex items-center rounded bg-muted px-1.5 py-0.5 text-xs uppercase tracking-wide text-muted-foreground"
-          title={`Plural target — showing "${pluralPreview.shownForm}" of ${pluralPreview.availableForms.length} form(s)`}
+          title={`Plural target: showing "${pluralPreview.shownForm}" of ${pluralPreview.availableForms.length} form(s)`}
         >
           plural · {pluralPreview.shownForm}
         </span>

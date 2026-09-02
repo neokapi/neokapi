@@ -62,10 +62,10 @@ describe("context-hub atoms", () => {
   });
 
   it("formats dates and falls back on empty/invalid input", () => {
-    expect(formatDate(undefined)).toBe("—");
-    expect(formatDate("not-a-date")).toBe("—");
+    expect(formatDate(undefined)).toBe("·");
+    expect(formatDate("not-a-date")).toBe("·");
     expect(formatDate("2026-06-13T10:00:00Z")).toContain("2026");
-    expect(formatRelative(undefined)).toBe("—");
+    expect(formatRelative(undefined)).toBe("·");
   });
 
   it("renders a term-status badge", () => {

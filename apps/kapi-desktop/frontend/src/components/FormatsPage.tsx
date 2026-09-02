@@ -613,7 +613,7 @@ function FormatDetail({
                   {p.source && <span className="ml-1 text-[9px] opacity-60">({p.source})</span>}
                   {p.description && (
                     <span className="ml-1 text-muted-foreground">
-                      — <Markdown inline>{p.description}</Markdown>
+                      · <Markdown inline>{p.description}</Markdown>
                     </span>
                   )}
                 </Button>
