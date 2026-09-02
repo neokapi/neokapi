@@ -157,7 +157,7 @@ func RenderVoiceGuideCompact(p *VoiceProfile) string {
 
 	var b strings.Builder
 	if len(parts) > 0 {
-		fmt.Fprintf(&b, "Voice profile: %s.", strings.Join(parts, "; "))
+		fmt.Fprintf(&b, "Voice profile (%s).", strings.Join(parts, "; "))
 	}
 
 	if g := strings.TrimSpace(p.Tone.Guidelines); g != "" {
