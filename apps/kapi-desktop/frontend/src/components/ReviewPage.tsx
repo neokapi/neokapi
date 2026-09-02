@@ -728,7 +728,7 @@ export function ReviewPage({
           <h1 className="text-lg font-semibold">{t("Review")}</h1>
           <p className="text-xs text-muted-foreground">
             {t(
-              "Approve, edit, or send translations back — decisions bind to the exact text they judged.",
+              "Approve, edit, or send translations back. A decision binds to the exact text it judged.",
             )}
           </p>
           {filterNarrowing && (
@@ -1058,7 +1058,7 @@ export function ReviewPage({
             <CheckCircle2 size={24} className="mx-auto mb-2 text-primary" />
             <p className="text-sm text-muted-foreground">
               {(queue ?? []).length === 0
-                ? t("Review queue empty — every translated unit is reviewed.")
+                ? t("Review queue empty. Every translated unit is reviewed.")
                 : t("Nothing matches this filter.")}
             </p>
           </CardContent>

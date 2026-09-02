@@ -43,7 +43,7 @@ func (o reviewQueueOutput) FormatText(w io.Writer) error {
 	}
 	t.Render()
 	fmt.Fprintln(w)
-	fmt.Fprintln(w, "Approve a unit with `kapi apply` (a `review` change-set, addressed by its file/id/locale) — the state record lands in the project store and the unit then counts as reviewed.")
+	fmt.Fprintln(w, "Approve a unit with `kapi apply` (a `review` change-set, addressed by its file/id/locale). The state record lands in the project store and the unit then counts as reviewed.")
 	return nil
 }
 
