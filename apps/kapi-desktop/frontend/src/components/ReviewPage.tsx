@@ -711,7 +711,7 @@ export function ReviewPage({
     }
     if (activeFilter.glob?.trim()) parts.push(activeFilter.glob.trim());
     if (parts.length === 0) return "";
-    return `${activeFilter.name || t("the active filter")} — ${parts.join(" · ")}`;
+    return `${activeFilter.name || t("the active filter")}: ${parts.join(" · ")}`;
   }, [activeFilter]);
 
   const chips: Array<{ id: Chip; label: string }> = [
@@ -728,7 +728,7 @@ export function ReviewPage({
           <h1 className="text-lg font-semibold">{t("Review")}</h1>
           <p className="text-xs text-muted-foreground">
             {t(
-              "Approve, edit, or send translations back — decisions bind to the exact text they judged.",
+              "Approve, edit, or send translations back. A decision binds to the exact text it judged.",
             )}
           </p>
           {filterNarrowing && (
@@ -871,7 +871,7 @@ export function ReviewPage({
                   {localeFilter ? localeLabel(localeFilter) : t("all languages")}
                   {collectionFilter ? ` · ${collectionFilter}` : ""}
                 </span>{" "}
-                — {t("{count} pending units", { count: preReviewPending.length })}
+                · {t("{count} pending units", { count: preReviewPending.length })}
               </div>
             </div>
             <div className="space-y-1.5 text-xs" role="radiogroup" aria-label={t("Policy")}>
@@ -886,7 +886,8 @@ export function ReviewPage({
                 <span>
                   <span className="font-medium">{t("Annotate only")}</span>{" "}
                   <span className="text-muted-foreground">
-                    {t("— store score and findings; every decision stays yours.")}
+                    {"· "}
+                    {t("Store score and findings; every decision stays yours.")}
                   </span>
                 </span>
               </label>
@@ -912,7 +913,8 @@ export function ReviewPage({
                     aria-label={t("Minimum score")}
                   />{" "}
                   <span className="text-muted-foreground">
-                    {t("— approvals are recorded as ai/<model>; human-required gates ignore them.")}
+                    {"· "}
+                    {t("Approvals are recorded as ai/<model>; human-required gates ignore them.")}
                   </span>
                 </span>
               </label>
@@ -1058,7 +1060,7 @@ export function ReviewPage({
             <CheckCircle2 size={24} className="mx-auto mb-2 text-primary" />
             <p className="text-sm text-muted-foreground">
               {(queue ?? []).length === 0
-                ? t("Review queue empty — every translated unit is reviewed.")
+                ? t("Review queue empty. Every translated unit is reviewed.")
                 : t("Nothing matches this filter.")}
             </p>
           </CardContent>
@@ -1219,7 +1221,7 @@ export function ReviewPage({
                       {t("Target")}
                       {unit && !unit.editable && (
                         <span className="normal-case font-normal">
-                          {t("(formatted content — read-only)")}
+                          {t("(formatted content, read-only)")}
                         </span>
                       )}
                     </div>

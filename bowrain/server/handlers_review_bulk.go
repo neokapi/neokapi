@@ -49,7 +49,7 @@ type ApprovePassingResponse struct {
 }
 
 // HandleApprovePassing bulk-approves every block whose target for a locale is
-// awaiting review AND clears the ship bar — passes the project's QA checks with
+// awaiting review AND clears the ship bar — passes the project's checks with
 // no error-severity finding AND meets the voice compliance bar (the same #1365
 // shipstate predicate the dashboard aggregates). Blocks that fail checks or fall
 // below the bar are EXCLUDED and left pending for a person. Approved blocks are

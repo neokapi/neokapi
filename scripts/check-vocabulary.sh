@@ -216,7 +216,6 @@ readonly VOCAB_SURFACES=(
 # when it means "the prose we swept is clean".
 readonly PENDING_SURFACES=(
   "cli/skills (vocabulary) — the i18n playbooks name third-party libraries (@angular/localize, expo-localization) and the eval table quotes user prompts verbatim, and the skill description is intent-matching vocabulary: it must contain the words a user types. No sweep is scheduled; deciding what a matching surface owes the vocabulary rule comes first."
-  "the review surfaces (cased) — apps/kapi-desktop/frontend/src/components/FilePreview.tsx and bowrain/packages/ui/src/components/review/ carry QA in comments and prop docs. They sit in CASED_ALLOWED_FILES rather than being swept here, because the review-surface work has them open; the entries go when it lands."
 )
 
 # Files inside a swept surface that legitimately spell a retired phrase. Each
@@ -263,13 +262,6 @@ readonly CASED_ALLOWED_FILES=(
   # compiled; a source string that changes orphans its entry until the next
   # convergence, which is the normal drift and never a build failure.
   apps/kapi-desktop/frontend/public/translations/nb.json
-  # Open in the review-surface work, and swept there rather than here. Both
-  # entries are named in PENDING_SURFACES so a green run does not read as "every
-  # file is clean". Remove them once that lands.
-  apps/kapi-desktop/frontend/src/components/FilePreview.tsx
-  bowrain/packages/ui/src/components/review/ReviewInspector.tsx
-  bowrain/packages/ui/src/components/review/ReviewSession.tsx
-  bowrain/packages/ui/src/components/review/reviewQueue.ts
 )
 
 # list_files prints NUL-separated paths for one surface.
