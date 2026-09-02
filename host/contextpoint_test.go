@@ -215,7 +215,7 @@ func TestResolveContextAt_TermsAreRankedAndCapped(t *testing.T) {
 	}
 
 	var sb strings.Builder
-	res.FormatText(&sb)
+	require.NoError(t, res.FormatText(&sb))
 	assert.Contains(t, sb.String(), "Showing 2 of 3 terms bound here. `kapi context search <word>` finds one by name.",
 		"the text rendering says where the rest are")
 }
