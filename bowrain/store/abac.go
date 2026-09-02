@@ -64,24 +64,6 @@ func (s *PostgresStore) GetBlockAccess(ctx context.Context, projectID, stream, b
 	return access, ownerID, nil
 }
 
-// GetLastEditor returns the author of the most recent content change to a block
-// (the translator), used to enforce separation of duties at review/approval.
-// Returns "" if no attributed history exists.
-func (s *PostgresStore) GetLastEditor(ctx context.Context, projectID, stream, blockID string) (string, error) {
-	var author string
-	err := s.db.QueryRowContext(ctx,
-		`SELECT author FROM block_history
-		 WHERE project_id = $1 AND stream = $2 AND block_id = $3 AND author <> ''
-		 ORDER BY id DESC LIMIT 1`, projectID, storeutil.DefaultStream(stream), blockID).Scan(&author)
-	if err == sql.ErrNoRows {
-		return "", nil
-	}
-	if err != nil {
-		return "", fmt.Errorf("get last editor: %w", err)
-	}
-	return author, nil
-}
-
 // SetBlockAccess updates a block's access state and (when non-empty) its
 // owner. Returns an error if the block does not exist.
 func (s *PostgresStore) SetBlockAccess(ctx context.Context, projectID, stream, blockID, access, ownerID string) error {

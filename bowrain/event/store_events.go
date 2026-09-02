@@ -640,18 +640,9 @@ func (s *EventEmittingStore) SetBlockAccess(ctx context.Context, projectID, stre
 	return as.SetBlockAccess(ctx, projectID, stream, blockID, access, ownerID)
 }
 
-// GetLastEditor forwards the optional BlockAccessStore capability.
-func (s *EventEmittingStore) GetLastEditor(ctx context.Context, projectID, stream, blockID string) (string, error) {
-	as, ok := s.inner.(store.BlockAccessStore)
-	if !ok {
-		return "", fmt.Errorf("content store %T keeps no access ladder", s.inner)
-	}
-	return as.GetLastEditor(ctx, projectID, stream, blockID)
-}
-
 // LastTargetAuthors forwards the optional TargetAuthorStore capability. The
-// server holds this wrapper, so separation of duties at review reaches the
-// underlying store through here or not at all.
+// server holds this wrapper, so separation of duties at review and at publish
+// reaches the underlying store through here or not at all.
 func (s *EventEmittingStore) LastTargetAuthors(ctx context.Context, projectID, stream string, blockIDs, locales []string) (map[store.TargetRef]string, error) {
 	as, ok := s.inner.(store.TargetAuthorStore)
 	if !ok {
