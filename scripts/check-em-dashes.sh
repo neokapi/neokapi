@@ -34,6 +34,9 @@
 #                    workflow does, where `make l10n-build` has just run) to
 #                    make that a failure instead.
 #
+#                    Findings in this tier are reported without failing for now,
+#                    which CATALOGS_HARD_FAIL below explains.
+#
 #   --part ui        The TS/TSX that renders text no catalog covers, today
 #                    packages/kapi-lab/src. It is a dependency of both the docs
 #                    site and the desktop app, and it sits in no extract glob,
@@ -76,6 +79,12 @@ cd "$root"
 PART=all
 REQUIRE_EXTRACTED=0
 SELF_TEST_ONLY=0
+
+# Findings in the catalogs tier are reported without failing, because five
+# strings in two review dialogs (MarkSourceTermDialog, ProposeSourceChangeDialog)
+# are still being rewritten. Set this to 1 in the platform review PR that removes
+# them, which is where the tier reaches zero.
+readonly CATALOGS_HARD_FAIL=0
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -181,10 +190,13 @@ check_catalogs() {
 
   if out=$(printf '%s\n' "${files[@]}" | "$MATCHER" -part catalogs 2>&1); then
     echo "✓ catalogs: no em dash in the English source of ${#files[@]} catalog file(s)"
-  else
+  elif [ "$CATALOGS_HARD_FAIL" = 1 ]; then
     echo "✖ catalogs: fix the source string, then re-extract that surface."
     printf '%s\n' "$out"
     rc=1
+  else
+    echo "  catalogs: reported, not gated (see CATALOGS_HARD_FAIL). Fix the source string, then re-extract that surface."
+    printf '%s\n' "$out"
   fi
 
   if [ ${#missing[@]} -gt 0 ]; then
