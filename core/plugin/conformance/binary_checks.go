@@ -159,7 +159,7 @@ func checkBinaryVersionMatches(ctx context.Context, r *runner) (Status, string, 
 	}
 	res := r.runPlugin(ctx, "version")
 	if res.exitCode != 0 {
-		return Skip, "`version` did not succeed — see binary.version", nil
+		return Skip, "`version` did not succeed (see binary.version)", nil
 	}
 	line := firstLine(res.stdout)
 	want := r.man.Version
@@ -256,7 +256,7 @@ func checkModeACommandProbe(ctx context.Context, r *runner) (Status, string, err
 	}
 	probe := r.suite.CommandProbe
 	if probe == nil {
-		return Skip, "no Suite.CommandProbe configured — the suite never invokes a declared command on its own", nil
+		return Skip, "no Suite.CommandProbe configured: the suite never invokes a declared command on its own", nil
 	}
 	if !declaresCommand(r, probe.Command) {
 		return Fail, fmt.Sprintf("probe names command %q, which the manifest does not declare", probe.Command), nil

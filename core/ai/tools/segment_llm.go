@@ -50,7 +50,7 @@ func init() {
 	segment.Register(segment.EngineDescriptor{
 		Name:        "llm",
 		Label:       "LLM (semantic chunks)",
-		Description: "Semantic chunking via an AI provider — produces meaning-based chunks rather than sentence boundaries.",
+		Description: "Semantic chunking via an AI provider: produces meaning-based chunks rather than sentence boundaries.",
 		Order:       30,
 		Schema:      schema.FromStruct(&LLMParams{}, schema.ToolMeta{ID: "segment-engine-llm"}),
 		New: func(base segment.BaseConfig, params map[string]any) (segment.Segmenter, error) {

@@ -152,8 +152,8 @@ func (t Translate) constraints(preserveTags bool) []Section {
 		out = append(out, Section{
 			Kind:   KindConstraint,
 			Origin: "framework (block has inline codes)",
-			Text: "The text contains XML tags. Reproduce every tag exactly as it appears — " +
-				"do not modify, reorder, add or remove any tag — and place each one where it " +
+			Text: "The text contains XML tags. Reproduce every tag exactly as it appears. " +
+				"Do not modify, reorder, add or remove any tag, and place each one where it " +
 				"belongs in the target language.",
 		})
 	}
@@ -316,7 +316,7 @@ func (t Translate) BatchWithContext(segments []BatchSegment, batchCtx Context) [
 			// and it says the same thing each time.
 			priorRule = " A segment may carry `prior`: what that segment said before, and the translation approved for it then. " +
 				"Where the source is unchanged, keep that wording; where it moved, translate the current text and change only " +
-				"what the edit requires. It is reference for its own segment alone — never carry it across to another segment, " +
+				"what the edit requires. It is reference for its own segment alone. Never carry it across to another segment, " +
 				"and never return it as a translation."
 		}
 	}

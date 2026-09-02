@@ -110,7 +110,7 @@ func (d *FlowDefinition) ValidatePlacement(reg *registry.ToolRegistry) ([]Placem
 					Rule:     RuleTransformerAfterTarget,
 					NodeID:   n.ID,
 					Tool:     n.Name,
-					Message: fmt.Sprintf("transformer %q follows %q, which produces targets: rewriting source orphans the targets that anchor to it — move the transformer before any target-producing step",
+					Message: fmt.Sprintf("transformer %q follows %q, which produces targets: rewriting source orphans the targets that anchor to it. Move the transformer before any target-producing step",
 						n.Name, ordered[j].Name),
 				})
 			}
@@ -124,7 +124,7 @@ func (d *FlowDefinition) ValidatePlacement(reg *registry.ToolRegistry) ([]Placem
 					Rule:     RuleTransformerAfterEgress,
 					NodeID:   n.ID,
 					Tool:     n.Name,
-					Message: fmt.Sprintf("%q must run before %q, which sends source to a remote sink: unprotected content leaks before redaction applies — move %q earlier, or use a local provider for %q",
+					Message: fmt.Sprintf("%q must run before %q, which sends source to a remote sink: unprotected content leaks before redaction applies. Move %q earlier, or use a local provider for %q",
 						n.Name, ordered[j].Name, n.Name, ordered[j].Name),
 				})
 			}
@@ -150,7 +150,7 @@ func (d *FlowDefinition) ValidatePlacement(reg *registry.ToolRegistry) ([]Placem
 				Rule:     RuleTransformerLate,
 				NodeID:   n.ID,
 				Tool:     n.Name,
-				Message: fmt.Sprintf("transformer %q is placed later than needed: the %s overlay(s) produced before it must be rebased across its rewrite — move it right after its last required input",
+				Message: fmt.Sprintf("transformer %q is placed later than needed: the %s overlay(s) produced before it must be rebased across its rewrite. Move it right after its last required input",
 					n.Name, strings.Join(rebased, ", ")),
 			})
 		}
@@ -213,7 +213,7 @@ func (d *FlowDefinition) CheckRedactionCoverage(reg *registry.ToolRegistry, requ
 		}
 	}
 	if egressTool != "" && !hasRedact {
-		return fmt.Errorf("flow %q: the project declares defaults.redaction, but %q sends source to a remote sink and the flow has no redact step — add a redact step before it, or run it on a local provider",
+		return fmt.Errorf("flow %q: the project declares defaults.redaction, but %q sends source to a remote sink and the flow has no redact step. Add a redact step before it, or run it on a local provider",
 			d.Name, egressTool)
 	}
 	return nil

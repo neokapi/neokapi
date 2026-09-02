@@ -6,7 +6,7 @@ import "github.com/neokapi/neokapi/core/format/schema"
 func (c *Config) Schema() *schema.FormatSchema {
 	return &schema.FormatSchema{
 		Title:       "SRT Subtitles",
-		Description: "SubRip subtitle format — no configurable parameters",
+		Description: "SubRip subtitle format: no configurable parameters",
 		Type:        "object",
 		FormatMeta: schema.FormatMeta{
 			ID:         "srt",

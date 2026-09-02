@@ -144,14 +144,14 @@ type AxisDiscover struct {
 
 func (p AxisDiscover) Turns(corpus string) []Turn {
 	var b strings.Builder
-	b.WriteString("You are a content strategist. Read the corpus below and report the dimensions along which its content genuinely varies — the coordinates a piece of this content sits at.\n\n")
+	b.WriteString("You are a content strategist. Read the corpus below and report the dimensions along which its content genuinely varies: the coordinates a piece of this content sits at.\n\n")
 	b.WriteString("An axis is a dimension; its values are the positions on it. For example, a corpus might vary by:\n")
-	b.WriteString("- brand — the brand it speaks as (acme, northwind)\n")
-	b.WriteString("- product_line — a family of products (cloud, desktop)\n")
-	b.WriteString("- product — one product within a line (analytics, editor)\n")
-	b.WriteString("- channel — the surface it ships on (docs, app, marketing)\n")
-	b.WriteString("- market — where it is read (emea, japan)\n")
-	b.WriteString("- audience — who it addresses (developer, buyer, operator)\n\n")
+	b.WriteString("- brand: the brand it speaks as (acme, northwind)\n")
+	b.WriteString("- product_line: a family of products (cloud, desktop)\n")
+	b.WriteString("- product: one product within a line (analytics, editor)\n")
+	b.WriteString("- channel: the surface it ships on (docs, app, marketing)\n")
+	b.WriteString("- market: where it is read (emea, japan)\n")
+	b.WriteString("- audience: who it addresses (developer, buyer, operator)\n\n")
 	b.WriteString("Those are EXAMPLES, not a list to choose from. Name the axes this corpus actually distinguishes, in its own vocabulary; if it varies along something none of the examples covers, report that instead.\n\n")
 	b.WriteString("Rules:\n")
 	b.WriteString("- Report an axis only when the corpus shows content differing along it. Two documents about the same product are not a product axis.\n")
@@ -327,7 +327,7 @@ Given text blocks, identify:
    - "consistent" = translate, but the same way everywhere
    - "free" = translate naturally, no consistency requirement
 
-Report character offsets relative to each block's text. Only report genuinely useful entities and terms — quality over quantity.`,
+Report character offsets relative to each block's text. Only report genuinely useful entities and terms: quality over quantity.`,
 	}}
 
 	// Sorted, so the same terms renders the same prompt every run. This used

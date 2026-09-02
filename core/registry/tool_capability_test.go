@@ -31,7 +31,7 @@ func TestRegisterRejectsMultiHandlerTool(t *testing.T) {
 	t.Run("Register panics on two handlers", func(t *testing.T) {
 		r := NewToolRegistry()
 		assert.PanicsWithValue(t,
-			`registry: register tool "multi": tool "double-agent" sets 2 capability handlers (Annotate, Transform): a BaseTool sets exactly one of Annotate, Produce, or Transform — the handler is the tool's capability declaration (AD-006)`,
+			`registry: register tool "multi": tool "double-agent" sets 2 capability handlers (Annotate, Transform): a BaseTool sets exactly one of Annotate, Produce, or Transform, and the handler is the tool's capability declaration (AD-006)`,
 			func() { r.Register("multi", multi) })
 	})
 

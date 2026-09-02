@@ -194,7 +194,7 @@ func TestClaudeCodeLimitErrorMapping(t *testing.T) {
 	assert.Equal(t, ClaudeCodeErrLimit, ce.Kind)
 	assert.NotEmpty(t, ce.ResetsAt, "unix reset timestamp should parse")
 	assert.Contains(t, err.Error(), "Claude subscription limit reached")
-	assert.Contains(t, err.Error(), "resumes ~")
+	assert.Contains(t, err.Error(), "resuming ~")
 	assert.Contains(t, err.Error(), "kapi models setup")
 }
 
@@ -224,7 +224,7 @@ func TestClaudeCodeAuthErrorMapping(t *testing.T) {
 	var ce *ClaudeCodeError
 	require.ErrorAs(t, err, &ce)
 	assert.Equal(t, ClaudeCodeErrAuth, ce.Kind)
-	assert.Equal(t, "Claude Code isn't signed in — run `claude` once to log in.", err.Error())
+	assert.Equal(t, "Claude Code isn't signed in. Run `claude` once to log in.", err.Error())
 }
 
 func TestClaudeCodeAuthErrorFromStderr(t *testing.T) {

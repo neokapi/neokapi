@@ -183,7 +183,7 @@ func TestKapiProject_ValidateContextSpace(t *testing.T) {
 		{
 			"a bare channel fails the load spelling out the fix",
 			"version: v1\nprofiles:\n  a:\n    channels: [x]\n  b:\n    channels: [x]\ncollections:\n  - name: c\n    channel: x\n    content:\n      - path: a.md\n",
-			"must name its profile — write a/x or b/x",
+			"must name its profile. Write a/x or b/x",
 		},
 		{
 			"a channel needs a named collection",

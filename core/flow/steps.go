@@ -66,7 +66,7 @@ func (s *StepsSpec) SinkLocator() (Locator, bool) {
 // has no incoming edge.
 func StepsToGraph(spec *StepsSpec) ([]FlowNode, []FlowEdge, error) {
 	if len(spec.SourceTransforms) > 0 {
-		return nil, nil, errors.New("flow uses the removed source_transforms stage (AD-006): list transformers as ordered steps — the placement pass validates their position")
+		return nil, nil, errors.New("flow uses the removed source_transforms stage (AD-006): list transformers as ordered steps, and the placement pass validates their position")
 	}
 	if len(spec.Steps) == 0 {
 		return nil, nil, errors.New("flow has no steps")

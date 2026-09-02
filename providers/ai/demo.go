@@ -24,7 +24,7 @@ const DemoModelName = "demo-stub"
 // time a demo provider is exercised in a process. The wording is deliberately
 // unambiguous: the output is illustrative, deterministic, and not the product
 // of a language model. Brand guidelines require this honesty (see #666).
-const DemoNotice = "demo mode: illustrative output from a built-in stub — not a real language model."
+const DemoNotice = "demo mode: illustrative output from a built-in stub rather than a real language model."
 
 // DemoProvider is a deterministic, offline LLMProvider used by the browser
 // playground (and anywhere `--provider demo` is requested) so that AI commands

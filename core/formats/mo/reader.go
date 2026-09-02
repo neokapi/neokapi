@@ -28,7 +28,7 @@ func NewReader() *Reader {
 // Open always fails — MO is a runtime catalog format, not a pipeline
 // source. Runtime consumers load MO via github.com/leonelquinteros/gotext.
 func (r *Reader) Open(_ context.Context, _ *model.RawDocument) error {
-	return errors.New("mo: read not supported — load compiled MO catalogs via gotext.NewMo().ParseFile at runtime, not through the pipeline")
+	return errors.New("mo: read not supported. Load compiled MO catalogs via gotext.NewMo().ParseFile at runtime rather than through the pipeline")
 }
 
 // Read returns an already-closed channel so calls that slip past Open

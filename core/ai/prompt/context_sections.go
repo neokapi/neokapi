@@ -149,7 +149,7 @@ func (c Context) sections() []Section {
 		out = append(out, Section{
 			Kind:   KindContext,
 			Origin: fmt.Sprintf("document (%s nearby)", plural(len(c.Before)+len(c.After), "block")),
-			Heading: "Nearby text, for context only — do not translate it and do not " +
+			Heading: "Nearby text, for context only. Do not translate it and do not " +
 				"return it:",
 			Text: strings.TrimRight(b.String(), "\n"),
 		})

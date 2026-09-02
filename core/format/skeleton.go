@@ -585,7 +585,7 @@ func NewWiredSkeleton(reader DataFormatReader, writer DataFormatWriter) (*Skelet
 	}
 	store, err := NewSkeletonStore()
 	if err != nil {
-		return nil, fmt.Errorf("the %s round-trip needs a skeleton store to preserve the original formatting, and one could not be created — without it the document would be rewritten from the content model and its exact formatting lost: %w", reader.Name(), err)
+		return nil, fmt.Errorf("the %s round-trip needs a skeleton store to preserve the original formatting, and one could not be created. Without it the document would be rewritten from the content model and its exact formatting lost: %w", reader.Name(), err)
 	}
 	WireSkeleton(store, reader, writer)
 	return store, nil

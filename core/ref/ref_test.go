@@ -159,7 +159,7 @@ func TestAssert(t *testing.T) {
 			var conflict *Conflict
 			require.ErrorAs(t, err, &conflict)
 			assert.Equal(t, ComponentTerms, conflict.Component)
-			assert.Contains(t, err.Error(), "pull first")
+			assert.Contains(t, err.Error(), "Pull first")
 		})
 	}
 }

@@ -512,7 +512,7 @@ var cacheMigrations = []storage.Migration{
 			--
 			-- Deliberately UNINDEXED. A partial index on text_indexed = 0
 			-- would make the staleness probe a seek, but every block write
-			-- would maintain it — a cost on extraction, which writes the whole
+			-- would maintain it, a cost on extraction, which writes the whole
 			-- project, to save one scan on a query that runs occasionally. The
 			-- scan stays where it belongs.
 			ALTER TABLE blocks ADD COLUMN text_indexed INTEGER NOT NULL DEFAULT 0;

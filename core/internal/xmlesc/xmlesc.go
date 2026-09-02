@@ -93,7 +93,7 @@ type UnrepresentableCharError struct {
 }
 
 func (e *UnrepresentableCharError) Error() string {
-	return fmt.Sprintf("U+%04X at byte %d cannot be represented in XML — XML 1.0 has no escape and no character reference for it", e.Rune, e.Index)
+	return fmt.Sprintf("U+%04X at byte %d cannot be represented in XML: XML 1.0 has no escape and no character reference for it", e.Rune, e.Index)
 }
 
 // CheckText returns an *UnrepresentableCharError for the first character of s

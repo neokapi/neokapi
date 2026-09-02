@@ -232,7 +232,7 @@ func (ctx *ProjectContext) ResolveContent(reg *registry.FormatRegistry) ([]Resol
 				if collName != "" {
 					where = fmt.Sprintf("content collection %q", collName)
 				}
-				return nil, fmt.Errorf("%s: pattern %q cannot be expanded, so its content would resolve to nothing — fix the pattern in the recipe: %w",
+				return nil, fmt.Errorf("%s: pattern %q cannot be expanded, so its content would resolve to nothing. Fix the pattern in the recipe: %w",
 					where, item.Path, err)
 			}
 			matches := make([]string, 0, len(rels))

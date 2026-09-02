@@ -191,7 +191,7 @@ func setCollectionField(proj *KapiProject, path, rest string, raw json.RawMessag
 	}
 	name, field := rest[:dot], rest[dot+1:]
 	if field != "channel" {
-		return false, fmt.Errorf("recipe: %q is not settable — a collection's %s is not a coordinate", path, field)
+		return false, fmt.Errorf("recipe: %q is not settable: a collection's %s is not a coordinate", path, field)
 	}
 
 	col := proj.collectionNamed(name)
@@ -218,7 +218,7 @@ func setCollectionField(proj *KapiProject, path, rest string, raw json.RawMessag
 
 	profile, channel, qualified := strings.Cut(v, "/")
 	if !qualified || profile == "" || channel == "" {
-		return false, fmt.Errorf("recipe: %s must be `product/channel`, got %q — a channel is a surface OF a product, and the binding reads as one", path, v)
+		return false, fmt.Errorf("recipe: %s must be `product/channel`, got %q: a channel is a surface OF a product, and the binding reads as one", path, v)
 	}
 	if strings.Contains(channel, "/") {
 		return false, fmt.Errorf("recipe: %s has too many parts (want `product/channel`), got %q", path, v)

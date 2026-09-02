@@ -44,7 +44,7 @@ func manifestChecks() []registryEntry {
 			Title:    "manifest_version is a version the host supports",
 			Mode:     ModeAny,
 			Required: true,
-			Why:      "an unsupported manifest_version is rejected outright — the plugin never registers.",
+			Why:      "an unsupported manifest_version is rejected outright, so the plugin never registers.",
 			run:      checkManifestVersion,
 		},
 		{
@@ -118,7 +118,7 @@ func checkManifestPresent(_ context.Context, r *runner) (Status, string, error) 
 func checkManifestParse(_ context.Context, r *runner) (Status, string, error) {
 	switch {
 	case r.readErr != nil:
-		return Skip, ManifestFile + " unreadable — see manifest.present", nil
+		return Skip, ManifestFile + " unreadable (see manifest.present)", nil
 	case r.decodeErr != nil:
 		return Fail, fmt.Sprintf("%s is not well-formed JSON: %v", ManifestFile, r.decodeErr), r.decodeErr
 	case r.parseErr != nil:
@@ -171,7 +171,7 @@ func checkManifestVersion(_ context.Context, r *runner) (Status, string, error) 
 
 func checkManifestNoUnknownFields(_ context.Context, r *runner) (Status, string, error) {
 	if r.readErr != nil {
-		return Skip, ManifestFile + " unreadable — see manifest.present", nil
+		return Skip, ManifestFile + " unreadable (see manifest.present)", nil
 	}
 	dec := json.NewDecoder(bytes.NewReader(r.raw))
 	dec.DisallowUnknownFields()
@@ -182,7 +182,7 @@ func checkManifestNoUnknownFields(_ context.Context, r *runner) (Status, string,
 		if strings.Contains(err.Error(), "unknown field") {
 			return Fail, err.Error(), err
 		}
-		return Skip, ManifestFile + " did not decode — see manifest.parse", nil
+		return Skip, ManifestFile + " did not decode (see manifest.parse)", nil
 	}
 	return Pass, "every key maps to a documented manifest field", nil
 }
@@ -251,7 +251,7 @@ func checkManifestDaemonBlock(_ context.Context, r *runner) (Status, string, err
 	case !isC && d != nil:
 		return Fail, "a daemon block is present but no format, flow tool, segmenter, or source connector is declared", nil
 	case !isC:
-		return Pass, "no Mode-C capabilities and no daemon block — consistent", nil
+		return Pass, "no Mode-C capabilities and no daemon block, consistent", nil
 	}
 	if hs := d.Handshake; hs != nil {
 		if hs.Type != "" && hs.Type != HandshakeTypeStdio {

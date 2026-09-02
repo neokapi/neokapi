@@ -384,16 +384,16 @@ type ClaudeCodeError struct {
 func (e *ClaudeCodeError) Error() string {
 	switch e.Kind {
 	case ClaudeCodeErrNotInstalled:
-		return "claude-code: the `claude` binary was not found on PATH — install Claude Code (https://claude.com/claude-code) or pick another provider with `kapi models setup`"
+		return "claude-code: the `claude` binary was not found on PATH. Install Claude Code (https://claude.com/claude-code) or pick another provider with `kapi models setup`"
 	case ClaudeCodeErrAuth:
-		return "Claude Code isn't signed in — run `claude` once to log in."
+		return "Claude Code isn't signed in. Run `claude` once to log in."
 	case ClaudeCodeErrLimit:
 		if e.ResetsAt != "" {
-			return fmt.Sprintf("Claude subscription limit reached — resumes ~%s. Configure an API key (kapi models setup) for uninterrupted runs.", e.ResetsAt)
+			return fmt.Sprintf("Claude subscription limit reached, resuming ~%s. Configure an API key (kapi models setup) for uninterrupted runs.", e.ResetsAt)
 		}
 		return "Claude subscription limit reached. Configure an API key (kapi models setup) for uninterrupted runs."
 	case ClaudeCodeErrTimeout:
-		return "claude-code: call timed out after " + e.Message + " — set KAPI_CLAUDE_CODE_TIMEOUT to allow more time"
+		return "claude-code: call timed out after " + e.Message + ". Set KAPI_CLAUDE_CODE_TIMEOUT to allow more time"
 	case ClaudeCodeErrCrashed:
 		return "claude-code: the `claude` binary failed: " + e.Message
 	default:

@@ -85,7 +85,7 @@ func CompileCollections(root string, collections []string, log io.Writer) ([]Cat
 		summaries = append(summaries, s...)
 	}
 	for _, s := range summaries {
-		fmt.Fprintf(log, "i18n-catalogs: %s — %d translated, %d awaiting translation\n",
+		fmt.Fprintf(log, "i18n-catalogs: %s: %d translated, %d awaiting translation\n",
 			s.Path, s.Translated, s.Pending)
 	}
 	return summaries, nil
@@ -151,7 +151,7 @@ func compileCollection(
 			}
 			for _, locale := range declared {
 				if !slices.Contains(locales, locale) {
-					fmt.Fprintf(log, "i18n-catalogs: %s%s%s is not committed yet — %s falls back to source\n",
+					fmt.Fprintf(log, "i18n-catalogs: %s%s%s is not committed yet, so %s falls back to source\n",
 						prefix, locale, suffix, locale)
 				}
 			}

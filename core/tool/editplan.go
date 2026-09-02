@@ -109,7 +109,7 @@ func FullSpanEdit(oldRuns, newRuns []model.Run) []model.RunEdit {
 // finally every surviving source overlay span is asserted in-bounds.
 func applyEditPlan(toolName string, v *blockView, block *model.Block, plan EditPlan, vault func(BlockView, []Secret) error) error {
 	if plan.ReplaceAll != nil && (plan.NewRuns != nil || len(plan.Edits) > 0) {
-		return fmt.Errorf("transform tool %q: edit plan sets both ReplaceAll and NewRuns/Edits — a rewrite is structured or opaque, not both", toolName)
+		return fmt.Errorf("transform tool %q: edit plan sets both ReplaceAll and NewRuns/Edits: a rewrite is either structured or opaque, never both", toolName)
 	}
 	if plan.NewRuns == nil && len(plan.Edits) > 0 {
 		return fmt.Errorf("transform tool %q: edit plan has Edits but no NewRuns", toolName)
@@ -117,7 +117,7 @@ func applyEditPlan(toolName string, v *blockView, block *model.Block, plan EditP
 
 	if len(plan.Secrets) > 0 {
 		if vault == nil {
-			return fmt.Errorf("transform tool %q produced %d secrets but set no VaultSecrets sink — a recoverable transform must vault its originals", toolName, len(plan.Secrets))
+			return fmt.Errorf("transform tool %q produced %d secrets but set no VaultSecrets sink: a recoverable transform must vault its originals", toolName, len(plan.Secrets))
 		}
 		if err := vault(v, plan.Secrets); err != nil {
 			return fmt.Errorf("transform tool %q: vault secrets: %w", toolName, err)
@@ -133,7 +133,7 @@ func applyEditPlan(toolName string, v *blockView, block *model.Block, plan EditP
 	case plan.NewRuns != nil:
 		old := block.Source
 		if len(plan.Edits) == 0 && model.RunsText(old) != model.RunsText(plan.NewRuns) {
-			return fmt.Errorf("transform tool %q changed the source text of block %q without a mapping — return Edits for a structured rewrite or ReplaceAll for an opaque one", toolName, block.ID)
+			return fmt.Errorf("transform tool %q changed the source text of block %q without a mapping. Return Edits for a structured rewrite or ReplaceAll for an opaque one", toolName, block.ID)
 		}
 		block.SetSourceRuns(plan.NewRuns)
 		model.RemapOverlays(block, old, plan.Edits)
@@ -146,7 +146,7 @@ func applyEditPlan(toolName string, v *blockView, block *model.Block, plan EditP
 
 	if rewrote {
 		if bad, ok := block.SourceOverlaysInBounds(); !ok {
-			return fmt.Errorf("transform tool %q rewrote the source of block %q but its edit plan left source overlay %q anchored out of bounds — the Edits do not describe the rewrite", toolName, block.ID, bad)
+			return fmt.Errorf("transform tool %q rewrote the source of block %q but its edit plan left source overlay %q anchored out of bounds: the Edits do not describe the rewrite", toolName, block.ID, bad)
 		}
 	}
 	return nil

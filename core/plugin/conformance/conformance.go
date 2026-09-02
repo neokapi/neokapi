@@ -696,7 +696,7 @@ func (r *runner) cleanup() {
 // parsed manifest there is nothing to check against.
 func (r *runner) requireManifest() (Status, string, error) {
 	if r.man == nil {
-		return Skip, "manifest did not parse — nothing to check against", nil
+		return Skip, "manifest did not parse, so there is nothing to check against", nil
 	}
 	return "", "", nil
 }
@@ -707,7 +707,7 @@ func (r *runner) requireBinary() (Status, string, error) {
 		return st, d, err
 	}
 	if r.binPath == "" {
-		return Skip, "plugin binary did not resolve — nothing to execute", nil
+		return Skip, "plugin binary did not resolve, so there is nothing to execute", nil
 	}
 	return "", "", nil
 }

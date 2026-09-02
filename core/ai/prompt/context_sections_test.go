@@ -48,7 +48,7 @@ func TestNeighboursAreMarkedDoNotTranslate(t *testing.T) {
 	system := turns[0].Text
 	assert.Contains(t, system, "Unsaved changes")
 	assert.Contains(t, system, "Discard")
-	assert.Contains(t, system, "do not translate it")
+	assert.Contains(t, system, "Do not translate it")
 	assert.Equal(t, "Save", turns[1].Text, "neighbours must not leak into the text to translate")
 }
 

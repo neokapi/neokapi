@@ -20,7 +20,7 @@ const Demo ProviderID = "demo"
 // DemoNotice is the one-line, honest disclaimer printed to stderr the first
 // time the demo MT provider is exercised in a process. Brand guidelines
 // require the output be unmistakably illustrative, not a real engine (#666).
-const DemoNotice = "demo mode: illustrative output from a built-in stub — not a real machine-translation engine."
+const DemoNotice = "demo mode: illustrative output from a built-in stub rather than a real machine-translation engine."
 
 // DemoProvider is a deterministic, offline MTProvider used by the browser
 // playground (and anywhere the demo provider is requested) so that MT commands

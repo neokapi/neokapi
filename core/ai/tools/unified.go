@@ -187,7 +187,7 @@ func checkMembers() []registry.ToolGroupMember {
 	ai := schema.FromStruct(&AICheckConfig{}, schema.ToolMeta{ID: "qa-ai"})
 	setProviderOptions(ai, aiProviderOptions())
 	return []registry.ToolGroupMember{
-		{Name: checkModeRules, Label: "Deterministic rules", Description: "Local rule-based checks — no credentials, no network.", Schema: rules},
+		{Name: checkModeRules, Label: "Deterministic rules", Description: "Local rule-based checks: no credentials, no network.", Schema: rules},
 		{Name: checkModeAI, Label: "AI review", Description: "LLM-judged quality review via an AI provider.", Schema: ai},
 	}
 }
