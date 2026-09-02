@@ -98,10 +98,18 @@ export async function captureDemo(m: DemoManifest, opts: CaptureOptions = {}): P
 
   // 2. Optional setup commands (seed a terms store, init a project, pnpm install, …).
   // Isolated kapi state (own plugins/home) so demos don't depend on the machine.
+  //
+  // A demo whose sandbox IS a kapi project (`project: true`, a recipe at its
+  // root) turns recipe discovery back on, so the commands read the way a user
+  // types them. Safe under the dogfood-isolation contract because the sandbox
+  // lives in os.tmpdir(), outside the repo, and the rest of the contract (config
+  // dir, XDG roots, plugins-dir-only) still applies. Empty, not unset: only a
+  // NON-empty KAPI_NO_PROJECT disables discovery.
   const env = {
     ...process.env,
     PATH: `${path.join(REPO_ROOT, "bin")}:${process.env.PATH}`,
     ...kapiIsolationEnv(),
+    ...(m.project === true ? { KAPI_NO_PROJECT: "" } : {}),
   };
   for (const cmd of m.setup ?? []) {
     console.log(`  · setup: ${cmd}`);
