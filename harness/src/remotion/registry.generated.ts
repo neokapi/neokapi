@@ -7,7 +7,7 @@ export const DEMOS: RegistryEntry[] = [
   },
   {
     "id": "02-nextjs-zero-to-i18n",
-    "title": "Zero to Japanese — i18n a Next.js app with kapi"
+    "title": "Zero to Japanese in a Next.js app"
   },
   {
     "id": "03-translate-docx",
@@ -35,7 +35,7 @@ export const DEMOS: RegistryEntry[] = [
   },
   {
     "id": "09-toolbox-find-replace",
-    "title": "grep, sed and cat — for any format"
+    "title": "grep, sed and cat for any format"
   },
   {
     "id": "10-cli-governance",
@@ -83,7 +83,7 @@ export const DEMOS: RegistryEntry[] = [
   },
   {
     "id": "kapi-bilingual-workflow",
-    "title": "The bilingual round-trip — extract, translate, merge"
+    "title": "The bilingual round-trip: extract, translate, merge"
   },
   {
     "id": "kapi-desktop-config",
