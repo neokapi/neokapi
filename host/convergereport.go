@@ -392,12 +392,40 @@ type ReviewUnitInfo struct {
 	AIScore    *int                    `json:"ai_score,omitempty"`
 	AIModel    string                  `json:"ai_model,omitempty"`
 	AIFindings []state.AIReviewFinding `json:"ai_findings,omitempty"`
+	// Context is everything that makes the decision judgeable: the point the
+	// content sits at, the blocks around it, what it said before, what the
+	// checks found, and who decided last. Present only when the caller asked
+	// for it (ReviewUnitOptions.WithContext) — assembling it opens the voice
+	// store, the terms store and the content memory, which a queue listing
+	// thousands of units must not pay per row.
+	Context *ReviewContext `json:"context,omitempty"`
+}
+
+// ReviewUnitOptions says how much of the review model to assemble.
+type ReviewUnitOptions struct {
+	// WithContext assembles ReviewUnitInfo.Context.
+	WithContext bool
+	// Window is how many blocks either side the neighbourhood carries; zero
+	// means DefaultReviewWindow.
+	Window int
 }
 
 // ReviewUnit resolves one review-queue unit by (file, key, locale) — exactly as
 // `kapi status --review` lists it — and returns its full text and recorded
 // state. It is the read leg agents pair with ApplyReviewDecisionAs.
 func (a *App) ReviewUnit(ctx context.Context, projectPath, sourceLang string, ref ReviewUnitRef) (*ReviewUnitInfo, error) {
+	return a.ReviewUnitWithOptions(ctx, projectPath, sourceLang, ref, ReviewUnitOptions{})
+}
+
+// ReviewUnitWithContext is ReviewUnit with the full review model attached: the
+// point, the neighbourhood, the history, the judgement and the provenance. It
+// is what a client rendering a review surface reads.
+func (a *App) ReviewUnitWithContext(ctx context.Context, projectPath, sourceLang string, ref ReviewUnitRef) (*ReviewUnitInfo, error) {
+	return a.ReviewUnitWithOptions(ctx, projectPath, sourceLang, ref, ReviewUnitOptions{WithContext: true})
+}
+
+// ReviewUnitWithOptions is the one implementation the two forms above name.
+func (a *App) ReviewUnitWithOptions(ctx context.Context, projectPath, sourceLang string, ref ReviewUnitRef, opts ReviewUnitOptions) (*ReviewUnitInfo, error) {
 	a.InitRegistries()
 	ctx = ctxOrBackground(ctx)
 	proj, err := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
@@ -445,7 +473,9 @@ func (a *App) ReviewUnit(ctx context.Context, projectPath, sourceLang string, re
 				return nil, serr
 			}
 			k := state.Key{Scope: a.documentIndexOrEmpty(ctx, root).Scope(root, u.SourcePath), Unit: ref.Key, Variant: model.Variant(loc)}
+			var record *state.UnitState
 			if us, found := st.Get(ctx, k); found {
+				record = &us
 				th := targetHash(info.Target)
 				ch := state.SourceHash(info.Source)
 				info.Stale = us.SourceStale(ch)
@@ -462,6 +492,33 @@ func (a *App) ReviewUnit(ctx context.Context, projectPath, sourceLang string, re
 					info.AIScore = &score
 					info.AIModel = us.AIReview.Model
 					info.AIFindings = us.AIReview.Findings
+				}
+			}
+			if opts.WithContext {
+				// The blocks are already in document order and already
+				// overlaid with the locale, so the neighbourhood costs one
+				// index rather than a second read.
+				cmd := NewEnvCommand(ctx, "review")
+				AddProjectFlag(cmd)
+				AddResourceFlags(cmd)
+				if ferr := cmd.Flags().Set("project", projectPath); ferr != nil {
+					return nil, fmt.Errorf("bind project: %w", ferr)
+				}
+				info.Context = a.AssembleReviewContext(ctx, ReviewContextRequest{
+					Cmd:        cmd,
+					Root:       root,
+					SourcePath: u.SourcePath,
+					Collection: u.Collection,
+					Locale:     ref.Locale,
+					SourceLang: a.SourceLang,
+					Blocks:     blocks,
+					Key:        ref.Key,
+					Window:     opts.Window,
+					Memory:     a.ReviewMemory(ctx, root),
+					Unit:       record,
+				})
+				if info.Context != nil {
+					info.Context.Provenance.Stale = info.Stale
 				}
 			}
 			return info, nil

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-01T22:19:13Z",
+  "generatedAt": "2026-09-02T09:28:34Z",
   "tools": [
     {
       "name": "apply_edits",
@@ -1164,7 +1164,7 @@
     },
     {
       "name": "review_queue",
-      "description": "List the translation review queue: every translated unit not yet approved, addressed by (file, key, locale). Filter with locale and/or collection. Read-only — derived from the content files and the project state store; units annotated by an AI pre-review carry their score.",
+      "description": "List the translation review queue: every translated unit not yet approved, addressed by (file, key, locale). Filter with locale and/or collection. Read-only — derived from the content files and the project state store; units annotated by an AI pre-review carry their score. Lean by design: call review_unit for a unit's context (the point governing it, its neighbourhood, its prior version, its findings).",
       "surface": "default",
       "params": [
         {
@@ -1189,7 +1189,7 @@
     },
     {
       "name": "review_unit",
-      "description": "Fetch one review-queue unit's full picture: source and target text, ladder status, the last recorded state (with identity), and any fresh AI pre-review score/findings. The read leg before approve_unit / reject_unit / sign_off_unit.",
+      "description": "Fetch one review-queue unit's full picture: source and target text, ladder status, the last recorded state (with identity), and the context the decision is made in: the point governing the file (voice guidance, term rules, coordinates), the blocks before and after it as run sequences, the prior approved version and the content-memory match with its wording, the check findings with their run anchors, and the AI pre-review score. The read leg before approve_unit / reject_unit / sign_off_unit.",
       "surface": "default",
       "params": [
         {

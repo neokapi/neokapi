@@ -65,6 +65,12 @@ type ReviewUnitDetail struct {
 	// Editable reports whether the target is a single plain-text run, the only
 	// shape UpdateReviewTarget can rewrite safely.
 	Editable bool `json:"editable"`
+	// Context is the host's review model: the point governing the file, the
+	// blocks either side of this one, its prior approved version and the
+	// content-memory match with its wording, the check findings with their run
+	// anchors, and the provenance of the current target. Absent when the tab
+	// has no recipe on disk to resolve a point against.
+	Context *host.ReviewContext `json:"context,omitempty"`
 }
 
 // expandReviewTargetPath delegates to project.ResolveTargetPathIn — the same
@@ -111,9 +117,15 @@ func (a *App) findReviewSource(op *openProject, locale, file string) (project.Re
 }
 
 // reviewUnitBlocks reads a review unit's source file, overlays its target file
-// for the locale, and returns the blocks keyed by their stable unit key — the
-// same source-block+target-overlay pairing RunChecks measures.
-func (a *App) reviewUnitBlocks(ctx context.Context, op *openProject, rf project.ResolvedFile, tgtPath, locale string) (map[string]*model.Block, error) {
+// for the locale, and returns the blocks twice: in DOCUMENT ORDER, and keyed by
+// their stable unit key. It is the same source-block+target-overlay pairing
+// RunChecks measures.
+//
+// The ordered slice is what makes a unit's neighbourhood available. A map
+// answers "which block is this" and cannot answer "what comes next", so a
+// caller holding only the map can show a reviewer a sentence with nothing
+// around it while the translate prompt had the paragraph.
+func (a *App) reviewUnitBlocks(ctx context.Context, op *openProject, rf project.ResolvedFile, tgtPath, locale string) ([]*model.Block, map[string]*model.Block, error) {
 	pctx := project.NewProjectContext(op.Project, op.Path)
 	sourceLang := string(pctx.SourceLocale)
 	// Source and target are two renderings of one item, so both are read under
@@ -121,14 +133,14 @@ func (a *App) reviewUnitBlocks(ctx context.Context, op *openProject, rf project.
 	fmtCfg := pctx.FormatConfigFor(rf.Format, rf.Item)
 	passBlocks, err := a.readBlocksForChecks(ctx, rf.Path, rf.Format, fmtCfg, sourceLang)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if _, serr := os.Stat(tgtPath); serr != nil {
-		return nil, fmt.Errorf("target file %q not found: %w", tgtPath, serr)
+		return nil, nil, fmt.Errorf("target file %q not found: %w", tgtPath, serr)
 	}
 	targetBlocks, err := a.readBlocksForChecks(ctx, tgtPath, rf.Format, fmtCfg, sourceLang)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	host.OverlayTargets(passBlocks, targetBlocks, model.LocaleID(locale))
 	byKey := make(map[string]*model.Block, len(passBlocks))
@@ -137,7 +149,7 @@ func (a *App) reviewUnitBlocks(ctx context.Context, op *openProject, rf project.
 			byKey[convergence.BlockKey(b)] = b
 		}
 	}
-	return byKey, nil
+	return passBlocks, byKey, nil
 }
 
 // blockCheckFindings runs the registered content checkers over one block for a
@@ -236,7 +248,7 @@ func (a *App) GetReviewUnit(tabID, locale, file, key string) (*ReviewUnitDetail,
 	if err != nil {
 		return nil, err
 	}
-	byKey, err := a.reviewUnitBlocks(ctx, op, rf, tgtPath, locale)
+	blocks, byKey, err := a.reviewUnitBlocks(ctx, op, rf, tgtPath, locale)
 	if err != nil {
 		return nil, err
 	}
@@ -276,9 +288,11 @@ func (a *App) GetReviewUnit(tabID, locale, file, key string) (*ReviewUnitDetail,
 	// The working store is a schema of the project's one store, so this is the
 	// engine's handle, not a second opener — and closing it is not ours to do.
 	root := filepath.Dir(op.Path)
+	var record *state.UnitState
 	if st, serr := a.hostEngine().OpenProjectState(ctx, root); serr == nil {
 		scope := a.hostEngine().DocumentScope(ctx, root, rf.Path)
 		if us, found := st.Get(ctx, state.Key{Scope: scope, Unit: key, Variant: model.Variant(loc)}); found {
+			record = &us
 			th := project.HashBytes([]byte(strings.TrimSpace(targetText)))
 			if !us.Stale(th) {
 				if us.Status != "" {
@@ -307,18 +321,48 @@ func (a *App) GetReviewUnit(tabID, locale, file, key string) (*ReviewUnitDetail,
 
 	// Best content-memory match, when the project content memory is already open — an existing lookup,
 	// not a new content memory API.
-	if op.memoryHandle != "" {
-		if tm, tok := a.memoryHandles.Get(op.memoryHandle); tok && tm != nil {
-			lookup := &model.Block{ID: "review-lookup", Translatable: true, Source: b.SourceRuns()}
-			matches, lerr := tm.Lookup(ctx, lookup, model.LocaleID(sourceLang), loc,
-				memory.LookupOptions{MinScore: 0.5, MaxResults: 1})
-			if lerr == nil && len(matches) > 0 {
-				detail.MemoryScore = int(math.Round(matches[0].Score * 100))
-			}
+	tm := a.reviewMemoryFor(ctx, op, root)
+	if tm != nil {
+		lookup := &model.Block{ID: "review-lookup", Translatable: true, Source: b.SourceRuns()}
+		matches, lerr := tm.Lookup(ctx, lookup, model.LocaleID(sourceLang), loc,
+			memory.LookupOptions{MinScore: 0.5, MaxResults: 1})
+		if lerr == nil && len(matches) > 0 {
+			detail.MemoryScore = int(math.Round(matches[0].Score * 100))
 		}
 	}
 
+	// The review model the host assembles: the point governing the file, the
+	// blocks either side of this one, what it said before, what the checks
+	// found, and who decided last. Assembled here rather than in the desktop so
+	// the Review page, an MCP agent and the CLI read one answer.
+	if cmd, cerr := a.contextCommand(ctx, op); cerr == nil {
+		detail.Context = a.hostEngine().AssembleReviewContext(ctx, host.ReviewContextRequest{
+			Cmd:        cmd,
+			Root:       root,
+			SourcePath: rf.Path,
+			Collection: rf.Collection,
+			Locale:     locale,
+			SourceLang: sourceLang,
+			Blocks:     blocks,
+			Key:        key,
+			Memory:     tm,
+			Unit:       record,
+		})
+	}
+
 	return detail, nil
+}
+
+// reviewMemoryFor returns the content memory a review read leverages: the tab's
+// open handle when it has one, else the project's own store. A project with
+// neither yields nil, which is the no-leverage case rather than a failure.
+func (a *App) reviewMemoryFor(ctx context.Context, op *openProject, root string) memory.ContentMemory {
+	if op.memoryHandle != "" {
+		if tm, ok := a.memoryHandles.Get(op.memoryHandle); ok && tm != nil {
+			return tm
+		}
+	}
+	return a.hostEngine().ReviewMemory(ctx, root)
 }
 
 // targetEditable reports whether the block's target for the locale is a single
@@ -342,7 +386,7 @@ func targetEditable(b *model.Block, loc model.LocaleID) bool {
 // threading twice over: enrichment runs every registered checker over every
 // item, and a project the size of the sample has thousands. A filter that only
 // hid rows afterwards would still pay for all of them.
-func (a *App) GetReviewQueue(tabID string, filter ProjectFilter) ([]host.ReviewItem, error) {
+func (a *App) GetReviewQueue(tabID string, filter ProjectFilter) ([]host.ReviewQueueItem, error) {
 	langs, lerr := canonicalLocales(filter.Languages)
 	if lerr != nil {
 		return nil, lerr
@@ -355,7 +399,7 @@ func (a *App) GetReviewQueue(tabID string, filter ProjectFilter) ([]host.ReviewI
 	}
 	items := filterReviewItems(rep.Review, filter)
 	if len(items) == 0 {
-		return []host.ReviewItem{}, nil
+		return []host.ReviewQueueItem{}, nil
 	}
 	op := a.getOpenProject(tabID)
 	if op == nil || op.Project == nil || op.Path == "" {
@@ -381,7 +425,7 @@ func (a *App) GetReviewQueue(tabID string, filter ProjectFilter) ([]host.ReviewI
 		if ferr != nil {
 			continue // best-effort: leave hasFindings unset
 		}
-		byKey, berr := a.reviewUnitBlocks(ctx, op, rf, tgtPath, s.locale)
+		_, byKey, berr := a.reviewUnitBlocks(ctx, op, rf, tgtPath, s.locale)
 		if berr != nil {
 			continue
 		}
@@ -407,12 +451,12 @@ func (a *App) GetReviewQueue(tabID string, filter ProjectFilter) ([]host.ReviewI
 // a locale directory.
 //
 // An empty filter passes everything, so an unfiltered project is unaffected.
-func filterReviewItems(items []host.ReviewItem, filter ProjectFilter) []host.ReviewItem {
+func filterReviewItems(items []host.ReviewQueueItem, filter ProjectFilter) []host.ReviewQueueItem {
 	narrowsFiles := filter.FilesNarrowed()
 	if len(filter.Languages) == 0 && !narrowsFiles {
 		return items
 	}
-	out := make([]host.ReviewItem, 0, len(items))
+	out := make([]host.ReviewQueueItem, 0, len(items))
 	for _, it := range items {
 		if len(filter.Languages) > 0 && !slices.Contains(filter.Languages, it.Locale) {
 			continue

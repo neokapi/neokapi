@@ -56,6 +56,11 @@ type DesktopFinding struct {
 	Point string `json:"point,omitempty"`
 	// Collection is the one the checked file belongs to.
 	Collection string `json:"collection,omitempty"`
+	// Position is the run range the finding applies to, anchored to the block's
+	// runs. It is what lets a surface underline the offending words instead of
+	// describing them, and what a reviewer needs to see which placeholder in a
+	// sentence of four the checker means.
+	Position model.Anchor `json:"position,omitzero"`
 }
 
 // CheckFileResult groups the findings for a single content file.
@@ -747,6 +752,7 @@ func toDesktopFinding(f check.Finding, b *model.Block, field string, locale stri
 		Rule:         findingRule(f),
 		Point:        pointRef(point),
 		Collection:   point.Collection,
+		Position:     f.Position,
 	}
 	df.Fixable = replacement != "" && b.ID != "" && f.OriginalText != ""
 	return df

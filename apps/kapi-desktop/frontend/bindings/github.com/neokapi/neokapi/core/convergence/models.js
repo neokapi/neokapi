@@ -498,7 +498,7 @@ export class Report {
         if (!("review" in $$source)) {
             /**
              * @member
-             * @type {ReviewItem[]}
+             * @type {ReviewQueueItem[]}
              */
             this["review"] = [];
         }
@@ -530,13 +530,15 @@ export class Report {
 }
 
 /**
- * ReviewItem is one translatable unit awaiting human review (a translated unit not
- * yet approved), with short previews for listing.
+ * ReviewQueueItem is one translatable unit awaiting human review (a translated
+ * unit not yet approved), with short previews for listing. Named for the queue
+ * it is a row of, so it reads apart from the governance review item a connected
+ * workspace holds.
  */
-export class ReviewItem {
+export class ReviewQueueItem {
     /**
-     * Creates a new ReviewItem instance.
-     * @param {Partial<ReviewItem>} [$$source = {}] - The source object to create the ReviewItem.
+     * Creates a new ReviewQueueItem instance.
+     * @param {Partial<ReviewQueueItem>} [$$source = {}] - The source object to create the ReviewQueueItem.
      */
     constructor($$source = {}) {
         if (!("locale" in $$source)) {
@@ -640,13 +642,13 @@ export class ReviewItem {
     }
 
     /**
-     * Creates a new ReviewItem instance from a string or object.
+     * Creates a new ReviewQueueItem instance from a string or object.
      * @param {any} [$$source = {}]
-     * @returns {ReviewItem}
+     * @returns {ReviewQueueItem}
      */
     static createFrom($$source = {}) {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new ReviewItem(/** @type {Partial<ReviewItem>} */($$parsedSource));
+        return new ReviewQueueItem(/** @type {Partial<ReviewQueueItem>} */($$parsedSource));
     }
 }
 
@@ -816,5 +818,5 @@ const $$createType4 = SourceCoverage.createFrom;
 const $$createType5 = $Create.Nullable($$createType4);
 const $$createType6 = LocaleCoverage.createFrom;
 const $$createType7 = $Create.Array($$createType6);
-const $$createType8 = ReviewItem.createFrom;
+const $$createType8 = ReviewQueueItem.createFrom;
 const $$createType9 = $Create.Array($$createType8);

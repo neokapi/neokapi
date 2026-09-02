@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/gate"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
@@ -80,6 +81,68 @@ func TestGetReviewUnit_SurfacesPlaceholderFinding(t *testing.T) {
 	assert.Equal(t, "de-DE", d.Findings[0].Locale, "a target-side finding carries the checked target locale")
 }
 
+// TestToDesktopFinding_CarriesTheAnchor guards the run range on its way to the
+// panel: a checker that says which words it objects to must be able to have
+// them underlined rather than described.
+func TestToDesktopFinding_CarriesTheAnchor(t *testing.T) {
+	anchor := model.Anchor{
+		Kind:  model.AnchorRange,
+		Start: model.RunPos{Run: 0, Offset: 4},
+		End:   model.RunPos{Run: 0, Offset: 11},
+	}
+	f := check.Finding{
+		Category:     "terminology",
+		Severity:     check.SeverityMajor,
+		Message:      "say `use` instead of `utilize`",
+		OriginalText: "utilize",
+		Position:     anchor,
+	}
+	b := &model.Block{ID: "b1", Translatable: true}
+
+	got := toDesktopFinding(f, b, "target", "nb", ContextPointDTO{})
+	assert.Equal(t, anchor, got.Position)
+}
+
+// TestGetReviewUnit_CarriesTheReviewContext holds the bar the review model
+// exists for: a reviewer sees at least what the model was told. The prompt
+// carries a block's key and its neighbours; so does the unit detail.
+func TestGetReviewUnit_CarriesTheReviewContext(t *testing.T) {
+	app := NewApp()
+	tab, _ := newReviewProject(t, app)
+
+	d, err := app.GetReviewUnit(tab.ID, "fr-FR", filepath.Join("locales", "fr-FR.json"), "greeting")
+	require.NoError(t, err)
+	require.NotNil(t, d.Context)
+
+	t.Run("the point names where the content sits", func(t *testing.T) {
+		assert.Equal(t, "App", d.Context.Point.Collection)
+		assert.Equal(t, filepath.ToSlash(filepath.Join("locales", "en.json")), d.Context.Point.Path)
+	})
+
+	t.Run("the neighbourhood keeps document order", func(t *testing.T) {
+		assert.Equal(t, "greeting", d.Context.Neighbourhood.Key)
+		assert.Equal(t, host.DefaultReviewWindow, d.Context.Neighbourhood.Window)
+		assert.Empty(t, d.Context.Neighbourhood.Before, "greeting is the first unit in the file")
+		require.Len(t, d.Context.Neighbourhood.After, 1)
+		assert.Equal(t, "farewell", d.Context.Neighbourhood.After[0].Key)
+		assert.NotEmpty(t, d.Context.Neighbourhood.After[0].Source, "a neighbour travels as runs")
+	})
+
+	t.Run("the second unit sees the first behind it", func(t *testing.T) {
+		later, lerr := app.GetReviewUnit(tab.ID, "fr-FR", filepath.Join("locales", "fr-FR.json"), "farewell")
+		require.NoError(t, lerr)
+		require.NotNil(t, later.Context)
+		require.Len(t, later.Context.Neighbourhood.Before, 1)
+		assert.Equal(t, "greeting", later.Context.Neighbourhood.Before[0].Key)
+		assert.Empty(t, later.Context.Neighbourhood.After, "farewell is the last unit in the file")
+	})
+
+	t.Run("provenance is empty before anyone decides", func(t *testing.T) {
+		assert.Empty(t, d.Context.Provenance.ReviewState)
+		assert.Empty(t, d.Context.Provenance.By)
+	})
+}
+
 // TestGetReviewUnit_DirectoryMirrorTarget guards a real bug: a collection
 // whose target is a bare directory mirror ("{lang}", no {filename}/{relpath}/*
 // token) — kapimart's "Contracts" collection (`base: legal`, `target: "{lang}"`)
@@ -149,7 +212,7 @@ func TestGetReviewQueue_MarksFindings(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, items, 4, "two units × two locales await review")
 
-	byID := map[string]host.ReviewItem{}
+	byID := map[string]host.ReviewQueueItem{}
 	for _, it := range items {
 		byID[it.Locale+":"+it.Key] = it
 	}

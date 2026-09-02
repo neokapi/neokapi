@@ -85,7 +85,7 @@ func (a *App) ReviewAIAction(tabID, locale, file, key, action, instruction strin
 	if err != nil {
 		return nil, err
 	}
-	byKey, err := a.reviewUnitBlocks(ctx, op, rf, tgtPath, locale)
+	_, byKey, err := a.reviewUnitBlocks(ctx, op, rf, tgtPath, locale)
 	if err != nil {
 		return nil, err
 	}
@@ -374,7 +374,7 @@ func (a *App) RunAIPreReview(tabID, locale string, scope PreReviewScope, policy 
 	if err != nil {
 		return nil, err
 	}
-	var pending []host.ReviewItem
+	var pending []host.ReviewQueueItem
 	for _, it := range rep.Review {
 		if locale != "" && it.Locale != locale {
 			continue
@@ -404,7 +404,7 @@ func (a *App) RunAIPreReview(tabID, locale string, scope PreReviewScope, policy 
 	// Group by (file, locale) so each pair is read and overlaid once, and the
 	// annotations for a file land in one state write.
 	type scopeKey struct{ file, locale string }
-	groups := map[scopeKey][]host.ReviewItem{}
+	groups := map[scopeKey][]host.ReviewQueueItem{}
 	order := []scopeKey{}
 	for _, it := range pending {
 		k := scopeKey{file: it.File, locale: it.Locale}
@@ -424,7 +424,7 @@ func (a *App) RunAIPreReview(tabID, locale string, scope PreReviewScope, policy 
 			done += len(items)
 			continue
 		}
-		byKey, berr := a.reviewUnitBlocks(ctx, op, rf, tgtPath, k.locale)
+		_, byKey, berr := a.reviewUnitBlocks(ctx, op, rf, tgtPath, k.locale)
 		if berr != nil {
 			res.Skipped += len(items)
 			done += len(items)
@@ -441,7 +441,7 @@ func (a *App) RunAIPreReview(tabID, locale string, scope PreReviewScope, policy 
 
 		annotations := map[string]state.AIReview{}
 		type approval struct {
-			item  host.ReviewItem
+			item  host.ReviewQueueItem
 			score int
 		}
 		var approvals []approval

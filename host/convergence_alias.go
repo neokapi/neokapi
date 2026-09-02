@@ -15,7 +15,7 @@ type (
 	ConvergenceReport = convergence.Report
 	LocaleCoverage    = convergence.LocaleCoverage
 	SourceCoverage    = convergence.SourceCoverage
-	ReviewItem        = convergence.ReviewItem
+	ReviewQueueItem   = convergence.ReviewQueueItem
 )
 
 // Per-block ladder helpers, framework-owned. Kept as package-level aliases so the

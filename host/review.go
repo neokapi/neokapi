@@ -18,8 +18,8 @@ import (
 // unit awaiting human review, the derived counterpart of the convergence loop's
 // "parked" outcome.
 type reviewQueueOutput struct {
-	Project string       `json:"project,omitempty"`
-	Pending []ReviewItem `json:"pending"`
+	Project string            `json:"project,omitempty"`
+	Pending []ReviewQueueItem `json:"pending"`
 }
 
 // FormatText renders the review queue.
@@ -65,13 +65,13 @@ func relativeToRoot(root, path string) string {
 // computeReviewQueue lists the translated units that are not yet approved — the
 // review queue. It is derived (recomputed from content + the project state store),
 // never tracked.
-func (a *App) computeReviewQueue(ctx context.Context, proj *project.KapiProject, root string, units []VerifyUnit) ([]ReviewItem, error) {
+func (a *App) computeReviewQueue(ctx context.Context, proj *project.KapiProject, root string, units []VerifyUnit) ([]ReviewQueueItem, error) {
 	reviewed, err := a.loadReviewedCorrections(ctx, proj, root)
 	if err != nil {
 		return nil, err
 	}
 	docs := a.documentIndexOrEmpty(ctx, root)
-	var items []ReviewItem
+	var items []ReviewQueueItem
 	for _, u := range units {
 		blocks, missing, berr := a.bilingualBlocks(ctx, u)
 		if berr != nil {
@@ -99,7 +99,7 @@ func (a *App) computeReviewQueue(ctx context.Context, proj *project.KapiProject,
 			if reviewed.decided(scope, b, u.Locale) {
 				continue
 			}
-			item := ReviewItem{
+			item := ReviewQueueItem{
 				Locale:       u.Locale,
 				File:         u.DisplayPath,
 				Relative:     relativeToRoot(root, u.SourcePath),
