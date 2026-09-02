@@ -261,12 +261,7 @@ func (p *producedOrigins) at(u VerifyUnit, b *model.Block, locale model.LocaleID
 	if err != nil || len(o.Payload) == 0 {
 		return model.Origin{}, false
 	}
-	var payload struct {
-		Runs   []model.Run   `json:"runs"`
-		Text   string        `json:"text"`
-		Target string        `json:"target"`
-		Origin *model.Origin `json:"origin"`
-	}
+	var payload blockstore.TargetOverlay
 	if json.Unmarshal(o.Payload, &payload) != nil || payload.Origin == nil {
 		return model.Origin{}, false
 	}
@@ -274,22 +269,8 @@ func (p *producedOrigins) at(u VerifyUnit, b *model.Block, locale model.LocaleID
 	// overlay outlives the run that wrote it, so a target somebody edited by
 	// hand since would otherwise be recorded as machine-produced under the
 	// context of a run that never wrote those words.
-	if overlayTargetText(payload.Runs, payload.Text, payload.Target) != b.TargetText(locale) {
+	if payload.TargetText() != b.TargetText(locale) {
 		return model.Origin{}, false
 	}
 	return *payload.Origin, true
-}
-
-// overlayTargetText renders a target overlay's payload as the text a writer
-// would put in the file, over the three shapes the translate-family tools write
-// (runs, text, target).
-func overlayTargetText(runs []model.Run, text, target string) string {
-	switch {
-	case len(runs) > 0:
-		return model.RunsText(runs)
-	case text != "":
-		return text
-	default:
-		return target
-	}
 }

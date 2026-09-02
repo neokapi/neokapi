@@ -119,15 +119,15 @@ func TestConverge_ParkedLocaleUnderManualPolicyKeepsWriting(t *testing.T) {
 	assert.Contains(t, string(body), "Tidevannsvindu")
 }
 
-// TestConverge_ParkedLocaleIsReportedOnWhatIsOnDisk: the run's closing report
-// describes the tree it leaves behind, not the draft it graded and threw away.
+// TestConverge_ParkedLocaleReadsTheSameToUpAndStatus: the run's closing report
+// and `kapi status` describe the parked locale identically (#2024).
 //
-// A parked locale's draft is discarded, so figures derived from it describe a
-// tree nobody can open — and `kapi status`, run immediately after with no draft
-// to prefer, contradicts them. Here the drafted-but-withheld locale is fully
-// translated in the draft and has nothing on disk at all, which is the widest
-// the two readings can be apart: 100% against 0% (#2024).
-func TestConverge_ParkedLocaleIsReportedOnWhatIsOnDisk(t *testing.T) {
+// The run's draft tree goes with the run, so a figure derived from it would
+// describe a tree nobody can open. Both readings come off the record that
+// outlives the run instead: the project block store, which holds the drafts the
+// gate withheld (#2356). The locale reads fully translated and short of its
+// `reviewed` bar, from `up` and from `status` alike.
+func TestConverge_ParkedLocaleReadsTheSameToUpAndStatus(t *testing.T) {
 	a, cmd, recipe, dir := parkedProject(t, gate.Gate{
 		"translated": {Pct: 100},
 		"reviewed":   {Pct: 50},
@@ -139,11 +139,12 @@ func TestConverge_ParkedLocaleIsReportedOnWhatIsOnDisk(t *testing.T) {
 
 	_, err := os.Stat(filepath.Join(dir, "site", "locales", "nb.json"))
 	require.True(t, os.IsNotExist(err), "and nothing was delivered")
-	assert.Zero(t, out.Locales[0].Pct["translated"],
-		"so the run reports the locale as untranslated, which is what a reader will find")
+	assert.Equal(t, 100, out.Locales[0].Pct["translated"],
+		"the store holds a translation for every unit the pass drafted")
+	assert.Zero(t, out.Locales[0].Pct["reviewed"], "nobody reviewed them")
 
 	// The same derivation `kapi status` runs, over the same tree, reaches the
-	// same figure — which is the whole property.
+	// same figure, which is the whole property.
 	proj, lerr := project.Load(recipe)
 	require.NoError(t, lerr)
 	units, uerr := a.UnitsFromProject(proj, dir, "")

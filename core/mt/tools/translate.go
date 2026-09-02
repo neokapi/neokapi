@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sync/atomic"
 
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/model"
@@ -33,7 +34,14 @@ type MTTranslateTool struct {
 	profileID      string
 	profileVersion string
 	contextFP      string
+	// reused counts the blocks this run served from the block store instead of
+	// sending to the MT API. See AITranslateTool.ReusedTargets.
+	reused atomic.Int64
 }
+
+// ReusedTargets is how many blocks this tool served from the block store rather
+// than translating.
+func (t *MTTranslateTool) ReusedTargets() int { return int(t.reused.Load()) }
 
 // MTTranslateConfig holds configuration for the MT translate tool.
 //
@@ -202,17 +210,6 @@ func (t *MTTranslateTool) SessionProcess(
 	}
 }
 
-// mtTargetCache is the payload stored in `targets/<locale>` overlays
-// written by MT translate. Shape-compatible with translate's
-// overlay so sessions can interop.
-type mtTargetCache struct {
-	Text     string `json:"text"`
-	Provider string `json:"provider,omitempty"`
-	// Config is the tool-config fingerprint at write time; a cached target is
-	// reused only when it matches the current tool's fingerprint.
-	Config string `json:"config,omitempty"`
-}
-
 func (t *MTTranslateTool) sessionHandleBlock(
 	ctx context.Context,
 	sess blockstore.Session,
@@ -233,10 +230,15 @@ func (t *MTTranslateTool) sessionHandleBlock(
 
 	if randomAccess {
 		if sc, err := sess.GetOverlay(overlayKind, hash); err == nil && len(sc.Payload) > 0 {
-			var cached mtTargetCache
-			if err := json.Unmarshal(sc.Payload, &cached); err == nil && cached.Text != "" && cached.Config == t.configFP {
-				block.SetTargetText(t.targetLocale, cached.Text)
+			var cached blockstore.TargetOverlay
+			if err := json.Unmarshal(sc.Payload, &cached); err == nil && cached.ReusableFor(block.SourceText(), t.configFP, t.contextFP) {
+				if len(cached.Runs) > 0 {
+					block.SetTargetRuns(t.targetLocale, cached.Runs)
+				} else {
+					block.SetTargetText(t.targetLocale, cached.TargetText())
+				}
 				block.StampTargetProvenance(t.targetLocale, model.TargetStatusDraft, t.mtOrigin())
+				t.reused.Add(1)
 				return nil
 			}
 		}
@@ -247,7 +249,15 @@ func (t *MTTranslateTool) sessionHandleBlock(
 	}
 
 	if target := block.TargetText(t.targetLocale); target != "" {
-		payload, err := json.Marshal(mtTargetCache{Text: target, Provider: string(t.provider.Name()), Config: t.configFP})
+		payload, err := json.Marshal(blockstore.TargetOverlay{
+			Runs:     block.TargetRuns(t.targetLocale),
+			Text:     target,
+			Status:   string(model.TargetStatusDraft),
+			Provider: string(t.provider.Name()),
+			Config:   t.configFP,
+			Source:   blockstore.SourceStamp(block.SourceText()),
+			Origin:   blockstore.OverlayOrigin(t.mtOrigin()),
+		})
 		if err != nil {
 			return fmt.Errorf("translate: encode overlay: %w", err)
 		}

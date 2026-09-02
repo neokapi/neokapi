@@ -76,13 +76,7 @@ func (t *hydrateTargetsTool) SessionProcess(ctx context.Context, sess blockstore
 // text while the run still counted it applied. A stored overlay that cannot be
 // read is a fault in the workspace, not an absent translation.
 func applyTargetOverlay(b *model.Block, locale model.LocaleID, payload []byte) error {
-	var p struct {
-		Runs   []model.Run   `json:"runs"`
-		Text   string        `json:"text"`
-		Target string        `json:"target"`
-		Status string        `json:"status"`
-		Origin *model.Origin `json:"origin"`
-	}
+	var p blockstore.TargetOverlay
 	if err := json.Unmarshal(payload, &p); err != nil {
 		return fmt.Errorf("decode target overlay for block %s (%s): %w", blockKey(b), locale, err)
 	}

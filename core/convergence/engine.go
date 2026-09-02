@@ -83,7 +83,23 @@ type LoopFuncs struct {
 	// by emitting unit_progress events on emit (already serialized and
 	// throttle-friendly) and returns the locale's final produced counts for
 	// the pass.
-	Produce func(ctx context.Context, locale string, pass int, emit *Emitter) (done, viaMemory, viaAI int, err error)
+	Produce func(ctx context.Context, locale string, pass int, emit *Emitter) (PassProduction, error)
+}
+
+// PassProduction is what one locale's pass produced: how many units carry a
+// committed target, and where those targets came from.
+//
+// The split tells a reader what the pass cost. ViaMemory is the project's own
+// reviewed wording, recycled. ViaDraft is a translation the block store already
+// held, reused without a provider call: the same work as ViaAI, made on an
+// earlier run and paid for then. Counting a reused draft as ViaAI would quote a
+// bill nobody was sent, which is what a parked locale's every run would report
+// (#2356).
+type PassProduction struct {
+	Done      int
+	ViaMemory int
+	ViaAI     int
+	ViaDraft  int
 }
 
 // LoopOptions are the loop's knobs.
@@ -181,7 +197,7 @@ func Loop(ctx context.Context, opts LoopOptions, f LoopFuncs, emit *Emitter) (Lo
 					Locale: loc,
 					Units:  state.UnitTotals[loc],
 				})
-				done, viaMemory, viaAI, err := f.Produce(gctx, loc, passes, emit)
+				produced, err := f.Produce(gctx, loc, passes, emit)
 				if err != nil {
 					return fmt.Errorf("converge %s: %w", loc, err)
 				}
@@ -190,9 +206,10 @@ func Loop(ctx context.Context, opts LoopOptions, f LoopFuncs, emit *Emitter) (Lo
 					Pass:      passes,
 					Locale:    loc,
 					Units:     state.UnitTotals[loc],
-					Done:      done,
-					ViaMemory: viaMemory,
-					ViaAI:     viaAI,
+					Done:      produced.Done,
+					ViaMemory: produced.ViaMemory,
+					ViaAI:     produced.ViaAI,
+					ViaDraft:  produced.ViaDraft,
 				})
 				return nil
 			})

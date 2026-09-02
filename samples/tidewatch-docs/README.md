@@ -98,7 +98,12 @@ Three independent mechanisms, all visible in this sample:
 
 1. **The gate is on delivery, not on the build.** Dutch sits at `blocked: review`
    and the site still builds and still serves. Whatever reads
-   `kapi status --ship` withholds Dutch; nothing withholds the site.
+   `kapi status --ship` withholds Dutch; nothing withholds the site. The Dutch
+   drafts are in the project store, so `kapi status` grades them and
+   `kapi status --review` lists all 60 of them while `i18n/nl/` stays empty. A
+   reviewer works on the locale where it stands, and the next `kapi up` reads
+   the same drafts back rather than paying a provider for them again
+   (`content memory 0 · drafts 60 · AI 0`).
 2. **The source gate is about the source.** `kapi check --strict` passes here with
    one advisory finding — `integrating.md` keeping `mooring_id`, the field name
    the published wire contract keeps after the vocabulary retired the word. A
@@ -134,6 +139,20 @@ kapi status
 kapi check --strict                       # PASS — the source is what a PR is held to
 ```
 
+Dutch takes the same route, from the drafts in the project store. Nothing under
+`i18n/nl/` exists yet; the review queue lists the units all the same, and the
+`kapi up` after the decisions delivers the locale:
+
+```bash
+kapi status --review --json --jq '.pending[]
+  | select(.locale == "nl")
+  | {kind: "review", op: "add", file, id: .key, locale, status: "reviewed"}' > nl.json
+kapi apply nl.json
+kapi commit
+kapi up                                   # 0 passes, 8 files materialized
+ls i18n/nl
+```
+
 ## Definition of done
 
 | # | Point | Standing |
@@ -141,7 +160,7 @@ kapi check --strict                       # PASS — the source is what a PR is 
 | 1 | Onboarded through the discovery path — the graph arrives as reviewable files | **MET** — recipe, voice profile and vocabulary carried forward from the monolingual sample rather than re-authored |
 | 2 | Governance bound at the point day one; review workflow on | **MET** — `profiles.northsea` binds voice and channel; the review round-trip runs offline through `apply` + `commit` |
 | 3 | First converge shows recycle numbers and an estimate before it spends | **MET** — `plan: 96 unit(s) missing · 15 exact-content memory · 81 AI · ≈2k tokens`, then per-locale `(content memory 23 · AI 37)`. No credential spent |
-| 4 | Governed review exercised, with a decision that changes an outcome | **MET** — 60 decisions committed to `.kapi/state/`, moving `nb` from `blocked: review` to `ready` while `nl` stays pending |
+| 4 | Governed review exercised, with a decision that changes an outcome | **MET** — 60 decisions committed to `.kapi/state/`, moving `nb` from `blocked: review` to `ready` while `nl` stays pending until its own drafts are reviewed |
 | 5 | Delivery proven — the CI leg | **PARTIAL** — the workflow is authored against the published actions and every kapi command in it is verified locally; it is not executed, because a sample workflow inside `samples/` is not a repository workflow and running it would mean a public sample repository, which this stream does not create |
 | 6 | Recorded as a harness walkthrough | **PARTIAL** — `harness/demos/s2-tidewatch-docs/` is authored and capture-verified; nothing has been rendered or published for English, and the Norwegian render is held by [#2032](https://github.com/neokapi/neokapi/issues/2032) |
 | 7 | Carries no internal information; lives where a reader can clone it | **MET** — one fictional company, in-repo under `samples/` |

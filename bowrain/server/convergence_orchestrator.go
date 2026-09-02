@@ -832,9 +832,9 @@ func countFailingBlocks(
 // runID scopes the pass's reported AI token usage to the run, so the terminal
 // event can report what the run ACTUALLY spent (grant sizing); it may be empty
 // (tests driving a bare produce), which simply reports no usage.
-func (o *convergenceOrchestrator) produceFunc(projectID, stream, runID string) func(context.Context, string, int, *convergence.Emitter) (int, int, int, error) {
+func (o *convergenceOrchestrator) produceFunc(projectID, stream, runID string) func(context.Context, string, int, *convergence.Emitter) (convergence.PassProduction, error) {
 	s := o.server
-	return func(ctx context.Context, locale string, pass int, emit *convergence.Emitter) (int, int, int, error) {
+	return func(ctx context.Context, locale string, pass int, emit *convergence.Emitter) (convergence.PassProduction, error) {
 		// The last poll's token sum is the pass's total (a job's tokens_used is
 		// written when it finishes), banked on every exit path so a canceled pass
 		// still reports what it burned before the cancel.
@@ -842,22 +842,22 @@ func (o *convergenceOrchestrator) produceFunc(projectID, stream, runID string) f
 		defer func() { o.addRunTokens(runID, passTokens) }()
 
 		if s.JobStore == nil || s.JobQueue == nil || s.ContentStore == nil {
-			return 0, 0, 0, nil // no job infra: nothing produced, the loop parks
+			return convergence.PassProduction{}, nil // no job infra: nothing produced, the loop parks
 		}
 		proj, err := s.ContentStore.GetProject(ctx, projectID)
 		if err != nil {
-			return 0, 0, 0, fmt.Errorf("load project: %w", err)
+			return convergence.PassProduction{}, fmt.Errorf("load project: %w", err)
 		}
 		items, err := s.ContentStore.ListItems(ctx, projectID, runStream(stream))
 		if err != nil {
-			return 0, 0, 0, fmt.Errorf("list items: %w", err)
+			return convergence.PassProduction{}, fmt.Errorf("list items: %w", err)
 		}
 		var itemNames []string
 		for _, it := range items {
 			itemNames = append(itemNames, it.Name)
 		}
 		if len(itemNames) == 0 {
-			return 0, 0, 0, nil
+			return convergence.PassProduction{}, nil
 		}
 
 		// Source-first gate (epic 019): before spawning translation jobs, drop
@@ -869,13 +869,13 @@ func (o *convergenceOrchestrator) produceFunc(projectID, stream, runID string) f
 		// spinning — no AI spend, no discarded work.
 		producible, blockedItems, gErr := o.gateItemsBySource(ctx, projectID, itemNames)
 		if gErr != nil {
-			return 0, 0, 0, gErr
+			return convergence.PassProduction{}, gErr
 		}
 		if len(producible) == 0 {
 			if blockedItems > 0 {
-				return 0, 0, 0, errStallSourceNotReady
+				return convergence.PassProduction{}, errStallSourceNotReady
 			}
-			return 0, 0, 0, nil // nothing to do (already covered) — not a hold
+			return convergence.PassProduction{}, nil // nothing to do (already covered), not a hold
 		}
 		itemNames = producible
 
@@ -889,10 +889,10 @@ func (o *convergenceOrchestrator) produceFunc(projectID, stream, runID string) f
 		// stream-scoped convergence arrives with the orchestrator, not here.
 		jobIDs, err := s.createTranslationJobs(ctx, proj, runStream(stream), itemNames, []string{locale}, pushID, o.workspaceSlug(ctx, proj), "")
 		if err != nil {
-			return 0, 0, 0, err
+			return convergence.PassProduction{}, err
 		}
 		if len(jobIDs) == 0 {
-			return 0, 0, 0, nil
+			return convergence.PassProduction{}, nil
 		}
 		// Job completion is the "this pass is done producing" signal; the
 		// translated-BLOCK count is the reported progress. Each poll refreshes
@@ -905,11 +905,11 @@ func (o *convergenceOrchestrator) produceFunc(projectID, stream, runID string) f
 		translated := 0
 		for {
 			if err := ctx.Err(); err != nil {
-				return translated, 0, translated, err
+				return convergence.PassProduction{Done: translated, ViaAI: translated}, err
 			}
 			jobList, err := s.JobStore.ListJobsByPushID(ctx, pushID)
 			if err != nil {
-				return translated, 0, translated, fmt.Errorf("poll jobs: %w", err)
+				return convergence.PassProduction{Done: translated, ViaAI: translated}, fmt.Errorf("poll jobs: %w", err)
 			}
 			inProgress := 0
 			viaMemory := 0
@@ -932,11 +932,11 @@ func (o *convergenceOrchestrator) produceFunc(projectID, stream, runID string) f
 				Pass: pass, Locale: locale, Done: translated, ViaMemory: doneMemory, ViaAI: doneAI,
 			})
 			if inProgress == 0 {
-				return translated, doneMemory, doneAI, nil
+				return convergence.PassProduction{Done: translated, ViaMemory: doneMemory, ViaAI: doneAI}, nil
 			}
 			select {
 			case <-ctx.Done():
-				return translated, doneMemory, doneAI, ctx.Err()
+				return convergence.PassProduction{Done: translated, ViaMemory: doneMemory, ViaAI: doneAI}, ctx.Err()
 			case <-time.After(convergePollInterval):
 			}
 		}

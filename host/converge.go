@@ -463,7 +463,7 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 			}
 			return derive(cov, excl), nil
 		},
-		Produce: func(ctx context.Context, locale string, pass int, emit *convergence.Emitter) (int, int, int, error) {
+		Produce: func(ctx context.Context, locale string, pass int, emit *convergence.Emitter) (convergence.PassProduction, error) {
 			tap := newConvergeTap(locale)
 			worker := a.convergeWorker(locale, tap)
 			stopWatch := watchTapProgress(tap, pass, emit.Emit)
@@ -487,11 +487,10 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 			}
 			stopWatch()
 			if err != nil {
-				return 0, 0, 0, err
+				return convergence.PassProduction{}, err
 			}
 			facts.notePassed(locale)
-			done, viaMemory, viaAI := tap.snapshot()
-			return done, viaMemory, viaAI, nil
+			return tap.snapshot(), nil
 		},
 	}
 	if !opts.noExtract {

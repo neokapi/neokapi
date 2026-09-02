@@ -94,12 +94,12 @@ func TestOrchestrator_IngestedProjectRunsFirstPass(t *testing.T) {
 	run := &bstore.ConvergenceRun{ProjectID: p.ID, Trigger: "push", State: bstore.ConvergenceRunRunning}
 	require.NoError(t, runStore.CreateRun(ctx, run))
 
-	produce := func(ctx context.Context, locale string, pass int, emit *convergence.Emitter) (int, int, int, error) {
+	produce := func(ctx context.Context, locale string, pass int, emit *convergence.Emitter) (convergence.PassProduction, error) {
 		// Draft every pending translatable block for the locale via the store —
 		// the same write path the translation worker uses.
 		blocks, err := cs.GetBlocks(ctx, platstore.BlockQuery{ProjectID: p.ID, Stream: "main"})
 		if err != nil {
-			return 0, 0, 0, err
+			return convergence.PassProduction{}, err
 		}
 		var drafted []*model.Block
 		for _, sb := range blocks {
@@ -111,10 +111,10 @@ func TestOrchestrator_IngestedProjectRunsFirstPass(t *testing.T) {
 		}
 		if len(drafted) > 0 {
 			if err := cs.StoreBlocks(ctx, p.ID, "main", drafted); err != nil {
-				return 0, 0, 0, err
+				return convergence.PassProduction{}, err
 			}
 		}
-		return len(drafted), 0, len(drafted), nil
+		return convergence.PassProduction{Done: len(drafted), ViaAI: len(drafted)}, nil
 	}
 
 	s.convergence.driveWith(ctx, run, convergence.LoopFuncs{
@@ -157,9 +157,9 @@ func TestOrchestrator_NoTargetLocales_ParksNotUpToDate(t *testing.T) {
 
 	s.convergence.driveWith(ctx, run, convergence.LoopFuncs{
 		Derive: s.convergence.deriveFunc(p.ID, "main", nil),
-		Produce: func(context.Context, string, int, *convergence.Emitter) (int, int, int, error) {
+		Produce: func(context.Context, string, int, *convergence.Emitter) (convergence.PassProduction, error) {
 			t.Error("Produce must not run for a project with no target locales")
-			return 0, 0, 0, nil
+			return convergence.PassProduction{}, nil
 		},
 	})
 

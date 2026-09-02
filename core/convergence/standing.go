@@ -11,6 +11,7 @@ type LocaleStanding struct {
 	Produced  int    `json:"produced,omitempty"`
 	ViaMemory int    `json:"viaTM,omitempty"`
 	ViaAI     int    `json:"viaAI,omitempty"`
+	ViaDraft  int    `json:"viaDrafts,omitempty"`
 }
 
 // Standing folds a run's Event stream into its per-locale standing and the
@@ -61,7 +62,7 @@ func (s *Standing) Observe(ev Event) {
 		if ev.Units > 0 {
 			cur.Units = ev.Units
 		}
-		cur.Produced, cur.ViaMemory, cur.ViaAI = ev.Done, ev.ViaMemory, ev.ViaAI
+		cur.Produced, cur.ViaMemory, cur.ViaAI, cur.ViaDraft = ev.Done, ev.ViaMemory, ev.ViaAI, ev.ViaDraft
 		if ev.Type == EventLocaleDone {
 			// The engine's locale_done is state-less — a locale's ship verdict
 			// is a whole-pass judgement, settled by the post-pass derivation

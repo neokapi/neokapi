@@ -123,6 +123,17 @@ export class Event {
         }
         if (/** @type {any} */(false)) {
             /**
+             * ViaDraft is how many of Done the pass served from the block store's
+             * `targets/<locale>` overlays rather than producing: work an earlier run
+             * paid for, reused because the source and the governing context still
+             * stand. It is a subset of the produced units, disjoint from ViaAI.
+             * @member
+             * @type {number | undefined}
+             */
+            this["viaDrafts"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * Post-derivation fields (pass_done).
              * @member
              * @type {number | undefined}
@@ -257,7 +268,8 @@ export const EventType = {
     /**
      * EventUnitProgress is the throttled live counter for one locale: Done
      * units carry a committed target so far, of which ViaMemory came from content memory
-     * recycling and ViaAI from an AI/MT engine.
+     * recycling, ViaDraft from a draft the block store already held, and ViaAI
+     * from an AI/MT engine called on this pass.
      */
     EventUnitProgress: "unit_progress",
 

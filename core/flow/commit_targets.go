@@ -37,34 +37,6 @@ func newCommitTargetsTool(locale model.LocaleID) *commitTargetsTool {
 	return t
 }
 
-// targetOverlayPayload is the canonical {runs}/{text} overlay shape the hydrate
-// step understands. Runs are preferred so inline markup round-trips; plain text
-// is the fallback for run-free targets. Status carries the target's lifecycle
-// state, which is what makes re-affirming an already-hydrated block a true no-op
-// rather than a silent downgrade of its review state.
-//
-// Origin carries the provenance the producer stamped: how the target was made,
-// and the governing context it was made under. It travels here because most
-// target formats have nowhere to keep it. A plain JSON catalog holds strings
-// and nothing else, so for those the overlay is the only durable record of
-// what governed the answer, and the staleness gate reads its stamp from there.
-type targetOverlayPayload struct {
-	Runs   []model.Run   `json:"runs,omitempty"`
-	Text   string        `json:"text,omitempty"`
-	Status string        `json:"status,omitempty"`
-	Origin *model.Origin `json:"origin,omitempty"`
-}
-
-// overlayOrigin is the provenance an overlay carries for a target, or nil when
-// the producer stamped none. A pointer, so an unstamped target writes no
-// `origin` key at all and reads back as the absence it is.
-func overlayOrigin(o model.Origin) *model.Origin {
-	if o == (model.Origin{}) {
-		return nil
-	}
-	return &o
-}
-
 func (t *commitTargetsTool) SessionProcess(ctx context.Context, sess blockstore.Session, in <-chan *model.Part, out chan<- *model.Part) error {
 	kind := "targets/" + string(t.locale)
 	for {
@@ -99,15 +71,29 @@ func (t *commitTargetsTool) commitOne(ctx context.Context, sess blockstore.Sessi
 	if tgt == nil || len(tgt.Runs) == 0 {
 		return nil
 	}
-	payload, err := json.Marshal(targetOverlayPayload{
+	key := blockstore.OverlayKey(ctx, b.ID, b.SourceText())
+	overlay := blockstore.TargetOverlay{
 		Runs:   tgt.Runs,
 		Status: string(tgt.Status),
-		Origin: overlayOrigin(tgt.Origin),
-	})
+		Source: blockstore.SourceStamp(b.SourceText()),
+		Origin: blockstore.OverlayOrigin(tgt.Origin),
+	}
+	// The producer's own fingerprint of what it sent, carried forward from the
+	// overlay it wrote earlier in this pass. That fingerprint is what lets the
+	// NEXT run serve the translation instead of paying for it again, and a
+	// re-affirming write without it costs the locale a full set of provider
+	// calls per run (#2356). It travels only while the text still matches: a
+	// target another step has since replaced is not the one that producer made.
+	if prev, perr := sess.GetOverlay(kind, key); perr == nil && len(prev.Payload) > 0 {
+		var cached blockstore.TargetOverlay
+		if json.Unmarshal(prev.Payload, &cached) == nil && cached.TargetText() == model.RunsText(tgt.Runs) {
+			overlay.Provider, overlay.Config = cached.Provider, cached.Config
+		}
+	}
+	payload, err := json.Marshal(overlay)
 	if err != nil {
 		return fmt.Errorf("commit-targets: encode overlay: %w", err)
 	}
-	key := blockstore.OverlayKey(ctx, b.ID, b.SourceText())
 	if err := sess.PutOverlay(blockstore.Overlay{Kind: kind, BlockHash: key, Payload: payload}); err != nil {
 		// A read-only store carries the target on the in-flight block already;
 		// the overlay write is best-effort caching for a later merge.

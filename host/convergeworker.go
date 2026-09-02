@@ -196,6 +196,41 @@ type convergeTap struct {
 	done      atomic.Int64
 	viaMemory atomic.Int64
 	viaAI     atomic.Int64
+
+	// reuse holds the pass's translate tools, which count the blocks they
+	// served from the block store instead of sending to a provider. The tap
+	// cannot see that on the block: a reused draft carries the provenance of
+	// the engine that first made it, correctly, so what the pass paid for is
+	// the tool's own fact and has to be read from the tool. One chain is built
+	// per binding group and the groups run in turn, so the sources accumulate.
+	reuseMu sync.Mutex
+	reuse   []reusedTargetCounter
+}
+
+// reusedTargetCounter is a producer that can say how many blocks it served from
+// the block store rather than translating (core/ai/tools, core/mt/tools).
+type reusedTargetCounter interface{ ReusedTargets() int }
+
+// countReuse registers the tools whose reuse this pass should report.
+func (t *convergeTap) countReuse(tools []tool.Tool) {
+	t.reuseMu.Lock()
+	defer t.reuseMu.Unlock()
+	for _, tl := range tools {
+		if c, ok := tl.(reusedTargetCounter); ok {
+			t.reuse = append(t.reuse, c)
+		}
+	}
+}
+
+// reusedDrafts sums what the pass's producers served from the store.
+func (t *convergeTap) reusedDrafts() int {
+	t.reuseMu.Lock()
+	defer t.reuseMu.Unlock()
+	total := 0
+	for _, c := range t.reuse {
+		total += c.ReusedTargets()
+	}
+	return total
 }
 
 // newConvergeTap builds the tap for one locale's pass run.
@@ -223,9 +258,21 @@ func newConvergeTap(locale string) *convergeTap {
 	return t
 }
 
-// snapshot returns the tap's current counts.
-func (t *convergeTap) snapshot() (done, viaMemory, viaAI int) {
-	return int(t.done.Load()), int(t.viaMemory.Load()), int(t.viaAI.Load())
+// snapshot returns the tap's current counts. A block served from the store
+// carries its producer's provenance, so it arrives inside viaAI; it is moved to
+// ViaDraft, because what the reader is being told is what the pass cost.
+func (t *convergeTap) snapshot() convergence.PassProduction {
+	p := convergence.PassProduction{
+		Done:      int(t.done.Load()),
+		ViaMemory: int(t.viaMemory.Load()),
+		ViaAI:     int(t.viaAI.Load()),
+		ViaDraft:  t.reusedDrafts(),
+	}
+	if p.ViaDraft > p.ViaAI {
+		p.ViaDraft = p.ViaAI
+	}
+	p.ViaAI -= p.ViaDraft
+	return p
 }
 
 // convergeProgressInterval throttles unit_progress: one event per locale at
@@ -243,20 +290,21 @@ func watchTapProgress(tap *convergeTap, pass int, emit func(convergence.Event)) 
 	var last int
 	var mu sync.Mutex
 	flush := func() {
-		done, viaMemory, viaAI := tap.snapshot()
+		p := tap.snapshot()
 		mu.Lock()
 		defer mu.Unlock()
-		if done == last {
+		if p.Done == last {
 			return
 		}
-		last = done
+		last = p.Done
 		emit(convergence.Event{
 			Type:      convergence.EventUnitProgress,
 			Pass:      pass,
 			Locale:    string(tap.locale),
-			Done:      done,
-			ViaMemory: viaMemory,
-			ViaAI:     viaAI,
+			Done:      p.Done,
+			ViaMemory: p.ViaMemory,
+			ViaAI:     p.ViaAI,
+			ViaDraft:  p.ViaDraft,
 		})
 	}
 	stopCh := make(chan struct{})

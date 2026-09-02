@@ -31,8 +31,8 @@ type convergeRenderer struct {
 }
 
 type convergeRow struct {
-	units, done, viaMemory, viaAI int
-	state                         string // queued | running | done
+	units, done, viaMemory, viaAI, viaDraft int
+	state                                   string // queued | running | done
 }
 
 // NewConvergeRenderer builds a renderer; tty selects the in-place live region.
@@ -77,16 +77,16 @@ func (r *convergeRenderer) OnEvent(ev convergence.Event) {
 		r.redrawTTY()
 	case convergence.EventUnitProgress:
 		if row := r.rows[ev.Locale]; row != nil {
-			row.done, row.viaMemory, row.viaAI = ev.Done, ev.ViaMemory, ev.ViaAI
+			row.done, row.viaMemory, row.viaAI, row.viaDraft = ev.Done, ev.ViaMemory, ev.ViaAI, ev.ViaDraft
 		}
 		r.redrawTTY()
 	case convergence.EventLocaleDone:
 		if row := r.rows[ev.Locale]; row != nil {
 			row.state = "done"
-			row.units, row.done, row.viaMemory, row.viaAI = ev.Units, ev.Done, ev.ViaMemory, ev.ViaAI
+			row.units, row.done, row.viaMemory, row.viaAI, row.viaDraft = ev.Units, ev.Done, ev.ViaMemory, ev.ViaAI, ev.ViaDraft
 		}
 		if !r.tty {
-			fmt.Fprintf(r.w, "  %-10s %d/%d units%s\n", ev.Locale, ev.Done, ev.Units, memoryAISuffix(ev.ViaMemory, ev.ViaAI))
+			fmt.Fprintf(r.w, "  %-10s %d/%d units%s\n", ev.Locale, ev.Done, ev.Units, producedSuffix(ev.ViaMemory, ev.ViaDraft, ev.ViaAI))
 			return
 		}
 		r.redraw()
@@ -112,12 +112,19 @@ func (r *convergeRenderer) OnEvent(ev convergence.Event) {
 	}
 }
 
-// memoryAISuffix renders the content memory/AI split when either count is non-zero.
-func memoryAISuffix(viaMemory, viaAI int) string {
-	if viaMemory == 0 && viaAI == 0 {
+// producedSuffix renders where a locale's units came from. `drafts` counts the
+// translations the block store already held, reused without a provider call. It
+// appears only when the pass reused one, so a run that drafted everything
+// afresh reads as content memory and AI alone, and a run that paid for nothing
+// says so rather than quoting an AI count against no call (#2356).
+func producedSuffix(viaMemory, viaDraft, viaAI int) string {
+	if viaMemory == 0 && viaDraft == 0 && viaAI == 0 {
 		return ""
 	}
-	return fmt.Sprintf("  (content memory %d · AI %d)", viaMemory, viaAI)
+	if viaDraft == 0 {
+		return fmt.Sprintf("  (content memory %d · AI %d)", viaMemory, viaAI)
+	}
+	return fmt.Sprintf("  (content memory %d · drafts %d · AI %d)", viaMemory, viaDraft, viaAI)
 }
 
 // printAbove writes a plain line above the live region.
@@ -174,9 +181,9 @@ func (r *convergeRenderer) rowBody(row *convergeRow) string {
 	case "queued":
 		return "queued"
 	case "done":
-		return fmt.Sprintf("%s %d/%d%s ✓", bar(row.done, row.units), row.done, row.units, memoryAISuffix(row.viaMemory, row.viaAI))
+		return fmt.Sprintf("%s %d/%d%s ✓", bar(row.done, row.units), row.done, row.units, producedSuffix(row.viaMemory, row.viaDraft, row.viaAI))
 	default:
-		return fmt.Sprintf("%s %d/%d%s", bar(row.done, row.units), row.done, row.units, memoryAISuffix(row.viaMemory, row.viaAI))
+		return fmt.Sprintf("%s %d/%d%s", bar(row.done, row.units), row.done, row.units, producedSuffix(row.viaMemory, row.viaDraft, row.viaAI))
 	}
 }
 

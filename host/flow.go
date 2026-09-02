@@ -2243,6 +2243,12 @@ func (a *App) runProjectStepsOver(ctx context.Context, cmd Command, flowName str
 	// step: it observes blocks leaving the pipeline and feeds the run's live
 	// unit_progress events. Never set outside converge workers.
 	if a.convergeProgressTap != nil {
+		// The tap reads the chain's producers for what they served from the
+		// block store: a reused draft carries the provenance of the engine that
+		// made it, so only the tool that skipped the call can say it skipped one.
+		if tap, ok := a.convergeProgressTap.(*convergeTap); ok {
+			tap.countReuse(projectTools)
+		}
 		projectTools = append(projectTools, a.convergeProgressTap)
 	}
 
