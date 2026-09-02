@@ -1,6 +1,6 @@
 id: s1-compass-multilingual
 title: A language appears when it is ready
-subtitle: The same project, the same point, three more languages — converged, reviewed, and gated at the edge where a reader sees it.
+subtitle: "The same project, the same point, three more languages: converged, reviewed, and gated at the edge where a reader sees it."
 tagline: the picker is the gate.
 kind: use-case
 publishAs: multilingual-ship-states
@@ -35,12 +35,12 @@ script:
   - comment: The deployed page builds its language picker from one file, and kapi writes it.
   - command: kapi status --ship --emit site/ship.json
   - command: cat site/ship.json
-  - comment: Nothing is offered. Four untranslated strings never fail a build — they do hold every language behind the ship gate, which is the honest answer.
+  - comment: Nothing is offered. Four untranslated strings never fail a build, and they do hold every language behind the ship gate, which is the honest answer.
 
   # --- 3. Converge: recycle first, draft the remainder ---------------------
   - comment: One verb. Approved wording is recycled; only what is left reaches a provider.
   - command: kapi up
-  - comment: Norwegian and German clear the ship gate on drafted work. Dutch does not — nothing in it has been reviewed.
+  - comment: Norwegian and German clear the ship gate on drafted work. Dutch parks, because one of its units fails the project's bound checks.
   - command: kapi status
   - command: kapi status --ship --emit site/ship.json
   - command: cat site/ship.json
@@ -53,7 +53,9 @@ script:
   - command: kapi apply dutch.json 2>&1 | tail -3
   - comment: Approvals are staged until they are committed. Then they are in the record, attributable, in git.
   - command: kapi commit
-  - comment: Dutch is offered now — carrying the marker, because it is not signed off end to end.
+  - comment: A decision unparks the language, so run the loop again. The drafts it already made are recycled, so the provider is asked for nothing a second time.
+  - command: kapi up
+  - comment: Dutch is offered now, carrying the marker, because it is not signed off end to end.
   - command: kapi status --ship --emit site/ship.json
   - command: cat site/ship.json
 
@@ -73,7 +75,7 @@ artifacts:
   # file:// load. The default server roots at the sandbox, so the path carries
   # the site/ prefix; settleMs covers the two fetches before the shot.
   - id: picker
-    caption: "site/index.html — the picker, built from ship.json"
+    caption: "site/index.html: the picker, built from ship.json"
     source: url
     path: /site/index.html
     port: 4599
@@ -81,7 +83,7 @@ artifacts:
     width: 1200
     height: 760
   - id: ship
-    caption: "site/ship.json — locale → shippable, verified"
+    caption: "site/ship.json: locale to shippable and verified"
     source: report
     report: json
     path: site/ship.json
@@ -95,8 +97,8 @@ narration:
     kind: title
     text: >
       A second language is not a second product. It is one more axis on content
-      that is already governed — and the interesting question is not how it gets
-      translated. It is who decides that a reader may see it.
+      that is already governed, and the question it raises is not how the content
+      gets translated. It is who decides that a reader may see it.
 
   - id: axis
     kind: terminal
@@ -105,7 +107,7 @@ narration:
       already governs. The recipe is the same recipe, the point is the same
       point, the voice profile is the same profile. One line was added: three
       target languages. Ask the graph where this content sits and it answers what
-      it answered before — northsea slash app.
+      it answered before: northsea slash app.
     caption: "the same point, one more axis"
 
   - id: standing
@@ -129,9 +131,9 @@ narration:
   - id: converge
     kind: terminal
     text: >
-      One verb converges. Approved wording is recycled first — thirty-six of
-      thirty-eight units for Norwegian come back from the project's own memory —
-      and only the remainder reaches a provider. The provider here is the offline
+      One verb converges. Approved wording is recycled first, so thirty-seven of
+      Norwegian's thirty-eight units come back from the project's own memory and
+      only the remainder reaches a provider. The provider here is the offline
       demo stub, which marks everything it produces, so nothing in this recording
       is passed off as a translation.
     caption: "recycle first; the remainder is the only thing drafted"
@@ -140,28 +142,31 @@ narration:
     kind: terminal
     text: >
       Norwegian and German now clear the ship gate on drafted work, and are
-      offered marked. Dutch does not, and is not offered at all. Its file exists.
-      It holds Dutch. The gate has simply not cleared it, and a file being present
-      was never the decision.
-    caption: "blocked: review — the gate names what is missing"
+      offered marked. Dutch parks: one of its units fails the project's bound
+      checks, and a locale holding a failing unit is held out of shipping until
+      somebody looks. Its drafts are safe in the project store; what the gate
+      withholds is delivery.
+    caption: "blocked: checks, and the status line names it"
 
   - id: review
     kind: terminal
     text: >
       Review is a change-set, and the queue is already in the shape of one. This
-      filter approves the Dutch a person wrote and leaves what the stub drafted —
-      which is the distinction the whole loop is built around. The approvals stage,
-      then commit into the project record: attributable, in git, bound to the
-      exact text they judged.
-    caption: "nineteen decisions, one commit"
+      filter approves the Dutch a person wrote and leaves what the stub drafted,
+      which is the distinction the whole loop is built around. Twenty approvals
+      stage, then commit into the project record: attributable, in git, bound to
+      the exact text they judged.
+    caption: "twenty decisions, one commit"
 
   - id: appears
     kind: terminal
     text: >
-      Dutch is offered now, carrying the marker. Finish Norwegian and the same
-      file drops its marker instead. Three languages, three different standings,
-      and not one of them was configured — every one of them is derived from the
-      work that was done.
+      A decision unparks the language, so the loop runs once more. It asks the
+      provider for nothing: the drafts it made on the first run are read back out
+      of the store and recycled, and the second run costs the same as no run at
+      all. Now Dutch is offered, carrying the marker. Finish Norwegian and the
+      same file drops its marker instead. Three languages, three standings, none
+      of them configured, each derived from the work that was done.
     caption: "the same file, after the review"
 
   - id: picker
