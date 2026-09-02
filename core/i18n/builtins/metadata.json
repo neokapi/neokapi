@@ -100,7 +100,7 @@
         },
         "engine": {
           "title": "Extraction Engine",
-          "description": "llm (AI provider; default) / ner (local on-device model — nothing leaves the machine) / hybrid (both)",
+          "description": "llm (AI provider; default) / ner (local on-device model: nothing leaves the machine) / hybrid (both)",
           "options": {
             "hybrid": {
               "label": "Hybrid (NER + LLM)"
@@ -115,7 +115,7 @@
           "enumDescriptions": {
             "hybrid": "Run the local model and the LLM, merging results.",
             "llm": "Extract with an AI provider.",
-            "ner": "On-device model — no credentials, nothing leaves the machine."
+            "ner": "On-device model: no credentials, nothing leaves the machine."
           }
         },
         "knownTerms": {
@@ -457,7 +457,7 @@
           },
           "enumDescriptions": {
             "ai": "LLM-judged quality review via an AI provider.",
-            "rules": "Local rule-based checks — no credentials, no network."
+            "rules": "Local rule-based checks: no credentials, no network."
           }
         },
         "model": {
@@ -759,7 +759,7 @@
             }
           },
           "enumDescriptions": {
-            "llm": "Semantic chunking via an AI provider — produces meaning-based chunks rather than sentence boundaries.",
+            "llm": "Semantic chunking via an AI provider: produces meaning-based chunks rather than sentence boundaries.",
             "srx": "Faithful sentence segmentation: ICU UAX-29 boundaries refined by Okapi SRX exceptions where ICU is available, pure-Go SRX rules otherwise. No configuration required.",
             "uax29": "Unicode default sentence boundaries (ICU UAX-29). A language-agnostic baseline with no exceptions."
           }
@@ -1580,7 +1580,7 @@
         },
         "extractNonTranslatableContent": {
           "title": "Extract non-translatable content",
-          "description": "If true (default), non-translatable string content — isolated array strings and values excluded by the extraction rules — is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton."
+          "description": "If true (default), non-translatable string content (isolated array strings and values excluded by the extraction rules) is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton."
         },
         "extractionRules": {
           "title": "Extraction rules",
@@ -1870,7 +1870,7 @@
         },
         "extractNonTranslatableContent": {
           "title": "Extract non-translatable content",
-          "description": "If true (default), non-translatable contextual content is surfaced — image/shape alt-text (descr/title on docPr/cNvPr) as content blocks (visible to ingestion/LLM consumers, skipped by machine translation), and PowerPoint/Excel comment text as data parts — instead of being hidden in opaque skeleton. Disable to keep it opaque."
+          "description": "If true (default), non-translatable contextual content is surfaced: image/shape alt-text (descr/title on docPr/cNvPr) as content blocks (visible to ingestion/LLM consumers, skipped by machine translation), and PowerPoint/Excel comment text as data parts, instead of being hidden in opaque skeleton. Disable to keep it opaque."
         },
         "extractRunFontsInfo": {
           "title": "Extract run fonts info",
