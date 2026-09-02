@@ -17,11 +17,11 @@ import (
 
 // The context a reviewer decides in, for ONE unit, gathered once.
 //
-// Both review surfaces resolved most of this already and showed none of it: the
-// queue held a voice profile id it only used to enable a button, the document
-// applied content-memory matches nobody had read, and the ledger row naming who
-// decided a unit and when was written by the review handler and read only by
-// sync. The endpoint gathers it in the five layers a reviewer reads in:
+// The pieces are resolved elsewhere for other purposes: the queue holds the
+// voice profile id that enables its button, the bulk memory pass reads the
+// content-memory match, and the review handler writes the ledger row naming who
+// decided a unit and when. The endpoint gathers them in the five layers a
+// reviewer reads in:
 //
 //	Point          where this content sits and what governs it there
 //	Neighbourhood  the units either side, as run sequences

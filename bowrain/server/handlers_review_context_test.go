@@ -18,10 +18,9 @@ import (
 	"github.com/neokapi/neokapi/core/venue"
 )
 
-// The review surfaces resolved this context and showed none of it. These cases
-// pin what the endpoint hands them, layer by layer, and — just as important —
-// what it hands a unit that has none of it, because an empty state a surface
-// invents is how "no matches" becomes a blank panel.
+// These cases pin what the endpoint hands a surface, layer by layer, and what
+// it hands a unit that has none of it, because an empty state a surface invents
+// is how "no matches" becomes a blank panel.
 
 // getReviewContext calls the handler as the router would.
 func getReviewContext(t *testing.T, s *Server, wsID, projID, blockID, locale string) (*httptest.ResponseRecorder, reviewContextResponse) {

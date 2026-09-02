@@ -380,7 +380,7 @@ export function FocusedReviewer({
                     className="h-7 px-2 text-xs"
                     onClick={() => onProposeSourceChange(selection || block.source)}
                     data-testid="source-propose-change"
-                    title="Propose a fix to the source text — a source change re-drafts every locale"
+                    title="Propose a fix to the source text. A source change re-drafts every locale."
                   >
                     <FileText className="mr-1 h-3.5 w-3.5" /> Propose source change
                   </Button>

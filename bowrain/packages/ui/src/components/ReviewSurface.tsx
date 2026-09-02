@@ -380,9 +380,8 @@ export function ReviewSurface({
   );
 
   // What the pass would write, asked of the pass itself. The reviewer reads the
-  // wording before it lands: this batch used to be applied unseen, so a match
-  // the corpus held for a different context arrived in the document with no
-  // step at which anyone could have noticed.
+  // wording before it lands: a match the corpus holds for a different context
+  // otherwise arrives in the document with no step at which anyone could notice.
   const previewApplyMemory = useCallback(async () => {
     if (bulkInFlight.current || marked.size === 0) return;
     const targetIds = memoryBatchIds();

@@ -216,8 +216,8 @@ export function NeighbourCell({
 /**
  * The wording the corpus already blessed for this source, with both sides
  * shown. `onUse` is offered only where the surface already has a write: the
- * queue's editor and the inspector's. Without one the card still reads, which
- * is the point — a bulk pass used to apply these unseen.
+ * queue's editor and the inspector's. Without one the card still reads: a
+ * bulk pass applies these matches, and the reviewer sees them here first.
  */
 export function MemoryMatchCard({
   match,
