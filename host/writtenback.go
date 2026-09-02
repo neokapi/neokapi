@@ -2,6 +2,7 @@ package host
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -47,10 +48,10 @@ type WriteBackOptions struct {
 // absorption merge does belongs to a materialize pass, not to a reading of one.
 func (a *App) WriteBack(ctx context.Context, opts WriteBackOptions, out io.Writer) error {
 	if opts.Project == nil {
-		return fmt.Errorf("write back: no project")
+		return errors.New("write back: no project")
 	}
 	if opts.SourcePath == "" {
-		return fmt.Errorf("write back: no source file")
+		return errors.New("write back: no source file")
 	}
 
 	pctx := project.NewProjectContext(opts.Project, opts.ProjectPath)
