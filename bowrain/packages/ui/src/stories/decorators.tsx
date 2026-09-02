@@ -11,8 +11,7 @@ import { WorkspaceProvider } from "../context/WorkspaceContext";
 import { BreadcrumbProvider } from "../context/BreadcrumbContext";
 import { BravoProvider } from "../context/BravoContext";
 import type { BlockInfo, Workspace } from "../types/api";
-import type { ApiAdapter } from "../api/adapter";
-import { createMockAdapter } from "./mock-adapter";
+import { createMockAdapter, type MockAdapter } from "./mock-adapter";
 
 const mockWorkspace: Workspace = {
   id: "ws-1",
@@ -27,13 +26,18 @@ const mockWorkspace: Workspace = {
 /**
  * Creates a decorator that wraps stories with ApiProvider + WorkspaceProvider
  * + BreadcrumbProvider. Pass custom blocks to seed the mock adapter.
+ *
+ * The overrides are a `MockAdapter`'s, so a story can seed the mock's own test
+ * hooks (`blockEvidence`, `itemNames`) as well as replace a call.
  */
 export function createProvidersDecorator(
   blocks?: BlockInfo[],
-  overrides?: Partial<ApiAdapter>,
+  overrides?: Partial<MockAdapter>,
 ): Decorator {
-  const base = createMockAdapter(blocks);
-  const adapter = overrides ? { ...base, ...overrides } : base;
+  // Assigned onto the adapter rather than spread into a copy: the mock's own
+  // calls close over the object `createMockAdapter` built, so a copy would
+  // carry the override while every call kept reading the original.
+  const adapter = Object.assign(createMockAdapter(blocks), overrides);
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });

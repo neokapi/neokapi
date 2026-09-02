@@ -204,6 +204,36 @@ export const BLOCKER_LABELS: Record<ReviewBlocker, string> = {
   voice: "Below the voice bar",
 };
 
+/**
+ * The one-word name each blocker takes inside the verdict, where the sentence
+ * already says a bar was missed and only the bar is still in question.
+ */
+export const BLOCKER_SHORT_LABELS: Record<ReviewBlocker, string> = {
+  checks: "checks",
+  terms: "terminology",
+  voice: "voice",
+};
+
+/**
+ * The verdict as one phrase: what happened, and which bars it happened to.
+ *
+ * A reviewer's next act depends on which bar was missed, so the bars are read
+ * inside the verdict rather than beside it as separate chips. `verdictDetail`
+ * spells each one out for the tooltip.
+ */
+export function verdictLabel(entry: ReviewEntry): string {
+  const blockers = entryBlockers(entry);
+  if (blockers.length === 0) return VERDICT_LABELS.passing;
+  return `${VERDICT_LABELS.failing}: ${blockers.map((b) => BLOCKER_SHORT_LABELS[b]).join(", ")}`;
+}
+
+/** The bars a failing entry misses, named in full, for the verdict's tooltip. */
+export function verdictDetail(entry: ReviewEntry): string {
+  const blockers = entryBlockers(entry);
+  if (blockers.length === 0) return "Every bar the server applies on approve is clear.";
+  return blockers.map((b) => BLOCKER_LABELS[b]).join(" \u00b7 ");
+}
+
 /** Order groups deterministically: failing first, then passing. */
 const VERDICT_ORDER: ReviewQueueVerdict[] = ["failing", "passing"];
 

@@ -1072,7 +1072,7 @@ describe("ReviewPage tone", () => {
     expect(chips[3].getAttribute("data-dnt")).toBe("true");
   });
 
-  it("keeps the severity colours on the findings the checks reported", async () => {
+  it("paints a major finding as hard as a critical one, and a minor one softer", async () => {
     render(
       <ErrorProvider>
         <ReviewPage
@@ -1087,6 +1087,11 @@ describe("ReviewPage tone", () => {
       expect(el).not.toBeNull();
       return el!;
     });
-    expect(finding.querySelector(".text-warning")).not.toBeNull();
+    // `major` is "a clear violation a reviewer would act on" and fails the
+    // unit, so it takes the destructive tone rather than the amber that read as
+    // a nit. The scale is core/check.Severity; the tones are the shared
+    // findingSeverityTone.
+    expect(finding.querySelector(".text-destructive")).not.toBeNull();
+    expect(finding.querySelector(".text-warning")).toBeNull();
   });
 });

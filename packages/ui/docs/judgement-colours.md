@@ -72,6 +72,15 @@ the tooltip. The tag itself is rendered exactly as it was given: case carries
 meaning in BCP 47, so `zh-Hant` and `sr-Latn-RS` never take an `uppercase`
 class.
 
+## Times
+
+An instant is shown the way a language is: rendered for the reader, exact in the
+tooltip. `When` draws a `<time>` carrying the ISO instant in `dateTime`, the date
+and time in the reader's own language as its text, and the full instant with its
+zone as the title. `formatWhen` is the same resolution outside React, and
+`relative` gives it the "3 minutes ago" form for a feed. An ISO string reaches a
+reader through one of those and never as itself.
+
 ## Context is neutral; judgement carries the severity
 
 A review surface draws two different things. The layers above the verdict say
@@ -93,12 +102,31 @@ governing context has moved is marked in muted ink, and the wording currently in
 force under an AI proposal is drawn on a neutral ground rather than as the
 rejected half of a diff.
 
-## What is out of scope here
+## Findings severity
 
-Findings severity has its own scale. A voice finding, a term violation and a tag
-error are graded by how much they matter, which is a different question from
-what a person is being asked to do, and mixing the two would put a red Reject
-button and a red error count on the same row meaning different things.
+Findings have their own scale, which answers how much a finding matters rather
+than what a person is being asked to do. It is `core/check.Severity`, and the
+weights say what each rung means:
+
+| Severity | Weight | What it says | Tone |
+| --- | --- | --- | --- |
+| `critical` | 25 | Release blocking (a translated do-not-translate term, a dropped placeholder) | destructive |
+| `major` | 5 | A clear violation a reviewer would act on | destructive |
+| `minor` | 1 | A style nit or a soft preference | warning |
+| `neutral` | 0 | Informational | muted |
+
+`findingSeverityTone` is that mapping, and `findingToneBadgeClass` paints it.
+Both apps read them, so the same word from the same checker is the same colour
+on either surface. A severity this build does not know takes the muted tone: a
+rung nobody has heard of has said nothing about how hard it bites.
+
+The server's check API grades its own issues `error` | `warning`, which
+`checkIssueTone` maps onto the same three tones, so a surface listing check
+issues beside voice findings paints one list.
+
+The scale stays separate from the button variants above. A red Reject button and
+a red error count on the same row would otherwise mean different things by the
+same colour: one is the act offered, the other the verdict already reached.
 
 ## Contrast
 

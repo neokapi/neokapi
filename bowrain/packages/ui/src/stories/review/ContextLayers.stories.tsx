@@ -3,7 +3,7 @@ import {
   ContextLayer,
   FindingsList,
   MemoryMatchCard,
-  NeighbourCell,
+  NeighbourhoodView,
   PointRail,
   ProvenanceBlock,
   findingsSummary,
@@ -108,8 +108,14 @@ function Layers({ open }: { open: boolean }) {
         summary={neighbourhoodSummary(context)}
         defaultOpen={open}
       >
-        <NeighbourCell neighbour={context.previous} where="previous" />
-        <NeighbourCell neighbour={context.next} where="next" />
+        <NeighbourhoodView
+          context={context}
+          unitKey="b1"
+          unitSource="Reset your password"
+          unitTarget="Réinitialisez votre mot de passe"
+          sourceLocale="en-US"
+          locale="fr-FR"
+        />
       </ContextLayer>
       <ContextLayer title="Findings" summary={findingsSummary(issues, findings)} defaultOpen={open}>
         <FindingsList issues={issues} findings={findings} />

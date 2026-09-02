@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Sparkles, Trash2, X } from "lucide-react";
-import { Button, LocalePill, ScrollArea, SimpleTooltip, cn } from "@neokapi/ui-primitives";
+import { Button, LocalePill, ScrollArea, SimpleTooltip, When, cn } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
 import { api } from "../hooks/useApi";
 import type { AIActivityEntry, AIActivityResult } from "../types/api";
@@ -150,7 +150,6 @@ function ActivityRow({
   open: boolean;
   onToggle: () => void;
 }) {
-  const when = new Date(entry.at);
   return (
     <div className={cn(open && "bg-muted/20")}>
       <button
@@ -170,9 +169,11 @@ function ActivityRow({
         </span>
         {entry.scope.locale && <LocalePill locale={entry.scope.locale} />}
         {entry.error && <span className="text-[10px] text-destructive">{t("failed")}</span>}
-        <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">
-          {when.toLocaleTimeString()}
-        </span>
+        <When
+          iso={entry.at}
+          dateStyle="none"
+          className="shrink-0 text-[10px] text-muted-foreground"
+        />
       </button>
       {open && (
         <div className="px-3 pb-3">

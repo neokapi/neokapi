@@ -4,9 +4,18 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
   CoordinateChip,
+  NeighbourhoodTable,
+  When,
+  checkIssueTone,
   cn,
+  findingFails,
+  findingToneBadgeClass,
+  findingSeverityTone,
+  findingToneTextClass,
+  type FindingTone,
+  type NeighbourhoodEntry,
 } from "@neokapi/ui-primitives";
-import { RunSequence, resolveOverlaySpans, segmentText } from "@neokapi/ui-primitives/preview";
+import { resolveOverlaySpans, segmentText } from "@neokapi/ui-primitives/preview";
 import type { ContentNode } from "@neokapi/ui-primitives/preview";
 import type {
   BlockTermMatch,
@@ -19,17 +28,7 @@ import type {
   MemoryMatchInfo,
 } from "../../types/api";
 import type { VoiceFinding } from "../../voice/types";
-import {
-  AlertTriangle,
-  ArrowDown,
-  ArrowUp,
-  ChevronDown,
-  CircleCheck,
-  Clock,
-  Info,
-  Lock,
-  Tag,
-} from "../icons";
+import { AlertTriangle, ChevronDown, CircleCheck, Clock, Info, Lock, Tag } from "../icons";
 
 /**
  * The five layers of context a reviewer decides in, as the pieces both review
@@ -180,9 +179,10 @@ export function PointRail({
                 <span className="text-sm font-medium" data-testid="point-profile-name">
                   {profile.name}
                 </span>
-                <span className="rounded-full border border-border bg-card px-2 py-0.5 text-[11px] tabular-nums text-muted-foreground">
-                  Bar {profile.compliance_bar}
-                </span>
+                <VoiceScoreChip
+                  score={context?.voice_score}
+                  bar={context?.voice_bar ?? profile.compliance_bar}
+                />
               </div>
               {profile.guidance && (
                 // Clamped, with the whole guidance in the title: the rail sits
@@ -246,6 +246,38 @@ export function PointRail({
         </div>
       )}
     </ContextLayer>
+  );
+}
+
+/**
+ * The block's voice score against the bar it is held to, beside the profile
+ * that set that bar.
+ *
+ * A score below the bar is a verdict on this unit, so it takes the finding tone
+ * the rest of the surface gives a failing finding; a score that clears the bar
+ * is context and stays muted. An unscored block has no verdict either way and
+ * reads as the bar alone, which is what the profile asks of it.
+ */
+export function VoiceScoreChip({ score, bar }: { score?: number; bar: number }) {
+  const below = score !== undefined && score < bar;
+  return (
+    <span
+      className={cn(
+        "rounded-full border px-2 py-0.5 text-[11px] tabular-nums",
+        below
+          ? findingToneBadgeClass("destructive")
+          : "border-border bg-card text-muted-foreground",
+      )}
+      data-testid="point-voice-score"
+      data-below-bar={below ? "true" : undefined}
+      title={
+        score === undefined
+          ? "The lowest voice score this profile accepts. This block has not been scored."
+          : "The block\u2019s latest voice score against the bar its profile sets"
+      }
+    >
+      {score === undefined ? `Bar ${bar}` : `Voice ${score} of ${bar}`}
+    </span>
   );
 }
 
@@ -326,36 +358,48 @@ export function TermChip({ term }: { term: BlockTermMatch }) {
 
 // ── Neighbourhood ───────────────────────────────────────────────────────────
 
+/** One adjacent unit, as the shared table reads it. */
+function neighbourRows(neighbour: ReviewNeighbour | undefined): NeighbourhoodEntry[] {
+  return neighbour ? [{ key: neighbour.block_id, source: neighbour.source_runs }] : [];
+}
+
 /**
- * One adjacent unit. The source travels as a run sequence and is drawn by the
- * kit's RunSequence, which answers for every run kind — a loop over `run.text`
- * here would quietly drop every placeholder and paired code the neighbour
- * carries.
+ * The unit in its item, with the units either side of it, drawn through the
+ * kit's NeighbourhoodTable so a reviewer reads the same document here and in
+ * Kapi Desktop. The neighbours travel as run sequences and go through the
+ * declared run projection, so a placeholder in a neighbour reads as a chip
+ * rather than disappearing.
+ *
+ * The server sends one neighbour each side and sends the source alone, so a
+ * neighbour row here carries no target line. Its key and its source are what
+ * the payload holds (`reviewNeighbour` in the review-context handler).
  */
-export function NeighbourCell({
-  neighbour,
-  where,
+export function NeighbourhoodView({
+  context,
+  unitKey,
+  unitSource,
+  unitTarget,
+  sourceLocale,
+  locale,
 }: {
-  neighbour: ReviewNeighbour | undefined;
-  where: "previous" | "next";
+  context: ReviewContext | null;
+  /** The unit under decision, drawn in place between its neighbours. */
+  unitKey?: string;
+  unitSource?: string;
+  unitTarget?: string;
+  sourceLocale?: string;
+  locale?: string;
 }) {
-  const Arrow = where === "previous" ? ArrowUp : ArrowDown;
   return (
-    <div
-      className="flex items-start gap-2 rounded-md border border-dashed border-border bg-muted/10 px-2.5 py-1.5 text-xs"
-      data-testid={`neighbour-${where}`}
-    >
-      <Arrow className="mt-0.5 h-3 w-3 shrink-0 text-muted-foreground" />
-      {neighbour ? (
-        <span className="min-w-0 flex-1 text-muted-foreground">
-          <RunSequence runs={neighbour.source_runs} />
-        </span>
-      ) : (
-        <span className="text-muted-foreground/70">
-          {where === "previous" ? "Start of the item." : "End of the item."}
-        </span>
-      )}
-    </div>
+    <NeighbourhoodTable
+      before={neighbourRows(context?.previous)}
+      after={neighbourRows(context?.next)}
+      unitKey={unitKey}
+      unitSource={unitSource}
+      unitTarget={unitTarget}
+      sourceLocale={sourceLocale}
+      targetLocale={locale}
+    />
   );
 }
 
@@ -477,11 +521,6 @@ export function AnchoredTarget({
   );
 }
 
-/** Whether a finding's severity fails rather than warns. */
-function findingFails(severity: string): boolean {
-  return severity === "major" || severity === "critical";
-}
-
 /**
  * What the two checkers made of this unit, in one line: how many findings there
  * are and how many of them fail, counted over both lists, since a reviewer
@@ -491,7 +530,7 @@ export function findingsSummary(issues: CheckIssue[], findings: VoiceFinding[]):
   const total = issues.length + findings.length;
   if (total === 0) return "Nothing flagged";
   const failing =
-    issues.filter((i) => i.severity === "error").length +
+    issues.filter((i) => checkIssueTone(i.severity) === "destructive").length +
     findings.filter((f) => findingFails(f.severity)).length;
   const counted = `${total} finding${total === 1 ? "" : "s"}`;
   return failing > 0 ? `${counted}, ${failing} failing` : counted;
@@ -532,7 +571,7 @@ export function FindingsList({
           testId={`finding-issue-${i}`}
           category={issue.type}
           message={issue.message}
-          failing={issue.severity === "error"}
+          tone={checkIssueTone(issue.severity)}
           originalText={issue.original_text}
           suggestion={issue.suggestion}
         />
@@ -543,7 +582,7 @@ export function FindingsList({
           testId={`finding-voice-${i}`}
           category={finding.category}
           message={finding.message}
-          failing={findingFails(finding.severity)}
+          tone={findingSeverityTone(finding.severity)}
           originalText={finding.original_text}
           suggestion={finding.suggestion ?? finding.metadata?.replacement}
         />
@@ -556,24 +595,24 @@ function FindingRow({
   testId,
   category,
   message,
-  failing,
+  tone,
   originalText,
   suggestion,
 }: {
   testId: string;
   category: string;
   message: string;
-  failing: boolean;
+  /** How hard this one bites, from the shared severity scale. */
+  tone: FindingTone;
   originalText?: string;
   suggestion?: string;
 }) {
+  const ink = findingToneTextClass(tone);
   return (
-    <li className="flex items-start gap-1.5 text-xs" data-testid={testId}>
-      <AlertTriangle
-        className={cn("mt-0.5 h-3 w-3 shrink-0", failing ? "text-destructive" : "text-warning")}
-      />
+    <li className="flex items-start gap-1.5 text-xs" data-testid={testId} data-tone={tone}>
+      <AlertTriangle className={cn("mt-0.5 h-3 w-3 shrink-0", ink)} />
       <div className="min-w-0 flex-1 space-y-0.5">
-        <span className={failing ? "text-destructive" : "text-warning"}>
+        <span className={ink}>
           <span className="font-medium">{category}:</span> {message}
         </span>
         {(originalText || suggestion) && (
@@ -667,7 +706,7 @@ export function ProvenanceBlock({
           {origin.timestamp && (
             <span className="inline-flex items-center gap-1 text-muted-foreground">
               <Clock className="h-3 w-3" />
-              {origin.timestamp}
+              <When iso={origin.timestamp} />
             </span>
           )}
         </div>
@@ -679,7 +718,11 @@ export function ProvenanceBlock({
               {decision.state ? (DECISION_LABELS[decision.state] ?? decision.state) : "Last change"}
             </span>
             {decision.by && <span className="text-muted-foreground">by {decision.by}</span>}
-            {decision.at && <span className="text-muted-foreground">on {decision.at}</span>}
+            {decision.at && (
+              <span className="text-muted-foreground">
+                on <When iso={decision.at} />
+              </span>
+            )}
           </div>
           {decision.source_moved && (
             <span className="inline-flex items-center gap-1 text-warning">

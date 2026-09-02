@@ -285,6 +285,14 @@ export interface MockAdapter extends ApiAdapter {
 // these): two candidate models on fr, the lift winner marked recommended.
 // ---------------------------------------------------------------------------
 
+/**
+ * Whether seeded evidence puts a block below its voice bar, the same test the
+ * queue's `isBelowVoiceBar` applies. An unscored block is below nothing.
+ */
+function belowVoiceBar(evidence?: { voice_score?: number; voice_bar?: number }): boolean {
+  return evidence?.voice_score !== undefined && evidence.voice_score < (evidence.voice_bar ?? 0);
+}
+
 /** Deterministic model recommendation results for stories and tests. */
 export const sampleModelRecommendations: ModelRecommendationsResponse = {
   enabled: true,
@@ -952,6 +960,11 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
     // asks for it when a block is opened; the queue asks for the unit under the
     // cursor. `blk-3` is the ungoverned, undecided, unmatched block, so a story
     // can show the empty states without a second adapter.
+    //
+    // The voice score comes from the same `blockEvidence` map the queue reads,
+    // because the server reads one persisted block score for both. Seeding one
+    // and hardcoding the other is how a story came to show "Clears every bar"
+    // beside a 62-of-90 voice score.
     getReviewContext: async (
       _ws,
       _projectId,
@@ -1011,22 +1024,26 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
                 createdAt: "2026-08-30T09:15:00Z",
               },
             ],
-            voice_findings: [
-              {
-                category: "compliance",
-                severity: "major",
-                message: "Uses a term the profile forbids.",
-                original_text: "Neokapi",
-                suggestion: "the platform",
-                position: {
-                  kind: "range",
-                  start: { run: 0, offset: 12 },
-                  end: { run: 0, offset: 19 },
-                },
-              },
-            ],
-            voice_score: 62,
-            voice_bar: 90,
+            // The findings are the evidence behind the score, so a block
+            // seeded at or above its bar carries none.
+            voice_findings: belowVoiceBar(adapter.blockEvidence[blockId])
+              ? [
+                  {
+                    category: "compliance",
+                    severity: "major",
+                    message: "Uses a term the profile forbids.",
+                    original_text: "Neokapi",
+                    suggestion: "the platform",
+                    position: {
+                      kind: "range",
+                      start: { run: 0, offset: 12 },
+                      end: { run: 0, offset: 19 },
+                    },
+                  },
+                ]
+              : [],
+            voice_score: adapter.blockEvidence[blockId]?.voice_score,
+            voice_bar: adapter.blockEvidence[blockId]?.voice_bar,
             origin: {
               kind: "ai",
               engine: "claude-sonnet",

@@ -1,10 +1,9 @@
 import { CheckCircle2, ShieldCheck } from "lucide-react";
-import { Badge } from "@neokapi/ui-primitives";
+import { Badge, findingSeverityBadgeClass } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
 import type { AIReviewFinding, DesktopFinding } from "../../types/api";
 import { AIPreReview } from "./AIPreReview";
 import { LayerCard } from "./LayerCard";
-import { severityBadgeClass } from "./severity";
 
 /**
  * What has already been said about this translation: the checks that ran over
@@ -53,7 +52,7 @@ export function JudgementCard({ findings, aiScore, aiModel, aiFindings }: Judgem
         <>
           <span className="text-foreground">{t("{count} findings", { count: list.length })}</span>
           {worst && (
-            <Badge variant="outline" className={severityBadgeClass(worst)}>
+            <Badge variant="outline" className={findingSeverityBadgeClass(worst)}>
               {worst}
             </Badge>
           )}
@@ -84,7 +83,7 @@ export function JudgementCard({ findings, aiScore, aiModel, aiFindings }: Judgem
         <ul className="space-y-1.5">
           {list.map((f: DesktopFinding, i: number) => (
             <li key={i} className="flex items-start gap-2 text-xs" data-slot="review-finding">
-              <Badge variant="outline" className={severityBadgeClass(f.severity)}>
+              <Badge variant="outline" className={findingSeverityBadgeClass(f.severity)}>
                 {f.severity}
               </Badge>
               {/* Which side of the unit the finding is about. A voice or

@@ -1,17 +1,10 @@
-/** Format an ISO timestamp as a relative time string (e.g., "2h ago"). */
-export function relativeTime(iso: string): string {
-  const d = new Date(iso);
-  const now = new Date();
-  const ms = now.getTime() - d.getTime();
-  const min = Math.floor(ms / 60000);
-  if (min < 1) return "just now";
-  if (min < 60) return `${min}m ago`;
-  const hr = Math.floor(min / 60);
-  if (hr < 24) return `${hr}h ago`;
-  const day = Math.floor(hr / 24);
-  if (day < 30) return `${day}d ago`;
-  return d.toLocaleDateString();
-}
+// "2 hours ago" and "13.4 KB": the two formatters a resource listing needs.
+//
+// The relative one lives in `lib/when.ts` beside the absolute rendering it
+// shares an `Intl` locale with, and is re-exported here so the browser's own
+// components keep one import. A surface that wants the instant rather than the
+// distance draws a `When`.
+export { relativeTime } from "../../lib/when";
 
 /** Format bytes as a human-readable size string. */
 export function formatSize(bytes: number): string {

@@ -101,6 +101,17 @@ const clearStats: TranslationDashboardStats = {
   total_source_words: 0,
 };
 
+/**
+ * The terminology and voice evidence the server stamps on a queue entry, and
+ * the same map the mock's review context reads. `b1` sits under the cursor and
+ * is below its profile's bar; `b2` clears every bar the server applies, so the
+ * queue shows both verdicts and each agrees with the context beside it.
+ */
+const blockEvidence = {
+  b1: { term_compliance: "compliant" as const, voice_score: 62, voice_bar: 90 },
+  b2: { term_compliance: "compliant" as const, voice_score: 94, voice_bar: 90 },
+};
+
 /** Give the flex-1/min-h-0 session a bounded height in Storybook. */
 const Frame = (Story: () => ReactNode) => (
   <div className="flex h-[640px] flex-col overflow-hidden rounded-lg border border-border bg-background">
@@ -112,7 +123,7 @@ const meta: Meta<typeof ReviewSession> = {
   title: "Review/ReviewSession",
   component: ReviewSession,
   parameters: { layout: "fullscreen" },
-  decorators: [Frame, createProvidersDecorator(blocks)],
+  decorators: [Frame, createProvidersDecorator(blocks, { blockEvidence })],
 };
 export default meta;
 type Story = StoryObj<typeof ReviewSession>;
