@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from "react";
-import { cn, DirectionalText } from "@neokapi/ui-primitives";
+import { cn, DirectionalText, LocaleLabel } from "@neokapi/ui-primitives";
 import { getTargetText } from "../editor/blockStatus";
 import { AlertTriangle, CircleCheck } from "../icons";
 import {
@@ -14,7 +14,7 @@ import {
 
 const GROUP_OPTIONS: { value: ReviewGroupBy; label: string }[] = [
   { value: "item", label: "File" },
-  { value: "locale", label: "Locale" },
+  { value: "locale", label: "Language" },
   { value: "verdict", label: "Verdict" },
 ];
 
@@ -33,7 +33,7 @@ export interface ReviewQueueListProps {
   /** The id of the entry currently open in the reviewer. */
   currentId: string | null;
   onSelect: (id: string) => void;
-  /** Locale display-name resolver for row/group labels. */
+  /** The workspace's own name for a language, when it has one. */
   localeName?: (locale: string) => string;
 }
 
@@ -102,7 +102,15 @@ export function ReviewQueueList({
             <div key={group.key} data-testid={`queue-group-${group.key}`}>
               <div className="sticky top-0 z-10 flex items-center justify-between bg-muted/60 px-3 py-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground backdrop-blur">
                 <span className="truncate" title={group.label}>
-                  {groupBy === "locale" && localeName ? localeName(group.label) : group.label}
+                  {groupBy === "locale" ? (
+                    <LocaleLabel
+                      locale={group.label}
+                      displayName={localeName?.(group.label)}
+                      className="normal-case"
+                    />
+                  ) : (
+                    group.label
+                  )}
                 </span>
                 <span className="tabular-nums">{group.entries.length}</span>
               </div>
@@ -142,10 +150,16 @@ export function ReviewQueueList({
                         className="mt-0.5 block truncate text-xs text-muted-foreground"
                       >
                         {groupBy !== "locale" && (
-                          // A locale code is an identifier, not prose: always LTR and
-                          // isolated so an RTL row's direction can't reposition it.
+                          // A locale code is an identifier, not prose: always LTR
+                          // and isolated so an RTL row's direction can't
+                          // reposition it. The name is in the label's title, so a
+                          // dense row keeps the tag and loses nothing.
                           <bdi dir="ltr" className="mr-1 rounded bg-muted px-1 py-px">
-                            {entry.locale}
+                            <LocaleLabel
+                              locale={entry.locale}
+                              displayName={localeName?.(entry.locale)}
+                              compact
+                            />
                           </bdi>
                         )}
                         {getTargetText(entry.block, entry.locale) || "—"}

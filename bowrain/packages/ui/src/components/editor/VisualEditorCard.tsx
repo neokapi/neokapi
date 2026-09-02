@@ -1,7 +1,7 @@
 import {
-  Badge,
   Button,
   DirectionalText,
+  StatusBadge,
   Tabs,
   TabsList,
   TabsTrigger,
@@ -31,7 +31,7 @@ import { MarkedSource } from "./MarkedSource";
 import { VisualEditorToolbar } from "./VisualEditorToolbar";
 import { TermCreationPopover } from "./TermCreationPopover";
 import { ContextPanel } from "./ContextPanel";
-import { getBlockStatus, getTargetText, statusConfig } from "./blockStatus";
+import { getTargetText, targetLadderStatus } from "./blockStatus";
 import { InlineCodeLegend } from "@neokapi/ui-primitives";
 import { FormatVocabularyBadge } from "./FormatVocabularyBadge";
 import {
@@ -130,8 +130,7 @@ export function VisualEditorCard({
   const [codeView, setCodeView] = useState(false);
   const [showLegend, setShowLegend] = useState(false);
 
-  const status = getBlockStatus(block, targetLocale);
-  const sc = statusConfig[status];
+  const status = targetLadderStatus(block, targetLocale);
 
   const sourceSpans = block.source_spans || [];
   const sourceCodedText = block.source_coded || block.source;
@@ -202,9 +201,7 @@ export function VisualEditorCard({
           <span className="text-xs font-medium text-muted-foreground">
             Block {blockIndex + 1}/{totalBlocks}
           </span>
-          <Badge variant="secondary" className={cn("text-[10px] px-1.5 py-0 h-4", sc.className)}>
-            {sc.label}
-          </Badge>
+          <StatusBadge ladder="content" status={status} compact data-testid="block-status" />
           {/* Finding badges */}
           {checkErrors.length > 0 && (
             <button

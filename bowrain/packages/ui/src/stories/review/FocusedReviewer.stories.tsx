@@ -56,7 +56,7 @@ const meta: Meta<typeof FocusedReviewer> = {
   args: {
     sourceLocale: "en-US",
     position: { index: 3, total: 12 },
-    localeName: (c: string) => (c === "fr-FR" ? "French (France)" : c),
+    localeName: (c: string) => (c === "fr-FR" ? "French (France)" : "English (United States)"),
     editing: false,
     onApprove: fn(),
     onReject: fn(),

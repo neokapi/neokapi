@@ -23,9 +23,10 @@ export interface SourceProposalsDialogProps {
 
 /**
  * SourceProposalsDialog is the source owner's review surface for back-to-source
- * proposals (RV-F). It lists the open proposals — original vs proposed source,
- * the finder and the locale they were reviewing, and the rationale — and lets a
- * PermEditSource owner approve (apply + re-draft every locale) or reject each.
+ * proposals (RV-F). It lists the open proposals with the original beside the
+ * proposed source, the finder and the language they were reviewing, and the
+ * rationale, and it lets a PermEditSource owner approve each one (apply, then
+ * re-draft every language) or reject it.
  * Approval is gated server-side, so a non-owner viewing this surface gets a clear
  * error rather than a silent apply.
  */
@@ -130,8 +131,7 @@ export function SourceProposalsDialog({
                 <div className="flex items-center justify-end gap-2">
                   <Button
                     size="sm"
-                    variant="outline"
-                    className="border-destructive/40 text-destructive hover:bg-destructive/10"
+                    variant="destructive"
                     disabled={pendingId === p.id}
                     onClick={() => act(p, "reject")}
                     data-testid="source-proposal-reject"
@@ -140,7 +140,7 @@ export function SourceProposalsDialog({
                   </Button>
                   <Button
                     size="sm"
-                    className="bg-success text-white hover:bg-success/90"
+                    variant="success"
                     disabled={pendingId === p.id}
                     onClick={() => act(p, "approve")}
                     data-testid="source-proposal-approve"

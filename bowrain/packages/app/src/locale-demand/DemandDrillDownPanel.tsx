@@ -3,13 +3,13 @@ import { X } from "lucide-react";
 import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import {
   Button,
-  LanguageLabel,
+  LocaleLabel,
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
   cn,
-  localeDisplayName,
+  resolveLocaleName,
 } from "@neokapi/ui";
 import { CoverageBadge } from "./CoverageBadge";
 import { SampleDataMark } from "./SampleDataNotice";
@@ -158,7 +158,7 @@ function AddLocaleBlock({ code, estimate }: { code: string; estimate?: PlanEstim
       data-testid="add-locale-block"
     >
       <div className="text-sm font-medium">
-        Close the gap: {localeDisplayName(code) ?? code} ({code})
+        Close the gap: <LocaleLabel locale={code} />
       </div>
       {estimate && (
         <dl className="mt-2 grid grid-cols-3 gap-2 text-xs">
@@ -180,7 +180,7 @@ function AddLocaleBlock({ code, estimate }: { code: string; estimate?: PlanEstim
         <Tooltip>
           <TooltipTrigger asChild>
             <Button size="sm" className="mt-3 w-full">
-              Add {localeDisplayName(code) ?? code} to the project
+              Add {resolveLocaleName(code)} to the project
             </Button>
           </TooltipTrigger>
           <TooltipContent>Prototype, not wired up yet</TooltipContent>
@@ -240,7 +240,7 @@ export function DemandDrillDownPanel({
             </h2>
           ) : (
             <h2 className="text-base font-semibold" data-testid="drilldown-title">
-              <LanguageLabel code={language!.code} />
+              <LocaleLabel locale={language!.code} />
             </h2>
           )}
           <p className="text-xs text-muted-foreground">
@@ -277,9 +277,7 @@ export function DemandDrillDownPanel({
                 const lang = languageByCode(snapshot, split.code);
                 return (
                   <li key={split.code} className="flex items-center justify-between gap-2 text-sm">
-                    <span className="min-w-0 truncate">
-                      {localeDisplayName(split.code) ?? split.code}
-                    </span>
+                    <span className="min-w-0 truncate">{resolveLocaleName(split.code)}</span>
                     <span className="flex items-center gap-2">
                       {lang && <CoverageBadge coverage={lang.coverage} />}
                       <BreakdownBar share={split.share} />

@@ -95,18 +95,39 @@ describe("ReviewSurface — the reading pane is the document", () => {
     expect(screen.queryByTestId("review-row-b1")).not.toBeInTheDocument();
   });
 
-  it("switches the reading to the source without reloading the blocks", async () => {
+  it("reads the source when the source language is chosen, without reloading", async () => {
+    // One selector holds every language, the source among them: choosing it is
+    // how the source is read, and it is a view change rather than a new query.
     const user = userEvent.setup();
     const { adapter } = renderSurface();
     const list = vi.spyOn(adapter, "getFileBlocks");
     await waitForDocument();
 
-    await user.click(screen.getByTestId("read-source"));
+    await user.click(screen.getByTestId("language-scope"));
+    await user.click(await screen.findByTestId("language-scope-en-US"));
 
     await waitFor(() =>
       expect(screen.getByTestId("review-document").textContent).toContain("Hello world"),
     );
     expect(list).not.toHaveBeenCalled();
+  });
+
+  it("names every language of the project in one list, source marked", async () => {
+    const user = userEvent.setup();
+    renderSurface();
+    await waitForDocument();
+
+    await user.click(screen.getByTestId("language-scope"));
+
+    const source = await screen.findByTestId("language-scope-en-US");
+    expect(source.textContent).toContain("American English");
+    expect(source.textContent).toContain("source");
+    expect((await screen.findByTestId("language-scope-fr-FR")).textContent).toContain(
+      "French (France)",
+    );
+    // The lane toggle is gone: the language answers which side is read.
+    expect(screen.queryByTestId("read-source")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("read-target")).not.toBeInTheDocument();
   });
 
   it("says how much of the bucket the pane holds", async () => {
@@ -182,7 +203,7 @@ describe("ReviewSurface — approve/reject persist via api.reviewBlock", () => {
     await waitForDocument();
     await openBlock(user, "b2");
 
-    expect(screen.getByTestId("review-status-b2").textContent).toBe("Not Started");
+    expect(screen.getByTestId("review-status-b2").textContent).toBe("Not started");
     // Nothing to reject (clearing it is a server-side no-op) and nothing to
     // approve (the server would 422 it).
     expect(screen.getByTestId("reject-b2")).toBeDisabled();

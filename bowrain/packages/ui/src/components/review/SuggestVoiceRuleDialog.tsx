@@ -104,7 +104,7 @@ export function SuggestVoiceRuleDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent data-testid="suggest-brand-rule-dialog">
         <DialogHeader>
-          <DialogTitle>Suggest a brand rule</DialogTitle>
+          <DialogTitle>Suggest a voice rule</DialogTitle>
           <DialogDescription>
             Turn this fix into a voice correction. Repeated corrections become a candidate rule you
             can promote into a check on every future generation.

@@ -1,4 +1,11 @@
-import { Button, cn } from "@neokapi/ui-primitives";
+import {
+  Button,
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+  CoordinateChip,
+  cn,
+} from "@neokapi/ui-primitives";
 import { RunSequence, resolveOverlaySpans, segmentText } from "@neokapi/ui-primitives/preview";
 import type { ContentNode } from "@neokapi/ui-primitives/preview";
 import type {
@@ -8,11 +15,21 @@ import type {
   ReviewDecision,
   ReviewNeighbour,
   ReviewOrigin,
+  ReviewTermRule,
   MemoryMatchInfo,
 } from "../../types/api";
 import type { VoiceFinding } from "../../voice/types";
-import { memoryScoreClass } from "../editor/blockStatus";
-import { AlertTriangle, ArrowDown, ArrowUp, CircleCheck, Clock, Info, Tag } from "../icons";
+import {
+  AlertTriangle,
+  ArrowDown,
+  ArrowUp,
+  ChevronDown,
+  CircleCheck,
+  Clock,
+  Info,
+  Lock,
+  Tag,
+} from "../icons";
 
 /**
  * The five layers of context a reviewer decides in, as the pieces both review
@@ -36,6 +53,81 @@ export function ContextHeading({ children }: { children: React.ReactNode }) {
 /** A one-line "nothing here, and why" for an empty layer. */
 export function ContextEmpty({ children }: { children: React.ReactNode }) {
   return <p className="text-xs text-muted-foreground">{children}</p>;
+}
+
+/**
+ * One layer of context, headed by the single line that answers it.
+ *
+ * A reviewer reads five layers for every unit, and reading five panels to learn
+ * that four of them say nothing costs more attention than the decision does. So
+ * each layer states its answer on the heading row (the coordinates it sits at,
+ * how many neighbours it has, what the corpus already said, what the checks
+ * found, where the target came from) and keeps the evidence a disclosure away.
+ * The layer itself is always drawn: a layer with nothing in it says so, which is
+ * an answer, and hiding it would leave the reader to wonder.
+ */
+export function ContextLayer({
+  title,
+  summary,
+  children,
+  collapsible = true,
+  defaultOpen = true,
+  testId,
+  className,
+}: {
+  /** The layer's name. */
+  title: string;
+  /** The one line a reader gets without opening anything. */
+  summary: React.ReactNode;
+  /** The evidence behind the summary. */
+  children: React.ReactNode;
+  /** False keeps the detail permanently below the summary. */
+  collapsible?: boolean;
+  /** Whether the detail starts open. */
+  defaultOpen?: boolean;
+  testId?: string;
+  className?: string;
+}) {
+  const head = (
+    <>
+      <ContextHeading>{title}</ContextHeading>
+      <span
+        className="min-w-0 flex-1 truncate text-xs text-muted-foreground"
+        data-testid={testId ? `${testId}-summary` : undefined}
+      >
+        {summary}
+      </span>
+    </>
+  );
+
+  if (!collapsible) {
+    return (
+      <section className={cn("space-y-2", className)} data-testid={testId}>
+        <div className="flex items-center gap-2">{head}</div>
+        {children}
+      </section>
+    );
+  }
+
+  return (
+    <Collapsible
+      defaultOpen={defaultOpen}
+      className={cn("space-y-2", className)}
+      data-testid={testId}
+      asChild
+    >
+      <section>
+        <CollapsibleTrigger className="group flex w-full items-center gap-2 text-left">
+          {head}
+          <ChevronDown
+            aria-hidden
+            className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180"
+          />
+        </CollapsibleTrigger>
+        <CollapsibleContent className="space-y-2">{children}</CollapsibleContent>
+      </section>
+    </Collapsible>
+  );
 }
 
 // ── Point ───────────────────────────────────────────────────────────────────
@@ -67,8 +159,17 @@ export function PointRail({
   const coordinates = Object.entries(context?.coordinates ?? {});
 
   return (
-    <section className="space-y-2" data-testid="review-point">
-      <ContextHeading>In force here</ContextHeading>
+    <ContextLayer
+      title="In force here"
+      summary={
+        loading && !context ? (
+          "Resolving what governs this block…"
+        ) : (
+          <PointSummary context={context} />
+        )
+      }
+      testId="review-point"
+    >
       {loading && !context ? (
         <ContextEmpty>Resolving what governs this block…</ContextEmpty>
       ) : (
@@ -98,18 +199,7 @@ export function PointRail({
               {profile.term_rules.length > 0 && (
                 <ul className="flex flex-wrap gap-1.5 pt-0.5" data-testid="point-term-rules">
                   {profile.term_rules.map((rule, i) => (
-                    <li
-                      key={`${rule.term}-${i}`}
-                      className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2 py-0.5 text-xs"
-                      title={rule.note}
-                    >
-                      <span className="font-medium line-through decoration-muted-foreground/60">
-                        {rule.term}
-                      </span>
-                      {rule.replacement && (
-                        <span className="text-muted-foreground">&rarr; {rule.replacement}</span>
-                      )}
-                    </li>
+                    <TermRuleChip key={`${rule.term}-${i}`} rule={rule} index={i} />
                   ))}
                 </ul>
               )}
@@ -144,19 +234,77 @@ export function PointRail({
                 </span>
               )}
               {coordinates.map(([axis, value]) => (
-                <span
+                <CoordinateChip
                   key={axis}
-                  className="rounded-full border border-border bg-card px-2 py-0.5 text-[11px] text-muted-foreground"
+                  axis={axis}
+                  value={value}
                   data-testid={`point-coordinate-${axis}`}
-                >
-                  {axis}: {value}
-                </span>
+                />
               ))}
             </div>
           )}
         </div>
       )}
-    </section>
+    </ContextLayer>
+  );
+}
+
+/**
+ * The point in one line: the coordinates the unit sits at, drawn as chips, with
+ * the profile that governs it named beside them.
+ */
+export function PointSummary({ context }: { context: ReviewContext | null }) {
+  const coordinates = Object.entries(context?.coordinates ?? {});
+  if (coordinates.length === 0) {
+    return <>{context?.voice_profile?.name ?? "No coordinates declared"}</>;
+  }
+  return (
+    <span className="flex flex-wrap items-center gap-1">
+      {coordinates.map(([axis, value]) => (
+        <CoordinateChip key={axis} axis={axis} value={value} />
+      ))}
+    </span>
+  );
+}
+
+/**
+ * How hard a rule bites, in the words a reviewer reads. `minor` and `neutral`
+ * report a violation; every other severity, unset included, fails the check,
+ * because a rule resolved from the terms store carries no severity of its own.
+ */
+function warnsOnly(rule: ReviewTermRule): boolean {
+  const s = (rule.severity ?? "").toLowerCase();
+  return s === "minor" || s === "neutral";
+}
+
+/**
+ * One term rule bound at this point, drawn as context: the term, the wording
+ * asked for instead, and a lock where the rule holds the term in the source
+ * language.
+ *
+ * The rail says what the model was told about a word, so a rule is neutral
+ * whatever its severity, and the bite reads in the tooltip. `packages/ui/docs/
+ * judgement-colours.md` is the rule; Kapi Desktop's own PointRail draws the
+ * same chip, down to the wording of the tooltip, because a reviewer moving
+ * between the two surfaces reads one vocabulary.
+ */
+export function TermRuleChip({ rule, index }: { rule: ReviewTermRule; index?: number }) {
+  const bite = warnsOnly(rule) ? "warns only" : "blocks approval";
+  const label = rule.do_not_translate ? `do not translate · ${bite}` : bite;
+  return (
+    <li
+      className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2 py-0.5 text-xs text-foreground"
+      title={rule.note ? `${label} · ${rule.note}` : label}
+      data-severity={warnsOnly(rule) ? "warns" : "blocks"}
+      data-dnt={rule.do_not_translate ? "true" : undefined}
+      data-testid={index === undefined ? "point-term-rule" : `point-term-rule-${index}`}
+    >
+      {rule.do_not_translate && (
+        <Lock className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden />
+      )}
+      <span className="font-medium">{rule.term}</span>
+      {rule.replacement && <span className="text-muted-foreground">&rarr; {rule.replacement}</span>}
+    </li>
   );
 }
 
@@ -211,7 +359,23 @@ export function NeighbourCell({
   );
 }
 
+/** How many units this one sits between, in one line. */
+export function neighbourhoodSummary(context: ReviewContext | null): string {
+  const before = context?.previous ? 1 : 0;
+  const after = context?.next ? 1 : 0;
+  const total = before + after;
+  if (total === 0) return "The only unit in the item";
+  if (total === 2) return "Between 2 units";
+  return before === 1 ? "End of the item" : "Start of the item";
+}
+
 // ── History ─────────────────────────────────────────────────────────────────
+
+/** What the corpus already said for this source, in one line. */
+export function memorySummary(match: MemoryMatchInfo | undefined): string {
+  if (!match) return "No match";
+  return `${Math.round(match.score * 100)}% ${match.match_type.replace(/-/g, " ")}`;
+}
 
 /**
  * The wording the corpus already blessed for this source, with both sides
@@ -236,12 +400,14 @@ export function MemoryMatchCard({
       className="space-y-1 rounded-md border border-border bg-muted/20 p-2.5"
       data-testid="memory-match"
     >
+      {/* The score is how close the corpus came, which is context rather than a
+          verdict, so it reads in the neutral chip every other bound fact uses
+          and puts what the number means in the tooltip. */}
       <div className="flex items-center gap-2">
         <span
-          className={cn(
-            "rounded px-1.5 py-px text-[11px] font-bold tabular-nums",
-            memoryScoreClass(match.score),
-          )}
+          className="rounded border border-border bg-card px-1.5 py-px text-[11px] font-medium tabular-nums text-foreground"
+          title={`${Math.round(match.score * 100)}% match against the source of this block`}
+          data-testid="memory-match-score"
         >
           {Math.round(match.score * 100)}%
         </span>
@@ -314,6 +480,21 @@ export function AnchoredTarget({
 /** Whether a finding's severity fails rather than warns. */
 function findingFails(severity: string): boolean {
   return severity === "major" || severity === "critical";
+}
+
+/**
+ * What the two checkers made of this unit, in one line: how many findings there
+ * are and how many of them fail, counted over both lists, since a reviewer
+ * reads them as one.
+ */
+export function findingsSummary(issues: CheckIssue[], findings: VoiceFinding[]): string {
+  const total = issues.length + findings.length;
+  if (total === 0) return "Nothing flagged";
+  const failing =
+    issues.filter((i) => i.severity === "error").length +
+    findings.filter((f) => findingFails(f.severity)).length;
+  const counted = `${total} finding${total === 1 ? "" : "s"}`;
+  return failing > 0 ? `${counted}, ${failing} failing` : counted;
 }
 
 /**
@@ -441,6 +622,19 @@ const DECISION_LABELS: Record<string, string> = {
   rejected: "Rejected",
   "signed-off": "Signed off",
 };
+
+/** Where this target came from, and what was last decided, in one line. */
+export function provenanceSummary(
+  origin: ReviewOrigin | undefined,
+  decision: ReviewDecision | undefined,
+): string {
+  const from = origin?.kind ? (ORIGIN_LABELS[origin.kind] ?? origin.kind) : "";
+  const state = decision?.state ? (DECISION_LABELS[decision.state] ?? decision.state) : "";
+  if (from && state) return `${from} · ${state}`;
+  if (from) return from;
+  if (state) return state;
+  return "Nothing recorded";
+}
 
 /**
  * How this target came to say what it says, and what was last decided about it.

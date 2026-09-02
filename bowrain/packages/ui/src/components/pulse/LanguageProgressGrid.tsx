@@ -1,4 +1,5 @@
-import { LanguageLabel } from "../LanguageLabel";
+import { LocaleLabel } from "@neokapi/ui-primitives";
+
 import { CompletionRing } from "./CompletionRing";
 
 interface LocaleCardProps {
@@ -20,7 +21,7 @@ function LocaleCard({
     <div className="flex items-center gap-4 rounded-lg border bg-card p-4">
       <CompletionRing percentage={percentage} size={56} strokeWidth={5} />
       <div className="min-w-0 flex-1">
-        <LanguageLabel code={locale} displayName={displayName} className="font-medium" />
+        <LocaleLabel locale={locale} displayName={displayName} className="font-medium" />
         <div className="text-sm text-muted-foreground">
           {translatedWords.toLocaleString()} / {totalWords.toLocaleString()} words
         </div>

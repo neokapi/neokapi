@@ -1,4 +1,5 @@
-import { localeDisplayName } from "../LanguageLabel";
+import { resolveLocaleName } from "@neokapi/ui-primitives";
+
 import { CompletionRing } from "./CompletionRing";
 
 interface PulseProjectCardProps {
@@ -23,7 +24,8 @@ export function PulseProjectCard({
   onClick,
   languageNames,
 }: PulseProjectCardProps) {
-  const resolveName = (code: string) => languageNames?.[code] ?? localeDisplayName(code, "short");
+  const resolveName = (code: string) =>
+    languageNames?.[code] ?? resolveLocaleName(code, undefined, "short");
 
   return (
     <div

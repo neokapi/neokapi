@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useApi } from "../context/ApiContext";
-import { localeDisplayName } from "../components/LanguageLabel";
+import { resolveLocaleName } from "@neokapi/ui-primitives";
 import type { LocaleInfo } from "../types/api";
 
 const EMPTY_LOCALES: LocaleInfo[] = [];
@@ -32,7 +32,7 @@ export function useLocales() {
   const getDisplayName = useCallback(
     (code: string): string => {
       const info = locales.find((l) => l.code === code);
-      return info ? info.display_name : localeDisplayName(code);
+      return info ? info.display_name : resolveLocaleName(code);
     },
     [locales],
   );

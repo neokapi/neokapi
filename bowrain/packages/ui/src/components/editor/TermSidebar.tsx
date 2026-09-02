@@ -2,6 +2,9 @@ import { Badge, Button, cn } from "@neokapi/ui-primitives";
 import { ArrowRight, Plus, BookOpen } from "lucide-react";
 import { BlockTermMatch } from "../../types/api";
 import type { VisualEditorMode } from "./visual-editor-types";
+// The full model.TermStatus ladder lives beside the block-status reads; a copy
+// here covered four of the six rungs and painted `deprecated` as a failure.
+import { termStatusClass } from "./blockStatus";
 
 export interface TermSidebarProps {
   termMatches: BlockTermMatch[];
@@ -9,16 +12,6 @@ export interface TermSidebarProps {
   onInsertTerm: (text: string) => void;
   onAddTerm?: () => void;
   editorMode?: VisualEditorMode;
-}
-
-function termStatusClass(status: string): string {
-  const colors: Record<string, string> = {
-    preferred: "text-success bg-success/[0.08]",
-    approved: "text-info bg-info/[0.08]",
-    admitted: "text-warning bg-warning/[0.08]",
-    deprecated: "text-destructive bg-destructive/[0.08]",
-  };
-  return colors[status] || "text-muted-foreground bg-muted";
 }
 
 export function TermSidebar({

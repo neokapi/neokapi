@@ -211,3 +211,48 @@ export const ReviewedBlock: Story = {
     blockIndex: 0,
   },
 };
+
+/**
+ * One card per rung of the shared content ladder, badged by `StatusBadge`
+ * rather than by a colour map of the platform's own. `signed-off` reaches a
+ * badge here because the card reads the wire `Target.Status` the payload
+ * carries; the bucket the server counts by collapses it into `reviewed`.
+ */
+export const StatusLadder: Story = {
+  render: () => (
+    <div className="space-y-4">
+      {(["not-started", "draft", "translated", "reviewed", "signed-off"] as const).map(
+        (status, i) => (
+          <VisualEditorCard
+            key={status}
+            block={{
+              ...sampleBlocks[0],
+              id: `blk-${status}`,
+              properties: {},
+              targets:
+                status === "not-started"
+                  ? { "fr-FR": { text: "", status: "" } }
+                  : { "fr-FR": { text: "Bienvenue sur Neokapi", status } },
+            }}
+            blockIndex={i}
+            totalBlocks={5}
+            targetLocale="fr-FR"
+            editorMode="translate"
+            onEditorModeChange={fn()}
+            isEditing={false}
+            onStartEditing={fn()}
+            onSave={fn()}
+            onCancel={fn()}
+            onApprove={fn()}
+            onReject={fn()}
+            memoryMatches={[]}
+            termMatches={[]}
+            onApplyMemory={fn()}
+            onInsertTerm={fn()}
+            project={sampleProject}
+          />
+        ),
+      )}
+    </div>
+  ),
+};

@@ -2,15 +2,9 @@ import {
   Alert,
   AlertDescription,
   Button,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  Tabs,
-  TabsList,
-  TabsTrigger,
+  LocaleLabel,
   cn,
+  statusMeta,
 } from "@neokapi/ui-primitives";
 import { FormatPreview, extOf } from "@neokapi/ui-primitives/preview";
 import type { BlockAttrs } from "@neokapi/ui-primitives/preview";
@@ -33,6 +27,7 @@ import { useAnalytics } from "../context/AnalyticsContext";
 import { AnalyticsEvents } from "../analytics-events";
 import { ProblemsPanel } from "./editor/ProblemsPanel";
 import { ApplyMemoryDialog } from "./review/ApplyMemoryDialog";
+import { LanguageScopeSelect } from "./review/LanguageScopeSelect";
 import { ReviewInspector } from "./review/ReviewInspector";
 import { blocksToContentTree, type BlockEvidence } from "../preview/toContentTree";
 import type { UnifiedSaveResult } from "./UnifiedTargetEditor";
@@ -42,7 +37,7 @@ import {
   getTargetText,
   rollbackTargetStatus,
   statusAfterEdit,
-  statusLabel,
+  statusRuleClass,
   withTargetEntry,
   withTargetStatus,
   type BlockStatus,
@@ -72,14 +67,6 @@ const EMPTY_COUNTS: BlockCounts = {
   total: 0,
   translatable: 0,
   status: { "not-started": 0, draft: 0, translated: 0, reviewed: 0 },
-};
-
-/** The margin rule a block's review status paints in the reading pane. */
-const STATUS_RULE: Record<BlockStatus, string> = {
-  "not-started": "[--kapi-block-rule:var(--color-muted-foreground)] opacity-80",
-  draft: "[--kapi-block-rule:var(--color-warning)]",
-  translated: "[--kapi-block-rule:var(--color-info)]",
-  reviewed: "[--kapi-block-rule:var(--color-success)]",
 };
 
 /** Whether a keystroke belongs to a text field rather than the surface. */
@@ -116,6 +103,7 @@ export function ReviewSurface({
   presenceSlot,
   surfaceTabs,
 }: ReviewSurfaceProps) {
+  const sourceLocale = project.default_source_language;
   const [blocks, setBlocks] = useState<BlockInfo[]>([]);
   const [targetLocale, setTargetLocale] = useState(project.target_languages[0] || "");
   const [filter, setFilter] = useState<StatusFilter>("all");
@@ -149,10 +137,31 @@ export function ReviewSurface({
   const { can } = useCallerPermissions(project.id);
   const canApprove = can("review", targetLocale || undefined);
 
-  // Which side the document is read on. Review is reading the translation, so
-  // it opens on the target locale and the source is a keystroke away.
-  const [side, setSide] = useState<"source" | "target">("target");
-  const readingSide = side === "target" && targetLocale ? targetLocale : "source";
+  // The language the document is read in. One selector holds every language of
+  // the project, the source among them, so choosing English reads the source
+  // and choosing French reads the French translation. A lane toggle beside a
+  // target dropdown asked the same question twice.
+  //
+  // Picking the source leaves `targetLocale` where it was: the buckets, the
+  // batch and the decisions all judge one translation, and reading the source
+  // is a way of judging it rather than a different subject.
+  const [language, setLanguage] = useState(project.target_languages[0] || sourceLocale);
+  const readingSource = language === sourceLocale || !targetLocale;
+  const readingSide = readingSource ? "source" : targetLocale;
+  const changeLanguage = useCallback(
+    (next: string) => {
+      setLanguage(next);
+      if (next !== sourceLocale) setTargetLocale(next);
+    },
+    [sourceLocale],
+  );
+  const languageOptions = useMemo(
+    () => [
+      { locale: sourceLocale, source: true },
+      ...project.target_languages.filter((l) => l !== sourceLocale).map((locale) => ({ locale })),
+    ],
+    [sourceLocale, project.target_languages],
+  );
 
   // The pane is the selected bucket for the selected locale, asked for as such:
   // the filter is a query parameter, not a pass over a full download, and the
@@ -561,7 +570,7 @@ export function ReviewSurface({
       const flagged = (checksByBlock.get(id)?.issues.length ?? 0) > 0;
       return {
         className: cn(
-          STATUS_RULE[status],
+          statusRuleClass(status),
           flagged && "bg-warning/5",
           marked.has(id) && "outline outline-1 outline-dashed outline-primary/50",
         ),
@@ -687,22 +696,25 @@ export function ReviewSurface({
             </span>
           )}
         </Button>
-        <Select value={targetLocale} onValueChange={setTargetLocale}>
-          <SelectTrigger className="w-[180px]" data-testid="locale-selector">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {project.target_languages.map((l) => (
-              <SelectItem key={l} value={l}>
-                {getDisplayName(l)} ({l})
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <LanguageScopeSelect
+          value={language}
+          options={languageOptions}
+          onChange={changeLanguage}
+          label="Language to review"
+          data-testid="language-scope"
+        />
       </div>
 
-      {/* Status filters */}
+      {/* Status filters. They partition one translation, so they say which. */}
       <div className="flex items-center gap-1.5 mb-2 flex-wrap" data-testid="status-filters">
+        {targetLocale && (
+          <LocaleLabel
+            locale={targetLocale}
+            displayName={getDisplayName(targetLocale)}
+            className="mr-1 text-xs text-muted-foreground"
+            data-testid="filtered-language"
+          />
+        )}
         {FILTERS.map((f) => {
           const count = f === "all" ? counts.translatable : counts.status[f];
           return (
@@ -718,29 +730,14 @@ export function ReviewSurface({
                   : "bg-card text-muted-foreground border-border hover:text-foreground",
               )}
             >
-              {f === "all" ? "All" : statusLabel[f]} ({count})
+              {f === "all" ? "All" : statusMeta("content", f).label} ({count})
             </button>
           );
         })}
       </div>
 
-      {/* Reading side + batch actions */}
+      {/* Batch actions */}
       <div className="flex items-center gap-2 mb-2 flex-wrap">
-        <Tabs value={side} onValueChange={(v) => setSide(v as "source" | "target")}>
-          <TabsList className="h-7">
-            <TabsTrigger value="source" className="text-[11px] px-2 h-6" data-testid="read-source">
-              Source
-            </TabsTrigger>
-            <TabsTrigger
-              value="target"
-              className="text-[11px] px-2 h-6"
-              disabled={!targetLocale}
-              data-testid="read-target"
-            >
-              {targetLocale || "Target"}
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
         <Button
           variant="ghost"
           size="sm"
@@ -765,6 +762,7 @@ export function ReviewSurface({
         </Button>
         <Button
           size="sm"
+          variant="success"
           onClick={bulkMarkReviewed}
           disabled={marked.size === 0 || bulkBusy || !canApprove}
           title={canApprove ? undefined : "Approving needs the review permission for this language"}
@@ -866,7 +864,7 @@ export function ReviewSurface({
         node={selectedNode}
         itemName={fileName}
         locale={targetLocale}
-        localeLabel={targetLocale ? `${getDisplayName(targetLocale)} (${targetLocale})` : ""}
+        localeDisplayName={targetLocale ? getDisplayName(targetLocale) : undefined}
         issues={selectedId ? (checksByBlock.get(selectedId)?.issues ?? []) : []}
         terms={selectedId ? (termsByBlock[selectedId] ?? []) : []}
         termsLoading={termsLoading}

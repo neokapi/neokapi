@@ -1550,7 +1550,7 @@ bowrain-ui-ignores = $(call src-ignores,$(1)) --ignore "$(1)**/demo/**"
 # checking what the pipeline actually scans.
 KAPI_DESKTOP_EXTRACT_SRC := --src "src/**/*.{tsx,jsx}" --src "../../../packages/ui/src/**/*.tsx" --src "../../../packages/flow-editor/src/**/*.tsx" --src "../../../packages/status-views/src/**/*.tsx" --src "../../../packages/context-explorer/src/**/*.tsx" $(call src-ignores,) $(call src-ignores,../../../)
 BOWRAIN_UI_IGNORES        := $(call bowrain-ui-ignores,)
-BOWRAIN_APP_EXTRACT_SRC   := --src "src/**/*.{tsx,jsx}" --src "../ui/src/**/*.tsx" --src "../../apps/web/src/**/*.tsx" --src "../../apps/bowrain/frontend/src/**/*.tsx" --src "../../../packages/context-explorer/src/**/*.tsx" $(BOWRAIN_UI_IGNORES) $(call bowrain-ui-ignores,../) $(call bowrain-ui-ignores,../../) $(call src-ignores,../../../)
+BOWRAIN_APP_EXTRACT_SRC   := --src "src/**/*.{tsx,jsx}" --src "../ui/src/**/*.tsx" --src "../../apps/web/src/**/*.tsx" --src "../../apps/bowrain/frontend/src/**/*.tsx" --src "../../../packages/ui/src/**/*.tsx" --src "../../../packages/context-explorer/src/**/*.tsx" $(BOWRAIN_UI_IGNORES) $(call bowrain-ui-ignores,../) $(call bowrain-ui-ignores,../../) $(call src-ignores,../../../)
 # ctrl and pulse each scan only their own src/, so the unprefixed set is whole.
 BOWRAIN_SHELL_EXTRACT_SRC := --src "src/**/*.{tsx,jsx}" $(BOWRAIN_UI_IGNORES)
 EMAILS_EXTRACT_SRC        := --src "src/*.tsx" --ignore "src/*.stories.tsx" --ignore "src/storybook-decorator.tsx"
