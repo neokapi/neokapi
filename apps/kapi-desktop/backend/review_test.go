@@ -1,6 +1,7 @@
 package backend
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -9,6 +10,7 @@ import (
 	"github.com/neokapi/neokapi/core/gate"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/host"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 	"github.com/stretchr/testify/assert"
@@ -297,6 +299,64 @@ func TestUpdateReviewTarget_EditsFileAndInvalidatesDecision(t *testing.T) {
 	d3, err := app.GetReviewUnit(tab.ID, "fr-FR", file, "greeting")
 	require.NoError(t, err)
 	assert.Equal(t, "reviewed", d3.Status)
+}
+
+// TestUpdateReviewTarget_RecordsAHumanOrigin: the reviewer who rewrites an AI
+// draft produced the wording in front of them, and the review model's
+// provenance layer is where that is read. The edit records production and no
+// decision, so the unit waits in the queue for an explicit approval of the text
+// the reviewer typed.
+func TestUpdateReviewTarget_RecordsAHumanOrigin(t *testing.T) {
+	app := NewApp()
+	tab, root := newReviewProject(t, app)
+	file := filepath.Join("locales", "fr-FR.json")
+	ctx := context.Background()
+
+	// The record a convergence pass leaves for its own output: the source it
+	// translated, the translation it wrote, and the model that wrote it.
+	st, err := app.hostEngine().OpenProjectState(ctx, root)
+	require.NoError(t, err)
+	scope := app.hostEngine().DocumentScope(ctx, root, filepath.Join(root, "locales", "en.json"))
+	require.NoError(t, st.Record(ctx, state.UnitState{
+		Unit:        "greeting",
+		Variant:     model.Variant("fr-FR"),
+		Scope:       scope,
+		Status:      model.TargetStatusTranslated,
+		Origin:      model.Origin{Kind: model.OriginAI, Engine: "claude", Timestamp: "2026-09-01T10:00:00Z"},
+		TargetHash:  state.TargetHash("Bonjour {name}"),
+		ContentHash: state.SourceHash("Hello {name}"),
+	}))
+
+	asDrafted, err := app.GetReviewUnit(tab.ID, "fr-FR", file, "greeting")
+	require.NoError(t, err)
+	require.NotNil(t, asDrafted.Context)
+	require.NotNil(t, asDrafted.Context.Provenance.Origin)
+	require.Equal(t, model.OriginAI, asDrafted.Context.Provenance.Origin.Kind)
+
+	require.NoError(t, app.UpdateReviewTarget(tab.ID, "fr-FR", file, "greeting", "Salut {name}"))
+
+	edited, err := app.GetReviewUnit(tab.ID, "fr-FR", file, "greeting")
+	require.NoError(t, err)
+	require.NotNil(t, edited.Context)
+	require.NotNil(t, edited.Context.Provenance.Origin)
+	assert.Equal(t, model.OriginHuman, edited.Context.Provenance.Origin.Kind)
+	assert.Empty(t, edited.Context.Provenance.Origin.Engine, "the model that drafted it wrote none of this wording")
+	assert.NotEmpty(t, edited.Context.Provenance.Origin.Timestamp)
+
+	// Production, with no verdict on it.
+	assert.Empty(t, edited.Context.Provenance.ReviewState)
+	assert.Empty(t, edited.ReviewState)
+	assert.Equal(t, "translated", edited.Status)
+
+	queue, err := app.GetReviewQueue(tab.ID, ProjectFilter{Languages: []string{"fr-FR"}})
+	require.NoError(t, err)
+	pending := false
+	for _, it := range queue {
+		if it.Key == "greeting" && it.Locale == "fr-FR" {
+			pending = true
+		}
+	}
+	assert.True(t, pending, "a hand edit leaves the unit in the review queue")
 }
 
 func TestUpdateReviewTarget_RefusesEmptyText(t *testing.T) {

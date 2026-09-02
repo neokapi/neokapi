@@ -329,7 +329,10 @@ func (s *Server) HandleBulkApplyMemory(c echo.Context) error {
 		// The edit is applied to the block this request read, which a preview
 		// then never stores — the mutation dies with the request, and the
 		// preview's verdict is the pass's own rather than a second copy of it.
-		applyTargetTextEdit(b, loc, best.Target)
+		applyTargetTextEdit(b, loc, best.Target, model.Origin{
+			Kind:      model.OriginMemory,
+			Timestamp: time.Now().UTC().Format(time.RFC3339),
+		})
 		toStore = append(toStore, b)
 		resp.Applied = append(resp.Applied, AppliedMemory{BlockID: bid, Text: best.Target, Score: best.Score})
 	}

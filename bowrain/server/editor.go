@@ -729,17 +729,40 @@ func editorUpdateBlockTarget(ctx context.Context, cs store.ContentStore, project
 		return err
 	}
 
-	applyTargetTextEdit(sb.Block, model.LocaleID(req.TargetLocale), req.Text)
+	applyTargetTextEdit(sb.Block, model.LocaleID(req.TargetLocale), req.Text, humanEditOrigin())
 	return cs.StoreBlocks(ctx, projectID, stream, []*model.Block{sb.Block})
 }
 
-// applyTargetTextEdit writes text as the block's target for locale, demoting a
-// review the edit invalidates. Every path that edits target text in place goes
-// through it, so none can skip the demotion.
-func applyTargetTextEdit(b *model.Block, loc model.LocaleID, text string) {
+// applyTargetTextEdit writes text as the block's target for locale, stamping the
+// origin the caller names over it and demoting a review the edit invalidates.
+// Every path that writes target text in place goes through it, so none can skip
+// either.
+func applyTargetTextEdit(b *model.Block, loc model.LocaleID, text string, origin model.Origin) {
 	oldRuns := b.TargetRuns(loc)
 	b.SetTargetText(loc, text)
+	stampTargetOrigin(b, loc, origin)
 	demoteStaleReviewOnEdit(b, loc, oldRuns)
+}
+
+// humanEditOrigin is the provenance of a translation a person typed. It
+// replaces whatever produced the previous wording, because a reviewer reading
+// the provenance card is asking how the text in front of them was made, and an
+// AI draft somebody rewrote by hand was made by the person who rewrote it. The
+// origin it replaces stays in block_history beside the wording it belonged to.
+func humanEditOrigin() model.Origin {
+	return model.Origin{Kind: model.OriginHuman, Timestamp: time.Now().UTC().Format(time.RFC3339)}
+}
+
+// stampTargetOrigin records how a locale's target was produced, leaving its
+// status to demoteStaleReviewOnEdit. A zero origin leaves the existing stamp in
+// place.
+func stampTargetOrigin(b *model.Block, loc model.LocaleID, origin model.Origin) {
+	if origin == (model.Origin{}) {
+		return
+	}
+	if t := b.Target(loc); t != nil {
+		t.Origin = origin
+	}
 }
 
 // editorUpdateBlockTargetRuns loads a block, updates its target with the given
@@ -753,6 +776,7 @@ func editorUpdateBlockTargetRuns(ctx context.Context, cs store.ContentStore, pro
 	loc := model.LocaleID(req.TargetLocale)
 	oldRuns := sb.Block.TargetRuns(loc)
 	sb.Block.SetTargetRuns(loc, req.Runs)
+	stampTargetOrigin(sb.Block, loc, humanEditOrigin())
 	demoteStaleReviewOnEdit(sb.Block, loc, oldRuns)
 
 	return cs.StoreBlocks(ctx, projectID, stream, []*model.Block{sb.Block})
@@ -761,13 +785,12 @@ func editorUpdateBlockTargetRuns(ctx context.Context, cs store.ContentStore, pro
 // demoteStaleReviewOnEdit drops a reviewed/signed-off Target.Status back to
 // translated when an edit actually changed the target's content. A review
 // decision judges ONE specific translation, so rewriting the text invalidates
-// the stale approval — the host review model binds every decision to the
-// content hash of the translation it judges for exactly this reason
-// (host/convergereport.go). Without the demotion, an edited-after-approval
-// target would keep counting as reviewed in convergence/coverage and ship
-// gates forever. Statuses at or below translated are left alone: they are not
-// review decisions, and SetTargetText/SetTargetRuns deliberately preserve
-// provenance.
+// the approval. The host review model binds every decision to the content hash
+// of the translation it judges for the same reason (host/convergereport.go);
+// without the demotion, an edited-after-approval target would keep counting as
+// reviewed in convergence, coverage and ship gates. Statuses at or below
+// translated are review-free rungs and stay where they are. Provenance is the
+// caller's to stamp, through stampTargetOrigin.
 func demoteStaleReviewOnEdit(b *model.Block, locale model.LocaleID, oldRuns []model.Run) {
 	t := b.Target(locale)
 	if t == nil {

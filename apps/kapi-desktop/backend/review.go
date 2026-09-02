@@ -516,6 +516,11 @@ func (a *App) applyReviewDecision(tabID, locale, file, key, decision, note strin
 // After the write, any prior hash-bound decision for the unit is stale by
 // construction (decisions bind to the content hash of the text they judged), so
 // a subsequent approval blesses the NEW text.
+//
+// The edit is a production step, so it is recorded as one: a state record with
+// a human origin, the new translation's hash and the source it renders, and no
+// decision on it. The unit stays in the review queue until a reviewer approves
+// the wording they typed.
 func (a *App) UpdateReviewTarget(tabID, locale, file, key, text string) error {
 	op := a.getOpenProject(tabID)
 	if op == nil {
@@ -581,5 +586,64 @@ func (a *App) UpdateReviewTarget(tabID, locale, file, key, text string) error {
 	if !applied {
 		return fmt.Errorf("unit %q not found in %q", key, filepath.Base(tgtPath))
 	}
+	if rerr := a.recordHumanTargetEdit(ctx, op, rf, tgtPath, locale, key); rerr != nil {
+		return fmt.Errorf("the translation was saved, but recording who produced it failed: %w", rerr)
+	}
 	return nil
+}
+
+// recordHumanTargetEdit records a hand-edited translation in the project state
+// store: a human origin, the hash of the translation now in the file, and the
+// hash of the source it renders. It carries no decision, so the unit sits at the
+// presence baseline and waits for a reviewer to approve the new wording.
+//
+// The record has the shape the loop writes for its own output (host's basis
+// records), and it is recorded rather than staged for the same reason: staging
+// counts the decisions somebody owes an answer to, and typing a translation is
+// production. The previous record, with the origin the loop stamped, stays in
+// the committed state history until the next write of it.
+//
+// Recording it leaves it in the working store rather than serializing the
+// committed shards, which is where an approval also stops. PersistRecords
+// rewrites those shards from the unstaged rows alone, so calling it here would
+// drop every pending decision in the project out of the committed record on
+// each hand edit.
+func (a *App) recordHumanTargetEdit(ctx context.Context, op *openProject, rf project.ResolvedFile, tgtPath, locale, key string) error {
+	root := filepath.Dir(op.Path)
+	st, err := a.hostEngine().OpenProjectState(ctx, root)
+	if err != nil {
+		return err
+	}
+	// Re-read the pairing the record is about: the source wording and the
+	// translation the rewrite just put beside it.
+	_, byKey, err := a.reviewUnitBlocks(ctx, op, rf, tgtPath, locale)
+	if err != nil {
+		return err
+	}
+	b, ok := byKey[key]
+	if !ok {
+		return fmt.Errorf("unit %q not found in %q after the edit", key, filepath.Base(tgtPath))
+	}
+
+	loc := model.LocaleID(locale)
+	scope := a.hostEngine().DocumentScope(ctx, root, rf.Path)
+	k := state.Key{Scope: scope, Unit: key, Variant: model.Variant(loc)}
+	now := time.Now().UTC().Format(time.RFC3339)
+	next := state.UnitState{
+		Unit:        key,
+		Variant:     model.Variant(loc),
+		Status:      model.TargetStatusTranslated,
+		Origin:      model.Origin{Kind: model.OriginHuman, Timestamp: now},
+		TargetHash:  state.TargetHash(b.TargetText(loc)),
+		ContentHash: state.SourceHash(b.SourceText()),
+		Updated:     now,
+		Scope:       scope,
+	}
+	if prev, had := st.Get(ctx, k); had {
+		// The source lane's own state and the identity signals ride along; the
+		// decision and the AI pre-review both judged text that is gone.
+		next.SourceStatus = prev.SourceStatus
+		next.ContextHash = prev.ContextHash
+	}
+	return st.Record(ctx, next)
 }

@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/neokapi/neokapi/bowrain/editorclient"
 
@@ -798,10 +799,21 @@ func (a *App) updateBlockTargetLocal(projectID, blockID, targetLocale, text stri
 	loc := model.LocaleID(targetLocale)
 	oldRuns := sb.Block.TargetRuns(loc)
 	sb.Block.SetTargetText(loc, text)
+	stampHumanEditOrigin(sb.Block, loc)
 	demoteStaleReviewOnEdit(sb.Block, loc, oldRuns)
 	// Use StoreBlocks (not StoreBlocksForItem) because the block already carries
 	// an internal ID — it should not be re-mapped through source_id assignment.
 	return a.store.StoreBlocks(ctx, projectID, "main", []*model.Block{sb.Block})
+}
+
+// stampHumanEditOrigin records a translation a person typed as produced by a
+// person, the same stamp the server writes for an edit (server/editor.go). The
+// offline cache applies it so a block edited without a connection reads the way
+// the same edit reads online.
+func stampHumanEditOrigin(b *model.Block, loc model.LocaleID) {
+	if t := b.Target(loc); t != nil {
+		t.Origin = model.Origin{Kind: model.OriginHuman, Timestamp: time.Now().UTC().Format(time.RFC3339)}
+	}
 }
 
 // demoteStaleReviewOnEdit drops a reviewed/signed-off Target.Status back to
@@ -846,6 +858,7 @@ func (a *App) updateBlockTargetRunsLocal(req UpdateBlockTargetRunsRequest) error
 	loc := model.LocaleID(req.TargetLocale)
 	oldRuns := sb.Block.TargetRuns(loc)
 	sb.Block.SetTargetRuns(loc, runInfosToRuns(req.Runs))
+	stampHumanEditOrigin(sb.Block, loc)
 	demoteStaleReviewOnEdit(sb.Block, loc, oldRuns)
 	return a.store.StoreBlocks(ctx, req.ProjectID, "main", []*model.Block{sb.Block})
 }
