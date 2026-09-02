@@ -107,19 +107,23 @@ func (a *App) ReviewAIAction(tabID, locale, file, key, action, instruction strin
 	})
 	mark := a.aiActivity.lastID()
 
+	// The unit's own point: what governs this file decides the voice, the
+	// terminology and the tool presets every action below is built with.
+	unit := host.UnitRef{Collection: rf.Collection, Path: rf.Relative, TargetLang: locale}
+
 	var res *ReviewAIActionResult
 	switch action {
 	case ReviewAIExplain:
-		res, err = a.reviewAIExplain(ctx, b, sourceLang, locale)
+		res, err = a.reviewAIExplain(ctx, op, unit, b, sourceLang)
 	case ReviewAIFixFindings:
 		findings := a.currentUnitFindings(ctx, op, scope, b, loc, sourceLang, key, rf.Collection, rf.Relative)
 		instruction = fixFindingsInstruction(b.TargetText(loc), findings, instruction)
-		res, err = a.reviewAIPropose(ctx, b, sourceLang, locale, instruction)
+		res, err = a.reviewAIPropose(ctx, op, unit, b, sourceLang, instruction)
 	case ReviewAIRetranslate:
 		if strings.TrimSpace(instruction) == "" {
 			return nil, errors.New("retranslate needs an instruction — tell the model what to change")
 		}
-		res, err = a.reviewAIPropose(ctx, b, sourceLang, locale, instruction)
+		res, err = a.reviewAIPropose(ctx, op, unit, b, sourceLang, instruction)
 	default:
 		return nil, fmt.Errorf("unknown review AI action %q: want %s, %s, or %s",
 			action, ReviewAIFixFindings, ReviewAIRetranslate, ReviewAIExplain)
@@ -134,22 +138,22 @@ func (a *App) ReviewAIAction(tabID, locale, file, key, action, instruction strin
 // reviewAIPropose runs a one-block translate invocation and returns the
 // produced target as a proposal. The block is a fresh read-side copy — nothing
 // touches the target file.
-func (a *App) reviewAIPropose(ctx context.Context, b *model.Block, sourceLang, locale, instruction string) (*ReviewAIActionResult, error) {
-	cfg := map[string]any{
+func (a *App) reviewAIPropose(ctx context.Context, op *openProject, unit host.UnitRef, b *model.Block, sourceLang, instruction string) (*ReviewAIActionResult, error) {
+	tl, release, err := a.newReviewAITool(ctx, op, "translate", unit, map[string]any{
 		"sourceLocale": sourceLang,
 		"instruction":  instruction,
 		// One block, one call: the single-block path renders the instruction
 		// via TranslateRequest.Directives.
 		"batchSize": 1,
-	}
-	tl, err := a.newReviewAITool("translate", cfg, locale)
+	})
 	if err != nil {
 		return nil, err
 	}
+	defer release()
 	if err := runReviewAITool(ctx, tl, b); err != nil {
 		return nil, fmt.Errorf("ai action: %w", err)
 	}
-	proposed := b.TargetText(model.LocaleID(locale))
+	proposed := b.TargetText(model.LocaleID(unit.TargetLang))
 	if strings.TrimSpace(proposed) == "" {
 		return nil, errors.New("the model returned an empty translation — try a more specific instruction")
 	}
@@ -159,11 +163,12 @@ func (a *App) reviewAIPropose(ctx context.Context, b *model.Block, sourceLang, l
 // reviewAIExplain runs the ai review tool over the block and renders its
 // structured result as explanation text (score + findings). Read-only: the
 // review lands in block properties on an in-memory copy.
-func (a *App) reviewAIExplain(ctx context.Context, b *model.Block, sourceLang, locale string) (*ReviewAIActionResult, error) {
-	tl, err := a.newReviewAITool("review", map[string]any{"sourceLocale": sourceLang}, locale)
+func (a *App) reviewAIExplain(ctx context.Context, op *openProject, unit host.UnitRef, b *model.Block, sourceLang string) (*ReviewAIActionResult, error) {
+	tl, release, err := a.newReviewAITool(ctx, op, "review", unit, map[string]any{"sourceLocale": sourceLang})
 	if err != nil {
 		return nil, err
 	}
+	defer release()
 	if err := runReviewAITool(ctx, tl, b); err != nil {
 		return nil, fmt.Errorf("ai explain: %w", err)
 	}
@@ -272,18 +277,60 @@ func (a *App) freshAIReview(ctx context.Context, op *openProject, scope, key str
 	return us.AIReview
 }
 
-// newReviewAITool builds the AI tool an action uses through the same registry
-// path the flow runner takes (shared AI defaults + credential resolution).
-// Tests inject aiToolFactory with a MockProvider-backed tool.
-func (a *App) newReviewAITool(name string, cfg map[string]any, targetLang string) (tool.Tool, error) {
-	if a.aiToolFactory != nil {
-		return a.aiToolFactory(name, cfg, targetLang)
-	}
-	tl, err := a.toolReg.NewToolWithConfig(registry.ToolID(name), cfg, targetLang)
+// newReviewAITool builds the AI tool an action uses the way a run builds it.
+// host.ToolConfigForUnit assembles the config a flow run would hand this tool
+// for this unit (the voice profile, the term rules, the point, the tool and
+// locale presets, the content memory), the action's own keys layer on top, and
+// the tool comes from the registry path the flow runner takes (shared AI
+// defaults plus credential resolution).
+//
+// A Review proposal is therefore steered by the same governance the checks card
+// above it judges the unit against.
+//
+// The returned release frees whatever the assembly opened and is always safe to
+// call. Tests inject aiToolFactory with a MockProvider-backed tool; it still
+// receives the assembled config.
+func (a *App) newReviewAITool(ctx context.Context, op *openProject, name string, unit host.UnitRef, base map[string]any) (tool.Tool, func(), error) {
+	noop := func() {}
+	cfg, release, err := a.reviewToolConfig(ctx, op, name, unit, base)
 	if err != nil {
-		return nil, friendlyAIProviderError(err)
+		return nil, noop, err
 	}
-	return tl, nil
+	if release == nil {
+		release = noop
+	}
+
+	build := func() (tool.Tool, error) {
+		if a.aiToolFactory != nil {
+			return a.aiToolFactory(name, cfg, unit.TargetLang)
+		}
+		tl, terr := a.toolReg.NewToolWithConfig(registry.ToolID(name), cfg, unit.TargetLang)
+		if terr != nil {
+			return nil, friendlyAIProviderError(terr)
+		}
+		return tl, nil
+	}
+	tl, err := build()
+	if err != nil {
+		release()
+		return nil, noop, err
+	}
+	return tl, release, nil
+}
+
+// reviewToolConfig assembles one tool's config for one unit through the host,
+// under checksMu. That is the lock every other per-unit resolution on this path
+// takes, so a review action and a checks run cannot read the project's stores
+// at once.
+func (a *App) reviewToolConfig(ctx context.Context, op *openProject, name string, unit host.UnitRef, base map[string]any) (map[string]any, func(), error) {
+	a.checksMu.Lock()
+	defer a.checksMu.Unlock()
+	var proj *project.KapiProject
+	recipe := ""
+	if op != nil {
+		proj, recipe = op.Project, op.Path
+	}
+	return a.checksCLI().ToolConfigForUnit(ctx, proj, recipe, name, unit, base)
 }
 
 // friendlyAIProviderError rewrites credential-resolution failures into the
@@ -430,79 +477,91 @@ func (a *App) RunAIPreReview(tabID, locale string, scope PreReviewScope, policy 
 			done += len(items)
 			continue
 		}
-		tl, terr := a.newReviewAITool("review", map[string]any{"sourceLocale": sourceLang}, k.locale)
+		// The judge is steered by the voice and vocabulary governing this file's
+		// point, exactly as the deterministic checks below it are: one tool per
+		// (file, locale) group, because every unit in the group shares a point.
+		unit := host.UnitRef{Collection: rf.Collection, Path: rf.Relative, TargetLang: k.locale}
+		tl, release, terr := a.newReviewAITool(ctx, op, "review", unit,
+			map[string]any{"sourceLocale": sourceLang})
 		if terr != nil {
 			return nil, terr
 		}
-		// A proposal is steered by the voice and vocabulary governing this
-		// file's point.
-		profile := points.at(ctx, rf.Collection, rf.Relative)
-		tb := points.termsAt(ctx, rf.Collection, rf.Relative)
+		// The group runs in its own scope so the assembly this tool holds is
+		// released when the group ends, on every exit.
+		if gerr := func() error {
+			defer release()
 
-		annotations := map[string]state.AIReview{}
-		type approval struct {
-			item  host.ReviewQueueItem
-			score int
-		}
-		var approvals []approval
+			profile := points.at(ctx, rf.Collection, rf.Relative)
+			tb := points.termsAt(ctx, rf.Collection, rf.Relative)
 
-		for _, it := range items {
-			done++
-			a.emitEvent("prereview:progress", map[string]any{
-				"done": done, "total": total, "file": it.File, "key": it.Key,
-			})
-			b, found := byKey[it.Key]
-			if !found {
-				res.Skipped++
-				continue
+			annotations := map[string]state.AIReview{}
+			type approval struct {
+				item  host.ReviewQueueItem
+				score int
 			}
-			unitCtx := withAIScope(ctx, AIActivityScope{
-				Surface: "pre-review", Locale: it.Locale, File: it.File, Key: it.Key,
-			})
-			if rerr := runReviewAITool(unitCtx, tl, b); rerr != nil {
-				return nil, fmt.Errorf("ai pre-review %s:%s: %w", it.File, it.Key, rerr)
-			}
-			scoreStr, hasScore := b.Properties["review-score"]
-			if !hasScore {
-				res.Skipped++ // prose fallback — no usable score, nothing stored
-				continue
-			}
-			score, serr := strconv.Atoi(scoreStr)
-			if serr != nil {
-				res.Skipped++
-				continue
-			}
-			rev := state.AIReview{Score: score, Model: modelID}
-			if parsed, perr := aitools.ParseReviewResult(b.Properties["review"]); perr == nil {
-				for _, f := range parsed.Findings {
-					rev.Findings = append(rev.Findings, state.AIReviewFinding{
-						Severity: f.Severity, Message: f.Message, Suggestion: f.Suggestion,
-					})
+			var approvals []approval
+
+			for _, it := range items {
+				done++
+				a.emitEvent("prereview:progress", map[string]any{
+					"done": done, "total": total, "file": it.File, "key": it.Key,
+				})
+				b, found := byKey[it.Key]
+				if !found {
+					res.Skipped++
+					continue
+				}
+				unitCtx := withAIScope(ctx, AIActivityScope{
+					Surface: "pre-review", Locale: it.Locale, File: it.File, Key: it.Key,
+				})
+				if rerr := runReviewAITool(unitCtx, tl, b); rerr != nil {
+					return fmt.Errorf("ai pre-review %s:%s: %w", it.File, it.Key, rerr)
+				}
+				scoreStr, hasScore := b.Properties["review-score"]
+				if !hasScore {
+					res.Skipped++ // prose fallback — no usable score, nothing stored
+					continue
+				}
+				score, serr := strconv.Atoi(scoreStr)
+				if serr != nil {
+					res.Skipped++
+					continue
+				}
+				rev := state.AIReview{Score: score, Model: modelID}
+				if parsed, perr := aitools.ParseReviewResult(b.Properties["review"]); perr == nil {
+					for _, f := range parsed.Findings {
+						rev.Findings = append(rev.Findings, state.AIReviewFinding{
+							Severity: f.Severity, Message: f.Message, Suggestion: f.Suggestion,
+						})
+					}
+				}
+				annotations[it.Key] = rev
+				res.Reviewed++
+
+				if policy.AutoApprove && score >= policy.MinScore &&
+					!hasBlockingCheckFinding(a.blockCheckFindings(ctx, b, sourceLang, model.LocaleID(k.locale), profile, tb, dntTerms)) {
+					approvals = append(approvals, approval{item: it, score: score})
 				}
 			}
-			annotations[it.Key] = rev
-			res.Reviewed++
 
-			if policy.AutoApprove && score >= policy.MinScore &&
-				!hasBlockingCheckFinding(a.blockCheckFindings(ctx, b, sourceLang, model.LocaleID(k.locale), profile, tb, dntTerms)) {
-				approvals = append(approvals, approval{item: it, score: score})
+			if len(annotations) > 0 {
+				if _, aerr := a.hostEngine().RecordAIReviews(ctx, op.Path, src, k.locale, k.file, annotations); aerr != nil {
+					return fmt.Errorf("record ai reviews: %w", aerr)
+				}
 			}
-		}
-
-		if len(annotations) > 0 {
-			if _, aerr := a.hostEngine().RecordAIReviews(ctx, op.Path, src, k.locale, k.file, annotations); aerr != nil {
-				return nil, fmt.Errorf("record ai reviews: %w", aerr)
+			// Approvals AFTER annotations, so the decision write carries the fresh
+			// annotation along (recordDecisionState preserves it).
+			for _, ap := range approvals {
+				if _, derr := a.hostEngine().ApplyReviewDecisionAs(ctx, op.Path, src,
+					host.ReviewUnitRef{File: ap.item.File, Key: ap.item.Key, Locale: ap.item.Locale},
+					host.ReviewDecisionApproved, "", state.AIIdentityPrefix+modelID); derr != nil {
+					return fmt.Errorf("auto-approve %s:%s: %w", ap.item.File, ap.item.Key, derr)
+				}
+				res.AutoApproved++
 			}
-		}
-		// Approvals AFTER annotations, so the decision write carries the fresh
-		// annotation along (recordDecisionState preserves it).
-		for _, ap := range approvals {
-			if _, derr := a.hostEngine().ApplyReviewDecisionAs(ctx, op.Path, src,
-				host.ReviewUnitRef{File: ap.item.File, Key: ap.item.Key, Locale: ap.item.Locale},
-				host.ReviewDecisionApproved, "", state.AIIdentityPrefix+modelID); derr != nil {
-				return nil, fmt.Errorf("auto-approve %s:%s: %w", ap.item.File, ap.item.Key, derr)
-			}
-			res.AutoApproved++
+			return nil
+		}(); gerr != nil {
+			return nil, gerr
 		}
 	}
 	res.Remaining = res.Reviewed - res.AutoApproved

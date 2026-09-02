@@ -2,6 +2,7 @@ package prompt
 
 import (
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 
@@ -207,21 +208,55 @@ func (p QualityCheck) Turns(source, target string) []Turn {
 }
 
 // Review is the LLM judge: it scores a translation and reports findings.
+//
+// It carries the same steering a producer gets, so a judge and a producer are
+// answering one question about a unit. A reviewer told only "accuracy and
+// fluency" scores a target clean that reads well and says the wrong thing:
+// the retired term, the register the profile rules out.
 type Review struct {
 	SourceLocale model.LocaleID
 	TargetLocale model.LocaleID
+
+	// VoiceGuide is the governing voice profile rendered from a VoiceProfile,
+	// the same rendering translate puts in its prompt.
+	VoiceGuide string
+	// PreferredTerms pins the translation of specific terms, projected from the
+	// governing term rules by profile.TermRuleMap.
+	PreferredTerms map[string]string
 }
 
 func (p Review) Turns(source, target string) []Turn {
+	system := []Section{{
+		Kind:   KindTask,
+		Origin: "framework",
+		Text: "You are a translation reviewer. Review the user's translation for accuracy and fluency.\n\n" +
+			"Respond with ONLY a JSON object in this exact shape, no other text:\n" +
+			`{"score": <overall quality 0-100>, "findings": [{"severity": "critical|major|minor|info", "message": "<issue>", "suggestion": "<improved translation or fix, optional>"}]}` +
+			"\nReturn an empty findings array when the translation has no issues.",
+	}}
+	if g := strings.TrimSpace(p.VoiceGuide); g != "" {
+		system = append(system, Section{
+			Kind:    KindVoice,
+			Origin:  "voice profile",
+			Heading: "Voice profile the translation must comply with:",
+			Text:    g,
+		})
+	}
+	if len(p.PreferredTerms) > 0 {
+		var b strings.Builder
+		// Sorted, so one set of rules renders byte-identical on every run.
+		for _, k := range slices.Sorted(maps.Keys(p.PreferredTerms)) {
+			fmt.Fprintf(&b, "- %s → %s\n", k, p.PreferredTerms[k])
+		}
+		system = append(system, Section{
+			Kind:    KindPreferredTerms,
+			Origin:  fmt.Sprintf("terms (%s)", plural(len(p.PreferredTerms), "term")),
+			Heading: "Terminology the translation must use:",
+			Text:    strings.TrimRight(b.String(), "\n"),
+		})
+	}
 	return []Turn{
-		System(Section{
-			Kind:   KindTask,
-			Origin: "framework",
-			Text: "You are a translation reviewer. Review the user's translation for accuracy and fluency.\n\n" +
-				"Respond with ONLY a JSON object in this exact shape, no other text:\n" +
-				`{"score": <overall quality 0-100>, "findings": [{"severity": "critical|major|minor|info", "message": "<issue>", "suggestion": "<improved translation or fix, optional>"}]}` +
-				"\nReturn an empty findings array when the translation has no issues.",
-		}),
+		System(system...),
 		User(Section{
 			Kind:   KindContent,
 			Origin: "source and translation",
