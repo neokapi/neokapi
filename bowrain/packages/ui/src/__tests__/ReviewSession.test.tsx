@@ -390,7 +390,8 @@ describe("ReviewSession", () => {
       await waitForQueue();
       expect(screen.getByTestId("approve-all-passing").textContent).toContain("2");
 
-      await user.click(screen.getByTestId("filter-locale-de-DE"));
+      await user.click(screen.getByTestId("filter-language"));
+      await user.click(await screen.findByTestId("filter-language-de-DE"));
       await waitFor(() =>
         expect(screen.getByTestId("approve-all-passing").textContent).toContain("1"),
       );

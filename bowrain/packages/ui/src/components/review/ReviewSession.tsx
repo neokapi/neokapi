@@ -17,7 +17,8 @@ import { useWorkspace } from "../../context/WorkspaceContext";
 import { ErrorNotice } from "../../errors";
 import { getTargetText, statusAfterEdit, withTargetEntry } from "../editor/blockStatus";
 import { type UnifiedSaveResult } from "../UnifiedTargetEditor";
-import { ArrowLeft, Rocket, CircleCheck, Sparkles, RefreshCw, FileText } from "../icons";
+import { ArrowLeft, Rocket, CircleCheck, Sparkles, RefreshCw } from "../icons";
+import { ALL_LANGUAGES, LanguageScopeSelect } from "./LanguageScopeSelect";
 import { ReviewQueueList } from "./ReviewQueueList";
 import { FocusedReviewer, type ReviewerCompliance } from "./FocusedReviewer";
 import { MarkSourceTermDialog } from "./MarkSourceTermDialog";
@@ -633,8 +634,36 @@ export function ReviewSession({
 
   const localeName = useCallback((code: string) => getDisplayName(code), [getDisplayName]);
 
-  // ── Filter controls (locale + verdict pills, item select) ─────────────────
-  const localesWithPending = Object.keys(counts.byLocale);
+  // ── Filter controls (one language selector, verdict pills, item select) ───
+  //
+  // One list holds every language the queue can be read in, the source among
+  // them: choosing a target narrows the queue to it, and choosing the source
+  // opens the proposals waiting on the source text. Each entry carries what it
+  // is waiting on, so the choice is made on the counts rather than after it.
+  const languageOptions = useMemo(() => {
+    const pending = counts.byLocale;
+    return [
+      { locale: sourceLocale, source: true, pending: openProposals.length },
+      ...targetLocales
+        .filter((l) => l !== sourceLocale)
+        .map((locale) => ({ locale, pending: pending[locale] ?? 0 })),
+    ];
+  }, [sourceLocale, targetLocales, counts.byLocale, openProposals.length]);
+
+  const languageValue = filter.locale ?? ALL_LANGUAGES;
+  const chooseLanguage = useCallback(
+    (next: string) => {
+      // The source has no queue of its own; what waits on it are the open
+      // source proposals, so choosing it opens them and leaves the queue as
+      // the reviewer had it.
+      if (next === sourceLocale) {
+        setShowProposals(true);
+        return;
+      }
+      setFilter((f) => ({ ...f, locale: next === ALL_LANGUAGES ? undefined : next }));
+    },
+    [sourceLocale],
+  );
   // The dashboard's rollups name the collection a scope filter came in with;
   // the empty id is the collection-less bucket, which has no name of its own.
   const collectionFilterName =
@@ -692,22 +721,10 @@ export function ReviewSession({
           {pendingTotal} pending
         </span>
         <div className="flex-1" />
-        {openProposals.length > 0 && (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setShowProposals(true)}
-            data-testid="open-source-proposals"
-          >
-            <FileText className="mr-1 h-4 w-4" /> Source proposals
-            <span className="ml-1.5 rounded-full bg-muted px-1.5 text-[11px] tabular-nums">
-              {openProposals.length}
-            </span>
-          </Button>
-        )}
         {!allClear && (
           <Button
             size="sm"
+            variant="success"
             onClick={() => setConfirmBulk(true)}
             disabled={busy || passing === 0 || !canApproveAny}
             title={canApproveAny ? undefined : "Approving needs the review permission"}
@@ -727,25 +744,16 @@ export function ReviewSession({
           className="flex flex-wrap items-center gap-1.5 border-b border-border px-4 py-2"
           data-testid="review-filters"
         >
-          <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Locale</span>
-          {localesWithPending.map((loc) => (
-            <button
-              key={loc}
-              type="button"
-              onClick={() =>
-                setFilter((f) => ({ ...f, locale: f.locale === loc ? undefined : loc }))
-              }
-              data-testid={`filter-locale-${loc}`}
-              className={cn(
-                "rounded-md border px-2 py-0.5 text-xs transition-colors",
-                filter.locale === loc
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border bg-card text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {localeName(loc)} ({counts.byLocale[loc]})
-            </button>
-          ))}
+          <LanguageScopeSelect
+            value={languageValue}
+            options={languageOptions}
+            onChange={chooseLanguage}
+            allowAll
+            allPending={counts.total}
+            label="Language to review"
+            size="sm"
+            data-testid="filter-language"
+          />
           <span className="ml-3 text-[11px] uppercase tracking-wide text-muted-foreground">
             Verdict
           </span>

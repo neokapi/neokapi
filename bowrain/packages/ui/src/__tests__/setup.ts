@@ -15,6 +15,16 @@ globalThis.ResizeObserver = ResizeObserverStub as unknown as typeof ResizeObserv
 // JSDOM doesn't implement scrollIntoView — provide a no-op (needed by cmdk).
 Element.prototype.scrollIntoView = function () {};
 
+// JSDOM implements no pointer capture, which Radix's Select trigger asks about
+// on every pointer-down. Without these a click on a Select throws before the
+// listbox opens, so a test driving one fails on the environment rather than on
+// the component.
+Element.prototype.hasPointerCapture = function () {
+  return false;
+};
+Element.prototype.setPointerCapture = function () {};
+Element.prototype.releasePointerCapture = function () {};
+
 // JSDOM doesn't implement matchMedia — provide a minimal stub.
 Object.defineProperty(window, "matchMedia", {
   writable: true,
