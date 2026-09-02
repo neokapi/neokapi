@@ -338,7 +338,8 @@ func (a *App) stampContextSource(ctx context.Context, root, srcPath string) {
 // ContextSourcesUnseeded reports a project that binds committed context sources
 // none of which has ever been compiled into its store — a fresh clone, before
 // anything ran. A read surface uses it to say that an empty answer is unread
-// rather than absent.
+// rather than absent. projectPath is the recipe or the project root; both
+// resolve the way `-p` does.
 //
 // It reads the compile stamps only: no digest is computed, so a source edited
 // since its last compile is NOT reported here. That is the intended line — the
@@ -349,7 +350,7 @@ func (a *App) ContextSourcesUnseeded(ctx context.Context, projectPath string) bo
 	if err != nil {
 		return false
 	}
-	proj, err := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
+	proj, err := project.LoadWithOptions(layout.RecipePath, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return false
 	}

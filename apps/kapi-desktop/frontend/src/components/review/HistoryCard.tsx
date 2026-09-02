@@ -117,10 +117,14 @@ export function HistoryCard({
         )}
 
         {history && !prior && !match && bareScore === undefined && (
-          <p className="text-muted-foreground">
-            {t(
-              "Nothing has been approved for this unit yet, and the content memory holds no close match.",
-            )}
+          <p className="text-muted-foreground" data-slot="review-history-empty">
+            {history.unseeded
+              ? t(
+                  "The committed content memory has not been read into this copy of the project yet, so nothing can be matched. Bring up to date reads it.",
+                )
+              : t(
+                  "Nothing has been approved for this unit yet, and the content memory holds no close match.",
+                )}
           </p>
         )}
       </CardContent>

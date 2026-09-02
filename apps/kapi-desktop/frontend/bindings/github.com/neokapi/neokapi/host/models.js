@@ -1311,6 +1311,18 @@ export class ReviewHistory {
              */
             this["match"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * Unseeded reports a project whose committed context sources have never
+             * been compiled into the store this history reads: a fresh clone, before
+             * anything ran. The store answers, and answers empty, which a reviewer
+             * cannot tell from a memory that genuinely holds nothing close. `kapi up`
+             * compiles the sources; until it has, an empty Match means unread.
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["unseeded"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }

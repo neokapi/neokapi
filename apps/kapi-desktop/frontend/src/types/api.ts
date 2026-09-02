@@ -798,6 +798,10 @@ export interface ReviewNeighbour {
 export interface ReviewHistory {
   prior?: ReviewPriorVersion;
   match?: ReviewMemoryMatch;
+  /** True when the project's committed content memory has never been compiled
+   *  into this clone's store, so an empty match means unread rather than
+   *  absent. Bringing the project up to date compiles it. */
+  unseeded?: boolean;
 }
 
 /** The block's previous source and the target approved for it. */

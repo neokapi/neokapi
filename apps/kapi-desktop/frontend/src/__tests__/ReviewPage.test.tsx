@@ -669,6 +669,28 @@ describe("ReviewPage review model", () => {
     expect(match?.textContent).toContain("Bonjour {name} !");
   });
 
+  it("says the content memory is unread, not empty, before it has been compiled", async () => {
+    const loadUnit = vi.fn(async (item: ReviewItem) => ({
+      ...unitFor(item),
+      context: { ...CONTEXT, history: { unseeded: true } },
+    }));
+    render(
+      <ErrorProvider>
+        <ReviewPage tabID="t1" items={ITEMS} loadUnit={loadUnit} />
+      </ErrorProvider>,
+    );
+    const empty = await waitFor(() => {
+      const el = document.querySelector("[data-slot='review-history-empty']");
+      expect(el).not.toBeNull();
+      return el!;
+    });
+    // A fresh clone's store answers empty for wording the project has already
+    // approved; "no close match" would be a claim about the memory's contents.
+    expect(empty.textContent).not.toContain("no close match");
+    expect(empty.textContent).toContain("has not been read");
+    expect(empty.textContent).toContain("Bring up to date");
+  });
+
   it("names the provenance card and carries the decision in force", async () => {
     renderWithContext();
     const card = await waitFor(() => {
