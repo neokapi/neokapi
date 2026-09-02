@@ -1136,7 +1136,7 @@ jobs:
       - name: Guard — every tracked .go file is gofmt-clean
         run: make check-gofmt
 
-      # Two of the three em-dash parts run here, behind the same toolchain: the
+      # Every em-dash part but one runs here, behind the same toolchain: the
       # matcher builds from its own module with GOWORK=off and imports only the
       # standard library, so it needs Go and no module download. The catalogs
       # part reads the extracted source catalogs, which are build artefacts
@@ -1149,6 +1149,8 @@ jobs:
         run: ./scripts/check-em-dashes.sh --part go
       - name: Guard — no em dash in the UI source no catalog covers
         run: ./scripts/check-em-dashes.sh --part ui
+      - name: Guard, no em dash in the reference prose or its dataset
+        run: ./scripts/check-em-dashes.sh --part dossier
       - name: Guard — docs prose stays within its em-dash allowance
         run: ./scripts/check-em-dashes.sh --part docs
 
