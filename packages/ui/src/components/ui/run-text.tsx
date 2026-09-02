@@ -3,7 +3,7 @@ import { otherBranch, projectRuns, type RunSpec } from "@neokapi/kapi-format";
 import type { Run } from "@neokapi/contract-types";
 
 /**
- * The Review surface's reading of a run sequence: prose reads as prose, and
+ * The review surfaces' reading of a run sequence: prose reads as prose, and
  * everything that is not prose reads as a labelled chip.
  *
  * The neighbourhood, the prior version and the memory match all travel as run
@@ -11,6 +11,9 @@ import type { Run } from "@neokapi/contract-types";
  * and the plurals inside it. The projection is declared rather than looped, so
  * a kind added to the model is a compile error here instead of a variable that
  * quietly stops being drawn (packages/kapi-format/src/run-projection.ts).
+ *
+ * Kapi Desktop and the Bowrain platform both read through this, so a neighbour
+ * carrying a variable draws the same chip on either surface.
  */
 
 const CHIP =

@@ -1,7 +1,6 @@
-import { Badge, SimpleTooltip } from "@neokapi/ui-primitives";
+import { Badge, SimpleTooltip, findingSeverityBadgeClass } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
 import type { AIReviewFinding } from "../../types/api";
-import { severityBadgeClass } from "./severity";
 
 /**
  * The AI pre-review's verdict on this unit, read from the state store: a score,
@@ -50,7 +49,7 @@ export function AIPreReview({ score, model, findings }: AIPreReviewProps) {
         <ul className="mt-1 space-y-1">
           {remarks.map((f, i) => (
             <li key={i} className="flex items-start gap-2 text-xs" data-slot="review-ai-finding">
-              <Badge variant="outline" className={severityBadgeClass(f.severity)}>
+              <Badge variant="outline" className={findingSeverityBadgeClass(f.severity)}>
                 {f.severity ?? t("note")}
               </Badge>
               <span className="min-w-0">

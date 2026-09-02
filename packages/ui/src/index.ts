@@ -4,10 +4,11 @@
 // Utility
 export { cn } from "./lib/utils";
 export { PortalThemeProvider, usePortalThemeClass } from "./lib/portal-theme";
-// Relative-time and byte-size formatters — the single reachable copies. Every
-// surface that shows "2h ago" or "13.4 KB" imports these rather than growing
-// its own; see components/resource-browser/utils.ts and preview/download.ts.
-export { relativeTime, formatSize } from "./components/resource-browser/utils";
+// Relative-time and byte-size formatters, the single reachable copies. Every
+// surface that shows "2 hours ago" or "13.4 KB" imports these rather than
+// growing its own; see lib/when.ts and preview/download.ts.
+export { relativeTime } from "./lib/when";
+export { formatSize } from "./components/resource-browser/utils";
 export { formatBytes } from "./components/preview/download";
 
 // Hooks
@@ -195,6 +196,34 @@ export {
   type FormattedLocale,
   type LocaleNameVariant,
 } from "./lib/locale-name";
+// Instants, shown the way a language is shown: rendered in the reader's own
+// language, exact in the tooltip. `When` is the component, `formatWhen` the
+// same resolution outside React, and `relativeTime` its "3 minutes ago" form.
+export { When, type WhenProps } from "./components/ui/when";
+export {
+  formatWhen,
+  type FormatWhenOptions,
+  type FormattedWhen,
+  type WhenFieldStyle,
+} from "./lib/when";
+// How hard a finding bites, and the one tone that says so, shared by both
+// review surfaces. See packages/ui/docs/judgement-colours.md.
+export {
+  findingSeverityTone,
+  findingFails,
+  checkIssueTone,
+  findingToneBadgeClass,
+  findingToneTextClass,
+  findingSeverityBadgeClass,
+  type FindingTone,
+} from "./lib/finding-severity";
+// The unit in its document, drawn identically on both review surfaces.
+export {
+  NeighbourhoodTable,
+  type NeighbourhoodTableProps,
+  type NeighbourhoodEntry,
+} from "./components/ui/neighbourhood-table";
+export { RunText, type RunTextProps } from "./components/ui/run-text";
 export {
   Popover,
   PopoverTrigger,

@@ -1,5 +1,5 @@
 import { AlertTriangle, Fingerprint } from "lucide-react";
-import { Badge } from "@neokapi/ui-primitives";
+import { Badge, When } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
 import type { ReviewProvenance, TargetOrigin } from "../../types/api";
 import { LayerCard } from "./LayerCard";
@@ -103,14 +103,14 @@ export function ProvenanceCard({ provenance, origin, reviewState, note }: Proven
                 {t("by")} <span translate="no">{by}</span>
               </span>
             )}
-            {at && <span className="text-muted-foreground tabular-nums">{at}</span>}
+            {at && <When iso={at} className="text-muted-foreground" />}
           </div>
         )}
 
         {!state && at && (
           <div className="flex items-center gap-1.5">
             <span className="text-muted-foreground">{t("Written")}</span>
-            <span className="tabular-nums">{at}</span>
+            <When iso={at} />
           </div>
         )}
 

@@ -13,7 +13,7 @@ import {
   ContextLayer,
   FindingsList,
   MemoryMatchCard,
-  NeighbourCell,
+  NeighbourhoodView,
   PointRail,
   ProvenanceBlock,
   findingsSummary,
@@ -34,10 +34,9 @@ import {
   FileText,
 } from "../icons";
 import {
-  BLOCKER_LABELS,
-  entryBlockers,
   entryVerdict,
-  VERDICT_LABELS,
+  verdictDetail,
+  verdictLabel,
   type ReviewEntry,
   type ReviewQueueVerdict,
 } from "./reviewQueue";
@@ -114,16 +113,13 @@ export interface FocusedReviewerProps {
 const CELL = "rounded-lg border border-border bg-card p-3 text-sm leading-relaxed";
 
 // The verdict over all three bars the server applies on approve, not over
-// checks alone: "Passes checks" was a claim about one of them.
-const verdictChip: Record<ReviewQueueVerdict, { label: string; className: string }> = {
-  failing: {
-    label: VERDICT_LABELS.failing,
-    className: "border-destructive/40 bg-destructive/10 text-destructive",
-  },
-  passing: {
-    label: VERDICT_LABELS.passing,
-    className: "border-success/40 bg-success/10 text-success",
-  },
+// checks alone: "Passes checks" was a claim about one of them. It is the one
+// place in the header carrying a severity colour, so the bars a failing unit
+// misses read inside it (`verdictLabel`) rather than as three grey chips
+// beside it. See packages/ui/docs/judgement-colours.md.
+const verdictChip: Record<ReviewQueueVerdict, string> = {
+  failing: "border-destructive/40 bg-destructive/10 text-destructive",
+  passing: "border-success/40 bg-success/10 text-success",
 };
 
 /**
@@ -164,8 +160,6 @@ export function FocusedReviewer({
   const { block, locale, issues } = entry;
   const status = targetLadderStatus(block, locale);
   const verdict = entryVerdict(entry);
-  const blockers = entryBlockers(entry);
-  const chip = verdictChip[verdict];
   const [selection, setSelection] = useState("");
 
   // Capture the current source-text selection so the source-side lane can act
@@ -223,37 +217,22 @@ export function FocusedReviewer({
         <span
           className={cn(
             "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium",
-            chip.className,
+            verdictChip[verdict],
           )}
           data-testid={`reviewer-verdict-${verdict}`}
+          title={verdictDetail(entry)}
         >
           {verdict === "passing" ? (
             <CircleCheck className="h-3 w-3" />
           ) : (
             <AlertTriangle className="h-3 w-3" />
           )}
-          {chip.label}
+          {verdictLabel(entry)}
         </span>
-        {/* Which bar, not just that one was missed — the reviewer's next act
-            depends on whether it is a check, a term, or the voice score. */}
-        {blockers.map((b) => (
-          <span
-            key={b}
-            className="rounded-full border border-border bg-muted px-2 py-0.5 text-[11px] text-muted-foreground"
-            data-testid={`reviewer-blocker-${b}`}
-          >
-            {BLOCKER_LABELS[b]}
-          </span>
-        ))}
-        {entry.voiceScore !== undefined && (
-          <span
-            className="rounded-full border border-border bg-muted px-2 py-0.5 text-[11px] tabular-nums text-muted-foreground"
-            data-testid="reviewer-voice-score"
-            title="The block's latest voice score against its profile's compliance bar"
-          >
-            Voice {entry.voiceScore}/{entry.voiceBar}
-          </span>
-        )}
+        <div className="flex-1" />
+        {/* The locale's own rate and the reviewer's place in the queue: both
+            are about the sitting rather than the unit, so they sit together at
+            the far end, away from the verdict on this one block. */}
         {compliance && (
           <ComplianceRateChip
             rate={compliance.rate}
@@ -262,7 +241,6 @@ export function FocusedReviewer({
             translatedBlocks={compliance.translatedBlocks}
           />
         )}
-        <div className="flex-1" />
         <span
           className="text-xs tabular-nums text-muted-foreground"
           data-testid="reviewer-position"
@@ -286,8 +264,14 @@ export function FocusedReviewer({
             testId="reviewer-neighbourhood"
             className="mb-3"
           >
-            <NeighbourCell neighbour={context?.previous} where="previous" />
-            <NeighbourCell neighbour={context?.next} where="next" />
+            <NeighbourhoodView
+              context={context}
+              unitKey={block.id}
+              unitSource={block.source}
+              unitTarget={targetText}
+              sourceLocale={sourceLocale}
+              locale={locale}
+            />
           </ContextLayer>
 
           {/* Source vs target, generous side-by-side */}

@@ -177,17 +177,43 @@ describe("the queue's neighbourhood", () => {
       }),
     );
 
-    const previous = screen.getByTestId("neighbour-previous");
-    expect(previous.textContent).toContain("We sent a link to ");
+    const table = screen.getByTestId("reviewer-neighbourhood");
+    expect(table.textContent).toContain("We sent a link to ");
     // The projection answers for the placeholder kind; a text-only loop would
     // have rendered "We sent a link to ." and lost the variable.
-    expect(previous.textContent).toContain("{{.Email}}");
+    expect(table.textContent).toContain("{{.Email}}");
+    // The neighbour is keyed by the block the payload names, so a reviewer can
+    // find it in the document rather than guessing which line it was.
+    expect(table.textContent).toContain("b0");
   });
 
-  it("says where the item ends rather than showing an empty box", () => {
+  it("draws the unit in place among its neighbours", () => {
+    reviewer(
+      {},
+      emptyContext({
+        previous: { block_id: "b0", source_runs: [{ text: "Enter your email" }] },
+        next: { block_id: "b2", source_runs: [{ text: "We sent a link" }] },
+      }),
+    );
+
+    const rows = screen
+      .getByTestId("reviewer-neighbourhood")
+      .querySelectorAll("li[data-slot^=review-neighbour]");
+    expect(rows).toHaveLength(3);
+    expect(rows[0].textContent).toContain("Enter your email");
+    expect(rows[1].getAttribute("data-slot")).toBe("review-neighbour-unit");
+    expect(rows[2].textContent).toContain("We sent a link");
+  });
+
+  it("says the unit is alone rather than drawing empty boxes for its neighbours", () => {
     reviewer({}, emptyContext());
-    expect(screen.getByTestId("neighbour-previous").textContent).toContain("Start of the item.");
-    expect(screen.getByTestId("neighbour-next").textContent).toContain("End of the item.");
+    expect(screen.getByTestId("reviewer-neighbourhood-summary").textContent).toContain(
+      "The only unit in the item",
+    );
+    const rows = screen
+      .getByTestId("reviewer-neighbourhood")
+      .querySelectorAll("li[data-slot^=review-neighbour]");
+    expect(rows).toHaveLength(1);
   });
 });
 

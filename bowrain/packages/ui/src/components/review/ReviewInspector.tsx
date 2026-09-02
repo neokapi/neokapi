@@ -19,7 +19,7 @@ import {
   ContextLayer,
   FindingsList,
   MemoryMatchCard,
-  NeighbourCell,
+  NeighbourhoodView,
   PointRail,
   ProvenanceBlock,
   findingsSummary,
@@ -228,8 +228,13 @@ export function ReviewInspector({
             testId="inspector-neighbourhood"
             defaultOpen={false}
           >
-            <NeighbourCell neighbour={context?.previous} where="previous" />
-            <NeighbourCell neighbour={context?.next} where="next" />
+            <NeighbourhoodView
+              context={context}
+              unitKey={block?.id}
+              unitSource={block?.source}
+              unitTarget={block ? getTargetText(block, locale) : undefined}
+              locale={locale}
+            />
           </ContextLayer>
 
           {/* Findings: the check results and the findings behind the block's

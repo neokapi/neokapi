@@ -5,6 +5,7 @@ import {
   Tabs,
   TabsList,
   TabsTrigger,
+  When,
   cn,
 } from "@neokapi/ui-primitives";
 import { useState, useCallback } from "react";
@@ -465,7 +466,7 @@ export function VisualEditorCard({
                     >
                       <div className="flex-1">
                         <div className="text-muted-foreground text-[10px] mb-0.5">
-                          {note.author} &middot; {new Date(note.createdAt).toLocaleDateString()}
+                          {note.author} &middot; <When iso={note.createdAt} timeStyle="none" />
                         </div>
                         <div>{note.text}</div>
                       </div>
@@ -603,8 +604,7 @@ export function VisualEditorCard({
               >
                 <div className="flex justify-between items-center mb-1">
                   <span className="text-[10px] text-muted-foreground">
-                    {entry.author || "unknown"} &middot;{" "}
-                    {new Date(entry.timestamp).toLocaleString()}
+                    {entry.author || "unknown"} &middot; <When iso={entry.timestamp} />
                   </span>
                   <span className="text-[10px] px-1.5 py-px rounded bg-muted-foreground/10 text-muted-foreground">
                     {entry.origin}

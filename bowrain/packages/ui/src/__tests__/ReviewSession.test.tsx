@@ -364,10 +364,16 @@ describe("ReviewSession", () => {
       });
       await waitForQueue();
 
-      expect(screen.getByTestId("reviewer-verdict-failing")).toBeInTheDocument();
-      expect(screen.getByTestId("reviewer-blocker-terms")).toBeInTheDocument();
-      expect(screen.getByTestId("reviewer-blocker-voice")).toBeInTheDocument();
-      expect(screen.getByTestId("reviewer-voice-score").textContent).toContain("62/90");
+      // The bars read inside the verdict, and the score reads in the rail
+      // beside the profile that set the bar it is measured against.
+      const verdict = screen.getByTestId("reviewer-verdict-failing");
+      expect(verdict.textContent).toContain("Misses a bar: terminology, voice");
+      expect(verdict.getAttribute("title")).toContain("Terminology");
+      expect(verdict.getAttribute("title")).toContain("Below the voice bar");
+      await waitFor(() =>
+        expect(screen.getByTestId("point-voice-score").textContent).toContain("Voice 62 of 90"),
+      );
+      expect(screen.getByTestId("point-voice-score")).toHaveAttribute("data-below-bar", "true");
     });
 
     it("counts the passing blocks the pass actually covers when a locale is filtered", async () => {

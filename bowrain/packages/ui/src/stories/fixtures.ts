@@ -1812,10 +1812,12 @@ export const sampleRoleTemplates: RoleTemplate[] = [
 export const sampleReviewVoiceProfile: ReviewVoiceProfile = {
   id: "vp-1",
   name: "Bowrain Voice",
+  // As core/profile.RenderVoiceGuideCompact prints it: the parenthesised tone
+  // and style parts, then the tone guidance, then the swaps quoted and sorted.
   guidance:
-    "Voice profile — personality: precise, plain; formality: neutral; use active voice. " +
+    "Voice profile (personality: precise, plain; formality: neutral; use active voice). " +
     "Tone guidance: say what the product does for the reader, in their words. " +
-    "Never use these terms (use the replacement): leverage → use; utilize → use.",
+    'Never use these terms (use the replacement): "leverage" → "use"; "utilize" → "use".',
   compliance_bar: 90,
   term_rules: [
     { term: "leverage", replacement: "use", severity: "major" },
