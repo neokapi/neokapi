@@ -17,10 +17,36 @@ export interface ProvenanceCardProps {
   note?: string;
 }
 
+/**
+ * How an origin kind reads to a person. The platform's provenance card names
+ * the same kinds the same way, so a reviewer working across both reads one
+ * vocabulary. A kind with no phrase here is shown as the model records it.
+ */
+function originLabel(kind: string): string | undefined {
+  switch (kind) {
+    case "human":
+      return t("Written by a person");
+    case "memory":
+      return t("Recycled from content memory");
+    case "mt":
+      return t("Machine translation");
+    case "ai":
+      return t("AI translation");
+    case "ocr":
+      return t("Read from an image");
+    case "asr":
+      return t("Transcribed from audio");
+    default:
+      return undefined;
+  }
+}
+
 export function ProvenanceCard({ provenance, origin, reviewState, note }: ProvenanceCardProps) {
   const kind = provenance?.origin?.kind ?? origin?.kind;
   const engine = provenance?.origin?.engine ?? origin?.engine;
   const tool = provenance?.origin?.tool ?? origin?.tool;
+  const producer = [engine, tool].filter(Boolean).join(" · ");
+  const label = kind ? originLabel(kind) : undefined;
   const at = provenance?.at ?? provenance?.origin?.timestamp ?? origin?.timestamp;
   const state = provenance?.review_state ?? reviewState;
   const by = provenance?.by;
@@ -45,13 +71,14 @@ export function ProvenanceCard({ provenance, origin, reviewState, note }: Proven
         </div>
 
         {kind && (
-          <div className="flex items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-1.5">
             <span className="text-muted-foreground">{t("Origin")}</span>
-            <span translate="no">
-              {kind}
-              {engine ? ` · ${engine}` : ""}
-              {tool ? ` · ${tool}` : ""}
-            </span>
+            {label ? <span>{label}</span> : <span translate="no">{kind}</span>}
+            {producer && (
+              <span className="text-muted-foreground" translate="no">
+                {producer}
+              </span>
+            )}
           </div>
         )}
 

@@ -224,3 +224,50 @@ func TestReviewContext_RequiresViewContent(t *testing.T) {
 	require.Error(t, s.HandleGetReviewContext(c))
 	assert.Equal(t, http.StatusForbidden, rec.Code)
 }
+
+// TestReviewContext_HandEditReadsAsHuman: a reviewer who rewrites an AI draft
+// produced the wording in front of them, and the provenance card is where they
+// read that. Both target-writing paths stamp it, because the editor writes
+// plain text through one and runs through the other.
+func TestReviewContext_HandEditReadsAsHuman(t *testing.T) {
+	s, wsID, _ := newRecheckHarness(t)
+	ctx := context.Background()
+
+	drafted := pendingFrBlock("h", "Open the app", "Ouvrir l'application")
+	drafted.Target("fr").Origin = model.Origin{
+		Kind: "ai", Engine: "claude", Tool: "translate", Timestamp: "2026-09-01T10:00:00Z",
+	}
+	projID, ids := seedGovernedProject(t, s, wsID, []*model.Block{drafted})
+	bid := ids["Open the app"]
+
+	_, asDrafted := getReviewContext(t, s, wsID, projID, bid, "fr")
+	require.NotNil(t, asDrafted.Origin)
+	require.Equal(t, "ai", asDrafted.Origin.Kind, "the fixture starts as an AI draft")
+
+	require.NoError(t, editorUpdateBlockTarget(ctx, s.ContentStore, projID, "main", bid,
+		UpdateBlockTargetRequest{TargetLocale: "fr", Text: "Ouvre l'application"}))
+
+	_, edited := getReviewContext(t, s, wsID, projID, bid, "fr")
+	require.NotNil(t, edited.Origin)
+	assert.Equal(t, "human", edited.Origin.Kind)
+	assert.Empty(t, edited.Origin.Engine, "the model that drafted it wrote none of this wording")
+	assert.Empty(t, edited.Origin.Tool)
+	assert.NotEmpty(t, edited.Origin.Timestamp)
+
+	// Back to an AI draft, then rewritten through the run-native path.
+	sb, err := s.ContentStore.GetBlock(ctx, projID, "main", bid)
+	require.NoError(t, err)
+	sb.Block.Target("fr").Origin = model.Origin{Kind: "ai", Engine: "claude"}
+	require.NoError(t, s.ContentStore.StoreBlocks(ctx, projID, "main", []*model.Block{sb.Block}))
+
+	require.NoError(t, editorUpdateBlockTargetRuns(ctx, s.ContentStore, projID, "main", bid,
+		UpdateBlockTargetRunsRequest{
+			TargetLocale: "fr",
+			Runs:         []model.Run{{Text: &model.TextRun{Text: "Ouvrez l'application"}}},
+		}))
+
+	_, rewritten := getReviewContext(t, s, wsID, projID, bid, "fr")
+	require.NotNil(t, rewritten.Origin)
+	assert.Equal(t, "human", rewritten.Origin.Kind)
+	assert.Empty(t, rewritten.Origin.Engine)
+}
