@@ -33,7 +33,7 @@ export interface ReviewInspectorProps {
   locale: string;
   /** Display name for `locale`. */
   localeLabel: string;
-  /** QA findings for this block from the file's last QA run. */
+  /** Check findings for this block from the file's last check run. */
   issues: CheckIssue[];
   /** Term hits over this block's source, loaded when the panel opens. */
   terms: BlockTermMatch[];
@@ -68,7 +68,7 @@ export interface ReviewInspectorProps {
 /**
  * ReviewInspector is the review surface's slide-in detail: the document stays
  * the surface, and one block's particulars — its run sequence, every overlay
- * interpreting it, its QA findings and term hits, and the decision itself —
+ * interpreting it, its check findings and term hits, and the decision itself —
  * arrive beside it rather than replacing it.
  *
  * The content-model view is the shared kit's BlockInspector, so a block reads

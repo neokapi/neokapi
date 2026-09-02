@@ -69,7 +69,7 @@ interface ReviewScope {
   itemName: string;
   format?: string;
   locale: string;
-  /** Dashboard says this scope has error-severity findings → fetch QA. */
+  /** Dashboard says this scope has error-severity findings → run the checks for it. */
   failing: boolean;
 }
 
@@ -211,7 +211,7 @@ export function ReviewSession({
   }, [dashboardStats]);
 
   // The (item, locale) scopes the dashboard reports error-severity findings
-  // for — the only ones worth a QA request.
+  // for — the only ones worth a check request.
   const failingScopes = useMemo(
     () => new Set(scopes.filter((s) => s.failing).map(scopeKey)),
     [scopes],
@@ -227,7 +227,7 @@ export function ReviewSession({
   // The queue comes from the server's pending-review pages — one indexed
   // query, not a blocks fetch per item (978 items once meant minutes of
   // "gathering"). Both passes are bounded: the pages stop at the session's
-  // slice, and QA runs only for the flagged scopes the slice actually holds.
+  // slice, and the checks run only for the flagged scopes the slice actually holds.
   const buildQueue = useCallback(async (): Promise<QueueLoad> => {
     const loaded: (Omit<ReviewEntry, "id" | "itemId" | "format" | "issues"> & {
       itemName: string;
@@ -255,7 +255,7 @@ export function ReviewSession({
           locale: e.locale,
           collectionId: e.collection_id ?? "",
           block: e.block,
-          // The bars beyond QA, as the server judges them. Absent fields mean
+          // The bars beyond the checks, as the server judges them. Absent fields mean
           // "not applied", never "cleared".
           termCompliance: e.term_compliance ?? "",
           voiceScore: e.voice_score,

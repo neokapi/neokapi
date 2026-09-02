@@ -807,9 +807,9 @@ var Migrations = []storage.Migration{
 			CREATE INDEX IF NOT EXISTS idx_translations_project_block
 				ON translations(project_id, stream, block_id);
 
-			-- Semantic annotations (content-memory hits, term hits, QA findings,
+			-- Semantic annotations (content-memory hits, term hits, check findings,
 			-- translator notes). Grouped-by queries are the common
-			-- access pattern: "all QA findings for this project".
+			-- access pattern: "all check findings for this project".
 			CREATE TABLE IF NOT EXISTS annotations (
 				project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
 				stream     TEXT NOT NULL DEFAULT 'main',

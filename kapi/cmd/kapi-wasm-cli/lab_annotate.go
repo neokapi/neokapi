@@ -47,7 +47,7 @@ func labInspectAnnotated(_ js.Value, args []js.Value) any {
 		return errorResult("labInspectAnnotated expects a path")
 	}
 	path := args[0].String()
-	opts := annotateOptions{Term: true, Brand: true, QA: true}
+	opts := annotateOptions{Term: true, Brand: true, Check: true}
 	if len(args) >= 2 && args[1].Type() == js.TypeString {
 		var parsed annotateOptions
 		if err := json.Unmarshal([]byte(args[1].String()), &parsed); err == nil {
@@ -68,7 +68,7 @@ func labInspectAnnotated(_ js.Value, args []js.Value) any {
 type annotateOptions struct {
 	Term  bool `json:"term"`
 	Brand bool `json:"brand"`
-	QA    bool `json:"qa"`
+	Check bool `json:"qa"`
 	// Segment, when set, runs the segmentation engine over each block and writes
 	// the primary sentence segmentation overlay, so the preview shows sentence
 	// boundaries. SegmentEngine names the engine ("" = default srx; "uax29"
@@ -174,7 +174,7 @@ func annotateParts(ctx context.Context, parts []*model.Part, opts annotateOption
 				b.Overlays = append(b.Overlays, *ov)
 			}
 		}
-		if opts.QA {
+		if opts.Check {
 			// The shape checks (double spaces, doubled words) come from the shared
 			// check.HygieneOverlay, which judges the run-aware flattening and
 			// maps its ranges back onto the runs — the same rules, and the same

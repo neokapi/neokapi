@@ -243,13 +243,13 @@ func TestApprovePassing_ExcludesFailingBlocks(t *testing.T) {
 	ctx := context.Background()
 
 	// b1 passes the checks; b2's target carries a U+FFFD replacement character,
-	// an error-severity QA finding, so it must be excluded and left pending.
+	// an error-severity check finding, so it must be excluded and left pending.
 	b1 := &model.Block{ID: "b1", Translatable: true}
 	b1.SetSourceText("Hello")
 	b1.SetTargetText("fr", "Bonjour")
 	b2 := &model.Block{ID: "b2", Translatable: true}
 	b2.SetSourceText("Goodbye")
-	b2.SetTargetText("fr", "Au revoir�") // U+FFFD → error-severity QA finding
+	b2.SetTargetText("fr", "Au revoir�") // U+FFFD → error-severity check finding
 	projID, ids := seedGovernedProject(t, s, wsID, []*model.Block{b1, b2})
 	seedReviewTask(t, s, wsID, projID, "fr", ownerID)
 	bindForgeConnector(t, s, wsID, projID)
