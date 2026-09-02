@@ -49,8 +49,9 @@
 #     ./scripts/check-em-dashes.sh --self-test         # prove the matchers
 #
 # Wired into `make check-em-dashes` (part of `make lint`), `make pre-push`, the
-# repo-guards job in .github/workflows/ci.yml (go and docs), and the catalogs
-# job in .github/workflows/l10n.yml (catalogs, where the extract has just run).
+# repo-guards job in .github/workflows/ci.yml (go and docs, last in the job so a
+# failure hides no other guard), and the catalogs job in
+# .github/workflows/l10n.yml, where the extract has just run.
 set -euo pipefail
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
