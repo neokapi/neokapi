@@ -1,21 +1,25 @@
 import { useCallback, useMemo, useState } from "react";
-import { Button, Badge, cn, directionAttrs } from "@neokapi/ui-primitives";
+import { Button, LocaleLabel, StatusBadge, cn, directionAttrs } from "@neokapi/ui-primitives";
 import type { EntityInfo, ComplianceBasis, ReviewContext } from "../../types/api";
 import { ComplianceRateChip } from "../ComplianceRateChip";
 import { entityLabel } from "../editor/entityMarks";
 import { FormattedSourceDisplay } from "../editor/FormattedSourceDisplay";
 import { CollapsedTargetCell } from "../editor/GridTargetRenderer";
 import { UnifiedTargetEditor, type UnifiedSaveResult } from "../UnifiedTargetEditor";
-import { getBlockStatus, getTargetText, statusConfig } from "../editor/blockStatus";
+import { getTargetText, targetLadderStatus } from "../editor/blockStatus";
 import { blockToContentNode } from "../../preview/toContentTree";
 import {
   AnchoredTarget,
-  ContextHeading,
+  ContextLayer,
   FindingsList,
   MemoryMatchCard,
   NeighbourCell,
   PointRail,
   ProvenanceBlock,
+  findingsSummary,
+  memorySummary,
+  neighbourhoodSummary,
+  provenanceSummary,
 } from "./reviewContext";
 import {
   Check,
@@ -89,7 +93,7 @@ export interface FocusedReviewerProps {
   onReCheck: () => void;
   /** Mark the selected source text as a term (governance-aware, in the parent). */
   onMarkTerm: (sourceText: string) => void;
-  /** Suggest a brand/voice rule from the selected source text. */
+  /** Suggest a voice rule from the selected source text. */
   onSuggestVoiceRule: (sourceText: string) => void;
   /** Turn the reviewer's target fix into a voice correction/rule. */
   onMakeRule: () => void;
@@ -128,8 +132,8 @@ const verdictChip: Record<ReviewQueueVerdict, { label: string; className: string
  * translation editor uses (inline codes as chips, entity marks, formatting
  * applied), with its checks and compliance signal inline. Review is
  * bidirectional — the reviewer can act on the target (approve / reject / edit →
- * re-check, and turn a fix into a brand rule) and on the source (select a span
- * → mark a term or suggest a brand rule). All actions are emitted to the parent
+ * re-check, and turn a fix into a voice rule) and on the source (select a span
+ * → mark a term or suggest a voice rule). All actions are emitted to the parent
  * session, which owns the data, keyboard model, and governance.
  */
 export function FocusedReviewer({
@@ -158,13 +162,11 @@ export function FocusedReviewer({
   onEntityPromote,
 }: FocusedReviewerProps) {
   const { block, locale, issues } = entry;
-  const status = getBlockStatus(block, locale);
+  const status = targetLadderStatus(block, locale);
   const verdict = entryVerdict(entry);
   const blockers = entryBlockers(entry);
   const chip = verdictChip[verdict];
   const [selection, setSelection] = useState("");
-
-  const localeLabel = localeName ? `${localeName(locale)} (${locale})` : locale;
 
   // Capture the current source-text selection so the source-side lane can act
   // on it. Constrained to the source column via the onMouseUp target.
@@ -211,17 +213,13 @@ export function FocusedReviewer({
         <span className="truncate text-sm font-semibold" title={entry.itemName}>
           {entry.itemName}
         </span>
-        <Badge variant="outline" className="font-normal">
-          {localeLabel}
-        </Badge>
-        <span
-          className={cn(
-            "rounded px-1.5 py-0.5 text-[10px] font-semibold",
-            statusConfig[status].className,
-          )}
-        >
-          {statusConfig[status].label}
-        </span>
+        <LocaleLabel
+          locale={locale}
+          displayName={localeName?.(locale)}
+          className="text-sm"
+          data-testid="reviewer-locale"
+        />
+        <StatusBadge ladder="content" status={status} data-testid="reviewer-status" />
         <span
           className={cn(
             "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium",
@@ -279,21 +277,31 @@ export function FocusedReviewer({
           past the decision bar is a block nobody reads. */}
       <div className="grid min-h-0 flex-1 gap-4 overflow-auto p-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="min-w-0">
-          {/* The unit before this one. The document surface has the neighbourhood
-            by construction; the queue is a flat list across items, so it says
-            what this block sits between. */}
-          <div className="mb-2">
+          {/* The document surface has the neighbourhood by construction; the
+            queue is a flat list across items, so it says what this block sits
+            between, and how many neighbours that is before it is opened. */}
+          <ContextLayer
+            title="Neighbourhood"
+            summary={neighbourhoodSummary(context)}
+            testId="reviewer-neighbourhood"
+            className="mb-3"
+          >
             <NeighbourCell neighbour={context?.previous} where="previous" />
-          </div>
+            <NeighbourCell neighbour={context?.next} where="next" />
+          </ContextLayer>
 
           {/* Source vs target, generous side-by-side */}
           <div className="grid gap-4 lg:grid-cols-2">
             {/* Source */}
             <section className="space-y-2">
               <div className="flex h-6 items-center justify-between">
-                <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Source ({sourceLocale})
-                </span>
+                <LocaleLabel
+                  locale={sourceLocale}
+                  displayName={localeName?.(sourceLocale)}
+                  source
+                  className="text-xs font-medium text-muted-foreground"
+                  data-testid="reviewer-source-language"
+                />
               </div>
               <div
                 className={CELL}
@@ -369,7 +377,7 @@ export function FocusedReviewer({
                       onClick={() => onSuggestVoiceRule(selection)}
                       data-testid="source-suggest-rule"
                     >
-                      <Wand2 className="mr-1 h-3.5 w-3.5" /> Suggest brand rule
+                      <Wand2 className="mr-1 h-3.5 w-3.5" /> Suggest voice rule
                     </Button>
                   </>
                 )}
@@ -397,9 +405,12 @@ export function FocusedReviewer({
             {/* Target */}
             <section className="space-y-2">
               <div className="flex h-6 items-center justify-between">
-                <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Target ({locale})
-                </span>
+                <LocaleLabel
+                  locale={locale}
+                  displayName={localeName?.(locale)}
+                  className="text-xs font-medium text-muted-foreground"
+                  data-testid="reviewer-target-language"
+                />
                 {!editing && (
                   <Button
                     size="sm"
@@ -442,23 +453,21 @@ export function FocusedReviewer({
                   onClick={onMakeRule}
                   data-testid="reviewer-make-rule"
                 >
-                  <Wand2 className="mr-1 h-3.5 w-3.5" /> Turn a fix into a brand rule
+                  <Wand2 className="mr-1 h-3.5 w-3.5" /> Turn a fix into a voice rule
                 </Button>
               )}
             </section>
           </div>
 
-          {/* The unit after this one. */}
-          <div className="mt-2">
-            <NeighbourCell neighbour={context?.next} where="next" />
-          </div>
-
           {/* Findings, from both checkers, anchored where they name a span. The
             check findings and the voice findings judge the same target, so they
             are read as one list rather than as a score beside a list. */}
-          <section className="mt-4 space-y-2" data-testid="reviewer-checks">
-            <div className="flex items-center gap-2">
-              <ContextHeading>Findings</ContextHeading>
+          <div className="mt-4">
+            <ContextLayer
+              title="Findings"
+              summary={findingsSummary(issues, voiceFindings)}
+              testId="reviewer-checks"
+            >
               <Button
                 size="sm"
                 variant="ghost"
@@ -469,14 +478,14 @@ export function FocusedReviewer({
               >
                 <RefreshCw className={cn("mr-1 h-3 w-3", reChecking && "animate-spin")} /> Re-check
               </Button>
-            </div>
-            {targetText && (issues.length > 0 || voiceFindings.length > 0) && (
-              <div className={CELL} {...directionAttrs(locale)}>
-                <AnchoredTarget node={node} side={locale} text={targetText} />
-              </div>
-            )}
-            <FindingsList issues={issues} findings={voiceFindings} />
-          </section>
+              {targetText && (issues.length > 0 || voiceFindings.length > 0) && (
+                <div className={CELL} {...directionAttrs(locale)}>
+                  <AnchoredTarget node={node} side={locale} text={targetText} />
+                </div>
+              )}
+              <FindingsList issues={issues} findings={voiceFindings} />
+            </ContextLayer>
+          </div>
         </div>
 
         {/* What governs this point, what the corpus already said about it, and
@@ -484,8 +493,11 @@ export function FocusedReviewer({
         <div className="min-w-0 space-y-4" data-testid="reviewer-context-rail">
           <PointRail context={context} loading={contextLoading} />
           <div className="space-y-4">
-            <section className="space-y-2" data-testid="reviewer-memory">
-              <ContextHeading>Content memory</ContextHeading>
+            <ContextLayer
+              title="Content memory"
+              summary={memorySummary(memoryMatch)}
+              testId="reviewer-memory"
+            >
               <MemoryMatchCard
                 match={memoryMatch}
                 onUse={
@@ -495,15 +507,18 @@ export function FocusedReviewer({
                     : undefined
                 }
               />
-            </section>
-            <section className="space-y-2" data-testid="reviewer-provenance">
-              <ContextHeading>Provenance</ContextHeading>
+            </ContextLayer>
+            <ContextLayer
+              title="Provenance"
+              summary={provenanceSummary(context?.origin, context?.decision)}
+              testId="reviewer-provenance"
+            >
               <ProvenanceBlock
                 origin={context?.origin}
                 decision={context?.decision}
                 note={context?.notes?.[context.notes.length - 1]?.text}
               />
-            </section>
+            </ContextLayer>
           </div>
         </div>
       </div>
@@ -512,25 +527,27 @@ export function FocusedReviewer({
       <div className="flex flex-wrap items-center gap-2 border-t border-border px-4 py-2.5">
         <Button
           size="sm"
+          variant="success"
           onClick={onApprove}
           disabled={busy || !canApprove}
           title={canApprove ? undefined : "Approving needs the review permission for this language"}
-          className="bg-success text-white hover:bg-success/90"
           data-testid="reviewer-approve"
         >
           <Check className="mr-1 h-4 w-4" /> Approve
           <kbd className="ml-1.5 rounded bg-white/20 px-1 text-[10px]">A</kbd>
         </Button>
+        {/* Reject takes destructive, which is where the shared scale puts it
+            (packages/ui/docs/judgement-colours.md): it undoes the translation
+            in force rather than accepting it. */}
         <Button
           size="sm"
-          variant="outline"
+          variant="destructive"
           onClick={onReject}
           disabled={busy}
-          className="border-destructive/40 text-destructive hover:bg-destructive/10"
           data-testid="reviewer-reject"
         >
           <X className="mr-1 h-4 w-4" /> Reject
-          <kbd className="ml-1.5 rounded bg-destructive/15 px-1 text-[10px]">R</kbd>
+          <kbd className="ml-1.5 rounded bg-destructive/20 px-1 text-[10px]">R</kbd>
         </Button>
         <div className="flex-1" />
         <span

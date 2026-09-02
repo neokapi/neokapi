@@ -9,6 +9,7 @@ import {
   Button,
   Label,
   Input,
+  LocaleLabel,
   Textarea,
   Select,
   SelectTrigger,
@@ -29,19 +30,19 @@ const STATUS_OPTIONS: { value: MarkStatus; label: string; governed: boolean; hin
     value: "admitted",
     label: "Track it (admitted)",
     governed: false,
-    hint: "Add to your terms as a known term — a direct, discovery-level mark.",
+    hint: "Add to your terms as a known term. A direct, discovery-level mark.",
   },
   {
     value: "preferred",
     label: "Preferred",
     governed: true,
-    hint: "Make this the preferred term. A governed change — it changes what every translation is checked against.",
+    hint: "Make this the preferred term. A governed change: it changes what every translation is checked against.",
   },
   {
     value: "forbidden",
     label: "Forbidden",
     governed: true,
-    hint: "Forbid this term. A governed change — it hardens into a check on every future generation.",
+    hint: "Forbid this term. A governed change: it hardens into a check on every future generation.",
   },
 ];
 
@@ -61,7 +62,7 @@ export interface MarkSourceTermDialogProps {
 /**
  * MarkSourceTermDialog marks a selected source span as a term. Governance
  * matters: a discovery-level `admitted` mark is created directly, but a
- * status-changing `preferred` / `forbidden` mark is a governed transition — it
+ * status-changing `preferred` / `forbidden` mark is a governed transition: it
  * opens a change-set for review rather than being applied silently (the direct
  * path would 409). Marking a term re-checks the translations that use it across
  * the project's locales when the change is merged; that fan-out is a separate
@@ -143,14 +144,17 @@ export function MarkSourceTermDialog({
         <DialogHeader>
           <DialogTitle>Mark as term</DialogTitle>
           <DialogDescription>
-            Add a source term to the shared terms. Preferred and forbidden marks are governed — they
+            Add a source term to the shared terms. Preferred and forbidden marks are governed: they
             open a change-set for review.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3">
           <div className="space-y-1.5">
-            <Label htmlFor="mark-term-text">Term ({sourceLocale})</Label>
+            <Label htmlFor="mark-term-text" className="flex items-center gap-1.5">
+              Term
+              <LocaleLabel locale={sourceLocale} source className="font-normal" />
+            </Label>
             <Input
               id="mark-term-text"
               value={term}

@@ -1,10 +1,12 @@
 import {
   Button,
+  LocaleLabel,
   Sheet,
   SheetContent,
   SheetDescription,
   SheetHeader,
   SheetTitle,
+  StatusBadge,
   cn,
 } from "@neokapi/ui-primitives";
 import { BlockInspector } from "@neokapi/ui-primitives/preview";
@@ -12,13 +14,18 @@ import type { ContentNode } from "@neokapi/ui-primitives/preview";
 import type { BlockInfo, BlockTermMatch, CheckIssue, ReviewContext } from "../../types/api";
 import { CollapsedTargetCell } from "../editor/GridTargetRenderer";
 import { UnifiedTargetEditor, type UnifiedSaveResult } from "../UnifiedTargetEditor";
-import { getBlockStatus, getTargetText, statusConfig } from "../editor/blockStatus";
+import { getBlockStatus, getTargetText, targetLadderStatus } from "../editor/blockStatus";
 import {
-  ContextHeading,
+  ContextLayer,
   FindingsList,
   MemoryMatchCard,
+  NeighbourCell,
   PointRail,
   ProvenanceBlock,
+  findingsSummary,
+  memorySummary,
+  neighbourhoodSummary,
+  provenanceSummary,
 } from "./reviewContext";
 import { Check, Pencil, X } from "../icons";
 
@@ -31,8 +38,8 @@ export interface ReviewInspectorProps {
   itemName: string;
   /** The locale being reviewed. */
   locale: string;
-  /** Display name for `locale`. */
-  localeLabel: string;
+  /** The workspace's own name for `locale`, when it has one. */
+  localeDisplayName?: string;
   /** Check findings for this block from the file's last check run. */
   issues: CheckIssue[];
   /** Term hits over this block's source, loaded when the panel opens. */
@@ -81,7 +88,7 @@ export function ReviewInspector({
   node,
   itemName,
   locale,
-  localeLabel,
+  localeDisplayName,
   issues,
   terms,
   termsLoading,
@@ -98,7 +105,8 @@ export function ReviewInspector({
   onCancelEdit,
   onToggleMark,
 }: ReviewInspectorProps) {
-  const status = block ? getBlockStatus(block, locale) : "not-started";
+  const bucket = block ? getBlockStatus(block, locale) : "not-started";
+  const status = block ? targetLadderStatus(block, locale) : "not-started";
   // An empty translation is nothing to approve (the server 422s it) and nothing
   // to reject (clearing it is a server-side no-op).
   const hasTarget = block ? getTargetText(block, locale).trim().length > 0 : false;
@@ -124,18 +132,21 @@ export function ReviewInspector({
             <span className="truncate font-mono" translate="no">
               {block?.id}
             </span>
-            <span
-              className={cn(
-                "rounded px-1.5 py-0.5 text-[10px] font-semibold",
-                statusConfig[status].className,
-              )}
+            <StatusBadge
+              ladder="content"
+              status={status}
+              compact
               data-testid={block ? `review-status-${block.id}` : undefined}
-            >
-              {statusConfig[status].label}
-            </span>
+            />
           </SheetTitle>
-          <SheetDescription>
-            {itemName} · {localeLabel}
+          <SheetDescription className="flex flex-wrap items-center gap-1.5">
+            <span className="truncate">{itemName}</span>
+            <span aria-hidden>·</span>
+            <LocaleLabel
+              locale={locale}
+              displayName={localeDisplayName}
+              data-testid="inspector-language"
+            />
           </SheetDescription>
         </SheetHeader>
 
@@ -149,9 +160,12 @@ export function ReviewInspector({
           {/* Target — read as rendered, or opened for correction. */}
           <section className="space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Target ({locale})
-              </span>
+              <LocaleLabel
+                locale={locale}
+                displayName={localeDisplayName}
+                className="text-xs font-medium text-muted-foreground"
+                data-testid="inspector-target-language"
+              />
               {!editing && block && (
                 <Button
                   size="sm"
@@ -198,26 +212,45 @@ export function ReviewInspector({
           </section>
 
           {/* What governs this point: the same rail the queue draws, fed the
-              term hits this surface already looked up — the ones behind the
+              term hits this surface already looked up, the ones behind the
               inline marks in the document, so the rail and the marks cannot
               disagree. */}
           <div data-testid="inspector-point">
             <PointRail context={context} terms={terms} termsLoading={termsLoading} />
           </div>
 
-          {/* Findings — the check results and the findings behind the block's
+          {/* The units this one sits between. The document around the panel
+              shows them, and the layer says how many there are and lets a
+              reader who has scrolled away read them here. */}
+          <ContextLayer
+            title="Neighbourhood"
+            summary={neighbourhoodSummary(context)}
+            testId="inspector-neighbourhood"
+            defaultOpen={false}
+          >
+            <NeighbourCell neighbour={context?.previous} where="previous" />
+            <NeighbourCell neighbour={context?.next} where="next" />
+          </ContextLayer>
+
+          {/* Findings: the check results and the findings behind the block's
               voice score, read as one list. A positioned finding is already
               marked in the document; each says what it was raised against and
               what to say instead. */}
-          <section className="space-y-2" data-testid="inspector-qa">
-            <ContextHeading>Findings</ContextHeading>
+          <ContextLayer
+            title="Findings"
+            summary={findingsSummary(issues, context?.voice_findings ?? [])}
+            testId="inspector-qa"
+          >
             <FindingsList issues={issues} findings={context?.voice_findings ?? []} />
-          </section>
+          </ContextLayer>
 
-          {/* Content memory — the wording the corpus already blessed for this
+          {/* Content memory: the wording the corpus already blessed for this
               source. The bulk pass writes these; the reviewer reads them. */}
-          <section className="space-y-2" data-testid="inspector-memory">
-            <ContextHeading>Content memory</ContextHeading>
+          <ContextLayer
+            title="Content memory"
+            summary={memorySummary(context?.memory_match)}
+            testId="inspector-memory"
+          >
             <MemoryMatchCard
               match={context?.memory_match}
               onUse={
@@ -231,30 +264,33 @@ export function ReviewInspector({
                   : undefined
               }
             />
-          </section>
+          </ContextLayer>
 
-          {/* Provenance — how this target was produced, and what was last
+          {/* Provenance: how this target was produced, and what was last
               decided about it. */}
-          <section className="space-y-2" data-testid="inspector-provenance">
-            <ContextHeading>Provenance</ContextHeading>
+          <ContextLayer
+            title="Provenance"
+            summary={provenanceSummary(context?.origin, context?.decision)}
+            testId="inspector-provenance"
+          >
             <ProvenanceBlock
               origin={context?.origin}
               decision={context?.decision}
               note={context?.notes?.[context.notes.length - 1]?.text}
             />
-          </section>
+          </ContextLayer>
         </div>
 
         {/* Decision bar */}
         <div className="flex flex-wrap items-center gap-2 border-t border-border px-4 py-2.5">
           <Button
             size="sm"
+            variant="success"
             onClick={onApprove}
-            disabled={busy || status === "reviewed" || !hasTarget || !canApprove}
+            disabled={busy || bucket === "reviewed" || !hasTarget || !canApprove}
             title={
               canApprove ? undefined : "Approving needs the review permission for this language"
             }
-            className="bg-success text-white hover:bg-success/90"
             data-testid={block ? `approve-${block.id}` : undefined}
           >
             <Check className="mr-1 h-4 w-4" /> Approve
@@ -262,14 +298,13 @@ export function ReviewInspector({
           </Button>
           <Button
             size="sm"
-            variant="outline"
+            variant="destructive"
             onClick={onReject}
             disabled={busy || !hasTarget}
-            className="border-destructive/40 text-destructive hover:bg-destructive/10"
             data-testid={block ? `reject-${block.id}` : undefined}
           >
             <X className="mr-1 h-4 w-4" /> Reject
-            <kbd className="ml-1.5 rounded bg-destructive/15 px-1 text-[10px]">R</kbd>
+            <kbd className="ml-1.5 rounded bg-destructive/20 px-1 text-[10px]">R</kbd>
           </Button>
           <div className="flex-1" />
           <Button

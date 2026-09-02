@@ -1821,5 +1821,6 @@ export const sampleReviewVoiceProfile: ReviewVoiceProfile = {
     { term: "leverage", replacement: "use", severity: "major" },
     { term: "utilize", replacement: "use", severity: "minor" },
     { term: "best-in-class", note: "Rephrase without a superlative.", severity: "critical" },
+    { term: "Bowrain", note: "The product name stays in English.", do_not_translate: true },
   ],
 };

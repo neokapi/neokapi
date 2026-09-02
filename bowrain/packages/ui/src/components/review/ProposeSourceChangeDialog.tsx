@@ -9,6 +9,7 @@ import {
   Button,
   Label,
   Textarea,
+  LocaleLabel,
   Select,
   SelectTrigger,
   SelectValue,
@@ -108,7 +109,7 @@ export function ProposeSourceChangeDialog({
       },
       {
         onSuccess: () => {
-          onDone?.("Source change proposed — a source owner will review it.");
+          onDone?.("Source change proposed. A source owner will review it.");
           onOpenChange(false);
         },
       },
@@ -122,9 +123,9 @@ export function ProposeSourceChangeDialog({
           <DialogTitle>Propose a source change</DialogTitle>
           <DialogDescription>
             Caught a problem in the source while reviewing{" "}
-            {foundInLocale ? `${foundInLocale}` : "a translation"}? Propose a fix. A source owner
-            approves it — this changes the source itself, so it is governed separately from your
-            target review.
+            {foundInLocale ? <LocaleLabel locale={foundInLocale} hideCode /> : "a translation"}?
+            Propose a fix. A source owner approves it, and because that changes the source itself it
+            is governed separately from your target review.
           </DialogDescription>
         </DialogHeader>
 
@@ -146,7 +147,10 @@ export function ProposeSourceChangeDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="propose-source-text">Proposed source ({sourceLocale})</Label>
+            <Label htmlFor="propose-source-text" className="flex items-center gap-1.5">
+              Proposed source
+              <LocaleLabel locale={sourceLocale} source className="font-normal" />
+            </Label>
             <Textarea
               id="propose-source-text"
               value={proposed}
@@ -175,8 +179,8 @@ export function ProposeSourceChangeDialog({
           >
             <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
             <span>
-              {opt.hint} On approval this re-drafts {localeText} — wider than a term mark, which
-              only re-checks the locales that use the term.
+              {opt.hint} On approval this re-drafts {localeText}, wider than a term mark, which only
+              re-checks the locales that use the term.
             </span>
           </div>
 
