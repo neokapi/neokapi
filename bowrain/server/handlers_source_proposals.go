@@ -29,19 +29,16 @@ import (
 // carries a non-empty target (memory_recycle.hasLocaleTarget), so a
 // demoted-but-kept target would never be regenerated.
 //
-// The local loop no longer works this way. It records the source it translated
-// for every target it writes (host/basisrecord.go), reads the rewrite as drift
-// against that basis, and re-drafts the unit with the previous translation still
-// on disk for the corpus to recycle and a reviewer to compare against. Every
-// piece that would let this handler do the same is already here: the ledger
-// carries the basis (unit_decisions.content_hash), storeBlocks re-derives each
-// target's projection when a block's source moves
+// The local loop keeps the previous translation on disk instead: it records the
+// source each target was translated from (host/basisrecord.go), reads the
+// rewrite as drift against that basis, and re-drafts the unit with the old
+// wording still there for the corpus to recycle and a reviewer to compare
+// against. The ledger here carries the same basis (unit_decisions.content_hash),
+// storeBlocks re-derives each target's projection when a block's source moves
 // (store.settleDecisionProjectionsPg), and the tally grades it
-// (store.TallyDecisionBasis). What is missing is a producer that reads any of
-// it — hasLocaleTarget asks only whether a target exists, in the recycle job and
-// again in the estimate, so a stale target is skipped forever and the only way
-// to force the work is to delete it. Teaching that predicate the basis is what
-// this handler is waiting on; see #2325.
+// (store.TallyDecisionBasis); the recycle job and the estimate read none of it,
+// because hasLocaleTarget asks only whether a target exists. Clearing stays
+// until that predicate reads the basis (#2325).
 
 // CreateSourceProposalRequest proposes a change to a block's source. Sent from
 // the review session by any reviewer.

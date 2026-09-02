@@ -14,14 +14,11 @@ import (
 // A decision carries the source it blessed, so a source rewrite under a decided
 // translation is derived on read: the record's basis no longer matches the
 // wording in front of the reader, the unit reads stale, coverage withholds the
-// scope, and the loop re-drafts it (#1966). An undecided translation carried
-// nothing, so the same rewrite was invisible. Where it was healed at all it was
-// healed by the project block store remembering the previous read, which is
-// derived state and is not in git. On a fresh clone the record absorber saw a
-// committed target sitting beside a sentence it had never translated, learned
-// that adjacency as a pair, and recycled the old translation back over itself
-// every run. The two hosts worked around it by emptying a unit's translations by
-// hand whenever its source was edited.
+// scope, and the loop re-drafts it. An undecided translation needs the same
+// anchor, and nothing else durable provides one: the project block store
+// remembers the previous read, but it is derived state outside git, so on a
+// fresh clone the record absorber would pair a committed target with whatever
+// sentence now sits beside it and recycle the old translation back over itself.
 //
 // So the loop records a basis for every unit it writes a target for: a
 // state.UnitState with the source it translated and the translation it produced,
