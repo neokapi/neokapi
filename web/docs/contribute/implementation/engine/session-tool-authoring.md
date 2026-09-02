@@ -127,13 +127,20 @@ func (t *MyTool) handle(sess blockstore.Session, ra bool, kind string, part *mod
 
 | Kind prefix          | Used by                                                                  | Payload shape                        |
 | -------------------- | ------------------------------------------------------------------------ | ------------------------------------ |
-| `targets/<locale>`   | translators (translate, pseudo-translate, human editor) | `{"text": "...", "provider": "..."}` |
+| `targets/<locale>`   | translators (translate, pseudo-translate, human editor) | `{"runs": [...], "text": "...", "status": "...", "origin": {...}}` |
 | `annotations/<name>` | term-lookup, recycle, qa checks                                      | tool-specific JSON                   |
 | `skeletons/<format>` | format writers (round-trip skeletons)                                    | opaque payload                       |
 
 The `targets/<locale>` shape is cross-tool: any translator writes
 and reads the same key, so a session hydrated by one can be
 continued by another. Keep the payload small and JSON-compatible.
+
+`origin` carries the provenance the producer stamped, including the
+`ContextFingerprint` of the governing context. Most target formats
+have nowhere to keep it, so for those the overlay is the only durable
+record of what governed the answer, and it is what a convergence reads
+back when it records the basis the staleness gate compares
+(`host/basisrecord.go`).
 
 `annotations/<name>` is cross-tool in the same way, one level down:
 `<name>` is the block-annotation key, so a store that holds blocks
