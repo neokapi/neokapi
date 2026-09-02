@@ -23,7 +23,7 @@ aspects:
   - coordinates, not folders
   - the voice in force here
   - one list of term rules
-  - one review queue, two lanes
+  - one review queue, the source among them
 
 script:
   # --- 1. Where content sits ------------------------------------------------
@@ -57,14 +57,14 @@ script:
   - comment: The model that drafts is handed exactly that list, so the gate and the model are told the same thing.
   - command: kapi run converge -i app/strings.en.json --target-lang fr --explain-prompts 2>&1 | grep -A2 "Terminology (use these renderings)" | head -3
 
-  # --- 4. One queue, two lanes ----------------------------------------------
+  # --- 4. One queue, the source among them ----------------------------------
   - comment: Where the project stands. French is drafted and translated; nothing in either language has been read by a person.
   - command: kapi status
-  - comment: One queue holds every language. Ask it for the source lane, and every row carries its own marker.
+  - comment: One queue holds every language. Ask it for the source language, and every row carries its marker.
   - command: kapi status --review --lang en | head -8
-  - comment: Ask it for the language you are reviewing, and you get that lane alone.
+  - comment: Ask it for the language you are reviewing, and you get those rows alone.
   - command: kapi status --review --lang fr
-  - comment: The footers say where each lane is decided.
+  - comment: The footers say where each language's decisions are recorded.
   - command: kapi status --review | tail -3
   - comment: The queue is already the shape of a change-set, so approving is one pass over it.
   - command: >-
@@ -74,7 +74,7 @@ script:
   - comment: Approvals are staged until they are committed. Then they are in the record, attributable, in git.
   - command: kapi commit
   - command: kapi status --review --lang fr
-  - comment: French is reviewed. The source lane is still open, because Voltway signs off its own wording before a translation ships from it.
+  - comment: French is reviewed. The source rows are still open, because Voltway signs off its own wording before a translation ships from it.
   - command: kapi status
 
 artifacts:
@@ -131,8 +131,8 @@ narration:
       kapi, and Voltway wrote its own from them. Print the guide and you get
       what an assistant is handed before it writes: the register that suits the
       portal, and the vocabulary the whole company keeps. The gate reads the
-      same file. One forbidden word on the partner page, one major finding, one
-      failing check.
+      same file, and one forbidden word on the partner page is enough to fail
+      it.
     caption: "the voice at that point, and the gate that reads it"
 
   - id: terms
@@ -151,9 +151,9 @@ narration:
     text: >
       One queue holds every language that is waiting for a person, with the
       source language among them. A source row carries its own marker, because
-      the two lanes are decided in different places: kapi apply records a
-      target-language decision, and source wording is approved in the Review
-      page of Kapi Desktop.
+      the two kinds of decision are recorded in different places: kapi apply
+      records a target-language decision, and source wording is approved in the
+      Review page of Kapi Desktop.
 
   - id: review
     kind: terminal
@@ -161,7 +161,7 @@ narration:
       Narrow the queue to the language you are reading. It comes back in the
       shape of a change set already, so approving four units is one pass over
       it. Approvals stage, then commit, and they land in the record with a name
-      against them. French moves to fully reviewed. The source lane stays open,
+      against them. French moves to fully reviewed. The source rows stay open,
       because Voltway signs off its own wording before a translation ships from
       it.
     caption: "reviewed, committed, and visible in status"
