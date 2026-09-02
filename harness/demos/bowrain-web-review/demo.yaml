@@ -43,9 +43,9 @@ narration:
     beat: scope
     caption: One language selector, with the source marked.
     text: >-
-      The language selector scopes the queue, marks which language is the
-      source, and carries how much is pending in each. The verdict filters cut
-      it to what clears every bar, or what does not.
+      The language selector scopes the queue and lists every language with the
+      source marked and its pending count beside it. The verdict filters cut the
+      list to what clears every bar, or to what does not.
 
   - id: focus
     kind: desktop
@@ -61,9 +61,9 @@ narration:
     beat: context
     caption: What governs here, what is nearby, what was already approved.
     text: >-
-      Beside it sits the context that shaped the translation. The profile and
-      term rules in force at this point, the blocks around it, the approved
-      wording the content memory already holds, and who decided what before.
+      Beside it sit the questions behind the translation. What is in force at
+      this point, which blocks it stands between, whether the content memory
+      already answers it, and where the wording came from.
 
   - id: approve
     kind: desktop

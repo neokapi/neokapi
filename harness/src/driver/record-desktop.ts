@@ -469,7 +469,11 @@ function makeCtx(page: Page, t0: number, beats: Beat[], peer?: PeerSession): Wal
   const unionZoom = async (selectors: string[], pad = 0.04): Promise<ZoomRect | null> => {
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity, any = false;
     for (const s of selectors) {
-      const box = await page.locator(s).first().boundingBox().catch(() => null);
+      // A short timeout, because an absent selector here is ordinary: a beat
+      // names every element it might frame and takes the union of the ones that
+      // rendered. On Playwright's 30 s default one optional selector stalls the
+      // recording between two beats, and the screencast carries the dead air.
+      const box = await page.locator(s).first().boundingBox({ timeout: 2000 }).catch(() => null);
       if (!box) continue;
       any = true;
       x0 = Math.min(x0, box.x);
@@ -898,21 +902,16 @@ async function reviewWalk(c: WalkCtx): Promise<void> {
     await page.keyboard.press("a");
     await page.waitForTimeout(2400);
   });
-  // The source lane: the same queue, read from the side that authored it.
-  await beatEls("source-lane", ['[data-slot="review-unit"]', '[data-slot="source-unit-pane"]'], async () => {
-    const source = page.locator('[data-slot="review-queue-item"][data-source]').first();
-    if (await source.count()) {
-      await humanClick(page, source);
-      await page.waitForTimeout(1600);
-    }
-    await cursorTo('[data-slot="review-approve"]');
-    await page.waitForTimeout(2000);
-  });
-  // Approve the source wording. A source decision carries only its own basis,
-  // so the target rows keep theirs.
-  await beatEls("approve-source", ['[data-slot="review-actions"]', '[data-slot="review-queue"]'], async () => {
-    await page.locator('[data-slot="review-page"]').first().click({ position: { x: 4, y: 4 } }).catch(() => {});
-    await page.keyboard.press("a");
+  // What is left, and the batch that clears the units no check flagged.
+  //
+  // There is no source-lane beat, because the sample cannot produce one. A
+  // source unit joins this queue only when it ranks below the project's source
+  // gate, or when that gate is `approved` and the unit is not
+  // (host/sourcereview.go computeSourceQueue). KapiMart declares no
+  // defaults.source_gate, which resolves to `checked`, and its source settles
+  // clean, so every row here is a translation.
+  await beatEls("batch", ['[data-slot="review-batch"]', '[data-slot="review-queue"]'], async () => {
+    await cursorTo('[data-slot="review-batch-approve"]');
     await page.waitForTimeout(2600);
   });
 }
@@ -1170,7 +1169,15 @@ async function bowrainReviewWalk(c: WalkCtx): Promise<void> {
       await page.waitForTimeout(1400);
     }
     await humanClick(page, page.getByTestId("reviewer-approve"));
-    await page.waitForSelector('[data-testid="error-notice"]', { timeout: 20_000 }).catch(() => {});
+    // The narration says the workspace refused this approval, so a take where it
+    // did not is a broken take, not a quieter one. Fail the capture rather than
+    // film a screen that contradicts what is said over it. A run with no seeded
+    // block ids is a single-user rehearsal and makes no such claim.
+    if (BOWRAIN_SELF_BLOCK_ID) {
+      await page.waitForSelector('[data-testid="error-notice"]', { timeout: 20_000 });
+    } else {
+      await page.waitForSelector('[data-testid="error-notice"]', { timeout: 20_000 }).catch(() => {});
+    }
     await page.waitForTimeout(1000);
     await cursorTo('[data-testid="error-notice"]');
     await page.waitForTimeout(2400);

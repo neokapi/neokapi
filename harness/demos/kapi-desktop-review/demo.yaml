@@ -12,7 +12,7 @@ aspects:
   - One review queue
   - The point a unit sits at
   - Prior decisions and approved wording
-  - Source and target lanes
+  - Findings anchored in the runs
 
 narration:
   - id: title
@@ -39,11 +39,10 @@ narration:
   - id: queue
     kind: desktop
     beat: queue
-    caption: One queue, every language, source wording first.
+    caption: One queue, every language, in one list.
     text: >-
-      Review is one queue. Source wording comes first, then every target
-      language in the same list, each row marked with the language it belongs
-      to.
+      Review is one queue. Every language sits in the same list, each row marked
+      with the language it belongs to and with what the checks made of it.
 
   - id: scope
     kind: desktop
@@ -100,8 +99,9 @@ narration:
     beat: provenance
     caption: Who decided, and when.
     text: >-
-      The fifth is provenance. Who wrote it, who decided it, when, and whether
-      the text has moved since.
+      The fifth is provenance: who wrote it, who decided it, and whether the
+      text has moved since. This one carries none yet, which is itself the
+      answer.
 
   - id: approve
     kind: desktop
@@ -111,23 +111,13 @@ narration:
       With that read, the decision is a keystroke. Press A and the unit leaves
       the queue, its approval bound to the exact text it judged.
 
-  - id: source-lane
+  - id: batch
     kind: desktop
-    beat: source-lane
-    caption: The same queue, read from the source side.
+    beat: batch
+    caption: Approve the clean ones together.
     text: >-
-      Switch to the source language and the queue reads the other lane. These
-      are the sentences every translation is drafted from, and they can be
-      approved or rewritten here.
-
-  - id: approve-source
-    kind: desktop
-    beat: approve-source
-    caption: Approve source, and the wording is settled.
-    text: >-
-      Approving the source settles the wording the languages follow. Edit it
-      instead and the translations that depend on it are re-drafted on the next
-      run.
+      The units no check flagged can go together, so the reading time goes to
+      the exceptions. The queue that remains is the one that needed a person.
 
   - id: outro
     kind: outro
