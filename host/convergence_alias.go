@@ -16,6 +16,10 @@ type (
 	LocaleCoverage    = convergence.LocaleCoverage
 	SourceCoverage    = convergence.SourceCoverage
 	ReviewQueueItem   = convergence.ReviewQueueItem
+	// ReviewQueue is one queue across every language, with the per-language
+	// pending counts beside it (alias of convergence.ReviewQueue).
+	ReviewQueue    = convergence.ReviewQueue
+	ReviewLanguage = convergence.ReviewLanguage
 )
 
 // Per-block ladder helpers, framework-owned. Kept as package-level aliases so the

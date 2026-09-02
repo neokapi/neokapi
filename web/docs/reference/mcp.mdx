@@ -270,6 +270,15 @@ and records its decision with `approve_unit`, `reject_unit`, or
 recorded under the identity `agent/<client>`, so a later edit re-opens the unit
 rather than inheriting the approval.
 
+`review_queue` returns one queue across the project's languages. Each row
+carries `language` and, when that language is the project's source, `isSource:
+true` and a `status` on the authoring ladder; `languages` counts the pending
+units per language, so an assistant can narrow with the `language` argument to
+one that has work. `review_unit` reads a source-language unit the same way it
+reads a translation, from the source file, and returns its point and
+neighbourhood with no target half. The three decision tools record
+target-language decisions.
+
 ## Tool reference
 
 ### context_search

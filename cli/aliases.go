@@ -59,7 +59,10 @@ type (
 	PluginModel                   = host.PluginModel
 	PreToolUseDecision            = host.PreToolUseDecision
 	ProjectBindings               = host.ProjectBindings
+	ReviewLanguage                = host.ReviewLanguage
+	ReviewQueue                   = host.ReviewQueue
 	ReviewQueueItem               = host.ReviewQueueItem
+	ReviewQueueOptions            = host.ReviewQueueOptions
 	ReviewUnitInfo                = host.ReviewUnitInfo
 	ReviewUnitRef                 = host.ReviewUnitRef
 	RunCmdOptions                 = host.RunCmdOptions

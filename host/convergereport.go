@@ -374,9 +374,18 @@ type ReviewUnitInfo struct {
 	Collection string `json:"collection,omitempty"`
 	Source     string `json:"source"`
 	Target     string `json:"target"`
+	// Language is the language this unit belongs to, repeating Locale: the
+	// target locale for a translation, the project's source language for a
+	// source unit.
+	Language string `json:"language,omitempty"`
+	// IsSource marks a unit in the project's source language. Its Target is
+	// empty, its Status is a rung of the authoring ladder, and its decision is
+	// recorded under the source locale variant.
+	IsSource bool `json:"is_source,omitempty"`
 	// Status is the unit's effective ladder state (draft|translated|reviewed|
 	// signed-off), with a fresh state-store decision applied over the presence
-	// baseline.
+	// baseline. For a source unit it is the settled authoring rung
+	// (authored|checked|approved).
 	Status string `json:"status"`
 	// ReviewState/Note/By carry the last recorded decision when it still judges
 	// the current pairing — the translation it blessed, of the source it blessed
@@ -435,6 +444,14 @@ func (a *App) ReviewUnitWithOptions(ctx context.Context, projectPath, sourceLang
 	root := filepath.Dir(projectPath)
 	a.SourceLang = ResolveSourceLocale(sourceLang, proj.Defaults.SourceLanguage)
 
+	// A unit in the source language is the author's own wording, read from the
+	// source file and settled on the authoring ladder. It reaches this method
+	// from the same queue as a translation, so it is answered here rather than
+	// through a second entry point.
+	if ref.Locale == a.SourceLang {
+		return a.reviewSourceUnit(ctx, proj, root, projectPath, ref, opts)
+	}
+
 	units, err := a.UnitsFromProject(proj, root, ref.Locale)
 	if err != nil {
 		return nil, fmt.Errorf("resolve content: %w", err)
@@ -461,6 +478,7 @@ func (a *App) ReviewUnitWithOptions(ctx context.Context, projectPath, sourceLang
 			}
 			info := &ReviewUnitInfo{
 				Locale:     ref.Locale,
+				Language:   ref.Locale,
 				File:       ref.File,
 				Key:        ref.Key,
 				Collection: u.Collection,

@@ -101,9 +101,24 @@ The assistant reads `kapi status --review --json`, presents each unit with its f
 The worklist and the approval are one command each:
 
 ```bash
-kapi status --review        # translated units not yet approved: file, id, locale
+kapi status --review        # units awaiting a person: file, id, locale
 kapi apply <<<'{"kind":"review","file":"src/locales/fr/app.json","id":"save.label","locale":"fr","status":"reviewed"}'
 ```
+
+One queue holds every language. A translated unit not yet approved is one row;
+a source unit your `source_gate` is waiting on is another, marked `source` in
+the locale column and `"isSource": true` in the JSON. `--lang` narrows the
+listing, and the source language is one of the choices:
+
+```bash
+kapi status --review --lang fr        # one language
+kapi status --review --lang fr,de     # several, comma-separated or repeated
+kapi status --review --lang en        # the source-language units
+```
+
+`kapi apply` records target-language decisions. Approve source wording in the
+Review page of Kapi Desktop, which writes it to the same project store under
+the source locale.
 
 Address the unit exactly as the worklist lists it. `status` is `"reviewed"` by default; `"signed-off"` is the optional final rung for contractual or regulated content. The state record lands in the [project store](/kapi/project-store)'s working set; `kapi commit` writes it into the unit-state record under `.kapi/state/`, which you **commit with your sources** so it travels with the project:
 

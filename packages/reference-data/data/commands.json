@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-02T10:24:46Z",
+  "generatedAt": "2026-09-02T16:29:17Z",
   "commands": [
     {
       "id": "add",
@@ -6816,6 +6816,12 @@
           "type": "bool"
         },
         {
+          "name": "lang",
+          "usage": "with --review, list only these languages (repeatable, or comma-separated); the source language is one of them",
+          "default": "[]",
+          "type": "stringSlice"
+        },
+        {
           "name": "locale",
           "usage": "limit to a single target locale",
           "type": "string"
@@ -6828,7 +6834,7 @@
         },
         {
           "name": "review",
-          "usage": "list translated units not yet approved in the project state store (the review worklist), instead of the coverage grid; approve a unit with `kapi apply` (kind:\"review\")",
+          "usage": "list the units awaiting review in every language, the source language among them, instead of the coverage grid; approve a translated unit with `kapi apply` (kind:\"review\")",
           "default": "false",
           "type": "bool"
         },

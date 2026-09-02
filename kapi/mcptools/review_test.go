@@ -193,6 +193,90 @@ func TestHandleReviewDecision_ApproveRejectSignOff(t *testing.T) {
 	assert.Equal(t, "wrong term", byUnit[second.Key].Decision.Note)
 }
 
+// writeMCPSourceGateProject scaffolds a project whose source gate asks for a
+// human, so the queue carries source units beside the nb translations.
+func writeMCPSourceGateProject(t *testing.T) string {
+	t.Helper()
+	t.Setenv("KAPI_NO_PROJECT", "1")
+	root := t.TempDir()
+	recipe := `version: v1
+name: rev-source
+defaults:
+  source_language: en
+  target_languages: [nb]
+  source_gate: approved
+collections:
+  - name: app
+    content:
+      - path: en.json
+        target: "{lang}.json"
+`
+	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte(recipe), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "en.json"),
+		[]byte(`{"a":"Apple","b":"Banana"}`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "nb.json"),
+		[]byte(`{"a":"Eple","b":"Banan"}`), 0o644))
+	return root
+}
+
+// review_queue lists one queue across the languages: an agent sees the source
+// units it is being asked to look at, marked, with the per-language counts
+// beside them.
+func TestHandleReviewQueue_ListsSourceUnitsAndFiltersByLanguage(t *testing.T) {
+	root := writeMCPSourceGateProject(t)
+	a := testApp()
+	proj := filepath.Join(root, "kapi.yaml")
+
+	_, out, err := handleReviewQueue(t.Context(), a, ReviewQueueInput{Project: proj})
+	require.NoError(t, err)
+	assert.Equal(t, 4, out.Total)
+	assert.Equal(t, []cli.ReviewLanguage{
+		{Language: "en", Pending: 2, Source: true},
+		{Language: "nb", Pending: 2},
+	}, out.Languages)
+	assert.True(t, out.Pending[0].IsSource, "the source rows lead the queue")
+	assert.Equal(t, "en", out.Pending[0].Language)
+	assert.Equal(t, "en.json", out.Pending[0].File)
+
+	_, out, err = handleReviewQueue(t.Context(), a, ReviewQueueInput{Project: proj, Language: "en"})
+	require.NoError(t, err)
+	assert.Equal(t, 2, out.Total)
+	for _, it := range out.Pending {
+		assert.True(t, it.IsSource)
+	}
+	assert.Len(t, out.Languages, 2, "the summary still offers every language")
+
+	_, out, err = handleReviewQueue(t.Context(), a, ReviewQueueInput{Project: proj, Language: "nb"})
+	require.NoError(t, err)
+	assert.Equal(t, 2, out.Total)
+	for _, it := range out.Pending {
+		assert.False(t, it.IsSource)
+	}
+}
+
+// review_unit answers for a source-language unit: the wording, its rung on the
+// authoring ladder, and the point governing it.
+func TestHandleReviewUnit_AcceptsASourceLanguageUnit(t *testing.T) {
+	root := writeMCPSourceGateProject(t)
+	a := testApp()
+	proj := filepath.Join(root, "kapi.yaml")
+
+	_, out, err := handleReviewUnit(t.Context(), a, ReviewUnitInput{
+		Project: proj, Locale: "en", File: "en.json", Key: "a",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, out.Unit)
+	assert.True(t, out.Unit.IsSource)
+	assert.Equal(t, "en", out.Unit.Language)
+	assert.Equal(t, "Apple", out.Unit.Source)
+	assert.Empty(t, out.Unit.Target)
+	assert.Equal(t, "checked", out.Unit.Status)
+	require.NotNil(t, out.Unit.Context)
+	assert.Equal(t, "en.json", out.Unit.Context.Point.Path)
+	assert.True(t, out.Unit.Context.Point.IsSource)
+	assert.Equal(t, "a", out.Unit.Context.Neighbourhood.Key)
+}
+
 func TestAgentIdentity_Fallback(t *testing.T) {
 	// No session (nil request) → the bare "agent" identity.
 	assert.Equal(t, "agent", agentIdentity(nil))

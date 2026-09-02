@@ -135,10 +135,17 @@ Review promotes a translation past `translated` to `reviewed`. The queue and the
 approval are two commands:
 
 ```bash
-kapi status --review         # translated units awaiting a human
+kapi status --review              # units awaiting a person, in every language
+kapi status --review --lang nb    # one language (repeat or comma-separate for several)
 # approve one: a `review` change-set addressed by the unit's file/id/locale
 kapi apply <<<'{"kind":"review","file":"src/nb.json","id":"save.label","locale":"nb","status":"reviewed"}'
 ```
+
+One queue holds every language. A row carries `language` and, when the language
+is the project's source, `isSource: true` with a `status` on the authoring
+ladder (`authored`/`checked`/`approved`); `languages` in the JSON counts the
+pending units per language. `kapi apply` records target-language decisions;
+source wording is approved in the Review page of Kapi Desktop.
 
 The unit state lands in the project store and counts the unit as `reviewed`,
 so the next `kapi up` sees it shipped. `kapi check --ship` is the opt-in release

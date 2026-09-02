@@ -71,6 +71,14 @@ type ReviewContext struct {
 type ReviewPoint struct {
 	// Path is the SOURCE file, project-relative and slash-separated.
 	Path string `json:"path,omitempty"`
+	// Language is the language the unit under review belongs to, which is what
+	// the governance below was resolved for: a term rule is resolved per
+	// language, so a point read for one language answers for that one.
+	Language string `json:"language,omitempty"`
+	// IsSource marks the language as the project's source language, so a client
+	// knows it is looking at the author's own wording rather than a translation
+	// of it.
+	IsSource bool `json:"is_source,omitempty"`
 	// Profile is the governance profile in force, empty at the project's
 	// default point.
 	Profile string `json:"profile,omitempty"`
@@ -434,6 +442,8 @@ func (a *App) AssembleReviewContext(ctx context.Context, req ReviewContextReques
 	}
 	entry := points.entryAt(ctx, req.Collection, req.SourcePath, req.Locale)
 	entry.point.TermRules = leadWithScopedRules(entry.point.TermRules, block.SourceText())
+	entry.point.Language = req.Locale
+	entry.point.IsSource = req.Locale != "" && req.Locale == req.SourceLang
 
 	return &ReviewContext{
 		Point:         entry.point,

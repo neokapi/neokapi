@@ -524,13 +524,16 @@ so it lands in the [project store](/kapi/project-store)'s working set, and
 `kapi commit` publishes it to the committed unit-state record under `.kapi/state/`.
 The content memory holds none of it.
 
-`kapi status --review` is the worklist (every translated unit not yet approved,
-the derived counterpart of the loop's *parked* outcome) and you approve a unit
-with the one write verb, `kapi apply`, as a `review` change-set addressed by the
-unit's `file` / `id` / `locale` exactly as the worklist lists them:
+`kapi status --review` is the worklist: one queue of the units awaiting a
+person, each belonging to a language, and the source language is one of them
+(its rows are marked `source`). Translated units not yet approved are the
+derived counterpart of the loop's *parked* outcome. You approve one with the one
+write verb, `kapi apply`, as a `review` change-set addressed by the unit's
+`file` / `id` / `locale` exactly as the worklist lists them:
 
 ```bash
-kapi status --review        # the worklist: file, id, locale per pending unit
+kapi status --review              # the worklist: file, id, locale per pending unit
+kapi status --review --lang nb    # one language (repeat or comma-separate for several)
 kapi apply <<<'{"kind":"review","file":"src/nb.json","id":"save.label","locale":"nb","status":"reviewed"}'
 ```
 

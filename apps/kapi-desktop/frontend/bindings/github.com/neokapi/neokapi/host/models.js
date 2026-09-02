@@ -1615,6 +1615,26 @@ export class ReviewPoint {
         }
         if (/** @type {any} */(false)) {
             /**
+             * Language is the language the unit under review belongs to, which is what
+             * the governance below was resolved for: a term rule is resolved per
+             * language, so a point read for one language answers for that one.
+             * @member
+             * @type {string | undefined}
+             */
+            this["language"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * IsSource marks the language as the project's source language, so a client
+             * knows it is looking at the author's own wording rather than a translation
+             * of it.
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["is_source"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * Profile is the governance profile in force, empty at the project's
              * default point.
              * @member
@@ -1721,26 +1741,26 @@ export class ReviewPoint {
      * @returns {ReviewPoint}
      */
     static createFrom($$source = {}) {
-        const $$createField6_0 = $$createType33;
-        const $$createField7_0 = $$createType2;
-        const $$createField8_0 = $$createType35;
-        const $$createField10_0 = $$createType6;
-        const $$createField11_0 = $$createType7;
+        const $$createField8_0 = $$createType33;
+        const $$createField9_0 = $$createType2;
+        const $$createField10_0 = $$createType35;
+        const $$createField12_0 = $$createType6;
+        const $$createField13_0 = $$createType7;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("coordinates" in $$parsedSource) {
-            $$parsedSource["coordinates"] = $$createField6_0($$parsedSource["coordinates"]);
+            $$parsedSource["coordinates"] = $$createField8_0($$parsedSource["coordinates"]);
         }
         if ("voice" in $$parsedSource) {
-            $$parsedSource["voice"] = $$createField7_0($$parsedSource["voice"]);
+            $$parsedSource["voice"] = $$createField9_0($$parsedSource["voice"]);
         }
         if ("term_rules" in $$parsedSource) {
-            $$parsedSource["term_rules"] = $$createField8_0($$parsedSource["term_rules"]);
+            $$parsedSource["term_rules"] = $$createField10_0($$parsedSource["term_rules"]);
         }
         if ("profiles" in $$parsedSource) {
-            $$parsedSource["profiles"] = $$createField10_0($$parsedSource["profiles"]);
+            $$parsedSource["profiles"] = $$createField12_0($$parsedSource["profiles"]);
         }
         if ("notes" in $$parsedSource) {
-            $$parsedSource["notes"] = $$createField11_0($$parsedSource["notes"]);
+            $$parsedSource["notes"] = $$createField13_0($$parsedSource["notes"]);
         }
         return new ReviewPoint(/** @type {Partial<ReviewPoint>} */($$parsedSource));
     }

@@ -12,6 +12,7 @@
 package convergence
 
 import (
+	"sort"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/gate"
@@ -103,14 +104,32 @@ type SourceCoverage struct {
 	Unreadable []string `json:"unreadable,omitempty"`
 }
 
-// ReviewQueueItem is one translatable unit awaiting human review (a translated
-// unit not yet approved), with short previews for listing. Named for the queue
-// it is a row of, so it reads apart from the governance review item a connected
-// workspace holds.
+// ReviewQueueItem is one unit awaiting human review, with short previews for
+// listing. A translated unit not yet approved is one row; a source unit the
+// project's source gate is waiting on is another, carrying IsSource. Named for
+// the queue it is a row of, so it reads apart from the governance review item a
+// connected workspace holds.
 type ReviewQueueItem struct {
 	Locale string `json:"locale"`
 	File   string `json:"file"`
 	Key    string `json:"key"`
+	// Language is the language this unit belongs to: the target locale for a
+	// translation, and the project's source language for a source unit. It
+	// repeats Locale, and it is the field a surface listing one queue across
+	// languages reads, because `locale` names a target on one row and the
+	// source on the next.
+	Language string `json:"language,omitempty"`
+	// IsSource marks a unit in the project's source language: the author's own
+	// wording awaiting attention, rather than a translation of it.
+	IsSource bool `json:"isSource,omitempty"`
+	// Status is the unit's rung on its own ladder: `translated` for a queued
+	// translation, and the settled source rung (authored|checked|approved) for
+	// a source unit.
+	Status string `json:"status,omitempty"`
+	// Held reports a source unit ranked below the project's source gate, so the
+	// loop holds its translations. False for a translation, and for a source
+	// unit that clears the gate and is queued for a sign-off the gate asks for.
+	Held bool `json:"held,omitempty"`
 	// Collection is the parent content-collection name (empty for a bare
 	// entry), so a review surface can filter the queue to one collection.
 	Collection string `json:"collection,omitempty"`
@@ -136,6 +155,80 @@ type ReviewQueueItem struct {
 	AIScore *int `json:"aiScore,omitempty"`
 	// AIModel names the model that produced AIScore.
 	AIModel string `json:"aiModel,omitempty"`
+}
+
+// LanguageTag is the language the item belongs to, falling back to Locale for
+// an item built before Language was populated.
+func (i ReviewQueueItem) LanguageTag() string {
+	if i.Language != "" {
+		return i.Language
+	}
+	return i.Locale
+}
+
+// ReviewQueue is the review queue as a whole: the units awaiting a person, and
+// the languages they belong to. One queue holds every language, the source
+// language among them.
+type ReviewQueue struct {
+	Pending []ReviewQueueItem `json:"pending"`
+	// Languages counts the pending units per language, so a surface can offer
+	// the languages that have work without scanning the rows. It summarises the
+	// whole queue, before any language filter, so a filtered listing still
+	// renders every choice.
+	Languages []ReviewLanguage `json:"languages"`
+}
+
+// ReviewLanguage is one language present in the review queue.
+type ReviewLanguage struct {
+	Language string `json:"language"`
+	Pending  int    `json:"pending"`
+	// Source marks the project's source language.
+	Source bool `json:"source,omitempty"`
+}
+
+// SummarizeReviewLanguages counts a queue's pending units per language: the
+// source language first, then the target languages in tag order.
+func SummarizeReviewLanguages(items []ReviewQueueItem) []ReviewLanguage {
+	if len(items) == 0 {
+		return nil
+	}
+	index := map[string]int{}
+	out := make([]ReviewLanguage, 0, 4)
+	for _, it := range items {
+		lang := it.LanguageTag()
+		if at, ok := index[lang]; ok {
+			out[at].Pending++
+			out[at].Source = out[at].Source || it.IsSource
+			continue
+		}
+		index[lang] = len(out)
+		out = append(out, ReviewLanguage{Language: lang, Pending: 1, Source: it.IsSource})
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Source != out[j].Source {
+			return out[i].Source
+		}
+		return out[i].Language < out[j].Language
+	})
+	return out
+}
+
+// SortReviewQueue orders a queue for listing: the source language first, then
+// by language, file and unit key.
+func SortReviewQueue(items []ReviewQueueItem) {
+	sort.Slice(items, func(i, j int) bool {
+		a, b := items[i], items[j]
+		if a.IsSource != b.IsSource {
+			return a.IsSource
+		}
+		if a.LanguageTag() != b.LanguageTag() {
+			return a.LanguageTag() < b.LanguageTag()
+		}
+		if a.File != b.File {
+			return a.File < b.File
+		}
+		return a.Key < b.Key
+	})
 }
 
 // Unit is a resolved content unit to measure: a source file paired with one

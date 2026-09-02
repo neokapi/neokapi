@@ -530,10 +530,11 @@ export class Report {
 }
 
 /**
- * ReviewQueueItem is one translatable unit awaiting human review (a translated
- * unit not yet approved), with short previews for listing. Named for the queue
- * it is a row of, so it reads apart from the governance review item a connected
- * workspace holds.
+ * ReviewQueueItem is one unit awaiting human review, with short previews for
+ * listing. A translated unit not yet approved is one row; a source unit the
+ * project's source gate is waiting on is another, carrying IsSource. Named for
+ * the queue it is a row of, so it reads apart from the governance review item a
+ * connected workspace holds.
  */
 export class ReviewQueueItem {
     /**
@@ -561,6 +562,47 @@ export class ReviewQueueItem {
              * @type {string}
              */
             this["key"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Language is the language this unit belongs to: the target locale for a
+             * translation, and the project's source language for a source unit. It
+             * repeats Locale, and it is the field a surface listing one queue across
+             * languages reads, because `locale` names a target on one row and the
+             * source on the next.
+             * @member
+             * @type {string | undefined}
+             */
+            this["language"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * IsSource marks a unit in the project's source language: the author's own
+             * wording awaiting attention, rather than a translation of it.
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["isSource"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Status is the unit's rung on its own ladder: `translated` for a queued
+             * translation, and the settled source rung (authored|checked|approved) for
+             * a source unit.
+             * @member
+             * @type {string | undefined}
+             */
+            this["status"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Held reports a source unit ranked below the project's source gate, so the
+             * loop holds its translations. False for a translation, and for a source
+             * unit that clears the gate and is queued for a sign-off the gate asks for.
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["held"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
