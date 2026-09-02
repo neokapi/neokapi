@@ -147,7 +147,19 @@ export async function captureDemo(m: DemoManifest, opts: CaptureOptions = {}): P
       mcpConfig,
       JSON.stringify({
         mcpServers: {
-          kapi: { command: KAPI_BIN, args: ["mcp"], env: { PATH: env.PATH!, ...kapiIsolationEnv() } },
+          kapi: {
+            command: KAPI_BIN,
+            args: ["mcp"],
+            // The MCP server inherits the same isolation the session runs under,
+            // including the project opt-in: without it a `project: true` demo's
+            // recipe is invisible to every project-scoped tool (review_queue,
+            // up_plan, context_search), because the server is a separate process.
+            env: {
+              PATH: env.PATH!,
+              ...kapiIsolationEnv(),
+              ...(m.project === true ? { KAPI_NO_PROJECT: "" } : {}),
+            },
+          },
         },
       }),
     );
