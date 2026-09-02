@@ -711,7 +711,7 @@ export function ReviewPage({
     }
     if (activeFilter.glob?.trim()) parts.push(activeFilter.glob.trim());
     if (parts.length === 0) return "";
-    return `${activeFilter.name || t("the active filter")} — ${parts.join(" · ")}`;
+    return `${activeFilter.name || t("the active filter")}: ${parts.join(" · ")}`;
   }, [activeFilter]);
 
   const chips: Array<{ id: Chip; label: string }> = [
@@ -871,7 +871,7 @@ export function ReviewPage({
                   {localeFilter ? localeLabel(localeFilter) : t("all languages")}
                   {collectionFilter ? ` · ${collectionFilter}` : ""}
                 </span>{" "}
-                — {t("{count} pending units", { count: preReviewPending.length })}
+                · {t("{count} pending units", { count: preReviewPending.length })}
               </div>
             </div>
             <div className="space-y-1.5 text-xs" role="radiogroup" aria-label={t("Policy")}>
