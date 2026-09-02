@@ -453,9 +453,11 @@ export function ReviewSurface({
 
   // ── The document ──────────────────────────────────────────────────────────
 
-  // Evidence for the projection: QA results carry no offsets, so they become
-  // block annotations; term hits do carry them and become inline marks on the
-  // blocks that have been opened. Entities ride along on the blocks themselves.
+  // Evidence for the projection: a finding that carries a position becomes a
+  // span over the text, and one that does not becomes a block annotation, since
+  // a position the payload never reported must not be guessed at. Term hits
+  // carry their own offsets and become inline marks on the blocks that have
+  // been opened. Entities ride along on the blocks themselves.
   const evidence = useMemo(() => {
     const out: Record<string, BlockEvidence> = {};
     for (const r of fileQAResults) {

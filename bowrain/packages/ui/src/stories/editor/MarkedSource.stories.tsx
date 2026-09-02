@@ -1,12 +1,12 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { HighlightedSource } from "../../components/editor/HighlightedSource";
+import { MarkedSource } from "../../components/editor/MarkedSource";
 import { sampleTermMatches, deprecatedTermMatch } from "../fixtures";
 
 const sampleText = "localization is key in content memory work and each term matters";
 
-const meta: Meta<typeof HighlightedSource> = {
-  title: "Editor/Core/HighlightedSource",
-  component: HighlightedSource,
+const meta: Meta<typeof MarkedSource> = {
+  title: "Editor/Core/MarkedSource",
+  component: MarkedSource,
   tags: ["autodocs"],
   decorators: [
     (Story) => (
@@ -18,7 +18,7 @@ const meta: Meta<typeof HighlightedSource> = {
 };
 
 export default meta;
-type Story = StoryObj<typeof HighlightedSource>;
+type Story = StoryObj<typeof MarkedSource>;
 
 /** Multiple term matches highlighted in source text */
 export const MultipleMatches: Story = {

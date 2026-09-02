@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import { Button, Badge, cn, directionAttrs } from "@neokapi/ui-primitives";
 import type { EntityInfo, ComplianceBasis } from "../../types/api";
 import { ComplianceRateChip } from "../ComplianceRateChip";
-import { entityLabel } from "../editor/HighlightedSource";
+import { entityLabel } from "../editor/entityMarks";
 import { FormattedSourceDisplay } from "../editor/FormattedSourceDisplay";
 import { CollapsedTargetCell } from "../editor/GridTargetRenderer";
 import { UnifiedTargetEditor, type UnifiedSaveResult } from "../UnifiedTargetEditor";

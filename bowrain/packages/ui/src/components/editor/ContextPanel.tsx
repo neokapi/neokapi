@@ -1,7 +1,7 @@
 import { Button, cn } from "@neokapi/ui-primitives";
 import type { MemoryMatchInfo, BlockTermMatch, EntityInfo } from "../../types/api";
 import { ArrowRight } from "../icons";
-import { entityLabel } from "./HighlightedSource";
+import { entityLabel } from "./entityMarks";
 import { memoryScoreClass, termStatusClass } from "./blockStatus";
 
 export interface ContextPanelProps {

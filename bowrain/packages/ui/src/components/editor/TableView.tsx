@@ -2,7 +2,7 @@ import { cn, DirectionalText } from "@neokapi/ui-primitives";
 import { VirtualList } from "@neokapi/editor-grid";
 import type { BlockInfo } from "../../types/api";
 import { FormattedSourceDisplay } from "./FormattedSourceDisplay";
-import { HighlightedSource } from "./HighlightedSource";
+import { MarkedSource } from "./MarkedSource";
 import {
   UnifiedTargetEditor,
   type UnifiedSaveResult,
@@ -124,7 +124,7 @@ export function TableView({
               ) : isSelected &&
                 (selectedTermMatches.length > 0 ||
                   (block.entities && block.entities.length > 0)) ? (
-                <HighlightedSource
+                <MarkedSource
                   text={block.source}
                   termMatches={selectedTermMatches}
                   entities={block.entities}
