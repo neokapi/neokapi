@@ -55,7 +55,7 @@ func (a *App) RunEngineServe(cmd Command, socket string, stdio bool) error {
 	// Unix socket paths are limited to ~104 bytes (sockaddr_un); a longer
 	// path fails at bind(2) with a cryptic "invalid argument".
 	if len(socket) > 100 {
-		return fmt.Errorf("socket path too long (%d bytes, unix limit ~104): %s — pass a shorter --socket", len(socket), socket)
+		return fmt.Errorf("socket path too long (%d bytes, unix limit ~104): %s. Pass a shorter --socket", len(socket), socket)
 	}
 	ctx := cmd.Context()
 	// A stale socket file from a dead server would fail the bind; if nothing

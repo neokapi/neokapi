@@ -105,7 +105,7 @@ func (a *App) implicitInputs(cmd Command, opts InputOptions) ([]string, error) {
 		}
 		if len(files) > 0 {
 			if !a.Quiet {
-				fmt.Fprintf(cmd.ErrOrStderr(), "%s: no files given — using the %d file(s) tracked by %s\n",
+				fmt.Fprintf(cmd.ErrOrStderr(), "%s: no files given, using the %d file(s) tracked by %s\n",
 					name, len(files), relativeToCwd(projectPath))
 			}
 			return files, nil
@@ -114,7 +114,7 @@ func (a *App) implicitInputs(cmd Command, opts InputOptions) ([]string, error) {
 			// A recipe is in scope but tracks nothing: say so rather than
 			// silently falling through to stdin, which would look like a hang.
 			return nil, WithExitCode(ExitUsage, fmt.Errorf(
-				"%s: %s tracks no content — add files with `kapi add <pattern>`, or pass paths explicitly: %w",
+				"%s: %s tracks no content. Add files with `kapi add <pattern>`, or pass paths explicitly: %w",
 				name, DisplayName(projectPath), ErrNoInput))
 		}
 	}
@@ -127,7 +127,7 @@ func (a *App) implicitInputs(cmd Command, opts InputOptions) ([]string, error) {
 		return []string{StdinName}, nil
 	}
 	return nil, WithExitCode(ExitUsage, fmt.Errorf(
-		"%s: no input — pass files or a glob (e.g. `%s 'src/**'`), pipe content in, or pass `-` to read standard input: %w",
+		"%s: no input. Pass files or a glob (e.g. `%s 'src/**'`), pipe content in, or pass `-` to read standard input: %w",
 		name, name, ErrNoInput))
 }
 

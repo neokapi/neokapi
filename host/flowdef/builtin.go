@@ -92,7 +92,7 @@ func BuiltInFlows() []flow.FlowDefinition {
 		{
 			ID:          "audio-to-subtitles",
 			Name:        "Audio to Subtitles",
-			Description: "Transcribe an audio file (ASR) and AI-translate the cues — pair with a subtitle output (.vtt/.srt) to produce a translated subtitle track",
+			Description: "Transcribe an audio file (ASR) and AI-translate the cues. Pair with a subtitle output (.vtt/.srt) to produce a translated subtitle track",
 			Source:      registry.SourceBuiltIn,
 			Nodes: []flow.FlowNode{
 				{ID: "translate", Type: flow.NodeTool, Name: "translate", Label: "Translate", Position: flow.NodePosition{X: 0, Y: 100}},
@@ -101,7 +101,7 @@ func BuiltInFlows() []flow.FlowDefinition {
 		{
 			ID:          "video-to-subtitles",
 			Name:        "Video to Subtitles",
-			Description: "Demux a video and AI-translate the spoken (timing-anchored) cues — pair with a subtitle output (.vtt/.srt) to produce a translated subtitle track",
+			Description: "Demux a video and AI-translate the spoken (timing-anchored) cues. Pair with a subtitle output (.vtt/.srt) to produce a translated subtitle track",
 			Source:      registry.SourceBuiltIn,
 			Nodes: []flow.FlowNode{
 				{ID: "translate", Type: flow.NodeTool, Name: "translate", Label: "Translate", Position: flow.NodePosition{X: 0, Y: 100}},
@@ -110,7 +110,7 @@ func BuiltInFlows() []flow.FlowDefinition {
 		{
 			ID:          "image-ocr-translate",
 			Name:        "Image OCR Translate",
-			Description: "AI-translate the text OCR'd from an image — round-trips translated alt-text to the image's sidecar (the whole image is also replaceable per locale)",
+			Description: "AI-translate the text OCR'd from an image. Round-trips translated alt-text to the image's sidecar (the whole image is also replaceable per locale)",
 			Source:      registry.SourceBuiltIn,
 			Nodes: []flow.FlowNode{
 				{ID: "translate", Type: flow.NodeTool, Name: "translate", Label: "Translate", Position: flow.NodePosition{X: 0, Y: 100}},

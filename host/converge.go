@@ -199,7 +199,7 @@ func (o ConvergeOutput) FormatText(w io.Writer) error {
 	// bar, say so plainly — those blocks were NOT translated, and the fix is to
 	// settle the source, not to wait for review. Never a silent skip.
 	if o.BlockedOnSource > 0 {
-		fmt.Fprintf(w, "%d block(s) held on source — settle your source first "+
+		fmt.Fprintf(w, "%d block(s) held on source. Settle your source first "+
 			"(kapi check --ship, or fix terms/brand/source and kapi apply), then re-run.\n", o.BlockedOnSource)
 	}
 	// Source drift under a decided translation, and the two halves of settling
@@ -210,19 +210,19 @@ func (o ConvergeOutput) FormatText(w io.Writer) error {
 	// exist to make impossible; drift the loop declines to work on is what the
 	// re-draft line exists to make impossible.
 	if redrafted := o.RedraftedUnits(); redrafted > 0 {
-		fmt.Fprintf(w, "Re-drafted %d stale unit(s) against the current source — "+
-			"they return to review un-approved (the earlier approval is not restored).\n", redrafted)
+		fmt.Fprintf(w, "Re-drafted %d stale unit(s) against the current source. "+
+			"They return to review un-approved (the earlier approval is not restored).\n", redrafted)
 	}
 	if stale := o.StaleUnits(); stale > 0 {
-		fmt.Fprintf(w, "%d unit(s) stale — their source changed since the translation was decided. "+
+		fmt.Fprintf(w, "%d unit(s) stale: their source changed since the translation was decided. "+
 			"Re-review them (kapi status --review); they do not ship until you do.\n", stale)
 	}
 	if o.Converged {
 		fmt.Fprintln(w, "Up to date: every gated scope is shippable.")
 	} else if o.StallReason == convergence.StallSourceNotReady {
-		fmt.Fprintln(w, "Held on source — nothing translatable is settled yet. Set defaults.source_gate: none to draft freely.")
+		fmt.Fprintln(w, "Held on source. Nothing translatable is settled yet. Set defaults.source_gate: none to draft freely.")
 	} else {
-		fmt.Fprintln(w, "Not yet up to date — parked locales await human review (never a build failure).")
+		fmt.Fprintln(w, "Not yet up to date: parked locales await human review (never a build failure).")
 	}
 	if o.MaterializedFiles > 0 {
 		fmt.Fprintf(w, "Materialized %d target file(s) from the project store.\n", o.MaterializedFiles)
@@ -243,7 +243,7 @@ func (o ConvergeOutput) formatProposedChangeset(w io.Writer) {
 	if o.ConceptsProposed == 0 {
 		return
 	}
-	fmt.Fprintf(w, "Proposed %d governed terminology edit(s) in change-set %s — they take effect when reviewed.\n",
+	fmt.Fprintf(w, "Proposed %d governed terminology edit(s) in change-set %s. They take effect when reviewed.\n",
 		o.ConceptsProposed, o.ChangesetID)
 	if o.ChangesetURL != "" {
 		fmt.Fprintf(w, "Review it at %s\n", o.ChangesetURL)
@@ -256,7 +256,7 @@ func (o ConvergeOutput) formatProposedChangeset(w io.Writer) {
 // occurrence graph — completed. What moved is the store, so that is what the
 // summary reports.
 func (o ConvergeOutput) formatMonolingual(w io.Writer) error {
-	fmt.Fprintf(w, "Reconciled the source — no target languages configured, so the per-language flow %q did not run.\n\n", o.Flow)
+	fmt.Fprintf(w, "Reconciled the source. No target languages are configured, so the per-language flow %q did not run.\n\n", o.Flow)
 	if o.ExtractedBlocks > 0 || o.ExtractedFiles > 0 {
 		fmt.Fprintf(w, "Extracted %d block(s) from %d file(s) into the project store.\n", o.ExtractedBlocks, o.ExtractedFiles)
 	} else {
@@ -593,7 +593,7 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 				emitter.Emit(convergence.Event{
 					Type:  convergence.EventLog,
 					Stage: convergence.StageSettleSource,
-					Message: fmt.Sprintf("No reader for format %q — its content is not counted in the source gate. "+
+					Message: fmt.Sprintf("No reader for format %q: its content is not counted in the source gate. "+
 						"Install the plugin that supplies it (kapi plugins install %s).", f, f),
 				})
 			}
@@ -785,7 +785,7 @@ func (a *App) syncProjectBlockStore(ctx context.Context, pctx *project.ProjectCo
 	// a converge over a derived index.
 	if _, gerr := a.MaterializeContextGraph(ctx, layout.Root, pctx.Project); gerr != nil {
 		stats.Warnings = append(stats.Warnings, fmt.Sprintf(
-			"could not rebuild the context graph: %v — `kapi context` navigation may be stale until the next extract", gerr))
+			"could not rebuild the context graph: %v. `kapi context` navigation may be stale until the next extract", gerr))
 	}
 	return &stats, describeDrift(drift), nil
 }

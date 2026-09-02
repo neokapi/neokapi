@@ -226,7 +226,7 @@ func (a *App) ensureExecTrust(recipePath string, proj *project.KapiProject, opts
 	}
 
 	if !isTTY() {
-		return fmt.Errorf("%w: %s\n%s\nno terminal is attached, so there is nobody to ask — run kapi once interactively to answer, or set %s=1 if this project is trusted by whoever configured this environment",
+		return fmt.Errorf("%w: %s\n%s\nno terminal is attached, so there is nobody to ask. Run kapi once interactively to answer, or set %s=1 if this project is trusted by whoever configured this environment",
 			ErrExecNotTrusted, recipePath, formatExecSites(sites), execTrustEnvVar)
 	}
 

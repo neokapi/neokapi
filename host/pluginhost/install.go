@@ -118,7 +118,7 @@ func InstallFromRegistry(ctx context.Context, opts InstallOptions) (*InstallResu
 			msg += " in kapi " + d.Since
 		}
 		if d.Because != "" {
-			msg += " — " + d.Because
+			msg += ": " + d.Because
 		}
 		if d.Message != "" {
 			msg += "\n  " + d.Message
@@ -159,7 +159,7 @@ func InstallFromRegistry(ctx context.Context, opts InstallOptions) (*InstallResu
 		}
 		logf("✓ Signature verified")
 	} else {
-		logf("Warning: --unsafe — skipping SHA-256 and signature checks")
+		logf("Warning: --unsafe skips the SHA-256 and signature checks")
 	}
 
 	pluginDir := filepath.Join(target, opts.PluginName)

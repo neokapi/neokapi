@@ -31,9 +31,9 @@ func (o AddOutput) FormatText(w io.Writer) error {
 		case e.Skipped:
 			fmt.Fprintf(w, "Already tracked: %s\n", e.Pattern)
 		case e.Format != "":
-			fmt.Fprintf(w, "Added %s (%s)%s — %d file(s)\n", e.Pattern, e.Format, target, e.Files)
+			fmt.Fprintf(w, "Added %s (%s)%s: %d file(s)\n", e.Pattern, e.Format, target, e.Files)
 		default:
-			fmt.Fprintf(w, "Added %s%s — %d file(s)\n", e.Pattern, target, e.Files)
+			fmt.Fprintf(w, "Added %s%s: %d file(s)\n", e.Pattern, target, e.Files)
 		}
 	}
 	return nil
@@ -149,7 +149,7 @@ func (o RmOutput) FormatText(w io.Writer) error {
 				fmt.Fprintf(w, "Removed %s\n", e.Pattern)
 			}
 		case "excluded":
-			fmt.Fprintf(w, "Excluded %s — %d file(s) now excluded\n", e.Pattern, e.Files)
+			fmt.Fprintf(w, "Excluded %s: %d file(s) now excluded\n", e.Pattern, e.Files)
 		case "already_excluded":
 			fmt.Fprintf(w, "Already excluded: %s\n", e.Pattern)
 		}

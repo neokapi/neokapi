@@ -198,7 +198,7 @@ func (idx *IndexV2) Resolve(name, constraint, channel, kapiVersion string) (vers
 // VerifySHA256 streams data and reports whether the hash matches.
 func VerifySHA256(data []byte, expected string) error {
 	if expected == "" {
-		return errors.New("registry: missing sha256 — refusing to install (use --unsafe to override)")
+		return errors.New("registry: missing sha256, refusing to install (use --unsafe to override)")
 	}
 	sum := sha256.Sum256(data)
 	got := hex.EncodeToString(sum[:])

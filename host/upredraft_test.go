@@ -131,5 +131,5 @@ func TestConvergeOutput_ReportsRedraftsBesideStale(t *testing.T) {
 	// person's is not, and a summary that printed only one of them would claim
 	// either that nothing happened or that everything did.
 	assert.Less(t, bytes.Index([]byte(text), []byte("Re-drafted")),
-		bytes.Index([]byte(text), []byte("unit(s) stale —")))
+		bytes.Index([]byte(text), []byte("unit(s) stale:")))
 }

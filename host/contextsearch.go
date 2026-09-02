@@ -117,7 +117,7 @@ func (r *ContextSearchResult) FormatText(w io.Writer) error {
 			if t.Discouraged {
 				verdict = "discouraged"
 				if t.Replacement != "" {
-					verdict += ` — say "` + t.Replacement + `"`
+					verdict += `, say "` + t.Replacement + `"`
 				}
 			}
 			fmt.Fprintf(w, "  %-24s %s", t.Term, verdict)
@@ -456,7 +456,7 @@ func SearchContext(ctx context.Context, src ContextSearchSources, req ContextSea
 	res.Notes = append(res.Notes, src.Freshness...)
 	if src.Unseeded {
 		res.Notes = append(res.Notes,
-			"this project's committed context has not been compiled into its store yet, so an empty answer here means unread, not absent — run `kapi up`")
+			"this project's committed context has not been compiled into its store yet, so an empty answer here means unread rather than absent. Run `kapi up`")
 	}
 
 	if src.Terms != nil {
@@ -568,7 +568,7 @@ func countTermUses(ctx context.Context, src ContextSearchSources, hits []Context
 		return nil
 	}
 	if src.Blocks == nil {
-		return []string{"no block cache is bound, so term usage was not counted — run `kapi up` to extract content"}
+		return []string{"no block cache is bound, so term usage was not counted. Run `kapi up` to extract content"}
 	}
 
 	byConcept := map[string][]int{}

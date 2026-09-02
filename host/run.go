@@ -71,11 +71,11 @@ func (a *App) RunFromProject(cmd Command, flowName, projectPath string, opts Run
 			case "missing":
 				fmt.Fprintf(os.Stderr, "Warning: plugin %q required by project but not installed\n", issue.Plugin)
 			case "version_mismatch":
-				fmt.Fprintf(os.Stderr, "Warning: plugin %q version mismatch — requires %s, installed %s\n",
+				fmt.Fprintf(os.Stderr, "Warning: plugin %q version mismatch: requires %s, installed %s\n",
 					issue.Plugin, issue.Required, issue.InstalledVersion)
 			}
 		}
-		return fmt.Errorf("project plugin requirements not met — install missing plugins or adjust version constraints in %s", projectPath)
+		return fmt.Errorf("project plugin requirements not met. Install missing plugins or adjust version constraints in %s", projectPath)
 	}
 
 	// Create project context to resolve all defaults.
@@ -134,7 +134,7 @@ func (a *App) RunFromProject(cmd Command, flowName, projectPath string, opts Run
 			inputPaths = append(inputPaths, rf.Path)
 		}
 		if len(inputPaths) == 0 {
-			return errors.New("no input files found — specify --input (-i) or add content patterns to the project file")
+			return errors.New("no input files found. Specify --input (-i) or add content patterns to the project file")
 		}
 	}
 

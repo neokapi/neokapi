@@ -275,11 +275,11 @@ func (a *App) recipeDeclares(cmd Command, key string, override map[string]any) b
 // the plugin, over the daemon when the plugin declares Mode-C for this op.
 func (a *App) dispatchPluginVerb(ctx context.Context, verb string, args []string) error {
 	if a.PluginHost == nil {
-		return fmt.Errorf("plugin installed but %q is still unavailable — rerun the command", verb)
+		return fmt.Errorf("plugin installed but %q is still unavailable. Rerun the command", verb)
 	}
 	route := a.PluginHost.CommandRoute(verb)
 	if route == nil {
-		return fmt.Errorf("plugin installed but %q is still unavailable — rerun the command", verb)
+		return fmt.Errorf("plugin installed but %q is still unavailable. Rerun the command", verb)
 	}
 	if pool := a.DaemonPool(); pool != nil &&
 		pluginhost.SupportsModeCDispatch(route.Plugin.Name(), verb) &&

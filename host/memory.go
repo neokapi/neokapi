@@ -405,6 +405,6 @@ func WarnSuspectTokenEntries(ctx context.Context, tm memory.Store, out io.Writer
 	if len(show) > 5 {
 		show = show[:5]
 	}
-	fmt.Fprintf(out, "Warning: %d TM entr%s whose variants disagree on their placeholder set — markup tokens ({=mN}) or inline-code runs present in some variants but not others (e.g. %s). Leveraging such an entry would drop a placeholder, so recycle refuses to fill from it. Store these entries run-structured and symmetric.\n",
+	fmt.Fprintf(out, "Warning: %d TM entr%s whose variants disagree on their placeholder set: markup tokens ({=mN}) or inline-code runs present in some variants but not others (e.g. %s). Leveraging such an entry would drop a placeholder, so recycle refuses to fill from it. Store these entries run-structured and symmetric.\n",
 		len(suspects), map[bool]string{true: "y", false: "ies"}[len(suspects) == 1], strings.Join(show, ", "))
 }

@@ -47,7 +47,7 @@ var ErrBinaryStdout = errors.New("binary output not written to a terminal")
 // errBinaryStdout builds the per-command error, naming the way out — the same
 // shape as errBinaryInput on the read side.
 func errBinaryStdout(hint string) error {
-	return fmt.Errorf("%w — %s", ErrBinaryStdout, hint)
+	return fmt.Errorf("%w: %s", ErrBinaryStdout, hint)
 }
 
 // stdoutIsTerminal reports whether standard output is attached to a terminal

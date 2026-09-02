@@ -176,5 +176,5 @@ func unknownRecipeKeyError(key string) error {
 	if len(exts) > 0 {
 		hint += ", or <block>.<field> for a registered recipe block (" + strings.Join(exts, ", ") + ")"
 	}
-	return fmt.Errorf("unknown recipe key %q — accepted keys: %s (app configuration lives under 'kapi config get/set')", key, hint)
+	return fmt.Errorf("unknown recipe key %q. Accepted keys: %s (app configuration lives under 'kapi config get/set')", key, hint)
 }

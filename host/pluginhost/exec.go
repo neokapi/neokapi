@@ -218,7 +218,7 @@ func withPluginExitCode(code int, err error) error {
 // by `kapi plugin list` and similar UI surfaces.
 func FormatHelpLine(c manifest.Command, plugin *Plugin) string {
 	if c.Short != "" {
-		return fmt.Sprintf("%s — %s [%s]", c.Name, c.Short, plugin.Name())
+		return fmt.Sprintf("%s: %s [%s]", c.Name, c.Short, plugin.Name())
 	}
 	return fmt.Sprintf("%s [%s]", c.Name, plugin.Name())
 }

@@ -148,7 +148,7 @@ func trackedPaths(proj *coreproj.KapiProject, root string) (map[string]bool, err
 			if it.Collection != nil && it.Collection.Name != "" {
 				where = fmt.Sprintf("content collection %q", it.Collection.Name)
 			}
-			return nil, fmt.Errorf("%s: pattern %q cannot be expanded, so its content would resolve to nothing — fix the pattern in the recipe: %w",
+			return nil, fmt.Errorf("%s: pattern %q cannot be expanded, so its content would resolve to nothing. Fix the pattern in the recipe: %w",
 				where, it.Item.Path, err)
 		}
 		for _, rel := range rels {
@@ -209,13 +209,13 @@ func CollectionForAdd(proj *coreproj.KapiProject, name, channel string) (*corepr
 			continue
 		}
 		if channel != "" && coll.Channel != "" && coll.Channel != channel {
-			return nil, fmt.Errorf("collection %q is bound to channel %q — repoint it in the recipe rather than through an add", name, coll.Channel)
+			return nil, fmt.Errorf("collection %q is bound to channel %q. Repoint it in the recipe rather than through an add", name, coll.Channel)
 		}
 		if coll.Channel == "" {
 			coll.Channel = channel
 		}
 		if coll.IsBareEntry() {
-			return nil, fmt.Errorf("collection %q is a bare entry, which holds one pattern and no content list — give the new pattern its own name", name)
+			return nil, fmt.Errorf("collection %q is a bare entry, which holds one pattern and no content list. Give the new pattern its own name", name)
 		}
 		return coll, nil
 	}
@@ -237,7 +237,7 @@ func CollectionRelativePath(coll *coreproj.Collection, pattern string) (string, 
 	}
 	rel, ok := strings.CutPrefix(pattern, base+"/")
 	if !ok {
-		return "", fmt.Errorf("collection %q reads paths under %q, and %q is not inside it — add it to a collection whose base contains it", coll.Name, base, pattern)
+		return "", fmt.Errorf("collection %q reads paths under %q, and %q is not inside it. Add it to a collection whose base contains it", coll.Name, base, pattern)
 	}
 	return rel, nil
 }

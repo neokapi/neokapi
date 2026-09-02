@@ -163,7 +163,7 @@ func (a *App) convertDocument(ctx context.Context, path string, toFmt registry.F
 	if !sameFormat {
 		if info := a.FormatReg.FormatInfo(toFmt); info != nil && info.HasWriter {
 			if info.Interchange {
-				return fmt.Errorf("cannot convert to %q: it is a bilingual translation-interchange format — use `kapi extract --format %s` (it captures the source skeleton so `kapi merge` can round-trip translations back into the original), not `convert`", toFmt, toFmt)
+				return fmt.Errorf("cannot convert to %q: it is a bilingual translation-interchange format. Use `kapi extract --format %s` (it captures the source skeleton so `kapi merge` can round-trip translations back into the original) rather than `convert`", toFmt, toFmt)
 			}
 			if !info.Generative {
 				return fmt.Errorf("cannot convert to %q: it is a packaged format that can only be written by updating an existing %s file, not generated from %s", toFmt, toFmt, inFmt)
@@ -299,7 +299,7 @@ func prepareOutputDir(out string, inputs int) (string, error) {
 	if !isDir {
 		if inputs > 1 {
 			return "", fmt.Errorf(
-				"-o %s names one output file but %d inputs were given — pass a directory instead (e.g. `-o %s/`) to write one file per input, or omit -o to write to stdout",
+				"-o %s names one output file but %d inputs were given. Pass a directory instead (e.g. `-o %s/`) to write one file per input, or omit -o to write to stdout",
 				out, inputs, format.TrimExt(out))
 		}
 		return "", nil
@@ -318,15 +318,15 @@ func prepareOutputDir(out string, inputs int) (string, error) {
 // conversion, and two same-named files in different directories cannot collide.
 func (a *App) convOutputPath(dir, root, input string, toFmt registry.FormatID) (string, error) {
 	if input == "" || input == StdinName {
-		return "", errors.New("standard input has no filename to derive an output name from — name the file (-o out.md) instead of a directory")
+		return "", errors.New("standard input has no filename to derive an output name from. Name the file (-o out.md) instead of a directory")
 	}
 	ext := a.formatExt(toFmt)
 	if ext == "" {
-		return "", fmt.Errorf("no filename extension is registered for %q — write a single file with `-o NAME.EXT` instead of a directory", toFmt)
+		return "", fmt.Errorf("no filename extension is registered for %q. Write a single file with `-o NAME.EXT` instead of a directory", toFmt)
 	}
 	dest := filepath.Join(dir, subdirUnder(root, input), format.Stem(input)+ext)
 	if abs, err := filepath.Abs(input); err == nil && sameFile(abs, dest) {
-		return "", fmt.Errorf("the conversion would overwrite the input (%s) — write to a different -o directory", dest)
+		return "", fmt.Errorf("the conversion would overwrite the input (%s). Write to a different -o directory", dest)
 	}
 	return dest, nil
 }
@@ -395,7 +395,7 @@ func claimOutput(claimed map[string]string, dest, input string) error {
 		key = abs
 	}
 	if prev, dup := claimed[key]; dup {
-		return fmt.Errorf("would overwrite %s, already converted from %s — convert them separately, or to different directories", dest, prev)
+		return fmt.Errorf("would overwrite %s, already converted from %s. Convert them separately, or to different directories", dest, prev)
 	}
 	claimed[key] = input
 	return nil
@@ -443,7 +443,7 @@ func (a *App) ResolveTargetFormat(to, outPath string) (registry.FormatID, error)
 		if det := a.writerByExt("." + strings.TrimPrefix(strings.ToLower(to), ".")); det != "" {
 			return det, nil
 		}
-		return "", fmt.Errorf("unknown target format %q — try a format id (markdown, html, doclang) or an extension (md, html)", to)
+		return "", fmt.Errorf("unknown target format %q. Try a format id (markdown, html, doclang) or an extension (md, html)", to)
 	}
 	if outPath != "" && outPath != StdoutName {
 		if det := a.writerForOutputPath(outPath); det != "" {
@@ -453,9 +453,9 @@ func (a *App) ResolveTargetFormat(to, outPath string) (registry.FormatID, error)
 		// "cannot infer a target format from out" reads like a broken filename.
 		if info, err := os.Stat(outPath); (err == nil && info.IsDir()) ||
 			strings.HasSuffix(outPath, "/") || strings.HasSuffix(outPath, string(os.PathSeparator)) {
-			return "", fmt.Errorf("an output directory sets no target format — pass --to (e.g. `--to md -o %s`)", outPath)
+			return "", fmt.Errorf("an output directory sets no target format. Pass --to (e.g. `--to md -o %s`)", outPath)
 		}
-		return "", fmt.Errorf("cannot infer a target format from %q — pass --to", filepath.Base(outPath))
+		return "", fmt.Errorf("cannot infer a target format from %q. Pass --to", filepath.Base(outPath))
 	}
 	return "", errors.New("specify a target format with --to (e.g. --to markdown) or an output file with -o")
 }

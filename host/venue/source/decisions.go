@@ -28,7 +28,7 @@ import (
 // against whatever else that process is writing.
 func (c *BowrainSourceConnector) workingStore(ctx context.Context) (*state.WorkStore, error) {
 	if c.app == nil {
-		return nil, errors.New("connector has no host app — unit state cannot reach the project store")
+		return nil, errors.New("connector has no host app, so unit state cannot reach the project store")
 	}
 	return c.app.OpenProjectState(ctx, c.project.Root)
 }

@@ -1316,7 +1316,7 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 					// every later translation behind a file that is never
 					// coming back. Skip it loudly and move on.
 					itemsRetired++
-					fmt.Fprintf(os.Stderr, "pull: skipping %s (%s): its source file is gone from this checkout — retired locally, still on the server\n", itemName, loc)
+					fmt.Fprintf(os.Stderr, "pull: skipping %s (%s): its source file is gone from this checkout, retired locally and still on the server\n", itemName, loc)
 					continue
 				}
 				formatName := c.detectFormat(absSource)
@@ -1334,7 +1334,7 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 					// it is — a failure that holds the cursor, so the pull retries
 					// once the format can be read.
 					writeErrs = append(writeErrs, fmt.Errorf(
-						"%s (%s): no format is registered for this file — the recipe names none and no plugin claims its extension, so its translations cannot be written",
+						"%s (%s): no format is registered for this file. The recipe names none and no plugin claims its extension, so its translations cannot be written",
 						itemName, loc))
 					continue
 				}

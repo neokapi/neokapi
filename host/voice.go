@@ -149,7 +149,7 @@ const VoiceProfileTemplate = `# Voice profile. Fill in the fields, then:
 #   kapi voice guide --profile-file voice.yaml       # render the guide
 #   echo "draft" | kapi voice check --profile-file voice.yaml --json
 # Only 'name' is required; every other field is optional. The English source
-# text always stays the key — do not invent message IDs.
+# text always stays the key, so do not invent message IDs.
 
 name: My Voice
 description: One line on who this voice is for and the impression it should leave.

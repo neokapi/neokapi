@@ -20,7 +20,7 @@ func (a *App) WarnInertRecipeFields(cmd Command, proj *project.KapiProject) {
 	for _, in := range proj.InertProjectExtras() {
 		msg := fmt.Sprintf("warning: recipe field %q has no effect without a %q block", in.Name, in.DependsOn)
 		if project.IsVenueKey(in.DependsOn) {
-			msg += " — connect the project (kapi init --server <url>) to activate it"
+			msg += ". Connect the project (kapi init --server <url>) to activate it"
 		}
 		fmt.Fprintln(cmd.ErrOrStderr(), msg)
 	}
@@ -42,8 +42,8 @@ func (a *App) WarnInertRecipeFields(cmd Command, proj *project.KapiProject) {
 // the workspace vocabulary. So the caveat survives, narrowed to the case that
 // still has it: the same content checked against two different vocabularies
 // depending on where the loop ran.
-const UnsyncedCoordinatesWarning = "warning: a profile's terms: binding applies to local runs only — " +
-	"this project is connected to a server, which checks terminology against the workspace vocabulary"
+const UnsyncedCoordinatesWarning = "warning: a profile's terms: binding applies to local runs only. " +
+	"This project is connected to a server, which checks terminology against the workspace vocabulary"
 
 // WarnUnsyncedCoordinates writes UnsyncedCoordinatesWarning to w when the recipe
 // binds terms per profile and binds a convergence venue. Surfaced from the run

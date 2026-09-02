@@ -250,7 +250,7 @@ func (a *App) ContextSourcesAt(cmd Command, req ContextPointRequest) (ContextPoi
 		if !inside {
 			src.Path = req.Path
 			src.PathErr = fmt.Errorf(
-				"%s is not inside this project (%s), so there is no point to answer for — name a location inside it, either absolute or relative to the project root",
+				"%s is not inside this project (%s), so there is no point to answer for. Name a location inside it, either absolute or relative to the project root",
 				req.Path, root)
 			return src, noop
 		}
@@ -312,7 +312,7 @@ func (a *App) adHocVoice(ctx context.Context, cmd Command, src *ContextPointSour
 
 	if req.Profile == "" {
 		if req.Path != "" {
-			return "no kapi project is in scope, so no point could be resolved for this location — ask from inside a project, or name a profile"
+			return "no kapi project is in scope, so no point could be resolved for this location. Ask from inside a project, or name a profile"
 		}
 		return "no kapi project is in scope and no profile was named, so there is no point to answer for"
 	}
@@ -593,7 +593,7 @@ func (r *ContextAnswer) FormatText(w io.Writer) error {
 			if p.ValidTo == "" {
 				window = strings.TrimSpace("from " + p.ValidFrom)
 			}
-			fmt.Fprintf(w, "- `%s` — %s (%s)\n", p.Name, window, p.State)
+			fmt.Fprintf(w, "- `%s`: %s (%s)\n", p.Name, window, p.State)
 		}
 	}
 
@@ -705,7 +705,7 @@ func termLine(t ContextTermHit) string {
 		fmt.Fprintf(&b, " [%s]", t.Domain)
 	}
 	if t.Definition != "" {
-		fmt.Fprintf(&b, " — %s", t.Definition)
+		fmt.Fprintf(&b, ": %s", t.Definition)
 	}
 	return b.String()
 }

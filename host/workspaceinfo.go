@@ -122,12 +122,12 @@ var archivePartNotes = map[string]string{
 // "—" on its own tells a user nothing about whether it matters.
 var archivePartAbsentNotes = map[string]string{
 	"recipe":   "no recipe in this archive",
-	"sources":  "no extraction manifest — `kapi extract` records source identity + skeletons",
-	"blocks":   "nothing extracted yet — run `kapi extract` or `kapi up`",
+	"sources":  "no extraction manifest: `kapi extract` records source identity + skeletons",
+	"blocks":   "nothing extracted yet: run `kapi extract` or `kapi up`",
 	"overlays": "no committed targets yet",
-	"memory":   "no content memory yet — it fills as work is committed",
-	"terms":    "no terms yet — `kapi terms import` seeds one",
-	"history":  "no provenance chain — `kapi pack --log` stamps one",
+	"memory":   "no content memory yet: it fills as work is committed",
+	"terms":    "no terms yet: `kapi terms import` seeds one",
+	"history":  "no provenance chain: `kapi pack --log` stamps one",
 }
 
 // projectArchiveExcluded names what a snapshot deliberately omits.

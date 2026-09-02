@@ -56,8 +56,8 @@ type HookNotice struct {
 // non-zero exit (other than 2) as a non-blocking hook error — it shows stderr to
 // the user and lets the operation proceed. So even that path stays fail-open.
 func hookUnheard(cmd Command, hook, because string) error {
-	msg := fmt.Sprintf("%s: the guard did not run — %s. Allowing: a kapi hook fails open, "+
-		"so this is not a denial — but the guard did not pass either, it never ran.", hook, because)
+	msg := fmt.Sprintf("%s: the guard did not run: %s. Allowing, because a kapi hook fails open. "+
+		"Treat the result as unverified: the guard never ran.", hook, because)
 	fmt.Fprintln(cmd.ErrOrStderr(), "warning: "+msg)
 	enc := json.NewEncoder(cmd.OutOrStdout())
 	enc.SetEscapeHTML(false)
@@ -179,7 +179,7 @@ func silenceStderr() func() {
 // so the guidance is consistent however the assistant arrives at it.
 func hookBlockReason(out verifyOutput) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "kapi check --ship has not passed yet — %d of %d gate(s) failing. ",
+	fmt.Fprintf(&b, "kapi check --ship has not passed yet: %d of %d gate(s) failing. ",
 		out.Summary.Failed, out.Summary.Gates)
 	b.WriteString("Fix the findings below in the affected files, then finish; ")
 	b.WriteString("kapi check --ship re-checks before you can stop.\n\n")
@@ -202,7 +202,7 @@ func hookBlockReason(out verifyOutput) string {
 			}
 			fmt.Fprintf(&b, "  %s [%s]%s: %s", strings.ToUpper(f.Severity), g.Gate, loc, f.Message)
 			if f.Suggestion != "" {
-				fmt.Fprintf(&b, " — %s", f.Suggestion)
+				fmt.Fprintf(&b, " (%s)", f.Suggestion)
 			}
 			b.WriteByte('\n')
 			shown++

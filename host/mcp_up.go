@@ -36,7 +36,7 @@ func registerUpMCPTools(server *mcp.Server, a *App) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "up",
 		Description: "Bring a kapi project up to date against its ship gates: re-extract drifted sources, run the " +
-			"default flow (content memory reuse then AI translate) over every target language — concurrently per language — " +
+			"default flow (content memory reuse then AI translate) over every target language, concurrently per language, " +
 			"loop until every gated scope is shippable or parks for a human, and run the project's bound checks " +
 			"each pass. In a project connected to a Bowrain server the run happens there (push, converge on the " +
 			"org's keys and shared content memory, pull the results); pass local to run the loop on this machine " +
@@ -100,7 +100,7 @@ func (a *App) mcpProjectPath(explicit string) (string, error) {
 		return "", err
 	}
 	if path == "" {
-		return "", errors.New("no kapi project found — pass project, or run the MCP server inside a kapi project directory")
+		return "", errors.New("no kapi project found. Pass project, or run the MCP server inside a kapi project directory")
 	}
 	return path, nil
 }

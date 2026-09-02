@@ -143,7 +143,7 @@ func (g *genericSourceConnectorDispatcher) Dispatch(ctx context.Context, client 
 		fmt.Printf("pulled %d blocks across %d locales; wrote %d files\n",
 			resp.GetBlocksPulled(), resp.GetLocalesCount(), resp.GetFilesWritten())
 		if n := resp.GetDecisionsStaged(); n > 0 {
-			fmt.Printf("staged %d unit-state update(s) from the server ledger — `kapi commit` publishes them\n", n)
+			fmt.Printf("staged %d unit-state update(s) from the server ledger. `kapi commit` publishes them\n", n)
 		}
 		printPullExtras(resp)
 		if te := resp.GetTerminologyError(); te != "" {
@@ -171,7 +171,7 @@ func printPushExtras(resp *pb.PushResponse) {
 	}
 	switch resp.GetIngest() {
 	case "queued":
-		fmt.Println("the server accepted this push and is still applying it — `kapi status` shows when it lands")
+		fmt.Println("the server accepted this push and is still applying it. `kapi status` shows when it lands")
 	case "unknown":
 		fmt.Println("the server accepted this push; it could not be asked whether it has been applied yet")
 	}
@@ -179,7 +179,7 @@ func printPushExtras(resp *pb.PushResponse) {
 		fmt.Printf("applied %d concept edit(s) and %d relation edit(s) directly\n", a, r)
 	}
 	if n := resp.GetConceptsProposed(); n > 0 {
-		fmt.Printf("proposed %d governed terminology edit(s) in change-set %s — they take effect when reviewed\n",
+		fmt.Printf("proposed %d governed terminology edit(s) in change-set %s. They take effect when reviewed\n",
 			n, resp.GetChangesetId())
 		if u := resp.GetChangesetUrl(); u != "" {
 			fmt.Printf("review it at %s\n", u)
@@ -206,7 +206,7 @@ func printPullExtras(resp *pb.PullResponse) {
 	}
 	if d := resp.GetGovernanceDiverged(); len(d) > 0 {
 		fmt.Printf("the server governs these collections differently from this recipe: %s\n", strings.Join(d, ", "))
-		fmt.Println("the recipe still decides locally — reconcile them in kapi.yaml, not by pulling")
+		fmt.Println("the recipe still decides locally. Reconcile them in kapi.yaml rather than by pulling")
 	}
 }
 
@@ -268,8 +268,8 @@ func parseFlags(flags *pflag.FlagSet, args []string) []string {
 	_ = flags.Parse(args)
 	for _, f := range before {
 		fmt.Fprintf(os.Stderr,
-			"warning: %q is not understood by this route and was ignored — "+
-				"the daemon's %s takes paths, --force and --dry-run only\n",
+			"warning: %q is not understood by this route and was ignored. "+
+				"The daemon's %s takes paths, --force and --dry-run only\n",
 			f, flags.Name())
 	}
 	return flags.Args()

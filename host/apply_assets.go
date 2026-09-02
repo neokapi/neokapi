@@ -747,7 +747,7 @@ func (a *App) ensureVoiceProfileBinding(recipePath, root string) (string, error)
 		case bv.ProfileFile != "":
 			return resolveUnder(root, bv.ProfileFile), nil
 		case bv.Pack != "" || bv.Profile != "":
-			return "", errors.New("brand: defaults.voice binds a pack/store profile, not a committed profile_file — bind a profile_file to apply rules")
+			return "", errors.New("brand: defaults.voice binds a pack/store profile rather than a committed profile_file. Bind a profile_file to apply rules")
 		}
 	}
 	rel := project.RelStatePath(VoiceConventionalName)

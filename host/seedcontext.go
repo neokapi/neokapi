@@ -95,7 +95,7 @@ func formatRecordLine(r RecordAbsorbResult) string {
 	if !r.Absorbed() && r.Superseded == 0 {
 		return ""
 	}
-	line := fmt.Sprintf("absorbed: %d pair(s) from %d committed target document(s) — %d learned, %d reconciled",
+	line := fmt.Sprintf("absorbed: %d pair(s) from %d committed target document(s): %d learned, %d reconciled",
 		r.Pairs, r.Documents, r.Learned, r.Reconciled)
 	if r.Contested > 0 {
 		line += fmt.Sprintf("; %d source string(s) the record answers more than one way", r.Contested)
