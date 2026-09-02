@@ -58,6 +58,7 @@ func RegisterModeCFormats(host *Host, pool *DaemonPool, reg *registry.FormatRegi
 			HasWriter:   f.HasCapability("write"),
 			Generative:  f.HasCapability("generative"),
 			Interchange: f.HasCapability("interchange"),
+			Family:      pluginFamily(f.Family),
 		})
 		reg.SetFormatSource(formatID, plugin.Name())
 
@@ -83,6 +84,17 @@ func RegisterModeCFormats(host *Host, pool *DaemonPool, reg *registry.FormatRegi
 			})
 		}
 	}
+}
+
+// pluginFamily reads a manifest's declared content shape. A plugin naming a
+// family neokapi does not know gets none, so a stale or mistyped manifest
+// leaves the format rendering as a document rather than as something it is not.
+func pluginFamily(declared string) registry.FormatFamily {
+	family := registry.FormatFamily(declared)
+	if !registry.ValidFormatFamily(family) {
+		return ""
+	}
+	return family
 }
 
 // formatRoutes returns every FormatRoute the host knows about. Unlike

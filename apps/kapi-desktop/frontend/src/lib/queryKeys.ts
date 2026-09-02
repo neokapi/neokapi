@@ -108,4 +108,6 @@ export const qk = {
   inspectArchiveEntry: (tabID: string, archivePath: string, entry: string) =>
     ["inspect-archive", tabID, archivePath, entry] as const,
   archiveEntries: (filePath: string) => ["archive-entries", filePath] as const,
+  writtenBackFile: (tabID: string, filePath: string, locale: string) =>
+    ["written-back", tabID, filePath, locale] as const,
 } as const;

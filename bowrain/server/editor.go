@@ -245,7 +245,13 @@ type BlockInfoResponse struct {
 	// document are naming the same content two different ways, and anything
 	// addressed across that boundary has to translate. Empty for a block
 	// stored without an item, where there is no document to disagree with.
-	SourceID       string                     `json:"source_id,omitempty"`
+	SourceID string `json:"source_id,omitempty"`
+	// Name is the name the format reader gave this block, which for a catalog
+	// format is the unit's key path: "errors.network.timeout" for JSON and
+	// YAML, the entry key for properties. A reading surface shows the key
+	// beside the value; without it a reviewer sees a column of strings with
+	// nothing to say which unit each one is.
+	Name           string                     `json:"name,omitempty"`
 	Source         string                     `json:"source"`
 	SourceRuns     []model.Run                `json:"source_runs,omitempty"`
 	Targets        map[string]BlockTargetInfo `json:"targets"`
@@ -1596,6 +1602,7 @@ func storedBlockToInfoResponse(sb *venue.StoredBlock, targetLocales []string) Bl
 	bi := BlockInfoResponse{
 		ID:           sb.Block.ID,
 		SourceID:     sb.SourceID,
+		Name:         sb.Block.Name,
 		Source:       sb.Block.SourceText(),
 		Targets:      targets,
 		Translatable: sb.Block.Translatable,

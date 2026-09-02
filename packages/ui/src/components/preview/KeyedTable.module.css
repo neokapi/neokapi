@@ -1,0 +1,75 @@
+/* Chrome for the keyed table. Layout, spacing and colour come from the shared
+   design tokens on the component itself; this file carries the two things there
+   is no primitive for: the selection rule down a table row, and the inline-code
+   chip (the same pill the document preview and the editor cells draw, so a
+   placeholder reads identically wherever it is shown). */
+
+.row {
+  transition: background-color 0.12s ease;
+}
+
+.selectable {
+  cursor: pointer;
+}
+
+.selectable:hover {
+  background: color-mix(in srgb, var(--color-primary, currentColor) 6%, transparent);
+}
+
+.selectable:focus-visible {
+  outline: 2px solid var(--color-ring, currentColor);
+  outline-offset: -2px;
+}
+
+.selected,
+.selected:hover {
+  background: color-mix(in srgb, var(--color-primary, currentColor) 11%, transparent);
+}
+
+/* The rule marks which row is in focus without moving the column, so the key
+   stays aligned down the table while the reader steps through units. */
+.selected > td:first-child {
+  box-shadow: inset 3px 0 0 var(--color-primary, currentColor);
+}
+
+.inlineCode {
+  display: inline-flex;
+  align-items: center;
+  margin: 0 1px;
+  padding: 0 0.25rem;
+  border: 1px solid;
+  border-radius: 2px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1rem;
+  vertical-align: middle;
+  white-space: nowrap;
+  cursor: default;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* A branch of a plural or select: the pivot chip, then the forms indented under
+   it, so a reader sees that the unit has several forms and which one is which
+   rather than one form standing for the whole. */
+.branch {
+  display: block;
+  margin: 0.15rem 0 0.15rem 0.75rem;
+  padding-inline-start: 0.5rem;
+  border-inline-start: 2px solid color-mix(in srgb, currentColor 20%, transparent);
+}
+
+.branchLabel {
+  margin-inline-end: 0.35rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 10px;
+  opacity: 0.7;
+}
+
+/* A run this build cannot render still occupies its place, named. */
+.unknownRun {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 10px;
+  opacity: 0.75;
+}

@@ -1241,6 +1241,7 @@
   "formats": {
     "androidxml": {
       "displayName": "Android String Resources",
+      "family": "catalog-keyvalue",
       "properties": {
         "extractComments": {
           "title": "Extract comments as notes",
@@ -1262,6 +1263,7 @@
     },
     "applestrings": {
       "displayName": "Apple Strings",
+      "family": "catalog-keyvalue",
       "extensions": [
         ".strings",
         ".stringsdict"
@@ -1279,6 +1281,7 @@
     },
     "arb": {
       "displayName": "Flutter ARB",
+      "family": "catalog-keyvalue",
       "extensions": [
         ".arb"
       ],
@@ -1291,6 +1294,7 @@
     },
     "archive": {
       "displayName": "Archive (ZIP/TAR)",
+      "family": "binary-readonly",
       "extensions": [
         ".zip",
         ".tar",
@@ -1306,6 +1310,7 @@
     },
     "asciidoc": {
       "displayName": "AsciiDoc",
+      "family": "rich-markup",
       "extensions": [
         ".adoc",
         ".asciidoc",
@@ -1328,6 +1333,7 @@
     },
     "audio": {
       "displayName": "Audio",
+      "family": "binary-readonly",
       "extensions": [
         ".wav",
         ".mp3",
@@ -1347,6 +1353,7 @@
     },
     "csv": {
       "displayName": "CSV",
+      "family": "data-config",
       "extensions": [
         ".csv"
       ],
@@ -1410,6 +1417,7 @@
     },
     "designtokens": {
       "displayName": "Design Tokens (DTCG)",
+      "family": "catalog-keyvalue",
       "extensions": [
         ".tokens"
       ],
@@ -1422,6 +1430,7 @@
     },
     "doclang": {
       "displayName": "DocLang",
+      "family": "rich-markup",
       "extensions": [
         ".dclg.xml",
         ".xml"
@@ -1432,6 +1441,7 @@
     },
     "docling": {
       "displayName": "DoclingDocument JSON",
+      "family": "rich-markup",
       "extensions": [
         ".json"
       ],
@@ -1441,6 +1451,7 @@
     },
     "epub": {
       "displayName": "EPUB E-Book",
+      "family": "rich-markup",
       "extensions": [
         ".epub"
       ],
@@ -1449,10 +1460,12 @@
       ]
     },
     "exec": {
-      "displayName": "Exec (subprocess extractor)"
+      "displayName": "Exec (subprocess extractor)",
+      "family": "plain-text"
     },
     "html": {
       "displayName": "HTML",
+      "family": "rich-markup",
       "extensions": [
         ".html",
         ".htm",
@@ -1491,6 +1504,7 @@
     },
     "i18next": {
       "displayName": "i18next JSON",
+      "family": "catalog-keyvalue",
       "properties": {
         "legacyPluralForms": {
           "title": "Recognise legacy plural forms",
@@ -1508,6 +1522,7 @@
     },
     "image": {
       "displayName": "Image",
+      "family": "binary-readonly",
       "extensions": [
         ".png",
         ".jpg",
@@ -1535,6 +1550,7 @@
     },
     "json": {
       "displayName": "JSON",
+      "family": "catalog-keyvalue",
       "extensions": [
         ".json"
       ],
@@ -1634,6 +1650,7 @@
     },
     "kbf": {
       "displayName": "Kapi Bundle Format (KBF)",
+      "family": "rich-markup",
       "extensions": [
         ".kbf.json"
       ],
@@ -1643,6 +1660,7 @@
     },
     "markdown": {
       "displayName": "Markdown",
+      "family": "rich-markup",
       "extensions": [
         ".md",
         ".markdown"
@@ -1704,6 +1722,7 @@
     },
     "mdx": {
       "displayName": "MDX",
+      "family": "rich-markup",
       "extensions": [
         ".mdx"
       ],
@@ -1755,6 +1774,7 @@
     },
     "messageformat": {
       "displayName": "ICU MessageFormat",
+      "family": "catalog-keyvalue",
       "extensions": [
         ".mf",
         ".messageformat"
@@ -1765,6 +1785,7 @@
     },
     "mo": {
       "displayName": "MO (Gettext, binary)",
+      "family": "catalog-keyvalue",
       "extensions": [
         ".mo"
       ],
@@ -1774,6 +1795,7 @@
     },
     "odf": {
       "displayName": "Open Document Format",
+      "family": "office-doc",
       "extensions": [
         ".odt",
         ".ods",
@@ -1789,6 +1811,7 @@
     },
     "openxml": {
       "displayName": "Office Open XML",
+      "family": "office-doc",
       "extensions": [
         ".docx",
         ".docm",
@@ -1949,6 +1972,7 @@
     },
     "plaintext": {
       "displayName": "Plain Text",
+      "family": "plain-text",
       "extensions": [
         ".txt",
         ".text"
@@ -1976,6 +2000,7 @@
     },
     "po": {
       "displayName": "PO (Gettext)",
+      "family": "catalog-keyvalue",
       "extensions": [
         ".po",
         ".pot"
@@ -2012,6 +2037,7 @@
     },
     "properties": {
       "displayName": "Java Properties",
+      "family": "catalog-keyvalue",
       "extensions": [
         ".properties"
       ],
@@ -2067,6 +2093,7 @@
     },
     "resx": {
       "displayName": ".NET RESX",
+      "family": "catalog-keyvalue",
       "extensions": [
         ".resx",
         ".resw"
@@ -2087,6 +2114,7 @@
     },
     "srt": {
       "displayName": "SRT Subtitles",
+      "family": "subtitle-timedtext",
       "extensions": [
         ".srt"
       ],
@@ -2097,6 +2125,7 @@
     },
     "tmx": {
       "displayName": "TMX",
+      "family": "bilingual-interchange",
       "extensions": [
         ".tmx"
       ],
@@ -2128,6 +2157,7 @@
     },
     "ts": {
       "displayName": "Qt TS",
+      "family": "bilingual-interchange",
       "mimeTypes": [
         "application/x-ts",
         "application/x-linguist"
@@ -2135,6 +2165,7 @@
     },
     "tsv": {
       "displayName": "TSV",
+      "family": "data-config",
       "extensions": [
         ".tsv"
       ],
@@ -2144,6 +2175,7 @@
     },
     "video": {
       "displayName": "Video",
+      "family": "binary-readonly",
       "extensions": [
         ".mp4",
         ".mov",
@@ -2161,6 +2193,7 @@
     },
     "vtt": {
       "displayName": "WebVTT",
+      "family": "subtitle-timedtext",
       "extensions": [
         ".vtt"
       ],
@@ -2192,6 +2225,7 @@
     },
     "xcstrings": {
       "displayName": "Apple String Catalog",
+      "family": "catalog-keyvalue",
       "extensions": [
         ".xcstrings"
       ],
@@ -2215,6 +2249,7 @@
     },
     "xliff": {
       "displayName": "XLIFF 1.2",
+      "family": "bilingual-interchange",
       "extensions": [
         ".xlf",
         ".xliff"
@@ -2292,6 +2327,7 @@
     },
     "xliff2": {
       "displayName": "XLIFF 2.x",
+      "family": "bilingual-interchange",
       "extensions": [
         ".xlf",
         ".xliff"
@@ -2346,6 +2382,7 @@
     },
     "xml": {
       "displayName": "XML",
+      "family": "data-config",
       "extensions": [
         ".xml"
       ],
@@ -2422,6 +2459,7 @@
     },
     "yaml": {
       "displayName": "YAML",
+      "family": "catalog-keyvalue",
       "extensions": [
         ".yaml",
         ".yml"

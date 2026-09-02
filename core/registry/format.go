@@ -26,6 +26,67 @@ import (
 // message text.
 var ErrUnknownFormat = errors.New("unknown format")
 
+// FormatFamily classifies a format by the shape of the content it carries.
+//
+// The eight classes are the ones core/formats/constructs.yaml already scores
+// the Vocabulary maturity axis against, and per-format vocabulary.yaml files
+// declare their own `family:` against the same list. This type is the runtime
+// half of that taxonomy: a surface asks the registry what shape a format has
+// instead of keeping its own list of format ids, which is how a preview pane
+// came to carry a hand-maintained set of "formats that look like a catalog".
+//
+// The list is change-controlled. Adding a class here means adding it to
+// constructs.yaml's `families` and to every construct's
+// `default_expressibility` map in the same, separate commit.
+type FormatFamily string
+
+const (
+	// FamilyRichMarkup is marked-up text with native inline styling and block
+	// structure (HTML, Markdown, MDX, EPUB, KBF).
+	FamilyRichMarkup FormatFamily = "rich-markup"
+	// FamilyOfficeDoc is a word-processor or DTP document with styled runs,
+	// structural styles and review features (OOXML, ODF).
+	FamilyOfficeDoc FormatFamily = "office-doc"
+	// FamilyBilingualInterchange is a translation-interchange format built
+	// around source/target pairs and typed inline codes (XLIFF, TMX, Qt TS).
+	FamilyBilingualInterchange FormatFamily = "bilingual-interchange"
+	// FamilyCatalogKeyValue is a string-resource catalog keyed by identifier:
+	// values are messages, possibly with placeholders and plural machinery
+	// (JSON, YAML, properties, PO, ARB, …). A reading surface can show one as a
+	// key table because every unit has a key path.
+	FamilyCatalogKeyValue FormatFamily = "catalog-keyvalue"
+	// FamilySubtitleTimedText is timed text: cues with timing and limited
+	// inline styling (SRT, WebVTT).
+	FamilySubtitleTimedText FormatFamily = "subtitle-timedtext"
+	// FamilyPlainText is unmarked text whose structure is lines and paragraphs.
+	FamilyPlainText FormatFamily = "plain-text"
+	// FamilyDataConfig is a structured data or configuration carrier whose
+	// translatable strings sit in cells and fields, with the semantics in the
+	// surrounding structure (CSV, TSV, XML).
+	FamilyDataConfig FormatFamily = "data-config"
+	// FamilyBinaryReadOnly is a binary or render-oriented carrier: media assets
+	// and containers, whose bytes travel through kapi rather than their text.
+	FamilyBinaryReadOnly FormatFamily = "binary-readonly"
+)
+
+// FormatFamilies lists every family, in the order core/formats/constructs.yaml
+// declares them.
+var FormatFamilies = []FormatFamily{
+	FamilyRichMarkup,
+	FamilyOfficeDoc,
+	FamilyBilingualInterchange,
+	FamilyCatalogKeyValue,
+	FamilySubtitleTimedText,
+	FamilyPlainText,
+	FamilyDataConfig,
+	FamilyBinaryReadOnly,
+}
+
+// ValidFormatFamily reports whether f is one of the eight declared families.
+func ValidFormatFamily(f FormatFamily) bool {
+	return slices.Contains(FormatFamilies, f)
+}
+
 // FormatReaderFactory creates a new DataFormatReader instance.
 type FormatReaderFactory func() format.DataFormatReader
 
@@ -40,6 +101,11 @@ type FormatInfo struct {
 	Extensions  []string `json:"extensions,omitempty"`
 	HasReader   bool     `json:"has_reader"`
 	HasWriter   bool     `json:"has_writer"`
+	// Family is the content shape this format carries (see FormatFamily).
+	// Built-ins declare it in core/formats/families.go; plugin formats declare
+	// it in their manifest. A surface reads it to choose how to render a
+	// document without knowing any format ids.
+	Family FormatFamily `json:"family,omitempty"`
 	// Generative reports that the writer can serialize a complete document from
 	// the content model alone (no source skeleton) — so the format is a valid
 	// cross-format conversion target. Declarative: for built-ins it is probed
@@ -223,6 +289,16 @@ func (r *FormatRegistry) RegisterWriter(name FormatID, factory FormatWriterFacto
 	}
 }
 
+// SetFormatFamily records the content shape a format carries. Built-ins call it
+// from core/formats.RegisterFamilies once every reader and writer is in place;
+// plugin formats carry their family on the cached manifest and arrive through
+// RegisterFormatInfo.
+func (r *FormatRegistry) SetFormatFamily(name FormatID, family FormatFamily) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.getOrCreateInfo(name).Family = family
+}
+
 // RegisterAlias registers a name-only alias that resolves to a
 // canonical format id. Looking up a reader or writer by the alias
 // (NewReader / NewWriter / ResolveReader / ResolveWriter / HasReader /
@@ -305,6 +381,9 @@ func (r *FormatRegistry) RegisterFormatInfo(name FormatID, info FormatInfo) {
 	}
 	if info.Interchange {
 		existing.Interchange = true
+	}
+	if info.Family != "" {
+		existing.Family = info.Family
 	}
 
 	// Register detection signature so bridge/plugin formats participate in

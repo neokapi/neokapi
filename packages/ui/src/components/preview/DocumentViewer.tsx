@@ -7,6 +7,7 @@ import { Button } from "../ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { ToggleGroup, ToggleGroupItem } from "../ui/toggle-group";
 import FormatPreview, { type BlockAttrs, type PreviewSide } from "./FormatPreview";
+import type { DataCodeSource } from "./DataPreview";
 import BlockInspector from "./BlockInspector";
 import StructureView from "./StructureView";
 import LayoutView from "./LayoutView";
@@ -72,6 +73,12 @@ export interface DocumentViewerProps {
   blockAttrs?: (id: string) => BlockAttrs | undefined;
   /** Raw-view line numbers changed by a recent run — highlighted in Raw. */
   rawChangedLines?: ReadonlySet<number>;
+  /**
+   * The written-back file, for the keyed reading's File view. A host that can
+   * serialize the document for the side in view supplies it; without one the
+   * keyed reading shows the table alone. See DataPreview.
+   */
+  code?: DataCodeSource;
   /**
    * Resolve a media node to a loadable URL for the Media tab. Hosts inject this
    * to map a node's media descriptor (uri / blob key / inline bytes) onto a URL
@@ -142,6 +149,7 @@ export default function DocumentViewer({
   blockAttrs,
   defaultSide = "source",
   rawChangedLines,
+  code,
   resolveMediaUrl = defaultResolveMediaUrl,
   className,
 }: DocumentViewerProps): React.ReactElement {
@@ -302,6 +310,7 @@ export default function DocumentViewer({
             selectedBlockId={selectedBlockId}
             onSelectBlock={onSelectBlock}
             blockAttrs={blockAttrs}
+            code={code}
           />
         </TabsContent>
 

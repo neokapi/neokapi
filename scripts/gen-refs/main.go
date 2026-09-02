@@ -58,7 +58,7 @@ func main() {
 // sidecars, and appends the okapi-bridge entries when the plugin dir is present.
 // It is the shared core of `run` (which writes the dataset) and `checkDrift`
 // (which compares it against the committed files).
-func buildEntries(bridgeDir, pluginsDir, metaPath, nativeDocsDir string) (formats, tools []Entry, bridgePresent bool, err error) {
+func buildEntries(bridgeDir, pluginsDir, metaPath, nativeDocsDir string) (formats, tools []Entry, resolveExt func(string) string, bridgePresent bool, err error) {
 	meta, err := loadNativeMeta(metaPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "warning: native metadata unavailable (%v); descriptions may be sparse\n", err)
@@ -71,16 +71,16 @@ func buildEntries(bridgeDir, pluginsDir, metaPath, nativeDocsDir string) (format
 
 	// Overlay authored native doc sidecars.
 	if err := overlayNativeDocs(nativeDocsDir, KindFormat, formatEntries); err != nil {
-		return nil, nil, false, err
+		return nil, nil, nil, false, err
 	}
 	if err := overlayNativeDocs(nativeDocsDir, KindTool, toolEntries); err != nil {
-		return nil, nil, false, err
+		return nil, nil, nil, false, err
 	}
 	// The check dossiers overlay onto nothing — they document the source-side
 	// checkers, which carry no registry entry — so they are verified against the
 	// set core/check names rather than merged.
 	if err := verifyCheckDocs(nativeDocsDir, check.SourceCheckIDs()); err != nil {
-		return nil, nil, false, fmt.Errorf("verify check docs: %w", err)
+		return nil, nil, nil, false, fmt.Errorf("verify check docs: %w", err)
 	}
 
 	// Append bridge entries (non-fatal if the plugin dir is absent).
@@ -94,7 +94,7 @@ func buildEntries(bridgeDir, pluginsDir, metaPath, nativeDocsDir string) (format
 	case errors.Is(berr, os.ErrNotExist):
 		fmt.Fprintf(os.Stderr, "warning: okapi-bridge plugin dir not found at %s; emitting built-in entries only\n", bridgeDir)
 	default:
-		return nil, nil, false, fmt.Errorf("read bridge: %w", berr)
+		return nil, nil, nil, false, fmt.Errorf("read bridge: %w", berr)
 	}
 
 	// Append in-repo Mode-C plugin formats (e.g. PDF via kapi-pdfium). Like the
@@ -110,18 +110,18 @@ func buildEntries(bridgeDir, pluginsDir, metaPath, nativeDocsDir string) (format
 	case errors.Is(perr, os.ErrNotExist):
 		// no in-repo plugins dir; fine
 	default:
-		return nil, nil, false, fmt.Errorf("read plugins: %w", perr)
+		return nil, nil, nil, false, fmt.Errorf("read plugins: %w", perr)
 	}
 
 	sortEntries(formatEntries)
 	sortEntries(toolEntries)
-	return formatEntries, toolEntries, bridgePresent, nil
+	return formatEntries, toolEntries, extensionResolver(freg), bridgePresent, nil
 }
 
 func run(bridgeDir, pluginsDir, metaPath, nativeDocsDir, outDir string) error {
 	now := time.Now().UTC().Format(time.RFC3339)
 
-	formatEntries, toolEntries, _, err := buildEntries(bridgeDir, pluginsDir, metaPath, nativeDocsDir)
+	formatEntries, toolEntries, resolveExt, _, err := buildEntries(bridgeDir, pluginsDir, metaPath, nativeDocsDir)
 	if err != nil {
 		return err
 	}
@@ -133,6 +133,10 @@ func run(bridgeDir, pluginsDir, metaPath, nativeDocsDir, outDir string) error {
 		return err
 	}
 	if err := writeJSON(filepath.Join(outDir, "tools.json"), Dataset{GeneratedAt: now, Kind: KindTool, Entries: toolEntries}); err != nil {
+		return err
+	}
+
+	if err := writeJSON(filepath.Join(outDir, "format-families.json"), buildFamilyDataset(now, formatEntries, resolveExt)); err != nil {
 		return err
 	}
 
@@ -171,7 +175,7 @@ func run(bridgeDir, pluginsDir, metaPath, nativeDocsDir, outDir string) error {
 		return err
 	}
 
-	fmt.Printf("wrote %s/{formats,tools,reference-gaps,commands,prompts,models,mcp-tools}.json — %d formats, %d tools, %d commands, %d prompts, %d models, %d MCP tools\n",
+	fmt.Printf("wrote %s/{formats,format-families,tools,reference-gaps,commands,prompts,models,mcp-tools}.json — %d formats, %d tools, %d commands, %d prompts, %d models, %d MCP tools\n",
 		outDir, len(formatEntries), len(toolEntries), len(cmdDataset.Commands), len(promptDataset.Prompts), len(modelDataset.Models), len(mcpDataset.Tools))
 	printGapSummary(report)
 	return nil

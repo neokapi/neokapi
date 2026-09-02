@@ -399,3 +399,72 @@ describe("blocksToContentTree", () => {
     expect(tree.stats.blocks).toBe(0);
   });
 });
+
+// A payload that carries only the flattened coded form still carries its inline
+// codes. Reading it as plain text drops the private-use markers, so a unit whose
+// source is "Première ligne<marker>Deuxième ligne" arrives as
+// "Première ligneDeuxième ligne": two sentences run together, with nothing
+// missing that anyone can see.
+describe("coded-text payloads", () => {
+  /** The placeholder marker `parseCodedSegments` reads (codedText.ts). */
+  const P = "\uE003";
+
+  const lineBreak = {
+    span_type: "placeholder" as const,
+    type: "struct:break",
+    id: "1",
+    data: "<br/>",
+  };
+
+  function codedBlock(): BlockInfo {
+    return {
+      id: "b-lines",
+      source: `First line${P}Second line`,
+      source_coded: `First line${P}Second line`,
+      source_spans: [lineBreak],
+      targets: { "fr-FR": { text: `Première ligne${P}Deuxième ligne`, status: "translated" } },
+      targets_coded: { "fr-FR": `Première ligne${P}Deuxième ligne` },
+      translatable: true,
+      has_spans: true,
+      properties: {},
+    };
+  }
+
+  it("keeps the line break as a run rather than closing the text over it", () => {
+    const node = blockToContentNode(codedBlock());
+
+    expect(node.source).toHaveLength(3);
+    expect(node.source?.[0]).toEqual({ text: "First line" });
+    expect(node.source?.[1].ph?.type).toBe("struct:break");
+    expect(node.source?.[2]).toEqual({ text: "Second line" });
+  });
+
+  it("keeps the target's line break too, so the two sides read alike", () => {
+    const node = blockToContentNode(codedBlock());
+    const target = node.targets?.["fr-FR"] ?? [];
+
+    expect(target).toHaveLength(3);
+    expect(target[0]).toEqual({ text: "Première ligne" });
+    expect(target[1].ph?.type).toBe("struct:break");
+    expect(target[2]).toEqual({ text: "Deuxième ligne" });
+  });
+
+  it("marks a stray marker as a placeholder rather than deleting it", () => {
+    const node = blockToContentNode({
+      id: "b-stray",
+      source: `First line${P}Second line`,
+      targets: {},
+      translatable: true,
+      has_spans: false,
+      properties: {},
+    });
+
+    expect(node.source).toHaveLength(3);
+    expect(node.source?.[1].ph).toBeDefined();
+  });
+
+  it("carries the reader's name so a catalog unit keeps its key path", () => {
+    const node = blockToContentNode(block({ name: "errors.network.timeout" }));
+    expect(node.name).toBe("errors.network.timeout");
+  });
+});

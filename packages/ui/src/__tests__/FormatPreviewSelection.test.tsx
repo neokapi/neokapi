@@ -129,7 +129,11 @@ describe("FormatPreview — the target reading", () => {
         },
       ],
     };
-    const c = render(createElement(FormatPreview, { tree: withTarget, side: "fr-FR" }));
+    // The document reading swaps the source for the target. (The keyed reading
+    // puts them in adjacent columns instead; see KeyedTable.)
+    const c = render(
+      createElement(FormatPreview, { tree: withTarget, side: "fr-FR", keyed: false }),
+    );
 
     expect(c.textContent).toContain("Bonjour le monde");
     expect(c.textContent).not.toContain("Hello world");

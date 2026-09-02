@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 )
@@ -24,7 +25,7 @@ import (
 //
 // The gate never writes; it only reads the committed files and compares.
 func checkDrift(bridgeDir, pluginsDir, metaPath, nativeDocsDir, outDir string) error {
-	formatEntries, toolEntries, bridgePresent, err := buildEntries(bridgeDir, pluginsDir, metaPath, nativeDocsDir)
+	formatEntries, toolEntries, resolveExt, bridgePresent, err := buildEntries(bridgeDir, pluginsDir, metaPath, nativeDocsDir)
 	if err != nil {
 		return err
 	}
@@ -46,6 +47,9 @@ func checkDrift(bridgeDir, pluginsDir, metaPath, nativeDocsDir, outDir string) e
 	}
 	if diff := compareBuiltInDataset(filepath.Join(outDir, "tools.json"), KindTool, toolEntries); diff != "" {
 		problems = append(problems, "tools.json: "+diff)
+	}
+	if diff := compareFamilies(filepath.Join(outDir, "format-families.json"), buildFamilyDataset("", formatEntries, resolveExt)); diff != "" {
+		problems = append(problems, "format-families.json: "+diff)
 	}
 	if diff := compareBuiltInGaps(filepath.Join(outDir, "reference-gaps.json"), wantGaps, wantSummary); diff != "" {
 		problems = append(problems, "reference-gaps.json: "+diff)
@@ -321,6 +325,26 @@ func compareModels(path string, want ModelDataset) string {
 	}
 	if string(gotJSON) != string(wantJSON) {
 		return "the committed model reference no longer matches providers/ai/models.json"
+	}
+	return ""
+}
+
+// compareFamilies holds the committed family map against a freshly built one.
+// Only the maps are compared; generatedAt moves on every run.
+func compareFamilies(path string, fresh FamilyDataset) string {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Sprintf("cannot read committed file: %v", err)
+	}
+	var committed FamilyDataset
+	if err := json.Unmarshal(data, &committed); err != nil {
+		return fmt.Sprintf("cannot parse committed file: %v", err)
+	}
+	if !maps.Equal(committed.Formats, fresh.Formats) {
+		return fmt.Sprintf("format families differ (committed %d, fresh %d)", len(committed.Formats), len(fresh.Formats))
+	}
+	if !maps.Equal(committed.Extensions, fresh.Extensions) {
+		return fmt.Sprintf("extension families differ (committed %d, fresh %d)", len(committed.Extensions), len(fresh.Extensions))
 	}
 	return ""
 }

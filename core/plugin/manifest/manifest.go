@@ -436,6 +436,15 @@ type Format struct {
 	// MimeTypes lists MIME types this format handles.
 	MimeTypes []string `json:"mime_types,omitempty"`
 
+	// Family is the content shape this format carries: one of the eight classes
+	// in core/formats/constructs.yaml ("rich-markup", "office-doc",
+	// "bilingual-interchange", "catalog-keyvalue", "subtitle-timedtext",
+	// "plain-text", "data-config", "binary-readonly"). A reading surface uses it
+	// to choose how to render a document, so a plugin format that declares one
+	// gets the same treatment as the built-in it sits beside. Optional, like
+	// display_name; a format that declares none renders as a document.
+	Family string `json:"family,omitempty"`
+
 	// Capabilities lists the supported operations: "read", "write", and
 	// "generative". A "write" + "generative" format can serialize a complete
 	// document from the content model alone, so it is a valid cross-format

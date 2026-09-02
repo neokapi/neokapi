@@ -25,6 +25,22 @@ export { default as RenderedDocument } from "./RenderedDocument";
 export type { RenderedDocumentProps } from "./RenderedDocument";
 export { default as CodeView } from "./CodeView";
 export type { CodeViewProps } from "./CodeView";
+export { default as DataPreview, linesForKey } from "./DataPreview";
+export type { DataPreviewProps, DataCodeSource, DataView } from "./DataPreview";
+export { default as KeyedTable } from "./KeyedTable";
+export type { KeyedTableProps } from "./KeyedTable";
+export { splitKeyPath, keyedRows, groupRows, rowLocales, groupSize } from "./keyModel";
+export type { KeyedRow, KeyGroup } from "./keyModel";
+export {
+  FORMAT_FAMILIES,
+  formatFamily,
+  isKeyedFormat,
+  isDocumentFormat,
+  isInterchangeFormat,
+} from "./formatFamily";
+export type { FormatFamily } from "./formatFamily";
+export { useBlockElementProps } from "./blockElement";
+export type { BlockElementSpec, BlockElementProps } from "./blockElement";
 
 export {
   localeDirection,
