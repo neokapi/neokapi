@@ -90,4 +90,40 @@ describe("SourceLane", () => {
     renderLane({ items: [] });
     expect(await screen.findByText(/The source is settled/)).toBeTruthy();
   });
+
+  // Both lanes render one model. Approving source wording without seeing the
+  // voice it is approved against is the target defect in reverse.
+  it("renders the point and the neighbourhood for the selected source unit", async () => {
+    const loadContext = vi.fn(async (item: SourceQueueItem) => ({
+      point: {
+        collection: "App",
+        ref: "retail/web",
+        default: false,
+        voice: { name: "Kapimart retail" },
+        term_rules: [{ term: "cart", replacement: "basket", severity: "major" }],
+        terms_total: 1,
+      },
+      neighbourhood: {
+        key: item.key,
+        after: [{ key: "farewell", source: [{ text: "Goodbye now" }] }],
+        window: 2,
+      },
+      history: {},
+      judgement: {},
+      provenance: {},
+    }));
+    renderLane({ loadContext });
+    await waitFor(() =>
+      expect(document.querySelector("[data-slot='review-point-voice']")?.textContent).toBe(
+        "Kapimart retail",
+      ),
+    );
+    expect(loadContext.mock.calls[0][0].key).toBe("greeting");
+    expect(document.querySelector("[data-slot='review-point-term']")?.textContent).toContain(
+      "basket",
+    );
+    expect(document.querySelector("[data-slot='review-neighbour']")?.textContent).toContain(
+      "Goodbye now",
+    );
+  });
 });

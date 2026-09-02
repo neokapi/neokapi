@@ -4,12 +4,7 @@ import userEvent from "@testing-library/user-event";
 
 import { ReviewPage, type ReviewDecision } from "../components/ReviewPage";
 import { ErrorProvider } from "../components/ErrorBanner";
-import type {
-  PreReviewResult,
-  ReviewContext,
-  ReviewItem,
-  ReviewUnitDetail,
-} from "../types/api";
+import type { PreReviewResult, ReviewContext, ReviewItem, ReviewUnitDetail } from "../types/api";
 
 /** A date placeholder, the kind a concatenating run walk deletes silently. */
 const DATE_PH = {
@@ -711,14 +706,14 @@ describe("ReviewPage review model", () => {
     // the approve key while it is open decides nothing.
     fireEvent.keyDown(window, { key: "a" });
     expect(document.querySelector("[data-slot='file-preview-focus']")).not.toBeNull();
-    await userEvent.click(
-      document.querySelector("[data-slot='file-preview-back']") as HTMLElement,
-    );
+    await userEvent.click(document.querySelector("[data-slot='file-preview-back']") as HTMLElement);
     await waitFor(() =>
       expect(document.querySelector("[data-slot='file-preview-focus']")).toBeNull(),
     );
     expect(
-      document.querySelector("[data-slot='review-queue-item'][data-active]")?.getAttribute("data-key"),
+      document
+        .querySelector("[data-slot='review-queue-item'][data-active]")
+        ?.getAttribute("data-key"),
     ).toBe("greeting");
   });
 });

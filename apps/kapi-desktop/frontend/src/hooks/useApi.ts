@@ -33,6 +33,7 @@ import type {
   ConvergePlan,
   RunError,
   ProjectServer,
+  ReviewContext,
   ReviewItem,
   ReviewUnitDetail,
   ReviewAIActionResult,
@@ -150,6 +151,10 @@ export const api = {
   /** Batch AI pre-review over the pending queue for a locale. */
   getSourceQueue: (tabID: string, filter: ProjectFilter) =>
     call<SourceQueueItem[]>("GetSourceQueue", tabID, filter),
+  /** The point and the neighbourhood for one source unit, so the source lane
+   *  judges wording against the same context the target lane does. */
+  getSourceUnitContext: (tabID: string, file: string, key: string) =>
+    call<ReviewContext>("GetSourceUnitContext", tabID, file, key),
   approveSourceUnit: (tabID: string, file: string, key: string) =>
     call<void>("ApproveSourceUnit", tabID, file, key),
   updateSourceText: (tabID: string, file: string, key: string, text: string) =>
