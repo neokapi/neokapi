@@ -59,7 +59,7 @@ func ParseRepo(repoURL string) (Repo, error) {
 	if err != nil || (u.Scheme != "https" && u.Scheme != "http") {
 		// Covers ssh:// and scp-like (git@host:path) remotes alike: the forge
 		// API and token auth only exist over https.
-		return Repo{}, fmt.Errorf("forge delivery needs an https repo url (got %q) — the API and token auth run over https", repoURL)
+		return Repo{}, fmt.Errorf("forge delivery needs an https repo url (got %q): the API and token auth run over https", repoURL)
 	}
 	path := strings.TrimSuffix(strings.Trim(u.Path, "/"), ".git")
 	if path == "" || !strings.Contains(path, "/") {

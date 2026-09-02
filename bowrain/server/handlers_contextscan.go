@@ -425,7 +425,7 @@ func (s *Server) partialApproval(c echo.Context, resp ContextScanApproveResponse
 		"scan_id", c.Param("id"), "concepts_created", resp.ConceptsCreated,
 		"reference", requestID(c), "error", cause)
 	return c.JSON(http.StatusInternalServerError, map[string]any{
-		"error":   "the approval was partially applied; retry it — the profile and the terms already stored are left as they are",
+		"error":   "the approval was partially applied; retry it. The profile and the terms already stored are left as they are",
 		"applied": resp,
 	})
 }

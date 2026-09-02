@@ -352,7 +352,7 @@ func (o *convergenceOrchestrator) runSettleSource(ctx context.Context, run *bsto
 			emit.Emit(convergence.Event{
 				Type:    convergence.EventLog,
 				Stage:   convergence.StageSettleSource,
-				Message: "Settling source (first run over a large corpus reads and re-stamps every block — this can take a while)…",
+				Message: "Settling source (first run over a large corpus reads and re-stamps every block, so this can take a while)…",
 			})
 		}
 	}
@@ -1072,7 +1072,7 @@ const StallNeedsCredits convergence.StallReason = "needs_credits"
 // same two-ways-forward copy the enqueue handler surfaces.
 var errStallNeedsCredits = &stallError{
 	reason:  StallNeedsCredits,
-	message: "out of platform credits — buy a credit pack, wait for the weekly reset, or configure your own AI provider key",
+	message: "out of platform credits. Buy a credit pack, wait for the weekly reset, or configure your own AI provider key",
 }
 
 // errStallNoTargetLocales is the typed hold a derive returns when the project
@@ -1082,7 +1082,7 @@ var errStallNeedsCredits = &stallError{
 // venue (`kapi up`) refuses with.
 var errStallNoTargetLocales = &stallError{
 	reason:  convergence.StallNoTargetLocales,
-	message: "no target languages configured — add target languages to the project, then run again",
+	message: "no target languages configured. Add target languages to the project, then run again",
 }
 
 // errStallSourceNotReady is the typed hold a locale returns when every block it
@@ -1093,7 +1093,7 @@ var errStallNoTargetLocales = &stallError{
 // an out-of-credits stall (strategy 2026-07-dogfood doc 07 / roadmap epic 019).
 var errStallSourceNotReady = &stallError{
 	reason:  convergence.StallSourceNotReady,
-	message: "source not ready — settle your source first (terminology, brand, source checks), or set defaults.source_gate: none to translate anyway",
+	message: "source not ready. Settle your source first (terminology, brand, source checks), or set defaults.source_gate: none to translate anyway",
 }
 
 // parkedStallReason labels an ordinary parked outcome (no typed stall error):

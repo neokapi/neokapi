@@ -33,7 +33,7 @@ func (s *MCPServer) registerLoopTools() {
 	if s.contentStore != nil {
 		mcp.AddTool(s.server, &mcp.Tool{
 			Name:        "evaluate_rule",
-			Description: "Preview the blast radius of promoting a candidate rule: run the profile's vocabulary checks over a project's stored content with and without the rule, and report how many blocks it would newly flag, what it resolves, and the per-item breakdown — before the rule lands.",
+			Description: "Preview the blast radius of promoting a candidate rule: run the profile's vocabulary checks over a project's stored content with and without the rule, and report how many blocks it would newly flag, what it resolves, and the per-item breakdown, before the rule lands.",
 		}, s.handleEvaluateRule)
 	}
 }

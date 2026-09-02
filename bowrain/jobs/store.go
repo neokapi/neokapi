@@ -147,7 +147,7 @@ var JobMigrations = []storage.Migration{
 				-- The billing workspace id drives per-chunk credit deduction and
 				-- Stripe metering in the worker (Epic 004). It is set from the auth
 				-- context at enqueue, but the worker reconstitutes the job via
-				-- GetJob before translating — so without persisting it,
+				-- GetJob before translating, so without persisting it,
 				-- job.WorkspaceID is always "" at the worker and platform runs are
 				-- never metered.
 				workspace_id       TEXT NOT NULL DEFAULT '',
@@ -175,9 +175,9 @@ var JobMigrations = []storage.Migration{
 
 				-- A deferral is not a retry: the job was never attempted because
 				-- the dependency's circuit was open, so it must not spend attempts.
-				-- Counting deferrals separately keeps the two budgets independent —
+				-- Counting deferrals separately keeps the two budgets independent:
 				-- a job can wait out a long outage and still arrive at the upstream
-				-- with its full retry budget intact — while the cap stops an
+				-- with its full retry budget intact, while the cap stops an
 				-- upstream that never returns from cycling jobs indefinitely.
 				deferrals          INTEGER NOT NULL DEFAULT 0,
 

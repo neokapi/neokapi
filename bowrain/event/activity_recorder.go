@@ -352,7 +352,7 @@ func flowFailedSummary(data map[string]string) string {
 		}
 	}
 	if reason := data["error"]; reason != "" {
-		s += " — " + reason
+		s += ": " + reason
 	}
 	return s
 }
@@ -449,7 +449,7 @@ func convergenceRunSummary(data map[string]string) string {
 		detail = append(detail, pluralCount(produced, "translation")+" produced")
 	}
 	if len(detail) > 0 {
-		s += " — " + strings.Join(detail, " · ")
+		s += ": " + strings.Join(detail, " · ")
 	}
 	return s
 }

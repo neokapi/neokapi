@@ -390,7 +390,7 @@ func (s *Server) checkoutSeats(ctx context.Context, wsID string, requested int) 
 		return 0, fmt.Errorf("seats (%d) is fewer than the workspace's current members (%d)", requested, members)
 	}
 	if requested > maxCheckoutSeats {
-		return 0, fmt.Errorf("seats (%d) exceeds the self-serve maximum (%d) — contact sales", requested, maxCheckoutSeats)
+		return 0, fmt.Errorf("seats (%d) exceeds the self-serve maximum (%d). Contact sales", requested, maxCheckoutSeats)
 	}
 	return requested, nil
 }

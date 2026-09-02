@@ -131,7 +131,7 @@ func percent(n, total int) int {
 // right one.
 func narrate(c Counts) string {
 	if c.Indexed == 0 {
-		return "No content indexed yet — nothing to govern."
+		return "No content indexed yet, so there is nothing to govern."
 	}
 
 	ungoverned := c.Indexed - c.Governed

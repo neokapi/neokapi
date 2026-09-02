@@ -111,8 +111,8 @@ func (c *FigmaConnector) Publish(ctx context.Context, items []*platconn.ContentI
 	// server. This is a platform limitation, not an unfinished feature, so we
 	// return a clear, stable error rather than silently no-op'ing a publish.
 	return errors.New(
-		"figma is a read-only source: the Figma REST API cannot write translations back into a design — " +
-			"apply them inside Figma (e.g. a Figma plugin using the Variables API)")
+		"figma is a read-only source: the Figma REST API cannot write translations back into a design. " +
+			"Apply them inside Figma (e.g. a Figma plugin using the Variables API)")
 }
 
 func (c *FigmaConnector) List(ctx context.Context) ([]*platconn.ContentItem, error) {

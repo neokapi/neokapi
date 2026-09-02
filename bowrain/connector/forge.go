@@ -162,7 +162,7 @@ func NewForgeConnectorWithApp(formatReg *registry.FormatRegistry, config map[str
 		return nil, fmt.Errorf("forge connector: unknown forge %q (github or gitlab)", config["forge"])
 	}
 	if appMode && kind != forge.KindGitHub {
-		return nil, errors.New("forge connector: auth 'app' is a GitHub App — GitLab uses a project access token")
+		return nil, errors.New("forge connector: auth 'app' is a GitHub App. GitLab uses a project access token")
 	}
 
 	deliveryBranch := config["delivery_branch"]
@@ -173,7 +173,7 @@ func NewForgeConnectorWithApp(formatReg *registry.FormatRegistry, config map[str
 		return nil, fmt.Errorf("delivery_branch: %w", err)
 	}
 	if deliveryBranch == git.branch {
-		return nil, errors.New("delivery_branch must differ from the tracked branch — deliveries arrive as a PR, never a direct push")
+		return nil, errors.New("delivery_branch must differ from the tracked branch: deliveries arrive as a PR, never a direct push")
 	}
 
 	prTitle := config["pr_title"]

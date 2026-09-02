@@ -377,7 +377,7 @@ func run() error {
 	} else if v := os.Getenv("GITHUB_APP_PRIVATE_KEY_FILE"); v != "" {
 		pemBytes, err := os.ReadFile(v)
 		if err != nil {
-			slog.Error("GITHUB_APP_PRIVATE_KEY_FILE unreadable — GitHub App disabled", "error", err)
+			slog.Error("GITHUB_APP_PRIVATE_KEY_FILE unreadable, GitHub App disabled", "error", err)
 		} else {
 			cfg.GitHubAppPrivateKey = string(pemBytes)
 		}
