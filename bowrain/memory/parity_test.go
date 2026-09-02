@@ -30,6 +30,7 @@ import (
 	pgmemory "github.com/neokapi/neokapi/bowrain/memory"
 	pgstorage "github.com/neokapi/neokapi/bowrain/storage"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -243,4 +244,233 @@ func TestMemoryParity_ExactOnlyPolicy(t *testing.T) {
 	runParity(t, sq, pg, "exact-only-clean-hit", "nb", func(tm memory.Store) ([]memory.Match, error) {
 		return tm.LookupText(ctx, "Install", "en", "nb", strict)
 	})
+}
+
+// --- version chain ---
+
+// versionStore is what a backend must be to answer a chain: a content memory
+// that also implements the optional VersionReader capability. Both backends
+// under test do, and the type assertion in openVersionParityStores is what says
+// so at the point a dropped method would otherwise pass unnoticed.
+type versionStore interface {
+	memory.Store
+	memory.VersionReader
+}
+
+// openVersionParityStores opens the SQLite store (always) and the Postgres one
+// (when reachable), each as a chain-answering store.
+func openVersionParityStores(t *testing.T) (versionStore, versionStore) {
+	t.Helper()
+	sq, ok := openParitySQLiteMemory(t).(versionStore)
+	require.True(t, ok, "the SQLite content memory must answer a version chain")
+
+	pg, hasPG := maybePostgresMemory(t)
+	if !hasPG {
+		return sq, nil
+	}
+	pgv, ok := pg.(versionStore)
+	require.True(t, ok, "the Postgres content memory must answer a version chain")
+	return sq, pgv
+}
+
+// versionAnswer builds one approved answer for a block: a version in the chain.
+// Same shape as the framework's own fixture (memory/versions_test.go), so the
+// two suites hold the backends to the same corpus.
+func versionAnswer(id, unit, point, source, target, fingerprint string, at time.Time) memory.Entry {
+	return memory.Entry{
+		ID:          id,
+		Unit:        unit,
+		Point:       point,
+		HintSrcLang: "en",
+		Variants: map[model.LocaleID][]model.Run{
+			"en": {{Text: &model.TextRun{Text: source}}},
+			"nb": {{Text: &model.TextRun{Text: target}}},
+		},
+		Origins: []memory.Origin{{
+			Source:             "tool",
+			AddedAt:            at,
+			ContextFingerprint: fingerprint,
+		}},
+		CreatedAt: at,
+		UpdatedAt: at,
+	}
+}
+
+// versionRow is the comparable projection of a Version: the answer's identity
+// and the governance that travels with it.
+type versionRow struct {
+	EntryID            string
+	Source             string
+	Target             string
+	Point              string
+	ContextFingerprint string
+}
+
+func projectVersions(versions []memory.Version) []versionRow {
+	out := make([]versionRow, 0, len(versions))
+	for _, v := range versions {
+		out = append(out, versionRow{
+			EntryID:            v.Entry.ID,
+			Source:             v.Entry.VariantText("en"),
+			Target:             v.Entry.VariantText("nb"),
+			Point:              v.Entry.Point,
+			ContextFingerprint: v.ContextFingerprint,
+		})
+	}
+	return out
+}
+
+// seedVersionChain loads the identical chain corpus into a store.
+func seedVersionChain(t *testing.T, tm versionStore, t0 time.Time, acme, other string) {
+	t.Helper()
+	ctx := t.Context()
+	for _, e := range []memory.Entry{
+		// One block, three successive answers at the same point.
+		versionAnswer("v1", "u-1", acme, "Get started", "Kom i gang", "fp-old", t0),
+		versionAnswer("v2", "u-1", acme, "Get started now", "Kom i gang nå", "fp-now", t0.Add(time.Hour)),
+		versionAnswer("v3", "u-1", acme, "Get started today", "Kom i gang i dag", "fp-now", t0.Add(2*time.Hour)),
+		// A different block at the same point, and the same block at another
+		// point. Neither belongs to u-1's chain at acme.
+		versionAnswer("o1", "u-2", acme, "Sign in", "Logg inn", "fp-now", t0),
+		versionAnswer("m1", "u-1", other, "Get started", "Sett i gang", "fp-now", t0),
+		// Approved before the chain existed: no unit, and so no block's history.
+		versionAnswer("pre", "", "", "Get going", "Kom i vei", "", t0),
+	} {
+		require.NoError(t, tm.Add(ctx, e))
+	}
+}
+
+// runVersionParity runs one chain query against SQLite (always) and, when a
+// Postgres store is present, asserts the two backends project the same chain in
+// the same order. It returns the SQLite rows so a case can also assert what the
+// chain holds rather than only that the backends agree.
+func runVersionParity(t *testing.T, sq, pg versionStore, name string, q memory.VersionQuery, excludeID string) []versionRow {
+	t.Helper()
+	sqVersions, err := sq.Versions(t.Context(), q, excludeID)
+	require.NoError(t, err, "%s: sqlite", name)
+	if pg == nil {
+		return projectVersions(sqVersions)
+	}
+	pgVersions, err := pg.Versions(t.Context(), q, excludeID)
+	require.NoError(t, err, "%s: postgres", name)
+	require.Equal(t, projectVersions(sqVersions), projectVersions(pgVersions),
+		"backend drift for %q", name)
+	return projectVersions(sqVersions)
+}
+
+// TestMemoryParity_VersionChain holds the Postgres corpus to the same
+// version-chain semantics as the framework's SQLite one (memory/versions_test.go).
+//
+// The server binds the content memory with a point and reads the chain from it
+// twice: the platform translate assembly puts the prior version in the prompt,
+// and the review context carries it as history. Both go empty when the backend
+// stores no unit, which is a silent answer rather than a failure, so the parity
+// suite is where it gets caught.
+func TestMemoryParity_VersionChain(t *testing.T) {
+	sq, pg := openVersionParityStores(t)
+	t0 := time.Date(2026, 8, 1, 12, 0, 0, 0, time.UTC)
+	acme := memory.NewPoint("acme", "support", "acme-help")
+	other := memory.NewPoint("other", "email", "other-mail")
+
+	seedVersionChain(t, sq, t0, acme, other)
+	if pg != nil {
+		seedVersionChain(t, pg, t0, acme, other)
+	}
+
+	t.Run("the chain is the block's prior answers, newest first", func(t *testing.T) {
+		got := runVersionParity(t, sq, pg, "chain-newest-first",
+			memory.VersionQuery{Unit: "u-1", Point: acme}, "v3")
+		require.Len(t, got, 2)
+		assert.Equal(t, "v2", got[0].EntryID)
+		assert.Equal(t, "v1", got[1].EntryID)
+		assert.Equal(t, "Kom i gang nå", got[0].Target)
+	})
+
+	t.Run("the answer in force is excluded", func(t *testing.T) {
+		got := runVersionParity(t, sq, pg, "exclude-in-force",
+			memory.VersionQuery{Unit: "u-1", Point: acme}, "v3")
+		for _, v := range got {
+			assert.NotEqual(t, "v3", v.EntryID, "the caller already has this one")
+		}
+	})
+
+	t.Run("another block's answers are not in the chain", func(t *testing.T) {
+		got := runVersionParity(t, sq, pg, "other-block-excluded",
+			memory.VersionQuery{Unit: "u-1", Point: acme}, "")
+		for _, v := range got {
+			assert.NotEqual(t, "o1", v.EntryID)
+		}
+	})
+
+	t.Run("a point narrows the chain to answers approved there", func(t *testing.T) {
+		got := runVersionParity(t, sq, pg, "point-narrows",
+			memory.VersionQuery{Unit: "u-1", Point: acme}, "")
+		require.Len(t, got, 3)
+		for _, v := range got {
+			assert.Equal(t, acme, v.Point)
+		}
+
+		// No point returns the block's whole history, across every place it has
+		// sat: what a report on a moved block wants.
+		all := runVersionParity(t, sq, pg, "point-omitted",
+			memory.VersionQuery{Unit: "u-1"}, "")
+		assert.Len(t, all, 4)
+	})
+
+	t.Run("the governing context travels with the answer", func(t *testing.T) {
+		got := runVersionParity(t, sq, pg, "governing-context",
+			memory.VersionQuery{Unit: "u-1", Point: acme}, "v3")
+		require.Len(t, got, 2)
+		assert.Equal(t, "fp-now", got[0].ContextFingerprint)
+		assert.Equal(t, "fp-old", got[1].ContextFingerprint)
+	})
+
+	t.Run("a limit trims from the newest end", func(t *testing.T) {
+		got := runVersionParity(t, sq, pg, "limit",
+			memory.VersionQuery{Unit: "u-1", Point: acme, Limit: 1}, "")
+		require.Len(t, got, 1)
+		assert.Equal(t, "v3", got[0].EntryID)
+	})
+
+	t.Run("answers approved before the chain existed are nobody's history", func(t *testing.T) {
+		got := runVersionParity(t, sq, pg, "pre-chain-entries",
+			memory.VersionQuery{Unit: "u-1"}, "")
+		for _, v := range got {
+			assert.NotEqual(t, "pre", v.EntryID, "an entry with no unit is not every block")
+		}
+	})
+
+	t.Run("a chain needs a block", func(t *testing.T) {
+		_, err := sq.Versions(t.Context(), memory.VersionQuery{Point: acme}, "")
+		assert.ErrorIs(t, err, memory.ErrVersionQueryNeedsUnit)
+		if pg == nil {
+			return
+		}
+		_, err = pg.Versions(t.Context(), memory.VersionQuery{Point: acme}, "")
+		assert.ErrorIs(t, err, memory.ErrVersionQueryNeedsUnit)
+	})
+}
+
+// TestMemoryParity_VersionChainIsWorkspaceScoped asserts one workspace's chain
+// never reaches another's. The unit is resolved per project and two workspaces
+// can hold the same one, so a chain query that forgot the tenant column would
+// answer with a stranger's wording and look entirely plausible doing it.
+func TestMemoryParity_VersionChainIsWorkspaceScoped(t *testing.T) {
+	_, pg := openVersionParityStores(t)
+	if pg == nil {
+		t.Skip("no Postgres reachable (BOWRAIN_TEST_POSTGRES_URL)")
+	}
+	_, neighbour := openVersionParityStores(t)
+	require.NotNil(t, neighbour)
+
+	t0 := time.Date(2026, 8, 1, 12, 0, 0, 0, time.UTC)
+	point := memory.NewPoint("acme", "support", "acme-help")
+	ctx := t.Context()
+	require.NoError(t, pg.Add(ctx, versionAnswer("mine", "u-1", point, "Get started", "Kom i gang", "fp", t0)))
+	require.NoError(t, neighbour.Add(ctx, versionAnswer("theirs", "u-1", point, "Get started", "Sett i gang", "fp", t0)))
+
+	got, err := pg.Versions(ctx, memory.VersionQuery{Unit: "u-1", Point: point}, "")
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	assert.Equal(t, "mine", got[0].Entry.ID)
 }

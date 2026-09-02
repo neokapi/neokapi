@@ -902,9 +902,11 @@ tm_entries.created_at timestamp with time zone NOT NULL DEFAULT now()
 tm_entries.hint_src_lang text NOT NULL DEFAULT ''::text
 tm_entries.id text NOT NULL
 tm_entries.note text NOT NULL DEFAULT ''::text
+tm_entries.point text NOT NULL DEFAULT ''::text
 tm_entries.project_id text NOT NULL DEFAULT ''::text
 tm_entries.properties jsonb NOT NULL DEFAULT '{}'::jsonb
 tm_entries.stream text NOT NULL DEFAULT ''::text
+tm_entries.unit text NOT NULL DEFAULT ''::text
 tm_entries.updated_at timestamp with time zone NOT NULL DEFAULT now()
 tm_entries.workspace_id text NOT NULL
 tm_entry_entities.concept_id text NOT NULL DEFAULT ''::text
@@ -921,6 +923,7 @@ tm_entry_entity_values.text_value text NOT NULL DEFAULT ''::text
 tm_entry_entity_values.workspace_id text NOT NULL
 tm_entry_origins.added_at timestamp with time zone NOT NULL DEFAULT now()
 tm_entry_origins.added_by text NOT NULL DEFAULT ''::text
+tm_entry_origins.context_fp text NOT NULL DEFAULT ''::text
 tm_entry_origins.entry_id text NOT NULL
 tm_entry_origins.key text NOT NULL DEFAULT ''::text
 tm_entry_origins.ordinal integer NOT NULL
@@ -1596,6 +1599,7 @@ CREATE INDEX idx_tm_var_trgm_struct ON public.tm_variants USING gin (struct_key 
 CREATE INDEX idx_tm_var_ws_locale ON public.tm_variants USING btree (workspace_id, locale)
 CREATE INDEX idx_tm_ws_project ON public.tm_entries USING btree (workspace_id, project_id)
 CREATE INDEX idx_tm_ws_stream ON public.tm_entries USING btree (workspace_id, stream)
+CREATE INDEX idx_tm_ws_unit ON public.tm_entries USING btree (workspace_id, unit, point)
 CREATE INDEX idx_tm_ws_updated ON public.tm_entries USING btree (workspace_id, updated_at DESC)
 CREATE INDEX idx_translations_project_block ON ONLY public.translations USING btree (project_id, stream, block_id)
 CREATE INDEX idx_translations_project_locale ON ONLY public.translations USING btree (project_id, stream, locale, updated_at DESC)

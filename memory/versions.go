@@ -80,10 +80,14 @@ type VersionReader interface {
 	Versions(ctx context.Context, q VersionQuery, excludeID string) ([]Version, error)
 }
 
-// versionsFrom builds the chain from entries already loaded, newest first. It is
+// VersionsFrom builds the chain from entries already loaded, newest first. It is
 // the shared half of every backend's implementation: the selection is a query
 // the backend runs, and the ordering and trimming are not.
-func versionsFrom(entries []Entry, q VersionQuery, excludeID string) []Version {
+//
+// Exported because a backend outside this package implements the same
+// capability: the server's Postgres corpus selects by unit and point in SQL and
+// then hands the entries here, so the two answer a chain identically.
+func VersionsFrom(entries []Entry, q VersionQuery, excludeID string) []Version {
 	limit := q.Limit
 	if limit <= 0 {
 		limit = DefaultVersionLimit
@@ -144,7 +148,7 @@ func (tm *InMemoryStore) Versions(ctx context.Context, q VersionQuery, excludeID
 	if err != nil {
 		return nil, err
 	}
-	return versionsFrom(entries, q, excludeID), nil
+	return VersionsFrom(entries, q, excludeID), nil
 }
 
 // ErrVersionQueryNeedsUnit rejects a chain query naming no block. Returning
@@ -197,5 +201,5 @@ func (tm *SQLiteStore) Versions(ctx context.Context, q VersionQuery, excludeID s
 	if err != nil {
 		return nil, err
 	}
-	return versionsFrom(entries, q, excludeID), nil
+	return VersionsFrom(entries, q, excludeID), nil
 }
