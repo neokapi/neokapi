@@ -823,6 +823,13 @@ type VerifyUnit struct {
 	// to the project root when possible).
 	DisplayPath string
 
+	// ProjectRoot is the directory the recipe resolved this unit from, set for
+	// units that came from a project (UnitsFromProject). It is what lets a read
+	// fall back to the project block store when the target file is absent
+	// (host/storedtargets.go); a unit assembled from bare paths has no project
+	// and leaves it empty.
+	ProjectRoot string
+
 	// SourceFormat/SourceConfig and TargetFormat/TargetConfig are the reader
 	// binding the recipe declares for this unit's two files: the format name
 	// (empty = detect by extension) and the merged reader config —
@@ -934,6 +941,7 @@ func (a *App) UnitsFromProject(proj *project.KapiProject, root string, localeFil
 				Locale:       string(loc),
 				Collection:   rf.Collection,
 				DisplayPath:  rel,
+				ProjectRoot:  root,
 				SourceFormat: srcFormat,
 				SourceConfig: srcCfg,
 				TargetFormat: tgtFormat,
@@ -1392,6 +1400,17 @@ func (a *App) bilingualBlocks(ctx context.Context, u VerifyUnit) ([]*model.Block
 	}
 	if _, err := os.Stat(u.TargetPath); err != nil {
 		if os.IsNotExist(err) {
+			// No delivered file, and under a gate that is what a parked locale
+			// looks like: the pass drafted it and delivery was withheld, so the
+			// only record left is the project block store's. Read it, so the
+			// work is measurable and reviewable where it stands (#2356).
+			blocks, ok, serr := a.storedTargetBlocks(ctx, u)
+			if serr != nil {
+				return nil, false, serr
+			}
+			if ok {
+				return blocks, false, nil
+			}
 			return nil, true, nil
 		}
 		return nil, false, fmt.Errorf("stat %s: %w", u.TargetPath, err)

@@ -80,6 +80,55 @@ type AITranslateTool struct {
 	// a changed model/prompt/voice re-translates instead of serving the stale
 	// cached target. See tool.OverlayConfigFingerprint.
 	configFP string
+	// reused counts the blocks this run served from the store instead of
+	// sending to the provider. It is a fact about the run, not about the
+	// content, so it lives here rather than on the target's provenance: the
+	// translation was made by this engine whenever it was first made, and what
+	// the run wants to report is that it cost nothing this time (#2356).
+	reused atomic.Int64
+}
+
+// ReusedTargets is how many blocks this tool served from the block store rather
+// than translating. The convergence run reads it to report the drafts it
+// recycled beside the units it recycled from the content memory.
+func (t *AITranslateTool) ReusedTargets() int { return int(t.reused.Load()) }
+
+// applyStored puts a stored target on the block and counts the reuse. The
+// provenance is the AI producer's, because that is who made the translation;
+// the status is the draft rung every producer stamps.
+func (t *AITranslateTool) applyStored(block *model.Block, stored blockstore.TargetOverlay) {
+	if len(stored.Runs) > 0 {
+		block.SetTargetRuns(t.targetLocale, stored.Runs)
+	} else {
+		block.SetTargetText(t.targetLocale, stored.TargetText())
+	}
+	block.StampTargetProvenance(t.targetLocale, model.TargetStatusDraft, t.aiOrigin())
+	t.reused.Add(1)
+}
+
+// leavesProducedAlone reports that this tool has nothing to do with a block an
+// earlier step of the flow already translated. Under `skipMatched` the drafting
+// step is the remainder of the pass, so a recycled unit carrying the project's
+// own approved wording keeps it. The stored-target lookup asks first, because
+// serving a stored draft over a recycled target would replace approved wording
+// with an older machine answer and stamp it as one.
+func (t *AITranslateTool) leavesProducedAlone(block *model.Block) bool {
+	return t.skipMatched && block.HasTarget(t.targetLocale)
+}
+
+// storedTarget is the overlay this tool writes for a block it just translated:
+// the runs (so inline markup round-trips), the source it answered and the
+// configuration it answered under.
+func (t *AITranslateTool) storedTarget(block *model.Block, target, configFP string) blockstore.TargetOverlay {
+	return blockstore.TargetOverlay{
+		Runs:     block.TargetRuns(t.targetLocale),
+		Text:     target,
+		Status:   string(model.TargetStatusDraft),
+		Provider: string(t.provider.Name()),
+		Config:   configFP,
+		Source:   blockstore.SourceStamp(block.SourceText()),
+		Origin:   blockstore.OverlayOrigin(t.aiOrigin()),
+	}
 }
 
 // Default values for AITranslateConfig — used in both the schema tags
@@ -530,14 +579,16 @@ func (t *AITranslateTool) sessionHandleBlock(
 	// neighbourhood that no longer exists.
 	cacheFP := t.cacheFingerprint(ctx, block)
 
-	// Skip if already cached under the same config (a changed model/prompt/voice
-	// invalidates the cached target — re-translate rather than serve it stale).
-	if randomAccess {
+	// Serve the stored target when it answers this exact source under this
+	// exact configuration. A changed model, prompt, voice profile or term rule
+	// moves the fingerprint, and an edited sentence moves the source stamp;
+	// either re-translates rather than serving an answer to a question nobody
+	// asked any more.
+	if randomAccess && !t.leavesProducedAlone(block) {
 		if sc, err := sess.GetOverlay(overlayKind, hash); err == nil && len(sc.Payload) > 0 {
-			var cached aiTargetCache
-			if err := json.Unmarshal(sc.Payload, &cached); err == nil && cached.Text != "" && cached.Config == cacheFP {
-				block.SetTargetText(t.targetLocale, cached.Text)
-				block.StampTargetProvenance(t.targetLocale, model.TargetStatusDraft, t.aiOrigin())
+			var cached blockstore.TargetOverlay
+			if err := json.Unmarshal(sc.Payload, &cached); err == nil && cached.ReusableFor(block.SourceText(), cacheFP, t.contextFP) {
+				t.applyStored(block, cached)
 				return nil
 			}
 		}
@@ -548,11 +599,7 @@ func (t *AITranslateTool) sessionHandleBlock(
 	}
 
 	if target := block.TargetText(t.targetLocale); target != "" {
-		payload, err := json.Marshal(aiTargetCache{
-			Text:     target,
-			Provider: string(t.provider.Name()),
-			Config:   cacheFP,
-		})
+		payload, err := json.Marshal(t.storedTarget(block, target, cacheFP))
 		if err != nil {
 			return fmt.Errorf("translate: encode overlay: %w", err)
 		}
@@ -617,12 +664,11 @@ func (t *AITranslateTool) processBatchedWithSession(
 				// document has been drained. So in that mode the block goes through
 				// to the batch path, which knows both. A cache miss is a cost; a
 				// cache hit under the wrong neighbourhood is a wrong answer.
-				if caps.RandomAccess && t.contextPolicy != ContextNeighbours {
+				if caps.RandomAccess && t.contextPolicy != ContextNeighbours && !t.leavesProducedAlone(block) {
 					if sc, err := sess.GetOverlay(overlayKind, blockstore.OverlayKey(ctx, block.ID, block.SourceText())); err == nil && len(sc.Payload) > 0 {
-						var cached aiTargetCache
-						if err := json.Unmarshal(sc.Payload, &cached); err == nil && cached.Text != "" && cached.Config == t.cacheFingerprint(ctx, block) {
-							block.SetTargetText(t.targetLocale, cached.Text)
-							block.StampTargetProvenance(t.targetLocale, model.TargetStatusDraft, t.aiOrigin())
+						var cached blockstore.TargetOverlay
+						if err := json.Unmarshal(sc.Payload, &cached); err == nil && cached.ReusableFor(block.SourceText(), t.cacheFingerprint(ctx, block), t.contextFP) {
+							t.applyStored(block, cached)
 							select {
 							case out <- part:
 							case <-ctx.Done():
@@ -651,11 +697,7 @@ func (t *AITranslateTool) processBatchedWithSession(
 	for part := range batchOut {
 		if block, ok := part.Resource.(*model.Block); ok && block != nil && block.ID != "" {
 			if target := block.TargetText(t.targetLocale); target != "" {
-				payload, err := json.Marshal(aiTargetCache{
-					Text:     target,
-					Provider: string(t.provider.Name()),
-					Config:   t.cacheFingerprint(ctx, block),
-				})
+				payload, err := json.Marshal(t.storedTarget(block, target, t.cacheFingerprint(ctx, block)))
 				if err == nil {
 					if werr := sess.PutOverlay(blockstore.Overlay{
 						Kind:      overlayKind,
@@ -677,18 +719,6 @@ func (t *AITranslateTool) processBatchedWithSession(
 		return err
 	}
 	return nil
-}
-
-// aiTargetCache is the payload stored in `targets/<locale>` overlays
-// written by translate. Kept small and JSON-compatible with
-// other translators so sessions can interop freely.
-type aiTargetCache struct {
-	Text     string `json:"text"`
-	Provider string `json:"provider,omitempty"`
-	// Config is the tool-config fingerprint at write time. A cached target is
-	// reused only when it matches the current tool's fingerprint, so a changed
-	// model/prompt/voice re-translates rather than serving stale output.
-	Config string `json:"config,omitempty"`
 }
 
 // ---------------------------------------------------------------------------

@@ -138,12 +138,12 @@ func convergingFuncs(locales []string, total int) convergence.LoopFuncs {
 			}
 			return st, nil
 		},
-		Produce: func(ctx context.Context, locale string, pass int, emit *convergence.Emitter) (int, int, int, error) {
+		Produce: func(ctx context.Context, locale string, pass int, emit *convergence.Emitter) (convergence.PassProduction, error) {
 			mu.Lock()
 			produced[locale] = total
 			mu.Unlock()
 			emit.Emit(convergence.Event{Type: convergence.EventUnitProgress, Pass: pass, Locale: locale, Done: total, ViaAI: total})
-			return total, 0, total, nil
+			return convergence.PassProduction{Done: total, ViaAI: total}, nil
 		},
 	}
 }
@@ -162,8 +162,8 @@ func stallingFuncs(locales []string, total int) convergence.LoopFuncs {
 			}
 			return st, nil
 		},
-		Produce: func(ctx context.Context, locale string, pass int, emit *convergence.Emitter) (int, int, int, error) {
-			return 0, 0, 0, nil // no progress
+		Produce: func(ctx context.Context, locale string, pass int, emit *convergence.Emitter) (convergence.PassProduction, error) {
+			return convergence.PassProduction{}, nil // no progress
 		},
 	}
 }
@@ -219,8 +219,8 @@ func TestOrchestrator_DriveStallsOnCredits(t *testing.T) {
 				UnitTotals: map[string]int{"fr-FR": 10},
 			}, nil
 		},
-		Produce: func(context.Context, string, int, *convergence.Emitter) (int, int, int, error) {
-			return 0, 0, 0, errStallNeedsCredits
+		Produce: func(context.Context, string, int, *convergence.Emitter) (convergence.PassProduction, error) {
+			return convergence.PassProduction{}, errStallNeedsCredits
 		},
 	}
 	s.convergence.driveWith(ctx, run, funcs)
@@ -274,7 +274,7 @@ func TestOrchestrator_RunContextColumns(t *testing.T) {
 			}
 			return st, nil
 		},
-		Produce: func(ctx context.Context, locale string, pass int, emit *convergence.Emitter) (int, int, int, error) {
+		Produce: func(ctx context.Context, locale string, pass int, emit *convergence.Emitter) (convergence.PassProduction, error) {
 			// An ai_translate-staged progress event: the emitter records the
 			// stage/locale/heartbeat on the row.
 			emit.Emit(convergence.Event{
@@ -284,7 +284,7 @@ func TestOrchestrator_RunContextColumns(t *testing.T) {
 			mu.Lock()
 			produced[locale] = 5
 			mu.Unlock()
-			return 5, 0, 5, nil
+			return convergence.PassProduction{Done: 5, ViaAI: 5}, nil
 		},
 	}
 	s.convergence.driveWith(ctx, run, funcs)
@@ -383,8 +383,8 @@ func TestOrchestrator_DriveFailed(t *testing.T) {
 		Derive: func(context.Context) (convergence.PassState, error) {
 			return convergence.PassState{}, errors.New("provider down")
 		},
-		Produce: func(context.Context, string, int, *convergence.Emitter) (int, int, int, error) {
-			return 0, 0, 0, nil
+		Produce: func(context.Context, string, int, *convergence.Emitter) (convergence.PassProduction, error) {
+			return convergence.PassProduction{}, nil
 		},
 	}
 	s.convergence.driveWith(ctx, run, funcs)

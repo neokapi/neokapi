@@ -18,7 +18,8 @@ const (
 	EventLocaleStart EventType = "locale_start"
 	// EventUnitProgress is the throttled live counter for one locale: Done
 	// units carry a committed target so far, of which ViaMemory came from content memory
-	// recycling and ViaAI from an AI/MT engine.
+	// recycling, ViaDraft from a draft the block store already held, and ViaAI
+	// from an AI/MT engine called on this pass.
 	EventUnitProgress EventType = "unit_progress"
 	// EventLocaleDone reports one locale's flow run finishing inside the
 	// current pass, with the final Done/ViaMemory/ViaAI counts for the pass.
@@ -173,6 +174,11 @@ type Event struct {
 	Done      int    `json:"done,omitempty"`
 	ViaMemory int    `json:"viaTM,omitempty"`
 	ViaAI     int    `json:"viaAI,omitempty"`
+	// ViaDraft is how many of Done the pass served from the block store's
+	// `targets/<locale>` overlays rather than producing: work an earlier run
+	// paid for, reused because the source and the governing context still
+	// stand. It is a subset of the produced units, disjoint from ViaAI.
+	ViaDraft int `json:"viaDrafts,omitempty"`
 
 	// Post-derivation fields (pass_done).
 	Produced      int `json:"produced,omitempty"`
