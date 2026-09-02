@@ -129,8 +129,8 @@ func TestVerify_DefaultRunSkipsUnboundGates(t *testing.T) {
 	_, hasTerms := gateByName(out, gateTerms)
 	assert.False(t, hasTerms, "unbound terminology gate must be skipped in a default run")
 
-	qa, hasQA := gateByName(out, gateQA)
-	require.True(t, hasQA, "the checks gate always runs (no binding required)")
+	qa, hasChecks := gateByName(out, gateChecks)
+	require.True(t, hasChecks, "the checks gate always runs (no binding required)")
 	assert.True(t, qa.Pass)
 }
 

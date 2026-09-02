@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestQACheckRejectsUninvokableRegex is the regression test for a rule that
+// TestRuleCheckRejectsUninvokableRegex is the regression test for a rule that
 // quietly never fires.
 //
 // A check pattern whose regex does not compile was skipped at construction, so the
@@ -20,7 +20,7 @@ import (
 //
 // The config factory is the path a recipe's `qa:` step travels, so it is where
 // the mistake is still attributable to the line that caused it.
-func TestQACheckRejectsUninvokableRegex(t *testing.T) {
+func TestRuleCheckRejectsUninvokableRegex(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		name    string
@@ -76,7 +76,7 @@ func TestQACheckRejectsUninvokableRegex(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			_, err := tools.NewQACheckFromConfig(map[string]any{
+			_, err := tools.NewRuleCheckFromConfig(map[string]any{
 				"patterns": []any{tt.pattern},
 			}, "fr")
 			require.Error(t, err, "an uninvokable check rule must not build a tool that silently never fires")
@@ -88,11 +88,11 @@ func TestQACheckRejectsUninvokableRegex(t *testing.T) {
 	}
 }
 
-// TestQACheckAcceptsValidAndDisabledPatterns guards the other half of the
+// TestRuleCheckAcceptsValidAndDisabledPatterns guards the other half of the
 // contract: validation must not start rejecting configurations that work
 // today. A disabled pattern is inert by the author's own choice, so its
 // expression is never compiled and never judged.
-func TestQACheckAcceptsValidAndDisabledPatterns(t *testing.T) {
+func TestRuleCheckAcceptsValidAndDisabledPatterns(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		name    string
@@ -131,7 +131,7 @@ func TestQACheckAcceptsValidAndDisabledPatterns(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			tl, err := tools.NewQACheckFromConfig(map[string]any{
+			tl, err := tools.NewRuleCheckFromConfig(map[string]any{
 				"patterns": []any{tt.pattern},
 			}, "fr")
 			require.NoError(t, err)
@@ -140,16 +140,16 @@ func TestQACheckAcceptsValidAndDisabledPatterns(t *testing.T) {
 	}
 }
 
-// TestQACheckConfigValidateChecksPatterns pins that the same judgement is
+// TestRuleCheckConfigValidateChecksPatterns pins that the same judgement is
 // reachable through the ToolConfig.Validate contract, not only through the
 // factory — so an in-process caller assembling a config in Go has a way to ask.
-func TestQACheckConfigValidateChecksPatterns(t *testing.T) {
+func TestRuleCheckConfigValidateChecksPatterns(t *testing.T) {
 	t.Parallel()
 
-	cfg := tools.NewQACheckConfig("fr")
+	cfg := tools.NewRuleCheckConfig("fr")
 	require.NoError(t, cfg.Validate(), "the default config must stay valid")
 
-	cfg.Patterns = append(cfg.Patterns, tools.QAPattern{Enabled: true, Source: `(unclosed`})
+	cfg.Patterns = append(cfg.Patterns, tools.CheckPattern{Enabled: true, Source: `(unclosed`})
 	err := cfg.Validate()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "(unclosed")

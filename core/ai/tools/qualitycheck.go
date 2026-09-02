@@ -13,8 +13,8 @@ import (
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
 
-// AIQACheckTool checks translation quality using an LLM provider.
-type AIQACheckTool struct {
+// AICheckTool checks translation quality using an LLM provider.
+type AICheckTool struct {
 	tool.BaseTool
 	usageAccumulator
 	provider     aiprovider.LLMProvider
@@ -23,8 +23,8 @@ type AIQACheckTool struct {
 	checks       []string // e.g., "terminology", "fluency", "accuracy", "consistency"
 }
 
-// AIQAConfig holds configuration for the LLM-judged check tool.
-type AIQAConfig struct {
+// AICheckConfig holds configuration for the LLM-judged check tool.
+type AICheckConfig struct {
 	SourceLocale model.LocaleID `json:"sourceLocale,omitempty" schema:"-"`
 	TargetLocale model.LocaleID `json:"targetLocale,omitempty" schema:"-"`
 	Provider     string         `json:"provider,omitempty"     schema:"title=AI Provider,description=AI provider,default=anthropic,group=provider"`
@@ -33,9 +33,9 @@ type AIQAConfig struct {
 	Checks       []string       `json:"checks,omitempty"       schema:"title=Quality Checks,description=Quality checks to perform (e.g. terminology fluency accuracy consistency)"`
 }
 
-// NewAIQAFromConfig creates an LLM-judged check tool from a config map.
-func NewAIQAFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
-	var cfg AIQAConfig
+// NewAICheckFromConfig creates an LLM-judged check tool from a config map.
+func NewAICheckFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
+	var cfg AICheckConfig
 	if err := schema.ApplyConfig(config, &cfg); err != nil {
 		return nil, fmt.Errorf("qa config: %w", err)
 	}
@@ -46,15 +46,15 @@ func NewAIQAFromConfig(config map[string]any, targetLang string) (tool.Tool, err
 	if err != nil {
 		return nil, err
 	}
-	return NewAIQACheckTool(p, cfg), nil
+	return NewAICheckTool(p, cfg), nil
 }
 
-// NewAIQACheckTool creates a new AI quality check tool.
-func NewAIQACheckTool(p aiprovider.LLMProvider, cfg AIQAConfig) *AIQACheckTool {
+// NewAICheckTool creates a new AI quality check tool.
+func NewAICheckTool(p aiprovider.LLMProvider, cfg AICheckConfig) *AICheckTool {
 	if len(cfg.Checks) == 0 {
 		cfg.Checks = []string{"terminology", "fluency", "accuracy"}
 	}
-	t := &AIQACheckTool{
+	t := &AICheckTool{
 		provider:     p,
 		sourceLocale: cfg.SourceLocale,
 		targetLocale: cfg.TargetLocale,
@@ -66,8 +66,8 @@ func NewAIQACheckTool(p aiprovider.LLMProvider, cfg AIQAConfig) *AIQACheckTool {
 	return t
 }
 
-// qaSchema returns a JSON schema for structured check output.
-func qaSchema() aiprovider.JSONSchema {
+// aiCheckSchema returns a JSON schema for structured check output.
+func aiCheckSchema() aiprovider.JSONSchema {
 	return aiprovider.JSONSchema{
 		Name:        "qa_check",
 		Description: "Quality check results for a translation",
@@ -96,12 +96,12 @@ func qaSchema() aiprovider.JSONSchema {
 	}
 }
 
-// qaResult is the JSON structure returned by the structured check.
-type qaResult struct {
-	Issues []aiprovider.QAIssue `json:"issues"`
+// aiCheckResult is the JSON structure returned by the structured check.
+type aiCheckResult struct {
+	Issues []aiprovider.CheckIssue `json:"issues"`
 }
 
-func (t *AIQACheckTool) annotate(v tool.BlockView) error {
+func (t *AICheckTool) annotate(v tool.BlockView) error {
 	if !v.HasTarget(t.targetLocale) {
 		return nil
 	}
@@ -116,15 +116,15 @@ func (t *AIQACheckTool) annotate(v tool.BlockView) error {
 	}.Turns(sourceText, targetText)
 
 	ctx := prompt.WithID(v.Context(), prompt.IDQualityCheck)
-	resp, err := t.provider.ChatStructured(ctx, aiprovider.MessagesFromTurns(turns), qaSchema())
+	resp, err := t.provider.ChatStructured(ctx, aiprovider.MessagesFromTurns(turns), aiCheckSchema())
 	if err != nil {
 		return fmt.Errorf("qa: %w", err)
 	}
 	t.addUsage(resp.Usage)
 
-	var result qaResult
+	var result aiCheckResult
 	if err := json.Unmarshal([]byte(resp.Content), &result); err != nil {
-		result.Issues = []aiprovider.QAIssue{{
+		result.Issues = []aiprovider.CheckIssue{{
 			Type:        "parse-error",
 			Severity:    "info",
 			Description: resp.Content,
@@ -133,13 +133,13 @@ func (t *AIQACheckTool) annotate(v tool.BlockView) error {
 
 	// Map the model's structured output onto the unified core/check model so
 	// the LLM judge feeds the same findings/score pipeline as the deterministic
-	// checkers. aiprovider.QAIssue stays the structured-output wire type; the
+	// checkers. aiprovider.CheckIssue stays the structured-output wire type; the
 	// findings are what every consumer reads.
 	findings := make([]check.Finding, 0, len(result.Issues))
 	for _, iss := range result.Issues {
 		findings = append(findings, check.Finding{
 			Category:   iss.Type,
-			Severity:   aiQASeverity(iss.Severity),
+			Severity:   aiCheckSeverity(iss.Severity),
 			Message:    iss.Description,
 			Suggestion: iss.Suggestion,
 		})
@@ -151,9 +151,9 @@ func (t *AIQACheckTool) annotate(v tool.BlockView) error {
 	return nil
 }
 
-// aiQASeverity maps the LLM structured-output severity ("error"/"warning"/
+// aiCheckSeverity maps the LLM structured-output severity ("error"/"warning"/
 // "info") onto the unified core/check severity scale.
-func aiQASeverity(s string) check.Severity {
+func aiCheckSeverity(s string) check.Severity {
 	switch s {
 	case "error":
 		return check.SeverityMajor

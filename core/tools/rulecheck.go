@@ -27,8 +27,8 @@ const (
 	DefaultAbsoluteMaxChars = 255 // absolute max character count
 )
 
-// QACheckConfig holds configuration for the rule-based check tool.
-type QACheckConfig struct {
+// RuleCheckConfig holds configuration for the rule-based check tool.
+type RuleCheckConfig struct {
 	TargetLocale model.LocaleID `json:"targetLocale,omitempty" schema:"-"`
 
 	// --- General checks ---
@@ -50,8 +50,8 @@ type QACheckConfig struct {
 	StrictCodeOrder     bool `json:"strictCodeOrder,omitempty"     schema:"title=Enforce Strict Code Order,description=Flag differences when codes appear in a different order between source and target,group=inlineCodes"`
 
 	// --- Pattern checks ---
-	CheckPatterns bool        `json:"checkPatterns,omitempty" schema:"title=Check Patterns,description=Verify that source patterns have expected corresponding content in the target,default=true,group=patterns"`
-	Patterns      []QAPattern `json:"patterns,omitempty"      schema:"-"`
+	CheckPatterns bool           `json:"checkPatterns,omitempty" schema:"title=Check Patterns,description=Verify that source patterns have expected corresponding content in the target,default=true,group=patterns"`
+	Patterns      []CheckPattern `json:"patterns,omitempty"      schema:"-"`
 	// CheckPlaceholders verifies interpolation placeholders the same way the
 	// placeholder-check tool does — including reading an ICU plural or select as
 	// the message it is, which no regex pattern can express. It is off by
@@ -86,10 +86,10 @@ type QACheckConfig struct {
 	MaxWords                   int  `json:"maxWords,omitempty"                   schema:"title=Maximum Words,description=Maximum number of words allowed in any target segment,default=0,group=length"`
 }
 
-// QAPattern defines a source/target regex pattern pair for pattern-based checks.
+// CheckPattern defines a source/target regex pattern pair for pattern-based checks.
 // With Forbidden set, Source is instead a pattern that must NOT match the target
 // text (Target is ignored) — the forbidden-pattern rule family.
-type QAPattern struct {
+type CheckPattern struct {
 	Enabled     bool   `json:"enabled"`
 	Source      string `json:"source"`
 	Target      string `json:"target"`
@@ -99,10 +99,10 @@ type QAPattern struct {
 }
 
 // ToolName returns the tool name this config applies to.
-func (c *QACheckConfig) ToolName() string { return "qa" }
+func (c *RuleCheckConfig) ToolName() string { return "qa" }
 
 // Reset restores default values.
-func (c *QACheckConfig) Reset() {
+func (c *RuleCheckConfig) Reset() {
 	c.TargetLocale = ""
 
 	// General
@@ -155,7 +155,7 @@ func (c *QACheckConfig) Reset() {
 }
 
 // Validate checks configuration validity.
-func (c *QACheckConfig) Validate() error {
+func (c *RuleCheckConfig) Validate() error {
 	if c.TargetLocale.IsEmpty() {
 		return errors.New("qa: TargetLocale is required")
 	}
@@ -173,7 +173,7 @@ func (c *QACheckConfig) Validate() error {
 // Split out from Validate so the config factory can enforce it without also
 // newly enforcing TargetLocale, which the factory legitimately leaves empty
 // when it is building the tool for schema/listing purposes rather than a run.
-func (c *QACheckConfig) validatePatterns() error {
+func (c *RuleCheckConfig) validatePatterns() error {
 	for i, p := range c.Patterns {
 		if !p.Enabled {
 			continue
@@ -197,21 +197,21 @@ func (c *QACheckConfig) validatePatterns() error {
 	return nil
 }
 
-// NewQACheckConfig creates a QACheckConfig with all standard checks enabled.
-func NewQACheckConfig(targetLocale model.LocaleID) *QACheckConfig {
-	cfg := &QACheckConfig{TargetLocale: targetLocale}
+// NewRuleCheckConfig creates a RuleCheckConfig with all standard checks enabled.
+func NewRuleCheckConfig(targetLocale model.LocaleID) *RuleCheckConfig {
+	cfg := &RuleCheckConfig{TargetLocale: targetLocale}
 	cfg.Reset()
 	cfg.TargetLocale = targetLocale
 	return cfg
 }
 
-// NewQACheckFromConfig creates a qa tool from a config map.
+// NewRuleCheckFromConfig creates a qa tool from a config map.
 //
 // This is the path a recipe's `qa:` step config travels, so it is the one
 // place a hand-written regex can arrive — and therefore the one place a
 // hand-written mistake can still be reported to the person who made it.
-func NewQACheckFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
-	cfg := NewQACheckConfig(model.LocaleID(targetLang))
+func NewRuleCheckFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
+	cfg := NewRuleCheckConfig(model.LocaleID(targetLang))
 	if err := schema.ApplyConfig(config, cfg); err != nil {
 		return nil, fmt.Errorf("qa config: %w", err)
 	}
@@ -221,43 +221,43 @@ func NewQACheckFromConfig(config map[string]any, targetLang string) (tool.Tool, 
 	if err := cfg.validatePatterns(); err != nil {
 		return nil, fmt.Errorf("qa config: %w", err)
 	}
-	return NewQACheckTool(cfg), nil
+	return NewRuleCheckTool(cfg), nil
 }
 
-// qaCheckHandler holds the config reference and provides methods for each check category.
-type qaCheckHandler struct {
+// checkRouteHandler holds the config reference and provides methods for each check category.
+type checkRouteHandler struct {
 	tool *tool.BaseTool
 	// patterns are the config's check patterns with their source/target regexes
 	// compiled once at construction, instead of per block.
-	patterns []compiledQAPattern
+	patterns []compiledCheckPattern
 	// Consistency state (used only when the consistency checks are enabled):
 	// normalized source → set of normalized targets seen, and the reverse.
 	sourceToTargets map[string]map[string]bool
 	targetToSources map[string]map[string]bool
 }
 
-// compiledQAPattern is a QAPattern with its regexes precompiled. tgtRe is nil
+// compiledCheckPattern is a CheckPattern with its regexes precompiled. tgtRe is nil
 // for "same-match" patterns (empty or "<same>" target).
-type compiledQAPattern struct {
-	pat   QAPattern
+type compiledCheckPattern struct {
+	pat   CheckPattern
 	srcRe *regexp.Regexp
 	tgtRe *regexp.Regexp
 }
 
-// compileQAPatterns precompiles the enabled patterns, dropping any with an
+// compileCheckPatterns precompiles the enabled patterns, dropping any with an
 // invalid (or missing) source regex, or an invalid target regex — matching the
 // old per-block code's "continue past bad patterns" behavior. Forbidden
 // patterns only need the source regex (matched against the target text).
 //
 // The skip is a backstop, not the report. Every configurable path reaches this
-// function through NewQACheckFromConfig, which runs validatePatterns first and
+// function through NewRuleCheckFromConfig, which runs validatePatterns first and
 // refuses to build the tool at all when a regex does not compile — so a typo in
 // a recipe now names itself instead of producing a rule that quietly never
 // fires. What is left here catches an in-process caller that assembled a
-// QACheckConfig in Go and skipped Validate; dropping the pattern keeps that
+// RuleCheckConfig in Go and skipped Validate; dropping the pattern keeps that
 // caller running rather than panicking on its behalf.
-func compileQAPatterns(patterns []QAPattern) []compiledQAPattern {
-	out := make([]compiledQAPattern, 0, len(patterns))
+func compileCheckPatterns(patterns []CheckPattern) []compiledCheckPattern {
+	out := make([]compiledCheckPattern, 0, len(patterns))
 	for _, p := range patterns {
 		if !p.Enabled || p.Source == "" {
 			continue
@@ -266,7 +266,7 @@ func compileQAPatterns(patterns []QAPattern) []compiledQAPattern {
 		if err != nil {
 			continue
 		}
-		cp := compiledQAPattern{pat: p, srcRe: srcRe}
+		cp := compiledCheckPattern{pat: p, srcRe: srcRe}
 		if !p.Forbidden && p.Target != "" && p.Target != "<same>" {
 			tgtRe, err := regexp.Compile(p.Target)
 			if err != nil {
@@ -290,7 +290,7 @@ func compileQAPatterns(patterns []QAPattern) []compiledQAPattern {
 // placeholder-only target as empty. sourceText / targetText stay available for
 // the judgements that are genuinely about characters (see corruptionFindings,
 // which must not see a sentinel).
-func (h *qaCheckHandler) checkTextIssues(conf *QACheckConfig, v tool.BlockView, sourceText, targetText, srcShape, tgtShape string) []check.Finding {
+func (h *checkRouteHandler) checkTextIssues(conf *RuleCheckConfig, v tool.BlockView, sourceText, targetText, srcShape, tgtShape string) []check.Finding {
 	var findings []check.Finding
 
 	// Check: empty target (target segments exist but text is empty).
@@ -406,7 +406,7 @@ func (h *qaCheckHandler) checkTextIssues(conf *QACheckConfig, v tool.BlockView, 
 // The knob was declared, documented and defaulted true but read by nothing, so
 // every comparison silently took the `false` branch (#1463). It is Okapi's
 // targetSameAsSourceWithCodes, and this is what it means.
-func sameAsSource(conf *QACheckConfig, srcShape, tgtShape string, sourceRuns, targetRuns []model.Run) bool {
+func sameAsSource(conf *RuleCheckConfig, srcShape, tgtShape string, sourceRuns, targetRuns []model.Run) bool {
 	if srcShape != tgtShape {
 		return false
 	}
@@ -419,7 +419,7 @@ func sameAsSource(conf *QACheckConfig, srcShape, tgtShape string, sourceRuns, ta
 // checkCharacterIssues runs the character rules ported from the retired
 // chars-check fragment: forbidden characters, required characters, and
 // charset-encodability.
-func (h *qaCheckHandler) checkCharacterIssues(conf *QACheckConfig, sourceText, targetText string) []check.Finding {
+func (h *checkRouteHandler) checkCharacterIssues(conf *RuleCheckConfig, sourceText, targetText string) []check.Finding {
 	var findings []check.Finding
 
 	// Check: forbidden characters in target.
@@ -463,7 +463,7 @@ func (h *qaCheckHandler) checkCharacterIssues(conf *QACheckConfig, sourceText, t
 // mapping for every block it sees and flags the current block when the same
 // source has been translated differently (target inconsistency) or different
 // sources share the same translation (source inconsistency).
-func (h *qaCheckHandler) checkConsistencyIssues(conf *QACheckConfig, sourceText, targetText string) []check.Finding {
+func (h *checkRouteHandler) checkConsistencyIssues(conf *RuleCheckConfig, sourceText, targetText string) []check.Finding {
 	normSource := strings.TrimSpace(sourceText)
 	normTarget := strings.TrimSpace(targetText)
 	if !conf.ConsistencyCaseSensitive {
@@ -520,7 +520,7 @@ func alternativesExcluding(set map[string]bool, exclude string) []string {
 }
 
 // checkLengthIssues runs length-related checks: max ratio, min ratio, absolute max.
-func (h *qaCheckHandler) checkLengthIssues(conf *QACheckConfig, sourceText, targetText string) []check.Finding {
+func (h *checkRouteHandler) checkLengthIssues(conf *RuleCheckConfig, sourceText, targetText string) []check.Finding {
 	var findings []check.Finding
 
 	// Check: maximum character length ratio.
@@ -591,7 +591,7 @@ func (h *qaCheckHandler) checkLengthIssues(conf *QACheckConfig, sourceText, targ
 }
 
 // checkPatternAndCodeIssues runs pattern verification and inline code/span constraint checks.
-func (h *qaCheckHandler) checkPatternAndCodeIssues(conf *QACheckConfig, v tool.BlockView, sourceText, targetText string) []check.Finding {
+func (h *checkRouteHandler) checkPatternAndCodeIssues(conf *RuleCheckConfig, v tool.BlockView, sourceText, targetText string) []check.Finding {
 	var findings []check.Finding
 
 	// Check: pattern verification.
@@ -625,20 +625,20 @@ func (h *qaCheckHandler) checkPatternAndCodeIssues(conf *QACheckConfig, v tool.B
 	return findings
 }
 
-// NewQACheckTool creates the rule-based check tool.
+// NewRuleCheckTool creates the rule-based check tool.
 // It examines source and target text for common translation quality issues
 // and records them as core/check.Finding under the unified quality.findings
 // annotation (check.Annotate), where they accumulate alongside any other
 // checker's findings on the same block.
-func NewQACheckTool(cfg *QACheckConfig) *tool.BaseTool {
+func NewRuleCheckTool(cfg *RuleCheckConfig) *tool.BaseTool {
 	t := &tool.BaseTool{
 		ToolName:        "qa",
 		ToolDescription: "Performs rule-based quality checks on translations",
 		Cfg:             cfg,
 	}
-	h := &qaCheckHandler{
+	h := &checkRouteHandler{
 		tool:            t,
-		patterns:        compileQAPatterns(cfg.Patterns),
+		patterns:        compileCheckPatterns(cfg.Patterns),
 		sourceToTargets: make(map[string]map[string]bool),
 		targetToSources: make(map[string]map[string]bool),
 	}
@@ -648,7 +648,7 @@ func NewQACheckTool(cfg *QACheckConfig) *tool.BaseTool {
 			return nil
 		}
 
-		conf := t.Cfg.(*QACheckConfig)
+		conf := t.Cfg.(*RuleCheckConfig)
 
 		sourceText := v.SourceText()
 		// The shape flattening keeps inline code visible as a sentinel; every
@@ -979,7 +979,7 @@ func checkCharset(text, charsetName string) []check.Finding {
 }
 
 // checkPatterns verifies source/target pattern pairs using precompiled regexes.
-func (h *qaCheckHandler) checkPatterns(sourceText, targetText string) []check.Finding {
+func (h *checkRouteHandler) checkPatterns(sourceText, targetText string) []check.Finding {
 	var findings []check.Finding
 	for _, cp := range h.patterns {
 		p := cp.pat

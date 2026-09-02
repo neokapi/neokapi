@@ -15,7 +15,7 @@ import { render, screen } from "@testing-library/react";
 import { FocusedReviewer } from "../components/review/FocusedReviewer";
 import { ReviewInspector } from "../components/review/ReviewInspector";
 import type { ReviewEntry } from "../components/review/reviewQueue";
-import type { BlockInfo, ReviewContext, QAIssue } from "../types/api";
+import type { BlockInfo, ReviewContext, CheckIssue } from "../types/api";
 
 function block(over: Partial<BlockInfo> = {}): BlockInfo {
   return {
@@ -108,7 +108,7 @@ describe("the queue anchors what the checks found", () => {
   });
 
   it("marks a positioned check finding on the same text", () => {
-    const issue: QAIssue = {
+    const issue: CheckIssue = {
       type: "terminology",
       severity: "error",
       message: "Uses a forbidden rendering.",

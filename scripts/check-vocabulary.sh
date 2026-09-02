@@ -126,8 +126,8 @@ readonly RETIRED_VOCAB_RE='(?i)termbases?|glossar(y|ies)|locali[sz](e|es|ed|ing|
 readonly VOCAB_BOUNDARY_RE='"termbases"'
 
 # The cased rule. \bQA\b matches the word and nothing else: the boundaries fail
-# inside QAIssue and FileQAResult, so an identifier a later rename will take is
-# not reported here as prose. Lowercase `qa` never matches, and that is the
+# on either side of the initialism inside a camel-cased identifier, so a symbol
+# is never reported here as prose. Lowercase `qa` never matches, and that is the
 # point: it names the tool, the flow id, the overlay type and the gate id.
 readonly RETIRED_CASED_RE='\bQA\b|[Qq]uality [Aa]ssurance'
 
@@ -413,7 +413,7 @@ Run the checks over the target before you ship.
 The rule-based checks report every finding.
 `kapi exec qa` runs the tool, and `translate-qa` is the flow it sits in.
 The overlay type is "qa" and so is the gate id.
-QAIssue and FileQAResult are identifiers, and a rename takes them together.
+QAFoo and BarQABaz are identifiers, and a rename takes them together.
 QA: "634" is Qatar in the ISO 3166-1 table.
 EOF
 
@@ -486,7 +486,7 @@ EOF
   # The case split is the whole rule, so assert it rather than assuming it: a
   # matcher that also caught the tool name would fail every recipe in the docs.
   if out=$(scan_paths "$RETIRED_CASED_RE" "$CASED_BOUNDARY_RE" "" "$tmp/surface/cased-clean.md"); then
-    echo "✓ self-test: the qa tool name, the QA identifiers and the Qatar code pass"
+    echo "✓ self-test: the qa tool name, camel-cased identifiers and the Qatar code pass"
   else
     echo "✖ self-test: the cased matcher flagged a boundary:"
     printf '%s\n' "$out"
@@ -585,8 +585,8 @@ else
   echo "Lowercase qa is a different thing and never matches here: it names the"
   echo "registered tool, the flow id, the overlay type and the gate id, and"
   echo "every one of those is a value a rename may not touch. A Go or TS"
-  echo "identifier does not match either, because QAIssue and FileQAResult"
-  echo "carry no word boundary around it."
+  echo "identifier does not match either: a camel-cased name carries no word"
+  echo "boundary on either side of the initialism."
   echo ""
 fi
 

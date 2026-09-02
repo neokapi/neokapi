@@ -217,9 +217,9 @@ func TestTermCheckWithTerms(t *testing.T) {
 		"--termstore", tb)
 }
 
-// TestQACheckWithoutTerms verifies that qa works standalone for
+// TestRuleCheckWithoutTerms verifies that qa works standalone for
 // baseline rule-based checks and writes its annotated output file.
-func TestQACheckWithoutTerms(t *testing.T) {
+func TestRuleCheckWithoutTerms(t *testing.T) {
 	tmp := t.TempDir()
 
 	pseudoOut := filepath.Join(tmp, "pseudo.json")
@@ -227,15 +227,15 @@ func TestQACheckWithoutTerms(t *testing.T) {
 		"-o", pseudoOut,
 		"--target-lang", "fr")
 
-	qaOut := filepath.Join(tmp, "qa.json")
+	checkOutput := filepath.Join(tmp, "qa.json")
 	// The raw qa tool annotates rather than gates (the porcelain gate is
 	// `kapi check`); tolerate a non-zero exit and assert it produced the
 	// output file.
 	_, _ = kapiAllowFail(t, "exec", "qa", pseudoOut,
-		"-o", qaOut,
+		"-o", checkOutput,
 		"--source-lang", "en",
 		"--target-lang", "fr")
-	assert.FileExists(t, qaOut)
+	assert.FileExists(t, checkOutput)
 }
 
 // ─── User Story 2: Pre-Translation with content memory + Terminology ────────────────────
@@ -333,12 +333,12 @@ func TestFullPipeline(t *testing.T) {
 	assert.FileExists(t, pseudoOut)
 
 	// Step 2: The rule-based checks — write annotated output.
-	qaOut := filepath.Join(tmp, "step2_qa.json")
+	checkOutput := filepath.Join(tmp, "step2_qa.json")
 	_, _ = kapiAllowFail(t, "exec", "qa", pseudoOut,
-		"-o", qaOut,
+		"-o", checkOutput,
 		"--source-lang", "en",
 		"--target-lang", "fr")
-	assert.FileExists(t, qaOut)
+	assert.FileExists(t, checkOutput)
 
 	// Step 3: Terminology checks against the terms (informational, exit 0, no
 	// stdout). Executes via `kapi exec` (not a curated top-level verb).

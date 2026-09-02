@@ -173,7 +173,7 @@ const (
 	OverlaySegmentation OverlayType = "segmentation"
 	OverlayTerm         OverlayType = "term"
 	OverlayEntity       OverlayType = "entity"
-	OverlayQA           OverlayType = "qa"
+	OverlayCheck           OverlayType = "qa"
 	OverlayAlignment    OverlayType = "alignment"
 	OverlayTermCandidate OverlayType = "term-candidate"
 )

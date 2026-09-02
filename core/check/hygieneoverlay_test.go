@@ -45,7 +45,7 @@ func overlaySpans(t *testing.T, runs []model.Run) []wantSpan {
 	if ov == nil {
 		return nil
 	}
-	require.Equal(t, model.OverlayQA, ov.Type)
+	require.Equal(t, model.OverlayCheck, ov.Type)
 
 	plain := model.RunsText(runs)
 	out := make([]wantSpan, 0, len(ov.Spans))

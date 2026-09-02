@@ -113,7 +113,7 @@ func TestTranslateToolBatchAccumulatesUsage(t *testing.T) {
 	assert.Equal(t, 200, usage.OutputTokens)
 }
 
-func TestQAToolAccumulatesUsage(t *testing.T) {
+func TestCheckToolAccumulatesUsage(t *testing.T) {
 	mock := aiprovider.NewMockProvider()
 	mock.ChatStructuredFunc = func(ctx context.Context, messages []aiprovider.Message, schema aiprovider.JSONSchema) (*aiprovider.ChatResponse, error) {
 		return &aiprovider.ChatResponse{
@@ -123,7 +123,7 @@ func TestQAToolAccumulatesUsage(t *testing.T) {
 		}, nil
 	}
 
-	tool := tools.NewAIQACheckTool(mock, tools.AIQAConfig{
+	tool := tools.NewAICheckTool(mock, tools.AICheckConfig{
 		SourceLocale: model.LocaleEnglish,
 		TargetLocale: model.LocaleFrench,
 	})
@@ -217,7 +217,7 @@ func TestUsageReporterInterface(t *testing.T) {
 	reporters = append(reporters, tools.NewAITranslateTool(mock, tools.AITranslateConfig{
 		SourceLocale: model.LocaleEnglish, TargetLocale: model.LocaleFrench,
 	}))
-	reporters = append(reporters, tools.NewAIQACheckTool(mock, tools.AIQAConfig{
+	reporters = append(reporters, tools.NewAICheckTool(mock, tools.AICheckConfig{
 		SourceLocale: model.LocaleEnglish, TargetLocale: model.LocaleFrench,
 	}))
 	reporters = append(reporters, tools.NewAIReviewTool(mock, tools.AIReviewConfig{

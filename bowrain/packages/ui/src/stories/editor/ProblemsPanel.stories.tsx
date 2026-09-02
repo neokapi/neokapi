@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
 import { ProblemsPanel } from "../../components/editor/ProblemsPanel";
-import { sampleFileQAResults } from "../fixtures";
+import { sampleFileCheckResults } from "../fixtures";
 
 const meta: Meta<typeof ProblemsPanel> = {
   title: "Editor/Terminology/ProblemsPanel",
@@ -32,7 +32,7 @@ type Story = StoryObj<typeof ProblemsPanel>;
 /** Panel with mixed errors and warnings */
 export const WithIssues: Story = {
   args: {
-    issues: sampleFileQAResults,
+    issues: sampleFileCheckResults,
   },
 };
 

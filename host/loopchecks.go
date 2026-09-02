@@ -113,9 +113,9 @@ func (a *App) computeLoopCheckExclusions(ctx context.Context, cmd Command, proj 
 			})
 		}
 
-		qaCfg := coretools.NewQACheckConfig(model.LocaleID(u.Locale))
-		qaCfg.CheckPlaceholders = true
-		qa := coretools.NewQACheckTool(qaCfg)
+		checkCfg := coretools.NewRuleCheckConfig(model.LocaleID(u.Locale))
+		checkCfg.CheckPlaceholders = true
+		qa := coretools.NewRuleCheckTool(checkCfg)
 
 		for _, b := range blocks {
 			if !b.Translatable {
@@ -137,7 +137,7 @@ func (a *App) computeLoopCheckExclusions(ctx context.Context, cmd Command, proj 
 				return nil, fmt.Errorf("qa check %s (%s): %w", u.DisplayPath, u.Locale, err)
 			}
 			fails := slices.ContainsFunc(check.Findings(tool.NewBlockViewWithContext(ctx, b)), func(f check.Finding) bool {
-				return !identical.suppresses(f, u.SourcePath, b, u.Locale) && qaFindingFails(f)
+				return !identical.suppresses(f, u.SourcePath, b, u.Locale) && checkFindingFails(f)
 			})
 			if !fails && termTool != nil {
 				if err := RunCheckTool(ctx, termTool, b); err != nil {

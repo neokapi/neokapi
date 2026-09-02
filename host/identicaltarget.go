@@ -9,9 +9,9 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 )
 
-// qaCategoryTargetSameAsSource is the check finding raised for a target
+// checkCategoryTargetSameAsSource is the check finding raised for a target
 // identical to its source.
-const qaCategoryTargetSameAsSource = "target-same-as-source"
+const checkCategoryTargetSameAsSource = "target-same-as-source"
 
 // identicalTargetRule is the one definition of when a target identical to its
 // source is a settled outcome rather than a unit nobody translated. Both
@@ -98,7 +98,7 @@ func (r *identicalTargetRule) settles(sourcePath string, b *model.Block, locale 
 // suppresses reports whether a check finding is answered by the project's record,
 // and so is not a defect to report or to gate on.
 func (r *identicalTargetRule) suppresses(f check.Finding, sourcePath string, b *model.Block, locale string) bool {
-	return f.Category == qaCategoryTargetSameAsSource && r.settles(sourcePath, b, locale)
+	return f.Category == checkCategoryTargetSameAsSource && r.settles(sourcePath, b, locale)
 }
 
 // doNotTranslate returns the locale's do-not-translate source texts, resolving

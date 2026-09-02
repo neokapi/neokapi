@@ -9,7 +9,7 @@ import {
 } from "@neokapi/ui-primitives";
 import { BlockInspector } from "@neokapi/ui-primitives/preview";
 import type { ContentNode } from "@neokapi/ui-primitives/preview";
-import type { BlockInfo, BlockTermMatch, QAIssue, ReviewContext } from "../../types/api";
+import type { BlockInfo, BlockTermMatch, CheckIssue, ReviewContext } from "../../types/api";
 import { CollapsedTargetCell } from "../editor/GridTargetRenderer";
 import { UnifiedTargetEditor, type UnifiedSaveResult } from "../UnifiedTargetEditor";
 import { getBlockStatus, getTargetText, statusConfig } from "../editor/blockStatus";
@@ -34,7 +34,7 @@ export interface ReviewInspectorProps {
   /** Display name for `locale`. */
   localeLabel: string;
   /** QA findings for this block from the file's last QA run. */
-  issues: QAIssue[];
+  issues: CheckIssue[];
   /** Term hits over this block's source, loaded when the panel opens. */
   terms: BlockTermMatch[];
   /** The term lookup is still in flight. */

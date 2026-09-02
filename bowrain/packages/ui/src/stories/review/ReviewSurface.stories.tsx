@@ -37,7 +37,7 @@ export const Default: Story = {};
 export const WithFindings: Story = {
   decorators: [
     createProvidersDecorator(sampleBlocks, {
-      runFileQACheck: async () => [
+      runFileCheck: async () => [
         {
           blockId: "blk-1",
           issues: [

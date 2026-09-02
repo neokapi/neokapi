@@ -74,7 +74,7 @@ const voiceOverlay: OverlayView = {
   ],
 };
 
-const qaOverlay: OverlayView = {
+const checkOverlay: OverlayView = {
   type: "qa",
   side: "fr-FR",
   spans: [
@@ -92,7 +92,7 @@ const mdTree = tree("markdown", [
   layer("/tmp/guide.md", [
     block("h1", "heading", "Welcome to Acme", {
       targets: { "fr-FR": txt("Bienvenue chez Acme") },
-      overlays: [termOverlay, voiceOverlay, qaOverlay],
+      overlays: [termOverlay, voiceOverlay, checkOverlay],
     }),
     block("p1", "", "Acme helps teams ship faster.", {
       targets: { "fr-FR": txt("Acme aide les équipes.") },
@@ -173,7 +173,7 @@ describe("overlayHighlight", () => {
   it("resolves source-side spans to char ranges and skips other sides", () => {
     // term + voice are source-side; qa is fr-FR-side and must be skipped here.
     const spans = resolveOverlaySpans(
-      [termOverlay, voiceOverlay, qaOverlay],
+      [termOverlay, voiceOverlay, checkOverlay],
       "source",
       "Welcome to Acme",
     );
@@ -187,20 +187,20 @@ describe("overlayHighlight", () => {
   });
 
   it("resolves target-side spans for the active locale", () => {
-    const spans = resolveOverlaySpans([termOverlay, qaOverlay], "fr-FR", "Acme aide");
+    const spans = resolveOverlaySpans([termOverlay, checkOverlay], "fr-FR", "Acme aide");
     expect(spans).toHaveLength(1);
     expect(spans[0].type).toBe("qa");
   });
 
   it("distinguishes voice-vocabulary qa from plain qa by span props", () => {
     const [voice] = resolveOverlaySpans([voiceOverlay], "source", "Welcome to Acme");
-    const [plainQa] = resolveOverlaySpans([qaOverlay], "fr-FR", "Acme aide");
+    const [plainCheck] = resolveOverlaySpans([checkOverlay], "fr-FR", "Acme aide");
     // Voice violation = pink accent + "Voice" label; plain qa = amber "Check".
     expect(voice.style.label).toBe("Voice");
     expect(voice.style.className).toContain("pink");
-    expect(plainQa.style.label).toBe("Check");
-    expect(plainQa.style.className).toContain("amber");
-    expect(voice.style.className).not.toBe(plainQa.style.className);
+    expect(plainCheck.style.label).toBe("Check");
+    expect(plainCheck.style.className).toContain("amber");
+    expect(voice.style.className).not.toBe(plainCheck.style.className);
     // The voice tooltip surfaces the human message.
     expect(voice.tooltip).toContain("Competitor term");
   });
@@ -232,7 +232,7 @@ describe("overlayHighlight", () => {
   });
 
   it("lists distinct overlay types in first-seen order", () => {
-    expect(overlayTypes([termOverlay, qaOverlay, termOverlay])).toEqual(["term", "qa"]);
+    expect(overlayTypes([termOverlay, checkOverlay, termOverlay])).toEqual(["term", "qa"]);
   });
 });
 

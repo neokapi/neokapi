@@ -57,7 +57,7 @@ Server REST surface for connectors (HEAD): `bowrain/server/server.go:1094-1099` 
 This is in-*Bowrain*-editor, not in-native-editor, but it is the platform's embedded editing stack and a candidate E2 yardstick.
 
 **Server API** — `bowrain/server/editor.go` (1280+ ln): `editorGetBlocks` (:615), `editorUpdateBlockTarget` (:634), `editorUpdateBlockTargetRuns` (:647, Run-native targets), `editorPseudoTranslate` (:659), `editorAITranslate` (:707), `editorMemoryTranslate` (:762), `editorLookupMemoryForBlock` (:850), `editorLookupTermsForBlock` (:895), word count (:807). Per-workspace persistent content memory/TB (`workspaceStores`, :43-100).
-**Visual preview** — `bowrain/server/handlers_preview.go`: `GET /editor/projects/:pid/file-preview/*?locale=xx` (:20) and `GET /editor/projects/:pid/blocks/:bid/html` (:73), rendered with `core/editor` (kat-block-marked HTML); checks: `handlers_qa.go` (:33, :60). Route mount e.g. `server.go:1286` `g.GET("/:id/preview/:ref", s.HandleRenderDocumentPreview)`.
+**Visual preview** — `bowrain/server/handlers_preview.go`: `GET /editor/projects/:pid/file-preview/*?locale=xx` (:20) and `GET /editor/projects/:pid/blocks/:bid/html` (:73), rendered with `core/editor` (kat-block-marked HTML); checks: `handlers_check.go` (:33, :60). Route mount e.g. `server.go:1286` `g.GET("/:id/preview/:ref", s.HandleRenderDocumentPreview)`.
 **Real-time** — `bowrain/server/grpc_editor.go`: `EditorGRPCServer` with a `presenceStore` (live presence/co-editing events; see also `grpc_editor_events_test.go`).
 
 **Shared UI** — `bowrain/packages/ui/src/components/`:

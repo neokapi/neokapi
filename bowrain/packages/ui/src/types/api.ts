@@ -1266,7 +1266,7 @@ export interface BlockHistoryEntry {
  * and located nothing, which is why an unpositioned issue is recorded as a
  * block annotation rather than guessed at as a span.
  */
-export interface QAIssue {
+export interface CheckIssue {
   type: string;
   severity: "error" | "warning";
   message: string;
@@ -1276,9 +1276,9 @@ export interface QAIssue {
 }
 
 /** Findings for a single block within a file */
-export interface FileQAResult {
+export interface FileCheckResult {
   blockId: string;
-  issues: QAIssue[];
+  issues: CheckIssue[];
 }
 
 // ---------------------------------------------------------------------------

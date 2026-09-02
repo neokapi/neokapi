@@ -6,9 +6,9 @@ import type {
   MemoryMatchInfo,
   BlockTermMatch,
   BlockNote,
-  QAIssue,
+  CheckIssue,
   BlockHistoryEntry,
-  FileQAResult,
+  FileCheckResult,
   AddConceptRequest,
 } from "../../types/api";
 import type { VisualEditorMode, PreviewContentMode } from "./visual-editor-types";
@@ -48,10 +48,10 @@ interface VisualEditorLayoutProps {
   onInsertTerm: (text: string) => void;
   presenceSlot?: React.ReactNode;
   // Findings
-  qaIssues?: QAIssue[];
-  fileQAResults?: FileQAResult[];
-  qaLoading?: boolean;
-  onRunFileQA?: () => void;
+  checkIssues?: CheckIssue[];
+  fileCheckResults?: FileCheckResult[];
+  checksLoading?: boolean;
+  onRunFileCheck?: () => void;
   // Block history
   history?: BlockHistoryEntry[];
   onRevertHistory?: (entry: BlockHistoryEntry) => void;
@@ -111,10 +111,10 @@ export function VisualEditorLayout({
   onApplyMemory,
   onInsertTerm,
   presenceSlot,
-  qaIssues,
-  fileQAResults,
-  qaLoading,
-  onRunFileQA,
+  checkIssues,
+  fileCheckResults,
+  checksLoading,
+  onRunFileCheck,
   history,
   onRevertHistory,
   notes,
@@ -174,8 +174,8 @@ export function VisualEditorLayout({
   }, []);
 
   // Total file finding count for badge
-  const fileQAIssueCount = fileQAResults
-    ? fileQAResults.reduce((acc, r) => acc + r.issues.length, 0)
+  const fileCheckIssueCount = fileCheckResults
+    ? fileCheckResults.reduce((acc, r) => acc + r.issues.length, 0)
     : 0;
 
   // ── Block selection from preview ───────────────────────────────────────
@@ -254,7 +254,7 @@ export function VisualEditorLayout({
         {!presenceSlot && <div className="flex-1" />}
 
         {/* Checks / Problems toggle */}
-        {onRunFileQA && (
+        {onRunFileCheck && (
           <Button
             size="sm"
             variant="ghost"
@@ -263,16 +263,16 @@ export function VisualEditorLayout({
               showProblemsPanel && "bg-primary/15 text-primary",
             )}
             onClick={() => {
-              if (!showProblemsPanel && fileQAResults === undefined) onRunFileQA();
+              if (!showProblemsPanel && fileCheckResults === undefined) onRunFileCheck();
               setShowProblemsPanel((v) => !v);
             }}
             data-testid="problems-toggle"
           >
             <AlertTriangle className="w-3 h-3 mr-1" />
             Problems
-            {fileQAIssueCount > 0 && (
+            {fileCheckIssueCount > 0 && (
               <span className="ml-1 text-[10px] px-1 rounded-full bg-destructive/15 text-destructive font-bold">
-                {fileQAIssueCount}
+                {fileCheckIssueCount}
               </span>
             )}
           </Button>
@@ -386,7 +386,7 @@ export function VisualEditorLayout({
             onInsertTerm={onInsertTerm}
             referenceLocales={referenceLocales}
             project={project}
-            qaIssues={qaIssues}
+            checkIssues={checkIssues}
             history={history}
             onRevertHistory={onRevertHistory}
             notes={notes}
@@ -416,8 +416,8 @@ export function VisualEditorLayout({
       {/* ── Problems panel (bottom overlay, fixed) ────────────────── */}
       {showProblemsPanel && (
         <ProblemsPanel
-          issues={fileQAResults || []}
-          loading={qaLoading}
+          issues={fileCheckResults || []}
+          loading={checksLoading}
           onNavigateToBlock={handleNavigateToBlock}
           onClose={() => setShowProblemsPanel(false)}
         />

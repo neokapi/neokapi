@@ -48,7 +48,7 @@ f, err := flow.NewFlow("translate").
     AddTool(tools.NewMemoryLeverageTool(memoryCfg)).
     AddTool(terms.NewTermLookupTool(tb, termCfg)).
     AddTool(aitools.NewAITranslateTool(provider, translateCfg)).
-    AddTool(tools.NewQACheckTool(qaCfg)).
+    AddTool(tools.NewRuleCheckTool(checkCfg)).
     Build()
 ```
 

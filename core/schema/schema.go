@@ -49,7 +49,7 @@ const (
 
 // IOPort is one entry in a tool's IO contract: a typed stand-off output the
 // tool consumes (reads upstream) or produces (writes). Type names an overlay
-// type (OverlayTerm, OverlayQA, …), a block-annotation type (AnnoVoice,
+// type (OverlayTerm, OverlayCheck, …), a block-annotation type (AnnoVoice,
 // …), or a pseudo-port (PortTarget/PortSource). Optional consumed ports enable
 // graceful degradation — the tool runs without them and does more with them;
 // non-optional consumed ports are hard requirements the flow validator enforces

@@ -164,7 +164,7 @@ func HygieneOverlay(runs []model.Run) *model.Overlay {
 	if len(spans) == 0 {
 		return nil
 	}
-	return &model.Overlay{Type: model.OverlayQA, Spans: spans}
+	return &model.Overlay{Type: model.OverlayCheck, Spans: spans}
 }
 
 // doubleSpaceSpans returns the byte range of every maximal run of two or more

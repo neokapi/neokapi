@@ -281,8 +281,8 @@ type ProgressEvent struct {
 	Done bool
 }
 
-// QAIssue represents one finding an LLM-judged check reported on a translation.
-type QAIssue struct {
+// CheckIssue represents one finding an LLM-judged check reported on a translation.
+type CheckIssue struct {
 	Type        string `json:"type"`     // "terminology", "fluency", "accuracy", "consistency"
 	Severity    string `json:"severity"` // "error", "warning", "info"
 	Description string `json:"description"`

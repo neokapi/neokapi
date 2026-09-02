@@ -8,7 +8,7 @@ import {
   sampleProject,
   sampleMemoryMatches,
   sampleTermMatches,
-  sampleQAIssues,
+  sampleCheckIssues,
   sampleBlockNotes,
   sampleBlockHistory,
 } from "../fixtures";
@@ -49,7 +49,7 @@ function InteractiveCard(props: CardOverrides) {
       onInsertTerm={props.onInsertTerm ?? (() => {})}
       project={props.project ?? sampleProject}
       referenceLocales={props.referenceLocales}
-      qaIssues={props.qaIssues}
+      checkIssues={props.checkIssues}
       history={props.history}
       onRevertHistory={props.onRevertHistory}
       notes={props.notes}
@@ -146,7 +146,7 @@ export const FullFeatured: Story = {
       blockIndex={0}
       memoryMatches={sampleMemoryMatches}
       termMatches={sampleTermMatches}
-      qaIssues={sampleQAIssues}
+      checkIssues={sampleCheckIssues}
       history={sampleBlockHistory}
       onRevertHistory={fn()}
       referenceLocales={["de-DE"]}
@@ -170,9 +170,9 @@ export const TranslateModeEditing: Story = {
 };
 
 /** Static snapshot: finding badge display */
-export const WithQAIssues: Story = {
+export const WithCheckIssues: Story = {
   args: {
-    qaIssues: sampleQAIssues,
+    checkIssues: sampleCheckIssues,
   },
 };
 

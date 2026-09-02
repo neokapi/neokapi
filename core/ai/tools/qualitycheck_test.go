@@ -15,14 +15,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// qaCheckBlock runs the LLM check tool over one translated block with a scripted
+// checkBlockRoute runs the LLM check tool over one translated block with a scripted
 // structured response and returns the resulting block.
-func qaCheckBlock(t *testing.T, fn func(context.Context, []aiprovider.Message, aiprovider.JSONSchema) (*aiprovider.ChatResponse, error)) *model.Block {
+func checkBlockRoute(t *testing.T, fn func(context.Context, []aiprovider.Message, aiprovider.JSONSchema) (*aiprovider.ChatResponse, error)) *model.Block {
 	t.Helper()
 	mock := aiprovider.NewMockProvider()
 	mock.ChatStructuredFunc = fn
 
-	tl := tools.NewAIQACheckTool(mock, tools.AIQAConfig{
+	tl := tools.NewAICheckTool(mock, tools.AICheckConfig{
 		SourceLocale: model.LocaleEnglish,
 		TargetLocale: model.LocaleFrench,
 	})
@@ -38,15 +38,15 @@ func qaCheckBlock(t *testing.T, fn func(context.Context, []aiprovider.Message, a
 	return (<-out).Resource.(*model.Block)
 }
 
-func qaScripted(content string) func(context.Context, []aiprovider.Message, aiprovider.JSONSchema) (*aiprovider.ChatResponse, error) {
+func checkScripted(content string) func(context.Context, []aiprovider.Message, aiprovider.JSONSchema) (*aiprovider.ChatResponse, error) {
 	return func(context.Context, []aiprovider.Message, aiprovider.JSONSchema) (*aiprovider.ChatResponse, error) {
 		return &aiprovider.ChatResponse{Content: content, Model: "test"}, nil
 	}
 }
 
-// TestAIQACheck_SeverityMapping pins the LLM-severity → core/check mapping:
+// TestAICheck_SeverityMapping pins the LLM-severity → core/check mapping:
 // error→major, warning→minor, info and anything unknown → neutral.
-func TestAIQACheck_SeverityMapping(t *testing.T) {
+func TestAICheck_SeverityMapping(t *testing.T) {
 	cases := []struct {
 		llm  string
 		want check.Severity
@@ -58,7 +58,7 @@ func TestAIQACheck_SeverityMapping(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.llm, func(t *testing.T) {
-			block := qaCheckBlock(t, qaScripted(fmt.Sprintf(
+			block := checkBlockRoute(t, checkScripted(fmt.Sprintf(
 				`{"issues":[{"type":"accuracy","severity":%q,"description":"issue","suggestion":"fix"}]}`, tc.llm,
 			)))
 			findings := check.Findings(coretool.NewBlockView(block))
@@ -68,12 +68,12 @@ func TestAIQACheck_SeverityMapping(t *testing.T) {
 	}
 }
 
-// TestAIQACheck_MalformedResponseDegrades: a non-JSON model response must not
+// TestAICheck_MalformedResponseDegrades: a non-JSON model response must not
 // fail the pipeline — it degrades to a single neutral "parse-error" finding
 // that carries the raw content for inspection.
-func TestAIQACheck_MalformedResponseDegrades(t *testing.T) {
+func TestAICheck_MalformedResponseDegrades(t *testing.T) {
 	raw := "I could not analyze this translation, sorry."
-	block := qaCheckBlock(t, qaScripted(raw))
+	block := checkBlockRoute(t, checkScripted(raw))
 
 	findings := check.Findings(coretool.NewBlockView(block))
 	require.Len(t, findings, 1)
@@ -83,10 +83,10 @@ func TestAIQACheck_MalformedResponseDegrades(t *testing.T) {
 	assert.Equal(t, "mock", block.Properties["qa-provider"])
 }
 
-// TestAIQACheck_NoIssues: an empty issues array yields no findings but still
+// TestAICheck_NoIssues: an empty issues array yields no findings but still
 // records the provider and checks metadata.
-func TestAIQACheck_NoIssues(t *testing.T) {
-	block := qaCheckBlock(t, qaScripted(`{"issues":[]}`))
+func TestAICheck_NoIssues(t *testing.T) {
+	block := checkBlockRoute(t, checkScripted(`{"issues":[]}`))
 
 	findings := check.Findings(coretool.NewBlockView(block))
 	assert.Empty(t, findings)
@@ -95,16 +95,16 @@ func TestAIQACheck_NoIssues(t *testing.T) {
 		"default check set is recorded")
 }
 
-// TestAIQACheck_ErrorPropagation: a provider failure surfaces as a tool
+// TestAICheck_ErrorPropagation: a provider failure surfaces as a tool
 // error wrapped with the tool name.
-func TestAIQACheck_ErrorPropagation(t *testing.T) {
+func TestAICheck_ErrorPropagation(t *testing.T) {
 	provErr := errors.New("model unavailable")
 	mock := aiprovider.NewMockProvider()
 	mock.ChatStructuredFunc = func(context.Context, []aiprovider.Message, aiprovider.JSONSchema) (*aiprovider.ChatResponse, error) {
 		return nil, provErr
 	}
 
-	tl := tools.NewAIQACheckTool(mock, tools.AIQAConfig{
+	tl := tools.NewAICheckTool(mock, tools.AICheckConfig{
 		SourceLocale: model.LocaleEnglish,
 		TargetLocale: model.LocaleFrench,
 	})

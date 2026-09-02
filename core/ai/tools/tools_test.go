@@ -253,7 +253,7 @@ func TestAITranslateToolInFlow(t *testing.T) {
 	assert.Len(t, mock.TranslateCalls, 2)
 }
 
-func TestAIQACheckToolAddsProperties(t *testing.T) {
+func TestAICheckToolAddsProperties(t *testing.T) {
 	mock := aiprovider.NewMockProvider()
 	mock.ChatStructuredFunc = func(ctx context.Context, messages []aiprovider.Message, schema aiprovider.JSONSchema) (*aiprovider.ChatResponse, error) {
 		return &aiprovider.ChatResponse{
@@ -262,7 +262,7 @@ func TestAIQACheckToolAddsProperties(t *testing.T) {
 		}, nil
 	}
 
-	tool := tools.NewAIQACheckTool(mock, tools.AIQAConfig{
+	tool := tools.NewAICheckTool(mock, tools.AICheckConfig{
 		SourceLocale: model.LocaleEnglish,
 		TargetLocale: model.LocaleFrench,
 		Checks:       []string{"fluency"},
@@ -294,10 +294,10 @@ func TestAIQACheckToolAddsProperties(t *testing.T) {
 	assert.Equal(t, "mock", resultBlock.Properties["qa-provider"])
 }
 
-func TestAIQACheckToolSkipsUntranslated(t *testing.T) {
+func TestAICheckToolSkipsUntranslated(t *testing.T) {
 	mock := aiprovider.NewMockProvider()
 
-	tool := tools.NewAIQACheckTool(mock, tools.AIQAConfig{
+	tool := tools.NewAICheckTool(mock, tools.AICheckConfig{
 		SourceLocale: model.LocaleEnglish,
 		TargetLocale: model.LocaleFrench,
 	})

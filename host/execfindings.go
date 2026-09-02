@@ -42,9 +42,9 @@ import (
 // tool ran, annotated the blocks, and the run had nowhere to say so — exactly
 // the defect the comment above describes, in the one family it did not reach.
 var findingsPorts = map[string]bool{
-	string(model.OverlayQA):   true,
-	string(model.OverlayTerm): true,
-	model.AnnoVoice:           true,
+	string(model.OverlayCheck): true,
+	string(model.OverlayTerm):  true,
+	model.AnnoVoice:            true,
 }
 
 // ProducesFindings reports whether a tool's schema declares a findings port.

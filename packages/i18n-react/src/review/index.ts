@@ -341,7 +341,7 @@ async function toggleHighlights(endpoint: string, button: HTMLElement): Promise<
     | undefined;
   if (!HighlightCtor) return;
   const termRanges: Range[] = [];
-  const qaRanges: Range[] = [];
+  const checkRanges: Range[] = [];
 
   for (const el of document.querySelectorAll(MARKED)) {
     const hash =
@@ -354,16 +354,16 @@ async function toggleHighlights(endpoint: string, button: HTMLElement): Promise<
       if (!needle) continue;
       const qa = /qa|check|error|issue/i.test(a.annotationType);
       for (const range of findTextRanges(el, needle)) {
-        (qa ? qaRanges : termRanges).push(range);
+        (qa ? checkRanges : termRanges).push(range);
       }
     }
   }
 
   if (termRanges.length > 0) highlights.set("kapi-term", new HighlightCtor(...termRanges));
-  if (qaRanges.length > 0) highlights.set("kapi-qa", new HighlightCtor(...qaRanges));
+  if (checkRanges.length > 0) highlights.set("kapi-qa", new HighlightCtor(...checkRanges));
   highlightsOn = true;
   button.classList.add("kapi-on");
-  showToast(`kapi review: ${termRanges.length} term / ${qaRanges.length} check highlights`);
+  showToast(`kapi review: ${termRanges.length} term / ${checkRanges.length} check highlights`);
 }
 
 /** The string to locate in the rendered text for an annotation. */

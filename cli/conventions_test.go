@@ -204,7 +204,7 @@ var retiredVocabulary = regexp.MustCompile(`(?i)termbases?|glossar(?:y|ies)|loca
 // initialism as a word for itself; lowercase `qa` is the tool `kapi exec qa`
 // runs, the flow id in `kapi run translate-qa`, the overlay type and the gate
 // id, and help text spells all of those. The word boundaries keep an identifier
-// out too: QAIssue carries none around it.
+// out too: a camel-cased QAFoo carries none around the initialism.
 //
 // scripts/check-vocabulary.sh holds the file-backed surfaces to the same rule;
 // keep the two in step.

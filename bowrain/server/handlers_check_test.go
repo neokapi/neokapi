@@ -57,7 +57,7 @@ func TestRunChecksOnBlock_MapsFindingsToWireShape(t *testing.T) {
 	assert.Equal(t, "warning", sev, "a minor finding maps to wire severity warning")
 }
 
-// TestQAIssuesFromFindings_KeepsWhatTheFindingLocated: the boundary used to
+// TestCheckIssuesFromFindings_KeepsWhatTheFindingLocated: the boundary used to
 // keep only {type, severity, message}, so a caller received an issue it could
 // name but not point at — a run-native consumer (preview/toContentTree) could
 // record it as a block annotation and nothing more. Position, suggestion and
@@ -67,7 +67,7 @@ func TestRunChecksOnBlock_MapsFindingsToWireShape(t *testing.T) {
 // zero is a legitimate reading ("the checker located nothing"), and serialized
 // as {0,0,0,0} it is indistinguishable from a real span at the start of the
 // first run.
-func TestQAIssuesFromFindings_KeepsWhatTheFindingLocated(t *testing.T) {
+func TestCheckIssuesFromFindings_KeepsWhatTheFindingLocated(t *testing.T) {
 	located := check.Finding{
 		Category:     "doubled-word",
 		Severity:     check.SeverityMinor,
@@ -82,7 +82,7 @@ func TestQAIssuesFromFindings_KeepsWhatTheFindingLocated(t *testing.T) {
 		Message:  "Target is empty but source has content",
 	}
 
-	issues := qaIssuesFromFindings([]check.Finding{located, unlocated})
+	issues := checkIssuesFromFindings([]check.Finding{located, unlocated})
 	require.Len(t, issues, 2)
 
 	require.NotNil(t, issues[0].Position)
@@ -99,7 +99,7 @@ func TestQAIssuesFromFindings_KeepsWhatTheFindingLocated(t *testing.T) {
 		string(raw))
 }
 
-// No checker populates Position yet — core/tools/qacheck.go judges whole
+// No checker populates Position yet — core/tools/rulecheck.go judges whole
 // texts and the shape flattenings it works over are not run offsets — so the
 // endpoint is honest about locating nothing rather than inventing a range.
 // This pins that: when the tools start locating, this test says so.
@@ -110,7 +110,7 @@ func TestRunChecksOnBlock_ReportsNoPositionYet(t *testing.T) {
 	issues := runChecksOnBlock(t.Context(), block, pointChecks{TargetLocale: model.LocaleFrench})
 	require.NotEmpty(t, issues)
 	for _, iss := range issues {
-		assert.Nil(t, iss.Position, "%s: qacheck does not locate its findings yet", iss.Type)
+		assert.Nil(t, iss.Position, "%s: the rule checks do not locate their findings yet", iss.Type)
 	}
 }
 

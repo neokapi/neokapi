@@ -21,8 +21,8 @@ import type {
   ReviewContext,
   BlockNote,
   BlockHistoryEntry,
-  QAIssue,
-  FileQAResult,
+  CheckIssue,
+  FileCheckResult,
   CreateSourceProposalRequest,
   PendingReviewOptions,
   PendingReviewPage,
@@ -225,15 +225,15 @@ export function useEditorApi() {
     [api, ws],
   );
 
-  const runQACheck = useCallback(
-    async (projectId: string, blockId: string, locale: string): Promise<QAIssue[]> =>
-      api.runQACheck(ws, projectId, blockId, locale, activeStream),
+  const runCheck = useCallback(
+    async (projectId: string, blockId: string, locale: string): Promise<CheckIssue[]> =>
+      api.runCheck(ws, projectId, blockId, locale, activeStream),
     [api, ws, activeStream],
   );
 
-  const runFileQACheck = useCallback(
-    async (projectId: string, fileName: string, locale: string): Promise<FileQAResult[]> =>
-      api.runFileQACheck(ws, projectId, fileName, locale, activeStream),
+  const runFileCheck = useCallback(
+    async (projectId: string, fileName: string, locale: string): Promise<FileCheckResult[]> =>
+      api.runFileCheck(ws, projectId, fileName, locale, activeStream),
     [api, ws, activeStream],
   );
 
@@ -302,8 +302,8 @@ export function useEditorApi() {
       addBlockNote,
       listBlockNotes,
       deleteBlockNote,
-      runQACheck,
-      runFileQACheck,
+      runCheck,
+      runFileCheck,
       renderDocumentPreview,
       renderBlockHTML,
       createSourceProposal,
@@ -334,8 +334,8 @@ export function useEditorApi() {
       addBlockNote,
       listBlockNotes,
       deleteBlockNote,
-      runQACheck,
-      runFileQACheck,
+      runCheck,
+      runFileCheck,
       renderDocumentPreview,
       renderBlockHTML,
       createSourceProposal,

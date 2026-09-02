@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vite-plus/test";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { SpanInfo, BlockTermMatch, EntityInfo, FileQAResult } from "../types/api";
+import type { SpanInfo, BlockTermMatch, EntityInfo, FileCheckResult } from "../types/api";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -382,7 +382,7 @@ describe("ProblemsPanel", () => {
   });
 
   it("renders problem messages", async () => {
-    const issues: FileQAResult[] = [
+    const issues: FileCheckResult[] = [
       {
         blockId: "block-1",
         issues: [{ type: "missing_tag", severity: "error", message: "Missing bold tag" }],
@@ -398,7 +398,7 @@ describe("ProblemsPanel", () => {
   });
 
   it("renders warnings", async () => {
-    const issues: FileQAResult[] = [
+    const issues: FileCheckResult[] = [
       {
         blockId: "block-1",
         issues: [{ type: "extra_tag", severity: "warning", message: "Extra italic tag" }],
@@ -439,7 +439,7 @@ describe("ProblemsPanel", () => {
   it("calls onNavigateToBlock when a row is clicked", async () => {
     const user = userEvent.setup();
     const onNavigate = vi.fn();
-    const issues: FileQAResult[] = [
+    const issues: FileCheckResult[] = [
       {
         blockId: "blk-42",
         issues: [{ type: "check", severity: "error", message: "Problem here" }],
@@ -456,7 +456,7 @@ describe("ProblemsPanel", () => {
   });
 
   it("displays total issue count badge", async () => {
-    const issues: FileQAResult[] = [
+    const issues: FileCheckResult[] = [
       {
         blockId: "b1",
         issues: [

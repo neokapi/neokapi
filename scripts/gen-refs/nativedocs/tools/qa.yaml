@@ -1,5 +1,5 @@
 # Native reference doc for the built-in `qa` tool.
-# Schema source: core/ai/tools/unified.go (QASchema, over core/tools QACheckConfig
+# Schema source: core/ai/tools/unified.go (CheckSchema, over core/tools RuleCheckConfig
 # plus the LLM provider fields). With no --provider, qa runs the deterministic
 # rule-based checks below; with --provider it runs LLM-judged checks.
 description: Check translation quality with rule-based checks, or an LLM when a provider is set.

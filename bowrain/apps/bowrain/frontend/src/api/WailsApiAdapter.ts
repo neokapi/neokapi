@@ -45,8 +45,8 @@ import type {
   ClaimProjectResponse,
   ApiToken,
   CreateApiTokenResponse,
-  QAIssue,
-  FileQAResult,
+  CheckIssue,
+  FileCheckResult,
   AutomationRule,
   AutomationEvent,
   SaveAutomationRuleRequest,
@@ -1214,20 +1214,20 @@ export class WailsApiAdapter implements ApiAdapter {
   }
 
   // --- Checks (desktop: not yet backed by Wails bindings) ---
-  async runQACheck(
+  async runCheck(
     _ws: string,
     _projectId: string,
     _blockId: string,
     _locale: string,
-  ): Promise<QAIssue[]> {
+  ): Promise<CheckIssue[]> {
     return [];
   }
-  async runFileQACheck(
+  async runFileCheck(
     _ws: string,
     _projectId: string,
     _fileName: string,
     _locale: string,
-  ): Promise<FileQAResult[]> {
+  ): Promise<FileCheckResult[]> {
     return [];
   }
 

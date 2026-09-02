@@ -13,7 +13,7 @@ import (
 // span), an entity overlay carrying a typed *EntityAnnotation Value (the
 // entity→concept promote path), a term overlay carrying a typed
 // *TermAnnotation Value, a term-candidate overlay, a check-findings overlay
-// (model.OverlayQA) carrying only props, and a target-side (Variant-bearing)
+// (model.OverlayCheck) carrying only props, and a target-side (Variant-bearing)
 // alignment overlay. Anchors use real run-index ranges.
 func overlaysFixture() []model.Overlay {
 	frVariant := model.VariantKey{Locale: model.LocaleFrench}
@@ -68,7 +68,7 @@ func overlaysFixture() []model.Overlay {
 			}},
 		},
 		{
-			Type: model.OverlayQA,
+			Type: model.OverlayCheck,
 			Spans: []model.Span{{
 				ID:    "qa:0",
 				Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 0, Offset: 11}),

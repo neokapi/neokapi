@@ -25,8 +25,8 @@ import type {
   ReviewVoiceProfile,
   BlockNote,
   BlockHistoryEntry,
-  QAIssue,
-  FileQAResult,
+  CheckIssue,
+  FileCheckResult,
   ContextScanRequest,
   ContextScanUploadResult,
   ContextScanCheckResult,
@@ -63,8 +63,8 @@ import {
   sampleProject,
   sampleBlockNotes,
   sampleBlockHistory,
-  sampleQAIssues,
-  sampleFileQAResults,
+  sampleCheckIssues,
+  sampleFileCheckResults,
   sampleAutomationRules,
   sampleAutomationEvents,
   sampleAutomationHistory,
@@ -1220,8 +1220,8 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
     demoteVoiceRule: async () => {},
 
     // --- Checks ----------------------------------------------------------
-    runQACheck: async (): Promise<QAIssue[]> => sampleQAIssues,
-    runFileQACheck: async (): Promise<FileQAResult[]> => sampleFileQAResults,
+    runCheck: async (): Promise<CheckIssue[]> => sampleCheckIssues,
+    runFileCheck: async (): Promise<FileCheckResult[]> => sampleFileCheckResults,
 
     // --- Preview ---------------------------------------------------------
     renderDocumentPreview: async (): Promise<string> => generatePreviewHTML(_blocks),

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vite-plus/test";
-import type { BlockInfo, QAIssue } from "../types/api";
+import type { BlockInfo, CheckIssue } from "../types/api";
 import {
   entryKey,
   entryBlockers,
@@ -46,8 +46,8 @@ function entry(overrides: Partial<ReviewEntry> & { locale: string; itemId: strin
   };
 }
 
-const error: QAIssue = { type: "tag-mismatch", severity: "error", message: "missing tag" };
-const warning: QAIssue = { type: "length", severity: "warning", message: "too long" };
+const error: CheckIssue = { type: "tag-mismatch", severity: "error", message: "missing tag" };
+const warning: CheckIssue = { type: "length", severity: "warning", message: "too long" };
 
 describe("isPendingReview", () => {
   it("counts a translated block with text as pending", () => {
