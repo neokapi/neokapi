@@ -212,7 +212,7 @@ const resolvedContext: ReviewContext = {
     block_id: "b2",
     source_runs: [
       { text: "We sent a link to " },
-      { ph: { id: "1", type: "code:variable", equiv: "{{.Email}}" } },
+      { ph: { id: "1", type: "code:variable", data: "{{.Email}}", equiv: "{{.Email}}" } },
       { text: "." },
     ],
   },

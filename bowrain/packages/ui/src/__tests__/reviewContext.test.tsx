@@ -170,7 +170,7 @@ describe("the queue's neighbourhood", () => {
           block_id: "b0",
           source_runs: [
             { text: "We sent a link to " },
-            { ph: { id: "1", type: "code:variable", equiv: "{{.Email}}" } },
+            { ph: { id: "1", type: "code:variable", data: "{{.Email}}", equiv: "{{.Email}}" } },
             { text: "." },
           ],
         },

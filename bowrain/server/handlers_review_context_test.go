@@ -35,9 +35,10 @@ func getReviewContext(t *testing.T, s *Server, wsID, projID, blockID, locale str
 	c.Set("workspace_id", wsID)
 	c.Set("project_permissions", platauth.PermAll)
 	require.NoError(t, s.HandleGetReviewContext(c))
-	if rec.Code != http.StatusOK {
-		return rec, reviewContextResponse{}
-	}
+	// A refusal decodes into a zero-valued response, which reads exactly like a
+	// unit with nothing resolved — so the status is asserted here rather than
+	// left to surface as a nil three assertions later.
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	return rec, decodeJSON[reviewContextResponse](t, rec)
 }
 
@@ -49,17 +50,32 @@ func TestReviewContext_GathersEveryLayer(t *testing.T) {
 	s, wsID, _ := newRecheckHarness(t)
 	ctx := context.Background()
 
-	first := pendingFrBlock("first", "Open the app", "Ouvrir l'application")
-	middle := pendingFrBlock("middle", "Use the app", "Il faut utiliser l'application")
-	last := pendingFrBlock("last", "Close the app", "Fermer l'application")
-	// Provenance rides on the target, which the blocks payload never carried.
-	middle.Target("fr").Origin = model.Origin{
-		Kind: "ai", Engine: "claude", Tool: "translate", Timestamp: "2026-09-01T10:00:00Z",
+	// Three pending drafts, each stamped with how it was produced — provenance
+	// rides on the target, which the blocks payload never carried.
+	seeded := []*model.Block{
+		pendingFrBlock("a", "Open the app", "Ouvrir l'application"),
+		pendingFrBlock("b", "Use the app", "Il faut utiliser l'application"),
+		pendingFrBlock("c", "Close the app", "Fermer l'application"),
 	}
-	projID, ids := seedGovernedProject(t, s, wsID, []*model.Block{first, middle, last})
+	for _, b := range seeded {
+		b.Target("fr").Origin = model.Origin{
+			Kind: "ai", Engine: "claude", Tool: "translate", Timestamp: "2026-09-01T10:00:00Z",
+		}
+	}
+	projID, _ := seedGovernedProject(t, s, wsID, seeded)
 
-	tb, err := s.wsStores.getTerms("rc")
+	// The store mints its own ids and the neighbourhood cursor orders by them,
+	// so the unit with a neighbour on each side is the middle of the STORED
+	// order, not of the order they were written in.
+	stored, err := s.ContentStore.GetBlocks(ctx, platstore.BlockQuery{
+		ProjectID: projID, Stream: "main", ItemName: "greetings.txt",
+	})
 	require.NoError(t, err)
+	require.Len(t, stored, 3)
+	middleID := stored[1].Block.ID
+
+	tb, terr := s.wsStores.getTerms("rc")
+	require.NoError(t, terr)
 	seedTermUnificationConcepts(t, tb)
 
 	// The profile bound at this point, with a raised bar and a vocabulary rule.
@@ -77,7 +93,6 @@ func TestReviewContext_GathersEveryLayer(t *testing.T) {
 	require.NoError(t, s.ContentStore.UpdateProject(ctx, proj))
 
 	// The findings the scoring pass persists and no surface read.
-	middleID := ids["Use the app"]
 	require.NoError(t, s.VoiceStore.StoreScore(ctx, &coreprofile.StoredScore{
 		ProjectID: projID, Stream: "main", BlockID: middleID, ProfileID: profile.ID,
 		Locale: "fr", Score: 62, CheckedAt: time.Now().UTC(),
@@ -88,16 +103,15 @@ func TestReviewContext_GathersEveryLayer(t *testing.T) {
 	}))
 
 	// A previous decision, and a note beside it.
-	sb, err := s.ContentStore.GetBlock(ctx, projID, "main", middleID)
-	require.NoError(t, err)
+	sb := stored[1]
 	ds, ok := s.ContentStore.(platstore.DecisionStore)
 	require.True(t, ok)
-	_, err = ds.UpsertUnitDecisions(ctx, projID, "main", []venue.UnitDecision{{
+	_, derr := ds.UpsertUnitDecisions(ctx, projID, "main", []venue.UnitDecision{{
 		ItemName: sb.ItemName, Unit: sb.SourceID, Variant: "fr", Status: "draft",
 		ReviewState: "rejected", DecidedBy: "owner@rc.test", DecidedAt: "2026-09-01T11:00:00Z",
 		Note: "Reads as machine output", Updated: "2026-09-01T11:00:00Z",
 	}})
-	require.NoError(t, err)
+	require.NoError(t, derr)
 	require.NoError(t, s.ContentStore.AddBlockNote(ctx, projID, "main", middleID, model.BlockNote{
 		ID: "n1", BlockID: middleID, Author: "owner@rc.test", Text: "Check with legal",
 		CreatedAt: time.Now().UTC(),
@@ -117,10 +131,8 @@ func TestReviewContext_GathersEveryLayer(t *testing.T) {
 	// Neighbourhood: the units either side, as run sequences.
 	require.NotNil(t, got.Previous)
 	require.NotNil(t, got.Next)
-	assert.NotEqual(t, middleID, got.Previous.BlockID)
-	assert.NotEqual(t, middleID, got.Next.BlockID)
-	assert.True(t, got.Previous.BlockID < middleID, "the previous unit sorts before this one")
-	assert.True(t, got.Next.BlockID > middleID, "the next unit sorts after this one")
+	assert.Equal(t, stored[0].Block.ID, got.Previous.BlockID, "the nearest predecessor")
+	assert.Equal(t, stored[2].Block.ID, got.Next.BlockID, "the nearest successor")
 	assert.NotEmpty(t, got.Previous.SourceRuns, "the neighbour travels as runs, not as text")
 
 	// History.

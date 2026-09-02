@@ -161,7 +161,9 @@ func (s *Server) HandleGetReviewContext(c echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
-	if s.ContentStore == nil {
+	// The workspace stores are named because the memory and term lookups reach
+	// through them; a server without them answers no editor request at all.
+	if s.ContentStore == nil || s.wsStores == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
 
