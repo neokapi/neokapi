@@ -58,6 +58,9 @@ importers:
       '@neokapi/i18n-react':
         specifier: '*'
         version: link:../../../packages/i18n-react
+      '@neokapi/kapi-format':
+        specifier: '*'
+        version: link:../../../packages/kapi-format
       '@neokapi/kapi-lab':
         specifier: '*'
         version: link:../../../packages/kapi-lab

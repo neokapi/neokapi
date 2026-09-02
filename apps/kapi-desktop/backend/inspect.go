@@ -112,12 +112,24 @@ func (a *App) resolveFileLocale(pctx *project.ProjectContext, op *openProject, f
 	return sourceLang
 }
 
+// inspectAbsPath resolves a project-relative path against the project root, so
+// a caller addressing a file the way the recipe names it (a review queue row, a
+// resolved point's path) reaches the same file a browser-supplied absolute path
+// does. An absolute path is returned unchanged.
+func inspectAbsPath(op *openProject, filePath string) string {
+	if filePath == "" || filepath.IsAbs(filePath) || op == nil || op.Path == "" {
+		return filePath
+	}
+	return filepath.Join(filepath.Dir(op.Path), filepath.FromSlash(filePath))
+}
+
 // inspect is the shared body of InspectFile / InspectFileAnnotated.
 func (a *App) inspect(tabID, filePath string, annotate bool) (string, error) {
 	op := a.getOpenProject(tabID)
 	if op == nil {
 		return "", fmt.Errorf("tab %q not found", tabID)
 	}
+	filePath = inspectAbsPath(op, filePath)
 
 	pctx := project.NewProjectContext(op.Project, op.Path)
 	sourceLang := a.resolveFileLocale(pctx, op, filePath)

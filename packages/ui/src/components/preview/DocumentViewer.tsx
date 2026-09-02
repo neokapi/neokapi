@@ -6,7 +6,7 @@ import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { ToggleGroup, ToggleGroupItem } from "../ui/toggle-group";
-import FormatPreview, { type PreviewSide } from "./FormatPreview";
+import FormatPreview, { type BlockAttrs, type PreviewSide } from "./FormatPreview";
 import BlockInspector from "./BlockInspector";
 import StructureView from "./StructureView";
 import LayoutView from "./LayoutView";
@@ -55,6 +55,16 @@ export interface DocumentViewerProps {
   extraTabs?: ReadonlyArray<{ value: string; label: React.ReactNode; content: React.ReactNode }>;
   /** Block ids changed by a recent run — flagged + auto-opened in Blocks. */
   changedIds?: ReadonlySet<string>;
+  /**
+   * The block under attention, marked `aria-current` in the Preview and opened
+   * in Blocks. A host that arrives at a document to look at one unit (a review
+   * queue, a finding) passes it here.
+   */
+  selectedBlockId?: string;
+  /** Called with a block's id when its element is activated in the Preview. */
+  onSelectBlock?: (id: string) => void;
+  /** Per-block class name and `data-*` markers, drawn on the block's element. */
+  blockAttrs?: (id: string) => BlockAttrs | undefined;
   /** Raw-view line numbers changed by a recent run — highlighted in Raw. */
   rawChangedLines?: ReadonlySet<number>;
   /**
@@ -122,6 +132,9 @@ export default function DocumentViewer({
   onValueChange,
   extraTabs,
   changedIds,
+  selectedBlockId,
+  onSelectBlock,
+  blockAttrs,
   rawChangedLines,
   resolveMediaUrl = defaultResolveMediaUrl,
   className,
@@ -271,7 +284,15 @@ export default function DocumentViewer({
         </TabsList>
 
         <TabsContent value="preview" className="pt-3">
-          <FormatPreview tree={tree} side={side} transition="crossfade" annotations />
+          <FormatPreview
+            tree={tree}
+            side={side}
+            transition="crossfade"
+            annotations
+            selectedBlockId={selectedBlockId}
+            onSelectBlock={onSelectBlock}
+            blockAttrs={blockAttrs}
+          />
         </TabsContent>
 
         {/* Structure — the role-driven outline (WS1/WS5). */}
@@ -326,7 +347,7 @@ export default function DocumentViewer({
                   key={b.id}
                   node={b}
                   changed={changedIds?.has(b.id)}
-                  defaultOpen={changedIds?.has(b.id)}
+                  defaultOpen={changedIds?.has(b.id) || b.id === selectedBlockId}
                 />
               ))}
             </div>
