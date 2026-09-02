@@ -33,24 +33,36 @@ script:
   # --- 2. Converge --------------------------------------------------------
   - comment: One verb. Approved wording is recycled; only the remainder reaches a provider.
   - command: kapi up
-  - comment: Front matter is content — a reader sees the title in the sidebar and the description in a search result — so it converges with the prose.
+  - comment: Norwegian ships on drafted work. Dutch parks, because nothing in it has been read by a person.
+  - command: kapi status
+  - comment: Front matter is content, so a title in a sidebar and a description in a search result converge with the prose.
   - command: head -6 i18n/nb/docusaurus-plugin-content-docs/current/index.md
-  - comment: And it landed where Docusaurus looks, with no copy step and no plugin.
+  - comment: And only Norwegian is on disk. The ship gate decides delivery, so a parked language has no files rather than unblessed ones.
   - command: find i18n -name '*.md' | sort
 
-  # --- 3. What CI reports -------------------------------------------------
+  # --- 3. Parked is a standing, not a loss --------------------------------
+  - comment: The Dutch drafts are in the project store, and the queue lists every one of them.
+  - command: >-
+      kapi status --review --json --jq '[.pending[]|.locale]|group_by(.)|map({(.[0]):length})|add'
+  - comment: Run the loop again and it asks the provider for nothing. The drafts are read back and recycled.
+  - command: kapi up
+  - comment: Approve the Dutch and commit it.
+  - command: >-
+      kapi status --review --json --jq '.pending[]|select(.locale=="nl")|{kind:"review",op:"add",file,id:.key,locale,status:"reviewed"}' > nl.json
+  - command: kapi apply nl.json 2>&1 | tail -2
+  - command: kapi commit
+  - comment: Now the same verb delivers it. Zero passes run; the gate opened, so the files are written out of the store.
+  - command: kapi up
+  - command: kapi status
+  - command: find i18n -name '*.md' | sort
+
+  # --- 4. What CI reports -------------------------------------------------
   - comment: This is what the pull-request job posts. Coverage per language, in machine shape.
   - command: >-
       kapi status --json --jq '.locales[]|"\(.locale)  translated \(.pct.translated)%  reviewed \(.pct.reviewed)%  \(if .shippable then "ready" else "pending" end)"'
-  - comment: Review Norwegian and it clears the ship gate. Dutch has not been reviewed, so it does not.
-  - command: >-
-      kapi status --review --json --jq '.pending[]|select(.locale=="nb")|{kind:"review",op:"add",file,id:.key,locale,status:"reviewed"}' > nb.json
-  - command: kapi apply nb.json 2>&1 | tail -2
-  - command: kapi commit
-  - command: kapi status
 
-  # --- 4. Behind is not broken --------------------------------------------
-  - comment: Dutch is behind. Nothing about that fails — the source gate is what a pull request is held to, and it is about the source.
+  # --- 5. Behind is not broken --------------------------------------------
+  - comment: While a language was behind, nothing failed. The source gate is what a pull request is held to, and it is about the source.
   - command: kapi check --strict
   - comment: One advisory finding, and it is the API reference keeping a name the vocabulary retired. Reported, never blocking.
   - comment: The CI job that builds the site does not depend on the job that converges it. That is the whole arrangement.
@@ -58,7 +70,7 @@ script:
 
 artifacts:
   - id: coverage
-    caption: "kapi status --json — coverage per language, what CI reads"
+    caption: "kapi status --json: coverage per language, what CI reads"
     source: command
     # Artifact commands run under the harness's kapi isolation, which turns
     # recipe discovery off, so the recipe is named rather than walked to.
@@ -69,7 +81,7 @@ artifacts:
     width: 1200
     height: 900
   - id: translated
-    caption: "i18n/nb/…/index.md — front matter and prose, where the build looks"
+    caption: "i18n/nb/…/index.md: front matter and prose, where the build looks"
     source: report
     report: markdown
     path: i18n/nb/docusaurus-plugin-content-docs/current/index.md
@@ -103,17 +115,19 @@ narration:
     text: >
       One verb converges both languages. Wording the project has approved before
       is recycled first; only what is left reaches a provider, which here is the
-      offline demo stub that marks everything it produces. Front matter travels
-      with the prose, because a title in a sidebar and a description in a search
-      result are things a reader reads.
-    caption: "recycled first, drafted second, front matter included"
+      offline demo stub that marks everything it produces. Norwegian clears the
+      ship gate on that drafted work. Dutch parks, because the gate asks for
+      half its units to have been read by a person and none of them have. Front
+      matter travels with the prose, because a title in a sidebar and a
+      description in a search result are things a reader reads.
+    caption: "Norwegian delivered, Dutch parked, front matter included"
 
   - id: translated
     kind: artifact
     artifact: translated
     text: >
       This is the file the loop wrote. Title, sidebar label and body, in the tree
-      the site build already knows about — and the stub's own marks on the
+      the site build already knows about, carrying the stub's own marks on the
       strings it invented, so nobody mistakes a demo for a translation.
 
   - id: coverage
@@ -128,12 +142,15 @@ narration:
   - id: review
     kind: terminal
     text: >
-      Review Norwegian and it clears the ship gate. Dutch has not been reviewed,
-      so it does not — and that is the ordinary state of a translated site rather
-      than an incident. The English is what the pull request is actually held to,
-      and the source gate passes with one advisory finding: an API reference
-      keeping a field name the vocabulary retired, reported and never blocking.
-    caption: "one language ready, one pending, nothing failing"
+      Parked is a standing, not a loss. The Dutch drafts are in the project
+      store, the queue lists all sixty of them, and running the loop again asks
+      the provider for nothing: the drafts are read back and recycled, so the
+      second run costs what no run costs. Approve them, commit, and the same
+      verb delivers the files without drafting a thing. Through all of it the
+      English is what the pull request is held to, and the source gate passes
+      with one advisory finding: an API reference keeping a field name the
+      vocabulary retired.
+    caption: "the drafts are kept, recycled, reviewed, then delivered"
 
   - id: workflow
     kind: terminal
@@ -141,8 +158,9 @@ narration:
       The workflow says it plainly. A pull request gets a dry run and a coverage
       comment; the default branch converges and commits what moved; and the job
       that builds the site does not depend on either of them. Fail-on-parked
-      stays off, deliberately — parked means a language is waiting for a person,
-      which is the condition this whole arrangement exists to make survivable.
+      stays off, deliberately, because parked means a language is waiting for a
+      person, which is the condition this whole arrangement exists to make
+      survivable.
     caption: "the build job depends on neither"
 
   - id: outro
