@@ -30,14 +30,14 @@ func init() {
 func registerReviewTools(server *mcp.Server, a *cli.App) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "review_queue",
-		Description: "List the translation review queue: every translated unit not yet approved, addressed by (file, key, locale). Filter with locale and/or collection. Read-only — derived from the content files and the project state store; units annotated by an AI pre-review carry their score. Lean by design: call review_unit for a unit's context (the point governing it, its neighbourhood, its prior version, its findings).",
+		Description: "List the review queue: every unit awaiting a person, addressed by (file, key, locale). One queue holds every language, the project's source language among them: a translated unit not yet approved is one row, and a source unit the project's source gate is waiting on is another, marked `isSource`. The result also carries `languages`, the pending count per language. Filter with language, locale and/or collection. Read-only, derived from the content files and the project state store; units annotated by an AI pre-review carry their score. Lean by design: call review_unit for a unit's context (the point governing it, its neighbourhood, its prior version, its findings).",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input ReviewQueueInput) (*mcp.CallToolResult, ReviewQueueOutput, error) {
 		return handleReviewQueue(ctx, a, input)
 	})
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:         "review_unit",
-		Description:  "Fetch one review-queue unit's full picture: source and target text, ladder status, the last recorded state (with identity), and the context the decision is made in: the point governing the file (voice guidance, term rules, coordinates), the blocks before and after it as run sequences, the prior approved version and the content-memory match with its wording, the check findings with their run anchors, and the AI pre-review score. The read leg before approve_unit / reject_unit / sign_off_unit.",
+		Description:  "Fetch one review-queue unit's full picture: source and target text, ladder status, the last recorded state (with identity), and the context the decision is made in: the point governing the file (voice guidance, term rules, coordinates), the blocks before and after it as run sequences, the prior approved version and the content-memory match with its wording, the check findings with their run anchors, and the AI pre-review score. A unit in the project's source language is read the same way, from its source file, and returns its authoring rung with no target half. The read leg before approve_unit / reject_unit / sign_off_unit.",
 		OutputSchema: reviewUnitOutputSchema,
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input ReviewUnitInput) (*mcp.CallToolResult, ReviewUnitOutput, error) {
 		return handleReviewUnit(ctx, a, input)
@@ -99,6 +99,7 @@ func resolveReviewProject(explicit string) (string, error) {
 
 type ReviewQueueInput struct {
 	Project    string `json:"project,omitempty" jsonschema:"Path to the .kapi project file (default: the ambient project)"`
+	Language   string `json:"language,omitempty" jsonschema:"Only list units in this language; the project's source language lists its source units"`
 	Locale     string `json:"locale,omitempty" jsonschema:"Only list units for this target locale"`
 	Collection string `json:"collection,omitempty" jsonschema:"Only list units in this content collection"`
 }
@@ -106,12 +107,15 @@ type ReviewQueueInput struct {
 type ReviewQueueOutput struct {
 	Pending []cli.ReviewQueueItem `json:"pending"`
 	Total   int                   `json:"total"`
+	// Languages counts the pending units per language over the whole queue,
+	// before any filter, so a caller can narrow to a language it knows has work.
+	Languages []cli.ReviewLanguage `json:"languages,omitempty"`
 }
 
 type ReviewUnitInput struct {
 	Project string `json:"project,omitempty" jsonschema:"Path to the .kapi project file (default: the ambient project)"`
-	Locale  string `json:"locale" jsonschema:"Target locale, as listed by review_queue"`
-	File    string `json:"file" jsonschema:"Target file path, as listed by review_queue"`
+	Locale  string `json:"locale" jsonschema:"Language of the unit, as listed by review_queue: a target locale, or the project's source language for a source unit"`
+	File    string `json:"file" jsonschema:"File path, as listed by review_queue: the target file for a translation, the source file for a source unit"`
 	Key     string `json:"key" jsonschema:"Unit key, as listed by review_queue"`
 }
 
@@ -155,12 +159,16 @@ func handleReviewQueue(ctx context.Context, a *cli.App, input ReviewQueueInput) 
 	if err != nil {
 		return nil, ReviewQueueOutput{}, err
 	}
-	rep, err := a.ProjectConvergence(ctx, projectPath, "")
+	var langs []string
+	if input.Language != "" {
+		langs = []string{input.Language}
+	}
+	queue, err := a.ReviewQueue(ctx, projectPath, "", cli.ReviewQueueOptions{Languages: langs})
 	if err != nil {
 		return nil, ReviewQueueOutput{}, fmt.Errorf("derive review queue: %w", err)
 	}
-	pending := make([]cli.ReviewQueueItem, 0, len(rep.Review))
-	for _, it := range rep.Review {
+	pending := make([]cli.ReviewQueueItem, 0, len(queue.Pending))
+	for _, it := range queue.Pending {
 		if input.Locale != "" && it.Locale != input.Locale {
 			continue
 		}
@@ -169,7 +177,7 @@ func handleReviewQueue(ctx context.Context, a *cli.App, input ReviewQueueInput) 
 		}
 		pending = append(pending, it)
 	}
-	return nil, ReviewQueueOutput{Pending: pending, Total: len(pending)}, nil
+	return nil, ReviewQueueOutput{Pending: pending, Total: len(pending), Languages: queue.Languages}, nil
 }
 
 func handleReviewUnit(ctx context.Context, a *cli.App, input ReviewUnitInput) (*mcp.CallToolResult, ReviewUnitOutput, error) {

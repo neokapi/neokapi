@@ -565,15 +565,24 @@ func (a *App) RunStatus(cmd Command, _ []string) error {
 	}
 
 	return a.withParseCache(root, func() error {
-		// --review lists the units awaiting human review (translated, not yet an
-		// approved correction) — the review surface, the derived counterpart of the
-		// convergence loop's "parked" outcome.
+		// --review lists the units awaiting a person in one queue across the
+		// project's languages: the translations not yet approved, and the source
+		// units the source gate is waiting on. It is the review surface, the
+		// derived counterpart of the convergence loop's "parked" outcome.
 		if review, _ := cmd.Flags().GetBool("review"); review {
-			items, qerr := a.computeReviewQueue(cmd.Context(), proj, root, units)
+			srcUnits, serr := a.SourceUnitsFromProject(proj, root)
+			if serr != nil {
+				return fmt.Errorf("resolve source content: %w", serr)
+			}
+			langs, _ := cmd.Flags().GetStringSlice("lang")
+			queue, qerr := a.computeUnifiedReviewQueue(cmd.Context(), proj, root, units, srcUnits,
+				ReviewQueueOptions{Languages: langs})
 			if qerr != nil {
 				return fmt.Errorf("compute review queue: %w", qerr)
 			}
-			return output.Print(cmd, reviewQueueOutput{Project: proj.Name, Pending: items})
+			return output.Print(cmd, reviewQueueOutput{
+				Project: proj.Name, Pending: queue.Pending, Languages: queue.Languages,
+			})
 		}
 
 		// The project's bound checks run here for the same reason `kapi up` runs
@@ -688,7 +697,8 @@ func (a *App) statusVenue(proj *project.KapiProject) *StatusVenue {
 func AddStatusFlags(cmd Command) {
 	cmd.Flags().String("locale", "", "limit to a single target locale")
 	cmd.Flags().String("source-lang", "", "source language (overrides the project's source_language)")
-	cmd.Flags().Bool("review", false, "list translated units not yet approved in the project state store (the review worklist), instead of the coverage grid; approve a unit with `kapi apply` (kind:\"review\")")
+	cmd.Flags().Bool("review", false, "list the units awaiting review in every language, the source language among them, instead of the coverage grid; approve a translated unit with `kapi apply` (kind:\"review\")")
+	cmd.Flags().StringSlice("lang", nil, "with --review, list only these languages (repeatable, or comma-separated); the source language is one of them")
 	cmd.Flags().Bool("json", false, "output the structured result as JSON")
 	cmd.Flags().Bool("ship", false, "emit the minimal ship.json picker manifest (locale → {shippable, verified}) instead of the coverage grid — the shape a language picker consumes to hide un-shippable locales and badge unverified ones AI")
 	cmd.Flags().String("emit", "", "with --ship, write the manifest to this path (e.g. ship.json) instead of stdout")

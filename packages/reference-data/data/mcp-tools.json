@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-02T10:24:46Z",
+  "generatedAt": "2026-09-02T16:29:17Z",
   "tools": [
     {
       "name": "apply_edits",
@@ -1164,7 +1164,7 @@
     },
     {
       "name": "review_queue",
-      "description": "List the translation review queue: every translated unit not yet approved, addressed by (file, key, locale). Filter with locale and/or collection. Read-only — derived from the content files and the project state store; units annotated by an AI pre-review carry their score. Lean by design: call review_unit for a unit's context (the point governing it, its neighbourhood, its prior version, its findings).",
+      "description": "List the review queue: every unit awaiting a person, addressed by (file, key, locale). One queue holds every language, the project's source language among them: a translated unit not yet approved is one row, and a source unit the project's source gate is waiting on is another, marked `isSource`. The result also carries `languages`, the pending count per language. Filter with language, locale and/or collection. Read-only, derived from the content files and the project state store; units annotated by an AI pre-review carry their score. Lean by design: call review_unit for a unit's context (the point governing it, its neighbourhood, its prior version, its findings).",
       "surface": "default",
       "params": [
         {
@@ -1172,6 +1172,12 @@
           "type": "string",
           "required": false,
           "description": "Only list units in this content collection"
+        },
+        {
+          "name": "language",
+          "type": "string",
+          "required": false,
+          "description": "Only list units in this language; the project's source language lists its source units"
         },
         {
           "name": "locale",
@@ -1189,14 +1195,14 @@
     },
     {
       "name": "review_unit",
-      "description": "Fetch one review-queue unit's full picture: source and target text, ladder status, the last recorded state (with identity), and the context the decision is made in: the point governing the file (voice guidance, term rules, coordinates), the blocks before and after it as run sequences, the prior approved version and the content-memory match with its wording, the check findings with their run anchors, and the AI pre-review score. The read leg before approve_unit / reject_unit / sign_off_unit.",
+      "description": "Fetch one review-queue unit's full picture: source and target text, ladder status, the last recorded state (with identity), and the context the decision is made in: the point governing the file (voice guidance, term rules, coordinates), the blocks before and after it as run sequences, the prior approved version and the content-memory match with its wording, the check findings with their run anchors, and the AI pre-review score. A unit in the project's source language is read the same way, from its source file, and returns its authoring rung with no target half. The read leg before approve_unit / reject_unit / sign_off_unit.",
       "surface": "default",
       "params": [
         {
           "name": "file",
           "type": "string",
           "required": true,
-          "description": "Target file path, as listed by review_queue"
+          "description": "File path, as listed by review_queue: the target file for a translation, the source file for a source unit"
         },
         {
           "name": "key",
@@ -1208,7 +1214,7 @@
           "name": "locale",
           "type": "string",
           "required": true,
-          "description": "Target locale, as listed by review_queue"
+          "description": "Language of the unit, as listed by review_queue: a target locale, or the project's source language for a source unit"
         },
         {
           "name": "project",

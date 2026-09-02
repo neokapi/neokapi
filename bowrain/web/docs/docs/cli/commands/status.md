@@ -67,7 +67,8 @@ declared but the bowrain plugin is missing).
 | ---------------- | --------------------------------------------------------------------------- |
 | `--locale`       | Limit the grid to a single target locale                                    |
 | `--source-lang`  | Source language (overrides the project's `source_language`)                 |
-| `--review`       | List translated units not yet approved (the review worklist) instead of the grid; approve one with `kapi apply` |
+| `--review`       | List the units awaiting review in every language, the source language among them, instead of the grid; approve a translated one with `kapi apply` |
+| `--lang <tag>`   | With `--review`, list only these languages (repeatable, or comma-separated) |
 | `--ship`         | Emit the minimal `ship.json` manifest (locale → shippable, verified) instead of the grid: the shape a language picker consumes to hide locales that are not shippable and badge those shipped on machine review |
 | `--emit <path>`  | With `--ship`, write the manifest to this path instead of stdout            |
 | `--json`         | Output the structured result as JSON                                        |
@@ -86,8 +87,9 @@ kapi status
 # One locale
 kapi status --locale fr
 
-# The review worklist
+# The review worklist, and one language of it
 kapi status --review
+kapi status --review --lang fr
 
 # The ship manifest for a language picker, written at build time
 kapi status --ship --emit public/ship.json

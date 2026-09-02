@@ -245,6 +245,102 @@ func (a *App) SourceQueue(ctx context.Context, projectPath, sourceLang string) (
 	return a.computeSourceQueue(ctx, proj, root, units)
 }
 
+// reviewSourceUnit answers ReviewUnitWithOptions for a unit in the source
+// language: the wording, the rung it settles at, the decision recorded under
+// the source locale variant, and, when asked for, the same review model a
+// translation of it is judged against.
+//
+// The neighbours carry source alone. The content under review is the content,
+// so there is no target half to overlay.
+func (a *App) reviewSourceUnit(ctx context.Context, proj *project.KapiProject, root, projectPath string, ref ReviewUnitRef, opts ReviewUnitOptions) (*ReviewUnitInfo, error) {
+	sourceLang := a.SourceLang
+	units, err := a.SourceUnitsFromProject(proj, root)
+	if err != nil {
+		return nil, fmt.Errorf("resolve source content: %w", err)
+	}
+	approvals, err := a.loadSourceApprovals(ctx, root, sourceLang)
+	if err != nil {
+		return nil, err
+	}
+	docs := a.documentIndexOrEmpty(ctx, root)
+
+	for _, u := range units {
+		if relativeToRoot(root, u.SourcePath) != ref.File {
+			continue
+		}
+		blocks, berr := a.readSource(ctx, u)
+		if berr != nil {
+			if errors.Is(berr, registry.ErrUnknownFormat) {
+				continue // no reader on this machine for this file's format
+			}
+			return nil, berr
+		}
+		scope := docs.Scope(root, u.SourcePath)
+		for _, b := range blocks {
+			if !b.Translatable || blockKey(b) != ref.Key {
+				continue
+			}
+			text := b.SourceText()
+			if approvals.approves(scope, ref.Key, text) {
+				b.SourceStatus = model.SourceStatusApproved
+			}
+			check.SettleSourceStatus(ctx, b)
+
+			info := &ReviewUnitInfo{
+				Locale:     sourceLang,
+				Language:   sourceLang,
+				IsSource:   true,
+				File:       ref.File,
+				Key:        ref.Key,
+				Collection: u.Collection,
+				Source:     text,
+				Status:     string(b.SourceStatus),
+			}
+			st, serr := a.OpenProjectState(ctx, root)
+			if serr != nil {
+				return nil, serr
+			}
+			var record *state.UnitState
+			k := state.Key{Scope: scope, Unit: ref.Key, Variant: sourceVariant(sourceLang)}
+			if us, found := st.Get(ctx, k); found {
+				record = &us
+				info.Stale = us.SourceStale(state.SourceHash(text))
+				if !info.Stale {
+					info.ReviewState = us.Decision.ReviewState
+					info.Note = us.Decision.Note
+					info.By = us.Decision.By
+				}
+			}
+			if opts.WithContext {
+				cmd := NewEnvCommand(ctx, "review")
+				AddProjectFlag(cmd)
+				AddResourceFlags(cmd)
+				if ferr := cmd.Flags().Set(projectFlagName, projectPath); ferr != nil {
+					return nil, fmt.Errorf("bind project: %w", ferr)
+				}
+				info.Context = a.AssembleReviewContext(ctx, ReviewContextRequest{
+					Cmd:        cmd,
+					Root:       root,
+					SourcePath: u.SourcePath,
+					Collection: u.Collection,
+					Locale:     sourceLang,
+					SourceLang: sourceLang,
+					Blocks:     blocks,
+					Key:        ref.Key,
+					Window:     opts.Window,
+					Memory:     a.ReviewMemory(ctx, root),
+					Unit:       record,
+				})
+				if info.Context != nil {
+					info.Context.Provenance.Stale = info.Stale
+				}
+			}
+			return info, nil
+		}
+	}
+	return nil, fmt.Errorf("source unit %q (%s) not found in %s", ref.Key, sourceLang, ref.File)
+}
+
 // ApproveSourceUnit records a human approval of one source unit, bound to the
 // wording in front of the approver: the record carries that wording's hash, so
 // an edit to the source drops the approval rather than letting it outlive the

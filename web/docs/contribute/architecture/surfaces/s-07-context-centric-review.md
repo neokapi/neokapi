@@ -75,19 +75,39 @@ Provenance carries the decision **in force**. `core/state` keeps one record per
 holds and invents no chain. A client that wants a chain wants a store change,
 which is a [C-04](../context/c-04-unit-state-and-decisions.md) decision.
 
+### One queue, and every unit in it belongs to a language
+
+The queue is a single list of the units awaiting a person. Each row names the
+language it belongs to (`language`), and the row whose language is the
+project's source carries `isSource`. Listing every language lists the source
+language's units among the translations; a language filter narrows the list, and
+the result carries the pending count per language beside it, so a surface offers
+the languages that have work rather than a lane switch.
+
+A row's `status` is its rung on its own ladder: `translated` for a queued
+translation, and the settled authoring rung for a source unit, with `held`
+marking one the project's source gate is holding the fan-out on.
+
+`host.App.ReviewQueue` derives it, merging the target derivation and the source
+derivation over one project read. The listing is unified and the storage is not:
+a source decision is recorded under the source locale variant and a target
+decision under the target's, as [C-04](../context/c-04-unit-state-and-decisions.md)
+defines them.
+
 ### Every client renders the same object
 
 The model is one Go type, `host.ReviewContext`, assembled by
 `App.AssembleReviewContext` and attached to the unit (`ReviewUnitInfo.Context`)
-when a client asks for a unit with its context. The queue itself stays a list
-of units; a file's point is resolved once per queue and shared by its units.
-The clients are:
+when a client asks for a unit with its context. The point carries the language
+it was resolved for, because a term rule resolves per language. The queue itself
+stays a list of units; a file's point is resolved once per queue and shared by
+its units. The clients are:
 
 | Client | How it renders the model |
 | --- | --- |
 | Kapi Desktop ([S-02](s-02-kapi-desktop.md)) | the queue's detail pane: a point rail, the neighbourhood, the history, findings, and a provenance card; the document view opens at the unit with review state drawn as marks |
-| `kapi status --review` ([S-01](s-01-kapi-cli.md)) | the queue as a table, and as JSON with `--json` |
-| MCP `review_unit` ([S-03](s-03-agent-surfaces.md)) | the model whole, as the read leg before `approve_unit`, `reject_unit` and `sign_off_unit` |
+| `kapi status --review` ([S-01](s-01-kapi-cli.md)) | the queue as a table, `--lang` narrowing it to one or more languages, and as JSON with `--json` |
+| MCP `review_unit` ([S-03](s-03-agent-surfaces.md)) | the model whole, as the read leg before `approve_unit`, `reject_unit` and `sign_off_unit`; `review_queue` lists the queue with its per-language counts |
 
 A host that records a review decision with an identity is a client of this
 model by shape: the layers are the contract, whatever renders them.
@@ -102,13 +122,19 @@ equality test holds the review path to the flow path over all eight. The AI
 pre-review judge scores against the same assembly, so it judges the unit against
 the voice and vocabulary in force rather than against a bare pair of strings.
 
-### Source and target are two rungs of one ladder
+### Source review is review, in the source language
 
-Source review and target review are the same act at different rungs of the
-ladders [C-04](../context/c-04-unit-state-and-decisions.md) defines, and both
-lanes render the same review model. Approving source wording without the voice
-it is approved against is the target defect in reverse. A source decision is
-recorded with the same identity a target decision carries.
+Judging the author's wording and judging a translation of it are the same act on
+different content, at rungs of the two ladders
+[C-04](../context/c-04-unit-state-and-decisions.md) defines. Both render the
+same review model, so a reviewer approving source wording sees the voice it is
+approved against, and a source decision is recorded with the same identity a
+target decision carries.
+
+The source language is therefore a language of the queue rather than a mode of
+it. What differs is what a client can do next: `kapi apply` records
+target-language decisions, and source wording is approved through
+`App.ApproveSourceUnit`, which Kapi Desktop's Review page calls.
 
 ### What a source change does to an undecided target
 
