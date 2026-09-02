@@ -48,6 +48,16 @@ Non-obvious constraints:
   exception**, and the plugin binary's closure stays inside `bowrain/plugin/`.
   Do not add an import exception. A type both sides need belongs below the line
   (`core/venue`, `host/venue/…`), never on an allowlist above it.
+
+  The same two run `scripts/check-ts-license-boundary.sh`, which asserts the
+  TypeScript half: no file outside `bowrain/` may reach an AGPL one by relative
+  path, by the name of a package whose `package.json` sits under `bowrain/`
+  (`@neokapi/ui` is `bowrain/packages/ui`), by a tsconfig `paths` alias, or by a
+  `package.json` dependency. Go import closures say nothing about a React
+  component, and the pnpm workspace links every internal dependency from source,
+  so such an import compiles and bundles into the Apache desktop app with
+  nothing to notice it. Shared frontend code belongs in `packages/`, where
+  `@neokapi/ui-primitives` already sits. The check has no allowlist either.
 - **`kapi` links no plugin's code.** Plugins (bowrain, okapi-bridge, sat, …) are
   discovered at runtime via the unified manifest model and dispatched as
   subprocesses. `bowrain/plugin/*` is blank-imported into `kapi-bowrain`, not
