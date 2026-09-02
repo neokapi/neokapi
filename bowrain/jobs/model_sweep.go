@@ -384,15 +384,15 @@ func sweepVoiceAdherent(target string, profile *coreprofile.VoiceProfile) bool {
 }
 
 // resolveSweepContext captures the project's standing context for a sweep, via
-// the very same resolution the translation worker binds into every AI job
+// the very same assembly the translation worker binds into every AI job
 // (#1334): the voicescope profile ladder, the workspace term rules, and the
-// project's DNT terms.
+// project's DNT terms. A sweep measures models under the context the jobs it
+// informs will actually run with.
 func resolveSweepContext(ctx context.Context, deps *WorkerDeps, job *TranslationJob, proj *store.Project) *SweepContext {
-	srcLocale := proj.DefaultSourceLanguage
-	tgtLocale := model.LocaleID(job.TargetLocale)
+	cfg := jobTranslateConfig(ctx, deps, job, proj)
 	return &SweepContext{
-		Profile:   resolveJobVoiceProfile(ctx, deps, job),
-		TermRules: resolveJobTermRules(ctx, deps, job, srcLocale, tgtLocale),
-		DNT:       ProjectDNTTerms(proj),
+		Profile:   cfg.Profile,
+		TermRules: cfg.TermRules,
+		DNT:       cfg.DNT,
 	}
 }

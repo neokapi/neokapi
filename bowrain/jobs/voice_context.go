@@ -6,7 +6,6 @@ import (
 	"maps"
 	"slices"
 
-	"github.com/neokapi/neokapi/bowrain/core/voicescope"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/terms"
@@ -45,38 +44,21 @@ func (f TermsResolverFunc) GetTB(workspaceSlug string) (terms.Terminology, error
 // scoring surfaces use. The job's target locale selects the profile's locale
 // override, so e.g. a per-locale formality adjustment reaches the prompt.
 //
+// It resolves through the shared binding, so a job scores its drafts against
+// the profile its translation was produced under.
+//
 // Returns nil (and logs) on any resolution failure: voice must never
 // fail a translation job.
 func resolveJobVoiceProfile(ctx context.Context, deps *WorkerDeps, job *TranslationJob) *coreprofile.VoiceProfile {
-	if deps == nil || deps.VoiceStore == nil {
-		return nil
-	}
-	profile, err := voicescope.Resolve(ctx, deps.ContentStore, deps.WorkspaceDefault, deps.VoiceStore, voicescope.Scope{
-		WorkspaceID: job.WorkspaceID,
-		ProjectID:   job.ProjectID,
-		Stream:      "main",
-		Locale:      model.LocaleID(job.TargetLocale),
-	})
-	if err != nil {
-		slog.WarnContext(ctx, "voice profile resolution failed; translating without voice",
-			"job_id", job.ID, "project_id", job.ProjectID, "error", err)
-		return nil
-	}
-	return profile
+	b := jobTranslateBinding(deps, job, nil)
+	return b.VoiceProfile(ctx, b.Collection(ctx))
 }
 
-// resolveJobTermRules builds the term rules governing a translation job from
-// the workspace terms, mirroring the CLI's ResolveTermRules via the shared
-// TermRulesFromConcepts derivation.
-//
-// Returns nil (and logs) when no terms store resolves, it has no terms for the
-// locale pair, or any read fails: terminology must never fail a translation
-// job.
-func resolveJobTermRules(ctx context.Context, deps *WorkerDeps, job *TranslationJob, sourceLocale, targetLocale model.LocaleID) []coreprofile.TermRule {
+// resolveJobTerms returns the workspace terms a job's terminology derives from,
+// or nil when the worker has no resolver, the workspace has no store, or the
+// read fails: terminology must never fail a translation job.
+func resolveJobTerms(deps *WorkerDeps, job *TranslationJob) terms.Terminology {
 	if deps == nil || deps.TermsResolver == nil {
-		return nil
-	}
-	if sourceLocale == "" || targetLocale == "" {
 		return nil
 	}
 	slug := job.WorkspaceSlug
@@ -84,20 +66,15 @@ func resolveJobTermRules(ctx context.Context, deps *WorkerDeps, job *Translation
 		slug = "_anon"
 	}
 	tb, err := deps.TermsResolver.GetTB(slug)
-	if err != nil || tb == nil {
-		if err != nil {
-			slog.WarnContext(ctx, "terms resolution failed; translating without terminology",
-				"job_id", job.ID, "workspace", slug, "error", err)
-		}
-		return nil
-	}
-	rules, err := TermRulesFromConcepts(ctx, tb, job.ProjectID, sourceLocale, targetLocale)
 	if err != nil {
-		slog.WarnContext(ctx, "terms read failed; translating without terminology",
+		slog.Warn("terms resolution failed; translating without terminology",
 			"job_id", job.ID, "workspace", slug, "error", err)
 		return nil
 	}
-	return rules
+	if tb == nil {
+		return nil
+	}
+	return tb
 }
 
 // TermRulesFromConcepts derives the term rules a translation carries from a

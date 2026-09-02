@@ -10,13 +10,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestRunQAOnBlock_MapsFindingsToWireShape locks the QA handler boundary: the QA
+// TestRunChecksOnBlock_MapsFindingsToWireShape locks the check handler boundary: the
 // tools emit core/check.Finding internally, but the HTTP response must keep the
 // stable {type, severity ("error"|"warning"), message} shape the editor's
 // Problems panel consumes. A dropped non-deletable inline code is a major
 // finding → "error"; a double space in the target is a minor finding →
 // "warning". The category survives verbatim as the response "type".
-func TestRunQAOnBlock_MapsFindingsToWireShape(t *testing.T) {
+func TestRunChecksOnBlock_MapsFindingsToWireShape(t *testing.T) {
 	// Source has a non-deletable break placeholder; the target drops it AND
 	// introduces a double space.
 	block := &model.Block{
@@ -34,7 +34,7 @@ func TestRunQAOnBlock_MapsFindingsToWireShape(t *testing.T) {
 	}
 	block.SetTargetText(model.LocaleFrench, "Bonjour  le monde")
 
-	issues := runQAOnBlock(t.Context(), block, model.LocaleFrench)
+	issues := runChecksOnBlock(t.Context(), block, pointChecks{TargetLocale: model.LocaleFrench})
 	require.NotEmpty(t, issues)
 
 	byType := map[string]string{} // category -> wire severity
@@ -103,24 +103,24 @@ func TestQAIssuesFromFindings_KeepsWhatTheFindingLocated(t *testing.T) {
 // texts and the shape flattenings it works over are not run offsets — so the
 // endpoint is honest about locating nothing rather than inventing a range.
 // This pins that: when the tools start locating, this test says so.
-func TestRunQAOnBlock_ReportsNoPositionYet(t *testing.T) {
+func TestRunChecksOnBlock_ReportsNoPositionYet(t *testing.T) {
 	block := model.NewBlock("b1", "Hello world")
 	block.SetTargetText(model.LocaleFrench, "Bonjour  le monde")
 
-	issues := runQAOnBlock(t.Context(), block, model.LocaleFrench)
+	issues := runChecksOnBlock(t.Context(), block, pointChecks{TargetLocale: model.LocaleFrench})
 	require.NotEmpty(t, issues)
 	for _, iss := range issues {
 		assert.Nil(t, iss.Position, "%s: qacheck does not locate its findings yet", iss.Type)
 	}
 }
 
-// TestRunQAOnBlock_CleanBlock returns an empty slice (not nil) when there is
+// TestRunChecksOnBlock_CleanBlock returns an empty slice (not nil) when there is
 // nothing to report, so the JSON encodes as [] for the frontend.
-func TestRunQAOnBlock_CleanBlock(t *testing.T) {
+func TestRunChecksOnBlock_CleanBlock(t *testing.T) {
 	block := model.NewBlock("b1", "Hello world")
 	block.SetTargetText(model.LocaleFrench, "Bonjour le monde")
 
-	issues := runQAOnBlock(t.Context(), block, model.LocaleFrench)
+	issues := runChecksOnBlock(t.Context(), block, pointChecks{TargetLocale: model.LocaleFrench})
 	assert.Empty(t, issues)
 	assert.NotNil(t, issues, "must be a non-nil empty slice so JSON encodes as []")
 }
