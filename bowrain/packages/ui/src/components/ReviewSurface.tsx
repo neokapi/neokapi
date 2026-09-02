@@ -26,6 +26,7 @@ import type {
 } from "../types/api";
 import { useEditorApi } from "../hooks/useEditorApi";
 import { useLocales } from "../hooks/useLocales";
+import { useCallerPermissions } from "../hooks/useCallerPermissions";
 import { useAnalytics } from "../context/AnalyticsContext";
 import { AnalyticsEvents } from "../analytics-events";
 import { ProblemsPanel } from "./editor/ProblemsPanel";
@@ -135,6 +136,10 @@ export function ReviewSurface({
   const api = useEditorApi();
   const { capture } = useAnalytics();
   const { getFileBlocks, getBlockCounts } = api;
+  // Approving is the `review` permission, per language, so a translator gets a
+  // disabled button rather than a 403 on click.
+  const { can } = useCallerPermissions(project.id);
+  const canApprove = can("review", targetLocale || undefined);
 
   // Which side the document is read on. Review is reading the translation, so
   // it opens on the target locale and the source is a keystroke away.
@@ -691,7 +696,8 @@ export function ReviewSurface({
         <Button
           size="sm"
           onClick={bulkMarkReviewed}
-          disabled={marked.size === 0 || bulkBusy}
+          disabled={marked.size === 0 || bulkBusy || !canApprove}
+          title={canApprove ? undefined : "Approving needs the review permission for this language"}
           data-testid="bulk-mark-reviewed"
         >
           <Check className="w-3.5 h-3.5 mr-1" /> Mark reviewed
@@ -796,6 +802,7 @@ export function ReviewSurface({
         termsLoading={termsLoading}
         editing={editing}
         busy={bulkBusy}
+        canApprove={canApprove}
         marked={selectedId ? marked.has(selectedId) : false}
         onClose={() => {
           setSelectedId(null);

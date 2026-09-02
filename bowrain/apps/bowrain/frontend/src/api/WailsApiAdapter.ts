@@ -1,6 +1,7 @@
 import type { ApiAdapter } from "@neokapi/ui";
-import { governedRefusalError } from "@neokapi/ui";
+import { ALL_PERMISSIONS, governedRefusalError } from "@neokapi/ui";
 import type {
+  CallerPermissions,
   ConvergenceRun,
   ConvergenceEstimate,
   ConvergenceRunScope,
@@ -502,6 +503,14 @@ export class WailsApiAdapter implements ApiAdapter {
   }
   async getProject(_ws: string, projectId: string): Promise<ProjectInfo> {
     return Backend.GetProject(projectId) as Promise<ProjectInfo>;
+  }
+  /**
+   * The desktop app opens a project on its own machine, for the person sitting
+   * at it. There is no membership to resolve and nothing to withhold, so the
+   * caller holds every permission over every language.
+   */
+  async getCallerPermissions(): Promise<CallerPermissions> {
+    return { permissions: [...ALL_PERMISSIONS], languages: [] };
   }
   async updateProject(): Promise<ProjectInfo> {
     throw new Error("Not implemented");

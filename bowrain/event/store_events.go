@@ -638,6 +638,17 @@ func (s *EventEmittingStore) GetLastEditor(ctx context.Context, projectID, strea
 	return as.GetLastEditor(ctx, projectID, stream, blockID)
 }
 
+// LastTargetAuthors forwards the optional TargetAuthorStore capability. The
+// server holds this wrapper, so separation of duties at review reaches the
+// underlying store through here or not at all.
+func (s *EventEmittingStore) LastTargetAuthors(ctx context.Context, projectID, stream string, blockIDs, locales []string) (map[store.TargetRef]string, error) {
+	as, ok := s.inner.(store.TargetAuthorStore)
+	if !ok {
+		return nil, fmt.Errorf("content store %T keeps no target authorship", s.inner)
+	}
+	return as.LastTargetAuthors(ctx, projectID, stream, blockIDs, locales)
+}
+
 // UpsertChannelAliasProposals forwards the optional ChannelAliasStore
 // capability. Same reason as the decision ledger above: the server holds the
 // wrapper, and an assertion against the wrapper's method set found nothing —

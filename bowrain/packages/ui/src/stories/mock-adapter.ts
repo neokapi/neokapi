@@ -55,6 +55,7 @@ import type {
   AutomationHistoryEntry,
   SaveAutomationRuleRequest,
 } from "../types/api";
+import { ALL_PERMISSIONS } from "../types/api";
 import {
   sampleBlocks,
   sampleProject,
@@ -708,6 +709,9 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
     listProjects: async () => [sampleProject],
     createProject: notImpl,
     getProject: async () => sampleProject,
+    // Stories exercise the full surface, so the mock caller holds every
+    // permission unless a story overrides it.
+    getCallerPermissions: async () => ({ permissions: [...ALL_PERMISSIONS], languages: [] }),
     updateProject: async () => sampleProject,
     deleteProject: noop,
     uploadFiles: async (_ws, _projectId, files): Promise<UploadFilesResult> => {
@@ -1021,6 +1025,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
         skipped_failing_checks: 0,
         skipped_term_violations: 0,
         skipped_below_voice_bar: 0,
+        skipped_self_authored: 0,
         remaining_pending: 0,
         review_completed: true,
       };

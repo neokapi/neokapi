@@ -253,10 +253,10 @@ func TestHandleReviewBlockLegacyPropertyLifecycle(t *testing.T) {
 }
 
 // TestHandleReviewBlockSignedOff: signed-off is the rung ABOVE reviewed on the
-// target ladder. A plain PermTranslate caller must not be able to demote it —
-// not by re-approving (idempotent no-op that keeps signed-off) and not by
-// un-reviewing (403 without the elevated PermReview). A caller holding
-// PermReview may demote it.
+// target ladder. A plain PermTranslate caller reaches neither end of it: an
+// approve needs PermReview, and an un-review of a signed-off target needs the
+// same. A caller holding PermReview re-approves it as an idempotent no-op that
+// keeps signed-off, and may demote it.
 func TestHandleReviewBlockSignedOff(t *testing.T) {
 	srv, cs := newReviewTestServer(t)
 
@@ -269,8 +269,13 @@ func TestHandleReviewBlockSignedOff(t *testing.T) {
 
 	translator := platauth.PermViewContent | platauth.PermTranslate
 
-	// Re-approving a signed-off target keeps signed-off (never demotes).
+	// A translator cannot approve at all, signed-off or otherwise.
 	rec, err := callReviewBlockAs(t, srv, pid, bid, "fr", true, translator)
+	require.Error(t, err, "deny() returns errAccessDenied after committing the 403")
+	assert.Equal(t, http.StatusForbidden, rec.Code, rec.Body.String())
+
+	// A reviewer re-approving a signed-off target keeps signed-off (never demotes).
+	rec, err = callReviewBlockAs(t, srv, pid, bid, "fr", true, translator|platauth.PermReview)
 	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	assert.Contains(t, rec.Body.String(), `"status":"signed-off"`)

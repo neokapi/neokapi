@@ -531,6 +531,16 @@ export interface DenyRule {
   created_at: string;
 }
 
+/**
+ * CallerPermissions is what the signed-in user may do on one project, as the
+ * server resolved it: the permission names, and the languages the
+ * language-scoped ones are bound to (empty means every language).
+ */
+export interface CallerPermissions {
+  permissions: string[];
+  languages: string[];
+}
+
 /** Input for creating a deny rule. */
 export interface DenyRuleInput {
   subject_type: "user" | "role" | "group";
@@ -682,12 +692,16 @@ export interface ApprovePassingResult {
   /**
    * Which bar each skipped block missed. A block missing more than one is
    * counted against the first the server applies (checks, then terminology,
-   * then voice), so the three sum to `skipped`. The same three axes the queue's
-   * entries carry, so a preview and its outcome are read in one vocabulary.
+   * then voice), so these sum to `skipped`. The first three are the axes the
+   * queue's entries carry, so a preview and its outcome are read in one
+   * vocabulary. `skipped_self_authored` is the fourth and the only one about
+   * the caller: a translation they wrote, in a workspace whose
+   * separation-of-duties policy blocks self-approval.
    */
   skipped_failing_checks: number;
   skipped_term_violations: number;
   skipped_below_voice_bar: number;
+  skipped_self_authored: number;
   /** Pending-review targets still awaiting review after the call. */
   remaining_pending: number;
   /** True iff this call emptied the review queue → completing run + delivery. */

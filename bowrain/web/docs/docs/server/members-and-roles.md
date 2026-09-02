@@ -67,7 +67,9 @@ built-in templates cannot be deleted, but custom ones can.
 
 A template is assembled from individual permissions grouped by area:
 
-- **Content**: view content, edit source, translate, review.
+- **Content**: view content, edit source, translate, review. `translate` writes
+  and rejects a translation; approving one is `review`, so a template without it
+  can contribute and send work back but never sign it off.
 - **Knowledge**: manage terms (`manage_terms`), content memory
   (`manage_memory`), voice profiles (`manage_voice`), and assets.
 - **Operations**: run flows, manage files, manage streams, manage connectors,
@@ -144,10 +146,12 @@ controls under **Workspace Settings > Governance** (owner and admin only). In
 brief:
 
 - **Separation of duties**: whether a person may approve their own work. Set
-  it to off, warn (record a warning but allow it), or block (prevent anyone from
-  reviewing or approving content they authored). Drafts a run produced carry
-  machine authorship, so this rule never stops the one person in a workspace
-  from approving them.
+  it to off, warn (record a warning but allow it), or block (refuse an approval
+  of content the approver wrote). It covers approving a translation block by
+  block, over a selection, and through **Approve everything passing**, where a
+  refused target is left pending and counted. A draft a run produced has no
+  human author, so this rule never stops the one person in a workspace from
+  approving it.
 - **Teams**: group members so they can be granted project roles in bulk.
 - **Deny rules**: negative permissions that always override grants. A rule
   targets a user, a workspace role, or a team, and removes specific permissions

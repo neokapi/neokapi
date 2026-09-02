@@ -49,6 +49,8 @@ const EVENT_CATEGORIES: Record<string, { label: string; icon: typeof Package }> 
   session: { label: "Agent Sessions", icon: Users },
   authz: { label: "Access Denials", icon: AlertTriangle },
   rollback: { label: "Rollbacks", icon: ArrowRight },
+  review: { label: "Review", icon: Shield },
+  sod: { label: "Separation of Duties", icon: AlertTriangle },
 };
 
 const EVENT_DESCRIPTIONS: Record<string, string> = {
@@ -100,6 +102,9 @@ const EVENT_DESCRIPTIONS: Record<string, string> = {
   "auth.failed": "Failed sign-in",
   "session.grant.created": "Granted agent session",
   "authz.denied": "Access denied",
+  "review.decided": "Decided a review",
+  "review.bulk_approved": "Approved everything passing",
+  "sod.violation": "Acted on own work",
   "rollback.performed": "Rolled back changes",
 };
 

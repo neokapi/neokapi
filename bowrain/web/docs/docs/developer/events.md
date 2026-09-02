@@ -60,6 +60,8 @@ webhook delivery live in `bowrain/event`.
 | `quality.gate.pass` / `quality.gate.fail` | A quality gate is evaluated         |
 | `source.review.completed`    | A source review task is completed              |
 | `review.completed`           | A project's review queue is emptied            |
+| `review.decided`             | One block's target is approved, rejected, or un-reviewed |
+| `review.bulk_approved`       | An approve-passing pass promotes a language's passing targets |
 | `voice.check.started` / `voice.check.completed` | A voice check runs            |
 | `voice.gate.passed` / `voice.gate.failed` | A voice gate is evaluated           |
 | `voice.drift` / `voice.corrected` / `voice.profile.updated` | The voice loop moves |

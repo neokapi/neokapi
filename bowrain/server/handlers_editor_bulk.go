@@ -59,13 +59,15 @@ type BulkReviewResponse struct {
 // its own result rather than failing the batch. The review-loop continuation
 // runs once, after the pass, for the locale that saw a real approval.
 //
+// The gates are the single-block route's gates: approving needs PermReview for
+// the language, withdrawing or rejecting needs PermTranslate, and an approval
+// of work the caller wrote themselves meets the workspace separation-of-duties
+// policy. The authorship the policy needs is read once for the whole selection.
+//
 // POST /:ws/:id/blocks/:ref/bulk-review
 //
 //	{ "block_ids": ["b1","b2"], "target_locale": "fr", "approve": true }
 func (s *Server) HandleBulkReviewBlocks(c echo.Context) error {
-	if err := s.requirePermission(c, platauth.PermTranslate); err != nil {
-		return err
-	}
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
@@ -99,7 +101,10 @@ func (s *Server) HandleBulkReviewBlocks(c echo.Context) error {
 	if req.Approve && req.Status != "" {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "status only applies when approve is false (approval always lands on reviewed)"})
 	}
-	if err := s.requireLanguagePermission(c, platauth.PermTranslate, req.TargetLocale); err != nil {
+	// Approving is the review permission for the language, exactly as the
+	// single-block route gates it; withdrawing an approval or rejecting stays
+	// with translate.
+	if err := s.requireLanguagePermission(c, reviewGateFor(req.Approve), req.TargetLocale); err != nil {
 		return err
 	}
 
@@ -113,11 +118,18 @@ func (s *Server) HandleBulkReviewBlocks(c echo.Context) error {
 	}
 
 	ctx := c.Request().Context()
+	// One authorship query for the whole selection, before the pass: the
+	// separation-of-duties gate then costs nothing per block.
+	sod, err := s.newReviewSoD(ctx, c, pid, stream, req.BlockIDs, []string{req.TargetLocale})
+	if err != nil {
+		return serverErr(c, err)
+	}
 	results := make([]BlockResult, 0, len(req.BlockIDs))
 	succeeded, failed, approvals := 0, 0, 0
 	for _, bid := range req.BlockIDs {
 		out, err := s.applyBlockReview(ctx, c, blockReviewInput{
 			ProjectID: pid, Stream: stream, BlockID: bid, DemoteTo: demoteTo, Elevate: elevate,
+			Vet: sod.vet,
 			Request: ReviewBlockRequest{
 				TargetLocale: req.TargetLocale,
 				ItemName:     req.ItemName,
@@ -133,6 +145,9 @@ func (s *Server) HandleBulkReviewBlocks(c echo.Context) error {
 		succeeded++
 		if out.Approval {
 			approvals++
+		}
+		if out.Changed {
+			s.emitReviewDecisionAudit(c, pid, stream, bid, req.TargetLocale, out.From, out.Status, req.Approve, req.Comment)
 		}
 		results = append(results, BlockResult{BlockID: bid, OK: true, Status: string(out.Status)})
 		if req.Comment != "" {

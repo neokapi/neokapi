@@ -12,6 +12,7 @@ import type {
 } from "../../types/api";
 import { useEditorApi } from "../../hooks/useEditorApi";
 import { useLocales } from "../../hooks/useLocales";
+import { useCallerPermissions } from "../../hooks/useCallerPermissions";
 import { useWorkspace } from "../../context/WorkspaceContext";
 import { ErrorNotice } from "../../errors";
 import { getTargetText, statusAfterEdit, withTargetEntry } from "../editor/blockStatus";
@@ -131,6 +132,9 @@ function skipReasons(result: ApprovePassingResult): string {
   if (result.skipped_below_voice_bar) {
     parts.push(`${result.skipped_below_voice_bar} below the voice bar`);
   }
+  if (result.skipped_self_authored) {
+    parts.push(`${result.skipped_self_authored} written by you`);
+  }
   return parts.length > 0 ? parts.join(", ") : "no reason given";
 }
 
@@ -180,6 +184,9 @@ export function ReviewSession({
   const { getDisplayName } = useLocales();
   const { activeWorkspace } = useWorkspace();
   const ws = activeWorkspace?.slug ?? "";
+  // Approving is the `review` permission, per language, so a translator gets a
+  // disabled button rather than a 403 on click.
+  const { can } = useCallerPermissions(project.id);
   const sourceLocale = project.default_source_language;
   const voiceProfileId = useMemo(() => resolveVoiceProfile(project, stream), [project, stream]);
 
@@ -359,6 +366,13 @@ export function ReviewSession({
     () => passingCount(filter.locale ? entries.filter((e) => e.locale === filter.locale) : entries),
     [entries, filter.locale],
   );
+
+  // "Approve all passing" spans every language the caller may review, so the
+  // button asks whether any of the queue's languages is one of them.
+  const canApproveAny = useMemo(() => {
+    const locales = filter.locale ? [filter.locale] : [...new Set(entries.map((e) => e.locale))];
+    return locales.length === 0 || locales.some((l) => can("review", l));
+  }, [entries, filter.locale, can]);
 
   // Clamp the cursor whenever the visible list shrinks (filter change, removal).
   useEffect(() => {
@@ -671,7 +685,8 @@ export function ReviewSession({
           <Button
             size="sm"
             onClick={() => setConfirmBulk(true)}
-            disabled={busy || passing === 0}
+            disabled={busy || passing === 0 || !canApproveAny}
+            title={canApproveAny ? undefined : "Approving needs the review permission"}
             data-testid="approve-all-passing"
           >
             <Sparkles className="mr-1 h-4 w-4" /> Approve all passing
@@ -799,6 +814,7 @@ export function ReviewSession({
               compliance={complianceForLocale(dashboardStats, current.locale)}
               editing={editing}
               busy={busy}
+              canApprove={can("review", current.locale)}
               reChecking={recheckingId === current.id}
               voiceProfileId={voiceProfileId}
               onApprove={approve}

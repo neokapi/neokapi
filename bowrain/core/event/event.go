@@ -139,6 +139,18 @@ const (
 	// action. ProjectID is the project; Data carries the stream.
 	EventReviewCompleted EventType = "review.completed"
 
+	// EventReviewDecided records one review decision on one block's target for
+	// one locale: an approval, a plain un-review, or a rejection. Data carries
+	// the locale, the stream, the decision and any reason; Before/After carry
+	// the rung the target moved between.
+	EventReviewDecided EventType = "review.decided"
+
+	// EventReviewBulkApproved records one approve-passing pass over a locale,
+	// with the counts it approved and left pending. The pass promotes whatever
+	// clears the ship bar, so its unit is the pass rather than the block; the
+	// per-block record of who approved what is the decision ledger.
+	EventReviewBulkApproved EventType = "review.bulk_approved"
+
 	// Agent events (Bowrain AD-016)
 	EventAgentConversationCreated EventType = "agent.conversation.created"
 	EventAgentMessageSent         EventType = "agent.message.sent"

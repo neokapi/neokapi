@@ -902,3 +902,32 @@ type BlockAccessStore interface {
 	// change (separation of duties at approval).
 	GetLastEditor(ctx context.Context, projectID, stream, blockID string) (string, error)
 }
+
+// TargetRef names one block's target in one locale.
+type TargetRef struct {
+	BlockID string
+	Locale  string
+}
+
+// TargetAuthorStore is the optional capability that names who last wrote each
+// target by hand. Separation of duties at approval asks the question per
+// language: approving the French wording you typed is a conflict of interest,
+// approving the German wording somebody else typed is not.
+//
+// Two filters make the answer mean "who wrote this translation". Only content
+// changes count, so the decision rows the ledger files against the same block
+// do not make the previous reviewer look like the author. Only attributed
+// changes count. A target a run produced was written outside any request, with
+// no acting user, so it reports nothing and one person can still approve what
+// the machine wrote.
+//
+// Assert for it rather than for a concrete store type: a concrete-type
+// assertion dies the moment the store is wrapped in the event-emitting
+// decorator.
+type TargetAuthorStore interface {
+	// LastTargetAuthors returns the last human author of each (block, locale)
+	// target in the cross product of blockIDs and locales. A pair with no
+	// attributed content change is absent from the map. One query answers a
+	// whole batch, so a bulk approval does not become a round trip per block.
+	LastTargetAuthors(ctx context.Context, projectID, stream string, blockIDs, locales []string) (map[TargetRef]string, error)
+}
