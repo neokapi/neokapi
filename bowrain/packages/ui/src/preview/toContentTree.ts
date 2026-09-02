@@ -35,7 +35,7 @@ import type {
 import { rangeAnchorForBytes, textForBytes } from "@neokapi/ui-primitives/preview";
 import { getTargetStatus, getTargetText } from "../components/editor/blockStatus";
 import type { VoiceFinding } from "../voice/types";
-import type { BlockInfo, BlockTermMatch, EntityInfo, QAIssue } from "../types/api";
+import type { BlockInfo, BlockTermMatch, EntityInfo, CheckIssue } from "../types/api";
 
 /**
  * A run-anchored voice or rule-based finding, as `core/check.Finding` serializes it —
@@ -66,7 +66,7 @@ export interface BlockEvidence {
    * block-level annotation — a span the payload does not locate must not be
    * guessed at.
    */
-  issues?: QAIssue[];
+  issues?: CheckIssue[];
   /** The locale `issues` were raised on, recorded on each annotation. */
   issueLocale?: string;
 }
@@ -193,7 +193,7 @@ function findingSpan(finding: BlockFinding, index: number): OverlaySpan {
  * collapsed one that endpoint has always reported. A positioned issue is
  * therefore a span like any other finding's.
  */
-function issueSpan(issue: QAIssue, index: number): OverlaySpan {
+function issueSpan(issue: CheckIssue, index: number): OverlaySpan {
   return {
     id: `issue:${index}`,
     range: issue.position ?? ZERO_RANGE,
@@ -216,9 +216,9 @@ function issueSpan(issue: QAIssue, index: number): OverlaySpan {
  * check and rule-based check both flagged the same target must not produce two `qa`
  * overlays for that locale.
  */
-function qaOverlays(
+function checkOverlays(
   findings: BlockFinding[],
-  issues: QAIssue[],
+  issues: CheckIssue[],
   issueLocale?: string,
 ): OverlayView[] {
   const bySide = new Map<string, OverlaySpan[]>();
@@ -238,7 +238,7 @@ function qaOverlays(
  * Check results the payload does not locate, recorded on the block rather than
  * a span — a position that was never reported must not be guessed at.
  */
-function issueAnnotations(issues: QAIssue[], locale?: string): AnnotationView[] {
+function issueAnnotations(issues: CheckIssue[], locale?: string): AnnotationView[] {
   return issues
     .filter((issue) => !issue.position)
     .map((issue, i) => ({
@@ -268,7 +268,7 @@ export function blockToContentNode(block: BlockInfo, opts: BlockNodeOptions = {}
   const overlays: OverlayView[] = [
     ...overlay("term", "source", termSpans(source, evidence.terms ?? [])),
     ...overlay("entity", "source", entitySpans(source, block.entities ?? [])),
-    ...qaOverlays(evidence.findings ?? [], evidence.issues ?? [], evidence.issueLocale),
+    ...checkOverlays(evidence.findings ?? [], evidence.issues ?? [], evidence.issueLocale),
   ];
   const annotations = issueAnnotations(evidence.issues ?? [], evidence.issueLocale);
 

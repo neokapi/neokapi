@@ -87,7 +87,7 @@ func emit() (string, error) {
 func emitVocabularies() string {
 	overlays := []string{
 		string(model.OverlaySegmentation), string(model.OverlayTerm),
-		string(model.OverlayEntity), string(model.OverlayQA),
+		string(model.OverlayEntity), string(model.OverlayCheck),
 		string(model.OverlayAlignment), string(model.OverlayTermCandidate),
 	}
 	annotations := []string{

@@ -36,8 +36,8 @@ import type {
   ClaimProjectResponse,
   ApiToken,
   CreateApiTokenResponse,
-  QAIssue,
-  FileQAResult,
+  CheckIssue,
+  FileCheckResult,
   AutomationRule,
   AutomationEvent,
   AutomationRun,
@@ -872,20 +872,20 @@ export interface ApiAdapter {
   demoteVoiceRule(workspaceSlug: string, profileId: string, term: string): Promise<void>;
 
   // Checks
-  runQACheck(
+  runCheck(
     workspaceSlug: string,
     projectId: string,
     blockId: string,
     locale: string,
     stream?: string,
-  ): Promise<QAIssue[]>;
-  runFileQACheck(
+  ): Promise<CheckIssue[]>;
+  runFileCheck(
     workspaceSlug: string,
     projectId: string,
     fileName: string,
     locale: string,
     stream?: string,
-  ): Promise<FileQAResult[]>;
+  ): Promise<FileCheckResult[]>;
 
   // Preview
   renderDocumentPreview(

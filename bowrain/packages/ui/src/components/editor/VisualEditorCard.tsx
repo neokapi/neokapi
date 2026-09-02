@@ -15,7 +15,7 @@ import type {
   MemoryMatchInfo,
   BlockTermMatch,
   BlockNote,
-  QAIssue,
+  CheckIssue,
   BlockHistoryEntry,
   AddConceptRequest,
 } from "../../types/api";
@@ -69,7 +69,7 @@ export interface VisualEditorCardProps {
   referenceLocales?: string[];
   project: ProjectInfo;
   // Findings
-  qaIssues?: QAIssue[];
+  checkIssues?: CheckIssue[];
   // Block history
   history?: BlockHistoryEntry[];
   onRevertHistory?: (entry: BlockHistoryEntry) => void;
@@ -109,7 +109,7 @@ export function VisualEditorCard({
   onInsertTerm: _onInsertTerm,
   referenceLocales,
   project,
-  qaIssues,
+  checkIssues,
   history,
   onRevertHistory,
   notes,
@@ -122,7 +122,7 @@ export function VisualEditorCard({
 }: VisualEditorCardProps) {
   const [memoryExpanded, setTmExpanded] = useState(true);
   const [historyExpanded, setHistoryExpanded] = useState(false);
-  const [qaExpanded, setQaExpanded] = useState(false);
+  const [checksExpanded, setChecksExpanded] = useState(false);
   const [notesExpanded, setNotesExpanded] = useState(true);
   const [noteText, setNoteText] = useState("");
   const [termPopoverOpen, setTermPopoverOpen] = useState(false);
@@ -139,8 +139,8 @@ export function VisualEditorCard({
   const targetCodedText = block.targets_coded?.[targetLocale] || targetText;
   const hasTargetSpans = block.has_spans && !!block.targets_coded?.[targetLocale];
 
-  const qaErrors = qaIssues?.filter((i) => i.severity === "error") || [];
-  const qaWarnings = qaIssues?.filter((i) => i.severity === "warning") || [];
+  const checkErrors = checkIssues?.filter((i) => i.severity === "error") || [];
+  const checkWarnings = checkIssues?.filter((i) => i.severity === "warning") || [];
 
   const handleInsertTag = useCallback(
     (_span: SpanInfo) => {
@@ -206,26 +206,26 @@ export function VisualEditorCard({
             {sc.label}
           </Badge>
           {/* Finding badges */}
-          {qaErrors.length > 0 && (
+          {checkErrors.length > 0 && (
             <button
               type="button"
-              onClick={() => setQaExpanded((v) => !v)}
+              onClick={() => setChecksExpanded((v) => !v)}
               className="inline-flex items-center gap-0.5 text-[10px] font-bold text-destructive cursor-pointer bg-destructive/10 px-1.5 py-0 h-4 rounded"
               data-testid="qa-error-badge"
             >
               <AlertTriangle className="w-2.5 h-2.5" />
-              {qaErrors.length}
+              {checkErrors.length}
             </button>
           )}
-          {qaWarnings.length > 0 && (
+          {checkWarnings.length > 0 && (
             <button
               type="button"
-              onClick={() => setQaExpanded((v) => !v)}
+              onClick={() => setChecksExpanded((v) => !v)}
               className="inline-flex items-center gap-0.5 text-[10px] font-bold text-warning dark:text-warning cursor-pointer bg-warning/10 px-1.5 py-0 h-4 rounded"
               data-testid="qa-warning-badge"
             >
               <Info className="w-2.5 h-2.5" />
-              {qaWarnings.length}
+              {checkWarnings.length}
             </button>
           )}
           {/* Vocabulary badge showing inline tag summary */}
@@ -252,10 +252,10 @@ export function VisualEditorCard({
       </div>
 
       {/* ── Findings (expanded) ──────────────────────────── */}
-      {qaExpanded && qaIssues && qaIssues.length > 0 && (
+      {checksExpanded && checkIssues && checkIssues.length > 0 && (
         <div className="px-4 pb-2" data-testid="qa-issues-list">
           <div className="rounded-md border border-border bg-muted/30 p-2 space-y-1">
-            {qaIssues.map((issue, i) => (
+            {checkIssues.map((issue, i) => (
               <div key={i} className="flex items-start gap-2 text-xs">
                 {issue.severity === "error" ? (
                   <AlertTriangle className="w-3 h-3 text-destructive shrink-0 mt-0.5" />

@@ -41,8 +41,8 @@ import type {
   ClaimProjectResponse,
   ApiToken,
   CreateApiTokenResponse,
-  QAIssue,
-  FileQAResult,
+  CheckIssue,
+  FileCheckResult,
   AutomationRule,
   AutomationEvent,
   AutomationRun,
@@ -2054,13 +2054,13 @@ export class RestApiAdapter implements ApiAdapter {
 
   // ── Checks ─────────────────────────────────────────────────────────────
 
-  async runQACheck(
+  async runCheck(
     workspaceSlug: string,
     projectId: string,
     blockId: string,
     locale: string,
     stream?: string,
-  ): Promise<QAIssue[]> {
+  ): Promise<CheckIssue[]> {
     return this.fetchJSON(
       `${this.projectEp(workspaceSlug, projectId)}/actions/${this.ref(stream)}/qa-check-block`,
       {
@@ -2070,13 +2070,13 @@ export class RestApiAdapter implements ApiAdapter {
     );
   }
 
-  async runFileQACheck(
+  async runFileCheck(
     workspaceSlug: string,
     projectId: string,
     fileName: string,
     locale: string,
     stream?: string,
-  ): Promise<FileQAResult[]> {
+  ): Promise<FileCheckResult[]> {
     return this.fetchJSON(
       `${this.projectEp(workspaceSlug, projectId)}/actions/${this.ref(stream)}/qa-check`,
       {

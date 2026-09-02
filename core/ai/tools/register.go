@@ -19,7 +19,7 @@ func RegisterAll(reg *registry.ToolRegistry) {
 
 	// Quality check — a tool group with two members: deterministic rule checks (default,
 	// no credentials) and LLM-judged review; `--mode` selects (see unified.go).
-	reg.RegisterGroup(qaGroup())
+	reg.RegisterGroup(checkGroup())
 
 	// Review — review translations with scoring using an LLM.
 	reg.RegisterWithSchema("review", func() tool.Tool {

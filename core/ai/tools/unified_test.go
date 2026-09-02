@@ -61,14 +61,14 @@ func TestNewTranslateFromConfig_RoutesByProvider(t *testing.T) {
 	})
 }
 
-// TestNewQAFromConfig_ModeDispatch pins the `qa` mode discriminator: rules
+// TestNewCheckFromConfig_ModeDispatch pins the `qa` mode discriminator: rules
 // mode (and the no-provider default) builds the deterministic checker, ai
 // mode (and the legacy provider-set heuristic) builds the LLM judge.
-func TestNewQAFromConfig_ModeDispatch(t *testing.T) {
+func TestNewCheckFromConfig_ModeDispatch(t *testing.T) {
 	isLLMJudge := func(config map[string]any) bool {
-		tl, err := tools.NewQAFromConfig(config, "fr")
+		tl, err := tools.NewCheckFromConfig(config, "fr")
 		require.NoError(t, err)
-		_, ok := tl.(*tools.AIQACheckTool)
+		_, ok := tl.(*tools.AICheckTool)
 		return ok
 	}
 

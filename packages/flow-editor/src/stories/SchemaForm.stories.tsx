@@ -88,7 +88,7 @@ const pseudoTranslateSchema: ComponentSchema = {
   },
 };
 
-const qaCheckSchema: ComponentSchema = {
+const ruleCheckSchema: ComponentSchema = {
   title: "Quality Check",
   type: "object",
   toolMeta: { id: "qa", category: "validate" },
@@ -620,8 +620,8 @@ export const PseudoTranslateWithValues: Story = {
   },
 };
 
-export const QACheck: Story = {
-  args: { schema: qaCheckSchema },
+export const RuleCheck: Story = {
+  args: { schema: ruleCheckSchema },
 };
 
 export const SearchReplace: Story = {
@@ -630,7 +630,7 @@ export const SearchReplace: Story = {
 
 export const Compact: Story = {
   args: {
-    schema: qaCheckSchema,
+    schema: ruleCheckSchema,
     compact: true,
   },
 };

@@ -3,7 +3,7 @@ import { RunSequence, resolveOverlaySpans, segmentText } from "@neokapi/ui-primi
 import type { ContentNode } from "@neokapi/ui-primitives/preview";
 import type {
   BlockTermMatch,
-  QAIssue,
+  CheckIssue,
   ReviewContext,
   ReviewDecision,
   ReviewNeighbour,
@@ -326,7 +326,7 @@ export function FindingsList({
   issues,
   findings,
 }: {
-  issues: QAIssue[];
+  issues: CheckIssue[];
   findings: VoiceFinding[];
 }) {
   if (issues.length === 0 && findings.length === 0) {

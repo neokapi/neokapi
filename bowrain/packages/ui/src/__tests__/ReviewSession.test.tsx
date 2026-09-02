@@ -194,9 +194,9 @@ describe("ReviewSession", () => {
         },
       ],
     };
-    let qa!: ReturnType<typeof vi.spyOn<MockAdapter, "runFileQACheck">>;
+    let qa!: ReturnType<typeof vi.spyOn<MockAdapter, "runFileCheck">>;
     renderSession(withQuietFailingItem, (adapter) => {
-      qa = vi.spyOn(adapter, "runFileQACheck");
+      qa = vi.spyOn(adapter, "runFileCheck");
     });
     await waitForQueue();
 

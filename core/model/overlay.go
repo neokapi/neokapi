@@ -22,8 +22,8 @@ const (
 	OverlayTerm OverlayType = "term"
 	// OverlayEntity marks recognized named-entity spans.
 	OverlayEntity OverlayType = "entity"
-	// OverlayQA marks quality-check findings.
-	OverlayQA OverlayType = "qa"
+	// OverlayCheck marks quality-check findings.
+	OverlayCheck OverlayType = "qa"
 	// OverlayAlignment links source spans to target spans.
 	OverlayAlignment OverlayType = "alignment"
 	// OverlayTermCandidate marks proposed terminology spans awaiting review.

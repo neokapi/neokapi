@@ -228,12 +228,12 @@ func TestSession_ListOverlays(t *testing.T) {
 	}
 	require.ElementsMatch(t, []string{one.ContentHash, two.ContentHash, three.ContentHash}, frHashes)
 
-	var qaHashes []string
+	var checkHashes []string
 	for o, err := range sess2.ListOverlays("annotations/qa") {
 		require.NoError(t, err)
-		qaHashes = append(qaHashes, o.BlockHash)
+		checkHashes = append(checkHashes, o.BlockHash)
 	}
-	require.Equal(t, []string{one.ContentHash}, qaHashes)
+	require.Equal(t, []string{one.ContentHash}, checkHashes)
 }
 
 func TestSession_OverlayNotFound(t *testing.T) {

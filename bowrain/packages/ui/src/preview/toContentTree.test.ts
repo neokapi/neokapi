@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Run } from "@neokapi/contract-types";
 import { resolveOverlaySpans, runsPlainText } from "@neokapi/ui-primitives/preview";
-import type { BlockInfo, BlockTermMatch, EntityInfo, QAIssue } from "../types/api";
+import type { BlockInfo, BlockTermMatch, EntityInfo, CheckIssue } from "../types/api";
 import { blockToContentNode, blocksToContentTree, type BlockFinding } from "./toContentTree";
 
 // The fixtures mirror the REST blocks payload: typed runs alongside the flat
@@ -250,7 +250,7 @@ describe("blockToContentNode — overlays", () => {
 
 describe("blockToContentNode — annotations", () => {
   it("records position-less check results as block annotations", () => {
-    const issues: QAIssue[] = [
+    const issues: CheckIssue[] = [
       { type: "placeholder", severity: "error", message: "Missing {count}" },
       { type: "spacing", severity: "warning", message: "Double space" },
     ];
@@ -280,7 +280,7 @@ describe("blockToContentNode — annotations", () => {
   // annotation. It rides along now, and a located issue is a span like any
   // other finding.
   it("makes a positioned issue a span on the locale it was raised on", () => {
-    const issues: QAIssue[] = [
+    const issues: CheckIssue[] = [
       {
         type: "placeholder",
         severity: "error",

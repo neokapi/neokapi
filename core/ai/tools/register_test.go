@@ -51,9 +51,9 @@ func TestTranslateDispatch(t *testing.T) {
 	assert.Equal(t, "translate", mtTool.Name())
 }
 
-// TestQADispatch verifies qa runs deterministic rule checks with no provider
+// TestCheckDispatch verifies qa runs deterministic rule checks with no provider
 // (and needs no credentials) and the LLM judge when a provider is set.
-func TestQADispatch(t *testing.T) {
+func TestCheckDispatch(t *testing.T) {
 	reg := registry.NewToolRegistry()
 	tools.RegisterAll(reg)
 

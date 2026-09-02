@@ -10,7 +10,7 @@ const (
 	WordCount       registry.ToolID = "word-count"
 	CharCount       registry.ToolID = "char-count"
 	SegmentCount    registry.ToolID = "segment-count"
-	QACheck         registry.ToolID = "qa"
+	RuleCheck       registry.ToolID = "qa"
 	TermCheck       registry.ToolID = "term-check"
 	XMLValidation   registry.ToolID = "xml-validation"
 	VoiceVocabCheck registry.ToolID = "voice-vocab-check"

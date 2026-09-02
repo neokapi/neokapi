@@ -35,7 +35,7 @@ func TestValidateDataFlow_NilRegistrySkips(t *testing.T) {
 
 // qa requires a target. Against a monolingual file source with no
 // upstream translate step, the flow is rejected.
-func TestValidateDataFlow_QAOnFileSourceRejected(t *testing.T) {
+func TestValidateDataFlow_CheckOnFileSourceRejected(t *testing.T) {
 	t.Parallel()
 	reg := dataflowReg(t)
 	def := flow.FlowDefinition{
@@ -54,7 +54,7 @@ func TestValidateDataFlow_QAOnFileSourceRejected(t *testing.T) {
 
 // The same qa is valid against a bilingual interchange source, which
 // provides the target.
-func TestValidateDataFlow_QAOnInterchangeSourcePasses(t *testing.T) {
+func TestValidateDataFlow_CheckOnInterchangeSourcePasses(t *testing.T) {
 	t.Parallel()
 	reg := dataflowReg(t)
 	def := flow.FlowDefinition{
@@ -70,7 +70,7 @@ func TestValidateDataFlow_QAOnInterchangeSourcePasses(t *testing.T) {
 
 // A translate step upstream produces the target qa needs, so the flow is
 // valid even against a monolingual file source.
-func TestValidateDataFlow_TranslateThenQAPasses(t *testing.T) {
+func TestValidateDataFlow_TranslateThenCheckPasses(t *testing.T) {
 	t.Parallel()
 	reg := dataflowReg(t)
 	def := flow.FlowDefinition{
@@ -90,7 +90,7 @@ func TestValidateDataFlow_TranslateThenQAPasses(t *testing.T) {
 
 // Reversed order (qa before the translate that produces its target) is rejected
 // against a file source — the contract catches the ordering bug.
-func TestValidateDataFlow_QABeforeTranslateRejected(t *testing.T) {
+func TestValidateDataFlow_CheckBeforeTranslateRejected(t *testing.T) {
 	t.Parallel()
 	reg := dataflowReg(t)
 	def := flow.FlowDefinition{

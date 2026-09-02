@@ -22,9 +22,9 @@ import type {
   MemoryMatchInfo,
   BlockTermMatch,
   BlockNote,
-  QAIssue,
+  CheckIssue,
   BlockHistoryEntry,
-  FileQAResult,
+  FileCheckResult,
   AddConceptRequest,
 } from "../types/api";
 import { useEditorApi } from "../hooks/useEditorApi";
@@ -119,9 +119,11 @@ export function TranslationEditor({
 
   // Visual-card extended state (findings, history, notes) — loaded for the selected
   // block; only surfaced in the Visual view's card.
-  const [blockQAIssues, setBlockQAIssues] = useState<QAIssue[]>([]);
-  const [fileQAResults, setFileQAResults] = useState<FileQAResult[] | undefined>(undefined);
-  const [qaLoading, setQaLoading] = useState(false);
+  const [blockCheckIssues, setBlockCheckIssues] = useState<CheckIssue[]>([]);
+  const [fileCheckResults, setFileCheckResults] = useState<FileCheckResult[] | undefined>(
+    undefined,
+  );
+  const [checksLoading, setChecksLoading] = useState(false);
   const [blockHistory, setBlockHistory] = useState<BlockHistoryEntry[]>([]);
   const [blockNotes, setBlockNotes] = useState<BlockNote[]>([]);
 
@@ -315,9 +317,9 @@ export function TranslationEditor({
     const block = blocks[selectedIndex];
     if (!block) return;
     api
-      .runQACheck(project.id, block.id, targetLocale)
-      .then((issues) => setBlockQAIssues(issues || []))
-      .catch(() => setBlockQAIssues([]));
+      .runCheck(project.id, block.id, targetLocale)
+      .then((issues) => setBlockCheckIssues(issues || []))
+      .catch(() => setBlockCheckIssues([]));
     api
       .getBlockHistory(project.id, block.id, targetLocale, 20)
       .then((h) => setBlockHistory(h || []))
@@ -615,13 +617,13 @@ export function TranslationEditor({
     [blocks, selectedIndex, editingIndex, api, project.id, fileName, targetLocale],
   );
 
-  const handleRunFileQA = useCallback(() => {
-    setQaLoading(true);
+  const handleRunFileCheck = useCallback(() => {
+    setChecksLoading(true);
     api
-      .runFileQACheck(project.id, fileName, targetLocale)
-      .then((results) => setFileQAResults(results || []))
-      .catch(() => setFileQAResults([]))
-      .finally(() => setQaLoading(false));
+      .runFileCheck(project.id, fileName, targetLocale)
+      .then((results) => setFileCheckResults(results || []))
+      .catch(() => setFileCheckResults([]))
+      .finally(() => setChecksLoading(false));
   }, [api, project.id, fileName, targetLocale]);
 
   const handleRevertHistory = useCallback(
@@ -824,10 +826,10 @@ export function TranslationEditor({
                 onApplyMemory={handleApplyMemory}
                 onInsertTerm={handleInsertTerm}
                 presenceSlot={presenceSlot}
-                qaIssues={blockQAIssues}
-                fileQAResults={fileQAResults}
-                qaLoading={qaLoading}
-                onRunFileQA={handleRunFileQA}
+                checkIssues={blockCheckIssues}
+                fileCheckResults={fileCheckResults}
+                checksLoading={checksLoading}
+                onRunFileCheck={handleRunFileCheck}
                 history={blockHistory}
                 onRevertHistory={handleRevertHistory}
                 notes={blockNotes}

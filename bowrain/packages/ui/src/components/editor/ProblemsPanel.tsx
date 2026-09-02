@@ -1,9 +1,9 @@
 import { useState, useMemo } from "react";
-import type { FileQAResult, QAIssue } from "../../types/api";
+import type { FileCheckResult, CheckIssue } from "../../types/api";
 import { X, Check, AlertTriangle, Info } from "../icons";
 
 interface ProblemsPanelProps {
-  issues: FileQAResult[];
+  issues: FileCheckResult[];
   loading?: boolean;
   onNavigateToBlock: (blockId: string) => void;
   onClose: () => void;
@@ -13,7 +13,7 @@ type FilterMode = "all" | "errors";
 
 interface FlatIssue {
   blockId: string;
-  issue: QAIssue;
+  issue: CheckIssue;
 }
 
 /**

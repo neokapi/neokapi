@@ -16,7 +16,7 @@ import (
 	"github.com/neokapi/neokapi/terms"
 )
 
-// QAIssueResponse is a single finding returned by the API.
+// CheckIssueResponse is a single finding returned by the API.
 //
 // {type, severity ("error"|"warning"), message} is the shape the editor's
 // Problems panel has always read, and it is unchanged. The check tools emit
@@ -30,7 +30,7 @@ import (
 // model.Anchor's zero value is a legitimate reading — "the checker located
 // nothing" — and a zero range serialized as {0,0,0,0} is indistinguishable
 // from a real span at the start of the first run.
-type QAIssueResponse struct {
+type CheckIssueResponse struct {
 	Type     string `json:"type"`
 	Severity string `json:"severity"`
 	Message  string `json:"message"`
@@ -41,25 +41,25 @@ type QAIssueResponse struct {
 	OriginalText string        `json:"original_text,omitempty"`
 }
 
-// FileQAResultResponse holds the findings for a single block.
-type FileQAResultResponse struct {
-	BlockID string            `json:"blockId"`
-	Issues  []QAIssueResponse `json:"issues"`
+// FileCheckResultResponse holds the findings for a single block.
+type FileCheckResultResponse struct {
+	BlockID string               `json:"blockId"`
+	Issues  []CheckIssueResponse `json:"issues"`
 }
 
-// QACheckRequest asks for the checks on one block or one item. The editor
+// CheckRequest asks for the checks on one block or one item. The editor
 // sends it as the request body; the fields also read from the query string, so
 // a hand-driven call keeps working.
-type QACheckRequest struct {
+type CheckRequest struct {
 	BlockID string `json:"block_id,omitempty"`
 	Item    string `json:"item,omitempty"`
 	Locale  string `json:"locale"`
 }
 
-// bindQACheckRequest reads the request body, falling back to the query string
+// bindCheckRequest reads the request body, falling back to the query string
 // for each field it leaves empty.
-func bindQACheckRequest(c echo.Context) QACheckRequest {
-	var req QACheckRequest
+func bindCheckRequest(c echo.Context) CheckRequest {
+	var req CheckRequest
 	_ = c.Bind(&req)
 	if req.BlockID == "" {
 		req.BlockID = firstNonEmpty(c.QueryParam("block_id"), c.Param("bid"))
@@ -82,9 +82,9 @@ func firstNonEmpty(values ...string) string {
 	return ""
 }
 
-// HandleQACheckBlock runs the checks in force on a single block.
+// HandleCheckBlock runs the checks in force on a single block.
 // POST /:ws/:id/actions/:ref/qa-check-block  {block_id, locale}
-func (s *Server) HandleQACheckBlock(c echo.Context) error {
+func (s *Server) HandleCheckBlock(c echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
@@ -96,7 +96,7 @@ func (s *Server) HandleQACheckBlock(c echo.Context) error {
 	ctx := c.Request().Context()
 	pid := projectParam(c)
 	stream := streamParam(c)
-	req := bindQACheckRequest(c)
+	req := bindCheckRequest(c)
 	if req.Locale == "" {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "locale is required"})
 	}
@@ -114,9 +114,9 @@ func (s *Server) HandleQACheckBlock(c echo.Context) error {
 	return c.JSON(http.StatusOK, runChecksOnBlock(ctx, sb.Block, checks))
 }
 
-// HandleQACheckFile runs the checks in force on every block in an item.
+// HandleCheckFile runs the checks in force on every block in an item.
 // POST /:ws/:id/actions/:ref/qa-check  {item, locale}
-func (s *Server) HandleQACheckFile(c echo.Context) error {
+func (s *Server) HandleCheckFile(c echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
@@ -128,7 +128,7 @@ func (s *Server) HandleQACheckFile(c echo.Context) error {
 	ctx := c.Request().Context()
 	pid := projectParam(c)
 	stream := streamParam(c)
-	req := bindQACheckRequest(c)
+	req := bindCheckRequest(c)
 	if req.Locale == "" {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "locale is required"})
 	}
@@ -147,9 +147,9 @@ func (s *Server) HandleQACheckFile(c echo.Context) error {
 	wsID, _ := c.Get("workspace_id").(string)
 	checks := s.checksAtPoint(ctx, pid, stream, req.Item, wsID, c.Param("ws"), model.LocaleID(req.Locale))
 
-	results := make([]FileQAResultResponse, 0, len(storedBlocks))
+	results := make([]FileCheckResultResponse, 0, len(storedBlocks))
 	for _, sb := range storedBlocks {
-		results = append(results, FileQAResultResponse{
+		results = append(results, FileCheckResultResponse{
 			BlockID: sb.Block.ID,
 			Issues:  runChecksOnBlock(ctx, sb.Block, checks),
 		})
@@ -238,7 +238,7 @@ func (s *Server) checksAtPoint(ctx context.Context, projectID, stream, itemName,
 // A zero pointChecks (locale only) is the standard set, which is what the
 // dashboard passes: they judge a whole project a block at a time and resolve no
 // point of their own.
-func runChecksOnBlock(ctx context.Context, block *model.Block, checks pointChecks) []QAIssueResponse {
+func runChecksOnBlock(ctx context.Context, block *model.Block, checks pointChecks) []CheckIssueResponse {
 	scratch := *block
 	scratch.Annotations = nil // fresh findings surface; SetAnno re-creates lazily
 	part := &model.Part{
@@ -249,7 +249,7 @@ func runChecksOnBlock(ctx context.Context, block *model.Block, checks pointCheck
 	// The standard set: what every target in this locale is judged by.
 	// (Errors are ignored: these tools are deterministic and report by
 	// annotating.)
-	_, _ = tools.NewQACheckTool(tools.NewQACheckConfig(checks.TargetLocale)).ApplyContext(ctx, part)
+	_, _ = tools.NewRuleCheckTool(tools.NewRuleCheckConfig(checks.TargetLocale)).ApplyContext(ctx, part)
 
 	// Protected terms, when the project declares any. A term that must survive
 	// verbatim is checked in the same pass the editor asks for, so a person
@@ -260,7 +260,7 @@ func runChecksOnBlock(ctx context.Context, block *model.Block, checks pointCheck
 		_, _ = tools.NewDNTCheckTool(dntCfg).ApplyContext(ctx, part)
 	}
 
-	issues := qaIssuesFromFindings(check.Findings(tool.NewBlockViewWithContext(ctx, &scratch)))
+	issues := checkIssuesFromFindings(check.Findings(tool.NewBlockViewWithContext(ctx, &scratch)))
 
 	// The vocabulary governing this point: the profile's own rules and the
 	// workspace's retired, forbidden and competitor terms, located in the
@@ -270,24 +270,24 @@ func runChecksOnBlock(ctx context.Context, block *model.Block, checks pointCheck
 		vocab := tools.NewVoiceVocabCheckTool(checks.Voice, checks.Terms).InSourceLocale(checks.SourceLocale)
 		_, _ = vocab.ApplyContext(ctx, part)
 		if ann, ok := model.AnnoAs[*coreprofile.VoiceAnnotation](&scratch, "voice"); ok {
-			issues = append(issues, qaIssuesFromFindings(ann.Findings)...)
+			issues = append(issues, checkIssuesFromFindings(ann.Findings)...)
 		}
 	}
 
 	return issues
 }
 
-// qaIssuesFromFindings maps core/check.Finding onto the QAIssueResponse wire shape.
+// checkIssuesFromFindings maps core/check.Finding onto the CheckIssueResponse wire shape.
 //
 // Everything the finding locates or suggests rides along; only the severity is
 // narrowed, to the two values the Problems panel has always styled. The result
 // is an empty slice, never nil, so a clean block encodes as [].
-func qaIssuesFromFindings(findings []check.Finding) []QAIssueResponse {
-	result := make([]QAIssueResponse, 0, len(findings))
+func checkIssuesFromFindings(findings []check.Finding) []CheckIssueResponse {
+	result := make([]CheckIssueResponse, 0, len(findings))
 	for _, f := range findings {
-		issue := QAIssueResponse{
+		issue := CheckIssueResponse{
 			Type:         f.Category,
-			Severity:     qaWireSeverity(f.Severity),
+			Severity:     checkWireSeverity(f.Severity),
 			Message:      f.Message,
 			Suggestion:   f.Suggestion,
 			OriginalText: f.OriginalText,
@@ -301,10 +301,10 @@ func qaIssuesFromFindings(findings []check.Finding) []QAIssueResponse {
 	return result
 }
 
-// qaWireSeverity maps a core/check.Severity onto the two-valued severity the
+// checkWireSeverity maps a core/check.Severity onto the two-valued severity the
 // endpoint has always returned: critical/major are "error", minor/neutral
 // "warning".
-func qaWireSeverity(s check.Severity) string {
+func checkWireSeverity(s check.Severity) string {
 	switch s {
 	case check.SeverityCritical, check.SeverityMajor:
 		return "error"

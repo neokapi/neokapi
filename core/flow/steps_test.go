@@ -65,14 +65,14 @@ func TestStepsToGraph_Parallel(t *testing.T) {
 	}
 
 	// Both branches fan in to qa.
-	var qaNode FlowNode
+	var checkNode FlowNode
 	for _, n := range nodes {
 		if n.Name == "qa" {
-			qaNode = n
+			checkNode = n
 			break
 		}
 	}
-	assert.Len(t, filterEdges(edges, "", qaNode.ID), 2)
+	assert.Len(t, filterEdges(edges, "", checkNode.ID), 2)
 }
 
 func TestStepsToGraph_SingleStep(t *testing.T) {

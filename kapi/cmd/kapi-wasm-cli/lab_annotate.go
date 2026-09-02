@@ -247,10 +247,10 @@ func termOverlay(ctx context.Context, runs []model.Run, source string) *model.Ov
 	return &model.Overlay{Type: model.OverlayTerm, Spans: spans}
 }
 
-// voiceOverlay builds an OverlayQA over the source runs from the seeded voice
+// voiceOverlay builds an OverlayCheck over the source runs from the seeded voice
 // profile — both halves of its deterministic gate, vocabulary
 // (profile.MatchVocabulary) and prohibited style patterns
-// (profile.MatchPatterns). Findings ride on the `OverlayQA` type (the model's
+// (profile.MatchPatterns). Findings ride on the `OverlayCheck` type (the model's
 // fixed overlay enum has no dedicated voice type) and are tagged with
 // category="voice-vocabulary" or category="voice-pattern" plus the matched term
 // or rule, severity and any preferred replacement. Returns nil when nothing
@@ -300,5 +300,5 @@ func voiceOverlay(runs []model.Run, source string) *model.Overlay {
 			},
 		})
 	}
-	return &model.Overlay{Type: model.OverlayQA, Spans: spans}
+	return &model.Overlay{Type: model.OverlayCheck, Spans: spans}
 }

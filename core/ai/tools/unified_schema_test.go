@@ -29,11 +29,11 @@ func groupVisibleForField(s *schema.ComponentSchema, field string) *schema.Condi
 	return nil
 }
 
-// TestQASchemaComposition asserts the unified `qa` tool composes a `mode`
+// TestCheckSchemaComposition asserts the unified `qa` tool composes a `mode`
 // selector (Deterministic rules / AI review) where each mode reveals only its
 // own config: rule toggles for rules, provider/model for AI.
-func TestQASchemaComposition(t *testing.T) {
-	s := QASchema()
+func TestCheckSchemaComposition(t *testing.T) {
+	s := CheckSchema()
 	require.NotNil(t, s)
 
 	mode, ok := s.Properties["mode"]
@@ -147,9 +147,9 @@ func TestEntityExtractSchemaComposition(t *testing.T) {
 	assert.NotEmpty(t, s.ToolMeta.Produces)
 }
 
-// TestQAUsesAI covers explicit-mode dispatch and the back-compat fallback to
+// TestCheckUsesAI covers explicit-mode dispatch and the back-compat fallback to
 // provider presence.
-func TestQAUsesAI(t *testing.T) {
+func TestCheckUsesAI(t *testing.T) {
 	cases := []struct {
 		name   string
 		config map[string]any
@@ -162,7 +162,7 @@ func TestQAUsesAI(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			assert.Equal(t, c.ai, qaUsesAI(c.config))
+			assert.Equal(t, c.ai, checkUsesAI(c.config))
 		})
 	}
 }

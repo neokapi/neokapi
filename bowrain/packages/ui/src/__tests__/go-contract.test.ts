@@ -170,7 +170,7 @@ const GO = {
   handlersConnector: "bowrain/server/handlers_connector.go",
   handlersActivity: "bowrain/server/handlers_activity.go",
   handlersBilling: "bowrain/server/handlers_billing.go",
-  handlersQA: "bowrain/server/handlers_qa.go",
+  handlersCheck: "bowrain/server/handlers_check.go",
   finding: "core/check/finding.go",
   handlersConcepts: "bowrain/server/handlers_concepts.go",
 } as const;
@@ -197,7 +197,7 @@ const src = {
   handlersConnector: readRepoFile(GO.handlersConnector),
   handlersActivity: readRepoFile(GO.handlersActivity),
   handlersBilling: readRepoFile(GO.handlersBilling),
-  handlersQA: readRepoFile(GO.handlersQA),
+  handlersCheck: readRepoFile(GO.handlersCheck),
   finding: readRepoFile(GO.finding),
   handlersConcepts: readRepoFile(GO.handlersConcepts),
   api: readRepoFile(TS.api),
@@ -447,12 +447,15 @@ describe("VoiceFinding mirrors check.Finding", () => {
   });
 });
 
-describe("QAIssueResponse mirrors the TS finding type", () => {
+describe("CheckIssueResponse mirrors the TS finding type", () => {
   it("declares everything the check endpoints report about a finding", () => {
     expectSameMembers(
-      "QAIssueResponse",
-      { path: GO.handlersQA, members: goStructJSONFields(src.handlersQA, "QAIssueResponse") },
-      { path: TS.api, members: tsInterfaceFields(src.api, "QAIssue") },
+      "CheckIssueResponse",
+      {
+        path: GO.handlersCheck,
+        members: goStructJSONFields(src.handlersCheck, "CheckIssueResponse"),
+      },
+      { path: TS.api, members: tsInterfaceFields(src.api, "CheckIssue") },
     );
   });
 });

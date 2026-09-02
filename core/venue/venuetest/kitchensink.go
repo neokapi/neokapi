@@ -38,7 +38,7 @@ var AllOverlayKinds = []model.OverlayType{
 	model.OverlaySegmentation,
 	model.OverlayTerm,
 	model.OverlayEntity,
-	model.OverlayQA,
+	model.OverlayCheck,
 	model.OverlayAlignment,
 	model.OverlayTermCandidate,
 }
@@ -208,7 +208,7 @@ func KitchenSinkOverlays() []model.Overlay {
 			}},
 		},
 		{
-			Type: model.OverlayQA,
+			Type: model.OverlayCheck,
 			Spans: []model.Span{{
 				ID:    "qa:0",
 				Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 4}),

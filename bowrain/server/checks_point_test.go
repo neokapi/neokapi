@@ -133,12 +133,12 @@ func TestChecksAtPoint_ProtectedTermsJoinTheSet(t *testing.T) {
 		"a protected term dropped from the target is reported: %+v", issues)
 }
 
-// TestHandleQACheckBlock_HonoursTheRequestedStream: the endpoint read "main"
+// TestHandleCheckBlock_HonoursTheRequestedStream: the endpoint read "main"
 // whatever stream the request named, so a block on a branch was reported as
 // missing while a same-named block on main was checked in its place. The stream
 // comes from the request, and the block id and locale from the body the editor
 // actually posts.
-func TestHandleQACheckBlock_HonoursTheRequestedStream(t *testing.T) {
+func TestHandleCheckBlock_HonoursTheRequestedStream(t *testing.T) {
 	ctx := t.Context()
 	srv, cs, _ := newOriginTestServer(t)
 	proj := seedOriginProject(t, cs, "streamed")
@@ -163,10 +163,10 @@ func TestHandleQACheckBlock_HonoursTheRequestedStream(t *testing.T) {
 		"/api/v1/acme/"+proj.ID+"/actions/v2/qa-check-block", strings.NewReader(body))
 	r.Header.Set("Content-Type", "application/json")
 	c := originCtx(e, r, rec, proj.ID, [2]string{"ref", "v2"})
-	require.NoError(t, srv.HandleQACheckBlock(c))
+	require.NoError(t, srv.HandleCheckBlock(c))
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 
-	var issues []QAIssueResponse
+	var issues []CheckIssueResponse
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &issues))
 	assert.True(t, hasIssueOfType(issues, "double-spaces"),
 		"the block on the requested stream is the one checked: %s", rec.Body.String())
@@ -178,13 +178,13 @@ func TestHandleQACheckBlock_HonoursTheRequestedStream(t *testing.T) {
 		"/api/v1/acme/"+proj.ID+"/actions/main/qa-check-block", strings.NewReader(body))
 	r.Header.Set("Content-Type", "application/json")
 	c = originCtx(e, r, rec, proj.ID, [2]string{"ref", "main"})
-	require.NoError(t, srv.HandleQACheckBlock(c))
+	require.NoError(t, srv.HandleCheckBlock(c))
 	assert.Equal(t, http.StatusNotFound, rec.Code, rec.Body.String())
 }
 
-// TestHandleQACheckFile_ReadsTheBodyTheEditorPosts: the item and the locale
+// TestHandleCheckFile_ReadsTheBodyTheEditorPosts: the item and the locale
 // arrive in the request body, and the checks run over the named stream.
-func TestHandleQACheckFile_ReadsTheBodyTheEditorPosts(t *testing.T) {
+func TestHandleCheckFile_ReadsTheBodyTheEditorPosts(t *testing.T) {
 	ctx := t.Context()
 	srv, cs, _ := newOriginTestServer(t)
 	proj := seedOriginProject(t, cs, "file-checks")
@@ -203,17 +203,17 @@ func TestHandleQACheckFile_ReadsTheBodyTheEditorPosts(t *testing.T) {
 		strings.NewReader(`{"item":"hello.txt","locale":"fr"}`))
 	r.Header.Set("Content-Type", "application/json")
 	c := originCtx(e, r, rec, proj.ID, [2]string{"ref", "main"})
-	require.NoError(t, srv.HandleQACheckFile(c))
+	require.NoError(t, srv.HandleCheckFile(c))
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 
-	var results []FileQAResultResponse
+	var results []FileCheckResultResponse
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &results))
 	require.Len(t, results, 1)
 	assert.NotEmpty(t, results[0].BlockID)
 	assert.True(t, hasIssueOfType(results[0].Issues, "double-spaces"), rec.Body.String())
 }
 
-func hasIssueOfType(issues []QAIssueResponse, category string) bool {
+func hasIssueOfType(issues []CheckIssueResponse, category string) bool {
 	for _, i := range issues {
 		if i.Type == category {
 			return true
@@ -222,7 +222,7 @@ func hasIssueOfType(issues []QAIssueResponse, category string) bool {
 	return false
 }
 
-func hasIssueContaining(issues []QAIssueResponse, text string) bool {
+func hasIssueContaining(issues []CheckIssueResponse, text string) bool {
 	for _, i := range issues {
 		if strings.Contains(i.Message, text) || strings.Contains(i.OriginalText, text) {
 			return true

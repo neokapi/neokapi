@@ -91,19 +91,19 @@ func RegisterAll(reg *registry.ToolRegistry) {
 	// ── Validate ────────────────────────────────────────────────────
 
 	reg.RegisterWithSchema("qa", func() tool.Tool {
-		return NewQACheckTool(NewQACheckConfig(model.LocaleEnglish))
-	}, toolSchema(NewQACheckConfig(model.LocaleEnglish), toolMeta("qa", "Quality Check", schema.CategoryQuality,
-		withTags("quality", schema.TagL10n), withWritesOutput(), withRequires("target-language"), withCardinality(schema.Bilingual), withConsumes(tgtF(schema.PortTarget)), withProduces(tgtF(model.OverlayQA)))))
+		return NewRuleCheckTool(NewRuleCheckConfig(model.LocaleEnglish))
+	}, toolSchema(NewRuleCheckConfig(model.LocaleEnglish), toolMeta("qa", "Quality Check", schema.CategoryQuality,
+		withTags("quality", schema.TagL10n), withWritesOutput(), withRequires("target-language"), withCardinality(schema.Bilingual), withConsumes(tgtF(schema.PortTarget)), withProduces(tgtF(model.OverlayCheck)))))
 
 	reg.RegisterWithSchema("dnt-check", func() tool.Tool {
 		return NewDNTCheckTool(NewDNTCheckConfig(model.LocaleEnglish))
 	}, toolSchema(NewDNTCheckConfig(model.LocaleEnglish), toolMeta("dnt-check", "Do-Not-Translate Check", schema.CategoryQuality,
-		withTags("quality", schema.TagL10n), withAliases("dnt"), withRequires("target-language"), withCardinality(schema.Bilingual), withConsumes(tgtF(schema.PortTarget)), withProduces(tgtF(model.OverlayQA)))))
+		withTags("quality", schema.TagL10n), withAliases("dnt"), withRequires("target-language"), withCardinality(schema.Bilingual), withConsumes(tgtF(schema.PortTarget)), withProduces(tgtF(model.OverlayCheck)))))
 
 	reg.RegisterWithSchema("placeholder-check", func() tool.Tool {
 		return NewPlaceholderCheckTool(NewPlaceholderCheckConfig(model.LocaleEnglish))
 	}, toolSchema(NewPlaceholderCheckConfig(model.LocaleEnglish), toolMeta("placeholder-check", "Placeholder Check", schema.CategoryQuality,
-		withTags("quality", schema.TagL10n), withRequires("target-language"), withCardinality(schema.Bilingual), withConsumes(tgtF(schema.PortTarget)), withProduces(tgtF(model.OverlayQA)))))
+		withTags("quality", schema.TagL10n), withRequires("target-language"), withCardinality(schema.Bilingual), withConsumes(tgtF(schema.PortTarget)), withProduces(tgtF(model.OverlayCheck)))))
 
 	reg.RegisterWithSchema("term-check", func() tool.Tool {
 		return NewTermCheckTool(&TermCheckConfig{TargetLocale: model.LocaleEnglish})
@@ -113,7 +113,7 @@ func RegisterAll(reg *registry.ToolRegistry) {
 	reg.RegisterWithSchema("xml-validation", func() tool.Tool {
 		return NewXMLValidationTool(NewXMLValidationConfig(""))
 	}, toolSchema(NewXMLValidationConfig(""), toolMeta("xml-validation", "XML Validation", schema.CategoryQuality,
-		withTags("quality"), withCardinality(schema.Monolingual), withProduces(tgtF(model.OverlayQA)))))
+		withTags("quality"), withCardinality(schema.Monolingual), withProduces(tgtF(model.OverlayCheck)))))
 
 	// ── Transform ───────────────────────────────────────────────────
 
@@ -303,7 +303,7 @@ func RegisterAll(reg *registry.ToolRegistry) {
 // TestEveryConfigurableBuiltInToolHasAConfigFactory asserts this list is
 // complete over the populated registry, so the omission cannot recur silently.
 func registerConfigFactories(reg *registry.ToolRegistry) {
-	reg.SetConfigFactory("qa", NewQACheckFromConfig)
+	reg.SetConfigFactory("qa", NewRuleCheckFromConfig)
 	reg.SetConfigFactory("dnt-check", NewDNTCheckFromConfig)
 	reg.SetConfigFactory("placeholder-check", NewPlaceholderCheckFromConfig)
 	reg.SetConfigFactory("term-check", NewTermCheckFromConfig)

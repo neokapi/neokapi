@@ -46,7 +46,7 @@ func TestRegisterWithSchema_PropagatesMetadata(t *testing.T) {
 			ID:       "test-tool",
 			Category: "validate",
 			Consumes: []schema.IOPort{{Type: schema.PortTarget, Side: model.SideTarget}},
-			Produces: []schema.IOPort{schema.Port(model.OverlayQA, model.SideTarget)},
+			Produces: []schema.IOPort{schema.Port(model.OverlayCheck, model.SideTarget)},
 			Tags:     []string{"quality", "ai-powered"},
 			Requires: []string{"target-language", "credentials"},
 		},
@@ -64,7 +64,7 @@ func TestRegisterWithSchema_PropagatesMetadata(t *testing.T) {
 	assert.True(t, info.HasSchema)
 	assert.Equal(t, SourceBuiltIn, info.Source)
 	assert.Equal(t, []schema.IOPort{{Type: schema.PortTarget, Side: model.SideTarget}}, info.Consumes)
-	assert.Equal(t, []schema.IOPort{schema.Port(model.OverlayQA, model.SideTarget)}, info.Produces)
+	assert.Equal(t, []schema.IOPort{schema.Port(model.OverlayCheck, model.SideTarget)}, info.Produces)
 	assert.Equal(t, []string{"quality", "ai-powered"}, info.Tags)
 	assert.Equal(t, []string{"target-language", "credentials"}, info.Requires)
 }
@@ -142,7 +142,7 @@ func TestToolInfo_ReturnsInfo(t *testing.T) {
 			Category:      "validate",
 			Cardinality:   schema.Bilingual,
 			DefaultLocale: "qps",
-			Produces:      []schema.IOPort{schema.Port(model.OverlayQA, model.SideTarget)},
+			Produces:      []schema.IOPort{schema.Port(model.OverlayCheck, model.SideTarget)},
 			SideEffects:   []schema.SideEffect{schema.SideEffectMemoryRead},
 		},
 	})
@@ -152,7 +152,7 @@ func TestToolInfo_ReturnsInfo(t *testing.T) {
 	assert.Equal(t, ToolID("test"), info.Name)
 	assert.Equal(t, schema.Bilingual, info.Cardinality)
 	assert.Equal(t, model.LocaleID("qps"), info.DefaultLocale)
-	assert.Equal(t, []schema.IOPort{schema.Port(model.OverlayQA, model.SideTarget)}, info.Produces)
+	assert.Equal(t, []schema.IOPort{schema.Port(model.OverlayCheck, model.SideTarget)}, info.Produces)
 	assert.Equal(t, []schema.SideEffect{schema.SideEffectMemoryRead}, info.SideEffects)
 }
 

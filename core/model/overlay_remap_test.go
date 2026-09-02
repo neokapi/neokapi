@@ -45,7 +45,7 @@ func TestRemapOverlays_DropsEmptyOverlayAndKeepsTargetSide(t *testing.T) {
 	b.AddOverlaySpan(model.OverlayTerm, model.Span{ID: "s", Range: model.RangeAnchor(old, 0, 6)})
 	// A target-side overlay must be left untouched by source remapping.
 	tv := model.Variant("fr")
-	b.Overlays = append(b.Overlays, model.Overlay{Type: model.OverlayQA, Variant: &tv, Spans: []model.Span{{ID: "q"}}})
+	b.Overlays = append(b.Overlays, model.Overlay{Type: model.OverlayCheck, Variant: &tv, Spans: []model.Span{{ID: "q"}}})
 
 	b.SetSourceText("only")
 	dropped := model.RemapOverlays(b, old, []model.RunEdit{{Start: 0, End: 7, NewLen: 0}})
@@ -53,13 +53,13 @@ func TestRemapOverlays_DropsEmptyOverlayAndKeepsTargetSide(t *testing.T) {
 	assert.Equal(t, 1, dropped)
 	assert.Nil(t, b.OverlayOf(model.OverlayTerm), "now-empty source overlay is removed")
 	// The target-side check overlay survives.
-	var qaKept bool
+	var checkKept bool
 	for _, o := range b.Overlays {
-		if o.Type == model.OverlayQA && !o.OnSource() {
-			qaKept = true
+		if o.Type == model.OverlayCheck && !o.OnSource() {
+			checkKept = true
 		}
 	}
-	assert.True(t, qaKept, "target-side overlay untouched")
+	assert.True(t, checkKept, "target-side overlay untouched")
 }
 
 func TestRemapOverlays_NoEditsIsNoop(t *testing.T) {

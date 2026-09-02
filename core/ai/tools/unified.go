@@ -139,10 +139,10 @@ func TranslateSchema() *schema.ComponentSchema {
 	return registry.ComposeGroupSchema(translateGroup())
 }
 
-// qaToolMeta is the `qa` tool metadata shared by the schema and contract resolver.
+// checkToolMeta is the `qa` tool metadata shared by the schema and contract resolver.
 // The contract is the AI-path superset (credentials + API egress); rule mode
-// drops those at runtime via ResolveQAContract.
-func qaToolMeta() schema.ToolMeta {
+// drops those at runtime via ResolveCheckContract.
+func checkToolMeta() schema.ToolMeta {
 	return schema.ToolMeta{
 		ID:                    "qa",
 		Category:              schema.CategoryQuality,
@@ -155,14 +155,14 @@ func qaToolMeta() schema.ToolMeta {
 		Accepts:               []string{schema.AcceptsMemory},
 		Cardinality:           schema.Bilingual,
 		Consumes:              []schema.IOPort{schema.Port(schema.PortTarget, model.SideTarget)},
-		Produces:              []schema.IOPort{schema.Port(model.OverlayQA, model.SideTarget)},
+		Produces:              []schema.IOPort{schema.Port(model.OverlayCheck, model.SideTarget)},
 		SideEffects:           []schema.SideEffect{schema.SideEffectAPICall, schema.SideEffectRemoteSourceEgress},
 	}
 }
 
-// qaCommonSchema is the qa group's shared config: just the mode selector.
-func qaCommonSchema() *schema.ComponentSchema {
-	meta := qaToolMeta()
+// checkCommonSchema is the qa group's shared config: just the mode selector.
+func checkCommonSchema() *schema.ComponentSchema {
+	meta := checkToolMeta()
 	return &schema.ComponentSchema{
 		ID:          "qa",
 		Title:       meta.DisplayName,
@@ -170,45 +170,45 @@ func qaCommonSchema() *schema.ComponentSchema {
 		Type:        "object",
 		ToolMeta:    &meta,
 		Properties: map[string]schema.PropertySchema{
-			qaModeField: {
+			checkModeField: {
 				Type:        "string",
 				Title:       "Check mode",
 				Description: "How to check quality: deterministic local rules, or an AI provider's review",
-				Default:     qaModeRules,
+				Default:     checkModeRules,
 			},
 		},
-		Groups: []schema.ParameterGroup{{ID: "qa", Label: "Quality check", Fields: []string{qaModeField}}},
+		Groups: []schema.ParameterGroup{{ID: "qa", Label: "Quality check", Fields: []string{checkModeField}}},
 	}
 }
 
-// qaMembers are the two check backends: deterministic rules and an LLM judge.
-func qaMembers() []registry.ToolGroupMember {
-	rules := schema.FromStruct(libtools.NewQACheckConfig(model.LocaleEnglish), schema.ToolMeta{ID: "qa-rules"})
-	ai := schema.FromStruct(&AIQAConfig{}, schema.ToolMeta{ID: "qa-ai"})
+// checkMembers are the two check backends: deterministic rules and an LLM judge.
+func checkMembers() []registry.ToolGroupMember {
+	rules := schema.FromStruct(libtools.NewRuleCheckConfig(model.LocaleEnglish), schema.ToolMeta{ID: "qa-rules"})
+	ai := schema.FromStruct(&AICheckConfig{}, schema.ToolMeta{ID: "qa-ai"})
 	setProviderOptions(ai, aiProviderOptions())
 	return []registry.ToolGroupMember{
-		{Name: qaModeRules, Label: "Deterministic rules", Description: "Local rule-based checks — no credentials, no network.", Schema: rules},
-		{Name: qaModeAI, Label: "AI review", Description: "LLM-judged quality review via an AI provider.", Schema: ai},
+		{Name: checkModeRules, Label: "Deterministic rules", Description: "Local rule-based checks — no credentials, no network.", Schema: rules},
+		{Name: checkModeAI, Label: "AI review", Description: "LLM-judged quality review via an AI provider.", Schema: ai},
 	}
 }
 
-// qaGroup is the qa tool group: a `mode` selector (rules / AI), rules as the
+// checkGroup is the qa tool group: a `mode` selector (rules / AI), rules as the
 // default so qa needs no credentials unless AI is selected.
-func qaGroup() registry.ToolGroupDef {
+func checkGroup() registry.ToolGroupDef {
 	return registry.ToolGroupDef{
 		Name:          "qa",
-		Discriminator: qaModeField,
-		Default:       qaModeRules,
-		Common:        qaCommonSchema(),
-		Members:       qaMembers(),
-		ConfigFactory: NewQAFromConfig,
-		Resolver:      ResolveQAContract,
+		Discriminator: checkModeField,
+		Default:       checkModeRules,
+		Common:        checkCommonSchema(),
+		Members:       checkMembers(),
+		ConfigFactory: NewCheckFromConfig,
+		Resolver:      ResolveCheckContract,
 	}
 }
 
-// QASchema returns the composed (flat) projection of the qa group.
-func QASchema() *schema.ComponentSchema {
-	return registry.ComposeGroupSchema(qaGroup())
+// CheckSchema returns the composed (flat) projection of the qa group.
+func CheckSchema() *schema.ComponentSchema {
+	return registry.ComposeGroupSchema(checkGroup())
 }
 
 // NewTranslateFromConfig builds the translation tool for the configured
@@ -229,19 +229,19 @@ func NewTranslateFromConfig(config map[string]any, targetLang string) (tool.Tool
 // (Deterministic rules vs AI review), replacing the old "provider-presence"
 // heuristic. The values double as the ComposeVariants variant names.
 const (
-	qaModeField = "mode"
-	qaModeRules = "rules"
-	qaModeAI    = "ai"
+	checkModeField = "mode"
+	checkModeRules = "rules"
+	checkModeAI    = "ai"
 )
 
-// qaUsesAI reports whether a qa config selects the AI backend. The explicit
+// checkUsesAI reports whether a qa config selects the AI backend. The explicit
 // `mode` wins; when it is unset (older recipes / flags), it falls back to the
 // historical rule: a set `provider` means AI.
-func qaUsesAI(config map[string]any) bool {
-	switch mode, _ := config[qaModeField].(string); mode {
-	case qaModeAI:
+func checkUsesAI(config map[string]any) bool {
+	switch mode, _ := config[checkModeField].(string); mode {
+	case checkModeAI:
 		return true
-	case qaModeRules:
+	case checkModeRules:
 		return false
 	default:
 		provider, _ := config["provider"].(string)
@@ -249,21 +249,21 @@ func qaUsesAI(config map[string]any) bool {
 	}
 }
 
-// NewQAFromConfig builds the deterministic rule-based checker in rules mode, or
+// NewCheckFromConfig builds the deterministic rule-based checker in rules mode, or
 // the LLM-judged checker in AI mode.
-func NewQAFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
-	if qaUsesAI(config) {
-		return NewAIQAFromConfig(config, targetLang)
+func NewCheckFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
+	if checkUsesAI(config) {
+		return NewAICheckFromConfig(config, targetLang)
 	}
-	return libtools.NewQACheckFromConfig(config, targetLang)
+	return libtools.NewRuleCheckFromConfig(config, targetLang)
 }
 
-// ResolveQAContract refines `qa`'s contract from its config: in rules mode the
+// ResolveCheckContract refines `qa`'s contract from its config: in rules mode the
 // tool runs local rule checks — no credentials, no API call, no egress. In AI
 // mode it resolves like the other AI tools (local providers drop the egress
 // effect; cloud providers keep the full contract).
-func ResolveQAContract(config map[string]any, base registry.ToolInfo) registry.ToolInfo {
-	if qaUsesAI(config) {
+func ResolveCheckContract(config map[string]any, base registry.ToolInfo) registry.ToolInfo {
+	if checkUsesAI(config) {
 		return ResolveAIEgressContract(config, base)
 	}
 	base.Requires = removeStrings(base.Requires, schema.RequiresCredentials)

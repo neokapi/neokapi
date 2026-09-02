@@ -1,4 +1,4 @@
-import type { BlockInfo, QAIssue, TermCompliance } from "../../types/api";
+import type { BlockInfo, CheckIssue, TermCompliance } from "../../types/api";
 import { getBlockStatus, getTargetText } from "../editor/blockStatus";
 
 /**
@@ -78,7 +78,7 @@ export interface ReviewEntry {
   /** Full block (source_runs/targets_runs already normalised to coded+spans). */
   block: BlockInfo;
   /** Check findings for this block+locale; empty until QA has been loaded. */
-  issues: QAIssue[];
+  issues: CheckIssue[];
   /**
    * The server's terminology verdict for this target, `""` when no terminology
    * governance was active for the locale.

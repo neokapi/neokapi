@@ -382,8 +382,8 @@ func termOverlay(ctx context.Context, tb terms.Terminology, runs []model.Run, so
 	return &model.Overlay{Type: model.OverlayTerm, Spans: spans}
 }
 
-// voiceOverlay builds an OverlayQA over the source runs from the project's voice
-// profile — both halves of its deterministic gate, vocabulary
+// voiceOverlay builds an OverlayCheck over the source runs from the project's
+// voice profile — both halves of its deterministic gate, vocabulary
 // (coreprofile.MatchVocabulary) and prohibited style patterns
 // (coreprofile.MatchPatterns). Findings ride on the "qa" overlay type (the model's
 // overlay enum has no dedicated voice type) tagged with
@@ -425,7 +425,7 @@ func voiceOverlay(profile *coreprofile.VoiceProfile, runs []model.Run, source st
 			Props: patternSpanProps(p),
 		})
 	}
-	return &model.Overlay{Type: model.OverlayQA, Spans: spans}
+	return &model.Overlay{Type: model.OverlayCheck, Spans: spans}
 }
 
 // patternSpanProps renders one prohibited-pattern hit as overlay span props,

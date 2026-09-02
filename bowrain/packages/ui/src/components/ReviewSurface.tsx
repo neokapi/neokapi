@@ -22,7 +22,7 @@ import type {
   BlockInfo,
   BlockCounts,
   BlockTermMatch,
-  FileQAResult,
+  FileCheckResult,
   ReviewContext,
   ReviewDemotion,
 } from "../types/api";
@@ -127,8 +127,8 @@ export function ReviewSurface({
     null,
   );
   const [message, setMessage] = useState<string | null>(null);
-  const [fileQAResults, setFileQAResults] = useState<FileQAResult[]>([]);
-  const [qaLoading, setQaLoading] = useState(false);
+  const [fileCheckResults, setFileCheckResults] = useState<FileCheckResult[]>([]);
+  const [checksLoading, setChecksLoading] = useState(false);
   const [showProblems, setShowProblems] = useState(false);
   const [termsByBlock, setTermsByBlock] = useState<Record<string, BlockTermMatch[]>>({});
   const [termsLoading, setTermsLoading] = useState(false);
@@ -493,26 +493,26 @@ export function ReviewSurface({
     [api, capture, project.id, fileName, targetLocale, loadCounts],
   );
 
-  const runQA = useCallback(() => {
-    setQaLoading(true);
+  const runChecks = useCallback(() => {
+    setChecksLoading(true);
     setShowProblems(true);
     api
-      .runFileQACheck(project.id, fileName, targetLocale)
-      .then((r) => setFileQAResults(r || []))
-      .catch(() => setFileQAResults([]))
-      .finally(() => setQaLoading(false));
+      .runFileCheck(project.id, fileName, targetLocale)
+      .then((r) => setFileCheckResults(r || []))
+      .catch(() => setFileCheckResults([]))
+      .finally(() => setChecksLoading(false));
   }, [api, project.id, fileName, targetLocale]);
 
-  const qaIssueCount = useMemo(
-    () => fileQAResults.reduce((acc, r) => acc + r.issues.length, 0),
-    [fileQAResults],
+  const checkIssueCount = useMemo(
+    () => fileCheckResults.reduce((acc, r) => acc + r.issues.length, 0),
+    [fileCheckResults],
   );
 
-  const qaByBlock = useMemo(() => {
-    const m = new Map<string, FileQAResult>();
-    for (const r of fileQAResults) m.set(r.blockId, r);
+  const checksByBlock = useMemo(() => {
+    const m = new Map<string, FileCheckResult>();
+    for (const r of fileCheckResults) m.set(r.blockId, r);
     return m;
-  }, [fileQAResults]);
+  }, [fileCheckResults]);
 
   // ── The document ──────────────────────────────────────────────────────────
 
@@ -523,7 +523,7 @@ export function ReviewSurface({
   // been opened. Entities ride along on the blocks themselves.
   const evidence = useMemo(() => {
     const out: Record<string, BlockEvidence> = {};
-    for (const r of fileQAResults) {
+    for (const r of fileCheckResults) {
       out[r.blockId] = { issues: r.issues, issueLocale: targetLocale };
     }
     for (const [id, terms] of Object.entries(termsByBlock)) {
@@ -540,7 +540,7 @@ export function ReviewSurface({
       };
     }
     return out;
-  }, [fileQAResults, termsByBlock, contextByBlock, targetLocale]);
+  }, [fileCheckResults, termsByBlock, contextByBlock, targetLocale]);
 
   const tree = useMemo(
     () =>
@@ -558,7 +558,7 @@ export function ReviewSurface({
     (id: string): BlockAttrs => {
       const block = visible.find((b) => b.id === id);
       const status = block ? getBlockStatus(block, targetLocale) : "not-started";
-      const flagged = (qaByBlock.get(id)?.issues.length ?? 0) > 0;
+      const flagged = (checksByBlock.get(id)?.issues.length ?? 0) > 0;
       return {
         className: cn(
           STATUS_RULE[status],
@@ -571,7 +571,7 @@ export function ReviewSurface({
         "data-flagged": flagged ? "true" : undefined,
       };
     },
-    [visible, targetLocale, qaByBlock, marked],
+    [visible, targetLocale, checksByBlock, marked],
   );
 
   const docRef = useRef<HTMLDivElement>(null);
@@ -676,14 +676,14 @@ export function ReviewSurface({
         <Button
           variant={showProblems ? "default" : "outline"}
           size="sm"
-          onClick={runQA}
+          onClick={runChecks}
           data-testid="run-qa-btn"
         >
           <AlertTriangle className="w-3.5 h-3.5 mr-1" />
           Run checks
-          {qaIssueCount > 0 && (
+          {checkIssueCount > 0 && (
             <span className="ml-1 text-[10px] px-1 rounded-full bg-destructive/15 text-destructive font-bold">
-              {qaIssueCount}
+              {checkIssueCount}
             </span>
           )}
         </Button>
@@ -867,7 +867,7 @@ export function ReviewSurface({
         itemName={fileName}
         locale={targetLocale}
         localeLabel={targetLocale ? `${getDisplayName(targetLocale)} (${targetLocale})` : ""}
-        issues={selectedId ? (qaByBlock.get(selectedId)?.issues ?? []) : []}
+        issues={selectedId ? (checksByBlock.get(selectedId)?.issues ?? []) : []}
         terms={selectedId ? (termsByBlock[selectedId] ?? []) : []}
         termsLoading={termsLoading}
         context={selectedId ? (contextByBlock[`${selectedId}::${targetLocale}`] ?? null) : null}
@@ -904,8 +904,8 @@ export function ReviewSurface({
       {/* Problems panel (reused) */}
       {showProblems && (
         <ProblemsPanel
-          issues={fileQAResults}
-          loading={qaLoading}
+          issues={fileCheckResults}
+          loading={checksLoading}
           onNavigateToBlock={selectBlock}
           onClose={() => setShowProblems(false)}
         />

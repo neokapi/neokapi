@@ -7,8 +7,8 @@ import {
   sampleProject,
   sampleMemoryMatches,
   sampleTermMatches,
-  sampleQAIssues,
-  sampleFileQAResults,
+  sampleCheckIssues,
+  sampleFileCheckResults,
   sampleBlockNotes,
   sampleBlockHistory,
   navigationBlocks,
@@ -63,10 +63,10 @@ function InteractiveLayout(overrides: LayoutOverrides) {
       onApplyMemory={overrides.onApplyMemory ?? (() => {})}
       onInsertTerm={overrides.onInsertTerm ?? (() => {})}
       presenceSlot={overrides.presenceSlot}
-      qaIssues={overrides.qaIssues}
-      fileQAResults={overrides.fileQAResults}
-      qaLoading={overrides.qaLoading}
-      onRunFileQA={overrides.onRunFileQA}
+      checkIssues={overrides.checkIssues}
+      fileCheckResults={overrides.fileCheckResults}
+      checksLoading={overrides.checksLoading}
+      onRunFileCheck={overrides.onRunFileCheck}
       history={overrides.history}
       onRevertHistory={overrides.onRevertHistory}
       notes={overrides.notes}
@@ -163,9 +163,9 @@ export const FullFeatured: Story = {
       selectedIndex={1}
       memoryMatches={sampleMemoryMatches}
       termMatches={sampleTermMatches}
-      qaIssues={sampleQAIssues}
-      fileQAResults={sampleFileQAResults}
-      onRunFileQA={fn()}
+      checkIssues={sampleCheckIssues}
+      fileCheckResults={sampleFileCheckResults}
+      onRunFileCheck={fn()}
       history={sampleBlockHistory}
       onRevertHistory={fn()}
       notes={sampleBlockNotes}
@@ -231,11 +231,11 @@ export const WithTermSidebar: Story = {
 };
 
 /** Static snapshot: block findings and file findings */
-export const WithQAIssues: Story = {
+export const WithCheckIssues: Story = {
   args: {
-    qaIssues: sampleQAIssues,
-    fileQAResults: sampleFileQAResults,
-    onRunFileQA: fn(),
+    checkIssues: sampleCheckIssues,
+    fileCheckResults: sampleFileCheckResults,
+    onRunFileCheck: fn(),
   },
 };
 

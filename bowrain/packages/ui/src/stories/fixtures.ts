@@ -12,8 +12,8 @@ import type {
   MemoryMatchInfo,
   BlockTermMatch,
   ReviewVoiceProfile,
-  QAIssue,
-  FileQAResult,
+  CheckIssue,
+  FileCheckResult,
   BlockNote,
   BlockHistoryEntry,
   AutomationRule,
@@ -408,7 +408,7 @@ export const deprecatedTermMatch: BlockTermMatch = {
 // Finding samples
 // ---------------------------------------------------------------------------
 
-export const sampleQAIssues: QAIssue[] = [
+export const sampleCheckIssues: CheckIssue[] = [
   {
     type: "missing-tag",
     severity: "error",
@@ -426,7 +426,7 @@ export const sampleQAIssues: QAIssue[] = [
   },
 ];
 
-export const sampleFileQAResults: FileQAResult[] = [
+export const sampleFileCheckResults: FileCheckResult[] = [
   {
     blockId: "blk-2",
     issues: [

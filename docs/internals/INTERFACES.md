@@ -877,7 +877,7 @@ func (fb *Builder) Build() *Flow {
 // cc := &blockCountCollector{}
 // f := flow.NewFlow("analyze").
 //     AddToolFactory(func() (tool.Tool, error) {
-//         return tools.NewQACheckTool(tools.NewQACheckConfig("fr")), nil
+//         return tools.NewRuleCheckTool(tools.NewRuleCheckConfig("fr")), nil
 //     }).Build()
 //
 // executor := flow.NewExecutor(

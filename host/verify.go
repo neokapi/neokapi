@@ -31,7 +31,7 @@ import (
 const (
 	gateVoice  = "voice"
 	gateTerms  = "terminology"
-	gateQA     = "qa"
+	gateChecks = "qa"
 	gateShip   = "ship"
 	gateSource = "source"
 )
@@ -174,7 +174,7 @@ type gateSelection struct {
 const gateFlagName = "gate"
 
 // selectableGates are the gate names --gate accepts, in the order they run.
-var selectableGates = []string{gateVoice, gateTerms, gateQA}
+var selectableGates = []string{gateVoice, gateTerms, gateChecks}
 
 // CmdContext returns the command's context, or context.Background() when the
 // command was invoked outside cobra's Execute (e.g. in unit tests) and has no
@@ -200,7 +200,7 @@ func resolveGateSelection(cmd Command) (gateSelection, error) {
 			sel.voice = true
 		case gateTerms:
 			sel.terms = true
-		case gateQA:
+		case gateChecks:
 			sel.qa = true
 		default:
 			return gateSelection{}, fmt.Errorf("unknown gate %q — pass one of: %s",
@@ -333,11 +333,11 @@ func (a *App) computeVerify(cmd Command, args []string) (verifyOutput, error) {
 			gates = append(gates, termGate)
 		}
 		if sel.qa {
-			qaGate, err := a.verifyQA(cmd, proj, root, units)
+			checksGate, err := a.verifyChecks(cmd, proj, root, units)
 			if err != nil {
 				return verifyOutput{}, err
 			}
-			gates = append(gates, qaGate)
+			gates = append(gates, checksGate)
 		}
 	}
 
@@ -1175,12 +1175,12 @@ func (a *App) unitGovernancePoint(root string, u VerifyUnit) project.GovernanceP
 
 // --- qa gate ----------------------------------------------------------------
 
-// verifyQA checks placeholder/tag integrity against the source and flags
+// verifyChecks checks placeholder/tag integrity against the source and flags
 // untranslated/empty targets for each target file, reusing
-// core/tools.NewQACheckTool.
-func (a *App) verifyQA(cmd Command, proj *project.KapiProject, root string, units []VerifyUnit) (verifyGateResult, error) {
+// core/tools.NewRuleCheckTool.
+func (a *App) verifyChecks(cmd Command, proj *project.KapiProject, root string, units []VerifyUnit) (verifyGateResult, error) {
 	ctx := CmdContext(cmd)
-	gate := verifyGateResult{Gate: gateQA, Pass: true, Findings: []verifyFinding{}}
+	gate := verifyGateResult{Gate: gateChecks, Pass: true, Findings: []verifyFinding{}}
 
 	// Whether a target identical to its source is a defect is settled by the
 	// project's terms and its committed decisions — the same rule the loop's
@@ -1212,7 +1212,7 @@ func (a *App) verifyQA(cmd Command, proj *project.KapiProject, root string, unit
 			}
 			gate.Pass = false
 			gate.Findings = append(gate.Findings, verifyFinding{
-				Gate:       gateQA,
+				Gate:       gateChecks,
 				File:       u.DisplayPath,
 				Locale:     u.Locale,
 				Severity:   "error",
@@ -1222,14 +1222,14 @@ func (a *App) verifyQA(cmd Command, proj *project.KapiProject, root string, unit
 			continue
 		}
 
-		cfg := coretools.NewQACheckConfig(model.LocaleID(u.Locale))
+		cfg := coretools.NewRuleCheckConfig(model.LocaleID(u.Locale))
 		// Check placeholder integrity so the checks gate flags dropped placeholders
 		// even in plain-text formats where the reader does not extract them as
 		// inline codes (e.g. {name}, {{var}}, %s, ${x}). The inline-code
 		// difference check still runs for formats that do extract codes; the
 		// placeholder check is additive.
 		cfg.CheckPlaceholders = true
-		qa := coretools.NewQACheckTool(cfg)
+		qa := coretools.NewRuleCheckTool(cfg)
 		for _, b := range blocks {
 			if cerr := RunCheckTool(ctx, qa, b); cerr != nil {
 				return gate, fmt.Errorf("qa gate %s (%s): %w", u.DisplayPath, u.Locale, cerr)
@@ -1238,18 +1238,18 @@ func (a *App) verifyQA(cmd Command, proj *project.KapiProject, root string, unit
 				if identical.suppresses(f, u.SourcePath, b, u.Locale) {
 					continue
 				}
-				failing := qaFindingFails(f)
+				failing := checkFindingFails(f)
 				sev := verifySeverity(f.Severity)
 				if failing {
 					sev = "error"
 				}
 				gate.Findings = append(gate.Findings, verifyFinding{
-					Gate:       gateQA,
+					Gate:       gateChecks,
 					File:       u.DisplayPath,
 					Locale:     u.Locale,
 					Severity:   sev,
 					Message:    f.Message,
-					Suggestion: qaFindingSuggestion(f),
+					Suggestion: checkFindingSuggestion(f),
 				})
 				if failing {
 					gate.Pass = false
@@ -1292,12 +1292,12 @@ func verifySeverity(s check.Severity) string {
 	}
 }
 
-// qaFailingCategories are the finding categories verify treats as gate
+// checkFailingCategories are the finding categories verify treats as gate
 // failures: integrity problems that break the translation (dropped/extra
 // placeholders or tags, missing required codes, untranslated/empty targets).
 // Cosmetic issues (whitespace, doubled words, length ratios) are reported as
 // warnings but do not fail the gate.
-var qaFailingCategories = map[string]bool{
+var checkFailingCategories = map[string]bool{
 	"empty-target":                  true,
 	"pattern-mismatch":              true,
 	"placeholder":                   true,
@@ -1313,18 +1313,18 @@ var qaFailingCategories = map[string]bool{
 	"target-same-as-source": true,
 }
 
-// qaFindingFails reports whether a finding should fail the verify checks gate.
-func qaFindingFails(f check.Finding) bool {
-	if qaFailingCategories[f.Category] {
+// checkFindingFails reports whether a finding should fail the verify checks gate.
+func checkFindingFails(f check.Finding) bool {
+	if checkFailingCategories[f.Category] {
 		return true
 	}
 	// Any major/critical finding fails regardless of category.
 	return f.Severity == check.SeverityMajor || f.Severity == check.SeverityCritical
 }
 
-// qaFindingSuggestion returns a short remediation hint for the assistant for the
+// checkFindingSuggestion returns a short remediation hint for the assistant for the
 // integrity finding categories verify cares about.
-func qaFindingSuggestion(f check.Finding) string {
+func checkFindingSuggestion(f check.Finding) string {
 	switch f.Category {
 	case "empty-target":
 		return "translate the source content for this entry"
@@ -1367,7 +1367,7 @@ func (a *App) bilingualBlocks(ctx context.Context, u VerifyUnit) ([]*model.Block
 	// A blocked path holds no translation, whatever it holds. Report it as
 	// missing so every measurement path (coverage, plan, checks, review) treats
 	// the locale as untranslated. The reason is not lost: it is reported where a
-	// person can act on it — the checks gate's finding (qaGate) and the run that
+	// person can act on it — the checks gate's finding (checksGate) and the run that
 	// refuses to write the path (core/flow.OutputPathError).
 	if blockedTargetPath(u.TargetPath) != nil {
 		return nil, true, nil

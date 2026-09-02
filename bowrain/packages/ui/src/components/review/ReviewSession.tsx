@@ -7,7 +7,7 @@ import type {
   ProjectInfo,
   TranslationDashboardStats,
   BlockInfo,
-  QAIssue,
+  CheckIssue,
   LocaleTranslationStats,
 } from "../../types/api";
 import { useEditorApi } from "../../hooks/useEditorApi";
@@ -265,15 +265,15 @@ export function ReviewSession({
       if (pageEntries.length < QUEUE_PAGE_SIZE || offset + pageEntries.length >= page.total) break;
     }
 
-    const qaScopes = new Set(
+    const checkScopes = new Set(
       loaded.map((e) => scopeKey(e)).filter((key) => failingScopes.has(key)),
     );
-    const qaByScope = new Map<string, Map<string, QAIssue[]>>();
+    const checksByScope = new Map<string, Map<string, CheckIssue[]>>();
     await Promise.all(
-      [...qaScopes].map(async (key) => {
+      [...checkScopes].map(async (key) => {
         const [itemName, locale] = key.split("::");
-        const results = await api.runFileQACheck(project.id, itemName, locale).catch(() => []);
-        qaByScope.set(key, new Map((results ?? []).map((r) => [r.blockId, r.issues])));
+        const results = await api.runFileCheck(project.id, itemName, locale).catch(() => []);
+        checksByScope.set(key, new Map((results ?? []).map((r) => [r.blockId, r.issues])));
       }),
     );
 
@@ -290,7 +290,7 @@ export function ReviewSession({
         collectionId: e.collectionId,
         locale: e.locale,
         block: e.block,
-        issues: qaByScope.get(scopeKey(e))?.get(e.block.id) ?? [],
+        issues: checksByScope.get(scopeKey(e))?.get(e.block.id) ?? [],
         termCompliance: e.termCompliance,
         voiceScore: e.voiceScore,
         voiceBar: e.voiceBar,
@@ -442,7 +442,7 @@ export function ReviewSession({
     async (entry: ReviewEntry) => {
       setRecheckingId(entry.id);
       try {
-        const issues = await api.runQACheck(project.id, entry.block.id, entry.locale);
+        const issues = await api.runCheck(project.id, entry.block.id, entry.locale);
         setEntries((prev) => prev.map((e) => (e.id === entry.id ? { ...e, issues } : e)));
       } catch {
         // Non-fatal: leave the prior findings.

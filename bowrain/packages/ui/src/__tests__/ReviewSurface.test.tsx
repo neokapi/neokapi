@@ -458,7 +458,7 @@ describe("ReviewSurface — the inspector carries the block's evidence", () => {
   it("lists the findings the payload gives no position for", async () => {
     const user = userEvent.setup();
     renderSurface(testBlocks, (adapter) => {
-      vi.spyOn(adapter, "runFileQACheck").mockResolvedValue([
+      vi.spyOn(adapter, "runFileCheck").mockResolvedValue([
         {
           blockId: "b1",
           issues: [{ type: "spacing", severity: "warning", message: "Trailing double space" }],

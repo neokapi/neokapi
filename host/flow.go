@@ -1502,12 +1502,12 @@ func (a *App) buildToolByName(toolName string, config map[string]any, cmd ...Com
 				if err != nil {
 					return nil, nil, err
 				}
-				qaTools := []tool.Tool{t}
+				checkTools := []tool.Tool{t}
 				var cleanup func()
 				if tb, tbCleanup, err := a.openTerms(cmd...); err != nil {
 					return nil, nil, err
 				} else if tb != nil {
-					qaTools = append(qaTools,
+					checkTools = append(checkTools,
 						sqlterms.NewTermLookupTool(tb, sqlterms.TermLookupConfig{
 							SourceLocale: model.LocaleID(a.SourceLocale()),
 							TargetLocale: model.LocaleID(a.TargetLang),
@@ -1519,7 +1519,7 @@ func (a *App) buildToolByName(toolName string, config map[string]any, cmd ...Com
 					)
 					cleanup = tbCleanup
 				}
-				return qaTools, cleanup, nil
+				return checkTools, cleanup, nil
 
 			}
 		}

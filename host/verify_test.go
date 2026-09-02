@@ -154,7 +154,7 @@ func TestVerify_FailingProject(t *testing.T) {
 	require.NotEmpty(t, terms.Findings)
 	assert.Contains(t, terms.Findings[0].Message, "Enregistrer")
 
-	qa, ok := gateByName(out, gateQA)
+	qa, ok := gateByName(out, gateChecks)
 	require.True(t, ok, "qa gate must be present")
 	assert.False(t, qa.Pass, "qa gate must fail (dropped placeholder)")
 	require.NotEmpty(t, qa.Findings)
@@ -401,7 +401,7 @@ func TestVerify_DoNotTranslateNotFlagged(t *testing.T) {
 
 	out, _ := runVerifyJSON(t)
 
-	qa, ok := gateByName(out, gateQA)
+	qa, ok := gateByName(out, gateChecks)
 	require.True(t, ok, "qa gate must be present")
 	for _, f := range qa.Findings {
 		assert.NotContains(t, f.Message, "identical to source",
