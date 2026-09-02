@@ -193,10 +193,10 @@ func TestRunAIPreReview_AnnotateOnly(t *testing.T) {
 	assert.Equal(t, 2, res.Remaining)
 
 	// The queue surfaces the stored scores; nothing left the queue.
-	items, err := app.GetReviewQueue(tab.ID, ProjectFilter{})
+	queue, err := app.ReviewQueue(tab.ID, ProjectFilter{})
 	require.NoError(t, err)
 	frScores := map[string]int{}
-	for _, it := range items {
+	for _, it := range queue.Pending {
 		if it.Locale == "fr-FR" {
 			require.NotNil(t, it.AIScore, "fr units carry their annotation")
 			frScores[it.Key] = *it.AIScore
@@ -257,10 +257,10 @@ func TestRunAIPreReview_AutoApprove(t *testing.T) {
 	assert.Equal(t, 1, approved)
 
 	// The approved unit left the queue; the vetoed one is still pending.
-	items, err := app.GetReviewQueue(tab.ID, ProjectFilter{})
+	queue, err := app.ReviewQueue(tab.ID, ProjectFilter{})
 	require.NoError(t, err)
 	var deKeys []string
-	for _, it := range items {
+	for _, it := range queue.Pending {
 		if it.Locale == "de-DE" {
 			deKeys = append(deKeys, it.Key)
 		}

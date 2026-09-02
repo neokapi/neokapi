@@ -23,36 +23,6 @@ import (
 // at all. The two are the same act on different content, so they are two lanes
 // of one page rather than two pages.
 
-// GetSourceQueue returns the source units awaiting authoring attention, narrowed
-// to the project's Active Filter. Languages in the filter are ignored here: a
-// source unit is the same content for every target, which is why the gate holds
-// the whole fan-out rather than one language of it.
-func (a *App) GetSourceQueue(tabID string, filter ProjectFilter) ([]host.SourceQueueItem, error) {
-	op := a.getOpenProject(tabID)
-	if op == nil {
-		return nil, fmt.Errorf("project tab %q not found", tabID)
-	}
-	if op.Project == nil || op.Path == "" {
-		return []host.SourceQueueItem{}, nil
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-	defer cancel()
-
-	items, err := a.hostEngine().SourceQueue(ctx, op.Path, string(op.Project.Defaults.SourceLanguage))
-	if err != nil {
-		return nil, err
-	}
-	out := make([]host.SourceQueueItem, 0, len(items))
-	for _, it := range items {
-		if filter.FilesNarrowed() && !filter.MatchesFile(it.Collection, it.Relative) {
-			continue
-		}
-		out = append(out, it)
-	}
-	return out, nil
-}
-
 // GetSourceUnitContext returns the review model for one SOURCE unit: the point
 // its file sits at and the blocks either side of it in document order.
 //

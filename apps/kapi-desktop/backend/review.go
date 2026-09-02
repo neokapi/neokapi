@@ -375,41 +375,66 @@ func targetEditable(b *model.Block, loc model.LocaleID) bool {
 	return isSinglePlainTextRun(t.Runs)
 }
 
-// GetReviewQueue returns the project's review queue (the same derivation
-// GetConvergence reports), narrowed to the project's Active Filter and with
-// each item enriched with hasFindings — whether the unit currently trips any
+// ReviewQueue returns the project's unified review queue: every unit awaiting a
+// person, in one listing across the project's languages, the source language
+// among them. Source units carry IsSource and sort first.
+//
+// The listing is narrowed to the project's Active Filter, and each translation
+// row is enriched with hasFindings, whether the unit currently trips any
 // registered checker — so the Review page can order findings-first and offer a
 // "clean only" batch. Enrichment is best-effort: a file that cannot be measured
-// leaves its items unmarked.
+// leaves its rows unmarked, and a source row has no translation to check.
+//
+// Languages counts what is left after the filter rather than what the whole
+// project holds, so a language the reviewer can select always has rows behind
+// it.
 //
 // The filter is applied BEFORE enrichment, which is what makes it worth
 // threading twice over: enrichment runs every registered checker over every
 // item, and a project the size of the sample has thousands. A filter that only
 // hid rows afterwards would still pay for all of them.
-func (a *App) GetReviewQueue(tabID string, filter ProjectFilter) ([]host.ReviewQueueItem, error) {
+func (a *App) ReviewQueue(tabID string, filter ProjectFilter) (host.ReviewQueue, error) {
 	langs, lerr := canonicalLocales(filter.Languages)
 	if lerr != nil {
-		return nil, lerr
+		return host.ReviewQueue{}, lerr
 	}
 	filter.Languages = langs
 
-	rep, err := a.GetConvergence(tabID)
-	if err != nil {
-		return nil, err
-	}
-	items := filterReviewItems(rep.Review, filter)
-	if len(items) == 0 {
-		return []host.ReviewQueueItem{}, nil
-	}
 	op := a.getOpenProject(tabID)
-	if op == nil || op.Project == nil || op.Path == "" {
-		return items, nil
+	if op == nil {
+		return host.ReviewQueue{}, fmt.Errorf("project tab %q not found", tabID)
+	}
+	if op.Project == nil || op.Path == "" {
+		return host.ReviewQueue{Pending: []host.ReviewQueueItem{}}, nil
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
 	sourceLang := string(project.NewProjectContext(op.Project, op.Path).SourceLocale)
+	queue, err := a.hostEngine().ReviewQueue(ctx, op.Path, sourceLang,
+		host.ReviewQueueOptions{Languages: langs})
+	if err != nil {
+		return host.ReviewQueue{}, err
+	}
+
+	items := filterReviewItems(queue.Pending, filter)
+	if items == nil {
+		items = []host.ReviewQueueItem{}
+	}
+	out := host.ReviewQueue{
+		Pending:   items,
+		Languages: convergence.SummarizeReviewLanguages(items),
+	}
+	a.markReviewFindings(ctx, op, sourceLang, out.Pending)
+	return out, nil
+}
+
+// markReviewFindings sets hasFindings on every translation row it can measure,
+// reading and overlaying each (file, locale) pair once. Source rows are left
+// alone: the checkers judge a translation against its source, and a source row
+// has no translation yet.
+func (a *App) markReviewFindings(ctx context.Context, op *openProject, sourceLang string, items []host.ReviewQueueItem) {
 	points := a.newPointResolver(op, false)
 	dntTerms := a.resolveProjectDNTTerms(ctx, op, sourceLang)
 
@@ -417,6 +442,9 @@ func (a *App) GetReviewQueue(tabID string, filter ProjectFilter) ([]host.ReviewQ
 	type scope struct{ file, locale string }
 	groups := map[scope][]int{}
 	for i, it := range items {
+		if it.IsSource {
+			continue
+		}
 		s := scope{file: it.File, locale: it.Locale}
 		groups[s] = append(groups[s], i)
 	}
@@ -441,7 +469,6 @@ func (a *App) GetReviewQueue(tabID string, filter ProjectFilter) ([]host.ReviewQ
 			items[i].HasFindings = &has
 		}
 	}
-	return items, nil
 }
 
 // filterReviewItems narrows a review queue to the Active Filter: its languages,

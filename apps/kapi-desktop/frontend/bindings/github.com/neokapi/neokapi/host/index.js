@@ -27,8 +27,7 @@ export {
     ReviewPoint,
     ReviewPriorVersion,
     ReviewProvenance,
-    ReviewQueueItem,
-    SourceQueueItem,
+    ReviewQueue,
     UpPlanOutput,
     UpPlanScope
 } from "./models.js";

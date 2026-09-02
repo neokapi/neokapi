@@ -1,7 +1,10 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { ReviewPage } from "../components/ReviewPage";
 import { ErrorProvider } from "../components/ErrorBanner";
-import type { ReviewItem, ReviewUnitDetail } from "../types/api";
+import type { ReviewContext, ReviewItem, ReviewUnitDetail } from "../types/api";
+
+/** A date placeholder, the kind a concatenating run walk deletes silently. */
+const DATE_PH = { id: "1", type: "var", data: "{date}", equiv: "date" };
 
 const meta: Meta<typeof ReviewPage> = {
   title: "Project/ReviewPage",
@@ -184,5 +187,176 @@ export const LargeQueue: Story = {
     loadUnit,
     onDecide: noopDecide,
     onSaveTarget: noopSave,
+  },
+};
+
+// One unit's review model, so the five layer cards draw what the reviewer is
+// shown at a glance: the point, the neighbourhood, what was approved before,
+// what the checks said, and where the wording came from.
+const CONTEXT: ReviewContext = {
+  point: {
+    path: "content/marketing.json",
+    profile: "retail",
+    channel: "web",
+    collection: "Marketing",
+    ref: "retail/web",
+    default: false,
+    coordinates: { product: "kapimart", channel: "web", brand: "northsea" },
+    voice: {
+      name: "Kapimart retail",
+      source: "pack:retail",
+      field: "defaults.voice",
+      guide: "Write in the second person. Keep sentences under twenty words.",
+    },
+    // Context, not findings. Most of these come from the terms store and carry
+    // no severity, which is why the card draws them all in one neutral chip.
+    term_rules: [
+      { term: "cart", replacement: "basket", severity: "major" },
+      { term: "sign in", replacement: "log in", severity: "minor" },
+      { term: "checkout", replacement: "pay" },
+      { term: "Kapimart", do_not_translate: true },
+    ],
+    terms_total: 40,
+    profiles: [{ name: "retail", valid_from: "2026-01-01", state: "active" }],
+    notes: ["The terms store was read three days ago."],
+  },
+  neighbourhood: {
+    key: "cta.primary",
+    before: [{ key: "hero.title", source: [{ text: "Ship every language without the toil" }] }],
+    after: [
+      {
+        key: "cta.note",
+        source: [{ text: "Your credits reset on " }, { ph: DATE_PH }, { text: "." }],
+        target: [{ text: "Kredittene tilbakestilles " }, { ph: DATE_PH }, { text: "." }],
+      },
+    ],
+    window: 2,
+  },
+  history: {
+    prior: {
+      source: "Get started with {product}",
+      target: "Kom i gang med {product}",
+      context_fingerprint: "abc123",
+      governed: false,
+    },
+    match: { score: 88, source: "Get started with {product}", target: "Kom i gang med {product}" },
+  },
+  judgement: {
+    ai_score: 74,
+    ai_model: "claude-x",
+    ai_findings: [{ severity: "minor", message: "The call to action is softer than the source." }],
+  },
+  provenance: {
+    origin: { kind: "mt", engine: "deepl" },
+    review_state: "rejected",
+    by: "agent/desktop",
+    at: "2026-08-30T10:00:00Z",
+    note: "Too literal for this surface.",
+    stale: true,
+  },
+};
+
+async function loadUnitWithContext(item: ReviewItem): Promise<ReviewUnitDetail> {
+  return { ...(await loadUnit(item)), context: CONTEXT };
+}
+
+/** The source rows: the author's own wording the source gate is waiting on. */
+const SOURCE_ROWS: ReviewItem[] = [
+  {
+    locale: "en-US",
+    language: "en-US",
+    isSource: true,
+    file: "locales/en-US.json",
+    relative: "locales/en-US.json",
+    key: "hero.title",
+    collection: "Marketing",
+    sourceLocale: "en-US",
+    source: "Ship every language without the toil",
+    status: "checked",
+    held: true,
+  },
+  {
+    locale: "en-US",
+    language: "en-US",
+    isSource: true,
+    file: "locales/en-US.json",
+    relative: "locales/en-US.json",
+    key: "cta.primary",
+    collection: "Marketing",
+    sourceLocale: "en-US",
+    source: "Get started with {product}",
+    status: "checked",
+    held: true,
+  },
+];
+
+/** Every language the project has work in, the source language among them. */
+const UNIFIED_QUEUE: ReviewItem[] = [
+  ...SOURCE_ROWS,
+  ...QUEUE.map((it) => ({ ...it, language: it.locale, sourceLocale: "en-US" })),
+];
+
+export const AllLanguages: Story = {
+  name: "All languages",
+  args: {
+    tabID: "storybook",
+    items: UNIFIED_QUEUE,
+    loadUnit: loadUnitWithContext,
+    onDecide: noopDecide,
+    onSaveTarget: noopSave,
+  },
+};
+
+export const OneTargetLanguage: Story = {
+  name: "One target language",
+  args: {
+    tabID: "storybook",
+    items: UNIFIED_QUEUE,
+    scope: { locale: "nb" },
+    loadUnit: loadUnitWithContext,
+    onDecide: noopDecide,
+    onSaveTarget: noopSave,
+  },
+};
+
+export const SourceLanguage: Story = {
+  name: "The source language",
+  args: {
+    tabID: "storybook",
+    items: UNIFIED_QUEUE,
+    scope: { locale: "en-US" },
+    loadUnit: loadUnitWithContext,
+    onDecide: noopDecide,
+    onSaveTarget: noopSave,
+  },
+};
+
+/**
+ * The five layer cards open, each headed by the line a reviewer scans.
+ *
+ * The Point card is the one to read for tone: every bound term rule is neutral
+ * context, and the severities belong to the Checks card below it.
+ */
+export const LayersExpanded: Story = {
+  name: "Layer cards expanded",
+  args: {
+    tabID: "storybook",
+    items: UNIFIED_QUEUE,
+    scope: { locale: "nb", collection: "Marketing" },
+    loadUnit: loadUnitWithContext,
+    onDecide: noopDecide,
+    onSaveTarget: noopSave,
+  },
+};
+
+/** The same page with every layer folded to its summary line. */
+export const LayersCollapsed: Story = {
+  name: "Layer cards collapsed",
+  args: LayersExpanded.args,
+  play: async ({ canvasElement }) => {
+    const toggles = canvasElement.querySelectorAll<HTMLButtonElement>(
+      "[data-slot$='-toggle'][aria-expanded='true']",
+    );
+    for (const toggle of toggles) toggle.click();
   },
 };

@@ -1,6 +1,8 @@
-import { Card, CardContent, Skeleton, directionAttrs } from "@neokapi/ui-primitives";
+import { Layers } from "lucide-react";
+import { Skeleton, directionAttrs } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
 import type { ReviewNeighbour, ReviewNeighbourhood } from "../../types/api";
+import { LayerCard } from "./LayerCard";
 import { RunText } from "./RunText";
 
 /**
@@ -67,13 +69,24 @@ export function NeighbourhoodCard({
   const before = neighbourhood?.before ?? [];
   const after = neighbourhood?.after ?? [];
   const key = neighbourhood?.key ?? unitKey ?? "";
+  const around = before.length + after.length;
+  const summary = !neighbourhood
+    ? loading
+      ? t("Reading the document…")
+      : t("The blocks around this unit could not be read.")
+    : around === 0
+      ? t("This unit stands alone in its document.")
+      : t("{before} before, {after} after", { before: before.length, after: after.length });
 
   return (
-    <Card data-slot="review-neighbourhood">
-      <CardContent className="p-3 text-xs">
-        <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          {t("In the document")}
-        </div>
+    <LayerCard
+      title={t("In the document")}
+      icon={<Layers size={12} className="mt-0.5 shrink-0 text-muted-foreground" aria-hidden />}
+      summary={summary}
+      dataSlot="review-neighbourhood"
+      toggleLabel={t("The blocks around this unit")}
+    >
+      <div className="text-xs">
         {!neighbourhood ? (
           loading ? (
             <div className="space-y-1.5">
@@ -131,7 +144,7 @@ export function NeighbourhoodCard({
             ))}
           </ul>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </LayerCard>
   );
 }

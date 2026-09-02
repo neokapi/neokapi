@@ -12,7 +12,14 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { Compass, FileText, ShieldCheck, Cloud } from "lucide-react";
-import { Badge, Card, CardContent, SimpleTooltip, cn } from "@neokapi/ui-primitives";
+import {
+  Badge,
+  Card,
+  CardContent,
+  CoordinateChip,
+  SimpleTooltip,
+  cn,
+} from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
 import { call } from "../hooks/useApi";
 import { qk } from "../lib/queryKeys";
@@ -229,10 +236,10 @@ export function ProjectStanding({
                   >
                     <span className="min-w-[9rem] font-medium">{p.label}</span>
                     {p.coordinates && (
-                      <span className="font-mono text-[11px] text-muted-foreground">
-                        {Object.entries(p.coordinates)
-                          .map(([axis, value]) => `${axis}:${value}`)
-                          .join(" · ")}
+                      <span className="flex flex-wrap items-center gap-1">
+                        {Object.entries(p.coordinates).map(([axis, value]) => (
+                          <CoordinateChip key={axis} axis={axis} value={value} />
+                        ))}
                       </span>
                     )}
                     <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">

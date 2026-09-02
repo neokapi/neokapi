@@ -613,10 +613,14 @@ describe("ReviewPage review model", () => {
     expect(document.querySelector("[data-slot='review-point-voice']")?.textContent).toBe(
       "Kapimart retail",
     );
+    // Each axis is a chip: the value in words, the axis name in the label.
     const coordinates = Array.from(
       document.querySelectorAll("[data-slot='review-point-coordinate']"),
-    ).map((el) => el.textContent?.trim());
-    expect(coordinates).toContain("product: kapimart");
+    );
+    const product = coordinates.find((el) => el.getAttribute("data-axis") === "product");
+    expect(product?.textContent?.trim()).toBe("kapimart");
+    expect(product?.getAttribute("aria-label")).toBe("Product: kapimart");
+    expect(coordinates.map((el) => el.getAttribute("data-axis"))).toContain("channel");
     const terms = Array.from(document.querySelectorAll("[data-slot='review-point-term']")).map(
       (el) => el.textContent,
     );
@@ -737,5 +741,163 @@ describe("ReviewPage review model", () => {
         .querySelector("[data-slot='review-queue-item'][data-active]")
         ?.getAttribute("data-key"),
     ).toBe("greeting");
+  });
+});
+
+/** A source row: the author's own wording awaiting attention. */
+const SOURCE_ROW: ReviewItem = {
+  locale: "en-US",
+  language: "en-US",
+  isSource: true,
+  file: "locales/en-US.json",
+  relative: "locales/en-US.json",
+  key: "greeting",
+  collection: "App",
+  sourceLocale: "en-US",
+  source: "Hello {name}",
+  status: "checked",
+  held: true,
+};
+
+const UNIFIED = [...ITEMS, SOURCE_ROW];
+
+describe("ReviewPage language selector", () => {
+  function renderUnified(overrides: Partial<Parameters<typeof ReviewPage>[0]> = {}) {
+    return render(
+      <ErrorProvider>
+        <ReviewPage
+          tabID="t1"
+          items={UNIFIED}
+          loadUnit={vi.fn(async (item: ReviewItem) => unitFor(item))}
+          {...overrides}
+        />
+      </ErrorProvider>,
+    );
+  }
+
+  it("offers every language in the queue with its pending count, source first", async () => {
+    renderUnified();
+    const trigger = await waitFor(() => {
+      const el = document.querySelector<HTMLElement>("[data-slot='review-language-select']");
+      expect(el).not.toBeNull();
+      return el!;
+    });
+    // Closed, it reads "All languages" and the whole queue's size.
+    expect(trigger.textContent).toContain("All languages");
+    expect(trigger.textContent).toContain(String(UNIFIED.length));
+
+    await userEvent.click(trigger);
+    const options = await waitFor(() => {
+      const els = document.querySelectorAll("[data-slot='review-language-option']");
+      expect(els.length).toBe(3);
+      return els;
+    });
+    // The source language leads, marked as the source rather than named a lane.
+    expect(options[0].getAttribute("data-language")).toBe("en-US");
+    expect(options[0].textContent).toContain("English");
+    expect(options[0].textContent?.toLowerCase()).toContain("source");
+    // Each entry carries what is waiting behind it: two French units, one German.
+    const counts = Array.from(options).map((el) => [
+      el.getAttribute("data-language"),
+      el.textContent?.match(/(\d+)\s*$/)?.[1],
+    ]);
+    expect(counts).toEqual([
+      ["en-US", "1"],
+      ["de-DE", "1"],
+      ["fr-FR", "2"],
+    ]);
+    // No lane toggle survives: one control picks the language.
+    expect(document.querySelector("[data-slot='review-lane-toggle']")).toBeNull();
+  });
+
+  it("narrows the queue to the chosen target language", async () => {
+    renderUnified({ scope: { locale: "fr-FR" } });
+    await waitFor(() => {
+      const rows = document.querySelectorAll("[data-slot='review-queue-item']");
+      expect(rows).toHaveLength(2);
+      return rows;
+    });
+    const locales = Array.from(document.querySelectorAll("[data-slot='review-queue-item']")).map(
+      (el) => el.getAttribute("data-language"),
+    );
+    expect(new Set(locales)).toEqual(new Set(["fr-FR"]));
+  });
+
+  it("puts the source rows in front of the reviewer when the source language is chosen", async () => {
+    renderUnified({ scope: { locale: "en-US" } });
+    await waitFor(() => expect(document.querySelector("[data-slot='source-lane']")).not.toBeNull());
+    // The source language names itself rather than a lane.
+    expect(document.querySelector("[data-slot='source-lane-language']")?.textContent).toContain(
+      "English",
+    );
+    // The translation queue and its findings chips step aside.
+    expect(document.querySelector("[data-slot='review-queue-item']")).toBeNull();
+    expect(document.querySelector<HTMLElement>("[data-slot='review-chips']")?.hidden).toBe(true);
+  });
+});
+
+describe("ReviewPage tone", () => {
+  it("draws bound term rules as context, whatever their severity", async () => {
+    render(
+      <ErrorProvider>
+        <ReviewPage
+          tabID="t1"
+          items={ITEMS}
+          loadUnit={vi.fn(async (item: ReviewItem) => ({
+            ...unitFor(item),
+            context: {
+              ...CONTEXT,
+              point: {
+                ...CONTEXT.point,
+                // The third rule carries no severity, which is what every rule
+                // resolved from a terms store looks like.
+                term_rules: [
+                  { term: "cart", replacement: "basket", severity: "major" },
+                  { term: "sign in", replacement: "log in", severity: "minor" },
+                  { term: "checkout", replacement: "pay" },
+                  { term: "Kapimart", do_not_translate: true },
+                ],
+              },
+            },
+          }))}
+        />
+      </ErrorProvider>,
+    );
+    const chips = await waitFor(() => {
+      const els = document.querySelectorAll<HTMLElement>("[data-slot='review-point-term']");
+      expect(els).toHaveLength(4);
+      return els;
+    });
+    // Context is neutral: no chip borrows the colour a finding uses.
+    for (const chip of chips) {
+      expect(chip.className).not.toMatch(/destructive|amber|teal/);
+      expect(chip.className).toContain("border-border");
+    }
+    // How hard a rule bites stays readable, in the data and the tooltip.
+    expect(Array.from(chips).map((el) => el.getAttribute("data-severity"))).toEqual([
+      "blocks",
+      "warns",
+      "blocks",
+      "blocks",
+    ]);
+    expect(chips[3].getAttribute("data-dnt")).toBe("true");
+  });
+
+  it("keeps the severity colours on the findings the checks reported", async () => {
+    render(
+      <ErrorProvider>
+        <ReviewPage
+          tabID="t1"
+          items={ITEMS}
+          loadUnit={vi.fn(async (item: ReviewItem) => unitFor(item))}
+        />
+      </ErrorProvider>,
+    );
+    const finding = await waitFor(() => {
+      const el = document.querySelector("[data-slot='review-finding']");
+      expect(el).not.toBeNull();
+      return el!;
+    });
+    expect(finding.querySelector(".text-warning")).not.toBeNull();
   });
 });

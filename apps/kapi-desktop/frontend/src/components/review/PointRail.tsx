@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronRight, Info, Loader2, MapPin } from "lucide-react";
+import { ChevronRight, Info, Loader2, Lock, MapPin } from "lucide-react";
 import {
   Badge,
   Button,
@@ -7,19 +7,22 @@ import {
   CardContent,
   Collapsible,
   CollapsibleContent,
+  CoordinateChip,
   SimpleTooltip,
 } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
 import type { ReviewPoint, TermRule } from "../../types/api";
+import { LayerCard } from "./LayerCard";
 
 /**
  * The point rail: where this unit's file sits, and what governs it there.
  *
- * A reviewer scans this, so it is one dense strip of chips rather than a form.
- * It carries the collection and the coordinates, the voice profile in force
- * with its rendered guidance behind a disclosure, the term rules bearing on
- * this unit's wording, the governance profiles' validity windows, and the
- * caveats the resolution produced.
+ * The summary line is the address itself, drawn as coordinate chips, so a
+ * reviewer reads the product and channel a unit belongs to before opening
+ * anything. Behind it sit the file's own path, the voice profile in force with
+ * its rendered guidance, the term rules bearing on this unit's wording, the
+ * governance profiles' validity windows, and the caveats the resolution
+ * produced.
  */
 
 /** A rule whose severity only reports. Everything else fails a check. */
@@ -28,21 +31,32 @@ function warnsOnly(rule: TermRule): boolean {
   return s === "minor" || s === "neutral";
 }
 
+/**
+ * One term rule bound at this point, drawn as context.
+ *
+ * The rail says what the model was told about a word, so a rule is neutral
+ * whatever its severity. Painting them by severity filled the card with red
+ * `cart → سلة التسوق` chips that a reviewer read as a list of defects, and most
+ * of them were rules resolved from the terms store, which carry no severity at
+ * all and therefore landed in the "everything else fails" branch. Severity lives
+ * in the tooltip; a do-not-translate rule is marked by a lock rather than by a
+ * fill. Red belongs to the Checks card, where a finding says this unit broke a
+ * rule.
+ */
 function TermRuleChip({ rule }: { rule: TermRule }) {
-  const tone = rule.do_not_translate
-    ? "border-teal-500/40 bg-teal-500/10 text-teal-700 dark:text-teal-300"
-    : warnsOnly(rule)
-      ? "border-amber-500/30 bg-amber-500/5 text-amber-700 dark:text-amber-400"
-      : "border-destructive/40 bg-destructive/5 text-destructive";
-  const label = rule.do_not_translate
-    ? t("do not translate")
-    : (rule.severity ?? t("blocks approval"));
+  const bite = warnsOnly(rule) ? t("warns only") : t("blocks approval");
+  const label = rule.do_not_translate ? `${t("do not translate")} · ${bite}` : bite;
   return (
     <SimpleTooltip content={rule.note ? `${label} · ${rule.note}` : label}>
       <span
-        className={`inline-flex items-center gap-1 rounded border px-1 py-px font-mono text-[10px] ${tone}`}
+        className="inline-flex items-center gap-1 rounded border border-border bg-muted/40 px-1 py-px font-mono text-[10px] text-foreground"
         data-slot="review-point-term"
+        data-severity={warnsOnly(rule) ? "warns" : "blocks"}
+        data-dnt={rule.do_not_translate ? "true" : undefined}
       >
+        {rule.do_not_translate && (
+          <Lock size={9} className="shrink-0 text-muted-foreground" aria-hidden />
+        )}
         <span translate="no">{rule.term}</span>
         {rule.replacement ? (
           <>
@@ -96,38 +110,41 @@ export function PointRail({ point, loading }: PointRailProps) {
   const profiles = point.profiles ?? [];
   const notes = point.notes ?? [];
 
+  const summary = (
+    <>
+      <span className="font-medium text-foreground" translate="no" data-slot="review-point-ref">
+        {point.default ? t("default point") : (point.ref ?? t("default point"))}
+      </span>
+      {point.collection && (
+        <Badge variant="outline" className="text-[10px]">
+          <span translate="no">{point.collection}</span>
+        </Badge>
+      )}
+      {coordinates.map(([axis, value]) => (
+        <CoordinateChip key={axis} axis={axis} value={value} data-slot="review-point-coordinate" />
+      ))}
+    </>
+  );
+
   return (
-    <Card data-slot="review-point">
-      <CardContent className="space-y-1.5 p-2.5 text-xs">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <MapPin size={12} className="shrink-0 text-muted-foreground" />
-          <span className="font-medium" translate="no" data-slot="review-point-ref">
-            {point.default ? t("default point") : (point.ref ?? t("default point"))}
-          </span>
-          {point.collection && (
-            <Badge variant="outline" className="text-[10px]">
-              <span translate="no">{point.collection}</span>
-            </Badge>
-          )}
-          {point.path && (
+    <LayerCard
+      title={t("Point")}
+      icon={<MapPin size={12} className="mt-0.5 shrink-0 text-muted-foreground" aria-hidden />}
+      summary={summary}
+      dataSlot="review-point"
+      toggleLabel={t("What governs this unit")}
+    >
+      <div className="space-y-1.5">
+        {point.path && (
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="text-muted-foreground">{t("File")}</span>
             <SimpleTooltip content={point.path}>
               <span className="truncate font-mono text-[10px] text-muted-foreground" translate="no">
                 {point.path}
               </span>
             </SimpleTooltip>
-          )}
-          {coordinates.map(([axis, value]) => (
-            <span
-              key={axis}
-              className="rounded bg-muted px-1 text-[10px] text-muted-foreground"
-              data-slot="review-point-coordinate"
-            >
-              <span translate="no">
-                {axis}: {value}
-              </span>
-            </span>
-          ))}
-        </div>
+          </div>
+        )}
 
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <span className="text-muted-foreground">{t("Voice")}</span>
@@ -247,7 +264,7 @@ export function PointRail({ point, loading }: PointRailProps) {
             ))}
           </ul>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </LayerCard>
   );
 }

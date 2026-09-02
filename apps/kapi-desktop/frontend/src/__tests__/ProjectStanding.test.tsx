@@ -128,7 +128,9 @@ describe("ProjectStanding", () => {
     const rows = screen.getAllByTestId("point-row");
     expect(rows).toHaveLength(3);
     expect(rows[0]).toHaveTextContent("project default");
-    expect(rows[0]).toHaveTextContent("brand:northsea");
+    expect(
+      rows[0].querySelector("[data-slot='coordinate-chip'][data-axis='brand']"),
+    ).toHaveTextContent("northsea");
     expect(rows[1]).toHaveTextContent("support/docs");
     expect(rows[1]).toHaveTextContent("Docs");
     expect(rows[1]).toHaveTextContent("Northsea Support");

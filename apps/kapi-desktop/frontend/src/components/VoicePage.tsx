@@ -27,7 +27,8 @@ import {
 import {
   Badge,
   Button,
-  LocalePill,
+  CoordinateChip,
+  LocaleLabel,
   PageHeader,
   Separator,
   Skeleton,
@@ -349,11 +350,7 @@ function PointRow({
   selected: boolean;
   onSelect: () => void;
 }) {
-  const address = point.coordinates
-    ? Object.entries(point.coordinates)
-        .map(([axis, value]) => `${axis}:${value}`)
-        .join(" · ")
-    : undefined;
+  const coordinates = Object.entries(point.coordinates ?? {});
   return (
     <li>
       <button
@@ -374,8 +371,12 @@ function PointRow({
             </Badge>
           )}
         </div>
-        {address && (
-          <p className="truncate font-mono text-[11px] text-muted-foreground">{address}</p>
+        {coordinates.length > 0 && (
+          <span className="mt-1 flex flex-wrap items-center gap-1">
+            {coordinates.map(([axis, value]) => (
+              <CoordinateChip key={axis} axis={axis} value={value} />
+            ))}
+          </span>
         )}
         <p className="truncate text-xs text-muted-foreground">
           {point.profile ? point.profile.name : t("no voice profile binds here")}
@@ -560,7 +561,7 @@ function PointDetail({ point, onEdit }: { point: VoicePoint; onEdit?: () => void
                   {Object.entries(profile.locales).map(([locale, override]) => (
                     <div key={locale} className="rounded-lg border px-3 py-2">
                       <p className="text-sm font-medium">
-                        <LocalePill locale={locale} showName />
+                        <LocaleLabel locale={locale} />
                       </p>
                       <dl className="mt-1 grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-3">
                         <Fact label={t("Formality")} value={override.formality} />

@@ -88,7 +88,13 @@ describe("CollectionPointBadge", () => {
 
   it("shows the inherited axes when no channel is named", () => {
     render(<CollectionPointBadge coll={{ name: "App" }} defaults={{ brand: "northsea" }} />);
-    expect(screen.getByTestId("collection-point-badge")).toHaveTextContent("brand:northsea");
+    // An axis is a chip: the value in words, the axis name in the label.
+    const chip = screen
+      .getByTestId("collection-point-badge")
+      .querySelector("[data-slot='coordinate-chip']");
+    expect(chip?.getAttribute("data-axis")).toBe("brand");
+    expect(chip?.getAttribute("aria-label")).toBe("Brand: northsea");
+    expect(chip).toHaveTextContent("northsea");
   });
 
   it("stays quiet when the collection sits nowhere in particular", () => {
