@@ -1,4 +1,4 @@
-# i18n framework registry — the machine-readable source of truth behind the
+# i18n framework registry: the machine-readable source of truth behind the
 # per-ecosystem playbooks in this directory. Schema and scoring rubric:
 # docs/internals/i18n-toil.md (repo). Maintained by the refresh-i18n-framework
 # skill (.skills/) and the i18n-triage workflow (.claude/workflows/i18n-triage.js).
@@ -69,7 +69,7 @@ frameworks:
         - "s: lingualdev/i18n-check in CI (no first-party extractor; useExtracted still experimental)"
         - "r: kapi pseudo-translate + translate-qa placeholder validation"
     watch: { repo: https://github.com/amannn/next-intl, latest_verified: "4.13", verified: 2026-07-10 }
-    notes: "De-facto Next.js App Router standard; IDs are its idiom — do not convert it to source-as-key."
+    notes: "De-facto Next.js App Router standard; IDs are its idiom; do not convert it to source-as-key."
 
   - id: lingui
     ecosystem: react
@@ -178,9 +178,9 @@ frameworks:
       recommended: { w: 1, x: 1, s: 1, r: 0, e: 0 }
       grade: T1
       buys:
-        - "s: ng-extract-i18n-merge as the extract builder (mandatory — stock has no target merge and hash IDs churn)"
+        - "s: ng-extract-i18n-merge as the extract builder (mandatory: stock has no target merge and hash IDs churn)"
     watch: { repo: https://github.com/angular/angular, latest_verified: "Angular 22; i18n subsystem frozen (#38953 open since 2020)", verified: 2026-07-10 }
-    notes: "Source-as-key templates, compile-checked ICU, zero i18n runtime. No runtime language switch — reload per locale."
+    notes: "Source-as-key templates, compile-checked ICU, zero i18n runtime. No runtime language switch; reload per locale."
 
   - id: transloco
     ecosystem: angular
@@ -289,7 +289,7 @@ frameworks:
       buys:
         - "s: kapi convergence over the JSON dictionaries"
     watch: { repo: https://github.com/solidjs-community/solid-primitives, latest_verified: "maintained (solidjs-community)", verified: 2026-07-10 }
-    notes: "Minimalist by design — no extractor/ICU/routing. SolidStart SSR or >2 locales → Paraglide."
+    notes: "Minimalist by design, with no extractor/ICU/routing. SolidStart SSR or >2 locales → Paraglide."
 
   # ── Mobile ─────────────────────────────────────────────────────────────
   - id: ios-xcstrings
@@ -327,7 +327,7 @@ frameworks:
       buys:
         - "s/r: HardcodedText + MissingTranslation lint as CI errors; kapi convergence + qa"
     watch: { repo: https://developer.android.com/guide/topics/resources/localization, latest_verified: "AGP 8.8 localeFilters; per-app language API 33+", verified: 2026-07-10 }
-    notes: "IDs mandatory; no alternative exists. English quantity=\"zero\" is silently ignored — known plural trap."
+    notes: "IDs mandatory; no alternative exists. English quantity=\"zero\" is silently ignored, a known plural trap."
 
   - id: flutter
     ecosystem: flutter
@@ -475,7 +475,7 @@ frameworks:
         - "s: kapi convergence + CI locale-parity check (the platform ships no merge/fuzzy/unused tooling)"
         - "r: ICU4J MessageFormat from day one (never ChoiceFormat)"
     watch: { repo: https://unicode-org.github.io/icu/, latest_verified: "ResourceBundle frozen; ICU4J healthy (MF2 still tech preview)", verified: 2026-07-10 }
-    notes: "No extraction exists (X=3) — the T3 warning stands even with tooling. Typed Messages facade recommended."
+    notes: "No extraction exists (X=3), so the T3 warning stands even with tooling. Typed Messages facade recommended."
 
   - id: dotnet
     ecosystem: dotnet
@@ -493,9 +493,9 @@ frameworks:
       buys:
         - "w: string-as-key IStringLocalizer (English fallback for free)"
         - "s: ResXManager/TMS + kapi convergence over .resx"
-        - "r: an ICU MessageFormat library — string.Format has no plural engine"
+        - "r: an ICU MessageFormat library, because string.Format has no plural engine"
     watch: { repo: https://learn.microsoft.com/dotnet/core/extensions/localization, latest_verified: ".NET 10; resx unchanged", verified: 2026-07-10 }
-    notes: "No extraction (X=3) — T3 warning stands. Typed resx only for desktop (WPF/WinForms/MAUI)."
+    notes: "No extraction (X=3), so the T3 warning stands. Typed resx only for desktop (WPF/WinForms/MAUI)."
 
   - id: fluent
     ecosystem: gettext
@@ -531,7 +531,7 @@ frameworks:
       buys:
         - "s: kapi project convergence over docs content (this repo dogfoods exactly this: web/docs → i18n/nb)"
     watch: { repo: https://github.com/facebook/docusaurus, latest_verified: "write-translations JSON + file-copy content model", verified: 2026-07-10 }
-    notes: "Content model is whole-file copies — no native drift detection; kapi's convergence is the fix. Source locale strict, target locales warn."
+    notes: "Content model is whole-file copies with no native drift detection; kapi's convergence is the fix. Source locale strict, target locales warn."
 
   - id: sphinx
     ecosystem: docs
@@ -548,7 +548,7 @@ frameworks:
       grade: T1
       buys: []
     watch: { repo: https://www.sphinx-doc.org, latest_verified: "sphinx-intl gettext pipeline", verified: 2026-07-10 }
-    notes: "Full gettext pipeline; paragraph-level msgids mean edits fuzzy whole paragraphs — automated but churn-heavy."
+    notes: "Full gettext pipeline; paragraph-level msgids mean edits fuzzy whole paragraphs, automated but churn-heavy."
 
   - id: hugo
     ecosystem: docs
@@ -557,7 +557,7 @@ frameworks:
     detect:
       deps: []
       files: ["hugo.toml", "config.toml", "i18n/"]
-    catalog: { format: yaml, layout: "i18n/{lang}.yaml + per-language content copies (Hugo also accepts TOML — use YAML; kapi has no TOML reader)" }
+    catalog: { format: yaml, layout: "i18n/{lang}.yaml + per-language content copies (Hugo also accepts TOML; use YAML, since kapi has no TOML reader)" }
     kapi: { preset: null, flags: null }
     toil:
       stock:       { w: 2, x: 3, s: 2, r: 1, e: 0 }
@@ -566,4 +566,4 @@ frameworks:
       buys:
         - "s: kapi convergence over i18n/*.yaml and content copies"
     watch: { repo: https://gohugo.io, latest_verified: "manual key-based UI strings; per-language content files", verified: 2026-07-10 }
-    notes: "Fully manual beyond small sites — T3 warning applies."
+    notes: "Fully manual beyond small sites; the T3 warning applies."

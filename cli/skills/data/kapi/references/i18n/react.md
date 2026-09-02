@@ -1,4 +1,4 @@
-# React / Next.js i18n — adoption playbook
+# React / Next.js i18n adoption playbook
 
 Grades are the recommended-config Toil Index (see [../i18n.md](../i18n.md);
 scores in [frameworks.yaml](frameworks.yaml)).
@@ -10,16 +10,16 @@ scores in [frameworks.yaml](frameworks.yaml)).
 | Lingui | T2 | Source-as-key macros + PO catalogs; lowest marking cost of the runtime libs. |
 | react-i18next | T2 | The incumbent; biggest ecosystem, key hygiene forever. |
 | next-i18next | T2 | Only for existing i18next investments on Next.js (v16 revived it). |
-| react-intl | **T3 — warn** | Maximum boilerplate + hash-ID churn; right only with an ICU/TMS mandate. |
+| react-intl | **T3, warn** | Maximum boilerplate + hash-ID churn; right only with an ICU/TMS mandate. |
 
 **Opinionated defaults:** greenfield React (Vite/webpack) → **neokapi-i18n**.
 Next.js App Router with no i18n yet → **next-intl** (neokapi-i18n works via the
-webpack hook, but next-intl is the ecosystem-native choice — offer both).
+webpack hook, but next-intl is the ecosystem-native choice; offer both).
 Team wants source-as-key with a classic library → **Lingui**. Existing
 library already installed → keep it, install its recommended config below.
 Never convert a stack to a different key model in the same change as adoption.
 
-## Path A — adopt @neokapi/i18n-react (zero-wrapper, T0)
+## Path A: adopt @neokapi/i18n-react (zero-wrapper, T0)
 
 Write plain JSX; a bundler plugin extracts it at build time. See the
 [neokapi-i18n quickstart](https://neokapi.github.io/react/quickstart).
@@ -28,24 +28,24 @@ Write plain JSX; a bundler plugin extracts it at build time. See the
 
 - **Leave translatable JSX text exactly as written.** The plugin extracts plain
   text nodes (`<h1>Your notes</h1>`, `<p>Welcome back, {name}.</p>`) at build
-  time. Do **not** wrap JSX text in `t()` — that's the whole point.
-- **Use `t("…")` only for strings the plugin can't see as JSX** — text held in
+  time. Do **not** wrap JSX text in `t()`; that's the whole point.
+- **Use `t("…")` only for strings the plugin can't see as JSX**: text held in
   variables/data arrays, `alert()`/toast messages, and translatable attributes
   (`placeholder`, `aria-label`, `title`, `alt`). The English source is the key.
-  **Don't eyeball which strings these are — the linter finds them (step 4).**
+  **Don't eyeball which strings these are; the linter finds them (step 4).**
   They render reactively only inside `<NeokapiProvider>`, so wrap the app.
-- **The source English text is the key — never invent message IDs.**
+- **The source English text is the key. Never invent message IDs.**
 - The adoption diff should be: config (plugin, provider, scripts),
   `"use client"` on components that render translated text, and `t()` on the
-  handful of non-JSX strings — nothing more. If you're rewriting component
+  handful of non-JSX strings, nothing more. If you're rewriting component
   bodies, you're doing too much.
 
-The translation pipeline (step 5) is **CLI-driven** — `neokapi-i18n` and `kapi`
+The translation pipeline (step 5) is **CLI-driven**: `neokapi-i18n` and `kapi`
 run on the source files; you don't need to build or run the app to translate,
-and there is **no `.kapi` project**, so project-scoped `kapi check --ship` does not
-apply — the readiness gate is `kapi pseudo-translate`. The npm install, bundler
-plugin, and runtime loader only wire compiled translations into the running
-app; add them as config and don't block translation on them.
+and there is **no `.kapi` project**, so project-scoped `kapi check --ship` does
+not apply; the readiness gate is `kapi pseudo-translate`. The npm install,
+bundler plugin, and runtime loader only wire compiled translations into the
+running app; add them as config and don't block translation on them.
 
 1. Install: `npm install -D @neokapi/i18n-react` (+ `kapi` CLI on PATH).
 2. Bundler plugin (Vite shown; webpack/rollup/esbuild also exported):
@@ -74,7 +74,7 @@ app; add them as config and don't block translation on them.
    npx oxlint --fix          # autofixes bare {'literal'} JSX; reports the rest
    ```
    After this pass every user-facing string is either plain JSX (auto-extracted)
-   or `t()`-wrapped. Keep the linter on in CI — it is what holds the W=0 grade.
+   or `t()`-wrapped. Keep the linter on in CI; it holds the W=0 grade.
 5. Translate the extracted KBF with the `kapi` CLI:
    ```bash
    npm run extract                                   # JSX + t() calls → source KBF in i18n/
@@ -125,21 +125,22 @@ export default function I18nProvider({ children }: { children: React.ReactNode }
 Wrap the app in `<I18nProvider>` in `app/layout.tsx`. (The locale can come from
 a route segment or cookie the same way.)
 
-## Path B — plug kapi into an existing React library
+## Path B: plug kapi into an existing React library
 
 For repeatable runs scaffold a project (`kapi init --framework <preset>
 --target-locale <l>`); for one-offs translate the catalog file directly. Always
 pseudo-translate first, and verify the target locale *renders*.
 
-### next-intl — T2 (recommended for Next.js App Router)
+### next-intl: T2 (recommended for Next.js App Router)
 
 - **Idiom:** namespaced dot-key IDs, hand-authored `messages/en.json`. Keep the
-  IDs — its docs recommend them; its extraction (`useExtracted`) is still
+  IDs, which its docs recommend; its extraction (`useExtracted`) is still
   experimental.
 - **Recommended config (what earns T2):** shallow feature-scoped namespaces;
   pass only needed namespaces to `NextIntlClientProvider`;
-  [lingualdev/i18n-check](https://github.com/lingualdev/i18n-check) in CI —
-  missing keys otherwise surface only at runtime as rendered key paths.
+  [lingualdev/i18n-check](https://github.com/lingualdev/i18n-check) in CI,
+  because missing keys otherwise surface only at runtime as rendered key
+  paths.
 - **kapi:** preset `nextjs`
   (`kapi init --framework nextjs --target-locale fr`), or per file:
   ```bash
@@ -150,30 +151,30 @@ pseudo-translate first, and verify the target locale *renders*.
   middleware→proxy rename did); solo maintainer; message payloads ship to the
   client unless namespaces are scoped.
 
-### Lingui — T2 (recommended when the team wants source-as-key)
+### Lingui: T2 (recommended when the team wants source-as-key)
 
 - **Idiom:** `<Trans>Hello {name}</Trans>` / `` t`Hello` `` macros; generated
   hash IDs from source text. Don't fight it with explicit IDs.
 - **Recommended config:** `lingui extract` in CI with a dirty-catalog check;
-  `--clean` only on release branches; PO catalog format (the default — best
-  TMS/editor support); Babel macro plugin if your Next.js upgrade cadence is
-  aggressive (the SWC plugin pins to exact Next versions).
+  `--clean` only on release branches; PO catalog format (the default, with
+  the best TMS/editor support); Babel macro plugin if your Next.js upgrade
+  cadence is aggressive (the SWC plugin pins to exact Next versions).
 - **kapi:** no preset; kapi reads PO natively:
   ```bash
   kapi pseudo-translate src/locales/en/messages.po --target-lang qps
   kapi translate src/locales/en/messages.po --target-lang fr -o src/locales/fr/messages.po
   ```
 - **Footguns:** `@lingui/swc-plugin` ↔ Next.js version pinning; v6 is ESM-only
-  (Node ≥22); obsolete messages purge with `--clean` — review those diffs.
+  (Node ≥22); obsolete messages purge with `--clean`, so review those diffs.
 
-### react-i18next — T2 (the incumbent)
+### react-i18next: T2 (the incumbent)
 
 - **Idiom:** stable feature-scoped IDs + `defaultValue`, namespaced JSON in
   `public/locales/{lng}/{ns}.json`. Natural-language keys are possible but the
   maintainers recommend against them.
 - **Recommended config:** the official **i18next-cli** (`extract --ci`,
-  `sync`, `status`, `types`) — **i18next-parser is deprecated**; few coarse
-  namespaces; `saveMissing` in development only; typed keys via
+  `sync`, `status`, `types`), since **i18next-parser is deprecated**; few
+  coarse namespaces; `saveMissing` in development only; typed keys via
   `CustomTypeOptions`.
 - **kapi:** preset `react-i18next`; pass `--format i18next` so plural-suffix
   keys (`key_one`/`key_other`) and `{{interpolation}}`/`$t()` nesting are
@@ -183,22 +184,22 @@ pseudo-translate first, and verify the target locale *renders*.
     --target-lang fr -o public/locales/fr/translation.json --json
   ```
 - **Footguns:** Suspense flicker with `useTranslation`; TS slowdown on huge
-  catalogs (use the selector API); no RSC support in react-i18next itself —
-  App Router users need next-i18next v16.
+  catalogs (use the selector API); no RSC support in react-i18next itself,
+  so App Router users need next-i18next v16.
 
-### next-i18next — T2 (existing i18next investments only)
+### next-i18next: T2 (existing i18next investments only)
 
 v16 (2026-03) finally added App Router support: `getT()` in Server
 Components, `useT()` in Client Components, `createProxy()` for Next 16. Choose
-it only when i18next catalogs/TMS wiring already exist — the App Router
+it only when i18next catalogs/TMS wiring already exist; the App Router
 surface is young (score r=2); greenfield Next.js goes to next-intl. Same
 kapi integration and CLI tooling as react-i18next.
 
-### react-intl (FormatJS) — T3, warn before adopting
+### react-intl (FormatJS): T3, warn before adopting
 
 Every string is `<FormattedMessage defaultMessage=…/>` or
-`intl.formatMessage(…)` — the most verbose mainstream option (W=3, which caps
-it at T3 no matter what tooling is added) — and extractor hash IDs churn on
+`intl.formatMessage(…)`, the most verbose mainstream option (W=3, which caps
+it at T3 no matter what tooling is added), and extractor hash IDs churn on
 every copy edit, orphaning translations unless a content memory-capable TMS absorbs it.
 Choose it only with an existing FormatJS/ICU mandate and a TMS. If adopting:
 never hand-write IDs, wire `formatjs extract`/`compile` into CI immediately.
@@ -209,7 +210,7 @@ story and name Lingui as the same-ICU, lower-toil alternative.
 
 Run the app in the target locale (e.g. `/?lang=ja` or the route/cookie the app
 uses) and confirm the visible UI is translated. Still in source language? The
-wiring is wrong, not the translation — usual causes: string not extracted
+wiring is wrong rather than the translation. Usual causes: string not extracted
 (check the catalog and compiled output), rendering component is a Server
 Component (needs `"use client"` for client-side runtimes), or the dictionary
 loads after first paint (gate the render). In a `.kapi` project, finish with a
