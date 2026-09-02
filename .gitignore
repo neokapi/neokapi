@@ -345,3 +345,9 @@ packaging/.stage/
 
 # Retired extraction extension (renamed .kbf in #1444); stale leftovers only
 *.klf
+
+# Screenshots dropped at the repo root by an agent session belong in the scratchpad, never in git.
+/*.png
+/*.jpg
+/*.jpeg
+/*.webp
