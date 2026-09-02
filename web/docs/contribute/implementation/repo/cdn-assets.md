@@ -30,16 +30,16 @@ there, not in this repo.
 
 Everything here is **inert until configured**. The site reads the CDN origin
 from a build-time env var, `DOCS_CDN_URL`, surfaced to the frontend as the
-`cdnBaseUrl` Docusaurus customField. When it is empty — the default, and the
-local-dev case — every asset resolves same-origin exactly as before. Nothing
+`cdnBaseUrl` Docusaurus customField. When it is empty (the default, and the
+local-dev case) every asset resolves same-origin exactly as before. Nothing
 changes until the `DOCS_CDN_URL` repo variable is set.
 
 The frontend routing lives in one shared helper, `@neokapi/docs-shared`'s
 `cdn.ts` (`readCdnConfig` / `cdnEnabled` / `cdnHref`), consumed by:
 
-- `packages/docs-shared/src/ThemedVideo.tsx` — video + poster sources
-- `web/src/components/KapiPlayground/config.ts` — `wasmUrl` / `wasmExecUrl`
-- `web/src/pages/lab/vision.tsx` — the Vision Lab `modelBase`
+- `packages/docs-shared/src/ThemedVideo.tsx`: video + poster sources
+- `web/src/components/KapiPlayground/config.ts`: `wasmUrl` / `wasmExecUrl`
+- `web/src/pages/lab/vision.tsx`: the Vision Lab `modelBase`
 
 ## Bucket layout
 
@@ -64,8 +64,8 @@ Served URLs: `${DOCS_CDN_URL}/kapi/wasm/<sha>/kapi-cli.wasm`, etc.
 
 ## Credentials
 
-The CDN origin is a private S3 bucket; writes use the AWS credential chain — **no
-static access keys**:
+The CDN origin is a private S3 bucket; writes use the AWS credential chain, with
+**no static access keys**:
 
 - **CI** (`docs-kapi.yml` on push to main): the GitHub Actions **OIDC deploy
   role** (`AWS_DEPLOY_ROLE_ARN`), whose trust is pinned to `main` / the protected
@@ -88,7 +88,7 @@ are **repository variables**. No repository secrets are needed for the CDN.
 
 ## Publishing
 
-WASM is rebuilt on every docs build, so **CI publishes it** automatically — but
+WASM is rebuilt on every docs build, so **CI publishes it** automatically, but
 only on **push to main**: the `docs-kapi.yml` build job assumes the OIDC role,
 syncs `kapi/wasm/<sha>/` to the CDN, and drops it from the artifact. PRs cannot
 assume the deploy role, so PR previews serve their own wasm **same-origin** (the
@@ -97,8 +97,8 @@ and images still resolve from the CDN by URL.
 
 The other families are published out-of-band from the desktop, where the harness
 renders the videos/screenshots and `make fetch-vision-models` stages the model
-set (the vision models are pinned in the `vision-models-v1` GitHub release — the
-publish target just re-uploads them). Needs the `aws` CLI (an `aws sso login`
+set (the vision models are pinned in the `vision-models-v1` GitHub release, so
+the publish target just re-uploads them). Needs the `aws` CLI (an `aws sso login`
 session) + `CDN_BUCKET`:
 
 ```bash
@@ -108,7 +108,7 @@ make publish-cdn-all   # videos + images + vision models, kapi & bowrain → CDN
 **Order matters:** publish (or run the individual targets below) **before**
 setting the `DOCS_CDN_URL` repo variable. Once the variable is set, CI builds
 the sites pointing at the CDN (for push and same-repo PRs), so the deployed and
-preview sites expect those assets on the CDN — publish first or they 404. (WASM
+preview sites expect those assets on the CDN, so publish first or they 404. (WASM
 is the exception: CI builds and publishes it, versioned by sha, in the same
 push-to-main run.)
 
@@ -127,13 +127,13 @@ make publish-cdn-wasm              # optional manual wasm push (CI does this on 
 
 The vision model set is **versioned**: `kapi/models/vision/<version>/`, with the
 version pinned in the committed `web/models.version`. To ship a new model set,
-publish it under a new version and bump that file — a PR doing so previews the
+publish it under a new version and bump that file. A PR doing so previews the
 new models automatically (the Vision Lab reads the version from the build).
 
 All of these call `scripts/publish-cdn-assets.sh <family>`, which sets the right
 `Content-Type` and `Cache-Control` per family. The pre-gzipped `kapi-cli.wasm.gz`
-is uploaded as an opaque `application/wasm` blob with **no** `Content-Encoding` —
-the runtime self-inflates it via `DecompressionStream`, so a
+is uploaded as an opaque `application/wasm` blob with **no** `Content-Encoding`.
+The runtime self-inflates it via `DecompressionStream`, so a
 `Content-Encoding: gzip` header would make the browser double-inflate and fall
 back to the ~76 MB raw binary.
 

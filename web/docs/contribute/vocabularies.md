@@ -7,7 +7,7 @@ keywords: [vocabularies, authoring, inline codes, semantic types, JSON, vocabula
 
 # Authoring Vocabularies
 
-This guide covers implementing and extending vocabularies — the semantic type
+This guide covers implementing and extending vocabularies, the semantic type
 system that classifies inline codes. For what vocabularies are and why they
 exist, see the concept page: [Vocabularies](/framework/vocabularies).
 
@@ -117,7 +117,7 @@ Inline content is a flat `[]model.Run` (see
 [F-02: Content Model](/contribute/architecture/foundations/f-02-content-model)). An
 opening tag becomes a `PcOpenRun`, its matching close a `PcCloseRun` with the
 same `ID`, and a self-closing construct a `PlaceholderRun`. When building one,
-look up the vocabulary entry and populate the rendering and constraint fields —
+look up the vocabulary entry and populate the rendering and constraint fields,
 mirroring the per-format `runBuilder` helpers (`core/formats/*/run_builder.go`):
 
 ```go
@@ -300,11 +300,11 @@ func TestMyVocabulary(t *testing.T) {
 1. **Use existing types when possible.** Map to `fmt:bold` rather than creating `my-format:bold`.
 2. **Set constraints conservatively.** Mark code tokens non-deletable; formatting fully flexible.
 3. **Keep vocabularies small.** Only add types with distinct rendering or constraint needs.
-4. **Test roundtrip fidelity.** Vocabulary types affect rendering, but each run's `Data` drives output — verify both.
+4. **Test roundtrip fidelity.** Vocabulary types affect rendering, but each run's `Data` drives output, so verify both.
 5. **Extend rather than replace.** Use `extends` to build on `common-formatting`.
 
 ## Related reading
 
-- [Vocabularies](/framework/vocabularies) — the concept and built-in vocabularies.
-- [Implementing a Format](/contribute/formats) — building readers and writers.
-- [Inline Formatting](/framework/inline-formatting) — the inline-code model in the content model.
+- [Vocabularies](/framework/vocabularies): the concept and built-in vocabularies.
+- [Implementing a Format](/contribute/formats): building readers and writers.
+- [Inline Formatting](/framework/inline-formatting): the inline-code model in the content model.

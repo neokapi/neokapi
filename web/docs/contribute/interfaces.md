@@ -8,7 +8,7 @@ keywords: [interface reference, DataFormatReader, DataFormatWriter, Tool, Execut
 # Interface Reference
 
 This page collects the concrete Go interfaces and types that form neokapi's
-implementation contract — the signatures you implement when writing a format, a
+implementation contract: the signatures you implement when writing a format, a
 tool, or a plugin. For the _concepts_ behind these types (what a Part is, why the
 content model is shaped this way), see the framework section:
 [Content Model](/framework/content-model), [Tools](/framework/tools),
@@ -188,7 +188,7 @@ type RunPos struct {
 ### Run (inline content)
 
 A block's source (and each target) is a flat `[]Run`. Each `Run` is a
-discriminated union — exactly one pointer field is set — defined in
+discriminated union with exactly one pointer field set, defined in
 `core/model/run.go`:
 
 ```go
@@ -527,7 +527,7 @@ func (r *ToolRegistry) NewTool(name ToolID) (tool.Tool, error)
 
 Out-of-process formats, tools, and source connectors run as Mode-C plugin
 daemons and are reached over a single gRPC `BridgeService`. A bidirectional
-`Process` stream carries the whole document lifecycle — its mode (read-only,
+`Process` stream carries the whole document lifecycle. Its mode (read-only,
 read-write, or write-only) is selected by the header rather than by separate
 RPCs:
 

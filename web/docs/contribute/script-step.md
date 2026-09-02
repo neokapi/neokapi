@@ -51,7 +51,7 @@ emit(part);
 ```
 
 By default the script may read the source but only **target** edits are read
-back — the source is read-only (see [Configuration reference](#configuration-reference)).
+back, because the source is read-only (see [Configuration reference](#configuration-reference)).
 
 ### skip()
 
@@ -94,7 +94,7 @@ function process(part) {
 }
 ```
 
-Inside `process`, `emit()`, `skip()`, and `log()` behave exactly as in the implicit-globals form. As a convenience, the function's **return value** is also honored — but only when you have _not_ already called `emit()` or `skip()` (an explicit call always wins):
+Inside `process`, `emit()`, `skip()`, and `log()` behave exactly as in the implicit-globals form. As a convenience, the function's **return value** is also honored, but only when you have _not_ already called `emit()` or `skip()` (an explicit call always wins):
 
 | `process(part)` returns | Result                                          |
 | ----------------------- | ----------------------------------------------- |
@@ -213,9 +213,9 @@ if (part.type !== "block") {
 ### Transform source text
 
 Normalize whitespace in the source before translation. Source edits are
-**ignored by default** — the source is read-only to the script (immutability
-contract). Opt in with `allowSourceMutation: true`, and place the step ahead
-of the steps that should observe the rewritten source — typically first (see
+**ignored by default**, because the source is read-only to the script
+(immutability contract). Opt in with `allowSourceMutation: true`, and place the
+step ahead of the steps that should observe the rewritten source, typically first (see
 [flow authoring](/contribute/flow-authoring)):
 
 ```yaml
@@ -251,7 +251,7 @@ if (part.type === "block") {
 | `source`              | string  | Mode selector: `inline` (default) or `file`                                       |
 | `code`                | string  | Inline JavaScript code (ES5)                                                      |
 | `scriptFile`          | string  | Path to a `.js` file                                                              |
-| `allowSourceMutation` | boolean | Permit the script to modify the source text. Off by default — the source is read-only and source edits are ignored unless this is set. |
+| `allowSourceMutation` | boolean | Permit the script to modify the source text. Off by default: the source is read-only and source edits are ignored unless this is set. |
 
 Provide either `code` or `scriptFile`. The optional `source` field selects the
 mode explicitly (`inline` or `file`) for UI and validation; when omitted, the
