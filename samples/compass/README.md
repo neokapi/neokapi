@@ -1,4 +1,4 @@
-# Compass — the app-interface sample
+# Compass: the app-interface sample
 
 Compass is the Northsea product whose interface strings the monolingual sample
 already governs, given three target languages and nothing else. It exists to show
@@ -64,12 +64,12 @@ straight into the deployed tree and the page reads exactly what converged.
 | --- | --- |
 | Profile | `northsea` |
 | Channel | `app` |
-| Point | `northsea/app` — the same point the monolingual sample governs |
+| Point | `northsea/app`, the same point the monolingual sample governs |
 | Source language | `en-GB` |
 | Target languages | `nb`, `de`, `nl` |
 
 `kapi context site/locales/en-GB.json` answers with the profile, the channel, the
-voice profile in force and the collection — the same answer the monolingual
+voice profile in force and the collection, the same answer the monolingual
 sample gives for `app/strings.en.json`. Adding `target_languages` did not move
 the content or change what governs it.
 
@@ -106,7 +106,7 @@ not a decision; the gate is.
 ## The state this sample starts in
 
 The committed tree is what a duty officer's project looks like on a Tuesday. The
-source gained a **Tide window** panel last week — four strings — and no language
+source gained a **Tide window** panel last week, four strings, and no language
 carries it yet:
 
 | Language | Catalog | Review record | Standing |
@@ -116,8 +116,8 @@ carries it yet:
 | `nl` | 20 of 38 strings | nothing reviewed | the newest language |
 
 So `ship.json` starts empty of offers, and the deployed page shows English alone.
-Four untranslated strings is not a build failure anywhere — target-language drift
-is the ordinary, continuous work the loop exists to absorb — but it is enough to
+Four untranslated strings fails no build anywhere. Target-language drift is the
+ordinary, continuous work the loop exists to absorb, and it is still enough to
 hold every language behind the ship gate, which is the honest answer.
 
 ## Running the journey
@@ -190,13 +190,13 @@ The seven points the shaped samples are held to, as this sample meets them.
 
 | # | Point | Standing |
 | --- | --- | --- |
-| 1 | Onboarded through the discovery path — the graph arrives as reviewable files | **MET** — `kapi.yaml`, `.kapi/voice.yaml` and `.kapi/terms.json` are the drafted-then-corrected artifacts the monolingual sample established, carried forward rather than re-authored |
-| 2 | Governance bound at the point from day one; review workflow on | **MET** — `profiles.northsea` binds voice and channel; `.kapi/state/` carries 54 committed decisions before the loop is ever run |
-| 3 | First converge shows recycle numbers and an estimate before it spends | **MET** — `plan: 26 unit(s) missing · drafting 2 unit(s) the content memory does not answer · 5 exact-content memory · 23 AI · ≈241 tokens`, then per-locale `(content memory N · AI M)` summing to the same 23. No credential is spent: the AI leg is the `demo` provider |
-| 4 | Governed review exercised, with a decision that changes an outcome | **MET** — the Dutch review moves `nl` from withheld to offered, and the Norwegian review removes its AI marker. Both are `kapi apply` + `kapi commit` round-trips landing in `.kapi/state/` |
-| 5 | Delivery proven | **MET** — `kapi up` materializes into `site/locales/`, `kapi status --ship --emit` writes `site/ship.json`, and the deployed page reads both. No copy step, no second pipeline |
-| 6 | Recorded as a harness walkthrough | **PARTIAL** — `harness/demos/s1-compass-multilingual/` is authored and capture-verified; nothing has been rendered or published for English, and the Norwegian render is held by [#2032](https://github.com/neokapi/neokapi/issues/2032) |
-| 7 | Carries no internal information; lives where a reader can clone it | **MET** — one fictional company, in-repo under `samples/` per the sample conventions |
+| 1 | Onboarded through the discovery path, so the graph arrives as reviewable files | **MET**: `kapi.yaml`, `.kapi/voice.yaml` and `.kapi/terms.json` are the drafted-then-corrected artifacts the monolingual sample established, carried forward rather than re-authored |
+| 2 | Governance bound at the point from day one; review workflow on | **MET**: `profiles.northsea` binds voice and channel; `.kapi/state/` carries 54 committed decisions before the loop is ever run |
+| 3 | First converge shows recycle numbers and an estimate before it spends | **MET**: `plan: 26 unit(s) missing · drafting 2 unit(s) the content memory does not answer · 5 exact-content memory · 23 AI · ≈241 tokens`, then per-locale `(content memory N · AI M)` summing to the same 23. No credential is spent: the AI leg is the `demo` provider |
+| 4 | Governed review exercised, with a decision that changes an outcome | **MET**: the Dutch review moves `nl` from withheld to offered, and the Norwegian review removes its AI marker. Both are `kapi apply` + `kapi commit` round-trips landing in `.kapi/state/` |
+| 5 | Delivery proven | **MET**: `kapi up` materializes into `site/locales/`, `kapi status --ship --emit` writes `site/ship.json`, and the deployed page reads both. No copy step, no second pipeline |
+| 6 | Recorded as a harness walkthrough | **PARTIAL**: `harness/demos/s1-compass-multilingual/` is authored and capture-verified; nothing has been rendered or published for English, and the Norwegian render is held by [#2032](https://github.com/neokapi/neokapi/issues/2032) |
+| 7 | Carries no internal information; lives where a reader can clone it | **MET**: one fictional company, in-repo under `samples/` per the sample conventions |
 
 ## Known gaps this sample exercises
 
@@ -204,7 +204,7 @@ Running the journey is how these were found.
 
 | Gap | Issue |
 | --- | --- |
-| The render and CDN publish of the walkthrough — nothing published for English, and Norwegian held besides | [#2032](https://github.com/neokapi/neokapi/issues/2032) |
+| The render and CDN publish of the walkthrough, with nothing published for English and Norwegian held besides | [#2032](https://github.com/neokapi/neokapi/issues/2032) |
 
 Fixed while this sample was being built, each found by running the journey on it:
 `kapi status` reporting source readiness as `checked 0%` immediately after a
@@ -235,4 +235,4 @@ paths into `.kapi/state/` when the recipe was named by a relative `-p`.
   narrated walkthrough, seeded straight from this directory (`fixturesFrom`), so
   the recording and the sample cannot drift apart.
 - [`../northsea/`](../northsea/) is the same company, the same point, one
-  language — the journey this one extends.
+  language, the journey this one extends.

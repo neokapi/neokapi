@@ -310,6 +310,23 @@ func scanDocFiles(paths []string) ([]finding, error) {
 
 var fenceRe = regexp.MustCompile("^\\s*(```|~~~)")
 
+// emptyTableCells counts the em dashes in a Markdown table row that are the
+// whole cell. There the character is the rendered empty value, the same
+// placeholder the Go and TSX allowlists admit, rather than a mark in a sentence.
+func emptyTableCells(line string) int {
+	trimmed := strings.TrimSpace(line)
+	if !strings.HasPrefix(trimmed, "|") {
+		return 0
+	}
+	n := 0
+	for _, cell := range strings.Split(trimmed, "|") {
+		if strings.TrimSpace(cell) == emDash {
+			n++
+		}
+	}
+	return n
+}
+
 // scanDocSource counts the em dashes in a document's prose and compares that
 // against the file's allowance. Fenced code blocks hold CLI output and config,
 // where a dash is data, so they are skipped for both the count and the word
@@ -330,7 +347,7 @@ func scanDocSource(path, src string) []finding {
 			continue
 		}
 		words += len(strings.Fields(line))
-		if n := strings.Count(line, emDash); n > 0 {
+		if n := strings.Count(line, emDash) - emptyTableCells(line); n > 0 {
 			dashes += n
 			lines = append(lines, i+1)
 		}
@@ -702,6 +719,15 @@ func selfTestDocs() error {
 	tooMany := fixture("# Title\n\n" + strings.Repeat("word ", 1200) + "\n\nTwo @ dashes @ here.\n")
 	if got := scanDocSource("many.md", tooMany); len(got) != 1 {
 		return fmt.Errorf("docs: two dashes in a 1200-word document should fail, got %v", got)
+	}
+
+	cell := fixture("# Title\n\n| a | b |\n| --- | --- |\n| x | @ |\n")
+	if got := scanDocSource("table.md", cell); len(got) != 0 {
+		return fmt.Errorf("docs: an empty table cell was flagged: %v", got)
+	}
+	prose := fixture("# Title\n\n| a | b |\n| --- | --- |\n| x | y @ z |\n")
+	if got := scanDocSource("prose-table.md", prose); len(got) != 1 {
+		return fmt.Errorf("docs: a dash inside a table cell's prose was not flagged: %v", got)
 	}
 	return nil
 }

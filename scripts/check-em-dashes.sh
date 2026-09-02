@@ -60,10 +60,11 @@
 #                    entry, so the inputs alone would leave a gap.
 #
 #   --part docs      Every .md/.mdx under web/docs, docs/internals and
-#                    cli/skills/data. Fenced code blocks hold CLI output and
-#                    config, where a dash is data, so they are skipped for both
-#                    the count and the word total behind the allowance. Each
-#                    file may hold floor(words/1000), CLAUDE.md's ceiling.
+#                    cli/skills/data, plus the sample READMEs. Fenced code
+#                    blocks hold CLI output and config, where a dash is data, so
+#                    they are skipped for both the count and the word total
+#                    behind the allowance. Each file may hold floor(words/1000),
+#                    CLAUDE.md's ceiling.
 #
 #                    web/walkthroughs/ is deliberately outside this list. Those
 #                    files are the authored unit the demo pipeline records and
@@ -271,13 +272,18 @@ check_dossier() {
 
 # ── docs ─────────────────────────────────────────────────────────────────────
 
+# The sample READMEs are documentation about the repo and are read here. The
+# Markdown under samples/<name>/docs/ is not: it is the corpus each sample
+# translates, and rewriting a sentence there orphans the translations and the
+# committed decisions the sample ships to demonstrate the loop.
 check_docs() {
   local out
   if out=$(git ls-files -- \
       'web/docs/**/*.md' 'web/docs/**/*.mdx' \
       'docs/internals/**/*.md' 'docs/internals/**/*.mdx' \
       'cli/skills/data/**/*.md' 'cli/skills/data/**/*.mdx' \
-      'web/blog/**/*.md' 'web/blog/**/*.mdx' |
+      'web/blog/**/*.md' 'web/blog/**/*.mdx' \
+      'samples/README.md' 'samples/*/README.md' |
       "$MATCHER" -part docs 2>&1); then
     echo "✓ docs: every page is within its em-dash allowance"
     return 0
