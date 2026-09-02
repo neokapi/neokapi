@@ -8,6 +8,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/ai/prompt"
 	"github.com/neokapi/neokapi/core/model"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
@@ -40,6 +41,13 @@ type AIReviewTool struct {
 	provider     aiprovider.LLMProvider
 	sourceLocale model.LocaleID
 	targetLocale model.LocaleID
+	// voiceGuide is the governing voice profile rendered for the prompt, so a
+	// score answers the question the voice checks ask rather than a generic one
+	// about accuracy and fluency.
+	voiceGuide string
+	// termMap is the governing terminology projected to term → replacement,
+	// through the one projection a producer's prompt takes.
+	termMap map[string]string
 }
 
 // AIReviewConfig holds configuration for the review tool.
@@ -49,6 +57,18 @@ type AIReviewConfig struct {
 	Provider     string         `json:"provider,omitempty"     schema:"title=AI Provider,description=AI provider,default=anthropic,group=provider"`
 	APIKey       string         `json:"apiKey,omitempty"       schema:"title=API Key,description=API key for the AI provider,group=provider"`
 	Model        string         `json:"model,omitempty"        schema:"title=Model,description=AI model name,group=provider"`
+
+	// TermRules are the terminology constraints governing the translation under
+	// review: for each, when the source says Term the target should say
+	// Replacement. The same list translate renders into its prompt, so a
+	// reviewer scores against the vocabulary the producer was given.
+	TermRules []coreprofile.TermRule `json:"term_rules,omitempty" schema:"-"`
+
+	// Profile is the voice profile governing the translation under review. Its
+	// guidance is rendered into the review prompt, so a target that reads
+	// correctly but off-voice is reported rather than scored clean. Not
+	// serializable via the schema/CLI; supplied by the project bindings.
+	Profile *coreprofile.VoiceProfile `json:"-" schema:"-"`
 }
 
 // AIReviewSchema returns the auto-generated schema for the AI review tool.
@@ -74,10 +94,20 @@ func AIReviewSchema() *schema.ComponentSchema {
 
 // NewAIReviewFromConfig creates an AI review tool from a config map.
 func NewAIReviewFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
+	// The voice profile is a live handle: it does not survive the JSON round
+	// trip the rest of the config takes, so it comes out first, exactly as the
+	// translate factory takes it.
+	var profile *coreprofile.VoiceProfile
+	if pf, ok := config["profile"].(*coreprofile.VoiceProfile); ok {
+		profile = pf
+		delete(config, "profile")
+	}
+
 	var cfg AIReviewConfig
 	if err := schema.ApplyConfig(config, &cfg); err != nil {
 		return nil, fmt.Errorf("review config: %w", err)
 	}
+	cfg.Profile = profile
 	if targetLang != "" {
 		cfg.TargetLocale = model.LocaleID(targetLang)
 	}
@@ -94,6 +124,8 @@ func NewAIReviewTool(p aiprovider.LLMProvider, cfg AIReviewConfig) *AIReviewTool
 		provider:     p,
 		sourceLocale: cfg.SourceLocale,
 		targetLocale: cfg.TargetLocale,
+		voiceGuide:   coreprofile.RenderVoiceGuideCompact(cfg.Profile),
+		termMap:      coreprofile.TermRuleMap(cfg.TermRules),
 	}
 	t.ToolName = "review"
 	t.ToolDescription = "Reviews translations with explanations using AI/LLM"
@@ -172,8 +204,10 @@ func (t *AIReviewTool) annotate(v tool.BlockView) error {
 	targetText := v.TargetText(t.targetLocale)
 
 	turns := prompt.Review{
-		SourceLocale: t.sourceLocale,
-		TargetLocale: t.targetLocale,
+		SourceLocale:   t.sourceLocale,
+		TargetLocale:   t.targetLocale,
+		VoiceGuide:     t.voiceGuide,
+		PreferredTerms: t.termMap,
 	}.Turns(sourceText, targetText)
 
 	ctx := prompt.WithID(v.Context(), prompt.IDReview)

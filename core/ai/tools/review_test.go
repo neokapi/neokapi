@@ -8,6 +8,8 @@ import (
 
 	"github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/profile"
+	"github.com/neokapi/neokapi/core/tool"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -176,4 +178,77 @@ func TestParseReviewResult(t *testing.T) {
 		_, err := tools.ParseReviewResult("The translation looks fine to me.")
 		require.Error(t, err)
 	})
+}
+
+// judgeSystemPrompt runs one block through a review tool and returns the system
+// turn the provider was sent.
+func judgeSystemPrompt(t *testing.T, tl tool.Tool, mock *aiprovider.MockProvider, sent *[]aiprovider.Message) string {
+	t.Helper()
+	mock.ChatFunc = func(_ context.Context, msgs []aiprovider.Message) (*aiprovider.ChatResponse, error) {
+		*sent = msgs
+		return &aiprovider.ChatResponse{Content: `{"score": 80, "findings": []}`, Model: "test"}, nil
+	}
+	in := make(chan *model.Part, 1)
+	out := make(chan *model.Part, 1)
+	block := model.NewBlock("tu1", "Hello World")
+	block.SetTargetText(model.LocaleFrench, "Bonjour le monde")
+	in <- &model.Part{Type: model.PartBlock, Resource: block}
+	close(in)
+	require.NoError(t, tl.Process(t.Context(), in, out))
+	<-out
+	require.NotEmpty(t, *sent)
+	return (*sent)[0].Text()
+}
+
+// TestAIReviewTool_JudgesAgainstTheGovernance: the judge is told the voice
+// profile and the terminology in force, so a target that reads well and uses a
+// retired term is reported rather than scored clean. Asked only about accuracy
+// and fluency, a reviewer cannot report the thing the checks beside it report.
+func TestAIReviewTool_JudgesAgainstTheGovernance(t *testing.T) {
+	mock := aiprovider.NewMockProvider()
+	var sent []aiprovider.Message
+
+	tl := tools.NewAIReviewTool(mock, tools.AIReviewConfig{
+		SourceLocale: model.LocaleEnglish,
+		TargetLocale: model.LocaleFrench,
+		Profile: &profile.VoiceProfile{
+			ID:   "house",
+			Name: "House Style",
+			Tone: profile.ToneProfile{Formality: "formal"},
+		},
+		TermRules: []profile.TermRule{
+			{Term: "content memory", Replacement: "mémoire de contenu"},
+			{Term: "no replacement", Replacement: ""},
+		},
+	})
+
+	system := judgeSystemPrompt(t, tl, mock, &sent)
+	assert.Contains(t, system, "Voice profile the translation must comply with:")
+	assert.Contains(t, system, "formal")
+	assert.Contains(t, system, "Terminology the translation must use:")
+	assert.Contains(t, system, "content memory → mémoire de contenu")
+	assert.NotContains(t, system, "no replacement",
+		"a rule with no replacement says nothing to reach past, and TermRuleMap drops it")
+}
+
+// TestAIReviewFromConfig_TakesTheProfileHandle: the voice profile is a live
+// handle, so it reaches the tool through the config map rather than the JSON
+// round trip the rest of the config takes. This is the path a run's config
+// assembly hands the judge, and it is where a silently dropped handle would
+// leave the judge scoring a bare pair again.
+func TestAIReviewFromConfig_TakesTheProfileHandle(t *testing.T) {
+	cfg := map[string]any{
+		"sourceLocale": string(model.LocaleEnglish),
+		"provider":     "anthropic",
+		"apiKey":       "test-key",
+		"profile":      &profile.VoiceProfile{ID: "house", Name: "House Style", Tone: profile.ToneProfile{Formality: "formal"}},
+		"term_rules":   []profile.TermRule{{Term: "content memory", Replacement: "mémoire de contenu"}},
+	}
+	built, err := tools.NewAIReviewFromConfig(cfg, string(model.LocaleFrench))
+	require.NoError(t, err)
+	require.NotNil(t, built)
+	assert.NotContains(t, cfg, "profile",
+		"the handle is lifted out before the JSON round trip, which cannot carry it")
+	assert.Contains(t, cfg, "term_rules",
+		"the rules are plain data and travel the round trip")
 }

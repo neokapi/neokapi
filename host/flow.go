@@ -1835,6 +1835,15 @@ type ProjectBindings struct {
 // caller outside the grouping (groupInputsByBinding) passes it, which resolves
 // exactly the project-wide bindings it always did.
 func (a *App) resolveProjectBindings(cmd Command, proj *project.KapiProject, projectPath string, point project.GovernancePoint) (*ProjectBindings, error) {
+	return a.resolveBindingsFor(cmd, proj, projectPath, point, a.TargetLang)
+}
+
+// resolveBindingsFor is resolveProjectBindings for a named target locale rather
+// than the App's current one. Term rules are resolved per locale (a rule is a
+// source term and the wording approved for THIS target), so a caller assembling
+// the context for one unit says which locale it is asking about instead of
+// setting a field on the App and hoping nothing else reads it meanwhile.
+func (a *App) resolveBindingsFor(cmd Command, proj *project.KapiProject, projectPath string, point project.GovernancePoint, targetLang string) (*ProjectBindings, error) {
 	root := filepath.Dir(projectPath)
 
 	store, release, err := a.VoiceLookupStore(cmd)
@@ -1850,7 +1859,7 @@ func (a *App) resolveProjectBindings(cmd Command, proj *project.KapiProject, pro
 		return nil, err
 	}
 
-	termRules, err := a.ResolveTermRulesFor(cmd, a.TargetLang, point)
+	termRules, err := a.ResolveTermRulesFor(cmd, targetLang, point)
 	if err != nil {
 		return nil, err
 	}
@@ -2265,21 +2274,7 @@ func (a *App) toolFromStep(step flow.FlowStep, cmd Command, rCtx *flow.ResourceC
 
 	// Try config factory first (schema-driven tools).
 	if a.ToolReg.Has(toolID) {
-		ToolSchema := a.ToolReg.Schema(toolID)
-		config := step.Config
-		if rCtx != nil && ToolSchema != nil {
-			var err error
-			config, err = flow.ResolveToolConfig(config, ToolSchema, *rCtx)
-			if err != nil {
-				return nil, noop, fmt.Errorf("resolve config for %q: %w", step.Tool, err)
-			}
-		}
-		config = a.ApplyProjectBindings(step.Tool, ToolSchema, config)
-
-		// The same grant the direct path makes, at the one place a flow step
-		// becomes a tool. It used to be a separate pass over the BUILT tools in
-		// flowrun, which could only reach the one config type it knew to assert.
-		config, cleanup, err := a.grantMemory(step.Tool, config, cmd)
+		config, cleanup, err := a.stepToolConfig(step, cmd, rCtx)
 		if err != nil {
 			return nil, noop, err
 		}
@@ -2303,6 +2298,34 @@ func (a *App) toolFromStep(step flow.FlowStep, cmd Command, rCtx *flow.ResourceC
 		return nil, noop, fmt.Errorf("tool %q: %w", step.Tool, err)
 	}
 	return t, noop, nil
+}
+
+// stepToolConfig assembles the config a project flow step's tool is built with:
+// the step's own config with resource references resolved, the project's
+// standing bindings applied (tool preset, locale preset, voice profile, point,
+// term rules), and the content memory granted.
+//
+// It is the config half of toolFromStep, split out so a surface that runs one
+// tool over one unit outside a flow (ToolConfigForUnit) reaches the same
+// assembly rather than writing a second one. The returned cleanup releases any
+// store the memory grant opened and is always safe to call.
+func (a *App) stepToolConfig(step flow.FlowStep, cmd Command, rCtx *flow.ResourceContext) (map[string]any, func(), error) {
+	noop := func() {}
+	toolSchema := a.ToolReg.Schema(registry.ToolID(step.Tool))
+	config := step.Config
+	if rCtx != nil && toolSchema != nil {
+		var err error
+		config, err = flow.ResolveToolConfig(config, toolSchema, *rCtx)
+		if err != nil {
+			return nil, noop, fmt.Errorf("resolve config for %q: %w", step.Tool, err)
+		}
+	}
+	config = a.ApplyProjectBindings(step.Tool, toolSchema, config)
+
+	// The same grant the direct path makes, at the one place a flow step
+	// becomes a tool. It used to be a separate pass over the BUILT tools in
+	// flowrun, which could only reach the one config type it knew to assert.
+	return a.grantMemory(step.Tool, config, cmd)
 }
 
 // resolveRunBindings returns the standing context a flow run should carry.
@@ -2390,6 +2413,13 @@ func (a *App) ApplyProjectBindings(toolName string, s *schema.ComponentSchema, c
 // with no project (an ad-hoc `kapi translate --termstore …`) can still carry the
 // terminology the user asked for.
 func (a *App) applyBindings(b *ProjectBindings, toolName string, s *schema.ComponentSchema, config map[string]any) map[string]any {
+	return a.applyBindingsFor(b, toolName, s, config, a.TargetLang)
+}
+
+// applyBindingsFor is applyBindings for a named target locale rather than the
+// App's current one, so the per-locale tool preset resolves for the locale the
+// caller is asking about.
+func (a *App) applyBindingsFor(b *ProjectBindings, toolName string, s *schema.ComponentSchema, config map[string]any, targetLang string) map[string]any {
 	if b == nil {
 		return config
 	}
@@ -2398,7 +2428,7 @@ func (a *App) applyBindings(b *ProjectBindings, toolName string, s *schema.Compo
 	// on top (per-locale wins), then the step's own config on top of both (the
 	// step still wins): step > locale > project.
 	preset := b.ToolPresets[toolName]
-	if lp, ok := b.localePresets[a.TargetLang]; ok && len(lp.Tools) > 0 {
+	if lp, ok := b.localePresets[targetLang]; ok && len(lp.Tools) > 0 {
 		preset = MergeToolPreset(preset, lp.Tools[toolName])
 	}
 	config = MergeToolPreset(preset, config)
@@ -2409,11 +2439,14 @@ func (a *App) applyBindings(b *ProjectBindings, toolName string, s *schema.Compo
 		config = next
 	}
 
-	// Voice profile → translate steps and recycle. Translate consumes it as
-	// prompt guidance; recycle does not consult it, but stamps it (with the
-	// term rules below) onto every target it fills so a recycled target is as
-	// attributable to the governing context as a translated one.
-	if b.profile != nil && (isTranslateTool(toolName, s) || isMemoryRecycleTool(toolName, s)) {
+	// Voice profile → translate steps, recycle and the AI review. Translate
+	// consumes it as prompt guidance; recycle does not consult it, but stamps it
+	// (with the term rules below) onto every target it fills so a recycled
+	// target is as attributable to the governing context as a translated one;
+	// review judges against it, so the score answers the same question the
+	// voice checks ask rather than a generic one about accuracy and fluency.
+	if b.profile != nil && (isTranslateTool(toolName, s) || isMemoryRecycleTool(toolName, s) ||
+		isAIReviewTool(toolName, s)) {
 		if _, ok := config["profile"]; !ok {
 			clone()
 			config["profile"] = b.profile
@@ -2453,7 +2486,8 @@ func (a *App) applyBindings(b *ProjectBindings, toolName string, s *schema.Compo
 	// to guess what a caller meant by a bare map.
 	if len(b.termRules) > 0 && (ToolRequires(s, schema.RequiresTerms) ||
 		isTranslateTool(toolName, s) || isMemoryRecycleTool(toolName, s) ||
-		isPseudoTranslateTool(toolName, s) || isDNTCheckTool(toolName, s)) {
+		isPseudoTranslateTool(toolName, s) || isDNTCheckTool(toolName, s) ||
+		isAIReviewTool(toolName, s)) {
 		if _, ok := config["term_rules"]; !ok {
 			clone()
 			config["term_rules"] = b.termRules
@@ -2484,6 +2518,16 @@ func isTranslateTool(toolName string, s *schema.ComponentSchema) bool {
 		return true
 	}
 	return s != nil && s.ToolMeta != nil && s.ToolMeta.ID == "translate"
+}
+
+// isAIReviewTool reports whether a step's tool is the AI review tool, which
+// takes the governing voice profile via config["profile"] and the terminology
+// via config["term_rules"] and scores the translation against both.
+func isAIReviewTool(toolName string, s *schema.ComponentSchema) bool {
+	if toolName == "review" {
+		return true
+	}
+	return s != nil && s.ToolMeta != nil && s.ToolMeta.ID == "review"
 }
 
 // isMemoryRecycleTool reports whether a step's tool is the memory recycle tool,
