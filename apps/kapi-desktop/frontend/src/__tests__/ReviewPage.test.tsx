@@ -825,14 +825,203 @@ describe("ReviewPage language selector", () => {
 
   it("puts the source rows in front of the reviewer when the source language is chosen", async () => {
     renderUnified({ scope: { locale: "en-US" } });
-    await waitFor(() => expect(document.querySelector("[data-slot='source-lane']")).not.toBeNull());
-    // The source language names itself rather than a lane.
-    expect(document.querySelector("[data-slot='source-lane-language']")?.textContent).toContain(
+    const rows = await waitFor(() => {
+      const els = document.querySelectorAll("[data-slot='review-queue-item']");
+      expect(els).toHaveLength(1);
+      return els;
+    });
+    // The row lists in the one queue, marked as the source rather than moved
+    // into a lane of its own.
+    expect(rows[0].getAttribute("data-source")).toBe("true");
+    expect(rows[0].getAttribute("data-language")).toBe("en-US");
+    await waitFor(() =>
+      expect(document.querySelector("[data-slot='source-unit-pane']")).not.toBeNull(),
+    );
+    expect(document.querySelector("[data-slot='source-unit-language']")?.textContent).toContain(
       "English",
     );
-    // The translation queue and its findings chips step aside.
-    expect(document.querySelector("[data-slot='review-queue-item']")).toBeNull();
-    expect(document.querySelector<HTMLElement>("[data-slot='review-chips']")?.hidden).toBe(true);
+    // The chips stay on the one control set: nothing is hidden by picking a
+    // language.
+    expect(document.querySelector<HTMLElement>("[data-slot='review-chips']")?.hidden).toBe(false);
+  });
+
+  // The defect this replaced: "All languages 4" over a list of three rows,
+  // because the source rows were counted and then filtered out of the list.
+  it("lists the source rows in the All view, ahead of the target rows", async () => {
+    renderUnified();
+    const rows = await waitFor(() => {
+      const els = document.querySelectorAll("[data-slot='review-queue-item']");
+      expect(els).toHaveLength(UNIFIED.length);
+      return els;
+    });
+    expect(rows[0].getAttribute("data-source")).toBe("true");
+    expect(rows[0].getAttribute("data-language")).toBe("en-US");
+    // Every row after the source rows is a translation.
+    expect(
+      Array.from(rows)
+        .slice(1)
+        .every((el) => el.getAttribute("data-source") === null),
+    ).toBe(true);
+    // The count on the selector is the count of rows under it.
+    const trigger = document.querySelector<HTMLElement>("[data-slot='review-language-select']");
+    expect(trigger?.textContent).toContain(String(rows.length));
+  });
+
+  // Source rows carry no findings enrichment, so they answer neither chip.
+  it("keeps the source rows out of the findings and clean chips", async () => {
+    renderUnified();
+    await waitFor(() =>
+      expect(document.querySelectorAll("[data-slot='review-queue-item']")).toHaveLength(
+        UNIFIED.length,
+      ),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Clean" }));
+    let rows = document.querySelectorAll("[data-slot='review-queue-item']");
+    expect(Array.from(rows).some((el) => el.getAttribute("data-source"))).toBe(false);
+    await userEvent.click(screen.getByRole("button", { name: "With findings" }));
+    rows = document.querySelectorAll("[data-slot='review-queue-item']");
+    expect(Array.from(rows).some((el) => el.getAttribute("data-source"))).toBe(false);
+  });
+
+  // The batch bar counts translations. It stayed hidden whenever a source row
+  // was in view, which took the whole All view with it.
+  it("keeps the batch bar in the All view with source rows present", async () => {
+    renderUnified();
+    await screen.findByRole("button", { name: /Approve 2 clean units/ });
+    expect(document.querySelector("[data-slot='review-batch']")).not.toBeNull();
+  });
+});
+
+describe("ReviewPage source rows", () => {
+  function renderSource(overrides: Partial<Parameters<typeof ReviewPage>[0]> = {}) {
+    const onApproveSource = vi.fn(async () => {});
+    const onSaveSource = vi.fn(async () => ["de", "fr"]);
+    const utils = render(
+      <ErrorProvider>
+        <ReviewPage
+          tabID="t1"
+          items={UNIFIED}
+          scope={{ locale: "en-US" }}
+          loadUnit={vi.fn(async (item: ReviewItem) => unitFor(item))}
+          onApproveSource={onApproveSource}
+          onSaveSource={onSaveSource}
+          {...overrides}
+        />
+      </ErrorProvider>,
+    );
+    return { ...utils, onApproveSource, onSaveSource };
+  }
+
+  it("approves the selected source unit from the one action bar", async () => {
+    const { onApproveSource } = renderSource();
+    await userEvent.click(await screen.findByRole("button", { name: /Approve source/ }));
+    await waitFor(() => expect(onApproveSource).toHaveBeenCalledTimes(1));
+    expect(onApproveSource.mock.calls[0][0].key).toBe("greeting");
+    // The approved unit leaves the queue.
+    await waitFor(() =>
+      expect(document.querySelectorAll("[data-slot='review-queue-item']")).toHaveLength(0),
+    );
+  });
+
+  it("approves a source row with the a key", async () => {
+    const { onApproveSource } = renderSource();
+    await waitFor(() =>
+      expect(document.querySelector("[data-slot='review-queue-item'][data-active]")).not.toBeNull(),
+    );
+    fireEvent.keyDown(window, { key: "a" });
+    await waitFor(() => expect(onApproveSource).toHaveBeenCalledTimes(1));
+  });
+
+  // There is no source reject and no rung above approval, so neither button is
+  // drawn and neither key answers.
+  it("offers no reject or sign-off on a source row", async () => {
+    const { onApproveSource } = renderSource();
+    await waitFor(() =>
+      expect(document.querySelector("[data-slot='source-unit-pane']")).not.toBeNull(),
+    );
+    expect(document.querySelector("[data-slot='review-reject']")).toBeNull();
+    expect(document.querySelector("[data-slot='review-signoff']")).toBeNull();
+    fireEvent.keyDown(window, { key: "r" });
+    fireEvent.keyDown(window, { key: "s" });
+    await new Promise((r) => setTimeout(r, 20));
+    expect(document.querySelector("[data-slot='review-ask-input']")).toBeNull();
+    expect(onApproveSource).not.toHaveBeenCalled();
+  });
+
+  // The translations stay where they are and the loop supersedes them. Naming
+  // the languages is how the reviewer knows the re-draft is coming.
+  it("saves an edit and names the languages awaiting a re-draft", async () => {
+    const { onSaveSource } = renderSource();
+    const editor = (await waitFor(() => {
+      const el = document.querySelector("[data-slot='source-unit-editor']");
+      expect(el).not.toBeNull();
+      return el!;
+    })) as HTMLTextAreaElement;
+    fireEvent.change(editor, { target: { value: "Hi there" } });
+    await userEvent.click(screen.getByRole("button", { name: /Save and re-draft/ }));
+    await waitFor(() => expect(onSaveSource).toHaveBeenCalledTimes(1));
+    expect(onSaveSource.mock.calls[0][1]).toBe("Hi there");
+    await waitFor(() =>
+      expect(document.querySelector("[data-slot='source-unit-awaiting']")?.textContent).toContain(
+        "de, fr",
+      ),
+    );
+  });
+
+  it("will not save an unchanged source", async () => {
+    const { onSaveSource } = renderSource();
+    const save = await screen.findByRole("button", { name: /Save and re-draft/ });
+    expect(save.hasAttribute("disabled")).toBe(true);
+    expect(onSaveSource).not.toHaveBeenCalled();
+  });
+
+  // Both kinds of row render one model. Approving source wording without seeing
+  // the voice it is approved against is the target defect in reverse.
+  it("renders the point and the neighbourhood for the selected source unit", async () => {
+    const loadSourceContext = vi.fn(async (item: ReviewItem) => ({
+      point: {
+        collection: "App",
+        ref: "retail/web",
+        default: false,
+        voice: { name: "Kapimart retail" },
+        term_rules: [{ term: "cart", replacement: "basket", severity: "major" }],
+        terms_total: 1,
+      },
+      neighbourhood: {
+        key: item.key,
+        after: [{ key: "farewell", source: [{ text: "Goodbye now" }] }],
+        window: 2,
+      },
+      history: {},
+      judgement: {},
+      provenance: {},
+    }));
+    renderSource({ loadSourceContext });
+    await waitFor(() =>
+      expect(document.querySelector("[data-slot='review-point-voice']")?.textContent).toBe(
+        "Kapimart retail",
+      ),
+    );
+    expect(loadSourceContext.mock.calls[0][0].key).toBe("greeting");
+    expect(document.querySelector("[data-slot='review-point-term']")?.textContent).toContain(
+      "basket",
+    );
+    expect(document.querySelector("[data-slot='review-neighbour']")?.textContent).toContain(
+      "Goodbye now",
+    );
+  });
+
+  // The target detail asks the backend for a translation of a (locale, file,
+  // key). A source row has none, and asking would have loaded the source file
+  // as though it were one.
+  it("asks for no target unit when a source row is selected", async () => {
+    const loadUnit = vi.fn(async (item: ReviewItem) => unitFor(item));
+    renderSource({ loadUnit });
+    await waitFor(() =>
+      expect(document.querySelector("[data-slot='source-unit-pane']")).not.toBeNull(),
+    );
+    expect(loadUnit).not.toHaveBeenCalled();
+    expect(document.querySelector("[data-slot='review-target']")).toBeNull();
   });
 });
 

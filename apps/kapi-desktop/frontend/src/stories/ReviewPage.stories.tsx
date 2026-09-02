@@ -296,39 +296,55 @@ const UNIFIED_QUEUE: ReviewItem[] = [
   ...QUEUE.map((it) => ({ ...it, language: it.locale, sourceLocale: "en-US" })),
 ];
 
+/**
+ * The review model for a source unit, as GetSourceUnitContext assembles it.
+ *
+ * Source review and target review render one model, so the point card reads the
+ * same either way. Without this the source pane draws "No point resolved",
+ * which is the loader missing rather than the project having no point.
+ */
+async function loadSourceContext(item: ReviewItem): Promise<ReviewContext> {
+  return {
+    ...CONTEXT,
+    neighbourhood: {
+      key: item.key,
+      before: [{ key: "nav.home", source: [{ text: "Home" }] }],
+      after: [{ key: "cta.note", source: [{ text: "Your credits reset on " }, { ph: DATE_PH }] }],
+      window: 2,
+    },
+    history: {},
+    judgement: {},
+    provenance: {},
+  };
+}
+
+const noopApproveSource = async () => {};
+const noopSaveSource = async () => ["nb", "de-DE"];
+
+const unifiedArgs = {
+  tabID: "storybook",
+  items: UNIFIED_QUEUE,
+  loadUnit: loadUnitWithContext,
+  loadSourceContext,
+  onDecide: noopDecide,
+  onSaveTarget: noopSave,
+  onApproveSource: noopApproveSource,
+  onSaveSource: noopSaveSource,
+};
+
 export const AllLanguages: Story = {
   name: "All languages",
-  args: {
-    tabID: "storybook",
-    items: UNIFIED_QUEUE,
-    loadUnit: loadUnitWithContext,
-    onDecide: noopDecide,
-    onSaveTarget: noopSave,
-  },
+  args: unifiedArgs,
 };
 
 export const OneTargetLanguage: Story = {
   name: "One target language",
-  args: {
-    tabID: "storybook",
-    items: UNIFIED_QUEUE,
-    scope: { locale: "nb" },
-    loadUnit: loadUnitWithContext,
-    onDecide: noopDecide,
-    onSaveTarget: noopSave,
-  },
+  args: { ...unifiedArgs, scope: { locale: "nb" } },
 };
 
 export const SourceLanguage: Story = {
   name: "The source language",
-  args: {
-    tabID: "storybook",
-    items: UNIFIED_QUEUE,
-    scope: { locale: "en-US" },
-    loadUnit: loadUnitWithContext,
-    onDecide: noopDecide,
-    onSaveTarget: noopSave,
-  },
+  args: { ...unifiedArgs, scope: { locale: "en-US" } },
 };
 
 /**
@@ -339,14 +355,7 @@ export const SourceLanguage: Story = {
  */
 export const LayersExpanded: Story = {
   name: "Layer cards expanded",
-  args: {
-    tabID: "storybook",
-    items: UNIFIED_QUEUE,
-    scope: { locale: "nb", collection: "Marketing" },
-    loadUnit: loadUnitWithContext,
-    onDecide: noopDecide,
-    onSaveTarget: noopSave,
-  },
+  args: { ...unifiedArgs, scope: { locale: "nb", collection: "Marketing" } },
 };
 
 /** The same page with every layer folded to its summary line. */
