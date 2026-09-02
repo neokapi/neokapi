@@ -2,6 +2,7 @@ package host_test
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 	"time"
 
@@ -209,7 +210,14 @@ func TestResolveContextAt_TermsAreRankedAndCapped(t *testing.T) {
 	assert.Equal(t, "content memory", res.Terms[0].Replacement, "with what to say instead")
 	assert.Equal(t, "content memory", res.Terms[1].Term)
 	assert.Equal(t, 3, res.TermsTotal, "the lapsed ban is out; three terms remain in force")
-	assert.Contains(t, res.Notes, "showing 2 of 3 terms bound here — ask `kapi context search <word>` for one")
+	for _, n := range res.Notes {
+		assert.NotContains(t, n, "terms bound here", "the cap is a count on the answer, not a note")
+	}
+
+	var sb strings.Builder
+	res.FormatText(&sb)
+	assert.Contains(t, sb.String(), "Showing 2 of 3 terms bound here. `kapi context search <word>` finds one by name.",
+		"the text rendering says where the rest are")
 }
 
 // TestResolveContextAt_LapsedTermBanIsNotReported: "recognise the old name until

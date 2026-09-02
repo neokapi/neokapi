@@ -465,12 +465,10 @@ func ResolveContextAt(_ context.Context, src ContextPointSources, req ContextPoi
 	case src.ConceptsErr != nil:
 		res.Notes = append(res.Notes, "the terms bound here could not be read: "+src.ConceptsErr.Error())
 	case len(src.Concepts) > 0:
+		// A capped list is stated by Terms against TermsTotal, so a caller
+		// that draws the list draws the count beside it; the text rendering
+		// below says where the rest are.
 		res.Terms, res.TermsTotal = termsInForce(src.Concepts, req.Locale, src.At, limit)
-		if res.TermsTotal > len(res.Terms) {
-			res.Notes = append(res.Notes,
-				fmt.Sprintf("showing %d of %d terms bound here — ask `kapi context search <word>` for one",
-					len(res.Terms), res.TermsTotal))
-		}
 	case scope == ScopeProject:
 		res.Notes = append(res.Notes, "no terms are bound at this point, so terminology was not consulted")
 	}
@@ -578,6 +576,10 @@ func (r *ContextAnswer) FormatText(w io.Writer) error {
 		fmt.Fprintln(w, "\n## Terms in force")
 		for _, t := range r.Terms {
 			fmt.Fprintf(w, "%s\n", termLine(t))
+		}
+		if r.TermsTotal > len(r.Terms) {
+			fmt.Fprintf(w, "\nShowing %d of %d terms bound here. `kapi context search <word>` finds one by name.\n",
+				len(r.Terms), r.TermsTotal)
 		}
 	}
 
