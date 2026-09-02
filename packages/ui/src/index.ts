@@ -158,6 +158,43 @@ export {
 export { Label } from "./components/ui/label";
 export { Markdown, type MarkdownProps } from "./components/ui/markdown";
 export { Badge, badgeVariants } from "./components/ui/badge";
+// Shared design primitives — the vocabulary Kapi Desktop and the Bowrain
+// platform draw from, so a coordinate, a status and a language look the same
+// on both. See packages/ui/docs/judgement-colours.md.
+export {
+  CoordinateChip,
+  AXES,
+  AXIS_IDS,
+  axisMeta,
+  unknownAxis,
+  type AxisId,
+  type AxisMeta,
+  type CoordinateChipProps,
+} from "./components/ui/coordinate-chip";
+export {
+  StatusBadge,
+  CONTENT_STATUS_LADDER,
+  SOURCE_STATUS_LADDER,
+  ATTENTION_STATUSES,
+  STATUS_LADDERS,
+  statusMeta,
+  type StatusLadder,
+  type ContentStatus,
+  type SourceStatus,
+  type AttentionStatus,
+  type LadderStatus,
+  type StatusTone,
+  type StatusMeta,
+  type StatusBadgeProps,
+} from "./components/ui/status-badge";
+export { LocaleLabel, type LocaleLabelProps } from "./components/ui/locale-label";
+export {
+  formatLocale,
+  uiLocaleTag,
+  type FormatLocaleOptions,
+  type FormattedLocale,
+  type LocaleNameVariant,
+} from "./lib/locale-name";
 export {
   Popover,
   PopoverTrigger,

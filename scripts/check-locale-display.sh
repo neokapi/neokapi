@@ -14,16 +14,28 @@
 #     <option value={l}>{l}</option>          <p>{locale}</p>
 #     <span>{it.locale}</span>                <div>{targetLang}</div>
 #
+# The convention: the display name in the language the reader is reading,
+# followed by the tag in muted monospace. "French (France) fr-FR" answers both
+# "which language" and "which tag" at once. The tag alone belongs only in a
+# context with no room for a name, and there it carries the name in its tooltip.
+# The tag is drawn exactly as it was given: case is meaning in BCP 47
+# (`zh-Hant`, `sr-Latn-RS`), so no `uppercase` or `text-transform` class goes
+# near a locale code.
+#
 # What to use instead:
 #
-#   * `<LocalePill locale={code} showName />` wherever a name fits: a dropdown
-#     item, a list row, a heading.
+#   * `<LocaleLabel locale={code} />` wherever a name fits: a dropdown item, a
+#     list row, a heading, a form field. `variant="short"` drops the region,
+#     `source` marks the project's source language.
+#   * `<LocaleLabel locale={code} compact />` for a table cell or a coverage
+#     grid: the tag alone, with the name in its title.
 #   * `<LocaleSelect ... clearLabel={t("All languages")} />` for a picker or a
 #     language filter. It renders pill + name and searches on both.
 #   * `localeLabel(code)` -> "French (fr)" for a single-string context: a
-#     tooltip, an aria-label, a title.
-#   * the bare `<LocalePill locale={code} />` for a dense grid where no name
-#     fits. It carries the name in its title, so the code is never a dead end.
+#     tooltip, an aria-label, a title. `formatLocale(tag, opts)` returns the
+#     resolved `{ name, code, text, title }` for anything that is not JSX.
+#   * `<LocalePill locale={code} />` for a dense grid that colour-codes its
+#     languages. It too carries the name in its title.
 #
 # Usage:
 #     ./scripts/check-locale-display.sh              # scan tracked files
@@ -124,7 +136,8 @@ export function Filter({ locales, value, onChange }: Props) {
     />
   );
 }
-export const Row = (it: Item) => <LocalePill locale={it.locale} showName />;
+export const Row = (it: Item) => <LocaleLabel locale={it.locale} />;
+export const Pill = (it: Item) => <LocalePill locale={it.locale} showName />;
 export const Cell = (it: Item) => <span title={localeLabel(it.locale)}>{it.pct}</span>;
 EOF
 
@@ -144,7 +157,7 @@ EOF
   fi
 
   if out=$(printf '%s\0' "$tmp/named.tsx" | scan_files); then
-    echo "✓ self-test: a pill, a picker and a titled cell pass"
+    echo "✓ self-test: a label, a pill, a picker and a titled cell pass"
   else
     echo "✖ self-test: the matcher flagged a named rendering:"
     printf '%s\n' "$out"
@@ -182,16 +195,19 @@ if hits=$(git ls-files -z -- '*.tsx' |
   echo "✖ language(s) shown as a bare code:"
   printf '%s\n' "$hits"
   echo ""
-  echo "A locale code is an identifier. Show the language name, and keep the"
-  echo "code as the pill beside it:"
+  echo "A locale code is an identifier. Show the language name in the reader's"
+  echo "own language, and keep the tag in muted monospace beside it:"
   echo ""
-  echo "    <LocalePill locale={code} showName />        a row, an item, a heading"
+  echo "    <LocaleLabel locale={code} />                a row, an item, a heading"
+  echo "    <LocaleLabel locale={code} compact />        a table cell or a grid"
   echo "    <LocaleSelect ... clearLabel={t(\"All languages\")} />   a picker or filter"
   echo "    localeLabel(code)                            a tooltip, title or aria-label"
+  echo "    formatLocale(tag, opts)                      anything that is not JSX"
   echo ""
-  echo "For a dense grid where no name fits, the bare <LocalePill locale={code} />"
-  echo "is right: it carries the name in its title. See"
-  echo "packages/ui/src/lib/locale-name.ts."
+  echo "A compact label draws the tag alone and carries the name in its title, so"
+  echo "the code is never a dead end. Never uppercase a tag: case is meaning in"
+  echo "BCP 47. See packages/ui/src/lib/locale-name.ts and"
+  echo "packages/ui/docs/judgement-colours.md."
   exit 1
 fi
 
