@@ -161,7 +161,7 @@ func runDoctor() int {
 	}
 	defer func() { _ = engine.Close() }()
 
-	fmt.Printf("kapi-sat %s — SaT segmenter ready\n", version.Version)
+	fmt.Printf("kapi-sat %s: SaT segmenter ready\n", version.Version)
 	fmt.Println("supported models:")
 	for _, m := range model.Registry {
 		def := ""

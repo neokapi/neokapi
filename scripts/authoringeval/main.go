@@ -219,8 +219,8 @@ func describeCorpus() CorpusInfo {
 	}
 	return CorpusInfo{
 		Synthetic: true,
-		Disclosure: "Written for this eval. Two of the three measurements need ground truth no repository carries — " +
-			"a profile a person wrote from a known corpus, and prose whose every violation is marked — so the corpus " +
+		Disclosure: "Written for this eval. Two of the three measurements need ground truth no repository carries: " +
+			"a profile a person wrote from a known corpus, and prose whose every violation is marked. So the corpus " +
 			"was synthesized and the profile written first. What that costs is external validity: these numbers say " +
 			"whether the checks find what the profile declares, not how they behave on prose written by someone who " +
 			"has never read it.",
@@ -238,7 +238,7 @@ func describeCorpus() CorpusInfo {
 func reportChecks(a CheckAccuracy) {
 	fmt.Printf("\n%s\n", a.Check)
 	if a.Blocked != "" {
-		fmt.Printf("  NOT MEASURED — %s\n", a.Blocked)
+		fmt.Printf("  NOT MEASURED: %s\n", a.Blocked)
 		return
 	}
 	fmt.Printf("  recall %.0f%% (%d/%d planted violations found)\n", 100*a.Recall, a.Covered, a.Plants)

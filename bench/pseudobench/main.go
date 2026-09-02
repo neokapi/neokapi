@@ -27,7 +27,7 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprintf(os.Stderr, `PseudoBench — neokapi pseudo-translate performance benchmarks
+	fmt.Fprintf(os.Stderr, `PseudoBench: neokapi pseudo-translate performance benchmarks
 
 Usage:
   pseudobench run [flags]         Run benchmarks

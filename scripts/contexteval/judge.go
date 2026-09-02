@@ -58,7 +58,7 @@ type Criterion struct {
 
 func rubric() []Criterion {
 	return []Criterion{
-		{ID: "register", Text: "The translation addresses a professional audience in a formal, respectful register — neither chatty nor bureaucratic."},
+		{ID: "register", Text: "The translation addresses a professional audience in a formal, respectful register, neither chatty nor bureaucratic."},
 		{ID: "naturalness", Text: "The translation reads as natural, idiomatic text in the target language, not as a word-for-word rendering of the English."},
 		{ID: "restraint", Text: "The tone is calm and precise, with no marketing enthusiasm, exaggeration, or added emphasis that the source did not have."},
 	}
@@ -215,7 +215,7 @@ func (j *judgeTarget) judgeOne(ctx context.Context, target, source, translation 
 			"You are scoring a translation against a fixed style rubric. "+
 				"For each criterion answer pass=true only if the translation clearly satisfies it. "+
 				"Some vocabulary is mandated by the client's house style; a mandated rendering is never "+
-				"unnatural or off-register by itself — judge the writing around it. "+
+				"unnatural or off-register by itself. Judge the writing around it. "+
 				"Judge only the translation text you are given; you know nothing about how it was produced."),
 		aiprovider.TextMessage(aiprovider.RoleUser, sb.String()),
 	}
@@ -361,7 +361,7 @@ func runJudgeValidation(ctx context.Context, judge *judgeTarget, labelsPath, his
 		}
 	}
 	if skippedSameLang > 0 {
-		fmt.Printf("skipped %d same-language item(s) — en → en-GB register grades the source, not the adaptation, and the judge never scores it\n", skippedSameLang)
+		fmt.Printf("skipped %d same-language item(s): en → en-GB register grades the source rather than the adaptation, and the judge never scores it\n", skippedSameLang)
 	}
 	if total == 0 {
 		return errors.New("labels file labels none of the rubric's criteria on a judgeable (different-language) target")
@@ -398,11 +398,11 @@ func runJudgeValidation(ctx context.Context, judge *judgeTarget, labelsPath, his
 		return err
 	}
 
-	verdict := "BELOW the publication bar — the judged dimension stays unpublished"
+	verdict := "BELOW the publication bar: the judged dimension stays unpublished"
 	if kappa >= MinJudgeKappa && total >= MinJudgeItems {
 		verdict = "meets the publication bar"
 	}
-	fmt.Printf("judge %s:%s vs human labels: %d verdicts on %s, agreement %.2f, kappa %.2f — %s (need kappa ≥ %.1f over ≥ %d verdicts)\n",
+	fmt.Printf("judge %s:%s vs human labels: %d verdicts on %s, agreement %.2f, kappa %.2f: %s (need kappa ≥ %.1f over ≥ %d verdicts)\n",
 		judge.provider, judge.model, total, strings.Join(v.Targets, "/"), agreement, kappa, verdict, MinJudgeKappa, MinJudgeItems)
 	fmt.Printf("recorded in %s\n", historyPath)
 	return nil

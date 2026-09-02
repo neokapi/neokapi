@@ -74,14 +74,14 @@ func main() {
 func run() error {
 	var (
 		models      = flag.String("models", "demo:", "provider:model pairs to sweep, comma-separated; `catalog` expands to the model catalog's recommended active models")
-		targets     = flag.String("targets", strings.Join(Targets(), ","), "target locales to sweep — adherence varies by language, so one locale is not representative")
+		targets     = flag.String("targets", strings.Join(Targets(), ","), "target locales to sweep: adherence varies by language, so one locale is not representative")
 		repeat      = flag.Int("repeat", 1, "passes per variant (a single run of a stochastic model is an anecdote)")
 		concurrency = flag.Int("concurrency", 4, "concurrent batch calls inside a pass")
 		date        = flag.String("date", time.Now().Format(dateLayout), "run date recorded in the history")
 		appendTo    = flag.String("append", "", "merge the runs into this history file (the /context-eval dashboard's data)")
 		dump        = flag.Bool("dump", false, "print every failed expectation with the offending output, so a rate can be inspected rather than trusted")
 		recost      = flag.String("recost", "", "re-price an existing history from prices.json and exit (no model calls)")
-		saveOutputs = flag.String("save-outputs", "", "also write every (fixture, variant, translation) to this JSON file — inspection, and the raw material for judge-validation labels")
+		saveOutputs = flag.String("save-outputs", "", "also write every (fixture, variant, translation) to this JSON file: inspection, and the raw material for judge-validation labels")
 		judgeSpec   = flag.String("judge", "", "provider:model to judge the subjective voice criteria (must be a different model family than the model under test)")
 		validate    = flag.String("judge-validate", "", "labels JSON of human verdicts; measures judge–human agreement with -judge and records it via -append, then exits")
 		label       = flag.String("label", "", "label saved outputs interactively for judge validation; takes the -save-outputs file and writes verdicts to -labels")
@@ -264,9 +264,9 @@ func measure(ctx context.Context, provider aiprovider.LLMProvider, mt modelTarge
 				out.Unmeasured = throttled(err)
 				out.Error = err.Error()
 				if out.Unmeasured {
-					fmt.Fprintf(os.Stderr, "  %s %s: THROTTLED — not measured (lower -concurrency and re-run)\n", mt, corpus.Target)
+					fmt.Fprintf(os.Stderr, "  %s %s: THROTTLED, not measured (lower -concurrency and re-run)\n", mt, corpus.Target)
 				} else {
-					fmt.Fprintf(os.Stderr, "  %s %s: FAILED — %v\n", mt, corpus.Target, err)
+					fmt.Fprintf(os.Stderr, "  %s %s: FAILED, %v\n", mt, corpus.Target, err)
 				}
 				return out
 			}
@@ -616,11 +616,11 @@ func printTable(r Run) {
 	fmt.Printf("provider=%s model=%s target=%s repeat=%d corpus=%s (%s)\n\n",
 		r.Provider, orDefault(r.Model, "(default)"), r.Target, r.Repeat, r.Corpus, r.CorpusDigest)
 	if r.Unmeasured {
-		fmt.Printf("  THROTTLED — nothing measured (lower -concurrency and re-run): %s\n", truncErr(errors.New(r.Error)))
+		fmt.Printf("  THROTTLED, nothing measured (lower -concurrency and re-run): %s\n", truncErr(errors.New(r.Error)))
 		return
 	}
 	if r.Error != "" {
-		fmt.Printf("  FAILED — %s\n", r.Error)
+		fmt.Printf("  FAILED: %s\n", r.Error)
 		return
 	}
 	fmt.Printf("%-14s  %8s  %8s  %8s\n", "dimension", "bare", "steered", "lift")
@@ -648,18 +648,18 @@ func printTable(r Run) {
 			continue
 		}
 		if pass.rec.Missing > 0 || pass.rec.Untranslated > 0 {
-			fmt.Printf("  %s: %d missing, %d untranslated — excluded from adherence, an echo trivially passes DNT\n",
+			fmt.Printf("  %s: %d missing, %d untranslated, excluded from adherence, an echo trivially passes DNT\n",
 				pass.name, pass.rec.Missing, pass.rec.Untranslated)
 		}
 	}
 	if j := r.Judge; j != nil {
 		switch {
 		case j.SkippedSameFamily:
-			fmt.Printf("  judge: skipped — %s:%s is the same model family as the model under test\n", j.Provider, j.Model)
+			fmt.Printf("  judge: skipped, %s:%s is the same model family as the model under test\n", j.Provider, j.Model)
 		case j.SkippedSameLanguage:
-			fmt.Printf("  judge: skipped — a same-language target's register grades the source, not the adaptation\n")
+			fmt.Printf("  judge: skipped, a same-language target's register grades the source rather than the adaptation\n")
 		case j.Error != "":
-			fmt.Printf("  judge: error — %s\n", j.Error)
+			fmt.Printf("  judge: error: %s\n", j.Error)
 		case j.Bare.Scored == 0 && j.Steered.Scored == 0:
 			fmt.Println("  judge: nothing judged (simulated runs are never judged)")
 		default:

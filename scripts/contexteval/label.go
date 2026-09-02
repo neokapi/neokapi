@@ -228,7 +228,7 @@ Judge validation labelling
 
 You will see a source sentence and a translation, and answer one yes/no
 question per rubric criterion. You will NOT see the judge's verdict, the model,
-or whether the translation came from the steered or the bare pass — seeing any
+or whether the translation came from the steered or the bare pass. Seeing any
 of those would make this a measurement of agreement with a hint rather than
 with the text.
 

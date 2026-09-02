@@ -290,7 +290,7 @@ type coverage struct {
 
 func main() {
 	surefireDir := flag.String("okapi-surefire", "", "Directory containing surefire-reports/ (walked recursively)")
-	failsafeDir := flag.String("okapi-failsafe", "", "Directory containing Maven Failsafe reports for Okapi *IT integration tests (e.g. integration-tests/okapi/target/failsafe-reports). Walked recursively. Optional — when set, RoundTrip*IT / *XliffCompareIT contracts join their filter's rows.")
+	failsafeDir := flag.String("okapi-failsafe", "", "Directory containing Maven Failsafe reports for Okapi *IT integration tests (e.g. integration-tests/okapi/target/failsafe-reports). Walked recursively. Optional. When set, RoundTrip*IT / *XliffCompareIT contracts join their filter's rows.")
 	nativeJSON := flag.String("native-gotest", "", "go test -json output for native side (optional)")
 	nativeSrc := flag.String("native-src", "", "Comma-separated list of native test source dirs to scan for // okapi: annotations")
 	parityReport := flag.String("parity-report", "", "Path to .parity/test-comparison.json (optional). Populates the per-filter Bridge column with the head-to-head parity outcome.")
@@ -554,21 +554,21 @@ func resolveNativeFormat(okapiPkg, shortClass string) string {
 // gap (#611). When a native reader is later added, drop the entry and the
 // tests become real mapping targets.
 var noNativeFilters = map[string]string{
-	"xini":            "no native reader — XINI (Wordbee interchange) is bridge-only",
-	"sdlpackage":      "no native reader — SDL Trados package (proprietary) is bridge-only",
-	"rainbowkit":      "no native reader — Okapi Rainbow translation kit is bridge-only",
-	"wsxzpackage":     "no native reader — WorldServer WSXZ package is bridge-only",
-	"autoxliff":       "no native reader — Okapi auto-XLIFF detection wrapper is bridge-only",
-	"multiparsers":    "no native reader — Okapi multi-parsers composite filter is bridge-only",
-	"cascadingfilter": "no native reader — Okapi cascading composite filter is bridge-only",
-	"archive":         "no native reader — generic archive (zip) container is bridge-only",
+	"xini":            "no native reader: XINI (Wordbee interchange) is bridge-only",
+	"sdlpackage":      "no native reader: SDL Trados package (proprietary) is bridge-only",
+	"rainbowkit":      "no native reader: Okapi Rainbow translation kit is bridge-only",
+	"wsxzpackage":     "no native reader: WorldServer WSXZ package is bridge-only",
+	"autoxliff":       "no native reader: Okapi auto-XLIFF detection wrapper is bridge-only",
+	"multiparsers":    "no native reader: Okapi multi-parsers composite filter is bridge-only",
+	"cascadingfilter": "no native reader: Okapi cascading composite filter is bridge-only",
+	"archive":         "no native reader: generic archive (zip) container is bridge-only",
 	// abstractmarkup's tests are SimplifierRulesTest, which exercises Okapi's
 	// CodeSimplifier (an inline-code merge/reduce utility) — NOT the markup
 	// readers. neokapi has no native code simplifier (it preserves inline
 	// codes verbatim), so this is a genuine not-implemented, not coverage
 	// "exercised via concrete readers" (that earlier claim was false, #611).
-	"abstractmarkup": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
-	"its":            "no standalone native ITS filter — inline ITS attributes are honored by the xml/html readers (core/its), but ITS global-rule (.fprm) processing is bridge-only",
+	"abstractmarkup": "Okapi CodeSimplifier (inline-code merge/reduce): no native code simplifier; neokapi preserves inline codes verbatim",
+	"its":            "no standalone native ITS filter: inline ITS attributes are honored by the xml/html readers (core/its), but ITS global-rule (.fprm) processing is bridge-only",
 	// NOTE: dita/docbook/resx are now NATIVE (config presets on the xml
 	// reader — see core/formats/xml/presets.go), so they are intentionally
 	// NOT listed here; their IT contracts map to the preset tests.

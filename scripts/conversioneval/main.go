@@ -195,12 +195,12 @@ func run() error {
 		Method: "Multiset word recall against the text nodes each document's own parts declare, per the OOXML spec. " +
 			"Words of one character are dropped from both sides. The headline is word-weighted across the corpus, not " +
 			"an average of per-file scores: this corpus holds two-word fixtures, and giving those the same weight as a " +
-			"full report is how the first version of this table got its numbers. Recall only — a converter that emits " +
+			"full report is how the first version of this table got its numbers. Recall only: a converter that emits " +
 			"extra text is doing something different from one that loses it, and this measures loss.",
 		Limits: "Structure and ordering are not compared, so a converter that flattens every heading scores the same " +
 			"as one that keeps the outline. Headers, footers, footnotes, comments and speaker notes are excluded, " +
 			"because converters disagree about whether those belong in the output and counting them would score that " +
-			"disagreement. The four tools are not the same kind of thing — see each row's note.",
+			"disagreement. The four tools are not the same kind of thing. See each row's note.",
 		Result: results,
 	}
 

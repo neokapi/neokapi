@@ -225,7 +225,7 @@ func apiKeyEnv(provider string) string {
 func reportSteer(r *SteerResult) {
 	fmt.Printf("\nauthoring-effect (%s:%s)\n", r.Provider, r.Model)
 	if r.Blocked != "" {
-		fmt.Printf("  NOT MEASURED — %s\n", r.Blocked)
+		fmt.Printf("  NOT MEASURED: %s\n", r.Blocked)
 		return
 	}
 	fmt.Printf("  %d documents written twice\n", r.Scored)
