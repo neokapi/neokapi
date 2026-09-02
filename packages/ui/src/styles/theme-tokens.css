@@ -58,6 +58,21 @@
   --color-info: var(--info);
   --color-info-foreground: var(--info-foreground);
 
+  /* ── Coordinate axes (semantic) ──────────────────────────── */
+  /* One tint/ink pair per axis of a context coordinate, so CoordinateChip can
+     name its colours as `bg-axis-channel text-axis-channel-foreground` instead
+     of computing a hue. Values live in semantic-colors.css. */
+  --color-axis-product: var(--axis-product);
+  --color-axis-product-foreground: var(--axis-product-foreground);
+  --color-axis-channel: var(--axis-channel);
+  --color-axis-channel-foreground: var(--axis-channel-foreground);
+  --color-axis-brand: var(--axis-brand);
+  --color-axis-brand-foreground: var(--axis-brand-foreground);
+  --color-axis-language: var(--axis-language);
+  --color-axis-language-foreground: var(--axis-language-foreground);
+  --color-axis-unknown: var(--axis-unknown);
+  --color-axis-unknown-foreground: var(--axis-unknown-foreground);
+
   /* ── Prism ramp (brand accent; themes without one inherit the
      chart palette hues via their own :root values) ───────────── */
   --color-prism-1: var(--prism-1, var(--chart-5));

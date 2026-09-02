@@ -704,7 +704,9 @@ export function ReviewPage({
     if (!activeFilter) return "";
     const parts: string[] = [];
     if (activeFilter.languages?.length) {
-      parts.push(activeFilter.languages.map(localeLabel).join(", "));
+      // Wrapped rather than passed point-free: `localeLabel` takes the UI
+      // language second, and `map` would hand it the array index.
+      parts.push(activeFilter.languages.map((l) => localeLabel(l)).join(", "));
     }
     if (activeFilter.collections?.length) {
       parts.push(activeFilter.collections.join(", "));

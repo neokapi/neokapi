@@ -1,0 +1,78 @@
+/*
+ * Semantic colour tokens shared by every neokapi surface.
+ *
+ * A palette says what a product looks like. These tokens say what a colour
+ * MEANS, and the meaning has to survive moving between surfaces: an approve
+ * button in Kapi Desktop and an approve button in the Bowrain platform are the
+ * same act, so they are the same green. Each app keeps its own :root/.dark
+ * palette (Kapi Blue, Rainlight) and imports this file for the judgement
+ * colours and the coordinate hues.
+ *
+ * Import it AFTER tailwindcss and BEFORE the app's own :root/.dark block, so an
+ * app that genuinely needs a different value can still say so and be seen doing
+ * it. `theme-tokens.css` maps every token here onto a Tailwind `--color-*`
+ * utility, which is how `bg-success`, `text-warning` and `bg-axis-channel`
+ * exist.
+ *
+ * Which colour carries which judgement is written down in
+ * packages/ui/docs/judgement-colours.md.
+ *
+ * Contrast: every pair below clears WCAG AA (4.5:1) for text at its intended
+ * use. `--success` is darker than a green picked by eye, because green at a
+ * pleasant lightness carries too much luminance to hold white text, and the
+ * platform reads `--success` as ink on the page as often as it fills a button.
+ */
+
+:root {
+  /* ── Judgement ─────────────────────────────────────────── */
+  /* Approve, sign off, publish. Dark enough to hold white ink (4.9:1) and to
+     read as ink on a light ground (4.5:1 or better on both app palettes). */
+  --success: oklch(0.53 0.14 150);
+  --success-foreground: oklch(1 0 0);
+  /* Send back, needs attention. A light amber fill carrying dark ink (7:1). */
+  --warning: oklch(0.75 0.16 70);
+  --warning-foreground: oklch(0.25 0.02 70);
+  /* Neutral notice. Neither a judgement nor an action. */
+  --info: oklch(0.55 0.15 252);
+  --info-foreground: oklch(1 0 0);
+
+  /* ── Coordinate axes ───────────────────────────────────── */
+  /* One hue per axis of the context coordinate, drawn from the prism ramp so a
+     chip belongs to the same family as the entity marks. Each pair is a soft
+     tint plus the ink that sits on it. `unknown` is the neutral an axis nobody
+     has named falls back to. */
+  --axis-product: oklch(0.945 0.035 15);
+  --axis-product-foreground: oklch(0.44 0.13 15);
+  --axis-channel: oklch(0.945 0.035 250);
+  --axis-channel-foreground: oklch(0.44 0.12 252);
+  --axis-brand: oklch(0.945 0.035 300);
+  --axis-brand-foreground: oklch(0.44 0.14 300);
+  --axis-language: oklch(0.945 0.03 195);
+  --axis-language-foreground: oklch(0.42 0.09 195);
+  --axis-unknown: oklch(0.945 0 0);
+  --axis-unknown-foreground: oklch(0.44 0 0);
+}
+
+.dark {
+  /* ── Judgement ─────────────────────────────────────────── */
+  /* On a dark ground the fill brightens and the ink goes deep, which is how the
+     same green stays legible in both themes (5.7:1). */
+  --success: oklch(0.64 0.15 148);
+  --success-foreground: oklch(0.18 0.03 150);
+  --warning: oklch(0.78 0.14 70);
+  --warning-foreground: oklch(0.2 0.02 70);
+  --info: oklch(0.68 0.13 250);
+  --info-foreground: oklch(0.18 0.02 250);
+
+  /* ── Coordinate axes ───────────────────────────────────── */
+  --axis-product: oklch(0.3 0.045 15);
+  --axis-product-foreground: oklch(0.84 0.09 15);
+  --axis-channel: oklch(0.3 0.045 250);
+  --axis-channel-foreground: oklch(0.84 0.08 252);
+  --axis-brand: oklch(0.3 0.045 300);
+  --axis-brand-foreground: oklch(0.84 0.09 300);
+  --axis-language: oklch(0.3 0.04 195);
+  --axis-language-foreground: oklch(0.84 0.08 195);
+  --axis-unknown: oklch(0.3 0 0);
+  --axis-unknown-foreground: oklch(0.82 0 0);
+}

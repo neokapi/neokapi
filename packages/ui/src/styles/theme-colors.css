@@ -11,7 +11,13 @@
  * their own :root/.dark values and do not import this file. The bowrain
  * landing (bowrain/web/landing/src/index.css) carries a copy of these values
  * by design — keep it in sync when editing this palette.
+ *
+ * The judgement colours (--success/--warning/--info) and the coordinate-axis
+ * hues are NOT part of this palette: they mean the same thing on every surface,
+ * so they live once in semantic-colors.css and are imported here.
  */
+
+@import "./semantic-colors.css";
 
 :root {
   /* ── Surfaces ──────────────────────────────────────────── */
@@ -41,14 +47,6 @@
   /* ── Destructive ───────────────────────────────────────── */
   --destructive: oklch(0.58 0.21 25);
   --destructive-foreground: oklch(1 0 0);
-
-  /* ── Status — semantic ─────────────────────────────────── */
-  --success: oklch(0.58 0.14 155);
-  --success-foreground: oklch(1 0 0);
-  --warning: oklch(0.75 0.15 80);
-  --warning-foreground: oklch(0.25 0.02 70);
-  --info: oklch(0.6 0.14 250);
-  --info-foreground: oklch(1 0 0);
 
   /* ── Borders & controls ────────────────────────────────── */
   --border: oklch(0.915 0.01 240);
@@ -126,14 +124,6 @@
   /* ── Destructive ───────────────────────────────────────── */
   --destructive: oklch(0.62 0.19 25);
   --destructive-foreground: oklch(1 0 0);
-
-  /* ── Status — semantic ─────────────────────────────────── */
-  --success: oklch(0.64 0.14 155);
-  --success-foreground: oklch(1 0 0);
-  --warning: oklch(0.78 0.14 80);
-  --warning-foreground: oklch(0.2 0.02 70);
-  --info: oklch(0.68 0.13 250);
-  --info-foreground: oklch(1 0 0);
 
   /* ── Borders & controls ────────────────────────────────── */
   --border: oklch(0.3 0.02 255);
