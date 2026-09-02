@@ -9,8 +9,8 @@ import { RedactionDiagram } from "@neokapi/docs-shared";
 
 # Redaction
 
-Redaction replaces sensitive content — people, unreleased product names,
-internal roles, secrets — with protected placeholders before a document is
+Redaction replaces sensitive content (people, unreleased product names,
+internal roles, secrets) with protected placeholders before a document is
 sent for AI translation or handed to an external translator, then restores the
 originals once the translation comes back. The sensitive value never leaves the
 local machine.
@@ -22,7 +22,7 @@ local machine.
     "Project Halcyon",
   ]}
   translated="Envoyez à Sarah Chen la date de lancement de Project Halcyon."
-  notes={["", "what the model sees — opaque tokens", "originals restored locally"]}
+  notes={["", "what the model sees: opaque tokens", "originals restored locally"]}
 />
 
 For the architecture and design decisions behind this, see
@@ -37,7 +37,7 @@ flow and single-tool surfaces.
 
 ## How it stays local
 
-A redacted span becomes a **placeholder** — the same protected inline-code
+A redacted span becomes a **placeholder**, the same protected inline-code
 primitive kapi uses for variables and tags, with a type like
 `redaction:person`. The placeholder carries only a category and a stable token;
 the original text is held in a local **vault** and is never written into the
@@ -54,19 +54,20 @@ the original↔token mapping stays behind in a gitignored sidecar.
 
 Redaction finds sensitive spans with one or both detectors:
 
-- **Rules** (default) — literal terms and regular expressions you declare.
+- **Rules** (default) are literal terms and regular expressions you declare.
   Fully offline and deterministic.
-- **Entities** (opt-in) — named entities (people, organizations, products,
+- **Entities** (opt-in) are named entities (people, organizations, products,
   locations, dates, …) recognized automatically and redacted by category. A fast
   local model keeps detection on the machine; a cloud model trades that for
-  broader coverage during the detection step. You don't run entity recognition as
-  a separate task — it is the same detection that powers entity-generalized
+  broader coverage during the detection step. Entity recognition is not a
+  separate task: it is the same detection that powers entity-generalized
   [content-memory](/framework/content-memory) reuse, so entities
   annotated once serve both.
 
   The `entity-extract` step selects the detector with `engine`: `llm` (the
-  configured AI provider; the default), `ner` (an on-device model — no provider
-  call, no credentials, nothing leaves the machine), or `hybrid` (both, merged).
+  configured AI provider; the default), `ner` (an on-device model, with no
+  provider call, no credentials and nothing leaving the machine), or `hybrid`
+  (both, merged).
   With `engine: ner` the step carries no remote-egress side effect, so the
   placement pass accepts it ahead of `redact` without qualification. The
   browser [Lab](/lab) runs this end to end with a GLiNER ONNX model loaded
@@ -74,7 +75,7 @@ Redaction finds sensitive spans with one or both detectors:
 
 Each match is assigned a category. The recommended categories are `person`,
 `role`, `product`, `org`, `location`, and `custom`, but categories are
-free-form — use whatever the placeholder template should display.
+free-form, so use whatever the placeholder template should display.
 
 ## Rules file
 
@@ -101,7 +102,7 @@ rules:
 ### In-process: secure-translate
 
 The built-in `secure-translate` flow redacts, AI-translates against the
-placeholders, and restores the originals — all in a single run, so the secret
+placeholders, and restores the originals, all in a single run, so the secret
 is only ever in memory:
 
 ```bash
@@ -110,8 +111,8 @@ kapi run secure-translate -i src/locales/en.json --target-lang fr
 
 The flow is `reader → redact → translate → unredact → writer`. `redact` is
 an ordinary [transformer step](/framework/flows#transformers): the framework
-applier rewrites the source — replacing sensitive spans with placeholders and
-vaulting the originals fail-closed — before the next step observes it. Because
+applier rewrites the source, replacing sensitive spans with placeholders and
+vaulting the originals fail-closed, before the next step observes it. Because
 redaction's edit plan is structured, run-anchored overlays attached upstream
 (terms, entities) survive the rewrite by rebasing; only spans overlapping a
 redacted span are dropped. The flow's placement pass keeps the ordering safe:
@@ -173,14 +174,14 @@ collections:
 
 | Workflow | Vault |
 | --- | --- |
-| In-process (`secure-translate`, custom flows) | In memory on the block; removed after restore — never written to output |
-| External (`extract --redact` → `merge`) | `.kapi/work/vault/redaction/<batch-id>.json` — inside the project's one gitignored path, written private (`0600`) |
+| In-process (`secure-translate`, custom flows) | In memory on the block; removed after restore, and never written to output |
+| External (`extract --redact` → `merge`) | `.kapi/work/vault/redaction/<batch-id>.json`, inside the project's one gitignored path, written private (`0600`) |
 
 The vault sits beside the project store under `.kapi/work/`, and deliberately
 *not* under `.kapi/work/cache/`. Everything in the cache is free to delete
 because it rebuilds; a withheld original rebuilds from nothing. It is never
-committed and never synced to a server — that is the guarantee — so the only
-copy is the one on your machine. `rm -rf .kapi/work/cache` stays safe at any
+committed and never synced to a server, so the only copy is the one on your
+machine. `rm -rf .kapi/work/cache` stays safe at any
 time; clearing `.kapi/work` wholesale strands any batch you have out with a
 translator, because the merge that would restore the originals has nothing left
 to read.

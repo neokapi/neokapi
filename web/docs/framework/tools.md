@@ -17,8 +17,8 @@ Parts from an input channel, transforms them, and writes them to an output
 channel.
 
 Because every tool speaks the same channel contract, tools compose freely. A
-translation run is one chain — leverage from memory, look up terminology,
-translate the remainder, check quality; a monolingual voice pass is another —
+translation run is one chain: leverage from memory, look up terminology,
+translate the remainder, check quality. A monolingual voice pass is another:
 check the source, rewrite the off-voice runs, check again. Each tool handles the
 Parts it cares about and passes the rest through untouched. The category of work a
 tool does is not fixed by the framework; the same interface backs analysis,
@@ -27,8 +27,8 @@ list of what ships in the current build is the [Tool Reference](/tools).
 
 :::tip Try a tool on a file
 Pick a tool, edit its configuration in the live form, and run it on a sample
-file to see how each translatable [Block](/framework/content-model) changes —
-source before, tool output after. The same form that drives the configuration
+file to see how each translatable [Block](/framework/content-model) changes,
+source before and tool output after. The same form that drives the configuration
 here is the one the visual editors and the [Tool Reference](/tools) render from
 the tool's schema. This runs the real `kapi` engine in your browser via
 WebAssembly.
@@ -57,7 +57,7 @@ that flow composition relies on: chaining tools means wiring one tool's `out`
 channel to the next tool's `in` channel, so every tool must speak it.
 
 The remaining methods carry the tool's identity (`Name`, `Description`) and its
-configuration. Configuration is a small interface of its own — a tool config
+configuration. Configuration is a small interface of its own. A tool config
 knows which tool it belongs to, how to reset to defaults, and how to validate
 itself:
 
@@ -71,7 +71,7 @@ type ToolConfig interface {
 
 ## Part-type dispatch with BaseTool
 
-Most tools only care about one or two kinds of Part — usually
+Most tools only care about one or two kinds of Part, usually
 [Blocks](/framework/content-model) (content blocks). Writing the full
 channel loop for every tool would be repetitive and error-prone, so the
 framework provides `BaseTool`, an embeddable type that implements `Process` once
@@ -102,13 +102,13 @@ type BaseTool struct {
 
 A concrete tool embeds `BaseTool` and sets only the handlers it needs.
 `BaseTool.Process` reads each Part, switches on its `Type`, and calls the
-matching handler. **Any handler left unset is a pass-through** — the Part flows
-to the output channel unchanged. For Blocks, a tool sets one of three
+matching handler. **Any handler left unset is a pass-through**, so the Part
+flows to the output channel unchanged. For Blocks, a tool sets one of three
 capability-typed handlers and the view it receives decides what it may write
-(the immutability model — see [the tool-system AD](/contribute/architecture/engine/e-03-tool-system)):
+(the immutability model; see [the tool-system AD](/contribute/architecture/engine/e-03-tool-system)):
 `Annotate` reads source and target but writes only overlays, annotations, and
 properties; `Produce` writes the target; `Transform` is a read-only edit
-producer — it returns an edit plan, and a framework-owned applier performs the
+producer that returns an edit plan, and a framework-owned applier performs the
 source rewrite, rebasing surviving overlays and vaulting any secrets. The
 forbidden writes are not on the view, so a quality check can't
 accidentally mutate the source, and a transformer holds no source setter.
@@ -143,14 +143,14 @@ func NewCaseTransformTool(cfg *CaseTransformConfig) *tool.BaseTool {
 }
 ```
 
-When a tool needs full control of the loop — for example to accumulate state
-across many Parts, or to emit more Parts than it consumes — it can implement
+When a tool needs full control of the loop, for example to accumulate state
+across many Parts or to emit more Parts than it consumes, it can implement
 `Process` directly instead of using the handler fields.
 
 ## How tools compose
 
-The streaming contract is what makes composition trivial. Three Parts — a layer
-start, a block, a layer end — flowing through a two-tool chain look like this:
+The streaming contract is what makes composition trivial. Three Parts (a layer
+start, a block, a layer end) flowing through a two-tool chain look like this:
 
 <PipelineDiagram
   animated
@@ -166,8 +166,8 @@ Each tool runs in its own goroutine, connected by buffered channels. A tool that
 does not handle layer markers relays them, so structural context survives
 the whole chain even though only some stages act on it. Ordering is preserved:
 the segmentation tool's output for a block reaches the translation tool before
-the next block does. The mechanics of that concurrency — goroutines, buffered
-channels, backpressure, error propagation — are covered in
+the next block does. The mechanics of that concurrency (goroutines, buffered
+channels, backpressure, error propagation) are covered in
 [Pipeline](/framework/pipeline); how chains are described and built is covered in
 [Flows](/framework/flows).
 
@@ -183,8 +183,8 @@ rest of the flow is unaffected.
 
 ## Categories of work
 
-The framework does not enforce tool categories — the interface is the same
-whether a tool transforms, enriches, or validates. As a way of thinking about
+The framework enforces no tool categories: the interface is the same whether a
+tool transforms, enriches, or validates. As a way of thinking about
 what a tool does, the built-in tools fall into a few broad kinds:
 
 | Kind          | What it does                              | Examples                                            |
@@ -213,19 +213,19 @@ its schema through an optional interface; the generated [Tool
 Reference](/tools) renders each tool's parameters from exactly these schemas, so
 it always matches the build.
 
-## Scripting — write a transform in JavaScript
+## Scripting: write a transform in JavaScript
 
 Not every transform deserves its own Go tool. The built-in `script` tool runs a
 small JavaScript program against each Part. Define `process(part)`, edit
 `part.block.source` or `part.block.targets`, and return the part to keep it (or
-`null` to drop it) — or omit the function and write top-level code against the
-global `part`, calling `emit(part)` / `skip()`. It is the quickest way to
-prototype a one-off rule, and it runs anywhere the engine runs — including the
-browser, via the embedded interpreter.
+`null` to drop it). Alternatively, omit the function and write top-level code
+against the global `part`, calling `emit(part)` / `skip()`. It is the quickest
+way to prototype a one-off rule, and it runs anywhere the engine runs, the
+browser included, via the embedded interpreter.
 
 :::tip Write a script, run it on your file
-Edit the JavaScript below — `process(part)` runs once per Part, with full
-autocomplete for the `part` API — or load an example, then run it on a sample or
+Edit the JavaScript below, where `process(part)` runs once per Part with full
+autocomplete for the `part` API, or load an example, then run it on a sample or
 your own file and read the per-Block before/after of source and target.
 :::
 
@@ -235,13 +235,13 @@ your own file and read the per-Block before/after of source and target.
 
 Built-in tools live in the framework and are registered into a `ToolRegistry`,
 which maps a tool name to a factory. Tools can also be supplied by
-[plugins](/contribute/plugins) — discovered at runtime and dispatched as
-subprocesses over gRPC — so the available toolset can extend beyond what is
+[plugins](/contribute/plugins), discovered at runtime and dispatched as
+subprocesses over gRPC, so the available toolset can extend beyond what is
 compiled into a given binary without changing the interface tools satisfy.
 
 ## Related reading
 
-- [Tool Reference](/tools) — the generated list of built-in tools and their parameters.
-- [Flows](/framework/flows) — composing tools into a named pipeline.
-- [Pipeline](/framework/pipeline) — the streaming executor that runs the chain.
-- [Implementing a Tool](/contribute/tools) and [Tool Authoring](/contribute/tool-authoring) — writing your own.
+- [Tool Reference](/tools): the generated list of built-in tools and their parameters.
+- [Flows](/framework/flows): composing tools into a named pipeline.
+- [Pipeline](/framework/pipeline): the streaming executor that runs the chain.
+- [Implementing a Tool](/contribute/tools) and [Tool Authoring](/contribute/tool-authoring): writing your own.

@@ -32,13 +32,13 @@ goroutine and connected by buffered channels of [Parts](/framework/content-model
 The executor is built on Go's native concurrency: goroutines for the stages,
 channels for the connections, and `errgroup` for coordination.
 
-The reader and writer shown here are the **file binding** — the default way
+The reader and writer shown here are the **file binding**, the default way
 content enters and leaves the pipeline. The same tool stream can instead be bound
 to a project store, a `.kpz` workspace, or an interchange file, with no reader or
 writer ([flows: source and sink](/framework/flows#source-and-sink-the-flows-ends)).
 
 :::tip Watch it run, step by step
-Run a file through a pipeline and drive it with **Next** — each step advances the
+Run a file through a pipeline and drive it with **Next**. Each step advances the
 stream by one event, so you can watch Parts move out of the reader, through the
 tools, and into the writer, inspecting how each Part changes at every stage. This
 runs the real `kapi` engine in your browser via WebAssembly.
@@ -62,13 +62,13 @@ than a single tree.
 
 ## Channels and backpressure
 
-Adjacent stages are connected by **buffered channels** — by default a buffer of
+Adjacent stages are connected by **buffered channels**, by default a buffer of
 64 Parts. The buffer decouples the stages so a fast reader does not have to wait
 on a slow tool for every single Part, but it is bounded: when the buffer fills,
 the upstream stage blocks on its send until the downstream stage catches up.
-That blocking _is_ the backpressure. A slow tool — an AI translation step
-waiting on a network call, say — naturally throttles the reader feeding it,
-without any explicit rate limiting or queue management.
+That blocking _is_ the backpressure. A slow tool, say an AI translation step
+waiting on a network call, naturally throttles the reader feeding it, without any
+explicit rate limiting or queue management.
 
 Each tool runs `Process(ctx, in, out)` in its own goroutine. The executor wires
 stage `i`'s output channel to stage `i+1`'s input channel, launches a goroutine
@@ -82,13 +82,13 @@ so on down to the writer.
 The stages are coordinated by an `errgroup.Group`. If any tool's `Process`
 returns an error, the group cancels a shared context derived from the caller's
 context. Every stage selects on `ctx.Done()` in its channel operations, so
-cancellation propagates promptly to all goroutines — a stage blocked on a send or
+cancellation propagates promptly to all goroutines: a stage blocked on a send or
 a receive wakes up and returns. The pipeline tears down cleanly rather than
 leaking goroutines on a partial failure, and the first error is reported to the
 caller.
 
 Because cancellation flows from the caller's context, a pipeline is also
-cancellable from the outside — closing a CLI run, a request timeout, or a desktop
+cancellable from the outside. Closing a CLI run, a request timeout, and a desktop
 "stop" button all cancel the same context and unwind every stage.
 
 ## Layers of concurrency
@@ -103,8 +103,8 @@ they compose without interfering:
 | **Batch documents**        | The executor processes many input files in parallel, bounded by a concurrency limit. |
 
 Document-level batching is controlled on the executor. `MaxConcurrency` bounds
-how many documents run at once — `1` is sequential, `0` means use the number of
-CPUs — and a semaphore enforces the bound. With fail-fast enabled (the default),
+how many documents run at once (`1` is sequential, `0` means use the number of
+CPUs) and a semaphore enforces the bound. With fail-fast enabled (the default),
 the first document error cancels the remaining work; with it disabled, the
 executor runs every document and reports errors together. Each document gets its
 own tool chain (via the flow's [tool factories](/framework/flows)) so concurrent
@@ -127,8 +127,8 @@ With no options it runs sequentially, with a channel buffer of 64 and fail-fast
 on. `Execute` takes a built flow and a slice of items (each an input document, an
 output path, and a target locale) and runs the whole batch.
 
-For callers that want to feed Parts in and read results out directly — rather
-than reading and writing files — the executor can also expose the chain's input
+For callers that want to feed Parts in and read results out directly, rather
+than reading and writing files, the executor can also expose the chain's input
 and output channels, wiring the same goroutine-per-tool pipeline but leaving the
 ends open for the caller to drive.
 
@@ -136,14 +136,14 @@ ends open for the caller to drive.
 
 Because the pipeline is a stream of Parts, work can be observed without
 disturbing it. The executor accepts **collectors** that are fed the output Parts
-of each document as it completes, which is how cross-document analysis — scoping
-reports, repetition analysis across a batch — accumulates results. Observation is
+of each document as it completes, which is how cross-document analysis (scoping
+reports, repetition analysis across a batch) accumulates results. Observation is
 a separate concurrency concern from the tool chain itself: a collector reads the
 finished stream and does not sit inside it.
 
 ## Related reading
 
-- [Flows](/framework/flows) — the graph the pipeline executes.
-- [Tools](/framework/tools) — the stages that run in the pipeline.
-- [Content Model](/framework/content-model) — the Part that streams through it.
-- [E-01: Processing Engine](/contribute/architecture/engine/e-01-processing-engine) — the design rationale.
+- [Flows](/framework/flows): the graph the pipeline executes.
+- [Tools](/framework/tools): the stages that run in the pipeline.
+- [Content Model](/framework/content-model): the Part that streams through it.
+- [E-01: Processing Engine](/contribute/architecture/engine/e-01-processing-engine): the design rationale.
