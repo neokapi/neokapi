@@ -173,9 +173,10 @@ func (a *App) RunFromProject(cmd Command, flowName, projectPath string, opts Run
 	if err != nil {
 		return err
 	}
-	if err := a.resolveGroupBindings(cmd, proj, projectPath, groups); err != nil {
-		return err
-	}
+	// Resolved per (group, locale) inside the pass below: the term rules a
+	// binding set carries are the wording approved for one target locale, and a
+	// flow whose locales come from the recipe runs several of them.
+	groupBindings := a.newLocaleBindings(cmd, proj, projectPath)
 	defer func() { a.ProjectBindings = nil }()
 
 	// Build resource context from project file location.
@@ -192,7 +193,11 @@ func (a *App) RunFromProject(cmd Command, flowName, projectPath string, opts Run
 	// over every input, exactly as before.
 	runGroups := func() error {
 		for _, group := range groups {
-			a.ProjectBindings = group.bindings
+			b, berr := groupBindings.at(group.Point, a.TargetLang)
+			if berr != nil {
+				return berr
+			}
+			a.ProjectBindings = b
 			if err := a.runProjectStepsOver(cmd.Context(), cmd, flowName, spec, &rCtx, group.Inputs); err != nil {
 				return err
 			}

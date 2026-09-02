@@ -386,24 +386,18 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 	// The flow run inside a pass is per collection: the source set splits into
 	// one group per distinct (voice profile, terms) binding, and a worker runs the
 	// flow once per group. A recipe where no collection overrides either yields
-	// one group holding every source, bound to the project-wide resolution
-	// already made above — one flow run per locale, as convergence has always
-	// done.
+	// one group holding every source, at the project's default point, so its
+	// bindings are the project-wide ones and the pass is the single flow run per
+	// locale convergence has always done.
 	groups, err := a.groupInputsByBinding(cmd, proj, pctx.ProjectDir, sources)
 	if err != nil {
 		return err
 	}
-	for i := range groups {
-		if groups[i].Point.Collection == "" && groups[i].Point.Path == "" {
-			groups[i].bindings = bindings
-			continue
-		}
-		b, berr := a.resolveProjectBindings(cmd, proj, projectPath, groups[i].Point)
-		if berr != nil {
-			return berr
-		}
-		groups[i].bindings = b
-	}
+	// Bindings are resolved at (group point, locale) inside the fan-out below,
+	// because the term rules in them are per target locale: the wording a
+	// concept is approved for in nb is not the one it is approved for in fr, and
+	// a set resolved here, before any locale is known, would carry neither.
+	groupBindings := a.newLocaleBindings(cmd, proj, projectPath)
 
 	root := filepath.Dir(projectPath)
 	absProjectPath, _ := filepath.Abs(projectPath)
@@ -475,12 +469,18 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 			stopWatch := watchTapProgress(tap, pass, emit.Emit)
 			rCtx := flow.ResourceContext{ProjectDir: projectDir, SourceLocale: worker.SourceLang, TargetLocale: locale}
 			// One flow run per binding group, sequentially on this locale's
-			// worker: each group's bindings are on the worker before its tool
-			// chain is assembled. The tap counts across all of them, so the
-			// locale's progress is unaffected by how the sources split.
+			// worker: each group's bindings, resolved for this locale, are on
+			// the worker before its tool chain is assembled. The tap counts
+			// across all of them, so the locale's progress is unaffected by how
+			// the sources split.
 			var err error
 			for _, group := range groups {
-				worker.ProjectBindings = group.bindings
+				b, berr := groupBindings.at(group.Point, locale)
+				if berr != nil {
+					err = berr
+					break
+				}
+				worker.ProjectBindings = b
 				if err = worker.runProjectStepsOver(ctx, cmd, flowName, spec, &rCtx, group.Inputs); err != nil {
 					break
 				}
