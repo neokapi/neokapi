@@ -52,18 +52,27 @@ const emDash = "—"
 // thousand words of prose is allowed none.
 const wordsPerDash = 1000
 
-// allowedLiterals are the exact Go string values that may hold an em dash. In
-// each one the character is a character rather than prose:
+// allowedLiterals are the exact string values that may hold an em dash, in Go
+// source and in a catalog alike. In each one the character is a character
+// rather than prose:
 //
 //   - "—" on its own is an empty cell in a rendered table (the ai column of
-//     `kapi status --review`, the lift column of the context eval).
+//     `kapi status --review`, the lift column of the context eval, an empty
+//     value cell in the desktop's collections panel).
 //   - "—-( \t" is a cutset passed to strings.TrimLeft in scripts/contract-audit,
 //     which strips the punctuation a skip reason may open with.
 //
-// Anything with text around it is prose and is rewritten instead.
+// Anything with text around it is prose and is rewritten instead, " — " used as
+// a separator between two rendered pieces included.
 var allowedLiterals = map[string]bool{
 	emDash:   true,
 	"—-( \t": true,
+}
+
+// holdsEmDash reports whether a value carries an em dash the guard should
+// report: it contains one and is not one of the allowlisted exact values.
+func holdsEmDash(v string) bool {
+	return strings.Contains(v, emDash) && !allowedLiterals[v]
 }
 
 var generatedRe = regexp.MustCompile(`^// Code generated .* DO NOT EDIT\.$`)
@@ -194,7 +203,7 @@ func scanGoSource(path string, src []byte) ([]finding, error) {
 			// back to the raw text so nothing hides behind a quirk.
 			value = lit.Value
 		}
-		if !strings.Contains(value, emDash) || allowedLiterals[value] {
+		if !holdsEmDash(value) {
 			return true
 		}
 		pos := fset.Position(lit.Pos())
@@ -233,7 +242,7 @@ func scanCatalogFiles(paths []string) ([]finding, error) {
 func walkCatalog(path, pointer string, v any) []finding {
 	switch t := v.(type) {
 	case string:
-		if !strings.Contains(t, emDash) {
+		if !holdsEmDash(t) {
 			return nil
 		}
 		return []finding{{Path: path, Where: pointer, Value: t}}
@@ -401,7 +410,8 @@ func selfTestCatalogs() error {
 	      {"id": "a", "source": [{"text": "Staged, not committed @ run kapi commit"}]},
 	      {"id": "b", "source": [{"plural": {"forms": {"other": [{"text": "nested @ prose"}]}}}]},
 	      {"id": "c", "source": [{"text": "clean"}],
-	       "targets": {"nb": [{"text": "en oversettelse @ med tankestrek"}]}}
+	       "targets": {"nb": [{"text": "en oversettelse @ med tankestrek"}]}},
+	      {"id": "d", "source": [{"text": "@"}]}
 	    ]
 	  }]
 	}`)
@@ -420,6 +430,11 @@ func selfTestCatalogs() error {
 	}
 	if !strings.Contains(got[1].Value, "nested") {
 		return fmt.Errorf("catalogs: the plural form's text was not reached: %v", got)
+	}
+	for _, f := range got {
+		if f.Value == emDash {
+			return fmt.Errorf("catalogs: the bare glyph (an empty cell) was flagged: %v", f)
+		}
 	}
 	return nil
 }
