@@ -1,6 +1,6 @@
 {
-  "name": "Translate + Quality Check (Parallel)",
-  "description": "AI translate followed by an AI review, both with --parallel-blocks 2: two concurrent stages each processing blocks in parallel",
+  "name": "Translate + QA (Parallel)",
+  "description": "AI translate followed by QA check, both with --parallel-blocks 2: two concurrent stages each processing blocks in parallel",
   "nodes": [
     { "id": "reader", "type": "reader", "name": "json", "label": "JSON Reader" },
     {
@@ -14,7 +14,7 @@
       "id": "tool-1",
       "type": "tool",
       "name": "qa",
-      "label": "AI Review",
+      "label": "AI QA Check",
       "concurrency": 2
     },
     { "id": "writer", "type": "writer", "name": "json", "label": "JSON Writer" }

@@ -39,7 +39,7 @@ func BuiltInFlows() []flow.FlowDefinition {
 				{ID: "recycle", Type: flow.NodeTool, Name: "recycle", Label: "Memory Reuse", Position: flow.NodePosition{X: 0, Y: 100}},
 				{ID: "translate", Type: flow.NodeTool, Name: "translate", Label: "Translate", Position: flow.NodePosition{X: 250, Y: 100},
 					Config: map[string]any{"skipMatched": true}},
-				{ID: "qa", Type: flow.NodeTool, Name: "qa", Label: "Checks", Position: flow.NodePosition{X: 500, Y: 100}},
+				{ID: "qa", Type: flow.NodeTool, Name: "qa", Label: "Quality Check", Position: flow.NodePosition{X: 500, Y: 100}},
 			},
 			Edges: []flow.FlowEdge{
 				{ID: "e-recycle-translate", Source: "recycle", Target: "translate"},
@@ -53,10 +53,9 @@ func BuiltInFlows() []flow.FlowDefinition {
 			Source:      registry.SourceBuiltIn,
 			Nodes: []flow.FlowNode{
 				{ID: "translate", Type: flow.NodeTool, Name: "translate", Label: "Translate", Position: flow.NodePosition{X: 0, Y: 100}},
-				// LLM-judged review: pin a provider so the check step runs the
-				// AI judge rather than the deterministic default. --provider
-				// overrides it.
-				{ID: "qa", Type: flow.NodeTool, Name: "qa", Label: "AI Review", Position: flow.NodePosition{X: 250, Y: 100},
+				// Pin a provider so the check step runs the LLM judge rather
+				// than the deterministic default. --provider overrides it.
+				{ID: "qa", Type: flow.NodeTool, Name: "qa", Label: "Quality Check", Position: flow.NodePosition{X: 250, Y: 100},
 					Config: map[string]any{"provider": "anthropic"}},
 			},
 			Edges: []flow.FlowEdge{

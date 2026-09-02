@@ -25,7 +25,7 @@ export const FLOW_TEMPLATES: FlowTemplate[] = [
   {
     id: "translate-qa",
     get name() {
-      return t("Translate + Checks", "flow template name");
+      return t("Translate + Quality Check", "flow template name");
     },
     get description() {
       return t("AI-translate content then run quality checks to catch errors.");
@@ -100,7 +100,7 @@ export const FLOW_TEMPLATES: FlowTemplate[] = [
         {
           tool: "qa",
           get label() {
-            return t("Validate", "flow step label");
+            return t("Quality Check", "flow step label");
           },
         },
       ],
@@ -133,7 +133,7 @@ export const FLOW_TEMPLATES: FlowTemplate[] = [
             {
               tool: "qa",
               get label() {
-                return t("Rule-based checks", "flow step label");
+                return t("Quality Check", "flow step label");
               },
             },
             {
@@ -186,7 +186,7 @@ export const FLOW_TEMPLATES: FlowTemplate[] = [
             {
               tool: "qa",
               get label() {
-                return t("Rule-based checks", "flow step label");
+                return t("Quality Check", "flow step label");
               },
             },
             {
