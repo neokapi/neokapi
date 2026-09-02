@@ -285,6 +285,7 @@ so `kapi kgrep` and `kgrep` behave identically ([S-04](s-04-toolbox.md)).
 - [S-02: Kapi Desktop](s-02-kapi-desktop.md): the visual companion sharing this credential store
 - [S-03: Agent surfaces](s-03-agent-surfaces.md): MCP, skills, and the hooks
 - [S-04: Toolbox utilities](s-04-toolbox.md): the multi-call names on this binary
+- [S-07: The review model](s-07-context-centric-review.md): what `kapi status --review` renders
 - [WASM Engine ABI](/contribute/implementation/surfaces/wasm-engine-abi): the browser build's command set and its recorded gaps
 - [Command reference](/reference/commands/up): the generated, per-command surface
 - [Scripting & JSON contract](/reference/cli-contract): structured results, progress events, exit codes

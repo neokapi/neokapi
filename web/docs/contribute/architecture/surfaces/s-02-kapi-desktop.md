@@ -309,4 +309,5 @@ the package manager.
 - [S-03: Agent surfaces](s-03-agent-surfaces.md): the MCP face the parity record also holds
 - [S-05: The i18n runtime for React](s-05-i18n-runtime.md): the runtime the desktop's own interface uses
 - [S-06: The visual editor data model](s-06-visual-editor.md): the preview kit the desktop hosts
+- [S-07: The review model](s-07-context-centric-review.md): the model the queue's detail pane and the document view render
 - [Kapi Desktop overview](/kapi/desktop/overview): the user-facing guide
