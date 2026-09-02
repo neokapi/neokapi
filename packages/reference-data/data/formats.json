@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-02T17:27:33Z",
+  "generatedAt": "2026-09-02T20:39:28Z",
   "kind": "format",
   "entries": [
     {
@@ -827,7 +827,7 @@
       "source": "built-in",
       "kind": "format",
       "displayName": "DocLang",
-      "description": "Read and write DocLang — the LF AI \u0026 Data open standard (.dclg.xml) for AI-native documents, with semantic roles and page geometry.",
+      "description": "Read and write DocLang, the LF AI \u0026 Data open standard (.dclg.xml) for AI-native documents, with semantic roles and page geometry.",
       "extensions": [
         ".dclg.xml",
         ".xml"
@@ -860,7 +860,7 @@
       "source": "built-in",
       "kind": "format",
       "displayName": "DoclingDocument JSON",
-      "description": "Read DoclingDocument JSON — Docling's native, lossless serialization — into the content model with semantic roles and page geometry.",
+      "description": "Read DoclingDocument JSON, Docling's native and lossless serialization, into the content model with semantic roles and page geometry.",
       "extensions": [
         ".json"
       ],
@@ -1370,7 +1370,7 @@
       "source": "built-in",
       "kind": "format",
       "displayName": "Image",
-      "description": "Translate raster images — emit the picture as a translatable Media asset, recognize embedded text with OCR, and translate alt-text/caption sidecars.",
+      "description": "Translate raster images by emitting the picture as a translatable Media asset, recognizing embedded text with OCR, and translating alt-text/caption sidecars.",
       "extensions": [
         ".png",
         ".jpg",
@@ -1819,7 +1819,7 @@
           "extractNonTranslatableContent": {
             "type": "boolean",
             "title": "Extract non-translatable content",
-            "description": "If true (default), non-translatable string content — isolated array strings and values excluded by the extraction rules — is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton.",
+            "description": "If true (default), non-translatable string content (isolated array strings and values excluded by the extraction rules) is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton.",
             "default": true
           },
           "extractionRules": {
@@ -2517,7 +2517,7 @@
       "source": "built-in",
       "kind": "format",
       "displayName": "MO (Gettext, binary)",
-      "description": "Write compiled GNU gettext MO catalogs — the binary runtime form of a PO file.",
+      "description": "Write compiled GNU gettext MO catalogs, the binary runtime form of a PO file.",
       "extensions": [
         ".mo"
       ],
@@ -2616,7 +2616,7 @@
           "extractNonTranslatableContent": {
             "type": "boolean",
             "title": "Extract non-translatable content",
-            "description": "If true (default), non-translatable contextual content — image accessibility text (svg:title/svg:desc alt-text and long descriptions) and form-control display strings (form:label/form:title/form:help-text) — is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton.",
+            "description": "If true (default), non-translatable contextual content, namely image accessibility text (svg:title/svg:desc alt-text and long descriptions) and form-control display strings (form:label/form:title/form:help-text), is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton.",
             "default": true
           },
           "translateHiddenContent": {
@@ -2831,7 +2831,7 @@
           "extractNonTranslatableContent": {
             "type": "boolean",
             "title": "Extract non-translatable content",
-            "description": "If true (default), non-translatable contextual content is surfaced — image/shape alt-text (descr/title on docPr/cNvPr) as content blocks (visible to ingestion/LLM consumers, skipped by machine translation), and PowerPoint/Excel comment text as data parts — instead of being hidden in opaque skeleton. Disable to keep it opaque.",
+            "description": "If true (default), non-translatable contextual content is surfaced: image/shape alt-text (descr/title on docPr/cNvPr) as content blocks (visible to ingestion/LLM consumers, skipped by machine translation), and PowerPoint/Excel comment text as data parts, instead of being hidden in opaque skeleton. Disable to keep it opaque.",
             "default": true
           },
           "extractRunFontsInfo": {
@@ -3625,7 +3625,7 @@
         "$id": "",
         "$version": "",
         "title": "SRT Subtitles",
-        "description": "SubRip subtitle format — no configurable parameters",
+        "description": "SubRip subtitle format: no configurable parameters",
         "type": "object",
         "formatMeta": {
           "id": "srt",

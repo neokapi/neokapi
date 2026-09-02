@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-09-02T17:27:33Z",
+  "generatedAt": "2026-09-02T20:39:28Z",
   "tools": [
     {
       "name": "apply_edits",
-      "description": "Apply a typed change-set — the one write verb. Content edits land through the byte-faithful round-trip (structure and inline codes preserved, drift-guarded by content_hash); asset edits (terms entry, content memory pair, voice rule, recipe field) are written to their committed source and compiled into the cache. No AI provider is used.",
+      "description": "Apply a typed change-set: the one write verb. Content edits land through the byte-faithful round-trip (structure and inline codes preserved, drift-guarded by content_hash); asset edits (terms entry, content memory pair, voice rule, recipe field) are written to their committed source and compiled into the cache. No AI provider is used.",
       "surface": "default",
       "params": [
         {
@@ -212,7 +212,7 @@
     },
     {
       "name": "context_search",
-      "description": "Ask what this project's content context says about a word or phrase — what it is called here, whether it is discouraged and what to say instead, and wording the project has already approved. One question across every store the project binds; you do not need to know which one holds the answer. Ask BEFORE writing: learning the same fact from a failing check afterwards is the expensive route. Results are grouped by kind, and say what could not be reached.",
+      "description": "Ask what this project's content context says about a word or phrase: what it is called here, whether it is discouraged and what to say instead, and wording the project has already approved. One question across every store the project binds; you do not need to know which one holds the answer. Ask BEFORE writing: learning the same fact from a failing check afterwards is the expensive route. Results are grouped by kind, and say what could not be reached.",
       "surface": "default",
       "params": [
         {
@@ -417,7 +417,7 @@
           "name": "engine",
           "type": "string",
           "required": false,
-          "description": "llm (AI provider; default) / ner (local on-device model — nothing leaves the machine) / hybrid (both)"
+          "description": "llm (AI provider; default) / ner (local on-device model: nothing leaves the machine) / hybrid (both)"
         },
         {
           "name": "knownTerms",
@@ -453,7 +453,7 @@
     },
     {
       "name": "extract_content",
-      "description": "Parse a file into translatable content blocks — each block's id, content_hash, source text (inline codes rendered as \u003cx id=\"…\"/\u003e placeholders), and word count. The read leg of the edit loop: edit a block's text keeping the placeholders, then send it back via apply_edits (or kapi apply).",
+      "description": "Parse a file into translatable content blocks: each block's id, content_hash, source text (inline codes rendered as \u003cx id=\"…\"/\u003e placeholders), and word count. The read leg of the edit loop: edit a block's text keeping the placeholders, then send it back via apply_edits (or kapi apply).",
       "surface": "default",
       "params": [
         {
@@ -1501,7 +1501,7 @@
     },
     {
       "name": "stats",
-      "description": "Size files before processing them: per-file and total content metrics — blocks (translatable and not), words, characters (with and without spaces, plus the unique-character inventory), segments when available, and a by-role breakdown. Works on any supported format (Word, PowerPoint, JSON, XLIFF, Markdown, HTML, …) and returns the same JSON `kapi stats --json` emits.",
+      "description": "Size files before processing them. Reports per-file and total content metrics: blocks (translatable and not), words, characters (with and without spaces, plus the unique-character inventory), segments when available, and a by-role breakdown. Works on any supported format (Word, PowerPoint, JSON, XLIFF, Markdown, HTML, …) and returns the same JSON `kapi stats --json` emits.",
       "surface": "default",
       "params": [
         {
@@ -1692,7 +1692,7 @@
     },
     {
       "name": "up",
-      "description": "Bring a kapi project up to date against its ship gates: re-extract drifted sources, run the default flow (content memory reuse then AI translate) over every target language — concurrently per language — loop until every gated scope is shippable or parks for a human, and run the project's bound checks each pass. In a project connected to a Bowrain server the run happens there (push, converge on the org's keys and shared content memory, pull the results); pass local to run the loop on this machine instead. Never fails on pending target work: parked units are reported, not thrown. Returns the structured result (per-locale standing, parked scopes, materialized files). Use up_plan first to see the pending work and token estimate.",
+      "description": "Bring a kapi project up to date against its ship gates: re-extract drifted sources, run the default flow (content memory reuse then AI translate) over every target language, concurrently per language, loop until every gated scope is shippable or parks for a human, and run the project's bound checks each pass. In a project connected to a Bowrain server the run happens there (push, converge on the org's keys and shared content memory, pull the results); pass local to run the loop on this machine instead. Never fails on pending target work: parked units are reported, not thrown. Returns the structured result (per-locale standing, parked scopes, materialized files). Use up_plan first to see the pending work and token estimate.",
       "surface": "default",
       "params": [
         {
@@ -2034,7 +2034,7 @@
       "uriTemplate": "context://profile/{name}{?format}",
       "name": "context-for-profile",
       "title": "Context of a named profile",
-      "description": "What this project's context says applies at one place: the voice profile in force with its full guidance, the terms bound there, and the governance windows around them. Read this BEFORE writing or editing content at that location. Returns markdown by default; append `?format=json` for the structured shape. Addresses a governance profile by name — for a caller with no file in hand, e.g. `context://profile/marketing`.",
+      "description": "What this project's context says applies at one place: the voice profile in force with its full guidance, the terms bound there, and the governance windows around them. Read this BEFORE writing or editing content at that location. Returns markdown by default; append `?format=json` for the structured shape. Addresses a governance profile by name, for a caller with no file in hand, e.g. `context://profile/marketing`.",
       "mimeType": "text/markdown"
     },
     {

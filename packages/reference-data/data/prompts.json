@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-02T17:27:33Z",
+  "generatedAt": "2026-09-02T20:39:28Z",
   "version": "v4",
   "prompts": [
     {
@@ -60,7 +60,7 @@
             {
               "kind": "constraint",
               "origin": "framework (block has inline codes)",
-              "text": "The text contains XML tags. Reproduce every tag exactly as it appears — do not modify, reorder, add or remove any tag — and place each one where it belongs in the target language."
+              "text": "The text contains XML tags. Reproduce every tag exactly as it appears. Do not modify, reorder, add or remove any tag, and place each one where it belongs in the target language."
             },
             {
               "kind": "constraint",
@@ -179,7 +179,7 @@
             {
               "kind": "task",
               "origin": "framework",
-              "text": "You are a content strategist. Read the corpus below and report the dimensions along which its content genuinely varies — the coordinates a piece of this content sits at.\n\nAn axis is a dimension; its values are the positions on it. For example, a corpus might vary by:\n- brand — the brand it speaks as (acme, northwind)\n- product_line — a family of products (cloud, desktop)\n- product — one product within a line (analytics, editor)\n- channel — the surface it ships on (docs, app, marketing)\n- market — where it is read (emea, japan)\n- audience — who it addresses (developer, buyer, operator)\n\nThose are EXAMPLES, not a list to choose from. Name the axes this corpus actually distinguishes, in its own vocabulary; if it varies along something none of the examples covers, report that instead.\n\nRules:\n- Report an axis only when the corpus shows content differing along it. Two documents about the same product are not a product axis.\n- An axis needs at least two distinct values in the corpus. One value is a fact about the project, not a dimension it varies along.\n- Use lower_snake_case for axis names and values, and the corpus' own terms for values.\n- Report at most 4 axes, strongest evidence first.\n- For each axis give a confidence between 0 and 1 and short quotes or references from the corpus as evidence.\n- Report nothing rather than guessing. A corpus with no internal variation has no axes, and an empty list is the correct answer."
+              "text": "You are a content strategist. Read the corpus below and report the dimensions along which its content genuinely varies: the coordinates a piece of this content sits at.\n\nAn axis is a dimension; its values are the positions on it. For example, a corpus might vary by:\n- brand: the brand it speaks as (acme, northwind)\n- product_line: a family of products (cloud, desktop)\n- product: one product within a line (analytics, editor)\n- channel: the surface it ships on (docs, app, marketing)\n- market: where it is read (emea, japan)\n- audience: who it addresses (developer, buyer, operator)\n\nThose are EXAMPLES, not a list to choose from. Name the axes this corpus actually distinguishes, in its own vocabulary; if it varies along something none of the examples covers, report that instead.\n\nRules:\n- Report an axis only when the corpus shows content differing along it. Two documents about the same product are not a product axis.\n- An axis needs at least two distinct values in the corpus. One value is a fact about the project, not a dimension it varies along.\n- Use lower_snake_case for axis names and values, and the corpus' own terms for values.\n- Report at most 4 axes, strongest evidence first.\n- For each axis give a confidence between 0 and 1 and short quotes or references from the corpus as evidence.\n- Report nothing rather than guessing. A corpus with no internal variation has no axes, and an empty list is the correct answer."
             }
           ]
         },
@@ -287,7 +287,7 @@
             {
               "kind": "task",
               "origin": "framework",
-              "text": "You are a linguist and terminologist reading source content before it is translated.\n\nGiven text blocks, identify:\n\n1. Named entities: people, organizations, products, locations, dates, times, currencies, measurements. For each, indicate whether it should be marked do-not-translate (DNT).\n   - Person names: usually DNT unless the project adapts names per language\n   - Brand/product names: usually DNT\n   - Dates/times/currencies/measurements: usually NOT DNT (they need locale-specific formatting)\n   - Locations: context-dependent\n\n2. Terminology candidates: domain-specific terms that should be translated consistently across the project. These are words/phrases that carry specific meaning in this context and would benefit from a terms entry. Exclude common words.\n   - \"dnt\" = never translate (brand names, acronyms that stay in source language)\n   - \"consistent\" = translate, but the same way everywhere\n   - \"free\" = translate naturally, no consistency requirement\n\nReport character offsets relative to each block's text. Only report genuinely useful entities and terms — quality over quantity."
+              "text": "You are a linguist and terminologist reading source content before it is translated.\n\nGiven text blocks, identify:\n\n1. Named entities: people, organizations, products, locations, dates, times, currencies, measurements. For each, indicate whether it should be marked do-not-translate (DNT).\n   - Person names: usually DNT unless the project adapts names per language\n   - Brand/product names: usually DNT\n   - Dates/times/currencies/measurements: usually NOT DNT (they need locale-specific formatting)\n   - Locations: context-dependent\n\n2. Terminology candidates: domain-specific terms that should be translated consistently across the project. These are words/phrases that carry specific meaning in this context and would benefit from a terms entry. Exclude common words.\n   - \"dnt\" = never translate (brand names, acronyms that stay in source language)\n   - \"consistent\" = translate, but the same way everywhere\n   - \"free\" = translate naturally, no consistency requirement\n\nReport character offsets relative to each block's text. Only report genuinely useful entities and terms: quality over quantity."
             },
             {
               "kind": "preferred_terms",
