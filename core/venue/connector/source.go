@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // PushOptions configures a push operation from a source system to Bowrain.
@@ -68,6 +69,17 @@ type PushResult struct {
 	// An ingest that FAILED is never a field: it is an error from Push, and the
 	// sync cache is left unwritten so the next push sends the content again.
 	Ingest string
+
+	// Governance is what the venue's review gate did not accept: approvals
+	// and sign-offs this push carried that the pusher was not entitled to
+	// make. The content landed regardless, at translated. Nil when the push
+	// carried no verdict, or when every verdict it carried was accepted.
+	Governance *venue.PushGovernance
+
+	// VerdictsRetired counts the project's own records this push brought
+	// into line with the venue's answer, so the same refused verdicts are
+	// not sent again on every push from here on.
+	VerdictsRetired int
 }
 
 // Ingest states reported by PushResult.Ingest.

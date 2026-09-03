@@ -15,6 +15,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/ref"
 	"github.com/neokapi/neokapi/core/storage/compression"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // defaultHTTPClient is the http.Client used by package-level helper functions.
@@ -183,6 +184,13 @@ type SyncPushResponse struct {
 	// the components this push put in force are its own to record, and this
 	// fills in the rest without a second round trip.
 	ServerRef *ref.Ref `json:"-"`
+
+	// Governance is what the venue's review gate already knows it will not
+	// accept: verdicts this push carries for a language the pusher holds no
+	// review permission for. The venue checks the rest in the worker and
+	// reports it on the status endpoint, so this is an early half of the
+	// same answer, not a different one.
+	Governance *venue.PushGovernance `json:"governance,omitempty"`
 }
 
 // ChangeEntry represents a single change log entry from the server.
@@ -210,6 +218,12 @@ type PushStatusResponse struct {
 	Completed  int    `json:"completed"`
 	Failed     int    `json:"failed"`
 	InProgress int    `json:"in_progress"`
+
+	// Governance is what the venue's review gate refused: the approvals and
+	// sign-offs this push carried that the pusher was not entitled to make.
+	// The verdicts were not recorded and the rungs were not written; the
+	// content landed regardless, at translated.
+	Governance *venue.PushGovernance `json:"governance,omitempty"`
 }
 
 // BlockContent represents a block with its translations from the server.

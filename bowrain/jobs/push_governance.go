@@ -60,7 +60,6 @@ type pushGovernor struct {
 	accepted []acceptedRung
 }
 
-
 // recordPushGovernance stores what the review gate refused on the push's job
 // row, where the status endpoint reads it back for the waiting `kapi push`.
 //

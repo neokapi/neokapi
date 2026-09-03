@@ -76,6 +76,10 @@ func runPush(cmd *cobra.Command, args []string) error {
 		AssetsFailed:          pr.AssetsFailed,
 		AssetErrors:           pr.AssetErrors,
 		Ingest:                pr.Ingest,
+		VerdictsRetired:       pr.VerdictsRetired,
+	}
+	if pr.Governance != nil {
+		out.VerdictsRefused = pr.Governance.Refusals
 	}
 	if pr.Brand != nil {
 		out.VoiceProfile = pr.Brand.Name

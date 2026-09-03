@@ -18,6 +18,7 @@ import (
 	"context"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/venue"
 	"github.com/neokapi/neokapi/core/venue/connector"
 	"github.com/neokapi/neokapi/host"
 	"github.com/neokapi/neokapi/host/venue/project"
@@ -67,6 +68,12 @@ type PushResult struct {
 	// UndeclaredCollections names recipe-owned collections the server holds
 	// that this push no longer declares. Reported, never deleted.
 	UndeclaredCollections []string
+
+	// Governance is what the venue's review gate did not accept, and
+	// VerdictsRetired how many of the project's own records were brought
+	// into line with that answer.
+	Governance      *venue.PushGovernance
+	VerdictsRetired int
 }
 
 // PullResult holds the structured result of a pull.
@@ -140,6 +147,8 @@ func Push(ctx context.Context, app *host.App, opts PushOptions) (*PushResult, *s
 		AssetsFailed:          result.AssetsFailed,
 		AssetErrors:           result.AssetErrors,
 		Ingest:                result.Ingest,
+		Governance:            result.Governance,
+		VerdictsRetired:       result.VerdictsRetired,
 	}
 	if opts.DryRun {
 		pr.DryRun = true
