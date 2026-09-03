@@ -42,6 +42,8 @@ export interface ProjectSettingsPageProps {
   pluginIssues?: PluginIssue[];
   /** Injected in tests and stories; production reads the Wails backend. */
   governance?: RecipeGovernance;
+  /** Navigate to a global app view (e.g. app-settings). Absent in Storybook/tests. */
+  onNavigate?: (view: string) => void;
 }
 
 const ENCODING_OPTIONS = ["UTF-8", "UTF-16", "ISO-8859-1", "Windows-1252", "Shift_JIS", "EUC-JP"];
@@ -86,6 +88,7 @@ export function ProjectSettingsPage({
   installedPlugins: propInstalled,
   pluginIssues,
   governance,
+  onNavigate,
 }: ProjectSettingsPageProps) {
   const { showError } = useError();
   const defaults = project.defaults ?? {};
@@ -377,7 +380,14 @@ export function ProjectSettingsPage({
 
               {installedByName.size === 0 && (
                 <p className="text-xs text-muted-foreground">
-                  No plugins installed. Install plugins from the Plugins manager in app Settings.
+                  {t("No plugins installed.")}{" "}
+                  <button
+                    type="button"
+                    className="text-left underline underline-offset-2 hover:text-foreground"
+                    onClick={() => onNavigate?.("app-settings")}
+                  >
+                    {t("Install plugins from the Plugins manager in app Settings.")}
+                  </button>
                 </p>
               )}
             </CardContent>
