@@ -23,9 +23,9 @@ import (
 
 // The platform is authoritative for review governance: a push moves content, it
 // does not decide. These tests are the proof, and they run the whole worker
-// against a real store, because every part of the answer — the rung on a
-// decoded block, the ledger row, the authorship the policy reads — is
-// persistence rather than arithmetic.
+// against a real store, because every part of the answer is persistence
+// rather than arithmetic: the rung on a decoded block, the ledger row, the
+// authorship the policy reads.
 
 // pushAuthority is a review.Authority with the answers stated rather than
 // resolved: which languages the pusher may review, and what the workspace

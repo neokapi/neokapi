@@ -15,10 +15,9 @@ import (
 //
 // A push sends the project's committed decision record and compares its fold
 // against the venue's. When the venue refuses a verdict it keeps the basis and
-// not the verdict, so the two folds differ — and they will go on differing,
-// push after push, until the project's own record follows. Every one of those
-// pushes would send the same refused approvals, be refused again, and report it
-// again.
+// not the verdict, so the two folds differ, and they go on differing push after
+// push until the project's own record follows. Every one of those pushes sends
+// the same refused approvals, is refused again, and reports it again.
 //
 // So the property under test is the one the loop needs: after the refusal, the
 // project's record folds to exactly what the venue holds, and `kapi status` has

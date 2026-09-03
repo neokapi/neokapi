@@ -20,16 +20,15 @@ import (
 
 // A push moves content. It does not decide.
 //
-// The payload can carry both halves of a review verdict: a target at a rung
+// The payload carries both halves of a review verdict: a target at a rung
 // above translated, and a decision record saying who approved it. Both are
-// written by whoever ran `kapi push`, and until this gate existed both were
-// stored as sent — so anyone holding the permission to write files also held,
-// in practice, the permission to approve every unit in the project, from a
-// laptop, in one command.
+// written by whoever ran `kapi push`, so storing them as sent would give
+// anyone holding the permission to write files the permission to approve every
+// unit in the project, from a laptop, in one command.
 //
-// So every rung above translated and every verdict a push carries is put to
-// the same two questions the platform's own review surfaces ask: does this
-// user hold review permission for that language in that project, and does the
+// So every rung above translated and every verdict a push carries is put to the
+// same two questions the platform's own review surfaces ask: does this user
+// hold review permission for that language in that project, and does the
 // workspace separation-of-duties policy pass with them as the decider. The
 // answer comes from bowrain/review, which the web routes ask as well.
 //
@@ -130,7 +129,7 @@ type acceptedRung struct {
 // target by hand, the workspace policy, and the pusher's review permission for
 // each language a verdict names.
 //
-// It reports an error when a question could not be ASKED — an unreadable
+// It reports an error when a question could not be ASKED: an unreadable
 // authorship table, a permission lookup that failed, a deployment with no way
 // to resolve permissions at all. That fails the push, which is the only safe
 // reading: demoting on an unanswerable question would silently discard an
@@ -365,7 +364,7 @@ func (g *pushGovernor) vetTargets(staged []stagedGroup) {
 				prior := g.priorStatus[platstore.TargetRef{BlockID: blockID, Locale: locale}]
 				if target.Status.Rank() <= prior.Rank() {
 					// The venue already holds this rung, or a higher one. The
-					// push claims nothing new, so there is nothing to judge —
+					// push claims nothing new, so there is nothing to judge,
 					// and judging it would let a pusher without review
 					// permission UNDO an approval by sending it back.
 					continue
@@ -390,8 +389,8 @@ func (g *pushGovernor) vetTargets(staged []stagedGroup) {
 }
 
 // refusedRung is where a refused target lands: the rung a translation nobody
-// has approved sits on — translated when it carries a translation, draft when
-// it does not — or the rung the venue already holds, whichever is higher.
+// has approved sits on (translated when it carries a translation, draft when
+// it does not), or the rung the venue already holds, whichever is higher.
 //
 // Never lower than the venue's own. A refusal withholds what the push asked
 // for; it does not undo what somebody with the right to decide already did.
@@ -411,7 +410,7 @@ func refusedRung(target *model.Target, prior model.TargetStatus) model.TargetSta
 // A record whose verdict the gate refuses is kept as the basis it carries and
 // nothing more: the venue records that a translation exists and which source it
 // was written for, and records nobody as having approved it. A record the
-// ledger already holds passes whatever the gate says — re-sending what the
+// ledger already holds passes whatever the gate says: re-sending what the
 // platform decided is not a decision, and refusing it would make every push
 // after a legitimate approval report a refusal.
 //
@@ -490,10 +489,10 @@ type unitVariantRef struct{ item, unit, variant string }
 
 // sameVerdict reports whether the venue already holds this exact verdict for
 // this unit: the same rung, the same review state, and the same pairing of
-// translation and source. The decider and the time are not part of it — a
-// producer re-sending a record it pulled carries the platform's own attribution
-// back, and a producer that never pulled carries its own, and neither is a new
-// decision about a verdict the ledger already holds.
+// translation and source. The decider and the time are not part of it: a
+// producer re-sending a record it pulled carries the platform's own
+// attribution back and a producer that never pulled carries its own, and
+// neither is a new decision about a verdict the ledger already holds.
 func sameVerdict(a, b venue.UnitDecision) bool {
 	return a.Status == b.Status &&
 		a.ReviewState == b.ReviewState &&

@@ -12,9 +12,9 @@ import (
 // The producer's side of the venue's review governance.
 //
 // A venue is authoritative about what has been approved in it. A push can carry
-// an approval the venue declines to accept — the pusher holds no review
-// permission for that language, or the workspace refuses a verdict on work its
-// author wrote — and the venue then stores the translation without the verdict.
+// an approval the venue declines to accept, because the pusher holds no review
+// permission for that language or the workspace refuses a verdict on work its
+// author wrote. The venue then stores the translation without the verdict.
 //
 // The project's own record has to follow, or the two disagree forever: the
 // decisions component of the freshness ref would keep differing, so every push
