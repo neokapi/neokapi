@@ -461,8 +461,8 @@ func (g *pushGovernor) vetDecisions(held []venue.UnitDecision, decisions []venue
 			continue
 		}
 		ref := unitVariantRef{item: d.ItemName, unit: d.Unit, variant: d.Variant}
-		prior, held := ledger[ref]
-		if held && sameVerdict(prior, d) {
+		prior, inLedger := ledger[ref]
+		if inLedger && sameVerdict(prior, d) {
 			// Already held. Keep the ledger's decider: the platform recorded
 			// who decided, and a re-push is not a second decision.
 			d.DecidedBy = prior.DecidedBy
@@ -475,7 +475,7 @@ func (g *pushGovernor) vetDecisions(held []venue.UnitDecision, decisions []venue
 		kind := d.VerdictKind()
 		refuse := func(reason string) {
 			g.counts[refusalRef{locale: refusalLocale(locale, d.Variant), kind: kind, reason: reason}]++
-			if held && prior.CarriesVerdict() {
+			if inLedger && prior.CarriesVerdict() {
 				// The venue holds a verdict of its own here. Writing the basis
 				// would erase it, which is how a refusal turns into the very
 				// override it exists to prevent. The venue's record stands, and
