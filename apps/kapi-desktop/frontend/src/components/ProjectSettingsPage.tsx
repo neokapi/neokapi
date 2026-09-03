@@ -20,6 +20,8 @@ import {
   Collapsible,
   CollapsibleTrigger,
   CollapsibleContent,
+  PageHeader,
+  SectionHeading,
 } from "@neokapi/ui-primitives";
 import type {
   KapiProject,
@@ -152,15 +154,14 @@ export function ProjectSettingsPage({
 
   return (
     <div className="p-6">
-      <h1 className="mb-6 text-xl font-semibold">Project Settings</h1>
+      <PageHeader title="Project Settings" />
 
       <div className="max-w-2xl space-y-6">
         {/* Languages */}
         <section>
-          <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-            <Globe size={14} />
+          <SectionHeading className="mb-3" icon={<Globe size={14} />}>
             Languages
-          </h2>
+          </SectionHeading>
           <Card>
             <CardContent className="space-y-4 p-4">
               <div className="grid grid-cols-2 gap-4">
@@ -190,10 +191,9 @@ export function ProjectSettingsPage({
 
         {/* Files — how content is read from and written to disk */}
         <section>
-          <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-            <HardDrive size={14} />
+          <SectionHeading className="mb-3" icon={<HardDrive size={14} />}>
             Files
-          </h2>
+          </SectionHeading>
           <Card>
             <CardContent className="space-y-4 p-4">
               <div>
@@ -261,10 +261,9 @@ export function ProjectSettingsPage({
 
         {/* Plugins */}
         <section>
-          <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-            <Plug size={14} />
+          <SectionHeading className="mb-3" icon={<Plug size={14} />}>
             Plugins
-          </h2>
+          </SectionHeading>
 
           {/* Plugin issues warning */}
           {pluginIssues && pluginIssues.length > 0 ? (
@@ -433,10 +432,9 @@ export function ProjectSettingsPage({
 
         {/* Processing */}
         <section>
-          <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-            <Cpu size={14} />
+          <SectionHeading className="mb-3" icon={<Cpu size={14} />}>
             Processing
-          </h2>
+          </SectionHeading>
           <Card>
             <CardContent className="space-y-3 p-4">
               <p className="text-xs text-muted-foreground">
@@ -510,10 +508,9 @@ export function ProjectSettingsPage({
         {/* Per-format defaults */}
         {hasFormatDefaults && (
           <section>
-            <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-              <FileType size={14} />
+            <SectionHeading className="mb-3" icon={<FileType size={14} />}>
               Format Defaults
-            </h2>
+            </SectionHeading>
             <Card>
               <CardContent className="space-y-4 p-4">
                 <p className="text-xs text-muted-foreground">

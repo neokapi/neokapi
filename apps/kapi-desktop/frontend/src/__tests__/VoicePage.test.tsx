@@ -54,7 +54,8 @@ describe("VoicePage", () => {
     expect(within(screen.getByTestId("voice-personality")).getByText("clear")).toBeInTheDocument();
 
     const patterns = screen.getAllByTestId("voice-pattern");
-    expect(patterns[0]).toHaveTextContent("synergy");
+    // The human-readable description is the label; the regex is behind a tooltip.
+    expect(patterns[0]).toHaveTextContent("Corporate filler.");
     expect(patterns[0]).toHaveTextContent("up to 2 per 1000 words");
 
     expect(screen.getAllByTestId("voice-example")[0]).toHaveTextContent("Use the portal.");

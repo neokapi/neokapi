@@ -352,6 +352,7 @@ export { TagInput, type TagInputProps } from "./components/ui/tag-input";
 
 // Layout components
 export { PageHeader } from "./components/PageHeader";
+export { SectionHeading } from "./components/SectionHeading";
 export { PanelHeader } from "./components/PanelHeader";
 export { LoadingSpinner } from "./components/LoadingSpinner";
 export { EmptyState } from "./components/EmptyState";

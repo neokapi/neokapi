@@ -30,6 +30,7 @@ import {
   Markdown,
   ScrollArea,
   LoadingSpinner,
+  PageHeader,
 } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
 import { useQuery } from "@tanstack/react-query";
@@ -173,166 +174,174 @@ export function ToolRunnerPage({
   const selectedToolInfo = tools.find((t) => t.name === selectedTool);
 
   return (
-    <div className="flex h-full">
-      {/* Left panel: tool browser */}
-      <div className="w-72 shrink-0 border-r border-border flex flex-col overflow-hidden">
-        {/* Search */}
-        <div className="p-3 border-b border-border">
-          <div className="relative">
-            <Search
-              size={13}
-              className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
-            />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search tools..."
-              className="w-full rounded-md border border-input bg-transparent pl-8 pr-3 py-1.5 text-xs outline-none focus:ring-1 focus:ring-ring"
-            />
-          </div>
-
-          {/* Category filter chips */}
-          <div className="flex flex-wrap gap-1 mt-2">
-            <Button
-              variant={!filterCategory ? "default" : "secondary"}
-              size="xs"
-              onClick={() => setFilterCategory(null)}
-            >
-              All ({tools.length})
-            </Button>
-            {Array.from(categories.entries()).map(([cat, catTools]) => {
-              const meta = categoryMeta(cat);
-              // The button body is NOT extracted as a block (translate="no")
-              // because `meta.label` is already a `t()`-resolved string from
-              // `categoryMeta()`. Extracting would wrap the whole body in a
-              // second translation, producing `▒ ▒ Utility ▒ (32) ▒` in
-              // pseudo. The count is numeric — no translation needed.
-              return (
-                <Button
-                  key={cat}
-                  translate="no"
-                  variant={filterCategory === cat ? "default" : "secondary"}
-                  size="xs"
-                  onClick={() => setFilterCategory(filterCategory === cat ? null : cat)}
-                >
-                  {meta.label} ({catTools.length})
-                </Button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Tool list */}
-        <ScrollArea className="flex-1">
-          <div className="p-2">
-            {loading ? (
-              <LoadingSpinner size="sm" text="Loading tools..." className="px-2 py-4" />
-            ) : (
-              <div className="space-y-0.5">
-                {filteredTools.map((tool) => {
-                  const cat = tool.category || "utility";
-                  const meta = categoryMeta(cat);
-                  const Icon = meta.icon;
-                  const hasStepDoc =
-                    resolveStepDoc(tool.name, docs) || docsSummary?.stepIDs?.includes(tool.name);
-                  const isSelected = selectedTool === tool.name;
-
-                  return (
-                    <div
-                      key={tool.name}
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => setSelectedTool(tool.name)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") setSelectedTool(tool.name);
-                      }}
-                      className={`cursor-pointer rounded-lg px-3 py-2.5 text-left transition-colors ${
-                        isSelected
-                          ? "bg-accent border border-primary/20 shadow-sm"
-                          : "hover:bg-accent/50 border border-transparent"
-                      }`}
-                    >
-                      <div className="flex items-start gap-2.5">
-                        <div className={`mt-0.5 shrink-0 p-1 rounded ${meta.color}`}>
-                          <Icon size={12} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span
-                              className={`text-xs font-semibold ${isSelected ? "text-primary" : "text-foreground"}`}
-                            >
-                              {tool.display_name || tool.name}
-                            </span>
-                            {tool.source && tool.source !== "built-in" && (
-                              <Badge
-                                variant="secondary"
-                                className="text-[8px] px-1 py-px bg-violet-500/10 text-violet-600 dark:text-violet-400 shrink-0"
-                              >
-                                {tool.source}
-                              </Badge>
-                            )}
-                            {tool.has_schema && (
-                              <Settings2 size={9} className="text-muted-foreground shrink-0" />
-                            )}
-                            {hasStepDoc && (
-                              <BookOpen size={9} className="text-primary/50 shrink-0" />
-                            )}
-                          </div>
-                          <div className="text-[10px] text-muted-foreground line-clamp-2 mt-0.5">
-                            <Markdown inline>{tool.description}</Markdown>
-                          </div>
-                          {tool.tags && tool.tags.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-1">
-                              {tool.tags.slice(0, 3).map((tag) => (
-                                <Badge
-                                  key={tag}
-                                  variant="secondary"
-                                  className="text-[8px] px-1 py-px"
-                                >
-                                  {tag}
-                                </Badge>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                        <ChevronRight
-                          size={12}
-                          className={`mt-1 shrink-0 transition-colors ${
-                            isSelected ? "text-primary" : "text-muted-foreground/30"
-                          }`}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-                {filteredTools.length === 0 && !loading && (
-                  <p className="px-3 py-4 text-xs text-muted-foreground text-center">
-                    {search ? t("No tools match your search.") : t("No tools available.")}
-                  </p>
-                )}
-              </div>
-            )}
-          </div>
-        </ScrollArea>
+    <div className="flex h-full flex-col">
+      <div className="shrink-0 px-6 pt-6">
+        <PageHeader
+          title={t("Tools")}
+          subtitle={t("What the installed tools can do for your content")}
+        />
       </div>
+      <div className="flex min-h-0 flex-1">
+        {/* Left panel: tool browser */}
+        <div className="w-72 shrink-0 border-r border-border flex flex-col overflow-hidden">
+          {/* Search */}
+          <div className="p-3 border-b border-border">
+            <div className="relative">
+              <Search
+                size={13}
+                className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+              />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search tools..."
+                className="w-full rounded-md border border-input bg-transparent pl-8 pr-3 py-1.5 text-xs outline-none focus:ring-1 focus:ring-ring"
+              />
+            </div>
 
-      {/* Right panel: tool detail */}
-      <ScrollArea className="flex-1">
-        {selectedTool && selectedToolInfo ? (
-          <ToolDetail tool={selectedToolInfo} docs={docs} />
-        ) : (
-          <div className="flex h-full items-center justify-center text-muted-foreground">
-            <div className="text-center">
-              <Wrench size={32} className="mx-auto mb-3 opacity-20" />
-              <p className="text-sm">Select a tool to see what it does</p>
-              <p className="text-xs mt-1 opacity-60">
-                {tools.length} tools available across {categories.size} categories
-              </p>
+            {/* Category filter chips */}
+            <div className="flex flex-wrap gap-1 mt-2">
+              <Button
+                variant={!filterCategory ? "default" : "secondary"}
+                size="xs"
+                onClick={() => setFilterCategory(null)}
+              >
+                All ({tools.length})
+              </Button>
+              {Array.from(categories.entries()).map(([cat, catTools]) => {
+                const meta = categoryMeta(cat);
+                // The button body is NOT extracted as a block (translate="no")
+                // because `meta.label` is already a `t()`-resolved string from
+                // `categoryMeta()`. Extracting would wrap the whole body in a
+                // second translation, producing `▒ ▒ Utility ▒ (32) ▒` in
+                // pseudo. The count is numeric — no translation needed.
+                return (
+                  <Button
+                    key={cat}
+                    translate="no"
+                    variant={filterCategory === cat ? "default" : "secondary"}
+                    size="xs"
+                    onClick={() => setFilterCategory(filterCategory === cat ? null : cat)}
+                  >
+                    {meta.label} ({catTools.length})
+                  </Button>
+                );
+              })}
             </div>
           </div>
-        )}
-      </ScrollArea>
+
+          {/* Tool list */}
+          <ScrollArea className="flex-1">
+            <div className="p-2">
+              {loading ? (
+                <LoadingSpinner size="sm" text="Loading tools..." className="px-2 py-4" />
+              ) : (
+                <div className="space-y-0.5">
+                  {filteredTools.map((tool) => {
+                    const cat = tool.category || "utility";
+                    const meta = categoryMeta(cat);
+                    const Icon = meta.icon;
+                    const hasStepDoc =
+                      resolveStepDoc(tool.name, docs) || docsSummary?.stepIDs?.includes(tool.name);
+                    const isSelected = selectedTool === tool.name;
+
+                    return (
+                      <div
+                        key={tool.name}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => setSelectedTool(tool.name)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") setSelectedTool(tool.name);
+                        }}
+                        className={`cursor-pointer rounded-lg px-3 py-2.5 text-left transition-colors ${
+                          isSelected
+                            ? "bg-accent border border-primary/20 shadow-sm"
+                            : "hover:bg-accent/50 border border-transparent"
+                        }`}
+                      >
+                        <div className="flex items-start gap-2.5">
+                          <div className={`mt-0.5 shrink-0 p-1 rounded ${meta.color}`}>
+                            <Icon size={12} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span
+                                className={`text-xs font-semibold ${isSelected ? "text-primary" : "text-foreground"}`}
+                              >
+                                {tool.display_name || tool.name}
+                              </span>
+                              {tool.source && tool.source !== "built-in" && (
+                                <Badge
+                                  variant="secondary"
+                                  className="text-[8px] px-1 py-px bg-violet-500/10 text-violet-600 dark:text-violet-400 shrink-0"
+                                >
+                                  {tool.source}
+                                </Badge>
+                              )}
+                              {tool.has_schema && (
+                                <Settings2 size={9} className="text-muted-foreground shrink-0" />
+                              )}
+                              {hasStepDoc && (
+                                <BookOpen size={9} className="text-primary/50 shrink-0" />
+                              )}
+                            </div>
+                            <div className="text-[10px] text-muted-foreground line-clamp-2 mt-0.5">
+                              <Markdown inline>{tool.description}</Markdown>
+                            </div>
+                            {tool.tags && tool.tags.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {tool.tags.slice(0, 3).map((tag) => (
+                                  <Badge
+                                    key={tag}
+                                    variant="secondary"
+                                    className="text-[8px] px-1 py-px"
+                                  >
+                                    {tag}
+                                  </Badge>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          <ChevronRight
+                            size={12}
+                            className={`mt-1 shrink-0 transition-colors ${
+                              isSelected ? "text-primary" : "text-muted-foreground/30"
+                            }`}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {filteredTools.length === 0 && !loading && (
+                    <p className="px-3 py-4 text-xs text-muted-foreground text-center">
+                      {search ? t("No tools match your search.") : t("No tools available.")}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          </ScrollArea>
+        </div>
+
+        {/* Right panel: tool detail */}
+        <ScrollArea className="flex-1">
+          {selectedTool && selectedToolInfo ? (
+            <ToolDetail tool={selectedToolInfo} docs={docs} />
+          ) : (
+            <div className="flex h-full items-center justify-center text-muted-foreground">
+              <div className="text-center">
+                <Wrench size={32} className="mx-auto mb-3 opacity-20" />
+                <p className="text-sm">Select a tool to see what it does</p>
+                <p className="text-xs mt-1 opacity-60">
+                  {tools.length} tools available across {categories.size} categories
+                </p>
+              </div>
+            </div>
+          )}
+        </ScrollArea>
+      </div>
     </div>
   );
 }

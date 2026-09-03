@@ -18,6 +18,7 @@ import {
   Braces,
   FileText,
   Languages,
+  Link2,
   MessageSquareQuote,
   Pencil,
   Radio,
@@ -30,6 +31,7 @@ import {
   CoordinateChip,
   LocaleLabel,
   PageHeader,
+  SectionHeading,
   Separator,
   Skeleton,
   SimpleTooltip,
@@ -113,11 +115,9 @@ function Section({
 }) {
   return (
     <section className="space-y-2">
-      <h3 className="flex items-center gap-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-        {icon}
+      <SectionHeading icon={icon} count={count}>
         {title}
-        {count !== undefined && <span className="font-normal normal-case">{count}</span>}
-      </h3>
+      </SectionHeading>
       {children}
     </section>
   );
@@ -166,8 +166,18 @@ function PatternRow({ pattern }: { pattern: Pattern }) {
     : undefined;
   return (
     <li className="flex flex-wrap items-baseline gap-2 py-1.5" data-testid="voice-pattern">
-      <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-[11px]">{pattern.regex}</code>
-      <span className="min-w-0 flex-1 text-muted-foreground">{pattern.description}</span>
+      <span className="min-w-0 flex-1 text-foreground">{pattern.description || pattern.regex}</span>
+      {pattern.description && (
+        <SimpleTooltip content={pattern.regex}>
+          <span
+            className="cursor-help text-muted-foreground/70"
+            data-testid="voice-pattern-regex"
+            aria-label={t("Matching pattern")}
+          >
+            <Braces className="size-3.5" />
+          </span>
+        </SimpleTooltip>
+      )}
       {pattern.scope && (
         <Badge variant="outline" className="font-normal text-muted-foreground">
           {pattern.scope}
@@ -248,7 +258,15 @@ function TermRuleRow({ rule }: { rule: TermRule }) {
         </span>
       )}
       {rule.concept_id && (
-        <code className="font-mono text-[11px] text-muted-foreground">{rule.concept_id}</code>
+        <SimpleTooltip content={t("Linked to a concept in your terms")}>
+          <span
+            className="text-muted-foreground/70"
+            data-testid="voice-concept-link"
+            aria-label={t("Linked concept")}
+          >
+            <Link2 className="size-3" />
+          </span>
+        </SimpleTooltip>
       )}
       {rule.note && <span className="min-w-0 flex-1 text-muted-foreground">{rule.note}</span>}
       <SeverityPill severity={rule.severity} />
