@@ -98,10 +98,14 @@ describe("GovernanceSettings", () => {
     expect(onUpdate.mock.calls[0][0].defaults.coordinates).toEqual({ brand: "northsea", mode: "" });
   });
 
-  it("names the declared channels a collection can sit on", () => {
+  it("splits governance into where content sits and what runs", () => {
     renderSettings();
-    expect(screen.getByText("campaign/promo")).toBeInTheDocument();
-    expect(screen.getByText("support/docs")).toBeInTheDocument();
+    expect(screen.getByText("Where content sits")).toBeInTheDocument();
+    expect(screen.getByText("What runs, and what is skipped")).toBeInTheDocument();
+    // The channel map (its own data source) replaces the old declared-channels
+    // list; the names themselves are covered by the ChannelMap tests.
+    expect(screen.getByTestId("channel-map")).toBeInTheDocument();
+    expect(screen.queryByText("Declared channels")).not.toBeInTheDocument();
   });
 
   it("edits the default flow", async () => {

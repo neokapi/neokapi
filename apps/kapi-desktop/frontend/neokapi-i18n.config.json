@@ -6,12 +6,15 @@
     "ComboboxEmpty": "div",
     "CommandEmpty": "div",
     "DialogTitle": "h2",
+    "DirectionalText": "span",
     "Fact": "span",
     "Label": "label",
+    "SectionHeading": "h2",
     "SheetDescription": "p",
     "SheetTitle": "h2",
     "TabButton": "button",
     "TabsTrigger": "button",
-    "ToggleGroupItem": "button"
+    "ToggleGroupItem": "button",
+    "ViewTab": "button"
   }
 }
