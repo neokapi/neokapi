@@ -94,7 +94,7 @@ func TestConfirmIngest(t *testing.T) {
 			srv := statusTestServer(t, tt.body, tt.httpCode)
 			c := newPullTestConnector(t, srv, []string{"fr"}, 0)
 
-			state, err := c.confirmIngest(t.Context(), tt.pushID)
+			state, _, err := c.confirmIngest(t.Context(), tt.pushID)
 			if tt.wantErr != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.wantErr)
