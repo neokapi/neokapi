@@ -7,8 +7,14 @@
 //
 // The resolution chain is the reason the page exists. A binding whose validity
 // window excluded the run instant is drawn as a skipped rung with its boundary
-// date, followed by what governs in its place — the one place in the app where
-// governance changing on a date is visible.
+// date, followed by what governs in its place. It is the one place in the app
+// where governance changing on a date is visible, so it stays prominent while
+// the recipe plumbing that selected the profile collapses to one quiet line.
+//
+// The profile then reads as a document, wording rules first: the say-this and
+// never-say constraints are what a writer reaches for, so they lead, before
+// tone, style, examples and the per-language, per-channel and per-persona
+// overrides.
 
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -19,10 +25,12 @@ import {
   FileText,
   Languages,
   Link2,
+  ListChecks,
   MessageSquareQuote,
   Pencil,
   Radio,
   ShieldCheck,
+  Sparkles,
   UserRound,
 } from "lucide-react";
 import {
@@ -47,13 +55,14 @@ import type {
   FieldValueSet,
   Pattern,
   ProjectVoiceResult,
+  StyleRules,
   TermRule,
   ToneProfile,
-  StyleRules,
   VoiceExample,
   VoicePoint,
   VoiceProfile,
   VoiceSaveResult,
+  VoiceValidity,
 } from "../types/voice";
 
 export interface VoicePageProps {
@@ -67,9 +76,17 @@ export interface VoicePageProps {
   valueSets?: Record<string, FieldValueSet>;
 }
 
-/** A severity, and whether it fails a check or only reports. */
-function SeverityPill({ severity }: { severity?: string }) {
-  const label = severity || t("unset");
+/**
+ * A severity as a neutral chip.
+ *
+ * Colour is reserved for a judgement a person makes or a finding a check
+ * raised (see `packages/ui/docs/judgement-colours.md`); a rule stating what a
+ * violation would cost is neither, so the chip stays neutral and the tooltip
+ * carries whether it fails or only reports. A rule resolved from a terms store
+ * carries no severity, and then no chip is drawn.
+ */
+function SeverityChip({ severity }: { severity?: string }) {
+  if (!severity) return null;
   const fails = severityFails(severity);
   return (
     <SimpleTooltip
@@ -77,14 +94,10 @@ function SeverityPill({ severity }: { severity?: string }) {
     >
       <Badge
         variant="outline"
-        className={cn(
-          "font-normal",
-          fails
-            ? "border-destructive/40 text-destructive"
-            : "border-amber-500/40 text-amber-700 dark:text-amber-500",
-        )}
+        className="font-normal text-muted-foreground"
+        data-testid="voice-severity"
       >
-        {label}
+        {severity}
       </Badge>
     </SimpleTooltip>
   );
@@ -123,6 +136,203 @@ function Section({
   );
 }
 
+/** A titled group of rule rows within the Rules section. */
+function RuleGroup({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <p className="mb-1 text-xs font-medium text-foreground">{title}</p>
+      <ul className="divide-y text-sm">{children}</ul>
+    </div>
+  );
+}
+
+/**
+ * One pattern rule.
+ *
+ * The human description is the label; the regular expression it matches on is
+ * tucked behind the `{}` affordance, so the row reads as a rule rather than as
+ * code.
+ */
+function PatternRow({ pattern }: { pattern: Pattern }) {
+  const allowance = pattern.rate
+    ? pattern.rate.per_words
+      ? t("up to {max} per {words} words", {
+          max: pattern.rate.max,
+          words: pattern.rate.per_words,
+        })
+      : t("up to {max}", { max: pattern.rate.max })
+    : undefined;
+  return (
+    <li className="flex flex-wrap items-baseline gap-2 py-1.5" data-testid="voice-pattern">
+      <span className="min-w-0 flex-1 text-sm text-foreground">
+        {pattern.description || pattern.regex}
+      </span>
+      {pattern.description && (
+        <SimpleTooltip content={pattern.regex}>
+          <span
+            className="cursor-help text-muted-foreground/70"
+            data-testid="voice-pattern-regex"
+            aria-label={t("Matching pattern")}
+          >
+            <Braces className="size-3.5" />
+          </span>
+        </SimpleTooltip>
+      )}
+      {pattern.scope && (
+        <Badge variant="outline" className="font-normal text-muted-foreground">
+          {pattern.scope}
+        </Badge>
+      )}
+      {allowance && <span className="text-[11px] text-muted-foreground">{allowance}</span>}
+      <SeverityChip severity={pattern.severity} />
+    </li>
+  );
+}
+
+/**
+ * One term rule, drawn to the same shape as a pattern.
+ *
+ * The wording change is the label; how the rule matches (its other forms, case
+ * sensitivity) is tucked behind the `{}` affordance, and a link marks a rule
+ * backed by a concept in the terms store.
+ */
+function TermRuleRow({ rule }: { rule: TermRule }) {
+  const matching = [
+    rule.forms?.length ? t("also {forms}", { forms: rule.forms.join(", ") }) : undefined,
+    rule.case_sensitive ? t("case-sensitive") : undefined,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  return (
+    <li className="flex flex-wrap items-baseline gap-2 py-1.5" data-testid="voice-term-rule">
+      <span className="min-w-0 flex-1 text-sm">
+        <span className="font-medium text-foreground">{rule.term}</span>
+        {rule.replacement ? (
+          <span className="text-muted-foreground">
+            {" "}
+            <ArrowRight className="inline size-3 align-[-1px]" /> {rule.replacement}
+          </span>
+        ) : (
+          <span className="ml-1 text-[11px] text-muted-foreground">
+            {t("no replacement, so tools skip it")}
+          </span>
+        )}
+        {rule.note && <span className="ml-2 text-[11px] text-muted-foreground">{rule.note}</span>}
+      </span>
+      {matching && (
+        <SimpleTooltip content={matching}>
+          <span
+            className="cursor-help text-muted-foreground/70"
+            data-testid="voice-term-detail"
+            aria-label={t("Matching detail")}
+          >
+            <Braces className="size-3.5" />
+          </span>
+        </SimpleTooltip>
+      )}
+      {rule.do_not_translate && (
+        <Badge variant="outline" className="font-normal text-muted-foreground">
+          {t("keep as written")}
+        </Badge>
+      )}
+      {rule.scope && (
+        <Badge variant="outline" className="font-normal text-muted-foreground">
+          {rule.scope}
+        </Badge>
+      )}
+      {rule.concept_id && (
+        <SimpleTooltip content={t("Linked to a concept in your terms")}>
+          <span
+            className="text-muted-foreground/70"
+            data-testid="voice-concept-link"
+            aria-label={t("Linked concept")}
+          >
+            <Link2 className="size-3" />
+          </span>
+        </SimpleTooltip>
+      )}
+      <SeverityChip severity={rule.severity} />
+    </li>
+  );
+}
+
+/** A term-rule group, or nothing when the group is empty. */
+function TermGroup({ title, rules }: { title: string; rules?: TermRule[] }) {
+  if (!rules?.length) return null;
+  return (
+    <RuleGroup title={title}>
+      {rules.map((r) => (
+        <TermRuleRow key={`${r.term}:${r.replacement ?? ""}`} rule={r} />
+      ))}
+    </RuleGroup>
+  );
+}
+
+/** The never-write and always-write pattern groups of a style, or nothing. */
+function PatternGroups({ style }: { style?: StyleRules }) {
+  if (!style?.prohibited_patterns?.length && !style?.required_patterns?.length) return null;
+  return (
+    <>
+      {!!style.prohibited_patterns?.length && (
+        <RuleGroup title={t("Never write")}>
+          {style.prohibited_patterns.map((p) => (
+            <PatternRow key={p.regex} pattern={p} />
+          ))}
+        </RuleGroup>
+      )}
+      {!!style.required_patterns?.length && (
+        <RuleGroup title={t("Always write")}>
+          {style.required_patterns.map((p) => (
+            <PatternRow key={p.regex} pattern={p} />
+          ))}
+        </RuleGroup>
+      )}
+    </>
+  );
+}
+
+/**
+ * Every wording rule in one place: the say-this and never-say term rules and
+ * the always-write and never-write patterns, each drawn to the same row shape,
+ * with abbreviations beneath them.
+ */
+function RulesBlock({ profile }: { profile: VoiceProfile }) {
+  const vocab = profile.vocabulary;
+  const style = profile.style;
+  const abbreviations = vocab?.abbreviations ?? {};
+  const hasAbbreviations = Object.keys(abbreviations).length > 0;
+  const hasRules =
+    !!vocab?.preferred_terms?.length ||
+    !!vocab?.forbidden_terms?.length ||
+    !!vocab?.competitor_terms?.length ||
+    !!style?.prohibited_patterns?.length ||
+    !!style?.required_patterns?.length;
+  return (
+    <div className="space-y-3">
+      <TermGroup title={t("Say this")} rules={vocab?.preferred_terms} />
+      <TermGroup title={t("Never say")} rules={vocab?.forbidden_terms} />
+      <TermGroup title={t("Competitor names")} rules={vocab?.competitor_terms} />
+      <PatternGroups style={style} />
+      {hasAbbreviations && (
+        <div>
+          <p className="mb-1 text-xs font-medium text-foreground">{t("Abbreviations")}</p>
+          <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-3">
+            {Object.entries(abbreviations).map(([short, long]) => (
+              <div key={short} className="flex items-baseline gap-2">
+                <dt className="font-medium">{short}</dt>
+                <dd className="truncate text-muted-foreground">{long}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      )}
+      {!hasRules && !hasAbbreviations && (
+        <p className="text-sm text-muted-foreground">{t("This profile constrains no wording.")}</p>
+      )}
+    </div>
+  );
+}
+
 function ToneBlock({ tone }: { tone?: ToneProfile }) {
   if (!tone) return null;
   const empty =
@@ -155,143 +365,32 @@ function ToneBlock({ tone }: { tone?: ToneProfile }) {
   );
 }
 
-function PatternRow({ pattern }: { pattern: Pattern }) {
-  const allowance = pattern.rate
-    ? pattern.rate.per_words
-      ? t("up to {max} per {words} words", {
-          max: pattern.rate.max,
-          words: pattern.rate.per_words,
-        })
-      : t("up to {max}", { max: pattern.rate.max })
-    : undefined;
-  return (
-    <li className="flex flex-wrap items-baseline gap-2 py-1.5" data-testid="voice-pattern">
-      <span className="min-w-0 flex-1 text-foreground">{pattern.description || pattern.regex}</span>
-      {pattern.description && (
-        <SimpleTooltip content={pattern.regex}>
-          <span
-            className="cursor-help text-muted-foreground/70"
-            data-testid="voice-pattern-regex"
-            aria-label={t("Matching pattern")}
-          >
-            <Braces className="size-3.5" />
-          </span>
-        </SimpleTooltip>
-      )}
-      {pattern.scope && (
-        <Badge variant="outline" className="font-normal text-muted-foreground">
-          {pattern.scope}
-        </Badge>
-      )}
-      {allowance && <span className="text-xs text-muted-foreground">{allowance}</span>}
-      <SeverityPill severity={pattern.severity} />
-    </li>
-  );
-}
-
-function StyleBlock({ style }: { style?: StyleRules }) {
+/** The style facts, without the patterns, which live in the Rules section. */
+function StyleFacts({ style }: { style?: StyleRules }) {
   if (!style) return null;
+  const empty =
+    style.active_voice === undefined &&
+    !style.sentence_length &&
+    !style.person_pov &&
+    !style.contractions;
+  if (empty) return null;
   return (
-    <div className="space-y-3">
-      <dl className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4">
-        <Fact
-          label={t("Voice")}
-          value={
-            style.active_voice === undefined ? undefined : style.active_voice ? "active" : "any"
-          }
-        />
-        <Fact label={t("Sentences")} value={style.sentence_length} />
-        <Fact label={t("Point of view")} value={style.person_pov} />
-        <Fact label={t("Contractions")} value={style.contractions} />
-      </dl>
-      {!!style.prohibited_patterns?.length && (
-        <div>
-          <p className="mb-1 text-xs font-medium text-foreground">{t("Never write")}</p>
-          <ul className="divide-y text-sm">
-            {style.prohibited_patterns.map((p) => (
-              <PatternRow key={p.regex} pattern={p} />
-            ))}
-          </ul>
-        </div>
-      )}
-      {!!style.required_patterns?.length && (
-        <div>
-          <p className="mb-1 text-xs font-medium text-foreground">{t("Always write")}</p>
-          <ul className="divide-y text-sm">
-            {style.required_patterns.map((p) => (
-              <PatternRow key={p.regex} pattern={p} />
-            ))}
-          </ul>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function TermRuleRow({ rule }: { rule: TermRule }) {
-  return (
-    <li className="flex flex-wrap items-baseline gap-2 py-1.5" data-testid="voice-term-rule">
-      <span className="font-medium">{rule.term}</span>
-      {rule.replacement ? (
-        <span className="flex items-center gap-1.5 text-muted-foreground">
-          <ArrowRight className="size-3" />
-          {rule.replacement}
-        </span>
-      ) : (
-        <span className="text-xs text-muted-foreground">
-          {t("no replacement, so tools skip it")}
-        </span>
-      )}
-      {rule.do_not_translate && (
-        <Badge variant="outline" className="font-normal">
-          {t("keep as written")}
-        </Badge>
-      )}
-      {rule.scope && (
-        <Badge variant="outline" className="font-normal text-muted-foreground">
-          {rule.scope}
-        </Badge>
-      )}
-      {!!rule.forms?.length && (
-        <span className="text-xs text-muted-foreground">
-          {t("also {forms}", { forms: rule.forms.join(", ") })}
-        </span>
-      )}
-      {rule.concept_id && (
-        <SimpleTooltip content={t("Linked to a concept in your terms")}>
-          <span
-            className="text-muted-foreground/70"
-            data-testid="voice-concept-link"
-            aria-label={t("Linked concept")}
-          >
-            <Link2 className="size-3" />
-          </span>
-        </SimpleTooltip>
-      )}
-      {rule.note && <span className="min-w-0 flex-1 text-muted-foreground">{rule.note}</span>}
-      <SeverityPill severity={rule.severity} />
-    </li>
-  );
-}
-
-function TermRuleList({ title, rules }: { title: string; rules?: TermRule[] }) {
-  if (!rules?.length) return null;
-  return (
-    <div>
-      <p className="mb-1 text-xs font-medium text-foreground">{title}</p>
-      <ul className="divide-y text-sm">
-        {rules.map((r) => (
-          <TermRuleRow key={`${r.term}:${r.replacement ?? ""}`} rule={r} />
-        ))}
-      </ul>
-    </div>
+    <dl className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4">
+      <Fact
+        label={t("Voice")}
+        value={style.active_voice === undefined ? undefined : style.active_voice ? "active" : "any"}
+      />
+      <Fact label={t("Sentences")} value={style.sentence_length} />
+      <Fact label={t("Point of view")} value={style.person_pov} />
+      <Fact label={t("Contractions")} value={style.contractions} />
+    </dl>
   );
 }
 
 function ExampleRow({ example }: { example: VoiceExample }) {
   return (
     <li className="space-y-1 py-2" data-testid="voice-example">
-      <div className="flex flex-wrap items-baseline gap-2">
+      <div className="flex flex-wrap items-baseline gap-2 text-sm">
         <span className="text-muted-foreground line-through">{example.before}</span>
         <ArrowRight className="size-3 text-muted-foreground" />
         <span className="font-medium">{example.after}</span>
@@ -302,29 +401,37 @@ function ExampleRow({ example }: { example: VoiceExample }) {
         )}
       </div>
       {example.explanation && (
-        <p className="text-xs text-muted-foreground">{example.explanation}</p>
+        <p className="text-[11px] text-muted-foreground">{example.explanation}</p>
       )}
     </li>
   );
 }
 
+/** An RFC3339 instant as the date a reader needs. */
+function shortDate(value: string): string {
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? value : d.toISOString().slice(0, 10);
+}
+
 /**
- * The chain the resolver walked to arrive at this voice.
+ * The chain the resolver walked to arrive at this voice, kept prominent.
  *
  * A skipped rung is drawn, struck through, with the boundary that excluded it,
  * so a reader can see that governance moved on a date rather than that a
- * profile was never bound.
+ * profile was never bound. The voice that governs instead is emphasized.
  */
 function ResolutionChain({ point }: { point: VoicePoint }) {
-  const governing = point.fallback ? point.fallback.governing || t("project default") : point.label;
+  const winner = point.fallback
+    ? point.fallback.governing || t("project default")
+    : (point.profile?.name ?? point.label);
   return (
     <div
-      className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm"
+      className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2"
       data-testid="voice-chain"
     >
       {point.fallback && (
         <>
-          <span className="flex items-center gap-1.5">
+          <span className="flex items-center gap-1.5 text-sm">
             <span className="text-muted-foreground line-through">{point.fallback.profile}</span>
             <Badge variant="outline" className="border-destructive/40 font-normal text-destructive">
               {point.fallback.expired ? t("window closed") : t("not yet in force")}
@@ -335,27 +442,91 @@ function ResolutionChain({ point }: { point: VoicePoint }) {
               )}
             </Badge>
           </span>
-          <ArrowRight className="size-3.5 text-muted-foreground" />
+          <ArrowRight className="size-4 text-muted-foreground" />
         </>
       )}
-      <span className="font-medium">{governing}</span>
-      {point.field && (
-        <code className="font-mono text-[11px] text-muted-foreground">{point.field}</code>
-      )}
-      {point.binding && (
-        <Badge variant="secondary" className="font-normal">
-          {point.binding.kind}
-          <span className="ml-1 font-mono text-[11px]">{point.binding.value}</span>
-        </Badge>
-      )}
+      <span className="text-sm font-semibold text-foreground">{winner}</span>
     </div>
   );
 }
 
-/** An RFC3339 instant as the date a reader needs. */
-function shortDate(value: string): string {
-  const d = new Date(value);
-  return Number.isNaN(d.getTime()) ? value : d.toISOString().slice(0, 10);
+/** A validity window, coloured because a lapsed one is an alert, not a state. */
+function ValidityChip({ validity }: { validity: VoiceValidity }) {
+  const range = [validity.from, validity.to]
+    .filter(Boolean)
+    .map((v) => shortDate(v as string))
+    .join(" → ");
+  return (
+    <Badge
+      variant="outline"
+      className={cn(
+        "font-normal",
+        validity.state === "expired"
+          ? "border-destructive/40 text-destructive"
+          : validity.state === "upcoming"
+            ? "border-amber-500/40 text-amber-700 dark:text-amber-500"
+            : "border-emerald-500/40 text-emerald-700 dark:text-emerald-500",
+      )}
+      data-testid="voice-validity"
+    >
+      {validity.state}
+      {range && <span className="ml-1 font-mono text-[11px] opacity-70">{range}</span>}
+    </Badge>
+  );
+}
+
+/**
+ * The recipe plumbing that selected this voice, collapsed to one quiet line:
+ * the key it was bound on, how it was selected, where it lives, the terms it
+ * reads, the channels it covers and its validity window.
+ */
+function PlumbingLine({ point }: { point: VoicePoint }) {
+  const path = point.source || point.binding?.value;
+  const hasAny =
+    !!point.field ||
+    !!point.binding ||
+    !!path ||
+    !!point.termstore ||
+    !!point.validity ||
+    !!point.channels?.length;
+  if (!hasAny) return null;
+  return (
+    <div
+      className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground"
+      data-testid="voice-plumbing"
+    >
+      {point.field && (
+        <SimpleTooltip content={t("The recipe key this voice is bound on")}>
+          <span className="inline-flex items-baseline gap-1">
+            {t("bound on")} <code className="font-mono">{point.field}</code>
+          </span>
+        </SimpleTooltip>
+      )}
+      {point.binding && (
+        <SimpleTooltip content={t("How the profile was selected")}>
+          <code className="font-mono">{point.binding.kind}</code>
+        </SimpleTooltip>
+      )}
+      {path && (
+        <SimpleTooltip content={path}>
+          <code className="inline-block max-w-[18rem] truncate align-bottom font-mono">{path}</code>
+        </SimpleTooltip>
+      )}
+      {point.termstore && (
+        <span className="inline-flex items-center gap-1">
+          <BookOpen className="size-3" />
+          {point.termstore}
+        </span>
+      )}
+      {!!point.channels?.length && (
+        <span className="inline-flex items-center gap-1">
+          <Radio className="size-3" />
+          {point.channels.join(", ")}
+        </span>
+      )}
+      {point.validity && <ValidityChip validity={point.validity} />}
+    </div>
+  );
 }
 
 /** One row in the point rail. */
@@ -382,7 +553,7 @@ function PointRow({
         data-testid="voice-point-row"
       >
         <div className="flex items-baseline gap-2">
-          <span className="truncate font-medium">{point.label}</span>
+          <span className="truncate text-sm font-medium">{point.label}</span>
           {point.fallback && (
             <Badge variant="outline" className="border-destructive/40 font-normal text-destructive">
               {t("fell through")}
@@ -396,11 +567,13 @@ function PointRow({
             ))}
           </span>
         )}
-        <p className="truncate text-xs text-muted-foreground">
+        <p className="truncate text-[11px] text-muted-foreground">
           {point.profile ? point.profile.name : t("no voice profile binds here")}
         </p>
         {point.collections.length > 0 && (
-          <p className="truncate text-xs text-muted-foreground">{point.collections.join(", ")}</p>
+          <p className="truncate text-[11px] text-muted-foreground">
+            {point.collections.join(", ")}
+          </p>
         )}
       </button>
     </li>
@@ -413,9 +586,10 @@ function PointDetail({ point, onEdit }: { point: VoicePoint; onEdit?: () => void
   const edit = point.edit;
   return (
     <div className="space-y-5" data-testid="voice-detail">
-      <div className="flex flex-wrap items-start gap-2">
-        <div className="min-w-0 flex-1">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 flex-1 space-y-2">
           <ResolutionChain point={point} />
+          <PlumbingLine point={point} />
         </div>
         {onEdit &&
           (edit?.writable ? (
@@ -444,48 +618,6 @@ function PointDetail({ point, onEdit }: { point: VoicePoint; onEdit?: () => void
         </p>
       )}
 
-      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-        {point.source && (
-          <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-[11px]">
-            {point.source}
-          </code>
-        )}
-        {point.termstore && (
-          <Badge variant="outline" className="font-normal">
-            <BookOpen className="mr-1 size-3" />
-            {point.termstore}
-          </Badge>
-        )}
-        {!!point.channels?.length && (
-          <Badge variant="outline" className="font-normal">
-            <Radio className="mr-1 size-3" />
-            {point.channels.join(", ")}
-          </Badge>
-        )}
-        {point.validity && (
-          <Badge
-            variant="outline"
-            className={cn(
-              "font-normal",
-              point.validity.state === "expired"
-                ? "border-destructive/40 text-destructive"
-                : point.validity.state === "upcoming"
-                  ? "border-amber-500/40 text-amber-700 dark:text-amber-500"
-                  : "border-emerald-500/40 text-emerald-700 dark:text-emerald-500",
-            )}
-            data-testid="voice-validity"
-          >
-            {point.validity.state}
-            <span className="ml-1 font-mono text-[11px] opacity-70">
-              {[point.validity.from, point.validity.to]
-                .filter(Boolean)
-                .map((v) => shortDate(v as string))
-                .join(" → ")}
-            </span>
-          </Badge>
-        )}
-      </div>
-
       {!profile ? (
         <EmptyHint
           title={t("No voice profile binds at this point")}
@@ -499,17 +631,23 @@ function PointDetail({ point, onEdit }: { point: VoicePoint; onEdit?: () => void
         />
       ) : (
         <div className="space-y-5">
-          <div>
-            <h2 className="text-base font-semibold">{profile.name}</h2>
-            {profile.description && (
-              <p className="text-sm text-muted-foreground">{profile.description}</p>
-            )}
-            {profile.min_score !== undefined && profile.min_score > 0 && (
-              <p className="mt-1 text-xs text-muted-foreground">
-                {t("Compliance bar {score}", { score: profile.min_score })}
-              </p>
-            )}
-          </div>
+          {(profile.description || (profile.min_score !== undefined && profile.min_score > 0)) && (
+            <div className="space-y-1">
+              {profile.description && (
+                <p className="text-sm text-muted-foreground">{profile.description}</p>
+              )}
+              {profile.min_score !== undefined && profile.min_score > 0 && (
+                <p className="text-[11px] text-muted-foreground">
+                  {t("Compliance bar {score}", { score: profile.min_score })}
+                </p>
+              )}
+            </div>
+          )}
+
+          <Separator />
+          <Section title={t("Rules")} icon={<ListChecks className="size-3.5" />}>
+            <RulesBlock profile={profile} />
+          </Section>
 
           <Separator />
           <Section title={t("Tone")} icon={<MessageSquareQuote className="size-3.5" />}>
@@ -518,40 +656,7 @@ function PointDetail({ point, onEdit }: { point: VoicePoint; onEdit?: () => void
 
           <Separator />
           <Section title={t("Style")} icon={<FileText className="size-3.5" />}>
-            <StyleBlock style={profile.style} />
-          </Section>
-
-          <Separator />
-          <Section title={t("Vocabulary")} icon={<BookOpen className="size-3.5" />}>
-            <div className="space-y-3">
-              <TermRuleList title={t("Say this")} rules={profile.vocabulary?.preferred_terms} />
-              <TermRuleList title={t("Never say")} rules={profile.vocabulary?.forbidden_terms} />
-              <TermRuleList
-                title={t("Competitor names")}
-                rules={profile.vocabulary?.competitor_terms}
-              />
-              {!!profile.vocabulary?.abbreviations &&
-                Object.keys(profile.vocabulary.abbreviations).length > 0 && (
-                  <div>
-                    <p className="mb-1 text-xs font-medium text-foreground">{t("Abbreviations")}</p>
-                    <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-3">
-                      {Object.entries(profile.vocabulary.abbreviations).map(([short, long]) => (
-                        <div key={short} className="flex items-baseline gap-2">
-                          <dt className="font-medium">{short}</dt>
-                          <dd className="truncate text-muted-foreground">{long}</dd>
-                        </div>
-                      ))}
-                    </dl>
-                  </div>
-                )}
-              {!profile.vocabulary?.preferred_terms?.length &&
-                !profile.vocabulary?.forbidden_terms?.length &&
-                !profile.vocabulary?.competitor_terms?.length && (
-                  <p className="text-sm text-muted-foreground">
-                    {t("This profile constrains no wording.")}
-                  </p>
-                )}
-            </div>
+            <StyleFacts style={profile.style} />
           </Section>
 
           {!!profile.examples?.length && (
@@ -559,7 +664,7 @@ function PointDetail({ point, onEdit }: { point: VoicePoint; onEdit?: () => void
               <Separator />
               <Section
                 title={t("Examples")}
-                icon={<Braces className="size-3.5" />}
+                icon={<Sparkles className="size-3.5" />}
                 count={profile.examples.length}
               >
                 <ul className="divide-y text-sm">
@@ -591,12 +696,14 @@ function PointDetail({ point, onEdit }: { point: VoicePoint; onEdit?: () => void
                           {override.cultural_notes}
                         </p>
                       )}
-                      <TermRuleList
-                        title={t("Wording here")}
-                        rules={override.vocabulary_overrides}
-                      />
+                      <div className="mt-2 space-y-3">
+                        <TermGroup
+                          title={t("Wording here")}
+                          rules={override.vocabulary_overrides}
+                        />
+                      </div>
                       {!!override.example_overrides?.length && (
-                        <ul className="divide-y text-sm">
+                        <ul className="mt-2 divide-y text-sm">
                           {override.example_overrides.map((e) => (
                             <ExampleRow key={`${e.before}:${e.after}`} example={e} />
                           ))}
@@ -615,10 +722,11 @@ function PointDetail({ point, onEdit }: { point: VoicePoint; onEdit?: () => void
               <Section title={t("By channel")} icon={<Radio className="size-3.5" />}>
                 <div className="space-y-3">
                   {Object.entries(profile.channels).map(([channel, override]) => (
-                    <div key={channel} className="rounded-lg border px-3 py-2">
+                    <div key={channel} className="space-y-2 rounded-lg border px-3 py-2">
                       <p className="text-sm font-medium">{channel}</p>
                       <ToneBlock tone={override.tone} />
-                      <StyleBlock style={override.style} />
+                      <StyleFacts style={override.style} />
+                      <PatternGroups style={override.style} />
                     </div>
                   ))}
                 </div>
@@ -632,12 +740,13 @@ function PointDetail({ point, onEdit }: { point: VoicePoint; onEdit?: () => void
               <Section title={t("By persona")} icon={<UserRound className="size-3.5" />}>
                 <div className="space-y-3">
                   {Object.entries(profile.personas).map(([persona, override]) => (
-                    <div key={persona} className="rounded-lg border px-3 py-2">
+                    <div key={persona} className="space-y-2 rounded-lg border px-3 py-2">
                       <p className="text-sm font-medium">{persona}</p>
                       <ToneBlock tone={override.tone} />
-                      <StyleBlock style={override.style} />
-                      <TermRuleList title={t("Say this")} rules={override.preferred_terms} />
-                      <TermRuleList title={t("Never say")} rules={override.avoided_terms} />
+                      <StyleFacts style={override.style} />
+                      <PatternGroups style={override.style} />
+                      <TermGroup title={t("Say this")} rules={override.preferred_terms} />
+                      <TermGroup title={t("Never say")} rules={override.avoided_terms} />
                     </div>
                   ))}
                 </div>
