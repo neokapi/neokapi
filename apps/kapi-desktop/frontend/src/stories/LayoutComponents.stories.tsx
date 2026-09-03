@@ -4,6 +4,7 @@ import { Plus, FolderOpen, X, Database, Inbox } from "lucide-react";
 import {
   Button,
   PageHeader,
+  SectionHeading,
   EmptyState,
   SkeletonCard,
   PanelHeader,
@@ -75,6 +76,22 @@ export const PageHeaderWithBackButton: Story = {
         </Button>
       }
     />
+  ),
+};
+
+// ─── SectionHeading ─────────────────────────────────────────────
+
+export const SectionHeadingBasic: Story = {
+  name: "SectionHeading / Basic",
+  render: () => <SectionHeading icon={<Database size={14} />}>Languages</SectionHeading>,
+};
+
+export const SectionHeadingWithCount: Story = {
+  name: "SectionHeading / With Count",
+  render: () => (
+    <SectionHeading icon={<Inbox size={14} />} count={12}>
+      Plugins
+    </SectionHeading>
   ),
 };
 
