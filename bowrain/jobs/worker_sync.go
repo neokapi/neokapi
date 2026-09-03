@@ -323,7 +323,7 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 	// the venue's log, the audit trail, the push's own run log, and the job
 	// row the producer reads back through the status endpoint.
 	gov.logRefusals(ctx, projectID, stream)
-	gov.emitAudit(deps, projectID, stream)
+	gov.emitAudit(ctx, deps, projectID, stream)
 	gov.recordSoDViolations(deps, projectID)
 	if summary := gov.summary(); summary != "" {
 		emitLog(deps, job.StepID, "info", summary, nil)

@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
+	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/review"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
@@ -376,4 +377,93 @@ func seedHandWritten(t *testing.T, deps *WorkerDeps, projectID, item, author, lo
 	rows[0].Block.SetTargetText(model.LocaleID(locale), text)
 	wctx := bstore.WithChangeContext(ctx, bstore.ChangeContext{Actor: author})
 	require.NoError(t, deps.ContentStore.StoreBlocks(wctx, projectID, "main", []*model.Block{rows[0].Block}))
+}
+
+// A rung a push moved is a review decision, so it leaves the same audit entry a
+// decision made on the platform leaves: who, which block, which language, and
+// the rungs it moved between. The marker says it arrived by push, because that
+// is the one thing the web entry cannot be confused with.
+//
+// One entry per target. A push states a promotion twice, on the block and in
+// the decision record, and the audit trail records the change rather than the
+// statements of it.
+func TestPushReviewGovernance_AuditsAcceptedRungs(t *testing.T) {
+	const item = "en.json"
+	const locale = "fr"
+
+	deps := newTestWorkerDeps(t)
+	deps.ReviewAuthority = pushAuthority{review: map[string]bool{locale: true}}
+	bus := &recordingBus{}
+	deps.EventBus = bus
+
+	pid := "gov-audit"
+	require.NoError(t, deps.ContentStore.CreateProject(t.Context(),
+		&store.Project{ID: pid, Name: "Audited"}))
+
+	push := governedPush{
+		projectID: pid, actor: "u-reviewer", item: item,
+		blocks: []*model.Block{reviewedBlock("b1", "Hello", locale, "Bonjour", model.TargetStatusReviewed)},
+		decisions: []venue.UnitDecision{{
+			ItemName: item, Unit: "b1", Variant: locale,
+			Status: string(model.TargetStatusReviewed), ReviewState: venue.ReviewStateApproved,
+			Updated: "2026-09-03T10:00:00Z",
+		}},
+	}
+	require.NoError(t, push.run(t, deps, "job-audit"))
+
+	var decided []platev.Event
+	for _, ev := range bus.published() {
+		if ev.Type == platev.EventReviewDecided {
+			decided = append(decided, ev)
+		}
+	}
+	require.Len(t, decided, 1, "one entry for one rung change, however many times the push stated it")
+	ev := decided[0]
+	assert.Equal(t, "u-reviewer", ev.Actor)
+	assert.Equal(t, pid, ev.ProjectID)
+	assert.Equal(t, "block", ev.ResourceType)
+	assert.NotEmpty(t, ev.ResourceID)
+	assert.Equal(t, locale, ev.Data["locale"])
+	assert.Equal(t, "approved", ev.Data["decision"])
+	assert.Equal(t, "push", ev.Data["via"])
+	assert.Equal(t, string(model.TargetStatusReviewed), ev.After["status"])
+}
+
+// A refused rung is nobody's decision, so it leaves no review entry. The
+// workspace policy catching a decider on their own work is a different record,
+// and it is filed once for the push with the count.
+func TestPushReviewGovernance_AuditsNoRefusedRung(t *testing.T) {
+	const item = "en.json"
+	const locale = "fr"
+
+	deps := newTestWorkerDeps(t)
+	deps.ReviewAuthority = pushAuthority{review: map[string]bool{locale: true}, mode: platauth.SoDBlock}
+	bus := &recordingBus{}
+	deps.EventBus = bus
+
+	pid := "gov-audit-refused"
+	require.NoError(t, deps.ContentStore.CreateProject(t.Context(),
+		&store.Project{ID: pid, Name: "Audited"}))
+	seedHandWritten(t, deps, pid, item, "u-author", locale, "Bonjour")
+
+	push := governedPush{
+		projectID: pid, actor: "u-author", item: item,
+		blocks: []*model.Block{reviewedBlock("b1", "Hello", locale, "Bonjour", model.TargetStatusReviewed)},
+	}
+	require.NoError(t, push.run(t, deps, "job-audit-refused"))
+
+	reviews, violations := 0, 0
+	for _, ev := range bus.published() {
+		switch ev.Type {
+		case platev.EventReviewDecided:
+			reviews++
+		case platev.EventType("sod.violation"):
+			violations++
+			assert.Equal(t, "u-author", ev.Data["actor"])
+			assert.Equal(t, "push", ev.Data["via"])
+			assert.Equal(t, "1", ev.Data["targets"])
+		}
+	}
+	assert.Zero(t, reviews, "a refused rung moved nothing, so there is nothing to record as decided")
+	assert.Equal(t, 1, violations, "one record for the push, with the count")
 }

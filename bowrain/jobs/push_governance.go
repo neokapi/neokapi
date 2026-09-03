@@ -57,7 +57,7 @@ type pushGovernor struct {
 
 	counts   map[refusalRef]int
 	units    []venue.RefusedUnit
-	accepted []acceptedRung
+	accepted map[acceptedKey]acceptedRung
 }
 
 // recordPushGovernance stores what the review gate refused on the push's job
@@ -116,13 +116,24 @@ type unitRef struct{ item, unit string }
 type refusalRef struct{ locale, kind, reason string }
 
 // acceptedRung is one rung change this push made that the audit trail records:
-// who moved which target, from where to where, and that it arrived by push.
+// which target moved, from where to where.
+//
+// The target is named twice over. blockID is the venue's row when the push
+// found one; item and unit are the durable identity, which is all a block
+// arriving for the first time has until the transition stores it. The audit
+// entry names the row, so an unresolved one is looked up after the commit.
 type acceptedRung struct {
 	blockID  string
+	item     string
+	unit     string
 	locale   string
 	from, to model.TargetStatus
-	state    string
 }
+
+// acceptedKey is one target, however the push named it: a push states a
+// promotion twice (on the block and in the decision record) and the audit trail
+// records the change rather than the statements of it.
+type acceptedKey struct{ ref, locale string }
 
 // newPushGovernor resolves everything the gate needs before the transition
 // opens: which rows the payload's blocks and units name, who last wrote each
@@ -148,6 +159,7 @@ func newPushGovernor(
 		unitID:      map[unitRef]string{},
 		priorStatus: map[platstore.TargetRef]model.TargetStatus{},
 		counts:      map[refusalRef]int{},
+		accepted:    map[acceptedKey]acceptedRung{},
 	}
 	if !carriesVerdict(staged, decisions) {
 		return g, nil // nothing to judge; no lookups, no gate
@@ -330,6 +342,25 @@ func refusalLocale(locale, variant string) string {
 	return locale
 }
 
+// noteAccepted records a rung this push moved, for the audit trail. A rung the
+// venue already holds moved nothing and is not recorded; a target stated twice
+// is recorded once.
+func (g *pushGovernor) noteAccepted(blockID, item, unit, locale string, from, to model.TargetStatus) {
+	if from == to {
+		return
+	}
+	ref := blockID
+	if ref == "" {
+		if unit == "" {
+			return // nothing to name the target by
+		}
+		ref = item + "\x00" + unit
+	}
+	g.accepted[acceptedKey{ref: ref, locale: locale}] = acceptedRung{
+		blockID: blockID, item: item, unit: unit, locale: locale, from: from, to: to,
+	}
+}
+
 // noteUnit records which unit a refusal was about, up to the bound the report
 // carries. The counts stay exact whether or not the unit made the list.
 func (g *pushGovernor) noteUnit(itemName, unit, variant, reason string) {
@@ -375,10 +406,7 @@ func (g *pushGovernor) vetTargets(staged []stagedGroup) {
 				}
 				allowed, reason := g.allow(blockID, locale, kind, true)
 				if allowed {
-					g.accepted = append(g.accepted, acceptedRung{
-						blockID: blockID, locale: locale, from: prior, to: target.Status,
-						state: string(target.Status),
-					})
+					g.noteAccepted(blockID, group.ItemName, b.Name, locale, prior, target.Status)
 					continue
 				}
 				g.noteUnit(group.ItemName, b.Name, variantText(key), reason)
@@ -472,13 +500,8 @@ func (g *pushGovernor) vetDecisions(held []venue.UnitDecision, decisions []venue
 			continue
 		}
 		d.DecidedBy = g.actor
-		if from := g.priorStatus[platstore.TargetRef{BlockID: blockID, Locale: locale}]; blockID != "" &&
-			from != model.TargetStatus(d.Status) {
-			g.accepted = append(g.accepted, acceptedRung{
-				blockID: blockID, locale: locale, from: from,
-				to: model.TargetStatus(d.Status), state: d.ReviewState,
-			})
-		}
+		priorRung := g.priorStatus[platstore.TargetRef{BlockID: blockID, Locale: locale}]
+		g.noteAccepted(blockID, d.ItemName, d.Unit, locale, priorRung, model.TargetStatus(d.Status))
 		out = append(out, d)
 	}
 	return out
@@ -618,11 +641,35 @@ func (g *pushGovernor) logRefusals(ctx context.Context, projectID, stream string
 //
 // After the transition, never inside it: an audit line for a rung change that
 // rolled back would be a record of something that did not happen.
-func (g *pushGovernor) emitAudit(deps *WorkerDeps, projectID, stream string) {
+func (g *pushGovernor) emitAudit(ctx context.Context, deps *WorkerDeps, projectID, stream string) {
 	if deps.EventBus == nil {
 		return
 	}
-	for _, a := range g.accepted {
+	keys := make([]acceptedKey, 0, len(g.accepted))
+	for key := range g.accepted {
+		keys = append(keys, key)
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		if keys[i].ref != keys[j].ref {
+			return keys[i].ref < keys[j].ref
+		}
+		return keys[i].locale < keys[j].locale
+	})
+	rows := map[string]map[string]string{}
+	for _, key := range keys {
+		a := g.accepted[key]
+		if a.blockID == "" {
+			a.blockID = resolveStoredBlock(ctx, deps, projectID, stream, a.item, a.unit, rows)
+		}
+		if a.blockID == "" {
+			// The venue stored the content but this unit's row cannot be
+			// named, so the entry would point at nothing. Say so rather than
+			// file a trail entry with an empty subject.
+			slog.WarnContext(ctx, "a rung this push moved could not be named for the audit trail",
+				"project", projectID, "stream", stream, "item", a.item, "unit", a.unit,
+				"locale", a.locale, "actor", g.actor)
+			continue
+		}
 		deps.EventBus.Publish(platev.Event{
 			Type:         platev.EventReviewDecided,
 			Source:       "sync-worker",
@@ -642,17 +689,39 @@ func (g *pushGovernor) emitAudit(deps *WorkerDeps, projectID, stream string) {
 	}
 }
 
-// decisionName labels a rung change for the audit log, in the vocabulary the
-// review surfaces use.
-func decisionName(a acceptedRung) string {
-	switch {
-	case a.state == venue.ReviewStateRejected:
-		return "rejected"
-	case a.to == model.TargetStatusSignedOff:
-		return "signed off"
-	default:
-		return "approved"
+// resolveStoredBlock names the row a unit landed in, after the transition
+// stored it. One read per item, remembered, because a push that promoted a
+// hundred new units in one file must not read that file a hundred times.
+func resolveStoredBlock(ctx context.Context, deps *WorkerDeps, projectID, stream, item, unit string, cache map[string]map[string]string) string {
+	if item == "" || unit == "" {
+		return ""
 	}
+	byUnit, read := cache[item]
+	if !read {
+		byUnit = map[string]string{}
+		stored, err := deps.ContentStore.GetBlocks(ctx, platstore.BlockQuery{
+			ProjectID: projectID, Stream: stream, ItemName: item,
+		})
+		if err == nil {
+			for _, row := range stored {
+				if row != nil && row.SourceID != "" {
+					byUnit[row.SourceID] = row.ID
+				}
+			}
+		}
+		cache[item] = byUnit
+	}
+	return byUnit[unit]
+}
+
+// decisionName labels a rung change for the audit log, in the vocabulary the
+// review surfaces use. Only a promotion above translated reaches the audit
+// trail through a push, so the two words it needs are the two rungs above it.
+func decisionName(a acceptedRung) string {
+	if a.to == model.TargetStatusSignedOff {
+		return "signed off"
+	}
+	return "approved"
 }
 
 // recordSoDViolations files one audit record for the whole push when the
