@@ -181,9 +181,9 @@ content it judges. The venue is authoritative for what has been approved in it,
 so it holds every rung above translated and every approval or sign-off a push
 carries to the gate its own review surfaces pass: the pusher's review permission
 for that language in that project, and the workspace separation-of-duties
-policy with the pusher as the decider. One function answers for all three
-callers (`bowrain/review`), so the endpoint, the bulk routes and the sync worker
-cannot drift apart.
+policy with the pusher as the decider. One function answers for every caller,
+so the review endpoint, the bulk routes and the ingest worker cannot drift
+apart.
 
 A verdict that fails the gate is withheld, not the content: the translation
 lands at translated, the verdict is kept as the basis it carries, and the
