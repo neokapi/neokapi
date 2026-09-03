@@ -101,8 +101,21 @@ func MatchTermRules(sets []TermRuleSet, text string) []VocabHit {
 			if rule.CaseSensitive {
 				find = check.FindTermFormsCased
 			}
-			for _, h := range find(text, rule.AllForms()) {
+			matches := find(text, rule.AllForms())
+			// A rule whose preferred replacement contains the term itself — "cart"
+			// → "shopping cart" — must not fire on the term inside its own
+			// replacement phrase. Only such a rule pays for the full-text scan: the
+			// containment test runs against the short replacement, and the scan for
+			// replacement occurrences happens only when it holds.
+			var replacementSpans [][2]int
+			if rule.Replacement != "" && len(find(rule.Replacement, rule.AllForms())) > 0 {
+				replacementSpans = find(text, []string{rule.Replacement})
+			}
+			for _, h := range matches {
 				if !inScope(rule.Scope, text, codeAreas, h[0]) {
+					continue
+				}
+				if spanWithinAny(h, replacementSpans) {
 					continue
 				}
 				hits = append(hits, VocabHit{
@@ -210,6 +223,18 @@ func HitsToFindings(hits []VocabHit, text string, runs []model.Run) []VoiceFindi
 		findings = append(findings, f)
 	}
 	return findings
+}
+
+// spanWithinAny reports whether the hit range [h[0],h[1]) lies wholly inside one
+// of the given spans. It backs containment suppression: a term hit that falls
+// inside an occurrence of its rule's own replacement phrase is not a violation.
+func spanWithinAny(h [2]int, spans [][2]int) bool {
+	for _, s := range spans {
+		if s[0] <= h[0] && h[1] <= s[1] {
+			return true
+		}
+	}
+	return false
 }
 
 // severityForRule maps a TermRule's textual severity onto the framework scale,
