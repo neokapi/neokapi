@@ -680,7 +680,7 @@ func (g *pushGovernor) emitAudit(ctx context.Context, deps *WorkerDeps, projectI
 			Data: map[string]string{
 				"locale":   a.locale,
 				"stream":   stream,
-				"decision": decisionName(a),
+				"decision": review.DecisionName(true, a.to),
 				"via":      "push",
 			},
 			Before: map[string]string{"status": string(a.from)},
@@ -712,16 +712,6 @@ func resolveStoredBlock(ctx context.Context, deps *WorkerDeps, projectID, stream
 		cache[item] = byUnit
 	}
 	return byUnit[unit]
-}
-
-// decisionName labels a rung change for the audit log, in the vocabulary the
-// review surfaces use. Only a promotion above translated reaches the audit
-// trail through a push, so the two words it needs are the two rungs above it.
-func decisionName(a acceptedRung) string {
-	if a.to == model.TargetStatusSignedOff {
-		return "signed off"
-	}
-	return "approved"
 }
 
 // recordSoDViolations files one audit record for the whole push when the

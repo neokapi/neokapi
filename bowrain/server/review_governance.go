@@ -248,23 +248,6 @@ func reviewGateFor(approving bool) platauth.Permission {
 	return platauth.PermTranslate
 }
 
-// reviewDecisionName labels a rung change for the audit log: what the decider
-// did, in the vocabulary the review surfaces use. It matches the ledger's
-// ReviewState (unitDecisionFor), so the security trail and the content trail
-// call the same decision by the same name.
-func reviewDecisionName(approved bool, to model.TargetStatus) string {
-	switch {
-	case approved && to == model.TargetStatusSignedOff:
-		return "signed-off"
-	case approved:
-		return "approved"
-	case to == model.TargetStatusDraft:
-		return "rejected"
-	default:
-		return "unreviewed"
-	}
-}
-
 // emitReviewDecisionAudit records one review decision in the audit log: who
 // decided, on which block and locale, and the rungs the target moved between.
 // The decision ledger carries the same verdict for the content pipeline; this
@@ -273,7 +256,7 @@ func (s *Server) emitReviewDecisionAudit(c echo.Context, projectID, stream, bloc
 	data := map[string]string{
 		"locale":   locale,
 		"stream":   stream,
-		"decision": reviewDecisionName(approved, to),
+		"decision": review.DecisionName(approved, to),
 	}
 	if reason != "" {
 		data["reason"] = reason

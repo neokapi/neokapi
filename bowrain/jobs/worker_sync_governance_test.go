@@ -391,42 +391,56 @@ func TestPushReviewGovernance_AuditsAcceptedRungs(t *testing.T) {
 	const item = "en.json"
 	const locale = "fr"
 
-	deps := newTestWorkerDeps(t)
-	deps.ReviewAuthority = pushAuthority{review: map[string]bool{locale: true}}
-	bus := &recordingBus{}
-	deps.EventBus = bus
-
-	pid := "gov-audit"
-	require.NoError(t, deps.ContentStore.CreateProject(t.Context(),
-		&store.Project{ID: pid, Name: "Audited"}))
-
-	push := governedPush{
-		projectID: pid, actor: "u-reviewer", item: item,
-		blocks: []*model.Block{reviewedBlock("b1", "Hello", locale, "Bonjour", model.TargetStatusReviewed)},
-		decisions: []venue.UnitDecision{{
-			ItemName: item, Unit: "b1", Variant: locale,
-			Status: string(model.TargetStatusReviewed), ReviewState: venue.ReviewStateApproved,
-			Updated: "2026-09-03T10:00:00Z",
-		}},
+	cases := []struct {
+		name     string
+		rung     model.TargetStatus
+		state    string
+		decision string
+	}{
+		{"approval", model.TargetStatusReviewed, venue.ReviewStateApproved, "approved"},
+		{"sign-off", model.TargetStatusSignedOff, venue.ReviewStateSignedOff, "signed-off"},
 	}
-	require.NoError(t, push.run(t, deps, "job-audit"))
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			deps := newTestWorkerDeps(t)
+			deps.ReviewAuthority = pushAuthority{review: map[string]bool{locale: true}}
+			bus := &recordingBus{}
+			deps.EventBus = bus
 
-	var decided []platev.Event
-	for _, ev := range bus.published() {
-		if ev.Type == platev.EventReviewDecided {
-			decided = append(decided, ev)
-		}
+			pid := "gov-audit-" + tc.name
+			require.NoError(t, deps.ContentStore.CreateProject(t.Context(),
+				&store.Project{ID: pid, Name: "Audited"}))
+
+			push := governedPush{
+				projectID: pid, actor: "u-reviewer", item: item,
+				blocks: []*model.Block{reviewedBlock("b1", "Hello", locale, "Bonjour", tc.rung)},
+				decisions: []venue.UnitDecision{{
+					ItemName: item, Unit: "b1", Variant: locale,
+					Status: string(tc.rung), ReviewState: tc.state,
+					Updated: "2026-09-03T10:00:00Z",
+				}},
+			}
+			require.NoError(t, push.run(t, deps, "job-audit-"+tc.name))
+
+			var decided []platev.Event
+			for _, ev := range bus.published() {
+				if ev.Type == platev.EventReviewDecided {
+					decided = append(decided, ev)
+				}
+			}
+			require.Len(t, decided, 1, "one entry for one rung change, however many times the push stated it")
+			ev := decided[0]
+			assert.Equal(t, "u-reviewer", ev.Actor)
+			assert.Equal(t, pid, ev.ProjectID)
+			assert.Equal(t, "block", ev.ResourceType)
+			assert.NotEmpty(t, ev.ResourceID)
+			assert.Equal(t, locale, ev.Data["locale"])
+			assert.Equal(t, tc.decision, ev.Data["decision"],
+				"the audit label is the one the review surfaces use for the rung")
+			assert.Equal(t, "push", ev.Data["via"])
+			assert.Equal(t, string(tc.rung), ev.After["status"])
+		})
 	}
-	require.Len(t, decided, 1, "one entry for one rung change, however many times the push stated it")
-	ev := decided[0]
-	assert.Equal(t, "u-reviewer", ev.Actor)
-	assert.Equal(t, pid, ev.ProjectID)
-	assert.Equal(t, "block", ev.ResourceType)
-	assert.NotEmpty(t, ev.ResourceID)
-	assert.Equal(t, locale, ev.Data["locale"])
-	assert.Equal(t, "approved", ev.Data["decision"])
-	assert.Equal(t, "push", ev.Data["via"])
-	assert.Equal(t, string(model.TargetStatusReviewed), ev.After["status"])
 }
 
 // A refused rung is nobody's decision, so it leaves no review entry. The
