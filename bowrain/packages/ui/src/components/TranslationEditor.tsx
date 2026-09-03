@@ -17,7 +17,7 @@ import type {
   ProjectInfo,
   BlockInfo,
   BlockCounts,
-  ReviewDemotion,
+  ReviewRung,
   WordCountResult,
   MemoryMatchInfo,
   BlockTermMatch,
@@ -469,11 +469,12 @@ export function TranslationEditor({
   // The rollback snapshot is captured inside the setBlocks updater — from the
   // state the write actually replaced, not a possibly stale component-scope
   // block — and restores only the status field, so a target save that lands
-  // while the review call is in flight is preserved. `demoteTo` picks the rung
-  // a clearing call (reviewed=false) lands on: "draft" for a reviewer
-  // rejection, otherwise translated.
+  // while the review call is in flight is preserved. `rung` picks where the
+  // call lands within its direction: "signed-off" on an approval, "draft" on a
+  // clearing call for a reviewer rejection, and either default at reviewed or
+  // translated.
   const applyReview = useCallback(
-    async (block: BlockInfo, reviewed: boolean, demoteTo?: ReviewDemotion): Promise<boolean> => {
+    async (block: BlockInfo, reviewed: boolean, rung?: ReviewRung): Promise<boolean> => {
       // Clearing the review state of a locale with no translation is a no-op:
       // the server treats it as an idempotent 200 success, so an optimistic
       // write here would fabricate a phantom {text: "", status} entry that no
@@ -481,7 +482,13 @@ export function TranslationEditor({
       // server's 422).
       if (!reviewed && !getTargetText(block, targetLocale).trim()) return true;
       capture(AnalyticsEvents.reviewDecisionClicked, {
-        decision: reviewed ? "approve" : demoteTo === "draft" ? "reject" : "clear",
+        decision: reviewed
+          ? rung === "signed-off"
+            ? "sign_off"
+            : "approve"
+          : rung === "draft"
+            ? "reject"
+            : "clear",
         locale: targetLocale,
       });
       let snapshot: TargetStatusSnapshot = { existed: false, status: "" };
@@ -492,12 +499,12 @@ export function TranslationEditor({
           return withTargetStatus(
             b,
             targetLocale,
-            reviewed ? "reviewed" : (demoteTo ?? "translated"),
+            reviewed ? (rung === "signed-off" ? "signed-off" : "reviewed") : (rung ?? "translated"),
           );
         }),
       );
       try {
-        await api.reviewBlock(project.id, fileName, block.id, targetLocale, reviewed, demoteTo);
+        await api.reviewBlock(project.id, fileName, block.id, targetLocale, reviewed, rung);
         void loadCounts();
         return true;
       } catch (e) {
@@ -508,7 +515,9 @@ export function TranslationEditor({
         );
         setError({
           title: reviewed
-            ? "Couldn't mark the block as reviewed"
+            ? rung === "signed-off"
+              ? "Couldn't sign the block off"
+              : "Couldn't mark the block as reviewed"
             : "Couldn't update the review status",
           cause: e,
         });
@@ -539,6 +548,18 @@ export function TranslationEditor({
     // bounce the reviewer to the next block and then surface the rollback +
     // error for a block no longer on screen.
     void applyReview(block, true).then((ok) => {
+      if (ok) setSelectedIndex((i) => (i === index && i < total - 1 ? i + 1 : i));
+    });
+  }, [blocks, selectedIndex, targetLocale, applyReview]);
+
+  // Signing off promotes the target to the rung above reviewed, and advances
+  // for the same reason an approval does: the unit is decided either way.
+  const handleVisualSignOff = useCallback(() => {
+    const block = blocks[selectedIndex];
+    if (!block || !getTargetText(block, targetLocale).trim()) return;
+    const index = selectedIndex;
+    const total = blocks.length;
+    void applyReview(block, true, "signed-off").then((ok) => {
       if (ok) setSelectedIndex((i) => (i === index && i < total - 1 ? i + 1 : i));
     });
   }, [blocks, selectedIndex, targetLocale, applyReview]);
@@ -820,6 +841,7 @@ export function TranslationEditor({
                 onSave={handleVisualSave}
                 onCancelEditing={() => setEditingIndex(null)}
                 onApprove={handleVisualApprove}
+                onSignOff={handleVisualSignOff}
                 onReject={handleVisualReject}
                 memoryMatches={memoryMatches}
                 termMatches={termMatches}

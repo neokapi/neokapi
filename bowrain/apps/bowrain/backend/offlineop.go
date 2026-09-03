@@ -110,9 +110,9 @@ func (o updateBlockTargetRunsOp) replay(ctx context.Context, client *editorclien
 	return client.UpdateBlockTargetRuns(ctx, ws, o.ProjectID, o.BlockID, o.TargetLocale, runInfosToRuns(o.Runs))
 }
 
-// reviewBlockOp queues a block review/un-review. Status is the optional
-// demotion rung for reviewed=false ("draft" for a rejection; empty means
-// translated), mirroring the server's review body.
+// reviewBlockOp queues a block review/un-review. Status is the optional rung,
+// mirroring the server's review body: "signed-off" on an approval, "draft" on
+// a clearing call for a rejection, empty for the default rung either way.
 type reviewBlockOp struct {
 	ProjectID    string `json:"project_id"`
 	ItemName     string `json:"item_name"`

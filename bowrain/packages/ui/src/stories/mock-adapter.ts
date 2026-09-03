@@ -14,7 +14,7 @@ import type {
   SourceProposal,
   CreateSourceProposalRequest,
   BlockInfo,
-  ReviewDemotion,
+  ReviewRung,
   SkippedFile,
   TranslationStats,
   UploadFilesResult,
@@ -216,7 +216,7 @@ export interface ReviewBlockCall {
   targetLocale: string;
   reviewed: boolean;
   stream?: string;
-  demoteTo?: ReviewDemotion;
+  rung?: ReviewRung;
 }
 
 /**
@@ -1093,7 +1093,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
       targetLocale,
       reviewed,
       stream,
-      demoteTo,
+      rung,
     ) => {
       reviewBlockCalls.push({
         workspaceSlug,
@@ -1103,7 +1103,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
         targetLocale,
         reviewed,
         stream,
-        demoteTo,
+        rung,
       });
       if (adapter.failReviewBlock) throw new Error("reviewBlock failed (mock)");
       const blk = _blocks.find((b) => b.id === blockId);
@@ -1112,9 +1112,16 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
         const text = typeof entry === "string" ? entry : (entry?.text ?? "");
         blk.targets[targetLocale] = {
           text,
-          // A rejection (reviewed=false + demoteTo "draft") lands on draft;
-          // a plain un-review on translated (mirrors HandleReviewBlock).
-          status: reviewed ? "reviewed" : demoteTo === "draft" ? "draft" : "translated",
+          // The rung picks where the call lands within its direction: a
+          // sign-off above reviewed, a rejection at draft, and either default
+          // at reviewed or translated (mirrors HandleReviewBlock).
+          status: reviewed
+            ? rung === "signed-off"
+              ? "signed-off"
+              : "reviewed"
+            : rung === "draft"
+              ? "draft"
+              : "translated",
         };
       }
     },

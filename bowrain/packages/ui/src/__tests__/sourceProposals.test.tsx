@@ -193,6 +193,7 @@ describe("FocusedReviewer back-to-source affordances", () => {
     position: { index: 1, total: 3 },
     editing: false,
     onApprove: () => {},
+    onSignOff: () => {},
     onReject: () => {},
     onEditToggle: () => {},
     onSaveEdit: () => {},

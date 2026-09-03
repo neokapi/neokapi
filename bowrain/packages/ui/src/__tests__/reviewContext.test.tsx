@@ -69,6 +69,7 @@ function reviewer(over: Partial<ReviewEntry> = {}, context: ReviewContext | null
       editing={false}
       context={context}
       onApprove={() => {}}
+      onSignOff={() => {}}
       onReject={() => {}}
       onEditToggle={() => {}}
       onSaveEdit={() => {}}
@@ -339,6 +340,7 @@ function inspector(context: ReviewContext | null) {
       marked={false}
       onClose={() => {}}
       onApprove={() => {}}
+      onSignOff={() => {}}
       onReject={() => {}}
       onEditToggle={() => {}}
       onSaveEdit={() => {}}

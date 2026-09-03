@@ -23,6 +23,7 @@ import {
 } from "./reviewContext";
 import {
   Check,
+  CheckCheck,
   X,
   Pencil,
   RefreshCw,
@@ -65,9 +66,10 @@ export interface FocusedReviewerProps {
   /** Disables the action buttons while a decision is in flight. */
   busy?: boolean;
   /**
-   * Whether the viewer may approve this language. Approving needs the `review`
-   * permission, which a translator does not hold, so the button is disabled and
-   * says why rather than failing on click. Defaults to true.
+   * Whether the viewer may decide this language. Approving and signing off both
+   * need the `review` permission, which a translator does not hold, so both
+   * buttons are disabled and say why rather than failing on click. Defaults to
+   * true.
    */
   canApprove?: boolean;
   /** Shows the re-check spinner. */
@@ -85,6 +87,8 @@ export interface FocusedReviewerProps {
   /** The context fetch is in flight for this entry. */
   contextLoading?: boolean;
   onApprove: () => void;
+  /** Sign the target off: the rung above reviewed on the target ladder. */
+  onSignOff: () => void;
   onReject: () => void;
   onEditToggle: () => void;
   onSaveEdit: (result: UnifiedSaveResult) => void | Promise<void>;
@@ -127,10 +131,10 @@ const verdictChip: Record<ReviewQueueVerdict, string> = {
  * source-vs-target, both sides rendered by the same cell primitive the
  * translation editor uses (inline codes as chips, entity marks, formatting
  * applied), with its checks and compliance signal inline. Review is
- * bidirectional — the reviewer can act on the target (approve / reject / edit →
- * re-check, and turn a fix into a voice rule) and on the source (select a span
- * → mark a term or suggest a voice rule). All actions are emitted to the parent
- * session, which owns the data, keyboard model, and governance.
+ * bidirectional: the reviewer acts on the target (approve / sign off / reject /
+ * edit → re-check, and turn a fix into a voice rule) and on the source (select
+ * a span → mark a term or suggest a voice rule). All actions are emitted to the
+ * parent session, which owns the data, keyboard model, and governance.
  */
 export function FocusedReviewer({
   entry,
@@ -146,6 +150,7 @@ export function FocusedReviewer({
   context = null,
   contextLoading,
   onApprove,
+  onSignOff,
   onReject,
   onEditToggle,
   onSaveEdit,
@@ -520,6 +525,22 @@ export function FocusedReviewer({
           <Check className="mr-1 h-4 w-4" /> Approve
           <kbd className="ml-1.5 rounded bg-white/20 px-1 text-[10px]">A</kbd>
         </Button>
+        {/* Sign off takes success beside Approve: the shared scale gives both
+            the accepting colour (packages/ui/docs/judgement-colours.md), and
+            the double check reads as the rung above the single one. */}
+        <Button
+          size="sm"
+          variant="success"
+          onClick={onSignOff}
+          disabled={busy || !canApprove}
+          title={
+            canApprove ? undefined : "Signing off needs the review permission for this language"
+          }
+          data-testid="reviewer-sign-off"
+        >
+          <CheckCheck className="mr-1 h-4 w-4" /> Sign off
+          <kbd className="ml-1.5 rounded bg-white/20 px-1 text-[10px]">S</kbd>
+        </Button>
         {/* Reject takes destructive, which is where the shared scale puts it
             (packages/ui/docs/judgement-colours.md): it undoes the translation
             in force rather than accepting it. */}
@@ -544,6 +565,9 @@ export function FocusedReviewer({
           </span>
           <span>
             <kbd className="rounded border border-border px-1">A</kbd> approve
+          </span>
+          <span>
+            <kbd className="rounded border border-border px-1">S</kbd> sign off
           </span>
           <span>
             <kbd className="rounded border border-border px-1">R</kbd> reject

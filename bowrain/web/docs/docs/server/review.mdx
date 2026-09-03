@@ -2,7 +2,7 @@
 sidebar_position: 4
 title: Review
 description: The governed review session walks every pending block across a project's items and locales; approvals feed the context graph, decide a locale's ship state, and continue the loop through to delivery.
-keywords: [review, review session, ship state, governed, ai_shippable, pending, bulk approve, review inbox, in-context review, bowrain]
+keywords: [review, review session, ship state, governed, ai_shippable, pending, bulk approve, sign off, review inbox, in-context review, bowrain]
 ---
 
 import { ThemedVideo, PhaseFlow } from "@neokapi/docs-shared";
@@ -41,6 +41,9 @@ For each block:
 - **Approve** marks the target reviewed for that locale. It needs the `review`
   permission for that language, which the built-in **Reviewer** template
   carries; a translator can edit and reject, but not approve.
+- **Sign off** marks it signed off, the rung above reviewed, for a ship gate
+  that asks for more than a review. It needs the same `review` permission, and
+  it can be given straight from a translated target or after an approval.
 - **Reject** sends it back to draft for another pass.
 - **Edit** fixes the draft in place. A fix is a correction made at a point, and
   corrections are what the context learns from (see
@@ -86,8 +89,9 @@ nobody acting. Separation of duties (see
 [Members and roles](/server/members-and-roles#governance-controls)) stops a
 person from approving a translation they wrote by hand, and leaves the one
 person in a small workspace free to approve what the machine wrote. It applies
-to every way of approving: block by block, over a selection, and through
-**Approve everything passing**.
+to every way of promoting a target: block by block, over a selection, through
+**Approve everything passing**, and to a sign-off, which is judged on the
+author of the wording exactly as an approval is.
 
 ### What an approval leaves behind
 
@@ -99,9 +103,10 @@ Two records, written for every approval whichever route made it:
   [content memory](/server/translation-memory).
 - **An audit entry**, in the workspace [audit log](/server/security-and-privacy#the-audit-log), naming
   the actor, the block, the locale, and the rungs the target moved between. A
-  rejection and a withdrawn approval are recorded the same way. **Approve
-  everything passing** records the pass and its counts per language, because
-  the pass is what the person decided; which blocks it took is in the ledger.
+  rejection, a sign-off and a withdrawn approval are recorded the same way, each
+  under its own name. **Approve everything passing** records the pass and its
+  counts per language, because the pass is what the person decided; which
+  blocks it took is in the ledger.
 
 ### The reviewer is summoned
 

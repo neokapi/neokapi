@@ -1561,10 +1561,11 @@ export function ResolveConceptComment(workspaceSlug, conceptID, commentID, resol
 }
 
 /**
- * ReviewBlock marks a block as reviewed or un-reviewed for a target locale.
- * status optionally picks the rung an un-review (reviewed=false) demotes to:
- * "" or "translated" for a plain un-review, "draft" for a reviewer rejection
- * (the unit re-enters the work queue). It must be empty when reviewed is true.
+ * ReviewBlock marks a block as reviewed, signed off or un-reviewed for a
+ * target locale. status picks the rung: with reviewed=true it is "" for an
+ * approval or "signed-off" for a sign-off; with reviewed=false it is "" or
+ * "translated" for a plain un-review, "draft" for a reviewer rejection (the
+ * unit re-enters the work queue).
  * @param {string} projectID
  * @param {string} itemName
  * @param {string} blockID

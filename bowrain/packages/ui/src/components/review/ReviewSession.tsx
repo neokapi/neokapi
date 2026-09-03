@@ -5,6 +5,7 @@ import { ConfirmDialog } from "../ConfirmDialog";
 import type {
   ApprovePassingResult,
   ProjectInfo,
+  ReviewRung,
   TranslationDashboardStats,
   BlockInfo,
   CheckIssue,
@@ -168,8 +169,8 @@ function complianceForLocale(
  * the grouped/filterable queue; the right pane is the bidirectional focused
  * reviewer; the header carries live counts, filters, and the solo-founder
  * "Approve all passing" fast path. It is keyboard-first (j/k move, a approve,
- * r reject, e edit) and, when the queue empties, reflects the server's
- * auto-continue to delivery rather than dead-ending.
+ * s sign off, r reject, e edit) and, when the queue empties, reflects the
+ * server's auto-continue to delivery rather than dead-ending.
  */
 export function ReviewSession({
   project,
@@ -401,10 +402,12 @@ export function ReviewSession({
     [visible],
   );
 
-  // Approve / reject: optimistic removal (the next pending block slides into
-  // place → "advance"); on failure, refetch to resync with server truth.
+  // Approve / sign off / reject: optimistic removal (the next pending block
+  // slides into place → "advance"); on failure, refetch to resync with server
+  // truth. A signed-off unit leaves the queue exactly as an approved one does,
+  // since both sit at or above the reviewed rung isPendingReview tests.
   const decide = useCallback(
-    async (entry: ReviewEntry, reviewed: boolean) => {
+    async (entry: ReviewEntry, reviewed: boolean, rung?: ReviewRung) => {
       if (busy) return;
       setBusy(true);
       setEditing(false);
@@ -418,7 +421,7 @@ export function ReviewSession({
           entry.block.id,
           entry.locale,
           reviewed,
-          reviewed ? undefined : "draft",
+          reviewed ? rung : "draft",
         );
       } catch (e) {
         setActionError(e);
@@ -432,6 +435,9 @@ export function ReviewSession({
 
   const approve = useCallback(() => {
     if (current) void decide(current, true);
+  }, [current, decide]);
+  const signOff = useCallback(() => {
+    if (current) void decide(current, true, "signed-off");
   }, [current, decide]);
   const reject = useCallback(() => {
     if (current) void decide(current, false);
@@ -568,8 +574,9 @@ export function ReviewSession({
     setDelivering(true);
   }, [entries.length, isLoading, isFetching, pendingTotal, refetch]);
 
-  // Keyboard model: j/k (or ↓/↑) move, a approve, r reject, e edit. Suppressed
-  // while editing or when focus is in a field, so typing is never intercepted.
+  // Keyboard model: j/k (or ↓/↑) move, a approve, s sign off, r reject, e edit.
+  // Suppressed while editing or when focus is in a field, so typing is never
+  // intercepted.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (editing || busy) return;
@@ -592,6 +599,10 @@ export function ReviewSession({
           e.preventDefault();
           approve();
           break;
+        case "s":
+          e.preventDefault();
+          signOff();
+          break;
         case "r":
           e.preventDefault();
           reject();
@@ -606,7 +617,7 @@ export function ReviewSession({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [editing, busy, move, approve, reject, current]);
+  }, [editing, busy, move, approve, signOff, reject, current]);
 
   // The context the current unit is decided in. It is fetched for the unit
   // under the cursor rather than carried on every queue row: a page of the
@@ -852,6 +863,7 @@ export function ReviewSession({
               context={reviewContext}
               contextLoading={contextLoading}
               onApprove={approve}
+              onSignOff={signOff}
               onReject={reject}
               onEditToggle={() => setEditing((v) => !v)}
               onSaveEdit={(result) => saveEdit(current, result)}

@@ -120,7 +120,7 @@ import type {
   PasskeyRegisterStartResponse,
   PasskeyRegisterFinishRequest,
   SlugReservation,
-  ReviewDemotion,
+  ReviewRung,
   ApprovePassingRequest,
   ApprovePassingResult,
   SourceProposal,
@@ -1828,8 +1828,18 @@ export class RestApiAdapter implements ApiAdapter {
     targetLocale: string,
     reviewed: boolean,
     stream?: string,
-    demoteTo?: ReviewDemotion,
+    rung?: ReviewRung,
   ): Promise<void> {
+    // Each direction has its own rungs and the server rejects the other
+    // direction's, so only "signed-off" rides on an approval and only "draft"
+    // on a clearing call. Everything else is the default rung and is left out.
+    const status = reviewed
+      ? rung === "signed-off"
+        ? "signed-off"
+        : undefined
+      : rung === "draft"
+        ? "draft"
+        : undefined;
     await this.fetchJSON(
       `${this.projectEp(workspaceSlug, projectId)}/blocks/${this.ref(stream)}/${blockId}/review`,
       {
@@ -1838,9 +1848,7 @@ export class RestApiAdapter implements ApiAdapter {
           item_name: itemName,
           target_locale: targetLocale,
           reviewed,
-          // The demotion rung only applies to a clearing call; the server
-          // rejects status alongside reviewed=true.
-          status: !reviewed && demoteTo ? demoteTo : undefined,
+          status,
         }),
       },
     );

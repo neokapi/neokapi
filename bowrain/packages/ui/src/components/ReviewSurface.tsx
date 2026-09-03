@@ -18,7 +18,7 @@ import type {
   BlockTermMatch,
   FileCheckResult,
   ReviewContext,
-  ReviewDemotion,
+  ReviewRung,
 } from "../types/api";
 import { useEditorApi } from "../hooks/useEditorApi";
 import { useLocales } from "../hooks/useLocales";
@@ -280,10 +280,11 @@ export function ReviewSurface({
   // The rollback snapshot is captured inside the setBlocks updater — from the
   // state the write actually replaced — and restores only the status field, so
   // a target save that lands while the review call is in flight is preserved.
-  // `demoteTo` picks the rung a clearing call (reviewed=false) lands on:
-  // "draft" for a reviewer rejection, otherwise translated.
+  // `rung` picks where the call lands within its direction: "signed-off" on an
+  // approval, "draft" on a clearing call for a reviewer rejection, and either
+  // default at reviewed or translated.
   const setStatus = useCallback(
-    async (block: BlockInfo, reviewed: boolean, demoteTo?: ReviewDemotion) => {
+    async (block: BlockInfo, reviewed: boolean, rung?: ReviewRung) => {
       // Clearing the review state of a locale with no translation is a no-op:
       // the server treats it as an idempotent 200 success, so an optimistic
       // write here would fabricate a phantom {text: "", status} entry that no
@@ -291,7 +292,13 @@ export function ReviewSurface({
       // server's 422).
       if (!reviewed && !getTargetText(block, targetLocale).trim()) return;
       capture(AnalyticsEvents.reviewDecisionClicked, {
-        decision: reviewed ? "approve" : demoteTo === "draft" ? "reject" : "clear",
+        decision: reviewed
+          ? rung === "signed-off"
+            ? "sign_off"
+            : "approve"
+          : rung === "draft"
+            ? "reject"
+            : "clear",
         locale: targetLocale,
       });
       let snapshot: TargetStatusSnapshot = { existed: false, status: "" };
@@ -302,12 +309,12 @@ export function ReviewSurface({
           return withTargetStatus(
             b,
             targetLocale,
-            reviewed ? "reviewed" : (demoteTo ?? "translated"),
+            reviewed ? (rung === "signed-off" ? "signed-off" : "reviewed") : (rung ?? "translated"),
           );
         }),
       );
       try {
-        await api.reviewBlock(project.id, fileName, block.id, targetLocale, reviewed, demoteTo);
+        await api.reviewBlock(project.id, fileName, block.id, targetLocale, reviewed, rung);
         void loadCounts();
       } catch (e) {
         setBlocks((prev) =>
@@ -317,7 +324,9 @@ export function ReviewSurface({
         );
         setError({
           title: reviewed
-            ? "Couldn't mark the block as reviewed"
+            ? rung === "signed-off"
+              ? "Couldn't sign the block off"
+              : "Couldn't mark the block as reviewed"
             : "Couldn't update the review status",
           cause: e,
         });
@@ -611,8 +620,9 @@ export function ReviewSurface({
   );
 
   // The reading pane's keyboard model: move through the document, decide on the
-  // block being read, open it for correction, hold it for the batch. Held while
-  // a text field has focus, so typing a translation is never a decision.
+  // block being read (a approve, s sign off, r reject), open it for correction,
+  // hold it for the batch. Held while a text field has focus, so typing a
+  // translation is never a decision.
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey || isTypingTarget(e.target)) return;
@@ -632,6 +642,12 @@ export function ReviewSurface({
           if (block && !bulkBusy && getTargetText(block, targetLocale).trim()) {
             e.preventDefault();
             void setStatus(block, true);
+          }
+          break;
+        case "s":
+          if (block && !bulkBusy && getTargetText(block, targetLocale).trim()) {
+            e.preventDefault();
+            void setStatus(block, true, "signed-off");
           }
           break;
         case "r":
@@ -878,6 +894,9 @@ export function ReviewSurface({
           setEditing(false);
         }}
         onApprove={() => selectedBlock && void setStatus(selectedBlock, true)}
+        // Signing off promotes the target to the rung above reviewed, the one
+        // the ship gates keyed on "at least signed-off" coverage read.
+        onSignOff={() => selectedBlock && void setStatus(selectedBlock, true, "signed-off")}
         // A rejection demotes the target to draft so the unit re-enters the work
         // queue (host's rejected → draft mapping), not merely back to translated.
         onReject={() => selectedBlock && void setStatus(selectedBlock, false, "draft")}

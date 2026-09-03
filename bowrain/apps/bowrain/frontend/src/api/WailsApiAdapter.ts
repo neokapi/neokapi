@@ -134,7 +134,7 @@ import type {
   MergeResult,
   Pilot,
   StartPilotRequest,
-  ReviewDemotion,
+  ReviewRung,
   ApprovePassingResult,
   VoiceCorrectionRequest,
   VoiceCorrectionResult,
@@ -1109,23 +1109,24 @@ export class WailsApiAdapter implements ApiAdapter {
     targetLocale: string,
     reviewed: boolean,
     _stream?: string,
-    demoteTo?: ReviewDemotion,
+    rung?: ReviewRung,
   ): Promise<void> {
     // Delegates to the Go backend, which calls the server's review endpoint
     // and queues the operation for replay when offline (backend/offlineop.go).
     // Desktop mode is stream-unaware by design: the entire desktop editor
     // surface is pinned to the "main" stream (editorRef in
     // bowrain/editorclient/editor.go), so the adapter accepts and ignores the
-    // stream parameter — same as rollbackBlock/getBlockHistory above. The
-    // demotion rung only applies to a clearing call (reviewed=false).
-    return Backend.ReviewBlock(
-      projectId,
-      itemName,
-      blockId,
-      targetLocale,
-      reviewed,
-      (!reviewed && demoteTo) || "",
-    );
+    // stream parameter — same as rollbackBlock/getBlockHistory above. Each
+    // direction has its own rungs, so only "signed-off" rides on an approval
+    // and only "draft" on a clearing call.
+    const status = reviewed
+      ? rung === "signed-off"
+        ? "signed-off"
+        : ""
+      : rung === "draft"
+        ? "draft"
+        : "";
+    return Backend.ReviewBlock(projectId, itemName, blockId, targetLocale, reviewed, status);
   }
   async approvePassingReview(): Promise<ApprovePassingResult> {
     // Bulk approve-passing is a server-side governance operation; the desktop

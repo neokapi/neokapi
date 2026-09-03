@@ -667,6 +667,21 @@ export type TargetStatus = "" | "draft" | "translated" | "reviewed" | "signed-of
 export type ReviewDemotion = "translated" | "draft";
 
 /**
+ * The rung an approving review call (`reviewed: true`) promotes a target to:
+ * "reviewed" for an approval (the default), "signed-off" for a sign-off, the
+ * rung above it on the target ladder.
+ */
+export type ReviewPromotion = "reviewed" | "signed-off";
+
+/**
+ * The rung a review call lands on, in either direction. The server reads the
+ * two halves separately: a promotion rung alongside `reviewed: false` is a
+ * 400, and so is a demotion rung alongside `reviewed: true`. A caller passes
+ * one value and the adapter sends the half that applies.
+ */
+export type ReviewRung = ReviewPromotion | ReviewDemotion;
+
+/**
  * Request body for the bulk "Approve all passing" review action
  * (`POST /:ws/:id/review/approve-passing`). Both fields are optional: an
  * omitted `stream` uses the project's default stream, and omitted `locales`
