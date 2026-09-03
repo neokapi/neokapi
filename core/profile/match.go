@@ -102,11 +102,12 @@ func MatchTermRules(sets []TermRuleSet, text string) []VocabHit {
 				find = check.FindTermFormsCased
 			}
 			matches := find(text, rule.AllForms())
-			// A rule whose preferred replacement contains the term itself — "cart"
-			// → "shopping cart" — must not fire on the term inside its own
-			// replacement phrase. Only such a rule pays for the full-text scan: the
-			// containment test runs against the short replacement, and the scan for
-			// replacement occurrences happens only when it holds.
+			// A rule whose preferred replacement contains the term itself, such as
+			// "cart" with the replacement "shopping cart", must not fire on the term
+			// inside its own replacement phrase. Only such a rule pays for the
+			// full-text scan: the containment test runs against the short
+			// replacement, and the scan for replacement occurrences happens only
+			// when it holds.
 			var replacementSpans [][2]int
 			if rule.Replacement != "" && len(find(rule.Replacement, rule.AllForms())) > 0 {
 				replacementSpans = find(text, []string{rule.Replacement})
