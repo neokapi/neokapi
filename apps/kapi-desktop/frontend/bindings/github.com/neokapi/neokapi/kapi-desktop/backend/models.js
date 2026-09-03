@@ -3019,6 +3019,22 @@ export class FlowInfo {
              */
             this["step_count"] = 0;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * Steps names each step for the card's chip strip, in order.
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["steps"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Default is true when this flow is the project's defaults.flow.
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["default"] = undefined;
+        }
         if (!("valid" in $$source)) {
             /**
              * @member
@@ -3043,10 +3059,14 @@ export class FlowInfo {
      * @returns {FlowInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType51;
+        const $$createField3_0 = $$createType6;
+        const $$createField6_0 = $$createType51;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("steps" in $$parsedSource) {
+            $$parsedSource["steps"] = $$createField3_0($$parsedSource["steps"]);
+        }
         if ("issues" in $$parsedSource) {
-            $$parsedSource["issues"] = $$createField4_0($$parsedSource["issues"]);
+            $$parsedSource["issues"] = $$createField6_0($$parsedSource["issues"]);
         }
         return new FlowInfo(/** @type {Partial<FlowInfo>} */($$parsedSource));
     }
@@ -7429,6 +7449,14 @@ export class UserFlowInfo {
         }
         if (/** @type {any} */(false)) {
             /**
+             * Steps names each step for the card's chip strip, in order.
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["steps"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * @member
              * @type {string | undefined}
              */
@@ -7444,7 +7472,11 @@ export class UserFlowInfo {
      * @returns {UserFlowInfo}
      */
     static createFrom($$source = {}) {
+        const $$createField5_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("steps" in $$parsedSource) {
+            $$parsedSource["steps"] = $$createField5_0($$parsedSource["steps"]);
+        }
         return new UserFlowInfo(/** @type {Partial<UserFlowInfo>} */($$parsedSource));
     }
 }
