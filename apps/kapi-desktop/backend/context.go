@@ -280,7 +280,7 @@ func (a *App) ContextGoverns(tabID, collection, relPath string, limit int) (*Con
 	); verr == nil && ok && profile != nil {
 		out.Voice = &ContextVoiceDTO{
 			Name:   profile.Name,
-			Source: source,
+			Source: relSource(root, source),
 			Field:  rc.VoiceField,
 			// The rendered guide, the same text the retrieval surface serves
 			// (host.ContextVoice) and an AI proposal is steered by. The
