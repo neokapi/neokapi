@@ -153,7 +153,7 @@ export function ProjectFormDialog({
           </div>
 
           <div>
-            <Label className="text-muted-foreground">Target Languages</Label>
+            <Label className="text-muted-foreground">Translations</Label>
             <div className="flex gap-2 mt-1 mb-2">
               <button
                 type="button"

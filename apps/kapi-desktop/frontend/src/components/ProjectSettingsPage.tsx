@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { t } from "@neokapi/i18n-react/runtime";
-import { Globe, Plug, Cpu, FileType, AlertTriangle } from "lucide-react";
+import { Globe, Plug, Cpu, FileType, AlertTriangle, HardDrive, ChevronRight } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -17,6 +17,9 @@ import {
   SelectValue,
   SelectContent,
   SelectItem,
+  Collapsible,
+  CollapsibleTrigger,
+  CollapsibleContent,
 } from "@neokapi/ui-primitives";
 import type {
   KapiProject,
@@ -173,9 +176,7 @@ export function ProjectSettingsPage({
                   />
                 </div>
                 <div>
-                  <Label className="mb-1 block text-xs text-muted-foreground">
-                    Target Languages
-                  </Label>
+                  <Label className="mb-1 block text-xs text-muted-foreground">Translations</Label>
                   <MultiLocaleSelect
                     value={defaults.target_languages ?? []}
                     onChange={(v) => updateDefaults({ target_languages: v })}
@@ -183,6 +184,18 @@ export function ProjectSettingsPage({
                   />
                 </div>
               </div>
+            </CardContent>
+          </Card>
+        </section>
+
+        {/* Files — how content is read from and written to disk */}
+        <section>
+          <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+            <HardDrive size={14} />
+            Files
+          </h2>
+          <Card>
+            <CardContent className="space-y-4 p-4">
               <div>
                 <Label className="mb-1 block text-xs text-muted-foreground">
                   Locale codes on disk
@@ -208,6 +221,30 @@ export function ProjectSettingsPage({
                 <p className="mt-1 text-[10px] text-muted-foreground">
                   How locale codes are spelled in file and directory names. The project reads and
                   stores them as BCP-47 either way.
+                </p>
+              </div>
+              <div>
+                <Label className="mb-1 block text-xs text-muted-foreground">Default encoding</Label>
+                <Select
+                  value={defaults.encoding || "__auto__"}
+                  onValueChange={(v) =>
+                    updateDefaults({ encoding: v === "__auto__" ? undefined : v })
+                  }
+                >
+                  <SelectTrigger className="max-w-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__auto__">Auto-detect</SelectItem>
+                    {ENCODING_OPTIONS.map((enc) => (
+                      <SelectItem key={enc} value={enc}>
+                        {enc}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="mt-1 text-[10px] text-muted-foreground">
+                  Character encoding for reading and writing files.
                 </p>
               </div>
             </CardContent>
@@ -401,79 +438,71 @@ export function ProjectSettingsPage({
             Processing
           </h2>
           <Card>
-            <CardContent className="space-y-4 p-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="concurrency" className="mb-1 block text-xs text-muted-foreground">
-                    Concurrency
-                  </Label>
-                  <Input
-                    id="concurrency"
-                    type="number"
-                    value={defaults.concurrency ?? ""}
-                    onChange={(e) => {
-                      const v = parseInt(e.target.value, 10);
-                      updateDefaults({ concurrency: isNaN(v) ? undefined : v });
-                    }}
-                    placeholder="auto"
-                    min={1}
-                    max={64}
+            <CardContent className="space-y-3 p-4">
+              <p className="text-xs text-muted-foreground">
+                The defaults suit most projects. Open the advanced settings only to tune speed on
+                large runs.
+              </p>
+              <Collapsible>
+                <CollapsibleTrigger className="group flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground">
+                  <ChevronRight
+                    size={14}
+                    className="transition-transform group-data-[state=open]:rotate-90"
                   />
-                  <p className="mt-1 text-[10px] text-muted-foreground">
-                    Files processed concurrently. Leave empty for auto.
-                  </p>
-                </div>
-                <div>
-                  <Label
-                    htmlFor="parallel-blocks"
-                    className="mb-1 block text-xs text-muted-foreground"
-                  >
-                    Parallel Blocks
-                  </Label>
-                  <Input
-                    id="parallel-blocks"
-                    type="number"
-                    value={defaults.parallel_blocks ?? ""}
-                    onChange={(e) => {
-                      const v = parseInt(e.target.value, 10);
-                      updateDefaults({ parallel_blocks: isNaN(v) ? undefined : v });
-                    }}
-                    placeholder="auto"
-                    min={1}
-                    max={256}
-                  />
-                  <p className="mt-1 text-[10px] text-muted-foreground">
-                    Blocks sent in parallel within a single tool step.
-                  </p>
-                </div>
-              </div>
-
-              <Separator />
-
-              <div>
-                <Label className="mb-1 block text-xs text-muted-foreground">Default Encoding</Label>
-                <Select
-                  value={defaults.encoding || "__auto__"}
-                  onValueChange={(v) =>
-                    updateDefaults({ encoding: v === "__auto__" ? undefined : v })
-                  }
-                >
-                  <SelectTrigger className="max-w-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__auto__">Auto-detect</SelectItem>
-                    {ENCODING_OPTIONS.map((enc) => (
-                      <SelectItem key={enc} value={enc}>
-                        {enc}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="mt-1 text-[10px] text-muted-foreground">
-                  Character encoding for reading and writing files.
-                </p>
-              </div>
+                  Performance (advanced)
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-3">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label
+                        htmlFor="concurrency"
+                        className="mb-1 block text-xs text-muted-foreground"
+                      >
+                        Files at once
+                      </Label>
+                      <Input
+                        id="concurrency"
+                        type="number"
+                        value={defaults.concurrency ?? ""}
+                        onChange={(e) => {
+                          const v = parseInt(e.target.value, 10);
+                          updateDefaults({ concurrency: isNaN(v) ? undefined : v });
+                        }}
+                        placeholder="auto"
+                        min={1}
+                        max={64}
+                      />
+                      <p className="mt-1 text-[10px] text-muted-foreground">
+                        How many files are processed at the same time. Leave empty for automatic.
+                      </p>
+                    </div>
+                    <div>
+                      <Label
+                        htmlFor="parallel-blocks"
+                        className="mb-1 block text-xs text-muted-foreground"
+                      >
+                        Segments at once
+                      </Label>
+                      <Input
+                        id="parallel-blocks"
+                        type="number"
+                        value={defaults.parallel_blocks ?? ""}
+                        onChange={(e) => {
+                          const v = parseInt(e.target.value, 10);
+                          updateDefaults({ parallel_blocks: isNaN(v) ? undefined : v });
+                        }}
+                        placeholder="auto"
+                        min={1}
+                        max={256}
+                      />
+                      <p className="mt-1 text-[10px] text-muted-foreground">
+                        How many text segments a tool works on at once within a file. Leave empty
+                        for automatic.
+                      </p>
+                    </div>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
             </CardContent>
           </Card>
         </section>
