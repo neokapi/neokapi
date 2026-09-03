@@ -12,13 +12,16 @@
     "ComboboxEmpty": "div",
     "DialogDescription": "p",
     "DialogTitle": "h2",
+    "DirectionalText": "span",
     "InputGroupText": "span",
     "Label": "label",
     "Link": "a",
+    "SectionHeading": "h2",
     "SelectItem": "div",
     "SidebarFooter": "div",
     "SidebarHeader": "div",
     "TooltipContent": "div",
-    "TooltipTrigger": "button"
+    "TooltipTrigger": "button",
+    "ViewTab": "button"
   }
 }
