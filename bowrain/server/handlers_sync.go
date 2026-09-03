@@ -19,6 +19,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/jobs"
 	"github.com/neokapi/neokapi/core/id"
+	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	pb "github.com/neokapi/neokapi/core/proto/sync/v1"
 	"github.com/neokapi/neokapi/core/ref"
@@ -314,10 +315,94 @@ func (s *Server) HandleSyncPushCommit(c echo.Context) error {
 			c.Request().Context(), manifest.ProjectID, manifest.Stream, manifest.ContentModelEpoch)
 	}
 
-	return c.JSON(http.StatusAccepted, map[string]any{
+	resp := map[string]any{
 		"push_id": pushID,
 		"status":  "queued",
+	}
+	// What this request can already say the platform will not accept.
+	if precheck := s.precheckPushVerdicts(c, manifest.Decisions); !precheck.Empty() {
+		resp["governance"] = precheck
+	}
+	return c.JSON(http.StatusAccepted, resp)
+}
+
+// precheckPushVerdicts answers, in the request, the half of the review gate a
+// request can answer: whether the pusher holds review permission for each
+// language whose verdicts this push carries.
+//
+// The worker checks it again, and checks the workspace separation-of-duties
+// policy besides, because the worker is where the write actually lands. This
+// one exists so a waiting `kapi push` is told at once rather than after a
+// queue, the same "checked here, and again in the worker" the expected-ref
+// assertion uses.
+//
+// A missing permission is a refusal of those verdicts, reported in the
+// response. It is not a 403 for the push: the content is not in question, and
+// refusing to store it would lose work over a permission the pusher can be
+// granted afterwards.
+func (s *Server) precheckPushVerdicts(c echo.Context, raw json.RawMessage) venue.PushGovernance {
+	if len(raw) == 0 {
+		return venue.PushGovernance{}
+	}
+	var decisions []venue.UnitDecision
+	if err := json.Unmarshal(raw, &decisions); err != nil {
+		return venue.PushGovernance{} // the worker fails a payload it cannot read
+	}
+	counts := map[[3]string]int{}
+	for _, d := range decisions {
+		if !d.CarriesVerdict() {
+			continue
+		}
+		locale := decisionLocale(d)
+		if locale != "" && allowsLanguage(c, platauth.PermReview, locale) {
+			continue
+		}
+		if locale == "" {
+			locale = d.Variant
+		}
+		counts[[3]string{locale, d.VerdictKind(), venue.RefusedNoReviewPermission}]++
+	}
+	if len(counts) == 0 {
+		return venue.PushGovernance{}
+	}
+	refusals := make([]venue.DecisionRefusal, 0, len(counts))
+	for key, count := range counts {
+		refusals = append(refusals, venue.DecisionRefusal{
+			Locale: key[0], Kind: key[1], Reason: key[2], Count: count,
+		})
+	}
+	slices.SortFunc(refusals, func(a, b venue.DecisionRefusal) int {
+		if a.Locale != b.Locale {
+			return strings.Compare(a.Locale, b.Locale)
+		}
+		return strings.Compare(a.Kind, b.Kind)
 	})
+	return venue.PushGovernance{Refusals: refusals}
+}
+
+// decisionLocale reads the language out of a decision's variant, or empty when
+// the variant is not one this venue can read.
+func decisionLocale(d venue.UnitDecision) string {
+	var key model.VariantKey
+	if err := key.UnmarshalText([]byte(d.Variant)); err != nil {
+		return ""
+	}
+	return string(key.Locale)
+}
+
+// pushGovernanceFor reads back what a push's review gate refused, as the worker
+// recorded it on the job row. Best-effort: a report that cannot be read leaves
+// the status response as it was rather than failing it.
+func (s *Server) pushGovernanceFor(ctx context.Context, pushID string) *venue.PushGovernance {
+	raw, err := s.JobStore.PushGovernance(ctx, pushID)
+	if err != nil || raw == "" {
+		return nil
+	}
+	var report venue.PushGovernance
+	if json.Unmarshal([]byte(raw), &report) != nil || report.Empty() {
+		return nil
+	}
+	return &report
 }
 
 // HandleSyncProxyChunkUpload handles chunk uploads for the proxy transport mode
@@ -697,12 +782,19 @@ func (s *Server) HandleSyncPushStatus(c echo.Context) error {
 		status = "failed"
 	}
 
-	return c.JSON(http.StatusOK, map[string]any{
+	resp := map[string]any{
 		"push_id":     pushID,
 		"status":      status,
 		"total":       total,
 		"completed":   completed,
 		"failed":      failed,
 		"in_progress": inProgress,
-	})
+	}
+	// What the push's review gate did not accept. The producer polls this
+	// endpoint until the ingest lands, so it is where a refusal decided in
+	// the worker reaches the person who ran `kapi push`.
+	if report := s.pushGovernanceFor(c.Request().Context(), pushID); report != nil {
+		resp["governance"] = report
+	}
+	return c.JSON(http.StatusOK, resp)
 }
