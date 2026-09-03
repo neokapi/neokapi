@@ -84,6 +84,28 @@ could not:
 and the ref it was committed as. It is gitignored and safe to delete: the next
 push declares the tree again and the server tells it what it lacks.
 
+## Decisions the server accepts
+
+Push carries the project's committed decision record with the content it judges.
+The server is authoritative for review, so an approval or a sign-off arriving
+this way is held to the same rules as one made in the web app: you need review
+permission for that language in that project, and the workspace's
+[separation of duties](/server/members-and-roles#governance-controls) applies
+with you as the decider.
+
+The content lands either way. A verdict the server does not accept is reported
+per language, and the unit stays a translation awaiting review:
+
+```
+Pushed 47 blocks (12 uploaded), 512 words (scanned 12 files)
+2 approvals not accepted for fr-FR: no review permission
+1 sign-off not accepted for de-DE: separation of duties
+3 local record(s) now match the platform; they will not be sent again
+```
+
+The last line is the project's record following the server's answer, so the same
+refused verdicts are not sent again on every push.
+
 ## Terms edits
 
 When the project is claimed into a workspace and a baseline was pulled (see

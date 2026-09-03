@@ -269,6 +269,13 @@ func runWorker(dbURL string) error {
 	}
 	if authStore != nil {
 		translationDeps.WorkspaceDefault = &workerWorkspaceDefault{auth: authStore}
+		// The platform is authoritative for review governance. A push can
+		// carry approvals and sign-offs, and this is what lets the worker
+		// ask the questions the review endpoint asks before writing them:
+		// the pusher's review permission for the language, and the
+		// workspace separation-of-duties policy. Without it a push that
+		// carries a verdict fails rather than landing ungoverned.
+		translationDeps.ReviewAuthority = auth.NewReviewAuthority(authStore)
 	}
 	translationDeps.TermsResolver = newWorkerTermsResolver(pgdb)
 

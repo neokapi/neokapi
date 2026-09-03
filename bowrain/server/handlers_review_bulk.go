@@ -221,8 +221,8 @@ func (s *Server) HandleApprovePassing(c echo.Context) error {
 			// is idempotent, so a pass that fails part-way leaves the batches
 			// it finished consistent with the statuses it stored.
 			ledger.write(ctx, decisions)
-			sodViolations += sod.violations
-			sodMode = sod.mode
+			sodViolations += sod.violations()
+			sodMode = sod.mode()
 
 			// What this batch leaves pending: the excluded (failing/non-compliant)
 			// targets. Counted after the promotion above, over the same blocks,

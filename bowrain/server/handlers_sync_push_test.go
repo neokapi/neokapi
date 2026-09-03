@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	syncengine "github.com/neokapi/neokapi/bowrain/sync"
 	"github.com/neokapi/neokapi/core/model"
 	pb "github.com/neokapi/neokapi/core/proto/sync/v1"
@@ -272,4 +273,111 @@ func TestSyncPush_CommitRejectsChunkNotInStorage(t *testing.T) {
 			assert.Contains(t, resp["error"], "not found in storage")
 		})
 	}
+}
+
+// commitWithDecisions posts a push commit carrying decision records and
+// nothing else, as the caller the permissions describe. It builds the context
+// the router would, so the pre-check reads the caller's permissions from the
+// same place every other route does.
+func commitWithDecisions(t *testing.T, s *Server, projectID string, perms platauth.Permission,
+	languages []string, decisions []venue.UnitDecision,
+) *httptest.ResponseRecorder {
+	t.Helper()
+	payload, err := json.Marshal(map[string]any{"decisions": decisions})
+	require.NoError(t, err)
+
+	e := s.GetEcho()
+	r := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(payload))
+	r.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	c := e.NewContext(r, rec)
+	c.SetParamNames("ws", "id", "ref")
+	c.SetParamValues("test", projectID, "main")
+	c.Set("workspace_id", "test-ws")
+	c.Set("user_id", "test-user")
+	c.Set("project_permissions", perms)
+	if len(languages) > 0 {
+		c.Set("project_languages", languages)
+	}
+	require.NoError(t, s.HandleSyncPushCommit(c))
+	return rec
+}
+
+// commitGovernance reads the refusals off a commit response.
+func commitGovernance(t *testing.T, rec *httptest.ResponseRecorder) venue.PushGovernance {
+	t.Helper()
+	var resp struct {
+		PushID     string               `json:"push_id"`
+		Status     string               `json:"status"`
+		Governance venue.PushGovernance `json:"governance"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	assert.NotEmpty(t, resp.PushID, "a refused verdict never refuses the push")
+	assert.Equal(t, "queued", resp.Status)
+	return resp.Governance
+}
+
+// TestSyncPushCommit_VerdictPrecheck: a push is answered with 202 and applied
+// by a worker afterwards, so the commit answers what it can answer at once —
+// whether the pusher may review the languages whose verdicts the push carries.
+// The refusal is reported, never raised: the content is not in question.
+func TestSyncPushCommit_VerdictPrecheck(t *testing.T) {
+	srv, token := newTestServer(t)
+	pid := createProject(t, srv, token)
+
+	approval := venue.UnitDecision{
+		ItemName: "en.json", Unit: "b1", Variant: "fr",
+		Status: string(model.TargetStatusReviewed), ReviewState: venue.ReviewStateApproved,
+		DecidedBy: "someone@example.com", Updated: "2026-09-03T10:00:00Z",
+	}
+	signOff := venue.UnitDecision{
+		ItemName: "en.json", Unit: "b2", Variant: "de",
+		Status: string(model.TargetStatusSignedOff), ReviewState: venue.ReviewStateSignedOff,
+		Updated: "2026-09-03T10:00:00Z",
+	}
+	basis := venue.UnitDecision{
+		ItemName: "en.json", Unit: "b3", Variant: "fr",
+		Status: string(model.TargetStatusTranslated), Updated: "2026-09-03T10:00:00Z",
+	}
+
+	t.Run("a pusher who may not review is told which verdicts will not land", func(t *testing.T) {
+		rec := commitWithDecisions(t, srv, pid,
+			platauth.PermManageFiles|platauth.PermTranslate|platauth.PermViewContent, nil,
+			[]venue.UnitDecision{approval, signOff, basis})
+
+		report := commitGovernance(t, rec)
+		require.Len(t, report.Refusals, 2, "one line per language and kind; the basis is no verdict")
+		assert.Equal(t, venue.DecisionRefusal{
+			Locale: "de", Kind: venue.VerdictSignOff, Reason: venue.RefusedNoReviewPermission, Count: 1,
+		}, report.Refusals[0])
+		assert.Equal(t, venue.DecisionRefusal{
+			Locale: "fr", Kind: venue.VerdictApproval, Reason: venue.RefusedNoReviewPermission, Count: 1,
+		}, report.Refusals[1])
+	})
+
+	t.Run("a reviewer's verdicts pass the pre-check", func(t *testing.T) {
+		rec := commitWithDecisions(t, srv, pid,
+			platauth.PermManageFiles|platauth.PermReview|platauth.PermViewContent, nil,
+			[]venue.UnitDecision{approval, signOff})
+		assert.True(t, commitGovernance(t, rec).Empty())
+	})
+
+	t.Run("review permission is scoped to the languages the membership names", func(t *testing.T) {
+		rec := commitWithDecisions(t, srv, pid,
+			platauth.PermManageFiles|platauth.PermReview|platauth.PermViewContent, []string{"fr"},
+			[]venue.UnitDecision{approval, signOff})
+
+		report := commitGovernance(t, rec)
+		require.Len(t, report.Refusals, 1, "reviewing French says nothing about German")
+		assert.Equal(t, "de", report.Refusals[0].Locale)
+	})
+
+	t.Run("a push carrying no verdict is reported as it always was", func(t *testing.T) {
+		rec := commitWithDecisions(t, srv, pid,
+			platauth.PermManageFiles|platauth.PermTranslate|platauth.PermViewContent, nil,
+			[]venue.UnitDecision{basis})
+		assert.True(t, commitGovernance(t, rec).Empty())
+		assert.NotContains(t, rec.Body.String(), "governance",
+			"the field is added when there is something to say, never as an empty shape")
+	})
 }

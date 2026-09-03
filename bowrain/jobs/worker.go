@@ -16,6 +16,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/credentials"
 	"github.com/neokapi/neokapi/bowrain/observe"
 	"github.com/neokapi/neokapi/bowrain/resilience/aiguard"
+	"github.com/neokapi/neokapi/bowrain/review"
 	diffcache "github.com/neokapi/neokapi/bowrain/sync"
 	"github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/model"
@@ -145,6 +146,18 @@ type WorkerDeps struct {
 	// ModelPinned) and the recommender's own gates pass (flag on, fresh, model
 	// still enabled). Optional; nil keeps the previous resolution exactly.
 	ModelRecommender ModelRecommender
+	// ReviewAuthority answers, for a push, what an echo context answers for a
+	// request: whether the pusher holds review permission for a language in a
+	// project, and what the workspace separation-of-duties policy is. The
+	// platform is authoritative for review governance, and a push arrives long
+	// after the request that carried it, so the worker asks the same questions
+	// the review endpoint asks rather than trusting the rungs and verdicts the
+	// payload states.
+	//
+	// Nil fails any push that carries a verdict, and only such a push: a
+	// deployment that cannot check review permissions must not store approvals
+	// it cannot justify, and must not silently drop them either.
+	ReviewAuthority review.Authority
 }
 
 // EventTracker captures product analytics events (implemented by

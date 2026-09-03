@@ -295,6 +295,22 @@ An `AIReview` is a third thing again: an advisory annotation carrying a score
 and findings, bound to the translation it judged so that an edit invalidates it
 (`AIReview.Fresh`). It never moves a unit on the ladder.
 
+### A venue is authoritative for what it accepts
+
+The committed record is the project's. What a venue does with it is the venue's.
+A push sends the record whole, so it can carry an approval the venue declines:
+the pusher may hold no review permission for that language, or the workspace may
+refuse a verdict on work its author wrote. The venue keeps such a record as the
+basis it carries, with no rung above translated and no decider, and reports what
+it refused.
+
+The project follows that answer rather than restating its own. A refused verdict
+is retired locally to the same basis, recorded rather than staged, because the
+venue's answer about published work is not a person's pending decision. Both
+ends compute the same record, so the decision component of the freshness ref
+agrees again and the next push has nothing to send. Without that step the two
+folds differ for good, and every push re-sends the same refused approvals.
+
 ### The committed location is fixed
 
 The record lives at `.kapi/state/`, derived from the project layout: inside the

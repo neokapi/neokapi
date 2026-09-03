@@ -50,6 +50,16 @@ type JobStore interface {
 	CompleteJob(ctx context.Context, id string, epoch int64) (owner bool, err error)
 	DeleteJob(ctx context.Context, id string) error
 	ListJobsByPushID(ctx context.Context, pushID string) ([]*TranslationJob, error)
+	// SetPushGovernance records what a push's review gate did not accept, on
+	// the job row the producer polls. A push is answered with 202 and applied
+	// by this worker afterwards, so the refusal is discovered long after the
+	// request that carried it has been answered, and the row is the only place
+	// the producer can still be told.
+	SetPushGovernance(ctx context.Context, jobID, report string) error
+	// PushGovernance reads that record back for a push. Empty when the push
+	// carried no verdict, when every verdict was accepted, or when the push is
+	// not yet applied.
+	PushGovernance(ctx context.Context, pushID string) (string, error)
 	// ClaimJob atomically transitions a job from queued to processing and bumps
 	// its claim_epoch (the lease generation). Returns claimed=true with the new
 	// epoch if this caller won the claim, or (false, 0, nil) if another worker
@@ -212,6 +222,19 @@ var JobMigrations = []storage.Migration{
 			-- sweeper scans so recovery stays cheap as the jobs table grows.
 			CREATE INDEX IF NOT EXISTS idx_jobs_processing_updated
 				ON translation_jobs(updated_at) WHERE status = 'processing';
+		`,
+	},
+	{
+		Version:     11,
+		Description: "record what a push's review governance refused",
+		SQL: `
+			-- What a push carried and the platform did not accept: the
+			-- approvals and sign-offs the pusher was not entitled to make. The
+			-- commit is answered with 202 and applied by a worker, so the
+			-- refusal happens after the producer's request is over, and the job
+			-- row is where the producer reads it back from.
+			ALTER TABLE translation_jobs
+				ADD COLUMN IF NOT EXISTS governance_report TEXT NOT NULL DEFAULT '';
 		`,
 	},
 }
@@ -473,6 +496,35 @@ func (s *jobStore) UpdateJobStatus(ctx context.Context, id string, status JobSta
 		return fmt.Errorf("update job status: %w", err)
 	}
 	return nil
+}
+
+// SetPushGovernance records the push gate's refusals on the job row.
+func (s *jobStore) SetPushGovernance(ctx context.Context, jobID, report string) error {
+	_, err := s.db.ExecContext(ctx,
+		`UPDATE translation_jobs SET governance_report = $1, updated_at = NOW() WHERE id = $2`,
+		report, jobID)
+	if err != nil {
+		return fmt.Errorf("record push governance: %w", err)
+	}
+	return nil
+}
+
+// PushGovernance reads back what a push's review gate refused. The report is
+// written by the ingest job, the first job a push creates, so the read names
+// that row rather than whichever of the push's jobs sorts first.
+func (s *jobStore) PushGovernance(ctx context.Context, pushID string) (string, error) {
+	var report string
+	err := s.db.QueryRowContext(ctx,
+		`SELECT governance_report FROM translation_jobs
+		 WHERE push_id = $1 AND item_name = $2 AND governance_report <> ''
+		 LIMIT 1`, pushID, SyncPushItemName).Scan(&report)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil
+	}
+	if err != nil {
+		return "", fmt.Errorf("read push governance: %w", err)
+	}
+	return report, nil
 }
 
 func (s *jobStore) CompleteJob(ctx context.Context, id string, epoch int64) (bool, error) {

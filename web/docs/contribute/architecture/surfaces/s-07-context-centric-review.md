@@ -174,6 +174,24 @@ a person; it grades as basis unknown and is left alone and reported. No host
 clears targets to force the loop's attention, and the records travel with the
 decisions on push, so a venue receives the same basis the loop worked from.
 
+### A push carries decisions; the venue decides
+
+A working copy holds its own decision record, and `kapi push` sends it with the
+content it judges. The venue is authoritative for what has been approved in it,
+so it holds every rung above translated and every approval or sign-off a push
+carries to the gate its own review surfaces pass: the pusher's review permission
+for that language in that project, and the workspace separation-of-duties
+policy with the pusher as the decider. One function answers for every caller,
+so the review endpoint, the bulk routes and the ingest worker cannot drift
+apart.
+
+A verdict that fails the gate is withheld, not the content: the translation
+lands at translated, the verdict is kept as the basis it carries, and the
+refusal is counted per language and reason and reported back on the push status.
+The pusher is the decider recorded for a verdict that passes, whatever decider
+the payload named. The project's own record then retires the refused verdicts to
+the same basis, which is what stops the next push sending them again.
+
 ## Consequences
 
 The context graph gains its first reader on a decision surface. The model is

@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"strings"
 	"testing"
+
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 func TestPushOutput_FormatText_LoopFooter(t *testing.T) {
@@ -181,6 +183,63 @@ func TestPushOutput_FormatText_VoiceLine(t *testing.T) {
 			for _, not := range tt.absent {
 				if strings.Contains(got, not) {
 					t.Errorf("output unexpectedly contains %q\n---\n%s", not, got)
+				}
+			}
+		})
+	}
+}
+
+// The push footer says what the platform did not accept. A refused approval
+// still stored its content, so a silent report reads as "approved" to the one
+// person in a position to notice otherwise.
+func TestPushOutput_FormatText_RefusedVerdicts(t *testing.T) {
+	tests := []struct {
+		name     string
+		out      PushOutput
+		contains []string
+		absent   []string
+	}{
+		{
+			name: "one line per language and reason, in the plain register",
+			out: PushOutput{
+				BlocksPushed: 47,
+				VerdictsRefused: []venue.DecisionRefusal{
+					{Locale: "fr-FR", Kind: venue.VerdictApproval, Reason: venue.RefusedNoReviewPermission, Count: 2},
+					{Locale: "de-DE", Kind: venue.VerdictSignOff, Reason: venue.RefusedSeparationOfDuties, Count: 1},
+				},
+				VerdictsRetired: 3,
+			},
+			contains: []string{
+				"2 approvals not accepted for fr-FR: no review permission",
+				"1 sign-off not accepted for de-DE: separation of duties",
+				"3 local record(s) now match the platform; they will not be sent again",
+			},
+		},
+		{
+			name: "a push the platform accepted whole says nothing about it",
+			out:  PushOutput{BlocksPushed: 47},
+			absent: []string{
+				"not accepted",
+				"now match the platform",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			if err := tt.out.FormatText(&buf); err != nil {
+				t.Fatalf("FormatText: %v", err)
+			}
+			got := buf.String()
+			for _, want := range tt.contains {
+				if !strings.Contains(got, want) {
+					t.Errorf("output missing %q\ngot:\n%s", want, got)
+				}
+			}
+			for _, unwanted := range tt.absent {
+				if strings.Contains(got, unwanted) {
+					t.Errorf("output should not contain %q\ngot:\n%s", unwanted, got)
 				}
 			}
 		})

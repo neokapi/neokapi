@@ -815,9 +815,22 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 	// holds this content. The commit answers 202 and hands the work to a
 	// worker; a failed ingest with the cache already written is content the
 	// next push will conclude is present and never send again.
-	ingest, ierr := c.confirmIngest(ctx, pushID)
+	ingest, governance, ierr := c.confirmIngest(ctx, pushID)
 	if ierr != nil {
 		return nil, ierr
+	}
+	// The venue's pre-check answers before the worker does, and says the
+	// same thing about the permission half. Keep whichever answer arrived.
+	if governance == nil && resp != nil {
+		governance = resp.Governance
+	}
+
+	// The project's record follows the venue: a verdict it did not accept is
+	// retired here, or every push from now on would send it again, be
+	// refused again, and report it again.
+	retired, rerr := c.retireRefusedVerdicts(ctx, governance)
+	if rerr != nil {
+		return nil, rerr
 	}
 
 	// Update cache with per-file hashes.
@@ -878,6 +891,8 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 		PushID:                pushID,
 		UndeclaredCollections: undeclared,
 		Ingest:                ingest,
+		Governance:            governance,
+		VerdictsRetired:       retired,
 	}, nil
 }
 
@@ -948,11 +963,11 @@ const ingestConfirmWindow = 6 * time.Second
 // old for the endpoint, or a status call that errors leaves the push reported
 // as unknown rather than refused — the alternative is refusing pushes that
 // worked.
-func (c *BowrainSourceConnector) confirmIngest(ctx context.Context, pushID string) (string, error) {
+func (c *BowrainSourceConnector) confirmIngest(ctx context.Context, pushID string) (string, *venue.PushGovernance, error) {
 	// The unchanged sentinel is the init fast path's: nothing was committed, so
 	// there is no job and nothing to confirm.
 	if c.client == nil || pushID == "" || pushID == apiclient.PushUnchanged {
-		return "", nil
+		return "", nil, nil
 	}
 
 	deadline := time.Now().Add(ingestConfirmWindow)
@@ -960,16 +975,16 @@ func (c *BowrainSourceConnector) confirmIngest(ctx context.Context, pushID strin
 	for {
 		st, err := c.client.PushStatus(ctx, pushID)
 		if err != nil {
-			return bowrainconn.IngestUnknown, nil //nolint:nilerr // an unaskable server is unknown, not failed
+			return bowrainconn.IngestUnknown, nil, nil //nolint:nilerr // an unaskable server is unknown, not failed
 		}
 		switch {
 		case st.Failed > 0 && st.Completed == 0:
-			return "", fmt.Errorf(
+			return "", nil, fmt.Errorf(
 				"push %s was accepted but the server failed to apply it (%d job(s) failed); "+
 					"the local sync record was left untouched so the next push sends this content again",
 				pushID, st.Failed)
 		case st.Completed > 0:
-			return bowrainconn.IngestApplied, nil
+			return bowrainconn.IngestApplied, st.Governance, nil
 		case st.Total == 0:
 			// No job exists for this push id. Either the deployment runs no
 			// worker or the job has not been recorded yet; keep waiting, and
@@ -977,13 +992,13 @@ func (c *BowrainSourceConnector) confirmIngest(ctx context.Context, pushID strin
 		}
 		if time.Now().After(deadline) {
 			if st.Total == 0 {
-				return bowrainconn.IngestUnknown, nil
+				return bowrainconn.IngestUnknown, st.Governance, nil
 			}
-			return bowrainconn.IngestQueued, nil
+			return bowrainconn.IngestQueued, st.Governance, nil
 		}
 		select {
 		case <-ctx.Done():
-			return bowrainconn.IngestUnknown, nil
+			return bowrainconn.IngestUnknown, st.Governance, nil
 		case <-time.After(interval):
 		}
 		if interval < time.Second {

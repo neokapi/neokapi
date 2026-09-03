@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neokapi/neokapi/core/venue"
 	"github.com/neokapi/neokapi/host/venue/schema"
 )
 
@@ -284,6 +285,14 @@ type PushOutput struct {
 	// content grouped under it.
 	UndeclaredCollections []string `json:"undeclared_collections,omitempty"`
 
+	// VerdictsRefused names the approvals and sign-offs the platform did not
+	// accept: the pusher held no review permission for that language, or the
+	// workspace refuses a verdict on work its author wrote. The content
+	// landed regardless, at translated. VerdictsRetired counts the local
+	// records brought into line with that answer.
+	VerdictsRefused []venue.DecisionRefusal `json:"verdicts_refused,omitempty"`
+	VerdictsRetired int                     `json:"verdicts_retired,omitempty"`
+
 	// Loop status (the recipe's server policy + web destinations): whether the
 	// server converges on push, and where the pushed content lands.
 	Converge   string `json:"converge,omitempty"` // on-push | manual
@@ -308,6 +317,7 @@ func (o PushOutput) FormatText(w io.Writer) error {
 	o.formatConcepts(w)
 	o.FormatVoice(w)
 	o.formatUndeclared(w)
+	o.formatGovernance(w)
 	o.formatLoopStatus(w)
 	return nil
 }
@@ -376,6 +386,30 @@ func (o PushOutput) formatUndeclared(w io.Writer) {
 	}
 	fmt.Fprintf(w, "Collections on the server this recipe no longer declares (kept, with their content): %s\n",
 		strings.Join(o.UndeclaredCollections, ", "))
+}
+
+// formatGovernance names the verdicts the platform did not accept, one line per
+// language and reason. A push that carried approvals it was not entitled to
+// make still stored its content, so a silent report would read as "approved"
+// to the one person in a position to notice otherwise.
+func (o PushOutput) formatGovernance(w io.Writer) {
+	for _, r := range o.VerdictsRefused {
+		fmt.Fprintf(w, "%d %s not accepted for %s: %s\n",
+			r.Count, plural(r.Kind, r.Count), r.Locale, r.Reason)
+	}
+	if o.VerdictsRetired > 0 {
+		fmt.Fprintf(w, "%d local record(s) now match the platform; they will not be sent again\n",
+			o.VerdictsRetired)
+	}
+}
+
+// plural is the count-agreeing form of a verdict kind ("approval"/"approvals",
+// "sign-off"/"sign-offs").
+func plural(kind string, n int) string {
+	if n == 1 {
+		return kind
+	}
+	return kind + "s"
 }
 
 // formatLoopStatus closes a real push with the loop hand-off: what the server

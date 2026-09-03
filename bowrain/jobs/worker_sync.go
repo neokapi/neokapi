@@ -252,6 +252,17 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 		}
 	}
 
+	// The platform is authoritative for review governance. Everything the
+	// gate needs is resolved here, before the transition opens: which rows
+	// the payload names, who last wrote each target by hand, the workspace
+	// policy, and the pusher's review permission for each language a verdict
+	// names. A push that carries no verdict resolves none of it.
+	gov, gerr := newPushGovernor(ctx, deps, projectID, stream, workspaceID, manifest.ActorID, staged, decisions)
+	if gerr != nil {
+		markJobFailed(ctx, deps, job.ID, gerr.Error())
+		return gerr
+	}
+
 	// 3. Apply the whole transition on one transaction. Blocks, items, the
 	// prune and the decisions ledger land together or not at all; a worker that
 	// dies partway leaves the project exactly as the push found it.
@@ -276,7 +287,7 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 		}
 		var aerr error
 		outcome, aerr = applyStagedPush(ctx, tx, deps, job, projectID, stream,
-			staged, plan, manifest.Tree, decisions, manifest.ExpectedRef)
+			staged, plan, manifest.Tree, decisions, manifest.ExpectedRef, gov)
 		return aerr
 	}
 
@@ -307,6 +318,17 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 		emitLog(deps, job.StepID, "info",
 			fmt.Sprintf("Recorded %d decision(s) in the ledger", outcome.Decisions), nil)
 	}
+
+	// What the review gate refused, said in every place it has to be said:
+	// the venue's log, the audit trail, the push's own run log, and the job
+	// row the producer reads back through the status endpoint.
+	gov.logRefusals(ctx, projectID, stream)
+	gov.emitAudit(ctx, deps, projectID, stream)
+	gov.recordSoDViolations(deps, projectID)
+	if summary := gov.summary(); summary != "" {
+		emitLog(deps, job.StepID, "info", summary, nil)
+	}
+	recordPushGovernance(ctx, deps, job.ID, outcome.Governance)
 	if outcome.Renamed > 0 {
 		emitLog(deps, job.StepID, "info",
 			fmt.Sprintf("Followed %d file(s) to a new path, keeping their translations and approvals", outcome.Renamed), nil)

@@ -90,8 +90,14 @@ nobody acting. Separation of duties (see
 person from approving a translation they wrote by hand, and leaves the one
 person in a small workspace free to approve what the machine wrote. It applies
 to every way of promoting a target: block by block, over a selection, through
-**Approve everything passing**, and to a sign-off, which is judged on the
-author of the wording exactly as an approval is.
+**Approve everything passing**, to a sign-off, which is judged on the author of
+the wording exactly as an approval is, and to decisions pushed from a working
+copy.
+
+A decision that arrives by [`kapi push`](/cli/commands/push) is held to the same
+review permission and the same separation-of-duties policy as one made here, and
+the push reports the approvals and sign-offs the workspace did not accept. The
+content lands either way, as a translation awaiting review.
 
 ### What an approval leaves behind
 
