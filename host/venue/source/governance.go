@@ -61,10 +61,22 @@ func (c *BowrainSourceConnector) retireRefusedVerdicts(ctx context.Context, repo
 	if err != nil {
 		return 0, fmt.Errorf("read project state: %w", err)
 	}
+	// A staged decision is one nobody has published: the push sent the
+	// committed record, so the venue has not seen it and has not refused it.
+	// Retiring it would delete a person's pending work on the strength of an
+	// answer about somebody else's.
+	staged, err := st.Staged(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("read staged decisions: %w", err)
+	}
+	pending := make(map[state.Key]bool, len(staged))
+	for _, u := range staged {
+		pending[u.Key()] = true
+	}
 
 	retired := 0
 	for _, u := range all {
-		if !carriesVerdict(u) {
+		if !carriesVerdict(u) || pending[u.Key()] {
 			continue
 		}
 		item := u.Scope

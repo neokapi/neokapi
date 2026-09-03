@@ -177,3 +177,38 @@ func TestRetireRefusedVerdicts(t *testing.T) {
 		assert.Equal(t, venue.DecisionsComponent(before), venue.DecisionsComponent(after))
 	})
 }
+
+// A decision nobody has published is nobody's business but the person who made
+// it. The push sends the committed record, so a staged decision was never sent
+// and was never refused; retiring it on a language-wide refusal would delete
+// pending work over an answer about somebody else's.
+func TestRetireRefusedVerdicts_LeavesPendingWork(t *testing.T) {
+	a := &host.App{}
+	defer a.Shutdown()
+	c, st := committedProject(t, a, approvedUnit("published", "fr"))
+
+	// A second approval, staged and not committed.
+	require.NoError(t, st.Put(t.Context(), approvedUnit("pending", "fr")))
+	before, err := st.Pending(t.Context())
+	require.NoError(t, err)
+	require.Equal(t, 1, before)
+
+	retired, err := c.retireRefusedVerdicts(t.Context(), &venue.PushGovernance{
+		Refusals: []venue.DecisionRefusal{{
+			Locale: "fr", Kind: venue.VerdictApproval,
+			Reason: venue.RefusedNoReviewPermission, Count: 1,
+		}},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, 1, retired, "only the record the push actually sent")
+
+	after, err := st.Pending(t.Context())
+	require.NoError(t, err)
+	assert.Equal(t, 1, after, "the staged decision is still staged")
+	us, found := st.Get(t.Context(), state.Key{
+		Scope: "locales/en.json", Unit: "pending", Variant: model.Variant("fr"),
+	})
+	require.True(t, found)
+	assert.Equal(t, venue.ReviewStateApproved, us.Decision.ReviewState,
+		"and it still says what the person decided")
+}
