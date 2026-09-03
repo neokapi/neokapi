@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Workflow, Plus, X, Save, Copy, Lock, Import, FolderOpen, Download } from "lucide-react";
+import { Workflow, Plus, X, Copy, Lock, Import, FolderOpen, Download } from "lucide-react";
 import {
   Button,
   Dialog,
@@ -192,7 +192,8 @@ export function FlowsPage({
       saveTimerRef.current = setTimeout(async () => {
         try {
           if (isProjectMode && tabID) {
-            await api.saveFlow(tabID, selectedId, spec);
+            // Persist steps and inline options straight to the recipe on disk.
+            await api.saveProjectFlow(tabID, selectedId, spec);
           } else if (selectedSource === "user") {
             await api.saveUserFlow({
               id: selectedId,
@@ -209,14 +210,36 @@ export function FlowsPage({
     [selectedId, selectedSource, tabID, isProjectMode, onFlowChange, showError],
   );
 
-  const handleSaveProject = useCallback(async () => {
-    if (!tabID) return;
-    try {
-      await api.saveProject(tabID);
-    } catch (err) {
-      showError("Failed to save project", err);
-    }
-  }, [tabID, showError]);
+  const handleToggleDefault = useCallback(
+    async (next: boolean) => {
+      if (!tabID || !selectedId) return;
+      try {
+        await api.setDefaultFlow(tabID, next ? selectedId : "");
+        refreshFlows();
+      } catch (err) {
+        showError("Failed to set the default flow", err);
+      }
+    },
+    [tabID, selectedId, refreshFlows, showError],
+  );
+
+  const handleRenameFlow = useCallback(
+    async (next: string) => {
+      if (!tabID || !selectedId) return;
+      const name = next.trim().replace(/\s+/g, "-").toLowerCase();
+      if (!name || name === selectedId) return;
+      try {
+        await api.renameProjectFlow(tabID, selectedId, name);
+        onFlowDelete?.(selectedId);
+        onFlowChange?.(name, selectedSpec ?? { steps: [] });
+        setSelectedId(name);
+        refreshFlows();
+      } catch (err) {
+        showError("Failed to rename the flow", err);
+      }
+    },
+    [tabID, selectedId, selectedSpec, onFlowChange, onFlowDelete, refreshFlows, showError],
+  );
 
   const handleCopyBuiltIn = useCallback(
     async (item: FlowListItem) => {
@@ -382,9 +405,11 @@ export function FlowsPage({
   // Editor view.
   if (selectedId && selectedSpec) {
     const isReadOnly = selectedSource === "built-in";
+    const selectedIsDefault = flows.find((f) => f.id === selectedId)?.isDefault ?? false;
+    const canGovern = isProjectMode && !isReadOnly;
     return (
       <div className="flex flex-col h-full">
-        <div className="flex items-center gap-3 px-6 py-3 border-b border-border shrink-0">
+        <div className="flex items-center gap-3 px-6 py-2 border-b border-border shrink-0">
           <SimpleTooltip content="Back to flow list">
             <Button
               variant="ghost"
@@ -395,8 +420,6 @@ export function FlowsPage({
               <X size={16} />
             </Button>
           </SimpleTooltip>
-          <Workflow size={16} className="text-muted-foreground" />
-          <h1 className="text-sm font-semibold">{selectedId}</h1>
           {isReadOnly && (
             <span className="flex items-center gap-1 text-[11px] text-muted-foreground px-1.5 py-0.5 rounded bg-muted">
               <Lock size={9} /> Built-in (read-only)
@@ -429,12 +452,6 @@ export function FlowsPage({
                 Save As...
               </Button>
             )}
-            {tabID && !isReadOnly && (
-              <Button variant="outline" size="sm" onClick={() => void handleSaveProject()}>
-                <Save size={12} />
-                Save
-              </Button>
-            )}
           </div>
         </div>
 
@@ -446,6 +463,9 @@ export function FlowsPage({
             onRun={onRunFlow}
             readOnly={isReadOnly}
             tabID={tabID}
+            isDefault={isProjectMode ? selectedIsDefault : undefined}
+            onToggleDefault={canGovern ? handleToggleDefault : undefined}
+            onRename={canGovern ? handleRenameFlow : undefined}
           />
         </div>
       </div>

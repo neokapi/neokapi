@@ -1,10 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState } from "react";
 import { Workflow, Plus, Play, Trash2, X } from "lucide-react";
-import { Button, Card, SimpleTooltip } from "@neokapi/ui-primitives";
-import type { FlowSpec, FlowInfo } from "../types/api";
-import { FlowEditor } from "@neokapi/flow-editor";
-import type { ToolInfo } from "@neokapi/flow-editor";
+import { Button, Card, LinearFlowEditor, SimpleTooltip } from "@neokapi/ui-primitives";
+import type { FlowSpec, FlowInfo, ToolInfo } from "../types/api";
 import { FlowsPage, type FlowListItem } from "../components/FlowsPage";
 import { toolsMetadata } from "./_lib/reference-data";
 
@@ -62,15 +60,14 @@ function SimulatedFlowsPage() {
   if (selected && flows[selected]) {
     return (
       <div style={{ height: 700, display: "flex", flexDirection: "column" }}>
-        <div className="flex items-center gap-3 px-6 py-3 border-b border-border shrink-0">
+        <div className="flex items-center gap-3 px-6 py-2 border-b border-border shrink-0">
           <Button variant="ghost" size="icon-xs" onClick={() => setSelected(null)}>
             <X size={16} />
           </Button>
-          <Workflow size={16} className="text-muted-foreground" />
-          <span className="text-sm font-semibold">{selected}</span>
         </div>
-        <div style={{ flex: 1 }}>
-          <FlowEditor
+        <div style={{ flex: 1, minHeight: 0 }}>
+          <LinearFlowEditor
+            flowName={selected}
             flow={flows[selected]}
             tools={tools}
             onChange={(spec) => setFlows({ ...flows, [selected]: spec })}

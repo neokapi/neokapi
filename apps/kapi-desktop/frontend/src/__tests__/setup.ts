@@ -1,6 +1,6 @@
 import "@testing-library/jest-dom";
 
-// Polyfill ResizeObserver for @xyflow/react in jsdom.
+// Polyfill ResizeObserver, which several UI primitives observe, for jsdom.
 if (typeof globalThis.ResizeObserver === "undefined") {
   globalThis.ResizeObserver = class ResizeObserver {
     observe() {}
