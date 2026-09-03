@@ -36,30 +36,32 @@ tag runs a live Claude session; **shell** marks a scripted shell demo and
 | 7 | `07-global-launch-many-languages` | One source file, four target languages, including a non-Latin script |
 | 8 | `08-mcp-tools`                    | The same engine, exposed to the assistant as Model Context Protocol tools |
 | 9 | `09-toolbox-find-replace`         | **shell.** kcat, kgrep and ksed work on the text kapi reads out of a document, not on raw bytes |
-| 10 | `s0-northsea-governance`         | **shell.** One repository, one language, three surfaces: discovered, gated, corrected and converged, with no server and no model |
-| 11 | `s1-compass-multilingual`        | **shell.** The same project at the same point in three more languages, converged, reviewed, and gated at the edge where a reader sees it |
-| 12 | `s2-tidewatch-docs`              | **shell.** Four handbook pages, two more languages, and a CI job that reports what is behind instead of failing on it |
-| 13 | `kapi-bilingual-workflow`        | **shell.** kapi emits a clean bilingual XLIFF, accepts the translated one back, and keeps the project content memory in the loop on both sides |
-| 14 | `kapi-desktop-projects`          | **desktop.** Set up a multilingual content project in Kapi Desktop |
-| 15 | `kapi-desktop-content`           | **desktop.** The files a project translates, and how they map |
-| 16 | `kapi-desktop-flows`             | **desktop.** The pipelines a project runs over its content |
-| 17 | `kapi-desktop-explorer`          | **desktop.** A visual tour of terminology and content memory in Kapi Desktop |
-| 18 | `kapi-desktop-config`            | **desktop.** Appearance, AI providers, and plugins in one place |
-| 19 | `bowrain-cli-getting-started`    | **shell.** `kapi init` connects local files to a Bowrain server; push and pull move content like git, and `kapi up` runs the loop on the server |
-| 20 | `bowrain-cli-auth-and-workspaces` | **shell.** `kapi auth` and `kapi workspace` show who and where you are connected; pseudo-translate checks layout before you send for real translation |
-| 21 | `bowrain-desktop-dashboard`      | **desktop.** The Bowrain desktop app as an equal, real-time client of the shared workspace |
-| 22 | `bowrain-desktop-automations`    | **desktop.** Rules run the loop on the server; runs show each pass catching the project up |
-| 23 | `bowrain-web-editor`             | **desktop.** The shared translation editor: every locale, with the team's memory and terms inline |
-| 24 | `bowrain-web-review`             | **desktop.** Review and approve, the team workflow on content synced from kapi |
-| 25 | `bowrain-web-governance`         | **desktop.** One governed source of voice, terms, and translations for a team |
-| 26 | `bowrain-web-collaboration`      | **desktop.** Two people, one document, live |
-| 27 | `bowrain-web-correction-loop`    | **desktop.** Every correction becomes a versioned check |
-| 28 | `bowrain-sizzle`                 | **desktop.** A reel of the Bowrain platform: governance, collaboration, and quality |
+| 10 | `10-cli-governance`              | **shell.** One repository governed from the command line: what is in force at a point, what a gate refuses, and what convergence settles |
+| 11 | `s0-northsea-governance`         | **shell.** One repository, one language, three surfaces: discovered, gated, corrected and converged, with no server and no model |
+| 12 | `s1-compass-multilingual`        | **shell.** The same project at the same point in three more languages, converged, reviewed, and gated at the edge where a reader sees it |
+| 13 | `s2-tidewatch-docs`              | **shell.** Four handbook pages, two more languages, and a CI job that reports what is behind instead of failing on it |
+| 14 | `kapi-bilingual-workflow`        | **shell.** kapi emits a clean bilingual XLIFF, accepts the translated one back, and keeps the project content memory in the loop on both sides |
+| 15 | `kapi-desktop-projects`          | **desktop.** Set up a multilingual content project in Kapi Desktop |
+| 16 | `kapi-desktop-content`           | **desktop.** The collections on a project's home, and one file read as keys and values |
+| 17 | `kapi-desktop-flows`             | **desktop.** The Toolbox: the tools and pipelines a project runs over its content |
+| 18 | `kapi-desktop-review`            | **desktop.** The review queue, and the five layers behind one decision |
+| 19 | `kapi-desktop-explorer`          | **desktop.** A project's terms and content memory, read in the Context hub |
+| 20 | `kapi-desktop-config`            | **desktop.** Appearance, AI models, and plugins in one place |
+| 21 | `bowrain-cli-getting-started`    | **shell.** `kapi init` connects local files to a Bowrain server; push and pull move content like git, and `kapi up` runs the loop on the server |
+| 22 | `bowrain-cli-auth-and-workspaces` | **shell.** `kapi auth` and `kapi workspace` show who and where you are connected; pseudo-translate checks layout before you send for real translation |
+| 23 | `bowrain-desktop-dashboard`      | **desktop.** The Bowrain desktop app as an equal, real-time client of the shared workspace |
+| 24 | `bowrain-desktop-automations`    | **desktop.** Rules run the loop on the server; runs show each pass catching the project up |
+| 25 | `bowrain-web-editor`             | **desktop.** The shared translation editor: every locale, with the team's memory and terms inline |
+| 26 | `bowrain-web-review`             | **desktop.** Two people reviewing one queue, and the workspace refusing an approval of its author's own work |
+| 27 | `bowrain-web-governance`         | **desktop.** One governed source of voice, terms, and translations for a team |
+| 28 | `bowrain-web-collaboration`      | **desktop.** Two people, one document, live |
+| 29 | `bowrain-web-correction-loop`    | **desktop.** Every correction becomes a versioned check |
+| 30 | `bowrain-sizzle`                 | **desktop.** A reel of the Bowrain platform: governance, collaboration, and quality |
 
-Rows 1 to 13 exercise the task sections of the kapi skill
+Rows 1 to 14 exercise the task sections of the kapi skill
 (`references/translate.md`, `references/i18n.md`, `references/voice.md`,
-`references/toolbox.md`) plus the MCP tool surface. Rows 14 to 18 record Kapi
-Desktop, and rows 19 to 28 record the Bowrain CLI, desktop app and web app.
+`references/toolbox.md`) plus the MCP tool surface. Rows 15 to 20 record Kapi
+Desktop, and rows 21 to 30 record the Bowrain CLI, desktop app and web app.
 
 ### Scripted shell demos (no Claude)
 
@@ -314,3 +316,24 @@ pnpm run demo bowrain-web-collaboration -- --only=narrate,render,publish
 If `BOWRAIN_PEER_TOKEN` is unset the walk degrades to a single-user recording
 (editor + governance frames) and skips the live-presence beats — it never
 fabricates a teammate that isn't really connected.
+
+### Two-user review (`bowrain-web-review`)
+
+The review walk uses the same two users and the same seed. On top of the
+collaboration state, `seed-collaboration.mjs` sets the workspace
+separation-of-duties policy to `block`, grants Bob the reviewer role scoped to
+the target locale, and has Bob write one target of his own. That gives the walk
+a queue where the recorded user can approve what Bob wrote, is refused by the
+server on what she wrote herself, and Bob can decide that one instead. The
+refusal is a real 403 from `reviewSoD.vet`, rendered by the session's own error
+banner; nothing about it is staged in the frontend.
+
+Two more values from the seed's JSON drive those beats:
+
+```bash
+BOWRAIN_PEER_BLOCK_ID=<peer_block_id> BOWRAIN_SELF_BLOCK_ID=<self_block_id> \
+  pnpm run demo bowrain-web-review -- --only=capture --force --theme=both
+```
+
+Without them the walk still records the inbox, the session, the context rail and
+one approval, and the two governance beats act on whichever unit is in focus.

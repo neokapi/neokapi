@@ -8,7 +8,7 @@ terminal: desktop
 target: web
 brand: bowrain
 needsAi: false
-# One continuous narration read — uniform voice across scenes.
+# One continuous narration read: uniform voice across scenes.
 oneshot: true
 aspects:
   - One shared workspace
@@ -27,28 +27,28 @@ narration:
   - id: title
     kind: title
     text: >-
-      A team working in one document at the same time — live presence in the
-      editor, all in a shared, governed workspace.
+      A team working in one document at the same time, with live presence in
+      the editor and a shared, governed workspace behind it.
 
   - id: intro
     kind: desktop
     beat: intro
     text: >-
-      A workspace is shared by a whole team — its projects, memory, and
-      terminology live in one place, not on one laptop.
+      A workspace is shared by a whole team. Its projects, memory and terms
+      live in one place rather than on one laptop.
 
   - id: open-file
     kind: desktop
     beat: open-file
     caption: Open a file in the Translate surface.
     text: >-
-      One translator opens a file in the Translate surface — source and target
-      side by side, with the live preview of the page being translated.
+      One translator opens a file in the Translate surface, with the editing
+      card over a live preview of the page being translated.
 
   - id: teammate-joins
     kind: desktop
     beat: teammate-joins
-    caption: A teammate joins — their presence appears live.
+    caption: A teammate joins, and their presence appears live.
     text: >-
       When a teammate opens the same file, their avatar appears in the editor
       straight away. Each person can see who else is here, working in the very
@@ -59,8 +59,8 @@ narration:
     beat: co-editing
     caption: Two people, one file, in real time.
     text: >-
-      Both work in the same file together — no exported spreadsheets, no merge
-      step afterwards. The shared memory and terminology keep everyone
+      Both work in the same file together, with no exported spreadsheets and
+      no merge step afterwards. The shared memory and terms keep everyone
       consistent as they go.
 
   - id: members
@@ -68,8 +68,8 @@ narration:
     beat: members
     caption: Shared, but governed by role.
     text: >-
-      Access is governed: people are invited by email and given a role —
-      member, admin, or viewer — so the workspace stays open to the team but
+      Access is governed. People are invited by email and given a role, owner,
+      admin, member or viewer, so the workspace stays open to the team and still
       controlled.
 
   - id: desktop-handoff
@@ -83,5 +83,5 @@ narration:
   - id: outro
     kind: outro
     text: >-
-      A team, editing shared content together in real time — the stewardship
+      A team editing shared content together in real time. The stewardship
       layer over the open kapi tools.

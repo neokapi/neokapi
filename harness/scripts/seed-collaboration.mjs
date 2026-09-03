@@ -249,6 +249,79 @@ async function main() {
     (w) => w.slug === wsSlug,
   );
 
+  // ── The review walk's separation of duties ────────────────────────────────
+  //
+  // The workspace policy decides what happens when someone approves their own
+  // writing: `off` ignores it, `warn` (the default, auth/governance.go
+  // GetSoDMode) files an audit record and allows it, `block` refuses with
+  // "separation of duties: you cannot review or approve your own work"
+  // (server/handlers_governance.go). Only `block` puts the rule on screen, so
+  // the seed sets it.
+  //
+  // Two more facts decide who gets refused. `ai-translate` runs in the caller's
+  // request context, so every target it writes is authored by Alice
+  // (store/history.go records ChangeContext.Actor). And a plain workspace
+  // member carries translate but not review (core/auth DefaultPermissionsForRole),
+  // so Bob's Approve would be a disabled button rather than a refusal. The seed
+  // therefore grants Bob the reviewer role scoped to the target locale, and has
+  // Bob write one target of his own. The result is a queue where Alice can
+  // approve what Bob wrote, Alice is refused on what she wrote, and Bob can
+  // decide it instead.
+  const jput = async (path, body, headers = HA) => {
+    const r = await fetch(`${API}${path}`, { method: "PUT", headers, body: JSON.stringify(body) });
+    if (!r.ok) throw new Error(`PUT ${path} → ${r.status}: ${(await r.text()).slice(0, 300)}`);
+    const text = await r.text();
+    return text ? JSON.parse(text) : {};
+  };
+  const jget = async (path, headers = HA) => {
+    const r = await fetch(`${API}${path}`, { headers });
+    if (!r.ok) throw new Error(`GET ${path} → ${r.status}: ${(await r.text()).slice(0, 300)}`);
+    return r.json();
+  };
+
+  let sodMode = "";
+  let bobBlockId = "";
+  let aliceBlockId = "";
+  try {
+    ({ mode: sodMode } = await jput(`/${wsSlug}/sod`, { mode: "block" }));
+
+    // Bob's own user id, read as Bob (the workspace member list carries no email).
+    const bobMe = await jget("/auth/me", HB);
+    const bobId = bobMe.id || bobMe.user?.id;
+
+    // The built-in reviewer template: view_content + translate + review.
+    const roles = await jget(`/${wsSlug}/roles`);
+    const roleList = Array.isArray(roles) ? roles : roles.roles || [];
+    const reviewer =
+      roleList.find((r) => r.name === "reviewer") ||
+      roleList.find((r) => (r.permission_names || []).includes("review"));
+    if (!bobId || !reviewer) throw new Error("no bob id or reviewer role template");
+
+    await jpost(`/${wsSlug}/${projectId}/members`, {
+      user_id: bobId,
+      role_id: reviewer.id,
+      languages: [LOCALE],
+    });
+
+    // Bob writes one target. His PUT is the newest target_modified row for that
+    // block and locale, so LastTargetAuthors answers with Bob for it and with
+    // Alice for the rest.
+    const blocks = await jget(`/${wsSlug}/${projectId}/blocks/main?item=${encodeURIComponent(FILE_NAME)}`);
+    const blockList = Array.isArray(blocks) ? blocks : blocks.blocks || [];
+    const translatable = blockList.filter((b) => b.translatable !== false);
+    bobBlockId = translatable[0]?.id || "";
+    aliceBlockId = translatable[1]?.id || translatable[0]?.id || "";
+    if (bobBlockId) {
+      await jput(`/${wsSlug}/${projectId}/blocks/main/${bobBlockId}`, {
+        item_name: FILE_NAME,
+        target_locale: LOCALE,
+        text: "Nous concevons des outils que les équipes utilisent chaque jour.",
+      }, HB);
+    }
+  } catch (e) {
+    console.error(`  (review governance seed skipped: ${e.message})`);
+  }
+
   console.log(
     JSON.stringify(
       {
@@ -258,8 +331,15 @@ async function main() {
         item_id: itemId,
         file_name: FILE_NAME,
         locale: LOCALE,
-        translate_url: `${BASE}/${wsSlug}/p/${projectId}/s/main/${itemId}/translate`,
+        // The item sits AFTER /translate/ (routes/index.tsx `translate/$`).
+        translate_url: `${BASE}/${wsSlug}/p/${projectId}/s/main/translate/${itemId}`,
+        review_url: `${BASE}/${wsSlug}/p/${projectId}/s/main/review`,
+        review_inbox_url: `${BASE}/${wsSlug}/review-inbox`,
         members_url: `${BASE}/${wsSlug}/settings/members`,
+        sod_mode: sodMode,
+        // Queue rows are keyed `${itemId}::${blockId}::${locale}`.
+        peer_block_id: bobBlockId,
+        self_block_id: aliceBlockId,
         alice: { token: aliceToken, name: ALICE_NAME, email: ALICE_EMAIL },
         bob: { token: bobToken, name: BOB_NAME, email: BOB_EMAIL, joined: bobHasWs },
       },

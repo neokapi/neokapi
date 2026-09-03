@@ -132,6 +132,11 @@ const BOWRAIN_PEER_NAME = process.env.BOWRAIN_PEER_NAME || "Maria Schmidt";
 const BOWRAIN_PROJECT_ID = process.env.BOWRAIN_PROJECT_ID || "";
 const BOWRAIN_ITEM_ID = process.env.BOWRAIN_ITEM_ID || "";
 const BOWRAIN_COLLAB_LOCALE = process.env.BOWRAIN_COLLAB_LOCALE || "fr";
+// The two review-queue rows the separation-of-duties beats need: one target Bob
+// wrote (Alice may approve it) and one Alice wrote (the server refuses her).
+// Both are printed by harness/scripts/seed-collaboration.mjs.
+const BOWRAIN_PEER_BLOCK_ID = process.env.BOWRAIN_PEER_BLOCK_ID || "";
+const BOWRAIN_SELF_BLOCK_ID = process.env.BOWRAIN_SELF_BLOCK_ID || "";
 
 /** Resolve the workspace slug for the session token. An explicit
  *  BOWRAIN_WORKSPACE_SLUG wins (a seed run prints the exact one to use, which
@@ -205,7 +210,7 @@ async function launchPeer(slug: string): Promise<{ peer: PeerSession; teardown: 
       // document which target both users sit on.
       void locale;
       await page.goto(
-        `${BOWRAIN_BASE}/${workspace}/p/${projectId}/s/main/${itemId}/translate`,
+        `${BOWRAIN_BASE}/${workspace}/p/${projectId}/s/main/translate/${itemId}`,
         { waitUntil: "domcontentloaded" },
       );
       // Wait for the editor to mount so the peer's useCollaboration() opens the
@@ -288,7 +293,12 @@ async function startRealStack(): Promise<{ url: string; teardown: () => Promise<
   await waitPort(5175, 60_000);
 
   console.log("  · starting frontend dev server (:5174)");
-  const vite = spawn("vp", ["dev"], { cwd: FRONTEND_DIR, env: { ...process.env, FORCE_COLOR: "0" }, stdio: "ignore" });
+  // --force re-optimizes deps on every recording, ignoring node_modules/.vite/deps.
+  // A prebundle cached by an older toolchain raises "__name is not defined" when
+  // the app mounts, and a recording carries on over a page that failed to render:
+  // the walk times out on its first selector, or films an empty frame. The
+  // bowrain dev server below already forces it for exactly this; both need it.
+  const vite = spawn("vp", ["dev", "--force"], { cwd: FRONTEND_DIR, env: { ...process.env, FORCE_COLOR: "0" }, stdio: "ignore" });
   await waitPort(5174, 120_000);
 
   return {
@@ -459,7 +469,11 @@ function makeCtx(page: Page, t0: number, beats: Beat[], peer?: PeerSession): Wal
   const unionZoom = async (selectors: string[], pad = 0.04): Promise<ZoomRect | null> => {
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity, any = false;
     for (const s of selectors) {
-      const box = await page.locator(s).first().boundingBox().catch(() => null);
+      // A short timeout, because an absent selector here is ordinary: a beat
+      // names every element it might frame and takes the union of the ones that
+      // rendered. On Playwright's 30 s default one optional selector stalls the
+      // recording between two beats, and the screencast carries the dead air.
+      const box = await page.locator(s).first().boundingBox({ timeout: 2000 }).catch(() => null);
       if (!box) continue;
       any = true;
       x0 = Math.min(x0, box.x);
@@ -490,52 +504,80 @@ function makeCtx(page: Page, t0: number, beats: Beat[], peer?: PeerSession): Wal
   return { page, beat, beatEls, cursorTo, sidebar, peer };
 }
 
-/** Terms + content-memory explorer. */
+/** A Context hub section tab by its label. The hub's own nav carries the
+ *  sections (Explorer · Voice · Terms · Content Memory) as plain buttons. */
+function contextSection(page: Page, label: string): Locator {
+  return page.locator(`nav[aria-label="Context sections"] button:has-text("${label}")`);
+}
+
+/** Terms + content memory, read at the project that agreed them.
+ *
+ *  The app opens in projects mode (backend.GetAppMode defaults to "projects"
+ *  and no UI switches it), so the two stores are sections of the Context
+ *  pillar rather than rail items, and each shows the OPEN PROJECT's store:
+ *  TermsPage/MemoriesPage auto-select the project handle and skip the picker
+ *  entirely (TermsPage.tsx `activeHandle = projectHandle || handle`). The walk
+ *  therefore opens KapiMart first and reads its terms and its memory. */
 async function explorerWalk(c: WalkCtx): Promise<void> {
   const { page, beat, beatEls, cursorTo, sidebar } = c;
   await beat("intro", null, async () => {
+    await landOnHome(page);
     await idle(page, 2200);
   });
-  await beat("open-termbases", { x: 0, y: 0.04, w: 0.34, h: 0.66 }, async () => {
-    await humanClick(page, sidebar("Termbases"));
-    await page.waitForTimeout(700);
+  // Terms in a project is the concept workspace (ConceptsView over
+  // @neokapi/concept-ui), which carries no testids: its search box is the one
+  // labelled control, and each concept is a button in the divided list.
+  const conceptSearch = 'input[aria-label="Search concepts"]';
+  const conceptRow = "ul.divide-y li button";
+  await beat("open-termbases", null, async () => {
+    await openSample(page, "sample-kapimart", "Context");
+    await humanClick(page, sidebar("Context"));
+    await page.waitForTimeout(800);
+    await humanClick(page, contextSection(page, "Terms"));
+    await page.waitForSelector(conceptSearch, { timeout: 30_000 });
+    await page.waitForSelector(conceptRow, { timeout: 30_000 });
+    await page.waitForTimeout(900);
   });
-  await beat("open-glossary", null, async () => {
-    await humanClick(page, page.locator('button:has-text("product-glossary")'));
-    await page.waitForTimeout(1100);
+  await beatEls("open-glossary", [conceptRow], async () => {
+    await moveTo(page, WIDTH * 0.5, HEIGHT * 0.45, 700);
+    await page.waitForTimeout(2000);
   });
-  await beatEls("inspect-concept", ['[data-testid="concept-c-01"]'], async () => {
-    await page.locator('[data-testid="concept-c-01"]').scrollIntoViewIfNeeded().catch(() => {});
+  await beatEls("inspect-concept", [conceptRow], async () => {
+    await page.locator(conceptRow).first().scrollIntoViewIfNeeded().catch(() => {});
     await page.waitForTimeout(300);
-    await cursorTo('[data-testid="concept-c-01"]');
+    await cursorTo(conceptRow);
     await page.waitForTimeout(2200);
   });
-  await beatEls("search-term", ['[data-testid="filterbar-search"]', '[data-testid="concept-c-07"]'], async () => {
-    await humanType(page, page.getByTestId("filterbar-search"), "invoice", { submit: true });
-    await page.waitForTimeout(1500);
+  await beatEls("search-term", [conceptSearch, conceptRow], async () => {
+    await humanType(page, page.locator(conceptSearch), "cart", { submit: true });
+    await page.waitForTimeout(1600);
   });
-  await beat("open-tm", { x: 0, y: 0.04, w: 0.34, h: 0.66 }, async () => {
-    await humanClick(page, sidebar("Content Memories"));
-    await page.waitForTimeout(600);
-    await humanClick(page, page.locator('button:has-text("acme-app")'));
+  await beat("open-tm", null, async () => {
+    await humanClick(page, contextSection(page, "Content Memory"));
+    await page.waitForSelector('[data-testid^="tm-entry-"]', { timeout: 30_000 });
     await page.waitForTimeout(1100);
   });
-  await beatEls("inspect-tm", ['[data-testid="tm-entry-tm-01"]', '[data-testid="tm-entry-tm-02"]'], async () => {
-    await page.locator('[data-testid="tm-entry-tm-01"]').scrollIntoViewIfNeeded().catch(() => {});
+  await beatEls("inspect-tm", ['[data-testid^="tm-entry-"]'], async () => {
+    const first = page.locator('[data-testid^="tm-entry-"]').first();
+    await first.scrollIntoViewIfNeeded().catch(() => {});
     await page.waitForTimeout(300);
-    await cursorTo('[data-testid="tm-entry-tm-02"]');
+    await cursorTo('[data-testid^="tm-entry-"]');
     await page.waitForTimeout(2300);
   });
-  await beatEls("entity", ['[data-testid="tm-entry-tm-03"]'], async () => {
-    await page.locator('[data-testid="tm-entry-tm-03"]').scrollIntoViewIfNeeded().catch(() => {});
-    await page.waitForTimeout(300);
-    await cursorTo('[data-testid="tm-entry-tm-03"]');
+  await beatEls("entity", ['[data-testid^="tm-entry-"]'], async () => {
+    const second = page.locator('[data-testid^="tm-entry-"]').nth(1);
+    if (await second.count()) {
+      await second.scrollIntoViewIfNeeded().catch(() => {});
+      await page.waitForTimeout(300);
+      const box = await second.boundingBox().catch(() => null);
+      if (box) await moveTo(page, box.x + box.width / 2, box.y + box.height / 2, 600);
+    }
     await page.waitForTimeout(2200);
   });
-  await beatEls("search-tm", ['[data-testid="tm-search"]', '[data-testid="tm-entry-tm-04"]'], async () => {
+  await beatEls("search-tm", ['[data-testid="tm-search"]', '[data-testid^="tm-entry-"]'], async () => {
     await page.getByTestId("tm-search").scrollIntoViewIfNeeded().catch(() => {});
-    await humanType(page, page.getByTestId("tm-search"), "invite", { submit: true });
-    await page.waitForTimeout(1500);
+    await humanType(page, page.getByTestId("tm-search"), "checkout", { submit: true });
+    await page.waitForTimeout(1600);
   });
 }
 
@@ -543,6 +585,9 @@ async function explorerWalk(c: WalkCtx): Promise<void> {
 async function projectsWalk(c: WalkCtx): Promise<void> {
   const { page, beat, beatEls, cursorTo, sidebar } = c;
   await beat("intro", null, async () => {
+    // The light pass created a project and left it open; New Project is on the
+    // home screen, so the dark pass has to get back there first.
+    await landOnHome(page);
     await idle(page, 2000);
   });
   // Open the New Project dialog and name the project.
@@ -567,9 +612,11 @@ async function projectsWalk(c: WalkCtx): Promise<void> {
     await humanClick(page, sidebar("Project Settings"));
     await page.waitForTimeout(1300);
   });
-  // Glance at the Content view (file patterns).
+  // Back to the project home, where the collections live. Content is not a
+  // rail item: the project home carries the standing, the point map and the
+  // collections in one surface (IconSidebar `Project` → view `project-home`).
   await beat("content", { x: 0.02, y: 0.05, w: 0.92, h: 0.6 }, async () => {
-    await humanClick(page, sidebar("Content"));
+    await humanClick(page, sidebar("Project"));
     await page.waitForTimeout(1400);
   });
 }
@@ -591,9 +638,9 @@ async function configWalk(c: WalkCtx): Promise<void> {
     await moveTo(page, WIDTH * 0.2, HEIGHT * 0.32, 700);
     await page.waitForTimeout(2200);
   });
-  // AI Credentials tab (seeded demo providers — no real keychain entries).
+  // AI Models tab (seeded demo providers, no real keychain entries).
   await beat("credentials", { x: 0.02, y: 0.06, w: 0.96, h: 0.46 }, async () => {
-    await humanClick(page, tab("AI Credentials"));
+    await humanClick(page, tab("AI Models"));
     await page.waitForTimeout(1500);
   });
   // Plugins tab.
@@ -603,80 +650,299 @@ async function configWalk(c: WalkCtx): Promise<void> {
   });
 }
 
-/** Open the KapiMart sample project from the home screen. Idempotent: the
- *  scaffold is re-created under the isolated home on each theme pass. */
+/**
+ * Land on the app home, whichever state the app restored.
+ *
+ * Both themes of a demo record against one backend, and the app persists its
+ * session: the second pass reopens the project the first one opened
+ * (useTabManager restores lastOpenProjects on start) and lands on that
+ * project, not on the home screen. `Home` is the one rail item that stays
+ * enabled with no project open, so it reaches the sample card from either
+ * state.
+ */
+async function landOnHome(page: Page): Promise<void> {
+  const home = page.locator('button[aria-label="Home"]');
+  if (await home.count()) {
+    await humanClick(page, home).catch(() => {});
+    await page.waitForTimeout(700);
+  }
+  await page.waitForSelector('[data-testid="sample-kapimart"]', { timeout: 20_000 });
+}
+
+/**
+ * Open the KapiMart sample project, from either state a theme pass can start in.
+ *
+ * The two passes share one backend and the app restores its session, so the
+ * second pass starts with the project already open. Clicking the sample card
+ * in that state re-runs the scaffold and lands on the Get Started template
+ * picker, which replaces the project home, and the walk films that instead.
+ * A rail item is enabled exactly when a project tab is open, so read it to
+ * tell the two states apart and go back through the project home button.
+ */
 async function openSample(page: Page, testid: string, readyLabel: string): Promise<void> {
-  await page.waitForSelector(`[data-testid="${testid}"]`, { timeout: 15_000 });
+  const ready = `button[aria-label="${readyLabel}"]:not([disabled])`;
+  if (await page.locator(ready).count()) {
+    const home = page.locator('button[aria-label="Project"]');
+    if (await home.count()) await humanClick(page, home);
+    await page.waitForTimeout(1400);
+    return;
+  }
+  await landOnHome(page);
   await humanClick(page, page.getByTestId(testid));
   // Wait until the project has opened and its plugins resolve (the gated sidebar
   // item becomes enabled), so subsequent clicks land on a ready project.
-  await page.waitForSelector(`button[aria-label="${readyLabel}"]:not([disabled])`, { timeout: 60_000 });
+  await page.waitForSelector(ready, { timeout: 60_000 });
   await page.waitForTimeout(1200);
 }
 
-/** Manage content in a project — the KapiMart sample's collections and files. */
+/**
+ * Expand one collection on the project home and open one of its files in the
+ * preview sheet.
+ *
+ * The matched-file table nests: a shared output pattern renders as a
+ * `matched-pattern-row` that opens to the source file and one row per locale
+ * (CollectionsPanel.tsx). A file with no shared pattern is a `matched-source-row`
+ * directly. Try the source row first, then open the pattern that carries the
+ * name and try again, so both shapes reach the same sheet.
+ */
+async function openCollectionFile(page: Page, collection: string, filename: string): Promise<void> {
+  const expand = page.locator('button[aria-label="Expand"]').filter({ hasText: collection }).first();
+  if (await expand.count()) {
+    await humanClick(page, expand);
+    await page.waitForTimeout(900);
+  }
+  const sourceRow = page
+    .locator('tr[data-slot="matched-source-row"]')
+    .filter({ hasText: filename })
+    .first();
+  // A pattern row is a disclosure, and which one hides this file is not
+  // knowable from the file name: the row's cells carry the output pattern and
+  // the glob, either of which may spell the stem differently. Open them in turn
+  // until the source row is on the page, rather than guess once and then wait
+  // out a timeout on a row that never appeared.
+  if (!(await sourceRow.count())) {
+    const patterns = page.locator('tr[data-slot="matched-pattern-row"]');
+    const n = await patterns.count();
+    for (let i = 0; i < n; i++) {
+      await humanClick(page, patterns.nth(i));
+      await page.waitForTimeout(500);
+      if (await sourceRow.count()) break;
+    }
+  }
+  await sourceRow.waitFor({ state: "visible", timeout: 15_000 });
+  await sourceRow.scrollIntoViewIfNeeded().catch(() => {});
+  await humanClick(page, sourceRow);
+  await page.waitForSelector('[data-preview="keyed-table"], [data-preview="data"]', { timeout: 30_000 });
+  await page.waitForTimeout(1200);
+}
+
+/** Close the file preview sheet and settle back on the collections. */
+async function closePreview(page: Page): Promise<void> {
+  await page.keyboard.press("Escape").catch(() => {});
+  await page.waitForTimeout(800);
+}
+
+/**
+ * A project's content: the collections that group it, and what one file holds.
+ *
+ * Content stopped being a rail item when the project home merged (#2273), so
+ * the collections ARE the front door: the standing and the point map sit above
+ * them and every collection opens in place. Opening a file from a collection
+ * raises the preview sheet, which reads a keyed format (JSON, YAML,
+ * .properties) as a table of keys beside their values, with the file itself one
+ * click away.
+ */
 async function contentWalk(c: WalkCtx): Promise<void> {
-  const { page, beat, sidebar } = c;
+  const { page, beat, beatEls, cursorTo, sidebar } = c;
   await beat("intro", null, async () => {
-    await page.waitForSelector('[data-testid="sample-kapimart"]', { timeout: 15_000 });
+    await landOnHome(page);
     await idle(page, 2000);
   });
-  // Open the KapiMart sample → its project overview.
+  // Open the KapiMart sample → its project home.
   await beat("open-project", null, async () => {
-    await openSample(page, "sample-kapimart", "Content");
+    await openSample(page, "sample-kapimart", "Project");
   });
-  // The overview header: source + target languages across the top.
-  await beat("overview", { x: 0.04, y: 0.02, w: 0.92, h: 0.42 }, async () => {
-    await moveTo(page, WIDTH * 0.5, HEIGHT * 0.2, 700);
-    await page.waitForTimeout(1800);
+  // The standing block: where the content sits, and what governs it there.
+  await beatEls("overview", ['[data-testid="project-standing"]'], async () => {
+    await moveTo(page, WIDTH * 0.5, HEIGHT * 0.24, 700);
+    await page.waitForTimeout(2200);
   });
-  // Open the Content view.
-  await beat("content", null, async () => {
-    await humanClick(page, sidebar("Content"));
+  // The collections, on the same surface.
+  await beat("content", { x: 0.02, y: 0.3, w: 0.96, h: 0.64 }, async () => {
+    await humanClick(page, sidebar("Project"));
+    await page.waitForTimeout(1400);
+    const panel = page.locator('[data-testid="collection-file-count"]').first();
+    await panel.scrollIntoViewIfNeeded().catch(() => {});
     await page.waitForTimeout(1600);
   });
-  // Left column: the file patterns, grouped into collections.
-  await beat("patterns", { x: 0.02, y: 0.1, w: 0.5, h: 0.84 }, async () => {
-    await moveTo(page, WIDTH * 0.26, HEIGHT * 0.4, 700);
-    await page.waitForTimeout(2500);
+  // Open one collection: its patterns, and the files they match.
+  await beatEls("patterns", ['[data-slot="matched-files-scroll"]'], async () => {
+    const expand = page.locator('button[aria-label="Expand"]').filter({ hasText: "Online Store" }).first();
+    if (await expand.count()) await humanClick(page, expand);
+    await page.waitForTimeout(1600);
+    await moveTo(page, WIDTH * 0.4, HEIGHT * 0.6, 700);
+    await page.waitForTimeout(2000);
   });
-  // Right column: the real files matched into the project, by format.
-  await beat("files", { x: 0.48, y: 0.1, w: 0.5, h: 0.84 }, async () => {
-    await moveTo(page, WIDTH * 0.74, HEIGHT * 0.4, 700);
-    await page.waitForTimeout(2500);
+  // Open a JSON catalog → the preview sheet reads it as keys and values.
+  await beatEls("files", ['[data-preview="keyed-table"]'], async () => {
+    await openCollectionFile(page, "Online Store", "store-ui.json");
+    await page.waitForTimeout(1800);
+  });
+  // Hold on the Key column beside the text it names.
+  await beatEls("keys", ['[data-preview="keyed-table"]'], async () => {
+    await cursorTo('[data-preview="keyed-table"] tr[data-key-path]');
+    await page.waitForTimeout(2400);
+  });
+  // The same file as it is written on disk.
+  await beatEls("code", ['[data-preview="data"]'], async () => {
+    const file = page.locator('[data-preview="data"] button:has-text("File")').first();
+    if (await file.count()) await humanClick(page, file);
+    await page.waitForTimeout(2400);
+  });
+  // A different keyed format, read the same way. These are the message strings
+  // the review walk decides on, named by the same keys.
+  await beatEls("properties", ['[data-preview="keyed-table"]'], async () => {
+    await closePreview(page);
+    await openCollectionFile(page, "Online Store", "error-messages.properties");
+    await page.waitForTimeout(2400);
   });
 }
 
-/** Compose flows — the flows defined in a project (KapiMart sample). */
+/**
+ * The Toolbox: what a project runs over its content.
+ *
+ * Flows stopped being a rail pillar; the Toolbox pillar hosts Tools and Flows
+ * as tabs (IconSidebar `Toolbox` → view `tools`, ToolboxPage's two buttons), and
+ * a flow card opens the pipeline in the visual editor.
+ */
 async function flowsWalk(c: WalkCtx): Promise<void> {
-  const { page, beat, sidebar } = c;
+  const { page, beat, beatEls, sidebar } = c;
   await beat("intro", null, async () => {
-    await page.waitForSelector('[data-testid="sample-kapimart"]', { timeout: 15_000 });
+    await landOnHome(page);
     await idle(page, 2000);
   });
   // Open the KapiMart sample project.
   await beat("open-project", null, async () => {
-    await openSample(page, "sample-kapimart", "Flows");
+    await openSample(page, "sample-kapimart", "Toolbox");
   });
-  // Open the project's Flows.
+  // Open the Toolbox, then its Flows tab.
   await beat("library", null, async () => {
-    await humanClick(page, sidebar("Flows"));
-    await page.waitForTimeout(1300);
+    await humanClick(page, sidebar("Toolbox"));
+    await page.waitForTimeout(1200);
+    const flows = page.locator('button:has-text("Flows")').first();
+    if (await flows.count()) await humanClick(page, flows);
+    await page.waitForTimeout(1600);
   });
   // The project's flows: translate, translate-and-qa, pseudo-translate.
   await beat("library-zoom", { x: 0.02, y: 0.08, w: 0.96, h: 0.62 }, async () => {
     await moveTo(page, WIDTH * 0.5, HEIGHT * 0.36, 700);
     await page.waitForTimeout(2200);
   });
-  // Open a flow → its pipeline graph (AI translate → quality check).
+  // Open a flow → its pipeline graph (AI translate, then a quality check).
+  // The editor is open once its back button renders; the React Flow canvas
+  // stays hidden until it has measured itself, so waiting on the canvas to be
+  // visible waits out the timeout instead.
   await beat("open-flow", null, async () => {
     await humanClick(page, page.getByText("translate-and-qa", { exact: true }));
-    await page.waitForTimeout(1500);
+    await page.waitForSelector('button[aria-label="Back to flow list"]', { timeout: 30_000 });
+    // The narration says the pipeline is on screen. Waiting for a node makes a
+    // canvas that mounts without its steps fail the capture instead of filming
+    // an empty frame.
+    await page.waitForSelector(".react-flow__node", { timeout: 30_000 });
+    await page.waitForTimeout(2200);
   });
-  // Zoom the pipeline column (the graph sits right-of-centre).
-  await beat("pipeline", { x: 0.4, y: 0.1, w: 0.4, h: 0.84 }, async () => {
-    await moveTo(page, WIDTH * 0.6, HEIGHT * 0.45, 700);
+  // Zoom the pipeline canvas.
+  await beatEls("pipeline", [".react-flow"], async () => {
+    await moveTo(page, WIDTH * 0.5, HEIGHT * 0.5, 700);
     await page.waitForTimeout(2400);
+  });
+}
+
+/**
+ * The Review queue and the five layers behind one decision (S-07).
+ *
+ * KapiMart opens with a queue rather than an empty page: its message catalogue
+ * (`src/en/error-messages.properties`) ships translated into all five targets
+ * with no decision row behind it, which
+ * `backend/sample/embed_test.go TestScaffoldLeavesTheMessageCatalogueUnreviewed`
+ * holds in place. Everything the queue reads is a committed file, so the walk
+ * needs no server, no provider and no network.
+ *
+ * The Review page uses `data-slot` rather than `data-testid`, and its keyboard
+ * handler ignores every key while a textarea has focus or the document sheet is
+ * open (ReviewPage.tsx), so the walk keeps focus on the page body.
+ */
+async function reviewWalk(c: WalkCtx): Promise<void> {
+  const { page, beat, beatEls, cursorTo, sidebar } = c;
+  const layer = async (id: string, slot: string) => {
+    await beatEls(id, [`[data-slot="${slot}"]`], async () => {
+      const card = page.locator(`[data-slot="${slot}"]`).first();
+      if (await card.count()) {
+        await card.scrollIntoViewIfNeeded().catch(() => {});
+        await page.waitForTimeout(300);
+        const toggle = page.locator(`[data-slot="${slot}-toggle"]`).first();
+        if ((await toggle.count()) && (await card.getAttribute("data-open")) === null)
+          await humanClick(page, toggle).catch(() => {});
+        await cursorTo(`[data-slot="${slot}"]`);
+      }
+      await page.waitForTimeout(2300);
+    });
+  };
+
+  await beat("intro", null, async () => {
+    await landOnHome(page);
+    await idle(page, 2000);
+  });
+  // Open KapiMart. Review is locale-gated: it appears because the project
+  // declares five target languages.
+  await beat("open-project", null, async () => {
+    await openSample(page, "sample-kapimart", "Review");
+  });
+  // The queue: every language in one list, source wording first.
+  await beat("queue", null, async () => {
+    await humanClick(page, sidebar("Review"));
+    await page.waitForSelector('[data-slot="review-queue-item"]', { timeout: 60_000 });
+    await page.waitForTimeout(1600);
+  });
+  // The language selector carries a count per language, and the chips narrow
+  // the list to what a check flagged.
+  await beatEls("scope", ['[data-slot="review-language-select"]', '[data-slot="review-chips"]'], async () => {
+    await cursorTo('[data-slot="review-language-select"]');
+    await page.waitForTimeout(1500);
+    await cursorTo('[data-slot="review-chips"]');
+    await page.waitForTimeout(1800);
+  });
+  // Open one translated unit: source, target, and the layers behind it.
+  await beatEls("open-unit", ['[data-slot="review-unit"]'], async () => {
+    const target = page.locator('[data-slot="review-queue-item"]:not([data-source])').first();
+    await humanClick(page, target);
+    await page.waitForSelector('[data-slot="review-unit"]', { timeout: 20_000 });
+    await page.waitForTimeout(1800);
+  });
+  await layer("point", "review-point");
+  await layer("neighbourhood", "review-neighbourhood");
+  await layer("history", "review-history");
+  await layer("findings", "review-findings");
+  await layer("provenance", "review-provenance");
+  // Approve with the keyboard. The unit leaves the queue.
+  await beatEls("approve", ['[data-slot="review-actions"]', '[data-slot="review-queue"]'], async () => {
+    await cursorTo('[data-slot="review-approve"]');
+    await page.waitForTimeout(900);
+    await page.locator('[data-slot="review-page"]').first().click({ position: { x: 4, y: 4 } }).catch(() => {});
+    await page.keyboard.press("a");
+    await page.waitForTimeout(2400);
+  });
+  // What is left, and the batch that clears the units no check flagged.
+  //
+  // There is no source-lane beat, because the sample cannot produce one. A
+  // source unit joins this queue only when it ranks below the project's source
+  // gate, or when that gate is `approved` and the unit is not
+  // (host/sourcereview.go computeSourceQueue). KapiMart declares no
+  // defaults.source_gate, which resolves to `checked`, and its source settles
+  // clean, so every row here is a translation.
+  await beatEls("batch", ['[data-slot="review-batch"]', '[data-slot="review-queue"]'], async () => {
+    await cursorTo('[data-slot="review-batch-approve"]');
+    await page.waitForTimeout(2600);
   });
 }
 
@@ -696,9 +962,9 @@ async function dismissOpenInDesktop(page: Page): Promise<void> {
   }
 }
 
-/** Bowrain web: shared content memory + terminology governed as concepts
- *  (Brand → Concepts — the old standalone terms nav is gone; /terms now
- *  redirects into the Brand hub's Concepts section). */
+/** Bowrain web: shared content memory and terminology governed as concepts.
+ *  Both are sections of the Context hub (nav-context → subnav-memory /
+ *  subnav-concepts); the old standalone terms nav is gone. */
 async function bowrainGovernanceWalk(c: WalkCtx): Promise<void> {
   const { page, beat, beatEls } = c;
   const tap = (id: string) => humanClick(page, page.getByTestId(id));
@@ -754,20 +1020,41 @@ async function bowrainGovernanceWalk(c: WalkCtx): Promise<void> {
   });
 }
 
-/** Web translation editor: split source/target grid, live preview, the shared
- *  content memory/terminology context panel, and per-locale switching — on files a team
- *  synced from kapi into the workspace. */
+/**
+ * Open the first (or named) project card, then its source content.
+ *
+ * A project card lands on the translation dashboard
+ * (`p/$projectId/s/$stream` → TranslationDashboardRoute), so the file list is
+ * one step further in: `subnav-source` reaches ProjectView, which is the only
+ * place `open-file` renders.
+ */
+async function openProjectSource(page: Page, name?: string): Promise<void> {
+  const named = name
+    ? page.locator('[data-testid^="project-card"]', { hasText: name }).first()
+    : null;
+  const card = named && (await named.count()) ? named : page.locator('[data-testid^="project-card"]').first();
+  await humanClick(page, card);
+  await page.waitForTimeout(1600);
+  await dismissOpenInDesktop(page);
+  const source = page.getByTestId("subnav-source");
+  await source.waitFor({ timeout: 20_000 }).catch(() => {});
+  if (await source.count()) await humanClick(page, source);
+  await page.waitForSelector('[data-testid^="open-file"]', { timeout: 20_000 }).catch(() => {});
+  await page.waitForTimeout(1200);
+}
+
+/** Web translation editor: the visual editing card over a live preview, the
+ *  shared content memory and terminology beside it, and per-locale switching,
+ *  on files a team synced from kapi into the workspace. */
 async function bowrainEditorWalk(c: WalkCtx): Promise<void> {
   const { page, beat, beatEls, cursorTo } = c;
   await beat("intro", null, async () => {
     await idle(page, 2000);
   });
-  // Open the Company Website project (rich HTML content, fr/de/ja targets).
+  // Open the Company Website project (rich HTML content, fr/de/ja targets),
+  // then its source content.
   await beat("open-project", null, async () => {
-    const card = page.locator('[data-testid^="project-card"]', { hasText: "Company Website" }).first();
-    await humanClick(page, (await card.count()) ? card : page.locator('[data-testid^="project-card"]').first());
-    await page.waitForTimeout(1600);
-    await dismissOpenInDesktop(page);
+    await openProjectSource(page, "Company Website");
   });
   // Open a file → the editor.
   await beat("open-file", null, async () => {
@@ -818,53 +1105,138 @@ async function bowrainEditorWalk(c: WalkCtx): Promise<void> {
   });
 }
 
-/** Review & approve: the Review surface steps through a file one block at a time,
- *  approving translations against the workspace — the team workflow on content
- *  pulled in by any connector. */
+/**
+ * Review and approve on the platform, with two genuine users.
+ *
+ * The surface is the project review session (`p/{id}/s/{stream}/review`,
+ * ReviewSessionRoute), reached from the workspace review inbox. One queue, one
+ * language selector with the source marked, and the FocusedReviewer holding the
+ * verdict, the context rail and the decision.
+ *
+ * The closing beats are the workspace's separation-of-duties policy, as the
+ * server actually applies it. `harness/scripts/seed-collaboration.mjs` sets the
+ * policy to `block`, grants Bob the reviewer role on the target locale and has
+ * Bob write one target. So Alice approves what Bob wrote, the server refuses her
+ * on what she wrote herself (`reviewSoD.vet` → 403, rendered inline by
+ * ReviewSession's ErrorNotice), and Bob decides that one off camera. Nothing is
+ * staged in the frontend: every refusal and every approval is a real API call
+ * by a real user.
+ */
 async function bowrainReviewWalk(c: WalkCtx): Promise<void> {
-  const { page, beat, beatEls, cursorTo } = c;
+  const { page, beat, beatEls, cursorTo, peer } = c;
+  const startUrl = new URL(page.url());
+  const wsBase = `${startUrl.origin}${startUrl.pathname}`.replace(/\/+$/, "");
+  const themeParam = startUrl.searchParams.get("theme");
+  const themeQ = themeParam ? `?theme=${themeParam}` : "";
+  const slug = startUrl.pathname.replace(/^\/+|\/+$/g, "").split("/")[0] || "";
+  const reviewUrl = BOWRAIN_PROJECT_ID ? `${wsBase}/p/${BOWRAIN_PROJECT_ID}/s/main/review${themeQ}` : "";
+  const row = (blockId: string) =>
+    page.locator(
+      `[data-testid="queue-row-${BOWRAIN_ITEM_ID}::${blockId}::${BOWRAIN_COLLAB_LOCALE}"]`,
+    );
+
+  // The workspace review inbox: every project awaiting a decision, in one place.
   await beat("intro", null, async () => {
-    await idle(page, 2000);
+    await page.goto(`${wsBase}/review-inbox${themeQ}`, { waitUntil: "domcontentloaded" });
+    await injectCursor(page); // goto wiped the page-injected cursor
+    await page.waitForSelector('[data-testid="review-inbox"]', { timeout: 30_000 }).catch(() => {});
+    await idle(page, 2400);
   });
+  // Into one project's review session.
   await beat("open-project", null, async () => {
-    const card = page.locator('[data-testid^="project-card"]', { hasText: "Company Website" }).first();
-    await humanClick(page, (await card.count()) ? card : page.locator('[data-testid^="project-card"]').first());
-    await page.waitForTimeout(1600);
-    await dismissOpenInDesktop(page);
+    const projectRow = page.locator('[data-testid^="review-inbox-project-"]').first();
+    if (await projectRow.count()) {
+      await humanClick(page, projectRow);
+    } else if (reviewUrl) {
+      await page.goto(reviewUrl, { waitUntil: "domcontentloaded" });
+      await injectCursor(page);
+    }
+    await page.waitForSelector('[data-testid="review-session"]', { timeout: 30_000 });
+    await page.waitForTimeout(2000);
   });
-  await beat("open-file", null, async () => {
-    await humanClick(page, page.locator('[data-testid^="open-file"]').first());
-    await page.waitForTimeout(2400);
-  });
-  // The Review surface: work through a file by status, one block at a time.
-  await beatEls("focus", ['[data-testid="review-surface"]'], async () => {
-    const rev = page.getByTestId("surface-tab-review");
-    if (await rev.count()) await humanClick(page, rev);
+  // The queue, and the language it is scoped to. The selector marks the source.
+  await beatEls("scope", ['[data-testid="filter-language"]', '[data-testid="review-filters"]'], async () => {
+    await cursorTo('[data-testid="filter-language"]');
+    await humanClick(page, page.getByTestId("filter-language"));
     await page.waitForTimeout(1400);
-    const row = page.locator('[data-testid^="review-row-"]').first();
-    if (await row.count()) await cursorTo('[data-testid^="review-row-"]');
+    await page.keyboard.press("Escape").catch(() => {});
     await page.waitForTimeout(1200);
   });
-  // Approve — mark reviewed in the Review surface; progress advances to reviewed.
-  await beatEls("review", ['[data-testid="review-surface"]'], async () => {
-    // The bulk action enables only once rows are selected — pick all/first rows
-    // so the approve action is live (and the click never blocks on a disabled
-    // button).
-    const selectAll = page.locator('[data-testid="select-all"], [data-testid^="review-select-"]').first();
-    if (await selectAll.count()) await humanClick(page, selectAll).catch(() => {});
-    await page.waitForTimeout(700);
-    const mark = page.getByTestId("bulk-mark-reviewed");
-    if (await mark.count()) {
-      await cursorTo('[data-testid="bulk-mark-reviewed"]');
-      if (await mark.isEnabled().catch(() => false)) await humanClick(page, mark).catch(() => {});
-    }
-    await page.waitForTimeout(1600);
+  // One unit in focus: its verdict against every bar the server applies.
+  await beatEls("focus", ['[data-testid="focused-reviewer"]'], async () => {
+    const bobRow = BOWRAIN_PEER_BLOCK_ID ? row(BOWRAIN_PEER_BLOCK_ID) : null;
+    if (bobRow && (await bobRow.count())) await humanClick(page, bobRow);
+    await page.waitForSelector('[data-testid="focused-reviewer"]', { timeout: 20_000 });
+    await page.waitForTimeout(1200);
+    await cursorTo('[data-testid="reviewer-verdict-passing"], [data-testid="reviewer-verdict-failing"]');
+    await page.waitForTimeout(2000);
   });
-  // Progress across the file: the status filter chips carry the per-status
-  // tallies (draft → translated → reviewed) — the review surface's progress readout.
-  await beatEls("progress", ['[data-testid="status-filters"]'], async () => {
-    await cursorTo('[data-testid="status-filters"]');
+  // The context rail: what governs this point, the blocks around it, the
+  // approved wording already on record, and who decided what before.
+  await beatEls("context", ['[data-testid="reviewer-context-rail"]'], async () => {
+    const rail = page.getByTestId("reviewer-context-rail");
+    if (await rail.count()) await rail.scrollIntoViewIfNeeded().catch(() => {});
+    await page.waitForTimeout(500);
+    await cursorTo('[data-testid="review-point"]');
+    await page.waitForTimeout(1600);
+    await cursorTo('[data-testid="reviewer-memory"]');
+    await page.waitForTimeout(1600);
+    await cursorTo('[data-testid="review-provenance"]');
     await page.waitForTimeout(1800);
+  });
+  // Alice approves the translation Bob wrote. A second pair of eyes.
+  await beatEls("approve", ['[data-testid="reviewer-approve"]', '[data-testid="review-pending-count"]'], async () => {
+    await cursorTo('[data-testid="reviewer-approve"]');
+    await humanClick(page, page.getByTestId("reviewer-approve"));
+    await page.waitForTimeout(2600);
+  });
+  // Her own translation is a different matter. The workspace policy refuses it,
+  // and the server's own sentence lands on screen.
+  await beatEls("duties", ['[data-testid="error-notice"]', '[data-testid="reviewer-approve"]'], async () => {
+    const own = BOWRAIN_SELF_BLOCK_ID ? row(BOWRAIN_SELF_BLOCK_ID) : null;
+    if (own && (await own.count())) {
+      await humanClick(page, own);
+      await page.waitForTimeout(1400);
+    }
+    await humanClick(page, page.getByTestId("reviewer-approve"));
+    // The narration says the workspace refused this approval, so a take where it
+    // did not is a broken take, not a quieter one. Fail the capture rather than
+    // film a screen that contradicts what is said over it. A run with no seeded
+    // block ids is a single-user rehearsal and makes no such claim.
+    if (BOWRAIN_SELF_BLOCK_ID) {
+      await page.waitForSelector('[data-testid="error-notice"]', { timeout: 20_000 });
+    } else {
+      await page.waitForSelector('[data-testid="error-notice"]', { timeout: 20_000 }).catch(() => {});
+    }
+    await page.waitForTimeout(1000);
+    await cursorTo('[data-testid="error-notice"]');
+    await page.waitForTimeout(2400);
+  });
+  // Bob decides it instead, in his own session, and Alice's queue catches up.
+  await beatEls("second-reviewer", ['[data-testid="review-queue"]', '[data-testid="review-pending-count"]'], async () => {
+    if (peer && BOWRAIN_PROJECT_ID && BOWRAIN_SELF_BLOCK_ID) {
+      await peer.act(async (bp) => {
+        await bp.goto(`${BOWRAIN_BASE}/${slug}/p/${BOWRAIN_PROJECT_ID}/s/main/review`, {
+          waitUntil: "domcontentloaded",
+        });
+        await bp.waitForSelector('[data-testid="review-session"]', { timeout: 30_000 }).catch(() => {});
+        const target = bp.locator(
+          `[data-testid="queue-row-${BOWRAIN_ITEM_ID}::${BOWRAIN_SELF_BLOCK_ID}::${BOWRAIN_COLLAB_LOCALE}"]`,
+        );
+        if (await target.count()) await target.click().catch(() => {});
+        await bp.waitForTimeout(1200);
+        const approve = bp.getByTestId("reviewer-approve");
+        if ((await approve.count()) && (await approve.isEnabled().catch(() => false)))
+          await approve.click().catch(() => {});
+        await bp.waitForTimeout(1500);
+      });
+    }
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await injectCursor(page);
+    await page.waitForSelector('[data-testid="review-session"]', { timeout: 30_000 }).catch(() => {});
+    await page.waitForTimeout(1600);
+    await cursorTo('[data-testid="review-pending-count"]');
+    await page.waitForTimeout(2400);
   });
 }
 
@@ -912,7 +1284,7 @@ async function bowrainCollaborationWalk(c: WalkCtx): Promise<void> {
   await beat("open-file", null, async () => {
     if (projectId && itemId) {
       await page.goto(
-        `${wsBase}/p/${projectId}/s/main/${itemId}/translate${themeQ}`,
+        `${wsBase}/p/${projectId}/s/main/translate/${itemId}${themeQ}`,
         { waitUntil: "domcontentloaded" },
       );
       await injectCursor(page); // goto wiped the page-injected cursor; re-add it
@@ -921,9 +1293,7 @@ async function bowrainCollaborationWalk(c: WalkCtx): Promise<void> {
         .catch(() => {});
     } else {
       // No seed → land Alice on the first project's file via the dashboard.
-      const card = page.locator('[data-testid^="project-card"]').first();
-      if (await card.count()) await humanClick(page, card);
-      await page.waitForTimeout(1400);
+      await openProjectSource(page);
       const open = page.locator('[data-testid^="open-file"]').first();
       if (await open.count()) await humanClick(page, open);
     }
@@ -1005,7 +1375,7 @@ async function bowrainCollaborationWalk(c: WalkCtx): Promise<void> {
       await page.waitForSelector('[data-testid^="project-card"]', { timeout: 15_000 }).catch(() => {});
       const card = page.locator('[data-testid^="project-card"]').first();
       if (await card.count()) await humanClick(page, card);
-      const sourceNav = page.locator('[data-testid="sidebar-source"]');
+      const sourceNav = page.locator('[data-testid="subnav-source"]');
       await sourceNav.waitFor({ timeout: 15_000 }).catch(() => {});
       if (await sourceNav.count()) await humanClick(page, sourceNav);
     }
@@ -1023,7 +1393,7 @@ async function bowrainCollaborationWalk(c: WalkCtx): Promise<void> {
  *  showing the same workspace — projects, languages, and file counts. The
  *  desktop mounts the SAME shared app (@neokapi/bowrain-app) the browser runs,
  *  so nav testids match the web: workspace-level nav-* rail, project-scoped
- *  sidebar-* views (dashboard | automations | runs | connectors). */
+ *  subnav-* views (dashboard | automations | runs | connectors). */
 async function bowrainDesktopWalk(c: WalkCtx): Promise<void> {
   const { page, beat, beatEls } = c;
   await beat("intro", null, async () => {
@@ -1046,10 +1416,10 @@ async function bowrainDesktopWalk(c: WalkCtx): Promise<void> {
     const card = page.locator('[data-testid^="project-card"]').first();
     if (await card.count()) await humanClick(page, card);
     await page
-      .waitForSelector('[data-testid="sidebar-connectors"]', { timeout: 20_000 })
+      .waitForSelector('[data-testid="subnav-connectors"]', { timeout: 20_000 })
       .catch(() => {});
     await page.waitForTimeout(900);
-    const n = page.getByTestId("sidebar-connectors");
+    const n = page.getByTestId("subnav-connectors");
     if (await n.count()) await humanClick(page, n);
     await page.waitForTimeout(1400);
     const add = page.getByTestId("add-connector-btn");
@@ -1071,14 +1441,14 @@ async function bowrainDesktopAutomationsWalk(c: WalkCtx): Promise<void> {
     const card = page.locator('[data-testid^="project-card"]').first();
     if (await card.count()) await humanClick(page, card);
     await page
-      .waitForSelector('[data-testid="sidebar-automations"]', { timeout: 20_000 })
+      .waitForSelector('[data-testid="subnav-automations"]', { timeout: 20_000 })
       .catch(() => {});
     await page.waitForTimeout(1400);
   });
   // Automations → the Rules tab (the route lands on its Runs tab by default;
   // the tab strip is plain buttons — Runs · Rules · Flows — without testids).
   await beatEls("automations", ['h2:has-text("Automation Rules")', 'button:has-text("New Rule")'], async () => {
-    const n = page.getByTestId("sidebar-automations");
+    const n = page.getByTestId("subnav-automations");
     if (await n.count()) await humanClick(page, n);
     await page.waitForTimeout(1400);
     const rules = page.locator('button:has-text("Rules")').first();
@@ -1089,7 +1459,7 @@ async function bowrainDesktopAutomationsWalk(c: WalkCtx): Promise<void> {
   // ("Up to date" / "Parked"), triggers (Manual / kapi up / On push), the
   // per-locale summary, and the "Run now" button.
   await beatEls("runs", ['h2:has-text("Runs")', 'button:has-text("Run now")', "table"], async () => {
-    const n = page.getByTestId("sidebar-runs");
+    const n = page.getByTestId("subnav-runs");
     if (await n.count()) await humanClick(page, n);
     await page.waitForTimeout(1800);
     if (await page.locator('button:has-text("Run now")').count())
@@ -1098,9 +1468,10 @@ async function bowrainDesktopAutomationsWalk(c: WalkCtx): Promise<void> {
   });
 }
 
-/** Bowrain web: the correction-learning loop — candidate rules drawn from a
+/** Bowrain web: the correction-learning loop. Candidate rules drawn from a
  *  team's corrections, a blast-radius preview, and promotion into a versioned
- *  check. Navigates the review route /:ws/brand/review/:profileId; the workspace
+ *  check. The voice profile's review route is /:ws/context/voice/review/:profileId
+ *  (routes/index.tsx `context` → `voice` → `review/$profileId`); the workspace
  *  slug comes from BOWRAIN_WORKSPACE_SLUG and the profile id from
  *  BOWRAIN_DEMO_PROFILE_ID (both printed by harness/scripts/seed-correction-loop.mjs). */
 async function bowrainCorrectionLoopWalk(c: WalkCtx): Promise<void> {
@@ -1112,7 +1483,7 @@ async function bowrainCorrectionLoopWalk(c: WalkCtx): Promise<void> {
   const profileId = process.env.BOWRAIN_DEMO_PROFILE_ID || "";
 
   await beat("intro", null, async () => {
-    await page.goto(`${wsBase}/brand/review/${profileId}${themeQ}`, { waitUntil: "domcontentloaded" });
+    await page.goto(`${wsBase}/context/voice/review/${profileId}${themeQ}`, { waitUntil: "domcontentloaded" });
     await injectCursor(page); // goto wiped the page-injected cursor; re-add it
     await page.waitForTimeout(2400);
   });
@@ -1162,6 +1533,7 @@ const WALKTHROUGHS: Record<string, (c: WalkCtx) => Promise<void>> = {
   "kapi-desktop-content": contentWalk,
   "kapi-desktop-config": configWalk,
   "kapi-desktop-flows": flowsWalk,
+  "kapi-desktop-review": reviewWalk,
   "bowrain-web-governance": bowrainGovernanceWalk,
   "bowrain-web-editor": bowrainEditorWalk,
   "bowrain-web-review": bowrainReviewWalk,
@@ -1406,11 +1778,12 @@ export async function recordDesktop(id: string, opts: RecordOptions = {}): Promi
   if (opts.bowrainDesktop) {
     const stack = await startBowrainStack();
     const browser = await chromium.launch();
-    // App-shell-loaded markers on the desktop dashboard/projects view (the
-    // desktop mounts the shared @neokapi/bowrain-app — keep this in sync with
-    // the shared ProjectDashboard / AppSidebar testids).
+    // App-shell-loaded markers on the desktop dashboard/projects view. The
+    // desktop mounts the shared @neokapi/bowrain-app, so these are the shared
+    // ProjectDashboard and AppSidebar testids; scripts/check-walk-selectors.sh
+    // keeps them honest.
     const ready =
-      '[data-testid^="project-card"], [data-testid="empty-projects"], [data-testid="new-project-btn"], [data-testid="sidebar-dashboard"]';
+      '[data-testid^="project-card"], [data-testid="empty-projects"], [data-testid="new-project-btn"], [data-testid="nav-translate"]';
     try {
       console.log(`  · recording bowrain desktop (light) @ ${stack.url}`);
       const light = await recordTheme(browser, stack.url, "light", outDir, id, undefined, ready);

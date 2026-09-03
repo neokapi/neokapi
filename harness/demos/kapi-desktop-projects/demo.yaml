@@ -7,7 +7,7 @@ publishAs: kapi-desktop-projects
 terminal: desktop
 brand: desktop
 needsAi: false
-# One continuous narration read — uniform voice speed and tone across scenes.
+# One continuous narration read: uniform voice speed and tone across scenes.
 oneshot: true
 aspects:
   - Projects
@@ -19,7 +19,7 @@ narration:
   - id: title
     kind: title
     text: >-
-      Kapi Desktop — let's create and set up a multilingual content project.
+      Kapi Desktop. Let's create and set up a multilingual content project.
 
   - id: intro
     kind: desktop
@@ -32,7 +32,7 @@ narration:
     beat: new-project
     caption: New Project asks only for a name.
     text: >-
-      New Project asks only for a name — here, the Acme Help Center. Kapi
+      New Project asks only for a name, here the Acme Help Center. Kapi
       derives the folder and the rest from it.
 
   - id: templates
@@ -40,17 +40,17 @@ narration:
     beat: templates
     caption: Or start from the KapiMart sample.
     text: >-
-      Or start from KapiMart — a ready-made sample project with content
+      Or start from KapiMart, a ready-made sample project with content
       collections, target languages, and a stocked content memory.
 
   - id: project-home
     kind: desktop
     beat: project-home
-    caption: The project opens to its collections and ship standing.
+    caption: The project opens on where its content sits.
     text: >-
-      The project opens to one surface: its content collections, and each
-      locale's ladder toward the ship gate — drafted, translated, reviewed,
-      ready.
+      The project opens to one surface. It leads with the standing: every
+      declared point the content sits at, the voice governing there, and each
+      locale's ladder toward the ship gate.
 
   - id: project-settings
     kind: desktop
@@ -63,14 +63,15 @@ narration:
   - id: content
     kind: desktop
     beat: content
-    caption: Each collection defines which files belong to the project.
+    caption: Collections define which files belong to the project.
     text: >-
-      Each collection defines which files belong to the project — glob patterns
-      the engine reads from and writes back to. Bring up to date is the
-      project's one main action: it runs the default flow, pass after pass,
-      until every gated scope ships or parks what needs a person.
+      Back on the home surface, each collection defines which files belong to
+      the project: glob patterns the engine reads from and writes back to.
+      Bring up to date is the project's one main action, running the default
+      flow pass after pass until every gated scope ships or parks what needs a
+      person.
 
   - id: outro
     kind: outro
     text: >-
-      That's a project — created, structured, and one click from up to date.
+      That's a project: created, structured, and one click from up to date.

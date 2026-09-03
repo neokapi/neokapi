@@ -1,13 +1,13 @@
 id: kapi-desktop-config
 title: Configure Kapi Desktop
-subtitle: Appearance, AI providers, and plugins — in one place.
+subtitle: Appearance, AI models, and plugins in one place.
 tagline: the visual companion to the kapi command line
 kind: use-case
 publishAs: kapi-desktop-config
 terminal: desktop
 brand: desktop
 needsAi: false
-# One continuous narration read — uniform voice speed and tone across scenes.
+# One continuous narration read: uniform voice speed and tone across scenes.
 oneshot: true
 aspects:
   - Appearance
@@ -30,9 +30,9 @@ narration:
   - id: open-settings
     kind: desktop
     beat: open-settings
-    caption: Settings — appearance, credentials, plugins, locales.
+    caption: "Settings: appearance, AI models, plugins, locales."
     text: >-
-      Settings gathers appearance, AI credentials, plugins and locales under one
+      Settings gathers appearance, AI models, plugins and locales under one
       roof.
 
   - id: general
@@ -46,21 +46,21 @@ narration:
   - id: credentials
     kind: desktop
     beat: credentials
-    caption: AI Credentials — keys live in the OS keychain.
+    caption: AI Models, with keys in the OS keychain.
     text: >-
-      AI Credentials hold the providers Kapi translates with — Anthropic,
-      OpenAI, Gemini. The keys live in your operating system's keychain, never
-      on disk.
+      AI Models holds the providers Kapi translates with: Anthropic, OpenAI,
+      Gemini. The keys live in your operating system's keychain, never on
+      disk.
 
   - id: plugins
     kind: desktop
     beat: plugins
     caption: Plugins extend the formats and tools available.
     text: >-
-      And plugins extend Kapi — adding formats, connectors and tools beyond the
+      And plugins extend Kapi, adding formats, connectors and tools beyond the
       built-in set.
 
   - id: outro
     kind: outro
     text: >-
-      Appearance, providers, plugins — configured once, used everywhere.
+      Appearance, models and plugins: configured once, used everywhere.

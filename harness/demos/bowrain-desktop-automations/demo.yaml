@@ -19,15 +19,15 @@ narration:
   - id: title
     kind: title
     text: >-
-      Bowrain — automation rules and run history, for every project.
+      Bowrain holds automation rules and run history for every project.
 
   - id: intro
     kind: desktop
     beat: intro
     text: >-
       The desktop app opens the same shared workspace the browser does. Open a
-      project and its sidebar carries the project surfaces — dashboard,
-      automations, runs, and connectors.
+      project and its sub-nav carries the project surfaces: overview, source
+      content, automations, runs and connectors.
 
   - id: automations
     kind: desktop
@@ -35,7 +35,7 @@ narration:
     caption: Rules that run the loop on every push.
     text: >-
       Automations are the project's standing rules. When content is pushed, the
-      rules fire and the server runs the loop — nobody has to remember to
+      rules fire and the server runs the loop, so nobody has to remember to
       translate anything.
 
   - id: runs
@@ -43,13 +43,14 @@ narration:
     beat: runs
     caption: Each run is one pass of catching up.
     text: >-
-      Runs is the history of that loop on the server — what a push triggered,
+      Runs is the history of that loop on the server: what a push triggered,
       what someone started by hand, and what kapi up sent from a terminal. Each
       run catches the project up and settles as up to date, or parks what needs
-      a person — parked work waits in review. And Run now starts the next pass.
+      a person, and parked work waits in review. Run now starts the next
+      pass.
 
   - id: outro
     kind: outro
     text: >-
-      Rules run the loop on the server; runs show the project catching up — the
-      same engine kapi runs, stewarded by the platform.
+      Rules run the loop on the server, and runs show the project catching up.
+      The same engine kapi runs, stewarded by the platform.

@@ -1,6 +1,6 @@
 id: bowrain-sizzle
-title: "Bowrain — the team platform for multilingual content"
-subtitle: "Governance, collaboration, and quality — montaged"
+title: "Bowrain, the team platform for multilingual content"
+subtitle: "Governance, collaboration, and quality, in one reel"
 tagline: "A reel of the bowrain platform's key features"
 # Not a captured demo: a montage composition (Sizzle.tsx) that sequences the
 # existing bowrain feature screencasts. terminal:desktop satisfies manifest

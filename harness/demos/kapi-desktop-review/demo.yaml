@@ -1,0 +1,127 @@
+id: kapi-desktop-review
+title: Review a translation in context
+subtitle: One queue, and the five layers behind each decision.
+tagline: the visual companion to the kapi command line
+kind: use-case
+terminal: desktop
+brand: kapi
+needsAi: false
+# One continuous narration read: uniform voice speed and tone across scenes.
+oneshot: true
+aspects:
+  - One review queue
+  - The point a unit sits at
+  - Prior decisions and approved wording
+  - Findings anchored in the runs
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      A translation is judged where it sits, not on its own.
+
+  - id: intro
+    kind: desktop
+    beat: intro
+    text: >-
+      Kapi Desktop opens on the sample projects. We'll use KapiMart, which ships
+      with a queue already waiting.
+
+  - id: open-project
+    kind: desktop
+    beat: open-project
+    caption: KapiMart opens with work awaiting a decision.
+    text: >-
+      KapiMart's message catalogue ships translated into five languages with no
+      decision recorded behind it, so the project opens with something to
+      review.
+
+  - id: queue
+    kind: desktop
+    beat: queue
+    caption: One queue, every language, in one list.
+    text: >-
+      Review is one queue. Every language sits in the same list, each row marked
+      with the language it belongs to and with what the checks made of it.
+
+  - id: scope
+    kind: desktop
+    beat: scope
+    caption: A count per language, and chips for what a check flagged.
+    text: >-
+      The selector narrows the queue to one language and carries how much is
+      pending in each. The chips cut it further, to the units a check has
+      something to say about.
+
+  - id: open-unit
+    kind: desktop
+    beat: open-unit
+    caption: Source, target, and the layers behind them.
+    text: >-
+      Opening a unit gives the source and the translation, with everything that
+      shaped it stacked underneath.
+
+  - id: point
+    kind: desktop
+    beat: point
+    caption: Coordinates, the voice in force, and the terms bound here.
+    text: >-
+      The first layer is the point this content sits at. Its coordinates, the
+      voice profile governing there, and the term rules that bind at this
+      spot.
+
+  - id: neighbourhood
+    kind: desktop
+    beat: neighbourhood
+    caption: The blocks either side, in the real document.
+    text: >-
+      The second is the neighbourhood. The blocks either side of it in the
+      document, so a sentence is read where a reader will meet it.
+
+  - id: history
+    kind: desktop
+    beat: history
+    caption: What was approved before, and what the memory already answers.
+    text: >-
+      The third is what has already been decided. The version approved last
+      time, beside the match the content memory offers now.
+
+  - id: findings
+    kind: desktop
+    beat: findings
+    caption: Findings anchored in the runs they name.
+    text: >-
+      The fourth is the checks. Each finding is anchored in the exact run it
+      names, so a placeholder complaint points at the placeholder.
+
+  - id: provenance
+    kind: desktop
+    beat: provenance
+    caption: Who decided, and when.
+    text: >-
+      The fifth is provenance: who wrote it, who decided it, and whether the
+      text has moved since. This one carries none yet, which is itself the
+      answer.
+
+  - id: approve
+    kind: desktop
+    beat: approve
+    caption: Press A. The unit leaves the queue.
+    text: >-
+      With that read, the decision is a keystroke. Press A and the unit leaves
+      the queue, its approval bound to the exact text it judged.
+
+  - id: batch
+    kind: desktop
+    beat: batch
+    caption: Approve the clean ones together.
+    text: >-
+      The units no check flagged can go together, so the reading time goes to
+      the exceptions. The queue that remains is the one that needed a person.
+
+  - id: outro
+    kind: outro
+    text: >-
+      Every decision here is the same record kapi status --review reads on the
+      command line and kapi apply writes. One review model, one project state,
+      whichever surface you work from.

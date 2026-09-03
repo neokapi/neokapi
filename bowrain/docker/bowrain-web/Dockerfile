@@ -42,6 +42,7 @@ COPY packages/ui/package.json packages/ui/
 COPY packages/concept-ui/package.json packages/concept-ui/
 COPY packages/context-explorer/package.json packages/context-explorer/
 COPY packages/contract-types/package.json packages/contract-types/
+COPY packages/reference-data/package.json packages/reference-data/
 COPY packages/editor-grid/package.json packages/editor-grid/
 COPY packages/status-views/package.json packages/status-views/
 COPY packages/flow-editor/package.json packages/flow-editor/
@@ -63,6 +64,9 @@ COPY packages/ui/ packages/ui/
 COPY packages/concept-ui/ packages/concept-ui/
 COPY packages/context-explorer/ packages/context-explorer/
 COPY packages/contract-types/ packages/contract-types/
+# The generated reference datasets. packages/ui reads format-families.json to
+# decide which formats preview as a keyed table, so the web bundle needs it.
+COPY packages/reference-data/ packages/reference-data/
 COPY packages/editor-grid/ packages/editor-grid/
 COPY packages/status-views/ packages/status-views/
 COPY packages/flow-editor/ packages/flow-editor/
