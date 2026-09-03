@@ -24,6 +24,8 @@ export {
     AvailablePlugin,
     BrowsePathFilter,
     BrowsePathRequest,
+    ChannelMapResult,
+    ChannelMapRow,
     CheckFileResult,
     CheckRunResult,
     CollectionStatus,
