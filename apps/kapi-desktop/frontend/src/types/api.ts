@@ -142,6 +142,27 @@ export interface FlowIssue {
   message: string;
 }
 
+/** One channel in the channel map: where content sits, and what governs there. */
+export interface ChannelMapRow {
+  /** profile/channel, the way a collection names it. */
+  ref: string;
+  profile: string;
+  channel: string;
+  coordinates?: Record<string, string>;
+  /** True when a profile declares the channel (so it can be renamed). */
+  declared: boolean;
+  /** The governing voice profile's name, if one binds. */
+  voice?: string;
+  collections: string[];
+  item_count: number;
+}
+
+/** The channel map for a project. */
+export interface ChannelMapResult {
+  channels: ChannelMapRow[];
+  notes?: string[];
+}
+
 export interface FlowInfo {
   name: string;
   /** Markdown — see markdown-in-ui.md. */

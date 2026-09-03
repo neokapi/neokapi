@@ -85,6 +85,8 @@ export const qk = {
   recipeGovernance: (tabID: string) => ["recipe-governance", tabID] as const,
   /** Every coordinate point the recipe declares, and what governs there. */
   projectPoints: (tabID: string) => ["project-points", tabID] as const,
+  /** The channel map: where content sits, and what governs and how much. */
+  channelMap: (tabID: string) => ["channel-map", tabID] as const,
 
   // Project model / handles
   project: (tabID: string) => ["project", tabID] as const,

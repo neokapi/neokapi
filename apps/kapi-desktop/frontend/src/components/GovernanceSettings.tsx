@@ -9,9 +9,8 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Compass, Plus, Trash2 } from "lucide-react";
+import { Compass, Plus, Trash2, Workflow } from "lucide-react";
 import {
-  Badge,
   Button,
   Card,
   CardContent,
@@ -22,12 +21,13 @@ import {
   SelectValue,
   SelectContent,
   SelectItem,
+  SectionHeading,
   TagInput,
-  SimpleTooltip,
 } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
 import { call } from "../hooks/useApi";
 import { qk } from "../lib/queryKeys";
+import { ChannelMap } from "./channels/ChannelMap";
 import type { KapiProject, ProjectDefaults, VoiceBindingSpec } from "../types/api";
 
 /** One axis a recipe can put a coordinate on. */
@@ -242,102 +242,84 @@ export function GovernanceSettings({
   const flows = Object.keys(project.flows ?? {});
 
   return (
-    <section>
-      <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold tracking-wider text-muted-foreground uppercase">
-        <Compass size={14} />
-        Governance
-      </h2>
-      <Card>
-        <CardContent className="space-y-4 p-4">
-          <VoiceBindingField
-            binding={defaults.voice}
-            governance={governance}
-            onChange={(voice) => updateDefaults({ voice })}
-          />
+    <>
+      {/* Where content sits: the project's own point, and the channel map. */}
+      <section>
+        <SectionHeading className="mb-3" icon={<Compass size={14} />}>
+          Where content sits
+        </SectionHeading>
+        <Card>
+          <CardContent className="space-y-4 p-4">
+            <CoordinatesField
+              coordinates={defaults.coordinates ?? {}}
+              governance={governance}
+              onChange={(coordinates) => updateDefaults({ coordinates })}
+            />
 
-          <CoordinatesField
-            coordinates={defaults.coordinates ?? {}}
-            governance={governance}
-            onChange={(coordinates) => updateDefaults({ coordinates })}
-          />
+            <VoiceBindingField
+              binding={defaults.voice}
+              governance={governance}
+              onChange={(voice) => updateDefaults({ voice })}
+            />
 
-          {governance.channels.length > 0 && (
+            <div>
+              <Label className="mb-1 block text-xs text-muted-foreground">{t("Channels")}</Label>
+              <ChannelMap tabID={tabID} onUpdate={onUpdate} />
+            </div>
+          </CardContent>
+        </Card>
+      </section>
+
+      {/* What runs, and what is skipped. */}
+      <section>
+        <SectionHeading className="mb-3" icon={<Workflow size={14} />}>
+          What runs, and what is skipped
+        </SectionHeading>
+        <Card>
+          <CardContent className="space-y-4 p-4">
             <div>
               <Label className="mb-1 block text-xs text-muted-foreground">
-                {t("Declared channels")}
+                {t("Default flow")}
               </Label>
-              <ul className="flex flex-wrap gap-1.5">
-                {governance.channels.map((c) => (
-                  <li key={c}>
-                    <Badge variant="outline" className="font-mono text-[11px] font-normal">
-                      {c}
-                    </Badge>
-                  </li>
-                ))}
-              </ul>
+              <Select
+                value={defaults.flow || NONE}
+                onValueChange={(v) => updateDefaults({ flow: v === NONE ? undefined : v })}
+              >
+                <SelectTrigger className="max-w-xs" aria-label={t("Default flow")}>
+                  <SelectValue placeholder={t("Chosen per run")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NONE}>{t("Chosen per run")}</SelectItem>
+                  {flows.map((f) => (
+                    <SelectItem key={f} value={f}>
+                      {f}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <p className="mt-1 text-[10px] text-muted-foreground">
-                {t("A collection names one of these to say where its content sits.")}
+                {t("The default flow a run uses when it names no other one.")}
               </p>
             </div>
-          )}
 
-          <div>
-            <Label className="mb-1 block text-xs text-muted-foreground">{t("Default flow")}</Label>
-            <Select
-              value={defaults.flow || NONE}
-              onValueChange={(v) => updateDefaults({ flow: v === NONE ? undefined : v })}
-            >
-              <SelectTrigger className="max-w-xs" aria-label={t("Default flow")}>
-                <SelectValue placeholder={t("Chosen per run")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={NONE}>{t("Chosen per run")}</SelectItem>
-                {flows.map((f) => (
-                  <SelectItem key={f} value={f}>
-                    {f}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="mt-1 text-[10px] text-muted-foreground">
-              {t("The default flow Bring up to date uses when a run names no other one.")}
-            </p>
-          </div>
-
-          <div>
-            <Label className="mb-1 block text-xs text-muted-foreground">
-              {t("Skip these paths")}
-            </Label>
-            <TagInput
-              value={defaults.exclude ?? []}
-              onChange={(exclude) =>
-                updateDefaults({ exclude: exclude.length ? exclude : undefined })
-              }
-              placeholder={t("Add a pattern, e.g. **/vendor/**")}
-            />
-            <p className="mt-1 text-[10px] text-muted-foreground">
-              {t("Glob patterns a content scan passes over.")}
-            </p>
-          </div>
-
-          {governance.profiles.length > 0 && (
             <div>
-              <Label className="mb-1 block text-xs text-muted-foreground">{t("Profiles")}</Label>
-              <ul className="flex flex-wrap gap-1.5">
-                {governance.profiles.map((p) => (
-                  <li key={p}>
-                    <SimpleTooltip content={t("Edit its voice on the Voice page")}>
-                      <Badge variant="secondary" className="font-normal">
-                        {p}
-                      </Badge>
-                    </SimpleTooltip>
-                  </li>
-                ))}
-              </ul>
+              <Label className="mb-1 block text-xs text-muted-foreground">
+                {t("Skip these paths")}
+              </Label>
+              <TagInput
+                value={defaults.exclude ?? []}
+                onChange={(exclude) =>
+                  updateDefaults({ exclude: exclude.length ? exclude : undefined })
+                }
+                placeholder={t("Add a pattern, e.g. **/vendor/**")}
+              />
+              <p className="mt-1 text-[10px] text-muted-foreground">
+                {t("Glob patterns a content scan passes over.")}
+              </p>
             </div>
-          )}
-        </CardContent>
-      </Card>
-    </section>
+          </CardContent>
+        </Card>
+      </section>
+    </>
   );
 }
