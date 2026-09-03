@@ -6,12 +6,24 @@
 // a surface layers overlay marks over that text. Text, codes and marks are three
 // segmentations of one string, and reading them back in order is fiddly enough
 // that the document preview and the keyed table would drift if each wrote it:
-// a code inside an overlay splits the mark in two around the chip, and a code
-// at the very end of a line lands after the last character.
+// a code inside an overlay splits the mark in two around it, and a code at the
+// very end of a line lands after the last character.
+//
+// A code is read one of two ways (see ./inlineStyle): a PRESENTATIONAL code —
+// bold, italic, monospace — wraps the text between its open and close in the
+// real element, so a `<code>` pair reads as monospace rather than `[CODE]…/code`
+// chips around plain text. An OPAQUE code — a placeholder, a link, a break —
+// stands for something with no rendered form, so it stays a chip.
 
 import React from "react";
 import { cn } from "../../lib/utils";
-import { isLineBreakCode, semanticLabel, semanticTooltip, tagColors } from "../editor/tagSemantics";
+import {
+  chipDisplayLabel,
+  isLineBreakCode,
+  semanticTooltip,
+  tagColors,
+} from "../editor/tagSemantics";
+import { isPresentationalCode, presentationalTag } from "./inlineStyle";
 import type { InlineCode } from "./renderDoc";
 import type { TextSegment } from "./overlayHighlight";
 import styles from "./FormatPreview.module.css";
@@ -40,7 +52,7 @@ export function InlineCodeChip({ code }: { code: InlineCode }): React.ReactEleme
       {...(isBreak ? { "data-line-break": "true" } : {})}
       dir="ltr"
     >
-      {semanticLabel(code.span)}
+      {chipDisplayLabel(code.span)}
     </span>
   );
   if (!isBreak) return pill;
@@ -72,16 +84,30 @@ export function OverlayText({ segment }: { segment: TextSegment }): React.ReactE
   );
 }
 
+/** One nesting level of the weave: a presentational element being filled, or the root. */
+interface Frame {
+  /** The element the frame closes into, or null to close into a fragment. */
+  tag: keyof React.JSX.IntrinsicElements | null;
+  children: React.ReactNode[];
+  key: string;
+}
+
 /**
- * Weave a line's inline codes back into its overlay segments, in reading order.
+ * Weave a line's inline codes back into its overlay segments, in reading order,
+ * rendering presentational codes as their real inline element.
  *
  * The two segmentations are independent: overlays cover ranges of text, codes
  * sit *between* characters, so a code inside an overlay splits that segment into
- * two marks around the chip rather than dropping either. `limit` is how far the
- * text has been revealed (a typewriter's visible prefix), so a code appears only
- * once its position has been reached; pass the full length for a static
- * reading. `renderText` draws one stretch of text, so a caller can wrap it in
- * its own mark or word diff.
+ * two marks around the code rather than dropping either. A presentational pair
+ * (bold, italic, code) wraps the text and marks between its open and close in
+ * the element, so an overlay over text inside a `<strong>` renders as a `<mark>`
+ * inside that `<strong>`, and a code inside an overlay composes the same way.
+ * Opaque codes (placeholders, links, breaks) render as chips in place.
+ *
+ * `limit` is how far the text has been revealed (a typewriter's visible prefix),
+ * so a code appears only once its position has been reached; pass the full
+ * length for a static reading. `renderText` draws one stretch of text, so a
+ * caller can wrap it in its own mark or word diff.
  */
 export function weaveInline(
   segments: TextSegment[],
@@ -89,21 +115,47 @@ export function weaveInline(
   limit: number,
   renderText: (segment: TextSegment, text: string, key: string) => React.ReactNode,
 ): React.ReactNode[] {
-  const nodes: React.ReactNode[] = [];
+  const root: Frame = { tag: null, children: [], key: "root" };
+  const stack: Frame[] = [root];
+  const top = () => stack[stack.length - 1];
   let ci = 0;
-  let pos = 0;
+  let key = 0;
 
+  const emitText = (seg: TextSegment, text: string) => {
+    if (!text) return;
+    top().children.push(renderText(seg, text, `t${key++}`));
+  };
+  const closeFrame = () => {
+    const frame = stack.pop()!;
+    top().children.push(
+      frame.tag
+        ? React.createElement(frame.tag, { key: frame.key }, ...frame.children)
+        : React.createElement(React.Fragment, { key: frame.key }, ...frame.children),
+    );
+  };
+  const emitCode = (code: InlineCode, i: number) => {
+    const span = code.span;
+    // A presentational pair opens a frame and closes it into its real element;
+    // everything in between (text, marks, other codes) nests inside.
+    if (span.span_type === "opening" && isPresentationalCode(span)) {
+      stack.push({ tag: presentationalTag(span), children: [], key: `s${i}` });
+      return;
+    }
+    if (span.span_type === "closing" && isPresentationalCode(span)) {
+      if (stack.length > 1) closeFrame();
+      return;
+    }
+    // An opaque code (placeholder, link, break, unknown) stays a chip.
+    top().children.push(<InlineCodeChip key={`c${i}`} code={code} />);
+  };
   const emitCodesAt = (offset: number) => {
     while (ci < codes.length && codes[ci].offset <= offset) {
-      nodes.push(<InlineCodeChip key={`c${ci}`} code={codes[ci]} />);
+      emitCode(codes[ci], ci);
       ci++;
     }
   };
-  const emitText = (seg: TextSegment, text: string) => {
-    if (!text) return;
-    nodes.push(renderText(seg, text, `t${nodes.length}`));
-  };
 
+  let pos = 0;
   for (const seg of segments) {
     const start = pos;
     const end = pos + seg.text.length;
@@ -119,5 +171,8 @@ export function weaveInline(
   }
   // Codes trailing the last character (a closing tag at the end of a line).
   emitCodesAt(limit);
-  return nodes;
+  // Close any presentational pair whose closing never came, so its text still
+  // renders rather than vanishing with the open frame.
+  while (stack.length > 1) closeFrame();
+  return root.children;
 }
