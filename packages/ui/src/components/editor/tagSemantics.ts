@@ -42,6 +42,21 @@ export function semanticLabel(span: SpanInfo): string {
 }
 
 /**
+ * The label a reading surface prints on a chip.
+ *
+ * A placeholder names the specific thing it stands for — a variable's own name,
+ * an entity's character — so it keeps {@link semanticLabel}. A paired code that
+ * survives as a chip (a link, an unknown pair; formatting pairs render as their
+ * real element and never reach here) reads as the vocabulary's symmetric
+ * `[TAG]` / `[/TAG]` form, so an opening never shows as `[A]` beside a closing
+ * `/a`, nor a `[CODE]` beside a `/code`.
+ */
+export function chipDisplayLabel(span: SpanInfo): string {
+  if (span.span_type === "placeholder") return semanticLabel(span);
+  return getDefaultRegistry().displayLabel(span);
+}
+
+/**
  * True when the vocabulary reads this span as a newline (`struct:break` and
  * anything else whose text equivalent is "\n").
  *

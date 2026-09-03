@@ -2,6 +2,7 @@ import React from "react";
 import { cn } from "../../lib/utils";
 import { directionAttrs } from "../../lib/text-direction";
 import { headingLevel, inlineSegments, type InlineSeg } from "./projectionRender";
+import { INLINE_TAG } from "./inlineStyle";
 import type { RenderNode } from "./types";
 
 // RenderedDocument paints the Go generative-projection render AST
@@ -25,19 +26,9 @@ export interface RenderedDocumentProps {
   className?: string;
 }
 
-// Canonical run Type → inline HTML element. Mirrors the writers' vocabulary
-// (core/model/vocabularies/common-formatting.json) so the preview agrees with
-// cross-format output.
-const INLINE_TAG: Record<string, keyof React.JSX.IntrinsicElements> = {
-  "fmt:bold": "strong",
-  "fmt:italic": "em",
-  "fmt:underline": "u",
-  "fmt:strikethrough": "s",
-  "fmt:code": "code",
-  "fmt:highlight": "mark",
-  "fmt:superscript": "sup",
-  "fmt:subscript": "sub",
-};
+// The canonical run type → inline element map is shared with the structured
+// preview (see ./inlineStyle), so both readings agree on what a bold or code
+// pair renders as.
 
 export default function RenderedDocument({
   node,

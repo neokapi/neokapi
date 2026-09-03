@@ -123,7 +123,7 @@ describe("KeyedTable", () => {
     expect(el.textContent).toContain("Your credits reset on");
   });
 
-  it("renders a paired code as two chips", () => {
+  it("renders a formatting pair as its real element, not chips", () => {
     const el = render(
       h(KeyedTable, {
         tree: tree([
@@ -135,9 +135,28 @@ describe("KeyedTable", () => {
         ]),
       }),
     );
-    expect(el.querySelectorAll('[data-inline-code="opening"]')).toHaveLength(1);
-    expect(el.querySelectorAll('[data-inline-code="closing"]')).toHaveLength(1);
-    expect(el.textContent).toContain("Sale");
+    // Bold reads as bold, not as [B]…/B chips around plain text.
+    expect(el.querySelector("strong")?.textContent).toBe("Sale");
+    expect(el.querySelectorAll("[data-inline-code]")).toHaveLength(0);
+  });
+
+  it("renders an opaque pair as two symmetric chips", () => {
+    const el = render(
+      h(KeyedTable, {
+        tree: tree([
+          block("link", [
+            { pcOpen: { id: "1", type: "link:hyperlink", data: "<a>" } },
+            { text: "here" },
+            { pcClose: { id: "1", type: "link:hyperlink", data: "</a>" } },
+          ]),
+        ]),
+      }),
+    );
+    // A link has no rendered form in this reading, so it stays a chip — with a
+    // symmetric open/close label.
+    expect(el.querySelector('[data-inline-code="opening"]')?.textContent).toBe("[A]");
+    expect(el.querySelector('[data-inline-code="closing"]')?.textContent).toBe("[/A]");
+    expect(el.textContent).toContain("here");
   });
 
   it("marks a plural as a plural rather than drawing an empty cell", () => {

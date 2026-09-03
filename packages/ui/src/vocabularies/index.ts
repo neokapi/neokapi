@@ -219,6 +219,31 @@ export class VocabularyRegistry {
   }
 
   /**
+   * The span's bracketed display label — the symmetric `[TAG]` / `[/TAG]` form,
+   * consistent in casing across every type. A reading surface uses this for the
+   * chips it keeps (links, unknown pairs) so an opening never reads as `[A]`
+   * beside a closing `/a`. Unlike {@link chipLabel}, the open and close forms
+   * are a matched pair by construction.
+   */
+  displayLabel(span: SpanInfo): string {
+    const info = this.lookupOrFallback(span.type);
+    const fallback = this.fallback.display;
+    switch (span.span_type) {
+      case "opening":
+        return expand(info.display.open, span) || fallback.open.replace("{type}", span.type);
+      case "closing":
+        return expand(info.display.close, span) || fallback.close.replace("{type}", span.type);
+      case "placeholder":
+        return (
+          expand(info.display.placeholder, span) ||
+          fallback.placeholder.replace("{type}", span.type)
+        );
+      default:
+        return "?";
+    }
+  }
+
+  /**
    * The span's text equivalent — what it reads as where markup cannot be shown
    * (a break's newline, a variable's name). Empty when the vocabulary states
    * none.
