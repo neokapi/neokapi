@@ -68,7 +68,7 @@ func TestDeclareChannel_PersistsToRecipe(t *testing.T) {
 
 	// A duplicate is refused.
 	_, err = app.DeclareChannel(tab.ID, "support", "guides")
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestRenameChannel_MovesCollections(t *testing.T) {
@@ -93,5 +93,5 @@ func TestRenameChannel_MovesCollections(t *testing.T) {
 
 	// A channel no profile declares cannot be renamed.
 	_, err = app.RenameChannel(tab.ID, "support", "nope", "still-nope")
-	assert.Error(t, err)
+	require.Error(t, err)
 }

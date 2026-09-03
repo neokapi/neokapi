@@ -18,9 +18,9 @@ func TestDeclareChannel(t *testing.T) {
 	assert.Len(t, p.Profiles["campaign"].Channels, 2)
 
 	// Duplicates and non-slugs are refused.
-	assert.Error(t, p.DeclareChannel("campaign", "promo"))
-	assert.Error(t, p.DeclareChannel("Campaign", "promo"))
-	assert.Error(t, p.DeclareChannel("campaign", "Promo"))
+	require.Error(t, p.DeclareChannel("campaign", "promo"))
+	require.Error(t, p.DeclareChannel("Campaign", "promo"))
+	require.Error(t, p.DeclareChannel("campaign", "Promo"))
 }
 
 func TestRenameChannel_MovesCollections(t *testing.T) {
@@ -42,11 +42,11 @@ func TestRenameChannel_Refusals(t *testing.T) {
 	}
 
 	// A channel the profile does not declare (i.e. derived) cannot be renamed.
-	assert.Error(t, p.RenameChannel("campaign", "web", "site"))
+	require.Error(t, p.RenameChannel("campaign", "web", "site"))
 	// The target must not already exist.
-	assert.Error(t, p.RenameChannel("campaign", "promo", "email"))
+	require.Error(t, p.RenameChannel("campaign", "promo", "email"))
 	// The new id must be a slug.
-	assert.Error(t, p.RenameChannel("campaign", "promo", "Promo"))
+	require.Error(t, p.RenameChannel("campaign", "promo", "Promo"))
 	// Renaming to itself is a no-op, not an error.
-	assert.NoError(t, p.RenameChannel("campaign", "promo", "promo"))
+	require.NoError(t, p.RenameChannel("campaign", "promo", "promo"))
 }
