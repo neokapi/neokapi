@@ -723,11 +723,15 @@ func (a *App) getOpenProject(tabID string) *openProject {
 
 // FlowInfo is the frontend-facing flow summary.
 type FlowInfo struct {
-	Name        string          `json:"name"`
-	Description string          `json:"description"`
-	StepCount   int             `json:"step_count"`
-	Valid       bool            `json:"valid"`
-	Issues      []FlowIssueInfo `json:"issues,omitempty"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	StepCount   int    `json:"step_count"`
+	// Steps names each step for the card's chip strip, in order.
+	Steps []string `json:"steps,omitempty"`
+	// Default is true when this flow is the project's defaults.flow.
+	Default bool            `json:"default,omitempty"`
+	Valid   bool            `json:"valid"`
+	Issues  []FlowIssueInfo `json:"issues,omitempty"`
 }
 
 // FlowIssueInfo is a validation issue for a flow step.
@@ -758,12 +762,15 @@ func (a *App) ListFlows(tabID string) []FlowInfo {
 		})
 	}
 
+	defaultFlow := op.Project.Defaults.Flow
 	var infos []FlowInfo
 	for name, spec := range op.Project.Flows {
 		issues := issuesByFlow[name]
 		infos = append(infos, FlowInfo{
 			Name:      name,
 			StepCount: len(spec.Steps),
+			Steps:     flowStepLabels(spec.Steps),
+			Default:   name == defaultFlow,
 			Valid:     len(issues) == 0,
 			Issues:    issues,
 		})

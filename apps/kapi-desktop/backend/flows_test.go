@@ -18,6 +18,57 @@ func isolateConfig(t *testing.T) {
 	t.Setenv("KAPI_DESKTOP_CONFIG_DIR", t.TempDir())
 }
 
+func TestFlowStepLabels(t *testing.T) {
+	got := flowStepLabels([]flow.FlowStep{
+		{Tool: "recycle"},
+		{Tool: "translate", Label: "Translate"},
+		{Parallel: []flow.FlowStep{{Tool: "qa"}}},
+	})
+	assert.Equal(t, []string{"recycle", "Translate", "qa"}, got)
+}
+
+func TestListUserFlows_StepChips(t *testing.T) {
+	isolateConfig(t)
+	app := NewApp()
+	flows := app.ListUserFlows()
+	require.NotEmpty(t, flows)
+
+	named := false
+	for _, f := range flows {
+		// One chip per step.
+		assert.Len(t, f.Steps, f.StepCount, "flow %q", f.Name)
+		if len(f.Steps) > 0 {
+			named = true
+		}
+	}
+	assert.True(t, named, "at least one built-in flow names its steps")
+}
+
+func TestListFlows_StepsAndDefault(t *testing.T) {
+	app := NewApp()
+	tab := newTestProject(t, app, "FlowSteps")
+	require.NoError(t, app.SaveFlow(tab.ID, "ship", &flow.StepsSpec{
+		Steps: []flow.FlowStep{{Tool: "recycle"}, {Tool: "translate", Label: "Translate"}},
+	}))
+	require.NoError(t, app.SaveFlow(tab.ID, "check", &flow.StepsSpec{
+		Steps: []flow.FlowStep{{Tool: "qa"}},
+	}))
+
+	// Mark "ship" as the project default.
+	op := app.getOpenProject(tab.ID)
+	require.NotNil(t, op)
+	op.Project.Defaults.Flow = "ship"
+
+	byName := map[string]FlowInfo{}
+	for _, f := range app.ListFlows(tab.ID) {
+		byName[f.Name] = f
+	}
+	assert.Equal(t, []string{"recycle", "Translate"}, byName["ship"].Steps)
+	assert.True(t, byName["ship"].Default)
+	assert.Equal(t, []string{"qa"}, byName["check"].Steps)
+	assert.False(t, byName["check"].Default)
+}
+
 func TestAdoptUserFlowIntoProject(t *testing.T) {
 	isolateConfig(t)
 	app := NewApp()

@@ -147,6 +147,10 @@ export interface FlowInfo {
   /** Markdown — see markdown-in-ui.md. */
   description: string;
   step_count: number;
+  /** Each step named for the card's chip strip, in order. */
+  steps?: string[];
+  /** True when this flow is the project's defaults.flow. */
+  default?: boolean;
   valid: boolean;
   issues?: FlowIssue[];
 }

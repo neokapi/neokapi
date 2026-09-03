@@ -31,6 +31,9 @@ import {
   ScrollArea,
   LoadingSpinner,
   PageHeader,
+  Collapsible,
+  CollapsibleTrigger,
+  CollapsibleContent,
 } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
 import { useQuery } from "@tanstack/react-query";
@@ -487,30 +490,41 @@ function ToolInvocation({ tool }: { tool: ToolInfo }) {
 
   return (
     <Card>
-      <CardContent className="space-y-2 p-4">
-        <div className="flex items-center gap-1.5 text-xs font-medium">
-          <Terminal size={13} className="text-muted-foreground" />
-          Run this tool
-        </div>
-        <div className="flex items-center gap-2">
-          <code
-            className="min-w-0 flex-1 truncate rounded bg-muted px-2 py-1.5 font-mono text-[11px]"
-            translate="no"
-          >
-            {command}
-          </code>
-          <Button variant="outline" size="xs" onClick={() => void copy()}>
-            {copied ? <Check size={12} /> : <Copy size={12} />}
-            {copied ? t("Copied") : t("Copy")}
-          </Button>
-        </div>
-        <p className="text-[11px] text-muted-foreground">
-          {t("List this tool's options with")}{" "}
-          <code className="rounded bg-muted px-1 py-px font-mono text-[10px]" translate="no">
-            kapi tools schema {tool.name}
-          </code>
-          . {t("To run it as one step among several, put it in a flow and run that.")}
+      <CardContent className="space-y-3 p-4">
+        <p className="text-sm text-foreground">
+          {t("To run this tool, add it to a flow and run that.")}
         </p>
+        <Collapsible>
+          <CollapsibleTrigger className="group flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground">
+            <ChevronRight
+              size={14}
+              className="transition-transform group-data-[state=open]:rotate-90"
+            />
+            <Terminal size={13} />
+            {t("Run from the command line")}
+          </CollapsibleTrigger>
+          <CollapsibleContent className="mt-2 space-y-2">
+            <div className="flex items-center gap-2">
+              <code
+                className="min-w-0 flex-1 truncate rounded bg-muted px-2 py-1.5 font-mono text-[11px]"
+                translate="no"
+              >
+                {command}
+              </code>
+              <Button variant="outline" size="xs" onClick={() => void copy()}>
+                {copied ? <Check size={12} /> : <Copy size={12} />}
+                {copied ? t("Copied") : t("Copy")}
+              </Button>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              {t("List this tool's options with")}{" "}
+              <code className="rounded bg-muted px-1 py-px font-mono text-[10px]" translate="no">
+                kapi tools schema {tool.name}
+              </code>
+              .
+            </p>
+          </CollapsibleContent>
+        </Collapsible>
       </CardContent>
     </Card>
   );
