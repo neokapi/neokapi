@@ -174,6 +174,14 @@ export const api = {
   getFlow: (tabID: string, name: string) => call<FlowSpec>("GetFlow", tabID, name),
   saveFlow: (tabID: string, name: string, spec: FlowSpec) =>
     call<void>("SaveFlow", tabID, name, spec),
+  // Persist a flow's steps (and inline options) to the recipe on disk.
+  saveProjectFlow: (tabID: string, name: string, spec: FlowSpec) =>
+    call<void>("SaveProjectFlow", tabID, name, spec),
+  // Set (or clear, with "") the project's default flow and write the recipe.
+  setDefaultFlow: (tabID: string, name: string) => call<void>("SetDefaultFlow", tabID, name),
+  // Rename a flow (moving the default with it) and write the recipe.
+  renameProjectFlow: (tabID: string, oldName: string, newName: string) =>
+    call<void>("RenameProjectFlow", tabID, oldName, newName),
   deleteFlow: (tabID: string, name: string) => call<void>("DeleteFlow", tabID, name),
 
   // User flows (ad-hoc, stored in ~/.config/kapi/flows/)

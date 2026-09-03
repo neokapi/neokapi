@@ -2003,6 +2003,19 @@ export function RenameChannel(tabID, profile, oldChannel, newChannel) {
 }
 
 /**
+ * RenameProjectFlow renames a flow, moving defaults.flow with it so the recipe
+ * stays consistent, and writes it. It refuses an unknown source or a name
+ * already taken.
+ * @param {string} tabID
+ * @param {string} oldName
+ * @param {string} newName
+ * @returns {$CancellablePromise<void>}
+ */
+export function RenameProjectFlow(tabID, oldName, newName) {
+    return $Call.ByID(2786637527, tabID, oldName, newName);
+}
+
+/**
  * RenderFormatConfig converts form values to YAML or JSON format.
  * @param {string} formatName
  * @param {{ [_ in string]?: any }} config
@@ -2289,6 +2302,18 @@ export function SaveProjectFilter(tabID, f) {
 }
 
 /**
+ * SaveProjectFlow writes a flow's steps (and their inline options) to the
+ * recipe on disk. It is the persist behind the linear flow editor's save.
+ * @param {string} tabID
+ * @param {string} name
+ * @param {flow$0.StepsSpec | null} spec
+ * @returns {$CancellablePromise<void>}
+ */
+export function SaveProjectFlow(tabID, name, spec) {
+    return $Call.ByID(3107614986, tabID, name, spec);
+}
+
+/**
  * SaveProvider saves a provider config and optionally stores the API key in the
  * OS keychain. Validation (a rejected typo'd provider type) and the key write
  * are the shared host path, so the desktop cannot persist a provider the CLI
@@ -2460,6 +2485,17 @@ export function SetAppMode(mode) {
  */
 export function SetApplication(app) {
     return $Call.ByID(2429951734, app);
+}
+
+/**
+ * SetDefaultFlow sets the project's defaults.flow, or clears it with an empty
+ * name, and writes the recipe. It refuses a name no flow carries.
+ * @param {string} tabID
+ * @param {string} name
+ * @returns {$CancellablePromise<void>}
+ */
+export function SetDefaultFlow(tabID, name) {
+    return $Call.ByID(202634453, tabID, name);
 }
 
 /**

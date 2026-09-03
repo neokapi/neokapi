@@ -12,7 +12,7 @@ describe("FlowPage", () => {
         onRun={vi.fn()}
       />,
     );
-    // FlowEditor renders a Run button in its toolbar.
+    // The linear flow editor renders a Run button in its header.
     expect(screen.getByLabelText("Run flow")).toBeInTheDocument();
   });
 });

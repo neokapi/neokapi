@@ -12,7 +12,12 @@ vi.mock("../hooks/useApi", () => ({
     getFlow: (...args: unknown[]) => getFlowMock(...args),
     listTools: () => Promise.resolve([]),
     listProjectTools: () => Promise.resolve([]),
+    getToolSchema: () => Promise.resolve(null),
+    listProviders: () => Promise.resolve([]),
     saveFlow: () => Promise.resolve(),
+    saveProjectFlow: () => Promise.resolve(),
+    setDefaultFlow: () => Promise.resolve(),
+    renameProjectFlow: () => Promise.resolve(),
   },
 }));
 

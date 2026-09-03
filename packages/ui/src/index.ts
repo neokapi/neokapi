@@ -512,6 +512,17 @@ export type {
   SchemaFormCredential,
 } from "./components/schema-form";
 
+// Linear flow editor (shared, surface-agnostic: an ordered list of tool steps)
+export { LinearFlowEditor, StepRow, AddStepPicker } from "./components/flow-editor";
+export type {
+  LinearFlowEditorProps,
+  StepRowProps,
+  AddStepPickerProps,
+  FlowSpec as LinearFlowSpec,
+  FlowStep as LinearFlowStep,
+  FlowTool as LinearFlowTool,
+} from "./components/flow-editor";
+
 // Filter config editor (legacy — prefer SchemaForm)
 export { FilterConfigEditor, SchemaConfigEditor } from "./components/filter";
 export type { FormatSchema, FormatParamsValue } from "./components/filter/types";
