@@ -2,7 +2,7 @@ package server
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"log/slog"
 	"net/http"
 	"time"
@@ -12,35 +12,23 @@ import (
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/jobs"
+	"github.com/neokapi/neokapi/bowrain/review"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/venue"
 	"github.com/neokapi/neokapi/memory"
 )
 
-// reviewSoD is the separation-of-duties gate for one review request, with the
-// authorship the whole request needs resolved up front: one query for every
-// (block, locale) pair the pass may touch, so a selection of a thousand blocks
-// costs one round trip and not a thousand.
+// reviewSoD is the review gate for one request: the permission for the
+// language and the workspace separation-of-duties policy, in one answer.
 //
-// A pair the store attributes to nobody passes. That is the machine-authored
-// case the review docs describe: a draft a run produced was written outside any
-// request, carries no acting user, and stays approvable by the one person in a
-// small workspace.
-//
-// The policy is read once per request too, for the same reason: judging one
-// block at a time would put a workspace lookup between every pair.
+// The answer itself lives in bowrain/review, which the sync worker asks the
+// same question of. This is the request's side of it: where the actor, the
+// workspace and the language permission come from an echo context, where a
+// violation is recorded in the audit trail, and where a refusal becomes the
+// reviewFault the routes already render.
 type reviewSoD struct {
-	srv     *Server
-	c       echo.Context
-	actor   string
-	mode    platauth.SoDMode
-	authors map[platstore.TargetRef]string
-
-	// silent holds back the per-target violation record, for a pass that files
-	// one for the whole run. violations counts what it held back either way.
-	silent     bool
-	violations int
+	gate *review.Gate
 }
 
 // quiet stops vet from filing a record per target. An approve-passing pass over
@@ -48,61 +36,74 @@ type reviewSoD struct {
 // drops what it cannot keep up with; the handler files one with the count.
 func (g *reviewSoD) quiet() *reviewSoD {
 	if g != nil {
-		g.silent = true
+		g.gate.Quiet()
 	}
 	return g
 }
 
-// newReviewSoD reads the workspace policy and, when it is on, the authorship
-// for the pass. It reports an error only when a store that keeps target
-// authorship failed to answer: a discarded error would disable the four-eyes
-// check rather than tighten it, so the caller refuses the request instead. A
-// store that keeps no authorship at all knows of no author, and the gate then
-// allows every pair.
-func (s *Server) newReviewSoD(ctx context.Context, c echo.Context, projectID, stream string, blockIDs, locales []string) (*reviewSoD, error) {
-	g := &reviewSoD{srv: s, c: c, mode: platauth.SoDOff}
-	g.actor, _ = c.Get("user_id").(string)
-	if s.AuthStore == nil || g.actor == "" {
-		return g, nil
+// violations is how many pairs the policy caught, for the single record a bulk
+// pass files.
+func (g *reviewSoD) violations() int {
+	if g == nil {
+		return 0
 	}
-	wsID, _ := c.Get("workspace_id").(string)
-	mode, err := s.AuthStore.GetSoDMode(ctx, wsID)
-	if err != nil {
-		return g, nil // an unreadable policy is not a reason to refuse a review
-	}
-	g.mode = mode
-	ts, ok := s.ContentStore.(platstore.TargetAuthorStore)
-	if mode == platauth.SoDOff || !ok || len(blockIDs) == 0 || len(locales) == 0 {
-		return g, nil
-	}
-	authors, err := ts.LastTargetAuthors(ctx, projectID, stream, blockIDs, locales)
-	if err != nil {
-		return nil, fmt.Errorf("read target authorship for separation of duties: %w", err)
-	}
-	g.authors = authors
-	return g, nil
+	return g.gate.Violations()
 }
 
-// vet applies the workspace policy to approving one block's target. It answers
-// with a reviewFault the single route renders as a 403 and a batch route
-// records against the block, so one protected block never answers for a whole
+// newReviewSoD opens the gate for a pass: the workspace policy once, and the
+// authorship of every (block, locale) pair the pass may touch in one query, so
+// a selection of a thousand blocks costs one round trip and not a thousand.
+//
+// It reports an error only when a store that keeps target authorship failed to
+// answer: a discarded error would disable the four-eyes check rather than
+// tighten it, so the caller refuses the request instead.
+func (s *Server) newReviewSoD(ctx context.Context, c echo.Context, projectID, stream string, blockIDs, locales []string) (*reviewSoD, error) {
+	actor, _ := c.Get("user_id").(string)
+	wsID, _ := c.Get("workspace_id").(string)
+
+	cfg := review.Config{
+		Actor:       actor,
+		WorkspaceID: wsID,
+		ProjectID:   projectID,
+		Stream:      stream,
+		BlockIDs:    blockIDs,
+		Locales:     locales,
+		Permits: func(locale string) bool {
+			return allowsLanguage(c, platauth.PermReview, locale)
+		},
+		Record: func(resource string, mode platauth.SoDMode, targets int) {
+			s.recordSoDViolation(c, actor, resource, mode, targets)
+		},
+	}
+	if s.AuthStore != nil {
+		cfg.Policy = s.AuthStore
+	}
+	if ts, ok := s.ContentStore.(platstore.TargetAuthorStore); ok {
+		cfg.Authors = ts
+	}
+	g, err := review.Open(ctx, cfg)
+	if err != nil {
+		return nil, err
+	}
+	return &reviewSoD{gate: g}, nil
+}
+
+// vet asks the gate about one block's target and renders a refusal the way the
+// routes answer it: the single route as a 403, a batch route as a record
+// against the block, so one protected block never answers for a whole
 // selection.
 func (g *reviewSoD) vet(blockID, locale string) error {
-	if g == nil || g.actor == "" || g.mode == platauth.SoDOff {
-		return nil
+	if g == nil {
+		return reviewFault{http.StatusForbidden, "review permission could not be resolved"}
 	}
-	author := g.authors[platstore.TargetRef{BlockID: blockID, Locale: locale}]
-	if author == "" || author != g.actor {
-		return nil // machine-authored, or somebody else's writing
+	err := g.gate.Allow(blockID, locale)
+	if refusal, ok := errors.AsType[review.Refusal](err); ok {
+		if refusal.Reason == venue.RefusedSeparationOfDuties {
+			return reviewFault{http.StatusForbidden, sodRefusal}
+		}
+		return reviewFault{http.StatusForbidden, "no review permission for " + refusal.Locale}
 	}
-	g.violations++
-	if !g.silent {
-		g.srv.recordSoDViolation(g.c, g.actor, "approve_block:"+blockID+":"+locale, g.mode, 1)
-	}
-	if g.mode == platauth.SoDBlock {
-		return reviewFault{http.StatusForbidden, sodRefusal}
-	}
-	return nil // warn: recorded, but allowed
+	return err
 }
 
 // reviewLedger writes review verdicts where they last. Two writes, in order:
@@ -286,4 +287,13 @@ func (s *Server) emitReviewDecisionAudit(c echo.Context, projectID, stream, bloc
 		Before:       map[string]string{"status": string(from)},
 		After:        map[string]string{"status": string(to)},
 	})
+}
+
+// mode is the workspace policy this pass was judged under, for the single
+// record a bulk pass files.
+func (g *reviewSoD) mode() platauth.SoDMode {
+	if g == nil {
+		return platauth.SoDOff
+	}
+	return g.gate.Mode()
 }
