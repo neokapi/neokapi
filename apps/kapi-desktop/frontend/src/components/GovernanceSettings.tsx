@@ -300,7 +300,7 @@ export function GovernanceSettings({
               </SelectContent>
             </Select>
             <p className="mt-1 text-[10px] text-muted-foreground">
-              {t("What Bring up to date runs when nothing else is named.")}
+              {t("The default flow Bring up to date uses when a run names no other one.")}
             </p>
           </div>
 
