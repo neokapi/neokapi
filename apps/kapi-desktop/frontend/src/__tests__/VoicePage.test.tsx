@@ -16,10 +16,11 @@ describe("VoicePage", () => {
 
   it("names the binding that selected the profile", () => {
     render(<VoicePage tabID="t1" result={voiceFixture} />);
-    const chain = screen.getByTestId("voice-chain");
-    expect(chain).toHaveTextContent("defaults.voice");
-    expect(chain).toHaveTextContent("profile_file");
-    expect(chain).toHaveTextContent(".kapi/voice.yaml");
+    // The recipe plumbing sits on its own quiet line, off the resolution chain.
+    const plumbing = screen.getByTestId("voice-plumbing");
+    expect(plumbing).toHaveTextContent("defaults.voice");
+    expect(plumbing).toHaveTextContent("profile_file");
+    expect(plumbing).toHaveTextContent(".kapi/voice.yaml");
   });
 
   it("draws the skipped binding and what governs in its place", async () => {
