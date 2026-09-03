@@ -57,6 +57,7 @@ function InteractiveLayout(overrides: LayoutOverrides) {
       onSave={handleSave}
       onCancelEditing={handleCancelEditing}
       onApprove={() => setSelectedIndex((i) => Math.min(i + 1, blocks.length - 1))}
+      onSignOff={() => setSelectedIndex((i) => Math.min(i + 1, blocks.length - 1))}
       onReject={() => {}}
       memoryMatches={overrides.memoryMatches ?? []}
       termMatches={overrides.termMatches ?? []}
@@ -108,6 +109,7 @@ const meta: Meta<typeof VisualEditorLayout> = {
     onSave: fn(),
     onCancelEditing: fn(),
     onApprove: fn(),
+    onSignOff: fn(),
     onReject: fn(),
     memoryMatches: [],
     termMatches: [],
@@ -292,6 +294,7 @@ function NavigationDemo() {
       onSave={handleSave}
       onCancelEditing={handleCancelEditing}
       onApprove={() => setSelectedIndex((i) => Math.min(i + 1, blocks.length - 1))}
+      onSignOff={() => setSelectedIndex((i) => Math.min(i + 1, blocks.length - 1))}
       onReject={() => {}}
       memoryMatches={[]}
       termMatches={[]}

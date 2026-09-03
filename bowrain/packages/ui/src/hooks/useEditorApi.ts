@@ -10,7 +10,7 @@ import type {
   BulkApplyMemoryResult,
   BulkReviewBlocksRequest,
   BulkReviewBlocksResult,
-  ReviewDemotion,
+  ReviewRung,
   UpdateBlockRequest,
   UpdateBlockTargetCodedRequest,
   AITranslateFileRequest,
@@ -192,18 +192,9 @@ export function useEditorApi() {
       blockId: string,
       targetLocale: string,
       reviewed: boolean,
-      demoteTo?: ReviewDemotion,
+      rung?: ReviewRung,
     ): Promise<void> =>
-      api.reviewBlock(
-        ws,
-        projectId,
-        itemName,
-        blockId,
-        targetLocale,
-        reviewed,
-        activeStream,
-        demoteTo,
-      ),
+      api.reviewBlock(ws, projectId, itemName, blockId, targetLocale, reviewed, activeStream, rung),
     [api, ws, activeStream],
   );
 

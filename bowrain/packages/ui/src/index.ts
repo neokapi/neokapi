@@ -573,6 +573,8 @@ export type {
   TargetInfo,
   TargetStatus,
   ReviewDemotion,
+  ReviewPromotion,
+  ReviewRung,
   ApprovePassingRequest,
   ApprovePassingResult,
   UpdateBlockRequest,

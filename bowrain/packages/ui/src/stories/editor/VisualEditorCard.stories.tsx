@@ -42,6 +42,7 @@ function InteractiveCard(props: CardOverrides) {
       onSave={() => setIsEditing(false)}
       onCancel={() => setIsEditing(false)}
       onApprove={() => setIsEditing(false)}
+      onSignOff={() => setIsEditing(false)}
       onReject={() => {}}
       memoryMatches={props.memoryMatches ?? []}
       termMatches={props.termMatches ?? []}
@@ -87,6 +88,7 @@ const meta: Meta<typeof VisualEditorCard> = {
     onSave: fn(),
     onCancel: fn(),
     onApprove: fn(),
+    onSignOff: fn(),
     onReject: fn(),
     memoryMatches: [],
     termMatches: [],
@@ -244,6 +246,7 @@ export const StatusLadder: Story = {
             onSave={fn()}
             onCancel={fn()}
             onApprove={fn()}
+            onSignOff={fn()}
             onReject={fn()}
             memoryMatches={[]}
             termMatches={[]}

@@ -94,6 +94,25 @@ a source decision is recorded under the source locale variant and a target
 decision under the target's, as [C-04](../context/c-04-unit-state-and-decisions.md)
 defines them.
 
+### The decision set is the same on every client
+
+A reviewer has three verdicts on a target: **approve**, which promotes it to
+`reviewed`; **sign off**, which promotes it to `signed-off`, the rung above;
+and **reject**, which drops it to `draft` so the unit re-enters the work queue.
+The rungs are the target ladder
+[C-04](../context/c-04-unit-state-and-decisions.md) defines, and the ship gates
+read them, so a client offering only two of the three leaves a rung that the
+gates can require and nobody there can reach.
+
+Every verdict is language-scoped: a reviewer decides the languages they hold
+review permission for. Promotion also passes the workspace separation-of-duties
+policy, which judges one thing, the author of the wording under decision.
+Whoever last wrote a translation by hand may not approve it and may not sign it
+off, unless the policy is off or set to warn. A target a run produced has no
+human author, so one person decides it. Signing off a target already at
+`reviewed` is a promotion like any other and is judged the same way; the policy
+draws no second line between the approver and the signer.
+
 ### Every client renders the same object
 
 The model is one Go type, `host.ReviewContext`, assembled by
@@ -108,6 +127,7 @@ its units. The clients are:
 | Kapi Desktop ([S-02](s-02-kapi-desktop.md)) | the queue's detail pane: a point rail, the neighbourhood, the history, findings, and a provenance card; the document view opens at the unit with review state drawn as marks |
 | `kapi status --review` ([S-01](s-01-kapi-cli.md)) | the queue as a table, `--lang` narrowing it to one or more languages, and as JSON with `--json` |
 | MCP `review_unit` ([S-03](s-03-agent-surfaces.md)) | the model whole, as the read leg before `approve_unit`, `reject_unit` and `sign_off_unit`; `review_queue` lists the queue with its per-language counts |
+| A review surface over the REST editor | the queue as a list with the focused unit beside it: the point rail, the neighbourhood, the anchored findings, the content-memory match and the provenance, with the three verdicts under them |
 
 A host that records a review decision with an identity is a client of this
 model by shape: the layers are the contract, whatever renders them.

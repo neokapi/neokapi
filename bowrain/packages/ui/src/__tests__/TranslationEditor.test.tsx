@@ -234,8 +234,28 @@ describe("TranslationEditor — review actions persist via api.reviewBlock", () 
       blockId: "b1",
       targetLocale: "fr-FR",
       reviewed: false,
-      demoteTo: "draft",
+      rung: "draft",
     });
+  });
+
+  it("Sign off calls reviewBlock with the signed-off rung and advances", async () => {
+    const user = userEvent.setup();
+    const { adapter } = renderEditor({ view: "visual" });
+    await waitForBlocks(3);
+
+    await user.click(screen.getByRole("tab", { name: "Review" }));
+    await user.click(screen.getByTestId("sign-off-btn"));
+
+    await waitFor(() => expect(adapter.reviewBlockCalls).toHaveLength(1));
+    expect(adapter.reviewBlockCalls[0]).toMatchObject({
+      blockId: "b1",
+      targetLocale: "fr-FR",
+      reviewed: true,
+      rung: "signed-off",
+    });
+    await waitFor(() =>
+      expect(screen.getByTestId("status-bar").textContent).toContain("Block 2 of 3"),
+    );
   });
 
   it("rolls back the optimistic status, stays on the block, and surfaces an error when the call fails", async () => {

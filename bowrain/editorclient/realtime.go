@@ -44,10 +44,11 @@ type EditorChangeEvent struct {
 // governance status lifecycle. The server rejects reviewing a locale that has
 // no non-empty translation (422).
 //
-// status optionally picks the rung a clearing call (reviewed=false) demotes
-// to: "" or "translated" for a plain un-review, "draft" for a reviewer
-// rejection (the unit re-enters the work queue). It must be empty when
-// reviewed is true.
+// status optionally picks the rung, and each direction has its own two. With
+// reviewed=true it is "" for an approval (landing on reviewed) or "signed-off"
+// for a sign-off. With reviewed=false it is "" or "translated" for a plain
+// un-review, "draft" for a reviewer rejection (the unit re-enters the work
+// queue). Any other pairing is a 400.
 //
 // PUT /api/v1/:ws/:id/blocks/main/:bid/review
 func (c *EditorClient) ReviewBlock(ctx context.Context, ws, projectID, itemName, blockID, targetLocale string, reviewed bool, status string) error {

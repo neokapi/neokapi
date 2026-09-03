@@ -160,6 +160,7 @@ const meta: Meta<typeof FocusedReviewer> = {
     localeName: (c: string) => (c === "fr-FR" ? "French (France)" : "English (United States)"),
     editing: false,
     onApprove: fn(),
+    onSignOff: fn(),
     onReject: fn(),
     onEditToggle: fn(),
     onSaveEdit: fn(),

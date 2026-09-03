@@ -25,6 +25,7 @@ export {
   Plus,
   X,
   Check,
+  CheckCheck,
   AlertTriangle,
   Eye,
   EyeOff,

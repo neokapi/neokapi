@@ -248,9 +248,13 @@ func reviewGateFor(approving bool) platauth.Permission {
 }
 
 // reviewDecisionName labels a rung change for the audit log: what the decider
-// did, in the vocabulary the review surfaces use.
+// did, in the vocabulary the review surfaces use. It matches the ledger's
+// ReviewState (unitDecisionFor), so the security trail and the content trail
+// call the same decision by the same name.
 func reviewDecisionName(approved bool, to model.TargetStatus) string {
 	switch {
+	case approved && to == model.TargetStatusSignedOff:
+		return "signed-off"
 	case approved:
 		return "approved"
 	case to == model.TargetStatusDraft:

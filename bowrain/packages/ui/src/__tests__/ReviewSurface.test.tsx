@@ -189,9 +189,30 @@ describe("ReviewSurface — approve/reject persist via api.reviewBlock", () => {
       blockId: "b3",
       targetLocale: "fr-FR",
       reviewed: false,
-      demoteTo: "draft",
+      rung: "draft",
     });
     expect(screen.getByTestId("review-status-b3").textContent).toBe("Draft");
+  });
+
+  it("sign off calls reviewBlock with the signed-off rung and shows the rung", async () => {
+    const user = userEvent.setup();
+    const { adapter } = renderSurface();
+    await waitForDocument();
+    await openBlock(user, "b1");
+
+    await user.click(screen.getByTestId("sign-off-b1"));
+
+    await waitFor(() => expect(adapter.reviewBlockCalls).toHaveLength(1));
+    expect(adapter.reviewBlockCalls[0]).toMatchObject({
+      blockId: "b1",
+      targetLocale: "fr-FR",
+      reviewed: true,
+      rung: "signed-off",
+    });
+    // The chip reads the ladder rung; the document margin reads the coarser
+    // bucket, which files signed-off under reviewed.
+    expect(screen.getByTestId("review-status-b1").textContent).toBe("Signed off");
+    expect(screen.getByTestId("review-block-b1")).toHaveAttribute("data-status", "reviewed");
   });
 
   it("disables both decisions for an untranslated block", async () => {
@@ -223,6 +244,15 @@ describe("ReviewSurface — approve/reject persist via api.reviewBlock", () => {
     await waitFor(() => expect(adapter.reviewBlockCalls).toHaveLength(1));
     expect(adapter.reviewBlockCalls[0]).toMatchObject({ blockId: "b1", reviewed: true });
     expect(screen.getByTestId("review-block-b1")).toHaveAttribute("data-status", "reviewed");
+
+    // S signs the same block off, one rung up.
+    await user.keyboard("s");
+    await waitFor(() => expect(adapter.reviewBlockCalls).toHaveLength(2));
+    expect(adapter.reviewBlockCalls[1]).toMatchObject({
+      blockId: "b1",
+      reviewed: true,
+      rung: "signed-off",
+    });
   });
 
   it("rolls back the optimistic update and surfaces an error when the call fails", async () => {
