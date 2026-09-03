@@ -71,6 +71,64 @@ func TestSummarizeReviewLanguages_CountsPerLanguageSourceFirst(t *testing.T) {
 	}
 }
 
+func TestEnsureSourceLanguage(t *testing.T) {
+	cases := []struct {
+		name       string
+		langs      []convergence.ReviewLanguage
+		sourceLang string
+		want       []convergence.ReviewLanguage
+	}{
+		{
+			name:       "an empty tag adds nothing",
+			langs:      []convergence.ReviewLanguage{{Language: "nb", Pending: 2}},
+			sourceLang: "",
+			want:       []convergence.ReviewLanguage{{Language: "nb", Pending: 2}},
+		},
+		{
+			name:       "an absent source is added at zero and leads",
+			langs:      []convergence.ReviewLanguage{{Language: "nb", Pending: 2}, {Language: "fr", Pending: 1}},
+			sourceLang: "en",
+			want: []convergence.ReviewLanguage{
+				{Language: "en", Pending: 0, Source: true},
+				{Language: "fr", Pending: 1},
+				{Language: "nb", Pending: 2},
+			},
+		},
+		{
+			name:       "a present source keeps its count and gains the marker",
+			langs:      []convergence.ReviewLanguage{{Language: "en", Pending: 3}, {Language: "nb", Pending: 2}},
+			sourceLang: "en",
+			want: []convergence.ReviewLanguage{
+				{Language: "en", Pending: 3, Source: true},
+				{Language: "nb", Pending: 2},
+			},
+		},
+		{
+			name:       "an empty summary yields just the source",
+			langs:      nil,
+			sourceLang: "en",
+			want:       []convergence.ReviewLanguage{{Language: "en", Pending: 0, Source: true}},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, convergence.EnsureSourceLanguage(tc.langs, tc.sourceLang))
+		})
+	}
+}
+
+func TestSourceLanguageOf(t *testing.T) {
+	got, ok := convergence.SourceLanguageOf([]convergence.ReviewLanguage{
+		{Language: "nb", Pending: 2},
+		{Language: "en", Pending: 0, Source: true},
+	})
+	assert.True(t, ok)
+	assert.Equal(t, "en", got)
+
+	_, ok = convergence.SourceLanguageOf([]convergence.ReviewLanguage{{Language: "nb", Pending: 2}})
+	assert.False(t, ok, "a queue with no source marker names no source")
+}
+
 func TestSortReviewQueue_SourceFirstThenLanguageFileKey(t *testing.T) {
 	items := []convergence.ReviewQueueItem{
 		{Language: "nb", File: "b.json", Key: "k"},

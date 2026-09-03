@@ -140,9 +140,10 @@ func TestReviewQueue_SourceUnitsSortFirst(t *testing.T) {
 	assert.Equal(t, "en", queue.Languages[0].Language, "the source language heads the summary")
 }
 
-// Approving the source wording takes its rows out of the queue, and the
-// language leaves the summary with them.
-func TestReviewQueue_ApprovedSourceLeavesTheQueue(t *testing.T) {
+// Approving the source wording takes its rows out of the queue, but the source
+// language stays in the summary at count 0: a project with a source lane can
+// always be reviewed at its source.
+func TestReviewQueue_ApprovedSourceStaysSelectableAtZero(t *testing.T) {
 	root := writeUnifiedQueueProject(t, "approved", "nb")
 	recipe := filepath.Join(root, "kapi.yaml")
 	a := &App{}
@@ -156,14 +157,17 @@ func TestReviewQueue_ApprovedSourceLeavesTheQueue(t *testing.T) {
 	queue, err := a.ReviewQueue(t.Context(), recipe, "en", ReviewQueueOptions{})
 	require.NoError(t, err)
 	assert.Len(t, queue.Pending, 2, "only the two nb translations are left")
-	require.Len(t, queue.Languages, 1)
-	assert.Equal(t, "nb", queue.Languages[0].Language)
-	assert.False(t, queue.Languages[0].Source)
+	assert.Equal(t, []ReviewLanguage{
+		{Language: "en", Pending: 0, Source: true},
+		{Language: "nb", Pending: 2},
+	}, queue.Languages, "the source language stays selectable at zero after its rows are approved")
 }
 
-// A project with nothing waiting returns an empty listing and an empty summary,
-// rather than a summary of languages with no work in them.
-func TestReviewQueue_EmptyWhenNothingIsPending(t *testing.T) {
+// A project whose source is clean and whose targets are untranslated has nothing
+// pending, but its source lane is still selectable: the summary lists the source
+// language at count 0 so a reviewer can open source review even when the loop
+// asks for nothing.
+func TestReviewQueue_SourceLaneSelectableWhenNothingIsPending(t *testing.T) {
 	root := writeUnifiedQueueProject(t, "checked", "nb")
 	// Drop the translations: an absent target is upstream of review, and the
 	// default `checked` gate asks nobody to sign off a clean source.
@@ -172,8 +176,26 @@ func TestReviewQueue_EmptyWhenNothingIsPending(t *testing.T) {
 
 	queue, err := (&App{}).ReviewQueue(t.Context(), filepath.Join(root, "kapi.yaml"), "en", ReviewQueueOptions{})
 	require.NoError(t, err)
-	assert.Empty(t, queue.Pending)
-	assert.Empty(t, queue.Languages)
+	assert.Empty(t, queue.Pending, "nothing is waiting for a person")
+	assert.Equal(t, []ReviewLanguage{{Language: "en", Pending: 0, Source: true}}, queue.Languages,
+		"the source language is still a selectable entry")
+}
+
+// The source language leads the summary at count 0 while target languages stay
+// queue-driven: a clean source under the default gate lists no source rows, yet
+// the source entry sits above the targets that do have work.
+func TestReviewQueue_CleanSourceListsTheSourceLanguageBesideTargets(t *testing.T) {
+	root := writeUnifiedQueueProject(t, "checked", "nb, fr")
+	queue, err := (&App{}).ReviewQueue(t.Context(), filepath.Join(root, "kapi.yaml"), "en", ReviewQueueOptions{})
+	require.NoError(t, err)
+	for _, it := range queue.Pending {
+		assert.False(t, it.IsSource, "a clean source under the default gate queues no source rows")
+	}
+	assert.Equal(t, []ReviewLanguage{
+		{Language: "en", Pending: 0, Source: true},
+		{Language: "fr", Pending: 2},
+		{Language: "nb", Pending: 2},
+	}, queue.Languages, "the source leads at zero; the targets are queue-driven")
 }
 
 // review_unit and the desktop read one unit through ReviewUnitWithContext. A
@@ -273,6 +295,22 @@ func TestStatusReview_ListsSourceUnitsAndFiltersByLanguage(t *testing.T) {
 			assert.NotContains(t, line, "—", "CLI prose carries no em dash")
 		}
 	}
+}
+
+// The CLI surfaces the source lane too: `kapi status --review` on a project with
+// a clean source and untranslated targets lists the source language at count 0
+// beside the target work, because it reads the same Languages set the queue
+// built.
+func TestStatusReview_ListsTheSourceLaneWhenSourceIsClean(t *testing.T) {
+	root := writeUnifiedQueueProject(t, "checked", "nb")
+	recipe := filepath.Join(root, "kapi.yaml")
+
+	var out reviewQueueOutput
+	require.NoError(t, json.Unmarshal([]byte(runReviewStatus(t, recipe, map[string]string{"json": "true"}, nil)), &out))
+	assert.Equal(t, []ReviewLanguage{
+		{Language: "en", Pending: 0, Source: true},
+		{Language: "nb", Pending: 2},
+	}, out.Languages, "the CLI reads the queue's Languages set, so the source lane is offered at zero")
 }
 
 // A target unit keeps answering as it did, with the language fields filled in.

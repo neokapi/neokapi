@@ -215,9 +215,10 @@ func TestReviewQueue_MarksFindings(t *testing.T) {
 	items := queue.Pending
 	require.Len(t, items, 4, "two units × two locales await review")
 	assert.Equal(t, []host.ReviewLanguage{
+		{Language: "en-US", Pending: 0, Source: true},
 		{Language: "de-DE", Pending: 2},
 		{Language: "fr-FR", Pending: 2},
-	}, queue.Languages, "the summary counts what the listing holds")
+	}, queue.Languages, "the summary counts the targets and always offers the source lane")
 
 	byID := map[string]host.ReviewQueueItem{}
 	for _, it := range items {
@@ -398,8 +399,10 @@ func TestReviewQueue_HonoursTheActiveFilter(t *testing.T) {
 		assert.Equal(t, "fr-FR", it.Locale)
 	}
 	assert.Less(t, len(only), len(all))
-	assert.Equal(t, []host.ReviewLanguage{{Language: "fr-FR", Pending: len(only)}},
-		french.Languages, "a narrowed queue offers only the languages it still holds")
+	assert.Equal(t, []host.ReviewLanguage{
+		{Language: "en-US", Pending: 0, Source: true},
+		{Language: "fr-FR", Pending: len(only)},
+	}, french.Languages, "target languages are queue-driven, but the source lane stays selectable")
 
 	// A glob is written about the content, so it matches the SOURCE path.
 	for _, it := range all {

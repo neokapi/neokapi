@@ -240,6 +240,14 @@ func (a *App) computeUnifiedReviewQueue(ctx context.Context, proj *project.KapiP
 	// The summary counts the whole queue, so a surface filtered to one language
 	// still offers the others.
 	languages := convergence.SummarizeReviewLanguages(all)
+	// A project with a source lane can always be reviewed at its source, so the
+	// source language is a selectable entry even when its source is clean and
+	// nothing is pending (count 0). The lane exists when the project declares a
+	// source language and resolves source content under review scope; target
+	// languages stay queue-driven.
+	if sourceLang != "" && len(srcUnits) > 0 {
+		languages = convergence.EnsureSourceLanguage(languages, sourceLang)
+	}
 
 	pending := all
 	if len(opts.Languages) > 0 {

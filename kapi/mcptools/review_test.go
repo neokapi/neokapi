@@ -254,6 +254,42 @@ func TestHandleReviewQueue_ListsSourceUnitsAndFiltersByLanguage(t *testing.T) {
 	}
 }
 
+// review_queue offers the source lane even when the default gate holds no source
+// units: an agent reading the summary sees the source language at count 0 beside
+// the target work, because the handler passes through the queue's Languages set.
+func TestHandleReviewQueue_OffersTheSourceLaneWhenSourceIsClean(t *testing.T) {
+	t.Setenv("KAPI_NO_PROJECT", "1")
+	root := t.TempDir()
+	recipe := `version: v1
+name: rev-clean
+defaults:
+  source_language: en
+  target_languages: [nb]
+  source_gate: checked
+collections:
+  - name: app
+    content:
+      - path: en.json
+        target: "{lang}.json"
+`
+	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte(recipe), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "en.json"),
+		[]byte(`{"a":"Apple","b":"Banana"}`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "nb.json"),
+		[]byte(`{"a":"Eple","b":"Banan"}`), 0o644))
+
+	a := testApp()
+	_, out, err := handleReviewQueue(t.Context(), a, ReviewQueueInput{Project: filepath.Join(root, "kapi.yaml")})
+	require.NoError(t, err)
+	assert.Equal(t, []cli.ReviewLanguage{
+		{Language: "en", Pending: 0, Source: true},
+		{Language: "nb", Pending: 2},
+	}, out.Languages, "the source lane is offered at zero beside the queue-driven targets")
+	for _, it := range out.Pending {
+		assert.False(t, it.IsSource, "a clean source under the default gate queues no source rows")
+	}
+}
+
 // review_unit answers for a source-language unit: the wording, its rung on the
 // authoring ladder, and the point governing it.
 func TestHandleReviewUnit_AcceptsASourceLanguageUnit(t *testing.T) {

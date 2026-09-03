@@ -213,6 +213,47 @@ func SummarizeReviewLanguages(items []ReviewQueueItem) []ReviewLanguage {
 	return out
 }
 
+// EnsureSourceLanguage guarantees the project's source language is a selectable
+// entry, marked as the source, even when no source unit is pending. A caller
+// invokes it when the project has a source lane: source review is the one lane a
+// reviewer can always open, and selecting it with nothing waiting is an answer
+// rather than a missing choice. Target languages stay queue-driven.
+//
+// An already-listed source language keeps its counted pending and only gains the
+// marker; an added one starts at zero. The empty tag adds nothing. The list
+// stays ordered source-first, then by tag.
+func EnsureSourceLanguage(langs []ReviewLanguage, sourceLang string) []ReviewLanguage {
+	if sourceLang == "" {
+		return langs
+	}
+	for i := range langs {
+		if langs[i].Language == sourceLang {
+			langs[i].Source = true
+			return langs
+		}
+	}
+	langs = append(langs, ReviewLanguage{Language: sourceLang, Source: true})
+	sort.Slice(langs, func(i, j int) bool {
+		if langs[i].Source != langs[j].Source {
+			return langs[i].Source
+		}
+		return langs[i].Language < langs[j].Language
+	})
+	return langs
+}
+
+// SourceLanguageOf returns the language a summary marks as the project's source,
+// and whether one is present. A surface that rebuilds the summary from a
+// narrowed listing reads it to carry the always-present source entry across.
+func SourceLanguageOf(langs []ReviewLanguage) (string, bool) {
+	for _, l := range langs {
+		if l.Source {
+			return l.Language, true
+		}
+	}
+	return "", false
+}
+
 // SortReviewQueue orders a queue for listing: the source language first, then
 // by language, file and unit key.
 func SortReviewQueue(items []ReviewQueueItem) {

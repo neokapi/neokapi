@@ -422,9 +422,17 @@ func (a *App) ReviewQueue(tabID string, filter ProjectFilter) (host.ReviewQueue,
 	if items == nil {
 		items = []host.ReviewQueueItem{}
 	}
+	languages := convergence.SummarizeReviewLanguages(items)
+	// The engine's summary is over the whole project, so it says whether a source
+	// lane exists. Carry that guarantee across the Active-Filter recompute: the
+	// source language stays selectable even when the filter left no source rows in
+	// this view.
+	if src, ok := convergence.SourceLanguageOf(queue.Languages); ok {
+		languages = convergence.EnsureSourceLanguage(languages, src)
+	}
 	out := host.ReviewQueue{
 		Pending:   items,
-		Languages: convergence.SummarizeReviewLanguages(items),
+		Languages: languages,
 	}
 	a.markReviewFindings(ctx, op, sourceLang, out.Pending)
 	return out, nil
