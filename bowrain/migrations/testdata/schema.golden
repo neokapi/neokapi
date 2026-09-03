@@ -966,6 +966,7 @@ translation_jobs.created_by text NOT NULL DEFAULT ''::text
 translation_jobs.deferrals integer NOT NULL DEFAULT 0
 translation_jobs.done_blocks integer NOT NULL DEFAULT 0
 translation_jobs.error text NOT NULL DEFAULT ''::text
+translation_jobs.governance_report text NOT NULL DEFAULT ''::text
 translation_jobs.id text NOT NULL
 translation_jobs.item_name text NOT NULL
 translation_jobs.model text NOT NULL DEFAULT ''::text
