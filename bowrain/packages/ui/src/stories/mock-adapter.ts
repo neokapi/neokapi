@@ -1000,8 +1000,19 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
             collection_id: "col-1",
             collection_name: "Marketing site",
             coordinates: { product: "kapi", channel: "web" },
-            previous: { block_id: "blk-0", source_runs: [{ text: "Sign in to continue" }] },
-            next: { block_id: "blk-2", source_runs: [{ text: "Click here to continue" }] },
+            // One neighbour settled and one still untranslated, which is what
+            // the middle of a review pass looks like.
+            previous: {
+              block_id: "blk-0",
+              source_runs: [{ text: "Sign in to continue" }],
+              target_runs: [{ text: "Connectez-vous pour continuer" }],
+              status: "reviewed",
+            },
+            next: {
+              block_id: "blk-2",
+              source_runs: [{ text: "Click here to continue" }],
+              target_runs: [],
+            },
             memory_match: {
               source: "Welcome to Neokapi",
               target: "Bienvenue sur Neokapi",

@@ -133,6 +133,14 @@ func TestReviewContext_GathersEveryLayer(t *testing.T) {
 	assert.Equal(t, stored[0].Block.ID, got.Previous.BlockID, "the nearest predecessor")
 	assert.Equal(t, stored[2].Block.ID, got.Next.BlockID, "the nearest successor")
 	assert.NotEmpty(t, got.Previous.SourceRuns, "the neighbour travels as runs, not as text")
+	// A reviewer reads a neighbour for the wording that was settled on around
+	// this unit, so both sides travel. The expectations come from the stored
+	// order for the same reason the ids above do.
+	assert.Equal(t, stored[0].Block.SourceText(), model.RunsText(got.Previous.SourceRuns))
+	assert.Equal(t, stored[0].Block.TargetText("fr"), model.RunsText(got.Previous.TargetRuns))
+	assert.NotEmpty(t, got.Previous.TargetRuns, "the neighbour is translated, so it reads as one")
+	assert.Equal(t, stored[2].Block.TargetText("fr"), model.RunsText(got.Next.TargetRuns))
+	assert.Equal(t, "draft", got.Next.Status)
 
 	// History.
 	require.NotNil(t, got.Decision)
@@ -184,6 +192,38 @@ func TestReviewContext_EmptyLayersStayEmpty(t *testing.T) {
 	assert.NotNil(t, got.VoiceFindings)
 	assert.Nil(t, got.VoiceScore)
 	assert.Nil(t, got.VoiceBar)
+}
+
+// TestReviewContext_UntranslatedNeighbourTravelsEmpty: a neighbour nobody has
+// translated yet carries an empty target run sequence rather than a null one,
+// so the surface draws a blank cell in the target column instead of deciding
+// for itself what a missing field means.
+func TestReviewContext_UntranslatedNeighbourTravelsEmpty(t *testing.T) {
+	s, wsID, _ := newRecheckHarness(t)
+
+	untranslated := &model.Block{ID: "u", Translatable: true}
+	untranslated.SetSourceText("Sign in")
+	projID, ids := seedGovernedProject(t, s, wsID, []*model.Block{
+		untranslated,
+		pendingFrBlock("d", "Sign out", "Se deconnecter"),
+	})
+
+	rec, got := getReviewContext(t, s, wsID, projID, ids["Sign out"], "fr")
+
+	// The store mints the ids the neighbourhood cursor orders by, so which side
+	// the untranslated unit lands on is the store's business, not the test's.
+	var untranslatedSide *reviewNeighbour
+	for _, n := range []*reviewNeighbour{got.Previous, got.Next} {
+		if n != nil && n.BlockID == ids["Sign in"] {
+			untranslatedSide = n
+		}
+	}
+	require.NotNil(t, untranslatedSide, "the source-only unit is the neighbour")
+	assert.Equal(t, "Sign in", model.RunsText(untranslatedSide.SourceRuns))
+	assert.Empty(t, untranslatedSide.TargetRuns, "nothing has been written on the target side")
+	assert.NotNil(t, untranslatedSide.TargetRuns, "an empty list, never null")
+	assert.Empty(t, untranslatedSide.Status, "a unit with no target sits on no rung")
+	assert.Contains(t, rec.Body.String(), `"target_runs":[]`, "the wire carries the empty list too")
 }
 
 // TestReviewContext_NeedsATargetLocale: the context is per (block, locale), so
