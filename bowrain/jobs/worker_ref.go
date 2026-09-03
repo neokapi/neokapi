@@ -63,5 +63,15 @@ func assertDecisionsRef(ctx context.Context, ds decisionLedgerReader, projectID,
 	if err != nil {
 		return fmt.Errorf("read the ledger for the decisions assertion: %w", err)
 	}
-	return ref.Assert(ref.ComponentDecisions, expected.Decisions, venue.DecisionsComponent(current))
+	return assertDecisionsHeld(expected, current)
+}
+
+// assertDecisionsHeld is the assertion itself, over a ledger the caller has
+// already read. The push transition reads it once and asks it two questions,
+// so the read is the caller's rather than this function's.
+func assertDecisionsHeld(expected ref.Ref, held []venue.UnitDecision) error {
+	if expected.Decisions == "" {
+		return nil
+	}
+	return ref.Assert(ref.ComponentDecisions, expected.Decisions, venue.DecisionsComponent(held))
 }

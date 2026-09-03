@@ -229,8 +229,16 @@ func applyStagedPush(
 	declared venue.Tree,
 	decisions []venue.UnitDecision,
 	expected ref.Ref,
+	gov *pushGovernor,
 ) (*pushOutcome, error) {
 	out := &pushOutcome{}
+
+	// Review governance, before anything is written. Every rung above
+	// translated this payload claims is put to the platform's own gate, and
+	// what fails it is demoted here rather than stored and undone later. The
+	// content is untouched: a push moves content, and only the verdict on it
+	// is the platform's to withhold.
+	gov.vetTargets(staged)
 
 	// Identity first, before any content lands. A file that moved keeps the
 	// item that carries its approvals, so its blocks are written to that item
@@ -288,9 +296,23 @@ func applyStagedPush(
 	// guards, which is what makes it a compare-and-swap rather than a look
 	// followed by a hope.
 	if len(decisions) > 0 {
-		if err := assertDecisionsRef(ctx, tx, projectID, stream, expected); err != nil {
+		// One read of the ledger answers both questions asked of it: whether
+		// the governance this push asserted still stands, and which of the
+		// verdicts it carries the platform already holds.
+		var held []venue.UnitDecision
+		if expected.Decisions != "" || gov.judging() {
+			var herr error
+			if held, herr = tx.ListUnitDecisions(ctx, projectID, stream); herr != nil {
+				return nil, fmt.Errorf("read the decision ledger: %w", herr)
+			}
+		}
+		if err := assertDecisionsHeld(expected, held); err != nil {
 			return nil, err
 		}
+		// A verdict the pusher may not make is kept as the basis it carries
+		// and nothing more, so the venue records that the translation exists
+		// without recording an approval nobody was entitled to give.
+		decisions = gov.vetDecisions(held, decisions)
 		applied, derr := tx.UpsertUnitDecisions(ctx, projectID, stream, decisions)
 		if derr != nil {
 			return nil, derr
@@ -298,6 +320,14 @@ func applyStagedPush(
 		out.Decisions = applied
 	}
 
+	// A permission this venue could not resolve is not a refusal. Rolling the
+	// transition back leaves the producer holding the content and the
+	// verdicts, to send again once the venue can answer; landing it would
+	// discard an approval the pusher may well have been entitled to make.
+	if err := gov.err(); err != nil {
+		return nil, err
+	}
+	out.Governance = gov.report()
 	return out, nil
 }
 
@@ -309,6 +339,12 @@ type pushOutcome struct {
 	Removed   int
 	Renamed   int
 	Decisions int
+
+	// Governance is what the platform's review gate did not accept: the
+	// verdicts this push carried that the pusher was not entitled to make.
+	// It travels back to the producer, which is the only way `kapi push` can
+	// say what landed and what did not.
+	Governance venue.PushGovernance
 }
 
 // stagedItemRow is the item row a group writes, with its collection binding
