@@ -59,7 +59,7 @@ export function LayerCard({
             aria-hidden
           />
           {icon}
-          <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          <span className="shrink-0 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
             {title}
           </span>
           <span

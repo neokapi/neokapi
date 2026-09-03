@@ -218,7 +218,7 @@ export function ProjectSettingsPage({
                     </SelectItem>
                   </SelectContent>
                 </Select>
-                <p className="mt-1 text-[10px] text-muted-foreground">
+                <p className="mt-1 text-[11px] text-muted-foreground">
                   How locale codes are spelled in file and directory names. The project reads and
                   stores them as BCP-47 either way.
                 </p>
@@ -243,7 +243,7 @@ export function ProjectSettingsPage({
                     ))}
                   </SelectContent>
                 </Select>
-                <p className="mt-1 text-[10px] text-muted-foreground">
+                <p className="mt-1 text-[11px] text-muted-foreground">
                   Character encoding for reading and writing files.
                 </p>
               </div>
@@ -272,14 +272,14 @@ export function ProjectSettingsPage({
                 <AlertTriangle size={14} className="mt-0.5 shrink-0 text-amber-500" />
                 <div className="flex-1">
                   <p className="text-xs font-medium">Plugin requirements not met</p>
-                  <p className="mt-0.5 text-[10px] text-muted-foreground">
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">
                     Content and flow features are disabled. Resolve by installing missing plugins or
                     adjusting version constraints below, then save.
                   </p>
                   <ul className="mt-2 space-y-1">
                     {pluginIssues.map((issue) => (
                       <li key={issue.plugin} className="flex items-center gap-2 text-xs">
-                        <Badge variant="outline" className="text-[10px]">
+                        <Badge variant="outline" className="text-[11px]">
                           {issue.plugin}
                         </Badge>
                         {issue.type === "missing" ? (
@@ -304,7 +304,7 @@ export function ProjectSettingsPage({
                     {missingPlugins.length === 1 ? t("Missing plugin") : t("Missing plugins")}:{" "}
                     {missingPlugins.join(", ")}
                   </p>
-                  <p className="mt-0.5 text-[10px] text-muted-foreground">
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">
                     This project requires plugins that are not installed. Install them from the
                     Plugins manager in app Settings.
                   </p>
@@ -347,7 +347,7 @@ export function ProjectSettingsPage({
                           className="rounded"
                         />
                         <span className="text-sm font-medium">{name}</span>
-                        <Badge variant="secondary" className="text-[10px]">
+                        <Badge variant="secondary" className="text-[11px]">
                           {info.version}
                         </Badge>
                       </label>
@@ -408,7 +408,7 @@ export function ProjectSettingsPage({
                     )}
 
                     {info.description && (
-                      <p className="ml-6 text-[10px] text-muted-foreground">{info.description}</p>
+                      <p className="ml-6 text-[11px] text-muted-foreground">{info.description}</p>
                     )}
                   </div>
                 );
@@ -470,7 +470,7 @@ export function ProjectSettingsPage({
                         min={1}
                         max={64}
                       />
-                      <p className="mt-1 text-[10px] text-muted-foreground">
+                      <p className="mt-1 text-[11px] text-muted-foreground">
                         How many files are processed at the same time. Leave empty for automatic.
                       </p>
                     </div>
@@ -493,7 +493,7 @@ export function ProjectSettingsPage({
                         min={1}
                         max={256}
                       />
-                      <p className="mt-1 text-[10px] text-muted-foreground">
+                      <p className="mt-1 text-[11px] text-muted-foreground">
                         How many text segments a tool works on at once within a file. Leave empty
                         for automatic.
                       </p>

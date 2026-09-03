@@ -23,7 +23,7 @@ export function AIPreReview({ score, model, findings }: AIPreReviewProps) {
   return (
     <div className="mt-2.5 border-t pt-2" data-slot="review-ai-prereview">
       <div className="flex flex-wrap items-center gap-1.5">
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
           {t("AI pre-review")}
         </span>
         {score !== undefined && (

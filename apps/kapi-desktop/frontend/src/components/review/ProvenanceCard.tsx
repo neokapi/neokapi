@@ -63,7 +63,7 @@ export function ProvenanceCard({ provenance, origin, reviewState, note }: Proven
       {provenance?.stale && (
         <Badge
           variant="outline"
-          className="border-warning/40 text-[10px] text-warning"
+          className="border-warning/40 text-[11px] text-warning"
           data-slot="review-provenance-stale"
         >
           <AlertTriangle size={10} />

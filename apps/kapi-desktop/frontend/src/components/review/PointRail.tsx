@@ -116,7 +116,7 @@ export function PointRail({ point, loading }: PointRailProps) {
         {point.default ? t("default point") : (point.ref ?? t("default point"))}
       </span>
       {point.collection && (
-        <Badge variant="outline" className="text-[10px]">
+        <Badge variant="outline" className="text-[11px]">
           <span translate="no">{point.collection}</span>
         </Badge>
       )}
@@ -214,7 +214,7 @@ export function PointRail({ point, loading }: PointRailProps) {
                 <Button
                   variant="ghost"
                   size="xs"
-                  className="h-5 px-1 text-[10px] text-muted-foreground"
+                  className="h-5 px-1 text-[11px] text-muted-foreground"
                   onClick={() => setRulesOpen(true)}
                   data-slot="review-point-terms-more"
                 >
@@ -223,7 +223,7 @@ export function PointRail({ point, loading }: PointRailProps) {
               )}
               {capped && (
                 <span
-                  className="text-[10px] text-muted-foreground"
+                  className="text-[11px] text-muted-foreground"
                   data-slot="review-point-terms-total"
                 >
                   {t("{shown} of {total} rules bound here", {
@@ -242,7 +242,7 @@ export function PointRail({ point, loading }: PointRailProps) {
             {profiles.map((p) => (
               <span
                 key={`${p.name}-${p.valid_from ?? ""}`}
-                className="rounded bg-muted px-1 text-[10px] text-muted-foreground"
+                className="rounded bg-muted px-1 text-[11px] text-muted-foreground"
                 data-slot="review-point-profile"
               >
                 <span translate="no">{p.name}</span> · {p.state}

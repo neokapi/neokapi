@@ -402,7 +402,7 @@ export function FlowsPage({
           <Workflow size={16} className="text-muted-foreground" />
           <h1 className="text-sm font-semibold">{selectedId}</h1>
           {isReadOnly && (
-            <span className="flex items-center gap-1 text-[10px] text-muted-foreground px-1.5 py-0.5 rounded bg-muted">
+            <span className="flex items-center gap-1 text-[11px] text-muted-foreground px-1.5 py-0.5 rounded bg-muted">
               <Lock size={9} /> Built-in (read-only)
             </span>
           )}
@@ -545,7 +545,7 @@ export function FlowsPage({
               autoFocus
               className="mb-1"
             />
-            <p className="text-[10px] text-muted-foreground mb-4">
+            <p className="text-[11px] text-muted-foreground mb-4">
               You can start from a template in the editor.
             </p>
             <div className="flex gap-2">
@@ -599,17 +599,17 @@ export function FlowsPage({
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-semibold truncate">{item.name}</span>
-                        <span className="text-[10px] px-1.5 py-px rounded bg-muted text-muted-foreground shrink-0">
+                        <span className="text-[11px] px-1.5 py-px rounded bg-muted text-muted-foreground shrink-0">
                           {item.source}
                         </span>
                       </div>
                       {item.description && (
-                        <div className="text-[10px] text-muted-foreground truncate mt-0.5">
+                        <div className="text-[11px] text-muted-foreground truncate mt-0.5">
                           <Markdown inline>{item.description}</Markdown>
                         </div>
                       )}
                     </div>
-                    <span className="text-[10px] text-muted-foreground">
+                    <span className="text-[11px] text-muted-foreground">
                       {item.stepCount} steps
                     </span>
                   </Button>
@@ -680,7 +680,7 @@ function FlowCard({
               {item.name}
             </span>
             {item.source === "built-in" && (
-              <span className="shrink-0 rounded bg-muted px-1.5 py-px text-[10px] text-muted-foreground">
+              <span className="shrink-0 rounded bg-muted px-1.5 py-px text-[11px] text-muted-foreground">
                 built-in
               </span>
             )}
