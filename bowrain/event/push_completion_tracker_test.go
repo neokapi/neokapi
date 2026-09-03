@@ -44,6 +44,12 @@ func (s *stubJobStore) FailJob(ctx context.Context, id string, epoch int64, errM
 	return true, nil
 }
 func (s *stubJobStore) DeleteJob(ctx context.Context, id string) error { return nil }
+func (s *stubJobStore) SetPushGovernance(ctx context.Context, jobID, report string) error {
+	return nil
+}
+func (s *stubJobStore) PushGovernance(ctx context.Context, pushID string) (string, error) {
+	return "", nil
+}
 func (s *stubJobStore) ClaimJob(ctx context.Context, id string) (bool, int64, error) {
 	return true, 1, nil
 }

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sort"
+	"strconv"
 	"strings"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
@@ -669,9 +670,9 @@ func (g *pushGovernor) recordSoDViolations(deps *WorkerDeps, projectID string) {
 		Effect:    "deny",
 		Data: map[string]string{
 			"actor":    g.actor,
-			"resource": fmt.Sprintf("push:%s", projectID),
+			"resource": "push:" + projectID,
 			"mode":     string(g.gate.Mode()),
-			"targets":  fmt.Sprintf("%d", g.gate.Violations()),
+			"targets":  strconv.Itoa(g.gate.Violations()),
 			"via":      "push",
 		},
 	})
