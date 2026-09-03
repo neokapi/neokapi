@@ -98,6 +98,50 @@ func TestMatchVocabulary(t *testing.T) {
 	}
 }
 
+func TestMatchVocabulary_ContainmentSuppression(t *testing.T) {
+	tests := []struct {
+		name      string
+		profile   *VoiceProfile
+		text      string
+		wantTerms []string
+	}{
+		{"replacement containing the term suppresses the inner hit",
+			profileWith([]TermRule{{Term: "cart", Replacement: "shopping cart"}}, nil),
+			"Add it to your shopping cart", nil},
+		{"bare term with no surrounding replacement still fires",
+			profileWith([]TermRule{{Term: "cart", Replacement: "shopping cart"}}, nil),
+			"Empty your cart now", []string{"cart"}},
+		{"term inside and outside the replacement: only the bare one fires",
+			profileWith([]TermRule{{Term: "cart", Replacement: "shopping cart"}}, nil),
+			"Your cart becomes a shopping cart", []string{"cart"}},
+		{"multiple rules suppress only inside their own replacement",
+			profileWith([]TermRule{
+				{Term: "cart", Replacement: "shopping cart"},
+				{Term: "bin", Replacement: "recycle bin"},
+			}, nil),
+			"the cart and the recycle bin", []string{"cart"}},
+		{"replacement not containing the term does not suppress",
+			profileWith([]TermRule{{Term: "utilize", Replacement: "use"}}, nil),
+			"please utilize use", []string{"utilize"}},
+		{"competitor rule with containing replacement is suppressed inside it",
+			profileWith(nil, []TermRule{{Term: "widget", Replacement: "super widget"}}),
+			"our super widget ships", nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			hits := MatchVocabulary(tt.profile, tt.text)
+			if len(hits) != len(tt.wantTerms) {
+				t.Fatalf("got %d hits, want %d: %+v", len(hits), len(tt.wantTerms), hits)
+			}
+			for i, h := range hits {
+				if h.Term != tt.wantTerms[i] {
+					t.Errorf("hit %d: term = %q, want %q", i, h.Term, tt.wantTerms[i])
+				}
+			}
+		})
+	}
+}
+
 func TestMatchVocabulary_PropagatesConceptID(t *testing.T) {
 	profile := profileWith(
 		[]TermRule{{Term: "utilize", Replacement: "use", ConceptID: "concept-use"}},

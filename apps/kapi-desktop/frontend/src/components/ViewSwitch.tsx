@@ -374,6 +374,7 @@ export function ViewSwitch({
             project={history.project}
             onUpdate={updateProject}
             pluginIssues={activeTab.pluginIssues}
+            onNavigate={navigate}
           />
         );
 

@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -221,7 +222,7 @@ func (a *App) voicePoint(
 		Channels:    profileChannels(proj, pt.Profile),
 		Collections: collections[pt.Profile],
 		Field:       declared.VoiceField,
-		TermStore:   declared.TermStore,
+		TermStore:   relSource(root, declared.TermStore),
 		Binding:     voiceBinding(declared.Voice),
 		Validity:    validityDTO(declared.Validity, pt.At),
 	}
@@ -238,13 +239,30 @@ func (a *App) voicePoint(
 	}
 	if found && profile != nil {
 		row.Profile = profile
-		row.Source = source
+		row.Source = relSource(root, source)
 		row.Guide = coreprofile.RenderVoiceGuide(profile)
 	} else {
 		row.Notes = append(row.Notes, "no voice profile binds at this point")
 	}
 	row.Edit = voiceEditTarget(declared, root, pt.Profile, source, found)
 	return row, nil
+}
+
+// relSource makes a voice-profile source project-relative for display. A
+// pack:/store: binding names no file and is returned unchanged; a path that
+// filepath.Rel cannot relativize, or that escapes root, is kept absolute.
+func relSource(root, source string) string {
+	if source == "" || strings.HasPrefix(source, "pack:") || strings.HasPrefix(source, "store:") {
+		return source
+	}
+	if !filepath.IsAbs(source) {
+		return source
+	}
+	rel, err := filepath.Rel(root, source)
+	if err != nil || rel == "" || strings.HasPrefix(rel, "..") {
+		return source
+	}
+	return rel
 }
 
 // voiceEditTarget resolves the file a save at a point writes to.
