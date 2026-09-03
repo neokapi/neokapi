@@ -31,7 +31,7 @@ describe("TranslationDashboard", () => {
     render(<TranslationDashboard stats={sampleDashboardStats} />);
     expect(screen.getByText("Source Words")).toBeInTheDocument();
     expect(screen.getByText("Translatable Blocks")).toBeInTheDocument();
-    expect(screen.getByText("Target Languages")).toBeInTheDocument();
+    expect(screen.getByText("Translations")).toBeInTheDocument();
     expect(screen.getByText("Overall Completion")).toBeInTheDocument();
   });
 

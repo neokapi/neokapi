@@ -213,7 +213,7 @@ export function TranslationDashboard({
           value={compactNumber(stats.translatable_blocks)}
           icon={BarChart3}
         />
-        <StatCard label="Target Languages" value={String(stats.locale_stats.length)} icon={Globe} />
+        <StatCard label="Translations" value={String(stats.locale_stats.length)} icon={Globe} />
         <StatCard label="Overall Completion" value={`${overallPct}%`} icon={Languages} />
       </div>
 
