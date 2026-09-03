@@ -5,26 +5,18 @@
 // the order a reader asks them: which point am I standing at, which profile
 // governs there and why that one, and what does that profile actually say.
 //
-// The resolution chain is the reason the page exists. A binding whose validity
-// window excluded the run instant is drawn as a skipped rung with its boundary
-// date, followed by what governs in its place. It is the one place in the app
-// where governance changing on a date is visible, so it stays prominent while
-// the recipe plumbing that selected the profile collapses to one quiet line.
-//
-// The profile then reads as a document, wording rules first: the say-this and
-// never-say constraints are what a writer reaches for, so they lead, before
-// tone, style, examples and the per-language, per-channel and per-persona
-// overrides.
+// The resolution header (`voice/resolution-header`) answers the second, with
+// the fell-through chain kept prominent. The profile then reads as a document,
+// wording rules first (`voice/rules`), because the say-this and never-say
+// constraints are what a writer reaches for, before tone, style, examples and
+// the per-language, per-channel and per-persona overrides.
 
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowRight,
-  BookOpen,
-  Braces,
   FileText,
   Languages,
-  Link2,
   ListChecks,
   MessageSquareQuote,
   Pencil,
@@ -49,21 +41,20 @@ import { EmptyHint, ErrorHint } from "@neokapi/concept-ui";
 import { t } from "@neokapi/i18n-react/runtime";
 import { call } from "../hooks/useApi";
 import { qk } from "../lib/queryKeys";
-import { severityFails } from "../types/voice";
-import { VoiceProfileEditor } from "./voice/VoiceProfileEditor";
 import type {
   FieldValueSet,
-  Pattern,
   ProjectVoiceResult,
   StyleRules,
-  TermRule,
   ToneProfile,
   VoiceExample,
   VoicePoint,
   VoiceProfile,
   VoiceSaveResult,
-  VoiceValidity,
 } from "../types/voice";
+import { VoiceProfileEditor } from "./voice/VoiceProfileEditor";
+import { FactGrid } from "./voice/facts";
+import { PatternGroups, RulesBlock, TermGroup } from "./voice/rules";
+import { ResolutionHeader, shortDate } from "./voice/resolution-header";
 
 export interface VoicePageProps {
   tabID: string;
@@ -74,44 +65,6 @@ export interface VoicePageProps {
   /** Injected in tests and stories; production writes through the backend. */
   save?: (profile: VoiceProfile) => Promise<VoiceSaveResult | null>;
   valueSets?: Record<string, FieldValueSet>;
-}
-
-/**
- * A severity as a neutral chip.
- *
- * Colour is reserved for a judgement a person makes or a finding a check
- * raised (see `packages/ui/docs/judgement-colours.md`); a rule stating what a
- * violation would cost is neither, so the chip stays neutral and the tooltip
- * carries whether it fails or only reports. A rule resolved from a terms store
- * carries no severity, and then no chip is drawn.
- */
-function SeverityChip({ severity }: { severity?: string }) {
-  if (!severity) return null;
-  const fails = severityFails(severity);
-  return (
-    <SimpleTooltip
-      content={fails ? t("A violation fails the check") : t("A violation is reported only")}
-    >
-      <Badge
-        variant="outline"
-        className="font-normal text-muted-foreground"
-        data-testid="voice-severity"
-      >
-        {severity}
-      </Badge>
-    </SimpleTooltip>
-  );
-}
-
-/** A labelled value in a compact definition grid. */
-function Fact({ label, value }: { label: string; value?: string }) {
-  if (!value) return null;
-  return (
-    <div className="min-w-0">
-      <dt className="text-[11px] tracking-wide text-muted-foreground uppercase">{label}</dt>
-      <dd className="truncate text-sm text-foreground">{value}</dd>
-    </div>
-  );
 }
 
 /** A section of the profile document. */
@@ -133,203 +86,6 @@ function Section({
       </SectionHeading>
       {children}
     </section>
-  );
-}
-
-/** A titled group of rule rows within the Rules section. */
-function RuleGroup({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <p className="mb-1 text-xs font-medium text-foreground">{title}</p>
-      <ul className="divide-y text-sm">{children}</ul>
-    </div>
-  );
-}
-
-/**
- * One pattern rule.
- *
- * The human description is the label; the regular expression it matches on is
- * tucked behind the `{}` affordance, so the row reads as a rule rather than as
- * code.
- */
-function PatternRow({ pattern }: { pattern: Pattern }) {
-  const allowance = pattern.rate
-    ? pattern.rate.per_words
-      ? t("up to {max} per {words} words", {
-          max: pattern.rate.max,
-          words: pattern.rate.per_words,
-        })
-      : t("up to {max}", { max: pattern.rate.max })
-    : undefined;
-  return (
-    <li className="flex flex-wrap items-baseline gap-2 py-1.5" data-testid="voice-pattern">
-      <span className="min-w-0 flex-1 text-sm text-foreground">
-        {pattern.description || pattern.regex}
-      </span>
-      {pattern.description && (
-        <SimpleTooltip content={pattern.regex}>
-          <span
-            className="cursor-help text-muted-foreground/70"
-            data-testid="voice-pattern-regex"
-            aria-label={t("Matching pattern")}
-          >
-            <Braces className="size-3.5" />
-          </span>
-        </SimpleTooltip>
-      )}
-      {pattern.scope && (
-        <Badge variant="outline" className="font-normal text-muted-foreground">
-          {pattern.scope}
-        </Badge>
-      )}
-      {allowance && <span className="text-[11px] text-muted-foreground">{allowance}</span>}
-      <SeverityChip severity={pattern.severity} />
-    </li>
-  );
-}
-
-/**
- * One term rule, drawn to the same shape as a pattern.
- *
- * The wording change is the label; how the rule matches (its other forms, case
- * sensitivity) is tucked behind the `{}` affordance, and a link marks a rule
- * backed by a concept in the terms store.
- */
-function TermRuleRow({ rule }: { rule: TermRule }) {
-  const matching = [
-    rule.forms?.length ? t("also {forms}", { forms: rule.forms.join(", ") }) : undefined,
-    rule.case_sensitive ? t("case-sensitive") : undefined,
-  ]
-    .filter(Boolean)
-    .join(" · ");
-  return (
-    <li className="flex flex-wrap items-baseline gap-2 py-1.5" data-testid="voice-term-rule">
-      <span className="min-w-0 flex-1 text-sm">
-        <span className="font-medium text-foreground">{rule.term}</span>
-        {rule.replacement ? (
-          <span className="text-muted-foreground">
-            {" "}
-            <ArrowRight className="inline size-3 align-[-1px]" /> {rule.replacement}
-          </span>
-        ) : (
-          <span className="ml-1 text-[11px] text-muted-foreground">
-            {t("no replacement, so tools skip it")}
-          </span>
-        )}
-        {rule.note && <span className="ml-2 text-[11px] text-muted-foreground">{rule.note}</span>}
-      </span>
-      {matching && (
-        <SimpleTooltip content={matching}>
-          <span
-            className="cursor-help text-muted-foreground/70"
-            data-testid="voice-term-detail"
-            aria-label={t("Matching detail")}
-          >
-            <Braces className="size-3.5" />
-          </span>
-        </SimpleTooltip>
-      )}
-      {rule.do_not_translate && (
-        <Badge variant="outline" className="font-normal text-muted-foreground">
-          {t("keep as written")}
-        </Badge>
-      )}
-      {rule.scope && (
-        <Badge variant="outline" className="font-normal text-muted-foreground">
-          {rule.scope}
-        </Badge>
-      )}
-      {rule.concept_id && (
-        <SimpleTooltip content={t("Linked to a concept in your terms")}>
-          <span
-            className="text-muted-foreground/70"
-            data-testid="voice-concept-link"
-            aria-label={t("Linked concept")}
-          >
-            <Link2 className="size-3" />
-          </span>
-        </SimpleTooltip>
-      )}
-      <SeverityChip severity={rule.severity} />
-    </li>
-  );
-}
-
-/** A term-rule group, or nothing when the group is empty. */
-function TermGroup({ title, rules }: { title: string; rules?: TermRule[] }) {
-  if (!rules?.length) return null;
-  return (
-    <RuleGroup title={title}>
-      {rules.map((r) => (
-        <TermRuleRow key={`${r.term}:${r.replacement ?? ""}`} rule={r} />
-      ))}
-    </RuleGroup>
-  );
-}
-
-/** The never-write and always-write pattern groups of a style, or nothing. */
-function PatternGroups({ style }: { style?: StyleRules }) {
-  if (!style?.prohibited_patterns?.length && !style?.required_patterns?.length) return null;
-  return (
-    <>
-      {!!style.prohibited_patterns?.length && (
-        <RuleGroup title={t("Never write")}>
-          {style.prohibited_patterns.map((p) => (
-            <PatternRow key={p.regex} pattern={p} />
-          ))}
-        </RuleGroup>
-      )}
-      {!!style.required_patterns?.length && (
-        <RuleGroup title={t("Always write")}>
-          {style.required_patterns.map((p) => (
-            <PatternRow key={p.regex} pattern={p} />
-          ))}
-        </RuleGroup>
-      )}
-    </>
-  );
-}
-
-/**
- * Every wording rule in one place: the say-this and never-say term rules and
- * the always-write and never-write patterns, each drawn to the same row shape,
- * with abbreviations beneath them.
- */
-function RulesBlock({ profile }: { profile: VoiceProfile }) {
-  const vocab = profile.vocabulary;
-  const style = profile.style;
-  const abbreviations = vocab?.abbreviations ?? {};
-  const hasAbbreviations = Object.keys(abbreviations).length > 0;
-  const hasRules =
-    !!vocab?.preferred_terms?.length ||
-    !!vocab?.forbidden_terms?.length ||
-    !!vocab?.competitor_terms?.length ||
-    !!style?.prohibited_patterns?.length ||
-    !!style?.required_patterns?.length;
-  return (
-    <div className="space-y-3">
-      <TermGroup title={t("Say this")} rules={vocab?.preferred_terms} />
-      <TermGroup title={t("Never say")} rules={vocab?.forbidden_terms} />
-      <TermGroup title={t("Competitor names")} rules={vocab?.competitor_terms} />
-      <PatternGroups style={style} />
-      {hasAbbreviations && (
-        <div>
-          <p className="mb-1 text-xs font-medium text-foreground">{t("Abbreviations")}</p>
-          <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-3">
-            {Object.entries(abbreviations).map(([short, long]) => (
-              <div key={short} className="flex items-baseline gap-2">
-                <dt className="font-medium">{short}</dt>
-                <dd className="truncate text-muted-foreground">{long}</dd>
-              </div>
-            ))}
-          </dl>
-        </div>
-      )}
-      {!hasRules && !hasAbbreviations && (
-        <p className="text-sm text-muted-foreground">{t("This profile constrains no wording.")}</p>
-      )}
-    </div>
   );
 }
 
@@ -355,11 +111,13 @@ function ToneBlock({ tone }: { tone?: ToneProfile }) {
           ))}
         </ul>
       )}
-      <dl className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3">
-        <Fact label={t("Formality")} value={tone.formality} />
-        <Fact label={t("Emotion")} value={tone.emotion} />
-        <Fact label={t("Humor")} value={tone.humor} />
-      </dl>
+      <FactGrid
+        facts={[
+          { label: t("Formality"), value: tone.formality },
+          { label: t("Emotion"), value: tone.emotion },
+          { label: t("Humor"), value: tone.humor },
+        ]}
+      />
       {tone.guidelines && <p className="text-sm text-foreground">{tone.guidelines}</p>}
     </div>
   );
@@ -368,22 +126,20 @@ function ToneBlock({ tone }: { tone?: ToneProfile }) {
 /** The style facts, without the patterns, which live in the Rules section. */
 function StyleFacts({ style }: { style?: StyleRules }) {
   if (!style) return null;
-  const empty =
-    style.active_voice === undefined &&
-    !style.sentence_length &&
-    !style.person_pov &&
-    !style.contractions;
-  if (empty) return null;
   return (
-    <dl className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4">
-      <Fact
-        label={t("Voice")}
-        value={style.active_voice === undefined ? undefined : style.active_voice ? "active" : "any"}
-      />
-      <Fact label={t("Sentences")} value={style.sentence_length} />
-      <Fact label={t("Point of view")} value={style.person_pov} />
-      <Fact label={t("Contractions")} value={style.contractions} />
-    </dl>
+    <FactGrid
+      columns={4}
+      facts={[
+        {
+          label: t("Voice"),
+          value:
+            style.active_voice === undefined ? undefined : style.active_voice ? "active" : "any",
+        },
+        { label: t("Sentences"), value: style.sentence_length },
+        { label: t("Point of view"), value: style.person_pov },
+        { label: t("Contractions"), value: style.contractions },
+      ]}
+    />
   );
 }
 
@@ -404,128 +160,6 @@ function ExampleRow({ example }: { example: VoiceExample }) {
         <p className="text-[11px] text-muted-foreground">{example.explanation}</p>
       )}
     </li>
-  );
-}
-
-/** An RFC3339 instant as the date a reader needs. */
-function shortDate(value: string): string {
-  const d = new Date(value);
-  return Number.isNaN(d.getTime()) ? value : d.toISOString().slice(0, 10);
-}
-
-/**
- * The chain the resolver walked to arrive at this voice, kept prominent.
- *
- * A skipped rung is drawn, struck through, with the boundary that excluded it,
- * so a reader can see that governance moved on a date rather than that a
- * profile was never bound. The voice that governs instead is emphasized.
- */
-function ResolutionChain({ point }: { point: VoicePoint }) {
-  const winner = point.fallback
-    ? point.fallback.governing || t("project default")
-    : (point.profile?.name ?? point.label);
-  return (
-    <div
-      className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2"
-      data-testid="voice-chain"
-    >
-      {point.fallback && (
-        <>
-          <span className="flex items-center gap-1.5 text-sm">
-            <span className="text-muted-foreground line-through">{point.fallback.profile}</span>
-            <Badge variant="outline" className="border-destructive/40 font-normal text-destructive">
-              {point.fallback.expired ? t("window closed") : t("not yet in force")}
-              {point.fallback.boundary && (
-                <span className="ml-1 font-mono text-[11px] opacity-70">
-                  {shortDate(point.fallback.boundary)}
-                </span>
-              )}
-            </Badge>
-          </span>
-          <ArrowRight className="size-4 text-muted-foreground" />
-        </>
-      )}
-      <span className="text-sm font-semibold text-foreground">{winner}</span>
-    </div>
-  );
-}
-
-/** A validity window, coloured because a lapsed one is an alert, not a state. */
-function ValidityChip({ validity }: { validity: VoiceValidity }) {
-  const range = [validity.from, validity.to]
-    .filter(Boolean)
-    .map((v) => shortDate(v as string))
-    .join(" → ");
-  return (
-    <Badge
-      variant="outline"
-      className={cn(
-        "font-normal",
-        validity.state === "expired"
-          ? "border-destructive/40 text-destructive"
-          : validity.state === "upcoming"
-            ? "border-amber-500/40 text-amber-700 dark:text-amber-500"
-            : "border-emerald-500/40 text-emerald-700 dark:text-emerald-500",
-      )}
-      data-testid="voice-validity"
-    >
-      {validity.state}
-      {range && <span className="ml-1 font-mono text-[11px] opacity-70">{range}</span>}
-    </Badge>
-  );
-}
-
-/**
- * The recipe plumbing that selected this voice, collapsed to one quiet line:
- * the key it was bound on, how it was selected, where it lives, the terms it
- * reads, the channels it covers and its validity window.
- */
-function PlumbingLine({ point }: { point: VoicePoint }) {
-  const path = point.source || point.binding?.value;
-  const hasAny =
-    !!point.field ||
-    !!point.binding ||
-    !!path ||
-    !!point.termstore ||
-    !!point.validity ||
-    !!point.channels?.length;
-  if (!hasAny) return null;
-  return (
-    <div
-      className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground"
-      data-testid="voice-plumbing"
-    >
-      {point.field && (
-        <SimpleTooltip content={t("The recipe key this voice is bound on")}>
-          <span className="inline-flex items-baseline gap-1">
-            {t("bound on")} <code className="font-mono">{point.field}</code>
-          </span>
-        </SimpleTooltip>
-      )}
-      {point.binding && (
-        <SimpleTooltip content={t("How the profile was selected")}>
-          <code className="font-mono">{point.binding.kind}</code>
-        </SimpleTooltip>
-      )}
-      {path && (
-        <SimpleTooltip content={path}>
-          <code className="inline-block max-w-[18rem] truncate align-bottom font-mono">{path}</code>
-        </SimpleTooltip>
-      )}
-      {point.termstore && (
-        <span className="inline-flex items-center gap-1">
-          <BookOpen className="size-3" />
-          {point.termstore}
-        </span>
-      )}
-      {!!point.channels?.length && (
-        <span className="inline-flex items-center gap-1">
-          <Radio className="size-3" />
-          {point.channels.join(", ")}
-        </span>
-      )}
-      {point.validity && <ValidityChip validity={point.validity} />}
-    </div>
   );
 }
 
@@ -587,9 +221,8 @@ function PointDetail({ point, onEdit }: { point: VoicePoint; onEdit?: () => void
   return (
     <div className="space-y-5" data-testid="voice-detail">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0 flex-1 space-y-2">
-          <ResolutionChain point={point} />
-          <PlumbingLine point={point} />
+        <div className="min-w-0 flex-1">
+          <ResolutionHeader point={point} />
         </div>
         {onEdit &&
           (edit?.writable ? (
@@ -686,11 +319,15 @@ function PointDetail({ point, onEdit }: { point: VoicePoint; onEdit?: () => void
                       <p className="text-sm font-medium">
                         <LocaleLabel locale={locale} />
                       </p>
-                      <dl className="mt-1 grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-3">
-                        <Fact label={t("Formality")} value={override.formality} />
-                        <Fact label={t("Humor")} value={override.humor} />
-                        <Fact label={t("Point of view")} value={override.person_pov} />
-                      </dl>
+                      <div className="mt-1">
+                        <FactGrid
+                          facts={[
+                            { label: t("Formality"), value: override.formality },
+                            { label: t("Humor"), value: override.humor },
+                            { label: t("Point of view"), value: override.person_pov },
+                          ]}
+                        />
+                      </div>
                       {override.cultural_notes && (
                         <p className="mt-1 text-sm text-muted-foreground">
                           {override.cultural_notes}
