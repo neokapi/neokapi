@@ -303,8 +303,9 @@ func (g *pushGovernor) rowFor(b *model.Block) string {
 	return ""
 }
 
-// allow puts one (block, locale) pair to the gate and counts a refusal.
-func (g *pushGovernor) allow(blockID, locale, kind string) (bool, string) {
+// allow puts one (block, locale) pair to the gate. It counts the refusal for
+// the report; countRefusal is false when the caller counts it itself.
+func (g *pushGovernor) allow(blockID, locale, kind string, countRefusal bool) (bool, string) {
 	err := g.gate.Allow(blockID, locale)
 	if err == nil {
 		return true, ""
@@ -314,8 +315,19 @@ func (g *pushGovernor) allow(blockID, locale, kind string) (bool, string) {
 	if ok {
 		reason = refusal.Reason
 	}
-	g.counts[refusalRef{locale: locale, kind: kind, reason: reason}]++
+	if countRefusal {
+		g.counts[refusalRef{locale: locale, kind: kind, reason: reason}]++
+	}
 	return false, reason
+}
+
+// refusalLocale is the language a refusal is reported against, falling back to
+// the raw variant when it is one this venue cannot read.
+func refusalLocale(locale, variant string) string {
+	if locale == "" {
+		return variant
+	}
+	return locale
 }
 
 // noteUnit records which unit a refusal was about, up to the bound the report
@@ -349,35 +361,48 @@ func (g *pushGovernor) vetTargets(staged []stagedGroup) {
 					continue
 				}
 				locale := string(key.Locale)
+				prior := g.priorStatus[platstore.TargetRef{BlockID: blockID, Locale: locale}]
+				if target.Status.Rank() <= prior.Rank() {
+					// The venue already holds this rung, or a higher one. The
+					// push claims nothing new, so there is nothing to judge —
+					// and judging it would let a pusher without review
+					// permission UNDO an approval by sending it back.
+					continue
+				}
 				kind := venue.VerdictApproval
 				if target.Status == model.TargetStatusSignedOff {
 					kind = venue.VerdictSignOff
 				}
-				allowed, reason := g.allow(blockID, locale, kind)
+				allowed, reason := g.allow(blockID, locale, kind, true)
 				if allowed {
-					if from := g.priorStatus[platstore.TargetRef{BlockID: blockID, Locale: locale}]; from != target.Status {
-						g.accepted = append(g.accepted, acceptedRung{
-							blockID: blockID, locale: locale, from: from, to: target.Status,
-							state: string(target.Status),
-						})
-					}
+					g.accepted = append(g.accepted, acceptedRung{
+						blockID: blockID, locale: locale, from: prior, to: target.Status,
+						state: string(target.Status),
+					})
 					continue
 				}
 				g.noteUnit(group.ItemName, b.Name, variantText(key), reason)
-				target.Status = landingRung(target)
+				target.Status = refusedRung(target, prior)
 			}
 		}
 	}
 }
 
-// landingRung is where a refused target lands: translated when it carries a
-// translation, draft when it does not. It is the ladder's own answer to "this
-// is a translation nobody has approved".
-func landingRung(target *model.Target) model.TargetStatus {
+// refusedRung is where a refused target lands: the rung a translation nobody
+// has approved sits on — translated when it carries a translation, draft when
+// it does not — or the rung the venue already holds, whichever is higher.
+//
+// Never lower than the venue's own. A refusal withholds what the push asked
+// for; it does not undo what somebody with the right to decide already did.
+func refusedRung(target *model.Target, prior model.TargetStatus) model.TargetStatus {
+	landing := model.TargetStatusTranslated
 	if model.RunsText(target.Runs) == "" {
-		return model.TargetStatusDraft
+		landing = model.TargetStatusDraft
 	}
-	return model.TargetStatusTranslated
+	if prior.Rank() > landing.Rank() {
+		return prior
+	}
+	return landing
 }
 
 // vetDecisions returns the decision records this push may write.
@@ -408,7 +433,8 @@ func (g *pushGovernor) vetDecisions(held []venue.UnitDecision, decisions []venue
 			continue
 		}
 		ref := unitVariantRef{item: d.ItemName, unit: d.Unit, variant: d.Variant}
-		if prior, ok := ledger[ref]; ok && sameVerdict(prior, d) {
+		prior, held := ledger[ref]
+		if held && sameVerdict(prior, d) {
 			// Already held. Keep the ledger's decider: the platform recorded
 			// who decided, and a re-push is not a second decision.
 			d.DecidedBy = prior.DecidedBy
@@ -419,19 +445,30 @@ func (g *pushGovernor) vetDecisions(held []venue.UnitDecision, decisions []venue
 
 		locale := decisionLocale(d)
 		kind := d.VerdictKind()
+		refuse := func(reason string) {
+			g.counts[refusalRef{locale: refusalLocale(locale, d.Variant), kind: kind, reason: reason}]++
+			if held && prior.CarriesVerdict() {
+				// The venue holds a verdict of its own here. Writing the basis
+				// would erase it, which is how a refusal turns into the very
+				// override it exists to prevent. The venue's record stands, and
+				// the unit is not offered for the producer to retire: the
+				// producer's copy is the stale one, and a pull is what settles
+				// it.
+				return
+			}
+			g.noteUnit(d.ItemName, d.Unit, d.Variant, reason)
+			out = append(out, d.AsBasis(model.TargetStatusTranslated))
+		}
 		if locale == "" {
 			// A variant this venue cannot read is a language it cannot check a
 			// permission for. Refuse the verdict rather than guess at it.
-			g.counts[refusalRef{locale: d.Variant, kind: kind, reason: venue.RefusedNoReviewPermission}]++
-			g.noteUnit(d.ItemName, d.Unit, d.Variant, venue.RefusedNoReviewPermission)
-			out = append(out, d.AsBasis(model.TargetStatusTranslated))
+			refuse(venue.RefusedNoReviewPermission)
 			continue
 		}
 		blockID := g.unitID[unitRef{item: d.ItemName, unit: d.Unit}]
-		allowed, reason := g.allow(blockID, locale, kind)
+		allowed, reason := g.allow(blockID, locale, kind, false)
 		if !allowed {
-			g.noteUnit(d.ItemName, d.Unit, d.Variant, reason)
-			out = append(out, d.AsBasis(model.TargetStatusTranslated))
+			refuse(reason)
 			continue
 		}
 		d.DecidedBy = g.actor
