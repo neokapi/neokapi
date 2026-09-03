@@ -44,7 +44,9 @@ const SAMPLE_FLOW_LIST: FlowListItem[] = Object.entries(SAMPLE_FLOWS).map(([name
   description: spec.description ?? "",
   source: "user",
   stepCount: spec.steps.length,
-  steps: spec.steps.map((s) => s.tool),
+  steps: spec.steps
+    .map((s) => s.tool || s.label || s.parallel?.[0]?.tool || "")
+    .filter(Boolean),
   isDefault: i === 0,
 }));
 
