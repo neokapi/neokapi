@@ -94,7 +94,7 @@ export function JudgementCard({ findings, aiScore, aiModel, aiFindings }: Judgem
               {f.field === "source" && (
                 <Badge
                   variant="outline"
-                  className="shrink-0 text-[10px] text-muted-foreground"
+                  className="shrink-0 text-[11px] text-muted-foreground"
                   title={t("This finding is about the source text, not the translation.")}
                 >
                   {t("source")}

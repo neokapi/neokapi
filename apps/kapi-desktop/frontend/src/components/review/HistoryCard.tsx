@@ -67,13 +67,13 @@ export function HistoryCard({
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="text-muted-foreground">{t("Previous version")}</span>
               {prior.governed ? (
-                <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                <Badge variant="outline" className="text-[11px] text-muted-foreground">
                   {t("still governed")}
                 </Badge>
               ) : (
                 <Badge
                   variant="outline"
-                  className="text-[10px] text-muted-foreground"
+                  className="text-[11px] text-muted-foreground"
                   title={t(
                     "The governing context has moved since this was approved, so the translate prompt would not have carried it.",
                   )}

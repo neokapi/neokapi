@@ -275,7 +275,7 @@ export function ToolRunnerPage({
                               {tool.source && tool.source !== "built-in" && (
                                 <Badge
                                   variant="secondary"
-                                  className="text-[8px] px-1 py-px bg-violet-500/10 text-violet-600 dark:text-violet-400 shrink-0"
+                                  className="text-[11px] px-1 py-px bg-violet-500/10 text-violet-600 dark:text-violet-400 shrink-0"
                                 >
                                   {tool.source}
                                 </Badge>
@@ -287,7 +287,7 @@ export function ToolRunnerPage({
                                 <BookOpen size={9} className="text-primary/50 shrink-0" />
                               )}
                             </div>
-                            <div className="text-[10px] text-muted-foreground line-clamp-2 mt-0.5">
+                            <div className="text-[11px] text-muted-foreground line-clamp-2 mt-0.5">
                               <Markdown inline>{tool.description}</Markdown>
                             </div>
                             {tool.tags && tool.tags.length > 0 && (
@@ -296,7 +296,7 @@ export function ToolRunnerPage({
                                   <Badge
                                     key={tag}
                                     variant="secondary"
-                                    className="text-[8px] px-1 py-px"
+                                    className="text-[11px] px-1 py-px"
                                   >
                                     {tag}
                                   </Badge>
@@ -396,7 +396,7 @@ function ToolDetail({ tool, docs }: { tool: ToolInfo; docs: PluginDocs | null })
           <div className="flex items-center gap-2 mt-2">
             {/* meta.label is pre-resolved via t() in categoryMeta(). */}
             <span
-              className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${meta.color}`}
+              className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${meta.color}`}
               translate="no"
             >
               {meta.label}
@@ -404,7 +404,7 @@ function ToolDetail({ tool, docs }: { tool: ToolInfo; docs: PluginDocs | null })
             {tool.tags?.map((tag) => (
               <span
                 key={tag}
-                className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground flex items-center gap-0.5"
+                className="text-[11px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground flex items-center gap-0.5"
               >
                 <Tag size={8} />
                 {tag}
@@ -413,7 +413,7 @@ function ToolDetail({ tool, docs }: { tool: ToolInfo; docs: PluginDocs | null })
             {tool.requires?.map((req) => (
               <span
                 key={req}
-                className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center gap-0.5"
+                className="text-[11px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center gap-0.5"
               >
                 <Lock size={8} />
                 {req}
@@ -424,7 +424,7 @@ function ToolDetail({ tool, docs }: { tool: ToolInfo; docs: PluginDocs | null })
                 href={stepDoc.wikiUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-[10px] text-primary/70 hover:text-primary transition-colors flex items-center gap-0.5 ml-auto"
+                className="text-[11px] text-primary/70 hover:text-primary transition-colors flex items-center gap-0.5 ml-auto"
               >
                 <ExternalLink size={9} />
                 Wiki
@@ -533,7 +533,7 @@ function ToolMetadataPanel({ schema }: { schema: ComponentSchema }) {
   if (consumes.length === 0 && produces.length === 0) return null;
 
   return (
-    <div className="flex flex-wrap items-center gap-2 text-[10px]">
+    <div className="flex flex-wrap items-center gap-2 text-[11px]">
       {consumes.map((f) => (
         <span
           key={`in-${f.type}-${f.side ?? ""}`}
