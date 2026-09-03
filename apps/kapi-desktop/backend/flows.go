@@ -26,7 +26,47 @@ type UserFlowInfo struct {
 	Description string `json:"description"`
 	Source      string `json:"source"` // registry.SourceBuiltIn or "user"
 	StepCount   int    `json:"step_count"`
-	Modified    string `json:"modified,omitempty"`
+	// Steps names each step for the card's chip strip, in order.
+	Steps    []string `json:"steps,omitempty"`
+	Modified string   `json:"modified,omitempty"`
+}
+
+// flowStepLabels names each top-level step for a compact chip strip: the
+// step's label if it has one, else the tool it runs. A parallel group is named
+// by its own label, else its first branch.
+func flowStepLabels(steps []flow.FlowStep) []string {
+	labels := make([]string, 0, len(steps))
+	for _, s := range steps {
+		switch {
+		case s.Label != "":
+			labels = append(labels, s.Label)
+		case s.Tool != "":
+			labels = append(labels, s.Tool)
+		case len(s.Parallel) > 0:
+			if s.Parallel[0].Label != "" {
+				labels = append(labels, s.Parallel[0].Label)
+			} else if s.Parallel[0].Tool != "" {
+				labels = append(labels, s.Parallel[0].Tool)
+			}
+		}
+	}
+	return labels
+}
+
+// builtInStepLabels names each tool node of a built-in flow, in graph order.
+func builtInStepLabels(def flow.FlowDefinition) []string {
+	labels := make([]string, 0, len(def.Nodes))
+	for _, n := range def.Nodes {
+		if n.Type != flow.NodeTool {
+			continue
+		}
+		if n.Label != "" {
+			labels = append(labels, n.Label)
+		} else {
+			labels = append(labels, n.Name)
+		}
+	}
+	return labels
 }
 
 // UserFlowDetail is the full flow data for editing.
@@ -77,6 +117,7 @@ func (a *App) ListUserFlows() []UserFlowInfo {
 			Description: def.Description,
 			Source:      registry.SourceBuiltIn,
 			StepCount:   stepCount,
+			Steps:       builtInStepLabels(def),
 		})
 	}
 
@@ -100,6 +141,7 @@ func (a *App) ListUserFlows() []UserFlowInfo {
 			Description: uf.Description,
 			Source:      "user",
 			StepCount:   len(uf.Steps),
+			Steps:       flowStepLabels(uf.Steps),
 			Modified:    uf.ModifiedAt,
 		})
 	}

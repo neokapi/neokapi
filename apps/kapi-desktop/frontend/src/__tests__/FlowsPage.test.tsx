@@ -21,7 +21,15 @@ import { FlowsPage, type FlowListItem } from "../components/FlowsPage";
 import { ErrorProvider } from "../components/ErrorBanner";
 
 const userFlows: FlowListItem[] = [
-  { id: "my-translate", name: "my-translate", description: "", source: "user", stepCount: 2 },
+  {
+    id: "my-translate",
+    name: "my-translate",
+    description: "",
+    source: "user",
+    stepCount: 2,
+    steps: ["Recycle", "Translate"],
+    isDefault: false,
+  },
 ];
 
 function renderAdhoc(props: Partial<React.ComponentProps<typeof FlowsPage>> = {}) {
@@ -67,7 +75,15 @@ describe("FlowsPage adopt-into-project", () => {
 
 describe("FlowsPage running a flow", () => {
   const projectFlows: FlowListItem[] = [
-    { id: "convert", name: "convert", description: "", source: "project", stepCount: 1 },
+    {
+      id: "convert",
+      name: "convert",
+      description: "",
+      source: "project",
+      stepCount: 1,
+      steps: ["word-count"],
+      isDefault: false,
+    },
   ];
 
   beforeEach(() => {

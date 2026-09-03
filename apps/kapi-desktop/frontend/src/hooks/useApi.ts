@@ -185,6 +185,7 @@ export const api = {
         description: string;
         source: string;
         step_count: number;
+        steps?: string[];
         modified: string;
       }>
     >("ListUserFlows"),

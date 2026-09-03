@@ -129,10 +129,15 @@ describe("ToolRunnerPage", () => {
     expect(screen.getByText("credentials")).toBeInTheDocument();
   });
 
-  it("gives the CLI invocation that runs the tool", async () => {
+  it("gives the CLI invocation behind a disclosure, not as the headline", async () => {
     renderPage({ tools: sampleTools });
     await userEvent.click(screen.getByText("word-count"));
 
+    // Plain guidance leads; the command is tucked into a disclosure.
+    expect(
+      screen.getByText("To run this tool, add it to a flow and run that."),
+    ).toBeInTheDocument();
+    await userEvent.click(screen.getByText("Run from the command line"));
     expect(screen.getByText("kapi exec word-count <files...>")).toBeInTheDocument();
     expect(screen.getByText("kapi tools schema word-count")).toBeInTheDocument();
   });

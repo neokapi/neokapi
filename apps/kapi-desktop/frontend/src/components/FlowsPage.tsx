@@ -1,18 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { t } from "@neokapi/i18n-react/runtime";
-import {
-  Workflow,
-  Plus,
-  X,
-  Save,
-  Copy,
-  Lock,
-  Import,
-  FolderOpen,
-  Download,
-  FolderInput,
-} from "lucide-react";
+import { Workflow, Plus, X, Save, Copy, Lock, Import, FolderOpen, Download } from "lucide-react";
 import {
   Button,
   Dialog,
@@ -20,15 +8,11 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  Skeleton,
   Label,
   Input,
   Markdown,
   ScrollArea,
-  ItemCard,
-  ConfirmDeleteButton,
   PageHeader,
-  EmptyState,
   SimpleTooltip,
   toast,
 } from "@neokapi/ui-primitives";
@@ -36,6 +20,8 @@ import { api } from "../hooks/useApi";
 import { qk } from "../lib/queryKeys";
 import { useError } from "./ErrorBanner";
 import { FlowPage } from "./FlowPage";
+import { FlowCard } from "./flows/FlowCard";
+import { FlowsEmptyState } from "./flows/FlowsEmptyState";
 import type { RunFlowHandler } from "./CollectionsPanel";
 import type { FlowSpec } from "../types/api";
 
@@ -72,6 +58,10 @@ export interface FlowListItem {
   description: string;
   source: string; // "built-in" | "user" | "project"
   stepCount: number;
+  /** Each step named, in order, for the card's chip strip. */
+  steps: string[];
+  /** True when this is the project's default flow. */
+  isDefault: boolean;
 }
 
 export function FlowsPage({
@@ -132,6 +122,8 @@ export function FlowsPage({
           description: f.description,
           source: "project",
           stepCount: f.step_count,
+          steps: f.steps ?? [],
+          isDefault: f.default ?? false,
         }));
       }
       const result = await api.listUserFlows();
@@ -141,6 +133,8 @@ export function FlowsPage({
         description: f.description,
         source: f.source,
         stepCount: f.step_count,
+        steps: f.steps ?? [],
+        isDefault: false,
       }));
     },
   });
@@ -275,6 +269,8 @@ export function FlowsPage({
           description: f.description,
           source: f.source,
           stepCount: f.step_count,
+          steps: f.steps ?? [],
+          isDefault: false,
         })),
       );
       setShowImportDialog(true);
@@ -418,6 +414,8 @@ export function FlowsPage({
                     description: "",
                     source: "built-in",
                     stepCount: 0,
+                    steps: [],
+                    isDefault: false,
                   })
                 }
               >
@@ -504,19 +502,7 @@ export function FlowsPage({
       )}
 
       {!loading && flows.length === 0 && (
-        <EmptyState
-          icon={<Workflow size={24} className="text-muted-foreground/50" />}
-          title={
-            isProjectMode
-              ? "No flows defined in this project yet."
-              : "Create a flow or copy a built-in to get started."
-          }
-          action={
-            <Button size="sm" onClick={() => setShowCreateDialog(true)}>
-              Create Flow
-            </Button>
-          }
-        />
+        <FlowsEmptyState projectMode={isProjectMode} onCreate={() => setShowCreateDialog(true)} />
       )}
 
       <Dialog
@@ -620,104 +606,5 @@ export function FlowsPage({
         </DialogContent>
       </Dialog>
     </div>
-  );
-}
-
-// ── FlowCard ────────────────────────────────────────────────────
-
-interface FlowCardItem {
-  id: string;
-  name: string;
-  description?: string;
-  stepCount: number;
-  source?: string;
-}
-
-function FlowCard({
-  item,
-  loading,
-  onClick,
-  onCopy,
-  onDelete,
-  onAdopt,
-  adoptProjectName,
-}: {
-  item?: FlowCardItem;
-  loading?: boolean;
-  onClick?: () => void;
-  onCopy?: () => void;
-  onDelete?: () => void;
-  onAdopt?: () => void;
-  adoptProjectName?: string;
-}) {
-  if (loading) {
-    return (
-      <ItemCard>
-        <div className="flex items-start gap-3">
-          <Skeleton className="mt-0.5 h-5 w-5 shrink-0 rounded" />
-          <div className="min-w-0 flex-1">
-            <Skeleton className="h-4 w-1/2" />
-            <Skeleton className="mt-1.5 h-3 w-3/4" />
-            <Skeleton className="mt-2.5 h-3 w-16" />
-          </div>
-        </div>
-      </ItemCard>
-    );
-  }
-
-  if (!item) return null;
-
-  return (
-    <ItemCard clickable onClick={onClick}>
-      <div className="flex items-start gap-3">
-        <Workflow
-          size={18}
-          className="mt-0.5 shrink-0 text-muted-foreground transition-colors group-hover:text-primary"
-        />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span className="truncate text-sm font-semibold text-foreground transition-colors group-hover:text-primary">
-              {item.name}
-            </span>
-            {item.source === "built-in" && (
-              <span className="shrink-0 rounded bg-muted px-1.5 py-px text-[11px] text-muted-foreground">
-                built-in
-              </span>
-            )}
-          </div>
-          {item.description && (
-            <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
-              <Markdown inline>{item.description}</Markdown>
-            </div>
-          )}
-          <div className="mt-2 flex items-center gap-3 text-[11px] text-muted-foreground">
-            <span>{t("{count} step(s)", { count: item.stepCount })}</span>
-          </div>
-        </div>
-
-        <div
-          className="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100"
-          onClick={(e: React.MouseEvent) => e.stopPropagation()}
-        >
-          {onAdopt && (
-            <SimpleTooltip
-              content={adoptProjectName ? `Add to project: ${adoptProjectName}` : "Add to project"}
-            >
-              <Button variant="ghost" size="icon-xs" onClick={onAdopt} aria-label="Add to project">
-                <FolderInput size={12} />
-              </Button>
-            </SimpleTooltip>
-          )}
-          {onCopy && (
-            <SimpleTooltip content="Copy to edit">
-              <Button variant="ghost" size="icon-xs" onClick={onCopy} aria-label="Copy to edit">
-                <Copy size={12} />
-              </Button>
-            </SimpleTooltip>
-          )}
-          {onDelete && <ConfirmDeleteButton onDelete={onDelete} mode="icon" />}
-        </div>
-      </div>
-    </ItemCard>
   );
 }
