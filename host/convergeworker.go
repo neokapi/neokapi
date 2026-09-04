@@ -173,6 +173,7 @@ var convergeWorkerFields = map[string]workerFieldPolicy{
 	"freshnessOnce":       fieldOwned,  // a fresh Once that sees the pre-seeded watch
 	"projectFlowTools":    fieldOwned,  // each worker builds its own tool instances
 	"flowFindings":        fieldOwned,  // armed per reported run; a silent worker reports none
+	"flowFindingsSink":    fieldOwned,  // scoped to one RunFromProject; a worker gates nothing
 	"convergeProgressTap": fieldOwned,  // one tap per locale
 	"pluginRuntimeOnce":   fieldOwned,  // a fresh Once that sees the pre-seeded runtime
 	"projectStoresOnce":   fieldOwned,  // a fresh Once that sees the pre-seeded holder

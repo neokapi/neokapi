@@ -66,6 +66,7 @@ type (
 	ReviewUnitInfo                = host.ReviewUnitInfo
 	ReviewUnitRef                 = host.ReviewUnitRef
 	RunCmdOptions                 = host.RunCmdOptions
+	FlowFindings                  = host.FlowFindings
 	RunEventSink                  = host.RunEventSink
 	StatsOutput                   = host.StatsOutput
 	StatusOutput                  = host.StatusOutput

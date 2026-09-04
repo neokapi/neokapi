@@ -1,6 +1,7 @@
 package host
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -1279,14 +1280,7 @@ func (a *App) buildFlowTools(flowName, inputPath string, cmd ...Command) ([]tool
 	}
 
 	// Look up the flow definition from the built-in registry.
-	var flowDef *flow.FlowDefinition
-	for _, def := range flowdef.BuiltInFlows() {
-		if def.ID == flowName {
-			d := def
-			flowDef = &d
-			break
-		}
-	}
+	flowDef := builtInFlow(flowName)
 	if flowDef == nil {
 		return nil, nil, fmt.Errorf("unknown flow: %q", flowName)
 	}
@@ -1304,27 +1298,7 @@ func (a *App) buildFlowTools(flowName, inputPath string, cmd ...Command) ([]tool
 		return nil, nil, err
 	}
 
-	// Extract tool node names in topological order (by X position).
-	type toolPos struct {
-		name   string
-		x      float64
-		config map[string]any
-	}
-	var toolNodes []toolPos
-	for _, n := range flowDef.Nodes {
-		if n.Type == flow.NodeTool {
-			toolNodes = append(toolNodes, toolPos{name: n.Name, x: n.Position.X, config: n.Config})
-		}
-	}
-	slices.SortFunc(toolNodes, func(a, b toolPos) int {
-		if a.x < b.x {
-			return -1
-		}
-		if a.x > b.x {
-			return 1
-		}
-		return 0
-	})
+	toolNodes := orderedToolNodes(flowDef)
 
 	// Build the tool chain from tool definitions.
 	var builtTools []tool.Tool
@@ -1350,55 +1324,21 @@ func (a *App) buildFlowTools(flowName, inputPath string, cmd ...Command) ([]tool
 
 	// Inject credential/provider flags from the command into the tool config.
 	if len(cmd) > 0 && cmd[0] != nil {
-		if v, _ := cmd[0].Flags().GetString("credential"); v != "" {
-			config["credential"] = v
-		}
-		// Only inject --provider when the user explicitly passed it; the flag
-		// has a default of "anthropic" which must not shadow a named
-		// credential's provider_type (fixes #637).
-		if cmd[0].Flags().Changed("provider") {
-			if v, _ := cmd[0].Flags().GetString("provider"); v != "" {
-				config["provider"] = v
-			}
-		}
-		if v, _ := cmd[0].Flags().GetString("api-key"); v != "" {
-			config["apiKey"] = v
-		}
-		if v, _ := cmd[0].Flags().GetString("model"); v != "" {
-			config["model"] = v
-		}
-		// --instruction steers the translation without replacing the prompt: it
-		// is rendered into the prompt's Instruction section. Tools that don't
-		// recognise the key ignore it.
-		if v, _ := cmd[0].Flags().GetString("instruction"); v != "" {
-			config["instruction"] = v
-		}
-		// --context decides what the model is told about a block besides the
-		// block: its key, its neighbours. A bare "Save" is a coin flip between a
-		// verb and a noun; its key settles it.
-		if v, _ := cmd[0].Flags().GetString("context"); v != "" {
-			config["context"] = v
-		}
-		// --batching is an intent (auto | single), not a block count: the right
-		// count depends on the model's output ceiling and the length of these
-		// particular segments, which is not something a user can be asked to know.
-		if v, _ := cmd[0].Flags().GetString("batching"); v != "" {
-			config["batching"] = v
-		}
+		maps.Copy(config, runFlagToolConfig(cmd[0]))
 	}
 
 	for _, tn := range toolNodes {
 		// A graph/built-in node may carry per-tool config (e.g. redact's detectors
 		// and entityTypes); overlay it on the shared run config for this node only.
 		toolConfig := config
-		if len(tn.config) > 0 {
-			toolConfig = mergeFlowNodeConfig(config, tn.config)
+		if len(tn.Config) > 0 {
+			toolConfig = mergeFlowNodeConfig(config, tn.Config)
 		}
-		toolConfig = a.applyBindings(bindings, tn.name, a.ToolReg.Schema(registry.ToolID(tn.name)), toolConfig)
-		t, toolCleanup, err := a.buildToolByName(tn.name, toolConfig, cmd...)
+		toolConfig = a.applyBindings(bindings, tn.Name, a.ToolReg.Schema(registry.ToolID(tn.Name)), toolConfig)
+		t, toolCleanup, err := a.buildToolByName(tn.Name, toolConfig, cmd...)
 		if err != nil {
 			cleanup()
-			return nil, nil, fmt.Errorf("tool %q in flow %q: %w", tn.name, flowName, err)
+			return nil, nil, fmt.Errorf("tool %q in flow %q: %w", tn.Name, flowName, err)
 		}
 		builtTools = append(builtTools, t...)
 		if toolCleanup != nil {
@@ -1407,6 +1347,77 @@ func (a *App) buildFlowTools(flowName, inputPath string, cmd ...Command) ([]tool
 	}
 
 	return a.tapFindings(builtTools, inputPath), cleanup, nil
+}
+
+// builtInFlow returns a copy of the named built-in flow definition, or nil
+// when no built-in flow has that id.
+func builtInFlow(flowName string) *flow.FlowDefinition {
+	for _, def := range flowdef.BuiltInFlows() {
+		if def.ID == flowName {
+			d := def
+			return &d
+		}
+	}
+	return nil
+}
+
+// orderedToolNodes returns a definition's tool nodes in execution order. A
+// built-in definition lays its chain out left to right, so the canvas X
+// position is the order.
+func orderedToolNodes(def *flow.FlowDefinition) []flow.FlowNode {
+	var nodes []flow.FlowNode
+	for _, n := range def.Nodes {
+		if n.Type == flow.NodeTool {
+			nodes = append(nodes, n)
+		}
+	}
+	slices.SortStableFunc(nodes, func(a, b flow.FlowNode) int {
+		return cmp.Compare(a.Position.X, b.Position.X)
+	})
+	return nodes
+}
+
+// runFlagToolConfig reads the AI-related flow-run flags off the command into
+// the config keys the tools decode, so a built-in flow honours them whether it
+// is given files or runs over the project's collections.
+func runFlagToolConfig(cmd Command) map[string]any {
+	config := map[string]any{}
+	if v, _ := cmd.Flags().GetString("credential"); v != "" {
+		config["credential"] = v
+	}
+	// Only inject --provider when the user explicitly passed it; the flag
+	// has a default of "anthropic" which must not shadow a named
+	// credential's provider_type (fixes #637).
+	if cmd.Flags().Changed("provider") {
+		if v, _ := cmd.Flags().GetString("provider"); v != "" {
+			config["provider"] = v
+		}
+	}
+	if v, _ := cmd.Flags().GetString("api-key"); v != "" {
+		config["apiKey"] = v
+	}
+	if v, _ := cmd.Flags().GetString("model"); v != "" {
+		config["model"] = v
+	}
+	// --instruction steers the translation without replacing the prompt: it
+	// is rendered into the prompt's Instruction section. Tools that don't
+	// recognise the key ignore it.
+	if v, _ := cmd.Flags().GetString("instruction"); v != "" {
+		config["instruction"] = v
+	}
+	// --context decides what the model is told about a block besides the
+	// block: its key, its neighbours. A bare "Save" is a coin flip between a
+	// verb and a noun; its key settles it.
+	if v, _ := cmd.Flags().GetString("context"); v != "" {
+		config["context"] = v
+	}
+	// --batching is an intent (auto | single), not a block count: the right
+	// count depends on the model's output ceiling and the length of these
+	// particular segments, which is not something a user can be asked to know.
+	if v, _ := cmd.Flags().GetString("batching"); v != "" {
+		config["batching"] = v
+	}
+	return config
 }
 
 // BuildFlowTools assembles the tool chain for a built-in flow for one
