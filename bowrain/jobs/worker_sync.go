@@ -254,9 +254,10 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 
 	// The platform is authoritative for review governance. Everything the
 	// gate needs is resolved here, before the transition opens: which rows
-	// the payload names, who last wrote each target by hand, the workspace
-	// policy, and the pusher's review permission for each language a verdict
-	// names. A push that carries no verdict resolves none of it.
+	// the payload names and the rung each holds, who last wrote each target by
+	// hand, the workspace policy, and the pusher's review permission for each
+	// language a verdict or a withdrawn sign-off names. A push that carries
+	// neither resolves no permission at all.
 	gov, gerr := newPushGovernor(ctx, deps, projectID, stream, workspaceID, manifest.ActorID, staged, decisions)
 	if gerr != nil {
 		markJobFailed(ctx, deps, job.ID, gerr.Error())

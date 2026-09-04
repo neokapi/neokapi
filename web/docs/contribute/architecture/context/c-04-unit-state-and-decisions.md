@@ -311,6 +311,14 @@ ends compute the same record, so the decision component of the freshness ref
 agrees again and the next push has nothing to send. Without that step the two
 folds differ for good, and every push re-sends the same refused approvals.
 
+The venue declines the other direction on the same terms. A push whose record
+takes back a sign-off the venue holds, over the same translation of the same
+source, is a withdrawal, and the venue applies it only for a pusher holding
+review permission for the language. A refused withdrawal keeps the venue's
+record, and the report carries that record back; the project writes it into
+its committed record, recorded rather than staged, so the two agree again with
+no pull between them.
+
 ### The committed location is fixed
 
 The record lives at `.kapi/state/`, derived from the project layout: inside the

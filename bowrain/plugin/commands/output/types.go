@@ -286,10 +286,12 @@ type PushOutput struct {
 	UndeclaredCollections []string `json:"undeclared_collections,omitempty"`
 
 	// VerdictsRefused names the approvals and sign-offs the platform did not
-	// accept: the pusher held no review permission for that language, or the
-	// workspace refuses a verdict on work its author wrote. The content
-	// landed regardless, at translated. VerdictsRetired counts the local
-	// records brought into line with that answer.
+	// accept, and the demotions it did not apply: the pusher held no review
+	// permission for that language, or the workspace refuses a verdict on
+	// work its author wrote. The content landed regardless, at translated for
+	// a refused verdict and at the platform's own rung for a refused
+	// demotion. VerdictsRetired counts the local records brought into line
+	// with that answer.
 	VerdictsRefused []venue.DecisionRefusal `json:"verdicts_refused,omitempty"`
 	VerdictsRetired int                     `json:"verdicts_retired,omitempty"`
 

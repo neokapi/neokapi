@@ -4,13 +4,15 @@ import "github.com/neokapi/neokapi/core/model"
 
 // The shape of what a venue's review governance did with a push, in transit.
 //
-// A push moves content. Whether a rung above translated may be written, and
-// whether a verdict may be recorded, is the venue's to answer: it holds the
-// permissions, the workspace policy and the authorship that answer needs. So a
-// push can carry an approval the venue declines to accept, and the report of
-// what it declined travels back to the producer that sent it, both for the
-// person reading the push and so the project's own record can follow the venue
-// rather than sending the same refused verdict again on every push.
+// A push moves content. Whether a rung above translated may be written,
+// whether a verdict may be recorded, and whether a sign-off the venue holds may
+// be withdrawn, is the venue's to answer: it holds the permissions, the
+// workspace policy and the authorship that answer needs. So a push can carry an
+// approval the venue declines to accept, or a demotion it declines to apply,
+// and the report of what it declined travels back to the producer that sent
+// it, both for the person reading the push and so the project's own record can
+// follow the venue rather than sending the same refused claim again on every
+// push.
 
 // Review states a decision record can carry.
 const (
@@ -27,26 +29,34 @@ const (
 	// RefusedSeparationOfDuties: the workspace policy refuses a verdict on work
 	// the decider wrote themselves.
 	RefusedSeparationOfDuties = "separation of duties"
+	// RefusedSignOffWithdrawal: the push lowers a target the venue holds at
+	// signed-off, keeping the translation and the source the sign-off blessed,
+	// and the pusher does not hold review permission for that language. The
+	// venue keeps the sign-off; withdrawing one is a review-level action.
+	RefusedSignOffWithdrawal = "withdrawing a sign-off needs review permission"
 )
 
-// Kinds of verdict a refusal counts.
+// Kinds of claim a refusal counts.
 const (
 	VerdictApproval = "approval"
 	VerdictSignOff  = "sign-off"
+	// VerdictDemotion is a pushed rung below the one the venue holds: an
+	// un-review or a rejection, as the review surfaces call them.
+	VerdictDemotion = "demotion"
 )
 
-// DecisionRefusal counts one language's refused verdicts of one kind, for one
+// DecisionRefusal counts one language's refused claims of one kind, for one
 // reason. Counts rather than a list, because the line a person reads is
 // "2 approvals not accepted for fr-FR: no review permission" however many units
 // are behind it.
 type DecisionRefusal struct {
 	Locale string `json:"locale"`
-	Kind   string `json:"kind"`   // approval | sign-off
-	Reason string `json:"reason"` // no review permission | separation of duties
+	Kind   string `json:"kind"`   // approval | sign-off | demotion
+	Reason string `json:"reason"` // one of the Refused* reasons
 	Count  int    `json:"count"`
 }
 
-// RefusedUnit names one unit whose verdict a venue did not accept. It is what
+// RefusedUnit names one unit whose claim a venue did not accept. It is what
 // lets the producer bring its own record into line with the venue's, unit by
 // unit, rather than guessing from the counts.
 type RefusedUnit struct {
@@ -54,6 +64,12 @@ type RefusedUnit struct {
 	Unit     string `json:"unit"`
 	Variant  string `json:"variant"`
 	Reason   string `json:"reason"`
+	// Held is the record the venue kept when the refusal left a standing
+	// verdict in place rather than withholding a pushed one: a sign-off the
+	// push tried to withdraw. The producer writes it into its own record, so
+	// the two agree without a pull. Nil for a refusal that withheld a verdict,
+	// where the producer computes the basis itself.
+	Held *UnitDecision `json:"held,omitempty"`
 }
 
 // PushGovernance is a venue's answer about the verdicts a push carried: what it

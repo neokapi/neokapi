@@ -144,6 +144,68 @@ func TestGateAllow(t *testing.T) {
 	}
 }
 
+// Withdrawing a sign-off is held to the review permission alone, as the web's
+// un-review of a signed-off target is. The separation-of-duties policy judges
+// who may bless work; a withdrawal blesses nothing, so it is not asked.
+func TestGateAllowWithdrawal(t *testing.T) {
+	const actor = "u-1"
+	wrote := authors{by: map[platstore.TargetRef]string{{BlockID: "b1", Locale: "fr"}: actor}}
+
+	tests := []struct {
+		name    string
+		cfg     review.Config
+		locale  string
+		wantErr string
+	}{
+		{
+			name:   "a reviewer of the language may withdraw",
+			cfg:    review.Config{Actor: actor, Permits: permits("fr")},
+			locale: "fr",
+		},
+		{
+			name:    "another language is another permission",
+			cfg:     review.Config{Actor: actor, Permits: permits("fr")},
+			locale:  "de",
+			wantErr: venue.RefusedSignOffWithdrawal,
+		},
+		{
+			name:    "a gate with no way to ask refuses",
+			cfg:     review.Config{Actor: actor},
+			locale:  "fr",
+			wantErr: venue.RefusedSignOffWithdrawal,
+		},
+		{
+			name: "the author may withdraw the sign-off on their own writing",
+			cfg: review.Config{
+				Actor: actor, Permits: permits("fr"),
+				Policy: policy{mode: platauth.SoDBlock}, Authors: wrote,
+				BlockIDs: []string{"b1"}, Locales: []string{"fr"},
+			},
+			locale: "fr",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			g, err := review.Open(t.Context(), tt.cfg)
+			require.NoError(t, err)
+			err = g.AllowWithdrawal(tt.locale)
+			if tt.wantErr == "" {
+				require.NoError(t, err)
+				assert.Zero(t, g.Violations(), "a withdrawal is no separation-of-duties question")
+				return
+			}
+			refusal, ok := errors.AsType[review.Refusal](err)
+			require.True(t, ok, "a refusal is typed so a caller can tell it from a failure to ask: %v", err)
+			assert.Equal(t, tt.wantErr, refusal.Reason)
+			assert.Equal(t, tt.locale, refusal.Locale)
+		})
+	}
+
+	var nilGate *review.Gate
+	require.Error(t, nilGate.AllowWithdrawal("fr"), "no gate is no permission")
+}
+
 // An authorship read that failed refuses the whole pass. Discarding the error
 // would disable the four-eyes check rather than tighten it.
 func TestGateOpenRefusesAnUnreadableAuthorship(t *testing.T) {

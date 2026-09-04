@@ -178,6 +178,77 @@ func TestRetireRefusedVerdicts(t *testing.T) {
 	})
 }
 
+// A sign-off the venue kept is written back as the venue holds it. The local
+// record took the sign-off back, the venue refused to, and without this step
+// every push would take it back again, be refused again, and report it again.
+func TestRetireRefusedVerdicts_RestoresAKeptSignOff(t *testing.T) {
+	withdrawn := approvedUnit("greeting", "fr")
+	withdrawn.Status = model.TargetStatusTranslated
+	withdrawn.Decision = state.Decision{}
+	withdrawn.Updated = "2026-09-04T10:00:00Z"
+	held := venue.UnitDecision{
+		ItemName: "locales/en.json", Unit: "greeting", Variant: "fr",
+		Status: string(model.TargetStatusSignedOff), ReviewState: venue.ReviewStateSignedOff,
+		TargetHash: withdrawn.TargetHash, ContentHash: withdrawn.ContentHash,
+		DecidedBy: "reviewer@example.com", DecidedAt: "2026-09-03T10:00:00Z",
+		Updated: "2026-09-03T10:00:00Z",
+	}
+	refusal := venue.DecisionRefusal{
+		Locale: "fr", Kind: venue.VerdictDemotion, Reason: venue.RefusedSignOffWithdrawal, Count: 1,
+	}
+
+	t.Run("the project's record ends where the venue's ledger is", func(t *testing.T) {
+		a := &host.App{}
+		defer a.Shutdown()
+		c, st := committedProject(t, a, withdrawn)
+
+		retired, err := c.retireRefusedVerdicts(t.Context(), &venue.PushGovernance{
+			Refusals: []venue.DecisionRefusal{refusal},
+			Units: []venue.RefusedUnit{{
+				ItemName: "locales/en.json", Unit: "greeting", Variant: "fr",
+				Reason: venue.RefusedSignOffWithdrawal, Held: &held,
+			}},
+		})
+		require.NoError(t, err)
+		assert.Equal(t, 1, retired)
+
+		after, err := c.committedDecisions(t.Context())
+		require.NoError(t, err)
+		assert.Equal(t, venue.DecisionsComponent([]venue.UnitDecision{held}), venue.DecisionsComponent(after),
+			"the project's record folds to what the venue holds, so the next push has nothing to send")
+		require.Len(t, after, 1)
+		assert.Equal(t, venue.ReviewStateSignedOff, after[0].ReviewState)
+		assert.Equal(t, "reviewer@example.com", after[0].DecidedBy, "the sign-off still names the person who made it")
+		assert.Equal(t, string(model.TargetStatusSignedOff), after[0].Status)
+
+		pending, err := st.Pending(t.Context())
+		require.NoError(t, err)
+		assert.Zero(t, pending, "the venue's answer about published work is not the person's pending decision")
+	})
+
+	t.Run("a refusal that names no record changes nothing", func(t *testing.T) {
+		a := &host.App{}
+		defer a.Shutdown()
+		c, _ := committedProject(t, a, withdrawn)
+
+		before, err := c.committedDecisions(t.Context())
+		require.NoError(t, err)
+		retired, err := c.retireRefusedVerdicts(t.Context(), &venue.PushGovernance{
+			Refusals: []venue.DecisionRefusal{refusal},
+			Units: []venue.RefusedUnit{{
+				ItemName: "locales/en.json", Unit: "greeting", Variant: "fr",
+				Reason: venue.RefusedSignOffWithdrawal,
+			}},
+		})
+		require.NoError(t, err)
+		assert.Zero(t, retired, "the local record cannot invent the sign-off's decider; a pull settles it")
+
+		after, err := c.committedDecisions(t.Context())
+		require.NoError(t, err)
+		assert.Equal(t, venue.DecisionsComponent(before), venue.DecisionsComponent(after))
+	})
+}
+
 // A decision nobody has published is nobody's business but the person who made
 // it. The push sends the committed record, so a staged decision was never sent
 // and was never refused; retiring it on a language-wide refusal would delete
