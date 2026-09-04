@@ -101,6 +101,19 @@ can turn the markers off for the published pseudo builds. It expands the
 extracted source catalogs mechanically, which is why its output is byte-gated
 where the loop's is not.
 
+The byte gate holds only if the two gitignored trees between the stages are a
+function of the current source, and each stage keeps its own tree so.
+`neokapi-i18n extract` removes a catalog under `i18n/` that it would have
+written for the document it records and did not, which is the catalog of a
+source that has been deleted, moved or excluded. `l10n-pseudo` clears each
+`i18n-qps/` tree before kapi writes it, because kapi writes one target per
+catalog it reads and knows nothing of a file already there. Without either, a
+catalog for a deleted component stays in both trees, reaches the runtime
+dictionary through `l10n-compile`, and a checkout that has run the walk for
+weeks regenerates different bytes from a clean one: the author's own run and
+the gate's disagree, and the auto-fix commits a correction the author could
+not have produced.
+
 The two Docusaurus sites are pseudo-translated too, for a local preview:
 `scripts/pseudo-docs-i18n.sh` writes each site's `i18n/qps/` tree, which is
 gitignored, and the docs workflows regenerate it with a released kapi

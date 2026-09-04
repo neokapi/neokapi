@@ -210,8 +210,14 @@ function loadBlocksFromKBFDir(dir: string): {
   return { blocks, declaredTargets: Array.from(declared) };
 }
 
+// Depth-first in byte order at every level, so the order blocks enter a
+// dictionary (and so the key order of the file written) is a function of the
+// catalog paths alone and never of the order a filesystem lists them in.
 function walkKBFs(dir: string, visit: (path: string) => void) {
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+  const entries = readdirSync(dir, { withFileTypes: true }).sort((a, b) =>
+    Buffer.compare(Buffer.from(a.name), Buffer.from(b.name)),
+  );
+  for (const entry of entries) {
     const path = join(dir, entry.name);
     if (entry.isDirectory()) walkKBFs(path, visit);
     else if (entry.isFile() && isKbfPath(path)) visit(path);
