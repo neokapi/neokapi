@@ -164,10 +164,13 @@ async function main() {
     console.error(`  (ai-translate skipped: ${e.message})`);
   }
 
-  // Seed the workspace TM + terminology so the editor's context panel and the
-  // governance walk (TM search "mission", multi-locale concepts) show real
-  // content. POST sequentially — concurrent writes to the workspace stores race.
-  const TM_ENTRIES = [
+  // Seed the workspace content memory and terms so the editor's context panel,
+  // the review context rail and the governance walk (memory search "mission",
+  // multi-locale concepts) show real content. POST sequentially: concurrent
+  // writes to the workspace stores race. A refused write fails the seed, so a
+  // retired route or a governed status surfaces here rather than as an empty
+  // card in the recording.
+  const MEMORY_ENTRIES = [
     { source: "About Acme Inc.", target: "À propos d'Acme Inc.", source_locale: "en", target_locale: "fr" },
     { source: "Our Mission", target: "Notre mission", source_locale: "en", target_locale: "fr" },
     { source: "Our Team", target: "Notre équipe", source_locale: "en", target_locale: "fr" },
@@ -182,49 +185,45 @@ async function main() {
     { source: "Our Mission", target: "Unsere Mission", source_locale: "en", target_locale: "de" },
     { source: "Our Team", target: "Unser Team", source_locale: "en", target_locale: "de" },
   ];
-  for (const e of TM_ENTRIES) {
-    try {
-      await jpost(`/${wsSlug}/translation-memory`, { ...e, project_id: projectId });
-    } catch (err) {
-      console.error(`  (TM seed skipped: ${err.message})`);
-    }
+  for (const e of MEMORY_ENTRIES) {
+    await jpost(`/${wsSlug}/translation-memory`, { ...e, project_id: projectId });
   }
+  // Workspace terms are concepts (POST /:ws/concepts, server/handlers_concepts.go).
+  // The direct route creates a term `approved` or `deprecated`; `preferred` and
+  // `forbidden` are governed statuses it refuses with a 409, because they
+  // travel through a reviewed change-set.
   const CONCEPTS = [
     {
       domain: "cloud",
       definition: "Managed, multi-tenant compute and storage delivered over the network.",
       terms: [
-        { text: "cloud infrastructure", locale: "en", status: "preferred" },
-        { text: "infrastructure cloud", locale: "fr", status: "preferred" },
-        { text: "Cloud-Infrastruktur", locale: "de", status: "preferred" },
+        { text: "cloud infrastructure", locale: "en", status: "approved" },
+        { text: "infrastructure cloud", locale: "fr", status: "approved" },
+        { text: "Cloud-Infrastruktur", locale: "de", status: "approved" },
       ],
     },
     {
       domain: "reliability",
       definition: "The proportion of time a service is operational and reachable.",
       terms: [
-        { text: "uptime", locale: "en", status: "preferred" },
-        { text: "disponibilité", locale: "fr", status: "preferred" },
-        { text: "Verfügbarkeit", locale: "de", status: "preferred" },
+        { text: "uptime", locale: "en", status: "approved" },
+        { text: "disponibilité", locale: "fr", status: "approved" },
+        { text: "Verfügbarkeit", locale: "de", status: "approved" },
       ],
     },
     {
       domain: "security",
       definition: "Protecting data so only authorised parties can read it, end to end.",
       terms: [
-        { text: "encryption", locale: "en", status: "preferred" },
-        { text: "chiffrement", locale: "fr", status: "preferred" },
+        { text: "encryption", locale: "en", status: "approved" },
+        { text: "chiffrement", locale: "fr", status: "approved" },
         { text: "cryptage", locale: "fr", status: "deprecated" },
-        { text: "Verschlüsselung", locale: "de", status: "preferred" },
+        { text: "Verschlüsselung", locale: "de", status: "approved" },
       ],
     },
   ];
   for (const concept of CONCEPTS) {
-    try {
-      await jpost(`/${wsSlug}/terms`, { ...concept, project_id: projectId });
-    } catch (err) {
-      console.error(`  (term seed skipped: ${err.message})`);
-    }
+    await jpost(`/${wsSlug}/concepts`, { ...concept, project_id: projectId });
   }
 
   // Invite Bob as a member, then accept the invite AS Bob (a second user).

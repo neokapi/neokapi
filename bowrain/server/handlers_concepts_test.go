@@ -80,3 +80,61 @@ func TestListConceptsTotalUnfilteredFullCount(t *testing.T) {
 	assert.Len(t, resp.Concepts, 6)
 	assert.Equal(t, 6, resp.TotalCount)
 }
+
+// TestCreateConceptAcceptsHarnessSeedPayload holds the concept the harness
+// seeds (harness/scripts/seed-collaboration.mjs and seed-bowrain.ts) against the
+// route it posts to: the payload shape, the project scope, and the term
+// statuses the direct route accepts. The seeds create their terms `approved`
+// because `preferred` is a governed status, refused here with a change-set
+// hint. The lookup at the end is the one the review context runs over a
+// block's source, so a seeded term reaches the reviewer's Terms card.
+func TestCreateConceptAcceptsHarnessSeedPayload(t *testing.T) {
+	h := newKGHarness(t)
+	ctx := context.Background()
+
+	seeded := `{
+		"domain": "security",
+		"definition": "Protecting data so only authorised parties can read it, end to end.",
+		"terms": [
+			{"text": "encryption", "locale": "en", "status": "approved"},
+			{"text": "chiffrement", "locale": "fr", "status": "approved"},
+			{"text": "cryptage", "locale": "fr", "status": "deprecated"},
+			{"text": "Verschlüsselung", "locale": "de", "status": "approved"}
+		],
+		"project_id": "proj-seed"
+	}`
+	c, rec := h.req(http.MethodPost, "/concepts", seeded, platauth.PermManageTerms)
+	require.NoError(t, h.srv.HandleCreateConcept(c))
+	require.Equal(t, http.StatusCreated, rec.Code, rec.Body.String())
+
+	var created ConceptInfoResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &created))
+	assert.Equal(t, "proj-seed", created.ProjectID)
+	assert.Equal(t, "security", created.Domain)
+	require.Len(t, created.Terms, 4)
+	assert.Equal(t, "deprecated", created.Terms[2].Status)
+
+	stored, ok, err := h.tb(t).GetConcept(ctx, created.ID)
+	require.NoError(t, err)
+	require.True(t, ok, "the concept is in the workspace terms")
+	assert.Equal(t, "proj-seed", stored.ProjectID)
+
+	matches, err := h.tb(t).LookupAll(ctx, "SOC 2 Type II certified with end-to-end encryption.",
+		terms.LookupOptions{SourceLocale: "en", TargetLocale: "fr", ProjectID: "proj-seed"})
+	require.NoError(t, err)
+	require.Len(t, matches, 1, "the seeded term is found in the file's source text")
+	assert.Equal(t, "encryption", matches[0].Term.Text)
+
+	governed := `{
+		"domain": "cloud",
+		"definition": "Managed, multi-tenant compute and storage delivered over the network.",
+		"terms": [{"text": "cloud infrastructure", "locale": "en", "status": "preferred"}],
+		"project_id": "proj-seed"
+	}`
+	c, rec = h.req(http.MethodPost, "/concepts", governed, platauth.PermManageTerms)
+	require.NoError(t, h.srv.HandleCreateConcept(c))
+	require.Equal(t, http.StatusConflict, rec.Code, rec.Body.String())
+	var refusal map[string]any
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &refusal))
+	assert.Equal(t, "governed change requires a change-set", refusal["error"])
+}
