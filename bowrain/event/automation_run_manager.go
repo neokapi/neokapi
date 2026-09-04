@@ -15,10 +15,12 @@ import (
 type StepAwareExecutor func(action AutomationAction, event platev.Event, stepID string) error
 
 // AutomationRunManager wraps the action executor, creating runs and steps
-// as side effects. It groups actions from the same event into a single run.
+// as side effects. It groups actions from the same event into a single run,
+// and reports every transition it persists to its notifier.
 type AutomationRunManager struct {
 	store    *bstore.AutomationRunStore
 	executor StepAwareExecutor
+	notifier AutomationRunNotifier
 
 	mu          sync.Mutex
 	eventRuns   map[string]string      // event.ID → run.ID (active window)
@@ -34,6 +36,12 @@ func NewAutomationRunManager(store *bstore.AutomationRunStore, executor StepAwar
 		eventRuns:   make(map[string]string),
 		cleanTimers: make(map[string]*time.Timer),
 	}
+}
+
+// SetRunNotifier sets the notifier told about every run transition the
+// manager persists. Set it before the engine starts dispatching.
+func (m *AutomationRunManager) SetRunNotifier(n AutomationRunNotifier) {
+	m.notifier = n
 }
 
 // Stop cancels all pending cleanup timers. Call during shutdown.
@@ -58,7 +66,10 @@ func (m *AutomationRunManager) Execute(action AutomationAction, ev platev.Event)
 	ctx := context.Background()
 
 	// Find or create run for this event.
-	runID := m.getOrCreateRun(ctx, ev)
+	runID, created := m.getOrCreateRun(ctx, ev)
+	if created {
+		m.notify(ctx, AutomationRunStarted, runID)
+	}
 
 	// Create step.
 	step := &bstore.AutomationStep{
@@ -79,6 +90,7 @@ func (m *AutomationRunManager) Execute(action AutomationAction, ev platev.Event)
 		Level:   "info",
 		Message: "Starting action: " + action.Type,
 	}})
+	m.notify(ctx, AutomationStepStarted, runID)
 
 	// Execute the real action with step ID.
 	err := m.executor(action, ev, step.ID)
@@ -95,6 +107,8 @@ func (m *AutomationRunManager) Execute(action AutomationAction, ev platev.Event)
 				StepID: step.ID, RunID: runID, Level: "error",
 				Message: "Action failed: " + err.Error(),
 			}})
+			m.notify(ctx, AutomationStepFinished, runID)
+			m.settle(ctx, runID)
 		}
 	} else {
 		// Synchronous — mark done now.
@@ -112,19 +126,21 @@ func (m *AutomationRunManager) Execute(action AutomationAction, ev platev.Event)
 			}})
 		}
 		_ = m.store.IncrementDoneCount(ctx, runID)
-		m.maybeCompleteRun(ctx, runID)
+		m.notify(ctx, AutomationStepFinished, runID)
+		m.settle(ctx, runID)
 	}
 
 	return err
 }
 
-// getOrCreateRun finds an existing run for the event or creates a new one.
-func (m *AutomationRunManager) getOrCreateRun(ctx context.Context, ev platev.Event) string {
+// getOrCreateRun finds an existing run for the event or creates a new one,
+// reporting whether it created it.
+func (m *AutomationRunManager) getOrCreateRun(ctx context.Context, ev platev.Event) (runID string, created bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	if runID, ok := m.eventRuns[ev.ID]; ok {
-		return runID
+		return runID, false
 	}
 
 	run := &bstore.AutomationRun{
@@ -151,30 +167,19 @@ func (m *AutomationRunManager) getOrCreateRun(ctx context.Context, ev platev.Eve
 		m.mu.Unlock()
 	})
 
-	return run.ID
+	return run.ID, true
 }
 
-// maybeCompleteRun checks if all steps are done and updates run status.
-func (m *AutomationRunManager) maybeCompleteRun(ctx context.Context, runID string) {
-	run, err := m.store.GetRun(ctx, runID)
-	if err != nil {
-		return
+// settle closes the run once every step has reported, and reports that.
+func (m *AutomationRunManager) settle(ctx context.Context, runID string) {
+	if settleAutomationRun(ctx, m.store, runID) {
+		m.notify(ctx, AutomationRunFinished, runID)
 	}
-	if run.DoneCount >= run.StepCount && run.StepCount > 0 {
-		// Check if any step failed.
-		steps, err := m.store.ListSteps(ctx, runID)
-		if err != nil {
-			return
-		}
-		status := bstore.RunStatusCompleted
-		for _, s := range steps {
-			if s.Status == bstore.StepStatusFailed {
-				status = bstore.RunStatusPartial
-				break
-			}
-		}
-		_ = m.store.UpdateRunStatus(ctx, runID, status, "")
-	}
+}
+
+// notify hands the run's current record to the notifier.
+func (m *AutomationRunManager) notify(ctx context.Context, kind AutomationRunChangeKind, runID string) {
+	notifyRunChange(ctx, m.store, m.notifier, kind, runID)
 }
 
 // CompleteStep records the outcome of an action that finished after Execute
@@ -206,7 +211,21 @@ func (m *AutomationRunManager) CompleteStep(ctx context.Context, stepID string, 
 		}})
 	}
 	_ = m.store.IncrementDoneCount(ctx, step.RunID)
-	m.maybeCompleteRun(ctx, step.RunID)
+	m.notify(ctx, AutomationStepFinished, step.RunID)
+	m.settle(ctx, step.RunID)
+}
+
+// CancelRun marks a run failed with the reason and reports the transition.
+// A nil store makes it a no-op, matching Execute's pass-through.
+func (m *AutomationRunManager) CancelRun(ctx context.Context, runID, reason string) error {
+	if m.store == nil || runID == "" {
+		return nil
+	}
+	if err := m.store.UpdateRunStatus(ctx, runID, bstore.RunStatusFailed, reason); err != nil {
+		return err
+	}
+	m.notify(ctx, AutomationRunFinished, runID)
+	return nil
 }
 
 // isAsyncAction returns true for actions whose work outlives Execute: the

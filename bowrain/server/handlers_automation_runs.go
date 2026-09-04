@@ -90,14 +90,15 @@ func (s *Server) HandleListStepLogs(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]any{"logs": logs})
 }
 
-// HandleCancelAutomationRun cancels a running automation run.
+// HandleCancelAutomationRun cancels a running automation run. The run
+// manager owns the transition, so the run's stream subscribers see it.
 func (s *Server) HandleCancelAutomationRun(c echo.Context) error {
-	if s.AutomationRunStore == nil {
+	if s.AutomationRunStore == nil || s.runManager == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "automation runs not configured"})
 	}
 
 	runID := c.Param("runId")
-	if err := s.AutomationRunStore.UpdateRunStatus(c.Request().Context(), runID, bstore.RunStatusFailed, "cancelled by user"); err != nil {
+	if err := s.runManager.CancelRun(c.Request().Context(), runID, "cancelled by user"); err != nil {
 		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusOK, map[string]any{"ok": true})

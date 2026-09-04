@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -8,10 +9,14 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
+	"github.com/neokapi/neokapi/bowrain/event"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 )
 
-// automationRunHub manages SSE connections for live automation run updates.
+// automationRunHub fans out an automation run's transitions to the run's SSE
+// subscribers. It is the event.AutomationRunNotifier the run manager and the
+// step tracker report to, so a subscriber sees each step start and finish as
+// it is persisted rather than on the next snapshot tick.
 type automationRunHub struct {
 	mu      sync.RWMutex
 	clients map[string]map[chan []byte]struct{} // runID → set of channels
@@ -46,24 +51,62 @@ func (h *automationRunHub) unsubscribe(runID string, ch chan []byte) {
 	close(ch)
 }
 
-func (h *automationRunHub) broadcast(runID string, eventType string, data any) { //nolint:unused // will be used by RunManager for live push
-	payload, err := json.Marshal(map[string]any{"type": eventType, "data": data})
+// subscribers reports how many streams follow the run.
+func (h *automationRunHub) subscribers(runID string) int {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return len(h.clients[runID])
+}
+
+// RunChanged implements event.AutomationRunNotifier: the transition is
+// encoded once and handed to every subscriber of the run.
+func (h *automationRunHub) RunChanged(_ context.Context, change event.AutomationRunChange) {
+	if change.Run == nil {
+		return
+	}
+	payload, err := encodeAutomationRunFrame(string(change.Kind), change.Run, change.Steps)
 	if err != nil {
 		return
 	}
+	h.broadcast(change.Run.ID, payload)
+}
+
+func (h *automationRunHub) broadcast(runID string, payload []byte) {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	for ch := range h.clients[runID] {
 		select {
 		case ch <- payload:
 		default:
-			// Drop if client is slow.
+			// A slow subscriber drops the frame; the snapshot tick heals it.
 		}
 	}
 }
 
+// encodeAutomationRunFrame builds the one frame shape the stream carries: the
+// kind of transition (or "snapshot"), the run, and its steps. A pushed frame
+// and a snapshot are read the same way by a client.
+func encodeAutomationRunFrame(kind string, run *bstore.AutomationRun, steps []*bstore.AutomationStep) ([]byte, error) {
+	if steps == nil {
+		steps = []*bstore.AutomationStep{}
+	}
+	return json.Marshal(map[string]any{
+		"type":  kind,
+		"run":   run,
+		"steps": steps,
+	})
+}
+
 // HandleAutomationRunSSE streams live updates for an automation run.
 // GET /projects/:id/automation-runs/:runId/events
+//
+// The stream opens with a snapshot, then delivers every transition the run
+// manager and the step tracker push through the hub. A snapshot every three
+// seconds is the safety net: it heals a dropped frame and a client that
+// connected mid-run, and it decides when the stream closes. Closing on a
+// pushed run.finished would be early, because the actions one event
+// triggers are grouped into one run and a run can gain a step for a few
+// seconds after it settles.
 func (s *Server) HandleAutomationRunSSE(c echo.Context) error {
 	if s.AutomationRunStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "automation runs not configured"})
@@ -86,7 +129,6 @@ func (s *Server) HandleAutomationRunSSE(c echo.Context) error {
 		defer s.runHub.unsubscribe(runID, ch)
 	}
 
-	// Poll + stream loop.
 	ticker := time.NewTicker(3 * time.Second)
 	defer ticker.Stop()
 
@@ -113,7 +155,6 @@ func (s *Server) HandleAutomationRunSSE(c echo.Context) error {
 				return nil
 			}
 			if run.Status == bstore.RunStatusCompleted || run.Status == bstore.RunStatusFailed || run.Status == bstore.RunStatusPartial {
-				s.sendRunSnapshot(c, runID)
 				fmt.Fprintf(c.Response(), "event: done\ndata: {}\n\n")
 				c.Response().Flush()
 				return nil
@@ -130,11 +171,10 @@ func (s *Server) sendRunSnapshot(c echo.Context, runID string) {
 	}
 	steps, _ := s.AutomationRunStore.ListSteps(ctx, runID)
 
-	payload, _ := json.Marshal(map[string]any{
-		"type":  "snapshot",
-		"run":   run,
-		"steps": steps,
-	})
+	payload, err := encodeAutomationRunFrame("snapshot", run, steps)
+	if err != nil {
+		return
+	}
 	fmt.Fprintf(c.Response(), "data: %s\n\n", payload)
 	c.Response().Flush()
 }

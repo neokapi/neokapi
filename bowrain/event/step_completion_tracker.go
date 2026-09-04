@@ -14,12 +14,14 @@ import (
 
 // StepCompletionTracker monitors async automation steps (auto_translate,
 // auto_extract) and updates their status when all spawned jobs complete.
+// Every transition it persists is reported to its notifier.
 type StepCompletionTracker struct {
 	runStore     *bstore.AutomationRunStore
 	jobStore     jobs.JobStore
 	extractStore jobs.ExtractionJobStore
-	quotaStore   *jobs.QuotaStoreDB  // optional; nil disables runner usage recording
-	billingHooks *billing.UsageHooks // optional; nil disables billing credit deduction
+	quotaStore   *jobs.QuotaStoreDB    // optional; nil disables runner usage recording
+	billingHooks *billing.UsageHooks   // optional; nil disables billing credit deduction
+	notifier     AutomationRunNotifier // optional; nil reports no transitions
 
 	mu           sync.Mutex
 	pending      map[string]*pendingStep // stepID → state
@@ -67,6 +69,12 @@ func (t *StepCompletionTracker) SetBillingHooks(hooks *billing.UsageHooks) {
 // SetQuotaStore configures runner usage recording.
 func (t *StepCompletionTracker) SetQuotaStore(store *jobs.QuotaStoreDB) {
 	t.quotaStore = store
+}
+
+// SetRunNotifier sets the notifier told about every step and run transition
+// the tracker persists. Set it before the first step is tracked.
+func (t *StepCompletionTracker) SetRunNotifier(n AutomationRunNotifier) {
+	t.notifier = n
 }
 
 // StepTrackingInfo carries context for billing when a step completes.
@@ -137,11 +145,13 @@ func (t *StepCompletionTracker) checkPending() {
 		if err != nil {
 			continue
 		}
+		// The step record names its run; the registration may not have.
+		runID := step.RunID
 
 		if step.TotalJobs == 0 {
 			// Jobs haven't been registered yet — wait.
 			if time.Since(ps.registeredAt) > 30*time.Minute {
-				t.completeStep(ctx, stepID, ps.runID, bstore.StepStatusFailed, "timeout: no jobs registered")
+				t.completeStep(ctx, stepID, runID, bstore.StepStatusFailed, "timeout: no jobs registered")
 			}
 			continue
 		}
@@ -159,12 +169,15 @@ func (t *StepCompletionTracker) checkPending() {
 		// Update progress.
 		if doneJobs != step.DoneJobs {
 			_ = t.runStore.UpdateStepJobProgress(ctx, stepID, doneJobs)
+			if !allDone {
+				notifyRunChange(ctx, t.runStore, t.notifier, AutomationStepProgress, runID)
+			}
 		}
 
 		if allDone {
-			t.completeStep(ctx, stepID, ps.runID, bstore.StepStatusCompleted, "")
+			t.completeStep(ctx, stepID, runID, bstore.StepStatusCompleted, "")
 		} else if time.Since(ps.registeredAt) > 30*time.Minute {
-			t.completeStep(ctx, stepID, ps.runID, bstore.StepStatusFailed, "timeout")
+			t.completeStep(ctx, stepID, runID, bstore.StepStatusFailed, "timeout")
 		}
 	}
 }
@@ -199,7 +212,15 @@ func (t *StepCompletionTracker) checkJobsByIDs(ctx context.Context, jobIDs []str
 	return done, allDone
 }
 
+// completeStep closes a tracked step with the status, credits the run's done
+// count, bills the runner time, settles the run when it was the last open
+// step, and forgets the step so it is not polled again.
 func (t *StepCompletionTracker) completeStep(ctx context.Context, stepID, runID string, status bstore.StepStatus, errMsg string) {
+	t.mu.Lock()
+	ps := t.pending[stepID]
+	delete(t.pending, stepID)
+	t.mu.Unlock()
+
 	// Read step to calculate duration before marking complete.
 	var durationSec float64
 	if step, err := t.runStore.GetStep(ctx, stepID); err == nil && !step.StartedAt.IsZero() {
@@ -214,9 +235,6 @@ func (t *StepCompletionTracker) completeStep(ctx context.Context, stepID, runID 
 	}
 
 	// Record runner usage and deduct billing credits.
-	t.mu.Lock()
-	ps := t.pending[stepID]
-	t.mu.Unlock()
 	if ps != nil && ps.workspaceID != "" && durationSec > 0 {
 		op := ps.actionType
 		if op == "" {
@@ -250,28 +268,9 @@ func (t *StepCompletionTracker) completeStep(ctx context.Context, stepID, runID 
 		Level:   "info",
 		Message: "Step " + string(status),
 	}})
+	notifyRunChange(ctx, t.runStore, t.notifier, AutomationStepFinished, runID)
 
-	// Check if run is complete.
-	run, err := t.runStore.GetRun(ctx, runID)
-	if err != nil {
-		return
+	if settleAutomationRun(ctx, t.runStore, runID) {
+		notifyRunChange(ctx, t.runStore, t.notifier, AutomationRunFinished, runID)
 	}
-	if run.DoneCount >= run.StepCount && run.StepCount > 0 {
-		steps, err := t.runStore.ListSteps(ctx, runID)
-		if err != nil {
-			return
-		}
-		finalStatus := bstore.RunStatusCompleted
-		for _, s := range steps {
-			if s.Status == bstore.StepStatusFailed {
-				finalStatus = bstore.RunStatusPartial
-				break
-			}
-		}
-		_ = t.runStore.UpdateRunStatus(ctx, runID, finalStatus, "")
-	}
-
-	t.mu.Lock()
-	delete(t.pending, stepID)
-	t.mu.Unlock()
 }

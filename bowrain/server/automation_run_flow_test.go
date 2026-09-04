@@ -43,7 +43,7 @@ func newRunFlowTestServer(t *testing.T) *Server {
 	if srv.AutomationEngine != nil {
 		srv.AutomationEngine.Close()
 	}
-	srv.runManager = event.NewAutomationRunManager(srv.AutomationRunStore, srv.executeAutomationAction)
+	srv.runManager = srv.newRunManager()
 	engine := event.NewAutomationEngine(bus, srv.runManager.Execute)
 	t.Cleanup(engine.Close)
 	srv.AutomationEngine = engine

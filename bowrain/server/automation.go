@@ -113,6 +113,17 @@ func (s *Server) storedAutomationRules() []event.AutomationRule {
 	return rules
 }
 
+// newRunManager builds the run manager that records a run and its steps
+// around every action executeAutomationAction dispatches, reporting each
+// transition to the SSE hub so a subscriber of the run sees it as it happens.
+func (s *Server) newRunManager() *event.AutomationRunManager {
+	rm := event.NewAutomationRunManager(s.AutomationRunStore, s.executeAutomationAction)
+	if s.runHub != nil {
+		rm.SetRunNotifier(s.runHub)
+	}
+	return rm
+}
+
 // executeAutomationAction is the callback for the automation engine (via RunManager).
 func (s *Server) executeAutomationAction(action event.AutomationAction, ev platev.Event, stepID string) error {
 	startedAt := ev.Timestamp
