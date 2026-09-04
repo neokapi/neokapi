@@ -208,7 +208,23 @@ basis-stale unit exactly as it treats one with no translation at all: it is in
 the pending set on any scope (gated or not, since the `draft` tally would
 otherwise read an ungated scope as complete), it is priced in `kapi up --plan` on
 the same recycle-versus-AI split, and the pass produces a translation of the
-source the project has now.
+source the project has now. The server venue derives the same answer from its
+ledger: one grouped query grades every recorded basis against the current
+source, and a stale unit is withheld from the produced count until a pass has
+drafted it, so a run started by a source change has pending work and produces.
+
+**A decided unit is re-drafted once per source change.** The re-draft cannot
+decide, so a stale decision stays stale until a person re-reviews, and a loop
+that read only the decision would draft the unit again on every pass. Each
+venue keeps its own record of what it last drafted. Locally, the content memory
+absorbs the re-drafted pairing and the next pass recycles it rather than paying
+for it again. On the server, the ledger row carries the source the platform
+last drafted the unit against beside the decision (`unit_decisions.draft_basis`),
+written by the worker for every target it produces and never over the decision
+itself. A stale unit whose mark names the current source is owed nothing by the
+loop: it counts as produced again, the run converges, and the unit waits on a
+reviewer with its ship state withheld. A source rewritten again moves away from
+the mark, and the unit is owed once more.
 
 Staleness is one reason a produced unit is work, and the plan carries the others
 on their own axis. What a pass spends a provider call on is decided by the

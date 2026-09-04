@@ -141,6 +141,7 @@ func TestTallyDecisionBasis_SQLite(t *testing.T) {
 		unit             string
 		wantStale        int
 		wantUnknown      int
+		wantOwed         int
 		wantNoTallyRow   bool
 		wantTallyForUnit string
 	}{
@@ -151,7 +152,7 @@ func TestTallyDecisionBasis_SQLite(t *testing.T) {
 		{
 			name: "source rewritten under the decision", basis: "current",
 			rewriteSourceTo: "Hello there", translatable: true, unit: "greeting",
-			wantStale: 1,
+			wantStale: 1, wantOwed: 1,
 		},
 		{
 			name: "decision recorded before the basis was tracked", basis: "",
@@ -209,6 +210,7 @@ func TestTallyDecisionBasis_SQLite(t *testing.T) {
 				for _, got := range tallies {
 					assert.Zero(t, got.Stale, "nothing is stale")
 					assert.Zero(t, got.BasisUnknown, "no basis is unknown")
+					assert.Zero(t, got.Owed, "nothing is owed")
 				}
 				return
 			}
@@ -217,8 +219,100 @@ func TestTallyDecisionBasis_SQLite(t *testing.T) {
 			assert.Equal(t, "nb", tallies[0].Variant)
 			assert.Equal(t, tt.wantStale, tallies[0].Stale)
 			assert.Equal(t, tt.wantUnknown, tallies[0].BasisUnknown)
+			assert.Equal(t, tt.wantOwed, tallies[0].Owed)
 		})
 	}
+}
+
+// TestRecordDraftBases_SQLite mirrors the Postgres store's TestRecordDraftBases:
+// the draft mark beside the decision, never over it, on rows the ledger holds
+// and on no others, and the owed count that follows the mark.
+func TestRecordDraftBases_SQLite(t *testing.T) {
+	s := newTestStore(t)
+	ctx := t.Context()
+	p := createTestProject(t, s)
+
+	block := func(id, source, target string) *model.Block {
+		b := &model.Block{ID: id, Translatable: true}
+		b.SetSourceText(source)
+		if target != "" {
+			b.SetTargetText("nb", target)
+		}
+		return b
+	}
+	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "en.json", []*model.Block{
+		block("greeting", "Hello", "Hei"),
+		block("farewell", "Goodbye", "Ha det"),
+		block("untranslated", "See you", ""),
+	}))
+	_, err := s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{
+		{
+			ItemName: "en.json", Unit: "greeting", Variant: "nb",
+			Status: string(model.TargetStatusReviewed), ReviewState: "approved", DecidedBy: "reviewer-1",
+			TargetHash: state.TargetHash("Hei"), ContentHash: state.SourceHash("Hello"),
+			Updated: "2026-08-04T10:00:00Z",
+		},
+		{
+			ItemName: "en.json", Unit: "farewell", Variant: "nb",
+			TargetHash: state.TargetHash("Ha det"), ContentHash: state.SourceHash("Goodbye"),
+			Updated: "2026-08-04T10:00:00Z",
+		},
+		{
+			ItemName: "en.json", Unit: "untranslated", Variant: "nb",
+			Status: string(model.TargetStatusReviewed), ReviewState: "approved", DecidedBy: "reviewer-1",
+			ContentHash: state.SourceHash("See you"),
+			Updated:     "2026-08-04T10:00:00Z",
+		},
+	})
+	require.NoError(t, err)
+
+	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "en.json", []*model.Block{
+		block("greeting", "Hello there", ""),
+		block("farewell", "Goodbye then", ""),
+		block("untranslated", "See you soon", ""),
+	}))
+	tally := func() platstore.DecisionBasisTally {
+		t.Helper()
+		tallies, err := s.TallyDecisionBasis(ctx, p.ID, "main")
+		require.NoError(t, err)
+		require.Len(t, tallies, 1, "one (item, variant) scope")
+		return tallies[0]
+	}
+	got := tally()
+	assert.Equal(t, 3, got.Stale)
+	assert.Equal(t, 2, got.Owed, "a stale decision on a unit with no target is not owed")
+
+	require.NoError(t, s.RecordDraftBases(ctx, p.ID, "main", []platstore.DraftBasis{
+		{ItemName: "en.json", Unit: "greeting", Variant: "nb", SourceHash: state.SourceHash("Hello there")},
+		{ItemName: "en.json", Unit: "farewell", Variant: "nb", SourceHash: state.SourceHash("Goodbye then")},
+		{ItemName: "en.json", Unit: "absent", Variant: "nb", SourceHash: state.SourceHash("nothing")},
+	}))
+	got = tally()
+	assert.Equal(t, 3, got.Stale, "the decisions stay stale until a person replaces them")
+	assert.Zero(t, got.Owed, "drafted against the current source: the loop owes nothing")
+
+	drafts, err := s.ListDraftBases(ctx, p.ID, "main")
+	require.NoError(t, err)
+	require.Len(t, drafts, 2, "a unit the ledger does not hold gets no row")
+	assert.Equal(t, platstore.DraftBasis{ItemName: "en.json", Unit: "farewell", Variant: "nb", SourceHash: state.SourceHash("Goodbye then")}, drafts[0])
+	assert.Equal(t, platstore.DraftBasis{ItemName: "en.json", Unit: "greeting", Variant: "nb", SourceHash: state.SourceHash("Hello there")}, drafts[1])
+
+	records, err := s.ListUnitDecisions(ctx, p.ID, "main")
+	require.NoError(t, err)
+	byUnit := map[string]venue.UnitDecision{}
+	for _, d := range records {
+		byUnit[d.Unit] = d
+	}
+	require.Len(t, byUnit, 3)
+	assert.Equal(t, "approved", byUnit["greeting"].ReviewState, "the stamp never touches the decision")
+	assert.Equal(t, "reviewer-1", byUnit["greeting"].DecidedBy)
+	assert.Equal(t, state.SourceHash("Hello"), byUnit["greeting"].ContentHash)
+
+	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "en.json", []*model.Block{
+		block("greeting", "Hello again", ""),
+	}))
+	got = tally()
+	assert.Equal(t, 1, got.Owed, "a second rewrite is owed a second draft")
 }
 
 // TestUpsertUnitDecisions_StaleBasisDoesNotProject_SQLite: a decision arriving

@@ -58,11 +58,12 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 //
 // Baseline is version 24 — above every number issued, so an existing database
 // applies it once and any drift between its schema and its bookkeeping is
-// repaired. Retired numbers are never reused; the next migration is version 30.
+// repaired. Retired numbers are never reused; the next migration is version 31.
 //
 // 25  where a collection's strings can be read in place
 // 26  the ship gate's per-block verdict
 // 27  a stream owns its content, and a file is identified by what it is
+// 30  the ledger records the source the platform last drafted a unit against
 var Migrations = []storage.Migration{
 	{
 		Version:     24,
@@ -1365,6 +1366,22 @@ var Migrations = []storage.Migration{
 			-- the same recipe line rather than queueing it again.
 			CREATE UNIQUE INDEX IF NOT EXISTS idx_pending_recipe_changes_path
 				ON pending_recipe_changes(project_id, path) WHERE status = 'pending';
+		`,
+	},
+	{
+		Version:     30,
+		Description: "the ledger records the source the platform last drafted a unit against",
+		SQL: `
+			-- The source hash the platform's latest draft of the unit was made
+			-- against, kept beside the decision on the same row and never
+			-- written over it. A decision's content_hash is what a person
+			-- blessed; this is what the platform last translated. The two
+			-- differ for exactly as long as a rewritten source waits on a
+			-- re-review: the decision stays stale, and this column is what
+			-- tells the convergence loop that the re-draft is done and the
+			-- unit now waits on a reviewer rather than on another pass.
+			-- Empty means the platform has recorded no draft for the unit.
+			ALTER TABLE unit_decisions ADD COLUMN IF NOT EXISTS draft_basis TEXT NOT NULL DEFAULT '';
 		`,
 	},
 }

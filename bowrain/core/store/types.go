@@ -795,6 +795,13 @@ type DecisionStore interface {
 	// store holds no block for are omitted — there is nothing to grade them
 	// against.
 	TallyDecisionBasis(ctx context.Context, projectID, stream string) ([]DecisionBasisTally, error)
+	// RecordDraftBases stamps each named unit's ledger row with the source the
+	// platform's latest draft of it was made against. The decision half of
+	// the row is never touched, and a unit with no row is not given one: the
+	// stamp qualifies a record, it is not a record on its own.
+	RecordDraftBases(ctx context.Context, projectID, stream string, drafts []DraftBasis) error
+	// ListDraftBases returns every stamped draft basis on the stream.
+	ListDraftBases(ctx context.Context, projectID, stream string) ([]DraftBasis, error)
 }
 
 // UnitDecisionReader reads ONE unit's latest decision. It sits beside
@@ -831,6 +838,30 @@ type DecisionBasisTally struct {
 	// every locale of every project holding decisions from before the field
 	// existed.
 	BasisUnknown int
+	// Owed counts the stale decisions whose unit still owes a draft: the unit
+	// carries a target for the variant, and the platform has recorded no
+	// draft against the source the block holds now (DraftBasis). It is the
+	// part of Stale a convergence pass can settle; the remainder has been
+	// re-drafted and waits on a reviewer.
+	Owed int
+}
+
+// DraftBasis is the platform's own record of the latest draft it produced for
+// one unit and variant: the source that draft was made against. It sits on
+// the unit's ledger row beside the decision and is never confused with it: a
+// decision's basis is what a person blessed, and the draft basis is what the
+// platform last translated. The two differ for exactly as long as a rewritten
+// source waits on a re-review, which is how a stale decided unit is drafted
+// once per source change rather than once per pass.
+type DraftBasis struct {
+	ItemName string
+	Unit     string
+	// Variant is the locale (and optional tone/channel) in VariantKey text
+	// form, as the ledger stores it.
+	Variant string
+	// SourceHash is the block's content hash at the time of the draft
+	// (model.ComputeContentHash of the source text, the value a basis records).
+	SourceHash string
 }
 
 // ChannelAliasProposal is the workspace's observation that two channel slugs
