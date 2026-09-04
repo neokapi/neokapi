@@ -17,9 +17,19 @@ export interface AddStepPickerProps {
   onAdd: (toolName: string) => void;
   /** Injected in tests and stories to open the dialog without a click. */
   defaultOpen?: boolean;
+  /** Trigger label; defaults to "Add step". Reused as "Add branch" / "Add parallel group". */
+  label?: string;
+  /** A distinct test id for the trigger button, when several pickers coexist. */
+  triggerTestId?: string;
 }
 
-export function AddStepPicker({ tools, onAdd, defaultOpen }: AddStepPickerProps) {
+export function AddStepPicker({
+  tools,
+  onAdd,
+  defaultOpen,
+  label,
+  triggerTestId,
+}: AddStepPickerProps) {
   const [open, setOpen] = useState(defaultOpen ?? false);
   const [search, setSearch] = useState("");
 
@@ -36,9 +46,14 @@ export function AddStepPicker({ tools, onAdd, defaultOpen }: AddStepPickerProps)
 
   return (
     <>
-      <Button variant="outline" size="sm" onClick={() => setOpen(true)} data-testid="add-step">
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => setOpen(true)}
+        data-testid={triggerTestId ?? "add-step"}
+      >
         <Plus className="mr-1 size-3" />
-        {t("Add step")}
+        {label ?? t("Add step")}
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-lg">

@@ -513,11 +513,17 @@ export type {
 } from "./components/schema-form";
 
 // Linear flow editor (shared, surface-agnostic: an ordered list of tool steps)
-export { LinearFlowEditor, StepRow, AddStepPicker } from "./components/flow-editor";
+export {
+  LinearFlowEditor,
+  StepRow,
+  AddStepPicker,
+  ParallelGroupRow,
+} from "./components/flow-editor";
 export type {
   LinearFlowEditorProps,
   StepRowProps,
   AddStepPickerProps,
+  ParallelGroupRowProps,
   FlowSpec as LinearFlowSpec,
   FlowStep as LinearFlowStep,
   FlowTool as LinearFlowTool,

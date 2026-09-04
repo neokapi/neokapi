@@ -28,6 +28,8 @@ export interface StepRowProps {
   readOnly?: boolean;
   /** Start with the options area expanded (tests and stories). */
   defaultOpen?: boolean;
+  /** Hide the up/down controls — a parallel group's branches have no order. */
+  hideMove?: boolean;
   onConfigChange?: (config: Record<string, unknown>) => void;
   onRemove?: () => void;
   onMoveUp?: () => void;
@@ -43,6 +45,7 @@ export function StepRow({
   host,
   readOnly,
   defaultOpen,
+  hideMove,
   onConfigChange,
   onRemove,
   onMoveUp,
@@ -91,24 +94,28 @@ export function StepRow({
                 )}
               </Button>
             )}
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              aria-label={t("Move up")}
-              disabled={index === 0}
-              onClick={onMoveUp}
-            >
-              <ChevronUp className="size-3.5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              aria-label={t("Move down")}
-              disabled={index === count - 1}
-              onClick={onMoveDown}
-            >
-              <ChevronDown className="size-3.5" />
-            </Button>
+            {!hideMove && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  aria-label={t("Move up")}
+                  disabled={index === 0}
+                  onClick={onMoveUp}
+                >
+                  <ChevronUp className="size-3.5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  aria-label={t("Move down")}
+                  disabled={index === count - 1}
+                  onClick={onMoveDown}
+                >
+                  <ChevronDown className="size-3.5" />
+                </Button>
+              </>
+            )}
             <SimpleTooltip content={t("Remove step")}>
               <Button
                 variant="ghost"

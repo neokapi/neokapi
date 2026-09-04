@@ -130,6 +130,7 @@ export interface FlowSpec {
 }
 
 export interface FlowStep {
+  /** Empty on a parallel group, which fans out to `parallel`. */
   tool: string;
   config?: Record<string, unknown>;
   label?: string;

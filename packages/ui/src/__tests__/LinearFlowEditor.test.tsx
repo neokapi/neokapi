@@ -155,3 +155,76 @@ describe("LinearFlowEditor", () => {
     expect(screen.queryByLabelText(/^Remove /)).toBeNull();
   });
 });
+
+describe("LinearFlowEditor parallel groups", () => {
+  it("appends a parallel group seeded with the picked tool", async () => {
+    const { onChange } = renderEditor();
+    await userEvent.click(screen.getByTestId("add-parallel-group"));
+    const toolButtons = await screen.findAllByTestId("add-step-tool");
+    await userEvent.click(toolButtons.find((b) => b.textContent?.includes("Quality Check"))!);
+    expect(onChange).toHaveBeenCalledWith({
+      steps: [{ tool: "recycle" }, { tool: "translate" }, { tool: "", parallel: [{ tool: "qa" }] }],
+    });
+  });
+
+  it("renders a parallel group with a branch row per branch", () => {
+    renderEditor({
+      flow: { steps: [{ tool: "", parallel: [{ tool: "qa" }, { tool: "translate" }] }] },
+    });
+    expect(screen.getByTestId("parallel-group")).toBeTruthy();
+    const branches = screen.getByTestId("parallel-branches");
+    expect(within(branches).getAllByTestId("step-row")).toHaveLength(2);
+    // A branch has no reorder controls (parallel branches are unordered).
+    expect(within(branches).queryByLabelText("Move up")).toBeNull();
+  });
+
+  it("adds a branch to a group", async () => {
+    const onChange = vi.fn();
+    render(
+      <LinearFlowEditor
+        flowName="f"
+        flow={{ steps: [{ tool: "", parallel: [{ tool: "qa" }] }] }}
+        tools={TOOLS}
+        onChange={onChange}
+      />,
+    );
+    await userEvent.click(screen.getByTestId("add-branch"));
+    const toolButtons = await screen.findAllByTestId("add-step-tool");
+    await userEvent.click(toolButtons.find((b) => b.textContent?.includes("Translate"))!);
+    expect(onChange).toHaveBeenCalledWith({
+      steps: [{ tool: "", parallel: [{ tool: "qa" }, { tool: "translate" }] }],
+    });
+  });
+
+  it("removes a branch from a group", async () => {
+    const onChange = vi.fn();
+    render(
+      <LinearFlowEditor
+        flowName="f"
+        flow={{ steps: [{ tool: "", parallel: [{ tool: "qa" }, { tool: "translate" }] }] }}
+        tools={TOOLS}
+        onChange={onChange}
+      />,
+    );
+    const branches = screen.getByTestId("parallel-branches");
+    const rows = within(branches).getAllByTestId("step-row");
+    await userEvent.click(within(rows[0]).getByLabelText(/^Remove /));
+    expect(onChange).toHaveBeenCalledWith({
+      steps: [{ tool: "", parallel: [{ tool: "translate" }] }],
+    });
+  });
+
+  it("removes the whole group", async () => {
+    const onChange = vi.fn();
+    render(
+      <LinearFlowEditor
+        flowName="f"
+        flow={{ steps: [{ tool: "recycle" }, { tool: "", parallel: [{ tool: "qa" }] }] }}
+        tools={TOOLS}
+        onChange={onChange}
+      />,
+    );
+    await userEvent.click(screen.getByLabelText("Remove parallel group"));
+    expect(onChange).toHaveBeenCalledWith({ steps: [{ tool: "recycle" }] });
+  });
+});

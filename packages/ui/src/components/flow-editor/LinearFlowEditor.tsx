@@ -21,11 +21,12 @@ import type { ComponentSchema, SchemaFormHost } from "../schema-form";
 import type { FlowSpec, FlowStep, FlowTool } from "./types";
 import { StepRow } from "./StepRow";
 import { AddStepPicker } from "./AddStepPicker";
+import { ParallelGroupRow } from "./ParallelGroupRow";
 
 /** A step's label for the chip strip: its own label, else the tool's name. */
 function stepLabel(step: FlowStep, tools: FlowTool[]): string {
   if (step.label) return step.label;
-  if (step.parallel?.length) return t("Parallel group");
+  if (Array.isArray(step.parallel)) return t("Parallel group");
   const tool = tools.find((tl) => tl.name === step.tool);
   return tool?.display_name || step.tool;
 }
@@ -87,6 +88,23 @@ export function LinearFlowEditor({
     const next = steps.map((s, j) => (j === i ? { ...s, config } : s));
     setSteps(next);
   };
+  const setStep = (i: number, next: FlowStep) =>
+    setSteps(steps.map((s, j) => (j === i ? next : s)));
+  const addParallelGroup = (toolName: string) =>
+    setSteps([...steps, { tool: "", parallel: [{ tool: toolName }] }]);
+
+  /** The add-step / add-parallel-group affordances, shown in both empty and list footers. */
+  const addControls = (
+    <div className="flex flex-wrap gap-2">
+      <AddStepPicker tools={tools} onAdd={addStep} />
+      <AddStepPicker
+        tools={tools}
+        onAdd={addParallelGroup}
+        label={t("Add parallel group")}
+        triggerTestId="add-parallel-group"
+      />
+    </div>
+  );
 
   return (
     <div className="flex h-full min-h-0 flex-col" data-testid="linear-flow-editor">
@@ -205,29 +223,46 @@ export function LinearFlowEditor({
               {t("This flow has no steps yet. Start from a template, or add a step.")}
             </p>
             {!readOnly && templateLibrary}
-            {!readOnly && <AddStepPicker tools={tools} onAdd={addStep} />}
+            {!readOnly && addControls}
           </div>
         ) : (
           <div className="space-y-3">
             <ul className="space-y-2">
-              {steps.map((step, i) => (
-                <StepRow
-                  key={`${step.tool}-${i}`}
-                  step={step}
-                  tool={tools.find((tl) => tl.name === step.tool)}
-                  index={i}
-                  count={steps.length}
-                  schema={onGetSchema?.(step.tool)}
-                  host={host}
-                  readOnly={readOnly}
-                  onConfigChange={(config) => setConfig(i, config)}
-                  onRemove={() => removeStep(i)}
-                  onMoveUp={() => move(i, -1)}
-                  onMoveDown={() => move(i, 1)}
-                />
-              ))}
+              {steps.map((step, i) =>
+                Array.isArray(step.parallel) ? (
+                  <ParallelGroupRow
+                    key={`group-${i}`}
+                    step={step}
+                    index={i}
+                    count={steps.length}
+                    tools={tools}
+                    onGetSchema={onGetSchema}
+                    host={host}
+                    readOnly={readOnly}
+                    onChange={(next) => setStep(i, next)}
+                    onRemove={() => removeStep(i)}
+                    onMoveUp={() => move(i, -1)}
+                    onMoveDown={() => move(i, 1)}
+                  />
+                ) : (
+                  <StepRow
+                    key={`${step.tool}-${i}`}
+                    step={step}
+                    tool={tools.find((tl) => tl.name === step.tool)}
+                    index={i}
+                    count={steps.length}
+                    schema={onGetSchema?.(step.tool)}
+                    host={host}
+                    readOnly={readOnly}
+                    onConfigChange={(config) => setConfig(i, config)}
+                    onRemove={() => removeStep(i)}
+                    onMoveUp={() => move(i, -1)}
+                    onMoveDown={() => move(i, 1)}
+                  />
+                ),
+              )}
             </ul>
-            {!readOnly && <AddStepPicker tools={tools} onAdd={addStep} />}
+            {!readOnly && addControls}
           </div>
         )}
       </div>
