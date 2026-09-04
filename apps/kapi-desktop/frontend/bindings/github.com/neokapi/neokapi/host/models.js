@@ -2119,7 +2119,7 @@ export class UpPlanScope {
         if (!("aiRemaining" in $$source)) {
             /**
              * AIRemaining is the count of counted units left for AI translation after
-             * content-memory leverage and stored drafts — the provider calls a run
+             * content-memory leverage and stored drafts: the provider calls a run
              * makes.
              * @member
              * @type {number}

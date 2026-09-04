@@ -59,7 +59,7 @@ type UpPlanScope struct {
 	// the plan is an upper bound on what a run can spend.
 	Drafts int `json:"drafts,omitempty"`
 	// AIRemaining is the count of counted units left for AI translation after
-	// content-memory leverage and stored drafts — the provider calls a run
+	// content-memory leverage and stored drafts: the provider calls a run
 	// makes.
 	AIRemaining int `json:"aiRemaining"`
 	// Stale is the count of units that HAVE a committed target whose decision
