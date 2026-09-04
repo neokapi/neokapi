@@ -305,6 +305,49 @@ func TestConverge_ParkedDraftsAreRecycledNotRedrafted(t *testing.T) {
 	}
 }
 
+// TestUpPlan_ParkedDraftsAreReuse: `kapi up --plan` on a project whose locales
+// parked with their drafts in the store counts those drafts as reuse rather
+// than as provider work (#2369). A parked draft has no file on disk, so there
+// is no committed translation for the record absorber to read, and the plan
+// judges it at once rather than reporting it as unread.
+func TestUpPlan_ParkedDraftsAreReuse(t *testing.T) {
+	a, cmd, recipe, dir := parkedReviewProject(t)
+	parkedReviewPass(t, a, cmd, recipe)
+
+	proj, err := project.Load(recipe)
+	require.NoError(t, err)
+	plan, err := a.computeProjectPlan(cmd.Context(), proj, recipe)
+	require.NoError(t, err)
+	assert.Zero(t, plan.Totals.UnreadTargets, "a parked draft is not a committed translation the store has yet to read")
+	assert.Equal(t, 8, plan.Totals.Unanswered, "the record stands behind none of the drafts")
+	assert.Equal(t, 8, plan.Totals.Drafts, "and the store answers every one of them")
+	assert.Zero(t, plan.Totals.AIRemaining, "so the pass calls no provider")
+	assert.Zero(t, plan.Totals.TokenEstimate)
+	var text strings.Builder
+	require.NoError(t, plan.FormatText(&text))
+	assert.Contains(t, text.String(), "8 unit(s) served from stored drafts")
+	assert.NotContains(t, text.String(), "not priced")
+
+	// One rewritten string is provider work in every locale; the other three
+	// units of each stay reuse, and the pass that follows agrees.
+	edited := strings.Replace(parkedReviewSource,
+		"When the forecast allows this movement",
+		"When the forecast allows this crossing", 1)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "src", "en.json"), []byte(edited), 0o644))
+	plan, err = a.computeProjectPlan(cmd.Context(), proj, recipe)
+	require.NoError(t, err)
+	assert.Equal(t, 6, plan.Totals.Drafts, "the untouched strings are still answered by the store")
+	assert.Equal(t, 2, plan.Totals.AIRemaining, "the rewritten one is drafted again in each locale")
+	assert.Positive(t, plan.Totals.TokenEstimate)
+
+	_, events := parkedReviewPass(t, a, cmd, recipe)
+	for _, loc := range []string{"nb", "nl"} {
+		ev := parkedProduced(t, events, loc)
+		assert.Equal(t, 1, ev.ViaAI, "%s pays for the unit the plan priced", loc)
+		assert.Equal(t, 3, ev.ViaDraft, "%s serves the units the plan counted as stored drafts", loc)
+	}
+}
+
 // TestConverge_EditedSourceRedraftsOnlyThatUnit is the negative: recycling a
 // stored draft is right only while the source it answers stands. Rewriting one
 // string sends that unit to the provider again and leaves the other three

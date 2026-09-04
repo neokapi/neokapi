@@ -1031,7 +1031,12 @@ export interface UpPlanScope {
   /** Units covered by an exact-hash content-memory hit. The wire name is the
    *  backend's JSON tag, which the rename boundary leaves as it was. */
   tmExact: number;
-  /** Units left for AI translation after content-memory leverage. */
+  /** Units the pass serves from the project store's stored drafts: a
+   *  translation of the same source made under the configuration and context
+   *  the run would use, so no provider call and no tokens. */
+  drafts?: number;
+  /** Units left for AI translation after content-memory leverage and stored
+   *  drafts. */
   aiRemaining: number;
   /** Produced units whose decision blessed source wording that has since
    *  changed: the pass re-drafts them and they return to review. */

@@ -223,11 +223,22 @@ identical pair no approval stands behind, a pair refused for asymmetric inline
 codes) is reported as **unanswered** and priced. It is kept apart from `stale`:
 stale means a decision's basis moved, which also drives the review worklist and
 shipping, and merging the two would make the plan and the run summary disagree.
+Whether the price is a provider call is the drafting step's own question. The
+step serves a stored draft when the project block store holds a translation of
+the same source made under its current configuration fingerprint and the
+governing context in force (`blockstore.TargetOverlay.ReusableFor`), and the
+plan puts that question to a producer built the way a pass builds one
+(`tool.StoredTargetReuser`), so the two answer it from one function. A unit the
+step would serve this way is counted as a **stored draft** at no tokens; a
+parked locale's whole draft set reads this way on the run after the one that
+drafted it.
 The plan judges a produced unit only once the record absorber has read its
 committed target at the bytes on disk (the digest stamps of
 [C-03](c-03-context-store-and-graph.md)); before that the corpus is unfinished,
 its silence means "not asked", and the plan says so rather than quoting either a
-free run or a provider call per translation the run will recycle. What the loop
+free run or a provider call per translation the run will recycle. A produced
+unit with no file on disk is a parked locale's draft, read out of the store;
+nothing is left for the absorber to read, so the plan judges it at once. What the loop
 cannot do is decide, so the re-draft never restores the withdrawn approval: the
 unit returns at its presence baseline, in the review worklist, and the scope
 stays withheld until someone reviews the new pairing.

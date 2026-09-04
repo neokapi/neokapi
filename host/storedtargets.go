@@ -54,15 +54,14 @@ func (a *App) storedTargetBlocks(ctx context.Context, u VerifyUnit) ([]*model.Bl
 	}
 	defer sess.Close()
 
-	rel := blockstore.SourceNamespace(u.ProjectRoot, u.SourcePath)
 	loc := model.LocaleID(u.Locale)
-	kind := "targets/" + u.Locale
 	found := false
 	for _, b := range blocks {
-		if !b.Translatable || b.ID == "" {
+		kind, key, ok := storedTargetKey(u, b)
+		if !ok {
 			continue
 		}
-		o, oerr := sess.GetOverlay(kind, blockstore.StoreKey(rel, b.ID, b.SourceText()))
+		o, oerr := sess.GetOverlay(kind, key)
 		if oerr != nil {
 			// Absence is ordinary pending work; a store that cannot be read is
 			// a fault, and conflating the two reports translations that exist
@@ -91,6 +90,23 @@ func (a *App) storedTargetBlocks(ctx context.Context, u VerifyUnit) ([]*model.Bl
 		b.SourceLocale = model.LocaleID(a.SourceLocale())
 	}
 	return blocks, true, nil
+}
+
+// storedTargetKey names the overlay the store holds for one block of a unit:
+// the `targets/<locale>` kind and the key the producers wrote it under, which
+// is blockstore.OverlayKey as the file runner tags it (the source's project
+// namespace, the block's id). ok is false for a block no producer keys a
+// stored target by, so a reader skips exactly what a writer never wrote.
+//
+// Every read of a stored target derives its key here, so the readers cannot
+// drift from each other, and none of them can drift from the writers without
+// every one of them noticing.
+func storedTargetKey(u VerifyUnit, b *model.Block) (kind, key string, ok bool) {
+	if b == nil || !b.Translatable || b.ID == "" {
+		return "", "", false
+	}
+	rel := blockstore.SourceNamespace(u.ProjectRoot, u.SourcePath)
+	return blockstore.TargetOverlayKind(model.LocaleID(u.Locale)), blockstore.StoreKey(rel, b.ID, b.SourceText()), true
 }
 
 // normalizeStoredTargetStatus grades a stored target at the rung its delivered

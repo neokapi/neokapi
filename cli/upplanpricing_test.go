@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -10,6 +11,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/neokapi/neokapi/host"
+	"github.com/neokapi/neokapi/host/config"
 )
 
 // What a convergence pass spends a provider call on is a unit the project
@@ -91,10 +95,10 @@ func TestUpPlan_PricesWhatTheRunDrafts(t *testing.T) {
 // work. On a project whose store has never read the committed translations it
 // says that, rather than quoting a zero it cannot stand behind.
 //
-// The plan prices those units as provider work, which is the upper bound on
-// what the run can spend. The run itself finds the block store already holding
-// an answer for each and serves them as drafts, so the figures it reports are
-// the same units under a cheaper heading.
+// Once the store holds the first run's drafts, the plan asks the drafting step's
+// own reuse question of each unit and counts the ones it answers as stored
+// drafts, so the run that follows serves exactly those from the store and calls
+// the provider for exactly what the plan priced (#2369).
 func TestUpPlan_DryRunPricesTheRunThatFollows(t *testing.T) {
 	root := writeThreeLocaleProject(t)
 	proj := filepath.Join(root, "kapi.yaml")
@@ -123,25 +127,130 @@ func TestUpPlan_DryRunPricesTheRunThatFollows(t *testing.T) {
 	out, err := runUp(t, first, proj)
 	require.NoError(t, err, out)
 
-	// The record has been read now, so the plan judges every produced unit — and
-	// the units the record declined to pair are the ones the next run drafts.
+	// The record has been read now, so the plan judges every produced unit. The
+	// units the record declined to pair are the ones the next run drafts, and
+	// the store already holds the first run's answer for each, made from this
+	// source under the configuration the run would send now: they are stored
+	// drafts, and none of them is provider work.
 	priced := planJSON(t)
 	assert.Zero(t, priced.Totals.UnreadTargets, "every committed target has been read")
 	assert.Equal(t, 3, priced.Totals.Unanswered,
 		"an identical translation with no approval behind it is drafted, not recycled")
-	assert.Equal(t, 3, priced.Totals.AIRemaining)
-	assert.Positive(t, priced.Totals.TokenEstimate, "priced work carries a token estimate")
-	// The axes partition the work: everything counted is either recycled or drafted.
+	assert.Equal(t, 3, priced.Totals.Drafts, "the store answers each of them")
+	assert.Zero(t, priced.Totals.AIRemaining, "so the run calls no provider for them")
+	assert.Zero(t, priced.Totals.TokenEstimate, "and a stored draft costs no tokens")
+	// The axes partition the work: everything counted is recycled, served from a
+	// stored draft, or drafted.
 	assert.Equal(t,
 		priced.Totals.MissingTarget+priced.Totals.Stale+priced.Totals.Unanswered,
-		priced.Totals.MemoryExact+priced.Totals.AIRemaining)
+		priced.Totals.MemoryExact+priced.Totals.Drafts+priced.Totals.AIRemaining)
 
 	second := demoProviderApp(t)
 	out2, err := runUp(t, second, proj)
 	require.NoError(t, err, out2)
 	_, drafts, ai := runCounts(t, out2)
-	assert.Equal(t, priced.Totals.AIRemaining, drafts+ai,
-		"the dry run counted the units the run that followed it produced: %s", out2)
-	assert.Zero(t, ai,
-		"and the store answered every one of them, so the run called no provider: %s", out2)
+	assert.Equal(t, priced.Totals.Drafts, drafts,
+		"the run served from the store the units the dry run counted as stored drafts: %s", out2)
+	assert.Equal(t, priced.Totals.AIRemaining, ai,
+		"and called the provider for what the dry run priced, which is nothing: %s", out2)
+	assert.Contains(t, out2, "3 drafts · 0 AI", "the run's own header says so before it starts: %s", out2)
+}
+
+// houseVoice is a voice profile at the conventional path, enough to give the
+// project a governing context where it had none.
+const houseVoice = `id: house
+name: House
+tone:
+  formality: formal
+  guidelines: Lead with the fact, then the consequence.
+`
+
+// TestUpPlan_StoredDraftsAreReuseOnlyWhileTheirAnswerStands: the plan asks the
+// drafting step the question it asks at run time, so a stored draft counts as
+// reuse under the configuration and governing context it was made under, and
+// as provider work under any other, and a unit the store has never answered is
+// quoted in full beside the ones it has.
+func TestUpPlan_StoredDraftsAreReuseOnlyWhileTheirAnswerStands(t *testing.T) {
+	root := writeThreeLocaleProject(t)
+	proj := filepath.Join(root, "kapi.yaml")
+
+	// plan reads the structured plan off stdout alone: the seed phase that
+	// precedes a plan reports what it compiled on stderr, and a project that
+	// just gained a voice profile has something to compile.
+	plan := func(t *testing.T, a *App) host.UpPlanScope {
+		t.Helper()
+		cmd := NewUpCmd(a)
+		cmd.SetArgs([]string{"--project", proj, "--plan", "--json"})
+		var out, errOut bytes.Buffer
+		cmd.SetOut(&out)
+		cmd.SetErr(&errOut)
+		require.NoError(t, cmd.Execute(), errOut.String())
+		var p UpPlanOutput
+		require.NoError(t, json.Unmarshal(out.Bytes(), &p), "plan --json must parse: %s", out.String())
+		return p.Totals
+	}
+	run := func(t *testing.T, a *App) (drafts, ai int) {
+		t.Helper()
+		out, err := runUp(t, a, proj, "--no-checks")
+		require.NoError(t, err, out)
+		_, drafts, ai = runCounts(t, out)
+		return drafts, ai
+	}
+	// largeModel pins a model the first run did not use: the same provider, a
+	// different configuration fingerprint.
+	largeModel := func(t *testing.T) *App {
+		t.Helper()
+		a := demoProviderApp(t)
+		a.Config.Set(config.KeyAIModel, "demo-large")
+		return a
+	}
+
+	// The first run drafts the three units the record declines to pair and
+	// leaves its answers in the store.
+	_, ai := run(t, demoProviderApp(t))
+	require.Equal(t, 3, ai)
+
+	// A changed model is a changed configuration: the stored answers were made
+	// under another one, so the plan quotes them again and the run pays.
+	totals := plan(t, largeModel(t))
+	assert.Zero(t, totals.Drafts, "a draft made under another model is not reused")
+	assert.Equal(t, 3, totals.AIRemaining)
+	assert.Positive(t, totals.TokenEstimate)
+	drafts, ai := run(t, largeModel(t))
+	assert.Zero(t, drafts)
+	assert.Equal(t, 3, ai, "the run re-drafts under the new model")
+
+	// That run stored its answers under the new model, so the same
+	// configuration reuses them.
+	totals = plan(t, largeModel(t))
+	assert.Equal(t, 3, totals.Drafts)
+	assert.Zero(t, totals.AIRemaining)
+
+	// A voice profile at the conventional path moves the governing context the
+	// stored answers were made under, whichever model made them.
+	require.NoError(t, os.MkdirAll(filepath.Join(root, ".kapi"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, ".kapi", "voice.yaml"), []byte(houseVoice), 0o644))
+	totals = plan(t, largeModel(t))
+	assert.Zero(t, totals.Drafts, "a draft made under another context is not reused")
+	assert.Equal(t, 3, totals.AIRemaining)
+	drafts, ai = run(t, largeModel(t))
+	assert.Zero(t, drafts)
+	assert.Equal(t, 3, ai, "the run re-drafts under the new context")
+
+	// A fresh unit has no stored answer and is quoted in full.
+	require.NoError(t, os.WriteFile(filepath.Join(root, "en.json"),
+		[]byte(`{"a":"Apple","b":"Compass","c":"Harbour"}`), 0o644))
+	totals = plan(t, largeModel(t))
+	assert.Equal(t, 3, totals.MissingTarget, "the new unit in every locale")
+	assert.Equal(t, 3, totals.AIRemaining, "is provider work")
+	assert.Positive(t, totals.TokenEstimate)
+	assert.Zero(t, totals.Drafts, "nothing stored answers it")
+	_, ai = run(t, largeModel(t))
+	assert.Equal(t, 3, ai, "the run pays for the new unit, as quoted")
+
+	// The run stored the new unit's draft and delivered it, so the next plan
+	// finds nothing left to spend.
+	totals = plan(t, largeModel(t))
+	assert.Zero(t, totals.AIRemaining)
+	assert.Zero(t, totals.TokenEstimate)
 }

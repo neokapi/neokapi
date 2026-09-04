@@ -93,6 +93,23 @@ type AITranslateTool struct {
 // recycled beside the units it recycled from the content memory.
 func (t *AITranslateTool) ReusedTargets() int { return int(t.reused.Load()) }
 
+// ReusesStoredTarget implements tool.StoredTargetReuser: the stored target
+// answers this block when it was made from the same source wording, under the
+// configuration this tool would send now (provider, model, prompt, and the
+// block's own reference material), and under the governing context in force. A
+// changed model, prompt, voice profile or term rule moves the fingerprint, and an
+// edited sentence moves the source stamp; either re-translates rather than
+// serving an answer to a question nobody asked any more.
+//
+// Every store lookup this tool makes goes through here, and so does the plan's,
+// so the reuse question has one answer per block.
+func (t *AITranslateTool) ReusesStoredTarget(ctx context.Context, b *model.Block, stored blockstore.TargetOverlay) bool {
+	if b == nil {
+		return false
+	}
+	return stored.ReusableFor(b.SourceText(), t.cacheFingerprint(ctx, b), t.contextFP)
+}
+
 // applyStored puts a stored target on the block and counts the reuse. The
 // provenance is the AI producer's, because that is who made the translation;
 // the status is the draft rung every producer stamps.
@@ -580,14 +597,11 @@ func (t *AITranslateTool) sessionHandleBlock(
 	cacheFP := t.cacheFingerprint(ctx, block)
 
 	// Serve the stored target when it answers this exact source under this
-	// exact configuration. A changed model, prompt, voice profile or term rule
-	// moves the fingerprint, and an edited sentence moves the source stamp;
-	// either re-translates rather than serving an answer to a question nobody
-	// asked any more.
+	// exact configuration (ReusesStoredTarget).
 	if randomAccess && !t.leavesProducedAlone(block) {
 		if sc, err := sess.GetOverlay(overlayKind, hash); err == nil && len(sc.Payload) > 0 {
 			var cached blockstore.TargetOverlay
-			if err := json.Unmarshal(sc.Payload, &cached); err == nil && cached.ReusableFor(block.SourceText(), cacheFP, t.contextFP) {
+			if err := json.Unmarshal(sc.Payload, &cached); err == nil && t.ReusesStoredTarget(ctx, block, cached) {
 				t.applyStored(block, cached)
 				return nil
 			}
@@ -667,7 +681,7 @@ func (t *AITranslateTool) processBatchedWithSession(
 				if caps.RandomAccess && t.contextPolicy != ContextNeighbours && !t.leavesProducedAlone(block) {
 					if sc, err := sess.GetOverlay(overlayKind, blockstore.OverlayKey(ctx, block.ID, block.SourceText())); err == nil && len(sc.Payload) > 0 {
 						var cached blockstore.TargetOverlay
-						if err := json.Unmarshal(sc.Payload, &cached); err == nil && cached.ReusableFor(block.SourceText(), t.cacheFingerprint(ctx, block), t.contextFP) {
+						if err := json.Unmarshal(sc.Payload, &cached); err == nil && t.ReusesStoredTarget(ctx, block, cached) {
 							t.applyStored(block, cached)
 							select {
 							case out <- part:

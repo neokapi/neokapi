@@ -22,11 +22,12 @@ const driftedPlan: ConvergePlan = {
         collection: "docs",
         missingTarget: 9,
         tmExact: 0,
-        aiRemaining: 9,
-        tokenEstimate: 720,
+        drafts: 5,
+        aiRemaining: 4,
+        tokenEstimate: 320,
       },
     ],
-    totals: { missingTarget: 21, tmExact: 4, aiRemaining: 17, tokenEstimate: 1360 },
+    totals: { missingTarget: 21, tmExact: 4, drafts: 5, aiRemaining: 12, tokenEstimate: 960 },
     note: "content-memory leverage counts exact-hash hits only; token estimate is source chars / 4 for the remaining units (no tokenizer, no provider calls).",
   },
   changedFiles: 3,
@@ -184,14 +185,16 @@ describe("ConvergenceHero", () => {
     );
     await userEvent.click(screen.getByRole("button", { name: "Preview the catch-up plan" }));
 
-    // Per-(collection, locale) rows: missing / content memory-exact / AI-remainder.
+    // Per-(collection, locale) rows: missing / content memory-exact / stored
+    // drafts / AI-remainder.
     const dialog = await screen.findByRole("dialog");
     expect(dialog).toHaveTextContent("docs");
     expect(dialog).toHaveTextContent("12");
     expect(dialog).toHaveTextContent("Memory exact");
+    expect(dialog).toHaveTextContent("Stored drafts");
     expect(dialog).toHaveTextContent("AI work");
     // Total token estimate + the disclosed heuristic note.
-    expect(dialog).toHaveTextContent("1360");
+    expect(dialog).toHaveTextContent("960");
     expect(dialog).toHaveTextContent(/chars \/ 4/);
 
     // Confirm launches the run and closes the dialog.
