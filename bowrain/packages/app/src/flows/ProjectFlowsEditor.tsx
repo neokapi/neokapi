@@ -54,45 +54,70 @@ export function ProjectFlowsEditor({
     [queryClient, flowsKey],
   );
 
-  const [open, setOpen] = useState<OpenFlow | null>(null);
+  const [open, setOpenState] = useState<OpenFlow | null>(null);
   const [saveState, setSaveState] = useState<FlowSaveState>("saved");
   const [saveError, setSaveError] = useState<unknown>(null);
   const [actionError, setActionError] = useState<unknown>(null);
 
-  // The edit waiting to be saved, and its timer. A ref rather than state: the
-  // save runs from a timer or from unmount, neither of which sees a render.
-  const pendingRef = useRef<OpenFlow | null>(null);
-  const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  // The open flow as the surface last knew it, readable from a timer or an
+  // in-flight save, which see no render. Every local change goes through
+  // setOpen so the ref and the state agree.
+  const openRef = useRef<OpenFlow | null>(null);
+  const setOpen = useCallback((next: OpenFlow | null) => {
+    openRef.current = next;
+    setOpenState(next);
+  }, []);
 
-  const persist = useCallback(
-    async (edit: OpenFlow) => {
-      setSaveState("saving");
-      try {
-        const saved = await api.updateFlowDefinition(
-          workspaceSlug,
-          projectId,
-          edit.flow.id,
-          specToDefinition(edit.spec, edit.flow),
-        );
-        setOpen((cur) => (cur && cur.flow.id === saved.id ? { ...cur, flow: saved } : cur));
-        setSaveError(null);
-        setSaveState(pendingRef.current ? "unsaved" : "saved");
-        void invalidate();
-      } catch (e) {
-        setSaveError(e);
-        setSaveState("error");
-      }
+  // Saves run one after another, each sending the flow as it stands when its
+  // turn comes, so a rename and a resting edit never race for the last word.
+  const dirtyRef = useRef(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const chainRef = useRef<Promise<void>>(Promise.resolve());
+
+  const enqueueSave = useCallback(
+    (snapshot: OpenFlow) => {
+      chainRef.current = chainRef.current.then(async () => {
+        // The latest state of the same flow, or the snapshot if another flow
+        // has been opened since.
+        const live = openRef.current;
+        const edit = live && live.flow.id === snapshot.flow.id ? live : snapshot;
+        const current = () => openRef.current?.flow.id === edit.flow.id;
+        if (current()) setSaveState("saving");
+        try {
+          const saved = await api.updateFlowDefinition(
+            workspaceSlug,
+            projectId,
+            edit.flow.id,
+            specToDefinition(edit.spec, edit.flow),
+          );
+          void invalidate();
+          if (!current()) return;
+          const now = openRef.current!;
+          setOpen({
+            ...now,
+            flow: { ...now.flow, created_at: saved.created_at, modified_at: saved.modified_at },
+          });
+          setSaveError(null);
+          setSaveState(dirtyRef.current ? "unsaved" : "saved");
+        } catch (e) {
+          if (!current()) return;
+          dirtyRef.current = true;
+          setSaveError(e);
+          setSaveState("error");
+        }
+      });
     },
-    [api, workspaceSlug, projectId, invalidate],
+    [api, workspaceSlug, projectId, invalidate, setOpen],
   );
 
-  /** Saves the waiting edit now rather than after the pause. */
+  /** Saves a resting edit now rather than after the pause. */
   const flush = useCallback(() => {
     clearTimeout(timerRef.current);
-    const edit = pendingRef.current;
-    pendingRef.current = null;
-    if (edit) void persist(edit);
-  }, [persist]);
+    const cur = openRef.current;
+    if (!dirtyRef.current || !cur) return;
+    dirtyRef.current = false;
+    enqueueSave(cur);
+  }, [enqueueSave]);
 
   // A pause that outlives the surface still saves: leaving the page must not
   // drop the last edit.
@@ -100,17 +125,15 @@ export function ProjectFlowsEditor({
 
   const handleChange = useCallback(
     (spec: LinearFlowSpec) => {
-      setOpen((cur) => {
-        if (!cur || cur.flow.source === "built-in") return cur;
-        const next = { flow: cur.flow, spec };
-        pendingRef.current = next;
-        return next;
-      });
+      const cur = openRef.current;
+      if (!cur || cur.flow.source === "built-in") return;
+      setOpen({ flow: cur.flow, spec });
+      dirtyRef.current = true;
       setSaveState("unsaved");
       clearTimeout(timerRef.current);
       timerRef.current = setTimeout(flush, saveDelayMs);
     },
-    [flush, saveDelayMs],
+    [setOpen, flush, saveDelayMs],
   );
 
   const openFlow = useCallback(
@@ -121,13 +144,13 @@ export function ProjectFlowsEditor({
       setSaveError(null);
       setActionError(null);
     },
-    [flush],
+    [flush, setOpen],
   );
 
   const handleBack = useCallback(() => {
     flush();
     setOpen(null);
-  }, [flush]);
+  }, [flush, setOpen]);
 
   const createFlow = useCallback(
     async (def: FlowDefinitionInfo) => {
@@ -163,47 +186,34 @@ export function ProjectFlowsEditor({
     [createFlow],
   );
 
+  /** The new name applies at once and rides the next save with any resting edit. */
   const handleRename = useCallback(
-    async (name: string) => {
-      const cur = open;
-      if (!cur) return;
+    (name: string) => {
+      const cur = openRef.current;
+      if (!cur || cur.flow.source === "built-in") return;
+      setOpen({ ...cur, flow: { ...cur.flow, name } });
+      dirtyRef.current = true;
       flush();
-      setSaveState("saving");
-      try {
-        const saved = await api.updateFlowDefinition(
-          workspaceSlug,
-          projectId,
-          cur.flow.id,
-          specToDefinition(cur.spec, { ...cur.flow, name }),
-        );
-        setOpen((now) => (now && now.flow.id === saved.id ? { ...now, flow: saved } : now));
-        setSaveError(null);
-        setSaveState("saved");
-        void invalidate();
-      } catch (e) {
-        setSaveError(e);
-        setSaveState("error");
-      }
     },
-    [open, flush, api, workspaceSlug, projectId, invalidate],
+    [setOpen, flush],
   );
 
   const handleDelete = useCallback(
     async (flow: FlowDefinitionInfo) => {
-      if (pendingRef.current?.flow.id === flow.id) {
+      if (openRef.current?.flow.id === flow.id) {
         clearTimeout(timerRef.current);
-        pendingRef.current = null;
+        dirtyRef.current = false;
       }
       try {
         await api.deleteFlowDefinition(workspaceSlug, projectId, flow.id);
-        setOpen((cur) => (cur?.flow.id === flow.id ? null : cur));
+        if (openRef.current?.flow.id === flow.id) setOpen(null);
         setActionError(null);
         void invalidate();
       } catch (e) {
         setActionError(e);
       }
     },
-    [api, workspaceSlug, projectId, invalidate],
+    [api, workspaceSlug, projectId, invalidate, setOpen],
   );
 
   if (open) {
@@ -222,7 +232,7 @@ export function ProjectFlowsEditor({
           saveError={saveError}
           onBack={handleBack}
           onChange={handleChange}
-          onRename={(name) => void handleRename(name)}
+          onRename={handleRename}
           onCopy={readOnly ? () => void handleCopy(open.flow) : undefined}
           onDelete={readOnly ? undefined : () => void handleDelete(open.flow)}
         />

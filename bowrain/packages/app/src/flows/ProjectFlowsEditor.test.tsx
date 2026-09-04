@@ -151,6 +151,27 @@ describe("ProjectFlowsEditor editing", () => {
     expect(await screen.findByRole("heading", { name: "Review twice" })).toBeInTheDocument();
   });
 
+  it("carries a resting edit and a rename in one save, in order", async () => {
+    const { user, spies } = setup({}, 60_000);
+    await user.click(await screen.findByText("Translate and review"));
+    await screen.findByTestId("linear-flow-editor");
+    await user.click(screen.getByTestId("add-step"));
+    await user.click(screen.getByRole("button", { name: /Quality Check/ }));
+    expect(spies.update).not.toHaveBeenCalled();
+
+    await user.click(screen.getByLabelText("Rename flow"));
+    const input = screen.getByLabelText("Flow name");
+    await user.clear(input);
+    await user.type(input, "Review twice");
+    await user.click(screen.getByLabelText("Save"));
+
+    await waitFor(() => expect(screen.getByTestId("flow-save-state")).toHaveTextContent("Saved"));
+    expect(spies.update).toHaveBeenCalledTimes(1);
+    const def = spies.update.mock.calls[0][3];
+    expect(def.name).toBe("Review twice");
+    expect(def.nodes.map((n) => n.name)).toEqual(["translate", "qa", "term-check", "qa"]);
+  });
+
   it("copies a built-in flow into the project and opens the copy", async () => {
     const { user, spies } = setup();
     await user.click(await screen.findByText("Memory Reuse"));
