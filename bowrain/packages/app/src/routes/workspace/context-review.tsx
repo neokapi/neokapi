@@ -15,6 +15,7 @@ import {
   useVoiceDrift,
   useVoiceProfile,
   useProjects,
+  PageHeader,
 } from "@neokapi/ui";
 import type { CandidateRule, BlastRadius } from "@neokapi/ui";
 import type { WorkspaceRouteContext } from "..";
@@ -86,14 +87,10 @@ export function ContextReviewRoute() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-4 p-6">
-      <header className="space-y-1">
-        <h1 className="text-xl font-semibold">Review suggested rules</h1>
-        <p className="text-sm text-muted-foreground">
-          Voice checks act like tests for AI output. Repeated corrections become candidate rules.
-          Promote one to harden it into a check on every future generation, or reject it to stop it
-          re-surfacing.
-        </p>
-      </header>
+      <PageHeader
+        title="Review suggested rules"
+        subtitle="Voice checks act like tests for AI output. Repeated corrections become candidate rules. Promote one to harden it into a check on every future generation, or reject it to stop it re-surfacing."
+      />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <label className="flex items-center gap-2 text-sm">

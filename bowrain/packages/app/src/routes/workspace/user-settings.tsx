@@ -6,6 +6,7 @@ import {
   CardHeader,
   CardTitle,
   NotificationSettings,
+  PageHeader,
   Select,
   SelectContent,
   SelectItem,
@@ -141,12 +142,10 @@ export function UserSettingsRoute() {
 
   return (
     <div className="mx-auto w-full max-w-xl space-y-6 py-4">
-      <div>
-        <h1 className="text-lg font-semibold">User Settings</h1>
-        <p className="text-sm text-muted-foreground">
-          Profile, handle, and notification preferences for your Bowrain account.
-        </p>
-      </div>
+      <PageHeader
+        title="User Settings"
+        subtitle="Profile, handle, and notification preferences for your Bowrain account."
+      />
 
       <ProfileEmailCard />
       <ProfileHandleCard />

@@ -98,6 +98,8 @@ export {
   SelectContent,
   SelectItem,
   Markdown,
+  PageHeader,
+  SectionHeading,
   Separator,
   Sheet,
   SheetTrigger,

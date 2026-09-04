@@ -4,6 +4,7 @@ import {
   ContextScanProgress,
   ContextScanReview,
   DashboardSkeleton,
+  PageHeader,
   useApi,
   useContextScanJob,
 } from "@neokapi/ui";
@@ -70,14 +71,10 @@ export function ContextScanJobRoute() {
   if (job.status === "completed" && job.draft) {
     return (
       <div className="max-w-6xl mx-auto space-y-6">
-        <div>
-          <h1 className="text-lg font-semibold">Review your draft</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Every field shows the model&rsquo;s confidence and the evidence it rests on. Adjust
-            anything, test it on sample copy, then approve to create the profile and the selected
-            terms.
-          </p>
-        </div>
+        <PageHeader
+          title="Review your draft"
+          subtitle="Every field shows the model's confidence and the evidence it rests on. Adjust anything, test it on sample copy, then approve to create the profile and the selected terms."
+        />
         <ContextScanReview
           draft={job.draft}
           onApproved={handleApproved}
