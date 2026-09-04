@@ -6,16 +6,17 @@
  *
  * Semantic tokens (background/foreground/primary/…) follow the shadcn contract
  * used by @neokapi/ui, plus a --prism-1..5 ramp for the restrained rainbow
- * accent. The "Rainlight" :root/.dark values come from the canonical
- * packages/ui/src/styles/theme-colors.css imported above; the @theme inline
- * block below maps the subset this page uses onto Tailwind's --color-* tokens.
+ * accent. The "Rainlight" :root/.dark values and the brand faces come from the
+ * canonical packages/ui/src/styles/theme-colors.css imported above; the @theme
+ * inline block below maps the subset this page uses onto Tailwind's --color-*
+ * and --font-* tokens.
  * Light is the default mode; .dark on <html> switches.
  */
 
 @theme inline {
-  --font-sans: "Inter Variable", "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Fraunces Variable", "Fraunces", ui-serif, Georgia, serif;
-  --font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, monospace;
+  --font-sans: var(--brand-font-sans);
+  --font-display: var(--brand-font-display);
+  --font-mono: var(--brand-font-mono);
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);

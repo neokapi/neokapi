@@ -1,53 +1,24 @@
 /*
  * Diagram kit (`kdx-` = kapi diagram) — a uniform, theme-aware SVG visual
  * language for the docs. One SVG renders in both light and dark: every color is
- * a CSS custom property declared on `.kdx` and overridden under
- * `[data-theme="dark"]`, and every element picks its color through a class
- * rather than a hardcoded `fill`/`stroke` attribute. The palette mirrors the
- * landing-page pipeline (teal/cyan/amber/green) and the Infima brand primary
- * (#2e8555 light · #25c2a0 dark), so the docs and the marketing site read as one
- * system.
+ * a CSS custom property, and every element picks its color through a class
+ * rather than a hardcoded `fill`/`stroke` attribute.
+ *
+ * The values come from `palette.generated.css`, which the build computes from
+ * the brand tokens in @neokapi/ui-primitives. Each role takes a hue from the
+ * shared semantic tokens, so a translator box is the language hue on every
+ * surface that draws one. A documentation site that ships a different brand
+ * declares the same properties at a higher specificity and the drawing follows
+ * it; see packages/docs-palette.
  *
  * SSR-safe: pure SVG + CSS, no browser APIs. Motion is opt-in (the hero) and
  * fully suppressed under `prefers-reduced-motion`.
  */
 
+@import "./palette.generated.css";
+
 .kdx {
-  /* surfaces & ink */
-  --kdx-surface: #ffffff;
-  --kdx-surface-2: #f3f6f5;
-  --kdx-border: #d3ddd9;
-  --kdx-ink: #1c1e21;
-  --kdx-muted: #5d6b66;
-  --kdx-channel: #b9c7c1;
-
-  /* role accents (light) */
-  --kdx-io: #2e8555; /* readers & writers (brand primary) */
-  --kdx-annotate: #6d5ae6; /* annotators — overlays (indigo) */
-  --kdx-translate: #0e9aab; /* translators — targets (cyan) */
-  --kdx-check: #b45309; /* checks / enforce (amber) */
-  --kdx-resource: #0e7490; /* Memory / terms */
-  --kdx-plugin: #7c3aed; /* plugin system / gRPC */
-  --kdx-file: #2e8555; /* file chips */
-
   margin: 1.5rem 0;
-}
-
-[data-theme="dark"] .kdx {
-  --kdx-surface: #0f1f1b;
-  --kdx-surface-2: #0a1614;
-  --kdx-border: #1e3a32;
-  --kdx-ink: #f3f7f6;
-  --kdx-muted: #93a3ad;
-  --kdx-channel: #274b40;
-
-  --kdx-io: #25c2a0;
-  --kdx-annotate: #8b87f7;
-  --kdx-translate: #22c8df;
-  --kdx-check: #f59e0b;
-  --kdx-resource: #2bd4ee;
-  --kdx-plugin: #a78bfa;
-  --kdx-file: #7aebd4;
 }
 
 /* Horizontal scroll on narrow screens; the SVG keeps its aspect ratio. */

@@ -1,0 +1,41 @@
+/*
+ * Default colours for the shared documentation diagram kit.
+ *
+ * GENERATED FILE, DO NOT EDIT. Computed from packages/ui/src/styles/kapi-colors.css
+ * by packages/docs-palette. Run `make generate-docs-palette` after editing that palette;
+ * `make check-docs-palette` fails on a stale copy.
+ */
+
+.kdx {
+  --kdx-annotate: #724aab;
+  --kdx-border: #dde2e6;
+  --kdx-channel: #afb3b8;
+  --kdx-check: #8a5600;
+  --kdx-file: #0065b0;
+  --kdx-ink: #23272b;
+  --kdx-io: #0065b0;
+  --kdx-mono: "JetBrains Mono Variable", "JetBrains Mono", "SF Mono", ui-monospace, monospace;
+  --kdx-muted: #646b73;
+  --kdx-plugin: #a73447;
+  --kdx-resource: #007835;
+  --kdx-surface: #fcfdff;
+  --kdx-surface-2: #e8ebef;
+  --kdx-translate: #007272;
+}
+
+.dark .kdx,
+[data-theme="dark"] .kdx {
+  --kdx-annotate: #c4a4fe;
+  --kdx-border: #2a2e33;
+  --kdx-channel: #494e52;
+  --kdx-check: #eca851;
+  --kdx-file: #7cbdff;
+  --kdx-ink: #e1e5ea;
+  --kdx-io: #7cbdff;
+  --kdx-muted: #878f97;
+  --kdx-plugin: #ff939c;
+  --kdx-resource: #7ace87;
+  --kdx-surface: #191d22;
+  --kdx-surface-2: #23272b;
+  --kdx-translate: #1ad1d1;
+}

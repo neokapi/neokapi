@@ -244,7 +244,7 @@ vet: ## Run go vet (all modules)
 	@$(MAKE) --no-print-directory _fw-vet
 	@$(MAKE) -C bowrain vet
 
-lint: check-abs-paths check-em-dashes check-eval-publishable check-local-actions check-deploy-paths check-vocabulary check-desktop-interchange check-vocab-packs check-comment-history check-reference-provenance check-run-projection check-walk-selectors check-locale-display check-sidebar-ids check-package-licenses check-archive-licenses check-plugin-licenses check-plugin-release-latest check-tracked-binaries check-extract-fixtures check-gofmt ## Run golangci-lint (all modules) + repo hygiene guards
+lint: check-abs-paths check-em-dashes check-docs-palette check-eval-publishable check-local-actions check-deploy-paths check-vocabulary check-desktop-interchange check-vocab-packs check-comment-history check-reference-provenance check-run-projection check-walk-selectors check-locale-display check-sidebar-ids check-package-licenses check-archive-licenses check-plugin-licenses check-plugin-release-latest check-tracked-binaries check-extract-fixtures check-gofmt ## Run golangci-lint (all modules) + repo hygiene guards
 	@$(MAKE) --no-print-directory _fw-lint
 	@$(MAKE) -C bowrain lint
 
@@ -2751,6 +2751,18 @@ generate-translatability: ## Generate the W3C translatability table for the Go r
 check-translatability: ## Drift gate: fail if core/translatability/data/w3c.json is stale vs. the TypeScript table
 	node --no-warnings --experimental-strip-types scripts/gen-translatability.ts -check
 
+# Both documentation sites and the shared diagram kit paint from one brand
+# palette each, in OKLCH, under packages/ui/src/styles. Docusaurus wants sRGB
+# hex, so the bridge is computed rather than hand-kept: three parallel
+# encodings of one blue is how a site ends up shipping the starter theme's
+# green. The generator links nothing from node_modules, so CI runs it without
+# an install.
+generate-docs-palette: ## Generate the Docusaurus + diagram-kit palettes from the canonical brand tokens
+	node --no-warnings --experimental-strip-types packages/docs-palette/cli/gen-docs-palette.ts
+
+check-docs-palette: ## Drift gate: fail if a committed docs palette is stale vs. its brand tokens
+	node --no-warnings --experimental-strip-types packages/docs-palette/cli/gen-docs-palette.ts -check
+
 generate-reference-pages: i18n-catalogs ## Generate static per-entry reference MDX pages (R4, #673) → web/docs/reference/{commands,formats,tools}
 	cd web && node --no-warnings --experimental-strip-types scripts/gen-reference-pages.ts
 
@@ -3076,6 +3088,7 @@ help: ## Show this help
         generate-format-docs generate-reference-docs check-reference-docs check-reference-prose generate-reference-pages \
         generate-contract-types check-contract-types \
         generate-translatability check-translatability \
+        generate-docs-palette check-docs-palette \
         docs-deps docs-dev docs-wasm docs-build docs-serve docs-verify-snippets \
         kbf-smoke kpz-smoke kpz-wasm-smoke wasm-surface-smoke \
         landing-build landing-build-nb docs-build-prod bowrain-docs-build-prod publish-landing publish-website \

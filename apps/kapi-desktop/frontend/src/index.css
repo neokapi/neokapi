@@ -2,10 +2,11 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@neokapi/ui-primitives/styles/theme-tokens.css";
-/* The judgement colours and coordinate-axis hues are shared with the Bowrain
- * platform, so they come from one file rather than from the Kapi Blue palette
- * below. See packages/ui/docs/judgement-colours.md. */
-@import "@neokapi/ui-primitives/styles/semantic-colors.css";
+/* The "Kapi Blue" palette, and through it the judgement colours and
+ * coordinate-axis hues shared with the Bowrain platform. Both live in
+ * @neokapi/ui-primitives so the documentation site and the diagram kit can be
+ * generated from the same values. See packages/ui/docs/judgement-colours.md. */
+@import "@neokapi/ui-primitives/styles/kapi-colors.css";
 @import "@neokapi/flow-editor/styles/sources.css";
 @import "@neokapi/concept-ui/styles/sources.css";
 @import "@neokapi/context-explorer/styles/sources.css";
@@ -28,85 +29,6 @@
 }
 
 @custom-variant dark (&:is(.dark *));
-
-/*
- * Kapi Desktop — "Kapi Blue" theme
- * Warm grays (not black), blue primary, pleasant and approachable.
- * Inspired by Mantine default palette + Claude Code warmth.
- */
-
-:root {
-  --background: oklch(0.965 0.004 250); /* warm light gray, slight blue tint */
-  --foreground: oklch(0.27 0.01 250); /* dark blue-gray, not pure black */
-  --card: oklch(0.995 0.002 250); /* near-white with warmth */
-  --card-foreground: oklch(0.27 0.01 250);
-  --popover: oklch(0.995 0.002 250);
-  --popover-foreground: oklch(0.27 0.01 250);
-  --primary: oklch(0.58 0.16 250); /* Mantine-style blue */
-  --primary-foreground: oklch(0.99 0 0); /* white on blue */
-  --secondary: oklch(0.95 0.008 250); /* light blue-gray */
-  --secondary-foreground: oklch(0.35 0.015 250);
-  --muted: oklch(0.94 0.006 250); /* subtle blue-gray */
-  --muted-foreground: oklch(0.55 0.015 250); /* medium gray-blue */
-  --accent: oklch(0.92 0.025 250); /* soft blue highlight */
-  --accent-foreground: oklch(0.27 0.01 250);
-  --destructive: oklch(0.58 0.2 25); /* warm red */
-  --destructive-foreground: oklch(0.99 0 0);
-  --border: oklch(0.91 0.008 250); /* soft gray border */
-  --input: oklch(0.91 0.008 250);
-  --ring: oklch(0.58 0.16 250); /* matches primary */
-
-  --chart-1: oklch(0.58 0.16 250); /* blue */
-  --chart-2: oklch(0.65 0.15 160); /* teal */
-  --chart-3: oklch(0.65 0.15 300); /* purple */
-  --chart-4: oklch(0.7 0.15 75); /* amber */
-  --chart-5: oklch(0.6 0.18 25); /* rose */
-  --sidebar: oklch(0.955 0.006 250); /* slightly darker than bg */
-  --sidebar-foreground: oklch(0.27 0.01 250);
-  --sidebar-primary: oklch(0.58 0.16 250);
-  --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent: oklch(0.92 0.025 250);
-  --sidebar-accent-foreground: oklch(0.27 0.01 250);
-  --sidebar-border: oklch(0.91 0.008 250);
-  --sidebar-ring: oklch(0.58 0.16 250);
-  --radius: 0.5rem;
-}
-
-.dark {
-  --background: oklch(0.205 0.008 250); /* warm dark gray, not pure black */
-  --foreground: oklch(0.92 0.008 250); /* soft off-white */
-  --card: oklch(0.23 0.01 250); /* slightly lighter surface */
-  --card-foreground: oklch(0.92 0.008 250);
-  --popover: oklch(0.23 0.01 250);
-  --popover-foreground: oklch(0.92 0.008 250);
-  --primary: oklch(0.65 0.16 250); /* brighter blue for dark bg */
-  --primary-foreground: oklch(0.99 0 0);
-  --secondary: oklch(0.27 0.01 250); /* subtle elevation */
-  --secondary-foreground: oklch(0.78 0.012 250);
-  --muted: oklch(0.27 0.01 250);
-  --muted-foreground: oklch(0.6 0.015 250);
-  --accent: oklch(0.3 0.02 250); /* soft blue tint */
-  --accent-foreground: oklch(0.92 0.008 250);
-  --destructive: oklch(0.6 0.19 25);
-  --destructive-foreground: oklch(0.99 0 0);
-  --border: oklch(0.3 0.01 250); /* subtle border */
-  --input: oklch(0.3 0.01 250);
-  --ring: oklch(0.65 0.16 250);
-
-  --chart-1: oklch(0.65 0.16 250);
-  --chart-2: oklch(0.65 0.15 160);
-  --chart-3: oklch(0.65 0.15 300);
-  --chart-4: oklch(0.7 0.15 75);
-  --chart-5: oklch(0.6 0.18 25);
-  --sidebar: oklch(0.195 0.007 250); /* slightly darker than bg */
-  --sidebar-foreground: oklch(0.92 0.008 250);
-  --sidebar-primary: oklch(0.65 0.16 250);
-  --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent: oklch(0.3 0.02 250);
-  --sidebar-accent-foreground: oklch(0.92 0.008 250);
-  --sidebar-border: oklch(0.3 0.01 250);
-  --sidebar-ring: oklch(0.65 0.16 250);
-}
 
 /* Resource browser — pill/badge lightness for dark mode */
 :root {
@@ -187,10 +109,8 @@
 
 /* ── Brand-specific fonts and tracking ───────────────────── */
 @theme inline {
-  --font-sans:
-    "Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
-    sans-serif;
-  --font-mono: "JetBrains Mono Variable", "JetBrains Mono", "SF Mono", ui-monospace, monospace;
+  --font-sans: var(--brand-font-sans);
+  --font-mono: var(--brand-font-mono);
   --tracking-normal: -0.011em;
 }
 
