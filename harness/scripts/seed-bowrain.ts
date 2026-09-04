@@ -101,12 +101,19 @@ async function jpost<T>(p: string, body: unknown, token: string): Promise<T> {
   return (await r.json()) as T;
 }
 
-/** Best-effort POST — used for Memory/terms whose duplicates are visually harmless. */
+/**
+ * Best-effort POST for content memory and terms, whose duplicates on a re-run
+ * are visually harmless. A 404 is never a duplicate: it means the script posts
+ * to a route the server no longer serves, and it fails the seed rather than
+ * leaving a card empty in the recording.
+ */
 async function jpostSoft(p: string, body: unknown, token: string): Promise<void> {
   try {
     await jpost(p, body, token);
   } catch (e) {
-    console.error(`  (skipped ${p}: ${(e as Error).message})`);
+    const message = (e as Error).message;
+    if (/ → 404:/.test(message)) throw new Error(`route not served: ${message}`);
+    console.error(`  (skipped ${p}: ${message})`);
   }
 }
 
@@ -350,33 +357,37 @@ const MEMORY_ENTRIES = [
   { source: "Our Team", target: "Unser Team", source_locale: "en", target_locale: "de" },
 ];
 
+// Workspace terms are concepts (POST /:ws/concepts, server/handlers_concepts.go).
+// The direct route creates a term `approved` or `deprecated`; `preferred` and
+// `forbidden` are governed statuses it refuses with a 409, because they travel
+// through a reviewed change-set.
 const CONCEPTS = [
   {
     domain: "cloud",
     definition: "Managed, multi-tenant compute and storage delivered over the network.",
     terms: [
-      { text: "cloud infrastructure", locale: "en", status: "preferred" },
-      { text: "infrastructure cloud", locale: "fr", status: "preferred" },
-      { text: "Cloud-Infrastruktur", locale: "de", status: "preferred" },
+      { text: "cloud infrastructure", locale: "en", status: "approved" },
+      { text: "infrastructure cloud", locale: "fr", status: "approved" },
+      { text: "Cloud-Infrastruktur", locale: "de", status: "approved" },
     ],
   },
   {
     domain: "reliability",
     definition: "The proportion of time a service is operational and reachable.",
     terms: [
-      { text: "uptime", locale: "en", status: "preferred" },
-      { text: "disponibilité", locale: "fr", status: "preferred" },
-      { text: "Verfügbarkeit", locale: "de", status: "preferred" },
+      { text: "uptime", locale: "en", status: "approved" },
+      { text: "disponibilité", locale: "fr", status: "approved" },
+      { text: "Verfügbarkeit", locale: "de", status: "approved" },
     ],
   },
   {
     domain: "security",
     definition: "Protecting data so only authorised parties can read it, end to end.",
     terms: [
-      { text: "encryption", locale: "en", status: "preferred" },
-      { text: "chiffrement", locale: "fr", status: "preferred" },
+      { text: "encryption", locale: "en", status: "approved" },
+      { text: "chiffrement", locale: "fr", status: "approved" },
       { text: "cryptage", locale: "fr", status: "deprecated" },
-      { text: "Verschlüsselung", locale: "de", status: "preferred" },
+      { text: "Verschlüsselung", locale: "de", status: "approved" },
     ],
   },
 ];
@@ -446,7 +457,7 @@ async function main(): Promise<void> {
   for (const e of MEMORY_ENTRIES)
     await jpostSoft(`/${ws}/translation-memory`, { ...e, project_id: projectId }, aliceToken);
   for (const c of CONCEPTS)
-    await jpostSoft(`/${ws}/terms`, { ...c, project_id: projectId }, aliceToken);
+    await jpostSoft(`/${ws}/concepts`, { ...c, project_id: projectId }, aliceToken);
 
   // Bob joins (collaboration walk).
   const joined = await ensureMember(ws, aliceToken, bobToken);
