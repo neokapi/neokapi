@@ -1154,15 +1154,12 @@ func itemFormatName(item *project.ContentItem) string {
 	return project.ResolveFormat(item.Format.Name)
 }
 
-// projectItemFor returns the recipe content item whose glob claims inputPath —
-// the item whose `format.config` says which leaves of that file are content and
-// how the writer serializes them. The walk is the recipe's own first-match
-// order, the same one target resolution uses, so a file cannot be read under one
+// projectItemFor returns the recipe content item that claims inputPath — the
+// item whose `format.config` says which leaves of that file are content and
+// how the writer serializes them. The claim is project.KapiProject.ItemForPath,
+// the same rule content resolution applies, so a file cannot be read under one
 // item's rules and written under another's. nil when no recipe is in scope, the
 // input lies outside the project root, or no item claims it.
-//
-// An item with no `target:` still governs its own reading, so — unlike
-// projectItemTargetPath — a missing target is not a reason to skip it.
 func (a *App) projectItemFor(inputPath string) *project.ContentItem {
 	if a.ProjectContext == nil || a.ProjectContext.Project == nil {
 		return nil
@@ -1171,48 +1168,32 @@ func (a *App) projectItemFor(inputPath string) *project.ContentItem {
 	if !ok {
 		return nil
 	}
-	for _, coll := range a.ProjectContext.Project.Collections {
-		for _, item := range coll.EffectiveItems() {
-			if item.Path == "" || !project.MatchGlob(item.Path, relSlash) {
-				continue
-			}
-			matched := item
-			return &matched
-		}
+	item, _, ok := a.ProjectContext.Project.ItemForPath(relSlash)
+	if !ok {
+		return nil
 	}
-	return nil
+	return &item
 }
 
-// projectItemTargetPath resolves inputPath to its output path via the matched
-// project content item's target template, using the one core resolver
-// (project.ResolveTargetPath). Mirrors the desktop runner's resolution. Returns
-// ("", false) when no kapi project is in scope, the input is outside the
-// project root, or no content item with a target matches it.
+// projectItemTargetPath resolves inputPath to its output path via the claiming
+// content item's target template, using the one core resolver
+// (project.ResolveTargetPath). Returns ("", false) when no kapi project is in
+// scope, the input is outside the project root, no item claims it, or the
+// claiming item declares no target: a file listed under a source-only item
+// before a targeted glob is source-only, and the glob's target is never
+// borrowed for it.
 func (a *App) projectItemTargetPath(inputPath, lang string) (string, bool) {
-	if a.ProjectContext == nil || a.ProjectContext.Project == nil {
+	item := a.projectItemFor(inputPath)
+	if item == nil || item.Target == "" {
 		return "", false
 	}
 	root := a.ProjectContext.ProjectDir
-	relSlash, ok := projectRelPath(root, inputPath)
-	if !ok {
-		return "", false
+	relSlash, _ := projectRelPath(root, inputPath)
+	out := project.ResolveTargetPath(item.Path, item.Base, item.Target, relSlash, lang)
+	if !filepath.IsAbs(out) {
+		out = filepath.Join(root, out)
 	}
-	for _, coll := range a.ProjectContext.Project.Collections {
-		for _, item := range coll.EffectiveItems() {
-			if item.Path == "" || item.Target == "" {
-				continue
-			}
-			if !project.MatchGlob(item.Path, relSlash) {
-				continue
-			}
-			out := project.ResolveTargetPath(item.Path, item.Base, item.Target, relSlash, lang)
-			if !filepath.IsAbs(out) {
-				out = filepath.Join(root, out)
-			}
-			return out, true
-		}
-	}
-	return "", false
+	return out, true
 }
 
 // expandAdhocOutputTemplate expands an explicit -o template/path for one input

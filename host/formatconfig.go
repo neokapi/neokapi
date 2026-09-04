@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/bmatcuk/doublestar/v4"
-
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/preset"
 	"github.com/neokapi/neokapi/core/project"
@@ -76,20 +74,15 @@ func mergedFormatConfig(proj *project.KapiProject, formatName string, item *proj
 }
 
 // formatConfigForSource resolves the merged format config for a source file
-// by matching it against the project's content items (doublestar, like
-// content resolution). Used by merge, where only the relative source path —
-// not the resolved item — survives in the extraction manifest.
+// through the content item that claims it (project.KapiProject.ItemForPath,
+// the rule content resolution applies). Used by merge, where only the relative
+// source path, and no resolved item, survives in the extraction manifest.
 func formatConfigForSource(proj *project.KapiProject, formatName, relSource string) map[string]any {
 	if proj == nil {
 		return nil
 	}
-	for _, coll := range proj.Collections {
-		for _, item := range coll.EffectiveItems() {
-			if ok, _ := doublestar.Match(item.Path, relSource); ok {
-				itemCopy := item
-				return mergedFormatConfig(proj, formatName, &itemCopy)
-			}
-		}
+	if item, _, ok := proj.ItemForPath(relSource); ok {
+		return mergedFormatConfig(proj, formatName, &item)
 	}
 	return mergedFormatConfig(proj, formatName, nil)
 }

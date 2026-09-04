@@ -33,10 +33,12 @@ type OutputFileInfo struct {
 // relative to the project root, so the frontend can render outputs as child
 // rows beneath the source that produces them.
 //
-// Output paths come from the shared resolver (project.ResolveTargetPath) — the
-// same one the flow runner, merge, and the CLI use — so the desktop, CLI, and
-// `kapi merge` agree exactly, and source globs honour doublestar (`**`, `{a,b}`)
-// via project.ExpandGlob.
+// Sources come from the one content resolver (ProjectContext.ResolveContent),
+// so a file claimed by an earlier item is listed under that item's target
+// alone, and a pattern that cannot be expanded fails the listing rather than
+// shortening it. Output paths come from the shared resolver
+// (project.ResolveTargetPath), the same one the flow runner, merge, and the
+// CLI use, so the desktop, CLI, and `kapi merge` agree exactly.
 func (a *App) ListOutputs(tabID string) (map[string][]OutputFileInfo, error) {
 	op := a.getOpenProject(tabID)
 	if op == nil || op.Path == "" {
@@ -46,67 +48,57 @@ func (a *App) ListOutputs(tabID string) (map[string][]OutputFileInfo, error) {
 	ctx := project.NewProjectContext(op.Project, op.Path)
 	defaults := op.Project.Defaults
 
-	out := make(map[string][]OutputFileInfo)
-	for ci := range op.Project.Collections {
-		coll := &op.Project.Collections[ci]
-		for _, item := range coll.EffectiveItems() {
-			if item.Target == "" || item.Path == "" {
-				continue
-			}
-			langs := item.ResolvedTargetLanguages(coll, defaults)
-			if len(langs) == 0 {
-				continue
-			}
-			// A pattern that cannot be expanded used to drop the whole item, so
-			// the outputs panel listed fewer target files than the recipe
-			// declares and read as "these are all the outputs" — item 2's shape
-			// in the desktop.
-			matches, err := project.ExpandGlob(basePath, item.Path, defaults.Exclude...)
-			if err != nil {
-				return nil, fmt.Errorf("content pattern %q cannot be expanded, so its outputs cannot be listed. Fix the pattern in the recipe: %w", item.Path, err)
-			}
-			ofiFor := func(lang, sourceRel string) OutputFileInfo {
-				outRel := project.ResolveTargetPath(item.Path, item.Base, item.Target, sourceRel, lang)
-				outPath := filepath.Join(basePath, outRel)
-				ofi := OutputFileInfo{
-					Lang:     lang,
-					Path:     outPath,
-					Relative: filepath.ToSlash(outRel),
-					Format:   ctx.DetectFormat(a.formatReg, outPath),
-				}
-				if st, err := os.Stat(outPath); err == nil && !st.IsDir() {
-					ofi.Exists = true
-					ofi.Size = st.Size()
-					ofi.ModTime = st.ModTime().UTC().Format("2006-01-02T15:04:05Z07:00")
-				}
-				return ofi
-			}
-			for _, m := range matches {
-				rel := filepath.ToSlash(m)
-				if info, err := os.Stat(filepath.Join(basePath, m)); err != nil || info.IsDir() {
-					continue
-				}
+	resolved, err := ctx.ResolveContent(a.formatReg)
+	if err != nil {
+		return nil, fmt.Errorf("list outputs: %w", err)
+	}
 
-				seen := make(map[string]bool)
-				// Declared target languages — shown even when not yet generated,
-				// so the source advertises the outputs a run will produce.
-				for _, lang := range langs {
-					ls := string(lang)
-					out[rel] = append(out[rel], ofiFor(ls, rel))
-					seen[ls] = true
-				}
-				// Discover already-generated outputs for any *other* language too
-				// (e.g. a pseudo-translate run wrote output/qps/* though qps isn't a
-				// declared target), so they appear under their source instead of
-				// being dumped into "Other files".
-				for _, lang := range discoverOutputLangs(basePath, item, rel) {
-					if seen[lang] {
-						continue
-					}
-					out[rel] = append(out[rel], ofiFor(lang, rel))
-					seen[lang] = true
-				}
+	out := make(map[string][]OutputFileInfo)
+	for _, rf := range resolved {
+		if rf.Item == nil || rf.Item.Target == "" {
+			continue
+		}
+		item := *rf.Item
+		// EffectiveItems folded the collection's languages into the item.
+		langs := item.ResolvedTargetLanguages(nil, defaults)
+		if len(langs) == 0 {
+			continue
+		}
+		rel := filepath.ToSlash(rf.Relative)
+		ofiFor := func(lang string) OutputFileInfo {
+			outRel := project.ResolveTargetPath(item.Path, item.Base, item.Target, rel, lang)
+			outPath := filepath.Join(basePath, outRel)
+			ofi := OutputFileInfo{
+				Lang:     lang,
+				Path:     outPath,
+				Relative: filepath.ToSlash(outRel),
+				Format:   ctx.DetectFormat(a.formatReg, outPath),
 			}
+			if st, err := os.Stat(outPath); err == nil && !st.IsDir() {
+				ofi.Exists = true
+				ofi.Size = st.Size()
+				ofi.ModTime = st.ModTime().UTC().Format("2006-01-02T15:04:05Z07:00")
+			}
+			return ofi
+		}
+
+		seen := make(map[string]bool)
+		// Declared target languages are shown even when not yet generated, so
+		// the source advertises the outputs a run will produce.
+		for _, lang := range langs {
+			ls := string(lang)
+			out[rel] = append(out[rel], ofiFor(ls))
+			seen[ls] = true
+		}
+		// Already-generated outputs for any other language appear under their
+		// source too (a pseudo-translate run writes output/qps/* though qps is
+		// not a declared target) rather than under "Other files".
+		for _, lang := range discoverOutputLangs(basePath, item, rel) {
+			if seen[lang] {
+				continue
+			}
+			out[rel] = append(out[rel], ofiFor(lang))
+			seen[lang] = true
 		}
 	}
 	return out, nil

@@ -139,6 +139,10 @@ func (a *App) UntrackedContent(proj *coreproj.KapiProject, recipePath string, pr
 // collection over content the recipe already governs.
 func trackedPaths(proj *coreproj.KapiProject, root string) (map[string]bool, error) {
 	tracked := map[string]bool{}
+	// A source is claimed by the first item that matches it, so only that
+	// item's targets are tracked: a later item's target for the same source is
+	// a file the loop never writes, and a copy of it on disk is untracked.
+	claimed := map[string]bool{}
 	for _, it := range proj.IterateContent() {
 		lang := string(it.Item.ResolvedSourceLanguage(it.Collection, proj.Defaults))
 		pattern := coreproj.ResolvePathPattern(it.Item.Path, lang)
@@ -153,6 +157,10 @@ func trackedPaths(proj *coreproj.KapiProject, root string) (map[string]bool, err
 		}
 		for _, rel := range rels {
 			rel = filepath.ToSlash(rel)
+			if claimed[rel] {
+				continue
+			}
+			claimed[rel] = true
 			tracked[rel] = true
 			if it.Item.Target == "" {
 				continue
