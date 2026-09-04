@@ -185,6 +185,11 @@ type App struct {
 	// between beginFlowFindings and the run's own output.
 	flowFindings *flowFindings
 
+	// flowFindingsSink receives each armed run's report as it disarms. Set for
+	// the span of a RunFromProject whose caller asked for the findings
+	// (RunCmdOptions.OnFindings); nil everywhere else.
+	flowFindingsSink func(FlowFindings)
+
 	// convergeProgressTap, when non-nil, is appended by runProjectStepsOver as
 	// a trailing read-only step so a convergence run can count units live.
 	// Set only on per-locale converge worker Apps (convergeWorker); nil

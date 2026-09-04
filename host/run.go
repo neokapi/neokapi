@@ -17,6 +17,13 @@ type RunCmdOptions struct {
 	// FallbackRunE is called when the flow name doesn't match a built-in flow.
 	// Used by bowrain CLI for project flows from .bowrain/flows/.
 	FallbackRunE func(cmd Command, flowName string, args []string) error
+
+	// OnFindings, when set, receives what the run's check steps reported: the
+	// report the run prints, once per locale pass and binding group. A flow
+	// with no check step reports nothing. A surface that gates on a project
+	// run (a pre-push automation) sets it; it fires under --quiet too, where
+	// the run prints no report. The run itself reports and never gates.
+	OnFindings func(FlowFindings)
 }
 
 // BuiltinComposedFlowNames returns the set of composed (multi-tool) flow names.
@@ -84,9 +91,19 @@ func (a *App) RunFromProject(cmd Command, flowName, projectPath string, opts Run
 	// this function directly. Downstream reader/writer configuration resolves
 	// each file's declared format through this context; without it a
 	// project-bound built-in flow falls back to extension detection and
-	// silently ignores the recipe's `format:` binding.
+	// silently ignores the recipe's `format:` binding. The standing context is
+	// restored on exit so an embedding App (a plugin command that runs a flow
+	// mid-command) keeps its own.
+	savedPctx := a.ProjectContext
 	a.ProjectContext = ctx
-	defer func() { a.ProjectContext = nil }()
+	defer func() { a.ProjectContext = savedPctx }()
+
+	// The findings sink for the span of this run, when the caller gates on it.
+	if opts.OnFindings != nil {
+		savedSink := a.flowFindingsSink
+		a.flowFindingsSink = opts.OnFindings
+		defer func() { a.flowFindingsSink = savedSink }()
+	}
 
 	// Apply project defaults where CLI flags weren't explicitly set.
 	a.ResolveSourceLang(ctx.SourceLocale)
@@ -95,15 +112,27 @@ func (a *App) RunFromProject(cmd Command, flowName, projectPath string, opts Run
 		a.TargetLang = string(ctx.TargetLocales[0])
 	}
 
-	// Check if it's a built-in flow first (project can reference built-in flows).
-	if BuiltinFlowNames()[flowName] {
-		return a.RunFlow(cmd.Context(), cmd, flowName, FlowCmdOptions{
-			FallbackRunE: opts.FallbackRunE,
-		})
-	}
+	inputPaths, _ := cmd.Flags().GetStringSlice("input")
+	explain, _ := cmd.Flags().GetBool("explain")
 
-	// Look up the flow in the project file.
-	spec := proj.Flow(flowName)
+	// A built-in flow given files (or asked to explain itself) runs them as it
+	// does outside a project. Given none, it runs over the project's
+	// collections the way a recipe flow does: its tool chain is a steps spec,
+	// so it takes the same content resolution, locale passes, standing bindings
+	// and process-only store commit, and the run flags it honours over files
+	// (--provider, --credential, --model, …) seed every step.
+	var spec *flow.StepsSpec
+	if BuiltinFlowNames()[flowName] {
+		if len(inputPaths) > 0 || explain {
+			return a.RunFlow(cmd.Context(), cmd, flowName, FlowCmdOptions{
+				FallbackRunE: opts.FallbackRunE,
+			})
+		}
+		spec = builtInFlowSteps(flowName, runFlagToolConfig(cmd))
+	} else {
+		// Look up the flow in the project file.
+		spec = proj.Flow(flowName)
+	}
 	if spec == nil {
 		// Try fallback (e.g. bowrain project flows).
 		if opts.FallbackRunE != nil {
@@ -112,7 +141,6 @@ func (a *App) RunFromProject(cmd Command, flowName, projectPath string, opts Run
 		return fmt.Errorf("flow %q not found in project file %s", flowName, projectPath)
 	}
 
-	inputPaths, _ := cmd.Flags().GetStringSlice("input")
 	if len(inputPaths) > 0 {
 		expanded, ferr := resolveFiles(inputPaths)
 		if ferr != nil {
@@ -143,7 +171,7 @@ func (a *App) RunFromProject(cmd Command, flowName, projectPath string, opts Run
 	// or file written. The built-in path gates this inside RunFlow; without
 	// this gate the project-flow path fell through to execution and wrote
 	// outputs project-wide (#1295).
-	if explain, _ := cmd.Flags().GetBool("explain"); explain {
+	if explain {
 		outputFlag, _ := cmd.Flags().GetString("output")
 		locales := []string{a.TargetLang}
 		if !cmd.Flags().Changed("target-lang") {
@@ -177,7 +205,8 @@ func (a *App) RunFromProject(cmd Command, flowName, projectPath string, opts Run
 	// binding set carries are the wording approved for one target locale, and a
 	// flow whose locales come from the recipe runs several of them.
 	groupBindings := a.newLocaleBindings(cmd, proj, projectPath)
-	defer func() { a.ProjectBindings = nil }()
+	savedBindings := a.ProjectBindings
+	defer func() { a.ProjectBindings = savedBindings }()
 
 	// Build resource context from project file location.
 	absProjectPath, _ := filepath.Abs(projectPath)
@@ -239,4 +268,25 @@ func (a *App) RunFromProject(cmd Command, flowName, projectPath string, opts Run
 	}
 
 	return runGroups()
+}
+
+// builtInFlowSteps renders a built-in flow's tool chain as the steps spec the
+// project runner takes, tools in the order buildFlowTools assembles them, each
+// step's config the run flags overlaid by the node's own. Nil when no built-in
+// flow has the name.
+func builtInFlowSteps(flowName string, runConfig map[string]any) *flow.StepsSpec {
+	def := builtInFlow(flowName)
+	if def == nil {
+		return nil
+	}
+	nodes := orderedToolNodes(def)
+	steps := make([]flow.FlowStep, 0, len(nodes))
+	for _, n := range nodes {
+		steps = append(steps, flow.FlowStep{
+			Tool:   n.Name,
+			Label:  n.Label,
+			Config: mergeFlowNodeConfig(runConfig, n.Config),
+		})
+	}
+	return &flow.StepsSpec{Steps: steps}
 }

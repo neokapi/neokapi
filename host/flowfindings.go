@@ -76,6 +76,26 @@ func (c *flowFindings) report() *findingsReport {
 	return &findingsReport{Target: built.Target, Summary: built.Summary, Findings: built.Findings}
 }
 
+// reportIfTapped is report for a run that reached at least one tap, and nil
+// for one that ran no check step: nothing tapped, so nothing observed, which
+// is what keeps an ordinary run's output free of an empty findings table.
+func (c *flowFindings) reportIfTapped() *findingsReport {
+	c.mu.Lock()
+	tapped := c.blocks > 0 || len(c.diags) > 0
+	c.mu.Unlock()
+	if !tapped {
+		return nil
+	}
+	return c.report()
+}
+
+// FlowFindings is what one flow run's check steps reported: the summary and
+// the diagnostics the run prints. See RunCmdOptions.OnFindings.
+type FlowFindings struct {
+	Summary  check.Summary
+	Findings []check.Diagnostic
+}
+
 // flowFindingsTap is one file's view of the run's collector: a
 // flow.StreamingCollector that names the file each observed block belongs to.
 // The tool chain is shared across a project run's files, so the file cannot be
@@ -114,34 +134,42 @@ var _ flow.StreamingCollector = (*flowFindingsTap)(nil)
 // result arms exactly once, so a project run that dispatches to a built-in flow
 // reports its findings under the output it actually prints.
 //
-// A run whose output is suppressed arms nothing, so it also taps nothing: the
-// collector exists to fill a report `--quiet` does not print, and a convergence
-// pass — whose workers are silent by construction and whose flows do run checks
-// — would otherwise pay a channel hop per part to fill one.
+// Disarming hands the run's report to the findings sink when one is set
+// (RunCmdOptions.OnFindings), after the run has printed it, so a surface that
+// gates on the run reads the same report the run showed.
+//
+// A run whose output is suppressed and that nobody gates on arms nothing, so
+// it also taps nothing: the collector exists to fill a report `--quiet` does
+// not print, and a convergence pass — whose workers are silent by construction
+// and whose flows do run checks — would otherwise pay a channel hop per part to
+// fill one. A sink arms the collector under `--quiet` too: a gate that read
+// nothing under `-q` would pass a push its findings should have stopped.
 func (a *App) beginFlowFindings() func() {
-	if a.Quiet {
+	sink := a.flowFindingsSink
+	if a.Quiet && sink == nil {
 		return func() {}
 	}
 	prev := a.flowFindings
-	a.flowFindings = &flowFindings{}
-	return func() { a.flowFindings = prev }
+	c := &flowFindings{}
+	a.flowFindings = c
+	return func() {
+		a.flowFindings = prev
+		if sink == nil {
+			return
+		}
+		if r := c.reportIfTapped(); r != nil {
+			sink(FlowFindings{Summary: r.Summary, Findings: r.Findings})
+		}
+	}
 }
 
 // flowFindingsReport returns the armed collector's report, or nil when no
-// collector is armed or the flow ran no check step (nothing tapped, so nothing
-// observed) — which is what keeps an ordinary run's output free of an empty
-// findings table.
+// collector is armed or the flow ran no check step.
 func (a *App) flowFindingsReport() *findingsReport {
 	if a.flowFindings == nil {
 		return nil
 	}
-	a.flowFindings.mu.Lock()
-	tapped := a.flowFindings.blocks > 0 || len(a.flowFindings.diags) > 0
-	a.flowFindings.mu.Unlock()
-	if !tapped {
-		return nil
-	}
-	return a.flowFindings.report()
+	return a.flowFindings.reportIfTapped()
 }
 
 // tapFindings wraps the chain's last tool so every block it emits is observed,

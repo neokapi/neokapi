@@ -133,10 +133,26 @@ automations:
 
 | Action           | Description                                                               |
 | ---------------- | ------------------------------------------------------------------------- |
-| `run_flow`       | Execute a flow by name (inline on the recipe, from `.kapi/flows/`, or built-in) |
+| `run_flow`       | Run a flow by name over the project's collections, as `kapi run <flow>` does with no `--input` |
 | `wait_translate` | Wait for the server-side run to complete (with configurable timeout)     |
 | `pull`           | Pull results from the server                                              |
 | `push`           | Push local content to the server                                          |
+
+A local `run_flow` action takes these parameters:
+
+| Parameter       | Meaning                                                                                              |
+| --------------- | ---------------------------------------------------------------------------------------------------- |
+| `flow`          | The flow to run: one declared under `flows:` on the recipe, or a built-in flow such as `qa`. Required. |
+| `fail_on_error` | `true` aborts the command when the flow's check steps report findings. Default `false`: report and continue. |
+
+The flow runs the way `kapi run <flow>` runs it inside the project: over every
+file the recipe's collections match, one pass per target language the flow
+applies to, with the recipe's voice profile and terms bound, and with the
+results committed to the project store rather than written to target files.
+Its output, including the findings table its check steps produce, prints in
+the output of the command that triggered it (on stderr under `--json`, so the
+command's document stays intact). A flow that cannot run, because the name is
+unknown or a tool fails, aborts the command whatever `fail_on_error` says.
 
 ### Example: a check gate before push
 
@@ -153,8 +169,10 @@ automations:
           fail_on_error: true
 ```
 
-If `qa` finds issues and `fail_on_error` is `true`, the push is aborted. A
-local rule reports its outcome in the output of the command that triggered it.
+If `qa` reports findings and `fail_on_error` is `true`, the push is aborted
+before anything is sent, with the findings summary and the exit code
+`kapi check` uses for a failed gate. Without `fail_on_error` the findings are
+reported and the push goes ahead.
 
 ### Catching up on every push
 
