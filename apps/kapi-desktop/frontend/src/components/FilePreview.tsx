@@ -1,50 +1,18 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Loader2, FileWarning } from "lucide-react";
-import {
-  Badge,
-  Button,
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from "@neokapi/ui-primitives";
-import { DocumentViewer } from "@neokapi/ui-primitives/preview";
-import type { BlockAttrs, ContentTree, ContentNode } from "@neokapi/ui-primitives/preview";
+import { FilePreview as PreviewSheet } from "@neokapi/ui-primitives/preview";
+import type { ContentTree, ContentNode } from "@neokapi/ui-primitives/preview";
 import { t } from "@neokapi/i18n-react/runtime";
 import { api } from "../hooks/useApi";
 import { qk } from "../lib/queryKeys";
 
 // collectMediaNodes walks the tree for media nodes that carry a resolvable URI
 // (the image/audio/video readers emit the asset by URI). Each needs its bytes
-// served to the frontend before the DocumentViewer can render it.
+// served to the frontend before the viewer can render it.
 function collectMediaNodes(tree: ContentTree): ContentNode[] {
   const out: ContentNode[] = [];
   const walk = (n: ContentNode) => {
     if (n.kind === "media" && n.media?.uri) out.push(n);
-    n.children?.forEach(walk);
-  };
-  tree.root.forEach(walk);
-  return out;
-}
-
-// unitKeyOf is the engine's own key for a block (convergence.BlockKey): the
-// name a reader gave it, else its id. A queue addresses a unit by that key, so
-// this is what maps a queue row onto a node in the rendered document.
-function unitKeyOf(node: ContentNode): string {
-  return node.name || node.id;
-}
-
-// blockNodesByUnitKey indexes the tree's translatable blocks by that key.
-function blockNodesByUnitKey(tree: ContentTree | null): Map<string, ContentNode> {
-  const out = new Map<string, ContentNode>();
-  if (!tree) return out;
-  const walk = (n: ContentNode) => {
-    if (n.kind === "block") {
-      const key = unitKeyOf(n);
-      if (key && !out.has(key)) out.set(key, n);
-    }
     n.children?.forEach(walk);
   };
   tree.root.forEach(walk);
@@ -92,18 +60,17 @@ export interface FilePreviewProps {
   side?: string;
 }
 
-// FilePreview is the desktop's project-content preview surface. It reuses the
-// docs PreviewKit's DocumentViewer (Preview · Blocks · Stats · Download, with a
-// source↔target toggle and annotation highlighting) so a project file renders
-// exactly the way the documentation explorers render it — but driven by the
-// desktop's full native engine via the InspectFileAnnotated binding rather than
-// the WASM runtime.
+// FilePreview is the desktop's project-content preview surface. It binds the
+// shared preview sheet (`@neokapi/ui-primitives/preview`) to the desktop's full
+// native engine: InspectFileAnnotated supplies the tree, MediaDataURL serves the
+// bytes behind each media node, and WrittenBackFile answers the keyed reading's
+// File view. The sheet itself — header, states, focus row and the DocumentViewer
+// body — is the same one the platform reads a file in.
 //
-// It calls InspectFileAnnotated so the tree carries the project's real
-// terminology, voice-vocabulary and check overlays; the DocumentViewer's
-// Annotations toggle highlights them on the rendered document. Committed targets
-// from the project (translated/merged sibling files) ride along in the tree, so
-// the source↔target toggle works whenever a translation exists.
+// The tree carries the project's real terminology, voice-vocabulary and check
+// overlays; the viewer's annotation highlighting draws them on the rendered
+// document. Committed targets from the project (translated/merged sibling files)
+// ride along, so the source↔target toggle works whenever a translation exists.
 //
 // A host that arrives here to look at one unit passes `focusKey`, and the sheet
 // opens at that block with the review states of the file's other units drawn
@@ -176,137 +143,39 @@ export function FilePreview({
       ? "Preview is unavailable in this environment."
       : null;
 
-  // The focused unit's node, and the id every block is addressed by inside the
-  // rendered document.
-  const nodesByKey = useMemo(() => blockNodesByUnitKey(tree), [tree]);
-  const focusNode = focusKey ? nodesByKey.get(focusKey) : undefined;
-  const focusID = focusNode?.id;
-
-  // Review state per block id, so one lookup answers for the whole document.
-  const statesByBlockID = useMemo(() => {
-    const out = new Map<string, string>();
-    if (!unitStates) return out;
-    for (const [key, node] of nodesByKey) {
-      const state = unitStates[key];
-      if (state) out.set(node.id, state);
-    }
-    return out;
-  }, [nodesByKey, unitStates]);
-
-  const blockAttrs = useCallback(
-    (id: string): BlockAttrs | undefined => {
-      const state = statesByBlockID.get(id);
-      const focused = id === focusID;
-      if (!state && !focused) return undefined;
-      return {
-        className: focused
-          ? "ring-2 ring-primary/60 rounded-sm"
-          : "underline decoration-dotted decoration-amber-500/70 underline-offset-4",
-        "data-review-state": state,
-        "data-review-focus": focused ? "true" : undefined,
-      };
-    },
-    [statesByBlockID, focusID],
-  );
-
-  // Scroll the focused block into view once the document has rendered. The
-  // sheet is its own scroll container, so the block is centred inside it.
-  const bodyRef = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    if (!focusID || loading || error || !tree) return;
-    const el = bodyRef.current?.querySelector<HTMLElement>(
-      `[data-block-id="${CSS.escape(focusID)}"]`,
-    );
-    el?.scrollIntoView({ block: "center", behavior: "auto" });
-  }, [focusID, loading, error, tree]);
-
-  const focusState = focusKey ? unitStates?.[focusKey] : undefined;
-
   return (
-    <Sheet open={!!filePath} onOpenChange={(open) => !open && onClose()}>
-      {/* Half the window on wide screens; progressively wider on smaller ones
-          (full width on the smallest). Uses the data-[side] variant so it wins
-          over the Sheet's default w-3/4 / sm:max-w-sm. */}
-      <SheetContent
-        side="right"
-        className="gap-3 data-[side=right]:w-full data-[side=right]:sm:w-3/4 data-[side=right]:sm:max-w-none data-[side=right]:lg:w-1/2"
-      >
-        <SheetHeader className="pb-0">
-          <SheetTitle className="font-mono text-sm" translate="no">
-            {filename}
-          </SheetTitle>
-          <SheetDescription>
-            Structure, vocabulary and check annotations, and source &harr; target.
-          </SheetDescription>
-          {focusKey && (
-            <div
-              className="flex flex-wrap items-center gap-2 pt-1 text-xs"
-              data-slot="file-preview-focus"
-            >
-              {backLabel && (
-                <Button variant="outline" size="xs" onClick={onClose} data-slot="file-preview-back">
-                  <ArrowLeft size={12} />
-                  {backLabel}
-                </Button>
-              )}
-              <span className="font-mono text-[11px] text-muted-foreground" translate="no">
-                {focusKey}
-              </span>
-              <Badge variant="outline" className="text-[10px]">
-                {focusState ?? t("awaiting review")}
-              </Badge>
-              {tree && !focusNode && (
-                <span className="text-[11px] text-muted-foreground">
-                  {t("This unit is not in the rendered document.")}
-                </span>
-              )}
-            </div>
-          )}
-        </SheetHeader>
-
-        <div ref={bodyRef} className="min-h-0 flex-1 overflow-auto px-4 pb-4">
-          {loading && (
-            <div className="flex items-center gap-2 py-8 text-sm text-muted-foreground">
-              <Loader2 className="size-4 animate-spin" />
-              Inspecting {filename}…
-            </div>
-          )}
-          {error && (
-            <div className="flex items-center gap-2 py-8 text-sm text-destructive">
-              <FileWarning className="size-4" />
-              {error}
-            </div>
-          )}
-          {!loading && !error && tree && (
-            <DocumentViewer
-              tree={tree}
-              filename={filename}
-              resolveMediaUrl={(node) => mediaUrls[node.id] ?? node.media?.uri}
-              selectedBlockId={focusID}
-              blockAttrs={blockAttrs}
-              defaultSide={side}
-              code={
-                entryPath
-                  ? undefined
-                  : {
-                      ...(codeQuery.data != null ? { text: codeQuery.data } : {}),
-                      filename: codeLocale ? `${filename} (${codeLocale})` : filename,
-                      loading: codeQuery.isFetching,
-                      ...(codeQuery.error
-                        ? {
-                            error:
-                              codeQuery.error instanceof Error
-                                ? codeQuery.error.message
-                                : String(codeQuery.error),
-                          }
-                        : {}),
-                      onRequest: () => setCodeWanted(true),
-                    }
-              }
-            />
-          )}
-        </div>
-      </SheetContent>
-    </Sheet>
+    <PreviewSheet
+      open={!!filePath}
+      onClose={onClose}
+      filename={filename}
+      description="Structure, vocabulary and check annotations, and source ↔ target."
+      tree={tree}
+      loading={loading}
+      loadingLabel={t("Inspecting {filename}…", { filename })}
+      error={error}
+      focusKey={focusKey}
+      unitStates={unitStates}
+      backLabel={backLabel}
+      viewer={{
+        resolveMediaUrl: (node) => mediaUrls[node.id] ?? node.media?.uri,
+        defaultSide: side,
+        code: entryPath
+          ? undefined
+          : {
+              ...(codeQuery.data != null ? { text: codeQuery.data } : {}),
+              filename: codeLocale ? `${filename} (${codeLocale})` : filename,
+              loading: codeQuery.isFetching,
+              ...(codeQuery.error
+                ? {
+                    error:
+                      codeQuery.error instanceof Error
+                        ? codeQuery.error.message
+                        : String(codeQuery.error),
+                  }
+                : {}),
+              onRequest: () => setCodeWanted(true),
+            },
+      }}
+    />
   );
 }

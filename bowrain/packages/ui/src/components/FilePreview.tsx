@@ -1,16 +1,7 @@
 import { useState } from "react";
-import {
-  Badge,
-  Button,
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-  ToggleGroup,
-  ToggleGroupItem,
-} from "@neokapi/ui-primitives";
+import { Button } from "@neokapi/ui-primitives";
+import { FilePreview as PreviewSheet, type FilePreviewView } from "@neokapi/ui-primitives/preview";
+import { t } from "@neokapi/i18n-react/runtime";
 import { type CollectionPreview } from "../types/api";
 import { useLocales } from "../hooks/useLocales";
 import { DocumentPreview } from "./editor/DocumentPreview";
@@ -106,10 +97,13 @@ export interface FilePreviewProps {
  * FilePreview reads one item without opening an editor: clicking a file in a
  * list shows the document here, and the editors are reached from the footer.
  *
- * The document is the editors' own rendering (`DocumentPreview`), so a format
+ * The sheet around it is the shared one (`@neokapi/ui-primitives/preview`), the
+ * same panel kapi desktop reads a file in. What the platform adds is its own:
+ * the document is the editors' own rendering (`DocumentPreview`), so a format
  * whose reader supplies its own HTML shows that, and every other format is laid
- * out from the content model by the shared preview kit. Nothing is rendered
- * twice and nothing is rendered here that an editor would render differently.
+ * out from the content model by the shared preview kit. In-context reading puts
+ * the item inside the component that ships it. Nothing is rendered twice and
+ * nothing is rendered here that an editor would render differently.
  *
  * Navigation is the consumer's: this package knows no routes, so each action is
  * a callback and an action left unset is not offered.
@@ -148,145 +142,120 @@ export function FilePreview({
     collectionId && embedOrigin() && hasStory ? storybookHost(preview) : undefined;
   // With one target locale the toggle names it outright; with several the
   // selector names it, and the toggle only says which side is being read.
-  const targetLabel = targetLocales.length === 1 ? getDisplayName(locale) : "Target";
+  const targetLabel = targetLocales.length === 1 ? getDisplayName(locale) : undefined;
+
+  // Which language is one question; what it is read inside is another. A
+  // document is the file; in context is the component that ships it, at the
+  // width it lays out to. Each reading is keyed by item, so opening a different
+  // file starts a fresh read rather than showing the previous document until the
+  // new one arrives.
+  const views: FilePreviewView[] = [
+    {
+      value: "document",
+      label: t("Document"),
+      content: itemName ? (
+        <DocumentPreview
+          key={itemName}
+          projectId={projectId}
+          itemName={itemName}
+          sourceLocale={sourceLocale}
+          targetLocale={locale}
+          previewContentMode={side}
+          onBlockSelect={() => {}}
+        />
+      ) : null,
+    },
+  ];
+  if (storybookURL) {
+    views.push({
+      value: "context",
+      label: t("In context"),
+      content: itemName ? (
+        <ItemStoryPreview
+          key={itemName}
+          projectId={projectId}
+          collectionId={collectionId ?? ""}
+          itemName={itemName}
+          storybookURL={storybookURL}
+          locale={locale}
+          source={side === "source"}
+        />
+      ) : null,
+    });
+  }
+
+  const name = itemName;
+  const actions =
+    name && (onOpenTranslate || onOpenReview || onOpenPreProcess) ? (
+      <>
+        {onOpenTranslate && (
+          <Button
+            size="sm"
+            onClick={() => onOpenTranslate(name)}
+            data-testid="file-preview-translate"
+          >
+            Open in Translate
+          </Button>
+        )}
+        {onOpenReview && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => onOpenReview(name)}
+            data-testid="file-preview-review"
+          >
+            Review
+          </Button>
+        )}
+        {onOpenPreProcess && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => onOpenPreProcess(name)}
+            data-testid="file-preview-pre-process"
+          >
+            Pre-process
+          </Button>
+        )}
+      </>
+    ) : undefined;
 
   return (
-    <Sheet open={!!itemName} onOpenChange={(open) => !open && onClose()}>
-      {/* Half the viewport on a wide screen, and progressively wider as it
-          narrows — the same proportions the desktop app's preview uses. The
-          data-[side] variants outrank the Sheet's own width defaults. */}
-      <SheetContent
-        side="right"
-        className="gap-3 data-[side=right]:w-full data-[side=right]:sm:w-3/4 data-[side=right]:sm:max-w-none data-[side=right]:lg:w-1/2"
-        data-testid="file-preview"
-      >
-        <SheetHeader className="pb-0">
-          <SheetTitle className="flex flex-wrap items-center gap-2 text-sm">
-            {/* The source when there is one, because that is the file a
-                reviewer recognises; the item's own name below still says what
-                is being addressed, so nothing is hidden by being demoted. */}
-            <span className="min-w-0 break-all font-mono" translate="no">
-              {sourcePath || itemName}
-            </span>
-            {format && <Badge variant="secondary">{format}</Badge>}
-          </SheetTitle>
-          {sourcePath && (
-            <p
-              className="min-w-0 break-all font-mono text-xs text-muted-foreground"
-              translate="no"
-              data-testid="file-preview-item-name"
-            >
-              {itemName}
-            </p>
-          )}
-          <SheetDescription>Read the document, then open it in an editor.</SheetDescription>
-        </SheetHeader>
-
-        {(hasTargets || storybookURL) && (
-          <div className="flex flex-wrap items-center gap-2 px-4">
-            {hasTargets && (
-              <ToggleGroup
-                type="single"
-                variant="outline"
-                size="sm"
-                value={side}
-                onValueChange={(value) => value && setSide(value as "source" | "target")}
-                data-testid="file-preview-side"
-              >
-                <ToggleGroupItem value="source">Source</ToggleGroupItem>
-                <ToggleGroupItem value="target">{targetLabel}</ToggleGroupItem>
-              </ToggleGroup>
-            )}
-            {/* Which language is one question; what it is read inside is
-                another. A document is the file; in context is the component
-                that ships it, at the width it lays out to. */}
-            {storybookURL && (
-              <ToggleGroup
-                type="single"
-                variant="outline"
-                size="sm"
-                value={reading}
-                onValueChange={(value) => value && setReading(value as ReadingMode)}
-                data-testid="file-preview-reading"
-              >
-                <ToggleGroupItem value="document">Document</ToggleGroupItem>
-                <ToggleGroupItem value="context">In context</ToggleGroupItem>
-              </ToggleGroup>
-            )}
-            {targetLocales.length > 1 && (
-              <LocaleSelect
-                value={locale}
-                onChange={setPicked}
-                codes={targetLocales}
-                className="w-48"
-                data-testid="file-preview-locale"
-              />
-            )}
-          </div>
-        )}
-
-        {/* Keyed by item: opening a different file starts a fresh read rather
-            than showing the previous document until the new one arrives. */}
-        <div className="min-h-0 flex-1 px-4">
-          {itemName && reading === "context" && storybookURL ? (
-            <ItemStoryPreview
-              key={itemName}
-              projectId={projectId}
-              collectionId={collectionId ?? ""}
-              itemName={itemName}
-              storybookURL={storybookURL}
-              locale={locale}
-              source={side === "source"}
-            />
-          ) : (
-            itemName && (
-              <DocumentPreview
-                key={itemName}
-                projectId={projectId}
-                itemName={itemName}
-                sourceLocale={sourceLocale}
-                targetLocale={locale}
-                previewContentMode={side}
-                onBlockSelect={() => {}}
-              />
-            )
-          )}
-        </div>
-
-        {itemName && (onOpenTranslate || onOpenReview || onOpenPreProcess) && (
-          <SheetFooter className="flex-row flex-wrap gap-2">
-            {onOpenTranslate && (
-              <Button
-                size="sm"
-                onClick={() => onOpenTranslate(itemName)}
-                data-testid="file-preview-translate"
-              >
-                Open in Translate
-              </Button>
-            )}
-            {onOpenReview && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => onOpenReview(itemName)}
-                data-testid="file-preview-review"
-              >
-                Review
-              </Button>
-            )}
-            {onOpenPreProcess && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => onOpenPreProcess(itemName)}
-                data-testid="file-preview-pre-process"
-              >
-                Pre-process
-              </Button>
-            )}
-          </SheetFooter>
-        )}
-      </SheetContent>
-    </Sheet>
+    <PreviewSheet
+      open={!!itemName}
+      onClose={onClose}
+      data-testid="file-preview"
+      // The source when there is one, because that is the file a reviewer
+      // recognises; the item's own name below still says what is being
+      // addressed, so nothing is hidden by being demoted.
+      filename={sourcePath || itemName || ""}
+      subtitle={sourcePath ? (itemName ?? undefined) : undefined}
+      subtitleTestId="file-preview-item-name"
+      format={format}
+      description="Read the document, then open it in an editor."
+      sides={
+        hasTargets
+          ? { value: side, onChange: setSide, targetLabel, "data-testid": "file-preview-side" }
+          : undefined
+      }
+      views={views}
+      view={reading}
+      onViewChange={(value) => setReading(value as ReadingMode)}
+      viewsLabel={t("Reading")}
+      viewsTestId="file-preview-reading"
+      toolbar={
+        targetLocales.length > 1 ? (
+          <LocaleSelect
+            value={locale}
+            onChange={setPicked}
+            codes={targetLocales}
+            className="w-48"
+            data-testid="file-preview-locale"
+          />
+        ) : undefined
+      }
+      scrollBody={false}
+      actions={actions}
+    />
   );
 }
