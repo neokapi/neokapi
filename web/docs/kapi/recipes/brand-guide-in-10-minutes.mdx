@@ -29,7 +29,7 @@ The fastest ten minutes: the assistant drafts from signal you already have:
 
 > Draft a voice profile for us. Base the tone on our README and landing page, forbid the usual filler ("leverage", "seamless", "cutting-edge"), and use "sign in" not "log in". Bind it in the recipe.
 
-The assistant scaffolds from `kapi voice new`, fills tone and vocabulary from your existing copy, writes `brand/voice.yaml`, and binds it under `defaults.voice`. You review the YAML (it's short) and correct the judgment calls. Then ask for the proof:
+The assistant scaffolds from `kapi voice new`, fills tone and vocabulary from your existing copy, writes `brand/voice.yaml`, binds it under `defaults.voice`, and runs `kapi voice pointer` so `AGENTS.md` (or your `CLAUDE.md`) names the voice for the next session. You review the YAML (it's short) and correct the judgment calls. Then ask for the proof:
 
 > Now check the README against it.
 
@@ -53,7 +53,7 @@ defaults:
     profile_file: brand/voice.yaml
 ```
 
-`kapi voice guide` renders the same profile as a short markdown guide, the form you inject into an assistant's context so drafts start on-voice. `kapi voice import` puts a profile in the local store for use across projects.
+`kapi voice guide` renders the same profile as a short markdown guide, the form you inject into an assistant's context so drafts start on-voice. `kapi voice pointer` then writes a section into the project's `AGENTS.md` (or an existing `CLAUDE.md`) naming the voice and that command, so an assistant in the tree retrieves the guide before it writes. `kapi voice import` puts a profile in the local store for use across projects.
 
 </TabItem>
 </Tabs>

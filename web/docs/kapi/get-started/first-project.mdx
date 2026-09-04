@@ -35,7 +35,7 @@ With the [Kapi skill or MCP server](/kapi/get-started/use-with-claude) connected
 
 > Set kapi up for this project.
 
-Claude detects the stack, runs `kapi init` (with `--preset <stack>` for a known i18n layout), adds the content patterns it finds, drafts a voice profile from your existing copy, and proposes terms for you to approve. The result is committed: a recipe, a voice profile, and a terms source. From there your prompts stay short; "check this is on brand" needs no flags, because the recipe carries them.
+Claude detects the stack, runs `kapi init` (with `--preset <stack>` for a known i18n layout), adds the content patterns it finds, drafts a voice profile from your existing copy, and proposes terms for you to approve. The result is committed: a recipe, a voice profile, a terms source, and a section in `AGENTS.md` (or your existing `CLAUDE.md`) saying the voice is held by kapi, so the next session asks for it before writing. From there your prompts stay short; "check this is on brand" needs no flags, because the recipe carries them.
 
 </TabItem>
 <TabItem value="cli" label="CLI">
@@ -49,7 +49,11 @@ kapi stats                     # blocks, words, characters for what's tracked
 kapi check                     # check the project's content; exit 3 on gate fail
 ```
 
-For a known stack, `kapi init --preset react-i18next` (or `nextjs`, `vue-i18n`, …) pre-fills the content mapping; `kapi init --list-presets` lists them. The recipe is plain YAML, and the governance a source-only project checks against is bound under `defaults:`:
+For a known stack, `kapi init --preset react-i18next` (or `nextjs`, `vue-i18n`, …) pre-fills the content mapping; `kapi init --list-presets` lists them.
+
+A scaffolded project binds a starter voice, so `kapi init` also writes a short section into the project's assistant file: an existing `AGENTS.md` or `CLAUDE.md` at the root, or a new `AGENTS.md`. The section says the voice is held by kapi and that `kapi voice guide` retrieves it, so an assistant working in the tree asks before it writes. It sits between `<!-- kapi:voice -->` markers and is replaced in place on every run; the rest of the file is yours. A `CLAUDE.md` picks up `AGENTS.md` through an import line, `@AGENTS.md`. `kapi init --no-pointer` skips it, and `kapi voice pointer` writes or refreshes it on an existing project.
+
+The recipe is plain YAML, and the governance a source-only project checks against is bound under `defaults:`:
 
 ```yaml title="kapi.yaml"
 version: v1

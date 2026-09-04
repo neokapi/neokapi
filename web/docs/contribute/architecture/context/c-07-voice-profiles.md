@@ -240,6 +240,20 @@ Locale and channel overrides apply on top via `--locale`/`--channel`; an explici
 | `profiles` | List profiles: the voice store plus the built-in packs. |
 | `import` | Import a profile YAML into the voice store. |
 | `pack` | Install a built-in starter pack into the voice store. |
+| `pointer` | Write the marker-delimited section into the project's assistant file (`AGENTS.md`, or an existing `CLAUDE.md`) that tells an assistant the voice is held by kapi and that `guide` retrieves it. |
+
+The pointer exists because an assistant standing in a project has no reason to
+open `kapi.yaml` when its task is to write a guide, and so never learns the
+project has a voice. The section names the voice, says kapi holds it, and gives
+the retrieval command; it carries none of the guidance, which stays one command
+away and so cannot go stale in the file. `kapi init` writes it whenever the
+project it scaffolds or adopts binds a voice (`--no-pointer` opts out), the
+desktop writes it when a profile is saved, and `pointer` writes it on demand;
+all three go through `host.WriteVoicePointer`. The text is
+`coreprofile.RenderVoicePointer`, and `UpsertVoicePointer` replaces the section
+between its markers so a re-run is idempotent and hand-written content around
+it survives. A project that unbinds its voice has the section removed on the
+next run rather than left claiming a voice `guide` cannot resolve.
 
 `check` reads its subject from `--input-text`, a positional file, or stdin.
 `check --min-score` returns the quality-gate sentinel when the score is below the

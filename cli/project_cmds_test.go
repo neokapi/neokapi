@@ -192,3 +192,110 @@ func TestInitCmd_idempotentOnExistingRecipe(t *testing.T) {
 	require.NoError(t, cmd.Execute())
 	assert.Contains(t, out.String(), "already initialized")
 }
+
+// kapi init points an assistant at the voice it just bound: the content
+// scaffold binds a pack, so a fresh project gets an AGENTS.md section naming
+// it; an existing CLAUDE.md takes the section instead; --no-pointer and a
+// scaffold without a voice write nothing.
+func TestInitCmd_voicePointer(t *testing.T) {
+	tests := []struct {
+		name  string
+		args  []string
+		files map[string]string
+		// wantFile is the assistant file expected to hold the section,
+		// relative to the project dir; empty when none may exist.
+		wantFile string
+		wantOut  string
+	}{
+		{
+			name:     "content scaffold creates AGENTS.md",
+			args:     []string{"--name", "my-app"},
+			wantFile: "AGENTS.md",
+			wantOut:  "agents: ",
+		},
+		{
+			name:     "an existing CLAUDE.md takes the section",
+			args:     []string{"--name", "my-app"},
+			files:    map[string]string{"CLAUDE.md": "# Rules\n"},
+			wantFile: "CLAUDE.md",
+			wantOut:  "voice pointer written",
+		},
+		{
+			name: "--no-pointer skips it",
+			args: []string{"--name", "my-app", "--no-pointer"},
+		},
+		{
+			name: "a translation scaffold binds no voice and writes nothing",
+			args: []string{"--name", "my-app", "--target-locale", "fr"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := newAppForTest(t)
+			dir := t.TempDir()
+			for rel, body := range tt.files {
+				require.NoError(t, os.WriteFile(filepath.Join(dir, rel), []byte(body), 0o644))
+			}
+
+			cmd := NewInitCmd(app)
+			var out, errOut bytes.Buffer
+			cmd.SetOut(&out)
+			cmd.SetErr(&errOut)
+			cmd.SetArgs(append([]string{"--dir", dir}, tt.args...))
+			require.NoError(t, cmd.Execute())
+			assert.Empty(t, errOut.String(), "no warning on the happy path")
+
+			if tt.wantFile == "" {
+				_, err := os.Stat(filepath.Join(dir, "AGENTS.md"))
+				assert.True(t, os.IsNotExist(err), "no assistant file is created")
+				assert.NotContains(t, out.String(), "agents:")
+				return
+			}
+			body, err := os.ReadFile(filepath.Join(dir, tt.wantFile))
+			require.NoError(t, err)
+			assert.Contains(t, string(body), "voice, Professional B2B, is held by kapi")
+			assert.Contains(t, string(body), "`kapi voice guide`")
+			assert.Contains(t, out.String(), tt.wantOut)
+			for rel, seed := range tt.files {
+				assert.Contains(t, string(body), seed, "hand-written content in %s survives", rel)
+			}
+		})
+	}
+}
+
+// A re-run on an initialized project keeps the section as it is and says
+// nothing about it; a voice changed in between is reflected in place.
+func TestInitCmd_voicePointerOnRerun(t *testing.T) {
+	app := newAppForTest(t)
+	dir := t.TempDir()
+
+	run := func() string {
+		cmd := NewInitCmd(app)
+		var out bytes.Buffer
+		cmd.SetOut(&out)
+		cmd.SetErr(&out)
+		cmd.SetArgs([]string{"--dir", dir, "--name", "my-app"})
+		require.NoError(t, cmd.Execute())
+		return out.String()
+	}
+
+	run()
+	first, err := os.ReadFile(filepath.Join(dir, "AGENTS.md"))
+	require.NoError(t, err)
+
+	out := run()
+	assert.Contains(t, out, "already initialized")
+	assert.NotContains(t, out, "agents:", "an unchanged pointer earns no line on a re-run")
+	second, err := os.ReadFile(filepath.Join(dir, "AGENTS.md"))
+	require.NoError(t, err)
+	assert.Equal(t, string(first), string(second))
+
+	recipe := filepath.Join(dir, project.RecipeFileName)
+	require.NoError(t, os.WriteFile(recipe, []byte("version: v1\nname: my-app\ndefaults:\n  source_language: en\n  voice:\n    pack: technical-docs\n"), 0o644))
+	out = run()
+	assert.Contains(t, out, "voice pointer written")
+	third, err := os.ReadFile(filepath.Join(dir, "AGENTS.md"))
+	require.NoError(t, err)
+	assert.Contains(t, string(third), "voice, Technical Documentation, is held by kapi")
+	assert.NotContains(t, string(third), "Professional B2B")
+}

@@ -67,7 +67,10 @@ echo "We utilize synergies." | kapi voice check --profile-file voice.yaml --json
 ```
 
 Show the user the rendered guide and a check on one of their own samples, then
-refine the YAML from their feedback.
+refine the YAML from their feedback. Once the profile is bound in a project,
+`kapi voice pointer` writes the section in `AGENTS.md` (or an existing
+`CLAUDE.md`) that tells the next assistant the voice is held by kapi and where to
+ask for it ([project.md](project.md)).
 
 ## 1. Load the guide before writing
 

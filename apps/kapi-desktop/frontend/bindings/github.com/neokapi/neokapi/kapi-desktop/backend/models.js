@@ -8161,6 +8161,64 @@ export class VoicePointDTO {
 }
 
 /**
+ * VoicePointerDTO reports the voice pointer written beside a saved profile.
+ */
+export class VoicePointerDTO {
+    /**
+     * Creates a new VoicePointerDTO instance.
+     * @param {Partial<VoicePointerDTO>} [$$source = {}] - The source object to create the VoicePointerDTO.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * File is the project-relative assistant file (AGENTS.md or CLAUDE.md);
+             * empty when nothing was written.
+             * @member
+             * @type {string | undefined}
+             */
+            this["file"] = undefined;
+        }
+        if (!("action" in $$source)) {
+            /**
+             * Action is created, updated, unchanged, removed, none, or failed.
+             * @member
+             * @type {string}
+             */
+            this["action"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Created is true when the file itself was created by this save.
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["created"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Warning says why the pointer could not be written or could not name
+             * the voice; the profile save itself succeeded.
+             * @member
+             * @type {string | undefined}
+             */
+            this["warning"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new VoicePointerDTO instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {VoicePointerDTO}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new VoicePointerDTO(/** @type {Partial<VoicePointerDTO>} */($$parsedSource));
+    }
+}
+
+/**
  * VoiceSaveResult reports a save, or why it did not happen.
  */
 export class VoiceSaveResult {
@@ -8209,6 +8267,17 @@ export class VoiceSaveResult {
              */
             this["guide"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * Pointer is what the save did to the project's assistant file: the
+             * section telling an assistant the voice is held by kapi, the same one
+             * `kapi init` and `kapi voice pointer` write. nil when the profile was
+             * refused.
+             * @member
+             * @type {VoicePointerDTO | null | undefined}
+             */
+            this["pointer"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }
@@ -8220,9 +8289,13 @@ export class VoiceSaveResult {
      */
     static createFrom($$source = {}) {
         const $$createField3_0 = $$createType128;
+        const $$createField5_0 = $$createType130;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("problems" in $$parsedSource) {
             $$parsedSource["problems"] = $$createField3_0($$parsedSource["problems"]);
+        }
+        if ("pointer" in $$parsedSource) {
+            $$parsedSource["pointer"] = $$createField5_0($$parsedSource["pointer"]);
         }
         return new VoiceSaveResult(/** @type {Partial<VoiceSaveResult>} */($$parsedSource));
     }
@@ -8405,3 +8478,5 @@ const $$createType125 = $Create.Nullable($$createType124);
 const $$createType126 = VoiceEditTargetDTO.createFrom;
 const $$createType127 = profile$0.ProfileProblem.createFrom;
 const $$createType128 = $Create.Array($$createType127);
+const $$createType129 = VoicePointerDTO.createFrom;
+const $$createType130 = $Create.Nullable($$createType129);

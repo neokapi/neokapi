@@ -78,6 +78,8 @@ The wire shapes are Claude Code's, and Claude Code versions its own hook schema;
 
 The loop, whichever door: Claude pulls your voice guide and approved terms first (`kapi voice guide`, `kapi terms lookup`), writes through the one write verb (`kapi apply`: structure preserved, drift-guarded by content hash), then gates out with `kapi check` until green. Bind the profile and the terms store in a [project](/kapi/get-started/first-project) and this happens automatically; your prompts stay short: "Set kapi up for this project", "Check `README.md` against our voice profile and fix what fails", "Translate the docs into French and German, then bring them to the ship gate".
 
+The project also tells the assistant it has a voice. `kapi init` writes a short section into `AGENTS.md` (or an existing `CLAUDE.md`) naming the voice and the command that retrieves it, and `kapi voice pointer` writes or refreshes it on a project that bound its voice later. Claude Code reads `CLAUDE.md`; a line reading `@AGENTS.md` in it imports the section. The section carries no guidance of its own, so a changed profile never leaves it stale.
+
 ## Let kapi run Claude
 
 For unattended runs (`kapi up` across every locale, `kapi translate` without you in the loop) kapi needs a provider of its own. If Claude Code is signed in on your machine, that provider can be your Claude subscription:

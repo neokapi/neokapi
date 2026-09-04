@@ -213,3 +213,37 @@ func TestVoiceStarterPacksLoad(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, coreprofile.Blocking(probs), "a starter pack is a valid starting point")
 }
+
+// Saving a voice makes the project one with a voice, so the assistant file
+// says so: the same section `kapi init` writes, created as AGENTS.md when no
+// assistant file exists and replaced in place on the next save.
+func TestSaveVoiceProfileWritesTheAssistantPointer(t *testing.T) {
+	app := NewApp()
+	tab, root := newContextProject(t, app)
+
+	res, err := app.ProjectVoice(tab.ID)
+	require.NoError(t, err)
+	profile := *pointOf(t, res, "project default").Profile
+
+	saved, err := app.SaveVoiceProfile(tab.ID, "", profile)
+	require.NoError(t, err)
+	require.True(t, saved.Saved)
+	require.NotNil(t, saved.Pointer)
+	assert.Equal(t, "created", saved.Pointer.Action)
+	assert.Equal(t, "AGENTS.md", saved.Pointer.File)
+	assert.True(t, saved.Pointer.Created)
+	assert.Empty(t, saved.Pointer.Warning)
+
+	body, rerr := os.ReadFile(filepath.Join(root, "AGENTS.md"))
+	require.NoError(t, rerr)
+	assert.Contains(t, string(body), coreprofile.VoicePointerStart)
+	assert.Contains(t, string(body), "voice, "+profile.Name+", is held by kapi")
+	assert.Contains(t, string(body), "`kapi voice guide <path>`",
+		"a recipe that declares profiles points at the per-file form")
+
+	again, err := app.SaveVoiceProfile(tab.ID, "", profile)
+	require.NoError(t, err)
+	require.NotNil(t, again.Pointer)
+	assert.Equal(t, "unchanged", again.Pointer.Action)
+	assert.False(t, again.Pointer.Created)
+}
