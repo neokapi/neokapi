@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { TaskBoard, useWorkspace, useApi, useAuth, Card } from "@neokapi/ui";
+import { TaskBoard, useWorkspace, useApi, useAuth, Card, PageHeader } from "@neokapi/ui";
 import type { TaskInfo } from "@neokapi/ui";
 import { taskCountsQueryOptions } from "../../queries";
 
@@ -93,7 +93,7 @@ export function TasksRoute() {
 
   return (
     <div className="mx-auto w-full max-w-5xl p-4 md:p-6">
-      <h1 className="text-lg font-semibold mb-4">Tasks</h1>
+      <PageHeader title="Tasks" />
       <TaskBoard
         tasks={allTasks}
         loading={isFetching}

@@ -1,6 +1,6 @@
 import { useCallback, useEffect } from "react";
 import { useNavigate, useParams, useRouteContext } from "@tanstack/react-router";
-import { ContextScanInput, ContextScanLocalLaneCard } from "@neokapi/ui";
+import { ContextScanInput, ContextScanLocalLaneCard, PageHeader } from "@neokapi/ui";
 import type { ContextScanRequest } from "@neokapi/ui";
 import type { WorkspaceRouteContext } from "..";
 
@@ -58,14 +58,10 @@ export function ContextScanRoute() {
   if (!contextScanAvailable) {
     return (
       <div className="max-w-3xl mx-auto space-y-6">
-        <div>
-          <h1 className="text-lg font-semibold">Scan your brand</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            The hosted context scan is not available on this server: it requires the background job
-            system (PostgreSQL and a job queue), which this deployment does not run. You can still
-            create a voice profile by hand, or draft one locally.
-          </p>
-        </div>
+        <PageHeader
+          title="Scan your brand"
+          subtitle="The hosted context scan is not available on this server: it requires the background job system (PostgreSQL and a job queue), which this deployment does not run. You can still create a voice profile by hand, or draft one locally."
+        />
         <ContextScanLocalLaneCard onLearnMore={handleLocalLane} />
       </div>
     );
@@ -73,14 +69,10 @@ export function ContextScanRoute() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-lg font-semibold">Scan your brand</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Give the scan anything that carries your voice: pasted text, web pages, marketing files,
-          or a repository. It drafts a voice profile and candidate terms, with the evidence behind
-          each field; nothing is saved until you review and approve.
-        </p>
-      </div>
+      <PageHeader
+        title="Scan your brand"
+        subtitle="Give the scan anything that carries your voice: pasted text, web pages, marketing files, or a repository. It drafts a voice profile and candidate terms, with the evidence behind each field; nothing is saved until you review and approve."
+      />
       <ContextScanInput onStarted={handleStarted} />
     </div>
   );

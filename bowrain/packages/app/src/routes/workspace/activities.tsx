@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { ActivityFeed, useWorkspace, useApi, Card } from "@neokapi/ui";
+import { ActivityFeed, useWorkspace, useApi, Card, PageHeader } from "@neokapi/ui";
 import type { ActivityInfo } from "@neokapi/ui";
 
 export function ActivitiesRoute() {
@@ -77,7 +77,7 @@ export function ActivitiesRoute() {
 
   return (
     <div className="mx-auto w-full max-w-3xl p-4 md:p-6">
-      <h1 className="text-lg font-semibold mb-4">Activity</h1>
+      <PageHeader title="Activity" />
       <ActivityFeed
         activities={allActivities}
         loading={isFetching}
