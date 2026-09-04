@@ -3,10 +3,12 @@
 // A project with no flows of its own still converges: it runs the default flow.
 // So the empty state says that, and offers to add a flow, rather than reading
 // as something missing. In ad-hoc mode the built-in flows are always present,
-// so this shows only for a genuinely empty user set.
+// so this shows only for a genuinely empty user set. Shared across kapi desktop
+// and the platform's flow list.
 
 import { Workflow } from "lucide-react";
-import { Button, EmptyState } from "@neokapi/ui-primitives";
+import { Button } from "../ui/button";
+import { EmptyState } from "../EmptyState";
 
 export function FlowsEmptyState({
   projectMode,

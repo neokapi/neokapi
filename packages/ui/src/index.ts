@@ -523,6 +523,10 @@ export type {
   FlowTool as LinearFlowTool,
 } from "./components/flow-editor";
 
+// Flow list card + empty state (shared, outcome-first: name + outcome + step chips)
+export { FlowCard, StepChips, FlowsEmptyState } from "./components/flows";
+export type { FlowCardItem } from "./components/flows";
+
 // Filter config editor (legacy — prefer SchemaForm)
 export { FilterConfigEditor, SchemaConfigEditor } from "./components/filter";
 export type { FormatSchema, FormatParamsValue } from "./components/filter/types";

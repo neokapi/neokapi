@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
-import { FlowsEmptyState } from "./FlowsEmptyState";
+import { FlowsEmptyState } from "../../components/flows";
 
 const meta: Meta<typeof FlowsEmptyState> = {
   title: "Flows/FlowsEmptyState",
