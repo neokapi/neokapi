@@ -73,7 +73,7 @@ func (s *MCPServer) registerPhase2Tools() {
 		Description: "Given voice compliance findings, suggest specific text corrections. Returns the original text with each finding mapped to a concrete replacement suggestion.",
 	}, s.handleSuggestCorrections)
 
-	// rewrite_in_voice — rule-based substitution plus the guide for the rest.
+	// rewrite_in_voice: rule-based substitution plus the guide for the rest.
 	mcp.AddTool(s.server, &mcp.Tool{
 		Name: "rewrite_in_voice",
 		Description: "Rewrite text to match a voice profile by substituting its forbidden and competitor terms. " +

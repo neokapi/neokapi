@@ -41,7 +41,8 @@ kapi voice guide --pack friendly-dtc
 # style, and clarity.
 kapi voice check --profile-file voice.yaml --min-score 80 release-notes.md
 
-# Rewrite off-voice content: deterministic vocabulary substitution, no model
+# Rewrite off-voice content: deterministic vocabulary substitution, no model.
+# A rule with no replacement is reported under "skipped" rather than applied.
 kapi voice rewrite --profile-file voice.yaml --input-text "Leverage our solution"
 
 # Ask a model for the inflected forms of each vocabulary term, written as a diff
@@ -177,7 +178,8 @@ AI agents reach voice checking through the `kapi mcp` server:
 ```
 
 Agents can score content for voice compliance with the `voice_check` MCP tool
-and rewrite off-voice copy with `voice_rewrite`. The guide itself is read
+and rewrite off-voice copy with `voice_rewrite`, which lists under `skipped`
+the terms it matched and could not replace. The guide itself is read
 rather than called: `kapi voice guide` prints it, and the `context://<path>`
 resource returns it for the point a file sits at, with the terms bound there.
 Server deployments can expose an HTTP MCP endpoint so agents consume profiles

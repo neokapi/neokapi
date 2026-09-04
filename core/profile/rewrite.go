@@ -1,6 +1,7 @@
 package profile
 
 import (
+	"slices"
 	"sort"
 	"strings"
 )
@@ -149,7 +150,7 @@ func RewriteVocabulary(p *VoiceProfile, text string) RewriteResult {
 		if j, ok := skipAt[k]; ok {
 			s := &res.Skipped[j]
 			s.Count++
-			if !containsString(s.Matched, matched) {
+			if !slices.Contains(s.Matched, matched) {
 				s.Matched = append(s.Matched, matched)
 			}
 			continue
@@ -186,15 +187,6 @@ func indexOfSpan(hits []VocabHit, chosen map[int]bool, sp [2]int) int {
 func overlapsAny(h VocabHit, spans [][2]int) bool {
 	for _, sp := range spans {
 		if h.Start < sp[1] && sp[0] < h.End {
-			return true
-		}
-	}
-	return false
-}
-
-func containsString(list []string, s string) bool {
-	for _, v := range list {
-		if v == s {
 			return true
 		}
 	}
