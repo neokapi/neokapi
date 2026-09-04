@@ -8,6 +8,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  PageHeader,
   cn,
 } from "@neokapi/ui-primitives";
 import { useCallback, useState } from "react";
@@ -376,21 +377,12 @@ function OnboardingView({
 
   return (
     <div data-testid={TEST_IDS.onboarding.emptyProjects}>
-      {/* Page hero */}
-      <div className="mx-auto mb-10 max-w-2xl text-center">
-        {workspaceName && (
-          <div className="mb-3 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-            {workspaceName}
-          </div>
-        )}
-        <h2 className="mb-3 text-3xl font-semibold tracking-tight md:text-4xl">
-          Set up your workspace
-        </h2>
-        <p className="text-base leading-relaxed text-muted-foreground">
-          Bowrain keeps translated content converging on your brand. Start with your AI assistant,
-          with your files, or with your team.
-        </p>
-      </div>
+      <PageHeader
+        variant="hero"
+        eyebrow={workspaceName}
+        title="Set up your workspace"
+        subtitle="Bowrain keeps translated content converging on your brand. Start with your AI assistant, with your files, or with your team."
+      />
 
       {/* Hero card: assistant-driven starter pack */}
       <StarterPromptCard
@@ -571,24 +563,22 @@ export function ProjectDashboard({
         />
       ) : (
         <div>
-          {/* Header */}
-          <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <h2 className="text-2xl font-semibold tracking-tight">
-                {workspaceName ? `${workspaceName}` : "Projects"}
-              </h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                <Plural count={projects.length}>
-                  <One>{projects.length} project in this workspace</One>
-                  <Other>{projects.length} projects in this workspace</Other>
-                </Plural>
-              </p>
-            </div>
-            <Button onClick={() => setShowCreate(true)} data-testid="new-project-btn">
-              <Plus className="w-4 h-4 mr-1.5" />
-              New Project
-            </Button>
-          </div>
+          <PageHeader
+            className="mb-8"
+            title={workspaceName || "Projects"}
+            subtitle={
+              <Plural count={projects.length}>
+                <One>{projects.length} project in this workspace</One>
+                <Other>{projects.length} projects in this workspace</Other>
+              </Plural>
+            }
+            actions={
+              <Button onClick={() => setShowCreate(true)} data-testid="new-project-btn">
+                <Plus className="w-4 h-4 mr-1.5" />
+                New Project
+              </Button>
+            }
+          />
 
           {/* Loop status: where the loop stands, above the inventory */}
           {loopStatus && (

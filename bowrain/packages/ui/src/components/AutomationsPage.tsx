@@ -1,4 +1,4 @@
-import { Badge, Button, Card, Switch } from "@neokapi/ui-primitives";
+import { Badge, Button, Card, SectionHeading, Switch } from "@neokapi/ui-primitives";
 import { useState, useCallback, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useApi } from "../context/ApiContext";
@@ -132,7 +132,7 @@ export function AutomationsPage({ workspaceSlug, projectId }: AutomationsPagePro
       <Card className="p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-xl font-semibold">Automation Rules</h2>
+            <SectionHeading count={rules?.length}>Automation Rules</SectionHeading>
             <p className="mt-1 text-[13px] text-muted-foreground">
               Automate actions when events occur in this project
             </p>
@@ -206,7 +206,7 @@ export function AutomationsPage({ workspaceSlug, projectId }: AutomationsPagePro
       {/* Execution History */}
       <Card className="p-6">
         <div className="mb-4">
-          <h2 className="text-xl font-semibold">Execution History</h2>
+          <SectionHeading>Execution History</SectionHeading>
           <p className="mt-1 text-[13px] text-muted-foreground">Recent automation executions</p>
         </div>
         <AutomationHistory

@@ -29,6 +29,42 @@ describe("PageHeader", () => {
     render(<PageHeader title="Terms" />);
     expect(screen.queryByText(/pipelines/)).toBeNull();
   });
+
+  it("takes an element as the subtitle, so a count can be pluralized", () => {
+    render(<PageHeader title="Projects" subtitle={<span>3 projects in this workspace</span>} />);
+    expect(screen.getByText("3 projects in this workspace")).toBeTruthy();
+  });
+
+  it("renders an eyebrow above the title", () => {
+    render(<PageHeader title="Projects" eyebrow="Acme" />);
+    expect(screen.getByText("Acme")).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Projects");
+  });
+
+  it("keeps the hero title an h1, centred, with its lead and actions", () => {
+    render(
+      <PageHeader
+        variant="hero"
+        eyebrow="Acme"
+        title="Set up your workspace"
+        subtitle="Start with your assistant, your files, or your team."
+        actions={<button type="button">Create a project</button>}
+      />,
+    );
+    const h1 = screen.getByRole("heading", { level: 1 });
+    expect(h1.textContent).toBe("Set up your workspace");
+    expect(h1.className).toContain("text-3xl");
+    expect(screen.getByText("Acme")).toBeTruthy();
+    expect(screen.getByText("Start with your assistant, your files, or your team.")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Create a project" })).toBeTruthy();
+  });
+
+  it("lets a caller's spacing win over the default", () => {
+    const { container } = render(<PageHeader title="Projects" className="mb-8" />);
+    const root = container.firstElementChild as HTMLElement;
+    expect(root.className).toContain("mb-8");
+    expect(root.className).not.toContain("mb-6");
+  });
 });
 
 describe("SectionHeading", () => {

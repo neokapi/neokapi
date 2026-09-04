@@ -6,6 +6,8 @@
 
 export { default as DocumentViewer } from "./DocumentViewer";
 export type { DocumentViewerProps } from "./DocumentViewer";
+export { default as FilePreview } from "./FilePreview";
+export type { FilePreviewProps, FilePreviewSides, FilePreviewView } from "./FilePreview";
 export { default as FormatPreview } from "./FormatPreview";
 export type { BlockAttrs, FormatPreviewProps, PreviewSide } from "./FormatPreview";
 export { default as FileBrowser } from "./FileBrowser";
