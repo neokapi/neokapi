@@ -138,13 +138,33 @@ export const StepWithOptions: Story = {
   },
 };
 
+/** A flow that fans out: a parallel group runs its branches at the same time. */
+export const WithParallelGroup: Story = {
+  args: {
+    flowName: "translate-and-check",
+    flow: {
+      description: "Translate, then check quality and voice at the same time.",
+      steps: [
+        { tool: "recycle" },
+        { tool: "translate" },
+        { tool: "", parallel: [{ tool: "qa" }, { tool: "voice-vocab-check" }] },
+      ],
+    },
+    onGetSchema: getSchema,
+  },
+};
+
 /** A built-in flow: read-only, no add/remove/reorder. */
 export const ReadOnly: Story = {
   args: {
     flowName: "built-in-convert",
     flow: {
       description: "A built-in flow. Copy it to edit.",
-      steps: [{ tool: "recycle" }, { tool: "translate" }],
+      steps: [
+        { tool: "recycle" },
+        { tool: "translate" },
+        { tool: "", parallel: [{ tool: "qa" }, { tool: "voice-vocab-check" }] },
+      ],
     },
     readOnly: true,
     onRun: fn(),
