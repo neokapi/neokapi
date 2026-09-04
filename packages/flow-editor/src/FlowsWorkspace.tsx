@@ -8,6 +8,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  FlowCard,
   Input,
   Label,
   cn,
@@ -78,11 +79,16 @@ interface FlowListProps {
   onNew: () => void;
 }
 
+/** The flow's steps as ordered names, for the shared card's chip strip. */
+function stepNames(def: FlowDefinitionInfo): string[] {
+  return def.nodes.filter((n) => n.type === "tool").map((n) => n.label || n.name);
+}
+
 function FlowList({ definitions, activeId, isLoading, canAuthor, onSelect, onNew }: FlowListProps) {
   return (
     <div
       data-testid="flow-list"
-      className="w-60 border-r border-border flex flex-col overflow-hidden"
+      className="w-72 border-r border-border flex flex-col overflow-hidden"
     >
       <div className="px-4 py-3 border-b border-border flex justify-between items-center">
         <span className="font-semibold text-sm text-foreground">Flows</span>
@@ -94,28 +100,31 @@ function FlowList({ definitions, activeId, isLoading, canAuthor, onSelect, onNew
           </span>
         </SimpleTooltip>
       </div>
-      <div className="flex-1 overflow-auto py-1">
-        {isLoading && (
-          <div className="px-4 py-3 text-xs text-muted-foreground">Loading flows...</div>
-        )}
-        {definitions.map((def) => (
-          <button
-            key={def.id}
-            data-testid={`flow-item-${def.id}`}
-            onClick={() => onSelect(def)}
-            className={cn(
-              "w-full px-4 py-2.5 text-left border-none cursor-pointer text-[13px] text-foreground border-l-[3px]",
-              activeId === def.id
-                ? "border-l-primary bg-accent"
-                : "border-l-transparent bg-transparent hover:bg-accent/50",
-            )}
-          >
-            <div className="font-medium">{def.name}</div>
-            <div className="text-[11px] text-muted-foreground mt-0.5">
-              {def.source} &middot; {def.nodes.filter((n) => n.type === "tool").length} tool(s)
-            </div>
-          </button>
-        ))}
+      <div className="flex-1 overflow-auto p-2 space-y-2">
+        {isLoading
+          ? [0, 1, 2].map((i) => <FlowCard key={i} loading />)
+          : definitions.map((def) => {
+              const steps = stepNames(def);
+              return (
+                <div
+                  key={def.id}
+                  data-testid={`flow-item-${def.id}`}
+                  className={cn("rounded-lg", activeId === def.id && "ring-2 ring-primary")}
+                >
+                  <FlowCard
+                    item={{
+                      id: def.id,
+                      name: def.name,
+                      description: def.description,
+                      steps,
+                      stepCount: steps.length,
+                      source: def.source,
+                    }}
+                    onClick={() => onSelect(def)}
+                  />
+                </div>
+              );
+            })}
       </div>
     </div>
   );

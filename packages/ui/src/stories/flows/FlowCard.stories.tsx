@@ -1,12 +1,20 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
-import type { FlowCardItem } from "./FlowCard";
-import { FlowCard } from "./FlowCard";
+import type { FlowCardItem } from "../../components/flows";
+import { FlowCard } from "../../components/flows";
 
 const meta: Meta<typeof FlowCard> = {
   title: "Flows/FlowCard",
   component: FlowCard,
   tags: ["autodocs"],
+  parameters: {
+    docs: {
+      description: {
+        component:
+          "The outcome-first flow card: name, a one-line outcome, the step chips it runs, and a Default badge. Shared across kapi desktop and the platform's flow list.",
+      },
+    },
+  },
   render: (args) => (
     <div className="max-w-md">
       <FlowCard {...args} />

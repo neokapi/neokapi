@@ -4,19 +4,17 @@
 // the sequence it runs (recycle, translate, check) in place of a bare step
 // count; and the flow the recipe runs by default carries a Default badge. The
 // technical identity a reader could not act on is gone from the face of the
-// card.
+// card. Shared across kapi desktop and the platform's flow list.
 
 import { ArrowRight, Copy, FolderInput, Workflow } from "lucide-react";
-import {
-  Badge,
-  Button,
-  ConfirmDeleteButton,
-  ItemCard,
-  Markdown,
-  SimpleTooltip,
-  Skeleton,
-} from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
+import { Badge } from "../ui/badge";
+import { Button } from "../ui/button";
+import { Markdown } from "../ui/markdown";
+import { SimpleTooltip } from "../ui/tooltip";
+import { Skeleton } from "../ui/skeleton";
+import { ItemCard } from "../ui/item-card";
+import { ConfirmDeleteButton } from "../composites/confirm-delete-button";
 
 export interface FlowCardItem {
   id: string;
@@ -125,16 +123,30 @@ export function FlowCard({
         >
           {onAdopt && (
             <SimpleTooltip
-              content={adoptProjectName ? `Add to project: ${adoptProjectName}` : "Add to project"}
+              content={
+                adoptProjectName
+                  ? t("Add to project: {name}", { name: adoptProjectName })
+                  : t("Add to project")
+              }
             >
-              <Button variant="ghost" size="icon-xs" onClick={onAdopt} aria-label="Add to project">
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={onAdopt}
+                aria-label={t("Add to project")}
+              >
                 <FolderInput size={12} />
               </Button>
             </SimpleTooltip>
           )}
           {onCopy && (
-            <SimpleTooltip content="Copy to edit">
-              <Button variant="ghost" size="icon-xs" onClick={onCopy} aria-label="Copy to edit">
+            <SimpleTooltip content={t("Copy to edit")}>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={onCopy}
+                aria-label={t("Copy to edit")}
+              >
                 <Copy size={12} />
               </Button>
             </SimpleTooltip>

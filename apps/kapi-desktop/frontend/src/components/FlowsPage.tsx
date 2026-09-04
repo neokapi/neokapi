@@ -8,6 +8,8 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  FlowCard,
+  FlowsEmptyState,
   Label,
   Input,
   Markdown,
@@ -20,8 +22,6 @@ import { api } from "../hooks/useApi";
 import { qk } from "../lib/queryKeys";
 import { useError } from "./ErrorBanner";
 import { FlowPage } from "./FlowPage";
-import { FlowCard } from "./flows/FlowCard";
-import { FlowsEmptyState } from "./flows/FlowsEmptyState";
 import type { RunFlowHandler } from "./CollectionsPanel";
 import type { FlowSpec } from "../types/api";
 
