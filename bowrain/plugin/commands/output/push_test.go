@@ -206,13 +206,15 @@ func TestPushOutput_FormatText_RefusedVerdicts(t *testing.T) {
 				VerdictsRefused: []venue.DecisionRefusal{
 					{Locale: "fr-FR", Kind: venue.VerdictApproval, Reason: venue.RefusedNoReviewPermission, Count: 2},
 					{Locale: "de-DE", Kind: venue.VerdictSignOff, Reason: venue.RefusedSeparationOfDuties, Count: 1},
+					{Locale: "nb-NO", Kind: venue.VerdictDemotion, Reason: venue.RefusedSignOffWithdrawal, Count: 2},
 				},
-				VerdictsRetired: 3,
+				VerdictsRetired: 5,
 			},
 			contains: []string{
 				"2 approvals not accepted for fr-FR: no review permission",
 				"1 sign-off not accepted for de-DE: separation of duties",
-				"3 local record(s) now match the platform; they will not be sent again",
+				"2 demotions not accepted for nb-NO: withdrawing a sign-off needs review permission",
+				"5 local record(s) now match the platform; they will not be sent again",
 			},
 		},
 		{

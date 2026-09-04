@@ -192,6 +192,19 @@ The pusher is the decider recorded for a verdict that passes, whatever decider
 the payload named. The project's own record then retires the refused verdicts to
 the same basis, which is what stops the next push sending them again.
 
+The other direction is held to one question. A push that lowers a target the
+venue holds at `signed-off`, keeping the translation and the source the
+sign-off blessed, is withdrawing that sign-off, and the review surfaces let an
+un-review or a rejection do that only for a caller holding review permission
+for the language. The ingest worker asks the same: a withdrawal from a pusher
+without it keeps the venue's rung and ledger record, is counted as a demotion
+the venue did not apply, and travels back with the record the venue kept, which
+the project's own record is restored to. The separation-of-duties policy is not
+asked, because a withdrawal blesses nothing. A pushed target that changes the
+translation or arrives with a moved source is an edit and lands at
+`translated`, as an edit in the editor does. Taking back an approval at
+`reviewed` is translation work on every surface and passes ungated.
+
 ## Consequences
 
 The context graph gains its first reader on a decision surface. The model is

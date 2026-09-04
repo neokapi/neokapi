@@ -14,26 +14,32 @@ import (
 // A venue is authoritative about what has been approved in it. A push can carry
 // an approval the venue declines to accept, because the pusher holds no review
 // permission for that language or the workspace refuses a verdict on work its
-// author wrote. The venue then stores the translation without the verdict.
+// author wrote. The venue then stores the translation without the verdict. A
+// push can also take back a sign-off the venue holds, and the venue declines
+// that too for a pusher without review permission: the sign-off stands, and
+// the venue sends back the record it kept.
 //
 // The project's own record has to follow, or the two disagree forever: the
 // decisions component of the freshness ref would keep differing, so every push
-// from then on would send the same refused approvals again, be refused again,
-// and report it again. So a refused verdict is retired here the way the venue
-// retired it, leaving the basis it carried and nothing more.
+// from then on would send the same refused claims again, be refused again, and
+// report it again. So a refused verdict is retired here the way the venue
+// retired it, leaving the basis it carried and nothing more, and a refused
+// withdrawal is restored to the record the venue kept.
 //
-// It is not staged. Staging is where a person's own pending decisions wait for
+// Neither is staged. Staging is where a person's own pending decisions wait for
 // a commit, and this is not the person's decision: it is the venue's answer
 // about a decision they already published.
 
 // retireRefusedVerdicts brings the project's committed record into line with
-// what the venue accepted, and reports how many records it retired.
+// what the venue accepted, and reports how many records it changed.
 //
-// Two rules, because the venue reports refusals two ways. A refusal for want of
-// review permission is about the language: the pusher holds none, so every
-// verdict this push carried for that language was refused, whether or not the
-// venue's bounded per-unit list happens to name it. Every other refusal is
-// about the unit, and applies to the units the venue named.
+// Three rules, because the venue reports refusals three ways. A refusal for
+// want of review permission is about the language: the pusher holds none, so
+// every verdict this push carried for that language was refused, whether or not
+// the venue's bounded per-unit list happens to name it. A refused withdrawal of
+// a sign-off is about the unit and carries the record the venue kept, which is
+// written back as it is. Every other refusal is about the unit, and applies to
+// the units the venue named.
 func (c *BowrainSourceConnector) retireRefusedVerdicts(ctx context.Context, report *venue.PushGovernance) (int, error) {
 	if report == nil || report.Empty() {
 		return 0, nil
@@ -45,8 +51,19 @@ func (c *BowrainSourceConnector) retireRefusedVerdicts(ctx context.Context, repo
 		}
 	}
 	units := map[unitKey]bool{}
+	held := map[unitKey]venue.UnitDecision{}
 	for _, u := range report.Units {
-		units[unitKey{item: u.ItemName, unit: u.Unit, variant: u.Variant}] = true
+		key := unitKey{item: u.ItemName, unit: u.Unit, variant: u.Variant}
+		if u.Reason == venue.RefusedSignOffWithdrawal {
+			// A withdrawal the venue refused without saying what it holds
+			// leaves nothing to write: the local record cannot invent the
+			// sign-off's decider, and a pull settles it.
+			if u.Held != nil {
+				held[key] = *u.Held
+			}
+			continue
+		}
+		units[key] = true
 	}
 
 	st, err := c.workingStore(ctx)
@@ -76,7 +93,7 @@ func (c *BowrainSourceConnector) retireRefusedVerdicts(ctx context.Context, repo
 
 	retired := 0
 	for _, u := range all {
-		if !carriesVerdict(u) || pending[u.Key()] {
+		if pending[u.Key()] {
 			continue
 		}
 		item := u.Scope
@@ -84,8 +101,18 @@ func (c *BowrainSourceConnector) retireRefusedVerdicts(ctx context.Context, repo
 			item = p
 		}
 		variant := variantText(u.Variant)
-		if !blockedLocales[string(u.Variant.Locale)] &&
-			!units[unitKey{item: item, unit: u.Unit, variant: variant}] {
+		key := unitKey{item: item, unit: u.Unit, variant: variant}
+		if h, ok := held[key]; ok {
+			if err := st.Record(ctx, withHeld(u, h)); err != nil {
+				return retired, fmt.Errorf("restore unit state %s/%s: %w", u.Unit, variant, err)
+			}
+			retired++
+			continue
+		}
+		if !carriesVerdict(u) {
+			continue
+		}
+		if !blockedLocales[string(u.Variant.Locale)] && !units[key] {
 			continue
 		}
 		if err := st.Record(ctx, withoutVerdict(u)); err != nil {
@@ -125,5 +152,24 @@ func withoutVerdict(u state.UnitState) state.UnitState {
 	u.Decision.ReviewState = ""
 	u.Decision.By = ""
 	u.Decision.At = ""
+	return u
+}
+
+// withHeld is the record the venue kept when it refused to take back a
+// sign-off: the local record with the venue's verdict on it again, and the
+// venue's record time, since the record is now the venue's. The hashes stay
+// the local record's own; a withdrawal is refused only over the pairing the
+// sign-off blessed, so they already agree.
+func withHeld(u state.UnitState, h venue.UnitDecision) state.UnitState {
+	u.Status = model.TargetStatus(h.Status)
+	u.Decision.ReviewState = h.ReviewState
+	u.Decision.By = h.DecidedBy
+	u.Decision.At = h.DecidedAt
+	u.Decision.Note = h.Note
+	u.Decision.Parked = h.Parked
+	u.Decision.Assignee = h.Assignee
+	if h.Updated != "" {
+		u.Updated = h.Updated
+	}
 	return u
 }

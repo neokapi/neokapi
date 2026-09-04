@@ -15,6 +15,7 @@ import (
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/review"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/venue"
 )
 
@@ -36,6 +37,15 @@ import (
 // rung a translation with nobody's blessing sits on. A push is never failed for
 // a rung, because the content is not in question and refusing to store it would
 // lose work over a permission the pusher can be granted afterwards.
+//
+// The other direction is held to one question. A push that lowers a target the
+// venue holds at signed-off, keeping the translation and the source the
+// sign-off blessed, is withdrawing a sign-off: the web asks review permission
+// for that language before it lets an un-review or a rejection do the same,
+// and so does the worker. A refused withdrawal keeps the venue's rung and its
+// ledger record, and the record travels back so the producer can hold the same.
+// A pushed target that carries a different translation or a different source
+// is an edit, and lands at translated as an edit on the web does.
 
 // pushGovernor holds one push's answer: the gate, the identities the answer is
 // about, and the report of what it refused.
@@ -52,12 +62,23 @@ type pushGovernor struct {
 	// unitID maps a decision's (item, unit) to the same row.
 	unitID map[unitRef]string
 	// priorStatus is the rung each stored target sits on now, for the audit
-	// trail's before/after.
+	// trail's before/after and for telling a withdrawal from a promotion.
 	priorStatus map[platstore.TargetRef]model.TargetStatus
+	// priorHash is the hash of the translation each stored target holds now,
+	// and priorSource the hash of each stored row's source: the pairing a
+	// standing sign-off blessed. A pushed target that keeps both and lowers the
+	// rung is a withdrawal; one that changes either is an edit.
+	priorHash   map[platstore.TargetRef]string
+	priorSource map[string]string
 
 	counts   map[refusalRef]int
 	units    []venue.RefusedUnit
 	accepted map[acceptedKey]acceptedRung
+	// withdrawals indexes each refused withdrawal by unit into units, or -1
+	// when the list was full. A push states a withdrawal twice, on the block
+	// and in its decision record, and the report counts it once and attaches
+	// the venue's standing record to it.
+	withdrawals map[unitVariantRef]int
 }
 
 // recordPushGovernance stores what the review gate refused on the push's job
@@ -136,9 +157,10 @@ type acceptedRung struct {
 type acceptedKey struct{ ref, locale string }
 
 // newPushGovernor resolves everything the gate needs before the transition
-// opens: which rows the payload's blocks and units name, who last wrote each
-// target by hand, the workspace policy, and the pusher's review permission for
-// each language a verdict names.
+// opens: which rows the payload's blocks and units name, the rung and the
+// pairing each holds, who last wrote each target by hand, the workspace policy,
+// and the pusher's review permission for each language a verdict or a
+// withdrawal names.
 //
 // It reports an error when a question could not be ASKED: an unreadable
 // authorship table, a permission lookup that failed, a deployment with no way
@@ -158,18 +180,27 @@ func newPushGovernor(
 		storedID:    map[string]string{},
 		unitID:      map[unitRef]string{},
 		priorStatus: map[platstore.TargetRef]model.TargetStatus{},
+		priorHash:   map[platstore.TargetRef]string{},
+		priorSource: map[string]string{},
 		counts:      map[refusalRef]int{},
 		accepted:    map[acceptedKey]acceptedRung{},
+		withdrawals: map[unitVariantRef]int{},
 	}
-	if !carriesVerdict(staged, decisions) {
-		return g, nil // nothing to judge; no lookups, no gate
+	if len(staged) == 0 && len(decisions) == 0 {
+		return g, nil
+	}
+	// Whether a push withdraws a sign-off is a question about the rows the
+	// venue holds, so they are read before deciding whether there is anything
+	// to judge at all.
+	g.loadPriorRows(ctx, deps, projectID, stream, staged, decisions)
+	if !carriesVerdict(staged, decisions) && !g.withdrawsAny(staged, decisions) {
+		return g, nil // nothing to judge; no permission lookups, no gate
 	}
 	if deps.ReviewAuthority == nil {
-		return nil, errors.New("this deployment cannot resolve review permissions, so a push carrying approvals is refused")
+		return nil, errors.New("this deployment cannot resolve review permissions, so a push carrying approvals or withdrawing a sign-off is refused")
 	}
 
 	locales := verdictLocales(staged, decisions)
-	g.loadPriorRows(ctx, deps, projectID, stream, staged, decisions)
 
 	blockIDs := make([]string, 0, len(g.storedID))
 	seen := map[string]bool{}
@@ -245,7 +276,7 @@ func (g *pushGovernor) loadPriorRows(
 		}
 	}
 	for _, d := range decisions {
-		if d.ItemName != "" && d.CarriesVerdict() {
+		if d.ItemName != "" {
 			items[d.ItemName] = true
 		}
 	}
@@ -275,7 +306,8 @@ func (g *pushGovernor) loadPriorRows(
 }
 
 // indexRows records one item's rows under every name the payload may use for
-// them, and the rung each of their targets holds.
+// them, the rung each of their targets holds, and the pairing each holds: the
+// translation's hash and the source's.
 func (g *pushGovernor) indexRows(itemName string, rows []*venue.StoredBlock) {
 	for _, row := range rows {
 		if row == nil || row.ID == "" {
@@ -289,13 +321,84 @@ func (g *pushGovernor) indexRows(itemName string, rows []*venue.StoredBlock) {
 		if row.Block == nil {
 			continue
 		}
+		g.priorSource[row.ID] = blockSourceHash(row)
 		for key, target := range row.Block.Targets {
 			if target == nil {
 				continue
 			}
-			g.priorStatus[platstore.TargetRef{BlockID: row.ID, Locale: string(key.Locale)}] = target.Status
+			ref := platstore.TargetRef{BlockID: row.ID, Locale: string(key.Locale)}
+			g.priorStatus[ref] = target.Status
+			g.priorHash[ref] = state.TargetHash(model.RunsText(target.Runs))
 		}
 	}
+}
+
+// withdrawsSignOff reports whether a pushed target takes back a sign-off the
+// venue holds: the row sits at signed-off, the push lowers it, and the pairing
+// is the one the sign-off blessed (the same translation of the same source).
+// A pushed target that changes the translation or arrives with a moved source
+// is an edit, and the web's editor lowers an edited target without asking
+// anybody, so the worker does too.
+func (g *pushGovernor) withdrawsSignOff(blockID string, b *model.Block, locale string, target *model.Target) bool {
+	if blockID == "" || target == nil {
+		return false
+	}
+	ref := platstore.TargetRef{BlockID: blockID, Locale: locale}
+	if g.priorStatus[ref] != model.TargetStatusSignedOff || target.Status.Rank() >= model.TargetStatusSignedOff.Rank() {
+		return false
+	}
+	return g.priorHash[ref] == state.TargetHash(model.RunsText(target.Runs)) &&
+		g.priorSource[blockID] == model.ComputeContentHash(b.SourceText())
+}
+
+// withdrawsInRecord reports whether a decision record takes back a sign-off the
+// venue's ledger holds for its unit: the same test as withdrawsSignOff, read
+// off the record's own pairing against the ledger's.
+func withdrawsInRecord(held, d venue.UnitDecision) bool {
+	if held.ReviewState != venue.ReviewStateSignedOff && held.Status != string(model.TargetStatusSignedOff) {
+		return false
+	}
+	if model.TargetStatus(d.Status).Rank() >= model.TargetStatusSignedOff.Rank() {
+		return false
+	}
+	return d.TargetHash != "" && d.TargetHash == held.TargetHash &&
+		d.ContentHash != "" && d.ContentHash == held.ContentHash
+}
+
+// withdrawsAny reports whether anything in this push takes back a sign-off, by
+// the rows the venue holds. It decides whether the gate opens for a push that
+// carries no verdict; the ledger itself is read inside the transition.
+func (g *pushGovernor) withdrawsAny(staged []stagedGroup, decisions []venue.UnitDecision) bool {
+	for _, group := range staged {
+		for _, b := range group.Blocks {
+			if b == nil {
+				continue
+			}
+			blockID := g.rowFor(b)
+			for key, target := range b.Targets {
+				if g.withdrawsSignOff(blockID, b, string(key.Locale), target) {
+					return true
+				}
+			}
+		}
+	}
+	for _, d := range decisions {
+		if d.CarriesVerdict() {
+			continue
+		}
+		blockID := g.unitID[unitRef{item: d.ItemName, unit: d.Unit}]
+		locale := decisionLocale(d)
+		if blockID == "" || locale == "" {
+			continue
+		}
+		ref := platstore.TargetRef{BlockID: blockID, Locale: locale}
+		if g.priorStatus[ref] == model.TargetStatusSignedOff &&
+			model.TargetStatus(d.Status).Rank() < model.TargetStatusSignedOff.Rank() &&
+			d.TargetHash == g.priorHash[ref] && d.ContentHash == g.priorSource[blockID] {
+			return true
+		}
+	}
+	return false
 }
 
 // rowFor resolves the row a payload block names, joined the way the rest of the
@@ -333,6 +436,41 @@ func (g *pushGovernor) allow(blockID, locale, kind string, countRefusal bool) (b
 	return false, reason
 }
 
+// allowWithdrawal puts one language to the gate's withdrawal question.
+func (g *pushGovernor) allowWithdrawal(locale string) (bool, string) {
+	err := g.gate.AllowWithdrawal(locale)
+	if err == nil {
+		return true, ""
+	}
+	reason := venue.RefusedSignOffWithdrawal
+	if refusal, ok := errors.AsType[review.Refusal](err); ok {
+		reason = refusal.Reason
+	}
+	return false, reason
+}
+
+// refuseWithdrawal counts one refused withdrawal and names its unit, once,
+// whichever half of the push stated it first.
+func (g *pushGovernor) refuseWithdrawal(itemName, unit, variant, locale, reason string) {
+	ref := unitVariantRef{item: itemName, unit: unit, variant: variant}
+	if _, seen := g.withdrawals[ref]; seen {
+		return
+	}
+	g.counts[refusalRef{locale: locale, kind: venue.VerdictDemotion, reason: reason}]++
+	g.withdrawals[ref] = g.noteUnit(itemName, unit, variant, reason)
+}
+
+// attachHeld puts the venue's standing record on a refused withdrawal's line
+// in the report, so the producer can write the same record and agree with the
+// venue without a pull.
+func (g *pushGovernor) attachHeld(itemName, unit, variant string, held venue.UnitDecision) {
+	idx, seen := g.withdrawals[unitVariantRef{item: itemName, unit: unit, variant: variant}]
+	if !seen || idx < 0 {
+		return
+	}
+	g.units[idx].Held = &held
+}
+
 // refusalLocale is the language a refusal is reported against, falling back to
 // the raw variant when it is one this venue cannot read.
 func refusalLocale(locale, variant string) string {
@@ -362,21 +500,25 @@ func (g *pushGovernor) noteAccepted(blockID, item, unit, locale string, from, to
 }
 
 // noteUnit records which unit a refusal was about, up to the bound the report
-// carries. The counts stay exact whether or not the unit made the list.
-func (g *pushGovernor) noteUnit(itemName, unit, variant, reason string) {
+// carries, and reports its index in the list, or -1 when it made no list. The
+// counts stay exact whether or not the unit made the list.
+func (g *pushGovernor) noteUnit(itemName, unit, variant, reason string) int {
 	if unit == "" || len(g.units) >= venue.RefusedUnitLimit {
-		return
+		return -1
 	}
 	g.units = append(g.units, venue.RefusedUnit{
 		ItemName: itemName, Unit: unit, Variant: variant, Reason: reason,
 	})
+	return len(g.units) - 1
 }
 
-// vetTargets demotes every pushed target whose rung the gate refuses.
+// vetTargets demotes every pushed target whose rung the gate refuses, and
+// restores every pushed target whose withdrawal of a sign-off the gate refuses.
 //
 // The content lands either way. A refused target keeps its translation and
 // sits at translated, the rung a translation nobody has blessed occupies, or
-// stays at draft when there is nothing to translate.
+// stays at draft when there is nothing to translate. A refused withdrawal keeps
+// the rung the venue holds.
 func (g *pushGovernor) vetTargets(staged []stagedGroup) {
 	if g.gate == nil {
 		return
@@ -388,11 +530,24 @@ func (g *pushGovernor) vetTargets(staged []stagedGroup) {
 			}
 			blockID := g.rowFor(b)
 			for key, target := range b.Targets {
-				if target == nil || target.Status.Rank() <= model.TargetStatusTranslated.Rank() {
+				if target == nil {
 					continue
 				}
 				locale := string(key.Locale)
 				prior := g.priorStatus[platstore.TargetRef{BlockID: blockID, Locale: locale}]
+				if g.withdrawsSignOff(blockID, b, locale, target) {
+					allowed, reason := g.allowWithdrawal(locale)
+					if allowed {
+						g.noteAccepted(blockID, group.ItemName, b.Name, locale, prior, target.Status)
+						continue
+					}
+					g.refuseWithdrawal(group.ItemName, b.Name, variantText(key), locale, reason)
+					target.Status = prior
+					continue
+				}
+				if target.Status.Rank() <= model.TargetStatusTranslated.Rank() {
+					continue
+				}
 				if target.Status.Rank() <= prior.Rank() {
 					// The venue already holds this rung, or a higher one. The
 					// push claims nothing new, so there is nothing to judge,
@@ -442,6 +597,11 @@ func refusedRung(target *model.Target, prior model.TargetStatus) model.TargetSta
 // platform decided is not a decision, and refusing it would make every push
 // after a legitimate approval report a refusal.
 //
+// A record that carries no verdict is a basis, and a basis for a unit the
+// ledger holds a sign-off on, over the same pairing, is that sign-off's
+// withdrawal. One the gate refuses is dropped, so the ledger's record stands,
+// and that record goes into the report for the producer to hold too.
+//
 // Every accepted verdict is attributed to the authenticated pusher. A
 // client-supplied decider is never trusted: it is a string in a file that
 // anyone with a text editor can write.
@@ -456,12 +616,30 @@ func (g *pushGovernor) vetDecisions(held []venue.UnitDecision, decisions []venue
 
 	out := make([]venue.UnitDecision, 0, len(decisions))
 	for _, d := range decisions {
+		ref := unitVariantRef{item: d.ItemName, unit: d.Unit, variant: d.Variant}
+		prior, inLedger := ledger[ref]
 		if !d.CarriesVerdict() {
+			if inLedger && withdrawsInRecord(prior, d) {
+				locale := decisionLocale(d)
+				allowed := false
+				reason := venue.RefusedSignOffWithdrawal
+				if locale != "" {
+					// A variant this venue cannot read is a language it cannot
+					// check a permission for, and the sign-off stands.
+					allowed, reason = g.allowWithdrawal(locale)
+				}
+				if !allowed {
+					g.refuseWithdrawal(d.ItemName, d.Unit, d.Variant, refusalLocale(locale, d.Variant), reason)
+					g.attachHeld(d.ItemName, d.Unit, d.Variant, prior)
+					continue
+				}
+				blockID := g.unitID[unitRef{item: d.ItemName, unit: d.Unit}]
+				g.noteAccepted(blockID, d.ItemName, d.Unit, locale,
+					model.TargetStatusSignedOff, model.TargetStatus(d.Status))
+			}
 			out = append(out, d) // a basis, not a verdict
 			continue
 		}
-		ref := unitVariantRef{item: d.ItemName, unit: d.Unit, variant: d.Variant}
-		prior, inLedger := ledger[ref]
 		if inLedger && sameVerdict(prior, d) {
 			// Already held. Keep the ledger's decider: the platform recorded
 			// who decided, and a re-push is not a second decision.
@@ -680,7 +858,7 @@ func (g *pushGovernor) emitAudit(ctx context.Context, deps *WorkerDeps, projectI
 			Data: map[string]string{
 				"locale":   a.locale,
 				"stream":   stream,
-				"decision": review.DecisionName(true, a.to),
+				"decision": review.DecisionName(a.to.Rank() > a.from.Rank(), a.to),
 				"via":      "push",
 			},
 			Before: map[string]string{"status": string(a.from)},

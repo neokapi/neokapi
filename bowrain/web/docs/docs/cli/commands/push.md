@@ -106,6 +106,22 @@ Pushed 47 blocks (12 uploaded), 512 words (scanned 12 files)
 The last line is the project's record following the server's answer, so the same
 refused verdicts are not sent again on every push.
 
+Taking a sign-off back is held to the same permission. A push that lowers a
+target the server holds at signed-off, with the translation and the source it
+was signed off for unchanged, withdraws that sign-off, and the withdrawal lands
+only when you hold review permission for that language. Otherwise the sign-off
+stands, the push reports the demotion it did not apply, and the project's
+record is restored to what the server holds:
+
+```
+1 demotion not accepted for nb-NO: withdrawing a sign-off needs review permission
+1 local record(s) now match the platform; they will not be sent again
+```
+
+An edited translation is not a withdrawal: it lands at translated, as an edit
+made in the web app does. Taking back an approval at reviewed is ordinary
+translation work and needs no review permission.
+
 ## Terms edits
 
 When the project is claimed into a workspace and a baseline was pulled (see

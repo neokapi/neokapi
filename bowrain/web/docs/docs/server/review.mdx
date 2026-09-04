@@ -99,6 +99,13 @@ review permission and the same separation-of-duties policy as one made here, and
 the push reports the approvals and sign-offs the workspace did not accept. The
 content lands either way, as a translation awaiting review.
 
+Taking a sign-off back is review-level work here, and it is by push as well. A
+push that lowers a signed-off target without changing its translation lands
+only from someone who holds review permission for that language; otherwise the
+sign-off stands and the push reports the demotion it did not apply. An edited
+translation drops to awaiting review on either route, because a sign-off judged
+the wording it was given.
+
 ### What an approval leaves behind
 
 Two records, written for every approval whichever route made it:

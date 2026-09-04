@@ -197,6 +197,22 @@ func (g *Gate) Allow(blockID, locale string) error {
 	return g.vetSoD(blockID, locale)
 }
 
+// AllowWithdrawal answers the other review-level question for one language: may
+// this actor lower a target the venue holds at signed-off?
+//
+// One condition. The actor must hold review permission for that language in
+// that project, which is what the web asks before an un-review or a rejection
+// drops a signed-off target (HandleReviewBlock's Elevate). The workspace
+// separation-of-duties policy is not asked: it judges who may bless work, and
+// withdrawing a sign-off blesses nothing, so the author of a translation who
+// also holds review may take back their own sign-off here as on the web.
+func (g *Gate) AllowWithdrawal(locale string) error {
+	if g == nil || g.cfg.Permits == nil || !g.cfg.Permits(locale) {
+		return Refusal{Reason: venue.RefusedSignOffWithdrawal, Locale: locale}
+	}
+	return nil
+}
+
 // vetSoD applies the workspace policy to one pair.
 func (g *Gate) vetSoD(blockID, locale string) error {
 	if g.cfg.Actor == "" || g.mode == platauth.SoDOff {
