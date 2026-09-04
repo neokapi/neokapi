@@ -152,6 +152,12 @@ func TestReviewNeighbourCarriesRunsNotText(t *testing.T) {
 	assert.Equal(t, "date", n.Source[1].Ph.Equiv)
 	require.Len(t, n.Target, 3)
 	require.NotNil(t, n.Target[1].Ph)
+	assert.Empty(t, n.Status, "a target on no rung reports no status")
+
+	block.Target("nb").Status = model.TargetStatusReviewed
+	n, ok = reviewNeighbour(block, "nb")
+	require.True(t, ok)
+	assert.Equal(t, "reviewed", n.Status, "the neighbour's rung travels with it")
 }
 
 func TestReviewNeighbourSkipsUnreadableBlocks(t *testing.T) {
@@ -171,95 +177,40 @@ func TestReviewNeighbourSkipsUnreadableBlocks(t *testing.T) {
 	}
 }
 
-func TestReviewPriorVersionReadsTheChain(t *testing.T) {
+// TestReviewHistoryThreadsTheDecisionContext: the version chain is read through
+// core/review, and Governed is judged against the fingerprint the decision in
+// force was recorded under, which only the state record carries.
+func TestReviewHistoryThreadsTheDecisionContext(t *testing.T) {
 	ctx := t.Context()
 	tm := memory.NewInMemoryStore()
-
-	older := time.Date(2026, 1, 1, 9, 0, 0, 0, time.UTC)
-	newer := time.Date(2026, 2, 1, 9, 0, 0, 0, time.UTC)
-	require.NoError(t, tm.Add(ctx, chainAnswer("v1", "settings.save", "Save file", "Lagre fil", "fp-old", older)))
-	require.NoError(t, tm.Add(ctx, chainAnswer("v2", "settings.save", "Save the file", "Lagre filen", "fp-now", newer)))
-
+	at := time.Date(2026, 2, 1, 9, 0, 0, 0, time.UTC)
+	require.NoError(t, tm.Add(ctx, chainAnswer("v2", "settings.save", "Save the file", "Lagre filen", "fp-now", at)))
 	block := &model.Block{
-		ID:           "b1",
-		Name:         "settings.save",
-		Unit:         "settings.save",
-		Translatable: true,
-		Source:       []model.Run{model.TextR("Save this file")},
+		ID: "b1", Name: "settings.save", Unit: "settings.save", Translatable: true,
+		Source: []model.Run{model.TextR("Save this file")},
 	}
+	a := &App{}
 
 	tests := []struct {
 		name         string
 		unit         *state.UnitState
-		wantSource   string
-		wantTarget   string
-		wantFP       string
 		wantGoverned bool
 	}{
-		{
-			name:         "the newest answer wins, governed by the context in force",
-			unit:         &state.UnitState{ContextHash: "fp-now"},
-			wantSource:   "Save the file",
-			wantTarget:   "Lagre filen",
-			wantFP:       "fp-now",
-			wantGoverned: true,
-		},
-		{
-			name:         "an answer approved under superseded rules is reported ungoverned",
-			unit:         &state.UnitState{ContextHash: "fp-moved"},
-			wantSource:   "Save the file",
-			wantTarget:   "Lagre filen",
-			wantFP:       "fp-now",
-			wantGoverned: false,
-		},
-		{
-			name:       "with no state record the chain still answers",
-			unit:       nil,
-			wantSource: "Save the file",
-			wantTarget: "Lagre filen",
-			wantFP:     "fp-now",
-		},
+		{name: "governed by the context in force", unit: &state.UnitState{ContextHash: "fp-now"}, wantGoverned: true},
+		{name: "ungoverned once the rules moved", unit: &state.UnitState{ContextHash: "fp-moved"}},
+		{name: "with no state record the chain still answers", unit: nil},
 	}
-
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			prior := reviewPriorVersion(ctx, tm, block, "en", "nb", tc.unit)
-			require.NotNil(t, prior)
-			assert.Equal(t, tc.wantSource, prior.Source)
-			assert.Equal(t, tc.wantTarget, prior.Target)
-			assert.Equal(t, tc.wantFP, prior.ContextFingerprint)
-			assert.Equal(t, tc.wantGoverned, prior.Governed)
+			h := a.reviewHistory(ctx, ReviewContextRequest{Memory: tm, SourceLang: "en", Unit: tc.unit}, block, "nb")
+			require.NotNil(t, h.Prior)
+			assert.Equal(t, "Lagre filen", h.Prior.Target)
+			assert.Equal(t, tc.wantGoverned, h.Prior.Governed)
+			require.NotNil(t, h.Match, "the same entry is the corpus's best match for the source")
+			assert.Equal(t, "Lagre filen", h.Match.Target)
+			assert.NotEmpty(t, h.Match.Kind, "the match says how it matched")
 		})
 	}
-}
-
-func TestReviewPriorVersionWithoutAChain(t *testing.T) {
-	ctx := t.Context()
-	tm := memory.NewInMemoryStore()
-
-	t.Run("a block with no chain identity asks nothing", func(t *testing.T) {
-		assert.Nil(t, reviewPriorVersion(ctx, tm, &model.Block{ID: "b"}, "en", "nb", nil))
-	})
-
-	t.Run("a chain the corpus has never seen answers nothing", func(t *testing.T) {
-		block := &model.Block{ID: "b", Unit: "never.written", Translatable: true}
-		assert.Nil(t, reviewPriorVersion(ctx, tm, block, "en", "nb", nil))
-	})
-
-	t.Run("an answer missing one locale is withheld", func(t *testing.T) {
-		require.NoError(t, tm.Add(ctx, memory.Entry{
-			ID:          "half",
-			Unit:        "half.answer",
-			HintSrcLang: "en",
-			Variants: map[model.LocaleID][]model.Run{
-				"en": {model.TextR("Only the source")},
-			},
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
-		}))
-		block := &model.Block{ID: "b", Unit: "half.answer", Translatable: true}
-		assert.Nil(t, reviewPriorVersion(ctx, tm, block, "en", "nb", nil))
-	})
 }
 
 func TestReviewProvenanceGroupsTheDecision(t *testing.T) {
@@ -279,6 +230,7 @@ func TestReviewProvenanceGroupsTheDecision(t *testing.T) {
 			name: "the decision in force travels with its identity",
 			unit: &state.UnitState{
 				Origin: model.Origin{Kind: "memory"},
+				Status: model.TargetStatusReviewed,
 				Decision: state.Decision{
 					ReviewState: "approved",
 					By:          "agent/claude-code",
@@ -289,6 +241,7 @@ func TestReviewProvenanceGroupsTheDecision(t *testing.T) {
 			want: ReviewProvenance{
 				Origin:      &model.Origin{Kind: "memory"},
 				ReviewState: "approved",
+				Status:      "reviewed",
 				By:          "agent/claude-code",
 				At:          "2026-02-01T09:00:00Z",
 				Note:        "matches the approved wording",
