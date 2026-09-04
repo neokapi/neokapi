@@ -36,6 +36,17 @@ export const EditExistingRule: Story = {
   },
 };
 
+export const EditRunFlowRule: Story = {
+  args: {
+    open: true,
+    onOpenChange: fn(),
+    workspaceSlug: "demo",
+    projectId: "proj-demo-1",
+    rule: sampleAutomationRules[1], // run_flow rule: the flow picker shows the chosen flow
+    onSave: fn(),
+  },
+};
+
 export const EditWorkflowRule: Story = {
   args: {
     open: true,

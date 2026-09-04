@@ -277,6 +277,9 @@ type Server struct {
 
 	// runHub manages SSE connections for live automation run updates. Always initialized.
 	runHub *automationRunHub
+	// runManager records automation runs and steps around every action the
+	// engine dispatches, and closes the steps of actions that finish later.
+	runManager *event.AutomationRunManager
 
 	// changeRelay fans out platform events to attached web (SSE) and desktop
 	// (gRPC WatchProject) clients so no view shows stale state on an external
@@ -663,8 +666,8 @@ func NewServer(cfg Config) *Server {
 	// Wire up automation engine with run manager (Bowrain AD-013).
 	s.runHub = newAutomationRunHub()
 
-	runManager := event.NewAutomationRunManager(s.AutomationRunStore, s.executeAutomationAction)
-	s.AutomationEngine = event.NewAutomationEngine(s.EventBus, runManager.Execute)
+	s.runManager = event.NewAutomationRunManager(s.AutomationRunStore, s.executeAutomationAction)
+	s.AutomationEngine = event.NewAutomationEngine(s.EventBus, s.runManager.Execute)
 	s.registerDefaultAutomations()
 
 	// Server-side convergence (strategy 2026-07-kapi-up doc 03): the run engine
@@ -899,6 +902,12 @@ func NewServer(cfg Config) *Server {
 		}
 		if s.ToolRegistry != nil {
 			mcpOpts = append(mcpOpts, mcpserver.WithToolRegistry(s.ToolRegistry))
+		}
+		// The flow tools resolve and run flows the way the automation
+		// executor does: the same catalog and the same store-backed runner.
+		mcpOpts = append(mcpOpts, mcpserver.WithFlowCatalog(s.flowCatalog()))
+		if s.Services != nil && s.Services.Flow != nil {
+			mcpOpts = append(mcpOpts, mcpserver.WithFlowRunner(s.Services.Flow))
 		}
 		if s.PostHogClient != nil {
 			mcpOpts = append(mcpOpts, mcpserver.WithEventTracker(&eventTrackerAdapter{client: s.PostHogClient}))
@@ -2132,6 +2141,9 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	}
 	if s.stepCompletionTracker != nil {
 		s.stepCompletionTracker.Close()
+	}
+	if s.runManager != nil {
+		s.runManager.Stop()
 	}
 	if s.ActivityRecorder != nil {
 		s.ActivityRecorder.Close()

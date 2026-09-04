@@ -6,10 +6,10 @@ import (
 
 	"github.com/labstack/echo/v4"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
+	"github.com/neokapi/neokapi/bowrain/service"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/id"
-	"github.com/neokapi/neokapi/host/flowdef"
 )
 
 // Flow definitions (Bowrain AD-013).
@@ -18,7 +18,8 @@ import (
 // writer). Automation `run_flow` actions reference a flow by id. Built-in
 // flows (flowdef.BuiltInFlows) are always available and merged into the listing;
 // project flows are persisted in the FlowDefStore and override or extend the
-// built-in set.
+// built-in set. The merge is service.FlowCatalog, which the automation
+// executor and the MCP run_flow tool resolve through as well.
 //
 // Flows are connector-agnostic: they apply to content from any connector
 // (Kapi is one source among many). The flow graph never names a connector.
@@ -28,17 +29,10 @@ import (
 func (s *Server) HandleListFlowDefinitions(c echo.Context) error {
 	projectID := c.Param("id")
 
-	defs := make([]flow.FlowDefinition, 0, 8)
-	defs = append(defs, flowdef.BuiltInFlows()...)
-
-	if s.FlowDefStore != nil {
-		stored, err := s.FlowDefStore.List(c.Request().Context(), projectID)
-		if err != nil {
-			return serverErr(c, err)
-		}
-		defs = append(defs, stored...)
+	defs, err := s.flowCatalog().List(c.Request().Context(), projectID)
+	if err != nil {
+		return serverErr(c, err)
 	}
-
 	return c.JSON(http.StatusOK, defs)
 }
 
@@ -48,17 +42,8 @@ func (s *Server) HandleGetFlowDefinition(c echo.Context) error {
 	projectID := c.Param("id")
 	flowID := c.Param("flowId")
 
-	for _, def := range flowdef.BuiltInFlows() {
-		if def.ID == flowID {
-			return c.JSON(http.StatusOK, def)
-		}
-	}
-
-	if s.FlowDefStore == nil {
-		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "flow not found"})
-	}
-	def, err := s.FlowDefStore.Get(c.Request().Context(), projectID, flowID)
-	if errors.Is(err, bstore.ErrFlowDefNotFound) {
+	def, err := s.flowCatalog().Get(c.Request().Context(), projectID, flowID)
+	if errors.Is(err, service.ErrFlowNotFound) {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "flow not found"})
 	}
 	if err != nil {
@@ -157,10 +142,5 @@ func (s *Server) HandleDeleteFlowDefinition(c echo.Context) error {
 }
 
 func isBuiltInFlowID(flowID string) bool {
-	for _, def := range flowdef.BuiltInFlows() {
-		if def.ID == flowID {
-			return true
-		}
-	}
-	return false
+	return service.IsBuiltInFlow(flowID)
 }

@@ -1,6 +1,8 @@
 package event
 
 import (
+	"errors"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -183,4 +185,74 @@ func TestRunManager_AsyncStepStaysRunning(t *testing.T) {
 // Small sleep helper for async operations.
 func init() {
 	_ = time.Millisecond // used by tests
+}
+
+// TestRunManager_CompleteStep_ClosesSelfReportingAction proves a run_flow
+// step stays running when Execute returns and is closed by CompleteStep with
+// the outcome the action reports: a failure marks the step failed with its
+// reason and the run partial, a success completes both.
+func TestRunManager_CompleteStep_ClosesSelfReportingAction(t *testing.T) {
+	store := newTestRunStore(t)
+	ctx := t.Context()
+
+	var mu sync.Mutex
+	var stepIDs []string
+	executor := func(action AutomationAction, ev platev.Event, stepID string) error {
+		mu.Lock()
+		stepIDs = append(stepIDs, stepID)
+		mu.Unlock()
+		return nil
+	}
+	rm := NewAutomationRunManager(store, executor)
+	action := AutomationAction{Type: "run_flow", Name: "pseudo-on-pull", Config: map[string]string{"flow": "pseudo-translate"}}
+
+	runSteps := func(evID string) (*bstore.AutomationRun, *bstore.AutomationStep) {
+		runs, err := store.ListRuns(ctx, "proj-1", "", 10, 0)
+		require.NoError(t, err)
+		for _, run := range runs {
+			if run.TriggerID != evID {
+				continue
+			}
+			steps, err := store.ListSteps(ctx, run.ID)
+			require.NoError(t, err)
+			require.Len(t, steps, 1)
+			return run, steps[0]
+		}
+		t.Fatalf("no run for event %s", evID)
+		return nil, nil
+	}
+
+	// Failure path.
+	require.NoError(t, rm.Execute(action, platev.Event{ID: "evt-fail", Type: platev.EventPullCompleted, ProjectID: "proj-1"}))
+	run, step := runSteps("evt-fail")
+	assert.Equal(t, bstore.StepStatusRunning, step.Status, "a self-reporting step is open until the action closes it")
+	assert.Equal(t, bstore.RunStatusRunning, run.Status)
+
+	rm.CompleteStep(ctx, step.ID, errors.New("flow not found: \"nope\""))
+	run, step = runSteps("evt-fail")
+	assert.Equal(t, bstore.StepStatusFailed, step.Status)
+	assert.Contains(t, step.Error, "flow not found")
+	assert.NotNil(t, step.EndedAt)
+	assert.Equal(t, bstore.RunStatusPartial, run.Status)
+	logs, err := store.ListLogs(ctx, step.ID, 10)
+	require.NoError(t, err)
+	var failedLine bool
+	for _, l := range logs {
+		if l.Level == "error" && strings.Contains(l.Message, "flow not found") {
+			failedLine = true
+		}
+	}
+	assert.True(t, failedLine, "the failure is logged against the step")
+
+	// Success path.
+	require.NoError(t, rm.Execute(action, platev.Event{ID: "evt-ok", Type: platev.EventPullCompleted, ProjectID: "proj-1"}))
+	_, step = runSteps("evt-ok")
+	rm.CompleteStep(ctx, step.ID, nil)
+	run, step = runSteps("evt-ok")
+	assert.Equal(t, bstore.StepStatusCompleted, step.Status)
+	assert.Equal(t, bstore.RunStatusCompleted, run.Status)
+
+	// Nothing to close is a no-op rather than a panic.
+	rm.CompleteStep(ctx, "", nil)
+	NewAutomationRunManager(nil, executor).CompleteStep(ctx, step.ID, nil)
 }

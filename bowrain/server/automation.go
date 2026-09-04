@@ -19,110 +19,136 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 )
 
-// registerDefaultAutomations registers the built-in automation rules.
+// registerDefaultAutomations installs the engine's rule set at startup: the
+// built-in rules plus every enabled stored rule.
 func (s *Server) registerDefaultAutomations() {
 	if s.AutomationEngine == nil {
 		return
 	}
+	s.reloadAutomationRules()
+}
 
-	// Auto-extract entities and terms on push. This stays an automation: entity
-	// and term extraction is not convergence. Translation-on-push moved to the
-	// server convergence engine (an on-push project starts a convergence run;
-	// see subscribeConvergeOnPush), so the former auto-translate-on-push,
-	// auto-translate-new-locale, and create-review-tasks-on-automation-complete
-	// rules are retired — the run's produce/park steps replace them.
-	s.AutomationEngine.AddRule(event.AutomationRule{
-		Name:      "auto-extract-on-push",
-		EventType: platev.EventPushCompleted,
-		Actions: []event.AutomationAction{
-			{Type: "auto_extract"},
+// builtInAutomationRules are the platform's own rules. They carry no project,
+// so they fire for every project's events.
+func builtInAutomationRules() []event.AutomationRule {
+	return []event.AutomationRule{
+		// Auto-extract entities and terms on push. This stays an automation:
+		// entity and term extraction is not convergence. Translation on push is
+		// the server convergence engine's (an on-push project starts a
+		// convergence run; see subscribeConvergeOnPush), whose produce and park
+		// steps cover what the former auto-translate-on-push,
+		// auto-translate-new-locale and create-review-tasks-on-automation-complete
+		// rules did.
+		{
+			Name:      "auto-extract-on-push",
+			EventType: platev.EventPushCompleted,
+			Actions: []event.AutomationAction{
+				{Type: "auto_extract"},
+			},
 		},
-	})
-
-	// Fan out review tasks after source review (Bowrain AD-014). Source review
-	// is an independent workflow (not push convergence), so it survives.
-	s.AutomationEngine.AddRule(event.AutomationRule{
-		Name:      "fan-out-after-source-review",
-		EventType: platev.EventSourceReviewCompleted,
-		Actions: []event.AutomationAction{
-			{Type: "create_review_tasks", Config: map[string]string{"mode": "review"}},
+		// Fan out review tasks after source review (Bowrain AD-014). Source
+		// review is an independent workflow beside push convergence.
+		{
+			Name:      "fan-out-after-source-review",
+			EventType: platev.EventSourceReviewCompleted,
+			Actions: []event.AutomationAction{
+				{Type: "create_review_tasks", Config: map[string]string{"mode": "review"}},
+			},
 		},
-	})
-
-	// Load user-defined rules from database.
-	if s.AutomationRuleStore != nil {
-		s.loadStoredAutomationRules()
 	}
 }
 
-// loadStoredAutomationRules loads all enabled user-defined rules from the database
-// and registers them with the automation engine.
-func (s *Server) loadStoredAutomationRules() {
-	if s.AutomationRuleStore == nil || s.ContentStore == nil {
+// reloadAutomationRules replaces the engine's rule set with the built-in rules
+// plus every enabled stored rule, each scoped to its project. It runs at
+// startup and after a rule is created, updated, toggled or deleted, so a rule
+// saved from the app fires without a restart.
+func (s *Server) reloadAutomationRules() {
+	if s.AutomationEngine == nil {
 		return
 	}
+	rules := builtInAutomationRules()
+	rules = append(rules, s.storedAutomationRules()...)
+	s.AutomationEngine.ReplaceRules(rules)
+}
 
-	// Startup wiring: runs once while the server is being constructed, before
-	// any request exists, so a fresh background context is correct here.
+// storedAutomationRules loads every enabled user-defined rule from the
+// database as an engine rule scoped to the project it was authored on.
+func (s *Server) storedAutomationRules() []event.AutomationRule {
+	if s.AutomationRuleStore == nil || s.ContentStore == nil {
+		return nil
+	}
+
+	// Startup wiring and rule mutations alike run outside any one request's
+	// lifetime, so a fresh background context is correct here.
 	ctx := context.Background()
 	projects, err := s.ContentStore.ListProjects(ctx)
 	if err != nil {
 		slog.Warn("failed to list projects for automation rule loading", "error", err)
-		return
+		return nil
 	}
 
-	loaded := 0
+	var rules []event.AutomationRule
 	for _, proj := range projects {
-		rules, err := s.AutomationRuleStore.ListRules(ctx, proj.ID)
+		stored, err := s.AutomationRuleStore.ListRules(ctx, proj.ID)
 		if err != nil {
 			slog.Warn("failed to load automation rules for project", "id", proj.ID, "error", err)
 			continue
 		}
-		for _, r := range rules {
+		for _, r := range stored {
 			if !r.Enabled {
 				continue
 			}
-			s.AutomationEngine.AddRule(event.AutomationRule{
+			rules = append(rules, event.AutomationRule{
 				Name:       r.Name,
 				EventType:  r.Trigger,
+				ProjectID:  proj.ID,
 				Conditions: r.Conditions,
 				Actions:    r.Actions,
 			})
-			loaded++
 		}
 	}
-	if loaded > 0 {
-		slog.Info("loaded user-defined automation rules", "count", loaded)
+	if len(rules) > 0 {
+		slog.Info("loaded user-defined automation rules", "count", len(rules))
 	}
+	return rules
 }
 
 // executeAutomationAction is the callback for the automation engine (via RunManager).
 func (s *Server) executeAutomationAction(action event.AutomationAction, ev platev.Event, stepID string) error {
 	startedAt := ev.Timestamp
 	err := s.doExecuteAction(action, ev, stepID)
-
-	// Record execution in history.
-	if s.AutomationRuleStore != nil {
-		status := "success"
-		errMsg := ""
-		if err != nil {
-			status = "failed"
-			errMsg = err.Error()
-		}
-		// Automation-engine callback: event-driven background work with no
-		// request context in scope; the history record must always be written.
-		_ = s.AutomationRuleStore.RecordExecution(context.Background(), &event.HistoryEntry{
-			ID:        id.New(),
-			ProjectID: ev.ProjectID,
-			EventID:   ev.ID,
-			Status:    status,
-			Error:     errMsg,
-			StartedAt: startedAt,
-			EndedAt:   ev.Timestamp,
-		})
+	if err == nil && actionReportsOwnOutcome(action.Type) {
+		// The action writes its history entry when it finishes.
+		return nil
 	}
-
+	// Automation-engine callback: event-driven background work with no
+	// request context in scope.
+	s.recordAutomationHistory(context.Background(), ev, startedAt, ev.Timestamp, err)
 	return err
+}
+
+// recordAutomationHistory writes one execution history entry for an action.
+// The record must always be written, so callers hand it a context that is
+// not about to be cancelled.
+func (s *Server) recordAutomationHistory(ctx context.Context, ev platev.Event, startedAt, endedAt time.Time, err error) {
+	if s.AutomationRuleStore == nil {
+		return
+	}
+	status := "success"
+	errMsg := ""
+	if err != nil {
+		status = "failed"
+		errMsg = err.Error()
+	}
+	_ = s.AutomationRuleStore.RecordExecution(ctx, &event.HistoryEntry{
+		ID:        id.New(),
+		ProjectID: ev.ProjectID,
+		EventID:   ev.ID,
+		Status:    status,
+		Error:     errMsg,
+		StartedAt: startedAt,
+		EndedAt:   endedAt,
+	})
 }
 
 // runAction starts one automation action in the background, under the server's
@@ -225,8 +251,14 @@ func (s *Server) doExecuteAction(action event.AutomationAction, ev platev.Event,
 			s.executeWriteOverlay(actionCtx, action, ev, stepID)
 		})
 
+	case "run_flow":
+		s.runAction(action.Type, cancel, func() {
+			s.executeRunFlow(actionCtx, action, ev, stepID)
+		})
+
 	default:
 		cancel()
+		return fmt.Errorf("unsupported action type %q", action.Type)
 	}
 	return nil
 }

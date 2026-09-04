@@ -55,7 +55,33 @@ fires when a flow finishes, so a rule cannot chain on a flow's completion.
 Rules and the flow definitions they reference are persisted through the
 project-scoped REST API: `/api/v1/:ws/:id/automations` for rules and
 `/api/v1/:ws/:id/flows` for flow definitions. Rules can be reordered, disabled,
-and duplicated from the editor.
+and duplicated from the editor. A rule is checked when it is saved: every
+action must be one the server runs, and a `run_flow` action must name a flow
+the project can see, so a rule that saves is a rule that fires.
+
+### Actions
+
+| Action                 | What it does                                                                 |
+| ---------------------- | ---------------------------------------------------------------------------- |
+| `run_flow`             | Runs a flow over the project's stored content and writes the results back    |
+| `auto_translate`       | Starts translation jobs for the pushed items in every target language        |
+| `create_review_tasks`  | Opens a review task per target language for the project's reviewers          |
+| `create_source_review` | Opens a source review task                                                    |
+| `notify`               | Sends an in-app notification                                                 |
+
+A `run_flow` action takes these parameters:
+
+| Parameter        | Meaning                                                                                                   |
+| ---------------- | --------------------------------------------------------------------------------------------------------- |
+| `flow`           | The flow to run: a built-in flow or one authored on the project's Flows tab. Required.                    |
+| `stream`         | The stream to read and write. Defaults to the stream the event names, or `main`.                          |
+| `items`          | Comma-separated item names. Defaults to the items the event names (a push's files), or every item.        |
+| `target_locales` | Comma-separated target locales, one pass each. Defaults to the project's target languages.                |
+
+The flow runs in the background over one item at a time, and the run's step
+records what it wrote. A flow the project cannot see, a flow whose tool this
+server lacks, or a tool that fails part way marks the step failed with the
+reason, in the run history and in the execution history.
 
 ### Run history
 

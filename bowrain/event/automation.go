@@ -30,8 +30,13 @@ type AutomationCondition struct {
 
 // AutomationRule defines an event-triggered automation.
 type AutomationRule struct {
-	Name       string
-	EventType  platev.EventType
+	Name      string
+	EventType platev.EventType
+	// ProjectID scopes the rule to one project's events. Empty matches every
+	// project, which is what the platform's built-in rules want; a rule a
+	// user authored on a project carries that project so it never fires on
+	// another project's events.
+	ProjectID  string
 	Conditions []AutomationCondition
 	Actions    []AutomationAction
 }
@@ -128,6 +133,9 @@ func (e *AutomationEngine) handleEvent(event platev.Event) error {
 
 	for _, rule := range rules {
 		if rule.EventType != "" && rule.EventType != event.Type {
+			continue
+		}
+		if rule.ProjectID != "" && rule.ProjectID != event.ProjectID {
 			continue
 		}
 		if !matchConditions(rule.Conditions, event) {

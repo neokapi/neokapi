@@ -177,10 +177,44 @@ func (m *AutomationRunManager) maybeCompleteRun(ctx context.Context, runID strin
 	}
 }
 
-// isAsyncAction returns true for actions that spawn background jobs.
+// CompleteStep records the outcome of an action that finished after Execute
+// returned: the step's status and error, a closing log line, the run's done
+// count, and the run's own status once every step has reported. It is the
+// counterpart of the synchronous branch in Execute for the actions
+// isAsyncAction lists that report their own completion, such as run_flow.
+// A nil store makes it a no-op, matching Execute's pass-through.
+func (m *AutomationRunManager) CompleteStep(ctx context.Context, stepID string, actionErr error) {
+	if m.store == nil || stepID == "" {
+		return
+	}
+	step, err := m.store.GetStep(ctx, stepID)
+	if err != nil {
+		slog.Warn("run-manager: failed to load step for completion", "step", stepID, "error", err)
+		return
+	}
+	if actionErr != nil {
+		_ = m.store.UpdateStepStatus(ctx, step.ID, bstore.StepStatusFailed, actionErr.Error())
+		_ = m.store.AppendLogs(ctx, []bstore.AutomationLog{{
+			StepID: step.ID, RunID: step.RunID, Level: "error",
+			Message: "Action failed: " + actionErr.Error(),
+		}})
+	} else {
+		_ = m.store.UpdateStepStatus(ctx, step.ID, bstore.StepStatusCompleted, "")
+		_ = m.store.AppendLogs(ctx, []bstore.AutomationLog{{
+			StepID: step.ID, RunID: step.RunID, Level: "info",
+			Message: "Action completed: " + step.ActionType,
+		}})
+	}
+	_ = m.store.IncrementDoneCount(ctx, step.RunID)
+	m.maybeCompleteRun(ctx, step.RunID)
+}
+
+// isAsyncAction returns true for actions whose work outlives Execute: the
+// job-spawning actions the StepCompletionTracker closes, and run_flow, which
+// closes its own step through CompleteStep when the flow finishes.
 func isAsyncAction(actionType string) bool {
 	switch actionType {
-	case "auto_translate", "auto_extract", "auto_translate_new_locale":
+	case "auto_translate", "auto_extract", "auto_translate_new_locale", "run_flow":
 		return true
 	default:
 		return false

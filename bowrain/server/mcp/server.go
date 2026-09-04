@@ -18,6 +18,8 @@ import (
 	"github.com/neokapi/neokapi/bowrain/core/connector"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/core/voicescope"
+	"github.com/neokapi/neokapi/bowrain/service"
+	"github.com/neokapi/neokapi/core/flow"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/memory"
@@ -80,6 +82,8 @@ type MCPServer struct {
 	membership     MembershipChecker
 	sandbox        SandboxExecutor
 	toolReg        *registry.ToolRegistry
+	flowCatalog    FlowCatalog
+	flowRunner     FlowRunner
 	tracker        EventTracker
 	server         *mcp.Server
 	handler        http.Handler
@@ -159,6 +163,29 @@ func WithWorkspaceDefault(wd voicescope.WorkspaceDefault) Option {
 // WithToolRegistry adds the tool registry for flow resolution.
 func WithToolRegistry(r *registry.ToolRegistry) Option {
 	return func(s *MCPServer) { s.toolReg = r }
+}
+
+// FlowCatalog resolves the flows a project can run: the built-in catalog plus
+// the project's stored definitions. *service.FlowCatalog satisfies it.
+type FlowCatalog interface {
+	List(ctx context.Context, projectID string) ([]flow.FlowDefinition, error)
+	Get(ctx context.Context, projectID, flowID string) (*flow.FlowDefinition, error)
+}
+
+// FlowRunner runs a resolved flow over a project's stored content.
+// *service.FlowService satisfies it.
+type FlowRunner interface {
+	RunFlow(ctx context.Context, run service.FlowRun) (service.FlowRunResult, error)
+}
+
+// WithFlowCatalog sets the catalog the flow tools resolve flow ids through.
+func WithFlowCatalog(c FlowCatalog) Option {
+	return func(s *MCPServer) { s.flowCatalog = c }
+}
+
+// WithFlowRunner sets the runner behind the run_flow tool.
+func WithFlowRunner(r FlowRunner) Option {
+	return func(s *MCPServer) { s.flowRunner = r }
 }
 
 // NewMCPServer creates a new MCP server with voice capabilities.
