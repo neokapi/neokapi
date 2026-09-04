@@ -4,7 +4,7 @@
 # prose, in shipped product strings, or in the metadata a build stamps into an
 # installer and a signed binary.
 #
-# Three rule sets, each with its own scope:
+# Four rule sets, each with its own scope:
 #
 #   FRAMING     — the positioning phrases the R12 canon retires, listed with
 #                 their replacements in this script's failure output. Scope:
@@ -18,6 +18,12 @@
 #                 case-sensitively. "QA" is the whole rule today: the product's
 #                 family is checks, while `qa` stays the registered tool name,
 #                 the flow id, the overlay type and the gate id.
+#   IDENT       — the same word inside a compound identifier (`run-qa-btn`,
+#                 `qa_issues`, `qaReport`, `FileQAResult`), which the CASED rule
+#                 cannot see because a camel-cased or hyphenated name carries no
+#                 word boundary around the initialism. Scope: IDENT_SURFACES,
+#                 the source trees. Bare `qa` never matches, and the boundary
+#                 compounds are deleted before the match: see #2316.
 #
 # Prose drifts back to a retired phrase the way an absolute home path creeps
 # into a Makefile: nobody decides to, and nothing fails. It re-enters through a
@@ -59,6 +65,14 @@
 # "qa" the overlay type and the gate id, and every one of those is a wire or
 # persisted value a rename may not touch. The same split is asserted on help
 # text by TestConvention_HelpTextUsesCurrentVocabulary.
+#
+# What fails under IDENT: `qa` welded to another word. The sweep that renamed
+# the checks family left the wire alone, so what a rename may not touch is a
+# short, closed list — the tool name, the routes, the overlay kind, the block
+# properties, the flow ids, the proto field — and everything else that spells
+# `qa` inside a name is a leftover. Listing the boundary rather than the
+# offenders is what makes this re-runnable: a new compound fails until someone
+# either renames it or writes down which wire it belongs to.
 #
 # What this guard is NOT for: prose kapi can read AND CI gates. Both halves of
 # the rule now live in .kapi/voice.yaml — the vocabulary as forbidden_terms, the
@@ -137,6 +151,37 @@ readonly RETIRED_CASED_RE='\bQA\b|[Qq]uality [Aa]ssurance'
 #                locale-demand view reads. The code is the standard's, not ours.
 readonly CASED_BOUNDARY_RE='QA: "634"'
 
+# The identifier rule. Four shapes, and bare `qa` is none of them:
+#
+#   foo-qa, foo_QA     a compound ending in the initialism
+#   qa-foo, QA_foo     a compound starting with it
+#   qaReport           lowerCamel starting with it
+#   FileQAResult       camel carrying it, and QAIssue starting with it
+#
+# The last two require a lowercase letter after the capitalised word, which is
+# what keeps a base64 digest in a lockfile from reading as an identifier.
+readonly RETIRED_IDENT_RE='[A-Za-z0-9]+[-_][Qq][Aa](?![A-Za-z0-9])|(?<![A-Za-z0-9])[Qq][Aa][-_][A-Za-z0-9]|(?<![A-Za-z0-9])qa[A-Z][a-z]|[a-z](?:QA|Qa)[A-Z][a-z]|(?<![A-Za-z0-9])QA[A-Z][a-z]'
+
+# Deleted from a line before the IDENT match runs. Every entry is a value a
+# rename may not touch, grouped by what it is. Longest alternative first, so a
+# prefix never swallows the compound that contains it.
+#
+#   flow ids           the built-in and sample flows a user types after
+#                      `kapi run`, and one edge id inside translate-qa
+#   routes             POST /:ws/:id/actions/:ref/qa-check[-block]
+#   tool + quota       the AI tool name, which is also the billing operation
+#                      the usage table maps and the quota row it writes
+#   block properties   written onto the block by the AI check tool
+#   schema ids         the two members of the `qa` tool group, named after the
+#                      registered tool they belong to
+#   proto              a sync field and the message it would carry
+#   reference page     the generated page for `kapi exec qa`
+#   walkthrough        the walkthrough id and its scene ids, which name the
+#                      video files on the docs CDN
+#   ITS fixture        locQualityRatingProfileRef values captured from upstream
+#                      Okapi's XLIFF tests
+readonly IDENT_BOUNDARY_RE='translate-qa-parallel|translate-and-qa|translate-qa|parallel-qa|pseudo-qa|qa-only|qa-xliff|qa-then-pseudo|qa-check-block|qa-check|qa_check|qa-checks|qa-provider|qa-rules|qa-ai|qa_results|SyncQAResult|exec-qa|kapi-terminology-qa|terminology-qa|termbase-qa|terms-qa|qaModel'
+
 # ── scope ────────────────────────────────────────────────────────────────────
 #
 # The surfaces swept to R12. Adding a surface here is how a sweep gets locked in.
@@ -210,6 +255,31 @@ readonly VOCAB_SURFACES=(
   apps/kapi-desktop/frontend/src/demo
 )
 
+# The surfaces held to the identifier rule: the source trees, both languages,
+# plus the two docs trees and the repo's own internals. Wider than the prose
+# lists because an identifier is not prose — a name is a name in a Go file, a
+# story fixture, a CSS custom property and a recipe example alike, and #2316
+# renamed all four.
+readonly IDENT_SURFACES=(
+  core
+  host
+  cli
+  kapi
+  providers
+  plugins
+  kpz
+  packages
+  apps
+  bowrain
+  web/src
+  web/docs
+  web/sidebars.ts
+  web/docusaurus.config.ts
+  docs/internals
+  harness/src
+  scripts
+)
+
 # Surfaces deliberately NOT scanned yet, each with the worklist item that will
 # sweep it and add it above. Printed on every run: an unscanned surface must be
 # visible, not silently absent, or a green check reads as "all prose is clean"
@@ -264,6 +334,44 @@ readonly CASED_ALLOWED_FILES=(
   apps/kapi-desktop/frontend/public/translations/nb.json
 )
 
+# Files the IDENT rule alone excuses. Entries are anchored regexes rather than
+# literal paths, because the artefacts they name repeat per module and per
+# locale and a literal list would go stale on the next module.
+readonly IDENT_ALLOWED_FILES=(
+  # Module checksum files and pnpm lockfiles. A hit inside a base64 digest is a
+  # byte coincidence: nothing in either file is a name this repo chose.
+  '.*/go\.sum'
+  '.*/pnpm-lock\.yaml'
+  # Catalogs and content-memory bundles, written by the convergence loop. A
+  # source string that changes orphans its entry until the next run, so a
+  # retired spelling here is drift the loop clears rather than a name to fix.
+  '.*/i18n/catalogs/.*\.json'
+  '.*/translations/[a-z-]+\.json'
+  '\.kapi/memory/.*\.json'
+  # Generated from the built command tree and the tool registry; the tool name
+  # `qa` is what they are reporting.
+  'packages/reference-data/data/.*\.json'
+  'host/i18n/commands\.json'
+  'web/src/components/KapiPlayground/embeds/.*'
+  # A vendored MDX parity corpus: copies of published pages, captured as they
+  # were. Editing one makes the fixture lie about what it parsed.
+  'core/formats/mdx/testdata/.*'
+  'core/formats/mdx/corpus\.yaml'
+  # Base64 office documents, carried inline as playground samples.
+  'packages/kapi-playground/src/samples\.ts'
+  # Fixtures captured verbatim from another project: okapi-bridge's tool
+  # metadata, and upstream Okapi's XLIFF tests.
+  'apps/kapi-desktop/frontend/src/stories/fixtures/tools-metadata\.json'
+  'cli/parity/formats/fixtures_xliff_generated\.go'
+  # Prototype v1, a record of a design the product did not take. Its step names
+  # are that design's, and the Storybook group reads "Prototype v1 (superseded)".
+  'apps/kapi-desktop/frontend/src/stories/prototype/.*'
+  # The two files that plant retired spellings so a matcher that stops matching
+  # is caught: this script's own self-test, and the CLI convention test.
+  'scripts/check-vocabulary\.sh'
+  'cli/conventions_test\.go'
+)
+
 # list_files prints NUL-separated paths for one surface.
 #
 # A relative path is a surface inside this repo, enumerated with git so the
@@ -306,16 +414,23 @@ allow_re() {
 # One perl process for the whole scan, not a grep pipeline per file: the swept
 # set is several thousand files, and three subprocesses each put this guard at
 # twenty seconds inside `make lint`.
+#
+# $PREFILTER, when set by the caller, is a cheap pattern every hit must contain.
+# A file that fails it is skipped before the boundary substitution and the
+# per-line loop, which is what keeps a rule scoped to the whole source tree
+# affordable: nearly every file matches none of these words at all, and the
+# alternations are an order of magnitude dearer than one substring scan.
 scan_paths() {
   local re="$1" boundary="$2" exclude_re="$3"
   shift 3
   local hits
 
-  hits="$(list_files "$@" | RE="$re" BOUNDARY="$boundary" ALLOWED="$exclude_re" perl -0 -ne '
+  hits="$(list_files "$@" | RE="$re" BOUNDARY="$boundary" ALLOWED="$exclude_re" PREFILTER="${PREFILTER:-}" perl -0 -ne '
     BEGIN {
       $re      = qr/$ENV{RE}/;
       $bound   = $ENV{BOUNDARY} ne "" ? qr/$ENV{BOUNDARY}/ : undef;
       $allowed = $ENV{ALLOWED}  ne "" ? qr/^(?:$ENV{ALLOWED})$/ : undef;
+      $pre     = $ENV{PREFILTER} ne "" ? qr/$ENV{PREFILTER}/ : undef;
     }
     chomp;
     my $f = $_;
@@ -326,6 +441,7 @@ scan_paths() {
     next if $allowed && $f =~ $allowed;
     my $text = do { local $/; open(my $fh, "<", $f) or next; <$fh> };
     next unless defined $text;
+    next if $pre && $text !~ $pre;
     $text =~ s/$bound//g if $bound;
     my @lines = split /\n/, $text, -1;
     my $found = 0;
@@ -409,6 +525,26 @@ QAFoo and BarQABaz are identifiers, and a rename takes them together.
 QA: "634" is Qatar in the ISO 3166-1 table.
 EOF
 
+  # The identifier rule set, which all three others deliberately let pass.
+  cat >"$tmp/surface/ident.txt" <<'EOF'
+data-testid="run-qa-btn"
+const qaReport = collect()
+type FileQAResult struct{}
+QAIssue carries the rule id.
+kind: qa_issues
+EOF
+
+  cat >"$tmp/surface/ident-clean.txt" <<'EOF'
+kapi run translate-qa -i app.xliff --target-lang fr
+POST /:ws/:id/actions/:ref/qa-check-block
+Operation: "qa_check"
+v.SetProperty("qa-provider", name)
+schema.ToolMeta{ID: "qa-rules"}
+// Future: repeated SyncQAResult qa_results = 14;
+The overlay type is "qa" and so is the gate id.
+data-testid="run-check-btn"
+EOF
+
   local out n
   if out=$(scan_paths "$RETIRED_RE" "" "" "$tmp/surface/retired.md"); then
     echo "✖ self-test: the matcher did NOT flag planted retired framing"
@@ -481,6 +617,30 @@ EOF
     echo "✓ self-test: the qa tool name, camel-cased identifiers and the Qatar code pass"
   else
     echo "✖ self-test: the cased matcher flagged a boundary:"
+    printf '%s\n' "$out"
+    status=1
+  fi
+
+  if out=$(scan_paths "$RETIRED_IDENT_RE" "$IDENT_BOUNDARY_RE" "" "$tmp/surface/ident.txt"); then
+    echo "✖ self-test: the identifier matcher did NOT flag planted compounds"
+    status=1
+  else
+    n=$(printf '%s\n' "$out" | grep -c . || true)
+    if [ "$n" -ne 5 ]; then
+      echo "✖ self-test: expected 5 hits in the planted file, got ${n}:"
+      printf '%s\n' "$out"
+      status=1
+    else
+      echo "✓ self-test: flags qa in hyphenated, snake and camel compounds (5 hits)"
+    fi
+  fi
+
+  # The boundary list is the whole rule, so assert it: a matcher that also
+  # caught the flow id would fail every recipe and every route in the tree.
+  if out=$(scan_paths "$RETIRED_IDENT_RE" "$IDENT_BOUNDARY_RE" "" "$tmp/surface/ident-clean.txt"); then
+    echo "✓ self-test: the flow ids, routes, properties and proto names pass"
+  else
+    echo "✖ self-test: the identifier matcher flagged a boundary:"
     printf '%s\n' "$out"
     status=1
   fi
@@ -578,7 +738,31 @@ else
   echo "registered tool, the flow id, the overlay type and the gate id, and"
   echo "every one of those is a value a rename may not touch. A Go or TS"
   echo "identifier does not match either: a camel-cased name carries no word"
-  echo "boundary on either side of the initialism."
+  echo "boundary on either side of the initialism. The IDENT rule below is"
+  echo "what holds identifiers to the same vocabulary."
+  echo ""
+fi
+
+ident_allowed="$(allow_re ${IDENT_ALLOWED_FILES[@]+"${IDENT_ALLOWED_FILES[@]}"})"
+if hits=$(PREFILTER='[Qq][Aa]' scan_paths "$RETIRED_IDENT_RE" "$IDENT_BOUNDARY_RE" "$ident_allowed" "${IDENT_SURFACES[@]}"); then
+  echo "✓ no qa compounds outside the rename boundary"
+else
+  status=1
+  echo "✖ qa found inside an identifier:"
+  printf '%s\n' "$hits"
+  echo ""
+  echo "The family is checks and the result is a finding, in a name as much as"
+  echo "in a sentence:"
+  echo ""
+  echo "  qa-issues-list, qaIssue → the findings. check-findings-list."
+  echo "  run-qa-btn, inspector-qa → run-check-btn, inspector-check."
+  echo "  qaReport, QAConfig       → checkReport, CheckConfig."
+  echo "  qa-report.html           → check-report.html."
+  echo ""
+  echo "If the name is a value a rename may not touch — a route path, a wire or"
+  echo "persisted field, an analytics id, a registered tool or flow id — add it"
+  echo "to IDENT_BOUNDARY_RE with the reason, not to the allowlist. The"
+  echo "allowlist is for whole files that are generated, vendored or captured."
   echo ""
 fi
 
