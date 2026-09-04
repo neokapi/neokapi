@@ -30,11 +30,11 @@ type automationRunFrame struct {
 func runStreamFrames(t *testing.T, body string) []automationRunFrame {
 	t.Helper()
 	var frames []automationRunFrame
-	for _, chunk := range strings.Split(body, "\n\n") {
+	for chunk := range strings.SplitSeq(body, "\n\n") {
 		if strings.HasPrefix(chunk, "event: ") {
 			continue
 		}
-		for _, line := range strings.Split(chunk, "\n") {
+		for line := range strings.SplitSeq(chunk, "\n") {
 			if !strings.HasPrefix(line, "data: ") {
 				continue
 			}
