@@ -703,7 +703,7 @@ describe("ReviewPage review model", () => {
       return el!;
     });
     expect(card.textContent).toContain("Provenance");
-    expect(card.textContent).toContain("rejected");
+    expect(card.textContent).toContain("Rejected");
     expect(card.textContent).toContain("agent/desktop");
     expect(card.textContent).toContain("Too formal for this surface.");
     expect(document.querySelector("[data-slot='review-provenance-stale']")).not.toBeNull();

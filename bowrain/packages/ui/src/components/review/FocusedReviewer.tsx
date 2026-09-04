@@ -1,5 +1,16 @@
 import { useCallback, useMemo, useState } from "react";
-import { Button, LocaleLabel, StatusBadge, cn, directionAttrs } from "@neokapi/ui-primitives";
+import {
+  Button,
+  HistoryCard,
+  JudgementCard,
+  LocaleLabel,
+  NeighbourhoodCard,
+  PointCard,
+  ProvenanceCard,
+  StatusBadge,
+  cn,
+  directionAttrs,
+} from "@neokapi/ui-primitives";
 import type { EntityInfo, ComplianceBasis, ReviewContext } from "../../types/api";
 import { ComplianceRateChip } from "../ComplianceRateChip";
 import { entityLabel } from "../editor/entityMarks";
@@ -8,19 +19,14 @@ import { CollapsedTargetCell } from "../editor/GridTargetRenderer";
 import { UnifiedTargetEditor, type UnifiedSaveResult } from "../UnifiedTargetEditor";
 import { getTargetText, targetLadderStatus } from "../editor/blockStatus";
 import { blockToContentNode } from "../../preview/toContentTree";
+import { AnchoredTarget } from "./reviewContext";
 import {
-  AnchoredTarget,
-  ContextLayer,
-  FindingsList,
-  MemoryMatchCard,
-  NeighbourhoodView,
-  PointRail,
-  ProvenanceBlock,
-  findingsSummary,
-  memorySummary,
-  neighbourhoodSummary,
-  provenanceSummary,
-} from "./reviewContext";
+  toFindingViews,
+  toHistoryView,
+  toNeighbourhoodView,
+  toPointView,
+  toProvenanceView,
+} from "./reviewModel";
 import {
   Check,
   CheckCheck,
@@ -263,21 +269,17 @@ export function FocusedReviewer({
           {/* The document surface has the neighbourhood by construction; the
             queue is a flat list across items, so it says what this block sits
             between, and how many neighbours that is before it is opened. */}
-          <ContextLayer
-            title="Neighbourhood"
-            summary={neighbourhoodSummary(context)}
+          <NeighbourhoodCard
+            neighbourhood={context ? toNeighbourhoodView(context) : undefined}
+            loading={contextLoading}
+            unitKey={block.id}
+            unitSource={block.source}
+            unitTarget={targetText}
+            sourceLocale={sourceLocale}
+            locale={locale}
             testId="reviewer-neighbourhood"
             className="mb-3"
-          >
-            <NeighbourhoodView
-              context={context}
-              unitKey={block.id}
-              unitSource={block.source}
-              unitTarget={targetText}
-              sourceLocale={sourceLocale}
-              locale={locale}
-            />
-          </ContextLayer>
+          />
 
           {/* Source vs target, generous side-by-side */}
           <div className="grid gap-4 lg:grid-cols-2">
@@ -452,9 +454,8 @@ export function FocusedReviewer({
             check findings and the voice findings judge the same target, so they
             are read as one list rather than as a score beside a list. */}
           <div className="mt-4">
-            <ContextLayer
-              title="Findings"
-              summary={findingsSummary(issues, voiceFindings)}
+            <JudgementCard
+              findings={toFindingViews(issues, voiceFindings)}
               testId="reviewer-checks"
             >
               <Button
@@ -472,42 +473,32 @@ export function FocusedReviewer({
                   <AnchoredTarget node={node} side={locale} text={targetText} />
                 </div>
               )}
-              <FindingsList issues={issues} findings={voiceFindings} />
-            </ContextLayer>
+            </JudgementCard>
           </div>
         </div>
 
         {/* What governs this point, what the corpus already said about it, and
             how the target came to say what it says. */}
         <div className="min-w-0 space-y-4" data-testid="reviewer-context-rail">
-          <PointRail context={context} loading={contextLoading} />
+          <PointCard point={context ? toPointView(context) : undefined} loading={contextLoading} />
           <div className="space-y-4">
-            <ContextLayer
-              title="Content memory"
-              summary={memorySummary(memoryMatch)}
+            <HistoryCard
+              history={context ? toHistoryView(context) : undefined}
+              loading={contextLoading}
+              sourceLocale={sourceLocale}
+              locale={locale}
               testId="reviewer-memory"
-            >
-              <MemoryMatchCard
-                match={memoryMatch}
-                onUse={
-                  memoryMatch && !editing
-                    ? () =>
-                        void onSaveEdit({ kind: "flat", codedText: memoryMatch.target, spans: [] })
-                    : undefined
-                }
-              />
-            </ContextLayer>
-            <ContextLayer
-              title="Provenance"
-              summary={provenanceSummary(context?.origin, context?.decision)}
+              onUseMatch={
+                memoryMatch && !editing
+                  ? () =>
+                      void onSaveEdit({ kind: "flat", codedText: memoryMatch.target, spans: [] })
+                  : undefined
+              }
+            />
+            <ProvenanceCard
+              provenance={context ? toProvenanceView(context) : undefined}
               testId="reviewer-provenance"
-            >
-              <ProvenanceBlock
-                origin={context?.origin}
-                decision={context?.decision}
-                note={context?.notes?.[context.notes.length - 1]?.text}
-              />
-            </ContextLayer>
+            />
           </div>
         </div>
       </div>

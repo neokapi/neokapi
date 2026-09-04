@@ -1,19 +1,21 @@
-import { Badge, SimpleTooltip, findingSeverityBadgeClass } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
-import type { AIReviewFinding } from "../../types/api";
+import { findingSeverityBadgeClass } from "../../lib/finding-severity";
+import { Badge } from "../ui/badge";
+import { SimpleTooltip } from "../ui/tooltip";
+import type { ReviewAIRemarkView } from "./types";
 
 /**
  * The AI pre-review's verdict on this unit, read from the state store: a score,
  * the model that produced it, and the remarks behind it.
  *
- * It sits inside the checks group because a reviewer weighs both at once, and
+ * It sits inside the checks card because a reviewer weighs both at once, and
  * two cards saying "here is what has already been said about this translation"
  * read as two subjects.
  */
 export interface AIPreReviewProps {
   score?: number;
   model?: string;
-  findings?: AIReviewFinding[];
+  findings?: ReviewAIRemarkView[];
 }
 
 export function AIPreReview({ score, model, findings }: AIPreReviewProps) {

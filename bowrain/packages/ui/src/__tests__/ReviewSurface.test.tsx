@@ -503,7 +503,8 @@ describe("ReviewSurface — the inspector carries the block's evidence", () => {
     // One review model, two surfaces: the document's inspector names what
     // governs the block as the queue's reviewer does.
     const point = await screen.findByTestId("inspector-point");
-    await waitFor(() => expect(point.textContent).toContain("In force here"));
+    await waitFor(() => expect(point.textContent).toContain("Point"));
+    expect(point.textContent).toContain("Marketing site");
   });
 
   it("lists the findings the payload gives no position for", async () => {

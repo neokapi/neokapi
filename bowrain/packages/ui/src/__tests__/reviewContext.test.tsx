@@ -11,6 +11,7 @@
  */
 import { describe, it, expect } from "vite-plus/test";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 import { FocusedReviewer } from "../components/review/FocusedReviewer";
 import { ReviewInspector } from "../components/review/ReviewInspector";
@@ -243,7 +244,7 @@ describe("the queue's neighbourhood", () => {
   it("says the unit is alone rather than drawing empty boxes for its neighbours", () => {
     reviewer({}, emptyContext());
     expect(screen.getByTestId("reviewer-neighbourhood-summary").textContent).toContain(
-      "The only unit in the item",
+      "This unit stands alone in its document.",
     );
     const rows = screen
       .getByTestId("reviewer-neighbourhood")
@@ -270,7 +271,7 @@ describe("the queue's empty states", () => {
     );
   });
 
-  it("shows the profile by name with its guidance and the rules in force", () => {
+  it("shows the profile by name with its guidance and the rules in force", async () => {
     reviewer(
       {},
       emptyContext({
@@ -285,6 +286,9 @@ describe("the queue's empty states", () => {
     );
 
     expect(screen.getByTestId("point-profile-name").textContent).toBe("Bowrain Voice");
+    // The rendered guidance is prose, so it sits behind a disclosure.
+    expect(screen.queryByTestId("point-guidance")).toBeNull();
+    await userEvent.click(screen.getByTestId("point-guidance-toggle"));
     expect(screen.getByTestId("point-guidance").textContent).toContain(
       "Say what the product does for the reader.",
     );

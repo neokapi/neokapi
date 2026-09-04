@@ -1,16 +1,18 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import {
-  ContextLayer,
-  FindingsList,
-  MemoryMatchCard,
-  NeighbourhoodView,
-  PointRail,
-  ProvenanceBlock,
-  findingsSummary,
-  memorySummary,
-  neighbourhoodSummary,
-  provenanceSummary,
-} from "../../components/review/reviewContext";
+  HistoryCard,
+  JudgementCard,
+  NeighbourhoodCard,
+  PointCard,
+  ProvenanceCard,
+} from "@neokapi/ui-primitives";
+import {
+  toFindingViews,
+  toHistoryView,
+  toNeighbourhoodView,
+  toPointView,
+  toProvenanceView,
+} from "../../components/review/reviewModel";
 import type { CheckIssue, ReviewContext } from "../../types/api";
 import type { VoiceFinding } from "../../voice/types";
 import { sampleReviewVoiceProfile } from "../fixtures";
@@ -96,46 +98,58 @@ const context: ReviewContext = {
   },
 };
 
+/** A unit nothing has resolved anything for. */
+const bare: ReviewContext = {
+  block_id: "b1",
+  item_name: "auth.json",
+  locale: "fr-FR",
+  terms: [],
+  collection_id: "",
+  notes: [],
+  voice_findings: [],
+};
+
 /**
- * The five layers a reviewer decides in, stacked as a rail. `open` draws the
- * evidence under each summary; closed leaves the summary line alone, which is
- * the state a reviewer scans before opening the one they need.
+ * The five layers a reviewer decides in, stacked as a rail, over the platform's
+ * review context mapped onto the shared cards. `open` draws the evidence under
+ * each summary; closed leaves the summary line alone, which is the state a
+ * reviewer scans before opening the one they need.
  */
-function Layers({ open }: { open: boolean }) {
+function Layers({
+  open,
+  ctx = context,
+  loading = false,
+}: {
+  open: boolean;
+  ctx?: ReviewContext | null;
+  loading?: boolean;
+}) {
   return (
     <div className="w-[26rem] space-y-4 rounded-lg border border-border bg-background p-4">
-      <PointRail context={context} />
-      <ContextLayer
-        title="Neighbourhood"
-        summary={neighbourhoodSummary(context)}
+      <PointCard point={ctx ? toPointView(ctx) : undefined} loading={loading} defaultOpen={open} />
+      <NeighbourhoodCard
+        neighbourhood={ctx ? toNeighbourhoodView(ctx) : undefined}
+        loading={loading}
+        unitKey="b1"
+        unitSource="Reset your password"
+        unitTarget="Réinitialisez votre mot de passe"
+        sourceLocale="en-US"
+        locale="fr-FR"
         defaultOpen={open}
-      >
-        <NeighbourhoodView
-          context={context}
-          unitKey="b1"
-          unitSource="Reset your password"
-          unitTarget="Réinitialisez votre mot de passe"
-          sourceLocale="en-US"
-          locale="fr-FR"
-        />
-      </ContextLayer>
-      <ContextLayer title="Findings" summary={findingsSummary(issues, findings)} defaultOpen={open}>
-        <FindingsList issues={issues} findings={findings} />
-      </ContextLayer>
-      <ContextLayer
-        title="Content memory"
-        summary={memorySummary(context.memory_match)}
+      />
+      <JudgementCard
+        findings={toFindingViews(ctx === context ? issues : [], ctx?.voice_findings ?? [])}
         defaultOpen={open}
-      >
-        <MemoryMatchCard match={context.memory_match} />
-      </ContextLayer>
-      <ContextLayer
-        title="Provenance"
-        summary={provenanceSummary(context.origin, context.decision)}
+      />
+      <HistoryCard
+        history={ctx ? toHistoryView(ctx) : undefined}
+        loading={loading}
+        sourceLocale="en-US"
+        locale="fr-FR"
         defaultOpen={open}
-      >
-        <ProvenanceBlock origin={context.origin} decision={context.decision} />
-      </ContextLayer>
+        onUseMatch={ctx?.memory_match ? () => {} : undefined}
+      />
+      <ProvenanceCard provenance={ctx ? toProvenanceView(ctx) : undefined} defaultOpen={open} />
     </div>
   );
 }
@@ -160,6 +174,18 @@ export const Collapsed: Story = { render: () => <Layers open={false} /> };
  * profile, its term rules (the do-not-translate one carrying a lock), the
  * matched terms, the coordinates and the memory match all take the default
  * border and muted text, with the bite of a rule in its tooltip. Red belongs to
- * the findings, where a violation has actually been named.
+ * the findings, where a violation has actually been named, and to a voice
+ * score below its bar.
  */
 export const Expanded: Story = { render: () => <Layers open /> };
+
+/** A unit nothing has resolved anything for: every layer states its own empty case. */
+export const Empty: Story = { render: () => <Layers open ctx={bare} /> };
+
+/** The model is still on its way. */
+export const Loading: Story = { render: () => <Layers open ctx={null} loading /> };
+
+export const Dark: Story = {
+  globals: { theme: "dark" },
+  render: () => <Layers open />,
+};
