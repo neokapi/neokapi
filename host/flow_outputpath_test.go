@@ -123,3 +123,34 @@ func TestResolveOutputPath_RefusesWithNoTargetLanguage(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no output destination")
 }
+
+// A file is claimed by the first item that matches it, so the target it
+// resolves to is that item's: an explicit item listed before a glob supplies
+// its own target, and a source-only item listed before a targeted glob makes
+// the file source-only rather than borrowing the glob's target (#2288).
+func TestProjectItemTargetPath_FirstMatchingItemClaims(t *testing.T) {
+	root := t.TempDir()
+	proj := &project.KapiProject{
+		Version:  "v1",
+		Defaults: project.Defaults{SourceLanguage: "en", TargetLanguages: []model.LocaleID{"fr"}},
+		Collections: []project.Collection{
+			{Name: "Docs", Content: []project.ContentItem{
+				{Path: "docs/README.md"},
+				{Path: "docs/api.md", Target: "reference/{lang}/{name}.md"},
+				{Path: "docs/**/*.md", Target: "output/{lang}/{name}.md"},
+			}},
+		},
+	}
+	a := &App{ProjectContext: project.NewProjectContext(proj, filepath.Join(root, "kapi.yaml"))}
+
+	got, ok := a.projectItemTargetPath(filepath.Join(root, "docs/api.md"), "fr")
+	require.True(t, ok)
+	assert.Equal(t, filepath.Join(root, "reference/fr/api.md"), got, "the explicit item's target, not the glob's")
+
+	got, ok = a.projectItemTargetPath(filepath.Join(root, "docs/guide.md"), "fr")
+	require.True(t, ok)
+	assert.Equal(t, filepath.Join(root, "output/fr/guide.md"), got)
+
+	_, ok = a.projectItemTargetPath(filepath.Join(root, "docs/README.md"), "fr")
+	assert.False(t, ok, "a source-only item claims the file; the glob's target is not borrowed")
+}

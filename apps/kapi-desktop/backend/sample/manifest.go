@@ -15,7 +15,7 @@ import (
 // binary version: a plain upgrade should not prompt when the sample itself did
 // not change.
 var Revision = map[string]int{
-	"kapimart": 6, // r6: the message catalogue ships translated and unreviewed, so Review opens with a queue
+	"kapimart": 7, // r7: the store glob covers the catalogue again; the first matching item claims it
 }
 
 // CurrentRevision returns the embedded content revision for a sample (0 if the

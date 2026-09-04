@@ -214,3 +214,36 @@ func writeTestFile(t *testing.T, baseDir, relPath, content string) {
 	require.NoError(t, os.MkdirAll(filepath.Dir(absPath), 0755))
 	require.NoError(t, os.WriteFile(absPath, []byte(content), 0644))
 }
+
+// A file two items match is listed once, with the format of the first item
+// that matches it (#2288).
+func TestHandleProjectLsFast_FirstMatchingItemClaims(t *testing.T) {
+	a := bowrainTestApp()
+	tmpDir := t.TempDir()
+
+	writeTestFile(t, tmpDir, "locales/en.json", `{"hello": "world"}`)
+	writeTestFile(t, tmpDir, "locales/menu.json", `{"file": "File"}`)
+
+	recipe := &project.Recipe{
+		Defaults: coreproj.Defaults{SourceLanguage: "en"},
+		Collections: []coreproj.Collection{
+			{Path: "locales/en.json", Format: &coreproj.FormatSpec{Name: "kbf"}},
+			{Path: "locales/*.json", Format: jsonFormat()},
+		},
+	}
+
+	proj, err := project.InitProject(tmpDir, recipe)
+	require.NoError(t, err)
+
+	_, out, err := handleProjectLsFast(a, proj, MCPLsInput{})
+	require.NoError(t, err)
+	require.Equal(t, 2, out.Total)
+	byPath := map[string]string{}
+	for _, f := range out.Files {
+		byPath[f.Path] = f.Format
+	}
+	assert.Equal(t, map[string]string{
+		"locales/en.json":   "kbf",
+		"locales/menu.json": "json",
+	}, byPath)
+}

@@ -1453,8 +1453,10 @@ func (c *BowrainSourceConnector) scanLocalBlocksAndMedia(ctx context.Context, pa
 	vaultPath := c.project.Layout.RedactionVaultPath()
 	srcLocale := recipe.Defaults.SourceLanguage
 
-	// If no specific paths, use content entries to discover files.
+	// If no specific paths, use content entries to discover files. A file two
+	// items match is read once, for the first of them.
 	if len(paths) == 0 {
+		seen := map[string]bool{}
 		for _, it := range recipe.IterateContent() {
 			lang := string(it.Item.ResolvedSourceLanguage(it.Collection, recipe.Defaults))
 			pattern := coreproj.ResolvePathPattern(it.Item.Path, lang)
@@ -1463,6 +1465,10 @@ func (c *BowrainSourceConnector) scanLocalBlocksAndMedia(ctx context.Context, pa
 				continue
 			}
 			for _, rp := range relPaths {
+				if seen[rp] {
+					continue
+				}
+				seen[rp] = true
 				paths = append(paths, filepath.Join(c.project.Root, rp))
 			}
 		}
@@ -1537,22 +1543,12 @@ func (c *BowrainSourceConnector) scanLocalBlocksAndMedia(ctx context.Context, pa
 	return hashMap, blockMap, mediaHashMap, mediaMap, nil
 }
 
-// detectFormat determines the format for a file using mappings or the registry.
+// detectFormat determines the format for a file: the format the claiming
+// content item declares (itemFor, the recipe's first-match order), or the
+// registry when it declares none.
 func (c *BowrainSourceConnector) detectFormat(absPath string) string {
-	relPath, err := c.project.RelativePath(absPath)
-	if err != nil {
-		relPath = filepath.Base(absPath)
-	}
-
-	recipe := c.project.Recipe
-
-	// Check content entries first.
-	for _, it := range recipe.IterateContent() {
-		lang := string(it.Item.ResolvedSourceLanguage(it.Collection, recipe.Defaults))
-		pattern := coreproj.ResolvePathPattern(it.Item.Path, lang)
-		formatName := coreproj.ResolveFormat(formatNameOf(it.Item.Format))
-		matched, err := doublestar.Match(pattern, relPath)
-		if err == nil && matched && formatName != "" {
+	if item := c.itemFor(absPath); item != nil {
+		if formatName := coreproj.ResolveFormat(formatNameOf(item.Format)); formatName != "" {
 			return formatName
 		}
 	}

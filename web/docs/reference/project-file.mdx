@@ -182,6 +182,22 @@ the listed alternatives (e.g. `input/store/*.{json,yaml,html}`). One glob can
 therefore cover a whole directory of mixed content; the format is auto-detected
 per file unless you pin `format`. Patterns resolve relative to the project root.
 
+A file belongs to exactly one item. Items are matched in the order they are
+written, across all collections, and the first item whose `path` matches a file
+claims it; later items never see that file, however specific their pattern. To
+place one file at its own point, or under its own format or target, list its
+item before the glob that would otherwise cover it:
+
+```yaml
+collections:
+  - name: docs
+    channel: acme/docs
+    content:
+      - path: "docs/api-reference.md" # claimed here, at the reference point
+        channel: acme/reference
+      - path: "docs/**/*.md"          # everything the item above did not claim
+```
+
 The `base` in play here is the item's own: the directory a matched file's path
 is made relative to, after any collection `base` has been folded in. It defaults
 to the glob's *fixed prefix*, the literal part of `path` before the first wildcard

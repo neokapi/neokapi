@@ -580,14 +580,9 @@ func (p *KapiProject) governanceLadder(pt GovernancePoint) ([]ChannelRef, error)
 // claimed the path.
 func (p *KapiProject) declaredChannelsFor(pt GovernancePoint) ([]string, string, error) {
 	if pt.Path != "" {
-		for i := range p.Collections {
+		if item, i, ok := p.ItemForPath(pt.Path); ok {
 			coll := &p.Collections[i]
-			for _, item := range coll.EffectiveItems() {
-				if item.Path == "" || !MatchGlob(item.Path, pt.Path) {
-					continue
-				}
-				return []string{item.Channel, coll.Channel}, collectionSubject(i, coll.Name), nil
-			}
+			return []string{item.Channel, coll.Channel}, collectionSubject(i, coll.Name), nil
 		}
 		// A path nothing claims falls back to the collection the caller named,
 		// if any: an input outside the declared globs still belongs to the run
@@ -708,24 +703,37 @@ func (p *KapiProject) BindsTermsByProfile() bool {
 	return false
 }
 
-// CollectionForPath returns the name of the content collection whose item
-// pattern matches relPath — a project-relative, slash-separated path — so a run
-// can resolve the governance for the file it is about to process. Matching uses
-// the same glob semantics and first-match-wins order as target resolution
-// (MatchGlob over EffectiveItems, core/project/glob.go). Returns "" when
-// nothing matches or the first match came from an unnamed bare entry: both mean
-// "the project's default point governs this file".
-func (p *KapiProject) CollectionForPath(relPath string) string {
+// ItemForPath returns the content item that claims relPath, a project-relative
+// slash-separated path: the first item in recipe order, across collections,
+// whose pattern matches it, with its collection's base and languages folded in
+// (EffectiveItems). The index of that collection comes back beside it; ok is
+// false when no item claims the path.
+//
+// This is the one path-to-item rule. ProjectContext.ResolveContent applies it
+// when it expands the recipe into files, and every lookup that starts from a
+// path (governance, format, target, reader configuration) asks here, so a file
+// is claimed by the same item whichever direction the question is asked from.
+func (p *KapiProject) ItemForPath(relPath string) (item ContentItem, collIdx int, ok bool) {
 	for i := range p.Collections {
-		coll := &p.Collections[i]
-		for _, item := range coll.EffectiveItems() {
-			if item.Path == "" {
+		for _, candidate := range p.Collections[i].EffectiveItems() {
+			if candidate.Path == "" || !MatchGlob(candidate.Path, relPath) {
 				continue
 			}
-			if MatchGlob(item.Path, relPath) {
-				return coll.Name
-			}
+			return candidate, i, true
 		}
+	}
+	return ContentItem{}, -1, false
+}
+
+// CollectionForPath returns the name of the content collection whose item
+// claims relPath — a project-relative, slash-separated path — so a run can
+// resolve the governance for the file it is about to process. The item is the
+// one ItemForPath names. Returns "" when nothing matches or the claiming item
+// is an unnamed bare entry: both mean "the project's default point governs
+// this file".
+func (p *KapiProject) CollectionForPath(relPath string) string {
+	if _, i, ok := p.ItemForPath(relPath); ok {
+		return p.Collections[i].Name
 	}
 	return ""
 }

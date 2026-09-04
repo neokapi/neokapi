@@ -60,7 +60,8 @@ collections:
   # through, and it says the same thing to a buyer and to an integrator reading
   # the API. The storefront and the catalogue name the same objects, and where
   # they answer differently the content memory records both answers against the
-  # point each was approved at.
+  # point each was approved at. The catalogue is listed first: a file takes the
+  # first item that matches it, so the glob below never sees it.
   - name: Online Store
     base: src
     channel: kapimart/store
@@ -68,10 +69,7 @@ collections:
       - path: "en/error-messages.properties"
         target: "{lang}"
         channel: kapimart/reference
-      # The catalogue above is deliberately outside this glob. A file that
-      # matches two items is read once per item, at each item's point, which
-      # reads afterwards as one surface disagreeing with itself.
-      - path: "en/*.{json,yaml,html}"
+      - path: "en/*.{json,yaml,properties,html}"
         target: "{lang}"
 
   # Contracts and price schedules: binding text, changed only on purpose.

@@ -11,8 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bmatcuk/doublestar/v4"
-
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/format"
@@ -1081,22 +1079,15 @@ func findManifestEntry(m *project.ExtractionManifest, sourceRel string, target m
 	return nil, nil, false
 }
 
-// detectSourceFormat picks the format for a source path, preferring the
-// recipe's declared format when available.
+// detectSourceFormat picks the format for a source path: the format the
+// claiming content item declares, or detection when it declares none. The
+// claim is project.KapiProject.ItemForPath, the same rule content resolution
+// applies, so a later item's explicit format is never read into a file an
+// earlier item claimed.
 func detectSourceFormat(reg *registry.FormatRegistry, ctx *project.ProjectContext, rel, abs string) string {
 	if ctx != nil && ctx.Project != nil {
-		for _, coll := range ctx.Project.Collections {
-			for _, item := range coll.EffectiveItems() {
-				if item.Format == nil || item.Format.Name == "" {
-					continue
-				}
-				// Patterns use doublestar, matching content resolution —
-				// filepath.Match has no `**` support, so deep paths fell
-				// back to extension detection (mdx read as markdown).
-				if ok, _ := doublestar.Match(item.Path, rel); ok {
-					return item.Format.Name
-				}
-			}
+		if item, _, ok := ctx.Project.ItemForPath(rel); ok && item.Format != nil && item.Format.Name != "" {
+			return item.Format.Name
 		}
 	}
 	return ctx.DetectFormat(reg, abs)
@@ -1119,26 +1110,17 @@ func resolveMergeOutputPath(entry *project.ExtractionFile, proj *project.KapiPro
 	if err := checkPathSegment(string(locale), "merge: target locale"); err != nil {
 		return "", err
 	}
-	// Search the recipe for the ContentItem whose Path matches entry.Source.
-	// Patterns use doublestar (matching ExpandGlob's `**` semantics), and the
-	// target template supports {lang}, {path}, {filename}, {basename}, and the
-	// legacy bare `*` — see project.ResolveTargetPath.
+	// The content item that claims entry.Source decides the destination; one
+	// that declares no target falls through to the default below. The target
+	// template supports {lang}, {path}, {filename}, {basename}, and the legacy
+	// bare `*` — see project.ResolveTargetPath.
 	if proj != nil {
-		for _, coll := range proj.Collections {
-			for _, item := range coll.EffectiveItems() {
-				ok, _ := doublestar.Match(item.Path, entry.Source)
-				if !ok {
-					continue
-				}
-				if item.Target == "" {
-					break
-				}
-				tmpl := project.ResolveTargetPathIn(item.Path, item.Base, item.Target, entry.Source, string(locale), proj.Defaults.LocaleFormat)
-				if !filepath.IsAbs(tmpl) {
-					tmpl = filepath.Join(root, tmpl)
-				}
-				return tmpl, nil
+		if item, _, ok := proj.ItemForPath(entry.Source); ok && item.Target != "" {
+			tmpl := project.ResolveTargetPathIn(item.Path, item.Base, item.Target, entry.Source, string(locale), proj.Defaults.LocaleFormat)
+			if !filepath.IsAbs(tmpl) {
+				tmpl = filepath.Join(root, tmpl)
 			}
+			return tmpl, nil
 		}
 	}
 	// Default: <source-dir>/<locale>/<basename>

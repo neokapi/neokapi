@@ -199,8 +199,11 @@ valid ([C-02](/contribute/architecture/context/c-02-coordinates-and-governance))
 `ResolvedGovernance` (channel, voice binding, `TermStore`, the profile's name,
 and the recipe key the voice came from), falling back to the project defaults
 for an empty or unknown collection name, and for a collection that binds no
-channel; `CollectionForPath(relPath)` names the collection that claims a file,
-by the same first-match glob rule as target resolution. The name keeps its
+channel; `ItemForPath(relPath)` names the content item that claims a file, the
+first in recipe order whose pattern matches it, and `CollectionForPath(relPath)`
+the collection that item sits in. `ProjectContext.ResolveContent` applies the
+same rule when it expands the recipe into files, so a file resolves to one item
+whichever direction the question is asked from. The name keeps its
 distance from `profile.ResolveContext`, which is a different thing in a package
 used alongside this one: the input to profile resolution, not the recipe's
 answer.

@@ -325,6 +325,9 @@ func handleProjectLsFast(a *cli.App, proj *project.Project, input MCPLsInput) (*
 	// compound suffix like .kbf.json resolves to the KBF reader rather than the
 	// generic JSON reader its .json tail would select, matching the stats path.
 	projCtx := coreproj.NewProjectContext(&recipe.KapiProject, filepath.Join(proj.Root, coreproj.RecipeFileName))
+	// A file is claimed by the first item that matches it, so it is listed
+	// once, with that item's format.
+	seen := map[string]bool{}
 	for _, it := range recipe.IterateContent() {
 		lang := string(it.Item.ResolvedSourceLanguage(it.Collection, recipe.Defaults))
 		pattern := coreproj.ResolvePathPattern(it.Item.Path, lang)
@@ -333,9 +336,10 @@ func handleProjectLsFast(a *cli.App, proj *project.Project, input MCPLsInput) (*
 			continue
 		}
 		for _, rp := range relPaths {
-			if !matchesMCPPathFilter(rp, input.Paths) {
+			if seen[rp] || !matchesMCPPathFilter(rp, input.Paths) {
 				continue
 			}
+			seen[rp] = true
 
 			formatName := ""
 			if it.Item.Format != nil {
