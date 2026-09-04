@@ -10,7 +10,11 @@
  *      them. Human-readable, git-diffable, self-contained per source.
  *      The tree stays a mirror: a catalog this run would have written
  *      for the document it records, and did not, is removed (see
- *      pruneStaleCatalogs).
+ *      pruneStaleCatalogs). A catalog that is rewritten keeps the
+ *      targets of every block whose content hash is unchanged (see
+ *      carryTargets), so re-running the extract over an in-place
+ *      translated tree adds and drops source blocks without discarding
+ *      the translations that still apply.
  *   2. --stream: NDJSON block records on stdout, one per block,
  *      for piping into any kapi-aware consumer (e.g. kapi's exec
  *      format reader). No file output.
@@ -32,7 +36,7 @@ import {
 import { dirname, join, relative, resolve } from "node:path";
 import { glob } from "node:fs/promises";
 
-import type { Document, File } from "@neokapi/kapi-format";
+import type { Block, Document, File } from "@neokapi/kapi-format";
 import { Ext, isKbfPath, marshalFile } from "@neokapi/kapi-format";
 
 import { createWarningCollector, extractDocument, formatWarning } from "../extract/index.ts";
@@ -110,10 +114,12 @@ export async function runExtract(args: string[], io: RunExtractIO = {}): Promise
   // human-readable, git-diffable on-disk shape. Kapi reads these
   // directly for translation / compile / check flows.
   const written = new Set<string>();
+  const carried: CarrySummary = { kept: 0, dropped: 0, locales: new Set() };
   if (documents.length > 0) mkdirSync(opts.outDir, { recursive: true });
   for (const doc of documents) {
-    const kbf = buildKBF(doc, opts);
     const path = join(opts.outDir, kbfFilename(doc));
+    carryTargets(doc, readTranslated(path), carried);
+    const kbf = buildKBF(doc, opts);
     mkdirSync(dirname(path), { recursive: true });
     writeFileSync(path, marshalFile(kbf));
     written.add(resolve(path));
@@ -126,9 +132,104 @@ export async function runExtract(args: string[], io: RunExtractIO = {}): Promise
     const blockCount = documents.reduce((n, d) => n + d.blocks.length, 0);
     console.log(`Extracted ${blockCount} blocks from ${documents.length} files → ${opts.outDir}/`);
   }
+  if (carried.kept > 0) {
+    const locales = [...carried.locales].sort().join(", ");
+    console.log(`Kept the targets of ${carried.kept} unchanged block(s) (${locales})`);
+  }
+  if (carried.dropped > 0) {
+    console.log(
+      `Dropped the targets of ${carried.dropped} block(s) whose source changed or is gone`,
+    );
+  }
   if (stale.length > 0) {
     console.log(`Removed ${stale.length} stale catalog(s) whose source is no longer scanned:`);
     for (const path of stale) console.log(`  ${path}`);
+  }
+}
+
+interface CarrySummary {
+  /** Blocks that received the targets of their previous extraction. */
+  kept: number;
+  /** Translated blocks of the previous extraction that no current block matches. */
+  dropped: number;
+  /** Every locale carried across, for the report. */
+  locales: Set<string>;
+}
+
+/** What a previous extraction recorded for one block: its targets and their provenance. */
+type Translated = Pick<Block, "targets" | "targetOrigins">;
+
+/**
+ * The translated blocks of the catalog already at `path`, keyed by content
+ * hash. Empty when there is no catalog there, when it does not parse as a
+ * bundle, or when nothing in it carries a target.
+ *
+ * Keyed by hash and never by id: a block's id spells its line and position,
+ * which move with every edit above it, while its hash is a function of its
+ * source runs and its element alone. A target recorded under a hash is a
+ * translation of exactly the content that hash names, wherever that content
+ * now sits in the file. Two blocks in one file that share a hash share the
+ * string, and the runtime dictionary keys on the hash, so the first recorded
+ * target stands for both.
+ */
+function readTranslated(path: string): Map<string, Translated> {
+  const out = new Map<string, Translated>();
+  if (!existsSync(path)) return out;
+  let file: File;
+  try {
+    file = JSON.parse(readFileSync(path, "utf-8")) as File;
+  } catch {
+    return out;
+  }
+  const documents = Array.isArray(file?.documents) ? file.documents : [];
+  for (const doc of documents) {
+    const blocks = Array.isArray(doc?.blocks) ? doc.blocks : [];
+    for (const block of blocks) {
+      if (typeof block?.hash !== "string" || out.has(block.hash)) continue;
+      const targets = block.targets;
+      if (!targets || typeof targets !== "object" || Object.keys(targets).length === 0) continue;
+      out.set(block.hash, {
+        targets,
+        ...(block.targetOrigins && typeof block.targetOrigins === "object"
+          ? { targetOrigins: block.targetOrigins }
+          : {}),
+      });
+    }
+  }
+  return out;
+}
+
+/**
+ * Give every block of `doc` the targets its previous extraction recorded for
+ * the same content hash, and account for what was kept and what was left
+ * behind.
+ *
+ * A block is written with a target only when its hash is unchanged: the same
+ * source runs under the same element, so the translation still answers the
+ * source beside it. A block whose text or element changed has a new hash,
+ * matches nothing, and is written source-only to be translated again; a block
+ * that was removed is simply absent, and its targets go with it. A target is
+ * carried together with its provenance, so a bundle re-read by kapi still
+ * says how each answer was produced.
+ *
+ * This is what makes the in-place layout survive a re-extract. The per-locale
+ * layout, where kapi writes targets under `i18n/{lang}/`, is untouched by the
+ * extract in the first place: those files sit outside the positions it writes.
+ */
+function carryTargets(doc: Document, previous: Map<string, Translated>, summary: CarrySummary) {
+  if (previous.size === 0) return;
+  const matched = new Set<string>();
+  for (const block of doc.blocks) {
+    const kept = previous.get(block.hash);
+    if (!kept) continue;
+    block.targets = kept.targets;
+    if (kept.targetOrigins) block.targetOrigins = kept.targetOrigins;
+    for (const locale of Object.keys(kept.targets ?? {})) summary.locales.add(locale);
+    summary.kept += 1;
+    matched.add(block.hash);
+  }
+  for (const hash of previous.keys()) {
+    if (!matched.has(hash)) summary.dropped += 1;
   }
 }
 
@@ -469,8 +570,12 @@ Options:
   --out <dir>             Output directory for .kbf.json files (default: "i18n").
                           The tree mirrors the files scanned: a catalog left
                           there for a source this run no longer scans is
-                          removed. Per-locale targets kapi writes under a
-                          subdirectory of it are left alone.
+                          removed. A catalog that is rewritten keeps the
+                          targets of every block whose content hash is
+                          unchanged; a block whose text or element changed
+                          is written without targets. Per-locale targets
+                          kapi writes under a subdirectory of it are left
+                          alone.
   --source-root <dir>     Directory every recorded source path is relative to
                           (default: the working directory). Declare it wherever
                           --src reaches outside the working directory, so a

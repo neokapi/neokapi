@@ -18,6 +18,7 @@ import type {
   Project,
   Run,
   Skeleton,
+  TargetOrigin,
   Vocabulary,
 } from "./block.ts";
 import { Kind, SchemaVersion } from "./block.ts";
@@ -118,6 +119,7 @@ function canonicalBlock(b: Block): unknown {
     type: b.type,
     source: b.source.map(canonicalRun),
     targets: canonicalTargets(b.targets),
+    targetOrigins: canonicalTargetOrigins(b.targetOrigins),
     // placeholders is a required field: emitted always, even as `[]`, to match
     // Go (core/kbf.Block.Placeholders has no omitempty).
     placeholders: (b.placeholders ?? []).map(canonicalPlaceholder),
@@ -161,6 +163,38 @@ function canonicalTargets(t: Block["targets"] | undefined): Record<string, unkno
     out[k] = t[k]?.map(canonicalRun);
   }
   return out;
+}
+
+// canonicalTargetOrigins emits each origin in Go struct-field order with Go's
+// omitempty semantics (an empty string and a zero confidence are left out), and
+// sorts the locale keys the way encoding/json sorts a map's.
+function canonicalTargetOrigins(
+  t: Block["targetOrigins"] | undefined,
+): Record<string, unknown> | undefined {
+  if (!t) return undefined;
+  const keys = Object.keys(t).sort();
+  if (keys.length === 0) return undefined;
+  const out: Record<string, unknown> = {};
+  for (const k of keys) {
+    const origin = t[k];
+    if (origin) out[k] = canonicalTargetOrigin(origin);
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
+function canonicalTargetOrigin(o: TargetOrigin): unknown {
+  const str = (v: string | undefined) => (v ? v : undefined);
+  return omitUndefined({
+    kind: str(o.kind),
+    engine: str(o.engine),
+    tool: str(o.tool),
+    reference: str(o.reference),
+    timestamp: str(o.timestamp),
+    confidence: o.confidence ? o.confidence : undefined,
+    profile: str(o.profile),
+    profile_version: str(o.profile_version),
+    context_fingerprint: str(o.context_fingerprint),
+  });
 }
 
 function canonicalRun(r: Run): unknown {
