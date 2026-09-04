@@ -864,15 +864,26 @@ func fullNodeAbsRange(node ast.Node, source []byte, baseOffset int) (int, int) {
 	return lineStart + baseOffset, last.Stop + baseOffset
 }
 
+// hardBreakLinePrefix returns the continuation prefix a paragraph's hard
+// breaks rely on the writer to restore, or "" when the paragraph carries the
+// prefix in its runs instead. A paragraph whose line breaks are all hard ones
+// emits a bare "\n" per break and hands the writer one shared prefix through
+// BlockPropLinePrefix; a paragraph with a soft break already bakes the prefix
+// into every soft-break newline (see softBreakContinuation), and its hard
+// breaks bake theirs the same way (see addHardBreakRuns), so the property
+// would double it. The same goes for a paragraph whose continuation lines
+// disagree on their prefix, which no single property could describe.
+func hardBreakLinePrefix(node ast.Node, source []byte) string {
+	if !hasOnlyHardBreaks(node) {
+		return ""
+	}
+	return detectLinePrefix(node, source)
+}
+
 // hasOnlyHardBreaks reports whether the inline subtree under node
-// contains at least one hard line break and no soft line breaks. Used
-// to decide whether BlockPropLinePrefix should fire: the soft-break
-// path already bakes the literal `\n` + per-line prefix into the runs
-// (see softBreakContinuation), so handing the same prefix to the
-// writer would double it. Hard breaks emit a bare "\n" instead and
-// therefore still need the property to round-trip blockquote/indent
-// continuations. A node with no breaks at all returns false (single
-// line — no continuation prefix to apply anywhere).
+// contains at least one hard line break and no soft line breaks. A node
+// with no breaks at all returns false (single line — no continuation
+// prefix to apply anywhere).
 func hasOnlyHardBreaks(node ast.Node) bool {
 	hardSeen := false
 	softSeen := false
@@ -1469,14 +1480,11 @@ func (r *Reader) emitParagraph(ctx context.Context, ch chan<- model.PartResult, 
 	// "\n", yielding `\n> > ` for blockquotes. Only hand the prefix to
 	// the writer when no soft break carries it (i.e. hard breaks, where
 	// the run sequence emits a bare "\n" and the writer must reinject
-	// the marker). When a paragraph mixes both kinds we still skip the
-	// property — the soft-break path covers the more common case and
-	// any bare "\n" introduced by a hard break stays unprefixed (an
-	// edge case okapi MarkdownFilter doesn't special-case either).
-	if hasOnlyHardBreaks(n) {
-		if prefix := detectLinePrefix(n, source); prefix != "" {
-			block.Properties[BlockPropLinePrefix] = prefix
-		}
+	// the marker). When a paragraph mixes both kinds the runs carry the
+	// prefix after every newline, hard or soft, and the property stays
+	// unset.
+	if prefix := hardBreakLinePrefix(n, source); prefix != "" {
+		block.Properties[BlockPropLinePrefix] = prefix
 	}
 
 	lineStart, lineEnd := nodeAbsRange(n, source, baseOffset)
@@ -1587,19 +1595,15 @@ func (r *Reader) emitListItem(ctx context.Context, ch chan<- model.PartResult, n
 	for child := n.FirstChild(); child != nil; child = child.NextSibling() {
 		if p, ok := child.(*ast.Paragraph); ok {
 			r.addInlineRuns(block, p, source)
-			if hasOnlyHardBreaks(p) {
-				if prefix := detectLinePrefix(p, source); prefix != "" {
-					block.Properties[BlockPropLinePrefix] = prefix
-				}
+			if prefix := hardBreakLinePrefix(p, source); prefix != "" {
+				block.Properties[BlockPropLinePrefix] = prefix
 			}
 			break
 		}
 		if tb, ok := child.(*ast.TextBlock); ok {
 			r.addInlineRuns(block, child, source)
-			if hasOnlyHardBreaks(tb) {
-				if prefix := detectLinePrefix(tb, source); prefix != "" {
-					block.Properties[BlockPropLinePrefix] = prefix
-				}
+			if prefix := hardBreakLinePrefix(tb, source); prefix != "" {
+				block.Properties[BlockPropLinePrefix] = prefix
 			}
 			break
 		}
@@ -1657,10 +1661,8 @@ func (r *Reader) emitListItemMixed(ctx context.Context, ch chan<- model.PartResu
 		block.Type = "list-item"
 		block.SetSemanticRole(model.RoleListItem, 0)
 		r.addInlineRuns(block, headerNode, source)
-		if hasOnlyHardBreaks(headerNode) {
-			if prefix := detectLinePrefix(headerNode, source); prefix != "" {
-				block.Properties[BlockPropLinePrefix] = prefix
-			}
+		if prefix := hardBreakLinePrefix(headerNode, source); prefix != "" {
+			block.Properties[BlockPropLinePrefix] = prefix
 		}
 
 		// Use the header node's line range so we don't accidentally
@@ -2325,39 +2327,14 @@ func (r *Reader) emitBlockquoteAsData(ctx context.Context, ch chan<- model.PartR
 }
 
 func (r *Reader) emitTable(ctx context.Context, ch chan<- model.PartResult, node ast.Node, source []byte, baseOffset int) {
-	// Build each row as `| cell | cell |\n` with single-space padding
-	// around each cell. Mirrors upstream MarkdownParser.java:770-806 —
-	// the TableCell visitor unconditionally emits `"| "` before the
-	// cell content and `" "` after, regardless of how the source
-	// padded it (so `| data   |   foo |` collapses to `| data | foo |`).
-	// The header separator row is preserved verbatim from source
-	// because okapi's TableSeparator visitor emits the node's text
-	// verbatim (line 808-820 in MarkdownParser.java).
-	absStart, absEnd := nodeAbsRange(node, source, baseOffset)
-	tableLineStart := absStart
-	for tableLineStart > 0 && r.source[tableLineStart-1] != '\n' {
-		tableLineStart--
-	}
-	r.skelEmitGap(tableLineStart)
-	// Walk forward from absEnd through the trailing pipe(s) and final
-	// newline of the last row so the cursor lands at the start of the
-	// next block instead of leaving stray ` |\n` bytes for the next gap.
-	cursorEnd := absEnd
-	for cursorEnd < len(r.source) && r.source[cursorEnd] != '\n' {
-		cursorEnd++
-	}
-	if cursorEnd < len(r.source) && r.source[cursorEnd] == '\n' {
-		cursorEnd++
-	}
-	r.skelCursor = cursorEnd
-
-	// Find the source separator line (`| --- | --- |`) so we can emit
-	// it verbatim — okapi's TableSeparator visitor preserves the
-	// separator's exact source bytes (alignment colons, dash count)
-	// rather than synthesizing it. Goldmark doesn't expose the
-	// separator as an AST child, so locate it from source by scanning
-	// the line that immediately follows the header row.
-	separatorLine := r.tableSeparatorLine(node, baseOffset)
+	// Every byte of the table that is not a cell's content replays from
+	// source: the pipes and the padding around each cell, the delimiter row,
+	// the blockquote marker or list indent in front of a row, an empty cell,
+	// a cell beyond the delimiter row's column count (which the parser
+	// discards), and the whitespace after a row's last pipe. The skeleton
+	// path is the byte-exact path, and a table used to come back with its
+	// padding collapsed to one space, its container marker dropped and a
+	// header-only table's delimiter row doubled (#1661).
 
 	// Wrap the cells in the canonical table / table-row group shape (matching
 	// the docling/asciidoc/csv readers and core/projection). The group parts
@@ -2373,6 +2350,10 @@ func (r *Reader) emitTable(ctx context.Context, ch chan<- model.PartResult, node
 	// the structure — so an edit to one row cannot re-address another's cells.
 	defer r.naming.Push(scopeTable)()
 
+	// The header row's line end, when the header emitted a cell: the cursor
+	// moves past the delimiter row that follows it even when no body row
+	// emitted anything, so a header-only table keeps its delimiter row.
+	headerLineEnd := -1
 	for row := node.FirstChild(); row != nil; row = row.NextSibling() {
 		if row.Kind() != east.KindTableHeader && row.Kind() != east.KindTableRow {
 			continue
@@ -2399,13 +2380,14 @@ func (r *Reader) emitTable(ctx context.Context, ch chan<- model.PartResult, node
 			if cell.Kind() != east.KindTableCell {
 				continue
 			}
-			r.skelText("| ")
 			cellText := r.extractInlineText(cell, source)
-			if strings.TrimSpace(cellText) == "" {
-				// Empty cell: emit just a space to give an "| |" pair. It still
-				// holds its column, so it consumes the column's ordinal.
+			start, stop, hasBytes := r.tableCellSpan(cell, baseOffset)
+			if !hasBytes || strings.TrimSpace(cellText) == "" {
+				// An empty cell, or one whose only content is markup (an HTML
+				// comment): its bytes replay with the gap before the next cell.
+				// It still holds its column, so it consumes the column's
+				// ordinal.
 				r.naming.Skip(kindCell)
-				r.skelText(" ")
 				continue
 			}
 			r.blockCounter++
@@ -2422,54 +2404,61 @@ func (r *Reader) emitTable(ctx context.Context, ch chan<- model.PartResult, node
 				block.SetSemanticRole(model.RoleTableCell, 0)
 			}
 			r.addInlineRuns(block, cell, source)
+			r.skelEmitGap(start)
 			r.skelRef(blockID)
-			r.skelText(" ")
+			r.skelCursor = stop
+			if isHeaderRow {
+				headerLineEnd = lineEndAfter(r.source, stop)
+			}
 			r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 		}
 		popRow()
 
-		r.skelText("|\n")
-		// Inject the separator immediately after the header row.
-		if isHeaderRow && separatorLine != "" {
-			r.skelText(separatorLine)
-		}
-
 		r.emit(ctx, ch, &model.Part{Type: model.PartGroupEnd, Resource: &model.GroupEnd{ID: rowID}})
 	}
+
+	// Move past the closing pipe, the trailing whitespace and the newline of
+	// the last row that emitted a cell, and past the delimiter row when the
+	// header was the only such row, so the next block's gap starts on a line
+	// of its own.
+	end := lineEndAfter(r.source, r.skelCursor)
+	if headerLineEnd >= 0 {
+		if delimiterEnd := lineEndAfter(r.source, headerLineEnd); delimiterEnd > end {
+			end = delimiterEnd
+		}
+	}
+	r.skelEmitGap(end)
 
 	r.emit(ctx, ch, &model.Part{Type: model.PartGroupEnd, Resource: &model.GroupEnd{ID: tableID}})
 }
 
-// tableSeparatorLine returns the source line that holds the GFM table
-// separator (e.g. "| --- | --- |\n") sandwiched between the header
-// row and the first body row. Returns "" when the line can't be
-// located (defensive — well-formed GFM tables always have one). Uses
-// r.source (the full document) plus baseOffset because nodeAbsRange's
-// "absolute" positions index into r.source, not into the body slice
-// goldmark sees (which strips any leading YAML front matter).
-func (r *Reader) tableSeparatorLine(table ast.Node, baseOffset int) string {
-	header := table.FirstChild()
-	if header == nil || header.Kind() != east.KindTableHeader {
-		return ""
+// tableCellSpan returns the absolute byte range of a cell's content, without
+// the padding around it, as the table parser recorded it. ok is false for a
+// cell the parser synthesised to fill a short row, which has no bytes of its
+// own, and for a range that does not fit the document.
+func (r *Reader) tableCellSpan(cell ast.Node, baseOffset int) (start, stop int, ok bool) {
+	lines := cell.Lines()
+	if lines.Len() == 0 {
+		return 0, 0, false
 	}
-	_, headerEnd := nodeAbsRange(header, r.source[baseOffset:], baseOffset)
-	i := headerEnd
-	for i < len(r.source) && r.source[i] != '\n' {
-		i++
+	start = lines.At(0).Start + baseOffset
+	stop = lines.At(lines.Len()-1).Stop + baseOffset
+	if start < 0 || start > stop || stop > len(r.source) {
+		return 0, 0, false
 	}
-	if i >= len(r.source) {
-		return ""
+	return start, stop, true
+}
+
+// lineEndAfter returns the index just past the newline that ends the line
+// containing pos, or len(source) when that line is the last one.
+func lineEndAfter(source []byte, pos int) int {
+	if pos >= len(source) {
+		return len(source)
 	}
-	i++ // skip header row's newline
-	start := i
-	for i < len(r.source) && r.source[i] != '\n' {
-		i++
+	if i := bytes.IndexByte(source[pos:], '\n'); i >= 0 {
+		return pos + i + 1
 	}
-	if i >= len(r.source) {
-		return ""
-	}
-	i++ // include the trailing newline
-	return string(r.source[start:i])
+	return len(source)
 }
 
 // --- Skeleton store helpers ---
@@ -2515,6 +2504,71 @@ func nextIsHardBreak(n ast.Node) bool {
 		return t.HardLineBreak()
 	}
 	return false
+}
+
+// addHardBreakRuns appends the runs for a hard line break: a placeholder
+// holding the bytes that spell it (the two or more spaces, or the backslash,
+// before the newline) and then the newline itself as text.
+//
+// The spelling is markup, so it rides a placeholder. The block's text keeps
+// the bare "\n" it always carried, which leaves its content key and every
+// content-memory match on it unchanged, while the skeleton path puts the
+// exact source bytes back (#1661). The placeholder's equivalent is empty
+// because the newline that follows it is the break's text: the rebuild path
+// renders equivalents, so it still emits a soft break, and re-reading its
+// output is a fixed point however many spaces the source used (#1652).
+//
+// The newline is written the way a soft break's is. It stays bare when the
+// block carries BlockPropLinePrefix (every break in the paragraph is a hard
+// one and the writer restores the continuation prefix after each newline),
+// and takes the continuation prefix with it otherwise, so a blockquote or
+// list item that mixes hard and soft breaks keeps its marker on every line.
+func (r *Reader) addHardBreakRuns(b *runBuilder, n *ast.Text, source []byte, idCounter *int) {
+	spelling, nl, ok := hardBreakSpelling(source, n.Segment.Stop)
+	if !ok {
+		b.AddText("\n")
+		return
+	}
+	if spelling != "" {
+		*idCounter++
+		info := r.vocab.LookupOrFallback("struct:break")
+		b.AddPh(strconv.Itoa(*idCounter), "struct:break", "md:hard-break", spelling,
+			info.Display.Placeholder, "", info.Constraints.Deletable, info.Constraints.Cloneable,
+			info.Constraints.Reorderable)
+	}
+	if b.inlineBreakPrefix {
+		b.AddText(softBreakContinuation(source, nl))
+		return
+	}
+	b.AddText("\n")
+}
+
+// hardBreakSpelling returns the bytes that spell the hard line break whose
+// newline is the first one at or after pos, and the index of that newline.
+// The parser leaves the spelling in the gap between the text it hands back
+// and the newline: a run of spaces (some of which may sit on the preceding
+// text node, which the caller trims), one backslash, and a carriage return
+// when the line ends in CRLF. ok is false when no newline follows.
+func hardBreakSpelling(source []byte, pos int) (spelling string, nl int, ok bool) {
+	if pos < 0 || pos > len(source) {
+		return "", 0, false
+	}
+	i := bytes.IndexByte(source[pos:], '\n')
+	if i < 0 {
+		return "", 0, false
+	}
+	nl = pos + i
+	start := nl
+	if start > 0 && source[start-1] == '\r' {
+		start--
+	}
+	if start > 0 && source[start-1] == '\\' {
+		start--
+	}
+	for start > 0 && (source[start-1] == ' ' || source[start-1] == '\t') {
+		start--
+	}
+	return string(source[start:nl]), nl, true
 }
 
 func (r *Reader) collectInlineText(buf *strings.Builder, node ast.Node, source []byte) {
@@ -2660,6 +2714,7 @@ func isBlankLine(line []byte) bool {
 
 func (r *Reader) addInlineRuns(block *model.Block, node ast.Node, source []byte) {
 	b := newRunBuilder()
+	b.inlineBreakPrefix = hardBreakLinePrefix(node, source) == ""
 	idCounter := 0
 	r.buildCodedRuns(b, node, source, &idCounter)
 	if b.HasInlineCodes() {
@@ -2742,7 +2797,7 @@ func (r *Reader) buildCodedRuns(b *runBuilder, node ast.Node, source []byte, idC
 				b.AddText(softBreakContinuation(source, n.Segment.Stop))
 			}
 			if n.HardLineBreak() {
-				b.AddText("\n")
+				r.addHardBreakRuns(b, n, source, idCounter)
 			}
 		case *ast.String:
 			addTextWithEntities(b, string(n.Value), idCounter)

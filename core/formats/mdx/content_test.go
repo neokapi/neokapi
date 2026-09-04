@@ -238,16 +238,17 @@ After.
 // --- Treatment A: markdown-opaque fallback blocks (#928) ---
 
 // TestMarkdownOpaqueFallbackSurfacesBlocks verifies that when a Markdown span
-// fails byte-exact reconstruction (here a hard line break, which markdown
-// normalises) the span is kept verbatim opaque AND, when the flag is on, the
-// prose the markdown sub-reader already parsed is surfaced as non-translatable
+// fails byte-exact reconstruction (here a link title in single quotes, which
+// markdown spells back in double quotes) the span is kept verbatim opaque
+// AND, when the flag is on, the prose the markdown sub-reader already parsed
+// is surfaced as non-translatable
 // content blocks (no skeleton ref → no round-trip impact). With the flag off,
 // only the opaque Data is emitted (identical pre-#928 part stream). Both
 // directions round-trip byte-for-byte.
 func TestMarkdownOpaqueFallbackSurfacesBlocks(t *testing.T) {
-	// Two trailing spaces = a markdown hard break, which the markdown reader
-	// does not reconstruct byte-for-byte, forcing the opaque fallback.
-	src := []byte("line one  \nline two\n")
+	// A single-quoted link title comes back double-quoted, which the markdown
+	// reader does not reconstruct byte-for-byte, forcing the opaque fallback.
+	src := []byte("line one [two](/two 'Two')\n")
 
 	// Flag ON: opaque Data + a non-translatable block carrying the prose.
 	onParts, onStore := readPartsExtract(t, src, true)

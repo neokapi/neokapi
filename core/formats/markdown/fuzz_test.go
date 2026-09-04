@@ -174,12 +174,6 @@ func tripMarkdown(ctx context.Context, data []byte) (out []byte, keys []string, 
 //
 // The skeleton write path preserves the markup byte-for-byte and is checked
 // separately; that is where byte fidelity is asserted.
-//
-// One known-open failure remains, a genuine structural drift the contract
-// correctly flags: a multi-line (setext) heading is rebuilt as single-line ATX,
-// so its embedded newline splits it into a heading plus a loose paragraph and
-// the block count changes (#1659). It is noted so it is not mistaken for a
-// regression; no failing input is committed to testdata/fuzz.
 func FuzzRoundTripMarkdown(f *testing.F) {
 	markdownSeed(f, "simple.md")
 	f.Add([]byte("# Hello\n\nA paragraph.\n"))
@@ -216,6 +210,18 @@ func FuzzRoundTripMarkdown(f *testing.F) {
 	// later on the line is not a fence, so it must be left literal; escaping only
 	// the first backtick used to invent a code span and drift the content.
 	f.Add([]byte("```0`0``"))
+	// #1659: a multi-line setext heading is rebuilt as single-line ATX, so its
+	// embedded newline split it into a heading plus a loose paragraph unless
+	// the rebuild path folds the heading onto one line. The first input is
+	// also committed under testdata/fuzz.
+	f.Add([]byte("0\n0\n="))
+	f.Add([]byte("> 0\n> 0\n> ==="))
+	// #1661: a hard break's spelling rides a placeholder, so whether the source
+	// used spaces or a backslash the rebuild path emits a soft break and the
+	// re-read keys are the same; a paragraph mixing hard and soft breaks keeps
+	// its blockquote marker on every line.
+	f.Add([]byte("a\\\nb"))
+	f.Add([]byte("> a  \n> b\n> c"))
 	seedDamagedMarkdown(f)
 
 	f.Fuzz(func(t *testing.T, data []byte) {

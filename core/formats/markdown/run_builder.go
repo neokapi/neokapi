@@ -8,6 +8,11 @@ import "github.com/neokapi/neokapi/core/model"
 type runBuilder struct {
 	runs           []model.Run
 	hasInlineCodes bool
+	// inlineBreakPrefix is set when the paragraph's continuation prefix
+	// travels inside the runs after every newline rather than through
+	// BlockPropLinePrefix, so a hard break bakes the prefix after its
+	// newline the way a soft break does. See hardBreakLinePrefix.
+	inlineBreakPrefix bool
 }
 
 // newRunBuilder returns a fresh runBuilder.

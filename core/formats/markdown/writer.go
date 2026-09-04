@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -700,9 +701,11 @@ func (w *Writer) writeBlockMarkdown(block *model.Block, out io.Writer) error {
 	switch role {
 	case model.RoleTitle:
 		prefix = "# "
+		text = singleLineHeading(text)
 	case model.RoleHeading:
 		if n := block.HeadingLevel(); n > 0 {
 			prefix = strings.Repeat("#", n) + " "
+			text = singleLineHeading(text)
 		}
 	case model.RoleListItem:
 		// The marker belongs to the enclosing list, not the item: an ordered
@@ -1156,6 +1159,24 @@ func isTableDelimiterRow(line string) bool {
 	return hasDash && !allDash
 }
 
+// headingLineBreakRE matches one line break inside heading text, with the
+// whitespace around it and the blockquote marker a soft break bakes into the
+// continuation line.
+var headingLineBreakRE = regexp.MustCompile(`[ \t]*\r?\n[ \t>]*`)
+
+// singleLineHeading folds heading text onto one line. The rebuild path writes
+// every heading as ATX, and an ATX heading ends at its newline, so a heading
+// whose text spans lines (a multi-line setext heading, or a heading from a
+// format that allows a break inside one) re-read as a heading followed by a
+// paragraph, and the block count changed (#1659). Each break becomes one
+// space: the heading keeps its words, and a second rebuild is a fixed point.
+func singleLineHeading(text string) string {
+	if !strings.Contains(text, "\n") {
+		return text
+	}
+	return headingLineBreakRE.ReplaceAllString(text, " ")
+}
+
 // blockquoteRebuild reconstructs a multi-line blockquote body in the rebuild
 // path. A blockquote surfaces as an empty-role paragraph whose per-line ">"
 // marker lives in one of two places: held in BlockPropLinePrefix with the
@@ -1314,16 +1335,38 @@ func RenderBlockContent(block *model.Block, runs []model.Run) string {
 	if prefix, ok := block.Properties[BlockPropLinePrefix]; ok && prefix != "" && strings.Contains(rendered, "\n") {
 		rendered = strings.ReplaceAll(rendered, "\n", "\n"+prefix)
 	}
-	if block.SemanticRole() == model.RoleTableCell {
+	if role := block.SemanticRole(); role == model.RoleTableCell || role == model.RoleTableHeader {
 		// GFM row splitting sees an unescaped `|` as a cell boundary wherever
-		// it appears — even inside a code span — so the reader receives cell
-		// text with `\|` already unescaped and every pipe must be re-escaped
-		// on the way out. Without this, a cell like `--output-format
-		// <json\|text>` round-trips with a bare pipe that splits the cell and
-		// leaves an unterminated code span (invalid MDX downstream).
-		rendered = strings.ReplaceAll(rendered, "|", "\\|")
+		// it appears, even inside a code span, so every pipe leaving a cell
+		// is escaped, and one that already is must not be escaped again. The
+		// reader hands back both: a code span's `\|` arrives without its
+		// backslash (the parser drops it) and a plain `\|` arrives with it,
+		// and a translated cell may spell either. Without the escape, a cell
+		// like `--output-format <json\|text>` came back with a bare pipe that
+		// split the cell and left an unterminated code span (invalid MDX
+		// downstream); with an unconditional one, a plain `\|` came back
+		// doubled (#1661).
+		rendered = escapeCellPipes(rendered)
 	}
 	return rendered
+}
+
+// escapeCellPipes backslash-escapes every `|` in table-cell text whose
+// preceding byte is not already a backslash, which is the rule the GFM row
+// splitter applies when it decides whether a pipe belongs to the cell.
+func escapeCellPipes(text string) string {
+	if !strings.Contains(text, "|") {
+		return text
+	}
+	var sb strings.Builder
+	sb.Grow(len(text) + 4)
+	for i := range len(text) {
+		if text[i] == '|' && (i == 0 || text[i-1] != '\\') {
+			sb.WriteByte('\\')
+		}
+		sb.WriteByte(text[i])
+	}
+	return sb.String()
 }
 
 // frontMatterScalar renders a front matter value, restoring the source's
