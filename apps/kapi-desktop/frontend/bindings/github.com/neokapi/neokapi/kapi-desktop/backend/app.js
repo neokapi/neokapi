@@ -1575,10 +1575,12 @@ export function ListNamedTerms() {
  * relative to the project root, so the frontend can render outputs as child
  * rows beneath the source that produces them.
  * 
- * Output paths come from the shared resolver (project.ResolveTargetPath) — the
- * same one the flow runner, merge, and the CLI use — so the desktop, CLI, and
- * `kapi merge` agree exactly, and source globs honour doublestar (`**`, `{a,b}`)
- * via project.ExpandGlob.
+ * Sources come from the one content resolver (ProjectContext.ResolveContent),
+ * so a file claimed by an earlier item is listed under that item's target
+ * alone, and a pattern that cannot be expanded fails the listing rather than
+ * shortening it. Output paths come from the shared resolver
+ * (project.ResolveTargetPath), the same one the flow runner, merge, and the
+ * CLI use, so the desktop, CLI, and `kapi merge` agree exactly.
  * @param {string} tabID
  * @returns {$CancellablePromise<{ [_ in string]?: $models.OutputFileInfo[] }>}
  */
