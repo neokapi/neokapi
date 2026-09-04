@@ -259,6 +259,12 @@ export interface FlowEditorProps {
    * e.g. the lab's Project panel.
    */
   onEditPresets?: (toolName: string) => void;
+  /**
+   * Omit the step-count toolbar (and with it the Run button). For a host that
+   * shows its own header above the canvas, such as the diagram view beside
+   * the linear step editor.
+   */
+  hideToolbar?: boolean;
 }
 
 /** Context passed to renderStepConfigPanel (see FlowEditorProps). */

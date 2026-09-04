@@ -35,6 +35,8 @@ export interface StepConfigPanelProps {
   onConfigChange: (config: Record<string, unknown>) => void;
   onClose: () => void;
   onRemove?: () => void;
+  /** Present the configuration without inviting edits (a read-only flow or the diagram view). */
+  readOnly?: boolean;
   /** Open the host's project-defaults editor for this tool (see FlowEditorProps.onEditPresets). */
   onEditPresets?: () => void;
 }
@@ -52,6 +54,7 @@ export function StepConfigPanel({
   onConfigChange,
   onClose,
   onRemove,
+  readOnly,
   onEditPresets,
 }: StepConfigPanelProps) {
   const [showDocs, setShowDocs] = useState(false);
@@ -342,6 +345,7 @@ export function StepConfigPanel({
               onChange={handleLocalChange}
               compact
               hideHeader
+              readOnly={readOnly}
               paramDocs={doc?.parameters}
             />
           ) : (

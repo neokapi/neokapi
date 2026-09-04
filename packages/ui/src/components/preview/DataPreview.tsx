@@ -18,6 +18,7 @@
 
 import React from "react";
 import { cn } from "../../lib/utils";
+import { ViewTab, ViewTabGroup } from "../ui/view-tab";
 import CodeView from "./CodeView";
 import KeyedTable, { type KeyedTableProps } from "./KeyedTable";
 import { keyedRows } from "./keyModel";
@@ -85,32 +86,6 @@ export function linesForKey(text: string, key: string | undefined): Set<number> 
   return out;
 }
 
-function ViewTab({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}): React.ReactElement {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={cn(
-        "rounded px-2 py-0.5 text-[11px] font-medium transition-colors",
-        active
-          ? "bg-background text-foreground shadow-sm"
-          : "text-muted-foreground hover:text-foreground",
-      )}
-    >
-      {children}
-    </button>
-  );
-}
-
 export default function DataPreview({
   tree,
   locale,
@@ -150,14 +125,14 @@ export default function DataPreview({
   return (
     <div className={cn("flex min-h-0 flex-col", className)} data-preview="data">
       {hasCode && (
-        <div className="mb-2 flex items-center gap-1 self-start rounded-md bg-muted p-0.5">
+        <ViewTabGroup className="mb-2" aria-label="Preview view">
           <ViewTab active={active === "table"} onClick={() => setView("table")}>
             Keys
           </ViewTab>
           <ViewTab active={active === "code"} onClick={() => setView("code")}>
             File
           </ViewTab>
-        </div>
+        </ViewTabGroup>
       )}
 
       {active === "code" && hasCode ? (
