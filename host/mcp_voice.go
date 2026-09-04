@@ -48,21 +48,29 @@ func registerVoiceMCPTools(server *mcp.Server, a *App) {
 	})
 
 	mcp.AddTool(server, &mcp.Tool{
-		Name:        "voice_rewrite",
-		Description: "Rewrite text to comply with a voice profile by substituting forbidden/competitor terms (deterministic, offline)",
-	}, func(ctx context.Context, req *mcp.CallToolRequest, in voiceCheckInput) (*mcp.CallToolResult, voiceRewriteMCPOutput, error) {
-		p, err := loadProfileForMCP(in.ProfilePack, in.ProfileFile)
-		if err != nil {
-			return nil, voiceRewriteMCPOutput{}, err
-		}
-		rewritten, changes := RuleRewrite(p, in.Text)
-		out := voiceRewriteMCPOutput{Profile: p.Name, Original: in.Text, Rewritten: rewritten}
-		for _, c := range changes {
-			out.Changes = append(out.Changes, voiceChangeMCP{From: c.From, To: c.To, Count: c.Count})
-		}
-		return nil, out, nil
-	})
+		Name: "voice_rewrite",
+		Description: "Rewrite text to comply with a voice profile by substituting forbidden/competitor terms " +
+			"(deterministic, offline). A rule that names no replacement, and a match on an inflected form of " +
+			"a term, are left in place and listed under skipped with the term, its list, severity and reason; " +
+			"rewrite those by hand and verify with voice_check.",
+	}, voiceRewriteMCP)
 
+}
+
+// voiceRewriteMCP is the voice_rewrite tool: the rule-based rewrite over the
+// profile the input names, with the substitutions made and the rules that
+// matched and were left in place.
+func voiceRewriteMCP(_ context.Context, _ *mcp.CallToolRequest, in voiceCheckInput) (*mcp.CallToolResult, voiceRewriteMCPOutput, error) {
+	p, err := loadProfileForMCP(in.ProfilePack, in.ProfileFile)
+	if err != nil {
+		return nil, voiceRewriteMCPOutput{}, err
+	}
+	rewritten, changes, skipped := RuleRewrite(p, in.Text)
+	out := voiceRewriteMCPOutput{Profile: p.Name, Original: in.Text, Rewritten: rewritten, Skipped: skipped}
+	for _, c := range changes {
+		out.Changes = append(out.Changes, voiceChangeMCP{From: c.From, To: c.To, Count: c.Count})
+	}
+	return nil, out, nil
 }
 
 // loadProfileForMCP resolves a profile from a built-in pack name or a profile YAML path.
@@ -102,9 +110,14 @@ type voiceChangeMCP struct {
 	Count int    `json:"count"`
 }
 
+// voiceRewriteMCPOutput is the voice_rewrite result. Skipped lists the
+// vocabulary rules that matched and were left in place, with the reason
+// (no_replacement, or inflected_form), so an agent knows the text still
+// carries violations it has to edit by hand.
 type voiceRewriteMCPOutput struct {
-	Profile   string           `json:"profile"`
-	Original  string           `json:"original"`
-	Rewritten string           `json:"rewritten"`
-	Changes   []voiceChangeMCP `json:"changes,omitempty"`
+	Profile   string                `json:"profile"`
+	Original  string                `json:"original"`
+	Rewritten string                `json:"rewritten"`
+	Changes   []voiceChangeMCP      `json:"changes,omitempty"`
+	Skipped   []profile.RewriteSkip `json:"skipped,omitempty"`
 }

@@ -197,3 +197,56 @@ func TestScoreVoiceCompliance_StreamBindingBeatsProject(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "hex3", out.Score.ProfileID, "a stream binding wins over the project binding")
 }
+
+// TestRewriteInVoice_ReportsSkipped proves the rewrite substitutes what the
+// profile names a replacement for and lists what it matched and left in
+// place, so an agent can tell an unchanged text with nothing to fix from one
+// that still carries violations.
+func TestRewriteInVoice_ReportsSkipped(t *testing.T) {
+	ms := &MCPServer{
+		voiceStore: &memVoiceStore{profiles: []*coreprofile.VoiceProfile{{
+			ID:    "hexN",
+			Name:  "Northwind",
+			Scope: "ws1",
+			Vocabulary: coreprofile.VocabularyRules{
+				ForbiddenTerms: []coreprofile.TermRule{
+					{Term: "utilize", Replacement: "use"},
+					{Term: "leverage", Severity: "major"},
+				},
+				CompetitorTerms: []coreprofile.TermRule{{Term: "Globex"}},
+			},
+		}}},
+	}
+
+	_, out, err := ms.handleRewriteInVoice(t.Context(), nil, rewriteInVoiceInput{
+		ProfileID: "hexN",
+		Text:      "Leverage Globex to utilize your content.",
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, "Leverage Globex to use your content.", out.Rewritten)
+	assert.Equal(t, []string{`Replaced forbidden term "utilize" with "use"`}, out.Changes)
+	require.Len(t, out.Skipped, 2)
+	assert.Equal(t, "leverage", out.Skipped[0].Term)
+	assert.Equal(t, "forbidden", out.Skipped[0].List)
+	assert.Equal(t, coreprofile.SeverityMajor, out.Skipped[0].Severity)
+	assert.Equal(t, coreprofile.RewriteSkipNoReplacement, out.Skipped[0].Reason)
+	assert.Equal(t, "Globex", out.Skipped[1].Term)
+	assert.Equal(t, "competitor", out.Skipped[1].List)
+	assert.Equal(t, coreprofile.SeverityCritical, out.Skipped[1].Severity)
+	assert.NotEmpty(t, out.Guide)
+}
+
+// TestRewriteInVoice_CleanText: a text with no hits reports nothing skipped.
+func TestRewriteInVoice_CleanText(t *testing.T) {
+	ms := personaScoringServer()
+
+	_, out, err := ms.handleRewriteInVoice(t.Context(), nil, rewriteInVoiceInput{
+		ProfileID: "hexP",
+		Text:      "Use the workspace.",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "Use the workspace.", out.Rewritten)
+	assert.Empty(t, out.Changes)
+	assert.Empty(t, out.Skipped)
+}

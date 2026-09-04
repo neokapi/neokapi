@@ -250,6 +250,11 @@ competitor terms with their approved replacements. This is the deterministic,
 offline path: it changes only the terms the profile defines and reports each
 change; it does not call a model.
 
+A rule that names no replacement, and a match on an inflected form of a term,
+are left in place and reported under "skipped" with the term, its list and
+severity, and the reason. The exit code stays 0. Rewrite those by hand and
+verify with 'kapi voice check'.
+
 Text is read from --input-text or stdin and the rewrite is printed. To fix tone,
 style, or phrasing in voice, rewrite the text yourself with the voice guide as
 context ('kapi voice guide') and apply the edit through 'kapi apply'. kapi does
@@ -263,12 +268,13 @@ not send content to a model to rewrite it.`,
 			if err != nil {
 				return err
 			}
-			rewritten, changes := RuleRewrite(profile, text)
+			rewritten, changes, skipped := RuleRewrite(profile, text)
 			return output.Print(cmd, output.VoiceRewriteOutput{
 				Profile:   profile.Name,
 				Original:  text,
 				Rewritten: rewritten,
 				Changes:   changes,
+				Skipped:   skipped,
 			})
 		},
 	}

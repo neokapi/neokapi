@@ -77,15 +77,21 @@ type VoiceChange struct {
 	Count int    `json:"count"`
 }
 
-// VoiceRewriteOutput is the result of `kapi voice rewrite`.
+// VoiceRewriteOutput is the result of `kapi voice rewrite`: the text with the
+// profile's substitutions applied, the substitutions, and the vocabulary rules
+// that matched and were left in place. Skipped is what tells a caller apart
+// "nothing to fix" from "violations found and not fixed": both leave the text
+// unchanged, and only the second needs a hand edit.
 type VoiceRewriteOutput struct {
-	Profile   string        `json:"profile"`
-	Original  string        `json:"original"`
-	Rewritten string        `json:"rewritten"`
-	Changes   []VoiceChange `json:"changes"`
+	Profile   string                `json:"profile"`
+	Original  string                `json:"original"`
+	Rewritten string                `json:"rewritten"`
+	Changes   []VoiceChange         `json:"changes"`
+	Skipped   []profile.RewriteSkip `json:"skipped"`
 }
 
-// FormatText prints the rewritten text and a change summary.
+// FormatText prints the rewritten text, a change summary, and the rules that
+// matched and could not be substituted.
 func (o VoiceRewriteOutput) FormatText(w io.Writer) error {
 	fmt.Fprintln(w, o.Rewritten)
 	if len(o.Changes) > 0 {
@@ -98,7 +104,42 @@ func (o VoiceRewriteOutput) FormatText(w io.Writer) error {
 			fmt.Fprintln(w)
 		}
 	}
+	if len(o.Skipped) > 0 {
+		total := 0
+		terms := make([]string, 0, len(o.Skipped))
+		for _, s := range o.Skipped {
+			total += s.Count
+			terms = append(terms, s.Term)
+		}
+		fmt.Fprintf(w, "\n%d violation(s) found, not rewritten: %s\n", total, strings.Join(terms, ", "))
+		for _, s := range o.Skipped {
+			fmt.Fprintf(w, "  %q [%s/%s]: %s", s.Term, s.Severity, s.List, rewriteSkipReason(s))
+			if s.Count > 1 {
+				fmt.Fprintf(w, " (×%d)", s.Count)
+			}
+			fmt.Fprintln(w)
+		}
+		fmt.Fprintln(w, "Rewrite these by hand and verify with 'kapi voice check'.")
+	}
 	return nil
+}
+
+// rewriteSkipReason words one skipped rule's reason for a reader.
+func rewriteSkipReason(s profile.RewriteSkip) string {
+	switch s.Reason {
+	case profile.RewriteSkipInflectedForm:
+		quoted := make([]string, 0, len(s.Matched))
+		for _, m := range s.Matched {
+			quoted = append(quoted, strconv.Quote(m))
+		}
+		return fmt.Sprintf("matched as %s; the replacement %q is worded for %q",
+			strings.Join(quoted, ", "), s.Replacement, s.Term)
+	default:
+		if s.Note != "" {
+			return "no replacement in the profile (" + s.Note + ")"
+		}
+		return "no replacement in the profile"
+	}
 }
 
 // VoiceProfileSummary is one row in `kapi voice profiles`.
