@@ -2051,11 +2051,12 @@ export class UpPlanOutput {
  * translation with a rough token estimate.
  * 
  * The three work axes partition the scope's work, so MissingTarget + Stale +
- * Unanswered always equals MemoryExact + AIRemaining + OutOfReach: every unit
- * the plan counts is recycled, drafted, or beyond what the configured flow can
- * do. A unit that is none of the three is not work — it holds a target, no
- * decision of its has moved, and the corpus answers its source, so the pass
- * fills it from the project's own record at no cost.
+ * Unanswered always equals MemoryExact + Drafts + AIRemaining + OutOfReach:
+ * every unit the plan counts is recycled, served from a stored draft, drafted,
+ * or beyond what the configured flow can do. A unit that is none of the four is
+ * not work: it holds a target, no decision of its has moved, and the corpus
+ * answers its source, so the pass fills it from the project's own record at no
+ * cost.
  */
 export class UpPlanScope {
     /**
@@ -2096,10 +2097,30 @@ export class UpPlanScope {
              */
             this["tmExact"] = 0;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * Drafts is the count of counted units the pass serves from the project
+             * block store instead of a provider. The drafting step already holds a
+             * translation of the unit's current source, made under the configuration it
+             * would send now and the governing context in force, so it reuses that
+             * answer and calls nobody (blockstore.TargetOverlay.ReusableFor). A parked
+             * locale's whole draft set reads this way on the run after the one that
+             * drafted it. They carry no token estimate.
+             * 
+             * The question is put to a producer built the way the run builds one
+             * (tool.StoredTargetReuser), so the plan and the run answer it from one
+             * function. Where no producer can be built, a unit stays under AIRemaining:
+             * the plan is an upper bound on what a run can spend.
+             * @member
+             * @type {number | undefined}
+             */
+            this["drafts"] = undefined;
+        }
         if (!("aiRemaining" in $$source)) {
             /**
              * AIRemaining is the count of counted units left for AI translation after
-             * content-memory leverage — the provider calls a run makes.
+             * content-memory leverage and stored drafts: the provider calls a run
+             * makes.
              * @member
              * @type {number}
              */

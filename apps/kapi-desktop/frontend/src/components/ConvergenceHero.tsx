@@ -514,6 +514,9 @@ export function ConvergePlanDialog({
                   {t("Memory exact")}
                 </TableHead>
                 <TableHead className="h-auto px-2 py-1.5 text-right text-muted-foreground">
+                  {t("Stored drafts")}
+                </TableHead>
+                <TableHead className="h-auto px-2 py-1.5 text-right text-muted-foreground">
                   {t("AI work")}
                 </TableHead>
                 <TableHead className="h-auto py-1.5 pl-2 text-right text-muted-foreground">
@@ -533,6 +536,9 @@ export function ConvergePlanDialog({
                   </TableCell>
                   <TableCell className="px-2 py-1.5 text-right tabular-nums">{s.tmExact}</TableCell>
                   <TableCell className="px-2 py-1.5 text-right tabular-nums">
+                    {s.drafts ?? 0}
+                  </TableCell>
+                  <TableCell className="px-2 py-1.5 text-right tabular-nums">
                     {s.aiRemaining}
                   </TableCell>
                   <TableCell className="py-1.5 pl-2 text-right tabular-nums">
@@ -548,6 +554,9 @@ export function ConvergePlanDialog({
                   </TableCell>
                   <TableCell className="px-2 py-1.5 text-right tabular-nums">
                     {totals.tmExact}
+                  </TableCell>
+                  <TableCell className="px-2 py-1.5 text-right tabular-nums">
+                    {totals.drafts ?? 0}
                   </TableCell>
                   <TableCell className="px-2 py-1.5 text-right tabular-nums">
                     {totals.aiRemaining}

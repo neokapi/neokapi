@@ -11,6 +11,8 @@ import (
 	"sort"
 	"unicode/utf8"
 
+	"github.com/neokapi/neokapi/core/blockstore"
+	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
@@ -27,11 +29,12 @@ import (
 // translation with a rough token estimate.
 //
 // The three work axes partition the scope's work, so MissingTarget + Stale +
-// Unanswered always equals MemoryExact + AIRemaining + OutOfReach: every unit
-// the plan counts is recycled, drafted, or beyond what the configured flow can
-// do. A unit that is none of the three is not work — it holds a target, no
-// decision of its has moved, and the corpus answers its source, so the pass
-// fills it from the project's own record at no cost.
+// Unanswered always equals MemoryExact + Drafts + AIRemaining + OutOfReach:
+// every unit the plan counts is recycled, served from a stored draft, drafted,
+// or beyond what the configured flow can do. A unit that is none of the four is
+// not work: it holds a target, no decision of its has moved, and the corpus
+// answers its source, so the pass fills it from the project's own record at no
+// cost.
 type UpPlanScope struct {
 	Locale     string `json:"locale,omitempty"`
 	Collection string `json:"collection,omitempty"`
@@ -42,8 +45,22 @@ type UpPlanScope struct {
 	// content-memory hit (the cheap leverage estimate — fuzzy leverage is not
 	// counted).
 	MemoryExact int `json:"tmExact"`
+	// Drafts is the count of counted units the pass serves from the project
+	// block store instead of a provider. The drafting step already holds a
+	// translation of the unit's current source, made under the configuration it
+	// would send now and the governing context in force, so it reuses that
+	// answer and calls nobody (blockstore.TargetOverlay.ReusableFor). A parked
+	// locale's whole draft set reads this way on the run after the one that
+	// drafted it. They carry no token estimate.
+	//
+	// The question is put to a producer built the way the run builds one
+	// (tool.StoredTargetReuser), so the plan and the run answer it from one
+	// function. Where no producer can be built, a unit stays under AIRemaining:
+	// the plan is an upper bound on what a run can spend.
+	Drafts int `json:"drafts,omitempty"`
 	// AIRemaining is the count of counted units left for AI translation after
-	// content-memory leverage — the provider calls a run makes.
+	// content-memory leverage and stored drafts: the provider calls a run
+	// makes.
 	AIRemaining int `json:"aiRemaining"`
 	// Stale is the count of units that HAVE a committed target whose decision
 	// was recorded against source wording that has since changed. The run
@@ -149,17 +166,17 @@ func (o UpPlanOutput) FormatText(w io.Writer) error {
 	fmt.Fprintf(w, "Plan for flow %q (dry run: nothing written, no provider calls):\n\n", o.Flow)
 	t := output.NewTable(w).Accent(0).
 		Headers("scope", "missing", "stale", "unanswered", "content memory exact",
-			"drafted by flow", "out of reach", "~tokens")
+			"stored drafts", "drafted by flow", "out of reach", "~tokens")
 	for _, s := range o.Scopes {
 		scope := s.Locale
 		if s.Collection != "" {
 			scope = s.Locale + "/" + s.Collection
 		}
 		t.Rowf(scope, s.MissingTarget, s.Stale, s.Unanswered, s.MemoryExact,
-			s.AIRemaining, s.OutOfReach, s.TokenEstimate)
+			s.Drafts, s.AIRemaining, s.OutOfReach, s.TokenEstimate)
 	}
 	t.Rowf("total", o.Totals.MissingTarget, o.Totals.Stale, o.Totals.Unanswered,
-		o.Totals.MemoryExact, o.Totals.AIRemaining, o.Totals.OutOfReach, o.Totals.TokenEstimate)
+		o.Totals.MemoryExact, o.Totals.Drafts, o.Totals.AIRemaining, o.Totals.OutOfReach, o.Totals.TokenEstimate)
 	t.Render()
 	if o.Totals.Stale > 0 {
 		fmt.Fprintf(w, "\n  %d unit(s) stale: their source changed since the translation was decided. "+
@@ -170,6 +187,11 @@ func (o UpPlanOutput) FormatText(w io.Writer) error {
 		fmt.Fprintf(w, "\n  %d unit(s) unanswered: they hold a target the project's content memory does not "+
 			"account for, so the pass drafts them (priced above) and the draft replaces what is on disk.\n",
 			o.Totals.Unanswered)
+	}
+	if o.Totals.Drafts > 0 {
+		fmt.Fprintf(w, "\n  %d unit(s) served from stored drafts: the project store already holds a translation "+
+			"of their current source, made under the configuration and governing context this run would use, "+
+			"so the pass reuses it and calls no provider for them.\n", o.Totals.Drafts)
 	}
 	if o.Totals.UnreadTargets > 0 {
 		fmt.Fprintf(w, "\n  %d produced unit(s) are not priced: the project store has not read their committed "+
@@ -265,7 +287,7 @@ func (a *App) computeProjectPlan(ctx context.Context, proj *project.KapiProject,
 	// An absent store yields an empty index: no decisions, so nothing is stale,
 	// and no artifact has been absorbed, so the corpus has not finished being
 	// taught and a produced unit is not judged by it.
-	basis := upPlanBasis{memory: a.MemoryBackend, root: root}
+	basis := upPlanBasis{memory: a.MemoryBackend, root: root, projectPath: projectPath}
 	layout, lerr := project.LayoutFor(projectPath)
 	if lerr != nil {
 		return UpPlanOutput{}, fmt.Errorf("resolve project layout for %s: %w", projectPath, lerr)
@@ -288,6 +310,10 @@ func (a *App) computeProjectPlan(ctx context.Context, proj *project.KapiProject,
 		}
 		basis.settled = a.recordSettlement(ctx, db, proj, projectPath, layout.Root)
 		basis.docs = a.documentIndexOrEmpty(ctx, layout.Root)
+		// The stored drafts a pass would serve instead of calling a provider
+		// live in the same store, and only there: past the stat above the store
+		// exists, so asking it creates nothing.
+		basis.store = a.storedTargetStore(ctx, layout.Root)
 	} else if basis.memory == nil {
 		// No store on disk — a fresh checkout, which is exactly the leg a
 		// pull-request CI job runs. The corpus a run recycles from is still
@@ -375,6 +401,11 @@ func (a *App) UpPlan(ctx context.Context, projectPath, sourceLang string) (*UpPl
 // and calls out is spend — and a flow assembled from tools this binary has
 // never heard of is planned as honestly as the built-in one.
 type upPlanFlow struct {
+	// Name is the name the flow is registered as, and Spec its steps as the
+	// pass executes them, from the same resolution the run makes
+	// (convergeFlowSpec).
+	Name string
+	Spec *flow.StepsSpec
 	// Label is how the run reports the flow.
 	Label string
 	// Recycles is true when a step fills a target from the content memory.
@@ -394,20 +425,13 @@ type upPlanFlow struct {
 // quotes figures for a run that cannot start is the same fault as a plan that
 // quotes figures the run would not produce.
 func (a *App) resolveUpPlanFlow(proj *project.KapiProject) (upPlanFlow, error) {
-	out := upPlanFlow{Label: proj.Defaults.Flow}
-	spec := proj.Flow(proj.Defaults.Flow)
-	if proj.Defaults.Flow == "" {
-		// No defaults.flow: the run synthesizes the built-in default (#1078 G6).
-		out.Label = BuiltinDefaultFlowLabel
-		spec = DefaultConvergeFlowSpec()
-	} else if spec == nil {
-		if BuiltinComposedFlowNames()[proj.Defaults.Flow] {
-			return out, fmt.Errorf("defaults.flow %q is a built-in flow; define it under the project's `flows:` map to use it as `kapi up`'s default flow", proj.Defaults.Flow)
-		}
-		return out, fmt.Errorf("default flow %q not found in the project's `flows:`", proj.Defaults.Flow)
+	cf, err := convergeFlowSpec(proj)
+	if err != nil {
+		return upPlanFlow{Label: cf.label}, err
 	}
+	out := upPlanFlow{Name: cf.name, Spec: cf.spec, Label: cf.label}
 
-	for _, step := range spec.Steps {
+	for _, step := range cf.spec.Steps {
 		s := a.ToolReg.Schema(registry.ToolID(step.Tool))
 		if !toolProducesTarget(s) {
 			continue
@@ -458,9 +482,16 @@ type upPlanBasis struct {
 	// root is the project root a unit's source path is resolved against to name
 	// the document its decision was recorded in.
 	root string
+	// projectPath is the recipe the plan is for, which the drafting producers
+	// are built against when the store holds drafts to ask about.
+	projectPath string
 	// docs turns that path into the document's durable key, so a decision made
 	// before the file was renamed still answers for it.
 	docs DocumentIndex
+	// store is the project block store holding the `targets/<locale>` overlays a
+	// drafting step serves instead of calling out, or nil when the project has
+	// none yet: nothing is stored, so nothing is reused.
+	store blockstore.Store
 }
 
 // computeUpPlan derives the per-scope work plan from the verify units, against
@@ -471,6 +502,9 @@ func (a *App) computeUpPlan(ctx context.Context, basis upPlanBasis, proj *projec
 	if ferr != nil {
 		return UpPlanOutput{}, ferr
 	}
+	reuse := a.newPlanReuse(ctx, basis, proj, fl)
+	defer reuse.close()
+
 	type scopeKey struct{ Locale, Collection string }
 	scopes := map[scopeKey]*UpPlanScope{}
 	scopeFor := func(k scopeKey) *UpPlanScope {
@@ -505,6 +539,7 @@ func (a *App) computeUpPlan(ctx context.Context, basis upPlanBasis, proj *projec
 		// on disk, which decides whether the corpus's silence about its units is
 		// final (see App.recordSettlement).
 		settled := basis.settled[u.TargetPath]
+		delivered := !missing && targetDelivered(u.TargetPath)
 		scope := basis.docs.Scope(basis.root, u.SourcePath)
 		for _, b := range blocks {
 			if !b.Translatable {
@@ -521,7 +556,13 @@ func (a *App) computeUpPlan(ctx context.Context, basis upPlanBasis, proj *projec
 			// this very target with its source. Asking now would price a provider
 			// call for every translation the run is about to recycle — so it is
 			// reported as unread rather than guessed at either way.
-			if produced && !settled && basis.reviewed.basisFor(scope, b, u.Locale) != basisStale {
+			//
+			// That holds for a delivered file. A produced unit with no file on
+			// disk is a parked locale's draft, read out of the block store: there
+			// is no committed translation for the absorber to read, so the
+			// corpus's silence about it is final, and the reuse question below is
+			// what prices it.
+			if produced && delivered && !settled && basis.reviewed.basisFor(scope, b, u.Locale) != basisStale {
 				s.UnreadTargets++
 				continue
 			}
@@ -571,6 +612,19 @@ func (a *App) computeUpPlan(ctx context.Context, basis upPlanBasis, proj *projec
 				s.OutOfReach++
 				continue
 			}
+			// The drafting step asks the block store before it calls out, and
+			// serves a stored translation of this exact source made under its
+			// current configuration and context (#2356). That is the reuse
+			// question put to a producer built as the run builds one, so what it
+			// says yes to costs nothing here, and nothing at run time.
+			reused, rerr := reuse.reuses(ctx, u, b)
+			if rerr != nil {
+				return UpPlanOutput{}, rerr
+			}
+			if reused {
+				s.Drafts++
+				continue
+			}
 			s.AIRemaining++
 			// Only a provider call costs tokens. A flow that drafts locally
 			// produces the same units and bills nothing, and quoting it a token
@@ -596,6 +650,7 @@ func (a *App) computeUpPlan(ctx context.Context, basis upPlanBasis, proj *projec
 		out.Totals.Stale += s.Stale
 		out.Totals.Unanswered += s.Unanswered
 		out.Totals.MemoryExact += s.MemoryExact
+		out.Totals.Drafts += s.Drafts
 		out.Totals.AIRemaining += s.AIRemaining
 		out.Totals.OutOfReach += s.OutOfReach
 		out.Totals.TokenEstimate += s.TokenEstimate
@@ -607,6 +662,15 @@ func (a *App) computeUpPlan(ctx context.Context, basis upPlanBasis, proj *projec
 		return out.Scopes[i].Collection < out.Scopes[j].Collection
 	})
 	return out, nil
+}
+
+// targetDelivered reports whether a unit's target file is on disk. A produced
+// unit without one was read out of the block store, which is what a parked
+// locale's drafts look like between the run that drafted them and the review
+// that delivers them.
+func targetDelivered(targetPath string) bool {
+	_, err := os.Stat(targetPath)
+	return err == nil
 }
 
 // planMemoryExactHit reports whether the block's source has an unambiguous exact

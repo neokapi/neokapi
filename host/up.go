@@ -43,8 +43,15 @@ func formatPlanLine(plan UpPlanOutput) string {
 	if t.Unanswered > 0 {
 		work = append(work, fmt.Sprintf("drafting %d unit(s) the content memory does not answer", t.Unanswered))
 	}
-	line := fmt.Sprintf("plan: %s · %d exact-content memory · %d AI · ≈%s tokens",
-		strings.Join(work, " · "), t.MemoryExact, t.AIRemaining, compactTokens(t.TokenEstimate))
+	// Stored drafts are named the way the run's own per-locale line names them,
+	// and only when there are any: a run that serves nothing from the store
+	// reads as it always has.
+	drafts := ""
+	if t.Drafts > 0 {
+		drafts = fmt.Sprintf(" · %d drafts", t.Drafts)
+	}
+	line := fmt.Sprintf("plan: %s · %d exact-content memory%s · %d AI · ≈%s tokens",
+		strings.Join(work, " · "), t.MemoryExact, drafts, t.AIRemaining, compactTokens(t.TokenEstimate))
 	if plan.Provider != "" {
 		if plan.Subscription {
 			line += fmt.Sprintf(" · %s (your subscription)", plan.Provider)

@@ -44,13 +44,13 @@ kapi stats --json docs/*.md          # blocks, words, characters, segments, by-r
 
 For every flag and the field-by-field JSON output, see [`kapi stats`](/reference/commands/stats).
 
-**In a project**, `kapi up --plan` is the estimate that matters: a dry run of the loop that names, per language, the units missing, stale and unanswered, how many the content memory answers exactly, how many the flow would draft, and a token estimate for those, with no writes, no provider calls and no keys:
+**In a project**, `kapi up --plan` is the estimate that matters: a dry run of the loop that names, per language, the units missing, stale and unanswered, how many the content memory answers exactly, how many the project store already holds a draft for, how many the flow would draft, and a token estimate for those, with no writes, no provider calls and no keys:
 
 ```bash
 kapi up --plan
-# scope  missing  stale  unanswered  content memory exact  drafted by flow  out of reach  ~tokens
-# fr          96      0           0                    18               78             0     20k
-# de          96      1           0                    18               79             0     21k
+# scope  missing  stale  unanswered  content memory exact  stored drafts  drafted by flow  out of reach  ~tokens
+# fr          96      0           0                    18              0               78             0     20k
+# de          96      1           0                    18              0               79             0     21k
 ```
 
 `--json` emits the same table for a script or a pull-request comment ([the loop in CI](/kapi/convergence-in-ci#report-the-cost-of-a-change-on-its-pull-request)); the columns are explained under [the kapi loop](/kapi/convergence#the-run-is-live).

@@ -276,38 +276,11 @@ func (o ConvergeOutput) formatMonolingual(w io.Writer) error {
 // error (target drift is normal toil, not a break).
 func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, projectPath string, opts ConvergeOptions) error {
 	untilGate, maxPasses := opts.UntilGate, opts.MaxPasses
-	flowName := proj.Defaults.Flow
-	flowLabel := flowName
-	var spec *flow.StepsSpec
-	if flowName == "" {
-		// No defaults.flow: run the built-in default (#1078 G6) — content memory reuse then
-		// AI translate — so `kapi up` works with zero flow YAML. An explicitly
-		// configured defaults.flow always wins over this synthesis.
-		flowName = builtinDefaultFlowName
-		flowLabel = BuiltinDefaultFlowLabel
-		spec = DefaultConvergeFlowSpec()
-	} else {
-		spec = proj.Flow(flowName)
-		if spec == nil {
-			if BuiltinComposedFlowNames()[flowName] {
-				return fmt.Errorf("defaults.flow %q is a built-in flow; define it under the project's `flows:` map to use it as `kapi up`'s default flow", flowName)
-			}
-			return fmt.Errorf("default flow %q not found in the project's `flows:`", flowName)
-		}
+	cf, err := convergeFlowSpec(proj)
+	if err != nil {
+		return err
 	}
-
-	// Source-first gate (epic 019): resolve the convergence source gate
-	// (defaults.source_gate). When it is active (not `none`), a leading
-	// source-gate stage settles each block's source authoring status and holds a
-	// block whose source ranks below the gate — the local, in-stream counterpart
-	// of the server's settleSource + gateItemsBySource. The stage prepends to the
-	// flow so it runs before recycle/translate, which skip a held block. The gate
-	// is off (no stage, no hold) when the project opts out with `source_gate:
-	// none` — parity with the server "raw MT, no gate" path.
-	sourceGate, _ := convergeSourceGate(proj)
-	if sourceGate != model.SourceGateNone {
-		spec = prependSourceGate(spec, sourceGate)
-	}
+	flowName, flowLabel, spec, sourceGate := cf.name, cf.label, cf.spec, cf.sourceGate
 
 	ctx := CmdContext(cmd)
 
@@ -1140,6 +1113,59 @@ const builtinDefaultFlowName = "default"
 // structured output (ConvergeOutput.Flow / UpPlanOutput.Flow), so a reader can
 // tell it apart from a recipe-defined flow that happens to be named "default".
 const BuiltinDefaultFlowLabel = "default (built-in)"
+
+// convergeFlow is the flow `kapi up` runs for a project: the steps as the pass
+// executes them, the name a run reports them under, and the name the flow is
+// registered as.
+type convergeFlow struct {
+	name  string
+	label string
+	spec  *flow.StepsSpec
+	// sourceGate is the level the leading source-gate stage holds blocks
+	// below, or SourceGateNone when the recipe opts out and no stage is
+	// prepended.
+	sourceGate model.SourceGateLevel
+}
+
+// convergeFlowSpec resolves the flow a convergence pass executes: the recipe's
+// defaults.flow, or the built-in default when the recipe names none, with the
+// source gate's leading stage prepended when the gate is active. The run and
+// `kapi up --plan` both resolve through it, so a plan never prices a flow the
+// run would not execute, and a flow the run cannot start fails the plan the same
+// way.
+func convergeFlowSpec(proj *project.KapiProject) (convergeFlow, error) {
+	cf := convergeFlow{name: proj.Defaults.Flow, label: proj.Defaults.Flow}
+	if cf.name == "" {
+		// No defaults.flow: run the built-in default (#1078 G6), content memory
+		// reuse then AI translate, so `kapi up` works with zero flow YAML. An
+		// explicitly configured defaults.flow always wins over this synthesis.
+		cf.name = builtinDefaultFlowName
+		cf.label = BuiltinDefaultFlowLabel
+		cf.spec = DefaultConvergeFlowSpec()
+	} else {
+		cf.spec = proj.Flow(cf.name)
+		if cf.spec == nil {
+			if BuiltinComposedFlowNames()[cf.name] {
+				return cf, fmt.Errorf("defaults.flow %q is a built-in flow; define it under the project's `flows:` map to use it as `kapi up`'s default flow", cf.name)
+			}
+			return cf, fmt.Errorf("default flow %q not found in the project's `flows:`", cf.name)
+		}
+	}
+
+	// Source-first gate (epic 019): resolve the convergence source gate
+	// (defaults.source_gate). When it is active (not `none`), a leading
+	// source-gate stage settles each block's source authoring status and holds a
+	// block whose source ranks below the gate, the local, in-stream counterpart
+	// of the server's settleSource + gateItemsBySource. The stage prepends to the
+	// flow so it runs before recycle/translate, which skip a held block. The gate
+	// is off (no stage, no hold) when the project opts out with `source_gate:
+	// none`, parity with the server "raw MT, no gate" path.
+	cf.sourceGate, _ = convergeSourceGate(proj)
+	if cf.sourceGate != model.SourceGateNone {
+		cf.spec = prependSourceGate(cf.spec, cf.sourceGate)
+	}
+	return cf, nil
+}
 
 // DefaultConvergeFlowSpec returns the built-in default convergence flow used
 // when a recipe configures no defaults.flow: content memory reuse (recycle) then

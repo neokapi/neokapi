@@ -43,6 +43,17 @@ type MTTranslateTool struct {
 // than translating.
 func (t *MTTranslateTool) ReusedTargets() int { return int(t.reused.Load()) }
 
+// ReusesStoredTarget implements tool.StoredTargetReuser: the stored target
+// answers this block when it was made from the same source wording by this
+// engine for this language pair, under the governing context in force. Every
+// store lookup this tool makes goes through here, and so does the plan's.
+func (t *MTTranslateTool) ReusesStoredTarget(_ context.Context, b *model.Block, stored blockstore.TargetOverlay) bool {
+	if b == nil {
+		return false
+	}
+	return stored.ReusableFor(b.SourceText(), t.configFP, t.contextFP)
+}
+
 // MTTranslateConfig holds configuration for the MT translate tool.
 //
 // Locale fields are supplied programmatically by the runner. The credential
@@ -231,7 +242,7 @@ func (t *MTTranslateTool) sessionHandleBlock(
 	if randomAccess {
 		if sc, err := sess.GetOverlay(overlayKind, hash); err == nil && len(sc.Payload) > 0 {
 			var cached blockstore.TargetOverlay
-			if err := json.Unmarshal(sc.Payload, &cached); err == nil && cached.ReusableFor(block.SourceText(), t.configFP, t.contextFP) {
+			if err := json.Unmarshal(sc.Payload, &cached); err == nil && t.ReusesStoredTarget(ctx, block, cached) {
 				if len(cached.Runs) > 0 {
 					block.SetTargetRuns(t.targetLocale, cached.Runs)
 				} else {

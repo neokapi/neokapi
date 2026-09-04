@@ -339,6 +339,15 @@ nobody. Missing units, **stale** ones (a decision's source moved) and
 apart, because they mean different things to you, and priced together, because
 the run does not treat them differently.
 
+A unit the project store already holds a draft for costs nothing further. The
+drafting step asks the store before it calls out, and serves a stored
+translation of the same source when it was made under the configuration and
+governing context the step would use now, so the plan counts such a unit under
+**stored drafts** and quotes no tokens for it. A language parked short of its
+gate reads this way on every run after the one that drafted it: its drafts are
+paid for once. A changed model, prompt, voice profile or term rule, or an edited
+sentence, puts the unit back under **drafted by flow**.
+
 ```text
 kapi up · KapiMart · flow "default (built-in)" · anthropic/claude-sonnet-4-6 (your subscription)
 plan: 288 unit(s) missing · 54 exact-content memory · 234 AI · ≈61k tokens
@@ -413,8 +422,8 @@ all) and the plan quotes that work before any tokens burn:
 
 ```bash
 kapi up --plan
-# scope  missing  stale  unanswered  content memory exact  drafted by flow  out of reach  ~tokens
-# de           0      1           0                     0                1             0        9
+# scope  missing  stale  unanswered  content memory exact  stored drafts  drafted by flow  out of reach  ~tokens
+# de           0      1           0                     0              0                1             0        9
 #
 # 1 unit(s) stale: their source changed since the translation was decided.
 # They are re-drafted against the current source (priced above) and return
