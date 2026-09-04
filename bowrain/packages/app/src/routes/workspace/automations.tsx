@@ -3,6 +3,7 @@ import { useParams, useRouteContext } from "@tanstack/react-router";
 import { Card, AutomationsPage, AutomationRunsPage } from "@neokapi/ui";
 import type { WorkspaceRouteContext } from "..";
 import { ProjectFlowsEditor } from "../../flows";
+import { usePlatform } from "../../platform";
 
 type Tab = "runs" | "rules" | "flows";
 
@@ -22,6 +23,7 @@ const TABS: { id: Tab; label: string }[] = [
 export function AutomationsRoute() {
   const { projectId } = useParams({ strict: false });
   const { activeWorkspace } = useRouteContext({ strict: false }) as WorkspaceRouteContext;
+  const platform = usePlatform();
   const [tab, setTab] = useState<Tab>("runs");
 
   if (!activeWorkspace || !projectId) {
@@ -49,7 +51,11 @@ export function AutomationsRoute() {
           </button>
         ))}
       </div>
-      {tab === "runs" && <AutomationRunsPage projectId={projectId} />}
+      {/* The run stream is a cookie-authenticated same-origin EventSource, which
+          only the web app can open; the desktop app polls the run instead. */}
+      {tab === "runs" && (
+        <AutomationRunsPage projectId={projectId} live={platform.kind === "web"} />
+      )}
       {tab === "rules" && (
         <AutomationsPage workspaceSlug={activeWorkspace.slug} projectId={projectId} />
       )}

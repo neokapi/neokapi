@@ -575,6 +575,8 @@ export { useProviderConfigs, useProviderApi } from "./hooks/useProviderApi";
 export { useLocales } from "./hooks/useLocales";
 export { useFormats } from "./hooks/useFormats";
 export { useTools } from "./hooks/useTools";
+export { useAutomationRunEvents } from "./hooks/useAutomationRunEvents";
+export type { AutomationRunFrame, AutomationRunLive } from "./hooks/useAutomationRunEvents";
 // useIsMobile re-exported from @neokapi/ui-primitives above
 
 // Types
