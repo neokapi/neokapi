@@ -147,6 +147,100 @@ describe("defToSpec", () => {
     expect(spec.steps[0].config).toEqual({ provider: "anthropic", model: "claude" });
   });
 
+  it("orders a chain by its edges whatever axis it is laid out along", () => {
+    // The server's built-in flows sit on one row (equal y, increasing x) and
+    // carry the chain as edges; the position axis must not turn them into a
+    // parallel group.
+    const def: FlowDefinitionInfo = {
+      id: "translate",
+      name: "Translate",
+      source: "built-in",
+      nodes: [
+        { id: "qa", type: "tool", name: "qa", position: { x: 500, y: 100 } },
+        { id: "recycle", type: "tool", name: "recycle", position: { x: 0, y: 100 } },
+        { id: "translate", type: "tool", name: "translate", position: { x: 250, y: 100 } },
+      ],
+      edges: [
+        { id: "e1", source: "recycle", target: "translate" },
+        { id: "e2", source: "translate", target: "qa" },
+      ],
+    };
+    const spec = defToSpec(def);
+    expect(spec.steps.map((s) => s.tool)).toEqual(["recycle", "translate", "qa"]);
+    expect(spec.steps.some((s) => s.parallel)).toBe(false);
+  });
+
+  it("reconstructs a fan-out from its edges regardless of positions", () => {
+    const def: FlowDefinitionInfo = {
+      id: "f",
+      name: "f",
+      source: "project",
+      nodes: [
+        { id: "a", type: "tool", name: "translate", position: { x: 0, y: 0 } },
+        { id: "b", type: "tool", name: "qa", position: { x: 0, y: 300 } },
+        { id: "c", type: "tool", name: "term-check", position: { x: 0, y: 600 } },
+        { id: "d", type: "tool", name: "word-count", position: { x: 0, y: 900 } },
+      ],
+      edges: [
+        { id: "e1", source: "a", target: "b" },
+        { id: "e2", source: "a", target: "c" },
+        { id: "e3", source: "b", target: "d" },
+        { id: "e4", source: "c", target: "d" },
+      ],
+    };
+    const spec = defToSpec(def);
+    expect(spec.steps).toHaveLength(3);
+    expect(spec.steps[0].tool).toBe("translate");
+    expect(spec.steps[1].parallel?.map((s) => s.tool)).toEqual(["qa", "term-check"]);
+    expect(spec.steps[2].tool).toBe("word-count");
+  });
+
+  it("keeps every node of a cyclic graph as a step rather than dropping it", () => {
+    const def: FlowDefinitionInfo = {
+      id: "f",
+      name: "f",
+      source: "project",
+      nodes: [
+        { id: "a", type: "tool", name: "translate", position: { x: 0, y: 0 } },
+        { id: "b", type: "tool", name: "qa", position: { x: 0, y: 300 } },
+      ],
+      edges: [
+        { id: "e1", source: "a", target: "b" },
+        { id: "e2", source: "b", target: "a" },
+      ],
+    };
+    const spec = defToSpec(def);
+    expect(spec.steps.map((s) => s.tool).sort()).toEqual(["qa", "translate"]);
+  });
+
+  it("ignores an edge that names a node the definition does not carry", () => {
+    const def: FlowDefinitionInfo = {
+      id: "f",
+      name: "f",
+      source: "project",
+      nodes: [{ id: "t", type: "tool", name: "translate", position: { x: 250, y: 100 } }],
+      edges: [{ id: "e1", source: "reader", target: "t" }],
+    };
+    expect(defToSpec(def).steps.map((s) => s.tool)).toEqual(["translate"]);
+  });
+
+  it("groups nodes sharing a chain-axis position when there are no edges", () => {
+    const def: FlowDefinitionInfo = {
+      id: "f",
+      name: "f",
+      source: "project",
+      nodes: [
+        { id: "a", type: "tool", name: "translate", position: { x: 200, y: 0 } },
+        { id: "b", type: "tool", name: "qa", position: { x: 60, y: 260 } },
+        { id: "c", type: "tool", name: "term-check", position: { x: 340, y: 260 } },
+      ],
+      edges: [],
+    };
+    const spec = defToSpec(def);
+    expect(spec.steps[0].tool).toBe("translate");
+    expect(spec.steps[1].parallel?.map((s) => s.tool)).toEqual(["qa", "term-check"]);
+  });
+
   it("carries the I/O binding (string locators) through to spec.source / spec.sink", () => {
     const def: FlowDefinitionInfo = {
       id: "f",

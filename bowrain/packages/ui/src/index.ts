@@ -100,6 +100,12 @@ export {
   Markdown,
   PageHeader,
   SectionHeading,
+  // Flows: the outcome-first card, its empty state and the linear step editor
+  // the platform's flow list and kapi desktop share.
+  FlowCard,
+  StepChips,
+  FlowsEmptyState,
+  LinearFlowEditor,
   Separator,
   Sheet,
   SheetTrigger,
@@ -136,6 +142,13 @@ export {
   TooltipContent,
 } from "@neokapi/ui-primitives";
 export type { ChartConfig, MarkdownProps } from "@neokapi/ui-primitives";
+export type {
+  FlowCardItem,
+  LinearFlowEditorProps,
+  LinearFlowSpec,
+  LinearFlowStep,
+  LinearFlowTool,
+} from "@neokapi/ui-primitives";
 
 // Icons (Lucide)
 export * from "./components/icons";
