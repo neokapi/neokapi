@@ -40,7 +40,7 @@ function entity(text: string, side = "source"): OverlayView {
     spans: [{ id: "e-" + text, range: zero(), text, props: { kind: "ORG" } }],
   };
 }
-function qa(text: string, side: string, rule: string): OverlayView {
+function checkOverlay(text: string, side: string, rule: string): OverlayView {
   return {
     type: "qa",
     side,
@@ -163,7 +163,7 @@ export const jsonTree = tree("json", [
     block("checkout", "json:value", "Proceed to checkout", {
       properties: { path: "$.checkout" },
       targets: { "fr-FR": txt("Passer à la caisse") },
-      overlays: [qa("caisse", "fr-FR", "terminology")],
+      overlays: [checkOverlay("caisse", "fr-FR", "terminology")],
     }),
   ]),
 ]);

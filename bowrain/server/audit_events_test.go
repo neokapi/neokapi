@@ -51,7 +51,7 @@ func TestPhase1_GovernanceEventEmitted(t *testing.T) {
 	snapshot, stop := collectEvents(t, s)
 	defer stop()
 
-	body := `{"name":"qa-role","display_name":"QA","permissions":["view_content","review"]}`
+	body := `{"name":"reviewer-role","display_name":"Reviewer","permissions":["view_content","review"]}`
 	code := do(t, s, http.MethodPost, "/api/v1/test/roles", ownerToken, body)
 	require.Equal(t, http.StatusCreated, code)
 
@@ -64,7 +64,7 @@ func TestPhase1_GovernanceEventEmitted(t *testing.T) {
 	assert.Equal(t, "test-user", ev.Actor)
 	assert.Equal(t, "role_template", ev.ResourceType)
 	assert.NotEmpty(t, ev.ResourceID)
-	assert.Equal(t, "qa-role", ev.Data["name"])
+	assert.Equal(t, "reviewer-role", ev.Data["name"])
 }
 
 // TestPhase1_AuthzDenialEmitted verifies that an authorization denial for an

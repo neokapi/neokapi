@@ -194,7 +194,7 @@ export const InputWithAction: StoryObj = {
         <FormDescription>Path of the report file to generate.</FormDescription>
         <FormInputAction>
           <Input
-            defaultValue="${rootDir}/qa-report.html"
+            defaultValue="${rootDir}/check-report.html"
             className="flex-1 font-mono text-xs h-8"
           />
           <Button variant="outline" size="sm" className="h-8 text-xs shrink-0">
@@ -292,7 +292,7 @@ export const CollapsibleGroup: StoryObj = {
             <FormLabel>Report Path</FormLabel>
             <FormInputAction>
               <Input
-                defaultValue="${rootDir}/qa-report.html"
+                defaultValue="${rootDir}/check-report.html"
                 className="flex-1 font-mono text-xs h-8"
               />
               <Button variant="outline" size="sm" className="h-8 text-xs shrink-0">

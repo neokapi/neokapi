@@ -115,7 +115,7 @@ func (a *App) computeLoopCheckExclusions(ctx context.Context, cmd Command, proj 
 
 		checkCfg := coretools.NewRuleCheckConfig(model.LocaleID(u.Locale))
 		checkCfg.CheckPlaceholders = true
-		qa := coretools.NewRuleCheckTool(checkCfg)
+		checker := coretools.NewRuleCheckTool(checkCfg)
 
 		for _, b := range blocks {
 			if !b.Translatable {
@@ -133,8 +133,8 @@ func (a *App) computeLoopCheckExclusions(ctx context.Context, cmd Command, proj 
 			// passed: this exclusion set feeds the ship gate, so swallowing the
 			// error would readmit a failing unit as shippable — "the operation
 			// failed and the system reports success" applied to the gate itself.
-			if err := RunCheckTool(ctx, qa, b); err != nil {
-				return nil, fmt.Errorf("qa check %s (%s): %w", u.DisplayPath, u.Locale, err)
+			if err := RunCheckTool(ctx, checker, b); err != nil {
+				return nil, fmt.Errorf("check %s (%s): %w", u.DisplayPath, u.Locale, err)
 			}
 			fails := slices.ContainsFunc(check.Findings(tool.NewBlockViewWithContext(ctx, b)), func(f check.Finding) bool {
 				return !identical.suppresses(f, u.SourcePath, b, u.Locale) && checkFindingFails(f)

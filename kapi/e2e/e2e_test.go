@@ -227,7 +227,7 @@ func TestRuleCheckWithoutTerms(t *testing.T) {
 		"-o", pseudoOut,
 		"--target-lang", "fr")
 
-	checkOutput := filepath.Join(tmp, "qa.json")
+	checkOutput := filepath.Join(tmp, "check.json")
 	// The raw qa tool annotates rather than gates (the porcelain gate is
 	// `kapi check`); tolerate a non-zero exit and assert it produced the
 	// output file.
@@ -333,7 +333,7 @@ func TestFullPipeline(t *testing.T) {
 	assert.FileExists(t, pseudoOut)
 
 	// Step 2: The rule-based checks — write annotated output.
-	checkOutput := filepath.Join(tmp, "step2_qa.json")
+	checkOutput := filepath.Join(tmp, "step2_check.json")
 	_, _ = kapiAllowFail(t, "exec", "qa", pseudoOut,
 		"-o", checkOutput,
 		"--source-lang", "en",

@@ -52,7 +52,7 @@ The `qa` tool validates:
 
 ### Term Consistency Check
 
-Create `.kapi/flows/source-qa.yaml`:
+Create `.kapi/flows/source-checks.yaml`:
 
 Step config keys are the tool's own schema keys, in camelCase; see
 [the tool reference](https://neokapi.github.io/reference/tools/qa).
@@ -61,7 +61,7 @@ rather than an error. The locale is not a config key either: it comes from the
 run's `--target-lang`, so one flow serves every locale.
 
 ```yaml
-name: source-qa
+name: source-checks
 description: Validate source content quality before translation
 
 steps:
@@ -85,7 +85,7 @@ Run it, then gate on the findings: the flow annotates the content, and
 `kapi check` is what turns findings into an exit code:
 
 ```bash
-kapi run source-qa --target-lang fr
+kapi run source-checks --target-lang fr
 kapi check src/locales/en/*.json --target src/locales/fr/app.json \
   --target-lang fr --max-critical 0
 ```
@@ -135,12 +135,12 @@ Add the source checks to your CI pipeline so content that fails validation never
 
 ```yaml
 automations:
-  - name: qa-before-push
+  - name: checks-before-push
     trigger: pre-push
     actions:
       - type: run_flow
         config:
-          flow: source-qa
+          flow: source-checks
           fail_on_error: true
 ```
 
@@ -157,7 +157,7 @@ on:
       - "src/locales/en/**"
 
 jobs:
-  source-qa:
+  source-checks:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -167,7 +167,7 @@ jobs:
           plugins: bowrain
 
       - name: Run the source checks
-        run: kapi run source-qa
+        run: kapi run source-checks
 
       - name: Content stats report
         run: kapi stats src/locales/en/*.json --json

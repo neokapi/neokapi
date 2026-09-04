@@ -172,14 +172,14 @@ describe("blockToContentNode — overlays", () => {
 
   it("keeps a run-anchored finding's position and its category in span props", () => {
     const node = blockToContentNode(block(), { evidence: { findings: [voiceFinding] } });
-    const qa = node.overlays?.find((o) => o.type === "qa");
-    expect(qa?.side).toBe("source");
-    expect(qa?.spans[0].range).toEqual({
+    const checks = node.overlays?.find((o) => o.type === "qa");
+    expect(checks?.side).toBe("source");
+    expect(checks?.spans[0].range).toEqual({
       kind: "range",
       start: { run: 0 },
       end: { run: 0, offset: 7 },
     });
-    expect(qa?.spans[0].props).toMatchObject({
+    expect(checks?.spans[0].props).toMatchObject({
       category: "voice-vocabulary",
       severity: "major",
       replacement: "Use",
@@ -187,7 +187,7 @@ describe("blockToContentNode — overlays", () => {
     });
   });
 
-  it("groups findings into one qa overlay per side", () => {
+  it("groups findings into one check overlay per side", () => {
     const node = blockToContentNode(block(), {
       evidence: {
         findings: [
@@ -197,18 +197,18 @@ describe("blockToContentNode — overlays", () => {
         ],
       },
     });
-    const qa = node.overlays?.filter((o) => o.type === "qa") ?? [];
-    expect(qa.map((o) => o.side)).toEqual(["source", "fr-FR"]);
-    expect(qa[0].spans).toHaveLength(2);
-    expect(qa[1].spans).toHaveLength(1);
+    const checks = node.overlays?.filter((o) => o.type === "qa") ?? [];
+    expect(checks.map((o) => o.side)).toEqual(["source", "fr-FR"]);
+    expect(checks[0].spans).toHaveLength(2);
+    expect(checks[1].spans).toHaveLength(1);
   });
 
   it("gives a finding with no position a zero range rather than guessing", () => {
     const node = blockToContentNode(block(), {
       evidence: { findings: [{ ...voiceFinding, position: undefined }] },
     });
-    const qa = node.overlays?.find((o) => o.type === "qa");
-    expect(qa?.spans[0].range).toEqual({
+    const checks = node.overlays?.find((o) => o.type === "qa");
+    expect(checks?.spans[0].range).toEqual({
       kind: "range",
       start: { run: 0 },
       end: { run: 0 },
@@ -293,16 +293,16 @@ describe("blockToContentNode — annotations", () => {
     ];
     const node = blockToContentNode(block(), { evidence: { issues, issueLocale: "fr-FR" } });
 
-    const qa = node.overlays?.filter((o) => o.type === "qa") ?? [];
-    expect(qa).toHaveLength(1);
-    expect(qa[0].side).toBe("fr-FR");
-    expect(qa[0].spans).toHaveLength(1);
-    expect(qa[0].spans[0].range).toEqual({
+    const checks = node.overlays?.filter((o) => o.type === "qa") ?? [];
+    expect(checks).toHaveLength(1);
+    expect(checks[0].side).toBe("fr-FR");
+    expect(checks[0].spans).toHaveLength(1);
+    expect(checks[0].spans[0].range).toEqual({
       kind: "range",
       start: { run: 0 },
       end: { run: 0, offset: 7 },
     });
-    expect(qa[0].spans[0].props).toEqual({
+    expect(checks[0].spans[0].props).toEqual({
       category: "placeholder",
       severity: "error",
       message: "Missing {count}",
@@ -314,7 +314,7 @@ describe("blockToContentNode — annotations", () => {
     expect(node.annotations?.[0].summary).toBe("Double space");
   });
 
-  it("keeps one qa overlay per side when findings and issues share a locale", () => {
+  it("keeps one check overlay per side when findings and issues share a locale", () => {
     const node = blockToContentNode(block(), {
       evidence: {
         findings: [{ ...voiceFinding, side: "fr-FR" }],
@@ -329,10 +329,10 @@ describe("blockToContentNode — annotations", () => {
         issueLocale: "fr-FR",
       },
     });
-    const qa = node.overlays?.filter((o) => o.type === "qa") ?? [];
-    expect(qa).toHaveLength(1);
-    expect(qa[0].side).toBe("fr-FR");
-    expect(qa[0].spans).toHaveLength(2);
+    const checks = node.overlays?.filter((o) => o.type === "qa") ?? [];
+    expect(checks).toHaveLength(1);
+    expect(checks[0].side).toBe("fr-FR");
+    expect(checks[0].spans).toHaveLength(2);
   });
 });
 

@@ -83,7 +83,7 @@ Configuration uses the functional-options pattern:
 executor := flow.NewExecutor(
     flow.WithMaxConcurrency(8),
     flow.WithChannelSize(128),
-    flow.WithCollectors(wordCounter, qaReport),
+    flow.WithCollectors(wordCounter, checkReport),
 )
 ```
 

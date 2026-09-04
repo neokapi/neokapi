@@ -84,7 +84,7 @@ const STYLES = `
 #kapi-review-panel textarea { width: 100%; box-sizing: border-box; min-height: 64px; border: 1px solid #d4d4d8; border-radius: 6px; padding: 8px; font: inherit; background: #fff; color: inherit; }
 #kapi-review-panel .kapi-note { background: #fef9c3; border-radius: 6px; padding: 6px 8px; }
 #kapi-review-panel .kapi-ann { border-left: 3px solid #3b82f6; padding: 4px 8px; margin: 4px 0; background: #eff6ff; border-radius: 0 6px 6px 0; }
-#kapi-review-panel .kapi-ann.kapi-qa { border-left-color: #ef4444; background: #fef2f2; }
+#kapi-review-panel .kapi-ann.kapi-check { border-left-color: #ef4444; background: #fef2f2; }
 #kapi-review-panel .kapi-row { display: flex; gap: 8px; margin-top: 12px; align-items: center; }
 #kapi-review-panel button { border: 1px solid #d4d4d8; background: #fafafa; border-radius: 6px; padding: 5px 12px; font: inherit; cursor: pointer; }
 #kapi-review-panel button.kapi-primary { background: #4f46e5; border-color: #4f46e5; color: #fff; }
@@ -125,7 +125,7 @@ const STYLES = `
   #kapi-review-panel textarea { background: #27272a; border-color: #3f3f46; }
   #kapi-review-panel .kapi-note { background: #422006; }
   #kapi-review-panel .kapi-ann { background: #172554; }
-  #kapi-review-panel .kapi-ann.kapi-qa { background: #450a0a; }
+  #kapi-review-panel .kapi-ann.kapi-check { background: #450a0a; }
   #kapi-review-panel button { background: #27272a; border-color: #3f3f46; }
   #kapi-review-head-panel { background: #18181b; color: #fafafa; border-color: #3f3f46; }
   #kapi-review-head-panel .kapi-source { background: #27272a; }
@@ -136,7 +136,7 @@ const STYLES = `
   #kapi-review-head-panel .kapi-head-entry { border-top-color: #27272a; }
 }
 ::highlight(kapi-term) { background-color: rgb(59 130 246 / 0.28); text-decoration: underline; text-decoration-color: #3b82f6; }
-::highlight(kapi-qa) { background-color: rgb(239 68 68 / 0.22); text-decoration: underline; text-decoration-style: wavy; text-decoration-color: #ef4444; }
+::highlight(kapi-check) { background-color: rgb(239 68 68 / 0.22); text-decoration: underline; text-decoration-style: wavy; text-decoration-color: #ef4444; }
 `;
 
 function injectStyles(): void {
@@ -283,9 +283,9 @@ function renderAnnotations(annotations: ReviewPayload["annotations"]): string {
   if (annotations.length === 0) return "";
   const items = annotations
     .map((a) => {
-      const qa = /qa|check|error|issue/i.test(a.annotationType);
+      const isCheck = /qa|check|error|issue/i.test(a.annotationType);
       const summary = annotationSummary(a.data) ?? a.annotationType;
-      return `<div class="kapi-ann${qa ? " kapi-qa" : ""}"><strong>${escapeHTML(shortType(a.annotationType))}</strong> ${escapeHTML(summary)}</div>`;
+      return `<div class="kapi-ann${isCheck ? " kapi-check" : ""}"><strong>${escapeHTML(shortType(a.annotationType))}</strong> ${escapeHTML(summary)}</div>`;
     })
     .join("");
   return `<div class="kapi-label">Annotations</div>${items}`;
@@ -322,7 +322,7 @@ async function toggleHighlights(endpoint: string, button: HTMLElement): Promise<
   }
   if (highlightsOn) {
     highlights.delete("kapi-term");
-    highlights.delete("kapi-qa");
+    highlights.delete("kapi-check");
     highlightsOn = false;
     button.classList.remove("kapi-on");
     return;
@@ -352,15 +352,15 @@ async function toggleHighlights(endpoint: string, button: HTMLElement): Promise<
     for (const a of annotations) {
       const needle = annotationSummaryForMatch(a.data);
       if (!needle) continue;
-      const qa = /qa|check|error|issue/i.test(a.annotationType);
+      const isCheck = /qa|check|error|issue/i.test(a.annotationType);
       for (const range of findTextRanges(el, needle)) {
-        (qa ? checkRanges : termRanges).push(range);
+        (isCheck ? checkRanges : termRanges).push(range);
       }
     }
   }
 
   if (termRanges.length > 0) highlights.set("kapi-term", new HighlightCtor(...termRanges));
-  if (checkRanges.length > 0) highlights.set("kapi-qa", new HighlightCtor(...checkRanges));
+  if (checkRanges.length > 0) highlights.set("kapi-check", new HighlightCtor(...checkRanges));
   highlightsOn = true;
   button.classList.add("kapi-on");
   showToast(`kapi review: ${termRanges.length} term / ${checkRanges.length} check highlights`);

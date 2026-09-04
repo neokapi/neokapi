@@ -161,7 +161,7 @@ func TestDemoProvider_BatchTranslations(t *testing.T) {
 func TestDemoProvider_NeutralSchema(t *testing.T) {
 	// A check-style schema must yield an empty issues array, not fabricated findings.
 	p := newTestDemo()
-	qa := JSONSchema{
+	checkSchema := JSONSchema{
 		Name: "qa_check",
 		Schema: map[string]any{
 			"type": "object",
@@ -170,7 +170,7 @@ func TestDemoProvider_NeutralSchema(t *testing.T) {
 			},
 		},
 	}
-	resp, err := p.ChatStructured(context.Background(), []Message{TextMessage("user", "check this")}, qa)
+	resp, err := p.ChatStructured(context.Background(), []Message{TextMessage("user", "check this")}, checkSchema)
 	require.NoError(t, err)
 
 	var out struct {

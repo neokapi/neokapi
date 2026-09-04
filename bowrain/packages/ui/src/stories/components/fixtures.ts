@@ -191,7 +191,7 @@ export const customTag: StreamTag = {
   id: "tag-4",
   project_id: "proj-1",
   stream: "main",
-  name: "qa-approved",
+  name: "checks-approved",
   kind: "custom",
   cursor: 35,
   created_by: "user-1",

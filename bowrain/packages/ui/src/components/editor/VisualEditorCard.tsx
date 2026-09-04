@@ -213,7 +213,7 @@ export function VisualEditorCard({
               type="button"
               onClick={() => setChecksExpanded((v) => !v)}
               className="inline-flex items-center gap-0.5 text-[10px] font-bold text-destructive cursor-pointer bg-destructive/10 px-1.5 py-0 h-4 rounded"
-              data-testid="qa-error-badge"
+              data-testid="check-error-badge"
             >
               <AlertTriangle className="w-2.5 h-2.5" />
               {checkErrors.length}
@@ -224,7 +224,7 @@ export function VisualEditorCard({
               type="button"
               onClick={() => setChecksExpanded((v) => !v)}
               className="inline-flex items-center gap-0.5 text-[10px] font-bold text-warning dark:text-warning cursor-pointer bg-warning/10 px-1.5 py-0 h-4 rounded"
-              data-testid="qa-warning-badge"
+              data-testid="check-warning-badge"
             >
               <Info className="w-2.5 h-2.5" />
               {checkWarnings.length}
@@ -255,7 +255,7 @@ export function VisualEditorCard({
 
       {/* ── Findings (expanded) ──────────────────────────── */}
       {checksExpanded && checkIssues && checkIssues.length > 0 && (
-        <div className="px-4 pb-2" data-testid="qa-issues-list">
+        <div className="px-4 pb-2" data-testid="check-findings-list">
           <div className="rounded-md border border-border bg-muted/30 p-2 space-y-1">
             {checkIssues.map((issue, i) => (
               <div key={i} className="flex items-start gap-2 text-xs">

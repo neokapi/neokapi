@@ -161,7 +161,7 @@ func severityCell(s *output.Styles, sev string) string {
 type gateSelection struct {
 	voice    bool
 	terms    bool
-	qa       bool
+	checks       bool
 	explicit bool
 }
 
@@ -209,7 +209,7 @@ func CmdContext(cmd Command) context.Context {
 func resolveGateSelection(cmd Command) (gateSelection, error) {
 	named, _ := cmd.Flags().GetStringSlice(gateFlagName)
 	if len(named) == 0 {
-		return gateSelection{voice: true, terms: true, qa: true}, nil
+		return gateSelection{voice: true, terms: true, checks: true}, nil
 	}
 	sel := gateSelection{explicit: true}
 	for _, n := range named {
@@ -219,7 +219,7 @@ func resolveGateSelection(cmd Command) (gateSelection, error) {
 		case gateTerms:
 			sel.terms = true
 		case gateChecks:
-			sel.qa = true
+			sel.checks = true
 		default:
 			return gateSelection{}, fmt.Errorf("unknown gate %q; pass one of: %s",
 				n, strings.Join(selectableGates, ", "))
@@ -334,8 +334,8 @@ func (a *App) computeVerify(cmd Command, args []string) (verifyOutput, error) {
 		}
 	}
 
-	// --- terminology + qa gates ------------------------------------------
-	if runTerms || sel.qa {
+	// --- terminology + checks gates ------------------------------------------
+	if runTerms || sel.checks {
 		// Resolve the (source, target, locale) units to inspect: either the
 		// explicit file args, or the project's content × target languages.
 		units, err := a.resolveVerifyUnits(cmd, proj, root, args, localeFilter)
@@ -350,7 +350,7 @@ func (a *App) computeVerify(cmd Command, args []string) (verifyOutput, error) {
 			}
 			gates = append(gates, termGate)
 		}
-		if sel.qa {
+		if sel.checks {
 			checksGate, err := a.verifyChecks(cmd, proj, root, units)
 			if err != nil {
 				return verifyOutput{}, err
@@ -449,7 +449,7 @@ func (a *App) verifySourceGate(ctx context.Context, proj *project.KapiProject, r
 //
 // It runs the project's bound checks first, so the ship gate answers the same
 // guardrail question the checks gate in this very command answers: one invocation
-// reporting `qa FAIL` beside `ship PASS` over one tree is a contradiction
+// reporting `checks FAIL` beside `ship PASS` over one tree is a contradiction
 // needing no second command to see (#2024).
 func (a *App) verifyShip(cmd Command, proj *project.KapiProject, root string, units []VerifyUnit) (verifyGateResult, error) {
 	ctx := CmdContext(cmd)
@@ -479,7 +479,7 @@ func (a *App) verifyShip(cmd Command, proj *project.KapiProject, root string, un
 				Severity: "error",
 				Message: fmt.Sprintf("%s: %d unit(s) fail the project's bound checks",
 					scope, lc.FailingChecks),
-				Suggestion: "fix the findings the qa gate lists for this locale, then re-run",
+				Suggestion: "fix the findings the checks gate lists for this locale, then re-run",
 			})
 		}
 		// Stale pairings fail the gate whether or not the scope declared one.
@@ -1199,7 +1199,7 @@ func (a *App) unitGovernancePoint(root string, u VerifyUnit) project.GovernanceP
 	return a.GovernancePointFor(u.Collection, "")
 }
 
-// --- qa gate ----------------------------------------------------------------
+// --- checks gate ----------------------------------------------------------------
 
 // verifyChecks checks placeholder/tag integrity against the source and flags
 // untranslated/empty targets for each target file, reusing
@@ -1255,10 +1255,10 @@ func (a *App) verifyChecks(cmd Command, proj *project.KapiProject, root string, 
 		// difference check still runs for formats that do extract codes; the
 		// placeholder check is additive.
 		cfg.CheckPlaceholders = true
-		qa := coretools.NewRuleCheckTool(cfg)
+		checker := coretools.NewRuleCheckTool(cfg)
 		for _, b := range blocks {
-			if cerr := RunCheckTool(ctx, qa, b); cerr != nil {
-				return gate, fmt.Errorf("qa gate %s (%s): %w", u.DisplayPath, u.Locale, cerr)
+			if cerr := RunCheckTool(ctx, checker, b); cerr != nil {
+				return gate, fmt.Errorf("checks gate %s (%s): %w", u.DisplayPath, u.Locale, cerr)
 			}
 			for _, f := range check.Findings(tool.NewBlockViewWithContext(ctx, b)) {
 				if identical.suppresses(f, u.SourcePath, b, u.Locale) {

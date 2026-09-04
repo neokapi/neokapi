@@ -338,7 +338,7 @@ Automations are rules that run automatically at lifecycle points, declared at th
 
 ```yaml
 automations:
-  - name: qa-before-push
+  - name: checks-before-push
     trigger: pre-push
     actions:
       - type: run_flow

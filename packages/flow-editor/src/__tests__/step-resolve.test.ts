@@ -53,7 +53,7 @@ describe("stepsToGraph carries step identity on node data", () => {
     const spec: FlowSpec = {
       steps: [
         { tool: "translate" },
-        { tool: "", parallel: [{ tool: "qa-a" }, { tool: "qa-b" }, { tool: "qa-c" }] },
+        { tool: "", parallel: [{ tool: "check-a" }, { tool: "check-b" }, { tool: "check-c" }] },
       ],
     };
     const { nodes } = stepsToGraph(spec);

@@ -50,7 +50,7 @@ func TestResolveToolConfig_URIPrefixes(t *testing.T) {
 
 func TestResolveToolConfig_RelativePaths(t *testing.T) {
 	config := map[string]any{
-		"outputPath": "reports/qa-report.html",
+		"outputPath": "reports/check-report.html",
 		"enabled":    true,
 		"count":      42,
 	}
@@ -62,7 +62,7 @@ func TestResolveToolConfig_RelativePaths(t *testing.T) {
 	}
 
 	got := resolved["outputPath"].(string)
-	want := filepath.Join("/home/user/project", "reports/qa-report.html")
+	want := filepath.Join("/home/user/project", "reports/check-report.html")
 	if got != want {
 		t.Errorf("outputPath: got %q, want %q", got, want)
 	}
@@ -95,7 +95,7 @@ func TestResolveToolConfig_AbsolutePaths(t *testing.T) {
 
 func TestResolveToolConfig_OkapiVariables(t *testing.T) {
 	config := map[string]any{
-		"outputPath": "${rootDir}/qa-report.html",
+		"outputPath": "${rootDir}/check-report.html",
 		"logPath":    "${rootDir}/replacementsLog.txt",
 	}
 
@@ -110,8 +110,8 @@ func TestResolveToolConfig_OkapiVariables(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if got := resolved["outputPath"].(string); got != "/home/user/project/qa-report.html" {
-		t.Errorf("outputPath: got %q, want %q", got, "/home/user/project/qa-report.html")
+	if got := resolved["outputPath"].(string); got != "/home/user/project/check-report.html" {
+		t.Errorf("outputPath: got %q, want %q", got, "/home/user/project/check-report.html")
 	}
 	if got := resolved["logPath"].(string); got != "/home/user/project/replacementsLog.txt" {
 		t.Errorf("logPath: got %q, want %q", got, "/home/user/project/replacementsLog.txt")
@@ -190,7 +190,7 @@ func TestResolveToolConfig_OutputAutoPlacement(t *testing.T) {
 		Properties: map[string]schema.PropertySchema{
 			"outputPath": {
 				Type:    "string",
-				Default: "${rootDir}/qa-report.html",
+				Default: "${rootDir}/check-report.html",
 				PathInfo: &schema.PathAnnotation{
 					Type: "file",
 					Role: "output",
@@ -200,7 +200,7 @@ func TestResolveToolConfig_OutputAutoPlacement(t *testing.T) {
 	}
 
 	config := map[string]any{
-		"outputPath": "${rootDir}/qa-report.html",
+		"outputPath": "${rootDir}/check-report.html",
 	}
 
 	ctx := ResourceContext{
@@ -215,7 +215,7 @@ func TestResolveToolConfig_OutputAutoPlacement(t *testing.T) {
 	}
 
 	got := resolved["outputPath"].(string)
-	want := filepath.Join("/project/output/fr", "quality-check", "qa-report.html")
+	want := filepath.Join("/project/output/fr", "quality-check", "check-report.html")
 	if got != want {
 		t.Errorf("outputPath: got %q, want %q", got, want)
 	}
