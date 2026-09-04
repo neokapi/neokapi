@@ -1,9 +1,21 @@
+// The workspace's governance: who may decide, and the teams decisions are
+// granted to. Admin and owner only; the API enforces it.
+//
+// Where content sits and what governs it there are project matters, edited on
+// the project's settings with the shared governance forms. What lives here is
+// the policy that judges a decision: the separation-of-duties mode a promotion
+// passes, the permissions a workspace role carries, the deny rules that always
+// win, and the teams a project role can be granted to in bulk.
+
 import {
   Badge,
   Button,
   Card,
+  CardContent,
   Input,
   Label,
+  PageHeader,
+  SectionHeading,
   Select,
   SelectContent,
   SelectItem,
@@ -16,6 +28,7 @@ import { useAnalytics } from "../context/AnalyticsContext";
 import { AnalyticsEvents } from "../analytics-events";
 import { useWorkspace } from "../context/WorkspaceContext";
 import { ErrorNotice } from "../errors";
+import { ShieldCheck, Users } from "./icons";
 import type { DenyRule, Group, SoDMode } from "../types/api";
 
 const SOD_DESCRIPTIONS: Record<SoDMode, string> = {
@@ -26,26 +39,18 @@ const SOD_DESCRIPTIONS: Record<SoDMode, string> = {
 
 const WORKSPACE_ROLES = ["owner", "admin", "member", "viewer"] as const;
 
-/**
- * GovernanceSettings is the workspace admin surface for the access-governance
- * controls: separation-of-duties policy, teams (groups), deny rules, and
- * workspace role-permission overrides. Admin/owner only (the API enforces it).
- */
 export function GovernanceSettings() {
   const api = useApi();
   const { capture } = useAnalytics();
   const { activeWorkspace } = useWorkspace();
   const ws = activeWorkspace?.slug ?? "";
 
-  // ── Separation of duties ────────────────────────────────────────────────
   const [sod, setSod] = useState<SoDMode>("warn");
   const [savingSod, setSavingSod] = useState(false);
 
-  // ── Groups ──────────────────────────────────────────────────────────────
   const [groups, setGroups] = useState<Group[]>([]);
   const [newGroup, setNewGroup] = useState("");
 
-  // ── Deny rules ──────────────────────────────────────────────────────────
   const [denyRules, setDenyRules] = useState<DenyRule[]>([]);
   const [denyForm, setDenyForm] = useState({
     subject_type: "user",
@@ -53,7 +58,6 @@ export function GovernanceSettings() {
     permissions: "",
   });
 
-  // ── Role overrides ──────────────────────────────────────────────────────
   const [overrides, setOverrides] = useState<Record<string, string[]>>({});
   const [overrideEdit, setOverrideEdit] = useState<Record<string, string>>({});
 
@@ -145,179 +149,200 @@ export function GovernanceSettings() {
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 py-4">
-      <div>
-        <h2 className="text-xl font-semibold">Governance</h2>
-        <p className="text-[13px] text-muted-foreground">
-          Access controls for collaborative work: teams, deny rules, role tuning, and separation of
-          duties.
-        </p>
-      </div>
+      <PageHeader
+        title="Governance"
+        subtitle="Who may decide on content, and the teams decisions are granted to."
+        className="mb-0"
+      />
 
       {error && <ErrorNotice title={error.title} error={error.cause} variant="panel" />}
 
-      {/* Separation of duties */}
-      <Card className="p-5">
-        <h3 className="text-sm font-semibold">Separation of duties</h3>
-        <p className="mb-3 text-[12px] text-muted-foreground">
-          Whether a translator may approve (publish) their own work.
-        </p>
-        <div className="flex items-center gap-3">
-          <Select
-            value={sod}
-            onValueChange={(v) => void changeSod(v as SoDMode)}
-            disabled={savingSod}
-          >
-            <SelectTrigger className="w-40">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="off">Off</SelectItem>
-              <SelectItem value="warn">Warn</SelectItem>
-              <SelectItem value="block">Block</SelectItem>
-            </SelectContent>
-          </Select>
-          <span className="text-[12px] text-muted-foreground">{SOD_DESCRIPTIONS[sod]}</span>
-        </div>
-      </Card>
-
-      {/* Teams (groups) */}
-      <Card className="p-5">
-        <h3 className="text-sm font-semibold">Teams</h3>
-        <p className="mb-3 text-[12px] text-muted-foreground">
-          Group members so they can be granted project roles in bulk.
-        </p>
-        <div className="mb-3 flex gap-2">
-          <Input
-            placeholder="New team name"
-            value={newGroup}
-            onChange={(e) => setNewGroup(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && void createGroup()}
-            className="max-w-xs"
-          />
-          <Button size="sm" onClick={() => void createGroup()} disabled={!newGroup.trim()}>
-            Add team
-          </Button>
-        </div>
-        {groups.length === 0 ? (
-          <p className="text-[12px] text-muted-foreground/60">No teams yet.</p>
-        ) : (
-          <ul className="divide-y divide-border/30">
-            {groups.map((g) => (
-              <li key={g.id} className="flex items-center justify-between py-2">
-                <span className="text-sm">
-                  {g.name}
-                  <Badge variant="secondary" className="ml-2 px-1.5 py-0 text-[10px]">
-                    {g.member_count ?? 0} members
-                  </Badge>
-                </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-destructive"
-                  onClick={() => void api.deleteGroup(ws, g.id).then(reload)}
+      {/* Who may decide: the policy a decision passes, and the permissions behind it. */}
+      <section>
+        <SectionHeading className="mb-3" icon={<ShieldCheck size={14} />}>
+          Who may decide
+        </SectionHeading>
+        <Card>
+          <CardContent className="space-y-5 p-4">
+            <div>
+              <Label className="mb-1 block text-xs text-muted-foreground">
+                Separation of duties
+              </Label>
+              <div className="flex flex-wrap items-center gap-3">
+                <Select
+                  value={sod}
+                  onValueChange={(v) => void changeSod(v as SoDMode)}
+                  disabled={savingSod}
                 >
-                  Delete
-                </Button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
+                  <SelectTrigger className="w-40" aria-label="Separation of duties">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="off">Off</SelectItem>
+                    <SelectItem value="warn">Warn</SelectItem>
+                    <SelectItem value="block">Block</SelectItem>
+                  </SelectContent>
+                </Select>
+                <span className="text-xs text-muted-foreground">{SOD_DESCRIPTIONS[sod]}</span>
+              </div>
+              <p className="mt-1 text-[10px] text-muted-foreground">
+                Whether a translator may approve or sign off their own work.
+              </p>
+            </div>
 
-      {/* Deny rules */}
-      <Card className="p-5">
-        <h3 className="text-sm font-semibold">Deny rules</h3>
-        <p className="mb-3 text-[12px] text-muted-foreground">
-          Negative permissions that always override grants (subject can be a user, workspace role,
-          or group).
-        </p>
-        <div className="mb-3 flex flex-wrap items-end gap-2">
-          <div>
-            <Label className="text-[11px]">Subject</Label>
-            <Select
-              value={denyForm.subject_type}
-              onValueChange={(v) => setDenyForm((f) => ({ ...f, subject_type: v }))}
-            >
-              <SelectTrigger className="w-28">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="user">User</SelectItem>
-                <SelectItem value="role">Role</SelectItem>
-                <SelectItem value="group">Group</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <Input
-            placeholder="subject id (user/role/group)"
-            value={denyForm.subject_id}
-            onChange={(e) => setDenyForm((f) => ({ ...f, subject_id: e.target.value }))}
-            className="max-w-[180px]"
-          />
-          <Input
-            placeholder="permissions e.g. manage_tm,review"
-            value={denyForm.permissions}
-            onChange={(e) => setDenyForm((f) => ({ ...f, permissions: e.target.value }))}
-            className="max-w-[240px]"
-          />
-          <Button size="sm" onClick={() => void createDeny()}>
-            Add deny
-          </Button>
-        </div>
-        {denyRules.length === 0 ? (
-          <p className="text-[12px] text-muted-foreground/60">No deny rules.</p>
-        ) : (
-          <ul className="divide-y divide-border/30">
-            {denyRules.map((r) => (
-              <li key={r.id} className="flex items-center justify-between py-2 text-sm">
-                <span>
-                  <Badge variant="outline" className="px-1.5 py-0 text-[10px]">
-                    {r.subject_type}
-                  </Badge>{" "}
-                  <span className="font-mono">{r.subject_id}</span>
-                  <span className="text-muted-foreground"> denied perms {r.denied_perms}</span>
-                  {r.project_id && (
-                    <span className="text-muted-foreground/70"> · project {r.project_id}</span>
-                  )}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-destructive"
-                  onClick={() => void api.deleteDenyRule(ws, r.id).then(reload)}
+            <div>
+              <Label className="mb-1 block text-xs text-muted-foreground">
+                Workspace role overrides
+              </Label>
+              <ul className="flex flex-col gap-2">
+                {WORKSPACE_ROLES.map((role) => (
+                  <li key={role} className="flex flex-wrap items-center gap-2">
+                    <span className="w-20 text-sm capitalize">{role}</span>
+                    <Input
+                      placeholder={overrides[role]?.join(",") || "default permissions"}
+                      value={overrideEdit[role] ?? overrides[role]?.join(",") ?? ""}
+                      aria-label={`${role} permissions`}
+                      onChange={(e) => setOverrideEdit((o) => ({ ...o, [role]: e.target.value }))}
+                      className="max-w-md flex-1 font-mono text-[12px]"
+                    />
+                    <Button variant="outline" size="sm" onClick={() => void saveOverride(role)}>
+                      Save
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-1 text-[10px] text-muted-foreground">
+                The permissions a workspace role carries; blank keeps the built-in default.
+              </p>
+            </div>
+
+            <div>
+              <Label className="mb-1 block text-xs text-muted-foreground">Deny rules</Label>
+              <div className="mb-2 flex flex-wrap items-end gap-2">
+                <Select
+                  value={denyForm.subject_type}
+                  onValueChange={(v) => setDenyForm((f) => ({ ...f, subject_type: v }))}
                 >
-                  Delete
+                  <SelectTrigger className="w-28" aria-label="Subject">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="user">User</SelectItem>
+                    <SelectItem value="role">Role</SelectItem>
+                    <SelectItem value="group">Group</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Input
+                  placeholder="subject id (user/role/group)"
+                  aria-label="Subject id"
+                  value={denyForm.subject_id}
+                  onChange={(e) => setDenyForm((f) => ({ ...f, subject_id: e.target.value }))}
+                  className="max-w-[180px]"
+                />
+                <Input
+                  placeholder="permissions e.g. manage_tm,review"
+                  aria-label="Denied permissions"
+                  value={denyForm.permissions}
+                  onChange={(e) => setDenyForm((f) => ({ ...f, permissions: e.target.value }))}
+                  className="max-w-[240px]"
+                />
+                <Button size="sm" onClick={() => void createDeny()}>
+                  Add deny
                 </Button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
+              </div>
+              {denyRules.length === 0 ? (
+                <p className="text-xs text-muted-foreground/60">No deny rules.</p>
+              ) : (
+                <ul className="divide-y divide-border/30">
+                  {denyRules.map((r) => (
+                    <li key={r.id} className="flex items-center justify-between py-2 text-sm">
+                      <span>
+                        <Badge variant="outline" className="px-1.5 py-0 text-[10px]">
+                          {r.subject_type}
+                        </Badge>{" "}
+                        <span className="font-mono">{r.subject_id}</span>
+                        <span className="text-muted-foreground">
+                          {" "}
+                          denied perms {r.denied_perms}
+                        </span>
+                        {r.project_id && (
+                          <span className="text-muted-foreground/70">
+                            {" "}
+                            · project {r.project_id}
+                          </span>
+                        )}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive"
+                        onClick={() => void api.deleteDenyRule(ws, r.id).then(reload)}
+                      >
+                        Delete
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <p className="mt-1 text-[10px] text-muted-foreground">
+                A deny rule always overrides a grant. Its subject is a user, a workspace role or a
+                team.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </section>
 
-      {/* Role overrides */}
-      <Card className="p-5">
-        <h3 className="text-sm font-semibold">Workspace role overrides</h3>
-        <p className="mb-3 text-[12px] text-muted-foreground">
-          Tune the default permissions of a workspace role (leave blank to use the built-in
-          default).
-        </p>
-        <ul className="flex flex-col gap-2">
-          {WORKSPACE_ROLES.map((role) => (
-            <li key={role} className="flex flex-wrap items-center gap-2">
-              <span className="w-20 text-sm capitalize">{role}</span>
+      {/* Teams: members grouped so a project role can be granted in bulk. */}
+      <section>
+        <SectionHeading className="mb-3" icon={<Users size={14} />} count={groups.length}>
+          Teams
+        </SectionHeading>
+        <Card>
+          <CardContent className="space-y-3 p-4">
+            <div className="flex gap-2">
               <Input
-                placeholder={overrides[role]?.join(",") || "default permissions"}
-                value={overrideEdit[role] ?? overrides[role]?.join(",") ?? ""}
-                onChange={(e) => setOverrideEdit((o) => ({ ...o, [role]: e.target.value }))}
-                className="max-w-md flex-1 font-mono text-[12px]"
+                placeholder="New team name"
+                aria-label="New team name"
+                value={newGroup}
+                onChange={(e) => setNewGroup(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && void createGroup()}
+                className="max-w-xs"
               />
-              <Button variant="outline" size="sm" onClick={() => void saveOverride(role)}>
-                Save
+              <Button size="sm" onClick={() => void createGroup()} disabled={!newGroup.trim()}>
+                Add team
               </Button>
-            </li>
-          ))}
-        </ul>
-      </Card>
+            </div>
+            {groups.length === 0 ? (
+              <p className="text-xs text-muted-foreground/60">No teams yet.</p>
+            ) : (
+              <ul className="divide-y divide-border/30">
+                {groups.map((g) => (
+                  <li key={g.id} className="flex items-center justify-between py-2">
+                    <span className="text-sm">
+                      {g.name}
+                      <Badge variant="secondary" className="ml-2 px-1.5 py-0 text-[10px]">
+                        {g.member_count ?? 0} members
+                      </Badge>
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive"
+                      onClick={() => void api.deleteGroup(ws, g.id).then(reload)}
+                    >
+                      Delete
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <p className="text-[10px] text-muted-foreground">
+              Group members so they can be granted project roles in bulk.
+            </p>
+          </CardContent>
+        </Card>
+      </section>
     </div>
   );
 }

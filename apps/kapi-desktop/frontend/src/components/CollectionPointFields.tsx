@@ -3,14 +3,14 @@
 //
 // A collection names ONE channel reference and the structural axes follow from
 // it, so this offers the declared references rather than a free-text field that
-// can name a channel no profile declares.
+// can name a channel no profile declares. The axes are the shared
+// CoordinatesEditor over the recipe's declarable ones; a recipe that declares
+// none leaves the axis free to type.
 
-import { Plus, Trash2 } from "lucide-react";
 import {
   Badge,
-  Button,
   CoordinateChip,
-  Input,
+  CoordinatesEditor,
   Label,
   Select,
   SelectTrigger,
@@ -19,7 +19,6 @@ import {
   SelectItem,
 } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
-import { useState } from "react";
 import type { Collection } from "../types/api";
 
 const NONE = "__none__";
@@ -39,13 +38,6 @@ export function CollectionPointFields({
   declarableAxes,
   onChange,
 }: CollectionPointFieldsProps) {
-  const [axis, setAxis] = useState("");
-  const coordinates = coll.coordinates ?? {};
-  const rows = Object.entries(coordinates);
-
-  const setCoordinates = (next: Record<string, string>) =>
-    onChange({ coordinates: Object.keys(next).length ? next : undefined });
-
   return (
     <div className="space-y-3" data-testid="collection-point">
       <div>
@@ -74,80 +66,15 @@ export function CollectionPointFields({
         )}
       </div>
 
-      <div>
-        <Label className="mb-0.5 block text-xs text-muted-foreground">
-          {t("Coordinates here")}
-        </Label>
-        {rows.length === 0 ? (
-          <p className="text-xs text-muted-foreground">
-            {t("Inherits the project's declared axes.")}
-          </p>
-        ) : (
-          <ul className="space-y-1">
-            {rows.map(([a, value]) => (
-              <li key={a} className="flex items-center gap-2">
-                <code className="w-24 shrink-0 font-mono text-xs">{a}</code>
-                <Input
-                  className="max-w-[14rem]"
-                  value={value}
-                  aria-label={t("{axis} here", { axis: a })}
-                  onChange={(e) => setCoordinates({ ...coordinates, [a]: e.target.value })}
-                />
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label={t("Remove {axis}", { axis: a })}
-                  onClick={() => {
-                    const next = { ...coordinates };
-                    delete next[a];
-                    setCoordinates(next);
-                  }}
-                >
-                  <Trash2 className="size-3.5" />
-                </Button>
-              </li>
-            ))}
-          </ul>
-        )}
-        <div className="mt-1 flex items-center gap-2">
-          {declarableAxes.length > 0 ? (
-            <Select value={axis} onValueChange={setAxis}>
-              <SelectTrigger className="max-w-[12rem]" aria-label={t("New axis")}>
-                <SelectValue placeholder={t("axis")} />
-              </SelectTrigger>
-              <SelectContent>
-                {declarableAxes
-                  .filter((a) => !(a in coordinates))
-                  .map((a) => (
-                    <SelectItem key={a} value={a}>
-                      {a}
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
-          ) : (
-            <Input
-              className="max-w-[12rem]"
-              placeholder={t("axis")}
-              value={axis}
-              aria-label={t("New axis")}
-              onChange={(e) => setAxis(e.target.value)}
-            />
-          )}
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={!axis.trim() || axis.trim() in coordinates}
-            onClick={() => {
-              setCoordinates({ ...coordinates, [axis.trim()]: "" });
-              setAxis("");
-            }}
-          >
-            <Plus className="mr-1 size-3" />
-            {t("Add axis")}
-          </Button>
-        </div>
-      </div>
+      <CoordinatesEditor
+        value={coll.coordinates ?? {}}
+        axes={declarableAxes.map((axis) => ({ axis }))}
+        allowNewAxis={declarableAxes.length === 0}
+        label={t("Coordinates here")}
+        emptyText={t("Inherits the project's declared axes.")}
+        testId="collection-coordinates"
+        onChange={(coordinates) => onChange({ coordinates })}
+      />
     </div>
   );
 }

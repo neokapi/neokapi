@@ -535,6 +535,15 @@ export type {
 export { FlowCard, StepChips, FlowsEmptyState } from "./components/flows";
 export type { FlowCardItem } from "./components/flows";
 
+// Governance forms (shared: the voice governing a point, and a point's axes)
+export { VoiceBindingSelect, CoordinatesEditor, incompleteAxes } from "./components/governance";
+export type {
+  VoiceBindingOption,
+  VoiceBindingSelectProps,
+  CoordinateAxisOption,
+  CoordinatesEditorProps,
+} from "./components/governance";
+
 // Filter config editor (legacy — prefer SchemaForm)
 export { FilterConfigEditor, SchemaConfigEditor } from "./components/filter";
 export type { FormatSchema, FormatParamsValue } from "./components/filter/types";

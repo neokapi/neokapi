@@ -100,3 +100,52 @@ export const NoPluginsInstalled: Story = {
     },
   },
 };
+
+/** The recipe's governance vocabulary, as the Wails backend serves it. */
+const governance = {
+  axes: [
+    {
+      axis: "product",
+      declarable: false,
+      refusal:
+        "recipe: \"product\" is derived from a collection's channel, not declared: remove it from the point or set the collection's channel instead",
+    },
+    {
+      axis: "channel",
+      declarable: false,
+      refusal:
+        "recipe: \"channel\" is derived from a collection's channel, not declared: remove it from the point or set the collection's channel instead",
+    },
+    { axis: "brand", declarable: true, used: "northsea" },
+    { axis: "mode", declarable: true, values: ["tutorial", "how-to", "reference", "explanation"] },
+  ],
+  channels: ["campaign/promo", "support/docs"],
+  profiles: ["campaign", "support"],
+  voice_files: [".kapi/voice.yaml", ".kapi/profiles/support/voice.yaml"],
+  packs: ["technical-docs", "friendly-dtc"],
+};
+
+const governed = {
+  version: "v1",
+  name: "Northsea",
+  defaults: {
+    source_language: "en-US",
+    target_languages: ["nb-NO", "de-DE"],
+    coordinates: { brand: "northsea", mode: "reference" },
+    voice: { profile_file: ".kapi/voice.yaml" },
+    flow: "translate",
+    exclude: ["**/vendor/**"],
+  },
+  flows: { translate: { steps: [] }, review: { steps: [] } },
+};
+
+export const Governed: Story = {
+  name: "Governed (point, voice, default flow)",
+  args: { project: governed, governance },
+};
+
+export const GovernedDark: Story = {
+  name: "Governed (dark)",
+  globals: { theme: "dark" },
+  args: { project: governed, governance },
+};
