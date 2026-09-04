@@ -91,7 +91,7 @@ export function SchemaForm({
 
     return (
       <SchemaFormHostProvider host={host}>
-        <div className="flex flex-col">
+        <fieldset disabled={readOnly} className="flex min-w-0 flex-col">
           {/* Breadcrumb */}
           <div className="flex items-center gap-1 flex-wrap mb-2.5">
             <button
@@ -125,7 +125,7 @@ export function SchemaForm({
               />
             ))}
           </div>
-        </div>
+        </fieldset>
       </SchemaFormHostProvider>
     );
   }
@@ -135,7 +135,10 @@ export function SchemaForm({
 
   return (
     <SchemaFormHostProvider host={host}>
-      <div className="flex flex-col">
+      {/* A disabled fieldset disables every control inside it, so a read-only
+          form presents as one (a change handler that ignores input is not
+          enough: the fields would still invite typing). */}
+      <fieldset disabled={readOnly} className="flex min-w-0 flex-col">
         {/* Format/tool header */}
         {!hideHeader && (schema.title || formatMeta || toolMeta) && (
           <div className="pb-3 mb-3 border-b border-border/40">
@@ -218,7 +221,7 @@ export function SchemaForm({
         {schema.toolMeta?.requires?.includes("retryable") && (
           <RetryPolicySection values={values} onChange={onChange} compact={compact} />
         )}
-      </div>
+      </fieldset>
     </SchemaFormHostProvider>
   );
 }

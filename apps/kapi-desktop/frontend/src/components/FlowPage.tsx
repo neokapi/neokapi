@@ -1,8 +1,8 @@
 import { useCallback, useRef, useReducer } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { LinearFlowEditor } from "@neokapi/ui-primitives";
 import type { ComponentSchema } from "@neokapi/ui-primitives";
-import { FlowTemplateLibrary } from "@neokapi/flow-editor";
+import { FlowTemplateLibrary, FlowViewTabs } from "@neokapi/flow-editor";
+import type { ToolInfo as EditorToolInfo } from "@neokapi/flow-editor";
 import type { FlowSpec, ToolInfo } from "../types/api";
 import { api } from "../hooks/useApi";
 import { qk } from "../lib/queryKeys";
@@ -26,6 +26,30 @@ interface FlowPageProps {
   onRename?: (next: string) => void;
 }
 
+// The backend's raw ToolInfo mapped to the flow editor's shape: the diagram
+// reads the IO contract and the transformer flags off it, the step editor the
+// name, description and whether there are options. A stable function so the
+// query's `select` keeps its result reference between renders.
+function selectEditorTools(result: ToolInfo[] | null | undefined): EditorToolInfo[] {
+  return (result ?? []).map((t) => ({
+    name: t.name,
+    display_name: t.display_name,
+    description: t.description,
+    category: t.category,
+    source: t.source,
+    has_schema: t.has_schema,
+    tags: t.tags,
+    requires: t.requires,
+    cardinality: t.cardinality,
+    default_locale: t.default_locale,
+    consumes: t.consumes,
+    produces: t.produces,
+    side_effects: t.side_effects,
+    isSourceTransform: t.is_source_transform,
+    recoverable: t.recoverable,
+  }));
+}
+
 export function FlowPage({
   flowName,
   flow,
@@ -44,13 +68,15 @@ export function FlowPage({
   const [, forceUpdate] = useReducer((x: number) => x + 1, 0);
 
   // Tools list as react-query server state, shared with ToolRunnerPage under the
-  // same key. The "registries-changed" event invalidates it (a plugin change
-  // may have added or removed tools).
+  // same key (the raw entry is cached; `select` shapes it for the editor). The
+  // "registries-changed" event invalidates it (a plugin change may have added
+  // or removed tools).
   const toolsQuery = useQuery({
     queryKey: tabID ? qk.projectTools(tabID) : qk.tools(),
     queryFn: () => (tabID ? api.listProjectTools(tabID) : api.listTools()),
+    select: selectEditorTools,
   });
-  const tools: ToolInfo[] = toolsQuery.data ?? [];
+  const tools: EditorToolInfo[] = toolsQuery.data ?? [];
 
   useInvalidateOnEvent("registries-changed", [tabID ? qk.projectTools(tabID) : qk.tools()]);
 
@@ -68,8 +94,10 @@ export function FlowPage({
     return null;
   }, []);
 
+  // Steps (authoring) and Diagram (the read-only canvas). The desktop records
+  // no trace of a flow run, so there is no Run view here.
   return (
-    <LinearFlowEditor
+    <FlowViewTabs
       key={flowName}
       flowName={flowName}
       flow={flow}

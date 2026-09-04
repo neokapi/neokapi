@@ -42,3 +42,17 @@ export const Empty: Story = {
     },
   },
 };
+
+export const ParallelFlow: Story = {
+  name: "Parallel group (switch to Diagram)",
+  args: {
+    flowName: "translate-and-check",
+    flow: {
+      description: "Translate, then check and count in parallel.",
+      steps: [
+        { tool: "translate", config: { provider: "anthropic" } },
+        { tool: "", parallel: [{ tool: "qa" }, { tool: "word-count" }] },
+      ],
+    },
+  },
+};

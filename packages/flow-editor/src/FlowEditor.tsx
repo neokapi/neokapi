@@ -122,6 +122,7 @@ export function FlowEditor({
   renderEndpointPanel,
   renderStepConfigPanel,
   onEditPresets,
+  hideToolbar,
 }: FlowEditorProps) {
   // The public API groups the overlapping flags into cohesive objects; the body
   // below keeps working with the individual values.
@@ -1102,6 +1103,7 @@ export function FlowEditor({
           onConfigChange={handleConfigChange}
           onClose={() => setSelectedNodeId(null)}
           onRemove={readOnly ? undefined : handleRemoveSelected}
+          readOnly={readOnly}
           onEditPresets={
             selectedToolName && onEditPresets ? () => onEditPresets(selectedToolName) : undefined
           }
@@ -1127,21 +1129,25 @@ export function FlowEditor({
       {/* Canvas (full width — palette and config are overlays, not flex siblings,
           so selecting a node or browsing tools never reflows the graph). */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Toolbar */}
-        <FlowToolbar
-          stepCount={flow.steps.length}
-          onRun={onRun}
-          runDisabled={runDisabled}
-          running={running}
-          flow={flow}
-          redacted={hasRedactionWrap(flow)}
-          onToggleRedaction={
-            readOnly
-              ? undefined
-              : () =>
-                  onChange(hasRedactionWrap(flow) ? unwrapRedaction(flow) : wrapWithRedaction(flow))
-          }
-        />
+        {/* Toolbar (a host that shows its own header hides it) */}
+        {!hideToolbar && (
+          <FlowToolbar
+            stepCount={flow.steps.length}
+            onRun={onRun}
+            runDisabled={runDisabled}
+            running={running}
+            flow={flow}
+            redacted={hasRedactionWrap(flow)}
+            onToggleRedaction={
+              readOnly
+                ? undefined
+                : () =>
+                    onChange(
+                      hasRedactionWrap(flow) ? unwrapRedaction(flow) : wrapWithRedaction(flow),
+                    )
+            }
+          />
+        )}
 
         {/* Parallelization suggestion banner */}
         {suggestions.length > 0 && (
