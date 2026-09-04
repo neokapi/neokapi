@@ -155,14 +155,15 @@ func (ctx *ProjectContext) formatPriorityOverrides() map[string]int {
 
 // --- Content resolution ---
 
-// ResolvedFile represents a file matched by a project content pattern.
+// ResolvedFile represents a file claimed by a project content item: the first
+// item, in recipe order across every collection, whose pattern matches it.
 type ResolvedFile struct {
 	Path       string       // absolute file path
 	Relative   string       // path relative to project dir
 	Format     string       // detected or explicit format name
-	Collection string       // parent collection name
-	Pattern    string       // the content pattern that matched
-	Item       *ContentItem // the content item definition
+	Collection string       // the collection of the item that claimed the file
+	Pattern    string       // the pattern of the item that claimed the file
+	Item       *ContentItem // the content item that claimed the file
 	// CollectionIndex and ItemIndex address the recipe entry this file came
 	// from: the collection's position in Collections, and the item's position
 	// in its Content (0 for a bare entry).
@@ -180,6 +181,15 @@ type ResolvedFile struct {
 // returns the resolved file list with detected formats. Ignore rules from
 // .kapiignore are applied. Patterns that escape the project root are rejected.
 //
+// A file resolves to exactly one item. Items are walked in recipe order, across
+// collections, and the first item whose pattern matches a file claims it; later
+// items never see it, however specific their pattern. A recipe therefore lists
+// the item that names a file before the glob that would also cover it, which is
+// the order CollectionForPath, ResolveGovernanceForPath and every path-to-item
+// lookup in the hosts already walk. Resolving a file once per matching item
+// recorded it at each item's point, and the content memory then read one file
+// as a surface disagreeing with itself.
+//
 // It fails rather than resolve a partial content set: a pattern that cannot be
 // expanded means the recipe declares content this call cannot account for, and
 // every derivation downstream (coverage, plan, checks, review, extract) reads a
@@ -193,6 +203,8 @@ func (ctx *ProjectContext) ResolveContent(reg *registry.FormatRegistry) ([]Resol
 
 	ig := ignore.ForProjectDir(ctx.ProjectDir)
 
+	// Slash-relative paths already claimed by an earlier item.
+	claimed := map[string]bool{}
 	var files []ResolvedFile
 	for ci, coll := range ctx.Project.Collections {
 		collName := coll.Name
@@ -274,9 +286,16 @@ func (ctx *ProjectContext) ResolveContent(reg *registry.FormatRegistry) ([]Resol
 				rel, _ := filepath.Rel(ctx.ProjectDir, f)
 
 				// Apply ignore rules.
-				if ig.Match(filepath.ToSlash(rel), false) {
+				relSlash := filepath.ToSlash(rel)
+				if ig.Match(relSlash, false) {
 					continue
 				}
+
+				// First match wins: an earlier item already claimed this file.
+				if claimed[relSlash] {
+					continue
+				}
+				claimed[relSlash] = true
 
 				// Determine format: explicit > auto-detected.
 				fmtName := ""
