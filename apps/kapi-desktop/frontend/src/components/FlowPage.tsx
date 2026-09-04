@@ -1,14 +1,31 @@
-import { useCallback, useRef, useReducer } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useCallback, useMemo, useRef, useReducer, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ComponentSchema } from "@neokapi/ui-primitives";
 import { FlowTemplateLibrary, FlowViewTabs } from "@neokapi/flow-editor";
-import type { ToolInfo as EditorToolInfo } from "@neokapi/flow-editor";
-import type { FlowSpec, ToolInfo } from "../types/api";
+import type { FlowTrace, ToolInfo as EditorToolInfo } from "@neokapi/flow-editor";
+import type { FlowSpec, RunTraces, ToolInfo } from "../types/api";
 import { api } from "../hooks/useApi";
 import { qk } from "../lib/queryKeys";
 import { useInvalidateOnEvent } from "../hooks/useInvalidateOnEvent";
+import { useWailsEvent } from "../hooks/useWailsEvent";
 import { useJobFeed } from "../context/JobFeedContext";
 import { useSchemaFormHost } from "../hooks/useSchemaFormHost";
+import { sameSteps, traceFileKey } from "../lib/runTraces";
+import { RunTracePicker } from "./RunTracePicker";
+
+/** A run pre-loaded for Storybook, in place of ListRunTraces / GetLastTrace. */
+export interface PreloadedRun {
+  run: RunTraces;
+  /** Each retained file's trace, keyed by input file path. */
+  traces: Record<string, FlowTrace>;
+}
+
+/**
+ * Run events after which the retained traces may differ from what is cached:
+ * a run starting (the backend keeps only the last run), a file's trace being
+ * kept, and the run ending either way.
+ */
+const RUN_TRACE_EVENTS = new Set(["state", "trace", "complete", "error"]);
 
 interface FlowPageProps {
   flowName: string;
@@ -24,6 +41,8 @@ interface FlowPageProps {
   onToggleDefault?: (next: boolean) => void;
   /** Rename the flow (project mode only). */
   onRename?: (next: string) => void;
+  /** A pre-loaded run (Storybook), so the Run view shows without a backend. */
+  preloadedRun?: PreloadedRun;
 }
 
 // The backend's raw ToolInfo mapped to the flow editor's shape: the diagram
@@ -60,8 +79,10 @@ export function FlowPage({
   isDefault,
   onToggleDefault,
   onRename,
+  preloadedRun,
 }: FlowPageProps) {
   const { hasActive } = useJobFeed();
+  const qc = useQueryClient();
   const host = useSchemaFormHost();
   const schemasRef = useRef<Record<string, ComponentSchema | null>>({});
   const fetchingRef = useRef<Set<string>>(new Set());
@@ -94,8 +115,51 @@ export function FlowPage({
     return null;
   }, []);
 
-  // Steps (authoring) and Diagram (the read-only canvas). The desktop records
-  // no trace of a flow run, so there is no Run view here.
+  // The last run's retained traces. The backend keeps them from the most
+  // recent run of whatever flow, so they belong here only while that run was
+  // of this flow with these steps; an edit withholds them until it is undone.
+  // Any run event that can change the set invalidates the family, and the
+  // trace query below sits under the same key prefix.
+  const runQuery = useQuery({
+    queryKey: qk.runTraces(),
+    queryFn: () => (preloadedRun ? preloadedRun.run : api.listRunTraces()),
+  });
+  useWailsEvent("flow:event", (data) => {
+    const ev = data as { type?: unknown } | null;
+    if (ev && typeof ev.type === "string" && RUN_TRACE_EVENTS.has(ev.type)) {
+      void qc.invalidateQueries({ queryKey: qk.runTraces() });
+    }
+  });
+  const run = runQuery.data ?? null;
+  const runFiles = useMemo(
+    () => (run && run.flow_name === flowName && sameSteps(run.steps, flow.steps) ? run.files : []),
+    [run, flowName, flow.steps],
+  );
+
+  // The file replaying: the reader's pick while it is still retained, else
+  // the file that completed last. A dismissal hides the run until the set
+  // changes (a new file kept, or a new run).
+  const [pickedKey, setPickedKey] = useState<string | null>(null);
+  const [dismissedKey, setDismissedKey] = useState<string | null>(null);
+  const newest = runFiles.length > 0 ? runFiles[runFiles.length - 1] : null;
+  const selected = runFiles.find((f) => traceFileKey(f) === pickedKey) ?? newest;
+  const runKey = newest ? `${runFiles.length}:${traceFileKey(newest)}` : null;
+  const dismissed = runKey !== null && dismissedKey === runKey;
+
+  const traceQuery = useQuery({
+    queryKey: qk.runTrace(selected?.file_path ?? "", selected?.locale ?? ""),
+    queryFn: () => {
+      if (!selected) return null;
+      if (preloadedRun) return preloadedRun.traces[selected.file_path] ?? null;
+      return api.getLastTrace(selected.file_path, selected.locale ?? "");
+    },
+    enabled: selected !== null && !dismissed,
+  });
+  const trace = selected && !dismissed ? (traceQuery.data ?? undefined) : undefined;
+
+  // Steps (authoring), Diagram (the read-only canvas), and Run once a trace
+  // of this flow is retained: the canvas replays it, with the file picker in
+  // the view bar when the run covered several files.
   return (
     <FlowViewTabs
       key={flowName}
@@ -112,6 +176,18 @@ export function FlowPage({
       onToggleDefault={onToggleDefault}
       onRename={onRename}
       templateLibrary={<FlowTemplateLibrary onSelect={onChange} />}
+      trace={trace}
+      onTraceDismiss={() => setDismissedKey(runKey)}
+      runControls={
+        trace && selected && run ? (
+          <RunTracePicker
+            files={runFiles}
+            selected={selected}
+            onSelect={(f) => setPickedKey(traceFileKey(f))}
+            maxParts={run.max_parts}
+          />
+        ) : undefined
+      }
     />
   );
 }

@@ -99,6 +99,7 @@ export const WithRun: Story = {
     },
     tools: transformerAwareTools,
     trace: runReviewTrace,
+    runControls: <span className="text-xs text-muted-foreground">contact-page.md · fr-FR</span>,
     defaultView: "run",
     isDefault: false,
   },

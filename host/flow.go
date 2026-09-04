@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"io"
 
@@ -284,10 +285,7 @@ func (a *App) RunSingleFile(ctx context.Context, cmd Command, flowName, inputPat
 	var recorder *flow.TraceRecorder
 	if tracePath != "" {
 		recorder = flow.NewTraceRecorder()
-		for i, t := range flowTools {
-			nodeID := fmt.Sprintf("tool-%d", i)
-			flowTools[i] = flow.NewTracingTool(t, nodeID, recorder)
-		}
+		flowTools = wrapWithTracing(flowTools, recorder)
 	}
 
 	// Wrap with pipeline metrics (outermost wrapper).
@@ -543,41 +541,7 @@ func (a *App) RunSingleFile(ctx context.Context, cmd Command, flowName, inputPat
 // nothing). The batch path (runMultipleFiles) has always propagated these three;
 // the single-file path discarding them was the asymmetry.
 func (a *App) writeTraceFile(tracePath, flowName, fmtName, inputPath, outputPath string, recorder *flow.TraceRecorder, toolNames []string) error {
-	inputContent, _ := os.ReadFile(inputPath)
-	inputPreview := string(inputContent)
-	if len(inputPreview) > 2000 {
-		inputPreview = inputPreview[:2000] + "\n... (truncated)"
-	}
-	outputData, _ := os.ReadFile(outputPath)
-	outputPreview := string(outputData)
-	if len(outputPreview) > 2000 {
-		outputPreview = outputPreview[:2000] + "\n... (truncated)"
-	}
-
-	traceNodes := []flow.TraceNode{
-		{ID: "reader", Type: flow.NodeReader, Name: fmtName, Label: fmtName + " reader"},
-	}
-	for i, name := range toolNames {
-		traceNodes = append(traceNodes, flow.TraceNode{
-			ID: fmt.Sprintf("tool-%d", i), Type: flow.NodeTool, Name: name, Label: name,
-		})
-	}
-	traceNodes = append(traceNodes, flow.TraceNode{
-		ID: "writer", Type: flow.NodeWriter, Name: fmtName, Label: fmtName + " writer",
-	})
-
-	trace := &flow.FlowTrace{
-		Name:        flowName,
-		Description: fmt.Sprintf("%s flow on %s", flowName, filepath.Base(inputPath)),
-		Nodes:       traceNodes,
-		ChannelSize: 64,
-		Events:      recorder.Events(),
-		Parts:       recorder.Snapshots(),
-		InputFile:   flow.TraceFile{Name: filepath.Base(inputPath), Format: fmtName, Preview: inputPreview},
-		OutputFile:  flow.TraceFile{Name: filepath.Base(outputPath), Preview: outputPreview},
-		DurationUs:  recorder.DurationUs(),
-	}
-
+	trace := newFlowTrace(flowName, fmtName, inputPath, outputPath, recorder, toolNames)
 	traceJSON, err := json.MarshalIndent(trace, "", "  ")
 	if err != nil {
 		return fmt.Errorf("marshal trace: %w", err)
@@ -589,6 +553,79 @@ func (a *App) writeTraceFile(tracePath, flowName, fmtName, inputPath, outputPath
 		return fmt.Errorf("write trace %s: %w", tracePath, err)
 	}
 	return nil
+}
+
+// wrapWithTracing wraps each tool in a TracingTool recording to recorder, the
+// i-th as node "tool-<i>" (the id newFlowTrace labels). Returns a new slice;
+// the original is not modified, so a chain shared across files can be traced
+// per file.
+func wrapWithTracing(tools []tool.Tool, recorder *flow.TraceRecorder) []tool.Tool {
+	wrapped := make([]tool.Tool, len(tools))
+	for i, t := range tools {
+		wrapped[i] = flow.NewTracingTool(t, fmt.Sprintf("tool-%d", i), recorder)
+	}
+	return wrapped
+}
+
+// newFlowTrace assembles the trace of one finished file run: the reader →
+// tool-N → writer node list (toolNames label the tool nodes, in order), the
+// recorder's events and part snapshots, and a clipped preview of the input
+// and output files.
+func newFlowTrace(flowName, fmtName, inputPath, outputPath string, recorder *flow.TraceRecorder, toolNames []string) *flow.FlowTrace {
+	traceNodes := []flow.TraceNode{
+		{ID: "reader", Type: flow.NodeReader, Name: fmtName, Label: fmtName + " reader"},
+	}
+	for i, name := range toolNames {
+		traceNodes = append(traceNodes, flow.TraceNode{
+			ID: fmt.Sprintf("tool-%d", i), Type: flow.NodeTool, Name: name, Label: name,
+		})
+	}
+	traceNodes = append(traceNodes, flow.TraceNode{
+		ID: "writer", Type: flow.NodeWriter, Name: fmtName, Label: fmtName + " writer",
+	})
+	return &flow.FlowTrace{
+		Name:        flowName,
+		Description: fmt.Sprintf("%s flow on %s", flowName, filepath.Base(inputPath)),
+		Nodes:       traceNodes,
+		ChannelSize: 64,
+		Events:      recorder.Events(),
+		Parts:       recorder.Snapshots(),
+		InputFile:   flow.TraceFile{Name: filepath.Base(inputPath), Format: fmtName, Preview: filePreview(inputPath)},
+		OutputFile:  flow.TraceFile{Name: filepath.Base(outputPath), Preview: filePreview(outputPath)},
+		DurationUs:  recorder.DurationUs(),
+		Truncated:   recorder.Truncated(),
+	}
+}
+
+// tracePreviewBytes is how much of a file a trace carries as its preview.
+const tracePreviewBytes = 2000
+
+// filePreview returns the head of a file for a trace, marked when clipped. It
+// reads only what it shows, so a large input costs the preview and no more; a
+// file that cannot be read previews as empty.
+func filePreview(path string) string {
+	f, err := os.Open(path)
+	if err != nil {
+		return ""
+	}
+	defer f.Close()
+	buf := make([]byte, tracePreviewBytes+1)
+	n, _ := io.ReadFull(f, buf)
+	if n <= tracePreviewBytes {
+		return string(buf[:n])
+	}
+	head := buf[:tracePreviewBytes]
+	// Drop a rune the byte budget split; an invalid byte earlier in the file
+	// is the file's own and stays.
+	for i := len(head) - 1; i >= 0 && i >= len(head)-utf8.UTFMax; i-- {
+		if utf8.RuneStart(head[i]) {
+			if !utf8.FullRune(head[i:]) {
+				head = head[:i]
+			}
+			break
+		}
+	}
+	return string(head) + "\n... (truncated)"
 }
 
 func (a *App) runMultipleFiles(ctx context.Context, cmd Command, flowName string, inputPaths []string, concurrency int, outputTemplate string) error {

@@ -143,6 +143,27 @@ export interface FlowIssue {
   message: string;
 }
 
+/** One retained trace of the last run: the input file and locale pass it recorded. */
+export interface RunTraceFile {
+  file_path: string;
+  locale?: string;
+  output_path?: string;
+  /** The recording budget cut the trace short: it holds the run's first parts. */
+  truncated?: boolean;
+}
+
+/**
+ * The last run's replayable record: the flow that ran, the steps it ran with,
+ * and the files whose traces the backend kept, in completion order.
+ */
+export interface RunTraces {
+  flow_name: string;
+  steps: FlowStep[];
+  files: RunTraceFile[];
+  /** The recording budget: a truncated trace holds this many parts. */
+  max_parts: number;
+}
+
 /** One channel in the channel map: where content sits, and what governs there. */
 export interface ChannelMapRow {
   /** profile/channel, the way a collection names it. */

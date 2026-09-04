@@ -23,6 +23,11 @@ export const qk = {
   projectTools: (tabID: string) => ["tools", "project", tabID] as const,
   toolSchema: (name: string) => ["tools", "schema", name] as const,
 
+  // The last run's retained traces; the whole family is invalidated by a run event
+  runTraces: () => ["run-traces"] as const,
+  runTrace: (filePath: string, locale: string) =>
+    ["run-traces", "trace", filePath, locale] as const,
+
   // Flows (project-scoped + user/ad-hoc)
   flows: (tabID: string) => ["flows", tabID] as const,
   flow: (tabID: string, name: string) => ["flows", tabID, name] as const,

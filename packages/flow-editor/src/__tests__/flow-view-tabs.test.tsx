@@ -101,6 +101,19 @@ describe("FlowViewTabs", () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 
+  it("shows the host's run controls only while the Run view is active", async () => {
+    renderTabs({ trace: TRACE, runControls: <span>file picker</span> });
+    // A run present from the start leaves the chosen view alone.
+    expect(pressed("flow-view-steps")).toBe(true);
+    expect(screen.queryByTestId("flow-view-run-controls")).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByTestId("flow-view-run"));
+    expect(screen.getByTestId("flow-view-run-controls")).toHaveTextContent("file picker");
+
+    await userEvent.click(screen.getByTestId("flow-view-diagram"));
+    expect(screen.queryByTestId("flow-view-run-controls")).not.toBeInTheDocument();
+  });
+
   it("offers the Run view only while a run is loaded, and switches to it when one arrives", () => {
     const { rerender } = renderTabs();
     expect(screen.queryByTestId("flow-view-run")).not.toBeInTheDocument();
