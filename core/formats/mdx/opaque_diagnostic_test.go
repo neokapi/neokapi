@@ -18,15 +18,17 @@ import (
 // quiet one: a whole document can go opaque for one construct, and the only
 // symptom is a page still in its source language.
 //
-// The fixture is a hard line break. The task list that used to sit here
-// reconstructs now, and the note it carried holds for its replacement: these
-// tests assert the reporting, so the day hard breaks round-trip they will fail
-// and the fixture should become whatever still diverges.
+// The fixture is a link whose title is single-quoted: the reader spells the
+// title back with double quotes. The task list and then the hard break that
+// sat here reconstruct now, and the note they carried holds for their
+// replacement: these tests assert the reporting, so the day a single-quoted
+// title round-trips they will fail and the fixture should become whatever
+// still diverges.
 //
 // A single-block span is the deliberate choice. Quarantine salvages a span by
 // isolating the blocks that failed, so a fixture with neighbours exercises that
 // path instead — which is what TestQuarantineKeepsTheOtherBlocks is for.
-const divergingSrc = "One line  \nnext line.\n"
+const divergingSrc = "See [the docs](/docs 'Documentation').\n"
 
 func readAll(t *testing.T, src string) ([]*model.Block, []format.Diagnostic) {
 	t.Helper()
@@ -122,6 +124,13 @@ func TestKnownRoundTripDivergences(t *testing.T) {
 		{name: "plain wrapped blockquote", src: "> A quoted line that wraps onto\n> a second line here.\n"},
 		{name: "plain wrapped list item", src: "- An item that wraps onto\n  a second line here.\n"},
 		{name: "entity outside a link", src: "Ship gates &amp; CI here.\n"},
+		// A hard break used to lose the spaces or backslash that spelled it,
+		// which cost the paragraph its block; the spelling rides a placeholder
+		// now, and a paragraph mixing hard and soft breaks keeps its marker.
+		{name: "hard break with spaces", src: "One line  \nnext line.\n"},
+		{name: "hard break with a backslash", src: "One line\\\nnext line.\n"},
+		{name: "hard break in a blockquote", src: "> One line  \n> next line.\n"},
+		{name: "hard and soft breaks in a blockquote", src: "> One line  \n> next line\n> third line.\n"},
 		// A GFM task list used to cost its whole file: the checkbox carries no
 		// segment of its own, so the rebuild dropped it, and eight of them took
 		// a 6.4KB release note out of the translation entirely.

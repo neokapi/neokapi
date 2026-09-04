@@ -1314,16 +1314,38 @@ func RenderBlockContent(block *model.Block, runs []model.Run) string {
 	if prefix, ok := block.Properties[BlockPropLinePrefix]; ok && prefix != "" && strings.Contains(rendered, "\n") {
 		rendered = strings.ReplaceAll(rendered, "\n", "\n"+prefix)
 	}
-	if block.SemanticRole() == model.RoleTableCell {
+	if role := block.SemanticRole(); role == model.RoleTableCell || role == model.RoleTableHeader {
 		// GFM row splitting sees an unescaped `|` as a cell boundary wherever
-		// it appears — even inside a code span — so the reader receives cell
-		// text with `\|` already unescaped and every pipe must be re-escaped
-		// on the way out. Without this, a cell like `--output-format
-		// <json\|text>` round-trips with a bare pipe that splits the cell and
-		// leaves an unterminated code span (invalid MDX downstream).
-		rendered = strings.ReplaceAll(rendered, "|", "\\|")
+		// it appears, even inside a code span, so every pipe leaving a cell
+		// is escaped, and one that already is must not be escaped again. The
+		// reader hands back both: a code span's `\|` arrives without its
+		// backslash (the parser drops it) and a plain `\|` arrives with it,
+		// and a translated cell may spell either. Without the escape, a cell
+		// like `--output-format <json\|text>` came back with a bare pipe that
+		// split the cell and left an unterminated code span (invalid MDX
+		// downstream); with an unconditional one, a plain `\|` came back
+		// doubled (#1661).
+		rendered = escapeCellPipes(rendered)
 	}
 	return rendered
+}
+
+// escapeCellPipes backslash-escapes every `|` in table-cell text whose
+// preceding byte is not already a backslash, which is the rule the GFM row
+// splitter applies when it decides whether a pipe belongs to the cell.
+func escapeCellPipes(text string) string {
+	if !strings.Contains(text, "|") {
+		return text
+	}
+	var sb strings.Builder
+	sb.Grow(len(text) + 4)
+	for i := range len(text) {
+		if text[i] == '|' && (i == 0 || text[i-1] != '\\') {
+			sb.WriteByte('\\')
+		}
+		sb.WriteByte(text[i])
+	}
+	return sb.String()
 }
 
 // frontMatterScalar renders a front matter value, restoring the source's
