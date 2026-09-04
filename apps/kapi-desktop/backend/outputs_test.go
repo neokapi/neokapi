@@ -144,3 +144,41 @@ func keysOf(m map[string][]OutputFileInfo) []string {
 	}
 	return out
 }
+
+// A source is claimed by the first item that matches it, so its outputs are
+// that item's alone: an explicit item before a glob lists its own target, and a
+// source-only item before a targeted glob lists nothing for the file (#2288).
+func TestListOutputs_FirstMatchingItemClaimsTheSource(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "docs"), 0o755))
+	for _, name := range []string{"README.md", "api.md", "guide.md"} {
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "docs", name), []byte("# x\n"), 0o644))
+	}
+
+	kapiPath := filepath.Join(dir, "test.kapi")
+	proj := &project.KapiProject{
+		Version:  project.CurrentVersion,
+		Name:     "Test",
+		Defaults: project.Defaults{SourceLanguage: "en", TargetLanguages: []model.LocaleID{"fr"}},
+		Collections: []project.Collection{
+			{Name: "Docs", Content: []project.ContentItem{
+				{Path: "docs/README.md"},
+				{Path: "docs/api.md", Target: "reference/{lang}/{name}.md"},
+				{Path: "docs/**/*.md", Target: "output/{lang}/{name}.md"},
+			}},
+		},
+	}
+	require.NoError(t, project.Save(kapiPath, proj))
+
+	app := NewApp()
+	tab := openTestProjectFile(t, app, kapiPath)
+
+	outs, err := app.ListOutputs(tab.ID)
+	require.NoError(t, err)
+
+	require.Len(t, outs["docs/api.md"], 1, "one output per declared language, from one item")
+	assert.Equal(t, "reference/fr/api.md", outs["docs/api.md"][0].Relative)
+	require.Len(t, outs["docs/guide.md"], 1)
+	assert.Equal(t, "output/fr/guide.md", outs["docs/guide.md"][0].Relative)
+	assert.NotContains(t, outs, "docs/README.md", "a source-only item claims it; the glob's target is not borrowed")
+}

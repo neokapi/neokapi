@@ -155,3 +155,46 @@ func TestUntrackedContent_RefusesABrokenPattern(t *testing.T) {
 	assert.Contains(t, err.Error(), "docs")
 	assert.Contains(t, err.Error(), "cannot be expanded")
 }
+
+// TestUntrackedContent_OnlyTheClaimingItemsTargetsAreTracked: a source is
+// claimed by the first item that matches it, so only that item's targets are
+// files the loop writes. A copy at a later item's target is content nothing
+// governs, and the report says so.
+func TestUntrackedContent_OnlyTheClaimingItemsTargetsAreTracked(t *testing.T) {
+	root := t.TempDir()
+	write := func(rel, body string) {
+		p := filepath.Join(root, filepath.FromSlash(rel))
+		require.NoError(t, os.MkdirAll(filepath.Dir(p), 0o755))
+		require.NoError(t, os.WriteFile(p, []byte(body), 0o644))
+	}
+	write("docs/index.md", "# Index\n")
+	write("docs/berths.md", "# Berths\n")
+	write("i18n/nb/index.md", "# Indeks\n")
+	write("i18n/nb/berths.md", "# Kaiplasser\n")
+
+	proj := &project.KapiProject{
+		Version: project.CurrentVersion,
+		Defaults: project.Defaults{
+			SourceLanguage:  "en",
+			TargetLanguages: []model.LocaleID{"nb"},
+		},
+		Collections: []project.Collection{
+			{Name: "docs", Content: []project.ContentItem{
+				{Path: "docs/index.md"},
+				{Path: "docs/**/*.md", Target: "i18n/{lang}/{path}.md"},
+			}},
+		},
+	}
+	require.NoError(t, project.Save(filepath.Join(root, project.RecipeFileName), proj))
+
+	app := &App{}
+	app.InitRegistries()
+	res, err := app.UntrackedContent(proj, filepath.Join(root, project.RecipeFileName), nil)
+	require.NoError(t, err)
+	paths := make([]string, 0, len(res.Files))
+	for _, f := range res.Files {
+		paths = append(paths, f.Path)
+	}
+	assert.Equal(t, []string{"i18n/nb/index.md"}, paths,
+		"index.md is source-only, so the glob's target for it is a file nothing produces")
+}
