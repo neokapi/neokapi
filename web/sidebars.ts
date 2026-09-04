@@ -108,7 +108,7 @@ const sidebars: SidebarsConfig = {
           id: "kapi/recipes/pre-translate-from-memory",
           label: "Reuse what you've translated",
         },
-        { type: "doc", id: "kapi/recipes/terminology-qa", label: "Keep terms consistent" },
+        { type: "doc", id: "kapi/recipes/terminology-checks", label: "Keep terms consistent" },
         { type: "doc", id: "kapi/recipes/pseudo-translate", label: "Preview before you ship" },
         { type: "doc", id: "kapi/recipes/translate-media", label: "Translate audio & video" },
         { type: "doc", id: "kapi/recipes/resumable-workspace", label: "Pause & resume a big run" },

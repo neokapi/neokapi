@@ -200,7 +200,7 @@ export function RedactionDiagram({
 
             {/* row 1 — redacted: plain text, marker bars, labeled chips */}
             <rect
-              className="kdx-box kdx-box--qa"
+              className="kdx-box kdx-box--check"
               x={xLeft}
               y={rowY(1)}
               width={rowW}

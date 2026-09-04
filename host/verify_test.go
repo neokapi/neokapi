@@ -131,7 +131,7 @@ func gateByName(o verifyOutput, name string) (verifyGateResult, bool) {
 }
 
 // TestVerify_FailingProject asserts the failing project produces voice,
-// terminology, and qa findings, an overall pass:false, and the quality-gate
+// terminology, and check findings, an overall pass:false, and the quality-gate
 // sentinel (exit 3 via ExitCode).
 func TestVerify_FailingProject(t *testing.T) {
 	root, _ := writeVerifyProject(t)
@@ -154,10 +154,10 @@ func TestVerify_FailingProject(t *testing.T) {
 	require.NotEmpty(t, terms.Findings)
 	assert.Contains(t, terms.Findings[0].Message, "Enregistrer")
 
-	qa, ok := gateByName(out, gateChecks)
-	require.True(t, ok, "qa gate must be present")
-	assert.False(t, qa.Pass, "qa gate must fail (dropped placeholder)")
-	require.NotEmpty(t, qa.Findings)
+	checks, ok := gateByName(out, gateChecks)
+	require.True(t, ok, "the checks gate must be present")
+	assert.False(t, checks.Pass, "the checks gate must fail (dropped placeholder)")
+	require.NotEmpty(t, checks.Findings)
 
 	// Summary is internally consistent.
 	assert.Equal(t, len(out.Gates), out.Summary.Gates)
@@ -401,9 +401,9 @@ func TestVerify_DoNotTranslateNotFlagged(t *testing.T) {
 
 	out, _ := runVerifyJSON(t)
 
-	qa, ok := gateByName(out, gateChecks)
-	require.True(t, ok, "qa gate must be present")
-	for _, f := range qa.Findings {
+	checks, ok := gateByName(out, gateChecks)
+	require.True(t, ok, "the checks gate must be present")
+	for _, f := range checks.Findings {
 		assert.NotContains(t, f.Message, "identical to source",
 			"the do-not-translate brand term must not be flagged as untranslated")
 	}

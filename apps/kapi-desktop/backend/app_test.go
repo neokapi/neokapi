@@ -157,8 +157,8 @@ func TestListToolsExposesTransformerFlags(t *testing.T) {
 		assert.True(t, redact.IsSourceTransform, "redact is a transformer")
 		assert.True(t, redact.Recoverable, "redact is a recoverable transformer")
 	}
-	if qa, ok := byName["qa"]; ok {
-		assert.False(t, qa.IsSourceTransform, "qa is not a transformer")
+	if check, ok := byName["qa"]; ok {
+		assert.False(t, check.IsSourceTransform, "the check tool is not a transformer")
 	}
 }
 

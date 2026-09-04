@@ -518,7 +518,7 @@ describe("ReviewSurface — the inspector carries the block's evidence", () => {
     });
     await waitForDocument();
 
-    await user.click(screen.getByTestId("run-qa-btn"));
+    await user.click(screen.getByTestId("run-check-btn"));
     // The block is flagged in the document…
     await waitFor(() =>
       expect(screen.getByTestId("review-block-b1")).toHaveAttribute("data-flagged", "true"),
@@ -526,7 +526,7 @@ describe("ReviewSurface — the inspector carries the block's evidence", () => {
     // …and the finding itself is named in the inspector, not guessed onto a span.
     await openBlock(user, "b1");
     expect(
-      within(screen.getByTestId("inspector-qa")).getByText(/Trailing double space/),
+      within(screen.getByTestId("inspector-check")).getByText(/Trailing double space/),
     ).toBeInTheDocument();
   });
 });

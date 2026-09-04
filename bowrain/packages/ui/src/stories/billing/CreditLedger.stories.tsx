@@ -52,7 +52,7 @@ const sampleEntries: CreditLedgerEntry[] = [
     amount: -5_100,
     balanceAfter: 478_500,
     operation: "ai_quality_check",
-    referenceId: "qa-ghi11223",
+    referenceId: "chk-ghi11223",
     createdAt: new Date(now - 12 * hour).toISOString(),
   },
   {

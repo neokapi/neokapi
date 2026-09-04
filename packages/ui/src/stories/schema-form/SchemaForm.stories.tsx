@@ -132,7 +132,7 @@ const groupedSchema: ComponentSchema = {
     reportPath: {
       type: "string",
       title: "Report File Path",
-      default: "${rootDir}/qa-report.html",
+      default: "${rootDir}/check-report.html",
       "ui:widget": "path",
       description: "Output report file path",
     },

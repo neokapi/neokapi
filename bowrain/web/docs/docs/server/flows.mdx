@@ -125,7 +125,7 @@ curl -X POST https://app.bowrain.cloud/api/v1/acme/proj-1/flows \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "translate-with-qa",
+    "name": "translate-with-checks",
     "description": "Translate then run quality checks",
     "nodes": [
       {"id": "reader", "type": "reader", "name": "auto", "position": {"x": 0, "y": 0}},

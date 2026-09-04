@@ -82,8 +82,8 @@ describe("LinearFlowEditor", () => {
     const { onChange } = renderEditor();
     await userEvent.click(screen.getByTestId("add-step"));
     const toolButtons = await screen.findAllByTestId("add-step-tool");
-    const qa = toolButtons.find((b) => b.textContent?.includes("Quality Check"));
-    await userEvent.click(qa!);
+    const checkTool = toolButtons.find((b) => b.textContent?.includes("Quality Check"));
+    await userEvent.click(checkTool!);
     expect(onChange).toHaveBeenCalledWith({
       steps: [{ tool: "recycle" }, { tool: "translate" }, { tool: "qa" }],
     });

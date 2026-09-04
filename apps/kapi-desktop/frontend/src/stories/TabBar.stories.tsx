@@ -33,7 +33,7 @@ export const MultipleTabs: Story = {
   args: {
     tabs: [
       { id: "1", name: "translation", path: "/Users/dev/translation/kapi.yaml" },
-      { id: "2", name: "qa-pipeline", path: "/Users/dev/qa-pipeline/kapi.yaml" },
+      { id: "2", name: "check-pipeline", path: "/Users/dev/check-pipeline/kapi.yaml" },
       { id: "3", name: "New Project", path: "" },
     ],
     activeTabID: "2",

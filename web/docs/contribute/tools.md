@@ -145,7 +145,7 @@ Individual tools can also be constructed directly. Each takes a config struct
 segTool := tools.NewSegmentationTool(&tools.SegmentationConfig{})
 
 // Rule-based check: configured via per-rule flags on RuleCheckConfig
-qaTool := tools.NewRuleCheckTool(tools.NewRuleCheckConfig(model.LocaleID("fr")))
+checkTool := tools.NewRuleCheckTool(tools.NewRuleCheckConfig(model.LocaleID("fr")))
 
 // Content-memory leverage with a custom fuzzy threshold and a memory provider
 memoryTool := tools.NewMemoryLeverageTool(&tools.MemoryLeverageConfig{

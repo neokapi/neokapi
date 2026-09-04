@@ -37,7 +37,7 @@ Your dev server now has a `qps` locale. Wire a language picker and ship pseudo-t
 
 Add it to CI as a UI-layout smoke test:
 
-```yaml title=".github/workflows/ui-qa.yml"
+```yaml title=".github/workflows/ui-checks.yml"
 - run: vp neokapi-i18n extract
 - run: kapi pseudo-translate i18n/
 - run: vp neokapi-i18n compile i18n/ --out public/translations

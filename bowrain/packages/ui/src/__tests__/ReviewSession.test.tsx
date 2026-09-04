@@ -244,13 +244,13 @@ describe("ReviewSession", () => {
         },
       ],
     };
-    let qa!: ReturnType<typeof vi.spyOn<MockAdapter, "runFileCheck">>;
+    let runCheck!: ReturnType<typeof vi.spyOn<MockAdapter, "runFileCheck">>;
     renderSession(withQuietFailingItem, (adapter) => {
-      qa = vi.spyOn(adapter, "runFileCheck");
+      runCheck = vi.spyOn(adapter, "runFileCheck");
     });
     await waitForQueue();
 
-    expect(qa.mock.calls.map((c) => c[2])).not.toContain("empty.json");
+    expect(runCheck.mock.calls.map((c) => c[2])).not.toContain("empty.json");
   });
 
   // The block a save leaves behind is the server's to report. Reconstructing it

@@ -702,7 +702,7 @@ export function ReviewSurface({
           variant={showProblems ? "default" : "outline"}
           size="sm"
           onClick={runChecks}
-          data-testid="run-qa-btn"
+          data-testid="run-check-btn"
         >
           <AlertTriangle className="w-3.5 h-3.5 mr-1" />
           Run checks

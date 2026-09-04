@@ -102,7 +102,7 @@ Add an `automations:` section to your `kapi.yaml` recipe:
 
 ```yaml
 automations:
-  - name: qa-before-push
+  - name: checks-before-push
     trigger: pre-push
     actions:
       - type: run_flow
@@ -144,7 +144,7 @@ Prevent pushing content that fails the checks:
 
 ```yaml
 automations:
-  - name: qa-gate
+  - name: checks-gate
     trigger: pre-push
     actions:
       - type: run_flow

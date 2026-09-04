@@ -267,6 +267,12 @@ const config: Config = {
           // so it redirects. The registered tool is still `qa`; only the page
           // name changed.
           { from: "/framework/checks/qa-checks", to: "/framework/checks/rule-checks" },
+          // Same rename one level down: the terminology recipe is a checks
+          // recipe, and its published route is indexed.
+          {
+            from: "/kapi/recipes/terminology-qa",
+            to: "/kapi/recipes/terminology-checks",
+          },
           // The architecture corpus is organized by concern in six series, each
           // a directory. Every retired numeric slug keeps a redirect, and the
           // pre-existing renames below point straight at the final route rather

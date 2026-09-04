@@ -45,7 +45,7 @@ kapi translate -i file1.html -i file2.html --source-lang en --target-lang fr -j 
 kapi exec recycle -i input.html -o output.html --source-lang en --target-lang fr
 
 # Run quality checks (top-level tool command)
-kapi exec qa -i translations.html -o qa-report.html --target-lang fr
+kapi exec qa -i translations.html -o check-report.html --target-lang fr
 
 # Run a custom project flow
 kapi run translate-review

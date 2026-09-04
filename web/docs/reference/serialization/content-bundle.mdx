@@ -773,7 +773,7 @@ points at it with a **`sub`** run:
 A full `.kbf.json` bundles documents and blocks under the envelope; a companion
 `.overlays.jsonl` overlay attaches stand-off annotations by anchor. The header below is one
 line; each annotation is one line. The `term-1` record anchors to the `label`
-run of `tag-chip`; `entity-1` anchors to a character range; `qa-1` anchors to the
+run of `tag-chip`; `entity-1` anchors to a character range; `check-1` anchors to the
 `one` plural form; `orphan-1` carries a stale `runId` and will _not_ resolve:
 
 ```jsonl
@@ -781,7 +781,7 @@ run of `tag-chip`; `entity-1` anchors to a character range; `qa-1` anchors to th
 {"type":"annotation","id":"review-1","block":"files-heading","anchor":{"kind":"block"},"data":{"kind":"review-status","status":"approved"}}
 {"type":"annotation","id":"term-1","block":"tag-chip","anchor":{"kind":"run","path":[2],"runId":"2"},"data":{"kind":"protected-term","term":"label"}}
 {"type":"annotation","id":"entity-1","block":"files-heading","anchor":{"kind":"range","path":[],"start":{"run":4,"offset":1},"end":{"run":4,"offset":8}},"data":{"kind":"named-entity","entity":"matched"}}
-{"type":"annotation","id":"qa-1","block":"shopping-cart-plural","anchor":{"kind":"form","path":[0],"key":"one"},"data":{"kind":"qa","note":"singular form reviewed"}}
+{"type":"annotation","id":"check-1","block":"shopping-cart-plural","anchor":{"kind":"form","path":[0],"key":"one"},"data":{"kind":"qa","note":"singular form reviewed"}}
 {"type":"annotation","id":"orphan-1","block":"tag-chip","anchor":{"kind":"run","path":[2],"runId":"99"},"data":{"kind":"protected-term","term":"label"}}
 ```
 

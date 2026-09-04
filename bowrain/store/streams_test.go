@@ -225,7 +225,7 @@ func TestListProjectTags(t *testing.T) {
 		CreatedBy: "user-1",
 	}))
 	require.NoError(t, s.CreateStreamTag(ctx, &platstore.StreamTag{
-		ProjectID: p.ID, Stream: "main", Name: "qa-done", Kind: platstore.TagKindCustom,
+		ProjectID: p.ID, Stream: "main", Name: "checks-done", Kind: platstore.TagKindCustom,
 		CreatedBy: "user-2",
 	}))
 

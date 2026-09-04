@@ -181,7 +181,7 @@ export const LAB_SCENARIOS: LabScenario[] = [
     id: "annotations",
     label: "Content model & annotations",
     description:
-      "Tools communicate through stand-off state on the block: segmentation adds sentence spans, term-check and qa attach qa findings, translate writes the target. Step through the run and click each node to watch the block accumulate overlays and annotations.",
+      "Tools communicate through stand-off state on the block: segmentation adds sentence spans, term-check and qa attach findings, translate writes the target. Step through the run and click each node to watch the block accumulate overlays and annotations.",
     steps: [
       { tool: "segmentation" },
       { tool: "translate" },

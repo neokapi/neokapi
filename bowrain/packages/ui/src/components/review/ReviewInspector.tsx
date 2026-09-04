@@ -248,7 +248,7 @@ export function ReviewInspector({
           <ContextLayer
             title="Findings"
             summary={findingsSummary(issues, context?.voice_findings ?? [])}
-            testId="inspector-qa"
+            testId="inspector-check"
           >
             <FindingsList issues={issues} findings={context?.voice_findings ?? []} />
           </ContextLayer>

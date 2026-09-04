@@ -40,19 +40,19 @@ func TestAutomation_WriteOverlay_EndToEnd(t *testing.T) {
 	// An overlay is a layer on a block, so the block the rule names has to
 	// exist — the adapter refuses a key that names none.
 	require.NoError(t, srv.ContentStore.StoreBlocks(ctx, projectID, "main", []*model.Block{
-		model.NewRunsBlock("blk-qa", []model.Run{{Text: &model.TextRun{Text: "Hello."}}}),
+		model.NewRunsBlock("blk-check", []model.Run{{Text: &model.TextRun{Text: "Hello."}}}),
 	}))
 
 	// Fire the action directly (no event-bus routing — the engine loop
 	// is exercised by other workflow tests). The action payload mimics
 	// what a rule on `content.extracted` would dispatch.
 	const wantKind = "annotations/qa"
-	const wantBlock = "blk-qa"
+	const wantBlock = "blk-check"
 	const wantPayload = `{"findings":[{"rule":"punctuation","severity":"info"}]}`
 
 	action := event.AutomationAction{
 		Type: "write_overlay",
-		Name: "qa-on-extract",
+		Name: "check-on-extract",
 		Config: map[string]string{
 			"kind":    wantKind,
 			"payload": wantPayload,

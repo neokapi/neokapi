@@ -25,7 +25,7 @@
   --kdx-io: #2e8555; /* readers & writers (brand primary) */
   --kdx-annotate: #6d5ae6; /* annotators — overlays (indigo) */
   --kdx-translate: #0e9aab; /* translators — targets (cyan) */
-  --kdx-qa: #b45309; /* checks / enforce (amber) */
+  --kdx-check: #b45309; /* checks / enforce (amber) */
   --kdx-resource: #0e7490; /* Memory / terms */
   --kdx-plugin: #7c3aed; /* plugin system / gRPC */
   --kdx-file: #2e8555; /* file chips */
@@ -44,7 +44,7 @@
   --kdx-io: #25c2a0;
   --kdx-annotate: #8b87f7;
   --kdx-translate: #22c8df;
-  --kdx-qa: #f59e0b;
+  --kdx-check: #f59e0b;
   --kdx-resource: #2bd4ee;
   --kdx-plugin: #a78bfa;
   --kdx-file: #7aebd4;
@@ -217,13 +217,13 @@
    muted amber (checks / attention) dashed edge to a review node. */
 .kdx-hold {
   fill: none;
-  stroke: var(--kdx-qa);
+  stroke: var(--kdx-check);
   stroke-width: 1.5;
   stroke-dasharray: 4 3;
   opacity: 0.85;
 }
 .kdx-hold-t {
-  fill: var(--kdx-qa);
+  fill: var(--kdx-check);
   font-weight: 600;
 }
 
@@ -260,8 +260,8 @@
 .kdx-box--translate {
   stroke: var(--kdx-translate);
 }
-.kdx-box--qa {
-  stroke: var(--kdx-qa);
+.kdx-box--check {
+  stroke: var(--kdx-check);
 }
 
 /* subtitle tint matches the box role */
@@ -274,8 +274,8 @@
 .kdx-sub--translate {
   fill: var(--kdx-translate);
 }
-.kdx-sub--qa {
-  fill: var(--kdx-qa);
+.kdx-sub--check {
+  fill: var(--kdx-check);
 }
 
 .kdx-file {

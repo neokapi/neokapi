@@ -405,7 +405,7 @@ Terminology and check findings are stand-off annotations anchored to run-index
 ranges, the framework's existing overlay model
 ([F-02](../foundations/f-02-content-model.md)). The browser renders them through
 the CSS Custom Highlight API: `Range` objects are registered in named highlights
-and styled with `::highlight(kapi-term)` and `::highlight(kapi-qa)`.
+and styled with `::highlight(kapi-term)` and `::highlight(kapi-check)`.
 
 Nothing is inserted into the DOM. The classic approach, wrapping matched text in
 a styled `<span>`, mutates the tree React owns, which means layout shifts,

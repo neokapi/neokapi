@@ -541,8 +541,8 @@ function renderAnnotations(annotations: ReviewManifestEntry["annotations"]): str
   if (!annotations || annotations.length === 0) return "";
   const items = annotations
     .map((a) => {
-      const qa = /qa|check|error|issue/i.test(a.type);
-      return `<div class="kapi-ann${qa ? " kapi-qa" : ""}"><strong>${escapeHTML(a.type)}</strong> ${escapeHTML(a.summary)}</div>`;
+      const isCheck = /qa|check|error|issue/i.test(a.type);
+      return `<div class="kapi-ann${isCheck ? " kapi-check" : ""}"><strong>${escapeHTML(a.type)}</strong> ${escapeHTML(a.summary)}</div>`;
     })
     .join("");
   return `<div class="kapi-label">Annotations</div>${items}`;
@@ -608,7 +608,7 @@ const STYLES = `
 #kapi-review-panel .kapi-other { font-size: 12px; padding: 3px 0; border-bottom: 1px solid #f4f4f5; }
 #kapi-review-panel .kapi-otherlang { display: inline-block; min-width: 26px; color: #71717a; font-variant: small-caps; }
 #kapi-review-panel .kapi-ann { border-left: 3px solid #3b82f6; padding: 4px 8px; margin: 4px 0; background: #eff6ff; border-radius: 0 6px 6px 0; }
-#kapi-review-panel .kapi-ann.kapi-qa { border-left-color: #ef4444; background: #fef2f2; }
+#kapi-review-panel .kapi-ann.kapi-check { border-left-color: #ef4444; background: #fef2f2; }
 #kapi-review-panel .kapi-row { display: flex; gap: 8px; margin-top: 12px; align-items: center; }
 #kapi-review-panel button { border: 1px solid #d4d4d8; background: #fafafa; border-radius: 6px; padding: 5px 12px; font: inherit; cursor: pointer; }
 #kapi-review-panel .kapi-status { color: #71717a; font-size: 11px; margin-left: auto; }
@@ -682,7 +682,7 @@ html[data-kapi-review-mode] [data-kapi-review-untranslated] {
   #kapi-review-panel .kapi-note { background: #422006; }
   #kapi-review-panel .kapi-other { border-bottom-color: #27272a; }
   #kapi-review-panel .kapi-ann { background: #172554; }
-  #kapi-review-panel .kapi-ann.kapi-qa { background: #450a0a; }
+  #kapi-review-panel .kapi-ann.kapi-check { background: #450a0a; }
   #kapi-review-panel button { background: #27272a; border-color: #3f3f46; }
   #kapi-review-index { background: #18181b; color: #fafafa; border-right-color: #3f3f46; }
   #kapi-review-index .kapi-idx-file { color: #a1a1aa; background: #18181b; }

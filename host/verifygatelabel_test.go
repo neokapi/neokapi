@@ -38,7 +38,7 @@ func TestVerifyGateLabel_TextShowsChecksAndJSONKeepsTheID(t *testing.T) {
 	require.NoError(t, out.FormatText(&buf))
 	text := ansi.ReplaceAllString(buf.String(), "")
 
-	assert.Contains(t, text, "checks", "the gate table labels the qa gate `checks`")
+	assert.Contains(t, text, "checks", "the gate table labels the checks gate `checks`")
 	assert.NotRegexp(t, `(?m)^\s*qa\b`, text, "the raw gate id must not reach the table")
 
 	encoded, err := json.Marshal(out)
@@ -64,7 +64,7 @@ func TestVerifyGateLabel_SelectorsTakeTheID(t *testing.T) {
 	require.NoError(t, cmd.Flags().Set(gateFlagName, "qa"))
 	sel, err := resolveGateSelection(cmd)
 	require.NoError(t, err)
-	assert.True(t, sel.qa)
+	assert.True(t, sel.checks)
 	assert.False(t, sel.voice)
 	assert.False(t, sel.terms)
 }

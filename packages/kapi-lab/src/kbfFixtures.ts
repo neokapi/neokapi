@@ -356,7 +356,7 @@ export const ANNOTATIONS_KBFL = [
   }),
   JSON.stringify({
     type: "annotation",
-    id: "qa-1",
+    id: "check-1",
     block: "shopping-cart-plural",
     anchor: { kind: "form", path: [0], key: "one" },
     data: { kind: "qa", note: "singular form reviewed" },

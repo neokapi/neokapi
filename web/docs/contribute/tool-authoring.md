@@ -129,7 +129,7 @@ The function:
 Fields with a `group` tag are organized into collapsible sections in the UI:
 
 ```go
-type QAConfig struct {
+type CheckConfig struct {
     CheckLeadingWS  bool `schema:"description=Check leading whitespace,default=true,group=whitespace"`
     CheckTrailingWS bool `schema:"description=Check trailing whitespace,default=true,group=whitespace"`
     CheckEmptyTarget bool `schema:"description=Check empty translations,default=true,group=content"`
