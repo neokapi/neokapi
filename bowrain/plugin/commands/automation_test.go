@@ -73,25 +73,23 @@ func automationFixture(t *testing.T, dntTerms []string, rules ...project.Automat
 	require.NoError(t, err)
 
 	recipe := &project.Recipe{
-		KapiProject: coreproj.KapiProject{
-			Version: coreproj.CurrentVersion,
-			Name:    "AutomationTest",
-			Defaults: coreproj.Defaults{
-				SourceLanguage:  "en",
-				TargetLanguages: []model.LocaleID{"nb"},
+		Version: coreproj.CurrentVersion,
+		Name:    "AutomationTest",
+		Defaults: coreproj.Defaults{
+			SourceLanguage:  "en",
+			TargetLanguages: []model.LocaleID{"nb"},
+		},
+		Collections: []coreproj.Collection{
+			{
+				Path:   "src/*.xlf",
+				Format: &coreproj.FormatSpec{Name: "xliff"},
+				Target: "out/{lang}/*.xlf",
 			},
-			Collections: []coreproj.Collection{
-				{
-					Path:   "src/*.xlf",
-					Format: &coreproj.FormatSpec{Name: "xliff"},
-					Target: "out/{lang}/*.xlf",
-				},
-			},
-			Flows: map[string]*flow.StepsSpec{
-				"guard": {
-					Steps: []flow.FlowStep{
-						{Tool: "dnt-check", Config: map[string]any{"terms": dntTerms}},
-					},
+		},
+		Flows: map[string]*flow.StepsSpec{
+			"guard": {
+				Steps: []flow.FlowStep{
+					{Tool: "dnt-check", Config: map[string]any{"terms": dntTerms}},
 				},
 			},
 		},

@@ -105,15 +105,15 @@ func TestRunFromProject_BuiltinFlowHonoursCollectionFormat(t *testing.T) {
 		"the prose was left alone — the flow did not run")
 }
 
-// The same assertion for the other built-in flow that reaches this path, so a
-// future change that special-cases one flow does not quietly regress the rest.
-func TestRunFromProject_ProjectContextReachesBuiltinFlows(t *testing.T) {
-	a, recipe, _ := mdxBoundProject(t)
+// The same property for a built-in flow named with no --input: it runs over
+// the recipe's collections through the project path, and each file is still
+// read under the format the recipe binds. An explicit -o keeps the run writing
+// a file, so the result can be read back.
+func TestRunFromProject_BuiltinFlowOverCollectionsHonoursFormat(t *testing.T) {
+	a, recipe, dir := mdxBoundProject(t)
+	out := filepath.Join(dir, "page.qps.md")
 
-	// RunFromProject clears ProjectContext on the way out, so observe it from
-	// the flow itself: FallbackRunE runs inside the same call.
-	var seen bool
-	cmd := NewEnvCommand(context.Background(), "translate")
+	cmd := NewEnvCommand(context.Background(), "pseudo-translate")
 	fs := cmd.Flags()
 	fs.String("target-lang", "", "")
 	fs.String("source-lang", "", "")
@@ -123,18 +123,19 @@ func TestRunFromProject_ProjectContextReachesBuiltinFlows(t *testing.T) {
 	fs.StringSlice("input", nil, "")
 	fs.Int("concurrency", 0, "")
 	fs.Bool("explain", false, "")
+	require.NoError(t, fs.Set("output", out))
 	cmd.SetOut(&bytes.Buffer{})
 	cmd.SetErr(&bytes.Buffer{})
 
-	err := a.RunFromProject(cmd, "translate", recipe, RunCmdOptions{
-		FallbackRunE: func(Command, string, []string) error {
-			seen = a.ProjectContext != nil
-			return nil
-		},
-	})
-	require.NoError(t, err)
-	assert.True(t, seen, "a built-in flow ran with no project context, so no "+
-		"format binding or reader config could be resolved")
+	require.NoError(t, a.RunFromProject(cmd, "pseudo-translate", recipe, RunCmdOptions{}))
+
+	got, err := os.ReadFile(out)
+	require.NoError(t, err, "with no --input the run covers the collection; -o names where it writes")
+	text := string(got)
+	assert.Contains(t, text, `import { Thing } from "@site/src/components/Thing";`,
+		"the ESM import was translated — the collection's mdx binding was not applied")
+	assert.NotContains(t, text, "Ordinary prose that should be translated.",
+		"the prose was left alone — the flow did not run")
 }
 
 // A project-bound run with no explicit -o commits overlays and emits no file
