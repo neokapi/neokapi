@@ -4,14 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/neokapi/neokapi/bowrain/analytics"
-	"github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/bowrain/service"
 	"github.com/neokapi/neokapi/core/flow"
-	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/host/flowdef"
 )
@@ -20,12 +17,12 @@ import (
 func (s *MCPServer) registerFlowTools() {
 	mcp.AddTool(s.server, &mcp.Tool{
 		Name:        "list_flows",
-		Description: "List available flows and presets that can be executed on project content.",
+		Description: "List the flows that can be run on project content: the built-in catalog, plus the project's own flows when project_id is given.",
 	}, s.handleListFlows)
 
 	mcp.AddTool(s.server, &mcp.Tool{
 		Name:        "run_flow",
-		Description: "Execute a flow on project content. Returns a summary of the execution result.",
+		Description: "Run a flow over a project's stored content and write the results back. Returns a summary of what the run touched.",
 	}, s.handleRunFlow)
 
 	mcp.AddTool(s.server, &mcp.Tool{
@@ -36,6 +33,7 @@ func (s *MCPServer) registerFlowTools() {
 
 type listFlowsInput struct {
 	WorkspaceID string `json:"workspace_id,omitempty" jsonschema:"optional workspace filter"`
+	ProjectID   string `json:"project_id,omitempty" jsonschema:"include the project's own flows beside the built-in catalog"`
 }
 type listFlowsOutput struct {
 	Flows []flowSummary `json:"flows"`
@@ -47,23 +45,55 @@ type flowSummary struct {
 }
 
 func (s *MCPServer) handleListFlows(ctx context.Context, req *mcp.CallToolRequest, input listFlowsInput) (*mcp.CallToolResult, listFlowsOutput, error) {
-	builtIn := flowdef.BuiltInFlows()
-	flows := make([]flowSummary, 0, len(builtIn))
-	for _, f := range builtIn {
+	defs, err := s.listFlows(ctx, input.ProjectID)
+	if err != nil {
+		return nil, listFlowsOutput{}, err
+	}
+	flows := make([]flowSummary, 0, len(defs))
+	for _, f := range defs {
+		kind := "custom"
+		if f.Source == registry.SourceBuiltIn {
+			kind = "builtin"
+		}
 		flows = append(flows, flowSummary{
 			Name:        f.ID,
 			Description: f.Description,
-			Type:        "builtin",
+			Type:        kind,
 		})
 	}
 	return nil, listFlowsOutput{Flows: flows}, nil
 }
 
+// listFlows lists the flows a project can run. Without a catalog only the
+// built-in flows are known.
+func (s *MCPServer) listFlows(ctx context.Context, projectID string) ([]flow.FlowDefinition, error) {
+	if s.flowCatalog == nil || projectID == "" {
+		return flowdef.BuiltInFlows(), nil
+	}
+	return s.flowCatalog.List(ctx, projectID)
+}
+
+// resolveFlow resolves a flow id under a project through the catalog, the
+// same lookup an automation rule's run_flow action makes. Without a catalog
+// only the built-in flows resolve.
+func (s *MCPServer) resolveFlow(ctx context.Context, projectID, flowID string) (*flow.FlowDefinition, error) {
+	if s.flowCatalog != nil {
+		return s.flowCatalog.Get(ctx, projectID, flowID)
+	}
+	for _, f := range flowdef.BuiltInFlows() {
+		if f.ID == flowID {
+			def := f
+			return &def, nil
+		}
+	}
+	return nil, fmt.Errorf("%w: %q", service.ErrFlowNotFound, flowID)
+}
+
 type runFlowInput struct {
 	ProjectID    string `json:"project_id" jsonschema:"the project to run the flow on"`
-	FlowName     string `json:"flow_name" jsonschema:"name of the flow to execute"`
+	FlowName     string `json:"flow_name" jsonschema:"id of the flow to run, built-in or one of the project's own"`
 	Stream       string `json:"stream,omitempty" jsonschema:"stream name (defaults to main)"`
-	TargetLocale string `json:"target_locale,omitempty" jsonschema:"target locale for translation flows"`
+	TargetLocale string `json:"target_locale,omitempty" jsonschema:"target locale for bilingual tools such as translate or checks"`
 }
 type runFlowOutput struct {
 	Status        string `json:"status"`
@@ -72,6 +102,9 @@ type runFlowOutput struct {
 	Message       string `json:"message,omitempty"`
 }
 
+// handleRunFlow runs a flow over a project's stored content through the same
+// catalog and runner an automation rule's run_flow action uses, so an agent
+// and a rule naming the same flow id run the same flow the same way.
 func (s *MCPServer) handleRunFlow(ctx context.Context, req *mcp.CallToolRequest, input runFlowInput) (*mcp.CallToolResult, runFlowOutput, error) {
 	if input.FlowName == "" {
 		return nil, runFlowOutput{}, errors.New("flow_name is required")
@@ -79,115 +112,41 @@ func (s *MCPServer) handleRunFlow(ctx context.Context, req *mcp.CallToolRequest,
 	if input.ProjectID == "" {
 		return nil, runFlowOutput{}, errors.New("project_id is required")
 	}
-
-	// Find the flow definition.
-	var flowDef *flow.FlowDefinition
-	for _, f := range flowdef.BuiltInFlows() {
-		if f.ID == input.FlowName {
-			flowDef = &f
-			break
-		}
-	}
-	if flowDef == nil {
-		return nil, runFlowOutput{}, fmt.Errorf("flow %q not found", input.FlowName)
+	if s.flowRunner == nil {
+		return nil, runFlowOutput{}, errors.New("flow runner not configured")
 	}
 
-	if s.toolReg == nil {
-		return nil, runFlowOutput{}, errors.New("tool registry not configured")
-	}
-
-	stream := input.Stream
-	if stream == "" {
-		stream = "main"
-	}
-
-	// Get blocks from the content store.
-	blocks, err := s.contentStore.GetBlocks(ctx, store.BlockQuery{
-		ProjectID: input.ProjectID,
-		Stream:    stream,
-	})
+	def, err := s.resolveFlow(ctx, input.ProjectID, input.FlowName)
 	if err != nil {
-		return nil, runFlowOutput{}, fmt.Errorf("get blocks: %w", err)
-	}
-	if len(blocks) == 0 {
-		return nil, runFlowOutput{
-			Status:   "completed",
-			FlowName: input.FlowName,
-			Message:  "No blocks to process.",
-		}, nil
+		return nil, runFlowOutput{}, err
 	}
 
-	// Build the tool chain from the flow definition's tool nodes.
-	builder := flow.NewFlow(flowDef.ID)
-	for _, node := range flowDef.Nodes {
-		if node.Type != "tool" {
-			continue
-		}
-		t, err := s.toolReg.NewTool(registry.ToolID(node.Name))
-		if err != nil {
-			return nil, runFlowOutput{}, fmt.Errorf("resolve tool %q: %w", node.Name, err)
-		}
-		builder.AddTool(t)
+	run := service.FlowRun{
+		Definition: def,
+		ProjectID:  input.ProjectID,
+		Stream:     input.Stream,
+		Source:     "mcp",
 	}
-	f, err := builder.Build()
+	if input.TargetLocale != "" {
+		run.TargetLocales = []string{input.TargetLocale}
+	}
+	if req != nil {
+		run.Actor = extractUserID(req)
+	}
+
+	res, err := s.flowRunner.RunFlow(ctx, run)
 	if err != nil {
-		return nil, runFlowOutput{}, fmt.Errorf("build flow: %w", err)
+		return nil, runFlowOutput{}, fmt.Errorf("run flow %q: %w", input.FlowName, err)
 	}
-
-	// Build flow items from blocks.
-	items := make([]*flow.Item, 0, len(blocks))
-	for _, sb := range blocks {
-		item := &flow.Item{}
-		item.OutputBlocks = append(item.OutputBlocks, sb.Block)
-		if input.TargetLocale != "" {
-			item.TargetLocale = model.LocaleID(input.TargetLocale)
-		}
-		items = append(items, item)
-	}
-
-	// Execute.
-	start := time.Now()
-	executor := flow.NewExecutor(flow.WithFailFast(true))
-	if err := executor.Execute(ctx, f, items); err != nil {
-		s.trackFlowRun(req, input, len(items), time.Since(start), "failed")
-		return nil, runFlowOutput{}, fmt.Errorf("execute flow: %w", err)
-	}
-
-	// Persist output blocks.
-	var allBlocks []*model.Block
-	for _, item := range items {
-		allBlocks = append(allBlocks, item.OutputBlocks...)
-	}
-	if len(allBlocks) > 0 {
-		if err := s.contentStore.StoreBlocks(ctx, input.ProjectID, stream, allBlocks); err != nil {
-			return nil, runFlowOutput{}, fmt.Errorf("persist output: %w", err)
-		}
-	}
-
-	s.trackFlowRun(req, input, len(items), time.Since(start), "completed")
-
-	return nil, runFlowOutput{
+	out := runFlowOutput{
 		Status:        "completed",
 		FlowName:      input.FlowName,
-		BlocksUpdated: len(allBlocks),
-	}, nil
-}
-
-// trackFlowRun captures a flow_run_completed event for an MCP-initiated flow
-// run (fire-and-forget; the MCP flow path executes inline rather than through
-// service.FlowService, so it captures at its own completion point).
-func (s *MCPServer) trackFlowRun(req *mcp.CallToolRequest, input runFlowInput, parts int, d time.Duration, outcome string) {
-	if s.tracker == nil {
-		return
+		BlocksUpdated: res.Blocks,
 	}
-	props := map[string]any{
-		"flow":            input.FlowName,
-		"duration_bucket": analytics.DurationBucket(d),
-		"outcome":         outcome,
-		"part_count":      parts,
-		"project_id":      input.ProjectID,
+	if res.Items == 0 {
+		out.Message = "No blocks to process."
 	}
-	s.tracker.TrackEvent(extractUserID(req), analytics.EventFlowRunCompleted, props)
+	return nil, out, nil
 }
 
 type getFlowStatusInput struct {
@@ -199,9 +158,9 @@ type getFlowStatusOutput struct {
 }
 
 func (s *MCPServer) handleGetFlowStatus(ctx context.Context, req *mcp.CallToolRequest, input getFlowStatusInput) (*mcp.CallToolResult, getFlowStatusOutput, error) {
-	// Flows execute synchronously via run_flow — no async job tracking needed.
+	// Flows run to completion inside run_flow, so there is no job to poll.
 	return nil, getFlowStatusOutput{
 		Status:  "not_applicable",
-		Message: "Flows execute synchronously. Use run_flow to execute and get results directly.",
+		Message: "Flows run to completion inside run_flow; its result carries the outcome.",
 	}, nil
 }

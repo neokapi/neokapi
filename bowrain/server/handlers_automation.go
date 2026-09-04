@@ -1,14 +1,78 @@
 package server
 
 import (
+	"context"
+	"errors"
+	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/event"
+	"github.com/neokapi/neokapi/bowrain/service"
 	"github.com/neokapi/neokapi/core/id"
 )
+
+// errInvalidAutomationRule marks a rule the caller can fix: a missing name or
+// trigger, an action type the executor does not run, or a run_flow action
+// naming a flow the project cannot see. The handlers answer it with 400.
+var errInvalidAutomationRule = errors.New("invalid automation rule")
+
+// automationRuleInput is the body of a create or update request.
+type automationRuleInput struct {
+	Name       string                      `json:"name"`
+	Trigger    string                      `json:"trigger"`
+	Conditions []event.AutomationCondition `json:"conditions"`
+	Actions    []event.AutomationAction    `json:"actions"`
+	Enabled    bool                        `json:"enabled"`
+}
+
+// validateAutomationRule rejects a rule the engine could not run as written,
+// so a rule that saves is a rule that fires. A run_flow action must name a
+// flow that resolves under this project: a built-in one, or one authored on
+// the project. Store failures during resolution are returned unwrapped so the
+// handler answers them as server errors.
+func (s *Server) validateAutomationRule(ctx context.Context, projectID string, in automationRuleInput) error {
+	if strings.TrimSpace(in.Name) == "" {
+		return fmt.Errorf("%w: name is required", errInvalidAutomationRule)
+	}
+	if strings.TrimSpace(in.Trigger) == "" {
+		return fmt.Errorf("%w: trigger is required", errInvalidAutomationRule)
+	}
+	if len(in.Actions) == 0 {
+		return fmt.Errorf("%w: at least one action is required", errInvalidAutomationRule)
+	}
+	for i, a := range in.Actions {
+		if !knownAutomationActions[a.Type] {
+			return fmt.Errorf("%w: action %d: unsupported action type %q", errInvalidAutomationRule, i+1, a.Type)
+		}
+		if a.Type != "run_flow" {
+			continue
+		}
+		flowID := strings.TrimSpace(a.Config["flow"])
+		if flowID == "" {
+			return fmt.Errorf("%w: action %d: run_flow names no flow", errInvalidAutomationRule, i+1)
+		}
+		if _, err := s.flowCatalog().Get(ctx, projectID, flowID); err != nil {
+			if errors.Is(err, service.ErrFlowNotFound) {
+				return fmt.Errorf("%w: action %d: %w", errInvalidAutomationRule, i+1, err)
+			}
+			return err
+		}
+	}
+	return nil
+}
+
+// ruleValidationResponse answers a validation failure: 400 for a rule the
+// caller can fix, 500 for a store failure met while checking it.
+func ruleValidationResponse(c echo.Context, err error) error {
+	if errors.Is(err, errInvalidAutomationRule) {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
+	}
+	return serverErr(c, err)
+}
 
 // HandleListAutomationRules returns all automation rules for a project.
 func (s *Server) HandleListAutomationRules(c echo.Context) error {
@@ -38,15 +102,12 @@ func (s *Server) HandleCreateAutomationRule(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, map[string]string{"error": "automation store not configured"})
 	}
 
-	var req struct {
-		Name       string                      `json:"name"`
-		Trigger    string                      `json:"trigger"`
-		Conditions []event.AutomationCondition `json:"conditions"`
-		Actions    []event.AutomationAction    `json:"actions"`
-		Enabled    bool                        `json:"enabled"`
-	}
+	var req automationRuleInput
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
+	}
+	if err := s.validateAutomationRule(c.Request().Context(), projectID, req); err != nil {
+		return ruleValidationResponse(c, err)
 	}
 
 	rule := &event.StoredRule{
@@ -62,6 +123,7 @@ func (s *Server) HandleCreateAutomationRule(c echo.Context) error {
 	if err := s.AutomationRuleStore.CreateRule(c.Request().Context(), rule); err != nil {
 		return serverErr(c, err)
 	}
+	s.reloadAutomationRules()
 
 	return c.JSON(http.StatusCreated, rule)
 }
@@ -72,24 +134,23 @@ func (s *Server) HandleUpdateAutomationRule(c echo.Context) error {
 		return err
 	}
 
+	projectID := c.Param("id")
 	ruleID := c.Param("ruleId")
 	if s.AutomationRuleStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, map[string]string{"error": "automation store not configured"})
 	}
 
-	var req struct {
-		Name       string                      `json:"name"`
-		Trigger    string                      `json:"trigger"`
-		Conditions []event.AutomationCondition `json:"conditions"`
-		Actions    []event.AutomationAction    `json:"actions"`
-		Enabled    bool                        `json:"enabled"`
-	}
+	var req automationRuleInput
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
+	}
+	if err := s.validateAutomationRule(c.Request().Context(), projectID, req); err != nil {
+		return ruleValidationResponse(c, err)
 	}
 
 	rule := &event.StoredRule{
 		ID:         ruleID,
+		ProjectID:  projectID,
 		Name:       req.Name,
 		Trigger:    platev.EventType(req.Trigger),
 		Conditions: req.Conditions,
@@ -100,6 +161,7 @@ func (s *Server) HandleUpdateAutomationRule(c echo.Context) error {
 	if err := s.AutomationRuleStore.UpdateRule(c.Request().Context(), rule); err != nil {
 		return serverErr(c, err)
 	}
+	s.reloadAutomationRules()
 
 	return c.JSON(http.StatusOK, rule)
 }
@@ -118,6 +180,7 @@ func (s *Server) HandleDeleteAutomationRule(c echo.Context) error {
 	if err := s.AutomationRuleStore.DeleteRule(c.Request().Context(), ruleID); err != nil {
 		return serverErr(c, err)
 	}
+	s.reloadAutomationRules()
 
 	return c.NoContent(http.StatusNoContent)
 }
@@ -143,6 +206,7 @@ func (s *Server) HandleToggleAutomationRule(c echo.Context) error {
 	if err := s.AutomationRuleStore.ToggleRule(c.Request().Context(), ruleID, req.Enabled); err != nil {
 		return serverErr(c, err)
 	}
+	s.reloadAutomationRules()
 
 	return c.NoContent(http.StatusOK)
 }

@@ -240,3 +240,42 @@ func TestAutomationVoiceRule(t *testing.T) {
 
 // Leader gating test removed — Bowrain AD-012 replaces leader election with
 // distributed event bus (consumer groups handle exactly-once delivery).
+
+// TestAutomationRuleProjectScope proves a rule that carries a project fires
+// only on that project's events. The other project's event is published first
+// so that, by the time the scoped project's event has been handled, a
+// delivery for the wrong project would already have been counted.
+func TestAutomationRuleProjectScope(t *testing.T) {
+	bus := NewChannelEventBus()
+	defer bus.Close()
+
+	var mu sync.Mutex
+	var fired []string
+	engine := NewAutomationEngine(bus, func(action AutomationAction, ev platev.Event) error {
+		mu.Lock()
+		fired = append(fired, ev.ProjectID)
+		mu.Unlock()
+		return nil
+	})
+	defer engine.Close()
+
+	engine.AddRule(AutomationRule{
+		Name:      "scoped-to-a",
+		EventType: platev.EventPushCompleted,
+		ProjectID: "proj-a",
+		Actions:   []AutomationAction{{Type: "run_flow", Config: map[string]string{"flow": "qa"}}},
+	})
+
+	bus.Publish(platev.Event{ID: "e-b", Type: platev.EventPushCompleted, ProjectID: "proj-b"})
+	bus.Publish(platev.Event{ID: "e-a", Type: platev.EventPushCompleted, ProjectID: "proj-a"})
+
+	require.Eventually(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return len(fired) >= 1
+	}, 2*time.Second, 10*time.Millisecond)
+
+	mu.Lock()
+	defer mu.Unlock()
+	assert.Equal(t, []string{"proj-a"}, fired)
+}

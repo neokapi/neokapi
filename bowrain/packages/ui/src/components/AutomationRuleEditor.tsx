@@ -25,12 +25,17 @@ import type {
 } from "../types/api";
 
 const OPERATORS = ["equals", "contains", "exists"] as const;
-const ACTION_TYPES = [
+
+/**
+ * The action types the server runs. Every entry here has a case in the
+ * server's action executor; the server rejects a rule naming any other type,
+ * so the picker offers exactly what can fire.
+ */
+export const ACTION_TYPES = [
   "auto_translate",
   "create_review_tasks",
   "create_source_review",
   "run_flow",
-  "webhook",
   "notify",
 ] as const;
 
@@ -92,11 +97,19 @@ function ConditionRow({
 // Action row
 // ---------------------------------------------------------------------------
 
-// Default config fields for workflow action types.
+// Default config fields per action type. Switching to one of these replaces
+// the previous type's config, so a run_flow action starts with an empty flow
+// to pick rather than a leftover `mode` from a review action.
 const ACTION_DEFAULTS: Record<string, Record<string, string>> = {
   create_review_tasks: { mode: "review" },
   create_source_review: { reviewer: "" },
+  run_flow: { flow: "" },
 };
+
+/** A run_flow action can only fire with a flow to run. */
+export function actionIsComplete(action: AutomationAction): boolean {
+  return action.Type !== "run_flow" || (action.Config.flow ?? "").trim() !== "";
+}
 
 function ActionRow({
   action,
@@ -302,7 +315,8 @@ export function AutomationRuleEditor({
     setActions((prev) => prev.filter((_, i) => i !== idx));
   }, []);
 
-  const isValid = name.trim() !== "" && trigger !== "" && actions.length > 0;
+  const isValid =
+    name.trim() !== "" && trigger !== "" && actions.length > 0 && actions.every(actionIsComplete);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
