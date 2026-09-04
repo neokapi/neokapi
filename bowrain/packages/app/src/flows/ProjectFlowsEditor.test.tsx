@@ -79,6 +79,34 @@ describe("ProjectFlowsEditor editing", () => {
     expect(screen.getByTestId("copy-flow-btn")).toBeInTheDocument();
   });
 
+  it("opens on the step editor with a Steps / Diagram switch and no Run view", async () => {
+    const { user } = setup();
+    await user.click(await screen.findByText("Translate and review"));
+    await screen.findByTestId("linear-flow-editor");
+    expect(screen.getByTestId("flow-view-steps")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("flow-view-diagram")).toBeInTheDocument();
+    // The platform keeps no trace of a run, so there is no Run view.
+    expect(screen.queryByTestId("flow-view-run")).not.toBeInTheDocument();
+  });
+
+  it("shows the flow as a read-only diagram, parallel branches included", async () => {
+    const { user, spies } = setup();
+    await user.click(await screen.findByText("Translate and review"));
+    await screen.findByTestId("linear-flow-editor");
+    await user.click(screen.getByTestId("flow-view-diagram"));
+    expect(screen.getByTestId("flow-diagram-view")).toBeInTheDocument();
+    expect(screen.queryByTestId("linear-flow-editor")).not.toBeInTheDocument();
+    expect(screen.getByText("Translate")).toBeInTheDocument();
+    expect(screen.getByText("Quality Check")).toBeInTheDocument();
+    expect(screen.getByText("Term check")).toBeInTheDocument();
+    expect(screen.queryByTestId("add-step")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Add tool")).not.toBeInTheDocument();
+    // Looking at the diagram changes nothing.
+    expect(spies.update).not.toHaveBeenCalled();
+    await user.click(screen.getByTestId("flow-view-steps"));
+    expect(await screen.findByTestId("parallel-group")).toBeInTheDocument();
+  });
+
   it("opens a project flow with its parallel group and saves an added branch", async () => {
     const { user, spies } = setup();
     await user.click(await screen.findByText("Translate and review"));

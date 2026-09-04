@@ -1,6 +1,12 @@
 import { describe, it, expect } from "vite-plus/test";
 import type { FlowDefinitionInfo } from "@neokapi/ui";
-import { definitionToSpec, flowStepNames, specToDefinition, toEditorDefinition } from "./flowGraph";
+import {
+  definitionToSpec,
+  flowStepNames,
+  specToDefinition,
+  toEditorDefinition,
+  toEditorTools,
+} from "./flowGraph";
 import { builtInTranslate, projectReview, sampleTools } from "./fixtures";
 
 describe("definitionToSpec", () => {
@@ -76,5 +82,21 @@ describe("flowStepNames", () => {
 
   it("falls back to the tool id when the registry does not know the tool", () => {
     expect(flowStepNames(projectReview, [])).toEqual(["translate", "Parallel group"]);
+  });
+});
+
+describe("toEditorTools", () => {
+  it("carries the transformer flag and the IO contract into the editor's shape", () => {
+    const [tool] = toEditorTools([
+      {
+        ...sampleTools[0],
+        is_source_transform: true,
+        consumes: [{ type: "entities", side: "source" }],
+      },
+    ]);
+    expect(tool.name).toBe("recycle");
+    expect(tool.display_name).toBe("Recycle");
+    expect(tool.isSourceTransform).toBe(true);
+    expect(tool.consumes).toHaveLength(1);
   });
 });

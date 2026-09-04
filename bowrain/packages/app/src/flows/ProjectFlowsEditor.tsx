@@ -11,7 +11,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { t } from "@neokapi/i18n-react/runtime";
 import { ErrorNotice, useApi } from "@neokapi/ui";
 import type { FlowDefinitionInfo, LinearFlowSpec } from "@neokapi/ui";
-import { definitionToSpec, specToDefinition, toEditorDefinition } from "./flowGraph";
+import { definitionToSpec, specToDefinition, toEditorDefinition, toEditorTools } from "./flowGraph";
 import { ProjectFlowList } from "./ProjectFlowList";
 import { ProjectFlowPane, type FlowSaveState } from "./ProjectFlowPane";
 
@@ -47,7 +47,7 @@ export function ProjectFlowsEditor({
     staleTime: 5 * 60_000,
   });
   const flows = flowsQuery.data ?? [];
-  const tools = toolsQuery.data ?? [];
+  const tools = useMemo(() => toEditorTools(toolsQuery.data ?? []), [toolsQuery.data]);
 
   const invalidate = useCallback(
     () => queryClient.invalidateQueries({ queryKey: flowsKey }),

@@ -8,9 +8,39 @@ import { defToSpec, specToDef } from "@neokapi/flow-editor";
 import type {
   FlowDefinitionInfo as EditorFlowDefinition,
   FlowNodeInfo as EditorFlowNode,
+  ToolInfo as EditorToolInfo,
 } from "@neokapi/flow-editor";
 import { t } from "@neokapi/i18n-react/runtime";
 import type { FlowDefinitionInfo, LinearFlowSpec, LinearFlowStep, ToolInfo } from "@neokapi/ui";
+
+/** What naming a step needs of a tool; both the platform's and the editor's tool shapes carry it. */
+export interface FlowToolName {
+  name: string;
+  display_name?: string;
+}
+
+/**
+ * The platform's tool list in the flow editor's shape: the diagram reads the
+ * IO contract and the transformer flag off it, the step editor the name and
+ * description.
+ */
+export function toEditorTools(tools: ToolInfo[]): EditorToolInfo[] {
+  return tools.map((tool) => ({
+    name: tool.name,
+    display_name: tool.display_name,
+    description: tool.description,
+    category: tool.category,
+    source: tool.source,
+    tags: tool.tags,
+    requires: tool.requires,
+    cardinality: tool.cardinality as EditorToolInfo["cardinality"],
+    default_locale: tool.default_locale,
+    consumes: tool.consumes,
+    produces: tool.produces,
+    side_effects: tool.side_effects,
+    isSourceTransform: tool.is_source_transform,
+  }));
+}
 
 /** The provenance values the conversion distinguishes. */
 function editorSource(source: string): EditorFlowDefinition["source"] {
@@ -76,18 +106,18 @@ export function specToDefinition(
 }
 
 /** A tool's name as shown to a reader: its display name, else its id. */
-export function toolDisplayName(toolName: string, tools: ToolInfo[]): string {
+export function toolDisplayName(toolName: string, tools: FlowToolName[]): string {
   return tools.find((tool) => tool.name === toolName)?.display_name || toolName;
 }
 
 /** A step's name for a chip: its own label, else its tool's name, else the group. */
-export function stepName(step: LinearFlowStep, tools: ToolInfo[]): string {
+export function stepName(step: LinearFlowStep, tools: FlowToolName[]): string {
   if (step.label) return step.label;
   if (Array.isArray(step.parallel)) return t("Parallel group");
   return toolDisplayName(step.tool, tools);
 }
 
 /** The definition's steps as ordered names, for the flow card's chip strip. */
-export function flowStepNames(def: FlowDefinitionInfo, tools: ToolInfo[]): string[] {
+export function flowStepNames(def: FlowDefinitionInfo, tools: FlowToolName[]): string[] {
   return definitionToSpec(def).steps.map((step) => stepName(step, tools));
 }

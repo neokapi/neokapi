@@ -80,6 +80,22 @@ test("renders a built-in flow's steps in order", async ({ page }) => {
   await expect(page.getByTestId("parallel-group")).toHaveCount(0);
 });
 
+test("shows a flow as a read-only diagram beside the step editor", async ({ page }) => {
+  await page.getByTestId("flow-item-translate").click();
+  await expect(page.getByTestId("flow-view-steps")).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByTestId("flow-view-run")).toHaveCount(0);
+
+  await page.getByTestId("flow-view-diagram").click();
+  const diagram = page.getByTestId("flow-diagram-view");
+  await expect(diagram).toBeVisible();
+  await expect(diagram.getByText("AI Translate").first()).toBeVisible();
+  await expect(page.getByTestId("step-row")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Add tool" })).toHaveCount(0);
+
+  await page.getByTestId("flow-view-steps").click();
+  await expect(page.getByTestId("step-row")).toHaveCount(2);
+});
+
 test("creates a new flow and shows its empty state", async ({ page }) => {
   await createNewFlow(page, "My Test Flow");
   await expect(page.getByTestId("flow-read-only")).toHaveCount(0);

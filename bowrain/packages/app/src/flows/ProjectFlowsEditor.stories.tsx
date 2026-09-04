@@ -3,7 +3,7 @@ import { fn } from "storybook/test";
 import { ApiProvider } from "@neokapi/ui";
 import { ProjectFlowsEditor } from "./ProjectFlowsEditor";
 import { ProjectFlowPane } from "./ProjectFlowPane";
-import { definitionToSpec } from "./flowGraph";
+import { definitionToSpec, toEditorTools } from "./flowGraph";
 import {
   builtInTranslate,
   createFlowsApi,
@@ -56,7 +56,7 @@ export const Empty: Story = { args: { flows: [] } };
 export const Loading: Story = { args: { delay: 60 * 60 * 1000 } };
 
 const paneArgs = {
-  tools: sampleTools,
+  tools: toEditorTools(sampleTools),
   onBack: fn(),
   onChange: fn(),
   onRename: fn(),
@@ -86,6 +86,17 @@ export const Editor: StoryObj<typeof Pane> = {
 
 export const EditorDark: StoryObj<typeof Pane> = {
   ...Editor,
+  globals: { theme: "dark" },
+};
+
+/** The same flow as its read-only diagram, the fan-out drawn as branches. */
+export const EditorDiagram: StoryObj<typeof Pane> = {
+  ...Editor,
+  args: { ...Editor.args, defaultView: "diagram" },
+};
+
+export const EditorDiagramDark: StoryObj<typeof Pane> = {
+  ...EditorDiagram,
   globals: { theme: "dark" },
 };
 

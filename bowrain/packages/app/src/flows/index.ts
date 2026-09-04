@@ -5,6 +5,8 @@ export {
   definitionToSpec,
   specToDefinition,
   toEditorDefinition,
+  toEditorTools,
+  type FlowToolName,
   flowStepNames,
   stepName,
   toolDisplayName,

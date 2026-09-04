@@ -18,12 +18,12 @@ import {
   Label,
   PageHeader,
 } from "@neokapi/ui";
-import type { FlowDefinitionInfo, ToolInfo } from "@neokapi/ui";
-import { flowStepNames } from "./flowGraph";
+import type { FlowDefinitionInfo } from "@neokapi/ui";
+import { flowStepNames, type FlowToolName } from "./flowGraph";
 
 export interface ProjectFlowListProps {
   flows: FlowDefinitionInfo[];
-  tools: ToolInfo[];
+  tools: FlowToolName[];
   loading?: boolean;
   /** A load or action failure to show above the list. */
   error?: unknown;

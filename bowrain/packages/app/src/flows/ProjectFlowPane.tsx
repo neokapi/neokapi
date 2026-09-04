@@ -1,17 +1,13 @@
 // One flow open for editing: a bar with the way back, the flow's provenance,
-// the save state and the flow-level actions, over the shared linear step
-// editor. A built-in flow is read-only and offers a copy to edit instead.
+// the save state and the flow-level actions, over the shared flow workbench
+// (Steps, the linear editor, and Diagram, the read-only canvas). A built-in
+// flow is read-only and offers a copy to edit instead.
 
 import { AlertTriangle, Check, Copy, Loader2, Lock, X } from "lucide-react";
-import { FlowTemplateLibrary } from "@neokapi/flow-editor";
-import {
-  Button,
-  ConfirmDeleteButton,
-  ErrorNotice,
-  LinearFlowEditor,
-  SimpleTooltip,
-} from "@neokapi/ui";
-import type { FlowDefinitionInfo, LinearFlowSpec, ToolInfo } from "@neokapi/ui";
+import { FlowTemplateLibrary, FlowViewTabs } from "@neokapi/flow-editor";
+import type { FlowView, ToolInfo as EditorToolInfo } from "@neokapi/flow-editor";
+import { Button, ConfirmDeleteButton, ErrorNotice, SimpleTooltip } from "@neokapi/ui";
+import type { FlowDefinitionInfo, LinearFlowSpec } from "@neokapi/ui";
 
 /** Where the open flow stands against the server. */
 export type FlowSaveState = "saved" | "unsaved" | "saving" | "error";
@@ -19,11 +15,14 @@ export type FlowSaveState = "saved" | "unsaved" | "saving" | "error";
 export interface ProjectFlowPaneProps {
   flow: FlowDefinitionInfo;
   spec: LinearFlowSpec;
-  tools: ToolInfo[];
+  /** The tool list in the editor's shape (see `toEditorTools`). */
+  tools: EditorToolInfo[];
   readOnly: boolean;
   saveState: FlowSaveState;
   /** The failure behind an `error` save state. */
   saveError?: unknown;
+  /** The view to open on; Steps unless told otherwise. */
+  defaultView?: FlowView;
   onBack: () => void;
   onChange: (spec: LinearFlowSpec) => void;
   onRename?: (name: string) => void;
@@ -72,6 +71,7 @@ export function ProjectFlowPane({
   readOnly,
   saveState,
   saveError,
+  defaultView,
   onBack,
   onChange,
   onRename,
@@ -118,8 +118,10 @@ export function ProjectFlowPane({
         <ErrorNotice error={saveError} title="Could not save the flow" variant="inline" />
       )}
 
-      <div className="min-h-[520px] overflow-hidden rounded-lg border border-border bg-card shadow-sm">
-        <LinearFlowEditor
+      {/* Steps (authoring) and Diagram (the read-only canvas). The platform
+          keeps no trace of a flow run, so there is no Run view. */}
+      <div className="h-[640px] overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+        <FlowViewTabs
           key={flow.id}
           flowName={flow.name}
           flow={spec}
@@ -127,6 +129,7 @@ export function ProjectFlowPane({
           onChange={onChange}
           readOnly={readOnly}
           onRename={readOnly ? undefined : onRename}
+          defaultView={defaultView}
           templateLibrary={readOnly ? undefined : <FlowTemplateLibrary onSelect={onChange} />}
         />
       </div>
