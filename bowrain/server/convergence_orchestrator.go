@@ -608,6 +608,19 @@ func (o *convergenceOrchestrator) driveWith(ctx context.Context, run *bstore.Con
 // failing block demotes its unit below the gate, so a connected `kapi up`
 // parks on failing terminology/length checks exactly like local `up` rather
 // than silently claiming converged.
+//
+// A target is counted only while it translates the source the block holds. The
+// ledger grades every recorded basis against the current source in one grouped
+// query (tallyDecisionBasis), and a unit whose basis is stale and that the
+// platform has not yet drafted against the current source is withheld from the
+// produced count, which is what the local venue's coverage does with AddStale
+// (host/coverage.go). So a run started by a source change has pending work and
+// calls Produce for the re-draft. A stale unit the platform HAS drafted against
+// the current source counts as produced again: its decision stays withdrawn
+// until a person re-reviews the draft, and that is the reviewer's work, not the
+// loop's. It keeps the locale's ship state pending (applyShipStates,
+// DeriveShipState) without keeping the run pending on production, so a decided
+// unit is drafted once per source change rather than once per pass.
 func (o *convergenceOrchestrator) deriveFunc(projectID, stream string, localeFilter []string) func(context.Context) (convergence.PassState, error) {
 	s := o.server
 	filter := map[string]bool{}
@@ -665,6 +678,18 @@ func (o *convergenceOrchestrator) deriveFunc(projectID, stream string, localeFil
 			return convergence.PassState{}, fmt.Errorf("load blocks for coverage: %w", err)
 		}
 
+		// The ledger's grading of every recorded basis against the current
+		// source, per locale: the units still owed a draft come off the
+		// produced count below.
+		collByItem := make(map[string]string, len(stats.ItemStats))
+		for _, it := range stats.ItemStats {
+			collByItem[it.ItemName] = it.CollectionID
+		}
+		basis, err := tallyDecisionBasis(ctx, s.ContentStore, projectID, runStream(stream), collByItem)
+		if err != nil {
+			return convergence.PassState{}, fmt.Errorf("grade decision basis: %w", err)
+		}
+
 		// Resolve each locale's totals, then check only the fully covered ones —
 		// a check pass is pointless below full coverage, the locale is pending
 		// regardless.
@@ -684,6 +709,12 @@ func (o *convergenceOrchestrator) deriveFunc(projectID, stream string, localeFil
 			if cov, ok := coverage[loc]; ok {
 				st.total, st.translated = cov.total, cov.translated
 			}
+			// A target whose recorded basis names wording the block no longer
+			// holds is not a translation of the source the project has, until
+			// the loop has drafted one. Withheld from the produced count, it
+			// keeps the locale below full coverage and the run pending on
+			// production, exactly as an untranslated unit does.
+			st.translated = max(st.translated-basis.forLocale(l).Owed, 0)
 			states[l] = st
 			if st.translated >= st.total {
 				toCheck = append(toCheck, loc)

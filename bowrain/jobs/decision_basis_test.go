@@ -335,3 +335,159 @@ func TestWorkerRecordsTheBasisOfWhatItDrafts(t *testing.T) {
 			"every unit reads settled after the run: %s", sb.Block.SourceText())
 	}
 }
+
+// decideStaleUnit puts a reviewer's approval on the fixture's stale unit,
+// recorded against the wording the source no longer carries. The approval is
+// what a source edit withdraws and what the worker must never write over.
+func (f basisFixture) decideStaleUnit(t *testing.T) {
+	t.Helper()
+	_, err := f.cs.UpsertUnitDecisions(t.Context(), f.projectID, "main", []venue.UnitDecision{{
+		ItemName:    f.item,
+		Unit:        "stale",
+		Variant:     "fr",
+		Status:      string(model.TargetStatusReviewed),
+		TargetHash:  state.TargetHash("Sélecteur de couleur"),
+		ContentHash: state.SourceHash("Colour picker (the wording before the fix)"),
+		ReviewState: "approved",
+		DecidedBy:   "reviewer-1",
+		Updated:     "2026-02-01T00:00:00Z",
+	}})
+	require.NoError(t, err)
+}
+
+// TestDecisionLedger_NeedsDraft_DraftedStaleUnitWaitsOnReview pins the guard on
+// a decided unit whose source moved: owed a draft until the platform records
+// the source it drafted against, then waiting on a reviewer with the decision
+// still on the row, then owed again when the source moves once more. The
+// estimate prices the same predicate at each step.
+func TestDecisionLedger_NeedsDraft_DraftedStaleUnitWaitsOnReview(t *testing.T) {
+	f := newBasisFixture(t)
+	ctx := t.Context()
+	f.decideStaleUnit(t)
+
+	ledger := loadDecisionLedger(ctx, f.cs, f.projectID, "main")
+	stored := f.storedFor(t)
+	assert.True(t, ledger.needsDraft(stored[basisStaleSource], "fr"),
+		"the approval blessed wording the source no longer carries")
+
+	proj, err := f.cs.GetProject(ctx, f.projectID)
+	require.NoError(t, err)
+	est, err := EstimateConvergence(ctx, f.cs, nil, proj)
+	require.NoError(t, err)
+	assert.Equal(t, 1, est.Totals.Pending, "the quote prices the re-draft")
+
+	require.NoError(t, f.cs.RecordDraftBases(ctx, f.projectID, "main", []store.DraftBasis{{
+		ItemName: f.item, Unit: "stale", Variant: "fr", SourceHash: state.SourceHash(basisStaleSource),
+	}}))
+	ledger = loadDecisionLedger(ctx, f.cs, f.projectID, "main")
+	assert.False(t, ledger.needsDraft(stored[basisStaleSource], "fr"),
+		"drafted against the source the project holds now: the unit waits on a reviewer")
+	rec, ok := ledger[decisionUnitKey{item: f.item, unit: "stale", variant: "fr"}]
+	require.True(t, ok)
+	assert.Equal(t, "approved", rec.ReviewState, "the decision is still the reviewer's")
+	assert.Equal(t, state.SourceHash("Colour picker (the wording before the fix)"), rec.ContentHash)
+	assert.Equal(t, state.SourceHash(basisStaleSource), rec.draftBasis)
+
+	est, err = EstimateConvergence(ctx, f.cs, nil, proj)
+	require.NoError(t, err)
+	assert.Zero(t, est.Totals.Pending, "the quote owes nothing for a unit awaiting review")
+
+	// The source moves again, away from the mark.
+	require.NoError(t, f.cs.StoreBlocksForItem(ctx, f.projectID, "main", f.item, []*model.Block{
+		basisBlock("stale", "Colour picker, revised", "Sélecteur de couleur"),
+	}))
+	ledger = loadDecisionLedger(ctx, f.cs, f.projectID, "main")
+	stored = f.storedFor(t)
+	assert.True(t, ledger.needsDraft(stored["Colour picker, revised"], "fr"),
+		"a second rewrite is owed a second draft")
+}
+
+// TestWorker_DraftsAStaleDecidedUnitOncePerSourceChange drives the real worker
+// over a decided unit whose source moved: the first job re-drafts it and
+// records the source it drafted against, leaving the reviewer's approval on the
+// row; the second job finds nothing owed; and a further source rewrite is
+// drafted once more.
+func TestWorker_DraftsAStaleDecidedUnitOncePerSourceChange(t *testing.T) {
+	f := newBasisFixture(t)
+	ctx := t.Context()
+	f.decideStaleUnit(t)
+
+	js, err := NewJobStore(f.db)
+	require.NoError(t, err)
+	deps := &WorkerDeps{
+		JobStore:      js,
+		ContentStore:  f.cs,
+		Platform:      &PlatformProviderConfig{Provider: "demo"},
+		ProviderStore: &fakeProviderResolver{cfg: bstore.ProviderConfig{Type: "demo"}},
+	}
+	runJob := func(id string) *TranslationJob {
+		t.Helper()
+		job := &TranslationJob{
+			ID:               id,
+			WorkspaceSlug:    "acme",
+			ProjectID:        f.projectID,
+			ItemName:         f.item,
+			TargetLocale:     "fr",
+			ProviderConfigID: "platform",
+			Model:            "demo",
+			Status:           StatusQueued,
+		}
+		require.NoError(t, js.CreateJob(ctx, job))
+		claimed, epoch, err := js.ClaimJob(ctx, job.ID)
+		require.NoError(t, err)
+		require.True(t, claimed)
+		require.NoError(t, executeTranslationWithDeps(ctx, deps, job, epoch))
+		done, err := js.GetJob(ctx, job.ID)
+		require.NoError(t, err)
+		return done
+	}
+	ledgerRow := func() (venue.UnitDecision, string) {
+		t.Helper()
+		records, err := f.cs.ListUnitDecisions(ctx, f.projectID, "main")
+		require.NoError(t, err)
+		var rec venue.UnitDecision
+		for _, d := range records {
+			if d.Unit == "stale" {
+				rec = d
+			}
+		}
+		drafts, err := f.cs.ListDraftBases(ctx, f.projectID, "main")
+		require.NoError(t, err)
+		mark := ""
+		for _, d := range drafts {
+			if d.Unit == "stale" {
+				mark = d.SourceHash
+			}
+		}
+		return rec, mark
+	}
+
+	first := runJob("job-redraft-1")
+	assert.Equal(t, 1, first.TotalBlocks, "only the stale unit is owed")
+	stored := f.storedFor(t)
+	redrafted := stored[basisStaleSource].Block.TargetText("fr")
+	assert.NotEqual(t, "Sélecteur de couleur", redrafted, "the stale unit is re-drafted")
+	rec, mark := ledgerRow()
+	assert.Equal(t, "approved", rec.ReviewState, "the reviewer's decision stays on the row")
+	assert.Equal(t, "reviewer-1", rec.DecidedBy)
+	assert.Equal(t, state.SourceHash("Colour picker (the wording before the fix)"), rec.ContentHash,
+		"the decision's basis is never written over")
+	assert.Equal(t, state.SourceHash(basisStaleSource), mark, "the draft is marked with the source it was made from")
+
+	second := runJob("job-redraft-2")
+	assert.Zero(t, second.TotalBlocks, "nothing is owed: the unit waits on a reviewer")
+	assert.Zero(t, second.DoneBlocks)
+	stored = f.storedFor(t)
+	assert.Equal(t, redrafted, stored[basisStaleSource].Block.TargetText("fr"))
+
+	// The source moves again: one more draft, and one only.
+	require.NoError(t, f.cs.StoreBlocksForItem(ctx, f.projectID, "main", f.item, []*model.Block{
+		basisBlock("stale", "Colour picker, revised", redrafted),
+	}))
+	third := runJob("job-redraft-3")
+	assert.Equal(t, 1, third.TotalBlocks, "a second rewrite is owed a second draft")
+	_, mark = ledgerRow()
+	assert.Equal(t, state.SourceHash("Colour picker, revised"), mark)
+	fourth := runJob("job-redraft-4")
+	assert.Zero(t, fourth.TotalBlocks)
+}

@@ -243,11 +243,12 @@ func TestTallyDecisionBasis(t *testing.T) {
 		unit            string
 		wantStale       int
 		wantUnknown     int
+		wantOwed        int
 	}{
 		{name: "basis matches the current source", basis: "current", translatable: true, unit: "greeting"},
 		{
 			name: "source rewritten under the decision", basis: "current",
-			rewriteSourceTo: "Hello there", translatable: true, unit: "greeting", wantStale: 1,
+			rewriteSourceTo: "Hello there", translatable: true, unit: "greeting", wantStale: 1, wantOwed: 1,
 		},
 		{name: "decision recorded before the basis was tracked", basis: "", translatable: true, unit: "greeting", wantUnknown: 1},
 		{
@@ -296,6 +297,7 @@ func TestTallyDecisionBasis(t *testing.T) {
 				for _, got := range tallies {
 					assert.Zero(t, got.Stale, "nothing is stale")
 					assert.Zero(t, got.BasisUnknown, "no basis is unknown")
+					assert.Zero(t, got.Owed, "nothing is owed")
 				}
 				return
 			}
@@ -304,8 +306,99 @@ func TestTallyDecisionBasis(t *testing.T) {
 			assert.Equal(t, "nb", tallies[0].Variant)
 			assert.Equal(t, tt.wantStale, tallies[0].Stale)
 			assert.Equal(t, tt.wantUnknown, tallies[0].BasisUnknown)
+			assert.Equal(t, tt.wantOwed, tallies[0].Owed)
 		})
 	}
+}
+
+// TestRecordDraftBases pins the draft mark beside the decision: a stale unit is
+// owed a draft until the platform stamps the source it drafted against, the
+// stamp never touches the decision, a unit the ledger does not hold gets no
+// row, a stale decision on a unit with no target is not owed (it is pending as
+// untranslated already), and a second source rewrite makes the unit owed again.
+func TestRecordDraftBases(t *testing.T) {
+	s := newTestStore(t)
+	ctx := t.Context()
+	p := createTestProject(t, s)
+
+	decided := blockWithTarget("greeting", "Hello", "Hei", model.TargetStatusReviewed)
+	undecided := blockWithTarget("farewell", "Goodbye", "Ha det", model.TargetStatusTranslated)
+	bare := blockWithText("untranslated", "See you")
+	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "en.json", []*model.Block{decided, undecided, bare}))
+
+	_, err := s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{
+		{
+			ItemName: "en.json", Unit: "greeting", Variant: "nb",
+			Status: string(model.TargetStatusReviewed), ReviewState: "approved", DecidedBy: "reviewer-1",
+			TargetHash: state.TargetHash("Hei"), ContentHash: state.SourceHash("Hello"),
+			Updated: "2026-08-04T10:00:00Z",
+		},
+		{
+			ItemName: "en.json", Unit: "farewell", Variant: "nb",
+			TargetHash: state.TargetHash("Ha det"), ContentHash: state.SourceHash("Goodbye"),
+			Updated: "2026-08-04T10:00:00Z",
+		},
+		{
+			ItemName: "en.json", Unit: "untranslated", Variant: "nb",
+			Status: string(model.TargetStatusReviewed), ReviewState: "approved", DecidedBy: "reviewer-1",
+			ContentHash: state.SourceHash("See you"),
+			Updated:     "2026-08-04T10:00:00Z",
+		},
+	})
+	require.NoError(t, err)
+
+	// Every source moves. All three records read stale; the two units that
+	// carry a target are owed a draft.
+	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "en.json", []*model.Block{
+		blockWithText("greeting", "Hello there"),
+		blockWithText("farewell", "Goodbye then"),
+		blockWithText("untranslated", "See you soon"),
+	}))
+	tally := func() platstore.DecisionBasisTally {
+		t.Helper()
+		tallies, err := s.TallyDecisionBasis(ctx, p.ID, "main")
+		require.NoError(t, err)
+		require.Len(t, tallies, 1, "one (item, variant) scope")
+		return tallies[0]
+	}
+	got := tally()
+	assert.Equal(t, 3, got.Stale)
+	assert.Equal(t, 2, got.Owed, "a stale decision on a unit with no target is not owed")
+
+	require.NoError(t, s.RecordDraftBases(ctx, p.ID, "main", []platstore.DraftBasis{
+		{ItemName: "en.json", Unit: "greeting", Variant: "nb", SourceHash: state.SourceHash("Hello there")},
+		{ItemName: "en.json", Unit: "farewell", Variant: "nb", SourceHash: state.SourceHash("Goodbye then")},
+		{ItemName: "en.json", Unit: "absent", Variant: "nb", SourceHash: state.SourceHash("nothing")},
+	}))
+	got = tally()
+	assert.Equal(t, 3, got.Stale, "the decisions stay stale until a person replaces them")
+	assert.Zero(t, got.Owed, "drafted against the current source: the loop owes nothing")
+
+	drafts, err := s.ListDraftBases(ctx, p.ID, "main")
+	require.NoError(t, err)
+	require.Len(t, drafts, 2, "a unit the ledger does not hold gets no row")
+	assert.Equal(t, platstore.DraftBasis{ItemName: "en.json", Unit: "farewell", Variant: "nb", SourceHash: state.SourceHash("Goodbye then")}, drafts[0])
+	assert.Equal(t, platstore.DraftBasis{ItemName: "en.json", Unit: "greeting", Variant: "nb", SourceHash: state.SourceHash("Hello there")}, drafts[1])
+
+	records, err := s.ListUnitDecisions(ctx, p.ID, "main")
+	require.NoError(t, err)
+	byUnit := map[string]venue.UnitDecision{}
+	for _, d := range records {
+		byUnit[d.Unit] = d
+	}
+	require.Len(t, byUnit, 3)
+	assert.Equal(t, "approved", byUnit["greeting"].ReviewState, "the stamp never touches the decision")
+	assert.Equal(t, "reviewer-1", byUnit["greeting"].DecidedBy)
+	assert.Equal(t, state.SourceHash("Hello"), byUnit["greeting"].ContentHash)
+	assert.Equal(t, state.TargetHash("Hei"), byUnit["greeting"].TargetHash)
+
+	// The source moves again, away from the mark: owed once more.
+	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "en.json", []*model.Block{
+		blockWithText("greeting", "Hello again"),
+	}))
+	got = tally()
+	assert.Equal(t, 3, got.Stale)
+	assert.Equal(t, 1, got.Owed, "a second rewrite is owed a second draft")
 }
 
 // TestUnitDecisions_StaleBasisDoesNotProject: a decision arriving against

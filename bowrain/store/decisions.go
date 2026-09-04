@@ -305,12 +305,24 @@ func (s *PostgresStore) GetUnitDecision(ctx context.Context, projectID, stream, 
 // nothing to grade it against. Only translatable blocks are counted: the
 // dashboard's denominators exclude the rest, and a stale count outside the
 // denominator would withhold a scope for content nobody ships.
+//
+// Owed is the same grading with the draft basis read beside the decision: a
+// stale decision whose row records no draft against the current source, on a
+// unit that carries a target for the variant. The target condition keeps the
+// count inside the translated denominator it is subtracted from; a stale
+// decision on a unit with no target is pending as untranslated already.
 func (s *PostgresStore) TallyDecisionBasis(ctx context.Context, projectID, stream string) ([]platstore.DecisionBasisTally, error) {
 	stream = storeutil.DefaultStream(stream)
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT d.item_name, d.variant,
 			COALESCE(SUM(CASE WHEN d.content_hash <> '' AND d.content_hash <> b.content_hash THEN 1 ELSE 0 END), 0),
-			COALESCE(SUM(CASE WHEN d.content_hash = '' THEN 1 ELSE 0 END), 0)
+			COALESCE(SUM(CASE WHEN d.content_hash = '' THEN 1 ELSE 0 END), 0),
+			COALESCE(SUM(CASE WHEN d.content_hash <> '' AND d.content_hash <> b.content_hash
+				AND d.draft_basis <> b.content_hash
+				AND EXISTS (SELECT 1 FROM translations t
+					WHERE t.project_id = b.project_id AND t.stream = b.stream
+					AND t.block_id = b.id AND t.locale = d.variant)
+				THEN 1 ELSE 0 END), 0)
 		 FROM unit_decisions d
 		 JOIN blocks b ON b.project_id = d.project_id
 			AND b.stream = d.stream
@@ -328,10 +340,69 @@ func (s *PostgresStore) TallyDecisionBasis(ctx context.Context, projectID, strea
 	var out []platstore.DecisionBasisTally
 	for rows.Next() {
 		var t platstore.DecisionBasisTally
-		if err := rows.Scan(&t.ItemName, &t.Variant, &t.Stale, &t.BasisUnknown); err != nil {
+		if err := rows.Scan(&t.ItemName, &t.Variant, &t.Stale, &t.BasisUnknown, &t.Owed); err != nil {
 			return nil, fmt.Errorf("scan decision basis tally: %w", err)
 		}
 		out = append(out, t)
+	}
+	return out, rows.Err()
+}
+
+// RecordDraftBases implements platstore.DecisionStore. One UPDATE per unit,
+// keyed on the item the unit belongs to by identity rather than by name, so a
+// stamp lands on the right row across a rename. A unit with no ledger row
+// matches nothing and is left without one: a row carrying only a draft basis
+// would read as a decision with an unknown basis.
+func (s *PostgresStore) RecordDraftBases(ctx context.Context, projectID, stream string, drafts []platstore.DraftBasis) error {
+	if len(drafts) == 0 {
+		return nil
+	}
+	stream = storeutil.DefaultStream(stream)
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin draft basis tx: %w", err)
+	}
+	defer tx.Rollback() //nolint:errcheck // no-op after Commit; the commit error is what matters
+
+	now := time.Now().UTC()
+	for _, d := range drafts {
+		if d.ItemName == "" || d.Unit == "" || d.Variant == "" {
+			continue
+		}
+		if _, err := tx.ExecContext(ctx,
+			`UPDATE unit_decisions SET draft_basis=$6, updated_at=$7
+			 WHERE project_id=$1 AND stream=$2 AND unit=$4 AND variant=$5
+			   AND item_id = (SELECT id FROM items WHERE project_id=$1 AND stream=$2 AND name=$3)`,
+			projectID, stream, d.ItemName, d.Unit, d.Variant, d.SourceHash, now); err != nil {
+			return fmt.Errorf("record draft basis %s/%s: %w", d.Unit, d.Variant, err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit draft bases: %w", err)
+	}
+	return nil
+}
+
+// ListDraftBases implements platstore.DecisionStore.
+func (s *PostgresStore) ListDraftBases(ctx context.Context, projectID, stream string) ([]platstore.DraftBasis, error) {
+	stream = storeutil.DefaultStream(stream)
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT item_name, unit, variant, draft_basis
+		 FROM unit_decisions WHERE project_id=$1 AND stream=$2 AND draft_basis <> ''
+		 ORDER BY item_name, unit, variant`,
+		projectID, stream)
+	if err != nil {
+		return nil, fmt.Errorf("list draft bases: %w", err)
+	}
+	defer rows.Close()
+
+	var out []platstore.DraftBasis
+	for rows.Next() {
+		var d platstore.DraftBasis
+		if err := rows.Scan(&d.ItemName, &d.Unit, &d.Variant, &d.SourceHash); err != nil {
+			return nil, fmt.Errorf("scan draft basis: %w", err)
+		}
+		out = append(out, d)
 	}
 	return out, rows.Err()
 }

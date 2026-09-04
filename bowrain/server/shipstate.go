@@ -340,10 +340,12 @@ func shipGateBatches(stale []store.ShipGateStale, size int) []shipGateGroup {
 	return out
 }
 
-// basisCounts is one scope's stale / unknown-basis decision counts.
+// basisCounts is one scope's stale / unknown-basis decision counts, and the
+// part of the stale count the convergence loop still owes a draft for.
 type basisCounts struct {
 	Stale        int
 	BasisUnknown int
+	Owed         int
 }
 
 // basisRollup carries the graded decision basis at both aggregation levels the
@@ -392,7 +394,7 @@ func tallyDecisionBasis(ctx context.Context, cs store.ContentStore, projectID, s
 		return out, fmt.Errorf("grade decision basis: %w", err)
 	}
 	for _, t := range tallies {
-		if t.Stale == 0 && t.BasisUnknown == 0 {
+		if t.Stale == 0 && t.BasisUnknown == 0 && t.Owed == 0 {
 			continue
 		}
 		var variant model.VariantKey
@@ -404,6 +406,7 @@ func tallyDecisionBasis(ctx context.Context, cs store.ContentStore, projectID, s
 		p := out.project[loc]
 		p.Stale += t.Stale
 		p.BasisUnknown += t.BasisUnknown
+		p.Owed += t.Owed
 		out.project[loc] = p
 
 		cid := collByItem[t.ItemName]
@@ -413,6 +416,7 @@ func tallyDecisionBasis(ctx context.Context, cs store.ContentStore, projectID, s
 		c := out.byColl[cid][loc]
 		c.Stale += t.Stale
 		c.BasisUnknown += t.BasisUnknown
+		c.Owed += t.Owed
 		out.byColl[cid][loc] = c
 	}
 	return out, nil

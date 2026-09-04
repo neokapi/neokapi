@@ -174,6 +174,13 @@ a person; it grades as basis unknown and is left alone and reported. No host
 clears targets to force the loop's attention, and the records travel with the
 decisions on push, so a venue receives the same basis the loop worked from.
 
+The server's translation worker reads the same ledger. A target whose recorded
+basis is stale is owed a draft, a target the ledger has no record of is left
+alone, and a decided unit is drafted once per source change: the worker marks
+the row with the source it drafted against, beside the decision it may not
+replace, and the next pass counts the unit as awaiting review rather than as
+work ([C-04](../context/c-04-unit-state-and-decisions.md)).
+
 ### A push carries decisions; the venue decides
 
 A working copy holds its own decision record, and `kapi push` sends it with the

@@ -954,4 +954,15 @@ var storeMigrations = []storage.Migration{
 				  AND i.name = proposed_source_changes.item_name), '');
 		`,
 	},
+	{
+		Version:     21,
+		Description: "the ledger records the source the platform last drafted a unit against",
+		SQL: `
+			-- Mirrors bowrain/store/migrations.go version 30: the source hash
+			-- the platform's latest draft of the unit was made against, kept
+			-- beside the decision on the same row and never written over it.
+			-- Empty means the platform has recorded no draft for the unit.
+			ALTER TABLE unit_decisions ADD COLUMN draft_basis TEXT NOT NULL DEFAULT '';
+		`,
+	},
 }

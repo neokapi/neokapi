@@ -1077,6 +1077,7 @@ unit_decisions.assignee text NOT NULL DEFAULT ''::text
 unit_decisions.content_hash text NOT NULL DEFAULT ''::text
 unit_decisions.decided_at text NOT NULL DEFAULT ''::text
 unit_decisions.decided_by text NOT NULL DEFAULT ''::text
+unit_decisions.draft_basis text NOT NULL DEFAULT ''::text
 unit_decisions.item_id text NOT NULL DEFAULT ''::text
 unit_decisions.item_name text NOT NULL DEFAULT ''::text
 unit_decisions.note text NOT NULL DEFAULT ''::text

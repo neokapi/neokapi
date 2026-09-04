@@ -238,13 +238,19 @@ func (s *SQLiteStore) GetUnitDecision(ctx context.Context, projectID, stream, it
 
 // TallyDecisionBasis implements platstore.DecisionStore — the SQLite mirror of
 // the Postgres grading, joining each decision's recorded basis to the block's
-// current source hash.
+// current source hash, and its draft basis beside it for the owed count.
 func (s *SQLiteStore) TallyDecisionBasis(ctx context.Context, projectID, stream string) ([]platstore.DecisionBasisTally, error) {
 	stream = storeutil.DefaultStream(stream)
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT d.item_name, d.variant,
 			COALESCE(SUM(CASE WHEN d.content_hash <> '' AND d.content_hash <> b.content_hash THEN 1 ELSE 0 END), 0),
-			COALESCE(SUM(CASE WHEN d.content_hash = '' THEN 1 ELSE 0 END), 0)
+			COALESCE(SUM(CASE WHEN d.content_hash = '' THEN 1 ELSE 0 END), 0),
+			COALESCE(SUM(CASE WHEN d.content_hash <> '' AND d.content_hash <> b.content_hash
+				AND d.draft_basis <> b.content_hash
+				AND EXISTS (SELECT 1 FROM translations t
+					WHERE t.project_id = b.project_id AND t.stream = b.stream
+					AND t.block_id = b.id AND t.locale = d.variant)
+				THEN 1 ELSE 0 END), 0)
 		 FROM unit_decisions d
 		 JOIN blocks b ON b.project_id = d.project_id
 			AND b.stream = d.stream
@@ -262,10 +268,67 @@ func (s *SQLiteStore) TallyDecisionBasis(ctx context.Context, projectID, stream 
 	var out []platstore.DecisionBasisTally
 	for rows.Next() {
 		var t platstore.DecisionBasisTally
-		if err := rows.Scan(&t.ItemName, &t.Variant, &t.Stale, &t.BasisUnknown); err != nil {
+		if err := rows.Scan(&t.ItemName, &t.Variant, &t.Stale, &t.BasisUnknown, &t.Owed); err != nil {
 			return nil, fmt.Errorf("scan decision basis tally: %w", err)
 		}
 		out = append(out, t)
+	}
+	return out, rows.Err()
+}
+
+// RecordDraftBases implements platstore.DecisionStore, mirroring the Postgres
+// stamp: one UPDATE per unit, keyed on the item by identity, and no row
+// created for a unit the ledger does not hold.
+func (s *SQLiteStore) RecordDraftBases(ctx context.Context, projectID, stream string, drafts []platstore.DraftBasis) error {
+	if len(drafts) == 0 {
+		return nil
+	}
+	stream = storeutil.DefaultStream(stream)
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin draft basis tx: %w", err)
+	}
+	defer tx.Rollback() //nolint:errcheck // no-op after Commit; the commit error is what matters
+
+	now := time.Now().UTC().Format(time.RFC3339)
+	for _, d := range drafts {
+		if d.ItemName == "" || d.Unit == "" || d.Variant == "" {
+			continue
+		}
+		if _, err := tx.ExecContext(ctx,
+			`UPDATE unit_decisions SET draft_basis=?, updated_at=?
+			 WHERE project_id=? AND stream=? AND unit=? AND variant=?
+			   AND item_id = (SELECT id FROM items WHERE project_id=? AND stream=? AND name=?)`,
+			d.SourceHash, now, projectID, stream, d.Unit, d.Variant, projectID, stream, d.ItemName); err != nil {
+			return fmt.Errorf("record draft basis %s/%s: %w", d.Unit, d.Variant, err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit draft bases: %w", err)
+	}
+	return nil
+}
+
+// ListDraftBases implements platstore.DecisionStore.
+func (s *SQLiteStore) ListDraftBases(ctx context.Context, projectID, stream string) ([]platstore.DraftBasis, error) {
+	stream = storeutil.DefaultStream(stream)
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT item_name, unit, variant, draft_basis
+		 FROM unit_decisions WHERE project_id=? AND stream=? AND draft_basis <> ''
+		 ORDER BY item_name, unit, variant`,
+		projectID, stream)
+	if err != nil {
+		return nil, fmt.Errorf("list draft bases: %w", err)
+	}
+	defer rows.Close()
+
+	var out []platstore.DraftBasis
+	for rows.Next() {
+		var d platstore.DraftBasis
+		if err := rows.Scan(&d.ItemName, &d.Unit, &d.Variant, &d.SourceHash); err != nil {
+			return nil, fmt.Errorf("scan draft basis: %w", err)
+		}
+		out = append(out, d)
 	}
 	return out, rows.Err()
 }

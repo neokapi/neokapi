@@ -618,6 +618,26 @@ func (s *EventEmittingStore) TallyDecisionBasis(ctx context.Context, projectID, 
 	return ds.TallyDecisionBasis(ctx, projectID, stream)
 }
 
+// RecordDraftBases forwards the optional DecisionStore capability. A store
+// that keeps no ledger has no row to stamp, and the loop it serves reads the
+// silence as "no draft recorded", which costs a re-draft and nothing else.
+func (s *EventEmittingStore) RecordDraftBases(ctx context.Context, projectID, stream string, drafts []store.DraftBasis) error {
+	ds, ok := s.inner.(store.DecisionStore)
+	if !ok {
+		return nil
+	}
+	return ds.RecordDraftBases(ctx, projectID, stream, drafts)
+}
+
+// ListDraftBases forwards the optional DecisionStore capability.
+func (s *EventEmittingStore) ListDraftBases(ctx context.Context, projectID, stream string) ([]store.DraftBasis, error) {
+	ds, ok := s.inner.(store.DecisionStore)
+	if !ok {
+		return nil, nil
+	}
+	return ds.ListDraftBases(ctx, projectID, stream)
+}
+
 // GetBlockAccess forwards the optional BlockAccessStore capability.
 func (s *EventEmittingStore) GetBlockAccess(ctx context.Context, projectID, stream, blockID string) (string, string, error) {
 	as, ok := s.inner.(store.BlockAccessStore)
