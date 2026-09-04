@@ -123,6 +123,52 @@ describe("parseAppError(ApiError) — the central code → copy map", () => {
   });
 });
 
+describe("parseAppError(ApiError) — a 403 that states its reason", () => {
+  // The review surface's banner: the server refuses the reviewer's own work
+  // with one sentence, and no grant fixes it, so no remedy is appended. The
+  // per-status remedy is reserved for a 403 that carries no explanation.
+  const refusal = "separation of duties: you cannot review or approve your own work";
+
+  it("renders a separation-of-duties refusal as its own sentence", () => {
+    const parsed = parseAppError(
+      apiErrorFromResponse(403, JSON.stringify({ error: refusal }), "req-sod"),
+    );
+    expect(parsed.title).toBe("Separation of duties: you cannot review or approve your own work");
+    expect(parsed.detail).toBeUndefined();
+    expect(parsed.hint).toBeUndefined();
+    expect(parsed.status).toBe(403);
+    expect(parsed.reference).toBe("req-sod");
+  });
+
+  it("keeps the permission remedy for a refusal written for a missing grant", () => {
+    const parsed = parseAppError(
+      apiErrorFromResponse(403, '{"error":"insufficient project permissions"}'),
+    );
+    expect(parsed.title).toBe("You don't have permission to do that");
+    expect(parsed.detail).toBe("Insufficient project permissions");
+    expect(parsed.hint).toBe("Ask a workspace admin to grant you access.");
+  });
+
+  it("falls back to the status phrasing for a 403 with no body", () => {
+    const parsed = parseAppError(apiErrorFromResponse(403, "", "req-hdr-3"));
+    expect(parsed.title).toBe("You don't have permission to do that");
+    expect(parsed.hint).toBe("Ask a workspace admin to grant you access.");
+    expect(parsed.reference).toBe("req-hdr-3");
+  });
+
+  it("falls back to the status phrasing for a 403 whose body is not JSON", () => {
+    const html = parseAppError(apiErrorFromResponse(403, "<html><body>Forbidden</body></html>"));
+    expect(html.title).toBe("You don't have permission to do that");
+    expect(html.detail).toBeUndefined();
+    expect(html.hint).toBe("Ask a workspace admin to grant you access.");
+
+    const text = parseAppError(apiErrorFromResponse(403, "Forbidden"));
+    expect(text.title).toBe("You don't have permission to do that");
+    expect(text.detail).toBe("Forbidden");
+    expect(text.hint).toBe("Ask a workspace admin to grant you access.");
+  });
+});
+
 describe("parseAppError on raw envelope objects (no ApiError wrapper)", () => {
   it("reads message/reference from the envelope", () => {
     const parsed = parseAppError({

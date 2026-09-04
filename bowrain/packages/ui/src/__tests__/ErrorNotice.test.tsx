@@ -2,6 +2,7 @@ import { describe, it, expect } from "vite-plus/test";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ErrorNotice } from "../errors/ErrorNotice";
+import { apiErrorFromResponse } from "../errors/ApiError";
 import { tokenizeJson } from "../errors/JsonHighlight";
 
 describe("ErrorNotice", () => {
@@ -54,6 +55,38 @@ describe("ErrorNotice", () => {
   it("renders the recovery hint", () => {
     render(<ErrorNotice error={{ error: "forbidden", code: "forbidden" }} />);
     expect(screen.getByRole("alert")).toHaveTextContent(/workspace admin/i);
+  });
+
+  it("shows a refused review action as the server's sentence, with no permission remedy", () => {
+    // The review banner: a separation-of-duties 403 is refused for who the
+    // reviewer is, so the sentence stands alone.
+    const refusal = "separation of duties: you cannot review or approve your own work";
+    render(
+      <ErrorNotice
+        variant="inline"
+        title="The review action didn't go through"
+        error={apiErrorFromResponse(403, JSON.stringify({ error: refusal }))}
+      />,
+    );
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent("The review action didn't go through");
+    expect(alert).toHaveTextContent(
+      "Separation of duties: you cannot review or approve your own work",
+    );
+    expect(alert).not.toHaveTextContent(/workspace admin/i);
+  });
+
+  it("keeps the permission remedy for a 403 written for a missing grant", () => {
+    render(
+      <ErrorNotice
+        variant="inline"
+        title="The review action didn't go through"
+        error={apiErrorFromResponse(403, '{"error":"insufficient project permissions"}')}
+      />,
+    );
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent("You don't have permission to do that");
+    expect(alert).toHaveTextContent(/workspace admin/i);
   });
 
   it("renders the inline variant with a working disclosure", async () => {

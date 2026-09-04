@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vite-plus/test";
-import { parseAppError, hasStructuredRaw } from "../errors/parseAppError";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { parseAppError, hasStructuredRaw, PERMISSION_REFUSALS } from "../errors/parseAppError";
 
 describe("parseAppError", () => {
   describe("envelope shapes", () => {
@@ -201,5 +204,130 @@ describe("parseAppError", () => {
     const doubly = JSON.stringify({ error: JSON.stringify({ error: "inner" }) });
     const parsed = parseAppError(doubly);
     expect(parsed.title).toBe('{"error":"inner"}');
+  });
+
+  describe("per-status remedies", () => {
+    // The remedy a status maps to presumes a cause: "ask an admin" presumes a
+    // missing grant. A response that names its own cause renders that sentence
+    // and nothing more; the status phrase stands in only when the body carries
+    // no explanation at all.
+    const refusal = "separation of duties: you cannot review or approve your own work";
+
+    it("renders a 403 that states its reason without the permission remedy", () => {
+      const parsed = parseAppError(new Error(`403: ${JSON.stringify({ error: refusal })}`));
+      expect(parsed.title).toBe("Separation of duties: you cannot review or approve your own work");
+      expect(parsed.detail).toBeUndefined();
+      expect(parsed.hint).toBeUndefined();
+      expect(parsed.status).toBe(403);
+    });
+
+    it("renders a 409 that states its reason without the refresh remedy", () => {
+      const parsed = parseAppError(
+        new Error(
+          '409: {"error":"governed change requires a change-set","detail":"deleting concepts","hint":"open a change-set"}',
+        ),
+      );
+      expect(parsed.title).toBe("Governed change requires a change-set");
+      expect(parsed.hint).toBeUndefined();
+    });
+
+    it("renders a {message} envelope carrying a status without a status remedy", () => {
+      const parsed = parseAppError(new Error('403: {"message":"this file is read-only"}'));
+      expect(parsed.title).toBe("This file is read-only");
+      expect(parsed.hint).toBeUndefined();
+      expect(parsed.status).toBe(403);
+    });
+
+    it("renders a 5xx envelope as the server's sentence and reference alone", () => {
+      const parsed = parseAppError(
+        new Error(
+          `500: ${JSON.stringify({
+            error: "internal server error",
+            message:
+              "The server encountered an unexpected error while handling this request. Quote the reference when reporting it.",
+            reference: "req-5",
+          })}`,
+        ),
+      );
+      expect(parsed.title).toMatch(/^The server encountered an unexpected error/);
+      expect(parsed.hint).toBeUndefined();
+      expect(parsed.reference).toBe("req-5");
+    });
+
+    it("keeps the permission remedy for the refusals the server writes for a missing grant", () => {
+      for (const body of [
+        '{"error":"insufficient project permissions"}',
+        '{"error":"insufficient permissions"}',
+        '{"error":"no review permission for fr"}',
+        '{"error":"no access to language: fr"}',
+        '{"error":"demoting a signed-off target requires review permission"}',
+      ]) {
+        const parsed = parseAppError(new Error(`403: ${body}`));
+        expect(parsed.title, body).toBe("You don't have permission to do that");
+        expect(parsed.hint, body).toBe("Ask a workspace admin to grant you access.");
+        expect(parsed.detail, body).toBeDefined();
+      }
+    });
+
+    it("falls back to the status phrasing for a bare 403", () => {
+      const parsed = parseAppError(new Error("403: "));
+      expect(parsed.title).toBe("You don't have permission to do that");
+      expect(parsed.detail).toBeUndefined();
+      expect(parsed.hint).toBe("Ask a workspace admin to grant you access.");
+    });
+
+    it("falls back to the status phrasing for a 403 whose body is not JSON", () => {
+      const html = parseAppError(new Error("403: <html><body>Forbidden</body></html>"));
+      expect(html.title).toBe("You don't have permission to do that");
+      expect(html.detail).toBeUndefined();
+      expect(html.hint).toBe("Ask a workspace admin to grant you access.");
+
+      const text = parseAppError(new Error("403: access denied by the gateway"));
+      expect(text.title).toBe("You don't have permission to do that");
+      expect(text.detail).toBe("Access denied by the gateway");
+      expect(text.hint).toBe("Ask a workspace admin to grant you access.");
+    });
+
+    it("applies a status attached to an Error only when its message said nothing", () => {
+      const silent = parseAppError(Object.assign(new Error(""), { status: 403 }));
+      expect(silent.title).toBe("You don't have permission to do that");
+      expect(silent.hint).toBe("Ask a workspace admin to grant you access.");
+
+      const spoken = parseAppError(Object.assign(new Error(refusal), { status: 403 }));
+      expect(spoken.title).toBe("Separation of duties: you cannot review or approve your own work");
+      expect(spoken.hint).toBeUndefined();
+      expect(spoken.status).toBe(403);
+    });
+  });
+});
+
+describe("the permission refusals are the ones the server writes", () => {
+  // The UI attaches the "ask an admin" remedy to a fixed list of server
+  // sentences. A sentence reworded on the Go side would silently lose its
+  // remedy, and a sentence listed here that no handler writes is dead copy, so
+  // both files are read and held against each other.
+  const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..", "..");
+  const server = [
+    "middleware_auth.go",
+    "review_governance.go",
+    "handlers_editor_bulk.go",
+    "handlers_governance.go",
+  ]
+    .map((file) => readFileSync(join(REPO_ROOT, "bowrain/server", file), "utf8"))
+    .join("\n");
+
+  it("lists only refusals a server handler writes", () => {
+    expect(PERMISSION_REFUSALS.length).toBeGreaterThan(0);
+    for (const refusal of PERMISSION_REFUSALS) {
+      expect(server, refusal).toContain(`"${refusal}`);
+    }
+  });
+
+  it("renders the separation-of-duties sentence the server writes without a remedy", () => {
+    const declared = /const sodRefusal = "([^"]+)"/.exec(server);
+    expect(declared).not.toBeNull();
+    const parsed = parseAppError(new Error(`403: ${JSON.stringify({ error: declared![1] })}`));
+    expect(parsed.title).toBe("Separation of duties: you cannot review or approve your own work");
+    expect(parsed.hint).toBeUndefined();
   });
 });

@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { ErrorNotice } from "./ErrorNotice";
+import { apiErrorFromResponse } from "./ApiError";
 
 const meta: Meta<typeof ErrorNotice> = {
   title: "Foundations/ErrorNotice",
@@ -33,6 +34,36 @@ export const PanelWithCode: Story = {
   args: {
     error: { error: "cannot grant permissions beyond your own", code: "forbidden" },
     title: "Couldn't save the member role",
+  },
+};
+
+/**
+ * A 403 that states its reason: the review surface's banner when the server
+ * refuses the reviewer's own work. The sentence stands alone; no grant fixes
+ * it, so no remedy is appended.
+ */
+export const RefusedReviewAction: Story = {
+  args: {
+    variant: "inline",
+    error: apiErrorFromResponse(
+      403,
+      JSON.stringify({
+        error: "separation of duties: you cannot review or approve your own work",
+        reference: "req_3k9d2p",
+      }),
+    ),
+    title: "The review action didn't go through",
+  },
+};
+
+/** A 403 written for a missing grant keeps the remedy a workspace admin can act on. */
+export const PermissionDenied: Story = {
+  args: {
+    error: apiErrorFromResponse(
+      403,
+      JSON.stringify({ error: "insufficient project permissions", reference: "req_7q1mz0" }),
+    ),
+    title: "Couldn't approve the translation",
   },
 };
 

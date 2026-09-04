@@ -137,7 +137,15 @@ function envelopePhrase(code: string, obj: Record<string, unknown>): Phrase | un
   return ENVELOPE_CODE_PHRASES[code]?.(obj);
 }
 
-/** Friendly phrasing for HTTP statuses (used when the body carries no better message). */
+/**
+ * Friendly phrasing for HTTP statuses. It stands in for a response that
+ * carries no explanation of its own: an empty, HTML or plain-text body, or an
+ * envelope with nothing readable in it. A response that explains itself
+ * renders that explanation, and a remedy is added only when a recognised code
+ * or message maps to one (CODE_PHRASES, MESSAGE_PHRASES). The status alone
+ * says nothing about the cause: a 403 for separation of duties refuses the
+ * reviewer for who they are, and no grant fixes it.
+ */
 const STATUS_PHRASES: Record<number, Phrase> = {
   400: CODE_PHRASES.invalid,
   401: CODE_PHRASES.unauthorized,
@@ -169,6 +177,28 @@ const STATUS_PHRASES: Record<number, Phrase> = {
 };
 
 /**
+ * The refusals the server writes when the caller lacks a grant: `deny()` in
+ * `bowrain/server/middleware_auth.go` and the review permission checks. These
+ * are the one 403 family a workspace admin can fix, so they alone earn the
+ * "ask an admin" remedy; every other 403 states its own reason. An entry
+ * ending in a space is a prefix: the server appends what was refused (a
+ * locale). A contract test holds each entry against the Go source.
+ */
+export const PERMISSION_REFUSALS: readonly string[] = [
+  "insufficient permissions",
+  "insufficient project permissions",
+  "demoting a signed-off target requires review permission",
+  "no access to language: ",
+  "no review permission for ",
+];
+
+function isPermissionRefusal(message: string): boolean {
+  return PERMISSION_REFUSALS.some((refusal) =>
+    refusal.endsWith(" ") ? message.startsWith(refusal) : message === refusal,
+  );
+}
+
+/**
  * Friendly phrasing for well-known server message strings (the bowrain server
  * returns lowercase message text in the `error` field rather than codes).
  * Matched case-insensitively; prefix matches where noted.
@@ -193,6 +223,10 @@ const MESSAGE_PHRASES: Array<{ match: (msg: string) => boolean; phrase: Phrase }
       title: "You're not a member of this workspace",
       hint: "Ask a workspace admin to invite you.",
     },
+  },
+  {
+    match: isPermissionRefusal,
+    phrase: CODE_PHRASES.forbidden,
   },
   {
     match: (m) => m === "not found",
@@ -301,10 +335,11 @@ function fromRestEnvelope(obj: Record<string, unknown>, status?: number, depth =
       reference,
     };
   }
+  // The server's own sentence, unrecognised: it is the explanation, and a
+  // per-status remedy would presume a cause the server did not name.
   return {
     title: readable,
     detail: details,
-    hint: statusPhrase(status)?.hint,
     raw: obj,
     code,
     status,
@@ -334,7 +369,7 @@ function fromClientEnvelope(obj: Record<string, unknown>, status?: number, depth
   return {
     title: phrase ? phrase.title : truncate(sentenceCase(message)),
     detail: causeText ?? (phrase && kind === undefined ? truncate(sentenceCase(message)) : kind),
-    hint: phrase?.hint ?? statusPhrase(status)?.hint,
+    hint: phrase?.hint,
     raw: obj,
     status,
   };
@@ -447,8 +482,12 @@ export function parseAppError(input: unknown, fallbackTitle: string = GENERIC_TI
     }
     if (result.status === undefined && typeof carrier.status === "number") {
       result.status = carrier.status;
+      // The status phrase stands in only when the message itself said nothing.
       const phrase = statusPhrase(carrier.status);
-      if (phrase && !result.hint) result.hint = phrase.hint;
+      if (phrase && result.title === fallbackTitle) {
+        result.title = phrase.title;
+        result.hint = phrase.hint;
+      }
     }
     if (result.code === undefined && typeof carrier.code === "string") {
       result.code = carrier.code;
