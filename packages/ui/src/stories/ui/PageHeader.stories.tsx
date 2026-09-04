@@ -66,6 +66,41 @@ export const PageWithBackButton: Story = {
   ),
 };
 
+// The empty state's opening title: the same h1, at hero scale, centred above a
+// lead paragraph and the first thing to do.
+export const PageHero: Story = {
+  render: () => (
+    <div className="p-8">
+      <PageHeader
+        variant="hero"
+        eyebrow="Acme"
+        title="Set up your workspace"
+        subtitle="Bowrain keeps translated content converging on your brand. Start with your AI assistant, with your files, or with your team."
+        actions={
+          <Button size="sm">
+            <Plus className="mr-1 size-3.5" />
+            New project
+          </Button>
+        }
+      />
+    </div>
+  ),
+};
+
+export const PageHeroDark: Story = {
+  globals: { theme: "dark" },
+  render: () => (
+    <div className="p-8">
+      <PageHeader
+        variant="hero"
+        eyebrow="Acme"
+        title="Set up your workspace"
+        subtitle="Bowrain keeps translated content converging on your brand. Start with your AI assistant, with your files, or with your team."
+      />
+    </div>
+  ),
+};
+
 export const Section: Story = {
   name: "SectionHeading",
   render: () => (
