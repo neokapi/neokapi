@@ -1801,14 +1801,22 @@ l10n-converge: l10n-extract bin/kapi ## Stage 2: the whole recipe, one `kapi up`
 # expands the extracted source catalogs mechanically, which is why its output is
 # byte-gated where the loop's is not.
 
+# Every i18n-qps tree is cleared before it is written. kapi writes one target
+# per catalog it reads and knows nothing of a file already there, so a tree
+# left by an earlier pass still holds the target of a catalog the extract has
+# since removed, and l10n-compile would ship it: a checkout that has run this
+# walk for weeks then regenerates different bytes from a clean one. The tree
+# is this target's output and nothing else writes it.
 l10n-pseudo: bin/kapi ## Pseudo-translate every surface into the qps probe locale
 	@for dir in $(L10N_KBF_PROBE_DIRS); do \
+		rm -rf $$dir/i18n-qps; \
 		$(KAPI_ISO_ENV) ./bin/kapi pseudo-translate $$dir/i18n --target-lang qps -o $$dir/i18n-qps -q || exit 1; \
 	done
 	@# -p binds the recipe, where `defaults.locales.qps` turns the markers off
 	@# for the published pseudo builds. An explicit -p outranks the
 	@# KAPI_NO_PROJECT in $(KAPI_ISO_ENV), so config, plugins and caches stay
 	@# isolated while the recipe still supplies the tool settings.
+	rm -rf $(LANDING_DIR)/i18n-qps
 	$(KAPI_ISO_ENV) ./bin/kapi pseudo-translate $(LANDING_DIR)/i18n --target-lang qps -p $(CURDIR)/kapi.yaml -o $(LANDING_DIR)/i18n-qps -q
 	@# The shell's <head> is prose too: the browser tab and the social card.
 	@# It stayed English in every locale because locale-meta.json only carried

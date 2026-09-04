@@ -8,6 +8,9 @@
  *      than flat under `i18n/`) leaves kapi free to write per-locale
  *      targets under `i18n/{lang}/` without the source glob re-ingesting
  *      them. Human-readable, git-diffable, self-contained per source.
+ *      The tree stays a mirror: a catalog this run would have written
+ *      for the document it records, and did not, is removed (see
+ *      pruneStaleCatalogs).
  *   2. --stream: NDJSON block records on stdout, one per block,
  *      for piping into any kapi-aware consumer (e.g. kapi's exec
  *      format reader). No file output.
@@ -17,12 +20,20 @@
  * to stderr.
  */
 
-import { readFileSync, mkdirSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmdirSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { glob } from "node:fs/promises";
 
-import type { Document } from "@neokapi/kapi-format";
-import { Ext, marshalFile } from "@neokapi/kapi-format";
+import type { Document, File } from "@neokapi/kapi-format";
+import { Ext, isKbfPath, marshalFile } from "@neokapi/kapi-format";
 
 import { createWarningCollector, extractDocument, formatWarning } from "../extract/index.ts";
 import type { PluginOptions } from "../types.ts";
@@ -93,21 +104,108 @@ export async function runExtract(args: string[], io: RunExtractIO = {}): Promise
 
   if (documents.length === 0) {
     console.warn("No translatable content found.");
-    return;
   }
 
   // Per-file KBF under --out. One file per source document — the
   // human-readable, git-diffable on-disk shape. Kapi reads these
   // directly for translation / compile / check flows.
-  mkdirSync(opts.outDir, { recursive: true });
+  const written = new Set<string>();
+  if (documents.length > 0) mkdirSync(opts.outDir, { recursive: true });
   for (const doc of documents) {
     const kbf = buildKBF(doc, opts);
     const path = join(opts.outDir, kbfFilename(doc));
     mkdirSync(dirname(path), { recursive: true });
     writeFileSync(path, marshalFile(kbf));
+    written.add(resolve(path));
   }
-  const blockCount = documents.reduce((n, d) => n + d.blocks.length, 0);
-  console.log(`Extracted ${blockCount} blocks from ${documents.length} files → ${opts.outDir}/`);
+  // Files were scanned, so the tree is the mirror of what they hold: whatever
+  // this run did not write, and would have for the document it records, is
+  // the catalog of a source that is gone.
+  const stale = pruneStaleCatalogs(opts.outDir, written);
+  if (documents.length > 0) {
+    const blockCount = documents.reduce((n, d) => n + d.blocks.length, 0);
+    console.log(`Extracted ${blockCount} blocks from ${documents.length} files → ${opts.outDir}/`);
+  }
+  if (stale.length > 0) {
+    console.log(`Removed ${stale.length} stale catalog(s) whose source is no longer scanned:`);
+    for (const path of stale) console.log(`  ${path}`);
+  }
+}
+
+/**
+ * Remove every catalog under `outDir` that this run did not write and would
+ * have written for the document it records.
+ *
+ * The tree mirrors the sources scanned. A catalog for a component that was
+ * deleted, renamed or dropped from `--src` has no place in the mirror, and left
+ * behind it is translated and compiled like any other: the runtime dictionary
+ * ships the strings of a component nobody can reach, and a checkout that has
+ * run the extract for weeks regenerates different bytes from a clean one.
+ *
+ * Ownership is decided by position, never by content. A file is this
+ * extractor's only if it sits exactly where `kbfFilename` places the document it
+ * records; that is true of a catalog written by an earlier run under any
+ * `--source-root`, and false of the per-locale targets kapi writes under
+ * `i18n/{lang}/`, which record the same document path but sit elsewhere. A file
+ * that does not parse as a bundle is nobody's to judge and is left alone. Only
+ * a directory emptied by a removal is removed with it, and `outDir` itself never
+ * is.
+ */
+function pruneStaleCatalogs(outDir: string, written: ReadonlySet<string>): string[] {
+  if (!existsSync(outDir)) return [];
+  const removed: string[] = [];
+
+  // Returns whether `dir` is now empty and whether the walk removed anything
+  // beneath it: a directory is deleted only when both hold.
+  const walk = (dir: string): { empty: boolean; pruned: boolean } => {
+    let empty = true;
+    let pruned = false;
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const path = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        const below = walk(path);
+        if (below.empty && below.pruned) {
+          rmdirSync(path);
+          pruned = true;
+        } else {
+          empty = false;
+        }
+        continue;
+      }
+      if (
+        entry.isFile() &&
+        isKbfPath(path) &&
+        !written.has(resolve(path)) &&
+        isOwnCatalog(outDir, path)
+      ) {
+        unlinkSync(path);
+        removed.push(path);
+        pruned = true;
+        continue;
+      }
+      empty = false;
+    }
+    return { empty, pruned };
+  };
+
+  walk(outDir);
+  return removed.sort();
+}
+
+// A bundle is the extractor's own when one of its documents would be written
+// exactly here.
+function isOwnCatalog(outDir: string, path: string): boolean {
+  let file: File;
+  try {
+    file = JSON.parse(readFileSync(path, "utf-8")) as File;
+  } catch {
+    return false;
+  }
+  const documents = Array.isArray(file?.documents) ? file.documents : [];
+  const here = resolve(path);
+  return documents.some(
+    (doc) => typeof doc?.path === "string" && resolve(join(outDir, kbfFilename(doc))) === here,
+  );
 }
 
 async function expandGlobs(
@@ -328,7 +426,7 @@ function buildKBF(doc: Document, opts: ExtractArgs) {
   };
 }
 
-function kbfFilename(doc: Document): string {
+function kbfFilename(doc: Pick<Document, "path">): string {
   // Keep the source file's path shape inside --out so translators
   // scanning the directory see a 1:1 reflection of the source tree.
   //
@@ -369,6 +467,10 @@ Options:
                           "../../packages/ui/src/**/*.tsx"
   --ignore <glob>         Exclude pattern (repeatable). E.g. --ignore "src/stories/**"
   --out <dir>             Output directory for .kbf.json files (default: "i18n").
+                          The tree mirrors the files scanned: a catalog left
+                          there for a source this run no longer scans is
+                          removed. Per-locale targets kapi writes under a
+                          subdirectory of it are left alone.
   --source-root <dir>     Directory every recorded source path is relative to
                           (default: the working directory). Declare it wherever
                           --src reaches outside the working directory, so a

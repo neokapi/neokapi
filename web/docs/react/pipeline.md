@@ -116,8 +116,10 @@ For full authoring-time coverage, pair this with [`@neokapi/i18n-react-lint`](./
 ### What's in the KBF directory
 
 A directory of per-file `.kbf.json` documents, mirroring your source tree
-(e.g. `src/App.tsx` → `i18n/src/App.kbf.json`). Each one is a self-contained KBF
-`File` carrying:
+(e.g. `src/App.tsx` → `i18n/src/App.kbf.json`). The mirror is kept on every
+run: a catalog for a source that has been deleted, renamed or excluded from
+`--src` is removed, while per-locale targets under `i18n/<lang>/` are left
+alone. Each catalog is a self-contained KBF `File` carrying:
 
 - `project`: id, source locale, declared target locales.
 - `documents`: one document for the source file, holding its `Block`s.

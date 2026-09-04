@@ -142,6 +142,12 @@ i18n/
 Each `.kbf.json` is plain JSON — `jq . i18n/src/App.kbf.json` to inspect any
 block.
 
+The directory mirrors the files scanned. A catalog left there for a source
+that has since been deleted, renamed or excluded from `--src` is removed on
+the next extract, so the strings of a component nobody can reach never get
+translated and compiled. Per-locale targets kapi writes under a subdirectory
+(`i18n/<lang>/`) are left alone.
+
 ### 3. Translate (or pseudo-translate for testing)
 
 Kapi reads the KBF directory directly; every command appends or
