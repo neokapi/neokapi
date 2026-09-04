@@ -81,7 +81,12 @@ vp neokapi-i18n extract                          # refresh i18n/ with new/change
 kapi exec translate i18n/ --target-lang fr --skip-matched
 ```
 
-Only the blocks added since the last pass are sent to the LLM; everything already translated is left as-is.
+Only the blocks added or changed since the last pass are sent to the LLM; everything already translated is left as-is.
+
+What a re-extract preserves is decided per block, by content hash, in both layouts:
+
+- **In place** (targets in the same catalog, the default for `kapi translate i18n/`): a block whose text and element are unchanged keeps every target, together with the provenance kapi recorded for it, even when the block moved within the file. A block whose text or element changed gets a new hash and no target. A removed block, or a removed catalog, takes its targets with it.
+- **Per-locale files** (`i18n/{lang}/`, the layout `kapi init --framework neokapi-i18n` scaffolds): the extract rewrites `i18n/src/` only and never touches the target files. What each of those holds is decided by kapi the next time it writes them.
 
 ## Checks
 

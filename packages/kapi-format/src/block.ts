@@ -246,6 +246,15 @@ export interface Block {
   targets?: Record<LocaleID, Run[]>;
 
   /**
+   * How each target was produced, keyed like `targets`. Carried separately
+   * from the runs so a bundle without it stays valid: it simply records no
+   * provenance. Anything that rewrites a bundle keeps it beside the runs,
+   * because a target that survives a write without its origin reads as
+   * produced under no governance at all.
+   */
+  targetOrigins?: Record<LocaleID, TargetOrigin>;
+
+  /**
    * Placeholders referenced anywhere in the Block's runs — including
    * inside plural / select forms. Enumerated here so validators and
    * CAT tools can examine them without walking the run tree, and so
@@ -262,6 +271,34 @@ export interface Block {
 }
 
 export type BlockType = "jsx:element" | "jsx:attribute" | "js:t";
+
+/**
+ * Provenance of one target: how it was produced and under what governing
+ * context. Mirrors Go `core/model.Origin` field for field; every field is
+ * optional and an unset one is omitted when serialized, as Go's `omitempty`
+ * does. Nothing here is parsed by the format: a producer stamps what its
+ * resolver handed it and a consumer reads it back verbatim.
+ */
+export interface TargetOrigin {
+  /** human | memory | mt | ai | ocr | asr */
+  kind?: string;
+  /** MT/AI/OCR/ASR engine name. */
+  engine?: string;
+  /** Tool id that produced the target. */
+  tool?: string;
+  /** Batch id, content-memory entry, or similar. */
+  reference?: string;
+  /** RFC 3339. */
+  timestamp?: string;
+  /** Recognizer confidence in [0,1]; 0 means unset. */
+  confidence?: number;
+  /** Context profile that governed production. */
+  profile?: string;
+  /** Revision of that profile in force. */
+  profile_version?: string;
+  /** Content hash of the governing context as it reached the producer. */
+  context_fingerprint?: string;
+}
 
 export type LocaleID = string; // BCP-47 tag, e.g. "de", "ja-JP", "qps"
 
