@@ -92,7 +92,7 @@ func RewriteVocabulary(p *VoiceProfile, text string) RewriteResult {
 		}
 		return ha.End > hb.End
 	})
-	chosen := make(map[int]bool, len(candidates))
+	var chosenIdx []int
 	var spans [][2]int
 	end := 0
 	for _, i := range candidates {
@@ -100,17 +100,20 @@ func RewriteVocabulary(p *VoiceProfile, text string) RewriteResult {
 		if h.Start < end {
 			continue
 		}
-		chosen[i] = true
+		chosenIdx = append(chosenIdx, i)
 		spans = append(spans, [2]int{h.Start, h.End})
 		end = h.End
 	}
 
+	chosen := make(map[int]bool, len(chosenIdx))
 	var b strings.Builder
 	pos := 0
-	for _, sp := range spans {
-		b.WriteString(text[pos:sp[0]])
-		b.WriteString(hits[indexOfSpan(hits, chosen, sp)].Replacement)
-		pos = sp[1]
+	for _, i := range chosenIdx {
+		h := hits[i]
+		chosen[i] = true
+		b.WriteString(text[pos:h.Start])
+		b.WriteString(h.Replacement)
+		pos = h.End
 	}
 	b.WriteString(text[pos:])
 	res.Text = b.String()
@@ -170,17 +173,6 @@ func RewriteVocabulary(p *VoiceProfile, text string) RewriteResult {
 		})
 	}
 	return res
-}
-
-// indexOfSpan returns the chosen hit that owns the span. Chosen spans never
-// overlap, so exactly one chosen hit has these bounds.
-func indexOfSpan(hits []VocabHit, chosen map[int]bool, sp [2]int) int {
-	for i, h := range hits {
-		if chosen[i] && h.Start == sp[0] && h.End == sp[1] {
-			return i
-		}
-	}
-	return -1
 }
 
 // overlapsAny reports whether the hit shares any byte with one of the spans.
