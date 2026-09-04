@@ -20,6 +20,14 @@ entries:
     license: Apache-2.0
     redistributable: true
     notes: own-created repo fixture
+  - path: core/formats/markdown/testdata/fuzz/FuzzRoundTripMarkdown/setext_multiline_heading
+    tier: A
+    origin: bug
+    sha256: 91226d01dc9e47bbfa174823f56142d22bdfaf1396344b67ed768bf7e50d3213
+    size: 34
+    license: Apache-2.0
+    redistributable: true
+    notes: own-created fuzz reproducer for #1659 (multi-line setext heading rebuilt as ATX)
   - path: core/formats/markdown/testdata/gfm-table.md
     tier: A
     origin: vendored

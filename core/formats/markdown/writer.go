@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -700,9 +701,11 @@ func (w *Writer) writeBlockMarkdown(block *model.Block, out io.Writer) error {
 	switch role {
 	case model.RoleTitle:
 		prefix = "# "
+		text = singleLineHeading(text)
 	case model.RoleHeading:
 		if n := block.HeadingLevel(); n > 0 {
 			prefix = strings.Repeat("#", n) + " "
+			text = singleLineHeading(text)
 		}
 	case model.RoleListItem:
 		// The marker belongs to the enclosing list, not the item: an ordered
@@ -1154,6 +1157,24 @@ func isTableDelimiterRow(line string) bool {
 		}
 	}
 	return hasDash && !allDash
+}
+
+// headingLineBreakRE matches one line break inside heading text, with the
+// whitespace around it and the blockquote marker a soft break bakes into the
+// continuation line.
+var headingLineBreakRE = regexp.MustCompile(`[ \t]*\r?\n[ \t>]*`)
+
+// singleLineHeading folds heading text onto one line. The rebuild path writes
+// every heading as ATX, and an ATX heading ends at its newline, so a heading
+// whose text spans lines (a multi-line setext heading, or a heading from a
+// format that allows a break inside one) re-read as a heading followed by a
+// paragraph, and the block count changed (#1659). Each break becomes one
+// space: the heading keeps its words, and a second rebuild is a fixed point.
+func singleLineHeading(text string) string {
+	if !strings.Contains(text, "\n") {
+		return text
+	}
+	return headingLineBreakRE.ReplaceAllString(text, " ")
 }
 
 // blockquoteRebuild reconstructs a multi-line blockquote body in the rebuild
