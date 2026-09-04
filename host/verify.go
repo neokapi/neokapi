@@ -161,7 +161,7 @@ func severityCell(s *output.Styles, sev string) string {
 type gateSelection struct {
 	voice    bool
 	terms    bool
-	checks       bool
+	checks   bool
 	explicit bool
 }
 
