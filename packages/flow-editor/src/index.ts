@@ -3,8 +3,6 @@ export { FlowDiagramView } from "./FlowDiagramView";
 export type { FlowDiagramViewProps } from "./FlowDiagramView";
 export { FlowViewTabs } from "./FlowViewTabs";
 export type { FlowViewTabsProps, FlowView } from "./FlowViewTabs";
-export { FlowsWorkspace } from "./FlowsWorkspace";
-export type { FlowsWorkspaceProps, FlowsDataAdapter } from "./FlowsWorkspace";
 export { FlowTemplateLibrary } from "./FlowTemplateLibrary";
 export { FLOW_TEMPLATES } from "./templates";
 export type { FlowTemplate } from "./templates";

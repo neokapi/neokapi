@@ -1,15 +1,14 @@
-import { test, expect, type Page } from "@playwright/test";
-import { setupLocalApp } from "./mock-backend";
+import { test, expect, type Page, type Locator } from "@playwright/test";
+import { setupLocalApp, assertNoUnhandledRoutes } from "./mock-backend";
 import { selectMultiLocales } from "./locale-helper";
 
 /**
  * Flows are project-scoped: a project's Automations section holds Runs, Rules
- * and Flows, and the Flows tab mounts the shared `@neokapi/flow-editor`
- * <FlowsWorkspace> — the list, toolbar and new/save/delete chrome (stable
- * data-testids) around the canonical <FlowEditor> canvas, which is asserted
- * here by visible text / roles. The desktop serves the flow definitions from
- * its own Wails bindings; the container and canvas are the same ones the web
- * app and kapi-desktop render.
+ * and Flows, and the Flows tab lists the flows as the shared outcome-first
+ * cards and opens one in the shared linear step editor (`@neokapi/bowrain-app`
+ * over `@neokapi/ui-primitives`). The desktop serves the flow definitions from
+ * its own Wails bindings, which the mock backend answers; the list, the editor
+ * and the graph<->steps conversion are the same ones the web app renders.
  */
 async function openProjectFlows(page: Page) {
   await setupLocalApp(page);
@@ -21,137 +20,170 @@ async function openProjectFlows(page: Page) {
 
   await page.getByTestId("subnav-automations").click();
   await page.getByRole("button", { name: "Flows", exact: true }).click();
-  await expect(page.getByTestId("flow-builder")).toBeVisible();
+  await expect(page.getByTestId("flow-list")).toBeVisible();
 }
+
+/** Opens the New flow dialog, names the flow and creates it. */
+async function createNewFlow(page: Page, name = "New Flow") {
+  await page.getByTestId("new-flow-btn").click();
+  const nameInput = page.getByTestId("new-flow-name");
+  await expect(nameInput).toBeVisible();
+  await nameInput.fill(name);
+  await page.getByTestId("create-flow-btn").click();
+  await expect(page.getByRole("heading", { name })).toBeVisible();
+}
+
+/** Picks a tool from the add-step dialog a trigger opened. */
+async function pickTool(page: Page, trigger: Locator, tool: RegExp) {
+  await trigger.click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByTestId("add-step-tool").filter({ hasText: tool }).click();
+  await expect(dialog).not.toBeVisible();
+}
+
+const saved = (page: Page) => expect(page.getByTestId("flow-save-state")).toHaveText(/Saved/);
 
 test.beforeEach(async ({ page }) => {
   await openProjectFlows(page);
 });
 
-test("should display flow list with built-in flows", async ({ page }) => {
-  const list = page.getByTestId("flow-list");
-  await expect(list).toBeVisible();
-  await expect(page.getByTestId("flow-item-translate")).toBeVisible();
+test("lists the built-in flows as cards", async ({ page }) => {
+  const translate = page.getByTestId("flow-item-translate");
+  await expect(translate).toBeVisible();
+  await expect(translate).toContainText("built-in");
+  // The card's chip strip reads the graph in edge order.
+  await expect(translate.getByTestId("flow-steps")).toHaveText(/AI Translate.*Word Count/);
   await expect(page.getByTestId("flow-item-pseudo-translate")).toBeVisible();
+  await assertNoUnhandledRoutes(page);
 });
 
-test("should show empty state when no flow is selected", async ({ page }) => {
-  const empty = page.getByTestId("flow-empty-state");
-  await expect(empty).toBeVisible();
-  await expect(empty).toContainText("Select a flow");
-});
-
-test("should display flow builder when a flow is selected", async ({ page }) => {
+test("opens a flow in the linear editor", async ({ page }) => {
   await page.getByTestId("flow-item-translate").click();
-  const toolbar = page.getByTestId("flow-toolbar");
-  await expect(toolbar).toBeVisible();
-
-  // Should show the flow name
-  const nameInput = page.getByTestId("flow-name-input");
-  await expect(nameInput).toHaveValue("AI Translate");
-
-  // The shared FlowEditor canvas is mounted.
-  await expect(page.getByTestId("flow-editor")).toBeVisible();
+  await expect(page.getByTestId("linear-flow-editor")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "AI Translate" })).toBeVisible();
 });
 
-test("should mark built-in flows as read-only", async ({ page }) => {
+test("marks a built-in flow read-only", async ({ page }) => {
   await page.getByTestId("flow-item-translate").click();
-
-  // Name input should be disabled for built-in flows
-  const nameInput = page.getByTestId("flow-name-input");
-  await expect(nameInput).toBeDisabled();
-
-  // Save and delete buttons should not be visible
-  await expect(page.getByTestId("save-flow-btn")).not.toBeVisible();
-  await expect(page.getByTestId("delete-flow-btn")).not.toBeVisible();
+  await expect(page.getByTestId("flow-read-only")).toBeVisible();
+  await expect(page.getByTestId("add-step")).toHaveCount(0);
+  await expect(page.getByLabel("Rename flow")).toHaveCount(0);
+  await expect(page.getByTestId("copy-flow-btn")).toBeVisible();
 });
 
-test("should render the flow's tool node in the canvas", async ({ page }) => {
+test("renders a built-in flow's steps in order", async ({ page }) => {
   await page.getByTestId("flow-item-translate").click();
-
-  const editor = page.getByTestId("flow-editor");
-  await expect(editor).toBeVisible();
-  // The translate step renders as a tool node labelled "AI Translate",
-  // flanked by the Input (reader) and Output (writer) nodes.
-  await expect(editor.getByText("Input", { exact: true })).toBeVisible();
-  await expect(editor.getByText("Output", { exact: true })).toBeVisible();
-  await expect(editor.getByText("AI Translate").first()).toBeVisible();
+  const rows = page.getByTestId("step-row");
+  await expect(rows).toHaveCount(2);
+  await expect(rows.nth(0)).toContainText("AI Translate");
+  await expect(rows.nth(1)).toContainText("Word Count");
+  await expect(page.getByTestId("parallel-group")).toHaveCount(0);
 });
 
-/** Helper: open the New Flow dialog, fill name/description, and click Create. */
-async function createNewFlow(page: Page, name = "New Flow", description = "") {
-  await page.getByTestId("new-flow-btn").click();
-  // Dialog appears — fill in name
-  const nameInput = page.getByTestId("new-flow-name");
-  await expect(nameInput).toBeVisible();
-  await nameInput.fill(name);
-  if (description) {
-    await page.getByTestId("new-flow-description").fill(description);
-  }
-  // Click Create button in dialog
-  await page.getByRole("button", { name: /create/i }).click();
-}
+test("shows a flow as a read-only diagram beside the step editor", async ({ page }) => {
+  await page.getByTestId("flow-item-translate").click();
+  await expect(page.getByTestId("flow-view-steps")).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByTestId("flow-view-run")).toHaveCount(0);
 
-test("should create a new flow", async ({ page }) => {
+  await page.getByTestId("flow-view-diagram").click();
+  const diagram = page.getByTestId("flow-diagram-view");
+  await expect(diagram).toBeVisible();
+  await expect(diagram.getByText("AI Translate").first()).toBeVisible();
+  await expect(page.getByTestId("step-row")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Add tool" })).toHaveCount(0);
+
+  await page.getByTestId("flow-view-steps").click();
+  await expect(page.getByTestId("step-row")).toHaveCount(2);
+});
+
+test("creates a new flow and shows its empty state", async ({ page }) => {
   await createNewFlow(page, "My Test Flow");
-
-  // Should show editable toolbar with the flow name
-  const nameInput = page.getByTestId("flow-name-input");
-  await expect(nameInput).toBeVisible();
-  await expect(nameInput).not.toBeDisabled();
-  await expect(nameInput).toHaveValue("My Test Flow");
-
-  // Save button should be visible
-  await expect(page.getByTestId("save-flow-btn")).toBeVisible();
-  await expect(page.getByTestId("delete-flow-btn")).toBeVisible();
+  await expect(page.getByTestId("flow-read-only")).toHaveCount(0);
+  await expect(page.getByText("This flow has no steps yet")).toBeVisible();
+  await expect(page.getByTestId("add-step")).toBeVisible();
+  await saved(page);
 });
 
-test("should offer the template library for an empty new flow", async ({ page }) => {
+test("offers the template library for an empty new flow", async ({ page }) => {
   await createNewFlow(page);
-
-  // A brand-new (empty) flow shows the shared editor's template library, which
-  // offers an "empty canvas" escape hatch.
-  const emptyCanvasBtn = page.getByRole("button", { name: /empty canvas/i });
-  await expect(emptyCanvasBtn).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Start from a template" })).toBeVisible();
 });
 
-test("should add a tool to a new flow from the palette", async ({ page }) => {
+test("adds a step from the picker", async ({ page }) => {
   await createNewFlow(page);
-
-  // Dismiss the template library to reveal the canvas.
-  await page.getByRole("button", { name: /empty canvas/i }).click();
-
-  // The palette is a browse modal, so the canvas stays full-width: the
-  // canvas's Add affordance opens it, and a tool is a row in it. A row reads
-  // as name over description, and the description is what separates translate
-  // from pseudo-translate in the accessible name.
-  await page.getByRole("button", { name: "Add tool" }).click();
-  const palette = page.getByRole("dialog");
-  await palette.getByRole("button", { name: /translate Translate content using AI/ }).click();
-
-  // The new tool node appears in the canvas.
-  const editor = page.getByTestId("flow-editor");
-  await expect(editor.getByText("translate").first()).toBeVisible();
+  await pickTool(page, page.getByTestId("add-step"), /^translate/);
+  const row = page.getByTestId("step-row");
+  await expect(row).toHaveCount(1);
+  await expect(row).toContainText("translate");
+  await expect(row).toContainText("Translate content using AI");
 });
 
-test("should save a custom flow", async ({ page }) => {
+test("saves an edit and reads it back from the backend", async ({ page }) => {
   await createNewFlow(page, "My Custom Flow");
+  await pickTool(page, page.getByTestId("add-step"), /^translate/);
+  await expect(page.getByTestId("flow-save-state")).toHaveText(/Unsaved changes|Saving|Saved/);
+  await saved(page);
 
-  // Save
-  await page.getByTestId("save-flow-btn").click();
+  await page.getByTestId("flow-back").click();
+  const cards = page.locator("[data-testid^='flow-item-']");
+  await expect(cards).toHaveCount(3);
+  const mine = cards.filter({ hasText: "My Custom Flow" });
+  await expect(mine.getByTestId("flow-steps")).toHaveText("translate");
 
-  // Flow should appear in the list
-  const listItems = page.locator("[data-testid^='flow-item-']");
-  // Built-in (2) + new custom (1) = 3
-  await expect(listItems).toHaveCount(3);
+  await mine.click();
+  await expect(page.getByTestId("step-row")).toHaveCount(1);
+  await assertNoUnhandledRoutes(page);
 });
 
-test("should navigate between flows", async ({ page }) => {
-  // Select first flow
+test("navigates between flows", async ({ page }) => {
   await page.getByTestId("flow-item-translate").click();
-  await expect(page.getByTestId("flow-name-input")).toHaveValue("AI Translate");
+  await expect(page.getByRole("heading", { name: "AI Translate" })).toBeVisible();
 
-  // Select second flow
+  await page.getByTestId("flow-back").click();
   await page.getByTestId("flow-item-pseudo-translate").click();
-  await expect(page.getByTestId("flow-name-input")).toHaveValue("Pseudo Translate");
+  await expect(page.getByRole("heading", { name: "Pseudo Translate" })).toBeVisible();
+});
+
+test("adds a parallel group and round-trips it through the backend", async ({ page }) => {
+  await createNewFlow(page, "Fan out");
+  await pickTool(page, page.getByTestId("add-parallel-group"), /^translate/);
+  const group = page.getByTestId("parallel-group");
+  await expect(group).toBeVisible();
+  await expect(group.getByTestId("step-row")).toHaveCount(1);
+
+  await pickTool(page, group.getByTestId("add-branch"), /^pseudo-translate/);
+  await expect(group.getByTestId("step-row")).toHaveCount(2);
+  await expect(group).toContainText("2 in parallel");
+  await saved(page);
+
+  await page.getByTestId("flow-back").click();
+  await page.locator("[data-testid^='flow-item-']").filter({ hasText: "Fan out" }).click();
+  await expect(page.getByTestId("parallel-group")).toBeVisible();
+  await expect(page.getByTestId("parallel-group").getByTestId("step-row")).toHaveCount(2);
+});
+
+test("renames a flow in place", async ({ page }) => {
+  await createNewFlow(page, "Draft");
+  await page.getByLabel("Rename flow").click();
+  const input = page.getByLabel("Flow name");
+  await input.fill("Final");
+  await page.getByLabel("Save").click();
+  await expect(page.getByRole("heading", { name: "Final" })).toBeVisible();
+  await saved(page);
+
+  await page.getByTestId("flow-back").click();
+  await expect(
+    page.locator("[data-testid^='flow-item-']").filter({ hasText: "Final" }),
+  ).toHaveCount(1);
+});
+
+test("deletes a project flow from its card after confirming", async ({ page }) => {
+  await createNewFlow(page, "Disposable");
+  await page.getByTestId("flow-back").click();
+  const mine = page.locator("[data-testid^='flow-item-']").filter({ hasText: "Disposable" });
+  await mine.hover();
+  await mine.getByLabel("Delete").click();
+  await mine.getByRole("button", { name: "Confirm", exact: true }).click();
+  await expect(mine).toHaveCount(0);
+  await expect(page.locator("[data-testid^='flow-item-']")).toHaveCount(2);
 });

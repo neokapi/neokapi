@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useParams, useRouteContext } from "@tanstack/react-router";
 import { Card, AutomationsPage, AutomationRunsPage } from "@neokapi/ui";
 import type { WorkspaceRouteContext } from "..";
-import { ProjectFlowsEditor } from "./ProjectFlowsEditor";
+import { ProjectFlowsEditor } from "../../flows";
 
 type Tab = "runs" | "rules" | "flows";
 
@@ -16,8 +16,8 @@ const TABS: { id: Tab; label: string }[] = [
  * Superset flow + automation surface for a project. Composes:
  *  - Runs: automation run history (AD-013 run visibility)
  *  - Rules: trigger + conditions + actions; a run_flow action picks a flow
- *  - Flows: the canonical @neokapi/flow-editor canvas for editing the
- *    server-side, connector-agnostic flow definitions that rules reference.
+ *  - Flows: the shared linear step editor over the server-side,
+ *    connector-agnostic flow definitions that rules reference.
  */
 export function AutomationsRoute() {
   const { projectId } = useParams({ strict: false });

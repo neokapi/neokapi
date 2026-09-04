@@ -29,11 +29,11 @@ import type {
 } from "./types";
 
 // Persisted-graph geometry. The node/edge FlowDefinition stores parallel groups
-// as the legacy fan-out (sibling nodes sharing the same primary-axis position),
-// independent of how the editor *renders* a flow (which uses the composite
-// parallel node). The persisted graph uses a fixed vertical axis (y is the chain
-// axis); defToSpec reconstructs groups along it. The editor never reads these
-// positions for layout — it re-lays-out from the spec.
+// as a fan-out: sibling nodes sharing the same chain-axis position, joined to
+// the previous and next step by edges. specToDef lays the chain out along y.
+// defToSpec reads the structure back from the edges, and from these positions
+// only when a definition carries no edges. The editor never reads the
+// positions for layout; it lays out from the spec.
 const PERSIST_NODE_SIZE = 200;
 const PERSIST_NODE_GAP = 60;
 const PERSIST_CROSS = 200;
@@ -83,28 +83,68 @@ export function formatBinding(binding: FlowBinding | undefined | null): string |
   }
 }
 
-/**
- * Convert a node/edge FlowDefinitionInfo into a steps-based FlowSpec.
- *
- * The persisted graph is tool nodes only (a flow owns no I/O); transformers
- * are ordinary ordered steps (AD-006). Sibling nodes sharing a primary-axis
- * position are reconstructed into a `parallel` step. The definition's I/O
- * binding is carried onto `source`/`sink`. The persisted graph's chain axis
- * is y.
- */
-export function defToSpec(def: FlowDefinitionInfo): FlowSpec {
-  const primary = (n: FlowNodeInfo) => n.position?.y ?? 0;
-
-  const toStep = (n: FlowNodeInfo): FlowStep => ({
+/** A tool node as the step it runs. */
+function nodeToStep(n: FlowNodeInfo): FlowStep {
+  return {
     tool: n.name,
     ...(n.config && Object.keys(n.config).length > 0 ? { config: n.config } : {}),
     ...(n.label ? { label: n.label } : {}),
-  });
+  };
+}
 
-  const all = [...(def.nodes ?? [])].sort((a, b) => primary(a) - primary(b));
+/**
+ * Layer the nodes by their edges: each node sits at the length of the longest
+ * path from an entry node (one with no incoming edge), so a fan-out puts its
+ * branches side by side in one layer and the merge target in the next. A node
+ * on a cycle never becomes ready; it is appended as its own layer, in node
+ * order, so no node is lost. Within a layer the persisted cross-axis position
+ * (x) orders the branches.
+ */
+function layersByEdges(nodes: FlowNodeInfo[], edges: FlowEdgeInfo[]): FlowNodeInfo[][] {
+  const ids = new Set(nodes.map((n) => n.id));
+  const out = new Map<string, string[]>();
+  const pending = new Map<string, number>(nodes.map((n) => [n.id, 0]));
+  for (const e of edges) {
+    if (!ids.has(e.source) || !ids.has(e.target)) continue;
+    out.set(e.source, [...(out.get(e.source) ?? []), e.target]);
+    pending.set(e.target, (pending.get(e.target) ?? 0) + 1);
+  }
 
-  // Group nodes sharing a primary-axis position into a parallel step.
-  const steps: FlowStep[] = [];
+  const depth = new Map<string, number>();
+  const queue = nodes.filter((n) => pending.get(n.id) === 0).map((n) => n.id);
+  for (const id of queue) depth.set(id, 0);
+  while (queue.length > 0) {
+    const id = queue.shift()!;
+    for (const next of out.get(id) ?? []) {
+      depth.set(next, Math.max(depth.get(next) ?? 0, depth.get(id)! + 1));
+      const left = pending.get(next)! - 1;
+      pending.set(next, left);
+      if (left === 0) queue.push(next);
+    }
+  }
+  let tail = Math.max(-1, ...depth.values()) + 1;
+  for (const n of nodes) {
+    if (!depth.has(n.id)) depth.set(n.id, tail++);
+  }
+
+  const layers = new Map<number, FlowNodeInfo[]>();
+  for (const n of nodes) {
+    const d = depth.get(n.id)!;
+    layers.set(d, [...(layers.get(d) ?? []), n]);
+  }
+  return [...layers.keys()]
+    .sort((a, b) => a - b)
+    .map((d) => [...layers.get(d)!].sort((a, b) => (a.position?.x ?? 0) - (b.position?.x ?? 0)));
+}
+
+/**
+ * Layer the nodes by position along the persisted chain axis (y), for a
+ * definition that carries no edges: nodes sharing a position are one layer.
+ */
+function layersByPosition(nodes: FlowNodeInfo[]): FlowNodeInfo[][] {
+  const primary = (n: FlowNodeInfo) => n.position?.y ?? 0;
+  const all = [...nodes].sort((a, b) => primary(a) - primary(b));
+  const layers: FlowNodeInfo[][] = [];
   let i = 0;
   while (i < all.length) {
     const group = [all[i]];
@@ -113,9 +153,31 @@ export function defToSpec(def: FlowDefinitionInfo): FlowSpec {
       group.push(all[j]);
       j++;
     }
-    steps.push(group.length === 1 ? toStep(group[0]) : { tool: "", parallel: group.map(toStep) });
+    layers.push(group);
     i = j;
   }
+  return layers;
+}
+
+/**
+ * Convert a node/edge FlowDefinitionInfo into a steps-based FlowSpec.
+ *
+ * The persisted graph is tool nodes only (a flow owns no I/O); transformers
+ * are ordinary ordered steps (AD-006). Order and fan-out come from the edges:
+ * a layer of one node is a step, a layer of several is a `parallel` step. That
+ * is what `core/flow` executes (its topological order follows the edges), so
+ * a definition laid out along either axis reads the same. A definition with
+ * no edges is ordered along the persisted chain axis (y), with nodes sharing
+ * a position grouped in parallel. The definition's I/O binding is carried onto
+ * `source`/`sink`.
+ */
+export function defToSpec(def: FlowDefinitionInfo): FlowSpec {
+  const nodes = def.nodes ?? [];
+  const edges = def.edges ?? [];
+  const layers = edges.length > 0 ? layersByEdges(nodes, edges) : layersByPosition(nodes);
+  const steps: FlowStep[] = layers.map((layer) =>
+    layer.length === 1 ? nodeToStep(layer[0]) : { tool: "", parallel: layer.map(nodeToStep) },
+  );
 
   const spec: FlowSpec = { steps };
   if (def.binding?.source) spec.source = def.binding.source;
