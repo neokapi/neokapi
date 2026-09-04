@@ -100,6 +100,11 @@ export {
   Markdown,
   PageHeader,
   SectionHeading,
+  // Governance forms: the voice governing a point and a point's axes, the
+  // same forms kapi desktop composes its recipe governance from.
+  VoiceBindingSelect,
+  CoordinatesEditor,
+  incompleteAxes,
   // Flows: the outcome-first card, its empty state and the linear step editor
   // the platform's flow list and kapi desktop share.
   FlowCard,
@@ -150,6 +155,10 @@ export type {
   LinearFlowSpec,
   LinearFlowStep,
   LinearFlowTool,
+  VoiceBindingOption,
+  VoiceBindingSelectProps,
+  CoordinateAxisOption,
+  CoordinatesEditorProps,
 } from "@neokapi/ui-primitives";
 
 // Icons (Lucide)
@@ -827,6 +836,8 @@ export {
   parseMinScore,
 } from "./voice";
 export type { ScoreBand, HasMinScore, ProfileBarSource, ParsedMinScore } from "./voice";
+// The voice bound at a point: the property key and the shared picker's options.
+export { VOICE_PROFILE_KEY, voiceProfileOptions } from "./voice/binding";
 export type {
   VoiceProfile,
   ToneProfile,

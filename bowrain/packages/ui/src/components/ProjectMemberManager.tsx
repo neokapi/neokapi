@@ -2,6 +2,7 @@ import {
   Badge,
   Button,
   Card,
+  CoordinatesEditor,
   Dialog,
   DialogContent,
   DialogFooter,
@@ -14,16 +15,13 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  incompleteAxes,
 } from "@neokapi/ui-primitives";
 import { useState, useEffect, useCallback } from "react";
 import type { ProjectMembership, RoleTemplate, Workspace } from "../types/api";
 import { useApi } from "../context/ApiContext";
 import { ErrorNotice } from "../errors";
 import { CoordinateLine } from "../context-hub/profiles/Coordinates";
-import {
-  formatCoordinateFilter,
-  parseCoordinateFilter,
-} from "../context-hub/profiles/coordinateFilter";
 import { Users, UserPlus, Trash2, Pencil } from "./icons";
 
 interface ProjectMemberManagerProps {
@@ -46,7 +44,7 @@ export function ProjectMemberManager({
   const [userId, setUserId] = useState("");
   const [roleId, setRoleId] = useState("");
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
-  const [coordinateText, setCoordinateText] = useState("");
+  const [coordinates, setCoordinates] = useState<Record<string, string>>({});
   const [coordinateError, setCoordinateError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<{ title: string; cause?: unknown } | null>(null);
@@ -79,15 +77,16 @@ export function ProjectMemberManager({
   const handleSave = async () => {
     if (!editingMember && !userId.trim()) return;
     if (!roleId) return;
-    // A malformed region is refused rather than dropped: an axis the filter does
-    // not name is an axis it does not constrain, so discarding one would widen
-    // the grant instead of failing to save it.
-    const region = parseCoordinateFilter(coordinateText);
-    if (region.error) {
-      setCoordinateError(region.error);
+    // A region naming an axis without a value is refused rather than dropped:
+    // an axis the region does not constrain is an axis the grant is unbounded
+    // on, so discarding the row would widen the grant instead of failing it.
+    const blank = incompleteAxes(coordinates);
+    if (blank.length > 0) {
+      setCoordinateError(`${blank.join(", ")}: an axis needs a value, or remove it`);
       return;
     }
     setCoordinateError(null);
+    const region = Object.keys(coordinates).length > 0 ? coordinates : undefined;
     setSaving(true);
     setError(null);
     try {
@@ -99,7 +98,7 @@ export function ProjectMemberManager({
           {
             role_id: roleId,
             languages: selectedLanguages.length > 0 ? selectedLanguages : undefined,
-            coordinates: region.coordinates,
+            coordinates: region,
           },
         );
         setMembers((prev) => prev.map((m) => (m.user_id === editingMember.user_id ? updated : m)));
@@ -108,7 +107,7 @@ export function ProjectMemberManager({
           user_id: userId.trim(),
           role_id: roleId,
           languages: selectedLanguages.length > 0 ? selectedLanguages : undefined,
-          coordinates: region.coordinates,
+          coordinates: region,
         });
         setMembers((prev) => [added, ...prev]);
       }
@@ -134,7 +133,7 @@ export function ProjectMemberManager({
     setUserId(member.user_id);
     setRoleId(member.role_id);
     setSelectedLanguages(member.languages ?? []);
-    setCoordinateText(formatCoordinateFilter(member.coordinates));
+    setCoordinates(member.coordinates ?? {});
     setCoordinateError(null);
     setError(null);
     setShowDialog(true);
@@ -150,7 +149,7 @@ export function ProjectMemberManager({
     setUserId("");
     setRoleId("");
     setSelectedLanguages([]);
-    setCoordinateText("");
+    setCoordinates({});
     setCoordinateError(null);
     setError(null);
     setShowDialog(false);
@@ -358,18 +357,20 @@ export function ProjectMemberManager({
             <div>
               <Label className="text-muted-foreground">Governs</Label>
               <p className="text-xs text-muted-foreground mt-0.5 mb-2">
-                The region of the context space this member governs, as axis=value pairs such as
-                brand=acme,channel=support. Leave empty for the whole space. Paired with a role that
-                can edit voice or terms, a region makes this member its custodian.
+                The region of the context space this member governs, as an axis and its value, such
+                as brand and acme. Leave it empty for the whole space. Paired with a role that can
+                edit voice or terms, a region makes this member its custodian.
               </p>
-              <Input
-                value={coordinateText}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                  setCoordinateText(e.target.value)
-                }
-                placeholder="brand=acme,channel=support"
-                className="mt-1 font-mono text-sm"
-                data-testid="project-member-coordinates-input"
+              <CoordinatesEditor
+                value={coordinates}
+                onChange={(next) => {
+                  setCoordinates(next ?? {});
+                  setCoordinateError(null);
+                }}
+                allowNewAxis
+                requireValues
+                emptyText="The whole space."
+                testId="project-member-coordinates"
               />
               {coordinateError && (
                 <p

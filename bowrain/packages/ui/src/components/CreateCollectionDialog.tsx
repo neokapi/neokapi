@@ -7,14 +7,13 @@ import {
   DialogTitle,
   Input,
   Label,
+  VoiceBindingSelect,
 } from "@neokapi/ui-primitives";
 import { useState, useEffect } from "react";
 import type { CollectionKind, CollectionInfo } from "../types/api";
 import type { VoiceProfile } from "../voice/types";
+import { VOICE_PROFILE_KEY, voiceProfileOptions } from "../voice/binding";
 import { Upload, Plug } from "./icons";
-
-/** Binding key stored inside a collection's connector_config map. */
-const BRAND_VOICE_KEY = "voice_profile_id";
 
 export interface CreateCollectionDialogProps {
   open: boolean;
@@ -52,7 +51,7 @@ export function CreateCollectionDialog({
       setName(editCollection.name);
       setKind(editCollection.kind);
       setItemLabel(editCollection.item_label === "item" ? "" : editCollection.item_label);
-      setVoiceProfileId(editCollection.connector_config?.[BRAND_VOICE_KEY] ?? "");
+      setVoiceProfileId(editCollection.connector_config?.[VOICE_PROFILE_KEY] ?? "");
     }
   }, [editCollection, open]);
 
@@ -81,10 +80,10 @@ export function CreateCollectionDialog({
       if (isEdit) {
         connectorConfig = {
           ...editCollection?.connector_config,
-          [BRAND_VOICE_KEY]: voiceProfileId,
+          [VOICE_PROFILE_KEY]: voiceProfileId,
         };
       } else if (voiceProfileId) {
-        connectorConfig = { [BRAND_VOICE_KEY]: voiceProfileId };
+        connectorConfig = { [VOICE_PROFILE_KEY]: voiceProfileId };
       }
     }
     onSubmit({
@@ -200,27 +199,15 @@ export function CreateCollectionDialog({
           </div>
 
           {showVoicePicker && (
-            <div>
-              <Label className="text-muted-foreground">Voice</Label>
-              <select
-                className="mt-1 h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
-                value={voiceProfileId}
-                onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-                  setVoiceProfileId(e.target.value)
-                }
-                aria-label="Collection voice profile"
-              >
-                <option value="">Inherit (stream/project)</option>
-                {voiceProfiles?.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
-              <p className="text-[11px] text-muted-foreground mt-1">
-                Overrides the stream and project voice for content in this collection
-              </p>
-            </div>
+            <VoiceBindingSelect
+              label="Voice"
+              value={voiceProfileId || undefined}
+              onChange={(next) => setVoiceProfileId(next ?? "")}
+              options={voiceProfileOptions(voiceProfiles)}
+              inheritLabel="Inherit (stream/project)"
+              help="Overrides the stream and project voice for content in this collection"
+              className="w-full max-w-none"
+            />
           )}
         </div>
 

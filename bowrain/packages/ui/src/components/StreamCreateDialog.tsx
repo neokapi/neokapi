@@ -12,13 +12,12 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  VoiceBindingSelect,
 } from "@neokapi/ui-primitives";
 import { useState, useEffect } from "react";
 import type { StreamInfo, StreamVisibility } from "../types/api";
 import type { VoiceProfile } from "../voice/types";
-
-/** Binding key stored inside a stream's properties map. */
-const BRAND_VOICE_KEY = "voice_profile_id";
+import { VOICE_PROFILE_KEY, voiceProfileOptions } from "../voice/binding";
 
 export interface StreamCreateDialogProps {
   /** Existing streams for parent selection. */
@@ -74,7 +73,7 @@ export function StreamCreateDialog({
       // Only bind a voice at creation when one is picked; the server merges
       // properties, so an omitted map simply inherits from the project.
       ...(showVoicePicker && voiceProfileId
-        ? { properties: { [BRAND_VOICE_KEY]: voiceProfileId } }
+        ? { properties: { [VOICE_PROFILE_KEY]: voiceProfileId } }
         : {}),
     });
     resetForm();
@@ -163,27 +162,15 @@ export function StreamCreateDialog({
           </div>
 
           {showVoicePicker && (
-            <div>
-              <Label className="text-muted-foreground">Voice</Label>
-              <select
-                className="mt-1 h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
-                value={voiceProfileId}
-                onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-                  setVoiceProfileId(e.target.value)
-                }
-                aria-label="Stream voice profile"
-              >
-                <option value="">Inherit (project)</option>
-                {voiceProfiles?.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
-              <p className="text-[11px] text-muted-foreground mt-1">
-                Overrides the project voice for content in this stream
-              </p>
-            </div>
+            <VoiceBindingSelect
+              label="Voice"
+              value={voiceProfileId || undefined}
+              onChange={(next) => setVoiceProfileId(next ?? "")}
+              options={voiceProfileOptions(voiceProfiles)}
+              inheritLabel="Inherit (project)"
+              help="Overrides the project voice for content in this stream"
+              className="w-full max-w-none"
+            />
           )}
         </div>
 

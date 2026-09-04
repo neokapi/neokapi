@@ -1,3 +1,9 @@
+// A project's settings: where its content sits, and what runs on it.
+//
+// The voice governing the project is the shared VoiceBindingSelect over the
+// workspace's profiles, the same form kapi desktop binds a recipe's voice
+// with. Streams and collections override it in their own dialogs.
+
 import { useCallback, useEffect } from "react";
 import { useNavigate, useParams, useRouteContext } from "@tanstack/react-router";
 import { useSuspenseQuery, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -6,12 +12,20 @@ import {
   useStream,
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
   Button,
+  Label,
+  PageHeader,
+  SectionHeading,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Switch,
+  VoiceBindingSelect,
+  voiceProfileOptions,
 } from "@neokapi/ui";
+import { Compass, Workflow } from "lucide-react";
 import type { WorkspaceRouteContext } from "..";
 import { projectQueryOptions, voiceProfilesQueryOptions } from "../../queries";
 import { ModelQualityCard } from "./model-quality-card";
@@ -39,138 +53,123 @@ export function ProjectSettingsRoute() {
     void queryClient.invalidateQueries({ queryKey: ["project", ws, project.id] });
   }, [queryClient, ws, project.id]);
 
+  const setProperty = async (key: string, value: string) => {
+    await adapter.updateProject(ws, project.id, { properties: { [key]: value } });
+    invalidateProject();
+  };
+
+  const workflowEnabled = project.properties?.workflow_enabled !== "false";
+
   return (
     <div className="mx-auto w-full max-w-3xl space-y-6 py-4">
-      <div className="flex items-center gap-3 mb-2">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() =>
-            navigate({
-              to: "/$workspace/p/$projectId/s/$stream",
-              params: {
-                workspace: workspace ?? ws,
-                projectId: project.id,
-                stream: activeStream,
-              },
-            })
-          }
-        >
-          Back to project
-        </Button>
-      </div>
+      <PageHeader
+        title="Project settings"
+        subtitle={project.name}
+        className="mb-0"
+        backButton={
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() =>
+              navigate({
+                to: "/$workspace/p/$projectId/s/$stream",
+                params: {
+                  workspace: workspace ?? ws,
+                  projectId: project.id,
+                  stream: activeStream,
+                },
+              })
+            }
+          >
+            Back to project
+          </Button>
+        }
+      />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Translator Workflow</CardTitle>
-          <CardDescription>
-            Automatically create tasks for translators when content is ready
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium">Enable workflow</p>
-              <p className="text-xs text-muted-foreground">
-                Create review tasks after AI translation completes. On by default; turn off to skip
-                human review.
-              </p>
-            </div>
-            <Switch
-              checked={project.properties?.workflow_enabled !== "false"}
-              onCheckedChange={async (checked) => {
-                await adapter.updateProject(ws, project.id, {
-                  properties: { workflow_enabled: checked ? "true" : "false" },
-                });
-                invalidateProject();
-              }}
-              aria-label="Enable translator workflow"
+      {/* Where content sits: the voice governing the project's point. */}
+      <section>
+        <SectionHeading className="mb-3" icon={<Compass size={14} />}>
+          Where content sits
+        </SectionHeading>
+        <Card>
+          <CardContent className="p-4">
+            <VoiceBindingSelect
+              value={project.properties?.voice_profile_id || undefined}
+              options={voiceProfileOptions(voiceProfiles)}
+              inheritLabel="Workspace default"
+              help="Governs checks and scoring for this project's content. Streams and collections can override it."
+              onChange={(next) => void setProperty("voice_profile_id", next ?? "")}
             />
-          </div>
-          {project.properties?.workflow_enabled !== "false" && (
-            <div className="space-y-3 pt-2 border-t border-border/50">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium">Mode</p>
-                  <p className="text-xs text-muted-foreground">
-                    Review: translators verify AI translations. Translate: translators work from
-                    source.
-                  </p>
-                </div>
-                <select
-                  className="h-8 rounded-md border border-input bg-background px-2 text-sm"
-                  value={project.properties?.workflow_mode ?? "review"}
-                  onChange={async (e) => {
-                    await adapter.updateProject(ws, project.id, {
-                      properties: { workflow_mode: e.target.value },
-                    });
-                    invalidateProject();
-                  }}
-                >
-                  <option value="review">Review</option>
-                  <option value="translate">Translate</option>
-                </select>
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium">Source review gate</p>
-                  <p className="text-xs text-muted-foreground">
-                    Require source review before translation fan-out
-                  </p>
-                </div>
-                <Switch
-                  checked={project.properties?.workflow_source_review === "true"}
-                  onCheckedChange={async (checked) => {
-                    await adapter.updateProject(ws, project.id, {
-                      properties: { workflow_source_review: checked ? "true" : "false" },
-                    });
-                    invalidateProject();
-                  }}
-                  aria-label="Enable source review gate"
-                />
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </section>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Voice</CardTitle>
-          <CardDescription>
-            Choose the voice profile that governs checks and scoring for this project. Leave as the
-            workspace default to inherit; streams and collections can override it.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium">Profile</p>
-              <p className="text-xs text-muted-foreground">
-                Applied when scoring or rewriting this project's content
-              </p>
+      {/* What runs, and what is skipped: the translator workflow and its gate. */}
+      <section>
+        <SectionHeading className="mb-3" icon={<Workflow size={14} />}>
+          What runs, and what is skipped
+        </SectionHeading>
+        <Card>
+          <CardContent className="space-y-4 p-4">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium">Translator workflow</p>
+                <p className="text-xs text-muted-foreground">
+                  Create review tasks after AI translation completes. On by default; turn off to
+                  skip human review.
+                </p>
+              </div>
+              <Switch
+                checked={workflowEnabled}
+                onCheckedChange={(checked) =>
+                  void setProperty("workflow_enabled", checked ? "true" : "false")
+                }
+                aria-label="Enable translator workflow"
+              />
             </div>
-            <select
-              className="h-8 rounded-md border border-input bg-background px-2 text-sm"
-              value={project.properties?.voice_profile_id ?? ""}
-              onChange={async (e) => {
-                await adapter.updateProject(ws, project.id, {
-                  properties: { voice_profile_id: e.target.value },
-                });
-                invalidateProject();
-              }}
-              aria-label="Project voice profile"
-            >
-              <option value="">Workspace default</option>
-              {voiceProfiles?.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        </CardContent>
-      </Card>
+            {workflowEnabled && (
+              <div className="space-y-3 border-t border-border/50 pt-3">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <Label className="text-sm font-medium">Mode</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Review: translators verify AI translations. Translate: translators work from
+                      source.
+                    </p>
+                  </div>
+                  <Select
+                    value={project.properties?.workflow_mode ?? "review"}
+                    onValueChange={(v) => void setProperty("workflow_mode", v)}
+                  >
+                    <SelectTrigger className="w-32" aria-label="Workflow mode">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="review">Review</SelectItem>
+                      <SelectItem value="translate">Translate</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-medium">Source review gate</p>
+                    <p className="text-xs text-muted-foreground">
+                      Require source review before translation fan-out.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={project.properties?.workflow_source_review === "true"}
+                    onCheckedChange={(checked) =>
+                      void setProperty("workflow_source_review", checked ? "true" : "false")
+                    }
+                    aria-label="Enable source review gate"
+                  />
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </section>
 
       <ModelQualityCard ws={ws} projectId={project.id} />
     </div>
