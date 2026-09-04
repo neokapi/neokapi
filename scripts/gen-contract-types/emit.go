@@ -226,9 +226,13 @@ func tsType(t reflect.Type) (string, error) {
 		return "Record<string, " + val + ">", nil
 	case reflect.Struct:
 		// Named struct → reference by its (capitalized) Go name, which matches
-		// the emitted TS interface name for the atoms.
+		// the emitted TS interface name for the atoms. The review model's
+		// structs render under the TS names review.go gives them.
 		if t.Name() == "" {
 			return "", errors.New("anonymous struct fields are unsupported")
+		}
+		if name, ok := reviewTypeNames[t]; ok {
+			return name, nil
 		}
 		return t.Name(), nil
 	default:

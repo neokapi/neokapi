@@ -42,9 +42,12 @@ type output struct {
 //     JSON, generated from the proto descriptors for non-proto consumers
 //     (see schema.go). The protojson golden files under
 //     core/proto/content/v1/testdata remain the binding contract.
+//   - review.gen.ts — the review model (S-07) every review client reads,
+//     reflected from core/review and the structs it carries (see review.go).
 var outputs = []output{
 	{"packages/contract-types/src/contract.gen.ts", emit},
 	{"packages/contract-types/src/content.gen.ts", emitContent},
+	{"packages/contract-types/src/review.gen.ts", emitReview},
 	{"core/proto/content/v1/content.schema.json", emitSchema},
 }
 

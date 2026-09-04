@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Build @neokapi/contract-types for publishing: transpile each source file in
-// place (no bundling, so the subpath exports — ./contract.gen, ./content.gen,
-// ./manual — resolve to their own dist files) and emit declarations with tsc.
+// place (no bundling, so the subpath exports, ./contract.gen, ./content.gen,
+// ./review.gen and ./manual, resolve to their own dist files) and emit declarations with tsc.
 // Mirrors packages/kapi-format/build.mjs; in-repo consumers use the TS source
 // directly (see the package.json exports vs publishConfig split).
 import { build } from "esbuild";
@@ -11,7 +11,13 @@ import { execFileSync } from "node:child_process";
 
 rmSync("dist", { recursive: true, force: true });
 
-const entryPoints = ["src/index.ts", "src/contract.gen.ts", "src/content.gen.ts", "src/manual.ts"];
+const entryPoints = [
+  "src/index.ts",
+  "src/contract.gen.ts",
+  "src/content.gen.ts",
+  "src/review.gen.ts",
+  "src/manual.ts",
+];
 
 // Rewrites ./foo.ts → ./foo.js in relative imports so the emitted JS resolves at
 // runtime. esbuild with bundle:false preserves import specifiers as-is, so we
