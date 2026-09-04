@@ -156,7 +156,9 @@ test("renames a flow in place", async ({ page }) => {
   await saved(page);
 
   await page.getByTestId("flow-back").click();
-  await expect(page.locator("[data-testid^='flow-item-']").filter({ hasText: "Final" })).toHaveCount(1);
+  await expect(
+    page.locator("[data-testid^='flow-item-']").filter({ hasText: "Final" }),
+  ).toHaveCount(1);
 });
 
 test("deletes a project flow from its card after confirming", async ({ page }) => {
