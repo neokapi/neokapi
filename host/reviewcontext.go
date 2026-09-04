@@ -43,11 +43,9 @@ import (
 // reading the neighbourhood reads the neighbourhood the model read.
 const DefaultReviewWindow = review.DefaultWindow
 
-// ReviewTermRuleLimit caps the term rules a point renders. The rules bearing on
-// this unit's own wording lead the list, so a capped list still holds every
-// rule the prompt would have scoped to the text; the point reports the total
-// either way.
-const ReviewTermRuleLimit = 25
+// ReviewTermRuleLimit caps the term rules a point renders; see
+// review.TermRuleLimit.
+const ReviewTermRuleLimit = review.TermRuleLimit
 
 // The review model's wire types live in core/review, below the licence line,
 // so the platform server assembles the same shape and the TypeScript contract
@@ -296,7 +294,7 @@ func (a *App) AssembleReviewContext(ctx context.Context, req ReviewContextReques
 		points = a.NewReviewPointResolver(req.Cmd, req.Root)
 	}
 	entry := points.entryAt(ctx, req.Collection, req.SourcePath, req.Locale)
-	entry.point.TermRules = leadWithScopedRules(entry.point.TermRules, block.SourceText())
+	entry.point.TermRules = review.LeadTermRules(entry.point.TermRules, block.SourceText())
 	entry.point.Language = req.Locale
 	entry.point.IsSource = req.Locale != "" && req.Locale == req.SourceLang
 
@@ -369,38 +367,11 @@ func promptKey(b *model.Block) string {
 	return blockKey(b)
 }
 
-// leadWithScopedRules puts the rules bearing on this unit's own wording at the
-// front and caps the list, so a truncated list still holds every rule the
-// prompt would have scoped to the text.
-func leadWithScopedRules(rules []coreprofile.TermRule, sourceText string) []coreprofile.TermRule {
-	if len(rules) <= ReviewTermRuleLimit {
-		return rules
-	}
-	scoped := coreprofile.ScopeTermRules(rules, sourceText)
-	lead := make(map[string]bool, len(scoped))
-	for _, r := range scoped {
-		lead[r.Term] = true
-	}
-	out := make([]coreprofile.TermRule, 0, ReviewTermRuleLimit)
-	out = append(out, scoped...)
-	for _, r := range rules {
-		if len(out) >= ReviewTermRuleLimit {
-			break
-		}
-		if !lead[r.Term] {
-			out = append(out, r)
-		}
-	}
-	if len(out) > ReviewTermRuleLimit {
-		out = out[:ReviewTermRuleLimit]
-	}
-	return out
-}
-
 // reviewHistory reads what has already been approved for this unit: its prior
-// version from the content memory's version chain, and the corpus's best match
-// with the wording it holds. Both are rendered through core/review, so the
-// platform's assembler and this one cannot disagree on a score or a chain.
+// version from the content memory's version chain, judged against the context
+// the current target was produced under, and the corpus's best match with the
+// wording it holds. Both are rendered through core/review, so the platform's
+// assembler and this one cannot disagree on a score or a chain.
 func (a *App) reviewHistory(ctx context.Context, req ReviewContextRequest, b *model.Block, loc model.LocaleID) ReviewHistory {
 	var h ReviewHistory
 	if req.Root != "" {
@@ -412,11 +383,11 @@ func (a *App) reviewHistory(ctx context.Context, req ReviewContextRequest, b *mo
 	source := model.LocaleID(ResolveSourceLocale(req.SourceLang, ""))
 
 	if vr, versioned := req.Memory.(memory.VersionReader); versioned {
-		var contextHash string
+		var recorded model.Origin
 		if req.Unit != nil {
-			contextHash = req.Unit.ContextHash
+			recorded = req.Unit.Origin
 		}
-		h.Prior = review.PriorVersionOf(ctx, vr, b, source, loc, contextHash)
+		h.Prior = review.PriorVersionOf(ctx, vr, b, source, loc, review.GoverningFingerprint(b, loc, recorded))
 	}
 
 	lookup := &model.Block{ID: "review-lookup", Translatable: true, Source: b.SourceRuns()}

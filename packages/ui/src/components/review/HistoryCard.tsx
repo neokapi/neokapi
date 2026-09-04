@@ -5,7 +5,7 @@ import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Skeleton } from "../ui/skeleton";
 import { LayerCard } from "./LayerCard";
-import type { ReviewHistoryView } from "./types";
+import type { ReviewHistory } from "@neokapi/contract-types";
 
 /**
  * What this unit said before, and the wording the content memory already holds
@@ -20,7 +20,7 @@ import type { ReviewHistoryView } from "./types";
  * as the target through `onUseMatch`.
  */
 export interface HistoryCardProps {
-  history?: ReviewHistoryView;
+  history?: ReviewHistory;
   sourceLocale?: string;
   locale?: string;
   loading?: boolean;

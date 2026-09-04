@@ -177,10 +177,11 @@ func TestReviewNeighbourSkipsUnreadableBlocks(t *testing.T) {
 	}
 }
 
-// TestReviewHistoryThreadsTheDecisionContext: the version chain is read through
-// core/review, and Governed is judged against the fingerprint the decision in
-// force was recorded under, which only the state record carries.
-func TestReviewHistoryThreadsTheDecisionContext(t *testing.T) {
+// TestReviewHistoryThreadsTheGoverningFingerprint: the version chain is read
+// through core/review, and Governed is judged against the fingerprint the
+// current target was produced under, read from the state record's origin when
+// the format keeps no provenance of its own.
+func TestReviewHistoryThreadsTheGoverningFingerprint(t *testing.T) {
 	ctx := t.Context()
 	tm := memory.NewInMemoryStore()
 	at := time.Date(2026, 2, 1, 9, 0, 0, 0, time.UTC)
@@ -196,8 +197,8 @@ func TestReviewHistoryThreadsTheDecisionContext(t *testing.T) {
 		unit         *state.UnitState
 		wantGoverned bool
 	}{
-		{name: "governed by the context in force", unit: &state.UnitState{ContextHash: "fp-now"}, wantGoverned: true},
-		{name: "ungoverned once the rules moved", unit: &state.UnitState{ContextHash: "fp-moved"}},
+		{name: "governed by the context in force", unit: &state.UnitState{Origin: model.Origin{ContextFingerprint: "fp-now"}}, wantGoverned: true},
+		{name: "ungoverned once the rules moved", unit: &state.UnitState{Origin: model.Origin{ContextFingerprint: "fp-moved"}}},
 		{name: "with no state record the chain still answers", unit: nil},
 	}
 	for _, tc := range tests {
@@ -289,25 +290,6 @@ func TestDoNotTranslateFromRules(t *testing.T) {
 	}
 }
 
-func TestLeadWithScopedRulesKeepsWhatThePromptCarried(t *testing.T) {
-	// More rules than the cap, with the one bearing on the text buried at the
-	// end so a plain truncation would drop it.
-	rules := make([]coreprofile.TermRule, 0, ReviewTermRuleLimit+5)
-	for i := range ReviewTermRuleLimit + 4 {
-		rules = append(rules, coreprofile.TermRule{Term: filler(i), Replacement: "x"})
-	}
-	rules = append(rules, coreprofile.TermRule{Term: "utilize", Replacement: "use"})
-
-	got := leadWithScopedRules(rules, "The platform utilize your data")
-	require.Len(t, got, ReviewTermRuleLimit)
-	assert.Equal(t, "utilize", got[0].Term, "the rule the prompt would have scoped to the text leads")
-
-	t.Run("a list within the cap is left alone", func(t *testing.T) {
-		short := rules[:3]
-		assert.Equal(t, short, leadWithScopedRules(short, "anything"))
-	})
-}
-
 // neighbourKeys names a neighbour list for a table comparison.
 func neighbourKeys(ns []ReviewNeighbour) []string {
 	if len(ns) == 0 {
@@ -334,11 +316,6 @@ func chainAnswer(id, unit, source, target, fingerprint string, at time.Time) mem
 		CreatedAt: at,
 		UpdatedAt: at,
 	}
-}
-
-// filler names a rule that bears on nothing the test text says.
-func filler(i int) string {
-	return "filler" + string(rune('a'+i%26)) + string(rune('a'+i/26))
 }
 
 // TestReviewHistoryReportsAnUnseededStore: on a fresh clone the committed

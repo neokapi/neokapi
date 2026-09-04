@@ -5,13 +5,14 @@
  * the most common scenario in the translation editor.
  */
 
+import type { ReviewPoint } from "@neokapi/contract-types";
 import type {
+  ReviewContext,
   SpanInfo,
   BlockInfo,
   ProjectInfo,
   MemoryMatchInfo,
   BlockTermMatch,
-  ReviewVoiceProfile,
   CheckIssue,
   FileCheckResult,
   BlockNote,
@@ -1805,24 +1806,52 @@ export const sampleRoleTemplates: RoleTemplate[] = [
 ];
 
 /**
- * The voice profile a review surface shows as "in force here": the name a
- * reviewer reads, the guidance the producer was given, and the vocabulary the
- * check enforces.
+ * The point a review surface shows a governed unit at: the collection it sits
+ * in, the voice in force with the guidance the producer was given, and the
+ * vocabulary the check enforces.
  */
-export const sampleReviewVoiceProfile: ReviewVoiceProfile = {
-  id: "vp-1",
-  name: "Bowrain Voice",
-  // As core/profile.RenderVoiceGuideCompact prints it: the parenthesised tone
-  // and style parts, then the tone guidance, then the swaps quoted and sorted.
-  guidance:
-    "Voice profile (personality: precise, plain; formality: neutral; use active voice). " +
-    "Tone guidance: say what the product does for the reader, in their words. " +
-    'Never use these terms (use the replacement): "leverage" → "use"; "utilize" → "use".',
-  compliance_bar: 90,
+export const sampleReviewPoint: ReviewPoint = {
+  path: "auth.json",
+  language: "fr-FR",
+  default: false,
+  collection: "Product UI",
+  coordinates: { product: "kapi", channel: "app" },
+  voice: {
+    name: "Bowrain Voice",
+    source: "store:vp-1",
+    // As core/profile.RenderVoiceGuideCompact prints it: the parenthesised tone
+    // and style parts, then the tone guidance, then the swaps quoted and sorted.
+    guide:
+      "Voice profile (personality: precise, plain; formality: neutral; use active voice). " +
+      "Tone guidance: say what the product does for the reader, in their words. " +
+      'Never use these terms (use the replacement): "leverage" → "use"; "utilize" → "use".',
+  },
   term_rules: [
     { term: "leverage", replacement: "use", severity: "major" },
     { term: "utilize", replacement: "use", severity: "minor" },
     { term: "best-in-class", note: "Rephrase without a superlative.", severity: "critical" },
     { term: "Bowrain", note: "The product name stays in English.", do_not_translate: true },
   ],
+  terms_total: 4,
 };
+
+/** The review context for a unit nothing has resolved anything for. */
+export function emptyReviewContext(
+  blockId: string,
+  itemName: string,
+  locale: string,
+): ReviewContext {
+  return {
+    block_id: blockId,
+    item_name: itemName,
+    locale,
+    collection_id: "",
+    terms: [],
+    notes: [],
+    point: { default: false, terms_total: 0 },
+    neighbourhood: { key: blockId, window: 2 },
+    history: {},
+    judgement: {},
+    provenance: {},
+  };
+}

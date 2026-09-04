@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import type { CheckFinding } from "@neokapi/contract-types";
 import {
   HistoryCard,
   JudgementCard,
@@ -6,16 +7,9 @@ import {
   PointCard,
   ProvenanceCard,
 } from "@neokapi/ui-primitives";
-import {
-  toFindingViews,
-  toHistoryView,
-  toNeighbourhoodView,
-  toPointView,
-  toProvenanceView,
-} from "../../components/review/reviewModel";
+import { findingViews, latestNote, termHitViews } from "../../components/review/reviewContext";
 import type { CheckIssue, ReviewContext } from "../../types/api";
-import type { VoiceFinding } from "../../voice/types";
-import { sampleReviewVoiceProfile } from "../fixtures";
+import { emptyReviewContext, sampleReviewPoint } from "../fixtures";
 
 const issues: CheckIssue[] = [
   {
@@ -27,13 +21,14 @@ const issues: CheckIssue[] = [
   },
 ];
 
-const findings: VoiceFinding[] = [
+const findings: CheckFinding[] = [
   {
     category: "compliance",
     severity: "major",
     message: "Uses a term the profile forbids.",
     original_text: "Réinitialisez",
     suggestion: "Changez",
+    position: { kind: "range", start: { run: 0, offset: 0 }, end: { run: 0, offset: 13 } },
   },
 ];
 
@@ -42,7 +37,7 @@ const context: ReviewContext = {
   block_id: "b1",
   item_name: "auth.json",
   locale: "fr-FR",
-  voice_profile: sampleReviewVoiceProfile,
+  collection_id: "col-1",
   terms: [
     {
       source_term: "password",
@@ -53,67 +48,69 @@ const context: ReviewContext = {
       end: 19,
     },
   ],
-  collection_id: "col-1",
-  collection_name: "Product UI",
-  coordinates: { product: "kapi", channel: "app", brand: "bowrain" },
-  previous: {
-    block_id: "b0",
-    source_runs: [{ text: "Enter the email you signed up with" }],
-    target_runs: [{ text: "Saisissez l'adresse e-mail utilisée à l'inscription" }],
-    status: "reviewed",
+  notes: [],
+  voice_score: 62,
+  voice_bar: 90,
+  point: {
+    ...sampleReviewPoint,
+    coordinates: { product: "kapi", channel: "app", brand: "bowrain" },
   },
-  next: {
-    block_id: "b2",
-    source_runs: [
-      { text: "We sent a link to " },
-      { ph: { id: "1", type: "code:variable", data: "{{.Email}}", equiv: "{{.Email}}" } },
-      { text: "." },
+  neighbourhood: {
+    key: "b1",
+    before: [
+      {
+        key: "b0",
+        source: [{ text: "Enter the email you signed up with" }],
+        target: [{ text: "Saisissez l'adresse e-mail utilisée à l'inscription" }],
+        status: "reviewed",
+      },
     ],
-    target_runs: [],
+    after: [
+      {
+        key: "b2",
+        source: [
+          { text: "We sent a link to " },
+          { ph: { id: "1", type: "code:variable", data: "{{.Email}}", equiv: "{{.Email}}" } },
+          { text: "." },
+        ],
+      },
+    ],
+    window: 2,
   },
-  memory_match: {
-    source: "Reset your password",
-    target: "Réinitialisez votre mot de passe",
-    score: 0.92,
-    match_type: "fuzzy",
+  history: {
+    match: {
+      source: "Reset your password",
+      target: "Réinitialisez votre mot de passe",
+      score: 92,
+      kind: "fuzzy",
+    },
   },
-  decision: {
-    state: "rejected",
+  judgement: { findings },
+  provenance: {
+    origin: {
+      kind: "ai",
+      engine: "claude-sonnet",
+      tool: "translate",
+      timestamp: "2026-08-29T18:40:00Z",
+      profile: "vp-1",
+    },
+    review_state: "rejected",
     status: "draft",
     by: "maria@bowrain.test",
     at: "2026-08-30T09:12:00Z",
     note: "Reads as machine output; soften the imperative.",
-    source_moved: true,
-  },
-  notes: [],
-  voice_findings: findings,
-  voice_score: 62,
-  voice_bar: 90,
-  origin: {
-    kind: "ai",
-    engine: "claude-sonnet",
-    tool: "translate",
-    timestamp: "2026-08-29T18:40:00Z",
-    profile: "vp-1",
+    stale: true,
   },
 };
 
 /** A unit nothing has resolved anything for. */
-const bare: ReviewContext = {
-  block_id: "b1",
-  item_name: "auth.json",
-  locale: "fr-FR",
-  terms: [],
-  collection_id: "",
-  notes: [],
-  voice_findings: [],
-};
+const bare: ReviewContext = emptyReviewContext("b1", "auth.json", "fr-FR");
 
 /**
- * The five layers a reviewer decides in, stacked as a rail, over the platform's
- * review context mapped onto the shared cards. `open` draws the evidence under
- * each summary; closed leaves the summary line alone, which is the state a
- * reviewer scans before opening the one they need.
+ * The five layers a reviewer decides in, stacked as a rail, over the review
+ * model the platform serves with its own rows beside it. `open` draws the
+ * evidence under each summary; closed leaves the summary line alone, which is
+ * the state a reviewer scans before opening the one they need.
  */
 function Layers({
   open,
@@ -126,9 +123,16 @@ function Layers({
 }) {
   return (
     <div className="w-[26rem] space-y-4 rounded-lg border border-border bg-background p-4">
-      <PointCard point={ctx ? toPointView(ctx) : undefined} loading={loading} defaultOpen={open} />
+      <PointCard
+        point={ctx?.point}
+        termHits={ctx ? termHitViews(ctx.terms) : undefined}
+        voiceScore={ctx?.voice_score}
+        voiceBar={ctx?.voice_bar}
+        loading={loading}
+        defaultOpen={open}
+      />
       <NeighbourhoodCard
-        neighbourhood={ctx ? toNeighbourhoodView(ctx) : undefined}
+        neighbourhood={ctx?.neighbourhood}
         loading={loading}
         unitKey="b1"
         unitSource="Reset your password"
@@ -138,18 +142,22 @@ function Layers({
         defaultOpen={open}
       />
       <JudgementCard
-        findings={toFindingViews(ctx === context ? issues : [], ctx?.voice_findings ?? [])}
+        findings={findingViews(ctx === context ? issues : [], ctx?.judgement.findings ?? [])}
         defaultOpen={open}
       />
       <HistoryCard
-        history={ctx ? toHistoryView(ctx) : undefined}
+        history={ctx?.history}
         loading={loading}
         sourceLocale="en-US"
         locale="fr-FR"
         defaultOpen={open}
-        onUseMatch={ctx?.memory_match ? () => {} : undefined}
+        onUseMatch={ctx?.history.match ? () => {} : undefined}
       />
-      <ProvenanceCard provenance={ctx ? toProvenanceView(ctx) : undefined} defaultOpen={open} />
+      <ProvenanceCard
+        provenance={ctx?.provenance}
+        note={ctx ? latestNote(ctx.notes) : undefined}
+        defaultOpen={open}
+      />
     </div>
   );
 }

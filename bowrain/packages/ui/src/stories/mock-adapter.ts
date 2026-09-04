@@ -22,7 +22,6 @@ import type {
   MemoryMatchInfo,
   BlockTermMatch,
   ReviewContext,
-  ReviewVoiceProfile,
   BlockNote,
   BlockHistoryEntry,
   CheckIssue,
@@ -69,7 +68,8 @@ import {
   sampleAutomationEvents,
   sampleAutomationHistory,
   sampleRoleTemplates,
-  sampleReviewVoiceProfile,
+  sampleReviewPoint,
+  emptyReviewContext,
 } from "./fixtures";
 
 /**
@@ -973,20 +973,12 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
       targetLocale,
     ): Promise<ReviewContext> =>
       blockId === "blk-3"
-        ? {
-            block_id: blockId,
-            item_name: itemName,
-            locale: targetLocale,
-            terms: [],
-            collection_id: "",
-            notes: [],
-            voice_findings: [],
-          }
+        ? emptyReviewContext(blockId, itemName, targetLocale)
         : {
             block_id: blockId,
             item_name: itemName,
             locale: targetLocale,
-            voice_profile: sampleReviewVoiceProfile,
+            collection_id: "col-1",
             terms: [
               {
                 source_term: "app",
@@ -997,35 +989,6 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
                 end: 3,
               },
             ],
-            collection_id: "col-1",
-            collection_name: "Marketing site",
-            coordinates: { product: "kapi", channel: "web" },
-            // One neighbour settled and one still untranslated, which is what
-            // the middle of a review pass looks like.
-            previous: {
-              block_id: "blk-0",
-              source_runs: [{ text: "Sign in to continue" }],
-              target_runs: [{ text: "Connectez-vous pour continuer" }],
-              status: "reviewed",
-            },
-            next: {
-              block_id: "blk-2",
-              source_runs: [{ text: "Click here to continue" }],
-              target_runs: [],
-            },
-            memory_match: {
-              source: "Welcome to Neokapi",
-              target: "Bienvenue sur Neokapi",
-              score: 1,
-              match_type: "exact",
-            },
-            decision: {
-              state: "rejected",
-              status: "draft",
-              by: "maria@bowrain.test",
-              at: "2026-08-30T09:12:00Z",
-              note: "Reads as machine output; soften the imperative.",
-            },
             notes: [
               {
                 id: "note-1",
@@ -1035,32 +998,71 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
                 createdAt: "2026-08-30T09:15:00Z",
               },
             ],
-            // The findings are the evidence behind the score, so a block
-            // seeded at or above its bar carries none.
-            voice_findings: belowVoiceBar(adapter.blockEvidence[blockId])
-              ? [
-                  {
-                    category: "compliance",
-                    severity: "major",
-                    message: "Uses a term the profile forbids.",
-                    original_text: "Neokapi",
-                    suggestion: "the platform",
-                    position: {
-                      kind: "range",
-                      start: { run: 0, offset: 12 },
-                      end: { run: 0, offset: 19 },
-                    },
-                  },
-                ]
-              : [],
             voice_score: adapter.blockEvidence[blockId]?.voice_score,
             voice_bar: adapter.blockEvidence[blockId]?.voice_bar,
-            origin: {
-              kind: "ai",
-              engine: "claude-sonnet",
-              tool: "translate",
-              timestamp: "2026-08-29T18:40:00Z",
-              profile: "vp-1",
+            point: {
+              ...sampleReviewPoint,
+              path: itemName,
+              language: targetLocale,
+              collection: "Marketing site",
+              coordinates: { product: "kapi", channel: "web" },
+            },
+            // One neighbour settled and one still untranslated, which is what
+            // the middle of a review pass looks like.
+            neighbourhood: {
+              key: blockId,
+              before: [
+                {
+                  key: "blk-0",
+                  source: [{ text: "Sign in to continue" }],
+                  target: [{ text: "Connectez-vous pour continuer" }],
+                  status: "reviewed",
+                },
+              ],
+              after: [{ key: "blk-2", source: [{ text: "Click here to continue" }] }],
+              window: 2,
+            },
+            history: {
+              match: {
+                source: "Welcome to Neokapi",
+                target: "Bienvenue sur Neokapi",
+                score: 100,
+                kind: "exact",
+              },
+            },
+            // The findings are the evidence behind the score, so a block
+            // seeded at or above its bar carries none.
+            judgement: {
+              findings: belowVoiceBar(adapter.blockEvidence[blockId])
+                ? [
+                    {
+                      category: "compliance",
+                      severity: "major",
+                      message: "Uses a term the profile forbids.",
+                      original_text: "Neokapi",
+                      suggestion: "the platform",
+                      position: {
+                        kind: "range",
+                        start: { run: 0, offset: 12 },
+                        end: { run: 0, offset: 19 },
+                      },
+                    },
+                  ]
+                : [],
+            },
+            provenance: {
+              origin: {
+                kind: "ai",
+                engine: "claude-sonnet",
+                tool: "translate",
+                timestamp: "2026-08-29T18:40:00Z",
+                profile: "vp-1",
+              },
+              review_state: "rejected",
+              status: "draft",
+              by: "maria@bowrain.test",
+              at: "2026-08-30T09:12:00Z",
+              note: "Reads as machine output; soften the imperative.",
             },
           },
 

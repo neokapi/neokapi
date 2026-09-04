@@ -16,19 +16,5 @@ export {
   decisionLabel,
   type ProvenanceCardProps,
 } from "./ProvenanceCard";
-export type {
-  ReviewPointView,
-  ReviewVoiceView,
-  ReviewTermRuleView,
-  ReviewTermHitView,
-  ReviewProfileWindowView,
-  ReviewNeighbourhoodView,
-  ReviewHistoryView,
-  ReviewPriorView,
-  ReviewMatchView,
-  ReviewFindingView,
-  ReviewAIRemarkView,
-  ReviewProvenanceView,
-  ReviewOriginView,
-  ReviewDecisionView,
-} from "./types";
+export { checkFindingViews } from "./model";
+export type { ReviewTermHitView, ReviewFindingView, CheckFindingLike } from "./types";

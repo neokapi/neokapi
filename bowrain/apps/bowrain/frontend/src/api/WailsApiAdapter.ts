@@ -906,15 +906,28 @@ export class WailsApiAdapter implements ApiAdapter {
       this.lookupMemoryForBlock(_ws, projectId, itemName, blockId, targetLocale),
       this.lookupTermsForBlock(_ws, projectId, itemName, blockId, targetLocale),
     ]);
+    const best = memory[0];
     return {
       block_id: blockId,
       item_name: itemName,
       locale: targetLocale,
-      terms,
       collection_id: "",
-      memory_match: memory[0],
+      terms,
       notes: [],
-      voice_findings: [],
+      point: { path: itemName, language: targetLocale, default: false, terms_total: 0 },
+      neighbourhood: { key: blockId, window: 0 },
+      history: best
+        ? {
+            match: {
+              score: Math.round(best.score * 100),
+              kind: best.match_type,
+              source: best.source,
+              target: best.target,
+            },
+          }
+        : {},
+      judgement: {},
+      provenance: {},
     };
   }
 

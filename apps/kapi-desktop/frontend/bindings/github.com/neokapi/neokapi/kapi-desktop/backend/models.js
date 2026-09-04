@@ -23,6 +23,9 @@ import * as occurrence$0 from "../../core/occurrence/models.js";
 import * as profile$0 from "../../core/profile/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as review$0 from "../../core/review/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as host$0 from "../../host/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -8381,7 +8384,7 @@ const $$createType28 = ContextVoiceDTO.createFrom;
 const $$createType29 = $Create.Nullable($$createType28);
 const $$createType30 = ConceptDTO.createFrom;
 const $$createType31 = $Create.Array($$createType30);
-const $$createType32 = host$0.ContextProfileHit.createFrom;
+const $$createType32 = review$0.ProfileValidity.createFrom;
 const $$createType33 = $Create.Array($$createType32);
 const $$createType34 = ContextCollectionDTO.createFrom;
 const $$createType35 = $Create.Array($$createType34);
@@ -8453,7 +8456,7 @@ const $$createType100 = ValidityDTO.createFrom;
 const $$createType101 = $Create.Nullable($$createType100);
 const $$createType102 = model$0.Origin.createFrom;
 const $$createType103 = $Create.Nullable($$createType102);
-const $$createType104 = host$0.ReviewContext.createFrom;
+const $$createType104 = review$0.Context.createFrom;
 const $$createType105 = $Create.Nullable($$createType104);
 const $$createType106 = RunErrorAction.createFrom;
 const $$createType107 = $Create.Array($$createType106);

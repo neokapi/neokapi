@@ -1,13 +1,15 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { NeighbourhoodCard, type ReviewNeighbourhoodView } from "../../components/review";
+import type { ReviewNeighbourhood } from "@neokapi/contract-types";
+import { NeighbourhoodCard } from "../../components/review";
 
-const around: ReviewNeighbourhoodView = {
+const around: ReviewNeighbourhood = {
   key: "greeting",
   before: [
     {
       key: "welcome",
       source: [{ text: "Welcome back." }],
       target: [{ text: "Bon retour." }],
+      status: "reviewed",
     },
   ],
   after: [
@@ -23,8 +25,10 @@ const around: ReviewNeighbourhoodView = {
       key: "farewell",
       source: [{ text: "See you soon." }],
       target: [{ text: "À bientôt." }],
+      status: "translated",
     },
   ],
+  window: 2,
 };
 
 const meta: Meta<typeof NeighbourhoodCard> = {
@@ -63,7 +67,7 @@ export const InSequence: Story = {
 
 export const Alone: Story = {
   name: "The only unit in its document",
-  args: { neighbourhood: { key: "greeting", before: [], after: [] } },
+  args: { neighbourhood: { key: "greeting", window: 2 } },
 };
 
 export const Loading: Story = {

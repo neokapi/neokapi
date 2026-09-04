@@ -5,7 +5,8 @@ import { findingToneBadgeClass, type FindingTone } from "../../lib/finding-sever
 import { Badge } from "../ui/badge";
 import { AIPreReview } from "./AIPreReview";
 import { LayerCard } from "./LayerCard";
-import type { ReviewAIRemarkView, ReviewFindingView } from "./types";
+import type { AIReviewFinding } from "@neokapi/contract-types";
+import type { ReviewFindingView } from "./types";
 
 /**
  * What has already been said about this translation: the findings every
@@ -31,12 +32,16 @@ function worst(findings: ReviewFindingView[]): ReviewFindingView | undefined {
 }
 
 export interface JudgementCardProps {
-  /** The unit's findings, or undefined while the unit is loading. */
+  /**
+   * The unit's findings painted on the shared scale (`checkFindingViews` over
+   * the judgement's findings, plus whatever a surface's own checkers raised),
+   * or undefined while the unit is loading.
+   */
   findings?: ReviewFindingView[];
   /** The AI pre-review's stored score and the model that produced it. */
   aiScore?: number;
   aiModel?: string;
-  aiFindings?: ReviewAIRemarkView[];
+  aiFindings?: AIReviewFinding[];
   /** Drawn above the list: a surface's own re-check control, or the target with the findings marked on it. */
   children?: ReactNode;
   defaultOpen?: boolean;

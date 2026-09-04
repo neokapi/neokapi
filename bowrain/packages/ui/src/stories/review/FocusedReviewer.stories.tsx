@@ -4,7 +4,7 @@ import { fn } from "storybook/test";
 import { FocusedReviewer } from "../../components/review/FocusedReviewer";
 import type { ReviewEntry } from "../../components/review/reviewQueue";
 import type { BlockInfo, ReviewContext } from "../../types/api";
-import { sampleReviewVoiceProfile } from "../fixtures";
+import { emptyReviewContext, sampleReviewPoint } from "../fixtures";
 
 function block(over: Partial<BlockInfo>): BlockInfo {
   return {
@@ -58,7 +58,7 @@ const resolvedContext: ReviewContext = {
   block_id: "b1",
   item_name: "auth.json",
   locale: "fr-FR",
-  voice_profile: sampleReviewVoiceProfile,
+  collection_id: "col-1",
   terms: [
     {
       source_term: "password",
@@ -69,43 +69,6 @@ const resolvedContext: ReviewContext = {
       end: 19,
     },
   ],
-  collection_id: "col-1",
-  collection_name: "Product UI",
-  coordinates: { product: "kapi", channel: "app" },
-  previous: {
-    block_id: "b0",
-    source_runs: [{ text: "Enter the email you signed up with" }],
-    target_runs: [{ text: "Saisissez l'adresse e-mail utilisée à l'inscription" }],
-    status: "reviewed",
-  },
-  next: {
-    block_id: "b2",
-    source_runs: [
-      { text: "We sent a link to " },
-      { ph: { id: "1", type: "code:variable", data: "{{.Email}}", equiv: "{{.Email}}" } },
-      { text: "." },
-    ],
-    target_runs: [
-      { text: "Nous avons envoyé un lien à " },
-      { ph: { id: "1", type: "code:variable", data: "{{.Email}}", equiv: "{{.Email}}" } },
-      { text: "." },
-    ],
-    status: "draft",
-  },
-  memory_match: {
-    source: "Reset your password",
-    target: "Réinitialisez votre mot de passe",
-    score: 1,
-    match_type: "exact",
-  },
-  decision: {
-    state: "rejected",
-    status: "draft",
-    by: "maria@bowrain.test",
-    at: "2026-08-30T09:12:00Z",
-    note: "Reads as machine output; soften the imperative.",
-    source_moved: true,
-  },
   notes: [
     {
       id: "note-1",
@@ -115,24 +78,71 @@ const resolvedContext: ReviewContext = {
       createdAt: "2026-08-30T09:15:00Z",
     },
   ],
-  voice_findings: [
-    {
-      category: "compliance",
-      severity: "major",
-      message: "Uses a term the profile forbids.",
-      original_text: "Réinitialisez",
-      suggestion: "Changez",
-      position: { kind: "range", start: { run: 0, offset: 0 }, end: { run: 0, offset: 13 } },
-    },
-  ],
   voice_score: 62,
   voice_bar: 90,
-  origin: {
-    kind: "ai",
-    engine: "claude-sonnet",
-    tool: "translate",
-    timestamp: "2026-08-29T18:40:00Z",
-    profile: "vp-1",
+  point: sampleReviewPoint,
+  neighbourhood: {
+    key: "b1",
+    before: [
+      {
+        key: "b0",
+        source: [{ text: "Enter the email you signed up with" }],
+        target: [{ text: "Saisissez l'adresse e-mail utilisée à l'inscription" }],
+        status: "reviewed",
+      },
+    ],
+    after: [
+      {
+        key: "b2",
+        source: [
+          { text: "We sent a link to " },
+          { ph: { id: "1", type: "code:variable", data: "{{.Email}}", equiv: "{{.Email}}" } },
+          { text: "." },
+        ],
+        target: [
+          { text: "Nous avons envoyé un lien à " },
+          { ph: { id: "1", type: "code:variable", data: "{{.Email}}", equiv: "{{.Email}}" } },
+          { text: "." },
+        ],
+        status: "draft",
+      },
+    ],
+    window: 2,
+  },
+  history: {
+    match: {
+      source: "Reset your password",
+      target: "Réinitialisez votre mot de passe",
+      score: 100,
+      kind: "exact",
+    },
+  },
+  judgement: {
+    findings: [
+      {
+        category: "compliance",
+        severity: "major",
+        message: "Uses a term the profile forbids.",
+        original_text: "Réinitialisez",
+        suggestion: "Changez",
+        position: { kind: "range", start: { run: 0, offset: 0 }, end: { run: 0, offset: 13 } },
+      },
+    ],
+  },
+  provenance: {
+    origin: {
+      kind: "ai",
+      engine: "claude-sonnet",
+      tool: "translate",
+      timestamp: "2026-08-29T18:40:00Z",
+      profile: "vp-1",
+    },
+    review_state: "rejected",
+    status: "draft",
+    by: "maria@bowrain.test",
+    at: "2026-08-30T09:12:00Z",
+    note: "Reads as machine output; soften the imperative.",
+    stale: true,
   },
 };
 
@@ -143,8 +153,8 @@ const resolvedContext: ReviewContext = {
  */
 const passingContext: ReviewContext = {
   ...resolvedContext,
-  decision: undefined,
-  voice_findings: [],
+  judgement: {},
+  provenance: { origin: resolvedContext.provenance.origin },
   voice_score: 94,
   voice_bar: 80,
 };
@@ -324,14 +334,6 @@ export const WithResolvedContext: Story = {
 export const WithoutResolvedContext: Story = {
   args: {
     entry: entry({}),
-    context: {
-      block_id: "b1",
-      item_name: "auth.json",
-      locale: "fr-FR",
-      terms: [],
-      collection_id: "",
-      notes: [],
-      voice_findings: [],
-    },
+    context: emptyReviewContext("b1", "auth.json", "fr-FR"),
   },
 };

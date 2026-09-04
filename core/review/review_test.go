@@ -79,17 +79,17 @@ func TestPriorVersionOfReadsTheChain(t *testing.T) {
 
 	tests := []struct {
 		name         string
-		contextHash  string
+		fingerprint  string
 		wantGoverned bool
 	}{
-		{name: "the newest answer wins, governed by the context in force", contextHash: "fp-now", wantGoverned: true},
-		{name: "an answer approved under superseded rules is reported ungoverned", contextHash: "fp-moved"},
-		{name: "with no recorded context the chain still answers, ungoverned", contextHash: ""},
+		{name: "the newest answer wins, governed by the context in force", fingerprint: "fp-now", wantGoverned: true},
+		{name: "an answer produced under superseded rules is reported ungoverned", fingerprint: "fp-moved"},
+		{name: "with no stamp the chain still answers, ungoverned", fingerprint: ""},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			prior := PriorVersionOf(ctx, tm, block, "en", "nb", tc.contextHash)
+			prior := PriorVersionOf(ctx, tm, block, "en", "nb", tc.fingerprint)
 			require.NotNil(t, prior)
 			assert.Equal(t, "Save the file", prior.Source)
 			assert.Equal(t, "Lagre filen", prior.Target)
@@ -130,6 +130,30 @@ func TestPriorVersionOfWithoutAChain(t *testing.T) {
 		block := &model.Block{ID: "b", Unit: "half.answer", Translatable: true}
 		assert.Nil(t, PriorVersionOf(ctx, tm, block, "en", "nb", ""))
 	})
+}
+
+func TestGoverningFingerprintPrefersTheFormatStamp(t *testing.T) {
+	stamped := &model.Block{ID: "b", Translatable: true}
+	stamped.SetTarget("nb", &model.Target{Runs: []model.Run{model.TextR("Hei")}, Origin: model.Origin{ContextFingerprint: "fp-file"}})
+	bare := &model.Block{ID: "b", Translatable: true}
+	bare.SetTarget("nb", &model.Target{Runs: []model.Run{model.TextR("Hei")}})
+
+	tests := []struct {
+		name     string
+		block    *model.Block
+		recorded model.Origin
+		want     string
+	}{
+		{name: "the format's stamp wins", block: stamped, recorded: model.Origin{ContextFingerprint: "fp-record"}, want: "fp-file"},
+		{name: "the record answers when the format keeps none", block: bare, recorded: model.Origin{ContextFingerprint: "fp-record"}, want: "fp-record"},
+		{name: "no stamp anywhere reads as ungoverned", block: bare, want: ""},
+		{name: "no block at all still reads the record", block: nil, recorded: model.Origin{ContextFingerprint: "fp-record"}, want: "fp-record"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, GoverningFingerprint(tc.block, "nb", tc.recorded))
+		})
+	}
 }
 
 // TestContextWireKeys pins the JSON spelling every client reads: the five

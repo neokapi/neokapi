@@ -115,19 +115,37 @@ draws no second line between the approver and the signer.
 
 ### Every client renders the same object
 
-The model is one Go type, `host.ReviewContext`, assembled by
-`App.AssembleReviewContext` and attached to the unit (`ReviewUnitInfo.Context`)
-when a client asks for a unit with its context. The point carries the language
-it was resolved for, because a term rule resolves per language. The queue itself
-stays a list of units; a file's point is resolved once per queue and shared by
-its units. The clients are:
+The model is one Go type, `core/review.Context`, which `host` names
+`ReviewContext`. `App.AssembleReviewContext` assembles it and attaches it to
+the unit (`ReviewUnitInfo.Context`) when a client asks for a unit with its
+context. The point carries the language it was resolved for, because a term
+rule resolves per language. The queue itself stays a list of units; a file's
+point is resolved once per queue and shared by its units.
+
+The type sits in the framework, below the licence line, because two hosts
+assemble it. The platform's REST review context is the same struct embedded
+whole, with the rows only the platform holds beside it: the unit's own address
+there, the positioned term hits its document surface marks, the block's notes,
+and the unit's voice score against its profile's bar. Where the two venues
+hold the same fact, one spelling and one scale carry it: the memory match is an
+integer percent on both, a neighbour carries its rung on both, and the decision
+in force carries its rung on both. The conversions the venues share (the match
+percent, the prior version judged against the fingerprint of the context the
+current target was produced under, the term rules led by the ones bearing on
+the wording) are functions in `core/review`, and a test in the server holds
+its assembler to the host's over one unit.
+
+The TypeScript both frontends read is generated from the same structs
+(`packages/contract-types/src/review.gen.ts`, by `make generate-contract-types`,
+drift-gated in CI), so a field added to the model reaches every client or
+fails to compile in the one that ignores it. The clients are:
 
 | Client | How it renders the model |
 | --- | --- |
 | Kapi Desktop ([S-02](s-02-kapi-desktop.md)) | the queue's detail pane: the five shared cards over the model, and the document view opening at the unit with review state drawn as marks |
 | `kapi status --review` ([S-01](s-01-kapi-cli.md)) | the queue as a table, `--lang` narrowing it to one or more languages, and as JSON with `--json` |
 | MCP `review_unit` ([S-03](s-03-agent-surfaces.md)) | the model whole, as the read leg before `approve_unit`, `reject_unit` and `sign_off_unit`; `review_queue` lists the queue with its per-language counts |
-| A review surface over the REST editor | the queue as a list with the focused unit beside it: the same five cards over the server's review context, the findings anchored on the target, with the three verdicts under them |
+| A review surface over the REST editor | the queue as a list with the focused unit beside it: the same five cards over the same model, the findings anchored on the target, with the three verdicts under them |
 
 A host that records a review decision with an identity is a client of this
 model by shape: the layers are the contract, whatever renders them.
@@ -135,18 +153,17 @@ model by shape: the layers are the contract, whatever renders them.
 The rendering is shared. One card per layer lives in `@neokapi/ui-primitives`
 (`packages/ui/src/components/review/`: `PointCard`, `NeighbourhoodCard`,
 `HistoryCard`, `JudgementCard` with the AI pre-review inside it, and
-`ProvenanceCard`, each on the folding `LayerCard`), and each card reads a
-structural view of its layer rather than a host type. A review shell maps its
-own model onto those views in a few lines and keeps what is its own: Kapi
-Desktop's `ReviewPage` maps `host.ReviewContext` and owns the verdict bar, the
-AI actions and the source-unit pane; the REST review surfaces map the server's
-review context and own the target editor, the anchored marks on the target, the
-re-check and the term and voice-rule dialogs. The two models spell the layers
-differently and neither carries every field the other does, so a card states
-its own empty case for a row its host leaves out, and the same unit reads the
-same way on either surface. The origin kinds, the decision states, the tone a
-finding takes and the neutral chip a term rule takes are all named once, in the
-cards.
+`ProvenanceCard`, each on the folding `LayerCard`), and each card takes its
+layer of the generated model as its prop. A review shell hands its layers to
+the cards and keeps what is its own: Kapi Desktop's `ReviewPage` owns the
+verdict bar, the AI actions and the source-unit pane; the REST review surfaces
+own the target editor, the anchored marks on the target, the re-check and the
+term and voice-rule dialogs, and pass the platform's own rows (the term hits,
+the score against the bar, the latest block note, the check issues on the
+error and warning scale) as the cards' extra props. A row a venue leaves empty
+draws the card's own empty case, so the same unit reads the same way on either
+surface. The origin kinds, the decision states, the tone a finding takes and
+the neutral chip a term rule takes are all named once, in the cards.
 
 ### The AI actions inherit the point
 
@@ -235,10 +252,10 @@ retrieval over stores that exist, plus one new fact per written target (its
 basis), which is a state record; what governs a point is still read from the
 graph.
 
-Rendering stays with each host. The model crosses no licence line: `host` is
-Apache-2.0 and every client already depends on it. No file moves between
-licence subtrees, and no module above the line imports from below it, which
-`make audit-modules` asserts for Go and for TypeScript.
+Rendering stays with each host. The model sits in the framework
+(`core/review`), which every client already depends on, so no module above
+the licence line imports from below it, which `make audit-modules` asserts for
+Go and for TypeScript.
 
 The invariant is enforced. The reflection
 test holds the model to `prompt.Context`; the equality test holds the review AI

@@ -2,7 +2,7 @@ import { t } from "@neokapi/i18n-react/runtime";
 import { findingSeverityBadgeClass } from "../../lib/finding-severity";
 import { Badge } from "../ui/badge";
 import { SimpleTooltip } from "../ui/tooltip";
-import type { ReviewAIRemarkView } from "./types";
+import type { AIReviewFinding } from "@neokapi/contract-types";
 
 /**
  * The AI pre-review's verdict on this unit, read from the state store: a score,
@@ -15,7 +15,7 @@ import type { ReviewAIRemarkView } from "./types";
 export interface AIPreReviewProps {
   score?: number;
   model?: string;
-  findings?: ReviewAIRemarkView[];
+  findings?: AIReviewFinding[];
 }
 
 export function AIPreReview({ score, model, findings }: AIPreReviewProps) {

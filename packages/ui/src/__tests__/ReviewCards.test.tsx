@@ -2,6 +2,7 @@
 import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import type { ReviewPoint } from "@neokapi/contract-types";
 import {
   HistoryCard,
   JudgementCard,
@@ -9,9 +10,9 @@ import {
   NeighbourhoodCard,
   PointCard,
   ProvenanceCard,
+  checkFindingViews,
   decisionLabel,
   originLabel,
-  type ReviewPointView,
 } from "../components/review";
 
 beforeAll(() => {
@@ -55,26 +56,32 @@ describe("LayerCard", () => {
   });
 });
 
-const point: ReviewPointView = {
+/** One point as the host serialises it (core/review.Point). */
+const point: ReviewPoint = {
   ref: "retail/web",
+  default: false,
   collection: "Product UI",
   coordinates: { product: "kapimart", channel: "web" },
   voice: {
     name: "Kapimart retail",
     source: "pack:retail",
     guide: "Speak in the second person.",
-    score: 62,
-    bar: 90,
   },
-  termRules: [
+  term_rules: [
     { term: "cart", replacement: "basket", severity: "major" },
     { term: "sign in", replacement: "log in", severity: "minor" },
     { term: "Kapimart", do_not_translate: true },
   ],
-  termsTotal: 40,
-  termHits: [{ term: "password", renderings: ["mot de passe"], domain: "account" }],
+  terms_total: 40,
   profiles: [{ name: "retail", state: "active", valid_from: "2026-01-01" }],
   notes: ["The channel was derived from the collection."],
+};
+
+/** The platform's rows beside the point: the terms the source matches, and the score against the bar. */
+const platformRows = {
+  termHits: [{ term: "password", renderings: ["mot de passe"], domain: "account" }],
+  voiceScore: 62,
+  voiceBar: 90,
 };
 
 describe("PointCard", () => {
@@ -91,7 +98,7 @@ describe("PointCard", () => {
   });
 
   it("names the voice with its score against the bar, and folds the guidance", async () => {
-    render(<PointCard point={point} />);
+    render(<PointCard point={point} {...platformRows} />);
     expect(screen.getByTestId("point-profile-name").textContent).toBe("Kapimart retail");
     const score = screen.getByTestId("point-voice-score");
     expect(score.textContent).toBe("Voice 62 of 90");
@@ -118,20 +125,21 @@ describe("PointCard", () => {
   });
 
   it("lists the terms the source matches, and says when none did", () => {
-    const { unmount } = render(<PointCard point={point} />);
+    const { unmount } = render(<PointCard point={point} {...platformRows} />);
     expect(screen.getByTestId("point-terms").textContent).toContain("mot de passe");
     unmount();
-    render(<PointCard point={{ ...point, termHits: [] }} />);
+    render(<PointCard point={point} termHits={[]} />);
     expect(screen.getByTestId("point-terms").textContent).toContain("No terms matched this block.");
   });
 
-  it("leaves the matched-terms row out for a host that looks none up", () => {
-    render(<PointCard point={{ ...point, termHits: undefined }} />);
+  it("leaves the matched-terms row and the score out for a host that carries neither", () => {
+    render(<PointCard point={point} />);
     expect(screen.queryByTestId("point-terms")).toBeNull();
+    expect(screen.queryByTestId("point-voice-score")).toBeNull();
   });
 
   it("says what an ungoverned point lacks", () => {
-    render(<PointCard point={{ termHits: [] }} />);
+    render(<PointCard point={{ default: false, terms_total: 0 }} termHits={[]} />);
     const card = screen.getByTestId("review-point");
     expect(card.textContent).toContain("No voice profile is bound at this point.");
     expect(card.textContent).toContain("none in force here");
@@ -140,7 +148,7 @@ describe("PointCard", () => {
   });
 
   it("names the default point, and reads as loading before the model arrives", () => {
-    const { unmount } = render(<PointCard point={{ default: true }} />);
+    const { unmount } = render(<PointCard point={{ default: true, terms_total: 0 }} />);
     expect(slot("review-point-ref")?.textContent).toBe("default point");
     unmount();
     render(<PointCard loading />);
@@ -165,6 +173,7 @@ describe("NeighbourhoodCard", () => {
               ],
             },
           ],
+          window: 2,
         }}
         unitKey="greeting"
         unitSource="Hello {name}"
@@ -182,7 +191,7 @@ describe("NeighbourhoodCard", () => {
 
   it("says a unit stands alone, and says when the document could not be read", () => {
     const { unmount } = render(
-      <NeighbourhoodCard neighbourhood={{ before: [], after: [] }} unitKey="k" testId="hood" />,
+      <NeighbourhoodCard neighbourhood={{ window: 2 }} unitKey="k" testId="hood" />,
     );
     expect(screen.getByTestId("hood-summary").textContent).toContain("stands alone");
     unmount();
@@ -280,6 +289,38 @@ describe("JudgementCard", () => {
     expect(within(slot("review-finding") as HTMLElement).getByText("source")).toBeTruthy();
   });
 
+  it("paints a checker's findings on the shared scale, keyed by the prefix a surface names", () => {
+    const views = checkFindingViews(
+      [
+        {
+          category: "placeholder",
+          severity: "major",
+          message: "The {date} placeholder is missing.",
+          position: { kind: "block" },
+          original_text: "Le crédit",
+        },
+        {
+          category: "voice",
+          severity: "minor",
+          message: "Softer than the source.",
+          field: "source",
+        },
+        {
+          category: "terms",
+          severity: "neutral",
+          message: "Prefers basket.",
+          replacement: "basket",
+        },
+      ],
+      "check",
+    );
+    expect(views.map((v) => v.id)).toEqual(["check-0", "check-1", "check-2"]);
+    expect(views.map((v) => v.tone)).toEqual(["destructive", "warning", "muted"]);
+    expect(views[0].originalText).toBe("Le crédit");
+    expect(views[1].field).toBe("source");
+    expect(views[2].suggestion).toBe("basket");
+  });
+
   it("says nothing was found, and carries the AI pre-review inside the card", () => {
     render(<JudgementCard findings={[]} aiScore={84} aiModel="claude" testId="checks" />);
     expect(screen.getByTestId("findings-none").textContent).toContain("No findings for this unit.");
@@ -304,13 +345,11 @@ describe("ProvenanceCard", () => {
       <ProvenanceCard
         provenance={{
           origin: { kind: "ai", engine: "claude-sonnet", tool: "translate" },
-          decision: {
-            state: "rejected",
-            by: "maria@bowrain.test",
-            at: "2026-08-30T09:12:00Z",
-            note: "Reads as machine output.",
-            sourceMoved: true,
-          },
+          review_state: "rejected",
+          by: "maria@bowrain.test",
+          at: "2026-08-30T09:12:00Z",
+          note: "Reads as machine output.",
+          stale: true,
         }}
         testId="prov"
       />,
@@ -334,6 +373,26 @@ describe("ProvenanceCard", () => {
       "No decision recorded, and no provenance stamped.",
     );
     expect(screen.getByTestId("prov-summary").textContent).toContain("Nothing recorded");
+  });
+
+  it("draws a note the host keeps beside the decision, and lets the decision's own note win", () => {
+    const { unmount } = render(
+      <ProvenanceCard
+        provenance={{ origin: { kind: "human" } }}
+        note="Legal asked for this wording."
+      />,
+    );
+    expect(screen.getByTestId("provenance-note").textContent).toContain(
+      "Legal asked for this wording.",
+    );
+    unmount();
+    render(
+      <ProvenanceCard
+        provenance={{ review_state: "approved", note: "Approved as written." }}
+        note="Legal asked for this wording."
+      />,
+    );
+    expect(screen.getByTestId("provenance-note").textContent).toContain("Approved as written.");
   });
 
   it("reads the same words for the same kinds and states everywhere", () => {

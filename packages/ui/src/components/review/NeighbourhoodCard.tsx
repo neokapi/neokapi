@@ -3,7 +3,7 @@ import { t } from "@neokapi/i18n-react/runtime";
 import { NeighbourhoodTable } from "../ui/neighbourhood-table";
 import { Skeleton } from "../ui/skeleton";
 import { LayerCard } from "./LayerCard";
-import type { ReviewNeighbourhoodView } from "./types";
+import type { ReviewNeighbourhood } from "@neokapi/contract-types";
 
 /**
  * The unit in its document: the blocks before it, the unit, and the blocks
@@ -16,7 +16,7 @@ import type { ReviewNeighbourhoodView } from "./types";
  * rather than disappearing.
  */
 export interface NeighbourhoodCardProps {
-  neighbourhood?: ReviewNeighbourhoodView;
+  neighbourhood?: ReviewNeighbourhood;
   /** The unit under decision, rendered in place between its neighbours. */
   unitKey?: string;
   unitSource?: string;

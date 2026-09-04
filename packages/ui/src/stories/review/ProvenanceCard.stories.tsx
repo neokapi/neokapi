@@ -28,13 +28,12 @@ export const RejectedStale: Story = {
   args: {
     provenance: {
       origin: { kind: "ai", engine: "claude-sonnet", tool: "translate" },
-      decision: {
-        state: "rejected",
-        by: "maria@bowrain.test",
-        at: "2026-08-30T09:12:00Z",
-        note: "Reads as machine output; soften the imperative.",
-        sourceMoved: true,
-      },
+      review_state: "rejected",
+      status: "draft",
+      by: "maria@bowrain.test",
+      at: "2026-08-30T09:12:00Z",
+      note: "Reads as machine output; soften the imperative.",
+      stale: true,
     },
   },
 };
@@ -44,7 +43,10 @@ export const SignedOff: Story = {
   args: {
     provenance: {
       origin: { kind: "memory", timestamp: "2026-08-29T18:40:00Z" },
-      decision: { state: "signed-off", by: "sam@bowrain.test", at: "2026-08-31T08:00:00Z" },
+      review_state: "signed-off",
+      status: "signed-off",
+      by: "sam@bowrain.test",
+      at: "2026-08-31T08:00:00Z",
     },
   },
 };
@@ -58,6 +60,14 @@ export const Undecided: Story = {
   },
 };
 
+export const WithUnitNote: Story = {
+  name: "A note kept beside the unit (platform block note)",
+  args: {
+    provenance: { origin: { kind: "human", timestamp: "2026-08-29T18:40:00Z" } },
+    note: "Legal asked us to keep the product name unchanged.",
+  },
+};
+
 export const Empty: Story = {
   name: "Nothing recorded",
   args: { provenance: {} },
@@ -68,13 +78,12 @@ export const Dark: Story = {
   args: {
     provenance: {
       origin: { kind: "ai", engine: "claude-sonnet", tool: "translate" },
-      decision: {
-        state: "rejected",
-        by: "maria@bowrain.test",
-        at: "2026-08-30T09:12:00Z",
-        note: "Reads as machine output; soften the imperative.",
-        sourceMoved: true,
-      },
+      review_state: "rejected",
+      status: "draft",
+      by: "maria@bowrain.test",
+      at: "2026-08-30T09:12:00Z",
+      note: "Reads as machine output; soften the imperative.",
+      stale: true,
     },
   },
 };

@@ -225,7 +225,7 @@ export {
 } from "./components/ui/neighbourhood-table";
 export { RunText, type RunTextProps } from "./components/ui/run-text";
 // The review model's cards, one per layer, drawn identically on both review
-// surfaces over structural views each host maps its own type onto.
+// surfaces over the generated review model (`@neokapi/contract-types`).
 export {
   LayerCard,
   PointCard,
@@ -239,6 +239,7 @@ export {
   VoiceScoreChip,
   originLabel,
   decisionLabel,
+  checkFindingViews,
 } from "./components/review";
 export type {
   LayerCardProps,
@@ -248,20 +249,9 @@ export type {
   JudgementCardProps,
   AIPreReviewProps,
   ProvenanceCardProps,
-  ReviewPointView,
-  ReviewVoiceView,
-  ReviewTermRuleView,
   ReviewTermHitView,
-  ReviewProfileWindowView,
-  ReviewNeighbourhoodView,
-  ReviewHistoryView,
-  ReviewPriorView,
-  ReviewMatchView,
   ReviewFindingView,
-  ReviewAIRemarkView,
-  ReviewProvenanceView,
-  ReviewOriginView,
-  ReviewDecisionView,
+  CheckFindingLike,
 } from "./components/review";
 export {
   Popover,

@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import type { ReactNode } from "react";
 import { ReviewSession } from "../../components/review/ReviewSession";
 import { createProvidersDecorator } from "../decorators";
-import { sampleProject } from "../fixtures";
+import { emptyReviewContext, sampleProject } from "../fixtures";
 import type { BlockInfo, TranslationDashboardStats } from "../../types/api";
 
 const blocks: BlockInfo[] = [
@@ -153,15 +153,8 @@ export const NothingResolved: Story = {
   args: { project: sampleProject, dashboardStats: pendingStats, stream: "main" },
   decorators: [
     createProvidersDecorator(blocks, {
-      getReviewContext: async (_ws, _projectId, itemName, blockId, targetLocale) => ({
-        block_id: blockId,
-        item_name: itemName,
-        locale: targetLocale,
-        terms: [],
-        collection_id: "",
-        notes: [],
-        voice_findings: [],
-      }),
+      getReviewContext: async (_ws, _projectId, itemName, blockId, targetLocale) =>
+        emptyReviewContext(blockId, itemName, targetLocale),
     }),
   ],
 };
