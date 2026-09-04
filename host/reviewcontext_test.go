@@ -6,6 +6,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
+	"github.com/neokapi/neokapi/core/review"
 	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/stretchr/testify/assert"
@@ -39,142 +40,57 @@ func fiveBlockDoc() []*model.Block {
 	}
 }
 
-func TestReviewNeighbourhoodKeepsDocumentOrder(t *testing.T) {
+// TestAssembleReviewContextComposesTheSharedLayers holds the assembler to the
+// functions in core/review the platform composes too: over one unit, the
+// neighbourhood, the history and the provenance it serves are what those
+// functions answer for the same blocks, the same memory and the same record.
+func TestAssembleReviewContextComposesTheSharedLayers(t *testing.T) {
+	ctx := t.Context()
 	blocks := fiveBlockDoc()
-
-	tests := []struct {
-		name       string
-		idx        int
-		window     int
-		wantKey    string
-		wantBefore []string
-		wantAfter  []string
-		wantWindow int
-	}{
-		{
-			name:       "middle of the document",
-			idx:        2,
-			window:     2,
-			wantKey:    "three",
-			wantBefore: []string{"one", "two"},
-			wantAfter:  []string{"four", "five"},
-			wantWindow: 2,
-		},
-		{
-			name:       "first block has nothing before it",
-			idx:        0,
-			window:     2,
-			wantKey:    "one",
-			wantBefore: nil,
-			wantAfter:  []string{"two", "three"},
-			wantWindow: 2,
-		},
-		{
-			name:       "last block has nothing after it",
-			idx:        4,
-			window:     2,
-			wantKey:    "five",
-			wantBefore: []string{"three", "four"},
-			wantAfter:  nil,
-			wantWindow: 2,
-		},
-		{
-			name:       "second block sees one neighbour before",
-			idx:        1,
-			window:     2,
-			wantKey:    "two",
-			wantBefore: []string{"one"},
-			wantAfter:  []string{"three", "four"},
-			wantWindow: 2,
-		},
-		{
-			name:       "a window of one narrows both sides",
-			idx:        2,
-			window:     1,
-			wantKey:    "three",
-			wantBefore: []string{"two"},
-			wantAfter:  []string{"four"},
-			wantWindow: 1,
-		},
-		{
-			name:       "an unset window falls back to the default",
-			idx:        2,
-			window:     0,
-			wantKey:    "three",
-			wantBefore: []string{"one", "two"},
-			wantAfter:  []string{"four", "five"},
-			wantWindow: DefaultReviewWindow,
-		},
-		{
-			name:       "a window wider than the document stops at its ends",
-			idx:        2,
-			window:     10,
-			wantKey:    "three",
-			wantBefore: []string{"one", "two"},
-			wantAfter:  []string{"four", "five"},
-			wantWindow: 10,
-		},
+	blocks[2].Unit = "doc.three"
+	blocks[2].Target("nb").Origin = model.Origin{Kind: "ai", Engine: "claude", ContextFingerprint: "fp-now"}
+	tm := memory.NewInMemoryStore()
+	at := time.Date(2026, 2, 1, 9, 0, 0, 0, time.UTC)
+	require.NoError(t, tm.Add(ctx, chainAnswer("v2", "doc.three", "Third paragraph.", "Tredje avsnitt.", "fp-now", at)))
+	unit := &state.UnitState{
+		Status:   model.TargetStatusReviewed,
+		Decision: state.Decision{ReviewState: "approved", By: "owner", At: "2026-02-02T09:00:00Z"},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			got := reviewNeighbourhood(blocks, tc.idx, tc.window, "nb")
-			assert.Equal(t, tc.wantKey, got.Key)
-			assert.Equal(t, tc.wantWindow, got.Window)
-			assert.Equal(t, tc.wantBefore, neighbourKeys(got.Before))
-			assert.Equal(t, tc.wantAfter, neighbourKeys(got.After))
-		})
-	}
+	got := (&App{}).AssembleReviewContext(ctx, ReviewContextRequest{
+		Locale: "nb", SourceLang: "en", Blocks: blocks, Key: "doc.three", Memory: tm, Unit: unit,
+	})
+	require.NotNil(t, got)
+
+	assert.Equal(t, review.NeighbourhoodOf(blocks, 2, DefaultReviewWindow, "nb"), got.Neighbourhood)
+	assert.Equal(t, []string{"one", "two"}, neighbourKeys(got.Neighbourhood.Before))
+	assert.Equal(t, []string{"four", "five"}, neighbourKeys(got.Neighbourhood.After))
+
+	wantPrior := review.PriorVersionOf(ctx, tm, blocks[2], "en", "nb", review.GoverningFingerprint(blocks[2], "nb", unit.Origin))
+	require.NotNil(t, wantPrior)
+	assert.Equal(t, wantPrior, got.History.Prior)
+	assert.True(t, got.History.Prior.Governed)
+	require.NotNil(t, got.History.Match)
+	assert.Equal(t, "Tredje avsnitt.", got.History.Match.Target)
+
+	assert.Equal(t, review.ProvenanceOf(blocks[2], "nb", unit), got.Provenance)
+	assert.Equal(t, "approved", got.Provenance.ReviewState)
+	assert.Equal(t, "reviewed", got.Provenance.Status)
+	require.NotNil(t, got.Provenance.Origin)
+	assert.Equal(t, "ai", got.Provenance.Origin.Kind, "the format's own provenance wins")
+	assert.Equal(t, "nb", got.Point.Language)
 }
 
-func TestReviewNeighbourCarriesRunsNotText(t *testing.T) {
-	block := &model.Block{
-		ID:           "credits",
-		Name:         "billing.credits",
-		Translatable: true,
-		Source: []model.Run{
-			model.TextR("Your credits reset on "),
-			model.PhR(model.PlaceholderRun{ID: "1", Equiv: "date", Data: "{date}"}),
-			model.TextR("."),
-		},
+// neighbourKeys names a neighbour list for a table comparison.
+func neighbourKeys(ns []ReviewNeighbour) []string {
+	if len(ns) == 0 {
+		return nil
 	}
-	block.SetTarget("nb", &model.Target{Runs: []model.Run{
-		model.TextR("Kredittene dine nullstilles "),
-		model.PhR(model.PlaceholderRun{ID: "1", Equiv: "date", Data: "{date}"}),
-		model.TextR("."),
-	}})
-
-	n, ok := reviewNeighbour(block, "nb")
-	require.True(t, ok)
-	assert.Equal(t, "billing.credits", n.Key)
-	require.Len(t, n.Source, 3, "the placeholder must survive into the neighbourhood")
-	require.NotNil(t, n.Source[1].Ph)
-	assert.Equal(t, "date", n.Source[1].Ph.Equiv)
-	require.Len(t, n.Target, 3)
-	require.NotNil(t, n.Target[1].Ph)
-	assert.Empty(t, n.Status, "a target on no rung reports no status")
-
-	block.Target("nb").Status = model.TargetStatusReviewed
-	n, ok = reviewNeighbour(block, "nb")
-	require.True(t, ok)
-	assert.Equal(t, "reviewed", n.Status, "the neighbour's rung travels with it")
-}
-
-func TestReviewNeighbourSkipsUnreadableBlocks(t *testing.T) {
-	tests := []struct {
-		name  string
-		block *model.Block
-	}{
-		{name: "nil block", block: nil},
-		{name: "untranslatable block", block: &model.Block{ID: "x", Source: []model.Run{model.TextR("x")}}},
-		{name: "block with no source runs", block: &model.Block{ID: "y", Translatable: true}},
+	out := make([]string, 0, len(ns))
+	for _, n := range ns {
+		out = append(out, n.Key)
 	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			_, ok := reviewNeighbour(tc.block, "nb")
-			assert.False(t, ok)
-		})
-	}
+	return out
 }
 
 // TestReviewHistoryThreadsTheGoverningFingerprint: the version chain is read
@@ -214,49 +130,6 @@ func TestReviewHistoryThreadsTheGoverningFingerprint(t *testing.T) {
 	}
 }
 
-func TestReviewProvenanceGroupsTheDecision(t *testing.T) {
-	block := docBlock("greeting", "Hello", "Hei")
-
-	tests := []struct {
-		name string
-		unit *state.UnitState
-		want ReviewProvenance
-	}{
-		{
-			name: "no record leaves the group empty",
-			unit: nil,
-			want: ReviewProvenance{},
-		},
-		{
-			name: "the decision in force travels with its identity",
-			unit: &state.UnitState{
-				Origin: model.Origin{Kind: "memory"},
-				Status: model.TargetStatusReviewed,
-				Decision: state.Decision{
-					ReviewState: "approved",
-					By:          "agent/claude-code",
-					At:          "2026-02-01T09:00:00Z",
-					Note:        "matches the approved wording",
-				},
-			},
-			want: ReviewProvenance{
-				Origin:      &model.Origin{Kind: "memory"},
-				ReviewState: "approved",
-				Status:      "reviewed",
-				By:          "agent/claude-code",
-				At:          "2026-02-01T09:00:00Z",
-				Note:        "matches the approved wording",
-			},
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.want, reviewProvenance(block, "nb", tc.unit))
-		})
-	}
-}
-
 func TestDoNotTranslateFromRules(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -288,18 +161,6 @@ func TestDoNotTranslateFromRules(t *testing.T) {
 			assert.Equal(t, tc.want, doNotTranslateFromRules(tc.rules))
 		})
 	}
-}
-
-// neighbourKeys names a neighbour list for a table comparison.
-func neighbourKeys(ns []ReviewNeighbour) []string {
-	if len(ns) == 0 {
-		return nil
-	}
-	out := make([]string, 0, len(ns))
-	for _, n := range ns {
-		out = append(out, n.Key)
-	}
-	return out
 }
 
 // chainAnswer builds one approved answer in a block's version chain.

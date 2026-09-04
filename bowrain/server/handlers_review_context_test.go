@@ -19,7 +19,6 @@ import (
 	"github.com/neokapi/neokapi/core/review"
 	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/venue"
-	"github.com/neokapi/neokapi/host"
 	"github.com/neokapi/neokapi/memory"
 )
 
@@ -358,15 +357,15 @@ func TestReviewContext_HandEditReadsAsHuman(t *testing.T) {
 	assert.Empty(t, rewritten.Provenance.Origin.Engine)
 }
 
-// TestReviewContext_ReadsTheSameFactsAsTheHost seeds one unit here and
-// assembles the same unit through the host over the same blocks, the same
-// memory entry and the same decision, then holds the two assemblers to one
-// answer for every layer both can read: the neighbourhood in document order
-// with each neighbour's rung, the prior version and whether its context still
-// governs, the memory match on one scale, and the decision in force with the
-// target's origin. The point is each venue's own (a recipe on the host, a
-// workspace here) and the checks each venue runs are its own, so those two
-// are pinned by the cases above rather than compared.
+// TestReviewContext_ReadsTheSameFactsAsTheHost seeds one unit here and holds
+// this assembler to the functions in core/review the host's assembler composes
+// (host.AssembleReviewContext, held to them by its own test), over the same
+// blocks, the same memory entry and the same decision: the neighbourhood in
+// document order with each neighbour's rung, the prior version and whether its
+// context still governs, the memory match on one scale, and the decision in
+// force with the target's origin. The point is each venue's own (a recipe on
+// the host, a workspace here) and the checks each venue runs are its own, so
+// those two are pinned by the cases above rather than compared.
 func TestReviewContext_ReadsTheSameFactsAsTheHost(t *testing.T) {
 	s, wsID, _ := newRecheckHarness(t)
 	ctx := context.Background()
@@ -383,7 +382,7 @@ func TestReviewContext_ReadsTheSameFactsAsTheHost(t *testing.T) {
 		b.Target("fr").Origin = model.Origin{Kind: "ai", Engine: "claude", ContextFingerprint: "fp-1"}
 	}
 	authored[0].Target("fr").Status = model.TargetStatusReviewed
-	projID, ids := seedGovernedProject(t, s, wsID, authored)
+	projID, _ := seedGovernedProject(t, s, wsID, authored)
 
 	// The host reads the file in document order; the server orders by the ids
 	// it minted. Put the host's blocks in the server's order, so both
@@ -447,41 +446,39 @@ func TestReviewContext_ReadsTheSameFactsAsTheHost(t *testing.T) {
 	}
 
 	_, got := getReviewContext(t, s, wsID, projID, middle.Block.ID, "fr")
-	want := (&host.App{}).AssembleReviewContext(ctx, host.ReviewContextRequest{
-		Locale:     "fr",
-		SourceLang: "en",
-		Blocks:     ordered,
-		Key:        unit.Unit,
-		Memory:     localMemory,
-		Unit:       record,
-	})
-	require.NotNil(t, want)
 
 	// Neighbourhood: the same blocks, in the same order, on the same rungs.
-	assert.Equal(t, want.Neighbourhood.Window, got.Neighbourhood.Window)
-	assert.Equal(t, neighbourFacts(want.Neighbourhood.Before), neighbourFacts(got.Neighbourhood.Before))
-	assert.Equal(t, neighbourFacts(want.Neighbourhood.After), neighbourFacts(got.Neighbourhood.After))
+	wantHood := review.NeighbourhoodOf(ordered, 1, review.DefaultWindow, "fr")
+	assert.Equal(t, wantHood.Window, got.Neighbourhood.Window)
+	assert.Equal(t, neighbourFacts(wantHood.Before), neighbourFacts(got.Neighbourhood.Before))
+	assert.Equal(t, neighbourFacts(wantHood.After), neighbourFacts(got.Neighbourhood.After))
 	assert.Equal(t, stored[0].Block.ID, got.Neighbourhood.Before[0].Key, "keyed by the block the platform addresses")
-	assert.Contains(t, ids, "Open the app", "the fixture's own wording, whichever side it landed on")
 
 	// History: one prior version, one score, one scale.
-	require.NotNil(t, want.History.Prior)
-	assert.Equal(t, want.History.Prior, got.History.Prior)
+	fingerprint := review.GoverningFingerprint(unit, "fr", record.Origin)
+	wantPrior := review.PriorVersionOf(ctx, localMemory, unit, "en", "fr", fingerprint)
+	require.NotNil(t, wantPrior)
+	assert.Equal(t, wantPrior, got.History.Prior)
 	assert.True(t, got.History.Prior.Governed, "produced under the context still in force")
-	require.NotNil(t, want.History.Match)
+	lookup := &model.Block{ID: "review-lookup", Translatable: true, Source: unit.SourceRuns()}
+	matches, lerr := localMemory.Lookup(ctx, lookup, "en", "fr", memory.LookupOptions{MinScore: 0.5, MaxResults: 1})
+	require.NoError(t, lerr)
+	require.NotEmpty(t, matches)
+	wantMatch := review.MatchOf(matches[0], "en", "fr")
+	require.NotNil(t, wantMatch)
 	require.NotNil(t, got.History.Match)
-	assert.Equal(t, want.History.Match.Score, got.History.Match.Score)
-	assert.Equal(t, want.History.Match.Target, got.History.Match.Target)
-	assert.Equal(t, want.History.Match.Source, got.History.Match.Source)
+	assert.Equal(t, wantMatch.Score, got.History.Match.Score)
+	assert.Equal(t, wantMatch.Target, got.History.Match.Target)
+	assert.Equal(t, wantMatch.Source, got.History.Match.Source)
 
 	// Provenance: the decision in force, and the target's origin.
-	assert.Equal(t, want.Provenance, got.Provenance)
+	assert.Equal(t, review.ProvenanceOf(unit, "fr", record), got.Provenance)
 	assert.Equal(t, "reviewed", got.Provenance.Status)
 	assert.False(t, got.Provenance.Stale)
 
 	// Point: each venue's own, but the language it answers for is the same.
-	assert.Equal(t, want.Point.Language, got.Point.Language)
-	assert.Equal(t, want.Point.IsSource, got.Point.IsSource)
+	assert.Equal(t, "fr", got.Point.Language)
+	assert.False(t, got.Point.IsSource)
 }
 
 // neighbourFacts reduces a neighbour list to what both assemblers must agree

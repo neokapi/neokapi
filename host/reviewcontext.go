@@ -271,9 +271,11 @@ func reviewPointPath(root, sourcePath string) string {
 }
 
 // AssembleReviewContext builds one unit's review model from what the caller has
-// already read. It is the single assembler behind every review client, so the
-// desktop, an MCP agent and the CLI cannot be shown different context for the
-// same decision.
+// already read. It is the single assembler behind every local review client, so
+// the desktop, an MCP agent and the CLI cannot be shown different context for
+// the same decision; the layers a venue can read without a project (the
+// neighbourhood, the history, the provenance) are composed from core/review,
+// which the platform's assembler composes too.
 func (a *App) AssembleReviewContext(ctx context.Context, req ReviewContextRequest) *ReviewContext {
 	idx := indexOfBlockKey(req.Blocks, req.Key)
 	if idx < 0 {
@@ -300,10 +302,10 @@ func (a *App) AssembleReviewContext(ctx context.Context, req ReviewContextReques
 
 	return &ReviewContext{
 		Point:         entry.point,
-		Neighbourhood: reviewNeighbourhood(req.Blocks, idx, req.Window, loc),
+		Neighbourhood: review.NeighbourhoodOf(req.Blocks, idx, req.Window, loc),
 		History:       a.reviewHistory(ctx, req, block, loc),
 		Judgement:     reviewJudgement(ctx, entry, block, req.SourceLang, loc, req.Unit),
-		Provenance:    reviewProvenance(block, loc, req.Unit),
+		Provenance:    review.ProvenanceOf(block, loc, req.Unit),
 	}
 }
 
@@ -315,56 +317,6 @@ func indexOfBlockKey(blocks []*model.Block, key string) int {
 		}
 	}
 	return -1
-}
-
-// reviewNeighbourhood collects the translatable blocks either side of idx, in
-// document order.
-func reviewNeighbourhood(blocks []*model.Block, idx, window int, loc model.LocaleID) ReviewNeighbourhood {
-	if window <= 0 {
-		window = DefaultReviewWindow
-	}
-	out := ReviewNeighbourhood{Key: promptKey(blocks[idx]), Window: window}
-	for i := idx - 1; i >= 0 && len(out.Before) < window; i-- {
-		if n, ok := reviewNeighbour(blocks[i], loc); ok {
-			out.Before = append([]ReviewNeighbour{n}, out.Before...)
-		}
-	}
-	for i := idx + 1; i < len(blocks) && len(out.After) < window; i++ {
-		if n, ok := reviewNeighbour(blocks[i], loc); ok {
-			out.After = append(out.After, n)
-		}
-	}
-	return out
-}
-
-// reviewNeighbour projects one block into the neighbourhood, or reports that it
-// carries nothing a reader would see.
-func reviewNeighbour(b *model.Block, loc model.LocaleID) (ReviewNeighbour, bool) {
-	if b == nil || !b.Translatable {
-		return ReviewNeighbour{}, false
-	}
-	src := b.SourceRuns()
-	if len(src) == 0 {
-		return ReviewNeighbour{}, false
-	}
-	n := ReviewNeighbour{Key: blockKey(b), Source: src}
-	if t := b.Target(loc); t != nil {
-		n.Target = t.Runs
-		n.Status = string(t.Status)
-	}
-	return n, true
-}
-
-// promptKey is the key a translate prompt sends for a block: the reader's name
-// for it, which is what makes a bare "Save" mean something.
-func promptKey(b *model.Block) string {
-	if b == nil {
-		return ""
-	}
-	if name := strings.TrimSpace(b.Name); name != "" {
-		return name
-	}
-	return blockKey(b)
 }
 
 // reviewHistory reads what has already been approved for this unit: its prior
@@ -482,35 +434,6 @@ func doNotTranslateFromRules(rules []coreprofile.TermRule) []string {
 		}
 	}
 	return out
-}
-
-// reviewProvenance reads where the current target came from and who decided on
-// it.
-func reviewProvenance(b *model.Block, loc model.LocaleID, unit *state.UnitState) ReviewProvenance {
-	var p ReviewProvenance
-	if unit != nil {
-		if unit.Origin.Kind != "" {
-			o := unit.Origin
-			p.Origin = &o
-		}
-		p.ReviewState = unit.Decision.ReviewState
-		p.By = unit.Decision.By
-		p.At = unit.Decision.At
-		p.Note = unit.Decision.Note
-		// The rung the decision landed the unit on: a translation's target rung,
-		// or the authoring rung for source wording reviewed in its own language.
-		p.Status = string(unit.Status)
-		if p.Status == "" {
-			p.Status = string(unit.SourceStatus)
-		}
-	}
-	// The format's own provenance wins: it describes the bytes on disk, while
-	// the state record describes what was last written through kapi.
-	if t := b.Target(loc); t != nil && t.Origin.Kind != "" {
-		o := t.Origin
-		p.Origin = &o
-	}
-	return p
 }
 
 // ReviewMemory opens the project's content memory for a review read, or returns
