@@ -1,6 +1,11 @@
 import {
   Button,
+  HistoryCard,
+  JudgementCard,
   LocaleLabel,
+  NeighbourhoodCard,
+  PointCard,
+  ProvenanceCard,
   Sheet,
   SheetContent,
   SheetDescription,
@@ -16,17 +21,12 @@ import { CollapsedTargetCell } from "../editor/GridTargetRenderer";
 import { UnifiedTargetEditor, type UnifiedSaveResult } from "../UnifiedTargetEditor";
 import { getBlockStatus, getTargetText, targetLadderStatus } from "../editor/blockStatus";
 import {
-  ContextLayer,
-  FindingsList,
-  MemoryMatchCard,
-  NeighbourhoodView,
-  PointRail,
-  ProvenanceBlock,
-  findingsSummary,
-  memorySummary,
-  neighbourhoodSummary,
-  provenanceSummary,
-} from "./reviewContext";
+  toFindingViews,
+  toHistoryView,
+  toNeighbourhoodView,
+  toPointView,
+  toProvenanceView,
+} from "./reviewModel";
 import { Check, CheckCheck, Pencil, X } from "../icons";
 
 export interface ReviewInspectorProps {
@@ -220,74 +220,60 @@ export function ReviewInspector({
               inline marks in the document, so the rail and the marks cannot
               disagree. */}
           <div data-testid="inspector-point">
-            <PointRail context={context} terms={terms} termsLoading={termsLoading} />
+            <PointCard
+              point={context ? toPointView(context, terms, termsLoading) : undefined}
+              loading={!context}
+            />
           </div>
 
           {/* The units this one sits between. The document around the panel
               shows them, and the layer says how many there are and lets a
               reader who has scrolled away read them here. */}
-          <ContextLayer
-            title="Neighbourhood"
-            summary={neighbourhoodSummary(context)}
+          <NeighbourhoodCard
+            neighbourhood={context ? toNeighbourhoodView(context) : undefined}
+            loading={!context}
+            unitKey={block?.id}
+            unitSource={block?.source}
+            unitTarget={block ? getTargetText(block, locale) : undefined}
+            locale={locale}
             testId="inspector-neighbourhood"
             defaultOpen={false}
-          >
-            <NeighbourhoodView
-              context={context}
-              unitKey={block?.id}
-              unitSource={block?.source}
-              unitTarget={block ? getTargetText(block, locale) : undefined}
-              locale={locale}
-            />
-          </ContextLayer>
+          />
 
           {/* Findings: the check results and the findings behind the block's
               voice score, read as one list. A positioned finding is already
               marked in the document; each says what it was raised against and
               what to say instead. */}
-          <ContextLayer
-            title="Findings"
-            summary={findingsSummary(issues, context?.voice_findings ?? [])}
+          <JudgementCard
+            findings={toFindingViews(issues, context?.voice_findings ?? [])}
             testId="inspector-check"
-          >
-            <FindingsList issues={issues} findings={context?.voice_findings ?? []} />
-          </ContextLayer>
+          />
 
           {/* Content memory: the wording the corpus already blessed for this
               source. The bulk pass writes these; the reviewer reads them. */}
-          <ContextLayer
-            title="Content memory"
-            summary={memorySummary(context?.memory_match)}
+          <HistoryCard
+            history={context ? toHistoryView(context) : undefined}
+            loading={!context}
+            locale={locale}
             testId="inspector-memory"
-          >
-            <MemoryMatchCard
-              match={context?.memory_match}
-              onUse={
-                context?.memory_match && block && !editing
-                  ? () =>
-                      void onSaveEdit({
-                        kind: "flat",
-                        codedText: context.memory_match?.target ?? "",
-                        spans: [],
-                      })
-                  : undefined
-              }
-            />
-          </ContextLayer>
+            onUseMatch={
+              context?.memory_match && block && !editing
+                ? () =>
+                    void onSaveEdit({
+                      kind: "flat",
+                      codedText: context.memory_match?.target ?? "",
+                      spans: [],
+                    })
+                : undefined
+            }
+          />
 
           {/* Provenance: how this target was produced, and what was last
               decided about it. */}
-          <ContextLayer
-            title="Provenance"
-            summary={provenanceSummary(context?.origin, context?.decision)}
+          <ProvenanceCard
+            provenance={context ? toProvenanceView(context) : undefined}
             testId="inspector-provenance"
-          >
-            <ProvenanceBlock
-              origin={context?.origin}
-              decision={context?.decision}
-              note={context?.notes?.[context.notes.length - 1]?.text}
-            />
-          </ContextLayer>
+          />
         </div>
 
         {/* Decision bar */}

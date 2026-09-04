@@ -224,6 +224,45 @@ export {
   type NeighbourhoodEntry,
 } from "./components/ui/neighbourhood-table";
 export { RunText, type RunTextProps } from "./components/ui/run-text";
+// The review model's cards, one per layer, drawn identically on both review
+// surfaces over structural views each host maps its own type onto.
+export {
+  LayerCard,
+  PointCard,
+  NeighbourhoodCard,
+  HistoryCard,
+  JudgementCard,
+  AIPreReview,
+  ProvenanceCard,
+  TermRuleChip,
+  TermHitChip,
+  VoiceScoreChip,
+  originLabel,
+  decisionLabel,
+} from "./components/review";
+export type {
+  LayerCardProps,
+  PointCardProps,
+  NeighbourhoodCardProps,
+  HistoryCardProps,
+  JudgementCardProps,
+  AIPreReviewProps,
+  ProvenanceCardProps,
+  ReviewPointView,
+  ReviewVoiceView,
+  ReviewTermRuleView,
+  ReviewTermHitView,
+  ReviewProfileWindowView,
+  ReviewNeighbourhoodView,
+  ReviewHistoryView,
+  ReviewPriorView,
+  ReviewMatchView,
+  ReviewFindingView,
+  ReviewAIRemarkView,
+  ReviewProvenanceView,
+  ReviewOriginView,
+  ReviewDecisionView,
+} from "./components/review";
 export {
   Popover,
   PopoverTrigger,

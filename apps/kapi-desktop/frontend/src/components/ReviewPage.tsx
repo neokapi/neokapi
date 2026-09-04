@@ -22,7 +22,12 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  HistoryCard,
+  JudgementCard,
   LocaleLabel,
+  NeighbourhoodCard,
+  PointCard,
+  ProvenanceCard,
   StatusBadge,
   localeLabel,
   ScrollArea,
@@ -35,11 +40,13 @@ import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
 import { AIExchangeDisclosure } from "./AIExchangeView";
 import { FilePreview } from "./FilePreview";
-import { HistoryCard } from "./review/HistoryCard";
-import { JudgementCard } from "./review/JudgementCard";
-import { NeighbourhoodCard } from "./review/NeighbourhoodCard";
-import { PointRail } from "./review/PointRail";
-import { ProvenanceCard } from "./review/ProvenanceCard";
+import {
+  toFindingViews,
+  toHistoryView,
+  toNeighbourhoodView,
+  toPointView,
+  toProvenanceView,
+} from "./review/model";
 import { ReviewLanguageSelect } from "./review/ReviewLanguageSelect";
 import { SourceUnitPane } from "./review/SourceUnitPane";
 import { useActiveFilter } from "../context/ActiveFilterContext";
@@ -1262,7 +1269,10 @@ export function ReviewPage({
                   />
                 ) : (
                   <>
-                    <PointRail point={model?.point} loading={unitLoading} />
+                    <PointCard
+                      point={model ? toPointView(model.point) : undefined}
+                      loading={unitLoading}
+                    />
 
                     <Card>
                       <CardContent className="p-3">
@@ -1479,7 +1489,7 @@ export function ReviewPage({
                     {/* The unit in its document: the blocks either side of it, in
                     document order, as the translate prompt read them. */}
                     <NeighbourhoodCard
-                      neighbourhood={model?.neighbourhood}
+                      neighbourhood={model ? toNeighbourhoodView(model.neighbourhood) : undefined}
                       unitKey={selected?.key}
                       unitSource={unit?.source ?? selected?.source}
                       unitTarget={unit?.target ?? selected?.target}
@@ -1491,7 +1501,10 @@ export function ReviewPage({
                     {/* What was approved for this unit before, and the wording the
                     content memory already holds for it. */}
                     <HistoryCard
-                      history={model?.history}
+                      history={model ? toHistoryView(model.history) : undefined}
+                      emptyText={t(
+                        "Nothing has been approved for this unit yet, and the content memory holds no close match.",
+                      )}
                       sourceLocale={unit?.source_locale ?? selected?.sourceLocale}
                       locale={unit?.locale ?? selected?.locale}
                       loading={unitLoading}
@@ -1501,7 +1514,7 @@ export function ReviewPage({
                     {/* What has already been said about this translation: the
                     checks, and the AI pre-review that scored it. */}
                     <JudgementCard
-                      findings={unit?.findings}
+                      findings={unit ? toFindingViews(unit.findings ?? []) : undefined}
                       aiScore={model?.judgement.ai_score ?? unit?.ai_review_score}
                       aiModel={model?.judgement.ai_model ?? unit?.ai_review_model}
                       aiFindings={model?.judgement.ai_findings}
@@ -1509,10 +1522,11 @@ export function ReviewPage({
 
                     {/* Where this translation came from, and the decision in force. */}
                     <ProvenanceCard
-                      provenance={model?.provenance}
-                      origin={unit?.origin}
-                      reviewState={unit?.review_state}
-                      note={unit?.note}
+                      provenance={toProvenanceView(model?.provenance, {
+                        origin: unit?.origin,
+                        reviewState: unit?.review_state,
+                        note: unit?.note,
+                      })}
                     />
                   </>
                 )}

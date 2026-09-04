@@ -124,13 +124,29 @@ its units. The clients are:
 
 | Client | How it renders the model |
 | --- | --- |
-| Kapi Desktop ([S-02](s-02-kapi-desktop.md)) | the queue's detail pane: a point rail, the neighbourhood, the history, findings, and a provenance card; the document view opens at the unit with review state drawn as marks |
+| Kapi Desktop ([S-02](s-02-kapi-desktop.md)) | the queue's detail pane: the five shared cards over the model, and the document view opening at the unit with review state drawn as marks |
 | `kapi status --review` ([S-01](s-01-kapi-cli.md)) | the queue as a table, `--lang` narrowing it to one or more languages, and as JSON with `--json` |
 | MCP `review_unit` ([S-03](s-03-agent-surfaces.md)) | the model whole, as the read leg before `approve_unit`, `reject_unit` and `sign_off_unit`; `review_queue` lists the queue with its per-language counts |
-| A review surface over the REST editor | the queue as a list with the focused unit beside it: the point rail, the neighbourhood, the anchored findings, the content-memory match and the provenance, with the three verdicts under them |
+| A review surface over the REST editor | the queue as a list with the focused unit beside it: the same five cards over the server's review context, the findings anchored on the target, with the three verdicts under them |
 
 A host that records a review decision with an identity is a client of this
 model by shape: the layers are the contract, whatever renders them.
+
+The rendering is shared. One card per layer lives in `@neokapi/ui-primitives`
+(`packages/ui/src/components/review/`: `PointCard`, `NeighbourhoodCard`,
+`HistoryCard`, `JudgementCard` with the AI pre-review inside it, and
+`ProvenanceCard`, each on the folding `LayerCard`), and each card reads a
+structural view of its layer rather than a host type. A review shell maps its
+own model onto those views in a few lines and keeps what is its own: Kapi
+Desktop's `ReviewPage` maps `host.ReviewContext` and owns the verdict bar, the
+AI actions and the source-unit pane; the REST review surfaces map the server's
+review context and own the target editor, the anchored marks on the target, the
+re-check and the term and voice-rule dialogs. The two models spell the layers
+differently and neither carries every field the other does, so a card states
+its own empty case for a row its host leaves out, and the same unit reads the
+same way on either surface. The origin kinds, the decision states, the tone a
+finding takes and the neutral chip a term rule takes are all named once, in the
+cards.
 
 ### The AI actions inherit the point
 

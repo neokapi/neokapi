@@ -5,13 +5,14 @@ import {
   Card,
   CardContent,
   LocaleLabel,
+  NeighbourhoodCard,
+  PointCard,
   directionAttrs,
 } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
 import { api } from "../../hooks/useApi";
 import { useError } from "../ErrorBanner";
-import { NeighbourhoodCard } from "./NeighbourhoodCard";
-import { PointRail } from "./PointRail";
+import { toNeighbourhoodView, toPointView } from "./model";
 import type { ReviewContext, ReviewItem } from "../../types/api";
 
 export interface SourceUnitPaneProps {
@@ -111,7 +112,7 @@ export function SourceUnitPane({
 
   return (
     <div className="space-y-3" data-slot="source-unit-pane">
-      <PointRail point={model?.point} loading={modelLoading} />
+      <PointCard point={model ? toPointView(model.point) : undefined} loading={modelLoading} />
 
       <Card>
         <CardContent className="space-y-3 p-3">
@@ -175,7 +176,7 @@ export function SourceUnitPane({
       </Card>
 
       <NeighbourhoodCard
-        neighbourhood={model?.neighbourhood}
+        neighbourhood={model ? toNeighbourhoodView(model.neighbourhood) : undefined}
         unitKey={item.key}
         unitSource={item.source}
         sourceLocale={item.sourceLocale}

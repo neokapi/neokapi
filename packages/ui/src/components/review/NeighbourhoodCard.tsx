@@ -1,8 +1,9 @@
 import { Layers } from "lucide-react";
-import { NeighbourhoodTable, Skeleton } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
-import type { ReviewNeighbourhood } from "../../types/api";
+import { NeighbourhoodTable } from "../ui/neighbourhood-table";
+import { Skeleton } from "../ui/skeleton";
 import { LayerCard } from "./LayerCard";
+import type { ReviewNeighbourhoodView } from "./types";
 
 /**
  * The unit in its document: the blocks before it, the unit, and the blocks
@@ -10,12 +11,12 @@ import { LayerCard } from "./LayerCard";
  *
  * This is one of the four things a translate prompt carries about a block, so a
  * reviewer reading a paragraph in sequence reads what the model read. The table
- * itself is `NeighbourhoodTable` in the shared kit, which the platform's review
- * surfaces draw too.
+ * is `NeighbourhoodTable`, and the neighbours travel as run sequences through
+ * the declared run projection, so a placeholder in a neighbour reads as a chip
+ * rather than disappearing.
  */
-
 export interface NeighbourhoodCardProps {
-  neighbourhood?: ReviewNeighbourhood;
+  neighbourhood?: ReviewNeighbourhoodView;
   /** The unit under decision, rendered in place between its neighbours. */
   unitKey?: string;
   unitSource?: string;
@@ -23,6 +24,9 @@ export interface NeighbourhoodCardProps {
   sourceLocale?: string;
   locale?: string;
   loading?: boolean;
+  defaultOpen?: boolean;
+  testId?: string;
+  className?: string;
 }
 
 export function NeighbourhoodCard({
@@ -33,6 +37,9 @@ export function NeighbourhoodCard({
   sourceLocale,
   locale,
   loading,
+  defaultOpen,
+  testId,
+  className,
 }: NeighbourhoodCardProps) {
   const before = neighbourhood?.before ?? [];
   const after = neighbourhood?.after ?? [];
@@ -52,7 +59,10 @@ export function NeighbourhoodCard({
       icon={<Layers size={12} className="mt-0.5 shrink-0 text-muted-foreground" aria-hidden />}
       summary={summary}
       dataSlot="review-neighbourhood"
+      testId={testId}
       toggleLabel={t("The blocks around this unit")}
+      defaultOpen={defaultOpen}
+      className={className}
     >
       <div className="text-xs">
         {!neighbourhood ? (
