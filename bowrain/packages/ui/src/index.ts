@@ -106,6 +106,8 @@ export {
   StepChips,
   FlowsEmptyState,
   LinearFlowEditor,
+  ConfirmDeleteButton,
+  SimpleTooltip,
   Separator,
   Sheet,
   SheetTrigger,

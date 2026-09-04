@@ -224,6 +224,8 @@ export async function injectMockBackend(page: Page) {
     ];
 
     // --- Flow definition storage ---
+    // The shapes the server returns: a flow is tool nodes only (it owns no
+    // I/O), chained by its edges and laid out along one row.
     const builtInFlowDefs: Record<string, any> = {
       translate: {
         id: "translate",
@@ -232,31 +234,21 @@ export async function injectMockBackend(page: Page) {
         source: "built-in",
         nodes: [
           {
-            id: "reader",
-            type: "reader",
-            name: "auto",
-            label: "Input",
-            position: { x: 0, y: 100 },
-          },
-          {
             id: "translate",
             type: "tool",
             name: "translate",
             label: "AI Translate",
-            position: { x: 250, y: 100 },
+            position: { x: 0, y: 100 },
           },
           {
-            id: "writer",
-            type: "writer",
-            name: "auto",
-            label: "Output",
-            position: { x: 500, y: 100 },
+            id: "word-count",
+            type: "tool",
+            name: "word-count",
+            label: "Word Count",
+            position: { x: 250, y: 100 },
           },
         ],
-        edges: [
-          { id: "e-reader-translate", source: "reader", target: "translate" },
-          { id: "e-translate-writer", source: "translate", target: "writer" },
-        ],
+        edges: [{ id: "e-translate-word-count", source: "translate", target: "word-count" }],
       },
       "pseudo-translate": {
         id: "pseudo-translate",
@@ -265,56 +257,46 @@ export async function injectMockBackend(page: Page) {
         source: "built-in",
         nodes: [
           {
-            id: "reader",
-            type: "reader",
-            name: "auto",
-            label: "Input",
-            position: { x: 0, y: 100 },
-          },
-          {
             id: "pseudo-translate",
             type: "tool",
             name: "pseudo-translate",
             label: "Pseudo Translate",
-            position: { x: 250, y: 100 },
-          },
-          {
-            id: "writer",
-            type: "writer",
-            name: "auto",
-            label: "Output",
-            position: { x: 500, y: 100 },
+            position: { x: 0, y: 100 },
           },
         ],
-        edges: [
-          { id: "e-reader-pseudo", source: "reader", target: "pseudo-translate" },
-          { id: "e-pseudo-writer", source: "pseudo-translate", target: "writer" },
-        ],
+        edges: [],
       },
     };
     const userFlowDefs: Record<string, any> = {};
+    let flowDefCounter = 0;
 
     mock[IDS.ListFlowDefinitions] = () => [
       ...Object.values(builtInFlowDefs),
       ...Object.values(userFlowDefs),
     ];
 
-    mock[IDS.GetFlowDefinition] = (id: string) => {
+    // The flow bindings are project-scoped: every call carries the project id
+    // first, as the generated bindings do.
+    mock[IDS.GetFlowDefinition] = (_projectId: string, id: string) => {
       if (builtInFlowDefs[id]) return builtInFlowDefs[id];
       if (userFlowDefs[id]) return userFlowDefs[id];
       throw new Error(`Flow ${id} not found`);
     };
 
-    mock[IDS.SaveFlowDefinition] = (def: any) => {
+    // Like the server: a flow without an id is created under a fresh one, and
+    // every stored flow is a project flow.
+    mock[IDS.SaveFlowDefinition] = (_projectId: string, def: any) => {
       if (def.source === "built-in") throw new Error("Cannot modify built-in flows");
-      def.source = "user";
+      if (!def.id) def.id = `flow-${++flowDefCounter}`;
+      if (builtInFlowDefs[def.id]) throw new Error("Cannot modify built-in flows");
+      def.source = "project";
       def.modified_at = new Date().toISOString();
       if (!def.created_at) def.created_at = def.modified_at;
       userFlowDefs[def.id] = { ...def };
       return { ...def };
     };
 
-    mock[IDS.DeleteFlowDefinition] = (id: string) => {
+    mock[IDS.DeleteFlowDefinition] = (_projectId: string, id: string) => {
       if (builtInFlowDefs[id]) throw new Error(`Cannot delete built-in flow ${id}`);
       if (!userFlowDefs[id]) throw new Error(`Flow ${id} not found`);
       delete userFlowDefs[id];
@@ -1414,6 +1396,8 @@ export async function injectMockBackend(page: Page) {
       ["GET", /^\/api\/v1\/[^/]+\/changesets\/counts$/, () => ({ total: 0, by_status: {} })],
       ["GET", /^\/api\/v1\/[^/]+\/changesets$/, () => []],
       ["GET", /^\/api\/v1\/[^/]+\/connectors$/, () => []],
+      // The project's Automations tab opens on its run history.
+      ["GET", /^\/api\/v1\/[^/]+\/[^/]+\/automations\/runs$/, () => ({ runs: [] })],
     ];
 
     mock[IDS.ProxyRequest] = (method: string, path: string, body: string) => {

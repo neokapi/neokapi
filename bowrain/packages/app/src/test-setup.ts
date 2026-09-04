@@ -19,6 +19,16 @@ Object.defineProperty(window, "matchMedia", {
   }),
 });
 
+// JSDOM doesn't implement ResizeObserver either; Radix's ScrollArea observes
+// its viewport on mount.
+if (typeof globalThis.ResizeObserver === "undefined") {
+  globalThis.ResizeObserver = class ResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+}
+
 afterEach(() => {
   cleanup();
   localStorage.clear();
