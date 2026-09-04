@@ -30,6 +30,13 @@ on:
       - "packages/i18n-react/src/plugin/defaults.ts"
       - "core/translatability/**"
       - "scripts/gen-translatability.ts"
+      - "packages/docs-palette/**"
+      - "packages/ui/src/styles/kapi-colors.css"
+      - "packages/ui/src/styles/theme-colors.css"
+      - "packages/ui/src/styles/semantic-colors.css"
+      - "packages/docs-shared/src/diagram/palette.generated.css"
+      - "web/src/css/palette.generated.css"
+      - "bowrain/web/docs/src/css/palette.generated.css"
       - "core/proto/content/v1/**"
       - "cli/**/*.go"
       - "host/**/*.go"
@@ -70,6 +77,13 @@ on:
       - "packages/i18n-react/src/plugin/defaults.ts"
       - "core/translatability/**"
       - "scripts/gen-translatability.ts"
+      - "packages/docs-palette/**"
+      - "packages/ui/src/styles/kapi-colors.css"
+      - "packages/ui/src/styles/theme-colors.css"
+      - "packages/ui/src/styles/semantic-colors.css"
+      - "packages/docs-shared/src/diagram/palette.generated.css"
+      - "web/src/css/palette.generated.css"
+      - "bowrain/web/docs/src/css/palette.generated.css"
       - "core/proto/content/v1/**"
       - "cli/**/*.go"
       - "host/**/*.go"
@@ -152,6 +166,13 @@ jobs:
       # quietly stops being translated.
       - name: Check the W3C translatability table for drift
         run: make check-translatability
+
+      # Both documentation sites and the diagram kit paint from one brand
+      # palette each. The Infima ramps are computed from those tokens, so a
+      # colour edited in packages/ui without a regeneration would leave the
+      # sites on the previous brand with nothing to say so.
+      - name: Check the documentation palettes for drift
+        run: make check-docs-palette
 
       - name: Validate format-ops ledger
         run: node scripts/format-ops/validate-ledger.mjs

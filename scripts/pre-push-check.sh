@@ -79,6 +79,11 @@ run_check "Desktop names no interchange format" ./scripts/check-desktop-intercha
 
 run_check "Reference dataset provenance" ./scripts/check-reference-provenance.sh
 
+# The documentation palettes are computed from the brand tokens, so an edit to
+# either side without a regeneration ships a site painted in the previous brand.
+# Runs in well under a second and links nothing, so it stays ungated.
+run_check "Documentation palettes are fresh" make check-docs-palette
+
 # Ungated: a hand-rolled run walk is written wherever someone needs "just the
 # text", and it fails by showing less content rather than by failing. ~1s.
 run_check "Run projections are declared" ./scripts/check-run-projection.sh

@@ -1,3 +1,12 @@
+/* Every colour on this site comes from the "Rainlight" brand tokens, computed
+   into Infima's variables by `make generate-docs-palette`. Edit the palette in
+   packages/ui/src/styles/theme-colors.css, never the generated file. */
+@import "./palette.generated.css";
+
+:root {
+  --ifm-code-font-size: 95%;
+}
+
 /* Sidebar section headings
    ─────────────────────────────────────────────────────────────────────────────
    Categories tagged `sidebar-section-heading` (collapsible: false) read as
@@ -28,34 +37,6 @@
 }
 .sidebar-section-heading > .menu__list-item-collapsible > .menu__link::after {
   display: none; /* never show a collapse caret on a static heading */
-}
-
-/* Rainlight — the bowrain brand palette (canonical copy:
-   packages/ui/src/styles/theme-colors.css). Calm rain blue as the docs
-   primary; cool slate backgrounds in dark mode. */
-:root {
-  --ifm-color-primary: #2f63c7;
-  --ifm-color-primary-dark: #2a59b3;
-  --ifm-color-primary-darker: #2854a9;
-  --ifm-color-primary-darkest: #21458b;
-  --ifm-color-primary-light: #3f70cf;
-  --ifm-color-primary-lighter: #4a78d2;
-  --ifm-color-primary-lightest: #648cda;
-  --ifm-code-font-size: 95%;
-  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
-}
-
-[data-theme="dark"] {
-  --ifm-color-primary: #7aa5e8;
-  --ifm-color-primary-dark: #5f92e3;
-  --ifm-color-primary-darker: #5188e1;
-  --ifm-color-primary-darkest: #2c6bd8;
-  --ifm-color-primary-light: #95b8ed;
-  --ifm-color-primary-lighter: #a3c1ef;
-  --ifm-color-primary-lightest: #cbdcf6;
-  --ifm-background-color: #1c2331;
-  --ifm-background-surface-color: #232b3c;
-  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
 }
 
 /* Footer copyright + build stamp — smaller and more subtle. */

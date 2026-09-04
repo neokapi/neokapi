@@ -1,0 +1,134 @@
+/*
+ * kapi — "Kapi Blue" theme palette (canonical copy)
+ *
+ * Warm grays (not black) with a slight blue tint, one Mantine-style blue
+ * primary, and enough separation between card and page that a surface reads as
+ * lifted rather than outlined.
+ *
+ * Import this alongside theme-tokens.css (which maps --color-* → these vars);
+ * apps and sites that ship the kapi look @import this file instead of copying
+ * the palette. The documentation site's Infima variables and the diagram kit's
+ * defaults are computed from it by `make generate-docs-palette`, so a colour
+ * edited here reaches the docs on the next run.
+ *
+ * The judgement colours (--success/--warning/--info) and the coordinate-axis
+ * hues are NOT part of this palette: they mean the same thing on every surface,
+ * so they live once in semantic-colors.css and are imported here.
+ */
+
+@import "./semantic-colors.css";
+
+:root {
+  /* ── Brand faces ───────────────────────────────────────── */
+  /* The stacks the Tailwind --font-* tokens resolve to, and the source the
+     documentation site's --ifm-font-family-* are generated from. */
+  --brand-font-sans:
+    "Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    sans-serif;
+  --brand-font-mono:
+    "JetBrains Mono Variable", "JetBrains Mono", "SF Mono", ui-monospace, monospace;
+
+  /* ── Surfaces ──────────────────────────────────────────── */
+  --background: oklch(0.965 0.004 250); /* warm light gray, slight blue tint */
+  --foreground: oklch(0.27 0.01 250); /* dark blue-gray, not pure black */
+  --card: oklch(0.995 0.002 250); /* near-white with warmth */
+  --card-foreground: oklch(0.27 0.01 250);
+  --popover: oklch(0.995 0.002 250);
+  --popover-foreground: oklch(0.27 0.01 250);
+
+  /* ── Primary ───────────────────────────────────────────── */
+  --primary: oklch(0.58 0.16 250); /* Mantine-style blue */
+  --primary-foreground: oklch(0.99 0 0); /* white on blue */
+
+  /* ── Secondary ─────────────────────────────────────────── */
+  --secondary: oklch(0.95 0.008 250); /* light blue-gray */
+  --secondary-foreground: oklch(0.35 0.015 250);
+
+  /* ── Muted ─────────────────────────────────────────────── */
+  --muted: oklch(0.94 0.006 250); /* subtle blue-gray */
+  --muted-foreground: oklch(0.55 0.015 250); /* medium gray-blue */
+
+  /* ── Accent ────────────────────────────────────────────── */
+  --accent: oklch(0.92 0.025 250); /* soft blue highlight */
+  --accent-foreground: oklch(0.27 0.01 250);
+
+  /* ── Destructive ───────────────────────────────────────── */
+  --destructive: oklch(0.58 0.2 25); /* warm red */
+  --destructive-foreground: oklch(0.99 0 0);
+
+  /* ── Borders & controls ────────────────────────────────── */
+  --border: oklch(0.91 0.008 250); /* soft gray border */
+  --input: oklch(0.91 0.008 250);
+  --ring: oklch(0.58 0.16 250); /* matches primary */
+
+  --radius: 0.5rem;
+
+  /* ── Chart palette ─────────────────────────────────────── */
+  --chart-1: oklch(0.58 0.16 250); /* blue */
+  --chart-2: oklch(0.65 0.15 160); /* teal */
+  --chart-3: oklch(0.65 0.15 300); /* purple */
+  --chart-4: oklch(0.7 0.15 75); /* amber */
+  --chart-5: oklch(0.6 0.18 25); /* rose */
+
+  /* ── Sidebar ───────────────────────────────────────────── */
+  --sidebar: oklch(0.955 0.006 250); /* slightly darker than bg */
+  --sidebar-foreground: oklch(0.27 0.01 250);
+  --sidebar-primary: oklch(0.58 0.16 250);
+  --sidebar-primary-foreground: oklch(0.99 0 0);
+  --sidebar-accent: oklch(0.92 0.025 250);
+  --sidebar-accent-foreground: oklch(0.27 0.01 250);
+  --sidebar-border: oklch(0.91 0.008 250);
+  --sidebar-ring: oklch(0.58 0.16 250);
+}
+
+.dark {
+  /* ── Surfaces ──────────────────────────────────────────── */
+  --background: oklch(0.205 0.008 250); /* warm dark gray, not pure black */
+  --foreground: oklch(0.92 0.008 250); /* soft off-white */
+  --card: oklch(0.23 0.01 250); /* slightly lighter surface */
+  --card-foreground: oklch(0.92 0.008 250);
+  --popover: oklch(0.23 0.01 250);
+  --popover-foreground: oklch(0.92 0.008 250);
+
+  /* ── Primary ───────────────────────────────────────────── */
+  --primary: oklch(0.65 0.16 250); /* brighter blue for dark bg */
+  --primary-foreground: oklch(0.99 0 0);
+
+  /* ── Secondary ─────────────────────────────────────────── */
+  --secondary: oklch(0.27 0.01 250); /* subtle elevation */
+  --secondary-foreground: oklch(0.78 0.012 250);
+
+  /* ── Muted ─────────────────────────────────────────────── */
+  --muted: oklch(0.27 0.01 250);
+  --muted-foreground: oklch(0.6 0.015 250);
+
+  /* ── Accent ────────────────────────────────────────────── */
+  --accent: oklch(0.3 0.02 250); /* soft blue tint */
+  --accent-foreground: oklch(0.92 0.008 250);
+
+  /* ── Destructive ───────────────────────────────────────── */
+  --destructive: oklch(0.6 0.19 25);
+  --destructive-foreground: oklch(0.99 0 0);
+
+  /* ── Borders & controls ────────────────────────────────── */
+  --border: oklch(0.3 0.01 250); /* subtle border */
+  --input: oklch(0.3 0.01 250);
+  --ring: oklch(0.65 0.16 250);
+
+  /* ── Chart palette ─────────────────────────────────────── */
+  --chart-1: oklch(0.65 0.16 250);
+  --chart-2: oklch(0.65 0.15 160);
+  --chart-3: oklch(0.65 0.15 300);
+  --chart-4: oklch(0.7 0.15 75);
+  --chart-5: oklch(0.6 0.18 25);
+
+  /* ── Sidebar ───────────────────────────────────────────── */
+  --sidebar: oklch(0.195 0.007 250); /* slightly darker than bg */
+  --sidebar-foreground: oklch(0.92 0.008 250);
+  --sidebar-primary: oklch(0.65 0.16 250);
+  --sidebar-primary-foreground: oklch(0.99 0 0);
+  --sidebar-accent: oklch(0.3 0.02 250);
+  --sidebar-accent-foreground: oklch(0.92 0.008 250);
+  --sidebar-border: oklch(0.3 0.01 250);
+  --sidebar-ring: oklch(0.65 0.16 250);
+}

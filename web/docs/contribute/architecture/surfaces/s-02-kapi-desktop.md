@@ -230,6 +230,15 @@ explorers in `@neokapi/kapi-lab`, plus the contract types, reference data,
 status views, concept views, and grid editor packages. All resolve through the
 single root pnpm workspace.
 
+Its palette comes from the same place. "Kapi Blue" is one file,
+`packages/ui/src/styles/kapi-colors.css`, which the desktop imports rather than
+declaring the values itself, and which in turn imports the semantic tokens that
+say what a colour means: the judgement colours and one hue per coordinate axis.
+The Storybook renders through the desktop's stylesheet, so a story and the app
+read the same values, and the documentation site's Infima variables and the
+diagram kit's defaults are computed from that one file. See
+[Brand tokens and the documentation palette](../../implementation/repo/docs-palette.md).
+
 It also consumes `@neokapi/i18n-react` ([S-05](s-05-i18n-runtime.md)) for its
 own interface languages. The desktop's UI strings go through the same
 extraction and runtime the framework offers to any React application, and the
