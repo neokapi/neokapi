@@ -219,6 +219,11 @@ func stripDoxygenMarker(line string) string {
 //     list-marker content; CommonMark spec is silent on the exact
 //     reflow, so two indents that differ by one space are treated as
 //     equivalent for canonical-equality.
+//   - The padding around each pipe of a table row collapses to one
+//     space. Okapi's TableCell visitor emits `| ` before a cell and ` `
+//     after it whatever the source padded; native replays the source's
+//     own padding (#1661). GFM ignores cell padding, so both spell the
+//     same table.
 //   - HTML character references decode to the characters they denote.
 //     Okapi decodes an entity into the text it hands its writer, so
 //     `Ampere&#39;s` comes back as `Ampere's`. Native keeps the source
@@ -236,6 +241,10 @@ func (MarkdownCanonical) Name() string { return "markdown-canonical" }
 // markdownEntityRe matches one HTML character reference: a named entity or a
 // decimal/hex numeric reference.
 var markdownEntityRe = regexp.MustCompile(`&(?:[A-Za-z][A-Za-z0-9]*|#[0-9]+|#[xX][0-9A-Fa-f]+);`)
+
+// markdownCellPaddingRe matches one pipe of a table row together with the
+// whitespace on either side of it.
+var markdownCellPaddingRe = regexp.MustCompile(`[ \t]*\|[ \t]*`)
 
 // Normalize implements Normalizer.
 func (MarkdownCanonical) Normalize(in []byte) ([]byte, error) {
@@ -261,6 +270,16 @@ func (MarkdownCanonical) Normalize(in []byte) ([]byte, error) {
 		}
 		if j < len(trimmed) && trimmed[j] == '>' {
 			lines[i] = trimmed[:j] + collapseBlockquoteMarkers(trimmed[j:])
+			continue
+		}
+		// Collapse the padding around each pipe of a table row.
+		if j < len(trimmed) && trimmed[j] == '|' {
+			row := strings.TrimSpace(markdownCellPaddingRe.ReplaceAllString(trimmed[j:], " | "))
+			if j > 0 {
+				lines[i] = "\t" + row
+			} else {
+				lines[i] = row
+			}
 			continue
 		}
 		// Collapse runs of leading whitespace to a canonical form (a
