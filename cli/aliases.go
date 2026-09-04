@@ -75,6 +75,8 @@ type (
 	ToolRunConfig                 = host.ToolRunConfig
 	UpOptions                     = host.UpOptions
 	UpPlanOutput                  = host.UpPlanOutput
+	VoicePointerAction            = host.VoicePointerAction
+	VoicePointerResult            = host.VoicePointerResult
 )
 
 const (
@@ -103,6 +105,11 @@ const (
 	FallbackProjectThenStdin = host.FallbackProjectThenStdin
 	FallbackStdinOnly        = host.FallbackStdinOnly
 	StdinName                = host.StdinName
+	VoicePointerCreated      = host.VoicePointerCreated
+	VoicePointerUpdated      = host.VoicePointerUpdated
+	VoicePointerUnchanged    = host.VoicePointerUnchanged
+	VoicePointerRemoved      = host.VoicePointerRemoved
+	VoicePointerNone         = host.VoicePointerNone
 )
 
 // Function and variable re-exports.

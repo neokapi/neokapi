@@ -220,7 +220,7 @@
           "short": "Report a project's packable state, or a .kpz archive's contents"
         },
         "init": {
-          "long": "Create a new kapi project with a kapi.yaml recipe and an\nadjacent .kapi/ state directory.\n\nBy default kapi init scaffolds a content project that keeps your source in\nvoice: a voice profile, the project terms store, and a check flow, with no\ntarget languages. Pass --target-locale (or --framework) to make it a\ntranslation project instead.\n\nThe project id defaults to the current directory's basename and the source\nlocale to en. Override with --name, --source-locale, --target-locale\n(repeatable).\n\n--preset \u003cname\u003e (alias: --framework) pre-fills the content mapping for a known\nstack's i18n catalogs: react-i18next, react-intl, nextjs, vue-i18n, flutter,\nangular, and scaffolds the translation project. List every preset (framework\nscaffolds plus per-format parsing presets) with --list-presets.",
+          "long": "Create a new kapi project with a kapi.yaml recipe and an\nadjacent .kapi/ state directory.\n\nBy default kapi init scaffolds a content project that keeps your source in\nvoice: a voice profile, the project terms store, and a check flow, with no\ntarget languages. Pass --target-locale (or --framework) to make it a\ntranslation project instead.\n\nThe project id defaults to the current directory's basename and the source\nlocale to en. Override with --name, --source-locale, --target-locale\n(repeatable).\n\n--preset \u003cname\u003e (alias: --framework) pre-fills the content mapping for a known\nstack's i18n catalogs: react-i18next, react-intl, nextjs, vue-i18n, flutter,\nangular, and scaffolds the translation project. List every preset (framework\nscaffolds plus per-format parsing presets) with --list-presets.\n\nWhen the project binds a voice profile, kapi init also writes a short section\ninto the project's assistant file, so an assistant working in the tree knows\nthe voice is held by kapi and retrieves it with 'kapi voice guide' before\nwriting. An existing AGENTS.md or CLAUDE.md at the root takes the section\n(AGENTS.md when both exist); with neither, kapi init creates AGENTS.md, which a\nCLAUDE.md picks up through an import line (@AGENTS.md). Re-running replaces\nthe section in place and leaves the rest of the file alone. --no-pointer skips\nit; 'kapi voice pointer' writes it later.",
           "short": "Scaffold a new kapi project in the current directory"
         },
         "inspect": {
@@ -533,6 +533,10 @@
           },
           "pack": {
             "short": "Install a built-in starter pack into the local voice store"
+          },
+          "pointer": {
+            "long": "Write a short, marker-delimited section into the project's assistant file\ntelling an assistant that the project's voice is held by kapi and that\n'kapi voice guide' retrieves it. The section names the voice and nothing\nelse; the guide itself stays one command away, so the pointer never goes\nstale.\n\nAn existing AGENTS.md or CLAUDE.md at the project root takes the section\n(AGENTS.md when both exist); with neither, AGENTS.md is created. An assistant\nthat reads CLAUDE.md picks AGENTS.md up through an import line there:\n@AGENTS.md. Running again replaces the section in place and leaves the rest\nof the file untouched. When the project binds no voice, a section written\nearlier is removed and nothing else is written.\n\n'kapi init' writes the same section when the project it scaffolds binds a\nvoice; run this after binding one to an existing project, or after renaming\nthe profile.",
+            "short": "Write a pointer to the project's voice into its assistant file (AGENTS.md or CLAUDE.md)"
           },
           "profiles": {
             "short": "List voice profiles (local store + built-in packs)"

@@ -124,6 +124,25 @@ type VoiceSaveResult struct {
 	// Guide is the profile as a tool would read it, rendered from what was
 	// saved.
 	Guide string `json:"guide,omitempty"`
+	// Pointer is what the save did to the project's assistant file: the
+	// section telling an assistant the voice is held by kapi, the same one
+	// `kapi init` and `kapi voice pointer` write. nil when the profile was
+	// refused.
+	Pointer *VoicePointerDTO `json:"pointer,omitempty"`
+}
+
+// VoicePointerDTO reports the voice pointer written beside a saved profile.
+type VoicePointerDTO struct {
+	// File is the project-relative assistant file (AGENTS.md or CLAUDE.md);
+	// empty when nothing was written.
+	File string `json:"file,omitempty"`
+	// Action is created, updated, unchanged, removed, none, or failed.
+	Action string `json:"action"`
+	// Created is true when the file itself was created by this save.
+	Created bool `json:"created,omitempty"`
+	// Warning says why the pointer could not be written or could not name
+	// the voice; the profile save itself succeeded.
+	Warning string `json:"warning,omitempty"`
 }
 
 // ProjectVoiceResult is every point the recipe declares, with its voice.
@@ -420,7 +439,29 @@ func (a *App) SaveVoiceProfile(tabID, profileName string, profile coreprofile.Vo
 	out.Saved = true
 	out.Changed = changed
 	out.Guide = coreprofile.RenderVoiceGuide(&profile)
+
+	// The project has a voice from this point on, so the assistant file says
+	// so. The recipe on disk is what the pointer reads; a project this tab
+	// holds unsaved would point at a voice the file does not bind yet.
+	out.Pointer = a.writeVoicePointer(root)
 	return out, nil
+}
+
+// writeVoicePointer writes the section that tells an assistant the project's
+// voice is held by kapi, through the same host code `kapi init` uses, and
+// reports the outcome for the editor. A failure is reported rather than
+// returned: the profile is saved, and the pointer is the smaller of the two.
+func (a *App) writeVoicePointer(root string) *VoicePointerDTO {
+	res, err := a.hostEngine().WriteVoicePointer(context.Background(), root)
+	if err != nil {
+		return &VoicePointerDTO{Action: "failed", Warning: err.Error()}
+	}
+	return &VoicePointerDTO{
+		File:    relSource(root, res.File),
+		Action:  string(res.Action),
+		Created: res.Created,
+		Warning: res.Warning,
+	}
 }
 
 // validateVoiceProfile runs the three stages `kapi voice validate` runs.

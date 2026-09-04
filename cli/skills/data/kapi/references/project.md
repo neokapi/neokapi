@@ -22,6 +22,18 @@ kapi init --name my-app --source-locale en --target-locale fr --target-locale de
 This writes `kapi.yaml` (the recipe) and a `.kapi/` directory. **`.kapi/` is
 committed**: it is the project's context rather than scratch space. Git it like source.
 
+When the project binds a voice (the default scaffold binds a starter pack),
+`kapi init` also writes a short section into the project's assistant file: an
+existing `AGENTS.md` or `CLAUDE.md` at the root, or a new `AGENTS.md`. It says
+the voice is held by kapi and that `kapi voice guide` retrieves it, so the next
+assistant in this tree asks before it writes. The section sits between
+`<!-- kapi:voice -->` markers and is replaced in place on every run; the rest of
+the file is never touched. `kapi init --no-pointer` skips it. On an existing
+project, `kapi voice pointer` writes or refreshes the same section: run it after
+you bind a voice under `defaults.voice`, and tell the user which file it went
+into, since they commit it. A `CLAUDE.md` picks up `AGENTS.md` through an import
+line, `@AGENTS.md`.
+
 - **`.kapi/`**: the context graph, all committed and flat: `terms.json`,
   `voice.yaml`, `memory/` (the content-memory bundles, `memory.json` the
   primary), `profiles/<name>/` (what a profile overrides), and `state/*.jsonl`,
@@ -74,7 +86,7 @@ collections:
 - **Voice profile**: bind it under `defaults.voice`, or just keep a
   `.kapi/voice.yaml` (or a `voice.yaml` at the project root); `kapi
   voice check <file>`, `voice rewrite`, and `voice guide` then resolve it with no
-  flag.
+  flag. Then `kapi voice pointer`, so the assistant file names the voice.
 - **More than one voice in one repo**: declare one profile per product under
   `profiles:`, list the channels that product ships on, and bind each *named*
   collection to one of them with `channel:`. Runs split per distinct resolution,

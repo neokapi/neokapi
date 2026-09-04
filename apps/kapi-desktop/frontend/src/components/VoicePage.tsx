@@ -36,6 +36,7 @@ import {
   Skeleton,
   SimpleTooltip,
   cn,
+  toast,
 } from "@neokapi/ui-primitives";
 import { EmptyHint, ErrorHint } from "@neokapi/concept-ui";
 import { t } from "@neokapi/i18n-react/runtime";
@@ -50,6 +51,7 @@ import type {
   VoicePoint,
   VoiceProfile,
   VoiceSaveResult,
+  VoicePointerDTO,
 } from "../types/voice";
 import { VoiceProfileEditor } from "./voice/VoiceProfileEditor";
 import { FactGrid } from "./voice/facts";
@@ -417,6 +419,27 @@ function PointDetail({ point, onEdit }: { point: VoicePoint; onEdit?: () => void
  * so a single-point project reads as one row rather than as a surface with
  * something missing.
  */
+
+/**
+ * Say what the save did to the project's assistant file. A file that gained
+ * the section is news the person should see, because it is a file they
+ * commit; an unchanged one is not.
+ */
+function notifyPointer(pointer: VoicePointerDTO | undefined): void {
+  if (!pointer) return;
+  if (pointer.action === "failed") {
+    toast.error(
+      t("The voice was saved, but the assistant pointer could not be written: {reason}", {
+        reason: pointer.warning ?? "",
+      }),
+    );
+    return;
+  }
+  if (pointer.action === "created" || pointer.action === "updated") {
+    toast.success(t("Wrote a pointer to the voice into {file}", { file: pointer.file ?? "" }));
+  }
+}
+
 export function VoicePage({ tabID, result, editable = true, save, valueSets }: VoicePageProps) {
   const queries = useQueryClient();
   const query = useQuery({
@@ -505,9 +528,10 @@ export function VoicePage({ tabID, result, editable = true, save, valueSets }: V
                     valueSets={valueSets}
                     save={save}
                     onCancel={() => setEditing(false)}
-                    onSaved={() => {
+                    onSaved={(result) => {
                       setEditing(false);
                       void queries.invalidateQueries({ queryKey: qk.projectVoice(tabID) });
+                      notifyPointer(result.pointer);
                     }}
                   />
                 ) : (

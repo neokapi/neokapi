@@ -110,6 +110,21 @@ collections:
     format: markdown
 ```
 
+Then point the next assistant at the voice you bound:
+
+```bash
+kapi voice pointer     # a section in AGENTS.md (or an existing CLAUDE.md) naming the voice
+```
+
+It writes three sentences: the project's voice is held by kapi, it applies to
+prose written here, and `kapi voice guide` retrieves it. Nothing about how to
+write; the guide stays one command away. `kapi init` writes the same section
+when the scaffold it creates binds a voice, and the recipe edit above is what it
+names, so run it after the edit. The section sits between `<!-- kapi:voice -->`
+markers and is replaced in place; hand-written content around it is kept. Tell
+the user which file it went into: it is committed with the rest of the context,
+and a `CLAUDE.md` reads `AGENTS.md` through an `@AGENTS.md` line.
+
 Materialize the terminology seed, now that the project exists:
 
 ```bash
@@ -152,7 +167,8 @@ user reads `git status` and `git diff` to decide.
 End by telling the user, concretely:
 
 - **What exists**: `kapi.yaml`, the voice profile, the committed terms source,
-  and the content mapping.
+  the content mapping, and the assistant file (`AGENTS.md` or `CLAUDE.md`)
+  that points the next assistant at the voice.
 - **The standing instruction**: run `kapi check --ship` before shipping content
   and fix what it flags ([project.md](project.md)); in a translation project,
   `kapi up` catches locales up ([translate.md](translate.md)).

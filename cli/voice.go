@@ -2,8 +2,10 @@ package cli
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	aitools "github.com/neokapi/neokapi/core/ai/tools"
@@ -48,7 +50,58 @@ omitted or set to "-".`,
 		newVoiceShowCmd(a),
 		newVoiceImportCmd(a),
 		newVoicePackCmd(a),
+		newVoicePointerCmd(a),
 	)
+	return cmd
+}
+
+func newVoicePointerCmd(a *App) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "pointer",
+		Short: "Write a pointer to the project's voice into its assistant file (AGENTS.md or CLAUDE.md)",
+		Long: `Write a short, marker-delimited section into the project's assistant file
+telling an assistant that the project's voice is held by kapi and that
+'kapi voice guide' retrieves it. The section names the voice and nothing
+else; the guide itself stays one command away, so the pointer never goes
+stale.
+
+An existing AGENTS.md or CLAUDE.md at the project root takes the section
+(AGENTS.md when both exist); with neither, AGENTS.md is created. An assistant
+that reads CLAUDE.md picks AGENTS.md up through an import line there:
+@AGENTS.md. Running again replaces the section in place and leaves the rest
+of the file untouched. When the project binds no voice, a section written
+earlier is removed and nothing else is written.
+
+'kapi init' writes the same section when the project it scaffolds binds a
+voice; run this after binding one to an existing project, or after renaming
+the profile.`,
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			projectPath, err := ResolveProjectPath(cmd)
+			if err != nil {
+				return err
+			}
+			if projectPath == "" {
+				return errors.New("no kapi project found: run 'kapi init' first, or name one with -p")
+			}
+			res, err := a.WriteVoicePointer(CmdContext(cmd), filepath.Dir(projectPath))
+			if err != nil {
+				return err
+			}
+			if res.Action == VoicePointerNone {
+				return errors.New("this project binds no voice profile: bind one under defaults.voice in kapi.yaml, or add .kapi/voice.yaml, then run again")
+			}
+			return output.Print(cmd, output.VoicePointerOutput{
+				File:    res.File,
+				Created: res.Created,
+				Action:  string(res.Action),
+				Voice:   res.Voice,
+				Warning: res.Warning,
+			})
+		},
+	}
+	AddProjectFlag(cmd)
+	output.AddFlags(cmd.Flags())
 	return cmd
 }
 

@@ -102,20 +102,29 @@ type armSetup struct {
 	// that this project's wording is governed and how to retrieve it. Empty in
 	// the published arm, which is the point: the sweep measures whether the
 	// skill alone is enough. The follow-up experiment (probe_test.go) sets it to
-	// find out whether a signpost is what the arm was missing.
+	// the section `kapi init` writes, to measure what onboarding hands an
+	// assistant.
 	pointer string
 }
 
-// labPointer is the three sentences an onboarding step would write.
+// labPointer is the assistant file `kapi init` writes for a project that
+// binds this profile: a title, then the section coreprofile.RenderVoicePointer
+// renders, which is the same text the product writes into AGENTS.md or
+// CLAUDE.md.
 //
-// Deliberately says nothing about HOW to write, only that the project holds a
-// voice and where to ask for it. A pointer that carried the guidance would be
-// the pushed arm with extra steps.
-const labPointer = `# ripgrep
-
-This project's documentation voice is held by kapi, and applies to any prose
-written here. Retrieve what is in force before writing, with ` + "`kapi voice guide`" + `.
-`
+// It says nothing about HOW to write, only that the project holds a voice and
+// where to ask for it. A pointer that carried the guidance would be the pushed
+// arm with extra steps. The lab writes it as CLAUDE.md because that is the
+// file the agent under test reads; a fresh `kapi init` creates AGENTS.md, which
+// a CLAUDE.md imports with `@AGENTS.md`.
+func labPointer(profile *coreprofile.VoiceProfile) string {
+	name := ""
+	if profile != nil {
+		name = profile.Name
+	}
+	return "# " + filepath.Base(LabRepo) + "\n\n" +
+		coreprofile.RenderVoicePointer(coreprofile.VoicePointer{Name: name})
+}
 
 // writePulledProject binds the voice to the workspace the way a project does.
 func writePulledProject(tree string, profile *coreprofile.VoiceProfile) error {

@@ -104,7 +104,7 @@ func TestAPointerMakesItAsk(t *testing.T) {
 			run := runAgent(context.Background(), AgentOpts{
 				ClaudeBin: claudeBin, Root: root, Model: model, Prompt: point.Task,
 				KapiBin: kapiBin,
-				Arm:     armSetup{pull: true, profile: profile, pointer: labPointer},
+				Arm:     armSetup{pull: true, profile: profile, pointer: labPointer(profile)},
 			})
 			require.Empty(t, run.Err)
 			t.Logf("%s asked: %v", model, run.KapiCommands)

@@ -129,6 +129,7 @@ export {
     VoiceEditTargetDTO,
     VoiceFallbackDTO,
     VoicePointDTO,
+    VoicePointerDTO,
     VoiceSaveResult,
     VoiceValidityDTO
 } from "./models.js";
