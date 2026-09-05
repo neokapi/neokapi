@@ -182,6 +182,46 @@ equation is written back through a **sub-skeleton**. See
 [OMML Math Conversion](/contribute/implementation/multilingual/omml-math) for the
 formula-specific surfacing and its byte-exact splice.
 
+### A stored value beside its display
+
+A spreadsheet value cell stores a number and shows it through a number format:
+a date is a serial day count, a percentage a fraction, a price a bare decimal.
+The worksheet reader surfaces such a cell as a non-translatable grid anchor
+whose text is the value as stored, and stamps the value as the sheet displays
+it beside it:
+
+```go
+// core/formats/openxml/sml.go (emitLiteralCellAnchor)
+Source: []model.Run{{Text: &model.TextRun{Text: "44197"}}},
+Properties: map[string]string{
+    "partPath":            partPath,
+    "cell":                "A2",
+    model.PropCellDisplay: "01-01-21", // what the sheet shows
+    model.PropCellFormat:  "mm-dd-yy", // the number-format code it shows it through
+},
+```
+
+The stored value stays the block's content, so the skeleton, the block's
+identity and the round-trip see nothing but what the file holds. Every consumer
+that renders a table cell reads the display through one function,
+`projection.DisplayRuns`, which returns a single text run of the display when
+the property is present and the block's runs otherwise: the Markdown, HTML,
+AsciiDoc and DocLang writers, the projection tree behind `kapi inspect` and the
+preview, and the preview kit's own worksheet grid all render the date rather
+than the serial. A text cell carries no display; its shared-string or inline
+text is what a reader translates and what the grid shows.
+
+The reader resolves a cell's `s` attribute through the stylesheet's `cellXfs`
+to a `numFmtId`, then to a custom `numFmt` code or the built-in table of
+ECMA-376 §18.8.30 (`core/formats/openxml/sml_styles.go`), and reads the
+workbook's `date1904` epoch. The renderer (`numfmt.go`, `numfmt_date.go`)
+covers General, fixed decimals, thousands grouping and scaling, percent,
+scientific notation, fractions, currency and accounting literals, the date and
+time pattern letters with the 1900 leap-year quirk, elapsed time, the text
+placeholder, conditions and the positive;negative;zero;text sections, in an
+invariant en-US rendering. A code it cannot render, or a value the code cannot
+show, leaves the display equal to the stored value.
+
 ## Channel 2: comments and metadata as Data or a note
 
 Context that is *about* the content rather than rendered alongside it (authoring

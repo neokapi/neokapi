@@ -92,6 +92,32 @@ describe("renderDoc — xlsx grid from cell anchors", () => {
     expect(a1.id).toBe("cell-sheet1-A1");
     expect(b1.id).toBe("cell-sheet1-B1");
   });
+
+  it("shows a value cell through its formatted display, keeping the stored value out of the grid", () => {
+    // A date is stored as a serial day count and a percentage as a fraction;
+    // the reader renders each through the cell's number format and stamps the
+    // result beside the stored value. The grid shows the display.
+    const date = cell("A2", "44197");
+    date.properties = { ...date.properties, "cell.display": "01-01-21", "cell.format": "mm-dd-yy" };
+    const share = cell("B2", "0.125");
+    share.properties = { ...share.properties, "cell.display": "12.5%", "cell.format": "0.0%" };
+    const plain = cell("C2", "1992");
+
+    const doc = treeToRenderDoc(
+      sheetTree([cell("A1", "Date"), cell("B1", "Share"), cell("C1", "Year"), date, share, plain]),
+    );
+    expect(doc.kind).toBe("sheet");
+    const text = (ref: string) => doc.sheet!.cells.find((c) => c.ref === ref)!.text;
+    expect(text("A2")).toBe("01-01-21");
+    expect(text("B2")).toBe("12.5%");
+    expect(text("C2")).toBe("1992");
+    expect(
+      lineSideText(
+        doc.sheet!.cells.find((c) => c.ref === "A2")!,
+        "nb",
+      ).text,
+    ).toBe("01-01-21");
+  });
 });
 
 describe("renderDoc — entryKey surfaces structured keys", () => {

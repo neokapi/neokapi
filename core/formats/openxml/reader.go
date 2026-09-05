@@ -131,6 +131,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			return
 		}
 		info.sheetNames = parseSheetNames(zr, info.relationships)
+		info.cellStyles = parseCellStyles(zr, info.relationships)
 	}
 
 	// Emit root layer
@@ -360,6 +361,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				skeletonStore: r.skeletonStore,
 				sharedStrings: info.sharedStrings,
 				sheetNames:    info.sheetNames,
+				styles:        info.cellStyles,
 				// Surface worksheet topology (table/table-row Groups) so
 				// cross-format writers and core/projection rebuild the grid
 				// from the stream instead of buffering it to rediscover.

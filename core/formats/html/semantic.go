@@ -493,6 +493,8 @@ func cellSpanAttrs(b *model.Block) (attrs string, colSpan int) {
 // become HTML tags from their vocabulary type (so the same clean HTML results
 // whatever the source format). An unrecognized PcOpen whose captured Data is
 // already an HTML tag is emitted verbatim, preserving same-format inline markup.
+// A spreadsheet value cell renders its formatted display in place of the
+// stored value (projection.DisplayRuns).
 func (w *Writer) renderInlineHTML(b *model.Block) string {
 	runs := b.Source
 	if !w.Locale.IsEmpty() {
@@ -500,7 +502,7 @@ func (w *Writer) renderInlineHTML(b *model.Block) string {
 			runs = t
 		}
 	}
-	return renderRunsHTML(runs)
+	return renderRunsHTML(projection.DisplayRuns(b, runs))
 }
 
 // renderRunsHTML projects a run sequence to inline HTML via the shared decoder.

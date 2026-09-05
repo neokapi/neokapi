@@ -106,6 +106,18 @@ const (
 	// already covers this position, so the table assemblers drop it. The
 	// originating cell carries the resolved RowSpan, not this property.
 	PropTableVMerge = "table.vmerge"
+	// PropCellDisplay is the text a spreadsheet value cell shows once its
+	// number format is applied: the serial 44197 under mm-dd-yy is "01-01-21",
+	// 0.125 under 0.0% is "12.5%", the boolean 1 is "TRUE". A reader stamps it
+	// beside the raw stored value, which stays in the source runs so the
+	// round-trip is untouched; the structural writers and the preview render
+	// this text in the cell's place (projection.DisplayRuns). Absent on a text
+	// cell and on a cell whose reader knows no format.
+	PropCellDisplay = "cell.display"
+	// PropCellFormat is the number-format code PropCellDisplay was rendered
+	// with ("0.00%", "mm-dd-yy", "General"), so a consumer can tell why the
+	// display differs from the value.
+	PropCellFormat = "cell.format"
 )
 
 // OTSL table-header sub-kinds — the values PropTableHeaderKind takes. DocLang

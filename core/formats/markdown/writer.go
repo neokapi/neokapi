@@ -597,7 +597,7 @@ func (w *Writer) assembleFlatCells(cells []*model.Block) (caption string, rows [
 				col = n
 			}
 		}
-		text := escapeTableCell(renderInlineMarkdown(w.blockRuns(c)))
+		text := escapeTableCell(renderInlineMarkdown(w.cellRuns(c)))
 		rows[len(rows)-1].cells = append(rows[len(rows)-1].cells, mdCell{col: col, text: text})
 	}
 	// A lone cell in the first row of a wider grid is the table's title — a
@@ -609,7 +609,7 @@ func (w *Writer) assembleFlatCells(cells []*model.Block) (caption string, rows [
 	if len(rows) > 1 && len(rows[0].cells) == 1 && rows[0].cells[0].text != "" {
 		for _, r := range rows[1:] {
 			if len(r.cells) > 1 {
-				caption = renderInlineMarkdown(w.blockRuns(cells[0]))
+				caption = renderInlineMarkdown(w.cellRuns(cells[0]))
 				rows = rows[1:]
 				break
 			}
@@ -817,7 +817,7 @@ func (w *Writer) collectTable(events []*model.Part, start int) (end int, rows []
 					col = n
 				}
 			}
-			text := escapeTableCell(renderInlineMarkdown(w.blockRuns(c.Block)))
+			text := escapeTableCell(renderInlineMarkdown(w.cellRuns(c.Block)))
 			mr.cells = append(mr.cells, mdCell{col: col, text: text})
 		}
 		rows = append(rows, mr)
@@ -1432,4 +1432,11 @@ func (w *Writer) blockRuns(block *model.Block) []model.Run {
 		return block.Source
 	}
 	return nil
+}
+
+// cellRuns picks a table cell's runs: the cell's formatted display when the
+// reader stamped one (a spreadsheet value cell shows its number through its
+// format), else the locale-chosen runs.
+func (w *Writer) cellRuns(block *model.Block) []model.Run {
+	return projection.DisplayRuns(block, w.blockRuns(block))
 }

@@ -84,7 +84,7 @@ func (s *streamTable) consume(part *model.Part) (bool, error) {
 		}
 		s.row = append(s.row, mdCell{
 			col:  col,
-			text: escapeTableCell(renderInlineMarkdown(s.w.blockRuns(block))),
+			text: escapeTableCell(renderInlineMarkdown(s.w.cellRuns(block))),
 		})
 	}
 	return false, nil
