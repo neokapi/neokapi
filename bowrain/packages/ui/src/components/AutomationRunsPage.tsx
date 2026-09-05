@@ -1,7 +1,8 @@
 import { Badge, Button, Card, cn } from "@neokapi/ui-primitives";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useApi } from "../context/ApiContext";
 import { useWorkspace } from "../context/WorkspaceContext";
+import { useAutomationRunEvents } from "../hooks/useAutomationRunEvents";
 import type {
   AutomationRun,
   AutomationStep,
@@ -87,20 +88,27 @@ function actionLabel(actionType: string): string {
 
 export interface AutomationRunsPageProps {
   projectId: string;
+  /**
+   * Follow the selected run over its server-sent event stream, so each step
+   * shows as it starts and finishes. The stream is a same-origin EventSource
+   * authenticated by the session cookie, which only the web app holds; the
+   * desktop app leaves this off and polls the run instead.
+   */
+  live?: boolean;
 }
 
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
-export function AutomationRunsPage({ projectId }: AutomationRunsPageProps) {
+export function AutomationRunsPage({ projectId, live = false }: AutomationRunsPageProps) {
   const api = useApi();
   const { activeWorkspace } = useWorkspace();
   const ws = activeWorkspace?.slug ?? "";
 
   const [runs, setRuns] = useState<AutomationRun[]>([]);
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
-  const [steps, setSteps] = useState<AutomationStep[]>([]);
+  const [polledSteps, setPolledSteps] = useState<AutomationStep[]>([]);
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
   const [logs, setLogs] = useState<AutomationLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -120,19 +128,26 @@ export function AutomationRunsPage({ projectId }: AutomationRunsPageProps) {
 
   useEffect(() => {
     void loadRuns();
-    // Poll every 5s for live updates.
+    // Poll every 5s for new runs.
     const interval = setInterval(loadRuns, 5000);
     return () => clearInterval(interval);
   }, [loadRuns]);
 
+  // The selected run's stream. While it is open its frames carry the run
+  // and the steps, and the step poll below stays idle; once it has closed on
+  // the settled run there is nothing left to poll. A stream that cannot
+  // open, or drops, leaves the poll running.
+  const stream = useAutomationRunEvents(ws, projectId, selectedRunId, live);
+  const pollSteps = !stream.connected && !stream.done;
+
   // Fetch run detail when selected.
   useEffect(() => {
-    if (!selectedRunId || !ws) return;
+    if (!selectedRunId || !ws || !pollSteps) return;
     let cancelled = false;
     const load = async () => {
       try {
         const { steps: s } = await api.getAutomationRun(ws, projectId, selectedRunId);
-        if (!cancelled) setSteps(s);
+        if (!cancelled) setPolledSteps(s);
       } catch {
         /* ignore */
       }
@@ -143,7 +158,20 @@ export function AutomationRunsPage({ projectId }: AutomationRunsPageProps) {
       cancelled = true;
       clearInterval(interval);
     };
-  }, [api, ws, projectId, selectedRunId]);
+  }, [api, ws, projectId, selectedRunId, pollSteps]);
+
+  // The list settles once the stream closes on the run's final state.
+  const streamDone = stream.done;
+  useEffect(() => {
+    if (streamDone) void loadRuns();
+  }, [streamDone, loadRuns]);
+
+  const steps = stream.steps ?? polledSteps;
+  const streamedRun = stream.run;
+  const shownRuns = useMemo(
+    () => (streamedRun ? runs.map((r) => (r.id === streamedRun.id ? streamedRun : r)) : runs),
+    [runs, streamedRun],
+  );
 
   // Fetch logs when step selected.
   useEffect(() => {
@@ -177,14 +205,14 @@ export function AutomationRunsPage({ projectId }: AutomationRunsPageProps) {
     );
   }
 
-  const selectedRun = runs.find((r) => r.id === selectedRunId);
+  const selectedRun = shownRuns.find((r) => r.id === selectedRunId);
 
   return (
     <div className="flex gap-4 h-full min-h-0">
       {/* Run list */}
       <div className="w-[320px] shrink-0 overflow-y-auto space-y-2">
         <h3 className="text-sm font-semibold mb-2">Automation Runs</h3>
-        {runs.map((run) => (
+        {shownRuns.map((run) => (
           <Card
             key={run.id}
             className={cn(
@@ -193,6 +221,7 @@ export function AutomationRunsPage({ projectId }: AutomationRunsPageProps) {
             )}
             onClick={() => {
               setSelectedRunId(run.id);
+              setPolledSteps([]);
               setSelectedStepId(null);
               setLogs([]);
             }}

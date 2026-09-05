@@ -666,7 +666,7 @@ func NewServer(cfg Config) *Server {
 	// Wire up automation engine with run manager (Bowrain AD-013).
 	s.runHub = newAutomationRunHub()
 
-	s.runManager = event.NewAutomationRunManager(s.AutomationRunStore, s.executeAutomationAction)
+	s.runManager = s.newRunManager()
 	s.AutomationEngine = event.NewAutomationEngine(s.EventBus, s.runManager.Execute)
 	s.registerDefaultAutomations()
 
@@ -845,6 +845,7 @@ func NewServer(cfg Config) *Server {
 		s.stepCompletionTracker = event.NewStepCompletionTracker(
 			s.AutomationRunStore, s.JobStore, s.ExtractionJobStore,
 		)
+		s.stepCompletionTracker.SetRunNotifier(s.runHub)
 		if s.BillingHooks != nil {
 			s.stepCompletionTracker.SetBillingHooks(s.BillingHooks)
 		}

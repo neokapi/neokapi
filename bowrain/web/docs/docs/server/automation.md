@@ -87,7 +87,8 @@ reason, in the run history and in the execution history.
 
 Every server-side automation run is recorded under **Project > Automations >
 Runs**, with its trigger, its steps, the outcome of each step, and per-step
-logs. This is the record to consult when a rule did not do what you expected.
+logs. A run in progress updates in place as each step starts and finishes.
+This is the record to consult when a rule did not do what you expected.
 
 ## Local automation (CLI)
 
