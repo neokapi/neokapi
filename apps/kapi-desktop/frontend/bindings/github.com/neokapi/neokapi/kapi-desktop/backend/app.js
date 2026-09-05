@@ -452,10 +452,11 @@ export function ContextOptions(tabID, dimension) {
 /**
  * ContextRelates answers "how it relates" for a term, a concept or a block.
  * 
- * A subject that names a term or concept answers with occurrence — where the
- * project's content uses it. A subject that names a block's content key answers
- * with the decisions that blessed it. Both read the graph the up path
- * materializes, so the answer is the same one `kapi terms occurrences` gives.
+ * A subject that names a term or concept answers with where the project's
+ * content uses it, read from the uses_term edges the up path materializes, so
+ * the count here is the count the search pane and the platform report and all
+ * three mean "as of the last extraction". A subject that names a block's
+ * content key answers with the decisions that blessed it, from the same graph.
  * @param {string} tabID
  * @param {string} kind
  * @param {string} subject
@@ -2191,10 +2192,11 @@ export function RunChecks(tabID, filter) {
  * (every block becomes part of the per-collection denominator; targets remain at
  * zero until a translate flow runs and commits `targets/<locale>` overlays).
  * 
- * It is a thin binding over the shared core extract-into-store path
- * (project.ExtractToBlockStore) — the same implementation the CLI's `kapi up`
- * uses when it auto-extracts on source drift — so the desktop and CLI read,
- * number, and key blocks identically.
+ * It is a thin binding over the shared host extract-into-store path
+ * (host.App.ExtractToProjectStore), the same implementation the CLI's `kapi up`
+ * uses when it auto-extracts on source drift, so the desktop and CLI read,
+ * number and key blocks identically and both leave the context graph rebuilt
+ * over them.
  * @param {string} tabID
  * @returns {$CancellablePromise<$models.ExtractResult | null>}
  */

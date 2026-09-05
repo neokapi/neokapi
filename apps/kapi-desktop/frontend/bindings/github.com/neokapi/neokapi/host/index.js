@@ -13,6 +13,7 @@ export {
     ContextSearchResult,
     ContextTermHit,
     ContextTermUse,
+    ContextUse,
     ContextVoice,
     ConvergeLocaleResult,
     ConvergeOutput,

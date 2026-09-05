@@ -5,7 +5,7 @@
 // contract: "which projects use this concept" answering from one project would
 // read as "only this project uses it", which is a lie the graph never told.
 
-import { Badge, Separator, cn } from "@neokapi/ui-primitives";
+import { Badge, Separator, SimpleTooltip, cn } from "@neokapi/ui-primitives";
 import { EmptyHint, LocalePill, useResource } from "@neokapi/concept-ui";
 import { t } from "@neokapi/i18n-react/runtime";
 import { GitBranch, Quote, Stamp } from "lucide-react";
@@ -133,9 +133,16 @@ export function RelatesPane({ subject, limit, onOpenOccurrence, className }: Rel
                       </span>
                     )}
                     {p.occurrences !== undefined && (
-                      <span className="ml-auto text-xs tabular-nums text-muted-foreground">
-                        {t("{count} uses", { count: p.occurrences })}
-                      </span>
+                      // Read from the graph's edges, so the number stands as of
+                      // the last extraction on this surface and the platform's.
+                      <SimpleTooltip content={t("as of the last extraction")}>
+                        <span
+                          className="ml-auto text-xs tabular-nums text-muted-foreground"
+                          data-testid="relates-project-uses"
+                        >
+                          {t("{count} uses", { count: p.occurrences })}
+                        </span>
+                      </SimpleTooltip>
                     )}
                     {p.terms && p.terms.length > 0 && (
                       <span className="w-full text-xs text-muted-foreground">

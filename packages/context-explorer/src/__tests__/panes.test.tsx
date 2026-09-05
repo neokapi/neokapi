@@ -283,6 +283,19 @@ describe("ContextSearchPanel", () => {
     expect(kinds).toEqual(["terms", "precedent", "profiles"]);
   });
 
+  it("says what the usage count means", async () => {
+    mountPinned(<ContextSearchPanel />);
+    await userEvent.type(screen.getByTestId("search-input"), "sign in");
+    await userEvent.click(screen.getByRole("button", { name: "Search" }));
+    await waitFor(() => expect(screen.getAllByTestId("search-hit-uses").length).toBeGreaterThan(0));
+    const uses = screen.getAllByTestId("search-hit-uses")[0];
+    expect(uses).toHaveTextContent("42 uses");
+    await userEvent.hover(uses);
+    await waitFor(() => {
+      expect(screen.getAllByText("as of the last extraction").length).toBeGreaterThan(0);
+    });
+  });
+
   it("makes a chosen result the subject of the relations question", async () => {
     const onSelect = vi.fn();
     mountPinned(<ContextSearchPanel onSelect={onSelect} />);

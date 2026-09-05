@@ -94,3 +94,20 @@ func runForward(s string, runes int) (string, bool) {
 func collapse(s string) string {
 	return strings.Join(strings.FieldsFunc(s, unicode.IsSpace), " ")
 }
+
+// Snippet renders the first use of term in text, in context: elided at both
+// ends and collapsed to one line, exactly as an Occurrence carries it. It is
+// the presentation half of a use whose fact, that the block uses the term, is
+// recorded on a context-graph edge, so a surface that reads uses from the graph
+// can still show the passage without re-running the join. Empty when the text
+// holds no use of the term.
+func Snippet(text, term string) string {
+	if strings.TrimSpace(term) == "" {
+		return ""
+	}
+	spans := newMatcher(term).find(text)
+	if len(spans) == 0 {
+		return ""
+	}
+	return snippet(text, spans[0].start, spans[0].end)
+}

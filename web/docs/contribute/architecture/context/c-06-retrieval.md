@@ -62,7 +62,11 @@ for a file is the voice a run applies to it, including a content item's own
 `channel:` and a profile whose window has closed.
 
 **By content** answers *what do we know about this*: one query, every store the
-scope holds (terms and concepts, content memory, profile examples).
+scope holds (terms and concepts, content memory, profile examples). Each term it
+reports carries how often the extracted content uses it, read from the context
+graph's `uses_term` edges ([C-03](c-03-context-store-and-graph.md)) rather than
+computed when asked, so the number is the one the platform's concept page shows
+and every surface labels it as of the last extraction.
 
 ### Two address forms, one thing
 

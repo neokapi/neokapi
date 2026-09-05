@@ -17,9 +17,6 @@ import * as flow$0 from "../../core/flow/models.js";
 import * as model$0 from "../../core/model/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import * as occurrence$0 from "../../core/occurrence/models.js";
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore: Unused imports
 import * as profile$0 from "../../core/profile/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -2082,6 +2079,11 @@ export class ContextPointDTO {
  * Reach is stated rather than implied: a local project holds its own subgraph
  * only, so "which projects use this concept" has exactly one honest answer here
  * and the caller must be able to tell that from "no project uses it".
+ * 
+ * Occurrences are the context graph's recorded uses, one row per (block, term,
+ * language) with its count, the shape the platform's relations pane reads for
+ * the same concept, so the desktop and the platform answer "how often" from
+ * the same edges.
  */
 export class ContextRelatesResult {
     /**
@@ -2106,7 +2108,7 @@ export class ContextRelatesResult {
         if (!("occurrences" in $$source)) {
             /**
              * @member
-             * @type {occurrence$0.Occurrence[]}
+             * @type {host$0.ContextUse[]}
              */
             this["occurrences"] = [];
         }
@@ -8535,7 +8537,7 @@ const $$createType36 = ContextCoverageDTO.createFrom;
 const $$createType37 = $Create.Array($$createType36);
 const $$createType38 = ContextItemDTO.createFrom;
 const $$createType39 = $Create.Array($$createType38);
-const $$createType40 = occurrence$0.Occurrence.createFrom;
+const $$createType40 = host$0.ContextUse.createFrom;
 const $$createType41 = $Create.Array($$createType40);
 const $$createType42 = ContextBlessingDTO.createFrom;
 const $$createType43 = $Create.Array($$createType42);

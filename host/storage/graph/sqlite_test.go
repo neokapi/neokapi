@@ -331,3 +331,21 @@ func TestEdgeWithNilValidity(t *testing.T) {
 	require.NoError(t, err)
 	assert.Nil(t, got.Validity)
 }
+
+func TestHasNodesTellsAnUnwrittenLabelFromAnEmptyRead(t *testing.T) {
+	ctx := t.Context()
+	store := newTestStore(t)
+
+	has, err := store.HasNodes(ctx, "block")
+	require.NoError(t, err)
+	assert.False(t, has, "nothing written yet")
+
+	require.NoError(t, store.CreateNode(ctx, &coreg.Node{ID: "b1", Label: "block", Properties: map[string]string{}}))
+	has, err = store.HasNodes(ctx, "block")
+	require.NoError(t, err)
+	assert.True(t, has)
+
+	has, err = store.HasNodes(ctx, "concept")
+	require.NoError(t, err)
+	assert.False(t, has, "the probe is per label")
+}

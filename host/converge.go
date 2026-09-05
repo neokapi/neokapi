@@ -12,7 +12,6 @@ import (
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
-	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/neokapi/neokapi/host/output"
 )
 
@@ -719,11 +718,12 @@ func localeUnitTotals(cov []LocaleCoverage) map[string]int {
 // re-extracts the project's content into the store when any is found: nothing
 // extracted yet, stamped by a different kapi, or source files whose bytes
 // drifted from their extract-time stamps. Extraction goes through the shared
-// core path (project.ExtractToBlockStore) — the same implementation behind the
-// desktop's Re-extract — and is a full rebuild of the block set (blocks are a
-// pure cache; target overlays are preserved). No drift → no work beyond cheap
-// stat checks. The returned reason describes the drift for run logs; reporting
-// is the caller's job (event stream or plain print).
+// host path (ExtractToProjectStore), the same implementation behind the
+// desktop's Re-extract, and is a full rebuild of the block set and of the
+// context graph projected from it (blocks are a pure cache; target overlays
+// are preserved). No drift → no work beyond cheap stat checks. The returned
+// reason describes the drift for run logs; reporting is the caller's job
+// (event stream or plain print).
 func (a *App) syncProjectBlockStore(ctx context.Context, pctx *project.ProjectContext, projectPath string, resolved []project.ResolvedFile) (*project.ExtractStats, string, error) {
 	layout, err := project.LayoutFor(projectPath)
 	if err != nil {
@@ -737,27 +737,12 @@ func (a *App) syncProjectBlockStore(ctx context.Context, pctx *project.ProjectCo
 	if !drift.Any() {
 		return nil, "", nil
 	}
-	store := db.Blocks()
-	if store == nil {
-		return nil, "", fmt.Errorf("extract into the block cache: %w", projectdb.ErrNoStore)
-	}
-	// Session-transactional, not autocommit: extraction purges the prior block
-	// set and refills it, and a half-applied purge is a project with no blocks.
-	stats, err := project.ExtractToBlockStore(ctx, a.FormatReg, pctx, store, db, resolved)
+	// The shared path rebuilds the block set and then the context graph it
+	// projects, so the graph (and every usage count read from it) is never left
+	// describing the previous extraction.
+	stats, err := a.ExtractToProjectStore(ctx, a.FormatReg, layout.Root, pctx, resolved)
 	if err != nil {
 		return nil, "", err
-	}
-
-	// The block set just changed, so the context graph it projects is now stale —
-	// rebuild it. This runs AFTER the extraction transaction commits (the write
-	// gate is per handle and not reentrant) and searches the freshly written
-	// blocks, keeping the occurrence FTS index off the block write path.
-	// Best-effort, like the drift stamps above: the graph is a projection, so a
-	// failed rebuild only means the next pass rebuilds it, and it must never fail
-	// a converge over a derived index.
-	if _, gerr := a.MaterializeContextGraph(ctx, layout.Root, pctx.Project); gerr != nil {
-		stats.Warnings = append(stats.Warnings, fmt.Sprintf(
-			"could not rebuild the context graph: %v. `kapi context` navigation may be stale until the next extract", gerr))
 	}
 	return &stats, describeDrift(drift), nil
 }

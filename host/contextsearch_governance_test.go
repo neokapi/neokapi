@@ -4,7 +4,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/host"
@@ -47,33 +46,25 @@ profiles:
 	return &p
 }
 
-// governedSearchStores builds a terms store holding one discouraged word and a
-// block store using it in two documents — one in the collection's own tree, one
-// under the per-item override.
-func governedSearchStores(t *testing.T) (terms.Terminology, blockstore.Store) {
+// governedSearchSources builds a project store holding one discouraged word and
+// content using it in two documents, one in the collection's own tree and one
+// under the per-item override, with the context graph materialized over them.
+// It returns the sources a search reads, bound to the given recipe.
+func governedSearchSources(t *testing.T, recipe *project.KapiProject) host.ContextSearchSources {
 	t.Helper()
-	tb := terms.NewInMemoryStore()
-	require.NoError(t, tb.AddConcept(t.Context(), terms.Concept{
+	p := newGraphProject(t, recipe, []terms.Concept{{
 		ID: "c-widget",
 		Terms: []terms.Term{
 			{Text: "widget", Locale: model.LocaleEnglish, Status: model.TermDeprecated},
 		},
-	}))
-
-	store := blockstore.NewMemoryStore()
-	t.Cleanup(func() { _ = store.Close() })
-	put := func(hash, id, file, source string) {
-		b := &blockstore.Block{Hash: hash, ID: id, Translatable: true,
-			Source: []model.Run{model.TextR(source)}}
-		b.Properties.File = file
-		sess, err := store.Begin(t.Context())
-		require.NoError(t, err)
-		require.NoError(t, sess.PutBlock("docs", b))
-		require.NoError(t, sess.Commit())
-	}
-	put("h1", "guide.a", "docs/guide.md", "Drag a widget onto the board.")
-	put("h2", "eula.a", "docs/legal/eula.md", "Every widget is provided as is.")
-	return tb, store
+	}}, []usesBlock{
+		{hash: "h1", id: "guide.a", file: "docs/guide.md", source: "Drag a widget onto the board."},
+		{hash: "h2", id: "eula.a", file: "docs/legal/eula.md", source: "Every widget is provided as is."},
+	})
+	src := p.src
+	src.Recipe = recipe
+	src.At = time.Now()
+	return src
 }
 
 // usePoints maps each reported use to the point it was resolved at.
@@ -91,14 +82,9 @@ func usePoints(res *host.ContextSearchResult) map[string]string {
 // in retrieval, so a writer asking about a word learns which surface each use is
 // governed on.
 func TestContextSearch_ReportsThePointEachUseSitsAt(t *testing.T) {
-	tb, blocks := governedSearchStores(t)
+	src := governedSearchSources(t, governedSearchRecipe(t, ""))
 
-	res, err := host.SearchContext(t.Context(), host.ContextSearchSources{
-		Terms:  tb,
-		Blocks: blocks,
-		Recipe: governedSearchRecipe(t, ""),
-		At:     time.Now(),
-	}, host.ContextSearchRequest{Query: "widget"})
+	res, err := host.SearchContext(t.Context(), src, host.ContextSearchRequest{Query: "widget"})
 	require.NoError(t, err)
 
 	points := usePoints(res)
@@ -137,13 +123,8 @@ func TestContextSearch_ExpiredProfileFallsThroughAndSaysSo(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tb, blocks := governedSearchStores(t)
-			res, err := host.SearchContext(t.Context(), host.ContextSearchSources{
-				Terms:  tb,
-				Blocks: blocks,
-				Recipe: governedSearchRecipe(t, tt.window),
-				At:     time.Now(),
-			}, host.ContextSearchRequest{Query: "widget"})
+			src := governedSearchSources(t, governedSearchRecipe(t, tt.window))
+			res, err := host.SearchContext(t.Context(), src, host.ContextSearchRequest{Query: "widget"})
 			require.NoError(t, err)
 
 			assert.Equal(t, tt.wantPoint, usePoints(res)["docs/legal/eula.md"],

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-05T08:19:54Z",
+  "generatedAt": "2026-09-05T13:27:10Z",
   "commands": [
     {
       "id": "add",
@@ -638,7 +638,7 @@
       ],
       "use": "search \u003cquery\u003e",
       "short": "Ask what the project's context says about a word or phrase",
-      "long": "Ask one question and get the answer from every store the project\nbinds: what this is called and whether it is discouraged, and wording the\nproject has already approved.\n\nResults are grouped by kind rather than merged into one ranked list, because a\nterminology match and a wording match are not scored on comparable things.",
+      "long": "Ask one question and get the answer from every store the project\nbinds: what this is called and whether it is discouraged, and wording the\nproject has already approved.\n\nResults are grouped by kind rather than merged into one ranked list, because a\nterminology match and a wording match are not scored on comparable things.\n\nEach term also reports how often the project's extracted content uses it. The\ncount is read from the context graph that extraction writes, so it is as of the\nlast extraction (the last \"kapi up\") rather than of the working tree: a term\nadded to the store since then shows no uses until the next run.",
       "flags": [
         {
           "name": "file",

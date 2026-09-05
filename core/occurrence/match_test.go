@@ -1,6 +1,7 @@
 package occurrence
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -184,4 +185,15 @@ func TestSnippetRejectsBadRanges(t *testing.T) {
 	assert.Empty(t, snippet("short", 2, 99))
 	assert.Empty(t, snippet("short", -1, 2))
 	assert.Empty(t, snippet("short", 4, 2))
+}
+
+func TestSnippetRendersTheFirstUseInContext(t *testing.T) {
+	text := "Drag a Widget onto the board, then drag another widget beside it."
+	got := Snippet(text, "widget")
+	assert.Contains(t, got, "Widget onto the board")
+	assert.True(t, strings.HasPrefix(got, "Drag a Widget"), "the first use, not the second: %q", got)
+
+	assert.Empty(t, Snippet(text, "gadget"), "a term the text does not use has no snippet")
+	assert.Empty(t, Snippet(text, "  "), "an empty term has no snippet")
+	assert.Empty(t, Snippet("again and again", "AI"), "word boundaries hold, as they do for the join")
 }

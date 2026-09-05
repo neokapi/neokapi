@@ -118,13 +118,18 @@ type ContextBlessingDTO struct {
 // Reach is stated rather than implied: a local project holds its own subgraph
 // only, so "which projects use this concept" has exactly one honest answer here
 // and the caller must be able to tell that from "no project uses it".
+//
+// Occurrences are the context graph's recorded uses, one row per (block, term,
+// language) with its count, the shape the platform's relations pane reads for
+// the same concept, so the desktop and the platform answer "how often" from
+// the same edges.
 type ContextRelatesResult struct {
-	Subject          string                  `json:"subject"`
-	Reach            string                  `json:"reach"`
-	Occurrences      []occurrence.Occurrence `json:"occurrences"`
-	OccurrencesTotal int                     `json:"occurrences_total"`
-	Blessings        []ContextBlessingDTO    `json:"blessings"`
-	Notes            []string                `json:"notes"`
+	Subject          string               `json:"subject"`
+	Reach            string               `json:"reach"`
+	Occurrences      []host.ContextUse    `json:"occurrences"`
+	OccurrencesTotal int                  `json:"occurrences_total"`
+	Blessings        []ContextBlessingDTO `json:"blessings"`
+	Notes            []string             `json:"notes"`
 }
 
 // ContextSearchResult is the grouped by-content answer plus the content group
@@ -456,10 +461,11 @@ func documentMatches(document, point string) bool {
 
 // ContextRelates answers "how it relates" for a term, a concept or a block.
 //
-// A subject that names a term or concept answers with occurrence — where the
-// project's content uses it. A subject that names a block's content key answers
-// with the decisions that blessed it. Both read the graph the up path
-// materializes, so the answer is the same one `kapi terms occurrences` gives.
+// A subject that names a term or concept answers with where the project's
+// content uses it, read from the uses_term edges the up path materializes, so
+// the count here is the count the search pane and the platform report and all
+// three mean "as of the last extraction". A subject that names a block's
+// content key answers with the decisions that blessed it, from the same graph.
 func (a *App) ContextRelates(tabID, kind, subject string, limit int) (*ContextRelatesResult, error) {
 	op := a.getOpenProject(tabID)
 	if op == nil {
@@ -474,7 +480,7 @@ func (a *App) ContextRelates(tabID, kind, subject string, limit int) (*ContextRe
 	out := &ContextRelatesResult{
 		Subject:     subject,
 		Reach:       "project",
-		Occurrences: []occurrence.Occurrence{},
+		Occurrences: []host.ContextUse{},
 		Blessings:   []ContextBlessingDTO{},
 		Notes:       []string{},
 	}
@@ -492,13 +498,20 @@ func (a *App) ContextRelates(tabID, kind, subject string, limit int) (*ContextRe
 		return out, nil
 	}
 
-	cmd := host.NewEnvCommand(ctx, "context-explorer")
-	host.AddProjectFlag(cmd)
-	host.AddResourceFlags(cmd)
-	if err := cmd.Flags().Set("project", op.Path); err != nil {
-		return nil, fmt.Errorf("bind project: %w", err)
+	src, cleanup, err := a.contextExplorerSources(ctx, op)
+	if err != nil {
+		return nil, err
 	}
-	res, err := a.hostEngine().FindOccurrences(cmd, occurrence.Query{Subject: subject, Limit: limit})
+	defer cleanup()
+	if src.Terms == nil {
+		if src.TermsErr != nil {
+			out.Notes = append(out.Notes, fmt.Sprintf("terms: %v", src.TermsErr))
+		} else {
+			out.Notes = append(out.Notes, "this project binds no terms store")
+		}
+		return out, nil
+	}
+	res, err := host.FindContextUses(ctx, src, subject, limit)
 	if err != nil {
 		if errors.Is(err, occurrence.ErrUnknownSubject) {
 			out.Notes = append(out.Notes, fmt.Sprintf("no term or concept named %q in this project", subject))
@@ -506,8 +519,9 @@ func (a *App) ContextRelates(tabID, kind, subject string, limit int) (*ContextRe
 		}
 		return nil, err
 	}
-	out.Occurrences = res.Occurrences
+	out.Occurrences = res.Uses
 	out.OccurrencesTotal = res.Total
+	out.Notes = append(out.Notes, res.Notes...)
 	return out, nil
 }
 

@@ -101,7 +101,12 @@ binds: what this is called and whether it is discouraged, and wording the
 project has already approved.
 
 Results are grouped by kind rather than merged into one ranked list, because a
-terminology match and a wording match are not scored on comparable things.`,
+terminology match and a wording match are not scored on comparable things.
+
+Each term also reports how often the project's extracted content uses it. The
+count is read from the context graph that extraction writes, so it is as of the
+last extraction (the last "kapi up") rather than of the working tree: a term
+added to the store since then shows no uses until the next run.`,
 		Example: "  kapi context search widget\n" +
 			"  kapi context search \"sign in\" --locale en\n" +
 			"  kapi context search widget --json",

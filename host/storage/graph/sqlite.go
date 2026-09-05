@@ -342,6 +342,23 @@ func (s *SQLiteGraphStore) EdgesOf(ctx context.Context, nodeID string, direction
 	return s.queryEdges(ctx, where, args)
 }
 
+// HasNodes reports whether any node carries the label. It is one indexed probe
+// rather than a read of the nodes, for a caller that has to tell an empty
+// projection from one that was never written: a project whose graph holds no
+// block has not been extracted, and a count of zero read from it means unread
+// rather than unused.
+func (s *SQLiteGraphStore) HasNodes(ctx context.Context, label string) (bool, error) {
+	var one int
+	err := s.db.QueryRowContext(ctx, `SELECT 1 FROM graph_nodes WHERE label = ? LIMIT 1`, label).Scan(&one)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("graph: probe nodes labelled %q: %w", label, err)
+	}
+	return true, nil
+}
+
 func (s *SQLiteGraphStore) ShortestPath(ctx context.Context, fromID, toID string, maxDepth int) (*coreg.Path, error) {
 	if maxDepth <= 0 {
 		maxDepth = 10
