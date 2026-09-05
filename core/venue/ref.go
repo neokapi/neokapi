@@ -72,12 +72,17 @@ func SameDecision(a, b UnitDecision) bool {
 
 // decisionFields lists a decision's identity-bearing fields in a fixed order.
 // One list serves both the equality test and the hash, so the two cannot drift.
+//
+// The governing fingerprint is appended only when the record carries one. A
+// record written before the field existed then keeps the identity it always
+// had, so upgrading either end moves no project's decisions component; a record
+// that gains a fingerprint is a real change a store must write.
 func decisionFields(d UnitDecision) []string {
 	parked := "false"
 	if d.Parked {
 		parked = "true"
 	}
-	return []string{
+	fields := []string{
 		d.Status,
 		d.TargetHash,
 		d.ContentHash,
@@ -88,6 +93,10 @@ func decisionFields(d UnitDecision) []string {
 		parked,
 		d.Assignee,
 	}
+	if d.GoverningFingerprint != "" {
+		fields = append(fields, d.GoverningFingerprint)
+	}
+	return fields
 }
 
 // TermsComponent folds a terminology set into the ref's terms component: one

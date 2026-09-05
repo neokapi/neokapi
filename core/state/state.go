@@ -88,6 +88,40 @@ type UnitState struct {
 	Scope       string `json:"scope,omitempty"`
 	ContentHash string `json:"contentHash,omitempty"`
 	ContextHash string `json:"contextHash,omitempty"`
+
+	// GoverningFingerprint is the governing context this record's answer stands
+	// under: tool.ContextFingerprint over the voice guidance and the term rules
+	// in force at the unit's point for its locale, the same value every
+	// translation producer stamps on model.Origin.ContextFingerprint. A decision
+	// records the context the decider approved the translation under; a basis
+	// the loop wrote for its own output records the producer's stamp. Empty when
+	// that context was ungoverned (no voice, no terms) or when the record was
+	// written before the field existed.
+	//
+	// It is a different quantity from ContextHash, and neither is derivable
+	// from the other. ContextHash identifies WHICH block this is
+	// (model.ComputeContextHash over the block's name, type and properties) and
+	// moves when the block's surroundings move; GoverningFingerprint identifies
+	// WHAT GOVERNED the answer and moves when the voice or the terminology
+	// moves. Either changes with the other holding still.
+	//
+	// The record is the durable carrier of this value. A target file in a
+	// format with a slot for provenance carries the same stamp in flight, but
+	// most delivered formats (a JSON catalog, a .properties file) hold strings
+	// and nothing else, so a reader pairing such a file with its source finds
+	// what governed the answer here or nowhere.
+	GoverningFingerprint string `json:"governingFingerprint,omitempty"`
+}
+
+// GoverningContext is the governing context the record's answer stands under:
+// GoverningFingerprint where the record carries one, and otherwise the
+// producer's own stamp on Origin, which is all a record written before the
+// field existed has to say about it. Empty reads as ungoverned.
+func (s UnitState) GoverningContext() string {
+	if s.GoverningFingerprint != "" {
+		return s.GoverningFingerprint
+	}
+	return s.Origin.ContextFingerprint
 }
 
 // Decision is the authored workflow decision recorded for a unit.

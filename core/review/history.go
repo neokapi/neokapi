@@ -29,21 +29,21 @@ func MatchOf(m memory.Match, source, target model.LocaleID) *MemoryMatch {
 }
 
 // GoverningFingerprint is the fingerprint of the context the unit's current
-// target was produced under: what a prior version is judged governed against.
+// target stands under: what a prior version is judged governed against.
 //
 // The producer stamps it on the target's origin (model.Origin.ContextFingerprint,
 // the same value the translate prompt gates its own prior version on). The
 // format's stamp wins where the format carries one, because it describes the
-// bytes on disk; recorded is the state record's origin, which describes what
-// was last written through kapi, and answers when the format keeps no
-// provenance. Empty when neither carries a stamp, which reads as ungoverned.
-func GoverningFingerprint(b *model.Block, loc model.LocaleID, recorded model.Origin) string {
+// bytes on disk; recorded is what the unit's state record says governed the
+// answer (state.UnitState.GoverningContext), and answers when the format keeps
+// no provenance. Empty when neither carries a stamp, which reads as ungoverned.
+func GoverningFingerprint(b *model.Block, loc model.LocaleID, recorded string) string {
 	if b != nil {
 		if t := b.Target(loc); t != nil && t.Origin.ContextFingerprint != "" {
 			return t.Origin.ContextFingerprint
 		}
 	}
-	return recorded.ContextFingerprint
+	return recorded
 }
 
 // PriorVersionOf reads the answer immediately before this one from the version

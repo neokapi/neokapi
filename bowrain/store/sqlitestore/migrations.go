@@ -965,4 +965,15 @@ var storeMigrations = []storage.Migration{
 			ALTER TABLE unit_decisions ADD COLUMN draft_basis TEXT NOT NULL DEFAULT '';
 		`,
 	},
+	{
+		Version:     22,
+		Description: "the ledger records the governing context a decision was made under",
+		SQL: `
+			-- Mirrors bowrain/store/migrations.go version 31: the fingerprint
+			-- of the voice guidance and term rules in force when the decision
+			-- was made, kept beside the decision. Empty means the record
+			-- carries none.
+			ALTER TABLE unit_decisions ADD COLUMN governing_fingerprint TEXT NOT NULL DEFAULT '';
+		`,
+	},
 }

@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/ref"
 	"github.com/neokapi/neokapi/terms"
 )
 
@@ -187,4 +188,37 @@ func TestConceptTermOrderIsNotIdentity(t *testing.T) {
 	assert.Equal(t,
 		TermsComponent([]terms.Concept{forward}, nil),
 		TermsComponent([]terms.Concept{reversed}, nil))
+}
+
+// TestDecisionIdentity_GoverningFingerprint: a record that gains a governing
+// fingerprint is a change a store must write and the component must reflect,
+// while a record carrying none keeps the identity it had before the field
+// existed, so an upgrade moves no project's decisions component.
+func TestDecisionIdentity_GoverningFingerprint(t *testing.T) {
+	legacy := decision("u1", "nb", "reviewed")
+	stamped := legacy
+	stamped.GoverningFingerprint = "fp-governing"
+	restamped := legacy
+	restamped.GoverningFingerprint = "fp-moved"
+
+	assert.False(t, SameDecision(legacy, stamped), "gaining a fingerprint is a change")
+	assert.NotEqual(t, DecisionIdentity(legacy), DecisionIdentity(stamped))
+	assert.False(t, SameDecision(stamped, restamped), "a decision re-made under a moved context is a change")
+	assert.NotEqual(t, DecisionsComponent([]UnitDecision{stamped}), DecisionsComponent([]UnitDecision{restamped}))
+
+	// A record without a fingerprint folds over exactly the fields it always
+	// had: the new field leaves no trace on it.
+	assert.Equal(t, ref.Identity(legacy.Status, legacy.TargetHash, legacy.ContentHash, legacy.ReviewState,
+		legacy.DecidedBy, legacy.DecidedAt, legacy.Note, "false", legacy.Assignee), DecisionIdentity(legacy))
+}
+
+// TestAsBasis_DropsTheGoverningFingerprint: the fingerprint records the
+// context a verdict was made under, so a refused verdict kept as a bare basis
+// carries none.
+func TestAsBasis_DropsTheGoverningFingerprint(t *testing.T) {
+	d := decision("u1", "nb", "reviewed")
+	d.GoverningFingerprint = "fp-governing"
+	basis := d.AsBasis(model.TargetStatusTranslated)
+	assert.Empty(t, basis.GoverningFingerprint)
+	assert.Empty(t, basis.ReviewState)
 }

@@ -1,11 +1,13 @@
 package state_test
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/state"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func approved(unit, locale, targetHash string) state.UnitState {
@@ -75,4 +77,57 @@ func TestSourceHash_IsTheIdentityHash(t *testing.T) {
 		state.SourceHash("Refreshed every ten minutes."))
 	assert.NotEqual(t, state.SourceHash("Refreshed every ten minutes."),
 		state.SourceHash("Refreshed every five minutes."))
+}
+
+// TestUnitState_GoverningContext: the record answers what governed its answer
+// from the field the writer recorded, and a record written before the field
+// existed still answers from the producer's stamp on its origin.
+func TestUnitState_GoverningContext(t *testing.T) {
+	tests := []struct {
+		name string
+		unit state.UnitState
+		want string
+	}{
+		{
+			name: "the recorded fingerprint wins",
+			unit: state.UnitState{GoverningFingerprint: "fp-decision", Origin: model.Origin{ContextFingerprint: "fp-produced"}},
+			want: "fp-decision",
+		},
+		{
+			name: "a record without one falls back to the producer's stamp",
+			unit: state.UnitState{Origin: model.Origin{ContextFingerprint: "fp-produced"}},
+			want: "fp-produced",
+		},
+		{
+			name: "nothing recorded reads as ungoverned",
+			unit: state.UnitState{},
+			want: "",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, tt.unit.GoverningContext())
+		})
+	}
+}
+
+// TestUnitState_GoverningFingerprintTravelsBesideContextHash pins the two
+// fields as distinct quantities on the wire: block identity and the governing
+// context round-trip independently, and an empty fingerprint is omitted so a
+// record written before the field existed serializes exactly as before.
+func TestUnitState_GoverningFingerprintTravelsBesideContextHash(t *testing.T) {
+	u := state.UnitState{Unit: "greeting", Variant: model.Variant("nb"), ContextHash: "ctx-identity", GoverningFingerprint: "fp-governing"}
+	data, err := json.Marshal(u)
+	require.NoError(t, err)
+	assert.Contains(t, string(data), `"contextHash":"ctx-identity"`)
+	assert.Contains(t, string(data), `"governingFingerprint":"fp-governing"`)
+
+	var back state.UnitState
+	require.NoError(t, json.Unmarshal(data, &back))
+	assert.Equal(t, "ctx-identity", back.ContextHash)
+	assert.Equal(t, "fp-governing", back.GoverningFingerprint)
+
+	bare, err := json.Marshal(state.UnitState{Unit: "greeting", Variant: model.Variant("nb"), ContextHash: "ctx-identity"})
+	require.NoError(t, err)
+	assert.NotContains(t, string(bare), "governingFingerprint")
 }

@@ -249,10 +249,19 @@ and a source with no target teaches wording that must not be reused.
 
 The record absorber ([C-04](c-04-unit-state-and-decisions.md)) writes both
 fields as it learns a committed target: the block's identity, and the governing
-context lifted from the target's own stamp. The `.kmb` bundle carries `point`
-and `unit` on each entry, so a seed exported and re-imported keeps its chain.
-Nothing backfills a unit onto entries approved before chains existed; those
-entries answer lookups as before and belong to no chain.
+context the answer stands under. The context is read from the target's own
+stamp where the format keeps one, and otherwise from the decision record for
+the unit and locale, which is where a JSON catalog's or a `.properties` file's
+translations have it recorded: the context the decider approved the unit under,
+or the producer's stamp the loop recorded when it wrote the target. The `.kmb`
+bundle carries `point`, `unit` and each origin's `contextFp`, so a seed
+exported and re-imported keeps its chain and its governance. Compiling a bundle
+into the store also writes each entry's fingerprint onto the record row for the
+unit it answers, where the row holds none and is about that translation, so the
+absorber that runs after the compile finds it there. Nothing backfills a unit
+onto entries approved before chains existed; those entries answer lookups as
+before and belong to no chain, and an answer produced under no governing
+context, or before anything recorded one, carries no fingerprint.
 
 **One interface for producers.** `core/memory.Provider` is everything a producer
 may ask a content memory, in two methods with struct requests: `Lookup` (what is

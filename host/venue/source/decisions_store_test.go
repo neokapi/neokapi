@@ -117,3 +117,43 @@ func TestStagePulledDecisions_WithoutAnAppIsAnError(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no host app")
 }
+
+// TestDecisions_CarryTheGoverningContextBothWays: the fingerprint of the
+// context a decision was made under travels with it, so the venue's ledger says
+// what the project's record says and a pull brings it back to a checkout that
+// never recorded it.
+func TestDecisions_CarryTheGoverningContextBothWays(t *testing.T) {
+	a := &host.App{}
+	defer a.Shutdown()
+	c := newDecisionsConnector(t, a)
+
+	// Down: a pulled decision lands on the row with its fingerprint.
+	staged, _, err := c.stagePulledDecisions(t.Context(), []venue.UnitDecision{{
+		ItemName:             "locales/en.json",
+		Unit:                 "greeting",
+		Variant:              "fr",
+		Status:               string(model.TargetStatusReviewed),
+		ReviewState:          "approved",
+		GoverningFingerprint: "fp-venue",
+		Updated:              "2026-08-05T10:00:00Z",
+	}})
+	require.NoError(t, err)
+	require.Equal(t, 1, staged)
+	st, err := a.OpenProjectState(t.Context(), c.project.Root)
+	require.NoError(t, err)
+	us, found := st.Get(t.Context(), state.Key{Scope: "locales/en.json", Unit: "greeting", Variant: model.Variant("fr")})
+	require.True(t, found)
+	assert.Equal(t, "fp-venue", us.GoverningFingerprint)
+
+	// Up: the committed record maps the field onto the wire.
+	require.NoError(t, state.WriteCommitted(c.project.Layout.UnitStateDir(), []state.UnitState{{
+		Scope: "locales/en.json", Unit: "farewell", Variant: model.Variant("fr"),
+		Status: model.TargetStatusReviewed, Decision: state.Decision{ReviewState: "approved"},
+		GoverningFingerprint: "fp-local", Updated: "2026-08-05T11:00:00Z",
+	}}))
+	out, err := c.committedDecisions(t.Context())
+	require.NoError(t, err)
+	require.Len(t, out, 1)
+	assert.Equal(t, "farewell", out[0].Unit)
+	assert.Equal(t, "fp-local", out[0].GoverningFingerprint)
+}

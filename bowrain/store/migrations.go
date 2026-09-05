@@ -58,12 +58,13 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 //
 // Baseline is version 24 — above every number issued, so an existing database
 // applies it once and any drift between its schema and its bookkeeping is
-// repaired. Retired numbers are never reused; the next migration is version 31.
+// repaired. Retired numbers are never reused; the next migration is version 32.
 //
 // 25  where a collection's strings can be read in place
 // 26  the ship gate's per-block verdict
 // 27  a stream owns its content, and a file is identified by what it is
 // 30  the ledger records the source the platform last drafted a unit against
+// 31  the ledger records the governing context a decision was made under
 var Migrations = []storage.Migration{
 	{
 		Version:     24,
@@ -1382,6 +1383,22 @@ var Migrations = []storage.Migration{
 			-- unit now waits on a reviewer rather than on another pass.
 			-- Empty means the platform has recorded no draft for the unit.
 			ALTER TABLE unit_decisions ADD COLUMN IF NOT EXISTS draft_basis TEXT NOT NULL DEFAULT '';
+		`,
+	},
+	{
+		Version:     31,
+		Description: "the ledger records the governing context a decision was made under",
+		SQL: `
+			-- The fingerprint of the voice guidance and term rules in force
+			-- when the decision was made (state.UnitState.GoverningFingerprint,
+			-- the value every translation producer stamps on a target's
+			-- origin), kept beside the decision so a pull returns what the
+			-- project's record says and the content memory can carry it for
+			-- an answer read out of a format with no slot for provenance.
+			-- Empty means the record carries none: an ungoverned decision, or
+			-- a row written before the column existed. Additive, with no
+			-- rewrite of existing rows.
+			ALTER TABLE unit_decisions ADD COLUMN IF NOT EXISTS governing_fingerprint TEXT NOT NULL DEFAULT '';
 		`,
 	},
 }

@@ -217,7 +217,7 @@ func (a *App) SeedProjectContext(ctx context.Context, projectPath string) (SeedC
 			res.Skipped++
 			continue
 		}
-		n, cerr := a.compileContextSource(ctx, db, src)
+		n, cerr := a.compileContextSource(ctx, db, layout.Root, src)
 		if cerr != nil {
 			return res, cerr
 		}
@@ -401,7 +401,7 @@ func storeHolds(db *projectdb.DB, kind contextSourceKind) bool {
 
 // compileContextSource imports one bundle through the same importer the apply
 // path uses, returning the number of concepts or entries it carried.
-func (a *App) compileContextSource(ctx context.Context, db *projectdb.DB, src contextSource) (int, error) {
+func (a *App) compileContextSource(ctx context.Context, db *projectdb.DB, root string, src contextSource) (int, error) {
 	switch src.kind {
 	case sourceKindTerms:
 		tb := db.Terms()
@@ -419,11 +419,7 @@ func (a *App) compileContextSource(ctx context.Context, db *projectdb.DB, src co
 		}
 		return n, nil
 	case sourceKindMemory:
-		tm := db.Memory()
-		if tm == nil {
-			return 0, fmt.Errorf("compile content memory: %w", projectdb.ErrNoStore)
-		}
-		n, err := ImportKMBFile(ctx, tm, src.path)
+		n, err := a.compileMemoryBundle(ctx, db, root, src.path)
 		if err != nil {
 			return 0, fmt.Errorf("compile content memory %s: %w", src.rel, err)
 		}

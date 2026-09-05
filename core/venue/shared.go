@@ -95,6 +95,12 @@ type UnitDecision struct {
 	Note        string `json:"note,omitempty"`
 	Parked      bool   `json:"parked,omitempty"`
 	Assignee    string `json:"assignee,omitempty"`
+	// GoverningFingerprint is the governing context the record's answer stands
+	// under (state.UnitState.GoverningFingerprint): the voice guidance and term
+	// rules in force when the decision was made, or the producer's stamp on a
+	// basis. Empty on an ungoverned record and on one written before the field
+	// existed.
+	GoverningFingerprint string `json:"governingFingerprint,omitempty"`
 	// Updated orders conflicting records for last-writer-wins reconciliation.
 	Updated string `json:"updated,omitempty"`
 }

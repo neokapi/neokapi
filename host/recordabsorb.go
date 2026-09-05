@@ -422,12 +422,10 @@ func (a *App) absorbCommittedRecord(ctx context.Context, db *projectdb.DB, proj 
 						Key:       u.targetRel,
 						Reference: u.sourceRel,
 						AddedBy:   "kapi-up",
-						// What governed the target when it was produced, lifted
-						// off the target's own stamp. It travels with the answer
+						// What governed the answer. It travels with the answer
 						// because reuse is only safe under the rules the answer
-						// was approved under, and this is the only place that
-						// statement exists to be copied from.
-						ContextFingerprint: targetContextFingerprint(b, u.locale),
+						// was approved under.
+						ContextFingerprint: governingFingerprintOf(b, u.locale, reviewed, u.scope),
 					},
 				}
 				pairs[key] = p
@@ -1225,17 +1223,27 @@ func saveRecordDigests(ctx context.Context, db *projectdb.DB, stamps map[string]
 // before", which is false.
 func recordChainUnit(b *model.Block) string { return b.ChainUnit() }
 
-// targetContextFingerprint reads the governing context a block's committed
-// target was produced under. Empty when the block carries no target for the
-// locale, or when its producer ran ungoverned — both true statements about the
-// answer rather than a missing value to paper over.
-func targetContextFingerprint(b *model.Block, locale model.LocaleID) string {
+// governingFingerprintOf reads the governing context a block's committed target
+// stands under, from the two places the statement can live.
+//
+// The target's own stamp answers first: a bilingual format keeps the producer's
+// Origin beside the words, and a stamp on the bytes in front of the reader is
+// the most direct statement there is. Most delivered formats keep no such slot
+// (a JSON catalog holds strings, a .properties file holds key=value), so the
+// project's decision record answers next: the context the decider approved
+// the unit under, or the producer's stamp the loop recorded when it wrote the
+// target. The record is read for the unit and locale, and only while it
+// describes the translation on disk.
+//
+// Empty when neither carries a statement: the answer was produced under no
+// governing context, or before anything recorded one. Both are true statements
+// about the answer rather than a missing value to paper over.
+func governingFingerprintOf(b *model.Block, locale model.LocaleID, reviewed reviewedIndex, scope string) string {
 	if b == nil {
 		return ""
 	}
-	t := b.Target(locale)
-	if t == nil {
-		return ""
+	if t := b.Target(locale); t != nil && t.Origin.ContextFingerprint != "" {
+		return t.Origin.ContextFingerprint
 	}
-	return t.Origin.ContextFingerprint
+	return reviewed.governingFingerprint(scope, b, string(locale))
 }

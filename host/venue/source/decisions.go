@@ -84,7 +84,11 @@ func (c *BowrainSourceConnector) committedDecisions(ctx context.Context) ([]venu
 			Note:        u.Decision.Note,
 			Parked:      u.Decision.Parked,
 			Assignee:    u.Decision.Assignee,
-			Updated:     u.Updated,
+			// The context the answer stands under travels with the decision,
+			// so the venue's ledger says what the project's record says and a
+			// pull brings it back to a checkout that never recorded it.
+			GoverningFingerprint: u.GoverningFingerprint,
+			Updated:              u.Updated,
 		})
 	}
 	return out, nil
@@ -139,8 +143,9 @@ func (c *BowrainSourceConnector) stagePulledDecisions(ctx context.Context, pulle
 				Parked:      d.Parked,
 				Assignee:    d.Assignee,
 			},
-			Updated: d.Updated,
-			Scope:   d.ItemName,
+			GoverningFingerprint: d.GoverningFingerprint,
+			Updated:              d.Updated,
+			Scope:                d.ItemName,
 		}
 		if err := st.Put(ctx, next); err != nil {
 			return staged, skipped, fmt.Errorf("stage unit state %s/%s: %w", d.Unit, d.Variant, err)

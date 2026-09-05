@@ -123,6 +123,10 @@ func PromoteDecisionsToMemory(
 					Reference: d.DecidedAt,
 					AddedAt:   now,
 					AddedBy:   d.DecidedBy,
+					// The context the approval was made under, so the corpus
+					// carries for a promoted answer what the local absorber
+					// carries for an absorbed one.
+					ContextFingerprint: d.GoverningFingerprint,
 				}},
 				CreatedAt: now,
 				UpdatedAt: now,

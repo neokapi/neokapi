@@ -302,7 +302,7 @@ func (s *Server) reviewHistory(
 	source := proj.DefaultSourceLanguage
 
 	if vr, versioned := tm.(memory.VersionReader); versioned {
-		fingerprint := review.GoverningFingerprint(sb.Block, loc, model.Origin{})
+		fingerprint := review.GoverningFingerprint(sb.Block, loc, "")
 		h.Prior = review.PriorVersionOf(ctx, vr, sb.Block, source, loc, fingerprint)
 	}
 

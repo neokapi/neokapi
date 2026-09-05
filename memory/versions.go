@@ -102,7 +102,7 @@ func VersionsFrom(entries []Entry, q VersionQuery, excludeID string) []Version {
 		if q.Point != "" && e.Point != q.Point {
 			continue
 		}
-		out = append(out, Version{Entry: e, ContextFingerprint: latestFingerprint(&e)})
+		out = append(out, Version{Entry: e, ContextFingerprint: LatestFingerprint(&e)})
 	}
 
 	// Newest first, and ties broken by ID so a chain written inside one second
@@ -122,9 +122,11 @@ func VersionsFrom(entries []Entry, q VersionQuery, excludeID string) []Version {
 	return out
 }
 
-// latestFingerprint returns the governing fingerprint of an entry's most recent
-// origin, or empty when no origin recorded one.
-func latestFingerprint(e *Entry) string {
+// LatestFingerprint returns the governing fingerprint of an entry's most recent
+// origin, or empty when no origin recorded one. It is the fingerprint the
+// entry's answer stands under: what a version chain reports for it, and what a
+// re-seed carries back onto the decision record the answer was recorded for.
+func LatestFingerprint(e *Entry) string {
 	best := ""
 	var bestAt = e.CreatedAt
 	for i := range e.Origins {

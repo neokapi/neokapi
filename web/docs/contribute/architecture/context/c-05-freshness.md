@@ -175,7 +175,7 @@ The comparison is made once, in `core/ref`, and rendered by each surface:
 | --- | --- |
 | `kapi status` | the **governance axis** of the report: the ref this project observed against the one its venue publishes now, rendered through `StatusGovernance.Divergence()`. The content axis is the coverage grid beside it. |
 | Retrieval answers | a **staleness note** on the answer, naming the governance components that moved since this process last read (`host/freshness.go`). Silent for a project that has never observed governance: taking a position with no identities as a baseline would be taking silence for a fact. |
-| `kapi check` | the **staleness gate** (`host/verify_staleness.go`), in the default gate set and in `--ship`. A convergence records the producer's `Origin` in the project state store for every target it wrote (`host/basisrecord.go`), and the gate compares that record's `ContextFingerprint` against the context in force at the file's governance point. |
+| `kapi check` | the **staleness gate** (`host/verify_staleness.go`), in the default gate set and in `--ship`. A convergence records the producer's `Origin` in the project state store for every target it wrote (`host/basisrecord.go`), and the gate compares that record's `ContextFingerprint` against the context in force at the file's governance point. The same resolver gives a decision the fingerprint it records as `governingFingerprint` ([C-04](c-04-unit-state-and-decisions.md)), so a decision and a produced target are judged against one definition of the context in force. |
 
 Two properties of the gate matter. It runs at the file's governance point, so a
 per-file `channel:` override ([C-02](c-02-coordinates-and-governance.md)) is

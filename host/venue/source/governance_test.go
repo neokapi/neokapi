@@ -283,3 +283,25 @@ func TestRetireRefusedVerdicts_LeavesPendingWork(t *testing.T) {
 	assert.Equal(t, venue.ReviewStateApproved, us.Decision.ReviewState,
 		"and it still says what the person decided")
 }
+
+// TestRefusedVerdict_GoverningContextFollowsTheVerdict: the fingerprint records
+// the context a verdict was made under, so it leaves with a retired verdict and
+// arrives with a held one, exactly as venue.UnitDecision.AsBasis and the
+// venue's kept record have it.
+func TestRefusedVerdict_GoverningContextFollowsTheVerdict(t *testing.T) {
+	u := state.UnitState{
+		Unit: "greeting", Variant: model.Variant("fr"), Scope: "locales/en.json",
+		Status: model.TargetStatusReviewed, Decision: state.Decision{ReviewState: "approved", By: "ana"},
+		GoverningFingerprint: "fp-local",
+	}
+	retired := withoutVerdict(u)
+	assert.Empty(t, retired.GoverningFingerprint, "a basis without a verdict carries no decision context")
+	assert.Empty(t, retired.Decision.ReviewState)
+
+	held := withHeld(u, venue.UnitDecision{
+		Status: string(model.TargetStatusSignedOff), ReviewState: "signed-off",
+		DecidedBy: "ben", DecidedAt: "2026-08-05T10:00:00Z", GoverningFingerprint: "fp-venue",
+	})
+	assert.Equal(t, "fp-venue", held.GoverningFingerprint, "the venue's record brings its own context")
+	assert.Equal(t, "signed-off", held.Decision.ReviewState)
+}

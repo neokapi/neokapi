@@ -551,15 +551,10 @@ func (a *App) compileMemorySource(ctx context.Context, root, srcPath string) err
 	if err != nil {
 		return err
 	}
-	tm := db.Memory()
-	if tm == nil {
-		return fmt.Errorf("compile content memory: %w", projectdb.ErrNoStore)
-	}
-
-	if _, err := ImportKMBFile(ctx, tm, srcPath); err != nil {
+	if _, err := a.compileMemoryBundle(ctx, db, root, srcPath); err != nil {
 		return fmt.Errorf("compile content memory: %w", err)
 	}
-	a.RebuildMemorySearchIndexes(ctx, tm)
+	a.RebuildMemorySearchIndexes(ctx, db.Memory())
 	a.stampContextSource(ctx, root, srcPath)
 	return nil
 }

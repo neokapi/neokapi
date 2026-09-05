@@ -305,6 +305,47 @@ reason, so *which decision covers this unit, at which basis* is answerable by
 traversal as well as by lookup. A connected venue applies the same basis rule
 from its side.
 
+### What governed the decision
+
+A record also carries **what governed the answer it is about**:
+`governingFingerprint`, the fingerprint of the voice guidance and the term rules
+in force at the unit's governance point for its locale
+([C-05](c-05-freshness.md)). It is the value every translation producer stamps
+on a target's `Origin.ContextFingerprint`, computed by the one function all of
+them share (`core/profile.GovernanceContext`), so a decision and a produced
+target are comparable against the same context.
+
+Two writers set it. A **decision** (`kapi apply`, the desktop's approve action,
+an agent's review call) resolves the context in force where the decider is
+deciding and records it beside the verdict. The same verdict on the same
+pairing under a moved context is a new decision, and is recorded again. A
+**basis** the convergence loop writes for its own output records the producer's
+stamp: the run that wrote the target is the run recording it. A hand-typed
+translation records none, because nothing vouches for the context it was
+written under. The venue ledger carries the same column, so a push and a pull
+agree on it.
+
+The fingerprint is a different quantity from the record's identity signals, and
+neither is derivable from the other. `contextHash` says *which block* this is
+(`model.ComputeContextHash` over the block's name, type and properties) and moves
+when the block's surroundings move. `governingFingerprint` says *what governed*
+the answer and moves when the voice or the terminology moves. Either changes
+with the other holding still.
+
+The record is the durable carrier of this value. A bilingual format keeps the
+producer's stamp beside the words, but most delivered formats hold strings and
+nothing else: a JSON catalog, a `.properties` file. A reader pairing such a
+file with its source finds what governed the translation in the record for the
+unit or nowhere. That is what the record absorber reads, in this order: the
+target's own stamp where the format carries one, then the record row for the
+unit and locale, while that row still describes the translation on disk. The
+value travels into the content memory beside the answer
+([C-09](c-09-content-memory.md)), and compiling a content-memory bundle back
+into the store writes it onto the record row for the unit the answer was
+recorded for, where that row holds none and is about that translation. A record
+written before the field existed reads through the producer's stamp on its
+`origin`, which is all it has to say.
+
 ### Who decided
 
 A `Decision` records the authored outcome and who reached it. Two distinctions in
@@ -392,8 +433,9 @@ re-exports the core types through aliases so downstream code sees one import.
 ## Consequences
 
 - **`core/state`** holds `UnitState` (status, source status, origin, target hash,
-  basis, decision, updated), a `Key`, the `Stale`/`Fresh`/`Reviewed` ladder
-  helpers, and `WorkStore`, the working set over the sharded committed record
+  basis, governing fingerprint, decision, updated), a `Key`, the
+  `Stale`/`Fresh`/`Reviewed` ladder helpers, and `WorkStore`, the working set
+  over the sharded committed record
   (`Get`/`Put`/`Delete`/`All`/`Pending`/`Commit`, plus `Documents` and
   `AdoptDocuments` for document identity).
 - **Approvals flow through one verb.** `kapi apply` with `kind:"review"` records

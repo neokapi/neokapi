@@ -152,6 +152,7 @@ func withoutVerdict(u state.UnitState) state.UnitState {
 	u.Decision.ReviewState = ""
 	u.Decision.By = ""
 	u.Decision.At = ""
+	u.GoverningFingerprint = ""
 	return u
 }
 
@@ -168,6 +169,7 @@ func withHeld(u state.UnitState, h venue.UnitDecision) state.UnitState {
 	u.Decision.Note = h.Note
 	u.Decision.Parked = h.Parked
 	u.Decision.Assignee = h.Assignee
+	u.GoverningFingerprint = h.GoverningFingerprint
 	if h.Updated != "" {
 		u.Updated = h.Updated
 	}

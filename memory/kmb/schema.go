@@ -80,10 +80,20 @@ type Origin struct {
 	AddedAt   string `json:"addedAt,omitempty"`
 	AddedBy   string `json:"addedBy,omitempty"`
 	SessionID string `json:"sessionId,omitempty"`
-	// ContextFP is the governing context this answer was produced under. It
-	// travels with the bundle because the bundle is the truth: an answer that
-	// arrives from a re-seed with no governance recorded cannot be judged, only
-	// used.
+	// ContextFP is the governing context this answer stands under: the voice
+	// guidance and term rules in force when it was produced or approved, as the
+	// producer stamps it on a target and the decision record keeps it beside
+	// the decision (state.UnitState.GoverningFingerprint). The absorber copies
+	// it from whichever of the two carries it, so an answer read out of a
+	// format with no slot for provenance still arrives with one when the
+	// project's record has it.
+	//
+	// It travels with the bundle because the bundle is the truth for the
+	// answer, and a re-seed carries it back onto the decision record for the
+	// unit it answers, so a checkout whose record never held it gains it from
+	// the bundle. Empty when the answer was produced under no governing
+	// context, or before anything recorded one: such an answer can be used and
+	// cannot be judged against the context in force.
 	ContextFP string `json:"contextFp,omitempty"`
 }
 
