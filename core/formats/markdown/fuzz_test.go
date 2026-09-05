@@ -222,6 +222,21 @@ func FuzzRoundTripMarkdown(f *testing.F) {
 	// its blockquote marker on every line.
 	f.Add([]byte("a\\\nb"))
 	f.Add([]byte("> a  \n> b\n> c"))
+	// #2434: a blockquote with a lazy continuation line (CommonMark 5.1) was
+	// judged by its first continuation line alone, so the rebuild path wrote
+	// it back without its opening marker and it split into a paragraph plus a
+	// quote. The fuzz reproducer is also committed under testdata/fuzz.
+	f.Add([]byte("> a\nb\n> c"))
+	// #2431: a soft break keeps the trailing whitespace or carriage return
+	// before its newline, so the rebuilt block carries those bytes too.
+	f.Add([]byte("a\t\nb"))
+	f.Add([]byte("a\r\nb\r\n"))
+	f.Add([]byte("> a \r\n> b"))
+	// #2429: an autolink is located from its neighbours or its block's start,
+	// and a paragraph that is only an autolink emits no block.
+	f.Add([]byte("<https://example.com>"))
+	f.Add([]byte("- <https://x>\n- b"))
+	f.Add([]byte("*<https://x>* [a](b) <https://x>"))
 	seedDamagedMarkdown(f)
 
 	f.Fuzz(func(t *testing.T, data []byte) {

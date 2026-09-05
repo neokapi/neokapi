@@ -18,17 +18,19 @@ import (
 // quiet one: a whole document can go opaque for one construct, and the only
 // symptom is a page still in its source language.
 //
-// The fixture is a link whose title is single-quoted: the reader spells the
-// title back with double quotes. The task list and then the hard break that
+// The fixture is an underscore emphasis whose first child is a link: the
+// reader takes the emphasis delimiter from the byte before its first text
+// child and defaults to `*` when there is none, so `_[a](b)_` comes back as
+// `*[a](b)*`. The task list, the hard break and the single-quoted title that
 // sat here reconstruct now, and the note they carried holds for their
-// replacement: these tests assert the reporting, so the day a single-quoted
-// title round-trips they will fail and the fixture should become whatever
-// still diverges.
+// replacement: these tests assert the reporting, so the day this shape
+// round-trips they will fail and the fixture should become whatever still
+// diverges.
 //
 // A single-block span is the deliberate choice. Quarantine salvages a span by
 // isolating the blocks that failed, so a fixture with neighbours exercises that
 // path instead — which is what TestQuarantineKeepsTheOtherBlocks is for.
-const divergingSrc = "See [the docs](/docs 'Documentation').\n"
+const divergingSrc = "See _[the docs](/docs)_ here.\n"
 
 func readAll(t *testing.T, src string) ([]*model.Block, []format.Diagnostic) {
 	t.Helper()
@@ -137,6 +139,30 @@ func TestKnownRoundTripDivergences(t *testing.T) {
 		{name: "task list", src: "- [ ] `config.go` with a trailing clause.\n"},
 		{name: "task list checked", src: "- [x] Tag is annotated.\n"},
 		{name: "task list upper case", src: "- [X] Capitalised marker.\n"},
+		// An ATX heading's closing sequence used to be written on a line of
+		// its own, which re-read as a second, empty heading.
+		{name: "ATX heading with a closing sequence", src: "# Title #\n\nBody.\n"},
+		{name: "ATX heading with a closing sequence and trailing whitespace", src: "## Title ##   \n\nBody.\n"},
+		// A soft break after a trailing space or tab, or a CRLF soft break,
+		// used to collapse to one space, which cost a Windows-authored page
+		// every wrapped paragraph.
+		{name: "soft break after a trailing space", src: "One line \nnext line.\n"},
+		{name: "soft break after a trailing tab", src: "One line\t\nnext line.\n"},
+		{name: "CRLF soft break", src: "One line\r\nnext line.\r\n"},
+		{name: "CRLF soft break in a blockquote", src: "> One line\r\n> next line.\r\n"},
+		{name: "CRLF soft break in a list item", src: "- One line\r\n  next line.\r\n"},
+		// An autolink with nothing before it used to lose its angle brackets.
+		// MDX reads a line-initial `<` as JSX, so the first-in-block shape is
+		// covered by a list item rather than a paragraph.
+		{name: "list item that is only an autolink", src: "- <https://example.com>\n- Second item.\n"},
+		{name: "autolink first in an emphasis", src: "*<https://example.com>* here.\n"},
+		{name: "autolink after a link", src: "[site](https://example.com) <https://example.com> here.\n"},
+		// A link's closer used to be rebuilt as `](dest "title")` whatever the
+		// source spelled.
+		{name: "single-quoted link title", src: "See [the docs](/docs 'Documentation').\n"},
+		{name: "parenthesised image title", src: "![alt](image.png (An image))\n"},
+		{name: "title on its own line", src: "[a](https://example.com\n'Title').\n"},
+		{name: "two links to one destination spelled two ways", src: "[a](https://example.com) and [b](<https://example.com>).\n"},
 	}
 
 	for _, tc := range tests {

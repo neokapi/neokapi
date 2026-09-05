@@ -810,20 +810,32 @@ func nodeAbsRange(node ast.Node, source []byte, baseOffset int) (int, int) {
 	return s + baseOffset, e + baseOffset
 }
 
-// softBreakContinuation returns the literal source bytes that bridge
-// two inline runs across a soft line break: a leading newline plus any
-// blockquote (`>` / `> `) or indentation prefix that introduces the
-// continuation line. This preserves okapi-parity for paragraphs and
-// blockquotes whose hard wraps must round-trip verbatim — okapi's
-// MarkdownFilter keeps the literal `\n` (and continuation marker)
-// rather than collapsing per CommonMark §6.7. Falls back to a single
-// space when the source slice doesn't begin with a newline (defensive
-// — should not happen for valid SoftLineBreak Text nodes).
+// softBreakContinuation returns the literal source bytes that bridge two
+// inline runs across a soft line break: the whitespace the line ends in, the
+// newline, and any blockquote (`>` / `> `) or indentation prefix that
+// introduces the continuation line. This preserves okapi-parity for
+// paragraphs and blockquotes whose hard wraps must round-trip verbatim:
+// okapi's MarkdownFilter keeps the literal `\n` (and continuation marker)
+// rather than collapsing per CommonMark 6.7.
+//
+// pos is where the parser's text stops, which is before a single trailing
+// space or tab and before the carriage return of a CRLF line ending; those
+// bytes are part of the break and are kept, or a Windows-authored page and
+// any wrapped line with trailing whitespace came back with the break
+// collapsed to a space (#2431). Falls back to a single space when no
+// newline follows (defensive; a SoftLineBreak Text node always has one).
 func softBreakContinuation(source []byte, pos int) string {
-	if pos < 0 || pos >= len(source) || source[pos] != '\n' {
+	if pos < 0 || pos > len(source) {
 		return " "
 	}
-	end := pos + 1
+	nl := pos
+	for nl < len(source) && (source[nl] == ' ' || source[nl] == '\t' || source[nl] == '\r') {
+		nl++
+	}
+	if nl >= len(source) || source[nl] != '\n' {
+		return " "
+	}
+	end := nl + 1
 	for end < len(source) {
 		c := source[end]
 		switch c {
@@ -963,6 +975,12 @@ func (r *Reader) emitHeading(ctx context.Context, ch chan<- model.PartResult, n 
 	block.Properties["level"] = strconv.Itoa(n.Level)
 	block.SetSemanticRole(model.RoleHeading, n.Level)
 	r.addInlineRuns(block, n, source)
+	if markupOnly(block.Source) {
+		// A heading that is one autolink has nothing to translate: its line
+		// replays from source, and the section it opens stays on the trail.
+		r.blockCounter--
+		return
+	}
 
 	absStart, _ := fullNodeAbsRange(n, source, baseOffset)
 	lineStart, lineEnd := nodeAbsRange(n, source, baseOffset)
@@ -973,64 +991,14 @@ func (r *Reader) emitHeading(ctx context.Context, ch chan<- model.PartResult, n 
 	r.skelText(string(r.source[absStart:lineStart]))
 	// Emit block ref for the inline content
 	r.skelRef(blockID)
-	// Advance cursor past the lines
+	// Advance cursor past the lines. An ATX heading's optional closing
+	// sequence (CommonMark 4.2: whitespace, one or more `#`, then optional
+	// whitespace) follows the content the parser hands back, and the gap
+	// before the next block replays it on the heading's own line. Written on a
+	// line of its own, it re-read as a second, empty heading (#2430).
 	r.skelCursor = lineEnd
 
-	// Mirror upstream Okapi: an ATX heading with a closing marker
-	// (`### foo ###`) is rendered with the closing marker on its own
-	// line. See MarkdownParser.java:544-548 — the visitor emits a
-	// newline, then the closing marker, then another newline. Detect
-	// the trailing `#+` sequence between lineEnd and the next \n and
-	// rewrite ` ###\n` → `\n###\n` in the skeleton.
-	if trailEnd, marker, ok := atxClosingMarker(r.source, lineEnd); ok {
-		r.skelText("\n" + marker)
-		r.skelCursor = trailEnd
-	}
-
 	r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
-}
-
-// atxClosingMarker scans `source` from `start` looking for an ATX
-// heading's optional trailing `#+` sequence (CommonMark §4.2: the
-// closing marker is "an optional sequence of # characters" preceded
-// by required whitespace and optionally followed by trailing
-// whitespace, terminated by the line's newline). Returns
-// (positionBeforeNewline, closingMarker, true) when found, or
-// (0, "", false) when the line has no closing marker. The returned
-// position points AT the trailing newline so the caller can emit a
-// newline + marker pair and advance the skeleton cursor accordingly,
-// mirroring upstream MarkdownParser.java:544-548.
-func atxClosingMarker(source []byte, start int) (int, string, bool) {
-	if start >= len(source) {
-		return 0, "", false
-	}
-	i := start
-	// Required whitespace between content and closing marker.
-	hasSpace := false
-	for i < len(source) && (source[i] == ' ' || source[i] == '\t') {
-		i++
-		hasSpace = true
-	}
-	if !hasSpace {
-		return 0, "", false
-	}
-	// One or more '#' characters.
-	markerStart := i
-	for i < len(source) && source[i] == '#' {
-		i++
-	}
-	if i == markerStart {
-		return 0, "", false
-	}
-	marker := string(source[markerStart:i])
-	// Optional trailing whitespace, then the line must end (newline or EOF).
-	for i < len(source) && (source[i] == ' ' || source[i] == '\t') {
-		i++
-	}
-	if i < len(source) && source[i] != '\n' {
-		return 0, "", false
-	}
-	return i, marker, true
 }
 
 // admonitionHeaderRE matches a MkDocs/Material admonition opener:
@@ -1470,6 +1438,13 @@ func (r *Reader) emitParagraph(ctx context.Context, ch chan<- model.PartResult, 
 	block := model.NewBlock(blockID, textContent)
 	block.Name = r.naming.Name(kindParagraph)
 	r.addInlineRuns(block, n, source)
+	if markupOnly(block.Source) {
+		// A paragraph that is one autolink or one entity has nothing to
+		// translate: its bytes replay from source with the gap before the
+		// next block, and its ordinal stays consumed (#2429).
+		r.blockCounter--
+		return
+	}
 
 	// Multi-line paragraphs (e.g. blockquote bodies, indented
 	// continuation lines) carry a per-line prefix in source — `> ` for
@@ -1608,6 +1583,12 @@ func (r *Reader) emitListItem(ctx context.Context, ch chan<- model.PartResult, n
 			break
 		}
 	}
+	if markupOnly(block.Source) {
+		// An item that is one autolink has nothing to translate: its marker
+		// line replays from source, and its ordinal stays consumed.
+		r.blockCounter--
+		return
+	}
 
 	// For list items: find the text block range and include the list marker prefix
 	lineStart, lineEnd := nodeAbsRange(n, source, baseOffset)
@@ -1665,21 +1646,27 @@ func (r *Reader) emitListItemMixed(ctx context.Context, ch chan<- model.PartResu
 			block.Properties[BlockPropLinePrefix] = prefix
 		}
 
-		// Use the header node's line range so we don't accidentally
-		// claim bytes belonging to the trailing nested children. Scan
-		// backward to capture the list marker prefix ("- ", "1. ").
-		lineStart, lineEnd := nodeAbsRange(headerNode, source, baseOffset)
-		absStart := lineStart
-		for absStart > 0 && r.source[absStart-1] != '\n' {
-			absStart--
+		if markupOnly(block.Source) {
+			// A header that is one autolink has nothing to translate: its
+			// marker line replays from source with the next gap.
+			r.blockCounter--
+		} else {
+			// Use the header node's line range so we don't accidentally
+			// claim bytes belonging to the trailing nested children. Scan
+			// backward to capture the list marker prefix ("- ", "1. ").
+			lineStart, lineEnd := nodeAbsRange(headerNode, source, baseOffset)
+			absStart := lineStart
+			for absStart > 0 && r.source[absStart-1] != '\n' {
+				absStart--
+			}
+
+			r.skelEmitGap(absStart)
+			r.skelText(string(r.source[absStart:lineStart]))
+			r.skelRef(blockID)
+			r.skelCursor = lineEnd
+
+			r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 		}
-
-		r.skelEmitGap(absStart)
-		r.skelText(string(r.source[absStart:lineStart]))
-		r.skelRef(blockID)
-		r.skelCursor = lineEnd
-
-		r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 	}
 
 	// Walk the remaining children. If we emitted a header, skip it on
@@ -2605,7 +2592,11 @@ func (r *Reader) collectInlineText(buf *strings.Builder, node ast.Node, source [
 				r.collectInlineText(buf, child, source)
 			}
 		case *ast.AutoLink:
-			buf.Write(n.URL(source))
+			// A bracketed autolink is a placeholder in the runs and contributes
+			// no text; a bare one is text, spelled as the source spells it.
+			if _, bracketed, ok := autoLinkSourceSpelling(n, source); !ok || !bracketed {
+				buf.Write(n.Label(source))
+			}
 		case *east.TaskCheckBox:
 			buf.WriteString(taskCheckBoxRaw(n, source))
 		default:
@@ -3212,32 +3203,83 @@ func (r *Reader) buildLinkRuns(b *runBuilder, n *ast.Link, source []byte, idCoun
 		return
 	}
 
-	destLiteral := linkDestinationLiteral(n.Destination, source)
-
 	b.AddPcOpen(id, "link:hyperlink", "md:link", "[", info.Display.Open, info.Equiv,
 		info.Constraints.Deletable, info.Constraints.Cloneable, info.Constraints.Reorderable)
 	b.SetLastAttrs(linkImageAttrs(model.AttrHref, n.Destination, n.Title, nil))
 	r.buildCodedRuns(b, n, source, idCounter)
+	r.addLinkCloseRuns(b, n, id, "link:hyperlink", "md:link", "md:link-title", 1, info.Equiv, source, idCounter)
+}
 
-	// When the link has a title, split the closing marker so the title
-	// becomes a translatable text run between two paired codes:
-	//   pc-open `[` → link text → pc-close `]` →
-	//   pc-open `](url "` → title text → pc-close `")`
-	// This mirrors okapi's MarkdownFilter behaviour, which extracts the
-	// link/image title as a translatable string. Without the split the
-	// title would round-trip untranslated as part of the closing skeleton.
-	if len(n.Title) > 0 {
-		b.AddPcClose(id, "link:hyperlink", "md:link", "]", info.Equiv)
+// addLinkCloseRuns appends the runs that close an inline link or image after
+// its text. When the link has a title, the closing marker is split so the
+// title becomes a translatable text run between two paired codes:
+//
+//	pc-open `[` / link text / pc-close `]` /
+//	pc-open `](url '` / title text / pc-close `')`
+//
+// This mirrors okapi's MarkdownFilter, which extracts the link or image title
+// as a translatable string. Without the split the title would round-trip
+// untranslated as part of the closing skeleton.
+//
+// The bytes come from source, located through the inline offset resolver:
+// the destination as spelled, the whitespace around it, and the title's own
+// delimiters, which CommonMark 6.6 allows to be double quotes, single quotes
+// or parentheses. Rebuilt from the parser's resolved values, a single-quoted
+// title came back double-quoted and one of two links to the same destination
+// took the other's angle brackets (#2432). The title text is the raw bytes
+// between its delimiters, so an escape inside it survives. When the closer
+// cannot be located the runs are rebuilt from the resolved values, with the
+// destination as the document spells it.
+func (r *Reader) addLinkCloseRuns(b *runBuilder, n ast.Node, id, semType, subType, titleSubType string, openerLen int, equiv string, source []byte, idCounter *int) {
+	var dest, title []byte
+	switch v := n.(type) {
+	case *ast.Link:
+		dest, title = v.Destination, v.Title
+	case *ast.Image:
+		dest, title = v.Destination, v.Title
+	}
+
+	if contentEnd, c, ok := linkCloser(n, openerLen, len(title) > 0, source); ok {
+		if c.titleOpen < 0 {
+			b.AddPcClose(id, semType, subType, string(source[contentEnd:c.end]), equiv)
+			return
+		}
+		b.AddPcClose(id, semType, subType, "]", equiv)
 		*idCounter++
 		titleID := strconv.Itoa(*idCounter)
-		b.AddPcOpen(titleID, "link:hyperlink", "md:link-title",
-			"("+destLiteral+` "`, "", "", false, false, false)
-		b.AddText(string(n.Title))
-		b.AddPcClose(titleID, "link:hyperlink", "md:link-title", `")`, "")
+		b.AddPcOpen(titleID, semType, titleSubType, string(source[contentEnd+1:c.titleOpen+1]), "", "", false, false, false)
+		b.AddText(c.title)
+		b.AddPcClose(titleID, semType, titleSubType, string(source[c.titleClose:c.end]), "")
 		return
 	}
 
-	b.AddPcClose(id, "link:hyperlink", "md:link", "]("+destLiteral+")", info.Equiv)
+	destLiteral := linkDestinationLiteral(dest, source)
+	if len(title) > 0 {
+		b.AddPcClose(id, semType, subType, "]", equiv)
+		*idCounter++
+		titleID := strconv.Itoa(*idCounter)
+		b.AddPcOpen(titleID, semType, titleSubType, "("+destLiteral+` "`, "", "", false, false, false)
+		b.AddText(string(title))
+		b.AddPcClose(titleID, semType, titleSubType, `")`, "")
+		return
+	}
+	b.AddPcClose(id, semType, subType, "]("+destLiteral+")", equiv)
+}
+
+// linkCloser locates the closing markup of an inline link or image in source
+// and checks it agrees with what the parser resolved: a title is present in
+// the source exactly when the node carries one. ok is false when the closer
+// cannot be located.
+func linkCloser(n ast.Node, openerLen int, hasTitle bool, source []byte) (contentEnd int, c inlineLinkCloser, ok bool) {
+	contentEnd, ok = linkContentEnd(n, openerLen, source)
+	if !ok {
+		return 0, c, false
+	}
+	c, ok = scanInlineLinkCloser(source, contentEnd)
+	if !ok || (c.titleOpen >= 0) != hasTitle {
+		return 0, c, false
+	}
+	return contentEnd, c, true
 }
 
 func (r *Reader) buildImageRuns(b *runBuilder, n *ast.Image, source []byte, idCounter *int) {
@@ -3264,30 +3306,15 @@ func (r *Reader) buildImageRuns(b *runBuilder, n *ast.Image, source []byte, idCo
 		return
 	}
 
-	destLiteral := linkDestinationLiteral(n.Destination, source)
-
 	b.AddPcOpen(id, "media:image", "md:image", "![", info.Display.Open, info.Equiv,
 		info.Constraints.Deletable, info.Constraints.Cloneable, info.Constraints.Reorderable)
 	b.SetLastAttrs(linkImageAttrs(model.AttrSrc, n.Destination, n.Title, nil))
 	if r.cfg.TranslateImageAlt() {
 		r.buildCodedRuns(b, n, source, idCounter)
 	}
-
-	// Same title-splitting trick as buildLinkRuns above so image titles
-	// are extracted as translatable text rather than baked into the
-	// closing-data skeleton. See buildLinkRuns for the rationale.
-	if len(n.Title) > 0 {
-		b.AddPcClose(id, "media:image", "md:image", "]", info.Equiv)
-		*idCounter++
-		titleID := strconv.Itoa(*idCounter)
-		b.AddPcOpen(titleID, "media:image", "md:image-title",
-			"("+destLiteral+` "`, "", "", false, false, false)
-		b.AddText(string(n.Title))
-		b.AddPcClose(titleID, "media:image", "md:image-title", `")`, "")
-		return
-	}
-
-	b.AddPcClose(id, "media:image", "md:image", "]("+destLiteral+")", info.Equiv)
+	// Same title split as a link, so image titles are extracted as
+	// translatable text rather than baked into the closing skeleton.
+	r.addLinkCloseRuns(b, n, id, "media:image", "md:image", "md:image-title", 2, info.Equiv, source, idCounter)
 }
 
 // referenceCloseMarker returns the closing-marker bytes for a
@@ -3317,7 +3344,10 @@ func referenceCloseMarker(ref *ast.ReferenceLink) string {
 // (`<http://example.com>`). goldmark's ast.Link/Image carries only the
 // resolved Destination string; we peek at the source bytes for the
 // inline-link form so round-trips preserve angle-bracket-wrapped URLs
-// (e.g. `[Link](<https://...> "title")`).
+// (e.g. `[Link](<https://...> "title")`). This is the fallback for a link
+// whose closer the inline offset resolver could not locate; it answers for
+// the document, so two links to one destination spelled differently get the
+// same answer.
 func linkDestinationLiteral(dest []byte, source []byte) string {
 	d := string(dest)
 	if d == "" {
@@ -3344,48 +3374,32 @@ func linkDestinationLiteral(dest []byte, source []byte) string {
 }
 
 func (r *Reader) buildAutoLinkRuns(b *runBuilder, n *ast.AutoLink, source []byte, idCounter *int) {
-	url := string(n.URL(source))
 	// Standard CommonMark `<url>` autolinks are opaque non-translatable
-	// inline codes — okapi MarkdownParser emits AUTO_LINK / MAIL_LINK
-	// tokens with translatable=false, so the `<url>` travels through
-	// pseudo translation as verbatim bytes. Goldmark's linkify
-	// extension also surfaces bare-URL matches (e.g. `https://...`
-	// without angle brackets) as AutoLink nodes, but okapi (which uses
-	// flexmark's matching set of extensions) treats those bare URLs as
-	// plain TEXT and DOES pseudo-translate them. Mirror that split:
-	//   - source had `<url>` → opaque placeholder
-	//   - source had bare URL (linkify) → plain text
-	if hasAngleBrackets(n, source) {
+	// inline codes: okapi MarkdownParser emits AUTO_LINK / MAIL_LINK tokens
+	// with translatable=false, so the `<url>` travels through pseudo
+	// translation as verbatim bytes. Goldmark's linkify extension also
+	// surfaces bare-URL matches (e.g. `https://...` without angle brackets)
+	// as AutoLink nodes, but okapi (which uses flexmark's matching set of
+	// extensions) treats those bare URLs as plain TEXT and DOES
+	// pseudo-translate them. Mirror that split:
+	//   - source had `<url>`: opaque placeholder
+	//   - source had a bare URL (linkify): plain text
+	// Either way the run carries the bytes the source spelled. The node
+	// records no position, so autoLinkSourceSpelling locates it from its
+	// neighbours, which is how a paragraph that is only an autolink keeps
+	// its brackets (#2429), and a bare `www.` host stays the host rather
+	// than the URL the extension resolves it to.
+	spelling, bracketed, ok := autoLinkSourceSpelling(n, source)
+	if ok && bracketed {
 		*idCounter++
 		id := strconv.Itoa(*idCounter)
 		info := r.vocab.LookupOrFallback("link:hyperlink")
-		b.AddPh(id, "link:hyperlink", "md:autolink", "<"+url+">",
+		b.AddPh(id, "link:hyperlink", "md:autolink", spelling,
 			info.Display.Open, info.Equiv,
 			info.Constraints.Deletable, info.Constraints.Cloneable, info.Constraints.Reorderable)
 		return
 	}
-	b.AddText(url)
-}
-
-// hasAngleBrackets reports whether the AutoLink's source representation
-// includes the surrounding `<...>` markers (standard CommonMark §6.5)
-// rather than the bare URL form recognised by goldmark's linkify
-// extension. Goldmark stores the AutoLink's URL segment in a private
-// `value *Text` field with no public accessor and doesn't add it as a
-// child node, so we infer the source position from the previous
-// sibling's text segment: the AutoLink starts immediately after that
-// segment's end, and a `<` byte there means the standard form.
-func hasAngleBrackets(n *ast.AutoLink, source []byte) bool {
-	prev := n.PreviousSibling()
-	if prev == nil {
-		return false
-	}
-	t, ok := prev.(*ast.Text)
-	if !ok {
-		return false
-	}
-	pos := t.Segment.Stop
-	return pos < len(source) && source[pos] == '<'
+	b.AddText(string(n.Label(source)))
 }
 
 func (r *Reader) buildRawHTMLRuns(b *runBuilder, n *ast.RawHTML, source []byte, idCounter *int) {

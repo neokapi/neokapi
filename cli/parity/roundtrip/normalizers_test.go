@@ -31,3 +31,27 @@ func TestMarkdownCanonicalFoldsTableCellPadding(t *testing.T) {
 	// A row inside a list item keeps its indent atom.
 	assert.Equal(t, "\t| a | b |", norm("  |  a  |  b  |"))
 }
+
+// TestMarkdownCanonicalFoldsATXClosingSequence pins the fold for #2430: Okapi
+// writes an ATX heading's closing sequence on a line of its own, native keeps
+// it on the heading line, and both spell the same heading.
+func TestMarkdownCanonicalFoldsATXClosingSequence(t *testing.T) {
+	norm := func(s string) string {
+		out, err := roundtrip.MarkdownCanonical{}.Normalize([]byte(s))
+		require.NoError(t, err)
+		return string(out)
+	}
+	source := "### An h3 header ###\n\nBody text.\n"
+	okapi := "### An h3 header\n###\n\nBody text.\n"
+	assert.Equal(t, norm(okapi), norm(source), "the relocated closing sequence is the same heading")
+	assert.Equal(t, norm("# a\n\nb\n"), norm("# a #   \n\nb\n"), "trailing whitespace after the sequence")
+	assert.Equal(t, norm("# a # b\n"), norm("# a # b #\n"), "only the last run of hashes is a closing sequence")
+	assert.Equal(t, "\t# a", norm("   # a #"), "an indented heading keeps its indent atom")
+
+	// Hashes that are content stay, and an empty heading stays a difference.
+	assert.Equal(t, "# a \\#", norm("# a \\#"))
+	assert.Equal(t, "# a#", norm("# a#"))
+	assert.Equal(t, "#", norm("# #"))
+	assert.NotEqual(t, norm("# a\n"), norm("#\n"))
+	assert.NotEqual(t, norm("# a\n\nb\n"), norm("# a\n\n#\n"), "a bare marker away from a heading line is not dropped")
+}

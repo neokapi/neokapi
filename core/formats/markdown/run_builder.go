@@ -1,6 +1,10 @@
 package markdown
 
-import "github.com/neokapi/neokapi/core/model"
+import (
+	"strings"
+
+	"github.com/neokapi/neokapi/core/model"
+)
 
 // runBuilder accumulates a []model.Run while walking the Markdown
 // AST. It coalesces adjacent TextRuns so consecutive text nodes
@@ -128,4 +132,31 @@ func (b *runBuilder) Runs() []model.Run {
 		return []model.Run{}
 	}
 	return b.runs
+}
+
+// markupOnly reports whether runs are markup and whitespace alone: standalone
+// placeholders that carry no content, with at most whitespace text between
+// them. A paragraph that is one autolink has nothing to translate; it is
+// skeleton, the way an empty table cell is, and emits no block (#2429). A
+// placeholder with an equivalent is content spelled as markup, an entity
+// above all, and keeps its block, as does a paired code: an image with no alt
+// text is structure a target can still fill.
+func markupOnly(runs []model.Run) bool {
+	sawPlaceholder := false
+	for _, r := range runs {
+		switch r.Kind() {
+		case model.RunKindText:
+			if strings.TrimSpace(r.Text.Text) != "" {
+				return false
+			}
+		case model.RunKindPh:
+			if r.Ph.Equiv != "" {
+				return false
+			}
+			sawPlaceholder = true
+		default:
+			return false
+		}
+	}
+	return sawPlaceholder
 }
