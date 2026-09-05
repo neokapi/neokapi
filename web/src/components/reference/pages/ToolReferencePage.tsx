@@ -8,6 +8,7 @@ import { toolBeforeAfter } from "@site/src/components/reference/curatedEmbed";
 import ParametersTable from "./ParametersTable";
 import InteractiveConfig from "./InteractiveConfig";
 import styles from "./pages.module.css";
+import { categoryLabel } from "../labels";
 
 interface Props {
   /** Tool id, e.g. "pseudo-translate". */
@@ -57,7 +58,7 @@ export default function ToolReferencePage({ id, source }: Props) {
       <div className={styles.metaGrid}>
         <Meta label="ID" value={entry.id} mono />
         <Meta label="Source" value={sourceLabel} />
-        {entry.category && <Meta label="Category" value={entry.category} />}
+        {entry.category && <Meta label="Category" value={categoryLabel(entry.category)} />}
         {entry.cardinality && <Meta label="Cardinality" value={entry.cardinality} />}
         {entry.inputs && entry.inputs.length > 0 && (
           <Meta label="Inputs" value={entry.inputs.join(", ")} mono />

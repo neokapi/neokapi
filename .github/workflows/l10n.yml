@@ -51,6 +51,9 @@ on:
       - "host/i18n/**"
       # The committed catalogs, for the qps sibling that lives beside them.
       - "core/i18n/catalogs/**"
+      # The reference dataset's qps variant is compiled from the catalogs.
+      - "scripts/gen-refs/**"
+      - "packages/reference-data/data/**"
       # The extractor and compiler themselves.
       - "packages/i18n-react/**"
       - "packages/kapi-format/**"
@@ -90,6 +93,9 @@ on:
       - "host/i18n/**"
       # The committed catalogs, for the qps sibling that lives beside them.
       - "core/i18n/catalogs/**"
+      # The reference dataset's qps variant is compiled from the catalogs.
+      - "scripts/gen-refs/**"
+      - "packages/reference-data/data/**"
       # The extractor and compiler themselves.
       - "packages/i18n-react/**"
       - "packages/kapi-format/**"

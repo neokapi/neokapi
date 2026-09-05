@@ -12,6 +12,7 @@
 // placeholders → properties, and target locales sorted.
 
 import type { Block, File, Run } from "@neokapi/kapi-format";
+import { t } from "@neokapi/i18n-react/runtime";
 
 // ─── The example document ────────────────────────────────────────────────
 //
@@ -216,125 +217,176 @@ export interface AnatomyTerm {
 export const TERMS: AnatomyTerm[] = [
   {
     id: "envelope",
-    title: "File envelope",
+    title: t("File envelope", "KBF anatomy term"),
     spec: "/reference/serialization/content-bundle#file-envelope",
     body: [
-      "The top-level object of a .kbf.json file. kind is the magic string readers sniff to detect the format; schemaVersion carries the MAJOR.MINOR wire contract — a consumer must reject an unrecognized major version and should accept unknown minors, ignoring fields it does not recognize.",
-      "Serialization is deterministic: 2-space indent, fields in the pinned order shown here, all map keys sorted, trailing newline. Determinism is what keeps a file's content hash stable across runs, machines, and the two reference implementations.",
+      t(
+        "The top-level object of a .kbf.json file. kind is the magic string readers sniff to detect the format; schemaVersion carries the MAJOR.MINOR wire contract — a consumer must reject an unrecognized major version and should accept unknown minors, ignoring fields it does not recognize.",
+        "KBF anatomy explanation",
+      ),
+      t(
+        "Serialization is deterministic: 2-space indent, fields in the pinned order shown here, all map keys sorted, trailing newline. Determinism is what keeps a file's content hash stable across runs, machines, and the two reference implementations.",
+        "KBF anatomy explanation",
+      ),
     ],
   },
   {
     id: "generator",
-    title: "GeneratorInfo",
+    title: t("GeneratorInfo", "KBF anatomy term"),
     spec: "/reference/serialization/content-bundle#generatorinfo",
     body: [
-      "Extraction provenance at the file level: the extractor that produced this file, its version, and its declared capabilities. Together with each block's properties, this forms the chain from any translated string back to the tool and the source location that produced it.",
+      t(
+        "Extraction provenance at the file level: the extractor that produced this file, its version, and its declared capabilities. Together with each block's properties, this forms the chain from any translated string back to the tool and the source location that produced it.",
+        "KBF anatomy explanation",
+      ),
     ],
   },
   {
     id: "project",
-    title: "ProjectInfo",
+    title: t("ProjectInfo", "KBF anatomy term"),
     spec: "/reference/serialization/content-bundle#projectinfo",
     body: [
-      "The project this file belongs to, and the BCP-47 locale of every source run sequence in it. Target locales are not declared here — they appear per block, as keys of the targets map.",
+      t(
+        "The project this file belongs to, and the BCP-47 locale of every source run sequence in it. Target locales are not declared here — they appear per block, as keys of the targets map.",
+        "KBF anatomy explanation",
+      ),
     ],
   },
   {
     id: "vocabulary",
-    title: "Vocabulary",
+    title: t("Vocabulary", "KBF anatomy term"),
     spec: "/reference/serialization/content-bundle#vocabulary",
     body: [
-      "The vocabulary packs whose span-type entries this file's runs reference — the packs a consumer is expected to have loaded to interpret run types such as jsx:element or jsx:var.",
+      t(
+        "The vocabulary packs whose span-type entries this file's runs reference — the packs a consumer is expected to have loaded to interpret run types such as jsx:element or jsx:var.",
+        "KBF anatomy explanation",
+      ),
     ],
   },
   {
     id: "document",
-    title: "Document",
+    title: t("Document", "KBF anatomy term"),
     spec: "/reference/serialization/content-bundle#document",
     body: [
-      "One extracted source file: its path, its documentType, and the blocks extracted from it. A .kbf.json file wraps one or more documents. A document may also carry a sourceHash and a skeleton — the opaque payload a merge step consumes to reconstruct the original file with translated content spliced back in (omitted in this example).",
+      t(
+        "One extracted source file: its path, its documentType, and the blocks extracted from it. A .kbf.json file wraps one or more documents. A document may also carry a sourceHash and a skeleton — the opaque payload a merge step consumes to reconstruct the original file with translated content spliced back in (omitted in this example).",
+        "KBF anatomy explanation",
+      ),
     ],
   },
   {
     id: "block",
-    title: "Block",
+    title: t("Block", "KBF anatomy term"),
     spec: "/reference/serialization/content-bundle#block",
     body: [
-      "The unit of translation tracking — typically one JSX element, one HTML paragraph, one Markdown heading, or one attribute value. Content memory, targets, review status, and annotations are all keyed on the block.",
-      "hash is a content hash over the source runs. Re-extractions match blocks by hash, which is how tracking survives edits to the surrounding file: an unchanged block keeps its identity, a changed one is flagged for retranslation.",
+      t(
+        "The unit of translation tracking — typically one JSX element, one HTML paragraph, one Markdown heading, or one attribute value. Content memory, targets, review status, and annotations are all keyed on the block.",
+        "KBF anatomy explanation",
+      ),
+      t(
+        "hash is a content hash over the source runs. Re-extractions match blocks by hash, which is how tracking survives edits to the surrounding file: an unchanged block keeps its identity, a changed one is flagged for retranslation.",
+        "KBF anatomy explanation",
+      ),
     ],
   },
   {
     id: "source",
-    title: "Source runs",
+    title: t("Source runs", "KBF anatomy term"),
     spec: "/reference/serialization/content-bundle#the-run-model",
     body: [
-      "The source content as a flat sequence of runs. Inline markup lives in runs, not in the text — there is no marked-up string for a consumer to re-parse, and a translator's tool can present each run as an atomic token.",
+      t(
+        "The source content as a flat sequence of runs. Inline markup lives in runs, not in the text — there is no marked-up string for a consumer to re-parse, and a translator's tool can present each run as an atomic token.",
+        "KBF anatomy explanation",
+      ),
     ],
   },
   {
     id: "run-text",
-    title: "Run — text",
+    title: t("Run — text", "KBF anatomy term"),
     spec: "/reference/serialization/content-bundle#text-a-plain-text-chunk",
     body: [
-      "A plain text chunk: the only run kind that carries translatable characters. Everything else in the sequence is structure.",
+      t(
+        "A plain text chunk: the only run kind that carries translatable characters. Everything else in the sequence is structure.",
+        "KBF anatomy explanation",
+      ),
     ],
   },
   {
     id: "run-pc",
-    title: "Run — pcOpen / pcClose",
+    title: t("Run — pcOpen / pcClose", "KBF anatomy term"),
     spec: "/reference/serialization/content-bundle#pcopen--pcclose-paired-codes",
     body: [
-      "A paired code: an inline element that opens and closes around translatable content, split into two runs so the enclosed text stays part of the flat sequence. The shared id pairs them; equiv is the stable name a target uses to reference the pair; data preserves the original markup for write-back.",
+      t(
+        "A paired code: an inline element that opens and closes around translatable content, split into two runs so the enclosed text stays part of the flat sequence. The shared id pairs them; equiv is the stable name a target uses to reference the pair; data preserves the original markup for write-back.",
+        "KBF anatomy explanation",
+      ),
     ],
   },
   {
     id: "run-ph",
-    title: "Run — ph",
+    title: t("Run — ph", "KBF anatomy term"),
     spec: "/reference/serialization/content-bundle#ph-a-self-closing-placeholder",
     body: [
-      "A self-closing placeholder: a variable or void element that contributes no translatable text of its own. equiv names it, disp is a display hint for editors, and data preserves the source expression for write-back. Validation rejects a target that drops a required placeholder.",
+      t(
+        "A self-closing placeholder: a variable or void element that contributes no translatable text of its own. equiv names it, disp is a display hint for editors, and data preserves the source expression for write-back. Validation rejects a target that drops a required placeholder.",
+        "KBF anatomy explanation",
+      ),
     ],
   },
   {
     id: "run-plural",
-    title: "Run — plural",
+    title: t("Run — plural", "KBF anatomy term"),
     spec: "/reference/serialization/content-bundle#plural-a-structured-plural-construct",
     body: [
-      "A structured plural construct: each CLDR plural form holds its own run sequence, keyed by the pivot placeholder that selects the form at render time. Plurals are structured data, not flattened strings — a target language supplies exactly the forms its plural rules require.",
+      t(
+        "A structured plural construct: each CLDR plural form holds its own run sequence, keyed by the pivot placeholder that selects the form at render time. Plurals are structured data, not flattened strings — a target language supplies exactly the forms its plural rules require.",
+        "KBF anatomy explanation",
+      ),
     ],
   },
   {
     id: "targets",
-    title: "Targets",
+    title: t("Targets", "KBF anatomy term"),
     spec: "/reference/serialization/content-bundle#targets",
     body: [
-      "Per-locale translations. Each key is a BCP-47 locale (sorted in canonical output) and each value is that locale's own run sequence, validated against the source: every required placeholder must be preserved.",
-      "A block with no entry for a locale is simply untranslated there — pending work, not an error. The second block in this example carries no targets yet.",
+      t(
+        "Per-locale translations. Each key is a BCP-47 locale (sorted in canonical output) and each value is that locale's own run sequence, validated against the source: every required placeholder must be preserved.",
+        "KBF anatomy explanation",
+      ),
+      t(
+        "A block with no entry for a locale is simply untranslated there — pending work, not an error. The second block in this example carries no targets yet.",
+        "KBF anatomy explanation",
+      ),
     ],
   },
   {
     id: "placeholders",
-    title: "Placeholders",
+    title: t("Placeholders", "KBF anatomy term"),
     spec: "/reference/serialization/content-bundle#placeholder",
     body: [
-      "Every variable and element token referenced by the block's runs, enumerated once — including those inside plural and select forms — so validators and CAT tools can examine them without walking the run tree. Metadata that does not fit on a run (jsType, sourceExpr, optionality) lives here.",
+      t(
+        "Every variable and element token referenced by the block's runs, enumerated once — including those inside plural and select forms — so validators and CAT tools can examine them without walking the run tree. Metadata that does not fit on a run (jsType, sourceExpr, optionality) lives here.",
+        "KBF anatomy explanation",
+      ),
     ],
   },
   {
     id: "provenance",
-    title: "Provenance — BlockProperties",
+    title: t("Provenance — BlockProperties", "KBF anatomy term"),
     spec: "/reference/serialization/content-bundle#blockproperties",
     body: [
-      "Where the block came from: the source file and line, the component, the JSX path, and the element that produced it, plus an optional note for translators (locNote). With the file-level generator, this is the full provenance of the string: which tool extracted it, from which file, at which position.",
+      t(
+        "Where the block came from: the source file and line, the component, the JSX path, and the element that produced it, plus an optional note for translators (locNote). With the file-level generator, this is the full provenance of the string: which tool extracted it, from which file, at which position.",
+        "KBF anatomy explanation",
+      ),
     ],
   },
 ];
 
 export function termById(id: TermId): AnatomyTerm {
-  const t = TERMS.find((x) => x.id === id);
-  if (!t) throw new Error(`unknown anatomy term: ${id}`);
-  return t;
+  const term = TERMS.find((x) => x.id === id);
+  if (!term) throw new Error(`unknown anatomy term: ${id}`);
+  return term;
 }
 
 // ─── Line emitter ────────────────────────────────────────────────────────

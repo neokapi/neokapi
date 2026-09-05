@@ -1,7 +1,14 @@
 import Link from "@docusaurus/Link";
+import { t } from "@neokapi/i18n-react/runtime";
 import type { CommandEntry } from "@neokapi/reference-data";
 import { commandName, commandSummary } from "./commandHelpers";
 import styles from "./styles.module.css";
+
+function flagCountLabel(n: number): string {
+  return n === 1
+    ? t("1 flag", "flag count on a command card")
+    : t("{count} flags", "flag count on a command card", { count: n });
+}
 
 interface Props {
   cmd: CommandEntry;
@@ -74,11 +81,7 @@ export default function CommandCard({ cmd, href }: Props) {
             {a}
           </span>
         ))}
-        {flagCount > 0 && (
-          <span className={styles.gridFlagCount}>
-            {flagCount} flag{flagCount !== 1 ? "s" : ""}
-          </span>
-        )}
+        {flagCount > 0 && <span className={styles.gridFlagCount}>{flagCountLabel(flagCount)}</span>}
       </span>
     </Link>
   );

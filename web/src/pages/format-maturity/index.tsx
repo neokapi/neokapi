@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import Layout from "@theme/Layout";
 import maturity from "@site/static/data/format-maturity.json";
 import history from "@site/static/data/format-maturity-history.json";
+import { t } from "@neokapi/i18n-react/runtime";
 import styles from "./index.module.css";
 import {
   type MaturityData,
@@ -91,10 +92,10 @@ const dotClass: Record<DimScore, string> = {
 };
 
 const dotTitle: Record<DimScore, string> = {
-  complete: "complete",
-  partial: "partial",
-  none: "missing",
-  na: "not applicable",
+  complete: t("complete", "dimension score"),
+  partial: t("partial", "dimension score"),
+  none: t("missing", "dimension score"),
+  na: t("not applicable", "dimension score"),
 };
 
 /** The published grade of a row on one axis. Engine always exists (`level`
@@ -167,11 +168,16 @@ function TierBadge({ tier }: { tier?: TierInfo }) {
   if (!tier) return <span className={styles.gradeMissing}>—</span>;
   const { state, days } = tierState(tier, data.generated_at);
   const certified = tier.last_certified
-    ? `last certified ${tier.last_certified}${days !== null ? ` (${days}d before this snapshot)` : ""}`
-    : "never certified";
+    ? t("last certified {date}", "support tier tooltip", { date: tier.last_certified }) +
+      (days !== null ? t(" ({days}d before this snapshot)", "support tier tooltip", { days }) : "")
+    : t("never certified", "support tier tooltip");
   if (state === "decayed") {
     const shown = decayTier(tier.declared);
-    const title = `Declared ${TIER_LABEL[tier.declared]} · ${certified} — older than ${TIER_DECAY_DAYS}d, displayed one tier down; tier-review due.`;
+    const title = t(
+      "Declared {tier} · {certified} — older than {days}d, displayed one tier down; tier-review due.",
+      "support tier tooltip",
+      { tier: TIER_LABEL[tier.declared], certified, days: TIER_DECAY_DAYS },
+    );
     if (shown === tier.declared) {
       return (
         <span className={styles.tierCell} title={title}>
@@ -195,12 +201,15 @@ function TierBadge({ tier }: { tier?: TierInfo }) {
       </span>
     );
   }
+  const since = tier.since ? t(" since {date}", "support tier tooltip", { date: tier.since }) : "";
+  const stale =
+    state === "stale"
+      ? t(" — stale (>{days}d)", "support tier tooltip", { days: TIER_STALE_DAYS })
+      : "";
   return (
     <span
       className={styles.tierCell}
-      title={`${TIER_LABEL[tier.declared]}${tier.since ? ` since ${tier.since}` : ""} · ${certified}${
-        state === "stale" ? ` — stale (>${TIER_STALE_DAYS}d)` : ""
-      }`}
+      title={`${TIER_LABEL[tier.declared]}${since} · ${certified}${stale}`}
     >
       <span
         className={`${styles.tierBadge} ${tierClass[tier.declared]} ${
@@ -270,16 +279,13 @@ function AxisBars() {
           </span>
           {axes.map((a) => {
             const dist = byAxis[a] ?? {};
+            const ariaLabel = t("{axis} distribution", "chart aria label", { axis: axisLabel(a) });
             return (
               <div key={a} className={styles.axisBarRow}>
                 <span className={styles.axisBarLabel} title={AXIS_DESC[a]}>
                   {axisLabel(a)}
                 </span>
-                <div
-                  className={styles.miniBar}
-                  role="img"
-                  aria-label={`${axisLabel(a)} distribution`}
-                >
+                <div className={styles.miniBar} role="img" aria-label={ariaLabel}>
                   {AXIS_GRADES[a].map((g) => {
                     const n = dist[g] ?? 0;
                     if (!n) return null;
@@ -508,6 +514,11 @@ export default function FormatMaturity() {
       .sort((a, b) => rank(a) - rank(b) || a.id.localeCompare(b.id));
   }, [search, grade, type, axis]);
 
+  const scorerTag = data.scorer_version
+    ? ` · ${t("scorer v{version}", "dataset scorer version", { version: data.scorer_version })}`
+    : "";
+  const gradeHeader = axis === "engine" ? t("Level", "table column header") : axisLabel(axis);
+
   return (
     <Layout
       title="Format Maturity"
@@ -527,7 +538,7 @@ export default function FormatMaturity() {
           </p>
           <p className={styles.meta}>
             {data.summary.total} formats · generated {data.generated_at} · source: {data.source}
-            {data.scorer_version ? ` · scorer v${data.scorer_version}` : ""}
+            {scorerTag}
           </p>
 
           <div className={styles.howToRead}>
@@ -626,7 +637,7 @@ export default function FormatMaturity() {
             <thead>
               <tr>
                 <th>Format</th>
-                <th title={AXIS_DESC[axis]}>{axis === "engine" ? "Level" : axisLabel(axis)}</th>
+                <th title={AXIS_DESC[axis]}>{gradeHeader}</th>
                 {hasTiers && (
                   <th title="Declared support tier (the promise) — see the tier key above.">
                     Tier

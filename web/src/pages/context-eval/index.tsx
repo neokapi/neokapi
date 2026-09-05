@@ -2,6 +2,7 @@ import type { CSSProperties, ReactElement } from "react";
 import Link from "@docusaurus/Link";
 import Layout from "@theme/Layout";
 import history from "./_contexteval.json";
+import { t } from "@neokapi/i18n-react/runtime";
 
 // The context-eval dashboard. kapi's value proposition is injecting context —
 // terminology, a voice guide, an instruction — to steer model output. This
@@ -615,24 +616,46 @@ function ExperimentSection({ e }: { e: Experiment }): ReactElement {
             const j = r.judge!;
             const v = judgeValidationFor(j);
             if (!judgePublishable(v)) {
+              const reason = v
+                ? t(
+                    "measured judge–human agreement (kappa {kappa} over {items} verdicts) is below the bar (kappa ≥ {minKappa} over ≥ {minItems})",
+                    "why a judge's scores are not published",
+                    {
+                      kappa: v.kappa.toFixed(2),
+                      items: v.items,
+                      minKappa: MIN_JUDGE_KAPPA,
+                      minItems: MIN_JUDGE_ITEMS,
+                    },
+                  )
+                : t(
+                    "this judge's agreement with human labels has not been measured for this rubric",
+                    "why a judge's scores are not published",
+                  );
               return (
                 <p
                   key={label(r)}
                   style={{ fontSize: "0.9rem", color: "var(--ifm-color-emphasis-700)" }}
                 >
                   <strong>{label(r)}</strong>: judged by {j.provider}:{j.model}, but the scores are{" "}
-                  <strong>not published</strong> —{" "}
-                  {v
-                    ? `measured judge–human agreement (kappa ${v.kappa.toFixed(2)} over ${v.items} verdicts) is below the bar (kappa ≥ ${MIN_JUDGE_KAPPA} over ≥ ${MIN_JUDGE_ITEMS})`
-                    : "this judge's agreement with human labels has not been measured for this rubric"}
-                  . Publishing an unvalidated judge&rsquo;s scores would report the judge&rsquo;s
-                  opinion as the model&rsquo;s behavior.
+                  <strong>not published</strong> — {reason}. Publishing an unvalidated judge&rsquo;s
+                  scores would report the judge&rsquo;s opinion as the model&rsquo;s behavior.
                 </p>
               );
             }
             const b = rate(j.bare);
             const s = rate(j.steered);
             const l = b != null && s != null ? s - b : null;
+            const validatedOn = v!.targets?.length
+              ? t(", human-validated on {targets}", "judge validation note", {
+                  targets: v!.targets.join(", "),
+                })
+              : "";
+            const trustedOn =
+              v!.targets?.length && !v!.targets.includes(r.target)
+                ? t(" — trusted, not validated, on {target}", "judge validation note", {
+                    target: r.target,
+                  })
+                : "";
             return (
               <p key={label(r)} style={{ fontSize: "0.9rem" }}>
                 <strong>{label(r)}</strong>: bare {b?.toFixed(1)}% · steered {s?.toFixed(1)}%
@@ -645,11 +668,8 @@ function ExperimentSection({ e }: { e: Experiment }): ReactElement {
                 <span style={{ color: "var(--ifm-color-emphasis-600)" }}>
                   (judge {j.provider}:{j.model}, agreement kappa {v!.kappa.toFixed(2)} over{" "}
                   {v!.items} verdicts
-                  {v!.targets?.length ? `, human-validated on ${v!.targets.join(", ")}` : ""}
-                  {v!.targets?.length && !v!.targets.includes(r.target)
-                    ? ` — trusted, not validated, on ${r.target}`
-                    : ""}
-                  )
+                  {validatedOn}
+                  {trustedOn})
                 </span>
               </p>
             );

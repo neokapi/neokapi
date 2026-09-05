@@ -756,6 +756,10 @@ const config: Config = {
     // because this config is evaluated by jiti, where the plugin's ESM dist
     // cannot run — see the file for the detail.
     "./plugins/neokapi-i18n.mjs",
+    // The reference dataset in the locale being built: the /tools, /formats,
+    // /commands and /models pages read packages/reference-data/data/<locale>/
+    // where a variant exists, English otherwise. See the plugin.
+    "./plugins/reference-locale.mjs",
 
     // Silence a few benign third-party webpack warnings. Each predicate is
     // scoped to the specific offending module/message so an equivalent warning

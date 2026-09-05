@@ -1,6 +1,7 @@
 package gen
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -96,4 +97,48 @@ func sortedKeys(m map[string][]byte) []string {
 		}
 	}
 	return keys
+}
+
+// TestGenerate_CarriesReferenceStrings asserts the document holds every string
+// the reference pages print for an entry: without a tool's or a format's
+// description here, no locale can translate the card that shows it.
+func TestGenerate_CarriesReferenceStrings(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, Generate(dir))
+
+	data, err := os.ReadFile(filepath.Join(dir, "metadata.json"))
+	require.NoError(t, err)
+	var doc Document
+	require.NoError(t, json.Unmarshal(data, &doc))
+
+	assert.NotEmpty(t, doc.Tools["translate"].Description, "a tool's description comes from its registry entry or its schema")
+	assert.NotEmpty(t, doc.Formats["markdown"].Description, "a format's description comes from its schema")
+
+	described := 0
+	for _, e := range doc.Formats {
+		if e.Description != "" {
+			described++
+		}
+	}
+	assert.Greater(t, described, len(doc.Formats)/2, "most formats carry a schema description")
+
+	grouped := 0
+	nested := 0
+	for _, e := range doc.Formats {
+		if len(e.Groups) > 0 {
+			grouped++
+		}
+		for _, p := range e.Properties {
+			if len(p.Properties) > 0 {
+				nested++
+			}
+		}
+	}
+	assert.Greater(t, grouped, 0, "format parameter groups carry labels a reader sees")
+	assert.Greater(t, nested, 0, "a format's section objects carry their children")
+
+	require.NotEmpty(t, doc.Models, "the model catalog's notes are prose the model reference prints")
+	for id, m := range doc.Models {
+		assert.NotEmpty(t, m.Note, "model %s is listed without a note", id)
+	}
 }

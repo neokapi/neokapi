@@ -22,6 +22,8 @@ on:
       - "memory/**/*.go"
       - "terms/**/*.go"
       - "core/i18n/builtins/metadata.json"
+      # The locale variants of the dataset derive from the Go-surface catalogs.
+      - "core/i18n/catalogs/**"
       - "scripts/gen-refs/**"
       - "scripts/gen-contract-types/**"
       - "packages/reference-data/data/**"
@@ -70,6 +72,8 @@ on:
       - "memory/**/*.go"
       - "terms/**/*.go"
       - "core/i18n/builtins/metadata.json"
+      # The locale variants of the dataset derive from the Go-surface catalogs.
+      - "core/i18n/catalogs/**"
       - "scripts/gen-refs/**"
       - "scripts/gen-contract-types/**"
       - "packages/reference-data/data/**"

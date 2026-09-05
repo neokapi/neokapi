@@ -2,6 +2,7 @@ import type { CSSProperties, ReactElement } from "react";
 import Link from "@docusaurus/Link";
 import Layout from "@theme/Layout";
 import history from "./_batcheval.json";
+import { t } from "@neokapi/i18n-react/runtime";
 
 // The batch-eval dashboard. kapi packs several blocks into one LLM call, and the
 // ceiling it packs to (tools.MaxBlocksPerCall) was chosen from evidence about
@@ -152,6 +153,14 @@ const usd = (v: number) =>
 
 const scored = (r: Run): Result[] => r.results.filter((p) => !p.unmeasured && p.blocks > 0);
 
+/** The Intact cell of the per-model table: a status word, or the intact percentage. */
+const intactCell = (p: Result): string =>
+  p.unmeasured
+    ? t("not measured", "batch result status")
+    : p.failed
+      ? t("failed", "batch result status")
+      : `${intact(p).toFixed(1)}%`;
+
 // The findings below are *derived from the data*, never typed into the prose. A
 // sentence that hardcodes "100% at every N" keeps saying so after the day a model
 // stops being clean, and this page exists precisely to catch that day.
@@ -296,11 +305,11 @@ function Chart({ runs, s }: { runs: Run[]; s: Series }): ReactElement | null {
   // important — value there is. So breaks get a linear axis anchored at zero.
   const hiV = Math.max(...vs);
   const loV = s.log ? Math.min(...vs.filter((v) => v > 0)) : 0;
-  const t = (v: number) =>
+  const norm = (v: number) =>
     s.log
       ? (Math.log10(Math.max(v, loV)) - Math.log10(loV)) / (Math.log10(hiV) - Math.log10(loV) || 1)
       : v / (hiV || 1);
-  const y = (v: number) => pad.top + (1 - t(v)) * (H - pad.top - pad.bottom);
+  const y = (v: number) => pad.top + (1 - norm(v)) * (H - pad.top - pad.bottom);
 
   const ticks = s.log
     ? [loV, Math.sqrt(loV * hiV), hiV]
@@ -420,24 +429,33 @@ function Chart({ runs, s }: { runs: Run[]; s: Series }): ReactElement | null {
 
 const COST: Series = {
   y: costPer1kWords,
-  yTitle: "USD / 1,000 source words",
+  yTitle: t("USD / 1,000 source words", "chart y-axis title"),
   fmt: (v) => usd(v),
   log: true,
-  aria: "Cost per thousand source words against blocks per call, one line per model",
+  aria: t(
+    "Cost per thousand source words against blocks per call, one line per model",
+    "chart aria label",
+  ),
 };
 
 const BREAKS: Series = {
   y: breaksPer1k,
-  yTitle: "structural breaks / 1,000 blocks",
+  yTitle: t("structural breaks / 1,000 blocks", "chart y-axis title"),
   fmt: (v) => v.toFixed(1),
-  aria: "Structural breaks per thousand blocks against blocks per call, one line per model",
+  aria: t(
+    "Structural breaks per thousand blocks against blocks per call, one line per model",
+    "chart aria label",
+  ),
 };
 
 const SPEED: Series = {
   y: wordsPerSecond,
-  yTitle: "source words / second",
+  yTitle: t("source words / second", "chart y-axis title"),
   fmt: (v) => v.toFixed(0),
-  aria: "Throughput in source words per second against blocks per call, one line per model",
+  aria: t(
+    "Throughput in source words per second against blocks per call, one line per model",
+    "chart aria label",
+  ),
 };
 
 function Legend({ runs }: { runs: Run[] }): ReactElement {
@@ -466,6 +484,19 @@ function Legend({ runs }: { runs: Run[] }): ReactElement {
 
 export default function BatchEval(): ReactElement {
   const f = findings(current);
+  const smallEndWorse = f.smallRate != null && f.largeRate != null && f.smallRate > f.largeRate;
+  const trendHeadline = smallEndWorse
+    ? t("If anything, the small end is worse.", "batch eval finding")
+    : t("The damage does not scale with N.", "batch eval finding");
+  const trendReading = smallEndWorse
+    ? t(
+        "More calls means more chances to fumble a placeholder, and less surrounding context in which to recognise one — the opposite of the effect the ceiling was set to guard against.",
+        "batch eval finding",
+      )
+    : t(
+        "Whatever the ceiling was set to guard against, it is not a trend visible here.",
+        "batch eval finding",
+      );
   return (
     <Layout
       title="Batch eval"
@@ -571,20 +602,12 @@ export default function BatchEval(): ReactElement {
             </p>
             {f.smallRate != null && f.largeRate != null && (
               <p>
-                <strong>
-                  {f.smallRate > f.largeRate
-                    ? "If anything, the small end is worse."
-                    : "The damage does not scale with N."}
-                </strong>{" "}
-                These are stochastic models: a sweep this size drops a segment somewhere, so the
-                claim worth making is about the trend, not about perfection. Counted as breaks per
-                1,000 blocks — a rate, so a batch size is not flattered by having fewer blocks
-                behind it — small batches (N {"\u2264"} {SMALL_N}) broke{" "}
-                <strong>{f.smallRate.toFixed(1)}</strong> and large ones (N {"\u2265"} {LARGE_N})
-                broke <strong>{f.largeRate.toFixed(1)}</strong>.{" "}
-                {f.smallRate > f.largeRate
-                  ? "More calls means more chances to fumble a placeholder, and less surrounding context in which to recognise one — the opposite of the effect the ceiling was set to guard against."
-                  : "Whatever the ceiling was set to guard against, it is not a trend visible here."}
+                <strong>{trendHeadline}</strong> These are stochastic models: a sweep this size
+                drops a segment somewhere, so the claim worth making is about the trend, not about
+                perfection. Counted as breaks per 1,000 blocks — a rate, so a batch size is not
+                flattered by having fewer blocks behind it — small batches (N {"\u2264"} {SMALL_N})
+                broke <strong>{f.smallRate.toFixed(1)}</strong> and large ones (N {"\u2265"}{" "}
+                {LARGE_N}) broke <strong>{f.largeRate.toFixed(1)}</strong>. {trendReading}
               </p>
             )}
             <p>
@@ -842,11 +865,7 @@ export default function BatchEval(): ReactElement {
                             fontWeight: !p.unmeasured && intact(p) < 100 ? 600 : undefined,
                           }}
                         >
-                          {p.unmeasured
-                            ? "not measured"
-                            : p.failed
-                              ? "failed"
-                              : `${intact(p).toFixed(1)}%`}
+                          {intactCell(p)}
                         </td>
                         <td style={cell}>{p.missing}</td>
                         <td style={cell}>{p.placeholder_breaks}</td>
