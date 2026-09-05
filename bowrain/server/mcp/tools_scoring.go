@@ -73,10 +73,14 @@ func (s *MCPServer) registerPhase2Tools() {
 		Description: "Given voice compliance findings, suggest specific text corrections. Returns the original text with each finding mapped to a concrete replacement suggestion.",
 	}, s.handleSuggestCorrections)
 
-	// rewrite_in_voice — full rewrite with diff.
+	// rewrite_in_voice: rule-based substitution plus the guide for the rest.
 	mcp.AddTool(s.server, &mcp.Tool{
-		Name:        "rewrite_in_voice",
-		Description: "Rewrite text to match a voice profile. Returns the rewritten text and a summary of changes made. Uses vocabulary rules and style guidelines to transform the input.",
+		Name: "rewrite_in_voice",
+		Description: "Rewrite text to match a voice profile by substituting its forbidden and competitor terms. " +
+			"Returns the rewritten text, a summary of the substitutions, the rules that matched and were left in " +
+			"place under skipped (no replacement, or an inflected form) with the term, list, severity and reason, " +
+			"and the voice guide for the tone and style edits the caller makes by hand. " +
+			"Verify the result with score_voice_compliance.",
 	}, s.handleRewriteInVoice)
 }
 
@@ -174,12 +178,16 @@ type rewriteInVoiceInput struct {
 	voiceScopeInput `json:",inline"`
 }
 
-// rewriteInVoiceOutput is the output for the rewrite_in_voice tool.
+// rewriteInVoiceOutput is the output for the rewrite_in_voice tool. Skipped
+// lists the vocabulary rules that matched and were left in place, with the
+// reason, so an agent can tell an unchanged text with nothing to fix from one
+// that still carries violations.
 type rewriteInVoiceOutput struct {
-	Original  string   `json:"original"`
-	Rewritten string   `json:"rewritten"`
-	Changes   []string `json:"changes"`
-	Guide     string   `json:"voice_guide"`
+	Original  string                    `json:"original"`
+	Rewritten string                    `json:"rewritten"`
+	Changes   []string                  `json:"changes"`
+	Skipped   []coreprofile.RewriteSkip `json:"skipped"`
+	Guide     string                    `json:"voice_guide"`
 }
 
 func (s *MCPServer) handleRewriteInVoice(ctx context.Context, req *mcp.CallToolRequest, input rewriteInVoiceInput) (*mcp.CallToolResult, rewriteInVoiceOutput, error) {
@@ -188,29 +196,22 @@ func (s *MCPServer) handleRewriteInVoice(ctx context.Context, req *mcp.CallToolR
 		return nil, rewriteInVoiceOutput{}, err
 	}
 
-	// Apply vocabulary-based rewrites.
-	rewritten := input.Text
+	// The rule-based substitution the framework defines, so this tool and
+	// the kapi voice_rewrite tool agree with the vocabulary check on what a
+	// hit is and on what they report.
+	result := coreprofile.RewriteVocabulary(resolved, input.Text)
 	var changes []string
-
-	for _, term := range resolved.Vocabulary.ForbiddenTerms {
-		if term.Replacement != "" && strings.Contains(strings.ToLower(rewritten), strings.ToLower(term.Term)) {
-			rewritten = strings.ReplaceAll(rewritten, term.Term, term.Replacement)
-			changes = append(changes, fmt.Sprintf("Replaced forbidden term %q with %q", term.Term, term.Replacement))
-		}
-	}
-	for _, term := range resolved.Vocabulary.CompetitorTerms {
-		if term.Replacement != "" && strings.Contains(strings.ToLower(rewritten), strings.ToLower(term.Term)) {
-			rewritten = strings.ReplaceAll(rewritten, term.Term, term.Replacement)
-			changes = append(changes, fmt.Sprintf("Replaced competitor term %q with %q", term.Term, term.Replacement))
-		}
+	for _, c := range result.Changes {
+		changes = append(changes, fmt.Sprintf("Replaced %s term %q with %q", c.List, c.Term, c.Replacement))
 	}
 
 	guide := formatVoiceGuide(resolved)
 
 	return nil, rewriteInVoiceOutput{
 		Original:  input.Text,
-		Rewritten: rewritten,
+		Rewritten: result.Text,
 		Changes:   changes,
+		Skipped:   result.Skipped,
 		Guide:     guide,
 	}, nil
 }

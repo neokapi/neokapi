@@ -134,7 +134,8 @@ kapi check --ship --json        # whole project; or: kapi check --ship <files> [
   [references/create.md](references/create.md).
 - **Keep content in voice**: retrieve the voice guidance before writing, score a
   draft (0–100), and fix off-voice text yourself, routed through `kapi apply`.
-  (`kapi voice rewrite` swaps forbidden/competitor terms offline; for tone and
+  (`kapi voice rewrite` swaps forbidden/competitor terms offline and lists
+  under `skipped` the ones it matched and could not swap; for tone and
   phrasing, rewrite the text yourself against the guide.) See
   [references/voice.md](references/voice.md).
 - **Discover or refresh a project's context**: assemble it from the user's

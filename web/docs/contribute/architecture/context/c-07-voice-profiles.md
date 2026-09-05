@@ -234,7 +234,7 @@ Locale and channel overrides apply on top via `--locale`/`--channel`; an explici
 | `new` | Scaffold a commented, schema-valid profile YAML, optionally seeded from a pack. |
 | `guide` / `show` | Render the profile as a markdown voice guide to inject into an assistant's context. |
 | `check` | Score text against the profile: vocabulary always, `--ai` adds the model check. `--min-score` turns it into a gate. |
-| `rewrite` | Substitute forbidden and competitor terms for their approved replacements: deterministic, offline, no model. |
+| `rewrite` | Substitute forbidden and competitor terms for their approved replacements: deterministic, offline, no model. A rule that matches without a replacement is reported under `skipped`. |
 | `expand` | Ask a model for the surface forms each vocabulary term takes and write them into the profile as `forms:`, for review in a diff. |
 | `validate` | Check a profile document against the schema; blocking problems fail, advisory notes print after the verdict. |
 | `profiles` | List profiles: the voice store plus the built-in packs. |
@@ -273,9 +273,14 @@ codes are preserved, each block is drift-guarded by its content hash, and an edi
 that would corrupt markup is rejected.
 
 `kapi voice rewrite` is a separate, deterministic helper: it substitutes
-forbidden and competitor terms for their approved replacements by rule, offline.
-It does not call a model and does not touch tone, style or phrasing; those are
-the caller's to rewrite.
+forbidden and competitor terms for their approved replacements by rule, offline,
+through the same matcher as the vocabulary check (`profile.RewriteVocabulary`).
+A rule that names no replacement, and a match on a declared inflected form of a
+term, stay in the text and are reported under `skipped` with the term, its list
+and severity, the spellings matched and the reason, so a caller can tell an
+unchanged text with nothing to fix from one that still carries violations. The
+exit code stays 0. It does not call a model and does not touch tone, style or
+phrasing; those are the caller's to rewrite.
 
 ### A vocabulary rule is a change-set entry
 
@@ -309,7 +314,8 @@ installed.
 `host/mcp_voice.go` registers two offline voice tools on the shared `kapi mcp`
 stdio server ([S-01](../surfaces/s-01-kapi-cli.md)) so non-CLI agents get parity:
 `voice_check` scores text using the deterministic vocabulary rules, and
-`voice_rewrite` substitutes forbidden and competitor terms.
+`voice_rewrite` substitutes forbidden and competitor terms and reports under
+`skipped` what it matched and left in place.
 
 These are hand-authored because each wraps a *resource* (a voice profile, a
 terms store, a content memory) rather than a single processing tool. The

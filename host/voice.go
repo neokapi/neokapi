@@ -747,30 +747,19 @@ func RunBlockTool(ctx context.Context, t tool.Tool, text string) ([]coreprofile.
 	return nil, nil
 }
 
-// RuleRewrite applies forbidden/competitor term replacements from the profile,
-// preserving surrounding text. Returns the rewritten text and the changes made.
-func RuleRewrite(profile *coreprofile.VoiceProfile, text string) (string, []output.VoiceChange) {
+// RuleRewrite substitutes the profile's forbidden and competitor terms with
+// the replacement each rule names, through the same matcher the vocabulary
+// check uses (coreprofile.RewriteVocabulary). It returns the rewritten text,
+// the substitutions made, and the rules that matched and were left in place
+// with the reason, so a caller can finish the edit by hand. A nil profile
+// rewrites nothing.
+func RuleRewrite(profile *coreprofile.VoiceProfile, text string) (string, []output.VoiceChange, []coreprofile.RewriteSkip) {
+	res := coreprofile.RewriteVocabulary(profile, text)
 	var changes []output.VoiceChange
-	result := text
-	apply := func(rules []coreprofile.TermRule) {
-		for _, rule := range rules {
-			if rule.Replacement == "" || rule.Term == "" {
-				continue
-			}
-			re := regexp.MustCompile(`(?i)` + regexp.QuoteMeta(rule.Term))
-			n := len(re.FindAllString(result, -1))
-			if n == 0 {
-				continue
-			}
-			result = re.ReplaceAllString(result, rule.Replacement)
-			changes = append(changes, output.VoiceChange{From: rule.Term, To: rule.Replacement, Count: n})
-		}
+	for _, c := range res.Changes {
+		changes = append(changes, output.VoiceChange{From: c.Term, To: c.Replacement, Count: c.Count})
 	}
-	if profile != nil {
-		apply(profile.Vocabulary.CompetitorTerms)
-		apply(profile.Vocabulary.ForbiddenTerms)
-	}
-	return result, changes
+	return res.Text, changes, res.Skipped
 }
 
 var slugRe = regexp.MustCompile(`[^a-z0-9]+`)

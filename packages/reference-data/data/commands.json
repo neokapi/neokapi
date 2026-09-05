@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-04T08:36:42Z",
+  "generatedAt": "2026-09-04T22:06:20Z",
   "commands": [
     {
       "id": "add",
@@ -8409,7 +8409,7 @@
       ],
       "use": "rewrite",
       "short": "Substitute forbidden/competitor terms for their approved wording (offline)",
-      "long": "Rewrite content against a voice profile by substituting forbidden and\ncompetitor terms with their approved replacements. This is the deterministic,\noffline path: it changes only the terms the profile defines and reports each\nchange; it does not call a model.\n\nText is read from --input-text or stdin and the rewrite is printed. To fix tone,\nstyle, or phrasing in voice, rewrite the text yourself with the voice guide as\ncontext ('kapi voice guide') and apply the edit through 'kapi apply'. kapi does\nnot send content to a model to rewrite it.",
+      "long": "Rewrite content against a voice profile by substituting forbidden and\ncompetitor terms with their approved replacements. This is the deterministic,\noffline path: it changes only the terms the profile defines and reports each\nchange; it does not call a model.\n\nA rule that names no replacement, and a match on an inflected form of a term,\nare left in place and reported under \"skipped\" with the term, its list and\nseverity, and the reason. The exit code stays 0. Rewrite those by hand and\nverify with 'kapi voice check'.\n\nText is read from --input-text or stdin and the rewrite is printed. To fix tone,\nstyle, or phrasing in voice, rewrite the text yourself with the voice guide as\ncontext ('kapi voice guide') and apply the edit through 'kapi apply'. kapi does\nnot send content to a model to rewrite it.",
       "flags": [
         {
           "name": "channel",

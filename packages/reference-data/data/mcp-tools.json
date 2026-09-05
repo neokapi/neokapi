@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-02T21:04:44Z",
+  "generatedAt": "2026-09-04T22:06:20Z",
   "tools": [
     {
       "name": "apply_edits",
@@ -1871,7 +1871,7 @@
     },
     {
       "name": "voice_rewrite",
-      "description": "Rewrite text to comply with a voice profile by substituting forbidden/competitor terms (deterministic, offline)",
+      "description": "Rewrite text to comply with a voice profile by substituting forbidden/competitor terms (deterministic, offline). A rule that names no replacement, and a match on an inflected form of a term, are left in place and listed under skipped with the term, its list, severity and reason; rewrite those by hand and verify with voice_check.",
       "surface": "default",
       "params": [
         {

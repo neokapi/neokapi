@@ -36,7 +36,7 @@ func TestSlugify(t *testing.T) {
 
 func TestRuleRewrite(t *testing.T) {
 	text := "We utilize Globex tools to utilize growth."
-	got, changes := RuleRewrite(testProfile(), text)
+	got, changes, skipped := RuleRewrite(testProfile(), text)
 	want := "We use Acme tools to use growth."
 	if got != want {
 		t.Errorf("RuleRewrite = %q, want %q", got, want)
@@ -44,7 +44,10 @@ func TestRuleRewrite(t *testing.T) {
 	if len(changes) != 2 {
 		t.Fatalf("expected 2 changes, got %d: %+v", len(changes), changes)
 	}
-	// Competitor terms apply before forbidden; "utilize" appears twice.
+	if len(skipped) != 0 {
+		t.Errorf("every rule named a replacement, so nothing is skipped: %+v", skipped)
+	}
+	// "utilize" appears twice.
 	var utilize *output.VoiceChange
 	for i := range changes {
 		if changes[i].From == "utilize" {

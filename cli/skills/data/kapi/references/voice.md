@@ -158,6 +158,15 @@ replacements: deterministic, offline, no model. It reads text from
 echo "$DRAFT" | kapi voice rewrite --pack marketing-blog --input-text - --json
 ```
 
+A rule that names no replacement, and a match on a declared inflected form of a
+term, are left in place and reported under `skipped`: one entry per rule with
+`term`, `list` (`forbidden` or `competitor`), `severity`, `scope`, `matched`
+(the spellings in the text), `count` and `reason` (`no_replacement` or
+`inflected_form`). The exit code stays 0. Read `skipped` before trusting an
+unchanged `rewritten`: empty means there was nothing to fix, entries mean
+violations were found and left for you. Rewrite those yourself and verify with
+`kapi voice check`.
+
 It only changes the terms the profile defines; it won't fix tone, style, or
 phrasing. For those, rewrite the text yourself with the voice guide as context
 and apply through `kapi apply`.

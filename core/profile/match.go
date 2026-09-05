@@ -18,6 +18,15 @@ const (
 	VocabCompetitor
 )
 
+// String names the vocabulary list a rule of this kind sits in, as the
+// profile YAML and the change-set entry spell it: "forbidden" or "competitor".
+func (k VocabKind) String() string {
+	if k == VocabCompetitor {
+		return "competitor"
+	}
+	return "forbidden"
+}
+
 // VocabHit is one voice-vocabulary match in a piece of text: which rule matched,
 // at what byte range, and at what severity. It is the shared output of the
 // vocabulary matcher, consumed both by the voice-vocab check tool (which maps
@@ -31,6 +40,7 @@ type VocabHit struct {
 	Replacement string
 	Note        string
 	ConceptID   string // knowledge-graph concept this rule denotes; empty for standalone profiles
+	Scope       string // where the rule applies (TermRule.Scope); empty means everywhere
 	Start       int    // byte offset into the searched text (inclusive)
 	End         int    // byte offset into the searched text (exclusive)
 }
@@ -127,6 +137,7 @@ func MatchTermRules(sets []TermRuleSet, text string) []VocabHit {
 					Replacement: rule.Replacement,
 					Note:        rule.Note,
 					ConceptID:   rule.ConceptID,
+					Scope:       rule.Scope,
 					Start:       h[0],
 					End:         h[1],
 				})
