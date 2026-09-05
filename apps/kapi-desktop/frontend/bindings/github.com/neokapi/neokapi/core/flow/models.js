@@ -181,6 +181,15 @@ export class FlowTrace {
              */
             this["durationUs"] = 0;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * Truncated is set when a TraceLimits budget dropped parts or events: the
+             * trace is the first parts of the run, not the whole of it.
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["truncated"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }

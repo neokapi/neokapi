@@ -560,3 +560,130 @@ func TestSnapshotOverlaysAndAnnotations(t *testing.T) {
 	}
 	assert.Contains(t, keys, model.AnnoNote)
 }
+
+// TestTraceRecorderLimits pins the budget contract: the first MaxParts parts
+// are traced whole, later parts leave no snapshot and no event, MaxEvents cuts
+// the event list, and Truncated says whether anything was dropped.
+func TestTraceRecorderLimits(t *testing.T) {
+	part := func(id string) *model.Part {
+		return &model.Part{Type: model.PartBlock, Resource: model.NewBlock(id, "Text "+id)}
+	}
+
+	t.Run("zero limits are unbounded", func(t *testing.T) {
+		rec := flow.NewTraceRecorder()
+		rec.SetLimits(flow.TraceLimits{})
+		for i := range 50 {
+			p := part(fmt.Sprintf("b%d", i))
+			rec.SnapshotPart(p, "reader", "initial")
+			rec.Record(flow.TraceExit, "reader", p.Resource.ResourceID(), nil)
+		}
+		assert.Len(t, rec.Snapshots(), 50)
+		assert.Len(t, rec.Events(), 50)
+		assert.False(t, rec.Truncated())
+	})
+
+	t.Run("parts past the cap are dropped whole", func(t *testing.T) {
+		rec := flow.NewTraceRecorder()
+		rec.SetLimits(flow.TraceLimits{MaxParts: 2})
+		for _, id := range []string{"b0", "b1", "b2"} {
+			p := part(id)
+			rec.SnapshotPart(p, "reader", "initial")
+			rec.Record(flow.TraceExit, "reader", id, nil)
+			rec.Record(flow.TraceEnter, "tool-0", id, nil)
+			rec.SnapshotPart(p, "tool-0", "tool-0")
+			rec.Record(flow.TraceExit, "tool-0", id, nil)
+		}
+		snaps := rec.Snapshots()
+		require.Len(t, snaps, 2)
+		assert.Contains(t, snaps, "b0")
+		assert.Contains(t, snaps, "b1")
+		assert.NotContains(t, snaps, "b2")
+		assert.Contains(t, snaps["b1"].AfterNode, "tool-0", "an admitted part keeps its per-node snapshots")
+
+		for _, ev := range rec.Events() {
+			assert.NotEqual(t, "b2", ev.PartID, "a dropped part leaves no event either")
+		}
+		assert.Len(t, rec.Events(), 6)
+		assert.True(t, rec.Truncated())
+	})
+
+	t.Run("an admitted part is still traced after the cap is reached", func(t *testing.T) {
+		rec := flow.NewTraceRecorder()
+		rec.SetLimits(flow.TraceLimits{MaxParts: 1})
+		p0, p1 := part("b0"), part("b1")
+		rec.SnapshotPart(p0, "reader", "initial")
+		rec.SnapshotPart(p1, "reader", "initial") // refused: the cap is full
+		rec.Record(flow.TraceEnter, "tool-0", "b0", nil)
+		rec.SnapshotPart(p0, "tool-0", "tool-0")
+		rec.Record(flow.TraceExit, "tool-0", "b0", nil)
+		rec.Record(flow.TraceEnter, "tool-0", "b1", nil)
+
+		require.Len(t, rec.Events(), 2)
+		assert.Contains(t, rec.Snapshots()["b0"].AfterNode, "tool-0")
+		assert.True(t, rec.Truncated())
+	})
+
+	t.Run("a part without an initial snapshot gains none through a tool", func(t *testing.T) {
+		rec := flow.NewTraceRecorder()
+		rec.SetLimits(flow.TraceLimits{MaxParts: 1})
+		rec.SnapshotPart(part("b0"), "reader", "initial")
+		rec.SnapshotPart(part("b1"), "tool-0", "tool-0")
+		assert.NotContains(t, rec.Snapshots(), "b1")
+	})
+
+	t.Run("the event cap cuts the list", func(t *testing.T) {
+		rec := flow.NewTraceRecorder()
+		rec.SetLimits(flow.TraceLimits{MaxEvents: 3})
+		for i := range 5 {
+			rec.Record(flow.TraceEnter, "tool-0", fmt.Sprintf("b%d", i), nil)
+		}
+		assert.Len(t, rec.Events(), 3)
+		assert.True(t, rec.Truncated())
+	})
+
+	t.Run("events with no part are unaffected by the parts cap", func(t *testing.T) {
+		rec := flow.NewTraceRecorder()
+		rec.SetLimits(flow.TraceLimits{MaxParts: 1})
+		rec.SnapshotPart(part("b0"), "reader", "initial")
+		rec.Record(flow.TraceEnter, "writer", "", nil)
+		assert.Len(t, rec.Events(), 1)
+		assert.False(t, rec.Truncated())
+	})
+
+	t.Run("a traced flow under the cap keeps a consistent prefix", func(t *testing.T) {
+		inner := &tool.BaseTool{ToolName: "pass-through"}
+		rec := flow.NewTraceRecorder()
+		rec.SetLimits(flow.TraceLimits{MaxParts: 2})
+		traced := flow.NewTracingTool(inner, "tool-0", rec)
+
+		f, err := flow.NewFlow("test").AddTool(traced).Build()
+		require.NoError(t, err)
+		in, out, wait := flow.NewExecutor().ExecuteWithChannels(t.Context(), f)
+		go func() {
+			for i := range 5 {
+				p := part(fmt.Sprintf("b%d", i))
+				rec.SnapshotPart(p, "reader", "initial")
+				in <- p
+			}
+			close(in)
+		}()
+		var n int
+		for range out {
+			n++
+		}
+		require.NoError(t, wait())
+		assert.Equal(t, 5, n, "the budget shapes the trace, never the flow")
+
+		snaps := rec.Snapshots()
+		require.Len(t, snaps, 2)
+		for id, ss := range snaps {
+			assert.Contains(t, ss.AfterNode, "tool-0", "%s: an admitted part is snapshotted after the tool", id)
+		}
+		events := rec.Events()
+		assert.Len(t, events, 4, "enter + exit for each of the two admitted parts")
+		for _, ev := range events {
+			assert.Contains(t, snaps, ev.PartID)
+		}
+		assert.True(t, rec.Truncated())
+	})
+}

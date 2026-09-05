@@ -27,6 +27,8 @@ export interface RunEvent {
     | "converge_event";
   flow_id: string;
   message?: string;
+  /** The locale pass of a state, progress or trace event; absent on a source-only pass. */
+  locale?: string;
   file_index?: number;
   file_count?: number;
   file_path?: string;

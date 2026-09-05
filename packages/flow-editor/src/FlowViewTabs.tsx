@@ -48,6 +48,8 @@ export interface FlowViewTabsProps {
   traceEvents?: TraceEvent[];
   /** Called when the reader dismisses the loaded run. */
   onTraceDismiss?: () => void;
+  /** Rendered at the end of the view bar while the Run view is active: a host's file picker, say. */
+  runControls?: ReactNode;
   /** The view to show; omit to let the switch keep its own state. */
   view?: FlowView;
   /** The initial view when uncontrolled (default "steps"). */
@@ -75,6 +77,7 @@ export function FlowViewTabs({
   trace,
   traceEvents,
   onTraceDismiss,
+  runControls,
   view,
   defaultView = "steps",
   onViewChange,
@@ -103,7 +106,7 @@ export function FlowViewTabs({
 
   return (
     <div className="flex h-full min-h-0 flex-col" data-testid="flow-view-tabs">
-      <div className="flex shrink-0 items-center border-b px-4 py-1.5">
+      <div className="flex shrink-0 items-center gap-3 border-b px-4 py-1.5">
         <ViewTabGroup aria-label={t("Flow view")}>
           <ViewTab
             active={active === "steps"}
@@ -129,6 +132,11 @@ export function FlowViewTabs({
             </ViewTab>
           )}
         </ViewTabGroup>
+        {active === "run" && runControls !== undefined && (
+          <div className="ml-auto flex min-w-0 items-center" data-testid="flow-view-run-controls">
+            {runControls}
+          </div>
+        )}
       </div>
       <div className="min-h-0 flex-1">
         {active === "steps" && (

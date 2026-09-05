@@ -148,22 +148,6 @@ the next extract, so the strings of a component nobody can reach never get
 translated and compiled. Per-locale targets kapi writes under a subdirectory
 (`i18n/<lang>/`) are left alone.
 
-Re-running the extract keeps the translations that still apply. A block is
-matched to its previous extraction by content hash, which covers its source
-runs and its element, so:
-
-- A block whose text and element are unchanged keeps every target it had, with
-  the provenance kapi stamped on each. Its position in the file may move.
-- A block whose text or element changed has a new hash and is written with no
-  target, so the next translate pass picks it up (`--skip-matched` skips the
-  blocks that still carry one).
-- A block that was removed takes its targets with it; a catalog that is
-  removed takes all of them.
-
-That holds for both layouts: targets kapi wrote into the same catalog in place
-(step 3 below), and targets it wrote under `i18n/<lang>/`, which the extract
-never rewrites.
-
 ### 3. Translate (or pseudo-translate for testing)
 
 Kapi reads the KBF directory directly; every command appends or

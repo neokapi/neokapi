@@ -105,6 +105,9 @@ type FlowTrace struct {
 	InputFile   TraceFile                   `json:"inputFile"`
 	OutputFile  TraceFile                   `json:"outputFile"`
 	DurationUs  int64                       `json:"durationUs"`
+	// Truncated is set when a TraceLimits budget dropped parts or events: the
+	// trace is the first parts of the run, not the whole of it.
+	Truncated bool `json:"truncated,omitempty"`
 }
 
 // TraceNode describes a node in the flow graph.
@@ -122,12 +125,28 @@ type TraceFile struct {
 	Preview string `json:"preview"`
 }
 
+// TraceLimits bounds what a TraceRecorder retains, so tracing a large
+// document costs a fixed amount of memory rather than one proportional to the
+// document. A zero field is unbounded.
+type TraceLimits struct {
+	// MaxParts is the number of parts the recorder snapshots. The first
+	// MaxParts parts to reach it are traced in full (initial snapshot, every
+	// per-node snapshot, every event); a later part is dropped entirely, so
+	// the trace is a consistent prefix of the run rather than a sample of it.
+	MaxParts int
+	// MaxEvents caps the event list.
+	MaxEvents int
+}
+
 // TraceRecorder is a thread-safe event collector for flow tracing.
 type TraceRecorder struct {
 	mu        sync.Mutex
 	start     time.Time
 	events    []TraceEvent
 	snapshots map[string]*PartSnapshotSet
+	limits    TraceLimits
+	admitted  int // parts admitted under limits.MaxParts
+	truncated bool
 }
 
 // NewTraceRecorder creates a new TraceRecorder with the clock starting now.
@@ -139,10 +158,29 @@ func NewTraceRecorder() *TraceRecorder {
 	}
 }
 
+// SetLimits bounds the recorder. Set it before recording starts: a limit
+// applies to what is recorded after it, never to what is already held.
+func (r *TraceRecorder) SetLimits(l TraceLimits) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.limits = l
+}
+
+// Truncated reports whether a limit dropped an event or a part.
+func (r *TraceRecorder) Truncated() bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.truncated
+}
+
 // Record adds a timestamped event to the trace.
 func (r *TraceRecorder) Record(eventType TraceEventType, nodeID string, partID string, meta map[string]any) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if !r.admitEventLocked(partID) {
+		r.truncated = true
+		return
+	}
 	r.events = append(r.events, TraceEvent{
 		TS:     time.Since(r.start).Microseconds(),
 		Type:   eventType,
@@ -150,6 +188,46 @@ func (r *TraceRecorder) Record(eventType TraceEventType, nodeID string, partID s
 		PartID: partID,
 		Meta:   meta,
 	})
+}
+
+// admitEventLocked decides whether an event is recorded: the event cap
+// refuses everything past it, and once the parts cap is reached an event of a
+// part that was never snapshotted is refused too, so a capped trace holds
+// whole parts rather than events with nothing to inspect.
+func (r *TraceRecorder) admitEventLocked(partID string) bool {
+	if r.limits.MaxEvents > 0 && len(r.events) >= r.limits.MaxEvents {
+		return false
+	}
+	if partID != "" && r.partsFullLocked() {
+		_, ok := r.snapshots[partID]
+		return ok
+	}
+	return true
+}
+
+// partsFullLocked reports whether the parts cap has been reached.
+func (r *TraceRecorder) partsFullLocked() bool {
+	return r.limits.MaxParts > 0 && r.admitted >= r.limits.MaxParts
+}
+
+// admitSnapshotLocked decides whether a snapshot is taken. An initial
+// snapshot admits a new part while the parts cap allows; a later snapshot
+// attaches only to a part that has an initial one, which is also what keeps
+// a dropped part from acquiring state through a tool.
+func (r *TraceRecorder) admitSnapshotLocked(id, phase string) bool {
+	_, known := r.snapshots[id]
+	if phase != "initial" {
+		return known
+	}
+	if known {
+		return true
+	}
+	if r.partsFullLocked() {
+		r.truncated = true
+		return false
+	}
+	r.admitted++
+	return true
 }
 
 // SnapshotPart captures a snapshot of a Part. When phase is "initial", the
@@ -160,10 +238,19 @@ func (r *TraceRecorder) SnapshotPart(part *model.Part, nodeID string, phase stri
 	if part == nil || part.Resource == nil {
 		return
 	}
+	id := part.Resource.ResourceID()
+	// Admission is decided before the snapshot is built, so a part past the
+	// cap costs a map lookup and no copying, and the lock is not held across
+	// the copy.
+	r.mu.Lock()
+	admit := r.admitSnapshotLocked(id, phase)
+	r.mu.Unlock()
+	if !admit {
+		return
+	}
 	snap := snapshotFromPart(part)
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	id := part.Resource.ResourceID()
 	if phase == "initial" {
 		r.snapshots[id] = &PartSnapshotSet{
 			Initial:   snap,

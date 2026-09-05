@@ -63,6 +63,8 @@ export interface FlowTrace {
   events: TraceEvent[];
   parts: Record<string, PartSnapshotSet>;
   durationUs: number;
+  /** Set when a recording budget dropped parts: the trace is the first parts of the run. */
+  truncated?: boolean;
 }
 
 export interface TraceNode {

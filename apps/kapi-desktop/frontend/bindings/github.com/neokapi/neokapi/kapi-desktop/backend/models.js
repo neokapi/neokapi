@@ -6575,7 +6575,7 @@ export class RunEvent {
     constructor($$source = {}) {
         if (!("type" in $$source)) {
             /**
-             * "state", "progress", "trace", "error", "complete"
+             * "state", "progress", "trace", "pipeline_metrics", "error", "complete", "converge_event"
              * @member
              * @type {string}
              */
@@ -6597,6 +6597,15 @@ export class RunEvent {
         }
         if (/** @type {any} */(false)) {
             /**
+             * Locale is the locale pass the event belongs to (state, progress and
+             * trace events of a multi-locale run); empty on a source-only pass.
+             * @member
+             * @type {string | undefined}
+             */
+            this["locale"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * Error carries the failure as structure (when type == "error"): a
              * headline, the remediation as actions, the affected file/locale, and the
              * raw chain for a details disclosure. Message stays populated with the raw
@@ -6608,7 +6617,9 @@ export class RunEvent {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Progress fields
+             * Progress fields. A "trace" event names in FilePath the input file whose
+             * recording the run has just retained; GetLastTrace(FilePath, Locale)
+             * returns it and ListRunTraces lists every file that has one.
              * @member
              * @type {number | undefined}
              */
@@ -6627,14 +6638,6 @@ export class RunEvent {
              * @type {string | undefined}
              */
             this["file_path"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * Trace event (when type == "trace")
-             * @member
-             * @type {flow$0.TraceEvent | null | undefined}
-             */
-            this["trace_event"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -6690,17 +6693,13 @@ export class RunEvent {
      * @returns {RunEvent}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType109;
-        const $$createField7_0 = $$createType110;
-        const $$createField8_0 = $$createType112;
-        const $$createField11_0 = $$createType114;
-        const $$createField12_0 = $$createType116;
+        const $$createField4_0 = $$createType109;
+        const $$createField8_0 = $$createType111;
+        const $$createField11_0 = $$createType113;
+        const $$createField12_0 = $$createType115;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("error" in $$parsedSource) {
-            $$parsedSource["error"] = $$createField3_0($$parsedSource["error"]);
-        }
-        if ("trace_event" in $$parsedSource) {
-            $$parsedSource["trace_event"] = $$createField7_0($$parsedSource["trace_event"]);
+            $$parsedSource["error"] = $$createField4_0($$parsedSource["error"]);
         }
         if ("steps" in $$parsedSource) {
             $$parsedSource["steps"] = $$createField8_0($$parsedSource["steps"]);
@@ -6712,6 +6711,123 @@ export class RunEvent {
             $$parsedSource["converge_result"] = $$createField12_0($$parsedSource["converge_result"]);
         }
         return new RunEvent(/** @type {Partial<RunEvent>} */($$parsedSource));
+    }
+}
+
+/**
+ * RunTraceFile identifies one retained trace: the input file and locale pass
+ * it recorded, and whether the recording budget cut it short.
+ */
+export class RunTraceFile {
+    /**
+     * Creates a new RunTraceFile instance.
+     * @param {Partial<RunTraceFile>} [$$source = {}] - The source object to create the RunTraceFile.
+     */
+    constructor($$source = {}) {
+        if (!("file_path" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["file_path"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["locale"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["output_path"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["truncated"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new RunTraceFile instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {RunTraceFile}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new RunTraceFile(/** @type {Partial<RunTraceFile>} */($$parsedSource));
+    }
+}
+
+/**
+ * RunTraces is the last run's replayable record: the flow that ran, the steps
+ * it ran with (so a reader can tell a trace from an edited flow apart), and
+ * the files whose traces the desktop kept, in completion order.
+ */
+export class RunTraces {
+    /**
+     * Creates a new RunTraces instance.
+     * @param {Partial<RunTraces>} [$$source = {}] - The source object to create the RunTraces.
+     */
+    constructor($$source = {}) {
+        if (!("flow_name" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["flow_name"] = "";
+        }
+        if (!("steps" in $$source)) {
+            /**
+             * @member
+             * @type {flow$0.FlowStep[]}
+             */
+            this["steps"] = [];
+        }
+        if (!("files" in $$source)) {
+            /**
+             * @member
+             * @type {RunTraceFile[]}
+             */
+            this["files"] = [];
+        }
+        if (!("max_parts" in $$source)) {
+            /**
+             * MaxParts is the recording budget each trace was kept under: a truncated
+             * trace holds the first MaxParts parts of its file.
+             * @member
+             * @type {number}
+             */
+            this["max_parts"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new RunTraces instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {RunTraces}
+     */
+    static createFrom($$source = {}) {
+        const $$createField1_0 = $$createType117;
+        const $$createField2_0 = $$createType119;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("steps" in $$parsedSource) {
+            $$parsedSource["steps"] = $$createField1_0($$parsedSource["steps"]);
+        }
+        if ("files" in $$parsedSource) {
+            $$parsedSource["files"] = $$createField2_0($$parsedSource["files"]);
+        }
+        return new RunTraces(/** @type {Partial<RunTraces>} */($$parsedSource));
     }
 }
 
@@ -6829,7 +6945,7 @@ export class SaveUserFlowRequest {
      * @returns {SaveUserFlowRequest}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType118;
+        const $$createField3_0 = $$createType117;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("steps" in $$parsedSource) {
             $$parsedSource["steps"] = $$createField3_0($$parsedSource["steps"]);
@@ -7317,8 +7433,8 @@ export class ToolInfo {
     static createFrom($$source = {}) {
         const $$createField6_0 = $$createType6;
         const $$createField7_0 = $$createType6;
-        const $$createField10_0 = $$createType120;
-        const $$createField11_0 = $$createType120;
+        const $$createField10_0 = $$createType121;
+        const $$createField11_0 = $$createType121;
         const $$createField12_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("tags" in $$parsedSource) {
@@ -7532,7 +7648,7 @@ export class UserFlowDetail {
      * @returns {UserFlowDetail}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType118;
+        const $$createField4_0 = $$createType117;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("steps" in $$parsedSource) {
             $$parsedSource["steps"] = $$createField4_0($$parsedSource["steps"]);
@@ -7712,7 +7828,7 @@ export class VariantDTO {
      * @returns {VariantDTO}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType121;
+        const $$createField2_0 = $$createType122;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("runs" in $$parsedSource) {
             $$parsedSource["runs"] = $$createField2_0($$parsedSource["runs"]);
@@ -7756,7 +7872,7 @@ export class VariantInputDTO {
      * @returns {VariantInputDTO}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType121;
+        const $$createField1_0 = $$createType122;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("runs" in $$parsedSource) {
             $$parsedSource["runs"] = $$createField1_0($$parsedSource["runs"]);
@@ -8119,12 +8235,12 @@ export class VoicePointDTO {
         const $$createField2_0 = $$createType13;
         const $$createField3_0 = $$createType6;
         const $$createField4_0 = $$createType6;
-        const $$createField7_0 = $$createType123;
-        const $$createField9_0 = $$createType125;
+        const $$createField7_0 = $$createType124;
+        const $$createField9_0 = $$createType126;
         const $$createField11_0 = $$createType89;
         const $$createField12_0 = $$createType91;
         const $$createField13_0 = $$createType6;
-        const $$createField14_0 = $$createType126;
+        const $$createField14_0 = $$createType127;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("point" in $$parsedSource) {
             $$parsedSource["point"] = $$createField0_0($$parsedSource["point"]);
@@ -8288,8 +8404,8 @@ export class VoiceSaveResult {
      * @returns {VoiceSaveResult}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType128;
-        const $$createField5_0 = $$createType130;
+        const $$createField3_0 = $$createType129;
+        const $$createField5_0 = $$createType131;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("problems" in $$parsedSource) {
             $$parsedSource["problems"] = $$createField3_0($$parsedSource["problems"]);
@@ -8459,24 +8575,25 @@ const $$createType106 = RunErrorAction.createFrom;
 const $$createType107 = $Create.Array($$createType106);
 const $$createType108 = RunError.createFrom;
 const $$createType109 = $Create.Nullable($$createType108);
-const $$createType110 = $Create.Nullable($$createType81);
-const $$createType111 = flow$0.StepSnapshot.createFrom;
-const $$createType112 = $Create.Array($$createType111);
-const $$createType113 = convergence$0.Event.createFrom;
-const $$createType114 = $Create.Nullable($$createType113);
-const $$createType115 = host$0.ConvergeOutput.createFrom;
-const $$createType116 = $Create.Nullable($$createType115);
-const $$createType117 = flow$0.FlowStep.createFrom;
-const $$createType118 = $Create.Array($$createType117);
-const $$createType119 = IOPort.createFrom;
-const $$createType120 = $Create.Array($$createType119);
-const $$createType121 = $Create.Array($Create.Any);
-const $$createType122 = VoiceBindingDTO.createFrom;
-const $$createType123 = $Create.Nullable($$createType122);
-const $$createType124 = profile$0.VoiceProfile.createFrom;
-const $$createType125 = $Create.Nullable($$createType124);
-const $$createType126 = VoiceEditTargetDTO.createFrom;
-const $$createType127 = profile$0.ProfileProblem.createFrom;
-const $$createType128 = $Create.Array($$createType127);
-const $$createType129 = VoicePointerDTO.createFrom;
-const $$createType130 = $Create.Nullable($$createType129);
+const $$createType110 = flow$0.StepSnapshot.createFrom;
+const $$createType111 = $Create.Array($$createType110);
+const $$createType112 = convergence$0.Event.createFrom;
+const $$createType113 = $Create.Nullable($$createType112);
+const $$createType114 = host$0.ConvergeOutput.createFrom;
+const $$createType115 = $Create.Nullable($$createType114);
+const $$createType116 = flow$0.FlowStep.createFrom;
+const $$createType117 = $Create.Array($$createType116);
+const $$createType118 = RunTraceFile.createFrom;
+const $$createType119 = $Create.Array($$createType118);
+const $$createType120 = IOPort.createFrom;
+const $$createType121 = $Create.Array($$createType120);
+const $$createType122 = $Create.Array($Create.Any);
+const $$createType123 = VoiceBindingDTO.createFrom;
+const $$createType124 = $Create.Nullable($$createType123);
+const $$createType125 = profile$0.VoiceProfile.createFrom;
+const $$createType126 = $Create.Nullable($$createType125);
+const $$createType127 = VoiceEditTargetDTO.createFrom;
+const $$createType128 = profile$0.ProfileProblem.createFrom;
+const $$createType129 = $Create.Array($$createType128);
+const $$createType130 = VoicePointerDTO.createFrom;
+const $$createType131 = $Create.Nullable($$createType130);

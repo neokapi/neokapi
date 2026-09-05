@@ -108,6 +108,8 @@ export {
     RunErrorActionKind,
     RunErrorKind,
     RunEvent,
+    RunTraceFile,
+    RunTraces,
     SampleInfo,
     SaveUserFlowRequest,
     SessionState,

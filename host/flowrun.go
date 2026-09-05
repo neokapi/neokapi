@@ -35,6 +35,10 @@ const (
 	// FlowEventFileDone reports one written output file (FilePath in,
 	// OutputPath out) so a UI can refresh its file listings.
 	FlowEventFileDone = "file_done"
+	// FlowEventFileTrace carries the recorded trace of one completed file
+	// (Trace, with FilePath, OutputPath and Locale), following that file's
+	// FlowEventFileDone. Only a run with FlowRunOptions.Trace set emits it.
+	FlowEventFileTrace = "file_trace"
 	// FlowEventComplete closes the stream with totals (DurationMs,
 	// FilesProcessed, Message).
 	FlowEventComplete = "complete"
@@ -59,6 +63,9 @@ type FlowRunEvent struct {
 
 	// Pipeline metrics snapshot (FlowEventPipelineMetrics).
 	Steps []flow.StepSnapshot `json:"steps,omitempty"`
+
+	// Trace is the completed file's recording (FlowEventFileTrace).
+	Trace *flow.FlowTrace `json:"trace,omitempty"`
 
 	// Run totals (FlowEventComplete).
 	DurationMs     int64 `json:"duration_ms,omitempty"`
@@ -93,6 +100,11 @@ type FlowRunOptions struct {
 	// MetricsInterval throttles the pipeline-metrics snapshots; <= 0 uses the
 	// 200ms default. Snapshots are only produced when a sink is set.
 	MetricsInterval time.Duration
+	// Trace records each completed file's run (part snapshots at every step,
+	// enter/exit events) and delivers it on the sink as a FlowEventFileTrace,
+	// under TraceLimits. Nothing is recorded without a sink.
+	Trace       bool
+	TraceLimits flow.TraceLimits
 }
 
 // FlowRunResult is the structured outcome of a completed run.
@@ -412,18 +424,30 @@ func (a *App) RunFlowAllLocales(ctx context.Context, opts FlowRunOptions, sink R
 			// both the format and the format.config the run must read it under,
 			// exactly as every other derivation over the project resolves them.
 			item := a.projectItemFor(inputPath)
+			detectFormat := func(path string) registry.FormatID {
+				if declared := itemFormatName(item); declared != "" {
+					return registry.FormatID(declared)
+				}
+				return registry.FormatID(pctx.DetectFormat(a.FormatReg, path))
+			}
+			// A traced run records each file on a recorder of its own through
+			// a chain wrapped for that file: the pass's chain is shared by every
+			// file, and a wrapper bound to one file's recorder must not outlive
+			// it.
+			fileTools := tools
+			var recorder *flow.TraceRecorder
+			if opts.Trace && sink != nil {
+				recorder = flow.NewTraceRecorder()
+				recorder.SetLimits(opts.TraceLimits)
+				fileTools = wrapWithTracing(tools, recorder)
+			}
 			runner := flow.NewFileRunner(flow.FileRunnerConfig{
 				FormatReg:    a.FormatReg,
 				SourceLocale: pctx.SourceLocale,
 				Encoding:     pctx.Encoding,
 				Store:        projStore,
 				ProjectRoot:  pctx.ProjectDir,
-				DetectFormat: func(path string) registry.FormatID {
-					if declared := itemFormatName(item); declared != "" {
-						return registry.FormatID(declared)
-					}
-					return registry.FormatID(pctx.DetectFormat(a.FormatReg, path))
-				},
+				DetectFormat: detectFormat,
 				ConfigureReader: func(reader format.DataFormatReader, fmtName registry.FormatID) error {
 					return pctx.ConfigureReaderFor(reader, string(fmtName), item)
 				},
@@ -431,8 +455,9 @@ func (a *App) RunFlowAllLocales(ctx context.Context, opts FlowRunOptions, sink R
 					return pctx.ConfigureWriterFor(writer, string(fmtName), item)
 				},
 				SeedBlockState: seedSourceState,
+				Recorder:       recorder,
 			})
-			if err := runner.RunFile(ctx, opts.FlowName, tools, inputPath, outputPath, lang); err != nil {
+			if err := runner.RunFile(ctx, opts.FlowName, fileTools, inputPath, outputPath, lang); err != nil {
 				// Final metrics snapshot so a UI preserves counts at failure.
 				emit(FlowRunEvent{Type: FlowEventPipelineMetrics, Steps: metrics.Snapshot()})
 				return &flowFileError{Path: inputPath, Locale: lang, Err: err}
@@ -443,6 +468,13 @@ func (a *App) RunFlowAllLocales(ctx context.Context, opts FlowRunOptions, sink R
 				Type: FlowEventFileDone, Locale: lang,
 				FilePath: inputPath, OutputPath: outputPath,
 			})
+			if recorder != nil {
+				emit(FlowRunEvent{
+					Type: FlowEventFileTrace, Locale: lang,
+					FilePath: inputPath, OutputPath: outputPath,
+					Trace: newFlowTrace(opts.FlowName, string(detectFormat(inputPath)), inputPath, outputPath, recorder, stepNames),
+				})
+			}
 		}
 		return nil
 	}

@@ -44,7 +44,9 @@ import type {
   PreReviewResult,
   AdoptFlowResult,
   ProjectHandles,
+  RunTraces,
 } from "../types/api";
+import type { FlowTrace } from "@neokapi/flow-editor";
 
 type Backend = Record<string, (...args: unknown[]) => Promise<unknown>>;
 
@@ -575,7 +577,14 @@ export const api = {
   ) => call<unknown>("PreviewFlow", tabID, flowName, sampleText, sourceLang, targetLang),
 
   // Trace
-  getLastTrace: () => call<unknown>("GetLastTrace"),
+  /** The last run's retained traces (null before any run). */
+  listRunTraces: () => call<RunTraces>("ListRunTraces"),
+  /**
+   * A trace retained from the last run: the last completed file's with no
+   * arguments, else the named input file's (its newest locale pass unless one
+   * is given). Null when nothing retained matches.
+   */
+  getLastTrace: (filePath = "", locale = "") => call<FlowTrace>("GetLastTrace", filePath, locale),
 
   // Outputs — generated target files per source file in a content collection.
   listOutputs: (tabID: string) => call<Record<string, OutputFileInfo[]>>("ListOutputs", tabID),
