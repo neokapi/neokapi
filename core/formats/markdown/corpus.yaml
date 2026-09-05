@@ -35,7 +35,7 @@ entries:
     size: 50
     license: Apache-2.0
     redistributable: true
-    notes: own-created fuzz reproducer for #2434 (blockquote with a lazy continuation line rebuilt without its marker)
+    notes: own-created fuzz reproducer for
   - path: core/formats/markdown/testdata/fuzz/FuzzRoundTripMarkdown/setext_multiline_heading
     tier: A
     origin: bug
@@ -76,6 +76,14 @@ entries:
     license: Apache-2.0
     redistributable: true
     notes: own-created repo fixture
+  - path: core/formats/markdown/testdata/soft-break-whitespace.md
+    tier: A
+    origin: bug
+    sha256: c0c14e3273659a15eed0b0cf8990c2de2c2a18a17211b12fe525b0d751134abb
+    size: 461
+    license: Apache-2.0
+    redistributable: true
+    notes: own-created fixture for #2431 (CRLF and tab soft breaks on the skeleton path)
   - path: core/formats/markdown/testdata/structure.md
     tier: A
     origin: vendored

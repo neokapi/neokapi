@@ -227,6 +227,11 @@ func FuzzRoundTripMarkdown(f *testing.F) {
 	// it back without its opening marker and it split into a paragraph plus a
 	// quote. The fuzz reproducer is also committed under testdata/fuzz.
 	f.Add([]byte("> a\nb\n> c"))
+	// #2431: a soft break keeps the trailing whitespace or carriage return
+	// before its newline, so the rebuilt block carries those bytes too.
+	f.Add([]byte("a\t\nb"))
+	f.Add([]byte("a\r\nb\r\n"))
+	f.Add([]byte("> a \r\n> b"))
 	seedDamagedMarkdown(f)
 
 	f.Fuzz(func(t *testing.T, data []byte) {

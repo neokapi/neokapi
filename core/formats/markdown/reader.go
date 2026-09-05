@@ -810,20 +810,32 @@ func nodeAbsRange(node ast.Node, source []byte, baseOffset int) (int, int) {
 	return s + baseOffset, e + baseOffset
 }
 
-// softBreakContinuation returns the literal source bytes that bridge
-// two inline runs across a soft line break: a leading newline plus any
-// blockquote (`>` / `> `) or indentation prefix that introduces the
-// continuation line. This preserves okapi-parity for paragraphs and
-// blockquotes whose hard wraps must round-trip verbatim — okapi's
-// MarkdownFilter keeps the literal `\n` (and continuation marker)
-// rather than collapsing per CommonMark §6.7. Falls back to a single
-// space when the source slice doesn't begin with a newline (defensive
-// — should not happen for valid SoftLineBreak Text nodes).
+// softBreakContinuation returns the literal source bytes that bridge two
+// inline runs across a soft line break: the whitespace the line ends in, the
+// newline, and any blockquote (`>` / `> `) or indentation prefix that
+// introduces the continuation line. This preserves okapi-parity for
+// paragraphs and blockquotes whose hard wraps must round-trip verbatim:
+// okapi's MarkdownFilter keeps the literal `\n` (and continuation marker)
+// rather than collapsing per CommonMark 6.7.
+//
+// pos is where the parser's text stops, which is before a single trailing
+// space or tab and before the carriage return of a CRLF line ending; those
+// bytes are part of the break and are kept, or a Windows-authored page and
+// any wrapped line with trailing whitespace came back with the break
+// collapsed to a space (#2431). Falls back to a single space when no
+// newline follows (defensive; a SoftLineBreak Text node always has one).
 func softBreakContinuation(source []byte, pos int) string {
-	if pos < 0 || pos >= len(source) || source[pos] != '\n' {
+	if pos < 0 || pos > len(source) {
 		return " "
 	}
-	end := pos + 1
+	nl := pos
+	for nl < len(source) && (source[nl] == ' ' || source[nl] == '\t' || source[nl] == '\r') {
+		nl++
+	}
+	if nl >= len(source) || source[nl] != '\n' {
+		return " "
+	}
+	end := nl + 1
 	for end < len(source) {
 		c := source[end]
 		switch c {

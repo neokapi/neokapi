@@ -141,6 +141,14 @@ func TestKnownRoundTripDivergences(t *testing.T) {
 		// its own, which re-read as a second, empty heading.
 		{name: "ATX heading with a closing sequence", src: "# Title #\n\nBody.\n"},
 		{name: "ATX heading with a closing sequence and trailing whitespace", src: "## Title ##   \n\nBody.\n"},
+		// A soft break after a trailing space or tab, or a CRLF soft break,
+		// used to collapse to one space, which cost a Windows-authored page
+		// every wrapped paragraph.
+		{name: "soft break after a trailing space", src: "One line \nnext line.\n"},
+		{name: "soft break after a trailing tab", src: "One line\t\nnext line.\n"},
+		{name: "CRLF soft break", src: "One line\r\nnext line.\r\n"},
+		{name: "CRLF soft break in a blockquote", src: "> One line\r\n> next line.\r\n"},
+		{name: "CRLF soft break in a list item", src: "- One line\r\n  next line.\r\n"},
 	}
 
 	for _, tc := range tests {
