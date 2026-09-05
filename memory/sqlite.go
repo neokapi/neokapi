@@ -432,6 +432,7 @@ func (s *bulkStmts) addEntry(ctx context.Context, entry *Entry, stream string) e
 	if len(entry.Variants) == 0 {
 		return ErrEntryNoVariants
 	}
+	NormalizeEntryLocales(entry)
 
 	now := time.Now()
 	if entry.CreatedAt.IsZero() {
@@ -576,6 +577,7 @@ func (tm *SQLiteStore) addInTx(ctx context.Context, tx *sql.Tx, entry Entry, str
 	if len(entry.Variants) == 0 {
 		return ErrEntryNoVariants
 	}
+	NormalizeEntryLocales(&entry)
 
 	now := time.Now()
 	if entry.CreatedAt.IsZero() {
@@ -1298,6 +1300,7 @@ func (tm *SQLiteStore) FullScoreEntries(ctx context.Context, runs []model.Run, s
 	if len(runs) == 0 {
 		return nil, nil
 	}
+	sourceLocale = model.NormalizeLocale(sourceLocale)
 	plainKey := NormalizeText(model.FlattenRuns(runs))
 	structKey := NormalizeText(model.RunsStructuralText(runs))
 	generalKey := NormalizeText(model.RunsGeneralizedText(runs))
@@ -1384,6 +1387,7 @@ func (tm *SQLiteStore) SearchEntriesForStream(ctx context.Context, params Search
 // entries in a deterministic order (FTS5 BM25 rank when query is set,
 // updated_at DESC otherwise), with stream priority applied when provided.
 func (tm *SQLiteStore) searchInternal(ctx context.Context, params SearchParams) ([]Entry, int, error) {
+	params = NormalizeSearchLocales(params)
 	query := params.Query
 	anyLocale := params.AnyLocale
 	requireLocale := params.RequireLocale
@@ -1580,6 +1584,7 @@ func (tm *SQLiteStore) FacetStats(ctx context.Context) (FacetData, error) {
 // FacetStatsFiltered returns facet counts scoped to entries matching the
 // given search query and filter.
 func (tm *SQLiteStore) FacetStatsFiltered(ctx context.Context, params SearchParams) (FacetData, error) {
+	params = NormalizeSearchLocales(params)
 	subWhere, subArgs := tm.buildFacetSubquery(params.Query, params.AnyLocale, params.RequireLocale, params.Filter)
 
 	data := FacetData{}

@@ -540,7 +540,7 @@ func (t *AITranslateTool) SessionProcess(
 		return t.processBatchedWithSession(ctx, sess, in, out)
 	}
 
-	overlayKind := "targets/" + string(t.targetLocale)
+	overlayKind := blockstore.TargetOverlayKind(t.targetLocale)
 	caps := sess.Capabilities()
 	for {
 		select {
@@ -640,7 +640,7 @@ func (t *AITranslateTool) processBatchedWithSession(
 	in <-chan *model.Part,
 	out chan<- *model.Part,
 ) error {
-	overlayKind := "targets/" + string(t.targetLocale)
+	overlayKind := blockstore.TargetOverlayKind(t.targetLocale)
 	caps := sess.Capabilities()
 
 	// Filter: split cached vs. needs-translation.

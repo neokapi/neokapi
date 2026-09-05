@@ -93,6 +93,18 @@ when that answer was produced, so an answer absorbed into the corpus keeps the
 statement about what governed it; it is empty for an import, a seed, or a
 producer that ran ungoverned.
 
+The store normalizes the locale beside the text. Every variant key, entity
+value key and lookup locale is held in canonical BCP-47 form
+(`locale.Normalize`, the lenient form of the canonicalization every locale
+crosses at a recipe boundary), on the same write and the same statement that
+normalize the text. An entry written under `nb_NO` and a lookup asking for
+`nb-NO` meet at one row, and `Entry.Variant` answers for either spelling. The
+entry id `kapi apply` mints for a correction, `apply:<source>:<target>:<hash>`,
+embeds both locales in that form, so one pair has one entry whichever way a
+change entry spelled it. A store written before the locale was normalized may
+hold rows under another spelling; `kapi status` and `kapi up` report them and
+name the rebuild, because no lookup will find them again.
+
 ### Derived matching keys
 
 Each variant is indexed under three keys, derived from its run sequence and

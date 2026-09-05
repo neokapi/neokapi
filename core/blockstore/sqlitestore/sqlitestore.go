@@ -317,6 +317,7 @@ func (s *cacheSession) GetOverlay(kind, blockHash string) (blockstore.Overlay, e
 	if s.done {
 		return blockstore.Overlay{}, blockstore.ErrClosed
 	}
+	kind = blockstore.CanonicalOverlayKind(kind)
 	var sc blockstore.Overlay
 	err := s.q().QueryRowContext(s.ctx, `
 		SELECT kind, block_hash, payload, updated_at
@@ -338,6 +339,7 @@ func (s *cacheSession) PutOverlay(sc blockstore.Overlay) error {
 	if sc.Kind == "" || sc.BlockHash == "" {
 		return errors.New("blockstore: overlay needs both Kind and BlockHash")
 	}
+	sc.Kind = blockstore.CanonicalOverlayKind(sc.Kind)
 	if sc.UpdatedAt == 0 {
 		sc.UpdatedAt = time.Now().Unix()
 	}
@@ -355,6 +357,7 @@ func (s *cacheSession) PutOverlay(sc blockstore.Overlay) error {
 }
 
 func (s *cacheSession) ListOverlays(kind string) iter.Seq2[blockstore.Overlay, error] {
+	kind = blockstore.CanonicalOverlayKind(kind)
 	return func(yield func(blockstore.Overlay, error) bool) {
 		if s.done {
 			yield(blockstore.Overlay{}, blockstore.ErrClosed)

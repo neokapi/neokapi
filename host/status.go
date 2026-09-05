@@ -634,6 +634,7 @@ func (a *App) RunStatus(cmd Command, _ []string) error {
 		a.appendServerStatus(cmd, proj, &out)
 		out.Venue = a.statusVenue(proj)
 		a.WarnInertRecipeFields(cmd, proj)
+		a.WarnStoreLocaleDrift(cmd, projectPath)
 		return output.Print(cmd, out)
 	})
 }

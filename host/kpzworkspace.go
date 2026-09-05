@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/blockstore/sqlitestore"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/format"
@@ -407,8 +408,8 @@ func (a *App) InfoKpz(cmd Command, kpzPath string) error {
 		return err
 	}
 	for _, ov := range cached.Overlays {
-		if l, ok := strings.CutPrefix(ov.Kind, "targets/"); ok {
-			info.Overlays[l]++
+		if l, ok := blockstore.TargetOverlayLocale(ov.Kind); ok {
+			info.Overlays[string(l)]++
 		}
 	}
 	return output.Print(cmd, info)

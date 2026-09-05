@@ -60,12 +60,12 @@ func (k *cacheStore) SearchBlockText(ctx context.Context, needle string, opts bl
 		where = append(where, `b.collection = ?`)
 		args = append(args, opts.Collection)
 	}
-	if opts.Locales != nil {
-		if len(opts.Locales) == 0 {
+	if locales := opts.CanonicalLocales(); locales != nil {
+		if len(locales) == 0 {
 			return nil, nil
 		}
-		marks := make([]string, len(opts.Locales))
-		for i, l := range opts.Locales {
+		marks := make([]string, len(locales))
+		for i, l := range locales {
 			marks[i] = "?"
 			args = append(args, l)
 		}

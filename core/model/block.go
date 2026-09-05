@@ -123,7 +123,7 @@ func (b *Block) SetTargetText(locale LocaleID, text string) {
 // SourceLocale, returns the source text; otherwise the target text. Provides
 // uniform access regardless of whether a locale is source or target.
 func (b *Block) Text(locale LocaleID) string {
-	if locale == b.SourceLocale && b.SourceLocale != "" {
+	if b.isSourceLocale(locale) {
 		return b.SourceText()
 	}
 	return b.TargetText(locale)
@@ -132,7 +132,7 @@ func (b *Block) Text(locale LocaleID) string {
 // SetText writes text for a locale. Source if it matches SourceLocale,
 // otherwise a target.
 func (b *Block) SetText(locale LocaleID, text string) {
-	if locale == b.SourceLocale && b.SourceLocale != "" {
+	if b.isSourceLocale(locale) {
 		b.SetSourceText(text)
 		return
 	}
@@ -142,10 +142,17 @@ func (b *Block) SetText(locale LocaleID, text string) {
 // HasLocale reports whether the Block has content for a locale (source or
 // target).
 func (b *Block) HasLocale(locale LocaleID) bool {
-	if locale == b.SourceLocale && b.SourceLocale != "" {
+	if b.isSourceLocale(locale) {
 		return len(b.Source) > 0
 	}
 	return b.HasTarget(locale)
+}
+
+// isSourceLocale reports whether locale names the block's source language,
+// whichever way either side spelled it. A block with no source locale owns no
+// locale as its source.
+func (b *Block) isSourceLocale(locale LocaleID) bool {
+	return b.SourceLocale != "" && NormalizeLocale(locale) == NormalizeLocale(b.SourceLocale)
 }
 
 // WordCount returns the number of words in the source text. Inline codes are
@@ -187,7 +194,7 @@ func (b *Block) SetTargetRuns(locale LocaleID, runs []Run) {
 func (b *Block) Target(locale LocaleID) *Target { return b.Targets[Variant(locale)] }
 
 // TargetVariant returns the committed target for a full variant key, or nil.
-func (b *Block) TargetVariant(key VariantKey) *Target { return b.Targets[key] }
+func (b *Block) TargetVariant(key VariantKey) *Target { return b.Targets[key.Canonical()] }
 
 // StampTargetProvenance records how a locale's committed target was produced —
 // its lifecycle status and origin — without touching its runs. It is a no-op
@@ -209,7 +216,7 @@ func (b *Block) SetTargetVariant(key VariantKey, t *Target) {
 	if b.Targets == nil {
 		b.Targets = make(map[VariantKey]*Target)
 	}
-	b.Targets[key] = t
+	b.Targets[key.Canonical()] = t
 }
 
 // TargetLocales returns the distinct locales that have a committed target.

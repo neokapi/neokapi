@@ -163,6 +163,7 @@ func (tb *SQLiteStore) AddConceptWithStream(ctx context.Context, concept Concept
 	if err := validateConceptTermStatuses(concept); err != nil {
 		return err
 	}
+	concept = NormalizedConcept(concept)
 
 	now := time.Now()
 	if concept.CreatedAt.IsZero() {
@@ -453,6 +454,7 @@ func (tb *SQLiteStore) LookupAll(ctx context.Context, sourceText string, opts Lo
 
 // Search performs a ranked full-text search across concepts and terms.
 func (tb *SQLiteStore) Search(ctx context.Context, query string, sourceLocale, targetLocale model.LocaleID, offset, limit int) ([]Concept, int, error) {
+	sourceLocale, targetLocale = model.NormalizeLocale(sourceLocale), model.NormalizeLocale(targetLocale)
 	if query != "" {
 		concepts, total, err := tb.searchFTS5(ctx, query, sourceLocale, targetLocale, offset, limit)
 		if err == nil {
@@ -561,6 +563,7 @@ func (tb *SQLiteStore) searchLike(ctx context.Context, query string, sourceLocal
 
 // SearchForStream performs a ranked full-text search with stream inheritance.
 func (tb *SQLiteStore) SearchForStream(ctx context.Context, query string, sourceLocale, targetLocale model.LocaleID, stream string, streamChain []string, offset, limit int) ([]Concept, int, error) {
+	sourceLocale, targetLocale = model.NormalizeLocale(sourceLocale), model.NormalizeLocale(targetLocale)
 	if query != "" {
 		concepts, total, err := tb.searchFTS5ForStream(ctx, query, sourceLocale, targetLocale, stream, streamChain, offset, limit)
 		if err == nil {

@@ -266,7 +266,7 @@ func (p *producedOrigins) at(u VerifyUnit, b *model.Block, locale model.LocaleID
 	// namespace plus the file-local block id (blockstore.StoreKey), which is
 	// what core/flow's runner tags each file's context with.
 	key := blockstore.StoreKey(blockstore.SourceNamespace(p.root, u.SourcePath), b.ID, b.SourceText())
-	o, err := sess.GetOverlay("targets/"+string(locale), key)
+	o, err := sess.GetOverlay(blockstore.TargetOverlayKind(locale), key)
 	if err != nil || len(o.Payload) == 0 {
 		return model.Origin{}, false
 	}

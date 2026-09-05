@@ -46,6 +46,10 @@ func TieredLookup(
 	opts LookupOptions,
 	src CandidateSource,
 ) ([]Match, error) {
+	// The candidate queries key on the variant rows, which the write path stores
+	// under canonical locales; the lookup asks in the same form.
+	sourceLocale = model.NormalizeLocale(sourceLocale)
+	targetLocale = model.NormalizeLocale(targetLocale)
 	var matches []Match
 	seen := make(map[string]bool)
 	modeEnabled := MatchModesEnabled(opts.MatchModes)

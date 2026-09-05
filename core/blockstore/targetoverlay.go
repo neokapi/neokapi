@@ -1,12 +1,56 @@
 package blockstore
 
 import (
+	"strings"
+
 	"github.com/neokapi/neokapi/core/model"
 )
 
+// targetOverlayPrefix is the namespace of the committed-translation overlays;
+// the sub-key is the variant, a locale in the common case (model.VariantKey).
+const targetOverlayPrefix = "targets/"
+
 // TargetOverlayKind names the overlay a locale's committed translations live
-// under.
-func TargetOverlayKind(locale model.LocaleID) string { return "targets/" + string(locale) }
+// under. The locale is written in canonical form (model.NormalizeLocale), so
+// every writer and every reader spell one locale's kind one way, whichever
+// spelling they were handed.
+func TargetOverlayKind(locale model.LocaleID) string {
+	return targetOverlayPrefix + string(model.NormalizeLocale(locale))
+}
+
+// CanonicalOverlayKind returns kind with the locale of a `targets/<variant>`
+// kind in canonical form, and any other kind unchanged. The stores apply it to
+// every overlay they write, read or list, so a kind built from a locale spelled
+// another way still addresses the row the producers wrote.
+func CanonicalOverlayKind(kind string) string {
+	sub, ok := strings.CutPrefix(kind, targetOverlayPrefix)
+	if !ok || sub == "" {
+		return kind
+	}
+	var key model.VariantKey
+	if err := key.UnmarshalText([]byte(sub)); err != nil {
+		return kind
+	}
+	text, err := key.MarshalText()
+	if err != nil {
+		return kind
+	}
+	return targetOverlayPrefix + string(text)
+}
+
+// TargetOverlayLocale reports the locale a `targets/<variant>` kind names, in
+// canonical form. ok is false for a kind outside the targets namespace.
+func TargetOverlayLocale(kind string) (locale model.LocaleID, ok bool) {
+	sub, found := strings.CutPrefix(kind, targetOverlayPrefix)
+	if !found || sub == "" {
+		return "", false
+	}
+	var key model.VariantKey
+	if err := key.UnmarshalText([]byte(sub)); err != nil {
+		return "", false
+	}
+	return key.Locale, true
+}
 
 // TargetOverlay is the payload of a `targets/<locale>` overlay: one block's
 // translation as the store holds it, what produced it, and what a later run

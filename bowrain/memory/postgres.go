@@ -117,6 +117,7 @@ func (tm *PostgresStore) AddWithStream(ctx context.Context, entry fw.Entry, stre
 	if len(entry.Variants) == 0 {
 		return errors.New("entry must have at least one variant")
 	}
+	fw.NormalizeEntryLocales(&entry)
 
 	now := time.Now()
 	if entry.CreatedAt.IsZero() {
@@ -666,6 +667,7 @@ func (tm *PostgresStore) SearchEntriesForStream(ctx context.Context, params fw.S
 }
 
 func (tm *PostgresStore) searchInternal(ctx context.Context, params fw.SearchParams) ([]fw.Entry, int, error) {
+	params = fw.NormalizeSearchLocales(params)
 	query := params.Query
 	anyLocale := params.AnyLocale
 	requireLocale := params.RequireLocale
@@ -865,6 +867,7 @@ func (tm *PostgresStore) FacetStats(ctx context.Context) (fw.FacetData, error) {
 
 // FacetStatsFiltered returns facet counts scoped to matching entries.
 func (tm *PostgresStore) FacetStatsFiltered(ctx context.Context, params fw.SearchParams) (fw.FacetData, error) {
+	params = fw.NormalizeSearchLocales(params)
 	where, args := tm.buildFacetSubquery(params.Query, params.AnyLocale, params.RequireLocale, params.Filter)
 
 	data := fw.FacetData{}

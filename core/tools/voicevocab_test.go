@@ -594,7 +594,7 @@ func TestVoiceVocabCheckLooksUpTheSourceLanguage(t *testing.T) {
 	}{
 		{name: "regional locale asks in both", locale: "en-GB", want: []model.LocaleID{"en-GB", "en"}},
 		{name: "bare language asks once", locale: "nb", want: []model.LocaleID{"nb"}},
-		{name: "posix spelling", locale: "pt_BR", want: []model.LocaleID{"pt_BR", "pt"}},
+		{name: "posix spelling asks in canonical form", locale: "pt_BR", want: []model.LocaleID{"pt-BR", "pt"}},
 		{name: "no locale asks nothing", locale: "", want: nil},
 	}
 

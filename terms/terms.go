@@ -83,10 +83,12 @@ type Concept struct {
 	UpdatedAt      time.Time         `json:"updated_at"`
 }
 
-// SourceTerm returns the first term matching the given locale.
+// SourceTerm returns the first term matching the given locale. Locales are
+// matched in canonical form, so the spelling a caller asks with is not a
+// second identity.
 func (c *Concept) SourceTerm(locale model.LocaleID) *Term {
 	for i := range c.Terms {
-		if c.Terms[i].Locale == locale {
+		if sameLocale(c.Terms[i].Locale, locale) {
 			return &c.Terms[i]
 		}
 	}
@@ -97,7 +99,7 @@ func (c *Concept) SourceTerm(locale model.LocaleID) *Term {
 func (c *Concept) TargetTerms(locale model.LocaleID) []Term {
 	var result []Term
 	for _, t := range c.Terms {
-		if t.Locale == locale {
+		if sameLocale(t.Locale, locale) {
 			result = append(result, t)
 		}
 	}
@@ -108,7 +110,7 @@ func (c *Concept) TargetTerms(locale model.LocaleID) []Term {
 func (c *Concept) PreferredTerm(locale model.LocaleID) *Term {
 	var fallback *Term
 	for i := range c.Terms {
-		if c.Terms[i].Locale != locale {
+		if !sameLocale(c.Terms[i].Locale, locale) {
 			continue
 		}
 		if c.Terms[i].Status == model.TermPreferred {

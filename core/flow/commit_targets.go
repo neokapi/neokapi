@@ -38,7 +38,7 @@ func newCommitTargetsTool(locale model.LocaleID) *commitTargetsTool {
 }
 
 func (t *commitTargetsTool) SessionProcess(ctx context.Context, sess blockstore.Session, in <-chan *model.Part, out chan<- *model.Part) error {
-	kind := "targets/" + string(t.locale)
+	kind := blockstore.TargetOverlayKind(t.locale)
 	for {
 		select {
 		case <-ctx.Done():

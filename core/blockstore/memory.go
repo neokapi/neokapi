@@ -151,7 +151,7 @@ func (s *memorySession) GetOverlay(kind, blockHash string) (Overlay, error) {
 	if s.done {
 		return Overlay{}, ErrClosed
 	}
-	sc, ok := s.overlays[overlayKey(kind, blockHash)]
+	sc, ok := s.overlays[overlayKey(CanonicalOverlayKind(kind), blockHash)]
 	if !ok {
 		return Overlay{}, ErrNotFound
 	}
@@ -165,6 +165,7 @@ func (s *memorySession) PutOverlay(sc Overlay) error {
 	if sc.Kind == "" || sc.BlockHash == "" {
 		return errors.New("blockstore: overlay needs both Kind and BlockHash")
 	}
+	sc.Kind = CanonicalOverlayKind(sc.Kind)
 	if sc.UpdatedAt == 0 {
 		sc.UpdatedAt = time.Now().Unix()
 	}
@@ -173,6 +174,7 @@ func (s *memorySession) PutOverlay(sc Overlay) error {
 }
 
 func (s *memorySession) ListOverlays(kind string) iter.Seq2[Overlay, error] {
+	kind = CanonicalOverlayKind(kind)
 	return func(yield func(Overlay, error) bool) {
 		if s.done {
 			yield(Overlay{}, ErrClosed)
