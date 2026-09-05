@@ -7,4 +7,6 @@ require (
 	github.com/yalue/onnxruntime_go v1.30.1
 )
 
+require golang.org/x/text v0.41.0 // indirect
+
 replace github.com/neokapi/neokapi => ../..
