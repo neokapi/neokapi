@@ -450,12 +450,15 @@ func (w *Writer) writeLocation(b *strings.Builder, value, res int, force bool) {
 // blockRuns returns the runs to serialize: the target for the writer's locale
 // when present, else the source.
 func (w *Writer) blockRuns(blk *model.Block) []model.Run {
+	runs := blk.Source
 	if !w.Locale.IsEmpty() {
 		if t := blk.TargetRuns(w.Locale); t != nil {
-			return t
+			runs = t
 		}
 	}
-	return blk.Source
+	// A spreadsheet value cell shows its formatted display, never the stored
+	// value (projection.DisplayRuns).
+	return projection.DisplayRuns(blk, runs)
 }
 
 // renderXMLBody serializes a run sequence as DocLang inline content: text is

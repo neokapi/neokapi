@@ -21,7 +21,7 @@ func ProjectBlock(b *model.Block) *RenderNode {
 	}
 	n := &RenderNode{
 		Role:    role,
-		Runs:    b.SourceRuns(),
+		Runs:    DisplayRuns(b, b.SourceRuns()),
 		BlockID: b.ID,
 		Props:   nonEmptyProps(b.Properties),
 	}

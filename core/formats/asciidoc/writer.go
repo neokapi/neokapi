@@ -187,10 +187,13 @@ func (w *Writer) blockText(block *model.Block) string {
 // (renderInlineAsciidoc), not echoed from the source format's Data, so a foreign
 // document projects to clean AsciiDoc.
 func (w *Writer) blockTextNormalized(block *model.Block) string {
+	runs := block.Source
 	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
-		return renderInlineAsciidoc(block.TargetRuns(w.Locale))
+		runs = block.TargetRuns(w.Locale)
 	}
-	return renderInlineAsciidoc(block.Source)
+	// A spreadsheet value cell shows its formatted display, never the stored
+	// value (projection.DisplayRuns).
+	return renderInlineAsciidoc(projection.DisplayRuns(block, runs))
 }
 
 // writeFromEvents renders a normalized AsciiDoc document from the ordered block

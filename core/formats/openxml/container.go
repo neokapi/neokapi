@@ -48,6 +48,9 @@ type containerInfo struct {
 	// The name is in xl/workbook.xml and the part path is behind a relationship
 	// id, so only joining the two yields "which sheet is this part".
 	sheetNames map[string]string
+	// cellStyles resolves an XLSX cell's style index to its number-format
+	// code, and carries the workbook's date epoch.
+	cellStyles *cellStyles
 }
 
 // relationship represents an OpenXML relationship entry.

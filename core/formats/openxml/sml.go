@@ -30,6 +30,9 @@ type smlParser struct {
 	// sheetNames maps a worksheet part path to its display name, so a grid can
 	// be labelled with the tab a reader would see.
 	sheetNames map[string]string
+	// styles resolves a cell's style index to the number format its value
+	// displays through. Nil resolves every cell to General.
+	styles *cellStyles
 	// tableColumnSeq positions a <tableColumn> that carries no `id` attribute,
 	// counted within the table part it belongs to.
 	tableColumnSeq int
@@ -288,7 +291,7 @@ func (p *smlParser) parseWorksheetFrom(d *xml.Decoder, merges map[string]mergeSp
 	rowID := ""
 
 	var inRow, inCell, inValue bool
-	var cellType, cellRef string
+	var cellType, cellRef, cellStyle string
 	var cellText strings.Builder
 	var hasFormula bool // tracks whether the current cell contains a <f> element
 
@@ -313,6 +316,7 @@ func (p *smlParser) parseWorksheetFrom(d *xml.Decoder, merges map[string]mergeSp
 					inCell = true
 					cellType = attrVal(t, "t")
 					cellRef = attrVal(t, "r")
+					cellStyle = attrVal(t, "s")
 					cellText.Reset()
 					hasFormula = false
 					p.skelWriteStartElement(t)
@@ -453,7 +457,8 @@ func (p *smlParser) parseWorksheetFrom(d *xml.Decoder, merges map[string]mergeSp
 								p.emitSharedCellAnchor(text, cellRef, partPath, merges, emitBlock)
 							case strings.TrimSpace(text) != "":
 								openRow()
-								p.emitLiteralCellAnchor(text, cellRef, partPath, merges, emitBlock)
+								display, code := p.cellDisplay(text, cellType, cellStyle)
+								p.emitLiteralCellAnchor(text, display, code, cellRef, partPath, merges, emitBlock)
 							}
 						}
 					}
@@ -462,6 +467,7 @@ func (p *smlParser) parseWorksheetFrom(d *xml.Decoder, merges map[string]mergeSp
 					inCell = false
 					cellType = ""
 					cellRef = ""
+					cellStyle = ""
 					hasFormula = false
 				} else {
 					p.skelWriteEndElement(t)
@@ -572,11 +578,44 @@ func (p *smlParser) emitSharedCellAnchor(idxText, cellRef, partPath string, merg
 	emitBlock(block)
 }
 
+// cellDisplay renders a value cell's stored text the way the sheet shows it,
+// through the number format its style names, and returns the code it used.
+// A boolean shows as TRUE or FALSE; an error value and an ISO date string
+// show as stored; a formula's string result shows through the code's text
+// section when it has one; a number the renderer cannot format under its
+// code shows as stored.
+func (p *smlParser) cellDisplay(text, cellType, styleIdx string) (display, code string) {
+	code, known := p.styles.formatCode(styleIdx)
+	text = strings.TrimSpace(text)
+	switch cellType {
+	case "b":
+		if text == "1" || strings.EqualFold(text, "true") {
+			return "TRUE", code
+		}
+		return "FALSE", code
+	case "str":
+		if known {
+			return formatCellText(text, code), code
+		}
+		return text, code
+	case "e", "d":
+		return text, code
+	}
+	if !known {
+		return text, code
+	}
+	display, _ = formatCellValue(text, code, p.styles.epoch1904())
+	return display, code
+}
+
 // emitLiteralCellAnchor surfaces a non-string worksheet cell (a number, boolean,
-// or cached formula result) as a non-translatable grid anchor carrying its
-// displayed value, so a structural export or preview can place it in the grid.
-// Like the shared-string anchor it is additive and skeleton-free.
-func (p *smlParser) emitLiteralCellAnchor(text, cellRef, partPath string, merges map[string]mergeSpan, emitBlock func(*model.Block)) {
+// or cached formula result) as a non-translatable grid anchor, so a structural
+// export or preview can place it in the grid. The block's text is the value
+// as stored, which is what the round-trip and the block's identity rest on;
+// the value as the sheet displays it travels beside it as PropCellDisplay,
+// with the number-format code that produced it as PropCellFormat. Like the
+// shared-string anchor it is additive and skeleton-free.
+func (p *smlParser) emitLiteralCellAnchor(text, display, code, cellRef, partPath string, merges map[string]mergeSpan, emitBlock func(*model.Block)) {
 	sheetTag := strings.TrimSuffix(strings.TrimPrefix(partPath, "xl/worksheets/"), ".xml")
 	block := &model.Block{
 		ID: fmt.Sprintf("cell-%s-%s", sheetTag, cellRef),
@@ -585,7 +624,12 @@ func (p *smlParser) emitLiteralCellAnchor(text, cellRef, partPath string, merges
 		Type:         "cell",
 		Translatable: false,
 		Source:       []model.Run{{Text: &model.TextRun{Text: text}}},
-		Properties:   map[string]string{"partPath": partPath, "cell": cellRef},
+		Properties: map[string]string{
+			"partPath":            partPath,
+			"cell":                cellRef,
+			model.PropCellDisplay: display,
+			model.PropCellFormat:  code,
+		},
 	}
 	p.ids.Assign(block)
 	if g := cellGeometry(cellRef, partPath, merges); g != nil {

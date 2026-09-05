@@ -583,7 +583,7 @@ function extractSheets(tree: ContentTree): RenderSheet[] {
       const si = b.properties?.siIndex;
       const source = si !== undefined ? (shared.get(si) ?? b) : b;
       cells.push({
-        ...lineFromBlock(source),
+        ...cellLine(b, source),
         id: b.id,
         col,
         row,
@@ -594,6 +594,28 @@ function extractSheets(tree: ContentTree): RenderSheet[] {
     }
     return { name, cols: maxCol + 1, rows: maxRow + 1, cells };
   });
+}
+
+/**
+ * The block property carrying a value cell's formatted display
+ * (`model.PropCellDisplay`): what the sheet shows once the cell's number
+ * format is applied to the stored value. A date is stored as a serial day
+ * count, a percentage as a fraction; the stored value stays in the runs and
+ * the display travels beside it.
+ */
+const CELL_DISPLAY_PROP = "cell.display";
+
+/**
+ * A cell's render line. A text cell renders its (shared-string or inline)
+ * block with its targets and codes; a value cell renders its formatted
+ * display, a single string the sheet computed, which carries no inline codes
+ * and has no locale variant.
+ */
+function cellLine(cell: ContentNode, source: ContentNode): RenderLine {
+  const line = lineFromBlock(source);
+  const display = cell.properties?.[CELL_DISPLAY_PROP];
+  if (display === undefined) return line;
+  return { ...line, text: display, codes: [] };
 }
 
 function extractDocParagraphs(tree: ContentTree): RenderLine[] {
