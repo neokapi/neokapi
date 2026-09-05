@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
 import { ApiProvider } from "@neokapi/ui";
+import type { SchemaFormHost } from "@neokapi/ui";
 import { ProjectFlowsEditor } from "./ProjectFlowsEditor";
 import { ProjectFlowPane } from "./ProjectFlowPane";
 import { definitionToSpec, toEditorTools } from "./flowGraph";
@@ -8,6 +9,8 @@ import {
   builtInTranslate,
   createFlowsApi,
   projectReview,
+  sampleProviders,
+  sampleSchemas,
   sampleTools,
   type FlowsApiOptions,
 } from "./fixtures";
@@ -114,6 +117,35 @@ export const EditorSaveFailed: StoryObj<typeof Pane> = {
     saveState: "error",
     saveError: new Error("403 Forbidden: manage_automation is required to edit flows"),
   },
+};
+
+/** The host the platform gives the options form: the workspace's provider configurations. */
+const sampleHost: SchemaFormHost = {
+  credentials: () =>
+    sampleProviders.map((p) => ({ value: p.name, label: `${p.name} (${p.model})` })),
+};
+
+/**
+ * Steps with options: the translate step's are open, its credential picker
+ * offering the workspace's provider configurations. The checks in the
+ * parallel group offer theirs behind the Options control.
+ */
+export const EditorOptions: StoryObj<typeof Pane> = {
+  ...Editor,
+  args: {
+    ...Editor.args,
+    onGetSchema: (name) => sampleSchemas[name] ?? null,
+    host: sampleHost,
+  },
+  play: async ({ canvas, userEvent }) => {
+    const [translate] = await canvas.findAllByLabelText("Options");
+    await userEvent.click(translate);
+  },
+};
+
+export const EditorOptionsDark: StoryObj<typeof Pane> = {
+  ...EditorOptions,
+  globals: { theme: "dark" },
 };
 
 /** A built-in flow: read-only, with a copy offered instead of edits. */

@@ -1175,6 +1175,7 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 	v1.GET("/health", s.HandleHealth)
 	v1.GET("/ready", s.HandleReady)
 	v1.GET("/info", s.HandleInfo)
+	v1.GET("/tools/:name/schema", s.HandleGetToolSchema)
 	v1.GET("/config", s.HandleGetPublicConfig)
 
 	// Public per-project ship-status feed (D-3): the hosted twin of `kapi status

@@ -145,6 +145,7 @@
   "3903261825": "UpdateBlockTargetRuns",
   "3952806715": "ListTools",
   "3954342840": "ListConnectors",
+  "3975622697": "GetToolSchema",
   "3990992331": "ListObservations",
   "4032379005": "GetConceptStory",
   "4053230998": "TrialFindings",

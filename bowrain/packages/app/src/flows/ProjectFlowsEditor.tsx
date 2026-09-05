@@ -9,11 +9,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { t } from "@neokapi/i18n-react/runtime";
+import { useToolSchemas } from "@neokapi/flow-editor";
 import { ErrorNotice, useApi } from "@neokapi/ui";
 import type { FlowDefinitionInfo, LinearFlowSpec } from "@neokapi/ui";
 import { definitionToSpec, specToDefinition, toEditorDefinition, toEditorTools } from "./flowGraph";
 import { ProjectFlowList } from "./ProjectFlowList";
 import { ProjectFlowPane, type FlowSaveState } from "./ProjectFlowPane";
+import { useSchemaFormHost } from "./useSchemaFormHost";
 
 interface OpenFlow {
   flow: FlowDefinitionInfo;
@@ -48,6 +50,13 @@ export function ProjectFlowsEditor({
   });
   const flows = flowsQuery.data ?? [];
   const tools = useMemo(() => toEditorTools(toolsQuery.data ?? []), [toolsQuery.data]);
+
+  // A step's options come from the tool's schema, fetched once per tool for
+  // the life of the surface, and its credential picker from the workspace's
+  // provider configurations.
+  const fetchToolSchema = useCallback((toolName: string) => api.getToolSchema(toolName), [api]);
+  const getSchema = useToolSchemas(fetchToolSchema);
+  const host = useSchemaFormHost(workspaceSlug);
 
   const invalidate = useCallback(
     () => queryClient.invalidateQueries({ queryKey: flowsKey }),
@@ -230,6 +239,8 @@ export function ProjectFlowsEditor({
           readOnly={readOnly}
           saveState={saveState}
           saveError={saveError}
+          onGetSchema={getSchema}
+          host={host}
           onBack={handleBack}
           onChange={handleChange}
           onRename={handleRename}

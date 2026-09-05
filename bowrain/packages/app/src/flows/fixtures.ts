@@ -1,7 +1,13 @@
 // Sample flow definitions and tools in the shapes the server returns, plus an
 // in-memory API over them, for the flows stories and tests.
 
-import type { ApiAdapter, FlowDefinitionInfo, ToolInfo } from "@neokapi/ui";
+import type {
+  ApiAdapter,
+  ComponentSchema,
+  FlowDefinitionInfo,
+  ProviderConfig,
+  ToolInfo,
+} from "@neokapi/ui";
 
 export const sampleTools: ToolInfo[] = [
   {
@@ -33,6 +39,86 @@ export const sampleTools: ToolInfo[] = [
     display_name: "Pseudo Translate",
     description: "Generate pseudo-translations for testing.",
     category: "translate",
+  },
+];
+
+/**
+ * Tool option schemas in the registry's shape, keyed by tool. A tool absent
+ * here has none, and its step shows no options control.
+ */
+export const sampleSchemas: Record<string, ComponentSchema> = {
+  translate: {
+    title: "Translate",
+    type: "object",
+    properties: {
+      credential: {
+        type: "string",
+        title: "Credential",
+        description: "The provider configuration to translate with",
+        "ui:widget": "credential-picker",
+      },
+      skipMatched: {
+        type: "boolean",
+        title: "Skip matched",
+        description: "Leave the blocks the content memory already filled",
+        default: false,
+      },
+    },
+  },
+  "term-check": {
+    title: "Terminology Check",
+    type: "object",
+    properties: {
+      caseSensitive: {
+        type: "boolean",
+        title: "Case Sensitive",
+        description: "Whether term matching is case-sensitive",
+        default: false,
+      },
+    },
+  },
+  "pseudo-translate": {
+    title: "Pseudo Translate",
+    type: "object",
+    properties: {
+      expansionPercent: {
+        type: "integer",
+        title: "Expansion Percent",
+        description: "Extra padding percentage added to simulate translation expansion",
+        default: 0,
+        minimum: 0,
+      },
+      prefix: {
+        type: "string",
+        title: "Prefix",
+        description: "Characters prepended before each translated block",
+        default: "\u2592 ",
+      },
+      suffix: {
+        type: "string",
+        title: "Suffix",
+        description: "Characters appended after each translated block",
+        default: " \u2592",
+      },
+    },
+  },
+};
+
+/** The workspace's saved provider configurations, as a credential picker offers them. */
+export const sampleProviders: ProviderConfig[] = [
+  {
+    id: "prov-1",
+    name: "claude",
+    provider_type: "anthropic",
+    model: "claude-sonnet-4-6",
+    base_url: "",
+  },
+  {
+    id: "prov-2",
+    name: "local-llama",
+    provider_type: "ollama",
+    model: "llama3.1",
+    base_url: "http://localhost:11434",
   },
 ];
 
@@ -107,6 +193,10 @@ export const sampleFlows: FlowDefinitionInfo[] = [builtInTranslate, builtInPseud
 export interface FlowsApiOptions {
   flows?: FlowDefinitionInfo[];
   tools?: ToolInfo[];
+  /** Option schemas by tool; a tool absent here has none. */
+  schemas?: Record<string, ComponentSchema>;
+  /** The workspace's provider configurations. */
+  providers?: ProviderConfig[];
   /** Milliseconds each call takes; a story shows loading with a long one. */
   delay?: number;
   /** Rejects every write with this error. */
@@ -117,6 +207,8 @@ export interface FlowsApiOptions {
 export function createFlowsApi(options: FlowsApiOptions = {}) {
   const flows = (options.flows ?? sampleFlows).map((f) => structuredClone(f));
   const tools = options.tools ?? sampleTools;
+  const schemas = options.schemas ?? sampleSchemas;
+  const providers = options.providers ?? sampleProviders;
   let counter = 0;
   const wait = () =>
     options.delay ? new Promise<void>((r) => setTimeout(r, options.delay)) : Promise.resolve();
@@ -133,6 +225,14 @@ export function createFlowsApi(options: FlowsApiOptions = {}) {
     listTools: async () => {
       await wait();
       return tools;
+    },
+    getToolSchema: async (name: string) => {
+      await wait();
+      return structuredClone(schemas[name] ?? null);
+    },
+    listProviderConfigs: async () => {
+      await wait();
+      return providers.map((p) => ({ ...p }));
     },
     listFlowDefinitions: async () => {
       await wait();

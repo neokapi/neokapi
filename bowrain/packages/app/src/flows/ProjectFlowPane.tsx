@@ -7,7 +7,12 @@ import { AlertTriangle, Check, Copy, Loader2, Lock, X } from "lucide-react";
 import { FlowTemplateLibrary, FlowViewTabs } from "@neokapi/flow-editor";
 import type { FlowView, ToolInfo as EditorToolInfo } from "@neokapi/flow-editor";
 import { Button, ConfirmDeleteButton, ErrorNotice, SimpleTooltip } from "@neokapi/ui";
-import type { FlowDefinitionInfo, LinearFlowSpec } from "@neokapi/ui";
+import type {
+  ComponentSchema,
+  FlowDefinitionInfo,
+  LinearFlowSpec,
+  SchemaFormHost,
+} from "@neokapi/ui";
 
 /** Where the open flow stands against the server. */
 export type FlowSaveState = "saved" | "unsaved" | "saving" | "error";
@@ -23,6 +28,10 @@ export interface ProjectFlowPaneProps {
   saveError?: unknown;
   /** The view to open on; Steps unless told otherwise. */
   defaultView?: FlowView;
+  /** Resolve a tool's option schema (cached by the host); a step with one offers its options. */
+  onGetSchema?: (toolName: string) => ComponentSchema | null;
+  /** Host capabilities for the options form: the credentials a picker offers. */
+  host?: SchemaFormHost;
   onBack: () => void;
   onChange: (spec: LinearFlowSpec) => void;
   onRename?: (name: string) => void;
@@ -72,6 +81,8 @@ export function ProjectFlowPane({
   saveState,
   saveError,
   defaultView,
+  onGetSchema,
+  host,
   onBack,
   onChange,
   onRename,
@@ -127,6 +138,8 @@ export function ProjectFlowPane({
           flow={spec}
           tools={tools}
           onChange={onChange}
+          onGetSchema={onGetSchema}
+          host={host}
           readOnly={readOnly}
           onRename={readOnly ? undefined : onRename}
           defaultView={defaultView}

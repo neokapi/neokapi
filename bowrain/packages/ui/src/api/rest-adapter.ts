@@ -1,6 +1,7 @@
 import { codedToRuns } from "@neokapi/ui-primitives";
+import type { ComponentSchema } from "@neokapi/ui-primitives";
 import { normalizeServerBlocks, type ServerBlockInfo } from "../components/editor/blockRuns";
-import { apiErrorFromResponse } from "../errors/ApiError";
+import { ApiError, apiErrorFromResponse } from "../errors/ApiError";
 import type { ApiAdapter } from "./adapter";
 import type {
   User,
@@ -3897,5 +3898,17 @@ export class RestApiAdapter implements ApiAdapter {
   async listTools(): Promise<ToolInfo[]> {
     const info = await this.fetchJSON<{ tools: ToolInfo[] }>("/api/v1/info");
     return info.tools;
+  }
+
+  async getToolSchema(name: string): Promise<ComponentSchema | null> {
+    try {
+      return await this.fetchJSON<ComponentSchema>(
+        `/api/v1/tools/${encodeURIComponent(name)}/schema`,
+      );
+    } catch (e) {
+      // The server answers 404 for a tool without a schema.
+      if (e instanceof ApiError && e.status === 404) return null;
+      throw e;
+    }
   }
 }

@@ -2,6 +2,7 @@ export { FlowEditor } from "./FlowEditor";
 export { FlowDiagramView } from "./FlowDiagramView";
 export type { FlowDiagramViewProps } from "./FlowDiagramView";
 export { FlowViewTabs } from "./FlowViewTabs";
+export { useToolSchemas } from "./useToolSchemas";
 export type { FlowViewTabsProps, FlowView } from "./FlowViewTabs";
 export { FlowTemplateLibrary } from "./FlowTemplateLibrary";
 export { FLOW_TEMPLATES } from "./templates";

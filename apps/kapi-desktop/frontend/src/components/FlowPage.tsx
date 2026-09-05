@@ -1,7 +1,7 @@
-import { useCallback, useMemo, useRef, useReducer, useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ComponentSchema } from "@neokapi/ui-primitives";
-import { FlowTemplateLibrary, FlowViewTabs } from "@neokapi/flow-editor";
+import { FlowTemplateLibrary, FlowViewTabs, useToolSchemas } from "@neokapi/flow-editor";
 import type { FlowTrace, ToolInfo as EditorToolInfo } from "@neokapi/flow-editor";
 import type { FlowSpec, RunTraces, ToolInfo } from "../types/api";
 import { api } from "../hooks/useApi";
@@ -69,6 +69,10 @@ function selectEditorTools(result: ToolInfo[] | null | undefined): EditorToolInf
   }));
 }
 
+/** A tool's option schema over the Wails binding; null outside Wails or without one. */
+const fetchToolSchema = (toolName: string) =>
+  api.getToolSchema(toolName).then((result) => (result as ComponentSchema | null) ?? null);
+
 export function FlowPage({
   flowName,
   flow,
@@ -84,9 +88,7 @@ export function FlowPage({
   const { hasActive } = useJobFeed();
   const qc = useQueryClient();
   const host = useSchemaFormHost();
-  const schemasRef = useRef<Record<string, ComponentSchema | null>>({});
-  const fetchingRef = useRef<Set<string>>(new Set());
-  const [, forceUpdate] = useReducer((x: number) => x + 1, 0);
+  const handleGetSchema = useToolSchemas(fetchToolSchema);
 
   // Tools list as react-query server state, shared with ToolRunnerPage under the
   // same key (the raw entry is cached; `select` shapes it for the editor). The
@@ -100,20 +102,6 @@ export function FlowPage({
   const tools: EditorToolInfo[] = toolsQuery.data ?? [];
 
   useInvalidateOnEvent("registries-changed", [tabID ? qk.projectTools(tabID) : qk.tools()]);
-
-  const handleGetSchema = useCallback((toolName: string): ComponentSchema | null => {
-    if (toolName in schemasRef.current) {
-      return schemasRef.current[toolName] ?? null;
-    }
-    if (fetchingRef.current.has(toolName)) return null;
-    fetchingRef.current.add(toolName);
-    void api.getToolSchema(toolName).then((result) => {
-      fetchingRef.current.delete(toolName);
-      schemasRef.current[toolName] = (result as ComponentSchema) ?? null;
-      forceUpdate();
-    });
-    return null;
-  }, []);
 
   // The last run's retained traces. The backend keeps them from the most
   // recent run of whatever flow, so they belong here only while that run was

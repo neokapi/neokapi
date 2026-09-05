@@ -1,4 +1,4 @@
-import type { ApiAdapter } from "@neokapi/ui";
+import type { ApiAdapter, ComponentSchema } from "@neokapi/ui";
 import { ALL_PERMISSIONS, governedRefusalError } from "@neokapi/ui";
 import type {
   CallerPermissions,
@@ -1079,6 +1079,11 @@ export class WailsApiAdapter implements ApiAdapter {
   }
   async listTools(): Promise<ToolInfo[]> {
     return Backend.ListTools() as Promise<ToolInfo[]>;
+  }
+  async getToolSchema(name: string): Promise<ComponentSchema | null> {
+    // The backend proxies the server's schema route; a tool without a schema
+    // comes back as null.
+    return (await Backend.GetToolSchema(name)) as ComponentSchema | null;
   }
 
   // --- Block history (desktop: not yet backed by Wails bindings) ---
