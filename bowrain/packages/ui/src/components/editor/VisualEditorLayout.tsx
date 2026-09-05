@@ -422,6 +422,9 @@ export function VisualEditorLayout({
         <ProblemsPanel
           issues={fileCheckResults || []}
           loading={checksLoading}
+          blocks={blocks}
+          targetLocale={targetLocale}
+          sourceLocale={project.default_source_language}
           onNavigateToBlock={handleNavigateToBlock}
           onClose={() => setShowProblemsPanel(false)}
         />

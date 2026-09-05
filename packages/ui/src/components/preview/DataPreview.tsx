@@ -51,7 +51,13 @@ export interface DataCodeSource {
 
 export interface DataPreviewProps extends Pick<
   KeyedTableProps,
-  "tree" | "locale" | "sourceLocale" | "onSelectBlock" | "selectedBlockId" | "blockAttrs"
+  | "tree"
+  | "locale"
+  | "sourceLocale"
+  | "onSelectBlock"
+  | "selectedBlockId"
+  | "blockAttrs"
+  | "highlights"
 > {
   /** The written-back file. Absent, the preview shows the table alone. */
   code?: DataCodeSource;
@@ -93,6 +99,7 @@ export default function DataPreview({
   onSelectBlock,
   selectedBlockId,
   blockAttrs,
+  highlights,
   code,
   view,
   onViewChange,
@@ -145,6 +152,7 @@ export default function DataPreview({
           {...(onSelectBlock ? { onSelectBlock } : {})}
           {...(selectedBlockId ? { selectedBlockId } : {})}
           {...(blockAttrs ? { blockAttrs } : {})}
+          {...(highlights ? { highlights } : {})}
         />
       )}
     </div>

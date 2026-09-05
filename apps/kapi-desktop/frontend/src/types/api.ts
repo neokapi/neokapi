@@ -2,7 +2,7 @@
 
 // IOPort (and the schema-language cluster, re-exported below) is defined once in
 // the shared @neokapi/contract-types package (issue #817).
-import type { IOPort, ReviewContext } from "@neokapi/contract-types";
+import type { Anchor, IOPort, ReviewContext, Run } from "@neokapi/contract-types";
 
 export interface KapiProject {
   version: string;
@@ -260,30 +260,26 @@ export interface DesktopFinding {
   /** The collection the checked file belongs to. */
   collection?: string;
   /** The run range the finding applies to, so the offending words can be
-   *  underlined rather than described. Absent when the checker objects to
-   *  something that is missing from the text. */
+   *  underlined rather than described. Anchored to the block's source runs
+   *  (core/check.Finding). Absent when the checker objects to something that
+   *  is missing from the text. */
   position?: RunAnchor;
-}
-
-/** One end of a run range: which run, and how far into it. Mirrors model.RunPos. */
-export interface RunPos {
-  run: number;
-  offset?: number;
+  /** The block's source runs, so the finding can be read in the text it was
+   *  raised on with `position` marked over it. */
+  source_runs?: Run[];
+  /** The block's runs in the target locale a target-side finding names, when
+   *  the block carries them. */
+  target_runs?: Run[];
 }
 
 /** Where in a block's runs something sits. Mirrors model.Anchor. */
-export interface RunAnchor {
-  kind: "block" | "run" | "range" | "form";
-  /** The run sequence addressed. Absent means the block's top-level runs. */
-  path?: unknown[];
-  /** The run's id, for `run`. */
-  runId?: string;
-  /** The half-open span [start, end), for `range`. */
-  start?: RunPos;
-  end?: RunPos;
-  /** The plural form or select case named, for `form`. */
-  key?: string;
-}
+/**
+ * Where inside a block a finding sits (model.Anchor): the whole block, one run
+ * by id, a half-open span of run positions, or a plural form or select case.
+ * The generated contract type, so the desktop reads the same shape the preview
+ * kit resolves.
+ */
+export type RunAnchor = Anchor;
 
 /** One content-verification result as the engine produces it (core/check.Finding). */
 export interface CheckFinding {

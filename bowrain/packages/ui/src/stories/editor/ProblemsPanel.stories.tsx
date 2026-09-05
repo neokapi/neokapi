@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
 import { ProblemsPanel } from "../../components/editor/ProblemsPanel";
-import { sampleFileCheckResults } from "../fixtures";
+import { sampleBlocks, sampleFileCheckResults } from "../fixtures";
 
 const meta: Meta<typeof ProblemsPanel> = {
   title: "Editor/Terminology/ProblemsPanel",
@@ -29,8 +29,26 @@ const meta: Meta<typeof ProblemsPanel> = {
 export default meta;
 type Story = StoryObj<typeof ProblemsPanel>;
 
-/** Panel with mixed errors and warnings */
+/**
+ * Panel with mixed errors and warnings. Given the file's blocks, each issue is
+ * read in the text it was raised on: the source with the checker's span marked,
+ * and the checked locale's text beneath it.
+ */
 export const WithIssues: Story = {
+  args: {
+    issues: sampleFileCheckResults,
+    blocks: sampleBlocks,
+    targetLocale: "fr-FR",
+    sourceLocale: "en",
+  },
+};
+export const WithIssuesLight: Story = {
+  args: WithIssues.args,
+  globals: { theme: "light" },
+};
+
+/** Without the file's blocks, an issue shows only the text the checker quoted. */
+export const WithoutBlocks: Story = {
   args: {
     issues: sampleFileCheckResults,
   },

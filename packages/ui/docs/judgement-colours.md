@@ -120,6 +120,14 @@ Both apps read them, so the same word from the same checker is the same colour
 on either surface. A severity this build does not know takes the muted tone: a
 rung nobody has heard of has said nothing about how hard it bites.
 
+Inside rendered content the same tone is a mark rather than a badge:
+`findingToneMarkClass` gives a finding's span a tinted fill and an underline in
+the tone, over the document's own ink. `FindingSnippet` draws a finding that way
+on a card, and the preview kit's `highlights` draw it on the opened document,
+with the finding the reader came for underlined solidly and the others dimmed.
+The words a checker meant are marked the same on the card and in the document,
+on either surface.
+
 The server's check API grades its own issues `error` | `warning`, which
 `checkIssueTone` maps onto the same three tones, so a surface listing check
 issues beside voice findings paints one list.

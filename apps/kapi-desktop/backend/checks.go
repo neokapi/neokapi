@@ -57,10 +57,17 @@ type DesktopFinding struct {
 	// Collection is the one the checked file belongs to.
 	Collection string `json:"collection,omitempty"`
 	// Position is the run range the finding applies to, anchored to the block's
-	// runs. It is what lets a surface underline the offending words instead of
-	// describing them, and what a reviewer needs to see which placeholder in a
-	// sentence of four the checker means.
+	// source runs (check.Finding). It is what lets a surface underline the
+	// offending words instead of describing them, and what a reviewer needs to
+	// see which placeholder in a sentence of four the checker means.
 	Position model.Anchor `json:"position,omitzero"`
+	// SourceRuns are the block's source runs, so a surface can show the finding
+	// in the text it was raised on with Position marked over it, rather than
+	// quoting OriginalText alone.
+	SourceRuns []model.Run `json:"source_runs,omitempty"`
+	// TargetRuns are the block's runs in the target locale a target-side finding
+	// names, when the block carries them.
+	TargetRuns []model.Run `json:"target_runs,omitempty"`
 }
 
 // CheckFileResult groups the findings for a single content file.
@@ -753,6 +760,10 @@ func toDesktopFinding(f check.Finding, b *model.Block, field string, locale stri
 		Point:        pointRef(point),
 		Collection:   point.Collection,
 		Position:     f.Position,
+		SourceRuns:   b.SourceRuns(),
+	}
+	if field == "target" {
+		df.TargetRuns = b.TargetRuns(model.LocaleID(locale))
 	}
 	df.Fixable = replacement != "" && b.ID != "" && f.OriginalText != ""
 	return df

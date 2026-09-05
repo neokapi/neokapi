@@ -152,6 +152,18 @@
   }
 }
 
+/* A host's highlight carries the reader's attention: the finding they came to
+   see is underlined solidly, and the ones drawn beside it fade so the page
+   still reads as a page. */
+.overlay[data-emphasis="focus"] {
+  text-decoration-style: solid;
+  text-decoration-thickness: 2px;
+}
+
+.overlay[data-emphasis="dim"] {
+  opacity: 0.55;
+}
+
 /* ── Crossfade ───────────────────────────────────────────────────────────── */
 .fade {
   animation: kapi-fade 240ms ease;

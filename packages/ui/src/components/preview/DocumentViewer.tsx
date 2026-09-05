@@ -7,6 +7,7 @@ import { Button } from "../ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { ToggleGroup, ToggleGroupItem } from "../ui/toggle-group";
 import FormatPreview, { type BlockAttrs, type PreviewSide } from "./FormatPreview";
+import type { PreviewHighlights } from "./highlights";
 import type { DataCodeSource } from "./DataPreview";
 import BlockInspector from "./BlockInspector";
 import StructureView from "./StructureView";
@@ -71,6 +72,11 @@ export interface DocumentViewerProps {
   defaultSide?: PreviewSide;
   /** Per-block class name and `data-*` markers, drawn on the block's element. */
   blockAttrs?: (id: string) => BlockAttrs | undefined;
+  /**
+   * Spans a host asks the Preview to mark, by block id: a check finding's run
+   * anchor on the side it addresses, drawn in the finding's tone.
+   */
+  highlights?: PreviewHighlights;
   /** Raw-view line numbers changed by a recent run — highlighted in Raw. */
   rawChangedLines?: ReadonlySet<number>;
   /**
@@ -147,6 +153,7 @@ export default function DocumentViewer({
   selectedBlockId,
   onSelectBlock,
   blockAttrs,
+  highlights,
   defaultSide = "source",
   rawChangedLines,
   code,
@@ -310,6 +317,7 @@ export default function DocumentViewer({
             selectedBlockId={selectedBlockId}
             onSelectBlock={onSelectBlock}
             blockAttrs={blockAttrs}
+            highlights={highlights}
             code={code}
           />
         </TabsContent>
