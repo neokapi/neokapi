@@ -222,6 +222,11 @@ func FuzzRoundTripMarkdown(f *testing.F) {
 	// its blockquote marker on every line.
 	f.Add([]byte("a\\\nb"))
 	f.Add([]byte("> a  \n> b\n> c"))
+	// #2434: a blockquote with a lazy continuation line (CommonMark 5.1) was
+	// judged by its first continuation line alone, so the rebuild path wrote
+	// it back without its opening marker and it split into a paragraph plus a
+	// quote. The fuzz reproducer is also committed under testdata/fuzz.
+	f.Add([]byte("> a\nb\n> c"))
 	seedDamagedMarkdown(f)
 
 	f.Fuzz(func(t *testing.T, data []byte) {

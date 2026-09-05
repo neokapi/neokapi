@@ -11,7 +11,7 @@ entries:
     size: 303
     license: Apache-2.0
     redistributable: true
-    notes: own-created fixture for #2430 (ATX closing sequences on the skeleton path)
+    notes: own-created fixture for
   - path: core/formats/markdown/testdata/formatting.md
     tier: A
     origin: vendored
@@ -28,6 +28,14 @@ entries:
     license: Apache-2.0
     redistributable: true
     notes: own-created repo fixture
+  - path: core/formats/markdown/testdata/fuzz/FuzzRoundTripMarkdown/lazy_blockquote_continuation
+    tier: A
+    origin: bug
+    sha256: a1f220d9d617380792822febaa46da39257ff21a74234a1467ac9e61e80c52fa
+    size: 50
+    license: Apache-2.0
+    redistributable: true
+    notes: own-created fuzz reproducer for #2434 (blockquote with a lazy continuation line rebuilt without its marker)
   - path: core/formats/markdown/testdata/fuzz/FuzzRoundTripMarkdown/setext_multiline_heading
     tier: A
     origin: bug

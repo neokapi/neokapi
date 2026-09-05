@@ -1201,27 +1201,38 @@ func blockquoteRebuild(block *model.Block, text string) (prefix, body string, ok
 		}
 		return lp, text, true
 	}
-	// Soft-break body: the continuation lines already carry their ">" marker;
-	// only the first line lacks one. Recover the marker from the first
-	// continuation line so the whole quote is marked identically.
-	if m := firstContinuationBlockquoteMarker(text); m != "" {
+	// Soft-break body: the continuation lines carry their ">" marker, except
+	// a lazy continuation line (CommonMark 5.1), which has none; only the
+	// first line always lacks one. Recover the marker from the first marked
+	// continuation line so the quote opens with it: "> a\nb\n> c" re-reads as
+	// one blockquote with a lazy line, where a body judged by its first
+	// continuation line alone rebuilt as a paragraph plus a quote (#2434).
+	if m := continuationBlockquoteMarker(text); m != "" {
 		return m, text, true
 	}
 	return "", text, false
 }
 
-// firstContinuationBlockquoteMarker returns the blockquote marker (">" plus an
-// optional single space) that begins the first continuation line of text, or ""
-// when text is single-line or its continuation is not a blockquote line.
-func firstContinuationBlockquoteMarker(text string) string {
-	nl := strings.IndexByte(text, '\n')
-	if nl < 0 || nl+1 >= len(text) || text[nl+1] != '>' {
-		return ""
+// continuationBlockquoteMarker returns the blockquote marker (">" plus an
+// optional single space) that begins the first continuation line of text
+// carrying one, or "" when text is single-line or no continuation line is a
+// blockquote line.
+func continuationBlockquoteMarker(text string) string {
+	for nl := strings.IndexByte(text, '\n'); nl >= 0; {
+		line := text[nl+1:]
+		if strings.HasPrefix(line, "> ") {
+			return "> "
+		}
+		if strings.HasPrefix(line, ">") {
+			return ">"
+		}
+		next := strings.IndexByte(line, '\n')
+		if next < 0 {
+			return ""
+		}
+		nl += 1 + next
 	}
-	if nl+2 < len(text) && text[nl+2] == ' ' {
-		return "> "
-	}
-	return ">"
+	return ""
 }
 
 // headingLevel returns a block's heading level, preferring the normalized
