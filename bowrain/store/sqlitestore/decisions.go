@@ -84,12 +84,13 @@ func (s *SQLiteStore) UpsertUnitDecisions(ctx context.Context, projectID, stream
 		var haveOld bool
 		var parked int
 		row := tx.QueryRowContext(ctx,
-			`SELECT status, target_hash, content_hash, review_state, decided_by, decided_at, note, parked, assignee, updated
+			`SELECT status, target_hash, content_hash, review_state, decided_by, decided_at, note, parked, assignee,
+				governing_fingerprint, updated
 			 FROM unit_decisions
 			 WHERE project_id=? AND stream=? AND item_id=? AND unit=? AND variant=?`,
 			projectID, stream, itemID, d.Unit, d.Variant)
 		switch err := row.Scan(&old.Status, &old.TargetHash, &old.ContentHash, &old.ReviewState, &old.DecidedBy,
-			&old.DecidedAt, &old.Note, &parked, &old.Assignee, &old.Updated); {
+			&old.DecidedAt, &old.Note, &parked, &old.Assignee, &old.GoverningFingerprint, &old.Updated); {
 		case err == nil:
 			old.Parked = parked != 0
 			haveOld = true
@@ -109,17 +110,18 @@ func (s *SQLiteStore) UpsertUnitDecisions(ctx context.Context, projectID, stream
 		if _, err := tx.ExecContext(ctx,
 			`INSERT INTO unit_decisions
 				(project_id, stream, item_id, item_name, unit, variant, status, target_hash, content_hash, review_state,
-				 decided_by, decided_at, note, parked, assignee, updated, updated_at)
-			 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+				 decided_by, decided_at, note, parked, assignee, governing_fingerprint, updated, updated_at)
+			 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 			 ON CONFLICT (project_id, stream, item_id, unit, variant) DO UPDATE SET
 				item_name=excluded.item_name,
 				status=excluded.status, target_hash=excluded.target_hash,
 				content_hash=excluded.content_hash,
 				review_state=excluded.review_state, decided_by=excluded.decided_by,
 				decided_at=excluded.decided_at, note=excluded.note, parked=excluded.parked,
-				assignee=excluded.assignee, updated=excluded.updated, updated_at=excluded.updated_at`,
+				assignee=excluded.assignee, governing_fingerprint=excluded.governing_fingerprint,
+				updated=excluded.updated, updated_at=excluded.updated_at`,
 			projectID, stream, itemID, d.ItemName, d.Unit, d.Variant, d.Status, d.TargetHash, d.ContentHash, d.ReviewState,
-			d.DecidedBy, d.DecidedAt, d.Note, boolInt(d.Parked), d.Assignee, d.Updated, now); err != nil {
+			d.DecidedBy, d.DecidedAt, d.Note, boolInt(d.Parked), d.Assignee, d.GoverningFingerprint, d.Updated, now); err != nil {
 			return changed, fmt.Errorf("upsert decision %s/%s: %w", d.Unit, d.Variant, err)
 		}
 		changed++
@@ -190,7 +192,7 @@ func (s *SQLiteStore) ListUnitDecisions(ctx context.Context, projectID, stream s
 	stream = storeutil.DefaultStream(stream)
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT item_name, unit, variant, status, target_hash, content_hash, review_state,
-			decided_by, decided_at, note, parked, assignee, updated
+			decided_by, decided_at, note, parked, assignee, governing_fingerprint, updated
 		 FROM unit_decisions WHERE project_id=? AND stream=?
 		 ORDER BY item_name, unit, variant`,
 		projectID, stream)
@@ -204,7 +206,7 @@ func (s *SQLiteStore) ListUnitDecisions(ctx context.Context, projectID, stream s
 		d := venue.UnitDecision{ProjectID: projectID, Stream: stream}
 		var parked int
 		if err := rows.Scan(&d.ItemName, &d.Unit, &d.Variant, &d.Status, &d.TargetHash, &d.ContentHash,
-			&d.ReviewState, &d.DecidedBy, &d.DecidedAt, &d.Note, &parked, &d.Assignee, &d.Updated); err != nil {
+			&d.ReviewState, &d.DecidedBy, &d.DecidedAt, &d.Note, &parked, &d.Assignee, &d.GoverningFingerprint, &d.Updated); err != nil {
 			return nil, fmt.Errorf("scan decision: %w", err)
 		}
 		d.Parked = parked != 0
@@ -220,12 +222,12 @@ func (s *SQLiteStore) GetUnitDecision(ctx context.Context, projectID, stream, it
 	var parked int
 	err := s.db.QueryRowContext(ctx,
 		`SELECT item_name, unit, variant, status, target_hash, content_hash, review_state,
-			decided_by, decided_at, note, parked, assignee, updated
+			decided_by, decided_at, note, parked, assignee, governing_fingerprint, updated
 		 FROM unit_decisions
 		 WHERE project_id=? AND stream=? AND item_name=? AND unit=? AND variant=?`,
 		projectID, stream, itemName, unit, variant).
 		Scan(&d.ItemName, &d.Unit, &d.Variant, &d.Status, &d.TargetHash, &d.ContentHash,
-			&d.ReviewState, &d.DecidedBy, &d.DecidedAt, &d.Note, &parked, &d.Assignee, &d.Updated)
+			&d.ReviewState, &d.DecidedBy, &d.DecidedAt, &d.Note, &parked, &d.Assignee, &d.GoverningFingerprint, &d.Updated)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}

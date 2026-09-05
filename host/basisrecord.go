@@ -141,7 +141,8 @@ func (a *App) recordProducedBasis(ctx context.Context, proj *project.KapiProject
 			if o, ok := origins.at(u, b, loc); ok {
 				origin = o
 			}
-			if hadPrev && prev.TargetHash == th && prev.ContentHash == ch && origin == prev.Origin {
+			if hadPrev && prev.TargetHash == th && prev.ContentHash == ch && origin == prev.Origin &&
+				prev.GoverningFingerprint == origin.ContextFingerprint {
 				continue // already recorded for this exact pairing
 			}
 			next := state.UnitState{
@@ -153,6 +154,14 @@ func (a *App) recordProducedBasis(ctx context.Context, proj *project.KapiProject
 				Updated:     now,
 				Scope:       scope,
 				Origin:      origin,
+				// What governed the translation is the producer's own stamp:
+				// the run that wrote the target is the run recording it, so the
+				// context in force at the write is the context it was produced
+				// under. The record carries it as its own field because that is
+				// where a reader of a JSON catalog or a .properties file finds
+				// it (the file holds strings and nothing else), and where a
+				// decision made later records its own.
+				GoverningFingerprint: origin.ContextFingerprint,
 			}
 			if hadPrev {
 				// Advisory state rides along, exactly as it does across a

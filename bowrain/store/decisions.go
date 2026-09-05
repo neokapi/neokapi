@@ -137,12 +137,13 @@ func upsertUnitDecisionsTx(ctx context.Context, tx Runner, projectID, stream str
 		var old venue.UnitDecision
 		var haveOld bool
 		row := tx.QueryRowContext(ctx,
-			`SELECT status, target_hash, content_hash, review_state, decided_by, decided_at, note, parked, assignee, updated
+			`SELECT status, target_hash, content_hash, review_state, decided_by, decided_at, note, parked, assignee,
+				governing_fingerprint, updated
 			 FROM unit_decisions
 			 WHERE project_id=$1 AND stream=$2 AND item_id=$3 AND unit=$4 AND variant=$5`,
 			projectID, stream, itemID, d.Unit, d.Variant)
 		switch err := row.Scan(&old.Status, &old.TargetHash, &old.ContentHash, &old.ReviewState, &old.DecidedBy,
-			&old.DecidedAt, &old.Note, &old.Parked, &old.Assignee, &old.Updated); {
+			&old.DecidedAt, &old.Note, &old.Parked, &old.Assignee, &old.GoverningFingerprint, &old.Updated); {
 		case err == nil:
 			haveOld = true
 		case err == sql.ErrNoRows:
@@ -163,17 +164,18 @@ func upsertUnitDecisionsTx(ctx context.Context, tx Runner, projectID, stream str
 		if _, err := tx.ExecContext(ctx,
 			`INSERT INTO unit_decisions
 				(project_id, stream, item_id, item_name, unit, variant, status, target_hash, content_hash, review_state,
-				 decided_by, decided_at, note, parked, assignee, updated, updated_at)
-			 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+				 decided_by, decided_at, note, parked, assignee, governing_fingerprint, updated, updated_at)
+			 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
 			 ON CONFLICT (project_id, stream, item_id, unit, variant) DO UPDATE SET
 				item_name=EXCLUDED.item_name,
 				status=EXCLUDED.status, target_hash=EXCLUDED.target_hash,
 				content_hash=EXCLUDED.content_hash,
 				review_state=EXCLUDED.review_state, decided_by=EXCLUDED.decided_by,
 				decided_at=EXCLUDED.decided_at, note=EXCLUDED.note, parked=EXCLUDED.parked,
-				assignee=EXCLUDED.assignee, updated=EXCLUDED.updated, updated_at=EXCLUDED.updated_at`,
+				assignee=EXCLUDED.assignee, governing_fingerprint=EXCLUDED.governing_fingerprint,
+				updated=EXCLUDED.updated, updated_at=EXCLUDED.updated_at`,
 			projectID, stream, itemID, d.ItemName, d.Unit, d.Variant, d.Status, d.TargetHash, d.ContentHash, d.ReviewState,
-			d.DecidedBy, d.DecidedAt, d.Note, d.Parked, d.Assignee, d.Updated, now); err != nil {
+			d.DecidedBy, d.DecidedAt, d.Note, d.Parked, d.Assignee, d.GoverningFingerprint, d.Updated, now); err != nil {
 			return changed, fmt.Errorf("upsert decision %s/%s: %w", d.Unit, d.Variant, err)
 		}
 		changed++
@@ -256,7 +258,7 @@ func listUnitDecisionsTx(ctx context.Context, tx Querier, projectID, stream stri
 	stream = storeutil.DefaultStream(stream)
 	rows, err := tx.QueryContext(ctx,
 		`SELECT item_name, unit, variant, status, target_hash, content_hash, review_state,
-			decided_by, decided_at, note, parked, assignee, updated
+			decided_by, decided_at, note, parked, assignee, governing_fingerprint, updated
 		 FROM unit_decisions WHERE project_id=$1 AND stream=$2
 		 ORDER BY item_name, unit, variant`,
 		projectID, stream)
@@ -269,7 +271,7 @@ func listUnitDecisionsTx(ctx context.Context, tx Querier, projectID, stream stri
 	for rows.Next() {
 		d := venue.UnitDecision{ProjectID: projectID, Stream: stream}
 		if err := rows.Scan(&d.ItemName, &d.Unit, &d.Variant, &d.Status, &d.TargetHash, &d.ContentHash,
-			&d.ReviewState, &d.DecidedBy, &d.DecidedAt, &d.Note, &d.Parked, &d.Assignee, &d.Updated); err != nil {
+			&d.ReviewState, &d.DecidedBy, &d.DecidedAt, &d.Note, &d.Parked, &d.Assignee, &d.GoverningFingerprint, &d.Updated); err != nil {
 			return nil, fmt.Errorf("scan decision: %w", err)
 		}
 		out = append(out, d)
@@ -283,12 +285,12 @@ func (s *PostgresStore) GetUnitDecision(ctx context.Context, projectID, stream, 
 	d := venue.UnitDecision{ProjectID: projectID, Stream: stream}
 	err := s.db.QueryRowContext(ctx,
 		`SELECT item_name, unit, variant, status, target_hash, content_hash, review_state,
-			decided_by, decided_at, note, parked, assignee, updated
+			decided_by, decided_at, note, parked, assignee, governing_fingerprint, updated
 		 FROM unit_decisions
 		 WHERE project_id=$1 AND stream=$2 AND item_name=$3 AND unit=$4 AND variant=$5`,
 		projectID, stream, itemName, unit, variant).
 		Scan(&d.ItemName, &d.Unit, &d.Variant, &d.Status, &d.TargetHash, &d.ContentHash,
-			&d.ReviewState, &d.DecidedBy, &d.DecidedAt, &d.Note, &d.Parked, &d.Assignee, &d.Updated)
+			&d.ReviewState, &d.DecidedBy, &d.DecidedAt, &d.Note, &d.Parked, &d.Assignee, &d.GoverningFingerprint, &d.Updated)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}

@@ -335,9 +335,9 @@ func (a *App) reviewHistory(ctx context.Context, req ReviewContextRequest, b *mo
 	source := model.LocaleID(ResolveSourceLocale(req.SourceLang, ""))
 
 	if vr, versioned := req.Memory.(memory.VersionReader); versioned {
-		var recorded model.Origin
+		var recorded string
 		if req.Unit != nil {
-			recorded = req.Unit.Origin
+			recorded = req.Unit.GoverningContext()
 		}
 		h.Prior = review.PriorVersionOf(ctx, vr, b, source, loc, review.GoverningFingerprint(b, loc, recorded))
 	}

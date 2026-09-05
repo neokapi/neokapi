@@ -455,7 +455,7 @@ func TestReviewContext_ReadsTheSameFactsAsTheHost(t *testing.T) {
 	assert.Equal(t, stored[0].Block.ID, got.Neighbourhood.Before[0].Key, "keyed by the block the platform addresses")
 
 	// History: one prior version, one score, one scale.
-	fingerprint := review.GoverningFingerprint(unit, "fr", record.Origin)
+	fingerprint := review.GoverningFingerprint(unit, "fr", record.GoverningContext())
 	wantPrior := review.PriorVersionOf(ctx, localMemory, unit, "en", "fr", fingerprint)
 	require.NotNil(t, wantPrior)
 	assert.Equal(t, wantPrior, got.History.Prior)

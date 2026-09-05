@@ -66,7 +66,7 @@ func TestAssembleReviewContextComposesTheSharedLayers(t *testing.T) {
 	assert.Equal(t, []string{"one", "two"}, neighbourKeys(got.Neighbourhood.Before))
 	assert.Equal(t, []string{"four", "five"}, neighbourKeys(got.Neighbourhood.After))
 
-	wantPrior := review.PriorVersionOf(ctx, tm, blocks[2], "en", "nb", review.GoverningFingerprint(blocks[2], "nb", unit.Origin))
+	wantPrior := review.PriorVersionOf(ctx, tm, blocks[2], "en", "nb", review.GoverningFingerprint(blocks[2], "nb", unit.GoverningContext()))
 	require.NotNil(t, wantPrior)
 	assert.Equal(t, wantPrior, got.History.Prior)
 	assert.True(t, got.History.Prior.Governed)

@@ -204,16 +204,56 @@ func (a *App) ApplyReviewDecisionAs(ctx context.Context, projectPath, sourceLang
 			if status != model.TargetStatusDraft && strings.TrimSpace(target) == "" {
 				return false, fmt.Errorf("unit %s has no %s translation to approve", ref.Key, ref.Locale)
 			}
+			// What governs the unit where the decider is deciding it: the voice
+			// guidance and term rules in force at the file's governance point
+			// for this locale, folded by the one function every producer
+			// stamps with. It is recorded beside the decision because the
+			// decision is the claim it supports (this answer stands under this
+			// context), and because for most delivered formats the record is
+			// the only carrier the answer has.
+			governing, gerr := a.governingFingerprintFor(ctx, projectPath, proj, root, u)
+			if gerr != nil {
+				return false, gerr
+			}
 			// The decision's document is its SOURCE file, resolved to the
 			// durable key the project holds for it: the identity namespace the
 			// unit key lives in, and the half of the decision's identity that
 			// tells one page's `p` from another's. The review queue's display
 			// path is the target file, which no other party names anything by.
 			return a.recordDecisionState(ctx, proj, root, a.documentIndexOrEmpty(ctx, root).Scope(root, u.SourcePath), blockKey(b), loc,
-				decidedContent{source: b.SourceText(), target: target}, status, decision, note, by)
+				decidedContent{source: b.SourceText(), target: target}, governing, status, decision, note, by)
 		}
 	}
 	return false, fmt.Errorf("review unit %q (%s) not found in %s", ref.Key, ref.Locale, ref.File)
+}
+
+// governingFingerprintFor resolves the governing context in force at a unit's
+// governance point for its locale, as the fingerprint a producer running there
+// now would stamp (coreprofile.GovernanceContext, through the same resolver the
+// staleness gate compares against). Empty for an ungoverned project.
+//
+// The resolvers bind to a project through a Command, so an embedded caller
+// (the desktop, an MCP tool) is given a synthetic one carrying this recipe:
+// resolving through the working directory instead would read whichever
+// project the process happens to sit in.
+func (a *App) governingFingerprintFor(ctx context.Context, projectPath string, proj *project.KapiProject, root string, u VerifyUnit) (string, error) {
+	cmd := NewEnvCommand(ctx, "record-decision")
+	cmd.SetOut(io.Discard)
+	cmd.SetErr(io.Discard)
+	AddProjectFlag(cmd)
+	if err := cmd.Flags().Set(projectFlagName, projectPath); err != nil {
+		return "", err
+	}
+	fps, err := newContextFingerprints(a, cmd, proj, root)
+	if err != nil {
+		return "", fmt.Errorf("resolve the governing context: %w", err)
+	}
+	defer fps.close()
+	g, err := fps.at(a.unitGovernancePoint(root, u), u.Locale)
+	if err != nil {
+		return "", fmt.Errorf("resolve the governing context: %w", err)
+	}
+	return g.fingerprint, nil
 }
 
 // decidedContent is the pairing a decision is about: the source wording in front
@@ -235,7 +275,11 @@ type decidedContent struct {
 // touched here: it is the recycle corpus, not the state carrier. Advisory fields
 // already on the unit's record (origin, source status, a fresh AI pre-review
 // annotation) survive the decision write.
-func (a *App) recordDecisionState(ctx context.Context, proj *project.KapiProject, root, file, unit string, locale model.LocaleID, content decidedContent, status model.TargetStatus, decision, note, by string) (bool, error) {
+//
+// governing is the fingerprint of the context the decision is made under, and
+// is part of what the record says: the same verdict on the same pairing under a
+// moved context is a new decision, recorded again.
+func (a *App) recordDecisionState(ctx context.Context, proj *project.KapiProject, root, file, unit string, locale model.LocaleID, content decidedContent, governing string, status model.TargetStatus, decision, note, by string) (bool, error) {
 	st, err := a.OpenProjectState(ctx, root)
 	if err != nil {
 		return false, err
@@ -245,18 +289,19 @@ func (a *App) recordDecisionState(ctx context.Context, proj *project.KapiProject
 	ch := state.SourceHash(content.source)
 	prev, hadPrev := st.Get(ctx, k)
 	if hadPrev && prev.Status == status && prev.TargetHash == th && prev.ContentHash == ch &&
-		prev.Decision.Note == note && prev.Decision.By == by {
-		return false, nil // already at this decision for this exact pairing
+		prev.Decision.Note == note && prev.Decision.By == by && prev.GoverningFingerprint == governing {
+		return false, nil // already at this decision for this exact pairing, under this context
 	}
 	now := nowRFC3339()
 	next := state.UnitState{
-		Unit:        unit,
-		Variant:     model.Variant(locale),
-		Status:      status,
-		TargetHash:  th,
-		ContentHash: ch,
-		Decision:    state.Decision{ReviewState: decision, By: by, At: now, Note: note},
-		Updated:     now,
+		Unit:                 unit,
+		Variant:              model.Variant(locale),
+		Status:               status,
+		TargetHash:           th,
+		ContentHash:          ch,
+		GoverningFingerprint: governing,
+		Decision:             state.Decision{ReviewState: decision, By: by, At: now, Note: note},
+		Updated:              now,
 		// The document the unit was decided in — half of the record's identity,
 		// and what lets a decision travel the sync protocol scoped to the item
 		// whose identity namespace the unit key lives in. Until the reconcile

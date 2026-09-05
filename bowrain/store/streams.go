@@ -96,7 +96,7 @@ var branchStreamCopies = []struct {
 	{table: "overlays_ext", columns: "project_id, block_id, kind, payload", stamp: "updated_at"},
 	{table: "block_notes", columns: "project_id, block_id, author, text, created_at", mintID: true},
 	{table: "unit_decisions", columns: "project_id, item_id, item_name, unit, variant, status, target_hash, content_hash, " +
-		"review_state, decided_by, decided_at, note, parked, assignee, updated", stamp: "updated_at"},
+		"review_state, decided_by, decided_at, note, parked, assignee, governing_fingerprint, updated", stamp: "updated_at"},
 }
 
 // branchStreamContent copies one stream's content into another, ids intact.

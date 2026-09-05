@@ -141,13 +141,13 @@ func TestGoverningFingerprintPrefersTheFormatStamp(t *testing.T) {
 	tests := []struct {
 		name     string
 		block    *model.Block
-		recorded model.Origin
+		recorded string
 		want     string
 	}{
-		{name: "the format's stamp wins", block: stamped, recorded: model.Origin{ContextFingerprint: "fp-record"}, want: "fp-file"},
-		{name: "the record answers when the format keeps none", block: bare, recorded: model.Origin{ContextFingerprint: "fp-record"}, want: "fp-record"},
+		{name: "the format's stamp wins", block: stamped, recorded: "fp-record", want: "fp-file"},
+		{name: "the record answers when the format keeps none", block: bare, recorded: "fp-record", want: "fp-record"},
 		{name: "no stamp anywhere reads as ungoverned", block: bare, want: ""},
-		{name: "no block at all still reads the record", block: nil, recorded: model.Origin{ContextFingerprint: "fp-record"}, want: "fp-record"},
+		{name: "no block at all still reads the record", block: nil, recorded: "fp-record", want: "fp-record"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

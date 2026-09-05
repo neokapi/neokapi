@@ -189,6 +189,26 @@ type reviewedEntry struct {
 	// promote a unit, so an undecided record that reached the ladder would read
 	// as a rejection and demote every translation the loop produced.
 	decided bool
+	// governing is the context the record's answer stands under
+	// (state.UnitState.GoverningContext): what the decider approved it under,
+	// or what the producer stamped. Empty for an ungoverned answer.
+	governing string
+}
+
+// governingFingerprint reports what the record says governed the translation a
+// block holds for the locale, or "" when the record holds nothing for the unit
+// or describes a different translation than the one on disk. A record's
+// fingerprint is a statement about the answer it recorded, so it says nothing
+// about wording somebody has since put in its place.
+func (r reviewedIndex) governingFingerprint(scope string, b *model.Block, locale string) string {
+	if r.byUnit == nil {
+		return ""
+	}
+	e, ok := r.byUnit[reviewUnitKey(scope, blockKey(b), locale)]
+	if !ok || !e.blessesTarget(b, model.LocaleID(locale)) {
+		return ""
+	}
+	return e.governing
 }
 
 // blessesTarget reports whether the decision's target half still holds: the
@@ -399,6 +419,7 @@ func (a *App) loadReviewedCorrections(ctx context.Context, proj *project.KapiPro
 			idx.putUnit(u.Scope, u.Unit, locale, reviewedEntry{
 				status: u.Status, targetHash: u.TargetHash,
 				contentHash: u.ContentHash, by: u.Decision.By, decided: true,
+				governing: u.GoverningContext(),
 			})
 		default:
 			// The loop's own record of a target it wrote: the source it
@@ -411,6 +432,7 @@ func (a *App) loadReviewedCorrections(ctx context.Context, proj *project.KapiPro
 			if u.TargetHash != "" && u.Decision.ReviewState == "" {
 				idx.putUnit(u.Scope, u.Unit, locale, reviewedEntry{
 					status: u.Status, targetHash: u.TargetHash, contentHash: u.ContentHash,
+					governing: u.GoverningContext(),
 				})
 			}
 		}

@@ -177,6 +177,10 @@ func TestStalenessGate_ConvergenceRecordsWhatGovernedIt(t *testing.T) {
 		assert.Equal(t, want.fingerprint, u.Origin.ContextFingerprint,
 			"unit %s carries the fingerprint the run's producers resolved", u.Unit)
 		assert.Equal(t, model.OriginAI, u.Origin.Kind, "the demo provider is an AI producer")
+		// The basis carries the same value as its own field: what governed
+		// the answer, where a reader of a JSON catalog finds it.
+		assert.Equal(t, want.fingerprint, u.GoverningFingerprint,
+			"unit %s records the producer's context as the governing fingerprint", u.Unit)
 	}
 }
 

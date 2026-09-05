@@ -347,3 +347,52 @@ func TestUpsertUnitDecisions_StaleBasisDoesNotProject_SQLite(t *testing.T) {
 	assert.Equal(t, model.TargetStatusTranslated, rows[0].Block.Target("nb").Status,
 		"a decision blessing source the store has rewritten must not project an approval")
 }
+
+// TestUnitDecisions_GoverningFingerprintRoundTrips_SQLite: the fingerprint of
+// the context a decision was made under is stored beside it and read back, a
+// record that gains one is a change the store writes, and one made under a
+// moved context replaces the one before it.
+func TestUnitDecisions_GoverningFingerprintRoundTrips_SQLite(t *testing.T) {
+	s := newTestStore(t)
+	ctx := t.Context()
+	p := createTestProject(t, s)
+
+	legacy := venue.UnitDecision{
+		ItemName: "en.json", Unit: "greeting", Variant: "nb",
+		Status: string(model.TargetStatusReviewed), TargetHash: state.TargetHash("Hei"),
+		ReviewState: "approved", DecidedBy: "reviewer@example.com", Updated: "2026-08-04T10:00:00Z",
+	}
+	changed, err := s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{legacy})
+	require.NoError(t, err)
+	require.Equal(t, 1, changed)
+
+	stamped := legacy
+	stamped.GoverningFingerprint = "fp-governing"
+	stamped.Updated = "2026-08-04T10:30:00Z"
+	changed, err = s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{stamped})
+	require.NoError(t, err)
+	assert.Equal(t, 1, changed, "a record that gains a fingerprint is a change")
+
+	got, err := s.GetUnitDecision(ctx, p.ID, "main", "en.json", "greeting", "nb")
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	assert.Equal(t, "fp-governing", got.GoverningFingerprint)
+	list, err := s.ListUnitDecisions(ctx, p.ID, "main")
+	require.NoError(t, err)
+	require.Len(t, list, 1)
+	assert.Equal(t, "fp-governing", list[0].GoverningFingerprint)
+
+	changed, err = s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{stamped})
+	require.NoError(t, err)
+	assert.Zero(t, changed, "an identical record is a no-op")
+
+	moved := stamped
+	moved.GoverningFingerprint = "fp-moved"
+	moved.Updated = "2026-08-04T11:00:00Z"
+	changed, err = s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{moved})
+	require.NoError(t, err)
+	assert.Equal(t, 1, changed, "the same verdict under a moved context is a new decision")
+	got, err = s.GetUnitDecision(ctx, p.ID, "main", "en.json", "greeting", "nb")
+	require.NoError(t, err)
+	assert.Equal(t, "fp-moved", got.GoverningFingerprint)
+}

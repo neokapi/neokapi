@@ -109,6 +109,9 @@ func (d UnitDecision) AsBasis(status model.TargetStatus) UnitDecision {
 	d.ReviewState = ""
 	d.DecidedBy = ""
 	d.DecidedAt = ""
+	// The fingerprint records the context the refused verdict was made under,
+	// so it leaves with the verdict.
+	d.GoverningFingerprint = ""
 	return d
 }
 
