@@ -83,3 +83,21 @@ export function findingToneTextClass(tone: FindingTone): string {
 export function findingSeverityBadgeClass(severity: string | undefined | null): string {
   return findingToneBadgeClass(findingSeverityTone(severity));
 }
+
+/**
+ * The mark a finding's span wears inside rendered content: a tinted fill and an
+ * underline in the tone, over the surrounding ink. The text inherits its colour
+ * rather than taking the tone's or the browser's default for a mark, because
+ * the same span is drawn on a card in the app's own theme and on the preview's
+ * light paper, and one ink chosen for either would not read on the other.
+ */
+export function findingToneMarkClass(tone: FindingTone): string {
+  switch (tone) {
+    case "destructive":
+      return "bg-destructive/20 text-inherit decoration-destructive";
+    case "warning":
+      return "bg-warning/30 text-inherit decoration-warning";
+    default:
+      return "bg-muted-foreground/15 text-inherit decoration-muted-foreground";
+  }
+}

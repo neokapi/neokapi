@@ -429,6 +429,19 @@ export const sampleCheckIssues: CheckIssue[] = [
 
 export const sampleFileCheckResults: FileCheckResult[] = [
   {
+    blockId: "blk-1",
+    issues: [
+      {
+        type: "do-not-translate",
+        severity: "error",
+        message: 'Do-not-translate term "Neokapi" is missing from the fr-FR target',
+        position: { kind: "range", start: { run: 0, offset: 11 }, end: { run: 1 } },
+        original_text: "Neokapi",
+        suggestion: 'Keep "Neokapi" verbatim in the target',
+      },
+    ],
+  },
+  {
     blockId: "blk-2",
     issues: [
       {

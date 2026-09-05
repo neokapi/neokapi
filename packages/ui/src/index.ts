@@ -215,6 +215,7 @@ export {
   findingToneBadgeClass,
   findingToneTextClass,
   findingSeverityBadgeClass,
+  findingToneMarkClass,
   type FindingTone,
 } from "./lib/finding-severity";
 // The unit in its document, drawn identically on both review surfaces.
@@ -234,6 +235,7 @@ export {
   JudgementCard,
   AIPreReview,
   ProvenanceCard,
+  FindingSnippet,
   TermRuleChip,
   TermHitChip,
   VoiceScoreChip,
@@ -249,6 +251,7 @@ export type {
   JudgementCardProps,
   AIPreReviewProps,
   ProvenanceCardProps,
+  FindingSnippetProps,
   ReviewTermHitView,
   ReviewFindingView,
   CheckFindingLike,

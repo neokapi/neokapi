@@ -100,3 +100,46 @@ export const SourceOnly: Story = {
     },
   },
 };
+
+// A reader arriving from the Checks page: the sheet opens at the finding's block,
+// addressed by its id, with the offending words marked in the finding's tone
+// and the file's other findings drawn dimmer. The header names the finding and
+// offers the way back to the list.
+export const FindingInContext: Story = {
+  args: {
+    focusBlockID: "greeting",
+    backLabel: "Back to checks",
+    focusNote: (
+      <>
+        <span className="rounded border border-destructive/40 bg-destructive/10 px-1.5 text-[10px] font-medium text-destructive">
+          Major
+        </span>
+        <span className="text-muted-foreground">Forbidden term "utilize" found</span>
+      </>
+    ),
+    highlights: {
+      greeting: [
+        {
+          side: "source",
+          anchor: { kind: "range", start: { run: 0, offset: 7 }, end: { run: 0, offset: 14 } },
+          tone: "destructive",
+          label: 'Forbidden term "utilize" found',
+          emphasis: "focus",
+        },
+      ],
+      tagline: [
+        {
+          side: "source",
+          anchor: { kind: "block" },
+          tone: "muted",
+          label: "Tone reads more formal than the brand's register",
+          emphasis: "dim",
+        },
+      ],
+    },
+  },
+};
+export const FindingInContextDark: Story = {
+  args: FindingInContext.args,
+  globals: { theme: "dark" },
+};

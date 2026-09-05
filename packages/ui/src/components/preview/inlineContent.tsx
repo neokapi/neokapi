@@ -25,7 +25,7 @@ import {
 } from "../editor/tagSemantics";
 import { isPresentationalCode, presentationalTag } from "./inlineStyle";
 import type { InlineCode } from "./renderDoc";
-import type { TextSegment } from "./overlayHighlight";
+import type { ResolvedSpan, TextSegment } from "./overlayHighlight";
 import styles from "./FormatPreview.module.css";
 
 /**
@@ -73,14 +73,50 @@ export function InlineCodeChip({ code }: { code: InlineCode }): React.ReactEleme
 export function OverlayText({ segment }: { segment: TextSegment }): React.ReactElement {
   const overlay = segment.overlay;
   if (!overlay) return <>{segment.text}</>;
+  return <PlainMark overlay={overlay}>{segment.text}</PlainMark>;
+}
+
+/**
+ * The plain mark around whatever a resolved span covers: a stretch of text, or
+ * the chip of an inline code a run anchor names. It carries the span's overlay
+ * type and its emphasis as data attributes, so a style or a test can address
+ * the one the reader came for apart from the ones drawn beside it.
+ */
+export function PlainMark({
+  overlay,
+  children,
+}: {
+  overlay: ResolvedSpan;
+  children: React.ReactNode;
+}): React.ReactElement {
   return (
     <mark
       className={cn(styles.overlay, overlay.style.className)}
       data-overlay-type={overlay.type}
+      data-emphasis={overlay.emphasis}
       title={overlay.tooltip}
     >
-      {segment.text}
+      {children}
     </mark>
+  );
+}
+
+/**
+ * The zero-width span that marks an inline code, if one does: a run anchor on a
+ * placeholder or a paired code names the code by id and sits at its offset,
+ * because the code has no text of its own for a mark to cover.
+ */
+export function codeMarkFor(
+  marks: readonly ResolvedSpan[] | undefined,
+  code: InlineCode,
+): ResolvedSpan | undefined {
+  if (!marks) return undefined;
+  return marks.find(
+    (m) =>
+      m.start === m.end &&
+      m.code !== undefined &&
+      m.code === code.span.id &&
+      m.start === code.offset,
   );
 }
 
@@ -107,13 +143,16 @@ interface Frame {
  * `limit` is how far the text has been revealed (a typewriter's visible prefix),
  * so a code appears only once its position has been reached; pass the full
  * length for a static reading. `renderText` draws one stretch of text, so a
- * caller can wrap it in its own mark or word diff.
+ * caller can wrap it in its own mark or word diff; `renderCode` draws one
+ * opaque code, so a caller can mark the chip a run anchor names. Absent, the
+ * chip is drawn as it is.
  */
 export function weaveInline(
   segments: TextSegment[],
   codes: InlineCode[],
   limit: number,
   renderText: (segment: TextSegment, text: string, key: string) => React.ReactNode,
+  renderCode?: (code: InlineCode, key: string) => React.ReactNode,
 ): React.ReactNode[] {
   const root: Frame = { tag: null, children: [], key: "root" };
   const stack: Frame[] = [root];
@@ -146,7 +185,9 @@ export function weaveInline(
       return;
     }
     // An opaque code (placeholder, link, break, unknown) stays a chip.
-    top().children.push(<InlineCodeChip key={`c${i}`} code={code} />);
+    top().children.push(
+      renderCode ? renderCode(code, `c${i}`) : <InlineCodeChip key={`c${i}`} code={code} />,
+    );
   };
   const emitCodesAt = (offset: number) => {
     while (ci < codes.length && codes[ci].offset <= offset) {

@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { FilePreview as PreviewSheet } from "@neokapi/ui-primitives/preview";
-import type { ContentTree, ContentNode } from "@neokapi/ui-primitives/preview";
+import type { ContentTree, ContentNode, PreviewHighlights } from "@neokapi/ui-primitives/preview";
 import { t } from "@neokapi/i18n-react/runtime";
 import { api } from "../hooks/useApi";
 import { qk } from "../lib/queryKeys";
@@ -17,6 +17,25 @@ function collectMediaNodes(tree: ContentTree): ContentNode[] {
   };
   tree.root.forEach(walk);
   return out;
+}
+
+// unitKeyForBlock maps a block's id onto the key the shared sheet addresses a
+// unit by (convergence.BlockKey: the reader's name, else the id), which is the
+// one index the sheet keeps over the tree. The review queue names a unit by that
+// key; a check finding names its block by id, so the id is mapped here, once,
+// rather than the sheet growing a second index.
+function unitKeyForBlock(tree: ContentTree, blockID: string): string | undefined {
+  let found: string | undefined;
+  const walk = (n: ContentNode) => {
+    if (found !== undefined) return;
+    if (n.kind === "block" && n.id === blockID) {
+      found = n.name || n.id;
+      return;
+    }
+    n.children?.forEach(walk);
+  };
+  tree.root.forEach(walk);
+  return found;
 }
 
 export interface FilePreviewProps {
@@ -49,11 +68,24 @@ export interface FilePreviewProps {
    */
   focusKey?: string | null;
   /**
+   * Open the document at one block by the id the engine gave it, which is how
+   * a check finding names its block. The block's unit key is read off the tree
+   * once it has loaded; `focusKey` wins when both are given.
+   */
+  focusBlockID?: string | null;
+  /**
    * Review state per unit key, drawn on each block as `data-review-state` and a
    * marker class. The reader sees where the decisions stand across the file
    * while reading it.
    */
   unitStates?: Record<string, string>;
+  /**
+   * Spans to mark on the document, by block id: a check finding's run anchor on
+   * the side it addresses, in the finding's tone.
+   */
+  highlights?: PreviewHighlights;
+  /** What is said about the focused unit beside its key: a finding's severity and message. */
+  focusNote?: ReactNode;
   /** Label for the button that returns the reader where they came from. */
   backLabel?: string;
   /** Which side the document opens on: the source, or a target locale key. */
@@ -84,7 +116,10 @@ export function FilePreview({
   entryPath,
   tree: presetTree,
   focusKey,
+  focusBlockID,
   unitStates,
+  highlights,
+  focusNote,
   backLabel,
   side,
 }: FilePreviewProps) {
@@ -133,6 +168,15 @@ export function FilePreview({
 
   const tree = presetTree ?? previewQuery.data?.tree ?? null;
   const mediaUrls = previewQuery.data?.mediaUrls ?? {};
+
+  // The unit to open at, by the key the sheet addresses it with. A block named
+  // by id reads as its id until the tree arrives, and stays its id when the
+  // tree does not hold it, which the sheet then says.
+  const focus = useMemo(() => {
+    if (focusKey) return focusKey;
+    if (!focusBlockID) return focusKey;
+    return (tree ? unitKeyForBlock(tree, focusBlockID) : undefined) ?? focusBlockID;
+  }, [focusKey, focusBlockID, tree]);
   const loading = !presetTree && !!filePath && previewQuery.isLoading;
   const error = previewQuery.error
     ? previewQuery.error instanceof Error
@@ -153,8 +197,10 @@ export function FilePreview({
       loading={loading}
       loadingLabel={t("Inspecting {filename}…", { filename })}
       error={error}
-      focusKey={focusKey}
+      focusKey={focus}
       unitStates={unitStates}
+      highlights={highlights}
+      focusNote={focusNote}
       backLabel={backLabel}
       viewer={{
         resolveMediaUrl: (node) => mediaUrls[node.id] ?? node.media?.uri,

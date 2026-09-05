@@ -2,7 +2,8 @@ import React, { useMemo } from "react";
 import { cn } from "../../lib/utils";
 import { DirectionalText, type TextDirection } from "../../lib/text-direction";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
-import { weaveInline } from "./inlineContent";
+import { InlineCodeChip, codeMarkFor, weaveInline } from "./inlineContent";
+import { highlightSpansByBlock, type PreviewHighlights } from "./highlights";
 import { useBlockElementProps, type BlockAttrs, type BlockElementProps } from "./blockElement";
 import DataPreview, { type DataCodeSource } from "./DataPreview";
 import { isKeyedFormat } from "./formatFamily";
@@ -104,6 +105,12 @@ export interface FormatPreviewProps {
    * document.
    */
   keyed?: boolean;
+  /**
+   * Spans a host asks to have marked, by block id: a check finding's run anchor
+   * on the side it addresses. Drawn as marks beside the tree's own overlays,
+   * with the finding's tone; the one in focus underlined, the others dimmed.
+   */
+  highlights?: PreviewHighlights;
   className?: string;
 }
 
@@ -123,6 +130,8 @@ interface PreviewCtx {
   onSelectBlock?: (id: string) => void;
   selectedBlockId?: string;
   blockAttrs?: (id: string) => BlockAttrs | undefined;
+  /** The host's highlights for one block on one side, located over its text. */
+  highlightsFor?: (id: string, side: string) => ResolvedSpan[] | undefined;
 }
 
 const Ctx = React.createContext<PreviewCtx | null>(null);
@@ -347,12 +356,27 @@ function LineText({ line, seq = 0 }: { line: RenderLine; seq?: number }): React.
     reducedMotion: ctx.reducedMotion,
   });
 
+  // The host's marks on this line, clipped to the revealed prefix like the
+  // overlays below, so a mark appears as the typewriter reaches it.
+  const marks = useMemo<ResolvedSpan[]>(() => {
+    const all = ctx.highlightsFor?.(line.id, ctx.side);
+    if (!all || all.length === 0) return [];
+    const limit = visible.length;
+    return all
+      .filter((m) => m.start <= limit)
+      .map((m) => (m.end > limit ? { ...m, end: limit } : m));
+  }, [ctx.highlightsFor, line.id, ctx.side, visible.length]);
+
   // Resolve overlays against the *visible* prefix so highlights appear as the
-  // typewriter reveals the words they cover.
+  // typewriter reveals the words they cover. The host's marks join them after,
+  // so on equal footing a mark wins the text it shares with an overlay.
   const spans = useMemo<ResolvedSpan[]>(() => {
-    if (!ctx.annotations) return [];
-    return resolveOverlaySpans(line.overlays, ctx.side, visible, ctx.overlayFilter);
-  }, [ctx.annotations, ctx.side, ctx.overlayFilter, line.overlays, visible]);
+    const own = ctx.annotations
+      ? resolveOverlaySpans(line.overlays, ctx.side, visible, ctx.overlayFilter)
+      : [];
+    if (marks.length === 0) return own;
+    return [...own, ...marks].sort((a, b) => a.start - b.start || b.end - a.end);
+  }, [ctx.annotations, ctx.side, ctx.overlayFilter, line.overlays, visible, marks]);
 
   const segments = useMemo<TextSegment[]>(() => segmentText(visible, spans), [visible, spans]);
 
@@ -409,7 +433,7 @@ function LineText({ line, seq = 0 }: { line: RenderLine; seq?: number }): React.
         memoryLine && styles.memoryHit,
       )}
     >
-      {inlineNodes(segments, codes, visible.length, prev)}
+      {inlineNodes(segments, codes, visible.length, prev, marks)}
     </DirectionalText>
   );
 }
@@ -428,19 +452,44 @@ function inlineNodes(
   codes: InlineCode[],
   limit: number,
   prev: string | undefined,
+  marks: readonly ResolvedSpan[],
 ): React.ReactNode[] {
-  return weaveInline(segments, codes, limit, (seg, text, key) =>
-    seg.overlay ? (
-      <OverlayMark key={key} segment={{ text, overlay: seg.overlay }} />
-    ) : (
-      <DiffText key={key} text={text} prev={prev} />
-    ),
+  return weaveInline(
+    segments,
+    codes,
+    limit,
+    (seg, text, key) =>
+      seg.overlay ? (
+        <OverlayMark key={key} overlay={seg.overlay}>
+          {text}
+        </OverlayMark>
+      ) : (
+        <DiffText key={key} text={text} prev={prev} />
+      ),
+    // A run anchor names an inline code, which has no text for a mark to cover,
+    // so the mark goes around the chip drawn for it.
+    (code, key) => {
+      const mark = codeMarkFor(marks, code);
+      const chip = <InlineCodeChip code={code} />;
+      return mark ? (
+        <OverlayMark key={key} overlay={mark}>
+          {chip}
+        </OverlayMark>
+      ) : (
+        <React.Fragment key={key}>{chip}</React.Fragment>
+      );
+    },
   );
 }
 
-function OverlayMark({ segment }: { segment: TextSegment }): React.ReactElement {
+function OverlayMark({
+  overlay: ov,
+  children,
+}: {
+  overlay: ResolvedSpan;
+  children: React.ReactNode;
+}): React.ReactElement {
   const ctx = useCtx();
-  const ov = segment.overlay!;
   // Redaction renders as a marker censor bar (the RedactionDiagram blackout): the
   // cleartext stays in the DOM for layout/width but is hidden under the ink bar
   // and masked from selection + assistive tech.
@@ -449,7 +498,7 @@ function OverlayMark({ segment }: { segment: TextSegment }): React.ReactElement 
       <Tooltip>
         <TooltipTrigger asChild>
           <mark className={styles.censor} data-overlay-type="redaction" aria-label={ov.tooltip}>
-            {segment.text}
+            {children}
           </mark>
         </TooltipTrigger>
         <TooltipContent>{ov.tooltip}</TooltipContent>
@@ -459,15 +508,19 @@ function OverlayMark({ segment }: { segment: TextSegment }): React.ReactElement 
   // A term decodes/rolls into place as its highlight sweeps in (the annotation
   // "effect"). slot-text rolls from a same-length scramble to the term.
   const content =
-    ov.type === "term" && !ctx.reducedMotion ? (
-      <SlotLine from={scramble(segment.text)} target={segment.text} />
+    ov.type === "term" && !ctx.reducedMotion && typeof children === "string" ? (
+      <SlotLine from={scramble(children)} target={children} />
     ) : (
-      segment.text
+      children
     );
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <mark className={cn(styles.overlay, ov.style.className)} data-overlay-type={ov.type}>
+        <mark
+          className={cn(styles.overlay, ov.style.className)}
+          data-overlay-type={ov.type}
+          data-emphasis={ov.emphasis}
+        >
           {content}
         </mark>
       </TooltipTrigger>
@@ -764,6 +817,7 @@ export default function FormatPreview({
   blockAttrs,
   code,
   keyed,
+  highlights,
   className,
 }: FormatPreviewProps): React.ReactElement {
   const model = useMemo<RenderDoc>(() => {
@@ -778,6 +832,21 @@ export default function FormatPreview({
     [overlayTypes],
   );
   const needsMarker = useMemo(() => annotations && docHasRedaction(model), [annotations, model]);
+
+  // The host's highlights, located over each block's text once per tree rather
+  // than once per line drawn. A pre-normalized `doc` carries no runs to locate
+  // them over, so they draw only from a tree.
+  const highlightIndex = useMemo(
+    () => highlightSpansByBlock(doc ? undefined : tree, highlights),
+    [doc, tree, highlights],
+  );
+  const highlightsFor = useMemo(
+    () =>
+      highlightIndex.size === 0
+        ? undefined
+        : (id: string, side: string) => highlightIndex.get(id)?.get(side),
+    [highlightIndex],
+  );
 
   // When the engine ships a projected render AST (ContentTree.render) and the
   // call is the plain source preview — no explicit `doc`/`before` override and
@@ -794,7 +863,8 @@ export default function FormatPreview({
     side === "source" &&
     !!tree?.render &&
     !onSelectBlock &&
-    !blockAttrs;
+    !blockAttrs &&
+    !highlightsFor;
 
   const ctx = useMemo<PreviewCtx>(
     () => ({
@@ -810,6 +880,7 @@ export default function FormatPreview({
       onSelectBlock,
       selectedBlockId,
       blockAttrs,
+      highlightsFor,
     }),
     [
       side,
@@ -824,6 +895,7 @@ export default function FormatPreview({
       onSelectBlock,
       selectedBlockId,
       blockAttrs,
+      highlightsFor,
     ],
   );
 
@@ -847,6 +919,7 @@ export default function FormatPreview({
               {...(selectedBlockId ? { selectedBlockId } : {})}
               {...(blockAttrs ? { blockAttrs } : {})}
               {...(code ? { code } : {})}
+              {...(highlights ? { highlights } : {})}
             />
           ) : useProjection && tree?.render ? (
             <RenderedDocument node={tree.render} locale={model.sourceLocale} />

@@ -1,12 +1,24 @@
 import { useState, useMemo } from "react";
-import type { FileCheckResult, CheckIssue } from "../../types/api";
-import { X, Check, AlertTriangle, Info } from "../icons";
+import { FindingSnippet, checkIssueTone } from "@neokapi/ui-primitives";
+import type { Run } from "@neokapi/contract-types";
+import type { BlockInfo, FileCheckResult, CheckIssue } from "../../types/api";
+import { X, Check, AlertTriangle, Info, FileText } from "../icons";
+import { getTargetText } from "./blockStatus";
 
 interface ProblemsPanelProps {
   issues: FileCheckResult[];
   loading?: boolean;
   onNavigateToBlock: (blockId: string) => void;
   onClose: () => void;
+  /**
+   * The file's blocks, so each issue can be read in the text it was raised on
+   * with its span marked. Absent, an issue shows the text the checker quoted.
+   */
+  blocks?: BlockInfo[];
+  /** The locale the checks ran against, whose text is read beside the source. */
+  targetLocale?: string;
+  /** The project's source language, for the source text's direction. */
+  sourceLocale?: string;
 }
 
 type FilterMode = "all" | "errors";
@@ -16,12 +28,41 @@ interface FlatIssue {
   issue: CheckIssue;
 }
 
+/** A block's source runs: the typed runs the server ships, else its text as one run. */
+function sourceRunsOf(block: BlockInfo): Run[] {
+  return block.source_runs ?? [{ text: block.source }];
+}
+
+/** A block's runs in a locale, else its text there as one run; undefined when it has none. */
+function targetRunsOf(block: BlockInfo, locale: string | undefined): Run[] | undefined {
+  if (!locale) return undefined;
+  const runs = block.targets_runs?.[locale];
+  if (runs && runs.length > 0) return runs;
+  const text = getTargetText(block, locale);
+  return text ? [{ text }] : undefined;
+}
+
 /**
  * ProblemsPanel slides up from the bottom to display findings,
- * similar to VS Code's problems panel.
+ * similar to VS Code's problems panel. Each row reads the issue in the text it
+ * was raised on and opens that block in the document.
  */
-export function ProblemsPanel({ issues, loading, onNavigateToBlock, onClose }: ProblemsPanelProps) {
+export function ProblemsPanel({
+  issues,
+  loading,
+  onNavigateToBlock,
+  onClose,
+  blocks,
+  targetLocale,
+  sourceLocale,
+}: ProblemsPanelProps) {
   const [filter, setFilter] = useState<FilterMode>("all");
+
+  const blocksById = useMemo(() => {
+    const m = new Map<string, BlockInfo>();
+    for (const b of blocks ?? []) m.set(b.id, b);
+    return m;
+  }, [blocks]);
 
   const flatIssues = useMemo(() => {
     const flat: FlatIssue[] = [];
@@ -131,38 +172,93 @@ export function ProblemsPanel({ issues, loading, onNavigateToBlock, onClose }: P
                 <th className="px-4 py-1.5 font-medium w-[80px]">Severity</th>
                 <th className="px-4 py-1.5 font-medium w-[140px]">Type</th>
                 <th className="px-4 py-1.5 font-medium">Message</th>
+                <th className="px-4 py-1.5 font-medium w-[1%]">
+                  <span className="sr-only">Open</span>
+                </th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((item, i) => (
-                <tr
-                  key={`${item.blockId}-${i}`}
-                  onClick={() => onNavigateToBlock(item.blockId)}
-                  className="border-b border-border/20 cursor-pointer hover:bg-muted/30 transition-colors"
-                >
-                  <td
-                    className="px-4 py-1.5 font-mono text-xs text-muted-foreground truncate"
-                    title={item.blockId}
+              {filtered.map((item, i) => {
+                const block = blocksById.get(item.blockId);
+                const blockLabel = block?.name || item.blockId;
+                const tone = checkIssueTone(item.issue.severity);
+                const targetRuns = block ? targetRunsOf(block, targetLocale) : undefined;
+                return (
+                  <tr
+                    key={`${item.blockId}-${i}`}
+                    onClick={() => onNavigateToBlock(item.blockId)}
+                    className="border-b border-border/20 cursor-pointer hover:bg-muted/30 transition-colors"
+                    data-testid="problem-row"
                   >
-                    {item.blockId.length > 12 ? `${item.blockId.slice(0, 12)}...` : item.blockId}
-                  </td>
-                  <td className="px-4 py-1.5">
-                    {item.issue.severity === "error" ? (
-                      <span className="inline-flex items-center gap-1 text-xs text-destructive">
-                        <AlertTriangle className="w-3 h-3" />
-                        Error
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 text-xs text-warning dark:text-warning">
-                        <Info className="w-3 h-3" />
-                        Warning
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-1.5 text-xs text-muted-foreground">{item.issue.type}</td>
-                  <td className="px-4 py-1.5 text-xs text-foreground">{item.issue.message}</td>
-                </tr>
-              ))}
+                    <td
+                      className="px-4 py-1.5 font-mono text-xs text-muted-foreground truncate align-top"
+                      title={blockLabel}
+                    >
+                      {blockLabel.length > 12 ? `${blockLabel.slice(0, 12)}...` : blockLabel}
+                    </td>
+                    <td className="px-4 py-1.5 align-top">
+                      {item.issue.severity === "error" ? (
+                        <span className="inline-flex items-center gap-1 text-xs text-destructive">
+                          <AlertTriangle className="w-3 h-3" />
+                          Error
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-xs text-warning dark:text-warning">
+                          <Info className="w-3 h-3" />
+                          Warning
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-1.5 text-xs text-muted-foreground align-top">
+                      {item.issue.type}
+                    </td>
+                    <td className="px-4 py-1.5 text-xs text-foreground align-top">
+                      <div>{item.issue.message}</div>
+                      {/* The issue in the text it was raised on. A check's position
+                          is anchored to the source runs (core/check), so the
+                          source carries the mark and the checked locale's text
+                          reads beneath it. */}
+                      {(block || item.issue.original_text) && (
+                        <div className="mt-1 space-y-0.5 text-[11px]" data-testid="problem-context">
+                          <FindingSnippet
+                            runs={block ? sourceRunsOf(block) : undefined}
+                            locale={sourceLocale}
+                            anchor={item.issue.position}
+                            tone={tone}
+                            label={item.issue.message}
+                            fallbackText={item.issue.original_text}
+                            data-testid="problem-snippet"
+                          />
+                          {targetRuns && (
+                            <div className="text-muted-foreground" data-testid="problem-target">
+                              <FindingSnippet
+                                runs={targetRuns}
+                                locale={targetLocale}
+                                tone={tone}
+                                label={item.issue.message}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-4 py-1.5 align-top">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onNavigateToBlock(item.blockId);
+                        }}
+                        className="inline-flex items-center gap-1 whitespace-nowrap rounded-md px-1.5 py-0.5 text-[11px] text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors"
+                        data-testid="problem-open-document"
+                      >
+                        <FileText className="w-3 h-3" />
+                        Open in document
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}

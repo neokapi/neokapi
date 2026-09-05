@@ -6,6 +6,7 @@ import {
   Loader2,
   Wand2,
   FileText,
+  FileSearch,
   CheckCircle2,
   Compass,
 } from "lucide-react";
@@ -16,12 +17,18 @@ import {
   CardContent,
   PageHeader,
   ScrollArea,
-  DirectionalText,
+  FindingSnippet,
+  findingSeverityTone,
+  findingToneBadgeClass,
 } from "@neokapi/ui-primitives";
+import type { ContentTree } from "@neokapi/ui-primitives/preview";
+import { t } from "@neokapi/i18n-react/runtime";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
+import { FilePreview } from "./FilePreview";
 import { useActiveFilter } from "../context/ActiveFilterContext";
-import type { CheckRunResult, DesktopFinding } from "../types/api";
+import { findingHighlights, findingSide } from "../lib/findingHighlights";
+import type { CheckFileResult, CheckRunResult, DesktopFinding } from "../types/api";
 
 export interface ChecksPanelProps {
   /** Project tab ID — the project whose content is checked. */
@@ -45,31 +52,25 @@ export interface ChecksPanelProps {
     path?: string;
     rule?: string;
   }) => void;
+  /**
+   * Pre-loaded document for Storybook/tests: handed to the preview in place of
+   * inspecting the file, so a finding can be opened without a backend.
+   */
+  previewTree?: ContentTree;
 }
 
-/** Map a finding severity to a Badge variant + supplementary class. */
-function severityBadge(severity: string): {
-  variant: "destructive" | "outline" | "secondary";
-  className?: string;
-  label: string;
-} {
+/** A finding severity as a badge: the shared tone, and the word the panel uses for it. */
+function severityBadge(severity: string): { className: string; label: string } {
+  const className = findingToneBadgeClass(findingSeverityTone(severity));
   switch (severity) {
     case "critical":
-      return { variant: "destructive", label: "Critical" };
+      return { className, label: "Critical" };
     case "major":
-      return {
-        variant: "outline",
-        className: "border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400",
-        label: "Major",
-      };
+      return { className, label: "Major" };
     case "minor":
-      return {
-        variant: "outline",
-        className: "border-amber-500/30 bg-amber-500/5 text-amber-600/90 dark:text-amber-400/90",
-        label: "Minor",
-      };
+      return { className, label: "Minor" };
     default:
-      return { variant: "secondary", className: "text-muted-foreground", label: "Info" };
+      return { className, label: "Info" };
   }
 }
 
@@ -78,18 +79,79 @@ function shortPath(p: string): string {
   return parts.slice(-2).join("/") || p;
 }
 
+/**
+ * The finding in the text it was raised on: the block's runs on the side the
+ * finding names, with the span marked. A finding about the translation carries
+ * a position anchored to the source runs (core/check), so for one of those the
+ * target text is read first and the source follows with the words underlined.
+ * Falls back to the quoted text when the block's runs did not travel with the
+ * finding.
+ */
+function FindingInContext({ finding }: { finding: DesktopFinding }) {
+  const tone = findingSeverityTone(finding.severity);
+  const onSource = finding.field !== "target";
+  const sideRuns = onSource ? finding.source_runs : finding.target_runs;
+  const hasRuns = !!sideRuns && sideRuns.length > 0;
+  const sourceMarked =
+    !onSource && !!finding.position && !!finding.source_runs && finding.source_runs.length > 0;
+  if (!hasRuns && !finding.original_text && !sourceMarked) return null;
+  return (
+    <div className="mt-1.5 space-y-0.5 text-xs" data-testid="finding-context">
+      {(hasRuns || finding.original_text) && (
+        <FindingSnippet
+          runs={sideRuns}
+          locale={finding.locale}
+          anchor={onSource ? finding.position : undefined}
+          tone={tone}
+          label={finding.message}
+          fallbackText={finding.original_text}
+          data-testid="finding-snippet"
+        />
+      )}
+      {sourceMarked && (
+        <div
+          className="flex items-baseline gap-1.5 text-muted-foreground"
+          data-testid="finding-snippet-source"
+        >
+          <Badge
+            variant="outline"
+            className="shrink-0 text-[10px] text-muted-foreground"
+            title={t("Where the finding sits in the source text.")}
+          >
+            {t("source")}
+          </Badge>
+          <FindingSnippet
+            runs={finding.source_runs}
+            anchor={finding.position}
+            tone={tone}
+            label={finding.message}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function ChecksPanel({
   tabID,
   result: propResult,
   forceLoading = false,
   onApplyFix,
   onOpenContext,
+  previewTree,
 }: ChecksPanelProps) {
   const { showError } = useError();
   const { active: activeFilter } = useActiveFilter();
   const [result, setResult] = useState<CheckRunResult | null>(propResult ?? null);
   const [loading, setLoading] = useState(forceLoading);
   const [fixingKey, setFixingKey] = useState<string | null>(null);
+  // The document a finding is being read in. The list stays mounted behind the
+  // sheet, so closing it lands back on the same card with the list where it was.
+  const [documentOpen, setDocumentOpen] = useState(false);
+  const [documentAt, setDocumentAt] = useState<{
+    file: CheckFileResult;
+    finding: DesktopFinding | null;
+  } | null>(null);
 
   // When a caller supplies a result (Storybook/tests), treat it as the source
   // of truth so an interactive parent can drive the panel (e.g. swap the result
@@ -141,6 +203,43 @@ export function ChecksPanel({
     },
     [tabID, onApplyFix, runChecks, showError],
   );
+
+  // Open the file in the document sheet: at one finding's block, on the side it
+  // names, or on the whole file with every finding drawn. A finding that names
+  // no block (a file that could not be read) opens the file.
+  const openInDocument = useCallback((file: CheckFileResult, finding: DesktopFinding | null) => {
+    setDocumentAt({ file, finding: finding?.block_id ? finding : null });
+    setDocumentOpen(true);
+  }, []);
+
+  const documentHighlights = useMemo(
+    () =>
+      documentAt ? findingHighlights(documentAt.file.findings, documentAt.finding) : undefined,
+    [documentAt],
+  );
+
+  const documentNote = useMemo(() => {
+    if (!documentAt) return undefined;
+    const finding = documentAt.finding;
+    if (!finding) {
+      return (
+        <span className="text-muted-foreground">
+          {t("{count} findings", { count: documentAt.file.findings.length })}
+        </span>
+      );
+    }
+    const sev = severityBadge(finding.severity);
+    return (
+      <>
+        <Badge variant="outline" className={sev.className}>
+          {sev.label}
+        </Badge>
+        <span className="min-w-0 truncate text-muted-foreground" title={finding.message}>
+          {finding.message}
+        </span>
+      </>
+    );
+  }, [documentAt]);
 
   const totalFindings = useMemo(
     () => (result?.files ?? []).reduce((n, f) => n + f.findings.length, 0),
@@ -256,18 +355,27 @@ export function ChecksPanel({
                   <FileText size={13} />
                   <span translate="no">{shortPath(file.path)}</span>
                   <span className="text-muted-foreground/60">· {file.findings.length}</span>
+                  <button
+                    type="button"
+                    onClick={() => openInDocument(file, null)}
+                    className="ml-auto inline-flex items-center gap-1 text-[11px] font-normal hover:text-foreground hover:underline"
+                    data-testid="file-open-document"
+                  >
+                    <FileSearch size={11} />
+                    Open in document
+                  </button>
                 </div>
                 <div className="space-y-2">
                   {file.findings.map((finding, idx) => {
                     const sev = severityBadge(finding.severity);
                     const key = `${file.path}#${finding.block_id ?? ""}#${idx}`;
                     return (
-                      <Card key={key}>
+                      <Card key={key} data-testid="finding-card">
                         <CardContent className="p-3">
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0 flex-1">
                               <div className="mb-1 flex flex-wrap items-center gap-1.5">
-                                <Badge variant={sev.variant} className={sev.className}>
+                                <Badge variant="outline" className={sev.className}>
                                   {sev.label}
                                 </Badge>
                                 <Badge
@@ -311,19 +419,7 @@ export function ChecksPanel({
                                 )}
                               </div>
                               <p className="text-sm">{finding.message}</p>
-                              {finding.original_text && (
-                                <p className="mt-1 text-xs text-muted-foreground">
-                                  Found:{" "}
-                                  <DirectionalText
-                                    as="code"
-                                    locale={finding.locale}
-                                    className="rounded bg-muted px-1 py-0.5 text-[11px]"
-                                    translate="no"
-                                  >
-                                    {finding.original_text}
-                                  </DirectionalText>
-                                </p>
-                              )}
+                              <FindingInContext finding={finding} />
                               {finding.suggestion && (
                                 <p className="mt-1 text-xs text-muted-foreground">
                                   <span className="text-muted-foreground/70">{"↳ "}</span>
@@ -331,22 +427,32 @@ export function ChecksPanel({
                                 </p>
                               )}
                             </div>
-                            {finding.fixable && (
+                            <div className="flex shrink-0 flex-wrap justify-end gap-1.5">
                               <Button
-                                variant="outline"
+                                variant="ghost"
                                 size="sm"
-                                className="shrink-0"
-                                disabled={fixingKey === key}
-                                onClick={() => void handleApplyFix(file.path, finding, key)}
+                                onClick={() => openInDocument(file, finding)}
+                                data-testid="finding-open-document"
                               >
-                                {fixingKey === key ? (
-                                  <Loader2 size={12} className="animate-spin" />
-                                ) : (
-                                  <Wand2 size={12} />
-                                )}
-                                Apply fix
+                                <FileSearch size={12} />
+                                Open in document
                               </Button>
-                            )}
+                              {finding.fixable && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={fixingKey === key}
+                                  onClick={() => void handleApplyFix(file.path, finding, key)}
+                                >
+                                  {fixingKey === key ? (
+                                    <Loader2 size={12} className="animate-spin" />
+                                  ) : (
+                                    <Wand2 size={12} />
+                                  )}
+                                  Apply fix
+                                </Button>
+                              )}
+                            </div>
                           </div>
                         </CardContent>
                       </Card>
@@ -358,6 +464,22 @@ export function ChecksPanel({
           </div>
         </ScrollArea>
       )}
+
+      {/* The finding in its document: the file opens at the finding's block, on
+          the side it names, with its span marked and the file's other findings
+          drawn dimmer. */}
+      <FilePreview
+        tabID={tabID}
+        filePath={documentOpen && documentAt ? documentAt.file.path : null}
+        filename={documentAt ? shortPath(documentAt.file.path) : ""}
+        tree={previewTree}
+        focusBlockID={documentAt?.finding?.block_id ?? null}
+        side={documentAt?.finding ? findingSide(documentAt.finding) : "source"}
+        highlights={documentHighlights}
+        focusNote={documentNote}
+        backLabel={t("Back to checks")}
+        onClose={() => setDocumentOpen(false)}
+      />
     </div>
   );
 }

@@ -22,7 +22,7 @@
 
 import { otherBranch, projectRuns, projectRunsText, type RunSpec } from "@neokapi/kapi-format";
 import { byteToCharOffset } from "../../lib/offsets";
-import type { Run, Anchor, RunPos } from "./types";
+import { runKind, type Run, type Anchor, type RunPos } from "./types";
 
 /** Code-point length of a string (Go's utf8.RuneCountInString). */
 function codePointLength(s: string): number {
@@ -153,4 +153,161 @@ export function textForBytes(runs: Run[] | undefined, byteStart: number, byteEnd
   // Array.from splits into code points, which is the unit the offsets count in.
   const chars = Array.from(text);
   return chars.slice(byteToCharOffset(text, byteStart), byteToCharOffset(text, byteEnd)).join("");
+}
+
+// ── Anchor → character span ──────────────────────────────────────────────────
+//
+// The inverse of `rangeAnchorForChars`: where in the flat text an anchor sits,
+// so a finding recorded against the runs can be drawn over the text a reader
+// sees. Every kind resolves to a half-open span of that text: a block anchor to
+// all of it, a range to its characters, a run anchor to the width the run has
+// there (zero for an inline code, which a renderer marks as its chip), and a
+// form anchor to the plural or select run it names, since the reading shows
+// one branch of that run in its place.
+
+/** A half-open span of UTF-16 indices into a flat text. */
+export interface CharSpan {
+  start: number;
+  end: number;
+}
+
+/** One hop of an anchor's path. */
+type PathStep = NonNullable<Anchor["path"]>[number];
+
+/** UTF-16 index of a code-point offset into `text`. */
+function utf16Index(text: string, codePoints: number): number {
+  let seen = 0;
+  let index = 0;
+  for (const ch of text) {
+    if (seen >= codePoints) break;
+    index += ch.length;
+    seen++;
+  }
+  return index;
+}
+
+/** The code-point width of the first `count` runs of a sequence. */
+function widthBefore(runs: Run[], count: number): number {
+  let n = 0;
+  for (let i = 0; i < count && i < runs.length; i++) n += runFlatLength(runs[i]);
+  return n;
+}
+
+/** The id an inline-code run carries, which a run anchor names it by. */
+function runIdOf(run: Run): string | undefined {
+  switch (runKind(run)) {
+    case "ph":
+      return run.ph?.id;
+    case "pcOpen":
+      return run.pcOpen?.id;
+    case "pcClose":
+      return run.pcClose?.id;
+    case "sub":
+      return run.sub?.id;
+    default:
+      return undefined;
+  }
+}
+
+/** The branches of a plural or select run, or null for any other kind. */
+function branchesOf(run: Run): Record<string, Run[]> | null {
+  switch (runKind(run)) {
+    case "plural":
+      return run.plural?.forms ?? {};
+    case "select":
+      return run.select?.cases ?? {};
+    default:
+      return null;
+  }
+}
+
+/** The branch a path step descends into, or null for an index step. */
+function branchKey(step: PathStep): string | null {
+  if (typeof step === "number") return null;
+  const s = step as { plural?: string; select?: string };
+  return s.plural ?? s.select ?? null;
+}
+
+/**
+ * Code-point offset of a boundary inside `runs`, or null when it lies outside
+ * them. A boundary one past the last run is the end of the sequence.
+ */
+function boundaryOffset(runs: Run[], pos: RunPos): number | null {
+  const offset = pos.offset ?? 0;
+  if (offset < 0 || pos.run < 0 || pos.run > runs.length) return null;
+  if (pos.run === runs.length) return offset === 0 ? widthBefore(runs, runs.length) : null;
+  if (offset > runFlatLength(runs[pos.run])) return null;
+  return widthBefore(runs, pos.run) + offset;
+}
+
+/**
+ * The span of `runsPlainText(runs)` an anchor covers, as UTF-16 indices, or
+ * null when the anchor addresses nothing in that text: a kind this build does
+ * not know, a path that does not resolve, a run the sequence does not hold.
+ *
+ * A position inside a branch the reading does not show (a plural's `one` form
+ * where the text reads `other`) resolves to the whole plural run, which is
+ * where that branch would be read if the pivot chose it.
+ */
+export function charSpanForAnchor(runs: Run[] | undefined, anchor: Anchor): CharSpan | null {
+  const top = runs ?? [];
+  const span = codePointSpanForAnchor(top, anchor);
+  if (!span) return null;
+  const text = runsPlainText(top);
+  return { start: utf16Index(text, span.start), end: utf16Index(text, span.end) };
+}
+
+function codePointSpanForAnchor(top: Run[], anchor: Anchor): CharSpan | null {
+  // `seq` is the sequence the path has reached and `base` where it begins in
+  // the flat text; `landed` is the run the last index step named.
+  let seq = top;
+  let base = 0;
+  let landed: Run | null = null;
+  let landedAt = 0;
+  for (const step of anchor.path ?? []) {
+    if (typeof step === "number") {
+      if (step < 0 || step >= seq.length) return null;
+      landed = seq[step];
+      landedAt = base + widthBefore(seq, step);
+      continue;
+    }
+    if (landed === null) return null;
+    const branches = branchesOf(landed);
+    const key = branchKey(step);
+    if (!branches || key === null) return null;
+    const branch = branches[key];
+    if (!branch) return null;
+    if (branch !== otherBranch(branches)) {
+      return { start: landedAt, end: landedAt + runFlatLength(landed) };
+    }
+    seq = branch;
+    base = landedAt;
+    landed = null;
+  }
+
+  switch (anchor.kind) {
+    case "block":
+      return { start: base, end: base + widthBefore(seq, seq.length) };
+    case "range": {
+      const start = boundaryOffset(seq, runPosOf(anchor.start));
+      const end = boundaryOffset(seq, runPosOf(anchor.end));
+      if (start === null || end === null || end < start) return null;
+      return { start: base + start, end: base + end };
+    }
+    case "run": {
+      if (landed !== null && runIdOf(landed) === anchor.runId) {
+        return { start: landedAt, end: landedAt + runFlatLength(landed) };
+      }
+      const i = seq.findIndex((r) => runIdOf(r) === anchor.runId);
+      if (i < 0) return null;
+      const at = base + widthBefore(seq, i);
+      return { start: at, end: at + runFlatLength(seq[i]) };
+    }
+    case "form": {
+      if (landed === null || branchesOf(landed) === null) return null;
+      return { start: landedAt, end: landedAt + runFlatLength(landed) };
+    }
+    default:
+      return null;
+  }
 }

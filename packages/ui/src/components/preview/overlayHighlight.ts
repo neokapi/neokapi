@@ -113,6 +113,18 @@ export interface ResolvedSpan {
   span: OverlaySpan;
   /** A one-line tooltip describing the overlay (type + props/text). */
   tooltip: string;
+  /**
+   * How a host's highlight stands among the others on the document: "focus"
+   * for the one the reader came to see, "dim" for its neighbours. Unset for an
+   * overlay from the tree.
+   */
+  emphasis?: "focus" | "dim";
+  /**
+   * The id of the inline code a zero-width span marks: a run anchor on a
+   * placeholder or paired code has no text of its own, so the mark goes on the
+   * chip drawn for it.
+   */
+  code?: string;
 }
 
 // The props worth surfacing in the tooltip, per overlay identity — chosen so a

@@ -81,6 +81,12 @@ func TestRunChecksFindsVoiceVocab(t *testing.T) {
 	assert.Equal(t, "use", vocab.Replacement)
 	assert.True(t, vocab.Fixable, "a forbidden term with a replacement and a block id should be fixable")
 	assert.NotEmpty(t, vocab.BlockID)
+	// The finding travels with the text it was raised on, so the panel can show
+	// the words in place with the position marked over them.
+	assert.Equal(t, "Please utilize the dashboard", model.RunsText(vocab.SourceRuns))
+	assert.Empty(t, vocab.TargetRuns, "a source-side finding names no target")
+	assert.Equal(t, "utilize", model.RunsText(vocab.Position.ExtractRuns(vocab.SourceRuns)),
+		"the position marks the offending words in the source runs")
 }
 
 func TestRunChecksTargetFindingCarriesTargetLocale(t *testing.T) {
@@ -123,6 +129,10 @@ func TestRunChecksTargetFindingCarriesTargetLocale(t *testing.T) {
 	}
 	require.NotNil(t, placeholder, "the de-DE translation dropped {name}")
 	assert.Equal(t, "de-DE", placeholder.Locale, "a target-side finding carries the checked target locale")
+	// Both sides travel with a target-side finding: the source the position is
+	// anchored to, and the target the finding is about.
+	assert.Equal(t, "Hello {name}", model.RunsText(placeholder.SourceRuns))
+	assert.Equal(t, "Hallo", model.RunsText(placeholder.TargetRuns))
 }
 
 func TestApplyCheckFixRewritesSourceAndResolves(t *testing.T) {

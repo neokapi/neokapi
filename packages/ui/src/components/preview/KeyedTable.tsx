@@ -17,7 +17,8 @@ import React from "react";
 import { cn } from "../../lib/utils";
 import { DirectionalText } from "../../lib/text-direction";
 import { useBlockElementProps, type BlockAttrs } from "./blockElement";
-import { OverlayText, weaveInline } from "./inlineContent";
+import { highlightSpans, type PreviewHighlight, type PreviewHighlights } from "./highlights";
+import { InlineCodeChip, OverlayText, PlainMark, codeMarkFor, weaveInline } from "./inlineContent";
 import { groupRows, keyedRows, type KeyedRow, type KeyGroup } from "./keyModel";
 import { resolveOverlaySpans, segmentText } from "./overlayHighlight";
 import { runsCodes, runsText } from "./renderDoc";
@@ -40,6 +41,11 @@ export interface KeyedTableProps {
   selectedBlockId?: string;
   /** Per-block class name and `data-*` markers. */
   blockAttrs?: (id: string) => BlockAttrs | undefined;
+  /**
+   * Spans a host asks to have marked, by block id: a check finding's run anchor
+   * on the side it addresses, drawn in the finding's tone beside the overlays.
+   */
+  highlights?: PreviewHighlights;
   /** Column header for the source side (default: the source locale, else "Source"). */
   sourceLabel?: string;
   /** Column header for the target side (default: the locale). */
@@ -64,29 +70,57 @@ export interface KeyedTableProps {
 function RunCell({
   runs,
   overlays,
+  highlights,
   side,
   locale,
 }: {
   runs: Run[] | undefined;
   overlays: OverlayView[] | undefined;
+  highlights: readonly PreviewHighlight[] | undefined;
   side: string;
   locale?: string;
 }): React.ReactElement {
   const text = React.useMemo(() => runsText(runs), [runs]);
   const codes = React.useMemo(() => runsCodes(runs), [runs]);
+  // The host's marks join the overlays after them, so on equal footing a mark
+  // wins the text it shares with an overlay, as it does in the document reading.
+  const marks = React.useMemo(
+    () => highlightSpans(runs, highlights, side),
+    [runs, highlights, side],
+  );
   const segments = React.useMemo(() => {
-    const spans = overlays ? resolveOverlaySpans(overlays, side, text) : [];
+    const own = overlays ? resolveOverlaySpans(overlays, side, text) : [];
+    const spans =
+      marks.length === 0
+        ? own
+        : [...own, ...marks].sort((a, b) => a.start - b.start || b.end - a.end);
     return segmentText(text, spans);
-  }, [overlays, side, text]);
+  }, [overlays, side, text, marks]);
   const nodes = React.useMemo(
     () =>
-      weaveInline(segments, codes, text.length, (seg, value, key) => (
-        <OverlayText
-          key={key}
-          segment={{ text: value, ...(seg.overlay ? { overlay: seg.overlay } : {}) }}
-        />
-      )),
-    [segments, codes, text.length],
+      weaveInline(
+        segments,
+        codes,
+        text.length,
+        (seg, value, key) => (
+          <OverlayText
+            key={key}
+            segment={{ text: value, ...(seg.overlay ? { overlay: seg.overlay } : {}) }}
+          />
+        ),
+        (code, key) => {
+          const mark = codeMarkFor(marks, code);
+          const chip = <InlineCodeChip code={code} />;
+          return mark ? (
+            <PlainMark key={key} overlay={mark}>
+              {chip}
+            </PlainMark>
+          ) : (
+            <React.Fragment key={key}>{chip}</React.Fragment>
+          );
+        },
+      ),
+    [segments, codes, text.length, marks],
   );
 
   return (
@@ -110,8 +144,9 @@ function Row({
   locale?: string;
   sourceLocale?: string;
   columns: number;
-  ctx: Pick<KeyedTableProps, "onSelectBlock" | "selectedBlockId" | "blockAttrs">;
+  ctx: Pick<KeyedTableProps, "onSelectBlock" | "selectedBlockId" | "blockAttrs" | "highlights">;
 }): React.ReactElement {
+  const highlights = ctx.highlights?.[row.id];
   const props = useBlockElementProps({
     id: row.id,
     attrs: ctx.blockAttrs?.(row.id),
@@ -136,6 +171,7 @@ function Row({
         <RunCell
           runs={row.source}
           overlays={row.node.overlays}
+          highlights={highlights}
           side="source"
           locale={row.sourceLocale ?? sourceLocale}
         />
@@ -145,6 +181,7 @@ function Row({
           <RunCell
             runs={row.targets[locale]}
             overlays={row.node.overlays}
+            highlights={highlights}
             side={locale}
             locale={locale}
           />
@@ -168,7 +205,7 @@ function Group({
   columns: number;
   locale?: string;
   sourceLocale?: string;
-  ctx: Pick<KeyedTableProps, "onSelectBlock" | "selectedBlockId" | "blockAttrs">;
+  ctx: Pick<KeyedTableProps, "onSelectBlock" | "selectedBlockId" | "blockAttrs" | "highlights">;
 }): React.ReactElement {
   const heading = group.path.length > 0;
   return (
@@ -217,6 +254,7 @@ export default function KeyedTable({
   onSelectBlock,
   selectedBlockId,
   blockAttrs,
+  highlights,
   sourceLabel,
   targetLabel,
   className,
@@ -224,7 +262,7 @@ export default function KeyedTable({
   const rows = React.useMemo(() => keyedRows(tree), [tree]);
   const root = React.useMemo(() => groupRows(rows), [rows]);
   const columns = locale ? 3 : 2;
-  const ctx = { onSelectBlock, selectedBlockId, blockAttrs };
+  const ctx = { onSelectBlock, selectedBlockId, blockAttrs, highlights };
 
   if (rows.length === 0) {
     return (

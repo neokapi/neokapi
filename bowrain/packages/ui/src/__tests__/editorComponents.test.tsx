@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vite-plus/test";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { SpanInfo, BlockTermMatch, EntityInfo, FileCheckResult } from "../types/api";
 
@@ -395,6 +395,86 @@ describe("ProblemsPanel", () => {
     });
     expect(screen.getByText("Missing bold tag")).toBeInTheDocument();
     expect(screen.getByText("Error")).toBeInTheDocument();
+  });
+
+  it("reads the issue in the text it was raised on, with the span marked", async () => {
+    const issues: FileCheckResult[] = [
+      {
+        blockId: "block-1",
+        issues: [
+          {
+            type: "terminology",
+            severity: "error",
+            message: 'Say "there" rather than "here"',
+            position: { kind: "range", start: { run: 0, offset: 6 }, end: { run: 0, offset: 10 } },
+            original_text: "here",
+          },
+        ],
+      },
+    ];
+    await renderComponent({
+      issues,
+      blocks: [
+        {
+          id: "block-1",
+          name: "cta.continue",
+          source: "Click here to continue",
+          targets: { "fr-FR": "Cliquez ici pour continuer" },
+          translatable: true,
+          has_spans: false,
+          properties: {},
+        },
+      ],
+      targetLocale: "fr-FR",
+      sourceLocale: "en",
+      onNavigateToBlock: vi.fn(),
+      onClose: vi.fn(),
+    });
+    const snippet = screen.getByTestId("problem-snippet");
+    expect(snippet).toHaveTextContent("Click here to continue");
+    const mark = snippet.querySelector('mark[data-overlay-type="finding"]');
+    expect(mark).toHaveTextContent("here");
+    expect(mark?.className).toContain("decoration-destructive");
+    expect(screen.getByTestId("problem-target")).toHaveTextContent("Cliquez ici pour continuer");
+    // The block is named by its key rather than its id.
+    expect(screen.getByTitle("cta.continue")).toBeInTheDocument();
+  });
+
+  it("quotes the checker's text when the blocks are not given", async () => {
+    const issues: FileCheckResult[] = [
+      {
+        blockId: "block-1",
+        issues: [
+          {
+            type: "placeholder",
+            severity: "error",
+            message: "The target drops {count}",
+            original_text: "{count}",
+          },
+        ],
+      },
+    ];
+    await renderComponent({ issues, onNavigateToBlock: vi.fn(), onClose: vi.fn() });
+    const snippet = screen.getByTestId("problem-snippet");
+    expect(snippet.getAttribute("data-snippet")).toBe("fallback");
+    expect(snippet).toHaveTextContent("{count}");
+  });
+
+  it("opens the issue's block in the document from its own action", async () => {
+    const onNavigateToBlock = vi.fn();
+    await renderComponent({
+      issues: [
+        {
+          blockId: "block-7",
+          issues: [{ type: "missing_tag", severity: "error", message: "Missing bold tag" }],
+        },
+      ],
+      onNavigateToBlock,
+      onClose: vi.fn(),
+    });
+    fireEvent.click(screen.getByTestId("problem-open-document"));
+    expect(onNavigateToBlock).toHaveBeenCalledTimes(1);
+    expect(onNavigateToBlock).toHaveBeenCalledWith("block-7");
   });
 
   it("renders warnings", async () => {

@@ -247,3 +247,141 @@ export const ReadingsDark: Story = {
   render: () => <ReadingStrip />,
   globals: { theme: "dark" },
 };
+
+/**
+ * A reader arriving from a list of check findings: the finding they came for is
+ * marked and underlined on its block, the file's other findings are drawn
+ * dimmer in their own tones, and one block carries two findings at once. The
+ * header names the finding rather than a review state, and the way back is to
+ * the list of findings.
+ */
+export const FindingHighlights: Story = {
+  args: {
+    highlights: {
+      b1: [
+        {
+          side: "source",
+          anchor: { kind: "range", start: { run: 0, offset: 7 }, end: { run: 0, offset: 14 } },
+          tone: "destructive",
+          label: 'Forbidden term "utilize" found',
+          emphasis: "focus",
+        },
+        {
+          side: "source",
+          anchor: { kind: "range", start: { run: 0, offset: 19 }, end: { run: 1 } },
+          tone: "warning",
+          label: 'Prefer "overview" to "dashboard" in product copy',
+          emphasis: "dim",
+        },
+      ],
+      b2: [
+        {
+          side: "source",
+          anchor: { kind: "block" },
+          tone: "muted",
+          label: "Tone reads more formal than the brand's register",
+          emphasis: "dim",
+        },
+      ],
+    },
+    focusKey: "app.greeting",
+    focusNote: (
+      <>
+        <span className="rounded border border-destructive/40 bg-destructive/10 px-1.5 text-[10px] font-medium text-destructive">
+          Major
+        </span>
+        <span className="text-muted-foreground">Forbidden term "utilize" found</span>
+      </>
+    ),
+    backLabel: "Back to checks",
+  },
+};
+export const FindingHighlightsDark: Story = {
+  args: FindingHighlights.args,
+  globals: { theme: "dark" },
+};
+
+/**
+ * A finding about the translation: the document opens on the target side with
+ * the block marked whole, because the checker's position is anchored to the
+ * source runs, where the words it means are underlined once the reader toggles
+ * to the source.
+ */
+export const FindingHighlightsTargetSide: Story = {
+  args: {
+    viewer: { defaultSide: "fr" },
+    highlights: {
+      b3: [
+        {
+          side: "fr",
+          anchor: { kind: "block" },
+          tone: "destructive",
+          label: 'Do-not-translate term "release" is missing from the fr target',
+          emphasis: "focus",
+        },
+        {
+          side: "source",
+          anchor: { kind: "range", start: { run: 0, offset: 13 }, end: { run: 1 } },
+          tone: "destructive",
+          label: 'Do-not-translate term "release" is missing from the fr target',
+          emphasis: "focus",
+        },
+      ],
+    },
+    focusKey: "release.title",
+    focusNote: (
+      <>
+        <span className="rounded border border-destructive/40 bg-destructive/10 px-1.5 text-[10px] font-medium text-destructive">
+          Critical
+        </span>
+        <span className="text-muted-foreground">
+          Do-not-translate term "release" is missing from the fr target
+        </span>
+      </>
+    ),
+    backLabel: "Back to checks",
+  },
+};
+export const FindingHighlightsTargetSideDark: Story = {
+  args: FindingHighlightsTargetSide.args,
+  globals: { theme: "dark" },
+};
+
+/** The same marks on a document laid out as prose rather than as a key table. */
+export const FindingHighlightsDocument: Story = {
+  args: {
+    filename: "docs/releasing.md",
+    format: "markdown",
+    tree: document,
+    highlights: {
+      m2: [
+        {
+          side: "source",
+          anchor: { kind: "range", start: { run: 0, offset: 61 }, end: { run: 0, offset: 67 } },
+          tone: "destructive",
+          label: 'Say "sign in" rather than "assume": name the step the reader takes',
+          emphasis: "focus",
+        },
+      ],
+      m4: [
+        {
+          side: "source",
+          anchor: { kind: "block" },
+          tone: "warning",
+          label: "A checklist item reads as an instruction; state it as a check",
+          emphasis: "dim",
+        },
+      ],
+    },
+    backLabel: "Back to checks",
+    focusNote: (
+      <span className="text-muted-foreground">
+        Say "sign in" rather than "assume": name the step the reader takes
+      </span>
+    ),
+  },
+};
+export const FindingHighlightsDocumentDark: Story = {
+  args: FindingHighlightsDocument.args,
+  globals: { theme: "dark" },
+};

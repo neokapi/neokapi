@@ -924,6 +924,9 @@ export function ReviewSurface({
         <ProblemsPanel
           issues={fileCheckResults}
           loading={checksLoading}
+          blocks={blocks}
+          targetLocale={targetLocale}
+          sourceLocale={project.default_source_language}
           onNavigateToBlock={selectBlock}
           onClose={() => setShowProblems(false)}
         />

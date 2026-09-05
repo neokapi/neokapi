@@ -86,12 +86,22 @@ export {
   runsPlainText,
   rangeAnchorForChars,
   rangeAnchorForBytes,
+  charSpanForAnchor,
   runPosOf,
   textForBytes,
 } from "./anchor";
+export type { CharSpan } from "./anchor";
 export { byteToCharOffset } from "../../lib/offsets";
 export { overlayStyle, resolveOverlaySpans, segmentText, overlayTypes } from "./overlayHighlight";
 export type { OverlayStyle, ResolvedSpan, TextSegment } from "./overlayHighlight";
+export {
+  HIGHLIGHT_TYPE,
+  highlightSpans,
+  highlightSpansByBlock,
+  resolveHighlight,
+  runsForSide,
+} from "./highlights";
+export type { HighlightEmphasis, PreviewHighlight, PreviewHighlights } from "./highlights";
 // Multimodal viewers (AD-030): timed media (subtitles/audio/video) + raster OCR.
 export { default as SubtitleTimeline } from "./SubtitleTimeline";
 export type { SubtitleTimelineProps } from "./SubtitleTimeline";

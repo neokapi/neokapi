@@ -15,6 +15,7 @@ import {
 import { ViewTab, ViewTabGroup } from "../ui/view-tab";
 import DocumentViewer, { type DocumentViewerProps } from "./DocumentViewer";
 import type { BlockAttrs } from "./FormatPreview";
+import type { PreviewHighlights } from "./highlights";
 import type { ContentNode, ContentTree } from "./types";
 
 // FilePreview is the preview sheet every surface reads one file in: a right-hand
@@ -88,7 +89,17 @@ export interface FilePreviewProps {
    */
   tree?: ContentTree | null;
   /** The rest of what this host wants from the viewer for that document. */
-  viewer?: Omit<DocumentViewerProps, "tree" | "filename" | "blockAttrs" | "selectedBlockId">;
+  viewer?: Omit<
+    DocumentViewerProps,
+    "tree" | "filename" | "blockAttrs" | "selectedBlockId" | "highlights"
+  >;
+  /**
+   * Spans to mark on the document, by block id: a check finding's run anchor on
+   * the side it addresses, in the finding's tone. A host arriving from a list
+   * of findings passes the file's findings here, with the one it came for in
+   * focus and the rest dimmed.
+   */
+  highlights?: PreviewHighlights;
   /** A body the host renders itself, instead of `tree`. */
   children?: React.ReactNode;
 
@@ -112,6 +123,12 @@ export interface FilePreviewProps {
    * marker class, so the reader sees where the decisions stand across the file.
    */
   unitStates?: Record<string, string>;
+  /**
+   * What is said about the focused unit beside its key: a finding's severity and
+   * message, say. Drawn in the focus row, before the review state when a host
+   * supplies both.
+   */
+  focusNote?: React.ReactNode;
   /** Label for the button that returns the reader where they came from. */
   backLabel?: string;
   /** Where that button goes. Closes the sheet when unset. */
@@ -169,8 +186,10 @@ export default function FilePreview({
   error,
   empty,
   scrollBody = true,
+  highlights,
   focusKey,
   unitStates,
+  focusNote,
   backLabel,
   onBack,
   actions,
@@ -225,6 +244,10 @@ export default function FilePreview({
   }, [focusID, loading, error, tree]);
 
   const focusState = focusKey && unitStates ? unitStates[focusKey] : undefined;
+  // The focus row names the unit the reader came for and offers the way back.
+  // A host that opens the whole file from a list still gets the way back and
+  // its note, with no unit named.
+  const hasFocusRow = !!focusKey || !!backLabel || focusNote !== undefined;
   const hasStrip = !!sides || (!!views && views.length > 1) || !!toolbar;
 
   let body: React.ReactNode = null;
@@ -238,6 +261,7 @@ export default function FilePreview({
         filename={filename}
         selectedBlockId={focusID}
         blockAttrs={blockAttrs}
+        highlights={highlights}
       />
     );
 
@@ -271,7 +295,7 @@ export default function FilePreview({
             </p>
           )}
           <SheetDescription>{description}</SheetDescription>
-          {focusKey && (
+          {hasFocusRow && (
             <div
               className="flex flex-wrap items-center gap-2 pt-1 text-xs"
               data-slot="file-preview-focus"
@@ -287,13 +311,18 @@ export default function FilePreview({
                   {backLabel}
                 </Button>
               )}
-              <span className="font-mono text-[11px] text-muted-foreground" translate="no">
-                {focusKey}
-              </span>
-              <Badge variant="outline" className="text-[10px]">
-                {focusState ?? t("awaiting review")}
-              </Badge>
-              {tree && !focusNode && (
+              {focusKey && (
+                <span className="font-mono text-[11px] text-muted-foreground" translate="no">
+                  {focusKey}
+                </span>
+              )}
+              {focusNote}
+              {focusKey && unitStates && (
+                <Badge variant="outline" className="text-[10px]">
+                  {focusState ?? t("awaiting review")}
+                </Badge>
+              )}
+              {focusKey && tree && !focusNode && (
                 <span className="text-[11px] text-muted-foreground">
                   {t("This unit is not in the rendered document.")}
                 </span>
