@@ -326,7 +326,12 @@ type ContextSearchSources struct {
 	// Unextracted reports a bound graph that holds no block at all: nothing has
 	// been extracted, so a count of zero would mean unread rather than unused.
 	Unextracted bool
-	Scope       ContextScope
+	// TermsStandalone reports that Terms is a store named by path rather than
+	// the project's own. The graph's edges name the project's concepts, so a
+	// standalone vocabulary is counted only where its concept ids coincide, and
+	// the answer says so rather than reporting its terms as unused.
+	TermsStandalone bool
+	Scope           ContextScope
 	// TermsErr and MemoryErr are set when the caller tried to bind that store
 	// and could not. Unbound and unopenable are different answers to "why is
 	// this group empty?", and only the caller knows which happened.
@@ -386,6 +391,7 @@ func (a *App) ContextSearchSourcesFor(cmd Command, termsPath, memoryPath string)
 	var cleanups []func()
 
 	if termsPath != "" {
+		src.TermsStandalone = true
 		if tb, err := terms.NewSQLiteStore(termsPath); err == nil {
 			cleanups = append(cleanups, func() { _ = tb.Close() })
 			src.Terms = tb
@@ -635,6 +641,9 @@ func countTermUses(ctx context.Context, src ContextSearchSources, hits []Context
 	wording := newUseWording(ctx, src.Blocks)
 	defer wording.close()
 	var notes []string
+	if src.TermsStandalone {
+		notes = append(notes, standaloneTermsNote)
+	}
 	for conceptID, idx := range byConcept {
 		uses, err := conceptUses(ctx, src.Graph, src.GraphScope, conceptID)
 		if err != nil {

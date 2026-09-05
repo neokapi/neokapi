@@ -93,6 +93,9 @@ func FindContextUses(ctx context.Context, src ContextSearchSources, subject stri
 		return out, nil
 	}
 
+	if src.TermsStandalone {
+		out.Notes = append(out.Notes, standaloneTermsNote)
+	}
 	wanted := make(map[string]bool, len(resolved.Terms))
 	for _, t := range resolved.Terms {
 		wanted[terms.NormalizeTerm(t)] = true
@@ -120,6 +123,12 @@ func FindContextUses(ctx context.Context, src ContextSearchSources, subject stri
 	out.Blocks = len(blocks)
 	return out, nil
 }
+
+// standaloneTermsNote qualifies a count made for a terms store named by path:
+// the edges name the project's own concepts, so the standalone store's terms
+// are counted where their concept ids coincide and nowhere else.
+const standaloneTermsNote = "term usage is counted from the project's last extraction, against the project's own concepts; " +
+	"a standalone terms store is counted only where its concept ids match theirs"
 
 // usesUnavailable is the note a usage answer carries when the graph cannot be
 // read, or "" when it can. The three states need three next steps, so they are

@@ -232,6 +232,25 @@ func TestSearchContextGraphErrorSaysSo(t *testing.T) {
 	assert.NotContains(t, notes, "no context graph is bound", "broken and absent are not both reported")
 }
 
+// A standalone vocabulary is counted against the project's edges, which name the
+// project's own concepts, so the answer says what the count covers rather than
+// letting a foreign store read as unused.
+func TestSearchContextQualifiesAStandaloneTermsStore(t *testing.T) {
+	p := newGraphProject(t, &project.KapiProject{Name: "uses"}, usesConcepts(), usesBlocks())
+	src := p.src
+	src.TermsStandalone = true
+	res, err := host.SearchContext(t.Context(), src, host.ContextSearchRequest{Query: "widget"})
+	require.NoError(t, err)
+	assert.Equal(t, 2, hitsByTerm(res)["widget"].Uses, "a matching concept id is counted")
+	assert.Contains(t, notesJoined(res), "a standalone terms store is counted only where its concept ids match")
+
+	uses, err := host.FindContextUses(t.Context(), src, "widget", 0)
+	require.NoError(t, err)
+	assert.Equal(t, 2, uses.Total)
+	require.Len(t, uses.Notes, 1)
+	assert.Contains(t, uses.Notes[0], "a standalone terms store")
+}
+
 // The note is about term usage, so it has no business appearing when the query
 // matched no term at all.
 func TestSearchContextWithoutTermHitsSaysNothingAboutUses(t *testing.T) {
