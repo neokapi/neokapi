@@ -1,3 +1,4 @@
+import type { ComponentSchema } from "@neokapi/ui-primitives";
 import type {
   User,
   Workspace,
@@ -1560,4 +1561,9 @@ export interface ApiAdapter {
   getKnownLocales(): Promise<LocaleInfo[]>;
   listFormats(): Promise<FormatInfo[]>;
   listTools(): Promise<ToolInfo[]>;
+  /**
+   * A tool's option schema as the server's registry holds it, or null for a
+   * tool without one. The flow editor renders a step's options through it.
+   */
+  getToolSchema(name: string): Promise<ComponentSchema | null>;
 }

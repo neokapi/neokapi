@@ -3,9 +3,8 @@
  *
  * The generated bindings (`bindings/.../app.js`) only export the methods the
  * current desktop backend actually implements. A few adapter/interface methods
- * reference bindings that a given backend build may not provide — either
- * forward-looking ones (e.g. `GetToolSchema`) or capabilities that only exist
- * server-side (e.g. `GetTranslationDashboard`). A static `Backend.Foo` member
+ * reference bindings that a given backend build may not provide: capabilities
+ * that only exist server-side (e.g. `GetTranslationDashboard`). A static `Backend.Foo` member
  * access on the namespace import makes the bundler reject the build at link
  * time (`IMPORT_IS_UNDEFINED`) because the export is genuinely absent.
  *

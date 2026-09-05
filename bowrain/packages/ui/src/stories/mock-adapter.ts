@@ -1431,6 +1431,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
     ],
     listFormats: async () => [],
     listTools: async () => [],
+    getToolSchema: async () => null,
 
     // --- Notifications ---------------------------------------------------
     listNotifications: async () => ({ notifications: [], unread_count: 0 }),

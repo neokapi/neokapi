@@ -12,6 +12,7 @@ function setup(options: FlowsApiOptions = {}, saveDelayMs = 10) {
     create: vi.spyOn(api, "createFlowDefinition"),
     update: vi.spyOn(api, "updateFlowDefinition"),
     remove: vi.spyOn(api, "deleteFlowDefinition"),
+    schema: vi.spyOn(api, "getToolSchema"),
   };
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
@@ -251,5 +252,75 @@ describe("ProjectFlowsEditor editing", () => {
     expect(screen.getByText("Could not save the flow")).toBeInTheDocument();
     // The translate step, the group's two branches, and the added check.
     expect(screen.getAllByTestId("step-row")).toHaveLength(4);
+  });
+});
+
+describe("ProjectFlowsEditor step options", () => {
+  it("shows a step's options from the tool's schema and saves an edit into its config", async () => {
+    const { user, spies } = setup();
+    await user.click(await screen.findByText("Translate and review"));
+    const group = await screen.findByTestId("parallel-group");
+    const [qa, termCheck] = within(group).getAllByTestId("step-row");
+
+    await user.click(await within(termCheck).findByLabelText("Options"));
+    const options = within(termCheck).getByTestId("step-options");
+    const toggle = within(options).getByRole("switch", { name: /Case Sensitive/ });
+    expect(toggle).toHaveAttribute("aria-checked", "false");
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute("aria-checked", "true");
+
+    await waitFor(() => expect(spies.update).toHaveBeenCalledTimes(1));
+    const def = spies.update.mock.calls[0][3];
+    expect(def.nodes.find((n) => n.name === "term-check")?.config).toEqual({
+      caseSensitive: true,
+    });
+    // A tool the schema API has nothing for shows no options control.
+    expect(within(qa).queryByLabelText("Options")).not.toBeInTheDocument();
+  });
+
+  it("asks the schema API once per tool", async () => {
+    const { user, spies } = setup();
+    await user.click(await screen.findByText("Translate and review"));
+    await screen.findByTestId("parallel-group");
+    await waitFor(() => expect(spies.schema).toHaveBeenCalledTimes(3));
+    expect(spies.schema.mock.calls.map((c) => c[0]).sort()).toEqual([
+      "qa",
+      "term-check",
+      "translate",
+    ]);
+
+    await user.click(screen.getByTestId("add-step"));
+    await user.click(screen.getByRole("button", { name: /Quality Check/ }));
+    expect(screen.getAllByTestId("step-row")).toHaveLength(4);
+    expect(spies.schema).toHaveBeenCalledTimes(3);
+  });
+
+  it("offers the workspace's provider configurations to a credential picker", async () => {
+    const { user, spies } = setup();
+    await user.click(await screen.findByText("Translate and review"));
+    const [translate] = await screen.findAllByTestId("step-row");
+    await user.click(await within(translate).findByLabelText("Options"));
+    const options = within(translate).getByTestId("step-options");
+    const picker = await within(options).findByRole("combobox");
+    expect(
+      within(picker).getByRole("option", { name: "claude (claude-sonnet-4-6)" }),
+    ).toBeInTheDocument();
+    expect(
+      within(picker).getByRole("option", { name: "local-llama (llama3.1)" }),
+    ).toBeInTheDocument();
+
+    await user.selectOptions(picker, "local-llama");
+    await waitFor(() => expect(spies.update).toHaveBeenCalledTimes(1));
+    expect(spies.update.mock.calls[0][3].nodes[0].config).toMatchObject({
+      credential: "local-llama",
+    });
+  });
+
+  it("keeps a step's options read-only on a built-in flow", async () => {
+    const { user } = setup();
+    await user.click(await screen.findByText("Memory Reuse"));
+    const editor = await screen.findByTestId("linear-flow-editor");
+    await waitFor(() => expect(screen.queryByTestId("flow-read-only")).toBeInTheDocument());
+    expect(within(editor).queryByLabelText("Options")).not.toBeInTheDocument();
   });
 });

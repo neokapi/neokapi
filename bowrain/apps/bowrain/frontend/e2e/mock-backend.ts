@@ -220,8 +220,72 @@ export async function injectMockBackend(page: Page) {
     mock[IDS.ListTools] = () => [
       { name: "translate", description: "Translate content using AI" },
       { name: "pseudo-translate", description: "Generate pseudo-translations" },
+      { name: "term-check", description: "Check the wording against the terms" },
       { name: "word-count", description: "Count words" },
     ];
+
+    // Tool option schemas as the server's registry serves them
+    // (GET /api/v1/tools/{name}/schema, which the GetToolSchema binding
+    // proxies). The two below are the server's own documents; translate
+    // carries none there, so its step shows no options control.
+    const toolSchemas: Record<string, any> = {
+      "term-check": {
+        $id: "term-check",
+        title: "Terminology Check",
+        type: "object",
+        toolMeta: {
+          id: "term-check",
+          category: "quality",
+          displayName: "Terminology Check",
+          requires: ["target-language", "terms"],
+          cardinality: "bilingual",
+        },
+        properties: {
+          caseSensitive: {
+            type: "boolean",
+            title: "Case Sensitive",
+            description: "Whether term matching is case-sensitive",
+            default: false,
+          },
+        },
+      },
+      "pseudo-translate": {
+        $id: "pseudo-translate",
+        title: "Pseudo Translate",
+        type: "object",
+        toolMeta: {
+          id: "pseudo-translate",
+          category: "translation",
+          displayName: "Pseudo Translate",
+          requires: ["target-language"],
+          cardinality: "bilingual",
+          defaultLocale: "qps",
+        },
+        properties: {
+          expansionPercent: {
+            type: "integer",
+            title: "Expansion Percent",
+            description:
+              "Extra padding percentage added to simulate translation expansion (0 = no padding)",
+            default: 0,
+            minimum: 0,
+          },
+          prefix: {
+            type: "string",
+            title: "Prefix",
+            description: "Characters prepended before each translated block",
+            default: "\u2592 ",
+          },
+          suffix: {
+            type: "string",
+            title: "Suffix",
+            description: "Characters appended after each translated block",
+            default: " \u2592",
+          },
+        },
+      },
+    };
+    mock[IDS.GetToolSchema] = (name: string) => toolSchemas[name] ?? null;
 
     // --- Flow definition storage ---
     // The shapes the server returns: a flow is tool nodes only (it owns no

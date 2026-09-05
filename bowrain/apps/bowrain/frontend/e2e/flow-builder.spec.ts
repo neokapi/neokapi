@@ -118,6 +118,38 @@ test("adds a step from the picker", async ({ page }) => {
   await expect(row).toContainText("Translate content using AI");
 });
 
+test("a step shows its options and an edit round-trips into config", async ({ page }) => {
+  await createNewFlow(page, "Strict terms");
+  await pickTool(page, page.getByTestId("add-step"), /^term-check/);
+  const row = page.getByTestId("step-row");
+  await row.getByLabel("Options").click();
+  const options = row.getByTestId("step-options");
+  await expect(options).toBeVisible();
+  const toggle = options.getByRole("switch", { name: /Case Sensitive/ });
+  await expect(toggle).toHaveAttribute("aria-checked", "false");
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-checked", "true");
+  await saved(page);
+
+  // The option rides the step's config: reopening the flow reads it back.
+  await page.getByTestId("flow-back").click();
+  await page.locator("[data-testid^='flow-item-']").filter({ hasText: "Strict terms" }).click();
+  await page.getByTestId("step-row").getByLabel("Options").click();
+  await expect(
+    page.getByTestId("step-options").getByRole("switch", { name: /Case Sensitive/ }),
+  ).toHaveAttribute("aria-checked", "true");
+  await assertNoUnhandledRoutes(page);
+});
+
+test("a step whose tool has no options shows no options control", async ({ page }) => {
+  await createNewFlow(page);
+  await pickTool(page, page.getByTestId("add-step"), /^translate/);
+  await saved(page);
+  const row = page.getByTestId("step-row");
+  await expect(row.getByLabel("Move up")).toBeVisible();
+  await expect(row.getByLabel("Options")).toHaveCount(0);
+});
+
 test("saves an edit and reads it back from the backend", async ({ page }) => {
   await createNewFlow(page, "My Custom Flow");
   await pickTool(page, page.getByTestId("add-step"), /^translate/);

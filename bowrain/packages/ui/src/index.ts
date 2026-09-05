@@ -1239,6 +1239,8 @@ export {
   type ToolMeta,
   type ToolDoc,
   type ToolDocParam,
+  type SchemaFormHost,
+  type SchemaFormCredential,
 } from "@neokapi/ui-primitives";
 
 // Filter and tool config editors (legacy aliases — prefer SchemaForm)

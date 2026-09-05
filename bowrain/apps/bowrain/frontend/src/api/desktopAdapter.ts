@@ -91,6 +91,7 @@ const LOCAL_FIRST: ReadonlySet<string> = new Set<string>([
   "getKnownLocales",
   "listFormats",
   "listTools",
+  "getToolSchema",
   "setBlockStatus",
   "renderDocumentPreview",
   "renderBlockHTML",
