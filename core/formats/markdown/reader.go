@@ -973,64 +973,14 @@ func (r *Reader) emitHeading(ctx context.Context, ch chan<- model.PartResult, n 
 	r.skelText(string(r.source[absStart:lineStart]))
 	// Emit block ref for the inline content
 	r.skelRef(blockID)
-	// Advance cursor past the lines
+	// Advance cursor past the lines. An ATX heading's optional closing
+	// sequence (CommonMark 4.2: whitespace, one or more `#`, then optional
+	// whitespace) follows the content the parser hands back, and the gap
+	// before the next block replays it on the heading's own line. Written on a
+	// line of its own, it re-read as a second, empty heading (#2430).
 	r.skelCursor = lineEnd
 
-	// Mirror upstream Okapi: an ATX heading with a closing marker
-	// (`### foo ###`) is rendered with the closing marker on its own
-	// line. See MarkdownParser.java:544-548 — the visitor emits a
-	// newline, then the closing marker, then another newline. Detect
-	// the trailing `#+` sequence between lineEnd and the next \n and
-	// rewrite ` ###\n` → `\n###\n` in the skeleton.
-	if trailEnd, marker, ok := atxClosingMarker(r.source, lineEnd); ok {
-		r.skelText("\n" + marker)
-		r.skelCursor = trailEnd
-	}
-
 	r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
-}
-
-// atxClosingMarker scans `source` from `start` looking for an ATX
-// heading's optional trailing `#+` sequence (CommonMark §4.2: the
-// closing marker is "an optional sequence of # characters" preceded
-// by required whitespace and optionally followed by trailing
-// whitespace, terminated by the line's newline). Returns
-// (positionBeforeNewline, closingMarker, true) when found, or
-// (0, "", false) when the line has no closing marker. The returned
-// position points AT the trailing newline so the caller can emit a
-// newline + marker pair and advance the skeleton cursor accordingly,
-// mirroring upstream MarkdownParser.java:544-548.
-func atxClosingMarker(source []byte, start int) (int, string, bool) {
-	if start >= len(source) {
-		return 0, "", false
-	}
-	i := start
-	// Required whitespace between content and closing marker.
-	hasSpace := false
-	for i < len(source) && (source[i] == ' ' || source[i] == '\t') {
-		i++
-		hasSpace = true
-	}
-	if !hasSpace {
-		return 0, "", false
-	}
-	// One or more '#' characters.
-	markerStart := i
-	for i < len(source) && source[i] == '#' {
-		i++
-	}
-	if i == markerStart {
-		return 0, "", false
-	}
-	marker := string(source[markerStart:i])
-	// Optional trailing whitespace, then the line must end (newline or EOF).
-	for i < len(source) && (source[i] == ' ' || source[i] == '\t') {
-		i++
-	}
-	if i < len(source) && source[i] != '\n' {
-		return 0, "", false
-	}
-	return i, marker, true
 }
 
 // admonitionHeaderRE matches a MkDocs/Material admonition opener:

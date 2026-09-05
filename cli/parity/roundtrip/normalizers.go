@@ -224,6 +224,11 @@ func stripDoxygenMarker(line string) string {
 //     after it whatever the source padded; native replays the source's
 //     own padding (#1661). GFM ignores cell padding, so both spell the
 //     same table.
+//   - An ATX heading's closing sequence is stripped, and a line of bare
+//     hashes directly after a heading line is dropped. Okapi writes the
+//     closing sequence of `### Title ###` on a line of its own; native
+//     keeps it on the heading line (#2430). CommonMark reads both as the
+//     same heading text, and the source spelling is the faithful one.
 //   - HTML character references decode to the characters they denote.
 //     Okapi decodes an entity into the text it hands its writer, so
 //     `Ampere&#39;s` comes back as `Ampere's`. Native keeps the source
@@ -245,6 +250,19 @@ var markdownEntityRe = regexp.MustCompile(`&(?:[A-Za-z][A-Za-z0-9]*|#[0-9]+|#[xX
 // markdownCellPaddingRe matches one pipe of a table row together with the
 // whitespace on either side of it.
 var markdownCellPaddingRe = regexp.MustCompile(`[ \t]*\|[ \t]*`)
+
+// markdownATXClosingRe matches an ATX heading line that ends in a closing
+// sequence: the heading marker and content in group 1, then whitespace and a
+// run of hashes. A hash that is not preceded by whitespace belongs to the
+// content, as CommonMark 4.2 has it.
+var markdownATXClosingRe = regexp.MustCompile(`^(#{1,6}(?:[ \t]+.*?)?)[ \t]+#+$`)
+
+// markdownATXHeadingRe matches a canonical ATX heading line, with or without
+// content; markdownBareHashesRe matches a line that is only a heading marker.
+var (
+	markdownATXHeadingRe = regexp.MustCompile(`^#{1,6}(?:[ \t]|$)`)
+	markdownBareHashesRe = regexp.MustCompile(`^#{1,6}$`)
+)
 
 // Normalize implements Normalizer.
 func (MarkdownCanonical) Normalize(in []byte) ([]byte, error) {
@@ -272,6 +290,15 @@ func (MarkdownCanonical) Normalize(in []byte) ([]byte, error) {
 			lines[i] = trimmed[:j] + collapseBlockquoteMarkers(trimmed[j:])
 			continue
 		}
+		// Strip an ATX heading's closing sequence.
+		if m := markdownATXClosingRe.FindStringSubmatch(trimmed[j:]); m != nil {
+			if j > 0 {
+				lines[i] = "\t" + m[1]
+			} else {
+				lines[i] = m[1]
+			}
+			continue
+		}
 		// Collapse the padding around each pipe of a table row.
 		if j < len(trimmed) && trimmed[j] == '|' {
 			row := strings.TrimSpace(markdownCellPaddingRe.ReplaceAllString(trimmed[j:], " | "))
@@ -291,7 +318,21 @@ func (MarkdownCanonical) Normalize(in []byte) ([]byte, error) {
 			lines[i] = trimmed
 		}
 	}
-	return []byte(strings.Join(lines, "\n")), nil
+	return []byte(strings.Join(dropRelocatedATXClosing(lines), "\n")), nil
+}
+
+// dropRelocatedATXClosing removes a line that is only a heading marker when it
+// directly follows an ATX heading line: the closing sequence Okapi writes on a
+// line of its own, once the heading line's own copy has been stripped.
+func dropRelocatedATXClosing(lines []string) []string {
+	out := lines[:0]
+	for i, l := range lines {
+		if i > 0 && markdownBareHashesRe.MatchString(l) && markdownATXHeadingRe.MatchString(strings.TrimPrefix(lines[i-1], "\t")) {
+			continue
+		}
+		out = append(out, l)
+	}
+	return out
 }
 
 // collapseBlockquoteMarkers rewrites a leading run of `>`-with-optional

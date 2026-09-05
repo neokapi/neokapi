@@ -137,6 +137,10 @@ func TestKnownRoundTripDivergences(t *testing.T) {
 		{name: "task list", src: "- [ ] `config.go` with a trailing clause.\n"},
 		{name: "task list checked", src: "- [x] Tag is annotated.\n"},
 		{name: "task list upper case", src: "- [X] Capitalised marker.\n"},
+		// An ATX heading's closing sequence used to be written on a line of
+		// its own, which re-read as a second, empty heading.
+		{name: "ATX heading with a closing sequence", src: "# Title #\n\nBody.\n"},
+		{name: "ATX heading with a closing sequence and trailing whitespace", src: "## Title ##   \n\nBody.\n"},
 	}
 
 	for _, tc := range tests {
