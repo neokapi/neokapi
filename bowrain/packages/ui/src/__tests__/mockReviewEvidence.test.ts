@@ -94,7 +94,7 @@ describe("the mock's review queue and review context", () => {
 
   it("carries voice findings only where the score misses the bar", async () => {
     for (const { entry, context } of await queueWithContexts()) {
-      expect(context.voice_findings.length > 0).toBe(isBelowVoiceBar(entry));
+      expect((context.judgement.findings ?? []).length > 0).toBe(isBelowVoiceBar(entry));
     }
   });
 

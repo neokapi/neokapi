@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -15,12 +16,17 @@ import (
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
+	"github.com/neokapi/neokapi/core/review"
+	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/venue"
+	"github.com/neokapi/neokapi/memory"
 )
 
 // These cases pin what the endpoint hands a surface, layer by layer, and what
 // it hands a unit that has none of it, because an empty state a surface invents
-// is how "no matches" becomes a blank panel.
+// is how "no matches" becomes a blank panel. The shape is the review model
+// every client reads (core/review); the last case holds this assembler to the
+// host's over one unit.
 
 // getReviewContext calls the handler as the router would.
 func getReviewContext(t *testing.T, s *Server, wsID, projID, blockID, locale string) (*httptest.ResponseRecorder, reviewContextResponse) {
@@ -35,7 +41,7 @@ func getReviewContext(t *testing.T, s *Server, wsID, projID, blockID, locale str
 	c.Set("project_permissions", platauth.PermAll)
 	require.NoError(t, s.HandleGetReviewContext(c))
 	// A refusal decodes into a zero-valued response, which reads exactly like a
-	// unit with nothing resolved — so the status is asserted here rather than
+	// unit with nothing resolved, so the status is asserted here rather than
 	// left to surface as a nil three assertions later.
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	return rec, decodeJSON[reviewContextResponse](t, rec)
@@ -43,13 +49,13 @@ func getReviewContext(t *testing.T, s *Server, wsID, projID, blockID, locale str
 
 // TestReviewContext_GathersEveryLayer walks one governed unit and asserts each
 // of the five layers arrives: where it sits and what governs it, what surrounds
-// it, what the corpus and the ledger already said about it, what the scoring
-// pass found in it, and how its target was produced.
+// it, what the ledger already said about it, what the scoring pass found in it,
+// and how its target was produced.
 func TestReviewContext_GathersEveryLayer(t *testing.T) {
 	s, wsID, _ := newRecheckHarness(t)
 	ctx := context.Background()
 
-	// Three pending drafts, each stamped with how it was produced — provenance
+	// Three pending drafts, each stamped with how it was produced: provenance
 	// rides on the target, which the blocks payload never carried.
 	seeded := []*model.Block{
 		pendingFrBlock("a", "Open the app", "Ouvrir l'application"),
@@ -118,53 +124,68 @@ func TestReviewContext_GathersEveryLayer(t *testing.T) {
 
 	_, got := getReviewContext(t, s, wsID, projID, middleID, "fr")
 
+	// The unit's own address.
+	assert.Equal(t, middleID, got.BlockID)
+	assert.Equal(t, "greetings.txt", got.ItemName)
+	assert.Equal(t, "fr", got.Locale)
+
 	// Point.
-	require.NotNil(t, got.VoiceProfile, "the profile bound at this point")
-	assert.Equal(t, "Bowrain Voice", got.VoiceProfile.Name)
-	assert.Equal(t, 90, got.VoiceProfile.ComplianceBar)
-	assert.Contains(t, got.VoiceProfile.Guidance, "Say what the product does")
-	require.Len(t, got.VoiceProfile.TermRules, 1)
-	assert.Equal(t, "leverage", got.VoiceProfile.TermRules[0].Term)
+	assert.Equal(t, "greetings.txt", got.Point.Path, "the item is the file the unit sits in")
+	assert.Equal(t, "fr", got.Point.Language)
+	assert.False(t, got.Point.IsSource)
+	require.NotNil(t, got.Point.Voice, "the profile bound at this point")
+	assert.Equal(t, "Bowrain Voice", got.Point.Voice.Name)
+	assert.Equal(t, "store:p-ctx", got.Point.Voice.Source, "loaded from the voice store, named the way the host names it")
+	assert.Contains(t, got.Point.Voice.Guide, "Say what the product does")
+	require.Len(t, got.Point.TermRules, 1)
+	assert.Equal(t, "leverage", got.Point.TermRules[0].Term)
+	assert.Equal(t, 1, got.Point.TermsTotal)
 	assert.NotEmpty(t, got.Terms, "the terms the source matches")
 
 	// Neighbourhood: the units either side, as run sequences.
-	require.NotNil(t, got.Previous)
-	require.NotNil(t, got.Next)
-	assert.Equal(t, stored[0].Block.ID, got.Previous.BlockID, "the nearest predecessor")
-	assert.Equal(t, stored[2].Block.ID, got.Next.BlockID, "the nearest successor")
-	assert.NotEmpty(t, got.Previous.SourceRuns, "the neighbour travels as runs, not as text")
+	assert.Equal(t, middleID, got.Neighbourhood.Key)
+	assert.Equal(t, review.DefaultWindow, got.Neighbourhood.Window, "the window the translate prompt reads")
+	require.Len(t, got.Neighbourhood.Before, 1)
+	require.Len(t, got.Neighbourhood.After, 1)
+	previous, next := got.Neighbourhood.Before[0], got.Neighbourhood.After[0]
+	assert.Equal(t, stored[0].Block.ID, previous.Key, "the nearest predecessor")
+	assert.Equal(t, stored[2].Block.ID, next.Key, "the nearest successor")
+	assert.NotEmpty(t, previous.Source, "the neighbour travels as runs, not as text")
 	// A reviewer reads a neighbour for the wording that was settled on around
 	// this unit, so both sides travel. The expectations come from the stored
 	// order for the same reason the ids above do.
-	assert.Equal(t, stored[0].Block.SourceText(), model.RunsText(got.Previous.SourceRuns))
-	assert.Equal(t, stored[0].Block.TargetText("fr"), model.RunsText(got.Previous.TargetRuns))
-	assert.NotEmpty(t, got.Previous.TargetRuns, "the neighbour is translated, so it reads as one")
-	assert.Equal(t, stored[2].Block.TargetText("fr"), model.RunsText(got.Next.TargetRuns))
-	assert.Equal(t, "draft", got.Next.Status)
+	assert.Equal(t, stored[0].Block.SourceText(), model.RunsText(previous.Source))
+	assert.Equal(t, stored[0].Block.TargetText("fr"), model.RunsText(previous.Target))
+	assert.NotEmpty(t, previous.Target, "the neighbour is translated, so it reads as one")
+	assert.Equal(t, stored[2].Block.TargetText("fr"), model.RunsText(next.Target))
+	assert.Equal(t, "draft", next.Status)
 
-	// History.
-	require.NotNil(t, got.Decision)
-	assert.Equal(t, "rejected", got.Decision.State)
-	assert.Equal(t, "owner@rc.test", got.Decision.By)
-	assert.Equal(t, "2026-09-01T11:00:00Z", got.Decision.At)
-	assert.Equal(t, "Reads as machine output", got.Decision.Note)
+	// History: nothing in the memory yet, so nothing is invented.
+	assert.Nil(t, got.History.Match)
+	assert.Nil(t, got.History.Prior)
 	require.Len(t, got.Notes, 1)
 	assert.Equal(t, "Check with legal", got.Notes[0].Text)
 
-	// Judgement: the findings, not only the number.
-	require.Len(t, got.VoiceFindings, 1)
-	assert.Equal(t, "Uses a forbidden term", got.VoiceFindings[0].Message)
-	assert.Equal(t, "employer", got.VoiceFindings[0].Suggestion)
-	assert.Equal(t, "utiliser", got.VoiceFindings[0].OriginalText)
+	// Judgement: the findings behind the score, not only the number.
+	require.Len(t, got.Judgement.Findings, 1)
+	assert.Equal(t, "Uses a forbidden term", got.Judgement.Findings[0].Message)
+	assert.Equal(t, "employer", got.Judgement.Findings[0].Suggestion)
+	assert.Equal(t, "utiliser", got.Judgement.Findings[0].OriginalText)
 	require.NotNil(t, got.VoiceScore)
 	assert.Equal(t, 62, *got.VoiceScore)
 	require.NotNil(t, got.VoiceBar)
 	assert.Equal(t, 90, *got.VoiceBar)
 
-	// Provenance.
-	require.NotNil(t, got.Origin)
-	assert.Equal(t, "ai", got.Origin.Kind)
-	assert.Equal(t, "claude", got.Origin.Engine)
+	// Provenance: the decision in force, and how the target was produced.
+	assert.Equal(t, "rejected", got.Provenance.ReviewState)
+	assert.Equal(t, "draft", got.Provenance.Status)
+	assert.Equal(t, "owner@rc.test", got.Provenance.By)
+	assert.Equal(t, "2026-09-01T11:00:00Z", got.Provenance.At)
+	assert.Equal(t, "Reads as machine output", got.Provenance.Note)
+	assert.False(t, got.Provenance.Stale)
+	require.NotNil(t, got.Provenance.Origin)
+	assert.Equal(t, "ai", got.Provenance.Origin.Kind)
+	assert.Equal(t, "claude", got.Provenance.Origin.Engine)
 }
 
 // TestReviewContext_EmptyLayersStayEmpty pins the honest answer for a unit with
@@ -177,28 +198,38 @@ func TestReviewContext_EmptyLayersStayEmpty(t *testing.T) {
 	only := pendingFrBlock("only", "Hello", "Bonjour")
 	projID, ids := seedGovernedProject(t, s, wsID, []*model.Block{only})
 
-	_, got := getReviewContext(t, s, wsID, projID, ids["Hello"], "fr")
+	rec, got := getReviewContext(t, s, wsID, projID, ids["Hello"], "fr")
 
-	assert.Nil(t, got.VoiceProfile, "no profile is bound")
+	assert.Nil(t, got.Point.Voice, "no profile is bound")
+	assert.Empty(t, got.Point.TermRules)
 	assert.Empty(t, got.Terms)
 	assert.NotNil(t, got.Terms, "an empty list, never null")
-	assert.Nil(t, got.Previous, "the only unit of an item has no neighbours")
-	assert.Nil(t, got.Next)
-	assert.Nil(t, got.MemoryMatch)
-	assert.Nil(t, got.Decision)
+	assert.Empty(t, got.Neighbourhood.Before, "the only unit of an item has no neighbours")
+	assert.Empty(t, got.Neighbourhood.After)
+	assert.Equal(t, review.DefaultWindow, got.Neighbourhood.Window, "a short list means the document ended")
+	assert.Nil(t, got.History.Match)
+	assert.Nil(t, got.History.Prior)
+	assert.Empty(t, got.Provenance.ReviewState)
+	assert.Empty(t, got.Provenance.By)
 	assert.Empty(t, got.Notes)
 	assert.NotNil(t, got.Notes)
-	assert.Empty(t, got.VoiceFindings)
-	assert.NotNil(t, got.VoiceFindings)
+	assert.Empty(t, got.Judgement.Findings)
 	assert.Nil(t, got.VoiceScore)
 	assert.Nil(t, got.VoiceBar)
+
+	// The wire spells the five layers the way every client reads them.
+	var layers map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &layers))
+	for _, layer := range []string{"point", "neighbourhood", "history", "judgement", "provenance"} {
+		assert.Contains(t, layers, layer)
+	}
 }
 
-// TestReviewContext_UntranslatedNeighbourTravelsEmpty: a neighbour nobody has
-// translated yet carries an empty target run sequence rather than a null one,
-// so the surface draws a blank cell in the target column instead of deciding
-// for itself what a missing field means.
-func TestReviewContext_UntranslatedNeighbourTravelsEmpty(t *testing.T) {
+// TestReviewContext_UntranslatedNeighbourTravelsBare: a neighbour nobody has
+// translated yet carries its source and no target at all, as the host's
+// neighbour does, so the surface draws a blank target cell rather than deciding
+// for itself what an empty list means.
+func TestReviewContext_UntranslatedNeighbourTravelsBare(t *testing.T) {
 	s, wsID, _ := newRecheckHarness(t)
 
 	untranslated := &model.Block{ID: "u", Translatable: true}
@@ -212,18 +243,32 @@ func TestReviewContext_UntranslatedNeighbourTravelsEmpty(t *testing.T) {
 
 	// The store mints the ids the neighbourhood cursor orders by, so which side
 	// the untranslated unit lands on is the store's business, not the test's.
-	var untranslatedSide *reviewNeighbour
-	for _, n := range []*reviewNeighbour{got.Previous, got.Next} {
-		if n != nil && n.BlockID == ids["Sign in"] {
-			untranslatedSide = n
+	var bare *review.Neighbour
+	for _, side := range [][]review.Neighbour{got.Neighbourhood.Before, got.Neighbourhood.After} {
+		for i := range side {
+			if side[i].Key == ids["Sign in"] {
+				bare = &side[i]
+			}
 		}
 	}
-	require.NotNil(t, untranslatedSide, "the source-only unit is the neighbour")
-	assert.Equal(t, "Sign in", model.RunsText(untranslatedSide.SourceRuns))
-	assert.Empty(t, untranslatedSide.TargetRuns, "nothing has been written on the target side")
-	assert.NotNil(t, untranslatedSide.TargetRuns, "an empty list, never null")
-	assert.Empty(t, untranslatedSide.Status, "a unit with no target sits on no rung")
-	assert.Contains(t, rec.Body.String(), `"target_runs":[]`, "the wire carries the empty list too")
+	require.NotNil(t, bare, "the source-only unit is the neighbour")
+	assert.Equal(t, "Sign in", model.RunsText(bare.Source))
+	assert.Empty(t, bare.Target, "nothing has been written on the target side")
+	assert.Empty(t, bare.Status, "a unit with no target sits on no rung")
+
+	var wire struct {
+		Neighbourhood struct {
+			Before []map[string]json.RawMessage `json:"before"`
+			After  []map[string]json.RawMessage `json:"after"`
+		} `json:"neighbourhood"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &wire))
+	for _, n := range append(wire.Neighbourhood.Before, wire.Neighbourhood.After...) {
+		if string(n["key"]) == `"`+ids["Sign in"]+`"` {
+			assert.NotContains(t, n, "target", "the wire leaves the target out, as the host does")
+			assert.NotContains(t, n, "status")
+		}
+	}
 }
 
 // TestReviewContext_NeedsATargetLocale: the context is per (block, locale), so
@@ -281,18 +326,18 @@ func TestReviewContext_HandEditReadsAsHuman(t *testing.T) {
 	bid := ids["Open the app"]
 
 	_, asDrafted := getReviewContext(t, s, wsID, projID, bid, "fr")
-	require.NotNil(t, asDrafted.Origin)
-	require.Equal(t, "ai", asDrafted.Origin.Kind, "the fixture starts as an AI draft")
+	require.NotNil(t, asDrafted.Provenance.Origin)
+	require.Equal(t, "ai", asDrafted.Provenance.Origin.Kind, "the fixture starts as an AI draft")
 
 	require.NoError(t, editorUpdateBlockTarget(ctx, s.ContentStore, projID, "main", bid,
 		UpdateBlockTargetRequest{TargetLocale: "fr", Text: "Ouvre l'application"}))
 
 	_, edited := getReviewContext(t, s, wsID, projID, bid, "fr")
-	require.NotNil(t, edited.Origin)
-	assert.Equal(t, "human", edited.Origin.Kind)
-	assert.Empty(t, edited.Origin.Engine, "the model that drafted it wrote none of this wording")
-	assert.Empty(t, edited.Origin.Tool)
-	assert.NotEmpty(t, edited.Origin.Timestamp)
+	require.NotNil(t, edited.Provenance.Origin)
+	assert.Equal(t, "human", edited.Provenance.Origin.Kind)
+	assert.Empty(t, edited.Provenance.Origin.Engine, "the model that drafted it wrote none of this wording")
+	assert.Empty(t, edited.Provenance.Origin.Tool)
+	assert.NotEmpty(t, edited.Provenance.Origin.Timestamp)
 
 	// Back to an AI draft, then rewritten through the run-native path.
 	sb, err := s.ContentStore.GetBlock(ctx, projID, "main", bid)
@@ -307,7 +352,143 @@ func TestReviewContext_HandEditReadsAsHuman(t *testing.T) {
 		}))
 
 	_, rewritten := getReviewContext(t, s, wsID, projID, bid, "fr")
-	require.NotNil(t, rewritten.Origin)
-	assert.Equal(t, "human", rewritten.Origin.Kind)
-	assert.Empty(t, rewritten.Origin.Engine)
+	require.NotNil(t, rewritten.Provenance.Origin)
+	assert.Equal(t, "human", rewritten.Provenance.Origin.Kind)
+	assert.Empty(t, rewritten.Provenance.Origin.Engine)
+}
+
+// TestReviewContext_ReadsTheSameFactsAsTheHost seeds one unit here and holds
+// this assembler to the functions in core/review the host's assembler composes
+// (host.AssembleReviewContext, held to them by its own test), over the same
+// blocks, the same memory entry and the same decision: the neighbourhood in
+// document order with each neighbour's rung, the prior version and whether its
+// context still governs, the memory match on one scale, and the decision in
+// force with the target's origin. The point is each venue's own (a recipe on
+// the host, a workspace here) and the checks each venue runs are its own, so
+// those two are pinned by the cases above rather than compared.
+func TestReviewContext_ReadsTheSameFactsAsTheHost(t *testing.T) {
+	s, wsID, _ := newRecheckHarness(t)
+	ctx := context.Background()
+
+	authored := []*model.Block{
+		pendingFrBlock("a", "Open the app", "Ouvrir l'application"),
+		pendingFrBlock("b", "Reset your password", "Réinitialisez votre mot de passe"),
+		pendingFrBlock("c", "Close the app", "Fermer l'application"),
+	}
+	for _, b := range authored {
+		// The chain identity the version chain is keyed on, and the stamp the
+		// producer leaves on what it produced.
+		b.Unit = "auth." + b.ID
+		b.Target("fr").Origin = model.Origin{Kind: "ai", Engine: "claude", ContextFingerprint: "fp-1"}
+	}
+	authored[0].Target("fr").Status = model.TargetStatusReviewed
+	projID, _ := seedGovernedProject(t, s, wsID, authored)
+
+	// The host reads the file in document order; the server orders by the ids
+	// it minted. Put the host's blocks in the server's order, so both
+	// assemblers are asked about the same middle unit with the same sides.
+	stored, err := s.ContentStore.GetBlocks(ctx, platstore.BlockQuery{
+		ProjectID: projID, Stream: "main", ItemName: "greetings.txt",
+	})
+	require.NoError(t, err)
+	require.Len(t, stored, 3)
+	bySource := map[string]*model.Block{}
+	for _, b := range authored {
+		bySource[b.SourceText()] = b
+	}
+	ordered := make([]*model.Block, 0, len(stored))
+	for _, sb := range stored {
+		ordered = append(ordered, bySource[sb.Block.SourceText()])
+	}
+	middle := stored[1]
+
+	unit := bySource[middle.Block.SourceText()]
+
+	// The same approved answer in both memories: the previous wording of the
+	// middle unit, produced under the context still in force.
+	at := time.Date(2026, 8, 1, 9, 0, 0, 0, time.UTC)
+	entry := memory.Entry{
+		ID: "m-prior", Unit: unit.Unit, HintSrcLang: "en",
+		Variants: map[model.LocaleID][]model.Run{
+			"en": {model.TextR(unit.SourceText())},
+			"fr": {model.TextR(unit.TargetText("fr"))},
+		},
+		Origins:   []memory.Origin{{Source: "tool", AddedAt: at, ContextFingerprint: "fp-1"}},
+		CreatedAt: at, UpdatedAt: at,
+	}
+	// The same store implementation on both sides, so the two lookups classify
+	// a match the same way and the comparison is about the assemblers.
+	s.wsStores.memoryFactory = func() memory.Store { return memory.NewInMemoryStore() }
+	serverMemory, merr := s.wsStores.getMemory("rc")
+	require.NoError(t, merr)
+	require.NoError(t, serverMemory.Add(ctx, entry))
+	localMemory := memory.NewInMemoryStore()
+	require.NoError(t, localMemory.Add(ctx, entry))
+
+	// The same decision on both sides: the server's ledger row, and the state
+	// record the host reads.
+	ds, ok := s.ContentStore.(platstore.DecisionStore)
+	require.True(t, ok)
+	_, derr := ds.UpsertUnitDecisions(ctx, projID, "main", []venue.UnitDecision{{
+		ItemName: middle.ItemName, Unit: middle.SourceID, Variant: "fr", Status: "reviewed",
+		ReviewState: "approved", DecidedBy: "owner@rc.test", DecidedAt: "2026-09-01T11:00:00Z",
+		Note: "Matches the approved wording", ContentHash: middle.ContentHash,
+		Updated: "2026-09-01T11:00:00Z",
+	}})
+	require.NoError(t, derr)
+	record := &state.UnitState{
+		Status: model.TargetStatusReviewed,
+		Decision: state.Decision{
+			ReviewState: "approved", By: "owner@rc.test", At: "2026-09-01T11:00:00Z",
+			Note: "Matches the approved wording",
+		},
+		ContentHash: state.SourceHash(middle.Block.SourceText()),
+	}
+
+	_, got := getReviewContext(t, s, wsID, projID, middle.Block.ID, "fr")
+
+	// Neighbourhood: the same blocks, in the same order, on the same rungs.
+	wantHood := review.NeighbourhoodOf(ordered, 1, review.DefaultWindow, "fr")
+	assert.Equal(t, wantHood.Window, got.Neighbourhood.Window)
+	assert.Equal(t, neighbourFacts(wantHood.Before), neighbourFacts(got.Neighbourhood.Before))
+	assert.Equal(t, neighbourFacts(wantHood.After), neighbourFacts(got.Neighbourhood.After))
+	assert.Equal(t, stored[0].Block.ID, got.Neighbourhood.Before[0].Key, "keyed by the block the platform addresses")
+
+	// History: one prior version, one score, one scale.
+	fingerprint := review.GoverningFingerprint(unit, "fr", record.Origin)
+	wantPrior := review.PriorVersionOf(ctx, localMemory, unit, "en", "fr", fingerprint)
+	require.NotNil(t, wantPrior)
+	assert.Equal(t, wantPrior, got.History.Prior)
+	assert.True(t, got.History.Prior.Governed, "produced under the context still in force")
+	lookup := &model.Block{ID: "review-lookup", Translatable: true, Source: unit.SourceRuns()}
+	matches, lerr := localMemory.Lookup(ctx, lookup, "en", "fr", memory.LookupOptions{MinScore: 0.5, MaxResults: 1})
+	require.NoError(t, lerr)
+	require.NotEmpty(t, matches)
+	wantMatch := review.MatchOf(matches[0], "en", "fr")
+	require.NotNil(t, wantMatch)
+	require.NotNil(t, got.History.Match)
+	assert.Equal(t, wantMatch.Score, got.History.Match.Score)
+	assert.Equal(t, wantMatch.Target, got.History.Match.Target)
+	assert.Equal(t, wantMatch.Source, got.History.Match.Source)
+
+	// Provenance: the decision in force, and the target's origin.
+	assert.Equal(t, review.ProvenanceOf(unit, "fr", record), got.Provenance)
+	assert.Equal(t, "reviewed", got.Provenance.Status)
+	assert.False(t, got.Provenance.Stale)
+
+	// Point: each venue's own, but the language it answers for is the same.
+	assert.Equal(t, "fr", got.Point.Language)
+	assert.False(t, got.Point.IsSource)
+}
+
+// neighbourFacts reduces a neighbour list to what both assemblers must agree
+// on: the wording on both sides and the rung, in order. The keys differ by
+// design: the host addresses a block by its stable unit key, the platform by
+// the id it minted.
+func neighbourFacts(ns []review.Neighbour) [][3]string {
+	out := make([][3]string, 0, len(ns))
+	for _, n := range ns {
+		out = append(out, [3]string{model.RunsText(n.Source), model.RunsText(n.Target), n.Status})
+	}
+	return out
 }

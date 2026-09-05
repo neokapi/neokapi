@@ -1,13 +1,61 @@
-import { cn } from "@neokapi/ui-primitives";
+import type { CheckFinding } from "@neokapi/contract-types";
+import {
+  checkFindingViews,
+  checkIssueTone,
+  cn,
+  type ReviewFindingView,
+  type ReviewTermHitView,
+} from "@neokapi/ui-primitives";
 import { resolveOverlaySpans, segmentText } from "@neokapi/ui-primitives/preview";
 import type { ContentNode } from "@neokapi/ui-primitives/preview";
+import type { BlockNote, BlockTermMatch, CheckIssue } from "../../types/api";
 
 /**
- * The one review atom the platform keeps for itself. The five layers of the
- * review model are the shared cards in `@neokapi/ui-primitives`, fed through
- * `reviewModel.ts`; the desktop opens the document to read the marks a finding
- * left, while the platform's queue draws them on the target in place.
+ * What the platform keeps for itself around the shared review cards. The five
+ * layers of the review model are the cards in `@neokapi/ui-primitives`, and
+ * they take the model as the server serialises it; what remains here is the
+ * platform's own rows beside it (its check issues, its positioned term hits,
+ * its block notes) projected for the cards, and the target with the findings
+ * marked on it in place, which the desktop reads by opening the document.
  */
+
+/**
+ * Every finding on the unit, from both checkers, as one list: the check issues
+ * on the server's error/warning scale, then the findings behind the voice
+ * score on core/check's. The ids are the row hooks the surfaces' tests and the
+ * anchored marks refer to.
+ */
+export function findingViews(issues: CheckIssue[], findings: CheckFinding[]): ReviewFindingView[] {
+  return [
+    ...issues.map<ReviewFindingView>((issue, i) => ({
+      id: `finding-issue-${i}`,
+      category: issue.type,
+      severity: issue.severity,
+      tone: checkIssueTone(issue.severity),
+      message: issue.message,
+      suggestion: issue.suggestion,
+      originalText: issue.original_text,
+    })),
+    ...checkFindingViews(
+      findings.map((f) => ({ ...f, replacement: f.metadata?.replacement })),
+      "finding-voice",
+    ),
+  ];
+}
+
+/** The terms the source matches, as the point card reads them. */
+export function termHitViews(hits: BlockTermMatch[]): ReviewTermHitView[] {
+  return hits.map((hit) => ({
+    term: hit.source_term,
+    renderings: hit.target_terms,
+    domain: hit.domain,
+  }));
+}
+
+/** The latest note on the unit, drawn beside the decision in force. */
+export function latestNote(notes: BlockNote[]): string | undefined {
+  return notes[notes.length - 1]?.text;
+}
 
 /**
  * The target as the checks marked it. Spans come from the projected node's

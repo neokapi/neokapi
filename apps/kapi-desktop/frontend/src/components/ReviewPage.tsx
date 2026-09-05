@@ -28,6 +28,7 @@ import {
   NeighbourhoodCard,
   PointCard,
   ProvenanceCard,
+  checkFindingViews,
   StatusBadge,
   localeLabel,
   ScrollArea,
@@ -40,13 +41,6 @@ import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
 import { AIExchangeDisclosure } from "./AIExchangeView";
 import { FilePreview } from "./FilePreview";
-import {
-  toFindingViews,
-  toHistoryView,
-  toNeighbourhoodView,
-  toPointView,
-  toProvenanceView,
-} from "./review/model";
 import { ReviewLanguageSelect } from "./review/ReviewLanguageSelect";
 import { SourceUnitPane } from "./review/SourceUnitPane";
 import { useActiveFilter } from "../context/ActiveFilterContext";
@@ -1269,10 +1263,7 @@ export function ReviewPage({
                   />
                 ) : (
                   <>
-                    <PointCard
-                      point={model ? toPointView(model.point) : undefined}
-                      loading={unitLoading}
-                    />
+                    <PointCard point={model?.point} loading={unitLoading} />
 
                     <Card>
                       <CardContent className="p-3">
@@ -1489,7 +1480,7 @@ export function ReviewPage({
                     {/* The unit in its document: the blocks either side of it, in
                     document order, as the translate prompt read them. */}
                     <NeighbourhoodCard
-                      neighbourhood={model ? toNeighbourhoodView(model.neighbourhood) : undefined}
+                      neighbourhood={model?.neighbourhood}
                       unitKey={selected?.key}
                       unitSource={unit?.source ?? selected?.source}
                       unitTarget={unit?.target ?? selected?.target}
@@ -1501,7 +1492,7 @@ export function ReviewPage({
                     {/* What was approved for this unit before, and the wording the
                     content memory already holds for it. */}
                     <HistoryCard
-                      history={model ? toHistoryView(model.history) : undefined}
+                      history={model?.history}
                       emptyText={t(
                         "Nothing has been approved for this unit yet, and the content memory holds no close match.",
                       )}
@@ -1514,19 +1505,22 @@ export function ReviewPage({
                     {/* What has already been said about this translation: the
                     checks, and the AI pre-review that scored it. */}
                     <JudgementCard
-                      findings={unit ? toFindingViews(unit.findings ?? []) : undefined}
+                      findings={unit ? checkFindingViews(unit.findings ?? []) : undefined}
                       aiScore={model?.judgement.ai_score ?? unit?.ai_review_score}
                       aiModel={model?.judgement.ai_model ?? unit?.ai_review_model}
                       aiFindings={model?.judgement.ai_findings}
                     />
 
-                    {/* Where this translation came from, and the decision in force. */}
+                    {/* Where this translation came from, and the decision in force.
+                    Until the model arrives the queue row's own flat fields stand in. */}
                     <ProvenanceCard
-                      provenance={toProvenanceView(model?.provenance, {
-                        origin: unit?.origin,
-                        reviewState: unit?.review_state,
-                        note: unit?.note,
-                      })}
+                      provenance={
+                        model?.provenance ?? {
+                          origin: unit?.origin,
+                          review_state: unit?.review_state,
+                          note: unit?.note,
+                        }
+                      }
                     />
                   </>
                 )}

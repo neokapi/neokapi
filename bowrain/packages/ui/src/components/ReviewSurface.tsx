@@ -551,10 +551,11 @@ export function ReviewSurface({
     // run anchor, so they mark the target where the scoring pass raised them
     // rather than sitting in a panel beside the text.
     for (const [key, ctx] of Object.entries(contextByBlock)) {
-      if (!key.endsWith(`::${targetLocale}`) || ctx.voice_findings.length === 0) continue;
+      const findings = ctx.judgement.findings ?? [];
+      if (!key.endsWith(`::${targetLocale}`) || findings.length === 0) continue;
       out[ctx.block_id] = {
         ...out[ctx.block_id],
-        findings: ctx.voice_findings.map((finding) => ({ ...finding, side: targetLocale })),
+        findings: findings.map((finding) => ({ ...finding, side: targetLocale })),
       };
     }
     return out;

@@ -3,7 +3,7 @@ import { t } from "@neokapi/i18n-react/runtime";
 import { Badge } from "../ui/badge";
 import { When } from "../ui/when";
 import { LayerCard } from "./LayerCard";
-import type { ReviewProvenanceView } from "./types";
+import type { ReviewProvenance } from "@neokapi/contract-types";
 
 /**
  * Where this translation came from, and the decision in force over it.
@@ -49,7 +49,12 @@ export function decisionLabel(state: string | undefined): string | undefined {
 }
 
 export interface ProvenanceCardProps {
-  provenance?: ReviewProvenanceView;
+  provenance?: ReviewProvenance;
+  /**
+   * A note on the unit outside the decision record, where the host keeps
+   * one: the platform's latest block note. The decision's own note wins.
+   */
+  note?: string;
   defaultOpen?: boolean;
   testId?: string;
   className?: string;
@@ -57,18 +62,21 @@ export interface ProvenanceCardProps {
 
 export function ProvenanceCard({
   provenance,
+  note: unitNote,
   defaultOpen,
   testId,
   className,
 }: ProvenanceCardProps) {
   const origin = provenance?.origin;
-  const decision = provenance?.decision;
   const kind = origin?.kind;
   const producer = [origin?.engine, origin?.tool].filter(Boolean).join(" · ");
   const label = originLabel(kind);
-  const state = decisionLabel(decision?.state);
-  const note = decision?.note ?? provenance?.note;
-  const empty = !kind && !state && !decision?.by && !note;
+  const state = decisionLabel(provenance?.review_state);
+  const by = provenance?.by;
+  const at = provenance?.at;
+  const stale = provenance?.stale;
+  const note = provenance?.note || unitNote;
+  const empty = !kind && !state && !by && !note;
 
   const summary = (
     <>
@@ -76,7 +84,7 @@ export function ProvenanceCard({
         {label ?? kind ?? (state ? "" : t("Nothing recorded"))}
       </span>
       {state && <Badge variant="outline">{state}</Badge>}
-      {decision?.sourceMoved && (
+      {stale && (
         <Badge
           variant="outline"
           className="h-auto whitespace-normal border-warning/40 text-left text-[11px] text-warning"
@@ -113,7 +121,7 @@ export function ProvenanceCard({
           </div>
         )}
 
-        {(state || decision?.by) && (
+        {(state || by) && (
           <div
             className="flex flex-wrap items-center gap-1.5"
             data-slot="review-decision"
@@ -123,26 +131,26 @@ export function ProvenanceCard({
               {state ? t("Decision in force") : t("Last change")}
             </span>
             {state && <Badge variant="outline">{state}</Badge>}
-            {decision?.by && (
+            {by && (
               <span className="text-muted-foreground">
-                {t("by")} <span translate="no">{decision.by}</span>
+                {t("by")} <span translate="no">{by}</span>
               </span>
             )}
-            {decision?.at && <When iso={decision.at} className="text-muted-foreground" />}
+            {at && <When iso={at} className="text-muted-foreground" />}
           </div>
         )}
 
-        {decision?.sourceMoved && (
+        {stale && (
           <div className="flex items-center gap-1.5 text-warning">
             <AlertTriangle size={11} aria-hidden />
             {t("The source has changed since that decision.")}
           </div>
         )}
 
-        {!state && !decision?.by && (decision?.at ?? origin?.timestamp) && (
+        {!state && !by && (at ?? origin?.timestamp) && (
           <div className="flex items-center gap-1.5">
             <span className="text-muted-foreground">{t("Written")}</span>
-            <When iso={(decision?.at ?? origin?.timestamp)!} />
+            <When iso={(at ?? origin?.timestamp)!} />
           </div>
         )}
 

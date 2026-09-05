@@ -19,14 +19,7 @@ import { CollapsedTargetCell } from "../editor/GridTargetRenderer";
 import { UnifiedTargetEditor, type UnifiedSaveResult } from "../UnifiedTargetEditor";
 import { getTargetText, targetLadderStatus } from "../editor/blockStatus";
 import { blockToContentNode } from "../../preview/toContentTree";
-import { AnchoredTarget } from "./reviewContext";
-import {
-  toFindingViews,
-  toHistoryView,
-  toNeighbourhoodView,
-  toPointView,
-  toProvenanceView,
-} from "./reviewModel";
+import { AnchoredTarget, findingViews, latestNote, termHitViews } from "./reviewContext";
 import {
   Check,
   CheckCheck,
@@ -189,7 +182,7 @@ export function FocusedReviewer({
   const entities: EntityInfo[] = block.entities ?? [];
   const errorCount = issues.filter((i) => i.severity === "error").length;
 
-  const voiceFindings = context?.voice_findings ?? [];
+  const voiceFindings = context?.judgement.findings ?? [];
   const targetText = getTargetText(block, locale);
   // The same declared projection the document surface reads through: the block
   // plus its evidence, layered as run-anchored overlays. The reviewer then sees
@@ -209,7 +202,7 @@ export function FocusedReviewer({
       }),
     [block, issues, locale, sourceLocale, context?.terms, voiceFindings],
   );
-  const memoryMatch = context?.memory_match;
+  const memoryMatch = context?.history.match;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col" data-testid="focused-reviewer">
@@ -270,7 +263,7 @@ export function FocusedReviewer({
             queue is a flat list across items, so it says what this block sits
             between, and how many neighbours that is before it is opened. */}
           <NeighbourhoodCard
-            neighbourhood={context ? toNeighbourhoodView(context) : undefined}
+            neighbourhood={context?.neighbourhood}
             loading={contextLoading}
             unitKey={block.id}
             unitSource={block.source}
@@ -454,10 +447,7 @@ export function FocusedReviewer({
             check findings and the voice findings judge the same target, so they
             are read as one list rather than as a score beside a list. */}
           <div className="mt-4">
-            <JudgementCard
-              findings={toFindingViews(issues, voiceFindings)}
-              testId="reviewer-checks"
-            >
+            <JudgementCard findings={findingViews(issues, voiceFindings)} testId="reviewer-checks">
               <Button
                 size="sm"
                 variant="ghost"
@@ -480,10 +470,16 @@ export function FocusedReviewer({
         {/* What governs this point, what the corpus already said about it, and
             how the target came to say what it says. */}
         <div className="min-w-0 space-y-4" data-testid="reviewer-context-rail">
-          <PointCard point={context ? toPointView(context) : undefined} loading={contextLoading} />
+          <PointCard
+            point={context?.point}
+            termHits={context ? termHitViews(context.terms) : undefined}
+            voiceScore={context?.voice_score}
+            voiceBar={context?.voice_bar}
+            loading={contextLoading}
+          />
           <div className="space-y-4">
             <HistoryCard
-              history={context ? toHistoryView(context) : undefined}
+              history={context?.history}
               loading={contextLoading}
               sourceLocale={sourceLocale}
               locale={locale}
@@ -496,7 +492,8 @@ export function FocusedReviewer({
               }
             />
             <ProvenanceCard
-              provenance={context ? toProvenanceView(context) : undefined}
+              provenance={context?.provenance}
+              note={context ? latestNote(context.notes) : undefined}
               testId="reviewer-provenance"
             />
           </div>

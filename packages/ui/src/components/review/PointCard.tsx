@@ -9,7 +9,8 @@ import { Collapsible, CollapsibleContent } from "../ui/collapsible";
 import { CoordinateChip } from "../ui/coordinate-chip";
 import { SimpleTooltip } from "../ui/tooltip";
 import { LayerCard } from "./LayerCard";
-import type { ReviewPointView, ReviewTermHitView, ReviewTermRuleView } from "./types";
+import type { ReviewPoint, TermRule } from "@neokapi/contract-types";
+import type { ReviewTermHitView } from "./types";
 
 /**
  * The point card: where this unit's file sits, and what governs it there.
@@ -20,11 +21,13 @@ import type { ReviewPointView, ReviewTermHitView, ReviewTermRuleView } from "./t
  * its rendered guidance and the unit's score against the profile's bar, the
  * term rules bearing on this unit's wording, the terms the source matches, the
  * governance profiles' validity windows, and the caveats the resolution
- * produced. A host that carries none of a row leaves that row out.
+ * produced. The point is the review model's own (core/review.Point); the term
+ * hits and the score against the bar are the platform's rows beside it, and a
+ * host that carries neither leaves those rows out.
  */
 
 /** A rule whose severity only reports. Everything else fails a check. */
-function warnsOnly(rule: ReviewTermRuleView): boolean {
+function warnsOnly(rule: TermRule): boolean {
   const s = (rule.severity ?? "").toLowerCase();
   return s === "minor" || s === "neutral";
 }
@@ -38,7 +41,7 @@ function warnsOnly(rule: ReviewTermRuleView): boolean {
  * a fill. Red belongs to the Checks card, where a finding says this unit broke
  * a rule. See packages/ui/docs/judgement-colours.md.
  */
-export function TermRuleChip({ rule, index }: { rule: ReviewTermRuleView; index?: number }) {
+export function TermRuleChip({ rule, index }: { rule: TermRule; index?: number }) {
   const bite = warnsOnly(rule) ? t("warns only") : t("blocks approval");
   const label = rule.do_not_translate ? `${t("do not translate")} · ${bite}` : bite;
   return (
@@ -117,7 +120,17 @@ export function VoiceScoreChip({ score, bar }: { score?: number; bar: number }) 
 }
 
 export interface PointCardProps {
-  point?: ReviewPointView;
+  point?: ReviewPoint;
+  /**
+   * The terms the source matches, where the host looks them up. Absent for a
+   * host that does not, in which case the row is left out; an empty list says
+   * none matched.
+   */
+  termHits?: ReviewTermHitView[];
+  termHitsLoading?: boolean;
+  /** The unit's latest voice score and the lowest the profile accepts, where the host scores. */
+  voiceScore?: number;
+  voiceBar?: number;
   /** The model is still on its way; the card says so rather than reading empty. */
   loading?: boolean;
   defaultOpen?: boolean;
@@ -130,7 +143,17 @@ export interface PointCardProps {
  *  the ones a reviewer is looking for. */
 const RULES_SHOWN = 8;
 
-export function PointCard({ point, loading, defaultOpen, testId, className }: PointCardProps) {
+export function PointCard({
+  point,
+  termHits,
+  termHitsLoading,
+  voiceScore,
+  voiceBar,
+  loading,
+  defaultOpen,
+  testId,
+  className,
+}: PointCardProps) {
   const [guideOpen, setGuideOpen] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
 
@@ -171,15 +194,14 @@ export function PointCard({ point, loading, defaultOpen, testId, className }: Po
   }
 
   const coordinates = Object.entries(point.coordinates ?? {}).filter(([, v]) => v);
-  const rules = point.termRules ?? [];
+  const rules = point.term_rules ?? [];
   const shown = rulesOpen ? rules : rules.slice(0, RULES_SHOWN);
   const hidden = rules.length - shown.length;
-  const total = point.termsTotal ?? rules.length;
+  const total = Math.max(point.terms_total ?? 0, rules.length);
   const capped = total > rules.length;
   const profiles = point.profiles ?? [];
   const notes = point.notes ?? [];
   const ref = point.ref ?? (point.default ? t("default point") : undefined);
-  const bar = point.voice?.bar;
 
   const summary = (
     <>
@@ -248,7 +270,7 @@ export function PointCard({ point, loading, defaultOpen, testId, className }: Po
                   {point.voice.source}
                 </span>
               )}
-              {bar !== undefined && <VoiceScoreChip score={point.voice.score} bar={bar} />}
+              {voiceBar !== undefined && <VoiceScoreChip score={voiceScore} bar={voiceBar} />}
               {point.voice.guide && (
                 <Button
                   variant="ghost"
@@ -329,15 +351,15 @@ export function PointCard({ point, loading, defaultOpen, testId, className }: Po
           )}
         </div>
 
-        {point.termHits !== undefined && (
+        {termHits !== undefined && (
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1" data-testid="point-terms">
             <span className="text-muted-foreground">{t("Matched")}</span>
-            {point.termHitsLoading ? (
+            {termHitsLoading ? (
               <span className="text-muted-foreground">{t("Looking up terms…")}</span>
-            ) : point.termHits.length === 0 ? (
+            ) : termHits.length === 0 ? (
               <span className="text-muted-foreground">{t("No terms matched this block.")}</span>
             ) : (
-              point.termHits.map((hit, i) => <TermHitChip key={`${hit.term}-${i}`} hit={hit} />)
+              termHits.map((hit, i) => <TermHitChip key={`${hit.term}-${i}`} hit={hit} />)
             )}
           </div>
         )}

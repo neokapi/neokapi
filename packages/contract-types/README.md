@@ -1,11 +1,11 @@
 # @neokapi/contract-types
 
 Shared TypeScript contract types for the [neokapi](https://github.com/neokapi/neokapi)
-engine — the single source of truth for the flow/tool IO contract, the schema
-language, and the content-model payload shapes consumed by every neokapi
-frontend package (including `@neokapi/engine`).
+engine: the single source of truth for the flow/tool IO contract, the schema
+language, the content-model payload shapes and the review model consumed by
+every neokapi frontend package (including `@neokapi/engine`).
 
-Three layers, re-exported from the package root:
+Four layers, re-exported from the package root:
 
 - **`./contract.gen`** — IO-contract atoms generated from the Go sources of
   truth (`core/schema`, `core/format/schema`, `core/model`): tool/format
@@ -13,6 +13,9 @@ Three layers, re-exported from the package root:
 - **`./content.gen`** — content-model types generated from the canonical
   `neokapi.content.v1` proto descriptors (wire shapes, as encoded by protojson)
   and the Go projection structs (`model.Run` JSON, the `ContentTree` family).
+- **`./review.gen`** — the review model (`core/review`): the five layers a
+  review decision is made in, read by every review client and taken as props
+  by the shared review cards.
 - **`./manual`** — hand-authored superset envelope types the UI extends beyond
   Go (`ComponentSchema`, `PropertySchema`, `ConditionExpr`, `ToolDoc`, …).
 

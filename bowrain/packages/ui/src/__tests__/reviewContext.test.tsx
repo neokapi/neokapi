@@ -53,10 +53,14 @@ function emptyContext(over: Partial<ReviewContext> = {}): ReviewContext {
     block_id: "b1",
     item_name: "auth.json",
     locale: "fr-FR",
-    terms: [],
     collection_id: "",
+    terms: [],
     notes: [],
-    voice_findings: [],
+    point: { default: false, terms_total: 0 },
+    neighbourhood: { key: "b1", window: 2 },
+    history: {},
+    judgement: {},
+    provenance: {},
     ...over,
   };
 }
@@ -88,16 +92,22 @@ describe("the queue anchors what the checks found", () => {
     reviewer(
       {},
       emptyContext({
-        voice_findings: [
-          {
-            category: "compliance",
-            severity: "major",
-            message: "Uses a term the profile forbids.",
-            original_text: "Réinitialisez",
-            suggestion: "Changez",
-            position: { kind: "range", start: { run: 0, offset: 0 }, end: { run: 0, offset: 13 } },
-          },
-        ],
+        judgement: {
+          findings: [
+            {
+              category: "compliance",
+              severity: "major",
+              message: "Uses a term the profile forbids.",
+              original_text: "Réinitialisez",
+              suggestion: "Changez",
+              position: {
+                kind: "range",
+                start: { run: 0, offset: 0 },
+                end: { run: 0, offset: 13 },
+              },
+            },
+          ],
+        },
       }),
     );
 
@@ -138,15 +148,18 @@ describe("the queue anchors what the checks found", () => {
         ],
       },
       emptyContext({
-        voice_findings: [
-          {
-            category: "compliance",
-            severity: "major",
-            message: "Uses a term the profile forbids.",
-            original_text: "Réinitialisez",
-            suggestion: "Changez",
-          },
-        ],
+        judgement: {
+          findings: [
+            {
+              category: "compliance",
+              severity: "major",
+              message: "Uses a term the profile forbids.",
+              original_text: "Réinitialisez",
+              suggestion: "Changez",
+              position: { kind: "block" },
+            },
+          ],
+        },
       }),
     );
 
@@ -168,18 +181,25 @@ describe("the queue's neighbourhood", () => {
     reviewer(
       {},
       emptyContext({
-        previous: {
-          block_id: "b0",
-          source_runs: [
-            { text: "We sent a link to " },
-            { ph: { id: "1", type: "code:variable", data: "{{.Email}}", equiv: "{{.Email}}" } },
-            { text: "." },
+        neighbourhood: {
+          key: "b1",
+          before: [
+            {
+              key: "b0",
+              source: [
+                { text: "We sent a link to " },
+                { ph: { id: "1", type: "code:variable", data: "{{.Email}}", equiv: "{{.Email}}" } },
+                { text: "." },
+              ],
+              target: [
+                { text: "Nous avons envoyé un lien à " },
+                { ph: { id: "1", type: "code:variable", data: "{{.Email}}", equiv: "{{.Email}}" } },
+                { text: "." },
+              ],
+              status: "reviewed",
+            },
           ],
-          target_runs: [
-            { text: "Nous avons envoyé un lien à " },
-            { ph: { id: "1", type: "code:variable", data: "{{.Email}}", equiv: "{{.Email}}" } },
-            { text: "." },
-          ],
+          window: 2,
         },
       }),
     );
@@ -200,12 +220,18 @@ describe("the queue's neighbourhood", () => {
     reviewer(
       {},
       emptyContext({
-        previous: {
-          block_id: "b0",
-          source_runs: [{ text: "Enter your email" }],
-          target_runs: [{ text: "Saisissez votre adresse e-mail" }],
+        neighbourhood: {
+          key: "b1",
+          before: [
+            {
+              key: "b0",
+              source: [{ text: "Enter your email" }],
+              target: [{ text: "Saisissez votre adresse e-mail" }],
+            },
+          ],
+          after: [{ key: "b2", source: [{ text: "We sent a link" }] }],
+          window: 2,
         },
-        next: { block_id: "b2", source_runs: [{ text: "We sent a link" }], target_runs: [] },
       }),
     );
 
@@ -222,12 +248,18 @@ describe("the queue's neighbourhood", () => {
     reviewer(
       {},
       emptyContext({
-        previous: {
-          block_id: "b0",
-          source_runs: [{ text: "Enter your email" }],
-          target_runs: [{ text: "Saisissez votre adresse e-mail" }],
+        neighbourhood: {
+          key: "b1",
+          before: [
+            {
+              key: "b0",
+              source: [{ text: "Enter your email" }],
+              target: [{ text: "Saisissez votre adresse e-mail" }],
+            },
+          ],
+          after: [{ key: "b2", source: [{ text: "We sent a link" }] }],
+          window: 2,
         },
-        next: { block_id: "b2", source_runs: [{ text: "We sent a link" }], target_runs: [] },
       }),
     );
 
@@ -275,13 +307,17 @@ describe("the queue's empty states", () => {
     reviewer(
       {},
       emptyContext({
-        voice_profile: {
-          id: "vp-1",
-          name: "Bowrain Voice",
-          guidance: "Say what the product does for the reader.",
-          compliance_bar: 90,
+        point: {
+          default: false,
+          voice: {
+            name: "Bowrain Voice",
+            source: "store:vp-1",
+            guide: "Say what the product does for the reader.",
+          },
           term_rules: [{ term: "leverage", replacement: "use", severity: "major" }],
+          terms_total: 1,
         },
+        voice_bar: 90,
       }),
     );
 
@@ -301,19 +337,21 @@ describe("the queue's empty states", () => {
     reviewer(
       {},
       emptyContext({
-        memory_match: {
-          source: "Reset your password",
-          target: "Changez votre mot de passe",
-          score: 1,
-          match_type: "exact",
+        history: {
+          match: {
+            source: "Reset your password",
+            target: "Changez votre mot de passe",
+            score: 100,
+            kind: "exact",
+          },
         },
-        decision: {
-          state: "rejected",
+        provenance: {
+          origin: { kind: "ai", engine: "claude-sonnet" },
+          review_state: "rejected",
           by: "maria@bowrain.test",
           at: "2026-08-30T09:12:00Z",
           note: "Reads as machine output.",
         },
-        origin: { kind: "ai", engine: "claude-sonnet" },
       }),
     );
 
@@ -369,13 +407,20 @@ describe("the document's inspector", () => {
   it("shows the memory wording, the origin, the decision and the note", () => {
     inspector(
       emptyContext({
-        memory_match: {
-          source: "Reset your password",
-          target: "Changez votre mot de passe",
-          score: 0.92,
-          match_type: "fuzzy",
+        history: {
+          match: {
+            source: "Reset your password",
+            target: "Changez votre mot de passe",
+            score: 92,
+            kind: "fuzzy",
+          },
         },
-        decision: { state: "approved", by: "sam@bowrain.test", at: "2026-08-31T08:00:00Z" },
+        provenance: {
+          origin: { kind: "memory", reference: "entry-42" },
+          review_state: "approved",
+          by: "sam@bowrain.test",
+          at: "2026-08-31T08:00:00Z",
+        },
         notes: [
           {
             id: "n1",
@@ -385,7 +430,6 @@ describe("the document's inspector", () => {
             createdAt: "2026-08-31T08:01:00Z",
           },
         ],
-        origin: { kind: "memory", reference: "entry-42" },
       }),
     );
 
@@ -402,15 +446,18 @@ describe("the document's inspector", () => {
   it("shows the voice findings the score was made of", () => {
     inspector(
       emptyContext({
-        voice_findings: [
-          {
-            category: "compliance",
-            severity: "major",
-            message: "Uses a term the profile forbids.",
-            original_text: "Réinitialisez",
-            suggestion: "Changez",
-          },
-        ],
+        judgement: {
+          findings: [
+            {
+              category: "compliance",
+              severity: "major",
+              message: "Uses a term the profile forbids.",
+              original_text: "Réinitialisez",
+              suggestion: "Changez",
+              position: { kind: "block" },
+            },
+          ],
+        },
       }),
     );
 

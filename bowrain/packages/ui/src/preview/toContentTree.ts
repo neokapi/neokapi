@@ -21,7 +21,7 @@
 //     (core/projection), not by bowrain's REST server, so the kit falls back to
 //     its data-driven `treeToRenderDoc` layout.
 
-import type { Run } from "@neokapi/contract-types";
+import type { CheckFinding, Run } from "@neokapi/contract-types";
 import type {
   AnnotationView,
   ContentNode,
@@ -35,19 +35,20 @@ import type {
 import { rangeAnchorForBytes, textForBytes } from "@neokapi/ui-primitives/preview";
 import { codedToRuns } from "@neokapi/ui-primitives";
 import { getTargetStatus, getTargetText } from "../components/editor/blockStatus";
-import type { VoiceFinding } from "../voice/types";
 import type { BlockInfo, BlockTermMatch, EntityInfo, CheckIssue, SpanInfo } from "../types/api";
 
 /**
- * A run-anchored voice or rule-based finding, as `core/check.Finding` serializes it —
- * the shape the voice-vocabulary check, the /check endpoint and the stored
- * brand scores all emit. `position` is already run-anchored, so it needs no
- * offset conversion.
+ * A run-anchored voice or rule-based finding, as `core/check.Finding`
+ * serializes it: the shape the voice-vocabulary check, the /check endpoint, the
+ * stored voice scores and the review context's judgement all emit. `position`
+ * is already run-anchored, so it needs no offset conversion, and it is optional
+ * here because the voice UI's `VoiceFinding` leaves it so.
  *
- * The wire shape itself is {@link VoiceFinding}; `side` is bowrain's own
- * annotation, naming which text the finding was raised against.
+ * `side` is bowrain's own annotation, naming which text the finding was raised
+ * against.
  */
-export interface BlockFinding extends VoiceFinding {
+export interface BlockFinding extends Omit<CheckFinding, "position"> {
+  position?: Anchor;
   /**
    * The side the finding was raised on — "source" or a target locale key.
    * Defaults to "source".

@@ -1,5 +1,5 @@
 // IOPort is defined once in the shared @neokapi/contract-types package (#817).
-import type { IOPort, Run, Anchor } from "@neokapi/contract-types";
+import type { IOPort, Run, Anchor, ReviewContext as ReviewModel } from "@neokapi/contract-types";
 import type { VoiceFinding, VoiceProfile } from "../voice/types";
 export type { IOPort };
 
@@ -1304,106 +1304,40 @@ export interface FileCheckResult {
 }
 
 // ---------------------------------------------------------------------------
-// Review context types
+// Review context
 // ---------------------------------------------------------------------------
 
 /**
  * The context a reviewer decides one unit in, as
- * `GET …/blocks/:ref/:bid/review-context` gathers it. Five layers, read in
- * order: where the content sits and what governs it (Point), what surrounds it
- * (Neighbourhood), what the corpus and the ledger already said (History), what
- * the checks found (Judgement), and how the target was produced (Provenance).
+ * `GET …/blocks/:ref/:bid/review-context` gathers it: the review model every
+ * review client reads (`ReviewContext` in `@neokapi/contract-types`, generated
+ * from core/review), with the rows only the platform holds beside it. The
+ * five layers read in order: where the content sits and what governs it
+ * (point), what surrounds it (neighbourhood), what the corpus already said
+ * (history), what the checks found (judgement), and how the target was
+ * produced and who decided on it (provenance).
  *
  * It is per-unit rather than per-queue-entry: a queue page already carries a
  * full block payload per row, so neighbours would roughly triple it and the
  * memory and term lookups are per-block matcher runs.
  */
-export interface ReviewContext {
+export interface ReviewContext extends ReviewModel {
   block_id: string;
   item_name: string;
   locale: string;
-
-  /** The voice profile bound at this point, absent when none is. */
-  voice_profile?: ReviewVoiceProfile;
+  /** The collection the block's item belongs to, "" for an item in none. The point names it. */
+  collection_id: string;
   /** The terms the block's source matches, positioned over it. */
   terms: BlockTermMatch[];
-  collection_id: string;
-  collection_name?: string;
-  /** The collection's point in the project's context space (axis → value). */
-  coordinates?: Record<string, string>;
-
-  /** The units either side in the item, each as a run sequence. */
-  previous?: ReviewNeighbour;
-  next?: ReviewNeighbour;
-
-  /** The best content-memory match, with the wording on both sides. */
-  memory_match?: MemoryMatchInfo;
-  /** The ledger's latest record for this unit and locale. */
-  decision?: ReviewDecision;
+  /** The block's notes, oldest first. */
   notes: BlockNote[];
-
-  /** The findings behind the latest voice score, anchored and suggested. */
-  voice_findings: VoiceFinding[];
+  /**
+   * The block's latest voice score, absent for a block nothing has scored, and
+   * the bar the profile in force sets, present whenever a profile is bound.
+   * The findings behind the score are the judgement's findings.
+   */
   voice_score?: number;
   voice_bar?: number;
-
-  /** How the target under review was produced. */
-  origin?: ReviewOrigin;
-}
-
-/** The profile in force, with what it asks for rendered. */
-export interface ReviewVoiceProfile {
-  id: string;
-  name: string;
-  /** The compact guidance the translation prompt carries. */
-  guidance?: string;
-  compliance_bar: number;
-  term_rules: ReviewTermRule[];
-}
-
-/** One vocabulary constraint the profile states. */
-export interface ReviewTermRule {
-  term: string;
-  replacement?: string;
-  note?: string;
-  severity?: string;
-  concept_id?: string;
-  do_not_translate?: boolean;
-}
-
-/** One adjacent unit: enough to read it, in runs rather than joined text. */
-export interface ReviewNeighbour {
-  block_id: string;
-  source_runs: Run[];
-  /** What the locale under review says here, empty when nothing does yet. */
-  target_runs: Run[];
-  status?: string;
-}
-
-/** The ledger row for this unit, as a reviewer reads it. */
-export interface ReviewDecision {
-  /** approved | rejected | signed-off, "" for a rung change that judged nothing. */
-  state?: string;
-  status?: string;
-  by?: string;
-  at?: string;
-  note?: string;
-  /**
-   * The decision's recorded basis names source wording the block no longer
-   * carries. False when the record carries no basis, which is unknown rather
-   * than moved.
-   */
-  source_moved?: boolean;
-}
-
-/** How the target under review was produced. */
-export interface ReviewOrigin {
-  kind?: string;
-  engine?: string;
-  tool?: string;
-  reference?: string;
-  timestamp?: string;
-  profile?: string;
 }
 
 // ---------------------------------------------------------------------------

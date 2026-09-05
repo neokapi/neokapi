@@ -2,7 +2,7 @@
 
 // IOPort (and the schema-language cluster, re-exported below) is defined once in
 // the shared @neokapi/contract-types package (issue #817).
-import type { IOPort, Run } from "@neokapi/contract-types";
+import type { IOPort, ReviewContext } from "@neokapi/contract-types";
 
 export interface KapiProject {
   version: string;
@@ -774,163 +774,25 @@ export interface ReviewUnitDetail {
 }
 
 /**
- * The review model (matches Go host.ReviewContext): one decision bound to the
- * context it is made in.
- *
- * The bar it exists for is that a reviewer sees at least what the model was
- * told. A translate prompt carries a block's key, the blocks either side of it,
- * and what it said last time; so does this.
+ * The review model (host.ReviewContext, core/review): one decision bound to
+ * the context it is made in. Generated from the Go structs with
+ * `make generate-contract-types`, so the desktop reads the shape the host
+ * serialises and the platform's review surfaces read the same one.
  */
-export interface ReviewContext {
-  point: ReviewPoint;
-  neighbourhood: ReviewNeighbourhood;
-  history: ReviewHistory;
-  judgement: ReviewJudgement;
-  provenance: ReviewProvenance;
-}
-
-/** Where the unit's file sits and what governs it there (host.ReviewPoint). */
-export interface ReviewPoint {
-  /** The source file, project-relative. */
-  path?: string;
-  profile?: string;
-  channel?: string;
-  collection?: string;
-  /** Profile and channel as the recipe writes the binding (`profile/channel`). */
-  ref?: string;
-  /** True when resolution fell through to the project's default point. */
-  default: boolean;
-  /** The declared axes: product, channel, brand. */
-  coordinates?: Record<string, string>;
-  voice?: ReviewVoice;
-  /** The constraints on wording in force here, the rules bearing on this unit
-   *  first. */
-  term_rules?: TermRule[];
-  /** How many rules the point binds in all, so a capped list says what it is
-   *  part of. */
-  terms_total: number;
-  profiles?: ProfileWindow[];
-  notes?: string[];
-}
-
-/** The voice profile in force, with the guidance it renders (host.ContextVoice). */
-export interface ReviewVoice {
-  name: string;
-  /** Where it was loaded from: a path, `pack:<name>`, or `store:<name>`. */
-  source?: string;
-  /** The recipe key that bound it. */
-  field?: string;
-  /** The profile rendered as prose, the same text the translate prompt carries. */
-  guide?: string;
-}
-
-/** One governance profile's validity window (host.ContextProfileHit). */
-export interface ProfileWindow {
-  name: string;
-  valid_from?: string;
-  valid_to?: string;
-  /** "active" | "upcoming" | "expired". */
-  state: string;
-}
-
-/** One constraint on wording (matches Go profile.TermRule). */
-export interface TermRule {
-  term: string;
-  replacement?: string;
-  note?: string;
-  severity?: string;
-  concept_id?: string;
-  do_not_translate?: boolean;
-  forms?: string[];
-  case_sensitive?: boolean;
-}
-
-/**
- * The unit in its document (host.ReviewNeighbourhood): its key, and the blocks
- * either side in document order.
- *
- * The neighbours travel as run sequences. Render them through the declared run
- * projection (`@neokapi/kapi-format`). A hand-rolled loop over the
- * discriminator reads as "concatenate the text" and behaves as "delete every
- * placeholder, every paired code, every plural".
- */
-export interface ReviewNeighbourhood {
-  key?: string;
-  /** Nearest last, so reading before → unit → after reads the document. */
-  before?: ReviewNeighbour[];
-  /** Nearest first. */
-  after?: ReviewNeighbour[];
-  /** How many blocks either side were asked for. A shorter list means the
-   *  document ended. */
-  window: number;
-}
-
-/** One neighbouring block (host.ReviewNeighbour). */
-export interface ReviewNeighbour {
-  key?: string;
-  source: Run[];
-  /** What the locale under review says for the neighbour, absent when nothing
-   *  is translated there. */
-  target?: Run[];
-}
-
-/** What has already been approved for this unit (host.ReviewHistory). */
-export interface ReviewHistory {
-  prior?: ReviewPriorVersion;
-  match?: ReviewMemoryMatch;
-  /** True when the project's committed content memory has never been compiled
-   *  into this clone's store, so an empty match means unread rather than
-   *  absent. Bringing the project up to date compiles it. */
-  unseeded?: boolean;
-}
-
-/** The block's previous source and the target approved for it. */
-export interface ReviewPriorVersion {
-  source: string;
-  target: string;
-  /** The governing context that answer was produced under. */
-  context_fingerprint?: string;
-  /** True when that context still matches the one the decision was recorded
-   *  under, which is when a translate prompt would have carried this pair. */
-  governed: boolean;
-}
-
-/** The content memory's best answer for this source, with its wording. */
-export interface ReviewMemoryMatch {
-  /** Match percent (0-100). */
-  score: number;
-  source?: string;
-  target: string;
-}
-
-/** What the checks and the AI pre-review found (host.ReviewJudgement). */
-export interface ReviewJudgement {
-  findings?: CheckFinding[];
-  ai_score?: number;
-  ai_model?: string;
-  ai_findings?: AIReviewFinding[];
-}
-
-/** One AI pre-review remark (matches Go state.AIReviewFinding). */
-export interface AIReviewFinding {
-  severity?: string; // critical | major | minor | info
-  message: string;
-  suggestion?: string;
-}
-
-/** Where the target came from and who decided on it (host.ReviewProvenance). */
-export interface ReviewProvenance {
-  origin?: TargetOrigin;
-  /** The decision in force. One record per (scope, unit, variant): a new
-   *  decision overwrites it, so there is no chain behind this. */
-  review_state?: string;
-  by?: string;
-  at?: string;
-  note?: string;
-  /** True when the decision was recorded against source wording that has since
-   *  changed. */
-  stale?: boolean;
-}
+export type {
+  ReviewContext,
+  ReviewPoint,
+  ReviewVoice,
+  ReviewProfileValidity,
+  ReviewNeighbourhood,
+  ReviewNeighbour,
+  ReviewHistory,
+  ReviewPriorVersion,
+  ReviewMemoryMatch,
+  ReviewJudgement,
+  ReviewProvenance,
+  AIReviewFinding,
+} from "@neokapi/contract-types";
 
 /** One per-unit review AI action (matches Go backend constants). */
 export type ReviewAIActionKind = "fix-findings" | "retranslate" | "explain";

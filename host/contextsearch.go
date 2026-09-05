@@ -14,6 +14,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/occurrence"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/review"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/neokapi/neokapi/terms"
 )
@@ -282,18 +283,9 @@ type ContextPrecedentHit struct {
 }
 
 // ContextProfileHit is a governance profile whose validity is bounded, reported
-// so an answer can say which voice is in force and until when.
-type ContextProfileHit struct {
-	Name string `json:"name"`
-	// ValidFrom and ValidTo render the profile's window as it was authored — a
-	// bare date when it is midnight, otherwise the full instant. Empty means the
-	// bound is open on that side.
-	ValidFrom string `json:"valid_from,omitempty"`
-	ValidTo   string `json:"valid_to,omitempty"`
-	// State is the window read against now: "active", "upcoming" (not yet in
-	// force) or "expired".
-	State string `json:"state"`
-}
+// so an answer can say which voice is in force and until when. It is the review
+// model's own row (core/review.ProfileValidity): the same fact, read once.
+type ContextProfileHit = review.ProfileValidity
 
 // ContextSearchSources are the stores a search consults. A nil member is a
 // store the caller has not bound; the search proceeds over the rest and says so

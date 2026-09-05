@@ -20,13 +20,7 @@ import type { BlockInfo, BlockTermMatch, CheckIssue, ReviewContext } from "../..
 import { CollapsedTargetCell } from "../editor/GridTargetRenderer";
 import { UnifiedTargetEditor, type UnifiedSaveResult } from "../UnifiedTargetEditor";
 import { getBlockStatus, getTargetText, targetLadderStatus } from "../editor/blockStatus";
-import {
-  toFindingViews,
-  toHistoryView,
-  toNeighbourhoodView,
-  toPointView,
-  toProvenanceView,
-} from "./reviewModel";
+import { findingViews, latestNote, termHitViews } from "./reviewContext";
 import { Check, CheckCheck, Pencil, X } from "../icons";
 
 export interface ReviewInspectorProps {
@@ -221,7 +215,11 @@ export function ReviewInspector({
               disagree. */}
           <div data-testid="inspector-point">
             <PointCard
-              point={context ? toPointView(context, terms, termsLoading) : undefined}
+              point={context?.point}
+              termHits={termHitViews(terms)}
+              termHitsLoading={termsLoading}
+              voiceScore={context?.voice_score}
+              voiceBar={context?.voice_bar}
               loading={!context}
             />
           </div>
@@ -230,7 +228,7 @@ export function ReviewInspector({
               shows them, and the layer says how many there are and lets a
               reader who has scrolled away read them here. */}
           <NeighbourhoodCard
-            neighbourhood={context ? toNeighbourhoodView(context) : undefined}
+            neighbourhood={context?.neighbourhood}
             loading={!context}
             unitKey={block?.id}
             unitSource={block?.source}
@@ -245,23 +243,23 @@ export function ReviewInspector({
               marked in the document; each says what it was raised against and
               what to say instead. */}
           <JudgementCard
-            findings={toFindingViews(issues, context?.voice_findings ?? [])}
+            findings={findingViews(issues, context?.judgement.findings ?? [])}
             testId="inspector-check"
           />
 
           {/* Content memory: the wording the corpus already blessed for this
               source. The bulk pass writes these; the reviewer reads them. */}
           <HistoryCard
-            history={context ? toHistoryView(context) : undefined}
+            history={context?.history}
             loading={!context}
             locale={locale}
             testId="inspector-memory"
             onUseMatch={
-              context?.memory_match && block && !editing
+              context?.history.match && block && !editing
                 ? () =>
                     void onSaveEdit({
                       kind: "flat",
-                      codedText: context.memory_match?.target ?? "",
+                      codedText: context.history.match?.target ?? "",
                       spans: [],
                     })
                 : undefined
@@ -271,7 +269,8 @@ export function ReviewInspector({
           {/* Provenance: how this target was produced, and what was last
               decided about it. */}
           <ProvenanceCard
-            provenance={context ? toProvenanceView(context) : undefined}
+            provenance={context?.provenance}
+            note={context ? latestNote(context.notes) : undefined}
             testId="inspector-provenance"
           />
         </div>

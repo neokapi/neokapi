@@ -16,6 +16,7 @@ import (
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/profile/packs"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/review"
 	"github.com/neokapi/neokapi/terms"
 )
 
@@ -112,20 +113,9 @@ type ContextPoint struct {
 }
 
 // ContextVoice is the voice in force at a point, with the guidance it renders.
-type ContextVoice struct {
-	Name string `json:"name"`
-	// Source is where the profile was loaded from: a path, `pack:<name>`, or
-	// `store:<name>`.
-	Source string `json:"source,omitempty"`
-	// Field names the recipe key that bound it (`profiles.<name>.voice` or
-	// `defaults.voice`), so a caller that wants to change the answer knows which
-	// line to edit.
-	Field string `json:"field,omitempty"`
-	// Guide is the profile rendered as prose for a model — the same rendering
-	// `kapi voice guide` prints and the translation prompt carries, so what an
-	// assistant reads here is what generation is held to.
-	Guide string `json:"guide,omitempty"`
-}
+// It is the review model's own voice row (core/review.Voice), because a
+// reviewer and a run are told the same thing about one file.
+type ContextVoice = review.Voice
 
 // ContextPointSources are the materials a by-location answer is assembled from.
 // A nil or empty member is something the caller could not bind; the answer
