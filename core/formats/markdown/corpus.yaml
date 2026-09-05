@@ -12,6 +12,14 @@ entries:
     license: Apache-2.0
     redistributable: true
     notes: own-created fixture for
+  - path: core/formats/markdown/testdata/autolinks.md
+    tier: A
+    origin: bug
+    sha256: 15b5ac9e268be735524fba744fcacc500350035c990ff531c4075d91bbc7dd86
+    size: 741
+    license: Apache-2.0
+    redistributable: true
+    notes: own-created fixture for #2429 (autolink spellings, a paragraph that is only an autolink)
   - path: core/formats/markdown/testdata/formatting.md
     tier: A
     origin: vendored
@@ -83,7 +91,7 @@ entries:
     size: 461
     license: Apache-2.0
     redistributable: true
-    notes: own-created fixture for #2431 (CRLF and tab soft breaks on the skeleton path)
+    notes: own-created fixture for
   - path: core/formats/markdown/testdata/structure.md
     tier: A
     origin: vendored

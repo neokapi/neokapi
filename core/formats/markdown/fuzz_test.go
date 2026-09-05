@@ -232,6 +232,11 @@ func FuzzRoundTripMarkdown(f *testing.F) {
 	f.Add([]byte("a\t\nb"))
 	f.Add([]byte("a\r\nb\r\n"))
 	f.Add([]byte("> a \r\n> b"))
+	// #2429: an autolink is located from its neighbours or its block's start,
+	// and a paragraph that is only an autolink emits no block.
+	f.Add([]byte("<https://example.com>"))
+	f.Add([]byte("- <https://x>\n- b"))
+	f.Add([]byte("*<https://x>* [a](b) <https://x>"))
 	seedDamagedMarkdown(f)
 
 	f.Fuzz(func(t *testing.T, data []byte) {

@@ -149,6 +149,12 @@ func TestKnownRoundTripDivergences(t *testing.T) {
 		{name: "CRLF soft break", src: "One line\r\nnext line.\r\n"},
 		{name: "CRLF soft break in a blockquote", src: "> One line\r\n> next line.\r\n"},
 		{name: "CRLF soft break in a list item", src: "- One line\r\n  next line.\r\n"},
+		// An autolink with nothing before it used to lose its angle brackets.
+		// MDX reads a line-initial `<` as JSX, so the first-in-block shape is
+		// covered by a list item rather than a paragraph.
+		{name: "list item that is only an autolink", src: "- <https://example.com>\n- Second item.\n"},
+		{name: "autolink first in an emphasis", src: "*<https://example.com>* here.\n"},
+		{name: "autolink after a link", src: "[site](https://example.com) <https://example.com> here.\n"},
 	}
 
 	for _, tc := range tests {

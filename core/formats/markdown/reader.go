@@ -975,6 +975,12 @@ func (r *Reader) emitHeading(ctx context.Context, ch chan<- model.PartResult, n 
 	block.Properties["level"] = strconv.Itoa(n.Level)
 	block.SetSemanticRole(model.RoleHeading, n.Level)
 	r.addInlineRuns(block, n, source)
+	if markupOnly(block.Source) {
+		// A heading that is one autolink has nothing to translate: its line
+		// replays from source, and the section it opens stays on the trail.
+		r.blockCounter--
+		return
+	}
 
 	absStart, _ := fullNodeAbsRange(n, source, baseOffset)
 	lineStart, lineEnd := nodeAbsRange(n, source, baseOffset)
@@ -1432,6 +1438,13 @@ func (r *Reader) emitParagraph(ctx context.Context, ch chan<- model.PartResult, 
 	block := model.NewBlock(blockID, textContent)
 	block.Name = r.naming.Name(kindParagraph)
 	r.addInlineRuns(block, n, source)
+	if markupOnly(block.Source) {
+		// A paragraph that is one autolink or one entity has nothing to
+		// translate: its bytes replay from source with the gap before the
+		// next block, and its ordinal stays consumed (#2429).
+		r.blockCounter--
+		return
+	}
 
 	// Multi-line paragraphs (e.g. blockquote bodies, indented
 	// continuation lines) carry a per-line prefix in source — `> ` for
@@ -1570,6 +1583,12 @@ func (r *Reader) emitListItem(ctx context.Context, ch chan<- model.PartResult, n
 			break
 		}
 	}
+	if markupOnly(block.Source) {
+		// An item that is one autolink has nothing to translate: its marker
+		// line replays from source, and its ordinal stays consumed.
+		r.blockCounter--
+		return
+	}
 
 	// For list items: find the text block range and include the list marker prefix
 	lineStart, lineEnd := nodeAbsRange(n, source, baseOffset)
@@ -1627,21 +1646,27 @@ func (r *Reader) emitListItemMixed(ctx context.Context, ch chan<- model.PartResu
 			block.Properties[BlockPropLinePrefix] = prefix
 		}
 
-		// Use the header node's line range so we don't accidentally
-		// claim bytes belonging to the trailing nested children. Scan
-		// backward to capture the list marker prefix ("- ", "1. ").
-		lineStart, lineEnd := nodeAbsRange(headerNode, source, baseOffset)
-		absStart := lineStart
-		for absStart > 0 && r.source[absStart-1] != '\n' {
-			absStart--
+		if markupOnly(block.Source) {
+			// A header that is one autolink has nothing to translate: its
+			// marker line replays from source with the next gap.
+			r.blockCounter--
+		} else {
+			// Use the header node's line range so we don't accidentally
+			// claim bytes belonging to the trailing nested children. Scan
+			// backward to capture the list marker prefix ("- ", "1. ").
+			lineStart, lineEnd := nodeAbsRange(headerNode, source, baseOffset)
+			absStart := lineStart
+			for absStart > 0 && r.source[absStart-1] != '\n' {
+				absStart--
+			}
+
+			r.skelEmitGap(absStart)
+			r.skelText(string(r.source[absStart:lineStart]))
+			r.skelRef(blockID)
+			r.skelCursor = lineEnd
+
+			r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 		}
-
-		r.skelEmitGap(absStart)
-		r.skelText(string(r.source[absStart:lineStart]))
-		r.skelRef(blockID)
-		r.skelCursor = lineEnd
-
-		r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 	}
 
 	// Walk the remaining children. If we emitted a header, skip it on
@@ -2567,7 +2592,11 @@ func (r *Reader) collectInlineText(buf *strings.Builder, node ast.Node, source [
 				r.collectInlineText(buf, child, source)
 			}
 		case *ast.AutoLink:
-			buf.Write(n.URL(source))
+			// A bracketed autolink is a placeholder in the runs and contributes
+			// no text; a bare one is text, spelled as the source spells it.
+			if _, bracketed, ok := autoLinkSourceSpelling(n, source); !ok || !bracketed {
+				buf.Write(n.Label(source))
+			}
 		case *east.TaskCheckBox:
 			buf.WriteString(taskCheckBoxRaw(n, source))
 		default:
@@ -3306,48 +3335,32 @@ func linkDestinationLiteral(dest []byte, source []byte) string {
 }
 
 func (r *Reader) buildAutoLinkRuns(b *runBuilder, n *ast.AutoLink, source []byte, idCounter *int) {
-	url := string(n.URL(source))
 	// Standard CommonMark `<url>` autolinks are opaque non-translatable
-	// inline codes — okapi MarkdownParser emits AUTO_LINK / MAIL_LINK
-	// tokens with translatable=false, so the `<url>` travels through
-	// pseudo translation as verbatim bytes. Goldmark's linkify
-	// extension also surfaces bare-URL matches (e.g. `https://...`
-	// without angle brackets) as AutoLink nodes, but okapi (which uses
-	// flexmark's matching set of extensions) treats those bare URLs as
-	// plain TEXT and DOES pseudo-translate them. Mirror that split:
-	//   - source had `<url>` → opaque placeholder
-	//   - source had bare URL (linkify) → plain text
-	if hasAngleBrackets(n, source) {
+	// inline codes: okapi MarkdownParser emits AUTO_LINK / MAIL_LINK tokens
+	// with translatable=false, so the `<url>` travels through pseudo
+	// translation as verbatim bytes. Goldmark's linkify extension also
+	// surfaces bare-URL matches (e.g. `https://...` without angle brackets)
+	// as AutoLink nodes, but okapi (which uses flexmark's matching set of
+	// extensions) treats those bare URLs as plain TEXT and DOES
+	// pseudo-translate them. Mirror that split:
+	//   - source had `<url>`: opaque placeholder
+	//   - source had a bare URL (linkify): plain text
+	// Either way the run carries the bytes the source spelled. The node
+	// records no position, so autoLinkSourceSpelling locates it from its
+	// neighbours, which is how a paragraph that is only an autolink keeps
+	// its brackets (#2429), and a bare `www.` host stays the host rather
+	// than the URL the extension resolves it to.
+	spelling, bracketed, ok := autoLinkSourceSpelling(n, source)
+	if ok && bracketed {
 		*idCounter++
 		id := strconv.Itoa(*idCounter)
 		info := r.vocab.LookupOrFallback("link:hyperlink")
-		b.AddPh(id, "link:hyperlink", "md:autolink", "<"+url+">",
+		b.AddPh(id, "link:hyperlink", "md:autolink", spelling,
 			info.Display.Open, info.Equiv,
 			info.Constraints.Deletable, info.Constraints.Cloneable, info.Constraints.Reorderable)
 		return
 	}
-	b.AddText(url)
-}
-
-// hasAngleBrackets reports whether the AutoLink's source representation
-// includes the surrounding `<...>` markers (standard CommonMark §6.5)
-// rather than the bare URL form recognised by goldmark's linkify
-// extension. Goldmark stores the AutoLink's URL segment in a private
-// `value *Text` field with no public accessor and doesn't add it as a
-// child node, so we infer the source position from the previous
-// sibling's text segment: the AutoLink starts immediately after that
-// segment's end, and a `<` byte there means the standard form.
-func hasAngleBrackets(n *ast.AutoLink, source []byte) bool {
-	prev := n.PreviousSibling()
-	if prev == nil {
-		return false
-	}
-	t, ok := prev.(*ast.Text)
-	if !ok {
-		return false
-	}
-	pos := t.Segment.Stop
-	return pos < len(source) && source[pos] == '<'
+	b.AddText(string(n.Label(source)))
 }
 
 func (r *Reader) buildRawHTMLRuns(b *runBuilder, n *ast.RawHTML, source []byte, idCounter *int) {
