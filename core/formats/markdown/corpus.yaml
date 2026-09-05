@@ -19,7 +19,7 @@ entries:
     size: 741
     license: Apache-2.0
     redistributable: true
-    notes: own-created fixture for #2429 (autolink spellings, a paragraph that is only an autolink)
+    notes: own-created fixture for
   - path: core/formats/markdown/testdata/formatting.md
     tier: A
     origin: vendored
@@ -68,6 +68,14 @@ entries:
     license: Apache-2.0
     redistributable: true
     notes: own-created fixture for
+  - path: core/formats/markdown/testdata/link-titles.md
+    tier: A
+    origin: bug
+    sha256: 1983698b4034b90606537b5ad2d57dae364c37ee772e7723ef05e4b96aefb5b0
+    size: 792
+    license: Apache-2.0
+    redistributable: true
+    notes: own-created fixture for #2432 (link and image title delimiters, destination spellings)
   - path: core/formats/markdown/testdata/padded-table.md
     tier: A
     origin: bug

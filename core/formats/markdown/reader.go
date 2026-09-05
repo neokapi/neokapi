@@ -3203,32 +3203,83 @@ func (r *Reader) buildLinkRuns(b *runBuilder, n *ast.Link, source []byte, idCoun
 		return
 	}
 
-	destLiteral := linkDestinationLiteral(n.Destination, source)
-
 	b.AddPcOpen(id, "link:hyperlink", "md:link", "[", info.Display.Open, info.Equiv,
 		info.Constraints.Deletable, info.Constraints.Cloneable, info.Constraints.Reorderable)
 	b.SetLastAttrs(linkImageAttrs(model.AttrHref, n.Destination, n.Title, nil))
 	r.buildCodedRuns(b, n, source, idCounter)
+	r.addLinkCloseRuns(b, n, id, "link:hyperlink", "md:link", "md:link-title", 1, info.Equiv, source, idCounter)
+}
 
-	// When the link has a title, split the closing marker so the title
-	// becomes a translatable text run between two paired codes:
-	//   pc-open `[` → link text → pc-close `]` →
-	//   pc-open `](url "` → title text → pc-close `")`
-	// This mirrors okapi's MarkdownFilter behaviour, which extracts the
-	// link/image title as a translatable string. Without the split the
-	// title would round-trip untranslated as part of the closing skeleton.
-	if len(n.Title) > 0 {
-		b.AddPcClose(id, "link:hyperlink", "md:link", "]", info.Equiv)
+// addLinkCloseRuns appends the runs that close an inline link or image after
+// its text. When the link has a title, the closing marker is split so the
+// title becomes a translatable text run between two paired codes:
+//
+//	pc-open `[` / link text / pc-close `]` /
+//	pc-open `](url '` / title text / pc-close `')`
+//
+// This mirrors okapi's MarkdownFilter, which extracts the link or image title
+// as a translatable string. Without the split the title would round-trip
+// untranslated as part of the closing skeleton.
+//
+// The bytes come from source, located through the inline offset resolver:
+// the destination as spelled, the whitespace around it, and the title's own
+// delimiters, which CommonMark 6.6 allows to be double quotes, single quotes
+// or parentheses. Rebuilt from the parser's resolved values, a single-quoted
+// title came back double-quoted and one of two links to the same destination
+// took the other's angle brackets (#2432). The title text is the raw bytes
+// between its delimiters, so an escape inside it survives. When the closer
+// cannot be located the runs are rebuilt from the resolved values, with the
+// destination as the document spells it.
+func (r *Reader) addLinkCloseRuns(b *runBuilder, n ast.Node, id, semType, subType, titleSubType string, openerLen int, equiv string, source []byte, idCounter *int) {
+	var dest, title []byte
+	switch v := n.(type) {
+	case *ast.Link:
+		dest, title = v.Destination, v.Title
+	case *ast.Image:
+		dest, title = v.Destination, v.Title
+	}
+
+	if contentEnd, c, ok := linkCloser(n, openerLen, len(title) > 0, source); ok {
+		if c.titleOpen < 0 {
+			b.AddPcClose(id, semType, subType, string(source[contentEnd:c.end]), equiv)
+			return
+		}
+		b.AddPcClose(id, semType, subType, "]", equiv)
 		*idCounter++
 		titleID := strconv.Itoa(*idCounter)
-		b.AddPcOpen(titleID, "link:hyperlink", "md:link-title",
-			"("+destLiteral+` "`, "", "", false, false, false)
-		b.AddText(string(n.Title))
-		b.AddPcClose(titleID, "link:hyperlink", "md:link-title", `")`, "")
+		b.AddPcOpen(titleID, semType, titleSubType, string(source[contentEnd+1:c.titleOpen+1]), "", "", false, false, false)
+		b.AddText(c.title)
+		b.AddPcClose(titleID, semType, titleSubType, string(source[c.titleClose:c.end]), "")
 		return
 	}
 
-	b.AddPcClose(id, "link:hyperlink", "md:link", "]("+destLiteral+")", info.Equiv)
+	destLiteral := linkDestinationLiteral(dest, source)
+	if len(title) > 0 {
+		b.AddPcClose(id, semType, subType, "]", equiv)
+		*idCounter++
+		titleID := strconv.Itoa(*idCounter)
+		b.AddPcOpen(titleID, semType, titleSubType, "("+destLiteral+` "`, "", "", false, false, false)
+		b.AddText(string(title))
+		b.AddPcClose(titleID, semType, titleSubType, `")`, "")
+		return
+	}
+	b.AddPcClose(id, semType, subType, "]("+destLiteral+")", equiv)
+}
+
+// linkCloser locates the closing markup of an inline link or image in source
+// and checks it agrees with what the parser resolved: a title is present in
+// the source exactly when the node carries one. ok is false when the closer
+// cannot be located.
+func linkCloser(n ast.Node, openerLen int, hasTitle bool, source []byte) (contentEnd int, c inlineLinkCloser, ok bool) {
+	contentEnd, ok = linkContentEnd(n, openerLen, source)
+	if !ok {
+		return 0, c, false
+	}
+	c, ok = scanInlineLinkCloser(source, contentEnd)
+	if !ok || (c.titleOpen >= 0) != hasTitle {
+		return 0, c, false
+	}
+	return contentEnd, c, true
 }
 
 func (r *Reader) buildImageRuns(b *runBuilder, n *ast.Image, source []byte, idCounter *int) {
@@ -3255,30 +3306,15 @@ func (r *Reader) buildImageRuns(b *runBuilder, n *ast.Image, source []byte, idCo
 		return
 	}
 
-	destLiteral := linkDestinationLiteral(n.Destination, source)
-
 	b.AddPcOpen(id, "media:image", "md:image", "![", info.Display.Open, info.Equiv,
 		info.Constraints.Deletable, info.Constraints.Cloneable, info.Constraints.Reorderable)
 	b.SetLastAttrs(linkImageAttrs(model.AttrSrc, n.Destination, n.Title, nil))
 	if r.cfg.TranslateImageAlt() {
 		r.buildCodedRuns(b, n, source, idCounter)
 	}
-
-	// Same title-splitting trick as buildLinkRuns above so image titles
-	// are extracted as translatable text rather than baked into the
-	// closing-data skeleton. See buildLinkRuns for the rationale.
-	if len(n.Title) > 0 {
-		b.AddPcClose(id, "media:image", "md:image", "]", info.Equiv)
-		*idCounter++
-		titleID := strconv.Itoa(*idCounter)
-		b.AddPcOpen(titleID, "media:image", "md:image-title",
-			"("+destLiteral+` "`, "", "", false, false, false)
-		b.AddText(string(n.Title))
-		b.AddPcClose(titleID, "media:image", "md:image-title", `")`, "")
-		return
-	}
-
-	b.AddPcClose(id, "media:image", "md:image", "]("+destLiteral+")", info.Equiv)
+	// Same title split as a link, so image titles are extracted as
+	// translatable text rather than baked into the closing skeleton.
+	r.addLinkCloseRuns(b, n, id, "media:image", "md:image", "md:image-title", 2, info.Equiv, source, idCounter)
 }
 
 // referenceCloseMarker returns the closing-marker bytes for a
@@ -3308,7 +3344,10 @@ func referenceCloseMarker(ref *ast.ReferenceLink) string {
 // (`<http://example.com>`). goldmark's ast.Link/Image carries only the
 // resolved Destination string; we peek at the source bytes for the
 // inline-link form so round-trips preserve angle-bracket-wrapped URLs
-// (e.g. `[Link](<https://...> "title")`).
+// (e.g. `[Link](<https://...> "title")`). This is the fallback for a link
+// whose closer the inline offset resolver could not locate; it answers for
+// the document, so two links to one destination spelled differently get the
+// same answer.
 func linkDestinationLiteral(dest []byte, source []byte) string {
 	d := string(dest)
 	if d == "" {
