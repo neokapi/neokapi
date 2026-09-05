@@ -304,7 +304,11 @@ learning the same fact from a failing check afterwards.
 
 Three details make the answer actionable. A discouraged term is reported with
 where it is actually used, so *this word is retired* becomes *this word is
-retired and sits in thirty-four blocks*. Approved wording that contains a term
+retired and sits in thirty-four blocks*. That count is read from the context
+graph `kapi up` writes when it extracts content, so it is as of the last run: a
+term added to the store since then shows no uses until the next `kapi up`, and
+the same number appears in the desktop explorer and on the platform's concept
+page. Approved wording that contains a term
 the same search found retired is flagged, so one answer never contradicts
 itself. And `--locale` narrows terms to one language, because a spelling can be
 retired in one and admitted in another. Add `--json` for the shape an assistant

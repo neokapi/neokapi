@@ -239,8 +239,17 @@ exactly what changed. The index narrows and never decides (a trigram match is
 necessary, not sufficient), so matching is done in Go, which is also how the
 browser build answers the same question by scanning.
 
-`kapi terms occurrences` is the surface, and `kapi context search` carries a
-usage count on each term it reports.
+`kapi terms occurrences` is the surface that lists uses live from this index,
+with their positions. The usage count is a different reading: `kapi context
+search`, the `context_search` tool, the desktop explorer's search and relations
+panes and the platform's concept page all report how often a term is used, and
+all of them read it from the `uses_term` edges through `contextgraph.UsesByProject`
+rather than joining the terms store against the block cache when asked. One
+producer means one number wherever the question is asked, and because that
+producer is extraction, the number is as of the last extraction rather than of
+the working tree. Each surface says so beside the count. The passage a use sits
+in is read from the block cache by the content key the edge names, so a block
+the cache no longer holds costs the snippet and never the count.
 
 ### The query shapes are written once
 

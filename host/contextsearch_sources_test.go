@@ -32,4 +32,7 @@ func TestContextSearchSourcesFor_StandalonePaths(t *testing.T) {
 	require.NotNil(t, src.Memory, "a standalone memory path binds the memory store")
 	require.NoError(t, src.MemoryErr)
 	assert.Equal(t, host.ScopeProject, src.Scope)
+	assert.True(t, src.TermsStandalone, "a store named by path is not the project's own")
+	assert.Nil(t, src.Graph, "no project, so no graph to count uses from")
+	require.NoError(t, src.GraphErr)
 }

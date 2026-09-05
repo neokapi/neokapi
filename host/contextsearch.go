@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/blockstore"
+	"github.com/neokapi/neokapi/core/contextgraph"
 	coregraph "github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/occurrence"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/review"
 	"github.com/neokapi/neokapi/memory"
@@ -153,8 +153,11 @@ func (r *ContextSearchResult) FormatText(w io.Writer) error {
 			}
 			// Where it is used, if anywhere. A discouraged word with no uses
 			// is a settled question; the same word in thirty blocks is work.
+			// The count is the context graph's, written at extraction, and the
+			// line says so: a reader comparing it against a file just edited
+			// has to know which of the two moved.
 			if t.Uses > 0 {
-				fmt.Fprintf(w, "  %-24s used %d time(s) in %d block(s)\n", "", t.Uses, t.UseBlocks)
+				fmt.Fprintf(w, "  %-24s used %d time(s) in %d block(s), as of the last extraction\n", "", t.Uses, t.UseBlocks)
 				for _, u := range t.TopUses {
 					where := u.Document
 					if u.BlockID != "" {
@@ -244,8 +247,14 @@ type ContextTermHit struct {
 	// Uses is how many times this exact term appears in the project's
 	// extracted content, and UseBlocks in how many blocks. Together they turn
 	// "this word is discouraged" into "this word is discouraged and sits in 34
-	// places", which is the difference between a rule and a job. Zero when no
-	// block cache is bound — see the note the search adds in that case.
+	// places", which is the difference between a rule and a job.
+	//
+	// Both are read from the context graph's uses_term edges, which extraction
+	// writes, so they are as of the last extraction (`kapi up`) rather than of
+	// the working tree: a term added to the store since then shows no uses
+	// until the next run. Every face reports this one number, including the
+	// platform's concept page. Zero when no graph is bound or nothing has been
+	// extracted; the search adds a note in either case.
 	Uses      int `json:"uses,omitempty"`
 	UseBlocks int `json:"use_blocks,omitempty"`
 	// TopUses are the first few of those uses, enough to see what kind of
@@ -259,7 +268,9 @@ type ContextTermUse struct {
 	Document string `json:"document,omitempty"`
 	BlockID  string `json:"block_id,omitempty"`
 	Locale   string `json:"locale,omitempty"`
-	Snippet  string `json:"snippet,omitempty"`
+	// Snippet is the first use in context, read from the block cache for the
+	// block the edge names. Empty when the cache no longer holds that block.
+	Snippet string `json:"snippet,omitempty"`
 	// Point is the place in the context space this document sits at, written
 	// `profile/channel`, resolved per file so a content item's own `channel:`
 	// shows where its files are actually governed. Empty when the document sits
@@ -294,13 +305,33 @@ type ContextProfileHit = review.ProfileValidity
 type ContextSearchSources struct {
 	Terms  terms.Terminology
 	Memory memory.Store
-	// Blocks is the project's extracted content. It answers a different kind
-	// of question from the other two — not "what do we know about this word?"
-	// but "where is it?" — and it is bound here rather than asked separately
-	// because the two belong in one answer: a caller told a term is
-	// discouraged needs to know at once whether anything uses it.
+	// Blocks is the project's extracted content. The search reads it for the
+	// passage a use sits in (the snippets on TopUses), by the content key the
+	// graph edge names; the counts themselves come from Graph.
 	Blocks blockstore.Store
-	Scope  ContextScope
+	// Graph is the project's context graph, read for where each term is used.
+	// Extraction writes one uses_term edge per (block, term, language of the
+	// text) with the number of uses on it, and the search reads those edges
+	// back rather than joining the terms store against the block cache at read
+	// time. Every face reports one number as of the last extraction: this
+	// search, the context_search tool, the desktop explorer and the platform's
+	// concept page. nil when no graph is bound: a standalone-store query
+	// with no project in scope, or a build with no file-backed store.
+	Graph contextgraph.EdgeReader
+	// GraphScope is the scope tuple the project's rows were written under
+	// (ProjectScope), which selects its concept nodes.
+	GraphScope contextgraph.Scope
+	// GraphErr is set when the caller tried to bind the graph and could not.
+	GraphErr error
+	// Unextracted reports a bound graph that holds no block at all: nothing has
+	// been extracted, so a count of zero would mean unread rather than unused.
+	Unextracted bool
+	// TermsStandalone reports that Terms is a store named by path rather than
+	// the project's own. The graph's edges name the project's concepts, so a
+	// standalone vocabulary is counted only where its concept ids coincide, and
+	// the answer says so rather than reporting its terms as unused.
+	TermsStandalone bool
+	Scope           ContextScope
 	// TermsErr and MemoryErr are set when the caller tried to bind that store
 	// and could not. Unbound and unopenable are different answers to "why is
 	// this group empty?", and only the caller knows which happened.
@@ -360,6 +391,7 @@ func (a *App) ContextSearchSourcesFor(cmd Command, termsPath, memoryPath string)
 	var cleanups []func()
 
 	if termsPath != "" {
+		src.TermsStandalone = true
 		if tb, err := terms.NewSQLiteStore(termsPath); err == nil {
 			cleanups = append(cleanups, func() { _ = tb.Close() })
 			src.Terms = tb
@@ -387,9 +419,9 @@ func (a *App) ContextSearchSourcesFor(cmd Command, termsPath, memoryPath string)
 		src.MemoryErr = err
 	}
 
-	// The project's extracted content, so a term answer can say where the term
-	// actually is. OccurrenceBlocks already prefers an injected BlocksBackend
-	// (the browser build) over the file-backed store.
+	// The project's extracted content, for the passage each reported use sits
+	// in. OccurrenceBlocks already prefers an injected BlocksBackend (the
+	// browser build) over the file-backed store.
 	src.Blocks = a.OccurrenceBlocks(cmd)
 
 	// The recipe: its bounded governance profiles, so an answer can say which
@@ -403,6 +435,7 @@ func (a *App) ContextSearchSourcesFor(cmd Command, termsPath, memoryPath string)
 			src.Recipe = proj
 			src.Profiles = profileHits(proj.ProfileWindows(), src.At)
 			src.Unseeded = a.ContextSourcesUnseeded(ctxOrBackground(cmd.Context()), path)
+			a.bindContextGraph(ctxOrBackground(cmd.Context()), path, proj, &src)
 		}
 	}
 
@@ -418,6 +451,35 @@ func (a *App) ContextSearchSourcesFor(cmd Command, termsPath, memoryPath string)
 			c()
 		}
 	}
+}
+
+// bindContextGraph attaches the project's context graph to the sources, so a
+// term answer can say where the term is used. A build with no file-backed store
+// holds no graph and binds nothing, which the search reports as a note; a graph
+// that will not open is an error the same note carries, because "could not be
+// read" and "does not exist" call for different next steps.
+func (a *App) bindContextGraph(ctx context.Context, projectPath string, proj *project.KapiProject, src *ContextSearchSources) {
+	layout, err := project.LayoutFor(projectPath)
+	if err != nil {
+		src.GraphErr = err
+		return
+	}
+	g, err := a.ProjectGraph(ctx, layout.Root)
+	if errors.Is(err, ErrNoProjectGraph) {
+		return
+	}
+	if err != nil {
+		src.GraphErr = err
+		return
+	}
+	extracted, err := g.HasNodes(ctx, contextgraph.NodeBlock)
+	if err != nil {
+		src.GraphErr = err
+		return
+	}
+	src.Graph = g
+	src.GraphScope = ProjectScope(proj)
+	src.Unextracted = !extracted
 }
 
 // SearchContext answers one context question from every bound store.
@@ -549,18 +611,25 @@ func validityState(v *coregraph.Validity, at time.Time) string {
 // involved, and `kapi terms occurrences` for the rest.
 const contextTopUses = 3
 
-// countTermUses fills in where each matched term is actually used, and returns
-// any note the attempt produced.
+// countTermUses fills in where each matched term is actually used, from the
+// context graph, and returns any note the attempt produced.
 //
-// One query per concept, not per hit: a concept's terms are looked up together
-// and the results handed to the hits that asked for them, so a concept with six
-// terms costs one search rather than six.
+// The uses_term edges are the one producer of the count: extraction writes
+// them, and this reads them back rather than joining the terms store against
+// the block cache at read time. So the number here is the number the platform's
+// concept page reports for the same content, and both mean "as of the last
+// extraction". A graph that cannot be read, or one nothing has been extracted
+// into, is a note rather than a silent zero.
+//
+// One traversal per concept, not per hit: a concept's terms are read together
+// and the edges handed to the hits that asked for them, so a concept with six
+// terms costs one traversal rather than six.
 func countTermUses(ctx context.Context, src ContextSearchSources, hits []ContextTermHit) []string {
 	if len(hits) == 0 {
 		return nil
 	}
-	if src.Blocks == nil {
-		return []string{"no block cache is bound, so term usage was not counted. Run `kapi up` to extract content"}
+	if note := usesUnavailable(src); note != "" {
+		return []string{note}
 	}
 
 	byConcept := map[string][]int{}
@@ -569,20 +638,20 @@ func countTermUses(ctx context.Context, src ContextSearchSources, hits []Context
 	}
 
 	places := &pointResolver{proj: src.Recipe, at: src.At, cache: map[string]string{}}
+	wording := newUseWording(ctx, src.Blocks)
+	defer wording.close()
 	var notes []string
+	if src.TermsStandalone {
+		notes = append(notes, standaloneTermsNote)
+	}
 	for conceptID, idx := range byConcept {
-		res, err := occurrence.Find(ctx, occurrence.Sources{Terms: src.Terms, Blocks: src.Blocks},
-			occurrence.Query{Subject: conceptID})
+		uses, err := conceptUses(ctx, src.Graph, src.GraphScope, conceptID)
 		if err != nil {
-			// An unknown concept here would mean the terms store changed under
-			// the search; anything else is worth saying once.
-			if !errors.Is(err, occurrence.ErrUnknownSubject) {
-				notes = append(notes, "term usage could not be counted: "+err.Error())
-			}
+			notes = append(notes, "term usage could not be counted: "+err.Error())
 			continue
 		}
 		for _, i := range idx {
-			attachUses(&hits[i], res.Occurrences, places)
+			attachUses(&hits[i], uses, places, wording)
 		}
 	}
 	notes = append(notes, places.notes...)
@@ -590,24 +659,26 @@ func countTermUses(ctx context.Context, src ContextSearchSources, hits []Context
 	return notes
 }
 
-// attachUses gives one hit the occurrences of its own term. Matching on the
+// attachUses gives one hit the recorded uses of its own term. Matching on the
 // term text keeps a per-language answer per-language: a concept's Norwegian
 // term is used where the Norwegian text uses it, not wherever the concept is.
-func attachUses(hit *ContextTermHit, occurrences []occurrence.Occurrence, places *pointResolver) {
+// An edge folds every use of one term in one block's text onto one count, so
+// the uses are summed and the blocks counted once each.
+func attachUses(hit *ContextTermHit, uses []contextgraph.ConceptUse, places *pointResolver, wording *useWording) {
 	blocks := map[string]bool{}
-	for _, o := range occurrences {
-		if !strings.EqualFold(o.Term, hit.Term) {
+	for _, u := range uses {
+		if !strings.EqualFold(u.Term, hit.Term) {
 			continue
 		}
-		hit.Uses++
-		blocks[o.BlockHash] = true
+		hit.Uses += u.Occurrences
+		blocks[u.ContentKey] = true
 		if len(hit.TopUses) < contextTopUses {
 			hit.TopUses = append(hit.TopUses, ContextTermUse{
-				Document: o.Document,
-				BlockID:  o.BlockID,
-				Locale:   o.Locale,
-				Snippet:  o.Snippet,
-				Point:    places.pointOf(o.Document),
+				Document: u.Document,
+				BlockID:  u.BlockID,
+				Locale:   u.Locale,
+				Snippet:  wording.snippet(u),
+				Point:    places.pointOf(u.Document),
 			})
 		}
 	}

@@ -282,10 +282,11 @@ type ExtractSkip struct {
 // (every block becomes part of the per-collection denominator; targets remain at
 // zero until a translate flow runs and commits `targets/<locale>` overlays).
 //
-// It is a thin binding over the shared core extract-into-store path
-// (project.ExtractToBlockStore) — the same implementation the CLI's `kapi up`
-// uses when it auto-extracts on source drift — so the desktop and CLI read,
-// number, and key blocks identically.
+// It is a thin binding over the shared host extract-into-store path
+// (host.App.ExtractToProjectStore), the same implementation the CLI's `kapi up`
+// uses when it auto-extracts on source drift, so the desktop and CLI read,
+// number and key blocks identically and both leave the context graph rebuilt
+// over them.
 func (a *App) RunExtract(tabID string) (*ExtractResult, error) {
 	op := a.getOpenProject(tabID)
 	if op == nil {
@@ -304,20 +305,14 @@ func (a *App) RunExtract(tabID string) (*ExtractResult, error) {
 		return &ExtractResult{Log: "No source files matched the project's content patterns.\n"}, nil
 	}
 
-	db, err := a.projectStore(op)
-	if err != nil {
-		return nil, fmt.Errorf("open project store: %w", err)
+	root, ok := projectRoot(op)
+	if !ok {
+		return nil, errors.New("project has no file path; save it first")
 	}
-	// Session-transactional, not autocommit: extraction purges the prior block
-	// set and refills it, and a half-applied purge is a project with no blocks.
-	// The session holds the store's write permit throughout, which is the correct
-	// reading of what SQLite makes it anyway.
-	store := db.Blocks()
-	if store == nil {
-		return nil, fmt.Errorf("extract into the block cache: %w", projectdb.ErrNoStore)
-	}
-
-	stats, err := project.ExtractToBlockStore(context.Background(), a.formatReg, pctx, store, db, resolved)
+	// The shared host path: the block set is rebuilt and then the context graph
+	// projected from it, so the usage counts the explorer reads describe this
+	// extraction rather than the previous one.
+	stats, err := a.hostEngine().ExtractToProjectStore(context.Background(), a.formatReg, root, pctx, resolved)
 	if err != nil {
 		return nil, err
 	}
@@ -332,6 +327,9 @@ func (a *App) RunExtract(tabID string) (*ExtractResult, error) {
 		result.Log += fmt.Sprintf(" Skipped %d file(s).", len(result.Skipped))
 	}
 	result.Log += "\n"
+	for _, w := range stats.Warnings {
+		result.Log += "Warning: " + w + "\n"
+	}
 
 	a.emitEvent("project:extracted", map[string]any{
 		"tabID":  tabID,

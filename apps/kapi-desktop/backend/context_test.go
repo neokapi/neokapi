@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -353,6 +354,55 @@ func TestContextRelatesAnswersAtProjectReach(t *testing.T) {
 	assert.Equal(t, "project", res.Reach, "a local project holds its own subgraph only")
 	require.NotEmpty(t, res.Occurrences)
 	assert.Equal(t, "c-signin", res.Occurrences[0].ConceptID)
+}
+
+// Re-extract rebuilds the context graph with the blocks, so the usage count the
+// explorer reads describes this extraction rather than the one before it. The
+// count is the graph's, on every face; a Re-extract that refreshed the blocks
+// and left the graph would have the desktop showing a number `kapi context
+// search` no longer reports.
+func TestRunExtractRebuildsTheContextGraph(t *testing.T) {
+	app := NewApp()
+	tab, _ := newContextProject(t, app)
+	seedConcept(t, app, tab)
+
+	usesOf := func(res *ContextSearchResult) (int, string) {
+		t.Helper()
+		notes := strings.Join(res.Answer.Notes, "\n")
+		for _, h := range res.Answer.Terms {
+			if h.Term == "sign in" {
+				return h.Uses, notes
+			}
+		}
+		t.Fatalf("no hit for %q in %+v", "sign in", res.Answer.Terms)
+		return 0, notes
+	}
+
+	before, err := app.ContextSearch(tab.ID, "sign in", "", 10)
+	require.NoError(t, err)
+	uses, notes := usesOf(before)
+	assert.Zero(t, uses)
+	assert.Contains(t, notes, "has not been extracted yet", "nothing extracted is said, not shown as unused")
+
+	_, err = app.RunExtract(tab.ID)
+	require.NoError(t, err)
+
+	after, err := app.ContextSearch(tab.ID, "sign in", "", 10)
+	require.NoError(t, err)
+	uses, notes = usesOf(after)
+	assert.Equal(t, 2, uses, "billing.json and en.json each say it once")
+	assert.NotContains(t, notes, "term usage", "a counted answer carries no usage caveat")
+
+	// The relations pane reads the same edges, so it agrees with the search.
+	rel, err := app.ContextRelates(tab.ID, "concept", "sign in", 20)
+	require.NoError(t, err)
+	assert.Equal(t, 2, rel.OccurrencesTotal)
+	require.Len(t, rel.Occurrences, 2)
+	for _, o := range rel.Occurrences {
+		assert.Equal(t, "sign in", o.Term)
+		assert.Equal(t, 1, o.Occurrences)
+		assert.Contains(t, strings.ToLower(o.Snippet), "sign in", "the passage is read from the block the edge names")
+	}
 }
 
 func TestContextRelatesSaysWhenTheSubjectIsUnknown(t *testing.T) {

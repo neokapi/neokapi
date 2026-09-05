@@ -17,21 +17,27 @@
         "term": "berth",
         "status": "preferred",
         "discouraged": false,
-        "replacement": ""
+        "replacement": "",
+        "uses": 0,
+        "use_blocks": 0
       },
       {
         "concept_id": "c-memory",
         "term": "content memory",
         "status": "preferred",
         "discouraged": false,
-        "replacement": ""
+        "replacement": "",
+        "uses": 0,
+        "use_blocks": 0
       },
       {
         "concept_id": "c-memory",
         "term": "translation memory",
         "status": "deprecated",
         "discouraged": true,
-        "replacement": "content memory"
+        "replacement": "content memory",
+        "uses": 0,
+        "use_blocks": 0
       }
     ],
     "terms_total": 3
@@ -45,14 +51,18 @@
         "term": "content memory",
         "status": "preferred",
         "discouraged": false,
-        "replacement": ""
+        "replacement": "",
+        "uses": 1,
+        "use_blocks": 1
       },
       {
         "concept_id": "c-memory",
         "term": "translation memory",
         "status": "deprecated",
         "discouraged": true,
-        "replacement": "content memory"
+        "replacement": "content memory",
+        "uses": 1,
+        "use_blocks": 1
       }
     ],
     "precedent": null

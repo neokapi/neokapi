@@ -48,7 +48,9 @@ Two jobs follow from that, and they are the ones to reach for first:
   `kapi context <path>` answers for the place a file sits: the point it resolved
   to, the voice in force with its full guidance, and the terms bound there. Read
   that one document before you touch the file. `kapi context search` answers
-  for a word or a phrase, across every store the project binds.
+  for a word or a phrase, across every store the project binds. The usage
+  count on each term is as of the last `kapi up`: a term you just added shows
+  no uses until the next run, so run `kapi up` before you trust the number.
 
   Over MCP the same two are `context://<path>` (a resource you *read*, not a
   tool you call; `context://profile/<name>` gives the by-name form, and

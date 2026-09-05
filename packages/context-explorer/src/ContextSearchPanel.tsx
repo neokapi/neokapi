@@ -8,7 +8,7 @@
 
 import { useState } from "react";
 import type { FormEvent } from "react";
-import { Badge, Button, Input, cn } from "@neokapi/ui-primitives";
+import { Badge, Button, Input, SimpleTooltip, cn } from "@neokapi/ui-primitives";
 import { EmptyHint, LocalePill, useResource } from "@neokapi/concept-ui";
 import { t } from "@neokapi/i18n-react/runtime";
 import { Search } from "lucide-react";
@@ -73,9 +73,17 @@ function GroupBody({
                 )}
                 <ValidityChip from={hit.valid_from} to={hit.valid_to} />
                 {hit.uses !== undefined && (
-                  <span className="ml-auto text-xs tabular-nums text-muted-foreground">
-                    {t("{count} uses", { count: hit.uses })}
-                  </span>
+                  // The count is the context graph's, written at extraction, and
+                  // the tooltip says so: a reader comparing it against a file
+                  // just edited has to know which of the two moved.
+                  <SimpleTooltip content={t("as of the last extraction")}>
+                    <span
+                      className="ml-auto text-xs tabular-nums text-muted-foreground"
+                      data-testid="search-hit-uses"
+                    >
+                      {t("{count} uses", { count: hit.uses })}
+                    </span>
+                  </SimpleTooltip>
                 )}
               </button>
             </li>

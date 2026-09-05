@@ -621,8 +621,14 @@ export class ContextTermHit {
              * Uses is how many times this exact term appears in the project's
              * extracted content, and UseBlocks in how many blocks. Together they turn
              * "this word is discouraged" into "this word is discouraged and sits in 34
-             * places", which is the difference between a rule and a job. Zero when no
-             * block cache is bound — see the note the search adds in that case.
+             * places", which is the difference between a rule and a job.
+             * 
+             * Both are read from the context graph's uses_term edges, which extraction
+             * writes, so they are as of the last extraction (`kapi up`) rather than of
+             * the working tree: a term added to the store since then shows no uses
+             * until the next run. Every face reports this one number, including the
+             * platform's concept page. Zero when no graph is bound or nothing has been
+             * extracted; the search adds a note in either case.
              * @member
              * @type {number | undefined}
              */
@@ -696,6 +702,8 @@ export class ContextTermUse {
         }
         if (/** @type {any} */(false)) {
             /**
+             * Snippet is the first use in context, read from the block cache for the
+             * block the edge names. Empty when the cache no longer holds that block.
              * @member
              * @type {string | undefined}
              */
@@ -725,6 +733,125 @@ export class ContextTermUse {
     static createFrom($$source = {}) {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new ContextTermUse(/** @type {Partial<ContextTermUse>} */($$parsedSource));
+    }
+}
+
+/**
+ * ContextUse is one recorded use of a term: the edge, and the passage it sits
+ * in where the block cache still holds the block.
+ */
+export class ContextUse {
+    /**
+     * Creates a new ContextUse instance.
+     * @param {Partial<ContextUse>} [$$source = {}] - The source object to create the ContextUse.
+     */
+    constructor($$source = {}) {
+        if (!("concept_id" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["concept_id"] = "";
+        }
+        if (!("term" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["term"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["term_locale"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Status is the term's lifecycle status as the edge recorded it, and
+             * Discouraged whether that status is one a writer must act on.
+             * @member
+             * @type {string | undefined}
+             */
+            this["status"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["discouraged"] = undefined;
+        }
+        if (!("content_key" in $$source)) {
+            /**
+             * ContentKey is the block's durable identity, BlockID its structural name
+             * within Document, and Collection where the block sits.
+             * @member
+             * @type {string}
+             */
+            this["content_key"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["block_id"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["document"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["collection"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Locale is the language of the text the term was found in: empty for the
+             * block's own source text, otherwise the target locale.
+             * @member
+             * @type {string | undefined}
+             */
+            this["locale"] = undefined;
+        }
+        if (!("occurrences" in $$source)) {
+            /**
+             * Occurrences is how many times the term is used in that text.
+             * @member
+             * @type {number}
+             */
+            this["occurrences"] = 0;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Snippet is the first use in context, read from the block cache. Empty
+             * when the cache no longer holds the block: the graph is a projection, and
+             * a projection may name a row that has since moved.
+             * @member
+             * @type {string | undefined}
+             */
+            this["snippet"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ContextUse instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ContextUse}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ContextUse(/** @type {Partial<ContextUse>} */($$parsedSource));
     }
 }
 

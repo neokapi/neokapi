@@ -2119,7 +2119,7 @@ face-parity: i18n-catalogs ## Run the CLI/MCP/desktop face parity suite
 
 face-parity-update: i18n-catalogs ## Rewrite the face parity record from the host layer
 	$(GO) test -tags "fts5" ./host/ -run TestFaceParity -count=1 -update-face-golden
-	@echo "re-run 'make face-parity' and review host/facetest/testdata/answers.json before committing"
+	@echo "re-run 'make face-parity' and review host/facetest/fixture/testdata/answers.json before committing"
 
 # ── Bridge Tests ────────────────────────────────────────────────────────────
 

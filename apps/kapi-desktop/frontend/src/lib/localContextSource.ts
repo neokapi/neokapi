@@ -126,20 +126,28 @@ interface LivesResult {
   notes: string[];
 }
 
+/**
+ * One recorded use of a term, as the backend reads it off the context graph:
+ * one row per (block, term, language) with how often the term is used there,
+ * and the passage where the block cache still holds it.
+ */
+interface UseResult {
+  concept_id: string;
+  term: string;
+  term_locale?: string;
+  content_key: string;
+  block_id?: string;
+  document?: string;
+  collection?: string;
+  locale?: string;
+  occurrences: number;
+  snippet?: string;
+}
+
 interface RelatesResult {
   subject: string;
   reach: string;
-  occurrences: Array<{
-    concept_id: string;
-    term: string;
-    term_locale?: string;
-    block_id?: string;
-    document?: string;
-    collection?: string;
-    locale: string;
-    matched: string;
-    snippet: string;
-  }>;
+  occurrences: UseResult[];
   occurrences_total: number;
   blessings: Array<{
     unit: string;
@@ -323,9 +331,11 @@ export function createLocalContextSource(
           block_id: o.block_id,
           document: o.document,
           collection: o.collection,
-          locale: o.locale,
-          matched: o.matched,
-          snippet: o.snippet,
+          locale: o.locale ?? "",
+          // The graph records which term the block uses, not how the text
+          // spells it; the term is the closest name the row has for the match.
+          matched: o.term,
+          snippet: o.snippet ?? "",
         })),
         occurrences_total: res.occurrences_total,
         // Cross-project reach is a workspace question; a local answer that

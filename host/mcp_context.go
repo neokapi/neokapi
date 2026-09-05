@@ -38,7 +38,9 @@ func registerContextMCPTools(server *mcp.Server, a *App) {
 			"and wording the project has already approved. One question across every store " +
 			"the project binds; you do not need to know which one holds the answer. " +
 			"Ask BEFORE writing: learning the same fact from a failing check afterwards is " +
-			"the expensive route. Results are grouped by kind, and say what could not be reached.",
+			"the expensive route. Results are grouped by kind, and say what could not be reached. " +
+			"Each term carries how often the project's extracted content uses it, as of the last " +
+			"extraction (the last `kapi up`) rather than of the working tree.",
 	}, a.handleContextSearch)
 
 	registerContextResources(server, a)

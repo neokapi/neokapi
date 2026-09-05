@@ -14,6 +14,7 @@ import (
 	"github.com/neokapi/neokapi/core/occurrence"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
+	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/state"
 	graphstore "github.com/neokapi/neokapi/host/storage/graph"
 	"github.com/neokapi/neokapi/terms"
@@ -74,6 +75,49 @@ func MaterializeContextGraphInDB(ctx context.Context, db *projectdb.DB, proj *pr
 		return 0, fmt.Errorf("materialize context graph: open graph: %w", err)
 	}
 	return materializeContextGraph(ctx, g, ProjectScope(proj), proj, db.Terms(), db.BlocksAutocommit(), db.Work())
+}
+
+// ExtractToProjectStore is the one extract-into-the-cache path. It rebuilds the
+// block set from the resolved content (project.ExtractToBlockStore) and then the
+// context graph projected from it, in that order and on the same store, so no
+// surface can refresh the blocks and leave the graph, and every usage count read
+// from it, describing the previous extraction. `kapi up` takes it on source
+// drift and the desktop's Re-extract takes it on demand.
+//
+// The graph rebuild is best-effort, exactly as the drift stamps are: the graph
+// is a projection the next pass rebuilds, so a failed rebuild is a warning on
+// the stats rather than a failed extraction, and it must never fail a converge
+// over a derived index.
+func (a *App) ExtractToProjectStore(
+	ctx context.Context,
+	reg *registry.FormatRegistry,
+	root string,
+	pctx *project.ProjectContext,
+	files []project.ResolvedFile,
+) (project.ExtractStats, error) {
+	db, err := a.ProjectDB(ctx, root)
+	if err != nil {
+		return project.ExtractStats{}, err
+	}
+	store := db.Blocks()
+	if store == nil {
+		return project.ExtractStats{}, fmt.Errorf("extract into the block cache: %w", projectdb.ErrNoStore)
+	}
+	// Session-transactional, not autocommit: extraction purges the prior block
+	// set and refills it, and a half-applied purge is a project with no blocks.
+	stats, err := project.ExtractToBlockStore(ctx, reg, pctx, store, db, files)
+	if err != nil {
+		return stats, err
+	}
+	// The block set just changed, so the graph it projects is stale. This runs
+	// AFTER the extraction transaction commits (the write gate is per handle and
+	// not reentrant) and searches the freshly written blocks, keeping the
+	// occurrence FTS index off the block write path.
+	if _, gerr := a.MaterializeContextGraph(ctx, root, pctx.Project); gerr != nil {
+		stats.Warnings = append(stats.Warnings, fmt.Sprintf(
+			"could not rebuild the context graph: %v. `kapi context` navigation and term usage counts may be stale until the next extract", gerr))
+	}
+	return stats, nil
 }
 
 // materializeContextGraph is the shared rebuild. The subgraph is a pure
