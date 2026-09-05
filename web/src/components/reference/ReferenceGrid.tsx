@@ -1,10 +1,35 @@
 import { useState, useMemo, useCallback } from "react";
+import { t } from "@neokapi/i18n-react/runtime";
 import type { ReferenceEntry, ReferenceSource } from "@neokapi/reference-data";
 import ReferenceCard from "./ReferenceCard";
+import { categoryLabel, SOURCE_LABELS, sourceLabel } from "./labels";
 import { builtinToolIds, formatHref, toolHref } from "./slugs";
 import styles from "./styles.module.css";
 
 type Filter = "all" | "built-in" | "plugin";
+
+// The filter buttons: the sources, and all of them. Held at module level so
+// the build-time transform rewrites each call: inside a text-bearing element
+// it would not.
+const FILTER_LABELS: Record<Filter, string> = {
+  all: t("All", "source filter"),
+  "built-in": SOURCE_LABELS["built-in"],
+  plugin: SOURCE_LABELS.plugin,
+};
+
+const SEARCH_PLACEHOLDER = {
+  format: t("Search by name, extension, or MIME type…", "search box placeholder"),
+  tool: t("Search by name, category, or tag…", "search box placeholder"),
+};
+
+const NOUN = {
+  format: t("formats", "plural noun in a result count"),
+  tool: t("tools", "plural noun in a result count"),
+};
+
+function headingLabel(kind: "format" | "tool", key: string): string {
+  return kind === "tool" ? categoryLabel(key) : sourceLabel(key);
+}
 
 interface Props {
   entries: ReferenceEntry[];
@@ -73,24 +98,26 @@ export default function ReferenceGrid({ entries, kind }: Props) {
       const builtin = filtered.filter((e) => e.source === "built-in");
       const plugin = filtered.filter((e) => e.source === "plugin");
       const sections: [string, ReferenceEntry[]][] = [];
-      if (builtin.length) sections.push(["Built-in", builtin]);
-      if (plugin.length) sections.push(["Plugin", plugin]);
+      if (builtin.length) sections.push(["built-in", builtin]);
+      if (plugin.length) sections.push(["plugin", plugin]);
       return sections;
     }
     return null;
   }, [filtered, kind, filter]);
 
-  const filterButton = (value: Filter, label: string) => (
+  const filterButton = (value: Filter) => (
     <button
       type="button"
       className={`${styles.filterButton} ${filter === value ? styles.filterButtonActive : ""}`}
       onClick={() => setFilter(value)}
       aria-pressed={filter === value}
     >
-      {label}
+      {FILTER_LABELS[value]}
       <span className={styles.filterCount}>{counts[value]}</span>
     </button>
   );
+
+  const noun = NOUN[kind];
 
   return (
     <>
@@ -98,25 +125,21 @@ export default function ReferenceGrid({ entries, kind }: Props) {
         <input
           type="text"
           className={styles.search}
-          placeholder={
-            kind === "format"
-              ? "Search by name, extension, or MIME type…"
-              : "Search by name, category, or tag…"
-          }
+          placeholder={SEARCH_PLACEHOLDER[kind]}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
         {counts.plugin > 0 && (
           <div className={styles.filterGroup} role="group" aria-label="Filter by source">
-            {filterButton("all", "All")}
-            {filterButton("built-in", "Built-in")}
-            {filterButton("plugin", "Plugin")}
+            {filterButton("all")}
+            {filterButton("built-in")}
+            {filterButton("plugin")}
           </div>
         )}
       </div>
 
       <p className={styles.resultCount}>
-        {filtered.length} of {entries.length} {kind === "format" ? "formats" : "tools"}
+        {filtered.length} of {entries.length} {noun}
       </p>
 
       {grouped ? (
@@ -127,7 +150,7 @@ export default function ReferenceGrid({ entries, kind }: Props) {
                 kind === "format" ? styles.sourceHeading : ""
               }`}
             >
-              {cat}
+              {headingLabel(kind, cat)}
               <span className={styles.categoryCount}>{items.length}</span>
             </h2>
             <div className={styles.grid}>
@@ -145,11 +168,7 @@ export default function ReferenceGrid({ entries, kind }: Props) {
         </div>
       )}
 
-      {filtered.length === 0 && (
-        <p className={styles.empty}>
-          No {kind === "format" ? "formats" : "tools"} match your search.
-        </p>
-      )}
+      {filtered.length === 0 && <p className={styles.empty}>No {noun} match your search.</p>}
     </>
   );
 }

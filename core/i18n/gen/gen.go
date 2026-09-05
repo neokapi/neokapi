@@ -23,6 +23,7 @@ import (
 	"github.com/neokapi/neokapi/core/formats"
 	"github.com/neokapi/neokapi/core/registry"
 	libtools "github.com/neokapi/neokapi/core/tools"
+	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
 
 // Entry is a single translatable surface in the generated document.
@@ -66,15 +67,29 @@ type OptionEntry struct {
 	Label string `json:"label,omitempty"`
 }
 
+// ModelEntry is the translatable subset of one catalogued AI model
+// (providers/ai/models.json). The id and the label are names and stay as
+// they are; the note is prose a reader sees on the model reference.
+type ModelEntry struct {
+	Note string `json:"note,omitempty"`
+}
+
 // Document is the top-level i18n source document. Keyed by domain (tools,
-// formats, plugins), then by owner ID. The JSON filter with
+// formats, plugins, models), then by owner ID. The JSON filter with
 // useKeyAsName + useFullKeyPath + useLeadingSlashOnKeyPath = true
 // produces block names like "/tools/translate/displayName", which
 // match the Scope values used by the runtime Translator.
+//
+// The document carries every string the reference pages print for an
+// entry: a tool's and a format's display name and description, and a
+// model's note. scripts/gen-refs reads the translated catalogs beside it
+// to write the reference dataset in each locale, so a string missing
+// here is a string no locale can reach.
 type Document struct {
-	Tools   map[string]Entry `json:"tools,omitempty"`
-	Formats map[string]Entry `json:"formats,omitempty"`
-	Plugins map[string]Entry `json:"plugins,omitempty"`
+	Tools   map[string]Entry      `json:"tools,omitempty"`
+	Formats map[string]Entry      `json:"formats,omitempty"`
+	Plugins map[string]Entry      `json:"plugins,omitempty"`
+	Models  map[string]ModelEntry `json:"models,omitempty"`
 }
 
 // Generate writes metadata.json (translatable text only) and schemas/
@@ -112,22 +127,35 @@ func buildDocument(
 	doc := &Document{
 		Tools:   map[string]Entry{},
 		Formats: map[string]Entry{},
+		Models:  buildModels(aiprovider.Models()),
 	}
 
-	for _, entry := range toolReg.CLITools() {
-		name := string(entry.Info.Name)
+	// Every tool with a schema, the set the reference documents, rather
+	// than the CLI-visible subset: a tool a flow can name has a card a
+	// reader sees whether or not `kapi exec` lists it.
+	for _, info := range toolReg.ListWithSchemas() {
+		name := string(info.Name)
 		e := Entry{
-			DisplayName: entry.Info.DisplayName,
-			Description: entry.Info.Description,
-			Category:    entry.Info.Category,
+			DisplayName: info.DisplayName,
+			Description: info.Description,
+			Category:    info.Category,
 		}
-		if entry.Schema != nil {
-			if len(entry.Schema.Properties) > 0 {
-				e.Properties = buildProperties(entry.Schema.Properties)
+		if s := toolReg.Schema(info.Name); s != nil {
+			// The schema's description is what the reference prints when
+			// the registry entry has none (the same precedence as
+			// scripts/gen-refs), so it is what the catalog has to carry.
+			if e.Description == "" {
+				e.Description = s.Description
 			}
-			if len(entry.Schema.Groups) > 0 {
+			if e.DisplayName == "" && s.ToolMeta != nil {
+				e.DisplayName = s.ToolMeta.DisplayName
+			}
+			if len(s.Properties) > 0 {
+				e.Properties = buildProperties(s.Properties)
+			}
+			if len(s.Groups) > 0 {
 				e.Groups = map[string]GroupEntry{}
-				for _, g := range entry.Schema.Groups {
+				for _, g := range s.Groups {
 					if g.Label != "" || g.Description != "" {
 						e.Groups[g.ID] = GroupEntry{Label: g.Label, Description: g.Description}
 					}
@@ -149,19 +177,48 @@ func buildDocument(
 			MimeTypes:   info.MimeTypes,
 		}
 		if s, ok := schemaReg.GetSchema(name); ok {
-			// Format schemas use format/schema.PropertySchema (embeds
-			// core/schema.PropertySchema). Extract the translatable
-			// subset via the core shape.
+			e.Description = s.Description
+			// Format schemas use format/schema.PropertySchema, which embeds
+			// core/schema.PropertySchema and redeclares the nested
+			// properties in its own type. Marshalled whole, a section
+			// object carries its children, so the walk below sees every
+			// leaf the reference prints.
 			core := make(map[string]any, len(s.Properties))
 			for k, p := range s.Properties {
-				core[k] = p.PropertySchema
+				core[k] = p
 			}
 			e.Properties = buildPropertiesFromAny(core)
+			if len(s.Groups) > 0 {
+				e.Groups = map[string]GroupEntry{}
+				for _, g := range s.Groups {
+					if g.Label != "" || g.Description != "" {
+						e.Groups[g.ID] = GroupEntry{Label: g.Label, Description: g.Description}
+					}
+				}
+				if len(e.Groups) == 0 {
+					e.Groups = nil
+				}
+			}
 		}
 		doc.Formats[name] = e
 	}
 
 	return doc
+}
+
+// buildModels keys each catalogued model that carries a note by its id.
+// A model without one has nothing for a translator to read.
+func buildModels(models []aiprovider.Model) map[string]ModelEntry {
+	out := map[string]ModelEntry{}
+	for _, m := range models {
+		if m.Note != "" {
+			out[m.ID] = ModelEntry{Note: m.Note}
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 // buildProperties walks a map of core/schema.PropertySchema values and

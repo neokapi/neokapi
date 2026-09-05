@@ -1,5 +1,15 @@
 {
   "tools": {
+    "batch": {
+      "displayName": "Batch Collector",
+      "category": "text-processing",
+      "properties": {
+        "size": {
+          "title": "Batch Size",
+          "description": "Number of blocks to collect before forwarding as a batch"
+        }
+      }
+    },
     "case-transform": {
       "displayName": "Case Transform",
       "category": "text-processing",
@@ -228,6 +238,10 @@
         }
       }
     },
+    "layer-processor": {
+      "displayName": "Layer Processor",
+      "category": "text-processing"
+    },
     "media-refine": {
       "displayName": "Media Refine",
       "description": "Re-read low-confidence OCR/ASR lines with a configurable multimodal LLM",
@@ -286,6 +300,24 @@
         "flagExtra": {
           "title": "Flag extra placeholders",
           "description": "Report placeholders present in the target but absent from the source"
+        }
+      }
+    },
+    "properties-set": {
+      "displayName": "Properties Set",
+      "category": "text-processing",
+      "properties": {
+        "onlyTranslatable": {
+          "title": "Only Translatable",
+          "description": "Only set properties on translatable blocks"
+        },
+        "overwrite": {
+          "title": "Overwrite Existing",
+          "description": "Overwrite existing properties with the same key"
+        },
+        "properties": {
+          "title": "Properties",
+          "description": "Key-value pairs to set on each block"
         }
       }
     },
@@ -856,6 +888,20 @@
         }
       }
     },
+    "span-classify": {
+      "displayName": "Span Classify",
+      "category": "text-processing"
+    },
+    "tag-protect": {
+      "displayName": "Tag Protect",
+      "category": "text-processing",
+      "properties": {
+        "patterns": {
+          "title": "Protection Patterns",
+          "description": "Regex patterns for tags and placeholders to protect"
+        }
+      }
+    },
     "term-check": {
       "displayName": "Terminology Check",
       "category": "quality",
@@ -1153,6 +1199,10 @@
         }
       }
     },
+    "voice-vocab-check": {
+      "displayName": "Voice Vocabulary Check",
+      "category": "quality"
+    },
     "whitespace-correct": {
       "displayName": "Whitespace Correct",
       "category": "text-processing",
@@ -1241,6 +1291,7 @@
   "formats": {
     "androidxml": {
       "displayName": "Android String Resources",
+      "description": "Configuration for the native Android string-resources (res/values/strings.xml) reader/writer",
       "family": "catalog-keyvalue",
       "properties": {
         "extractComments": {
@@ -1259,10 +1310,16 @@
           "title": "Skip resource references",
           "description": "Exclude \u003cstring\u003e values that are a bare resource reference (e.g. @string/foo, ?attr/bar). A reference is an alias, not translatable UI text."
         }
+      },
+      "groups": {
+        "extraction": {
+          "label": "Extraction"
+        }
       }
     },
     "applestrings": {
       "displayName": "Apple Strings",
+      "description": "Configuration for the native Apple Strings (.strings + .stringsdict) reader/writer",
       "family": "catalog-keyvalue",
       "extensions": [
         ".strings",
@@ -1277,10 +1334,16 @@
           "title": "Protect format placeholders",
           "description": "Lift printf-style specifiers (%@, %lld, %1$@) and .stringsdict %#@var@ tokens into inline codes so they are never translated."
         }
+      },
+      "groups": {
+        "extraction": {
+          "label": "Extraction"
+        }
       }
     },
     "arb": {
       "displayName": "Flutter ARB",
+      "description": "Configuration for the native Flutter Application Resource Bundle (.arb) reader/writer",
       "family": "catalog-keyvalue",
       "extensions": [
         ".arb"
@@ -1289,6 +1352,11 @@
         "descriptionNotes": {
           "title": "Surface descriptions as notes",
           "description": "Surface the human-facing context in a resource's sibling \"@\u003cid\u003e\" attributes object as developer notes: the resource \"description\" plus each placeholder's \"example\"/\"description\" hint. The attributes object is always preserved byte-faithfully on round-trip regardless of this setting."
+        }
+      },
+      "groups": {
+        "extraction": {
+          "label": "Extraction"
         }
       }
     },
@@ -1310,6 +1378,7 @@
     },
     "asciidoc": {
       "displayName": "AsciiDoc",
+      "description": "Configuration for the native AsciiDoc (.adoc) reader/writer",
       "family": "rich-markup",
       "extensions": [
         ".adoc",
@@ -1328,6 +1397,11 @@
         "extractTableCells": {
           "title": "Extract table cells",
           "description": "Emit `|===` table cells as translatable blocks grouped into table / table-row groups. When false the table is preserved verbatim."
+        }
+      },
+      "groups": {
+        "extraction": {
+          "label": "Extraction"
         }
       }
     },
@@ -1353,6 +1427,7 @@
     },
     "csv": {
       "displayName": "CSV",
+      "description": "Configuration for the CSV/TSV format reader/writer",
       "family": "data-config",
       "extensions": [
         ".csv"
@@ -1413,10 +1488,22 @@
           "title": "Values Start Row",
           "description": "1-based row number where data values begin. 0 means auto-detect."
         }
+      },
+      "groups": {
+        "extraction": {
+          "label": "Extraction"
+        },
+        "format": {
+          "label": "CSV Format Settings"
+        },
+        "inlineCodes": {
+          "label": "Inline Codes"
+        }
       }
     },
     "designtokens": {
       "displayName": "Design Tokens (DTCG)",
+      "description": "Configuration for the W3C Design Tokens Community Group (DTCG) token format. Only $description documentation is translatable; token values and structure pass through untouched.",
       "family": "catalog-keyvalue",
       "extensions": [
         ".tokens"
@@ -1425,6 +1512,11 @@
         "extractDescriptions": {
           "title": "Extract $description documentation",
           "description": "Extract $description values (human-readable token and group documentation) as translatable blocks. This is the only natural-language field in DTCG; $value is always a typed design value (colour, dimension, font name, …) and is never extracted. Disable to read the file as fully non-translatable structure."
+        }
+      },
+      "groups": {
+        "extraction": {
+          "label": "Extraction"
         }
       }
     },
@@ -1465,6 +1557,7 @@
     },
     "html": {
       "displayName": "HTML",
+      "description": "Configuration for the native HTML format reader/writer",
       "family": "rich-markup",
       "extensions": [
         ".html",
@@ -1494,16 +1587,34 @@
         },
         "parser": {
           "title": "Parser behavior",
-          "description": "Settings that control how the HTML parser reads input"
+          "description": "Settings that control how the HTML parser reads input",
+          "properties": {
+            "preserveWhitespace": {
+              "title": "Preserve whitespace",
+              "description": "Preserve original whitespace in extracted text instead of collapsing it"
+            }
+          }
         },
         "useCodeFinder": {
           "title": "Enable inline code detection",
           "description": "Enable regex-based detection of inline codes (placeholders, variables, tags) within translatable text"
         }
+      },
+      "groups": {
+        "extraction": {
+          "label": "Extraction Rules"
+        },
+        "inlineCodes": {
+          "label": "Inline Codes"
+        },
+        "parser": {
+          "label": "Parser Settings"
+        }
       }
     },
     "i18next": {
       "displayName": "i18next JSON",
+      "description": "Configuration for the i18next / react-i18next JSON resource format",
       "family": "catalog-keyvalue",
       "properties": {
         "legacyPluralForms": {
@@ -1517,6 +1628,11 @@
         "subfilterHtmlValues": {
           "title": "Subfilter HTML values (_html keys)",
           "description": "Hand values whose key ends in \"_html\" (the i18next convention for markup) to the HTML subfilter so tags are protected and text remains translatable. Off by default: the HTML subfilter is not byte-faithful for bare markup fragments."
+        }
+      },
+      "groups": {
+        "i18next": {
+          "label": "i18next"
         }
       }
     },
@@ -1550,6 +1666,7 @@
     },
     "json": {
       "displayName": "JSON",
+      "description": "Configuration for the native JSON format reader/writer",
       "family": "catalog-keyvalue",
       "extensions": [
         ".json"
@@ -1646,6 +1763,26 @@
           "title": "Include leading \"/\" on key path",
           "description": "Include leading slash in key path names."
         }
+      },
+      "groups": {
+        "extraction": {
+          "label": "Extraction"
+        },
+        "inlineCodes": {
+          "label": "Inline Codes"
+        },
+        "metadata": {
+          "label": "Metadata"
+        },
+        "naming": {
+          "label": "Block Naming"
+        },
+        "output": {
+          "label": "Output"
+        },
+        "subfilters": {
+          "label": "Subfilters"
+        }
       }
     },
     "kbf": {
@@ -1660,6 +1797,7 @@
     },
     "markdown": {
       "displayName": "Markdown",
+      "description": "Configuration for the Markdown format reader/writer",
       "family": "rich-markup",
       "extensions": [
         ".md",
@@ -1718,10 +1856,25 @@
           "title": "Enable Inline Code Detection",
           "description": "Enable regex-based inline code detection within translatable text"
         }
+      },
+      "groups": {
+        "extraction": {
+          "label": "Content Extraction"
+        },
+        "inlineCodes": {
+          "label": "Inline Codes"
+        },
+        "output": {
+          "label": "Output"
+        },
+        "subfilters": {
+          "label": "Subfilters"
+        }
       }
     },
     "mdx": {
       "displayName": "MDX",
+      "description": "Configuration for the MDX (.mdx) format reader/writer. MDX is CommonMark Markdown extended with ESM imports/exports, JSX components, and {expression} braces. Markdown prose is extracted using the same toggles as the Markdown format; ESM, JSX, and expressions are preserved verbatim and never translated.",
       "family": "rich-markup",
       "extensions": [
         ".mdx"
@@ -1770,6 +1923,14 @@
           "title": "Enable Inline Code Detection",
           "description": "Enable regex-based inline code detection within translatable text."
         }
+      },
+      "groups": {
+        "extraction": {
+          "label": "Content Extraction"
+        },
+        "inlineCodes": {
+          "label": "Inline Codes"
+        }
       }
     },
     "messageformat": {
@@ -1811,6 +1972,7 @@
     },
     "openxml": {
       "displayName": "Office Open XML",
+      "description": "Configuration for the DOCX/PPTX/XLSX format reader/writer",
       "family": "office-doc",
       "extensions": [
         ".docx",
@@ -1968,10 +2130,34 @@
           "title": "Enable Inline Code Detection",
           "description": "Enable pattern-based detection of inline codes (placeholders, tags, etc.)."
         }
+      },
+      "groups": {
+        "advanced": {
+          "label": "Advanced"
+        },
+        "excel": {
+          "label": "Excel Options"
+        },
+        "general": {
+          "label": "General"
+        },
+        "inlineCodes": {
+          "label": "Inline Codes"
+        },
+        "powerpoint": {
+          "label": "PowerPoint Options"
+        },
+        "styles": {
+          "label": "Style \u0026 Color Filtering"
+        },
+        "word": {
+          "label": "Word Options"
+        }
       }
     },
     "plaintext": {
       "displayName": "Plain Text",
+      "description": "Configuration for the plain text format reader/writer",
       "family": "plain-text",
       "extensions": [
         ".txt",
@@ -1996,10 +2182,16 @@
           "title": "Splice Marker",
           "description": "Continuation marker recognized at the end of a line in splice mode."
         }
+      },
+      "groups": {
+        "segmentation": {
+          "label": "Segmentation"
+        }
       }
     },
     "po": {
       "displayName": "PO (Gettext)",
+      "description": "Configuration for the PO/POT format reader/writer",
       "family": "catalog-keyvalue",
       "extensions": [
         ".po",
@@ -2033,10 +2225,25 @@
           "title": "Wrap Long Content Lines",
           "description": "Wrap long content lines in output at approximately 80 characters"
         }
+      },
+      "groups": {
+        "extraction": {
+          "label": "Extraction"
+        },
+        "inlineCodes": {
+          "label": "Inline Codes"
+        },
+        "mode": {
+          "label": "Processing Mode"
+        },
+        "output": {
+          "label": "Output"
+        }
       }
     },
     "properties": {
       "displayName": "Java Properties",
+      "description": "Configuration for the Java .properties format reader/writer",
       "family": "catalog-keyvalue",
       "extensions": [
         ".properties"
@@ -2089,10 +2296,28 @@
           "title": "Enable Key Condition",
           "description": "Filter entries for extraction based on a regex condition applied to their keys"
         }
+      },
+      "groups": {
+        "extraction": {
+          "label": "Extraction"
+        },
+        "inlineCodes": {
+          "label": "Inline Codes"
+        },
+        "notes": {
+          "label": "Notes"
+        },
+        "output": {
+          "label": "Output"
+        },
+        "parsing": {
+          "label": "Parsing"
+        }
       }
     },
     "resx": {
       "displayName": ".NET RESX",
+      "description": "Configuration for the native .NET RESX / .resw (Microsoft ResX 2.0) reader/writer",
       "family": "catalog-keyvalue",
       "extensions": [
         ".resx",
@@ -2110,10 +2335,16 @@
           "title": "Skip name-reference entries",
           "description": "Exclude designer name-reference entries (those whose name starts with \"\u003e\", e.g. \"\u003e\u003econtrol.Name\") from extraction. These carry WinForms field names, not UI strings."
         }
+      },
+      "groups": {
+        "extraction": {
+          "label": "Extraction"
+        }
       }
     },
     "srt": {
       "displayName": "SRT Subtitles",
+      "description": "SubRip subtitle format: no configurable parameters",
       "family": "subtitle-timedtext",
       "extensions": [
         ".srt"
@@ -2125,6 +2356,7 @@
     },
     "tmx": {
       "displayName": "TMX",
+      "description": "Configuration for the native TMX content memory format reader/writer",
       "family": "bilingual-interchange",
       "extensions": [
         ".tmx"
@@ -2152,6 +2384,17 @@
         "useCodeFinder": {
           "title": "Enable inline code detection",
           "description": "Enable regex-based inline code detection in translatable text"
+        }
+      },
+      "groups": {
+        "extraction": {
+          "label": "Extraction"
+        },
+        "inlineCodes": {
+          "label": "Inline Codes"
+        },
+        "output": {
+          "label": "Output"
         }
       }
     },
@@ -2193,6 +2436,7 @@
     },
     "vtt": {
       "displayName": "WebVTT",
+      "description": "Web Video Text Tracks (WebVTT) subtitle format",
       "family": "subtitle-timedtext",
       "extensions": [
         ".vtt"
@@ -2221,10 +2465,19 @@
           "title": "Split words at character limit",
           "description": "Split words so that they don't go over the character limit per line."
         }
+      },
+      "groups": {
+        "extraction": {
+          "label": "Content Extraction"
+        },
+        "output": {
+          "label": "Output settings"
+        }
       }
     },
     "xcstrings": {
       "displayName": "Apple String Catalog",
+      "description": "Configuration for the native Apple String Catalog (.xcstrings) reader/writer",
       "family": "catalog-keyvalue",
       "extensions": [
         ".xcstrings"
@@ -2245,10 +2498,16 @@
           "title": "State for new translations",
           "description": "The stringUnit state value written for a localization populated for the first time. Existing states are preserved verbatim on round-trip."
         }
+      },
+      "groups": {
+        "extraction": {
+          "label": "Extraction"
+        }
       }
     },
     "xliff": {
       "displayName": "XLIFF 1.2",
+      "description": "Configuration for the native XLIFF 1.2 bilingual exchange format reader/writer",
       "family": "bilingual-interchange",
       "extensions": [
         ".xlf",
@@ -2323,10 +2582,25 @@
           "title": "Update target state attribute",
           "description": "Update the state attribute on target elements when writing translated XLIFF"
         }
+      },
+      "groups": {
+        "extraction": {
+          "label": "Extraction"
+        },
+        "inlineCodes": {
+          "label": "Inline Codes"
+        },
+        "output": {
+          "label": "Output"
+        },
+        "states": {
+          "label": "Translation State Handling"
+        }
       }
     },
     "xliff2": {
       "displayName": "XLIFF 2.x",
+      "description": "Configuration for the native XLIFF 2.0/2.1/2.2 bilingual exchange format reader/writer",
       "family": "bilingual-interchange",
       "extensions": [
         ".xlf",
@@ -2378,10 +2652,25 @@
           "title": "Include original data in output",
           "description": "Output includes original data when available"
         }
+      },
+      "groups": {
+        "extraction": {
+          "label": "Extraction"
+        },
+        "inlineCodes": {
+          "label": "Inline Codes"
+        },
+        "output": {
+          "label": "Output"
+        },
+        "states": {
+          "label": "Translation State Handling"
+        }
       }
     },
     "xml": {
       "displayName": "XML",
+      "description": "Configuration for the generic XML format reader/writer",
       "family": "data-config",
       "extensions": [
         ".xml"
@@ -2455,10 +2744,28 @@
           "title": "Enable inline code detection",
           "description": "Enable regex-based detection of inline codes within translatable text"
         }
+      },
+      "groups": {
+        "advanced": {
+          "label": "Advanced"
+        },
+        "extraction": {
+          "label": "Extraction Rules"
+        },
+        "inlineCodes": {
+          "label": "Inline Codes"
+        },
+        "parser": {
+          "label": "Parser Settings"
+        },
+        "subfilters": {
+          "label": "Subfilters"
+        }
       }
     },
     "yaml": {
       "displayName": "YAML",
+      "description": "Configuration for the native YAML format reader/writer",
       "family": "catalog-keyvalue",
       "extensions": [
         ".yaml",
@@ -2490,7 +2797,50 @@
           "title": "Enable Inline Code Detection",
           "description": "Enable regex-based inline code detection within string values"
         }
+      },
+      "groups": {
+        "extraction": {
+          "label": "Extraction"
+        },
+        "inlineCodes": {
+          "label": "Inline Codes"
+        },
+        "subfilters": {
+          "label": "Subfilters"
+        }
       }
+    }
+  },
+  "models": {
+    "claude-opus-4-8": {
+      "note": "1M context is standard, with no long-context surcharge."
+    },
+    "claude-opus-5": {
+      "note": "1M context is standard, with no long-context surcharge."
+    },
+    "claude-sonnet-4": {
+      "note": "Reached in production through the Bedrock inference profile eu.anthropic.claude-sonnet-4-6."
+    },
+    "gemini-3": {
+      "note": "Fallback ceilings for any Gemini 3.x id without a more specific entry."
+    },
+    "gemini-3.1-pro": {
+      "note": "Prompts over 200k input tokens are billed at a higher tier."
+    },
+    "gpt-4-": {
+      "note": "The trailing dash keeps this prefix from matching gpt-4o or gpt-4.1."
+    },
+    "gpt-4o": {
+      "note": "Superseded on the OpenAI API, but still the Azure OpenAI default, because Azure deployments lag the public API and the default is deliberately conservative."
+    },
+    "gpt-5.6": {
+      "note": "The default id is gpt-5.6-sol, which resolves to this family."
+    },
+    "llama3.2": {
+      "note": "Runs locally through Ollama; ceilings depend on the pulled quantisation, so none are pinned here."
+    },
+    "o3": {
+      "note": "Reasoning model; kept for callers who name it explicitly."
     }
   }
 }

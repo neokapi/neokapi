@@ -24,7 +24,7 @@ import (
 //   - It ignores the `generatedAt` timestamp, which changes on every run.
 //
 // The gate never writes; it only reads the committed files and compares.
-func checkDrift(bridgeDir, pluginsDir, metaPath, nativeDocsDir, outDir string) error {
+func checkDrift(bridgeDir, pluginsDir, metaPath, nativeDocsDir, outDir, coreCatalogs, cliCatalogs string) error {
 	formatEntries, toolEntries, resolveExt, bridgePresent, err := buildEntries(bridgeDir, pluginsDir, metaPath, nativeDocsDir)
 	if err != nil {
 		return err
@@ -73,6 +73,11 @@ func checkDrift(bridgeDir, pluginsDir, metaPath, nativeDocsDir, outDir string) e
 	if diff := compareMCPTools(filepath.Join(outDir, "mcp-tools.json"), wantMCP); diff != "" {
 		problems = append(problems, "mcp-tools.json: "+diff)
 	}
+	// The locale variants derive from the committed English dataset and the
+	// committed catalogs, so they are as much a function of the tree as the
+	// English is; a catalog the loop wrote without the variants following is
+	// drift of the same kind.
+	problems = append(problems, localeVariantDrift(outDir, coreCatalogs, cliCatalogs, nativeDocsDir)...)
 
 	if len(problems) > 0 {
 		for _, p := range problems {

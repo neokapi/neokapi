@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { t } from "@neokapi/i18n-react/runtime";
 import type { CommandEntry } from "@neokapi/reference-data";
 import CommandCard from "./CommandCard";
 import { commandName, commandSummary } from "./commandHelpers";
@@ -11,21 +12,36 @@ interface Props {
   commands: CommandEntry[];
 }
 
-// Display labels for the cobra group IDs (and a catch-all). Commands without a
-// groupID fall into "Other".
+// Labels for the cobra group ids the CLI declares (cli/app.go), and a
+// catch-all for commands without one. Held at module level so the build-time
+// transform rewrites each call: inside a text-bearing element it would not.
+const OTHER_GROUP = "other";
 const GROUP_LABELS: Record<string, string> = {
-  processing: "Processing",
-  translation: "Translation",
-  quality: "Quality",
-  analysis: "Analysis",
-  "text-processing": "Text processing",
-  content: "Content",
-  management: "Management",
+  work: t("Work", "command group heading"),
+  translate: t("Translate", "command group heading"),
+  assets: t("Assets", "command group heading"),
+  advanced: t("Advanced", "command group heading"),
+  [OTHER_GROUP]: t("Other", "command group heading"),
 };
 
-function groupLabel(groupID: string | undefined): string {
-  if (!groupID) return "Other";
-  return GROUP_LABELS[groupID] ?? groupID;
+const FILTER_LABELS: Record<Filter, string> = {
+  all: t("All", "command filter"),
+  runnable: t("Run", "command filter: runs in the browser"),
+  demo: t("Demo", "command filter: runs against a stub"),
+  network: t("Needs network", "command filter"),
+};
+
+const SEARCH_PLACEHOLDER = t(
+  "Search by name, alias, flag, or description…",
+  "search box placeholder",
+);
+
+function groupKey(groupID: string | undefined): string {
+  return groupID || OTHER_GROUP;
+}
+
+function groupLabel(key: string): string {
+  return GROUP_LABELS[key] ?? key;
 }
 
 function matches(cmd: CommandEntry, q: string): boolean {
@@ -59,30 +75,30 @@ export default function CommandGrid({ commands }: Props) {
     });
   }, [commands, search, filter]);
 
-  // Group by cobra group ID, then sort groups by label with "Other" last.
+  // Group by cobra group id, then sort groups by label with the catch-all last.
   const grouped = useMemo(() => {
     const map = new Map<string, CommandEntry[]>();
     for (const c of filtered) {
-      const key = groupLabel(c.groupID);
+      const key = groupKey(c.groupID);
       const list = map.get(key) ?? [];
       list.push(c);
       map.set(key, list);
     }
     return [...map.entries()].sort(([a], [b]) => {
-      if (a === "Other") return 1;
-      if (b === "Other") return -1;
-      return a.localeCompare(b);
+      if (a === OTHER_GROUP) return 1;
+      if (b === OTHER_GROUP) return -1;
+      return groupLabel(a).localeCompare(groupLabel(b));
     });
   }, [filtered]);
 
-  const filterButton = (value: Filter, label: string) => (
+  const filterButton = (value: Filter) => (
     <button
       type="button"
       className={`${styles.filterButton} ${filter === value ? styles.filterButtonActive : ""}`}
       onClick={() => setFilter(value)}
       aria-pressed={filter === value}
     >
-      {label}
+      {FILTER_LABELS[value]}
       <span className={styles.filterCount}>{counts[value]}</span>
     </button>
   );
@@ -93,15 +109,15 @@ export default function CommandGrid({ commands }: Props) {
         <input
           type="text"
           className={styles.search}
-          placeholder="Search by name, alias, flag, or description…"
+          placeholder={SEARCH_PLACEHOLDER}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
         <div className={styles.filterGroup} role="group" aria-label="Filter by runnability">
-          {filterButton("all", "All")}
-          {filterButton("runnable", "Run")}
-          {filterButton("demo", "Demo")}
-          {filterButton("network", "Needs network")}
+          {filterButton("all")}
+          {filterButton("runnable")}
+          {filterButton("demo")}
+          {filterButton("network")}
         </div>
       </div>
 
@@ -111,7 +127,7 @@ export default function CommandGrid({ commands }: Props) {
 
       {grouped.map(([group, items]) => (
         <section key={group} className={styles.groupSection}>
-          <h2 className={styles.groupHeading}>{group}</h2>
+          <h2 className={styles.groupHeading}>{groupLabel(group)}</h2>
           <div className={styles.grid}>
             {items.map((cmd) => (
               <CommandCard key={cmd.id} cmd={cmd} href={commandHref(cmd)} />

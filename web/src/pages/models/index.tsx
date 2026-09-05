@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactElement } from "react";
 import Layout from "@theme/Layout";
+import { t } from "@neokapi/i18n-react/runtime";
 import { models as modelData } from "@neokapi/reference-data";
 import type { ModelEntry, ModelStatus } from "@neokapi/reference-data";
 
@@ -30,6 +31,12 @@ const statusStyle: Record<ModelStatus, CSSProperties> = {
   },
 };
 
+// The status is an enum in the catalog; the pill shows the word for it.
+const STATUS_LABELS: Record<ModelStatus, string> = {
+  active: t("active", "model status"),
+  superseded: t("superseded", "model status"),
+};
+
 function StatusPill({ status }: { status: ModelStatus }): ReactElement {
   return (
     <span
@@ -43,7 +50,7 @@ function StatusPill({ status }: { status: ModelStatus }): ReactElement {
         whiteSpace: "nowrap",
       }}
     >
-      {status}
+      {STATUS_LABELS[status]}
     </span>
   );
 }

@@ -257,9 +257,15 @@ check_ui() {
 
 check_dossier() {
   local out
+  # :(glob) keeps `*` from crossing a `/`: the English dossiers sit one kind
+  # directory deep and the English dataset at the top of data/, while the
+  # loop's translations (nativedocs/<lang>/, data/<lang>/) are target-language
+  # artefacts this guard has nothing to say about.
   if out=$(git ls-files -- \
-      'scripts/gen-refs/nativedocs' \
-      'packages/reference-data/data/*.json' \
+      ':(glob)scripts/gen-refs/nativedocs/*/*.yaml' \
+      ':(glob)scripts/gen-refs/nativedocs/*.yaml' \
+      ':(glob)scripts/gen-refs/nativedocs/README.md' \
+      ':(glob)packages/reference-data/data/*.json' \
       'providers/ai/models.json' \
       'plugins/*/manifest.json' \
       'plugins/*/formats/*/schema.json' |

@@ -1,6 +1,21 @@
 import Link from "@docusaurus/Link";
+import { t } from "@neokapi/i18n-react/runtime";
 import type { ReferenceEntry, ReferenceSource } from "@neokapi/reference-data";
+import { categoryLabel, sourceLabel } from "./labels";
 import styles from "./styles.module.css";
+
+// Held at module level so the build-time transform rewrites each call.
+const SOURCE_TITLE: Record<ReferenceSource, string> = {
+  "built-in": t("Built into neokapi", "tooltip on the source badge"),
+  plugin: t("Provided by an engine plugin", "tooltip on the source badge"),
+  okapi: t("Provided by the Okapi Framework bridge", "tooltip on the source badge"),
+};
+
+function paramCountLabel(n: number): string {
+  return n === 1
+    ? t("1 param", "parameter count on a reference card")
+    : t("{count} params", "parameter count on a reference card", { count: n });
+}
 
 interface Props {
   entry: ReferenceEntry;
@@ -13,13 +28,14 @@ interface Props {
 }
 
 function SourceBadge({ source }: { source: ReferenceSource }) {
-  const isPlugin = source === "plugin";
+  const isPlugin = source !== "built-in";
+  const label = sourceLabel(source);
   return (
     <span
       className={`${styles.sourceBadge} ${isPlugin ? styles.sourcePlugin : styles.sourceBuiltin}`}
-      title={isPlugin ? "Provided by an engine plugin" : "Built into neokapi"}
+      title={SOURCE_TITLE[source]}
     >
-      {isPlugin ? "Plugin" : "Built-in"}
+      {label}
     </span>
   );
 }
@@ -57,12 +73,10 @@ export default function ReferenceCard({ entry, href }: Props) {
             {entry.hasWriter && <span className={`${styles.cap} ${styles.capWriter}`}>W</span>}
           </>
         ) : (
-          entry.category && <span className={styles.category}>{entry.category}</span>
+          entry.category && <span className={styles.category}>{categoryLabel(entry.category)}</span>
         )}
         {paramCount > 0 && (
-          <span className={styles.gridParamCount}>
-            {paramCount} param{paramCount !== 1 ? "s" : ""}
-          </span>
+          <span className={styles.gridParamCount}>{paramCountLabel(paramCount)}</span>
         )}
       </span>
     </Link>

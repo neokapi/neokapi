@@ -32,6 +32,16 @@ translated frontend. So the same pipeline covers three surfaces:
 Everything else stays English by design: ad-hoc error strings are not part of the
 translated surface.
 
+The same catalogs carry the reference pages of the documentation site. The
+generated dataset behind `/tools`, `/formats`, `/commands` and `/models` is
+written in English from the registries, and beside it one variant per locale
+that has a catalog: the tool and format names and descriptions, the command
+help and the model notes are looked up under the same scopes, and the authored
+dossiers are overlaid from their translations. A string the catalog lacks keeps
+its English. The site swaps the variant in at build time for the locale it is
+building, so the reference reads in a locale as soon as the loop has written
+one, with no second extraction of the same prose.
+
 ## Four sequenced decisions
 
 ### The English text is the lookup key

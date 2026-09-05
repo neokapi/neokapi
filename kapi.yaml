@@ -179,7 +179,7 @@ collections:
           config:
             extractAllPairs: false
             useKeyAsName: true
-            extractionRules: '(displayName|description|title|label)$|enumDescriptions\.[^.]+$'
+            extractionRules: '(displayName|description|title|label|note)$|enumDescriptions\.[^.]+$'
         target: catalogs/{lang}.json
   # The CLI's own help and output strings.
   - name: neokapi-cli
@@ -266,11 +266,14 @@ collections:
   # the next regeneration. Declaring the dossiers holds them to the register the
   # rest of the docs are held to, at the point of authorship.
   #
-  # Source-only: the items name no `target:`, so nothing is converged or
-  # materialized here. The pages render the English dataset through a component,
-  # so a translated sidecar would be read by nothing; whether the reference
-  # ships in a target language is a question about the dataset and the page, not
-  # about this collection.
+  # The loop writes each dossier's translation to <lang>/<kind>/<id>.yaml
+  # beside the source tree, and scripts/gen-refs overlays those onto the
+  # dataset variant it writes for that locale (packages/reference-data/data/
+  # <lang>/), the way the English dossiers are overlaid onto the English
+  # dataset. The names, command help and model notes the pages also print
+  # come from the neokapi-engine and neokapi-cli catalogs above by the same
+  # route, so a reference page in a target locale is the same dataset, read
+  # in that locale by the site's reference-locale plugin.
   - name: neokapi-docs-reference
     channel: neokapi/docs
     base: scripts/gen-refs/nativedocs
@@ -287,6 +290,7 @@ collections:
       # carry dots of their own (`parser.preserveWhitespace`), so the patterns
       # under it span segments with `**` rather than one with `*`.
       - path: "*/*.yaml"
+        target: "{lang}/{path}.yaml"
         format:
           name: yaml
           config:

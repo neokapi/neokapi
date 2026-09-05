@@ -1,6 +1,8 @@
 {
   "componentMap": {
     "Link": "a",
-    "Heading": "h2"
+    "Heading": "h2",
+    "LabFootnote": "p",
+    "SectionHeading": "h2"
   }
 }

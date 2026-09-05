@@ -322,9 +322,18 @@ export const TIER_LABEL: Record<SupportTier, string> = {
 /** What each support tier promises (rubric §1 "Meaning" column) — the contract
  * a user may rely on, changed only by an explicit human-approved event. */
 export const TIER_MEANING: Record<SupportTier, string> = {
-  supported: "Release-gating — a regression in this format blocks any release.",
-  maintained: "Tested and kept green; regressions fixed on cadence, may not block a release.",
-  available: "Registered and usable; explicitly experimental, no fidelity promise.",
+  supported: t(
+    "Release-gating — a regression in this format blocks any release.",
+    "what a format support tier promises",
+  ),
+  maintained: t(
+    "Tested and kept green; regressions fixed on cadence, may not block a release.",
+    "what a format support tier promises",
+  ),
+  available: t(
+    "Registered and usable; explicitly experimental, no fidelity promise.",
+    "what a format support tier promises",
+  ),
 };
 
 /** Certification decay thresholds in days (rubric §1): older than 45 days the

@@ -1,0 +1,295 @@
+{
+  "generatedAt": "2026-09-05T08:19:54Z",
+  "asOf": "2026-08-27",
+  "note": "Generated from providers/ai/models.json via scripts/gen-refs. Do not edit here; edit the catalog and run `make generate-reference-docs`.",
+  "models": [
+    {
+      "id": "claude-opus-5",
+      "provider": "anthropic",
+      "providerLabel": "Anthropic",
+      "label": "Claude Opus 5",
+      "aliases": [
+        "opus"
+      ],
+      "recommended": false,
+      "maxOutputTokens": 128000,
+      "contextWindow": 1000000,
+      "status": "active",
+      "introduced": "2026-08-27",
+      "note": "▒ 1Ḿ çöñţéẋţ îš šţàñđàŕđ, ŵîţĥ ñö ļöñĝ-çöñţéẋţ šüŕçĥàŕĝé. ▒"
+    },
+    {
+      "id": "claude-opus-4-8",
+      "provider": "anthropic",
+      "providerLabel": "Anthropic",
+      "label": "Claude Opus 4.8",
+      "recommended": false,
+      "maxOutputTokens": 128000,
+      "contextWindow": 1000000,
+      "status": "superseded",
+      "introduced": "2026-07-14",
+      "supersededBy": "claude-opus-5",
+      "note": "▒ 1Ḿ çöñţéẋţ îš šţàñđàŕđ, ŵîţĥ ñö ļöñĝ-çöñţéẋţ šüŕçĥàŕĝé. ▒"
+    },
+    {
+      "id": "claude-sonnet-5",
+      "provider": "anthropic",
+      "providerLabel": "Anthropic",
+      "label": "Claude Sonnet 5",
+      "aliases": [
+        "sonnet"
+      ],
+      "defaultFor": [
+        "anthropic"
+      ],
+      "recommended": true,
+      "maxOutputTokens": 128000,
+      "contextWindow": 1000000,
+      "status": "active",
+      "introduced": "2026-07-14"
+    },
+    {
+      "id": "claude-fable-5",
+      "provider": "anthropic",
+      "providerLabel": "Anthropic",
+      "label": "Claude Fable 5",
+      "aliases": [
+        "fable"
+      ],
+      "recommended": false,
+      "maxOutputTokens": 128000,
+      "contextWindow": 1000000,
+      "status": "active",
+      "introduced": "2026-07-14"
+    },
+    {
+      "id": "claude-haiku-4-5",
+      "provider": "anthropic",
+      "providerLabel": "Anthropic",
+      "label": "Claude Haiku 4.5",
+      "aliases": [
+        "haiku"
+      ],
+      "recommended": true,
+      "maxOutputTokens": 64000,
+      "contextWindow": 200000,
+      "status": "active",
+      "introduced": "2026-07-03"
+    },
+    {
+      "id": "claude-sonnet-4",
+      "provider": "anthropic",
+      "providerLabel": "Anthropic",
+      "label": "Claude Sonnet 4",
+      "recommended": true,
+      "maxOutputTokens": 64000,
+      "contextWindow": 200000,
+      "status": "superseded",
+      "introduced": "2026-04-03",
+      "supersededBy": "claude-sonnet-5",
+      "note": "▒ Ŕéàçĥéđ îñ þŕöđüçţîöñ ţĥŕöüĝĥ ţĥé Ƃéđŕöçķ îñƒéŕéñçé þŕöƒîļé éü.àñţĥŕöþîç.çļàüđé-šöññéţ-4-6. ▒"
+    },
+    {
+      "id": "claude-opus-4",
+      "provider": "anthropic",
+      "providerLabel": "Anthropic",
+      "label": "Claude Opus 4",
+      "recommended": true,
+      "maxOutputTokens": 32000,
+      "contextWindow": 200000,
+      "status": "superseded",
+      "introduced": "2026-07-14",
+      "supersededBy": "claude-opus-4-8"
+    },
+    {
+      "id": "claude-3-5",
+      "provider": "anthropic",
+      "providerLabel": "Anthropic",
+      "label": "Claude 3.5 (Sonnet / Haiku)",
+      "recommended": true,
+      "maxOutputTokens": 8192,
+      "contextWindow": 200000,
+      "status": "superseded",
+      "introduced": "2026-06-22",
+      "supersededBy": "claude-haiku-4-5"
+    },
+    {
+      "id": "gpt-5.6",
+      "provider": "openai",
+      "providerLabel": "OpenAI",
+      "label": "GPT-5.6",
+      "defaultFor": [
+        "openai"
+      ],
+      "recommended": true,
+      "maxOutputTokens": 128000,
+      "contextWindow": 1050000,
+      "status": "active",
+      "introduced": "2026-07-14",
+      "note": "▒ Ţĥé đéƒàüļţ îđ îš ĝþţ-5.6-šöļ, ŵĥîçĥ ŕéšöļṽéš ţö ţĥîš ƒàḿîļý. ▒"
+    },
+    {
+      "id": "gpt-5",
+      "provider": "openai",
+      "providerLabel": "OpenAI",
+      "label": "GPT-5",
+      "recommended": true,
+      "maxOutputTokens": 128000,
+      "contextWindow": 400000,
+      "status": "superseded",
+      "introduced": "2026-07-14",
+      "supersededBy": "gpt-5.6"
+    },
+    {
+      "id": "gpt-4.1",
+      "provider": "openai",
+      "providerLabel": "OpenAI",
+      "label": "GPT-4.1",
+      "recommended": true,
+      "maxOutputTokens": 32768,
+      "contextWindow": 1047576,
+      "status": "superseded",
+      "introduced": "2026-07-14",
+      "supersededBy": "gpt-5.6"
+    },
+    {
+      "id": "gpt-4o",
+      "provider": "openai",
+      "providerLabel": "OpenAI",
+      "label": "GPT-4o",
+      "defaultFor": [
+        "azureopenai"
+      ],
+      "recommended": true,
+      "maxOutputTokens": 16384,
+      "contextWindow": 128000,
+      "status": "superseded",
+      "introduced": "2026-04-03",
+      "supersededBy": "gpt-5.6",
+      "note": "▒ Šüþéŕšéđéđ öñ ţĥé ÖþéñÀÎ ÀÞÎ, ƃüţ šţîļļ ţĥé Àžüŕé ÖþéñÀÎ đéƒàüļţ, ƃéçàüšé Àžüŕé đéþļöýḿéñţš ļàĝ ţĥé þüƃļîç ÀÞÎ àñđ ţĥé đéƒàüļţ îš đéļîƃéŕàţéļý çöñšéŕṽàţîṽé. ▒"
+    },
+    {
+      "id": "o3",
+      "provider": "openai",
+      "providerLabel": "OpenAI",
+      "label": "OpenAI o3",
+      "recommended": false,
+      "maxOutputTokens": 100000,
+      "contextWindow": 200000,
+      "status": "active",
+      "introduced": "2026-06-22",
+      "note": "▒ Ŕéàšöñîñĝ ḿöđéļ; ķéþţ ƒöŕ çàļļéŕš ŵĥö ñàḿé îţ éẋþļîçîţļý. ▒"
+    },
+    {
+      "id": "gpt-4-",
+      "provider": "openai",
+      "providerLabel": "OpenAI",
+      "label": "GPT-4 (legacy family)",
+      "recommended": true,
+      "maxOutputTokens": 4096,
+      "contextWindow": 128000,
+      "status": "superseded",
+      "introduced": "2026-07-14",
+      "supersededBy": "gpt-5.6",
+      "note": "▒ Ţĥé ţŕàîļîñĝ đàšĥ ķééþš ţĥîš þŕéƒîẋ ƒŕöḿ ḿàţçĥîñĝ ĝþţ-4ö öŕ ĝþţ-4.1. ▒"
+    },
+    {
+      "id": "gpt-3.5",
+      "provider": "openai",
+      "providerLabel": "OpenAI",
+      "label": "GPT-3.5",
+      "recommended": true,
+      "maxOutputTokens": 4096,
+      "contextWindow": 16385,
+      "status": "superseded",
+      "introduced": "2026-07-14",
+      "supersededBy": "gpt-5.6"
+    },
+    {
+      "id": "gemini-3.5-flash",
+      "provider": "gemini",
+      "providerLabel": "Gemini",
+      "label": "Gemini 3.5 Flash",
+      "defaultFor": [
+        "gemini"
+      ],
+      "recommended": true,
+      "maxOutputTokens": 65536,
+      "contextWindow": 1048576,
+      "status": "active",
+      "introduced": "2026-07-14"
+    },
+    {
+      "id": "gemini-3.1-pro",
+      "provider": "gemini",
+      "providerLabel": "Gemini",
+      "label": "Gemini 3.1 Pro",
+      "recommended": false,
+      "maxOutputTokens": 64000,
+      "contextWindow": 1048576,
+      "status": "active",
+      "introduced": "2026-07-14",
+      "note": "▒ Þŕöḿþţš öṽéŕ 200ķ îñþüţ ţöķéñš àŕé ƃîļļéđ àţ à ĥîĝĥéŕ ţîéŕ. ▒"
+    },
+    {
+      "id": "gemini-3.1-flash-lite",
+      "provider": "gemini",
+      "providerLabel": "Gemini",
+      "label": "Gemini 3.1 Flash-Lite",
+      "recommended": true,
+      "maxOutputTokens": 64000,
+      "contextWindow": 1048576,
+      "status": "active",
+      "introduced": "2026-07-14"
+    },
+    {
+      "id": "gemini-3-flash",
+      "provider": "gemini",
+      "providerLabel": "Gemini",
+      "label": "Gemini 3 Flash",
+      "recommended": true,
+      "maxOutputTokens": 64000,
+      "contextWindow": 1048576,
+      "status": "superseded",
+      "introduced": "2026-04-03",
+      "supersededBy": "gemini-3.5-flash"
+    },
+    {
+      "id": "gemini-3",
+      "provider": "gemini",
+      "providerLabel": "Gemini",
+      "label": "Gemini 3 (family default)",
+      "recommended": false,
+      "maxOutputTokens": 64000,
+      "contextWindow": 1048576,
+      "status": "active",
+      "introduced": "2026-04-03",
+      "note": "▒ Ƒàļļƃàçķ çéîļîñĝš ƒöŕ àñý Ĝéḿîñî 3.ẋ îđ ŵîţĥöüţ à ḿöŕé šþéçîƒîç éñţŕý. ▒"
+    },
+    {
+      "id": "gemini-2",
+      "provider": "gemini",
+      "providerLabel": "Gemini",
+      "label": "Gemini 2",
+      "recommended": true,
+      "maxOutputTokens": 8192,
+      "contextWindow": 1048576,
+      "status": "superseded",
+      "introduced": "2026-07-14",
+      "supersededBy": "gemini-3.5-flash"
+    },
+    {
+      "id": "llama3.2",
+      "provider": "ollama",
+      "providerLabel": "Ollama",
+      "label": "Llama 3.2 (3B)",
+      "defaultFor": [
+        "ollama"
+      ],
+      "recommended": true,
+      "status": "active",
+      "introduced": "2026-06-22",
+      "note": "▒ Ŕüñš ļöçàļļý ţĥŕöüĝĥ Öļļàḿà; çéîļîñĝš đéþéñđ öñ ţĥé þüļļéđ ǫüàñţîšàţîöñ, šö ñöñé àŕé þîññéđ ĥéŕé. ▒"
+    }
+  ]
+}

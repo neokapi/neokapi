@@ -37,18 +37,33 @@ func main() {
 		nativeDocs = flag.String("nativedocs", "scripts/gen-refs/nativedocs", "dir of authored native doc sidecars ({formats,tools}/<id>.yaml)")
 		outDir     = flag.String("out", "packages/reference-data/data", "output dir for formats.json, tools.json, reference-gaps.json")
 		check      = flag.Bool("check", false, "drift gate: regenerate in memory and fail if the committed built-in subset under -out is stale (does not write)")
+		// The translated catalogs the locale variants derive from, and which
+		// locales to derive. The compile stage of the multilingual pipeline
+		// refreshes the variants alone, from the committed English dataset.
+		coreCatalogs = flag.String("catalogs", "core/i18n/catalogs", "dir of translated core catalogs (<locale>.json) for tools, formats and models")
+		cliCatalogs  = flag.String("cli-catalogs", "host/i18n/catalogs", "dir of translated CLI catalogs (<locale>.json) for commands")
+		locales      = flag.String("locales", "", "locales to derive variants for (comma or space separated); empty = every locale with a catalog")
+		localesOnly  = flag.Bool("locales-only", false, "derive <out>/<locale>/ from the committed English dataset and the catalogs; write nothing else")
 	)
 	flag.Parse()
 
 	if *check {
-		if err := checkDrift(*bridgeDir, *pluginsDir, *metaPath, *nativeDocs, *outDir); err != nil {
+		if err := checkDrift(*bridgeDir, *pluginsDir, *metaPath, *nativeDocs, *outDir, *coreCatalogs, *cliCatalogs); err != nil {
 			fmt.Fprintf(os.Stderr, "gen-refs -check: %v\n", err)
 			os.Exit(1)
 		}
 		return
 	}
 
-	if err := run(*bridgeDir, *pluginsDir, *metaPath, *nativeDocs, *outDir); err != nil {
+	if *localesOnly {
+		if err := writeLocaleVariants(*outDir, *coreCatalogs, *cliCatalogs, *nativeDocs, parseLocales(*locales)); err != nil {
+			fmt.Fprintf(os.Stderr, "gen-refs -locales-only: %v\n", err)
+			os.Exit(1)
+		}
+		return
+	}
+
+	if err := run(*bridgeDir, *pluginsDir, *metaPath, *nativeDocs, *outDir, *coreCatalogs, *cliCatalogs, parseLocales(*locales)); err != nil {
 		fmt.Fprintf(os.Stderr, "gen-refs: %v\n", err)
 		os.Exit(1)
 	}
@@ -118,7 +133,7 @@ func buildEntries(bridgeDir, pluginsDir, metaPath, nativeDocsDir string) (format
 	return formatEntries, toolEntries, extensionResolver(freg), bridgePresent, nil
 }
 
-func run(bridgeDir, pluginsDir, metaPath, nativeDocsDir, outDir string) error {
+func run(bridgeDir, pluginsDir, metaPath, nativeDocsDir, outDir, coreCatalogs, cliCatalogs string, locales []string) error {
 	now := time.Now().UTC().Format(time.RFC3339)
 
 	formatEntries, toolEntries, resolveExt, _, err := buildEntries(bridgeDir, pluginsDir, metaPath, nativeDocsDir)
@@ -177,8 +192,12 @@ func run(bridgeDir, pluginsDir, metaPath, nativeDocsDir, outDir string) error {
 
 	fmt.Printf("wrote %s/{formats,format-families,tools,reference-gaps,commands,prompts,models,mcp-tools}.json: %d formats, %d tools, %d commands, %d prompts, %d models, %d MCP tools\n",
 		outDir, len(formatEntries), len(toolEntries), len(cmdDataset.Commands), len(promptDataset.Prompts), len(modelDataset.Models), len(mcpDataset.Tools))
+
 	printGapSummary(report)
-	return nil
+
+	// The locale variants derive from what was just written, so the English
+	// dataset and its variants come out of one run in step.
+	return writeLocaleVariants(outDir, coreCatalogs, cliCatalogs, nativeDocsDir, locales)
 }
 
 // overlayNativeDocs loads sidecars for one kind and merges them into the

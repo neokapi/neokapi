@@ -92,6 +92,22 @@ Each locale is compiled where its catalogs are on disk and skipped where they
 are not, because two walks share this stage: `make l10n` arrives with the loop's
 target catalogs, and `make l10n-build` arrives with only the `qps` probe.
 
+The reference dataset is compiled here too. The docs site's `/tools`,
+`/formats`, `/commands` and `/models` pages print names, descriptions, command
+help and model notes from `packages/reference-data/data/*.json`, which
+`make generate-reference-docs` writes in English. The same run, and this stage
+with `gen-refs -locales-only`, derive one variant per locale that has a Go
+catalog (`packages/reference-data/data/<lang>/`) by walking the catalogs beside
+`core/i18n/builtins/metadata.json` and `host/i18n/commands.json`, and by
+overlaying the translated dossiers the loop writes to
+`scripts/gen-refs/nativedocs/<lang>/`, the way the English dossiers are overlaid
+onto the English dataset. A string the catalog lacks keeps its English and is
+counted in a warning. The site's `reference-locale` plugin swaps the variant in
+for the locale it is building. The `qps` variant and the `qps` dossiers are
+build-derived and byte-gated; a target locale's are loop output that follows
+its catalog, and `make check-reference-docs` holds both to the committed
+English dataset, catalogs and dossiers.
+
 The `qps` pseudo-locale is that probe (`l10n-pseudo`). It answers a
 runtime-correctness question (does the UI survive expanded, marked-up text?)
 rather than carrying project content, so it is not a target language in the
@@ -127,7 +143,8 @@ and that is what decides how it is checked.
 
 **Build-derived** is a function of committed source alone: the two generated
 inventories (`core/i18n/builtins/metadata.json`, `host/i18n/commands.json`), the
-English email renders, and the whole `qps` tier. Nothing here passes through the
+English email renders, and the whole `qps` tier, including the `qps` probe of
+each Go-surface catalog and the reference dataset's `qps` variant. Nothing here passes through the
 project store, so regenerating it must reproduce it byte for byte. `make
 l10n-verify` runs `make l10n-build` (extraction, the probe, and the compilations
 that read neither the store nor a target locale) and diffs the set that `make
