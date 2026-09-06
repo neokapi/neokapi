@@ -303,6 +303,11 @@ func FuzzRoundTripMarkdown(f *testing.F) {
 	// is also committed under testdata/fuzz.
 	f.Add([]byte("<div>0\n# 0"))
 	f.Add([]byte("<div>a\n- b\nc"))
+	// #2505: an html-text block's ">" is content, and the marker recovery moved
+	// it onto the block's own first line, splitting the block on the pass
+	// after. The first is also committed under testdata/fuzz.
+	f.Add([]byte("<p>.\n- <\n>"))
+	f.Add([]byte("<div>a\n> b\nc"))
 	// #2464: the rebuild path recovered one level of a blockquote's marker from
 	// the first continuation line at column 0, so a nested quote came back one
 	// level shallow, an indented continuation marker was missed, and a quote

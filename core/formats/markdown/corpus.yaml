@@ -148,6 +148,14 @@ entries:
     license: Apache-2.0
     redistributable: true
     notes: 'FuzzRoundTripMarkdown seed for #2470 (a multi-line HTML block rebuilt as a paragraph)'
+  - path: core/formats/markdown/testdata/fuzz/FuzzRoundTripMarkdown/html_block_quote_marker
+    tier: A
+    origin: bug
+    sha256: 159e1d0d74578c21742f40f13b22c8e8e543f8e7b9d643aad4b429262686e9a9
+    size: 39
+    license: Apache-2.0
+    redistributable: true
+    notes: 'FuzzRoundTripMarkdown seed for #2505 (a quote marker inside an HTML block)'
   - path: core/formats/markdown/testdata/fuzz/FuzzRoundTripMarkdown/lazy_blockquote_continuation
     tier: A
     origin: bug

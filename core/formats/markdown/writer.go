@@ -1512,16 +1512,31 @@ func (w *Writer) blockquoteRebuild(block *model.Block, text string) (prefix, bod
 	if m, has := block.Properties[BlockPropQuoteMarker]; has && m != "" && w.quoteDepth() == 0 {
 		return m, text, true
 	}
-	// Soft-break body: the continuation lines carry their ">" marker, except
-	// a lazy continuation line (CommonMark 5.1), which has none; only the
-	// first line always lacks one. Recover the marker from the first marked
+	// Soft-break body: the continuation lines carry their ">" marker, except a
+	// lazy continuation line (CommonMark 5.1), which has none; only the first
+	// line always lacks one. Recover the marker from the first marked
 	// continuation line so the quote opens with it: "> a\nb\n> c" re-reads as
 	// one blockquote with a lazy line, where a body judged by its first
 	// continuation line alone rebuilt as a paragraph plus a quote (#2434).
+	//
+	// A block whose text is raw markup is excluded: its ">" is content, and
+	// re-marking it moved the quote onto the block's own first line and split
+	// it in two on the pass after ("<p>.\n- <\n>", #2505). A markdown block
+	// that really is a quote body carries the marker property above; the guess
+	// serves a block that arrives from another format with none.
+	if rawTextBlock(block) {
+		return "", text, false
+	}
 	if m := continuationBlockquoteMarker(text); m != "" {
 		return m, text, true
 	}
 	return "", text, false
+}
+
+// rawTextBlock reports whether a block's text is markup the reader captured
+// verbatim, where a leading marker is content rather than structure.
+func rawTextBlock(block *model.Block) bool {
+	return block.Type == "html-text" || block.Type == "html-block"
 }
 
 // continuationBlockquoteMarker returns the blockquote marker that begins the
