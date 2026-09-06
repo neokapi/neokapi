@@ -128,7 +128,7 @@ func FuzzReadMarkdown(f *testing.F) {
 	f.Add([]byte("a <script>*b*</script> c"))
 	f.Add([]byte("a <style>[x](y)</style> c"))
 	f.Add([]byte("a <math>`c` <https://x> ![i](s)</math> b"))
-	markdownSeed(f, "excluded-html-inline.md", "emphasis-delimiters.md")
+	markdownSeed(f, "excluded-html-inline.md", "emphasis-delimiters.md", "image-alt.md")
 	seedDamagedMarkdown(f)
 
 	f.Fuzz(func(t *testing.T, data []byte) {

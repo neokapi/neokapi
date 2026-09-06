@@ -108,6 +108,14 @@ entries:
     license: Apache-2.0
     redistributable: true
     notes: own-created fixture for
+  - path: core/formats/markdown/testdata/image-alt.md
+    tier: A
+    origin: bug
+    sha256: d9bac7bc311390fa0a6b826944800f5fea9d6d10c51f29c6b42f587e552f36f5
+    size: 602
+    license: Apache-2.0
+    redistributable: true
+    notes: 'own-created fixture for #2447 (alt text with translateImageAlt off)'
   - path: core/formats/markdown/testdata/link-titles.md
     tier: A
     origin: bug

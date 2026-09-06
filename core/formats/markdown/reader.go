@@ -2581,6 +2581,9 @@ func (r *Reader) collectInlineText(buf *strings.Builder, node ast.Node, source [
 				}
 			}
 		case *ast.Image:
+			// With the alt text not offered for translation it is not part of
+			// the block's text either; it rides the image's opening code and
+			// its alt attribute instead (#2447).
 			if r.cfg.TranslateImageAlt() {
 				r.collectInlineText(buf, child, source)
 			}
@@ -3314,11 +3317,20 @@ func (r *Reader) buildImageRuns(b *runBuilder, n *ast.Image, source []byte, idCo
 	// produce an empty pc-pair around no inline content, matching the
 	// shape okapi MarkdownParser uses for IMAGE_REF nodes whose text is
 	// undefined.
+	// With the alt text offered for translation it is the paired content
+	// between the image's codes; without, it rides the opening code and the
+	// canonical alt attribute, so the skeleton path puts the source bytes back
+	// and a writer for another format still has the alt to re-synthesize.
+	alt := ""
+	if !r.cfg.TranslateImageAlt() {
+		alt = r.untranslatedAltText(n, source)
+	}
+
 	if n.Reference != nil {
 		closing := referenceCloseMarker(n.Reference)
-		b.AddPcOpen(id, "media:image", "md:image-ref", "![", info.Display.Open, info.Equiv,
+		b.AddPcOpen(id, "media:image", "md:image-ref", "!["+alt, info.Display.Open, info.Equiv,
 			info.Constraints.Deletable, info.Constraints.Cloneable, info.Constraints.Reorderable)
-		b.SetLastAttrs(linkImageAttrs(model.AttrSrc, n.Destination, n.Title, nil))
+		b.SetLastAttrs(linkImageAttrs(model.AttrSrc, n.Destination, n.Title, []byte(alt)))
 		if r.cfg.TranslateImageAlt() {
 			r.buildCodedRuns(b, n, source, idCounter)
 		}
@@ -3326,15 +3338,36 @@ func (r *Reader) buildImageRuns(b *runBuilder, n *ast.Image, source []byte, idCo
 		return
 	}
 
-	b.AddPcOpen(id, "media:image", "md:image", "![", info.Display.Open, info.Equiv,
+	b.AddPcOpen(id, "media:image", "md:image", "!["+alt, info.Display.Open, info.Equiv,
 		info.Constraints.Deletable, info.Constraints.Cloneable, info.Constraints.Reorderable)
-	b.SetLastAttrs(linkImageAttrs(model.AttrSrc, n.Destination, n.Title, nil))
+	b.SetLastAttrs(linkImageAttrs(model.AttrSrc, n.Destination, n.Title, []byte(alt)))
 	if r.cfg.TranslateImageAlt() {
 		r.buildCodedRuns(b, n, source, idCounter)
 	}
 	// Same title split as a link, so image titles are extracted as
 	// translatable text rather than baked into the closing skeleton.
 	r.addLinkCloseRuns(b, n, id, "media:image", "md:image", subTypeImageTitle, 2, info.Equiv, source, idCounter)
+}
+
+// untranslatedAltText returns an image's alt text for a configuration that does
+// not offer it for translation. The flag decides whose the alt text is, not
+// whether it survives: with it off the alt bytes were in neither the runs nor
+// the skeleton, so the writer had nothing to put back and `![alt](s)` came out
+// as `![](s)` (#2447).
+//
+// The bytes come from source between the image's `![` and the `]` that closes
+// its alt, so an escape or an inline construct inside the alt keeps its
+// spelling; the parser's own text answers for an image the resolver cannot
+// place.
+func (r *Reader) untranslatedAltText(n *ast.Image, source []byte) string {
+	if start, ok := inlineNodeStart(n, source); ok {
+		if end, ok := linkContentEnd(n, 2, source); ok && start+2 <= end && end <= len(source) {
+			return string(source[start+2 : end])
+		}
+	}
+	var buf strings.Builder
+	r.collectInlineText(&buf, n, source)
+	return buf.String()
 }
 
 // referenceCloseMarker returns the closing-marker bytes for a

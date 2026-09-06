@@ -518,8 +518,10 @@ func (s *mdInlineSink) Open(r *model.PcOpenRun) {
 		s.sb.WriteString("[")
 		s.open = append(s.open, mdOpenTag{attrs: r.Attrs, destKey: model.AttrHref})
 	case "media:image", "link:image":
-		// ![alt](src "title") — the alt text is the paired content.
-		s.sb.WriteString("![")
+		// ![alt](src "title"). The alt text is the paired content, except
+		// where a reader does not offer it for translation and records it on
+		// the alt attribute instead (markdown's translateImageAlt: false).
+		s.sb.WriteString("![" + r.Attr(model.AttrAlt))
 		s.open = append(s.open, mdOpenTag{attrs: r.Attrs, destKey: model.AttrSrc})
 	default:
 		if m, ok := mdInlineTag[r.Type]; ok {
