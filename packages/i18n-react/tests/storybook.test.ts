@@ -15,7 +15,7 @@ vi.mock("../src/runtime/index.ts", () => ({
 }));
 
 // Imports MUST come after vi.mock so the mock is hoisted into place.
-import { neokapiDecorator, neokapiGlobalType } from "../src/storybook/index.ts";
+import { neokapiDecorator, neokapiGlobalType, neokapiLoader } from "../src/storybook/index.ts";
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -169,7 +169,7 @@ describe("neokapiDecorator", () => {
     expect(loadTranslationsMock).toHaveBeenNthCalledWith(2, "qps", "/qps.json");
   });
 
-  it("remounts the story once the dictionary has landed (stale-locale fix)", async () => {
+  it("re-keys the story once the dictionary lands in a preview with no loader", async () => {
     let renders = 0;
     const Story = () => {
       renders += 1;
@@ -181,8 +181,9 @@ describe("neokapiDecorator", () => {
     mount(decorator, Story, "qps");
     const before = renders;
     await settle();
-    // The key flips from "qps:false" to "qps:true" when the dict is
-    // applied — the story must render again against the new dict.
+    // `__t` and `__tx` read the dict at render time without subscribing, so a
+    // preview that fetches from the decorator has to re-key once it lands.
+    // `neokapiLoader` is what removes this second mount; see the play tests.
     expect(renders).toBeGreaterThan(before);
   });
 

@@ -26,6 +26,7 @@ on:
       - "packages/concept-ui/**"
       - "packages/kapi-lab/**"
       - "packages/docs-shared/**"
+      - "packages/i18n-react/src/storybook/**"
       - "packages/storybook-config/**"
       - ".github/workflows/storybook-preview.yml"
   push:
@@ -46,6 +47,7 @@ on:
       - "packages/concept-ui/**"
       - "packages/kapi-lab/**"
       - "packages/docs-shared/**"
+      - "packages/i18n-react/src/storybook/**"
       - "packages/storybook-config/**"
       - ".github/workflows/storybook-preview.yml"
 

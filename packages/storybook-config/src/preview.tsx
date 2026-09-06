@@ -3,6 +3,7 @@ import { withThemeByClassName } from "@storybook/addon-themes";
 import {
   neokapiDecorator,
   neokapiGlobalType,
+  neokapiLoader,
   type NeokapiStorybookOptions,
 } from "@neokapi/i18n-react/storybook";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -144,6 +145,10 @@ export interface CreatePreviewOptions {
   /**
    * Enable a locale toolbar driven by @neokapi/i18n-react. Pair with `i18n: true`
    * in createMainConfig() so stories receive the runtime transform.
+   *
+   * The catalog is fetched in a loader rather than in the decorator, so a story
+   * mounts once with the locale already in force and a `play` function's
+   * interactions survive to the rendered canvas.
    */
   i18n?: I18nOptions;
 }
@@ -199,6 +204,7 @@ export function createPreview(options: CreatePreviewOptions = {}): Preview {
       }),
     ],
     ...(i18n && {
+      loaders: [neokapiLoader(i18n)],
       globalTypes: {
         locale: neokapiGlobalType(i18n),
       },

@@ -1,11 +1,15 @@
 /**
- * Storybook integration for @neokapi/i18n-react — locale toolbar and
- * translation-applying decorator.
+ * Storybook integration for @neokapi/i18n-react: a locale toolbar, a loader
+ * that puts the catalog in force, and a decorator that renders the story in it.
  *
  * Usage:
  *
  *   import type { Preview } from '@storybook/react-vite';
- *   import { neokapiDecorator, neokapiGlobalType } from '@neokapi/i18n-react/storybook';
+ *   import {
+ *     neokapiDecorator,
+ *     neokapiGlobalType,
+ *     neokapiLoader,
+ *   } from '@neokapi/i18n-react/storybook';
  *
  *   const i18n = {
  *     locales: [
@@ -16,12 +20,17 @@
  *
  *   const preview: Preview = {
  *     globalTypes: { locale: neokapiGlobalType(i18n) },
+ *     loaders: [neokapiLoader(i18n)],
  *     decorators: [neokapiDecorator(i18n)],
  *   };
+ *
+ * Pass the same options object to all three: they share one record of which
+ * locale is in force, which is what lets the decorator skip work the loader
+ * has already done.
  */
 
 import { createElement, Fragment, useEffect, useState } from "react";
-import type { Decorator } from "@storybook/react-vite";
+import type { Decorator, Loader } from "@storybook/react-vite";
 
 export interface NeokapiLocale {
   /** BCP-47 locale code, e.g. "en", "qps". */
@@ -70,8 +79,29 @@ export interface HostTranslations {
   translations: Record<string, string>;
 }
 
-/** What the host most recently posted, so a locale switch can re-apply it. */
-let hostDict: { locale: string; translations: Record<string, string> } | null = null;
+/**
+ * What the loader and the decorator know between them about one preview.
+ *
+ * Keyed on the options object, so the loader and the decorator built from the
+ * same `i18n` share it and two previews in one process never do.
+ */
+interface Session {
+  /** The locale whose catalog is in force, or null before the first apply. */
+  locale: string | null;
+  /** What the host most recently posted, so a locale switch can re-apply it. */
+  host: { locale: string; translations: Record<string, string> } | null;
+}
+
+const sessions = new WeakMap<NeokapiStorybookOptions, Session>();
+
+function sessionFor(opts: NeokapiStorybookOptions): Session {
+  let session = sessions.get(opts);
+  if (!session) {
+    session = { locale: null, host: null };
+    sessions.set(opts, session);
+  }
+  return session;
+}
 
 function readHostTranslations(data: unknown): HostTranslations | null {
   if (typeof data !== "object" || data === null) return null;
@@ -100,26 +130,27 @@ async function getRuntime() {
 }
 
 /**
- * Locale-switching decorator. Applies translations whenever the user
- * picks a new value from the toolbar, then re-keys the story once the
- * dictionary has actually landed — the plugin's `__t`/`__tx` call
- * sites don't subscribe to the store, so without the remount a story
- * kept rendering the previous locale until the next interaction.
- * Falls back to the empty dictionary (source text) when the
- * translation file can't be fetched or when running in an SSR
- * context without `fetch`.
+ * Which locale a story should be showing.
+ *
+ * A story embedded by a review surface is showing that surface's language,
+ * which the toolbar knows nothing about: the host names the locale when it
+ * posts its dictionary, and that wins for as long as it is in force.
  */
-export function neokapiDecorator(opts: NeokapiStorybookOptions): Decorator {
-  const byValue = new Map(opts.locales.map((l) => [l.value, l]));
+function resolveLocale(opts: NeokapiStorybookOptions, toolbar: string | undefined): string {
+  return sessionFor(opts).host?.locale ?? toolbar ?? opts.locales[0]?.value ?? "en";
+}
 
-  /**
-   * Put one locale in force: its published catalog, then whatever the host has
-   * posted on top. The two are layered rather than exclusive — the strings
-   * under review are the host's, and everything else on screen stays
-   * translated instead of falling back to source and making the component look
-   * half-finished.
-   */
-  async function apply(locale: string): Promise<void> {
+/**
+ * Put one locale in force: its published catalog, then whatever the host has
+ * posted on top. The two are layered: the strings under review are the host's,
+ * and everything else on screen stays translated instead of falling back to
+ * source and making the component look half-finished.
+ */
+function makeApplier(opts: NeokapiStorybookOptions): (locale: string) => Promise<void> {
+  const byValue = new Map(opts.locales.map((l) => [l.value, l]));
+  const session = sessionFor(opts);
+
+  return async function apply(locale: string): Promise<void> {
     const runtime = await getRuntime();
     const declared = byValue.get(locale);
     if (!declared?.url || typeof fetch === "undefined") {
@@ -131,30 +162,68 @@ export function neokapiDecorator(opts: NeokapiStorybookOptions): Decorator {
         runtime.setTranslations(locale, {});
       }
     }
-    if (hostDict && hostDict.locale === locale) {
-      runtime.setTranslations(locale, hostDict.translations, { merge: true });
+    if (session.host && session.host.locale === locale) {
+      runtime.setTranslations(locale, session.host.translations, { merge: true });
     }
-  }
+    session.locale = locale;
+  };
+}
+
+/**
+ * Loads the active locale's catalog before the story renders.
+ *
+ * Storybook runs loaders, then mounts the story, then runs its `play`
+ * function. Fetching here means the story mounts once, already reading the
+ * right dictionary, and a `play` that opens a sheet or selects a block keeps
+ * what it did. Fetching from the decorator instead put the catalog in force
+ * after `play` had already run against a mount that was about to be replaced,
+ * and the Interactions panel recorded every step as passed while the canvas
+ * showed the unopened state.
+ *
+ * Register it alongside {@link neokapiDecorator}, built from the same options
+ * object.
+ */
+export function neokapiLoader(opts: NeokapiStorybookOptions): Loader {
+  const apply = makeApplier(opts);
+  const session = sessionFor(opts);
+
+  return async (context) => {
+    const locale = resolveLocale(opts, context.globals?.locale as string | undefined);
+    if (session.locale !== locale) await apply(locale);
+    return {};
+  };
+}
+
+/**
+ * Renders the story in the locale that is in force.
+ *
+ * The plugin's `__t` / `__tx` call sites read the dictionary at render time
+ * without subscribing to it, so a story shows whatever was in force when it
+ * rendered. The decorator keys the story on the locale plus a revision counter
+ * and bumps that counter whenever the dictionary changes under a mounted story:
+ * a host posting its own, or the catalog landing in a preview that registered
+ * no loader. A preview with {@link neokapiLoader} never sees the second case,
+ * so the story mounts exactly once per locale.
+ */
+export function neokapiDecorator(opts: NeokapiStorybookOptions): Decorator {
+  const apply = makeApplier(opts);
+  const session = sessionFor(opts);
 
   return (Story, context) => {
-    const toolbarLocale =
-      (context.globals.locale as string | undefined) ?? opts.locales[0]?.value ?? "en";
-    // A story embedded by a review surface is showing that surface's language,
-    // which the toolbar knows nothing about: the host names the locale when it
-    // posts its dictionary, and that wins for as long as it is in force.
-    const value = hostDict?.locale ?? toolbarLocale;
+    const toolbarLocale = context.globals.locale as string | undefined;
+    const value = resolveLocale(opts, toolbarLocale);
 
     // Decorators render as React components, so hooks are available.
-    const [applied, setApplied] = useState<string | null>(null);
-    // Bumped whenever the host posts a dictionary, so the story re-keys and
-    // its non-subscribing lookups read the new text.
-    const [hostVersion, setHostVersion] = useState(0);
+    const [revision, setRevision] = useState(0);
 
     useEffect(() => {
+      // The loader already fetched this locale, so there is nothing to do and
+      // nothing to re-key: the first render read the right dictionary.
+      if (session.locale === value) return;
       let cancelled = false;
       void (async () => {
         await apply(value);
-        if (!cancelled) setApplied(value);
+        if (!cancelled) setRevision((n) => n + 1);
       })();
       return () => {
         cancelled = true;
@@ -167,10 +236,10 @@ export function neokapiDecorator(opts: NeokapiStorybookOptions): Decorator {
       const onMessage = (event: MessageEvent) => {
         const msg = readHostTranslations(event.data);
         if (!msg) return;
-        hostDict = { locale: msg.locale, translations: msg.translations };
+        session.host = { locale: msg.locale, translations: msg.translations };
         void (async () => {
           await apply(msg.locale);
-          setHostVersion((n) => n + 1);
+          setRevision((n) => n + 1);
         })();
       };
       window.addEventListener("message", onMessage);
@@ -183,13 +252,7 @@ export function neokapiDecorator(opts: NeokapiStorybookOptions): Decorator {
       return () => window.removeEventListener("message", onMessage);
     }, [value]);
 
-    // Key on (locale, landed?, host dictionary) — the story remounts once when
-    // the dict is active, so non-subscribing lookups re-read it.
-    return createElement(
-      Fragment,
-      { key: `${value}:${applied === value}:${hostVersion}` },
-      Story(),
-    );
+    return createElement(Fragment, { key: `${value}:${revision}` }, Story());
   };
 }
 
