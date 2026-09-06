@@ -4815,7 +4815,7 @@ func (w *Writer) renderSMLRichText(runs []model.Run) string {
 	var buf strings.Builder
 	var pending strings.Builder
 	var inRun bool
-	var currentProps []string
+	var currentProps []smlRunProp
 
 	closeRun := func() {
 		if inRun {
@@ -4837,7 +4837,7 @@ func (w *Writer) renderSMLRichText(runs []model.Run) string {
 				if len(currentProps) > 0 {
 					buf.WriteString(`<rPr>`)
 					for _, p := range currentProps {
-						buf.WriteString(p)
+						buf.WriteString(p.xml)
 					}
 					buf.WriteString(`</rPr>`)
 				}
@@ -4847,19 +4847,88 @@ func (w *Writer) renderSMLRichText(runs []model.Run) string {
 
 		case r.PcOpen != nil:
 			closeRun()
-			currentProps = w.addSMLProp(currentProps, r.PcOpen.Type)
+			currentProps = addSMLProp(currentProps, r.PcOpen)
 
 		case r.PcClose != nil:
 			closeRun()
-			currentProps = w.removeSMLProp(currentProps, r.PcClose.Type)
+			currentProps = removeSMLProp(currentProps, r.PcClose)
 
 		case r.Ph != nil:
-			// Placeholders are skipped in shared strings (legacy behaviour).
+			// A CT_Rst run holds text and run properties and nothing else
+			// (ECMA-376 Part 1 §18.4.4), so there is no element a placeholder
+			// could become. The block's other runs still carry its text.
+
+		case r.Sub != nil, r.Plural != nil, r.Select != nil:
+			// A subblock reference, a plural and a select are authored
+			// elsewhere in the model and never reach a spreadsheet cell: the
+			// reader builds CT_Rst content out of text and paired codes only.
+			// Named here so a kind added to the model is answered rather than
+			// dropped by a silent default.
 		}
 	}
 
 	closeRun()
 	return buf.String()
+}
+
+// smlRunProp is one child of the <rPr> the writer is building: the code that
+// asked for it, and the bytes to write.
+type smlRunProp struct {
+	id  string
+	typ string
+	xml string
+}
+
+// addSMLProp opens a run-property child. The code's AttrSMLRPr carries the
+// source's own bytes, which is what keeps `<u val="double"/>` and a run's
+// colour, font and size through the round trip; the fallback spellings cover a
+// block whose codes were authored somewhere other than this reader.
+func addSMLProp(props []smlRunProp, open *model.PcOpenRun) []smlRunProp {
+	xml := open.Attr(AttrSMLRPr)
+	if xml == "" {
+		xml = smlDefaultPropXML(open.Type)
+	}
+	if xml == "" {
+		return props
+	}
+	return append(props, smlRunProp{id: open.ID, typ: open.Type, xml: xml})
+}
+
+// removeSMLProp closes a run-property child. It matches the code id the reader
+// paired (spanIDs), and falls back to the innermost open child of the same type
+// for a block whose ids were rewritten in transit.
+func removeSMLProp(props []smlRunProp, close *model.PcCloseRun) []smlRunProp {
+	for i, p := range slices.Backward(props) {
+		if p.id == close.ID {
+			return append(props[:i:i], props[i+1:]...)
+		}
+	}
+	for i, p := range slices.Backward(props) {
+		if p.typ == close.Type {
+			return append(props[:i:i], props[i+1:]...)
+		}
+	}
+	return props
+}
+
+// smlDefaultPropXML is the canonical SpreadsheetML spelling of a formatting
+// type, used when a code carries no source bytes of its own.
+func smlDefaultPropXML(spanType string) string {
+	switch spanType {
+	case TypeBold:
+		return `<b/>`
+	case TypeItalic:
+		return `<i/>`
+	case TypeUnderline:
+		return `<u/>`
+	case TypeStrikethrough:
+		return `<strike/>`
+	case TypeSuperscript:
+		return `<vertAlign val="superscript"/>`
+	case TypeSubscript:
+		return `<vertAlign val="subscript"/>`
+	}
+	return ""
 }
 
 // smlTextElement writes one <t> element. Text that starts or ends with XML
@@ -4876,51 +4945,6 @@ func smlTextElement(text string) string {
 // xmlWhitespace is the set XML collapses in element content when xml:space is
 // left at its default (XML 1.0 §2.10).
 const xmlWhitespace = " \t\r\n"
-
-func (w *Writer) addSMLProp(props []string, spanType string) []string {
-	switch spanType {
-	case TypeBold:
-		return append(props, `<b/>`)
-	case TypeItalic:
-		return append(props, `<i/>`)
-	case TypeUnderline:
-		return append(props, `<u/>`)
-	case TypeStrikethrough:
-		return append(props, `<strike/>`)
-	case TypeSuperscript:
-		return append(props, `<vertAlign val="superscript"/>`)
-	case TypeSubscript:
-		return append(props, `<vertAlign val="subscript"/>`)
-	}
-	return props
-}
-
-func (w *Writer) removeSMLProp(props []string, spanType string) []string {
-	var target string
-	switch spanType {
-	case TypeBold:
-		target = `<b/>`
-	case TypeItalic:
-		target = `<i/>`
-	case TypeUnderline:
-		target = `<u/>`
-	case TypeStrikethrough:
-		target = `<strike/>`
-	case TypeSuperscript:
-		target = `<vertAlign val="superscript"/>`
-	case TypeSubscript:
-		target = `<vertAlign val="subscript"/>`
-	default:
-		return props
-	}
-	var result []string
-	for _, p := range props {
-		if p != target {
-			result = append(result, p)
-		}
-	}
-	return result
-}
 
 // preferredRuns returns the target runs for the writer's locale when
 // present, falling back to the source runs. Returns nil if neither is
