@@ -83,8 +83,16 @@ func TestWrappedLinkTitleTranslatesInsideAContainer(t *testing.T) {
 				target = append(target, r)
 				continue
 			}
-			text := map[string]string{"a": "x", "T": "U", " here.": " da."}[r.Text.Text]
-			require.NotEmpty(t, text, "unexpected text run %q", r.Text.Text)
+			var text string
+			switch r.Text.Text {
+			case "a":
+				text = "x"
+			case "T":
+				text = "U"
+			default:
+				require.Equal(t, " here.", r.Text.Text, "unexpected text run")
+				text = " da."
+			}
 			target = append(target, model.Run{Text: &model.TextRun{Text: text}})
 		}
 		blocks[0].SetTargetRuns(model.LocaleGerman, target)

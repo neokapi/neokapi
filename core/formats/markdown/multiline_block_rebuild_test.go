@@ -47,6 +47,43 @@ func TestRebuildEscapesMarkerOnEveryLine(t *testing.T) {
 	}
 }
 
+// TestContinuationMarkerThatCannotInterruptIsLeftAlone pins the narrower rule a
+// continuation line takes: CommonMark 5.2 lets a list interrupt a paragraph
+// only when the item carries content and, for an ordered list, only when it
+// starts at 1. Escaping a marker that cannot interrupt changes the document:
+// "[R]:\n0)" is a paragraph, because an unmatched ")" is not a link
+// destination, and "0\)" is one, so the escape turned the paragraph into a link
+// reference definition and the block was gone.
+func TestContinuationMarkerThatCannotInterruptIsLeftAlone(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name string
+		text string
+		want string
+	}{
+		{"ordered list not starting at one", "[R]:\n0)", "[R]:\n0)\n"},
+		{"ordered list starting at two", "a\n2. b", "a\n2. b\n"},
+		{"ordered list starting at one", "a\n1. b", "a\n1\\. b\n"},
+		{"ordered list with leading zeros", "a\n01. b", "a\n01\\. b\n"},
+		// A lone "-" is a setext underline, which escapeInteriorBlockBars
+		// escapes for its own reason (#1651); the marker rule leaves it alone.
+		{"empty bullet", "a\n-", "a\n\\-\n"},
+		{"empty bullet, plus sign", "a\n+", "a\n+\n"},
+		{"bullet with content", "a\n- b", "a\n\\- b\n"},
+		{"empty heading", "a\n#", "a\n\\#\n"},
+		{"first line keeps the wider rule", "0) a\nb", "0\\) a\nb\n"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			out := rebuildBlocks(t, model.NewBlock("p", tc.text))
+			assert.Equal(t, tc.want, out)
+			assert.Equal(t, out, rebuildBlocks(t, readBlocks(t, out)...),
+				"rebuild is not idempotent for %q", tc.text)
+		})
+	}
+}
+
 // TestHTMLBlockTextRebuildsAsOneBlock drives the #2470 reproducer through the
 // real read -> rebuild-write -> read harness. The fuzz reproducer is committed
 // under testdata/fuzz.

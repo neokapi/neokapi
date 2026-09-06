@@ -1186,9 +1186,64 @@ func escapeBlockMarkerLines(text string) string {
 	}
 	lines := strings.Split(text, "\n")
 	for i, line := range lines {
-		lines[i] = escapeLeadingBlockMarker(line)
+		if i == 0 {
+			lines[i] = escapeLeadingBlockMarker(line)
+			continue
+		}
+		lines[i] = escapeInterruptingBlockMarker(line)
 	}
 	return strings.Join(lines, "\n")
+}
+
+// escapeInterruptingBlockMarker escapes the marker that begins a CONTINUATION
+// line of a rebuilt block, which is a narrower set than the one that opens a
+// block at the start of one: CommonMark 5.2 lets a list interrupt a paragraph
+// only when the item carries content and, for an ordered list, only when it
+// starts at 1.
+//
+// Escaping a marker that cannot interrupt changes the document. "[R]:\n0)" is a
+// paragraph, because an unmatched ")" is not a link destination; escaping the
+// list marker spells "0\)", which IS one, so the paragraph became a link
+// reference definition and the block was gone.
+func escapeInterruptingBlockMarker(line string) string {
+	i, ok := leadingBlockMarkerPos(line)
+	if !ok || !interruptsAParagraph(line) {
+		return line
+	}
+	return line[:i] + "\\" + line[i:]
+}
+
+// interruptsAParagraph reports whether the block marker leadingBlockMarkerPos
+// found at the start of line opens a construct that CommonMark lets interrupt a
+// paragraph. A heading, a blockquote, a thematic break and a fence all do,
+// whatever follows them.
+func interruptsAParagraph(line string) bool {
+	switch c := line[0]; {
+	case c == '#', c == '>', c == '`', c == '~':
+		return true
+	case c == '-' || c == '+' || c == '*' || c == '_':
+		return isThematicBreak(line) || (c != '_' && listContentFollows(line, 1))
+	case c >= '0' && c <= '9':
+		n := 0
+		for n < len(line) && line[n] >= '0' && line[n] <= '9' {
+			n++
+		}
+		if strings.TrimLeft(line[:n], "0") != "1" {
+			return false
+		}
+		return listContentFollows(line, n+1)
+	}
+	return false
+}
+
+// listContentFollows reports whether a list marker ending just before i is
+// followed by a space or tab and then content, which CommonMark 5.2 requires
+// before the item can interrupt a paragraph.
+func listContentFollows(line string, i int) bool {
+	if i >= len(line) || (line[i] != ' ' && line[i] != '\t') {
+		return false
+	}
+	return strings.TrimSpace(line[i:]) != ""
 }
 
 // leadingBlockMarkerPos reports the byte index of the marker character to
