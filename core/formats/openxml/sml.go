@@ -293,7 +293,10 @@ func (p *smlParser) parseWorksheetFrom(d *xml.Decoder, merges map[string]mergeSp
 	var inRow, inCell, inValue bool
 	var cellType, cellRef, cellStyle string
 	var cellText strings.Builder
-	var hasFormula bool // tracks whether the current cell contains a <f> element
+	var hasFormula bool  // the current cell contains a <f> element
+	var hasValueEl bool  // the current cell contains a <v> element
+	var inlineRaw string // the current cell's <is> element, verbatim
+	var inlineRuns []textRun
 
 	for {
 		tok, err := d.Token()
@@ -319,20 +322,29 @@ func (p *smlParser) parseWorksheetFrom(d *xml.Decoder, merges map[string]mergeSp
 					cellStyle = attrVal(t, "s")
 					cellText.Reset()
 					hasFormula = false
+					hasValueEl = false
+					inlineRaw = ""
+					inlineRuns = nil
 					p.skelWriteStartElement(t)
 				}
 
 			case "v":
 				if inCell {
 					inValue = true
+					hasValueEl = true
 				} else {
 					p.skelWriteStartElement(t)
 				}
 
 			case "is":
 				if inCell {
-					text := p.parseInlineString(d)
-					cellText.WriteString(text)
+					raw, runs, err := p.parseInlineString(d, t)
+					if err != nil {
+						return err
+					}
+					inlineRaw = raw
+					inlineRuns = runs
+					cellText.WriteString(rstText(runs))
 					continue
 				}
 				p.skelWriteStartElement(t)
@@ -416,6 +428,18 @@ func (p *smlParser) parseWorksheetFrom(d *xml.Decoder, merges map[string]mergeSp
 						blockID := fmt.Sprintf("tu%d", *p.blockCounter)
 						p.skelRef(blockID)
 
+						props := map[string]string{"partPath": partPath, "cell": cellRef}
+						source := []model.Run{{Text: &model.TextRun{Text: text}}}
+						if inlineRaw != "" {
+							// An inline string holds CT_Rst, the content model
+							// sharedStrings.xml uses for <si>: the same rich runs,
+							// stored in the cell. The property tells the writer to
+							// spell the <is> wrapper back around them (ECMA-376
+							// Part 1 §18.3.1.4); without it the cell's text would
+							// go back as a value element and Excel repairs the file.
+							props[cellStorageProp] = cellStorageInline
+							source = rstModelRuns(inlineRuns)
+						}
 						block := &model.Block{
 							ID: blockID,
 							// A cell's reference (`B7`) is its address in the
@@ -423,8 +447,8 @@ func (p *smlParser) parseWorksheetFrom(d *xml.Decoder, merges map[string]mergeSp
 							Name:         model.StructuralPath(append(strings.Split(partPath, "/"), cellRef)...),
 							Type:         "cell",
 							Translatable: true,
-							Source:       []model.Run{{Text: &model.TextRun{Text: text}}},
-							Properties:   map[string]string{"partPath": partPath, "cell": cellRef},
+							Source:       source,
+							Properties:   props,
 						}
 						// Intrinsic cell-grid geometry (WS2): a literal/inline-string
 						// cell lives at a single (col,row), so its position is the
@@ -439,9 +463,16 @@ func (p *smlParser) parseWorksheetFrom(d *xml.Decoder, merges map[string]mergeSp
 						markGridCell(block, cellRef, p.emitPart != nil)
 						emitBlock(block)
 					} else {
-						p.skelWriteString("<v>")
-						p.skelText(xmlesc.Text(cellText.String()))
-						p.skelWriteString("</v>")
+						switch {
+						case inlineRaw != "":
+							// Whitespace-only or formula-backed inline string: the
+							// element goes back exactly as it was read.
+							p.skelWriteString(inlineRaw)
+						case hasValueEl:
+							p.skelWriteString("<v>")
+							p.skelText(xmlesc.Text(cellText.String()))
+							p.skelWriteString("</v>")
+						}
 						// A shared-string or value cell carries no translatable text of
 						// its own (a shared string is deduplicated in sharedStrings.xml;
 						// a number/formula result is not translated), but it does occupy
@@ -469,6 +500,9 @@ func (p *smlParser) parseWorksheetFrom(d *xml.Decoder, merges map[string]mergeSp
 					cellRef = ""
 					cellStyle = ""
 					hasFormula = false
+					hasValueEl = false
+					inlineRaw = ""
+					inlineRuns = nil
 				} else {
 					p.skelWriteEndElement(t)
 				}
@@ -768,35 +802,65 @@ func sheetNumFromPath(partPath string) int {
 	return n
 }
 
-// parseInlineString reads an inline string element <is> and returns its text.
-func (p *smlParser) parseInlineString(d *xml.Decoder) string {
-	var text strings.Builder
-	depth := 1
-	var inT bool
+// Property a worksheet cell block carries when its text lives in the cell as an
+// inline string (`<c t="inlineStr"><is>…</is></c>`) rather than in a value
+// element or the shared-string table. The writer reads it to spell the wrapper
+// back; see renderSMLBlock.
+const (
+	cellStorageProp   = "openxml:cell-storage"
+	cellStorageInline = "inlineStr"
+)
 
-	for depth > 0 {
+// parseInlineString reads an inline string element <is>, returning the element
+// verbatim and the rich text runs it holds. <is> carries CT_Rst, the content
+// model sharedStrings.xml uses for <si>, so its runs parse the same way.
+func (p *smlParser) parseInlineString(d *xml.Decoder, start xml.StartElement) (raw string, runs []textRun, err error) {
+	raw, err = captureRawElement(d, start)
+	if err != nil {
+		return "", nil, err
+	}
+	return raw, p.parseRst(raw), nil
+}
+
+// parseRst reads the text runs of a CT_Rst element (<si> or <is>): either a
+// single <t>, or a sequence of <r> elements each with its own <rPr>.
+func (p *smlParser) parseRst(raw string) []textRun {
+	d := xml.NewDecoder(strings.NewReader(raw))
+	var runs []textRun
+	var props runProps
+
+	for {
 		tok, err := d.Token()
 		if err != nil {
-			return text.String()
+			break
 		}
-		switch t := tok.(type) {
-		case xml.StartElement:
-			depth++
-			if t.Name.Local == "t" {
-				inT = true
+		t, ok := tok.(xml.StartElement)
+		if !ok {
+			continue
+		}
+		switch t.Name.Local {
+		case "r":
+			props = runProps{}
+		case "rPr":
+			props = p.parseSMLRunProps(d)
+		case "t":
+			text, err := readCharData(d)
+			if err != nil {
+				return mergeRuns(runs)
 			}
-		case xml.EndElement:
-			depth--
-			if t.Name.Local == "t" {
-				inT = false
-			}
-		case xml.CharData:
-			if inT {
-				text.Write(t)
-			}
+			runs = append(runs, textRun{text: text, props: props})
 		}
 	}
-	return text.String()
+	return mergeRuns(runs)
+}
+
+// rstText concatenates the text of a CT_Rst element's runs.
+func rstText(runs []textRun) string {
+	var b strings.Builder
+	for _, r := range runs {
+		b.WriteString(r.text)
+	}
+	return b.String()
 }
 
 // renderSI renders an empty shared string item for skeleton output.
@@ -810,8 +874,9 @@ func (p *smlParser) renderSI(runs []textRun) string {
 	return buf.String()
 }
 
-// buildBlock creates a model.Block from shared string text runs.
-func (p *smlParser) buildBlock(id string, runs []textRun, partPath string, siIndex int) *model.Block {
+// rstModelRuns converts a CT_Rst element's text runs into model runs, opening
+// and closing an inline code around each stretch that carries run properties.
+func rstModelRuns(runs []textRun) []model.Run {
 	b := &runBuilder{}
 	ids := &spanIDs{}
 	var activeProps *runProps
@@ -835,6 +900,11 @@ func (p *smlParser) buildBlock(id string, runs []textRun, partPath string, siInd
 		activeProps.appendClosingRuns(b, ids)
 	}
 
+	return b.Runs()
+}
+
+// buildBlock creates a model.Block from shared string text runs.
+func (p *smlParser) buildBlock(id string, runs []textRun, partPath string, siIndex int) *model.Block {
 	return &model.Block{
 		ID: id,
 		// A shared string is addressed by the index every cell references it
@@ -842,7 +912,7 @@ func (p *smlParser) buildBlock(id string, runs []textRun, partPath string, siInd
 		Name:         model.StructuralPath(append(strings.Split(partPath, "/"), "si["+strconv.Itoa(siIndex)+"]")...),
 		Type:         "shared-string",
 		Translatable: true,
-		Source:       b.Runs(),
+		Source:       rstModelRuns(runs),
 		Properties: map[string]string{
 			"partPath": partPath,
 			"siIndex":  strconv.Itoa(siIndex),

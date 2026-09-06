@@ -4787,29 +4787,41 @@ func (w *Writer) removeDMLProp(attrs []string, spanType string) []string {
 // renderSMLBlock renders a run sequence as SpreadsheetML content.
 func (w *Writer) renderSMLBlock(runs []model.Run, block *model.Block) string {
 	if block.Type == "shared-string" {
-		return w.renderSMLSharedString(runs)
+		return w.renderSMLRichText(runs)
 	}
 
-	// Cell content — wrap in <v> element as inline string type. Flatten
-	// to plain text: inline codes in cell values are rare and the legacy
-	// path stripped markers via Fragment.Text().
+	// A cell that was read as an inline string goes back as one: ECMA-376
+	// Part 1 §18.3.1.4 requires a t="inlineStr" cell to hold its text in an
+	// <is> element, which carries CT_Rst just as <si> does. Writing the text
+	// in a value element instead leaves a workbook Excel repairs on open.
+	if block.Properties[cellStorageProp] == cellStorageInline {
+		return `<is>` + w.renderSMLRichText(runs) + `</is>`
+	}
+
+	// Cell content goes in a <v> element, flattened to plain text: inline
+	// codes in cell values are rare and the legacy path stripped markers
+	// via Fragment.Text().
 	return `<v>` + xmlesc.Text(model.FlattenRuns(runs)) + `</v>`
 }
 
-// renderSMLSharedString renders a run sequence as shared string <si> content.
-func (w *Writer) renderSMLSharedString(runs []model.Run) string {
+// renderSMLRichText renders a run sequence as CT_Rst content, the model both a
+// shared string's <si> and a cell's <is> hold: a single <t>, or one <r> per
+// stretch of run properties.
+func (w *Writer) renderSMLRichText(runs []model.Run) string {
 	if !model.RunsHaveInlineCodes(runs) {
-		return `<t>` + xmlesc.Text(model.FlattenRuns(runs)) + `</t>`
+		return smlTextElement(model.FlattenRuns(runs))
 	}
 
-	// Rich text shared string — emit <r> elements
 	var buf strings.Builder
+	var pending strings.Builder
 	var inRun bool
 	var currentProps []string
 
 	closeRun := func() {
 		if inRun {
-			buf.WriteString(`</t></r>`)
+			buf.WriteString(smlTextElement(pending.String()))
+			buf.WriteString(`</r>`)
+			pending.Reset()
 			inRun = false
 		}
 	}
@@ -4817,21 +4829,21 @@ func (w *Writer) renderSMLSharedString(runs []model.Run) string {
 	for _, r := range runs {
 		switch {
 		case r.Text != nil:
-			for _, ch := range r.Text.Text {
-				if !inRun {
-					buf.WriteString(`<r>`)
-					if len(currentProps) > 0 {
-						buf.WriteString(`<rPr>`)
-						for _, p := range currentProps {
-							buf.WriteString(p)
-						}
-						buf.WriteString(`</rPr>`)
-					}
-					buf.WriteString(`<t>`)
-					inRun = true
-				}
-				xmlEscapeRune(&buf, ch)
+			if r.Text.Text == "" {
+				continue
 			}
+			if !inRun {
+				buf.WriteString(`<r>`)
+				if len(currentProps) > 0 {
+					buf.WriteString(`<rPr>`)
+					for _, p := range currentProps {
+						buf.WriteString(p)
+					}
+					buf.WriteString(`</rPr>`)
+				}
+				inRun = true
+			}
+			pending.WriteString(r.Text.Text)
 
 		case r.PcOpen != nil:
 			closeRun()
@@ -4849,6 +4861,21 @@ func (w *Writer) renderSMLSharedString(runs []model.Run) string {
 	closeRun()
 	return buf.String()
 }
+
+// smlTextElement writes one <t> element. Text that starts or ends with XML
+// whitespace gets xml:space="preserve", the attribute a spreadsheet needs to
+// keep that whitespace; Excel writes it under the same condition.
+func smlTextElement(text string) string {
+	attr := ""
+	if strings.TrimLeft(text, xmlWhitespace) != text || strings.TrimRight(text, xmlWhitespace) != text {
+		attr = ` xml:space="preserve"`
+	}
+	return `<t` + attr + `>` + xmlesc.Text(text) + `</t>`
+}
+
+// xmlWhitespace is the set XML collapses in element content when xml:space is
+// left at its default (XML 1.0 §2.10).
+const xmlWhitespace = " \t\r\n"
 
 func (w *Writer) addSMLProp(props []string, spanType string) []string {
 	switch spanType {
