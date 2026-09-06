@@ -57,7 +57,7 @@ func (r *recordingNotifier) reset() {
 func TestRunManager_ReportsEachTransition(t *testing.T) {
 	store := newTestRunStore(t)
 	n := &recordingNotifier{}
-	rm := NewAutomationRunManager(store, func(AutomationAction, platev.Event, string) error { return nil })
+	rm := NewAutomationRunManager(store, func(context.Context, AutomationAction, platev.Event, string) error { return nil })
 	rm.SetRunNotifier(n)
 
 	ev := platev.Event{ID: "evt-notify", Type: platev.EventPushCompleted, ProjectID: "proj-1"}
@@ -100,7 +100,7 @@ func TestRunManager_ReportsEachTransition(t *testing.T) {
 // when nothing listens.
 func TestRunManager_NoNotifierIsSilent(t *testing.T) {
 	store := newTestRunStore(t)
-	rm := NewAutomationRunManager(store, func(AutomationAction, platev.Event, string) error { return nil })
+	rm := NewAutomationRunManager(store, func(context.Context, AutomationAction, platev.Event, string) error { return nil })
 	require.NoError(t, rm.Execute(AutomationAction{Type: "notify", Name: "quiet"},
 		platev.Event{ID: "evt-quiet", ProjectID: "proj-1"}))
 	runs, err := store.ListRuns(t.Context(), "proj-1", "", 10, 0)
@@ -116,7 +116,7 @@ func TestRunManager_CompleteStep_ReportsTransitions(t *testing.T) {
 	store := newTestRunStore(t)
 	ctx := t.Context()
 	n := &recordingNotifier{}
-	rm := NewAutomationRunManager(store, func(AutomationAction, platev.Event, string) error { return nil })
+	rm := NewAutomationRunManager(store, func(context.Context, AutomationAction, platev.Event, string) error { return nil })
 	rm.SetRunNotifier(n)
 
 	require.NoError(t, rm.Execute(
@@ -141,7 +141,7 @@ func TestRunManager_CompleteStep_ReportsTransitions(t *testing.T) {
 func TestRunManager_AsyncDispatchFailureSettlesRun(t *testing.T) {
 	store := newTestRunStore(t)
 	n := &recordingNotifier{}
-	rm := NewAutomationRunManager(store, func(AutomationAction, platev.Event, string) error {
+	rm := NewAutomationRunManager(store, func(context.Context, AutomationAction, platev.Event, string) error {
 		return errors.New("queue unavailable")
 	})
 	rm.SetRunNotifier(n)
@@ -157,12 +157,12 @@ func TestRunManager_AsyncDispatchFailureSettlesRun(t *testing.T) {
 }
 
 // TestRunManager_CancelRun proves a cancel is a reported transition: the run
-// is marked failed with the reason and its subscribers hear of it.
+// is marked cancelled with the reason and its subscribers hear of it.
 func TestRunManager_CancelRun(t *testing.T) {
 	store := newTestRunStore(t)
 	ctx := t.Context()
 	n := &recordingNotifier{}
-	rm := NewAutomationRunManager(store, func(AutomationAction, platev.Event, string) error { return nil })
+	rm := NewAutomationRunManager(store, func(context.Context, AutomationAction, platev.Event, string) error { return nil })
 	rm.SetRunNotifier(n)
 
 	require.NoError(t, rm.Execute(AutomationAction{Type: "auto_translate", Name: "draft"},
@@ -172,13 +172,13 @@ func TestRunManager_CancelRun(t *testing.T) {
 
 	require.NoError(t, rm.CancelRun(ctx, runID, "cancelled by user"))
 	require.Equal(t, []AutomationRunChangeKind{AutomationRunFinished}, n.kinds())
-	assert.Equal(t, bstore.RunStatusFailed, n.last().Run.Status)
+	assert.Equal(t, bstore.RunStatusCancelled, n.last().Run.Status)
 	assert.Equal(t, "cancelled by user", n.last().Run.Error)
 	assert.NotNil(t, n.last().Run.EndedAt)
 
 	run, err := store.GetRun(ctx, runID)
 	require.NoError(t, err)
-	assert.Equal(t, bstore.RunStatusFailed, run.Status)
+	assert.Equal(t, bstore.RunStatusCancelled, run.Status)
 
 	// Nothing to cancel is a no-op rather than an error.
 	require.NoError(t, rm.CancelRun(ctx, "", "x"))

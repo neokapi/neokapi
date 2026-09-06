@@ -167,6 +167,46 @@ describe("AutomationRunsPage live stream", () => {
     expect(getAutomationRun).toHaveBeenCalledTimes(1);
   });
 
+  it("draws a cancelled run and offers no second cancel", async () => {
+    const user = userEvent.setup();
+    const { adapter } = stubAdapter();
+    renderPage(adapter, true);
+
+    await user.click(await screen.findByText("Content pushed"));
+    expect(await screen.findByText("checks-on-push")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+
+    const es = FakeEventSource.instances[0];
+    act(() => es.open());
+
+    // Cancelling closes the run and the step it stopped, and the frame the
+    // server pushes carries both.
+    act(() =>
+      es.emit("message", {
+        type: "run.finished",
+        run: {
+          ...runningRun,
+          status: "cancelled",
+          done_count: 1,
+          error: "cancelled by user",
+          ended_at: new Date().toISOString(),
+        },
+        steps: [
+          {
+            ...runningStep,
+            status: "skipped",
+            error: "cancelled by user",
+            ended_at: new Date().toISOString(),
+          },
+        ],
+      }),
+    );
+
+    expect(screen.getByText("cancelled")).toBeInTheDocument();
+    expect(screen.getByText("\u00B7")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Cancel" })).not.toBeInTheDocument();
+  });
+
   it("opens no stream when live is off", async () => {
     const user = userEvent.setup();
     const { adapter, getAutomationRun } = stubAdapter();

@@ -21,6 +21,7 @@ const runStatusColor: Record<RunStatus, string> = {
   completed: "bg-success/10 text-success dark:bg-success/20 dark:text-success",
   failed: "bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive",
   partial: "bg-warning/10 text-warning dark:bg-warning/20 dark:text-warning",
+  cancelled: "bg-muted text-muted-foreground",
 };
 
 const stepStatusIcon: Record<StepStatus, string> = {

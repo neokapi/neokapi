@@ -253,7 +253,7 @@ func TestAutomation_UnknownActionTypeFailsTheStep(t *testing.T) {
 	srv := newRunFlowTestServer(t)
 	projID := seedRunFlowProject(t, srv, "Unknown action")
 
-	err := srv.executeAutomationAction(event.AutomationAction{Type: "webhook", Name: "hook"}, platev.Event{
+	err := srv.executeAutomationAction(t.Context(), event.AutomationAction{Type: "webhook", Name: "hook"}, platev.Event{
 		ID: id.New(), Type: platev.EventPullCompleted, ProjectID: projID, Timestamp: time.Now().UTC(),
 	}, "")
 	require.Error(t, err)

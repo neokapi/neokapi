@@ -77,10 +77,10 @@ func TestHandleAutomationRunSSE_PushesTransitions(t *testing.T) {
 	// subscribed to, before its step closes.
 	release := make(chan struct{})
 	started := make(chan string, 1)
-	rm := event.NewAutomationRunManager(srv.AutomationRunStore, func(a event.AutomationAction, ev platev.Event, stepID string) error {
+	rm := event.NewAutomationRunManager(srv.AutomationRunStore, func(ctx context.Context, a event.AutomationAction, ev platev.Event, stepID string) error {
 		started <- stepID
 		<-release
-		return srv.executeAutomationAction(a, ev, stepID)
+		return srv.executeAutomationAction(ctx, a, ev, stepID)
 	})
 	rm.SetRunNotifier(srv.runHub)
 
@@ -150,7 +150,13 @@ func TestHandleAutomationRunSSE_PushesTransitions(t *testing.T) {
 	assert.Equal(t, 0, srv.runHub.subscribers(runID))
 
 	// A transition after the disconnect reaches nobody and panics nothing.
-	require.NoError(t, rm.CancelRun(ctx, runID, "late"))
+	srv.runHub.RunChanged(ctx, event.AutomationRunChange{
+		Kind: event.AutomationRunFinished,
+		Run:  &bstore.AutomationRun{ID: runID, Status: bstore.RunStatusCompleted},
+	})
+
+	// The run has settled, so there is nothing left to cancel.
+	require.ErrorIs(t, rm.CancelRun(ctx, runID, "late"), event.ErrRunNotCancellable)
 }
 
 // TestHandleAutomationRunSSE_SnapshotClosesSettledRun proves the snapshot
@@ -217,16 +223,17 @@ func TestHandleCancelAutomationRun_PushesRunFinished(t *testing.T) {
 		var f automationRunFrame
 		require.NoError(t, json.Unmarshal(payload, &f))
 		assert.Equal(t, "run.finished", f.Type)
-		assert.Equal(t, bstore.RunStatusFailed, f.Run.Status)
+		assert.Equal(t, bstore.RunStatusCancelled, f.Run.Status)
 		assert.Equal(t, "cancelled by user", f.Run.Error)
 		require.Len(t, f.Steps, 1)
+		assert.Equal(t, bstore.StepStatusSkipped, f.Steps[0].Status)
 	case <-time.After(2 * time.Second):
 		t.Fatal("the cancel was not pushed to the run's subscriber")
 	}
 
 	got, err := srv.AutomationRunStore.GetRun(ctx, run.ID)
 	require.NoError(t, err)
-	assert.Equal(t, bstore.RunStatusFailed, got.Status)
+	assert.Equal(t, bstore.RunStatusCancelled, got.Status)
 }
 
 // TestAutomationRunHub_FanOut proves the hub's contract: every subscriber of

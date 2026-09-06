@@ -24,7 +24,33 @@ const (
 	RunStatusCompleted RunStatus = "completed"
 	RunStatusFailed    RunStatus = "failed"
 	RunStatusPartial   RunStatus = "partial" // some steps succeeded, some failed
+	// RunStatusCancelled is a run a person stopped. It is its own status, not
+	// a failure with a message: nothing went wrong, and a run history that
+	// calls a deliberate stop a failure teaches a reader to ignore failures.
+	RunStatusCancelled RunStatus = "cancelled"
 )
+
+// RunIsTerminal reports whether a run has finished and will not move again on
+// its own. A terminal run is a record: a step reporting late must not rewrite
+// it.
+func RunIsTerminal(s RunStatus) bool {
+	switch s {
+	case RunStatusCompleted, RunStatusFailed, RunStatusPartial, RunStatusCancelled:
+		return true
+	default:
+		return false
+	}
+}
+
+// StepIsTerminal reports whether a step has already reported its outcome.
+func StepIsTerminal(s StepStatus) bool {
+	switch s {
+	case StepStatusCompleted, StepStatusFailed, StepStatusSkipped:
+		return true
+	default:
+		return false
+	}
+}
 
 // StepStatus tracks the lifecycle of a single step within a run.
 type StepStatus string
@@ -181,7 +207,7 @@ func (s *AutomationRunStore) ListRuns(ctx context.Context, projectID, status str
 // UpdateRunStatus updates the run status and optionally sets error and ended_at.
 func (s *AutomationRunStore) UpdateRunStatus(ctx context.Context, runID string, status RunStatus, errMsg string) error {
 	var endedAt any
-	if status == RunStatusCompleted || status == RunStatusFailed || status == RunStatusPartial {
+	if RunIsTerminal(status) {
 		endedAt = time.Now().UTC().Format(time.RFC3339Nano)
 	}
 	_, err := s.db.ExecContext(ctx,
@@ -228,10 +254,17 @@ func (s *AutomationRunStore) CreateStep(ctx context.Context, step *AutomationSte
 		return fmt.Errorf("create automation step: %w", err)
 	}
 
-	// Increment step count on the parent run.
+	// Increment step count on the parent run. A run that settled seconds ago
+	// can still gain a step, because one event's actions are grouped into one
+	// run and dispatch is not instantaneous, so the run reopens as running. A
+	// cancelled run does not: a person stopped it, and the step this creates
+	// is closed by the cancellation rather than run.
 	_, _ = s.db.ExecContext(ctx,
-		`UPDATE automation_runs SET step_count = step_count + 1, status = $1 WHERE id = $2`,
-		string(RunStatusRunning), step.RunID)
+		`UPDATE automation_runs
+			SET step_count = step_count + 1,
+			    status = CASE WHEN status = $3 THEN status ELSE $1 END
+			WHERE id = $2`,
+		string(RunStatusRunning), step.RunID, string(RunStatusCancelled))
 
 	return nil
 }
@@ -270,7 +303,7 @@ func (s *AutomationRunStore) ListSteps(ctx context.Context, runID string) ([]*Au
 // UpdateStepStatus updates a step's status and optionally error.
 func (s *AutomationRunStore) UpdateStepStatus(ctx context.Context, stepID string, status StepStatus, errMsg string) error {
 	var endedAt any
-	if status == StepStatusCompleted || status == StepStatusFailed || status == StepStatusSkipped {
+	if StepIsTerminal(status) {
 		endedAt = time.Now().UTC().Format(time.RFC3339Nano)
 	}
 	_, err := s.db.ExecContext(ctx,

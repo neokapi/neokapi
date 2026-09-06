@@ -68,6 +68,11 @@ func settleAutomationRun(ctx context.Context, store *bstore.AutomationRunStore, 
 	if err != nil {
 		return false
 	}
+	if run.Status == bstore.RunStatusCancelled {
+		// A person stopped this run. A step closing after that must not
+		// recompute the run from its steps and report it completed.
+		return false
+	}
 	if run.StepCount == 0 || run.DoneCount < run.StepCount {
 		return false
 	}
