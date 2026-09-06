@@ -28,6 +28,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/neokapi/neokapi/bowrain/storage"
+	"github.com/neokapi/neokapi/bowrain/testutil/testimage"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -257,7 +258,7 @@ func startContainer(t *testing.T) (connStr string, cleanup func(), err error) {
 
 	ctx := context.Background()
 	container, err := postgres.Run(ctx,
-		"postgres:16-alpine",
+		testimage.Postgres,
 		postgres.WithDatabase("bowrain_test"),
 		postgres.WithUsername("bowrain"),
 		postgres.WithPassword("bowrain"),

@@ -133,6 +133,7 @@ DOCKER_KEYCLOAK_IMAGE := ghcr.io/neokapi/bowrain-keycloak
         stack-up stack-up-web stack-up-shared stack-shared-down stack-down stack-logs stack-ps stack-build \
         test test-fast test-unit test-race test-verbose test-integration \
         test-platform test-bowrain-plugin test-bowrain test-e2e-bowrain test-e2e-cloud test-e2e-dev \
+        test-images pull-test-images \
         cover fmt vet lint check proto deps deps-update clean
 
 # ── General ──────────────────────────────────────────────────────────────────
@@ -491,6 +492,20 @@ ifdef CI
 else
 	cd plugin && $(GOTEST_BASE) ./... -count=1
 endif
+
+# ── Container images the suites start ────────────────────────────────────────
+# testutil/testimage is the list, so a test and the fetch that warms the cache
+# for it can never name different images. Fetching them under a step of their
+# own means a registry that refuses the pull fails there, by name, instead of
+# inside whichever test reached for its image first.
+test-images: ## Print the container images the bowrain suites start
+	@$(GO) run ./testutil/testimage/list
+
+pull-test-images: ## Fetch those images so no test pulls one mid-run
+	@$(GO) run ./testutil/testimage/list | while read -r img; do \
+		echo "docker pull $$img"; \
+		docker pull --quiet "$$img" >/dev/null || exit 1; \
+	done
 
 test-bowrain: i18n-catalogs ## Run bowrain module tests only
 	@mkdir -p $(COVER_DIR)

@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
+	"github.com/neokapi/neokapi/bowrain/testutil/testimage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
@@ -28,7 +29,7 @@ func newElasticMQ(t *testing.T) string {
 	}
 	ctx := context.Background()
 	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		Image:        "softwaremill/elasticmq-native:latest",
+		Image:        testimage.ElasticMQ,
 		ExposedPorts: []string{"9324/tcp"},
 		WaitingFor: wait.ForListeningPort("9324/tcp").
 			WithStartupTimeout(60 * time.Second),
