@@ -172,6 +172,14 @@ entries:
     license: Apache-2.0
     redistributable: true
     notes: 'FuzzRoundTripMarkdown seed for #2505 (a quote marker inside an HTML block)'
+  - path: core/formats/markdown/testdata/fuzz/FuzzRoundTripMarkdown/indented_marker_line
+    tier: A
+    origin: bug
+    sha256: f76a821da680375b3c6925184acec37932c28d41313595ca8eda6f7b7e4f69f0
+    size: 39
+    license: Apache-2.0
+    redistributable: true
+    notes: 'FuzzRoundTripMarkdown seed for #2504 (an indented marker on a continuation line)'
   - path: core/formats/markdown/testdata/fuzz/FuzzRoundTripMarkdown/lazy_blockquote_continuation
     tier: A
     origin: bug

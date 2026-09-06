@@ -1308,6 +1308,10 @@ func escapeInterruptingBlockMarker(line string) string {
 // paragraph. A heading, a blockquote, a thematic break and a fence all do,
 // whatever follows them.
 func interruptsAParagraph(line string) bool {
+	line = line[blockIndent(line):]
+	if line == "" {
+		return false
+	}
 	switch c := line[0]; {
 	case c == '#', c == '>', c == '`', c == '~':
 		return true
@@ -1343,6 +1347,27 @@ func listContentFollows(line string, i int) bool {
 // backslash before a digit is not an escape, so the punctuation is escaped
 // instead — "1. x" -> "1\. x").
 func leadingBlockMarkerPos(text string) (int, bool) {
+	off := blockIndent(text)
+	i, ok := blockMarkerPos(text[off:])
+	return off + i, ok
+}
+
+// blockIndent returns the length of the indentation that can precede a block
+// marker: CommonMark allows up to three spaces there, and a fourth makes the
+// line indented code. A marker the escape tested at byte zero alone was missed
+// when the line carried any of it, and " # 0" opened a heading on the way back
+// in (#2504).
+func blockIndent(text string) int {
+	n := 0
+	for n < 3 && n < len(text) && text[n] == ' ' {
+		n++
+	}
+	return n
+}
+
+// blockMarkerPos answers leadingBlockMarkerPos for a line whose indentation has
+// already been stepped over.
+func blockMarkerPos(text string) (int, bool) {
 	if text == "" {
 		return 0, false
 	}

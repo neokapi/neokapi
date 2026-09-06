@@ -303,6 +303,10 @@ func FuzzRoundTripMarkdown(f *testing.F) {
 	// is also committed under testdata/fuzz.
 	f.Add([]byte("<div>0\n# 0"))
 	f.Add([]byte("<div>a\n- b\nc"))
+	// #2504: CommonMark allows up to three spaces before a block marker, and
+	// the continuation-line escape tested the first byte alone. Also committed
+	// under testdata/fuzz.
+	f.Add([]byte("<div>a\n # 0"))
 	// #2503: an inline construct on a line of its own is dropped by the
 	// rebuild, and the empty line it left ended the paragraph. The first is
 	// also committed under testdata/fuzz.
