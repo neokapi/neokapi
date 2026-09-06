@@ -30,8 +30,10 @@ type llmSegmenter struct {
 	mask          segment.MaskOptions
 }
 
-// LLMParams is the LLM engine's own configuration. APIKey / BaseURL are resolved
-// at runtime from Credential by the host and are not form fields.
+// LLMParams is the LLM engine's own configuration. APIKey and BaseURL are
+// resolved at runtime from Credential by the host and are not form fields:
+// they are decoded from the params map the host hands in, and kept off the
+// generated schema so nothing offers them for authoring.
 type LLMParams struct {
 	Provider      string `json:"provider,omitempty"      schema:"title=Provider,description=AI provider id (anthropic, openai, gemini, …),order=10"`
 	Model         string `json:"model,omitempty"         schema:"title=Model,description=Model name,order=20"`
@@ -39,9 +41,13 @@ type LLMParams struct {
 	Instruction   string `json:"instruction,omitempty"   schema:"title=Chunking Instruction,description=Optional guidance for how to chunk,widget=textarea,order=40"`
 	MaxChunkRunes int    `json:"maxChunkRunes,omitempty" schema:"title=Max Chunk Size,description=Soft upper bound on chunk size in characters (0 = model default),min=0,order=50"`
 
-	// Resolved at runtime by the host, not exposed as form fields.
-	APIKey  string `json:"-" schema:"-"`
-	BaseURL string `json:"-" schema:"-"`
+	// Resolved at runtime by the host, not exposed as form fields. They carry
+	// their real JSON names because schema.ApplyConfig decodes the params map
+	// through JSON: under `json:"-"` the host's resolved key and endpoint were
+	// dropped on the way in and the engine called the vendor's public endpoint
+	// with no credential.
+	APIKey  string `json:"apiKey,omitempty"  schema:"-"`
+	BaseURL string `json:"baseURL,omitempty" schema:"-"`
 }
 
 // init wires the LLM engine into the global segment registry, mirroring the
