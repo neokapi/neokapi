@@ -122,6 +122,13 @@ func FuzzReadMarkdown(f *testing.F) {
 	f.Add([]byte(""))
 	f.Add([]byte("- a\n- b\n"))
 	f.Add([]byte("Text with `code` and [link](https://example.com).\n"))
+	// #2444: an inline node inside an excluded HTML span (script, style, math)
+	// was asked for a Lines() span it does not have, and goldmark panicked by
+	// design. Both reproducers are also committed under testdata/fuzz.
+	f.Add([]byte("a <script>*b*</script> c"))
+	f.Add([]byte("a <style>[x](y)</style> c"))
+	f.Add([]byte("a <math>`c` <https://x> ![i](s)</math> b"))
+	markdownSeed(f, "excluded-html-inline.md", "emphasis-delimiters.md", "image-alt.md")
 	seedDamagedMarkdown(f)
 
 	f.Fuzz(func(t *testing.T, data []byte) {
@@ -237,6 +244,29 @@ func FuzzRoundTripMarkdown(f *testing.F) {
 	f.Add([]byte("<https://example.com>"))
 	f.Add([]byte("- <https://x>\n- b"))
 	f.Add([]byte("*<https://x>* [a](b) <https://x>"))
+	// #2444: the same excluded-span reproducers, through the rebuild path.
+	f.Add([]byte("a <script>*b*</script> c"))
+	f.Add([]byte("a <style>[x](y)</style> c"))
+	// #2445: the reader offers a link's title as a text run between a second
+	// pair of codes, which the rebuild path rendered as a link of its own, so
+	// the block gained one empty link per pass. The first is also committed
+	// under testdata/fuzz.
+	f.Add([]byte("[a](b 't')"))
+	f.Add([]byte("![a](b (t))"))
+	f.Add([]byte("[![i](s 'st')](b 'lt')"))
+	f.Add([]byte("[a](b 'say \"hi\"')"))
+	// #2446: an underscore emphasis whose first child is not a text node came
+	// back with asterisks, and `_*a*_` as `**a**`, which re-reads as strong.
+	f.Add([]byte("_*a*_"))
+	f.Add([]byte("_[a](b)_"))
+	f.Add([]byte("__![i](s)__"))
+	// #2448: a hard break whose line has no other content left two newlines in
+	// the block text, and the blank line ended the paragraph on re-read. The
+	// first input is also committed under testdata/fuzz.
+	f.Add([]byte("0\n\\\n0"))
+	f.Add([]byte("> 0\n> \\\n> 0"))
+	f.Add([]byte("- 0\n  \\\n  0"))
+	f.Add([]byte(">\\\n#\\\n00"))
 	seedDamagedMarkdown(f)
 
 	f.Fuzz(func(t *testing.T, data []byte) {

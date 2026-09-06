@@ -275,6 +275,15 @@ func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[strin
 	return nil
 }
 
+// The paired codes the markdown reader wraps a link's or image's title in, so
+// the title travels as translatable text rather than inside the closing
+// skeleton. Named here because the reader spells them and the writer reads
+// them back.
+const (
+	subTypeLinkTitle  = "md:link-title"
+	subTypeImageTitle = "md:image-title"
+)
+
 // mdInlineTag maps a canonical inline run Type to its Markdown delimiters
 // (open, close). Used by the cross-format semantic export path so inline
 // formatting renders as Markdown (**bold**, _italic_) regardless of the source
@@ -305,11 +314,41 @@ var mdInlineTag = map[string][2]string{
 // run attributes: `](dest)` or `](dest "title")`. destKey is model.AttrHref for
 // links, model.AttrSrc for images. A nil/empty attrs map yields `]()`.
 func mdLinkClose(attrs map[string]string, destKey string) string {
+	return mdLinkCloseTitled(attrs, destKey, attrs[model.AttrTitle])
+}
+
+// mdLinkCloseTitled builds the same closing syntax with an explicit title,
+// which is how a translated one reaches the output: the markdown reader offers
+// a title as a text run of its own, so the run stream carries the edited title
+// and the attribute still carries the source's.
+func mdLinkCloseTitled(attrs map[string]string, destKey, title string) string {
 	dest := attrs[destKey]
-	if title := attrs[model.AttrTitle]; title != "" {
-		return "](" + dest + ` "` + title + `")`
+	if title == "" {
+		return "](" + dest + ")"
 	}
-	return "](" + dest + ")"
+	return "](" + dest + ` "` + escapeLinkTitle(title) + `")`
+}
+
+// escapeLinkTitle backslash-escapes any double quote in a title that is not
+// already escaped, so the title the writer spells between double quotes reads
+// back as the same text (CommonMark 6.6 allows an escape anywhere in a title).
+// Leaving an escape alone keeps the output idempotent: a title read back from
+// this writer carries the backslash and must not gain a second one.
+func escapeLinkTitle(title string) string {
+	if !strings.Contains(title, `"`) {
+		return title
+	}
+	var sb strings.Builder
+	escaped := false
+	for i := range len(title) {
+		c := title[i]
+		if c == '"' && !escaped {
+			sb.WriteByte('\\')
+		}
+		sb.WriteByte(c)
+		escaped = c == '\\' && !escaped
+	}
+	return sb.String()
 }
 
 // renderInlineMarkdown renders a run sequence as Markdown inline content: text
@@ -364,17 +403,95 @@ func renderInline(runs []model.Run, escapeAngle bool) string {
 // consults a run's Data — the same Markdown results whatever the source format.
 type mdInlineSink struct {
 	sb          strings.Builder
-	open        []string // stack of closing delimiters (or "" for dropped tags)
-	escapeAngle bool     // backslash-escape literal '<' (paragraph text, not code)
-	literal     bool     // emit run text only, no markup (fenced code content)
+	open        []mdOpenTag // stack of open paired codes, innermost last
+	escapeAngle bool        // backslash-escape literal '<' (paragraph text, not code)
+	literal     bool        // emit run text only, no markup (fenced code content)
+	// pending holds a link's or image's closing markup back until the next run
+	// is known, because a title pair follows that close and carries the title
+	// the closer has to spell.
+	pending *mdPendingClose
+	// title collects a title pair's text while one is open.
+	title *strings.Builder
+	// heldBreak is set by a hard break that opened its own line, and spends
+	// itself on the next run: a backslash, when the text after it begins the
+	// following line.
+	heldBreak bool
+}
+
+// mdOpenTag is one entry of the open-paired-code stack.
+type mdOpenTag struct {
+	close   string            // the markup that closes the pair
+	attrs   map[string]string // a link's or image's attributes
+	destKey string            // model.AttrHref or model.AttrSrc; empty for anything else
+	title   bool              // the pair holds the title of the link or image that just closed
+}
+
+// mdPendingClose is a link's or image's closing markup, held until the sink
+// knows whether a title pair follows it.
+type mdPendingClose struct {
+	attrs   map[string]string
+	destKey string
+}
+
+// isLinkTitlePair reports whether a paired code holds a link's or image's
+// title. The markdown reader splits a titled link into the link's own pair and
+// a second one around the title text, so the title is offered for translation
+// (mirroring okapi's MarkdownFilter). The title belongs inside the closer of
+// the pair before it, and spells nothing of its own.
+func isLinkTitlePair(r *model.PcOpenRun) bool {
+	return r.SubType == subTypeLinkTitle || r.SubType == subTypeImageTitle
 }
 
 func (s *mdInlineSink) Text(t string) {
+	if s.title != nil {
+		s.title.WriteString(t)
+		return
+	}
+	s.flushPending()
+	s.spellHeldBreak(t)
 	if s.escapeAngle {
 		writeEscapingAngle(&s.sb, t)
 		return
 	}
 	s.sb.WriteString(t)
+}
+
+// spellHeldBreak spends a hard break held from the previous run on the text
+// that follows it: a backslash when that text begins the next line, so the
+// break's own line is not left empty, and nothing otherwise, because a lone
+// backslash mid-line escapes the character after it.
+func (s *mdInlineSink) spellHeldBreak(next string) {
+	if !s.heldBreak {
+		return
+	}
+	s.heldBreak = false
+	if strings.HasPrefix(next, "\n") {
+		s.sb.WriteByte('\\')
+	}
+}
+
+// flushPending spells a held-back link or image closer with the title its
+// attributes carry, which is the answer whenever no title pair follows.
+func (s *mdInlineSink) flushPending() {
+	p := s.pending
+	if p == nil {
+		return
+	}
+	s.pending = nil
+	s.sb.WriteString(mdLinkClose(p.attrs, p.destKey))
+}
+
+// spellPendingTitle spells a held-back closer with the title collected from the
+// title pair, and reports whether there was one to spell.
+func (s *mdInlineSink) spellPendingTitle() bool {
+	if s.title == nil || s.pending == nil {
+		s.title = nil
+		return false
+	}
+	p, title := s.pending, s.title.String()
+	s.pending, s.title = nil, nil
+	s.sb.WriteString(mdLinkCloseTitled(p.attrs, p.destKey, title))
+	return true
 }
 
 // writeEscapingAngle writes t, backslash-escaping any '<' that is not already
@@ -400,34 +517,61 @@ func writeEscapingAngle(sb *strings.Builder, t string) {
 
 func (s *mdInlineSink) Open(r *model.PcOpenRun) {
 	if s.literal {
-		s.open = append(s.open, "")
+		s.open = append(s.open, mdOpenTag{})
 		return
 	}
+	s.spellHeldBreak("")
+	if isLinkTitlePair(r) {
+		// The pair spells no markup of its own. With a link's closer still held
+		// back, its text is that closer's title; with none (a target whose runs
+		// were reordered) the text stays where it is, as text.
+		s.open = append(s.open, mdOpenTag{title: true})
+		if s.pending != nil {
+			s.title = &strings.Builder{}
+		}
+		return
+	}
+	s.flushPending()
 	switch r.Type {
 	case "link:hyperlink":
 		// [text](href "title") — the link text is the paired content.
 		s.sb.WriteString("[")
-		s.open = append(s.open, mdLinkClose(r.Attrs, model.AttrHref))
+		s.open = append(s.open, mdOpenTag{attrs: r.Attrs, destKey: model.AttrHref})
 	case "media:image", "link:image":
-		// ![alt](src "title") — the alt text is the paired content.
-		s.sb.WriteString("![")
-		s.open = append(s.open, mdLinkClose(r.Attrs, model.AttrSrc))
+		// ![alt](src "title"). The alt text is the paired content, except
+		// where a reader does not offer it for translation and records it on
+		// the alt attribute instead (markdown's translateImageAlt: false).
+		s.sb.WriteString("![" + r.Attr(model.AttrAlt))
+		s.open = append(s.open, mdOpenTag{attrs: r.Attrs, destKey: model.AttrSrc})
 	default:
 		if m, ok := mdInlineTag[r.Type]; ok {
 			s.sb.WriteString(m[0])
-			s.open = append(s.open, m[1])
+			s.open = append(s.open, mdOpenTag{close: m[1]})
 		} else {
-			s.open = append(s.open, "")
+			s.open = append(s.open, mdOpenTag{})
 		}
 	}
 }
 
 func (s *mdInlineSink) Close(*model.PcCloseRun) {
-	if n := len(s.open); n > 0 {
-		c := s.open[n-1]
-		s.open = s.open[:n-1]
-		s.sb.WriteString(c)
+	s.spellHeldBreak("")
+	n := len(s.open)
+	if n == 0 {
+		s.flushPending()
+		return
 	}
+	tag := s.open[n-1]
+	s.open = s.open[:n-1]
+	if tag.title {
+		s.spellPendingTitle()
+		return
+	}
+	s.flushPending()
+	if tag.destKey != "" {
+		s.pending = &mdPendingClose{attrs: tag.attrs, destKey: tag.destKey}
+		return
+	}
+	s.sb.WriteString(tag.close)
 }
 
 func (s *mdInlineSink) Placeholder(r *model.PlaceholderRun) {
@@ -435,11 +579,29 @@ func (s *mdInlineSink) Placeholder(r *model.PlaceholderRun) {
 		s.sb.WriteString(r.Equiv)
 		return
 	}
+	if s.title != nil {
+		s.title.WriteString(r.Equiv)
+		return
+	}
+	s.flushPending()
+	s.spellHeldBreak(r.Equiv)
 	switch r.Type {
 	case "media:image", "link:image":
 		// Self-closing image (e.g. read from HTML <img>): the alt text lives in
 		// the run attributes, not as paired content.
 		s.sb.WriteString("![" + r.Attr(model.AttrAlt) + mdLinkClose(r.Attrs, model.AttrSrc))
+	case "struct:break":
+		// A hard break's spelling is markup, so it rides the placeholder and
+		// the newline it contributes is the text after it (#1661). On a line
+		// whose only content is the break that leaves two newlines, and the
+		// blank line ends the paragraph when the output is read back: "0\n\\\n0"
+		// came back as two paragraphs (#2448). A backslash gives the line
+		// content, and reads back as the same hard break. It is held until the
+		// next run confirms a line follows, and a break that opens the block
+		// spells nothing: the leading whitespace is trimmed, so there is no
+		// blank line to prevent.
+		s.heldBreak = s.sb.Len() > 0 && s.atLineStart()
+		s.sb.WriteString(r.Equiv)
 	default:
 		if r.Equiv != "" {
 			s.sb.WriteString(r.Equiv)
@@ -447,10 +609,37 @@ func (s *mdInlineSink) Placeholder(r *model.PlaceholderRun) {
 	}
 }
 
-func (s *mdInlineSink) flush() {
-	for _, v := range slices.Backward(s.open) {
-		s.sb.WriteString(v)
+// atLineStart reports whether the output's current line carries no content
+// yet: everything since the last newline is the continuation prefix a
+// blockquote or a list item bakes into the runs (#1661), or nothing at all.
+func (s *mdInlineSink) atLineStart() bool {
+	out := s.sb.String()
+	for i := len(out) - 1; i >= 0; i-- {
+		switch out[i] {
+		case '\n':
+			return true
+		case ' ', '\t', '>':
+		default:
+			return false
+		}
 	}
+	return true
+}
+
+func (s *mdInlineSink) flush() {
+	s.heldBreak = false
+	s.spellPendingTitle()
+	s.flushPending()
+	for _, tag := range slices.Backward(s.open) {
+		switch {
+		case tag.title:
+		case tag.destKey != "":
+			s.sb.WriteString(mdLinkClose(tag.attrs, tag.destKey))
+		default:
+			s.sb.WriteString(tag.close)
+		}
+	}
+	s.open = nil
 }
 
 // writeFromEvents reconstructs markdown from the ordered block + group event

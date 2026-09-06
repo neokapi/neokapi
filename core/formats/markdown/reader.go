@@ -204,14 +204,7 @@ func (r *Reader) Open(ctx context.Context, doc *model.RawDocument) error {
 
 // Read returns a channel of PartResults.
 func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
-	ch := make(chan model.PartResult, 64)
-	go func() {
-		defer close(ch)
-		if err := r.readContent(ctx, ch); err != nil {
-			ch <- model.PartResult{Error: err}
-		}
-	}()
-	return ch
+	return format.StreamParts(ctx, r.readContent)
 }
 
 func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) error {
@@ -2588,6 +2581,9 @@ func (r *Reader) collectInlineText(buf *strings.Builder, node ast.Node, source [
 				}
 			}
 		case *ast.Image:
+			// With the alt text not offered for translation it is not part of
+			// the block's text either; it rides the image's opening code and
+			// its alt attribute instead (#2447).
 			if r.cfg.TranslateImageAlt() {
 				r.collectInlineText(buf, child, source)
 			}
@@ -2958,10 +2954,13 @@ func rawHTMLTagName(n *ast.RawHTML, source []byte) string {
 	return strings.ToLower(string(s[idx:end]))
 }
 
-// appendNodeRawBytes writes a node's source bytes to dst. For Text and
-// RawHTML nodes we use the segment ranges; everything else falls back
-// to the node's Lines() span (paragraph descendants typically expose
-// the same ranges via Lines() at the leaf level).
+// appendNodeRawBytes writes a node's source bytes to dst. Text and RawHTML
+// carry segment ranges; any other inline node is located through the offset
+// resolver, and a block node falls back to its Lines() span.
+//
+// The split by node type is the whole point. goldmark's BaseInline.Lines()
+// panics by design, so calling it on the emphasis in `a <script>*b*</script> c`
+// crashed the reader's goroutine, and with it the process (#2444).
 func (r *Reader) appendNodeRawBytes(dst *strings.Builder, n ast.Node, source []byte) {
 	switch v := n.(type) {
 	case *ast.Text:
@@ -2972,22 +2971,41 @@ func (r *Reader) appendNodeRawBytes(dst *strings.Builder, n ast.Node, source []b
 		if v.HardLineBreak() {
 			dst.WriteByte('\n')
 		}
+	case *ast.String:
+		dst.Write(v.Value)
 	case *ast.RawHTML:
 		for i := range v.Segments.Len() {
 			seg := v.Segments.At(i)
 			dst.Write(seg.Value(source))
 		}
 	default:
-		// Best-effort: use Lines() ranges so nested inline nodes
-		// (Emphasis, Link, Image with text inside math) still
-		// contribute their source bytes verbatim. Excluded markup
-		// doesn't typically nest non-RawHTML children, but this guards
-		// against malformed input.
+		if n.Type() == ast.TypeInline {
+			r.appendInlineRawBytes(dst, n, source)
+			return
+		}
 		lines := n.Lines()
 		for i := range lines.Len() {
 			seg := lines.At(i)
 			dst.Write(seg.Value(source))
 		}
+	}
+}
+
+// appendInlineRawBytes writes the source span of an inline node that records no
+// segments of its own: an emphasis, a link, a code span, an autolink between an
+// excluded element's open and close tag. The span comes from the offset
+// resolver, which locates a node from its neighbours; when the node cannot be
+// located, its children still contribute their own bytes, so the markup around
+// them is what is lost rather than the text inside.
+func (r *Reader) appendInlineRawBytes(dst *strings.Builder, n ast.Node, source []byte) {
+	start, okStart := inlineNodeStart(n, source)
+	end, okEnd := inlineNodeEnd(n, source)
+	if okStart && okEnd && start >= 0 && start <= end && end <= len(source) {
+		dst.Write(source[start:end])
+		return
+	}
+	for child := n.FirstChild(); child != nil; child = child.NextSibling() {
+		r.appendNodeRawBytes(dst, child, source)
 	}
 }
 
@@ -3012,19 +3030,24 @@ func (r *Reader) buildEmphasisRuns(b *runBuilder, n *ast.Emphasis, source []byte
 	b.AddPcClose(id, semType, subType, data, info.Equiv)
 }
 
-// emphasisDelimiter returns the byte ('*' or '_') used as the
-// emphasis marker in the source. goldmark's ast.Emphasis only carries
-// the delimiter level (1 or 2), not which character was used, so we
-// look at the source bytes immediately before the first child node.
-// Defaults to '*' when the offset can't be located (e.g. nested or
-// programmatically-built nodes).
+// emphasisDelimiter returns the byte ('*' or '_') used as the emphasis marker
+// in the source. goldmark's ast.Emphasis carries the delimiter level (1 or 2)
+// and not which character spelled it, so the byte comes from the source at the
+// offset the resolver places the node at.
+//
+// The resolver answers for an emphasis whose first child is not a text node,
+// which reading back from the child's own segment could not: `_[a](b)_` came
+// back as `*[a](b)*`, and `_*a*_` as `**a**`, which re-reads as strong and
+// changes the block (#2446). Defaults to '*' when the node cannot be located
+// (a programmatically-built one, above all).
 func emphasisDelimiter(n *ast.Emphasis, source []byte) byte {
-	first := n.FirstChild()
-	if first == nil {
-		return '*'
+	if start, ok := inlineNodeStart(n, source); ok && start >= 0 && start < len(source) {
+		if c := source[start]; c == '*' || c == '_' {
+			return c
+		}
 	}
-	// Inline text nodes carry their source range via Segment.
-	if t, ok := first.(*ast.Text); ok {
+	// The first child's own segment, for a node the resolver could not place.
+	if t, ok := n.FirstChild().(*ast.Text); ok {
 		start := t.Segment.Start - n.Level
 		if start >= 0 && start < len(source) {
 			c := source[start]
@@ -3207,7 +3230,7 @@ func (r *Reader) buildLinkRuns(b *runBuilder, n *ast.Link, source []byte, idCoun
 		info.Constraints.Deletable, info.Constraints.Cloneable, info.Constraints.Reorderable)
 	b.SetLastAttrs(linkImageAttrs(model.AttrHref, n.Destination, n.Title, nil))
 	r.buildCodedRuns(b, n, source, idCounter)
-	r.addLinkCloseRuns(b, n, id, "link:hyperlink", "md:link", "md:link-title", 1, info.Equiv, source, idCounter)
+	r.addLinkCloseRuns(b, n, id, "link:hyperlink", "md:link", subTypeLinkTitle, 1, info.Equiv, source, idCounter)
 }
 
 // addLinkCloseRuns appends the runs that close an inline link or image after
@@ -3294,11 +3317,20 @@ func (r *Reader) buildImageRuns(b *runBuilder, n *ast.Image, source []byte, idCo
 	// produce an empty pc-pair around no inline content, matching the
 	// shape okapi MarkdownParser uses for IMAGE_REF nodes whose text is
 	// undefined.
+	// With the alt text offered for translation it is the paired content
+	// between the image's codes; without, it rides the opening code and the
+	// canonical alt attribute, so the skeleton path puts the source bytes back
+	// and a writer for another format still has the alt to re-synthesize.
+	alt := ""
+	if !r.cfg.TranslateImageAlt() {
+		alt = r.untranslatedAltText(n, source)
+	}
+
 	if n.Reference != nil {
 		closing := referenceCloseMarker(n.Reference)
-		b.AddPcOpen(id, "media:image", "md:image-ref", "![", info.Display.Open, info.Equiv,
+		b.AddPcOpen(id, "media:image", "md:image-ref", "!["+alt, info.Display.Open, info.Equiv,
 			info.Constraints.Deletable, info.Constraints.Cloneable, info.Constraints.Reorderable)
-		b.SetLastAttrs(linkImageAttrs(model.AttrSrc, n.Destination, n.Title, nil))
+		b.SetLastAttrs(linkImageAttrs(model.AttrSrc, n.Destination, n.Title, []byte(alt)))
 		if r.cfg.TranslateImageAlt() {
 			r.buildCodedRuns(b, n, source, idCounter)
 		}
@@ -3306,15 +3338,36 @@ func (r *Reader) buildImageRuns(b *runBuilder, n *ast.Image, source []byte, idCo
 		return
 	}
 
-	b.AddPcOpen(id, "media:image", "md:image", "![", info.Display.Open, info.Equiv,
+	b.AddPcOpen(id, "media:image", "md:image", "!["+alt, info.Display.Open, info.Equiv,
 		info.Constraints.Deletable, info.Constraints.Cloneable, info.Constraints.Reorderable)
-	b.SetLastAttrs(linkImageAttrs(model.AttrSrc, n.Destination, n.Title, nil))
+	b.SetLastAttrs(linkImageAttrs(model.AttrSrc, n.Destination, n.Title, []byte(alt)))
 	if r.cfg.TranslateImageAlt() {
 		r.buildCodedRuns(b, n, source, idCounter)
 	}
 	// Same title split as a link, so image titles are extracted as
 	// translatable text rather than baked into the closing skeleton.
-	r.addLinkCloseRuns(b, n, id, "media:image", "md:image", "md:image-title", 2, info.Equiv, source, idCounter)
+	r.addLinkCloseRuns(b, n, id, "media:image", "md:image", subTypeImageTitle, 2, info.Equiv, source, idCounter)
+}
+
+// untranslatedAltText returns an image's alt text for a configuration that does
+// not offer it for translation. The flag decides whose the alt text is, not
+// whether it survives: with it off the alt bytes were in neither the runs nor
+// the skeleton, so the writer had nothing to put back and `![alt](s)` came out
+// as `![](s)` (#2447).
+//
+// The bytes come from source between the image's `![` and the `]` that closes
+// its alt, so an escape or an inline construct inside the alt keeps its
+// spelling; the parser's own text answers for an image the resolver cannot
+// place.
+func (r *Reader) untranslatedAltText(n *ast.Image, source []byte) string {
+	if start, ok := inlineNodeStart(n, source); ok {
+		if end, ok := linkContentEnd(n, 2, source); ok && start+2 <= end && end <= len(source) {
+			return string(source[start+2 : end])
+		}
+	}
+	var buf strings.Builder
+	r.collectInlineText(&buf, n, source)
+	return buf.String()
 }
 
 // referenceCloseMarker returns the closing-marker bytes for a
