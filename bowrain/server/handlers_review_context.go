@@ -115,8 +115,13 @@ func (s *Server) HandleGetReviewContext(c echo.Context) error {
 	// Neighbourhood: the units either side, in the order the document reads.
 	out.Neighbourhood = s.reviewNeighbourhood(ctx, pid, stream, sb, loc)
 
+	// The ledger row for this unit and locale, read once: what was decided,
+	// and the context it was decided under, which the history judges the prior
+	// version against.
+	decision := s.unitDecisionFor(ctx, pid, stream, sb, targetLocale)
+
 	// History: the wording the corpus already blessed.
-	out.History = s.reviewHistory(ctx, &out.Point, proj, ws, sb, loc)
+	out.History = s.reviewHistory(ctx, &out.Point, proj, ws, sb, loc, recordedGoverning(decision))
 	if notes, nerr := s.ContentStore.ListBlockNotes(ctx, pid, "main", bid); nerr == nil {
 		for _, n := range notes {
 			out.Notes = append(out.Notes, blockNoteToResponse(n))
@@ -127,7 +132,7 @@ func (s *Server) HandleGetReviewContext(c echo.Context) error {
 	s.fillReviewJudgement(ctx, &out, profile, pid, stream, bid, loc)
 
 	// Provenance: how this target was produced, and the decision in force.
-	out.Provenance = s.reviewProvenance(ctx, pid, stream, sb, loc)
+	out.Provenance = reviewProvenanceOf(decision, sb, loc)
 
 	return c.JSON(http.StatusOK, out)
 }
@@ -292,6 +297,7 @@ func (s *Server) reviewHistory(
 	ws string,
 	sb *venue.StoredBlock,
 	loc model.LocaleID,
+	recorded string,
 ) review.History {
 	var h review.History
 	tm, err := s.wsStores.getMemory(ws)
@@ -302,7 +308,11 @@ func (s *Server) reviewHistory(
 	source := proj.DefaultSourceLanguage
 
 	if vr, versioned := tm.(memory.VersionReader); versioned {
-		fingerprint := review.GoverningFingerprint(sb.Block, loc, "")
+		// The target's own stamp first, then what the decision record says
+		// governed the answer — the same order the host's assembler reads
+		// them in, so a unit reviewed on the platform and one reviewed in a
+		// project are judged governed by the same rule.
+		fingerprint := review.GoverningFingerprint(sb.Block, loc, recorded)
 		h.Prior = review.PriorVersionOf(ctx, vr, sb.Block, source, loc, fingerprint)
 	}
 
@@ -349,14 +359,21 @@ func (s *Server) fillReviewJudgement(
 	out.VoiceBar = &bar
 }
 
-// reviewProvenance reads how the target under review was produced and the
-// ledger row for this unit, grading the row's basis against the source the
-// block carries now. The unit key is the block's SourceID, the durable
-// identity a decision names, so a block stored without an item has no ledger
-// row to find.
-func (s *Server) reviewProvenance(ctx context.Context, pid, stream string, sb *venue.StoredBlock, loc model.LocaleID) review.Provenance {
+// recordedGoverning is the context a decision record says its answer stands
+// under, or empty when there is no record.
+func recordedGoverning(d *venue.UnitDecision) string {
+	if d == nil {
+		return ""
+	}
+	return d.GoverningFingerprint
+}
+
+// reviewProvenanceOf renders how the target under review was produced and the
+// decision in force, grading the record's basis against the source the block
+// carries now.
+func reviewProvenanceOf(d *venue.UnitDecision, sb *venue.StoredBlock, loc model.LocaleID) review.Provenance {
 	var p review.Provenance
-	if d := s.unitDecisionFor(ctx, pid, stream, sb, string(loc)); d != nil {
+	if d != nil {
 		p.ReviewState = d.ReviewState
 		p.Status = d.Status
 		p.By = d.DecidedBy

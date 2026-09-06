@@ -225,6 +225,15 @@ policy with the pusher as the decider. One function answers for every caller,
 so the review endpoint, the bulk routes and the ingest worker cannot drift
 apart.
 
+A verdict made in the venue records what governed it, the way a verdict made in
+a project does: the voice profile the venue's own ladder resolves for the
+unit's collection and locale, and the term rules its workspace holds, folded by
+the function every producer stamps with
+([C-04](../context/c-04-unit-state-and-decisions.md)). It reaches the ledger,
+the content memory the approval promotes to, and the project's record on the
+next pull, so a decision made in either place answers the staleness question
+against one definition of the context in force.
+
 A verdict that fails the gate is withheld, not the content: the translation
 lands at translated, the verdict is kept as the basis it carries, and the
 refusal is counted per language and reason and reported back on the push status.

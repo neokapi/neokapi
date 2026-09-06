@@ -129,11 +129,22 @@ type reviewLedger struct {
 	stream    string
 	decider   string
 
-	// The corpus half, resolved on first need and remembered, including a
-	// failure: a pass whose workspace has no memory must not re-ask per batch.
+	// Where this pass decides, resolved on first need and remembered,
+	// including a failure: a pass whose project or workspace cannot be read
+	// must not re-ask per batch.
+	scopeResolved bool
+	project       *platstore.Project
+	sourceLang    model.LocaleID
+	workspaceSlug string
+
+	// The corpus, opened on first need and remembered the same way.
 	corpusResolved bool
-	sourceLang     model.LocaleID
 	memory         memory.Store
+
+	// The governing context per (item, locale), resolved on first need. A bulk
+	// approve walks thousands of blocks across a handful of items, and the
+	// context is a property of where the unit sits, not of the block.
+	governing map[string]string
 }
 
 // newReviewLedger opens a ledger over the request's content store, or reports
@@ -151,7 +162,49 @@ func (s *Server) newReviewLedger(ctx context.Context, c echo.Context, projectID,
 			decider = u.Email
 		}
 	}
-	return &reviewLedger{srv: s, ds: ds, projectID: projectID, stream: stream, decider: decider}
+	return &reviewLedger{
+		srv: s, ds: ds, projectID: projectID, stream: stream, decider: decider,
+		governing: map[string]string{},
+	}
+}
+
+// governingFingerprint is the context in force where a unit sits, for the
+// locale being decided: the voice guidance and term rules the platform would
+// translate that unit under, folded by the one function every producer stamps
+// with.
+//
+// It is resolved through jobs.TranslateBinding, the binding the editor
+// translate and the worker's queued jobs already read their governing context
+// from, so an approval records the same context a translation of the same unit
+// would be produced under. Best-effort throughout: a workspace with no voice
+// and no terminology yields the empty fingerprint, which reads as an ad-hoc
+// decision rather than failing the review the person just made.
+//
+// Cached per (item, locale) for the life of the ledger.
+func (l *reviewLedger) governingFingerprint(ctx context.Context, itemName, locale string) string {
+	if l == nil || itemName == "" || locale == "" || !l.resolveScope(ctx) {
+		return ""
+	}
+	key := itemName + "\x00" + locale
+	if fingerprint, ok := l.governing[key]; ok {
+		return fingerprint
+	}
+	voiceCtx := l.srv.editorVoiceContext()
+	b := jobs.TranslateBinding{
+		Store:            l.srv.ContentStore,
+		Voice:            voiceCtx.Voice,
+		WorkspaceDefault: voiceCtx.WorkspaceDefault,
+		Terms:            editorTerms(ctx, voiceCtx, l.workspaceSlug),
+		Project:          l.project,
+		WorkspaceID:      l.project.WorkspaceID,
+		ProjectID:        l.projectID,
+		Stream:           l.stream,
+		ItemName:         itemName,
+		TargetLocale:     model.LocaleID(locale),
+	}
+	fingerprint := b.GoverningFingerprint(ctx)
+	l.governing[key] = fingerprint
+	return fingerprint
 }
 
 // write files a batch of verdicts and promotes what they bless.
@@ -176,17 +229,20 @@ func (l *reviewLedger) write(ctx context.Context, decisions []venue.UnitDecision
 	jobs.PromoteDecisionsToMemory(ctx, l.srv.ContentStore, l.memory, l.projectID, l.stream, l.sourceLang, corpus)
 }
 
-// resolveCorpus finds the project's source language and its workspace content
-// memory, once, and reports whether promotion can proceed.
-func (l *reviewLedger) resolveCorpus(ctx context.Context) bool {
-	if l.corpusResolved {
-		return l.memory != nil
+// resolveScope finds the project this pass decides in and the slug of the
+// workspace holding its stores, once, and reports whether both answered.
+//
+// It is the half the governing context needs. Promotion needs the content
+// memory on top, which resolveCorpus opens.
+func (l *reviewLedger) resolveScope(ctx context.Context) bool {
+	if l.scopeResolved {
+		return l.project != nil
 	}
-	l.corpusResolved = true
+	l.scopeResolved = true
 
 	proj, err := l.srv.ContentStore.GetProject(ctx, l.projectID)
 	if err != nil || proj == nil || proj.DefaultSourceLanguage == "" {
-		slog.WarnContext(ctx, "memory promotion skipped: project unresolved",
+		slog.WarnContext(ctx, "review ledger: project unresolved",
 			"project", l.projectID, "error", err)
 		return false
 	}
@@ -197,22 +253,43 @@ func (l *reviewLedger) resolveCorpus(ctx context.Context) bool {
 		}
 	}
 	if slug == "" {
-		slog.WarnContext(ctx, "memory promotion skipped: no workspace slug", "project", l.projectID)
+		slog.WarnContext(ctx, "review ledger: no workspace slug", "project", l.projectID)
 		return false
 	}
-	tm, terr := l.srv.wsStores.getMemory(slug)
+	l.project = proj
+	l.sourceLang = proj.DefaultSourceLanguage
+	l.workspaceSlug = slug
+	return true
+}
+
+// resolveCorpus opens the workspace content memory, once, and reports whether
+// promotion can proceed.
+func (l *reviewLedger) resolveCorpus(ctx context.Context) bool {
+	if l.corpusResolved {
+		return l.memory != nil
+	}
+	l.corpusResolved = true
+
+	if !l.resolveScope(ctx) {
+		return false
+	}
+	tm, terr := l.srv.wsStores.getMemory(l.workspaceSlug)
 	if terr != nil {
 		slog.WarnContext(ctx, "memory promotion skipped: workspace memory unavailable",
-			"workspace", slug, "error", terr)
+			"workspace", l.workspaceSlug, "error", terr)
 		return false
 	}
-	l.sourceLang = proj.DefaultSourceLanguage
 	l.memory = tm
 	return true
 }
 
 // unitDecisionFor renders one block's rung change as a ledger row.
-func unitDecisionFor(sb *venue.StoredBlock, locale string, status model.TargetStatus, approved bool, decider string) venue.UnitDecision {
+//
+// governing is the fingerprint of the context the decision was made under (see
+// reviewLedger.governingFingerprint): the claim a verdict supports is that
+// this answer stands under this context, so the context travels with it, on
+// the wire and into the content memory the approval promotes to.
+func unitDecisionFor(sb *venue.StoredBlock, locale string, status model.TargetStatus, approved bool, decider, governing string) venue.UnitDecision {
 	reviewState := ""
 	switch {
 	case approved && status == model.TargetStatusSignedOff:
@@ -224,16 +301,17 @@ func unitDecisionFor(sb *venue.StoredBlock, locale string, status model.TargetSt
 	}
 	now := time.Now().UTC().Format(time.RFC3339)
 	return venue.UnitDecision{
-		ItemName:    sb.ItemName,
-		Unit:        sb.SourceID,
-		Variant:     locale,
-		Status:      string(status),
-		TargetHash:  state.TargetHash(sb.Block.TargetText(model.LocaleID(locale))),
-		ContentHash: state.SourceHash(sb.Block.SourceText()),
-		ReviewState: reviewState,
-		DecidedBy:   decider,
-		DecidedAt:   now,
-		Updated:     now,
+		ItemName:             sb.ItemName,
+		Unit:                 sb.SourceID,
+		Variant:              locale,
+		Status:               string(status),
+		TargetHash:           state.TargetHash(sb.Block.TargetText(model.LocaleID(locale))),
+		ContentHash:          state.SourceHash(sb.Block.SourceText()),
+		ReviewState:          reviewState,
+		GoverningFingerprint: governing,
+		DecidedBy:            decider,
+		DecidedAt:            now,
+		Updated:              now,
 	}
 }
 

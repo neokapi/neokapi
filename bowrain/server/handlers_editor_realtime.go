@@ -29,7 +29,8 @@ func (s *Server) recordReviewDecision(ctx context.Context, c echo.Context, proje
 	if ledger == nil {
 		return
 	}
-	ledger.write(ctx, []venue.UnitDecision{unitDecisionFor(sb, locale, status, approved, ledger.decider)})
+	governing := ledger.governingFingerprint(ctx, sb.ItemName, locale)
+	ledger.write(ctx, []venue.UnitDecision{unitDecisionFor(sb, locale, status, approved, ledger.decider, governing)})
 }
 
 // This file gives the two real-time editor operations that used to travel over
