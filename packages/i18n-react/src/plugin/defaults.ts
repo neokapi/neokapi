@@ -62,6 +62,14 @@ export const translatableElements = new Set([
   "del",
 ]);
 
+/**
+ * Phrasing elements that sit inside a sentence. Membership decides whether an
+ * element travels with its parent's block as a paired code, so it is wider than
+ * the translatable set: `code`, `kbd`, `samp` and `var` are in both this list
+ * and `nonTranslatableElements`. They belong to the sentence around them, and
+ * their own text is a command or an identifier, which `extract/runs.ts` carries
+ * as a `noTranslate` run.
+ */
 export const inlineElements = new Set([
   "a",
   "abbr",
@@ -70,6 +78,7 @@ export const inlineElements = new Set([
   "bdo",
   "br",
   "cite",
+  "code",
   "data",
   "dfn",
   "em",

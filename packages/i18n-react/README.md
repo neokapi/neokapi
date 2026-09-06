@@ -637,6 +637,13 @@ The plugin automatically determines what to translate using W3C HTML5 defaults:
 | `button`, `label`, `legend`, `option` | `script`, `style`, `textarea` | `header`, `footer`, `article`   |
 | `span`, `strong`, `em`, `a`, `b`, `i` |                               | `table`, `ul`, `ol`, `dl`       |
 
+`code`, `kbd`, `samp` and `var` sit in a sentence, so they travel with it: the
+element becomes a paired marker in the parent's block and the text between the
+tags comes out as a protected run, carried through to the reader verbatim. An
+element holding one of them and nothing else stays out of the catalog, since
+there is no prose in it to translate. `<code translate="yes">` opts one site
+back in.
+
 **Translatable attributes.** HTML/ARIA attributes — `alt`, `title`,
 `placeholder`, `aria-label`, `aria-description`, `aria-placeholder`,
 `aria-roledescription`, `aria-valuetext` — extract from **any**
