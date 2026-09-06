@@ -619,22 +619,26 @@ func (r *Reader) emitLinkReferenceDefinition(ctx context.Context, ch chan<- mode
 	labelVisible := r.visibleRefs[label]
 	titleUsed := len(n.Title) > 0 && r.usedRefs[strings.ToLower(label)]
 
+	def := r.source[defStart:defEnd]
 	// Reconstruct the URL slice. Reference definitions written with
 	// `<url>` angle brackets must preserve that wrapping; goldmark's
 	// Destination field is the unwrapped URL, so we sniff the source
 	// bytes immediately after the `:` separator to decide.
-	urlLiteral := referenceDefinitionURLLiteral(n.Destination, r.source[defStart:defEnd])
+	urlLiteral := referenceDefinitionURLLiteral(n.Destination, def)
+	// CommonMark 4.7 allows a line ending between the label, the destination
+	// and the title, so a definition can span several lines. Locating each part
+	// in source is what lets the bytes between them replay; rebuilt from the
+	// parser's label, destination and title, a definition spread over three
+	// lines came back on one (#2462).
+	spans, located := scanRefDefinition(def)
 
 	// The simple case: no translatable parts → emit as Data so the
 	// non-skeleton write path can still reconstruct the line, and let
-	// the skeleton path use the rebuilt literal (so leading indent gets
-	// stripped). When skeleton storage is in use this still produces
-	// byte-equal output because the rebuild uses the AST-derived label,
-	// dest, and title which are exactly the source bytes minus the
-	// indent.
+	// the skeleton path replay the definition's own bytes (so leading
+	// indent gets stripped and everything else is kept).
 	if !labelVisible && !titleUsed {
 		r.dataCounter++
-		titleOpen, titleClose := titleDelimiters(r.source[defStart:defEnd], string(n.Title))
+		titleOpen, titleClose := titleDelimiters(def, string(n.Title))
 		data := &model.Data{
 			ID:   fmt.Sprintf("d%d", r.dataCounter),
 			Name: "link-reference-definition",
@@ -644,12 +648,16 @@ func (r *Reader) emitLinkReferenceDefinition(ctx context.Context, ch chan<- mode
 				"title":       string(n.Title),
 			},
 		}
-		// Preserve the literal whitespace authored after `]:` so
-		// `[l]:  #list` (two spaces) doesn't collapse to `[l]: #list`.
-		// Mirrors okapi MarkdownFilter, which round-trips link reference
-		// definitions verbatim through skeleton bytes.
-		sep := refDefSeparator(r.source[defStart:defEnd])
-		r.skelText(buildLinkReferenceDefinitionLiteral(label, urlLiteral, sep, string(n.Title), titleOpen, titleClose))
+		if located {
+			r.skelText(string(def))
+		} else {
+			// Preserve the literal whitespace authored after `]:` so
+			// `[l]:  #list` (two spaces) doesn't collapse to `[l]: #list`.
+			// Mirrors okapi MarkdownFilter, which round-trips link reference
+			// definitions verbatim through skeleton bytes.
+			sep := refDefSeparator(def)
+			r.skelText(buildLinkReferenceDefinitionLiteral(label, urlLiteral, sep, string(n.Title), titleOpen, titleClose))
+		}
 		// preserve a trailing newline only when source had one (always
 		// true for non-EOF defs; goldmark already trimmed the line value
 		// so we add it back here).
@@ -667,42 +675,158 @@ func (r *Reader) emitLinkReferenceDefinition(ctx context.Context, ch chan<- mode
 	// + `addToQueue(node.getTitle().toString(), isRefTextUsed(refText), REFERENCE)`
 	// pattern: each translatable atom becomes its own short text unit so
 	// the content memory keys cleanly off the source string.
-	r.skelText("[")
-	if labelVisible {
-		r.blockCounter++
-		blockID := fmt.Sprintf("tu%d", r.blockCounter)
-		block := model.NewBlock(blockID, label)
-		block.Name = r.naming.Name(kindRefLabel)
-		block.Type = "link-reference-label"
-		r.skelRef(blockID)
-		r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
-	} else {
-		r.skelText(label)
+	if !located {
+		r.emitRebuiltReferenceDefinition(ctx, ch, n, def, label, urlLiteral, labelVisible, titleUsed)
+		if defEnd < len(r.source) && r.source[defEnd] == '\n' {
+			r.skelText("\n")
+			r.skelCursor = defEnd + 1
+		}
+		return
 	}
-	r.skelText("]:" + refDefSeparator(r.source[defStart:defEnd]) + urlLiteral)
-	if titleUsed {
-		// Detect title delimiter from source so `'`, `"`, and `(...)`
-		// forms all round-trip exactly.
-		open, close := titleDelimiters(r.source[defStart:defEnd], string(n.Title))
-		r.skelText(" " + open)
-		r.blockCounter++
-		blockID := fmt.Sprintf("tu%d", r.blockCounter)
-		block := model.NewBlock(blockID, string(n.Title))
-		block.Name = r.naming.Name(kindRefTitle)
-		block.Type = "link-reference-title"
-		r.skelRef(blockID)
-		r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
-		r.skelText(close)
-	} else if len(n.Title) > 0 {
-		// Title present but not extracted — emit as skeleton bytes to
-		// preserve the original source form.
-		open, close := titleDelimiters(r.source[defStart:defEnd], string(n.Title))
-		r.skelText(" " + open + string(n.Title) + close)
+
+	labelText := string(def[spans.labelStart:spans.labelEnd])
+	structEnd := len(def)
+	if spans.titleStart >= 0 {
+		structEnd = spans.titleStart
+	}
+	r.skelText(string(def[:spans.labelStart]))
+	if labelVisible {
+		r.emitRefAtom(ctx, ch, labelText, kindRefLabel, "link-reference-label")
+	} else {
+		r.skelText(labelText)
+	}
+	r.skelText(string(def[spans.labelEnd:structEnd]))
+	if spans.titleStart >= 0 {
+		titleText := string(def[spans.titleStart:spans.titleEnd])
+		if titleUsed {
+			r.emitRefAtom(ctx, ch, titleText, kindRefTitle, "link-reference-title")
+		} else {
+			r.skelText(titleText)
+		}
+		r.skelText(string(def[spans.titleEnd:]))
 	}
 	if defEnd < len(r.source) && r.source[defEnd] == '\n' {
 		r.skelText("\n")
 		r.skelCursor = defEnd + 1
 	}
+}
+
+// emitRefAtom emits one translatable atom of a link reference definition (its
+// label or its title) as a block the skeleton refers to.
+func (r *Reader) emitRefAtom(ctx context.Context, ch chan<- model.PartResult, text, nameKind, blockType string) {
+	r.blockCounter++
+	blockID := fmt.Sprintf("tu%d", r.blockCounter)
+	block := model.NewBlock(blockID, text)
+	block.Name = r.naming.Name(nameKind)
+	block.Type = blockType
+	r.skelRef(blockID)
+	r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+}
+
+// emitRebuiltReferenceDefinition writes a definition whose parts the scanner
+// could not place, rebuilding the structural bytes from the parser's resolved
+// label, destination and title.
+func (r *Reader) emitRebuiltReferenceDefinition(ctx context.Context, ch chan<- model.PartResult,
+	n *ast.LinkReferenceDefinition, def []byte, label, urlLiteral string, labelVisible, titleUsed bool) {
+
+	r.skelText("[")
+	if labelVisible {
+		r.emitRefAtom(ctx, ch, label, kindRefLabel, "link-reference-label")
+	} else {
+		r.skelText(label)
+	}
+	r.skelText("]:" + refDefSeparator(def) + urlLiteral)
+	if len(n.Title) == 0 {
+		return
+	}
+	// Detect title delimiter from source so `'`, `"`, and `(...)` forms all
+	// round-trip exactly.
+	open, close := titleDelimiters(def, string(n.Title))
+	r.skelText(" " + open)
+	if titleUsed {
+		r.emitRefAtom(ctx, ch, string(n.Title), kindRefTitle, "link-reference-title")
+	} else {
+		r.skelText(string(n.Title))
+	}
+	r.skelText(close)
+}
+
+// refDefSpans locates the parts of a link reference definition inside the
+// source bytes that spell it. Offsets are relative to those bytes; titleStart
+// and titleEnd are -1 when the definition carries no title.
+type refDefSpans struct {
+	labelStart, labelEnd int // between the brackets
+	titleStart, titleEnd int // between the title's delimiters
+}
+
+// scanRefDefinition reads `[label]: destination "title"` following CommonMark
+// 4.7: a bracketed label, a colon, optional whitespace with up to one line
+// ending, a destination in angle brackets or bare, and an optional title in
+// double quotes, single quotes or parentheses separated from the destination by
+// whitespace. ok is false when the bytes are not such a definition, and the
+// caller rebuilds from the parser's resolved values instead.
+func scanRefDefinition(def []byte) (refDefSpans, bool) {
+	s := refDefSpans{titleStart: -1, titleEnd: -1}
+	if len(def) == 0 || def[0] != '[' {
+		return s, false
+	}
+	closeBracket := indexUnescaped(def, 1, ']')
+	if closeBracket < 0 || closeBracket+1 >= len(def) || def[closeBracket+1] != ':' {
+		return s, false
+	}
+	s.labelStart, s.labelEnd = 1, closeBracket
+
+	i := skipLinkWhitespace(def, closeBracket+2)
+	destStart := i
+	if i < len(def) && def[i] == '<' {
+		i++
+		for i < len(def) && def[i] != '>' {
+			if def[i] == '\n' || def[i] == '<' {
+				return s, false
+			}
+			if def[i] == '\\' {
+				i++
+			}
+			i++
+		}
+		if i >= len(def) {
+			return s, false
+		}
+		i++
+	} else {
+		for i < len(def) && def[i] > ' ' {
+			if def[i] == '\\' && i+1 < len(def) {
+				i++
+			}
+			i++
+		}
+	}
+	if i == destStart {
+		return s, false
+	}
+
+	destEnd := i
+	i = skipLinkWhitespace(def, i)
+	if i == destEnd || i >= len(def) {
+		return s, true
+	}
+	var closer byte
+	switch def[i] {
+	case '"':
+		closer = '"'
+	case '\'':
+		closer = '\''
+	case '(':
+		closer = ')'
+	default:
+		return s, true
+	}
+	j := indexUnescaped(def, i+1, closer)
+	if j < 0 {
+		return s, false
+	}
+	s.titleStart, s.titleEnd = i+1, j
+	return s, true
 }
 
 // buildLinkReferenceDefinitionLiteral builds the source representation

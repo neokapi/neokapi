@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("[a][R] x\n\n[R]:\n /y\n 'T'\n")

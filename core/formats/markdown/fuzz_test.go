@@ -134,8 +134,11 @@ func FuzzReadMarkdown(f *testing.F) {
 	// testdata/fuzz.
 	f.Add([]byte("> [a](/x\n> 'T') b"))
 	f.Add([]byte("> [a][\n> b] c"))
+	// #2462: a definition whose destination or title sits on a line of its own.
+	// Also committed under testdata/fuzz.
+	f.Add([]byte("[a][R] x\n\n[R]:\n /y\n 'T'\n"))
 	markdownSeed(f, "excluded-html-inline.md", "emphasis-delimiters.md", "image-alt.md",
-		"wrapped-link-closers.md")
+		"wrapped-link-closers.md", "reference-definitions.md")
 	seedDamagedMarkdown(f)
 
 	f.Fuzz(func(t *testing.T, data []byte) {
@@ -297,6 +300,8 @@ func FuzzRoundTripMarkdown(f *testing.F) {
 	f.Add([]byte(">> a"))
 	// #2461: the closer of a link that wraps inside a container.
 	f.Add([]byte("> [a](/x\n> 'T') b"))
+	// #2462: a definition spread over several lines.
+	f.Add([]byte("[a][R] x\n\n[R]:\n /y\n 'T'\n"))
 	seedDamagedMarkdown(f)
 
 	f.Fuzz(func(t *testing.T, data []byte) {

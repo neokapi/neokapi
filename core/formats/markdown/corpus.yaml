@@ -76,6 +76,14 @@ entries:
     license: Apache-2.0
     redistributable: true
     notes: 'FuzzReadMarkdown seed for #2444 (link inside a style span)'
+  - path: core/formats/markdown/testdata/fuzz/FuzzReadMarkdown/spread_reference_definition
+    tier: A
+    origin: bug
+    sha256: 9b915eb5587c4b01b076b0ae1cd65021a7e7b62ad8f86b083e72c1b759cbe065
+    size: 56
+    license: Apache-2.0
+    redistributable: true
+    notes: 'FuzzReadMarkdown seed for #2462 (a definition spread over several lines)'
   - path: core/formats/markdown/testdata/fuzz/FuzzReadMarkdown/wrapped_link_closer_in_a_quote
     tier: A
     origin: bug
@@ -180,6 +188,14 @@ entries:
     license: Apache-2.0
     redistributable: true
     notes: own-created fixture for
+  - path: core/formats/markdown/testdata/reference-definitions.md
+    tier: A
+    origin: bug
+    sha256: cf28dd012312f0b0a01bfe0caa425ea1b2a64dcb0a514990129e87f9b39fd41d
+    size: 355
+    license: Apache-2.0
+    redistributable: true
+    notes: 'own-created fixture for #2462 (a definition spread over several lines)'
   - path: core/formats/markdown/testdata/simple.md
     tier: A
     origin: vendored
