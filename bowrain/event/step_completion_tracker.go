@@ -221,10 +221,17 @@ func (t *StepCompletionTracker) completeStep(ctx context.Context, stepID, runID 
 	delete(t.pending, stepID)
 	t.mu.Unlock()
 
-	// Read step to calculate duration before marking complete.
+	// Read the step for its start time, and to see whether it has already
+	// reported: a cancellation closes a step while its jobs are still in the
+	// queue, and reopening it would overwrite what stopped it.
 	var durationSec float64
-	if step, err := t.runStore.GetStep(ctx, stepID); err == nil && !step.StartedAt.IsZero() {
-		durationSec = time.Since(step.StartedAt).Seconds()
+	if step, err := t.runStore.GetStep(ctx, stepID); err == nil {
+		if bstore.StepIsTerminal(step.Status) {
+			return
+		}
+		if !step.StartedAt.IsZero() {
+			durationSec = time.Since(step.StartedAt).Seconds()
+		}
 	}
 
 	if err := t.runStore.UpdateStepStatus(ctx, stepID, status, errMsg); err != nil {

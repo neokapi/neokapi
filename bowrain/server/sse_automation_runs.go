@@ -154,7 +154,7 @@ func (s *Server) HandleAutomationRunSSE(c echo.Context) error {
 			if err != nil {
 				return nil
 			}
-			if run.Status == bstore.RunStatusCompleted || run.Status == bstore.RunStatusFailed || run.Status == bstore.RunStatusPartial {
+			if bstore.RunIsTerminal(run.Status) {
 				fmt.Fprintf(c.Response(), "event: done\ndata: {}\n\n")
 				c.Response().Flush()
 				return nil

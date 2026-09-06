@@ -1,6 +1,7 @@
 package event
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"sync"
@@ -35,7 +36,7 @@ func TestRunManager_CreatesRunAndStep(t *testing.T) {
 
 	var executed []string
 	var mu sync.Mutex
-	executor := func(action AutomationAction, ev platev.Event, stepID string) error {
+	executor := func(_ context.Context, action AutomationAction, ev platev.Event, stepID string) error {
 		mu.Lock()
 		executed = append(executed, action.Type+":"+stepID)
 		mu.Unlock()
@@ -87,7 +88,7 @@ func TestRunManager_GroupsSameEvent(t *testing.T) {
 	store := newTestRunStore(t)
 	ctx := t.Context()
 
-	executor := func(action AutomationAction, ev platev.Event, stepID string) error {
+	executor := func(_ context.Context, action AutomationAction, ev platev.Event, stepID string) error {
 		return nil
 	}
 
@@ -116,7 +117,7 @@ func TestRunManager_GroupsSameEvent(t *testing.T) {
 
 func TestRunManager_NilStorePassesThrough(t *testing.T) {
 	var called bool
-	executor := func(action AutomationAction, ev platev.Event, stepID string) error {
+	executor := func(_ context.Context, action AutomationAction, ev platev.Event, stepID string) error {
 		called = true
 		assert.Empty(t, stepID) // no step tracking without store
 		return nil
@@ -132,7 +133,7 @@ func TestRunManager_LogsOnSteps(t *testing.T) {
 	store := newTestRunStore(t)
 	ctx := t.Context()
 
-	executor := func(action AutomationAction, ev platev.Event, stepID string) error {
+	executor := func(_ context.Context, action AutomationAction, ev platev.Event, stepID string) error {
 		return nil
 	}
 
@@ -159,7 +160,7 @@ func TestRunManager_AsyncStepStaysRunning(t *testing.T) {
 	store := newTestRunStore(t)
 	ctx := t.Context()
 
-	executor := func(action AutomationAction, ev platev.Event, stepID string) error {
+	executor := func(_ context.Context, action AutomationAction, ev platev.Event, stepID string) error {
 		return nil
 	}
 
@@ -197,7 +198,7 @@ func TestRunManager_CompleteStep_ClosesSelfReportingAction(t *testing.T) {
 
 	var mu sync.Mutex
 	var stepIDs []string
-	executor := func(action AutomationAction, ev platev.Event, stepID string) error {
+	executor := func(_ context.Context, action AutomationAction, ev platev.Event, stepID string) error {
 		mu.Lock()
 		stepIDs = append(stepIDs, stepID)
 		mu.Unlock()

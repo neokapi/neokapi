@@ -121,20 +121,23 @@ func (s *Server) newRunManager() *event.AutomationRunManager {
 	if s.runHub != nil {
 		rm.SetRunNotifier(s.runHub)
 	}
+	rm.SetJobCanceller(s.JobStore)
 	return rm
 }
 
-// executeAutomationAction is the callback for the automation engine (via RunManager).
-func (s *Server) executeAutomationAction(action event.AutomationAction, ev platev.Event, stepID string) error {
+// executeAutomationAction is the callback for the automation engine (via
+// RunManager). ctx is the run's: it is cancelled when the run is cancelled.
+func (s *Server) executeAutomationAction(ctx context.Context, action event.AutomationAction, ev platev.Event, stepID string) error {
 	startedAt := ev.Timestamp
-	err := s.doExecuteAction(action, ev, stepID)
+	err := s.doExecuteAction(ctx, action, ev, stepID)
 	if err == nil && actionReportsOwnOutcome(action.Type) {
 		// The action writes its history entry when it finishes.
 		return nil
 	}
-	// Automation-engine callback: event-driven background work with no
-	// request context in scope.
-	s.recordAutomationHistory(context.Background(), ev, startedAt, ev.Timestamp, err)
+	// The history entry is written even for a run that was cancelled: the
+	// record of what happened is the point, so it keeps the run's values and
+	// drops only its cancellation.
+	s.recordAutomationHistory(context.WithoutCancel(ctx), ev, startedAt, ev.Timestamp, err)
 	return err
 }
 
@@ -198,11 +201,14 @@ func (s *Server) awaitActions(ctx context.Context) {
 	}
 }
 
-func (s *Server) doExecuteAction(action event.AutomationAction, ev platev.Event, stepID string) error {
-	// Automation actions run in background goroutines and must not inherit
-	// the triggering event's cancellation. Use a fresh context with a timeout
-	// so actions are bounded but survive request/event lifecycle.
-	actionCtx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+// doExecuteAction dispatches one action under the run's context.
+//
+// ctx is the run's, not the triggering event's or the request's: an action
+// runs in a background goroutine and outlives both, and it stops for one
+// reason only, which is that the run was cancelled. The timeout bounds it so a
+// stuck action releases its step.
+func (s *Server) doExecuteAction(ctx context.Context, action event.AutomationAction, ev platev.Event, stepID string) error {
+	actionCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
 
 	switch action.Type {
 	case "auto_translate":
@@ -233,7 +239,7 @@ func (s *Server) doExecuteAction(action event.AutomationAction, ev platev.Event,
 
 	case "notify":
 		cancel()
-		s.executeNotifyAction(action, ev)
+		s.executeNotifyAction(ctx, action, ev)
 
 	case "auto_translate_new_locale":
 		newLocales := ev.Data["new_locales"]
@@ -478,8 +484,9 @@ func (s *Server) createTranslationJobs(ctx context.Context, proj *store.Project,
 	return jobIDs, nil
 }
 
-// executeNotifyAction sends a notification to specified users.
-func (s *Server) executeNotifyAction(action event.AutomationAction, ev platev.Event) {
+// executeNotifyAction sends a notification to specified users. It runs inline,
+// under the run's context.
+func (s *Server) executeNotifyAction(ctx context.Context, action event.AutomationAction, ev platev.Event) {
 	if s.NotificationStore == nil {
 		return
 	}
@@ -498,9 +505,8 @@ func (s *Server) executeNotifyAction(action event.AutomationAction, ev platev.Ev
 	}
 	body := action.Config["body"]
 
-	// Automation action: event-driven background work with no request context
-	// in scope; bounded by its own timeout.
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	// Bounded by its own timeout, under the run's context.
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	n := &bstore.Notification{
 		UserID:    userID,

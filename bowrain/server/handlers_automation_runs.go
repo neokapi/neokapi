@@ -1,9 +1,11 @@
 package server
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
+	"github.com/neokapi/neokapi/bowrain/event"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 )
 
@@ -90,15 +92,23 @@ func (s *Server) HandleListStepLogs(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]any{"logs": logs})
 }
 
-// HandleCancelAutomationRun cancels a running automation run. The run
-// manager owns the transition, so the run's stream subscribers see it.
+// HandleCancelAutomationRun stops a running automation run. The run manager
+// owns the transition, so the run's stream subscribers see it, and it is the
+// manager that cancels the work rather than only relabelling the record.
+//
+// A run that has already finished answers 409: there is nothing left to stop,
+// and its recorded outcome stands.
 func (s *Server) HandleCancelAutomationRun(c echo.Context) error {
 	if s.AutomationRunStore == nil || s.runManager == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "automation runs not configured"})
 	}
 
 	runID := c.Param("runId")
-	if err := s.runManager.CancelRun(c.Request().Context(), runID, "cancelled by user"); err != nil {
+	switch err := s.runManager.CancelRun(c.Request().Context(), runID, "cancelled by user"); {
+	case err == nil:
+	case errors.Is(err, event.ErrRunNotCancellable):
+		return apiErr(c, http.StatusConflict, "the run has already finished")
+	default:
 		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusOK, map[string]any{"ok": true})

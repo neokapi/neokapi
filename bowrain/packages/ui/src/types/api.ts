@@ -1453,7 +1453,7 @@ export interface AutomationHistoryPage {
 // Automation Runs (Bowrain AD-013)
 // ---------------------------------------------------------------------------
 
-export type RunStatus = "pending" | "running" | "completed" | "failed" | "partial";
+export type RunStatus = "pending" | "running" | "completed" | "failed" | "partial" | "cancelled";
 export type StepStatus = "pending" | "running" | "completed" | "failed" | "skipped";
 
 /** Automation run — groups all actions triggered by one event */
