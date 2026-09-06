@@ -68,6 +68,14 @@ entries:
     license: Apache-2.0
     redistributable: true
     notes: 'FuzzReadMarkdown seed for #2444 (link inside a style span)'
+  - path: core/formats/markdown/testdata/fuzz/FuzzRoundTripMarkdown/hard_break_own_line
+    tier: A
+    origin: bug
+    sha256: 30eb39f0bfb12ec65c7e0bc006fee1d7da5587200ace422249d3a7b322d3c091
+    size: 35
+    license: Apache-2.0
+    redistributable: true
+    notes: 'FuzzRoundTripMarkdown seed for #2448 (a hard break on a line of its own)'
   - path: core/formats/markdown/testdata/fuzz/FuzzRoundTripMarkdown/lazy_blockquote_continuation
     tier: A
     origin: bug

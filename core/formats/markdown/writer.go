@@ -412,6 +412,10 @@ type mdInlineSink struct {
 	pending *mdPendingClose
 	// title collects a title pair's text while one is open.
 	title *strings.Builder
+	// heldBreak is set by a hard break that opened its own line, and spends
+	// itself on the next run: a backslash, when the text after it begins the
+	// following line.
+	heldBreak bool
 }
 
 // mdOpenTag is one entry of the open-paired-code stack.
@@ -444,11 +448,26 @@ func (s *mdInlineSink) Text(t string) {
 		return
 	}
 	s.flushPending()
+	s.spellHeldBreak(t)
 	if s.escapeAngle {
 		writeEscapingAngle(&s.sb, t)
 		return
 	}
 	s.sb.WriteString(t)
+}
+
+// spellHeldBreak spends a hard break held from the previous run on the text
+// that follows it: a backslash when that text begins the next line, so the
+// break's own line is not left empty, and nothing otherwise, because a lone
+// backslash mid-line escapes the character after it.
+func (s *mdInlineSink) spellHeldBreak(next string) {
+	if !s.heldBreak {
+		return
+	}
+	s.heldBreak = false
+	if strings.HasPrefix(next, "\n") {
+		s.sb.WriteByte('\\')
+	}
 }
 
 // flushPending spells a held-back link or image closer with the title its
@@ -501,6 +520,7 @@ func (s *mdInlineSink) Open(r *model.PcOpenRun) {
 		s.open = append(s.open, mdOpenTag{})
 		return
 	}
+	s.spellHeldBreak("")
 	if isLinkTitlePair(r) {
 		// The pair spells no markup of its own. With a link's closer still held
 		// back, its text is that closer's title; with none (a target whose runs
@@ -534,6 +554,7 @@ func (s *mdInlineSink) Open(r *model.PcOpenRun) {
 }
 
 func (s *mdInlineSink) Close(*model.PcCloseRun) {
+	s.spellHeldBreak("")
 	n := len(s.open)
 	if n == 0 {
 		s.flushPending()
@@ -563,11 +584,24 @@ func (s *mdInlineSink) Placeholder(r *model.PlaceholderRun) {
 		return
 	}
 	s.flushPending()
+	s.spellHeldBreak(r.Equiv)
 	switch r.Type {
 	case "media:image", "link:image":
 		// Self-closing image (e.g. read from HTML <img>): the alt text lives in
 		// the run attributes, not as paired content.
 		s.sb.WriteString("![" + r.Attr(model.AttrAlt) + mdLinkClose(r.Attrs, model.AttrSrc))
+	case "struct:break":
+		// A hard break's spelling is markup, so it rides the placeholder and
+		// the newline it contributes is the text after it (#1661). On a line
+		// whose only content is the break that leaves two newlines, and the
+		// blank line ends the paragraph when the output is read back: "0\n\\\n0"
+		// came back as two paragraphs (#2448). A backslash gives the line
+		// content, and reads back as the same hard break. It is held until the
+		// next run confirms a line follows, and a break that opens the block
+		// spells nothing: the leading whitespace is trimmed, so there is no
+		// blank line to prevent.
+		s.heldBreak = s.sb.Len() > 0 && s.atLineStart()
+		s.sb.WriteString(r.Equiv)
 	default:
 		if r.Equiv != "" {
 			s.sb.WriteString(r.Equiv)
@@ -575,7 +609,25 @@ func (s *mdInlineSink) Placeholder(r *model.PlaceholderRun) {
 	}
 }
 
+// atLineStart reports whether the output's current line carries no content
+// yet: everything since the last newline is the continuation prefix a
+// blockquote or a list item bakes into the runs (#1661), or nothing at all.
+func (s *mdInlineSink) atLineStart() bool {
+	out := s.sb.String()
+	for i := len(out) - 1; i >= 0; i-- {
+		switch out[i] {
+		case '\n':
+			return true
+		case ' ', '\t', '>':
+		default:
+			return false
+		}
+	}
+	return true
+}
+
 func (s *mdInlineSink) flush() {
+	s.heldBreak = false
 	s.spellPendingTitle()
 	s.flushPending()
 	for _, tag := range slices.Backward(s.open) {

@@ -260,6 +260,13 @@ func FuzzRoundTripMarkdown(f *testing.F) {
 	f.Add([]byte("_*a*_"))
 	f.Add([]byte("_[a](b)_"))
 	f.Add([]byte("__![i](s)__"))
+	// #2448: a hard break whose line has no other content left two newlines in
+	// the block text, and the blank line ended the paragraph on re-read. The
+	// first input is also committed under testdata/fuzz.
+	f.Add([]byte("0\n\\\n0"))
+	f.Add([]byte("> 0\n> \\\n> 0"))
+	f.Add([]byte("- 0\n  \\\n  0"))
+	f.Add([]byte(">\\\n#\\\n00"))
 	seedDamagedMarkdown(f)
 
 	f.Fuzz(func(t *testing.T, data []byte) {
