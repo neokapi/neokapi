@@ -247,6 +247,14 @@ func FuzzRoundTripMarkdown(f *testing.F) {
 	// #2444: the same excluded-span reproducers, through the rebuild path.
 	f.Add([]byte("a <script>*b*</script> c"))
 	f.Add([]byte("a <style>[x](y)</style> c"))
+	// #2445: the reader offers a link's title as a text run between a second
+	// pair of codes, which the rebuild path rendered as a link of its own, so
+	// the block gained one empty link per pass. The first is also committed
+	// under testdata/fuzz.
+	f.Add([]byte("[a](b 't')"))
+	f.Add([]byte("![a](b (t))"))
+	f.Add([]byte("[![i](s 'st')](b 'lt')"))
+	f.Add([]byte("[a](b 'say \"hi\"')"))
 	seedDamagedMarkdown(f)
 
 	f.Fuzz(func(t *testing.T, data []byte) {

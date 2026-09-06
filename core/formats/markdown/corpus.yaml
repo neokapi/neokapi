@@ -68,6 +68,14 @@ entries:
     license: Apache-2.0
     redistributable: true
     notes: own-created fuzz reproducer for
+  - path: core/formats/markdown/testdata/fuzz/FuzzRoundTripMarkdown/link_title_rebuild
+    tier: A
+    origin: bug
+    sha256: e801eaef01113d969bfa836d28aac7c7afdb46f3d170ac64f00f779be828f335
+    size: 37
+    license: Apache-2.0
+    redistributable: true
+    notes: 'FuzzRoundTripMarkdown seed for #2445 (a link title rebuilt as an extra empty link)'
   - path: core/formats/markdown/testdata/fuzz/FuzzRoundTripMarkdown/setext_multiline_heading
     tier: A
     origin: bug

@@ -3222,7 +3222,7 @@ func (r *Reader) buildLinkRuns(b *runBuilder, n *ast.Link, source []byte, idCoun
 		info.Constraints.Deletable, info.Constraints.Cloneable, info.Constraints.Reorderable)
 	b.SetLastAttrs(linkImageAttrs(model.AttrHref, n.Destination, n.Title, nil))
 	r.buildCodedRuns(b, n, source, idCounter)
-	r.addLinkCloseRuns(b, n, id, "link:hyperlink", "md:link", "md:link-title", 1, info.Equiv, source, idCounter)
+	r.addLinkCloseRuns(b, n, id, "link:hyperlink", "md:link", subTypeLinkTitle, 1, info.Equiv, source, idCounter)
 }
 
 // addLinkCloseRuns appends the runs that close an inline link or image after
@@ -3329,7 +3329,7 @@ func (r *Reader) buildImageRuns(b *runBuilder, n *ast.Image, source []byte, idCo
 	}
 	// Same title split as a link, so image titles are extracted as
 	// translatable text rather than baked into the closing skeleton.
-	r.addLinkCloseRuns(b, n, id, "media:image", "md:image", "md:image-title", 2, info.Equiv, source, idCounter)
+	r.addLinkCloseRuns(b, n, id, "media:image", "md:image", subTypeImageTitle, 2, info.Equiv, source, idCounter)
 }
 
 // referenceCloseMarker returns the closing-marker bytes for a
