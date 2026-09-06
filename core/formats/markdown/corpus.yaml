@@ -164,6 +164,14 @@ entries:
     license: Apache-2.0
     redistributable: true
     notes: 'FuzzRoundTripMarkdown seed for #2482 (a definition inside a list item)'
+  - path: core/formats/markdown/testdata/fuzz/FuzzRoundTripMarkdown/empty_link_title
+    tier: A
+    origin: bug
+    sha256: 0e5a999a665b0afed6dae5298e718a8ef9d917cdb43929ea1bac8ada58c6061d
+    size: 35
+    license: Apache-2.0
+    redistributable: true
+    notes: 'FuzzRoundTripMarkdown seed for #2502 (a link with an empty title)'
   - path: core/formats/markdown/testdata/fuzz/FuzzRoundTripMarkdown/hard_break_own_line
     tier: A
     origin: bug

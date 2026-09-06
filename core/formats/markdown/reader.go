@@ -3505,7 +3505,11 @@ func (r *Reader) addLinkCloseRuns(b *runBuilder, n ast.Node, id, semType, subTyp
 	}
 
 	if contentEnd, c, ok := linkCloser(n, openerLen, len(title) > 0, source); ok {
-		if c.titleOpen < 0 {
+		// An empty title ("[x](a '')") carries nothing to translate, so its
+		// delimiters ride the closing code rather than a title pair. The
+		// closer used to be rebuilt from the resolved values instead, which
+		// dropped them (#2502).
+		if c.titleOpen < 0 || c.title == "" {
 			b.AddPcClose(id, semType, subType, string(source[contentEnd:c.end]), equiv)
 			return
 		}
@@ -3541,7 +3545,10 @@ func linkCloser(n ast.Node, openerLen int, hasTitle bool, source []byte) (conten
 		return 0, c, false
 	}
 	c, ok = scanInlineLinkCloser(source, contentEnd)
-	if !ok || (c.titleOpen >= 0) != hasTitle {
+	// The closer must agree with what the parser resolved: a node carrying a
+	// title needs one in the source. The other direction is not a disagreement,
+	// because an empty title resolves to nothing (#2502).
+	if !ok || (hasTitle && c.titleOpen < 0) {
 		return 0, c, false
 	}
 	return contentEnd, c, true

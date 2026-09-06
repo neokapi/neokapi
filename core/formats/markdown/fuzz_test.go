@@ -141,6 +141,11 @@ func FuzzReadMarkdown(f *testing.F) {
 	// trailing space the writer's okapi-parity trim dropped. Also committed
 	// under testdata/fuzz.
 	f.Add([]byte("> \n> q\n"))
+	// #2502: an empty title resolves to nothing, so the closer was rebuilt from
+	// the resolved values and its delimiters went with it. Also committed under
+	// testdata/fuzz.
+	f.Add([]byte("[](a '')"))
+	f.Add([]byte("text [x](a '') more\n"))
 	// #2481: a code span whose closing fence sits on the next line, whose break
 	// the parser's resolved content has already lost. Also committed under
 	// testdata/fuzz.
