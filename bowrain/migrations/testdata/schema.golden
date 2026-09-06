@@ -443,6 +443,7 @@ extraction_jobs.status text NOT NULL DEFAULT 'queued'::text
 extraction_jobs.step_id text NOT NULL DEFAULT ''::text
 extraction_jobs.total_blocks integer NOT NULL DEFAULT 0
 extraction_jobs.updated_at timestamp with time zone NOT NULL DEFAULT now()
+extraction_jobs.workspace_id text NOT NULL DEFAULT ''::text
 extraction_jobs.workspace_slug text NOT NULL
 extraction_schema_migrations.applied_at timestamp with time zone NOT NULL DEFAULT now()
 extraction_schema_migrations.description text NOT NULL

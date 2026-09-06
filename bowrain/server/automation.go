@@ -553,13 +553,16 @@ func (s *Server) triggerAutoExtract(ctx context.Context, projectID string, itemN
 		job := &jobs.ExtractionJob{
 			ID:            id.New(),
 			WorkspaceSlug: wsSlug,
-			ProjectID:     projectID,
-			ItemName:      itemName,
-			Locale:        locale,
-			PushID:        pushID,
-			StepID:        stepID,
-			Model:         model,
-			Status:        jobs.ExtractionStatusQueued,
+			// The billing identity of the same workspace: the abuse cap is
+			// keyed on the slug, the credit deduction on this.
+			WorkspaceID: proj.WorkspaceID,
+			ProjectID:   projectID,
+			ItemName:    itemName,
+			Locale:      locale,
+			PushID:      pushID,
+			StepID:      stepID,
+			Model:       model,
+			Status:      jobs.ExtractionStatusQueued,
 		}
 
 		if err := s.ExtractionJobStore.CreateExtractionJob(ctx, job); err != nil {

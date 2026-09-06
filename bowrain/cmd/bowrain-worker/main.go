@@ -581,6 +581,12 @@ func runWorker(dbURL string) error {
 		// optional — extraction degrades to the plain LLM pass.
 		Platform:         translationDeps.Platform,
 		PlatformResolver: platformResolver,
+		// Extraction spends the platform key, so it is metered like every
+		// other AI path: the abuse cap sees each call and the credit ledger
+		// takes one deduction per job. Nil hooks (no STRIPE_SECRET_KEY)
+		// degrade to unbilled extractions, as they do for translation.
+		BillingHooks: translationDeps.BillingHooks,
+		QuotaStore:   pgQS,
 		// The same bus the translation worker publishes on, so a failed
 		// extraction reaches the summons by the same route as a failed
 		// translation. Nil without Redis, as it is over there.

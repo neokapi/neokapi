@@ -75,7 +75,7 @@ type operationModel struct{ operation, model string }
 // one event per call, which is what the meter charges for and what makes a
 // run's cost unreadable.
 type AIRun struct {
-	svc         *FlowService
+	accountant  AIAccountant
 	workspaceID string
 	projectID   string
 	runID       string
@@ -94,9 +94,17 @@ type AIRun struct {
 // unconditionally; a service with no accountant yields a scope that admits
 // everything and records nothing.
 func (s *FlowService) BeginAIRun(ctx context.Context, projectID, runID string) *AIRun {
+	return NewAIRun(s.accountant, s.workspaceFor(ctx, projectID), projectID, runID)
+}
+
+// NewAIRun opens a metering scope for a caller that holds its own accountant
+// and already knows the workspace, which is what a worker driving one job has.
+// The result is never nil, and a nil accountant yields a scope that admits
+// everything and records nothing.
+func NewAIRun(accountant AIAccountant, workspaceID, projectID, runID string) *AIRun {
 	return &AIRun{
-		svc:         s,
-		workspaceID: s.workspaceFor(ctx, projectID),
+		accountant:  accountant,
+		workspaceID: workspaceID,
 		projectID:   projectID,
 		runID:       runID,
 		referenceID: flowSpendReference(projectID, runID),
@@ -111,28 +119,28 @@ func (r *AIRun) workspace() string {
 	return r.workspaceID
 }
 
-// admit asks the accountant once per run whether the workspace may spend.
+// Admit asks the accountant once per run whether the workspace may spend.
 //
 // The answer is memoized: a flow with twenty model-backed steps checks the
 // balance once, and a workspace that runs dry mid-run finishes the run it
 // started rather than failing a step halfway through a pass.
-func (r *AIRun) admit(ctx context.Context) error {
-	if r == nil || r.svc == nil || r.svc.accountant == nil || r.workspaceID == "" {
+func (r *AIRun) Admit(ctx context.Context) error {
+	if r == nil || r.accountant == nil || r.workspaceID == "" {
 		return nil
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if !r.admitted {
 		r.admitted = true
-		r.admitErr = r.svc.accountant.Admit(ctx, r.workspaceID)
+		r.admitErr = r.accountant.Admit(ctx, r.workspaceID)
 	}
 	return r.admitErr
 }
 
-// meter wraps a granted provider so every call it serves lands in this run's
+// Meter wraps a granted provider so every call it serves lands in this run's
 // accumulator under the operation the tool performs.
-func (r *AIRun) meter(inner aiprovider.LLMProvider, operation string) aiprovider.LLMProvider {
-	if r == nil || r.svc == nil || r.svc.accountant == nil || inner == nil {
+func (r *AIRun) Meter(inner aiprovider.LLMProvider, operation string) aiprovider.LLMProvider {
+	if r == nil || r.accountant == nil || inner == nil {
 		return inner
 	}
 	return meteredProvider(inner, r, operation)
@@ -159,14 +167,14 @@ func (r *AIRun) add(operation, model string, usage aiprovider.TokenUsage) {
 // errored halfway is still accounted for. Pass a context that outlives the
 // run's own cancellation.
 func (r *AIRun) Settle(ctx context.Context) {
-	if r == nil || r.svc == nil || r.svc.accountant == nil {
+	if r == nil || r.accountant == nil {
 		return
 	}
 	spend, ok := r.settlement()
 	if !ok {
 		return
 	}
-	r.svc.accountant.Record(ctx, spend)
+	r.accountant.Record(ctx, spend)
 }
 
 // settlement folds the accumulator into an AISpend and clears it, so a scope

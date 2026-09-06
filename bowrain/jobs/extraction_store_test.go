@@ -23,6 +23,7 @@ func extractionStoreTests(t *testing.T, store ExtractionJobStore) {
 		job := &ExtractionJob{
 			ID:            uuid.NewString(),
 			WorkspaceSlug: "test-ws",
+			WorkspaceID:   "ws-1",
 			ProjectID:     "proj-1",
 			ItemName:      "en.json",
 			Locale:        "en-US",
@@ -40,6 +41,8 @@ func extractionStoreTests(t *testing.T, store ExtractionJobStore) {
 		require.NoError(t, err)
 		assert.Equal(t, job.ID, got.ID)
 		assert.Equal(t, "test-ws", got.WorkspaceSlug)
+		assert.Equal(t, "ws-1", got.WorkspaceID,
+			"the billing identity the credit deduction is written against")
 		assert.Equal(t, "proj-1", got.ProjectID)
 		assert.Equal(t, "en.json", got.ItemName)
 		assert.Equal(t, "en-US", got.Locale)

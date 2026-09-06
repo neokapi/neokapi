@@ -9,14 +9,15 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/neokapi/neokapi/bowrain/billing"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	bstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/credentials"
 	"github.com/neokapi/neokapi/bowrain/observe"
+	"github.com/neokapi/neokapi/bowrain/service"
 	"github.com/neokapi/neokapi/core/ai/ner"
 	"github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/model"
-	aiprovider "github.com/neokapi/neokapi/providers/ai"
 	"golang.org/x/time/rate"
 )
 
@@ -33,11 +34,20 @@ type ExtractionWorkerDeps struct {
 	CredStore          *credentials.Store
 	Queue              Queue
 	ReviewQueueCreator ReviewQueueCreator
-	KnownTermsLoader   KnownTermsLoader                                            // optional; nil disables known term filtering
-	NERProvider        ner.Provider                                                // optional; nil disables NER pass
-	Platform           *PlatformProviderConfig                                     // optional; nil disables platform provider
-	PlatformResolver   PlatformResolver                                            // optional; consulted at job time for runtime config changes (overrides Platform)
-	LogFunc            func(stepID, level, message string, data map[string]string) // optional (Bowrain AD-013)
+	KnownTermsLoader   KnownTermsLoader        // optional; nil disables known term filtering
+	NERProvider        ner.Provider            // optional; nil disables NER pass
+	Platform           *PlatformProviderConfig // optional; nil disables platform provider
+	PlatformResolver   PlatformResolver        // optional; consulted at job time for runtime config changes (overrides Platform)
+	// BillingHooks deducts platform credits for what an extraction spends.
+	// Optional; nil (self-hosted / unbilled) disables credit deduction.
+	BillingHooks *billing.UsageHooks
+	// QuotaStore is the internal AI abuse cap (ai_usage / ai_quotas):
+	// extractions check the hard monthly token ceiling before the first model
+	// call and record what they spend, exactly like translation jobs, so an
+	// extraction is never invisible to abuse detection. Distinct from the
+	// credit ledger (BillingHooks). Optional; nil disables quota enforcement.
+	QuotaStore QuotaStore
+	LogFunc    func(stepID, level, message string, data map[string]string) // optional (Bowrain AD-013)
 	// EventBus publishes flow.failed when an extraction job fails, so the
 	// failure reaches the people waiting on it rather than only the job row.
 	// Optional; nil records the failure and summons nobody.
@@ -272,10 +282,27 @@ func executeExtraction(ctx context.Context, deps *ExtractionWorkerDeps, job *Ext
 	}
 
 	// Resolve AI provider.
-	prov, limiter, err := resolveExtractionProvider(ctx, deps, job, proj)
+	resolved, err := resolveExtractionProvider(ctx, deps, job, proj)
 	if err != nil {
 		return fmt.Errorf("resolve provider: %w", err)
 	}
+	limiter := resolved.Limiter
+
+	// The metering scope of this job: every model call the extract tool makes
+	// lands in it, and Settle records the usage and deducts the credits once.
+	// It settles even when the run fails, because the tokens a run burned
+	// before it stopped are spent either way, and under a context that outlives
+	// the job's own cancellation.
+	aiRun := service.NewAIRun(accountantFor(deps, job, resolved.Source), job.WorkspaceID, job.ProjectID, job.ID)
+	defer aiRun.Settle(context.WithoutCancel(ctx))
+
+	// The balance is checked here, before the first model call: deduction is
+	// post-hoc, so a workspace with nothing to spend must fail before a token
+	// is burned rather than after the whole item has been extracted.
+	if err := aiRun.Admit(ctx); err != nil {
+		return err
+	}
+	prov := aiRun.Meter(resolved.LLM, usageOpEntityExtract)
 
 	locale := model.LocaleID(job.Locale)
 	if locale == "" {
@@ -460,7 +487,7 @@ func createReviewItemsFromParts(ctx context.Context, deps *ExtractionWorkerDeps,
 	return created, nil
 }
 
-func resolveExtractionProvider(ctx context.Context, deps *ExtractionWorkerDeps, job *ExtractionJob, proj *bstore.Project) (aiprovider.LLMProvider, *rate.Limiter, error) {
+func resolveExtractionProvider(ctx context.Context, deps *ExtractionWorkerDeps, job *ExtractionJob, proj *bstore.Project) (ResolvedProvider, error) {
 	// Check for project-level AI provider config.
 	providerConfigID := "platform"
 	if proj.Properties != nil && proj.Properties["extraction_provider"] != "" {
@@ -481,7 +508,7 @@ func resolveExtractionProvider(ctx context.Context, deps *ExtractionWorkerDeps, 
 		// extraction cost), so it resolves with no workspace scope.
 		platform := activePlatform(ctx, "", deps.Platform, deps.PlatformResolver)
 		if platform == nil {
-			return nil, nil, errors.New("platform provider not configured " +
+			return ResolvedProvider{}, errors.New("platform provider not configured " +
 				"(set BOWRAIN_PLATFORM_PROVIDER + key, or BOWRAIN_OPENAI_ENDPOINT)")
 		}
 		// Build resolves the generic (e.g. bedrock) or Azure path from the same
@@ -489,19 +516,25 @@ func resolveExtractionProvider(ctx context.Context, deps *ExtractionWorkerDeps, 
 		// modelName default for non-Azure providers.
 		prov, ptype, err := platform.Build(modelName)
 		if err != nil {
-			return nil, nil, err
+			return ResolvedProvider{}, err
 		}
-		limiter := rate.NewLimiter(providerRateLimit(ptype), 1)
-		return prov, limiter, nil
+		return ResolvedProvider{
+			LLM:     prov,
+			Limiter: rate.NewLimiter(providerRateLimit(ptype), 1),
+			Source:  ProviderSourcePlatform,
+		}, nil
 	}
 
 	prov, err := credentials.NewProvider(deps.CredStore, providerConfigID)
 	if err != nil {
-		return nil, nil, err
+		return ResolvedProvider{}, err
 	}
 	cfg, _ := deps.CredStore.Get(providerConfigID)
-	limiter := rate.NewLimiter(providerRateLimit(cfg.ProviderType), 1)
-	return prov, limiter, nil
+	return ResolvedProvider{
+		LLM:     prov,
+		Limiter: rate.NewLimiter(providerRateLimit(cfg.ProviderType), 1),
+		Source:  ProviderSourceBYO,
+	}, nil
 }
 
 func emitExtractionLog(deps *ExtractionWorkerDeps, stepID, level, message string, data map[string]string) {
