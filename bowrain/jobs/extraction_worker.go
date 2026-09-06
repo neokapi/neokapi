@@ -303,6 +303,10 @@ func executeExtraction(ctx context.Context, deps *ExtractionWorkerDeps, job *Ext
 	// Process blocks through extraction tool.
 	const progressChunk = 50
 	var itemsCreated int
+	// The blocks each chunk came back annotated with, kept for the single
+	// write-back below. One pass over the item both creates the review items
+	// and produces the annotations that are stored.
+	annotated := make([]*model.Block, 0, totalBlocks)
 
 	for i := 0; i < totalBlocks; i += progressChunk {
 		end := min(i+progressChunk, totalBlocks)
@@ -331,6 +335,8 @@ func executeExtraction(ctx context.Context, deps *ExtractionWorkerDeps, job *Ext
 			return fmt.Errorf("extract chunk %d-%d: %w", i, end, err)
 		}
 
+		annotated = append(annotated, partsToBlocks(outParts)...)
+
 		// Create review queue items from annotations.
 		created, err := createReviewItemsFromParts(ctx, deps, job, outParts, string(locale))
 		if err != nil {
@@ -353,15 +359,10 @@ func executeExtraction(ctx context.Context, deps *ExtractionWorkerDeps, job *Ext
 		return errLeaseLost
 	}
 
-	// Store annotated blocks back.
-	allParts := storedBlocksToParts(storedBlocks)
-	outParts, err := runToolOnParts(ctx, extractTool, allParts)
-	if err == nil {
-		blocks := partsToBlocks(outParts)
-		if len(blocks) > 0 {
-			if storeErr := deps.ContentStore.StoreBlocksForItem(ctx, job.ProjectID, "main", job.ItemName, blocks); storeErr != nil {
-				slog.Warn("store annotated blocks failed", "error", storeErr)
-			}
+	// Store the blocks the chunk loop annotated.
+	if len(annotated) > 0 {
+		if storeErr := deps.ContentStore.StoreBlocksForItem(ctx, job.ProjectID, "main", job.ItemName, annotated); storeErr != nil {
+			slog.Warn("store annotated blocks failed", "error", storeErr)
 		}
 	}
 
