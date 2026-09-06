@@ -18,19 +18,20 @@ import (
 // quiet one: a whole document can go opaque for one construct, and the only
 // symptom is a page still in its source language.
 //
-// The fixture is an underscore emphasis whose first child is a link: the
-// reader takes the emphasis delimiter from the byte before its first text
-// child and defaults to `*` when there is none, so `_[a](b)_` comes back as
-// `*[a](b)*`. The task list, the hard break and the single-quoted title that
-// sat here reconstruct now, and the note they carried holds for their
-// replacement: these tests assert the reporting, so the day this shape
-// round-trips they will fail and the fixture should become whatever still
-// diverges.
+// The fixture is a link inside a blockquote whose title sits on the next line:
+// the reader replays a link's closer from the source bytes at the offset the
+// resolver places it, and those bytes carry the `> ` the parser stripped, so
+// the scan fails and the closer is rebuilt from the parser's resolved values
+// with double quotes (#2461). The task list, the hard break, the single-quoted
+// title and the underscore emphasis that sat here reconstruct now, and the note
+// they carried holds for their replacement: these tests assert the reporting,
+// so the day this shape round-trips they will fail and the fixture should
+// become whatever still diverges.
 //
 // A single-block span is the deliberate choice. Quarantine salvages a span by
 // isolating the blocks that failed, so a fixture with neighbours exercises that
 // path instead — which is what TestQuarantineKeepsTheOtherBlocks is for.
-const divergingSrc = "See _[the docs](/docs)_ here.\n"
+const divergingSrc = "> See [the docs](/docs\n> 'Documentation') here.\n"
 
 func readAll(t *testing.T, src string) ([]*model.Block, []format.Diagnostic) {
 	t.Helper()
@@ -163,6 +164,14 @@ func TestKnownRoundTripDivergences(t *testing.T) {
 		{name: "parenthesised image title", src: "![alt](image.png (An image))\n"},
 		{name: "title on its own line", src: "[a](https://example.com\n'Title').\n"},
 		{name: "two links to one destination spelled two ways", src: "[a](https://example.com) and [b](<https://example.com>).\n"},
+		// An underscore emphasis whose first child is not a text node used to
+		// come back with asterisks, and `_*a*_` as `**a**`, which re-reads as
+		// strong and changes the block outright.
+		{name: "underscore emphasis around a link", src: "See _[the docs](/docs)_ here.\n"},
+		{name: "underscore emphasis around a code span", src: "See _`config.go`_ here.\n"},
+		{name: "underscore emphasis around an autolink", src: "See _<https://example.com>_ here.\n"},
+		{name: "underscore strong around an image", src: "See __![alt](image.png)__ here.\n"},
+		{name: "underscore emphasis around an emphasis", src: "See _*nested*_ here.\n"},
 	}
 
 	for _, tc := range tests {

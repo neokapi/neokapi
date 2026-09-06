@@ -3027,19 +3027,24 @@ func (r *Reader) buildEmphasisRuns(b *runBuilder, n *ast.Emphasis, source []byte
 	b.AddPcClose(id, semType, subType, data, info.Equiv)
 }
 
-// emphasisDelimiter returns the byte ('*' or '_') used as the
-// emphasis marker in the source. goldmark's ast.Emphasis only carries
-// the delimiter level (1 or 2), not which character was used, so we
-// look at the source bytes immediately before the first child node.
-// Defaults to '*' when the offset can't be located (e.g. nested or
-// programmatically-built nodes).
+// emphasisDelimiter returns the byte ('*' or '_') used as the emphasis marker
+// in the source. goldmark's ast.Emphasis carries the delimiter level (1 or 2)
+// and not which character spelled it, so the byte comes from the source at the
+// offset the resolver places the node at.
+//
+// The resolver answers for an emphasis whose first child is not a text node,
+// which reading back from the child's own segment could not: `_[a](b)_` came
+// back as `*[a](b)*`, and `_*a*_` as `**a**`, which re-reads as strong and
+// changes the block (#2446). Defaults to '*' when the node cannot be located
+// (a programmatically-built one, above all).
 func emphasisDelimiter(n *ast.Emphasis, source []byte) byte {
-	first := n.FirstChild()
-	if first == nil {
-		return '*'
+	if start, ok := inlineNodeStart(n, source); ok && start >= 0 && start < len(source) {
+		if c := source[start]; c == '*' || c == '_' {
+			return c
+		}
 	}
-	// Inline text nodes carry their source range via Segment.
-	if t, ok := first.(*ast.Text); ok {
+	// The first child's own segment, for a node the resolver could not place.
+	if t, ok := n.FirstChild().(*ast.Text); ok {
 		start := t.Segment.Start - n.Level
 		if start >= 0 && start < len(source) {
 			c := source[start]

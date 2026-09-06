@@ -128,7 +128,7 @@ func FuzzReadMarkdown(f *testing.F) {
 	f.Add([]byte("a <script>*b*</script> c"))
 	f.Add([]byte("a <style>[x](y)</style> c"))
 	f.Add([]byte("a <math>`c` <https://x> ![i](s)</math> b"))
-	markdownSeed(f, "excluded-html-inline.md")
+	markdownSeed(f, "excluded-html-inline.md", "emphasis-delimiters.md")
 	seedDamagedMarkdown(f)
 
 	f.Fuzz(func(t *testing.T, data []byte) {
@@ -255,6 +255,11 @@ func FuzzRoundTripMarkdown(f *testing.F) {
 	f.Add([]byte("![a](b (t))"))
 	f.Add([]byte("[![i](s 'st')](b 'lt')"))
 	f.Add([]byte("[a](b 'say \"hi\"')"))
+	// #2446: an underscore emphasis whose first child is not a text node came
+	// back with asterisks, and `_*a*_` as `**a**`, which re-reads as strong.
+	f.Add([]byte("_*a*_"))
+	f.Add([]byte("_[a](b)_"))
+	f.Add([]byte("__![i](s)__"))
 	seedDamagedMarkdown(f)
 
 	f.Fuzz(func(t *testing.T, data []byte) {
