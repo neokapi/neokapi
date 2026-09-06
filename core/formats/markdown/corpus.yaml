@@ -76,6 +76,14 @@ entries:
     license: Apache-2.0
     redistributable: true
     notes: 'FuzzReadMarkdown seed for #2444 (link inside a style span)'
+  - path: core/formats/markdown/testdata/fuzz/FuzzReadMarkdown/wrapped_link_closer_in_a_quote
+    tier: A
+    origin: bug
+    sha256: 1c69179083bf00d6facf50dfcad77c1a2d9473218a00a81deea599d23e290e6e
+    size: 45
+    license: Apache-2.0
+    redistributable: true
+    notes: 'FuzzReadMarkdown seed for #2461 (a link closer wrapping inside a blockquote)'
   - path: core/formats/markdown/testdata/fuzz/FuzzRoundTripMarkdown/hard_break_own_line
     tier: A
     origin: bug
@@ -196,3 +204,11 @@ entries:
     license: Apache-2.0
     redistributable: true
     notes: own-created repo fixture
+  - path: core/formats/markdown/testdata/wrapped-link-closers.md
+    tier: A
+    origin: bug
+    sha256: 815be5793774a9dd9b712cc727c7a534b6c77004305b96f91e95aab5eaf289c0
+    size: 503
+    license: Apache-2.0
+    redistributable: true
+    notes: 'own-created fixture for #2461 (a link closer wrapping inside a container)'

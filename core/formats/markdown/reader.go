@@ -3255,7 +3255,7 @@ func (r *Reader) buildLinkRuns(b *runBuilder, n *ast.Link, source []byte, idCoun
 	// MarkdownParser.visitRefLink which emits the LINK_REF tokens
 	// verbatim from the source markers.
 	if n.Reference != nil {
-		closing := referenceCloseMarker(n.Reference)
+		closing := referenceCloseSpelling(n, n.Reference, 1, source)
 		b.AddPcOpen(id, "link:hyperlink", "md:link-ref", "[", info.Display.Open, info.Equiv,
 			info.Constraints.Deletable, info.Constraints.Cloneable, info.Constraints.Reorderable)
 		b.SetLastAttrs(linkImageAttrs(model.AttrHref, n.Destination, n.Title, nil))
@@ -3365,7 +3365,7 @@ func (r *Reader) buildImageRuns(b *runBuilder, n *ast.Image, source []byte, idCo
 	}
 
 	if n.Reference != nil {
-		closing := referenceCloseMarker(n.Reference)
+		closing := referenceCloseSpelling(n, n.Reference, 2, source)
 		b.AddPcOpen(id, "media:image", "md:image-ref", "!["+alt, info.Display.Open, info.Equiv,
 			info.Constraints.Deletable, info.Constraints.Cloneable, info.Constraints.Reorderable)
 		b.SetLastAttrs(linkImageAttrs(model.AttrSrc, n.Destination, n.Title, []byte(alt)))
@@ -3406,6 +3406,25 @@ func (r *Reader) untranslatedAltText(n *ast.Image, source []byte) string {
 	var buf strings.Builder
 	r.collectInlineText(&buf, n, source)
 	return buf.String()
+}
+
+// referenceCloseSpelling returns the bytes that close a reference-style link or
+// image as the source spells them: from the `]` that ends its text to the end
+// of its label. The label may hold a line ending, and inside a container the
+// parser strips that line's prefix from the label it resolves, so a rebuild
+// from the resolved value dropped it ("> [a][\n> b]" came back as
+// "> [a][\nb]", #2461). referenceCloseMarker answers for a node the resolver
+// cannot place.
+func referenceCloseSpelling(n ast.Node, ref *ast.ReferenceLink, openerLen int, source []byte) string {
+	contentEnd, ok := linkContentEnd(n, openerLen, source)
+	if !ok {
+		return referenceCloseMarker(ref)
+	}
+	end, ok := linkNodeEnd(n, ref, openerLen, source)
+	if !ok || end <= contentEnd || end > len(source) {
+		return referenceCloseMarker(ref)
+	}
+	return string(source[contentEnd:end])
 }
 
 // referenceCloseMarker returns the closing-marker bytes for a

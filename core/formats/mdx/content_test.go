@@ -278,20 +278,21 @@ func TestTableRowsRideGroups(t *testing.T) {
 // --- Treatment A: markdown-opaque fallback blocks (#928) ---
 
 // TestMarkdownOpaqueFallbackSurfacesBlocks verifies that when a Markdown span
-// fails byte-exact reconstruction (here a quoted link whose title sits on the
-// next line, whose closer markdown spells back from the parser's resolved
-// values) the span is kept verbatim opaque
+// fails byte-exact reconstruction (here a code span whose closing fence sits on
+// the next line, whose break the parser's resolved content has already lost)
+// the span is kept verbatim opaque
 // AND, when the flag is on, the prose the markdown sub-reader already parsed
 // is surfaced as non-translatable
 // content blocks (no skeleton ref → no round-trip impact). With the flag off,
 // only the opaque Data is emitted (identical pre-#928 part stream). Both
 // directions round-trip byte-for-byte.
 func TestMarkdownOpaqueFallbackSurfacesBlocks(t *testing.T) {
-	// A link inside a blockquote whose title sits on the next line: the
-	// closer's source bytes carry the `> ` the parser stripped, so the scan
-	// fails and the closer is rebuilt with double quotes, which the markdown
-	// reader does not reconstruct byte-for-byte, forcing the opaque fallback.
-	src := []byte("> line one [two](/two\n> 'Title')\n")
+	// A code span whose closing fence sits on the next line: CommonMark 6.1
+	// converts the interior line ending to a space and strips it, so the
+	// parser's content is shorter than the source spelled and the markdown
+	// reader does not reconstruct it byte-for-byte, forcing the opaque
+	// fallback (#2481).
+	src := []byte("line one ` two\n` three\n")
 
 	// Flag ON: opaque Data + a non-translatable block carrying the prose.
 	onParts, onStore := readPartsExtract(t, src, true)

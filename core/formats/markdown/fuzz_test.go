@@ -128,7 +128,14 @@ func FuzzReadMarkdown(f *testing.F) {
 	f.Add([]byte("a <script>*b*</script> c"))
 	f.Add([]byte("a <style>[x](y)</style> c"))
 	f.Add([]byte("a <math>`c` <https://x> ![i](s)</math> b"))
-	markdownSeed(f, "excluded-html-inline.md", "emphasis-delimiters.md", "image-alt.md")
+	// #2461: a link or image whose closing markup wraps onto the next line of a
+	// blockquote or a list item, where the bytes at the closer's offset carry
+	// the continuation prefix the parser stripped. Also committed under
+	// testdata/fuzz.
+	f.Add([]byte("> [a](/x\n> 'T') b"))
+	f.Add([]byte("> [a][\n> b] c"))
+	markdownSeed(f, "excluded-html-inline.md", "emphasis-delimiters.md", "image-alt.md",
+		"wrapped-link-closers.md")
 	seedDamagedMarkdown(f)
 
 	f.Fuzz(func(t *testing.T, data []byte) {
@@ -288,6 +295,8 @@ func FuzzRoundTripMarkdown(f *testing.F) {
 	f.Add([]byte(">0\n >0"))
 	f.Add([]byte(">> a\n>> b"))
 	f.Add([]byte(">> a"))
+	// #2461: the closer of a link that wraps inside a container.
+	f.Add([]byte("> [a](/x\n> 'T') b"))
 	seedDamagedMarkdown(f)
 
 	f.Fuzz(func(t *testing.T, data []byte) {

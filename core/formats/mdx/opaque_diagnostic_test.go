@@ -18,20 +18,20 @@ import (
 // quiet one: a whole document can go opaque for one construct, and the only
 // symptom is a page still in its source language.
 //
-// The fixture is a link inside a blockquote whose title sits on the next line:
-// the reader replays a link's closer from the source bytes at the offset the
-// resolver places it, and those bytes carry the `> ` the parser stripped, so
-// the scan fails and the closer is rebuilt from the parser's resolved values
-// with double quotes (#2461). The task list, the hard break, the single-quoted
-// title and the underscore emphasis that sat here reconstruct now, and the note
-// they carried holds for their replacement: these tests assert the reporting,
-// so the day this shape round-trips they will fail and the fixture should
-// become whatever still diverges.
+// The fixture is a code span whose closing fence sits on the next line:
+// CommonMark 6.1 turns the interior line ending into a space and then strips
+// it, so the parser's resolved content is shorter than the source spelled and
+// the break is gone from the rebuild (#2481). The task list, the hard break,
+// the single-quoted title, the underscore emphasis and the quoted link whose
+// title wrapped all sat here and reconstruct now, and the note they carried
+// holds for their replacement: these tests assert the reporting, so the day
+// this shape round-trips they will fail and the fixture should become whatever
+// still diverges.
 //
 // A single-block span is the deliberate choice. Quarantine salvages a span by
 // isolating the blocks that failed, so a fixture with neighbours exercises that
 // path instead — which is what TestQuarantineKeepsTheOtherBlocks is for.
-const divergingSrc = "> See [the docs](/docs\n> 'Documentation') here.\n"
+const divergingSrc = "See ` code\n` here.\n"
 
 func readAll(t *testing.T, src string) ([]*model.Block, []format.Diagnostic) {
 	t.Helper()
@@ -172,6 +172,15 @@ func TestKnownRoundTripDivergences(t *testing.T) {
 		{name: "underscore emphasis around an autolink", src: "See _<https://example.com>_ here.\n"},
 		{name: "underscore strong around an image", src: "See __![alt](image.png)__ here.\n"},
 		{name: "underscore emphasis around an emphasis", src: "See _*nested*_ here.\n"},
+		// A link or image whose closing markup wrapped onto the next line of a
+		// container used to lose the source's spelling: the closer scan stopped
+		// on the `> ` the parser had stripped, and the closer was rebuilt from
+		// the resolved values with double quotes.
+		{name: "quoted link whose title wraps", src: "> See [the docs](/docs\n> 'Documentation') here.\n"},
+		{name: "quoted image whose title wraps", src: "> See ![alt](/img\n> 'Caption') here.\n"},
+		{name: "twice-quoted link whose title wraps", src: ">> See [the docs](/docs\n>> 'Documentation') here.\n"},
+		{name: "quoted reference link whose label wraps", src: "> See [the docs][\n> d] here.\n\n[ d]: /docs\n"},
+		{name: "link in a list item whose title wraps", src: "- See [the docs](/docs\n  'Documentation') here.\n"},
 	}
 
 	for _, tc := range tests {

@@ -336,13 +336,44 @@ func scanInlineLinkCloser(source []byte, pos int) (inlineLinkCloser, bool) {
 	return c, true
 }
 
-// skipLinkWhitespace returns the first offset at or after i that is not a
-// space, tab or line ending.
+// skipLinkWhitespace returns the first offset at or after i that is not part of
+// the whitespace CommonMark 6.6 allows around a link's destination and title:
+// spaces and tabs, with up to one line ending.
+//
+// The bytes after a line ending carry whatever continuation prefix the parser
+// stripped from the next line, so those are skipped too, the way
+// softBreakContinuation keeps them for a soft break. Inside a blockquote or a
+// list item the scan used to stop on that prefix and report no closer, and the
+// link was rebuilt from the parser's resolved values instead of the source's
+// spelling: "> [a](/x\n> 'T')" came back as "> [a](/x \"T\")" (#2461).
 func skipLinkWhitespace(source []byte, i int) int {
 	for i < len(source) {
 		switch source[i] {
-		case ' ', '\t', '\r', '\n':
+		case ' ', '\t', '\r':
 			i++
+		case '\n':
+			return skipContinuationPrefix(source, i+1)
+		default:
+			return i
+		}
+	}
+	return i
+}
+
+// skipContinuationPrefix returns the first offset at or after i that is not
+// part of a continuation line's container prefix: indentation, and the ">" of
+// each enclosing blockquote with the single space CommonMark 5.1 allows after
+// it. It stops at the next line ending, so only one of them is ever crossed.
+func skipContinuationPrefix(source []byte, i int) int {
+	for i < len(source) {
+		switch source[i] {
+		case ' ', '\t':
+			i++
+		case '>':
+			i++
+			if i < len(source) && source[i] == ' ' {
+				i++
+			}
 		default:
 			return i
 		}
