@@ -27,6 +27,9 @@ func TestStrikethroughFencesComeFromSource(t *testing.T) {
 		{"two pairs", "~~a~~b~~"},
 		{"in a sentence", "A ~~b~~ and *c*\n"},
 		{"single tilde around emphasis", "A ~*struck*~ word.\n"},
+		{"around a link", "~[a](b)~"},
+		{"double tilde around a link", "~~[a](b)~~"},
+		{"spaced around a link", "~ [a](b) ~"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

@@ -3894,13 +3894,11 @@ func (r *Reader) buildStrikethroughRuns(b *runBuilder, node ast.Node, source []b
 // `~~` when boundaries can't be determined.
 func strikethroughFences(node ast.Node, source []byte) (string, string) {
 	first := node.FirstChild()
-	last := node.LastChild()
-	if first == nil || last == nil {
+	if first == nil {
 		return "~~", "~~"
 	}
-	contentStart, ok1 := inlineContentStart(first, source)
-	contentEnd, ok2 := inlineNodeEnd(last, source)
-	if !ok1 || !ok2 || contentStart > len(source) || contentEnd > len(source) || contentStart > contentEnd {
+	contentStart, ok := inlineContentStart(first, source)
+	if !ok || contentStart <= 0 || contentStart > len(source) {
 		return "~~", "~~"
 	}
 	// The tilde run before the content is the opener, bounded by what the
@@ -3912,29 +3910,40 @@ func strikethroughFences(node ast.Node, source []byte) (string, string) {
 		openStart--
 	}
 	if prev := node.PreviousSibling(); prev != nil {
-		if end, ok := inlineNodeEnd(prev, source); ok && end > openStart && end <= contentStart {
+		if end, ok := prevSiblingEnd(prev, source); ok && end > openStart && end <= contentStart {
 			openStart = end
 		}
 	}
-	closeEnd := contentEnd
-	for closeEnd < len(source) && source[closeEnd] == '~' {
-		closeEnd++
-	}
-	if next, ok := node.NextSibling().(*ast.Text); ok && next.Segment.Start >= contentEnd && next.Segment.Start < closeEnd {
-		closeEnd = next.Segment.Start
-	}
 	open := string(source[openStart:contentStart])
-	close := string(source[contentEnd:closeEnd])
 	// A sibling's segment can start ON the delimiter it follows, which leaves
 	// the bound with nothing between it and the content. One tilde is what sits
 	// there, and GFM spells a strikethrough with one or two.
 	if open == "" {
 		open = tildeOrPair(source, contentStart-1)
 	}
-	if close == "" {
-		close = tildeOrPair(source, contentEnd)
+	// GFM pairs a strikethrough's closing run with an opening run of the same
+	// length, so the closer is spelled like the opener. Reading it from the
+	// bytes after the content instead means asking the last child where it
+	// ends, and a link there asks its parent — this node — where it begins,
+	// which recurses until the stack runs out.
+	return open, open
+}
+
+// prevSiblingEnd bounds a node's opener by what the sibling before it spells.
+// It answers only for a sibling that records a segment of its own: resolving a
+// link's or an image's end asks its parent for its own start, and the parent
+// asking back is a cycle.
+func prevSiblingEnd(prev ast.Node, source []byte) (int, bool) {
+	switch v := prev.(type) {
+	case *ast.Text:
+		return textNodeEnd(v, source), true
+	case *ast.RawHTML:
+		if v.Segments == nil || v.Segments.Len() == 0 {
+			return 0, false
+		}
+		return v.Segments.At(v.Segments.Len() - 1).Stop, true
 	}
-	return open, close
+	return 0, false
 }
 
 // tildeOrPair returns "~" when source[i] is a tilde and "~~" otherwise.
