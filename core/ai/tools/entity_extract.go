@@ -47,9 +47,14 @@ const (
 
 // AIEntityExtractConfig holds configuration for the entity extraction tool.
 type AIEntityExtractConfig struct {
-	Engine      string         `json:"engine,omitempty" schema:"title=Extraction Engine,description=llm (AI provider; default) / ner (local on-device model: nothing leaves the machine) / hybrid (both),enum=llm|ner|hybrid,default=llm"`
-	Provider    string         `json:"provider,omitempty" schema:"title=AI Provider,description=AI provider,default=anthropic,group=provider"`
-	APIKey      string         `json:"apiKey,omitempty" schema:"title=API Key,description=API key for the AI provider,group=provider"`
+	Engine   string `json:"engine,omitempty" schema:"title=Extraction Engine,description=llm (AI provider; default) / ner (local on-device model: nothing leaves the machine) / hybrid (both),enum=llm|ner|hybrid,default=llm"`
+	Provider string `json:"provider,omitempty" schema:"title=AI Provider,description=AI provider,default=anthropic,group=provider"`
+	APIKey   string `json:"apiKey,omitempty" schema:"title=API Key,description=API key for the AI provider,group=provider"`
+	// BaseURL is the endpoint the provider is called at, for a self-hosted or
+	// proxied deployment. The host resolves it from the credential the key
+	// came from and injects it here; a recipe cannot set it, which is why it
+	// is off the form (see host/credentials.stripRecipeEndpoint).
+	BaseURL     string         `json:"baseURL,omitempty" schema:"-"`
 	Model       string         `json:"model,omitempty" schema:"title=Model,description=AI model name,group=provider"`
 	Locale      model.LocaleID `json:"locale,omitempty" schema:"description=Locale of the source content"`
 	KnownTerms  []string       `json:"knownTerms,omitempty" schema:"description=Terms to exclude from extraction (already in the terms store)"`                // terms to exclude from extraction (already in terms)
@@ -168,7 +173,7 @@ func NewAIEntityExtractFromConfig(config map[string]any, _ string) (tool.Tool, e
 		return NewAIEntityExtractTool(nil, nerProvider, cfg), nil
 	}
 
-	p, err := providerFor(injected, cfg.Provider, aiprovider.Config{APIKey: cfg.APIKey, Model: cfg.Model})
+	p, err := providerFor(injected, cfg.Provider, aiprovider.Config{APIKey: cfg.APIKey, BaseURL: cfg.BaseURL, Model: cfg.Model})
 	if err != nil {
 		return nil, err
 	}

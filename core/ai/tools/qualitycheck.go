@@ -29,8 +29,13 @@ type AICheckConfig struct {
 	TargetLocale model.LocaleID `json:"targetLocale,omitempty" schema:"-"`
 	Provider     string         `json:"provider,omitempty"     schema:"title=AI Provider,description=AI provider,default=anthropic,group=provider"`
 	APIKey       string         `json:"apiKey,omitempty"       schema:"title=API Key,description=API key for the AI provider,group=provider"`
-	Model        string         `json:"model,omitempty"        schema:"title=Model,description=AI model name,group=provider"`
-	Checks       []string       `json:"checks,omitempty"       schema:"title=Quality Checks,description=Quality checks to perform (e.g. terminology fluency accuracy consistency)"`
+	// BaseURL is the endpoint the provider is called at, for a self-hosted or
+	// proxied deployment. The host resolves it from the credential the key
+	// came from and injects it here; a recipe cannot set it, which is why it
+	// is off the form (see host/credentials.stripRecipeEndpoint).
+	BaseURL string   `json:"baseURL,omitempty"      schema:"-"`
+	Model   string   `json:"model,omitempty"        schema:"title=Model,description=AI model name,group=provider"`
+	Checks  []string `json:"checks,omitempty"       schema:"title=Quality Checks,description=Quality checks to perform (e.g. terminology fluency accuracy consistency)"`
 }
 
 // NewAICheckFromConfig creates an LLM-judged check tool from a config map.
@@ -43,7 +48,7 @@ func NewAICheckFromConfig(config map[string]any, targetLang string) (tool.Tool, 
 	if targetLang != "" {
 		cfg.TargetLocale = model.LocaleID(targetLang)
 	}
-	p, err := providerFor(injected, cfg.Provider, aiprovider.Config{APIKey: cfg.APIKey, Model: cfg.Model})
+	p, err := providerFor(injected, cfg.Provider, aiprovider.Config{APIKey: cfg.APIKey, BaseURL: cfg.BaseURL, Model: cfg.Model})
 	if err != nil {
 		return nil, err
 	}

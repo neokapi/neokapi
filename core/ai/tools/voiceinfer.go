@@ -398,8 +398,13 @@ type VoiceInferTool struct {
 
 // VoiceInferConfig holds configuration for the voice profile infer tool.
 type VoiceInferConfig struct {
-	Provider    string `json:"provider,omitempty"    schema:"title=AI Provider,description=AI provider,default=anthropic,group=provider"`
-	APIKey      string `json:"apiKey,omitempty"      schema:"title=API Key,description=API key for the AI provider,group=provider"`
+	Provider string `json:"provider,omitempty"    schema:"title=AI Provider,description=AI provider,default=anthropic,group=provider"`
+	APIKey   string `json:"apiKey,omitempty"      schema:"title=API Key,description=API key for the AI provider,group=provider"`
+	// BaseURL is the endpoint the provider is called at, for a self-hosted or
+	// proxied deployment. The host resolves it from the credential the key
+	// came from and injects it here; a recipe cannot set it, which is why it
+	// is off the form (see host/credentials.stripRecipeEndpoint).
+	BaseURL     string `json:"baseURL,omitempty"     schema:"-"`
 	Model       string `json:"model,omitempty"       schema:"title=Model,description=AI model name,group=provider"`
 	ProfileName string `json:"profileName,omitempty" schema:"title=Profile Name,description=Name for the inferred draft profile"`
 	Domain      string `json:"domain,omitempty"      schema:"title=Domain,description=Subject domain hint for the analysis (e.g. medical legal technology)"`
@@ -433,7 +438,7 @@ func NewVoiceInferFromConfig(config map[string]any, _ string) (tool.Tool, error)
 	if err := schema.ApplyConfig(config, &cfg); err != nil {
 		return nil, fmt.Errorf("voice-infer config: %w", err)
 	}
-	p, err := providerFor(injected, cfg.Provider, aiprovider.Config{APIKey: cfg.APIKey, Model: cfg.Model})
+	p, err := providerFor(injected, cfg.Provider, aiprovider.Config{APIKey: cfg.APIKey, BaseURL: cfg.BaseURL, Model: cfg.Model})
 	if err != nil {
 		return nil, err
 	}
