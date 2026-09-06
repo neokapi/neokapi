@@ -135,14 +135,10 @@ func mimeForFormat(f string) string {
 // streaming spill to a temp file), the Media part references it by URI, and the
 // OCR engine (the plugin) opens and decodes that path itself.
 func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
-	ch := make(chan model.PartResult, 64)
-	go func() {
-		defer close(ch)
-
+	return format.StreamParts(ctx, func(ctx context.Context, ch chan<- model.PartResult) error {
 		imgPath, cleanup, err := r.materialize()
 		if err != nil {
-			ch <- model.PartResult{Error: err}
-			return
+			return err
 		}
 		defer cleanup()
 
@@ -156,8 +152,7 @@ func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
 		if derr != nil {
 			kind, _ := classifyFile(imgPath)
 			if kind == kindUnknown {
-				ch <- model.PartResult{Error: fmt.Errorf("image: decode: %w", derr)}
-				return
+				return fmt.Errorf("image: decode: %w", derr)
 			}
 			mime = mimeForKind(kind)
 		}
@@ -237,8 +232,8 @@ func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
 
 		ch <- model.PartResult{Part: &model.Part{Type: model.PartLayerEnd, Resource: pageLayer}}
 		ch <- model.PartResult{Part: &model.Part{Type: model.PartLayerEnd, Resource: root}}
-	}()
-	return ch
+		return nil
+	})
 }
 
 // materialize resolves the document to a readable local file path without ever

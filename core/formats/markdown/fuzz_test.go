@@ -122,6 +122,13 @@ func FuzzReadMarkdown(f *testing.F) {
 	f.Add([]byte(""))
 	f.Add([]byte("- a\n- b\n"))
 	f.Add([]byte("Text with `code` and [link](https://example.com).\n"))
+	// #2444: an inline node inside an excluded HTML span (script, style, math)
+	// was asked for a Lines() span it does not have, and goldmark panicked by
+	// design. Both reproducers are also committed under testdata/fuzz.
+	f.Add([]byte("a <script>*b*</script> c"))
+	f.Add([]byte("a <style>[x](y)</style> c"))
+	f.Add([]byte("a <math>`c` <https://x> ![i](s)</math> b"))
+	markdownSeed(f, "excluded-html-inline.md")
 	seedDamagedMarkdown(f)
 
 	f.Fuzz(func(t *testing.T, data []byte) {
@@ -237,6 +244,9 @@ func FuzzRoundTripMarkdown(f *testing.F) {
 	f.Add([]byte("<https://example.com>"))
 	f.Add([]byte("- <https://x>\n- b"))
 	f.Add([]byte("*<https://x>* [a](b) <https://x>"))
+	// #2444: the same excluded-span reproducers, through the rebuild path.
+	f.Add([]byte("a <script>*b*</script> c"))
+	f.Add([]byte("a <style>[x](y)</style> c"))
 	seedDamagedMarkdown(f)
 
 	f.Fuzz(func(t *testing.T, data []byte) {

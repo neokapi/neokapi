@@ -129,18 +129,15 @@ func (r *Reader) Open(ctx context.Context, doc *model.RawDocument) error {
 // (data, child layers from the HTML subfilter, and the blocks' identities)
 // pass through untouched so byte-faithful round-trip is preserved.
 func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
-	out := make(chan model.PartResult, 64)
 	in := r.inner.Read(ctx)
-
-	go func() {
-		defer close(out)
+	return format.StreamParts(ctx, func(ctx context.Context, out chan<- model.PartResult) error {
 		depth := 0 // nesting depth of child (subfilter) layers
 		for pr := range in {
 			if pr.Error != nil {
 				select {
 				case out <- pr:
 				case <-ctx.Done():
-					return
+					return nil
 				}
 				continue
 			}
@@ -172,12 +169,11 @@ func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
 			select {
 			case out <- pr:
 			case <-ctx.Done():
-				return
+				return nil
 			}
 		}
-	}()
-
-	return out
+		return nil
+	})
 }
 
 // blockKeyPath recovers the raw dotted JSON key path the inner reader recorded

@@ -201,11 +201,8 @@ func (r *Reader) Open(ctx context.Context, doc *model.RawDocument) error {
 // non-translatable Data carrying token values and structure) passes through
 // untouched so byte-faithful round-trip is preserved.
 func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
-	out := make(chan model.PartResult, 64)
 	in := r.inner.Read(ctx)
-
-	go func() {
-		defer close(out)
+	return format.StreamParts(ctx, func(ctx context.Context, out chan<- model.PartResult) error {
 		for pr := range in {
 			if pr.Error == nil && pr.Part != nil {
 				switch pr.Part.Type {
@@ -222,12 +219,11 @@ func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
 			select {
 			case out <- pr:
 			case <-ctx.Done():
-				return
+				return nil
 			}
 		}
-	}()
-
-	return out
+		return nil
+	})
 }
 
 // Close releases the inner reader's resources.

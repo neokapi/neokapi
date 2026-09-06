@@ -204,14 +204,7 @@ func (r *Reader) Open(ctx context.Context, doc *model.RawDocument) error {
 
 // Read returns a channel of PartResults.
 func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
-	ch := make(chan model.PartResult, 64)
-	go func() {
-		defer close(ch)
-		if err := r.readContent(ctx, ch); err != nil {
-			ch <- model.PartResult{Error: err}
-		}
-	}()
-	return ch
+	return format.StreamParts(ctx, r.readContent)
 }
 
 func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) error {
@@ -2958,10 +2951,13 @@ func rawHTMLTagName(n *ast.RawHTML, source []byte) string {
 	return strings.ToLower(string(s[idx:end]))
 }
 
-// appendNodeRawBytes writes a node's source bytes to dst. For Text and
-// RawHTML nodes we use the segment ranges; everything else falls back
-// to the node's Lines() span (paragraph descendants typically expose
-// the same ranges via Lines() at the leaf level).
+// appendNodeRawBytes writes a node's source bytes to dst. Text and RawHTML
+// carry segment ranges; any other inline node is located through the offset
+// resolver, and a block node falls back to its Lines() span.
+//
+// The split by node type is the whole point. goldmark's BaseInline.Lines()
+// panics by design, so calling it on the emphasis in `a <script>*b*</script> c`
+// crashed the reader's goroutine, and with it the process (#2444).
 func (r *Reader) appendNodeRawBytes(dst *strings.Builder, n ast.Node, source []byte) {
 	switch v := n.(type) {
 	case *ast.Text:
@@ -2972,22 +2968,41 @@ func (r *Reader) appendNodeRawBytes(dst *strings.Builder, n ast.Node, source []b
 		if v.HardLineBreak() {
 			dst.WriteByte('\n')
 		}
+	case *ast.String:
+		dst.Write(v.Value)
 	case *ast.RawHTML:
 		for i := range v.Segments.Len() {
 			seg := v.Segments.At(i)
 			dst.Write(seg.Value(source))
 		}
 	default:
-		// Best-effort: use Lines() ranges so nested inline nodes
-		// (Emphasis, Link, Image with text inside math) still
-		// contribute their source bytes verbatim. Excluded markup
-		// doesn't typically nest non-RawHTML children, but this guards
-		// against malformed input.
+		if n.Type() == ast.TypeInline {
+			r.appendInlineRawBytes(dst, n, source)
+			return
+		}
 		lines := n.Lines()
 		for i := range lines.Len() {
 			seg := lines.At(i)
 			dst.Write(seg.Value(source))
 		}
+	}
+}
+
+// appendInlineRawBytes writes the source span of an inline node that records no
+// segments of its own: an emphasis, a link, a code span, an autolink between an
+// excluded element's open and close tag. The span comes from the offset
+// resolver, which locates a node from its neighbours; when the node cannot be
+// located, its children still contribute their own bytes, so the markup around
+// them is what is lost rather than the text inside.
+func (r *Reader) appendInlineRawBytes(dst *strings.Builder, n ast.Node, source []byte) {
+	start, okStart := inlineNodeStart(n, source)
+	end, okEnd := inlineNodeEnd(n, source)
+	if okStart && okEnd && start >= 0 && start <= end && end <= len(source) {
+		dst.Write(source[start:end])
+		return
+	}
+	for child := n.FirstChild(); child != nil; child = child.NextSibling() {
+		r.appendNodeRawBytes(dst, child, source)
 	}
 }
 

@@ -108,12 +108,10 @@ func (r *Reader) Open(ctx context.Context, doc *model.RawDocument) error {
 
 // Read returns a channel of PartResults.
 func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
-	ch := make(chan model.PartResult, 64)
-	go func() {
-		defer close(ch)
+	return format.StreamParts(ctx, func(ctx context.Context, ch chan<- model.PartResult) error {
 		r.readContent(ctx, ch)
-	}()
-	return ch
+		return nil
+	})
 }
 
 func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
