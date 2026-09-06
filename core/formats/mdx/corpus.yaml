@@ -182,6 +182,14 @@ entries:
     license: Apache-2.0
     redistributable: true
     notes: own-created repo fixture
+  - path: core/formats/mdx/testdata/jsx-block-children.mdx
+    tier: A
+    origin: bug
+    sha256: 731939257d7ee78905f15997a1269c3f013ed4cdfc21d4b0a400eb241a405164
+    size: 742
+    license: Apache-2.0
+    redistributable: true
+    notes: 'own-created fixture for #2473 (a JSX element whose children are markdown blocks)'
   - path: core/formats/mdx/testdata/kapi-overview.mdx
     tier: A
     origin: vendored

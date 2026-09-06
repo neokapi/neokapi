@@ -128,7 +128,21 @@ func FuzzReadMarkdown(f *testing.F) {
 	f.Add([]byte("a <script>*b*</script> c"))
 	f.Add([]byte("a <style>[x](y)</style> c"))
 	f.Add([]byte("a <math>`c` <https://x> ![i](s)</math> b"))
-	markdownSeed(f, "excluded-html-inline.md", "emphasis-delimiters.md", "image-alt.md")
+	// #2461: a link or image whose closing markup wraps onto the next line of a
+	// blockquote or a list item, where the bytes at the closer's offset carry
+	// the continuation prefix the parser stripped. Also committed under
+	// testdata/fuzz.
+	f.Add([]byte("> [a](/x\n> 'T') b"))
+	f.Add([]byte("> [a][\n> b] c"))
+	// #2462: a definition whose destination or title sits on a line of its own.
+	// Also committed under testdata/fuzz.
+	f.Add([]byte("[a][R] x\n\n[R]:\n /y\n 'T'\n"))
+	// #2463: a blockquote line that carries the marker and nothing else, whose
+	// trailing space the writer's okapi-parity trim dropped. Also committed
+	// under testdata/fuzz.
+	f.Add([]byte("> \n> q\n"))
+	markdownSeed(f, "excluded-html-inline.md", "emphasis-delimiters.md", "image-alt.md",
+		"wrapped-link-closers.md", "reference-definitions.md", "blockquote-marker-lines.md")
 	seedDamagedMarkdown(f)
 
 	f.Fuzz(func(t *testing.T, data []byte) {
@@ -267,6 +281,31 @@ func FuzzRoundTripMarkdown(f *testing.F) {
 	f.Add([]byte("> 0\n> \\\n> 0"))
 	f.Add([]byte("- 0\n  \\\n  0"))
 	f.Add([]byte(">\\\n#\\\n00"))
+	// #2469: a list item whose content is only dropped inline HTML left a bare
+	// "#" after the item's marker, where the leading-marker escape did not
+	// reach, and "- #" re-read as an item holding an empty heading — no
+	// content, so no block. The reproducer is also committed under testdata/fuzz.
+	f.Add([]byte("* <A0A>#"))
+	f.Add([]byte("> #<A>\n> b"))
+	// #2470: an HTML block runs to the blank line, so "<div>0\n# 0" is one block
+	// whose text is "0\n# 0"; the rebuild path drops the HTML and wrote the text
+	// as a paragraph, whose second line read back as a heading. The reproducer
+	// is also committed under testdata/fuzz.
+	f.Add([]byte("<div>0\n# 0"))
+	f.Add([]byte("<div>a\n- b\nc"))
+	// #2464: the rebuild path recovered one level of a blockquote's marker from
+	// the first continuation line at column 0, so a nested quote came back one
+	// level shallow, an indented continuation marker was missed, and a quote
+	// with no continuation line at all came back as a bare paragraph. The first
+	// reproducer is also committed under testdata/fuzz.
+	f.Add([]byte(">>0\n >0"))
+	f.Add([]byte(">0\n >0"))
+	f.Add([]byte(">> a\n>> b"))
+	f.Add([]byte(">> a"))
+	// #2461: the closer of a link that wraps inside a container.
+	f.Add([]byte("> [a](/x\n> 'T') b"))
+	// #2462: a definition spread over several lines.
+	f.Add([]byte("[a][R] x\n\n[R]:\n /y\n 'T'\n"))
 	seedDamagedMarkdown(f)
 
 	f.Fuzz(func(t *testing.T, data []byte) {

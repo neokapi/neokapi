@@ -55,3 +55,26 @@ func TestMarkdownCanonicalFoldsATXClosingSequence(t *testing.T) {
 	assert.NotEqual(t, norm("# a\n"), norm("#\n"))
 	assert.NotEqual(t, norm("# a\n\nb\n"), norm("# a\n\n#\n"), "a bare marker away from a heading line is not dropped")
 }
+
+// TestMarkdownCanonicalFoldsReferenceDefinitionTitlePadding pins the fold for
+// #2462: Okapi's writer spells the separator before a definition's title as a
+// single space whatever the source padded, and native replays the source's own
+// bytes. CommonMark 4.7 reads both as the same definition.
+func TestMarkdownCanonicalFoldsReferenceDefinitionTitlePadding(t *testing.T) {
+	norm := func(s string) string {
+		out, err := roundtrip.MarkdownCanonical{}.Normalize([]byte(s))
+		require.NoError(t, err)
+		return string(out)
+	}
+	okapi := "[id]: https://example.com/a.jpg \"The Title\"\n"
+	assert.Equal(t, norm(okapi), norm("[id]: https://example.com/a.jpg  \"The Title\"\n"),
+		"two spaces before the title spell the same definition")
+	assert.Equal(t, norm(okapi), norm("[id]: https://example.com/a.jpg\t\t\"The Title\"\n"),
+		"tabs before the title spell the same definition")
+	assert.Equal(t, norm("[id]: /a 'T'\n"), norm("[id]: /a   'T'\n"))
+	assert.Equal(t, norm("[id]: /a (T)\n"), norm("[id]: /a   (T)\n"))
+	assert.NotEqual(t, norm(okapi), norm("[id]: https://example.com/b.jpg \"The Title\"\n"),
+		"a different destination is still a difference")
+	assert.Equal(t, "[id]:  /a \"T\"", norm("[id]:  /a \"T\""),
+		"the separator after the colon is Okapi's too and stays")
+}

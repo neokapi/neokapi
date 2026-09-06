@@ -943,13 +943,22 @@ func (w *Writer) writeBlockMarkdown(block *model.Block, out io.Writer) error {
 	// a blockquote already opens with ">", the one marker we must NOT strip. The
 	// interior-bar escape applies only to a plain paragraph: a blockquote's
 	// continuation lines carry "> ", which is not a bar.
-	if prefix == "" && suffix == "" {
-		if bqPrefix, body, isQuote := blockquoteRebuild(block, text); isQuote {
-			prefix, text = bqPrefix, body
+	//
+	// A list item's text lands after `- `, and a rebuilt blockquote's body after
+	// `> `. Both are block-content positions, where the same markers open the
+	// same constructs: "* <A0A>#" reached the writer as an item whose text is a
+	// bare "#", was written as "- #", and re-read as an item holding an empty
+	// heading, which carries no content — the item was gone (#2469).
+	switch {
+	case prefix == "" && suffix == "":
+		if bqPrefix, body, isQuote := w.blockquoteRebuild(block, text); isQuote {
+			prefix, text = bqPrefix, escapeLeadingBlockMarker(body)
 		} else {
-			text = escapeLeadingBlockMarker(text)
+			text = escapeBlockMarkerLines(text)
 			text = escapeInteriorBlockBars(text)
 		}
+	case role == model.RoleListItem:
+		text = escapeBlockMarkerLines(text)
 	}
 
 	// A block inside a <blockquote> bracket is quoted regardless of its own
@@ -1157,6 +1166,84 @@ func escapeLeadingBlockMarker(text string) string {
 		return text[:i] + "\\" + text[i:]
 	}
 	return text
+}
+
+// escapeBlockMarkerLines applies escapeLeadingBlockMarker to every line of a
+// block the rebuild path emits verbatim. Each line of such a block starts in
+// block-content position, so a marker on the second line opens a construct as
+// surely as one on the first: "<div>0\n# 0" is a single HTML block whose text
+// is "0\n# 0" (CommonMark 4.6 runs the block to the blank line), the rebuild
+// path has no spelling for the HTML and writes the text as a paragraph, and the
+// second line read back as an ATX heading — one block became two (#2470).
+//
+// A blockquote body is excluded at the call site: its continuation lines carry
+// the ">" marker the rebuild restores, which is the one marker that belongs
+// there. A list item's continuation lines carry their indent, so they begin
+// with a space and match no case.
+func escapeBlockMarkerLines(text string) string {
+	if !strings.Contains(text, "\n") {
+		return escapeLeadingBlockMarker(text)
+	}
+	lines := strings.Split(text, "\n")
+	for i, line := range lines {
+		if i == 0 {
+			lines[i] = escapeLeadingBlockMarker(line)
+			continue
+		}
+		lines[i] = escapeInterruptingBlockMarker(line)
+	}
+	return strings.Join(lines, "\n")
+}
+
+// escapeInterruptingBlockMarker escapes the marker that begins a CONTINUATION
+// line of a rebuilt block, which is a narrower set than the one that opens a
+// block at the start of one: CommonMark 5.2 lets a list interrupt a paragraph
+// only when the item carries content and, for an ordered list, only when it
+// starts at 1.
+//
+// Escaping a marker that cannot interrupt changes the document. "[R]:\n0)" is a
+// paragraph, because an unmatched ")" is not a link destination; escaping the
+// list marker spells "0\)", which IS one, so the paragraph became a link
+// reference definition and the block was gone.
+func escapeInterruptingBlockMarker(line string) string {
+	i, ok := leadingBlockMarkerPos(line)
+	if !ok || !interruptsAParagraph(line) {
+		return line
+	}
+	return line[:i] + "\\" + line[i:]
+}
+
+// interruptsAParagraph reports whether the block marker leadingBlockMarkerPos
+// found at the start of line opens a construct that CommonMark lets interrupt a
+// paragraph. A heading, a blockquote, a thematic break and a fence all do,
+// whatever follows them.
+func interruptsAParagraph(line string) bool {
+	switch c := line[0]; {
+	case c == '#', c == '>', c == '`', c == '~':
+		return true
+	case c == '-' || c == '+' || c == '*' || c == '_':
+		return isThematicBreak(line) || (c != '_' && listContentFollows(line, 1))
+	case c >= '0' && c <= '9':
+		n := 0
+		for n < len(line) && line[n] >= '0' && line[n] <= '9' {
+			n++
+		}
+		if strings.TrimLeft(line[:n], "0") != "1" {
+			return false
+		}
+		return listContentFollows(line, n+1)
+	}
+	return false
+}
+
+// listContentFollows reports whether a list marker ending just before i is
+// followed by a space or tab and then content, which CommonMark 5.2 requires
+// before the item can interrupt a paragraph.
+func listContentFollows(line string, i int) bool {
+	if i >= len(line) || (line[i] != ' ' && line[i] != '\t') {
+		return false
+	}
+	return strings.TrimSpace(line[i:]) != ""
 }
 
 // leadingBlockMarkerPos reports the byte index of the marker character to
@@ -1380,7 +1467,7 @@ func singleLineHeading(text string) string {
 // blockquote (list-item and indented continuations also carry
 // BlockPropLinePrefix but must be re-established by their own role prefix, not
 // here), leaving those untouched.
-func blockquoteRebuild(block *model.Block, text string) (prefix, body string, ok bool) {
+func (w *Writer) blockquoteRebuild(block *model.Block, text string) (prefix, body string, ok bool) {
 	if lp, has := block.Properties[BlockPropLinePrefix]; has && strings.HasPrefix(lp, ">") {
 		// Hard-break body: the marker was stripped from the text. Reinsert it
 		// after every "\n" exactly as RenderBlockContent (the byte-exact
@@ -1389,6 +1476,14 @@ func blockquoteRebuild(block *model.Block, text string) (prefix, body string, ok
 			text = strings.ReplaceAll(text, "\n", "\n"+lp)
 		}
 		return lp, text, true
+	}
+	// The reader records the marker the block's own first line carried, which
+	// is the only source for a quote with no continuation line at all: ">> a"
+	// arrived as a one-line paragraph and came back as "a", the whole quote
+	// gone (#2464). A block already inside a <blockquote> bracket is marked by
+	// that bracket below, so its own marker would double it.
+	if m, has := block.Properties[BlockPropQuoteMarker]; has && m != "" && w.quoteDepth() == 0 {
+		return m, text, true
 	}
 	// Soft-break body: the continuation lines carry their ">" marker, except
 	// a lazy continuation line (CommonMark 5.1), which has none; only the
@@ -1402,18 +1497,14 @@ func blockquoteRebuild(block *model.Block, text string) (prefix, body string, ok
 	return "", text, false
 }
 
-// continuationBlockquoteMarker returns the blockquote marker (">" plus an
-// optional single space) that begins the first continuation line of text
-// carrying one, or "" when text is single-line or no continuation line is a
-// blockquote line.
+// continuationBlockquoteMarker returns the blockquote marker that begins the
+// first continuation line of text carrying one, or "" when text is single-line
+// or no continuation line is a blockquote line.
 func continuationBlockquoteMarker(text string) string {
 	for nl := strings.IndexByte(text, '\n'); nl >= 0; {
 		line := text[nl+1:]
-		if strings.HasPrefix(line, "> ") {
-			return "> "
-		}
-		if strings.HasPrefix(line, ">") {
-			return ">"
+		if m := blockquoteMarkerPrefix(line); m != "" {
+			return m
 		}
 		next := strings.IndexByte(line, '\n')
 		if next < 0 {
@@ -1422,6 +1513,34 @@ func continuationBlockquoteMarker(text string) string {
 		nl += 1 + next
 	}
 	return ""
+}
+
+// blockquoteMarkerPrefix returns the whole blockquote marker sequence that
+// opens line: every ">" the line begins with, each carrying the optional
+// single space that follows it and the up-to-three spaces of indent
+// CommonMark 5.1 allows before it. "" when the line opens no quote.
+//
+// The sequence is what the line spells, not one level of it: ">> a\n>> b"
+// arrived with ">> " on its continuation line and was rebuilt as ">a\n>> b",
+// a one-level quote holding a lazy line (#2464). An indented marker counts
+// too: " >0" continues a quote, and a recovery testing only column 0 missed
+// it.
+func blockquoteMarkerPrefix(line string) string {
+	i := 0
+	for {
+		j := i
+		for j < len(line) && (line[j] == ' ' || line[j] == '\t') {
+			j++
+		}
+		if j >= len(line) || line[j] != '>' {
+			return line[:i]
+		}
+		j++
+		if j < len(line) && line[j] == ' ' {
+			j++
+		}
+		i = j
+	}
 }
 
 // headingLevel returns a block's heading level, preferring the normalized
@@ -1481,6 +1600,14 @@ func (t *trailSpaceTrimmer) Flush() error {
 
 func (t *trailSpaceTrimmer) trimBuffered() {
 	if len(t.buf) < 2 {
+		return
+	}
+	// A line that holds nothing but a blockquote's marker keeps the space after
+	// its last ">". CommonMark 5.1 spells the marker as ">" plus an optional
+	// space, so that space belongs to the marker rather than to the decorative
+	// trailing whitespace okapi's writer drops, and stripping it rewrote "> \n"
+	// as ">\n" in a file nobody edited (#2463).
+	if line := string(t.buf); blockquoteMarkerPrefix(line) == line {
 		return
 	}
 	// Only strip if the line ends in EXACTLY one trailing space — see

@@ -11,13 +11,16 @@ import (
 	"github.com/neokapi/neokapi/core/translatability"
 )
 
-// content.go implements MDX-specific non-translatable content surfacing
-// (#928, treatment A). Block-level JSX text children and GFM table cell prose
-// are surfaced as Translatable:false content blocks — visible to ingestion,
-// skipped by MT — while the surrounding structure (tags, attributes,
-// {expressions}, pipes, padding, the table delimiter row, and all inter-token
-// whitespace) stays in the skeleton, so an untranslated read→write reproduces
-// the source byte-for-byte.
+// content.go implements MDX-specific content surfacing (#928, treatment A). A
+// JSX element's text children are surfaced as content blocks — translatable
+// where the element's own classification allows it, visible to ingestion and
+// skipped by MT where it does not — while the surrounding structure (tags,
+// attributes, {expressions}, and all inter-token whitespace) stays in the
+// skeleton, so an untranslated read→write reproduces the source byte-for-byte.
+//
+// A child the MDX spec reads as block-level markdown, meaning one separated
+// from the markup around it by a blank line on both sides, goes to the markdown
+// reader instead (#2473), so a table inside a <TabItem> arrives as its cells.
 //
 // Each surfacing is SELF-VERIFYING: the splitter partitions the region into
 // segments whose concatenation must equal the region exactly. If it does not
@@ -43,6 +46,30 @@ type contentSeg struct {
 	// supplies, rather than a shared default that would let one caller
 	// quietly inherit whatever another decided.
 	translatable bool
+	// blockLevel says the child is separated from the markup around it by a
+	// blank line on both sides, which is where the MDX spec reads an element's
+	// children as block-level markdown rather than as text.
+	blockLevel bool
+}
+
+// blankLineIn reports whether a run of inter-token whitespace holds a blank
+// line, which is the separator the MDX spec reads as a block boundary inside a
+// JSX element.
+func blankLineIn(gap []byte) bool {
+	seen := 0
+	for _, b := range gap {
+		if b == '\n' {
+			seen++
+			if seen == 2 {
+				return true
+			}
+			continue
+		}
+		if b != ' ' && b != '\t' && b != '\r' {
+			return false
+		}
+	}
+	return false
 }
 
 // isASCIISpaceByte reports whether b is ASCII inter-token whitespace.
@@ -77,9 +104,11 @@ func segsReconstruct(segs []contentSeg, region []byte) bool {
 // (a stray `<`, an unbalanced construct, or a reconstruction mismatch), in
 // which case the caller preserves the region verbatim/opaque.
 //
-// JSX text children are surfaced VERBATIM (a single run, no inline parse) and
-// trimmed of leading/trailing ASCII whitespace, with that whitespace kept in
-// the skeleton so round-trip stays byte-exact.
+// A text child is trimmed of leading and trailing ASCII whitespace, with that
+// whitespace kept in the skeleton so round-trip stays byte-exact, and marked
+// blockLevel when a blank line separates it from the markup on both sides.
+// emitContentSegs sends a block-level child to the markdown reader and surfaces
+// the rest verbatim (a single run, no inline parse).
 // jsxTextTranslatable answers whether text directly inside element belongs to
 // the translator, from the W3C table the JSX transform uses.
 //
@@ -207,6 +236,7 @@ func splitJSXSegments(span []byte) ([]contentSeg, []string, bool) {
 			segs = append(segs, contentSeg{
 				text: span[ls:te], isChild: true, element: el,
 				translatable: jsxTextTranslatable(el, &promotedHere),
+				blockLevel:   blankLineIn(span[textStart:ls]) && blankLineIn(span[te:i]),
 			})
 			structStart = te
 		}
@@ -220,16 +250,35 @@ func splitJSXSegments(span []byte) ([]contentSeg, []string, bool) {
 }
 
 // emitContentSegs replays an ordered segment partition: structural segments go
-// to the skeleton as text; child segments are surfaced as Translatable:false
-// content blocks whose verbatim body rides a skeleton ref. Returns false only
-// on context cancellation.
+// to the skeleton as text; child segments are surfaced as content blocks whose
+// verbatim body rides a skeleton ref, or delegated to the markdown reader when
+// the MDX spec reads them as block-level markdown. Returns an error only on
+// context cancellation or a failure inside that delegation.
 func (r *Reader) emitContentSegs(ctx context.Context, ch chan<- model.PartResult,
-	segs []contentSeg, blockType, nameKind string, locale model.LocaleID) bool {
+	segs []contentSeg, blockType, nameKind string, locale model.LocaleID) error {
 
 	for _, s := range segs {
 		if !s.isChild {
 			r.skelText(s.text)
 			continue
+		}
+		// A child the MDX spec reads as block-level markdown goes to the
+		// markdown reader, so a table arrives as its cells and a list as its
+		// items rather than as one string of markup. A translator handed the
+		// pipes and the delimiter row along with the words breaks the table by
+		// changing a column's width, and content memory keys on the markup
+		// (#2473). The byte-exact self-check decides whether the delegation
+		// holds; a child it cannot reconstruct falls through to the verbatim
+		// block below. An element whose text the translatability table rules
+		// out is markup rather than prose, so it is never delegated.
+		if s.blockLevel && s.translatable && r.skeletonStore != nil {
+			ok, err := r.emitMarkdownChild(ctx, ch, s.text, locale)
+			if err != nil {
+				return err
+			}
+			if ok {
+				continue
+			}
 		}
 		r.blockCounter++
 		id := fmt.Sprintf("tu%d", r.blockCounter)
@@ -252,10 +301,10 @@ func (r *Reader) emitContentSegs(ctx context.Context, ch chan<- model.PartResult
 		block.Properties[BlockPropVerbatim] = "1"
 		r.skelRef(id)
 		if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
-			return false
+			return ctx.Err()
 		}
 	}
-	return true
+	return nil
 }
 
 // protectCodeSpans splits verbatim segment text into runs, marking each
@@ -342,11 +391,10 @@ func (r *Reader) notePromotion(element string) {
 	})
 }
 
-// emitJSX surfaces a block-level JSX region's text children as
-// Translatable:false content blocks when surfacing is enabled and feasible;
-// otherwise it preserves the region opaque (verbatim skeleton + Data),
-// identical to the prior behaviour.
-func (r *Reader) emitJSX(ctx context.Context, ch chan<- model.PartResult, span []byte, locale model.LocaleID) bool {
+// emitJSX surfaces a block-level JSX region's text children as content blocks
+// when surfacing is enabled and feasible; otherwise it preserves the region
+// opaque (verbatim skeleton + Data).
+func (r *Reader) emitJSX(ctx context.Context, ch chan<- model.PartResult, span []byte, locale model.LocaleID) error {
 	if r.skeletonStore != nil && r.cfg.ExtractNonTranslatableContent() {
 		if segs, promoted, ok := splitJSXSegments(span); ok && anyChild(segs) {
 			for _, el := range promoted {
@@ -359,5 +407,5 @@ func (r *Reader) emitJSX(ctx context.Context, ch chan<- model.PartResult, span [
 		}
 	}
 	r.emitOpaque(ctx, ch, span, "jsx")
-	return true
+	return nil
 }

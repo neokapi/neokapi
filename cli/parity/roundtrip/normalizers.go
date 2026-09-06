@@ -229,6 +229,11 @@ func stripDoxygenMarker(line string) string {
 //     closing sequence of `### Title ###` on a line of its own; native
 //     keeps it on the heading line (#2430). CommonMark reads both as the
 //     same heading text, and the source spelling is the faithful one.
+//   - The whitespace between a link reference definition's destination and its
+//     title collapses to one space. Okapi's writer spells that separator as a
+//     single space whatever the source padded; native replays the source's own
+//     bytes so a definition spread over several lines round-trips (#2462).
+//     CommonMark 4.7 reads both as the same definition.
 //   - HTML character references decode to the characters they denote.
 //     Okapi decodes an entity into the text it hands its writer, so
 //     `Ampere&#39;s` comes back as `Ampere's`. Native keeps the source
@@ -256,6 +261,11 @@ var markdownCellPaddingRe = regexp.MustCompile(`[ \t]*\|[ \t]*`)
 // run of hashes. A hash that is not preceded by whitespace belongs to the
 // content, as CommonMark 4.2 has it.
 var markdownATXClosingRe = regexp.MustCompile(`^(#{1,6}(?:[ \t]+.*?)?)[ \t]+#+$`)
+
+// markdownRefDefTitleRe matches a link reference definition whose title is
+// separated from its destination by more than one space or tab, capturing the
+// label plus destination and the title.
+var markdownRefDefTitleRe = regexp.MustCompile(`^(\[[^\]]*\]:[ \t]*\S+)[ \t]{2,}(["'(].*)$`)
 
 // markdownATXHeadingRe matches a canonical ATX heading line, with or without
 // content; markdownBareHashesRe matches a line that is only a heading marker.
@@ -288,6 +298,11 @@ func (MarkdownCanonical) Normalize(in []byte) ([]byte, error) {
 		}
 		if j < len(trimmed) && trimmed[j] == '>' {
 			lines[i] = trimmed[:j] + collapseBlockquoteMarkers(trimmed[j:])
+			continue
+		}
+		// Fold the padding before a link reference definition's title.
+		if m := markdownRefDefTitleRe.FindStringSubmatch(trimmed[j:]); m != nil {
+			lines[i] = trimmed[:j] + m[1] + " " + m[2]
 			continue
 		}
 		// Strip an ATX heading's closing sequence.

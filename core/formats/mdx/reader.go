@@ -153,8 +153,8 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) er
 		case segESM:
 			r.emitOpaque(ctx, ch, span, "esm")
 		case segJSX:
-			if !r.emitJSX(ctx, ch, span, locale) {
-				return ctx.Err()
+			if err := r.emitJSX(ctx, ch, span, locale); err != nil {
+				return err
 			}
 		case segExpr:
 			r.emitOpaque(ctx, ch, span, "expression")
@@ -220,8 +220,27 @@ type spanSkelEntry struct {
 // document layer. In the non-skeleton fallback path (no MDX skeleton store)
 // the markdown reader is still run and its parts forwarded.
 func (r *Reader) emitMarkdownSpan(ctx context.Context, ch chan<- model.PartResult, span []byte, locale model.LocaleID) error {
+	_, err := r.readMarkdownSpan(ctx, ch, span, locale, true)
+	return err
+}
+
+// emitMarkdownChild delegates one block-level child of a JSX element to the
+// markdown reader, reporting whether the child reconstructed byte-for-byte and
+// so was emitted. On false nothing has been emitted and the caller spells the
+// child its own way; the naming state has advanced by the names the sub-reader
+// issued, which shifts an ordinal rather than changing what a name addresses.
+func (r *Reader) emitMarkdownChild(ctx context.Context, ch chan<- model.PartResult, span []byte, locale model.LocaleID) (bool, error) {
+	return r.readMarkdownSpan(ctx, ch, span, locale, false)
+}
+
+// readMarkdownSpan is emitMarkdownSpan's body. opaqueOnFailure says what to do
+// with a span that does not reconstruct: a top-level span is preserved verbatim
+// opaque and reported, and a JSX child is handed back to its caller unemitted.
+func (r *Reader) readMarkdownSpan(ctx context.Context, ch chan<- model.PartResult, span []byte,
+	locale model.LocaleID, opaqueOnFailure bool) (bool, error) {
+
 	if len(span) == 0 {
-		return nil
+		return true, nil
 	}
 
 	mdReader := markdown.NewReader()
@@ -236,7 +255,7 @@ func (r *Reader) emitMarkdownSpan(ctx context.Context, ch chan<- model.PartResul
 	// config override.
 	mdReader.MarkdownConfig().SetExtractNonTranslatableContent(false)
 	if err := r.cfg.applyTo(mdReader.MarkdownConfig()); err != nil {
-		return fmt.Errorf("mdx: applying markdown config: %w", err)
+		return false, fmt.Errorf("mdx: applying markdown config: %w", err)
 	}
 
 	var subStore *format.SkeletonStore
@@ -244,7 +263,7 @@ func (r *Reader) emitMarkdownSpan(ctx context.Context, ch chan<- model.PartResul
 		var err error
 		subStore, err = format.NewSkeletonStore()
 		if err != nil {
-			return fmt.Errorf("mdx: sub-skeleton store: %w", err)
+			return false, fmt.Errorf("mdx: sub-skeleton store: %w", err)
 		}
 		defer func() { _ = subStore.Close() }()
 		mdReader.SetSkeletonStore(subStore)
@@ -257,7 +276,7 @@ func (r *Reader) emitMarkdownSpan(ctx context.Context, ch chan<- model.PartResul
 		Encoding:     r.Doc.Encoding,
 	}
 	if err := mdReader.Open(ctx, doc); err != nil {
-		return fmt.Errorf("mdx: opening markdown span: %w", err)
+		return false, fmt.Errorf("mdx: opening markdown span: %w", err)
 	}
 
 	// Drain the markdown reader, collecting blocks (keyed by original ID)
@@ -270,7 +289,7 @@ func (r *Reader) emitMarkdownSpan(ctx context.Context, ch chan<- model.PartResul
 	var parts []*model.Part
 	for pr := range mdReader.Read(ctx) {
 		if pr.Error != nil {
-			return fmt.Errorf("mdx: markdown span: %w", pr.Error)
+			return false, fmt.Errorf("mdx: markdown span: %w", pr.Error)
 		}
 		switch pr.Part.Type {
 		case model.PartBlock:
@@ -292,14 +311,14 @@ func (r *Reader) emitMarkdownSpan(ctx context.Context, ch chan<- model.PartResul
 	// fallback path is best-effort anyway). Emit blocks and data re-ID'd.
 	if r.skeletonStore == nil || subStore == nil {
 		if !r.forwardSpanParts(ctx, ch, parts, true, nil) {
-			return ctx.Err()
+			return false, ctx.Err()
 		}
-		return nil
+		return true, nil
 	}
 
 	// Read the span's skeleton entries.
 	if err := subStore.Flush(); err != nil {
-		return fmt.Errorf("mdx: flush sub-skeleton: %w", err)
+		return false, fmt.Errorf("mdx: flush sub-skeleton: %w", err)
 	}
 	var entries []spanSkelEntry
 	for {
@@ -308,7 +327,7 @@ func (r *Reader) emitMarkdownSpan(ctx context.Context, ch chan<- model.PartResul
 			break
 		}
 		if err != nil {
-			return fmt.Errorf("mdx: read sub-skeleton: %w", err)
+			return false, fmt.Errorf("mdx: read sub-skeleton: %w", err)
 		}
 		switch entry.Type {
 		case format.SkeletonText:
@@ -339,6 +358,8 @@ func (r *Reader) emitMarkdownSpan(ctx context.Context, ch chan<- model.PartResul
 					block.Translatable = false
 				}
 			}
+		} else if !opaqueOnFailure {
+			return false, nil
 		} else {
 
 			// Fall back to a single opaque region (verbatim skeleton + Data) so
@@ -363,10 +384,10 @@ func (r *Reader) emitMarkdownSpan(ctx context.Context, ch chan<- model.PartResul
 					block.Translatable = false
 				}
 				if !r.forwardSpanParts(ctx, ch, parts, false, markUntranslatable) {
-					return ctx.Err()
+					return false, ctx.Err()
 				}
 			}
-			return nil
+			return true, nil
 		}
 	}
 
@@ -378,7 +399,7 @@ func (r *Reader) emitMarkdownSpan(ctx context.Context, ch chan<- model.PartResul
 		idMap[orig] = block.ID
 	}
 	if !r.forwardSpanParts(ctx, ch, parts, false, recordID) {
-		return ctx.Err()
+		return false, ctx.Err()
 	}
 	for _, entry := range entries {
 		if entry.isRef {
@@ -389,7 +410,7 @@ func (r *Reader) emitMarkdownSpan(ctx context.Context, ch chan<- model.PartResul
 		}
 		r.skelText(entry.text)
 	}
-	return nil
+	return true, nil
 }
 
 // forwardSpanParts emits the sub-reader's parts in the order it produced them,

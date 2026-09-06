@@ -156,17 +156,114 @@ func TestTableBetweenJSXBlocksDelegates(t *testing.T) {
 	}
 }
 
-// TestTableInsideAJSXElementRidesTheJSXPath pins where the delegation stops.
-// The MDX scanner takes a block-level JSX region up to its closing tag as one
-// segment, so a table inside a <TabItem> is a JSX text child and reaches the
-// translator as one string of table markup rather than as cells. No page under
-// web/docs has one, and #2473 carries the fix; this test is here so the day it
-// changes, it says so.
-func TestTableInsideAJSXElementRidesTheJSXPath(t *testing.T) {
+// TestTableInsideAJSXElementDelegates covers a table inside a <TabItem>. A JSX
+// element's blank-line-separated children are markdown by the MDX spec, so they
+// take the same markdown delegation a top-level span does: the table arrives as
+// its cells rather than as one string of pipes and delimiter rows, which a
+// translator breaks by changing a column's width and content memory keys on
+// (#2473).
+func TestTableInsideAJSXElementDelegates(t *testing.T) {
 	t.Parallel()
 	src, err := os.ReadFile(filepath.Join("testdata", "table-in-jsx.mdx"))
 	require.NoError(t, err)
 
+	blocks := readAllBlocks(t, src)
+
+	var jsxText, cells, paragraphs []string
+	for _, b := range blocks {
+		switch {
+		case b.Type == "jsx-text":
+			jsxText = append(jsxText, b.SourceText())
+		case b.SemanticRole() == model.RoleTableHeader || b.SemanticRole() == model.RoleTableCell:
+			cells = append(cells, b.SourceText())
+		case b.Type == "":
+			paragraphs = append(paragraphs, b.SourceText())
+		}
+	}
+
+	for _, text := range jsxText {
+		assert.NotContains(t, text, "| ---", "no table markup reaches the translator as one string")
+	}
+	assert.Equal(t, []string{"Command line", "Continuous integration"}, jsxText,
+		"an attribute value is still a JSX text child")
+	for _, want := range []string{"Flag", "Effect", "--dry-run", "Reports, writes not",
+		"Job", "When it runs", "check", "On every pull request"} {
+		assert.Contains(t, cells, want, "a cell inside a JSX element is its own block")
+	}
+	assert.Contains(t, paragraphs, "The callout holds prose of its own.",
+		"prose in a JSX block is a paragraph of its own")
+	assert.Contains(t, paragraphs, "A second table inside the same element:")
+
+	// The delegation must not cost the region its byte-exact round trip.
+	assert.Equal(t, string(src), string(roundTrip(t, src)))
+}
+
+// TestJSXChildDelegationStopsWhereTheSpecDoes pins the boundary: a child on the
+// same line as its tags is inline text, an element the translatability table
+// rules out holds markup rather than prose, and a child the markdown reader
+// cannot reconstruct falls back to the verbatim block it always was.
+func TestJSXChildDelegationStopsWhereTheSpecDoes(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name     string
+		src      string
+		jsxText  []string
+		markdown []string
+	}{
+		{
+			name:    "inline child",
+			src:     "<Callout>Inline prose here.</Callout>\n",
+			jsxText: []string{"Inline prose here."},
+		},
+		{
+			name:    "no blank line after the child",
+			src:     "<Callout>\n\nProse here.\n</Callout>\n",
+			jsxText: []string{"Prose here."},
+		},
+		{
+			name:    "element whose text is code",
+			src:     "<script>\n\nconst x = 1;\n\n</script>\n",
+			jsxText: []string{"const x = 1;"},
+		},
+		{
+			name:    "child the markdown reader cannot reconstruct",
+			src:     "<Callout>\n\nSee ` code\n` here.\n\n</Callout>\n",
+			jsxText: []string{"See ` code\n` here."},
+		},
+		{
+			name:     "block-level child",
+			src:      "<Callout>\n\nProse here.\n\n</Callout>\n",
+			markdown: []string{"Prose here."},
+		},
+		{
+			name:     "block-level list",
+			src:      "<Callout>\n\n- One item\n- Another item\n\n</Callout>\n",
+			markdown: []string{"One item", "Another item"},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			blocks := readAllBlocks(t, []byte(tc.src))
+			var jsxText, other []string
+			for _, b := range blocks {
+				if b.Type == "jsx-text" {
+					jsxText = append(jsxText, b.SourceText())
+					continue
+				}
+				other = append(other, b.SourceText())
+			}
+			assert.Equal(t, tc.jsxText, jsxText)
+			assert.Equal(t, tc.markdown, other)
+			assert.Equal(t, tc.src, string(roundTrip(t, []byte(tc.src))),
+				"the round trip stays byte-exact whichever path the child takes")
+		})
+	}
+}
+
+// readAllBlocks returns every block the reader emits, translatable or not.
+func readAllBlocks(t *testing.T, src []byte) []*model.Block {
+	t.Helper()
 	r := NewReader()
 	store, err := format.NewSkeletonStore()
 	require.NoError(t, err)
@@ -176,24 +273,32 @@ func TestTableInsideAJSXElementRidesTheJSXPath(t *testing.T) {
 		Reader:       io.NopCloser(bytes.NewReader(src)),
 		SourceLocale: model.LocaleEnglish,
 	}))
-
-	var jsxText []string
+	var blocks []*model.Block
 	for pr := range r.Read(context.Background()) {
 		require.NoError(t, pr.Error)
-		if b, ok := pr.Part.Resource.(*model.Block); ok && b.Type == "jsx-text" {
-			jsxText = append(jsxText, b.SourceText())
+		if b, ok := pr.Part.Resource.(*model.Block); ok {
+			blocks = append(blocks, b)
+		}
+	}
+	return blocks
+}
+
+// TestTranslatedCellInsideJSXSplicesBack drives the point of the delegation: a
+// translated cell inside a JSX element is written back into the table's own
+// markup, with the pipes and the delimiter row untouched.
+func TestTranslatedCellInsideJSXSplicesBack(t *testing.T) {
+	t.Parallel()
+	src := []byte("<TabItem value=\"cli\">\n\n| Flag | Effect |\n| ---- | ------ |\n| a | Reports |\n\n</TabItem>\n")
+
+	parts, store := readParts(t, src)
+	for _, p := range parts {
+		if b, ok := p.Resource.(*model.Block); ok && b.SourceText() == "Reports" {
+			b.SetTargetRuns(model.LocaleGerman, []model.Run{{Text: &model.TextRun{Text: "Meldet"}}})
 		}
 	}
 
-	var tableChildren int
-	for _, text := range jsxText {
-		if strings.Contains(text, "| ---") {
-			tableChildren++
-		}
-	}
-	assert.Equal(t, 2, tableChildren, "both tab tables arrive as JSX text children")
-	assert.Contains(t, jsxText, "The callout holds prose of its own.",
-		"ordinary prose in a JSX block is still a block of its own")
+	assert.Equal(t, "<TabItem value=\"cli\">\n\n| Flag | Effect |\n| ---- | ------ |\n| a | Meldet |\n\n</TabItem>\n",
+		string(writeParts(t, parts, store, model.LocaleGerman)))
 }
 
 // TestTableEscapedPipesDelegate covers the fixture the escape convention lives

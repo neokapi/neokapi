@@ -24,9 +24,12 @@ description: |
   MDX filter (CommonMark superset with JSX, ESM import/export, and
   expressions). Markdown prose — paragraphs, headings, list items, GFM table
   cells — is extracted as translatable Blocks; inline emphasis/code/link markup
-  is preserved as inline codes. Block-level JSX text children are surfaced as
-  NON-translatable content blocks (#928): visible to
-  ingestion, skipped by MT, byte-faithful on round-trip, gated behind the
+  is preserved as inline codes. A JSX element's children are markdown by the MDX
+  spec, so one separated from its tags by a blank line is read through the
+  markdown reader and a table inside a <TabItem> arrives as its cells; the rest
+  are surfaced as content blocks (#928), translatable where the element's own
+  classification allows it and visible to ingestion but skipped by MT where it
+  does not, byte-faithful on round-trip, gated behind the
   extractNonTranslatableContent flag (default on; parity forces it off). ESM
   import/export statements, {expressions}, JSX tags/attributes, fenced code
   blocks, and YAML front matter are opaque structure and round-trip verbatim,
