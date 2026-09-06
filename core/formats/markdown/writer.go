@@ -1250,7 +1250,7 @@ func escapeBlockMarkerLines(text string) string {
 // the content closes nothing and does not count.
 func codeFence(text string) string {
 	longest := 0
-	for _, line := range strings.Split(text, "\n") {
+	for line := range strings.SplitSeq(text, "\n") {
 		line = strings.TrimLeft(line, " ")
 		n := 0
 		for n < len(line) && line[n] == '`' {

@@ -935,6 +935,29 @@ func nodeAbsRange(node ast.Node, source []byte, baseOffset int) (int, int) {
 // any wrapped line with trailing whitespace came back with the break
 // collapsed to a space (#2431). Falls back to a single space when no
 // newline follows (defensive; a SoftLineBreak Text node always has one).
+// softBreakContinuationBounded is softBreakContinuation stopped at limit, the
+// offset where the parser's next text begins. Inside a quote or a list item the
+// parser strips the continuation prefix and the two agree; on a lazy
+// continuation line it strips nothing, so the marker the bridge would carry is
+// in the run text as well and "A line\n    > quoted" gained one (#2516). A
+// negative limit means the next node records no position of its own.
+func softBreakContinuationBounded(source []byte, pos, limit int) string {
+	s := softBreakContinuation(source, pos)
+	if limit >= pos && limit < pos+len(s) {
+		return string(source[pos:limit])
+	}
+	return s
+}
+
+// nextTextStart returns the offset where n's next sibling's text begins, or -1
+// when the sibling records no segment.
+func nextTextStart(n ast.Node) int {
+	if t, ok := n.NextSibling().(*ast.Text); ok {
+		return t.Segment.Start
+	}
+	return -1
+}
+
 func softBreakContinuation(source []byte, pos int) string {
 	if pos < 0 || pos > len(source) {
 		return " "
@@ -2751,7 +2774,7 @@ func (r *Reader) collectInlineText(buf *strings.Builder, node ast.Node, source [
 			}
 			buf.Write(val)
 			if n.SoftLineBreak() {
-				buf.WriteString(softBreakContinuation(source, n.Segment.Stop))
+				buf.WriteString(softBreakContinuationBounded(source, n.Segment.Stop, nextTextStart(n)))
 			}
 			if n.HardLineBreak() {
 				buf.WriteByte('\n')
@@ -2868,15 +2891,6 @@ func rawLineValue(line text.Segment, source []byte) []byte {
 	return v
 }
 
-func isBlankLine(line []byte) bool {
-	for _, c := range line {
-		if c != ' ' && c != '\t' && c != '\n' && c != '\r' {
-			return false
-		}
-	}
-	return true
-}
-
 // --- Inline run building ---
 
 func (r *Reader) addInlineRuns(block *model.Block, node ast.Node, source []byte) {
@@ -2961,7 +2975,7 @@ func (r *Reader) buildCodedRuns(b *runBuilder, node ast.Node, source []byte, idC
 				addTextWithEntities(b, string(seg), idCounter)
 			}
 			if n.SoftLineBreak() {
-				b.AddText(softBreakContinuation(source, n.Segment.Stop))
+				b.AddText(softBreakContinuationBounded(source, n.Segment.Stop, nextTextStart(n)))
 			}
 			if n.HardLineBreak() {
 				r.addHardBreakRuns(b, n, source, idCounter)
@@ -3146,7 +3160,7 @@ func (r *Reader) appendNodeRawBytes(dst *strings.Builder, n ast.Node, source []b
 	case *ast.Text:
 		dst.Write(v.Segment.Value(source))
 		if v.SoftLineBreak() {
-			dst.WriteString(softBreakContinuation(source, v.Segment.Stop))
+			dst.WriteString(softBreakContinuationBounded(source, v.Segment.Stop, nextTextStart(v)))
 		}
 		if v.HardLineBreak() {
 			dst.WriteByte('\n')

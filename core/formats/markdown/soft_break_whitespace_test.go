@@ -38,6 +38,10 @@ func TestSoftBreakWhitespaceRoundTrips(t *testing.T) {
 		// ending of its own to the parser, which skipped it.
 		{"bare cr opening the next line", "a\n\rb\n", "a\n\rb"},
 		{"bare cr after a setext bar", "=\n\r.", "=\n\r."},
+		// #2516: four spaces make the line indented code, which cannot
+		// interrupt a paragraph, so its ">" is text the parser did not strip.
+		{"indented lazy quote marker", "A line\n    > indented quote.\n", "A line\n    > indented quote."},
+		{"indented lazy marker alone", "0\n    >", "0\n    >"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
