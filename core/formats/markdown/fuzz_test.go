@@ -303,6 +303,10 @@ func FuzzRoundTripMarkdown(f *testing.F) {
 	// is also committed under testdata/fuzz.
 	f.Add([]byte("<div>0\n# 0"))
 	f.Add([]byte("<div>a\n- b\nc"))
+	// #2496: the writer dropped a line's single trailing space, undoing what
+	// the reader keeps. Also committed under testdata/fuzz.
+	f.Add([]byte("a \nb\n"))
+	f.Add([]byte("- \n"))
 	// #2495: a block goldmark reports no lines for resolved to the range (0, 0)
 	// and rewound the skeleton cursor, so the bytes before it were written
 	// twice. The first is also committed under testdata/fuzz.

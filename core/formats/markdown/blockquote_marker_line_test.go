@@ -34,12 +34,22 @@ func TestBlockquoteMarkerLineKeepsItsSpace(t *testing.T) {
 	}
 }
 
-// TestOrdinaryTrailingSpaceIsStillTrimmed pins the rule the exemption above
-// carves out of: okapi's MarkdownFilterWriter drops a line's single trailing
-// space, and two or more spell a hard break and stay.
-func TestOrdinaryTrailingSpaceIsStillTrimmed(t *testing.T) {
+// TestTrailingWhitespaceSurvives covers the general rule #2463 was one case of:
+// the writer reproduces the source's own bytes, trailing whitespace included
+// (#2496). Two or more spaces spell a hard break and always stayed.
+func TestTrailingWhitespaceSurvives(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, "a\nb\n", roundtripWithSkeleton(t, "a \nb\n"))
-	assert.Equal(t, "a  \nb\n", roundtripWithSkeleton(t, "a  \nb\n"))
-	assert.Equal(t, "> a\n> b\n", roundtripWithSkeleton(t, "> a \n> b\n"))
+	for _, input := range []string{
+		"a \nb\n",
+		"a  \nb\n",
+		"> a \n> b\n",
+		"- \n",
+		"* ",
+		"*\t",
+		"a\n\n# \n\nb\n",
+		" \n0)",
+		"a \n\nb \n",
+	} {
+		assert.Equal(t, input, roundtripWithSkeleton(t, input), "skeleton path is not byte-exact")
+	}
 }

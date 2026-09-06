@@ -149,23 +149,14 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 	}
 	var events []*model.Part // blocks + group brackets, in stream order
 
-	// Wrap the output writer with a per-line trim that mirrors upstream
-	// Okapi's MarkdownFilterWriter.trimNonEssentialTrailingSpaces (see
-	// MarkdownFilterWriter.java:103-122): on each line break, if the
-	// previous line ends in EXACTLY one trailing single space drop that
-	// space. The upstream implementation ALSO strips lines made of all
-	// spaces, but its skeleton writer (MarkdownSkeletonWriter.java:58
-	// appendLinePrefix) re-prepends the per-block line prefix on every
-	// line including the now-stripped ones — and the trim doesn't
-	// reach those re-prepended bytes because they enter the writer
-	// after the next \n. The net effect upstream is that "indent\n"
-	// rows survive unchanged. Mirror the net effect here, not the
-	// literal Java algorithm: only strip exactly-1-trailing-space.
-	// Without this wrap, fixtures like test-html-block-newline.md
-	// round-trip with `". \n"` (single trailing space) where okapi
-	// emits `".\n"`.
-	tw := newTrailSpaceTrimmer(w.Output)
-	defer func() { _ = tw.Flush() }()
+	// The output carries the source's own bytes, trailing whitespace included.
+	// Upstream okapi's MarkdownFilterWriter.trimNonEssentialTrailingSpaces
+	// drops a line's single trailing space, and mirroring that undid what the
+	// reader keeps: a wrapped line's trailing space (#2431), a list item's bare
+	// marker, an empty ATX heading's space (#2496). MarkdownCanonical trims
+	// every line's trailing whitespace on both sides, so parity never depended
+	// on it.
+	tw := w.Output
 
 	var st *streamTable
 
@@ -228,7 +219,7 @@ done:
 		if err := w.writeFromSkeleton(w.skeletonStore, blocksByID, tw); err != nil {
 			return err
 		}
-		return tw.Flush()
+		return nil
 	}
 
 	// Mode 2: Build from the ordered event stream (cross-format export). Table
@@ -245,7 +236,7 @@ done:
 			return err
 		}
 	}
-	return tw.Flush()
+	return nil
 }
 
 // writeFromSkeleton reads skeleton entries and fills in block content.
@@ -1702,80 +1693,6 @@ func blockquoteMarkerPrefix(line string) string {
 // headingLevel returns a block's heading level, preferring the normalized
 // structural annotation (WS1) and falling back to the legacy "level" property;
 // 0 when neither is present.
-
-// trailSpaceTrimmer is an io.Writer that mirrors upstream Okapi's
-// MarkdownFilterWriter trimming algorithm: it buffers bytes per
-// physical line and, at every '\n', applies the rule:
-//
-//   - if the buffered line is made up entirely of spaces, drop them all;
-//   - else if it ends with EXACTLY one trailing space, drop that one;
-//   - else keep the line intact (preserves ≥2 trailing spaces, the
-//     CommonMark hard-break signal, plus the trailing 4-space pattern
-//     in fixtures like DirectShape.md's <pre> code).
-//
-// Carriage returns are preserved verbatim. Flush MUST be called on the
-// final write so any unterminated trailing line is also flushed.
-type trailSpaceTrimmer struct {
-	w   io.Writer
-	buf []byte // current physical line being buffered (no trailing \n)
-}
-
-func newTrailSpaceTrimmer(w io.Writer) *trailSpaceTrimmer {
-	return &trailSpaceTrimmer{w: w}
-}
-
-func (t *trailSpaceTrimmer) Write(p []byte) (int, error) {
-	for i, c := range p {
-		if c == '\n' {
-			t.trimBuffered()
-			t.buf = append(t.buf, '\n')
-			if _, err := t.w.Write(t.buf); err != nil {
-				return i, err
-			}
-			t.buf = t.buf[:0]
-			continue
-		}
-		t.buf = append(t.buf, c)
-	}
-	return len(p), nil
-}
-
-// Flush writes any unterminated trailing line (after the final '\n')
-// without applying the trim — okapi's writer leaves the final tail
-// alone unless a newline arrives, and we keep that semantics so a
-// fixture whose final line legitimately ends in a single space (rare
-// in markdown, but possible) round-trips intact.
-func (t *trailSpaceTrimmer) Flush() error {
-	if len(t.buf) == 0 {
-		return nil
-	}
-	_, err := t.w.Write(t.buf)
-	t.buf = t.buf[:0]
-	return err
-}
-
-func (t *trailSpaceTrimmer) trimBuffered() {
-	if len(t.buf) < 2 {
-		return
-	}
-	// A line that holds nothing but a blockquote's marker keeps the space after
-	// its last ">". CommonMark 5.1 spells the marker as ">" plus an optional
-	// space, so that space belongs to the marker rather than to the decorative
-	// trailing whitespace okapi's writer drops, and stripping it rewrote "> \n"
-	// as ">\n" in a file nobody edited (#2463).
-	if line := string(t.buf); blockquoteMarkerPrefix(line) == line {
-		return
-	}
-	// Only strip if the line ends in EXACTLY one trailing space — see
-	// the comment on the wrap site for why we don't mirror the upstream
-	// "all-spaces → empty" branch (the upstream skeleton writer
-	// re-prepends the line prefix immediately, so the net effect is
-	// "indent\n" rows survive).
-	n := len(t.buf)
-	if t.buf[n-1] == ' ' && t.buf[n-2] != ' ' {
-		t.buf = t.buf[:n-1]
-	}
-}
 
 // blockText returns the rendered text for a block, preferring the target
 // locale's translation if available, falling back to source. Multi-line

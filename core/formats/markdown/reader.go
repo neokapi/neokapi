@@ -1701,9 +1701,7 @@ func (r *Reader) emitListItem(ctx context.Context, ch chan<- model.PartResult, n
 	// skeleton position would reset skelCursor to 0 and cause the next
 	// emit to re-flush the entire document as skeleton text. There's
 	// nothing to translate either, so consume the marker line directly
-	// into skeleton text and advance the cursor. Trailing whitespace on
-	// the marker line is dropped to mirror okapi MarkdownFilterWriter,
-	// which strips the bare marker's trailing space on round-trip.
+	// into skeleton text and advance the cursor.
 	if n.FirstChild() == nil {
 		// The item carries no text, but it still occupies its slot in the list:
 		// consume the ordinal so the items after it are addressed by position
@@ -1722,14 +1720,12 @@ func (r *Reader) emitListItem(ctx context.Context, ch chan<- model.PartResult, n
 		if i >= len(r.source) || lineEnd <= i {
 			return
 		}
-		// Emit pending blank lines as-is, then the trimmed marker, then
-		// the line terminator (stripping trailing whitespace mirrors
-		// okapi's MarkdownFilterWriter behaviour for empty markers).
+		// Emit pending blank lines as-is, then the marker line's own bytes,
+		// trailing whitespace included: "- " is what the file says (#2496).
 		if i > r.skelCursor {
 			r.skelText(string(r.source[r.skelCursor:i]))
 		}
-		trimmed := strings.TrimRight(string(r.source[i:lineEnd]), " \t")
-		r.skelText(trimmed)
+		r.skelText(string(r.source[i:lineEnd]))
 		if lineEnd < len(r.source) && r.source[lineEnd] == '\n' {
 			r.skelText("\n")
 			lineEnd++

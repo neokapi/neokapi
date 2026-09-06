@@ -21,6 +21,7 @@ func TestContentLessBlockDoesNotRewindTheSkeleton(t *testing.T) {
 		{"empty heading after a paragraph", "a\n#"},
 		{"empty heading between paragraphs", "# Heading\n\ntext\n\n#\n\nmore text\n"},
 		{"empty level-two heading", "a\n\n##\n\nb\n"},
+		{"empty heading with a trailing space", "a\n\n# \n\nb\n"},
 		{"empty fence at the end", "a\n```"},
 		{"empty fence between paragraphs", "a\n\n```\n```\n\nb\n"},
 		{"empty fence with a language", "a\n\n```js\n```\n\nb\n"},

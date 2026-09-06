@@ -252,6 +252,14 @@ entries:
     license: Apache-2.0
     redistributable: true
     notes: 'FuzzRoundTripMarkdown seed for #2501 (an escaped pipe in a table cell)'
+  - path: core/formats/markdown/testdata/fuzz/FuzzRoundTripMarkdown/trailing_space_line
+    tier: A
+    origin: bug
+    sha256: b7f2ae2220449536a59221be2e712c929be1716e486028c5f6e69ec80eaa74f5
+    size: 34
+    license: Apache-2.0
+    redistributable: true
+    notes: 'FuzzRoundTripMarkdown seed for #2496 (a line ending in one space)'
   - path: core/formats/markdown/testdata/gfm-table.md
     tier: A
     origin: vendored
