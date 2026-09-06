@@ -1422,6 +1422,14 @@ func (w *Writer) blockquoteRebuild(block *model.Block, text string) (prefix, bod
 		}
 		return lp, text, true
 	}
+	// The reader records the marker the block's own first line carried, which
+	// is the only source for a quote with no continuation line at all: ">> a"
+	// arrived as a one-line paragraph and came back as "a", the whole quote
+	// gone (#2464). A block already inside a <blockquote> bracket is marked by
+	// that bracket below, so its own marker would double it.
+	if m, has := block.Properties[BlockPropQuoteMarker]; has && m != "" && w.quoteDepth() == 0 {
+		return m, text, true
+	}
 	// Soft-break body: the continuation lines carry their ">" marker, except
 	// a lazy continuation line (CommonMark 5.1), which has none; only the
 	// first line always lacks one. Recover the marker from the first marked
@@ -1434,18 +1442,14 @@ func (w *Writer) blockquoteRebuild(block *model.Block, text string) (prefix, bod
 	return "", text, false
 }
 
-// continuationBlockquoteMarker returns the blockquote marker (">" plus an
-// optional single space) that begins the first continuation line of text
-// carrying one, or "" when text is single-line or no continuation line is a
-// blockquote line.
+// continuationBlockquoteMarker returns the blockquote marker that begins the
+// first continuation line of text carrying one, or "" when text is single-line
+// or no continuation line is a blockquote line.
 func continuationBlockquoteMarker(text string) string {
 	for nl := strings.IndexByte(text, '\n'); nl >= 0; {
 		line := text[nl+1:]
-		if strings.HasPrefix(line, "> ") {
-			return "> "
-		}
-		if strings.HasPrefix(line, ">") {
-			return ">"
+		if m := blockquoteMarkerPrefix(line); m != "" {
+			return m
 		}
 		next := strings.IndexByte(line, '\n')
 		if next < 0 {
@@ -1454,6 +1458,34 @@ func continuationBlockquoteMarker(text string) string {
 		nl += 1 + next
 	}
 	return ""
+}
+
+// blockquoteMarkerPrefix returns the whole blockquote marker sequence that
+// opens line: every ">" the line begins with, each carrying the optional
+// single space that follows it and the up-to-three spaces of indent
+// CommonMark 5.1 allows before it. "" when the line opens no quote.
+//
+// The sequence is what the line spells, not one level of it: ">> a\n>> b"
+// arrived with ">> " on its continuation line and was rebuilt as ">a\n>> b",
+// a one-level quote holding a lazy line (#2464). An indented marker counts
+// too: " >0" continues a quote, and a recovery testing only column 0 missed
+// it.
+func blockquoteMarkerPrefix(line string) string {
+	i := 0
+	for {
+		j := i
+		for j < len(line) && (line[j] == ' ' || line[j] == '\t') {
+			j++
+		}
+		if j >= len(line) || line[j] != '>' {
+			return line[:i]
+		}
+		j++
+		if j < len(line) && line[j] == ' ' {
+			j++
+		}
+		i = j
+	}
 }
 
 // headingLevel returns a block's heading level, preferring the normalized

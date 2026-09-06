@@ -116,6 +116,14 @@ entries:
     license: Apache-2.0
     redistributable: true
     notes: 'FuzzRoundTripMarkdown seed for #2469 (a list item holding only a block marker)'
+  - path: core/formats/markdown/testdata/fuzz/FuzzRoundTripMarkdown/nested_blockquote_marker
+    tier: A
+    origin: bug
+    sha256: ef703e94f61438016f248c80dcdf4a9065ca893b712152a0b364e1f96dba804f
+    size: 35
+    license: Apache-2.0
+    redistributable: true
+    notes: 'FuzzRoundTripMarkdown seed for #2464 (an indented nested blockquote continuation marker)'
   - path: core/formats/markdown/testdata/fuzz/FuzzRoundTripMarkdown/setext_multiline_heading
     tier: A
     origin: bug

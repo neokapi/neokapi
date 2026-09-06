@@ -87,6 +87,19 @@ func addTextWithEntities(b *runBuilder, text string, idCounter *int) {
 // have inconsistent prefixes.
 const BlockPropLinePrefix = "md:line-prefix"
 
+// BlockPropQuoteMarker is the per-block property holding the blockquote
+// marker that opens the block's FIRST line in source, markers of every
+// enclosing quote included (">> ", "> > "). The skeleton path takes those
+// bytes from the gap before the block and never reads this; the rebuild path
+// has no gap, so a single-line quote had nothing to write back and ">> a" came
+// out as a bare paragraph, losing the quote structure (#2464). Unset when the
+// block's first line opens no quote.
+//
+// Separate from BlockPropLinePrefix because the two answer different lines: a
+// soft-break body already carries its continuation markers in the run text, and
+// re-using the continuation property would emit them twice.
+const BlockPropQuoteMarker = "md:quote-marker"
+
 // BlockPropFrontMatterQuote is the per-block property recording the quote
 // character ('"' or "'") that wrapped a front matter value in the source.
 // The skeleton drops the quotes (the block text is the unquoted value);
@@ -848,6 +861,27 @@ func softBreakContinuation(source []byte, pos int) string {
 	return string(source[pos:end])
 }
 
+// quoteMarkerBefore returns the blockquote marker that opens the source line
+// holding pos: the run of ">" characters, each with the optional single space
+// and up to three spaces of indent CommonMark 5.1 allows, that the parser
+// stripped before the block's content. It returns "" when anything else sits
+// between the line start and pos, which is how a list item's marker or an
+// indented continuation keeps its own restoration.
+func quoteMarkerBefore(source []byte, pos int) string {
+	if pos < 0 || pos > len(source) {
+		return ""
+	}
+	start := pos
+	for start > 0 && source[start-1] != '\n' {
+		start--
+	}
+	line := string(source[start:pos])
+	if marker := blockquoteMarkerPrefix(line); marker == line {
+		return marker
+	}
+	return ""
+}
+
 // fullNodeAbsRange returns the absolute byte range of a node including
 // any prefix characters (like "# " for headings). This scans backward
 // from the line start to find the actual start of the markdown line.
@@ -1456,6 +1490,10 @@ func (r *Reader) emitParagraph(ctx context.Context, ch chan<- model.PartResult, 
 	}
 
 	lineStart, lineEnd := nodeAbsRange(n, source, baseOffset)
+
+	if marker := quoteMarkerBefore(r.source, lineStart); marker != "" {
+		block.Properties[BlockPropQuoteMarker] = marker
+	}
 
 	r.skelEmitGap(lineStart)
 	r.skelRef(blockID)
