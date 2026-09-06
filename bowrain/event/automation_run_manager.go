@@ -24,6 +24,12 @@ type JobCanceller interface {
 	CancelJob(ctx context.Context, id, reason string) (cancelled bool, err error)
 }
 
+// ExtractionJobCanceller stops an extraction job a person asked to stop, the
+// half of jobs.ExtractionJobStore a cancellation needs.
+type ExtractionJobCanceller interface {
+	CancelExtractionJob(ctx context.Context, id, reason string) (cancelled bool, err error)
+}
+
 // StepAwareExecutor is an action executor that receives the run's context and
 // the step ID for tracking.
 //
@@ -52,6 +58,7 @@ type AutomationRunManager struct {
 	executor StepAwareExecutor
 	notifier AutomationRunNotifier
 	jobs     JobCanceller
+	extracts ExtractionJobCanceller
 
 	mu          sync.Mutex
 	eventRuns   map[string]string        // event.ID → run.ID (active window)
@@ -78,6 +85,13 @@ func NewAutomationRunManager(store *bstore.AutomationRunStore, executor StepAwar
 // everything that runs in this process.
 func (m *AutomationRunManager) SetJobCanceller(c JobCanceller) {
 	m.jobs = c
+}
+
+// SetExtractionJobCanceller gives the manager a way to stop the extraction
+// jobs an auto_extract step queued. jobs.ExtractionJobStore satisfies it.
+// Optional, on the same terms as SetJobCanceller.
+func (m *AutomationRunManager) SetExtractionJobCanceller(c ExtractionJobCanceller) {
+	m.extracts = c
 }
 
 // SetRunNotifier sets the notifier told about every run transition the
@@ -377,25 +391,41 @@ func (m *AutomationRunManager) stopRun(runID string) {
 	m.releaseLocked(runID, rx)
 }
 
-// cancelStepJobs stops the translation jobs a step queued, so a cancellation
-// reaches the queue and not only the process that dispatched it. A job that
-// has already finished is left alone, which the store reports rather than
-// treating as an error.
+// cancelStepJobs stops the jobs a step queued, so a cancellation reaches the
+// queue and not only the process that dispatched it. A job that has already
+// finished is left alone, which the store reports rather than treating as an
+// error.
+//
+// The step's action type says which queue its ids belong to: an auto_translate
+// step carries translation job ids and an auto_extract step carries extraction
+// job ids, and each store cancels its own.
 func (m *AutomationRunManager) cancelStepJobs(ctx context.Context, step *bstore.AutomationStep, reason string) {
-	if m.jobs == nil || !spawnsTranslationJobs(step.ActionType) {
-		return
-	}
-	for _, jobID := range step.JobIDs {
-		if _, err := m.jobs.CancelJob(ctx, jobID, reason); err != nil {
-			slog.WarnContext(ctx, "run-manager: failed to cancel a step's job",
-				"step", step.ID, "job", jobID, "error", err)
+	switch {
+	case spawnsTranslationJobs(step.ActionType):
+		if m.jobs == nil {
+			return
+		}
+		for _, jobID := range step.JobIDs {
+			if _, err := m.jobs.CancelJob(ctx, jobID, reason); err != nil {
+				slog.WarnContext(ctx, "run-manager: failed to cancel a step's job",
+					"step", step.ID, "job", jobID, "error", err)
+			}
+		}
+	case spawnsExtractionJobs(step.ActionType):
+		if m.extracts == nil {
+			return
+		}
+		for _, jobID := range step.JobIDs {
+			if _, err := m.extracts.CancelExtractionJob(ctx, jobID, reason); err != nil {
+				slog.WarnContext(ctx, "run-manager: failed to cancel a step's extraction job",
+					"step", step.ID, "job", jobID, "error", err)
+			}
 		}
 	}
 }
 
 // spawnsTranslationJobs names the actions whose steps carry translation job
-// ids. auto_extract queues extraction jobs, which the extraction store has no
-// cancel for.
+// ids.
 func spawnsTranslationJobs(actionType string) bool {
 	switch actionType {
 	case "auto_translate", "auto_translate_new_locale":
@@ -403,6 +433,11 @@ func spawnsTranslationJobs(actionType string) bool {
 	default:
 		return false
 	}
+}
+
+// spawnsExtractionJobs names the actions whose steps carry extraction job ids.
+func spawnsExtractionJobs(actionType string) bool {
+	return actionType == "auto_extract"
 }
 
 // isAsyncAction returns true for actions whose work outlives Execute: the

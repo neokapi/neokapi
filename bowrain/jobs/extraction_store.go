@@ -33,6 +33,23 @@ type ExtractionJobStore interface {
 	// FailExtractionJob marks the job failed while the caller still holds the
 	// lease. See JobStore.FailJob.
 	FailExtractionJob(ctx context.Context, id string, epoch int64, errMsg string) (owner bool, err error)
+	// CompleteExtractionJob marks the job completed under the same lease guard
+	// as FailExtractionJob. A worker whose lease was taken, by the sweeper's
+	// re-claim or by a cancellation, must not report success for a run somebody
+	// else owns or a person asked to stop. See JobStore.CompleteJob.
+	CompleteExtractionJob(ctx context.Context, id string, epoch int64) (owner bool, err error)
+	// CancelExtractionJob stops a job a person asked to stop. See
+	// JobStore.CancelJob: it applies only to a job still queued or processing,
+	// and it bumps claim_epoch, which is what makes the cancellation reach a
+	// worker. The running worker's next RenewLease reports !owner and it
+	// abandons at the chunk boundary without writing 'completed' back over the
+	// cancellation. Returns false when the job was already terminal.
+	//
+	// The row is left in 'failed' carrying the reason, as a cancelled
+	// translation job is: 'failed' is the terminal status the push aggregation
+	// and the step-completion tracker already read, so a cancelled extraction
+	// closes its step instead of leaving it to time out thirty minutes later.
+	CancelExtractionJob(ctx context.Context, id, reason string) (cancelled bool, err error)
 	// SweepStaleProcessing recovers jobs abandoned mid-processing. See
 	// JobStore.SweepStaleProcessing.
 	SweepStaleProcessing(ctx context.Context, olderThan time.Duration, maxAttempts int) (requeued []string, failed int, err error)
@@ -233,6 +250,31 @@ func (s *extractionJobStore) FailExtractionJob(ctx context.Context, id string, e
 		errMsg, id, epoch)
 	if err != nil {
 		return false, fmt.Errorf("fail extraction job: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	return n == 1, nil
+}
+
+func (s *extractionJobStore) CompleteExtractionJob(ctx context.Context, id string, epoch int64) (bool, error) {
+	res, err := s.db.ExecContext(ctx,
+		`UPDATE extraction_jobs
+		 SET status = 'completed', error = '', updated_at = NOW()
+		 WHERE id = $1 AND status = 'processing' AND claim_epoch = $2`, id, epoch)
+	if err != nil {
+		return false, fmt.Errorf("complete extraction job: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	return n == 1, nil
+}
+
+func (s *extractionJobStore) CancelExtractionJob(ctx context.Context, id, reason string) (bool, error) {
+	res, err := s.db.ExecContext(ctx,
+		`UPDATE extraction_jobs
+		 SET status = 'failed', error = $1, claim_epoch = claim_epoch + 1, updated_at = NOW()
+		 WHERE id = $2 AND status IN ('queued', 'processing')`,
+		reason, id)
+	if err != nil {
+		return false, fmt.Errorf("cancel extraction job: %w", err)
 	}
 	n, _ := res.RowsAffected()
 	return n == 1, nil

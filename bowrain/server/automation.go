@@ -122,6 +122,7 @@ func (s *Server) newRunManager() *event.AutomationRunManager {
 		rm.SetRunNotifier(s.runHub)
 	}
 	rm.SetJobCanceller(s.JobStore)
+	rm.SetExtractionJobCanceller(s.ExtractionJobStore)
 	return rm
 }
 
