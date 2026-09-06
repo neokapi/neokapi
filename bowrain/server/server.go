@@ -25,6 +25,7 @@ import (
 	slogecho "github.com/samber/slog-echo"
 	"google.golang.org/grpc"
 
+	aitools "github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/formats"
 	coreg "github.com/neokapi/neokapi/core/graph"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
@@ -401,7 +402,13 @@ func NewServer(cfg Config) *Server {
 	formats.RegisterAll(formatReg)
 
 	toolReg := registry.NewToolRegistry()
+	// libtools first: it registers the deterministic `qa`; aitools then overlays
+	// the unified `translate`/`qa` and the rest of the model-backed tools, the
+	// same order host/app.go registers them in. The platform holds the
+	// credential, so a step reaches its model through the provider the flow
+	// service grants rather than through anything the step's config carries.
 	libtools.RegisterAll(toolReg)
+	aitools.RegisterAll(toolReg)
 	connReg := platconn.NewRegistry()
 	connector.RegisterServer(connReg, formatReg)
 
@@ -979,6 +986,8 @@ func NewServer(cfg Config) *Server {
 	if s.PostHogClient != nil && s.Services != nil {
 		s.Services.SetEventTracker(s.PostHogClient)
 	}
+
+	s.wireFlowAIProvider()
 
 	// Initialize admin OIDC verifier (Bowrain AD-018).
 	if cfg.AdminOIDCIssuerURL != "" && cfg.AdminOIDCClientID != "" {

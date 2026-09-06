@@ -428,11 +428,12 @@ func VoiceInferSchema() *schema.ComponentSchema {
 
 // NewVoiceInferFromConfig creates a voice profile infer tool from a config map.
 func NewVoiceInferFromConfig(config map[string]any, _ string) (tool.Tool, error) {
+	injected := TakeProvider(config)
 	var cfg VoiceInferConfig
 	if err := schema.ApplyConfig(config, &cfg); err != nil {
 		return nil, fmt.Errorf("voice-infer config: %w", err)
 	}
-	p, err := ProviderFromConfig(cfg.Provider, aiprovider.Config{APIKey: cfg.APIKey, Model: cfg.Model})
+	p, err := providerFor(injected, cfg.Provider, aiprovider.Config{APIKey: cfg.APIKey, Model: cfg.Model})
 	if err != nil {
 		return nil, err
 	}

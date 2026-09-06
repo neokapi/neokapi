@@ -218,6 +218,9 @@ func NewTranslateFromConfig(config map[string]any, targetLang string) (tool.Tool
 	if provider, _ := config["provider"].(string); isMTProvider(provider) {
 		for _, p := range mttools.Providers {
 			if string(p.ID) == provider {
+				// An MT engine calls no LLM, so a host's injected provider
+				// means nothing to it and must not reach its config round trip.
+				dropProvider(config)
 				return mttools.NewMTTranslateFromConfig(p.ID)(config, targetLang)
 			}
 		}
@@ -255,6 +258,9 @@ func NewCheckFromConfig(config map[string]any, targetLang string) (tool.Tool, er
 	if checkUsesAI(config) {
 		return NewAICheckFromConfig(config, targetLang)
 	}
+	// Rules mode runs locally and calls no model, so a host's injected provider
+	// is dropped rather than carried into the rule checker's config.
+	dropProvider(config)
 	return libtools.NewRuleCheckFromConfig(config, targetLang)
 }
 

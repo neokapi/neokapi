@@ -35,6 +35,7 @@ type AICheckConfig struct {
 
 // NewAICheckFromConfig creates an LLM-judged check tool from a config map.
 func NewAICheckFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
+	injected := TakeProvider(config)
 	var cfg AICheckConfig
 	if err := schema.ApplyConfig(config, &cfg); err != nil {
 		return nil, fmt.Errorf("qa config: %w", err)
@@ -42,7 +43,7 @@ func NewAICheckFromConfig(config map[string]any, targetLang string) (tool.Tool, 
 	if targetLang != "" {
 		cfg.TargetLocale = model.LocaleID(targetLang)
 	}
-	p, err := ProviderFromConfig(cfg.Provider, aiprovider.Config{APIKey: cfg.APIKey, Model: cfg.Model})
+	p, err := providerFor(injected, cfg.Provider, aiprovider.Config{APIKey: cfg.APIKey, Model: cfg.Model})
 	if err != nil {
 		return nil, err
 	}

@@ -13,6 +13,7 @@ import (
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/safeio"
+	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
 
 // ErrCapacityExhausted is returned when a flow cannot be admitted because the
@@ -40,11 +41,27 @@ const (
 	defaultAdmissionWait = 5 * time.Second
 )
 
+// AIProviderResolver builds the LLM provider the AI steps of a flow call, for
+// one workspace and one requested model.
+//
+// The platform owns the credential: a workspace's provider configuration lives
+// in the server's Postgres and the hosted key is held by the process, so a
+// stored flow definition names no provider and carries no secret. A resolver
+// that returns a nil provider and no error leaves the step to build its own
+// from its config, which is what a self-hosted instance with no platform
+// provider does.
+type AIProviderResolver func(ctx context.Context, workspaceID, requestedModel string) (aiprovider.LLMProvider, error)
+
 // FlowService manages flow execution with optional store integration.
 type FlowService struct {
 	store     store.ContentStore
 	formatReg *registry.FormatRegistry
 	toolReg   *registry.ToolRegistry
+
+	// aiProvider builds the provider an AI step calls. Nil leaves every step to
+	// its own config, which is what a flow run did before the platform server
+	// registered the AI tools.
+	aiProvider AIProviderResolver
 
 	// admission caps total in-flight bytes across all concurrent flow runs on
 	// this process (a server-level, cross-request resource cap). A nil admission
@@ -70,6 +87,15 @@ func NewFlowService(s store.ContentStore, formatReg *registry.FormatRegistry, to
 		admission:     flowAdmissionFromEnv(),
 		admissionWait: flowAdmissionWaitFromEnv(),
 	}
+}
+
+// SetAIProviderResolver wires the provider an AI step of a flow calls. Safe to
+// call with nil, which leaves every step to its own config.
+func (s *FlowService) SetAIProviderResolver(fn AIProviderResolver) {
+	if s == nil {
+		return
+	}
+	s.aiProvider = fn
 }
 
 // flowAdmissionFromEnv builds the in-flight-bytes admission from the

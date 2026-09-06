@@ -151,6 +151,7 @@ func AIEntityExtractSchema() *schema.ComponentSchema {
 // registered local NER model (ner.LocalProvider) and nothing leaves the
 // machine; `hybrid` resolves both.
 func NewAIEntityExtractFromConfig(config map[string]any, _ string) (tool.Tool, error) {
+	injected := TakeProvider(config)
 	var cfg AIEntityExtractConfig
 	if err := schema.ApplyConfig(config, &cfg); err != nil {
 		return nil, fmt.Errorf("entity-extract config: %w", err)
@@ -167,7 +168,7 @@ func NewAIEntityExtractFromConfig(config map[string]any, _ string) (tool.Tool, e
 		return NewAIEntityExtractTool(nil, nerProvider, cfg), nil
 	}
 
-	p, err := ProviderFromConfig(cfg.Provider, aiprovider.Config{APIKey: cfg.APIKey, Model: cfg.Model})
+	p, err := providerFor(injected, cfg.Provider, aiprovider.Config{APIKey: cfg.APIKey, Model: cfg.Model})
 	if err != nil {
 		return nil, err
 	}
