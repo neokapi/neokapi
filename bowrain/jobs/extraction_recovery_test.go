@@ -137,3 +137,109 @@ func TestExtractionStore_RevertSweepRequeueRestoresTheRow(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []string{job.ID}, requeued)
 }
+
+// TestExtractionStore_CancelStopsAQueuedJob: a cancel on a job nobody has
+// claimed marks it terminal with the reason, so a worker that picks up the
+// message afterwards finds nothing to claim.
+func TestExtractionStore_CancelStopsAQueuedJob(t *testing.T) {
+	store := newTestExtractionStore(t)
+	ctx := t.Context()
+	job := seedExtractionJob(t, store)
+
+	cancelled, err := store.CancelExtractionJob(ctx, job.ID, "cancelled by user")
+	require.NoError(t, err)
+	assert.True(t, cancelled)
+
+	got, err := store.GetExtractionJob(ctx, job.ID)
+	require.NoError(t, err)
+	assert.Equal(t, ExtractionStatusFailed, got.Status)
+	assert.Contains(t, got.Error, "cancelled by user")
+
+	claimed, _, err := store.ClaimExtractionJob(ctx, job.ID)
+	require.NoError(t, err)
+	assert.False(t, claimed, "a cancelled job was claimed anyway")
+}
+
+// TestExtractionStore_CancelReachesTheRunningWorker: the claim epoch is what
+// carries a cancellation to a worker already processing the job. Its next
+// renewal reports !owner, which is the checkpoint it abandons at, and its
+// completion write is refused.
+func TestExtractionStore_CancelReachesTheRunningWorker(t *testing.T) {
+	store := newTestExtractionStore(t)
+	ctx := t.Context()
+	job := seedExtractionJob(t, store)
+
+	claimed, epoch, err := store.ClaimExtractionJob(ctx, job.ID)
+	require.NoError(t, err)
+	require.True(t, claimed)
+
+	owner, err := store.RenewLease(ctx, job.ID, epoch)
+	require.NoError(t, err)
+	require.True(t, owner, "the worker holds the lease before the cancel")
+
+	cancelled, err := store.CancelExtractionJob(ctx, job.ID, "run cancelled")
+	require.NoError(t, err)
+	require.True(t, cancelled)
+
+	owner, err = store.RenewLease(ctx, job.ID, epoch)
+	require.NoError(t, err)
+	assert.False(t, owner, "the cancelled worker still holds its lease")
+
+	owner, err = store.CompleteExtractionJob(ctx, job.ID, epoch)
+	require.NoError(t, err)
+	assert.False(t, owner, "a cancelled worker wrote completed over the cancellation")
+
+	got, err := store.GetExtractionJob(ctx, job.ID)
+	require.NoError(t, err)
+	assert.Equal(t, ExtractionStatusFailed, got.Status)
+	assert.Contains(t, got.Error, "run cancelled")
+}
+
+// TestExtractionStore_CancelRefusesATerminalJob: a job that already finished
+// cannot be cancelled after the fact, and reporting it stopped would be a lie
+// the run history then repeats.
+func TestExtractionStore_CancelRefusesATerminalJob(t *testing.T) {
+	store := newTestExtractionStore(t)
+	ctx := t.Context()
+	job := seedExtractionJob(t, store)
+
+	claimed, epoch, err := store.ClaimExtractionJob(ctx, job.ID)
+	require.NoError(t, err)
+	require.True(t, claimed)
+	owner, err := store.CompleteExtractionJob(ctx, job.ID, epoch)
+	require.NoError(t, err)
+	require.True(t, owner)
+
+	cancelled, err := store.CancelExtractionJob(ctx, job.ID, "too late")
+	require.NoError(t, err)
+	assert.False(t, cancelled)
+
+	got, err := store.GetExtractionJob(ctx, job.ID)
+	require.NoError(t, err)
+	assert.Equal(t, ExtractionStatusCompleted, got.Status)
+	assert.Empty(t, got.Error)
+}
+
+// TestExtractionStore_CompleteRefusesAStaleWorker: the sweeper's re-claim
+// takes the lease, and the worker it replaced cannot report success for a run
+// somebody else now owns.
+func TestExtractionStore_CompleteRefusesAStaleWorker(t *testing.T) {
+	store := newTestExtractionStore(t)
+	ctx := t.Context()
+	job := seedExtractionJob(t, store)
+
+	_, stale, err := store.ClaimExtractionJob(ctx, job.ID)
+	require.NoError(t, err)
+	require.NoError(t, store.UpdateExtractionJobStatus(ctx, job.ID, ExtractionStatusQueued, ""))
+	_, fresh, err := store.ClaimExtractionJob(ctx, job.ID)
+	require.NoError(t, err)
+	require.NotEqual(t, stale, fresh)
+
+	owner, err := store.CompleteExtractionJob(ctx, job.ID, stale)
+	require.NoError(t, err)
+	assert.False(t, owner)
+
+	owner, err = store.CompleteExtractionJob(ctx, job.ID, fresh)
+	require.NoError(t, err)
+	assert.True(t, owner)
+}

@@ -120,6 +120,12 @@ func (s *stubExtractionStore) RetryOrFail(ctx context.Context, id string, epoch 
 func (s *stubExtractionStore) FailExtractionJob(ctx context.Context, id string, epoch int64, errMsg string) (bool, error) {
 	return true, nil
 }
+func (s *stubExtractionStore) CompleteExtractionJob(ctx context.Context, id string, epoch int64) (bool, error) {
+	return true, nil
+}
+func (s *stubExtractionStore) CancelExtractionJob(ctx context.Context, id, reason string) (bool, error) {
+	return true, nil
+}
 func (s *stubExtractionStore) SweepStaleProcessing(ctx context.Context, olderThan time.Duration, maxAttempts int) ([]string, int, error) {
 	return nil, 0, nil
 }

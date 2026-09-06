@@ -15,19 +15,25 @@ import (
 // runAndStep reads the single run for an event and its single step.
 func runAndStep(t *testing.T, store *bstore.AutomationRunStore, evID string) (*bstore.AutomationRun, *bstore.AutomationStep) {
 	t.Helper()
+	run := runFor(t, store, evID)
+	steps, err := store.ListSteps(t.Context(), run.ID)
+	require.NoError(t, err)
+	require.Len(t, steps, 1)
+	return run, steps[0]
+}
+
+// runFor reads the run an event started, whatever number of steps it holds.
+func runFor(t *testing.T, store *bstore.AutomationRunStore, evID string) *bstore.AutomationRun {
+	t.Helper()
 	runs, err := store.ListRuns(t.Context(), "proj-1", "", 20, 0)
 	require.NoError(t, err)
 	for _, run := range runs {
-		if run.TriggerID != evID {
-			continue
+		if run.TriggerID == evID {
+			return run
 		}
-		steps, err := store.ListSteps(t.Context(), run.ID)
-		require.NoError(t, err)
-		require.Len(t, steps, 1)
-		return run, steps[0]
 	}
 	t.Fatalf("no run for event %s", evID)
-	return nil, nil
+	return nil
 }
 
 // TestCancelRun_StopsTheRunningAction proves a cancel reaches the work: the
@@ -164,6 +170,80 @@ func (r *recordingJobCanceller) CancelJob(_ context.Context, id, _ string) (bool
 }
 
 func (r *recordingJobCanceller) cancelled() []string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return append([]string(nil), r.seen...)
+}
+
+// TestCancelRun_CancelsTheExtractionJobsItsStepsQueued proves the cancellation
+// reaches the extraction queue too: an auto_extract step's jobs were left to
+// run to the end, creating the items the run was stopped for.
+func TestCancelRun_CancelsTheExtractionJobsItsStepsQueued(t *testing.T) {
+	store := newTestRunStore(t)
+	rm := NewAutomationRunManager(store, func(context.Context, AutomationAction, platev.Event, string) error { return nil })
+	translations := &recordingJobCanceller{}
+	extractions := &recordingExtractionCanceller{}
+	rm.SetJobCanceller(translations)
+	rm.SetExtractionJobCanceller(extractions)
+
+	ev := platev.Event{ID: "evt-extract", Type: platev.EventPushCompleted, ProjectID: "proj-1"}
+	require.NoError(t, rm.Execute(AutomationAction{Type: "auto_extract", Name: "extract-rule"}, ev))
+	run, step := runAndStep(t, store, ev.ID)
+	require.NoError(t, store.RegisterStepJobs(t.Context(), step.ID, []string{"ext-1", "ext-2"}))
+
+	require.NoError(t, rm.CancelRun(t.Context(), run.ID, "cancelled by user"))
+	assert.Equal(t, []string{"ext-1", "ext-2"}, extractions.cancelled())
+	assert.Empty(t, translations.cancelled(), "an extraction id reached the translation queue")
+}
+
+// TestCancelRun_SendsEachStepsJobsToItsOwnQueue proves the routing is by action
+// type: a translate step's ids never reach the extraction store, which would
+// cancel nothing and leave the real jobs running.
+func TestCancelRun_SendsEachStepsJobsToItsOwnQueue(t *testing.T) {
+	store := newTestRunStore(t)
+	rm := NewAutomationRunManager(store, func(context.Context, AutomationAction, platev.Event, string) error { return nil })
+	translations := &recordingJobCanceller{}
+	extractions := &recordingExtractionCanceller{}
+	rm.SetJobCanceller(translations)
+	rm.SetExtractionJobCanceller(extractions)
+
+	ev := platev.Event{ID: "evt-both", Type: platev.EventPushCompleted, ProjectID: "proj-1"}
+	require.NoError(t, rm.Execute(AutomationAction{Type: "auto_translate", Name: "translate-rule"}, ev))
+	require.NoError(t, rm.Execute(AutomationAction{Type: "auto_extract", Name: "extract-rule"}, ev))
+
+	run := runFor(t, store, ev.ID)
+	steps, err := store.ListSteps(t.Context(), run.ID)
+	require.NoError(t, err)
+	require.Len(t, steps, 2)
+	for _, step := range steps {
+		switch step.ActionType {
+		case "auto_translate":
+			require.NoError(t, store.RegisterStepJobs(t.Context(), step.ID, []string{"job-1"}))
+		case "auto_extract":
+			require.NoError(t, store.RegisterStepJobs(t.Context(), step.ID, []string{"ext-1"}))
+		}
+	}
+
+	require.NoError(t, rm.CancelRun(t.Context(), run.ID, "cancelled by user"))
+	assert.Equal(t, []string{"job-1"}, translations.cancelled())
+	assert.Equal(t, []string{"ext-1"}, extractions.cancelled())
+}
+
+// recordingExtractionCanceller records the extraction jobs a cancellation
+// reached.
+type recordingExtractionCanceller struct {
+	mu   sync.Mutex
+	seen []string
+}
+
+func (r *recordingExtractionCanceller) CancelExtractionJob(_ context.Context, id, _ string) (bool, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.seen = append(r.seen, id)
+	return true, nil
+}
+
+func (r *recordingExtractionCanceller) cancelled() []string {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return append([]string(nil), r.seen...)

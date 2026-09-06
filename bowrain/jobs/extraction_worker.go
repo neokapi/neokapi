@@ -173,7 +173,15 @@ func processExtractionJob(ctx context.Context, deps *ExtractionWorkerDeps, jobID
 		"Extracting entities from "+job.ItemName,
 		map[string]string{"item": job.ItemName, "locale": job.Locale})
 
-	if err := executeExtraction(ctx, deps, job); err != nil {
+	if err := executeExtraction(ctx, deps, job, epoch); err != nil {
+		// A cancellation or the sweeper's re-claim took the lease mid-run.
+		// Abandon quietly: do NOT mark failed (that would clobber the reason a
+		// person's cancel wrote, or the fresh owner's run) and do NOT retry.
+		if errors.Is(err, errLeaseLost) {
+			slog.InfoContext(ctx, "extraction lease lost mid-run; abandoning",
+				"job_id", jobID)
+			return nil
+		}
 		// Shutdown reached the job before it finished: nothing the job did, so
 		// put it back rather than failing it. Bookkeeping runs detached,
 		// because the context that carried the cancellation cannot write.
@@ -219,8 +227,18 @@ func processExtractionJob(ctx context.Context, deps *ExtractionWorkerDeps, jobID
 		return err
 	}
 
-	if err := deps.ExtractionJobStore.UpdateExtractionJobStatus(ctx, jobID, ExtractionStatusCompleted, ""); err != nil {
+	// Completion is lease-guarded, so a job cancelled while this worker was
+	// running it stays cancelled: without the guard the worker wrote
+	// 'completed' over the cancellation and the extraction it was stopped for
+	// counted as having finished.
+	owner, err := deps.ExtractionJobStore.CompleteExtractionJob(ctx, jobID, epoch)
+	if err != nil {
 		return fmt.Errorf("set completed: %w", err)
+	}
+	if !owner {
+		slog.InfoContext(ctx, "extraction lease lost before completion; leaving the record as it stands",
+			"job_id", jobID)
+		return nil
 	}
 
 	emitExtractionLog(deps, job.StepID, "info",
@@ -229,7 +247,7 @@ func processExtractionJob(ctx context.Context, deps *ExtractionWorkerDeps, jobID
 	return nil
 }
 
-func executeExtraction(ctx context.Context, deps *ExtractionWorkerDeps, job *ExtractionJob) error {
+func executeExtraction(ctx context.Context, deps *ExtractionWorkerDeps, job *ExtractionJob, epoch int64) error {
 	proj, err := deps.ContentStore.GetProject(ctx, job.ProjectID)
 	if err != nil {
 		return fmt.Errorf("get project: %w", err)
@@ -290,6 +308,19 @@ func executeExtraction(ctx context.Context, deps *ExtractionWorkerDeps, job *Ext
 		end := min(i+progressChunk, totalBlocks)
 		chunk := storedBlocks[i:end]
 
+		// The chunk boundary is where a cancellation reaches this worker: a
+		// cancel bumps claim_epoch, so the renewal reports !owner and the run
+		// stops here rather than extracting to the end and creating the items
+		// it was stopped for. It also refreshes updated_at, so a job making
+		// steady progress never looks stale to the sweeper.
+		owner, lerr := deps.ExtractionJobStore.RenewLease(ctx, job.ID, epoch)
+		if lerr != nil {
+			return fmt.Errorf("renew lease: %w", lerr)
+		}
+		if !owner {
+			return errLeaseLost
+		}
+
 		if err := limiter.Wait(ctx); err != nil {
 			return fmt.Errorf("rate limit: %w", err)
 		}
@@ -310,6 +341,16 @@ func executeExtraction(ctx context.Context, deps *ExtractionWorkerDeps, job *Ext
 		if err := deps.ExtractionJobStore.UpdateExtractionJobProgress(ctx, job.ID, end, totalBlocks, itemsCreated); err != nil {
 			slog.Info("warning: update extraction progress for", "id", job.ID, "error", err)
 		}
+	}
+
+	// The last checkpoint before the annotated blocks are written back, which
+	// is the one write a cancelled run must not make.
+	owner, lerr := deps.ExtractionJobStore.RenewLease(ctx, job.ID, epoch)
+	if lerr != nil {
+		return fmt.Errorf("renew lease: %w", lerr)
+	}
+	if !owner {
+		return errLeaseLost
 	}
 
 	// Store annotated blocks back.
