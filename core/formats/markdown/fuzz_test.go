@@ -141,6 +141,9 @@ func FuzzReadMarkdown(f *testing.F) {
 	// trailing space the writer's okapi-parity trim dropped. Also committed
 	// under testdata/fuzz.
 	f.Add([]byte("> \n> q\n"))
+	// #2498: goldmark appends a newline to the last line of a block that runs
+	// to the end of the input. Also committed under testdata/fuzz.
+	f.Add([]byte("```\na"))
 	// #2497: a tag the input ends inside tokenizes to nothing, and its bytes
 	// reached neither a block nor the skeleton. Also committed under
 	// testdata/fuzz.

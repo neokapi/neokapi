@@ -108,6 +108,14 @@ entries:
     license: Apache-2.0
     redistributable: true
     notes: 'FuzzReadMarkdown seed for #2462 (a definition spread over several lines)'
+  - path: core/formats/markdown/testdata/fuzz/FuzzReadMarkdown/unterminated_fence_at_eof
+    tier: A
+    origin: bug
+    sha256: d468eee0ee68479f58a9a9f33b2d4afc6afc0eb132d4b219e3c6599eab45a42f
+    size: 33
+    license: Apache-2.0
+    redistributable: true
+    notes: 'FuzzReadMarkdown seed for #2498 (a fence that runs to the end of the file)'
   - path: core/formats/markdown/testdata/fuzz/FuzzReadMarkdown/unterminated_html_tag
     tier: A
     origin: bug

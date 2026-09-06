@@ -247,7 +247,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) er
 	}
 	bom, content := format.SplitBOM(content)
 	r.source = content
-	r.skelAdvance(0)
+	r.skelCursor = 0
 	r.skelText(string(bom))
 
 	r.blockCounter = 0
@@ -2865,9 +2865,23 @@ func (r *Reader) extractRawLines(node ast.Node, source []byte) string {
 	lines := node.Lines()
 	for i := range lines.Len() {
 		line := lines.At(i)
-		buf.Write(line.Value(source))
+		buf.Write(rawLineValue(line, source))
 	}
 	return buf.String()
+}
+
+// rawLineValue returns a line's source bytes. goldmark's Segment.Value appends
+// a newline to the last line of a block that runs to the end of the input
+// (ForceNewline), which is a byte the file does not have: a fenced code block
+// with no closing fence came back one newline longer than the source (#2498).
+func rawLineValue(line text.Segment, source []byte) []byte {
+	v := line.Value(source)
+	atEOF := line.Stop >= len(source)
+	sourceEndsWithNewline := len(source) > 0 && source[len(source)-1] == '\n'
+	if atEOF && !sourceEndsWithNewline && len(v) > 0 && v[len(v)-1] == '\n' {
+		return v[:len(v)-1]
+	}
+	return v
 }
 
 func isBlankLine(line []byte) bool {
