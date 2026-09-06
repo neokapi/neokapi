@@ -202,6 +202,17 @@ describe("CreditLedger", () => {
     expect(screen.getAllByText("AI Translation")).toHaveLength(2);
   });
 
+  it("names a flow run's AI spend", () => {
+    render(
+      <CreditLedger
+        entries={[makeEntry({ id: "e1", operation: "ai_flow_run", amount: -120 })]}
+        operations={["ai_flow_run", "ai_translation"]}
+        onOperationChange={() => {}}
+      />,
+    );
+    expect(screen.getAllByText("AI Flow Run")).toHaveLength(2);
+  });
+
   it("shows 'No transactions found' when empty", () => {
     render(<CreditLedger entries={[]} />);
     expect(screen.getByText("No transactions found")).toBeInTheDocument();

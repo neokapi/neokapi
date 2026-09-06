@@ -59,9 +59,14 @@ type FlowService struct {
 	toolReg   *registry.ToolRegistry
 
 	// aiProvider builds the provider an AI step calls. Nil leaves every step to
-	// its own config, which is what a flow run did before the platform server
-	// registered the AI tools.
+	// its own config, which is what a self-hosted instance with no platform
+	// provider gets.
 	aiProvider AIProviderResolver
+
+	// accountant meters what a run spends on the granted provider. Nil meters
+	// nothing, which is what an instance with no quota store and no billing
+	// gets.
+	accountant AIAccountant
 
 	// admission caps total in-flight bytes across all concurrent flow runs on
 	// this process (a server-level, cross-request resource cap). A nil admission
@@ -96,6 +101,15 @@ func (s *FlowService) SetAIProviderResolver(fn AIProviderResolver) {
 		return
 	}
 	s.aiProvider = fn
+}
+
+// SetAIAccountant wires the accounting a run's AI spend is checked and
+// recorded through. Safe to call with nil, which meters nothing.
+func (s *FlowService) SetAIAccountant(a AIAccountant) {
+	if s == nil {
+		return
+	}
+	s.accountant = a
 }
 
 // flowAdmissionFromEnv builds the in-flight-bytes admission from the

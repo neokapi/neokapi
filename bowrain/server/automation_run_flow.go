@@ -48,7 +48,7 @@ func (s *Server) flowCatalog() *service.FlowCatalog {
 // and from the event otherwise, so a rule on a push runs over the pushed
 // items. The target locales come from the action's target_locales, falling
 // back to the project's target languages.
-func (s *Server) runFlowRequest(ctx context.Context, action event.AutomationAction, ev platev.Event) (service.FlowRun, error) {
+func (s *Server) runFlowRequest(ctx context.Context, action event.AutomationAction, ev platev.Event, stepID string) (service.FlowRun, error) {
 	flowID := strings.TrimSpace(action.Config["flow"])
 	if flowID == "" {
 		return service.FlowRun{}, errors.New("run_flow: the action names no flow")
@@ -86,8 +86,24 @@ func (s *Server) runFlowRequest(ctx context.Context, action event.AutomationActi
 		Stream:        stream,
 		Items:         items,
 		TargetLocales: locales,
+		RunID:         s.automationRunOfStep(ctx, stepID),
 		Source:        "automation",
 	}, nil
+}
+
+// automationRunOfStep names the automation run a step belongs to, which is
+// what the AI a run_flow step spends is recorded against. A step that cannot
+// be read yields the empty run, and the spend is still recorded and deducted
+// with only its trace back to the run lost.
+func (s *Server) automationRunOfStep(ctx context.Context, stepID string) string {
+	if s.AutomationRunStore == nil || stepID == "" {
+		return ""
+	}
+	step, err := s.AutomationRunStore.GetStep(ctx, stepID)
+	if err != nil || step == nil {
+		return ""
+	}
+	return step.RunID
 }
 
 // splitConfigList splits a comma-separated config value, dropping blanks.
@@ -142,7 +158,7 @@ func (s *Server) runFlowAction(ctx context.Context, action event.AutomationActio
 	if s.Services == nil || s.Services.Flow == nil {
 		return errors.New("run_flow: flow service not configured")
 	}
-	run, err := s.runFlowRequest(ctx, action, ev)
+	run, err := s.runFlowRequest(ctx, action, ev, stepID)
 	if err != nil {
 		return err
 	}

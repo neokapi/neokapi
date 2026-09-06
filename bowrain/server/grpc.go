@@ -244,11 +244,20 @@ func (g *GRPCServer) ExecuteFlow(req *pb.ExecuteFlowRequest, stream pb.NeokapiSe
 
 	// Build the tools through the flow service, so a model-backed tool named
 	// here is granted the project workspace's AI provider instead of the
-	// placeholder a registry entry carries as its zero-argument default.
+	// placeholder a registry entry carries as its zero-argument default, and
+	// spends against the same ledger a run_flow automation spends against. The
+	// scope settles once the route returns, under a context that survives the
+	// caller hanging up mid-flow.
+	aiRun := g.srv.Services.Flow.BeginAIRun(stream.Context(), req.ProjectId, "")
+	defer aiRun.Settle(context.WithoutCancel(stream.Context()))
+
 	tools := make([]tool.Tool, 0, len(cfg.Tools))
 	for _, name := range cfg.Tools {
-		t, err := g.srv.Services.Flow.NewToolForProject(stream.Context(), req.ProjectId, registry.ToolID(name), nil, "")
+		t, err := g.srv.Services.Flow.NewToolForRun(stream.Context(), aiRun, registry.ToolID(name), nil, "")
 		if err != nil {
+			if errors.Is(err, service.ErrOutOfCredits) {
+				return status.Error(codes.ResourceExhausted, err.Error())
+			}
 			return status.Errorf(codes.InvalidArgument, "unknown tool %q: %v", name, err)
 		}
 		tools = append(tools, t)

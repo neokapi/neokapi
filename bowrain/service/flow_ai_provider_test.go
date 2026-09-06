@@ -110,7 +110,7 @@ func TestFlowRunKeepsAStepsOwnProvider(t *testing.T) {
 
 	nodes := translateFlow().Nodes
 	nodes[0].Config = map[string]any{"provider": string(aiprovider.Demo)}
-	tools, err := fs.buildFlowTools(context.Background(), "ws-1", nodes, "fr")
+	tools, err := fs.buildFlowTools(context.Background(), fs.BeginAIRun(context.Background(), "p1", ""), nodes, "fr")
 	require.NoError(t, err)
 	assert.Len(t, tools, 1)
 }
@@ -124,7 +124,7 @@ func TestFlowRunGrantsNothingToADeterministicStep(t *testing.T) {
 	})
 
 	nodes := []flow.FlowNode{{ID: "q", Type: flow.NodeTool, Name: "qa", Config: map[string]any{"mode": "rules"}}}
-	tools, err := fs.buildFlowTools(context.Background(), "ws-1", nodes, "fr")
+	tools, err := fs.buildFlowTools(context.Background(), fs.BeginAIRun(context.Background(), "p1", ""), nodes, "fr")
 	require.NoError(t, err)
 	assert.Len(t, tools, 1)
 }
@@ -137,7 +137,7 @@ func TestFlowRunFailsWhenTheProviderCannotBeResolved(t *testing.T) {
 		return nil, errors.New("platform provider unavailable")
 	})
 
-	_, err := fs.buildFlowTools(context.Background(), "ws-1", translateFlow().Nodes, "fr")
+	_, err := fs.buildFlowTools(context.Background(), fs.BeginAIRun(context.Background(), "p1", ""), translateFlow().Nodes, "fr")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "platform provider unavailable")
 }
@@ -147,21 +147,21 @@ func TestFlowRunFailsWhenTheProviderCannotBeResolved(t *testing.T) {
 func TestFlowRunWithoutAResolverBuildsFromConfig(t *testing.T) {
 	fs, _ := newAIFlowFixture(t)
 
-	tools, err := fs.buildFlowTools(context.Background(), "", translateFlow().Nodes, "fr")
+	tools, err := fs.buildFlowTools(context.Background(), fs.BeginAIRun(context.Background(), "p1", ""), translateFlow().Nodes, "fr")
 	require.NoError(t, err)
 	assert.Len(t, tools, 1)
 }
 
 // The gRPC flow route builds through the same path, so a tool named there is
 // granted the project workspace's provider too.
-func TestNewToolForProjectGrantsTheProvider(t *testing.T) {
+func TestNewToolForRunGrantsTheProvider(t *testing.T) {
 	fs, _ := newAIFlowFixture(t)
 	granted := aiprovider.NewMockProvider()
 	fs.SetAIProviderResolver(func(context.Context, string, string) (aiprovider.LLMProvider, error) {
 		return granted, nil
 	})
 
-	built, err := fs.NewToolForProject(context.Background(), "p1", "translate", map[string]any{"target_locale": "fr"}, "fr")
+	built, err := fs.NewToolForRun(context.Background(), fs.BeginAIRun(context.Background(), "p1", ""), "translate", map[string]any{"target_locale": "fr"}, "fr")
 	require.NoError(t, err)
 	_, err = tool.RunOnParts(context.Background(), built, []*model.Part{
 		{Type: model.PartBlock, Resource: translatableBlock("x1", "Hello there.")},
