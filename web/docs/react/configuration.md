@@ -275,11 +275,15 @@ The file name is yours to choose: the CLI takes it via `--config` and the plugin
 
 ## Storybook integration
 
-`@neokapi/i18n-react/storybook` exports a decorator and toolbar entry for switching locales inside Storybook:
+`@neokapi/i18n-react/storybook` exports a toolbar entry, a loader and a decorator for switching locales inside Storybook:
 
 ```ts title=".storybook/preview.ts"
 import type { Preview } from "@storybook/react-vite";
-import { neokapiDecorator, neokapiGlobalType } from "@neokapi/i18n-react/storybook";
+import {
+  neokapiDecorator,
+  neokapiGlobalType,
+  neokapiLoader,
+} from "@neokapi/i18n-react/storybook";
 
 const i18n = {
   locales: [
@@ -293,11 +297,14 @@ const preview: Preview = {
   globalTypes: {
     locale: neokapiGlobalType(i18n),
   },
+  loaders: [neokapiLoader(i18n)],
   decorators: [neokapiDecorator(i18n)],
 };
 
 export default preview;
 ```
+
+All three take the same options object. The loader fetches the catalog and the decorator renders the story in it, which matters for stories with a `play` function: Storybook runs loaders, then mounts the story, then runs `play`, so a story that fetched its catalog from the decorator re-keyed after `play` had already clicked, and the canvas showed the unopened state while the Interactions panel read as passed.
 
 And in `.storybook/main.ts`, enable the plugin so stories get the runtime transform:
 

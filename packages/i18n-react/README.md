@@ -888,7 +888,11 @@ Preview your components in each locale via a toolbar dropdown. Wire up
 ```ts
 // .storybook/preview.ts
 import type { Preview } from "@storybook/react-vite";
-import { neokapiDecorator, neokapiGlobalType } from "@neokapi/i18n-react/storybook";
+import {
+  neokapiDecorator,
+  neokapiGlobalType,
+  neokapiLoader,
+} from "@neokapi/i18n-react/storybook";
 
 const i18n = {
   locales: [
@@ -902,6 +906,7 @@ const preview: Preview = {
   globalTypes: {
     locale: neokapiGlobalType(i18n),
   },
+  loaders: [neokapiLoader(i18n)],
   decorators: [neokapiDecorator(i18n)],
 };
 
@@ -909,14 +914,22 @@ export default preview;
 ```
 
 The vite plugin stays in `main.ts` as usual — nothing Storybook-specific
-there. The decorator lazy-imports the runtime so Storybooks without i18n
+there. The loader lazy-imports the runtime so Storybooks without i18n
 pay nothing for the import.
 
 - `neokapiGlobalType(opts)` — returns a `globalTypes` entry registering
   the toolbar dropdown (icon: globe, dynamic title).
-- `neokapiDecorator(opts)` — applies translations whenever the user
-  picks a new locale. SSR-safe (no-ops when `fetch` is unavailable) and
-  falls back to source text if the translation file can't be loaded.
+- `neokapiLoader(opts)` — fetches the active locale's catalog before the
+  story renders. SSR-safe (no-ops when `fetch` is unavailable) and falls
+  back to source text if the translation file can't be loaded.
+- `neokapiDecorator(opts)` — renders the story in the locale that is in
+  force, re-keying it on a locale switch and on a host-posted dictionary.
+
+Pass the same options object to all three. Storybook runs loaders, then
+mounts the story, then runs its `play` function, so registering the loader
+is what lets a `play` that opens a sheet or selects a row keep what it did:
+without it the catalog lands after `play` has run and the story re-keys
+underneath it.
 
 ## CLI
 
