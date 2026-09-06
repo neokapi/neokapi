@@ -220,6 +220,14 @@ entries:
     license: Apache-2.0
     redistributable: true
     notes: 'FuzzRoundTripMarkdown seed for #2464 (an indented nested blockquote continuation marker)'
+  - path: core/formats/markdown/testdata/fuzz/FuzzRoundTripMarkdown/nested_code_fence
+    tier: A
+    origin: bug
+    sha256: 8868601f2595663ae1a4ce6b2a60c0968f73d8b86e2ec51382bf9a3b6bd7f2fa
+    size: 50
+    license: Apache-2.0
+    redistributable: true
+    notes: 'FuzzRoundTripMarkdown seed for #2487 (a shorter fence inside a fence)'
   - path: core/formats/markdown/testdata/fuzz/FuzzRoundTripMarkdown/setext_multiline_heading
     tier: A
     origin: bug

@@ -919,7 +919,8 @@ func (w *Writer) writeBlockMarkdown(block *model.Block, out io.Writer) error {
 		// one, so one of them goes or every pass adds a blank line before the
 		// closing fence.
 		text = strings.TrimSuffix(text, "\n")
-		prefix, suffix = "```"+block.CodeLanguage()+"\n", "\n```"
+		fence := codeFence(text)
+		prefix, suffix = fence+block.CodeLanguage()+"\n", "\n"+fence
 	case model.RoleCaption:
 		prefix, suffix = "*", "*"
 	}
@@ -1225,6 +1226,28 @@ func escapeBlockMarkerLines(text string) string {
 		lines[i] = escapeInterruptingBlockMarker(line)
 	}
 	return strings.Join(lines, "\n")
+}
+
+// codeFence returns the backtick run that opens and closes a rebuilt fenced
+// code block: three, or one more than the longest run of backticks that starts
+// a line of the content.
+//
+// CommonMark 4.5 closes a fence on a run at least as long as the opener, so a
+// three-backtick opener around content holding a three-backtick line ended the
+// block after its first line: the rest became a paragraph and a stray opener
+// was left at the end (#2487). The fence is always backticks, so a tilde run in
+// the content closes nothing and does not count.
+func codeFence(text string) string {
+	longest := 0
+	for _, line := range strings.Split(text, "\n") {
+		line = strings.TrimLeft(line, " ")
+		n := 0
+		for n < len(line) && line[n] == '`' {
+			n++
+		}
+		longest = max(longest, n)
+	}
+	return strings.Repeat("`", max(3, longest+1))
 }
 
 // foldBlankLines drops the blank lines inside a block the rebuild path emits as
