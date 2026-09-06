@@ -43,7 +43,7 @@ type bookmarkSkipState struct {
 //
 // ECMA-376 Part 1 §17.13.6.2 — `<w:bookmarkEnd>` has only `w:id` plus
 // the optional `w:displacedByCustomXml`.
-func (p *wmlParser) captureBookmark(d *xml.Decoder, start xml.StartElement, bms *bookmarkSkipState) (textRun, bool, error) {
+func (p *wmlParser) captureBookmark(d *rawDecoder, start xml.StartElement, bms *bookmarkSkipState) (textRun, bool, error) {
 	id := attrVal(start, "id")
 	if start.Name.Local == "bookmarkStart" {
 		name := attrVal(start, "name")
@@ -96,7 +96,7 @@ func (p *wmlParser) captureBookmark(d *xml.Decoder, start xml.StartElement, bms 
 // PUA char ( for start, for end) so the writer can tell
 // comment-range markers apart from bookmarks and dispatch the
 // appropriate SubType on the resulting Run.Ph.
-func (p *wmlParser) captureCommentRangeMarker(d *xml.Decoder, start xml.StartElement) (textRun, error) {
+func (p *wmlParser) captureCommentRangeMarker(d *rawDecoder, start xml.StartElement) (textRun, error) {
 	raw, err := captureRawElement(d, start)
 	if err != nil {
 		return textRun{}, err

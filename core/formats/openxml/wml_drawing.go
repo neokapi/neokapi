@@ -162,7 +162,7 @@ func (p *wmlParser) extractDrawingTranslations(xmlData, partPath string, emitBlo
 	var out strings.Builder
 	out.Grow(len(xmlData))
 	wrapped := wrapDrawingXMLForDecode(xmlData)
-	dec := xml.NewDecoder(strings.NewReader(wrapped))
+	dec := newRawDecoderString(wrapped)
 	if _, err := dec.Token(); err != nil {
 		return xmlData
 	}
@@ -179,7 +179,7 @@ func (p *wmlParser) extractDrawingTranslations(xmlData, partPath string, emitBlo
 // emitted by wrapDrawingXMLForDecode. Translatable sites are
 // replaced with marker comments; everything else round-trips
 // verbatim.
-func (p *wmlParser) copyAndExtractDrawing(dec *xml.Decoder, out *strings.Builder, partPath string, emitBlock func(*model.Block)) error {
+func (p *wmlParser) copyAndExtractDrawing(dec *rawDecoder, out *strings.Builder, partPath string, emitBlock func(*model.Block)) error {
 	for {
 		tok, err := dec.Token()
 		if err != nil {
@@ -291,7 +291,7 @@ func (p *wmlParser) copyAndExtractDrawing(dec *xml.Decoder, out *strings.Builder
 // display text runs the same way parseParagraph does via dropTextRuns
 // — see extractTxbxParagraph's `cfs.active && !cfs.extractable` guard.
 func (p *wmlParser) extractTxbxContent(
-	dec *xml.Decoder,
+	dec *rawDecoder,
 	out *strings.Builder,
 	start xml.StartElement,
 	partPath string,
@@ -315,7 +315,7 @@ func (p *wmlParser) extractTxbxContent(
 				// sees the canonical token stream with the same
 				// prefix bindings as the outer document.
 				inner := wrapDrawingXMLForDecode(rawP)
-				idec := xml.NewDecoder(strings.NewReader(inner))
+				idec := newRawDecoderString(inner)
 				if _, err := idec.Token(); err != nil {
 					return err
 				}
@@ -378,7 +378,7 @@ func (p *wmlParser) extractTxbxContent(
 // paragraph N+1. See extractTxbxContent's contract for the upstream
 // citation. Mirrors parseParagraph's use of `p.partCfs` for body-text
 // paragraphs.
-func (p *wmlParser) extractTxbxParagraph(dec *xml.Decoder, out *strings.Builder, partPath string, emitBlock func(*model.Block), cfs *complexFieldState) error {
+func (p *wmlParser) extractTxbxParagraph(dec *rawDecoder, out *strings.Builder, partPath string, emitBlock func(*model.Block), cfs *complexFieldState) error {
 	// Reset per-paragraph style-chain context — see parseParagraph
 	// for the rationale.
 	savedStyleChainNames := p.currentStyleChainNames
@@ -780,7 +780,7 @@ func (p *wmlParser) writeStartElementWithTranslatableAttrTo(
 // the block emission so the writer doesn't materialise an
 // empty target later.
 func (p *wmlParser) extractBareTextElement(
-	dec *xml.Decoder,
+	dec *rawDecoder,
 	out *strings.Builder,
 	start xml.StartElement,
 	partPath string,

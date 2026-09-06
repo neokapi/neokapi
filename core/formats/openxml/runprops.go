@@ -1418,7 +1418,7 @@ func (rp runProps) appendClosingRuns(b *runBuilder, ids *spanIDs) {
 // minifier falls back to its current behaviour (always strip default-
 // valued WPML toggles); this matches the documented "lacks
 // pStyle/docDefault inheritance" comment on minifyRPrChildren.
-func parseRunProps(d *xml.Decoder, aggressive bool, styleChainNames map[string]bool) (runProps, error) {
+func parseRunProps(d *rawDecoder, aggressive bool, styleChainNames map[string]bool) (runProps, error) {
 	var props runProps
 	var otherParts []string
 
@@ -2362,7 +2362,7 @@ func parseRunPropsFromRaw(rPrXML string, aggressive bool, strict bool, styleChai
 		` xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"` +
 		` xmlns="` + wNS + `">` +
 		rPrXML + `</root>`
-	d := xml.NewDecoder(strings.NewReader(wrapped))
+	d := newRawDecoderString(wrapped)
 	// Drain past <root> and the inner <w:rPr> start tag so
 	// parseRunProps sees the rPr children, matching the original
 	// on-the-fly call shape (which is invoked already positioned past
@@ -2445,7 +2445,7 @@ func (p *wmlParser) parseRunPropsFromRawCached(rPrXML string, styleChainNames ma
 }
 
 // skipElement skips past the current element and all its children.
-func skipElement(d *xml.Decoder) error {
+func skipElement(d *rawDecoder) error {
 	depth := 1
 	for depth > 0 {
 		tok, err := d.Token()
@@ -2475,7 +2475,7 @@ type serializedRPrChild struct {
 
 // serializeWithCapture walks the start element's subtree and returns
 // both serialisation forms.
-func serializeWithCapture(d *xml.Decoder, start xml.StartElement) (serializedRPrChild, error) {
+func serializeWithCapture(d *rawDecoder, start xml.StartElement) (serializedRPrChild, error) {
 	var legacy, wml strings.Builder
 	writeStartTagLegacy(&legacy, start)
 	writeStartTag(&wml, start)
@@ -2579,7 +2579,7 @@ func writeStartTagLegacy(buf *strings.Builder, start xml.StartElement) {
 //
 // Used by parseRunProps to populate rPrChildren so the writer can re-emit
 // each preserved child verbatim into document.xml. #592.
-func serializeRPrChildElement(d *xml.Decoder, start xml.StartElement) (string, error) {
+func serializeRPrChildElement(d *rawDecoder, start xml.StartElement) (string, error) {
 	var buf strings.Builder
 	writeStartTag(&buf, start)
 

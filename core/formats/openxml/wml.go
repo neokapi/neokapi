@@ -11,10 +11,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
-	"github.com/neokapi/neokapi/core/internal/xmlesc"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -397,7 +395,7 @@ func (p *wmlParser) parsePart(data []byte, partPath string, emitBlock func(*mode
 		data = dropDeletedRows(data)
 		data = dropEmptyTables(data)
 	}
-	d := xml.NewDecoder(bytes.NewReader(data))
+	d := newRawDecoder(data)
 
 	for {
 		tok, err := d.Token()
@@ -417,7 +415,7 @@ func (p *wmlParser) parsePart(data []byte, partPath string, emitBlock func(*mode
 						return err
 					}
 				} else {
-					p.skelWriteStartElement(t)
+					p.skelWriteStartElement(d, t)
 				}
 			case "sdt":
 				// Structured document tag — recurse into content
@@ -428,12 +426,12 @@ func (p *wmlParser) parsePart(data []byte, partPath string, emitBlock func(*mode
 				// Table — recurse to find paragraphs inside cells. Bracket it in
 				// a canonical "table" Group so cross-format writers + projection
 				// rebuild the grid (additive; no skeleton bytes).
-				p.skelWriteStartElement(t)
+				p.skelWriteStartElement(d, t)
 				p.openTableStruct("tbl")
 			case "tc":
 				// Table cell — recurse into its paragraphs, tagging them
 				// RoleTableCell via cellDepth.
-				p.skelWriteStartElement(t)
+				p.skelWriteStartElement(d, t)
 				p.openTableStruct("tc")
 			case "tr":
 				// Table row — inspect <w:trPr> for the row-deletion
@@ -464,7 +462,7 @@ func (p *wmlParser) parsePart(data []byte, partPath string, emitBlock func(*mode
 					}
 					continue
 				}
-				p.skelWriteStartElement(t)
+				p.skelWriteStartElement(d, t)
 				p.openTableStruct("tr")
 			case "footnote", "endnote":
 				// Skip the auto-generated separator/continuation
@@ -489,13 +487,13 @@ func (p *wmlParser) parsePart(data []byte, partPath string, emitBlock func(*mode
 				// switching on w:type.
 				wType := attrVal(t, "type")
 				if wType == "separator" || wType == "continuationSeparator" || wType == "continuationNotice" {
-					p.skelWriteStartElement(t)
+					p.skelWriteStartElement(d, t)
 					if err := p.skipAndSkel(d); err != nil {
 						return err
 					}
 					continue
 				}
-				p.skelWriteStartElement(t)
+				p.skelWriteStartElement(d, t)
 			case "pPr", "sectPr", "tblPr", "tblGrid", "trPr", "tcPr":
 				// Non-translatable properties — skeleton only.
 				// `<w:sectPr>` at the body level is the closing
@@ -538,11 +536,11 @@ func (p *wmlParser) parsePart(data []byte, partPath string, emitBlock func(*mode
 				}
 				p.skelText(raw)
 			default:
-				p.skelWriteStartElement(t)
+				p.skelWriteStartElement(d, t)
 			}
 
 		case xml.EndElement:
-			p.skelWriteEndElement(t)
+			p.skelWriteEndElement(d)
 			// Close any table/table-row Group or cell depth this end leaves.
 			// Every w:tbl/w:tr/w:tc close funnels through here (handleTableRow
 			// hands control back before the row ends), so this is the single
@@ -550,16 +548,16 @@ func (p *wmlParser) parsePart(data []byte, partPath string, emitBlock func(*mode
 			p.closeTableStruct(t.Name.Local)
 
 		case xml.CharData:
-			p.skelText(xmlesc.Text(string(t)))
+			p.skelRaw(d)
 
 		case xml.ProcInst:
-			p.skelText("<?" + t.Target + " " + string(t.Inst) + "?>")
+			p.skelRaw(d)
 
 		case xml.Directive:
-			p.skelText("<!" + string(t) + ">")
+			p.skelRaw(d)
 
 		case xml.Comment:
-			p.skelText("<!--" + string(t) + "-->")
+			p.skelRaw(d)
 		}
 	}
 	// Flush any dangling mergeable paragraph buffer. If the last
@@ -784,34 +782,28 @@ func (p *wmlParser) skelFlush() {
 	}
 }
 
-func (p *wmlParser) skelWriteStartElement(t xml.StartElement) {
+// skelRaw appends the source bytes of the token the decoder last returned.
+func (p *wmlParser) skelRaw(d *rawDecoder) {
+	if p.skeletonStore != nil {
+		p.skelBuf.Write(d.Raw())
+	}
+}
+
+func (p *wmlParser) skelWriteStartElement(d *rawDecoder, t xml.StartElement) {
 	if p.skeletonStore == nil {
 		return
 	}
 	registerNamespaces(t.Attr)
-	var buf strings.Builder
-	buf.WriteString("<")
-	writeElementName(&buf, t.Name)
-	for _, a := range t.Attr {
-		buf.WriteString(" ")
-		writeAttrName(&buf, a.Name)
-		buf.WriteString(`="`)
-		buf.WriteString(xmlesc.Attr(a.Value))
-		buf.WriteString(`"`)
-	}
-	buf.WriteString(">")
-	p.skelBuf.WriteString(buf.String())
+	p.skelBuf.Write(d.Raw())
 }
 
-func (p *wmlParser) skelWriteEndElement(t xml.EndElement) {
+// skelWriteEndElement appends an end tag. A self-closing element's synthetic end
+// carries no source bytes, so its `/>` came through with the start element.
+func (p *wmlParser) skelWriteEndElement(d *rawDecoder) {
 	if p.skeletonStore == nil {
 		return
 	}
-	var buf strings.Builder
-	buf.WriteString("</")
-	writeElementName(&buf, t.Name)
-	buf.WriteString(">")
-	p.skelBuf.WriteString(buf.String())
+	p.skelBuf.Write(d.Raw())
 }
 
 func (p *wmlParser) skelWriteString(s string) {
@@ -820,7 +812,7 @@ func (p *wmlParser) skelWriteString(s string) {
 	}
 }
 
-func (p *wmlParser) skipAndSkel(d *xml.Decoder) error {
+func (p *wmlParser) skipAndSkel(d *rawDecoder) error {
 	depth := 1
 	for depth > 0 {
 		tok, err := d.Token()
@@ -830,12 +822,12 @@ func (p *wmlParser) skipAndSkel(d *xml.Decoder) error {
 		switch t := tok.(type) {
 		case xml.StartElement:
 			depth++
-			p.skelWriteStartElement(t)
+			p.skelWriteStartElement(d, t)
 		case xml.EndElement:
 			depth--
-			p.skelWriteEndElement(t)
+			p.skelWriteEndElement(d)
 		case xml.CharData:
-			p.skelText(xmlesc.Text(string(t)))
+			p.skelRaw(d)
 		}
 	}
 	return nil

@@ -1,8 +1,6 @@
 package openxml
 
 import (
-	"encoding/xml"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -28,7 +26,7 @@ func TestParseRunProps_StripsDefaultValuedRtl(t *testing.T) {
 	// Without this, redundant `<w:rtl w:val="0"/>` rPrs round-trip
 	// into the per-run sidecar (reordered-zip.docx fixture).
 	src := `<w:rPr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:rtl w:val="0"/></w:rPr>`
-	dec := xml.NewDecoder(strings.NewReader(src))
+	dec := newRawDecoderString((src))
 	_, err := dec.Token()
 	require.NoError(t, err)
 	props, err := parseRunProps(dec, false, nil)
@@ -45,7 +43,7 @@ func TestParseRunProps_KeepsExplicitRtlTrue(t *testing.T) {
 	// actual on-toggle and must travel through to the writer. Only the
 	// no-op default (false-equivalent values) gets minified out.
 	src := `<w:rPr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:rtl/></w:rPr>`
-	dec := xml.NewDecoder(strings.NewReader(src))
+	dec := newRawDecoderString((src))
 	_, err := dec.Token()
 	require.NoError(t, err)
 	props, err := parseRunProps(dec, false, nil)
@@ -67,7 +65,7 @@ func TestParseRunProps_PreservesNonToggleChildren(t *testing.T) {
 	// vertAlign, vanish) are intentionally excluded because the writer
 	// reconstructs them from PcOpen/PcClose runs.
 	src := `<w:rPr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:rStyle w:val="Emphasis"/><w:rFonts w:ascii="Arial"/><w:color w:val="FF0000"/><w:sz w:val="24"/><w:b/><w:i/></w:rPr>`
-	dec := xml.NewDecoder(strings.NewReader(src))
+	dec := newRawDecoderString((src))
 	// Skip past the opening <w:rPr> token.
 	_, err := dec.Token()
 	require.NoError(t, err)
@@ -94,7 +92,7 @@ func TestParseRunProps_SkipsLangNoProof(t *testing.T) {
 	// common rPr. See 1080-1.docx for the original repro (paragraph
 	// whose only run rPr is <w:lang w:val="en-US"/>).
 	src := `<w:rPr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:lang w:val="en-US"/><w:noProof/><w:rStyle w:val="X"/></w:rPr>`
-	dec := xml.NewDecoder(strings.NewReader(src))
+	dec := newRawDecoderString((src))
 	_, err := dec.Token()
 	require.NoError(t, err)
 	props, err := parseRunProps(dec, false, nil)
@@ -168,7 +166,7 @@ func TestParseRunProps_PreservesLangNoProofInStrict(t *testing.T) {
 	// run whose `<w:rPr><w:noProof/><w:lang w:eastAsia="ru-RU"/></w:rPr>`
 	// must round-trip on the wire.
 	src := `<w:rPr xmlns:w="http://purl.oclc.org/ooxml/wordprocessingml/main"><w:lang w:eastAsia="ru-RU"/><w:noProof/></w:rPr>`
-	dec := xml.NewDecoder(strings.NewReader(src))
+	dec := newRawDecoderString((src))
 	_, err := dec.Token()
 	require.NoError(t, err)
 	props, err := parseRunProps(dec, false, nil)

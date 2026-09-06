@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
-	"github.com/neokapi/neokapi/core/internal/xmlesc"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -108,7 +107,7 @@ func (p *dmlParser) parsePart(data []byte, partPath string, emitBlock func(*mode
 	// Root block names at this part before any shape opens — a later
 	// re-rooting would drop the shape scope already pushed.
 	p.path.ensurePart(partPath)
-	d := xml.NewDecoder(bytes.NewReader(data))
+	d := newRawDecoder(data)
 
 	for {
 		tok, err := d.Token()
@@ -134,9 +133,9 @@ func (p *dmlParser) parsePart(data []byte, partPath string, emitBlock func(*mode
 					// (title=) on <p:cNvPr>/<p:docPr> as Translatable:false
 					// RoleCaption content (#928). PPTX does not extract the
 					// graphic name= for translation, so name passes through.
-					p.skelWriteDrawingPropElement(t, partPath, emitBlock)
+					p.skelWriteDrawingPropElement(d, t, partPath, emitBlock)
 				} else {
-					p.skelWriteStartElement(t)
+					p.skelWriteStartElement(d, t)
 				}
 			}
 
@@ -144,16 +143,16 @@ func (p *dmlParser) parsePart(data []byte, partPath string, emitBlock func(*mode
 			if t.Name.Local == "grpSp" {
 				p.groupDepth--
 			}
-			p.skelWriteEndElement(t)
+			p.skelWriteEndElement(d)
 
 		case xml.CharData:
-			p.skelText(xmlesc.Text(string(t)))
+			p.skelRaw(d)
 
 		case xml.ProcInst:
-			p.skelText("<?" + t.Target + " " + string(t.Inst) + "?>")
+			p.skelRaw(d)
 
 		case xml.Comment:
-			p.skelText("<!--" + string(t) + "-->")
+			p.skelRaw(d)
 		}
 	}
 	return nil
@@ -270,8 +269,9 @@ func (p *dmlParser) attachShapeGeometry(b *model.Block) {
 }
 
 // parseTextBody parses an <a:txBody> element.
-func (p *dmlParser) parseTextBody(d *xml.Decoder, partPath string, emitBlock func(*model.Block)) error {
-	p.skelWriteString("<a:txBody>")
+func (p *dmlParser) parseTextBody(d *rawDecoder, partPath string, emitBlock func(*model.Block)) error {
+	// The wrapper goes back as it was written, attributes and all.
+	p.skelWriteString(d.RawString())
 
 	for {
 		tok, err := d.Token()
@@ -291,25 +291,33 @@ func (p *dmlParser) parseTextBody(d *xml.Decoder, partPath string, emitBlock fun
 				if err != nil {
 					return err
 				}
-				p.skelText(raw)
+				p.skelWriteString(raw)
 			default:
-				p.skelWriteStartElement(t)
+				p.skelWriteStartElement(d, t)
 			}
 
 		case xml.EndElement:
 			if t.Name.Local == "txBody" {
-				p.skelWriteString("</a:txBody>")
+				p.skelWriteEndElement(d)
 				return nil
 			}
-			p.skelWriteEndElement(t)
+			p.skelWriteEndElement(d)
 		}
 	}
 }
 
 // parseParagraph parses an <a:p> element and emits a Block.
-func (p *dmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock func(*model.Block)) error {
+func (p *dmlParser) parseParagraph(d *rawDecoder, partPath string, emitBlock func(*model.Block)) error {
 	var runs []textRun
 	var paraProps string
+	var endParaRPr string
+	// The paragraph's own start tag, kept so the skeleton can put it back with
+	// whatever attributes it carried, and its offset, so a paragraph holding no
+	// translatable text can be replayed whole.
+	paraStart := d.RawString()
+	paraOff := d.Offset()
+	d.Pin(paraOff)
+	defer d.Unpin()
 
 	for {
 		tok, err := d.Token()
@@ -331,6 +339,11 @@ func (p *dmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 					} else {
 						paraProps = raw
 					}
+				} else {
+					// <a:endParaRPr> holds the run properties of the paragraph
+					// mark (ECMA-376 Part 1 §21.1.2.2.6). Nothing extracts it,
+					// so it is carried to the end of the rebuilt paragraph.
+					endParaRPr = raw
 				}
 
 			case "r":
@@ -357,23 +370,35 @@ func (p *dmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 				merged := mergeRuns(runs)
 
 				if isEmptyRuns(merged) {
-					p.skelWriteString("<a:p>")
-					if paraProps != "" {
-						p.skelText(paraProps)
+					// Nothing was extracted, so the paragraph goes back as the
+					// source wrote it: a placeholder <a:fld>, an
+					// <a:endParaRPr>, the line endings and the empty-element
+					// forms all survive. A chart or diagram paragraph is the
+					// exception — okapi's BlockProperties.getEvents omits a
+					// structurally empty pPr there, so those are rebuilt.
+					if !p.stripEmptyParaProps {
+						p.skelWriteString(d.FromString(paraOff))
+						return nil
 					}
-					p.skelWriteString("</a:p>")
+					p.skelWriteString(paraStart)
+					if paraProps != "" {
+						p.skelWriteString(paraProps)
+					}
+					p.skelWriteString(endParaRPr)
+					p.skelWriteEndElement(d)
 					return nil
 				}
 
 				*p.blockCounter++
 				blockID := fmt.Sprintf("tu%d", *p.blockCounter)
 
-				p.skelWriteString("<a:p>")
+				p.skelWriteString(paraStart)
 				if paraProps != "" {
-					p.skelText(paraProps)
+					p.skelWriteString(paraProps)
 				}
 				p.skelRef(blockID)
-				p.skelWriteString("</a:p>")
+				p.skelWriteString(endParaRPr)
+				p.skelWriteEndElement(d)
 
 				block := p.buildBlock(blockID, merged, partPath)
 				if role, level := p.placeholderRole(); role != "" {
@@ -389,7 +414,7 @@ func (p *dmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 }
 
 // parseRun parses an <a:r> element.
-func (p *dmlParser) parseRun(d *xml.Decoder) ([]textRun, error) {
+func (p *dmlParser) parseRun(d *rawDecoder) ([]textRun, error) {
 	var props runProps
 	var runs []textRun
 
@@ -515,27 +540,45 @@ func (p *dmlParser) buildBlock(id string, runs []textRun, partPath string) *mode
 // skeleton helpers are no-ops when no skeleton store is wired (inspection-only
 // reads), but the alt-text blocks are still emitted so an in-memory consumer
 // sees them.
-func (p *dmlParser) skelWriteDrawingPropElement(t xml.StartElement, partPath string, emitBlock func(*model.Block)) {
+func (p *dmlParser) skelWriteDrawingPropElement(d *rawDecoder, t xml.StartElement, partPath string, emitBlock func(*model.Block)) {
 	registerNamespaces(t.Attr)
-	var nameBuf strings.Builder
-	nameBuf.WriteString("<")
-	writeElementName(&nameBuf, t.Name)
-	p.skelWriteString(nameBuf.String())
-	for _, a := range t.Attr {
-		var attrBuf strings.Builder
-		attrBuf.WriteString(" ")
-		writeAttrName(&attrBuf, a.Name)
-		attrBuf.WriteString(`="`)
-		p.skelWriteString(attrBuf.String())
-		if a.Name.Space == "" && strings.TrimSpace(a.Value) != "" &&
-			(a.Name.Local == "descr" || a.Name.Local == "title") {
-			p.skelRef(p.emitDrawingProp(a, partPath, emitBlock))
-		} else {
-			p.skelWriteString(xmlesc.Attr(a.Value))
-		}
-		p.skelWriteString(`"`)
+	raw := d.Raw()
+
+	// Every byte outside the extracted attribute values is replayed from the
+	// source, so the element keeps its self-closing form, attribute order and
+	// quoting. A tag whose attribute list will not parse byte for byte leaves
+	// nowhere to put a ref, so it passes through whole.
+	type refSpan struct {
+		start, end int
+		attr       xml.Attr
 	}
-	p.skelWriteString(">")
+	var spans []refSpan
+	for i, a := range t.Attr {
+		if a.Name.Space != "" || strings.TrimSpace(a.Value) == "" {
+			continue
+		}
+		if a.Name.Local != "descr" && a.Name.Local != "title" {
+			continue
+		}
+		vs, ve, ok := rawAttrValueSpan(raw, i)
+		if !ok {
+			p.skelWriteStartElement(d, t)
+			return
+		}
+		spans = append(spans, refSpan{vs, ve, a})
+	}
+	if len(spans) == 0 {
+		p.skelWriteStartElement(d, t)
+		return
+	}
+
+	prev := 0
+	for _, sp := range spans {
+		p.skelWriteString(string(raw[prev:sp.start]))
+		p.skelRef(p.emitDrawingProp(sp.attr, partPath, emitBlock))
+		prev = sp.end
+	}
+	p.skelWriteString(string(raw[prev:]))
 }
 
 // emitDrawingProp allocates the next block id, emits a Translatable:false
@@ -578,7 +621,7 @@ func (p *dmlParser) emitDrawingProp(a xml.Attr, partPath string, emitBlock func(
 // txBody body, not <p:text>) and the non-translatable position/author metadata
 // are left untouched.
 func emitPPTXCommentData(data []byte, emitData func(name, text, ref string)) {
-	d := xml.NewDecoder(bytes.NewReader(data))
+	d := newRawDecoder(data)
 	for {
 		tok, err := d.Token()
 		if errors.Is(err, io.EOF) {
@@ -601,12 +644,6 @@ func emitPPTXCommentData(data []byte, emitData func(name, text, ref string)) {
 
 // Skeleton helpers
 
-func (p *dmlParser) skelText(s string) {
-	if p.skeletonStore != nil {
-		p.skelBuf.WriteString(s)
-	}
-}
-
 func (p *dmlParser) skelRef(id string) {
 	if p.skeletonStore != nil {
 		if p.skelBuf.Len() > 0 {
@@ -624,34 +661,28 @@ func (p *dmlParser) skelFlush() {
 	}
 }
 
-func (p *dmlParser) skelWriteStartElement(t xml.StartElement) {
+// skelRaw appends the source bytes of the token the decoder last returned.
+func (p *dmlParser) skelRaw(d *rawDecoder) {
+	if p.skeletonStore != nil {
+		p.skelBuf.Write(d.Raw())
+	}
+}
+
+func (p *dmlParser) skelWriteStartElement(d *rawDecoder, t xml.StartElement) {
 	if p.skeletonStore == nil {
 		return
 	}
 	registerNamespaces(t.Attr)
-	var buf strings.Builder
-	buf.WriteString("<")
-	writeElementName(&buf, t.Name)
-	for _, a := range t.Attr {
-		buf.WriteString(" ")
-		writeAttrName(&buf, a.Name)
-		buf.WriteString(`="`)
-		buf.WriteString(xmlesc.Attr(a.Value))
-		buf.WriteString(`"`)
-	}
-	buf.WriteString(">")
-	p.skelBuf.WriteString(buf.String())
+	p.skelBuf.Write(d.Raw())
 }
 
-func (p *dmlParser) skelWriteEndElement(t xml.EndElement) {
+// skelWriteEndElement appends an end tag. A self-closing element's synthetic end
+// carries no source bytes, so its `/>` came through with the start element.
+func (p *dmlParser) skelWriteEndElement(d *rawDecoder) {
 	if p.skeletonStore == nil {
 		return
 	}
-	var buf strings.Builder
-	buf.WriteString("</")
-	writeElementName(&buf, t.Name)
-	buf.WriteString(">")
-	p.skelBuf.WriteString(buf.String())
+	p.skelBuf.Write(d.Raw())
 }
 
 func (p *dmlParser) skelWriteString(s string) {

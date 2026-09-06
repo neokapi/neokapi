@@ -199,7 +199,7 @@ func assertInlineStringCellsWellFormed(t *testing.T, pkg []byte) {
 		if !strings.HasPrefix(part, "xl/worksheets/") {
 			continue
 		}
-		d := xml.NewDecoder(bytes.NewReader(zipPart(t, pkg, part)))
+		d := newRawDecoder(zipPart(t, pkg, part))
 		for {
 			tok, err := d.Token()
 			if errors.Is(err, io.EOF) {
