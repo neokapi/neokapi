@@ -117,6 +117,31 @@ func BuildTranslateConfig(ctx context.Context, b TranslateBinding) tools.AITrans
 	return cfg
 }
 
+// GoverningFingerprint is the fingerprint of the context this binding puts a
+// unit under: the voice profile resolved through the platform's ladder and the
+// per-locale term rules, folded by coreprofile.GovernanceContext — the one
+// function every translation producer stamps onto what it writes.
+//
+// A review decision records it beside its verdict, so a decision made on the
+// platform and one made in a project are comparable against a single
+// definition of the context in force, and the staleness question ("do the
+// rules this answer was blessed under still hold?") has one answer wherever it
+// is asked.
+//
+// Empty for an ungoverned point — no voice profile and no terminology — which
+// reads correctly as an ad-hoc decision. Every resolution is best-effort, the
+// way BuildTranslateConfig's is: a store that cannot answer leaves its half
+// out rather than failing the decision.
+func (b TranslateBinding) GoverningFingerprint(ctx context.Context) string {
+	var source model.LocaleID
+	if b.Project != nil {
+		source = b.Project.DefaultSourceLanguage
+	}
+	col := b.Collection(ctx)
+	_, _, fingerprint := coreprofile.GovernanceContext(b.VoiceProfile(ctx, col), b.termRules(ctx, source))
+	return fingerprint
+}
+
 // CollectionPoint renders where a collection's content sits, as the content
 // memory records it: the product, the channel it ships on, and the collection
 // itself, coarsest first.

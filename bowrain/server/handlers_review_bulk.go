@@ -201,7 +201,8 @@ func (s *Server) HandleApprovePassing(c echo.Context) error {
 						modified = true
 						if ledger != nil && sb.SourceID != "" {
 							decisions = append(decisions, unitDecisionFor(sb, string(loc),
-								model.TargetStatusReviewed, true, ledger.decider))
+								model.TargetStatusReviewed, true, ledger.decider,
+								ledger.governingFingerprint(ctx, sb.ItemName, string(loc))))
 						}
 					}
 				}

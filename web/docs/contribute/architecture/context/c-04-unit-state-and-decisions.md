@@ -316,14 +316,18 @@ them share (`core/profile.GovernanceContext`), so a decision and a produced
 target are comparable against the same context.
 
 Two writers set it. A **decision** (`kapi apply`, the desktop's approve action,
-an agent's review call) resolves the context in force where the decider is
-deciding and records it beside the verdict. The same verdict on the same
-pairing under a moved context is a new decision, and is recorded again. A
-**basis** the convergence loop writes for its own output records the producer's
-stamp: the run that wrote the target is the run recording it. A hand-typed
-translation records none, because nothing vouches for the context it was
-written under. The venue ledger carries the same column, so a push and a pull
-agree on it.
+an agent's review call, an approval or a sign-off made in a connected venue)
+resolves the context in force where the decider is deciding and records it
+beside the verdict. Each decider resolves it from what it has: a project reads
+the recipe's bindings at the unit's point, a venue reads the voice profile its
+own ladder resolves and the term rules its workspace holds, and both fold the
+result with the one function every producer stamps with, so the two are
+comparable. The same verdict on the same pairing under a moved context is a new
+decision, and is recorded again. A **basis** the convergence loop writes for
+its own output records the producer's stamp: the run that wrote the target is
+the run recording it. A hand-typed translation records none, because nothing
+vouches for the context it was written under. The venue ledger carries the same
+column, so a push and a pull agree on it.
 
 The fingerprint is a different quantity from the record's identity signals, and
 neither is derivable from the other. `contextHash` says *which block* this is
