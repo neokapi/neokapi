@@ -84,6 +84,14 @@ entries:
     license: Apache-2.0
     redistributable: true
     notes: 'FuzzReadMarkdown seed for #2463 (a blockquote marker line with a trailing space)'
+  - path: core/formats/markdown/testdata/fuzz/FuzzReadMarkdown/code_span_line_break
+    tier: A
+    origin: bug
+    sha256: 2d437a9e4dfaf9769d231b253ad93e4efa3766d838d63337ac9d2588ac8e4de6
+    size: 48
+    license: Apache-2.0
+    redistributable: true
+    notes: 'FuzzReadMarkdown seed for #2481 (a code span closing on the next line)'
   - path: core/formats/markdown/testdata/fuzz/FuzzReadMarkdown/excluded_inline_html_emphasis
     tier: A
     origin: bug

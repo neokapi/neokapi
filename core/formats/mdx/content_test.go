@@ -278,8 +278,8 @@ func TestTableRowsRideGroups(t *testing.T) {
 // --- Treatment A: markdown-opaque fallback blocks (#928) ---
 
 // TestMarkdownOpaqueFallbackSurfacesBlocks verifies that when a Markdown span
-// fails byte-exact reconstruction (here a code span whose closing fence sits on
-// the next line, whose break the parser's resolved content has already lost)
+// fails byte-exact reconstruction (here a strikethrough whose tilde runs differ
+// in length, which the reader spells from the parser's delimiter length)
 // the span is kept verbatim opaque
 // AND, when the flag is on, the prose the markdown sub-reader already parsed
 // is surfaced as non-translatable
@@ -287,12 +287,11 @@ func TestTableRowsRideGroups(t *testing.T) {
 // only the opaque Data is emitted (identical pre-#928 part stream). Both
 // directions round-trip byte-for-byte.
 func TestMarkdownOpaqueFallbackSurfacesBlocks(t *testing.T) {
-	// A code span whose closing fence sits on the next line: CommonMark 6.1
-	// converts the interior line ending to a space and strips it, so the
-	// parser's content is shorter than the source spelled and the markdown
-	// reader does not reconstruct it byte-for-byte, forcing the opaque
-	// fallback (#2481).
-	src := []byte("line one ` two\n` three\n")
+	// A strikethrough whose tilde runs differ in length: the reader spells the
+	// pair from the delimiter length the parser reports rather than from the
+	// source bytes, so the markdown reader does not reconstruct it
+	// byte-for-byte and the opaque fallback takes over (#2500).
+	src := []byte("line one ~~two~ three\n")
 
 	// Flag ON: opaque Data + a non-translatable block carrying the prose.
 	onParts, onStore := readPartsExtract(t, src, true)

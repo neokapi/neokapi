@@ -27,6 +27,8 @@ func TestContentLessBlockDoesNotRewindTheSkeleton(t *testing.T) {
 		{"empty fence with a language", "a\n\n```js\n```\n\nb\n"},
 		{"empty tilde fence", "a\n\n~~~\n~~~\n\nb\n"},
 		{"empty heading opening the file", "#\n\ntext\n"},
+		{"setext bar over a table's rows", "a\n|\n-|\n="},
+		{"setext bar after a table", "0\n0\n-|\n-"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

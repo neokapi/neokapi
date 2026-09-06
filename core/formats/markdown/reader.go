@@ -1130,12 +1130,13 @@ func detectLinePrefix(node ast.Node, source []byte) string {
 }
 
 func (r *Reader) emitHeading(ctx context.Context, ch chan<- model.PartResult, n *ast.Heading, source []byte, baseOffset int) {
-	// A heading with no content ("#" on a line of its own) has no parser lines,
-	// so its range resolves to (0, 0) and assigning the cursor from it rewound
-	// the skeleton to the start of the document, writing every byte before the
-	// heading a second time (#2495). There is nothing to translate either: the
-	// line rides the gap that follows.
-	if n.Lines().Len() == 0 {
+	// A heading the skeleton cannot place emits nothing and lets its line ride
+	// the gap as source bytes (#2495). Two shapes reach here: an ATX heading
+	// with no text ("#" on a line of its own), whose range resolves to (0, 0)
+	// and rewound the cursor to the start of the document; and a setext heading
+	// goldmark forms over lines an earlier block already consumed, whose
+	// content the skeleton would write a second time.
+	if start, end := nodeAbsRange(n, source, baseOffset); end <= start || end <= r.skelCursor {
 		return
 	}
 	r.blockCounter++
@@ -3343,40 +3344,85 @@ func codeSpanFences(n *ast.CodeSpan, source []byte) (string, string) {
 	if contentStart >= len(source) || contentEnd > len(source) || contentStart > contentEnd {
 		return "`", "`"
 	}
-	// Walk back from contentStart to capture optional padding space + backticks.
+	// Walk back from contentStart over the optional padding space, a line
+	// ending with its continuation prefix, and the backticks. CommonMark 6.1
+	// turns a line ending inside a code span into a space, so the parser's
+	// content is shorter than the source spelled and those bytes are the
+	// marker's to carry (#2481).
 	openEnd := contentStart
 	openStart := contentStart
 	if openStart > 0 && source[openStart-1] == ' ' {
 		openStart--
 	}
-	for openStart > 0 && source[openStart-1] == '`' {
+	openStart = backOverContinuationPrefix(source, openStart)
+	if openStart > 0 && source[openStart-1] == ' ' {
 		openStart--
 	}
-	// If we backed up over a space but found no backticks, undo the space.
-	if openStart < openEnd && (openEnd-openStart == 1 && source[openStart] == ' ') {
-		openStart++
+	ticks := 0
+	for openStart > 0 && source[openStart-1] == '`' {
+		openStart--
+		ticks++
 	}
-	open := string(source[openStart:openEnd])
-	// Walk forward from contentEnd to capture optional padding space + backticks.
+	open := "`"
+	if ticks > 0 {
+		open = string(source[openStart:openEnd])
+	}
+	// Walk forward from contentEnd over the same shapes.
 	closeStart := contentEnd
 	closeEnd := contentEnd
 	if closeEnd < len(source) && source[closeEnd] == ' ' {
 		closeEnd++
 	}
-	for closeEnd < len(source) && source[closeEnd] == '`' {
+	closeEnd = forwardOverContinuationPrefix(source, closeEnd)
+	if closeEnd < len(source) && source[closeEnd] == ' ' {
 		closeEnd++
 	}
-	if closeEnd > closeStart && (closeEnd-closeStart == 1 && source[closeStart] == ' ') {
-		closeEnd--
+	ticks = 0
+	for closeEnd < len(source) && source[closeEnd] == '`' {
+		closeEnd++
+		ticks++
 	}
-	close := string(source[closeStart:closeEnd])
-	if open == "" {
-		open = "`"
-	}
-	if close == "" {
-		close = "`"
+	close := "`"
+	if ticks > 0 {
+		close = string(source[closeStart:closeEnd])
 	}
 	return open, close
+}
+
+// backOverContinuationPrefix steps back over a line ending and the
+// continuation prefix that follows it — the indentation and blockquote markers
+// the parser strips from a wrapped line. It returns i unchanged when no line
+// ending is crossed, so it never eats a marker's own padding.
+func backOverContinuationPrefix(source []byte, i int) int {
+	j := i
+	for j > 0 && (source[j-1] == ' ' || source[j-1] == '\t' || source[j-1] == '>') {
+		j--
+	}
+	if j > 0 && source[j-1] == '\n' {
+		j--
+		if j > 0 && source[j-1] == '\r' {
+			j--
+		}
+		return j
+	}
+	return i
+}
+
+// forwardOverContinuationPrefix is backOverContinuationPrefix in the other
+// direction: a line ending, then the prefix of the line that continues.
+func forwardOverContinuationPrefix(source []byte, i int) int {
+	j := i
+	if j < len(source) && source[j] == '\r' {
+		j++
+	}
+	if j < len(source) && source[j] == '\n' {
+		j++
+		for j < len(source) && (source[j] == ' ' || source[j] == '\t' || source[j] == '>') {
+			j++
+		}
+		return j
+	}
+	return i
 }
 
 // linkImageAttrs builds the format-neutral attribute map carried on a link or
