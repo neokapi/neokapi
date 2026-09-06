@@ -952,7 +952,7 @@ func (w *Writer) writeBlockMarkdown(block *model.Block, out io.Writer) error {
 	switch {
 	case prefix == "" && suffix == "":
 		if bqPrefix, body, isQuote := w.blockquoteRebuild(block, text); isQuote {
-			prefix, text = bqPrefix, escapeLeadingBlockMarker(body)
+			prefix, text = bqPrefix, escapeLazyQuoteLines(escapeLeadingBlockMarker(body))
 		} else {
 			text = escapeBlockMarkerLines(text)
 			text = escapeInteriorBlockBars(text)
@@ -1218,6 +1218,37 @@ func escapeBlockMarkerLines(text string) string {
 			continue
 		}
 		lines[i] = escapeInterruptingBlockMarker(line)
+	}
+	return strings.Join(lines, "\n")
+}
+
+// escapeLazyQuoteLines escapes the block markers on a rebuilt blockquote body's
+// LAZY continuation lines — the ones CommonMark 5.1 lets a paragraph run onto
+// without repeating the ">".
+//
+// A marked continuation line is left alone: it carries the ">" the rebuild
+// restores, which is the marker that belongs there, and escaping it would break
+// the quote into loose paragraphs. A lazy line carries none, so a marker on it
+// opens a construct as surely as one at the start of a block: ">0\n#\\\n0" is
+// one block whose text is "0\n#\n0", and the bare "#" on line two read back as
+// a heading, so one block became two (#2485). A lazy line that forms a GFM
+// delimiter row or a setext underline promotes the line above it the same way,
+// which is what escapeInteriorBlockBars does for a plain paragraph.
+func escapeLazyQuoteLines(body string) string {
+	if !strings.Contains(body, "\n") {
+		return body
+	}
+	lines := strings.Split(body, "\n")
+	for i := 1; i < len(lines); i++ {
+		if blockquoteMarkerPrefix(lines[i]) != "" {
+			continue
+		}
+		lines[i] = escapeInterruptingBlockMarker(lines[i])
+		if isSetextBar(lines[i]) || isTableDelimiterRow(lines[i]) {
+			if j := firstBarChar(lines[i]); j >= 0 {
+				lines[i] = lines[i][:j] + "\\" + lines[i][j:]
+			}
+		}
 	}
 	return strings.Join(lines, "\n")
 }

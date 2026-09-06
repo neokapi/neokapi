@@ -164,6 +164,14 @@ entries:
     license: Apache-2.0
     redistributable: true
     notes: own-created fuzz reproducer for
+  - path: core/formats/markdown/testdata/fuzz/FuzzRoundTripMarkdown/lazy_quote_heading
+    tier: A
+    origin: bug
+    sha256: c99a9db7dde43e2ae59ddaaa74955cad9aacf86f5baa7a75ee0f21ad0d4f6852
+    size: 37
+    license: Apache-2.0
+    redistributable: true
+    notes: 'FuzzRoundTripMarkdown seed for #2485 (a lazy heading line in a quote)'
   - path: core/formats/markdown/testdata/fuzz/FuzzRoundTripMarkdown/link_title_rebuild
     tier: A
     origin: bug

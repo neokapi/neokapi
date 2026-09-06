@@ -317,6 +317,11 @@ func FuzzRoundTripMarkdown(f *testing.F) {
 	f.Add([]byte(">0\n >0"))
 	f.Add([]byte(">> a\n>> b"))
 	f.Add([]byte(">> a"))
+	// #2485: a lazy continuation line (CommonMark 5.1) carries no quote marker,
+	// so a block marker on it opened a construct and the one block became two.
+	// The first is also committed under testdata/fuzz.
+	f.Add([]byte(">0\n#\\\n0"))
+	f.Add([]byte("><A>|a|a\n-|-"))
 	// #2461: the closer of a link that wraps inside a container.
 	f.Add([]byte("> [a](/x\n> 'T') b"))
 	// #2462: a definition spread over several lines.
