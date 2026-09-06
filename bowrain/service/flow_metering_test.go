@@ -246,7 +246,7 @@ func TestMeteredProviderCountsEveryCall(t *testing.T) {
 	aiRun := fs.BeginAIRun(context.Background(), "p1", "")
 
 	inner := aiprovider.NewMockProvider()
-	metered := aiRun.meter(inner, "review")
+	metered := aiRun.Meter(inner, "review")
 	stream, ok := metered.(aiprovider.StreamingLLMProvider)
 	require.True(t, ok, "the wrapper dropped streaming")
 
@@ -278,7 +278,7 @@ func TestMeteredProviderRecordsNothingForAFailedCall(t *testing.T) {
 	inner.ChatFunc = func(context.Context, []aiprovider.Message) (*aiprovider.ChatResponse, error) {
 		return nil, errors.New("upstream refused")
 	}
-	metered := aiRun.meter(inner, "review")
+	metered := aiRun.Meter(inner, "review")
 
 	_, err := metered.Chat(context.Background(), []aiprovider.Message{aiprovider.TextMessage(aiprovider.RoleUser, "hi")})
 	require.Error(t, err)

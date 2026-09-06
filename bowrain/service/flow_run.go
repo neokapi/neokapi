@@ -319,7 +319,7 @@ func (s *FlowService) grantAIProvider(ctx context.Context, aiRun *AIRun, name re
 	if key, _ := cfg["apiKey"].(string); key != "" {
 		return nil
 	}
-	if err := aiRun.admit(ctx); err != nil {
+	if err := aiRun.Admit(ctx); err != nil {
 		return fmt.Errorf("tool %q: %w", name, err)
 	}
 	requested, _ := cfg["model"].(string)
@@ -328,7 +328,7 @@ func (s *FlowService) grantAIProvider(ctx context.Context, aiRun *AIRun, name re
 		return fmt.Errorf("tool %q: resolve AI provider: %w", name, err)
 	}
 	if prov != nil {
-		cfg[aitools.ProviderKey] = aiRun.meter(prov, aiOperation(name))
+		cfg[aitools.ProviderKey] = aiRun.Meter(prov, aiOperation(name))
 	}
 	return nil
 }

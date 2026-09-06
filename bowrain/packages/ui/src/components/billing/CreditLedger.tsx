@@ -29,6 +29,7 @@ const operationLabels: Record<string, string> = {
   ai_translation: "AI Translation",
   ai_quality_check: "AI Quality Check",
   ai_flow_run: "AI Flow Run",
+  ai_extraction: "AI Entity Extraction",
   bravo_message: "@bravo Message",
   bravo_container: "@bravo Container",
   purchase: "Credit Purchase",

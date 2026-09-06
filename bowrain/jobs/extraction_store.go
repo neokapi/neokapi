@@ -65,23 +65,26 @@ type ExtractionJobStore interface {
 //
 //	1  create extraction_jobs table
 //	2  extraction jobs baseline (folded 1)
+//	3  extraction jobs baseline (folded 1-2) + attempts and lease
 //
 // The subsystem carries exactly one baseline (migrations/schema_test.go
 // enforces it), so a schema change is made by editing the baseline in place and
-// bumping its version. Version 3 adds the attempt and lease bookkeeping the
-// translation jobs have always had.
+// bumping its version. Version 4 adds workspace_id, which the credit deduction
+// for an extraction's AI is written against; workspace_slug names the same
+// workspace but is not the billing identity.
 //
-// Baseline is version 3 — above every number issued, so an existing database
+// Baseline is version 4 — above every number issued, so an existing database
 // applies it once and any drift between its schema and its bookkeeping is
-// repaired. Retired numbers are never reused; the next migration is version 4.
+// repaired. Retired numbers are never reused; the next migration is version 5.
 var ExtractionMigrations = []storage.Migration{
 	{
-		Version:     3,
-		Description: "extraction jobs baseline (folds 1-2) + attempts and lease",
+		Version:     4,
+		Description: "extraction jobs baseline (folds 1-3) + workspace id",
 		SQL: `
 			CREATE TABLE IF NOT EXISTS extraction_jobs (
 				id             TEXT PRIMARY KEY,
 				workspace_slug TEXT NOT NULL,
+				workspace_id   TEXT NOT NULL DEFAULT '',
 				project_id     TEXT NOT NULL,
 				item_name      TEXT NOT NULL,
 				locale         TEXT NOT NULL DEFAULT '',
@@ -108,6 +111,7 @@ var ExtractionMigrations = []storage.Migration{
 			-- CREATE above is a no-op.
 			ALTER TABLE extraction_jobs ADD COLUMN IF NOT EXISTS attempts INTEGER NOT NULL DEFAULT 0;
 			ALTER TABLE extraction_jobs ADD COLUMN IF NOT EXISTS claim_epoch BIGINT NOT NULL DEFAULT 0;
+			ALTER TABLE extraction_jobs ADD COLUMN IF NOT EXISTS workspace_id TEXT NOT NULL DEFAULT '';
 			CREATE INDEX IF NOT EXISTS idx_extraction_jobs_project ON extraction_jobs(project_id);
 			CREATE INDEX IF NOT EXISTS idx_extraction_jobs_status ON extraction_jobs(status);
 			CREATE INDEX IF NOT EXISTS idx_extraction_jobs_push_id ON extraction_jobs(push_id);
@@ -141,10 +145,10 @@ func (s *extractionJobStore) CreateExtractionJob(ctx context.Context, job *Extra
 
 	_, err := s.db.ExecContext(ctx,
 		`INSERT INTO extraction_jobs
-			(id, workspace_slug, project_id, item_name, locale, push_id, step_id, model,
+			(id, workspace_slug, workspace_id, project_id, item_name, locale, push_id, step_id, model,
 			 status, total_blocks, done_blocks, items_created, error, created_at, updated_at)
-		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
-		job.ID, job.WorkspaceSlug, job.ProjectID, job.ItemName, job.Locale,
+		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
+		job.ID, job.WorkspaceSlug, job.WorkspaceID, job.ProjectID, job.ItemName, job.Locale,
 		job.PushID, job.StepID, job.Model, string(job.Status), job.TotalBlocks,
 		job.DoneBlocks, job.ItemsCreated, job.Error, now, now)
 	if err != nil {
@@ -155,14 +159,14 @@ func (s *extractionJobStore) CreateExtractionJob(ctx context.Context, job *Extra
 
 func (s *extractionJobStore) GetExtractionJob(ctx context.Context, id string) (*ExtractionJob, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, workspace_slug, project_id, item_name, locale, push_id, step_id, model,
+		`SELECT id, workspace_slug, workspace_id, project_id, item_name, locale, push_id, step_id, model,
 				status, total_blocks, done_blocks, items_created, error, created_at, updated_at
 		 FROM extraction_jobs WHERE id = $1`, id)
 
 	var j ExtractionJob
 	var status string
 	err := row.Scan(
-		&j.ID, &j.WorkspaceSlug, &j.ProjectID, &j.ItemName, &j.Locale,
+		&j.ID, &j.WorkspaceSlug, &j.WorkspaceID, &j.ProjectID, &j.ItemName, &j.Locale,
 		&j.PushID, &j.StepID, &j.Model, &status, &j.TotalBlocks, &j.DoneBlocks,
 		&j.ItemsCreated, &j.Error, &j.CreatedAt, &j.UpdatedAt)
 	if err != nil {
@@ -343,7 +347,7 @@ func (s *extractionJobStore) RevertSweepRequeue(ctx context.Context, id string, 
 
 func (s *extractionJobStore) ListByPushID(ctx context.Context, pushID string) ([]*ExtractionJob, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, workspace_slug, project_id, item_name, locale, push_id, step_id, model,
+		`SELECT id, workspace_slug, workspace_id, project_id, item_name, locale, push_id, step_id, model,
 				status, total_blocks, done_blocks, items_created, error, created_at, updated_at
 		 FROM extraction_jobs WHERE push_id = $1 ORDER BY created_at`, pushID)
 	if err != nil {
@@ -356,7 +360,7 @@ func (s *extractionJobStore) ListByPushID(ctx context.Context, pushID string) ([
 		var j ExtractionJob
 		var status string
 		if err := rows.Scan(
-			&j.ID, &j.WorkspaceSlug, &j.ProjectID, &j.ItemName, &j.Locale,
+			&j.ID, &j.WorkspaceSlug, &j.WorkspaceID, &j.ProjectID, &j.ItemName, &j.Locale,
 			&j.PushID, &j.StepID, &j.Model, &status, &j.TotalBlocks, &j.DoneBlocks,
 			&j.ItemsCreated, &j.Error, &j.CreatedAt, &j.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan extraction job: %w", err)
