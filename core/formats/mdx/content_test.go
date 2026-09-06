@@ -179,12 +179,12 @@ func TestNestedJSXChildrenSurfaced(t *testing.T) {
 
 // --- Treatment A: GFM table cell prose (#928) ---
 
-// TestTableCellsSurfacedWhenOn verifies table cell prose is surfaced as
-// non-translatable RoleTableCell content blocks (single verbatim run, no inline
-// parse so `**bold**` rides intact) with pipes/padding/delimiter kept in the
-// skeleton, and the untranslated round-trip stays byte-for-byte (cell padding
-// preserved).
-func TestTableCellsSurfacedWhenOn(t *testing.T) {
+// TestTableCellsAreTranslatableBlocks pins what delegating a GFM table to the
+// markdown reader buys: each cell is an ordinary translatable block with its
+// inline markup parsed into runs, the header row's cells carry the header role,
+// the delimiter row and the pipes and padding around every cell stay in the
+// skeleton, and the untranslated round-trip is byte-for-byte.
+func TestTableCellsAreTranslatableBlocks(t *testing.T) {
 	src := []byte(`# Title
 
 | Name       | Value            |
@@ -197,29 +197,31 @@ After.
 	parts, store := readPartsExtract(t, src, true)
 
 	cells := contentBlocks(parts, "table-cell")
-	require.NotEmpty(t, cells, "expected table cells surfaced as content blocks")
+	require.Len(t, cells, 6, "two header cells and four body cells")
 	for _, b := range cells {
-		assert.True(t, b.Translatable,
-			"a table cell holds prose a reader reads")
-		assert.True(t, b.PreserveWhitespace, "table cells ride verbatim")
-		assert.Equal(t, model.RoleTableCell, b.SemanticRole(), "table cells carry the table-cell role")
-		assert.NotContains(t, b.SourceText(), "|", "pipe leaked into a content block")
+		assert.True(t, b.Translatable, "a table cell holds prose a reader reads")
+		assert.NotContains(t, b.SourceText(), "|", "pipe leaked into a cell block")
 	}
+	assert.Equal(t, model.RoleTableHeader, cells[0].SemanticRole())
+	assert.Equal(t, model.RoleTableHeader, cells[1].SemanticRole())
+	assert.Equal(t, model.RoleTableCell, cells[2].SemanticRole())
+
 	texts := blockTextsByType(parts, "table-cell")
-	assert.Contains(t, texts, "Name")
-	assert.Contains(t, texts, "**alpha**", "inline markup rides verbatim (no inline parse)")
-	assert.Contains(t, texts, "`first`")
-	// The delimiter row is NOT surfaced as a cell.
-	assert.NotContains(t, texts, "----------")
-	assert.Empty(t, opaqueData(parts, "mdx-table"), "surfaced table must not also emit opaque Data")
+	assert.Equal(t, []string{"Name", "Value", "alpha", "first", "beta", "second"}, texts,
+		"a cell's inline markup is parsed, so its text is the prose inside it")
+	assert.NotEmpty(t, cells[2].Source, "bold cell text arrives as runs")
+	assert.NotContains(t, texts, "----------", "the delimiter row is not a cell")
+	assert.Empty(t, opaqueData(parts, "mdx-table"), "a delegated table emits no opaque Data")
 
 	out := writeParts(t, parts, store, "")
-	assert.Equal(t, string(src), string(out), "table cell surfacing must round-trip byte-for-byte")
+	assert.Equal(t, string(src), string(out), "a delegated table must round-trip byte-for-byte")
 }
 
-// TestTableOpaqueWhenOff verifies that with the flag OFF the table stays a
-// single opaque Data part (the pre-#928 part stream).
-func TestTableOpaqueWhenOff(t *testing.T) {
+// TestTableCellsTranslateWhateverTheSurfacingFlagSays is the other half. The
+// flag governs NON-translatable content surfacing (code fences, JSX text); a
+// table's cells are prose either way, so turning it off must not take them
+// away or send the table back to an opaque region.
+func TestTableCellsTranslateWhateverTheSurfacingFlagSays(t *testing.T) {
 	src := []byte(`# Title
 
 | A    | B    |
@@ -229,10 +231,48 @@ func TestTableOpaqueWhenOff(t *testing.T) {
 After.
 `)
 	parts, store := readPartsExtract(t, src, false)
-	assert.Empty(t, contentBlocks(parts, "table-cell"), "no table cells surfaced when flag off")
-	require.Len(t, opaqueData(parts, "mdx-table"), 1, "table stays opaque when flag off")
+	assert.Len(t, contentBlocks(parts, "table-cell"), 4)
+	assert.Empty(t, opaqueData(parts, "mdx-table"), "the table is not opaque with the flag off")
 	out := writeParts(t, parts, store, "")
 	assert.Equal(t, string(src), string(out))
+}
+
+// TestTableRowsRideGroups pins the grid a cross-format export needs: the
+// markdown reader brackets a table's cells in a table group and one row group
+// per row, and MDX forwards them with the IDs renumbered into its own
+// namespace rather than dropping them with the sub-reader's layer parts.
+func TestTableRowsRideGroups(t *testing.T) {
+	src := []byte("| A | B |\n| - | - |\n| 1 | 2 |\n")
+
+	r := NewReader()
+	store, err := format.NewSkeletonStore()
+	require.NoError(t, err)
+	defer func() { _ = store.Close() }()
+	r.SetSkeletonStore(store)
+	require.NoError(t, r.Open(context.Background(), &model.RawDocument{
+		Reader:       io.NopCloser(bytes.NewReader(src)),
+		SourceLocale: model.LocaleEnglish,
+	}))
+
+	var shape []string
+	for pr := range r.Read(context.Background()) {
+		require.NoError(t, pr.Error)
+		switch v := pr.Part.Resource.(type) {
+		case *model.GroupStart:
+			shape = append(shape, "start:"+v.Type+":"+v.ID)
+		case *model.GroupEnd:
+			shape = append(shape, "end:"+v.ID)
+		case *model.Block:
+			shape = append(shape, "block:"+v.ID)
+		}
+	}
+
+	assert.Equal(t, []string{
+		"start:table:g1",
+		"start:table-row:g2", "block:tu1", "block:tu2", "end:g2",
+		"start:table-row:g3", "block:tu3", "block:tu4", "end:g3",
+		"end:g1",
+	}, shape)
 }
 
 // --- Treatment A: markdown-opaque fallback blocks (#928) ---

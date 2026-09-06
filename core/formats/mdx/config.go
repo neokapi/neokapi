@@ -9,11 +9,11 @@ import (
 )
 
 // extractNonTranslatableContentKey is the parameter that toggles MDX's own
-// non-translatable content surfacing (block-level JSX text children, GFM table
-// cell prose, and the markdown-opaque fallback blocks). It is intercepted by
+// non-translatable content surfacing (block-level JSX text children and the
+// markdown-opaque fallback blocks). It is intercepted by
 // the MDX config and NOT forwarded to the delegated markdown reader, whose
 // own non-translatable surfacing (code fences) is governed separately and kept
-// off for the embedded spans (see reader.emitMarkdownProse).
+// off for the embedded spans (see reader.emitMarkdownSpan).
 const extractNonTranslatableContentKey = "extractNonTranslatableContent"
 
 // Config holds configuration for the MDX format. MDX is CommonMark
@@ -38,11 +38,15 @@ type Config struct {
 	params map[string]any
 
 	// disableNonTranslatableContent, when set, keeps MDX-specific
-	// non-translatable content (block-level JSX text children, GFM table
-	// cell prose, markdown-opaque fallback blocks) in opaque skeleton/Data
+	// non-translatable content (block-level JSX text children,
+	// markdown-opaque fallback blocks) in opaque skeleton/Data
 	// instead of surfacing it as Translatable:false content blocks (visible
 	// to ingestion, skipped by MT). Zero value = surfacing ON (the opt-out
 	// default). Parity forces it off via SetExtractNonTranslatableContent.
+	//
+	// A GFM table's cells are not among them: they are markdown prose, read
+	// through the markdown reader like any paragraph, and translatable
+	// whatever this says.
 	disableNonTranslatableContent bool
 }
 
@@ -61,8 +65,8 @@ func (c *Config) Reset() {
 }
 
 // ExtractNonTranslatableContent reports whether MDX-specific non-translatable
-// content (JSX text children, table cell prose, markdown-opaque fallback
-// blocks) is surfaced as Translatable:false content blocks. Default true.
+// content (JSX text children, markdown-opaque fallback blocks) is surfaced as
+// Translatable:false content blocks. Default true.
 func (c *Config) ExtractNonTranslatableContent() bool {
 	return !c.disableNonTranslatableContent
 }

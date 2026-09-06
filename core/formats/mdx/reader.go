@@ -47,6 +47,7 @@ type Reader struct {
 	source       []byte
 	blockCounter int
 	dataCounter  int
+	groupCounter int
 	// promoted records elements the translatability table does not classify
 	// whose text was taken as translatable, so the inference is reported once
 	// each rather than once per paragraph.
@@ -133,6 +134,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) er
 	r.skelText(bom)
 	r.blockCounter = 0
 	r.dataCounter = 0
+	r.groupCounter = 0
 	r.naming.Reset()
 
 	segs := scanSegments(content)
@@ -197,49 +199,27 @@ type spanSkelEntry struct {
 	refID string
 }
 
-// emitMarkdownSpan splits a plain-Markdown span at GFM table boundaries,
-// then dispatches each sub-span: table blocks go to emitOpaque (the
-// markdown reader normalises table cell padding for Okapi parity rather
-// than preserving it, which would break the MDX byte-faithful round-trip,
-// so tables are preserved verbatim and not translated in v1), and
-// non-table sub-spans go to emitMarkdownProse for prose extraction.
+// emitMarkdownSpan delegates a plain-Markdown span to a fresh markdown.Reader,
+// captures its Blocks, groups and skeleton, and VERIFIES the span reconstructs
+// byte-for-byte from that skeleton when untranslated.
+//
+//   - If it does, the span is spliced into the MDX skeleton (block-ref IDs
+//     remapped onto the MDX counter namespace) and its Blocks are emitted as
+//     translatable — prose round-trips and translates exactly as `.md`.
+//   - If it does NOT, the span is emitted as ONE opaque region (verbatim
+//     skeleton text + a Data part) with no translatable blocks, keeping the
+//     byte-faithful round-trip — the PRIMARY acceptance bar — unconditional.
+//
+// A GFM table travels this route like any other block. It used to be cut out
+// of the span and kept opaque, because the markdown reader normalised a cell's
+// padding; #1661 made every byte of a table that is not a cell's content
+// replay from source, so a table's cells are ordinary translatable blocks and
+// the self-check above is what guards them (#2433).
+//
+// The markdown reader's LayerStart/LayerEnd parts are dropped — MDX owns its
+// document layer. In the non-skeleton fallback path (no MDX skeleton store)
+// the markdown reader is still run and its parts forwarded.
 func (r *Reader) emitMarkdownSpan(ctx context.Context, ch chan<- model.PartResult, span []byte, locale model.LocaleID) error {
-	if len(span) == 0 {
-		return nil
-	}
-	for _, sub := range splitMarkdownTables(span) {
-		subSpan := span[sub.start:sub.end]
-		if sub.isTable {
-			if !r.emitTable(ctx, ch, subSpan, locale) {
-				return ctx.Err()
-			}
-			continue
-		}
-		if err := r.emitMarkdownProse(ctx, ch, subSpan, locale); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// emitMarkdownProse delegates a table-free Markdown sub-span to a fresh
-// markdown.Reader, captures its Blocks and skeleton, and VERIFIES the
-// sub-span reconstructs byte-for-byte from that skeleton when untranslated.
-//
-//   - If it does, the sub-span is spliced into the MDX skeleton (block-ref
-//     IDs remapped onto the MDX counter namespace) and its Blocks are
-//     emitted as translatable — prose round-trips and translates exactly
-//     as `.md`.
-//   - If it does NOT (a residual markdown round-trip imperfection not
-//     covered by table splitting), the sub-span is emitted as ONE opaque
-//     region (verbatim skeleton text + a Data part) with no translatable
-//     blocks, keeping the byte-faithful round-trip — the PRIMARY
-//     acceptance bar — unconditional.
-//
-// The markdown reader's LayerStart/LayerEnd parts are dropped — MDX owns
-// its document layer. In the non-skeleton fallback path (no MDX skeleton
-// store) the markdown reader is still run and its Blocks/Data forwarded.
-func (r *Reader) emitMarkdownProse(ctx context.Context, ch chan<- model.PartResult, span []byte, locale model.LocaleID) error {
 	if len(span) == 0 {
 		return nil
 	}
@@ -285,21 +265,24 @@ func (r *Reader) emitMarkdownProse(ctx context.Context, ch chan<- model.PartResu
 	// faithfulness check below.
 	blocksByOrigID := make(map[string]*model.Block)
 	var blocks []*model.Block
-	var dataParts []*model.Data
+	// The parts in the order the sub-reader produced them, so the groups that
+	// bracket a table's cells still bracket them after the IDs are remapped.
+	var parts []*model.Part
 	for pr := range mdReader.Read(ctx) {
 		if pr.Error != nil {
 			return fmt.Errorf("mdx: markdown span: %w", pr.Error)
 		}
 		switch pr.Part.Type {
 		case model.PartBlock:
-			if block, ok := pr.Part.Resource.(*model.Block); ok {
-				blocksByOrigID[block.ID] = block
-				blocks = append(blocks, block)
+			block, ok := pr.Part.Resource.(*model.Block)
+			if !ok {
+				continue
 			}
-		case model.PartData:
-			if data, ok := pr.Part.Resource.(*model.Data); ok {
-				dataParts = append(dataParts, data)
-			}
+			blocksByOrigID[block.ID] = block
+			blocks = append(blocks, block)
+			parts = append(parts, pr.Part)
+		case model.PartData, model.PartGroupStart, model.PartGroupEnd:
+			parts = append(parts, pr.Part)
 		default:
 			// LayerStart / LayerEnd / Media — drop.
 		}
@@ -308,19 +291,8 @@ func (r *Reader) emitMarkdownProse(ctx context.Context, ch chan<- model.PartResu
 	// Non-skeleton fallback: no faithfulness check possible (the writer's
 	// fallback path is best-effort anyway). Emit blocks and data re-ID'd.
 	if r.skeletonStore == nil || subStore == nil {
-		for _, block := range blocks {
-			r.blockCounter++
-			block.ID = fmt.Sprintf("tu%d", r.blockCounter)
-			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
-				return ctx.Err()
-			}
-		}
-		for _, data := range dataParts {
-			r.dataCounter++
-			data.ID = fmt.Sprintf("d%d", r.dataCounter)
-			if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data}) {
-				return ctx.Err()
-			}
+		if !r.forwardSpanParts(ctx, ch, parts, true, nil) {
+			return ctx.Err()
 		}
 		return nil
 	}
@@ -387,13 +359,11 @@ func (r *Reader) emitMarkdownProse(ctx context.Context, ch chan<- model.PartResu
 			// so they never affect the round-trip; with the flag off the part
 			// stream is unchanged (just the opaque Data above).
 			if r.cfg.ExtractNonTranslatableContent() {
-				for _, block := range blocks {
-					r.blockCounter++
-					block.ID = fmt.Sprintf("tu%d", r.blockCounter)
+				markUntranslatable := func(_ string, block *model.Block) {
 					block.Translatable = false
-					if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
-						return ctx.Err()
-					}
+				}
+				if !r.forwardSpanParts(ctx, ch, parts, false, markUntranslatable) {
+					return ctx.Err()
 				}
 			}
 			return nil
@@ -404,15 +374,11 @@ func (r *Reader) emitMarkdownProse(ctx context.Context, ch chan<- model.PartResu
 	// remapped to the new IDs. A quarantined block arrives here too, carrying
 	// Translatable=false, and its ref is already a literal entry.
 	idMap := make(map[string]string, len(blocks))
-	for _, block := range blocks {
-		orig := block.ID
-		r.blockCounter++
-		newID := fmt.Sprintf("tu%d", r.blockCounter)
-		idMap[orig] = newID
-		block.ID = newID
-		if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
-			return ctx.Err()
-		}
+	recordID := func(orig string, block *model.Block) {
+		idMap[orig] = block.ID
+	}
+	if !r.forwardSpanParts(ctx, ch, parts, false, recordID) {
+		return ctx.Err()
 	}
 	for _, entry := range entries {
 		if entry.isRef {
@@ -424,6 +390,53 @@ func (r *Reader) emitMarkdownProse(ctx context.Context, ch chan<- model.PartResu
 		r.skelText(entry.text)
 	}
 	return nil
+}
+
+// forwardSpanParts emits the sub-reader's parts in the order it produced them,
+// renumbering their IDs into the MDX document's namespace. A table arrives as
+// a group of row groups around its cell blocks, and the brackets only mean
+// anything in place, so the order is the point.
+//
+// withData says whether the sub-reader's Data parts travel: they do on the
+// no-skeleton path, where nothing else carries those bytes, and not where the
+// MDX skeleton already holds them. onBlock, when set, sees each block after it
+// takes its new ID, alongside the ID it had.
+func (r *Reader) forwardSpanParts(ctx context.Context, ch chan<- model.PartResult,
+	parts []*model.Part, withData bool, onBlock func(orig string, block *model.Block)) bool {
+
+	groupIDs := make(map[string]string)
+	for _, part := range parts {
+		switch res := part.Resource.(type) {
+		case *model.Block:
+			orig := res.ID
+			r.blockCounter++
+			res.ID = fmt.Sprintf("tu%d", r.blockCounter)
+			if onBlock != nil {
+				onBlock(orig, res)
+			}
+		case *model.Data:
+			if !withData {
+				continue
+			}
+			r.dataCounter++
+			res.ID = fmt.Sprintf("d%d", r.dataCounter)
+		case *model.GroupStart:
+			r.groupCounter++
+			newID := fmt.Sprintf("g%d", r.groupCounter)
+			groupIDs[res.ID] = newID
+			res.ID = newID
+		case *model.GroupEnd:
+			mapped, ok := groupIDs[res.ID]
+			if !ok {
+				continue
+			}
+			res.ID = mapped
+		}
+		if !r.emit(ctx, ch, part) {
+			return false
+		}
+	}
+	return true
 }
 
 // spanReconstructsExactly reports whether replaying the span's skeleton

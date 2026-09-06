@@ -36,18 +36,12 @@ import (
 type contentSeg struct {
 	text    []byte
 	isChild bool
-	// scope groups consecutive child segments that share an enclosing
-	// structure — the cells of one table row. Every change of value opens a
-	// fresh naming scope, so a cell is addressed by its row and column rather
-	// than by a count across the whole table. Zero means no such structure.
-	scope int
 	// element is the innermost JSX element this text sits in, in its source
 	// spelling, or "" at the top level of a region or inside a fragment.
 	element string
 	// translatable is the splitter's answer, not a default this struct
-	// supplies. emitContentSegs serves both the JSX and table paths, and a
-	// shared default is how the table's cells — which name no element — would
-	// quietly inherit whatever the JSX path decided.
+	// supplies, rather than a shared default that would let one caller
+	// quietly inherit whatever another decided.
 	translatable bool
 }
 
@@ -225,126 +219,25 @@ func splitJSXSegments(span []byte) ([]contentSeg, []string, bool) {
 	return segs, promotedHere, true
 }
 
-// splitTableSegments partitions a GFM table region into structural skeleton
-// segments (pipes, cell padding, the delimiter row, and line breaks) and
-// surfaceable cell-text segments (the trimmed prose of each non-empty cell in
-// the header and body rows). Cell text is surfaced VERBATIM (a single run, no
-// inline parse) so embedded inline markup (`**bold**`, `code spans`) rides
-// back exactly. Returns ok=false on a reconstruction mismatch.
-func splitTableSegments(region []byte) ([]contentSeg, bool) {
-	var segs []contentSeg
-	n := len(region)
-	structStart := 0
-	flushStruct := func(upto int) {
-		if upto > structStart {
-			segs = append(segs, contentSeg{text: region[structStart:upto]})
-		}
-	}
-
-	i := 0
-	row := 0
-	for i < n {
-		lineStart := i
-		lineEnd := lineEndAt(region, lineStart)
-		line := region[lineStart:lineEnd]
-
-		// The delimiter row (and any all-dash/colon row) carries no prose —
-		// keep it wholly in the skeleton.
-		if !isTableDelimiterRow(line) {
-			row++
-			p := lineStart
-			for p < lineEnd {
-				if region[p] == '|' && !pipeEscaped(region, lineStart, p) {
-					p++ // pipe stays skeleton
-					continue
-				}
-				cellStart := p
-				for p < lineEnd && !(region[p] == '|' && !pipeEscaped(region, lineStart, p)) {
-					p++
-				}
-				cellEnd := p
-				cs := cellStart
-				for cs < cellEnd && (region[cs] == ' ' || region[cs] == '\t') {
-					cs++
-				}
-				ce := cellEnd
-				for ce > cs && (region[ce-1] == ' ' || region[ce-1] == '\t') {
-					ce--
-				}
-				if ce > cs {
-					flushStruct(cs)
-					// A table cell holds prose a reader reads, so it belongs to
-					// the translator like any paragraph. The cell's padding and
-					// the pipes stay in the skeleton, and BlockPropVerbatim
-					// keeps the writer from re-escaping what it emits.
-					segs = append(segs, contentSeg{
-						text: region[cs:ce], isChild: true, scope: row, translatable: true,
-					})
-					structStart = ce
-				}
-			}
-		}
-
-		i = lineEnd
-		if i < n && region[i] == '\n' {
-			i++
-		}
-		if i == lineStart {
-			// No progress guard (degenerate input).
-			break
-		}
-	}
-	flushStruct(n)
-
-	if !segsReconstruct(segs, region) {
-		return nil, false
-	}
-	return segs, true
-}
-
-// pipeEscaped reports whether the `|` at index p (within the line beginning at
-// lineStart) is backslash-escaped (an odd number of immediately preceding
-// backslashes).
-func pipeEscaped(region []byte, lineStart, p int) bool {
-	bs := 0
-	for j := p - 1; j >= lineStart && region[j] == '\\'; j-- {
-		bs++
-	}
-	return bs%2 == 1
-}
-
 // emitContentSegs replays an ordered segment partition: structural segments go
 // to the skeleton as text; child segments are surfaced as Translatable:false
 // content blocks whose verbatim body rides a skeleton ref. Returns false only
 // on context cancellation.
-//
-// scopeKind, when set, names the structure that groups consecutive child
-// segments (a table row); each group opens its own naming scope so a cell is
-// addressed by row and column.
 func (r *Reader) emitContentSegs(ctx context.Context, ch chan<- model.PartResult,
-	segs []contentSeg, role, blockType, nameKind, scopeKind string, locale model.LocaleID) bool {
-
-	openScope := 0
-	popScope := func() {}
-	defer func() { popScope() }()
+	segs []contentSeg, blockType, nameKind string, locale model.LocaleID) bool {
 
 	for _, s := range segs {
 		if !s.isChild {
 			r.skelText(s.text)
 			continue
 		}
-		if scopeKind != "" && s.scope != openScope {
-			popScope()
-			popScope = r.naming.Push(scopeKind)
-			openScope = s.scope
-		}
 		r.blockCounter++
 		id := fmt.Sprintf("tu%d", r.blockCounter)
 		block := model.NewBlock(id, string(s.text))
-		// A surfaced segment is verbatim, but it is not opaque: a table cell
-		// reading "`docker compose up` + `make dev-server`" is prose around two
-		// commands. Left as one text run the commands are ordinary characters,
-		// which is how `docker compose up` reached the docs site as
+		// A surfaced segment is verbatim, but it is not opaque: a JSX text
+		// child reading "`docker compose up` + `make dev-server`" is prose
+		// around two commands. Left as one text run the commands are ordinary
+		// characters, which is how `docker compose up` reached the docs site as
 		// `đöçķéŕ çöḿþöšé üþ`. Splitting marks them do-not-translate; the runs
 		// still concatenate to the same bytes, which is what BlockPropVerbatim
 		// promises the writer.
@@ -357,9 +250,6 @@ func (r *Reader) emitContentSegs(ctx context.Context, ch chan<- model.PartResult
 		// The segment is a byte slice of the region, so the writer must emit
 		// it unchanged — see BlockPropVerbatim.
 		block.Properties[BlockPropVerbatim] = "1"
-		if role != "" {
-			block.SetSemanticRole(role, 0)
-		}
 		r.skelRef(id)
 		if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 			return false
@@ -465,24 +355,9 @@ func (r *Reader) emitJSX(ctx context.Context, ch chan<- model.PartResult, span [
 			// The element is the structure its text children sit in, so it
 			// scopes their ordinals — as a list scopes its items.
 			defer r.naming.Push("jsx")()
-			return r.emitContentSegs(ctx, ch, segs, "", "jsx-text", "text", "", locale)
+			return r.emitContentSegs(ctx, ch, segs, "jsx-text", "text", locale)
 		}
 	}
 	r.emitOpaque(ctx, ch, span, "jsx")
-	return true
-}
-
-// emitTable surfaces a GFM table region's cell prose as Translatable:false
-// content blocks when surfacing is enabled and feasible; otherwise it
-// preserves the table opaque (verbatim skeleton + Data), identical to the
-// prior behaviour.
-func (r *Reader) emitTable(ctx context.Context, ch chan<- model.PartResult, span []byte, locale model.LocaleID) bool {
-	if r.skeletonStore != nil && r.cfg.ExtractNonTranslatableContent() {
-		if segs, ok := splitTableSegments(span); ok && anyChild(segs) {
-			defer r.naming.Push("table")()
-			return r.emitContentSegs(ctx, ch, segs, model.RoleTableCell, "table-cell", "cell", "row", locale)
-		}
-	}
-	r.emitOpaque(ctx, ch, span, "table")
 	return true
 }

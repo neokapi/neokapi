@@ -153,3 +153,13 @@ func openingLine(body []byte, start int) string {
 	}
 	return string(line)
 }
+
+// lineEndAt returns the index of the LF terminating the line at lineStart, or
+// len(body) at EOF: the line's content end, exclusive of the LF.
+func lineEndAt(body []byte, lineStart int) int {
+	i := lineStart
+	for i < len(body) && body[i] != '\n' {
+		i++
+	}
+	return i
+}

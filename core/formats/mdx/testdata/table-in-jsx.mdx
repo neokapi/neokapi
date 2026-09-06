@@ -1,0 +1,44 @@
+---
+title: "Tables beside and inside JSX"
+---
+
+import { Callout } from "@site/src/components/Callout";
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
+
+# Tables beside and inside JSX
+
+A table between two JSX blocks keeps its cells translatable while the elements
+around it stay skeleton.
+
+<Callout kind="note">
+
+The callout holds prose of its own.
+
+</Callout>
+
+| Verb   | What it does                  |
+| ------ | ----------------------------- |
+| `up`   | Converges the project         |
+| `push` | Sends the declared tree       |
+
+<Tabs>
+<TabItem value="cli" label="Command line">
+
+| Flag        | Effect              |
+| ----------- | ------------------- |
+| `--dry-run` | Reports, writes not |
+
+</TabItem>
+<TabItem value="ci" label="Continuous integration">
+
+A second table inside the same element:
+
+| Job     | When it runs        |
+| ------- | ------------------- |
+| `check` | On every pull request |
+
+</TabItem>
+</Tabs>
+
+Prose after the tabs.
