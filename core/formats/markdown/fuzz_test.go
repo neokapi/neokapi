@@ -292,6 +292,11 @@ func FuzzRoundTripMarkdown(f *testing.F) {
 	// content, so no block. The reproducer is also committed under testdata/fuzz.
 	f.Add([]byte("* <A0A>#"))
 	f.Add([]byte("> #<A>\n> b"))
+	// #2484: dropping the inline HTML left a bare "#", which after "# " reads
+	// as an ATX closing sequence, so the heading had no content and re-read as
+	// no block at all. The first is also committed under testdata/fuzz.
+	f.Add([]byte("# <A>#"))
+	f.Add([]byte("0\n# # #"))
 	// #2470: an HTML block runs to the blank line, so "<div>0\n# 0" is one block
 	// whose text is "0\n# 0"; the rebuild path drops the HTML and wrote the text
 	// as a paragraph, whose second line read back as a heading. The reproducer

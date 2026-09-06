@@ -132,6 +132,14 @@ entries:
     license: Apache-2.0
     redistributable: true
     notes: 'FuzzRoundTripMarkdown seed for #2448 (a hard break on a line of its own)'
+  - path: core/formats/markdown/testdata/fuzz/FuzzRoundTripMarkdown/heading_hash_residue
+    tier: A
+    origin: bug
+    sha256: a1d5ccf875cab981aeddaaf00d1a3bdcfde1a3d76bb8b527882333b045f9460a
+    size: 33
+    license: Apache-2.0
+    redistributable: true
+    notes: 'FuzzRoundTripMarkdown seed for #2484 (a heading whose text is a bare hash)'
   - path: core/formats/markdown/testdata/fuzz/FuzzRoundTripMarkdown/html_block_multiline
     tier: A
     origin: bug

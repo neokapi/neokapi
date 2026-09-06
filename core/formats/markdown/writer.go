@@ -890,11 +890,11 @@ func (w *Writer) writeBlockMarkdown(block *model.Block, out io.Writer) error {
 	switch role {
 	case model.RoleTitle:
 		prefix = "# "
-		text = singleLineHeading(text)
+		text = escapeHeadingClosingSequence(singleLineHeading(text))
 	case model.RoleHeading:
 		if n := block.HeadingLevel(); n > 0 {
 			prefix = strings.Repeat("#", n) + " "
-			text = singleLineHeading(text)
+			text = escapeHeadingClosingSequence(singleLineHeading(text))
 		}
 	case model.RoleListItem:
 		// The marker belongs to the enclosing list, not the item: an ordered
@@ -1166,6 +1166,33 @@ func escapeLeadingBlockMarker(text string) string {
 		return text[:i] + "\\" + text[i:]
 	}
 	return text
+}
+
+// escapeHeadingClosingSequence backslash-escapes a run of hashes that ends a
+// rebuilt heading's text, so it stays the heading's content rather than
+// becoming the closing sequence CommonMark 4.2 reads there.
+//
+// The residue matters because the rebuild path drops inline constructs it has
+// no Markdown spelling for. "# <A>#" leaves the bare text "#", written as
+// "# #", where the hash is a closing sequence and the heading has no content
+// at all — the block was gone (#2484). This is the heading's form of #2469:
+// the marker sits at the end of the line rather than at its start.
+//
+// A hash not preceded by whitespace is content already ("# C#"), and an
+// escaped run matches nothing, so the escape is idempotent.
+func escapeHeadingClosingSequence(text string) string {
+	end := len(strings.TrimRight(text, " \t"))
+	i := end
+	for i > 0 && text[i-1] == '#' {
+		i--
+	}
+	if i == end {
+		return text
+	}
+	if i > 0 && text[i-1] != ' ' && text[i-1] != '\t' {
+		return text
+	}
+	return text[:i] + "\\" + text[i:]
 }
 
 // escapeBlockMarkerLines applies escapeLeadingBlockMarker to every line of a
