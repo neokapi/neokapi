@@ -141,6 +141,12 @@ func FuzzReadMarkdown(f *testing.F) {
 	// trailing space the writer's okapi-parity trim dropped. Also committed
 	// under testdata/fuzz.
 	f.Add([]byte("> \n> q\n"))
+	// #2499: two emphasis nodes that touch resolved to the same start, so the
+	// second inherited the first's delimiter, and two asterisk pairs written
+	// back-to-back spell a run of four. The first is also committed under
+	// testdata/fuzz.
+	f.Add([]byte("_0__*0*"))
+	f.Add([]byte("_!__0_"))
 	// #2502: an empty title resolves to nothing, so the closer was rebuilt from
 	// the resolved values and its delimiters went with it. Also committed under
 	// testdata/fuzz.

@@ -3207,12 +3207,10 @@ func (r *Reader) buildEmphasisRuns(b *runBuilder, n *ast.Emphasis, source []byte
 // changes the block (#2446). Defaults to '*' when the node cannot be located
 // (a programmatically-built one, above all).
 func emphasisDelimiter(n *ast.Emphasis, source []byte) byte {
-	if start, ok := inlineNodeStart(n, source); ok && start >= 0 && start < len(source) {
-		if c := source[start]; c == '*' || c == '_' {
-			return c
-		}
-	}
-	// The first child's own segment, for a node the resolver could not place.
+	// The opener sits immediately before the content, so a Text first child
+	// pins it exactly. Two emphasis nodes that touch resolve to the same start
+	// through their neighbours, and the second inherited the first's spelling
+	// ("_0__*0*" came back as "_0___0_", #2499).
 	if t, ok := n.FirstChild().(*ast.Text); ok {
 		start := t.Segment.Start - n.Level
 		if start >= 0 && start < len(source) {
@@ -3220,6 +3218,14 @@ func emphasisDelimiter(n *ast.Emphasis, source []byte) byte {
 			if c == '*' || c == '_' {
 				return c
 			}
+		}
+	}
+	// A node whose first child carries no segment of its own — an emphasis
+	// around a link, an image or another emphasis — is placed through its
+	// neighbours instead (#2446).
+	if start, ok := inlineNodeStart(n, source); ok && start >= 0 && start < len(source) {
+		if c := source[start]; c == '*' || c == '_' {
+			return c
 		}
 	}
 	return '*'

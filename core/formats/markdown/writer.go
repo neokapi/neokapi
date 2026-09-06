@@ -536,12 +536,29 @@ func (s *mdInlineSink) Open(r *model.PcOpenRun) {
 		s.open = append(s.open, mdOpenTag{attrs: r.Attrs, destKey: model.AttrSrc})
 	default:
 		if m, ok := mdInlineTag[r.Type]; ok {
-			s.sb.WriteString(m[0])
-			s.open = append(s.open, mdOpenTag{close: m[1]})
+			open, close := s.emphasisSpelling(m[0], m[1])
+			s.sb.WriteString(open)
+			s.open = append(s.open, mdOpenTag{close: close})
 		} else {
 			s.open = append(s.open, mdOpenTag{})
 		}
 	}
+}
+
+// emphasisSpelling picks the delimiter for an emphasis or strong code that
+// opens where the last one closed. Two asterisk pairs that touch spell a run of
+// four ("*a**b*"), which CommonMark reads as one pair around "a**b" rather than
+// as the two the block carries, so the block's content changed on the next pass
+// (#2499). Underscores read as a pair there because the character before them
+// is punctuation, which is what CommonMark 6.2 asks of an intraword "_".
+func (s *mdInlineSink) emphasisSpelling(open, close string) (string, string) {
+	if open != "*" && open != "**" {
+		return open, close
+	}
+	if b := s.sb.String(); b == "" || b[len(b)-1] != '*' {
+		return open, close
+	}
+	return strings.ReplaceAll(open, "*", "_"), strings.ReplaceAll(close, "*", "_")
 }
 
 func (s *mdInlineSink) Close(*model.PcCloseRun) {
