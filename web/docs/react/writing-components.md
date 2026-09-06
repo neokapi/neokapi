@@ -20,6 +20,7 @@ Almost everything you already write is translatable. This page walks through the
 - **React prop-name conventions** (`label`, `description`, `heading`, `helpText`, `tooltip`, …) on **PascalCase components only** → extracted. On a plain `<div>` these names are usually DOM props or enum keys, not copy.
 - **Translatable attributes with string-literal ternaries** (`title={cond ? "A" : "B"}`) → each branch extracted as its own block.
 - **Code spans inside a sentence** (`<code>`, `<kbd>`, `<samp>`, `<var>`) → the sentence extracts as one block, the span becomes a paired marker, and its text is carried through verbatim.
+- **A control inside a sentence** (`<button>`, `<label>`, `<select>`, `<img>`, …) → the sentence extracts as one block and the control becomes a paired marker, with its label translatable inside. A control that is its parent's only content keeps its own block.
 - **Non-translatable elements on their own** (`<code>`, `<pre>`, `<kbd>`, `<var>`, `<script>`, `<style>`, `<textarea>`) → skipped.
 - **Elements marked `translate="no"`** (or any ancestor) → skipped.
 
@@ -51,6 +52,9 @@ When an element mixes text with inline children, the whole thing becomes one tra
 The extractor stores this as `"Click {=m0}here{/=m0} to read the docs."`. A German translation reads `"Klicken Sie {=m0}hier{/=m0}, um die Dokumentation zu lesen."`: the link wraps the right word, and a French translator can move it elsewhere in the sentence entirely.
 
 Inline elements that produce paired markers: `<span>`, `<strong>`, `<em>`, `<b>`, `<i>`, `<a>`, `<small>`, `<sub>`, `<sup>`, `<time>`, `<u>`, `<wbr>`, `<del>`, `<ins>`, plus `<code>`, `<kbd>`, `<samp>` and `<var>`, whose text is carried through verbatim (see [Code spans inside prose](#code-spans-inside-prose)).
+
+The form controls join that list where the sentence around them has words of its
+own (see [Controls inside prose](#controls-inside-prose)).
 
 The rule is uniform: **any inline element with at least one child → paired pair**, regardless of whether the inner content is text, an expression, an icon, or further nested elements. Empty inline elements become **standalone markers** instead. A few examples:
 
@@ -233,6 +237,56 @@ out of the catalog:
 
 `translate="yes"` on the span opts its text back in, inside a sentence or on its
 own.
+
+### Controls inside prose
+
+HTML5 lets a control sit in the middle of a sentence, and a call to action is
+usually written that way:
+
+```tsx
+<p>
+  <button onClick={run}>Try it live</button> lists the registered formats.
+</p>
+```
+
+The paragraph extracts as one block reading
+`"{=m0}Try it live{/=m0} lists the registered formats."`. The button is a paired
+marker, and the words inside it stay the translator's: a code span protects its
+text, a control's label is prose. At render time the runtime clones the button
+with the translated label as its children, so the handler, the type and the
+classes are the ones you wrote.
+
+The controls this covers are `<button>`, `<label>`, `<select>`, `<input>`,
+`<output>`, `<img>`, `<audio>`, `<video>`, `<meter>` and `<progress>`.
+
+Where the control is all its parent holds, the parent stays out and the control
+keeps its own block:
+
+```tsx
+<div className="toolbar">
+  <button>Save</button>                        // ✓ one block: "Save"
+</div>
+
+<div>
+  Autosave is on. <button>Save now</button>    // ✓ one block for the sentence
+</div>
+```
+
+That is what keeps a toolbar of buttons a message each, rather than one message
+holding every label in the row.
+
+A control carrying copy in an attribute is left alone as well, because a block
+consumes its inline children and the attribute would go with them:
+
+```tsx
+<p>
+  Press <button aria-label="Run the demo"><Play /></button> to start.
+</p>
+// ✓ one block: the aria-label. The prose around it needs the button's own words.
+```
+
+Give the button a visible label, or move the copy out of the attribute, and the
+sentence extracts.
 
 ### Opting out with `translate="no"`
 

@@ -644,6 +644,16 @@ element holding one of them and nothing else stays out of the catalog, since
 there is no prose in it to translate. `<code translate="yes">` opts one site
 back in.
 
+`button`, `label`, `select`, `input`, `output`, `img`, `audio`, `video`, `meter`
+and `progress` sit in a sentence too, and join their parent's block where that
+parent has words of its own: `<p><button>Try it live</button> lists the
+formats.</p>` is one message with the button as a paired marker and its label
+translatable inside it. Where the control is all the parent holds, the parent
+stays out and the control keeps its own block, so a row of buttons is a message
+each. A control carrying copy in an attribute (`aria-label`, `alt`,
+`placeholder`) keeps its own block as well, since a block consumes its inline
+children and the attribute would travel with them.
+
 **Translatable attributes.** HTML/ARIA attributes — `alt`, `title`,
 `placeholder`, `aria-label`, `aria-description`, `aria-placeholder`,
 `aria-roledescription`, `aria-valuetext` — extract from **any**

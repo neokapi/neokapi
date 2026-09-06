@@ -9,7 +9,13 @@
 
 import type { JSXElement } from "@swc/core";
 
-import { getTranslatability, inlineElements, nonTranslatableElements } from "../plugin/defaults.ts";
+import {
+  getTranslatability,
+  inlineElements,
+  isTranslatableAttribute,
+  nonTranslatableElements,
+  phrasingControlElements,
+} from "../plugin/defaults.ts";
 import type { PluginOptions } from "../types.ts";
 import { getStringAttr, getTagName, hasAttr, resolveHTMLElement } from "./ast.ts";
 import { isPluralElement, isSelectElement } from "./plural.ts";
@@ -127,10 +133,21 @@ function matchesRule(rule: Rule, htmlElement: string, el: JSXElement): boolean {
  * surrounding text gets silently dropped. They flatten to an opaque
  * `jsx:element` placeholder in the parent's runs, same as any other
  * inline element.
+ *
+ * A phrasing-content control (`button`, `label`, `select`, `img`, …) counts as
+ * inline where the parent holds prose without it, which is the same question
+ * `hasTranslatableText` answers. A sentence wrapped around a button is one
+ * block with the button as a paired code and its label a translatable run
+ * inside; a wrapper whose only content is that button stays disqualified, the
+ * walker descends, and the button keeps the block and the key it already had.
  */
 export type HasChildren = Pick<JSXElement, "children">;
 
 export function isAllInlineContent(el: HasChildren, componentMap: Record<string, string>): boolean {
+  // Answered once per call, and only when a control child asks for it.
+  let prose: boolean | null = null;
+  const parentHasProse = () => (prose ??= hasTranslatableText(el));
+
   for (const child of el.children ?? []) {
     if (child.type === "JSXText" || child.type === "JSXExpressionContainer") continue;
     if (child.type === "JSXElement") {
@@ -139,6 +156,14 @@ export function isAllInlineContent(el: HasChildren, componentMap: Record<string,
       if (isPluralElement(child) || isSelectElement(child)) continue;
       const html = resolveHTMLElement(tag, componentMap);
       if (html && inlineElements.has(html)) continue;
+      if (
+        html &&
+        phrasingControlElements.has(html) &&
+        parentHasProse() &&
+        !carriesTranslatableAttribute(child)
+      ) {
+        continue;
+      }
       // Zero-children unmapped component → treat as opaque inline.
       // `<FolderOpen />`, `<Icon size={12} />`, `<Badge />` all look
       // like this. A block-level custom component would typically
@@ -150,6 +175,31 @@ export function isAllInlineContent(el: HasChildren, componentMap: Record<string,
     return false;
   }
   return true;
+}
+
+/**
+ * True when `el` or anything below it carries an attribute the extractor
+ * catalogs (`alt`, `aria-label`, `placeholder`, a component's `label` prop, …).
+ *
+ * A block consumes its inline children: the walker stops descending once a
+ * parent has emitted, and the transform must, because a nested op would land
+ * inside the range the block's own op replaces. So an attribute below an
+ * inline child never reaches the catalog. Folding a control that carries one
+ * would therefore trade the prose around it for the string inside it, and this
+ * check declines the trade: an icon button with an `aria-label`, or an `<img>`
+ * with an `alt`, keeps the block it has and leaves its parent disqualified.
+ */
+function carriesTranslatableAttribute(el: JSXElement): boolean {
+  const tag = getTagName(el);
+  for (const attr of el.opening?.attributes ?? []) {
+    if (attr.type !== "JSXAttribute" || attr.name.type !== "Identifier") continue;
+    if (!attr.value) continue;
+    if (isTranslatableAttribute(attr.name.value, tag ?? "")) return true;
+  }
+  for (const child of el.children ?? []) {
+    if (child.type === "JSXElement" && carriesTranslatableAttribute(child)) return true;
+  }
+  return false;
 }
 
 function isChildless(el: JSXElement): boolean {
@@ -183,6 +233,13 @@ function isChildless(el: JSXElement): boolean {
  * travels inside its parent's block as a paired code, but what it holds is a
  * command rather than prose, so it can never be the reason a parent enters the
  * catalog. `buildRuns` marks the same text `noTranslate`.
+ *
+ * A phrasing-content control is skipped for a second reason: its label is
+ * translatable, and counting it would make `<div><Button>Save</Button></div>` a
+ * parent block holding only the button. This predicate is what
+ * `isAllInlineContent` consults to decide whether such a control joins the
+ * sentence around it, so a control that is the only content there must answer
+ * no.
  */
 export function hasTranslatableText(el: HasChildren): boolean {
   for (const child of el.children ?? []) {
