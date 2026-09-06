@@ -124,10 +124,10 @@ func (p *Project) StateDir() string { return p.Layout.StateDir }
 func (p *Project) CacheDir() string { return p.Layout.CacheDir() }
 
 // FlowsDirPath returns the path to .kapi/flows/, the optional file-per-flow
-// store. Bowrain reads flow definitions from here in addition to inline
-// definitions on the recipe.
+// store. `kapi run` resolves a flow from here when the recipe declares none
+// inline under `flows:`.
 func (p *Project) FlowsDirPath() string {
-	return filepath.Join(p.Layout.StateDir, "flows")
+	return p.Layout.FlowsDir()
 }
 
 // SyncCachePath is the path to the bowrain sync cache. Bowrain owns this

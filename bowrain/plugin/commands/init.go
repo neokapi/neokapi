@@ -691,8 +691,6 @@ description: Generate pseudo-translations for testing
 
 steps:
   - tool: pseudo-translate
-    input: "locales/en.json"
-    output: "locales/qps.json"
     config:
       method: extended
       expansion_rate: 1.3
