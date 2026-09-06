@@ -65,7 +65,8 @@ Use -p to run a flow from a kapi.yaml recipe:
 				return a.RunFlow(cmd.Context(), cmd, flowName, flowOpts)
 			}
 
-			// Try fallback (e.g. project flows from .bowrain/flows/).
+			// Outside a project there is nothing but the built-in catalog,
+			// so a plugin's fallback is the last place to look.
 			if fallbackRunE != nil {
 				return fallbackRunE(cmd, flowName, args)
 			}

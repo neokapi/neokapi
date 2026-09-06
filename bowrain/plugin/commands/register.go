@@ -15,7 +15,6 @@ func init() {
 	// PluginHost, etc.
 	cli.RegisterAppInitializer(func(a *cli.App) {
 		app = a
-		a.FallbackRunE = projectFlowFallback
 		a.ExtraFlows = listProjectFlows
 	})
 }
