@@ -78,3 +78,17 @@ func TestMarkdownCanonicalFoldsReferenceDefinitionTitlePadding(t *testing.T) {
 	assert.Equal(t, "[id]:  /a \"T\"", norm("[id]:  /a \"T\""),
 		"the separator after the colon is Okapi's too and stays")
 }
+
+// TestMarkdownCanonicalDropsReferenceDefinitionIndent pins the fold for #2482:
+// okapi strips the 0-3 spaces CommonMark 4.7 allows before a link reference
+// definition, and native replays the source's own bytes so a definition inside
+// a container keeps what precedes it.
+func TestMarkdownCanonicalDropsReferenceDefinitionIndent(t *testing.T) {
+	norm := func(s string) string {
+		out, err := roundtrip.MarkdownCanonical{}.Normalize([]byte(s))
+		require.NoError(t, err)
+		return string(out)
+	}
+	assert.Equal(t, norm("[R]: /x\n"), norm("   [R]: /x\n"))
+	assert.Equal(t, norm("[R]: /x 'T'\n"), norm("  [R]: /x  'T'\n"))
+}

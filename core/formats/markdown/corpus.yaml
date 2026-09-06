@@ -116,6 +116,14 @@ entries:
     license: Apache-2.0
     redistributable: true
     notes: 'FuzzReadMarkdown seed for #2461 (a link closer wrapping inside a blockquote)'
+  - path: core/formats/markdown/testdata/fuzz/FuzzRoundTripMarkdown/definition_in_a_list_item
+    tier: A
+    origin: bug
+    sha256: 665ab0481fd6a3bb022c9ef9e3725f2a0ee5bb02c6f0789a242b556e7a0881ce
+    size: 39
+    license: Apache-2.0
+    redistributable: true
+    notes: 'FuzzRoundTripMarkdown seed for #2482 (a definition inside a list item)'
   - path: core/formats/markdown/testdata/fuzz/FuzzRoundTripMarkdown/hard_break_own_line
     tier: A
     origin: bug

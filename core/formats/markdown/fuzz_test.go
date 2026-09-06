@@ -311,6 +311,11 @@ func FuzzRoundTripMarkdown(f *testing.F) {
 	f.Add([]byte("> [a](/x\n> 'T') b"))
 	// #2462: a definition spread over several lines.
 	f.Add([]byte("[a][R] x\n\n[R]:\n /y\n 'T'\n"))
+	// #2482: a definition inside a container lost the container, and inside a
+	// list item the definition with it. The first is also committed under
+	// testdata/fuzz.
+	f.Add([]byte("- [d]: /docs"))
+	f.Add([]byte("> [d]: /docs"))
 	seedDamagedMarkdown(f)
 
 	f.Fuzz(func(t *testing.T, data []byte) {

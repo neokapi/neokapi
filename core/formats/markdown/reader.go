@@ -603,16 +603,20 @@ func (r *Reader) emitLinkReferenceDefinition(ctx context.Context, ch chan<- mode
 	defStart := first.Start + baseOffset
 	defEnd := last.Stop + baseOffset
 
-	// fullLineStart points at the first byte of the source line that
-	// holds the `[label]:` marker — it backs up past any leading
-	// CommonMark indent (0–3 spaces). Okapi strips that indent on
-	// writeback, so we emit the gap up to defStart but skip it for the
-	// definition's own bytes.
+	// fullLineStart points at the first byte of the source line that holds the
+	// `[label]:` marker. Whatever sits between it and the definition belongs to
+	// the skeleton: the 0-3 spaces of indent CommonMark 4.7 allows, and a list
+	// item's or blockquote's own marker when the definition sits inside one.
+	// Dropping those bytes cost the container and, in a list item, the
+	// definition with it: "- [d]: /docs" came back as "-" (#2482).
 	fullLineStart := defStart
 	for fullLineStart > 0 && r.source[fullLineStart-1] != '\n' {
 		fullLineStart--
 	}
 	r.skelEmitGap(fullLineStart)
+	if lead := max(fullLineStart, r.skelCursor); lead < defStart {
+		r.skelText(string(r.source[lead:defStart]))
+	}
 	r.skelCursor = defEnd
 
 	label := string(n.Label)
@@ -1650,7 +1654,8 @@ func (r *Reader) emitListItem(ctx context.Context, ch chan<- model.PartResult, n
 	paragraphLikeCount := 0
 	for child := n.FirstChild(); child != nil; child = child.NextSibling() {
 		switch child.(type) {
-		case *ast.List, *ast.FencedCodeBlock, *ast.CodeBlock, *ast.HTMLBlock, *ast.Blockquote, *ast.Heading, *ast.ThematicBreak:
+		case *ast.List, *ast.FencedCodeBlock, *ast.CodeBlock, *ast.HTMLBlock, *ast.Blockquote, *ast.Heading, *ast.ThematicBreak,
+			*ast.LinkReferenceDefinition:
 			hasNestedBlocks = true
 		case *ast.Paragraph, *ast.TextBlock:
 			paragraphLikeCount++
