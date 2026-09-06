@@ -9,8 +9,8 @@ import (
 )
 
 // extractNonTranslatableContentKey is the parameter that toggles MDX's own
-// non-translatable content surfacing (block-level JSX text children and the
-// markdown-opaque fallback blocks). It is intercepted by
+// content surfacing (JSX text children and the markdown-opaque fallback
+// blocks). It is intercepted by
 // the MDX config and NOT forwarded to the delegated markdown reader, whose
 // own non-translatable surfacing (code fences) is governed separately and kept
 // off for the embedded spans (see reader.emitMarkdownSpan).
@@ -37,16 +37,17 @@ type Config struct {
 	// stored here — it is intercepted into disableNonTranslatableContent.
 	params map[string]any
 
-	// disableNonTranslatableContent, when set, keeps MDX-specific
-	// non-translatable content (block-level JSX text children,
-	// markdown-opaque fallback blocks) in opaque skeleton/Data
-	// instead of surfacing it as Translatable:false content blocks (visible
-	// to ingestion, skipped by MT). Zero value = surfacing ON (the opt-out
-	// default). Parity forces it off via SetExtractNonTranslatableContent.
+	// disableNonTranslatableContent, when set, keeps MDX-specific content
+	// (JSX text children, markdown-opaque fallback blocks) in opaque
+	// skeleton/Data instead of surfacing it as content blocks (visible to
+	// ingestion, skipped by MT where the element's classification says so).
+	// Zero value = surfacing ON (the opt-out default). Parity forces it off
+	// via SetExtractNonTranslatableContent.
 	//
 	// A GFM table's cells are not among them: they are markdown prose, read
 	// through the markdown reader like any paragraph, and translatable
-	// whatever this says.
+	// whatever this says. So is a JSX element's block-level child, which
+	// takes the same markdown delegation.
 	disableNonTranslatableContent bool
 }
 
@@ -64,9 +65,9 @@ func (c *Config) Reset() {
 	c.disableNonTranslatableContent = false
 }
 
-// ExtractNonTranslatableContent reports whether MDX-specific non-translatable
-// content (JSX text children, markdown-opaque fallback blocks) is surfaced as
-// Translatable:false content blocks. Default true.
+// ExtractNonTranslatableContent reports whether MDX-specific content (JSX text
+// children, markdown-opaque fallback blocks) is surfaced as content blocks.
+// Default true.
 func (c *Config) ExtractNonTranslatableContent() bool {
 	return !c.disableNonTranslatableContent
 }

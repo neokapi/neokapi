@@ -1,0 +1,38 @@
+---
+title: "Block children inside JSX"
+---
+
+import { Callout } from "@site/src/components/Callout";
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
+
+# Block children inside JSX
+
+A JSX element's children are markdown by the MDX spec, so a child separated
+from its tags by a blank line is read as markdown blocks.
+
+<Callout kind="note">
+
+## A heading inside the callout
+
+- The first item
+- The second item, with `code` in it
+
+A paragraph with [a link](/docs) and **strong** words.
+
+</Callout>
+
+<Tabs>
+<TabItem value="cli" label="Command line">
+
+> A quotation inside a tab.
+
+1. The first step
+2. The second step
+
+</TabItem>
+</Tabs>
+
+<Callout kind="tip">Inline prose stays a text child.</Callout>
+
+Prose after the elements.
