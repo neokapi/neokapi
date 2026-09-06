@@ -49,12 +49,15 @@ func TestLazyContinuationBlockquoteRebuildsAsOneBlock(t *testing.T) {
 }
 
 // TestRebuildBlockquoteMarkerFromLaterLine pins the marker recovery on a block
-// built directly: the marker on any continuation line marks the first line,
-// and a body with no marked line stays a paragraph.
+// built directly, which is the only place it answers: a markdown quote body
+// carries the marker property instead. EVERY continuation line must be marked.
+// A paragraph that merely holds a ">" line — what the rebuild path leaves when
+// it drops an inline construct that occupied one — was re-marked as a quote and
+// split in two on the pass after (#2505).
 func TestRebuildBlockquoteMarkerFromLaterLine(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, "> a\nb\n> c\n", rebuildBlocks(t, model.NewBlock("q", "a\nb\n> c")))
-	assert.Equal(t, ">a\nb\n>c\n", rebuildBlocks(t, model.NewBlock("q", "a\nb\n>c")))
-	assert.Equal(t, "> a\n> b\nc\n", rebuildBlocks(t, model.NewBlock("q", "a\n> b\nc")))
+	assert.Equal(t, "> a\n> b\n", rebuildBlocks(t, model.NewBlock("q", "a\n> b")))
+	assert.Equal(t, ">a\n>b\n", rebuildBlocks(t, model.NewBlock("q", "a\n>b")))
+	assert.Equal(t, "a\nb\n\\> c\n", rebuildBlocks(t, model.NewBlock("p", "a\nb\n> c")))
 	assert.Equal(t, "a\nb\n", rebuildBlocks(t, model.NewBlock("p", "a\nb")))
 }

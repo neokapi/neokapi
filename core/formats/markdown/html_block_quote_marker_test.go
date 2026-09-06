@@ -21,6 +21,7 @@ func TestRawHTMLBlockIsNeverRemarkedAsAQuote(t *testing.T) {
 		{"quote marker on the last line", "<p>.\n- <\n>"},
 		{"quote marker mid block", "<div>a\n> b\nc"},
 		{"quote marker on every line", "<div>a\n> b\n> c"},
+		{"quote marker left by dropped inline html", "0\n<a>>\n%"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

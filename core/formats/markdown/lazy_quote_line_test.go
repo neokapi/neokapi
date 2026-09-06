@@ -22,6 +22,7 @@ func TestLazyQuoteContinuationKeepsOneBlock(t *testing.T) {
 		{"lazy heading line", ">0\n#\\\n0", ">0\n\\#\n0\n"},
 		{"lazy table delimiter row", "><a>|a|a\n-|-", ">|a|a\n\\-|-\n"},
 		{"lazy setext bar", ">0\n0\n=", ">0\n0\n\\=\n"},
+		{"marked line opening a list", "0\n<a>>+ 0", ">0\n>\\+ 0\n"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

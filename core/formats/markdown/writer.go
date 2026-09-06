@@ -1306,15 +1306,16 @@ func escapeLazyQuoteLines(body string) string {
 	}
 	lines := strings.Split(body, "\n")
 	for i := 1; i < len(lines); i++ {
-		if blockquoteMarkerPrefix(lines[i]) != "" {
-			continue
-		}
-		lines[i] = escapeInterruptingBlockMarker(lines[i])
-		if isSetextBar(lines[i]) || isTableDelimiterRow(lines[i]) {
-			if j := firstBarChar(lines[i]); j >= 0 {
-				lines[i] = lines[i][:j] + "\\" + lines[i][j:]
+		// A marked line keeps its ">" and the escape applies to what follows
+		// it, which is the same block-content position the marker opens.
+		prefix := blockquoteMarkerPrefix(lines[i])
+		rest := escapeInterruptingBlockMarker(lines[i][len(prefix):])
+		if isSetextBar(rest) || isTableDelimiterRow(rest) {
+			if j := firstBarChar(rest); j >= 0 {
+				rest = rest[:j] + "\\" + rest[j:]
 			}
 		}
+		lines[i] = prefix + rest
 	}
 	return strings.Join(lines, "\n")
 }
@@ -1661,22 +1662,37 @@ func rawTextBlock(block *model.Block) bool {
 	return block.Type == "html-text" || block.Type == "html-block"
 }
 
-// continuationBlockquoteMarker returns the blockquote marker that begins the
-// first continuation line of text carrying one, or "" when text is single-line
-// or no continuation line is a blockquote line.
+// continuationBlockquoteMarker returns the blockquote marker a text's
+// continuation lines carry, or "" when text is single-line or any of them
+// carries none.
+//
+// Every line must be marked. A paragraph whose text merely holds a ">" line —
+// which is what the rebuild path leaves when it drops an inline construct that
+// occupied one — was re-marked as a quote, and the ">" it gained on its own
+// first line split it in two on the pass after (#2503's neighbour). A markdown
+// quote body carries the marker property instead, so this answers only for a
+// block that arrives from another format.
 func continuationBlockquoteMarker(text string) string {
+	marker := ""
 	for nl := strings.IndexByte(text, '\n'); nl >= 0; {
 		line := text[nl+1:]
-		if m := blockquoteMarkerPrefix(line); m != "" {
-			return m
+		if next := strings.IndexByte(line, '\n'); next >= 0 {
+			line = line[:next]
 		}
-		next := strings.IndexByte(line, '\n')
-		if next < 0 {
+		m := blockquoteMarkerPrefix(line)
+		if m == "" {
 			return ""
+		}
+		if marker == "" {
+			marker = m
+		}
+		next := strings.IndexByte(text[nl+1:], '\n')
+		if next < 0 {
+			break
 		}
 		nl += 1 + next
 	}
-	return ""
+	return marker
 }
 
 // blockquoteMarkerPrefix returns the whole blockquote marker sequence that
