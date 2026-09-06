@@ -116,6 +116,14 @@ entries:
     license: Apache-2.0
     redistributable: true
     notes: 'FuzzReadMarkdown seed for #2462 (a definition spread over several lines)'
+  - path: core/formats/markdown/testdata/fuzz/FuzzReadMarkdown/strikethrough_fences
+    tier: A
+    origin: bug
+    sha256: 43c09e9b979d5255875138ccc205b5da5bc3a26bdabd64b27dc4c9aa327e00be
+    size: 31
+    license: Apache-2.0
+    redistributable: true
+    notes: 'FuzzReadMarkdown seed for #2500 (an unbalanced strikethrough)'
   - path: core/formats/markdown/testdata/fuzz/FuzzReadMarkdown/unterminated_fence_at_eof
     tier: A
     origin: bug

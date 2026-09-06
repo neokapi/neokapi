@@ -18,20 +18,21 @@ import (
 // quiet one: a whole document can go opaque for one construct, and the only
 // symptom is a page still in its source language.
 //
-// The fixture is a strikethrough whose opening and closing tilde runs differ in
-// length: the reader spells the pair from the delimiter length the parser
-// reports rather than from the source bytes, so the rebuild has one tilde too
-// many (#2500). The task list, the hard break, the single-quoted title, the
-// underscore emphasis, the quoted link whose title wrapped and the code span
-// whose fence sat on the next line all sat here and reconstruct now, and the
-// note they carried holds for their replacement: these tests assert the
-// reporting, so the day this shape round-trips they will fail and the fixture
-// should become whatever still diverges.
+// The fixture is a link whose destination carries an unbalanced parenthesis:
+// the scan that replays the closer stops on it, so the closer is rebuilt from
+// the parser's resolved destination and the whitespace before the closing
+// parenthesis is gone (#2514). The task list, the hard break, the
+// single-quoted title, the underscore emphasis, the quoted link whose title
+// wrapped, the code span whose fence sat on the next line and the unbalanced
+// strikethrough all sat here and reconstruct now, and the note they carried
+// holds for their replacement: these tests assert the reporting, so the day
+// this shape round-trips they will fail and the fixture should become whatever
+// still diverges.
 //
 // A single-block span is the deliberate choice. Quarantine salvages a span by
 // isolating the blocks that failed, so a fixture with neighbours exercises that
 // path instead — which is what TestQuarantineKeepsTheOtherBlocks is for.
-const divergingSrc = "An unbalanced ~~strike~ here.\n"
+const divergingSrc = "A link [x](( ) inside a sentence.\n"
 
 func readAll(t *testing.T, src string) ([]*model.Block, []format.Diagnostic) {
 	t.Helper()
@@ -131,6 +132,12 @@ func TestKnownRoundTripDivergences(t *testing.T) {
 		{name: "code span closing in a list item", src: "- See ` code\n  ` here.\n"},
 		{name: "code span with a padded fence closing on the next line", src: "See `` ` a\n `` here.\n"},
 		{name: "code span with a trailing space before the break", src: "See `code \n` here.\n"},
+		// An unbalanced strikethrough was spelled from the parser's delimiter
+		// length, which claimed a tilde its neighbour carried.
+		{name: "strikethrough with a shorter closing run", src: "An unbalanced ~~strike~ here.\n"},
+		{name: "strikethrough with a shorter opening run", src: "An unbalanced ~strike~~ here.\n"},
+		{name: "single-tilde strikethrough", src: "A ~struck~ word here.\n"},
+		{name: "strikethrough around emphasis", src: "A ~*struck*~ word here.\n"},
 		// The controls: the same constructs without the wrapping code span.
 		// If these ever go opaque a fix above has over-reached.
 		{name: "plain wrapped blockquote", src: "> A quoted line that wraps onto\n> a second line here.\n"},

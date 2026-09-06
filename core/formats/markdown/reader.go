@@ -3847,33 +3847,81 @@ func strikethroughFences(node ast.Node, source []byte) (string, string) {
 	if first == nil || last == nil {
 		return "~~", "~~"
 	}
-	firstText, ok1 := first.(*ast.Text)
-	lastText, ok2 := last.(*ast.Text)
-	if !ok1 || !ok2 {
+	contentStart, ok1 := inlineContentStart(first, source)
+	contentEnd, ok2 := inlineNodeEnd(last, source)
+	if !ok1 || !ok2 || contentStart > len(source) || contentEnd > len(source) || contentStart > contentEnd {
 		return "~~", "~~"
 	}
-	contentStart := firstText.Segment.Start
-	contentEnd := lastText.Segment.Stop
-	if contentStart > len(source) || contentEnd > len(source) || contentStart > contentEnd {
-		return "~~", "~~"
-	}
+	// The tilde run before the content is the opener, bounded by what the
+	// previous sibling already spells: GFM lets a strikethrough open with one
+	// tilde or two, so a greedy walk over "~~a~" claimed the tilde the text run
+	// before it carries and the pair came back spelled three times (#2500).
 	openStart := contentStart
 	for openStart > 0 && source[openStart-1] == '~' {
 		openStart--
+	}
+	if prev := node.PreviousSibling(); prev != nil {
+		if end, ok := inlineNodeEnd(prev, source); ok && end > openStart && end <= contentStart {
+			openStart = end
+		}
 	}
 	closeEnd := contentEnd
 	for closeEnd < len(source) && source[closeEnd] == '~' {
 		closeEnd++
 	}
+	if next, ok := node.NextSibling().(*ast.Text); ok && next.Segment.Start >= contentEnd && next.Segment.Start < closeEnd {
+		closeEnd = next.Segment.Start
+	}
 	open := string(source[openStart:contentStart])
 	close := string(source[contentEnd:closeEnd])
+	// A sibling's segment can start ON the delimiter it follows, which leaves
+	// the bound with nothing between it and the content. One tilde is what sits
+	// there, and GFM spells a strikethrough with one or two.
 	if open == "" {
-		open = "~~"
+		open = tildeOrPair(source, contentStart-1)
 	}
 	if close == "" {
-		close = "~~"
+		close = tildeOrPair(source, contentEnd)
 	}
 	return open, close
+}
+
+// tildeOrPair returns "~" when source[i] is a tilde and "~~" otherwise.
+func tildeOrPair(source []byte, i int) string {
+	if i >= 0 && i < len(source) && source[i] == '~' {
+		return "~"
+	}
+	return "~~"
+}
+
+// inlineContentStart returns the offset where n's own spelling begins, walking
+// down to the first descendant that records a segment and stepping back over
+// the openers of the nodes between. It answers for a node whose first child is
+// itself markup, where inlineNodeStart would have to ask the parent and the
+// parent is the node whose opener is being resolved.
+func inlineContentStart(n ast.Node, source []byte) (int, bool) {
+	switch v := n.(type) {
+	case *ast.Text:
+		return v.Segment.Start, true
+	case *ast.RawHTML:
+		if v.Segments == nil || v.Segments.Len() == 0 {
+			return 0, false
+		}
+		return v.Segments.At(0).Start, true
+	}
+	first := n.FirstChild()
+	if first == nil {
+		return 0, false
+	}
+	start, ok := inlineContentStart(first, source)
+	if !ok {
+		return 0, false
+	}
+	opener, ok := inlineOpenerLen(n, source)
+	if !ok {
+		return 0, false
+	}
+	return start - opener, true
 }
 
 // --- Emit helper ---

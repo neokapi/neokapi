@@ -152,6 +152,11 @@ func FuzzReadMarkdown(f *testing.F) {
 	// testdata/fuzz.
 	f.Add([]byte("[](a '')"))
 	f.Add([]byte("text [x](a '') more\n"))
+	// #2500: GFM spells a strikethrough with one tilde or two, and a greedy
+	// walk over the tildes claimed one its neighbour carried. Also committed
+	// under testdata/fuzz.
+	f.Add([]byte("~~a~"))
+	f.Add([]byte("~*0*~"))
 	// #2481: a code span whose closing fence sits on the next line, whose break
 	// the parser's resolved content has already lost. Also committed under
 	// testdata/fuzz.
