@@ -31,13 +31,15 @@ func (s *Server) flowAIProvider(ctx context.Context, workspaceID, requestedModel
 	return prov, nil
 }
 
-// wireFlowAIProvider grants the flow runner the platform's AI provider, so a
-// flow's translate or review step calls the model the workspace is entitled
-// to. Called after the final Services instance exists, because wrapping the
-// content store for event emission rebuilds it.
+// wireFlowAIProvider grants the flow runner the platform's AI provider and the
+// accounting that goes with it, so a flow's translate or review step calls the
+// model the workspace is entitled to and spends what it burns. Called after
+// the final Services instance exists, because wrapping the content store for
+// event emission rebuilds it.
 func (s *Server) wireFlowAIProvider() {
 	if s.Services == nil || s.Services.Flow == nil {
 		return
 	}
 	s.Services.Flow.SetAIProviderResolver(s.flowAIProvider)
+	s.Services.Flow.SetAIAccountant(flowAIAccountant{srv: s})
 }

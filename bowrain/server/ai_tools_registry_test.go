@@ -108,7 +108,8 @@ func TestFlowRunnerIsGrantedThePlatformProvider(t *testing.T) {
 	srv.Services = service.NewServices(cs, srv.ConnectorReg, srv.FormatRegistry, srv.ToolRegistry)
 	srv.wireFlowAIProvider()
 
-	built, err := srv.Services.Flow.NewToolForProject(context.Background(), "p1", "translate", nil, "fr")
+	built, err := srv.Services.Flow.NewToolForRun(context.Background(),
+		srv.Services.Flow.BeginAIRun(context.Background(), "p1", ""), "translate", nil, "fr")
 	require.NoError(t, err)
 	require.Equal(t, "translate", built.Name())
 

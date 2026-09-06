@@ -78,6 +78,14 @@ const sampleEntries: CreditLedgerEntry[] = [
     referenceId: "job-mno77889",
     createdAt: new Date(now - 1 * hour).toISOString(),
   },
+  {
+    id: "9",
+    amount: -9_600,
+    balanceAfter: 700_600,
+    operation: "ai_flow_run",
+    referenceId: "proj-a1:run-pqr99001",
+    createdAt: new Date(now - 30 * 60 * 1000).toISOString(),
+  },
 ];
 
 /** The operations the server reports for the window, whatever the page holds. */
@@ -87,6 +95,7 @@ const windowOperations = [
   "bravo_message",
   "bravo_container",
   "ai_quality_check",
+  "ai_flow_run",
   "purchase",
   "grant",
 ];
