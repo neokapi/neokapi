@@ -11,7 +11,7 @@ import (
 )
 
 // captureParaProps captures paragraph properties as raw XML and extracts the pStyle value.
-func captureParaProps(d *xml.Decoder, start xml.StartElement) (string, string, error) {
+func captureParaProps(d *rawDecoder, start xml.StartElement) (string, string, error) {
 	raw, err := captureRawElement(d, start)
 	if err != nil {
 		return "", "", err
@@ -168,7 +168,7 @@ func paragraphHasDeletedMark(raw string) bool {
 	if !strings.Contains(raw, "<w:del") && !strings.Contains(raw, "<w:moveFrom") {
 		return false
 	}
-	dec := xml.NewDecoder(strings.NewReader(raw))
+	dec := newRawDecoderString(raw)
 	var depth int
 	// Path stack of element local names from the root <w:pPr>.
 	var path []string

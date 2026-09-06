@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
-	"github.com/neokapi/neokapi/core/internal/xmlesc"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/projection"
 )
@@ -86,12 +85,15 @@ func (p *smlParser) parsePart(data []byte, partPath string, emitBlock func(*mode
 
 // parseSharedStringsPart parses xl/sharedStrings.xml and emits blocks for each string.
 func (p *smlParser) parseSharedStringsPart(data []byte, partPath string, emitBlock func(*model.Block)) error {
-	d := xml.NewDecoder(bytes.NewReader(data))
+	d := newRawDecoder(data)
 
 	var inSI bool
 	var currentRuns []textRun
 	var currentProps runProps
 	siIndex := 0
+	// Where the current <si> element's content starts, so an item that holds
+	// no translatable text goes back as the source wrote it.
+	var siInnerOff int64
 
 	for {
 		tok, err := d.Token()
@@ -108,7 +110,8 @@ func (p *smlParser) parseSharedStringsPart(data []byte, partPath string, emitBlo
 			case "si":
 				inSI = true
 				currentRuns = nil
-				p.skelWriteStartElement(t)
+				p.skelWriteStartElement(d, t)
+				siInnerOff = d.EndOffset()
 
 			case "r":
 				if inSI {
@@ -120,7 +123,7 @@ func (p *smlParser) parseSharedStringsPart(data []byte, partPath string, emitBlo
 					currentProps = p.parseSMLRunProps(d)
 					continue
 				}
-				p.skelWriteStartElement(t)
+				p.skelWriteStartElement(d, t)
 
 			case "t":
 				if inSI {
@@ -131,11 +134,11 @@ func (p *smlParser) parseSharedStringsPart(data []byte, partPath string, emitBlo
 					currentRuns = append(currentRuns, textRun{text: text, props: currentProps})
 					continue
 				}
-				p.skelWriteStartElement(t)
+				p.skelWriteStartElement(d, t)
 
 			default:
 				if !inSI {
-					p.skelWriteStartElement(t)
+					p.skelWriteStartElement(d, t)
 				}
 			}
 
@@ -150,9 +153,10 @@ func (p *smlParser) parseSharedStringsPart(data []byte, partPath string, emitBlo
 					block := p.buildBlock(blockID, merged, partPath, siIndex)
 					emitBlock(block)
 				} else {
-					p.skelWriteString(p.renderSI(currentRuns))
+					// Nothing translatable in this item: replay its content.
+					p.skelWriteString(d.UptoString(siInnerOff))
 				}
-				p.skelWriteEndElement(t)
+				p.skelWriteEndElement(d)
 				inSI = false
 				siIndex++
 
@@ -161,24 +165,24 @@ func (p *smlParser) parseSharedStringsPart(data []byte, partPath string, emitBlo
 
 			default:
 				if !inSI {
-					p.skelWriteEndElement(t)
+					p.skelWriteEndElement(d)
 				}
 			}
 
 		case xml.CharData:
 			if !inSI {
-				p.skelText(xmlesc.Text(string(t)))
+				p.skelRaw(d)
 			}
 
 		case xml.ProcInst:
-			p.skelText("<?" + t.Target + " " + string(t.Inst) + "?>")
+			p.skelRaw(d)
 		}
 	}
 	return nil
 }
 
 // parseSMLRunProps parses run properties inside shared string rich text <rPr>.
-func (p *smlParser) parseSMLRunProps(d *xml.Decoder) runProps {
+func (p *smlParser) parseSMLRunProps(d *rawDecoder) runProps {
 	var props runProps
 	depth := 1
 	for depth > 0 {
@@ -211,7 +215,7 @@ func (p *smlParser) parseSMLRunProps(d *xml.Decoder) runProps {
 // parseWorksheet parses a buffered worksheet XML part.
 func (p *smlParser) parseWorksheet(data []byte, partPath string, emitBlock func(*model.Block)) error {
 	merges, width := scanWorksheet(bytes.NewReader(data))
-	return p.parseWorksheetFrom(xml.NewDecoder(bytes.NewReader(data)), merges, width, partPath, emitBlock)
+	return p.parseWorksheetFrom(newRawDecoder(data), merges, width, partPath, emitBlock)
 }
 
 // parseWorksheetStream parses a worksheet straight from its zip entry, which
@@ -236,7 +240,7 @@ func (p *smlParser) parseWorksheetStream(open func() (io.ReadCloser, error), par
 		return err
 	}
 	defer parse.Close()
-	return p.parseWorksheetFrom(xml.NewDecoder(parse), merges, width, partPath, emitBlock)
+	return p.parseWorksheetFrom(newRawDecoderStream(parse), merges, width, partPath, emitBlock)
 }
 
 // scanWorksheet reads a worksheet once for the two facts the parse pass needs
@@ -246,7 +250,7 @@ func (p *smlParser) parseWorksheetStream(open func() (io.ReadCloser, error), par
 func scanWorksheet(r io.Reader) (map[string]mergeSpan, int) {
 	merges := map[string]mergeSpan{}
 	width := 0
-	d := xml.NewDecoder(r)
+	d := newRawDecoderStream(r)
 	for {
 		tok, err := d.Token()
 		if err != nil {
@@ -269,7 +273,7 @@ func scanWorksheet(r io.Reader) (map[string]mergeSpan, int) {
 
 // parseWorksheetFrom emits blocks for a worksheet's cells, given the merged
 // spans and grid width its scan pass established.
-func (p *smlParser) parseWorksheetFrom(d *xml.Decoder, merges map[string]mergeSpan, width int,
+func (p *smlParser) parseWorksheetFrom(d *rawDecoder, merges map[string]mergeSpan, width int,
 	partPath string, emitBlock func(*model.Block)) error {
 
 	p.emitSheetHeading(partPath, emitBlock)
@@ -294,9 +298,16 @@ func (p *smlParser) parseWorksheetFrom(d *xml.Decoder, merges map[string]mergeSp
 	var cellType, cellRef, cellStyle string
 	var cellText strings.Builder
 	var hasFormula bool  // the current cell contains a <f> element
-	var hasValueEl bool  // the current cell contains a <v> element
 	var inlineRaw string // the current cell's <is> element, verbatim
 	var inlineRuns []textRun
+	// A cell is held back until its </c>: only then is it known whether its
+	// text is translatable. A cell that is not goes back as the source wrote
+	// it, from cellOff; one that is keeps its own start tag plus whatever
+	// non-value children were captured along the way, with a ref in place of
+	// the text.
+	var cellOff int64
+	var cellStartRaw string
+	var cellChildren strings.Builder
 
 	for {
 		tok, err := d.Token()
@@ -312,7 +323,7 @@ func (p *smlParser) parseWorksheetFrom(d *xml.Decoder, merges map[string]mergeSp
 			switch t.Name.Local {
 			case "row":
 				inRow = true
-				p.skelWriteStartElement(t)
+				p.skelWriteStartElement(d, t)
 
 			case "c":
 				if inRow {
@@ -322,18 +333,20 @@ func (p *smlParser) parseWorksheetFrom(d *xml.Decoder, merges map[string]mergeSp
 					cellStyle = attrVal(t, "s")
 					cellText.Reset()
 					hasFormula = false
-					hasValueEl = false
 					inlineRaw = ""
 					inlineRuns = nil
-					p.skelWriteStartElement(t)
+					cellOff = d.Offset()
+					d.Pin(cellOff)
+					registerNamespaces(t.Attr)
+					cellStartRaw = d.RawString()
+					cellChildren.Reset()
 				}
 
 			case "v":
 				if inCell {
 					inValue = true
-					hasValueEl = true
 				} else {
-					p.skelWriteStartElement(t)
+					p.skelWriteStartElement(d, t)
 				}
 
 			case "is":
@@ -347,34 +360,34 @@ func (p *smlParser) parseWorksheetFrom(d *xml.Decoder, merges map[string]mergeSp
 					cellText.WriteString(rstText(runs))
 					continue
 				}
-				p.skelWriteStartElement(t)
+				p.skelWriteStartElement(d, t)
 
 			case "f":
 				if inCell {
-					// Capture the formula element and write it to skeleton verbatim.
+					// Capture the formula element and hold it with the cell.
 					hasFormula = true
 					raw, err := captureRawElement(d, t)
 					if err != nil {
 						return err
 					}
-					p.skelWriteString(raw)
+					cellChildren.WriteString(raw)
 					continue
 				}
-				p.skelWriteStartElement(t)
+				p.skelWriteStartElement(d, t)
 
 			case "sheetData", "worksheet":
-				p.skelWriteStartElement(t)
+				p.skelWriteStartElement(d, t)
 
 			default:
 				if !inCell {
-					p.skelWriteStartElement(t)
+					p.skelWriteStartElement(d, t)
 				} else {
-					// Unknown child of <c>: capture and write to skeleton unchanged.
+					// Unknown child of <c>: capture it and hold it with the cell.
 					raw, err := captureRawElement(d, t)
 					if err != nil {
 						return err
 					}
-					p.skelWriteString(raw)
+					cellChildren.WriteString(raw)
 				}
 			}
 
@@ -385,7 +398,7 @@ func (p *smlParser) parseWorksheetFrom(d *xml.Decoder, merges map[string]mergeSp
 					inValue = false
 					continue
 				}
-				p.skelWriteEndElement(t)
+				p.skelWriteEndElement(d)
 
 			case "c":
 				if inCell {
@@ -426,6 +439,8 @@ func (p *smlParser) parseWorksheetFrom(d *xml.Decoder, merges map[string]mergeSp
 						openRow()
 						*p.blockCounter++
 						blockID := fmt.Sprintf("tu%d", *p.blockCounter)
+						p.skelWriteString(cellStartRaw)
+						p.skelWriteString(cellChildren.String())
 						p.skelRef(blockID)
 
 						props := map[string]string{"partPath": partPath, "cell": cellRef}
@@ -463,16 +478,10 @@ func (p *smlParser) parseWorksheetFrom(d *xml.Decoder, merges map[string]mergeSp
 						markGridCell(block, cellRef, p.emitPart != nil)
 						emitBlock(block)
 					} else {
-						switch {
-						case inlineRaw != "":
-							// Whitespace-only or formula-backed inline string: the
-							// element goes back exactly as it was read.
-							p.skelWriteString(inlineRaw)
-						case hasValueEl:
-							p.skelWriteString("<v>")
-							p.skelText(xmlesc.Text(cellText.String()))
-							p.skelWriteString("</v>")
-						}
+						// Nothing in the cell is translated, so it goes back
+						// exactly as it was read: self-closing form, child
+						// order, whitespace and escaping included.
+						p.skelWriteString(d.FromString(cellOff))
 						// A shared-string or value cell carries no translatable text of
 						// its own (a shared string is deduplicated in sharedStrings.xml;
 						// a number/formula result is not translated), but it does occupy
@@ -494,28 +503,32 @@ func (p *smlParser) parseWorksheetFrom(d *xml.Decoder, merges map[string]mergeSp
 						}
 					}
 
-					p.skelWriteEndElement(t)
+					if translatable && strings.TrimSpace(text) != "" {
+						p.skelWriteEndElement(d)
+					}
+					d.Unpin()
 					inCell = false
 					cellType = ""
 					cellRef = ""
 					cellStyle = ""
+					cellStartRaw = ""
+					cellChildren.Reset()
 					hasFormula = false
-					hasValueEl = false
 					inlineRaw = ""
 					inlineRuns = nil
 				} else {
-					p.skelWriteEndElement(t)
+					p.skelWriteEndElement(d)
 				}
 
 			case "row":
 				inRow = false
-				p.skelWriteEndElement(t)
+				p.skelWriteEndElement(d)
 				p.closeGroup(rowID)
 				rowID = ""
 
 			default:
 				if !inCell {
-					p.skelWriteEndElement(t)
+					p.skelWriteEndElement(d)
 				}
 			}
 
@@ -523,11 +536,11 @@ func (p *smlParser) parseWorksheetFrom(d *xml.Decoder, merges map[string]mergeSp
 			if inValue && inCell {
 				cellText.Write(t)
 			} else if !inCell {
-				p.skelText(xmlesc.Text(string(t)))
+				p.skelRaw(d)
 			}
 
 		case xml.ProcInst:
-			p.skelText("<?" + t.Target + " " + string(t.Inst) + "?>")
+			p.skelRaw(d)
 		}
 	}
 	return nil
@@ -814,7 +827,7 @@ const (
 // parseInlineString reads an inline string element <is>, returning the element
 // verbatim and the rich text runs it holds. <is> carries CT_Rst, the content
 // model sharedStrings.xml uses for <si>, so its runs parse the same way.
-func (p *smlParser) parseInlineString(d *xml.Decoder, start xml.StartElement) (raw string, runs []textRun, err error) {
+func (p *smlParser) parseInlineString(d *rawDecoder, start xml.StartElement) (raw string, runs []textRun, err error) {
 	raw, err = captureRawElement(d, start)
 	if err != nil {
 		return "", nil, err
@@ -825,7 +838,7 @@ func (p *smlParser) parseInlineString(d *xml.Decoder, start xml.StartElement) (r
 // parseRst reads the text runs of a CT_Rst element (<si> or <is>): either a
 // single <t>, or a sequence of <r> elements each with its own <rPr>.
 func (p *smlParser) parseRst(raw string) []textRun {
-	d := xml.NewDecoder(strings.NewReader(raw))
+	d := newRawDecoderString(raw)
 	var runs []textRun
 	var props runProps
 
@@ -861,17 +874,6 @@ func rstText(runs []textRun) string {
 		b.WriteString(r.text)
 	}
 	return b.String()
-}
-
-// renderSI renders an empty shared string item for skeleton output.
-func (p *smlParser) renderSI(runs []textRun) string {
-	var buf strings.Builder
-	for _, r := range runs {
-		buf.WriteString("<t>")
-		buf.WriteString(xmlesc.Text(r.text))
-		buf.WriteString("</t>")
-	}
-	return buf.String()
 }
 
 // rstModelRuns converts a CT_Rst element's text runs into model runs, opening
@@ -925,7 +927,7 @@ func (p *smlParser) buildBlock(id string, runs []textRun, partPath string, siInd
 // names to match the header row cell values; without updating them after
 // translating shared strings, the file is reported as corrupted.
 func (p *smlParser) parseTable(data []byte, partPath string, emitBlock func(*model.Block)) error {
-	d := xml.NewDecoder(bytes.NewReader(data))
+	d := newRawDecoder(data)
 
 	for {
 		tok, err := d.Token()
@@ -939,27 +941,29 @@ func (p *smlParser) parseTable(data []byte, partPath string, emitBlock func(*mod
 		switch t := tok.(type) {
 		case xml.StartElement:
 			if t.Name.Local == "tableColumn" {
-				p.skelWriteTableColumn(t, partPath, emitBlock)
+				p.skelWriteTableColumn(d, t, partPath, emitBlock)
 				continue
 			}
-			p.skelWriteStartElement(t)
+			p.skelWriteStartElement(d, t)
 
 		case xml.EndElement:
-			p.skelWriteEndElement(t)
+			p.skelWriteEndElement(d)
 
 		case xml.CharData:
-			p.skelText(xmlesc.Text(string(t)))
+			p.skelRaw(d)
 
 		case xml.ProcInst:
-			p.skelText("<?" + t.Target + " " + string(t.Inst) + "?>")
+			p.skelRaw(d)
 		}
 	}
 	return nil
 }
 
 // skelWriteTableColumn writes a <tableColumn> element to the skeleton,
-// extracting the "name" attribute as a translatable block.
-func (p *smlParser) skelWriteTableColumn(t xml.StartElement, partPath string, emitBlock func(*model.Block)) {
+// extracting the "name" attribute as a translatable block. Every byte of the
+// element other than the name value is replayed from the source, so the
+// element keeps its self-closing form, its attribute order and its quoting.
+func (p *smlParser) skelWriteTableColumn(d *rawDecoder, t xml.StartElement, partPath string, emitBlock func(*model.Block)) {
 	registerNamespaces(t.Attr)
 
 	var nameVal string
@@ -975,10 +979,26 @@ func (p *smlParser) skelWriteTableColumn(t xml.StartElement, partPath string, em
 		}
 	}
 
+	raw := d.Raw()
+	valStart, valEnd, spanOK := 0, 0, false
+	if nameIdx >= 0 {
+		valStart, valEnd, spanOK = rawAttrValueSpan(raw, nameIdx)
+	}
+
 	if nameIdx < 0 || strings.TrimSpace(nameVal) == "" {
-		// No translatable name — write element unchanged
-		p.skelWriteStartElement(t)
+		// No translatable name — write the element unchanged.
+		p.skelWriteStartElement(d, t)
 		return
+	}
+	if p.skeletonStore != nil && !spanOK {
+		// A start tag whose attribute list will not parse byte for byte
+		// leaves nowhere to put the ref, and a block whose ref never
+		// reaches the skeleton cannot be written back. Pass it through.
+		p.skelWriteStartElement(d, t)
+		return
+	}
+	if p.skeletonStore == nil {
+		p.skelWriteStartElement(d, t)
 	}
 
 	*p.blockCounter++
@@ -994,54 +1014,13 @@ func (p *smlParser) skelWriteTableColumn(t xml.StartElement, partPath string, em
 	}
 	blockName := model.StructuralPath(append(strings.Split(partPath, "/"), step, "@name")...)
 
-	// Write the element with a skeleton ref in place of the name value
-	if p.skeletonStore != nil {
-		var buf strings.Builder
-		buf.WriteString("<")
-		writeElementName(&buf, t.Name)
-		for i, a := range t.Attr {
-			buf.WriteString(" ")
-			writeAttrName(&buf, a.Name)
-			buf.WriteString(`="`)
-			if i == nameIdx {
-				// Flush text before the ref, write ref, then continue
-				buf2 := buf.String()
-				p.skelBuf.WriteString(buf2)
-				p.skelRef(blockID)
-				p.skelWriteString(`"`)
-				// Write remaining attributes
-				for _, a2 := range t.Attr[i+1:] {
-					p.skelWriteString(" ")
-					var ab strings.Builder
-					writeAttrName(&ab, a2.Name)
-					p.skelWriteString(ab.String())
-					p.skelWriteString(`="`)
-					p.skelWriteString(xmlesc.Attr(a2.Value))
-					p.skelWriteString(`"`)
-				}
-				p.skelWriteString(">")
-
-				block := &model.Block{
-					ID:           blockID,
-					Name:         blockName,
-					Type:         "table-column",
-					Translatable: true,
-					Source:       []model.Run{{Text: &model.TextRun{Text: nameVal}}},
-					Targets:      make(map[model.VariantKey]*model.Target),
-					Properties:   map[string]string{"partPath": partPath},
-				}
-				emitBlock(block)
-				return
-			}
-			buf.WriteString(xmlesc.Attr(a.Value))
-			buf.WriteString(`"`)
-		}
+	if spanOK && p.skeletonStore != nil {
+		p.skelBuf.Write(raw[:valStart])
+		p.skelRef(blockID)
+		p.skelBuf.Write(raw[valEnd:])
 	}
 
-	// Fallback when no skeleton store: just write the element normally
-	p.skelWriteStartElement(t)
-
-	block := &model.Block{
+	emitBlock(&model.Block{
 		ID:           blockID,
 		Name:         blockName,
 		Type:         "table-column",
@@ -1049,8 +1028,7 @@ func (p *smlParser) skelWriteTableColumn(t xml.StartElement, partPath string, em
 		Source:       []model.Run{{Text: &model.TextRun{Text: nameVal}}},
 		Targets:      make(map[model.VariantKey]*model.Target),
 		Properties:   map[string]string{"partPath": partPath},
-	}
-	emitBlock(block)
+	})
 }
 
 // emitXLSXCommentData scans an Excel comment part (xl/comments*.xml) for
@@ -1061,7 +1039,7 @@ func (p *smlParser) skelWriteTableColumn(t xml.StartElement, partPath string, em
 // round-trip. Best-effort: a malformed part yields no Data rather than failing
 // the read.
 func emitXLSXCommentData(data []byte, emitData func(name, text, ref string)) {
-	d := xml.NewDecoder(bytes.NewReader(data))
+	d := newRawDecoder(data)
 	var inComment bool
 	var ref string
 	for {
@@ -1098,7 +1076,7 @@ func emitXLSXCommentData(data []byte, emitData func(name, text, ref string)) {
 // collectXLSXTextBody reads from just after a <text> start element to its
 // matching close, concatenating the character data of every nested <t> run.
 // Mirrors parseInlineString's <t>-gathering for rich-text cell strings.
-func collectXLSXTextBody(d *xml.Decoder) string {
+func collectXLSXTextBody(d *rawDecoder) string {
 	var text strings.Builder
 	depth := 1
 	var inT bool
@@ -1129,12 +1107,6 @@ func collectXLSXTextBody(d *xml.Decoder) string {
 
 // Skeleton helpers
 
-func (p *smlParser) skelText(s string) {
-	if p.skeletonStore != nil {
-		p.skelBuf.WriteString(s)
-	}
-}
-
 func (p *smlParser) skelRef(id string) {
 	if p.skeletonStore != nil {
 		if p.skelBuf.Len() > 0 {
@@ -1152,34 +1124,28 @@ func (p *smlParser) skelFlush() {
 	}
 }
 
-func (p *smlParser) skelWriteStartElement(t xml.StartElement) {
+// skelRaw appends the source bytes of the token the decoder last returned.
+func (p *smlParser) skelRaw(d *rawDecoder) {
+	if p.skeletonStore != nil {
+		p.skelBuf.Write(d.Raw())
+	}
+}
+
+func (p *smlParser) skelWriteStartElement(d *rawDecoder, t xml.StartElement) {
 	if p.skeletonStore == nil {
 		return
 	}
 	registerNamespaces(t.Attr)
-	var buf strings.Builder
-	buf.WriteString("<")
-	writeElementName(&buf, t.Name)
-	for _, a := range t.Attr {
-		buf.WriteString(" ")
-		writeAttrName(&buf, a.Name)
-		buf.WriteString(`="`)
-		buf.WriteString(xmlesc.Attr(a.Value))
-		buf.WriteString(`"`)
-	}
-	buf.WriteString(">")
-	p.skelBuf.WriteString(buf.String())
+	p.skelBuf.Write(d.Raw())
 }
 
-func (p *smlParser) skelWriteEndElement(t xml.EndElement) {
+// skelWriteEndElement appends an end tag. A self-closing element's synthetic end
+// carries no source bytes, so its `/>` came through with the start element.
+func (p *smlParser) skelWriteEndElement(d *rawDecoder) {
 	if p.skeletonStore == nil {
 		return
 	}
-	var buf strings.Builder
-	buf.WriteString("</")
-	writeElementName(&buf, t.Name)
-	buf.WriteString(">")
-	p.skelBuf.WriteString(buf.String())
+	p.skelBuf.Write(d.Raw())
 }
 
 func (p *smlParser) skelWriteString(s string) {

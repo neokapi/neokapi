@@ -16,7 +16,6 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
-	"github.com/neokapi/neokapi/core/internal/xmlesc"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/safeio"
 )
@@ -682,7 +681,7 @@ func parseCoreProperties(data []byte, partPath string, blockCounter *int, emitBl
 	if len(data) >= 3 && data[0] == 0xEF && data[1] == 0xBB && data[2] == 0xBF {
 		data = data[3:]
 	}
-	d := xml.NewDecoder(bytes.NewReader(data))
+	d := newRawDecoder(data)
 
 	// Translatable Dublin Core / OPC core-properties elements. Mirrors
 	// okapi's wordDocPropertiesConfiguration.yml (lines 41-60 of okapi/
@@ -704,7 +703,7 @@ func parseCoreProperties(data []byte, partPath string, blockCounter *int, emitBl
 
 	var inTranslatable bool
 	var currentElement string
-	var currentStart xml.StartElement
+	var currentStartRaw string // the translatable element's own source bytes
 	var startOffsetAfter int64 // d.InputOffset() right after the StartElement token
 	var textBuf strings.Builder
 
@@ -743,17 +742,19 @@ func parseCoreProperties(data []byte, partPath string, blockCounter *int, emitBl
 			if translatableElements[t.Name.Local] {
 				inTranslatable = true
 				currentElement = t.Name.Local
-				currentStart = t
+				registerNamespaces(t.Attr)
+				currentStartRaw = d.RawString()
 				startOffsetAfter = curOffset
+				d.Pin(curOffset)
 				textBuf.Reset()
 			} else {
-				p.skelWriteStartElement(t)
+				p.skelWriteStartElement(d, t)
 			}
 		case xml.CharData:
 			if inTranslatable {
 				textBuf.Write(t)
 			} else {
-				p.skelText(xmlesc.Text(string(t)))
+				p.skelRaw(d)
 			}
 		case xml.EndElement:
 			if inTranslatable && t.Name.Local == currentElement {
@@ -762,9 +763,9 @@ func parseCoreProperties(data []byte, partPath string, blockCounter *int, emitBl
 					*blockCounter++
 					blockID := fmt.Sprintf("tu%d", *blockCounter)
 					// Skeleton: write element open, ref, element close
-					p.skelWriteStartElement(currentStart)
+					p.skelText(currentStartRaw)
 					p.skelRef(blockID)
-					p.skelWriteEndElement(t)
+					p.skelWriteEndElement(d)
 
 					block := &model.Block{
 						ID: blockID,
@@ -798,18 +799,21 @@ func parseCoreProperties(data []byte, partPath string, blockCounter *int, emitBl
 					selfClosing := curOffset == prevOffset && startOffsetAfter == prevOffset
 					if selfClosing {
 						pendingSelfClosing.Reset()
-						writeStartElementToBuilder(&pendingSelfClosing, currentStart)
-						writeEndElementToBuilder(&pendingSelfClosing, t)
+						pendingSelfClosing.WriteString(currentStartRaw)
 						hasPending = true
 					} else {
 						// Explicit open/close form — upstream Okapi
 						// preserves it via handleEndTag's
 						// TEXT_UNIT_ELEMENT case (ContentFilter.java
-						// lines 386-394).
-						p.skelWriteStartElement(currentStart)
-						p.skelWriteEndElement(t)
+						// lines 386-394). Nothing was extracted, so the
+						// element's content is replayed: a property holding
+						// only whitespace keeps it.
+						p.skelText(currentStartRaw)
+						p.skelText(d.UptoString(startOffsetAfter))
+						p.skelWriteEndElement(d)
 					}
 				}
+				d.Unpin()
 				inTranslatable = false
 				currentElement = ""
 			} else {
@@ -824,11 +828,13 @@ func parseCoreProperties(data []byte, partPath string, blockCounter *int, emitBl
 				if t.Name.Local != "coreProperties" {
 					flushPending()
 				}
-				p.skelWriteEndElement(t)
+				p.skelWriteEndElement(d)
 			}
 		case xml.ProcInst:
 			flushPending()
-			p.skelText("<?" + t.Target + " " + string(t.Inst) + "?>")
+			p.skelRaw(d)
+		default:
+			p.skelRaw(d)
 		}
 		prevOffset = curOffset
 	}
@@ -836,32 +842,6 @@ func parseCoreProperties(data []byte, partPath string, blockCounter *int, emitBl
 	// intentionally discarded here, matching okapi's drop of the
 	// trailing self-closing TEXTUNIT element.
 	p.skelFlush()
-}
-
-// writeStartElementToBuilder serializes an xml.StartElement to buf,
-// mirroring corePropsParser.skelWriteStartElement but writing to an
-// arbitrary strings.Builder. Used to hold "pending self-closing empty
-// translatable" skeleton bytes that may be discarded later.
-func writeStartElementToBuilder(buf *strings.Builder, t xml.StartElement) {
-	registerNamespaces(t.Attr)
-	buf.WriteString("<")
-	writeElementName(buf, t.Name)
-	for _, a := range t.Attr {
-		buf.WriteString(" ")
-		writeAttrName(buf, a.Name)
-		buf.WriteString(`="`)
-		buf.WriteString(xmlesc.Attr(a.Value))
-		buf.WriteString(`"`)
-	}
-	buf.WriteString(">")
-}
-
-// writeEndElementToBuilder serializes an xml.EndElement to buf,
-// mirroring corePropsParser.skelWriteEndElement.
-func writeEndElementToBuilder(buf *strings.Builder, t xml.EndElement) {
-	buf.WriteString("</")
-	writeElementName(buf, t.Name)
-	buf.WriteString(">")
 }
 
 func (p *corePropsParser) skelText(s string) {
@@ -887,34 +867,29 @@ func (p *corePropsParser) skelFlush() {
 	}
 }
 
-func (p *corePropsParser) skelWriteStartElement(t xml.StartElement) {
+// skelRaw appends the source bytes of the token the decoder last returned.
+func (p *corePropsParser) skelRaw(d *rawDecoder) {
+	if p.skeletonStore == nil {
+		return
+	}
+	p.skelBuf.Write(d.Raw())
+}
+
+func (p *corePropsParser) skelWriteStartElement(d *rawDecoder, t xml.StartElement) {
 	if p.skeletonStore == nil {
 		return
 	}
 	registerNamespaces(t.Attr)
-	var buf strings.Builder
-	buf.WriteString("<")
-	writeElementName(&buf, t.Name)
-	for _, a := range t.Attr {
-		buf.WriteString(" ")
-		writeAttrName(&buf, a.Name)
-		buf.WriteString(`="`)
-		buf.WriteString(xmlesc.Attr(a.Value))
-		buf.WriteString(`"`)
-	}
-	buf.WriteString(">")
-	p.skelBuf.WriteString(buf.String())
+	p.skelBuf.Write(d.Raw())
 }
 
-func (p *corePropsParser) skelWriteEndElement(t xml.EndElement) {
+// skelWriteEndElement appends an end tag. A self-closing element's synthetic end
+// carries no source bytes, so its `/>` came through with the start element.
+func (p *corePropsParser) skelWriteEndElement(d *rawDecoder) {
 	if p.skeletonStore == nil {
 		return
 	}
-	var buf strings.Builder
-	buf.WriteString("</")
-	writeElementName(&buf, t.Name)
-	buf.WriteString(">")
-	p.skelBuf.WriteString(buf.String())
+	p.skelBuf.Write(d.Raw())
 }
 
 // lastIndex returns the index of the last occurrence of sep in s, or -1.

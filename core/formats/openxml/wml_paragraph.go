@@ -13,7 +13,7 @@ import (
 )
 
 // parseParagraph parses a <w:p> element and emits a Block if it contains text.
-func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock func(*model.Block)) error {
+func (p *wmlParser) parseParagraph(d *rawDecoder, partPath string, emitBlock func(*model.Block)) error {
 	// Reset per-paragraph style-chain context. parseRunPropsFromRaw
 	// consults p.currentStyleChainNames during minifyRPrChildren —
 	// see the field declaration on wmlParser for the upstream-Okapi
@@ -1363,7 +1363,7 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 // Nested <w:del>/<w:moveFrom> inside the wrapper are skipped (their
 // content is "deletion-of-an-insertion", which auto-accept treats as
 // removal — same end state as if the deletion was direct).
-func (p *wmlParser) parseRevisionInsertion(d *xml.Decoder, wrapperName string, runs *[]textRun, cfs *complexFieldState, wrapperStart xml.StartElement) error {
+func (p *wmlParser) parseRevisionInsertion(d *rawDecoder, wrapperName string, runs *[]textRun, cfs *complexFieldState, wrapperStart xml.StartElement) error {
 	// Strict OOXML preservation: when the wrapper sits in the strict
 	// WordprocessingML namespace, upstream Okapi's
 	// SkippableElement.RevisionInline (RUN_INSERTED_CONTENT /
@@ -1462,7 +1462,7 @@ func (p *wmlParser) parseRevisionInsertion(d *xml.Decoder, wrapperName string, r
 // (including any namespace declarations and attributes) produced by
 // the caller via startElementToRaw. It is paired with the literal
 // "</w:smartTag>" close tag in the close sentinel.
-func (p *wmlParser) parseSmartTag(d *xml.Decoder, runs *[]textRun, cfs *complexFieldState, rawStart string) error {
+func (p *wmlParser) parseSmartTag(d *rawDecoder, runs *[]textRun, cfs *complexFieldState, rawStart string) error {
 	*runs = append(*runs, textRun{text: ":" + rawStart, props: runProps{}})
 	for {
 		tok, err := d.Token()

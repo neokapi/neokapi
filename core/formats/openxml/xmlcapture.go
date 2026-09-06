@@ -51,7 +51,7 @@ func startElementToRaw(start xml.StartElement) string {
 }
 
 // readCharData reads character data content of a simple element and consumes its end tag.
-func readCharData(d *xml.Decoder) (string, error) {
+func readCharData(d *rawDecoder) (string, error) {
 	var text strings.Builder
 	for {
 		tok, err := d.Token()
@@ -72,19 +72,14 @@ func readCharData(d *xml.Decoder) (string, error) {
 	}
 }
 
-// captureRawElement captures an entire element (start to end) as raw XML.
-func captureRawElement(d *xml.Decoder, start xml.StartElement) (string, error) {
-	var buf strings.Builder
-	buf.WriteString("<")
-	writeElementName(&buf, start.Name)
-	for _, a := range start.Attr {
-		buf.WriteString(" ")
-		writeAttrName(&buf, a.Name)
-		buf.WriteString(`="`)
-		buf.WriteString(xmlesc.Attr(a.Value))
-		buf.WriteString(`"`)
-	}
-	buf.WriteString(">")
+// captureRawElement captures an entire element (start to end) as raw XML. The
+// bytes come from the part, so the subtree goes back in the form it was written:
+// self-closing elements stay self-closing, line endings and attribute quoting
+// survive, and a CDATA section stays a CDATA section.
+func captureRawElement(d *rawDecoder, start xml.StartElement) (string, error) {
+	off := d.Offset()
+	d.Pin(off)
+	defer d.Unpin()
 
 	depth := 1
 	for depth > 0 {
@@ -92,33 +87,14 @@ func captureRawElement(d *xml.Decoder, start xml.StartElement) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		switch t := tok.(type) {
+		switch tok.(type) {
 		case xml.StartElement:
 			depth++
-			buf.WriteString("<")
-			writeElementName(&buf, t.Name)
-			for _, a := range t.Attr {
-				buf.WriteString(" ")
-				writeAttrName(&buf, a.Name)
-				buf.WriteString(`="`)
-				buf.WriteString(xmlesc.Attr(a.Value))
-				buf.WriteString(`"`)
-			}
-			buf.WriteString(">")
 		case xml.EndElement:
 			depth--
-			buf.WriteString("</")
-			writeElementName(&buf, t.Name)
-			buf.WriteString(">")
-		case xml.CharData:
-			buf.WriteString(xmlesc.Text(string(t)))
-		case xml.Comment:
-			buf.WriteString("<!--")
-			buf.Write(t)
-			buf.WriteString("-->")
 		}
 	}
-	return buf.String(), nil
+	return d.FromString(off), nil
 }
 
 // captureAlternateContent serializes an <mc:AlternateContent> element,
@@ -139,18 +115,9 @@ func captureRawElement(d *xml.Decoder, start xml.StartElement) (string, error) {
 // child Choice/Fallback names are matched by local-name regardless of
 // prefix so documents that bind the markup-compatibility namespace to
 // a non-default prefix still work.
-func captureAlternateContent(d *xml.Decoder, start xml.StartElement) (string, error) {
+func captureAlternateContent(d *rawDecoder, start xml.StartElement) (string, error) {
 	var buf strings.Builder
-	buf.WriteString("<")
-	writeElementName(&buf, start.Name)
-	for _, a := range start.Attr {
-		buf.WriteString(" ")
-		writeAttrName(&buf, a.Name)
-		buf.WriteString(`="`)
-		buf.WriteString(xmlesc.Attr(a.Value))
-		buf.WriteString(`"`)
-	}
-	buf.WriteString(">")
+	buf.Write(d.Raw())
 
 	for {
 		tok, err := d.Token()
@@ -168,24 +135,17 @@ func captureAlternateContent(d *xml.Decoder, start xml.StartElement) (string, er
 				if err := skipElement(d); err != nil {
 					return "", err
 				}
-			case "Choice":
-				// Keep the Choice element verbatim, including its
-				// Requires attribute and full subtree. Per the MCE
-				// spec a Choice consumer MAY select the first
+			default:
+				// Keep every other child verbatim, including a
+				// Choice's Requires attribute and full subtree. Per
+				// the MCE spec a Choice consumer MAY select the first
 				// supported Choice — Okapi simply preserves every
 				// Choice and lets the rendering pipeline decide,
 				// which is byte-faithful to the source for any
 				// document that already had its wrapper survive a
-				// Word save/load round-trip.
-				raw, err := captureRawElement(d, t)
-				if err != nil {
-					return "", err
-				}
-				buf.WriteString(raw)
-			default:
-				// Defensive: unknown child of mc:AlternateContent
-				// (the schema only allows Choice and Fallback).
-				// Preserve it verbatim so unusual documents don't
+				// Word save/load round-trip. The schema allows only
+				// Choice and Fallback here; anything else is
+				// preserved defensively so unusual documents do not
 				// regress silently.
 				raw, err := captureRawElement(d, t)
 				if err != nil {
@@ -194,23 +154,12 @@ func captureAlternateContent(d *xml.Decoder, start xml.StartElement) (string, er
 				buf.WriteString(raw)
 			}
 		case xml.EndElement:
+			buf.Write(d.Raw())
 			if t.Name.Local == start.Name.Local {
-				buf.WriteString("</")
-				writeElementName(&buf, t.Name)
-				buf.WriteString(">")
 				return buf.String(), nil
 			}
-			// Should not happen for a well-formed document, but
-			// emit the close tag defensively.
-			buf.WriteString("</")
-			writeElementName(&buf, t.Name)
-			buf.WriteString(">")
-		case xml.CharData:
-			buf.WriteString(xmlesc.Text(string(t)))
-		case xml.Comment:
-			buf.WriteString("<!--")
-			buf.Write(t)
-			buf.WriteString("-->")
+		default:
+			buf.Write(d.Raw())
 		}
 	}
 }

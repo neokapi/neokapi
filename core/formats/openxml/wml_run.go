@@ -31,7 +31,7 @@ import (
 // raw buffer alongside parsing them for content; if any child triggers
 // the field-markup path, the assembled raw block is returned as the
 // sentinel run's data field. Otherwise the raw buffer is discarded.
-func (p *wmlParser) parseRunWithFieldState(d *xml.Decoder, cfs *complexFieldState, rawStart string) ([]textRun, error) {
+func (p *wmlParser) parseRunWithFieldState(d *rawDecoder, cfs *complexFieldState, rawStart string) ([]textRun, error) {
 	var props runProps
 	var runs []textRun
 	hasProps := false

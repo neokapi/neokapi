@@ -10,9 +10,7 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
-	"strings"
 
-	"github.com/neokapi/neokapi/core/internal/xmlesc"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -166,7 +164,12 @@ func (p *wmlParser) closeTableStruct(name string) {
 // (revisionPropertyTableRowDeletedSkippableElements + delayedTableMarkup
 // removal) and lines 515-528
 // (revisionPropertyTableRowInsertedSkippableElements drain-only).
-func (p *wmlParser) handleTableRow(d *xml.Decoder, start xml.StartElement) error {
+func (p *wmlParser) handleTableRow(d *rawDecoder, start xml.StartElement) error {
+	// The row's own start tag, kept so the skeleton can replay it once the
+	// row is known not to be a deleted one.
+	registerNamespaces(start.Attr)
+	startRaw := d.RawString()
+
 	// Peek at the first child token. Per ECMA-376 §17.4.79 (CT_Row),
 	// the row's child sequence is tblPrEx? trPr? content* — so trPr
 	// is at most the second child. We tolerate an optional tblPrEx
@@ -208,12 +211,10 @@ func (p *wmlParser) handleTableRow(d *xml.Decoder, start xml.StartElement) error
 			return err
 		}
 		switch tt := tok.(type) {
-		case xml.CharData:
-			// xml.CharData backing slice is reused by the decoder; copy via string().
-			pending = append(pending, xmlesc.Text(string(tt)))
-		case xml.Comment:
-			// xml.Comment backing slice is reused by the decoder; copy via string().
-			pending = append(pending, "<!--"+string(tt)+"-->")
+		case xml.CharData, xml.Comment:
+			// Held as source bytes, so the whitespace and the comment go
+			// back exactly as they were written.
+			pending = append(pending, d.RawString())
 		case xml.StartElement:
 			// Found the first child element.
 			if tt.Name.Local == "trPr" {
@@ -229,7 +230,7 @@ func (p *wmlParser) handleTableRow(d *xml.Decoder, start xml.StartElement) error
 				// Not a deleted row — emit row start, any pending
 				// whitespace/comments, then the trPr raw. Caller
 				// continues normal processing for the rest of the row.
-				p.skelWriteStartElement(start)
+				p.skelWriteString(startRaw)
 				p.openTableStruct("tr")
 				emitPending()
 				p.skelText(raw)
@@ -240,16 +241,16 @@ func (p *wmlParser) handleTableRow(d *xml.Decoder, start xml.StartElement) error
 			// row carries no row-revision marker; emit row start, any
 			// pending whitespace, the child start element, then
 			// hand back to the outer loop.
-			p.skelWriteStartElement(start)
+			p.skelWriteString(startRaw)
 			p.openTableStruct("tr")
 			emitPending()
 			return p.dispatchInRow(d, tt)
 		case xml.EndElement:
 			// Empty row (no children at all). Emit row start and
 			// row end, return — caller continues.
-			p.skelWriteStartElement(start)
+			p.skelWriteString(startRaw)
 			emitPending()
-			p.skelWriteEndElement(tt)
+			p.skelWriteEndElement(d)
 			return nil
 		}
 	}
@@ -260,7 +261,7 @@ func (p *wmlParser) handleTableRow(d *xml.Decoder, start xml.StartElement) error
 // switch in parsePart for the elements that legitimately appear inside
 // a row (typically <w:tc> via the default branch, or another
 // <w:trPr>-less child).
-func (p *wmlParser) dispatchInRow(d *xml.Decoder, t xml.StartElement) error {
+func (p *wmlParser) dispatchInRow(d *rawDecoder, t xml.StartElement) error {
 	switch t.Name.Local {
 	case "tcPr":
 		raw, err := captureRawElement(d, t)
@@ -272,10 +273,10 @@ func (p *wmlParser) dispatchInRow(d *xml.Decoder, t xml.StartElement) error {
 		// First cell of an accept-revisions row: track cell depth so its
 		// paragraphs tag RoleTableCell (the matching close flows through the
 		// main-loop EndElement site).
-		p.skelWriteStartElement(t)
+		p.skelWriteStartElement(d, t)
 		p.openTableStruct("tc")
 	default:
-		p.skelWriteStartElement(t)
+		p.skelWriteStartElement(d, t)
 	}
 	return nil
 }
@@ -299,7 +300,7 @@ func trPrHasRowDeletion(raw string) bool {
 	// only the immediate-child layer for <w:del. We use a simple
 	// depth tracker since the trPr content is small (revision
 	// markers, height, cantSplit, etc.) and rarely deeply nested.
-	dec := xml.NewDecoder(strings.NewReader(raw))
+	dec := newRawDecoderString(raw)
 	depth := 0
 	for {
 		tok, err := dec.Token()

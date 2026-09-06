@@ -3,7 +3,6 @@ package openxml
 import (
 	"archive/zip"
 	"bytes"
-	"encoding/xml"
 	"os"
 	"strings"
 	"testing"
@@ -18,7 +17,7 @@ import (
 // okapi-filter: openxml
 
 // skipStart reads and discards the opening XML start element.
-func skipStart(t *testing.T, d *xml.Decoder) {
+func skipStart(t *testing.T, d *rawDecoder) {
 	t.Helper()
 	_, err := d.Token()
 	require.NoError(t, err)
@@ -26,7 +25,7 @@ func skipStart(t *testing.T, d *xml.Decoder) {
 
 func TestParseRunPropsEmpty(t *testing.T) {
 	input := `<w:rPr></w:rPr>`
-	d := xml.NewDecoder(bytes.NewReader([]byte(input)))
+	d := newRawDecoder(([]byte(input)))
 	skipStart(t, d)
 	props, err := parseRunProps(d, true, nil)
 	require.NoError(t, err)
@@ -35,7 +34,7 @@ func TestParseRunPropsEmpty(t *testing.T) {
 
 func TestParseRunPropsBold(t *testing.T) {
 	input := `<rPr><b/></rPr>`
-	d := xml.NewDecoder(bytes.NewReader([]byte(input)))
+	d := newRawDecoder(([]byte(input)))
 	skipStart(t, d)
 	props, err := parseRunProps(d, true, nil)
 	require.NoError(t, err)
@@ -45,7 +44,7 @@ func TestParseRunPropsBold(t *testing.T) {
 
 func TestParseRunPropsBoldFalse(t *testing.T) {
 	input := `<rPr><b val="0"/></rPr>`
-	d := xml.NewDecoder(bytes.NewReader([]byte(input)))
+	d := newRawDecoder(([]byte(input)))
 	skipStart(t, d)
 	props, err := parseRunProps(d, true, nil)
 	require.NoError(t, err)
@@ -54,7 +53,7 @@ func TestParseRunPropsBoldFalse(t *testing.T) {
 
 func TestParseRunPropsMultiple(t *testing.T) {
 	input := `<rPr><b/><i/><u val="single"/><strike/></rPr>`
-	d := xml.NewDecoder(bytes.NewReader([]byte(input)))
+	d := newRawDecoder(([]byte(input)))
 	skipStart(t, d)
 	props, err := parseRunProps(d, true, nil)
 	require.NoError(t, err)
@@ -66,7 +65,7 @@ func TestParseRunPropsMultiple(t *testing.T) {
 
 func TestParseRunPropsVertAlign(t *testing.T) {
 	input := `<rPr><vertAlign val="superscript"/></rPr>`
-	d := xml.NewDecoder(bytes.NewReader([]byte(input)))
+	d := newRawDecoder(([]byte(input)))
 	skipStart(t, d)
 	props, err := parseRunProps(d, true, nil)
 	require.NoError(t, err)
@@ -75,7 +74,7 @@ func TestParseRunPropsVertAlign(t *testing.T) {
 
 func TestParseRunPropsVanish(t *testing.T) {
 	input := `<rPr><vanish/></rPr>`
-	d := xml.NewDecoder(bytes.NewReader([]byte(input)))
+	d := newRawDecoder(([]byte(input)))
 	skipStart(t, d)
 	props, err := parseRunProps(d, true, nil)
 	require.NoError(t, err)
@@ -85,7 +84,7 @@ func TestParseRunPropsVanish(t *testing.T) {
 func TestParseRunPropsAggressiveCleanup(t *testing.T) {
 	// rsid and proofErr should be stripped in aggressive mode
 	input := `<rPr><b/><rsidR val="001234"/><noProof/></rPr>`
-	d := xml.NewDecoder(bytes.NewReader([]byte(input)))
+	d := newRawDecoder(([]byte(input)))
 	skipStart(t, d)
 	props, err := parseRunProps(d, true, nil)
 	require.NoError(t, err)
@@ -1250,9 +1249,10 @@ func TestExtractDrawingTranslations_TxbxComplexFieldVerbatim(t *testing.T) {
 	out := p.extractDrawingTranslations(in, "word/document.xml", emit)
 	assert.Empty(t, emitted, "complex-field paragraph must NOT emit a translatable block")
 	assert.NotContains(t, out, drawingMarkerParaPrefix)
-	assert.Contains(t, out, `<w:fldChar w:fldCharType="begin">`)
+	// The source form survives: a self-closing element goes back self-closing.
+	assert.Contains(t, out, `<w:fldChar w:fldCharType="begin"/>`)
 	assert.Contains(t, out, "PAGE")
-	assert.Contains(t, out, `<w:fldChar w:fldCharType="end">`)
+	assert.Contains(t, out, `<w:fldChar w:fldCharType="end"/>`)
 }
 
 // TestExtractDrawingTranslations_BareTInChoice verifies that a

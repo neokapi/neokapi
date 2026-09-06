@@ -1,14 +1,12 @@
 package openxml
 
 import (
-	"bytes"
 	"encoding/xml"
 	"errors"
 	"fmt"
 	"io"
 	"strings"
 
-	"github.com/neokapi/neokapi/core/internal/xmlesc"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -68,37 +66,47 @@ func isDiagramDataPartPath(name string) bool {
 // <a:p><a:pPr><a:defRPr/></a:pPr><a:r>...</a:r></a:p> demonstrates the
 // pattern: gold/Transimple_chart.docx emits just <a:p><a:r>...</a:r></a:p>.
 //
-// We're matching against captureRawElement's output which always
-// expands self-closing tags to open/close form, so the pattern
-// recognised is <a:pPr><a:defRPr></a:defRPr></a:pPr> exactly. A
-// trailing-whitespace-tolerant version covers the encoding/xml output
-// variant.
+// The check decodes rather than matching text, so the source's choice of
+// empty-element form and quote character does not decide the answer: a capture
+// replays the bytes it was written with.
 func isStructurallyEmptyDMLBlockProperties(raw string) bool {
-	// Outer element open with no attributes — matches encoding/xml's
-	// <a:pPr> (no attribute byte before the closing >).
-	const open = "<a:pPr>"
-	const close = "</a:pPr>"
-	if !strings.HasPrefix(raw, open) || !strings.HasSuffix(raw, close) {
-		return false
-	}
-	inner := raw[len(open) : len(raw)-len(close)]
-	inner = strings.TrimSpace(inner)
-	// Empty inner means <a:pPr></a:pPr> — drop.
-	if inner == "" {
-		return true
-	}
-	// One or more empty defRPr siblings count as structurally empty.
-	// captureRawElement emits both <a:defRPr></a:defRPr> form (when the
-	// source self-closed) and the literal whitespace-padded variant.
-	for inner != "" {
-		switch {
-		case strings.HasPrefix(inner, "<a:defRPr></a:defRPr>"):
-			inner = strings.TrimSpace(inner[len("<a:defRPr></a:defRPr>"):])
-		default:
+	d := newRawDecoderString(raw)
+	depth := 0
+	for {
+		tok, err := d.Token()
+		if errors.Is(err, io.EOF) {
+			return true
+		}
+		if err != nil {
+			return false
+		}
+		switch t := tok.(type) {
+		case xml.StartElement:
+			depth++
+			switch depth {
+			case 1:
+				// The container itself: any attribute makes it meaningful.
+				if t.Name.Local != "pPr" || len(t.Attr) > 0 {
+					return false
+				}
+			case 2:
+				// Only an attribute-free <a:defRPr> is scaffolding.
+				if t.Name.Local != "defRPr" || len(t.Attr) > 0 {
+					return false
+				}
+			default:
+				return false
+			}
+		case xml.EndElement:
+			depth--
+		case xml.CharData:
+			if strings.TrimSpace(string(t)) != "" {
+				return false
+			}
+		case xml.Comment:
 			return false
 		}
 	}
-	return true
 }
 
 // Chart and diagram parts in DOCX/PPTX/XLSX use the DrawingML
@@ -151,7 +159,7 @@ func isStructurallyEmptyDMLBlockProperties(raw string) bool {
 // blocks, pass through unchanged.
 func (p *dmlParser) parseChartOrDiagramPart(data []byte, partPath string, emitBlock func(*model.Block)) error {
 	p.path.ensurePart(partPath)
-	d := xml.NewDecoder(bytes.NewReader(data))
+	d := newRawDecoder(data)
 
 	for {
 		tok, err := d.Token()
@@ -175,19 +183,19 @@ func (p *dmlParser) parseChartOrDiagramPart(data []byte, partPath string, emitBl
 				}
 				continue
 			}
-			p.skelWriteStartElement(t)
+			p.skelWriteStartElement(d, t)
 
 		case xml.EndElement:
-			p.skelWriteEndElement(t)
+			p.skelWriteEndElement(d)
 
 		case xml.CharData:
-			p.skelText(xmlesc.Text(string(t)))
+			p.skelRaw(d)
 
 		case xml.ProcInst:
-			p.skelText("<?" + t.Target + " " + string(t.Inst) + "?>")
+			p.skelRaw(d)
 
 		case xml.Comment:
-			p.skelText("<!--" + string(t) + "-->")
+			p.skelRaw(d)
 		}
 	}
 	return nil

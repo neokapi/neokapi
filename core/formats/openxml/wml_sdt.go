@@ -12,7 +12,7 @@ import (
 )
 
 // parseSDT parses a structured document tag, extracting its content.
-func (p *wmlParser) parseSDT(d *xml.Decoder, partPath string, emitBlock func(*model.Block), emitData func()) error {
+func (p *wmlParser) parseSDT(d *rawDecoder, partPath string, emitBlock func(*model.Block), emitData func()) error {
 	// The caller's case branch consumed the `<w:sdt>` start element. Write
 	// it to the skeleton so the writer re-emits the SDT envelope on
 	// round-trip; bridge preserves <w:sdt><w:sdtContent>...</w:sdtContent>
@@ -155,7 +155,7 @@ func sdtEndPrIsEmpty(raw string) bool {
 //
 // rawStart is the raw XML form of the `<w:sdt ...>` open tag (including
 // any attributes) produced by the caller via startElementToRaw.
-func (p *wmlParser) parseInlineSDT(d *xml.Decoder, runs *[]textRun, rawStart string) error {
+func (p *wmlParser) parseInlineSDT(d *rawDecoder, runs *[]textRun, rawStart string) error {
 	// Capture sdtPr (always present per CT_SdtRun) and the optional
 	// sdtEndPr verbatim, then accumulate them onto rawStart so the
 	// OPEN sentinel emits the full `<w:sdt><w:sdtPr>...</w:sdtPr>
