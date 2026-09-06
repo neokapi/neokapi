@@ -1,0 +1,21 @@
+---
+title: "Table cells with inline markup"
+---
+
+# Table cells with inline markup
+
+A cell's content is markdown, so a code span, a link, an emphasis and an image
+inside one are parsed rather than left as characters.
+
+| Surface                        | Where it lives                              |
+| ------------------------------ | ------------------------------------------- |
+| `kapi up`                      | The [command reference](/docs/reference/cli) |
+| **Content memory**             | Beside the *terms* store                     |
+| ![the badge](/img/badge.svg)   | The project README                          |
+| A cell with `code` and a [link](/docs) and **bold** together | All three at once |
+
+| Alignment | Left | Centre | Right |
+| :-------- | :--- | :----: | ----: |
+| Row one   | `a`  | *b*    | [c](/d) |
+
+Prose after the tables.

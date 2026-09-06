@@ -66,35 +66,3 @@ func TestScanSegmentsClassification(t *testing.T) {
 		assert.Equal(t, c.want, segs[0].kind, "wrong kind for %q", c.body)
 	}
 }
-
-// TestSplitMarkdownTables verifies table isolation within a Markdown span.
-func TestSplitMarkdownTables(t *testing.T) {
-	span := []byte("intro\n\n| A | B |\n| - | - |\n| 1 | 2 |\n\noutro\n")
-	subs := splitMarkdownTables(span)
-
-	var tableCount int
-	var rebuilt []byte
-	prevEnd := 0
-	for _, s := range subs {
-		require.Equal(t, prevEnd, s.start, "table sub-spans must be gap-free")
-		rebuilt = append(rebuilt, span[s.start:s.end]...)
-		prevEnd = s.end
-		if s.isTable {
-			tableCount++
-			assert.Contains(t, string(span[s.start:s.end]), "| A | B |")
-		}
-	}
-	assert.Equal(t, len(span), prevEnd)
-	assert.Equal(t, string(span), string(rebuilt))
-	assert.Equal(t, 1, tableCount, "expected exactly one table sub-span")
-}
-
-// TestSplitMarkdownTablesNoTable verifies a table-free span yields a single
-// non-table sub-span.
-func TestSplitMarkdownTablesNoTable(t *testing.T) {
-	span := []byte("just prose\n\nand a pipe | not a table\n")
-	subs := splitMarkdownTables(span)
-	for _, s := range subs {
-		assert.False(t, s.isTable, "no table expected")
-	}
-}

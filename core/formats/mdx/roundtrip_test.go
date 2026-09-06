@@ -312,12 +312,11 @@ After the table.
 	assert.Contains(t, string(out), "| alpha      | first     |", "source padding preserved")
 }
 
-// TestTableCellEscapedPipeVerbatim guards the escape convention of surfaced
-// table cells: MDX takes the cell text as a byte slice of the source, escapes
-// included, so the writer must emit it unchanged. Re-escaping (which is right
-// for the markdown reader, whose cells arrive unescaped) would double the
-// backslash and break the round-trip.
-func TestTableCellEscapedPipeVerbatim(t *testing.T) {
+// TestTableCellEscapedPipeRoundTrips guards the escape convention of a
+// delegated table's cells: the markdown reader hands back the cell text with
+// `\|` unescaped, and its writer escapes an unescaped pipe on the way out, so
+// the source spelling comes back without the backslash doubling.
+func TestTableCellEscapedPipeRoundTrips(t *testing.T) {
 	src := []byte("| Flag                           | Effect                    |\n" +
 		"| ------------------------------ | ------------------------- |\n" +
 		"| `--output-format <json\\|text>` | Explicit format selection |\n")
@@ -332,8 +331,8 @@ func TestTableCellEscapedPipeVerbatim(t *testing.T) {
 			cells = append(cells, b.SourceText())
 		}
 	}
-	assert.Contains(t, cells, "`--output-format <json\\|text>`",
-		"the cell must carry the source spelling, escape included")
+	assert.Contains(t, cells, "--output-format <json|text>",
+		"the cell carries the pipe as text; the escape is the table's markup")
 
 	out := writeParts(t, parts, store, "")
 	assert.Equal(t, string(src), string(out), "an escaped pipe must survive byte-for-byte")
