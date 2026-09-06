@@ -13,6 +13,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/editorclient"
 	"github.com/neokapi/neokapi/bowrain/event"
 	bstore "github.com/neokapi/neokapi/bowrain/store/sqlitestore"
+	aitools "github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/formats"
 	"github.com/neokapi/neokapi/core/locale"
 	"github.com/neokapi/neokapi/core/model"
@@ -94,7 +95,12 @@ func newAppWithStore(cs store.ContentStore) *App {
 	formats.RegisterAll(reg)
 
 	toolReg := registry.NewToolRegistry()
+	// libtools first: it registers the deterministic `qa`; aitools then overlays
+	// the unified `translate`/`qa` and the rest of the model-backed tools, the
+	// same order host/app.go and the server register them in, so the desktop's
+	// flow editor offers the tool list the web editor offers.
 	libtools.RegisterAll(toolReg)
+	aitools.RegisterAll(toolReg)
 
 	// The desktop app only offers remote/CMS connectors. The local-filesystem
 	// connectors (file, git) are server-side only: under the product boundary
@@ -382,16 +388,6 @@ func (a *App) ListTools() []ToolInfo {
 			result = append(result, ti)
 		}
 	}
-
-	// AI tools (not in tool registry, managed separately). Categories use the
-	// canonical vocabulary so the editor colors them consistently.
-	aiTools := []ToolInfo{
-		{Name: "translate", Description: "Translate content with an LLM or MT provider", Category: schema.CategoryTranslation},
-		{Name: "qa", Description: "Quality check translations (rule-based, or AI with --provider)", Category: schema.CategoryQuality},
-		{Name: "term-extract", Description: "Extract terminology using AI", Category: schema.CategoryAnalysis},
-		{Name: "review", Description: "Review translations using AI", Category: schema.CategoryQuality},
-	}
-	result = append(result, aiTools...)
 
 	return result
 }

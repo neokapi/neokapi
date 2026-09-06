@@ -5,14 +5,17 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"slices"
 	"time"
 
 	"github.com/neokapi/neokapi/bowrain/analytics"
 	"github.com/neokapi/neokapi/bowrain/core/store"
+	aitools "github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/safeio"
+	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/core/venue"
 )
@@ -110,6 +113,9 @@ func (s *FlowService) RunFlow(ctx context.Context, run FlowRun) (FlowRunResult, 
 	if len(locales) == 0 {
 		locales = []string{""}
 	}
+	// The workspace the project belongs to, read once: it scopes the AI
+	// provider every step of this run calls.
+	workspaceID := s.workspaceFor(ctx, run.ProjectID)
 
 	for _, item := range items {
 		if err := ctx.Err(); err != nil {
@@ -138,7 +144,7 @@ func (s *FlowService) RunFlow(ctx context.Context, run FlowRun) (FlowRunResult, 
 			s.trackDefinitionRun(run, res.Blocks, time.Since(start), "failed")
 			return res, err
 		}
-		written, err := s.runItemPasses(ctx, def, nodes, run.ProjectID, stream, item, current, locales)
+		written, err := s.runItemPasses(ctx, def, nodes, workspaceID, run.ProjectID, stream, item, current, locales)
 		release()
 		if err != nil {
 			s.trackDefinitionRun(run, res.Blocks, time.Since(start), "failed")
@@ -211,11 +217,11 @@ func (s *FlowService) storeFlowToolNodes(def *flow.FlowDefinition) ([]flow.FlowN
 // pass; each pass builds a fresh tool chain because a tool holds its target
 // locale in its config. It returns the number of blocks in the item's final
 // state, or zero when no pass produced output.
-func (s *FlowService) runItemPasses(ctx context.Context, def *flow.FlowDefinition, nodes []flow.FlowNode, projectID, stream, item string, blocks []*model.Block, locales []string) (int, error) {
+func (s *FlowService) runItemPasses(ctx context.Context, def *flow.FlowDefinition, nodes []flow.FlowNode, workspaceID, projectID, stream, item string, blocks []*model.Block, locales []string) (int, error) {
 	current := blocks
 	written := 0
 	for _, locale := range locales {
-		tools, err := s.buildFlowTools(nodes, locale)
+		tools, err := s.buildFlowTools(ctx, workspaceID, nodes, locale)
 		if err != nil {
 			return 0, err
 		}
@@ -238,21 +244,97 @@ func (s *FlowService) runItemPasses(ctx context.Context, def *flow.FlowDefinitio
 // buildFlowTools constructs the tool chain for one pass. Each node's own
 // config is applied first and the pass's target locale on top, the same shape
 // the CLI hands a built-in flow's tools.
-func (s *FlowService) buildFlowTools(nodes []flow.FlowNode, targetLocale string) ([]tool.Tool, error) {
+func (s *FlowService) buildFlowTools(ctx context.Context, workspaceID string, nodes []flow.FlowNode, targetLocale string) ([]tool.Tool, error) {
 	tools := make([]tool.Tool, 0, len(nodes))
 	for _, n := range nodes {
-		cfg := make(map[string]any, len(n.Config)+1)
-		maps.Copy(cfg, n.Config)
-		if targetLocale != "" {
-			cfg["target_locale"] = targetLocale
-		}
-		t, err := s.toolReg.NewToolWithConfig(registry.ToolID(n.Name), cfg, targetLocale)
+		t, err := s.newTool(ctx, workspaceID, registry.ToolID(n.Name), n.Config, targetLocale)
 		if err != nil {
 			return nil, fmt.Errorf("tool %q: %w", n.Name, err)
 		}
 		tools = append(tools, t)
 	}
 	return tools, nil
+}
+
+// NewToolForProject builds one tool by name for a project's content, with the
+// AI provider its workspace calls already granted.
+//
+// It is the construction path every surface that runs a tool over stored
+// content shares, so a tool named on the gRPC flow route reaches the same model
+// a run_flow automation does rather than the placeholder provider a registry
+// entry carries as its zero-argument default.
+func (s *FlowService) NewToolForProject(ctx context.Context, projectID string, name registry.ToolID, config map[string]any, targetLocale string) (tool.Tool, error) {
+	if s.toolReg == nil {
+		return nil, errors.New("tool registry not configured")
+	}
+	return s.newTool(ctx, s.workspaceFor(ctx, projectID), name, config, targetLocale)
+}
+
+// newTool builds one tool from a node's own config plus the pass's target
+// locale, with the workspace's AI provider granted to the steps that call one.
+func (s *FlowService) newTool(ctx context.Context, workspaceID string, name registry.ToolID, config map[string]any, targetLocale string) (tool.Tool, error) {
+	cfg := make(map[string]any, len(config)+2)
+	maps.Copy(cfg, config)
+	if targetLocale != "" {
+		cfg["target_locale"] = targetLocale
+	}
+	if err := s.grantAIProvider(ctx, workspaceID, name, cfg); err != nil {
+		return nil, err
+	}
+	return s.toolReg.NewToolWithConfig(name, cfg, targetLocale)
+}
+
+// grantAIProvider puts the platform's provider into an AI step's config.
+//
+// The platform holds the credential, so a stored flow definition names no
+// provider and carries no key: without this a translate step would be built
+// against the placeholder provider its registry entry defaults to and would
+// answer with mock text. A step that does name its own provider, or carries an
+// inline key, keeps it, and a step whose resolved contract needs no credentials
+// (a `qa` in rules mode, an entity-extract on the local model) is left alone.
+func (s *FlowService) grantAIProvider(ctx context.Context, workspaceID string, name registry.ToolID, cfg map[string]any) error {
+	if s.aiProvider == nil || !toolNeedsCredentials(s.toolReg, name, cfg) {
+		return nil
+	}
+	if provider, _ := cfg["provider"].(string); provider != "" {
+		return nil
+	}
+	if key, _ := cfg["apiKey"].(string); key != "" {
+		return nil
+	}
+	requested, _ := cfg["model"].(string)
+	prov, err := s.aiProvider(ctx, workspaceID, requested)
+	if err != nil {
+		return fmt.Errorf("tool %q: resolve AI provider: %w", name, err)
+	}
+	if prov != nil {
+		cfg[aitools.ProviderKey] = prov
+	}
+	return nil
+}
+
+// toolNeedsCredentials reports whether a tool built with this config calls a
+// model. The contract is resolved against the config, because a group member
+// decides it: `qa` in rules mode and entity-extract on the local model both
+// drop the credential requirement their group declares.
+func toolNeedsCredentials(reg *registry.ToolRegistry, name registry.ToolID, cfg map[string]any) bool {
+	info := reg.ResolveToolInfo(name, cfg)
+	return info != nil && slices.Contains(info.Requires, schema.RequiresCredentials)
+}
+
+// workspaceFor names the workspace a project belongs to, which is what scopes
+// the AI provider its content is processed with. A project that cannot be read
+// yields the empty workspace, and the resolver answers with the platform
+// default rather than failing the run.
+func (s *FlowService) workspaceFor(ctx context.Context, projectID string) string {
+	if s.aiProvider == nil || s.store == nil || projectID == "" {
+		return ""
+	}
+	proj, err := s.store.GetProject(ctx, projectID)
+	if err != nil || proj == nil {
+		return ""
+	}
+	return proj.WorkspaceID
 }
 
 // runBlocksThroughTools feeds blocks into the executor's channel pipeline and

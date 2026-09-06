@@ -94,6 +94,7 @@ func AIReviewSchema() *schema.ComponentSchema {
 
 // NewAIReviewFromConfig creates an AI review tool from a config map.
 func NewAIReviewFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
+	injected := TakeProvider(config)
 	// The voice profile is a live handle: it does not survive the JSON round
 	// trip the rest of the config takes, so it comes out first, exactly as the
 	// translate factory takes it.
@@ -111,7 +112,7 @@ func NewAIReviewFromConfig(config map[string]any, targetLang string) (tool.Tool,
 	if targetLang != "" {
 		cfg.TargetLocale = model.LocaleID(targetLang)
 	}
-	p, err := ProviderFromConfig(cfg.Provider, aiprovider.Config{APIKey: cfg.APIKey, Model: cfg.Model})
+	p, err := providerFor(injected, cfg.Provider, aiprovider.Config{APIKey: cfg.APIKey, Model: cfg.Model})
 	if err != nil {
 		return nil, err
 	}

@@ -213,7 +213,7 @@ type flowConfig struct {
 }
 
 func (g *GRPCServer) ExecuteFlow(req *pb.ExecuteFlowRequest, stream pb.NeokapiService_ExecuteFlowServer) error {
-	if g.srv.Services == nil {
+	if g.srv.Services == nil || g.srv.Services.Flow == nil {
 		return status.Error(codes.Unavailable, "content store not configured")
 	}
 
@@ -234,22 +234,24 @@ func (g *GRPCServer) ExecuteFlow(req *pb.ExecuteFlowRequest, stream pb.NeokapiSe
 		return err
 	}
 
-	// Build tools from registry.
-	tools := make([]tool.Tool, 0, len(cfg.Tools))
-	for _, name := range cfg.Tools {
-		t, err := g.srv.ToolRegistry.NewTool(registry.ToolID(name))
-		if err != nil {
-			return status.Errorf(codes.InvalidArgument, "unknown tool %q: %v", name, err)
-		}
-		tools = append(tools, t)
-	}
-
 	// Load blocks from the store project.
 	if req.ProjectId == "" {
 		return status.Error(codes.InvalidArgument, "project_id is required for flow execution")
 	}
 	if _, err := g.authorizeProject(stream.Context(), req.ProjectId); err != nil {
 		return err
+	}
+
+	// Build the tools through the flow service, so a model-backed tool named
+	// here is granted the project workspace's AI provider instead of the
+	// placeholder a registry entry carries as its zero-argument default.
+	tools := make([]tool.Tool, 0, len(cfg.Tools))
+	for _, name := range cfg.Tools {
+		t, err := g.srv.Services.Flow.NewToolForProject(stream.Context(), req.ProjectId, registry.ToolID(name), nil, "")
+		if err != nil {
+			return status.Errorf(codes.InvalidArgument, "unknown tool %q: %v", name, err)
+		}
+		tools = append(tools, t)
 	}
 
 	blocks, err := g.srv.Services.Project.GetBlocks(stream.Context(), store.BlockQuery{ProjectID: req.ProjectId})
