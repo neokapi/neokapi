@@ -94,6 +94,8 @@ func (tm *InMemoryStore) AddWithStream(_ context.Context, entry Entry, _ string)
 		entry.UpdatedAt = now
 	}
 
+	NormalizeEntryLocales(&entry)
+
 	tm.mu.Lock()
 	defer tm.mu.Unlock()
 
@@ -230,6 +232,8 @@ func (tm *InMemoryStore) LookupText(_ context.Context, source string, sourceLoca
 }
 
 func (tm *InMemoryStore) tieredLookup(plainKey, structKey, generalKey string, entityAnnotations []*model.EntityAnnotation, sourceLocale, targetLocale model.LocaleID, opts LookupOptions) []Match {
+	sourceLocale = model.NormalizeLocale(sourceLocale)
+	targetLocale = model.NormalizeLocale(targetLocale)
 	var matches []Match
 	seen := make(map[string]bool)
 	modeEnabled := MatchModesEnabled(opts.MatchModes)
@@ -430,6 +434,7 @@ func (tm *InMemoryStore) SearchEntriesForStream(ctx context.Context, params Sear
 }
 
 func (tm *InMemoryStore) searchInternal(_ context.Context, params SearchParams) ([]Entry, int, error) {
+	params = NormalizeSearchLocales(params)
 	query := params.Query
 	anyLocale := params.AnyLocale
 	requireLocale := params.RequireLocale
@@ -587,6 +592,7 @@ func (tm *InMemoryStore) FacetStats(ctx context.Context) (FacetData, error) {
 // FacetStatsFiltered returns facet counts scoped to entries matching the
 // given search query and filter.
 func (tm *InMemoryStore) FacetStatsFiltered(_ context.Context, params SearchParams) (FacetData, error) {
+	params = NormalizeSearchLocales(params)
 	query := params.Query
 	anyLocale := params.AnyLocale
 	requireLocale := params.RequireLocale

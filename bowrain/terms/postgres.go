@@ -125,6 +125,7 @@ func (tb *PostgresStore) AddConceptWithStream(ctx context.Context, concept fw.Co
 			return fmt.Errorf("term %q (%s): unknown status %q", t.Text, t.Locale, t.Status)
 		}
 	}
+	concept = fw.NormalizedConcept(concept)
 
 	now := time.Now()
 	if concept.CreatedAt.IsZero() {
@@ -413,6 +414,7 @@ func (tb *PostgresStore) LookupAll(ctx context.Context, sourceText string, opts 
 // Search performs a ranked full-text search across concepts and terms.
 // Uses pg_trgm for term matching when a query is provided, falls back to LIKE.
 func (tb *PostgresStore) Search(ctx context.Context, query string, sourceLocale, targetLocale model.LocaleID, offset, limit int) ([]fw.Concept, int, error) {
+	sourceLocale, targetLocale = model.NormalizeLocale(sourceLocale), model.NormalizeLocale(targetLocale)
 	if query != "" {
 		concepts, total, err := tb.pgSearchTrgm(ctx, query, sourceLocale, targetLocale, offset, limit)
 		if err == nil {
@@ -547,6 +549,7 @@ func (tb *PostgresStore) pgSearchLike(ctx context.Context, query string, sourceL
 // The streamChain is an ordered list of ancestor streams to search.
 // Concepts from earlier streams take priority.
 func (tb *PostgresStore) SearchForStream(ctx context.Context, query string, sourceLocale, targetLocale model.LocaleID, stream string, streamChain []string, offset, limit int) ([]fw.Concept, int, error) {
+	sourceLocale, targetLocale = model.NormalizeLocale(sourceLocale), model.NormalizeLocale(targetLocale)
 	if query != "" {
 		concepts, total, err := tb.pgSearchTrgmForStream(ctx, query, sourceLocale, targetLocale, stream, streamChain, offset, limit)
 		if err == nil {

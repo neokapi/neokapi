@@ -81,8 +81,8 @@ type EntityMapping struct {
 // Pair returns the source and target entity values for a given language pair.
 // It reports ok=false if either locale is missing from the mapping.
 func (em *EntityMapping) Pair(src, tgt model.LocaleID) (EntityValue, EntityValue, bool) {
-	sv, hasSrc := em.Values[src]
-	tv, hasTgt := em.Values[tgt]
+	sv, hasSrc := em.Values[model.NormalizeLocale(src)]
+	tv, hasTgt := em.Values[model.NormalizeLocale(tgt)]
 	if !hasSrc || !hasTgt {
 		return EntityValue{}, EntityValue{}, false
 	}
@@ -91,7 +91,7 @@ func (em *EntityMapping) Pair(src, tgt model.LocaleID) (EntityValue, EntityValue
 
 // Value returns the entity value for a specific locale, or false if missing.
 func (em *EntityMapping) Value(locale model.LocaleID) (EntityValue, bool) {
-	v, ok := em.Values[locale]
+	v, ok := em.Values[model.NormalizeLocale(locale)]
 	return v, ok
 }
 
@@ -157,12 +157,14 @@ type Entry struct {
 }
 
 // Variant returns the Run sequence for a given locale, or nil if not
-// present.
+// present. The locale is matched in its canonical form, the form the store
+// keys variants by, so the spelling a caller looks up with is not a second
+// identity.
 func (e *Entry) Variant(locale model.LocaleID) []model.Run {
 	if e == nil || e.Variants == nil {
 		return nil
 	}
-	return e.Variants[locale]
+	return e.Variants[model.NormalizeLocale(locale)]
 }
 
 // VariantText returns the plain text of the variant for a given locale,
@@ -200,7 +202,7 @@ func (e *Entry) HasLocale(locale model.LocaleID) bool {
 	if e == nil || e.Variants == nil {
 		return false
 	}
-	_, ok := e.Variants[locale]
+	_, ok := e.Variants[model.NormalizeLocale(locale)]
 	return ok
 }
 

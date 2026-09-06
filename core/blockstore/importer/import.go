@@ -117,7 +117,7 @@ func ImportDirect(
 		}
 		r.Matched++
 
-		skipped, err := skipByPolicy(sess, opts.OnConflict, "targets/"+p.Locale, p.BlockHash)
+		skipped, err := skipByPolicy(sess, opts.OnConflict, blockstore.TargetOverlayKind(model.LocaleID(p.Locale)), p.BlockHash)
 		if err != nil {
 			return r, err
 		}
@@ -205,7 +205,7 @@ func ImportFromFormat(
 				continue
 			}
 
-			skipped, err := skipByPolicy(sess, opts.OnConflict, "targets/"+string(locale), blockHash)
+			skipped, err := skipByPolicy(sess, opts.OnConflict, blockstore.TargetOverlayKind(locale), blockHash)
 			if err != nil {
 				return r, err
 			}
@@ -302,7 +302,7 @@ func writeTargetOverlay(sess blockstore.Session, p ImportPair, provider string) 
 		return fmt.Errorf("importer: marshal payload: %w", err)
 	}
 	return sess.PutOverlay(blockstore.Overlay{
-		Kind:      "targets/" + p.Locale,
+		Kind:      blockstore.TargetOverlayKind(model.LocaleID(p.Locale)),
 		BlockHash: p.BlockHash,
 		Payload:   body,
 	})

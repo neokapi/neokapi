@@ -320,6 +320,7 @@ func (s *session) GetOverlay(kind, blockHash string) (blockstore.Overlay, error)
 	if s.closed {
 		return blockstore.Overlay{}, blockstore.ErrClosed
 	}
+	kind = blockstore.CanonicalOverlayKind(kind)
 	switch routeKind(kind) {
 	case tableTranslations:
 		return s.getTranslation(kind, blockHash)
@@ -337,6 +338,9 @@ func (s *session) PutOverlay(o blockstore.Overlay) error {
 	if o.Kind == "" || o.BlockHash == "" {
 		return errors.New("bowrain/blockstore: PutOverlay: Kind and BlockHash are required")
 	}
+	// A `targets/<locale>` kind is filed under the canonical locale, the one
+	// every reader asks for, whichever spelling the writer used.
+	o.Kind = blockstore.CanonicalOverlayKind(o.Kind)
 	payload := o.Payload
 	if len(payload) == 0 {
 		payload = []byte("{}")
@@ -356,6 +360,7 @@ func (s *session) PutOverlay(o blockstore.Overlay) error {
 }
 
 func (s *session) ListOverlays(kind string) iter.Seq2[blockstore.Overlay, error] {
+	kind = blockstore.CanonicalOverlayKind(kind)
 	return func(yield func(blockstore.Overlay, error) bool) {
 		if s.closed {
 			yield(blockstore.Overlay{}, blockstore.ErrClosed)

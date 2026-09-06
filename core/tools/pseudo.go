@@ -343,7 +343,7 @@ func (t *PseudoTranslateTool) processOne(
 // overlay written by pseudo-translate. Shared with AI translate /
 // MT translate so any locale target is discoverable under one key.
 func pseudoOverlayKind(locale model.LocaleID) string {
-	return "targets/" + string(locale)
+	return blockstore.TargetOverlayKind(locale)
 }
 
 // pseudoCache is the JSON payload stored in a pseudo-translate

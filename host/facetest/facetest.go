@@ -73,6 +73,13 @@ func Write(t *testing.T) Project {
 // WritePosix builds the POSIX-locale project; see fixture.WritePosix.
 func WritePosix(t *testing.T) Project { return fixture.WritePosix(t) }
 
+// ExtractToStore extracts a fixture's content into its project store through
+// the path `kapi up` takes, for a leg that asks the store rather than a face.
+func ExtractToStore(t *testing.T, p Project) {
+	t.Helper()
+	extract(t, p)
+}
+
 // Concepts is the fixture's vocabulary; see fixture.Concepts.
 func Concepts() []terms.Concept { return fixture.Concepts() }
 

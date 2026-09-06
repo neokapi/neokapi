@@ -198,7 +198,7 @@ func (t *MTTranslateTool) SessionProcess(
 	in <-chan *model.Part,
 	out chan<- *model.Part,
 ) error {
-	overlayKind := "targets/" + string(t.targetLocale)
+	overlayKind := blockstore.TargetOverlayKind(t.targetLocale)
 	caps := sess.Capabilities()
 
 	for {

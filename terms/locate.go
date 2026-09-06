@@ -256,6 +256,7 @@ func anchorFor(runs []model.Run, start, end int) model.Anchor {
 // no candidate: there is no language to look terms up in, and the empty string
 // is a locale like any other in the store.
 func LookupLocales(loc model.LocaleID) []model.LocaleID {
+	loc = model.NormalizeLocale(loc)
 	if loc == "" {
 		return nil
 	}

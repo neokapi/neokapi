@@ -67,6 +67,12 @@ func TestNormalize(t *testing.T) {
 		{"", ""},           // empty passes through
 		{"!!!", "!!!"},     // unparseable falls back to input
 		{"en-US", "en-US"}, // region specificity preserved
+		// The lenient form accepts every style Canonical does.
+		{"nb_NO", "nb-NO"},
+		{"en_US.UTF-8", "en-US"},
+		{"nb@bokmal", "nb"},
+		{"qps-ploc", "qps-Ploc"},
+		{"xx-YY", "xx-YY"}, // not a locale: passed through, so a lookup misses
 	}
 
 	for _, tt := range tests {

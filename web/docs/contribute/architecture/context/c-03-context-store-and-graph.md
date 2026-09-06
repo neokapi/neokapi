@@ -101,6 +101,20 @@ holds withheld originals. Those are local-only by design, never committed and
 never sent anywhere, so nothing else has a copy, and losing them is a loss
 rather than a rebuild.
 
+### Locales are keyed canonically
+
+Every subsystem keys its rows by the canonical BCP-47 locale beside the text:
+the content memory's variants ([C-09](c-09-content-memory.md)), the terms
+store's terms ([C-08](c-08-terms.md)), the block cache's `targets/<locale>`
+overlays and its `block_texts` rows. The stores apply `locale.Normalize` on
+every write, read and list, so a producer writing `targets/nb_NO` and a reader
+asking for `targets/nb-NO` address one overlay. Rows a store wrote before it
+normalized locales are keyed by whatever spelling the recipe used then, and no
+lookup finds them again; `projectdb.NonCanonicalLocales` reports them, and
+`kapi status` and `kapi up` print the report once with the rebuild named. The
+store is a projection, so the remedy is to write staged decisions with `kapi
+commit`, delete `store.db` and let the next `kapi up` derive it again.
+
 ### Presence is table-level
 
 An empty subsystem inside an existing `store.db` behaves exactly as an absent

@@ -233,7 +233,7 @@ func TallyBlockStore(sess blockstore.Session, scopes []BlockStoreScope) (*Covera
 
 		for _, loc := range sc.Locales {
 			s := Scope{Collection: sc.Collection, Locale: loc}
-			kind := "targets/" + loc
+			kind := blockstore.TargetOverlayKind(model.LocaleID(loc))
 			for _, id := range blockIDs {
 				if _, err := sess.GetOverlay(kind, id); err == nil {
 					tally.Add(s, string(model.TargetStatusTranslated))

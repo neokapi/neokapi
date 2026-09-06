@@ -155,6 +155,9 @@ func (a *App) ExecuteUp(cmd Command, projectPath string) error {
 			fmt.Fprintln(cmd.ErrOrStderr(), formatSeedLine(seeded))
 		}
 	}
+	// Rows keyed by a locale spelling the lookups no longer ask for would read
+	// as leverage the project lacks; say so before the plan prices the work.
+	a.WarnStoreLocaleDrift(cmd, projectPath)
 
 	if BoolFlag(cmd, "plan") {
 		return a.runUpPlan(cmd, proj, projectPath)

@@ -396,7 +396,7 @@ func localesWithStoredTargets(ctx context.Context, store blockstore.Store, local
 	defer sess.Close()
 	var out []model.LocaleID
 	for _, locale := range locales {
-		for _, oerr := range sess.ListOverlays("targets/" + string(locale)) {
+		for _, oerr := range sess.ListOverlays(blockstore.TargetOverlayKind(locale)) {
 			if oerr != nil {
 				return nil, oerr
 			}
@@ -424,7 +424,7 @@ func absorbStoreTargets(ctx context.Context, reg *registry.FormatRegistry, srcFo
 		return 0, 0, err
 	}
 	defer sess.Close()
-	kind := "targets/" + string(target)
+	kind := blockstore.TargetOverlayKind(target)
 	newCount, updatedCount := 0, 0
 	for _, b := range blocks {
 		if !b.Translatable || b.ID == "" {
@@ -550,7 +550,7 @@ func (a *App) MergeOneKpz(cmd Command, kpzInput string) error {
 	// Index the package's target overlays by block id.
 	overlayByID := make(map[string][]byte)
 	for _, ov := range pkg.Overlays {
-		if ov.Kind == "targets/"+string(targetLocale) {
+		if blockstore.CanonicalOverlayKind(ov.Kind) == blockstore.TargetOverlayKind(targetLocale) {
 			overlayByID[ov.BlockHash] = ov.Payload
 		}
 	}

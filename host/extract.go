@@ -15,6 +15,7 @@ import (
 	"encoding/json"
 
 	"github.com/google/uuid"
+	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/formats/xliff2"
 	"github.com/neokapi/neokapi/core/model"
@@ -1106,7 +1107,7 @@ func (a *App) extractOneKpz(ctx context.Context, task kpzInterchangeTask) error 
 						"status": string(model.TargetStatusDraft),
 					})
 					overlays = append(overlays, kpz.OverlayDoc{
-						Kind: "targets/" + string(task.targetLocale), BlockHash: b.ID, Payload: payload, Source: srcArchive,
+						Kind: blockstore.TargetOverlayKind(task.targetLocale), BlockHash: b.ID, Payload: payload, Source: srcArchive,
 					})
 				}
 				contextEntries[matches[0].Entry.ID] = matches[0].Entry

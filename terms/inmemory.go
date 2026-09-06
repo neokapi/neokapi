@@ -67,6 +67,7 @@ func (tb *InMemoryStore) AddConcept(_ context.Context, concept Concept) error {
 	if err := validateConceptTermStatuses(concept); err != nil {
 		return err
 	}
+	concept = NormalizedConcept(concept)
 
 	now := time.Now()
 	if concept.CreatedAt.IsZero() {
@@ -388,6 +389,7 @@ func (tb *InMemoryStore) Search(_ context.Context, query string, sourceLocale, t
 	tb.mu.RLock()
 	defer tb.mu.RUnlock()
 
+	sourceLocale, targetLocale = model.NormalizeLocale(sourceLocale), model.NormalizeLocale(targetLocale)
 	lowerQuery := strings.ToLower(query)
 	var matched []Concept
 
@@ -429,11 +431,15 @@ func (tb *InMemoryStore) Close() error {
 // --- helpers ---
 
 // ApplyLookupDefaults fills unset LookupOptions fields with their defaults: a
-// non-positive MinScore becomes 0.8.
+// non-positive MinScore becomes 0.8. It also puts both locales in canonical
+// form, the form the term rows are keyed by, so every backend's lookup asks
+// the store the question it can answer.
 func ApplyLookupDefaults(opts LookupOptions) LookupOptions {
 	if opts.MinScore <= 0 {
 		opts.MinScore = 0.8
 	}
+	opts.SourceLocale = model.NormalizeLocale(opts.SourceLocale)
+	opts.TargetLocale = model.NormalizeLocale(opts.TargetLocale)
 	return opts
 }
 

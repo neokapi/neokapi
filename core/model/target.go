@@ -19,8 +19,21 @@ type VariantKey struct {
 	Channel string   `json:"channel,omitempty"`
 }
 
-// Variant returns a locale-only VariantKey — the common case.
-func Variant(locale LocaleID) VariantKey { return VariantKey{Locale: locale} }
+// Variant returns a locale-only VariantKey, the common case.
+//
+// The locale is normalized (NormalizeLocale), so a target set under "nb_NO" is
+// the target read under "nb-NO": the key is where a locale spelling becomes an
+// identity, and two spellings of one locale must not become two variants.
+func Variant(locale LocaleID) VariantKey { return VariantKey{Locale: NormalizeLocale(locale)} }
+
+// Canonical returns the key with its locale normalized, the form every Targets
+// map is keyed by. A key built as a struct literal, or decoded from a wire
+// shape that spelled the locale another way, passes through here before it
+// addresses a target.
+func (k VariantKey) Canonical() VariantKey {
+	k.Locale = NormalizeLocale(k.Locale)
+	return k
+}
 
 // IsZero reports whether the key is the zero value.
 func (k VariantKey) IsZero() bool { return k == VariantKey{} }
@@ -39,10 +52,12 @@ func (k VariantKey) MarshalText() ([]byte, error) {
 	return []byte(s), nil
 }
 
-// UnmarshalText decodes a VariantKey produced by MarshalText.
+// UnmarshalText decodes a VariantKey produced by MarshalText. The locale is
+// normalized on the way in, so a document that spelled it another way still
+// keys the variant every reader looks up.
 func (k *VariantKey) UnmarshalText(b []byte) error {
 	parts := strings.Split(string(b), ";")
-	*k = VariantKey{Locale: LocaleID(parts[0])}
+	*k = VariantKey{Locale: NormalizeLocale(LocaleID(parts[0]))}
 	for _, p := range parts[1:] {
 		name, val, ok := strings.Cut(p, "=")
 		if !ok {

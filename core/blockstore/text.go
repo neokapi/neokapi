@@ -45,7 +45,8 @@ func BlockTexts(b *Block) []BlockText {
 			continue // a target filed under the source key would shadow it
 		}
 		if txt := model.FlattenRuns(runs); txt != "" {
-			out = append(out, BlockText{Locale: locale, Text: txt})
+			// Canonical, the form every locale filter asks in.
+			out = append(out, BlockText{Locale: string(model.NormalizeLocale(model.LocaleID(locale))), Text: txt})
 		}
 	}
 	return out
@@ -66,7 +67,21 @@ func (o TextSearchOptions) wants(locale string) bool {
 	if o.Locales == nil {
 		return true
 	}
-	return slices.Contains(o.Locales, locale)
+	return slices.Contains(o.CanonicalLocales(), locale)
+}
+
+// CanonicalLocales returns the locale filter with every locale in canonical
+// form, the form BlockTexts files a target's text under. Nil stays nil (no
+// filter) and the source key stays the empty string.
+func (o TextSearchOptions) CanonicalLocales() []string {
+	if o.Locales == nil {
+		return nil
+	}
+	out := make([]string, len(o.Locales))
+	for i, l := range o.Locales {
+		out[i] = string(model.NormalizeLocale(model.LocaleID(l)))
+	}
+	return out
 }
 
 // TextHit is one block's text in one locale, matched by a text search.

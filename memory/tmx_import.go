@@ -185,9 +185,12 @@ func ImportTMXSession(ctx context.Context, store Store, reader io.Reader, opts I
 	}
 
 	// 6. Build locale filter (empty = keep all).
+	// Canonical on both sides: a filter written "en-US" keeps a TUV declaring
+	// xml:lang="EN-US" or "en_US", and the entry is keyed the way the store
+	// will look it up.
 	localeAllowed := make(map[model.LocaleID]bool, len(opts.Locales))
 	for _, l := range opts.Locales {
-		localeAllowed[l] = true
+		localeAllowed[model.NormalizeLocale(l)] = true
 	}
 	filterAll := len(localeAllowed) == 0
 
@@ -197,9 +200,9 @@ func ImportTMXSession(ctx context.Context, store Store, reader io.Reader, opts I
 		variants := make(map[model.LocaleID][]model.Run)
 		var hintLang model.LocaleID
 		if tu.SrcLang != "" {
-			hintLang = model.LocaleID(tu.SrcLang)
+			hintLang = model.NormalizeLocale(model.LocaleID(tu.SrcLang))
 		} else if doc.Header.SrcLang != "" {
-			hintLang = model.LocaleID(doc.Header.SrcLang)
+			hintLang = model.NormalizeLocale(model.LocaleID(doc.Header.SrcLang))
 		}
 
 		var firstSrcRef string
@@ -207,7 +210,7 @@ func ImportTMXSession(ctx context.Context, store Store, reader io.Reader, opts I
 			if tuv.Runs == nil {
 				continue
 			}
-			loc := model.LocaleID(tuv.Lang)
+			loc := model.NormalizeLocale(model.LocaleID(tuv.Lang))
 			if !filterAll && !localeAllowed[loc] {
 				continue
 			}

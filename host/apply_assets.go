@@ -263,6 +263,9 @@ type termDecision struct {
 // within a locale; a new concept is keyed by a stable id so re-seeding is
 // reproducible.
 func upsertTerm(concepts []terms.Concept, d termDecision) ([]terms.Concept, bool) {
+	// Canonical before it reaches the source file or the concept id, so a
+	// decision written as "en_US" joins the concept "en-US" already holds.
+	d.Locale = model.NormalizeLocale(d.Locale)
 	now := time.Now().UTC()
 	noteWant := terms.ReplacementNote(d.Replacement)
 
@@ -360,9 +363,11 @@ func termIndex(c *terms.Concept, text string, locale model.LocaleID) int {
 }
 
 // conceptID derives a stable, filesystem-safe concept id from the term text and
-// locale so re-applying the same term re-seeds the same concept.
+// locale so re-applying the same term re-seeds the same concept. The locale is
+// embedded in canonical form: the id is persisted, and two spellings of one
+// locale must mint one concept.
 func conceptID(text string, locale model.LocaleID) string {
-	return "term:" + string(locale) + ":" + slugify(text)
+	return "term:" + string(model.NormalizeLocale(locale)) + ":" + slugify(text)
 }
 
 // ---------------------------------------------------------------------------
@@ -453,7 +458,8 @@ func (a *App) applyMemoryEntry(ctx context.Context, cmd Command, e changeEntry) 
 		return errResult(res, fmt.Sprintf("tm: status must be empty, %q, or %q", model.TargetStatusReviewed, model.TargetStatusSignedOff))
 	}
 
-	entries, changed := upsertMemoryPair(entries, e.Source, e.Target, model.LocaleID(srcLocale), model.LocaleID(tgtLocale), reviewState)
+	entries, changed := upsertMemoryPair(entries, e.Source, e.Target,
+		model.NormalizeLocale(model.LocaleID(srcLocale)), model.NormalizeLocale(model.LocaleID(tgtLocale)), reviewState)
 	if !changed {
 		res.Status = "skipped"
 		res.Detail = "already present"
@@ -602,6 +608,9 @@ func writeKMB(path string, entries []memory.Entry) error {
 // true when the target text OR the review state changed, so promoting an
 // already-present translation to signed-off is not mistaken for a no-op.
 func upsertMemoryPair(entries []memory.Entry, source, target string, srcLocale, tgtLocale model.LocaleID, reviewState string) ([]memory.Entry, bool) {
+	// The bundle is a committed source the store compiles; its variants are
+	// keyed the way the store keys them, whatever the change entry wrote.
+	srcLocale, tgtLocale = model.NormalizeLocale(srcLocale), model.NormalizeLocale(tgtLocale)
 	id := memoryEntryID(source, srcLocale, tgtLocale)
 	for i := range entries {
 		if entries[i].ID != id {
@@ -668,9 +677,11 @@ func setReviewProperty(e *memory.Entry, reviewState string) bool {
 	return true
 }
 
-// memoryEntryID derives a stable id for a source/locale-pair content-memory entry.
+// memoryEntryID derives a stable id for a source/locale-pair content-memory
+// entry. Both locales are embedded in canonical form: the id is persisted, and
+// two spellings of one locale pair must name one entry.
 func memoryEntryID(source string, srcLocale, tgtLocale model.LocaleID) string {
-	return fmt.Sprintf("apply:%s:%s:%s", srcLocale, tgtLocale, model.ComputeContentHash(source))
+	return fmt.Sprintf("apply:%s:%s:%s", model.NormalizeLocale(srcLocale), model.NormalizeLocale(tgtLocale), model.ComputeContentHash(source))
 }
 
 // ---------------------------------------------------------------------------

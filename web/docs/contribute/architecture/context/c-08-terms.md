@@ -92,6 +92,13 @@ cross-compilation and single-binary distribution are unaffected. A backend with
 wider isolation and terminology streams can be supplied by a layer above, behind
 the same interface.
 
+A term's locale is held in canonical BCP-47 form, the way its text is held
+case-folded beside it: every backend normalizes `Term.Locale` on write
+(`locale.Normalize`) and every lookup, search and concept accessor asks in the
+same form, so a term recorded under `en_US` is the term a check running in
+`en-US` finds. The concept id `kapi apply` mints for a term decided outside any
+concept, `term:<locale>:<slug>`, embeds the locale in that form.
+
 ### Terms are source; the store is a rebuildable projection
 
 Terminology is **authored content, not derived state**. A person decides which
