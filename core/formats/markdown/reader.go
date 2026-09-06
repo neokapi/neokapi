@@ -450,9 +450,12 @@ func (r *Reader) emitFrontMatterScalars(ctx context.Context, ch chan<- model.Par
 			}
 		}
 		leadingSpace += leadingSpaceSb245.String()
+		// The whitespace after the value is the skeleton's too, or a key
+		// written as "title: a " came back as "title: a".
+		trailingSpace := valuePart[len(strings.TrimRight(valuePart, " \t")):]
 		r.skelText(prefix + leadingSpace)
 		r.skelRef(blockID)
-		r.skelText("\n")
+		r.skelText(trailingSpace + "\n")
 
 		r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 	}

@@ -100,3 +100,18 @@ func TestFrontMatter_TranslationQuoting(t *testing.T) {
 	assert.Contains(t, out, "sidebar_position: 3\n", "non-allowlisted keys untouched")
 	assert.Contains(t, out, "keywords: [kapi, overview]\n", "list values untouched")
 }
+
+// TestFrontMatterValueKeepsTrailingWhitespace covers the whitespace after a
+// scalar value, which the reader trimmed off the value and never put back, so
+// "title: a " came back as "title: a".
+func TestFrontMatterValueKeepsTrailingWhitespace(t *testing.T) {
+	t.Parallel()
+	for _, input := range []string{
+		"---\ntitle: a \n---\n\nBody\n",
+		"---\ntitle: a\t\n---\n\nBody\n",
+		"---\ntitle: \"a\"  \n---\n\nBody\n",
+		"---\ntitle: a\n---\n\nBody\n",
+	} {
+		assert.Equal(t, input, roundtripWithSkeleton(t, input), "skeleton path is not byte-exact")
+	}
+}
