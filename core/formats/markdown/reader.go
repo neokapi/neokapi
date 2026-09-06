@@ -638,11 +638,9 @@ func (r *Reader) emitLinkReferenceDefinition(ctx context.Context, ch chan<- mode
 
 	// The simple case: no translatable parts → emit as Data so the
 	// non-skeleton write path can still reconstruct the line, and let
-	// the skeleton path replay the definition's own bytes (so leading
-	// indent gets stripped and everything else is kept).
+	// the skeleton path replay the definition's own bytes.
 	if !labelVisible && !titleUsed {
 		r.dataCounter++
-		titleOpen, titleClose := titleDelimiters(def, string(n.Title))
 		data := &model.Data{
 			ID:   fmt.Sprintf("d%d", r.dataCounter),
 			Name: "link-reference-definition",
@@ -652,16 +650,11 @@ func (r *Reader) emitLinkReferenceDefinition(ctx context.Context, ch chan<- mode
 				"title":       string(n.Title),
 			},
 		}
-		if located {
-			r.skelText(string(def))
-		} else {
-			// Preserve the literal whitespace authored after `]:` so
-			// `[l]:  #list` (two spaces) doesn't collapse to `[l]: #list`.
-			// Mirrors okapi MarkdownFilter, which round-trips link reference
-			// definitions verbatim through skeleton bytes.
-			sep := refDefSeparator(def)
-			r.skelText(buildLinkReferenceDefinitionLiteral(label, urlLiteral, sep, string(n.Title), titleOpen, titleClose))
-		}
+		// Nothing here is translatable, so the definition's own source bytes go
+		// straight into the skeleton whether or not the scanner could place its
+		// parts. Rebuilding it from the resolved values spelled "[a]: dest"
+		// with one space whatever the source had (#2507).
+		r.skelText(string(def))
 		// preserve a trailing newline only when source had one (always
 		// true for non-EOF defs; goldmark already trimmed the line value
 		// so we add it back here).
@@ -831,33 +824,6 @@ func scanRefDefinition(def []byte) (refDefSpans, bool) {
 	}
 	s.titleStart, s.titleEnd = i+1, j
 	return s, true
-}
-
-// buildLinkReferenceDefinitionLiteral builds the source representation
-// of `[label]: url "title"` (or with the alternate quote/paren forms).
-// Used when the definition has no translatable parts so the writer can
-// still reconstruct the line from skeleton bytes alone.
-func buildLinkReferenceDefinitionLiteral(label, dest, sep, title, titleOpen, titleClose string) string {
-	if sep == "" {
-		sep = " "
-	}
-	var sb strings.Builder
-	sb.WriteByte('[')
-	sb.WriteString(label)
-	sb.WriteString("]:")
-	sb.WriteString(sep)
-	sb.WriteString(dest)
-	if title != "" {
-		open, close := titleOpen, titleClose
-		if open == "" || close == "" {
-			open, close = `"`, `"`
-		}
-		sb.WriteByte(' ')
-		sb.WriteString(open)
-		sb.WriteString(title)
-		sb.WriteString(close)
-	}
-	return sb.String()
 }
 
 // refDefSeparator returns the literal whitespace bytes between the
