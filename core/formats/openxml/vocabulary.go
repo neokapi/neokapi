@@ -98,10 +98,38 @@ const (
 	// `<m:oMath>` integral equation immediately follows a paragraph's
 	// "Here is a math equation:  " text body inside the same `<w:p>`).
 	TypeOpaqueParaChild = "struct:opaque-para-child"
+	// TypeSMLRunProps tags a paired code carrying the run-property children of
+	// a SpreadsheetML rich-text run that the model does not name: <color>,
+	// <sz>, <rFont>, <family>, <charset>, <scheme> and whatever else a
+	// producer writes (ECMA-376 Part 1 §18.4.7, CT_RPrElt). The named
+	// formatting travels beside it as fmt:bold and its siblings, so a
+	// translator sees where the colour and the typeface start and stop without
+	// the reader having to model either. The open half's Data holds the
+	// children's source bytes in source order and the writer replays them into
+	// the <rPr> it rebuilds; the close half carries nothing.
+	//
+	// This is the SpreadsheetML answer to the sidecar the WordprocessingML
+	// path uses (openxmlPerRunRPrAnnotationKey, source_rpr.go). A code rather
+	// than an annotation, because a shared string's runs are the block's whole
+	// content: the run boundary a colour creates IS the inline structure, and
+	// an annotation cannot say where in the text it begins.
+	TypeSMLRunProps = "fmt:sml-run-props"
 )
+
+// AttrSMLRPr is the run-attribute key under which a CT_Rst code carries the
+// source bytes of the <rPr> child it stands for.
+//
+// The bytes travel here rather than in the code's Data because Data is what a
+// writer replays when it does not recognise a code's type: the HTML export
+// echoes any Data that starts with "<" (core/formats/html/semantic.go), which
+// is right for a captured HTML tag and wrong for `<sz val="12"/>`. An
+// attribute key no other format reads cannot leak, and the SpreadsheetML
+// writer reads it by name.
+const AttrSMLRPr = "openxml:rpr"
 
 // SubType constants provide format-specific refinement.
 const (
+	SubTypeSMLRunProps   = "openxml:rPr"
 	SubTypeBold          = "openxml:b"
 	SubTypeItalic        = "openxml:i"
 	SubTypeUnderline     = "openxml:u"

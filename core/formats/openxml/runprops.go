@@ -97,6 +97,19 @@ type runProps struct {
 	// list to avoid double-emission. Bowrain Issue #592 + ECMA-376-1
 	// §17.3.2.30.
 	rPrChildren []rPrChild
+	// smlRPr is the ordered list of a SpreadsheetML rich-text run's <rPr>
+	// children as the source wrote them, INCLUDING the toggles, which is what
+	// separates it from rPrChildren.
+	//
+	// The two are not interchangeable. rPrChildren holds WordprocessingML,
+	// spelled with the "w:" prefix and with the toggles removed because the
+	// WML writer rebuilds those from the model's codes. SpreadsheetML has no
+	// prefix on these elements (ECMA-376 Part 1 §18.4.7, CT_RPrElt), and its
+	// writer replays each child's own bytes rather than synthesising them, so
+	// the toggles have to be here for `<u val="double"/>` to survive.
+	//
+	// Populated only by parseSMLRunProps; nil on every WordprocessingML run.
+	smlRPr []rPrChild
 }
 
 // rPrChild captures one <w:rPr> child element by its local name and
@@ -209,6 +222,12 @@ func (rp runProps) equalIncludingChildren(other runProps) bool {
 // matching color/sz/lang).
 func (rp runProps) canBeMergedWithTexts(other runProps, rText, otherText string) bool {
 	if !rp.equalTextAware(other, rText, otherText) {
+		return false
+	}
+	// A SpreadsheetML rich-text run keeps every <rPr> child it was read with,
+	// so two runs merge only when those match. Both sides are nil on a
+	// WordprocessingML run, where the rPrChildren gate below decides.
+	if !rp.smlRPrEqual(other) {
 		return false
 	}
 	return rPrChildrenMergeableTexts(rp.rPrChildren, other.rPrChildren, rText, otherText)

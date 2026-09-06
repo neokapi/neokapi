@@ -110,6 +110,10 @@ func (p *smlParser) parseSharedStringsPart(data []byte, partPath string, emitBlo
 			case "si":
 				inSI = true
 				currentRuns = nil
+				// A shared string that holds a bare <t> opens no <r>, so
+				// without this reset it inherits the run properties of the
+				// previous item's last run and comes back wearing them.
+				currentProps = runProps{}
 				p.skelWriteStartElement(d, t)
 				siInnerOff = d.EndOffset()
 
@@ -181,7 +185,16 @@ func (p *smlParser) parseSharedStringsPart(data []byte, partPath string, emitBlo
 	return nil
 }
 
-// parseSMLRunProps parses run properties inside shared string rich text <rPr>.
+// parseSMLRunProps parses a CT_Rst run's <rPr> (ECMA-376 Part 1 §18.4.7).
+//
+// Five of its children carry formatting the model names, and they become the
+// declared inline codes a translator sees. The rest — <color>, <sz>, <rFont>,
+// <family>, <charset>, <scheme> and anything else a producer writes — carry
+// formatting the model does not name, and they are kept as the source wrote
+// them so the writer can put them back.
+//
+// Every child is recorded in source order, whichever group it falls in, so the
+// writer rebuilds the element in the order it was read.
 func (p *smlParser) parseSMLRunProps(d *rawDecoder) runProps {
 	var props runProps
 	depth := 1
@@ -192,16 +205,31 @@ func (p *smlParser) parseSMLRunProps(d *rawDecoder) runProps {
 		}
 		switch t := tok.(type) {
 		case xml.StartElement:
-			depth++
+			if depth > 1 {
+				// Not a direct child: ECMA-376 defines every <rPr> child as
+				// empty, so this is a producer's own nesting and it travels
+				// inside the child captured below.
+				depth++
+				continue
+			}
+			raw, err := captureRawElement(d, t)
+			if err != nil {
+				return props
+			}
+			props.smlRPr = append(props.smlRPr, rPrChild{name: t.Name.Local, xml: raw})
 			switch t.Name.Local {
 			case "b":
-				props.bold = true
+				props.bold = smlToggleOn(t)
 			case "i":
-				props.italic = true
+				props.italic = smlToggleOn(t)
 			case "u":
-				props.underline = "single"
+				if v := attrVal(t, "val"); v != "" {
+					props.underline = v
+				} else {
+					props.underline = "single"
+				}
 			case "strike":
-				props.strike = true
+				props.strike = smlToggleOn(t)
 			case "vertAlign":
 				props.vertAlign = attrVal(t, "val")
 			}
@@ -210,6 +238,62 @@ func (p *smlParser) parseSMLRunProps(d *rawDecoder) runProps {
 		}
 	}
 	return props
+}
+
+// smlToggleOn reads a CT_BooleanProperty toggle. ECMA-376 Part 1 §18.2.10 makes
+// the val attribute default to true, so a bare <b/> is on and only an explicit
+// false turns it off.
+func smlToggleOn(t xml.StartElement) bool {
+	switch attrVal(t, "val") {
+	case "0", "false":
+		return false
+	}
+	return true
+}
+
+// smlNamedRPrChildren is the set of <rPr> children the model names as inline
+// codes. Everything else travels as one opaque paired code.
+var smlNamedRPrChildren = map[string]bool{
+	"b": true, "i": true, "u": true, "strike": true, "vertAlign": true,
+}
+
+// smlOpaqueRPr concatenates, in source order, the <rPr> children the model does
+// not name. Empty when the run carries none.
+func (rp runProps) smlOpaqueRPr() string {
+	var b strings.Builder
+	for _, c := range rp.smlRPr {
+		if !smlNamedRPrChildren[c.name] {
+			b.WriteString(c.xml)
+		}
+	}
+	return b.String()
+}
+
+// smlNamedRPrXML returns the source bytes of the named child that declared a
+// formatting type, so the code carries the form the run was read with and
+// `<u val="double"/>` does not come back as `<u/>`.
+func (rp runProps) smlNamedRPrXML(local string) string {
+	for _, c := range rp.smlRPr {
+		if c.name == local {
+			return c.xml
+		}
+	}
+	return ""
+}
+
+// smlRPrEqual reports whether two runs carry the same <rPr>, children the model
+// does not name included. Two runs that differ only in colour are different
+// runs: merging them is how the colour and the run boundary were lost.
+func (rp runProps) smlRPrEqual(other runProps) bool {
+	if len(rp.smlRPr) != len(other.smlRPr) {
+		return false
+	}
+	for i, c := range rp.smlRPr {
+		if c != other.smlRPr[i] {
+			return false
+		}
+	}
+	return true
 }
 
 // parseWorksheet parses a buffered worksheet XML part.
@@ -878,19 +962,20 @@ func rstText(runs []textRun) string {
 
 // rstModelRuns converts a CT_Rst element's text runs into model runs, opening
 // and closing an inline code around each stretch that carries run properties.
+//
+// A stretch ends where any part of the <rPr> changes, the children the model
+// does not name included, so a run of red text keeps its own boundary.
 func rstModelRuns(runs []textRun) []model.Run {
 	b := &runBuilder{}
 	ids := &spanIDs{}
 	var activeProps *runProps
 
 	for _, run := range runs {
-		if activeProps == nil || !activeProps.equal(run.props) {
-			if activeProps != nil && !activeProps.isEmpty() {
-				activeProps.appendClosingRuns(b, ids)
+		if activeProps == nil || !smlPropsEqual(*activeProps, run.props) {
+			if activeProps != nil {
+				activeProps.appendSMLClosingRuns(b, ids)
 			}
-			if !run.props.isEmpty() {
-				run.props.appendOpeningRuns(b, ids)
-			}
+			run.props.appendSMLOpeningRuns(b, ids)
 			propsCopy := run.props
 			activeProps = &propsCopy
 		}
@@ -898,11 +983,80 @@ func rstModelRuns(runs []textRun) []model.Run {
 		b.AddText(run.text)
 	}
 
-	if activeProps != nil && !activeProps.isEmpty() {
-		activeProps.appendClosingRuns(b, ids)
+	if activeProps != nil {
+		activeProps.appendSMLClosingRuns(b, ids)
 	}
 
 	return b.Runs()
+}
+
+// smlPropsEqual reports whether two CT_Rst runs would produce the same <rPr>.
+func smlPropsEqual(a, b runProps) bool {
+	return a.equal(b) && a.smlRPrEqual(b)
+}
+
+// appendSMLOpeningRuns emits the opening codes for a CT_Rst run's <rPr>: one
+// declared code per named formatting type, then one opaque code carrying every
+// other child. Each code carries the source's own bytes on AttrSMLRPr, so the
+// writer puts the element back in the form it was read.
+func (rp runProps) appendSMLOpeningRuns(b *runBuilder, ids *spanIDs) {
+	emit := func(typ, subType, rPr string) {
+		var attrs map[string]string
+		if rPr != "" {
+			attrs = map[string]string{AttrSMLRPr: rPr}
+		}
+		b.AddPcOpenAttrs(ids.openSpan(), typ, subType, "", "", "", true, true, true, attrs)
+	}
+	if rp.bold {
+		emit(TypeBold, SubTypeBold, rp.smlNamedRPrXML("b"))
+	}
+	if rp.italic {
+		emit(TypeItalic, SubTypeItalic, rp.smlNamedRPrXML("i"))
+	}
+	if rp.underline != "" {
+		emit(TypeUnderline, SubTypeUnderline, rp.smlNamedRPrXML("u"))
+	}
+	if rp.strike {
+		emit(TypeStrikethrough, SubTypeStrikethrough, rp.smlNamedRPrXML("strike"))
+	}
+	if rp.vertAlign == "superscript" {
+		emit(TypeSuperscript, SubTypeSuperscript, rp.smlNamedRPrXML("vertAlign"))
+	}
+	if rp.vertAlign == "subscript" {
+		emit(TypeSubscript, SubTypeSubscript, rp.smlNamedRPrXML("vertAlign"))
+	}
+	if other := rp.smlOpaqueRPr(); other != "" {
+		emit(TypeSMLRunProps, SubTypeSMLRunProps, other)
+	}
+}
+
+// appendSMLClosingRuns closes what appendSMLOpeningRuns opened, innermost
+// first, so the ids pair.
+func (rp runProps) appendSMLClosingRuns(b *runBuilder, ids *spanIDs) {
+	emit := func(typ, subType string) {
+		b.AddPcClose(ids.closeSpan(), typ, subType, "", "")
+	}
+	if rp.smlOpaqueRPr() != "" {
+		emit(TypeSMLRunProps, SubTypeSMLRunProps)
+	}
+	if rp.vertAlign == "subscript" {
+		emit(TypeSubscript, SubTypeSubscript)
+	}
+	if rp.vertAlign == "superscript" {
+		emit(TypeSuperscript, SubTypeSuperscript)
+	}
+	if rp.strike {
+		emit(TypeStrikethrough, SubTypeStrikethrough)
+	}
+	if rp.underline != "" {
+		emit(TypeUnderline, SubTypeUnderline)
+	}
+	if rp.italic {
+		emit(TypeItalic, SubTypeItalic)
+	}
+	if rp.bold {
+		emit(TypeBold, SubTypeBold)
+	}
 }
 
 // buildBlock creates a model.Block from shared string text runs.
