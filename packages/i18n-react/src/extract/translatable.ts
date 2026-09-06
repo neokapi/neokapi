@@ -9,7 +9,7 @@
 
 import type { JSXElement } from "@swc/core";
 
-import { getTranslatability, inlineElements } from "../plugin/defaults.ts";
+import { getTranslatability, inlineElements, nonTranslatableElements } from "../plugin/defaults.ts";
 import type { PluginOptions } from "../types.ts";
 import { getStringAttr, getTagName, hasAttr, resolveHTMLElement } from "./ast.ts";
 import { isPluralElement, isSelectElement } from "./plural.ts";
@@ -48,7 +48,8 @@ export interface ElementPolicy {
  * or add a `componentMap` entry for hash stability.
  *
  * User rules still win (`translate: false` on a matching selector
- * flips promoted elements back off).
+ * flips promoted elements back off), and an explicit `translate="yes"`
+ * on the element beats the default table.
  */
 export function resolvePolicy(
   htmlElement: string,
@@ -66,6 +67,12 @@ export function resolvePolicy(
       promoted = true;
     }
   }
+
+  // W3C: an explicit `translate` on the element beats the default table, in
+  // both directions. `nearestTranslate` handles the "no" half before we get
+  // here; this is the opt-in one, so `<code translate="yes">Choose a
+  // file</code>` is extracted as the prose its author says it is.
+  if (getStringAttr(el, "translate") === "yes") translate = true;
 
   let locNote: string | undefined;
   for (const rule of rules) {
@@ -171,6 +178,11 @@ function isChildless(el: JSXElement): boolean {
  * it would pull a file path, an identifier or a code sample into the
  * message. `buildRuns` emits the same child as an opaque standalone
  * placeholder, so both halves agree on what the message contains.
+ *
+ * A `<code>`, `<kbd>`, `<samp>` or `<var>` child is read the same way. It
+ * travels inside its parent's block as a paired code, but what it holds is a
+ * command rather than prose, so it can never be the reason a parent enters the
+ * catalog. `buildRuns` marks the same text `noTranslate`.
  */
 export function hasTranslatableText(el: HasChildren): boolean {
   for (const child of el.children ?? []) {
@@ -178,8 +190,10 @@ export function hasTranslatableText(el: HasChildren): boolean {
     if (child.type === "JSXElement") {
       const tag = getTagName(child);
       if (!tag) continue;
-      if (getStringAttr(child, "translate") === "no") continue;
+      const explicit = getStringAttr(child, "translate");
+      if (explicit === "no") continue;
       if (isPluralElement(child) || isSelectElement(child)) return true;
+      if (explicit !== "yes" && nonTranslatableElements.has(tag)) continue;
       if (inlineElements.has(tag) && hasTranslatableText(child)) return true;
     }
   }

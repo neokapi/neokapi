@@ -19,7 +19,8 @@ Almost everything you already write is translatable. This page walks through the
 - **HTML and ARIA text attributes** (`alt`, `title`, `placeholder`, `aria-label`, …) on **any** element → extracted.
 - **React prop-name conventions** (`label`, `description`, `heading`, `helpText`, `tooltip`, …) on **PascalCase components only** → extracted. On a plain `<div>` these names are usually DOM props or enum keys, not copy.
 - **Translatable attributes with string-literal ternaries** (`title={cond ? "A" : "B"}`) → each branch extracted as its own block.
-- **Non-translatable elements** (`<code>`, `<pre>`, `<kbd>`, `<var>`, `<script>`, `<style>`, `<textarea>`) → skipped.
+- **Code spans inside a sentence** (`<code>`, `<kbd>`, `<samp>`, `<var>`) → the sentence extracts as one block, the span becomes a paired marker, and its text is carried through verbatim.
+- **Non-translatable elements on their own** (`<code>`, `<pre>`, `<kbd>`, `<var>`, `<script>`, `<style>`, `<textarea>`) → skipped.
 - **Elements marked `translate="no"`** (or any ancestor) → skipped.
 
 ## The detail
@@ -49,7 +50,7 @@ When an element mixes text with inline children, the whole thing becomes one tra
 
 The extractor stores this as `"Click {=m0}here{/=m0} to read the docs."`. A German translation reads `"Klicken Sie {=m0}hier{/=m0}, um die Dokumentation zu lesen."`: the link wraps the right word, and a French translator can move it elsewhere in the sentence entirely.
 
-Inline elements that produce paired markers: `<span>`, `<strong>`, `<em>`, `<b>`, `<i>`, `<a>`, `<small>`, `<sub>`, `<sup>`, `<time>`, `<u>`, `<wbr>`, `<del>`, `<ins>`. (`<code>`, `<kbd>`, `<var>`, `<samp>` render code-as-code and are non-translatable; see below.)
+Inline elements that produce paired markers: `<span>`, `<strong>`, `<em>`, `<b>`, `<i>`, `<a>`, `<small>`, `<sub>`, `<sup>`, `<time>`, `<u>`, `<wbr>`, `<del>`, `<ins>`, plus `<code>`, `<kbd>`, `<samp>` and `<var>`, whose text is carried through verbatim (see [Code spans inside prose](#code-spans-inside-prose)).
 
 The rule is uniform: **any inline element with at least one child → paired pair**, regardless of whether the inner content is text, an expression, an icon, or further nested elements. Empty inline elements become **standalone markers** instead. A few examples:
 
@@ -189,7 +190,8 @@ Mixed-shape ternaries (one literal, one computed, or both templates) _aren't_ st
 
 ### Non-translatable elements
 
-These render text-as-text, not natural language, so they're skipped:
+These render text-as-text, not natural language, so their contents never enter
+the catalog:
 
 `<code>`, `<pre>`, `<kbd>`, `<var>`, `<samp>`, `<script>`, `<style>`, `<textarea>`.
 
@@ -199,6 +201,38 @@ These render text-as-text, not natural language, so they're skipped:
 ```
 
 To flip one specific site: `<code translate="yes">...</code>`.
+
+### Code spans inside prose
+
+`<code>`, `<kbd>`, `<samp>` and `<var>` are also phrasing elements: a sentence
+mentioning a flag or a format id is one sentence, and cutting it at the span
+would leave the reader half a paragraph in their own language. So the parent
+extracts as one block, the span becomes a paired marker like any other inline
+element, and the text between the tags is marked protected:
+
+```tsx
+<p>
+  Say <code>json</code> for the faithful readers.
+</p>
+```
+
+The block reads `"Say {=m0}json{/=m0} for the faithful readers."`, and its runs
+carry `json` with a do-not-translate flag. Translation, an AI pass and the `qps`
+pseudo-locale all leave it alone, so the reader gets the bytes you wrote while
+the prose around it is translated.
+
+An element holding a code span and nothing else has no prose in it, so it stays
+out of the catalog:
+
+```tsx
+<p>
+  <code>kapi up</code>
+</p>
+// ✗ no block: the element holds an identifier only
+```
+
+`translate="yes"` on the span opts its text back in, inside a sentence or on its
+own.
 
 ### Opting out with `translate="no"`
 
@@ -390,6 +424,7 @@ rules: [{ selector: ".legal-copy", locNote: "Legal team must review" }];
 | `<div label="draft-pending" />`           | no         | convention prop on a plain element; not copy                             |
 | `<p>Click <a>here</a></p>`                | yes        | one block, `<a>` becomes paired `{=m0}…{/=m0}`                           |
 | `<code>foo</code>`                        | no         | non-translatable element                                                 |
+| `<p>Say <code>json</code> now</p>`        | yes        | one block; `json` carried through as protected text                      |
 | `<h1 translate="no">X</h1>`               | no         | explicit opt-out (suppresses lint too)                                   |
 | `<button>{label}</button>`                | no         | bare expression; use `t()` on the source                                 |
 | `<button>{obj.label}</button>`            | no         | flagged by `prefer-t-for-label-expr`; wrap the source                    |

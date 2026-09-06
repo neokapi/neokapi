@@ -11,6 +11,12 @@
  *   JSXElement, translate="no"                → PlaceholderRun ("jsx:element")
  *   JSXElement, has children                  → PcOpenRun + inner runs + PcCloseRun ("jsx:element")
  *
+ * Text inside a `<code>`, `<kbd>`, `<samp>` or `<var>` is a command, a key or
+ * an identifier, so it comes out as a `noTranslate` TextRun, the same shape the
+ * Markdown reader gives a backtick span. The element itself stays a paired
+ * code, so the sentence around it is one block and the reader still gets the
+ * bytes the author wrote. `translate="yes"` on the span opts it back in.
+ *
  * The paired form keeps inline elements like `<a>here</a>` and
  * `<strong>{count}</strong>` inside their parent's translatable
  * sentence; the runtime cloneElements the wrapping element with the
@@ -43,6 +49,7 @@ import type {
   TextRun,
 } from "@neokapi/kapi-format";
 
+import { getTranslatability } from "../plugin/defaults.ts";
 import { hasICUSyntax } from "../runtime/icu.ts";
 import {
   containsJSX,
@@ -124,6 +131,8 @@ interface BuilderState {
   occurrences: Occurrence[];
   componentMap: Record<string, string>;
   sourceSlice: BuildRunsOptions["sourceSlice"];
+  /** Inside a `<code>` / `<kbd>` / `<samp>` / `<var>`: text appended is marked. */
+  noTranslate: boolean;
 }
 
 /**
@@ -145,6 +154,7 @@ export function buildRuns(
     occurrences: [],
     componentMap: opts.componentMap,
     sourceSlice: opts.sourceSlice,
+    noTranslate: false,
   };
   walkChildren(el.children ?? [], state);
   return {
@@ -173,13 +183,16 @@ function walkChildren(children: readonly JSXElementChild[], state: BuilderState)
 
 function appendText(state: BuilderState, text: string): void {
   if (text.length === 0) return;
+  const noTranslate = state.noTranslate;
   // Coalesce adjacent text runs so a chunked ABI doesn't produce
-  // visually-identical neighbours.
+  // visually-identical neighbours. Only across text of the same kind: a
+  // command that merged into the sentence beside it would lose its marking,
+  // and the reader would be handed something they cannot type.
   const last = state.runs[state.runs.length - 1];
-  if (last && "text" in last) {
+  if (last && "text" in last && (last.noTranslate ?? false) === noTranslate) {
     last.text += text;
   } else {
-    const run: { text: string } = { text };
+    const run: TextRun = noTranslate ? { text, noTranslate: true } : { text };
     state.runs.push(run as Run);
   }
   state.flatText += text;
@@ -353,7 +366,10 @@ function appendJsxElement(state: BuilderState, el: JSXElement): void {
   } satisfies PcOpenRun);
   state.flatText += `{${equiv}}`;
 
+  const outerNoTranslate = state.noTranslate;
+  state.noTranslate = spanProtectsItsText(el, subType, outerNoTranslate);
   walkChildren(children, state);
+  state.noTranslate = outerNoTranslate;
 
   state.runs.push({
     pcClose: {
@@ -384,6 +400,22 @@ function appendJsxElement(state: BuilderState, el: JSXElement): void {
     closeStart: el.closing?.span.start,
     closeEnd: el.closing?.span.end,
   });
+}
+
+/**
+ * Whether the text inside `el` belongs to the translator.
+ *
+ * The W3C table says no for `<code>`, `<kbd>`, `<samp>` and `<var>`: their
+ * content is a command, a key the reader presses, sample output or a variable
+ * name. `translate="yes"` on the element opts one site back in, and a span
+ * carrying neither answer inherits whatever encloses it, so a `<span>` inside a
+ * `<code>` stays protected.
+ */
+function spanProtectsItsText(el: JSXElement, htmlElement: string, inherited: boolean): boolean {
+  const explicit = getStringAttr(el, "translate");
+  if (explicit === "yes") return false;
+  if (getTranslatability(htmlElement) === "no") return true;
+  return inherited;
 }
 
 // ─── Plural / Select ─────────────────────────────────────────────
