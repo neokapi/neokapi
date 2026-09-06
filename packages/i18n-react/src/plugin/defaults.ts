@@ -102,6 +102,33 @@ export const inlineElements = new Set([
   "ins",
 ]);
 
+/**
+ * Phrasing-content controls and embedded content: the form controls, `button`,
+ * and the media elements. HTML5 lets an author put any of them in the middle of
+ * a sentence, and `button` in particular is written that way all the time.
+ *
+ * Membership here is positional rather than absolute, which is what separates it
+ * from `inlineElements`. Each of these also stands alone as the whole content of
+ * a wrapper, so folding one into its parent unconditionally would pull every
+ * `<div><Button>Save</Button></div>` label into a parent block and re-key it for
+ * nothing. `isAllInlineContent` accepts one only where the parent already holds
+ * prose of its own, so a paragraph around a button becomes a single block with
+ * the button as a paired code, and a button on its own keeps its own block and
+ * its own key.
+ */
+export const phrasingControlElements = new Set([
+  "audio",
+  "button",
+  "img",
+  "input",
+  "label",
+  "meter",
+  "output",
+  "progress",
+  "select",
+  "video",
+]);
+
 export const containerElements = new Set([
   "div",
   "section",
