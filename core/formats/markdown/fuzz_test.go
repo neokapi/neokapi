@@ -137,8 +137,12 @@ func FuzzReadMarkdown(f *testing.F) {
 	// #2462: a definition whose destination or title sits on a line of its own.
 	// Also committed under testdata/fuzz.
 	f.Add([]byte("[a][R] x\n\n[R]:\n /y\n 'T'\n"))
+	// #2463: a blockquote line that carries the marker and nothing else, whose
+	// trailing space the writer's okapi-parity trim dropped. Also committed
+	// under testdata/fuzz.
+	f.Add([]byte("> \n> q\n"))
 	markdownSeed(f, "excluded-html-inline.md", "emphasis-delimiters.md", "image-alt.md",
-		"wrapped-link-closers.md", "reference-definitions.md")
+		"wrapped-link-closers.md", "reference-definitions.md", "blockquote-marker-lines.md")
 	seedDamagedMarkdown(f)
 
 	f.Fuzz(func(t *testing.T, data []byte) {

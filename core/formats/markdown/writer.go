@@ -1547,6 +1547,14 @@ func (t *trailSpaceTrimmer) trimBuffered() {
 	if len(t.buf) < 2 {
 		return
 	}
+	// A line that holds nothing but a blockquote's marker keeps the space after
+	// its last ">". CommonMark 5.1 spells the marker as ">" plus an optional
+	// space, so that space belongs to the marker rather than to the decorative
+	// trailing whitespace okapi's writer drops, and stripping it rewrote "> \n"
+	// as ">\n" in a file nobody edited (#2463).
+	if line := string(t.buf); blockquoteMarkerPrefix(line) == line {
+		return
+	}
 	// Only strip if the line ends in EXACTLY one trailing space — see
 	// the comment on the wrap site for why we don't mirror the upstream
 	// "all-spaces → empty" branch (the upstream skeleton writer
