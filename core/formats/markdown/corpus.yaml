@@ -84,6 +84,14 @@ entries:
     license: Apache-2.0
     redistributable: true
     notes: 'FuzzRoundTripMarkdown seed for #2448 (a hard break on a line of its own)'
+  - path: core/formats/markdown/testdata/fuzz/FuzzRoundTripMarkdown/html_block_multiline
+    tier: A
+    origin: bug
+    sha256: 2f1091d06e38883f8696f045d37176014deffb1132d97377d9fcf2d7707812fd
+    size: 38
+    license: Apache-2.0
+    redistributable: true
+    notes: 'FuzzRoundTripMarkdown seed for #2470 (a multi-line HTML block rebuilt as a paragraph)'
   - path: core/formats/markdown/testdata/fuzz/FuzzRoundTripMarkdown/lazy_blockquote_continuation
     tier: A
     origin: bug

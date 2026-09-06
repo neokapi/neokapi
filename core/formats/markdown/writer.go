@@ -954,11 +954,11 @@ func (w *Writer) writeBlockMarkdown(block *model.Block, out io.Writer) error {
 		if bqPrefix, body, isQuote := w.blockquoteRebuild(block, text); isQuote {
 			prefix, text = bqPrefix, escapeLeadingBlockMarker(body)
 		} else {
-			text = escapeLeadingBlockMarker(text)
+			text = escapeBlockMarkerLines(text)
 			text = escapeInteriorBlockBars(text)
 		}
 	case role == model.RoleListItem:
-		text = escapeLeadingBlockMarker(text)
+		text = escapeBlockMarkerLines(text)
 	}
 
 	// A block inside a <blockquote> bracket is quoted regardless of its own
@@ -1166,6 +1166,29 @@ func escapeLeadingBlockMarker(text string) string {
 		return text[:i] + "\\" + text[i:]
 	}
 	return text
+}
+
+// escapeBlockMarkerLines applies escapeLeadingBlockMarker to every line of a
+// block the rebuild path emits verbatim. Each line of such a block starts in
+// block-content position, so a marker on the second line opens a construct as
+// surely as one on the first: "<div>0\n# 0" is a single HTML block whose text
+// is "0\n# 0" (CommonMark 4.6 runs the block to the blank line), the rebuild
+// path has no spelling for the HTML and writes the text as a paragraph, and the
+// second line read back as an ATX heading — one block became two (#2470).
+//
+// A blockquote body is excluded at the call site: its continuation lines carry
+// the ">" marker the rebuild restores, which is the one marker that belongs
+// there. A list item's continuation lines carry their indent, so they begin
+// with a space and match no case.
+func escapeBlockMarkerLines(text string) string {
+	if !strings.Contains(text, "\n") {
+		return escapeLeadingBlockMarker(text)
+	}
+	lines := strings.Split(text, "\n")
+	for i, line := range lines {
+		lines[i] = escapeLeadingBlockMarker(line)
+	}
+	return strings.Join(lines, "\n")
 }
 
 // leadingBlockMarkerPos reports the byte index of the marker character to

@@ -273,6 +273,12 @@ func FuzzRoundTripMarkdown(f *testing.F) {
 	// content, so no block. The reproducer is also committed under testdata/fuzz.
 	f.Add([]byte("* <A0A>#"))
 	f.Add([]byte("> #<A>\n> b"))
+	// #2470: an HTML block runs to the blank line, so "<div>0\n# 0" is one block
+	// whose text is "0\n# 0"; the rebuild path drops the HTML and wrote the text
+	// as a paragraph, whose second line read back as a heading. The reproducer
+	// is also committed under testdata/fuzz.
+	f.Add([]byte("<div>0\n# 0"))
+	f.Add([]byte("<div>a\n- b\nc"))
 	seedDamagedMarkdown(f)
 
 	f.Fuzz(func(t *testing.T, data []byte) {
