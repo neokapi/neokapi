@@ -20,6 +20,14 @@ entries:
     license: Apache-2.0
     redistributable: true
     notes: own-created fixture for
+  - path: core/formats/markdown/testdata/container-markers.md
+    tier: A
+    origin: bug
+    sha256: 57629ab6e23d1ad20a1cf878e5fe9a4e3402f07bd0a16fb716c5b398a0b86e9a
+    size: 372
+    license: Apache-2.0
+    redistributable: true
+    notes: 'own-created fixture for #2469 (a block marker after a container marker)'
   - path: core/formats/markdown/testdata/emphasis-delimiters.md
     tier: A
     origin: bug
@@ -92,6 +100,14 @@ entries:
     license: Apache-2.0
     redistributable: true
     notes: 'FuzzRoundTripMarkdown seed for #2445 (a link title rebuilt as an extra empty link)'
+  - path: core/formats/markdown/testdata/fuzz/FuzzRoundTripMarkdown/list_item_marker_residue
+    tier: A
+    origin: bug
+    sha256: 1878c31c7621b6a1e9caaffdf4e856b46cb86224f3001ec93a159912a7ee9ff3
+    size: 35
+    license: Apache-2.0
+    redistributable: true
+    notes: 'FuzzRoundTripMarkdown seed for #2469 (a list item holding only a block marker)'
   - path: core/formats/markdown/testdata/fuzz/FuzzRoundTripMarkdown/setext_multiline_heading
     tier: A
     origin: bug

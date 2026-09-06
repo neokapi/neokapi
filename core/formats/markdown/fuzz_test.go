@@ -267,6 +267,12 @@ func FuzzRoundTripMarkdown(f *testing.F) {
 	f.Add([]byte("> 0\n> \\\n> 0"))
 	f.Add([]byte("- 0\n  \\\n  0"))
 	f.Add([]byte(">\\\n#\\\n00"))
+	// #2469: a list item whose content is only dropped inline HTML left a bare
+	// "#" after the item's marker, where the leading-marker escape did not
+	// reach, and "- #" re-read as an item holding an empty heading — no
+	// content, so no block. The reproducer is also committed under testdata/fuzz.
+	f.Add([]byte("* <A0A>#"))
+	f.Add([]byte("> #<A>\n> b"))
 	seedDamagedMarkdown(f)
 
 	f.Fuzz(func(t *testing.T, data []byte) {

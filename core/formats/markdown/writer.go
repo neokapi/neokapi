@@ -943,13 +943,22 @@ func (w *Writer) writeBlockMarkdown(block *model.Block, out io.Writer) error {
 	// a blockquote already opens with ">", the one marker we must NOT strip. The
 	// interior-bar escape applies only to a plain paragraph: a blockquote's
 	// continuation lines carry "> ", which is not a bar.
-	if prefix == "" && suffix == "" {
-		if bqPrefix, body, isQuote := blockquoteRebuild(block, text); isQuote {
-			prefix, text = bqPrefix, body
+	//
+	// A list item's text lands after `- `, and a rebuilt blockquote's body after
+	// `> `. Both are block-content positions, where the same markers open the
+	// same constructs: "* <A0A>#" reached the writer as an item whose text is a
+	// bare "#", was written as "- #", and re-read as an item holding an empty
+	// heading, which carries no content — the item was gone (#2469).
+	switch {
+	case prefix == "" && suffix == "":
+		if bqPrefix, body, isQuote := w.blockquoteRebuild(block, text); isQuote {
+			prefix, text = bqPrefix, escapeLeadingBlockMarker(body)
 		} else {
 			text = escapeLeadingBlockMarker(text)
 			text = escapeInteriorBlockBars(text)
 		}
+	case role == model.RoleListItem:
+		text = escapeLeadingBlockMarker(text)
 	}
 
 	// A block inside a <blockquote> bracket is quoted regardless of its own
@@ -1380,7 +1389,7 @@ func singleLineHeading(text string) string {
 // blockquote (list-item and indented continuations also carry
 // BlockPropLinePrefix but must be re-established by their own role prefix, not
 // here), leaving those untouched.
-func blockquoteRebuild(block *model.Block, text string) (prefix, body string, ok bool) {
+func (w *Writer) blockquoteRebuild(block *model.Block, text string) (prefix, body string, ok bool) {
 	if lp, has := block.Properties[BlockPropLinePrefix]; has && strings.HasPrefix(lp, ">") {
 		// Hard-break body: the marker was stripped from the text. Reinsert it
 		// after every "\n" exactly as RenderBlockContent (the byte-exact
