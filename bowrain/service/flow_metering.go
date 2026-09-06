@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 
+	aitools "github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/registry"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
@@ -26,15 +27,30 @@ var ErrOutOfCredits = errors.New("workspace is out of AI credits")
 // implementation. A service with no accountant meters nothing, which is what a
 // self-hosted instance and every unit test get.
 type AIAccountant interface {
-	// Admit reports whether the workspace may spend platform AI on this run.
-	// It is asked once per run, before the first model-backed tool is built,
-	// and an error ends the run with that reason.
-	Admit(ctx context.Context, workspaceID string) error
+	// Admit reports whether the workspace may make model calls paid for by
+	// source. It is asked once per run and source, before the first tool that
+	// spends that way is built, and an error ends the run with that reason.
+	Admit(ctx context.Context, workspaceID string, source SpendSource) error
 
 	// Record accounts for what a run spent: a usage row per operation and
-	// model, and one credit deduction for the run's total.
+	// model, and one credit deduction for the platform-keyed part of it.
 	Record(ctx context.Context, spend AISpend)
 }
+
+// SpendSource says whose key paid for a model call.
+//
+// Credits are deducted only for the platform's key; a workspace's own key
+// burns none. Both are recorded against the ai_usage abuse cap, whose whole
+// contract is that it sees every call.
+type SpendSource string
+
+const (
+	// SpendPlatformKey is a call on the platform's own credential.
+	SpendPlatformKey SpendSource = "platform"
+	// SpendOwnKey is a call on a credential the workspace supplied, through a
+	// step that names its own provider or carries its own key.
+	SpendOwnKey SpendSource = "own"
+)
 
 // AISpend is what one run spent on the platform's AI key.
 type AISpend struct {
@@ -49,22 +65,30 @@ type AISpend struct {
 	// ReferenceID is unique per run, so two runs of the same flow over the same
 	// project settle as two meter events rather than collapsing into one.
 	ReferenceID string
-	// ByOperation splits the spend by the operation that made it and the model
-	// that served it, ordered by operation then model.
+	// ByOperation splits the spend by the operation that made it, the model
+	// that served it and whose key paid, ordered by operation then model.
 	ByOperation []OperationSpend
-	// Total is the sum over ByOperation.
+	// Total is the sum over ByOperation, which is what the abuse cap sees.
 	Total aiprovider.TokenUsage
+	// Billable is the part of Total paid for with the platform's key, which is
+	// what credits are deducted for.
+	Billable aiprovider.TokenUsage
 }
 
-// OperationSpend is one operation's tokens on one model.
+// OperationSpend is one operation's tokens on one model, under one key.
 type OperationSpend struct {
 	Operation string
 	Model     string
+	Source    SpendSource
 	Usage     aiprovider.TokenUsage
 }
 
 // operationModel keys the per-run accumulator.
-type operationModel struct{ operation, model string }
+type operationModel struct {
+	operation string
+	model     string
+	source    SpendSource
+}
 
 // AIRun is the metering scope of one run over a project's content: every
 // model-backed tool built inside it reports what it spends here, and Settle
@@ -82,8 +106,7 @@ type AIRun struct {
 	referenceID string
 
 	mu       sync.Mutex
-	admitted bool
-	admitErr error
+	admitted map[SpendSource]error
 	spend    map[operationModel]aiprovider.TokenUsage
 }
 
@@ -119,35 +142,52 @@ func (r *AIRun) workspace() string {
 	return r.workspaceID
 }
 
-// Admit asks the accountant once per run whether the workspace may spend.
+// Admit asks the accountant once per run and source whether the workspace may
+// spend that way.
 //
 // The answer is memoized: a flow with twenty model-backed steps checks the
 // balance once, and a workspace that runs dry mid-run finishes the run it
 // started rather than failing a step halfway through a pass.
-func (r *AIRun) Admit(ctx context.Context) error {
+func (r *AIRun) Admit(ctx context.Context, source SpendSource) error {
 	if r == nil || r.accountant == nil || r.workspaceID == "" {
 		return nil
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if !r.admitted {
-		r.admitted = true
-		r.admitErr = r.accountant.Admit(ctx, r.workspaceID)
+	if err, asked := r.admitted[source]; asked {
+		return err
 	}
-	return r.admitErr
+	err := r.accountant.Admit(ctx, r.workspaceID, source)
+	if r.admitted == nil {
+		r.admitted = make(map[SpendSource]error, 2)
+	}
+	r.admitted[source] = err
+	return err
 }
 
-// Meter wraps a granted provider so every call it serves lands in this run's
-// accumulator under the operation the tool performs.
-func (r *AIRun) Meter(inner aiprovider.LLMProvider, operation string) aiprovider.LLMProvider {
+// Meter wraps a provider so every call it serves lands in this run's
+// accumulator under the operation the tool performs and the key that paid.
+func (r *AIRun) Meter(inner aiprovider.LLMProvider, operation string, source SpendSource) aiprovider.LLMProvider {
 	if r == nil || r.accountant == nil || inner == nil {
 		return inner
 	}
-	return meteredProvider(inner, r, operation)
+	return meteredProvider(inner, r, operation, source)
+}
+
+// Observer is what a tool that builds its own provider is given, so the call it
+// makes on a key the platform never held is still counted. Nil when this run
+// meters nothing.
+func (r *AIRun) Observer(operation string, source SpendSource) aitools.ProviderObserver {
+	if r == nil || r.accountant == nil {
+		return nil
+	}
+	return func(inner aiprovider.LLMProvider) aiprovider.LLMProvider {
+		return r.Meter(inner, operation, source)
+	}
 }
 
 // add folds one call's usage into the run's accumulator.
-func (r *AIRun) add(operation, model string, usage aiprovider.TokenUsage) {
+func (r *AIRun) add(operation, model string, source SpendSource, usage aiprovider.TokenUsage) {
 	if r == nil || usage.TotalTokens() <= 0 {
 		return
 	}
@@ -156,7 +196,7 @@ func (r *AIRun) add(operation, model string, usage aiprovider.TokenUsage) {
 	if r.spend == nil {
 		r.spend = make(map[operationModel]aiprovider.TokenUsage, 4)
 	}
-	k := operationModel{operation: operation, model: model}
+	k := operationModel{operation: operation, model: model, source: source}
 	r.spend[k] = r.spend[k].Add(usage)
 }
 
@@ -197,9 +237,13 @@ func (r *AIRun) settlement() (AISpend, bool) {
 		spend.ByOperation = append(spend.ByOperation, OperationSpend{
 			Operation: k.operation,
 			Model:     k.model,
+			Source:    k.source,
 			Usage:     usage,
 		})
 		spend.Total = spend.Total.Add(usage)
+		if k.source == SpendPlatformKey {
+			spend.Billable = spend.Billable.Add(usage)
+		}
 	}
 	// A map iterates in random order and these rows are asserted on and read
 	// by a human, so they are ordered before they leave.
@@ -207,7 +251,10 @@ func (r *AIRun) settlement() (AISpend, bool) {
 		if c := strings.Compare(a.Operation, b.Operation); c != 0 {
 			return c
 		}
-		return strings.Compare(a.Model, b.Model)
+		if c := strings.Compare(a.Model, b.Model); c != 0 {
+			return c
+		}
+		return strings.Compare(string(a.Source), string(b.Source))
 	})
 	clear(r.spend)
 	return spend, true

@@ -19,11 +19,13 @@ import (
 type recordingAccountant struct {
 	admitErr    error
 	admitCalls  []string
+	admitSource []SpendSource
 	settlements []AISpend
 }
 
-func (a *recordingAccountant) Admit(_ context.Context, workspaceID string) error {
+func (a *recordingAccountant) Admit(_ context.Context, workspaceID string, source SpendSource) error {
 	a.admitCalls = append(a.admitCalls, workspaceID)
+	a.admitSource = append(a.admitSource, source)
 	return a.admitErr
 }
 
@@ -175,7 +177,7 @@ func TestFlowRunSettlesWhatAFailedRunSpent(t *testing.T) {
 	fs.SetAIAccountant(acct)
 
 	aiRun := fs.BeginAIRun(context.Background(), "p1", "run-9")
-	aiRun.add("translate", "m1", aiprovider.TokenUsage{InputTokens: 12, OutputTokens: 8})
+	aiRun.add("translate", "m1", SpendPlatformKey, aiprovider.TokenUsage{InputTokens: 12, OutputTokens: 8})
 	aiRun.Settle(context.Background())
 
 	require.Len(t, acct.settlements, 1)
@@ -190,7 +192,7 @@ func TestAIRunSettlesOnce(t *testing.T) {
 	fs.SetAIAccountant(acct)
 
 	aiRun := fs.BeginAIRun(context.Background(), "p1", "")
-	aiRun.add("review", "m1", aiprovider.TokenUsage{InputTokens: 3, OutputTokens: 4})
+	aiRun.add("review", "m1", SpendPlatformKey, aiprovider.TokenUsage{InputTokens: 3, OutputTokens: 4})
 	aiRun.Settle(context.Background())
 	aiRun.Settle(context.Background())
 
@@ -205,17 +207,18 @@ func TestAIRunSplitsSpendByOperationAndModel(t *testing.T) {
 	fs.SetAIAccountant(acct)
 
 	aiRun := fs.BeginAIRun(context.Background(), "p1", "")
-	aiRun.add("translate", "haiku", aiprovider.TokenUsage{InputTokens: 10, OutputTokens: 5})
-	aiRun.add("review", "sonnet", aiprovider.TokenUsage{InputTokens: 4, OutputTokens: 1})
-	aiRun.add("translate", "haiku", aiprovider.TokenUsage{InputTokens: 2, OutputTokens: 3})
+	aiRun.add("translate", "haiku", SpendPlatformKey, aiprovider.TokenUsage{InputTokens: 10, OutputTokens: 5})
+	aiRun.add("review", "sonnet", SpendPlatformKey, aiprovider.TokenUsage{InputTokens: 4, OutputTokens: 1})
+	aiRun.add("translate", "haiku", SpendPlatformKey, aiprovider.TokenUsage{InputTokens: 2, OutputTokens: 3})
 	aiRun.Settle(context.Background())
 
 	require.Len(t, acct.settlements, 1)
 	spend := acct.settlements[0]
 	require.Len(t, spend.ByOperation, 2)
-	assert.Equal(t, OperationSpend{Operation: "review", Model: "sonnet", Usage: aiprovider.TokenUsage{InputTokens: 4, OutputTokens: 1}}, spend.ByOperation[0])
-	assert.Equal(t, OperationSpend{Operation: "translate", Model: "haiku", Usage: aiprovider.TokenUsage{InputTokens: 12, OutputTokens: 8}}, spend.ByOperation[1])
+	assert.Equal(t, OperationSpend{Operation: "review", Model: "sonnet", Source: SpendPlatformKey, Usage: aiprovider.TokenUsage{InputTokens: 4, OutputTokens: 1}}, spend.ByOperation[0])
+	assert.Equal(t, OperationSpend{Operation: "translate", Model: "haiku", Source: SpendPlatformKey, Usage: aiprovider.TokenUsage{InputTokens: 12, OutputTokens: 8}}, spend.ByOperation[1])
 	assert.Equal(t, 25, spend.Total.TotalTokens())
+	assert.Equal(t, 25, spend.Billable.TotalTokens(), "every call was on the platform key")
 }
 
 // A service with no accountant meters nothing and admits everything, which is
@@ -246,7 +249,7 @@ func TestMeteredProviderCountsEveryCall(t *testing.T) {
 	aiRun := fs.BeginAIRun(context.Background(), "p1", "")
 
 	inner := aiprovider.NewMockProvider()
-	metered := aiRun.Meter(inner, "review")
+	metered := aiRun.Meter(inner, "review", SpendPlatformKey)
 	stream, ok := metered.(aiprovider.StreamingLLMProvider)
 	require.True(t, ok, "the wrapper dropped streaming")
 
@@ -278,7 +281,7 @@ func TestMeteredProviderRecordsNothingForAFailedCall(t *testing.T) {
 	inner.ChatFunc = func(context.Context, []aiprovider.Message) (*aiprovider.ChatResponse, error) {
 		return nil, errors.New("upstream refused")
 	}
-	metered := aiRun.Meter(inner, "review")
+	metered := aiRun.Meter(inner, "review", SpendPlatformKey)
 
 	_, err := metered.Chat(context.Background(), []aiprovider.Message{aiprovider.TextMessage(aiprovider.RoleUser, "hi")})
 	require.Error(t, err)

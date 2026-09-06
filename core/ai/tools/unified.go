@@ -220,7 +220,7 @@ func NewTranslateFromConfig(config map[string]any, targetLang string) (tool.Tool
 			if string(p.ID) == provider {
 				// An MT engine calls no LLM, so a host's injected provider
 				// means nothing to it and must not reach its config round trip.
-				dropProvider(config)
+				dropInjected(config)
 				return mttools.NewMTTranslateFromConfig(p.ID)(config, targetLang)
 			}
 		}
@@ -260,7 +260,7 @@ func NewCheckFromConfig(config map[string]any, targetLang string) (tool.Tool, er
 	}
 	// Rules mode runs locally and calls no model, so a host's injected provider
 	// is dropped rather than carried into the rule checker's config.
-	dropProvider(config)
+	dropInjected(config)
 	return libtools.NewRuleCheckFromConfig(config, targetLang)
 }
 

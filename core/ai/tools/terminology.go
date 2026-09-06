@@ -55,7 +55,7 @@ func AITerminologySchema() *schema.ComponentSchema {
 
 // NewAITerminologyFromConfig creates an AI terminology tool from a config map.
 func NewAITerminologyFromConfig(config map[string]any, _ string) (tool.Tool, error) {
-	injected := TakeProvider(config)
+	injected := TakeInjected(config)
 	var cfg AITerminologyConfig
 	if err := schema.ApplyConfig(config, &cfg); err != nil {
 		return nil, fmt.Errorf("term-extract config: %w", err)

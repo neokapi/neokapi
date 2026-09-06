@@ -13,8 +13,8 @@ import (
 // per step and there are eight model-backed tools, so measuring at the provider
 // counts every call each of them makes, including the ones a tool makes outside
 // its own usage accumulator.
-func meteredProvider(inner aiprovider.LLMProvider, run *AIRun, operation string) aiprovider.LLMProvider {
-	m := &meteringProvider{inner: inner, run: run, operation: operation}
+func meteredProvider(inner aiprovider.LLMProvider, run *AIRun, operation string, source SpendSource) aiprovider.LLMProvider {
+	m := &meteringProvider{inner: inner, run: run, operation: operation, source: source}
 	// Preserve streaming when the granted provider offers it: the translate
 	// tool type-asserts for StreamingLLMProvider to surface live thinking
 	// progress, and a wrapper that dropped it would turn that off with no
@@ -29,6 +29,7 @@ type meteringProvider struct {
 	inner     aiprovider.LLMProvider
 	run       *AIRun
 	operation string
+	source    SpendSource
 }
 
 // Unwrap exposes the wrapped provider, so a caller looking for something
@@ -43,7 +44,7 @@ func (m *meteringProvider) Close() error                           { return m.in
 // is recorded under the empty model rather than dropped, because the tokens
 // were spent whatever the provider chose to report.
 func (m *meteringProvider) record(model string, usage aiprovider.TokenUsage) {
-	m.run.add(m.operation, model, usage)
+	m.run.add(m.operation, model, m.source, usage)
 }
 
 func (m *meteringProvider) Translate(ctx context.Context, req aiprovider.TranslateRequest) (*aiprovider.TranslateResponse, error) {

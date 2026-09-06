@@ -340,7 +340,7 @@ func ProviderFromConfig(name string, cfg aiprovider.Config) (aiprovider.LLMProvi
 // since functions aren't JSON-serializable.
 func NewAITranslateFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
 	// Extract non-serializable fields before JSON round-trip.
-	injected := TakeProvider(config)
+	injected := TakeInjected(config)
 	var onProgress func(aiprovider.ProgressEvent)
 	if fn, ok := config["onProgress"].(func(aiprovider.ProgressEvent)); ok {
 		onProgress = fn

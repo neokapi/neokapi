@@ -28,9 +28,9 @@ var errAIQuotaExceeded = errors.New("workspace monthly AI quota exceeded")
 // ai_usage abuse cap, which must see every call, and the credit ledger, which
 // is what a customer spends.
 //
-// A run's steps are granted the platform provider (never a workspace's own
-// key), so every call this accounts for is on the platform key and every one
-// of them deducts credits.
+// A run's steps are granted the platform provider unless a step names a
+// provider or a key of its own. Both kinds are recorded against the cap; only
+// the platform-keyed part deducts credits.
 type flowAIAccountant struct{ srv *Server }
 
 // Admit refuses a run whose workspace has nothing left to spend, before the
@@ -40,8 +40,12 @@ type flowAIAccountant struct{ srv *Server }
 // run over a whole project and drive the ledger deeply negative. It degrades
 // to allowing wherever the answer is unknown: a self-hosted instance with no
 // billing store, a workspace with no allocation yet, an unreadable balance.
-func (a flowAIAccountant) Admit(ctx context.Context, workspaceID string) error {
-	if a.srv.insufficientPlatformCredits(ctx, workspaceID, "platform") {
+//
+// A step on the workspace's own key burns no credits, so only the abuse cap
+// answers for it. The cap applies to both, which is the whole point of a
+// ceiling that bounds runaway usage.
+func (a flowAIAccountant) Admit(ctx context.Context, workspaceID string, source service.SpendSource) error {
+	if source == service.SpendPlatformKey && a.srv.insufficientPlatformCredits(ctx, workspaceID, "platform") {
 		return service.ErrOutOfCredits
 	}
 	if a.srv.QuotaStore == nil {
@@ -62,8 +66,8 @@ func (a flowAIAccountant) Admit(ctx context.Context, workspaceID string) error {
 	return nil
 }
 
-// Record writes one usage row per operation and model, then deducts the run's
-// total once.
+// Record writes one usage row per operation and model, then deducts the
+// platform-keyed part of the run once.
 //
 // Recording is fail-open by policy, the way the worker's is: the tokens are
 // already spent by the time this runs, so a meter that is down must not also
@@ -93,6 +97,10 @@ func (a flowAIAccountant) Record(ctx context.Context, spend service.AISpend) {
 			}
 		}
 	}
-	a.srv.BillingHooks.DeductTokens(ctx, spend.WorkspaceID, spend.Total.TotalTokens(),
-		billingOpFlowRun, spend.ReferenceID)
+	// A step on the workspace's own key recorded its usage above and burns no
+	// credits (Epic 004), so only the platform-keyed part is deducted.
+	if spend.Billable.TotalTokens() > 0 {
+		a.srv.BillingHooks.DeductTokens(ctx, spend.WorkspaceID, spend.Billable.TotalTokens(),
+			billingOpFlowRun, spend.ReferenceID)
+	}
 }

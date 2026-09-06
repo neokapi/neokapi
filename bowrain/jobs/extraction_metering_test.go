@@ -169,9 +169,10 @@ func TestExtractionAccountant_ByoKeyRecordsUsageAndDeductsNothing(t *testing.T) 
 	deps := &ExtractionWorkerDeps{QuotaStore: quota, BillingHooks: &billing.UsageHooks{Store: credits}}
 	job := &ExtractionJob{ID: "job-2", WorkspaceSlug: "acme", WorkspaceID: "ws-1"}
 
-	acct := accountantFor(deps, job, ProviderSourceBYO)
+	acct := accountantFor(deps, job)
 	require.NotNil(t, acct)
-	require.NoError(t, acct.Admit(t.Context(), "ws-1"), "a key the workspace pays for needs no credits")
+	require.NoError(t, acct.Admit(t.Context(), "ws-1", service.SpendOwnKey),
+		"a key the workspace pays for needs no credits")
 	acct.Record(t.Context(), service.AISpend{
 		WorkspaceID: "ws-1",
 		ProjectID:   "proj-1",
@@ -179,6 +180,7 @@ func TestExtractionAccountant_ByoKeyRecordsUsageAndDeductsNothing(t *testing.T) 
 		ByOperation: []service.OperationSpend{{
 			Operation: usageOpEntityExtract,
 			Model:     "own-model",
+			Source:    service.SpendOwnKey,
 			Usage:     aiprovider.TokenUsage{InputTokens: 10, OutputTokens: 4},
 		}},
 		Total: aiprovider.TokenUsage{InputTokens: 10, OutputTokens: 4},
@@ -214,7 +216,7 @@ func TestExtractionAccountant_MeterFailureIsObserved(t *testing.T) {
 		QuotaStore:   &failingRecordQuotaStore{err: errors.New("meter unreachable")},
 		BillingHooks: &billing.UsageHooks{Store: credits},
 	}
-	acct := accountantFor(deps, &ExtractionJob{ID: "job-3", WorkspaceSlug: "acme"}, ProviderSourcePlatform)
+	acct := accountantFor(deps, &ExtractionJob{ID: "job-3", WorkspaceSlug: "acme"})
 
 	require.NotPanics(t, func() {
 		acct.Record(t.Context(), service.AISpend{
@@ -223,9 +225,11 @@ func TestExtractionAccountant_MeterFailureIsObserved(t *testing.T) {
 			ByOperation: []service.OperationSpend{{
 				Operation: usageOpEntityExtract,
 				Model:     "test-model",
+				Source:    service.SpendPlatformKey,
 				Usage:     aiprovider.TokenUsage{InputTokens: 700, OutputTokens: 300},
 			}},
-			Total: aiprovider.TokenUsage{InputTokens: 700, OutputTokens: 300},
+			Total:    aiprovider.TokenUsage{InputTokens: 700, OutputTokens: 300},
+			Billable: aiprovider.TokenUsage{InputTokens: 700, OutputTokens: 300},
 		})
 	}, "a meter that is down must not take the extraction down with it")
 
@@ -241,5 +245,5 @@ func TestExtractionAccountant_MeterFailureIsObserved(t *testing.T) {
 // A deployment with neither ledger meters nothing, which is what a self-hosted
 // instance gets.
 func TestExtractionAccountant_UnmeteredDeploymentHasNoAccountant(t *testing.T) {
-	assert.Nil(t, accountantFor(&ExtractionWorkerDeps{}, &ExtractionJob{}, ProviderSourcePlatform))
+	assert.Nil(t, accountantFor(&ExtractionWorkerDeps{}, &ExtractionJob{}))
 }

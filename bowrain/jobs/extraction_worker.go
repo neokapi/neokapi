@@ -293,16 +293,17 @@ func executeExtraction(ctx context.Context, deps *ExtractionWorkerDeps, job *Ext
 	// It settles even when the run fails, because the tokens a run burned
 	// before it stopped are spent either way, and under a context that outlives
 	// the job's own cancellation.
-	aiRun := service.NewAIRun(accountantFor(deps, job, resolved.Source), job.WorkspaceID, job.ProjectID, job.ID)
+	aiRun := service.NewAIRun(accountantFor(deps, job), job.WorkspaceID, job.ProjectID, job.ID)
 	defer aiRun.Settle(context.WithoutCancel(ctx))
 
 	// The balance is checked here, before the first model call: deduction is
 	// post-hoc, so a workspace with nothing to spend must fail before a token
 	// is burned rather than after the whole item has been extracted.
-	if err := aiRun.Admit(ctx); err != nil {
+	source := spendSourceOf(resolved.Source)
+	if err := aiRun.Admit(ctx, source); err != nil {
 		return err
 	}
-	prov := aiRun.Meter(resolved.LLM, usageOpEntityExtract)
+	prov := aiRun.Meter(resolved.LLM, usageOpEntityExtract, source)
 
 	locale := model.LocaleID(job.Locale)
 	if locale == "" {

@@ -40,7 +40,7 @@ type AICheckConfig struct {
 
 // NewAICheckFromConfig creates an LLM-judged check tool from a config map.
 func NewAICheckFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
-	injected := TakeProvider(config)
+	injected := TakeInjected(config)
 	var cfg AICheckConfig
 	if err := schema.ApplyConfig(config, &cfg); err != nil {
 		return nil, fmt.Errorf("qa config: %w", err)
