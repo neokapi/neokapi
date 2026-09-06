@@ -303,6 +303,11 @@ func FuzzRoundTripMarkdown(f *testing.F) {
 	// is also committed under testdata/fuzz.
 	f.Add([]byte("<div>0\n# 0"))
 	f.Add([]byte("<div>a\n- b\nc"))
+	// #2495: a block goldmark reports no lines for resolved to the range (0, 0)
+	// and rewound the skeleton cursor, so the bytes before it were written
+	// twice. The first is also committed under testdata/fuzz.
+	f.Add([]byte("a\n#"))
+	f.Add([]byte("a\n\n```\n```\n\nb\n"))
 	// #2501: the rebuild escaped a pipe the source had already escaped, so a
 	// cell gained a backslash on every pass. Also committed under testdata/fuzz.
 	f.Add([]byte("a\n-|\n\\||"))

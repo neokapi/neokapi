@@ -247,7 +247,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) er
 	}
 	bom, content := format.SplitBOM(content)
 	r.source = content
-	r.skelCursor = 0
+	r.skelAdvance(0)
 	r.skelText(string(bom))
 
 	r.blockCounter = 0
@@ -357,7 +357,7 @@ func (r *Reader) handleFrontMatter(ctx context.Context, ch chan<- model.PartResu
 		r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data})
 	}
 
-	r.skelCursor = endOfFrontMatter
+	r.skelAdvance(endOfFrontMatter)
 	return endOfFrontMatter
 }
 
@@ -617,7 +617,7 @@ func (r *Reader) emitLinkReferenceDefinition(ctx context.Context, ch chan<- mode
 	if lead := max(fullLineStart, r.skelCursor); lead < defStart {
 		r.skelText(string(r.source[lead:defStart]))
 	}
-	r.skelCursor = defEnd
+	r.skelAdvance(defEnd)
 
 	label := string(n.Label)
 	labelVisible := r.visibleRefs[label]
@@ -667,7 +667,7 @@ func (r *Reader) emitLinkReferenceDefinition(ctx context.Context, ch chan<- mode
 		// so we add it back here).
 		if defEnd < len(r.source) && r.source[defEnd] == '\n' {
 			r.skelText("\n")
-			r.skelCursor = defEnd + 1
+			r.skelAdvance(defEnd + 1)
 		}
 		r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data})
 		return
@@ -683,7 +683,7 @@ func (r *Reader) emitLinkReferenceDefinition(ctx context.Context, ch chan<- mode
 		r.emitRebuiltReferenceDefinition(ctx, ch, n, def, label, urlLiteral, labelVisible, titleUsed)
 		if defEnd < len(r.source) && r.source[defEnd] == '\n' {
 			r.skelText("\n")
-			r.skelCursor = defEnd + 1
+			r.skelAdvance(defEnd + 1)
 		}
 		return
 	}
@@ -711,7 +711,7 @@ func (r *Reader) emitLinkReferenceDefinition(ctx context.Context, ch chan<- mode
 	}
 	if defEnd < len(r.source) && r.source[defEnd] == '\n' {
 		r.skelText("\n")
-		r.skelCursor = defEnd + 1
+		r.skelAdvance(defEnd + 1)
 	}
 }
 
@@ -925,6 +925,17 @@ func titleDelimiters(defLine []byte, title string) (string, string) {
 	}
 }
 
+// skelAdvance moves the skeleton cursor to pos. The reader emits in source
+// order, so the cursor only ever moves forward: a node whose range resolves to
+// an earlier position (a block goldmark reports no lines for, a setext heading
+// whose underline a table already consumed) would otherwise rewind it and the
+// next gap would write the bytes between a second time (#2495).
+func (r *Reader) skelAdvance(pos int) {
+	if pos > r.skelCursor {
+		r.skelCursor = pos
+	}
+}
+
 // skelEmitGap emits any source bytes between the current cursor and the given
 // absolute position as skeleton text.
 func (r *Reader) skelEmitGap(absPos int) {
@@ -1119,6 +1130,14 @@ func detectLinePrefix(node ast.Node, source []byte) string {
 }
 
 func (r *Reader) emitHeading(ctx context.Context, ch chan<- model.PartResult, n *ast.Heading, source []byte, baseOffset int) {
+	// A heading with no content ("#" on a line of its own) has no parser lines,
+	// so its range resolves to (0, 0) and assigning the cursor from it rewound
+	// the skeleton to the start of the document, writing every byte before the
+	// heading a second time (#2495). There is nothing to translate either: the
+	// line rides the gap that follows.
+	if n.Lines().Len() == 0 {
+		return
+	}
 	r.blockCounter++
 	blockID := fmt.Sprintf("tu%d", r.blockCounter)
 	textContent := r.extractInlineText(n, source)
@@ -1151,7 +1170,7 @@ func (r *Reader) emitHeading(ctx context.Context, ch chan<- model.PartResult, n 
 	// whitespace) follows the content the parser hands back, and the gap
 	// before the next block replays it on the heading's own line. Written on a
 	// line of its own, it re-read as a second, empty heading (#2430).
-	r.skelCursor = lineEnd
+	r.skelAdvance(lineEnd)
 
 	r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 }
@@ -1313,7 +1332,7 @@ func (r *Reader) emitAdmonition(ctx context.Context, ch chan<- model.PartResult,
 	if first.Stop > first.Start && source[first.Stop-1] == '\n' {
 		r.skelText("\n")
 	}
-	r.skelCursor = headerAbsEnd
+	r.skelAdvance(headerAbsEnd)
 
 	// Body lines: lines[1..N]. We emit one block carrying the body's
 	// inline text joined by literal LFs (matching emitParagraph's
@@ -1365,7 +1384,7 @@ func (r *Reader) emitAdmonition(ctx context.Context, ch chan<- model.PartResult,
 		bodyBlock.Properties[BlockPropLinePrefix] = bodyIndent
 	}
 	r.skelRef(bodyID)
-	r.skelCursor = bodyAbsEnd
+	r.skelAdvance(bodyAbsEnd)
 
 	r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: bodyBlock})
 	return true
@@ -1567,7 +1586,7 @@ func (r *Reader) emitDocusaurusAdmonition(ctx context.Context, ch chan<- model.P
 	if first.Stop > first.Start && source[first.Stop-1] == '\n' {
 		r.skelText("\n")
 	}
-	r.skelCursor = absEnd
+	r.skelAdvance(absEnd)
 	return true
 }
 
@@ -1625,7 +1644,7 @@ func (r *Reader) emitParagraph(ctx context.Context, ch chan<- model.PartResult, 
 
 	r.skelEmitGap(lineStart)
 	r.skelRef(blockID)
-	r.skelCursor = lineEnd
+	r.skelAdvance(lineEnd)
 
 	r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 }
@@ -1715,7 +1734,7 @@ func (r *Reader) emitListItem(ctx context.Context, ch chan<- model.PartResult, n
 			r.skelText("\n")
 			lineEnd++
 		}
-		r.skelCursor = lineEnd
+		r.skelAdvance(lineEnd)
 		return
 	}
 
@@ -1762,7 +1781,7 @@ func (r *Reader) emitListItem(ctx context.Context, ch chan<- model.PartResult, n
 	// The prefix (e.g. "- " or "1. ") goes as skeleton text
 	r.skelText(string(r.source[absStart:lineStart]))
 	r.skelRef(blockID)
-	r.skelCursor = lineEnd
+	r.skelAdvance(lineEnd)
 
 	r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 }
@@ -1823,7 +1842,7 @@ func (r *Reader) emitListItemMixed(ctx context.Context, ch chan<- model.PartResu
 			r.skelEmitGap(absStart)
 			r.skelText(string(r.source[absStart:lineStart]))
 			r.skelRef(blockID)
-			r.skelCursor = lineEnd
+			r.skelAdvance(lineEnd)
 
 			r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 		}
@@ -1886,6 +1905,12 @@ func (r *Reader) walkSingle(ctx context.Context, ch chan<- model.PartResult, chi
 }
 
 func (r *Reader) emitFencedCodeBlock(ctx context.Context, ch chan<- model.PartResult, n *ast.FencedCodeBlock, source []byte, baseOffset int) {
+	// A fence with no content lines has no parser range either, and the fence
+	// arithmetic below is all relative to that range (#2495). The fence rides
+	// the gap that follows.
+	if n.Lines().Len() == 0 {
+		return
+	}
 	// The block's content is the source's own lines. Upstream
 	// MarkdownParser.java:413-424 (FencedCodeBlock visitor) skips any line
 	// matching NEWLINE_ONLY_PATTERN, so okapi's round-tripped fences drop the
@@ -1957,7 +1982,7 @@ func (r *Reader) emitFencedCodeBlock(ctx context.Context, ch chan<- model.PartRe
 		r.skelRef(blockID)
 		// Closing fence as skeleton text
 		r.skelText(string(r.source[lineEnd:closeFenceEnd]))
-		r.skelCursor = closeFenceEnd
+		r.skelAdvance(closeFenceEnd)
 
 		r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 	} else if r.cfg.ExtractNonTranslatableContent() {
@@ -1979,7 +2004,7 @@ func (r *Reader) emitFencedCodeBlock(ctx context.Context, ch chan<- model.PartRe
 		r.skelText(string(r.source[fenceStart:lineStart]))
 		r.skelRef(blockID)
 		r.skelText(string(r.source[lineEnd:closeFenceEnd]))
-		r.skelCursor = closeFenceEnd
+		r.skelAdvance(closeFenceEnd)
 
 		r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 	} else {
@@ -1997,7 +2022,7 @@ func (r *Reader) emitFencedCodeBlock(ctx context.Context, ch chan<- model.PartRe
 
 		r.skelEmitGap(fenceStart)
 		r.skelText(string(r.source[fenceStart:closeFenceEnd]))
-		r.skelCursor = closeFenceEnd
+		r.skelAdvance(closeFenceEnd)
 
 		r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data})
 	}
@@ -2046,7 +2071,7 @@ func (r *Reader) emitIndentedCodeBlock(ctx context.Context, ch chan<- model.Part
 		r.skelEmitGap(absStart)
 		r.skelText(prefix)
 		r.skelRef(blockID)
-		r.skelCursor = lineEnd
+		r.skelAdvance(lineEnd)
 
 		r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 	} else if r.cfg.ExtractNonTranslatableContent() {
@@ -2066,7 +2091,7 @@ func (r *Reader) emitIndentedCodeBlock(ctx context.Context, ch chan<- model.Part
 		r.skelEmitGap(absStart)
 		r.skelText(prefix)
 		r.skelRef(blockID)
-		r.skelCursor = lineEnd
+		r.skelAdvance(lineEnd)
 
 		r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 	} else {
@@ -2081,7 +2106,7 @@ func (r *Reader) emitIndentedCodeBlock(ctx context.Context, ch chan<- model.Part
 
 		r.skelEmitGap(absStart)
 		r.skelText(string(r.source[absStart:lineEnd]))
-		r.skelCursor = lineEnd
+		r.skelAdvance(lineEnd)
 
 		r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data})
 	}
@@ -2110,7 +2135,7 @@ func (r *Reader) emitHTMLBlock(ctx context.Context, ch chan<- model.PartResult, 
 
 		r.skelEmitGap(lineStart)
 		r.skelRef(blockID)
-		r.skelCursor = lineEnd
+		r.skelAdvance(lineEnd)
 
 		r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 		return
@@ -2128,7 +2153,7 @@ func (r *Reader) emitHTMLBlock(ctx context.Context, ch chan<- model.PartResult, 
 	pop := r.naming.Push(scopeHTML)
 	r.processHTMLBlockSubfilter(ctx, ch, r.source[lineStart:lineEnd])
 	pop()
-	r.skelCursor = lineEnd
+	r.skelAdvance(lineEnd)
 }
 
 // htmlExcludedElements are elements whose content (and any nested
@@ -2481,7 +2506,7 @@ func (r *Reader) emitBlockquoteAsData(ctx context.Context, ch chan<- model.PartR
 	}
 	r.skelEmitGap(absStart)
 	r.skelText(rawContent)
-	r.skelCursor = absEnd
+	r.skelAdvance(absEnd)
 	r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data})
 }
 
@@ -2565,7 +2590,7 @@ func (r *Reader) emitTable(ctx context.Context, ch chan<- model.PartResult, node
 			r.addInlineRuns(block, cell, source)
 			r.skelEmitGap(start)
 			r.skelRef(blockID)
-			r.skelCursor = stop
+			r.skelAdvance(stop)
 			if isHeaderRow {
 				headerLineEnd = lineEndAfter(r.source, stop)
 			}

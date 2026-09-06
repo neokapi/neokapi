@@ -132,6 +132,14 @@ entries:
     license: Apache-2.0
     redistributable: true
     notes: 'FuzzRoundTripMarkdown seed for #2503 (a blank line inside a rebuilt block)'
+  - path: core/formats/markdown/testdata/fuzz/FuzzRoundTripMarkdown/content_less_heading
+    tier: A
+    origin: bug
+    sha256: 5e52aafab9a75916d8e5bba3f3c8e168dd6f9df1ac63af32ba5b12222b4cf833
+    size: 31
+    license: Apache-2.0
+    redistributable: true
+    notes: 'FuzzRoundTripMarkdown seed for #2495 (a heading with no content)'
   - path: core/formats/markdown/testdata/fuzz/FuzzRoundTripMarkdown/definition_in_a_list_item
     tier: A
     origin: bug
