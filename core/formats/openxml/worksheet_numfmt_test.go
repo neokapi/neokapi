@@ -114,9 +114,9 @@ func zipPart(t *testing.T, data []byte, name string) []byte {
 }
 
 // The display is additive: the skeleton carries the stored value, so the
-// written worksheet is byte-identical to the one read. The workbook holds
-// shared-string and value cells only; an inline string is re-written by the
-// writer as a value element, which is a separate matter from the display.
+// written worksheet is byte-identical to the one read. The workbook holds a
+// cell of each storage kind, shared string, value and inline string, so the
+// display travels beside all three without disturbing any of them.
 func TestWorksheetDisplayLeavesTheRoundTripUntouched(t *testing.T) {
 	original := testutil.BuildXLSX(t, testutil.XLSX{
 		SharedStrings: []string{"Date", "Share", "Price"},
@@ -125,7 +125,8 @@ func TestWorksheetDisplayLeavesTheRoundTripUntouched(t *testing.T) {
 		Sheets: []testutil.XLSXSheet{{
 			Name: "Data",
 			SheetData: `<row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c><c r="C1" t="s"><v>2</v></c></row>` +
-				`<row r="2"><c r="A2" s="1"><v>44197</v></c><c r="B2" s="2"><v>0.125</v></c><c r="C2" s="3"><v>-1234.5</v></c><c r="D2" t="b"><v>1</v></c></row>`,
+				`<row r="2"><c r="A2" s="1"><v>44197</v></c><c r="B2" s="2"><v>0.125</v></c><c r="C2" s="3"><v>-1234.5</v></c><c r="D2" t="b"><v>1</v></c></row>` +
+				`<row r="3"><c r="A3" t="inlineStr"><is><t>Reported quarterly</t></is></c></row>`,
 		}},
 	})
 
