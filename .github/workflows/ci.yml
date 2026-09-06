@@ -666,9 +666,20 @@ jobs:
       # Only push runs exercise the Postgres suites (PRs use -short, which skips
       # them — keeps PR speed). Empty on PRs so they don't touch the service.
       BOWRAIN_TEST_POSTGRES_URL: ${{ github.event_name == 'push' && 'postgres://bowrain:bowrain@localhost:5432/bowrain_test?sslmode=disable' || '' }}
+      # A runner is thrown away after the job, so testcontainers' reaper has
+      # nothing to reap here. Leaving it on costs a pull of testcontainers/ryuk
+      # from Docker Hub before the first container starts, and a registry that
+      # refuses that pull fails a test that never reached its own image (#2455).
+      TESTCONTAINERS_RYUK_DISABLED: "true"
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-go-modules
+
+      # Under -short (pull_request) the container suites skip, so there is
+      # nothing to warm the cache for.
+      - name: Fetch the container images the suites start
+        if: github.event_name != 'pull_request'
+        run: make -C bowrain pull-test-images
 
       - name: Run bowrain tests
         id: run-tests
@@ -791,6 +802,12 @@ jobs:
           --health-retries 20
     env:
       BOWRAIN_TEST_POSTGRES_URL: postgres://bowrain:bowrain@localhost:5432/bowrain_test?sslmode=disable
+      # The lane runs against the Postgres service above, so it starts no
+      # container of its own and fetches nothing. The reaper is off here for
+      # the same reason it is off in Test (bowrain): a runner is thrown away
+      # after the job, so a lane that later does start a container pays no pull
+      # of testcontainers/ryuk for a reaper with nothing to reap (#2455).
+      TESTCONTAINERS_RYUK_DISABLED: "true"
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-go-modules

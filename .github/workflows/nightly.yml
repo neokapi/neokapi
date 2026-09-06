@@ -50,6 +50,12 @@ jobs:
     name: Full suite (Go stable, race)
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      # A runner is thrown away after the job, so testcontainers' reaper has
+      # nothing to reap. Leaving it on costs a pull of testcontainers/ryuk from
+      # Docker Hub before the first container starts, and a registry that
+      # refuses that pull fails a test that never reached its own image (#2455).
+      TESTCONTAINERS_RYUK_DISABLED: "true"
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-go-modules
@@ -62,6 +68,11 @@ jobs:
         uses: ./.github/actions/apt-install
         with:
           packages: libgtk-4-dev libwebkitgtk-6.0-dev libicu-dev pkg-config
+
+      # A registry that refuses a pull fails here, by image name, rather than
+      # inside whichever test reached for its image first.
+      - name: Fetch the container images the suites start
+        run: make -C bowrain pull-test-images
 
       - name: Framework + CLI + kapi (race, stable)
         run: make test-framework test-cli test-kapi

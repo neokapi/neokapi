@@ -11,6 +11,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/neokapi/neokapi/bowrain/testutil/testimage"
 	"github.com/neokapi/neokapi/core/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -36,7 +37,7 @@ func newMinioStore(t *testing.T) *Store {
 
 	ctx := context.Background()
 	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		Image:        "minio/minio:latest",
+		Image:        testimage.MinIO,
 		Cmd:          []string{"server", "/data"},
 		ExposedPorts: []string{"9000/tcp"},
 		Env: map[string]string{
