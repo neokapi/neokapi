@@ -141,8 +141,13 @@ func FuzzReadMarkdown(f *testing.F) {
 	// trailing space the writer's okapi-parity trim dropped. Also committed
 	// under testdata/fuzz.
 	f.Add([]byte("> \n> q\n"))
+	// #2497: a tag the input ends inside tokenizes to nothing, and its bytes
+	// reached neither a block nor the skeleton. Also committed under
+	// testdata/fuzz.
+	f.Add([]byte("text\n\n<p"))
 	markdownSeed(f, "excluded-html-inline.md", "emphasis-delimiters.md", "image-alt.md",
-		"wrapped-link-closers.md", "reference-definitions.md", "blockquote-marker-lines.md")
+		"wrapped-link-closers.md", "reference-definitions.md", "blockquote-marker-lines.md",
+		"unterminated-html.md")
 	seedDamagedMarkdown(f)
 
 	f.Fuzz(func(t *testing.T, data []byte) {

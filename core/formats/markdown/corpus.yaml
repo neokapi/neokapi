@@ -100,6 +100,14 @@ entries:
     license: Apache-2.0
     redistributable: true
     notes: 'FuzzReadMarkdown seed for #2462 (a definition spread over several lines)'
+  - path: core/formats/markdown/testdata/fuzz/FuzzReadMarkdown/unterminated_html_tag
+    tier: A
+    origin: bug
+    sha256: bb21048a4f5f5108a3c3c910a41e781bae55254bee7509dec1c5b58216520aec
+    size: 37
+    license: Apache-2.0
+    redistributable: true
+    notes: 'FuzzReadMarkdown seed for #2497 (a tag the input ends inside)'
   - path: core/formats/markdown/testdata/fuzz/FuzzReadMarkdown/wrapped_link_closer_in_a_quote
     tier: A
     origin: bug
@@ -236,6 +244,14 @@ entries:
     license: Apache-2.0
     redistributable: true
     notes: own-created repo fixture
+  - path: core/formats/markdown/testdata/unterminated-html.md
+    tier: A
+    origin: bug
+    sha256: d64b4e22e7e3846221a3b61d54f2a430e726036d0499a3cb221bcd82226eeb57
+    size: 176
+    license: Apache-2.0
+    redistributable: true
+    notes: 'own-created fixture for #2497 (an HTML tag the file ends inside)'
   - path: core/formats/markdown/testdata/wrapped-link-closers.md
     tier: A
     origin: bug

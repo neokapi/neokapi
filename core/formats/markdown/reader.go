@@ -2179,6 +2179,9 @@ func (r *Reader) processHTMLBlockSubfilter(ctx context.Context, ch chan<- model.
 			r.skelText(body)
 		}
 	}
+	// consumed counts the bytes the tokenizer has handed back, so the tail it
+	// could not tokenize can be recovered at EOF.
+	consumed := 0
 	for {
 		tt := z.Next()
 		if tt == xhtml.ErrorToken {
@@ -2187,11 +2190,20 @@ func (r *Reader) processHTMLBlockSubfilter(ctx context.Context, ch chan<- model.
 			if mathDepth > 0 {
 				flushMath()
 			}
+			// A tag the input ends inside ("<p" at EOF) tokenizes to nothing,
+			// and the caller advances the cursor past the whole HTML block, so
+			// those bytes reach neither a block nor the skeleton and the write
+			// path drops them (#2497). Whatever the tokenizer left rides the
+			// skeleton verbatim.
+			if consumed < len(content) {
+				r.skelText(string(content[consumed:]))
+			}
 			return
 		}
 		raw := z.Raw()
 		// Copy raw because subsequent Next() calls invalidate the slice.
 		rawBytes := append([]byte(nil), raw...)
+		consumed += len(rawBytes)
 
 		// While inside a surfaced <math> element, every token's bytes
 		// accumulate into the formula body until the matching close. The
