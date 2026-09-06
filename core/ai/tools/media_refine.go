@@ -322,7 +322,7 @@ func MediaRefineSchema() *schema.ComponentSchema {
 
 // NewMediaRefineFromConfig is the config-factory entry point.
 func NewMediaRefineFromConfig(config map[string]any, _ string) (tool.Tool, error) {
-	injected := TakeProvider(config)
+	injected := TakeInjected(config)
 	var cfg MediaRefineConfig
 	if err := schema.ApplyConfig(config, &cfg); err != nil {
 		return nil, fmt.Errorf("media-refine config: %w", err)

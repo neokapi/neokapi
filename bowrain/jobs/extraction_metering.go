@@ -38,18 +38,15 @@ var errExtractionQuotaExceeded = errors.New("workspace monthly AI quota exceeded
 type extractionAccountant struct {
 	deps *ExtractionWorkerDeps
 	job  *ExtractionJob
-	// source decides credit deduction: only the platform-held key is metered
-	// in credits, while the abuse cap records both (Epic 004).
-	source ProviderSource
 }
 
 // accountantFor returns the accounting seam for one extraction job, or nil on a
 // deployment that meters nothing.
-func accountantFor(deps *ExtractionWorkerDeps, job *ExtractionJob, source ProviderSource) service.AIAccountant {
+func accountantFor(deps *ExtractionWorkerDeps, job *ExtractionJob) service.AIAccountant {
 	if deps.QuotaStore == nil && deps.BillingHooks == nil {
 		return nil
 	}
-	return extractionAccountant{deps: deps, job: job, source: source}
+	return extractionAccountant{deps: deps, job: job}
 }
 
 // Admit refuses a job whose workspace has nothing left to spend, before the
@@ -59,8 +56,11 @@ func accountantFor(deps *ExtractionWorkerDeps, job *ExtractionJob, source Provid
 // over a whole item and drive the ledger deeply negative. It degrades to
 // allowing wherever the answer is unknown: a self-hosted instance with no
 // billing store, a workspace with no allocation yet, an unreadable balance.
-func (a extractionAccountant) Admit(ctx context.Context, workspaceID string) error {
-	if a.source == ProviderSourcePlatform && a.deps.BillingHooks != nil &&
+//
+// A project pointed at its own credential burns no credits, so only the abuse
+// cap answers for it.
+func (a extractionAccountant) Admit(ctx context.Context, workspaceID string, source service.SpendSource) error {
+	if source == service.SpendPlatformKey && a.deps.BillingHooks != nil &&
 		a.deps.BillingHooks.Store != nil && workspaceID != "" {
 		remaining, err := a.deps.BillingHooks.Store.CheckCredits(ctx, workspaceID)
 		if err == nil && remaining <= 0 {
@@ -82,8 +82,8 @@ func (a extractionAccountant) Admit(ctx context.Context, workspaceID string) err
 	return nil
 }
 
-// Record writes one usage row per operation and model, then deducts the job's
-// total once.
+// Record writes one usage row per operation and model, then deducts the
+// platform-keyed part of the job once.
 //
 // Recording is fail-open by policy, the way the translation worker's is: the
 // tokens are already spent by the time this runs, so a meter that is down must
@@ -114,8 +114,18 @@ func (a extractionAccountant) Record(ctx context.Context, spend service.AISpend)
 	}
 	// A workspace bring-your-own key records usage above and burns no credits
 	// (Epic 004), the same gate the translation worker's deduction sits behind.
-	if spend.WorkspaceID != "" && a.source == ProviderSourcePlatform {
-		a.deps.BillingHooks.DeductTokens(ctx, spend.WorkspaceID, spend.Total.TotalTokens(),
+	if spend.WorkspaceID != "" && spend.Billable.TotalTokens() > 0 {
+		a.deps.BillingHooks.DeductTokens(ctx, spend.WorkspaceID, spend.Billable.TotalTokens(),
 			billingOpExtraction, spend.ReferenceID)
 	}
+}
+
+// spendSourceOf maps the worker's provider classification onto the accounting
+// seam's, so a project pointed at its own credential is accounted for the way a
+// flow step that names its own provider is.
+func spendSourceOf(source ProviderSource) service.SpendSource {
+	if source == ProviderSourceBYO {
+		return service.SpendOwnKey
+	}
+	return service.SpendPlatformKey
 }

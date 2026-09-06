@@ -68,7 +68,7 @@ func VoiceCheckSchema() *schema.ComponentSchema {
 // resolved by the caller — or a "profileResolver" (coreprofile.ProfileResolver) plus
 // "resolveContext" (coreprofile.ResolveContext) for lazy hierarchical resolution.
 func NewVoiceCheckFromConfig(config map[string]any, _ string) (tool.Tool, error) {
-	injected := TakeProvider(config)
+	injected := TakeInjected(config)
 	var profile *coreprofile.VoiceProfile
 	if pf, ok := config["profile"].(*coreprofile.VoiceProfile); ok {
 		profile = pf

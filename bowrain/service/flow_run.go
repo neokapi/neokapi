@@ -301,25 +301,35 @@ func (s *FlowService) newTool(ctx context.Context, aiRun *AIRun, name registry.T
 // The platform holds the credential, so a stored flow definition names no
 // provider and carries no key: without this a translate step would be built
 // against the placeholder provider its registry entry defaults to and would
-// answer with mock text. A step that does name its own provider, or carries an
-// inline key, keeps it, and a step whose resolved contract needs no credentials
+// answer with mock text. A step whose resolved contract needs no credentials
 // (a `qa` in rules mode, an entity-extract on the local model) is left alone.
 //
-// The grant is the point the workspace's balance is checked, because it is the
-// point a step is about to spend the platform's key: a step that needs no
-// credentials never reaches billing, and a workspace with nothing to spend
-// fails here with ErrOutOfCredits before a single token is burned.
+// A step that names its own provider, or carries an inline key, keeps it and
+// builds it inside the tool factory. Its calls are on the workspace's own key,
+// so they burn no credits, and they are observed rather than granted: the
+// abuse cap's contract is that it sees every call in a run, whoever's key paid.
+//
+// This is the point the workspace's balance is checked, because it is the point
+// a step is about to spend: a step that needs no credentials never reaches
+// billing, and a workspace with nothing to spend fails here with
+// ErrOutOfCredits before a single token is burned.
 func (s *FlowService) grantAIProvider(ctx context.Context, aiRun *AIRun, name registry.ToolID, cfg map[string]any) error {
-	if s.aiProvider == nil || !toolNeedsCredentials(s.toolReg, name, cfg) {
+	if !toolNeedsCredentials(s.toolReg, name, cfg) {
 		return nil
 	}
-	if provider, _ := cfg["provider"].(string); provider != "" {
+	if stepHoldsItsOwnKey(cfg) {
+		if err := aiRun.Admit(ctx, SpendOwnKey); err != nil {
+			return fmt.Errorf("tool %q: %w", name, err)
+		}
+		if observe := aiRun.Observer(aiOperation(name), SpendOwnKey); observe != nil {
+			cfg[aitools.ObserverKey] = observe
+		}
 		return nil
 	}
-	if key, _ := cfg["apiKey"].(string); key != "" {
+	if s.aiProvider == nil {
 		return nil
 	}
-	if err := aiRun.Admit(ctx); err != nil {
+	if err := aiRun.Admit(ctx, SpendPlatformKey); err != nil {
 		return fmt.Errorf("tool %q: %w", name, err)
 	}
 	requested, _ := cfg["model"].(string)
@@ -328,9 +338,20 @@ func (s *FlowService) grantAIProvider(ctx context.Context, aiRun *AIRun, name re
 		return fmt.Errorf("tool %q: resolve AI provider: %w", name, err)
 	}
 	if prov != nil {
-		cfg[aitools.ProviderKey] = aiRun.Meter(prov, aiOperation(name))
+		cfg[aitools.ProviderKey] = aiRun.Meter(prov, aiOperation(name), SpendPlatformKey)
 	}
 	return nil
+}
+
+// stepHoldsItsOwnKey reports whether a node's config points the step at a
+// credential of its own, which is what the flow editor writes when somebody
+// fills in a step's provider or API key.
+func stepHoldsItsOwnKey(cfg map[string]any) bool {
+	if provider, _ := cfg["provider"].(string); provider != "" {
+		return true
+	}
+	key, _ := cfg["apiKey"].(string)
+	return key != ""
 }
 
 // toolNeedsCredentials reports whether a tool built with this config calls a

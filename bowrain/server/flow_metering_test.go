@@ -103,10 +103,11 @@ func TestFlowAIAccountantRecordsUsageAndDeductsOnce(t *testing.T) {
 		RunID:       "run-7",
 		ReferenceID: "p1:run-7:abc",
 		ByOperation: []service.OperationSpend{
-			{Operation: "review", Model: "sonnet", Usage: aiprovider.TokenUsage{InputTokens: 4, OutputTokens: 1}},
-			{Operation: "translate", Model: "haiku", Usage: aiprovider.TokenUsage{InputTokens: 12, OutputTokens: 8}},
+			{Operation: "review", Model: "sonnet", Source: service.SpendPlatformKey, Usage: aiprovider.TokenUsage{InputTokens: 4, OutputTokens: 1}},
+			{Operation: "translate", Model: "haiku", Source: service.SpendPlatformKey, Usage: aiprovider.TokenUsage{InputTokens: 12, OutputTokens: 8}},
 		},
-		Total: aiprovider.TokenUsage{InputTokens: 16, OutputTokens: 9},
+		Total:    aiprovider.TokenUsage{InputTokens: 16, OutputTokens: 9},
+		Billable: aiprovider.TokenUsage{InputTokens: 16, OutputTokens: 9},
 	})
 
 	require.Len(t, quota.recorded, 2)
@@ -138,11 +139,58 @@ func TestFlowAIAccountantDeductsWhenTheMeterIsDown(t *testing.T) {
 		WorkspaceID: "ws-1",
 		ReferenceID: "ref-1",
 		ByOperation: []service.OperationSpend{
-			{Operation: "translate", Model: "haiku", Usage: aiprovider.TokenUsage{InputTokens: 10, OutputTokens: 10}},
+			{Operation: "translate", Model: "haiku", Source: service.SpendPlatformKey, Usage: aiprovider.TokenUsage{InputTokens: 10, OutputTokens: 10}},
+		},
+		Total:    aiprovider.TokenUsage{InputTokens: 10, OutputTokens: 10},
+		Billable: aiprovider.TokenUsage{InputTokens: 10, OutputTokens: 10},
+	})
+	assert.Len(t, bill.deductions, 1)
+}
+
+// A run whose steps ran on the workspace's own key records every call against
+// the cap and deducts nothing: credits pay for the platform's key alone.
+func TestFlowAIAccountantRecordsAnOwnKeyRunWithoutDeducting(t *testing.T) {
+	quota := &meterQuotaStore{remaining: 1_000_000}
+	bill := &meterBillingStore{}
+	acct := flowAIAccountant{srv: newMeteringServer(t, quota, bill)}
+
+	acct.Record(context.Background(), service.AISpend{
+		WorkspaceID: "ws-1",
+		ProjectID:   "p1",
+		ReferenceID: "p1:run-8:abc",
+		ByOperation: []service.OperationSpend{
+			{Operation: "translate", Model: "own", Source: service.SpendOwnKey, Usage: aiprovider.TokenUsage{InputTokens: 10, OutputTokens: 10}},
 		},
 		Total: aiprovider.TokenUsage{InputTokens: 10, OutputTokens: 10},
 	})
-	assert.Len(t, bill.deductions, 1)
+
+	require.Len(t, quota.recorded, 1, "the cap must see a call the platform never paid for")
+	assert.Equal(t, 20, quota.recorded[0].TotalTokens)
+	assert.Empty(t, bill.deductions, "a bring-your-own key burns no credits")
+}
+
+// A mixed run deducts for the platform's share alone while the cap sees all of
+// it.
+func TestFlowAIAccountantDeductsOnlyThePlatformsShare(t *testing.T) {
+	quota := &meterQuotaStore{remaining: 1_000_000}
+	bill := &meterBillingStore{}
+	acct := flowAIAccountant{srv: newMeteringServer(t, quota, bill)}
+
+	acct.Record(context.Background(), service.AISpend{
+		WorkspaceID: "ws-1",
+		ReferenceID: "ref-mixed",
+		ByOperation: []service.OperationSpend{
+			{Operation: "review", Model: "own", Source: service.SpendOwnKey, Usage: aiprovider.TokenUsage{InputTokens: 30, OutputTokens: 0}},
+			{Operation: "translate", Model: "haiku", Source: service.SpendPlatformKey, Usage: aiprovider.TokenUsage{InputTokens: 10, OutputTokens: 2}},
+		},
+		Total:    aiprovider.TokenUsage{InputTokens: 40, OutputTokens: 2},
+		Billable: aiprovider.TokenUsage{InputTokens: 10, OutputTokens: 2},
+	})
+
+	require.Len(t, quota.recorded, 2)
+	require.Len(t, bill.deductions, 1)
+	assert.Equal(t, billing.TokensToCredits(12), bill.deductions[0].credits,
+		"the deduction covered tokens the workspace paid for itself")
 }
 
 // A run that spent nothing settles nothing.
@@ -161,6 +209,7 @@ func TestFlowAIAccountantRecordsNothingForAnEmptySpend(t *testing.T) {
 func TestFlowAIAccountantAdmit(t *testing.T) {
 	tests := []struct {
 		name      string
+		source    service.SpendSource
 		spendable int64
 		remaining int64
 		checkErr  error
@@ -174,6 +223,11 @@ func TestFlowAIAccountantAdmit(t *testing.T) {
 		{name: "unreadable quota allows", spendable: 5_000, checkErr: assert.AnError},
 		{name: "no quota store allows", spendable: 5_000, noQuota: true},
 		{name: "no billing store allows", remaining: 1_000, noBilling: true},
+		// A step on the workspace's own key burns no credits, so an empty
+		// balance says nothing about it. The ceiling still applies: it bounds
+		// runaway usage whoever paid for it.
+		{name: "own key ignores an empty balance", source: service.SpendOwnKey, spendable: 0, remaining: 1_000},
+		{name: "own key still meets the ceiling", source: service.SpendOwnKey, spendable: 5_000, remaining: 0, wantErr: errAIQuotaExceeded},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -188,7 +242,11 @@ func TestFlowAIAccountantAdmit(t *testing.T) {
 				srv.BillingStore = nil
 			}
 
-			err := flowAIAccountant{srv: srv}.Admit(context.Background(), "ws-1")
+			source := tt.source
+			if source == "" {
+				source = service.SpendPlatformKey
+			}
+			err := flowAIAccountant{srv: srv}.Admit(context.Background(), "ws-1", source)
 			if tt.wantErr == nil {
 				require.NoError(t, err)
 				return
@@ -208,7 +266,7 @@ func TestFlowAIAccountantAdmitsAnUnresolvableWorkspace(t *testing.T) {
 	srv := newMeteringServer(t, quota, bill)
 	srv.AuthStore = nil
 
-	require.NoError(t, flowAIAccountant{srv: srv}.Admit(context.Background(), "ws-1"))
+	require.NoError(t, flowAIAccountant{srv: srv}.Admit(context.Background(), "ws-1", service.SpendPlatformKey))
 }
 
 // The wired server meters a real run end to end: a flow whose translate step
