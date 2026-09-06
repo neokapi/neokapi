@@ -2721,12 +2721,26 @@ func hardBreakSpelling(source []byte, pos int) (spelling string, nl int, ok bool
 	return string(source[start:nl]), nl, true
 }
 
+// endsInTheHardBreak reports whether a text node ending at pos reaches the hard
+// break's own spelling: the trailing whitespace or backslash before the line
+// ending.
+//
+// goldmark splits a line into several text nodes and flags the LAST of them as
+// the break, so the flag alone does not say which node the trailing spaces
+// belong to. Trimming a node that merely precedes the break took the spaces
+// between two words with it, and "a   b  \nc" reached the translator as
+// "a b" (#2515).
+func endsInTheHardBreak(source []byte, pos int) bool {
+	spelling, nl, ok := hardBreakSpelling(source, pos)
+	return ok && pos >= nl-len(spelling) && pos <= nl
+}
+
 func (r *Reader) collectInlineText(buf *strings.Builder, node ast.Node, source []byte) {
 	for child := node.FirstChild(); child != nil; child = child.NextSibling() {
 		switch n := child.(type) {
 		case *ast.Text:
 			val := n.Segment.Value(source)
-			if n.HardLineBreak() || nextIsHardBreak(n) {
+			if (n.HardLineBreak() || nextIsHardBreak(n)) && endsInTheHardBreak(source, n.Segment.Stop) {
 				// A hard break is captured as "\n"; trim the trailing spaces
 				// that spell it so the text is the same whatever the source
 				// used — goldmark leaves "0  \n" for five spaces but "0\n" for
@@ -2935,7 +2949,7 @@ func (r *Reader) buildCodedRuns(b *runBuilder, node ast.Node, source []byte, idC
 		switch n := child.(type) {
 		case *ast.Text:
 			seg := n.Segment.Value(source)
-			if n.HardLineBreak() || nextIsHardBreak(n) {
+			if (n.HardLineBreak() || nextIsHardBreak(n)) && endsInTheHardBreak(source, n.Segment.Stop) {
 				// See collectInlineText: trim the trailing spaces that spell a
 				// hard break so the captured runs are stable across a round-trip
 				// regardless of how many spaces the source used (#1652).

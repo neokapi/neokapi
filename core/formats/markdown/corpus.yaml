@@ -108,6 +108,14 @@ entries:
     license: Apache-2.0
     redistributable: true
     notes: 'FuzzReadMarkdown seed for #2444 (link inside a style span)'
+  - path: core/formats/markdown/testdata/fuzz/FuzzReadMarkdown/hard_break_interior_spaces
+    tier: A
+    origin: bug
+    sha256: 0cfc8dd180da95739db77455de7bf12194b80ef6491e7ef620b508b8af2918cf
+    size: 37
+    license: Apache-2.0
+    redistributable: true
+    notes: 'FuzzReadMarkdown seed for #2515 (spaces inside a hard-break line)'
   - path: core/formats/markdown/testdata/fuzz/FuzzReadMarkdown/spread_reference_definition
     tier: A
     origin: bug

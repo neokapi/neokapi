@@ -152,6 +152,10 @@ func FuzzReadMarkdown(f *testing.F) {
 	// testdata/fuzz.
 	f.Add([]byte("[](a '')"))
 	f.Add([]byte("text [x](a '') more\n"))
+	// #2515: goldmark flags the last text node of a line as the hard break, so
+	// the trim ran on a node whose trailing spaces are content. Also committed
+	// under testdata/fuzz.
+	f.Add([]byte("a   b  \nc"))
 	// #2500: GFM spells a strikethrough with one tilde or two, and a greedy
 	// walk over the tildes claimed one its neighbour carried. Also committed
 	// under testdata/fuzz.
