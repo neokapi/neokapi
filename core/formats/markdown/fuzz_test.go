@@ -303,6 +303,11 @@ func FuzzRoundTripMarkdown(f *testing.F) {
 	// is also committed under testdata/fuzz.
 	f.Add([]byte("<div>0\n# 0"))
 	f.Add([]byte("<div>a\n- b\nc"))
+	// #2503: an inline construct on a line of its own is dropped by the
+	// rebuild, and the empty line it left ended the paragraph. The first is
+	// also committed under testdata/fuzz.
+	f.Add([]byte("a\n<A>\na"))
+	f.Add([]byte("- a\n<A>\nb"))
 	// #2505: an html-text block's ">" is content, and the marker recovery moved
 	// it onto the block's own first line, splitting the block on the pass
 	// after. The first is also committed under testdata/fuzz.

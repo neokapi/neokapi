@@ -951,6 +951,7 @@ func (w *Writer) writeBlockMarkdown(block *model.Block, out io.Writer) error {
 	// heading, which carries no content — the item was gone (#2469).
 	switch {
 	case prefix == "" && suffix == "":
+		text = foldBlankLines(text)
 		if bqPrefix, body, isQuote := w.blockquoteRebuild(block, text); isQuote {
 			prefix, text = bqPrefix, escapeLazyQuoteLines(escapeLeadingBlockMarker(body))
 		} else {
@@ -958,7 +959,7 @@ func (w *Writer) writeBlockMarkdown(block *model.Block, out io.Writer) error {
 			text = escapeInteriorBlockBars(text)
 		}
 	case role == model.RoleListItem:
-		text = escapeBlockMarkerLines(text)
+		text = escapeBlockMarkerLines(foldBlankLines(text))
 	}
 
 	// A block inside a <blockquote> bracket is quoted regardless of its own
@@ -1220,6 +1221,33 @@ func escapeBlockMarkerLines(text string) string {
 		lines[i] = escapeInterruptingBlockMarker(line)
 	}
 	return strings.Join(lines, "\n")
+}
+
+// foldBlankLines drops the blank lines inside a block the rebuild path emits as
+// flow content, so the block stays one block.
+//
+// A blank line ends a paragraph, and the rebuild path leaves one behind
+// wherever it drops a construct that occupied a line of its own: the inline
+// HTML in "a\n<a>\na" is dropped, which is accepted lossiness, and the empty
+// line it left split the block in two (#2503). Fenced code keeps its blank
+// lines: indentation and spacing are the content there, and it reaches the
+// writer with a prefix and a suffix rather than through this path.
+func foldBlankLines(text string) string {
+	if !strings.Contains(text, "\n") {
+		return text
+	}
+	lines := strings.Split(text, "\n")
+	kept := lines[:0]
+	for _, line := range lines {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		kept = append(kept, line)
+	}
+	if len(kept) == 0 {
+		return ""
+	}
+	return strings.Join(kept, "\n")
 }
 
 // escapeLazyQuoteLines escapes the block markers on a rebuilt blockquote body's
