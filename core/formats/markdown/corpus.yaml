@@ -52,6 +52,14 @@ entries:
     license: Apache-2.0
     redistributable: true
     notes: 'own-created fixture for #2444 (inline nodes inside an excluded HTML span)'
+  - path: core/formats/markdown/testdata/fenced-code-blanks.md
+    tier: A
+    origin: bug
+    sha256: e1c9ef9b1f6b4134dff78b0845d18e950f8ba92b5bb1269d29dd7c42aa230c37
+    size: 200
+    license: Apache-2.0
+    redistributable: true
+    notes: 'own-created fixture for #2509 (blank lines inside a fenced code block)'
   - path: core/formats/markdown/testdata/formatting.md
     tier: A
     origin: vendored

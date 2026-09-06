@@ -914,7 +914,11 @@ func (w *Writer) writeBlockMarkdown(block *model.Block, out io.Writer) error {
 		}
 	case model.RoleCode:
 		// Re-emit the fenced code block's info string (language) so the
-		// do-not-translate signal survives cross-format export.
+		// do-not-translate signal survives cross-format export. The content
+		// carries the line ending of its last line and the suffix opens with
+		// one, so one of them goes or every pass adds a blank line before the
+		// closing fence.
+		text = strings.TrimSuffix(text, "\n")
 		prefix, suffix = "```"+block.CodeLanguage()+"\n", "\n```"
 	case model.RoleCaption:
 		prefix, suffix = "*", "*"

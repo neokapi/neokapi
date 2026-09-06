@@ -92,3 +92,17 @@ func TestMarkdownCanonicalDropsReferenceDefinitionIndent(t *testing.T) {
 	assert.Equal(t, norm("[R]: /x\n"), norm("   [R]: /x\n"))
 	assert.Equal(t, norm("[R]: /x 'T'\n"), norm("  [R]: /x  'T'\n"))
 }
+
+// TestMarkdownCanonicalDropsBlankLinesInsideAFence pins the fold for #2509:
+// okapi's parser skips a blank line inside a fenced code block, and native
+// keeps the source's own lines.
+func TestMarkdownCanonicalDropsBlankLinesInsideAFence(t *testing.T) {
+	norm := func(s string) string {
+		out, err := roundtrip.MarkdownCanonical{}.Normalize([]byte(s))
+		require.NoError(t, err)
+		return string(out)
+	}
+	assert.Equal(t, norm("```js\na\nb\n```\n"), norm("```js\na\n\nb\n```\n"))
+	// A blank line outside a fence separates blocks and stays.
+	assert.NotEqual(t, norm("a\nb\n"), norm("a\n\nb\n"))
+}

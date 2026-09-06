@@ -344,7 +344,46 @@ func (MarkdownCanonical) Normalize(in []byte) ([]byte, error) {
 			lines[i] = trimmed
 		}
 	}
-	return []byte(strings.Join(dropRelocatedATXClosing(lines), "\n")), nil
+	return []byte(strings.Join(dropFencedBlankLines(dropRelocatedATXClosing(lines)), "\n")), nil
+}
+
+// dropFencedBlankLines removes the blank lines inside a fenced code block.
+// Okapi's MarkdownParser skips a blank line when it collects a fence's content,
+// so its round trip drops the spacing of a code sample; native keeps the
+// source's own lines (#2509). CommonMark reads the same code either way once
+// the blank lines are gone from both.
+func dropFencedBlankLines(lines []string) []string {
+	out := make([]string, 0, len(lines))
+	fence := ""
+	for _, l := range lines {
+		trimmed := strings.TrimLeft(l, " \t")
+		switch {
+		case fence == "":
+			if m := fenceOpener(trimmed); m != "" {
+				fence = m
+			}
+		case strings.HasPrefix(trimmed, fence):
+			fence = ""
+		case strings.TrimSpace(l) == "":
+			continue
+		}
+		out = append(out, l)
+	}
+	return out
+}
+
+// fenceOpener returns the fence character run that opens a fenced code block on
+// this line, or "" when the line opens none.
+func fenceOpener(line string) string {
+	if !strings.HasPrefix(line, "```") && !strings.HasPrefix(line, "~~~") {
+		return ""
+	}
+	c := line[0]
+	n := 0
+	for n < len(line) && line[n] == c {
+		n++
+	}
+	return strings.Repeat(string(c), n)
 }
 
 // dropRelocatedATXClosing removes a line that is only a heading marker when it
