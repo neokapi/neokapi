@@ -34,6 +34,10 @@ func TestSoftBreakWhitespaceRoundTrips(t *testing.T) {
 		{"crlf inside a code span", "`a\r\nb`\r\n", "a\r\nb"},
 		{"crlf in a setext heading", "a\r\nb\r\n===\r\n", "a\r\nb"},
 		{"crlf mixed with a hard break", "a  \r\nb\r\nc\r\n", "a\nb\r\nc"},
+		// #2506: a carriage return that FOLLOWS the line ending is a line
+		// ending of its own to the parser, which skipped it.
+		{"bare cr opening the next line", "a\n\rb\n", "a\n\rb"},
+		{"bare cr after a setext bar", "=\n\r.", "=\n\r."},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

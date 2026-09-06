@@ -984,7 +984,10 @@ func softBreakContinuation(source []byte, pos int) string {
 	for end < len(source) {
 		c := source[end]
 		switch c {
-		case ' ', '\t':
+		case ' ', '\t', '\r':
+			// A carriage return that FOLLOWS the line ending is a line ending
+			// of its own to the parser, which skips it; keeping it is what
+			// stops a bare CR disappearing from the block and the file (#2506).
 			end++
 			continue
 		case '>':
