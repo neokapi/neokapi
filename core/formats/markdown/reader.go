@@ -2829,11 +2829,31 @@ func taskCheckBoxRaw(n *east.TaskCheckBox, source []byte) string {
 		return rendered
 	}
 	start := parent.Lines().At(0).Start
-	next, ok := n.NextSibling().(*ast.Text)
-	if !ok || next.Segment.Start <= start || next.Segment.Start > len(source) {
+	// An item with nothing after its checkbox has no text sibling to bound the
+	// spelling, and the canonical form carries a trailing space the source does
+	// not have ("- [ ]" came back as "- [ ] ").
+	end := -1
+	switch next := n.NextSibling(); {
+	case next == nil:
+		// Nothing follows the checkbox, so its spelling ends with it. The
+		// whitespace after it belongs to the line, and to the hard break when
+		// there are two spaces of it ("- [ ]" came back as "- [ ] ").
+		end = start + 3
+	default:
+		if t, ok := next.(*ast.Text); ok {
+			end = t.Segment.Start
+			break
+		}
+		// A sibling that records no segment of its own — a code span, a link —
+		// still follows the space the checkbox carries.
+		if e, ok := taskCheckBoxEnd(n, source); ok {
+			end = e
+		}
+	}
+	if end <= start || end > len(source) {
 		return rendered
 	}
-	raw := string(source[start:next.Segment.Start])
+	raw := string(source[start:end])
 	if !isTaskCheckBoxSpelling(raw) {
 		return rendered
 	}
