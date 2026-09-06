@@ -236,6 +236,14 @@ entries:
     license: Apache-2.0
     redistributable: true
     notes: own-created fuzz reproducer for
+  - path: core/formats/markdown/testdata/fuzz/FuzzRoundTripMarkdown/table_cell_escaped_pipe
+    tier: A
+    origin: bug
+    sha256: 32e05188f38ff0007d320ec5ea5c61ea62810aecb9f1f0aa03ff6df4ec4f7fd1
+    size: 38
+    license: Apache-2.0
+    redistributable: true
+    notes: 'FuzzRoundTripMarkdown seed for #2501 (an escaped pipe in a table cell)'
   - path: core/formats/markdown/testdata/gfm-table.md
     tier: A
     origin: vendored

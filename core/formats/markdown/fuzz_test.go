@@ -303,6 +303,10 @@ func FuzzRoundTripMarkdown(f *testing.F) {
 	// is also committed under testdata/fuzz.
 	f.Add([]byte("<div>0\n# 0"))
 	f.Add([]byte("<div>a\n- b\nc"))
+	// #2501: the rebuild escaped a pipe the source had already escaped, so a
+	// cell gained a backslash on every pass. Also committed under testdata/fuzz.
+	f.Add([]byte("a\n-|\n\\||"))
+	f.Add([]byte("x | y\n--- | ---\na \\| b | c\n"))
 	// #2487: a fence closes on a run at least as long as its opener, so a
 	// three-backtick rebuild of a longer fence ended the block early. The first
 	// is also committed under testdata/fuzz.

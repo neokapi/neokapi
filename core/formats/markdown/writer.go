@@ -1142,10 +1142,13 @@ func tableRowLine(cells []string) string {
 	return sb.String()
 }
 
-// escapeTableCell makes cell text safe inside a GFM table cell: pipes are
-// escaped and newlines collapse to <br> so a multi-line value stays on one row.
+// escapeTableCell makes cell text safe inside a GFM table cell: an unescaped
+// pipe is escaped and newlines collapse to <br> so a multi-line value stays on
+// one row. A pipe the source already escaped is left as it is, or the cell
+// gained a backslash on every pass and after the first one its text read as an
+// escaped backslash followed by a column separator (#2501).
 func escapeTableCell(s string) string {
-	s = strings.ReplaceAll(s, "|", "\\|")
+	s = escapeCellPipes(s)
 	s = strings.ReplaceAll(s, "\r\n", "\n")
 	s = strings.ReplaceAll(s, "\n", "<br>")
 	return s
