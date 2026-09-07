@@ -564,7 +564,7 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 		for _, p := range parts {
 			if recorder != nil && p.Resource != nil {
 				recorder.SnapshotPart(p, "reader", "initial")
-				recorder.Record("exit", "reader", p.Resource.ResourceID(), nil)
+				recorder.Record("exit", "reader", flow.PartKey(p), nil)
 			}
 			select {
 			case inCh <- p:
@@ -577,9 +577,9 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 	var outputParts []*model.Part
 	for p := range outCh {
 		if recorder != nil && p.Resource != nil {
-			id := p.Resource.ResourceID()
-			recorder.Record("enter", "writer", id, nil)
-			recorder.Record("exit", "writer", id, nil)
+			key := flow.PartKey(p)
+			recorder.Record("enter", "writer", key, nil)
+			recorder.Record("exit", "writer", key, nil)
 		}
 		outputParts = append(outputParts, p)
 	}

@@ -370,9 +370,8 @@ func (r *FileRunner) readParts(ctx context.Context, reader format.DataFormatRead
 		// TracingTool snapshots have a set to attach to) plus a reader-exit
 		// event as the Part heads into the pipeline.
 		if r.cfg.Recorder != nil && result.Part.Resource != nil {
-			id := result.Part.Resource.ResourceID()
 			r.cfg.Recorder.SnapshotPart(result.Part, "reader", "initial")
-			r.cfg.Recorder.Record(TraceExit, "reader", id, nil)
+			r.cfg.Recorder.Record(TraceExit, "reader", PartKey(result.Part), nil)
 		}
 	}
 	// Close reader immediately after reading — for daemon-backed plugin
@@ -600,9 +599,8 @@ func (r *FileRunner) feedReader(ctx context.Context, feedCtx context.Context, re
 			continue
 		}
 		if r.cfg.Recorder != nil && result.Part.Resource != nil {
-			id := result.Part.Resource.ResourceID()
 			r.cfg.Recorder.SnapshotPart(result.Part, "reader", "initial")
-			r.cfg.Recorder.Record(TraceExit, "reader", id, nil)
+			r.cfg.Recorder.Record(TraceExit, "reader", PartKey(result.Part), nil)
 		}
 		select {
 		case inCh <- result.Part:
@@ -762,9 +760,9 @@ func (r *FileRunner) runProcessOnly(ctx context.Context, flowName string, tools 
 	// writer enter/exit per Part so the trace shape matches a file run.
 	for p := range outCh {
 		if r.cfg.Recorder != nil && p != nil && p.Resource != nil {
-			id := p.Resource.ResourceID()
-			r.cfg.Recorder.Record(TraceEnter, "writer", id, nil)
-			r.cfg.Recorder.Record(TraceExit, "writer", id, nil)
+			key := PartKey(p)
+			r.cfg.Recorder.Record(TraceEnter, "writer", key, nil)
+			r.cfg.Recorder.Record(TraceExit, "writer", key, nil)
 		}
 	}
 
@@ -1204,9 +1202,9 @@ func (r *FileRunner) runExecuteWrite(ctx context.Context, flowName string, tools
 			defer close(tapCh)
 			for p := range outCh {
 				if p != nil && p.Resource != nil {
-					id := p.Resource.ResourceID()
-					r.cfg.Recorder.Record(TraceEnter, "writer", id, nil)
-					r.cfg.Recorder.Record(TraceExit, "writer", id, nil)
+					key := PartKey(p)
+					r.cfg.Recorder.Record(TraceEnter, "writer", key, nil)
+					r.cfg.Recorder.Record(TraceExit, "writer", key, nil)
 				}
 				tapCh <- p
 			}

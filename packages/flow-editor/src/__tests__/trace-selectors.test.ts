@@ -134,6 +134,61 @@ describe("partsThroughStep", () => {
   });
 });
 
+// A one-step trace over a document, as the engine keys it: a layer's start and
+// end are two parts, marked apart by the boundary suffix, because both carry
+// the same layer resource.
+function layerTrace(): FlowTrace {
+  const structural = (id: string, type: string, summary: string): PartSnapshot => ({
+    id,
+    type,
+    summary,
+  });
+  return {
+    name: "doc",
+    nodes: [
+      { id: "reader", type: "reader", name: "read" },
+      { id: "tool-1", type: "tool", name: "translate" },
+      { id: "writer", type: "writer", name: "write" },
+    ],
+    events: [
+      { ts: 1, type: "enter", nodeId: "tool-1", partId: "doc1#start" },
+      { ts: 2, type: "exit", nodeId: "tool-1", partId: "doc1#start" },
+      { ts: 3, type: "enter", nodeId: "tool-1", partId: "doc1#end" },
+      { ts: 4, type: "exit", nodeId: "tool-1", partId: "doc1#end" },
+    ],
+    parts: {
+      "doc1#start": {
+        initial: structural("doc1", "LayerStart", "Layer: Document"),
+        afterNode: { "tool-1": structural("doc1", "LayerStart", "Layer: Document") },
+      },
+      "doc1#end": {
+        initial: structural("doc1", "LayerEnd", "end layer doc1"),
+        afterNode: { "tool-1": structural("doc1", "LayerEnd", "end layer doc1") },
+      },
+    },
+    durationUs: 4,
+  };
+}
+
+describe("a layer's two boundaries", () => {
+  it("are separate parts, each opening in its own state", () => {
+    const parts = partsThroughStep(layerTrace(), stepToolCounts([{}]), 0);
+    const byId = new Map(parts.map((p) => [p.partId, p]));
+
+    expect(byId.get("doc1#start")?.before.type).toBe("LayerStart");
+    expect(byId.get("doc1#end")?.before.type).toBe("LayerEnd");
+    expect(byId.get("doc1#start")?.before.summary).toBe("Layer: Document");
+  });
+
+  it("play back independently, so the document is not in two places at once", () => {
+    const events = remapEventsToEditor(layerTrace(), stepToolCounts([{}]));
+    expect([...activeEditorNodes(events, 1)]).toEqual(["tool-0"]);
+    expect(activeEditorNodes(events, 2).size).toBe(0);
+    expect([...activeEditorNodes(events, 3)]).toEqual(["tool-0"]);
+    expect(activeEditorNodes(events, 4).size).toBe(0);
+  });
+});
+
 describe("snapshotDelta", () => {
   it("reports the overlay/annotation delta a step produced", () => {
     const trace = sampleTrace();
