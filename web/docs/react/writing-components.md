@@ -21,6 +21,7 @@ Almost everything you already write is translatable. This page walks through the
 - **Translatable attributes with string-literal ternaries** (`title={cond ? "A" : "B"}`) → each branch extracted as its own block.
 - **Code spans inside a sentence** (`<code>`, `<kbd>`, `<samp>`, `<var>`) → the sentence extracts as one block, the span becomes a paired marker, and its text is carried through verbatim.
 - **A control inside a sentence** (`<button>`, `<label>`, `<select>`, `<img>`, …) → the sentence extracts as one block and the control becomes a paired marker, with its label translatable inside. A control that is its parent's only content keeps its own block.
+- **JSX inside a conditional** (`{cond && <span>…</span>}`, a ternary, a `.map()`) → a standalone marker in the sentence, and the elements inside it are extracted and translated on their own.
 - **Non-translatable elements on their own** (`<code>`, `<pre>`, `<kbd>`, `<var>`, `<script>`, `<style>`, `<textarea>`) → skipped.
 - **Elements marked `translate="no"`** (or any ancestor) → skipped.
 
@@ -288,6 +289,42 @@ consumes its inline children and the attribute would go with them:
 Give the button a visible label, or move the copy out of the attribute, and the
 sentence extracts.
 
+### Conditional JSX inside a sentence
+
+A conditional renders an element or nothing, so the sentence around it cannot
+carry its words:
+
+```tsx
+<p>Saved {unsaved && <span className="badge">with changes pending</span>} just now</p>
+```
+
+The paragraph extracts as `"Saved {=m0} just now"` with `{=m0}` standing for the
+whole conditional, and the badge extracts as a second block reading
+`"with changes pending"`. The translator gets both, and the badge is rendered
+through its own lookup, so a translation reaches the reader whether or not the
+condition holds.
+
+This covers every expression that can carry JSX: `&&`, `||`, `??`, a ternary
+(each branch extracts separately), a `.map()` over a list, and a call taking an
+element as an argument. It applies to attributes and `t()` calls inside the
+conditional as well:
+
+```tsx
+<p>Saved {unsaved && <button aria-label="Discard changes"><X /></button>} just now</p>
+```
+
+The same holds for JSX passed in a prop, whether or not the element around it
+extracts:
+
+```tsx
+<div actions={<Button>Publish</Button>}>Ready to go.</div>
+// two blocks: "Ready to go." and "Publish"
+```
+
+What a conditional cannot rescue is a bare string literal in a branch
+(`{cond ? "A" : "B"}`), which stays opaque; see
+[Ternary with string literals as JSX children](#ternary-with-string-literals-as-jsx-children).
+
 ### Opting out with `translate="no"`
 
 Standard HTML; it works on any element and its descendants:
@@ -484,6 +521,8 @@ rules: [{ selector: ".legal-copy", locNote: "Legal team must review" }];
 | `<button>{obj.label}</button>`            | no         | flagged by `prefer-t-for-label-expr`; wrap the source                    |
 | `<button>{cond ? "A" : "B"}</button>`     | no         | flagged by `no-ternary-literals-in-jsx-child`; wrap branches with `t()`  |
 | `<div>{cond && 'Hi'}</div>`               | no         | expression; use `t()`                                                    |
+| `<p>Saved {cond && <b>a note</b>}</p>`    | yes        | two blocks: the sentence, and the conditional's own element              |
+| `<div actions={<Button>Go</Button>}>Hi</div>` | yes    | two blocks: JSX in a prop extracts as well                               |
 
 ## Next
 

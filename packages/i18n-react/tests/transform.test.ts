@@ -410,8 +410,10 @@ describe("neokapi-i18n SWC transform", () => {
       expect(result).not.toBeNull();
       expect(result).toContain("__tx(");
       expect(result).toContain('"name": name');
-      // isAdmin && ... is the element token
-      expect(result).toContain('"=m1": isAdmin && <Badge>admin</Badge>');
+      // isAdmin && ... is the element token, and the badge's own label
+      // is translated inside it (#2522).
+      expect(result).toContain('"=m1": isAdmin && <Badge>{__t(');
+      expect(result).toContain('"admin")}</Badge>');
     });
 
     it("multiple inline conditionals (tag chip repro)", () => {

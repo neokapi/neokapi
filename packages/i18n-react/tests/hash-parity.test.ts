@@ -145,6 +145,59 @@ const FIXTURES: ReadonlyArray<{ name: string; code: string }> = [
   },
 ];
 
+/**
+ * The parity corpus is generated as well as listed: every parent shape
+ * that emits a block, crossed with every child shape that travels
+ * inside one. Extraction and the transform descend the same tree, and
+ * a shape either side handles alone shows up here as a hash only one
+ * of them produced. #2522 was exactly that, unnoticed for as long as
+ * the corpus held no conditional.
+ */
+const PARENTS: ReadonlyArray<{ name: string; wrap: (child: string) => string }> = [
+  { name: "paragraph", wrap: (c) => `<p>Saved ${c} now</p>` },
+  { name: "paragraph, child last", wrap: (c) => `<p>Saved ${c}</p>` },
+  { name: "promoted container", wrap: (c) => `<div>Saved ${c} now</div>` },
+  { name: "heading", wrap: (c) => `<h2>Saved ${c}</h2>` },
+  { name: "fragment", wrap: (c) => `<><span>Saved</span> ${c} now</>` },
+  { name: "beside a paired inline child", wrap: (c) => `<p>Click <a href="/x">here</a> ${c}</p>` },
+  { name: "beside a protected code span", wrap: (c) => `<p>Press <kbd>K</kbd> ${c}</p>` },
+  { name: "beside a variable", wrap: (c) => `<p>Hello {name}, ${c} now</p>` },
+  { name: "unmapped component", wrap: (c) => `<TabsTrigger value="a">Saved ${c}</TabsTrigger>` },
+  { name: "list item", wrap: (c) => `<li>Saved ${c}</li>` },
+];
+
+const CHILDREN: ReadonlyArray<{ name: string; code: string }> = [
+  { name: "logical and", code: "{cond && <span>a note</span>}" },
+  { name: "logical or", code: "{cond || <span>a note</span>}" },
+  { name: "nullish", code: "{cond ?? <span>a note</span>}" },
+  { name: "ternary", code: "{cond ? <span>yes note</span> : <span>no note</span>}" },
+  { name: "ternary with one null branch", code: "{cond ? <span>a note</span> : null}" },
+  { name: "map", code: "{items.map((i) => <span key={i}>each item</span>)}" },
+  { name: "call argument", code: "{wrapIt(<span>a note</span>)}" },
+  { name: "fragment", code: "{cond && <><span>a note</span></>}" },
+  { name: "attribute only", code: '{cond && <button aria-label="Close it" />}' },
+  { name: "attribute and text", code: '{cond && <span title="Tip text">a note</span>}' },
+  { name: "two levels", code: "{a && <span>outer {b && <b>inner</b>}</span>}" },
+  { name: "plain variable", code: "{count}" },
+  { name: "no JSX at all", code: "{cond && label}" },
+];
+
+/** JSX carried in a prop rather than in the children. */
+const PROP_FIXTURES: ReadonlyArray<{ name: string; code: string }> = [
+  {
+    name: "prop JSX on an element that emits its own block",
+    code: "<div actions={<Button>Go now</Button>}>Some text here</div>",
+  },
+  {
+    name: "prop JSX on an element that emits nothing",
+    code: "<Panel actions={<Button>Go now</Button>}>{children}</Panel>",
+  },
+  {
+    name: "prop JSX beside a translatable attribute",
+    code: '<div title="Tip" actions={<Button>Go now</Button>}>Some text here</div>',
+  },
+];
+
 function hashesFromTransform(code: string): Set<string> {
   const out = transform(code, "Test.tsx", {
     mode: "runtime",
@@ -187,8 +240,38 @@ describe("hash parity between extract and transform", () => {
     });
   }
 
+  for (const parent of PARENTS) {
+    for (const child of CHILDREN) {
+      const code = parent.wrap(child.code);
+      it(`emits the same hashes for "${parent.name}" holding "${child.name}"`, () => {
+        const extracted = hashesFromExtract(code);
+        const transformed = hashesFromTransform(code);
+        for (const hash of extracted) {
+          expect(transformed, `extract hash "${hash}" missing from transform`).toContain(hash);
+        }
+        for (const hash of transformed) {
+          expect(extracted, `transform hash "${hash}" missing from extract`).toContain(hash);
+        }
+      });
+    }
+  }
+
+  for (const { name, code } of PROP_FIXTURES) {
+    it(`emits the same hashes for "${name}"`, () => {
+      const extracted = hashesFromExtract(code);
+      const transformed = hashesFromTransform(code);
+      for (const hash of extracted) {
+        expect(transformed, `extract hash "${hash}" missing from transform`).toContain(hash);
+      }
+      for (const hash of transformed) {
+        expect(extracted, `transform hash "${hash}" missing from extract`).toContain(hash);
+      }
+    });
+  }
+
   it("covers every fixture — regression guard", () => {
     // Sanity: we're not shipping an empty fixture set.
     expect(FIXTURES.length).toBeGreaterThan(5);
+    expect(PARENTS.length * CHILDREN.length).toBeGreaterThan(100);
   });
 });

@@ -654,6 +654,15 @@ each. A control carrying copy in an attribute (`aria-label`, `alt`,
 `placeholder`) keeps its own block as well, since a block consumes its inline
 children and the attribute would travel with them.
 
+**Conditional JSX.** An expression container is spliced back into the sentence
+whole, so what it renders is not part of the sentence's words. Elements inside
+one are extracted and translated on their own: `<p>Saved {unsaved && <span>with
+changes pending</span>} now</p>` is two messages, and the badge is rendered
+through its own lookup. This covers `&&`, `||`, `??`, ternaries (a block per
+branch), `.map()` and calls taking an element, along with attributes and `t()`
+calls found inside. JSX passed in a prop (`actions={<Button>Publish</Button>}`)
+extracts the same way.
+
 **Translatable attributes.** HTML/ARIA attributes — `alt`, `title`,
 `placeholder`, `aria-label`, `aria-description`, `aria-placeholder`,
 `aria-roledescription`, `aria-valuetext` — extract from **any**
