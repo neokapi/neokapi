@@ -157,3 +157,43 @@ func TestDecisions_CarryTheGoverningContextBothWays(t *testing.T) {
 	assert.Equal(t, "farewell", out[0].Unit)
 	assert.Equal(t, "fp-local", out[0].GoverningFingerprint)
 }
+
+// TestDecisions_ARejectionCarriesTheApprovedBasis: only an approval re-stamps a
+// unit's basis, so a rejection travels with the source hash and the governing
+// fingerprint the last approval bound, and the venue's ledger grades the unit
+// exactly as the project's record does.
+func TestDecisions_ARejectionCarriesTheApprovedBasis(t *testing.T) {
+	a := &host.App{}
+	defer a.Shutdown()
+	c := newDecisionsConnector(t, a)
+
+	require.NoError(t, state.WriteCommitted(c.project.Layout.UnitStateDir(), []state.UnitState{{
+		Scope: "locales/en.json", Unit: "greeting", Variant: model.Variant("fr"),
+		Status: model.TargetStatusDraft, Decision: state.Decision{ReviewState: "rejected"},
+		TargetHash:  "th-redraft",
+		ContentHash: "sh-approved-source", GoverningFingerprint: "fp-approved",
+		Updated: "2026-08-05T12:00:00Z",
+	}}))
+
+	out, err := c.committedDecisions(t.Context())
+	require.NoError(t, err)
+	require.Len(t, out, 1)
+	assert.Equal(t, "rejected", out[0].ReviewState)
+	assert.Equal(t, "sh-approved-source", out[0].ContentHash,
+		"the basis the last approval bound travels with the rejection")
+	assert.Equal(t, "fp-approved", out[0].GoverningFingerprint)
+	assert.Equal(t, "th-redraft", out[0].TargetHash,
+		"the translation it turned down is the rejection's own")
+
+	// And back down onto a checkout that recorded none of it.
+	out[0].Updated = "2026-08-05T13:00:00Z"
+	staged, _, err := c.stagePulledDecisions(t.Context(), out)
+	require.NoError(t, err)
+	require.Equal(t, 1, staged)
+	st, err := a.OpenProjectState(t.Context(), c.project.Root)
+	require.NoError(t, err)
+	us, found := st.Get(t.Context(), state.Key{Scope: "locales/en.json", Unit: "greeting", Variant: model.Variant("fr")})
+	require.True(t, found)
+	assert.Equal(t, "sh-approved-source", us.ContentHash)
+	assert.Equal(t, "fp-approved", us.GoverningFingerprint)
+}

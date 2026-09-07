@@ -200,9 +200,11 @@ func (s *Server) HandleApprovePassing(c echo.Context) error {
 						touchedSet[loc] = true
 						modified = true
 						if ledger != nil && sb.SourceID != "" {
+							// Approvals only, so the row's basis is always
+							// re-stamped and no previous row is read.
 							decisions = append(decisions, unitDecisionFor(sb, string(loc),
 								model.TargetStatusReviewed, true, ledger.decider,
-								ledger.governingFingerprint(ctx, sb.ItemName, string(loc))))
+								ledger.governingFingerprint(ctx, sb.ItemName, string(loc)), nil))
 						}
 					}
 				}

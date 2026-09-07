@@ -798,7 +798,9 @@ type DecisionStore interface {
 	// RecordDraftBases stamps each named unit's ledger row with the source the
 	// platform's latest draft of it was made against. The decision half of
 	// the row is never touched, and a unit with no row is not given one: the
-	// stamp qualifies a record, it is not a record on its own.
+	// stamp qualifies a record, it is not a record on its own. An empty
+	// SourceHash clears the mark, which is how a rejection puts a unit back in
+	// line for a draft.
 	RecordDraftBases(ctx context.Context, projectID, stream string, drafts []DraftBasis) error
 	// ListDraftBases returns every stamped draft basis on the stream.
 	ListDraftBases(ctx context.Context, projectID, stream string) ([]DraftBasis, error)
@@ -861,6 +863,8 @@ type DraftBasis struct {
 	Variant string
 	// SourceHash is the block's content hash at the time of the draft
 	// (model.ComputeContentHash of the source text, the value a basis records).
+	// Empty clears the mark: the unit is owed a draft again, which is what a
+	// reviewer turning one down leaves behind.
 	SourceHash string
 }
 

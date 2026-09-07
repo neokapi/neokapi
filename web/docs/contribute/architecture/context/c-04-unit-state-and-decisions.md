@@ -213,6 +213,24 @@ ledger: one grouped query grades every recorded basis against the current
 source, and a stale unit is withheld from the produced count until a pass has
 drafted it, so a run started by a source change has pending work and produces.
 
+**Only an approval re-stamps the basis.** What clears a stale unit is the next
+decision on it, and one kind of decision: a reviewer looking at the re-drafted
+translation and saying it stands, on the source in front of them and under the
+governance in force where they are deciding. That verdict binds both halves of
+the basis, the source hash and the governing fingerprint, and the readers that
+grade the unit compare against it, so the unit reads current on the source axis
+and clears the staleness gate on the governance axis
+([C-05](c-05-freshness.md)). The never-over-a-decision rule holds: the approval
+IS the decision.
+
+A **rejection** endorses nothing, so it records the verdict, the translation it
+turned down and who turned it down, and leaves the basis where the last approval
+or the producing run put it. The unit stays exactly as stale as it was, which is
+the point: a reviewer saying no is not the project saying this wording stands.
+Withdrawing an approval reads the same way. On the server a rejection also
+clears the unit's draft mark, so the loop owes it a fresh draft rather than
+waiting on a review that is already in.
+
 **A decided unit is re-drafted once per source change.** The re-draft cannot
 decide, so a stale decision stays stale until a person re-reviews, and a loop
 that read only the decision would draft the unit again on every pass. Each

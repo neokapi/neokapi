@@ -229,6 +229,30 @@ func (l *reviewLedger) write(ctx context.Context, decisions []venue.UnitDecision
 	jobs.PromoteDecisionsToMemory(ctx, l.srv.ContentStore, l.memory, l.projectID, l.stream, l.sourceLang, corpus)
 }
 
+// clearDraftBasis removes the platform's mark that it has already drafted this
+// unit against the source the block holds now (store.DraftBasis).
+//
+// The mark is what stops a stale decided unit from being drafted again on every
+// pass: once it names the current source, the unit waits on a reviewer instead.
+// A rejection is that reviewer saying the draft will not do, so the unit is
+// owed a fresh one and the mark has to go. Left standing, a rejected re-draft
+// would read as stale, be owed nothing, and wait on a review that is already in.
+//
+// Best-effort, like every other ledger write here: the rung the reviewer set is
+// already stored, and a failure costs the unit a pass, never the verdict.
+func (l *reviewLedger) clearDraftBasis(ctx context.Context, sb *venue.StoredBlock, locale string) {
+	if l == nil || sb == nil || sb.SourceID == "" || sb.ItemName == "" {
+		return
+	}
+	err := l.ds.RecordDraftBases(ctx, l.projectID, l.stream, []platstore.DraftBasis{{
+		ItemName: sb.ItemName, Unit: sb.SourceID, Variant: locale,
+	}})
+	if err != nil {
+		slog.WarnContext(ctx, "rejected unit's draft mark not cleared; the next pass may leave it waiting on a review already made",
+			"project", l.projectID, "stream", l.stream, "unit", sb.SourceID, "locale", locale, "error", err)
+	}
+}
+
 // resolveScope finds the project this pass decides in and the slug of the
 // workspace holding its stores, once, and reports whether both answered.
 //
@@ -289,7 +313,15 @@ func (l *reviewLedger) resolveCorpus(ctx context.Context) bool {
 // reviewLedger.governingFingerprint): the claim a verdict supports is that
 // this answer stands under this context, so the context travels with it, on
 // the wire and into the content memory the approval promotes to.
-func unitDecisionFor(sb *venue.StoredBlock, locale string, status model.TargetStatus, approved bool, decider, governing string) venue.UnitDecision {
+//
+// Only an approval or a sign-off re-stamps the row's BASIS, the source it
+// vouches for and the context it vouches for it under, which is what the
+// grading reads to answer whether a unit still translates the wording the
+// project holds. A rejection or a withdrawn approval vouches for nothing, so
+// it carries prev's basis forward and the unit stays graded exactly as it was
+// before the verdict. prev is the row the ledger already holds for the unit,
+// nil where it holds none or the caller is approving.
+func unitDecisionFor(sb *venue.StoredBlock, locale string, status model.TargetStatus, approved bool, decider, governing string, prev *venue.UnitDecision) venue.UnitDecision {
 	reviewState := ""
 	switch {
 	case approved && status == model.TargetStatusSignedOff:
@@ -299,6 +331,13 @@ func unitDecisionFor(sb *venue.StoredBlock, locale string, status model.TargetSt
 	case status == model.TargetStatusDraft:
 		reviewState = "rejected"
 	}
+	basis, basisGoverning := "", ""
+	switch {
+	case approved:
+		basis, basisGoverning = state.SourceHash(sb.Block.SourceText()), governing
+	case prev != nil:
+		basis, basisGoverning = prev.ContentHash, prev.GoverningFingerprint
+	}
 	now := time.Now().UTC().Format(time.RFC3339)
 	return venue.UnitDecision{
 		ItemName:             sb.ItemName,
@@ -306,9 +345,9 @@ func unitDecisionFor(sb *venue.StoredBlock, locale string, status model.TargetSt
 		Variant:              locale,
 		Status:               string(status),
 		TargetHash:           state.TargetHash(sb.Block.TargetText(model.LocaleID(locale))),
-		ContentHash:          state.SourceHash(sb.Block.SourceText()),
+		ContentHash:          basis,
 		ReviewState:          reviewState,
-		GoverningFingerprint: governing,
+		GoverningFingerprint: basisGoverning,
 		DecidedBy:            decider,
 		DecidedAt:            now,
 		Updated:              now,
