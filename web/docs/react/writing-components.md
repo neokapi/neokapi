@@ -239,6 +239,10 @@ out of the catalog:
 `translate="yes"` on the span opts its text back in, inside a sentence or on its
 own.
 
+The compiled call site carries these answers, so the runtime knows them too:
+[runtime pseudo mode](./modes.md#runtime-pseudo-translation) accents the prose
+and leaves the command alone, matching what a `qps` catalog holds.
+
 ### Controls inside prose
 
 HTML5 lets a control sit in the middle of a sentence, and a call to action is

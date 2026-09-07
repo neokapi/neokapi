@@ -104,6 +104,16 @@ export interface Occurrence {
   openEnd?: number;
   closeStart?: number;
   closeEnd?: number;
+  /**
+   * Paired elements only, and only where the element answers for itself:
+   * `"no"` when its text is a command, a key, sample output or an
+   * identifier, `"yes"` when `translate="yes"` claims the text back for the
+   * translator. Absent means the pair inherits whatever encloses it.
+   *
+   * The compiler passes these answers to `__tx`, so a runtime string
+   * transform protects the same characters the catalog build protects.
+   */
+  translate?: "yes" | "no";
 }
 
 export interface BuildRunsResult {
@@ -367,7 +377,8 @@ function appendJsxElement(state: BuilderState, el: JSXElement): void {
   state.flatText += `{${equiv}}`;
 
   const outerNoTranslate = state.noTranslate;
-  state.noTranslate = spanProtectsItsText(el, subType, outerNoTranslate);
+  const answer = spanTranslateAnswer(el, subType);
+  state.noTranslate = answer === undefined ? outerNoTranslate : answer === "no";
   walkChildren(children, state);
   state.noTranslate = outerNoTranslate;
 
@@ -399,23 +410,23 @@ function appendJsxElement(state: BuilderState, el: JSXElement): void {
     openEnd: el.opening.span.end,
     closeStart: el.closing?.span.start,
     closeEnd: el.closing?.span.end,
+    ...(answer !== undefined ? { translate: answer } : {}),
   });
 }
 
 /**
- * Whether the text inside `el` belongs to the translator.
+ * Who owns the text inside `el`, where the element answers for itself.
  *
- * The W3C table says no for `<code>`, `<kbd>`, `<samp>` and `<var>`: their
- * content is a command, a key the reader presses, sample output or a variable
- * name. `translate="yes"` on the element opts one site back in, and a span
- * carrying neither answer inherits whatever encloses it, so a `<span>` inside a
- * `<code>` stays protected.
+ * The W3C table answers `"no"` for `<code>`, `<kbd>`, `<samp>` and `<var>`:
+ * their content is a command, a key the reader presses, sample output or a
+ * variable name. `translate="yes"` on the element answers `"yes"` and opts one
+ * site back in. A span carrying neither answer returns undefined and inherits
+ * whatever encloses it, so a `<span>` inside a `<code>` stays protected.
  */
-function spanProtectsItsText(el: JSXElement, htmlElement: string, inherited: boolean): boolean {
-  const explicit = getStringAttr(el, "translate");
-  if (explicit === "yes") return false;
-  if (getTranslatability(htmlElement) === "no") return true;
-  return inherited;
+function spanTranslateAnswer(el: JSXElement, htmlElement: string): "yes" | "no" | undefined {
+  if (getStringAttr(el, "translate") === "yes") return "yes";
+  if (getTranslatability(htmlElement) === "no") return "no";
+  return undefined;
 }
 
 // ─── Plural / Select ─────────────────────────────────────────────

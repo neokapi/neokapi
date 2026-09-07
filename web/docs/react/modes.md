@@ -155,6 +155,8 @@ setPseudoMode(null);
 
 The transform stacks on top of whatever's in the runtime dict, so you can load a real French catalog and THEN flip pseudo on to see what French looks like at +30% length, with markers showing which strings got translated vs. which fell through to source. `{param}` / `{=m0}` tokens are preserved verbatim so param substitution still works.
 
+Text inside a `<code>`, a `<kbd>`, a `<samp>` or a `<var>` comes through as the author wrote it, the same bytes a `kapi pseudo-translate` catalog carries. `Run <code>kapi check --ship</code> first.` reads as accented prose around a command that still runs. A `translate="yes"` on the span claims its text back for the transform. Padding skips those spans too: a command is not going to grow in a real translation, so it is left out of the expansion count.
+
 **Works without a catalog.** The source string lands in the `__t` / `__tx` call as the `fallback` argument at build time. When the dict is empty the runtime uses the fallback, and pseudo transforms it. Edit `<h1>Welcome</h1>` → save → HMR replaces the module → React re-renders → `"▒ Ŵéļçöḿé ▒"`. No extract step, no compile step, no rebuild; just your source text flowing through the transform. A plain `neokapi({ mode: "runtime" })` in `vite.config.ts` is the only prerequisite; without runtime mode the plugin no-ops and there's no `__t` wrapper for pseudo to hook into.
 
 The panel below runs the real neokapi-i18n runtime in your browser, with no catalog loaded. Toggle pseudo mode and the same strings flip to accented, expanded text; `{name}` stays literal because `{param}` tokens are preserved through the transform:
@@ -174,6 +176,17 @@ if (import.meta.env.DEV) {
 ```
 
 The pseudo module lives at a separate subpath (`@neokapi/i18n-react/runtime/pseudo`) so importing it is opt-in; the main runtime stays ~2 kB. Internally it uses `setStringTransform`, a general post-lookup hook also exported from the main runtime for custom transforms (debug markers, letter-spacing audits, etc.).
+
+A custom transform takes the message text and a context. The context carries `markers`, one entry per inline element that answers for the text inside it: `"no"` for a span holding a command, a key or an identifier, `"yes"` where the source claimed it back. `protectionMask(text, markers)`, exported from the runtime, turns those answers into a per-character array so a transform can rewrite the prose and leave the rest:
+
+```ts
+import { setStringTransform, protectionMask } from "@neokapi/i18n-react/runtime";
+
+setStringTransform((text, context) => {
+  const guarded = protectionMask(text, context?.markers);
+  return [...text].map((ch, i) => (guarded?.[i] ? ch : ch.toUpperCase())).join("");
+});
+```
 
 ## Inline mode
 

@@ -31,6 +31,13 @@ import {
   useCallback,
 } from "react";
 import { hasICUSyntax, paramText, resolveICU, type ICUParamValue } from "./icu.ts";
+import {
+  collectMarkerTokens,
+  pairMarkers,
+  protectionMask,
+  type MarkerToken,
+  type MarkerTranslate,
+} from "./markers.ts";
 
 // ─── Translation store ───────────────────────────────────────
 
@@ -245,6 +252,22 @@ export function syncDocumentLocale(locale: string): void {
 // ─── Runtime string transform hook ───────────────────────────
 
 /**
+ * What a message carries beyond its text. `__tx` supplies it; `__t` has
+ * nothing to say here because a plain string holds no inline elements.
+ */
+export interface StringTransformContext {
+  /**
+   * The translate answer for each paired element in the message. A
+   * transform that rewrites letters reads this to leave a command, a
+   * key or an identifier alone; `protectionMask` turns it into the
+   * per-character answer.
+   */
+  markers?: MarkerTranslate;
+}
+
+export type StringTransform = (text: string, context?: StringTransformContext) => string;
+
+/**
  * Optional post-lookup transform applied to every translated string
  * before parameter substitution. Set to non-null to install a
  * transform — the runtime `@neokapi/i18n-react/runtime/pseudo`
@@ -254,9 +277,9 @@ export function syncDocumentLocale(locale: string): void {
  * substitution, so the transform sees `{foo}` / `{=m0}` tokens
  * still in place and can choose to preserve them.
  */
-let stringTransform: ((text: string) => string) | null = null;
+let stringTransform: StringTransform | null = null;
 
-export function setStringTransform(fn: ((text: string) => string) | null): void {
+export function setStringTransform(fn: StringTransform | null): void {
   stringTransform = fn;
   notify();
 }
@@ -307,6 +330,7 @@ export function __tx(
   fallback: string,
   elements: Record<string, ReactNode>,
   params?: Record<string, ICUParamValue>,
+  markers?: MarkerTranslate,
 ): ReactNode {
   // Use a translation only when it's structurally compatible with this call
   // site — every element marker it carries must be bound by `elements`. A stale
@@ -337,8 +361,10 @@ export function __tx(
   // pseudo mode applies uniformly across plain-text and
   // element-bearing translations. Runs before placeholder
   // substitution; transforms that want to protect {=m0}-style
-  // element tokens need to look for them.
-  if (stringTransform) text = stringTransform(text);
+  // element tokens need to look for them. The marker answers ride
+  // along so a transform can also leave the text INSIDE a `<code>`
+  // or a `<kbd>` exactly as the author wrote it.
+  if (stringTransform) text = stringTransform(text, { markers });
 
   // Substitute string params first (not element tokens)
   if (params) {
@@ -357,27 +383,10 @@ export function __tx(
   // stack semantics, then renders the text recursively — paired
   // ranges clone the wrapping element with the inner content as
   // children, standalone tokens substitute the bound element directly.
-  type Tok = { start: number; end: number; key: string; kind: "open" | "close" };
-  const tokens: Tok[] = collectTokens(text);
+  const tokens: MarkerToken[] = collectMarkerTokens(text);
 
   // For each open token, the index of its matching close (if any).
-  // LIFO match: a close pops the topmost open with the same key.
-  const closeOf = new Map<number, number>();
-  const openStack: number[] = [];
-  for (let i = 0; i < tokens.length; i++) {
-    const tok = tokens[i];
-    if (tok.kind === "open") {
-      openStack.push(i);
-      continue;
-    }
-    for (let j = openStack.length - 1; j >= 0; j--) {
-      if (tokens[openStack[j]].key === tok.key) {
-        closeOf.set(openStack[j], i);
-        openStack.splice(j, 1);
-        break;
-      }
-    }
-  }
+  const closeOf = pairMarkers(tokens);
 
   let sawElement = false;
 
@@ -470,11 +479,6 @@ export function __tx(
   );
 }
 
-/**
- * Scan `text` for element marker tokens `{=mN}` (open / standalone)
- * and `{/=mN}` (close), returning a positional list. Used by `__tx`
- * to build the open/close pair table before rendering.
- */
 // markersBound reports whether every element marker ({=mN} / {/=mN}) in text is
 // bound by elements. Used by __tx to reject a stale translation whose markers
 // don't line up with the call site, so a raw token can't reach the UI.
@@ -487,22 +491,8 @@ function markersBound(text: string, elements: Record<string, ReactNode>): boolea
   return true;
 }
 
-function collectTokens(
-  text: string,
-): Array<{ start: number; end: number; key: string; kind: "open" | "close" }> {
-  const tokens: Array<{ start: number; end: number; key: string; kind: "open" | "close" }> = [];
-  const re = /\{(\/?)(=[^}]+)\}/g;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(text)) !== null) {
-    tokens.push({
-      start: m.index,
-      end: m.index + m[0].length,
-      key: m[2],
-      kind: m[1] === "/" ? "close" : "open",
-    });
-  }
-  return tokens;
-}
+export { collectMarkerTokens, pairMarkers, protectionMask };
+export type { MarkerToken, MarkerTranslate };
 
 // ─── React hook ──────────────────────────────────────────────
 

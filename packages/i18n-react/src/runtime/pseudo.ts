@@ -22,7 +22,8 @@
  * actual target-language strings.
  */
 
-import { setStringTransform } from "./index.js";
+import { setStringTransform, type StringTransformContext } from "./index.js";
+import { protectionMask } from "./markers.js";
 
 export type AlphabetName = "accented" | "wobbly" | "none";
 
@@ -238,6 +239,15 @@ function resolveAlphabet(name: PseudoConfig["alphabet"]): Record<string, string>
  * `{=m0}` (JSX element token) stay literal for downstream
  * substitution.
  *
+ * The text between a pair of element markers is preserved too when
+ * `context.markers` says that element answers `"no"`: a `<code>`, a
+ * `<kbd>`, a `<samp>` or a `<var>` holds a command, a key the reader
+ * presses, sample output or an identifier. Accenting `kapi check
+ * --ship` into `ķàþî çĥéçķ --šĥîþ` leaves a reader with a command
+ * that does not run. Protected characters are also left out of the
+ * expansion count and take no filler, because they are not going to
+ * grow in a real translation.
+ *
  * Expansion placement prioritises readability:
  *   - `expansion >= 100` → between every character (full interleave).
  *     Needed to match the target length when it exceeds the source.
@@ -247,21 +257,29 @@ function resolveAlphabet(name: PseudoConfig["alphabet"]): Record<string, string>
  *   - `expansion < 100` with no spaces → split between start and end.
  *     Last-resort pad for single-word strings.
  */
-export function pseudoTransform(text: string, config: PseudoConfig = {}): string {
+export function pseudoTransform(
+  text: string,
+  config: PseudoConfig = {},
+  context?: StringTransformContext,
+): string {
   const prefix = config.prefix ?? DEFAULT_PREFIX;
   const suffix = config.suffix ?? DEFAULT_SUFFIX;
   const expansion = Math.max(0, Math.min(100, config.expansion ?? 0));
   const expansionChar = config.expansionChar ?? DEFAULT_EXPANSION_CHAR;
   const alphabet = resolveAlphabet(config.alphabet);
+  const protectedAt = protectionMask(text, context?.markers);
 
   // Pass 1: walk the source, building per-position metadata. Keeps
-  // brace content literal (letter=false) so filler never lands
-  // inside a placeholder.
+  // brace content and protected spans literal (letter=false) so
+  // filler never lands inside a placeholder or a command.
   const chars: string[] = [];
   const isLetter: boolean[] = [];
   const isSpace: boolean[] = [];
   let depth = 0;
+  let at = 0;
   for (const ch of text) {
+    const guarded = protectedAt !== null && protectedAt[at];
+    at += ch.length;
     if (ch === "{") {
       depth++;
       chars.push(ch);
@@ -276,7 +294,7 @@ export function pseudoTransform(text: string, config: PseudoConfig = {}): string
       isSpace.push(false);
       continue;
     }
-    if (depth > 0) {
+    if (depth > 0 || guarded) {
       chars.push(ch);
       isLetter.push(false);
       isSpace.push(false);
@@ -369,7 +387,7 @@ export function setPseudoMode(config: PseudoConfig | null): void {
     setStringTransform(null);
     return;
   }
-  setStringTransform((text) => pseudoTransform(text, config));
+  setStringTransform((text, context) => pseudoTransform(text, config, context));
 }
 
 /** Current config, or null when pseudo mode is off. */

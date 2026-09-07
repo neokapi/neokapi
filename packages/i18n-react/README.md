@@ -397,6 +397,16 @@ Text with `<a>`, `<strong>`, or other inline elements uses the rich `__tx()` loo
 
 The translator can reorder `{=m0}` tokens freely — the original JSX elements are spliced in at the right positions.
 
+When one of those elements answers for the text inside it, the call carries a
+fifth argument saying so: `<code>`, `<kbd>`, `<samp>` and `<var>` answer `"no"`,
+and a `translate="yes"` answers `"yes"`. A runtime string transform reads those
+answers off its context, so runtime pseudo mode accents the prose and hands the
+reader a command that still runs.
+
+```jsx
+<p>{__tx("iup", "Say {=m0}json{/=m0} now.", { "=m0": <code>json</code> }, undefined, { "=m0": "no" })}</p>
+```
+
 ## How `locale` Works
 
 The `locale` option in the plugin config is a **build-time target locale** — it tells the plugin which translation file to load from disk. It is **not** automatic browser locale detection.
