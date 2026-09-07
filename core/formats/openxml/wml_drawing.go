@@ -661,9 +661,9 @@ func (p *wmlParser) writeDrawingPropertyElementTo(
 			nameDone = true
 			p.emitDrawingPropMarker(out, a.Value, partPath, "drawing-name", true, emitBlock)
 		case surface && a.Name.Space == "" && strings.TrimSpace(a.Value) != "" && a.Name.Local == "descr":
-			p.emitDrawingPropMarker(out, a.Value, partPath, "drawing-descr", false, emitBlock)
+			p.emitDrawingPropMarker(out, a.Value, partPath, propElementDrawingDescr, false, emitBlock)
 		case surface && a.Name.Space == "" && strings.TrimSpace(a.Value) != "" && a.Name.Local == "title":
-			p.emitDrawingPropMarker(out, a.Value, partPath, "drawing-title", false, emitBlock)
+			p.emitDrawingPropMarker(out, a.Value, partPath, propElementDrawingTitle, false, emitBlock)
 		default:
 			out.WriteString(xmlesc.Attr(a.Value))
 		}

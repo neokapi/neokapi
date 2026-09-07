@@ -1,6 +1,7 @@
 package xmlesc_test
 
 import (
+	"encoding/xml"
 	"strings"
 	"testing"
 	"unicode/utf8"
@@ -175,5 +176,59 @@ func TestAttrAndTextDifferOnlyInQuoting(t *testing.T) {
 	for _, in := range escapeCorpus() {
 		assert.Equalf(t, strings.ReplaceAll(xmlesc.Text(in), `"`, "&quot;"), xmlesc.Attr(in),
 			"Attr is Text plus the double-quote delimiter, for input %q", in)
+	}
+}
+
+// TestAttrExactSurvivesAttributeValueNormalization is the reason the function
+// exists: XML 1.0 §3.3.3 has a parser replace a tab, a line feed and a carriage
+// return inside an attribute value with a space, so a writer that emits them
+// literally hands back a different value on the next read.
+func TestAttrExactSurvivesAttributeValueNormalization(t *testing.T) {
+	values := []string{
+		"line\nline",
+		"a\tb",
+		"cr\rlf\n",
+		"图形\n\nAI",
+		`quote " and & and <`,
+		"plain",
+	}
+	for _, want := range values {
+		t.Run(want, func(t *testing.T) {
+			require.Equal(t, want, attrRoundTrip(t, xmlesc.AttrExact(want)),
+				"AttrExact must survive a parse")
+		})
+	}
+}
+
+// TestAttrLeavesWhitespaceForTheParserToNormalize states what AttrExact is
+// different from, so nobody folds the two together. The oracle is the bytes:
+// encoding/xml's decoder skips the §3.3.3 normalization, so a Go round trip
+// reads a literal newline back unchanged where a conforming parser hands back a
+// space.
+func TestAttrLeavesWhitespaceForTheParserToNormalize(t *testing.T) {
+	assert.Contains(t, xmlesc.Attr("line\nline"), "\n",
+		"Attr writes the newline literally, which §3.3.3 turns into a space")
+	assert.NotContains(t, xmlesc.AttrExact("line\nline"), "\n")
+	assert.Equal(t, "line&#xA;line", xmlesc.AttrExact("line\nline"))
+	assert.Equal(t, "a&#x9;b", xmlesc.AttrExact("a\tb"))
+	assert.Equal(t, "cr&#xD;lf&#xA;", xmlesc.AttrExact("cr\rlf\n"))
+	// Everything without those three characters is the same string either way.
+	for _, s := range []string{"plain", `a " b`, "a & b", "a < b"} {
+		assert.Equal(t, xmlesc.Attr(s), xmlesc.AttrExact(s), s)
+	}
+}
+
+// attrRoundTrip puts an already-escaped value in an attribute and reports what
+// encoding/xml reads back out of it.
+func attrRoundTrip(t *testing.T, escaped string) string {
+	t.Helper()
+	dec := xml.NewDecoder(strings.NewReader(`<r a="` + escaped + `"/>`))
+	for {
+		tok, err := dec.Token()
+		require.NoError(t, err)
+		if se, ok := tok.(xml.StartElement); ok {
+			require.Len(t, se.Attr, 1)
+			return se.Attr[0].Value
+		}
 	}
 }

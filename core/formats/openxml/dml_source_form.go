@@ -40,3 +40,34 @@ func spanGrow(start, elemStart, elemEnd int64) (int64, int64) {
 	}
 	return start, elemEnd
 }
+
+// The element a property block's text came from, when the text goes back into
+// an attribute rather than into element content: a shape's alt text and its
+// object title, on <p:cNvPr> in a deck and <wp:docPr> in a document.
+const (
+	propElementDrawingDescr = "drawing-descr"
+	propElementDrawingTitle = "drawing-title"
+)
+
+// propertyGoesInAnAttribute reports whether a property block's text is written
+// back into an attribute value.
+//
+// The two positions escape differently. An XML parser rewrites a tab, a line
+// feed and a carriage return in an attribute value as a space (XML 1.0 §3.3.3),
+// so a shape's multi-line alt text has to travel as character references or it
+// comes back a single line. In element content, where a core property sits,
+// those three characters carry themselves and the references would be a
+// spelling the source did not use.
+func propertyGoesInAnAttribute(block *model.Block) bool {
+	if block == nil {
+		return false
+	}
+	if block.Type == "table-column" {
+		return true
+	}
+	switch block.Properties["element"] {
+	case propElementDrawingDescr, propElementDrawingTitle:
+		return true
+	}
+	return false
+}

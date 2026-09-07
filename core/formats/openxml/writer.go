@@ -1622,9 +1622,15 @@ func (w *Writer) renderBlock(block *model.Block, dt docType) string {
 		return ""
 	}
 
-	// Core properties and table column names are plain text (no XML wrapping needed).
+	// Core properties, table column names and a drawing's alt text are plain
+	// text, with no XML wrapping. The two positions they land in escape
+	// differently: see propertyGoesInAnAttribute.
 	if block.Type == "property" || block.Type == "table-column" {
-		return xmlesc.Attr(model.FlattenRuns(runs))
+		text := model.FlattenRuns(runs)
+		if propertyGoesInAnAttribute(block) {
+			return xmlesc.AttrExact(text)
+		}
+		return xmlesc.Attr(text)
 	}
 
 	// An OMML <m:nor/> prose span (equation text — "where", "otherwise", units):
@@ -4663,7 +4669,10 @@ func (w *Writer) expandDrawingMarkers(payload string) string {
 		}
 		switch kind {
 		case "PROP":
-			return xmlesc.Attr(model.FlattenRuns(runs))
+			// The value goes back into an attribute, so the whitespace an
+			// attribute-value normalisation would rewrite travels as
+			// character references. See propertyGoesInAnAttribute.
+			return xmlesc.AttrExact(model.FlattenRuns(runs))
 		case "PARA":
 			fieldStraddle := block.Properties != nil && block.Properties["openxml:field-straddle"] == "true"
 			return w.renderWMLBlock(runs, blockSourceRPrXML(block), blockPerRunRPrFragments(block), blockPerRunSrcRunStartFlags(block), blockPerRunInFieldDisplayFlags(block), blockPerRunSourceHadRPrFlags(block), fieldStraddle)

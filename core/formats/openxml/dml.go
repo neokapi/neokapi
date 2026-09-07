@@ -667,9 +667,9 @@ func (p *dmlParser) skelWriteDrawingPropElement(d *rawDecoder, t xml.StartElemen
 func (p *dmlParser) emitDrawingProp(a xml.Attr, partPath string, emitBlock func(*model.Block)) string {
 	*p.blockCounter++
 	id := fmt.Sprintf("tu%d", *p.blockCounter)
-	element := "drawing-descr"
+	element := propElementDrawingDescr
 	if a.Name.Local == "title" {
-		element = "drawing-title"
+		element = propElementDrawingTitle
 	}
 	p.path.ensurePart(partPath)
 	block := &model.Block{
