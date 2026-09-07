@@ -199,8 +199,13 @@ interface BrandProfile {
   name: string;
 }
 interface Member {
+  user_id?: string;
+  user?: { id?: string };
+}
+interface Invite {
+  id: string;
   email?: string;
-  user?: { email?: string };
+  use_count?: number;
 }
 
 async function ensureWorkspace(token: string): Promise<string> {
@@ -268,9 +273,26 @@ async function ensureBrandProfile(ws: string, token: string, name: string): Prom
   return p.id;
 }
 
+/**
+ * Bob joins the workspace through a real invitation, once. The member list
+ * carries user ids and no emails, so membership is read against Bob's own id;
+ * matching on an email that is never there re-invited him on every run and the
+ * unused invitations piled up on the Members page the collaboration walk films.
+ * Invitations for Bob that were never used are removed on the way through.
+ */
 async function ensureMember(ws: string, aliceToken: string, bobToken: string): Promise<boolean> {
+  const bobMe = await jget<{ id?: string; user?: { id?: string } }>("/auth/me", bobToken);
+  const bobId = bobMe.id || bobMe.user?.id;
   const members = listOf<Member>(await jget(`/${ws}/members`, aliceToken), "members");
-  if (members.some((m) => (m.email || m.user?.email) === BOB.email)) {
+  const isMember = !!bobId && members.some((m) => (m.user_id || m.user?.id) === bobId);
+  const invites = listOf<Invite>(await jget(`/${ws}/invites`, aliceToken), "invites");
+  for (const inv of invites) {
+    if (inv.email !== BOB.email || (inv.use_count ?? 0) > 0) continue;
+    if (!isMember) continue;
+    await jdelete(`/${ws}/invites/${inv.id}`, aliceToken);
+    console.log(`  · removed an unused invitation for ${BOB.email}`);
+  }
+  if (isMember) {
     console.log(`  · ${BOB.email} already a member`);
     return true;
   }
@@ -585,12 +607,16 @@ async function main(): Promise<void> {
     throw new Error(`no item id for ${FILE_NAME} (items: ${JSON.stringify(proj.items)})`);
 
   // Pre-translate fr so the review walk has translated-but-unreviewed rows and
-  // the editor shows target content. Best-effort (offline demo provider).
-  await jpostSoft(
-    `/${ws}/${projectId}/actions/main/ai-translate`,
-    { item: FILE_NAME, target_locale: COLLAB_LOCALE },
-    aliceToken,
-  );
+  // the editor shows target content, and de so the editor walk's locale switch
+  // lands on a translated file rather than an empty one. Best-effort (offline
+  // demo provider); a re-run re-translates a block only where no target exists.
+  for (const target of [COLLAB_LOCALE, "de"]) {
+    await jpostSoft(
+      `/${ws}/${projectId}/actions/main/ai-translate`,
+      { item: FILE_NAME, target_locale: target },
+      aliceToken,
+    );
+  }
 
   // content memory + terminology: the governance walk (content-memory search
   // "mission", multi-locale concepts) + the editor context panel. Each entry
@@ -653,6 +679,7 @@ async function main(): Promise<void> {
     BOWRAIN_WORKSPACE_SLUG: ws,
     BOWRAIN_PROJECT_ID: projectId,
     BOWRAIN_ITEM_ID: itemId,
+    BOWRAIN_ITEM_NAME: FILE_NAME,
     BOWRAIN_COLLAB_LOCALE: COLLAB_LOCALE,
     BOWRAIN_PEER_BLOCK_ID: review.peerBlockId,
     BOWRAIN_SELF_BLOCK_ID: review.selfBlockId,

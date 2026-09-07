@@ -330,8 +330,9 @@ async function main() {
         item_id: itemId,
         file_name: FILE_NAME,
         locale: LOCALE,
-        // The item sits AFTER /translate/ (routes/index.tsx `translate/$`).
-        translate_url: `${BASE}/${wsSlug}/p/${projectId}/s/main/translate/${itemId}`,
+        // The Translate route's trailing splat is the file NAME (routes/index.tsx
+        // `translate/$`); the item id keys the review queue rows below.
+        translate_url: `${BASE}/${wsSlug}/p/${projectId}/s/main/translate/${encodeURIComponent(FILE_NAME)}`,
         review_url: `${BASE}/${wsSlug}/p/${projectId}/s/main/review`,
         review_inbox_url: `${BASE}/${wsSlug}/review-inbox`,
         members_url: `${BASE}/${wsSlug}/settings/members`,

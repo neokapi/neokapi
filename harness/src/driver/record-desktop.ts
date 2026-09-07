@@ -128,9 +128,13 @@ const BOWRAIN_TOKEN = process.env.BOWRAIN_SESSION_TOKEN || "";
 // PresenceAvatars render, not the retired focus/context-panel modes.
 const BOWRAIN_PEER_TOKEN = process.env.BOWRAIN_PEER_TOKEN || "";
 const BOWRAIN_PEER_NAME = process.env.BOWRAIN_PEER_NAME || "Maria Schmidt";
-// The shared file the two users co-occupy (printed by seed-collaboration.mjs).
+// The shared file the two users co-occupy (written to harness/.env by
+// scripts/seed-bowrain.ts). The Translate route addresses a file by its name
+// (the route's trailing splat, routes/index.tsx `translate/$`); the review
+// queue keys its rows by the item id.
 const BOWRAIN_PROJECT_ID = process.env.BOWRAIN_PROJECT_ID || "";
 const BOWRAIN_ITEM_ID = process.env.BOWRAIN_ITEM_ID || "";
+const BOWRAIN_ITEM_NAME = process.env.BOWRAIN_ITEM_NAME || "";
 const BOWRAIN_COLLAB_LOCALE = process.env.BOWRAIN_COLLAB_LOCALE || "fr";
 // The two review-queue rows the separation-of-duties beats need: one target Bob
 // wrote (Alice may approve it) and one Alice wrote (the server refuses her).
@@ -204,19 +208,19 @@ async function launchPeer(slug: string): Promise<{ peer: PeerSession; teardown: 
     act: async (fn) => {
       await fn(page);
     },
-    openTranslateFile: async (workspace, projectId, itemId, locale) => {
+    openTranslateFile: async (workspace, projectId, itemName, locale) => {
       // The editor route reads the target locale from the project's first target
       // language; `locale` is passed for parity with the collab room key and to
       // document which target both users sit on.
       void locale;
       await page.goto(
-        `${BOWRAIN_BASE}/${workspace}/p/${projectId}/s/main/translate/${itemId}`,
+        `${BOWRAIN_BASE}/${workspace}/p/${projectId}/s/main/translate/${translatePath(itemName)}`,
         { waitUntil: "domcontentloaded" },
       );
       // Wait for the editor to mount so the peer's useCollaboration() opens the
       // WebSocket and publishes its awareness into the shared room.
       await page
-        .waitForSelector('[data-testid="view-switcher"], [data-testid="block-grid"], [data-testid="visual-editor-layout"]', {
+        .waitForSelector('[data-testid="view-switcher"], [data-testid="view-table"], [data-testid="visual-editor-layout"]', {
           timeout: 30_000,
         })
         .catch(() => {});
@@ -454,8 +458,14 @@ interface PeerSession {
   name: string;
   /** Run an action as the peer (drives the peer's page). */
   act: (fn: (page: Page) => Promise<void>) => Promise<void>;
-  /** Open the shared translate file as the peer (joins the same collab room). */
-  openTranslateFile: (workspace: string, projectId: string, itemId: string, locale: string) => Promise<void>;
+  /** Open the shared translate file, by name, as the peer (joins the same collab room). */
+  openTranslateFile: (workspace: string, projectId: string, itemName: string, locale: string) => Promise<void>;
+}
+
+/** The Translate route's trailing splat for a file name: each segment is
+ *  encoded, and a slash inside the name stays a path separator. */
+function translatePath(itemName: string): string {
+  return itemName.split("/").map(encodeURIComponent).join("/");
 }
 
 function makeCtx(page: Page, t0: number, beats: Beat[], peer?: PeerSession): WalkCtx {
@@ -838,22 +848,21 @@ async function flowsWalk(c: WalkCtx): Promise<void> {
     await moveTo(page, WIDTH * 0.5, HEIGHT * 0.36, 700);
     await page.waitForTimeout(2200);
   });
-  // Open a flow → its pipeline graph (AI translate, then a quality check).
-  // The editor is open once its back button renders; the React Flow canvas
-  // stays hidden until it has measured itself, so waiting on the canvas to be
-  // visible waits out the timeout instead.
+  // Open a flow → its pipeline (AI translate, then a check). A flow opens in
+  // the shared linear editor (packages/ui flow-editor: one step row per step),
+  // behind the editor's back button. The narration says the pipeline is on
+  // screen, so the walk waits for a step row: an editor that mounts without
+  // its steps fails the capture instead of filming an empty frame.
   await beat("open-flow", null, async () => {
     await humanClick(page, page.getByText("translate-and-qa", { exact: true }));
     await page.waitForSelector('button[aria-label="Back to flow list"]', { timeout: 30_000 });
-    // The narration says the pipeline is on screen. Waiting for a node makes a
-    // canvas that mounts without its steps fail the capture instead of filming
-    // an empty frame.
-    await page.waitForSelector(".react-flow__node", { timeout: 30_000 });
+    await page.waitForSelector('[data-testid="linear-flow-editor"]', { timeout: 30_000 });
+    await page.waitForSelector('[data-testid="step-row"]', { timeout: 30_000 });
     await page.waitForTimeout(2200);
   });
-  // Zoom the pipeline canvas.
-  await beatEls("pipeline", [".react-flow"], async () => {
-    await moveTo(page, WIDTH * 0.5, HEIGHT * 0.5, 700);
+  // Zoom the pipeline: the step rows of the linear editor.
+  await beatEls("pipeline", ['[data-testid="linear-flow-editor"]'], async () => {
+    await moveTo(page, WIDTH * 0.5, HEIGHT * 0.45, 700);
     await page.waitForTimeout(2400);
   });
 }
@@ -1056,15 +1065,24 @@ async function bowrainEditorWalk(c: WalkCtx): Promise<void> {
   await beat("open-project", null, async () => {
     await openProjectSource(page, "Company Website");
   });
-  // Open a file → the editor.
+  // Open a file → the editor. A file on the source view opens in the preview
+  // sheet first (FilePreview: read the document, then choose a surface), and
+  // its Open in Translate button is the way into the workbench. Both arrivals
+  // are hard waits: the narration says the file became a workbench, so a take
+  // that stayed on the sheet, or never left the list, fails the capture rather
+  // than filming the wrong screen under it.
   await beat("open-file", null, async () => {
     await humanClick(page, page.locator('[data-testid^="open-file"]').first());
-    await page.waitForTimeout(2400);
+    await page.waitForSelector('[data-testid="file-preview"]', { timeout: 20_000 });
+    await page.waitForTimeout(1400);
+    await humanClick(page, page.getByTestId("file-preview-translate"));
+    await page.waitForSelector('[data-testid="view-switcher"]', { timeout: 30_000 });
+    await page.waitForTimeout(1600);
   });
   // Switch to the Visual view: an inline editing card over a live document preview.
   await beat("split", { x: 0.03, y: 0.16, w: 0.74, h: 0.5 }, async () => {
-    const sh = page.getByTestId("view-visual");
-    if (await sh.count()) await humanClick(page, sh);
+    await humanClick(page, page.getByTestId("view-visual"));
+    await page.waitForSelector('[data-testid="visual-editor-layout"]', { timeout: 20_000 });
     await page.waitForTimeout(1600);
     await moveTo(page, WIDTH * 0.42, HEIGHT * 0.42, 700);
     await page.waitForTimeout(1200);
@@ -1268,29 +1286,31 @@ async function bowrainCollaborationWalk(c: WalkCtx): Promise<void> {
   // apply the recording palette so a dark take stays dark.
   const themeQ = themeParam ? `?theme=${themeParam}` : "";
 
-  // Seed values printed by harness/scripts/seed-collaboration.mjs. The workspace
-  // slug is the path the recorder landed on.
+  // Seed values written by harness/scripts/seed-bowrain.ts. The workspace slug
+  // is the path the recorder landed on.
   const slug = startUrl.pathname.replace(/^\/+|\/+$/g, "").split("/")[0] || "";
   const projectId = BOWRAIN_PROJECT_ID;
-  const itemId = BOWRAIN_ITEM_ID;
+  const itemName = BOWRAIN_ITEM_NAME;
   const locale = BOWRAIN_COLLAB_LOCALE;
-  const canCollab = !!(peer && projectId && itemId);
+  const canCollab = !!(peer && projectId && itemName);
 
   await beat("intro", null, async () => {
     await idle(page, 2000);
   });
 
-  // Alice opens the shared file in the Translate surface — alone, for now.
+  // Alice opens the shared file in the Translate surface — alone, for now. The
+  // narration says the file is open, so the editor's view switcher is a hard
+  // wait: a name the route cannot resolve renders an empty editor, and that
+  // take must fail rather than film "No blocks to display" under the story.
   await beat("open-file", null, async () => {
-    if (projectId && itemId) {
+    if (projectId && itemName) {
       await page.goto(
-        `${wsBase}/p/${projectId}/s/main/translate/${itemId}${themeQ}`,
+        `${wsBase}/p/${projectId}/s/main/translate/${translatePath(itemName)}${themeQ}`,
         { waitUntil: "domcontentloaded" },
       );
       await injectCursor(page); // goto wiped the page-injected cursor; re-add it
-      await page
-        .waitForSelector('[data-testid="view-switcher"], [data-testid="block-grid"]', { timeout: 30_000 })
-        .catch(() => {});
+      await page.waitForSelector('[data-testid="view-switcher"]', { timeout: 30_000 });
+      await page.waitForSelector('[data-testid="visual-editor-layout"], [data-testid="view-table"][data-state="on"], [data-testid="search-input"]', { timeout: 30_000 });
     } else {
       // No seed → land Alice on the first project's file via the dashboard.
       await openProjectSource(page);
@@ -1305,7 +1325,7 @@ async function bowrainCollaborationWalk(c: WalkCtx): Promise<void> {
     // collab WebSocket and publishes awareness — Alice's editor header now shows
     // his PresenceAvatar arrive. This is the genuine multi-user moment.
     await beatEls("teammate-joins", ['[data-testid="presence-avatars"]'], async () => {
-      await peer!.openTranslateFile(slug, projectId, itemId, locale);
+      await peer!.openTranslateFile(slug, projectId, itemName, locale);
       // Let the awareness round-trip reach Alice's recorded page, then settle the
       // camera on the presence avatars as they appear.
       await page
@@ -1574,10 +1594,9 @@ async function recordTheme(
   if (web) await context.addCookies([await bowrainAuthCookie()]);
   // Pin the palette deterministically: set `.dark` at document-start AND re-assert
   // it via a MutationObserver, so an app's own theme logic can't flip the
-  // recording mid-run (toggle is idempotent → no loop). For the bowrain WEB
-  // capture, also mark the root with `pw-recording-tl` so the shared sidebar
-  // reserves the macOS traffic-light safe area (the desktop app sets its own
-  // `bw-desktop-mac`); the framed DesktopScene paints the dots over that gutter.
+  // recording mid-run (toggle is idempotent → no loop). The web capture gets no
+  // traffic-light gutter: DesktopScene frames a web take under its own browser
+  // bar, so the app content starts below the dots already.
   //
   // The script is a string, not a function. tsx runs the recorder through
   // esbuild with keepNames on, which rewrites a named inner function such as
@@ -1586,21 +1605,30 @@ async function recordTheme(
   // helper it does not have and threw "__name is not defined" at document
   // start. The take then carried on with no pin at all and only the recorder's
   // pageerror line said so.
+  //
+  // At document start the root element may not exist yet, so the pin attaches
+  // to it as soon as it appears and re-asserts on every later class change.
   await context.addInitScript(
     `(() => {
       const isDark = ${theme === "dark"};
-      const isWeb = ${!!web};
       const pin = () => {
-        document.documentElement.classList.toggle("dark", isDark);
-        if (isWeb) document.documentElement.classList.add("pw-recording-tl");
+        const root = document.documentElement;
+        if (root) root.classList.toggle("dark", isDark);
       };
-      pin();
-      document.addEventListener("DOMContentLoaded", pin);
-      try {
-        new MutationObserver(pin).observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
-      } catch {
-        /* observer unavailable: the initial pin still applied */
+      const attach = () => {
+        const root = document.documentElement;
+        if (!root) return false;
+        pin();
+        new MutationObserver(pin).observe(root, { attributes: true, attributeFilter: ["class"] });
+        return true;
+      };
+      if (!attach()) {
+        const boot = new MutationObserver(() => {
+          if (attach()) boot.disconnect();
+        });
+        boot.observe(document, { childList: true });
       }
+      document.addEventListener("DOMContentLoaded", pin);
     })();`,
   );
   const t0 = Date.now();
@@ -1846,8 +1874,35 @@ export async function recordDesktop(id: string, opts: RecordOptions = {}): Promi
 
   // Reset created projects (isolated home) before each theme so state-mutating
   // walkthroughs (e.g. project creation) start clean on both passes. The seeded
-  // termbases/Memories/providers under ISO_DIR are left intact.
-  const resetHome = () => {
+  // terms, memories and providers under ISO_DIR are left intact.
+  //
+  // The backend is one long-lived process across both themes and it restores
+  // the tabs that were open (SaveSessionState → GetSessionState), so wiping
+  // the home alone left the dark pass reopening a project whose files were
+  // gone: the app showed the template picker, or a review page that could not
+  // read its recipe, under a walk that had found its rail item enabled. Close
+  // every tab and forget the session through the wbridge as well, so both
+  // passes start on the home screen and scaffold the sample the same way.
+  const bridge = async (method: string, args: unknown[] = []): Promise<unknown> => {
+    const r = await fetch("http://127.0.0.1:5175/wbridge", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ method, args }),
+    });
+    return r.json();
+  };
+  const resetHome = async () => {
+    if (!externalUrl) {
+      try {
+        const tabs = (await bridge("ListTabs")) as Array<{ id?: string }> | null;
+        for (const tab of tabs ?? []) {
+          if (tab?.id) await bridge("CloseProject", [tab.id]);
+        }
+        await bridge("SaveSessionState", [{ mode: "projects", lastOpenProjects: [], activeProject: "" }]);
+      } catch (e) {
+        console.warn(`  ! could not close the open projects on the wbridge: ${(e as Error)?.message}`);
+      }
+    }
     fs.rmSync(ISO_HOME, { recursive: true, force: true });
     fs.mkdirSync(ISO_HOME, { recursive: true });
   };
@@ -1875,11 +1930,11 @@ export async function recordDesktop(id: string, opts: RecordOptions = {}): Promi
   const browser = await chromium.launch();
   try {
     console.log(`  · recording light theme${uiLocale ? ` (ui ${uiLocale})` : ""}`);
-    resetHome();
+    await resetHome();
     await resetPlugins();
     const light = await recordTheme(browser, url, "light", outDir, id, undefined, undefined, uiLocale);
     console.log(`  · recording dark theme${uiLocale ? ` (ui ${uiLocale})` : ""}`);
-    resetHome();
+    await resetHome();
     await resetPlugins();
     const dark = await recordTheme(browser, url, "dark", outDir, id, undefined, undefined, uiLocale);
 
