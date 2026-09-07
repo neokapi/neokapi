@@ -2312,7 +2312,7 @@
           "title": "XLIFF-versjon",
           "description": "Mål-XLIFF 2.x-versjon som skal genereres. Tom betyr: bevar inndatadokumentets versjon ved rundtur, ellers standard til 2.2.",
           "options": {
-            "": {
+            "0": {
               "label": "Auto (bevar inndata, standard 2.2)"
             },
             "2.0": {

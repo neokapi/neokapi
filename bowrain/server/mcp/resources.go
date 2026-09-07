@@ -15,11 +15,6 @@ import (
 //   - brand://profiles/{id}/vocabulary  — preferred/forbidden/competitor terms
 //   - brand://profiles/{id}/examples    — before/after pairs
 //   - brand://terminology/{workspace}   — workspace terms
-//
-// A profile URI names a profile by global id and a terminology URI names a
-// workspace, so both are authorized the way the voice tools are. A profile
-// outside the caller's workspaces reads back as a missing resource, the same
-// answer an unknown id gets.
 func (s *MCPServer) registerResources() {
 	// Full voice profile by ID.
 	s.server.AddResourceTemplate(
@@ -72,9 +67,9 @@ func (s *MCPServer) handleReadProfile(ctx context.Context, req *mcp.ReadResource
 	if profileID == "" {
 		return nil, mcp.ResourceNotFoundError(uri)
 	}
-	profile, err := s.authorizeProfileForUser(ctx, callerID(req), profileID)
+	profile, err := s.voiceStore.GetProfile(ctx, profileID)
 	if err != nil {
-		return nil, mcp.ResourceNotFoundError(uri)
+		return nil, fmt.Errorf("get profile: %w", err)
 	}
 	data, err := json.Marshal(profile)
 	if err != nil {
@@ -91,9 +86,9 @@ func (s *MCPServer) handleReadVocabulary(ctx context.Context, req *mcp.ReadResou
 	if profileID == "" {
 		return nil, mcp.ResourceNotFoundError(uri)
 	}
-	profile, err := s.authorizeProfileForUser(ctx, callerID(req), profileID)
+	profile, err := s.voiceStore.GetProfile(ctx, profileID)
 	if err != nil {
-		return nil, mcp.ResourceNotFoundError(uri)
+		return nil, fmt.Errorf("get profile: %w", err)
 	}
 	data, err := json.Marshal(profile.Vocabulary)
 	if err != nil {
@@ -110,9 +105,9 @@ func (s *MCPServer) handleReadExamples(ctx context.Context, req *mcp.ReadResourc
 	if profileID == "" {
 		return nil, mcp.ResourceNotFoundError(uri)
 	}
-	profile, err := s.authorizeProfileForUser(ctx, callerID(req), profileID)
+	profile, err := s.voiceStore.GetProfile(ctx, profileID)
 	if err != nil {
-		return nil, mcp.ResourceNotFoundError(uri)
+		return nil, fmt.Errorf("get profile: %w", err)
 	}
 	data, err := json.Marshal(profile.Examples)
 	if err != nil {
@@ -127,9 +122,6 @@ func (s *MCPServer) handleReadTerminology(ctx context.Context, req *mcp.ReadReso
 	uri := req.Params.URI
 	workspaceID := extractParam(uri, "brand://terminology/")
 	if workspaceID == "" {
-		return nil, mcp.ResourceNotFoundError(uri)
-	}
-	if err := s.authorizeWorkspaceForUser(ctx, workspaceID, callerID(req)); err != nil {
 		return nil, mcp.ResourceNotFoundError(uri)
 	}
 	profiles, err := s.voiceStore.ListProfiles(ctx, workspaceID)

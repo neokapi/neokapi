@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-07T22:21:44Z",
+  "generatedAt": "2026-09-07T23:34:03Z",
   "commands": [
     {
       "id": "add",
@@ -5936,6 +5936,13 @@
       "use": "ollama",
       "short": "Manage the local Ollama runtime for on-device translation",
       "long": "Detect, inspect, and feed the local Ollama runtime kapi uses for on-device\n(GPU-accelerated) translation. Ollama itself is a one-time install from\nhttps://ollama.com; kapi drives the rest: `kapi models ollama pull \u003cmodel\u003e` installs\na model, and `kapi translate --provider ollama --model \u003cmodel\u003e` uses it.",
+      "flags": [
+        {
+          "name": "url",
+          "usage": "Ollama server URL (default $OLLAMA_HOST or http://localhost:11434)",
+          "type": "string"
+        }
+      ],
       "offlineCapable": true,
       "runnableInBrowser": false,
       "demoMode": false

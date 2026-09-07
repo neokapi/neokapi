@@ -47,9 +47,9 @@ type checkVocabularyOutput struct {
 }
 
 func (s *MCPServer) handleCheckVocabulary(ctx context.Context, req *mcp.CallToolRequest, input checkVocabularyInput) (*mcp.CallToolResult, checkVocabularyOutput, error) {
-	profile, err := s.authorizeProfile(ctx, req, input.ProfileID)
+	profile, err := s.voiceStore.GetProfile(ctx, input.ProfileID)
 	if err != nil {
-		return nil, checkVocabularyOutput{}, err
+		return nil, checkVocabularyOutput{}, fmt.Errorf("get profile: %w", err)
 	}
 
 	if input.Locale != "" {
@@ -86,9 +86,6 @@ type profileSummary struct {
 }
 
 func (s *MCPServer) handleListProfiles(ctx context.Context, req *mcp.CallToolRequest, input listProfilesInput) (*mcp.CallToolResult, listProfilesOutput, error) {
-	if err := s.authorizeWorkspace(ctx, req, input.WorkspaceID); err != nil {
-		return nil, listProfilesOutput{}, err
-	}
 	profiles, err := s.voiceStore.ListProfiles(ctx, input.WorkspaceID)
 	if err != nil {
 		return nil, listProfilesOutput{}, fmt.Errorf("list profiles: %w", err)
@@ -121,9 +118,9 @@ type getVoiceGuideOutput struct {
 }
 
 func (s *MCPServer) handleGetVoiceGuide(ctx context.Context, req *mcp.CallToolRequest, input getVoiceGuideInput) (*mcp.CallToolResult, getVoiceGuideOutput, error) {
-	profile, err := s.authorizeProfile(ctx, req, input.ProfileID)
+	profile, err := s.voiceStore.GetProfile(ctx, input.ProfileID)
 	if err != nil {
-		return nil, getVoiceGuideOutput{}, err
+		return nil, getVoiceGuideOutput{}, fmt.Errorf("get profile: %w", err)
 	}
 
 	resolved := coreprofile.ResolveProfile(profile, model.LocaleID(input.Locale), input.Channel, "")

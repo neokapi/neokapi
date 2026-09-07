@@ -5,6 +5,7 @@
 // every non-empty Short/Long/Example under the nested key path
 //
 //	cli.commands.<full.command.path>.{short,long,example}
+//	cli.commands.<full.command.path>.flags.<flag>.usage
 //
 // plus the cli/output chrome table under cli.output.<key>. The JSON filter
 // with its default configuration derives block names from the dotted full
@@ -25,6 +26,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 
 	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/host/desktopmenu"
@@ -81,6 +83,16 @@ func walkCommand(c *cobra.Command, path []string, doc map[string]any) {
 	if c.Example != "" {
 		set(doc, append(slices.Clip(path), "example"), c.Example)
 	}
+	// Flag help is the bulk of what `kapi <cmd> --help` prints and the whole
+	// Flags table on a command's reference page. cli.VisitLocalizableFlags is
+	// the same walk LocalizeCommandHelp makes, so a flag recorded here is a
+	// flag the binary looks up.
+	cli.VisitLocalizableFlags(c, func(f *pflag.Flag) {
+		if f.Usage == "" {
+			return
+		}
+		set(doc, append(slices.Clip(path), "flags", f.Name, "usage"), f.Usage)
+	})
 	for _, sub := range c.Commands() {
 		name := sub.Name()
 		if name == "" || strings.ContainsAny(name, ". ") {

@@ -343,16 +343,7 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 			Extensions: []string{".mo"},
 		}, "MO (Gettext, binary)")
 	reg.RegisterWriter("mo", func() format.DataFormatWriter { return mo.NewWriter() })
-	if o.ConfigReg != nil {
-		o.ConfigReg.Register(config.FormatConfigKind("mo"), config.SpecDecoderFunc(func(spec map[string]any) (any, error) {
-			c := &mo.Config{}
-			c.Reset()
-			if err := c.ApplyMap(spec); err != nil {
-				return nil, err
-			}
-			return c, nil
-		}))
-	}
+	registerSchemaAndDecoder(o, reg, "mo", func() format.DataFormatReader { return mo.NewReader() })
 
 	// Java Properties
 	reg.RegisterReader("properties",
@@ -417,6 +408,7 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 			Extensions: []string{".tsv"},
 		}, "TSV")
 	reg.RegisterWriter("tsv", func() format.DataFormatWriter { return csvfmt.NewTSVWriter() })
+	registerSchemaAndDecoder(o, reg, "tsv", func() format.DataFormatReader { return csvfmt.NewTSVReader() })
 
 	// Moses Text
 
@@ -522,6 +514,7 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 			Extensions: []string{".mf", ".messageformat"},
 		}, "ICU MessageFormat")
 	reg.RegisterWriter("messageformat", func() format.DataFormatWriter { return messageformat.NewWriter() })
+	registerSchemaAndDecoder(o, reg, "messageformat", func() format.DataFormatReader { return messageformat.NewReader() })
 
 	// PHP Content
 
@@ -560,6 +553,7 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 			MagicBytes: [][]byte{{0x50, 0x4B, 0x03, 0x04}},
 		}, "Open Document Format")
 	reg.RegisterWriter("odf", func() format.DataFormatWriter { return odf.NewWriter() })
+	registerSchemaAndDecoder(o, reg, "odf", func() format.DataFormatReader { return odf.NewReader() })
 
 	// EPUB
 	reg.RegisterReader("epub",
@@ -573,6 +567,7 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 			},
 		}, "EPUB E-Book")
 	reg.RegisterWriter("epub", func() format.DataFormatWriter { return epub.NewWriter() })
+	registerSchemaAndDecoder(o, reg, "epub", func() format.DataFormatReader { return epub.NewReader() })
 
 	// Archive (ZIP / TAR / TAR.GZ) — READ-ONLY. Surfaces the translatable
 	// content of each recognised entry (JSON, Markdown, HTML, XML, .po, …) as a

@@ -1543,13 +1543,25 @@
     },
     "epub": {
       "displayName": "EPUB E-Book",
+      "description": "Configuration for the EPUB e-book format reader/writer",
       "family": "rich-markup",
       "extensions": [
         ".epub"
       ],
       "mimeTypes": [
         "application/epub+zip"
-      ]
+      ],
+      "properties": {
+        "extractNonTranslatableContent": {
+          "title": "Extract non-translatable content",
+          "description": "If true (default), non-translatable contextual content such as verbatim code listings (\u003cpre\u003e/\u003ccode\u003e/\u003ckbd\u003e/\u003csamp\u003e) in the direct-XHTML fallback extractor is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton."
+        }
+      },
+      "groups": {
+        "extraction": {
+          "label": "Content Extraction"
+        }
+      }
     },
     "exec": {
       "displayName": "Exec (subprocess extractor)",
@@ -1935,6 +1947,7 @@
     },
     "messageformat": {
       "displayName": "ICU MessageFormat",
+      "description": "ICU MessageFormat patterns, one per input line",
       "family": "catalog-keyvalue",
       "extensions": [
         ".mf",
@@ -1942,10 +1955,22 @@
       ],
       "mimeTypes": [
         "text/x-messageformat"
-      ]
+      ],
+      "properties": {
+        "extractNonTranslatableContent": {
+          "title": "Extract non-translatable content",
+          "description": "If true (default), literal prose that frames a plural/select branch (the sentence frame around a picker) is surfaced as a non-translatable content block (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton."
+        }
+      },
+      "groups": {
+        "extraction": {
+          "label": "Content Extraction"
+        }
+      }
     },
     "mo": {
       "displayName": "MO (Gettext, binary)",
+      "description": "Writer for compiled gettext MO catalogs. Consumes Blocks and emits a binary catalog keyed by (msgctxt, msgid). msgctxt is taken from Block.Properties[\"context\"] when present, else Block.Name, else Block.ID.",
       "family": "catalog-keyvalue",
       "extensions": [
         ".mo"
@@ -1956,6 +1981,7 @@
     },
     "odf": {
       "displayName": "Open Document Format",
+      "description": "Configuration for the OpenDocument (ODT/ODS/ODP/ODG) format reader/writer",
       "family": "office-doc",
       "extensions": [
         ".odt",
@@ -1968,7 +1994,26 @@
         "application/vnd.oasis.opendocument.text",
         "application/vnd.oasis.opendocument.spreadsheet",
         "application/vnd.oasis.opendocument.presentation"
-      ]
+      ],
+      "properties": {
+        "extractNonTranslatableContent": {
+          "title": "Extract non-translatable content",
+          "description": "If true (default), non-translatable contextual content, namely image accessibility text (svg:title/svg:desc alt-text and long descriptions) and form-control display strings (form:label/form:title/form:help-text), is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton."
+        },
+        "translateHiddenContent": {
+          "title": "Translate Hidden Content",
+          "description": "If true, hidden content is extracted as translatable content."
+        },
+        "translateNotes": {
+          "title": "Translate Presentation Notes",
+          "description": "If true, presentation speaker notes are extracted as translatable content."
+        }
+      },
+      "groups": {
+        "extraction": {
+          "label": "Content Extraction"
+        }
+      }
     },
     "openxml": {
       "displayName": "Office Open XML",
@@ -2408,13 +2453,79 @@
     },
     "tsv": {
       "displayName": "TSV",
+      "description": "Configuration for the CSV/TSV format reader/writer",
       "family": "data-config",
       "extensions": [
         ".tsv"
       ],
       "mimeTypes": [
         "text/tab-separated-values"
-      ]
+      ],
+      "properties": {
+        "codeFinderRules": {
+          "title": "Code Finder Rules",
+          "description": "Regex patterns that match inline codes within translatable text"
+        },
+        "columnNamesRow": {
+          "title": "Column Names Row",
+          "description": "1-based row number containing column names. 0 means auto-detect."
+        },
+        "columns": {
+          "title": "Column Roles",
+          "description": "Column-role mapping for bilingual translation tables: an object with 0-based column indices for key, source and target (e.g. {key: 0, source: 1, target: 2}). On merge only the target column is rewritten."
+        },
+        "commentColumns": {
+          "title": "Comment Columns",
+          "description": "Column indices (0-based) that contain comments or notes"
+        },
+        "extractNonTranslatableContent": {
+          "title": "Extract non-translatable content",
+          "description": "If true (default), non-translatable contextual content such as preamble rows and non-translatable column cells is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of opaque data. Disable to keep it as plain data parts."
+        },
+        "hasHeader": {
+          "title": "Has Header Row",
+          "description": "If true, the first row is treated as headers (non-translatable)"
+        },
+        "keyColumns": {
+          "title": "Key Columns",
+          "description": "Column indices (0-based) that provide the block ID (source ID / record ID)"
+        },
+        "separator": {
+          "title": "Field Delimiter",
+          "description": "Field delimiter character (comma for CSV, tab for TSV)"
+        },
+        "textQualifier": {
+          "title": "Text Qualifier",
+          "description": "Character used to quote field values containing delimiters or newlines"
+        },
+        "translatableColumns": {
+          "title": "Translatable Columns",
+          "description": "Column indices (0-based) to extract as translatable content. If empty, all columns are translatable."
+        },
+        "trimValues": {
+          "title": "Trim Values",
+          "description": "If true, leading and trailing whitespace is removed from cell values"
+        },
+        "useCodeFinder": {
+          "title": "Enable Inline Code Detection",
+          "description": "Enable regex-based inline code detection within cell values"
+        },
+        "valuesStartRow": {
+          "title": "Values Start Row",
+          "description": "1-based row number where data values begin. 0 means auto-detect."
+        }
+      },
+      "groups": {
+        "extraction": {
+          "label": "Extraction"
+        },
+        "format": {
+          "label": "CSV Format Settings"
+        },
+        "inlineCodes": {
+          "label": "Inline Codes"
+        }
+      }
     },
     "video": {
       "displayName": "Video",
@@ -2634,7 +2745,7 @@
           "title": "XLIFF version",
           "description": "Target XLIFF 2.x version to emit. Empty means: preserve the input document version on roundtrip, otherwise default to 2.2.",
           "options": {
-            "": {
+            "0": {
               "label": "Auto (preserve input, default 2.2)"
             },
             "2.0": {

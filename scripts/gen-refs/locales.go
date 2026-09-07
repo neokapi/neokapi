@@ -232,9 +232,10 @@ func localizeEntries(ds Dataset, cat map[string]any, domain, locale string, cov 
 	return out, nil
 }
 
-// localizeCommands translates each command's short and long help. The CLI
-// catalog keys a command by its path under cli.commands.kapi, the same way
-// host/i18n/commands.json records it.
+// localizeCommands translates each command's short help, long help and flag
+// usage. The CLI catalog keys a command by its path under cli.commands.kapi
+// and a flag under flags.<name>.usage below it, the same way
+// host/i18n/commands.json records them.
 func localizeCommands(ds CommandDataset, cat map[string]any, cov *localeCoverage) CommandDataset {
 	out := ds
 	out.Commands = make([]CommandEntry, len(ds.Commands))
@@ -242,6 +243,14 @@ func localizeCommands(ds CommandDataset, cat map[string]any, cov *localeCoverage
 		base := append([]string{"cli", "commands", "kapi"}, c.Path...)
 		c.Short = cov.take(c.Short, cat, append(append([]string{}, base...), "short")...)
 		c.Long = cov.take(c.Long, cat, append(append([]string{}, base...), "long")...)
+		if len(c.Flags) > 0 {
+			flags := make([]CommandFlag, len(c.Flags))
+			for j, f := range c.Flags {
+				f.Usage = cov.take(f.Usage, cat, append(append([]string{}, base...), "flags", f.Name, "usage")...)
+				flags[j] = f
+			}
+			c.Flags = flags
+		}
 		out.Commands[i] = c
 	}
 	return out
@@ -378,7 +387,9 @@ func writeLocaleVariants(outDir, coreDir, cliDir, nativeDocs string, locales []s
 				return err
 			}
 		}
-		reportCoverage(locale, v.coverage)
+		if err := reportCoverage(locale, v.coverage); err != nil {
+			return err
+		}
 	}
 	if discover {
 		if err := pruneLocaleDirs(outDir, locales); err != nil {
@@ -388,20 +399,36 @@ func writeLocaleVariants(outDir, coreDir, cliDir, nativeDocs string, locales []s
 	return nil
 }
 
-// reportCoverage says what a locale's variant carries. A locale whose catalog
-// has not caught up is reported as a warning and never as a failure.
-func reportCoverage(locale string, cov localeCoverage) {
+// ProbeLocale is the pseudo-translation probe. Its catalog is generated from the
+// source document rather than written by a translator, so it holds an entry for
+// every string the source carries. A key that falls back to English there names
+// a key the generator writes under one name and the localizer asks for under
+// another, which is a defect in this repo and not pending work.
+const ProbeLocale = "qps"
+
+// reportCoverage says what a locale's variant carries. A target locale whose
+// catalog has not caught up is reported and never fails: that drift is the toil
+// kapi absorbs. The probe locale is the exception, and its shortfall is an
+// error, because nobody translates it by hand.
+func reportCoverage(locale string, cov localeCoverage) error {
 	if cov.fallback() == 0 {
 		fmt.Printf("reference locale %s: %d strings translated, %d translated dossiers\n", locale, cov.translated, cov.dossiers)
-		return
+		return nil
 	}
 	keys := make([]string, 0, len(cov.missing))
 	for k := range cov.missing {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
+	if locale == ProbeLocale {
+		return fmt.Errorf(
+			"reference locale %s: %d keys resolve to nothing in the probe catalog, "+
+				"so the generator and the localizer disagree about how to key them:\n  %s",
+			locale, cov.fallback(), strings.Join(keys, "\n  "))
+	}
 	fmt.Fprintf(os.Stderr, "warning: reference locale %s: %d strings translated, %d fall back to English (pending in the catalog), %d translated dossiers\n  %s\n",
 		locale, cov.translated, cov.fallback(), cov.dossiers, strings.Join(keys, " "))
+	return nil
 }
 
 // pruneLocaleDirs removes a variant directory whose locale has no catalog any
