@@ -111,8 +111,8 @@
     "unplugin": "^3.3.0"
   },
   "devDependencies": {
-    "@storybook/react-vite": "^10.5.10",
-    "@types/node": "^26.4.0",
+    "@storybook/react-vite": "^10.6.0",
+    "@types/node": "^26.4.1",
     "@types/react": "^19.2.18",
     "esbuild": "^0.28.2",
     "react": "^19.2.8",

@@ -17,16 +17,16 @@
     "@neokapi/docs-shared": "*",
     "@neokapi/ui": "*",
     "@tailwindcss/vite": "^4.3.3",
-    "keycloakify": "^11.15.14",
-    "lucide-react": "^1.35.0",
+    "keycloakify": "^11.16.0",
+    "lucide-react": "^1.41.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "tailwindcss": "^4.3.3"
   },
   "devDependencies": {
-    "@types/node": "^26.4.0",
+    "@types/node": "^26.4.1",
     "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.5",
+    "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
     "typescript": "^7.0.2",
     "vite-plus": "^0.3.0"

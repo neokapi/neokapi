@@ -5,7 +5,7 @@
   },
   "devDependencies": {
     "jsdom": "^30.0.1",
-    "storybook": "^10.5.10",
+    "storybook": "^10.6.0",
     "vite": "catalog:",
     "vite-plus": "^0.3.0"
   },
