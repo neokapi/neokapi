@@ -240,7 +240,7 @@ Locale and channel overrides apply on top via `--locale`/`--channel`; an explici
 | `profiles` | List profiles: the voice store plus the built-in packs. |
 | `import` | Import a profile YAML into the voice store. |
 | `pack` | Install a built-in starter pack into the voice store. |
-| `pointer` | Write the marker-delimited section into the project's assistant file (`AGENTS.md`, or an existing `CLAUDE.md`) that tells an assistant the voice is held by kapi and that `guide` retrieves it. |
+| `pointer` | Write the marker-delimited section into the project's assistant file (`CLAUDE.md`, or an `AGENTS.md` already at the root) that tells an assistant the voice is held by kapi and that `guide` retrieves it. |
 
 The pointer exists because an assistant standing in a project has no reason to
 open `kapi.yaml` when its task is to write a guide, and so never learns the

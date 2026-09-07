@@ -53,7 +53,8 @@ kapi check --ship --json                                       # in a project
 The check exits 0 when the gate passes and 3 when it fails, with one finding per
 block: its location, the rule, and a suggested fix. Load the voice guide and the
 approved wording **before** writing so the first draft is already close. Inside a
-project, the assistant file (`AGENTS.md` or `CLAUDE.md`) carries a section
+project, the assistant file (`CLAUDE.md`, or an `AGENTS.md` already at the
+root) carries a section
 saying exactly this; when a project you are standing up binds a voice and the
 file has no such section, `kapi voice pointer` writes it
 ([project.md](project.md)).

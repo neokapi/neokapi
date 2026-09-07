@@ -194,9 +194,9 @@ func TestInitCmd_idempotentOnExistingRecipe(t *testing.T) {
 }
 
 // kapi init points an assistant at the voice it just bound: the content
-// scaffold binds a pack, so a fresh project gets an AGENTS.md section naming
-// it; an existing CLAUDE.md takes the section instead; --no-pointer and a
-// scaffold without a voice write nothing.
+// scaffold binds a pack, so a fresh project gets a CLAUDE.md section naming
+// it; an AGENTS.md already at the root takes the section instead; --no-pointer
+// and a scaffold without a voice write nothing.
 func TestInitCmd_voicePointer(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -206,12 +206,15 @@ func TestInitCmd_voicePointer(t *testing.T) {
 		// relative to the project dir; empty when none may exist.
 		wantFile string
 		wantOut  string
+		// wantNotOut must be absent from stdout.
+		wantNotOut string
 	}{
 		{
-			name:     "content scaffold creates AGENTS.md",
-			args:     []string{"--name", "my-app"},
-			wantFile: "AGENTS.md",
-			wantOut:  "agents: ",
+			name:       "content scaffold creates CLAUDE.md",
+			args:       []string{"--name", "my-app"},
+			wantFile:   "CLAUDE.md",
+			wantOut:    "agents: ",
+			wantNotOut: "@AGENTS.md",
 		},
 		{
 			name:     "an existing CLAUDE.md takes the section",
@@ -219,6 +222,13 @@ func TestInitCmd_voicePointer(t *testing.T) {
 			files:    map[string]string{"CLAUDE.md": "# Rules\n"},
 			wantFile: "CLAUDE.md",
 			wantOut:  "voice pointer written",
+		},
+		{
+			name:     "an AGENTS.md alone takes the section and earns the import hint",
+			args:     []string{"--name", "my-app"},
+			files:    map[string]string{"AGENTS.md": "# Agents\n"},
+			wantFile: "AGENTS.md",
+			wantOut:  "@AGENTS.md",
 		},
 		{
 			name: "--no-pointer skips it",
@@ -246,8 +256,10 @@ func TestInitCmd_voicePointer(t *testing.T) {
 			assert.Empty(t, errOut.String(), "no warning on the happy path")
 
 			if tt.wantFile == "" {
-				_, err := os.Stat(filepath.Join(dir, "AGENTS.md"))
-				assert.True(t, os.IsNotExist(err), "no assistant file is created")
+				for _, name := range []string{"CLAUDE.md", "AGENTS.md"} {
+					_, err := os.Stat(filepath.Join(dir, name))
+					assert.True(t, os.IsNotExist(err), "no %s is created", name)
+				}
 				assert.NotContains(t, out.String(), "agents:")
 				return
 			}
@@ -256,6 +268,9 @@ func TestInitCmd_voicePointer(t *testing.T) {
 			assert.Contains(t, string(body), "voice, Professional B2B, is held by kapi")
 			assert.Contains(t, string(body), "`kapi voice guide`")
 			assert.Contains(t, out.String(), tt.wantOut)
+			if tt.wantNotOut != "" {
+				assert.NotContains(t, out.String(), tt.wantNotOut)
+			}
 			for rel, seed := range tt.files {
 				assert.Contains(t, string(body), seed, "hand-written content in %s survives", rel)
 			}
@@ -280,13 +295,13 @@ func TestInitCmd_voicePointerOnRerun(t *testing.T) {
 	}
 
 	run()
-	first, err := os.ReadFile(filepath.Join(dir, "AGENTS.md"))
+	first, err := os.ReadFile(filepath.Join(dir, "CLAUDE.md"))
 	require.NoError(t, err)
 
 	out := run()
 	assert.Contains(t, out, "already initialized")
 	assert.NotContains(t, out, "agents:", "an unchanged pointer earns no line on a re-run")
-	second, err := os.ReadFile(filepath.Join(dir, "AGENTS.md"))
+	second, err := os.ReadFile(filepath.Join(dir, "CLAUDE.md"))
 	require.NoError(t, err)
 	assert.Equal(t, string(first), string(second))
 
@@ -294,7 +309,7 @@ func TestInitCmd_voicePointerOnRerun(t *testing.T) {
 	require.NoError(t, os.WriteFile(recipe, []byte("version: v1\nname: my-app\ndefaults:\n  source_language: en\n  voice:\n    pack: technical-docs\n"), 0o644))
 	out = run()
 	assert.Contains(t, out, "voice pointer written")
-	third, err := os.ReadFile(filepath.Join(dir, "AGENTS.md"))
+	third, err := os.ReadFile(filepath.Join(dir, "CLAUDE.md"))
 	require.NoError(t, err)
 	assert.Contains(t, string(third), "voice, Technical Documentation, is held by kapi")
 	assert.NotContains(t, string(third), "Professional B2B")

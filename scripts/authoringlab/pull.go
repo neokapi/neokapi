@@ -109,14 +109,13 @@ type armSetup struct {
 
 // labPointer is the assistant file `kapi init` writes for a project that
 // binds this profile: a title, then the section coreprofile.RenderVoicePointer
-// renders, which is the same text the product writes into AGENTS.md or
-// CLAUDE.md.
+// renders, which is the same text the product writes into CLAUDE.md or
+// AGENTS.md.
 //
 // It says nothing about HOW to write, only that the project holds a voice and
 // where to ask for it. A pointer that carried the guidance would be the pushed
-// arm with extra steps. The lab writes it as CLAUDE.md because that is the
-// file the agent under test reads; a fresh `kapi init` creates AGENTS.md, which
-// a CLAUDE.md imports with `@AGENTS.md`.
+// arm with extra steps. The lab writes it as CLAUDE.md, the file the agent
+// under test reads and the one a fresh `kapi init` creates.
 func labPointer(profile *coreprofile.VoiceProfile) string {
 	name := ""
 	if profile != nil {

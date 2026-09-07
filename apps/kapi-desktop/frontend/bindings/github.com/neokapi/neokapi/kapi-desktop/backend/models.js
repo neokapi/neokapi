@@ -8319,7 +8319,7 @@ export class VoicePointerDTO {
     constructor($$source = {}) {
         if (/** @type {any} */(false)) {
             /**
-             * File is the project-relative assistant file (AGENTS.md or CLAUDE.md);
+             * File is the project-relative assistant file (CLAUDE.md or AGENTS.md);
              * empty when nothing was written.
              * @member
              * @type {string | undefined}

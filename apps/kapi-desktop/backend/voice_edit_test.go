@@ -215,7 +215,7 @@ func TestVoiceStarterPacksLoad(t *testing.T) {
 }
 
 // Saving a voice makes the project one with a voice, so the assistant file
-// says so: the same section `kapi init` writes, created as AGENTS.md when no
+// says so: the same section `kapi init` writes, created as CLAUDE.md when no
 // assistant file exists and replaced in place on the next save.
 func TestSaveVoiceProfileWritesTheAssistantPointer(t *testing.T) {
 	app := NewApp()
@@ -230,11 +230,11 @@ func TestSaveVoiceProfileWritesTheAssistantPointer(t *testing.T) {
 	require.True(t, saved.Saved)
 	require.NotNil(t, saved.Pointer)
 	assert.Equal(t, "created", saved.Pointer.Action)
-	assert.Equal(t, "AGENTS.md", saved.Pointer.File)
+	assert.Equal(t, "CLAUDE.md", saved.Pointer.File)
 	assert.True(t, saved.Pointer.Created)
 	assert.Empty(t, saved.Pointer.Warning)
 
-	body, rerr := os.ReadFile(filepath.Join(root, "AGENTS.md"))
+	body, rerr := os.ReadFile(filepath.Join(root, "CLAUDE.md"))
 	require.NoError(t, rerr)
 	assert.Contains(t, string(body), coreprofile.VoicePointerStart)
 	assert.Contains(t, string(body), "voice, "+profile.Name+", is held by kapi")

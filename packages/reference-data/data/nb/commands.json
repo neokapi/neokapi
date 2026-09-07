@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-05T08:19:54Z",
+  "generatedAt": "2026-09-07T22:21:44Z",
   "commands": [
     {
       "id": "add",
@@ -5071,7 +5071,7 @@
         },
         {
           "name": "no-pointer",
-          "usage": "Do not write the voice pointer into AGENTS.md or CLAUDE.md",
+          "usage": "Do not write the voice pointer into CLAUDE.md or AGENTS.md",
           "default": "false",
           "type": "bool"
         },
@@ -8301,8 +8301,8 @@
         "pointer"
       ],
       "use": "pointer",
-      "short": "Write a pointer to the project's voice into its assistant file (AGENTS.md or CLAUDE.md)",
-      "long": "Write a short, marker-delimited section into the project's assistant file\ntelling an assistant that the project's voice is held by kapi and that\n'kapi voice guide' retrieves it. The section names the voice and nothing\nelse; the guide itself stays one command away, so the pointer never goes\nstale.\n\nAn existing AGENTS.md or CLAUDE.md at the project root takes the section\n(AGENTS.md when both exist); with neither, AGENTS.md is created. An assistant\nthat reads CLAUDE.md picks AGENTS.md up through an import line there:\n@AGENTS.md. Running again replaces the section in place and leaves the rest\nof the file untouched. When the project binds no voice, a section written\nearlier is removed and nothing else is written.\n\n'kapi init' writes the same section when the project it scaffolds binds a\nvoice; run this after binding one to an existing project, or after renaming\nthe profile.",
+      "short": "Write a pointer to the project's voice into its assistant file (CLAUDE.md or AGENTS.md)",
+      "long": "Write a short, marker-delimited section into the project's assistant file\ntelling an assistant that the project's voice is held by kapi and that\n'kapi voice guide' retrieves it. The section names the voice and nothing\nelse; the guide itself stays one command away, so the pointer never goes\nstale.\n\nAn existing CLAUDE.md or AGENTS.md at the project root takes the section\n(CLAUDE.md when both exist); with neither, CLAUDE.md is created. A section\nthat lands in AGENTS.md reaches an assistant limited to CLAUDE.md through an\nimport line there: @AGENTS.md. Running again replaces the section in place\nand leaves the rest of the file untouched. When the project binds no voice, a\nsection written earlier is removed and nothing else is written.\n\n'kapi init' writes the same section when the project it scaffolds binds a\nvoice; run this after binding one to an existing project, or after renaming\nthe profile.",
       "flags": [
         {
           "name": "color",

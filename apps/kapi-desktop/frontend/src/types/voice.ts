@@ -195,7 +195,7 @@ export interface ProfileProblem {
 /** What a save did to the project's assistant file: the section telling an
  * assistant the voice is held by kapi, the same one `kapi init` writes. */
 export interface VoicePointerDTO {
-  /** Project-relative assistant file (AGENTS.md or CLAUDE.md); empty when nothing was written. */
+  /** Project-relative assistant file (CLAUDE.md or AGENTS.md); empty when nothing was written. */
   file?: string;
   /** created, updated, unchanged, removed, none, or failed. */
   action: string;

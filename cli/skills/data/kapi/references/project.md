@@ -24,15 +24,15 @@ committed**: it is the project's context rather than scratch space. Git it like 
 
 When the project binds a voice (the default scaffold binds a starter pack),
 `kapi init` also writes a short section into the project's assistant file: an
-existing `AGENTS.md` or `CLAUDE.md` at the root, or a new `AGENTS.md`. It says
+existing `CLAUDE.md` or `AGENTS.md` at the root, or a new `CLAUDE.md`. It says
 the voice is held by kapi and that `kapi voice guide` retrieves it, so the next
 assistant in this tree asks before it writes. The section sits between
 `<!-- kapi:voice -->` markers and is replaced in place on every run; the rest of
 the file is never touched. `kapi init --no-pointer` skips it. On an existing
 project, `kapi voice pointer` writes or refreshes the same section: run it after
 you bind a voice under `defaults.voice`, and tell the user which file it went
-into, since they commit it. A `CLAUDE.md` picks up `AGENTS.md` through an import
-line, `@AGENTS.md`.
+into, since they commit it. A section that landed in `AGENTS.md` reaches an
+assistant limited to `CLAUDE.md` through an import line, `@AGENTS.md`.
 
 - **`.kapi/`**: the context graph, all committed and flat: `terms.json`,
   `voice.yaml`, `memory/` (the content-memory bundles, `memory.json` the
