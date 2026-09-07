@@ -46,7 +46,7 @@ figures below are reproducible from the fixture corpus alone.
 | `word/document.xml`, outside any paragraph, from revision acceptance | 18 |
 | `word/document.xml`, outside any paragraph, other | 8 |
 | `word/document.xml`, outside any paragraph, from the strip | 9 |
-| `word/glossary/styles.xml`, from the strip | 2 |
+| A second styles part the same predicate covers, from the strip | 2 |
 | `docProps/core.xml` | 2 |
 | `word/charts/chart1.xml` | 2 |
 | `word/diagrams/data1.xml` | 1 |
@@ -58,6 +58,15 @@ collapses the `<w:rPr>` and `<w:pPr>` containers those elements emptied. The
 strip mirrors upstream Okapi's `RunSkippableElements`, it runs over the
 assembled part after the skeleton is filled in, and it is already excluded by
 name from `TestByteFidelity_CorpusUntouchedParts` for exactly this reason.
+
+The predicate covers the main document's parts and the parallel
+WordprocessingML package ECMA-376-1 §17.12.7 defines, so two fixtures lose
+bytes in both styles parts:
+
+```
+word/styles.xml
+word/glossary/styles.xml
+```
 
 ### Mechanisms inside a paragraph
 
