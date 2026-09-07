@@ -109,6 +109,19 @@ func (r *rawDecoder) UptoString(off int64) string {
 	return string(r.Upto(off))
 }
 
+// Range returns the source bytes between two offsets the caller recorded from
+// Offset and EndOffset, so a caller replaying part of an element's content can
+// take the bytes on either side of the part it rebuilds. Both offsets must be
+// inside the window a pin still holds open.
+func (r *rawDecoder) Range(from, to int64) []byte {
+	return r.src.slice(from, to)
+}
+
+// RangeString is Range as a string.
+func (r *rawDecoder) RangeString(from, to int64) string {
+	return string(r.Range(from, to))
+}
+
 // EndOffset reports where the token Token last returned ends.
 func (r *rawDecoder) EndOffset() int64 {
 	return r.end

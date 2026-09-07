@@ -758,8 +758,14 @@ func parseCoreProperties(data []byte, partPath string, blockCounter *int, emitBl
 			}
 		case xml.EndElement:
 			if inTranslatable && t.Name.Local == currentElement {
-				text := strings.TrimSpace(textBuf.String())
-				if text != "" {
+				// The property's text as the source wrote it, and separately
+				// the question of whether it holds anything at all. A title
+				// authored with a trailing space is that string: trimming it
+				// changes what a translator sees and what goes back. A
+				// property holding only whitespace produces no block, and the
+				// empty-element branch below replays its source form.
+				text := textBuf.String()
+				if strings.TrimSpace(text) != "" {
 					*blockCounter++
 					blockID := fmt.Sprintf("tu%d", *blockCounter)
 					// Skeleton: write element open, ref, element close

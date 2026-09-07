@@ -137,6 +137,32 @@ func Attr(s string) string {
 	return s
 }
 
+// AttrExact escapes a string for a double-quoted XML attribute value the way
+// [Attr] does, and escapes tab, line feed and carriage return as character
+// references on top of that.
+//
+// XML 1.0 §3.3.3 has a conforming parser replace each of those three with a
+// space when it reads an attribute value, and append the referenced character
+// for a character reference. A value written into an attribute with a literal
+// newline in it therefore comes back as one line, while `&#xA;` comes back as
+// the newline. Producers write the references for exactly that reason:
+// PowerPoint spells a shape's multi-line alt text `descr="line&#xA;line"`.
+//
+// encoding/xml's own EscapeText makes the same three references. Its decoder
+// does not apply the normalization, so a Go round trip cannot show the loss;
+// every other consumer of the file can.
+//
+// [Attr] stays the default for a writer whose bytes must not move. This
+// function changes them wherever a value carries one of the three characters,
+// which is exactly where [Attr] loses it.
+func AttrExact(s string) string {
+	s = Attr(s)
+	s = strings.ReplaceAll(s, "\t", "&#x9;")
+	s = strings.ReplaceAll(s, "\n", "&#xA;")
+	s = strings.ReplaceAll(s, "\r", "&#xD;")
+	return s
+}
+
 // UnescapeAttr reverses [Attr] for an attribute value read back out of already-
 // serialized markup: the five predefined entities of XML 1.0 §4.6, plus the
 // numeric character references a producer may emit instead.

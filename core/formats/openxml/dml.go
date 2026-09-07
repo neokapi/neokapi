@@ -302,6 +302,15 @@ func (p *dmlParser) parseTextBody(d *rawDecoder, partPath string, emitBlock func
 				return nil
 			}
 			p.skelWriteEndElement(d)
+
+		case xml.CharData:
+			// The whitespace a producer indented <a:bodyPr>, <a:lstStyle> and
+			// each <a:p> with. Nothing in a text body reads it, and a deck
+			// saved with indented XML comes back compact without it.
+			p.skelRaw(d)
+
+		case xml.Comment, xml.ProcInst:
+			p.skelRaw(d)
 		}
 	}
 }
@@ -316,8 +325,15 @@ func (p *dmlParser) parseParagraph(d *rawDecoder, partPath string, emitBlock fun
 	// translatable text can be replayed whole.
 	paraStart := d.RawString()
 	paraOff := d.Offset()
+	contentOff := d.EndOffset()
 	d.Pin(paraOff)
 	defer d.Unpin()
+
+	// The span the paragraph's run-bearing children occupy: from the first
+	// <a:r>, <a:br> or opaque child to the last. It is the half the writer
+	// rebuilds from the block, and the half the block keeps the source bytes of
+	// when the two spell it differently. See dmlSourceProp.
+	runsStart, runsEnd := int64(-1), int64(-1)
 
 	for {
 		tok, err := d.Token()
@@ -327,6 +343,7 @@ func (p *dmlParser) parseParagraph(d *rawDecoder, partPath string, emitBlock fun
 
 		switch t := tok.(type) {
 		case xml.StartElement:
+			childStart := d.Offset()
 			switch t.Name.Local {
 			case "pPr", "endParaRPr":
 				raw, err := captureRawElement(d, t)
@@ -352,6 +369,7 @@ func (p *dmlParser) parseParagraph(d *rawDecoder, partPath string, emitBlock fun
 					return err
 				}
 				runs = append(runs, run...)
+				runsStart, runsEnd = spanGrow(runsStart, childStart, d.EndOffset())
 
 			case "br":
 				// <a:br> can carry its own <a:rPr> (ECMA-376 Part 1
@@ -362,6 +380,7 @@ func (p *dmlParser) parseParagraph(d *rawDecoder, partPath string, emitBlock fun
 					return err
 				}
 				runs = append(runs, textRun{text: "\n", props: runProps{}, data: raw})
+				runsStart, runsEnd = spanGrow(runsStart, childStart, d.EndOffset())
 
 			default:
 				// Every other direct child of <a:p> is markup the reader does
@@ -375,6 +394,7 @@ func (p *dmlParser) parseParagraph(d *rawDecoder, partPath string, emitBlock fun
 					return err
 				}
 				runs = append(runs, textRun{text: sentinelParaOpaque, props: runProps{}, data: raw})
+				runsStart, runsEnd = spanGrow(runsStart, childStart, d.EndOffset())
 			}
 
 		case xml.EndElement:
@@ -405,14 +425,30 @@ func (p *dmlParser) parseParagraph(d *rawDecoder, partPath string, emitBlock fun
 				blockID := fmt.Sprintf("tu%d", *p.blockCounter)
 
 				p.skelWriteString(paraStart)
-				if paraProps != "" {
-					p.skelWriteString(paraProps)
+				if p.stripEmptyParaProps {
+					// A chart or diagram paragraph is rebuilt around the ref:
+					// okapi's BlockProperties.getEvents omits a structurally
+					// empty pPr, so the source bytes on either side cannot be
+					// replayed whole.
+					if paraProps != "" {
+						p.skelWriteString(paraProps)
+					}
+					p.skelRef(blockID)
+					p.skelWriteString(endParaRPr)
+				} else {
+					// Everything on either side of the runs goes back as the
+					// source wrote it, so the <a:pPr>, the <a:endParaRPr> and
+					// the whitespace a producer indented them with all survive.
+					p.skelWriteString(d.RangeString(contentOff, runsStart))
+					p.skelRef(blockID)
+					p.skelWriteString(d.RangeString(runsEnd, d.Offset()))
 				}
-				p.skelRef(blockID)
-				p.skelWriteString(endParaRPr)
 				p.skelWriteEndElement(d)
 
 				block := p.buildBlock(blockID, merged, partPath)
+				if src := dmlSourceForm(d.RangeString(runsStart, runsEnd), block.Source); src != "" {
+					block.Properties[dmlSourceProp] = src
+				}
 				if role, level := p.placeholderRole(); role != "" {
 					block.SetSemanticRole(role, level)
 				}
@@ -654,9 +690,9 @@ func (p *dmlParser) skelWriteDrawingPropElement(d *rawDecoder, t xml.StartElemen
 func (p *dmlParser) emitDrawingProp(a xml.Attr, partPath string, emitBlock func(*model.Block)) string {
 	*p.blockCounter++
 	id := fmt.Sprintf("tu%d", *p.blockCounter)
-	element := "drawing-descr"
+	element := propElementDrawingDescr
 	if a.Name.Local == "title" {
-		element = "drawing-title"
+		element = propElementDrawingTitle
 	}
 	p.path.ensurePart(partPath)
 	block := &model.Block{

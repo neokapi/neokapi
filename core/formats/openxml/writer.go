@@ -1622,9 +1622,15 @@ func (w *Writer) renderBlock(block *model.Block, dt docType) string {
 		return ""
 	}
 
-	// Core properties and table column names are plain text (no XML wrapping needed).
+	// Core properties, table column names and a drawing's alt text are plain
+	// text, with no XML wrapping. The two positions they land in escape
+	// differently: see propertyGoesInAnAttribute.
 	if block.Type == "property" || block.Type == "table-column" {
-		return xmlesc.Attr(model.FlattenRuns(runs))
+		text := model.FlattenRuns(runs)
+		if propertyGoesInAnAttribute(block) {
+			return xmlesc.AttrExact(text)
+		}
+		return xmlesc.Attr(text)
 	}
 
 	// An OMML <m:nor/> prose span (equation text — "where", "otherwise", units):
@@ -1648,7 +1654,7 @@ func (w *Writer) renderBlock(block *model.Block, dt docType) string {
 	// switches to the dml writer for chart and diagram parts.
 	if dt == docTypeDOCX {
 		if pp := block.Properties["partPath"]; isChartPartPath(pp) || isDiagramDataPartPath(pp) {
-			return w.renderDMLBlock(runs)
+			return w.renderDMLBlock(runs, block)
 		}
 	}
 
@@ -1691,7 +1697,7 @@ func (w *Writer) renderBlock(block *model.Block, dt docType) string {
 	case docTypeDOCX:
 		return w.renderWMLBlock(runs, sourceRPr, perRunRPr, perRunSrcStart, perRunInFieldDisplay, perRunSourceHadRPr, fieldStraddle)
 	case docTypePPTX:
-		return w.renderDMLBlock(runs)
+		return w.renderDMLBlock(runs, block)
 	case docTypeXLSX:
 		return w.renderSMLBlock(runs, block)
 	default:
@@ -4663,7 +4669,10 @@ func (w *Writer) expandDrawingMarkers(payload string) string {
 		}
 		switch kind {
 		case "PROP":
-			return xmlesc.Attr(model.FlattenRuns(runs))
+			// The value goes back into an attribute, so the whitespace an
+			// attribute-value normalisation would rewrite travels as
+			// character references. See propertyGoesInAnAttribute.
+			return xmlesc.AttrExact(model.FlattenRuns(runs))
 		case "PARA":
 			fieldStraddle := block.Properties != nil && block.Properties["openxml:field-straddle"] == "true"
 			return w.renderWMLBlock(runs, blockSourceRPrXML(block), blockPerRunRPrFragments(block), blockPerRunSrcRunStartFlags(block), blockPerRunInFieldDisplayFlags(block), blockPerRunSourceHadRPrFlags(block), fieldStraddle)
@@ -4684,8 +4693,47 @@ func (w *Writer) expandDrawingMarkers(payload string) string {
 	})
 }
 
-// renderDMLBlock renders a run sequence as DrawingML runs.
-func (w *Writer) renderDMLBlock(runs []model.Run) string {
+// renderDMLBlock renders a DrawingML paragraph's run-bearing children, either
+// from the run sequence or, for a paragraph whose content nothing has changed,
+// from the bytes the source wrote them with.
+func (w *Writer) renderDMLBlock(runs []model.Run, block *model.Block) string {
+	content := renderDMLRuns(runs)
+	if src, ok := dmlSourceContent(block, content); ok {
+		return src
+	}
+	return content
+}
+
+// dmlSourceContent returns the run-bearing children the source wrote, for a
+// block whose text nothing has changed.
+//
+// A rebuilt paragraph says what the source said and spells it differently: two
+// adjacent runs whose properties matched come back as one, a run holding an
+// empty <a:t/> comes back not at all, and the whitespace a producer indented
+// the runs with is gone. None of that is recoverable from the model, so the
+// reader keeps the source bytes for a paragraph the writer would spell
+// differently, and they are replayed here.
+//
+// The test is the rendered content, not the presence of a target: a target that
+// says what the source said is untranslated as far as the bytes go. A target
+// that says something else cannot carry the source's run split, because its
+// runs are not the source's runs, so it is rendered.
+func dmlSourceContent(block *model.Block, content string) (string, bool) {
+	if block == nil {
+		return "", false
+	}
+	src := block.Properties[dmlSourceProp]
+	if src == "" {
+		return "", false
+	}
+	if content != renderDMLRuns(block.Source) {
+		return "", false
+	}
+	return src, true
+}
+
+// renderDMLRuns renders a run sequence as DrawingML runs.
+func renderDMLRuns(runs []model.Run) string {
 	if !model.RunsHaveInlineCodes(runs) {
 		return `<a:r><a:t>` + xmlesc.Text(model.FlattenRuns(runs)) + `</a:t></a:r>`
 	}
