@@ -51,8 +51,12 @@ func (s *MCPServer) handleConnectorPull(ctx context.Context, req *mcp.CallToolRe
 	if err := s.authorizeWorkspace(ctx, req, input.WorkspaceID); err != nil {
 		return nil, connectorPullOutput{}, err
 	}
+	projectID, err := s.authorizeProject(ctx, req, input.ProjectID)
+	if err != nil {
+		return nil, connectorPullOutput{}, err
+	}
 
-	items, err := s.connResolver.Fetch(ctx, input.WorkspaceID, input.ConnectorID, input.ProjectID, connector.FetchOptions{})
+	items, err := s.connResolver.Fetch(ctx, input.WorkspaceID, input.ConnectorID, projectID, connector.FetchOptions{})
 	if err != nil {
 		return nil, connectorPullOutput{}, fmt.Errorf("connector pull: %w", err)
 	}
@@ -85,8 +89,12 @@ func (s *MCPServer) handleConnectorPush(ctx context.Context, req *mcp.CallToolRe
 	if err := s.authorizeWorkspace(ctx, req, input.WorkspaceID); err != nil {
 		return nil, connectorPushOutput{}, err
 	}
+	projectID, err := s.authorizeProject(ctx, req, input.ProjectID)
+	if err != nil {
+		return nil, connectorPushOutput{}, err
+	}
 
-	if err := s.connResolver.Publish(ctx, input.WorkspaceID, input.ConnectorID, input.ProjectID, connector.PublishOptions{}); err != nil {
+	if err := s.connResolver.Publish(ctx, input.WorkspaceID, input.ConnectorID, projectID, connector.PublishOptions{}); err != nil {
 		return nil, connectorPushOutput{}, fmt.Errorf("connector push: %w", err)
 	}
 

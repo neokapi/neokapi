@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
@@ -73,10 +72,9 @@ func (s *MCPServer) registerContentTools() { //nolint:funlen // tool registratio
 // --- Input/Output types ---
 
 type listProjectsInput struct {
-	// WorkspaceID is ignored — the MCP server is already scoped to the
-	// authenticated workspace. Kept for backward compatibility but the
-	// filter is no longer applied (agents were passing wrong values).
-	WorkspaceID string `json:"workspace_id,omitempty" jsonschema:"deprecated and ignored; workspace is determined by auth token"`
+	// WorkspaceID is ignored: the listing is scoped by the caller's workspace
+	// membership. Kept so a client that still sends it is not rejected.
+	WorkspaceID string `json:"workspace_id,omitempty" jsonschema:"deprecated and ignored; the listing covers the workspaces the caller belongs to"`
 }
 type listProjectsOutput struct {
 	Projects []projectSummaryContent `json:"projects"`
@@ -89,18 +87,15 @@ type projectSummaryContent struct {
 }
 
 func (s *MCPServer) handleListProjects(ctx context.Context, req *mcp.CallToolRequest, input listProjectsInput) (*mcp.CallToolResult, listProjectsOutput, error) {
-	projects, err := s.contentStore.ListProjects(ctx)
+	// The listing is scoped by the caller's workspace membership, not by the
+	// client-supplied workspace_id: the store holds every workspace's
+	// projects, and agents were passing slugs and project names in that field.
+	projects, err := s.visibleProjects(ctx, callerID(req))
 	if err != nil {
 		return nil, listProjectsOutput{}, fmt.Errorf("list projects: %w", err)
 	}
-	// No workspace_id filter — ContentStore is already scoped to the
-	// authenticated workspace. Agents were passing wrong values (slugs,
-	// project names) which caused zero results.
 	var result []projectSummaryContent
 	for _, p := range projects {
-		if false { // workspace_id filter disabled
-			continue
-		}
 		langs := make([]string, len(p.TargetLanguages))
 		for i, l := range p.TargetLanguages {
 			langs[i] = string(l)
@@ -120,7 +115,11 @@ type getProjectInput struct {
 }
 
 func (s *MCPServer) handleGetProject(ctx context.Context, req *mcp.CallToolRequest, input getProjectInput) (*mcp.CallToolResult, projectSummaryContent, error) {
-	p, err := s.contentStore.GetProject(ctx, s.resolveProjectID(ctx, input.ProjectID))
+	projectID, err := s.authorizeProject(ctx, req, input.ProjectID)
+	if err != nil {
+		return nil, projectSummaryContent{}, err
+	}
+	p, err := s.contentStore.GetProject(ctx, projectID)
 	if err != nil {
 		return nil, projectSummaryContent{}, fmt.Errorf("get project: %w", err)
 	}
@@ -155,8 +154,10 @@ type blockSummary struct {
 }
 
 func (s *MCPServer) handleListBlocks(ctx context.Context, req *mcp.CallToolRequest, input listBlocksInput) (*mcp.CallToolResult, listBlocksOutput, error) {
-	// Resolve project_id if it looks like a name instead of a UUID.
-	projectID := s.resolveProjectID(ctx, input.ProjectID)
+	projectID, err := s.authorizeProject(ctx, req, input.ProjectID)
+	if err != nil {
+		return nil, listBlocksOutput{}, err
+	}
 
 	limit := input.Limit
 	if limit <= 0 {
@@ -201,7 +202,11 @@ type getBlockOutput struct {
 }
 
 func (s *MCPServer) handleGetBlock(ctx context.Context, req *mcp.CallToolRequest, input getBlockInput) (*mcp.CallToolResult, getBlockOutput, error) {
-	b, err := s.contentStore.GetBlock(ctx, s.resolveProjectID(ctx, input.ProjectID), input.Stream, input.BlockID)
+	projectID, err := s.authorizeProject(ctx, req, input.ProjectID)
+	if err != nil {
+		return nil, getBlockOutput{}, err
+	}
+	b, err := s.contentStore.GetBlock(ctx, projectID, input.Stream, input.BlockID)
 	if err != nil {
 		return nil, getBlockOutput{}, fmt.Errorf("get block: %w", err)
 	}
@@ -236,7 +241,11 @@ type createVersionOutput struct {
 }
 
 func (s *MCPServer) handleCreateVersion(ctx context.Context, req *mcp.CallToolRequest, input createVersionInput) (*mcp.CallToolResult, createVersionOutput, error) {
-	v, err := s.contentStore.CreateVersion(ctx, input.ProjectID, input.Stream, input.Label, input.Description)
+	projectID, err := s.authorizeProject(ctx, req, input.ProjectID)
+	if err != nil {
+		return nil, createVersionOutput{}, err
+	}
+	v, err := s.contentStore.CreateVersion(ctx, projectID, input.Stream, input.Label, input.Description)
 	if err != nil {
 		return nil, createVersionOutput{}, fmt.Errorf("create version: %w", err)
 	}
@@ -260,7 +269,11 @@ type streamSummary struct {
 }
 
 func (s *MCPServer) handleListStreams(ctx context.Context, req *mcp.CallToolRequest, input listStreamsInput) (*mcp.CallToolResult, listStreamsOutput, error) {
-	streams, err := s.contentStore.ListStreams(ctx, input.ProjectID, false)
+	projectID, err := s.authorizeProject(ctx, req, input.ProjectID)
+	if err != nil {
+		return nil, listStreamsOutput{}, err
+	}
+	streams, err := s.contentStore.ListStreams(ctx, projectID, false)
 	if err != nil {
 		return nil, listStreamsOutput{}, fmt.Errorf("list streams: %w", err)
 	}
@@ -281,11 +294,15 @@ type diffStreamsInput struct {
 }
 
 func (s *MCPServer) handleDiffStreams(ctx context.Context, req *mcp.CallToolRequest, input diffStreamsInput) (*mcp.CallToolResult, store.StreamDiff, error) {
+	projectID, err := s.authorizeProject(ctx, req, input.ProjectID)
+	if err != nil {
+		return nil, store.StreamDiff{}, err
+	}
 	bs, ok := s.contentStore.(store.StreamBranchStore)
 	if !ok {
 		return nil, store.StreamDiff{}, fmt.Errorf("content store %T does not branch", s.contentStore)
 	}
-	diff, err := bs.DiffStream(ctx, input.ProjectID, input.StreamName)
+	diff, err := bs.DiffStream(ctx, projectID, input.StreamName)
 	if err != nil {
 		return nil, store.StreamDiff{}, fmt.Errorf("diff stream: %w", err)
 	}
@@ -299,11 +316,15 @@ type mergeStreamInput struct {
 }
 
 func (s *MCPServer) handleMergeStream(ctx context.Context, req *mcp.CallToolRequest, input mergeStreamInput) (*mcp.CallToolResult, store.MergeResult, error) {
+	projectID, err := s.authorizeProject(ctx, req, input.ProjectID)
+	if err != nil {
+		return nil, store.MergeResult{}, err
+	}
 	bs, ok := s.contentStore.(store.StreamBranchStore)
 	if !ok {
 		return nil, store.MergeResult{}, fmt.Errorf("content store %T does not branch", s.contentStore)
 	}
-	result, err := bs.MergeStream(ctx, input.ProjectID, input.StreamName, store.MergeOptions{
+	result, err := bs.MergeStream(ctx, projectID, input.StreamName, store.MergeOptions{
 		DryRun: input.DryRun,
 	})
 	if err != nil {
@@ -331,6 +352,9 @@ func (s *MCPServer) handleCreateProject(ctx context.Context, req *mcp.CallToolRe
 	}
 	if input.SourceLanguage == "" {
 		return nil, createProjectOutput{}, errors.New("source_language is required")
+	}
+	if err := s.authorizeWorkspace(ctx, req, input.WorkspaceID); err != nil {
+		return nil, createProjectOutput{}, err
 	}
 	targets := make([]model.LocaleID, len(input.TargetLanguages))
 	for i, l := range input.TargetLanguages {
@@ -360,7 +384,11 @@ func (s *MCPServer) handleUpdateProject(ctx context.Context, req *mcp.CallToolRe
 	if input.ProjectID == "" {
 		return nil, projectSummaryContent{}, errors.New("project_id is required")
 	}
-	p, err := s.contentStore.GetProject(ctx, input.ProjectID)
+	projectID, err := s.authorizeProject(ctx, req, input.ProjectID)
+	if err != nil {
+		return nil, projectSummaryContent{}, err
+	}
+	p, err := s.contentStore.GetProject(ctx, projectID)
 	if err != nil {
 		return nil, projectSummaryContent{}, fmt.Errorf("get project: %w", err)
 	}
@@ -411,7 +439,10 @@ func (s *MCPServer) handleUpdateBlock(ctx context.Context, req *mcp.CallToolRequ
 	if input.TargetLocale == "" {
 		return nil, updateBlockOutput{}, errors.New("target_locale is required")
 	}
-	projectID := s.resolveProjectID(ctx, input.ProjectID)
+	projectID, err := s.authorizeProject(ctx, req, input.ProjectID)
+	if err != nil {
+		return nil, updateBlockOutput{}, err
+	}
 	stream := input.Stream
 	if stream == "" {
 		stream = "main"
@@ -433,31 +464,4 @@ func (s *MCPServer) handleUpdateBlock(ctx context.Context, req *mcp.CallToolRequ
 		TargetLocale: input.TargetLocale,
 		Updated:      true,
 	}, nil
-}
-
-// resolveProjectID resolves a project_id that might be a name instead of a UUID.
-// If the value contains only hex digits and dashes (UUID-like), it's returned as-is.
-// Otherwise, it's treated as a project name and looked up via ListProjects.
-func (s *MCPServer) resolveProjectID(ctx context.Context, id string) string {
-	if id == "" {
-		return id
-	}
-	// Quick check: if it looks like a UUID or internal ID, use it directly.
-	for _, c := range id {
-		if (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F') || c == '-' || c == '_' {
-			continue
-		}
-		// Contains non-hex chars — likely a name. Try to resolve.
-		projects, err := s.contentStore.ListProjects(ctx)
-		if err != nil {
-			return id // can't resolve, return as-is
-		}
-		for _, p := range projects {
-			if strings.EqualFold(p.Name, id) {
-				return p.ID
-			}
-		}
-		return id // not found, return as-is
-	}
-	return id
 }

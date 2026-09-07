@@ -134,8 +134,8 @@ func WithMembershipChecker(m MembershipChecker) Option {
 // authorizeWorkspace rejects a workspace-scoped tool call whose authenticated
 // principal is not a member of workspaceID, so a client-supplied workspace_id
 // is validated against the caller's identity rather than trusted.
-func (s *MCPServer) authorizeWorkspace(ctx context.Context, req mcp.Request, workspaceID string) error {
-	return s.authorizeWorkspaceForUser(ctx, workspaceID, extractUserID(req))
+func (s *MCPServer) authorizeWorkspace(ctx context.Context, req *mcp.CallToolRequest, workspaceID string) error {
+	return s.authorizeWorkspaceForUser(ctx, workspaceID, callerID(req))
 }
 
 func (s *MCPServer) authorizeWorkspaceForUser(ctx context.Context, workspaceID, userID string) error {

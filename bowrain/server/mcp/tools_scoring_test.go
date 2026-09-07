@@ -11,9 +11,9 @@ import (
 )
 
 // scopeContentStore is a store.ContentStore that only answers the reads the
-// brand-scope resolver makes (project/stream/collection), plus ListProjects for
-// resolveProjectID. Everything else panics via the embedded nil interface,
-// which is never reached by the scoring path.
+// voice-scope resolver makes (project/stream/collection), plus ListProjects for
+// the project-name lookup. Everything else panics via the embedded nil
+// interface, which is never reached by the scoring path.
 type scopeContentStore struct {
 	store.ContentStore
 	project    *store.Project

@@ -45,7 +45,11 @@ type flowSummary struct {
 }
 
 func (s *MCPServer) handleListFlows(ctx context.Context, req *mcp.CallToolRequest, input listFlowsInput) (*mcp.CallToolResult, listFlowsOutput, error) {
-	defs, err := s.listFlows(ctx, input.ProjectID)
+	projectID, err := s.authorizeOptionalProject(ctx, req, input.ProjectID)
+	if err != nil {
+		return nil, listFlowsOutput{}, err
+	}
+	defs, err := s.listFlows(ctx, projectID)
 	if err != nil {
 		return nil, listFlowsOutput{}, err
 	}
@@ -112,18 +116,22 @@ func (s *MCPServer) handleRunFlow(ctx context.Context, req *mcp.CallToolRequest,
 	if input.ProjectID == "" {
 		return nil, runFlowOutput{}, errors.New("project_id is required")
 	}
+	projectID, err := s.authorizeProject(ctx, req, input.ProjectID)
+	if err != nil {
+		return nil, runFlowOutput{}, err
+	}
 	if s.flowRunner == nil {
 		return nil, runFlowOutput{}, errors.New("flow runner not configured")
 	}
 
-	def, err := s.resolveFlow(ctx, input.ProjectID, input.FlowName)
+	def, err := s.resolveFlow(ctx, projectID, input.FlowName)
 	if err != nil {
 		return nil, runFlowOutput{}, err
 	}
 
 	run := service.FlowRun{
 		Definition: def,
-		ProjectID:  input.ProjectID,
+		ProjectID:  projectID,
 		Stream:     input.Stream,
 		Source:     "mcp",
 	}
