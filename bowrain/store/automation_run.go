@@ -80,8 +80,12 @@ type AutomationRun struct {
 
 // AutomationStep represents a single automation action execution within a run.
 type AutomationStep struct {
-	ID         string            `json:"id"`
-	RunID      string            `json:"run_id"`
+	ID    string `json:"id"`
+	RunID string `json:"run_id"`
+	// RuleID is the automation rule the step's action was dispatched from:
+	// the rule's row id, or "builtin:<name>" for a platform rule. RuleName is
+	// the name it carried at dispatch, which a rename leaves behind.
+	RuleID     string            `json:"rule_id"`
 	RuleName   string            `json:"rule_name"`
 	ActionType string            `json:"action_type"`
 	Status     StepStatus        `json:"status"`
@@ -245,9 +249,9 @@ func (s *AutomationRunStore) CreateStep(ctx context.Context, step *AutomationSte
 
 	_, err := s.db.ExecContext(ctx,
 		`INSERT INTO automation_steps
-			(id, run_id, rule_name, action_type, status, config, job_ids, task_ids, total_jobs, done_jobs, error, started_at)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
-		step.ID, step.RunID, step.RuleName, step.ActionType,
+			(id, run_id, rule_id, rule_name, action_type, status, config, job_ids, task_ids, total_jobs, done_jobs, error, started_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+		step.ID, step.RunID, step.RuleID, step.RuleName, step.ActionType,
 		string(step.Status), string(config), string(jobIDs), string(taskIDs),
 		step.TotalJobs, step.DoneJobs, step.Error, step.StartedAt.Format(time.RFC3339Nano))
 	if err != nil {
@@ -272,7 +276,7 @@ func (s *AutomationRunStore) CreateStep(ctx context.Context, step *AutomationSte
 // GetStep retrieves a single step by ID.
 func (s *AutomationRunStore) GetStep(ctx context.Context, stepID string) (*AutomationStep, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, run_id, rule_name, action_type, status, config,
+		`SELECT id, run_id, rule_id, rule_name, action_type, status, config,
 			job_ids, task_ids, total_jobs, done_jobs, error, started_at, ended_at
 		 FROM automation_steps WHERE id = $1`, stepID)
 	return scanStep(row)
@@ -281,7 +285,7 @@ func (s *AutomationRunStore) GetStep(ctx context.Context, stepID string) (*Autom
 // ListSteps returns all steps for a run.
 func (s *AutomationRunStore) ListSteps(ctx context.Context, runID string) ([]*AutomationStep, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, run_id, rule_name, action_type, status, config,
+		`SELECT id, run_id, rule_id, rule_name, action_type, status, config,
 			job_ids, task_ids, total_jobs, done_jobs, error, started_at, ended_at
 		 FROM automation_steps WHERE run_id = $1 ORDER BY started_at`, runID)
 	if err != nil {
@@ -508,7 +512,7 @@ func scanStep(row scannable) (*AutomationStep, error) {
 	var config, jobIDs, taskIDs, status string
 	var endedAt sql.NullTime
 
-	if err := row.Scan(&step.ID, &step.RunID, &step.RuleName, &step.ActionType,
+	if err := row.Scan(&step.ID, &step.RunID, &step.RuleID, &step.RuleName, &step.ActionType,
 		&status, &config, &jobIDs, &taskIDs,
 		&step.TotalJobs, &step.DoneJobs, &step.Error,
 		&step.StartedAt, &endedAt); err != nil {

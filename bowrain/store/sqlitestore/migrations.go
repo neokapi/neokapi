@@ -976,4 +976,15 @@ var storeMigrations = []storage.Migration{
 			ALTER TABLE unit_decisions ADD COLUMN governing_fingerprint TEXT NOT NULL DEFAULT '';
 		`,
 	},
+	{
+		Version:     23,
+		Description: "an automation step names the rule it was dispatched from",
+		SQL: `
+			-- Mirrors bowrain/store/migrations.go version 32: the id of the
+			-- rule the step's action came from, beside the name it carried at
+			-- dispatch. The baseline creates the column, so this migration is
+			-- what gives it to a database built before it.
+			ALTER TABLE automation_steps ADD COLUMN rule_id TEXT NOT NULL DEFAULT '';
+		`,
+	},
 }

@@ -14,11 +14,36 @@ import (
 // automation stops to prevent infinite loops.
 const MaxChainDepth = 5
 
+// builtInRulePrefix marks the id of a rule the platform ships rather than one
+// a user authored. A built-in rule has no row in automation_rules, so its id
+// is derived from its name; the prefix keeps it from colliding with a stored
+// rule's id and tells a reader which kind of rule an execution record names.
+const builtInRulePrefix = "builtin:"
+
+// BuiltInRuleID is the execution-record id of a platform rule named name.
+func BuiltInRuleID(name string) string { return builtInRulePrefix + name }
+
+// BuiltInRuleName returns the rule name behind a built-in rule id. The second
+// result is false for an id that names a stored rule, and the name is empty
+// then, so a caller that ignores it cannot mistake the id for a name.
+func BuiltInRuleName(ruleID string) (string, bool) {
+	name, ok := strings.CutPrefix(ruleID, builtInRulePrefix)
+	if !ok {
+		return "", false
+	}
+	return name, true
+}
+
 // AutomationAction defines what happens when a rule triggers.
 type AutomationAction struct {
 	Type   string            `json:"type"`             // "flow", "webhook", "notify"
 	Config map[string]string `json:"config,omitempty"` // Action-specific configuration
 	Name   string            `json:"-"`                // Rule name (set at runtime by engine, not persisted)
+	// RuleID identifies the rule this action was dispatched from, so the
+	// execution record traces back to it after the rule is renamed or another
+	// rule takes the same name. Set at runtime by the engine beside Name, and
+	// not persisted: an action stored on a rule already sits inside it.
+	RuleID string `json:"-"`
 }
 
 // AutomationCondition defines when a rule should trigger.
@@ -30,6 +55,10 @@ type AutomationCondition struct {
 
 // AutomationRule defines an event-triggered automation.
 type AutomationRule struct {
+	// ID identifies the rule in the execution record: the stored rule's row
+	// id for a rule a user authored, and BuiltInRuleID(name) for one of the
+	// platform's own, which have no row.
+	ID        string
 	Name      string
 	EventType platev.EventType
 	// ProjectID scopes the rule to one project's events. Empty matches every
@@ -142,7 +171,9 @@ func (e *AutomationEngine) handleEvent(event platev.Event) error {
 			continue
 		}
 		for _, action := range rule.Actions {
-			action.Name = rule.Name // annotate with rule name for run tracking
+			// Annotate with the rule's identity for run tracking.
+			action.Name = rule.Name
+			action.RuleID = rule.ID
 			if e.executor != nil {
 				_ = e.executor(action, event)
 			}

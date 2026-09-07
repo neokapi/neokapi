@@ -1401,4 +1401,20 @@ var Migrations = []storage.Migration{
 			ALTER TABLE unit_decisions ADD COLUMN IF NOT EXISTS governing_fingerprint TEXT NOT NULL DEFAULT '';
 		`,
 	},
+	{
+		Version:     32,
+		Description: "an automation step names the rule it was dispatched from",
+		SQL: `
+			-- The id of the automation rule the step's action came from: the
+			-- rule's row id for one a user authored, and "builtin:<name>" for
+			-- one of the platform's own, which have no row. The step already
+			-- carried rule_name, which a rename or a second rule of the same
+			-- name makes ambiguous. Empty on a row written before the column
+			-- existed; rule_name still names those. Additive, with no rewrite
+			-- of existing rows, and the only place the column is declared:
+			-- the baseline CREATE TABLE does not carry it, so a fresh database
+			-- and an existing one reach the same schema through this.
+			ALTER TABLE automation_steps ADD COLUMN IF NOT EXISTS rule_id TEXT NOT NULL DEFAULT '';
+		`,
+	},
 }

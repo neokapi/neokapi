@@ -40,6 +40,7 @@ func builtInAutomationRules() []event.AutomationRule {
 		// auto-translate-new-locale and create-review-tasks-on-automation-complete
 		// rules did.
 		{
+			ID:        event.BuiltInRuleID("auto-extract-on-push"),
 			Name:      "auto-extract-on-push",
 			EventType: platev.EventPushCompleted,
 			Actions: []event.AutomationAction{
@@ -49,6 +50,7 @@ func builtInAutomationRules() []event.AutomationRule {
 		// Fan out review tasks after source review (Bowrain AD-014). Source
 		// review is an independent workflow beside push convergence.
 		{
+			ID:        event.BuiltInRuleID("fan-out-after-source-review"),
 			Name:      "fan-out-after-source-review",
 			EventType: platev.EventSourceReviewCompleted,
 			Actions: []event.AutomationAction{
@@ -99,6 +101,7 @@ func (s *Server) storedAutomationRules() []event.AutomationRule {
 				continue
 			}
 			rules = append(rules, event.AutomationRule{
+				ID:         r.ID,
 				Name:       r.Name,
 				EventType:  r.Trigger,
 				ProjectID:  proj.ID,
@@ -138,14 +141,15 @@ func (s *Server) executeAutomationAction(ctx context.Context, action event.Autom
 	// The history entry is written even for a run that was cancelled: the
 	// record of what happened is the point, so it keeps the run's values and
 	// drops only its cancellation.
-	s.recordAutomationHistory(context.WithoutCancel(ctx), ev, startedAt, ev.Timestamp, err)
+	s.recordAutomationHistory(context.WithoutCancel(ctx), action, ev, startedAt, ev.Timestamp, err)
 	return err
 }
 
 // recordAutomationHistory writes one execution history entry for an action.
-// The record must always be written, so callers hand it a context that is
-// not about to be cancelled.
-func (s *Server) recordAutomationHistory(ctx context.Context, ev platev.Event, startedAt, endedAt time.Time, err error) {
+// The entry names the rule the action came from, so the history traces back
+// to it. The record must always be written, so callers hand it a context that
+// is not about to be cancelled.
+func (s *Server) recordAutomationHistory(ctx context.Context, action event.AutomationAction, ev platev.Event, startedAt, endedAt time.Time, err error) {
 	if s.AutomationRuleStore == nil {
 		return
 	}
@@ -157,6 +161,7 @@ func (s *Server) recordAutomationHistory(ctx context.Context, ev platev.Event, s
 	}
 	_ = s.AutomationRuleStore.RecordExecution(ctx, &event.HistoryEntry{
 		ID:        id.New(),
+		RuleID:    action.RuleID,
 		ProjectID: ev.ProjectID,
 		EventID:   ev.ID,
 		Status:    status,
