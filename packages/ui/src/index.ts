@@ -229,6 +229,8 @@ export { RunText, type RunTextProps } from "./components/ui/run-text";
 // surfaces over the generated review model (`@neokapi/contract-types`).
 export {
   LayerCard,
+  ReviewLanguageSelect,
+  ALL_LANGUAGES,
   PointCard,
   NeighbourhoodCard,
   HistoryCard,
@@ -245,6 +247,8 @@ export {
 } from "./components/review";
 export type {
   LayerCardProps,
+  ReviewLanguageSelectProps,
+  ReviewLanguageLane,
   PointCardProps,
   NeighbourhoodCardProps,
   HistoryCardProps,

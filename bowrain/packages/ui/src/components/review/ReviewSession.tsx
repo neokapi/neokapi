@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Button, Alert, AlertDescription, cn } from "@neokapi/ui-primitives";
+import {
+  ALL_LANGUAGES,
+  Alert,
+  AlertDescription,
+  Button,
+  ReviewLanguageSelect,
+  cn,
+} from "@neokapi/ui-primitives";
 import { ConfirmDialog } from "../ConfirmDialog";
 import type {
   ApprovePassingResult,
@@ -19,7 +26,6 @@ import { ErrorNotice } from "../../errors";
 import { getTargetText, statusAfterEdit, withTargetEntry } from "../editor/blockStatus";
 import { type UnifiedSaveResult } from "../UnifiedTargetEditor";
 import { ArrowLeft, Rocket, CircleCheck, Sparkles, RefreshCw } from "../icons";
-import { ALL_LANGUAGES, LanguageScopeSelect } from "./LanguageScopeSelect";
 import { ReviewQueueList } from "./ReviewQueueList";
 import { FocusedReviewer, type ReviewerCompliance } from "./FocusedReviewer";
 import { MarkSourceTermDialog } from "./MarkSourceTermDialog";
@@ -651,13 +657,13 @@ export function ReviewSession({
   // them: choosing a target narrows the queue to it, and choosing the source
   // opens the proposals waiting on the source text. Each entry carries what it
   // is waiting on, so the choice is made on the counts rather than after it.
-  const languageOptions = useMemo(() => {
+  const languageLanes = useMemo(() => {
     const pending = counts.byLocale;
     return [
-      { locale: sourceLocale, source: true, pending: openProposals.length },
+      { language: sourceLocale, source: true, pending: openProposals.length },
       ...targetLocales
         .filter((l) => l !== sourceLocale)
-        .map((locale) => ({ locale, pending: pending[locale] ?? 0 })),
+        .map((language) => ({ language, pending: pending[language] ?? 0 })),
     ];
   }, [sourceLocale, targetLocales, counts.byLocale, openProposals.length]);
 
@@ -755,14 +761,14 @@ export function ReviewSession({
           className="flex flex-wrap items-center gap-1.5 border-b border-border px-4 py-2"
           data-testid="review-filters"
         >
-          <LanguageScopeSelect
+          <ReviewLanguageSelect
             value={languageValue}
-            options={languageOptions}
+            lanes={languageLanes}
             onChange={chooseLanguage}
             allowAll
             allPending={counts.total}
-            label="Language to review"
             size="sm"
+            className="w-[220px]"
             data-testid="filter-language"
           />
           <span className="ml-3 text-[11px] uppercase tracking-wide text-muted-foreground">

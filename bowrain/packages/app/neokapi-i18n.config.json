@@ -10,6 +10,7 @@
     "CardTitle": "div",
     "CollapsibleTrigger": "button",
     "ComboboxEmpty": "div",
+    "CommandEmpty": "div",
     "DialogDescription": "p",
     "DialogTitle": "h2",
     "DirectionalText": "span",

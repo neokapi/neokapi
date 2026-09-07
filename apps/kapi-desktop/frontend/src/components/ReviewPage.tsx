@@ -28,6 +28,8 @@ import {
   NeighbourhoodCard,
   PointCard,
   ProvenanceCard,
+  ReviewLanguageSelect,
+  ALL_LANGUAGES,
   checkFindingViews,
   StatusBadge,
   localeLabel,
@@ -41,7 +43,6 @@ import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
 import { AIExchangeDisclosure } from "./AIExchangeView";
 import { FilePreview } from "./FilePreview";
-import { ReviewLanguageSelect } from "./review/ReviewLanguageSelect";
 import { SourceUnitPane } from "./review/SourceUnitPane";
 import { useActiveFilter } from "../context/ActiveFilterContext";
 import type {
@@ -800,10 +801,12 @@ export function ReviewPage({
         </div>
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <ReviewLanguageSelect
-            value={language}
-            onChange={setLanguage}
-            languages={languages}
-            total={(queue ?? []).length}
+            value={language || ALL_LANGUAGES}
+            onChange={(next) => setLanguage(next === ALL_LANGUAGES ? "" : next)}
+            lanes={languages}
+            allowAll
+            allPending={(queue ?? []).length}
+            size="xs"
             data-slot="review-language-select"
           />
           <div className="flex items-center gap-1" data-slot="review-chips">

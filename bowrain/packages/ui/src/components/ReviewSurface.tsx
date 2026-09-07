@@ -3,6 +3,7 @@ import {
   AlertDescription,
   Button,
   LocaleLabel,
+  ReviewLanguageSelect,
   cn,
   statusMeta,
 } from "@neokapi/ui-primitives";
@@ -27,7 +28,6 @@ import { useAnalytics } from "../context/AnalyticsContext";
 import { AnalyticsEvents } from "../analytics-events";
 import { ProblemsPanel } from "./editor/ProblemsPanel";
 import { ApplyMemoryDialog } from "./review/ApplyMemoryDialog";
-import { LanguageScopeSelect } from "./review/LanguageScopeSelect";
 import { ReviewInspector } from "./review/ReviewInspector";
 import { blocksToContentTree, type BlockEvidence } from "../preview/toContentTree";
 import type { UnifiedSaveResult } from "./UnifiedTargetEditor";
@@ -155,10 +155,12 @@ export function ReviewSurface({
     },
     [sourceLocale],
   );
-  const languageOptions = useMemo(
+  const languageLanes = useMemo(
     () => [
-      { locale: sourceLocale, source: true },
-      ...project.target_languages.filter((l) => l !== sourceLocale).map((locale) => ({ locale })),
+      { language: sourceLocale, source: true },
+      ...project.target_languages
+        .filter((l) => l !== sourceLocale)
+        .map((language) => ({ language })),
     ],
     [sourceLocale, project.target_languages],
   );
@@ -713,11 +715,11 @@ export function ReviewSurface({
             </span>
           )}
         </Button>
-        <LanguageScopeSelect
+        <ReviewLanguageSelect
           value={language}
-          options={languageOptions}
+          lanes={languageLanes}
           onChange={changeLanguage}
-          label="Language to review"
+          className="w-[220px]"
           data-testid="language-scope"
         />
       </div>
