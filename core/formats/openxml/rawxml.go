@@ -242,6 +242,105 @@ func rawAttrValueSpan(raw []byte, idx int) (start, end int, ok bool) {
 	return 0, 0, false
 }
 
+// rawAttr locates one attribute inside a start tag's own source bytes.
+type rawAttr struct {
+	name string
+	// start and end bracket the whole attribute including the whitespace that
+	// separates it from what precedes it, so removing the span leaves a
+	// well-formed tag.
+	start, end int
+	// valueStart and valueEnd bracket the value between its quotes.
+	valueStart, valueEnd int
+}
+
+// scanRawAttrs lists a start tag's attributes in document order, with the span
+// each occupies in the tag's own bytes. A caller rewriting one attribute keeps
+// every other byte that way: the attribute order, the quote characters, the
+// spacing and the self-closing slash.
+//
+// It reports nothing for a tag it cannot walk to the end, so a caller falls
+// back to replaying the tag whole rather than corrupting it.
+func scanRawAttrs(raw []byte) ([]rawAttr, bool) {
+	i := 0
+	if i >= len(raw) || raw[i] != '<' {
+		return nil, false
+	}
+	i++
+	for i < len(raw) && !isXMLSpace(raw[i]) && raw[i] != '>' && raw[i] != '/' {
+		i++
+	}
+	var attrs []rawAttr
+	for {
+		sep := i
+		for i < len(raw) && isXMLSpace(raw[i]) {
+			i++
+		}
+		if i >= len(raw) {
+			return nil, false
+		}
+		if raw[i] == '>' || raw[i] == '/' {
+			return attrs, true
+		}
+		nameStart := i
+		for i < len(raw) && !isXMLSpace(raw[i]) && raw[i] != '=' {
+			i++
+		}
+		name := string(raw[nameStart:i])
+		for i < len(raw) && isXMLSpace(raw[i]) {
+			i++
+		}
+		if i >= len(raw) || raw[i] != '=' {
+			return nil, false
+		}
+		i++
+		for i < len(raw) && isXMLSpace(raw[i]) {
+			i++
+		}
+		if i >= len(raw) || (raw[i] != '"' && raw[i] != '\'') {
+			return nil, false
+		}
+		quote := raw[i]
+		i++
+		valueStart := i
+		for i < len(raw) && raw[i] != quote {
+			i++
+		}
+		if i >= len(raw) {
+			return nil, false
+		}
+		valueEnd := i
+		i++
+		attrs = append(attrs, rawAttr{
+			name: name, start: sep, end: i,
+			valueStart: valueStart, valueEnd: valueEnd,
+		})
+	}
+}
+
+// rawTagAttrInsertPoint reports where a new attribute belongs in a start tag:
+// just before the `/>` or `>` that ends it.
+func rawTagAttrInsertPoint(raw []byte, attrs []rawAttr) (int, bool) {
+	i := 0
+	if len(attrs) > 0 {
+		i = attrs[len(attrs)-1].end
+	} else {
+		if i >= len(raw) || raw[i] != '<' {
+			return 0, false
+		}
+		i++
+		for i < len(raw) && !isXMLSpace(raw[i]) && raw[i] != '>' && raw[i] != '/' {
+			i++
+		}
+	}
+	for i < len(raw) && isXMLSpace(raw[i]) {
+		i++
+	}
+	if i >= len(raw) || (raw[i] != '>' && raw[i] != '/') {
+		return 0, false
+	}
+	return i, true
+}
+
 func isXMLSpace(b byte) bool {
 	return b == ' ' || b == '\t' || b == '\r' || b == '\n'
 }
