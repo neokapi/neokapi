@@ -49,9 +49,9 @@ func TestWriteVoicePointer(t *testing.T) {
 		wantNotIn []string
 	}{
 		{
-			name:       "a fresh project gets AGENTS.md",
+			name:       "a fresh project gets CLAUDE.md",
 			recipe:     packRecipe,
-			wantFile:   "AGENTS.md",
+			wantFile:   "CLAUDE.md",
 			wantAction: VoicePointerCreated,
 			wantVoice:  "Professional B2B",
 			wantIn:     []string{"# my-app\n\n" + coreprofile.VoicePointerStartLine, "voice, Professional B2B, is held by kapi", "`kapi voice guide`"},
@@ -66,9 +66,19 @@ func TestWriteVoicePointer(t *testing.T) {
 			wantIn:     []string{"# Rules\n\nBe brief.\n\n" + coreprofile.VoicePointerStartLine},
 		},
 		{
-			name:       "AGENTS.md is preferred when both exist",
+			name:       "CLAUDE.md is preferred when both exist",
 			recipe:     packRecipe,
-			files:      map[string]string{"CLAUDE.md": "@AGENTS.md\n", "AGENTS.md": "# Agents\n"},
+			files:      map[string]string{"CLAUDE.md": "# Rules\n", "AGENTS.md": "# Agents\n"},
+			wantFile:   "CLAUDE.md",
+			wantAction: VoicePointerUpdated,
+			wantVoice:  "Professional B2B",
+			wantIn:     []string{"# Rules\n\n" + coreprofile.VoicePointerStartLine},
+			wantNotIn:  []string{"# Agents"},
+		},
+		{
+			name:       "an AGENTS.md alone takes the section",
+			recipe:     packRecipe,
+			files:      map[string]string{"AGENTS.md": "# Agents\n"},
 			wantFile:   "AGENTS.md",
 			wantAction: VoicePointerUpdated,
 			wantVoice:  "Professional B2B",
@@ -78,7 +88,7 @@ func TestWriteVoicePointer(t *testing.T) {
 			name:       "a profile file binding names the profile",
 			recipe:     fileRecipe,
 			files:      map[string]string{"brand/voice.yaml": houseVoice},
-			wantFile:   "AGENTS.md",
+			wantFile:   "CLAUDE.md",
 			wantAction: VoicePointerCreated,
 			wantVoice:  "House Voice",
 			wantIn:     []string{"voice, House Voice, is held by kapi"},
@@ -86,7 +96,7 @@ func TestWriteVoicePointer(t *testing.T) {
 		{
 			name:       "a bound file nobody has written yet is pointed at unnamed",
 			recipe:     fileRecipe,
-			wantFile:   "AGENTS.md",
+			wantFile:   "CLAUDE.md",
 			wantAction: VoicePointerCreated,
 			wantIn:     []string{"This project's voice is held by kapi"},
 			wantNotIn:  []string{"voice, ,"},
@@ -95,7 +105,7 @@ func TestWriteVoicePointer(t *testing.T) {
 			name:       "a convention file counts as a voice",
 			recipe:     bareRecipe,
 			files:      map[string]string{".kapi/voice.yaml": houseVoice},
-			wantFile:   "AGENTS.md",
+			wantFile:   "CLAUDE.md",
 			wantAction: VoicePointerCreated,
 			wantVoice:  "House Voice",
 		},
@@ -104,7 +114,7 @@ func TestWriteVoicePointer(t *testing.T) {
 			recipe: fileRecipe + "profiles:\n  acme:\n    channels: [docs]\n    voice: brand/acme.yaml\n" +
 				"collections:\n  - name: acme-docs\n    channel: acme/docs\n    content:\n      - path: \"docs/**/*.md\"\n",
 			files:      map[string]string{"brand/voice.yaml": houseVoice, "brand/acme.yaml": "name: Acme\n"},
-			wantFile:   "AGENTS.md",
+			wantFile:   "CLAUDE.md",
 			wantAction: VoicePointerCreated,
 			wantVoice:  "House Voice",
 			wantIn:     []string{"`kapi voice guide <path>`", "Some collections carry a voice of their own"},
@@ -144,9 +154,12 @@ func TestWriteVoicePointer(t *testing.T) {
 
 			if tt.wantFile == "" {
 				assert.Empty(t, res.File)
-				_, serr := os.Stat(filepath.Join(root, "AGENTS.md"))
-				if _, seeded := tt.files["AGENTS.md"]; !seeded {
-					assert.True(t, os.IsNotExist(serr), "nothing creates an assistant file for a project with no voice")
+				for _, name := range AssistantFileNames {
+					if _, seeded := tt.files[name]; seeded {
+						continue
+					}
+					_, serr := os.Stat(filepath.Join(root, name))
+					assert.True(t, os.IsNotExist(serr), "nothing creates %s for a project with no voice", name)
 				}
 			} else {
 				assert.Equal(t, filepath.Join(root, tt.wantFile), res.File)
@@ -245,16 +258,16 @@ func TestWriteVoicePointer_RefusesAnUnterminatedSection(t *testing.T) {
 func TestAssistantFile(t *testing.T) {
 	root := t.TempDir()
 	path, exists := AssistantFile(root)
-	assert.Equal(t, filepath.Join(root, "AGENTS.md"), path)
+	assert.Equal(t, filepath.Join(root, "CLAUDE.md"), path, "a root with neither file gets CLAUDE.md")
 	assert.False(t, exists)
-
-	require.NoError(t, os.WriteFile(filepath.Join(root, "CLAUDE.md"), []byte("x"), 0o644))
-	path, exists = AssistantFile(root)
-	assert.Equal(t, filepath.Join(root, "CLAUDE.md"), path)
-	assert.True(t, exists)
 
 	require.NoError(t, os.WriteFile(filepath.Join(root, "AGENTS.md"), []byte("x"), 0o644))
 	path, exists = AssistantFile(root)
-	assert.Equal(t, filepath.Join(root, "AGENTS.md"), path)
+	assert.Equal(t, filepath.Join(root, "AGENTS.md"), path, "an AGENTS.md alone is used where it is")
+	assert.True(t, exists)
+
+	require.NoError(t, os.WriteFile(filepath.Join(root, "CLAUDE.md"), []byte("x"), 0o644))
+	path, exists = AssistantFile(root)
+	assert.Equal(t, filepath.Join(root, "CLAUDE.md"), path, "CLAUDE.md wins when both exist")
 	assert.True(t, exists)
 }

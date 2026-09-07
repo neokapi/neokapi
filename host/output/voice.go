@@ -263,7 +263,7 @@ type VoicePointerOutput struct {
 }
 
 // FormatText prints one line saying what was done, plus the import hint when
-// a fresh AGENTS.md was created and a warning when the voice has no name.
+// the section landed in AGENTS.md and a warning when the voice has no name.
 func (o VoicePointerOutput) FormatText(w io.Writer) error {
 	var line string
 	switch o.Action {
@@ -282,8 +282,8 @@ func (o VoicePointerOutput) FormatText(w io.Writer) error {
 		line += " (voice: " + o.Voice + ")"
 	}
 	fmt.Fprintln(w, line)
-	if o.Created && strings.HasSuffix(o.File, AssistantFileHint) {
-		fmt.Fprintln(w, "An assistant that reads CLAUDE.md picks it up through an import line there: @AGENTS.md")
+	if (o.Action == "created" || o.Action == "updated") && strings.HasSuffix(o.File, AssistantFileHint) {
+		fmt.Fprintln(w, "An assistant that reads only CLAUDE.md picks it up through an import line there: @AGENTS.md")
 	}
 	if o.Warning != "" {
 		fmt.Fprintf(w, "warning: could not name the voice: %s\n", o.Warning)
@@ -291,5 +291,7 @@ func (o VoicePointerOutput) FormatText(w io.Writer) error {
 	return nil
 }
 
-// AssistantFileHint is the file whose creation earns the import hint.
+// AssistantFileHint is the file whose section earns the import hint: an
+// assistant limited to CLAUDE.md reaches an AGENTS.md section through an
+// import line there.
 const AssistantFileHint = "AGENTS.md"

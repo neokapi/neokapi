@@ -25,12 +25,22 @@ func TestVoicePointerCmd(t *testing.T) {
 		wantErr  string
 		wantFile string
 		wantOut  []string
+		// wantNotOut lines must be absent from the command's output.
+		wantNotOut []string
 	}{
 		{
-			name:     "creates AGENTS.md and says how CLAUDE.md reads it",
+			name:       "creates CLAUDE.md, the file Claude Code reads",
+			recipe:     withVoice,
+			wantFile:   "CLAUDE.md",
+			wantOut:    []string{"Wrote the voice pointer to", "(voice: Friendly DTC)"},
+			wantNotOut: []string{"@AGENTS.md"},
+		},
+		{
+			name:     "writes into an AGENTS.md that stands alone and says how CLAUDE.md reads it",
 			recipe:   withVoice,
+			files:    map[string]string{"AGENTS.md": "# Agents\n"},
 			wantFile: "AGENTS.md",
-			wantOut:  []string{"Wrote the voice pointer to", "(voice: Friendly DTC)", "@AGENTS.md"},
+			wantOut:  []string{"Wrote the voice pointer into", "@AGENTS.md"},
 		},
 		{
 			name:     "writes into an existing CLAUDE.md",
@@ -70,13 +80,18 @@ func TestVoicePointerCmd(t *testing.T) {
 			if tt.wantErr != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.wantErr)
-				_, serr := os.Stat(filepath.Join(root, "AGENTS.md"))
-				assert.True(t, os.IsNotExist(serr), "a refusal writes nothing")
+				for _, name := range []string{"CLAUDE.md", "AGENTS.md"} {
+					_, serr := os.Stat(filepath.Join(root, name))
+					assert.True(t, os.IsNotExist(serr), "a refusal writes no %s", name)
+				}
 				return
 			}
 			require.NoError(t, err)
 			for _, w := range tt.wantOut {
 				assert.Contains(t, out.String(), w)
+			}
+			for _, w := range tt.wantNotOut {
+				assert.NotContains(t, out.String(), w)
 			}
 			body, rerr := os.ReadFile(filepath.Join(root, tt.wantFile))
 			require.NoError(t, rerr)
@@ -109,7 +124,7 @@ func TestVoicePointerCmd_JSON(t *testing.T) {
 		Voice   string `json:"voice"`
 	}
 	require.NoError(t, json.Unmarshal(out.Bytes(), &got), out.String())
-	assert.Equal(t, filepath.Join(root, "AGENTS.md"), got.File)
+	assert.Equal(t, filepath.Join(root, "CLAUDE.md"), got.File)
 	assert.True(t, got.Created)
 	assert.Equal(t, "created", got.Action)
 	assert.Equal(t, "Friendly DTC", got.Voice)

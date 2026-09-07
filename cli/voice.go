@@ -58,19 +58,19 @@ omitted or set to "-".`,
 func newVoicePointerCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "pointer",
-		Short: "Write a pointer to the project's voice into its assistant file (AGENTS.md or CLAUDE.md)",
+		Short: "Write a pointer to the project's voice into its assistant file (CLAUDE.md or AGENTS.md)",
 		Long: `Write a short, marker-delimited section into the project's assistant file
 telling an assistant that the project's voice is held by kapi and that
 'kapi voice guide' retrieves it. The section names the voice and nothing
 else; the guide itself stays one command away, so the pointer never goes
 stale.
 
-An existing AGENTS.md or CLAUDE.md at the project root takes the section
-(AGENTS.md when both exist); with neither, AGENTS.md is created. An assistant
-that reads CLAUDE.md picks AGENTS.md up through an import line there:
-@AGENTS.md. Running again replaces the section in place and leaves the rest
-of the file untouched. When the project binds no voice, a section written
-earlier is removed and nothing else is written.
+An existing CLAUDE.md or AGENTS.md at the project root takes the section
+(CLAUDE.md when both exist); with neither, CLAUDE.md is created. A section
+that lands in AGENTS.md reaches an assistant limited to CLAUDE.md through an
+import line there: @AGENTS.md. Running again replaces the section in place
+and leaves the rest of the file untouched. When the project binds no voice, a
+section written earlier is removed and nothing else is written.
 
 'kapi init' writes the same section when the project it scaffolds binds a
 voice; run this after binding one to an existing project, or after renaming

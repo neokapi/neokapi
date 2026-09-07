@@ -426,3 +426,9 @@ PipelineDriver → Executor, Event → Part, TextUnit → Block, TextFragment �
 
 Testing convention: `stretchr/testify` (assert/require), table-driven, `*_test.go`
 colocated with implementation, roundtrip validation for formats.
+
+<!-- kapi:voice (managed by kapi; refreshed by 'kapi voice pointer') -->
+## Voice
+
+This project's voice, neokapi documentation, is held by kapi and applies to any prose written here. Some collections carry a voice of their own, so retrieve what is in force before writing, with `kapi voice guide <path>` for the file you are writing.
+<!-- /kapi:voice -->

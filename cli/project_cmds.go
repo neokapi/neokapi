@@ -2,8 +2,11 @@ package cli
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
+
+	"github.com/neokapi/neokapi/host/output"
 )
 
 // NewInitCmd returns `kapi init` — scaffold a new kapi project in
@@ -45,11 +48,10 @@ scaffolds plus per-format parsing presets) with --list-presets.
 When the project binds a voice profile, kapi init also writes a short section
 into the project's assistant file, so an assistant working in the tree knows
 the voice is held by kapi and retrieves it with 'kapi voice guide' before
-writing. An existing AGENTS.md or CLAUDE.md at the root takes the section
-(AGENTS.md when both exist); with neither, kapi init creates AGENTS.md, which a
-CLAUDE.md picks up through an import line (@AGENTS.md). Re-running replaces
-the section in place and leaves the rest of the file alone. --no-pointer skips
-it; 'kapi voice pointer' writes it later.`,
+writing. An existing CLAUDE.md or AGENTS.md at the root takes the section
+(CLAUDE.md when both exist); with neither, kapi init creates CLAUDE.md.
+Re-running replaces the section in place and leaves the rest of the file
+alone. --no-pointer skips it; 'kapi voice pointer' writes it later.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// --list-presets: print the preset catalog and exit (absorbs the
 			// former `kapi presets list`, #1078 C1).
@@ -116,7 +118,7 @@ it; 'kapi voice pointer' writes it later.`,
 	cmd.Flags().StringVar(&framework, "framework", "", "Pre-fill content mapping for a known stack (see 'kapi init --list-presets'); scaffolds a translation project")
 	cmd.Flags().StringVar(&presetName, "preset", "", "Scaffold from a named framework preset (see 'kapi init --list-presets'); alias of --framework")
 	cmd.Flags().BoolVar(&listPresets, "list-presets", false, "List available presets (framework scaffolds and per-format parsing presets) and exit")
-	cmd.Flags().BoolVar(&noPointer, "no-pointer", false, "Do not write the voice pointer into AGENTS.md or CLAUDE.md")
+	cmd.Flags().BoolVar(&noPointer, "no-pointer", false, "Do not write the voice pointer into CLAUDE.md or AGENTS.md")
 	cmd.MarkFlagsMutuallyExclusive("preset", "framework")
 	return cmd
 }
@@ -128,7 +130,7 @@ func printInitPointer(cmd *cobra.Command, ptr *VoicePointerResult, rerun bool) {
 	w := cmd.OutOrStdout()
 	switch ptr.Action {
 	case VoicePointerCreated:
-		fmt.Fprintf(w, "  agents: %s (voice pointer for assistants; a CLAUDE.md picks it up with @AGENTS.md)\n", ptr.File)
+		fmt.Fprintf(w, "  agents: %s (voice pointer for assistants)\n", ptr.File)
 	case VoicePointerUpdated:
 		fmt.Fprintf(w, "  agents: %s (voice pointer written)\n", ptr.File)
 	case VoicePointerUnchanged:
@@ -138,7 +140,17 @@ func printInitPointer(cmd *cobra.Command, ptr *VoicePointerResult, rerun bool) {
 	case VoicePointerRemoved:
 		fmt.Fprintf(w, "  agents: %s (voice pointer removed: no voice bound)\n", ptr.File)
 	}
+	// A root that holds AGENTS.md alone keeps it, so say how an assistant
+	// limited to CLAUDE.md reaches the section that just landed there.
+	if wrotePointer(ptr.Action) && strings.HasSuffix(ptr.File, output.AssistantFileHint) {
+		fmt.Fprintf(w, "          an assistant that reads only CLAUDE.md picks it up with @%s\n", output.AssistantFileHint)
+	}
 	if ptr.Warning != "" {
 		fmt.Fprintf(cmd.ErrOrStderr(), "warning: voice pointer could not name the voice: %s\n", ptr.Warning)
 	}
+}
+
+// wrotePointer reports whether the action put the section into the file.
+func wrotePointer(a VoicePointerAction) bool {
+	return a == VoicePointerCreated || a == VoicePointerUpdated
 }

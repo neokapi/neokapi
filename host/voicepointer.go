@@ -13,12 +13,14 @@ import (
 )
 
 // AssistantFileNames lists the files an assistant reads at a project root, in
-// the order the voice pointer prefers them. AGENTS.md is the vendor-neutral
-// name; a CLAUDE.md that imports it (`@AGENTS.md`) reads it too.
-var AssistantFileNames = []string{"AGENTS.md", "CLAUDE.md"}
+// the order the voice pointer prefers them. CLAUDE.md leads because Claude
+// Code reads that name and no other, so a root holding neither file gets a
+// CLAUDE.md. A root holding AGENTS.md alone keeps it, and an `@AGENTS.md`
+// import line carries that section into a CLAUDE.md added later.
+var AssistantFileNames = []string{"CLAUDE.md", "AGENTS.md"}
 
 // AssistantFile returns the assistant file a pointer is written into: the
-// first of AssistantFileNames present at root, else AGENTS.md, which does not
+// first of AssistantFileNames present at root, else CLAUDE.md, which does not
 // exist yet. exists reports which of the two it was.
 func AssistantFile(root string) (path string, exists bool) {
 	for _, name := range AssistantFileNames {
