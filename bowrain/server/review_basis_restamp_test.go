@@ -164,3 +164,41 @@ func TestPlatformVerdictOnAnUnrecordedUnitCarriesNoBasis(t *testing.T) {
 	assert.Equal(t, state.TargetHash("Bonjour"), d.TargetHash,
 		"the translation it turned down is the rejection's own")
 }
+
+// TestDashboardStaleSplitSumsToTheStaleCount: the dashboard stats carry what a
+// stale pair is waiting on, so a reader is sent to the loop or to a reviewer
+// rather than to whichever the total happens to suggest.
+func TestDashboardStaleSplitSumsToTheStaleCount(t *testing.T) {
+	_, cs, _, p := newDeriveHarness(t, []model.LocaleID{model.LocaleFrench})
+	ctx := t.Context()
+	rewritten := seedStaleUnit(t, cs, p.ID, true)
+
+	stats := func() platstore.LocaleTranslationStats {
+		t.Helper()
+		st, err := editorGetDashboardStats(ctx, cs, p, "main")
+		require.NoError(t, err)
+		require.NoError(t, applyShipStates(ctx, cs, nil, p.ID, "main", nil, st))
+		require.Len(t, st.LocaleStats, 1)
+		return st.LocaleStats[0]
+	}
+
+	owed := stats()
+	require.Equal(t, 1, owed.StaleBlocks)
+	assert.Equal(t, 1, owed.StaleAwaitingDraftBlocks, "nothing has translated the wording the block holds now")
+	assert.Zero(t, owed.StaleAwaitingReviewBlocks)
+	assert.Equal(t, owed.StaleBlocks, owed.StaleAwaitingDraftBlocks+owed.StaleAwaitingReviewBlocks)
+
+	// The worker drafts the unit against the source the block holds now and
+	// marks what it drafted against. The decision is not its to replace, so the
+	// pair stays stale and starts waiting on a person.
+	require.NoError(t, cs.RecordDraftBases(ctx, p.ID, "main", []platstore.DraftBasis{{
+		ItemName: "app.json", Unit: "greeting", Variant: string(model.LocaleFrench),
+		SourceHash: state.SourceHash(rewritten),
+	}}))
+
+	drafted := stats()
+	require.Equal(t, 1, drafted.StaleBlocks)
+	assert.Zero(t, drafted.StaleAwaitingDraftBlocks)
+	assert.Equal(t, 1, drafted.StaleAwaitingReviewBlocks, "the draft is in and the reviewer is who it waits on")
+	assert.Equal(t, drafted.StaleBlocks, drafted.StaleAwaitingDraftBlocks+drafted.StaleAwaitingReviewBlocks)
+}

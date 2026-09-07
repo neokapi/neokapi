@@ -84,6 +84,14 @@ func (f *reapprovalFixture) rewriteSource(t *testing.T, text string) {
 // staleUnits counts the units coverage grades stale across the project.
 func (f *reapprovalFixture) staleUnits(t *testing.T) int {
 	t.Helper()
+	stale, _, _ := f.staleSplit(t)
+	return stale
+}
+
+// staleSplit is the stale count and the two halves it divides into: units
+// waiting on a draft, and units already re-drafted and waiting on a person.
+func (f *reapprovalFixture) staleSplit(t *testing.T) (stale, awaitingDraft, awaitingReview int) {
+	t.Helper()
 	ctx := context.Background()
 	proj, err := project.LoadWithOptions(f.recipe, project.LoadOptions{SkipRequiresCheck: true})
 	require.NoError(t, err)
@@ -91,11 +99,12 @@ func (f *reapprovalFixture) staleUnits(t *testing.T) int {
 	require.NoError(t, err)
 	tally, err := f.app.ProjectCoverageTally(ctx, proj, f.root, units, nil)
 	require.NoError(t, err)
-	stale := 0
 	for _, lc := range tally.Rollup(gate.RuleSet{}) {
 		stale += lc.Stale
+		awaitingDraft += lc.StaleAwaitingDraft
+		awaitingReview += lc.StaleAwaitingReview
 	}
-	return stale
+	return stale, awaitingDraft, awaitingReview
 }
 
 // TestApprovalRestampsTheBasis_RejectionDoesNot is the writer's half: an
@@ -269,4 +278,32 @@ func TestGoverningBasis_OnlyAnApprovalVouches(t *testing.T) {
 			assert.Equal(t, tc.want, tc.unit.GoverningBasis())
 		})
 	}
+}
+
+// TestStaleSplit_SumsToTheStaleCount: the two halves of the stale count answer
+// what the unit is waiting on, and they move as the loop produces.
+func TestStaleSplit_SumsToTheStaleCount(t *testing.T) {
+	f := newReapprovalFixture(t, "fp-produced")
+	ctx := context.Background()
+	_, err := f.app.ApplyReviewDecision(ctx, f.recipe, "en", f.ref, ReviewDecisionApproved, "")
+	require.NoError(t, err)
+
+	f.rewriteSource(t, "Hi there")
+	stale, awaitingDraft, awaitingReview := f.staleSplit(t)
+	require.Equal(t, 1, stale)
+	assert.Equal(t, 1, awaitingDraft, "nothing has translated the wording the project holds now")
+	assert.Zero(t, awaitingReview)
+	assert.Equal(t, stale, awaitingDraft+awaitingReview)
+
+	// The loop drafts the unit against the source it holds now. The decision is
+	// not its to replace, so the unit is still stale, and it is now waiting on a
+	// person rather than on another pass.
+	require.NoError(t, os.WriteFile(filepath.Join(f.root, "locales", "fr", "app.json"),
+		[]byte("{\n  \"greeting\": \"Salut\"\n}\n"), 0o644))
+
+	stale, awaitingDraft, awaitingReview = f.staleSplit(t)
+	require.Equal(t, 1, stale, "a re-draft cannot decide, so the unit stays stale")
+	assert.Zero(t, awaitingDraft)
+	assert.Equal(t, 1, awaitingReview, "the draft is in and the reviewer is who it waits on")
+	assert.Equal(t, stale, awaitingDraft+awaitingReview)
 }

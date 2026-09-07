@@ -959,6 +959,12 @@ export interface LocaleTranslationStats {
   approved_blocks?: number;
   /** Translated blocks failing the checks with error severity (computed at full coverage). */
   failing_checks?: number;
+  /** Pairs whose decision blessed source wording the block no longer carries. */
+  stale_blocks?: number;
+  /** The stale pairs the loop still owes a draft against the current source. */
+  stale_awaiting_draft_blocks?: number;
+  /** The stale pairs already re-drafted and waiting on a reviewer. */
+  stale_awaiting_review_blocks?: number;
   /** Derived ship state; absent from producers that do not derive it (e.g. pulse). */
   ship_state?: ShipState;
   /** Translated blocks counting as compliant (checks pass + voice bar where scored). */

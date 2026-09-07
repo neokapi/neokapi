@@ -627,6 +627,15 @@ type LocaleTranslationStats struct {
 	// declared (see DeriveShipState). Additive: producers that do not grade the
 	// basis leave it 0 (omitted from JSON).
 	StaleBlocks int `json:"stale_blocks,omitempty"`
+	// StaleAwaitingDraftBlocks and StaleAwaitingReviewBlocks split StaleBlocks
+	// by what the pair is waiting on, and sum to it. A stale pair the loop has
+	// not yet drafted against the source the block holds now is owed a
+	// convergence pass; one it has drafted is owed a person's attention. The
+	// verdict is the same either way, and the work is not, so a surface showing
+	// only the total sent a reader to re-run a loop that had nothing left to do.
+	// Additive: producers that do not grade the basis leave both 0.
+	StaleAwaitingDraftBlocks  int `json:"stale_awaiting_draft_blocks,omitempty"`
+	StaleAwaitingReviewBlocks int `json:"stale_awaiting_review_blocks,omitempty"`
 	// BasisUnknownBlocks counts pairs whose decision carries no basis at all.
 	// Such a record says nothing about the source it blessed, so it keeps its
 	// rung and ships as it did before — but the assumption behind that rung is

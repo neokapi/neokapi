@@ -183,7 +183,7 @@ func TestReviewedIndex_ApplyIgnoresARecordedBasis(t *testing.T) {
 	})
 	b := gradeBlock("Apple", "Eple")
 
-	st, aiDecided, basis := idx.apply(string(model.TargetStatusTranslated), "d-doc", b, "nb")
+	st, aiDecided, basis, _ := idx.apply(string(model.TargetStatusTranslated), "d-doc", b, "nb")
 	assert.Equal(t, string(model.TargetStatusTranslated), st)
 	assert.False(t, aiDecided)
 	assert.Equal(t, basisCurrent, basis)

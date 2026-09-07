@@ -361,19 +361,26 @@ func approvesTarget(e reviewedEntry, applies bool) bool {
 // AI decision ("ai/…" identity), which gate evaluation treats separately, and
 // basis is how the recorded decision grades against the current source.
 //
+// redrafted answers what a stale unit is waiting on: false while the record
+// still describes the translation on disk, so the loop owes it a draft, and
+// true once something has replaced that translation, so it is waiting on a
+// person to look at what replaced it. It is meaningful only alongside
+// basisStale.
+//
 // A unit with no target at all grades basisNone whatever the store holds: there
 // is no pairing for a record to have been made against, so there is nothing a
 // source edit could invalidate, and reading one would promote an untranslated
 // unit.
-func (r reviewedIndex) apply(base, scope string, b *model.Block, locale string) (st string, aiDecided bool, basis basisVerdict) {
+func (r reviewedIndex) apply(base, scope string, b *model.Block, locale string) (st string, aiDecided bool, basis basisVerdict, redrafted bool) {
 	if base == "" {
-		return base, false, basisNone
+		return base, false, basisNone, false
 	}
 	e, basis, applies := r.grade(scope, b, locale)
+	redrafted = !e.blessesTarget(b, model.LocaleID(locale))
 	if applies && base == string(model.TargetStatusTranslated) {
-		return string(e.status), state.IsAIDecision(e.by), basis
+		return string(e.status), state.IsAIDecision(e.by), basis, redrafted
 	}
-	return base, false, basis
+	return base, false, basis, redrafted
 }
 
 // aiReviewFor returns a block's fresh AI pre-review annotation for the locale,
@@ -576,7 +583,7 @@ func (a *App) ProjectCoverageTally(ctx context.Context, proj *project.KapiProjec
 			if !b.Translatable {
 				continue
 			}
-			st, aiDecided, basis := reviewed.apply(unitState(b, u.Locale), scope, b, u.Locale)
+			st, aiDecided, basis, redrafted := reviewed.apply(unitState(b, u.Locale), scope, b, u.Locale)
 			// A unit failing the project's bound checks is recorded as such and
 			// then tallied at the rung it actually holds. The finding withholds
 			// the scope's verdict (convergence.RollupGates) rather than rewriting
@@ -593,7 +600,7 @@ func (a *App) ProjectCoverageTally(ctx context.Context, proj *project.KapiProjec
 			// decision itself is history and is never rewritten.
 			switch basis {
 			case basisStale:
-				tally.AddStale(s)
+				tally.AddStale(s, redrafted)
 				continue
 			case basisUnknown:
 				tally.NoteUnknownBasis(s)

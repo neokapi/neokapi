@@ -135,6 +135,8 @@ func applyShipStates(ctx context.Context, cs store.ContentStore, voiceStore core
 			ls.FailingChecks = c.Failing
 		}
 		ls.StaleBlocks = b.Stale
+		ls.StaleAwaitingDraftBlocks = b.Owed
+		ls.StaleAwaitingReviewBlocks = b.Stale - b.Owed
 		ls.BasisUnknownBlocks = b.BasisUnknown
 		ls.ShipState = store.DeriveShipState(ls.TranslatedBlocks, ls.TotalBlocks, ls.ApprovedBlocks, ls.FailingChecks, ls.StaleBlocks)
 		applyCompliance(ls, c.Clean-c.CleanBelowBar, c.Scored > 0, termActive[ls.Locale])

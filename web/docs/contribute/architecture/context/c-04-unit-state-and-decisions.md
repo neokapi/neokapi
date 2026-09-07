@@ -244,6 +244,17 @@ loop: it counts as produced again, the run converges, and the unit waits on a
 reviewer with its ship state withheld. A source rewritten again moves away from
 the mark, and the unit is owed once more.
 
+**The stale count splits by what the unit waits on.** A stale unit the loop has
+not yet drafted against the source the project holds now is owed a convergence
+pass; one it has drafted is owed a person's attention. Both are stale and both
+withhold the scope, and the work is different, so the count is published as its
+two halves as well as its total (`convergence.LocaleCoverage.StaleAwaitingDraft`
+and `StaleAwaitingReview` locally, `stale_awaiting_draft_blocks` and
+`stale_awaiting_review_blocks` on the dashboard stats). Each venue reads the
+split from what it already holds: locally, whether the record still describes
+the translation on disk; on the server, whether the row's draft mark names the
+block's current source, which is the `Owed` half of the grouped tally.
+
 Staleness is one reason a produced unit is work, and the plan carries the others
 on their own axis. What a pass spends a provider call on is decided by the
 content memory, not by a target file: the pipeline reads the source documents,

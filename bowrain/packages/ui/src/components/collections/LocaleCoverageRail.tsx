@@ -99,6 +99,8 @@ export function LocaleCoverageRail({
           approvedBlocks={stats.approved_blocks}
           totalBlocks={stats.total_blocks}
           failingChecks={stats.failing_checks}
+          staleAwaitingDraft={stats.stale_awaiting_draft_blocks}
+          staleAwaitingReview={stats.stale_awaiting_review_blocks}
         />
       )}
     </div>
