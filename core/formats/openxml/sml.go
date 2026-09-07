@@ -1030,9 +1030,9 @@ func rstModelRuns(runs []textRun) []model.Run {
 	for _, run := range runs {
 		if activeProps == nil || !smlPropsEqual(*activeProps, run.props) {
 			if activeProps != nil {
-				activeProps.appendSMLClosingRuns(b, ids)
+				smlRunPropsProjection.appendClosing(*activeProps, b, ids)
 			}
-			run.props.appendSMLOpeningRuns(b, ids)
+			smlRunPropsProjection.appendOpening(run.props, b, ids)
 			propsCopy := run.props
 			activeProps = &propsCopy
 		}
@@ -1041,7 +1041,7 @@ func rstModelRuns(runs []textRun) []model.Run {
 	}
 
 	if activeProps != nil {
-		activeProps.appendSMLClosingRuns(b, ids)
+		smlRunPropsProjection.appendClosing(*activeProps, b, ids)
 	}
 
 	return b.Runs()
@@ -1050,70 +1050,6 @@ func rstModelRuns(runs []textRun) []model.Run {
 // smlPropsEqual reports whether two CT_Rst runs would produce the same <rPr>.
 func smlPropsEqual(a, b runProps) bool {
 	return a.equal(b) && a.smlRPrEqual(b)
-}
-
-// appendSMLOpeningRuns emits the opening codes for a CT_Rst run's <rPr>: one
-// declared code per named formatting type, then one opaque code carrying every
-// other child. Each code carries the source's own bytes on AttrSMLRPr, so the
-// writer puts the element back in the form it was read.
-func (rp runProps) appendSMLOpeningRuns(b *runBuilder, ids *spanIDs) {
-	emit := func(typ, subType, rPr string) {
-		var attrs map[string]string
-		if rPr != "" {
-			attrs = map[string]string{AttrSMLRPr: rPr}
-		}
-		b.AddPcOpenAttrs(ids.openSpan(), typ, subType, "", "", "", true, true, true, attrs)
-	}
-	if rp.bold {
-		emit(TypeBold, SubTypeBold, rp.smlNamedRPrXML("b"))
-	}
-	if rp.italic {
-		emit(TypeItalic, SubTypeItalic, rp.smlNamedRPrXML("i"))
-	}
-	if rp.underline != "" {
-		emit(TypeUnderline, SubTypeUnderline, rp.smlNamedRPrXML("u"))
-	}
-	if rp.strike {
-		emit(TypeStrikethrough, SubTypeStrikethrough, rp.smlNamedRPrXML("strike"))
-	}
-	if rp.vertAlign == "superscript" {
-		emit(TypeSuperscript, SubTypeSuperscript, rp.smlNamedRPrXML("vertAlign"))
-	}
-	if rp.vertAlign == "subscript" {
-		emit(TypeSubscript, SubTypeSubscript, rp.smlNamedRPrXML("vertAlign"))
-	}
-	if other := rp.smlOpaqueRPr(); other != "" {
-		emit(TypeSMLRunProps, SubTypeSMLRunProps, other)
-	}
-}
-
-// appendSMLClosingRuns closes what appendSMLOpeningRuns opened, innermost
-// first, so the ids pair.
-func (rp runProps) appendSMLClosingRuns(b *runBuilder, ids *spanIDs) {
-	emit := func(typ, subType string) {
-		b.AddPcClose(ids.closeSpan(), typ, subType, "", "")
-	}
-	if rp.smlOpaqueRPr() != "" {
-		emit(TypeSMLRunProps, SubTypeSMLRunProps)
-	}
-	if rp.vertAlign == "subscript" {
-		emit(TypeSubscript, SubTypeSubscript)
-	}
-	if rp.vertAlign == "superscript" {
-		emit(TypeSuperscript, SubTypeSuperscript)
-	}
-	if rp.strike {
-		emit(TypeStrikethrough, SubTypeStrikethrough)
-	}
-	if rp.underline != "" {
-		emit(TypeUnderline, SubTypeUnderline)
-	}
-	if rp.italic {
-		emit(TypeItalic, SubTypeItalic)
-	}
-	if rp.bold {
-		emit(TypeBold, SubTypeBold)
-	}
 }
 
 // buildBlock creates a model.Block from shared string text runs.

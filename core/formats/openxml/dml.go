@@ -354,15 +354,27 @@ func (p *dmlParser) parseParagraph(d *rawDecoder, partPath string, emitBlock fun
 				runs = append(runs, run...)
 
 			case "br":
-				runs = append(runs, textRun{text: "\n", props: runProps{}})
-				if err := skipElement(d); err != nil {
+				// <a:br> can carry its own <a:rPr> (ECMA-376 Part 1
+				// §21.1.2.2.1), which decides the height of the line it
+				// starts, so the element goes back as it was read.
+				raw, err := captureRawElement(d, t)
+				if err != nil {
 					return err
 				}
+				runs = append(runs, textRun{text: "\n", props: runProps{}, data: raw})
 
 			default:
-				if err := skipElement(d); err != nil {
+				// Every other direct child of <a:p> is markup the reader does
+				// not model: <a:fld> (a slide number, a date), <a:m>, a
+				// paragraph-level <mc:AlternateContent>. Capturing it as an
+				// opaque placeholder keeps it in the paragraph and in its
+				// place; skipping it deleted it from any paragraph that also
+				// carried text.
+				raw, err := captureRawElement(d, t)
+				if err != nil {
 					return err
 				}
+				runs = append(runs, textRun{text: sentinelParaOpaque, props: runProps{}, data: raw})
 			}
 
 		case xml.EndElement:
@@ -429,9 +441,15 @@ func (p *dmlParser) parseRun(d *rawDecoder) ([]textRun, error) {
 			switch t.Name.Local {
 			case "rPr":
 				props = parseDMLRunProps(t)
-				if err := skipElement(d); err != nil {
+				// The element travels whole: the reader names five of its
+				// attributes and DrawingML states the rest of a run's
+				// formatting in the others and in the children below them.
+				// See runProps.dmlRPr.
+				raw, err := captureRawElement(d, t)
+				if err != nil {
 					return nil, err
 				}
+				props.dmlRPr = raw
 			case "t":
 				text, err := readCharData(d)
 				if err != nil {
@@ -452,32 +470,62 @@ func (p *dmlParser) parseRun(d *rawDecoder) ([]textRun, error) {
 	}
 }
 
+// dmlPropsEqual reports whether two DrawingML runs would produce the same
+// <a:rPr>. The whole element counts, so a run that differs only in size or
+// colour keeps its own boundary.
+func dmlPropsEqual(a, b runProps) bool {
+	return a.equal(b) && a.dmlRPr == b.dmlRPr
+}
+
 // parseDMLRunProps extracts run properties from DrawingML <a:rPr> attributes.
 func parseDMLRunProps(el xml.StartElement) runProps {
 	var props runProps
 	for _, a := range el.Attr {
-		switch a.Name.Local {
-		case "b":
-			props.bold = a.Value == "1" || a.Value == "true"
-		case "i":
-			props.italic = a.Value == "1" || a.Value == "true"
-		case "u":
-			if a.Value != "" && a.Value != "none" {
-				props.underline = a.Value
-			}
-		case "strike":
-			if a.Value != "" && a.Value != "noStrike" {
-				props.strike = true
-			}
-		case "baseline":
-			if strings.HasPrefix(a.Value, "-") {
-				props.vertAlign = "subscript"
-			} else if a.Value != "" && a.Value != "0" {
-				props.vertAlign = "superscript"
-			}
-		}
+		applyDMLRunPropAttr(&props, a.Name.Local, a.Value)
 	}
 	return props
+}
+
+// applyDMLRunPropAttr reads one <a:rPr> attribute into the model. It is the
+// single statement of what each of the five named attributes means, so the
+// writer's reconciliation and the reader agree on when an attribute is already
+// saying what the codes ask for.
+func applyDMLRunPropAttr(props *runProps, name, value string) {
+	switch name {
+	case "b":
+		props.bold = dmlToggleOn(value)
+	case "i":
+		props.italic = dmlToggleOn(value)
+	case "u":
+		if value != "" && value != "none" {
+			props.underline = value
+		}
+	case "strike":
+		if value != "" && value != "noStrike" {
+			props.strike = true
+		}
+	case "baseline":
+		props.vertAlign = dmlBaselineVertAlign(value)
+	}
+}
+
+// dmlToggleOn reads a DrawingML boolean attribute (ECMA-376 Part 1 §22.9.2.7,
+// ST_OnOff).
+func dmlToggleOn(value string) bool {
+	return value == "1" || value == "true"
+}
+
+// dmlBaselineVertAlign reads the baseline percentage a run is raised or lowered
+// by (ECMA-376 Part 1 §21.1.2.3.9). A negative offset lowers the text.
+func dmlBaselineVertAlign(value string) string {
+	switch {
+	case strings.HasPrefix(value, "-"):
+		return "subscript"
+	case value == "" || value == "0":
+		return ""
+	default:
+		return "superscript"
+	}
 }
 
 // buildBlock creates a model.Block from text runs.
@@ -486,22 +534,43 @@ func (p *dmlParser) buildBlock(id string, runs []textRun, partPath string) *mode
 	ids := &spanIDs{}
 	var activeProps *runProps
 
+	closeActive := func() {
+		if activeProps != nil {
+			dmlRunPropsProjection.appendClosing(*activeProps, b, ids)
+			activeProps = nil
+		}
+	}
+
 	for _, run := range runs {
 		if run.text == "\n" {
+			closeActive()
+			data := run.data
+			if data == "" {
+				data = "<a:br/>"
+			}
 			b.AddPh(ids.placeholder(),
 				TypeBreak, SubTypeBreak,
-				"<a:br/>", "\n", "",
+				data, "\n", "",
 				false, false, false)
 			continue
 		}
 
-		if activeProps == nil || !activeProps.equal(run.props) {
-			if activeProps != nil && !activeProps.isEmpty() {
-				activeProps.appendClosingRuns(b, ids)
+		if run.text == sentinelParaOpaque {
+			closeActive()
+			subType := SubTypeDMLParaChild
+			if strings.HasPrefix(run.data, "<a:fld") {
+				subType = SubTypeDMLField
 			}
-			if !run.props.isEmpty() {
-				run.props.appendOpeningRuns(b, ids)
-			}
+			b.AddPh(ids.placeholder(),
+				TypeOpaqueParaChild, subType,
+				run.data, "", "",
+				false, false, false)
+			continue
+		}
+
+		if activeProps == nil || !dmlPropsEqual(*activeProps, run.props) {
+			closeActive()
+			dmlRunPropsProjection.appendOpening(run.props, b, ids)
 			propsCopy := run.props
 			activeProps = &propsCopy
 		}
@@ -509,9 +578,7 @@ func (p *dmlParser) buildBlock(id string, runs []textRun, partPath string) *mode
 		b.AddText(run.text)
 	}
 
-	if activeProps != nil && !activeProps.isEmpty() {
-		activeProps.appendClosingRuns(b, ids)
-	}
+	closeActive()
 
 	return &model.Block{
 		ID:           id,

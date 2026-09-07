@@ -4692,7 +4692,7 @@ func (w *Writer) renderDMLBlock(runs []model.Run) string {
 
 	var buf strings.Builder
 	var inRun bool
-	var runPropsAttrs []string
+	var open []dmlRunProp
 
 	closeRun := func() {
 		if inRun {
@@ -4707,11 +4707,7 @@ func (w *Writer) renderDMLBlock(runs []model.Run) string {
 			for _, ch := range r.Text.Text {
 				if !inRun {
 					buf.WriteString(`<a:r>`)
-					if len(runPropsAttrs) > 0 {
-						buf.WriteString(`<a:rPr `)
-						buf.WriteString(strings.Join(runPropsAttrs, " "))
-						buf.WriteString(`/>`)
-					}
+					buf.WriteString(dmlRunPropsXML(open))
 					buf.WriteString(`<a:t>`)
 					inRun = true
 				}
@@ -4719,19 +4715,38 @@ func (w *Writer) renderDMLBlock(runs []model.Run) string {
 			}
 
 		case r.PcOpen != nil:
-			runPropsAttrs = w.addDMLProp(runPropsAttrs, r.PcOpen.Type)
+			// A code opens a stretch, so the run it lands in ends here. Without
+			// this the formatting reached the run after the next boundary and
+			// the stretch it was opened for went out unformatted.
+			closeRun()
+			open = append(open, dmlRunProp{
+				id:       r.PcOpen.ID,
+				spanType: r.PcOpen.Type,
+				rPr:      r.PcOpen.Attr(AttrDMLRPr),
+			})
 
 		case r.PcClose != nil:
 			closeRun()
-			runPropsAttrs = w.removeDMLProp(runPropsAttrs, r.PcClose.Type)
+			open = removeDMLProp(open, r.PcClose)
 
 		case r.Ph != nil:
 			closeRun()
-			if r.Ph.Type == TypeBreak {
-				buf.WriteString(`<a:br/>`)
-			} else {
+			switch {
+			case r.Ph.Data != "":
+				// The captured element: a <a:br> with its own <a:rPr>, an
+				// <a:fld> placeholder, any other paragraph child the reader
+				// held whole.
 				buf.WriteString(r.Ph.Data)
+			case r.Ph.Type == TypeBreak:
+				buf.WriteString(`<a:br/>`)
 			}
+
+		case r.Sub != nil, r.Plural != nil, r.Select != nil:
+			// A subblock reference, a plural and a select are authored
+			// elsewhere in the model and never reach a shape's text body: the
+			// reader builds DrawingML paragraphs out of text, paired codes and
+			// placeholders only. Named here so a kind added to the model is
+			// answered rather than dropped by a silent default.
 		}
 	}
 
@@ -4739,49 +4754,225 @@ func (w *Writer) renderDMLBlock(runs []model.Run) string {
 	return buf.String()
 }
 
-func (w *Writer) addDMLProp(attrs []string, spanType string) []string {
-	switch spanType {
-	case TypeBold:
-		return append(attrs, `b="1"`)
-	case TypeItalic:
-		return append(attrs, `i="1"`)
-	case TypeUnderline:
-		return append(attrs, `u="sng"`)
-	case TypeStrikethrough:
-		return append(attrs, `strike="sngStrike"`)
-	case TypeSuperscript:
-		return append(attrs, `baseline="30000"`)
-	case TypeSubscript:
-		return append(attrs, `baseline="-25000"`)
+// dmlRunProp is one code the writer currently has open: the id it was paired
+// under, the formatting type it declared, and, for the opaque code, the source
+// <a:rPr> it carries.
+type dmlRunProp struct {
+	id       string
+	spanType string
+	rPr      string
+}
+
+// removeDMLProp closes a code. It matches the id the reader paired (spanIDs),
+// and falls back to the innermost open code of the same type for a block whose
+// ids were rewritten in transit.
+func removeDMLProp(open []dmlRunProp, close *model.PcCloseRun) []dmlRunProp {
+	for i, p := range slices.Backward(open) {
+		if p.id == close.ID {
+			return append(open[:i:i], open[i+1:]...)
+		}
+	}
+	for i, p := range slices.Backward(open) {
+		if p.spanType == close.Type {
+			return append(open[:i:i], open[i+1:]...)
+		}
+	}
+	return open
+}
+
+// dmlRunPropsXML writes the <a:rPr> for a run the writer is opening.
+//
+// A block this reader produced carries the source element on its opaque code,
+// so the element is replayed and only the named attributes are reconciled
+// against the codes that are open. A block authored elsewhere carries the named
+// codes alone, and the element is synthesised from them.
+func dmlRunPropsXML(open []dmlRunProp) string {
+	var rPr string
+	named := make(map[string]bool, len(open))
+	for _, p := range open {
+		if p.spanType == TypeDMLRunProps {
+			if p.rPr != "" {
+				rPr = p.rPr
+			}
+			continue
+		}
+		named[p.spanType] = true
+	}
+	if rPr != "" {
+		return reconcileDMLRPr(rPr, named)
+	}
+
+	var attrs []string
+	for _, p := range open {
+		attrs = addDMLProp(attrs, p.spanType)
+	}
+	if len(attrs) == 0 {
+		return ""
+	}
+	return `<a:rPr ` + strings.Join(attrs, " ") + `/>`
+}
+
+func addDMLProp(attrs []string, spanType string) []string {
+	if name, value := dmlNamedAttr(spanType); name != "" {
+		return append(attrs, name+`="`+value+`"`)
 	}
 	return attrs
 }
 
-func (w *Writer) removeDMLProp(attrs []string, spanType string) []string {
-	var target string
+// dmlNamedAttr is the canonical <a:rPr> attribute for a named formatting type:
+// the spelling the writer reaches for when the source supplied none.
+func dmlNamedAttr(spanType string) (name, value string) {
 	switch spanType {
 	case TypeBold:
-		target = `b="1"`
+		return "b", "1"
 	case TypeItalic:
-		target = `i="1"`
+		return "i", "1"
 	case TypeUnderline:
-		target = `u="sng"`
+		return "u", "sng"
 	case TypeStrikethrough:
-		target = `strike="sngStrike"`
+		return "strike", "sngStrike"
 	case TypeSuperscript:
-		target = `baseline="30000"`
+		return "baseline", "30000"
 	case TypeSubscript:
-		target = `baseline="-25000"`
-	default:
-		return attrs
+		return "baseline", "-25000"
 	}
-	var result []string
-	for _, a := range attrs {
-		if a != target {
-			result = append(result, a)
+	return "", ""
+}
+
+// dmlNamedAttrNames is the set of <a:rPr> attributes the model names, in the
+// order a synthesised element writes them.
+var dmlNamedAttrNames = []string{"b", "i", "u", "strike", "baseline"}
+
+// reconcileDMLRPr replays a source <a:rPr> with the named formatting the open
+// codes ask for.
+//
+// Every byte stays where it was when the codes say what the source said, which
+// is the ordinary case and what keeps an untranslated slide byte for byte. An
+// attribute moves only where the two disagree: it is rewritten to the canonical
+// spelling when a code asks for formatting the source did not carry, and
+// removed when the source carried formatting no code asks for, because the
+// reader reads an absent attribute as off.
+func reconcileDMLRPr(rPr string, open map[string]bool) string {
+	want := runProps{}
+	if open[TypeBold] {
+		want.bold = true
+	}
+	if open[TypeItalic] {
+		want.italic = true
+	}
+	if open[TypeUnderline] {
+		want.underline = "sng"
+	}
+	if open[TypeStrikethrough] {
+		want.strike = true
+	}
+	switch {
+	case open[TypeSuperscript]:
+		want.vertAlign = "superscript"
+	case open[TypeSubscript]:
+		want.vertAlign = "subscript"
+	}
+
+	raw := []byte(rPr)
+	attrs, ok := scanRawAttrs(raw)
+	if !ok {
+		return rPr
+	}
+
+	present := make(map[string]bool, len(dmlNamedAttrNames))
+	// Rewrite from the back so an earlier attribute's span stays valid.
+	for _, a := range slices.Backward(attrs) {
+		if !slices.Contains(dmlNamedAttrNames, a.name) {
+			continue
 		}
+		present[a.name] = true
+		var have runProps
+		applyDMLRunPropAttr(&have, a.name, string(raw[a.valueStart:a.valueEnd]))
+		if dmlNamedAttrAgrees(a.name, have, want) {
+			continue
+		}
+		if !dmlNamedAttrWanted(a.name, want) {
+			raw = append(raw[:a.start:a.start], raw[a.end:]...)
+			continue
+		}
+		_, value := dmlNamedAttr(dmlNamedAttrSpanType(a.name, want))
+		raw = append(raw[:a.valueStart:a.valueStart], append([]byte(value), raw[a.valueEnd:]...)...)
 	}
-	return result
+
+	for _, name := range dmlNamedAttrNames {
+		if present[name] || !dmlNamedAttrWanted(name, want) {
+			continue
+		}
+		rescanned, ok := scanRawAttrs(raw)
+		if !ok {
+			return rPr
+		}
+		at, ok := rawTagAttrInsertPoint(raw, rescanned)
+		if !ok {
+			return rPr
+		}
+		_, value := dmlNamedAttr(dmlNamedAttrSpanType(name, want))
+		insert := []byte(` ` + name + `="` + value + `"`)
+		raw = append(raw[:at:at], append(insert, raw[at:]...)...)
+	}
+	return string(raw)
+}
+
+// dmlNamedAttrWanted reports whether the open codes ask for the formatting one
+// named attribute carries.
+func dmlNamedAttrWanted(name string, want runProps) bool {
+	switch name {
+	case "b":
+		return want.bold
+	case "i":
+		return want.italic
+	case "u":
+		return want.underline != ""
+	case "strike":
+		return want.strike
+	case "baseline":
+		return want.vertAlign != ""
+	}
+	return false
+}
+
+// dmlNamedAttrAgrees reports whether an attribute already says what the open
+// codes ask for, in which case its source bytes stay untouched.
+func dmlNamedAttrAgrees(name string, have, want runProps) bool {
+	switch name {
+	case "b":
+		return have.bold == want.bold
+	case "i":
+		return have.italic == want.italic
+	case "u":
+		return (have.underline != "") == (want.underline != "")
+	case "strike":
+		return have.strike == want.strike
+	case "baseline":
+		return have.vertAlign == want.vertAlign
+	}
+	return true
+}
+
+// dmlNamedAttrSpanType names the formatting type an attribute is being written
+// for, which baseline needs because one attribute carries two of them.
+func dmlNamedAttrSpanType(name string, want runProps) string {
+	switch name {
+	case "b":
+		return TypeBold
+	case "i":
+		return TypeItalic
+	case "u":
+		return TypeUnderline
+	case "strike":
+		return TypeStrikethrough
+	case "baseline":
+		if want.vertAlign == "subscript" {
+			return TypeSubscript
+		}
+		return TypeSuperscript
+	}
+	return ""
 }
 
 // renderSMLBlock renders a run sequence as SpreadsheetML content.

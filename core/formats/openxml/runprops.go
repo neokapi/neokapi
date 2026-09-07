@@ -110,6 +110,16 @@ type runProps struct {
 	//
 	// Populated only by parseSMLRunProps; nil on every WordprocessingML run.
 	smlRPr []rPrChild
+	// dmlRPr is a DrawingML run's <a:rPr> element as the source wrote it,
+	// start tag, attributes, children and all (ECMA-376 Part 1 §21.1.2.3.9).
+	//
+	// DrawingML states most of a run's formatting in attributes on <a:rPr>
+	// rather than in child elements, so there is no per-child list to keep the
+	// way smlRPr does: the element travels whole and the writer rewrites only
+	// the attributes the model names.
+	//
+	// Populated only by the DrawingML reader; empty on every other run.
+	dmlRPr string
 }
 
 // rPrChild captures one <w:rPr> child element by its local name and
@@ -228,6 +238,12 @@ func (rp runProps) canBeMergedWithTexts(other runProps, rText, otherText string)
 	// so two runs merge only when those match. Both sides are nil on a
 	// WordprocessingML run, where the rPrChildren gate below decides.
 	if !rp.smlRPrEqual(other) {
+		return false
+	}
+	// The same rule for a DrawingML run, which keeps its whole <a:rPr>: two
+	// runs that differ only in size or colour are different runs, and merging
+	// them is how a slide lost both.
+	if rp.dmlRPr != other.dmlRPr {
 		return false
 	}
 	return rPrChildrenMergeableTexts(rp.rPrChildren, other.rPrChildren, rText, otherText)
