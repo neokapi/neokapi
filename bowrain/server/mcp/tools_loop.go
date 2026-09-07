@@ -49,7 +49,10 @@ type getSuggestedRulesOutput struct {
 	Candidates []coreprofile.CandidateRule `json:"candidates"`
 }
 
-func (s *MCPServer) handleGetSuggestedRules(ctx context.Context, _ *mcp.CallToolRequest, input getSuggestedRulesInput) (*mcp.CallToolResult, getSuggestedRulesOutput, error) {
+func (s *MCPServer) handleGetSuggestedRules(ctx context.Context, req *mcp.CallToolRequest, input getSuggestedRulesInput) (*mcp.CallToolResult, getSuggestedRulesOutput, error) {
+	if err := s.authorizeWorkspace(ctx, req, input.WorkspaceID); err != nil {
+		return nil, getSuggestedRulesOutput{}, err
+	}
 	minCount := input.MinCount
 	if minCount <= 0 {
 		minCount = 3
@@ -111,9 +114,13 @@ type evaluateRuleInput struct {
 	Stream      string `json:"stream,omitempty" jsonschema:"the stream (default main)"`
 }
 
-func (s *MCPServer) handleEvaluateRule(ctx context.Context, _ *mcp.CallToolRequest, input evaluateRuleInput) (*mcp.CallToolResult, coreprofile.BlastRadius, error) {
+func (s *MCPServer) handleEvaluateRule(ctx context.Context, req *mcp.CallToolRequest, input evaluateRuleInput) (*mcp.CallToolResult, coreprofile.BlastRadius, error) {
 	if input.Term == "" || input.ProjectID == "" {
 		return nil, coreprofile.BlastRadius{}, errors.New("term and project_id are required")
+	}
+	projectID, err := s.authorizeProject(ctx, req, input.ProjectID)
+	if err != nil {
+		return nil, coreprofile.BlastRadius{}, err
 	}
 	baseline, err := s.voiceStore.GetProfile(ctx, input.ProfileID)
 	if err != nil {
@@ -126,7 +133,7 @@ func (s *MCPServer) handleEvaluateRule(ctx context.Context, _ *mcp.CallToolReque
 	// projection meant paying for the corpus twice to look at part of it once.
 	var blocks []coreprofile.EvalBlock
 	err = store.EachBlockBatch(ctx, s.contentStore,
-		store.BlockQuery{ProjectID: input.ProjectID, Stream: input.Stream},
+		store.BlockQuery{ProjectID: projectID, Stream: input.Stream},
 		store.DefaultBlockBatch,
 		func(batch []*venue.StoredBlock) error {
 			for _, sb := range batch {

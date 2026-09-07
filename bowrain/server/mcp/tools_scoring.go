@@ -27,6 +27,8 @@ type voiceScopeInput struct {
 }
 
 // resolveProfile selects the effective voice profile for a scoring call.
+// A project named in the scope is authorized first, so a scope cannot reach
+// the voice binding of a project outside the caller's workspaces.
 // An explicit profileID wins; otherwise the profile is resolved from the
 // organizational hierarchy (collection → stream → project → workspace default).
 // locale and channel overrides are applied to the selected profile, then the
@@ -34,10 +36,10 @@ type voiceScopeInput struct {
 // an unknown persona simply leaves the base profile unchanged. Returns an error
 // when no profile is bound at any level, matching the prior behavior of an
 // empty/unknown profile ID.
-func (s *MCPServer) resolveProfile(ctx context.Context, profileID string, scope voiceScopeInput, locale, channel string) (*coreprofile.VoiceProfile, error) {
-	projectID := scope.ProjectID
-	if s.contentStore != nil {
-		projectID = s.resolveProjectID(ctx, scope.ProjectID)
+func (s *MCPServer) resolveProfile(ctx context.Context, req *mcp.CallToolRequest, profileID string, scope voiceScopeInput, locale, channel string) (*coreprofile.VoiceProfile, error) {
+	projectID, err := s.authorizeOptionalProject(ctx, req, scope.ProjectID)
+	if err != nil {
+		return nil, err
 	}
 	profile, err := voicescope.Resolve(ctx, s.contentStore, s.wsDefault, s.voiceStore, voicescope.Scope{
 		ExplicitProfileID: profileID,
@@ -98,7 +100,7 @@ type scoreVoiceComplianceOutput struct {
 }
 
 func (s *MCPServer) handleScoreVoiceCompliance(ctx context.Context, req *mcp.CallToolRequest, input scoreVoiceComplianceInput) (*mcp.CallToolResult, scoreVoiceComplianceOutput, error) {
-	profile, err := s.resolveProfile(ctx, input.ProfileID, input.voiceScopeInput, input.Locale, "")
+	profile, err := s.resolveProfile(ctx, req, input.ProfileID, input.voiceScopeInput, input.Locale, "")
 	if err != nil {
 		return nil, scoreVoiceComplianceOutput{}, err
 	}
@@ -133,7 +135,7 @@ type suggestCorrectionsOutput struct {
 }
 
 func (s *MCPServer) handleSuggestCorrections(ctx context.Context, req *mcp.CallToolRequest, input suggestCorrectionsInput) (*mcp.CallToolResult, suggestCorrectionsOutput, error) {
-	profile, err := s.resolveProfile(ctx, input.ProfileID, input.voiceScopeInput, input.Locale, "")
+	profile, err := s.resolveProfile(ctx, req, input.ProfileID, input.voiceScopeInput, input.Locale, "")
 	if err != nil {
 		return nil, suggestCorrectionsOutput{}, err
 	}
@@ -191,7 +193,7 @@ type rewriteInVoiceOutput struct {
 }
 
 func (s *MCPServer) handleRewriteInVoice(ctx context.Context, req *mcp.CallToolRequest, input rewriteInVoiceInput) (*mcp.CallToolResult, rewriteInVoiceOutput, error) {
-	resolved, err := s.resolveProfile(ctx, input.ProfileID, input.voiceScopeInput, input.Locale, input.Channel)
+	resolved, err := s.resolveProfile(ctx, req, input.ProfileID, input.voiceScopeInput, input.Locale, input.Channel)
 	if err != nil {
 		return nil, rewriteInVoiceOutput{}, err
 	}
