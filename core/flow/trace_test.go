@@ -192,7 +192,7 @@ func TestSnapshotFromPart(t *testing.T) {
 			rec.SnapshotPart(tt.part, "", "initial")
 
 			snapshots := rec.Snapshots()
-			id := tt.part.Resource.ResourceID()
+			id := flow.PartKey(tt.part)
 			require.Contains(t, snapshots, id)
 
 			snap := snapshots[id].Initial

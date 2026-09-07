@@ -33,6 +33,9 @@ type TraceEvent struct {
 
 // PartSnapshot captures the state of a Part at a point in time.
 type PartSnapshot struct {
+	// ID names the resource the part carries, which an inspector shows. The
+	// trace holds the part under PartKey instead, so a layer's start and end,
+	// which share one resource, stay apart.
 	ID         string `json:"id"`
 	Type       string `json:"type"`                 // "LayerStart", "LayerEnd", "Block", "Data", "Media", "GroupStart", "GroupEnd"
 	Summary    string `json:"summary"`              // short description
@@ -230,6 +233,33 @@ func (r *TraceRecorder) admitSnapshotLocked(id, phase string) bool {
 	return true
 }
 
+// PartKey identifies a part within a trace: the key its snapshots are held
+// under, and the PartID its events carry.
+//
+// It is the resource id for a block, a data part or a media part, and the
+// resource id plus a boundary marker for the paired structural parts. A
+// layer's start and end carry the same *model.Layer, and a group's start and
+// end carry the same id, so the resource id alone names two parts at once: the
+// end's snapshot replaced the start's, and the Run view showed a document
+// opening in the state it closed in.
+//
+// A part with no resource has no identity, and PartKey returns the empty
+// string for it.
+func PartKey(part *model.Part) string {
+	if part == nil || part.Resource == nil {
+		return ""
+	}
+	id := part.Resource.ResourceID()
+	switch part.Type {
+	case model.PartLayerStart, model.PartGroupStart:
+		return id + "#start"
+	case model.PartLayerEnd, model.PartGroupEnd:
+		return id + "#end"
+	default:
+		return id
+	}
+}
+
 // SnapshotPart captures a snapshot of a Part. When phase is "initial", the
 // snapshot is stored as the initial state. Otherwise, phase is treated as the
 // nodeID and stored in AfterNode. A Part without a Resource has no identity to
@@ -238,7 +268,7 @@ func (r *TraceRecorder) SnapshotPart(part *model.Part, nodeID string, phase stri
 	if part == nil || part.Resource == nil {
 		return
 	}
-	id := part.Resource.ResourceID()
+	id := PartKey(part)
 	// Admission is decided before the snapshot is built, so a part past the
 	// cap costs a map lookup and no copying, and the lock is not held across
 	// the copy.
@@ -542,7 +572,7 @@ func (t *TracingTool) recordEnter(part *model.Part) {
 	if part == nil || part.Resource == nil {
 		return
 	}
-	t.recorder.Record(TraceEnter, t.nodeID, part.Resource.ResourceID(), nil)
+	t.recorder.Record(TraceEnter, t.nodeID, PartKey(part), nil)
 }
 
 // recordExit snapshots a Part leaving the node and records its exit.
@@ -551,7 +581,7 @@ func (t *TracingTool) recordExit(part *model.Part) {
 		return
 	}
 	t.recorder.SnapshotPart(part, t.nodeID, t.nodeID)
-	t.recorder.Record(TraceExit, t.nodeID, part.Resource.ResourceID(), nil)
+	t.recorder.Record(TraceExit, t.nodeID, PartKey(part), nil)
 }
 
 // Verify TracingTool implements tool.Tool at compile time.
