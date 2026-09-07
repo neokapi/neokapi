@@ -319,6 +319,12 @@ func (p *dmlParser) parseParagraph(d *rawDecoder, partPath string, emitBlock fun
 	d.Pin(paraOff)
 	defer d.Unpin()
 
+	// The span the paragraph's run-bearing children occupy: from the first
+	// <a:r>, <a:br> or opaque child to the last. It is the half the writer
+	// rebuilds from the block, and the half the block keeps the source bytes of
+	// when the two spell it differently. See dmlSourceProp.
+	runsStart, runsEnd := int64(-1), int64(-1)
+
 	for {
 		tok, err := d.Token()
 		if err != nil {
@@ -327,6 +333,7 @@ func (p *dmlParser) parseParagraph(d *rawDecoder, partPath string, emitBlock fun
 
 		switch t := tok.(type) {
 		case xml.StartElement:
+			childStart := d.Offset()
 			switch t.Name.Local {
 			case "pPr", "endParaRPr":
 				raw, err := captureRawElement(d, t)
@@ -352,6 +359,7 @@ func (p *dmlParser) parseParagraph(d *rawDecoder, partPath string, emitBlock fun
 					return err
 				}
 				runs = append(runs, run...)
+				runsStart, runsEnd = spanGrow(runsStart, childStart, d.EndOffset())
 
 			case "br":
 				// <a:br> can carry its own <a:rPr> (ECMA-376 Part 1
@@ -362,6 +370,7 @@ func (p *dmlParser) parseParagraph(d *rawDecoder, partPath string, emitBlock fun
 					return err
 				}
 				runs = append(runs, textRun{text: "\n", props: runProps{}, data: raw})
+				runsStart, runsEnd = spanGrow(runsStart, childStart, d.EndOffset())
 
 			default:
 				// Every other direct child of <a:p> is markup the reader does
@@ -375,6 +384,7 @@ func (p *dmlParser) parseParagraph(d *rawDecoder, partPath string, emitBlock fun
 					return err
 				}
 				runs = append(runs, textRun{text: sentinelParaOpaque, props: runProps{}, data: raw})
+				runsStart, runsEnd = spanGrow(runsStart, childStart, d.EndOffset())
 			}
 
 		case xml.EndElement:
@@ -413,6 +423,9 @@ func (p *dmlParser) parseParagraph(d *rawDecoder, partPath string, emitBlock fun
 				p.skelWriteEndElement(d)
 
 				block := p.buildBlock(blockID, merged, partPath)
+				if src := dmlSourceForm(d.RangeString(runsStart, runsEnd), block.Source); src != "" {
+					block.Properties[dmlSourceProp] = src
+				}
 				if role, level := p.placeholderRole(); role != "" {
 					block.SetSemanticRole(role, level)
 				}
