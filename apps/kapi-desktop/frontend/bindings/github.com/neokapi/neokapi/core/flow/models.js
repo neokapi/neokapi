@@ -421,6 +421,9 @@ export class PartSnapshot {
     constructor($$source = {}) {
         if (!("id" in $$source)) {
             /**
+             * ID names the resource the part carries, which an inspector shows. The
+             * trace holds the part under PartKey instead, so a layer's start and end,
+             * which share one resource, stay apart.
              * @member
              * @type {string}
              */
