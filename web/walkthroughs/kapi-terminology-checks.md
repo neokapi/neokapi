@@ -1,9 +1,9 @@
 ---
-id: kapi-terminology-qa
+id: kapi-terminology-checks
 audience: developer
-target_doc: docs/walkthroughs/kapi-terminology-qa.mdx
+target_doc: docs/walkthroughs/kapi-terminology-checks.mdx
 scenes:
-  - id: terms-qa
+  - id: terms-checks
     kind: terminal
     binary: kapi
     duration_budget_seconds: 60
@@ -25,7 +25,7 @@ lookup/search; `kapi exec term-check` flags terminology drift in target files
 before they ship — the same check `kapi up` binds after every pass, so a
 violating unit cannot lift its locale over the ship gate.
 
-## Scene 1 — terms-qa (terminal)
+## Scene 1: terms-checks (terminal)
 
 Inspect the pre-seeded terms's stats, look up a
 specific term, search for related ones, then run `kapi pseudo-translate`

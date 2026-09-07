@@ -971,15 +971,16 @@ async function bowrainGovernanceWalk(c: WalkCtx): Promise<void> {
   await beat("intro", null, async () => {
     await idle(page, 2200);
   });
-  // Open the workspace content memory. Content memory is no longer a rail
-  // entry: the context restructure moved it under the Context hub, so the
-  // route is nav-context → subnav-memory. `nav-memory` no longer exists and
-  // tapping it recorded a dead click.
+  // Open the workspace content memory, a section of the Context hub:
+  // nav-context selects the hub on the rail, subnav-memory the section. The
+  // narration says the memory is on screen, so the beat waits for the browser
+  // without swallowing a miss: a take where it never arrived fails the capture
+  // instead of filming the dashboard under the memory narration.
   await beat("open-memory", null, async () => {
     await tap("nav-context");
     await page.waitForTimeout(600);
     await tap("subnav-memory");
-    await page.waitForSelector('[data-testid="tm-browser"]', { timeout: 20_000 }).catch(() => {});
+    await page.waitForSelector('[data-testid="tm-browser"]', { timeout: 20_000 });
     await page.waitForTimeout(1200);
   });
   await beat("tm-list", { x: 0.02, y: 0.1, w: 0.96, h: 0.82 }, async () => {
@@ -993,14 +994,13 @@ async function bowrainGovernanceWalk(c: WalkCtx): Promise<void> {
     await page.waitForTimeout(1600);
   });
   // Move to Concepts. The memory beat above already entered the Context hub,
-  // so this is a section switch within it — subnav-concepts, not nav-context,
-  // which from inside the hub is at best a redirect back to the landing
-  // section and at worst a no-op.
+  // so this is a section switch within it: subnav-concepts rather than
+  // nav-context, which from inside the hub is at best a redirect back to the
+  // landing section and at worst a no-op. The concept search box is the one
+  // labelled control on the page, and the same rule applies: it must arrive.
   await beat("open-concepts", null, async () => {
     await tap("subnav-concepts");
-    await page
-      .waitForSelector('input[aria-label="Search concepts"]', { timeout: 20_000 })
-      .catch(() => {});
+    await page.waitForSelector('input[aria-label="Search concepts"]', { timeout: 20_000 });
     await page.waitForTimeout(1500);
   });
   await beat("concept-list", { x: 0.02, y: 0.1, w: 0.96, h: 0.82 }, async () => {
@@ -1578,19 +1578,31 @@ async function recordTheme(
   // capture, also mark the root with `pw-recording-tl` so the shared sidebar
   // reserves the macOS traffic-light safe area (the desktop app sets its own
   // `bw-desktop-mac`); the framed DesktopScene paints the dots over that gutter.
-  await context.addInitScript(({ isDark, isWeb }) => {
-    const pin = () => {
-      document.documentElement.classList.toggle("dark", isDark);
-      if (isWeb) document.documentElement.classList.add("pw-recording-tl");
-    };
-    pin();
-    document.addEventListener("DOMContentLoaded", pin);
-    try {
-      new MutationObserver(pin).observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
-    } catch {
-      /* observer unavailable — initial pin still applied */
-    }
-  }, { isDark: theme === "dark", isWeb: !!web });
+  //
+  // The script is a string, not a function. tsx runs the recorder through
+  // esbuild with keepNames on, which rewrites a named inner function such as
+  // `const pin = () => …` to `__name(() => …, "pin")`; Playwright serialises a
+  // function argument by its source, so the page received a reference to a
+  // helper it does not have and threw "__name is not defined" at document
+  // start. The take then carried on with no pin at all and only the recorder's
+  // pageerror line said so.
+  await context.addInitScript(
+    `(() => {
+      const isDark = ${theme === "dark"};
+      const isWeb = ${!!web};
+      const pin = () => {
+        document.documentElement.classList.toggle("dark", isDark);
+        if (isWeb) document.documentElement.classList.add("pw-recording-tl");
+      };
+      pin();
+      document.addEventListener("DOMContentLoaded", pin);
+      try {
+        new MutationObserver(pin).observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+      } catch {
+        /* observer unavailable: the initial pin still applied */
+      }
+    })();`,
+  );
   const t0 = Date.now();
   const page = await context.newPage();
   // Debug: surface the browser console (HARNESS_DEBUG=1) + uncaught errors

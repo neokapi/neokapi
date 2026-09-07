@@ -528,7 +528,10 @@ func (s *Server) HandleGetConceptStory(c echo.Context) error {
 	wsID, _ := c.Get("workspace_id").(string)
 	ctx := c.Request().Context()
 
-	var entries []ConceptStoryEntry
+	// An empty slice, never nil: `entries` is an array on the wire, and a concept
+	// with no history yet must serialise as `[]`, which every client maps over
+	// as an empty timeline. A nil slice encodes as `null` instead.
+	entries := []ConceptStoryEntry{}
 
 	revisions, err := s.KnowledgeStore.ListRevisions(ctx, wsID, cid)
 	if err != nil {

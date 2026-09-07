@@ -53,12 +53,20 @@ async function buildKapiIfMissing(): Promise<void> {
   console.log(`✓ built ${KAPI_BIN}`);
 }
 
+/**
+ * Assemble the Claude Code plugin bundle the capture stage loads with
+ * `--plugin-dir`. The skill source of truth is cli/skills/data, and the root
+ * Makefile's `plugin-bundle` target is the one place that copies it into
+ * <plugin>/plugins/kapi/skills (gitignored), so the harness runs that target
+ * rather than keeping a second copy of the layout.
+ */
 async function regenPluginBundle(): Promise<void> {
-  const skillsDir = path.join(PLUGIN_DIR, "skills");
-  fs.rmSync(skillsDir, { recursive: true, force: true });
-  fs.mkdirSync(skillsDir, { recursive: true });
-  const r = await run(KAPI_BIN, ["skills", "export", "--dir", skillsDir], { env: setupKapiEnv(), timeoutMs: 60_000 });
-  if (r.code !== 0) throw new Error(`skills export failed: ${r.stderr}`);
+  const r = await run("make", ["-C", REPO_ROOT, "plugin-bundle"], { env: process.env, timeoutMs: 120_000 });
+  if (r.code !== 0) throw new Error(`make plugin-bundle failed: ${r.stderr.slice(-800)}`);
+  const skillsDir = path.join(PLUGIN_DIR, "plugins", "kapi", "skills", "kapi");
+  if (!fs.existsSync(path.join(skillsDir, "SKILL.md"))) {
+    throw new Error(`plugin bundle incomplete: ${skillsDir}/SKILL.md missing`);
+  }
   console.log(`✓ plugin bundle: ${skillsDir}`);
 }
 

@@ -180,7 +180,7 @@ readonly RETIRED_IDENT_RE='[A-Za-z0-9]+[-_][Qq][Aa](?![A-Za-z0-9])|(?<![A-Za-z0-
 #                      video files on the docs CDN
 #   ITS fixture        locQualityRatingProfileRef values captured from upstream
 #                      Okapi's XLIFF tests
-readonly IDENT_BOUNDARY_RE='translate-qa-parallel|translate-and-qa|translate-qa|parallel-qa|pseudo-qa|qa-only|qa-xliff|qa-then-pseudo|qa-check-block|qa-check|qa_check|qa-checks|qa-provider|qa-rules|qa-ai|qa_results|SyncQAResult|exec-qa|kapi-terminology-qa|terminology-qa|termbase-qa|terms-qa|qaModel'
+readonly IDENT_BOUNDARY_RE='translate-qa-parallel|translate-and-qa|translate-qa|parallel-qa|pseudo-qa|qa-only|qa-xliff|qa-then-pseudo|qa-check-block|qa-check|qa_check|qa-checks|qa-provider|qa-rules|qa-ai|qa_results|SyncQAResult|exec-qa|terminology-qa|qaModel'
 
 # ── scope ────────────────────────────────────────────────────────────────────
 #

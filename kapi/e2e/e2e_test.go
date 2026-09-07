@@ -123,7 +123,7 @@ func kapiAllowFail(t *testing.T, args ...string) (string, error) {
 }
 
 // ─── User Story 1: Terminology checks ───────────────────────────────────────
-// Verifies the complete workflow from terminology-qa.md:
+// Verifies the complete workflow from kapi-terminology-checks.md:
 //   Import terms → inspect stats → lookup terms → search →
 //   run the checks on translations → export terms
 

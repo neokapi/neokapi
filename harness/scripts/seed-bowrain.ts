@@ -3,8 +3,9 @@
  * Unified, idempotent bowrain seeder for the staged video pipeline.
  *
  * Provisions ONE shared workspace (`bowmart`) holding everything all five
- * bowrain-web walkthroughs need, then writes the record-phase tokens + ids to
- * `harness/.env` (which the recorder's loadEnv() reads). This supersedes the
+ * bowrain-web walkthroughs need, including the review walk's separation-of-
+ * duties state, then writes the record-phase tokens + ids to `harness/.env`
+ * (which the recorder's loadEnv() reads). This supersedes the
  * per-demo seed-collaboration.mjs / seed-correction-loop.mjs scripts for the
  * staged pass: those each minted a separate, uniquely-slugged workspace and a
  * different token, but the recorder resolves ONE workspace via
@@ -102,10 +103,10 @@ async function jpost<T>(p: string, body: unknown, token: string): Promise<T> {
 }
 
 /**
- * Best-effort POST for content memory and terms, whose duplicates on a re-run
- * are visually harmless. A 404 is never a duplicate: it means the script posts
- * to a route the server no longer serves, and it fails the seed rather than
- * leaving a card empty in the recording.
+ * Best-effort POST for content memory and terms: a refused write is logged and
+ * the seed goes on, so one rejected entry does not stop the pass. A 404 is
+ * different: it means the script posts to a route the server no longer serves,
+ * and it fails the seed rather than leaving a card empty in the recording.
  */
 async function jpostSoft(p: string, body: unknown, token: string): Promise<void> {
   try {
@@ -115,6 +116,17 @@ async function jpostSoft(p: string, body: unknown, token: string): Promise<void>
     if (/ → 404:/.test(message)) throw new Error(`route not served: ${message}`);
     console.error(`  (skipped ${p}: ${message})`);
   }
+}
+
+async function jput<T>(p: string, body: unknown, token: string): Promise<T> {
+  const r = await fetch(`${API}${p}`, {
+    method: "PUT",
+    headers: authJSON(token),
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) throw new Error(`PUT ${p} → ${r.status}: ${(await r.text()).slice(0, 300)}`);
+  const text = await r.text();
+  return (text ? JSON.parse(text) : {}) as T;
 }
 
 async function jdelete(p: string, token: string): Promise<void> {
@@ -274,6 +286,134 @@ async function ensureMember(ws: string, aliceToken: string, bobToken: string): P
   const joined = bobWs.some((w) => w.slug === ws);
   console.log(`  · invited + joined ${BOB.email} (joined=${joined})`);
   return joined;
+}
+
+interface MemoryEntry {
+  source?: string;
+  target?: string;
+  source_language?: string;
+  target_language?: string;
+}
+interface Concept {
+  domain?: string;
+  definition?: string;
+}
+
+/** Post each content-memory entry the walks read, skipping the ones already
+ *  in the workspace store (matched on source text and language pair). */
+async function ensureMemoryEntries(ws: string, projectId: string, token: string): Promise<void> {
+  const have = listOf<MemoryEntry>(await jget(`/${ws}/translation-memory`, token), "entries");
+  const key = (e: MemoryEntry) => `${e.source_language}→${e.target_language}: ${e.source}`;
+  const present = new Set(have.map(key));
+  let posted = 0;
+  for (const e of MEMORY_ENTRIES) {
+    if (present.has(key({ source: e.source, source_language: e.source_locale, target_language: e.target_locale })))
+      continue;
+    await jpostSoft(`/${ws}/translation-memory`, { ...e, project_id: projectId }, token);
+    posted++;
+  }
+  console.log(`  · content memory: ${posted} entries posted, ${MEMORY_ENTRIES.length - posted} already present`);
+}
+
+/** Create each concept the walks read, skipping the ones the workspace already
+ *  holds (matched on domain and definition). */
+async function ensureConcepts(ws: string, projectId: string, token: string): Promise<void> {
+  const have = listOf<Concept>(await jget(`/${ws}/concepts`, token), "concepts");
+  const present = new Set(have.map((c) => `${c.domain}: ${c.definition}`));
+  let posted = 0;
+  for (const c of CONCEPTS) {
+    if (present.has(`${c.domain}: ${c.definition}`)) continue;
+    await jpostSoft(`/${ws}/concepts`, { ...c, project_id: projectId }, token);
+    posted++;
+  }
+  console.log(`  · concepts: ${posted} created, ${CONCEPTS.length - posted} already present`);
+}
+
+interface Role {
+  id: string;
+  name?: string;
+  permission_names?: string[];
+}
+interface ProjectMember {
+  user_id?: string;
+  user?: { id?: string };
+}
+interface Block {
+  id: string;
+  translatable?: boolean;
+}
+
+/**
+ * The state the review walk's closing beats read (record-desktop.ts
+ * bowrainReviewWalk): a row the recorded user may approve, a row the server
+ * refuses her, and a reviewer who can decide that one instead.
+ *
+ * The workspace policy on approving one's own writing is `warn` by default
+ * (auth/governance.go GetSoDMode), which files an audit record and lets the
+ * approval through; only `block` puts the refusal on screen
+ * (server/handlers_governance.go), so the seed sets it. `ai-translate` runs
+ * in Alice's request context, so every target it wrote is hers, and a plain
+ * member carries translate but not review (core/auth
+ * DefaultPermissionsForRole). Bob therefore gets the reviewer role scoped to
+ * the target locale and writes one target of his own.
+ *
+ * Idempotent: the policy PUT and Bob's block PUT rewrite the same values, and
+ * the project membership is added only when absent. The two block ids are
+ * written to harness/.env, because the walk fails its `duties` beat when the
+ * refusal does not arrive and only rehearses it when the ids are missing.
+ */
+async function ensureReviewGovernance(
+  ws: string,
+  projectId: string,
+  aliceToken: string,
+  bobToken: string,
+): Promise<{ peerBlockId: string; selfBlockId: string }> {
+  const sod = await jput<{ mode?: string }>(`/${ws}/sod`, { mode: "block" }, aliceToken);
+  console.log(`  · separation of duties: ${sod.mode ?? "block"}`);
+
+  const bobMe = await jget<{ id?: string; user?: { id?: string } }>("/auth/me", bobToken);
+  const bobId = bobMe.id || bobMe.user?.id;
+  if (!bobId) throw new Error("review governance: no user id for Bob");
+
+  const roles = listOf<Role>(await jget(`/${ws}/roles`, aliceToken), "roles");
+  const reviewer =
+    roles.find((r) => r.name === "reviewer") ||
+    roles.find((r) => (r.permission_names ?? []).includes("review"));
+  if (!reviewer) throw new Error("review governance: no reviewer role template");
+
+  const members = listOf<ProjectMember>(await jget(`/${ws}/${projectId}/members`, aliceToken), "members");
+  if (members.some((m) => (m.user_id || m.user?.id) === bobId)) {
+    console.log(`  · ${BOB.email} already reviews ${COLLAB_LOCALE} on the project`);
+  } else {
+    await jpost(
+      `/${ws}/${projectId}/members`,
+      { user_id: bobId, role_id: reviewer.id, languages: [COLLAB_LOCALE] },
+      aliceToken,
+    );
+    console.log(`  · granted ${BOB.email} the reviewer role on ${COLLAB_LOCALE}`);
+  }
+
+  const blocks = listOf<Block>(
+    await jget(`/${ws}/${projectId}/blocks/main?item=${encodeURIComponent(FILE_NAME)}`, aliceToken),
+    "blocks",
+  );
+  const translatable = blocks.filter((b) => b.translatable !== false);
+  const peerBlockId = translatable[0]?.id ?? "";
+  const selfBlockId = translatable[1]?.id ?? translatable[0]?.id ?? "";
+  if (!peerBlockId) throw new Error(`review governance: no blocks extracted for ${FILE_NAME}`);
+  // Bob's PUT is the newest target_modified row for that block and locale, so
+  // LastTargetAuthors answers with Bob for it and with Alice for the rest.
+  await jput(
+    `/${ws}/${projectId}/blocks/main/${peerBlockId}`,
+    {
+      item_name: FILE_NAME,
+      target_locale: COLLAB_LOCALE,
+      text: "Nous concevons des outils que les équipes utilisent chaque jour.",
+    },
+    bobToken,
+  );
+  console.log(`  · ${BOB.email} wrote block ${peerBlockId} (${COLLAB_LOCALE})`);
+  return { peerBlockId, selfBlockId };
 }
 
 // ── demo content (proven; same as the two reference seeds) ───────────────────
@@ -452,15 +592,21 @@ async function main(): Promise<void> {
     aliceToken,
   );
 
-  // content memory + terminology: the governance walk (content-memory search "mission", multi-locale
-  // concepts) + the editor context panel. Best-effort, sequential.
-  for (const e of MEMORY_ENTRIES)
-    await jpostSoft(`/${ws}/translation-memory`, { ...e, project_id: projectId }, aliceToken);
-  for (const c of CONCEPTS)
-    await jpostSoft(`/${ws}/concepts`, { ...c, project_id: projectId }, aliceToken);
+  // content memory + terminology: the governance walk (content-memory search
+  // "mission", multi-locale concepts) + the editor context panel. Each entry
+  // and concept is posted once: the seed runs before every recording so the
+  // record tokens stay fresh, and a duplicate row is on camera in the memory
+  // list and the concept list.
+  await ensureMemoryEntries(ws, projectId, aliceToken);
+  await ensureConcepts(ws, projectId, aliceToken);
 
   // Bob joins (collaboration walk).
   const joined = await ensureMember(ws, aliceToken, bobToken);
+
+  // The review walk's separation-of-duties beats: Bob reviews the target
+  // locale and owns one target, so the queue holds both a row Alice may approve
+  // and a row the server refuses her.
+  const review = await ensureReviewGovernance(ws, projectId, aliceToken, bobToken);
 
   // Voice profile + Project 2 "Marketing Site" (the correction-loop dropdown
   // needs a SECOND project) + non-compliant content + correction stream.
@@ -508,6 +654,8 @@ async function main(): Promise<void> {
     BOWRAIN_PROJECT_ID: projectId,
     BOWRAIN_ITEM_ID: itemId,
     BOWRAIN_COLLAB_LOCALE: COLLAB_LOCALE,
+    BOWRAIN_PEER_BLOCK_ID: review.peerBlockId,
+    BOWRAIN_SELF_BLOCK_ID: review.selfBlockId,
     BOWRAIN_DEMO_PROFILE_ID: profileId,
   });
 
