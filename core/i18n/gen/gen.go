@@ -22,6 +22,7 @@ import (
 	fschema "github.com/neokapi/neokapi/core/format/schema"
 	"github.com/neokapi/neokapi/core/formats"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/schema"
 	libtools "github.com/neokapi/neokapi/core/tools"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
@@ -269,11 +270,13 @@ func buildPropertiesFromGeneric(src map[string]map[string]any) map[string]Proper
 		}
 		if opts, ok := prop["options"].([]any); ok {
 			p.Options = map[string]OptionEntry{}
-			for _, o := range opts {
+			for i, o := range opts {
 				om, _ := o.(map[string]any)
-				val := fmt.Sprint(om["value"])
+				// The localizer derives the same segment from the same value,
+				// so a key written here is a key a lookup finds.
+				key := schema.OptionKey(om["value"], i)
 				if label, _ := om["label"].(string); label != "" {
-					p.Options[val] = OptionEntry{Label: label}
+					p.Options[key] = OptionEntry{Label: label}
 				}
 			}
 			if len(p.Options) == 0 {

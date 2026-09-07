@@ -190,15 +190,13 @@ func offlineCapableOverride(dotPath string) (bool, bool) {
 }
 
 // collectFlags returns the local (non-inherited) flags for a command, sorted
-// by name. Persistent flags on sub-commands are excluded; only flags directly
-// registered on this command are returned.
+// by name. A flag inherited from an ancestor is excluded; only flags declared
+// on this command are returned. cli.VisitLocalizableFlags is the same walk the
+// help inventory and the runtime localizer make, so the flag rows here and the
+// catalog keys for their usage text line up.
 func collectFlags(cmd *cobra.Command) []CommandFlag {
 	var flags []CommandFlag
-	cmd.Flags().VisitAll(func(f *pflag.Flag) {
-		// Skip hidden flags and the help flag.
-		if f.Hidden || f.Name == "help" {
-			return
-		}
+	cli.VisitLocalizableFlags(cmd, func(f *pflag.Flag) {
 		flags = append(flags, CommandFlag{
 			Name:      f.Name,
 			Shorthand: f.Shorthand,

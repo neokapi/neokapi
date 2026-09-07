@@ -477,9 +477,10 @@ _fw-deps-update:
 test-framework: i18n-catalogs ## Run framework module tests only (incl. the eval-harness modules)
 	@mkdir -p $(COVER_DIR)
 ifdef CI
-# The eval harnesses (scripts/batcheval, scripts/contexteval) are separate
-# workspace modules, so the root ./... pattern never reaches them. Their tests
-# gate the corpora, the scoring, and the price-table sync — keyless and fast.
+# The eval harnesses (scripts/batcheval, scripts/contexteval) and the reference
+# generator (scripts/gen-refs) are separate workspace modules, so the root ./...
+# pattern never reaches them. Their tests gate the corpora, the scoring, the
+# price-table sync and the reference dataset's shape, keyless and fast.
 # One shell, `|| rc=$$?` per suite: a root-suite failure must not stop the eval
 # suites from running (and from appearing in the JSON the reporters read) —
 # the single-run form completed every package even when some failed.
@@ -487,11 +488,13 @@ ifdef CI
 	$(GOTEST_BASE) $(call cov,$(COVER_DIR)/framework.out) -json ./... > test-results-framework.json || rc=$$?; \
 	( cd scripts/batcheval && $(GOTEST_BASE) -json ./... >> ../../test-results-framework.json ) || rc=$$?; \
 	( cd scripts/contexteval && $(GOTEST_BASE) -json ./... >> ../../test-results-framework.json ) || rc=$$?; \
+	( cd scripts/gen-refs && $(GOTEST_BASE) -json ./... >> ../../test-results-framework.json ) || rc=$$?; \
 	exit $$rc
 else
 	$(GOTEST_BASE) ./... -count=1
 	cd scripts/batcheval && $(GOTEST_BASE) ./... -count=1
 	cd scripts/contexteval && $(GOTEST_BASE) ./... -count=1
+	cd scripts/gen-refs && $(GOTEST_BASE) ./... -count=1
 endif
 
 test-cli: i18n-catalogs ## Run host + cli module tests only

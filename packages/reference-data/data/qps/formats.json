@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-05T08:19:54Z",
+  "generatedAt": "2026-09-07T23:34:03Z",
   "kind": "format",
   "entries": [
     {
@@ -899,7 +899,7 @@
         "$id": "",
         "$version": "",
         "title": "▒ ÉÞÜƂ É-Ƃööķ ▒",
-        "description": "Configuration for the EPUB e-book format reader/writer",
+        "description": "▒ Çöñƒîĝüŕàţîöñ ƒöŕ ţĥé ÉÞÜƂ é-ƃööķ ƒöŕḿàţ ŕéàđéŕ/ŵŕîţéŕ ▒",
         "type": "object",
         "formatMeta": {
           "id": "epub",
@@ -913,7 +913,7 @@
         "ui:groups": [
           {
             "id": "extraction",
-            "label": "Content Extraction",
+            "label": "▒ Çöñţéñţ Éẋţŕàçţîöñ ▒",
             "fields": [
               "extractNonTranslatableContent"
             ]
@@ -922,8 +922,8 @@
         "properties": {
           "extractNonTranslatableContent": {
             "type": "boolean",
-            "title": "Extract non-translatable content",
-            "description": "If true (default), non-translatable contextual content such as verbatim code listings (\u003cpre\u003e/\u003ccode\u003e/\u003ckbd\u003e/\u003csamp\u003e) in the direct-XHTML fallback extractor is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton.",
+            "title": "▒ Éẋţŕàçţ ñöñ-ţŕàñšļàţàƃļé çöñţéñţ ▒",
+            "description": "▒ Îƒ ţŕüé (đéƒàüļţ), ñöñ-ţŕàñšļàţàƃļé çöñţéẋţüàļ çöñţéñţ šüçĥ àš ṽéŕƃàţîḿ çöđé ļîšţîñĝš (\u003cþŕé\u003e/\u003cçöđé\u003e/\u003cķƃđ\u003e/\u003cšàḿþ\u003e) îñ ţĥé đîŕéçţ-ẊĤŢḾĻ ƒàļļƃàçķ éẋţŕàçţöŕ îš šüŕƒàçéđ àš çöñţéñţ ƃļöçķš (ṽîšîƃļé ţö îñĝéšţîöñ/ĻĻḾ çöñšüḿéŕš, šķîþþéđ ƃý ḿàçĥîñé ţŕàñšļàţîöñ) îñšţéàđ öƒ ƃéîñĝ ĥîđđéñ îñ šķéļéţöñ. Đîšàƃļé ţö ķééþ îţ îñ šķéļéţöñ. ▒",
             "default": true
           }
         }
@@ -1313,7 +1313,7 @@
         "$id": "",
         "$version": "",
         "title": "▒ ÎÇÜ ḾéššàĝéƑöŕḿàţ ▒",
-        "description": "ICU MessageFormat patterns, one per input line",
+        "description": "▒ ÎÇÜ ḾéššàĝéƑöŕḿàţ þàţţéŕñš, öñé þéŕ îñþüţ ļîñé ▒",
         "type": "object",
         "formatMeta": {
           "id": "messageformat",
@@ -1328,7 +1328,7 @@
         "ui:groups": [
           {
             "id": "extraction",
-            "label": "Content Extraction",
+            "label": "▒ Çöñţéñţ Éẋţŕàçţîöñ ▒",
             "fields": [
               "extractNonTranslatableContent"
             ]
@@ -1337,8 +1337,8 @@
         "properties": {
           "extractNonTranslatableContent": {
             "type": "boolean",
-            "title": "Extract non-translatable content",
-            "description": "If true (default), literal prose that frames a plural/select branch (the sentence frame around a picker) is surfaced as a non-translatable content block (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton.",
+            "title": "▒ Éẋţŕàçţ ñöñ-ţŕàñšļàţàƃļé çöñţéñţ ▒",
+            "description": "▒ Îƒ ţŕüé (đéƒàüļţ), ļîţéŕàļ þŕöšé ţĥàţ ƒŕàḿéš à þļüŕàļ/šéļéçţ ƃŕàñçĥ (ţĥé šéñţéñçé ƒŕàḿé àŕöüñđ à þîçķéŕ) îš šüŕƒàçéđ àš à ñöñ-ţŕàñšļàţàƃļé çöñţéñţ ƃļöçķ (ṽîšîƃļé ţö îñĝéšţîöñ/ĻĻḾ çöñšüḿéŕš, šķîþþéđ ƃý ḿàçĥîñé ţŕàñšļàţîöñ) îñšţéàđ öƒ ƃéîñĝ ĥîđđéñ îñ šķéļéţöñ. Đîšàƃļé ţö ķééþ îţ îñ šķéļéţöñ. ▒",
             "default": true
           }
         }
@@ -2531,7 +2531,7 @@
         "$id": "",
         "$version": "",
         "title": "▒ ḾÖ (Ĝéţţéẋţ, ƃîñàŕý) ▒",
-        "description": "Writer for compiled gettext MO catalogs. Consumes Blocks and emits a binary catalog keyed by (msgctxt, msgid). msgctxt is taken from Block.Properties[\"context\"] when present, else Block.Name, else Block.ID.",
+        "description": "▒ Ŵŕîţéŕ ƒöŕ çöḿþîļéđ ĝéţţéẋţ ḾÖ çàţàļöĝš. Çöñšüḿéš Ƃļöçķš àñđ éḿîţš à ƃîñàŕý çàţàļöĝ ķéýéđ ƃý (ḿšĝçţẋţ, ḿšĝîđ). ḿšĝçţẋţ îš ţàķéñ ƒŕöḿ Ƃļöçķ.Þŕöþéŕţîéš[\"çöñţéẋţ\"] ŵĥéñ þŕéšéñţ, éļšé Ƃļöçķ.Ñàḿé, éļšé Ƃļöçķ.ÎĐ. ▒",
         "type": "object",
         "formatMeta": {
           "id": "mo",
@@ -2584,7 +2584,7 @@
         "$id": "",
         "$version": "",
         "title": "▒ Öþéñ Đöçüḿéñţ Ƒöŕḿàţ ▒",
-        "description": "Configuration for the OpenDocument (ODT/ODS/ODP/ODG) format reader/writer",
+        "description": "▒ Çöñƒîĝüŕàţîöñ ƒöŕ ţĥé ÖþéñĐöçüḿéñţ (ÖĐŢ/ÖĐŠ/ÖĐÞ/ÖĐĜ) ƒöŕḿàţ ŕéàđéŕ/ŵŕîţéŕ ▒",
         "type": "object",
         "formatMeta": {
           "id": "odf",
@@ -2604,7 +2604,7 @@
         "ui:groups": [
           {
             "id": "extraction",
-            "label": "Content Extraction",
+            "label": "▒ Çöñţéñţ Éẋţŕàçţîöñ ▒",
             "fields": [
               "translateNotes",
               "translateHiddenContent",
@@ -2615,20 +2615,20 @@
         "properties": {
           "extractNonTranslatableContent": {
             "type": "boolean",
-            "title": "Extract non-translatable content",
-            "description": "If true (default), non-translatable contextual content, namely image accessibility text (svg:title/svg:desc alt-text and long descriptions) and form-control display strings (form:label/form:title/form:help-text), is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton.",
+            "title": "▒ Éẋţŕàçţ ñöñ-ţŕàñšļàţàƃļé çöñţéñţ ▒",
+            "description": "▒ Îƒ ţŕüé (đéƒàüļţ), ñöñ-ţŕàñšļàţàƃļé çöñţéẋţüàļ çöñţéñţ, ñàḿéļý îḿàĝé àççéššîƃîļîţý ţéẋţ (šṽĝ:ţîţļé/šṽĝ:đéšç àļţ-ţéẋţ àñđ ļöñĝ đéšçŕîþţîöñš) àñđ ƒöŕḿ-çöñţŕöļ đîšþļàý šţŕîñĝš (ƒöŕḿ:ļàƃéļ/ƒöŕḿ:ţîţļé/ƒöŕḿ:ĥéļþ-ţéẋţ), îš šüŕƒàçéđ àš çöñţéñţ ƃļöçķš (ṽîšîƃļé ţö îñĝéšţîöñ/ĻĻḾ çöñšüḿéŕš, šķîþþéđ ƃý ḿàçĥîñé ţŕàñšļàţîöñ) îñšţéàđ öƒ ƃéîñĝ ĥîđđéñ îñ šķéļéţöñ. Đîšàƃļé ţö ķééþ îţ îñ šķéļéţöñ. ▒",
             "default": true
           },
           "translateHiddenContent": {
             "type": "boolean",
-            "title": "Translate Hidden Content",
-            "description": "If true, hidden content is extracted as translatable content.",
+            "title": "▒ Ţŕàñšļàţé Ĥîđđéñ Çöñţéñţ ▒",
+            "description": "▒ Îƒ ţŕüé, ĥîđđéñ çöñţéñţ îš éẋţŕàçţéđ àš ţŕàñšļàţàƃļé çöñţéñţ. ▒",
             "default": false
           },
           "translateNotes": {
             "type": "boolean",
-            "title": "Translate Presentation Notes",
-            "description": "If true, presentation speaker notes are extracted as translatable content.",
+            "title": "▒ Ţŕàñšļàţé Þŕéšéñţàţîöñ Ñöţéš ▒",
+            "description": "▒ Îƒ ţŕüé, þŕéšéñţàţîöñ šþéàķéŕ ñöţéš àŕé éẋţŕàçţéđ àš ţŕàñšļàţàƃļé çöñţéñţ. ▒",
             "default": true
           }
         }
@@ -3826,7 +3826,7 @@
         "$id": "",
         "$version": "",
         "title": "▒ ŢŠṼ ▒",
-        "description": "Configuration for the CSV/TSV format reader/writer",
+        "description": "▒ Çöñƒîĝüŕàţîöñ ƒöŕ ţĥé ÇŠṼ/ŢŠṼ ƒöŕḿàţ ŕéàđéŕ/ŵŕîţéŕ ▒",
         "type": "object",
         "formatMeta": {
           "id": "csv",
@@ -3841,7 +3841,7 @@
         "ui:groups": [
           {
             "id": "format",
-            "label": "CSV Format Settings",
+            "label": "▒ ÇŠṼ Ƒöŕḿàţ Šéţţîñĝš ▒",
             "fields": [
               "separator",
               "textQualifier",
@@ -3852,7 +3852,7 @@
           },
           {
             "id": "extraction",
-            "label": "Extraction",
+            "label": "▒ Éẋţŕàçţîöñ ▒",
             "fields": [
               "translatableColumns",
               "keyColumns",
@@ -3864,7 +3864,7 @@
           },
           {
             "id": "inlineCodes",
-            "label": "Inline Codes",
+            "label": "▒ Îñļîñé Çöđéš ▒",
             "fields": [
               "useCodeFinder",
               "codeFinderRules"
@@ -3874,8 +3874,8 @@
         "properties": {
           "codeFinderRules": {
             "type": "array",
-            "title": "Code Finder Rules",
-            "description": "Regex patterns that match inline codes within translatable text",
+            "title": "▒ Çöđé Ƒîñđéŕ Ŕüļéš ▒",
+            "description": "▒ Ŕéĝéẋ þàţţéŕñš ţĥàţ ḿàţçĥ îñļîñé çöđéš ŵîţĥîñ ţŕàñšļàţàƃļé ţéẋţ ▒",
             "ui:widget": "code-finder",
             "ui:visible": {
               "field": "useCodeFinder",
@@ -3884,70 +3884,70 @@
           },
           "columnNamesRow": {
             "type": "integer",
-            "title": "Column Names Row",
-            "description": "1-based row number containing column names. 0 means auto-detect.",
+            "title": "▒ Çöļüḿñ Ñàḿéš Ŕöŵ ▒",
+            "description": "▒ 1-ƃàšéđ ŕöŵ ñüḿƃéŕ çöñţàîñîñĝ çöļüḿñ ñàḿéš. 0 ḿéàñš àüţö-đéţéçţ. ▒",
             "default": 0
           },
           "columns": {
             "type": "object",
-            "title": "Column Roles",
-            "description": "Column-role mapping for bilingual translation tables: an object with 0-based column indices for key, source and target (e.g. {key: 0, source: 1, target: 2}). On merge only the target column is rewritten."
+            "title": "▒ Çöļüḿñ Ŕöļéš ▒",
+            "description": "▒ Çöļüḿñ-ŕöļé ḿàþþîñĝ ƒöŕ ƃîļîñĝüàļ ţŕàñšļàţîöñ ţàƃļéš: àñ öƃĵéçţ ŵîţĥ 0-ƃàšéđ çöļüḿñ îñđîçéš ƒöŕ ķéý, šöüŕçé àñđ ţàŕĝéţ (é.ĝ. {key: 0, source: 1, target: 2}). Öñ ḿéŕĝé öñļý ţĥé ţàŕĝéţ çöļüḿñ îš ŕéŵŕîţţéñ. ▒"
           },
           "commentColumns": {
             "type": "array",
-            "title": "Comment Columns",
-            "description": "Column indices (0-based) that contain comments or notes"
+            "title": "▒ Çöḿḿéñţ Çöļüḿñš ▒",
+            "description": "▒ Çöļüḿñ îñđîçéš (0-ƃàšéđ) ţĥàţ çöñţàîñ çöḿḿéñţš öŕ ñöţéš ▒"
           },
           "extractNonTranslatableContent": {
             "type": "boolean",
-            "title": "Extract non-translatable content",
-            "description": "If true (default), non-translatable contextual content such as preamble rows and non-translatable column cells is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of opaque data. Disable to keep it as plain data parts.",
+            "title": "▒ Éẋţŕàçţ ñöñ-ţŕàñšļàţàƃļé çöñţéñţ ▒",
+            "description": "▒ Îƒ ţŕüé (đéƒàüļţ), ñöñ-ţŕàñšļàţàƃļé çöñţéẋţüàļ çöñţéñţ šüçĥ àš þŕéàḿƃļé ŕöŵš àñđ ñöñ-ţŕàñšļàţàƃļé çöļüḿñ çéļļš îš šüŕƒàçéđ àš çöñţéñţ ƃļöçķš (ṽîšîƃļé ţö îñĝéšţîöñ/ĻĻḾ çöñšüḿéŕš, šķîþþéđ ƃý ḿàçĥîñé ţŕàñšļàţîöñ) îñšţéàđ öƒ öþàǫüé đàţà. Đîšàƃļé ţö ķééþ îţ àš þļàîñ đàţà þàŕţš. ▒",
             "default": true
           },
           "hasHeader": {
             "type": "boolean",
-            "title": "Has Header Row",
-            "description": "If true, the first row is treated as headers (non-translatable)",
+            "title": "▒ Ĥàš Ĥéàđéŕ Ŕöŵ ▒",
+            "description": "▒ Îƒ ţŕüé, ţĥé ƒîŕšţ ŕöŵ îš ţŕéàţéđ àš ĥéàđéŕš (ñöñ-ţŕàñšļàţàƃļé) ▒",
             "default": true
           },
           "keyColumns": {
             "type": "array",
-            "title": "Key Columns",
-            "description": "Column indices (0-based) that provide the block ID (source ID / record ID)"
+            "title": "▒ Ķéý Çöļüḿñš ▒",
+            "description": "▒ Çöļüḿñ îñđîçéš (0-ƃàšéđ) ţĥàţ þŕöṽîđé ţĥé ƃļöçķ ÎĐ (šöüŕçé ÎĐ / ŕéçöŕđ ÎĐ) ▒"
           },
           "separator": {
             "type": "string",
-            "title": "Field Delimiter",
-            "description": "Field delimiter character (comma for CSV, tab for TSV)",
+            "title": "▒ Ƒîéļđ Đéļîḿîţéŕ ▒",
+            "description": "▒ Ƒîéļđ đéļîḿîţéŕ çĥàŕàçţéŕ (çöḿḿà ƒöŕ ÇŠṼ, ţàƃ ƒöŕ ŢŠṼ) ▒",
             "default": ","
           },
           "textQualifier": {
             "type": "string",
-            "title": "Text Qualifier",
-            "description": "Character used to quote field values containing delimiters or newlines",
+            "title": "▒ Ţéẋţ Ǫüàļîƒîéŕ ▒",
+            "description": "▒ Çĥàŕàçţéŕ üšéđ ţö ǫüöţé ƒîéļđ ṽàļüéš çöñţàîñîñĝ đéļîḿîţéŕš öŕ ñéŵļîñéš ▒",
             "default": "\""
           },
           "translatableColumns": {
             "type": "array",
-            "title": "Translatable Columns",
-            "description": "Column indices (0-based) to extract as translatable content. If empty, all columns are translatable."
+            "title": "▒ Ţŕàñšļàţàƃļé Çöļüḿñš ▒",
+            "description": "▒ Çöļüḿñ îñđîçéš (0-ƃàšéđ) ţö éẋţŕàçţ àš ţŕàñšļàţàƃļé çöñţéñţ. Îƒ éḿþţý, àļļ çöļüḿñš àŕé ţŕàñšļàţàƃļé. ▒"
           },
           "trimValues": {
             "type": "boolean",
-            "title": "Trim Values",
-            "description": "If true, leading and trailing whitespace is removed from cell values",
+            "title": "▒ Ţŕîḿ Ṽàļüéš ▒",
+            "description": "▒ Îƒ ţŕüé, ļéàđîñĝ àñđ ţŕàîļîñĝ ŵĥîţéšþàçé îš ŕéḿöṽéđ ƒŕöḿ çéļļ ṽàļüéš ▒",
             "default": false
           },
           "useCodeFinder": {
             "type": "boolean",
-            "title": "Enable Inline Code Detection",
-            "description": "Enable regex-based inline code detection within cell values",
+            "title": "▒ Éñàƃļé Îñļîñé Çöđé Đéţéçţîöñ ▒",
+            "description": "▒ Éñàƃļé ŕéĝéẋ-ƃàšéđ îñļîñé çöđé đéţéçţîöñ ŵîţĥîñ çéļļ ṽàļüéš ▒",
             "default": false
           },
           "valuesStartRow": {
             "type": "integer",
-            "title": "Values Start Row",
-            "description": "1-based row number where data values begin. 0 means auto-detect.",
+            "title": "▒ Ṽàļüéš Šţàŕţ Ŕöŵ ▒",
+            "description": "▒ 1-ƃàšéđ ŕöŵ ñüḿƃéŕ ŵĥéŕé đàţà ṽàļüéš ƃéĝîñ. 0 ḿéàñš àüţö-đéţéçţ. ▒",
             "default": 0
           }
         }
@@ -4611,7 +4611,7 @@
             "options": [
               {
                 "value": "",
-                "label": "Auto (preserve input, default 2.2)"
+                "label": "▒ Àüţö (þŕéšéŕṽé îñþüţ, đéƒàüļţ 2.2) ▒"
               },
               {
                 "value": "2.0",

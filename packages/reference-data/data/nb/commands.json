@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-07T22:21:44Z",
+  "generatedAt": "2026-09-07T23:34:03Z",
   "commands": [
     {
       "id": "add",
@@ -5936,6 +5936,13 @@
       "use": "ollama",
       "short": "Administrer den lokale Ollama-kjøretiden for oversettelse på enheten",
       "long": "Oppdag, inspiser og mat den lokale Ollama-kjøretiden som kapi bruker for på-enhet\n(GPU-akselerert) oversettelse. Ollama i seg selv er en engangsinstallasjon fra\nhttps://ollama.com; kapi tar seg av resten — `kapi models ollama pull \u003cmodel\u003e` installerer\nen modell, og `kapi translate --provider ollama --model \u003cmodel\u003e` bruker den.",
+      "flags": [
+        {
+          "name": "url",
+          "usage": "Ollama server URL (default $OLLAMA_HOST or http://localhost:11434)",
+          "type": "string"
+        }
+      ],
       "offlineCapable": true,
       "runnableInBrowser": false,
       "demoMode": false

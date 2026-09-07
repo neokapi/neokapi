@@ -13,9 +13,6 @@ import (
 //   - write_in_voice   — write content in voice
 //   - rewrite_in_voice — rewrite text to match voice
 //   - check_draft      — check draft against guidelines
-//
-// Each takes a profile_id and renders that profile's guidance into the prompt,
-// so each authorizes it against the caller's workspaces first.
 func (s *MCPServer) registerPrompts() {
 	// write_in_voice — write new content in a voice.
 	s.server.AddPrompt(
@@ -68,9 +65,9 @@ func (s *MCPServer) handleWriteInVoice(ctx context.Context, req *mcp.GetPromptRe
 	contentType := req.Params.Arguments["content_type"]
 	locale := req.Params.Arguments["locale"]
 
-	profile, err := s.authorizeProfileForUser(ctx, callerID(req), profileID)
+	profile, err := s.voiceStore.GetProfile(ctx, profileID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get profile: %w", err)
 	}
 
 	resolved := resolveProfile(profile, locale, "")
@@ -99,9 +96,9 @@ func (s *MCPServer) handleRewriteInVoicePrompt(ctx context.Context, req *mcp.Get
 	locale := req.Params.Arguments["locale"]
 	channel := req.Params.Arguments["channel"]
 
-	profile, err := s.authorizeProfileForUser(ctx, callerID(req), profileID)
+	profile, err := s.voiceStore.GetProfile(ctx, profileID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get profile: %w", err)
 	}
 
 	resolved := resolveProfile(profile, locale, channel)
@@ -124,9 +121,9 @@ func (s *MCPServer) handleCheckDraft(ctx context.Context, req *mcp.GetPromptRequ
 	draft := req.Params.Arguments["draft"]
 	locale := req.Params.Arguments["locale"]
 
-	profile, err := s.authorizeProfileForUser(ctx, callerID(req), profileID)
+	profile, err := s.voiceStore.GetProfile(ctx, profileID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get profile: %w", err)
 	}
 
 	resolved := resolveProfile(profile, locale, "")

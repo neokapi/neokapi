@@ -2,7 +2,6 @@ package i18n
 
 import (
 	"maps"
-	"strconv"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/schema"
@@ -103,7 +102,7 @@ func localizeProperty(p schema.PropertySchema, t Translator, base Scope) schema.
 				// Option scope uses the option's value as the segment; for
 				// non-string values fall back to the index. Deterministic and
 				// matches what the JSON filter emits when iterating options.
-				segment := stringifyValue(o.Value, i)
+				segment := schema.OptionKey(o.Value, i)
 				o.Label = t.T(join(base, "options", segment, fieldLabel), o.Label)
 			}
 			opts[i] = o
@@ -161,23 +160,4 @@ func join(parts ...any) Scope {
 		}
 	}
 	return Scope(strings.Join(segs, "."))
-}
-
-func stringifyValue(v any, fallbackIndex int) string {
-	switch x := v.(type) {
-	case string:
-		if x != "" {
-			return x
-		}
-	case int:
-		return strconv.Itoa(x)
-	case float64:
-		return strconv.Itoa(int(x))
-	case bool:
-		if x {
-			return "true"
-		}
-		return "false"
-	}
-	return strconv.Itoa(fallbackIndex)
 }

@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 
 	"github.com/neokapi/neokapi/core/i18n"
 	"github.com/neokapi/neokapi/host/config"
@@ -116,9 +117,10 @@ func HelpTranslator() i18n.Translator {
 	return clii18n.Resolve(i18n.ResolveOptions{ConfigLanguage: cfg.Language()})
 }
 
-// LocalizeCommandHelp rewrites Short/Long/Example on every command in the
-// tree rooted at root through t, using the scopes the cli/i18n generator
-// emits: cli.commands.<full.command.path>.{short,long,example}. The first
+// LocalizeCommandHelp rewrites Short/Long/Example and every flag's usage on
+// every command in the tree rooted at root through t, using the scopes the
+// cli/i18n generator emits: cli.commands.<full.command.path>.{short,long,
+// example} and cli.commands.<full.command.path>.flags.<flag>.usage. The first
 // path segment is always "kapi" regardless of the root command's name, so
 // catalogs stay valid across binaries built on the shared CLI base. Misses
 // fall back to the English source (gettext semantics), so commands the
@@ -141,6 +143,12 @@ func localizeCommand(c *cobra.Command, path string, t i18n.Translator) {
 	if c.Example != "" {
 		c.Example = helpText(t, i18n.Scope(scope+".example"), c.Example)
 	}
+	VisitLocalizableFlags(c, func(f *pflag.Flag) {
+		if f.Usage == "" {
+			return
+		}
+		f.Usage = t.T(i18n.Scope(scope+".flags."+f.Name+".usage"), f.Usage)
+	})
 	for _, sub := range c.Commands() {
 		name := sub.Name()
 		if name == "" || strings.ContainsAny(name, ". ") {
@@ -150,6 +158,29 @@ func localizeCommand(c *cobra.Command, path string, t i18n.Translator) {
 		}
 		localizeCommand(sub, path+"."+name, t)
 	}
+}
+
+// VisitLocalizableFlags calls fn for each flag whose usage text belongs to c:
+// the flags registered on c itself, plus its own persistent flags. A flag
+// inherited from an ancestor is skipped, because the same *pflag.Flag is shared
+// down the tree and its usage is keyed under the command that declared it.
+// Hidden flags and cobra's generated --help are skipped: neither is printed.
+// A flag with no usage text is still visited, because it is still a flag the
+// reference documents; a caller that only wants translatable text skips it.
+//
+// The help inventory generator, the runtime localizer and the reference
+// dataset all walk flags through this function, so the key a catalog carries
+// is the key each of them asks for.
+func VisitLocalizableFlags(c *cobra.Command, fn func(*pflag.Flag)) {
+	if c == nil {
+		return
+	}
+	c.LocalFlags().VisitAll(func(f *pflag.Flag) {
+		if f.Hidden || f.Name == "help" {
+			return
+		}
+		fn(f)
+	})
 }
 
 // helpText translates a multi-line help string (Long / Example), guarding
