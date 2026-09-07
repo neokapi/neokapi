@@ -182,6 +182,27 @@ const CHILDREN: ReadonlyArray<{ name: string; code: string }> = [
   { name: "no JSX at all", code: "{cond && label}" },
 ];
 
+/**
+ * Inline children that go into the parent's flat template but carry
+ * something of their own in an attribute. The block splices the
+ * element's source into its call, so the attribute is served there;
+ * both sides have to agree on which of them it belongs to (#2523).
+ */
+const INLINE_CHILDREN: ReadonlyArray<{ name: string; code: string }> = [
+  { name: "abbreviation with a title", code: '<abbr title="Content memory">CM</abbr>' },
+  { name: "anchor with a title", code: '<a href="/x" title="Go there">here</a>' },
+  { name: "image with an alt", code: '<img src="/x.png" alt="the chart" />' },
+  { name: "childless component with a label", code: '<Badge label="tag" />' },
+  { name: "icon button with an aria-label", code: '<button aria-label="Run it"><Play /></button>' },
+  { name: "input with a placeholder", code: '<input placeholder="Jane" />' },
+  { name: "ternary attribute", code: '<abbr title={c ? "A one" : "B two"}>CM</abbr>' },
+  { name: "attribute two levels down", code: '<a href="/x" title="Tip"><img alt="chart" /></a>' },
+  { name: "conditional under an inline child", code: "<strong>bold {c && <b>inner</b>}</strong>" },
+  { name: "JSX in a prop of an inline child", code: "<span data-x={<b>note</b>}>text</span>" },
+  { name: "translate=no island with a title", code: '<span translate="no" title="Tip">{p}</span>' },
+  { name: "machine-facing props only", code: '<button type="submit" name="go">Go</button>' },
+];
+
 /** JSX carried in a prop rather than in the children. */
 const PROP_FIXTURES: ReadonlyArray<{ name: string; code: string }> = [
   {
@@ -256,6 +277,22 @@ describe("hash parity between extract and transform", () => {
     }
   }
 
+  for (const parent of PARENTS) {
+    for (const child of INLINE_CHILDREN) {
+      const code = parent.wrap(child.code);
+      it(`emits the same hashes for "${parent.name}" holding "${child.name}"`, () => {
+        const extracted = hashesFromExtract(code);
+        const transformed = hashesFromTransform(code);
+        for (const hash of extracted) {
+          expect(transformed, `extract hash "${hash}" missing from transform`).toContain(hash);
+        }
+        for (const hash of transformed) {
+          expect(extracted, `transform hash "${hash}" missing from extract`).toContain(hash);
+        }
+      });
+    }
+  }
+
   for (const { name, code } of PROP_FIXTURES) {
     it(`emits the same hashes for "${name}"`, () => {
       const extracted = hashesFromExtract(code);
@@ -272,6 +309,6 @@ describe("hash parity between extract and transform", () => {
   it("covers every fixture — regression guard", () => {
     // Sanity: we're not shipping an empty fixture set.
     expect(FIXTURES.length).toBeGreaterThan(5);
-    expect(PARENTS.length * CHILDREN.length).toBeGreaterThan(100);
+    expect(PARENTS.length * (CHILDREN.length + INLINE_CHILDREN.length)).toBeGreaterThan(200);
   });
 });

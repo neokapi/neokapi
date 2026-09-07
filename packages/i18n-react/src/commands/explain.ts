@@ -19,6 +19,7 @@ type ExplainConfig = Pick<PluginOptions, "componentMap" | "rules">;
 const OUTCOME_LABEL: Record<ExplainDecision["outcome"], string> = {
   extracted: "extracted",
   "extracted-promoted": "extracted (container promoted: direct text + inline children)",
+  "consumed-by-parent-block": "text carried by the block above; attributes extract on their own",
   "skipped-translate-no": 'skipped — translate="no" on self or ancestor',
   "skipped-not-translatable": "skipped — classified non-translatable",
   "skipped-no-text": "skipped — no translator-editable text",

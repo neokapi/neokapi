@@ -387,7 +387,7 @@ export function transform(
 
   walkModule(
     ast,
-    (el, ancestors) => {
+    (el, ancestors, consumed) => {
       const r = processElement(
         el,
         ancestors,
@@ -404,6 +404,7 @@ export function transform(
         code,
         hashes,
         reviewEntries,
+        consumed,
       );
       if (r.runtime === "runtime-t") needsT = true;
       if (r.runtime === "runtime-tx") {
@@ -557,56 +558,69 @@ export function transform(
 
 function walkModule(
   module: Module,
-  visitor: (el: JSXElement, ancestors: JSXElement[]) => { skipChildren: boolean },
+  visitor: (
+    el: JSXElement,
+    ancestors: JSXElement[],
+    consumed: boolean,
+  ) => { skipChildren: boolean },
   fragmentVisitor?: (frag: JSXFragment, ancestors: JSXElement[]) => { skipChildren: boolean },
 ) {
-  function walk(node: any, jsxAncestors: JSXElement[]) {
+  function walk(node: any, jsxAncestors: JSXElement[], consumed: boolean) {
     if (!node || typeof node !== "object") return;
     if (node.type === "JSXFragment" && fragmentVisitor) {
       const frag = node as JSXFragment;
-      const { skipChildren } = fragmentVisitor(frag, jsxAncestors);
+      const { skipChildren } =
+        consumed || !fragmentVisitor
+          ? { skipChildren: false }
+          : fragmentVisitor(frag, jsxAncestors);
+      const childrenConsumed = consumed || skipChildren;
       for (const child of frag.children || []) {
-        if (skipChildren && child.type !== "JSXExpressionContainer") continue;
-        walk(child, jsxAncestors);
+        walk(
+          child,
+          jsxAncestors,
+          child.type === "JSXExpressionContainer" ? false : childrenConsumed,
+        );
       }
       return;
     }
     if (node.type === "JSXElement") {
       const el = node as JSXElement;
-      const { skipChildren } = visitor(el, jsxAncestors);
+      const { skipChildren } = visitor(el, jsxAncestors, consumed);
       const newAncestors = [...jsxAncestors, el];
+      const childrenConsumed = consumed || skipChildren;
       // A consumed element's inline children travel into its own op as
-      // a flat template, so revisiting them would emit ops the op tree
-      // has no slot for. Its expression containers are a different
-      // matter: each is spliced into the call verbatim as a param, so
-      // JSX inside a conditional needs its own call to be translated at
-      // all. The extract walker descends the same containers and emits
-      // blocks for what it finds there, and the two have to agree —
-      // otherwise those keys are compiled into the dictionary and
-      // nothing ever looks them up (#2522).
+      // a flat template, so their text is already served. What the
+      // block splices verbatim is not: an expression container is one
+      // param, so JSX inside a conditional needs its own call to be
+      // translated at all (#2522), and an element's attributes travel
+      // in its source, so they need theirs (#2523). The extract walker
+      // descends by the same rule, and the two have to agree —
+      // otherwise a key is compiled into the dictionary and nothing
+      // ever looks it up.
       for (const child of el.children || []) {
-        if (skipChildren && child.type !== "JSXExpressionContainer") continue;
-        walk(child, newAncestors);
+        walk(
+          child,
+          newAncestors,
+          child.type === "JSXExpressionContainer" ? false : childrenConsumed,
+        );
       }
       // The opening tag is spliced verbatim too, so JSX nested inside
       // an attribute value (`actions={<div><Button>…</Button></div>}`)
-      // is visited whether or not the element itself was consumed.
-      // Mirrors the extract walker, which descends `el.opening` on
-      // both paths.
-      if (el.opening) walk(el.opening, newAncestors);
+      // is ordinary JSX however deep in a consumed subtree it sits.
+      if (el.opening) walk(el.opening, newAncestors, false);
       return;
     }
     for (const key of Object.keys(node)) {
       if (key === "span" || key === "type") continue;
       const val = node[key];
       if (Array.isArray(val)) {
-        for (const item of val) walk(item, jsxAncestors);
+        for (const item of val) walk(item, jsxAncestors, consumed);
       } else if (val && typeof val === "object" && val.type) {
-        walk(val, jsxAncestors);
+        walk(val, jsxAncestors, consumed);
       }
     }
   }
-  walk(module, []);
+  walk(module, [], false);
 }
 
 // ─── Element Processing ──────────────────────────────────────
@@ -627,6 +641,13 @@ function processElement(
   code: string,
   hashes: Set<string>,
   reviewEntries: ReviewManifest,
+  /**
+   * True when an enclosing block already carries this element's text.
+   * Its attributes are still its own — the block splices the element's
+   * source into its call, so a translated `alt` or `aria-label` rides
+   * along inside that param (#2523).
+   */
+  consumed = false,
 ): ProcessResult {
   const tagName = getTagName(el);
   if (!tagName) return { runtime: null, consumed: false };
@@ -701,6 +722,10 @@ function processElement(
     }
   };
 
+  if (consumed) {
+    doReview(null, null, undefined);
+    return { runtime: usedRuntime, consumed: false };
+  }
   if (!policy.translate) {
     doReview(null, null, undefined);
     return { runtime: usedRuntime, consumed: false };

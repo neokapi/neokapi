@@ -73,6 +73,7 @@ export interface ExplainDecision {
   outcome:
     | "extracted"
     | "extracted-promoted"
+    | "consumed-by-parent-block"
     | "skipped-translate-no"
     | "skipped-not-translatable"
     | "skipped-no-text"
@@ -114,7 +115,8 @@ export function extractDocument(code: string, opts: WalkerOptions): Document | n
   collector.setSpanBase(findBaseOffset(ast));
   walkJsx(
     ast,
-    (el, ancestors, component) => collector.visit(el, ancestors, component || fallbackComponent),
+    (el, ancestors, component, consumed) =>
+      collector.visit(el, ancestors, component || fallbackComponent, consumed),
     (frag, ancestors, component) =>
       collector.visitFragment(frag, ancestors, component || fallbackComponent),
   );
@@ -190,13 +192,22 @@ class BlockCollector {
 
   /**
    * Visits one JSX element. Returns true when an element-level block
-   * was emitted — the walker uses that signal to skip re-descending
-   * into its direct inline JSX children (they're consumed by the
-   * parent's flat-text template). Expression-container children are
-   * still visited so conditional JSX inside them (`{cond && <X/>}`)
-   * can surface as its own block.
+   * was emitted — the walker uses that signal to walk the element's
+   * inline JSX children as consumed, since the parent's flat-text
+   * template already carries their words.
+   *
+   * `consumed` says an enclosing block already holds this element's
+   * text. Its attributes are still its own: they are spliced into the
+   * call verbatim rather than folded into the template, so `<p>Use
+   * <abbr title="Content memory">CM</abbr> for that.</p>` puts the
+   * sentence in one block and the title in another (#2523).
    */
-  visit(el: JSXElement, ancestors: readonly JSXElement[], component: string): boolean {
+  visit(
+    el: JSXElement,
+    ancestors: readonly JSXElement[],
+    component: string,
+    consumed = false,
+  ): boolean {
     const tag = getTagName(el);
     if (!tag) return false;
     const attrDecisions: Record<string, string> = {};
@@ -243,6 +254,13 @@ class BlockCollector {
     // raw tag for unmapped components, so hash parity holds across
     // extract + transform.
     this.emitAttributeBlocks(el, ancestors, policy.locNote, component, attrDecisions);
+
+    // The enclosing block holds this element's words already. Its
+    // attributes came out above; nothing else here is its own.
+    if (consumed) {
+      explain?.("consumed-by-parent-block", { locNote: policy.locNote });
+      return false;
+    }
 
     const willEmit =
       policy.translate && hasTranslatableText(el) && isAllInlineContent(el, this.componentMap);
@@ -658,7 +676,12 @@ function blockProperties(
  */
 function walkJsx(
   module: Module,
-  visit: (el: JSXElement, ancestors: readonly JSXElement[], component: string) => boolean,
+  visit: (
+    el: JSXElement,
+    ancestors: readonly JSXElement[],
+    component: string,
+    consumed: boolean,
+  ) => boolean,
   visitFragment?: (
     frag: JSXFragment,
     ancestors: readonly JSXElement[],
@@ -670,7 +693,7 @@ function walkJsx(
   const components: string[] = [];
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  function descend(node: any): void {
+  function descend(node: any, consumed: boolean): void {
     if (!node || typeof node !== "object") return;
 
     if (node.span && typeof node.span.start === "number" && base > 0) {
@@ -683,53 +706,43 @@ function walkJsx(
     if (node.type === "JSXElement") {
       const el = node as JSXElement;
       const currentComponent = components[components.length - 1] ?? "";
-      const emitted = visit(el, [...ancestors], currentComponent);
+      const emitted = visit(el, [...ancestors], currentComponent, consumed);
 
-      // If a block was emitted for el, its inline JSX children were
-      // consumed by the parent's flat text template (a single `ph`
-      // per inline child). Re-visiting them would emit duplicate
-      // blocks the plugin transform will never look up at runtime.
-      // Expression-container children still need visits so
-      // `{cond && <X/>}`-style conditional JSX can surface inner
-      // translatable text as its own block.
       ancestors.push(el);
-      if (emitted) {
-        for (const child of el.children ?? []) {
-          if (child.type === "JSXExpressionContainer") descend(child);
-        }
-      } else {
-        for (const child of el.children ?? []) descend(child);
+      const childrenConsumed = consumed || emitted;
+      for (const child of el.children ?? []) {
+        // An expression container is spliced into the block's call as
+        // one param, so what it holds is ordinary JSX again however
+        // deep in a consumed subtree it sits.
+        descend(child, child.type === "JSXExpressionContainer" ? false : childrenConsumed);
       }
-      if (el.opening) descend(el.opening);
-      if (el.closing) descend(el.closing);
+      // An attribute value is spliced verbatim too, so JSX inside one
+      // is never consumed by an enclosing block.
+      if (el.opening) descend(el.opening, false);
+      if (el.closing) descend(el.closing, false);
       ancestors.pop();
     } else if (node.type === "JSXFragment") {
       const frag = node as JSXFragment;
       const currentComponent = components[components.length - 1] ?? "";
-      const emitted = visitFragment ? visitFragment(frag, [...ancestors], currentComponent) : false;
-      // Same consumption rule as elements: an emitted fragment block
-      // captured its inline children; only expression containers may
-      // still surface their own inner blocks.
-      if (emitted) {
-        for (const child of frag.children ?? []) {
-          if (child.type === "JSXExpressionContainer") descend(child);
-        }
-      } else {
-        for (const child of frag.children ?? []) descend(child);
+      const emitted =
+        !consumed && visitFragment ? visitFragment(frag, [...ancestors], currentComponent) : false;
+      const childrenConsumed = consumed || emitted;
+      for (const child of frag.children ?? []) {
+        descend(child, child.type === "JSXExpressionContainer" ? false : childrenConsumed);
       }
     } else {
       for (const key of Object.keys(node)) {
         if (key === "type") continue;
         const val = (node as Record<string, unknown>)[key];
-        if (Array.isArray(val)) for (const item of val) descend(item);
-        else if (val && typeof val === "object" && "type" in val) descend(val);
+        if (Array.isArray(val)) for (const item of val) descend(item, consumed);
+        else if (val && typeof val === "object" && "type" in val) descend(val, consumed);
       }
     }
 
     if (pushedComponent) components.pop();
   }
 
-  descend(module);
+  descend(module, false);
 }
 
 /**
