@@ -957,14 +957,25 @@ function buildRuntimeCall(
     const regularParams = paramList.filter((p) => !p.name.startsWith("="));
     const elementParams = paramList.filter((p) => p.name.startsWith("="));
     const fallbackText = JSON.stringify(opts.fallbackOverride ?? text);
+    // Markers whose element answers for the text inside it: a `<code>` or a
+    // `<kbd>` holds bytes the author wrote, and `translate="yes"` claims a
+    // span back. A runtime string transform reads these to leave the same
+    // characters alone that `pseudo-translate` leaves alone in the catalog.
+    const markerAnswers = elementParams.filter((p) => p.translate !== undefined);
+    const markersObj =
+      markerAnswers.length > 0
+        ? `, { ${markerAnswers.map((p) => `${JSON.stringify(p.name)}: ${JSON.stringify(p.translate)}`).join(", ")} }`
+        : "";
     return {
       build: (slice) => {
         const elementsObj = `{ ${elementParams.map((p) => `${JSON.stringify(p.name)}: ${slice(p.fullStart, p.fullEnd)}`).join(", ")} }`;
         const paramsObj =
           regularParams.length > 0
             ? `, { ${regularParams.map((p) => `${JSON.stringify(p.name)}: ${slice(p.exprStart, p.exprEnd)}`).join(", ")} }`
-            : "";
-        return `{__tx("${hk}", ${fallbackText}, ${elementsObj}${paramsObj})}`;
+            : markersObj !== ""
+              ? ", undefined"
+              : "";
+        return `{__tx("${hk}", ${fallbackText}, ${elementsObj}${paramsObj}${markersObj})}`;
       },
       usedTx: true,
     };
@@ -998,6 +1009,7 @@ function convertOccurrence(o: Occurrence, s: (n: number) => number): ParamInfo {
     openEnd: o.openEnd !== undefined ? s(o.openEnd) : undefined,
     closeStart: o.closeStart !== undefined ? s(o.closeStart) : undefined,
     closeEnd: o.closeEnd !== undefined ? s(o.closeEnd) : undefined,
+    translate: o.translate,
   };
 }
 
@@ -1015,6 +1027,8 @@ type ParamInfo = {
   openEnd?: number;
   closeStart?: number;
   closeEnd?: number;
+  /** Paired elements only: the element's own translate answer, if it has one. */
+  translate?: "yes" | "no";
 };
 
 // ─── Inline Translation ──────────────────────────────────────

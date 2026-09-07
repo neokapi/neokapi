@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { build } from "esbuild";
-import { rmSync, readFileSync, writeFileSync, readdirSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { rmSync, readFileSync, writeFileSync, readdirSync, statSync, existsSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 import { execFileSync } from "node:child_process";
 
 rmSync("dist", { recursive: true, force: true });
@@ -40,6 +40,7 @@ const entryPoints = [
   "src/plugin/chunk-manifest.ts",
   "src/runtime/index.ts",
   "src/runtime/icu.ts",
+  "src/runtime/markers.ts",
   "src/runtime/plural.tsx",
   "src/runtime/pseudo.ts",
   "src/runtime/hash.ts",
@@ -106,5 +107,36 @@ function walk(dir) {
   }
 }
 walk("dist");
+
+// Every relative import in the emitted JS has to land on a file. `bundle: false`
+// emits one output per entry point and copies import specifiers through, so a
+// module missing from `entryPoints` produces a specifier pointing at nothing.
+// Nothing fails at build time and nothing fails at import time either until the
+// branch that needs the module runs, in an app several packages away.
+const dangling = [];
+function checkImports(dir) {
+  for (const entry of readdirSync(dir)) {
+    const p = join(dir, entry);
+    if (statSync(p).isDirectory()) {
+      checkImports(p);
+      continue;
+    }
+    if (!p.endsWith(".js")) continue;
+    const source = readFileSync(p, "utf8");
+    const specifiers = [...source.matchAll(/(?:from|import)\s*\(?\s*(['"])(\.\.?\/[^'"]+)\1/g)].map(
+      (m) => m[2],
+    );
+    for (const spec of specifiers) {
+      if (!existsSync(resolve(dirname(p), spec))) dangling.push(`${p} -> ${spec}`);
+    }
+  }
+}
+checkImports("dist");
+if (dangling.length > 0) {
+  console.error("Emitted imports that resolve to nothing:");
+  for (const line of dangling) console.error(`  ${line}`);
+  console.error("Add the missing module to entryPoints in build.mjs.");
+  process.exit(1);
+}
 
 console.log("Built dist/");
