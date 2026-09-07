@@ -73,6 +73,7 @@ const runningRun: AutomationRun = {
 const runningStep: AutomationStep = {
   id: "step-1",
   run_id: "run-1",
+  rule_id: "aB3xY9zQ",
   rule_name: "checks-on-push",
   action_type: "run_flow",
   status: "running",

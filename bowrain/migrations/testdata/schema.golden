@@ -230,6 +230,7 @@ automation_steps.ended_at timestamp with time zone NULL
 automation_steps.error text NOT NULL DEFAULT ''::text
 automation_steps.id text NOT NULL
 automation_steps.job_ids jsonb NOT NULL DEFAULT '[]'::jsonb
+automation_steps.rule_id text NOT NULL DEFAULT ''::text
 automation_steps.rule_name text NOT NULL DEFAULT ''::text
 automation_steps.run_id text NOT NULL
 automation_steps.started_at timestamp with time zone NOT NULL DEFAULT now()

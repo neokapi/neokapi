@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useApi } from "../context/ApiContext";
 import { useWorkspace } from "../context/WorkspaceContext";
 import { useAutomationRunEvents } from "../hooks/useAutomationRunEvents";
+import { ruleLabel } from "./ruleLabel";
 import type {
   AutomationRun,
   AutomationStep,
@@ -288,7 +289,9 @@ export function AutomationRunsPage({ projectId, live = false }: AutomationRunsPa
                     </span>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-medium">{actionLabel(step.action_type)}</p>
-                      <p className="text-[10px] text-muted-foreground">{step.rule_name}</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {ruleLabel(step.rule_id, undefined, step.rule_name)}
+                      </p>
                     </div>
                     <div className="text-right">
                       {step.total_jobs > 0 && (

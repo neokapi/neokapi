@@ -72,6 +72,7 @@ function step(overrides: Partial<AutomationStep> = {}): AutomationStep {
   return {
     id: "step-1",
     run_id: "run-1",
+    rule_id: "aB3xY9zQ",
     rule_name: "draft",
     action_type: "run_flow",
     status: "running",

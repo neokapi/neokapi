@@ -139,6 +139,7 @@ func (m *AutomationRunManager) Execute(action AutomationAction, ev platev.Event)
 	step := &bstore.AutomationStep{
 		ID:         id.New(),
 		RunID:      runID,
+		RuleID:     action.RuleID,
 		RuleName:   action.Name,
 		ActionType: action.Type,
 		Status:     bstore.StepStatusRunning,

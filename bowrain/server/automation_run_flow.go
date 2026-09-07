@@ -144,7 +144,7 @@ func (s *Server) executeRunFlow(ctx context.Context, action event.AutomationActi
 		})
 	}
 	s.completeAutomationStep(closing, stepID, err)
-	s.recordAutomationHistory(closing, ev, startedAt, time.Now().UTC(), err)
+	s.recordAutomationHistory(closing, action, ev, startedAt, time.Now().UTC(), err)
 }
 
 // runFlowAction resolves and runs the flow. A panic inside the flow is turned

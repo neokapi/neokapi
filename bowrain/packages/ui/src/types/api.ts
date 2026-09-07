@@ -1430,6 +1430,10 @@ export interface SaveAutomationRuleRequest {
 /** Automation execution history entry */
 export interface AutomationHistoryEntry {
   id: string;
+  /**
+   * The rule that fired: a stored rule's id, or `builtin:<name>` for a
+   * platform rule, which has no stored row to look a name up in.
+   */
   rule_id: string;
   project_id: string;
   event_id: string;
@@ -1475,6 +1479,12 @@ export interface AutomationRun {
 export interface AutomationStep {
   id: string;
   run_id: string;
+  /**
+   * The rule the action was dispatched from: a stored rule's id, or
+   * `builtin:<name>` for a platform rule. Empty on a step recorded before the
+   * server carried it, where rule_name is all there is.
+   */
+  rule_id: string;
   rule_name: string;
   action_type: string;
   status: StepStatus;

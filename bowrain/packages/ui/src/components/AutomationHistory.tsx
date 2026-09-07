@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useApi } from "../context/ApiContext";
 import type { AutomationHistoryEntry } from "../types/api";
 import { Loader2 } from "./icons";
+import { ruleLabel } from "./ruleLabel";
 
 /** Executions per request; the server pages on an opaque (started_at, id) cursor. */
 const PAGE_SIZE = 25;
@@ -96,7 +97,7 @@ export function AutomationHistory({ workspaceSlug, projectId, ruleNames }: Autom
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium truncate">
-                  {ruleNames?.[entry.rule_id] ?? entry.rule_id}
+                  {ruleLabel(entry.rule_id, ruleNames)}
                 </span>
                 <StatusBadge status={entry.status} />
               </div>
