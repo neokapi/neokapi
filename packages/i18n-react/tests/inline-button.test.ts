@@ -230,35 +230,34 @@ describe("the other phrasing-content controls", () => {
 });
 
 describe("a control carrying a translatable attribute", () => {
-  it("leaves an icon button's aria-label its own block", () => {
+  it("keeps the sentence and the icon button's aria-label", () => {
     const found = blocks('<p>Press <button aria-label="Run the demo"><Play /></button> now.</p>');
-    expect(found).toHaveLength(1);
-    expect(found[0].type).toBe("jsx:attribute");
-    expect(editable(found[0])).toEqual(["Run the demo"]);
+    expect(found.map((b) => b.type).sort()).toEqual(["jsx:attribute", "jsx:element"]);
+    expect(found.flatMap(editable).sort()).toEqual(["Press ", "Run the demo", " now."].sort());
   });
 
-  it("leaves an image's alt text its own block", () => {
+  it("keeps the sentence and the image's alt text", () => {
     const found = blocks('<p>See <img src="/x.png" alt="the chart" /> above.</p>');
-    expect(found.map((b) => b.type)).toEqual(["jsx:attribute"]);
-    expect(editable(found[0])).toEqual(["the chart"]);
+    expect(found.map((b) => b.type).sort()).toEqual(["jsx:attribute", "jsx:element"]);
+    expect(found.flatMap(editable).sort()).toEqual(["See ", "the chart", " above."].sort());
   });
 
-  it("leaves an input's placeholder its own block", () => {
+  it("keeps the label and the input's placeholder", () => {
     const found = blocks('<label>Name <input placeholder="Jane" /></label>');
-    expect(found.map((b) => b.type)).toEqual(["jsx:attribute"]);
-    expect(editable(found[0])).toEqual(["Jane"]);
+    expect(found.map((b) => b.type).sort()).toEqual(["jsx:attribute", "jsx:element"]);
+    expect(found.flatMap(editable).sort()).toEqual(["Name ", "Jane"].sort());
   });
 
   it("looks below the control, not only at its own tag", () => {
     const found = blocks('<p>Press <button><img alt="run" /></button> now.</p>');
-    expect(found.map((b) => b.type)).toEqual(["jsx:attribute"]);
-    expect(editable(found[0])).toEqual(["run"]);
+    expect(found.map((b) => b.type).sort()).toEqual(["jsx:attribute", "jsx:element"]);
+    expect(found.flatMap(editable).sort()).toEqual(["Press ", "run", " now."].sort());
   });
 
-  it("declines to fold a button whose child prop carries copy", () => {
+  it("folds a button whose child prop carries copy, and keeps the prop", () => {
     const found = blocks('<p>Press <button>Go <Icon label="run" /></button> now.</p>');
-    expect(found).toHaveLength(1);
-    expect(found[0].properties?.element).toBe("button");
+    expect(found.map((b) => b.properties?.element).sort()).toEqual(["Icon", "p"]);
+    expect(found.flatMap(editable).sort()).toEqual(["Press ", "Go ", "run", " now."].sort());
   });
 
   it("still folds a control whose attributes are all machine-facing", () => {
@@ -266,10 +265,11 @@ describe("a control carrying a translatable attribute", () => {
     expect(editable(block)).toEqual(["Press ", "Go", " now."]);
   });
 
-  it("agrees with the transform, which emits no op for the disqualified parent", () => {
-    const out = t('<p>See <img src="/x.png" alt="the chart" /> above.</p>');
-    expect(out).toContain("__t(");
-    expect(out).not.toContain("__tx(");
+  it("agrees with the transform, which weaves the attribute call into the param", () => {
+    const out = t('<p>See <img src="/x.png" alt="the chart" /> above.</p>') as string;
+    expect(out).toContain("__tx(");
+    expect(out).toContain("alt={__t(");
+    expect(out).toContain('"the chart")} />');
   });
 });
 

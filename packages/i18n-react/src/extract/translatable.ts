@@ -12,7 +12,6 @@ import type { JSXElement } from "@swc/core";
 import {
   getTranslatability,
   inlineElements,
-  isTranslatableAttribute,
   nonTranslatableElements,
   phrasingControlElements,
 } from "../plugin/defaults.ts";
@@ -140,6 +139,11 @@ function matchesRule(rule: Rule, htmlElement: string, el: JSXElement): boolean {
  * block with the button as a paired code and its label a translatable run
  * inside; a wrapper whose only content is that button stays disqualified, the
  * walker descends, and the button keeps the block and the key it already had.
+ *
+ * A translatable attribute below any of these travels on its own: the walker
+ * keeps visiting a consumed subtree for attributes, and the transform weaves
+ * their calls into the element source the block splices. So an `<img alt>` in
+ * the middle of a sentence gives up neither the prose nor the alt text.
  */
 export type HasChildren = Pick<JSXElement, "children">;
 
@@ -156,14 +160,7 @@ export function isAllInlineContent(el: HasChildren, componentMap: Record<string,
       if (isPluralElement(child) || isSelectElement(child)) continue;
       const html = resolveHTMLElement(tag, componentMap);
       if (html && inlineElements.has(html)) continue;
-      if (
-        html &&
-        phrasingControlElements.has(html) &&
-        parentHasProse() &&
-        !carriesTranslatableAttribute(child)
-      ) {
-        continue;
-      }
+      if (html && phrasingControlElements.has(html) && parentHasProse()) continue;
       // Zero-children unmapped component → treat as opaque inline.
       // `<FolderOpen />`, `<Icon size={12} />`, `<Badge />` all look
       // like this. A block-level custom component would typically
@@ -175,31 +172,6 @@ export function isAllInlineContent(el: HasChildren, componentMap: Record<string,
     return false;
   }
   return true;
-}
-
-/**
- * True when `el` or anything below it carries an attribute the extractor
- * catalogs (`alt`, `aria-label`, `placeholder`, a component's `label` prop, …).
- *
- * A block consumes its inline children: the walker stops descending once a
- * parent has emitted, and the transform must, because a nested op would land
- * inside the range the block's own op replaces. So an attribute below an
- * inline child never reaches the catalog. Folding a control that carries one
- * would therefore trade the prose around it for the string inside it, and this
- * check declines the trade: an icon button with an `aria-label`, or an `<img>`
- * with an `alt`, keeps the block it has and leaves its parent disqualified.
- */
-function carriesTranslatableAttribute(el: JSXElement): boolean {
-  const tag = getTagName(el);
-  for (const attr of el.opening?.attributes ?? []) {
-    if (attr.type !== "JSXAttribute" || attr.name.type !== "Identifier") continue;
-    if (!attr.value) continue;
-    if (isTranslatableAttribute(attr.name.value, tag ?? "")) return true;
-  }
-  for (const child of el.children ?? []) {
-    if (child.type === "JSXElement" && carriesTranslatableAttribute(child)) return true;
-  }
-  return false;
 }
 
 function isChildless(el: JSXElement): boolean {

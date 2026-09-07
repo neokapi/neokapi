@@ -650,9 +650,16 @@ parent has words of its own: `<p><button>Try it live</button> lists the
 formats.</p>` is one message with the button as a paired marker and its label
 translatable inside it. Where the control is all the parent holds, the parent
 stays out and the control keeps its own block, so a row of buttons is a message
-each. A control carrying copy in an attribute (`aria-label`, `alt`,
-`placeholder`) keeps its own block as well, since a block consumes its inline
-children and the attribute would travel with them.
+each.
+
+**Attributes on an inline child.** A block folds its inline children into one
+template, and their attributes travel separately: the call site carries each
+element with its own props, so `<p>Use <abbr title="Content memory">CM</abbr>
+for that.</p>` is two messages. That holds however deep the nesting goes, and
+for a control whose only copy is an attribute, so an icon button in a sentence
+gives up neither the `aria-label` nor the prose. The key names the element and
+the attribute (`abbr[title]`, `button[aria-label]`, `Badge[label]`), so a
+string keeps it whether the element stands alone or sits in a sentence.
 
 **Conditional JSX.** An expression container is spliced back into the sentence
 whole, so what it renders is not part of the sentence's words. Elements inside

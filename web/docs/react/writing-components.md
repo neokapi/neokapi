@@ -16,7 +16,7 @@ Almost everything you already write is translatable. This page walks through the
 - **Direct text inside an unmapped React component** → extracted, with a warning and a suggestion to add a `componentMap` entry.
 - **Inline elements with children** (`<strong>foo</strong>`, `<a href="…">here</a>`, `<em>{name}</em>`) → captured as one translatable block; the inline element becomes a **paired marker** wrapping its inner content, so the translator sees the inner words and can move the wrapping around.
 - **Zero-children inline elements** (`<br/>`, `<Icon/>`, `<Spinner/>`, `<Badge/>`) → become **standalone markers** (`{=mN}` with no matching close) in the surrounding text.
-- **HTML and ARIA text attributes** (`alt`, `title`, `placeholder`, `aria-label`, …) on **any** element → extracted.
+- **HTML and ARIA text attributes** (`alt`, `title`, `placeholder`, `aria-label`, …) on **any** element → extracted, including on an inline child whose text the sentence around it already carries.
 - **React prop-name conventions** (`label`, `description`, `heading`, `helpText`, `tooltip`, …) on **PascalCase components only** → extracted. On a plain `<div>` these names are usually DOM props or enum keys, not copy.
 - **Translatable attributes with string-literal ternaries** (`title={cond ? "A" : "B"}`) → each branch extracted as its own block.
 - **Code spans inside a sentence** (`<code>`, `<kbd>`, `<samp>`, `<var>`) → the sentence extracts as one block, the span becomes a paired marker, and its text is carried through verbatim.
@@ -276,18 +276,37 @@ keeps its own block:
 That is what keeps a toolbar of buttons a message each, rather than one message
 holding every label in the row.
 
-A control carrying copy in an attribute is left alone as well, because a block
-consumes its inline children and the attribute would go with them:
+### Attributes on an inline child
+
+The words between an inline child's tags belong to the sentence around it. Its
+attributes do not: the call site carries the element with its own props, so
+copy in an `alt`, a `title`, an `aria-label`, a `placeholder` or a component's
+`label` prop is a block of its own.
+
+```tsx
+<p>
+  Use <abbr title="Content memory">CM</abbr> for that.
+</p>
+```
+
+Two blocks: `"Use {=m0}CM{/=m0} for that."` and `"Content memory"`. The same
+holds for a control that carries all its copy in an attribute, so an icon
+button or an image keeps the prose around it:
 
 ```tsx
 <p>
   Press <button aria-label="Run the demo"><Play /></button> to start.
 </p>
-// ✓ one block: the aria-label. The prose around it needs the button's own words.
+// two blocks: "Press {=m0} to start." and "Run the demo"
 ```
 
-Give the button a visible label, or move the copy out of the attribute, and the
-sentence extracts.
+The attribute's key reads `abbr[title]`, `button[aria-label]`, `Badge[label]`,
+and so on. It names the element and the attribute and nothing else, so a
+string keeps its key whether the element stands alone or sits in a sentence,
+and wrapping prose around an existing element does not orphan its translation.
+Nesting goes as deep as the markup does: `<a title="…"><img alt="…" /></a>`
+inside a paragraph is three blocks. An element marked `translate="no"` keeps
+its attributes out of the catalog along with its text.
 
 ### Conditional JSX inside a sentence
 
@@ -516,6 +535,7 @@ rules: [{ selector: ".legal-copy", locNote: "Legal team must review" }];
 | `<p>Click <a>here</a></p>`                | yes        | one block, `<a>` becomes paired `{=m0}…{/=m0}`                           |
 | `<code>foo</code>`                        | no         | non-translatable element                                                 |
 | `<p>Say <code>json</code> now</p>`        | yes        | one block; `json` carried through as protected text                      |
+| `<p>Use <abbr title="X">CM</abbr> ok</p>` | yes        | two blocks: the sentence, and the `title`                                |
 | `<h1 translate="no">X</h1>`               | no         | explicit opt-out (suppresses lint too)                                   |
 | `<button>{label}</button>`                | no         | bare expression; use `t()` on the source                                 |
 | `<button>{obj.label}</button>`            | no         | flagged by `prefer-t-for-label-expr`; wrap the source                    |
