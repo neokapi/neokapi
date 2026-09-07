@@ -94,6 +94,8 @@ func (p *smlParser) parseSharedStringsPart(data []byte, partPath string, emitBlo
 	// Where the current <si> element's content starts, so an item that holds
 	// no translatable text goes back as the source wrote it.
 	var siInnerOff int64
+	// The current <si> element's phonetic markup, as the source wrote it.
+	var siPhonetic string
 
 	for {
 		tok, err := d.Token()
@@ -110,6 +112,7 @@ func (p *smlParser) parseSharedStringsPart(data []byte, partPath string, emitBlo
 			case "si":
 				inSI = true
 				currentRuns = nil
+				siPhonetic = ""
 				// A shared string that holds a bare <t> opens no <r>, so
 				// without this reset it inherits the run properties of the
 				// previous item's last run and comes back wearing them.
@@ -125,6 +128,17 @@ func (p *smlParser) parseSharedStringsPart(data []byte, partPath string, emitBlo
 			case "rPr":
 				if inSI {
 					currentProps = p.parseSMLRunProps(d)
+					continue
+				}
+				p.skelWriteStartElement(d, t)
+
+			case "rPh", "phoneticPr":
+				if inSI {
+					raw, err := capturePhoneticElement(d)
+					if err != nil {
+						return fmt.Errorf("sml: parsing %s: %w", partPath, err)
+					}
+					siPhonetic += raw
 					continue
 				}
 				p.skelWriteStartElement(d, t)
@@ -154,7 +168,7 @@ func (p *smlParser) parseSharedStringsPart(data []byte, partPath string, emitBlo
 					*p.blockCounter++
 					blockID := fmt.Sprintf("tu%d", *p.blockCounter)
 					p.skelRef(blockID)
-					block := p.buildBlock(blockID, merged, partPath, siIndex)
+					block := p.buildBlock(blockID, merged, partPath, siIndex, siPhonetic)
 					emitBlock(block)
 				} else {
 					// Nothing translatable in this item: replay its content.
@@ -384,6 +398,7 @@ func (p *smlParser) parseWorksheetFrom(d *rawDecoder, merges map[string]mergeSpa
 	var hasFormula bool  // the current cell contains a <f> element
 	var inlineRaw string // the current cell's <is> element, verbatim
 	var inlineRuns []textRun
+	var inlinePhonetic string // the <is> element's phonetic markup, verbatim
 	// A cell is held back until its </c>: only then is it known whether its
 	// text is translatable. A cell that is not goes back as the source wrote
 	// it, from cellOff; one that is keeps its own start tag plus whatever
@@ -419,6 +434,7 @@ func (p *smlParser) parseWorksheetFrom(d *rawDecoder, merges map[string]mergeSpa
 					hasFormula = false
 					inlineRaw = ""
 					inlineRuns = nil
+					inlinePhonetic = ""
 					cellOff = d.Offset()
 					d.Pin(cellOff)
 					registerNamespaces(t.Attr)
@@ -435,10 +451,11 @@ func (p *smlParser) parseWorksheetFrom(d *rawDecoder, merges map[string]mergeSpa
 
 			case "is":
 				if inCell {
-					raw, runs, err := p.parseInlineString(d, t)
+					raw, runs, phonetic, err := p.parseInlineString(d, t)
 					if err != nil {
 						return err
 					}
+					inlinePhonetic = phonetic
 					inlineRaw = raw
 					inlineRuns = runs
 					cellText.WriteString(rstText(runs))
@@ -537,6 +554,9 @@ func (p *smlParser) parseWorksheetFrom(d *rawDecoder, merges map[string]mergeSpa
 							// Part 1 §18.3.1.4); without it the cell's text would
 							// go back as a value element and Excel repairs the file.
 							props[cellStorageProp] = cellStorageInline
+							if inlinePhonetic != "" {
+								props[cellPhoneticProp] = inlinePhonetic
+							}
 							source = rstModelRuns(inlineRuns)
 						}
 						block := &model.Block{
@@ -600,6 +620,7 @@ func (p *smlParser) parseWorksheetFrom(d *rawDecoder, merges map[string]mergeSpa
 					hasFormula = false
 					inlineRaw = ""
 					inlineRuns = nil
+					inlinePhonetic = ""
 				} else {
 					p.skelWriteEndElement(d)
 				}
@@ -908,22 +929,52 @@ const (
 	cellStorageInline = "inlineStr"
 )
 
+// Property a CT_Rst block carries when its source element held phonetic markup:
+// the `<rPh>` phonetic runs (ECMA-376 Part 1 §18.4.6) and the `<phoneticPr>`
+// phonetic properties (§18.4.3), as the source wrote them, in source order.
+//
+// A phonetic run spells the reading of the base text, which makes it guidance
+// about the string rather than a stretch of it: a translator sees the base text
+// alone, and the guide travels beside it. Upstream Okapi reads the two elements
+// the same way, as SkippableElement.PhoneticInline consumed by
+// StringItemParser, and drops them on write; the writer here replays their
+// bytes. CT_Rst orders them after the text and the runs, so appending them to
+// the rendered content restores their place.
+//
+// The `sb` and `eb` attributes index the base text a phonetic run reads, so a
+// translated cell keeps a guide written against the source reading.
+const cellPhoneticProp = "openxml:sml-phonetic"
+
+// capturePhoneticElement consumes a phonetic element the decoder has just
+// reported the start of, returning its source bytes.
+func capturePhoneticElement(d *rawDecoder) (string, error) {
+	off := d.Offset()
+	d.Pin(off)
+	defer d.Unpin()
+	if err := skipElement(d); err != nil {
+		return "", err
+	}
+	return d.FromString(off), nil
+}
+
 // parseInlineString reads an inline string element <is>, returning the element
 // verbatim and the rich text runs it holds. <is> carries CT_Rst, the content
 // model sharedStrings.xml uses for <si>, so its runs parse the same way.
-func (p *smlParser) parseInlineString(d *rawDecoder, start xml.StartElement) (raw string, runs []textRun, err error) {
+func (p *smlParser) parseInlineString(d *rawDecoder, start xml.StartElement) (raw string, runs []textRun, phonetic string, err error) {
 	raw, err = captureRawElement(d, start)
 	if err != nil {
-		return "", nil, err
+		return "", nil, "", err
 	}
-	return raw, p.parseRst(raw), nil
+	runs, phonetic = p.parseRst(raw)
+	return raw, runs, phonetic, nil
 }
 
 // parseRst reads the text runs of a CT_Rst element (<si> or <is>): either a
-// single <t>, or a sequence of <r> elements each with its own <rPr>.
-func (p *smlParser) parseRst(raw string) []textRun {
+// single <t>, or a sequence of <r> elements each with its own <rPr>. It also
+// returns the element's phonetic markup, which is a reading guide rather than
+// text; see cellPhoneticProp.
+func (p *smlParser) parseRst(raw string) (runs []textRun, phonetic string) {
 	d := newRawDecoderString(raw)
-	var runs []textRun
 	var props runProps
 
 	for {
@@ -940,15 +991,21 @@ func (p *smlParser) parseRst(raw string) []textRun {
 			props = runProps{}
 		case "rPr":
 			props = p.parseSMLRunProps(d)
+		case "rPh", "phoneticPr":
+			captured, err := capturePhoneticElement(d)
+			if err != nil {
+				return mergeRuns(runs), phonetic
+			}
+			phonetic += captured
 		case "t":
 			text, err := readCharData(d)
 			if err != nil {
-				return mergeRuns(runs)
+				return mergeRuns(runs), phonetic
 			}
 			runs = append(runs, textRun{text: text, props: props})
 		}
 	}
-	return mergeRuns(runs)
+	return mergeRuns(runs), phonetic
 }
 
 // rstText concatenates the text of a CT_Rst element's runs.
@@ -1060,7 +1117,14 @@ func (rp runProps) appendSMLClosingRuns(b *runBuilder, ids *spanIDs) {
 }
 
 // buildBlock creates a model.Block from shared string text runs.
-func (p *smlParser) buildBlock(id string, runs []textRun, partPath string, siIndex int) *model.Block {
+func (p *smlParser) buildBlock(id string, runs []textRun, partPath string, siIndex int, phonetic string) *model.Block {
+	props := map[string]string{
+		"partPath": partPath,
+		"siIndex":  strconv.Itoa(siIndex),
+	}
+	if phonetic != "" {
+		props[cellPhoneticProp] = phonetic
+	}
 	return &model.Block{
 		ID: id,
 		// A shared string is addressed by the index every cell references it
@@ -1069,10 +1133,7 @@ func (p *smlParser) buildBlock(id string, runs []textRun, partPath string, siInd
 		Type:         "shared-string",
 		Translatable: true,
 		Source:       rstModelRuns(runs),
-		Properties: map[string]string{
-			"partPath": partPath,
-			"siIndex":  strconv.Itoa(siIndex),
-		},
+		Properties:   props,
 	}
 }
 
@@ -1241,6 +1302,15 @@ func collectXLSXTextBody(d *rawDecoder) string {
 		}
 		switch t := tok.(type) {
 		case xml.StartElement:
+			if t.Name.Local == "rPh" || t.Name.Local == "phoneticPr" {
+				// A phonetic guide reads the base text; it is not text of its
+				// own. skipElement consumes the whole element, so depth is
+				// still balanced. See cellPhoneticProp.
+				if err := skipElement(d); err != nil {
+					return text.String()
+				}
+				continue
+			}
 			depth++
 			if t.Name.Local == "t" {
 				inT = true

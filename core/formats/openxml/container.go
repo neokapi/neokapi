@@ -648,6 +648,9 @@ func parseSharedStrings(zr *zip.Reader) ([]string, error) {
 	d := xml.NewDecoder(rc)
 	var inSI, inT bool
 	var currentText strings.Builder
+	// Depth inside a phonetic element, whose own <t> reads the base text
+	// rather than adding to it. See cellPhoneticProp.
+	var phoneticDepth int
 
 	for {
 		tok, err := d.Token()
@@ -660,10 +663,18 @@ func parseSharedStrings(zr *zip.Reader) ([]string, error) {
 
 		switch t := tok.(type) {
 		case xml.StartElement:
+			if phoneticDepth > 0 {
+				phoneticDepth++
+				continue
+			}
 			switch t.Name.Local {
 			case "si":
 				inSI = true
 				currentText.Reset()
+			case "rPh", "phoneticPr":
+				if inSI {
+					phoneticDepth = 1
+				}
 			case "t":
 				if inSI {
 					inT = true
@@ -672,10 +683,14 @@ func parseSharedStrings(zr *zip.Reader) ([]string, error) {
 				// Rich text run inside <si> — the <t> inside <r> contributes text
 			}
 		case xml.CharData:
-			if inSI && inT {
+			if inSI && inT && phoneticDepth == 0 {
 				currentText.Write(t)
 			}
 		case xml.EndElement:
+			if phoneticDepth > 0 {
+				phoneticDepth--
+				continue
+			}
 			switch t.Name.Local {
 			case "t":
 				inT = false

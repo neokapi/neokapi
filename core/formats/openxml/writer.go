@@ -4786,8 +4786,13 @@ func (w *Writer) removeDMLProp(attrs []string, spanType string) []string {
 
 // renderSMLBlock renders a run sequence as SpreadsheetML content.
 func (w *Writer) renderSMLBlock(runs []model.Run, block *model.Block) string {
+	// CT_Rst orders its phonetic markup after the text, so the bytes the
+	// reader held back go back where they were by following the runs. See
+	// cellPhoneticProp.
+	phonetic := block.Properties[cellPhoneticProp]
+
 	if block.Type == "shared-string" {
-		return w.renderSMLRichText(runs)
+		return w.renderSMLRichText(runs) + phonetic
 	}
 
 	// A cell that was read as an inline string goes back as one: ECMA-376
@@ -4795,7 +4800,7 @@ func (w *Writer) renderSMLBlock(runs []model.Run, block *model.Block) string {
 	// <is> element, which carries CT_Rst just as <si> does. Writing the text
 	// in a value element instead leaves a workbook Excel repairs on open.
 	if block.Properties[cellStorageProp] == cellStorageInline {
-		return `<is>` + w.renderSMLRichText(runs) + `</is>`
+		return `<is>` + w.renderSMLRichText(runs) + phonetic + `</is>`
 	}
 
 	// Cell content goes in a <v> element, flattened to plain text: inline
