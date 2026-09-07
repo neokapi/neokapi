@@ -37,11 +37,120 @@ import { hashKey } from "./hash.ts";
 import { CONTEXT_SEPARATOR, type PluginOptions } from "../types.ts";
 import type { ReviewManifest } from "../review/manifest.ts";
 
+/**
+ * Reads a byte range of the source with every op nested inside it
+ * already applied. A block op splices the source of its own params
+ * through this, so a conditional inside a translated sentence carries
+ * its own `__t` call rather than reaching the reader in the source
+ * language.
+ */
+type SliceFn = (start: number, end: number) => string;
+
 type TransformOp = {
   offset: number;
   deleteCount: number;
-  insert: string;
+  /** The replacement text, or a builder for it (see {@link SliceFn}). */
+  insert: string | ((slice: SliceFn) => string);
+  /**
+   * Byte ranges this op splices verbatim out of the source. An op that
+   * lands inside one of them composes; an op inside the replaced range
+   * but outside every slot would vanish from the output, so
+   * `renderOps` refuses to build it.
+   */
+  slots?: ReadonlyArray<readonly [number, number]>;
 };
+
+/** One op with the ops nested inside its replaced range. */
+type OpNode = { op: TransformOp; children: OpNode[] };
+
+/** Whether `[start, end)` lies inside the range `op` replaces. */
+function opContains(op: TransformOp, start: number, end: number): boolean {
+  return start >= op.offset && end <= op.offset + op.deleteCount;
+}
+
+/** Whether `[start, end)` lies inside one of the ranges `op` splices. */
+function opServes(op: TransformOp, start: number, end: number): boolean {
+  for (const [a, b] of op.slots ?? []) if (start >= a && end <= b) return true;
+  return false;
+}
+
+function rangeText(op: TransformOp): string {
+  return `[${op.offset}, ${op.offset + op.deleteCount})`;
+}
+
+/**
+ * Apply every op to `buf` and return the rewritten source.
+ *
+ * Ops nest: a translated element replaces its whole content range and
+ * splices the source of each param back into the call it emits, so an
+ * op inside one of those params is applied to the text being spliced.
+ * Anything else that overlaps is a bug in the walk, and throws rather
+ * than producing malformed output or dropping a translation (see #3,
+ * #2522).
+ */
+function renderOps(buf: Buffer, ops: readonly TransformOp[], filename: string): string {
+  // Outermost first at a shared offset, so a container is on the stack
+  // before what it contains.
+  const sorted = [...ops].sort((a, b) => a.offset - b.offset || b.deleteCount - a.deleteCount);
+
+  const roots: OpNode[] = [];
+  const stack: OpNode[] = [];
+  for (const op of sorted) {
+    const end = op.offset + op.deleteCount;
+    while (stack.length > 0) {
+      const top = stack[stack.length - 1].op;
+      if (op.offset >= top.offset + top.deleteCount) {
+        stack.pop();
+        continue;
+      }
+      if (end > top.offset + top.deleteCount) {
+        throw new Error(
+          `[neokapi] overlapping transform ops in ${filename}: ` +
+            `${rangeText(top)} and ${rangeText(op)}`,
+        );
+      }
+      break;
+    }
+    const node: OpNode = { op, children: [] };
+    const parent = stack[stack.length - 1];
+    if (parent) {
+      if (!opServes(parent.op, op.offset, end)) {
+        throw new Error(
+          `[neokapi] transform op ${rangeText(op)} in ${filename} sits inside ` +
+            `${rangeText(parent.op)}, which splices none of it — the ` +
+            `translation it carries would never reach the output`,
+        );
+      }
+      parent.children.push(node);
+    } else {
+      roots.push(node);
+    }
+    stack.push(node);
+  }
+
+  const renderRange = (children: readonly OpNode[], from: number, to: number): string => {
+    let out = "";
+    let pos = from;
+    for (const child of children) {
+      const start = child.op.offset;
+      const end = start + child.op.deleteCount;
+      // A slot covers part of the parent's range, so the siblings that
+      // fall outside this one are rendered when their own slot is read.
+      if (start < pos || end > to) continue;
+      out += buf.toString("utf8", pos, start);
+      out += renderNode(child);
+      pos = end;
+    }
+    return out + buf.toString("utf8", pos, to);
+  };
+
+  const renderNode = (node: OpNode): string =>
+    typeof node.op.insert === "string"
+      ? node.op.insert
+      : node.op.insert((a, b) => renderRange(node.children, a, b));
+
+  return renderRange(roots, 0, buf.length);
+}
 
 type ProcessResult = {
   /** Runtime helper used by this element, if any (used to decide which imports to add). */
@@ -343,22 +452,24 @@ export function transform(
   // char (e.g. em-dash in a comment) above the t() call shifts the
   // real offset and produces corrupted paramsSrc (see #382).
   const sourceSlice = (start: number, end: number): string => bslice(buf, s(start), s(end));
-  // Any element-extraction op already queued covers the bytes of
-  // every `t()` call embedded inside it (the whole element body
-  // gets replaced with a single `__tx(…)`). Record those ranges so
-  // we skip the inner-t rewrite — otherwise the two ops overlap
-  // and the final op-disjoint check throws. The element's `__tx`
-  // renders the t()-call result via its param list, so no
-  // translation is lost.
-  const elementOpRanges = ops.map((op) => [op.offset, op.offset + op.deleteCount] as const);
-  const coveredByElementOp = (start: number, end: number): boolean => {
-    for (const [a, b] of elementOpRanges) if (start >= a && end <= b) return true;
+  // An element op already queued replaces the bytes of every `t()`
+  // call inside it. Where the call sits in one of that op's params the
+  // rewrite still applies — `renderOps` runs it over the source the
+  // call site splices — so `t()` in a conditional or an interpolation
+  // is translated like any other. Where the call is part of the flat
+  // template instead, the block carries its text and a second op would
+  // have nowhere to go.
+  const queued = ops.slice();
+  const swallowedByBlock = (start: number, end: number): boolean => {
+    for (const op of queued) {
+      if (opContains(op, start, end) && !opServes(op, start, end)) return true;
+    }
     return false;
   };
   for (const call of walkTCalls(ast, tNames, sourceSlice)) {
     const callStart = s(call.node.span.start);
     const callEnd = s(call.node.span.end);
-    if (coveredByElementOp(callStart, callEnd)) continue;
+    if (swallowedByBlock(callStart, callEnd)) continue;
 
     const desc = `t${CONTEXT_SEPARATOR}${call.context ?? ""}`;
     const hash = hashKey(call.text, desc);
@@ -426,34 +537,7 @@ export function transform(
   // Apply ops in byte space: SWC offsets are UTF-8 byte offsets, so
   // splicing must operate on a Buffer, not on a JS string (which is
   // UTF-16 code unit indexed).
-  ops.sort((a, b) => a.offset - b.offset);
-
-  // Defensive: ops must be pairwise disjoint. Nested translatable
-  // elements used to emit overlapping ranges (the outer tx() captured
-  // the inner element verbatim while the inner element produced its
-  // own t() op); the walker now skips descendants of consumed blocks,
-  // but this check fails loudly if anything else regresses. See #3.
-  for (let i = 1; i < ops.length; i++) {
-    const prev = ops[i - 1];
-    const curr = ops[i];
-    if (prev.offset + prev.deleteCount > curr.offset) {
-      throw new Error(
-        `[neokapi] overlapping transform ops in ${filename}: ` +
-          `[${prev.offset}, ${prev.offset + prev.deleteCount}) and ` +
-          `[${curr.offset}, ${curr.offset + curr.deleteCount})`,
-      );
-    }
-  }
-
-  const parts: Buffer[] = [];
-  let pos = 0;
-  for (const op of ops) {
-    parts.push(buf.subarray(pos, op.offset));
-    parts.push(Buffer.from(op.insert, "utf8"));
-    pos = op.offset + op.deleteCount;
-  }
-  parts.push(buf.subarray(pos));
-  let result = Buffer.concat(parts).toString("utf8");
+  let result = renderOps(buf, ops, filename);
 
   if (needsT || needsTx) {
     const imports = [needsT ? "__t" : "", needsTx ? "__tx" : ""].filter(Boolean).join(", ");
@@ -481,28 +565,35 @@ function walkModule(
     if (node.type === "JSXFragment" && fragmentVisitor) {
       const frag = node as JSXFragment;
       const { skipChildren } = fragmentVisitor(frag, jsxAncestors);
-      // A consumed fragment's children were captured verbatim into
-      // its op — descending would emit ops nested inside that range
-      // (the op-disjointness check throws). Same rule as consumed
-      // elements. (The extract walker DOES revisit expression
-      // containers — it only emits blocks, never ops.)
-      if (skipChildren) return;
-      for (const child of frag.children || []) walk(child, jsxAncestors);
+      for (const child of frag.children || []) {
+        if (skipChildren && child.type !== "JSXExpressionContainer") continue;
+        walk(child, jsxAncestors);
+      }
       return;
     }
     if (node.type === "JSXElement") {
       const el = node as JSXElement;
       const { skipChildren } = visitor(el, jsxAncestors);
-      if (skipChildren) return;
       const newAncestors = [...jsxAncestors, el];
-      // Descend into the opening tag too so JSX nested inside an
-      // attribute value (e.g. `actions={<div><Button>…</Button></div>}`)
-      // gets visited. Without this, blocks inside prop JSX extract fine
-      // but never receive their runtime `__t` / `__tx` call, so the
-      // rendered UI stays in the source language. Mirrors the extract
-      // walker (walker.ts) which already descends into `el.opening`.
+      // A consumed element's inline children travel into its own op as
+      // a flat template, so revisiting them would emit ops the op tree
+      // has no slot for. Its expression containers are a different
+      // matter: each is spliced into the call verbatim as a param, so
+      // JSX inside a conditional needs its own call to be translated at
+      // all. The extract walker descends the same containers and emits
+      // blocks for what it finds there, and the two have to agree —
+      // otherwise those keys are compiled into the dictionary and
+      // nothing ever looks them up (#2522).
+      for (const child of el.children || []) {
+        if (skipChildren && child.type !== "JSXExpressionContainer") continue;
+        walk(child, newAncestors);
+      }
+      // The opening tag is spliced verbatim too, so JSX nested inside
+      // an attribute value (`actions={<div><Button>…</Button></div>}`)
+      // is visited whether or not the element itself was consumed.
+      // Mirrors the extract walker, which descends `el.opening` on
+      // both paths.
       if (el.opening) walk(el.opening, newAncestors);
-      for (const child of el.children || []) walk(child, newAncestors);
       return;
     }
     for (const key of Object.keys(node)) {
@@ -670,7 +761,6 @@ function processElement(
     mode,
     dict,
     options,
-    buf,
     contentStart,
     contentEnd,
     ops,
@@ -724,7 +814,6 @@ function processFragment(
     mode,
     dict,
     options,
-    buf,
     contentStart,
     contentEnd,
     ops,
@@ -745,14 +834,13 @@ function emitBlockContent(args: {
   mode: "inline" | "runtime";
   dict: Record<string, string> | null;
   options: PluginOptions;
-  buf: Buffer;
   contentStart: number;
   contentEnd: number;
   ops: TransformOp[];
   hashes: Set<string>;
 }): "runtime-t" | "runtime-tx" | null {
-  const { hk, text, paramList, mode, dict, options, buf, contentStart, contentEnd, ops, hashes } =
-    args;
+  const { hk, text, paramList, mode, dict, options, contentStart, contentEnd, ops, hashes } = args;
+  const slots = paramSlots(paramList);
 
   // ICU (plural/select) pivots are runtime values — the chosen form
   // can't be known at build time, so ICU-bearing blocks always route
@@ -783,29 +871,49 @@ function emitBlockContent(args: {
       // Bake the translated ICU template into a runtime call. The
       // dict lookup misses (inline builds load no dict) and the
       // baked fallback carries the translation.
-      const insert = buildRuntimeCall(hk, translated ?? text, paramList, buf, {
+      const call = buildRuntimeCall(hk, translated ?? text, paramList, {
         fallbackOverride: translated ?? text,
       });
       ops.push({
         offset: contentStart,
         deleteCount: contentEnd - contentStart,
-        insert: insert.code,
+        insert: call.build,
+        slots,
       });
-      return insert.usedTx ? "runtime-tx" : "runtime-t";
+      return call.usedTx ? "runtime-tx" : "runtime-t";
     }
-    const inlined = inlineTranslation(translated ?? text, paramList, buf);
+    const resolved = translated ?? text;
     ops.push({
       offset: contentStart,
       deleteCount: contentEnd - contentStart,
-      insert: inlined,
+      insert: (slice) => inlineTranslation(resolved, paramList, slice),
+      slots,
     });
     return null;
   }
 
-  const insert = buildRuntimeCall(hk, text, paramList, buf, {});
-  ops.push({ offset: contentStart, deleteCount: contentEnd - contentStart, insert: insert.code });
+  const call = buildRuntimeCall(hk, text, paramList, {});
+  ops.push({
+    offset: contentStart,
+    deleteCount: contentEnd - contentStart,
+    insert: call.build,
+    slots,
+  });
   hashes.add(hk);
-  return insert.usedTx ? "runtime-tx" : "runtime-t";
+  return call.usedTx ? "runtime-tx" : "runtime-t";
+}
+
+/**
+ * The byte ranges a block's call site splices out of the source: one
+ * per param appearance. An op inside one of these composes into the
+ * call; `renderOps` treats anything else inside the replaced range as
+ * a translation that would be dropped.
+ *
+ * The full range covers the expression range in every param kind, so
+ * one entry per param is enough.
+ */
+function paramSlots(paramList: readonly ParamInfo[]): ReadonlyArray<readonly [number, number]> {
+  return paramList.map((p) => [p.fullStart, p.fullEnd] as const);
 }
 
 /**
@@ -817,33 +925,39 @@ function buildRuntimeCall(
   hk: string,
   text: string,
   paramList: ParamInfo[],
-  buf: Buffer,
   opts: { fallbackOverride?: string },
-): { code: string; usedTx: boolean } {
+): { build: (slice: SliceFn) => string; usedTx: boolean } {
   const hasInlineElements = paramList.some((p) => p.name.startsWith("="));
   if (hasInlineElements) {
     const regularParams = paramList.filter((p) => !p.name.startsWith("="));
     const elementParams = paramList.filter((p) => p.name.startsWith("="));
-    const elementsObj = `{ ${elementParams.map((p) => `${JSON.stringify(p.name)}: ${bslice(buf, p.fullStart, p.fullEnd)}`).join(", ")} }`;
-    const paramsObj =
-      regularParams.length > 0
-        ? `, { ${regularParams.map((p) => `${JSON.stringify(p.name)}: ${bslice(buf, p.exprStart, p.exprEnd)}`).join(", ")} }`
-        : "";
     const fallbackText = JSON.stringify(opts.fallbackOverride ?? text);
     return {
-      code: `{__tx("${hk}", ${fallbackText}, ${elementsObj}${paramsObj})}`,
+      build: (slice) => {
+        const elementsObj = `{ ${elementParams.map((p) => `${JSON.stringify(p.name)}: ${slice(p.fullStart, p.fullEnd)}`).join(", ")} }`;
+        const paramsObj =
+          regularParams.length > 0
+            ? `, { ${regularParams.map((p) => `${JSON.stringify(p.name)}: ${slice(p.exprStart, p.exprEnd)}`).join(", ")} }`
+            : "";
+        return `{__tx("${hk}", ${fallbackText}, ${elementsObj}${paramsObj})}`;
+      },
       usedTx: true,
     };
   }
-  const paramsObj =
-    paramList.length > 0
-      ? `, { ${paramList.map((p) => `${JSON.stringify(p.name)}: ${bslice(buf, p.exprStart, p.exprEnd)}`).join(", ")} }`
-      : "";
-  const fallbackExpr =
-    opts.fallbackOverride !== undefined
-      ? JSON.stringify(opts.fallbackOverride)
-      : buildFallbackExpr(text, paramList, buf);
-  return { code: `{__t("${hk}", ${fallbackExpr}${paramsObj})}`, usedTx: false };
+  return {
+    build: (slice) => {
+      const paramsObj =
+        paramList.length > 0
+          ? `, { ${paramList.map((p) => `${JSON.stringify(p.name)}: ${slice(p.exprStart, p.exprEnd)}`).join(", ")} }`
+          : "";
+      const fallbackExpr =
+        opts.fallbackOverride !== undefined
+          ? JSON.stringify(opts.fallbackOverride)
+          : buildFallbackExpr(text, paramList, slice);
+      return `{__t("${hk}", ${fallbackExpr}${paramsObj})}`;
+    },
+    usedTx: false,
+  };
 }
 
 /** Map a raw-span Occurrence into converted byte offsets. */
@@ -918,7 +1032,7 @@ type InlineTok = { start: number; end: number; key: string; kind: "open" | "clos
  * raw `{foo}` can never break the parse or reference a stray
  * variable.
  */
-function inlineTranslation(translatedText: string, paramList: ParamInfo[], buf: Buffer): string {
+function inlineTranslation(translatedText: string, paramList: ParamInfo[], slice: SliceFn): string {
   const byName = new Map<string, ParamInfo>();
   for (const param of paramList) {
     if (!byName.has(param.name)) byName.set(param.name, param);
@@ -976,14 +1090,14 @@ function inlineTranslation(translatedText: string, paramList: ParamInfo[], buf: 
           const inner = render(tok.end, close.start, i + 1, closeIdx - 1);
           if (param && param.openStart !== undefined && param.closeStart !== undefined) {
             out +=
-              bslice(buf, param.openStart, param.openEnd as number) +
+              slice(param.openStart, param.openEnd as number) +
               inner +
-              bslice(buf, param.closeStart, param.closeEnd as number);
+              slice(param.closeStart, param.closeEnd as number);
           } else if (param) {
             // Paired in the translation but not a paired element at
             // the call site — substitute the element/expression and
             // keep the inner content beside it.
-            out += renderStandalone(param, buf) + inner;
+            out += renderStandalone(param, slice) + inner;
           } else {
             out += inner;
           }
@@ -992,7 +1106,7 @@ function inlineTranslation(translatedText: string, paramList: ParamInfo[], buf: 
           continue;
         }
         if (param) {
-          out += renderStandalone(param, buf);
+          out += renderStandalone(param, slice);
         } else {
           // Unknown token — translator artifact. Escape it as text.
           out += escapeJSXText(translatedText.slice(tok.start, tok.end));
@@ -1011,20 +1125,20 @@ function inlineTranslation(translatedText: string, paramList: ParamInfo[], buf: 
   return render(0, translatedText.length, 0, tokens.length - 1);
 }
 
-function renderStandalone(param: ParamInfo, buf: Buffer): string {
+function renderStandalone(param: ParamInfo, slice: SliceFn): string {
   if (param.name.startsWith("=")) {
     // Whole element / JSX-bearing expression: splice its source. A
     // jsx:node occurrence (bare expression like `cond && <X/>`) needs
     // re-wrapping in an expression container.
-    const src = bslice(buf, param.fullStart, param.fullEnd);
+    const src = slice(param.fullStart, param.fullEnd);
     return param.kind === "node" ? `{${src}}` : src;
   }
-  return `{${bslice(buf, param.exprStart, param.exprEnd)}}`;
+  return `{${slice(param.exprStart, param.exprEnd)}}`;
 }
 
 // ─── Runtime Fallback Expression ─────────────────────────────
 
-function buildFallbackExpr(text: string, paramList: ParamInfo[], buf: Buffer): string {
+function buildFallbackExpr(text: string, paramList: ParamInfo[], slice: SliceFn): string {
   if (paramList.length === 0) {
     return `"${text.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
   }
@@ -1039,7 +1153,7 @@ function buildFallbackExpr(text: string, paramList: ParamInfo[], buf: Buffer): s
     const tokenName = match[1];
     const param = paramList.find((p) => p.name === tokenName);
     if (param && !param.name.startsWith("=")) {
-      template += `\${${bslice(buf, param.exprStart, param.exprEnd)}}`;
+      template += `\${${slice(param.exprStart, param.exprEnd)}}`;
     } else {
       template += match[0];
     }
