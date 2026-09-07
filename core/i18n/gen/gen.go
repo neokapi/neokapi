@@ -21,8 +21,8 @@ import (
 	neokapiconfig "github.com/neokapi/neokapi/core/config"
 	fschema "github.com/neokapi/neokapi/core/format/schema"
 	"github.com/neokapi/neokapi/core/formats"
-	"github.com/neokapi/neokapi/core/i18n"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/schema"
 	libtools "github.com/neokapi/neokapi/core/tools"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
@@ -274,7 +274,7 @@ func buildPropertiesFromGeneric(src map[string]map[string]any) map[string]Proper
 				om, _ := o.(map[string]any)
 				// The localizer derives the same segment from the same value,
 				// so a key written here is a key a lookup finds.
-				key := i18n.OptionKey(om["value"], i)
+				key := schema.OptionKey(om["value"], i)
 				if label, _ := om["label"].(string); label != "" {
 					p.Options[key] = OptionEntry{Label: label}
 				}

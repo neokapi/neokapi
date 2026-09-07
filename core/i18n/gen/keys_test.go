@@ -110,7 +110,7 @@ func TestOptionKey(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.want, i18n.OptionKey(tc.value, tc.index))
+			assert.Equal(t, tc.want, coreschema.OptionKey(tc.value, tc.index))
 		})
 	}
 }
