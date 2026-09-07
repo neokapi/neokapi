@@ -168,7 +168,7 @@ func (p *smlParser) parseSharedStringsPart(data []byte, partPath string, emitBlo
 					*p.blockCounter++
 					blockID := fmt.Sprintf("tu%d", *p.blockCounter)
 					p.skelRef(blockID)
-					block := p.buildBlock(blockID, merged, partPath, siIndex, siPhonetic)
+					block := p.buildBlock(blockID, merged, partPath, siIndex, siPhonetic, d.UptoString(siInnerOff))
 					emitBlock(block)
 				} else {
 					// Nothing translatable in this item: replay its content.
@@ -237,10 +237,17 @@ func (p *smlParser) parseSMLRunProps(d *rawDecoder) runProps {
 			case "i":
 				props.italic = smlToggleOn(t)
 			case "u":
-				if v := attrVal(t, "val"); v != "" {
-					props.underline = v
-				} else {
+				// ST_UnderlineValues (ECMA-376 Part 1 §18.18.86) spells the
+				// absence of an underline as `none`, and a bare <u/> as
+				// single. A run that says `none` is not underlined, so it gets
+				// no code and its child travels with the rest of the <rPr>.
+				switch v := attrVal(t, "val"); v {
+				case "":
 					props.underline = "single"
+				case "none":
+					props.underline = ""
+				default:
+					props.underline = v
 				}
 			case "strike":
 				props.strike = smlToggleOn(t)
@@ -271,16 +278,41 @@ var smlNamedRPrChildren = map[string]bool{
 	"b": true, "i": true, "u": true, "strike": true, "vertAlign": true,
 }
 
-// smlOpaqueRPr concatenates, in source order, the <rPr> children the model does
-// not name. Empty when the run carries none.
+// smlOpaqueRPr concatenates, in source order, the <rPr> children no declared
+// code carries. Empty when the run carries none.
+//
+// Being named is not enough to be carried: a declared code is emitted only for
+// a child that turns its formatting on, so `<b val="false"/>`,
+// `<i val="false"/>` and `<vertAlign val="baseline"/>` state something the
+// model has no code for. They belong here, or an explicit "not bold" comes back
+// as a run that inherits its weight (948-3.xlsx).
 func (rp runProps) smlOpaqueRPr() string {
 	var b strings.Builder
 	for _, c := range rp.smlRPr {
-		if !smlNamedRPrChildren[c.name] {
-			b.WriteString(c.xml)
+		if smlNamedRPrChildren[c.name] && rp.smlChildHasCode(c.name) {
+			continue
 		}
+		b.WriteString(c.xml)
 	}
 	return b.String()
+}
+
+// smlChildHasCode reports whether a named <rPr> child produced a declared code,
+// which is what decides whether the writer already replays its bytes.
+func (rp runProps) smlChildHasCode(name string) bool {
+	switch name {
+	case "b":
+		return rp.bold
+	case "i":
+		return rp.italic
+	case "u":
+		return rp.underline != ""
+	case "strike":
+		return rp.strike
+	case "vertAlign":
+		return rp.vertAlign == "superscript" || rp.vertAlign == "subscript"
+	}
+	return false
 }
 
 // smlNamedRPrXML returns the source bytes of the named child that declared a
@@ -407,6 +439,14 @@ func (p *smlParser) parseWorksheetFrom(d *rawDecoder, merges map[string]mergeSpa
 	var cellOff int64
 	var cellStartRaw string
 	var cellChildren strings.Builder
+	// cellTail holds what the source wrote between the cell's content element
+	// and </c>, which is the indentation of a pretty-printed worksheet. It is
+	// separate from cellChildren because the content element is replaced by a
+	// skeleton ref, and these bytes belong on the far side of it.
+	var cellTail strings.Builder
+	// cellContentSeen is true once the cell's <is> or <v> has been read, which
+	// is what decides which side of the ref a run of whitespace belongs to.
+	var cellContentSeen bool
 
 	for {
 		tok, err := d.Token()
@@ -440,6 +480,8 @@ func (p *smlParser) parseWorksheetFrom(d *rawDecoder, merges map[string]mergeSpa
 					registerNamespaces(t.Attr)
 					cellStartRaw = d.RawString()
 					cellChildren.Reset()
+					cellTail.Reset()
+					cellContentSeen = false
 				}
 
 			case "v":
@@ -458,6 +500,7 @@ func (p *smlParser) parseWorksheetFrom(d *rawDecoder, merges map[string]mergeSpa
 					inlinePhonetic = phonetic
 					inlineRaw = raw
 					inlineRuns = runs
+					cellContentSeen = true
 					cellText.WriteString(rstText(runs))
 					continue
 				}
@@ -497,6 +540,7 @@ func (p *smlParser) parseWorksheetFrom(d *rawDecoder, merges map[string]mergeSpa
 			case "v":
 				if inValue {
 					inValue = false
+					cellContentSeen = true
 					continue
 				}
 				p.skelWriteEndElement(d)
@@ -543,6 +587,7 @@ func (p *smlParser) parseWorksheetFrom(d *rawDecoder, merges map[string]mergeSpa
 						p.skelWriteString(cellStartRaw)
 						p.skelWriteString(cellChildren.String())
 						p.skelRef(blockID)
+						p.skelWriteString(cellTail.String())
 
 						props := map[string]string{"partPath": partPath, "cell": cellRef}
 						source := []model.Run{{Text: &model.TextRun{Text: text}}}
@@ -558,6 +603,11 @@ func (p *smlParser) parseWorksheetFrom(d *rawDecoder, merges map[string]mergeSpa
 								props[cellPhoneticProp] = inlinePhonetic
 							}
 							source = rstModelRuns(inlineRuns)
+							if inner := rstInnerContent(inlineRaw, "is"); inner != "" {
+								if form := smlSourceForm(inner, source, inlinePhonetic); form != "" {
+									props[cellSourceProp] = form
+								}
+							}
 						}
 						block := &model.Block{
 							ID: blockID,
@@ -617,6 +667,8 @@ func (p *smlParser) parseWorksheetFrom(d *rawDecoder, merges map[string]mergeSpa
 					cellStyle = ""
 					cellStartRaw = ""
 					cellChildren.Reset()
+					cellTail.Reset()
+					cellContentSeen = false
 					hasFormula = false
 					inlineRaw = ""
 					inlineRuns = nil
@@ -638,9 +690,19 @@ func (p *smlParser) parseWorksheetFrom(d *rawDecoder, merges map[string]mergeSpa
 			}
 
 		case xml.CharData:
-			if inValue && inCell {
+			switch {
+			case inValue && inCell:
 				cellText.Write(t)
-			} else if !inCell {
+			case inCell:
+				// The indentation of a pretty-printed worksheet, which sits
+				// between the cell's children and is replayed around the ref
+				// that stands in for the content element.
+				if cellContentSeen {
+					cellTail.Write(d.Raw())
+				} else {
+					cellChildren.Write(d.Raw())
+				}
+			default:
 				p.skelRaw(d)
 			}
 
@@ -945,6 +1007,65 @@ const (
 // translated cell keeps a guide written against the source reading.
 const cellPhoneticProp = "openxml:sml-phonetic"
 
+// Property a CT_Rst block carries when the writer would spell its content
+// differently from the source: the element's content as the source wrote it,
+// between the <si> or <is> tags.
+//
+// Four forms live in those bytes and in nothing else. Excel writes
+// xml:space="preserve" on text that has no leading or trailing whitespace,
+// where the writer emits it only where the text needs it. A character
+// reference (`&#8217;`) is the character by the time the decoder reports it. A
+// carriage return inside <t> is normalised to a line feed (XML 1.0 §2.11). The
+// whitespace a producer indented an <si>, an <r>, an <rPr> and a <t> with
+// belongs to none of them.
+//
+// The reader stores this only where it differs from what the writer would
+// produce, so an ordinary workbook carries nothing extra, and the writer
+// replays it only for content nothing has changed. See smlSourceContent.
+const cellSourceProp = "openxml:sml-source"
+
+// smlSourceForm returns the CT_Rst content to keep on a block, or "" when the
+// writer would rebuild it byte for byte from the runs alone.
+func smlSourceForm(content string, runs []model.Run, phonetic string) string {
+	if content == renderSMLRichText(runs)+phonetic {
+		return ""
+	}
+	if !smlTextIsSpaceSafe(content) {
+		return ""
+	}
+	return content
+}
+
+// smlTextIsSpaceSafe reports whether every <t> in a CT_Rst declares
+// xml:space="preserve" where its text needs it.
+//
+// XML preserves whitespace in element content, but a spreadsheet reads a <t>
+// without the attribute as text it may trim, and Excel writes the attribute
+// under exactly this condition (ECMA-376 Part 1 §18.4.12). A workbook that
+// arrives without it is asking for whitespace to be lost, so the writer adds
+// it, and the source form is not replayed over the top of that repair.
+func smlTextIsSpaceSafe(content string) bool {
+	d := newRawDecoderString(content)
+	for {
+		tok, err := d.Token()
+		if err != nil {
+			return true
+		}
+		t, ok := tok.(xml.StartElement)
+		if !ok || t.Name.Local != "t" {
+			continue
+		}
+		preserve := attrVal(t, "space") == "preserve"
+		text, err := readCharData(d)
+		if err != nil {
+			return true
+		}
+		if !preserve && strings.Trim(text, xmlWhitespace) != text {
+			return false
+		}
+	}
+}
+
 // capturePhoneticElement consumes a phonetic element the decoder has just
 // reported the start of, returning its source bytes.
 func capturePhoneticElement(d *rawDecoder) (string, error) {
@@ -967,6 +1088,42 @@ func (p *smlParser) parseInlineString(d *rawDecoder, start xml.StartElement) (ra
 	}
 	runs, phonetic = p.parseRst(raw)
 	return raw, runs, phonetic, nil
+}
+
+// rstInnerContent returns what a captured CT_Rst element holds between its
+// tags, which is the half the writer rebuilds. It reports "" for an element
+// whose tags are not the plain pair the writer writes, so a producer that
+// spelled the wrapper some other way falls through to the rebuild rather than
+// having the wrapper rewritten around its own content.
+func rstInnerContent(raw, name string) string {
+	d := newRawDecoderString(raw)
+	tok, err := d.Token()
+	if err != nil {
+		return ""
+	}
+	start, ok := tok.(xml.StartElement)
+	if !ok || start.Name.Local != name {
+		return ""
+	}
+	inner := d.EndOffset()
+	depth := 1
+	for depth > 0 {
+		tok, err := d.Token()
+		if err != nil {
+			return ""
+		}
+		switch tok.(type) {
+		case xml.StartElement:
+			depth++
+		case xml.EndElement:
+			depth--
+		}
+	}
+	content := d.UptoString(inner)
+	if "<"+name+">"+content+"</"+name+">" != raw {
+		return ""
+	}
+	return content
 }
 
 // parseRst reads the text runs of a CT_Rst element (<si> or <is>): either a
@@ -1053,13 +1210,17 @@ func smlPropsEqual(a, b runProps) bool {
 }
 
 // buildBlock creates a model.Block from shared string text runs.
-func (p *smlParser) buildBlock(id string, runs []textRun, partPath string, siIndex int, phonetic string) *model.Block {
+func (p *smlParser) buildBlock(id string, runs []textRun, partPath string, siIndex int, phonetic, content string) *model.Block {
 	props := map[string]string{
 		"partPath": partPath,
 		"siIndex":  strconv.Itoa(siIndex),
 	}
 	if phonetic != "" {
 		props[cellPhoneticProp] = phonetic
+	}
+	source := rstModelRuns(runs)
+	if form := smlSourceForm(content, source, phonetic); form != "" {
+		props[cellSourceProp] = form
 	}
 	return &model.Block{
 		ID: id,
@@ -1068,7 +1229,7 @@ func (p *smlParser) buildBlock(id string, runs []textRun, partPath string, siInd
 		Name:         model.StructuralPath(append(strings.Split(partPath, "/"), "si["+strconv.Itoa(siIndex)+"]")...),
 		Type:         "shared-string",
 		Translatable: true,
-		Source:       rstModelRuns(runs),
+		Source:       source,
 		Properties:   props,
 	}
 }

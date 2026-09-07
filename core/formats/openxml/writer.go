@@ -4982,8 +4982,13 @@ func (w *Writer) renderSMLBlock(runs []model.Run, block *model.Block) string {
 	// cellPhoneticProp.
 	phonetic := block.Properties[cellPhoneticProp]
 
+	content := renderSMLRichText(runs) + phonetic
+	if src, ok := smlSourceContent(block, content, phonetic); ok {
+		content = src
+	}
+
 	if block.Type == "shared-string" {
-		return w.renderSMLRichText(runs) + phonetic
+		return content
 	}
 
 	// A cell that was read as an inline string goes back as one: ECMA-376
@@ -4991,7 +4996,7 @@ func (w *Writer) renderSMLBlock(runs []model.Run, block *model.Block) string {
 	// <is> element, which carries CT_Rst just as <si> does. Writing the text
 	// in a value element instead leaves a workbook Excel repairs on open.
 	if block.Properties[cellStorageProp] == cellStorageInline {
-		return `<is>` + w.renderSMLRichText(runs) + phonetic + `</is>`
+		return `<is>` + content + `</is>`
 	}
 
 	// Cell content goes in a <v> element, flattened to plain text: inline
@@ -5000,10 +5005,36 @@ func (w *Writer) renderSMLBlock(runs []model.Run, block *model.Block) string {
 	return `<v>` + xmlesc.Text(model.FlattenRuns(runs)) + `</v>`
 }
 
+// smlSourceContent returns the CT_Rst content the source wrote, for a block
+// whose text nothing has changed.
+//
+// A rebuilt element says what the source said and spells it differently: the
+// writer emits xml:space="preserve" only where the text needs it and Excel
+// writes it more liberally, a character reference comes back as the character,
+// a carriage return inside <t> comes back normalised (XML 1.0 §2.11), and the
+// whitespace a producer indented its <si> with is gone. None of that is
+// recoverable from the model, so the reader keeps the source bytes for a block
+// whose content the writer would spell differently, and they are replayed here.
+//
+// The test is the rendered content, not the presence of a target: a target that
+// says what the source said is untranslated as far as the bytes go. A target
+// that says something else cannot carry the source's layout, because its runs
+// are not the source's runs, so it is rendered.
+func smlSourceContent(block *model.Block, content, phonetic string) (string, bool) {
+	src := block.Properties[cellSourceProp]
+	if src == "" {
+		return "", false
+	}
+	if content != renderSMLRichText(block.Source)+phonetic {
+		return "", false
+	}
+	return src, true
+}
+
 // renderSMLRichText renders a run sequence as CT_Rst content, the model both a
 // shared string's <si> and a cell's <is> hold: a single <t>, or one <r> per
 // stretch of run properties.
-func (w *Writer) renderSMLRichText(runs []model.Run) string {
+func renderSMLRichText(runs []model.Run) string {
 	if !model.RunsHaveInlineCodes(runs) {
 		return smlTextElement(model.FlattenRuns(runs))
 	}
