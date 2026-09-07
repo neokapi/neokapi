@@ -53,6 +53,11 @@ func (s *MCPServer) handleGetSuggestedRules(ctx context.Context, req *mcp.CallTo
 	if err := s.authorizeWorkspace(ctx, req, input.WorkspaceID); err != nil {
 		return nil, getSuggestedRulesOutput{}, err
 	}
+	// The candidates come from the named workspace, but the decisions that
+	// annotate them come from the profile, which is addressed by a global id.
+	if _, err := s.authorizeProfile(ctx, req, input.ProfileID); err != nil {
+		return nil, getSuggestedRulesOutput{}, err
+	}
 	minCount := input.MinCount
 	if minCount <= 0 {
 		minCount = 3
@@ -80,9 +85,12 @@ type promoteRuleOutput struct {
 	Message  string `json:"message"`
 }
 
-func (s *MCPServer) handlePromoteRule(ctx context.Context, _ *mcp.CallToolRequest, input promoteRuleInput) (*mcp.CallToolResult, promoteRuleOutput, error) {
+func (s *MCPServer) handlePromoteRule(ctx context.Context, req *mcp.CallToolRequest, input promoteRuleInput) (*mcp.CallToolResult, promoteRuleOutput, error) {
 	if input.Term == "" {
 		return nil, promoteRuleOutput{}, errors.New("term is required")
+	}
+	if _, err := s.authorizeProfile(ctx, req, input.ProfileID); err != nil {
+		return nil, promoteRuleOutput{}, err
 	}
 	rule := coreprofile.SuggestedRule{Term: input.Term, Replacement: input.Replacement}
 	profile, changed, err := coreprofile.PromoteAndSave(ctx, s.voiceStore, input.ProfileID, rule)
@@ -122,9 +130,9 @@ func (s *MCPServer) handleEvaluateRule(ctx context.Context, req *mcp.CallToolReq
 	if err != nil {
 		return nil, coreprofile.BlastRadius{}, err
 	}
-	baseline, err := s.voiceStore.GetProfile(ctx, input.ProfileID)
+	baseline, err := s.authorizeProfile(ctx, req, input.ProfileID)
 	if err != nil {
-		return nil, coreprofile.BlastRadius{}, fmt.Errorf("get profile: %w", err)
+		return nil, coreprofile.BlastRadius{}, err
 	}
 	candidate := coreprofile.CandidateWithRule(baseline, coreprofile.SuggestedRule{Term: input.Term, Replacement: input.Replacement})
 	// Walked a batch at a time, projecting as it goes: the evaluation wants an

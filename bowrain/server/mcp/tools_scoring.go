@@ -28,7 +28,9 @@ type voiceScopeInput struct {
 
 // resolveProfile selects the effective voice profile for a scoring call.
 // A project named in the scope is authorized first, so a scope cannot reach
-// the voice binding of a project outside the caller's workspaces.
+// the voice binding of a project outside the caller's workspaces, and an
+// explicit profile id is authorized on its own account, so it cannot reach a
+// profile outside them either.
 // An explicit profileID wins; otherwise the profile is resolved from the
 // organizational hierarchy (collection → stream → project → workspace default).
 // locale and channel overrides are applied to the selected profile, then the
@@ -39,6 +41,9 @@ type voiceScopeInput struct {
 func (s *MCPServer) resolveProfile(ctx context.Context, req *mcp.CallToolRequest, profileID string, scope voiceScopeInput, locale, channel string) (*coreprofile.VoiceProfile, error) {
 	projectID, err := s.authorizeOptionalProject(ctx, req, scope.ProjectID)
 	if err != nil {
+		return nil, err
+	}
+	if err := s.authorizeOptionalProfile(ctx, req, profileID); err != nil {
 		return nil, err
 	}
 	profile, err := voicescope.Resolve(ctx, s.contentStore, s.wsDefault, s.voiceStore, voicescope.Scope{
@@ -55,6 +60,13 @@ func (s *MCPServer) resolveProfile(ctx context.Context, req *mcp.CallToolRequest
 	}
 	if profile == nil {
 		return nil, errors.New("no voice profile: pass profile_id or bind one to the project, stream, collection, or workspace")
+	}
+	// The ladder's lower rungs resolve a profile id out of a project, stream or
+	// collection property. Those bindings are server-side data rather than
+	// caller input, and a binding naming a profile in another workspace is a
+	// mistake; serving it would still hand the caller that workspace's guidance.
+	if !s.mayReachProfile(ctx, callerID(req), profile) {
+		return nil, ErrProfileNotFound
 	}
 	return profile, nil
 }

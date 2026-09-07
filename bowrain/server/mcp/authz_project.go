@@ -19,17 +19,18 @@ import (
 // names something real.
 var ErrProjectNotFound = errors.New("project not found")
 
-// callerID is the authenticated principal behind a tool call, empty when the
-// call carries no bearer token. It is deliberately not extractUserID, whose
+// callerID is the authenticated principal behind a request, empty when the
+// request carries no bearer token. It is deliberately not extractUserID, whose
 // "anonymous" placeholder is an analytics label rather than an identity.
-func callerID(req *mcp.CallToolRequest) string {
-	if req == nil {
+//
+// It is written over mcp.ServerRequest rather than over the tool request alone
+// because resources and prompts reach the same voice profiles: CallToolRequest,
+// ReadResourceRequest and GetPromptRequest are all aliases of it.
+func callerID[P mcp.Params](req *mcp.ServerRequest[P]) string {
+	if req == nil || req.Extra == nil || req.Extra.TokenInfo == nil {
 		return ""
 	}
-	if extra := req.GetExtra(); extra != nil && extra.TokenInfo != nil {
-		return extra.TokenInfo.UserID
-	}
-	return ""
+	return req.Extra.TokenInfo.UserID
 }
 
 // authorizeProject resolves a client-supplied project_id and proves the
