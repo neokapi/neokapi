@@ -40,15 +40,44 @@ func TestReferenceDefinitionSpellingRoundTrips(t *testing.T) {
 	}
 }
 
-// TestReferenceDefinitionIndentIsStripped pins the one byte-level rewrite the
-// definition path makes on purpose: okapi's MarkdownFilter strips the 0-3
-// spaces of indent CommonMark 4.7 allows before a definition, and the reader
-// emits the gap up to the line's start so the round-trip matches it. A
-// container's own marker in that position is a separate defect (#2482).
-func TestReferenceDefinitionIndentIsStripped(t *testing.T) {
+// TestReferenceDefinitionKeepsWhatPrecedesIt covers #2482. Whatever sits
+// between the line's start and the definition rides the skeleton: the 0-3
+// spaces of indent CommonMark 4.7 allows, and a container's own marker. The
+// reader used to emit the gap up to the line start and drop the rest, which
+// cost a blockquote its marker and a list item both its marker and the
+// definition. Okapi strips the indent on writeback; MarkdownCanonical folds
+// that difference so parity still holds.
+func TestReferenceDefinitionKeepsWhatPrecedesIt(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, "See [a][R] here.\n\n[R]: /x\n",
-		roundtripWithSkeleton(t, "See [a][R] here.\n\n   [R]: /x\n"))
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{"indented definition", "See [a][R] here.\n\n   [R]: /x\n"},
+		{"definition in a blockquote", "> [d]: /docs\n"},
+		{"definition in a list item", "- [d]: /docs\n"},
+		{"definition in an ordered item", "1. [d]: /docs\n"},
+		{"definition after an item's text", "- See [the docs][d] here.\n\n  [d]: /docs\n"},
+		{"item then a second item", "- [d]: /docs\n- Second item.\n"},
+		{"definition in a nested quote", ">> [d]: /docs\n"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			require.Equal(t, tc.input, roundtripWithSkeleton(t, tc.input), "skeleton path is not byte-exact")
+		})
+	}
+}
+
+// TestReferenceDefinitionInAListItemKeepsResolving pins what the lost marker
+// cost beyond the bytes: the definition an item's link resolves against was
+// gone, so the link rendered as literal text.
+func TestReferenceDefinitionInAListItemKeepsResolving(t *testing.T) {
+	t.Parallel()
+	src := "- See [the docs][d] here.\n\n  [d]: /docs\n"
+	blocks := readBlocks(t, src)
+	require.NotEmpty(t, blocks)
+	assert.Equal(t, "See the docs here.", blocks[0].SourceText())
 }
 
 // TestReferenceDefinitionAtomsTranslate pins the run shape a spread definition

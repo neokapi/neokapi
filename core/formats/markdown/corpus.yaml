@@ -52,6 +52,14 @@ entries:
     license: Apache-2.0
     redistributable: true
     notes: 'own-created fixture for #2444 (inline nodes inside an excluded HTML span)'
+  - path: core/formats/markdown/testdata/fenced-code-blanks.md
+    tier: A
+    origin: bug
+    sha256: e1c9ef9b1f6b4134dff78b0845d18e950f8ba92b5bb1269d29dd7c42aa230c37
+    size: 200
+    license: Apache-2.0
+    redistributable: true
+    notes: 'own-created fixture for #2509 (blank lines inside a fenced code block)'
   - path: core/formats/markdown/testdata/formatting.md
     tier: A
     origin: vendored
@@ -76,6 +84,14 @@ entries:
     license: Apache-2.0
     redistributable: true
     notes: 'FuzzReadMarkdown seed for #2463 (a blockquote marker line with a trailing space)'
+  - path: core/formats/markdown/testdata/fuzz/FuzzReadMarkdown/code_span_line_break
+    tier: A
+    origin: bug
+    sha256: 2d437a9e4dfaf9769d231b253ad93e4efa3766d838d63337ac9d2588ac8e4de6
+    size: 48
+    license: Apache-2.0
+    redistributable: true
+    notes: 'FuzzReadMarkdown seed for #2481 (a code span closing on the next line)'
   - path: core/formats/markdown/testdata/fuzz/FuzzReadMarkdown/excluded_inline_html_emphasis
     tier: A
     origin: bug
@@ -92,6 +108,14 @@ entries:
     license: Apache-2.0
     redistributable: true
     notes: 'FuzzReadMarkdown seed for #2444 (link inside a style span)'
+  - path: core/formats/markdown/testdata/fuzz/FuzzReadMarkdown/hard_break_interior_spaces
+    tier: A
+    origin: bug
+    sha256: 0cfc8dd180da95739db77455de7bf12194b80ef6491e7ef620b508b8af2918cf
+    size: 37
+    license: Apache-2.0
+    redistributable: true
+    notes: 'FuzzReadMarkdown seed for #2515 (spaces inside a hard-break line)'
   - path: core/formats/markdown/testdata/fuzz/FuzzReadMarkdown/spread_reference_definition
     tier: A
     origin: bug
@@ -100,6 +124,30 @@ entries:
     license: Apache-2.0
     redistributable: true
     notes: 'FuzzReadMarkdown seed for #2462 (a definition spread over several lines)'
+  - path: core/formats/markdown/testdata/fuzz/FuzzReadMarkdown/strikethrough_fences
+    tier: A
+    origin: bug
+    sha256: 43c09e9b979d5255875138ccc205b5da5bc3a26bdabd64b27dc4c9aa327e00be
+    size: 31
+    license: Apache-2.0
+    redistributable: true
+    notes: 'FuzzReadMarkdown seed for #2500 (an unbalanced strikethrough)'
+  - path: core/formats/markdown/testdata/fuzz/FuzzReadMarkdown/unterminated_fence_at_eof
+    tier: A
+    origin: bug
+    sha256: d468eee0ee68479f58a9a9f33b2d4afc6afc0eb132d4b219e3c6599eab45a42f
+    size: 33
+    license: Apache-2.0
+    redistributable: true
+    notes: 'FuzzReadMarkdown seed for #2498 (a fence that runs to the end of the file)'
+  - path: core/formats/markdown/testdata/fuzz/FuzzReadMarkdown/unterminated_html_tag
+    tier: A
+    origin: bug
+    sha256: bb21048a4f5f5108a3c3c910a41e781bae55254bee7509dec1c5b58216520aec
+    size: 37
+    license: Apache-2.0
+    redistributable: true
+    notes: 'FuzzReadMarkdown seed for #2497 (a tag the input ends inside)'
   - path: core/formats/markdown/testdata/fuzz/FuzzReadMarkdown/wrapped_link_closer_in_a_quote
     tier: A
     origin: bug
@@ -108,6 +156,46 @@ entries:
     license: Apache-2.0
     redistributable: true
     notes: 'FuzzReadMarkdown seed for #2461 (a link closer wrapping inside a blockquote)'
+  - path: core/formats/markdown/testdata/fuzz/FuzzRoundTripMarkdown/adjacent_emphasis
+    tier: A
+    origin: bug
+    sha256: 59705c8343ba978f081957a7b63c2cc511ed1e8ca4602f3d10bcf0a155bdee8a
+    size: 34
+    license: Apache-2.0
+    redistributable: true
+    notes: 'FuzzRoundTripMarkdown seed for #2499 (two emphasis nodes that touch)'
+  - path: core/formats/markdown/testdata/fuzz/FuzzRoundTripMarkdown/blank_line_in_a_block
+    tier: A
+    origin: bug
+    sha256: 8f855e19205a236079c8d6b3e843b1e7a9d6ea464559f476179b7b15ff6c9403
+    size: 36
+    license: Apache-2.0
+    redistributable: true
+    notes: 'FuzzRoundTripMarkdown seed for #2503 (a blank line inside a rebuilt block)'
+  - path: core/formats/markdown/testdata/fuzz/FuzzRoundTripMarkdown/content_less_heading
+    tier: A
+    origin: bug
+    sha256: 5e52aafab9a75916d8e5bba3f3c8e168dd6f9df1ac63af32ba5b12222b4cf833
+    size: 31
+    license: Apache-2.0
+    redistributable: true
+    notes: 'FuzzRoundTripMarkdown seed for #2495 (a heading with no content)'
+  - path: core/formats/markdown/testdata/fuzz/FuzzRoundTripMarkdown/definition_in_a_list_item
+    tier: A
+    origin: bug
+    sha256: 665ab0481fd6a3bb022c9ef9e3725f2a0ee5bb02c6f0789a242b556e7a0881ce
+    size: 39
+    license: Apache-2.0
+    redistributable: true
+    notes: 'FuzzRoundTripMarkdown seed for #2482 (a definition inside a list item)'
+  - path: core/formats/markdown/testdata/fuzz/FuzzRoundTripMarkdown/empty_link_title
+    tier: A
+    origin: bug
+    sha256: 0e5a999a665b0afed6dae5298e718a8ef9d917cdb43929ea1bac8ada58c6061d
+    size: 35
+    license: Apache-2.0
+    redistributable: true
+    notes: 'FuzzRoundTripMarkdown seed for #2502 (a link with an empty title)'
   - path: core/formats/markdown/testdata/fuzz/FuzzRoundTripMarkdown/hard_break_own_line
     tier: A
     origin: bug
@@ -116,6 +204,14 @@ entries:
     license: Apache-2.0
     redistributable: true
     notes: 'FuzzRoundTripMarkdown seed for #2448 (a hard break on a line of its own)'
+  - path: core/formats/markdown/testdata/fuzz/FuzzRoundTripMarkdown/heading_hash_residue
+    tier: A
+    origin: bug
+    sha256: a1d5ccf875cab981aeddaaf00d1a3bdcfde1a3d76bb8b527882333b045f9460a
+    size: 33
+    license: Apache-2.0
+    redistributable: true
+    notes: 'FuzzRoundTripMarkdown seed for #2484 (a heading whose text is a bare hash)'
   - path: core/formats/markdown/testdata/fuzz/FuzzRoundTripMarkdown/html_block_multiline
     tier: A
     origin: bug
@@ -124,6 +220,22 @@ entries:
     license: Apache-2.0
     redistributable: true
     notes: 'FuzzRoundTripMarkdown seed for #2470 (a multi-line HTML block rebuilt as a paragraph)'
+  - path: core/formats/markdown/testdata/fuzz/FuzzRoundTripMarkdown/html_block_quote_marker
+    tier: A
+    origin: bug
+    sha256: 159e1d0d74578c21742f40f13b22c8e8e543f8e7b9d643aad4b429262686e9a9
+    size: 39
+    license: Apache-2.0
+    redistributable: true
+    notes: 'FuzzRoundTripMarkdown seed for #2505 (a quote marker inside an HTML block)'
+  - path: core/formats/markdown/testdata/fuzz/FuzzRoundTripMarkdown/indented_marker_line
+    tier: A
+    origin: bug
+    sha256: f76a821da680375b3c6925184acec37932c28d41313595ca8eda6f7b7e4f69f0
+    size: 39
+    license: Apache-2.0
+    redistributable: true
+    notes: 'FuzzRoundTripMarkdown seed for #2504 (an indented marker on a continuation line)'
   - path: core/formats/markdown/testdata/fuzz/FuzzRoundTripMarkdown/lazy_blockquote_continuation
     tier: A
     origin: bug
@@ -132,6 +244,14 @@ entries:
     license: Apache-2.0
     redistributable: true
     notes: own-created fuzz reproducer for
+  - path: core/formats/markdown/testdata/fuzz/FuzzRoundTripMarkdown/lazy_quote_heading
+    tier: A
+    origin: bug
+    sha256: c99a9db7dde43e2ae59ddaaa74955cad9aacf86f5baa7a75ee0f21ad0d4f6852
+    size: 37
+    license: Apache-2.0
+    redistributable: true
+    notes: 'FuzzRoundTripMarkdown seed for #2485 (a lazy heading line in a quote)'
   - path: core/formats/markdown/testdata/fuzz/FuzzRoundTripMarkdown/link_title_rebuild
     tier: A
     origin: bug
@@ -156,6 +276,14 @@ entries:
     license: Apache-2.0
     redistributable: true
     notes: 'FuzzRoundTripMarkdown seed for #2464 (an indented nested blockquote continuation marker)'
+  - path: core/formats/markdown/testdata/fuzz/FuzzRoundTripMarkdown/nested_code_fence
+    tier: A
+    origin: bug
+    sha256: 8868601f2595663ae1a4ce6b2a60c0968f73d8b86e2ec51382bf9a3b6bd7f2fa
+    size: 50
+    license: Apache-2.0
+    redistributable: true
+    notes: 'FuzzRoundTripMarkdown seed for #2487 (a shorter fence inside a fence)'
   - path: core/formats/markdown/testdata/fuzz/FuzzRoundTripMarkdown/setext_multiline_heading
     tier: A
     origin: bug
@@ -164,6 +292,22 @@ entries:
     license: Apache-2.0
     redistributable: true
     notes: own-created fuzz reproducer for
+  - path: core/formats/markdown/testdata/fuzz/FuzzRoundTripMarkdown/table_cell_escaped_pipe
+    tier: A
+    origin: bug
+    sha256: 32e05188f38ff0007d320ec5ea5c61ea62810aecb9f1f0aa03ff6df4ec4f7fd1
+    size: 38
+    license: Apache-2.0
+    redistributable: true
+    notes: 'FuzzRoundTripMarkdown seed for #2501 (an escaped pipe in a table cell)'
+  - path: core/formats/markdown/testdata/fuzz/FuzzRoundTripMarkdown/trailing_space_line
+    tier: A
+    origin: bug
+    sha256: b7f2ae2220449536a59221be2e712c929be1716e486028c5f6e69ec80eaa74f5
+    size: 34
+    license: Apache-2.0
+    redistributable: true
+    notes: 'FuzzRoundTripMarkdown seed for #2496 (a line ending in one space)'
   - path: core/formats/markdown/testdata/gfm-table.md
     tier: A
     origin: vendored
@@ -236,6 +380,14 @@ entries:
     license: Apache-2.0
     redistributable: true
     notes: own-created repo fixture
+  - path: core/formats/markdown/testdata/unterminated-html.md
+    tier: A
+    origin: bug
+    sha256: d64b4e22e7e3846221a3b61d54f2a430e726036d0499a3cb221bcd82226eeb57
+    size: 176
+    license: Apache-2.0
+    redistributable: true
+    notes: 'own-created fixture for #2497 (an HTML tag the file ends inside)'
   - path: core/formats/markdown/testdata/wrapped-link-closers.md
     tier: A
     origin: bug

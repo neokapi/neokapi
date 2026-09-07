@@ -34,6 +34,14 @@ func TestSoftBreakWhitespaceRoundTrips(t *testing.T) {
 		{"crlf inside a code span", "`a\r\nb`\r\n", "a\r\nb"},
 		{"crlf in a setext heading", "a\r\nb\r\n===\r\n", "a\r\nb"},
 		{"crlf mixed with a hard break", "a  \r\nb\r\nc\r\n", "a\nb\r\nc"},
+		// #2506: a carriage return that FOLLOWS the line ending is a line
+		// ending of its own to the parser, which skipped it.
+		{"bare cr opening the next line", "a\n\rb\n", "a\n\rb"},
+		{"bare cr after a setext bar", "=\n\r.", "=\n\r."},
+		// #2516: four spaces make the line indented code, which cannot
+		// interrupt a paragraph, so its ">" is text the parser did not strip.
+		{"indented lazy quote marker", "A line\n    > indented quote.\n", "A line\n    > indented quote."},
+		{"indented lazy marker alone", "0\n    >", "0\n    >"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -44,23 +52,21 @@ func TestSoftBreakWhitespaceRoundTrips(t *testing.T) {
 	}
 }
 
-// TestSoftBreakSingleTrailingSpaceKeepsTheLine covers the one spelling the
-// markdown writer does not reproduce byte-for-byte: a line ending in a single
-// space. The block keeps the space and its rendered content reproduces the
-// source, which is what the MDX reader's byte-exact check uses; the markdown
-// writer's own trailing-space trimmer then drops that one space (Okapi
-// parity), so its output is line-exact rather than byte-exact.
+// TestSoftBreakSingleTrailingSpaceKeepsTheLine covers a line ending in a single
+// space, which the writer used to drop for okapi parity (#2496). The block
+// keeps the space, its rendered content reproduces the source (which is what
+// the MDX reader's byte-exact check uses), and so does the file.
 func TestSoftBreakSingleTrailingSpaceKeepsTheLine(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct{ input, text, written string }{
-		{"a \nb\n", "a \nb", "a\nb\n"},
-		{"> a \n> b\n", "a \n> b", "> a\n> b\n"},
+	for _, tc := range []struct{ input, text string }{
+		{"a \nb\n", "a \nb"},
+		{"> a \n> b\n", "a \n> b"},
 	} {
 		blocks := readBlocks(t, tc.input)
 		require.Len(t, blocks, 1)
 		assert.Equal(t, tc.text, blocks[0].SourceText(), "the block keeps the line structure")
 		assert.Equal(t, tc.text, markdown.RenderBlockContent(blocks[0], blocks[0].Source), "the rendered content reproduces the source")
-		assert.Equal(t, tc.written, roundtripWithSkeleton(t, tc.input), "the writer trims the single trailing space")
+		assert.Equal(t, tc.input, roundtripWithSkeleton(t, tc.input), "skeleton path is not byte-exact")
 	}
 }
 

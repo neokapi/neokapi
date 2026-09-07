@@ -149,23 +149,14 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 	}
 	var events []*model.Part // blocks + group brackets, in stream order
 
-	// Wrap the output writer with a per-line trim that mirrors upstream
-	// Okapi's MarkdownFilterWriter.trimNonEssentialTrailingSpaces (see
-	// MarkdownFilterWriter.java:103-122): on each line break, if the
-	// previous line ends in EXACTLY one trailing single space drop that
-	// space. The upstream implementation ALSO strips lines made of all
-	// spaces, but its skeleton writer (MarkdownSkeletonWriter.java:58
-	// appendLinePrefix) re-prepends the per-block line prefix on every
-	// line including the now-stripped ones — and the trim doesn't
-	// reach those re-prepended bytes because they enter the writer
-	// after the next \n. The net effect upstream is that "indent\n"
-	// rows survive unchanged. Mirror the net effect here, not the
-	// literal Java algorithm: only strip exactly-1-trailing-space.
-	// Without this wrap, fixtures like test-html-block-newline.md
-	// round-trip with `". \n"` (single trailing space) where okapi
-	// emits `".\n"`.
-	tw := newTrailSpaceTrimmer(w.Output)
-	defer func() { _ = tw.Flush() }()
+	// The output carries the source's own bytes, trailing whitespace included.
+	// Upstream okapi's MarkdownFilterWriter.trimNonEssentialTrailingSpaces
+	// drops a line's single trailing space, and mirroring that undid what the
+	// reader keeps: a wrapped line's trailing space (#2431), a list item's bare
+	// marker, an empty ATX heading's space (#2496). MarkdownCanonical trims
+	// every line's trailing whitespace on both sides, so parity never depended
+	// on it.
+	tw := w.Output
 
 	var st *streamTable
 
@@ -228,7 +219,7 @@ done:
 		if err := w.writeFromSkeleton(w.skeletonStore, blocksByID, tw); err != nil {
 			return err
 		}
-		return tw.Flush()
+		return nil
 	}
 
 	// Mode 2: Build from the ordered event stream (cross-format export). Table
@@ -245,7 +236,7 @@ done:
 			return err
 		}
 	}
-	return tw.Flush()
+	return nil
 }
 
 // writeFromSkeleton reads skeleton entries and fills in block content.
@@ -545,12 +536,29 @@ func (s *mdInlineSink) Open(r *model.PcOpenRun) {
 		s.open = append(s.open, mdOpenTag{attrs: r.Attrs, destKey: model.AttrSrc})
 	default:
 		if m, ok := mdInlineTag[r.Type]; ok {
-			s.sb.WriteString(m[0])
-			s.open = append(s.open, mdOpenTag{close: m[1]})
+			open, close := s.emphasisSpelling(m[0], m[1])
+			s.sb.WriteString(open)
+			s.open = append(s.open, mdOpenTag{close: close})
 		} else {
 			s.open = append(s.open, mdOpenTag{})
 		}
 	}
+}
+
+// emphasisSpelling picks the delimiter for an emphasis or strong code that
+// opens where the last one closed. Two asterisk pairs that touch spell a run of
+// four ("*a**b*"), which CommonMark reads as one pair around "a**b" rather than
+// as the two the block carries, so the block's content changed on the next pass
+// (#2499). Underscores read as a pair there because the character before them
+// is punctuation, which is what CommonMark 6.2 asks of an intraword "_".
+func (s *mdInlineSink) emphasisSpelling(open, close string) (string, string) {
+	if open != "*" && open != "**" {
+		return open, close
+	}
+	if b := s.sb.String(); b == "" || b[len(b)-1] != '*' {
+		return open, close
+	}
+	return strings.ReplaceAll(open, "*", "_"), strings.ReplaceAll(close, "*", "_")
 }
 
 func (s *mdInlineSink) Close(*model.PcCloseRun) {
@@ -890,11 +898,11 @@ func (w *Writer) writeBlockMarkdown(block *model.Block, out io.Writer) error {
 	switch role {
 	case model.RoleTitle:
 		prefix = "# "
-		text = singleLineHeading(text)
+		text = escapeHeadingClosingSequence(singleLineHeading(text))
 	case model.RoleHeading:
 		if n := block.HeadingLevel(); n > 0 {
 			prefix = strings.Repeat("#", n) + " "
-			text = singleLineHeading(text)
+			text = escapeHeadingClosingSequence(singleLineHeading(text))
 		}
 	case model.RoleListItem:
 		// The marker belongs to the enclosing list, not the item: an ordered
@@ -914,8 +922,13 @@ func (w *Writer) writeBlockMarkdown(block *model.Block, out io.Writer) error {
 		}
 	case model.RoleCode:
 		// Re-emit the fenced code block's info string (language) so the
-		// do-not-translate signal survives cross-format export.
-		prefix, suffix = "```"+block.CodeLanguage()+"\n", "\n```"
+		// do-not-translate signal survives cross-format export. The content
+		// carries the line ending of its last line and the suffix opens with
+		// one, so one of them goes or every pass adds a blank line before the
+		// closing fence.
+		text = strings.TrimSuffix(text, "\n")
+		fence := codeFence(text)
+		prefix, suffix = fence+block.CodeLanguage()+"\n", "\n"+fence
 	case model.RoleCaption:
 		prefix, suffix = "*", "*"
 	}
@@ -951,14 +964,15 @@ func (w *Writer) writeBlockMarkdown(block *model.Block, out io.Writer) error {
 	// heading, which carries no content — the item was gone (#2469).
 	switch {
 	case prefix == "" && suffix == "":
+		text = foldBlankLines(text)
 		if bqPrefix, body, isQuote := w.blockquoteRebuild(block, text); isQuote {
-			prefix, text = bqPrefix, escapeLeadingBlockMarker(body)
+			prefix, text = bqPrefix, escapeLazyQuoteLines(escapeLeadingBlockMarker(body))
 		} else {
 			text = escapeBlockMarkerLines(text)
 			text = escapeInteriorBlockBars(text)
 		}
 	case role == model.RoleListItem:
-		text = escapeBlockMarkerLines(text)
+		text = escapeBlockMarkerLines(foldBlankLines(text))
 	}
 
 	// A block inside a <blockquote> bracket is quoted regardless of its own
@@ -1136,10 +1150,13 @@ func tableRowLine(cells []string) string {
 	return sb.String()
 }
 
-// escapeTableCell makes cell text safe inside a GFM table cell: pipes are
-// escaped and newlines collapse to <br> so a multi-line value stays on one row.
+// escapeTableCell makes cell text safe inside a GFM table cell: an unescaped
+// pipe is escaped and newlines collapse to <br> so a multi-line value stays on
+// one row. A pipe the source already escaped is left as it is, or the cell
+// gained a backslash on every pass and after the first one its text read as an
+// escaped backslash followed by a column separator (#2501).
 func escapeTableCell(s string) string {
-	s = strings.ReplaceAll(s, "|", "\\|")
+	s = escapeCellPipes(s)
 	s = strings.ReplaceAll(s, "\r\n", "\n")
 	s = strings.ReplaceAll(s, "\n", "<br>")
 	return s
@@ -1166,6 +1183,33 @@ func escapeLeadingBlockMarker(text string) string {
 		return text[:i] + "\\" + text[i:]
 	}
 	return text
+}
+
+// escapeHeadingClosingSequence backslash-escapes a run of hashes that ends a
+// rebuilt heading's text, so it stays the heading's content rather than
+// becoming the closing sequence CommonMark 4.2 reads there.
+//
+// The residue matters because the rebuild path drops inline constructs it has
+// no Markdown spelling for. "# <A>#" leaves the bare text "#", written as
+// "# #", where the hash is a closing sequence and the heading has no content
+// at all — the block was gone (#2484). This is the heading's form of #2469:
+// the marker sits at the end of the line rather than at its start.
+//
+// A hash not preceded by whitespace is content already ("# C#"), and an
+// escaped run matches nothing, so the escape is idempotent.
+func escapeHeadingClosingSequence(text string) string {
+	end := len(strings.TrimRight(text, " \t"))
+	i := end
+	for i > 0 && text[i-1] == '#' {
+		i--
+	}
+	if i == end {
+		return text
+	}
+	if i > 0 && text[i-1] != ' ' && text[i-1] != '\t' {
+		return text
+	}
+	return text[:i] + "\\" + text[i:]
 }
 
 // escapeBlockMarkerLines applies escapeLeadingBlockMarker to every line of a
@@ -1195,6 +1239,87 @@ func escapeBlockMarkerLines(text string) string {
 	return strings.Join(lines, "\n")
 }
 
+// codeFence returns the backtick run that opens and closes a rebuilt fenced
+// code block: three, or one more than the longest run of backticks that starts
+// a line of the content.
+//
+// CommonMark 4.5 closes a fence on a run at least as long as the opener, so a
+// three-backtick opener around content holding a three-backtick line ended the
+// block after its first line: the rest became a paragraph and a stray opener
+// was left at the end (#2487). The fence is always backticks, so a tilde run in
+// the content closes nothing and does not count.
+func codeFence(text string) string {
+	longest := 0
+	for line := range strings.SplitSeq(text, "\n") {
+		line = strings.TrimLeft(line, " ")
+		n := 0
+		for n < len(line) && line[n] == '`' {
+			n++
+		}
+		longest = max(longest, n)
+	}
+	return strings.Repeat("`", max(3, longest+1))
+}
+
+// foldBlankLines drops the blank lines inside a block the rebuild path emits as
+// flow content, so the block stays one block.
+//
+// A blank line ends a paragraph, and the rebuild path leaves one behind
+// wherever it drops a construct that occupied a line of its own: the inline
+// HTML in "a\n<a>\na" is dropped, which is accepted lossiness, and the empty
+// line it left split the block in two (#2503). Fenced code keeps its blank
+// lines: indentation and spacing are the content there, and it reaches the
+// writer with a prefix and a suffix rather than through this path.
+func foldBlankLines(text string) string {
+	if !strings.Contains(text, "\n") {
+		return text
+	}
+	lines := strings.Split(text, "\n")
+	kept := lines[:0]
+	for _, line := range lines {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		kept = append(kept, line)
+	}
+	if len(kept) == 0 {
+		return ""
+	}
+	return strings.Join(kept, "\n")
+}
+
+// escapeLazyQuoteLines escapes the block markers on a rebuilt blockquote body's
+// LAZY continuation lines — the ones CommonMark 5.1 lets a paragraph run onto
+// without repeating the ">".
+//
+// A marked continuation line is left alone: it carries the ">" the rebuild
+// restores, which is the marker that belongs there, and escaping it would break
+// the quote into loose paragraphs. A lazy line carries none, so a marker on it
+// opens a construct as surely as one at the start of a block: ">0\n#\\\n0" is
+// one block whose text is "0\n#\n0", and the bare "#" on line two read back as
+// a heading, so one block became two (#2485). A lazy line that forms a GFM
+// delimiter row or a setext underline promotes the line above it the same way,
+// which is what escapeInteriorBlockBars does for a plain paragraph.
+func escapeLazyQuoteLines(body string) string {
+	if !strings.Contains(body, "\n") {
+		return body
+	}
+	lines := strings.Split(body, "\n")
+	for i := 1; i < len(lines); i++ {
+		// A marked line keeps its ">" and the escape applies to what follows
+		// it, which is the same block-content position the marker opens.
+		prefix := blockquoteMarkerPrefix(lines[i])
+		rest := escapeInterruptingBlockMarker(lines[i][len(prefix):])
+		if isSetextBar(rest) || isTableDelimiterRow(rest) {
+			if j := firstBarChar(rest); j >= 0 {
+				rest = rest[:j] + "\\" + rest[j:]
+			}
+		}
+		lines[i] = prefix + rest
+	}
+	return strings.Join(lines, "\n")
+}
+
 // escapeInterruptingBlockMarker escapes the marker that begins a CONTINUATION
 // line of a rebuilt block, which is a narrower set than the one that opens a
 // block at the start of one: CommonMark 5.2 lets a list interrupt a paragraph
@@ -1218,6 +1343,10 @@ func escapeInterruptingBlockMarker(line string) string {
 // paragraph. A heading, a blockquote, a thematic break and a fence all do,
 // whatever follows them.
 func interruptsAParagraph(line string) bool {
+	line = line[blockIndent(line):]
+	if line == "" {
+		return false
+	}
 	switch c := line[0]; {
 	case c == '#', c == '>', c == '`', c == '~':
 		return true
@@ -1253,6 +1382,27 @@ func listContentFollows(line string, i int) bool {
 // backslash before a digit is not an escape, so the punctuation is escaped
 // instead — "1. x" -> "1\. x").
 func leadingBlockMarkerPos(text string) (int, bool) {
+	off := blockIndent(text)
+	i, ok := blockMarkerPos(text[off:])
+	return off + i, ok
+}
+
+// blockIndent returns the length of the indentation that can precede a block
+// marker: CommonMark allows up to three spaces there, and a fourth makes the
+// line indented code. A marker the escape tested at byte zero alone was missed
+// when the line carried any of it, and " # 0" opened a heading on the way back
+// in (#2504).
+func blockIndent(text string) int {
+	n := 0
+	for n < 3 && n < len(text) && text[n] == ' ' {
+		n++
+	}
+	return n
+}
+
+// blockMarkerPos answers leadingBlockMarkerPos for a line whose indentation has
+// already been stepped over.
+func blockMarkerPos(text string) (int, bool) {
 	if text == "" {
 		return 0, false
 	}
@@ -1485,34 +1635,64 @@ func (w *Writer) blockquoteRebuild(block *model.Block, text string) (prefix, bod
 	if m, has := block.Properties[BlockPropQuoteMarker]; has && m != "" && w.quoteDepth() == 0 {
 		return m, text, true
 	}
-	// Soft-break body: the continuation lines carry their ">" marker, except
-	// a lazy continuation line (CommonMark 5.1), which has none; only the
-	// first line always lacks one. Recover the marker from the first marked
+	// Soft-break body: the continuation lines carry their ">" marker, except a
+	// lazy continuation line (CommonMark 5.1), which has none; only the first
+	// line always lacks one. Recover the marker from the first marked
 	// continuation line so the quote opens with it: "> a\nb\n> c" re-reads as
 	// one blockquote with a lazy line, where a body judged by its first
 	// continuation line alone rebuilt as a paragraph plus a quote (#2434).
+	//
+	// A block whose text is raw markup is excluded: its ">" is content, and
+	// re-marking it moved the quote onto the block's own first line and split
+	// it in two on the pass after ("<p>.\n- <\n>", #2505). A markdown block
+	// that really is a quote body carries the marker property above; the guess
+	// serves a block that arrives from another format with none.
+	if rawTextBlock(block) {
+		return "", text, false
+	}
 	if m := continuationBlockquoteMarker(text); m != "" {
 		return m, text, true
 	}
 	return "", text, false
 }
 
-// continuationBlockquoteMarker returns the blockquote marker that begins the
-// first continuation line of text carrying one, or "" when text is single-line
-// or no continuation line is a blockquote line.
+// rawTextBlock reports whether a block's text is markup the reader captured
+// verbatim, where a leading marker is content rather than structure.
+func rawTextBlock(block *model.Block) bool {
+	return block.Type == "html-text" || block.Type == "html-block"
+}
+
+// continuationBlockquoteMarker returns the blockquote marker a text's
+// continuation lines carry, or "" when text is single-line or any of them
+// carries none.
+//
+// Every line must be marked. A paragraph whose text merely holds a ">" line —
+// which is what the rebuild path leaves when it drops an inline construct that
+// occupied one — was re-marked as a quote, and the ">" it gained on its own
+// first line split it in two on the pass after (#2503's neighbour). A markdown
+// quote body carries the marker property instead, so this answers only for a
+// block that arrives from another format.
 func continuationBlockquoteMarker(text string) string {
+	marker := ""
 	for nl := strings.IndexByte(text, '\n'); nl >= 0; {
 		line := text[nl+1:]
-		if m := blockquoteMarkerPrefix(line); m != "" {
-			return m
+		if next := strings.IndexByte(line, '\n'); next >= 0 {
+			line = line[:next]
 		}
-		next := strings.IndexByte(line, '\n')
-		if next < 0 {
+		m := blockquoteMarkerPrefix(line)
+		if m == "" {
 			return ""
+		}
+		if marker == "" {
+			marker = m
+		}
+		next := strings.IndexByte(text[nl+1:], '\n')
+		if next < 0 {
+			break
 		}
 		nl += 1 + next
 	}
-	return ""
+	return marker
 }
 
 // blockquoteMarkerPrefix returns the whole blockquote marker sequence that
@@ -1546,80 +1726,6 @@ func blockquoteMarkerPrefix(line string) string {
 // headingLevel returns a block's heading level, preferring the normalized
 // structural annotation (WS1) and falling back to the legacy "level" property;
 // 0 when neither is present.
-
-// trailSpaceTrimmer is an io.Writer that mirrors upstream Okapi's
-// MarkdownFilterWriter trimming algorithm: it buffers bytes per
-// physical line and, at every '\n', applies the rule:
-//
-//   - if the buffered line is made up entirely of spaces, drop them all;
-//   - else if it ends with EXACTLY one trailing space, drop that one;
-//   - else keep the line intact (preserves ≥2 trailing spaces, the
-//     CommonMark hard-break signal, plus the trailing 4-space pattern
-//     in fixtures like DirectShape.md's <pre> code).
-//
-// Carriage returns are preserved verbatim. Flush MUST be called on the
-// final write so any unterminated trailing line is also flushed.
-type trailSpaceTrimmer struct {
-	w   io.Writer
-	buf []byte // current physical line being buffered (no trailing \n)
-}
-
-func newTrailSpaceTrimmer(w io.Writer) *trailSpaceTrimmer {
-	return &trailSpaceTrimmer{w: w}
-}
-
-func (t *trailSpaceTrimmer) Write(p []byte) (int, error) {
-	for i, c := range p {
-		if c == '\n' {
-			t.trimBuffered()
-			t.buf = append(t.buf, '\n')
-			if _, err := t.w.Write(t.buf); err != nil {
-				return i, err
-			}
-			t.buf = t.buf[:0]
-			continue
-		}
-		t.buf = append(t.buf, c)
-	}
-	return len(p), nil
-}
-
-// Flush writes any unterminated trailing line (after the final '\n')
-// without applying the trim — okapi's writer leaves the final tail
-// alone unless a newline arrives, and we keep that semantics so a
-// fixture whose final line legitimately ends in a single space (rare
-// in markdown, but possible) round-trips intact.
-func (t *trailSpaceTrimmer) Flush() error {
-	if len(t.buf) == 0 {
-		return nil
-	}
-	_, err := t.w.Write(t.buf)
-	t.buf = t.buf[:0]
-	return err
-}
-
-func (t *trailSpaceTrimmer) trimBuffered() {
-	if len(t.buf) < 2 {
-		return
-	}
-	// A line that holds nothing but a blockquote's marker keeps the space after
-	// its last ">". CommonMark 5.1 spells the marker as ">" plus an optional
-	// space, so that space belongs to the marker rather than to the decorative
-	// trailing whitespace okapi's writer drops, and stripping it rewrote "> \n"
-	// as ">\n" in a file nobody edited (#2463).
-	if line := string(t.buf); blockquoteMarkerPrefix(line) == line {
-		return
-	}
-	// Only strip if the line ends in EXACTLY one trailing space — see
-	// the comment on the wrap site for why we don't mirror the upstream
-	// "all-spaces → empty" branch (the upstream skeleton writer
-	// re-prepends the line prefix immediately, so the net effect is
-	// "indent\n" rows survive).
-	n := len(t.buf)
-	if t.buf[n-1] == ' ' && t.buf[n-2] != ' ' {
-		t.buf = t.buf[:n-1]
-	}
-}
 
 // blockText returns the rendered text for a block, preferring the target
 // locale's translation if available, falling back to source. Multi-line

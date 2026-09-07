@@ -357,7 +357,7 @@ func (r *Reader) handleFrontMatter(ctx context.Context, ch chan<- model.PartResu
 		r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data})
 	}
 
-	r.skelCursor = endOfFrontMatter
+	r.skelAdvance(endOfFrontMatter)
 	return endOfFrontMatter
 }
 
@@ -450,9 +450,12 @@ func (r *Reader) emitFrontMatterScalars(ctx context.Context, ch chan<- model.Par
 			}
 		}
 		leadingSpace += leadingSpaceSb245.String()
+		// The whitespace after the value is the skeleton's too, or a key
+		// written as "title: a " came back as "title: a".
+		trailingSpace := valuePart[len(strings.TrimRight(valuePart, " \t")):]
 		r.skelText(prefix + leadingSpace)
 		r.skelRef(blockID)
-		r.skelText("\n")
+		r.skelText(trailingSpace + "\n")
 
 		r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 	}
@@ -603,17 +606,21 @@ func (r *Reader) emitLinkReferenceDefinition(ctx context.Context, ch chan<- mode
 	defStart := first.Start + baseOffset
 	defEnd := last.Stop + baseOffset
 
-	// fullLineStart points at the first byte of the source line that
-	// holds the `[label]:` marker — it backs up past any leading
-	// CommonMark indent (0–3 spaces). Okapi strips that indent on
-	// writeback, so we emit the gap up to defStart but skip it for the
-	// definition's own bytes.
+	// fullLineStart points at the first byte of the source line that holds the
+	// `[label]:` marker. Whatever sits between it and the definition belongs to
+	// the skeleton: the 0-3 spaces of indent CommonMark 4.7 allows, and a list
+	// item's or blockquote's own marker when the definition sits inside one.
+	// Dropping those bytes cost the container and, in a list item, the
+	// definition with it: "- [d]: /docs" came back as "-" (#2482).
 	fullLineStart := defStart
 	for fullLineStart > 0 && r.source[fullLineStart-1] != '\n' {
 		fullLineStart--
 	}
 	r.skelEmitGap(fullLineStart)
-	r.skelCursor = defEnd
+	if lead := max(fullLineStart, r.skelCursor); lead < defStart {
+		r.skelText(string(r.source[lead:defStart]))
+	}
+	r.skelAdvance(defEnd)
 
 	label := string(n.Label)
 	labelVisible := r.visibleRefs[label]
@@ -634,11 +641,9 @@ func (r *Reader) emitLinkReferenceDefinition(ctx context.Context, ch chan<- mode
 
 	// The simple case: no translatable parts → emit as Data so the
 	// non-skeleton write path can still reconstruct the line, and let
-	// the skeleton path replay the definition's own bytes (so leading
-	// indent gets stripped and everything else is kept).
+	// the skeleton path replay the definition's own bytes.
 	if !labelVisible && !titleUsed {
 		r.dataCounter++
-		titleOpen, titleClose := titleDelimiters(def, string(n.Title))
 		data := &model.Data{
 			ID:   fmt.Sprintf("d%d", r.dataCounter),
 			Name: "link-reference-definition",
@@ -648,22 +653,17 @@ func (r *Reader) emitLinkReferenceDefinition(ctx context.Context, ch chan<- mode
 				"title":       string(n.Title),
 			},
 		}
-		if located {
-			r.skelText(string(def))
-		} else {
-			// Preserve the literal whitespace authored after `]:` so
-			// `[l]:  #list` (two spaces) doesn't collapse to `[l]: #list`.
-			// Mirrors okapi MarkdownFilter, which round-trips link reference
-			// definitions verbatim through skeleton bytes.
-			sep := refDefSeparator(def)
-			r.skelText(buildLinkReferenceDefinitionLiteral(label, urlLiteral, sep, string(n.Title), titleOpen, titleClose))
-		}
+		// Nothing here is translatable, so the definition's own source bytes go
+		// straight into the skeleton whether or not the scanner could place its
+		// parts. Rebuilding it from the resolved values spelled "[a]: dest"
+		// with one space whatever the source had (#2507).
+		r.skelText(string(def))
 		// preserve a trailing newline only when source had one (always
 		// true for non-EOF defs; goldmark already trimmed the line value
 		// so we add it back here).
 		if defEnd < len(r.source) && r.source[defEnd] == '\n' {
 			r.skelText("\n")
-			r.skelCursor = defEnd + 1
+			r.skelAdvance(defEnd + 1)
 		}
 		r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data})
 		return
@@ -679,7 +679,7 @@ func (r *Reader) emitLinkReferenceDefinition(ctx context.Context, ch chan<- mode
 		r.emitRebuiltReferenceDefinition(ctx, ch, n, def, label, urlLiteral, labelVisible, titleUsed)
 		if defEnd < len(r.source) && r.source[defEnd] == '\n' {
 			r.skelText("\n")
-			r.skelCursor = defEnd + 1
+			r.skelAdvance(defEnd + 1)
 		}
 		return
 	}
@@ -707,7 +707,7 @@ func (r *Reader) emitLinkReferenceDefinition(ctx context.Context, ch chan<- mode
 	}
 	if defEnd < len(r.source) && r.source[defEnd] == '\n' {
 		r.skelText("\n")
-		r.skelCursor = defEnd + 1
+		r.skelAdvance(defEnd + 1)
 	}
 }
 
@@ -829,33 +829,6 @@ func scanRefDefinition(def []byte) (refDefSpans, bool) {
 	return s, true
 }
 
-// buildLinkReferenceDefinitionLiteral builds the source representation
-// of `[label]: url "title"` (or with the alternate quote/paren forms).
-// Used when the definition has no translatable parts so the writer can
-// still reconstruct the line from skeleton bytes alone.
-func buildLinkReferenceDefinitionLiteral(label, dest, sep, title, titleOpen, titleClose string) string {
-	if sep == "" {
-		sep = " "
-	}
-	var sb strings.Builder
-	sb.WriteByte('[')
-	sb.WriteString(label)
-	sb.WriteString("]:")
-	sb.WriteString(sep)
-	sb.WriteString(dest)
-	if title != "" {
-		open, close := titleOpen, titleClose
-		if open == "" || close == "" {
-			open, close = `"`, `"`
-		}
-		sb.WriteByte(' ')
-		sb.WriteString(open)
-		sb.WriteString(title)
-		sb.WriteString(close)
-	}
-	return sb.String()
-}
-
 // refDefSeparator returns the literal whitespace bytes between the
 // `]:` and the destination URL on the source line. Returns " " when
 // the line is malformed (no colon found) so callers always get at
@@ -921,6 +894,17 @@ func titleDelimiters(defLine []byte, title string) (string, string) {
 	}
 }
 
+// skelAdvance moves the skeleton cursor to pos. The reader emits in source
+// order, so the cursor only ever moves forward: a node whose range resolves to
+// an earlier position (a block goldmark reports no lines for, a setext heading
+// whose underline a table already consumed) would otherwise rewind it and the
+// next gap would write the bytes between a second time (#2495).
+func (r *Reader) skelAdvance(pos int) {
+	if pos > r.skelCursor {
+		r.skelCursor = pos
+	}
+}
+
 // skelEmitGap emits any source bytes between the current cursor and the given
 // absolute position as skeleton text.
 func (r *Reader) skelEmitGap(absPos int) {
@@ -954,6 +938,29 @@ func nodeAbsRange(node ast.Node, source []byte, baseOffset int) (int, int) {
 // any wrapped line with trailing whitespace came back with the break
 // collapsed to a space (#2431). Falls back to a single space when no
 // newline follows (defensive; a SoftLineBreak Text node always has one).
+// softBreakContinuationBounded is softBreakContinuation stopped at limit, the
+// offset where the parser's next text begins. Inside a quote or a list item the
+// parser strips the continuation prefix and the two agree; on a lazy
+// continuation line it strips nothing, so the marker the bridge would carry is
+// in the run text as well and "A line\n    > quoted" gained one (#2516). A
+// negative limit means the next node records no position of its own.
+func softBreakContinuationBounded(source []byte, pos, limit int) string {
+	s := softBreakContinuation(source, pos)
+	if limit >= pos && limit < pos+len(s) {
+		return string(source[pos:limit])
+	}
+	return s
+}
+
+// nextTextStart returns the offset where n's next sibling's text begins, or -1
+// when the sibling records no segment.
+func nextTextStart(n ast.Node) int {
+	if t, ok := n.NextSibling().(*ast.Text); ok {
+		return t.Segment.Start
+	}
+	return -1
+}
+
 func softBreakContinuation(source []byte, pos int) string {
 	if pos < 0 || pos > len(source) {
 		return " "
@@ -969,7 +976,10 @@ func softBreakContinuation(source []byte, pos int) string {
 	for end < len(source) {
 		c := source[end]
 		switch c {
-		case ' ', '\t':
+		case ' ', '\t', '\r':
+			// A carriage return that FOLLOWS the line ending is a line ending
+			// of its own to the parser, which skips it; keeping it is what
+			// stops a bare CR disappearing from the block and the file (#2506).
 			end++
 			continue
 		case '>':
@@ -1115,6 +1125,15 @@ func detectLinePrefix(node ast.Node, source []byte) string {
 }
 
 func (r *Reader) emitHeading(ctx context.Context, ch chan<- model.PartResult, n *ast.Heading, source []byte, baseOffset int) {
+	// A heading the skeleton cannot place emits nothing and lets its line ride
+	// the gap as source bytes (#2495). Two shapes reach here: an ATX heading
+	// with no text ("#" on a line of its own), whose range resolves to (0, 0)
+	// and rewound the cursor to the start of the document; and a setext heading
+	// goldmark forms over lines an earlier block already consumed, whose
+	// content the skeleton would write a second time.
+	if start, end := nodeAbsRange(n, source, baseOffset); end <= start || end <= r.skelCursor {
+		return
+	}
 	r.blockCounter++
 	blockID := fmt.Sprintf("tu%d", r.blockCounter)
 	textContent := r.extractInlineText(n, source)
@@ -1147,7 +1166,7 @@ func (r *Reader) emitHeading(ctx context.Context, ch chan<- model.PartResult, n 
 	// whitespace) follows the content the parser hands back, and the gap
 	// before the next block replays it on the heading's own line. Written on a
 	// line of its own, it re-read as a second, empty heading (#2430).
-	r.skelCursor = lineEnd
+	r.skelAdvance(lineEnd)
 
 	r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 }
@@ -1309,7 +1328,7 @@ func (r *Reader) emitAdmonition(ctx context.Context, ch chan<- model.PartResult,
 	if first.Stop > first.Start && source[first.Stop-1] == '\n' {
 		r.skelText("\n")
 	}
-	r.skelCursor = headerAbsEnd
+	r.skelAdvance(headerAbsEnd)
 
 	// Body lines: lines[1..N]. We emit one block carrying the body's
 	// inline text joined by literal LFs (matching emitParagraph's
@@ -1361,7 +1380,7 @@ func (r *Reader) emitAdmonition(ctx context.Context, ch chan<- model.PartResult,
 		bodyBlock.Properties[BlockPropLinePrefix] = bodyIndent
 	}
 	r.skelRef(bodyID)
-	r.skelCursor = bodyAbsEnd
+	r.skelAdvance(bodyAbsEnd)
 
 	r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: bodyBlock})
 	return true
@@ -1563,7 +1582,7 @@ func (r *Reader) emitDocusaurusAdmonition(ctx context.Context, ch chan<- model.P
 	if first.Stop > first.Start && source[first.Stop-1] == '\n' {
 		r.skelText("\n")
 	}
-	r.skelCursor = absEnd
+	r.skelAdvance(absEnd)
 	return true
 }
 
@@ -1621,7 +1640,7 @@ func (r *Reader) emitParagraph(ctx context.Context, ch chan<- model.PartResult, 
 
 	r.skelEmitGap(lineStart)
 	r.skelRef(blockID)
-	r.skelCursor = lineEnd
+	r.skelAdvance(lineEnd)
 
 	r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 }
@@ -1650,7 +1669,8 @@ func (r *Reader) emitListItem(ctx context.Context, ch chan<- model.PartResult, n
 	paragraphLikeCount := 0
 	for child := n.FirstChild(); child != nil; child = child.NextSibling() {
 		switch child.(type) {
-		case *ast.List, *ast.FencedCodeBlock, *ast.CodeBlock, *ast.HTMLBlock, *ast.Blockquote, *ast.Heading, *ast.ThematicBreak:
+		case *ast.List, *ast.FencedCodeBlock, *ast.CodeBlock, *ast.HTMLBlock, *ast.Blockquote, *ast.Heading, *ast.ThematicBreak,
+			*ast.LinkReferenceDefinition:
 			hasNestedBlocks = true
 		case *ast.Paragraph, *ast.TextBlock:
 			paragraphLikeCount++
@@ -1677,9 +1697,7 @@ func (r *Reader) emitListItem(ctx context.Context, ch chan<- model.PartResult, n
 	// skeleton position would reset skelCursor to 0 and cause the next
 	// emit to re-flush the entire document as skeleton text. There's
 	// nothing to translate either, so consume the marker line directly
-	// into skeleton text and advance the cursor. Trailing whitespace on
-	// the marker line is dropped to mirror okapi MarkdownFilterWriter,
-	// which strips the bare marker's trailing space on round-trip.
+	// into skeleton text and advance the cursor.
 	if n.FirstChild() == nil {
 		// The item carries no text, but it still occupies its slot in the list:
 		// consume the ordinal so the items after it are addressed by position
@@ -1698,19 +1716,17 @@ func (r *Reader) emitListItem(ctx context.Context, ch chan<- model.PartResult, n
 		if i >= len(r.source) || lineEnd <= i {
 			return
 		}
-		// Emit pending blank lines as-is, then the trimmed marker, then
-		// the line terminator (stripping trailing whitespace mirrors
-		// okapi's MarkdownFilterWriter behaviour for empty markers).
+		// Emit pending blank lines as-is, then the marker line's own bytes,
+		// trailing whitespace included: "- " is what the file says (#2496).
 		if i > r.skelCursor {
 			r.skelText(string(r.source[r.skelCursor:i]))
 		}
-		trimmed := strings.TrimRight(string(r.source[i:lineEnd]), " \t")
-		r.skelText(trimmed)
+		r.skelText(string(r.source[i:lineEnd]))
 		if lineEnd < len(r.source) && r.source[lineEnd] == '\n' {
 			r.skelText("\n")
 			lineEnd++
 		}
-		r.skelCursor = lineEnd
+		r.skelAdvance(lineEnd)
 		return
 	}
 
@@ -1757,7 +1773,7 @@ func (r *Reader) emitListItem(ctx context.Context, ch chan<- model.PartResult, n
 	// The prefix (e.g. "- " or "1. ") goes as skeleton text
 	r.skelText(string(r.source[absStart:lineStart]))
 	r.skelRef(blockID)
-	r.skelCursor = lineEnd
+	r.skelAdvance(lineEnd)
 
 	r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 }
@@ -1818,7 +1834,7 @@ func (r *Reader) emitListItemMixed(ctx context.Context, ch chan<- model.PartResu
 			r.skelEmitGap(absStart)
 			r.skelText(string(r.source[absStart:lineStart]))
 			r.skelRef(blockID)
-			r.skelCursor = lineEnd
+			r.skelAdvance(lineEnd)
 
 			r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 		}
@@ -1881,14 +1897,20 @@ func (r *Reader) walkSingle(ctx context.Context, ch chan<- model.PartResult, chi
 }
 
 func (r *Reader) emitFencedCodeBlock(ctx context.Context, ch chan<- model.PartResult, n *ast.FencedCodeBlock, source []byte, baseOffset int) {
-	// Mirror upstream MarkdownParser.java:413-424 (FencedCodeBlock
-	// visitor) which iterates the content lines and skips any line
-	// matching NEWLINE_ONLY_PATTERN ("blank line") — okapi's
-	// round-tripped fenced code blocks therefore drop blank lines from
-	// inside the fences. Without this, fixtures like example2.md round-
-	// trip with a stray empty line where the source has one inside a
-	// JS fenced block.
-	content := extractRawLinesSkipBlanks(n, source)
+	// A fence with no content lines has no parser range either, and the fence
+	// arithmetic below is all relative to that range (#2495). The fence rides
+	// the gap that follows.
+	if n.Lines().Len() == 0 {
+		return
+	}
+	// The block's content is the source's own lines. Upstream
+	// MarkdownParser.java:413-424 (FencedCodeBlock visitor) skips any line
+	// matching NEWLINE_ONLY_PATTERN, so okapi's round-tripped fences drop the
+	// blank lines inside them; the skeleton refers to this content for the
+	// whole fence body, so mirroring that skip lost the spacing of every code
+	// sample with a blank line in it (#2509). MarkdownCanonical folds okapi's
+	// skip instead, so parity still holds.
+	content := r.extractRawLines(n, source)
 	lang := ""
 	if l := n.Language(source); l != nil {
 		lang = string(l)
@@ -1952,7 +1974,7 @@ func (r *Reader) emitFencedCodeBlock(ctx context.Context, ch chan<- model.PartRe
 		r.skelRef(blockID)
 		// Closing fence as skeleton text
 		r.skelText(string(r.source[lineEnd:closeFenceEnd]))
-		r.skelCursor = closeFenceEnd
+		r.skelAdvance(closeFenceEnd)
 
 		r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 	} else if r.cfg.ExtractNonTranslatableContent() {
@@ -1974,7 +1996,7 @@ func (r *Reader) emitFencedCodeBlock(ctx context.Context, ch chan<- model.PartRe
 		r.skelText(string(r.source[fenceStart:lineStart]))
 		r.skelRef(blockID)
 		r.skelText(string(r.source[lineEnd:closeFenceEnd]))
-		r.skelCursor = closeFenceEnd
+		r.skelAdvance(closeFenceEnd)
 
 		r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 	} else {
@@ -1992,7 +2014,7 @@ func (r *Reader) emitFencedCodeBlock(ctx context.Context, ch chan<- model.PartRe
 
 		r.skelEmitGap(fenceStart)
 		r.skelText(string(r.source[fenceStart:closeFenceEnd]))
-		r.skelCursor = closeFenceEnd
+		r.skelAdvance(closeFenceEnd)
 
 		r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data})
 	}
@@ -2041,7 +2063,7 @@ func (r *Reader) emitIndentedCodeBlock(ctx context.Context, ch chan<- model.Part
 		r.skelEmitGap(absStart)
 		r.skelText(prefix)
 		r.skelRef(blockID)
-		r.skelCursor = lineEnd
+		r.skelAdvance(lineEnd)
 
 		r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 	} else if r.cfg.ExtractNonTranslatableContent() {
@@ -2061,7 +2083,7 @@ func (r *Reader) emitIndentedCodeBlock(ctx context.Context, ch chan<- model.Part
 		r.skelEmitGap(absStart)
 		r.skelText(prefix)
 		r.skelRef(blockID)
-		r.skelCursor = lineEnd
+		r.skelAdvance(lineEnd)
 
 		r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 	} else {
@@ -2076,7 +2098,7 @@ func (r *Reader) emitIndentedCodeBlock(ctx context.Context, ch chan<- model.Part
 
 		r.skelEmitGap(absStart)
 		r.skelText(string(r.source[absStart:lineEnd]))
-		r.skelCursor = lineEnd
+		r.skelAdvance(lineEnd)
 
 		r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data})
 	}
@@ -2105,7 +2127,7 @@ func (r *Reader) emitHTMLBlock(ctx context.Context, ch chan<- model.PartResult, 
 
 		r.skelEmitGap(lineStart)
 		r.skelRef(blockID)
-		r.skelCursor = lineEnd
+		r.skelAdvance(lineEnd)
 
 		r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 		return
@@ -2123,7 +2145,7 @@ func (r *Reader) emitHTMLBlock(ctx context.Context, ch chan<- model.PartResult, 
 	pop := r.naming.Push(scopeHTML)
 	r.processHTMLBlockSubfilter(ctx, ch, r.source[lineStart:lineEnd])
 	pop()
-	r.skelCursor = lineEnd
+	r.skelAdvance(lineEnd)
 }
 
 // htmlExcludedElements are elements whose content (and any nested
@@ -2179,6 +2201,9 @@ func (r *Reader) processHTMLBlockSubfilter(ctx context.Context, ch chan<- model.
 			r.skelText(body)
 		}
 	}
+	// consumed counts the bytes the tokenizer has handed back, so the tail it
+	// could not tokenize can be recovered at EOF.
+	consumed := 0
 	for {
 		tt := z.Next()
 		if tt == xhtml.ErrorToken {
@@ -2187,11 +2212,20 @@ func (r *Reader) processHTMLBlockSubfilter(ctx context.Context, ch chan<- model.
 			if mathDepth > 0 {
 				flushMath()
 			}
+			// A tag the input ends inside ("<p" at EOF) tokenizes to nothing,
+			// and the caller advances the cursor past the whole HTML block, so
+			// those bytes reach neither a block nor the skeleton and the write
+			// path drops them (#2497). Whatever the tokenizer left rides the
+			// skeleton verbatim.
+			if consumed < len(content) {
+				r.skelText(string(content[consumed:]))
+			}
 			return
 		}
 		raw := z.Raw()
 		// Copy raw because subsequent Next() calls invalidate the slice.
 		rawBytes := append([]byte(nil), raw...)
+		consumed += len(rawBytes)
 
 		// While inside a surfaced <math> element, every token's bytes
 		// accumulate into the formula body until the matching close. The
@@ -2464,7 +2498,7 @@ func (r *Reader) emitBlockquoteAsData(ctx context.Context, ch chan<- model.PartR
 	}
 	r.skelEmitGap(absStart)
 	r.skelText(rawContent)
-	r.skelCursor = absEnd
+	r.skelAdvance(absEnd)
 	r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data})
 }
 
@@ -2548,7 +2582,7 @@ func (r *Reader) emitTable(ctx context.Context, ch chan<- model.PartResult, node
 			r.addInlineRuns(block, cell, source)
 			r.skelEmitGap(start)
 			r.skelRef(blockID)
-			r.skelCursor = stop
+			r.skelAdvance(stop)
 			if isHeaderRow {
 				headerLineEnd = lineEndAfter(r.source, stop)
 			}
@@ -2713,12 +2747,26 @@ func hardBreakSpelling(source []byte, pos int) (spelling string, nl int, ok bool
 	return string(source[start:nl]), nl, true
 }
 
+// endsInTheHardBreak reports whether a text node ending at pos reaches the hard
+// break's own spelling: the trailing whitespace or backslash before the line
+// ending.
+//
+// goldmark splits a line into several text nodes and flags the LAST of them as
+// the break, so the flag alone does not say which node the trailing spaces
+// belong to. Trimming a node that merely precedes the break took the spaces
+// between two words with it, and "a   b  \nc" reached the translator as
+// "a b" (#2515).
+func endsInTheHardBreak(source []byte, pos int) bool {
+	spelling, nl, ok := hardBreakSpelling(source, pos)
+	return ok && pos >= nl-len(spelling) && pos <= nl
+}
+
 func (r *Reader) collectInlineText(buf *strings.Builder, node ast.Node, source []byte) {
 	for child := node.FirstChild(); child != nil; child = child.NextSibling() {
 		switch n := child.(type) {
 		case *ast.Text:
 			val := n.Segment.Value(source)
-			if n.HardLineBreak() || nextIsHardBreak(n) {
+			if (n.HardLineBreak() || nextIsHardBreak(n)) && endsInTheHardBreak(source, n.Segment.Stop) {
 				// A hard break is captured as "\n"; trim the trailing spaces
 				// that spell it so the text is the same whatever the source
 				// used — goldmark leaves "0  \n" for five spaces but "0\n" for
@@ -2729,7 +2777,7 @@ func (r *Reader) collectInlineText(buf *strings.Builder, node ast.Node, source [
 			}
 			buf.Write(val)
 			if n.SoftLineBreak() {
-				buf.WriteString(softBreakContinuation(source, n.Segment.Stop))
+				buf.WriteString(softBreakContinuationBounded(source, n.Segment.Stop, nextTextStart(n)))
 			}
 			if n.HardLineBreak() {
 				buf.WriteByte('\n')
@@ -2781,11 +2829,31 @@ func taskCheckBoxRaw(n *east.TaskCheckBox, source []byte) string {
 		return rendered
 	}
 	start := parent.Lines().At(0).Start
-	next, ok := n.NextSibling().(*ast.Text)
-	if !ok || next.Segment.Start <= start || next.Segment.Start > len(source) {
+	// An item with nothing after its checkbox has no text sibling to bound the
+	// spelling, and the canonical form carries a trailing space the source does
+	// not have ("- [ ]" came back as "- [ ] ").
+	end := -1
+	switch next := n.NextSibling(); {
+	case next == nil:
+		// Nothing follows the checkbox, so its spelling ends with it. The
+		// whitespace after it belongs to the line, and to the hard break when
+		// there are two spaces of it ("- [ ]" came back as "- [ ] ").
+		end = start + 3
+	default:
+		if t, ok := next.(*ast.Text); ok {
+			end = t.Segment.Start
+			break
+		}
+		// A sibling that records no segment of its own — a code span, a link —
+		// still follows the space the checkbox carries.
+		if e, ok := taskCheckBoxEnd(n, source); ok {
+			end = e
+		}
+	}
+	if end <= start || end > len(source) {
 		return rendered
 	}
-	raw := string(source[start:next.Segment.Start])
+	raw := string(source[start:end])
 	if !isTaskCheckBoxSpelling(raw) {
 		return rendered
 	}
@@ -2827,36 +2895,23 @@ func (r *Reader) extractRawLines(node ast.Node, source []byte) string {
 	lines := node.Lines()
 	for i := range lines.Len() {
 		line := lines.At(i)
-		buf.Write(line.Value(source))
+		buf.Write(rawLineValue(line, source))
 	}
 	return buf.String()
 }
 
-// extractRawLinesSkipBlanks is the same as extractRawLines but skips
-// any line that, after stripping leading whitespace and the trailing
-// `\n`, is empty. Mirrors upstream MarkdownParser.java:417's
-// NEWLINE_ONLY_PATTERN check inside the FencedCodeBlock visitor.
-func extractRawLinesSkipBlanks(node ast.Node, source []byte) string {
-	var buf strings.Builder
-	lines := node.Lines()
-	for i := range lines.Len() {
-		line := lines.At(i)
-		v := line.Value(source)
-		if isBlankLine(v) {
-			continue
-		}
-		buf.Write(v)
+// rawLineValue returns a line's source bytes. goldmark's Segment.Value appends
+// a newline to the last line of a block that runs to the end of the input
+// (ForceNewline), which is a byte the file does not have: a fenced code block
+// with no closing fence came back one newline longer than the source (#2498).
+func rawLineValue(line text.Segment, source []byte) []byte {
+	v := line.Value(source)
+	atEOF := line.Stop >= len(source)
+	sourceEndsWithNewline := len(source) > 0 && source[len(source)-1] == '\n'
+	if atEOF && !sourceEndsWithNewline && len(v) > 0 && v[len(v)-1] == '\n' {
+		return v[:len(v)-1]
 	}
-	return buf.String()
-}
-
-func isBlankLine(line []byte) bool {
-	for _, c := range line {
-		if c != ' ' && c != '\t' && c != '\n' && c != '\r' {
-			return false
-		}
-	}
-	return true
+	return v
 }
 
 // --- Inline run building ---
@@ -2931,7 +2986,7 @@ func (r *Reader) buildCodedRuns(b *runBuilder, node ast.Node, source []byte, idC
 		switch n := child.(type) {
 		case *ast.Text:
 			seg := n.Segment.Value(source)
-			if n.HardLineBreak() || nextIsHardBreak(n) {
+			if (n.HardLineBreak() || nextIsHardBreak(n)) && endsInTheHardBreak(source, n.Segment.Stop) {
 				// See collectInlineText: trim the trailing spaces that spell a
 				// hard break so the captured runs are stable across a round-trip
 				// regardless of how many spaces the source used (#1652).
@@ -2943,7 +2998,7 @@ func (r *Reader) buildCodedRuns(b *runBuilder, node ast.Node, source []byte, idC
 				addTextWithEntities(b, string(seg), idCounter)
 			}
 			if n.SoftLineBreak() {
-				b.AddText(softBreakContinuation(source, n.Segment.Stop))
+				b.AddText(softBreakContinuationBounded(source, n.Segment.Stop, nextTextStart(n)))
 			}
 			if n.HardLineBreak() {
 				r.addHardBreakRuns(b, n, source, idCounter)
@@ -3128,7 +3183,7 @@ func (r *Reader) appendNodeRawBytes(dst *strings.Builder, n ast.Node, source []b
 	case *ast.Text:
 		dst.Write(v.Segment.Value(source))
 		if v.SoftLineBreak() {
-			dst.WriteString(softBreakContinuation(source, v.Segment.Stop))
+			dst.WriteString(softBreakContinuationBounded(source, v.Segment.Stop, nextTextStart(v)))
 		}
 		if v.HardLineBreak() {
 			dst.WriteByte('\n')
@@ -3203,12 +3258,10 @@ func (r *Reader) buildEmphasisRuns(b *runBuilder, n *ast.Emphasis, source []byte
 // changes the block (#2446). Defaults to '*' when the node cannot be located
 // (a programmatically-built one, above all).
 func emphasisDelimiter(n *ast.Emphasis, source []byte) byte {
-	if start, ok := inlineNodeStart(n, source); ok && start >= 0 && start < len(source) {
-		if c := source[start]; c == '*' || c == '_' {
-			return c
-		}
-	}
-	// The first child's own segment, for a node the resolver could not place.
+	// The opener sits immediately before the content, so a Text first child
+	// pins it exactly. Two emphasis nodes that touch resolve to the same start
+	// through their neighbours, and the second inherited the first's spelling
+	// ("_0__*0*" came back as "_0___0_", #2499).
 	if t, ok := n.FirstChild().(*ast.Text); ok {
 		start := t.Segment.Start - n.Level
 		if start >= 0 && start < len(source) {
@@ -3216,6 +3269,14 @@ func emphasisDelimiter(n *ast.Emphasis, source []byte) byte {
 			if c == '*' || c == '_' {
 				return c
 			}
+		}
+	}
+	// A node whose first child carries no segment of its own — an emphasis
+	// around a link, an image or another emphasis — is placed through its
+	// neighbours instead (#2446).
+	if start, ok := inlineNodeStart(n, source); ok && start >= 0 && start < len(source) {
+		if c := source[start]; c == '*' || c == '_' {
+			return c
 		}
 	}
 	return '*'
@@ -3309,40 +3370,85 @@ func codeSpanFences(n *ast.CodeSpan, source []byte) (string, string) {
 	if contentStart >= len(source) || contentEnd > len(source) || contentStart > contentEnd {
 		return "`", "`"
 	}
-	// Walk back from contentStart to capture optional padding space + backticks.
+	// Walk back from contentStart over the optional padding space, a line
+	// ending with its continuation prefix, and the backticks. CommonMark 6.1
+	// turns a line ending inside a code span into a space, so the parser's
+	// content is shorter than the source spelled and those bytes are the
+	// marker's to carry (#2481).
 	openEnd := contentStart
 	openStart := contentStart
 	if openStart > 0 && source[openStart-1] == ' ' {
 		openStart--
 	}
-	for openStart > 0 && source[openStart-1] == '`' {
+	openStart = backOverContinuationPrefix(source, openStart)
+	if openStart > 0 && source[openStart-1] == ' ' {
 		openStart--
 	}
-	// If we backed up over a space but found no backticks, undo the space.
-	if openStart < openEnd && (openEnd-openStart == 1 && source[openStart] == ' ') {
-		openStart++
+	ticks := 0
+	for openStart > 0 && source[openStart-1] == '`' {
+		openStart--
+		ticks++
 	}
-	open := string(source[openStart:openEnd])
-	// Walk forward from contentEnd to capture optional padding space + backticks.
+	open := "`"
+	if ticks > 0 {
+		open = string(source[openStart:openEnd])
+	}
+	// Walk forward from contentEnd over the same shapes.
 	closeStart := contentEnd
 	closeEnd := contentEnd
 	if closeEnd < len(source) && source[closeEnd] == ' ' {
 		closeEnd++
 	}
-	for closeEnd < len(source) && source[closeEnd] == '`' {
+	closeEnd = forwardOverContinuationPrefix(source, closeEnd)
+	if closeEnd < len(source) && source[closeEnd] == ' ' {
 		closeEnd++
 	}
-	if closeEnd > closeStart && (closeEnd-closeStart == 1 && source[closeStart] == ' ') {
-		closeEnd--
+	ticks = 0
+	for closeEnd < len(source) && source[closeEnd] == '`' {
+		closeEnd++
+		ticks++
 	}
-	close := string(source[closeStart:closeEnd])
-	if open == "" {
-		open = "`"
-	}
-	if close == "" {
-		close = "`"
+	close := "`"
+	if ticks > 0 {
+		close = string(source[closeStart:closeEnd])
 	}
 	return open, close
+}
+
+// backOverContinuationPrefix steps back over a line ending and the
+// continuation prefix that follows it — the indentation and blockquote markers
+// the parser strips from a wrapped line. It returns i unchanged when no line
+// ending is crossed, so it never eats a marker's own padding.
+func backOverContinuationPrefix(source []byte, i int) int {
+	j := i
+	for j > 0 && (source[j-1] == ' ' || source[j-1] == '\t' || source[j-1] == '>') {
+		j--
+	}
+	if j > 0 && source[j-1] == '\n' {
+		j--
+		if j > 0 && source[j-1] == '\r' {
+			j--
+		}
+		return j
+	}
+	return i
+}
+
+// forwardOverContinuationPrefix is backOverContinuationPrefix in the other
+// direction: a line ending, then the prefix of the line that continues.
+func forwardOverContinuationPrefix(source []byte, i int) int {
+	j := i
+	if j < len(source) && source[j] == '\r' {
+		j++
+	}
+	if j < len(source) && source[j] == '\n' {
+		j++
+		for j < len(source) && (source[j] == ' ' || source[j] == '\t' || source[j] == '>') {
+			j++
+		}
+		return j
+	}
+	return i
 }
 
 // linkImageAttrs builds the format-neutral attribute map carried on a link or
@@ -3425,7 +3531,11 @@ func (r *Reader) addLinkCloseRuns(b *runBuilder, n ast.Node, id, semType, subTyp
 	}
 
 	if contentEnd, c, ok := linkCloser(n, openerLen, len(title) > 0, source); ok {
-		if c.titleOpen < 0 {
+		// An empty title ("[x](a '')") carries nothing to translate, so its
+		// delimiters ride the closing code rather than a title pair. The
+		// closer used to be rebuilt from the resolved values instead, which
+		// dropped them (#2502).
+		if c.titleOpen < 0 || c.title == "" {
 			b.AddPcClose(id, semType, subType, string(source[contentEnd:c.end]), equiv)
 			return
 		}
@@ -3461,7 +3571,10 @@ func linkCloser(n ast.Node, openerLen int, hasTitle bool, source []byte) (conten
 		return 0, c, false
 	}
 	c, ok = scanInlineLinkCloser(source, contentEnd)
-	if !ok || (c.titleOpen >= 0) != hasTitle {
+	// The closer must agree with what the parser resolved: a node carrying a
+	// title needs one in the source. The other direction is not a disagreement,
+	// because an empty title resolves to nothing (#2502).
+	if !ok || (hasTitle && c.titleOpen < 0) {
 		return 0, c, false
 	}
 	return contentEnd, c, true
@@ -3781,37 +3894,94 @@ func (r *Reader) buildStrikethroughRuns(b *runBuilder, node ast.Node, source []b
 // `~~` when boundaries can't be determined.
 func strikethroughFences(node ast.Node, source []byte) (string, string) {
 	first := node.FirstChild()
-	last := node.LastChild()
-	if first == nil || last == nil {
+	if first == nil {
 		return "~~", "~~"
 	}
-	firstText, ok1 := first.(*ast.Text)
-	lastText, ok2 := last.(*ast.Text)
-	if !ok1 || !ok2 {
+	contentStart, ok := inlineContentStart(first, source)
+	if !ok || contentStart <= 0 || contentStart > len(source) {
 		return "~~", "~~"
 	}
-	contentStart := firstText.Segment.Start
-	contentEnd := lastText.Segment.Stop
-	if contentStart > len(source) || contentEnd > len(source) || contentStart > contentEnd {
-		return "~~", "~~"
-	}
+	// The tilde run before the content is the opener, bounded by what the
+	// previous sibling already spells: GFM lets a strikethrough open with one
+	// tilde or two, so a greedy walk over "~~a~" claimed the tilde the text run
+	// before it carries and the pair came back spelled three times (#2500).
 	openStart := contentStart
 	for openStart > 0 && source[openStart-1] == '~' {
 		openStart--
 	}
-	closeEnd := contentEnd
-	for closeEnd < len(source) && source[closeEnd] == '~' {
-		closeEnd++
+	if prev := node.PreviousSibling(); prev != nil {
+		if end, ok := prevSiblingEnd(prev, source); ok && end > openStart && end <= contentStart {
+			openStart = end
+		}
 	}
 	open := string(source[openStart:contentStart])
-	close := string(source[contentEnd:closeEnd])
+	// A sibling's segment can start ON the delimiter it follows, which leaves
+	// the bound with nothing between it and the content. One tilde is what sits
+	// there, and GFM spells a strikethrough with one or two.
 	if open == "" {
-		open = "~~"
+		open = tildeOrPair(source, contentStart-1)
 	}
-	if close == "" {
-		close = "~~"
+	// GFM pairs a strikethrough's closing run with an opening run of the same
+	// length, so the closer is spelled like the opener. Reading it from the
+	// bytes after the content instead means asking the last child where it
+	// ends, and a link there asks its parent — this node — where it begins,
+	// which recurses until the stack runs out.
+	return open, open
+}
+
+// prevSiblingEnd bounds a node's opener by what the sibling before it spells.
+// It answers only for a sibling that records a segment of its own: resolving a
+// link's or an image's end asks its parent for its own start, and the parent
+// asking back is a cycle.
+func prevSiblingEnd(prev ast.Node, source []byte) (int, bool) {
+	switch v := prev.(type) {
+	case *ast.Text:
+		return textNodeEnd(v, source), true
+	case *ast.RawHTML:
+		if v.Segments == nil || v.Segments.Len() == 0 {
+			return 0, false
+		}
+		return v.Segments.At(v.Segments.Len() - 1).Stop, true
 	}
-	return open, close
+	return 0, false
+}
+
+// tildeOrPair returns "~" when source[i] is a tilde and "~~" otherwise.
+func tildeOrPair(source []byte, i int) string {
+	if i >= 0 && i < len(source) && source[i] == '~' {
+		return "~"
+	}
+	return "~~"
+}
+
+// inlineContentStart returns the offset where n's own spelling begins, walking
+// down to the first descendant that records a segment and stepping back over
+// the openers of the nodes between. It answers for a node whose first child is
+// itself markup, where inlineNodeStart would have to ask the parent and the
+// parent is the node whose opener is being resolved.
+func inlineContentStart(n ast.Node, source []byte) (int, bool) {
+	switch v := n.(type) {
+	case *ast.Text:
+		return v.Segment.Start, true
+	case *ast.RawHTML:
+		if v.Segments == nil || v.Segments.Len() == 0 {
+			return 0, false
+		}
+		return v.Segments.At(0).Start, true
+	}
+	first := n.FirstChild()
+	if first == nil {
+		return 0, false
+	}
+	start, ok := inlineContentStart(first, source)
+	if !ok {
+		return 0, false
+	}
+	opener, ok := inlineOpenerLen(n, source)
+	if !ok {
+		return 0, false
+	}
+	return start - opener, true
 }
 
 // --- Emit helper ---

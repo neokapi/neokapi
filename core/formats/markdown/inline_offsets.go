@@ -127,7 +127,7 @@ func textNodeEnd(t *ast.Text, source []byte) int {
 	stop := t.Segment.Stop
 	switch {
 	case t.SoftLineBreak():
-		return stop + len(softBreakContinuation(source, stop))
+		return stop + len(softBreakContinuationBounded(source, stop, nextTextStart(t)))
 	case t.HardLineBreak():
 		if _, nl, ok := hardBreakSpelling(source, stop); ok {
 			return nl + len(softBreakContinuation(source, nl))

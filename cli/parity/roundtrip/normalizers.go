@@ -267,6 +267,10 @@ var markdownATXClosingRe = regexp.MustCompile(`^(#{1,6}(?:[ \t]+.*?)?)[ \t]+#+$`
 // label plus destination and the title.
 var markdownRefDefTitleRe = regexp.MustCompile(`^(\[[^\]]*\]:[ \t]*\S+)[ \t]{2,}(["'(].*)$`)
 
+// markdownRefDefRe matches the opening of a link reference definition, so the
+// indent CommonMark 4.7 allows before one can be dropped rather than collapsed.
+var markdownRefDefRe = regexp.MustCompile(`^\[[^\]]*\]:`)
+
 // markdownATXHeadingRe matches a canonical ATX heading line, with or without
 // content; markdownBareHashesRe matches a line that is only a heading marker.
 var (
@@ -300,9 +304,16 @@ func (MarkdownCanonical) Normalize(in []byte) ([]byte, error) {
 			lines[i] = trimmed[:j] + collapseBlockquoteMarkers(trimmed[j:])
 			continue
 		}
-		// Fold the padding before a link reference definition's title.
-		if m := markdownRefDefTitleRe.FindStringSubmatch(trimmed[j:]); m != nil {
-			lines[i] = trimmed[:j] + m[1] + " " + m[2]
+		// Fold the padding before a link reference definition's title, and drop
+		// the indent before the definition itself. Okapi's writer strips the
+		// 0-3 spaces CommonMark 4.7 allows there; native replays the source's
+		// own bytes so a definition inside a container keeps it (#2482).
+		if markdownRefDefRe.MatchString(trimmed[j:]) {
+			if m := markdownRefDefTitleRe.FindStringSubmatch(trimmed[j:]); m != nil {
+				lines[i] = m[1] + " " + m[2]
+			} else {
+				lines[i] = trimmed[j:]
+			}
 			continue
 		}
 		// Strip an ATX heading's closing sequence.
@@ -333,7 +344,46 @@ func (MarkdownCanonical) Normalize(in []byte) ([]byte, error) {
 			lines[i] = trimmed
 		}
 	}
-	return []byte(strings.Join(dropRelocatedATXClosing(lines), "\n")), nil
+	return []byte(strings.Join(dropFencedBlankLines(dropRelocatedATXClosing(lines)), "\n")), nil
+}
+
+// dropFencedBlankLines removes the blank lines inside a fenced code block.
+// Okapi's MarkdownParser skips a blank line when it collects a fence's content,
+// so its round trip drops the spacing of a code sample; native keeps the
+// source's own lines (#2509). CommonMark reads the same code either way once
+// the blank lines are gone from both.
+func dropFencedBlankLines(lines []string) []string {
+	out := make([]string, 0, len(lines))
+	fence := ""
+	for _, l := range lines {
+		trimmed := strings.TrimLeft(l, " \t")
+		switch {
+		case fence == "":
+			if m := fenceOpener(trimmed); m != "" {
+				fence = m
+			}
+		case strings.HasPrefix(trimmed, fence):
+			fence = ""
+		case strings.TrimSpace(l) == "":
+			continue
+		}
+		out = append(out, l)
+	}
+	return out
+}
+
+// fenceOpener returns the fence character run that opens a fenced code block on
+// this line, or "" when the line opens none.
+func fenceOpener(line string) string {
+	if !strings.HasPrefix(line, "```") && !strings.HasPrefix(line, "~~~") {
+		return ""
+	}
+	c := line[0]
+	n := 0
+	for n < len(line) && line[n] == c {
+		n++
+	}
+	return strings.Repeat(string(c), n)
 }
 
 // dropRelocatedATXClosing removes a line that is only a heading marker when it

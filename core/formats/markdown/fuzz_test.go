@@ -141,8 +141,41 @@ func FuzzReadMarkdown(f *testing.F) {
 	// trailing space the writer's okapi-parity trim dropped. Also committed
 	// under testdata/fuzz.
 	f.Add([]byte("> \n> q\n"))
+	// #2499: two emphasis nodes that touch resolved to the same start, so the
+	// second inherited the first's delimiter, and two asterisk pairs written
+	// back-to-back spell a run of four. The first is also committed under
+	// testdata/fuzz.
+	f.Add([]byte("_0__*0*"))
+	f.Add([]byte("_!__0_"))
+	// #2502: an empty title resolves to nothing, so the closer was rebuilt from
+	// the resolved values and its delimiters went with it. Also committed under
+	// testdata/fuzz.
+	f.Add([]byte("[](a '')"))
+	f.Add([]byte("text [x](a '') more\n"))
+	// #2515: goldmark flags the last text node of a line as the hard break, so
+	// the trim ran on a node whose trailing spaces are content. Also committed
+	// under testdata/fuzz.
+	f.Add([]byte("a   b  \nc"))
+	// #2500: GFM spells a strikethrough with one tilde or two, and a greedy
+	// walk over the tildes claimed one its neighbour carried. Also committed
+	// under testdata/fuzz.
+	f.Add([]byte("~~a~"))
+	f.Add([]byte("~*0*~"))
+	// #2481: a code span whose closing fence sits on the next line, whose break
+	// the parser's resolved content has already lost. Also committed under
+	// testdata/fuzz.
+	f.Add([]byte("See ` code\n` here.\n"))
+	f.Add([]byte("> See ` code\n> ` here.\n"))
+	// #2498: goldmark appends a newline to the last line of a block that runs
+	// to the end of the input. Also committed under testdata/fuzz.
+	f.Add([]byte("```\na"))
+	// #2497: a tag the input ends inside tokenizes to nothing, and its bytes
+	// reached neither a block nor the skeleton. Also committed under
+	// testdata/fuzz.
+	f.Add([]byte("text\n\n<p"))
 	markdownSeed(f, "excluded-html-inline.md", "emphasis-delimiters.md", "image-alt.md",
-		"wrapped-link-closers.md", "reference-definitions.md", "blockquote-marker-lines.md")
+		"wrapped-link-closers.md", "reference-definitions.md", "blockquote-marker-lines.md",
+		"unterminated-html.md")
 	seedDamagedMarkdown(f)
 
 	f.Fuzz(func(t *testing.T, data []byte) {
@@ -287,12 +320,49 @@ func FuzzRoundTripMarkdown(f *testing.F) {
 	// content, so no block. The reproducer is also committed under testdata/fuzz.
 	f.Add([]byte("* <A0A>#"))
 	f.Add([]byte("> #<A>\n> b"))
+	// #2484: dropping the inline HTML left a bare "#", which after "# " reads
+	// as an ATX closing sequence, so the heading had no content and re-read as
+	// no block at all. The first is also committed under testdata/fuzz.
+	f.Add([]byte("# <A>#"))
+	f.Add([]byte("0\n# # #"))
 	// #2470: an HTML block runs to the blank line, so "<div>0\n# 0" is one block
 	// whose text is "0\n# 0"; the rebuild path drops the HTML and wrote the text
 	// as a paragraph, whose second line read back as a heading. The reproducer
 	// is also committed under testdata/fuzz.
 	f.Add([]byte("<div>0\n# 0"))
 	f.Add([]byte("<div>a\n- b\nc"))
+	// #2496: the writer dropped a line's single trailing space, undoing what
+	// the reader keeps. Also committed under testdata/fuzz.
+	f.Add([]byte("a \nb\n"))
+	f.Add([]byte("- \n"))
+	// #2495: a block goldmark reports no lines for resolved to the range (0, 0)
+	// and rewound the skeleton cursor, so the bytes before it were written
+	// twice. The first is also committed under testdata/fuzz.
+	f.Add([]byte("a\n#"))
+	f.Add([]byte("a\n\n```\n```\n\nb\n"))
+	// #2501: the rebuild escaped a pipe the source had already escaped, so a
+	// cell gained a backslash on every pass. Also committed under testdata/fuzz.
+	f.Add([]byte("a\n-|\n\\||"))
+	f.Add([]byte("x | y\n--- | ---\na \\| b | c\n"))
+	// #2487: a fence closes on a run at least as long as its opener, so a
+	// three-backtick rebuild of a longer fence ended the block early. The first
+	// is also committed under testdata/fuzz.
+	f.Add([]byte("````\n0\n```\n0\n````\n"))
+	f.Add([]byte(" ````\n0\n```\n0"))
+	// #2504: CommonMark allows up to three spaces before a block marker, and
+	// the continuation-line escape tested the first byte alone. Also committed
+	// under testdata/fuzz.
+	f.Add([]byte("<div>a\n # 0"))
+	// #2503: an inline construct on a line of its own is dropped by the
+	// rebuild, and the empty line it left ended the paragraph. The first is
+	// also committed under testdata/fuzz.
+	f.Add([]byte("a\n<A>\na"))
+	f.Add([]byte("- a\n<A>\nb"))
+	// #2505: an html-text block's ">" is content, and the marker recovery moved
+	// it onto the block's own first line, splitting the block on the pass
+	// after. The first is also committed under testdata/fuzz.
+	f.Add([]byte("<p>.\n- <\n>"))
+	f.Add([]byte("<div>a\n> b\nc"))
 	// #2464: the rebuild path recovered one level of a blockquote's marker from
 	// the first continuation line at column 0, so a nested quote came back one
 	// level shallow, an indented continuation marker was missed, and a quote
@@ -302,10 +372,20 @@ func FuzzRoundTripMarkdown(f *testing.F) {
 	f.Add([]byte(">0\n >0"))
 	f.Add([]byte(">> a\n>> b"))
 	f.Add([]byte(">> a"))
+	// #2485: a lazy continuation line (CommonMark 5.1) carries no quote marker,
+	// so a block marker on it opened a construct and the one block became two.
+	// The first is also committed under testdata/fuzz.
+	f.Add([]byte(">0\n#\\\n0"))
+	f.Add([]byte("><A>|a|a\n-|-"))
 	// #2461: the closer of a link that wraps inside a container.
 	f.Add([]byte("> [a](/x\n> 'T') b"))
 	// #2462: a definition spread over several lines.
 	f.Add([]byte("[a][R] x\n\n[R]:\n /y\n 'T'\n"))
+	// #2482: a definition inside a container lost the container, and inside a
+	// list item the definition with it. The first is also committed under
+	// testdata/fuzz.
+	f.Add([]byte("- [d]: /docs"))
+	f.Add([]byte("> [d]: /docs"))
 	seedDamagedMarkdown(f)
 
 	f.Fuzz(func(t *testing.T, data []byte) {
