@@ -121,8 +121,10 @@ func TestDMLTextSpelling_AltTextLineBreaksSurviveAReread(t *testing.T) {
 	out := skeletonRoundtripBytes(t, dmlDeck(t, slide), "deck.pptx")
 
 	got := dmlSlideXML(t, out)
-	openTag := got[strings.Index(got, "<p:cNvPr id=\"8\""):]
-	openTag = openTag[:strings.Index(openTag, ">")]
+	_, after, found := strings.Cut(got, `<p:cNvPr id="8"`)
+	require.True(t, found, "the picture's drawing properties are in the output")
+	openTag, _, found := strings.Cut(after, ">")
+	require.True(t, found, "and the tag is closed")
 	assert.NotContains(t, openTag, "\n",
 		"the alt text leaves as character references, not as literal newlines")
 
