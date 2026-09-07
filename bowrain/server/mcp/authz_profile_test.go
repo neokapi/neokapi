@@ -3,6 +3,7 @@ package mcp
 import (
 	"context"
 	"fmt"
+	"maps"
 	"testing"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -244,8 +245,8 @@ func TestScoringLadder_RefusesForeignBoundProfile(t *testing.T) {
 	require.NoError(t, f.ms.contentStore.UpdateProject(ctx, p))
 
 	_, _, err = f.ms.handleScoreVoiceCompliance(ctx, callAs(tenantUser), scoreVoiceComplianceInput{
-		Text:            "utilize this",
-		voiceScopeInput: voiceScopeInput{ProjectID: f.own},
+		Text:      "utilize this",
+		ProjectID: f.own,
 	})
 	require.ErrorIs(t, err, ErrProfileNotFound)
 
@@ -254,8 +255,8 @@ func TestScoringLadder_RefusesForeignBoundProfile(t *testing.T) {
 	require.NoError(t, f.ms.contentStore.UpdateProject(ctx, p))
 
 	_, out, err := f.ms.handleScoreVoiceCompliance(ctx, callAs(tenantUser), scoreVoiceComplianceInput{
-		Text:            "utilize this",
-		voiceScopeInput: voiceScopeInput{ProjectID: f.own},
+		Text:      "utilize this",
+		ProjectID: f.own,
 	})
 	require.NoError(t, err)
 	assert.Equal(t, ownProfile, out.Score.ProfileID)
@@ -328,9 +329,7 @@ func TestVoicePrompts_RefuseForeignProfile(t *testing.T) {
 	for name, p := range prompts {
 		t.Run(name, func(t *testing.T) {
 			args := map[string]string{"profile_id": otherProfile}
-			for k, v := range p.args {
-				args[k] = v
-			}
+			maps.Copy(args, p.args)
 			_, err := p.handler(t.Context(), promptRequest(tenantUser, args))
 			require.ErrorIs(t, err, ErrProfileNotFound)
 
