@@ -224,14 +224,26 @@ func (o StatusOutput) writeCoverageGrid(w io.Writer) {
 // decision on the unit records a basis.
 func (o StatusOutput) writeBasisLines(w io.Writer) {
 	stale, unknown, failing := 0, 0, 0
+	awaitingDraft, awaitingReview := 0, 0
 	for _, lc := range o.Locales {
 		stale += lc.Stale
 		unknown += lc.BasisUnknown
 		failing += lc.FailingChecks
+		awaitingDraft += lc.StaleAwaitingDraft
+		awaitingReview += lc.StaleAwaitingReview
 	}
 	if stale > 0 {
 		fmt.Fprintf(w, "\n%d unit(s) stale: the source changed since the translation was decided. "+
-			"They do not ship. Re-review them with `kapi status --review`.\n", stale)
+			"They do not ship.\n", stale)
+		// Which of the two things a stale unit waits on, so the reader is sent
+		// to the command that moves it. Silent for a producer that reports only
+		// the total, where the headline above is all there is to say.
+		if awaitingDraft > 0 {
+			fmt.Fprintf(w, "  %d await a draft against the source the project holds now: `kapi up`.\n", awaitingDraft)
+		}
+		if awaitingReview > 0 {
+			fmt.Fprintf(w, "  %d have been re-drafted and await re-review: `kapi status --review`.\n", awaitingReview)
+		}
 	}
 	// Named as units, because `kapi check` counts findings over the same tree and
 	// one unit can carry several. The percentages above are unaffected: these

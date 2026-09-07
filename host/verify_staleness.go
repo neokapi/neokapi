@@ -33,6 +33,14 @@ import (
 // failing it would punish content for the mechanism arriving after it, and the
 // gate would be unusable on the day it shipped, in every project that has any
 // history.
+//
+// What the gate compares is the unit's governing basis
+// (state.UnitState.GoverningBasis): an approval's own fingerprint where a
+// reviewer has vouched for the answer, and the producer's stamp everywhere
+// else. A reviewer approving under the context now in force is the project
+// saying this wording stands under it, so the unit clears; a rejection endorses
+// nothing and the unit reads through to the stamp the run left, which is what
+// keeps a turned-down draft stale.
 
 // gateStaleness is the gate's id. There is no flag to tune it: a coverage bar
 // is a judgement about how much is enough, and this is not one — a stamp either
@@ -105,7 +113,7 @@ func (a *App) verifyStaleness(cmd Command, proj *project.KapiProject, root strin
 			if !b.Translatable {
 				continue
 			}
-			origin, ok := produced[reviewUnitKey(document, blockKey(b), u.Locale)]
+			p, ok := produced[reviewUnitKey(document, blockKey(b), u.Locale)]
 			if !ok {
 				// Nothing was produced here. Whether that is a gap is the ship
 				// gate's question, and answering it twice in two vocabularies
@@ -114,11 +122,11 @@ func (a *App) verifyStaleness(cmd Command, proj *project.KapiProject, root strin
 			}
 			scope.produced++
 			switch {
-			case origin.ContextFingerprint == "":
+			case p.fingerprint == "":
 				unstamped++
-			case origin.ContextFingerprint != want.fingerprint:
+			case p.fingerprint != want.fingerprint:
 				scope.stale++
-				scope.moved, scope.detail = movedComponent(origin, want)
+				scope.moved, scope.detail = movedComponent(p.origin, want)
 			}
 		}
 		if scope.stale > 0 {
@@ -154,6 +162,15 @@ func (a *App) verifyStaleness(cmd Command, proj *project.KapiProject, root strin
 	return gate, true, nil
 }
 
+// producedProvenance is what one record says about the governance of the target
+// it describes: the fingerprint to judge (its governing basis) and the
+// producer's own stamp, which carries the profile identity the divergence is
+// attributed from.
+type producedProvenance struct {
+	origin      model.Origin
+	fingerprint string
+}
+
 // producedTargets indexes the state store by document, unit and locale, keeping
 // only the records that carry PROVENANCE: a stamp saying what governed the
 // target, or a decision saying a person judged it.
@@ -164,13 +181,15 @@ func (a *App) verifyStaleness(cmd Command, proj *project.KapiProject, root strin
 // target it wrote is not provenance either: it says which source the target
 // translates, which is the drift question, and answering the governance question
 // with it would report the whole project as produced under no context at all.
-func producedTargets(recorded []state.UnitState) map[string]model.Origin {
-	out := make(map[string]model.Origin, len(recorded))
+func producedTargets(recorded []state.UnitState) map[string]producedProvenance {
+	out := make(map[string]producedProvenance, len(recorded))
 	for _, u := range recorded {
 		if u.Origin == (model.Origin{}) && u.Decision.ReviewState == "" {
 			continue
 		}
-		out[reviewUnitKey(u.Scope, u.Unit, string(u.Variant.Locale))] = u.Origin
+		out[reviewUnitKey(u.Scope, u.Unit, string(u.Variant.Locale))] = producedProvenance{
+			origin: u.Origin, fingerprint: u.GoverningBasis(),
+		}
 	}
 	return out
 }

@@ -29,6 +29,17 @@ export const Pending: Story = {
   args: { state: "pending", approvedBlocks: 3, totalBlocks: 50, failingChecks: 2 },
 };
 
+/** Pending on staleness: what the pairs wait on, split between the loop and a reviewer. */
+export const PendingOnStaleness: Story = {
+  args: {
+    state: "pending",
+    approvedBlocks: 40,
+    totalBlocks: 50,
+    staleAwaitingDraft: 6,
+    staleAwaitingReview: 4,
+  },
+};
+
 export const AllStates: Story = {
   render: () => (
     <div style={{ display: "flex", gap: 8, alignItems: "center" }}>

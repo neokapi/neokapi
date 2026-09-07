@@ -124,6 +124,23 @@ func (s UnitState) GoverningContext() string {
 	return s.Origin.ContextFingerprint
 }
 
+// GoverningBasis is the fingerprint a reader judging the unit's governance
+// compares against: what an APPROVAL on the record vouches for where the record
+// carries one, and otherwise the producer's own stamp.
+//
+// An approval is a person saying this answer stands, made under the context in
+// force where they made it, so it speaks for the answer more recently than the
+// run that drafted it. A rejection and a plain basis record vouch for nothing,
+// and read through to the stamp the producer left.
+func (s UnitState) GoverningBasis() string {
+	if s.Status == model.TargetStatusReviewed || s.Status == model.TargetStatusSignedOff {
+		if s.Decision.ReviewState != "" && s.GoverningFingerprint != "" {
+			return s.GoverningFingerprint
+		}
+	}
+	return s.Origin.ContextFingerprint
+}
+
 // Decision is the authored workflow decision recorded for a unit.
 type Decision struct {
 	ReviewState string `json:"reviewState,omitempty"` // approved | rejected | …

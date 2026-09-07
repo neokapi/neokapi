@@ -27,11 +27,12 @@ type Scope struct {
 
 // scopeTally is one scope's accumulated distribution.
 type scopeTally struct {
-	cov           gate.Coverage
-	aiReviewed    int
-	stale         int
-	failingChecks int
-	basisUnknown  int
+	cov            gate.Coverage
+	aiReviewed     int
+	stale          int
+	staleRedrafted int
+	failingChecks  int
+	basisUnknown   int
 }
 
 // CoverageTally accumulates unit states per (collection, locale) scope. Feed
@@ -77,10 +78,19 @@ func (t *CoverageTally) AddAIDecided(s Scope, state, baseline string) {
 // changed. It counts at `draft` — a committed target exists, so the unit is not
 // below the ladder, but it is not a translation of the current source either —
 // and again as stale, which is what withholds the scope from shipping.
-func (t *CoverageTally) AddStale(s Scope) {
+//
+// redrafted says which half of the stale count the unit belongs to: false while
+// the record still describes the translation on disk, so the loop owes the unit
+// a draft against the source the project holds now, and true once something has
+// replaced that translation, so the unit is waiting on a person instead. The
+// verdict is the same either way; what differs is who the scope is waiting for.
+func (t *CoverageTally) AddStale(s Scope, redrafted bool) {
 	st := t.tally(s)
 	st.cov.Add(string(model.TargetStatusDraft))
 	st.stale++
+	if redrafted {
+		st.staleRedrafted++
+	}
 }
 
 // NoteUnknownBasis records that a unit's record says nothing about the source in
@@ -149,6 +159,7 @@ func (t *CoverageTally) RollupGates(ship, verified gate.RuleSet) []LocaleCoverag
 			Locale: s.Locale, Collection: s.Collection, Total: cov.Total,
 			Pct: map[string]int{}, AIReviewed: st.aiReviewed,
 			Stale: st.stale, FailingChecks: st.failingChecks,
+			StaleAwaitingDraft: st.stale - st.staleRedrafted, StaleAwaitingReview: st.staleRedrafted,
 			BasisUnknown: st.basisUnknown,
 		}
 		for _, rung := range ladder {

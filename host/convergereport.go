@@ -279,6 +279,16 @@ type decidedContent struct {
 // governing is the fingerprint of the context the decision is made under, and
 // is part of what the record says: the same verdict on the same pairing under a
 // moved context is a new decision, recorded again.
+//
+// Only an approval or a sign-off re-stamps the record's BASIS, the source it
+// vouches for and the context it vouches for it under. An approval made on the
+// source in front of the reviewer, under the governance in force where they are
+// deciding, is the project saying this answer stands there, so the readers that
+// grade a unit against the source and the context it holds now compare against
+// it and the unit reads current. A rejection endorses nothing: it records the
+// verdict, the translation it turned down and who turned it down, and leaves
+// the basis where the last approval or the producing run put it, which is what
+// keeps a rejected re-draft stale rather than clearing it.
 func (a *App) recordDecisionState(ctx context.Context, proj *project.KapiProject, root, file, unit string, locale model.LocaleID, content decidedContent, governing string, status model.TargetStatus, decision, note, by string) (bool, error) {
 	st, err := a.OpenProjectState(ctx, root)
 	if err != nil {
@@ -286,10 +296,13 @@ func (a *App) recordDecisionState(ctx context.Context, proj *project.KapiProject
 	}
 	k := state.Key{Scope: file, Unit: unit, Variant: model.Variant(locale)}
 	th := targetHash(content.target)
-	ch := state.SourceHash(content.source)
 	prev, hadPrev := st.Get(ctx, k)
+	ch, gov := prev.ContentHash, prev.GoverningFingerprint
+	if status == model.TargetStatusReviewed || status == model.TargetStatusSignedOff {
+		ch, gov = state.SourceHash(content.source), governing
+	}
 	if hadPrev && prev.Status == status && prev.TargetHash == th && prev.ContentHash == ch &&
-		prev.Decision.Note == note && prev.Decision.By == by && prev.GoverningFingerprint == governing {
+		prev.Decision.Note == note && prev.Decision.By == by && prev.GoverningFingerprint == gov {
 		return false, nil // already at this decision for this exact pairing, under this context
 	}
 	now := nowRFC3339()
@@ -299,7 +312,7 @@ func (a *App) recordDecisionState(ctx context.Context, proj *project.KapiProject
 		Status:               status,
 		TargetHash:           th,
 		ContentHash:          ch,
-		GoverningFingerprint: governing,
+		GoverningFingerprint: gov,
 		Decision:             state.Decision{ReviewState: decision, By: by, At: now, Note: note},
 		Updated:              now,
 		// The document the unit was decided in — half of the record's identity,

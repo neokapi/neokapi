@@ -19,6 +19,14 @@ export interface ShipStateBadgeProps {
   totalBlocks?: number;
   /** Translated blocks failing the checks, for the tooltip detail line. */
   failingChecks?: number;
+  /**
+   * Stale pairs waiting on a convergence pass, and stale pairs already
+   * re-drafted and waiting on a reviewer. They sum to the scope's stale count,
+   * and they are shown apart because they are different work: one is a run away
+   * and the other needs a person.
+   */
+  staleAwaitingDraft?: number;
+  staleAwaitingReview?: number;
   className?: string;
 }
 
@@ -49,6 +57,8 @@ const stateIcons: Record<ShipState, React.ComponentType<{ className?: string }>>
 
 function tooltipContent(props: ShipStateBadgeProps): React.ReactNode {
   const { state, approvedBlocks, totalBlocks, failingChecks } = props;
+  const awaitingDraft = props.staleAwaitingDraft ?? 0;
+  const awaitingReview = props.staleAwaitingReview ?? 0;
   const meta = stateStyles[state];
   const details: string[] = [];
   if (totalBlocks !== undefined && approvedBlocks !== undefined) {
@@ -56,6 +66,14 @@ function tooltipContent(props: ShipStateBadgeProps): React.ReactNode {
   }
   if (failingChecks !== undefined && failingChecks > 0) {
     details.push(`${failingChecks} failing ${failingChecks === 1 ? "check" : "checks"}`);
+  }
+  // What the stale pairs are waiting on, so a reader knows whether to run the
+  // loop or to open the review queue.
+  if (awaitingDraft > 0) {
+    details.push(`${awaitingDraft} stale, awaiting a draft`);
+  }
+  if (awaitingReview > 0) {
+    details.push(`${awaitingReview} re-drafted, awaiting review`);
   }
   return (
     <div className="max-w-60 space-y-1">

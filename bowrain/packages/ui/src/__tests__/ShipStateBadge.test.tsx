@@ -53,4 +53,36 @@ describe("ShipStateBadge", () => {
     await user.hover(screen.getByTestId("ship-state-pending"));
     expect((await screen.findAllByText(/2 failing checks/)).length).toBeGreaterThan(0);
   });
+
+  it("names what the stale pairs are waiting on", async () => {
+    const user = userEvent.setup();
+    render(
+      <ShipStateBadge
+        state="pending"
+        approvedBlocks={40}
+        totalBlocks={50}
+        staleAwaitingDraft={6}
+        staleAwaitingReview={4}
+      />,
+    );
+    await user.hover(screen.getByTestId("ship-state-pending"));
+    expect((await screen.findAllByText(/6 stale, awaiting a draft/)).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText(/4 re-drafted, awaiting review/)).length).toBeGreaterThan(0);
+  });
+
+  it("omits a half of the stale split that holds nothing", async () => {
+    const user = userEvent.setup();
+    render(
+      <ShipStateBadge
+        state="pending"
+        approvedBlocks={40}
+        totalBlocks={50}
+        staleAwaitingDraft={0}
+        staleAwaitingReview={4}
+      />,
+    );
+    await user.hover(screen.getByTestId("ship-state-pending"));
+    expect((await screen.findAllByText(/4 re-drafted, awaiting review/)).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/awaiting a draft/)).toBeNull();
+  });
 });

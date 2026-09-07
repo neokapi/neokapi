@@ -87,6 +87,8 @@ export function DeliveryPanel({
                     approvedBlocks={ls.approved_blocks}
                     totalBlocks={ls.total_blocks}
                     failingChecks={ls.failing_checks}
+                    staleAwaitingDraft={ls.stale_awaiting_draft_blocks}
+                    staleAwaitingReview={ls.stale_awaiting_review_blocks}
                   />
                 ) : (
                   <span className="text-muted-foreground text-xs">{pct}%</span>

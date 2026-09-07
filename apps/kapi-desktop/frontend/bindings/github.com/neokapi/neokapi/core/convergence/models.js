@@ -429,6 +429,27 @@ export class LocaleCoverage {
         }
         if (/** @type {any} */(false)) {
             /**
+             * StaleAwaitingDraft and StaleAwaitingReview split Stale by what the unit is
+             * waiting on, and sum to it. A stale unit whose record still describes the
+             * translation on disk is waiting for the loop to draft one against the
+             * source the project holds now; one whose translation has been replaced
+             * since has had that draft and is waiting for a person to look at it. The
+             * two are the same count to a gate and different work to a reader, and a
+             * single number sent everyone to `kapi up` for units the loop was done with.
+             * @member
+             * @type {number | undefined}
+             */
+            this["staleAwaitingDraft"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {number | undefined}
+             */
+            this["staleAwaitingReview"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * FailingChecks counts produced units that fail the project's bound
              * target-side checks (placeholder and tag integrity, terminology). They
              * count at their true rung in Pct — the unit is translated, and a percentage

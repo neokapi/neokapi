@@ -103,7 +103,7 @@ func TestPlatformApprovalRecordsTheGoverningContext(t *testing.T) {
 	assert.Equal(t, want, governing, "a decision and a translation must name one context")
 
 	ledger.write(t.Context(), []venue.UnitDecision{
-		unitDecisionFor(sb, "fr", model.TargetStatusReviewed, true, ledger.decider, governing),
+		unitDecisionFor(sb, "fr", model.TargetStatusReviewed, true, ledger.decider, governing, nil),
 	})
 
 	row := srv.unitDecisionFor(t.Context(), proj.ID, "main", sb, "fr")
@@ -186,7 +186,7 @@ func TestReviewContextReadsTheRecordedGoverningContext(t *testing.T) {
 	governing := ledger.governingFingerprint(t.Context(), sb.ItemName, "fr")
 	require.NotEmpty(t, governing)
 	ledger.write(t.Context(), []venue.UnitDecision{
-		unitDecisionFor(sb, "fr", model.TargetStatusReviewed, true, ledger.decider, governing),
+		unitDecisionFor(sb, "fr", model.TargetStatusReviewed, true, ledger.decider, governing, nil),
 	})
 
 	row := srv.unitDecisionFor(t.Context(), proj.ID, "main", sb, "fr")

@@ -21,6 +21,10 @@ import (
 // blesses, then promotes the wording into the workspace content memory. It
 // opens a ledger for the single decision it writes; a pass over many blocks
 // opens one and writes batches through it instead.
+//
+// A verdict that is not an approval carries the row's existing basis forward
+// rather than stamping the source and context in front of it, so the one row
+// this call reads is the row it is about to replace.
 func (s *Server) recordReviewDecision(ctx context.Context, c echo.Context, projectID, stream string, sb *venue.StoredBlock, locale string, status model.TargetStatus, approved bool) {
 	if sb == nil || sb.SourceID == "" {
 		return
@@ -29,8 +33,15 @@ func (s *Server) recordReviewDecision(ctx context.Context, c echo.Context, proje
 	if ledger == nil {
 		return
 	}
+	var prev *venue.UnitDecision
+	if !approved {
+		prev = s.unitDecisionFor(ctx, projectID, stream, sb, locale)
+	}
 	governing := ledger.governingFingerprint(ctx, sb.ItemName, locale)
-	ledger.write(ctx, []venue.UnitDecision{unitDecisionFor(sb, locale, status, approved, ledger.decider, governing)})
+	ledger.write(ctx, []venue.UnitDecision{unitDecisionFor(sb, locale, status, approved, ledger.decider, governing, prev)})
+	if status == model.TargetStatusDraft {
+		ledger.clearDraftBasis(ctx, sb, locale)
+	}
 }
 
 // This file gives the two real-time editor operations that used to travel over
