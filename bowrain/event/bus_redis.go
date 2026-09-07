@@ -290,7 +290,7 @@ func (b *RedisEventBus) runGroup(ctx context.Context, rs *redisEventSub, group s
 		}
 		for _, st := range res {
 			for _, msg := range st.Messages {
-				b.handleGroupMessage(ctx, group, handler, msg)
+				b.handleGroupMessage(ctx, group, handler, msg, false)
 			}
 		}
 	}
@@ -304,12 +304,20 @@ func (b *RedisEventBus) runGroup(ctx context.Context, rs *redisEventSub, group s
 // has been idle past the threshold — so a database blip during an audit append
 // costs a delay rather than the record. A malformed entry is the exception: it
 // will never decode, so acking it is the only way it stops arriving.
-func (b *RedisEventBus) handleGroupMessage(ctx context.Context, group string, handler platev.GroupHandler, msg redis.XMessage) {
+//
+// reclaimed marks an entry the sweep claimed rather than one the read loop
+// delivered, which is the difference between "pending when the server answered"
+// and "pending now": see stillPending.
+func (b *RedisEventBus) handleGroupMessage(ctx context.Context, group string, handler platev.GroupHandler, msg redis.XMessage, reclaimed bool) {
 	release, free := b.claimInflight(group, msg.ID)
 	if !free {
 		return // this process is already handling it
 	}
 	defer release()
+
+	if reclaimed && !b.stillPending(ctx, group, msg.ID) {
+		return
+	}
 
 	ev, ok := decodeEvent(msg)
 	if ok {
@@ -321,6 +329,35 @@ func (b *RedisEventBus) handleGroupMessage(ctx context.Context, group string, ha
 	}
 	// Detach from ctx so a shutdown mid-batch still acks.
 	b.client.XAck(context.WithoutCancel(ctx), b.stream, group, msg.ID)
+}
+
+// stillPending reports whether an entry the sweep claimed is pending now.
+//
+// XAUTOCLAIM answers for the moment the server ran it. A handler that finished
+// between that moment and this one acknowledged the entry, and dispatching it
+// would run a second copy of work that already succeeded: a second inbox row
+// and a second email from a batch that had merely taken its time. The claim the
+// caller holds is what makes the answer keep: with it taken, no acknowledgement
+// from this process can be outstanding for the entry, because a handler
+// acknowledges before it releases.
+//
+// An error is unknowable rather than false, so the entry is dispatched. That is
+// the at-least-once side of the trade the sweep already makes.
+func (b *RedisEventBus) stillPending(ctx context.Context, group, msgID string) bool {
+	pend, err := b.client.XPendingExt(ctx, &redis.XPendingExtArgs{
+		Stream: b.stream,
+		Group:  group,
+		Start:  msgID,
+		End:    msgID,
+		Count:  1,
+	}).Result()
+	if err != nil {
+		if ctx.Err() == nil {
+			slog.Warn("redis-event-bus: pending check error", "group", group, "id", msgID, "error", err)
+		}
+		return true
+	}
+	return len(pend) > 0
 }
 
 // runGroupReclaim periodically sweeps the group's pending-entries list for
@@ -402,7 +439,7 @@ func (b *RedisEventBus) reclaimStranded(ctx context.Context, group string, handl
 				b.client.XAck(context.WithoutCancel(ctx), b.stream, group, msg.ID)
 				continue
 			}
-			b.handleGroupMessage(ctx, group, handler, msg)
+			b.handleGroupMessage(ctx, group, handler, msg, true)
 		}
 		claimed += len(msgs)
 		// XAUTOCLAIM is an iterative scan: the returned cursor resumes where
