@@ -72,15 +72,11 @@ func TestDMLSourceForm_EmptyTextRunSurvives(t *testing.T) {
 
 // TestDMLSourceForm_IndentedRunsKeepTheirWhitespace covers the third form the
 // bytes carry and the model does not: the whitespace between the runs and
-// inside them. The whitespace on either side of the run sequence sits outside
-// the span the block holds and comes back through the skeleton (#2533).
+// inside them.
 func TestDMLSourceForm_IndentedRunsKeepTheirWhitespace(t *testing.T) {
 	slide := dmlSlide(dmlIndentedRuns)
 	out := skeletonRoundtripBytes(t, dmlDeck(t, slide), "deck.pptx")
-	assert.Contains(t, dmlSlideXML(t, out),
-		"<a:r>\r\n                            <a:t>Para 1-1:</a:t>\r\n"+
-			"                        </a:r>\r\n"+
-			"                        <a:r>",
+	assert.Equal(t, slide, dmlSlideXML(t, out),
 		"the whitespace a producer indented the runs with comes back")
 }
 

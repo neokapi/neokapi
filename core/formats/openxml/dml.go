@@ -302,6 +302,15 @@ func (p *dmlParser) parseTextBody(d *rawDecoder, partPath string, emitBlock func
 				return nil
 			}
 			p.skelWriteEndElement(d)
+
+		case xml.CharData:
+			// The whitespace a producer indented <a:bodyPr>, <a:lstStyle> and
+			// each <a:p> with. Nothing in a text body reads it, and a deck
+			// saved with indented XML comes back compact without it.
+			p.skelRaw(d)
+
+		case xml.Comment, xml.ProcInst:
+			p.skelRaw(d)
 		}
 	}
 }
@@ -316,6 +325,7 @@ func (p *dmlParser) parseParagraph(d *rawDecoder, partPath string, emitBlock fun
 	// translatable text can be replayed whole.
 	paraStart := d.RawString()
 	paraOff := d.Offset()
+	contentOff := d.EndOffset()
 	d.Pin(paraOff)
 	defer d.Unpin()
 
@@ -415,11 +425,24 @@ func (p *dmlParser) parseParagraph(d *rawDecoder, partPath string, emitBlock fun
 				blockID := fmt.Sprintf("tu%d", *p.blockCounter)
 
 				p.skelWriteString(paraStart)
-				if paraProps != "" {
-					p.skelWriteString(paraProps)
+				if p.stripEmptyParaProps {
+					// A chart or diagram paragraph is rebuilt around the ref:
+					// okapi's BlockProperties.getEvents omits a structurally
+					// empty pPr, so the source bytes on either side cannot be
+					// replayed whole.
+					if paraProps != "" {
+						p.skelWriteString(paraProps)
+					}
+					p.skelRef(blockID)
+					p.skelWriteString(endParaRPr)
+				} else {
+					// Everything on either side of the runs goes back as the
+					// source wrote it, so the <a:pPr>, the <a:endParaRPr> and
+					// the whitespace a producer indented them with all survive.
+					p.skelWriteString(d.RangeString(contentOff, runsStart))
+					p.skelRef(blockID)
+					p.skelWriteString(d.RangeString(runsEnd, d.Offset()))
 				}
-				p.skelRef(blockID)
-				p.skelWriteString(endParaRPr)
 				p.skelWriteEndElement(d)
 
 				block := p.buildBlock(blockID, merged, partPath)
