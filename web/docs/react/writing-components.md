@@ -22,6 +22,7 @@ Almost everything you already write is translatable. This page walks through the
 - **Code spans inside a sentence** (`<code>`, `<kbd>`, `<samp>`, `<var>`) → the sentence extracts as one block, the span becomes a paired marker, and its text is carried through verbatim.
 - **A control inside a sentence** (`<button>`, `<label>`, `<select>`, `<img>`, …) → the sentence extracts as one block and the control becomes a paired marker, with its label translatable inside. A control that is its parent's only content keeps its own block.
 - **JSX inside a conditional** (`{cond && <span>…</span>}`, a ternary, a `.map()`) → a standalone marker in the sentence, and the elements inside it are extracted and translated on their own.
+- **A whitespace-only expression** (`{" "}`, `{' '}`, `` {` `} ``) → a space in the block's text, not a variable.
 - **Non-translatable elements on their own** (`<code>`, `<pre>`, `<kbd>`, `<var>`, `<script>`, `<style>`, `<textarea>`) → skipped.
 - **Elements marked `translate="no"`** (or any ancestor) → skipped.
 
@@ -70,6 +71,26 @@ The rule is uniform: **any inline element with at least one child → paired pai
 | `<br/>` (no children)           | `"{=m0}"` (no matching `{/=m0}` close)  |
 
 JSX-element tokens always read `{=m<N>}`; the runtime tells standalone from paired by looking for a matching `{/=m<N>}` close in the same scope. Variable tokens (`{userName}`, `{count}`) carry the JS identifier directly.
+
+### The explicit space
+
+JSX drops the whitespace around a line break, so a sentence that wraps needs
+`{" "}` where the space would otherwise be lost:
+
+```tsx
+<p>
+  Read the <a href="/docs">docs</a>{" "}
+  for the rest.
+</p>
+```
+
+That space is a character the reader reads, so the block's text carries it:
+`"Read the {=m0}docs{/=m0} for the rest."`. `{' '}` and a template literal with
+nothing in it read the same way, and a run of whitespace collapses to one space
+just as JSX text does.
+
+A literal with real text in it (`{"!"}`) is still a variable, because its value
+is a value.
 
 ### Empty inline elements as standalone markers
 
@@ -547,6 +568,7 @@ rules: [{ selector: ".legal-copy", locNote: "Legal team must review" }];
 | `<div>{cond && 'Hi'}</div>`               | no         | expression; use `t()`                                                    |
 | `<p>Saved {cond && <b>a note</b>}</p>`    | yes        | two blocks: the sentence, and the conditional's own element              |
 | `<div actions={<Button>Go</Button>}>Hi</div>` | yes    | two blocks: JSX in a prop extracts as well                               |
+| `<p>Read <a>docs</a>{" "}now</p>`         | yes        | one block; the explicit space is text, not a variable                    |
 
 ## Next
 
