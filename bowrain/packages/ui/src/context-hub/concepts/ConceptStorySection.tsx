@@ -18,12 +18,13 @@ import {
   DialogTitle,
 } from "@neokapi/ui-primitives";
 import type { Concept, ConceptDataSource } from "@neokapi/concept-ui";
-import { ConceptDashboard } from "@neokapi/concept-ui";
+import { ConceptDashboard, ConceptNamingProvider } from "@neokapi/concept-ui";
 import { FlaskConical } from "../../components/icons";
 import { useApi } from "../../context/ApiContext";
 import { useWorkspace } from "../../context/WorkspaceContext";
 import { createRestConceptSource, type GovernedEditError } from "./restConceptSource";
 import { ConceptEditDialog } from "./ConceptEditDialog";
+import { useWorkspaceConceptNaming } from "./workspace-naming";
 
 export interface ConceptStorySectionProps {
   conceptId: string;
@@ -51,6 +52,7 @@ export function ConceptStorySection({
   // (concept-ui's panels keep their own state and expose no external reload).
   const [reloadKey, setReloadKey] = useState(0);
 
+  const naming = useWorkspaceConceptNaming();
   const handleGoverned = useCallback((error: GovernedEditError) => setGoverned(error), []);
   const source: ConceptDataSource = useMemo(
     () => createRestConceptSource(api, ws, { onGovernedEdit: handleGoverned }),
@@ -58,42 +60,45 @@ export function ConceptStorySection({
   );
 
   return (
-    <div className="mx-auto w-full max-w-7xl px-1 py-1">
-      <ConceptDashboard
-        key={`${conceptId}#${reloadKey}`}
-        conceptId={conceptId}
-        source={source}
-        onNavigate={onOpenConcept}
-        onBack={onBack}
-        onEdit={setEditing}
-      />
-
-      {editing && (
-        <ConceptEditDialog
-          concept={editing}
+    <ConceptNamingProvider naming={naming}>
+      <div className="mx-auto w-full max-w-7xl px-1 py-1">
+        <ConceptDashboard
+          key={`${conceptId}#${reloadKey}`}
+          conceptId={conceptId}
           source={source}
-          open={editing !== null}
-          onOpenChange={(open) => {
-            if (!open) setEditing(null);
-          }}
-          onApplied={() => setReloadKey((k) => k + 1)}
+          onNavigate={onOpenConcept}
+          onBack={onBack}
+          naming={naming}
+          onEdit={setEditing}
         />
-      )}
 
-      <GovernedEditDialog
-        error={governed}
-        onClose={() => setGoverned(null)}
-        onOpenExperiments={
-          onOpenExperiments
-            ? () => {
-                setGoverned(null);
-                setEditing(null);
-                onOpenExperiments();
-              }
-            : undefined
-        }
-      />
-    </div>
+        {editing && (
+          <ConceptEditDialog
+            concept={editing}
+            source={source}
+            open={editing !== null}
+            onOpenChange={(open) => {
+              if (!open) setEditing(null);
+            }}
+            onApplied={() => setReloadKey((k) => k + 1)}
+          />
+        )}
+
+        <GovernedEditDialog
+          error={governed}
+          onClose={() => setGoverned(null)}
+          onOpenExperiments={
+            onOpenExperiments
+              ? () => {
+                  setGoverned(null);
+                  setEditing(null);
+                  onOpenExperiments();
+                }
+              : undefined
+          }
+        />
+      </div>
+    </ConceptNamingProvider>
   );
 }
 

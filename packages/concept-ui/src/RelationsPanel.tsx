@@ -46,7 +46,8 @@ import type { ConceptDataSource } from "./adapter";
 import type { ConceptSectionProps } from "./ConceptView";
 import type { ConceptSummary, RelationType } from "./types";
 import { RELATION_TYPES } from "./types";
-import { primaryName, relationLabel } from "./concept-meta";
+import { primaryName, relationLabel, type ConceptNaming } from "./concept-meta";
+import { useConceptName, useConceptNaming } from "./naming";
 import { ConceptSection, EmptyHint, ErrorHint, RelationChip } from "./atoms";
 import type { RelationItem } from "./grouping";
 import { buildRelationView, neighbourIds } from "./relations-group";
@@ -72,7 +73,12 @@ export function RelationsPanel({
   );
 
   const ids = useMemo(() => neighbourIds(views), [views]);
-  const names = useResource(() => resolveNames(source, ids), [source, ids.join(",")]);
+  const naming = useConceptNaming();
+  const hubName = useConceptName(concept);
+  const names = useResource(
+    () => resolveNames(source, ids, naming),
+    [source, ids.join(","), naming],
+  );
   const labelFor = (id: string) => names.data?.[id] ?? id;
 
   const [expanded, setExpanded] = useState<Set<RelationType>>(new Set());
@@ -134,7 +140,7 @@ export function RelationsPanel({
         />
       ) : (
         <div className="flex flex-col items-stretch">
-          <Hub name={primaryName(concept)} />
+          <Hub name={hubName} />
           <ul className="space-y-2.5">
             {views.map((view) => (
               <RelationLane
@@ -318,6 +324,7 @@ function AddRelationDialog({
   const [type, setType] = useState<RelationType>("RELATED");
   const [target, setTarget] = useState<ConceptSummary | null>(null);
   const [busy, setBusy] = useState(false);
+  const subjectName = useConceptName(subject);
 
   // Reset transient state each time the dialog opens.
   const reset = () => {
@@ -347,7 +354,7 @@ function AddRelationDialog({
     >
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Relate “{primaryName(subject)}”</DialogTitle>
+          <DialogTitle>Relate “{subjectName}”</DialogTitle>
           <DialogDescription>
             Choose how this concept relates to another, then pick the concept.
           </DialogDescription>
@@ -424,6 +431,7 @@ function ConceptPicker({
   const [query, setQuery] = useState("");
   const debounced = useDebounced(query.trim());
   const exclude = useMemo(() => new Set(excludeIds), [excludeIds]);
+  const naming = useConceptNaming();
 
   const result = useResource(
     () => source.listConcepts({ text: debounced || undefined, limit: 20 }),
@@ -448,7 +456,7 @@ function ConceptPicker({
             return (
               <CommandItem key={c.id} value={c.id} onSelect={() => onSelect(c)} className="gap-2">
                 <Check className={cn("size-4", isSelected ? "opacity-100" : "opacity-0")} />
-                <span className="truncate">{primaryName(c)}</span>
+                <span className="truncate">{primaryName(c, naming)}</span>
                 {c.domain && (
                   <Badge variant="outline" className="ml-auto shrink-0 text-[10px] font-normal">
                     {c.domain}
@@ -468,13 +476,14 @@ function ConceptPicker({
 async function resolveNames(
   source: ConceptDataSource,
   ids: string[],
+  naming: ConceptNaming,
 ): Promise<Record<string, string>> {
   const entries = await Promise.all(
     ids.map(async (id) => {
       const summary = source.getConceptSummary
         ? await source.getConceptSummary(id)
         : await source.getConcept(id);
-      return [id, summary ? primaryName(summary) : id] as const;
+      return [id, summary ? primaryName(summary, naming) : id] as const;
     }),
   );
   return Object.fromEntries(entries);

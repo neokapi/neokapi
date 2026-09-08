@@ -71,6 +71,10 @@ export {
   isPreferredStatus,
   isGovernedRelation,
 } from "./concept-meta";
+export type { ConceptNaming } from "./concept-meta";
+
+// ── Naming hints, shared down a view's subtree ──
+export { ConceptNamingProvider, useConceptNaming, useConceptName } from "./naming";
 
 // ── Pure grouping logic (relations, geography) ──
 export {

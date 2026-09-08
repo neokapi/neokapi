@@ -14,6 +14,7 @@ import { History } from "lucide-react";
 import type { ConceptSectionProps } from "./ConceptView";
 import { ConceptSection, EmptyHint, ErrorHint } from "./atoms";
 import { primaryName } from "./concept-meta";
+import { useConceptNaming } from "./naming";
 import { ConceptEvolution } from "./ConceptEvolution";
 import { buildEvolutionModel } from "./evolution-model";
 import type { EvolutionOrder } from "./evolution-view";
@@ -44,17 +45,18 @@ export function ConceptTimeline({
   }, [relations, concept.id]);
 
   // Neighbour labels for rename/relation milestones.
+  const naming = useConceptNaming();
   const names = useResource(async () => {
     const entries = await Promise.all(
       neighbourIds.map(async (id) => {
         const s = source.getConceptSummary
           ? await source.getConceptSummary(id)
           : await source.getConcept(id);
-        return [id, s ? primaryName(s) : id] as const;
+        return [id, s ? primaryName(s, naming) : id] as const;
       }),
     );
     return Object.fromEntries(entries) as Record<string, string>;
-  }, [source, neighbourIds.join(",")]);
+  }, [source, neighbourIds.join(","), naming]);
 
   // The platform revision log + named markets, when the source supplies them.
   const remote = useResource(

@@ -25,7 +25,8 @@ import {
 import type { ConceptCapabilities, ConceptDataSource } from "./adapter";
 import { resolveCapabilities } from "./adapter";
 import type { Concept, TermSource } from "./types";
-import { primaryName } from "./concept-meta";
+import type { ConceptNaming } from "./concept-meta";
+import { ConceptNamingProvider, useConceptName } from "./naming";
 import { termsByLocale } from "./grouping";
 import { ConceptSection, EmptyHint, formatRelative } from "./atoms";
 import { useResource } from "./useResource";
@@ -95,6 +96,11 @@ export interface ConceptViewProps {
    * concept's canonical name. Omitted/empty = show all.
    */
   localeScope?: string[];
+  /**
+   * Locale hints for the concept's name here and in every panel below. Supply
+   * the source locale of the governed content and the viewer's UI language.
+   */
+  naming?: ConceptNaming;
   className?: string;
 }
 
@@ -106,6 +112,7 @@ export function ConceptView({
   onEdit,
   slots = {},
   localeScope,
+  naming,
   className,
 }: ConceptViewProps) {
   const caps = useMemo(() => resolveCapabilities(source), [source]);
@@ -140,64 +147,66 @@ export function ConceptView({
   const canEdit = Boolean(onEdit) && (caps.editTerms || caps.editRelations);
 
   return (
-    <div className={cn("flex flex-col gap-5", className)} data-testid="concept-view">
-      <ConceptHeader
-        concept={display}
-        localeCount={localeCount}
-        onBack={onBack}
-        onEdit={canEdit ? () => onEdit!(concept) : undefined}
-      />
+    <ConceptNamingProvider naming={naming}>
+      <div className={cn("flex flex-col gap-5", className)} data-testid="concept-view">
+        <ConceptHeader
+          concept={display}
+          localeCount={localeCount}
+          onBack={onBack}
+          onEdit={canEdit ? () => onEdit!(concept) : undefined}
+        />
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
-        <div className="flex min-w-0 flex-col gap-4">
-          <Region
-            slot={slots.geography}
-            ctx={ctx}
-            title="Geography"
-            icon={<Globe />}
-            description="Markets and the term and status used in each."
-          />
-          <Region
-            slot={slots.constraints}
-            ctx={ctx}
-            title="Constraints"
-            icon={<CalendarClock />}
-            description="Validity windows and where a term is banned or preferred."
-          />
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
+          <div className="flex min-w-0 flex-col gap-4">
+            <Region
+              slot={slots.geography}
+              ctx={ctx}
+              title="Geography"
+              icon={<Globe />}
+              description="Markets and the term and status used in each."
+            />
+            <Region
+              slot={slots.constraints}
+              ctx={ctx}
+              title="Constraints"
+              icon={<CalendarClock />}
+              description="Validity windows and where a term is banned or preferred."
+            />
+          </div>
+          <div className="flex min-w-0 flex-col gap-4">
+            <Region
+              slot={slots.relations}
+              ctx={ctx}
+              title="Relations"
+              icon={<Share2 />}
+              description="This concept and its direct relations."
+            />
+          </div>
         </div>
-        <div className="flex min-w-0 flex-col gap-4">
-          <Region
-            slot={slots.relations}
-            ctx={ctx}
-            title="Relations"
-            icon={<Share2 />}
-            description="This concept and its direct relations."
-          />
-        </div>
-      </div>
 
-      {/* Evolution timeline — full width so the horizontal roadmap has room; it
+        {/* Evolution timeline — full width so the horizontal roadmap has room; it
           folds to the vertical git-graph when the container is narrow. */}
-      <Region
-        slot={slots.timeline}
-        ctx={ctx}
-        title="Timeline"
-        icon={<History />}
-        description="How this concept evolved."
-      />
+        <Region
+          slot={slots.timeline}
+          ctx={ctx}
+          title="Timeline"
+          icon={<History />}
+          description="How this concept evolved."
+        />
 
-      {/* Optional rich regions — rendered only when supplied. */}
-      {(slots.observations || slots.comments) && (
-        <div className="grid gap-4 lg:grid-cols-2">
-          {slots.observations && (
-            <Region slot={slots.observations} ctx={ctx} title="Observations" icon={<Quote />} />
-          )}
-          {slots.comments && (
-            <Region slot={slots.comments} ctx={ctx} title="Comments" icon={<MessageSquare />} />
-          )}
-        </div>
-      )}
-    </div>
+        {/* Optional rich regions — rendered only when supplied. */}
+        {(slots.observations || slots.comments) && (
+          <div className="grid gap-4 lg:grid-cols-2">
+            {slots.observations && (
+              <Region slot={slots.observations} ctx={ctx} title="Observations" icon={<Quote />} />
+            )}
+            {slots.comments && (
+              <Region slot={slots.comments} ctx={ctx} title="Comments" icon={<MessageSquare />} />
+            )}
+          </div>
+        )}
+      </div>
+    </ConceptNamingProvider>
   );
 }
 
@@ -214,7 +223,7 @@ function ConceptHeader({
   onBack?: () => void;
   onEdit?: () => void;
 }) {
-  const name = primaryName(concept);
+  const name = useConceptName(concept);
   return (
     <header className="flex flex-col gap-3" data-testid="concept-header">
       {onBack && <BackButton onBack={onBack} />}
