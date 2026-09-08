@@ -314,7 +314,7 @@ async function main() {
       await jput(`/${wsSlug}/${projectId}/blocks/main/${bobBlockId}`, {
         item_name: FILE_NAME,
         target_locale: LOCALE,
-        text: "Nous concevons des outils que les équipes utilisent chaque jour.",
+        text: "À propos de la société Acme Inc.",
       }, HB);
     }
   } catch (e) {

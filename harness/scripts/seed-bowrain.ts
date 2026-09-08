@@ -430,7 +430,7 @@ async function ensureReviewGovernance(
     {
       item_name: FILE_NAME,
       target_locale: COLLAB_LOCALE,
-      text: "Nous concevons des outils que les équipes utilisent chaque jour.",
+      text: "À propos de la société Acme Inc.",
     },
     bobToken,
   );
