@@ -1779,10 +1779,45 @@ async function bowrainDesktopWalk(c: WalkCtx): Promise<void> {
  *  drive — the unified project views (dashboard | automations | runs |
  *  connectors) that replaced the decommissioned flows/FlowBuilder screens.
  *  Flow editing still exists, but as the Flows tab inside Automations. */
+/**
+ * Press the widest scope in the Run-now dialog that starts a run.
+ *
+ * "Translate all now" and "Translate ready source only" both create one;
+ * "Transport only" is answered 204 and creates none, so pressing it (or
+ * dismissing the dialog) leaves the walk waiting for a row with no run behind
+ * it. The dialog offers neither translating scope when nothing is pending over
+ * the ready source, which is a seeded-state fault rather than a UI one, so it
+ * fails here with what the dialog read.
+ */
+async function startWidestScope(page: Page): Promise<void> {
+  for (const name of [/Translate all now/i, /Translate ready source only/i]) {
+    const button = page.getByRole("button", { name }).first();
+    if (!(await button.count())) continue;
+    if (!(await button.isEnabled().catch(() => false))) continue;
+    await humanClick(page, button);
+    return;
+  }
+  const read = (await page.locator('[role="dialog"]').first().innerText().catch(() => ""))
+    .replace(/\s+/g, " ")
+    .trim();
+  throw new Error(
+    `automations: the Run-now dialog offers no scope that starts a run. It read: ${read || "(nothing)"}`,
+  );
+}
+
 async function bowrainDesktopAutomationsWalk(c: WalkCtx): Promise<void> {
   const { page, beatEls, cursorTo } = c;
-  // The project-scoped sub-nav only exists inside a project.
-  const card = page.locator('[data-testid^="project-card"]').first();
+  // The project-scoped sub-nav only exists inside a project, and the run the
+  // walk starts is only offered on the project the seed left with pending work
+  // (harness/scripts/seed-bowrain.ts ensureRunnableProject). Open that one by
+  // id rather than whichever card the workspace lists first.
+  const seeded = process.env.BOWRAIN_PROJECT_ID
+    ? page.getByTestId(`project-card-${process.env.BOWRAIN_PROJECT_ID}`)
+    : null;
+  const card =
+    seeded && (await seeded.count())
+      ? seeded
+      : page.locator('[data-testid^="project-card"]').first();
   if (await card.count()) await humanClick(page, card);
   await page.waitForSelector('[data-testid="subnav-automations"]', { timeout: 20_000 });
   await page.waitForTimeout(1200);
@@ -1809,9 +1844,7 @@ async function bowrainDesktopAutomationsWalk(c: WalkCtx): Promise<void> {
     await humanClick(page, page.getByTestId("run-now-btn"));
     await page.waitForSelector('[role="dialog"]', { timeout: 20_000 });
     await page.waitForTimeout(1600);
-    const start = page.getByRole("button", { name: /Translate all now/i }).first();
-    if (await start.count()) await humanClick(page, start);
-    else await page.keyboard.press("Escape").catch(() => {});
+    await startWidestScope(page);
     await page.waitForSelector('[data-testid="run-row"]', { timeout: 30_000 });
     await page.waitForTimeout(2400);
   });

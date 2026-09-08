@@ -24,6 +24,14 @@
  */
 import fs from "node:fs";
 import path from "node:path";
+import {
+  describeReadiness,
+  isRunnable,
+  needsPendingWork,
+  needsSettle,
+  targetsToClear,
+} from "../src/lib/seed-state.ts";
+import type { ConvergenceEstimate, EditorBlock } from "../src/lib/seed-state.ts";
 
 const BASE = process.env.BOWRAIN_BACKEND_URL || "http://localhost:8080";
 const API = `${BASE}/api/v1`;
@@ -44,6 +52,11 @@ const BOB = {
 
 const FILE_NAME = "about-us.html";
 const COLLAB_LOCALE = "fr";
+
+// The locale the automations walk translates on camera. The seed pre-translates
+// the other two targets, so this one is the project's pending work: "Translate
+// all now" is offered, a real run starts, and its row lands in the runs table.
+const PENDING_LOCALE = "ja";
 
 // The two blocks the review walk addresses, named by their source text: the
 // block list comes back in id order and ids are minted per seed, so a position
@@ -454,6 +467,109 @@ async function ensureReviewGovernance(
   return { peerBlockId, selfBlockId };
 }
 
+interface ConvergenceRun {
+  id: string;
+  state: string;
+  error?: string;
+  stall_reason?: string;
+}
+
+const estimate = (ws: string, pid: string, token: string) =>
+  jget<ConvergenceEstimate>(`/${ws}/${pid}/convergence/estimate`, token);
+
+/**
+ * Settle the project's source by running one convergence pass over a locale the
+ * seed has already covered.
+ *
+ * Every run settles the source first (server/convergence_orchestrator.go
+ * `runSettleSource`): it stamps each block's SourceStatus and clears the
+ * project's `checked` gate. Until something does that, `ready` is 0, every
+ * locale's pending count is 0 over the ready source, and the Run-now dialog
+ * offers "Transport only" alone. Scoping the run to COLLAB_LOCALE, which the
+ * pre-translate step already covered, leaves PENDING_LOCALE untouched, so the
+ * settled project still owes a locale the work the walk starts on camera.
+ *
+ * The alternative, `source_gate: none` on the project, would route around the
+ * gate the demo is about.
+ */
+async function settleSourceWithRun(ws: string, pid: string, token: string): Promise<void> {
+  const run = await jpost<ConvergenceRun>(
+    `/${ws}/${pid}/convergence/runs`,
+    { trigger: "seed", scope: "all", locales: [COLLAB_LOCALE] },
+    token,
+  );
+  console.log(`  · settling source through run ${run.id}`);
+  const deadline = Date.now() + 180_000;
+  for (;;) {
+    const cur = await jget<ConvergenceRun>(`/${ws}/${pid}/convergence/runs/${run.id}`, token);
+    if (cur.state !== "running") {
+      const why = cur.stall_reason || cur.error;
+      console.log(`  · settle run ${cur.state}${why ? ` (${why})` : ""}`);
+      return;
+    }
+    if (Date.now() > deadline) throw new Error(`settle run ${run.id} still running after 180s`);
+    await new Promise((res) => setTimeout(res, 2000));
+  }
+}
+
+/**
+ * Clear the pending locale's targets on the recording item, so the walk has
+ * work to start whether or not the last take's run already did it.
+ *
+ * The seed runs immediately before every recording, and the take it precedes
+ * translates this locale on camera. Writing an empty target is what the editor
+ * does when somebody discards a translation, and a block with no target text is
+ * pending again (jobs/decision_basis.go `needsDraft`).
+ */
+async function clearPendingLocale(ws: string, pid: string, token: string): Promise<number> {
+  const blocks = listOf<EditorBlock>(
+    await jget(
+      `/${ws}/${pid}/blocks/main?item=${encodeURIComponent(FILE_NAME)}&limit=500`,
+      token,
+    ),
+    "blocks",
+  );
+  const ids = targetsToClear(blocks, PENDING_LOCALE);
+  for (const id of ids) {
+    await jput(
+      `/${ws}/${pid}/blocks/main/${id}`,
+      { item_name: FILE_NAME, target_locale: PENDING_LOCALE, text: "" },
+      token,
+    );
+  }
+  return ids.length;
+}
+
+/**
+ * Leave the recording project able to start a real run: source past its gate,
+ * and one target locale with pending work.
+ *
+ * Without both, `ConvergenceRunNowDialog` reads `pending === 0`, offers
+ * "Transport only" alone, and the server answers that scope 204 and creates no
+ * run, so `[data-testid="run-row"]` never arrives and the automations walk
+ * times out (#2597). Both halves are checked rather than assumed: a seed that
+ * leaves the project unable to run should say so here rather than in a take.
+ */
+async function ensureRunnableProject(ws: string, pid: string, token: string): Promise<void> {
+  let est = await estimate(ws, pid, token);
+  console.log(`  · convergence: ${describeReadiness(est)}`);
+  if (needsSettle(est)) {
+    await settleSourceWithRun(ws, pid, token);
+    est = await estimate(ws, pid, token);
+  }
+  if (needsPendingWork(est)) {
+    const cleared = await clearPendingLocale(ws, pid, token);
+    console.log(`  · cleared ${cleared} ${PENDING_LOCALE} target(s) so the walk has work to start`);
+    est = await estimate(ws, pid, token);
+  }
+  if (!isRunnable(est)) {
+    throw new Error(
+      `the Run-now dialog would offer transport only: ${describeReadiness(est)}`,
+    );
+  }
+  console.log(`  · convergence: ${describeReadiness(est)}, so "Translate all now" starts a real run`);
+}
+
 // ── demo content (proven; same as the two reference seeds) ───────────────────
 
 const ABOUT_US_HTML = `<!doctype html>
@@ -650,6 +766,11 @@ async function main(): Promise<void> {
   // and a row the server refuses her.
   const review = await ensureReviewGovernance(ws, projectId, aliceToken, bobToken);
 
+  // The automations walk starts a pass on camera, which needs source past the
+  // gate and a locale still owing drafts. Runs last, so it settles the source
+  // the pre-translate and the review governance have finished writing.
+  await ensureRunnableProject(ws, projectId, aliceToken);
+
   // Voice profile + Project 2 "Marketing Site" (the correction-loop dropdown
   // needs a SECOND project) + non-compliant content + correction stream.
   const profileId = await ensureBrandProfile(ws, aliceToken, "Acme Voice");
@@ -705,6 +826,7 @@ async function main(): Promise<void> {
   console.log("\n✓ seed complete");
   console.log(`  workspace : ${BASE}/${ws}`);
   console.log(`  project   : Company Website (${projectId}), item ${itemId}`);
+  console.log(`  pending   : ${PENDING_LOCALE} (the locale the automations walk translates on camera)`);
   console.log(`  marketing : Marketing Site (${marketingId})`);
   console.log(`  brand     : Acme Voice (${profileId})`);
   console.log(`  peer Bob  : joined=${joined}`);
