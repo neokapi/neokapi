@@ -1,7 +1,6 @@
 id: kapi-desktop-explorer
-title: Browse terms and content memory
-subtitle: A visual tour of terminology and content memory in Kapi Desktop.
-tagline: the visual companion to the kapi command line
+title: What did we agree for this word?
+subtitle: Terms and content memory, searched at the project that agreed them.
 kind: use-case
 publishAs: kapi-desktop-explorer
 terminal: desktop
@@ -18,92 +17,60 @@ aspects:
 
 # A "desktop" demo replays the recorded Kapi Desktop screencast (public/<id>/
 # screencast.{json,webm}) inside the macOS window frame. Each narration scene of
-# kind "desktop" names a `beat` from screencast.json and inherits that beat's
-# zoom region; the scene plays the beat's slice fit to the narration length.
+# kind "desktop" names a `beat` from screencast.json.
+outro:
+  line: The same two stores answer from a terminal.
+  pointer: kapi terms search cart
 
 narration:
   - id: title
     kind: title
     text: >-
-      Kapi Desktop, the visual companion to the kapi command line.
-
-  - id: intro
-    kind: desktop
-    beat: intro
-    text: >-
-      It opens to a calm home screen. We'll open the KapiMart sample, because
-      the terms a project has agreed and the wording it has already approved
-      belong to a project.
-
-  # Terms and Content Memory are sections of the Context pillar; the `beat`
-  # ids stay as recorded.
-  - id: termbases
-    kind: desktop
-    beat: open-termbases
-    caption: Context holds the terms and the memory.
-    text: >-
-      Context is where a project's own reference lives, and Terms is the first
-      of its stores. It opens straight onto the concepts KapiMart has agreed.
-
-  - id: glossary
-    kind: desktop
-    beat: open-glossary
-    caption: Every concept the project has agreed.
-    text: >-
-      Every concept the project holds is listed, with an activity chart of
-      recent edits across the top.
-
-  - id: concept
-    kind: desktop
-    beat: inspect-concept
-    caption: Each concept carries a definition and its approved terms.
-    text: >-
-      Each concept carries a definition and its approved terms across languages.
-      A status badge marks the preferred wording, and flags the terms that are
-      deprecated.
+      The words a project has agreed, and the wording it has already approved,
+      are decisions. Both belong to the project, and both answer a search.
 
   - id: search-term
     kind: desktop
     beat: search-term
-    caption: Full-text search finds a term fast.
+    caption: One word typed, and the list narrows to it.
+    zoom: 1.3
     text: >-
-      Full-text search finds a term in an instant. Here, the shopping cart
-      concept, with its approved translations.
+      Terms is the first of the project's two stores, and it opens on the
+      concepts this project has agreed. Typing narrows the list as you go, so
+      finding what the company calls something is a word and a moment.
 
-  - id: open-tm
+  - id: concept
     kind: desktop
-    beat: open-tm
-    caption: Content Memory works the same way.
+    beat: concept
+    caption: Its approved terms, language by language.
+    zoom: 1.3
     text: >-
-      Content Memory works the same way, one section across. It holds every
-      translation this project has already approved.
-
-  - id: inspect-tm
-    kind: desktop
-    beat: inspect-tm
-    caption: Each entry pairs a source string with its translations.
-    text: >-
-      Each entry pairs a source string with its translations. Inline formatting,
-      like bold text and links, is preserved as tags rather than literal markup.
-
-  - id: entity
-    kind: desktop
-    beat: entity
-    caption: Names are held as placeholders, ready to reuse.
-    text: >-
-      Names and other entities are held as placeholders, so a remembered
-      translation can be reused later with a different value.
+      A concept carries a definition and the approved term for it in every
+      language the project ships. A status badge marks the preferred wording and
+      flags the ones that have been retired.
 
   - id: search-tm
     kind: desktop
     beat: search-tm
-    caption: The memory is searchable too.
+    caption: Every string that mentions checkout, in one query.
+    zoom: 1.2
     text: >-
-      And the memory is searchable too. Every string that mentions checkout,
-      in one query.
+      Content memory works the same way, one section across. It holds every
+      translation this project has approved, and a search over it answers with
+      the strings a word actually appears in.
+
+  - id: inspect-tm
+    kind: desktop
+    beat: inspect-tm
+    caption: Formatting kept as tags, names kept as placeholders.
+    zoom: 1.4
+    text: >-
+      An entry pairs a source string with its translations. Bold text and links
+      are kept as tags rather than as literal markup, and a name is held as a
+      placeholder, so the entry can be reused with a different one in it.
 
   - id: outro
     kind: outro
     text: >-
-      That's the terms and the content memory at the heart of kapi, read at
-      the project that agreed them.
+      Both stores answer the same questions from a terminal in the same folder,
+      because both belong to the project rather than to the app.

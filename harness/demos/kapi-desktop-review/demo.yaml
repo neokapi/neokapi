@@ -1,10 +1,10 @@
 id: kapi-desktop-review
-title: Review a translation in context
-subtitle: One queue, and the five layers behind each decision.
-tagline: the visual companion to the kapi command line
+title: Judged where it sits
+subtitle: Five layers under one unit, and a keystroke to decide.
 kind: use-case
+publishAs: kapi-desktop-review
 terminal: desktop
-brand: kapi
+brand: desktop
 needsAi: false
 # One continuous narration read: uniform voice speed and tone across scenes.
 oneshot: true
@@ -13,115 +13,94 @@ aspects:
   - The point a unit sits at
   - Prior decisions and approved wording
   - Findings anchored in the runs
+outro:
+  line: Open Review and press A on a clean unit.
+  pointer: kapi status --review
 
 narration:
   - id: title
     kind: title
     text: >-
-      A translation is judged where it sits, not on its own.
-
-  - id: intro
-    kind: desktop
-    beat: intro
-    text: >-
-      Kapi Desktop opens on the sample projects. We'll use KapiMart, which ships
-      with a queue already waiting.
-
-  - id: open-project
-    kind: desktop
-    beat: open-project
-    caption: KapiMart opens with work awaiting a decision.
-    text: >-
-      KapiMart's message catalogue ships translated into five languages with no
-      decision recorded behind it, so the project opens with something to
-      review.
+      A translation is judged where it sits: at its point, beside its
+      neighbours, against what was approved before.
 
   - id: queue
     kind: desktop
     beat: queue
-    caption: One queue, every language, in one list.
+    caption: One list, every language, two ways to narrow it.
     text: >-
-      Review is one queue. Every language sits in the same list, each row marked
-      with the language it belongs to and with what the checks made of it.
-
-  - id: scope
-    kind: desktop
-    beat: scope
-    caption: A count per language, and chips for what a check flagged.
-    text: >-
-      The selector narrows the queue to one language and carries how much is
-      pending in each. The chips cut it further, to the units a check has
-      something to say about.
+      Review is one queue. Every language is in the same list, with a count per
+      language and chips for what a check flagged.
 
   - id: open-unit
     kind: desktop
     beat: open-unit
-    caption: Source, target, and the layers behind them.
+    caption: Source, target, and the layers beneath them.
     text: >-
-      Opening a unit gives the source and the translation, with everything that
-      shaped it stacked underneath.
+      Opening a unit gives the source and the translation, with what shaped
+      them stacked underneath.
 
   - id: point
     kind: desktop
     beat: point
-    caption: Coordinates, the voice in force, and the terms bound here.
+    caption: What governs here?
+    crop: { selector: '[data-slot="review-point"]' }
+    zoom: 1.5
     text: >-
-      The first layer is the point this content sits at. Its coordinates, the
-      voice profile governing there, and the term rules that bind at this
-      spot.
+      The first layer is the point this content sits at: its coordinates, the
+      voice governing there, and the term rules bound to it.
 
   - id: neighbourhood
     kind: desktop
     beat: neighbourhood
-    caption: The blocks either side, in the real document.
+    caption: What sits either side of it?
+    crop: { selector: '[data-slot="review-neighbourhood"]' }
+    zoom: 1.5
     text: >-
-      The second is the neighbourhood. The blocks either side of it in the
-      document, so a sentence is read where a reader will meet it.
+      The second is the neighbourhood: the blocks either side of it, so a
+      sentence is read where a reader will meet it.
 
   - id: history
     kind: desktop
     beat: history
-    caption: What was approved before, and what the memory already answers.
+    caption: What was decided before?
+    crop: { selector: '[data-slot="review-history"]' }
+    zoom: 1.5
     text: >-
-      The third is what has already been decided. The version approved last
-      time, beside the match the content memory offers now.
+      The third is what was decided before: the version approved last time,
+      beside the match memory offers now.
 
   - id: findings
     kind: desktop
     beat: findings
-    caption: Findings anchored in the runs they name.
+    caption: What did the checks find, and where?
+    crop: { selector: '[data-slot="review-findings"]' }
+    zoom: 1.5
+    highlight: { selector: '[data-slot="review-finding"]' }
     text: >-
-      The fourth is the checks. Each finding is anchored in the exact run it
-      names, so a placeholder complaint points at the placeholder.
+      The fourth is the checks. A finding is anchored in the run it names, so a
+      complaint about a placeholder points at the placeholder.
 
   - id: provenance
     kind: desktop
     beat: provenance
-    caption: Who decided, and when.
+    caption: Who decided, and when?
+    crop: { selector: '[data-slot="review-provenance"]' }
+    zoom: 1.5
     text: >-
       The fifth is provenance: who wrote it, who decided it, and whether the
-      text has moved since. This one carries none yet, which is itself the
-      answer.
+      text has moved since. This one carries none.
 
-  - id: approve
+  - id: decide
     kind: desktop
-    beat: approve
-    caption: Press A. The unit leaves the queue.
+    beat: decide
+    caption: One keystroke, then the clean ones together.
     text: >-
-      With that read, the decision is a keystroke. Press A and the unit leaves
-      the queue, its approval bound to the exact text it judged.
-
-  - id: batch
-    kind: desktop
-    beat: batch
-    caption: Approve the clean ones together.
-    text: >-
-      The units no check flagged can go together, so the reading time goes to
-      the exceptions. The queue that remains is the one that needed a person.
+      With that read, the decision is a keystroke bound to the text it judged,
+      and the units no check flagged go together.
 
   - id: outro
     kind: outro
     text: >-
-      Every decision here is the same record kapi status --review reads on the
-      command line and kapi apply writes. One review model, one project state,
-      whichever surface you work from.
+      Every decision here is the record the command line reads and writes, so
+      the surface you work from is a preference.

@@ -91,27 +91,27 @@ export const DEMOS: RegistryEntry[] = [
   },
   {
     "id": "kapi-desktop-config",
-    "title": "Configure Kapi Desktop"
+    "title": "The key never reaches the recipe"
   },
   {
     "id": "kapi-desktop-content",
-    "title": "The content a project translates"
+    "title": "Nothing is read until you read it"
   },
   {
     "id": "kapi-desktop-explorer",
-    "title": "Browse terms and content memory"
+    "title": "What did we agree for this word?"
   },
   {
     "id": "kapi-desktop-flows",
-    "title": "The Toolbox of a project"
+    "title": "Compose the flow, run it anywhere"
   },
   {
     "id": "kapi-desktop-projects",
-    "title": "Create and manage a project"
+    "title": "A recipe written for you"
   },
   {
     "id": "kapi-desktop-review",
-    "title": "Review a translation in context"
+    "title": "Judged where it sits"
   },
   {
     "id": "s0-northsea-checks",

@@ -1,7 +1,6 @@
 id: kapi-desktop-content
-title: The content a project translates
-subtitle: Collections on the project home, and what one file holds.
-tagline: the visual companion to the kapi command line
+title: Nothing is read until you read it
+subtitle: One extract, and every collection has a number against every language.
 kind: use-case
 publishAs: kapi-desktop-content
 terminal: desktop
@@ -14,89 +13,75 @@ aspects:
   - File patterns
   - Keyed file preview
   - Format detection
+outro:
+  line: Extract once; edits re-extract themselves.
+  pointer: kapi status
 
 narration:
   - id: title
     kind: title
     text: >-
-      In Kapi, a project's content is the set of files it translates.
-
-  - id: intro
-    kind: desktop
-    beat: intro
-    text: >-
-      We'll open a sample project to see how that content is organised.
+      A collection is a set of file patterns, and until the project reads them
+      it knows nothing about what is inside. One extract, and every language has
+      a number against it.
 
   - id: open-project
     kind: desktop
     beat: open-project
-    caption: KapiMart, a ready-made sample project.
+    caption: Four collections, and nothing read yet.
     text: >-
-      KapiMart is a ready-made sample. A small store with documentation, a
-      storefront, contracts and templates.
+      The sample opens on its standing: four collections, every coverage column
+      empty, and a panel saying in as many words that nothing has been
+      extracted.
 
-  - id: overview
+  - id: extract
     kind: desktop
-    beat: overview
-    caption: Where the content sits, and what governs it there.
+    beat: extract
+    caption: Read once, and the coverage fills in.
+    crop: { selector: ['[data-slot="ship-gate-cell"]', '[data-testid="collection-file-count"]'] }
+    zoom: 1.3
+    highlight: { selector: '[data-slot="ship-gate-cell"]' }
+    hold: 12
     text: >-
-      The project opens on its standing. Where the content sits, the voice
-      governing it there, and how far each language has come.
-
-  - id: content
-    kind: desktop
-    beat: content
-    caption: Collections sit on the same surface.
-    text: >-
-      The collections sit on that same surface, one row each. A collection is a
-      set of glob patterns, the files they match, and the coverage of every
-      language across them.
+      Extract reads every matched file with the format Kapi detected for it and
+      turns each one into blocks. The counts and the ladder for each language
+      arrive from that, which is why the screen was blank until now.
 
   - id: patterns
     kind: desktop
     beat: patterns
-    caption: A collection opens to its patterns and files.
+    caption: The patterns, and the files each one matched.
+    crop: { selector: '[data-slot="matched-files-scroll"]' }
+    zoom: 1.2
     text: >-
-      Opening one shows the patterns that define it. Each output pattern is a
-      row that opens to the source file above its language files, every one
-      carrying the format Kapi detected for it.
-
-  - id: files
-    kind: desktop
-    beat: files
-    caption: A JSON catalog, read as keys and values.
-    text: >-
-      Opening a file raises the preview. A JSON catalog is a list of keys with
-      text against them, so Kapi reads it as a table rather than as a document.
+      Opening a collection shows the patterns that define it. Each output
+      pattern opens to the source file above its language files, every one
+      carrying the format Kapi read it as.
 
   - id: keys
     kind: desktop
     beat: keys
-    caption: The key beside the text it names.
+    caption: The key column names the block Review decides on.
+    crop: { selector: '[data-preview="keyed-table"]' }
+    zoom: 1.6
     text: >-
-      The key column is what makes this file navigable. It is the same key that
-      names the block in Review, so a decision and a line in the file point at
-      one another.
+      A JSON catalog is a list of keys with text against them, so the preview
+      reads it as a table. The key column is what makes it navigable, and it is
+      the same key that names the block in Review.
 
   - id: code
     kind: desktop
     beat: code
-    caption: The file itself, one click away.
+    caption: The same file, as it is written on disk.
+    crop: { selector: '[data-preview="data"]' }
+    zoom: 1.4
     text: >-
-      The file view shows what is written to disk, with the line for the
-      selected key highlighted. Structure on one tab, bytes on the other.
-
-  - id: properties
-    kind: desktop
-    beat: properties
-    caption: A properties catalog, read the same way.
-    text: >-
-      A Java properties catalog reads the same way, and so do YAML and the other
-      keyed formats. These messages are the ones the review queue opens with.
+      The other tab is the file itself, with the line for the selected key
+      highlighted. Structure on one, bytes on the other, and the same content
+      underneath both.
 
   - id: outro
     kind: outro
     text: >-
-      Edit a source file and the project re-extracts it, so the content stays in
-      step with the working tree. That is a project's content: grouped, matched,
-      and ready to bring up to date.
+      Extract once. After that an edit to a source file re-extracts it, so what
+      the project knows stays level with the working tree.
