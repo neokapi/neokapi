@@ -1595,7 +1595,7 @@ async function bowrainDesktopWalk(c: WalkCtx): Promise<void> {
  *  connectors) that replaced the decommissioned flows/FlowBuilder screens.
  *  Flow editing still exists, but as the Flows tab inside Automations. */
 async function bowrainDesktopAutomationsWalk(c: WalkCtx): Promise<void> {
-  const { page, beat, beatEls, cursorTo } = c;
+  const { page, beatEls, cursorTo } = c;
   // The project-scoped sub-nav only exists inside a project.
   const card = page.locator('[data-testid^="project-card"]').first();
   if (await card.count()) await humanClick(page, card);
