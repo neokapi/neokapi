@@ -16,9 +16,8 @@ outro:
   pointer: npm install -D @neokapi/i18n-react
 
 # A complete English app with base deps installed, but neokapi-i18n is NOT installed
-# or wired, so Claude adopts it. @neokapi/i18n-react is served from a local registry
-# (.npmrc routes @neokapi → http://localhost:4873; run `npm run setup` to publish it),
-# so `npm install -D @neokapi/i18n-react` works cleanly (React stays a single peer copy).
+# or wired, so Claude adopts it. `npm install -D @neokapi/i18n-react` resolves from the
+# public npm registry, which is the command the outro card tells the reader to run.
 setup:
   - npm install --no-audit --no-fund --loglevel=error
 

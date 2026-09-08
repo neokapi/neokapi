@@ -63,7 +63,7 @@ async function buildKapiIfMissing(): Promise<void> {
 async function regenPluginBundle(): Promise<void> {
   const r = await run("make", ["-C", REPO_ROOT, "plugin-bundle"], { env: process.env, timeoutMs: 120_000 });
   if (r.code !== 0) throw new Error(`make plugin-bundle failed: ${r.stderr.slice(-800)}`);
-  const skillsDir = path.join(PLUGIN_DIR, "plugins", "kapi", "skills", "kapi");
+  const skillsDir = path.join(PLUGIN_DIR, "skills", "kapi");
   if (!fs.existsSync(path.join(skillsDir, "SKILL.md"))) {
     throw new Error(`plugin bundle incomplete: ${skillsDir}/SKILL.md missing`);
   }
