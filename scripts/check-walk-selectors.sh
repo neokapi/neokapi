@@ -30,6 +30,26 @@
 # language name from CLDR. Failing on those would train everyone to ignore this
 # check, so they are listed as advisory and never gate.
 #
+# The second half checks the CROP selectors in harness/demos/*/demo.yaml, which
+# name the element a beat's camera pushes onto. Two things are asserted:
+#
+#   1. an app renders it, the same way the recorder's selectors are checked;
+#   2. it is not a layout container.
+#
+# The second one is about geometry rather than drift. The composition fits a
+# crop region into an area wider than it is tall, and shows the whole window
+# for anything that does not fit at 1.15x, so a region taller than roughly two
+# thirds of the window can never be cropped into. An element whose own classes
+# size it to its parent (`h-full`, `flex-1`, `min-h-0`, `inset-0`) is exactly
+# that region: the beat then pushes into the middle of the window instead of
+# onto the thing its caption names, and at the docs embed size the app text in
+# it is unreadable. Twenty-three beats shipped that way (#2601).
+#
+# What is NOT checked here: a page section that is tall because of its content
+# rather than its classes. Nothing static can see that, so the recorder prints
+# the fit of every resolved crop and warns when the composition will fall back
+# to the whole window (record-desktop.ts `reportCrop`).
+#
 # Usage:
 #     ./scripts/check-walk-selectors.sh              # check the recorder
 #     ./scripts/check-walk-selectors.sh --self-test  # prove the matcher both ways
@@ -42,6 +62,15 @@ root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$root"
 
 readonly RECORDER=harness/src/driver/record-desktop.ts
+readonly DEMOS=harness/demos
+# The composition's own threshold (harness/src/lib/crop.ts FULL_WINDOW_FIT).
+readonly FULL_WINDOW_FIT_DOC=1.15
+
+# Classes that size an element to its parent. A crop over one of these is
+# inert: it never fits the composition's crop area, so the beat records the
+# whole window. Height is what binds, so the width-only fills (`w-full`) are
+# deliberately absent.
+readonly FILL_CLASSES=(h-full h-screen h-dvh min-h-full min-h-screen min-h-0 flex-1 inset-0 size-full)
 
 # The frontends the recorder drives: the kapi desktop app, the shared UI kit it
 # and bowrain both mount, and the bowrain web + desktop apps.
@@ -85,13 +114,16 @@ advisory_selectors() {
 
 # haystack_file writes every tracked frontend source under APP_DIRS into one
 # file, so each lookup is a single grep over it rather than a tree walk.
-haystack_file() {
-  local out="$1" shift_unused
+source_files() {
   git ls-files -z -- "${APP_DIRS[@]}" |
     tr '\0' '\n' |
     grep -E '\.(ts|tsx)$' |
-    grep -vE '(^|/)__tests__/|\.test\.tsx?$|\.stories\.tsx?$' |
-    while IFS= read -r f; do cat "$f"; printf '\n'; done >"$out"
+    grep -vE '(^|/)__tests__/|\.test\.tsx?$|\.stories\.tsx?$'
+}
+
+haystack_file() {
+  local out="$1"
+  source_files | while IFS= read -r f; do cat "$f"; printf '\n'; done >"$out"
 }
 
 # present reports whether one selector value is rendered by the haystack.
@@ -138,6 +170,87 @@ check_recorder() {
   return "$missing"
 }
 
+# ── crop targets ─────────────────────────────────────────────────────────────
+
+# crop_targets prints "demo/beat<TAB>kind<TAB>value" for every structural
+# selector under a `crop:` key in the demo manifests given as arguments.
+crop_targets() {
+  local f demo
+  for f in "$@"; do
+    demo="$(basename "$(dirname "$f")")"
+    DEMO="$demo" perl -ne '
+      BEGIN { our ($beat, $incrop) = ("", 0) }
+      if (/^  - id: (\S+)/) { $beat = $1; $incrop = 0 }
+      if (/^    crop:/)     { $incrop = 1 }
+      elsif (/^    \w/)     { $incrop = 0 }
+      next unless $incrop;
+      while (/\[data-(testid|slot|preview)="([^"\]]+)"\]/g) {
+        print "$ENV{DEMO}/$beat\t$1\t$2\n";
+      }
+    ' <"$f"
+  done | sort -u
+}
+
+# tag_classes prints "kind<TAB>value<TAB>classes" for every JSX element in the
+# sources on stdin (one path per line) that carries a literal data-testid,
+# data-slot or data-preview. An attribute passed as a prop (`dataSlot="x"`) or
+# built from a template has no tag to read, so it is left out and its crop is
+# checked for existence only.
+tag_classes() {
+  while IFS= read -r f; do
+    perl -e '
+      my $f = shift;
+      open my $fh, "<", $f or exit 0;
+      my @l = <$fh>;
+      for my $i (0 .. $#l) {
+        next unless $l[$i] =~ /data-(testid|slot|preview)="([^"{]+)"/;
+        my ($kind, $value) = ($1, $2);
+        my $start = $i;
+        $start-- while $start > 0 && $l[$start] !~ /<[A-Za-z]/;
+        my $end = $start;
+        $end++ while $end < $#l && $l[$end] !~ />\s*$/;
+        my $tag = join(" ", @l[$start .. $end]);
+        # Only the class names, so an aria-label never reads as a class.
+        my $cls = "";
+        $cls .= " $1" while $tag =~ /className=\{?(?:cn\()?\s*"([^"]*)"/g;
+        $cls .= " $1" while $tag =~ /className=\{cn\([^)]*?"([^"]*)"/g;
+        print "$kind\t$value\t$cls\n";
+      }
+    ' "$f"
+  done | sort -u
+}
+
+# fill_class reports whether a class list sizes its element to its parent.
+fill_class() {
+  local classes=" $1 " token
+  for token in "${FILL_CLASSES[@]}"; do
+    case "$classes" in *" $token "*) echo "$token"; return 0 ;; esac
+  done
+  return 1
+}
+
+# check_crop_targets reports every crop selector no app renders, and every one
+# that names a layout container.
+check_crop_targets() {
+  local hay="$1" tags="$2" demo kind value classes token findings=0
+  shift 2
+  while IFS=$'\t' read -r demo kind value; do
+    [ -n "$value" ] || continue
+    if ! present "$value" "$hay"; then
+      echo "  ${demo}: crop names data-${kind} \"${value}\", which no app source renders"
+      findings=$((findings + 1))
+      continue
+    fi
+    classes=$(awk -F'\t' -v k="$kind" -v v="$value" '$1 == k && $2 == v { print $3; exit }' "$tags")
+    [ -n "$classes" ] || continue
+    if token=$(fill_class "$classes"); then
+      echo "  ${demo}: crop names data-${kind} \"${value}\", a \"${token}\" container; the beat would record the whole window"
+      findings=$((findings + 1))
+    fi
+  done < <(crop_targets "$@")
+  return "$findings"
+}
+
 # ── self-test ────────────────────────────────────────────────────────────────
 
 self_test() {
@@ -151,8 +264,12 @@ export function Rail() {
   return (
     <>
       <button aria-label="Toolbox" data-testid="rail-toolbox" />
-      <div data-slot="review-queue" />
+      <div className="rounded-xl border bg-card p-0" data-slot="review-queue" />
       <span data-preview="keyed-table" />
+      <div
+        className="relative flex h-full w-full flex-col overflow-y-auto"
+        data-testid="workbench"
+      />
       {items.map((item) => (
         <a key={item.id} data-testid={`subnav-${item.id}`} />
       ))}
@@ -199,6 +316,67 @@ EOF
     fi
   fi
 
+  # ── crop targets: one demo whose crops are elements, one whose crops are not ──
+  mkdir -p "$tmp/demos/good-demo" "$tmp/demos/bad-demo"
+  cat >"$tmp/demos/good-demo/demo.yaml" <<'EOF'
+narration:
+  - id: card
+    kind: desktop
+    beat: card
+    crop: { selector: '[data-slot="review-queue"]' }
+    zoom: 1
+  - id: pair
+    kind: desktop
+    beat: pair
+    crop:
+      selector:
+        - '[data-testid="rail-toolbox"]'
+        - '[data-preview="keyed-table"]'
+EOF
+  cat >"$tmp/demos/bad-demo/demo.yaml" <<'EOF'
+narration:
+  - id: pane
+    kind: desktop
+    beat: pane
+    crop: { selector: '[data-testid="workbench"]' }
+  - id: gone
+    kind: desktop
+    beat: gone
+    crop: { selector: '[data-slot="retired-panel"]' }
+EOF
+
+  local found
+  found=$(crop_targets "$tmp/demos/good-demo/demo.yaml" "$tmp/demos/bad-demo/demo.yaml" | grep -c . || true)
+  if [ "$found" = "5" ]; then
+    echo "✓ self-test: reads every crop selector out of the manifests (5)"
+  else
+    echo "✖ self-test: expected 5 crop selectors from the fixtures, read ${found}"
+    status=1
+  fi
+
+  printf '%s\n' "$tmp/app.tsx" | tag_classes >"$tmp/tags.tsv"
+  if out=$(check_crop_targets "$tmp/app.tsx" "$tmp/tags.tsv" "$tmp/demos/good-demo/demo.yaml"); then
+    echo "✓ self-test: a demo whose crops name real, croppable elements passes"
+  else
+    echo "✖ self-test: the matcher flagged crops that are fine:"
+    printf '%s\n' "$out"
+    status=1
+  fi
+
+  if out=$(check_crop_targets "$tmp/app.tsx" "$tmp/tags.tsv" "$tmp/demos/bad-demo/demo.yaml"); then
+    echo "✖ self-test: the matcher did NOT flag a layout-container crop or a dead one"
+    status=1
+  else
+    if printf '%s\n' "$out" | grep -q 'h-full' &&
+      printf '%s\n' "$out" | grep -q 'retired-panel'; then
+      echo "✓ self-test: flags a crop over an h-full pane and one no app renders (2 findings)"
+    else
+      echo "✖ self-test: expected both crop findings, got:"
+      printf '%s\n' "$out"
+      status=1
+    fi
+  fi
+
   return "$status"
 }
 
@@ -222,21 +400,38 @@ if [ ! -f "$RECORDER" ]; then
 fi
 
 hay="$(mktemp)"
-# shellcheck disable=SC2064  # expand the path now, not at trap time
-trap "rm -f '$hay'" EXIT
+tags="$(mktemp)"
+# shellcheck disable=SC2064  # expand the paths now, not at trap time
+trap "rm -f '$hay' '$tags'" EXIT
 haystack_file "$hay"
+source_files | tag_classes >"$tags"
+
+status=0
 
 total=$(structural_selectors <"$RECORDER" | grep -c . || true)
-
 if out=$(check_recorder "$RECORDER" "$hay"); then
   echo "✓ walk selectors: all ${total} structural selectors in $RECORDER are rendered by an app"
   advisory=$(advisory_selectors <"$RECORDER" | grep -c . || true)
   echo "  (${advisory} free-text matcher(s) not checked; see the header)"
-  exit 0
+else
+  echo "✖ walk selectors: a recorded walk drives a selector no app renders."
+  echo "  Nothing fails when this drifts: the walk throws mid-recording, or a"
+  echo "  guarded beat records the wrong screen under the right narration."
+  printf '%s\n' "$out"
+  status=1
 fi
 
-echo "✖ walk selectors: a recorded walk drives a selector no app renders."
-echo "  Nothing fails when this drifts: the walk throws mid-recording, or a"
-echo "  guarded beat records the wrong screen under the right narration."
-printf '%s\n' "$out"
-exit 1
+manifests=("$DEMOS"/*/demo.yaml)
+crops=$(crop_targets "${manifests[@]}" | grep -c . || true)
+if out=$(check_crop_targets "$hay" "$tags" "${manifests[@]}"); then
+  echo "✓ crop targets: all ${crops} crop selectors in $DEMOS name an element an app renders and can be cropped into"
+else
+  echo "✖ crop targets: a beat crops to something the composition cannot push into."
+  echo "  A crop region has to fit the crop area at ${FULL_WINDOW_FIT_DOC}x or the beat"
+  echo "  records the whole window, so it names the row, card, chip or dialog"
+  echo "  the caption is about rather than the pane holding it."
+  printf '%s\n' "$out"
+  status=1
+fi
+
+exit "$status"

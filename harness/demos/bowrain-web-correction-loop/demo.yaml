@@ -42,7 +42,6 @@ narration:
     caption: How much content this would newly flag.
     hold: 17
     crop: { selector: '[role="dialog"]' }
-    zoom: 2
     text: >-
       Before promoting anything, preview the blast radius. The dialog counts how
       much of the content already in the project this rule would newly flag, so

@@ -21,6 +21,8 @@ import { chromium, type Page, type Browser, type Locator } from "playwright";
 import { ensureDir, publicDemoDir, REPO_ROOT } from "../lib/paths.ts";
 import { injectCursor, moveTo, humanClick, humanType, idle, setClickSink } from "./cursor-helper.ts";
 import { loadEnv } from "../lib/env.ts";
+import { FULL_WINDOW_FIT, frameGeometry, isWebDemo, MAX_CROP_SCALE, regionFit, unionRect } from "../lib/crop.ts";
+import type { ElementBox } from "../lib/crop.ts";
 
 // Load harness/.env (the seed writes BOWRAIN_SESSION_TOKEN etc. there) BEFORE
 // the module-level BOWRAIN_* consts below read process.env. loadEnv() is
@@ -62,6 +64,10 @@ export interface BeatSpec {
   hold?: number;
   cropSelectors?: string[];
   highlightSelector?: string;
+  /** The beat's `zoom`, so a warning can name the scale the shot would land at. */
+  zoom?: number;
+  /** Whether the scene carries a chapter line, which shortens the crop area. */
+  caption?: boolean;
 }
 export interface Screencast {
   width: number;
@@ -631,7 +637,7 @@ function translatePath(itemName: string): string {
   return itemName.split("/").map(encodeURIComponent).join("/");
 }
 
-function makeCtx(page: Page, t0: number, beats: Beat[], peer: PeerSession | undefined, specs: Record<string, BeatSpec>, holds: Record<string, number>): WalkCtx {
+function makeCtx(page: Page, t0: number, beats: Beat[], peer: PeerSession | undefined, specs: Record<string, BeatSpec>, holds: Record<string, number>, demoId: string): WalkCtx {
   const now = () => (Date.now() - t0) / 1000;
   const sidebar = (label: string) => page.locator(`button[aria-label="${label}"]`);
   // Keep the beat on camera for its hold: the manifest's `hold`, else the
@@ -649,34 +655,62 @@ function makeCtx(page: Page, t0: number, beats: Beat[], peer: PeerSession | unde
     await holdUntil(id, tStart);
     const spec = specs[id];
     const crop = spec?.cropSelectors ? await unionZoom(spec.cropSelectors) : zoom;
+    reportCrop(id, crop);
     const highlight = spec?.highlightSelector ? await unionZoom([spec.highlightSelector], 0.01) : undefined;
     beats.push({ id, tStart, tEnd: now(), zoom: crop, ...(highlight !== undefined ? { highlight } : {}) });
   };
   const unionZoom = async (selectors: string[], pad = 0.04): Promise<ZoomRect | null> => {
-    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity, any = false;
+    const boxes: (ElementBox | null)[] = [];
     for (const s of selectors) {
       // A short timeout, because an absent selector here is ordinary: a beat
       // names every element it might frame and takes the union of the ones that
       // rendered. On Playwright's 30 s default one optional selector stalls the
       // recording between two beats, and the screencast carries the dead air.
-      const box = await page.locator(s).first().boundingBox({ timeout: 2000 }).catch(() => null);
-      if (!box) continue;
-      any = true;
-      x0 = Math.min(x0, box.x);
-      y0 = Math.min(y0, box.y);
-      x1 = Math.max(x1, box.x + box.width);
-      y1 = Math.max(y1, box.y + box.height);
+      boxes.push(await page.locator(s).first().boundingBox({ timeout: 2000 }).catch(() => null));
     }
-    if (!any) return null;
-    let x = x0 / WIDTH - pad;
-    let y = y0 / HEIGHT - pad;
-    let w = (x1 - x0) / WIDTH + 2 * pad;
-    let h = (y1 - y0) / HEIGHT + 2 * pad;
-    x = Math.max(0, x);
-    y = Math.max(0, y);
-    w = Math.min(1 - x, w);
-    h = Math.min(1 - y, h);
-    return { x, y, w, h };
+    return unionRect(boxes, pad, WIDTH, HEIGHT);
+  };
+  /**
+   * Say, while the take is cheap to redo, what the composition will do with the
+   * region this beat just resolved.
+   *
+   * Two ways a crop misses what its caption names, both of them silent in the
+   * recording and visible only in the rendered video:
+   *
+   *   - `DesktopScene` shows the whole window for any region whose fit is under
+   *     FULL_WINDOW_FIT, so a crop over a layout container is inert and the beat
+   *     pushes into the middle of the window;
+   *   - `zoom` multiplies the fitted scale, so a value above 1 frames less than
+   *     the region the beat asked for and cuts its ends off.
+   */
+  const reportCrop = (id: string, region: ZoomRect | null) => {
+    const spec = specs[id];
+    const where = `${demoId}/${id}`;
+    if (spec?.cropSelectors && !region) {
+      console.warn(`  ! ${where}: crop selector ${spec.cropSelectors.join(", ")} matched nothing on camera; the beat records the whole window`);
+      return;
+    }
+    if (!region) return;
+    const geo = frameGeometry({ web: isWebDemo(demoId), chapter: spec?.caption !== false, aspect: WIDTH / HEIGHT });
+    const fit = regionFit(region, geo);
+    if (fit < FULL_WINDOW_FIT) {
+      if (!spec?.cropSelectors) return; // the walk's own region, framed as the walk wrote it
+      const ceiling = geo.areaH / geo.bh / FULL_WINDOW_FIT;
+      console.warn(
+        `  ! ${where}: crop region w=${region.w.toFixed(2)} h=${region.h.toFixed(2)} fits at ${fit.toFixed(2)}, under ${FULL_WINDOW_FIT}, so the beat records the whole window. ` +
+          `Name an element no taller than ${ceiling.toFixed(2)} of the window.`,
+      );
+      return;
+    }
+    const scale = Math.min(Math.max(Math.min(Math.max(fit, 1), MAX_CROP_SCALE) * (spec?.zoom ?? 1), 1), 3);
+    const visibleW = geo.areaW / (scale * geo.bw);
+    const visibleH = geo.areaH / (scale * geo.bh);
+    if (visibleW < region.w - 1e-9 || visibleH < region.h - 1e-9) {
+      console.warn(
+        `  ! ${where}: zoom ${(spec?.zoom ?? 1).toFixed(2)} takes the shot to ${scale.toFixed(2)}x, which shows ${visibleW.toFixed(2)}x${visibleH.toFixed(2)} of the window ` +
+          `against a region of ${region.w.toFixed(2)}x${region.h.toFixed(2)}. Drop the zoom, or name a smaller region.`,
+      );
+    }
   };
   const cursorTo = async (selector: string, duration = 600) => {
     const box = await page.locator(selector).first().boundingBox().catch(() => null);
@@ -688,6 +722,7 @@ function makeCtx(page: Page, t0: number, beats: Beat[], peer: PeerSession | unde
     await holdUntil(id, tStart);
     const spec = specs[id];
     const zoom = await unionZoom(spec?.cropSelectors ?? selectors);
+    reportCrop(id, zoom);
     const highlight = spec?.highlightSelector ? await unionZoom([spec.highlightSelector], 0.01) : undefined;
     beats.push({ id, tStart, tEnd: now(), zoom, ...(highlight !== undefined ? { highlight } : {}) });
   };
@@ -882,13 +917,16 @@ async function configWalk(c: WalkCtx): Promise<void> {
   await beatEls("credentials", ['input#cred-apikey', '[role="dialog"]'], async () => {
     await humanClick(page, tab("AI Models"));
     await page.waitForTimeout(1500);
+    // The provider list arrives from the backend, so the button is waited for
+    // rather than counted: on a slow load a count taken 1.5 s after the tab
+    // click is zero, the dialog never opens, and the beat records the model
+    // list under narration about the key form.
     const add = page.locator('button:has-text("Add Credentials")').first();
-    if (await add.count()) {
-      await humanClick(page, add);
-      await page.waitForSelector("input#cred-apikey", { timeout: 20_000 });
-      await page.waitForTimeout(900);
-      await cursorTo("input#cred-apikey");
-    }
+    await add.waitFor({ state: "visible", timeout: 30_000 });
+    await humanClick(page, add);
+    await page.waitForSelector("input#cred-apikey", { timeout: 20_000 });
+    await page.waitForTimeout(900);
+    await cursorTo("input#cred-apikey");
     await page.waitForTimeout(2000);
   });
   // Plugins.
@@ -1025,6 +1063,10 @@ async function contentWalk(c: WalkCtx): Promise<void> {
     // Reading four collections takes a moment, and the beat is the counts
     // arriving, so the wait is for the gate cells rather than a fixed pause.
     await page.waitForSelector('[data-slot="ship-gate-cell"]', { timeout: 120_000 }).catch(() => {});
+    // The collections table sits below the project standing, so bring it on
+    // camera: a crop is resolved from element boxes, and an element scrolled
+    // past the fold contributes nothing to one.
+    await page.locator('[data-slot="ship-gate-cell"]').first().scrollIntoViewIfNeeded().catch(() => {});
     await page.waitForTimeout(2600);
   });
   // Open one collection: its patterns, and the files they match.
@@ -1032,6 +1074,7 @@ async function contentWalk(c: WalkCtx): Promise<void> {
     const expand = page.locator('button[aria-label="Expand"]').filter({ hasText: "Online Store" }).first();
     if (await expand.count()) await humanClick(page, expand);
     await page.waitForTimeout(1600);
+    await page.locator('[data-slot="matched-files-scroll"]').first().scrollIntoViewIfNeeded().catch(() => {});
     await moveTo(page, WIDTH * 0.4, HEIGHT * 0.6, 700);
     await page.waitForTimeout(2000);
   });
@@ -1837,13 +1880,16 @@ async function bowrainCorrectionLoopWalk(c: WalkCtx): Promise<void> {
     }
     await page.waitForSelector('[role="dialog"]', { timeout: 20_000 });
     await page.waitForTimeout(3400);
-    await page.keyboard.press("Escape").catch(() => {});
-    await page.waitForTimeout(600);
   });
 
   // Promote it. The candidate leaves the queue as a versioned rule that every
-  // later run enforces.
+  // later run enforces. The impact dialog is dismissed here rather than at the
+  // end of the beat above, because a beat's crop is resolved once its actions
+  // have settled: an Escape inside that beat closes the dialog it framed and
+  // the crop resolves against nothing.
   await beat("promote", null, async () => {
+    await page.keyboard.press("Escape").catch(() => {});
+    await page.waitForTimeout(600);
     const promote = page.getByRole("button", { name: /^Promote$/ }).first();
     if (await promote.count()) {
       await cursorTo('button:has-text("Promote")');
@@ -1880,7 +1926,7 @@ async function runWalkthrough(
   const walk = WALKTHROUGHS[demoId];
   if (!walk) throw new Error(`no walkthrough registered for "${demoId}"`);
   const beats: Beat[] = [];
-  await walk(makeCtx(page, t0, beats, peer, specs, holds));
+  await walk(makeCtx(page, t0, beats, peer, specs, holds, demoId));
   return beats;
 }
 

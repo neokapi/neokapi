@@ -40,7 +40,6 @@ narration:
     caption: A pass, started by hand.
     hold: 15
     crop: { selector: '[data-testid="runs-list"]' }
-    zoom: 1.5
     text: >-
       Run now starts the next pass by hand. Choose the scope, and a real run
       begins on the server, with the team's keys and the team's gates, and
@@ -52,7 +51,6 @@ narration:
     caption: Up to date, or parked with a reason.
     hold: 16
     crop: { selector: '[data-testid="run-row"]' }
-    zoom: 2
     highlight: { selector: '[data-testid="run-row"]' }
     text: >-
       Each run catches the project up and then settles. The row says what every

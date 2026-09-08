@@ -88,6 +88,7 @@ export function ConceptTimeline({
 
   return (
     <ConceptSection
+      slot="concept-timeline"
       title="Timeline"
       icon={<History />}
       description="How this concept evolved: terms, renames, and reach over time."

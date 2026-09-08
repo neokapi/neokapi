@@ -47,7 +47,6 @@ narration:
     beat: credentials
     caption: The key is typed here, and stored by the keychain.
     crop: { selector: '[role="dialog"]' }
-    zoom: 1.2
     text: >-
       AI Models lists the providers and the models under each. Adding
       credentials asks for a name, a model and the key, and the key goes to the

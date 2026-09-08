@@ -45,7 +45,6 @@ narration:
     beat: point
     caption: What governs here?
     crop: { selector: '[data-slot="review-point"]' }
-    zoom: 1.5
     text: >-
       The first layer is the point this content sits at: its coordinates, the
       voice governing there, and the term rules bound to it.
@@ -55,7 +54,6 @@ narration:
     beat: neighbourhood
     caption: What sits either side of it?
     crop: { selector: '[data-slot="review-neighbourhood"]' }
-    zoom: 1.5
     text: >-
       The second is the neighbourhood: the blocks either side of it, so a
       sentence is read where a reader will meet it.
@@ -65,7 +63,6 @@ narration:
     beat: history
     caption: What was decided before?
     crop: { selector: '[data-slot="review-history"]' }
-    zoom: 1.5
     text: >-
       The third is what was decided before: the version approved last time,
       beside the match memory offers now.
@@ -75,7 +72,6 @@ narration:
     beat: findings
     caption: What did the checks find, and where?
     crop: { selector: '[data-slot="review-findings"]' }
-    zoom: 1.5
     highlight: { selector: '[data-slot="review-finding"]' }
     text: >-
       The fourth is the checks. A finding is anchored in the run it names, so a
@@ -86,7 +82,6 @@ narration:
     beat: provenance
     caption: Who decided, and when?
     crop: { selector: '[data-slot="review-provenance"]' }
-    zoom: 1.5
     text: >-
       The fifth is provenance: who wrote it, who decided it, and whether the
       text has moved since. This one carries none.

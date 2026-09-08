@@ -39,6 +39,7 @@ export function CommentsPanel({ concept, source, capabilities }: ConceptSectionP
 
   return (
     <ConceptSection
+      slot="concept-discussion"
       title="Discussion"
       icon={<MessagesSquare />}
       description="Comments on this concept."

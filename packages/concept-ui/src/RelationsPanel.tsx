@@ -110,6 +110,7 @@ export function RelationsPanel({
 
   return (
     <ConceptSection
+      slot="concept-relations"
       title="Relations"
       icon={<Share2 />}
       description="This concept and its direct relations."

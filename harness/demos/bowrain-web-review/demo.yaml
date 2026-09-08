@@ -30,11 +30,7 @@ narration:
     beat: queue
     caption: Everything translated and not yet decided.
     hold: 14
-    crop:
-      selector:
-        - '[data-testid="review-queue"]'
-        - '[data-testid="review-filters"]'
-    zoom: 1.4
+    crop: { x: 0.14, y: 0.05, w: 0.28, h: 0.45 }
     text: >-
       The workspace inbox rolls up every project waiting on somebody. Inside
       one, the queue is everything that has been translated and not yet
@@ -45,8 +41,7 @@ narration:
     beat: focus
     caption: The verdict, before anyone decides.
     hold: 14
-    crop: { selector: '[data-testid="focused-reviewer"]' }
-    zoom: 1.6
+    crop: { selector: '[data-slot="reviewer-unit-header"]' }
     highlight: { selector: '[data-testid="reviewer-verdict-passing"]' }
     text: >-
       A unit in focus opens with its verdict. Checks, terms and the voice bar
@@ -58,11 +53,7 @@ narration:
     beat: approve
     caption: Approved, and the queue moves on.
     hold: 13
-    crop:
-      selector:
-        - '[data-testid="reviewer-approve"]'
-        - '[data-testid="review-pending-count"]'
-    zoom: 1.8
+    crop: { selector: '[data-slot="review-session-header"]' }
     text: >-
       This target a colleague wrote, and it clears every bar. Approving records
       the decision against the workspace rather than a file on one laptop, and
@@ -74,7 +65,6 @@ narration:
     caption: "Refused: the author cannot be the reviewer."
     hold: 15
     crop: { selector: '[data-testid="error-notice"]' }
-    zoom: 2
     highlight: { selector: '[data-testid="error-notice"]' }
     text: >-
       This one she wrote herself. The server declines the approval and prints
@@ -86,11 +76,7 @@ narration:
     beat: second-reviewer
     caption: A colleague decides it, and the count drops.
     hold: 13
-    crop:
-      selector:
-        - '[data-testid="review-pending-count"]'
-        - '[data-testid="review-queue"]'
-    zoom: 1.5
+    crop: { selector: '[data-slot="review-session-header"]' }
     text: >-
       A colleague who holds review permission for that language decides it
       instead, and the pending count drops. Two people, one record, and a rule

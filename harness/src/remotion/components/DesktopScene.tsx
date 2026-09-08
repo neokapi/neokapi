@@ -8,6 +8,8 @@ import type { ThemeMode } from "./theme.ts";
 import type { SceneLayout } from "./layout.ts";
 import { BoxMark } from "./Marks.tsx";
 import { clickFrames, planPlayback } from "../playback.ts";
+import { cardGeometry, FULL_WINDOW_FIT, isWebDemo, MAX_CROP_SCALE, regionFit } from "../../lib/crop.ts";
+import type { CardGeometry } from "../../lib/crop.ts";
 
 const Light: React.FC<{ c: string }> = ({ c }) => (
   <span style={{ width: 13, height: 13, borderRadius: 13, background: c, display: "inline-block", boxShadow: "0 0 0 0.5px rgba(0,0,0,0.18)" }} />
@@ -16,12 +18,7 @@ const Light: React.FC<{ c: string }> = ({ c }) => (
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
-/** Furthest a crop pushes into the window on its own; `zoom` can take it to 3. */
-export const MAX_CROP_SCALE = 2.5;
-/** A region this close to the whole window is shown as the whole window. */
-const FULL_WINDOW_FIT = 1.15;
-/** A full-window card fits this much of the picture box, so its tilt never clips. */
-const CARD_INSET = 0.96;
+export { MAX_CROP_SCALE };
 
 // Virtual-camera pose: how the window card sits in the 3D canvas.
 interface Cam {
@@ -32,20 +29,6 @@ interface Cam {
   pitch: number; // deg about X
 }
 
-interface Geo {
-  bw: number;
-  bh: number;
-  bar: number;
-  cardW: number;
-  cardH: number;
-  cardCx: number;
-  cardCy: number;
-  areaW: number;
-  areaH: number;
-  areaCx: number;
-  areaCy: number;
-}
-
 /**
  * The composed shot for a beat. A full-window beat shows the whole window at
  * 1.0, lightly turned; a region beat crops to its region: the scale that fits
@@ -53,11 +36,11 @@ interface Geo {
  * times the beat's own `zoom`, and the region's centre brought to the area's
  * centre. The tilt shrinks with the crop so a pushed-in window stays flat.
  */
-function shotPose(region: ZoomRect | null, zoomMul: number, geo: Geo, idx: number): Cam {
+function shotPose(region: ZoomRect | null, zoomMul: number, geo: CardGeometry, idx: number): Cam {
   const alt = idx % 2 === 0 ? 1 : -1;
   const yawMag = 3 + 2 * Math.abs(Math.sin(idx));
   const pitchBase = 1 + 1.5 * Math.sin(idx * 1.3);
-  const fit = region ? Math.min(geo.areaW / (region.w * geo.bw), geo.areaH / (region.h * geo.bh)) : 1;
+  const fit = region ? regionFit(region, geo) : 1;
   if (!region || fit < FULL_WINDOW_FIT) {
     const s = clamp(Math.max(1, fit) * zoomMul, 1, 3);
     return { s, tx: 0, ty: 0, yaw: (alt * yawMag) / s, pitch: clamp(pitchBase + 1, 0, 4) / s };
@@ -114,35 +97,13 @@ export const DesktopScene: React.FC<{
   // so they get the lightweight dots overlay instead.
   // Everything below is in the picture box's own coordinates: the box clips
   // the pushed-in card, so a crop never covers the chapter line above it.
-  const isWeb = demoId.startsWith("bowrain-web");
-  const bar = isWeb ? 44 : 0;
+  const isWeb = isWebDemo(demoId);
   const boxW = layout.width;
   const boxH = layout.picBottom - layout.picTop;
-  const aspect = screencast.width / screencast.height;
-  let bw = boxW * CARD_INSET;
-  let bh = bw / aspect;
-  if (bh + bar > boxH * CARD_INSET) {
-    bh = boxH * CARD_INSET - bar;
-    bw = bh * aspect;
-  }
-  const cardW = bw;
-  const cardH = bh + bar;
+  const geo = cardGeometry(layout, screencast.width / screencast.height, isWeb);
+  const { bw, bh, bar, cardW, cardH } = geo;
   const cardLeft = (boxW - cardW) / 2;
   const cardTop = (boxH - cardH) / 2;
-  const areaH = layout.stackBottom - layout.picTop;
-  const geo: Geo = {
-    bw,
-    bh,
-    bar,
-    cardW,
-    cardH,
-    cardCx: cardLeft + cardW / 2,
-    cardCy: cardTop + cardH / 2,
-    areaW: boxW,
-    areaH,
-    areaCx: boxW / 2,
-    areaCy: areaH / 2,
-  };
 
   // ── Playback: the slice at a natural rate, or at 1x with the last frame held ──
   const sliceSec = Math.max(0.1, beat.tEnd - beat.tStart);

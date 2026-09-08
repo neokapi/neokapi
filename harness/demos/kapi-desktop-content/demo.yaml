@@ -39,7 +39,6 @@ narration:
     beat: extract
     caption: Read once, and the coverage fills in.
     crop: { selector: ['[data-slot="ship-gate-cell"]', '[data-testid="collection-file-count"]'] }
-    zoom: 1.3
     highlight: { selector: '[data-slot="ship-gate-cell"]' }
     hold: 12
     text: >-
@@ -52,7 +51,6 @@ narration:
     beat: patterns
     caption: The patterns, and the files each one matched.
     crop: { selector: '[data-slot="matched-files-scroll"]' }
-    zoom: 1.2
     text: >-
       Opening a collection shows the patterns that define it. Each output
       pattern opens to the source file above its language files, every one
@@ -62,8 +60,7 @@ narration:
     kind: desktop
     beat: keys
     caption: The key column names the block Review decides on.
-    crop: { selector: '[data-preview="keyed-table"]' }
-    zoom: 1.6
+    crop: { x: 0.5, y: 0.14, w: 0.5, h: 0.42 }
     text: >-
       A JSON catalog is a list of keys with text against them, so the preview
       reads it as a table. The key column is what makes it navigable, and it is
@@ -73,8 +70,7 @@ narration:
     kind: desktop
     beat: code
     caption: The same file, as it is written on disk.
-    crop: { selector: '[data-preview="data"]' }
-    zoom: 1.4
+    crop: { x: 0.5, y: 0.12, w: 0.5, h: 0.42 }
     text: >-
       The other tab is the file itself, with the line for the selected key
       highlighted. Structure on one, bytes on the other, and the same content

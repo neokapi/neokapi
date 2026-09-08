@@ -33,7 +33,6 @@ narration:
     kind: desktop
     beat: search-term
     caption: One word typed, and the list narrows to it.
-    zoom: 1.3
     text: >-
       These are the concepts this project has agreed, in the first of its two
       stores. Typing narrows the list as you go rather than on a keystroke, so
@@ -43,7 +42,6 @@ narration:
     kind: desktop
     beat: concept
     caption: Its approved terms, language by language.
-    zoom: 1.3
     text: >-
       A concept carries a definition and the approved term for it in every
       language the project ships. A status badge marks the preferred wording and
@@ -53,7 +51,6 @@ narration:
     kind: desktop
     beat: search-tm
     caption: Every string that mentions checkout, in one query.
-    zoom: 1.2
     text: >-
       Content memory works the same way, one section across. It holds every
       translation this project has approved, and a search over it answers with
@@ -63,7 +60,6 @@ narration:
     kind: desktop
     beat: inspect-tm
     caption: Formatting kept as tags, names kept as placeholders.
-    zoom: 1.4
     text: >-
       An entry pairs a source string with its translations. Bold text and links
       are kept as tags rather than as literal markup, and a name is held as a

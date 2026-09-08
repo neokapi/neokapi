@@ -31,8 +31,7 @@ narration:
     beat: split
     caption: The card, over the page it is translating.
     hold: 16
-    crop: { selector: '[data-testid="visual-editor-layout"]' }
-    zoom: 1.4
+    crop: { selector: '[data-testid="visual-editor-card"]' }
     text: >-
       This is one file in the Translate workbench. The visual view puts an
       editing card over the document itself, with the progress across the whole
@@ -43,12 +42,8 @@ narration:
     beat: edit
     caption: Saved, and the page redraws.
     hold: 22
-    crop:
-      selector:
-        - '[data-testid="visual-editor-card"]'
-        - '[data-testid="preview-iframe"]'
-    zoom: 1.6
-    highlight: { selector: '[data-testid="preview-iframe"]' }
+    crop: { selector: '[data-testid="visual-editor-card"]' }
+    highlight: { selector: '[data-testid="target-display"]' }
     text: >-
       Type a translation into the block and save it. The preview beside the card
       re-renders the page with the new wording, so a sentence is judged where a
@@ -61,7 +56,6 @@ narration:
     caption: The approved wording, applied in one click.
     hold: 14
     crop: { selector: '[data-testid="context-panel"]' }
-    zoom: 1.8
     text: >-
       The workspace content memory already answers for some of these strings.
       One click applies the wording the team approved, and the terms that govern
@@ -76,7 +70,6 @@ narration:
       selector:
         - '[data-testid="locale-selector"]'
         - '[data-testid="visual-editor-card"]'
-    zoom: 1.4
     text: >-
       One editor serves every target language. Switch from French to German and
       the card, the memory matches and the preview all follow, without leaving
