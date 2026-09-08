@@ -131,8 +131,11 @@ function loadManifest(path: string): TranslationsManifest {
     process.exit(1);
   }
   const parsed = JSON.parse(readFileSync(path, "utf8")) as TranslationsManifest;
-  if (parsed.version !== 1) {
-    console.error(`error: unsupported manifest version ${parsed.version} (this CLI supports v1)`);
+  // The cast is an assertion about a file on disk, so the version read back is
+  // whatever the file carried. Read it as unknown to report the real value.
+  const version: unknown = parsed.version;
+  if (version !== 1) {
+    console.error(`error: unsupported manifest version ${String(version)} (this CLI supports v1)`);
     process.exit(1);
   }
   if (!parsed.chunks || typeof parsed.chunks !== "object") {
