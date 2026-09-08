@@ -118,7 +118,3 @@ carry no re-record debt.
 - The desktop demo app's vocabulary sweep (section above) is authored but
   unrecorded: published `kapi-desktop-explorer` frames still show
   `~/.config/kapi/termbases/`, a path the app never used.
-- `harness/src/driver/record-desktop.ts` still says "a localized recording
-  pass" in its own prose. It is harness code rather than a swept surface, so
-  `check-vocabulary.sh` does not see it; recast it when the recorder is next
-  touched.

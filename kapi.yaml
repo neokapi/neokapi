@@ -113,6 +113,7 @@ defaults:
         keyPathPatterns:
           - title
           - subtitle
+          - outro.line
           - narration.*.text
           - narration.*.caption
     # Docs frontmatter, declared once for every consumer: the flow-run path

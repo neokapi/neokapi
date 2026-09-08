@@ -50,6 +50,7 @@ list: ## List available demos
 	$(RUN) --list
 
 studio: ## Open Remotion Studio (live preview)
+	$(RUN) --registry
 	$(VPX) remotion studio src/remotion/index.ts
 
 videos: ## Render + publish the docs videos (light + dark)

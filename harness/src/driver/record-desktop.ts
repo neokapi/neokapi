@@ -19,7 +19,7 @@ import os from "node:os";
 import { spawn, execFileSync } from "node:child_process";
 import { chromium, type Page, type Browser, type Locator } from "playwright";
 import { ensureDir, publicDemoDir, REPO_ROOT } from "../lib/paths.ts";
-import { injectCursor, moveTo, humanClick, humanType, idle } from "./cursor-helper.ts";
+import { injectCursor, moveTo, humanClick, humanType, idle, setClickSink } from "./cursor-helper.ts";
 import { loadEnv } from "../lib/env.ts";
 
 // Load harness/.env (the seed writes BOWRAIN_SESSION_TOKEN etc. there) BEFORE
@@ -28,8 +28,11 @@ import { loadEnv } from "../lib/env.ts";
 // this module during run.ts's import phase would capture an empty token.
 loadEnv();
 
-const WIDTH = 1440;
-const HEIGHT = 900;
+// The recording is the composition's own frame size, so a full-window beat
+// shows the app at 1:1 and a region beat crops into it rather than up-scaling
+// a smaller capture.
+const WIDTH = 1920;
+const HEIGHT = 1080;
 
 type ThemeMode = "light" | "dark";
 
@@ -46,6 +49,19 @@ export interface Beat {
   tStart: number;
   tEnd: number;
   zoom: ZoomRect | null;
+  /** The element the beat's highlight selector resolved to, when the manifest named one. */
+  highlight?: ZoomRect | null;
+}
+
+/**
+ * What demo.yaml asks of one beat, by beat id (see NarrationSpec): how long to
+ * keep it on camera, which elements to crop to once its actions have settled,
+ * and which element to draw a box around.
+ */
+export interface BeatSpec {
+  hold?: number;
+  cropSelectors?: string[];
+  highlightSelector?: string;
 }
 export interface Screencast {
   width: number;
@@ -53,6 +69,8 @@ export interface Screencast {
   video: Record<ThemeMode, string>;
   /** Beats recorded per theme (pacing is near-identical, but kept exact). */
   beats: Record<ThemeMode, Beat[]>;
+  /** Seconds from the start of each recording at which the cursor clicked. */
+  clicks?: Record<ThemeMode, number[]>;
 }
 
 const FRONTEND_DIR = path.join(REPO_ROOT, "apps", "kapi-desktop", "frontend");
@@ -468,13 +486,26 @@ function translatePath(itemName: string): string {
   return itemName.split("/").map(encodeURIComponent).join("/");
 }
 
-function makeCtx(page: Page, t0: number, beats: Beat[], peer?: PeerSession): WalkCtx {
+function makeCtx(page: Page, t0: number, beats: Beat[], peer: PeerSession | undefined, specs: Record<string, BeatSpec>, holds: Record<string, number>): WalkCtx {
   const now = () => (Date.now() - t0) / 1000;
   const sidebar = (label: string) => page.locator(`button[aria-label="${label}"]`);
+  // Keep the beat on camera for its hold: the manifest's `hold`, else the
+  // measured length of the narration over it when a narration.json exists.
+  // The walk's own waits count toward it, so only the remainder is added.
+  const holdUntil = async (id: string, tStart: number) => {
+    const target = specs[id]?.hold ?? holds[id];
+    if (!target) return;
+    const remaining = target - (now() - tStart);
+    if (remaining > 0) await page.waitForTimeout(Math.round(remaining * 1000));
+  };
   const beat = async (id: string, zoom: ZoomRect | null, fn: () => Promise<void>) => {
     const tStart = now();
     await fn();
-    beats.push({ id, tStart, tEnd: now(), zoom });
+    await holdUntil(id, tStart);
+    const spec = specs[id];
+    const crop = spec?.cropSelectors ? await unionZoom(spec.cropSelectors) : zoom;
+    const highlight = spec?.highlightSelector ? await unionZoom([spec.highlightSelector], 0.01) : undefined;
+    beats.push({ id, tStart, tEnd: now(), zoom: crop, ...(highlight !== undefined ? { highlight } : {}) });
   };
   const unionZoom = async (selectors: string[], pad = 0.04): Promise<ZoomRect | null> => {
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity, any = false;
@@ -509,7 +540,11 @@ function makeCtx(page: Page, t0: number, beats: Beat[], peer?: PeerSession): Wal
   const beatEls = async (id: string, selectors: string[], fn: () => Promise<void>) => {
     const tStart = now();
     await fn();
-    beats.push({ id, tStart, tEnd: now(), zoom: await unionZoom(selectors) });
+    await holdUntil(id, tStart);
+    const spec = specs[id];
+    const zoom = await unionZoom(spec?.cropSelectors ?? selectors);
+    const highlight = spec?.highlightSelector ? await unionZoom([spec.highlightSelector], 0.01) : undefined;
+    beats.push({ id, tStart, tEnd: now(), zoom, ...(highlight !== undefined ? { highlight } : {}) });
   };
   return { page, beat, beatEls, cursorTo, sidebar, peer };
 }
@@ -1563,12 +1598,28 @@ const WALKTHROUGHS: Record<string, (c: WalkCtx) => Promise<void>> = {
   "bowrain-desktop-automations": bowrainDesktopAutomationsWalk,
 };
 
-async function runWalkthrough(page: Page, t0: number, demoId: string, peer?: PeerSession): Promise<Beat[]> {
+async function runWalkthrough(
+  page: Page,
+  t0: number,
+  demoId: string,
+  peer: PeerSession | undefined,
+  specs: Record<string, BeatSpec>,
+  holds: Record<string, number>,
+): Promise<Beat[]> {
   const walk = WALKTHROUGHS[demoId];
   if (!walk) throw new Error(`no walkthrough registered for "${demoId}"`);
   const beats: Beat[] = [];
-  await walk(makeCtx(page, t0, beats, peer));
+  await walk(makeCtx(page, t0, beats, peer, specs, holds));
   return beats;
+}
+
+/** What one theme's take needs beyond the page: the manifest's beat specs and the narration's holds. */
+interface TakeOptions {
+  web?: { slug: string };
+  ready?: string;
+  uiLocale?: string;
+  specs: Record<string, BeatSpec>;
+  holds: Record<string, number>;
 }
 
 async function recordTheme(
@@ -1577,10 +1628,9 @@ async function recordTheme(
   theme: ThemeMode,
   outDir: string,
   demoId: string,
-  web?: { slug: string },
-  ready?: string,
-  uiLocale?: string,
-): Promise<{ webm: string; beats: Beat[] }> {
+  take: TakeOptions,
+): Promise<{ webm: string; beats: Beat[]; clicks: number[] }> {
+  const { web, ready, uiLocale, specs, holds } = take;
   const videoDir = ensureDir(path.join(outDir, `_rec-${theme}`));
   const context = await browser.newContext({
     viewport: { width: WIDTH, height: HEIGHT },
@@ -1656,7 +1706,7 @@ async function recordTheme(
     // "domcontentloaded", not "networkidle": real-main.tsx opens a long-lived SSE
     // connection (/wevents) for streamed backend events, so the network never goes
     // idle. The h1 wait below confirms the app actually rendered.
-    // `&lang=` carries the UI locale of a localized recording pass (see the
+    // `&lang=` carries the UI locale of a pass in another language (see the
     // uiLocale note in recordDesktop for what the app entry must do with it).
     const langQ = uiLocale ? `&lang=${encodeURIComponent(uiLocale)}` : "";
     await page.goto(`${url}?theme=${theme}${langQ}`, { waitUntil: "domcontentloaded" });
@@ -1695,10 +1745,14 @@ async function recordTheme(
     }
   }
 
+  // Every click's moment, so the composition can sound it where the ripple blooms.
+  const clicks: number[] = [];
+  setClickSink((atMs) => clicks.push(Number(((atMs - t0) / 1000).toFixed(3))));
   let beats: Beat[];
   try {
-    beats = await runWalkthrough(page, t0, demoId, peer);
+    beats = await runWalkthrough(page, t0, demoId, peer, specs, holds);
   } finally {
+    setClickSink(null);
     if (peerTeardown) await peerTeardown();
   }
   await page.waitForTimeout(500);
@@ -1710,7 +1764,7 @@ async function recordTheme(
   const webm = path.join(outDir, `screencast-${theme}.webm`);
   if (raw && fs.existsSync(raw)) reencodeDenseKeyframes(raw, webm);
   fs.rmSync(videoDir, { recursive: true, force: true });
-  return { webm: path.basename(webm), beats };
+  return { webm: path.basename(webm), beats, clicks };
 }
 
 /**
@@ -1736,6 +1790,26 @@ function reencodeDenseKeyframes(raw: string, webm: string): void {
   }
 }
 
+/**
+ * The measured length of the narration over each beat, from a narration.json
+ * that was synthesized before this recording (narrate first, then record):
+ * beat id → seconds. Empty when there is none, so the walk's own waits stand.
+ */
+function narrationHolds(outDir: string, uiLocale?: string): Record<string, number> {
+  const file = path.join(outDir, `narration${uiLocale ? `-${uiLocale}` : ""}.json`);
+  if (!fs.existsSync(file)) return {};
+  try {
+    const n = JSON.parse(fs.readFileSync(file, "utf8")) as { scenes?: Array<{ kind: string; beat?: string; durationSec?: number }> };
+    const out: Record<string, number> = {};
+    for (const s of n.scenes ?? []) {
+      if (s.kind === "desktop" && s.beat && s.durationSec && s.durationSec > 0) out[s.beat] = s.durationSec;
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
 export interface RecordOptions {
   force?: boolean;
   /** Record the real bowrain WEB app (external running stack) instead of the
@@ -1744,6 +1818,11 @@ export interface RecordOptions {
   /** Record the real Bowrain Desktop app via its own wbridge, auto-connected to
    *  a running bowrain-server (BOWRAIN_BACKEND_URL + BOWRAIN_SESSION_TOKEN). */
   bowrainDesktop?: boolean;
+  /**
+   * What the manifest asks of each beat, by beat id: hold, crop and highlight
+   * selectors (see BeatSpec). A beat with no entry records as the walk wrote it.
+   */
+  beats?: Record<string, BeatSpec>;
   /**
    * UI language for the recorded kapi-desktop app (default "en"; ignored for
    * the web/bowrain-desktop targets for now). How the app picks its locale
@@ -1754,22 +1833,22 @@ export interface RecordOptions {
    *     `ui_language` in KAPI_DESKTOP_CONFIG_DIR/settings) and boots with
    *     loadTranslations(lang, `/translations/<lang>.json`);
    *   - the compiled dictionaries live in frontend/public/translations/
-   *     (currently only qps.json), produced by `vpx neokapi-i18n compile`.
+   *     (qps.json today), produced by `vpx neokapi-i18n compile`.
    *
-   * What this option does today (the recorder-side plumbing):
+   * What this option does (the recorder-side plumbing):
    *   1. persists the language on the recording backend via the wbridge
    *      (SetUILanguage), so the genuine app setting matches the pass, and
    *   2. appends `&lang=<locale>` to the recording URL next to `?theme=`.
    *
-   * What a localized recording still NEEDS (owned by apps/kapi-desktop):
+   * What a recording in another UI language still needs (owned by apps/kapi-desktop):
    *   - the recorder entry (src/demo/real-main.tsx) mounts App directly and
    *     skips main.tsx's translation bootstrap — it must honor `?lang=`
    *     (mirroring `?theme=`) by calling
    *     loadTranslations(lang, `/translations/<lang>.json`), and
    *   - a compiled catalog for the locale must exist, e.g.
    *     frontend/public/translations/nb.json (neokapi-i18n extract + compile).
-   * Until both land, a localized pass records the English UI (the narration,
-   * captions and published filenames are still fully localized).
+   * Until both land, a pass in another language records the English UI; the
+   * narration, captions and published filenames are in that language.
    */
   uiLocale?: string;
 }
@@ -1782,10 +1861,16 @@ export async function recordDesktop(id: string, opts: RecordOptions = {}): Promi
     console.log(`  · screencast exists for ${id} (use --force to re-record)`);
     return JSON.parse(fs.readFileSync(jsonPath, "utf8"));
   }
-  // UI language pass-through (kapi-desktop target only — see RecordOptions.uiLocale).
+  // UI language pass-through (kapi-desktop target only; see RecordOptions.uiLocale).
   const uiLocale = opts.uiLocale && opts.uiLocale !== "en" ? opts.uiLocale : undefined;
   if (uiLocale && (opts.web || opts.bowrainDesktop)) {
-    console.warn(`  ! uiLocale=${uiLocale} is not wired for the ${opts.web ? "web" : "bowrain-desktop"} target — recording the default UI language`);
+    console.warn(`  ! uiLocale=${uiLocale} is not wired for the ${opts.web ? "web" : "bowrain-desktop"} target; recording the default UI language`);
+  }
+  const specs = opts.beats ?? {};
+  const holds = narrationHolds(outDir, uiLocale);
+  const heldIds = Object.keys(specs).filter((id) => specs[id]?.hold !== undefined);
+  if (heldIds.length || Object.keys(holds).length) {
+    console.log(`  · beat holds: ${heldIds.length} from demo.yaml, ${Object.keys(holds).filter((id) => !heldIds.includes(id)).length} from the narration`);
   }
 
   // Web target: record the real bowrain web app at BOWRAIN_BACKEND_URL with the
@@ -1796,14 +1881,15 @@ export async function recordDesktop(id: string, opts: RecordOptions = {}): Promi
     const browser = await chromium.launch();
     try {
       console.log(`  · recording bowrain web (light) @ ${BOWRAIN_BASE}/${slug}`);
-      const light = await recordTheme(browser, BOWRAIN_BASE, "light", outDir, id, { slug });
+      const light = await recordTheme(browser, BOWRAIN_BASE, "light", outDir, id, { web: { slug }, specs, holds });
       console.log("  · recording bowrain web (dark)");
-      const dark = await recordTheme(browser, BOWRAIN_BASE, "dark", outDir, id, { slug });
+      const dark = await recordTheme(browser, BOWRAIN_BASE, "dark", outDir, id, { web: { slug }, specs, holds });
       const screencast: Screencast = {
         width: WIDTH,
         height: HEIGHT,
         video: { light: light.webm, dark: dark.webm },
         beats: { light: light.beats, dark: dark.beats },
+        clicks: { light: light.clicks, dark: dark.clicks },
       };
       fs.writeFileSync(jsonPath, JSON.stringify(screencast, null, 2));
       console.log(`  ✓ recorded ${id}: ${light.beats.length} beats, light+dark`);
@@ -1826,14 +1912,15 @@ export async function recordDesktop(id: string, opts: RecordOptions = {}): Promi
       '[data-testid^="project-card"], [data-testid="empty-projects"], [data-testid="new-project-btn"], [data-testid="nav-translate"]';
     try {
       console.log(`  · recording bowrain desktop (light) @ ${stack.url}`);
-      const light = await recordTheme(browser, stack.url, "light", outDir, id, undefined, ready);
+      const light = await recordTheme(browser, stack.url, "light", outDir, id, { ready, specs, holds });
       console.log("  · recording bowrain desktop (dark)");
-      const dark = await recordTheme(browser, stack.url, "dark", outDir, id, undefined, ready);
+      const dark = await recordTheme(browser, stack.url, "dark", outDir, id, { ready, specs, holds });
       const screencast: Screencast = {
         width: WIDTH,
         height: HEIGHT,
         video: { light: light.webm, dark: dark.webm },
         beats: { light: light.beats, dark: dark.beats },
+        clicks: { light: light.clicks, dark: dark.clicks },
       };
       fs.writeFileSync(jsonPath, JSON.stringify(screencast, null, 2));
       console.log(`  ✓ recorded ${id}: ${light.beats.length} beats, light+dark`);
@@ -1856,7 +1943,7 @@ export async function recordDesktop(id: string, opts: RecordOptions = {}): Promi
   }
 
   // Persist the UI language on the recording backend so the genuine setting
-  // (Settings → General → UI language) matches the localized pass. Best-effort:
+  // (Settings → General → UI language) matches the pass. Best-effort:
   // the visible effect also needs the app entry to honor `?lang=` — see
   // RecordOptions.uiLocale.
   if (uiLocale && !externalUrl) {
@@ -1932,17 +2019,18 @@ export async function recordDesktop(id: string, opts: RecordOptions = {}): Promi
     console.log(`  · recording light theme${uiLocale ? ` (ui ${uiLocale})` : ""}`);
     await resetHome();
     await resetPlugins();
-    const light = await recordTheme(browser, url, "light", outDir, id, undefined, undefined, uiLocale);
+    const light = await recordTheme(browser, url, "light", outDir, id, { uiLocale, specs, holds });
     console.log(`  · recording dark theme${uiLocale ? ` (ui ${uiLocale})` : ""}`);
     await resetHome();
     await resetPlugins();
-    const dark = await recordTheme(browser, url, "dark", outDir, id, undefined, undefined, uiLocale);
+    const dark = await recordTheme(browser, url, "dark", outDir, id, { uiLocale, specs, holds });
 
     const screencast: Screencast = {
       width: WIDTH,
       height: HEIGHT,
       video: { light: light.webm, dark: dark.webm },
       beats: { light: light.beats, dark: dark.beats },
+      clicks: { light: light.clicks, dark: dark.clicks },
     };
     fs.writeFileSync(jsonPath, JSON.stringify(screencast, null, 2));
     console.log(`  ✓ recorded ${id}: ${light.beats.length} beats, light+dark`);

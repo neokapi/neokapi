@@ -1,23 +1,26 @@
 import React from "react";
-import { useCurrentFrame } from "remotion";
+import { useCurrentFrame, useVideoConfig } from "remotion";
 import type { TimelineEvent } from "../../types.ts";
 import { theme, CLAUDE } from "./theme.ts";
+import { TERM_FS, TERM_LH, TERM_PAD_X, TERM_TEXT_WIDTH } from "./layout.ts";
+import { LineMark, lineMatches } from "./Marks.tsx";
 
 interface Props {
   events: TimelineEvent[];
   model: string;
-  /** Frames of terminal time elapsed in earlier terminal scenes. */
-  globalTermFrom: number;
-  /** Total frames across all terminal scenes (reveal is spread across this). */
-  totalTermFrames: number;
+  /** Events revealed at the scene's first and last frame (see SceneTiming). */
+  revealStart: number;
+  revealEnd: number;
+  /** Result lines containing one of these are marked as they appear. */
+  highlight?: string[];
   showThinking?: boolean;
 }
 
 // Claude Code's default (non-verbose / non-ctrl+o) view collapses tool output to a few
 // lines with a "+N lines" indicator, rather than printing every command's full output.
-const RESULT_MAX_LINES = 4;
-const FS = 21; // base monospace font size
-const LH = 1.5;
+const RESULT_MAX_LINES = 3;
+const FS = TERM_FS; // base monospace font size
+const LH = TERM_LH;
 
 function clampLines(text: string, n: number): { body: string; more: number } {
   const lines = text.split("\n");
@@ -112,14 +115,22 @@ function toolCall(ev: Extract<TimelineEvent, { kind: "tool_use" }>, typed?: stri
   return <BulletLine color={CLAUDE}>{label}</BulletLine>;
 }
 
-const ToolResult: React.FC<{ ev: Extract<TimelineEvent, { kind: "tool_result" }> }> = ({ ev }) => {
+const ToolResult: React.FC<{ ev: Extract<TimelineEvent, { kind: "tool_result" }>; highlight?: string[] }> = ({ ev, highlight }) => {
   const { body, more } = clampLines(ev.output || "", RESULT_MAX_LINES);
   const color = ev.isError ? theme.termRed : theme.termDim;
   return (
     <div style={{ display: "flex", gap: 10, paddingLeft: 12 }}>
       <span style={mono({ color, flex: "none" })}>⎿</span>
       <div style={mono({ color, flex: 1, fontSize: FS - 2, whiteSpace: "pre-wrap", wordBreak: "break-word" })}>
-        {body || "(no output)"}
+        {body
+          ? body.split("\n").map((line, i) => (
+              <div key={i}>
+                <LineMark on={lineMatches(line, highlight)} width={TERM_TEXT_WIDTH - 42}>
+                  {line || "\u00a0"}
+                </LineMark>
+              </div>
+            ))
+          : "(no output)"}
         {more > 0 ? <div style={{ color: theme.termFaint }}>… +{more} lines</div> : null}
       </div>
     </div>
@@ -162,7 +173,7 @@ const HookPass: React.FC = () => (
   </div>
 );
 
-function renderBlock(ev: TimelineEvent, typed?: string): React.ReactNode {
+function renderBlock(ev: TimelineEvent, typed?: string, highlight?: string[]): React.ReactNode {
   switch (ev.kind) {
     case "prompt":
       return <UserPrompt text={typed ?? ev.text} />;
@@ -181,7 +192,7 @@ function renderBlock(ev: TimelineEvent, typed?: string): React.ReactNode {
     case "tool_use":
       return toolCall(ev, typed);
     case "tool_result":
-      return <ToolResult ev={ev} />;
+      return <ToolResult ev={ev} highlight={highlight} />;
     case "hook_block":
       return <HookBlock ev={ev} />;
     case "hook_pass":
@@ -189,13 +200,16 @@ function renderBlock(ev: TimelineEvent, typed?: string): React.ReactNode {
   }
 }
 
-export const ClaudeTerminal: React.FC<Props> = ({ events, model, globalTermFrom, totalTermFrames, showThinking = true }) => {
+export const ClaudeTerminal: React.FC<Props> = ({ events, model, revealStart, revealEnd, highlight, showThinking = true }) => {
   const localFrame = useCurrentFrame();
+  const { durationInFrames } = useVideoConfig();
   const filtered = showThinking ? events : events.filter((e) => e.kind !== "thinking");
   const N = filtered.length;
-  const global = globalTermFrom + localFrame;
-  const progress = totalTermFrames > 0 ? Math.min(1, global / totalTermFrames) : 1;
-  const exact = Math.min(N, progress * (N + 0.5));
+  // The reveal anchors count every event; thinking lines hidden here shift the
+  // count by the same fraction on both ends.
+  const scale = events.length > 0 ? N / events.length : 1;
+  const p = durationInFrames > 0 ? Math.min(1, localFrame / durationInFrames) : 1;
+  const exact = Math.min(N, (revealStart + (revealEnd - revealStart) * p) * scale);
   const fullCount = Math.floor(exact);
   const frac = exact - fullCount;
 
@@ -217,16 +231,16 @@ export const ClaudeTerminal: React.FC<Props> = ({ events, model, globalTermFrom,
         flexDirection: "column",
         justifyContent: "flex-end",
         overflow: "hidden",
-        padding: "24px 34px 16px",
-        gap: 14,
+        padding: `30px ${TERM_PAD_X}px 18px`,
+        gap: 16,
         background: theme.termBg,
       }}
     >
       <BootstrapBanner model={model} />
       {shown.map((ev) => (
-        <div key={ev.i}>{renderBlock(ev)}</div>
+        <div key={ev.i}>{renderBlock(ev, undefined, highlight)}</div>
       ))}
-      {inProgress ? <div key={`ip-${inProgress.i}`}>{renderBlock(inProgress, typed)}</div> : null}
+      {inProgress ? <div key={`ip-${inProgress.i}`}>{renderBlock(inProgress, typed, highlight)}</div> : null}
     </div>
   );
 };

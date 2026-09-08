@@ -1,70 +1,78 @@
 import React from "react";
-import { useCurrentFrame } from "remotion";
+import { useCurrentFrame, useVideoConfig } from "remotion";
 import type { TimelineEvent } from "../../types.ts";
 import { theme } from "./theme.ts";
+import { TERM_FS, TERM_LH, TERM_PAD_X, TERM_TEXT_WIDTH } from "./layout.ts";
+import { LineMark, lineMatches } from "./Marks.tsx";
 
 interface Props {
   events: TimelineEvent[];
-  /** Frames of terminal time elapsed in earlier terminal scenes. */
-  globalTermFrom: number;
-  /** Total frames across all terminal scenes (reveal is spread across this). */
-  totalTermFrames: number;
+  /** Events revealed at the scene's first and last frame (see SceneTiming). */
+  revealStart: number;
+  revealEnd: number;
+  /** Output lines containing one of these are marked as they appear. */
+  highlight?: string[];
 }
-
-const FS = 21;
-const LH = 1.5;
 
 const mono = (extra: React.CSSProperties = {}): React.CSSProperties => ({
   fontFamily: theme.fontMono,
-  fontSize: FS,
-  lineHeight: LH,
+  fontSize: TERM_FS,
+  lineHeight: TERM_LH,
   ...extra,
 });
 
 const Prompt: React.FC = () => <span style={mono({ color: theme.termGreen, flex: "none", fontWeight: 600 })}>$</span>;
 
 const Cursor: React.FC<{ on: boolean }> = ({ on }) => (
-  <span style={{ display: "inline-block", width: 10, height: 21, marginLeft: 3, transform: "translateY(4px)", background: theme.termText, opacity: on ? 0.85 : 0.12, borderRadius: 2 }} />
+  <span style={{ display: "inline-block", width: 14, height: TERM_FS, marginLeft: 4, translate: "0px 5px", background: theme.termText, opacity: on ? 0.85 : 0.12, borderRadius: 2 }} />
+);
+
+/** An output block, one element per line so a single line can carry a mark. */
+const OutputLines: React.FC<{ text: string; isError: boolean; highlight?: string[] }> = ({ text, isError, highlight }) => (
+  <div style={mono({ color: isError ? theme.termRed : theme.termText, opacity: isError ? 1 : 0.92, whiteSpace: "pre-wrap", wordBreak: "break-word" })}>
+    {text.split("\n").map((line, i) => (
+      <div key={i}>
+        <LineMark on={lineMatches(line, highlight)} width={TERM_TEXT_WIDTH}>
+          {line || "\u00a0"}
+        </LineMark>
+      </div>
+    ))}
+  </div>
 );
 
 /** A completed (already-revealed) event: `$ command`, a `# comment`, or output. */
-function renderBlock(ev: TimelineEvent): React.ReactNode {
+function renderBlock(ev: TimelineEvent, highlight?: string[]): React.ReactNode {
   switch (ev.kind) {
     case "comment":
       return <div style={mono({ color: theme.termDim, whiteSpace: "pre-wrap", wordBreak: "break-word" })}># {ev.text}</div>;
     case "command":
       return (
-        <div style={{ display: "flex", gap: 11 }}>
+        <div style={{ display: "flex", gap: 14 }}>
           <Prompt />
           <div style={mono({ color: theme.termText, flex: 1, whiteSpace: "pre-wrap", wordBreak: "break-word" })}>{ev.text}</div>
         </div>
       );
     case "output":
       if (!ev.text) return null;
-      return (
-        <div style={mono({ color: ev.isError ? theme.termRed : theme.termText, opacity: ev.isError ? 1 : 0.92, whiteSpace: "pre-wrap", wordBreak: "break-word" })}>
-          {ev.text}
-        </div>
-      );
+      return <OutputLines text={ev.text} isError={ev.isError} highlight={highlight} />;
     default:
       return null;
   }
 }
 
 /**
- * A plain shell session replay — the toolbox demo without any Claude chrome.
- * Reveals events progressively across all terminal scenes (same reveal math as
- * the Claude terminal). The line being typed (a command or comment) carries the
- * blinking cursor; a bare `$ ▌` waiting prompt is shown only between commands —
- * never stacked under the line currently being typed.
+ * A plain shell session replay, without any Claude chrome. Events reveal
+ * progressively between the scene's two anchors (revealStart to revealEnd):
+ * the line being typed (a command or comment) carries the blinking cursor,
+ * and a bare `$ ▌` waiting prompt is shown only between commands.
  */
-export const PlainTerminal: React.FC<Props> = ({ events, globalTermFrom, totalTermFrames }) => {
+export const PlainTerminal: React.FC<Props> = ({ events, revealStart, revealEnd, highlight }) => {
   const localFrame = useCurrentFrame();
+  const { durationInFrames } = useVideoConfig();
   const blinkOn = localFrame % 30 < 16;
   const N = events.length;
-  const global = globalTermFrom + localFrame;
-  const progress = totalTermFrames > 0 ? Math.min(1, global / totalTermFrames) : 1;
-  const exact = Math.min(N, progress * (N + 0.5));
+  const p = durationInFrames > 0 ? Math.min(1, localFrame / durationInFrames) : 1;
+  const exact = Math.min(N, revealStart + (revealEnd - revealStart) * p);
   const fullCount = Math.floor(exact);
   const frac = exact - fullCount;
 
@@ -83,17 +91,17 @@ export const PlainTerminal: React.FC<Props> = ({ events, globalTermFrom, totalTe
         flexDirection: "column",
         justifyContent: "flex-end",
         overflow: "hidden",
-        padding: "24px 34px 18px",
-        gap: 10,
+        padding: `30px ${TERM_PAD_X}px 22px`,
+        gap: 12,
         background: theme.termBg,
       }}
     >
       {shown.map((ev) => (
-        <div key={ev.i}>{renderBlock(ev)}</div>
+        <div key={ev.i}>{renderBlock(ev, highlight)}</div>
       ))}
 
       {/* Output reveals fully as it comes into range; commands/comments type in below. */}
-      {inProgress && !typing ? <div key={`ip-${inProgress.i}`}>{renderBlock(inProgress)}</div> : null}
+      {inProgress && !typing ? <div key={`ip-${inProgress.i}`}>{renderBlock(inProgress, highlight)}</div> : null}
 
       {typing?.kind === "comment" ? (
         <div style={mono({ color: theme.termDim, whiteSpace: "pre-wrap", wordBreak: "break-word" })}>
@@ -101,7 +109,7 @@ export const PlainTerminal: React.FC<Props> = ({ events, globalTermFrom, totalTe
           <Cursor on={blinkOn} />
         </div>
       ) : typing?.kind === "command" ? (
-        <div style={{ display: "flex", gap: 11 }}>
+        <div style={{ display: "flex", gap: 14 }}>
           <Prompt />
           <div style={mono({ color: theme.termText, flex: 1, whiteSpace: "pre-wrap", wordBreak: "break-word" })}>
             {typed}
@@ -110,7 +118,7 @@ export const PlainTerminal: React.FC<Props> = ({ events, globalTermFrom, totalTe
         </div>
       ) : (
         // Between commands (or finished): a single waiting prompt with the cursor.
-        <div style={{ display: "flex", gap: 11 }}>
+        <div style={{ display: "flex", gap: 14 }}>
           <Prompt />
           <Cursor on={blinkOn} />
         </div>

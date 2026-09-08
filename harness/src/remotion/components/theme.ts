@@ -1,5 +1,6 @@
 import { loadFont as loadInter } from "@remotion/google-fonts/Inter";
 import { loadFont as loadMono } from "@remotion/google-fonts/JetBrainsMono";
+import { loadFont as loadNotoJP } from "@remotion/google-fonts/NotoSansJP";
 
 // Load only the weights/subsets we use. latin-ext covers French accents (é è à ç …)
 // that show up in translated terminal output and captions.
@@ -11,6 +12,18 @@ export const mono = loadMono("normal", {
   weights: ["400", "600"],
   subsets: ["latin", "latin-ext"],
 });
+// One CJK face behind both stacks, so Japanese terminal output (a translated
+// catalog printed by cat, a tool result) renders the same on every machine
+// rather than in whatever the render host falls back to.
+export const notoJP = loadNotoJP("normal", {
+  weights: ["400"],
+  subsets: ["japanese"],
+  // The Japanese subset ships as many small unicode-range files; that is the
+  // one weight and one subset already, so the count is expected.
+  ignoreTooManyRequestsWarning: true,
+});
+const sansStack = `${inter.fontFamily}, ${notoJP.fontFamily}, sans-serif`;
+const monoStack = `${mono.fontFamily}, ${notoJP.fontFamily}, monospace`;
 
 export const FPS = 30;
 export const WIDTH = 1920;
@@ -39,8 +52,12 @@ export const darkTheme = {
   toolBg: "rgba(122,162,255,0.08)",
   toolBorder: "rgba(122,162,255,0.28)",
   resultBg: "rgba(255,255,255,0.035)",
-  fontSans: inter.fontFamily,
-  fontMono: mono.fontFamily,
+  // Hand-drawn marks (rough-notation): the fill behind a highlighted line and
+  // the stroke of a box around a region.
+  markFill: "rgba(255,212,121,0.34)",
+  markStroke: "#ff7a45",
+  fontSans: sansStack,
+  fontMono: monoStack,
 
   // ── Claude Code terminal palette (authentic CLI feel) ──
   termBg: "#1a1b20", // terminal background (neutral dark)
@@ -74,8 +91,10 @@ export const lightTheme: Theme = {
   toolBg: "rgba(79,70,229,0.07)",
   toolBorder: "rgba(79,70,229,0.22)",
   resultBg: "rgba(15,23,42,0.04)",
-  fontSans: inter.fontFamily,
-  fontMono: mono.fontFamily,
+  markFill: "rgba(255,190,60,0.42)",
+  markStroke: "#e8641f",
+  fontSans: sansStack,
+  fontMono: monoStack,
 
   // Claude Code LIGHT terminal palette
   termBg: "#faf9f7",

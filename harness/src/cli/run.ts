@@ -2,8 +2,9 @@
  * Harness orchestrator.
  *
  *   pnpm run demo <id|all> [--only=capture,artifacts,narrate,render] [--force] [--quality=draft|final]
- *   pnpm run demo <id|all> --locale=nb --only=narrate,render,publish   # localized variant
+ *   pnpm run demo <id|all> --locale=nb --only=narrate,render,publish   # a second narration language
  *   pnpm run demo --list
+ *   pnpm run demo --registry      # refresh the composition registry + beats files, then exit (Studio)
  *
  * Stages run in order and each is idempotent (skips if its output exists unless --force).
  */
@@ -12,8 +13,9 @@ import path from "node:path";
 import { loadEnv } from "../lib/env.ts";
 import { listDemoIds, loadManifest } from "../lib/manifest.ts";
 import { isDefaultLocale, resolveLocale } from "../lib/locale.ts";
-import { ASSETS_DIR, PUBLIC_DIR, ensureDir } from "../lib/paths.ts";
+import { ASSETS_DIR, PUBLIC_DIR, ensureDir, publicDemoDir } from "../lib/paths.ts";
 import { writeRegistry } from "./registry.ts";
+import { writeBeats } from "./beats.ts";
 import { captureDemo, renormalizeDemo } from "../driver/capture.ts";
 import { captureScript } from "../driver/capture-script.ts";
 import { captureDesktopDemo } from "../driver/capture-desktop.ts";
@@ -47,6 +49,7 @@ function parseArgs(argv: string[]) {
   let only: Stage[] = ALL_STAGES;
   let force = false;
   let list = false;
+  let registry = false;
   let quality: "draft" | "final" = "final";
   // Docs ship theme-matched videos (light + dark), so render both by default.
   let themes: ThemeMode[] = ["dark", "light"];
@@ -58,6 +61,7 @@ function parseArgs(argv: string[]) {
   let locale: string | undefined;
   for (const a of argv) {
     if (a === "--list") list = true;
+    else if (a === "--registry") registry = true;
     else if (a === "--force") force = true;
     else if (a.startsWith("--locale=")) locale = a.slice(9);
     else if (a.startsWith("--only=")) only = a.slice(7).split(",").map((s) => s.trim()) as Stage[];
@@ -75,7 +79,7 @@ function parseArgs(argv: string[]) {
     else if (!a.startsWith("--")) ids.push(a);
   }
   if (themes.length === 0) themes = ["dark"];
-  return { ids, only, force, list, quality, themes, docsDir, locale: resolveLocale(locale) };
+  return { ids, only, force, list, registry, quality, themes, docsDir, locale: resolveLocale(locale) };
 }
 
 /** Copy shared static assets (e.g. the mascot) into public/ so Remotion staticFile() finds them. */
@@ -87,10 +91,39 @@ function stageAssets(): void {
   }
 }
 
+/**
+ * A narration synthesized for a different set of scene ids than demo.yaml now
+ * has renders the manifest's scenes with the audio it can match by id and the
+ * rest silent; say so, since the fix (narrate --force) costs a TTS call and is
+ * not taken on the caller's behalf.
+ */
+function warnIfNarrationStale(m: { id: string; narration: Array<{ id: string }> }, locale: string): void {
+  const file = path.join(publicDemoDir(m.id), `narration${isDefaultLocale(locale) ? "" : `-${locale}`}.json`);
+  if (!fs.existsSync(file)) return;
+  const narrated = new Set((JSON.parse(fs.readFileSync(file, "utf8")) as { scenes?: Array<{ id: string }> }).scenes?.map((s) => s.id) ?? []);
+  const authored = new Set(m.narration.map((n) => n.id));
+  const missing = [...authored].filter((id) => !narrated.has(id));
+  const extra = [...narrated].filter((id) => !authored.has(id));
+  if (missing.length === 0 && extra.length === 0) return;
+  console.warn(
+    `  ! ${m.id}: demo.yaml and ${path.basename(file)} name different scenes` +
+      (missing.length ? ` (not narrated: ${missing.join(", ")})` : "") +
+      (extra.length ? ` (narrated but gone: ${extra.join(", ")})` : "") +
+      `; re-run the narrate stage with --force to match`,
+  );
+}
+
 async function main() {
   loadEnv();
-  const { ids, only, force, list, quality, themes, docsDir, locale } = parseArgs(process.argv.slice(2));
+  const { ids, only, force, list, registry, quality, themes, docsDir, locale } = parseArgs(process.argv.slice(2));
   const available = listDemoIds();
+
+  if (registry) {
+    writeRegistry();
+    for (const id of available) writeBeats(loadManifest(id), locale);
+    console.log(`registry + beats written for ${available.length} demos`);
+    return;
+  }
 
   if (list || ids.length === 0) {
     console.log(`Demos (${available.length}):`);
@@ -158,7 +191,16 @@ async function main() {
     }
   }
   writeRegistry();
-  if (only.includes("render")) stageAssets();
+  if (only.includes("render")) {
+    stageAssets();
+    // The picture half of every demo, fresh from demo.yaml, before the first
+    // render bundles public/ (the bundle is a snapshot; a file written after
+    // it is not in it).
+    for (const m of manifests) {
+      writeBeats(m, locale);
+      warnIfNarrationStale(m, locale);
+    }
+  }
   for (const m of manifests) {
     if (only.includes("render")) {
       console.log(`\n━━ render · ${m.id} (${themes.join(", ")}${isDefaultLocale(locale) ? "" : `; ${locale}`}) ━━`);

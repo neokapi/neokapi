@@ -90,10 +90,12 @@ export async function renderDemo(id: string, opts: RenderOptions = {}): Promise<
   const composition = await selectComposition({ serveUrl, id, inputProps });
   console.log(`  · rendering ${id} (${variant}): ${composition.durationInFrames} frames (${(composition.durationInFrames / composition.fps).toFixed(1)}s)`);
 
-  // The headless render browser occasionally crashes mid-render ("Target closed")
-  // or a frame's OffthreadVideo seek stalls — both transient. Retry the whole
-  // render once before failing. Concurrency is capped (cores−2) so a fleet of
-  // video-decoding render tabs doesn't starve/crash each other.
+  // The headless render browser occasionally crashes mid-render ("Target
+  // closed"); that is transient, so the whole render is retried once before
+  // failing. Frames come from <Video> of @remotion/media, which decodes the
+  // screencast in the render browser itself, so there is no video proxy to
+  // stall on and no seek to wait out: the concurrency and timeout below are
+  // the ordinary ones, with an environment override for a loaded machine.
   const attempts = 2;
   for (let attempt = 1; attempt <= attempts; attempt++) {
     let lastPct = -1;
@@ -106,16 +108,12 @@ export async function renderDemo(id: string, opts: RenderOptions = {}): Promise<
         inputProps,
         crf: opts.quality === "draft" ? 28 : 18,
         jpegQuality: opts.quality === "draft" ? 70 : 90,
-        // Lower concurrency = fewer render tabs hammering Remotion's single
-        // video-proxy when seeking the screencast. Long demos (explorer) need a
-        // smaller value; tune via HARNESS_RENDER_CONCURRENCY (default 4).
+        // Render tabs at once (default 4); HARNESS_RENDER_CONCURRENCY tunes it.
         concurrency: Math.max(1, Number(process.env.HARNESS_RENDER_CONCURRENCY) || 4),
-        // Desktop scenes embed a screencast .webm and seek into it per beat;
-        // decoding a seek (and loading poster <Img>/fonts) can exceed Remotion's
-        // 30s default delayRender budget under heavy machine load, intermittently
-        // failing a frame. Generous headroom so a slow-under-load asset finishes
-        // rather than timing out (tune via HARNESS_RENDER_TIMEOUT_MS).
-        timeoutInMilliseconds: Math.max(180_000, Number(process.env.HARNESS_RENDER_TIMEOUT_MS) || 600_000),
+        // A frame's budget to decode its media, load its fonts and draw.
+        // Twice Remotion's default, for the first frame of a long screencast
+        // on a loaded machine (tune via HARNESS_RENDER_TIMEOUT_MS).
+        timeoutInMilliseconds: Math.max(30_000, Number(process.env.HARNESS_RENDER_TIMEOUT_MS) || 60_000),
         onProgress: ({ progress }) => {
           const pct = Math.floor(progress * 100);
           if (pct >= lastPct + 10) {

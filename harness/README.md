@@ -17,7 +17,12 @@ One narrated 1080p video per demo in `out/<id>.mp4`. Each video is structured as
 title card → real Claude Code terminal replay → artifact spotlights → outro
 ```
 
-with a continuous British-English narration track explaining the story.
+with a British-English narration track explaining the story, the spoken words
+captioned in the lower third as they are said, a short fade into the first
+scene and into the outro, and a slide between artifact spotlights. The title
+card carries the claim and one line; the outro carries one instruction and one
+pointer. See [The frame grid](#the-frame-grid) for the sizes and
+[The beat fields](#the-beat-fields) for what a scene can ask of its picture.
 
 ## The demos
 
@@ -124,13 +129,26 @@ the manifest. The orchestrator runs four idempotent stages:
 2. **artifacts** (`src/driver/artifacts.ts`) — Playwright screenshots the visual
    results from the sandbox snapshot (rendered HTML before/after, or kapi JSON output
    rendered into a styled report card). → `public/<id>/artifacts/*.png`
-3. **narrate** (`src/narrate/synth.ts`) — synthesizes each narration scene to audio.
-   → `public/<id>/audio/*.wav` + `narration.json`
-4. **render** (`src/remotion/`) — a Remotion composition replays the terminal, cuts to
-   the artifacts, overlays captions, and plays the narration. → `out/<id>.mp4`
+3. **narrate** (`src/narrate/synth.ts`): synthesizes the narration to audio, then
+   transcribes it with whisper.cpp (token timestamps) into timed captions, and for
+   a one-shot read aligns the transcript against the script to cut the track into
+   measured scene spans. → `public/<id>/audio/*.wav` + `narration.json` +
+   `captions.json`. See [Captions](#captions).
+4. **render** (`src/remotion/`): writes `public/<id>/beats.json` from `demo.yaml`
+   (the picture half of every scene: caption, crop, zoom, highlight, hold), then a
+   Remotion composition replays the terminal, cuts to the artifacts, plays each
+   desktop beat at its natural pace (holding the last frame when the narration is
+   longer), captions the spoken words, and plays the narration. → `out/<id>.mp4`
 
 The capture step is the only non-deterministic / billed part; once captured, artifacts,
-narration and render reproduce deterministically from `public/<id>/`.
+narration and render reproduce deterministically from `public/<id>/`. A narration
+that exists but has no captions yet is transcribed on the next narrate run
+without a new TTS call.
+
+For a desktop demo the natural order is narrate, then record: the recorder reads
+the measured length of each beat's narration from `narration.json` and keeps the
+beat on camera that long, so the recorded beat is about as long as the words over
+it. A `hold:` on the scene in `demo.yaml` sets it explicitly.
 
 ## Narration backends (pluggable)
 
@@ -271,6 +289,111 @@ bundler.
 
 `captures/`, `public/`, `out/`, `sandbox/` and `.env` are git-ignored. The authored
 `demos/` are the source of truth — re-run the harness to regenerate everything else.
+
+## The beat fields
+
+A narration scene in `demo.yaml` is `id`, `kind`, `text` and, per kind, the
+`artifact` or `beat` it shows. The fields below shape the picture under the
+words. Every one is optional; a demo that sets none behaves as it always has.
+The loader validates each against the scene kind it applies to, so a typo fails
+the load rather than rendering a video that quietly ignores it.
+
+| Field | Kinds | What it does | Default |
+|---|---|---|---|
+| `caption` | terminal, artifact, desktop | One line, the consequence of the beat, drawn as the chapter line above the window for the whole scene. The spoken words are captioned from the audio, so leave it out unless the line adds something the transcript does not. | none |
+| `hold` | any | Seconds the scene stays on screen at least. The desktop recorder keeps the beat on camera this long; the renderer holds the last frame when the picture is still shorter. | the narration's measured length (recorder), the narration (renderer) |
+| `crop` | desktop | Where the camera crops to: `{ selector: '[data-testid="x"]' }` (or a list; resolved against the live page once the beat's actions have settled, the union of their boxes) or a box `{ x, y, w, h }` in [0,1] window coordinates. | the walk's own region |
+| `zoom` | desktop | A multiplier from 1 to 3 on the crop's fitted scale. The fitted scale fills the frame with the crop region (clamped to 1 to 2.5); `zoom: 1` on a crop shows the whole window. | 1 |
+| `highlight` | terminal, artifact, desktop | What to draw attention to, hand-drawn by frame: `text: "CRITICAL"` (or a list; terminal lines containing it are marked as they appear; a bare string is this form), `selector: '[data-x]'` (desktop; resolved at record time into a box), or `box: { x, y, w, h }` (desktop and artifact). | none |
+| `through` | terminal, shell demos | The 1-based index of the last `script` step (command or comment) revealed by the end of the scene. Scenes that leave it unset reveal an even share between the anchors around them. | uniform reveal |
+
+The demo's closing card takes two lines of its own:
+
+```yaml
+outro:
+  line: Run the same check in CI.
+  pointer: kapi check --ship
+```
+
+`line` defaults to the demo title and `pointer` to the brand's site.
+
+One desktop beat, fully specified:
+
+```yaml
+  - id: findings
+    kind: desktop
+    beat: findings
+    caption: One finding, anchored on the run that raised it.
+    hold: 9
+    crop: { selector: '[data-slot="review-checks"]' }
+    zoom: 1.2
+    highlight: { selector: '[data-slot="review-finding"]' }
+    text: >-
+      The checks layer shows the one finding the run raised, ...
+```
+
+And one terminal beat of a scripted shell demo:
+
+```yaml
+  - id: check
+    kind: terminal
+    through: 4
+    highlight: [CRITICAL, WARNING]
+    caption: Two findings, one of them blocking.
+    text: >-
+      kapi check reads the German against the English ...
+```
+
+A selector crop or highlight is resolved by the recorder and lands in
+`screencast.json` on the beat; a box is applied by the renderer as it is.
+`beats.json` is regenerated from `demo.yaml` on every render, so a change to any
+of these fields needs no new narration. Changing a scene's `text` or its id does:
+the render warns when `demo.yaml` and `narration.json` name different scenes.
+
+## Captions
+
+Every rendered video carries the spoken words as captions: one
+`public/<id>/captions.json` per video (`captions-<locale>.json` for another
+language), transcribed from the narration audio by whisper.cpp with token
+timestamps, paged about every 1.2 s in the lower third with the word being said
+emphasised. For a one-shot narration the same transcript is aligned against the
+script (`src/narrate/align.ts`) to find where each scene's words begin, and the
+track is cut into measured scene spans there; a scene's picture therefore
+starts on its first word rather than on a word count.
+
+whisper.cpp is built once, with `cmake`, into the user's cache directory
+(`$XDG_CACHE_HOME/neokapi/harness/whisper.cpp`, `~/.cache/...` by default;
+`HARNESS_WHISPER_DIR` overrides), with the `small.en` model for English and the
+multilingual `small` model otherwise (`HARNESS_WHISPER_MODEL` overrides).
+`HARNESS_CAPTIONS=0` skips transcription on a machine that cannot build it: no
+captions file is written and a one-shot track is cut by word share.
+
+## The frame grid
+
+The docs embed a video at 800px wide, a 0.42 scale of the 1920x1080 frame, so
+every size in `src/remotion/components/layout.ts` is the size a reader gets on
+the page divided by 0.42. Key text keeps 142px from the sides and 178px from the
+top and bottom; a window or screenshot keeps 100px from the top and bottom.
+
+| Element | Size in the frame | On the page |
+|---|---|---|
+| Title | 120px | 50px |
+| Title subtitle, prompt | 52px | 22px |
+| Outro line | 64px | 27px |
+| Outro pointer, chapter line | 44px | 18px |
+| Captions | 46px | 19px |
+| Terminal | 30px mono, 14 lines (10 with a chapter line) | 12.6px |
+
+Check any scene at the page's scale with a still:
+
+```bash
+vpx remotion still src/remotion/index.ts <id> --frame=<n> --scale=0.42 --props='{"id":"<id>","themeMode":"light"}' out/<id>-light.png
+```
+
+Desktop apps are recorded at the frame size (1920x1080), so a full-window beat
+shows the app at 1:1 and a region beat crops into it (1.6 to 2.5x) instead of
+up-scaling a smaller capture. The picture never plays slower than 0.8x: when
+the narration outruns the beat, the beat plays at 1x and its last frame holds.
 
 ## Recording the real bowrain web app (`target: web`)
 
