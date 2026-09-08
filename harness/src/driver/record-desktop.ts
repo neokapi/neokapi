@@ -1114,6 +1114,33 @@ async function openFileInTranslate(page: Page): Promise<void> {
   await page.waitForTimeout(1400);
 }
 
+/**
+ * Step the visual editor to a block the workspace has something to say about.
+ *
+ * The memory expander (`tm-toggle`) renders only when the ACTIVE block has
+ * matches, and the term sidebar only when it has term matches, so which block
+ * the editor lands on decides whether either exists. Two walks narrate them, so
+ * neither may assume the first block is the lucky one: this walks forward until
+ * one appears and throws when none does, rather than filming an editing card
+ * with nothing beside it under narration that says otherwise.
+ */
+async function focusBlockWithContext(page: Page, maxSteps = 12): Promise<void> {
+  const present = async () =>
+    (await page.getByTestId("tm-toggle").count()) > 0 ||
+    (await page.getByTestId("term-sidebar").count()) > 0;
+  if (await present()) return;
+  for (let i = 0; i < maxSteps; i++) {
+    const next = page.getByTestId("next-block-btn");
+    if (!(await next.count()) || !(await next.isEnabled().catch(() => false))) break;
+    await humanClick(page, next);
+    await page.waitForTimeout(700);
+    if (await present()) return;
+  }
+  throw new Error(
+    "no block in this file carries a content-memory or term match — the walk narrates them, so seed the workspace (harness/scripts/seed-bowrain.ts) before recording",
+  );
+}
+
 /** Switch the Translate workbench to the visual view: an editing card over the
  *  rendered document. */
 async function openVisualView(page: Page): Promise<void> {
@@ -1171,8 +1198,9 @@ async function bowrainGovernanceWalk(c: WalkCtx): Promise<void> {
   await page.waitForTimeout(700);
   await openProjectSource(page, "Company Website");
   await openFileInTranslate(page);
+  await openVisualView(page);
+  await focusBlockWithContext(page);
   await beatEls("in-the-editor", ['[data-testid="term-sidebar"]', '[data-testid="context-panel"]'], async () => {
-    await openVisualView(page);
     const tm = page.getByTestId("tm-toggle");
     if ((await tm.count()) && !(await page.getByTestId("context-panel").isVisible().catch(() => false)))
       await humanClick(page, tm);
@@ -1244,7 +1272,8 @@ async function bowrainEditorWalk(c: WalkCtx): Promise<void> {
 
   // A memory match, applied in one click: the wording the workspace already
   // approved for this string, without retyping it.
-  await beatEls("memory", ['[data-testid="context-panel"]', '[data-testid="visual-editor-card"]'], async () => {
+  await focusBlockWithContext(page);
+  await beatEls("memory", ['[data-testid="context-panel"]', '[data-testid="term-sidebar"]', '[data-testid="visual-editor-card"]'], async () => {
     const tm = page.getByTestId("tm-toggle");
     if ((await tm.count()) && !(await page.getByTestId("context-panel").isVisible().catch(() => false)))
       await humanClick(page, tm);
@@ -1253,10 +1282,12 @@ async function bowrainEditorWalk(c: WalkCtx): Promise<void> {
     if (await apply.count()) {
       await cursorTo('[data-testid="tm-apply-0"]');
       await humanClick(page, apply);
-    } else if (await page.getByTestId("term-sidebar").count()) {
+    } else {
+      // No memory match on this block, but focusBlockWithContext guarantees a
+      // term match instead; the beat then shows the terms in force.
       await cursorTo('[data-testid="term-sidebar"]');
     }
-    await page.waitForTimeout(2200);
+    await page.waitForTimeout(2400);
   });
 
   // The same file, the next language, without leaving it.
