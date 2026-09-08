@@ -23,7 +23,7 @@ script:
   - comment: Before sending for real translation, pseudo-translate to test layout.
   - command: kapi pseudo-translate src/locales/en.json
   - comment: Padded, accented copy (qps) surfaces truncation and layout bugs early.
-  - command: cat src/locales/qps.json
+  - command: cat src/locales/en_qps.json
 
 narration:
   - id: title
