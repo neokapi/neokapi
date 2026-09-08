@@ -205,6 +205,13 @@ const BOWRAIN_COLLAB_LOCALE = process.env.BOWRAIN_COLLAB_LOCALE || "fr";
 // Both are printed by harness/scripts/seed-collaboration.mjs.
 const BOWRAIN_PEER_BLOCK_ID = process.env.BOWRAIN_PEER_BLOCK_ID || "";
 const BOWRAIN_SELF_BLOCK_ID = process.env.BOWRAIN_SELF_BLOCK_ID || "";
+// The one block of the recording file the terms store decides for, as its
+// source text reads and as the term it carries. seed-bowrain.ts asks the
+// server which block that is (`ensureTermAnchor`) and writes both here, so the
+// governance walk can step to it and say what went wrong when the sidebar it
+// narrates does not arrive.
+const BOWRAIN_TERM_BLOCK_TEXT = process.env.BOWRAIN_TERM_BLOCK_TEXT || "";
+const BOWRAIN_TERM_TEXT = process.env.BOWRAIN_TERM_TEXT || "";
 
 /** Resolve the workspace slug for the session token. An explicit
  *  BOWRAIN_WORKSPACE_SLUG wins (a seed run prints the exact one to use, which
@@ -1273,10 +1280,12 @@ async function openFileInTranslate(page: Page): Promise<void> {
  *
  * The memory expander (`tm-toggle`) renders only when the ACTIVE block has
  * matches, and the term sidebar only when it has term matches, so which block
- * the editor lands on decides whether either exists. Two walks narrate them, so
- * neither may assume the first block is the lucky one: this walks forward until
- * one appears and throws when none does, rather than filming an editing card
- * with nothing beside it under narration that says otherwise.
+ * the editor lands on decides whether either exists. The editor walk narrates
+ * them together and may not assume the first block is the lucky one: this walks
+ * forward until one appears and throws when none does, rather than filming an
+ * editing card with nothing beside it under narration that says otherwise.
+ *
+ * For a beat about the terms alone, use `focusTermBlock`, which is stricter.
  */
 async function focusBlockWithContext(page: Page, maxSteps = 12): Promise<void> {
   const present = async () =>
@@ -1293,6 +1302,61 @@ async function focusBlockWithContext(page: Page, maxSteps = 12): Promise<void> {
   throw new Error(
     "no block in this file carries a content-memory or term match — the walk narrates them, so seed the workspace (harness/scripts/seed-bowrain.ts) before recording",
   );
+}
+
+const squashed = (s: string) => s.replace(/\s+/g, " ").trim();
+
+/**
+ * Step the visual editor to the seeded block the terms store decides for, and
+ * prove the term sidebar came with it.
+ *
+ * `VisualEditorLayout` docks the sidebar for a block with term matches and for
+ * no other, while nearly every heading in the file carries a content-memory
+ * match instead. So a beat about the terms has to reach one particular block:
+ * the seed asks the server which one that is and writes its text and its term
+ * to harness/.env (`ensureTermAnchor`), and this walks to it by that text.
+ *
+ * Each way it can go wrong fails with what went wrong: the walk never reached
+ * the block, the block showed no sidebar, or the sidebar named a different
+ * term. A take that filmed the memory matches under narration about the terms
+ * shipped once already (#2605).
+ */
+async function focusTermBlock(page: Page, maxSteps = 20): Promise<void> {
+  const wanted = squashed(BOWRAIN_TERM_BLOCK_TEXT);
+  const term = squashed(BOWRAIN_TERM_TEXT);
+  const card = page.getByTestId("visual-editor-card").first();
+  const onBlock = async () => {
+    if (!wanted) return (await page.getByTestId("term-sidebar").count()) > 0;
+    const shown = await card.innerText().catch(() => "");
+    return squashed(shown).includes(wanted);
+  };
+  let arrived = await onBlock();
+  for (let i = 0; i < maxSteps && !arrived; i++) {
+    const next = page.getByTestId("next-block-btn");
+    if (!(await next.count()) || !(await next.isEnabled().catch(() => false))) break;
+    await humanClick(page, next);
+    await page.waitForTimeout(700);
+    arrived = await onBlock();
+  }
+  if (!arrived) {
+    throw new Error(
+      wanted
+        ? `the visual editor never reached the block reading "${wanted}" in ${maxSteps} steps. Re-run harness/scripts/seed-bowrain.ts, which names the block the terms store decides for`
+        : "no block in this file shows the term sidebar. Re-run harness/scripts/seed-bowrain.ts, which fails when the recording file carries no agreed term",
+    );
+  }
+  const sidebar = page.getByTestId("term-sidebar");
+  await sidebar.waitFor({ timeout: 10_000 }).catch(() => {});
+  if (!(await sidebar.count())) {
+    throw new Error(
+      `the block reading "${wanted}" shows no term sidebar, and the beat narrates the terms in force beside it`,
+    );
+  }
+  if (term && !squashed(await sidebar.innerText()).toLowerCase().includes(term.toLowerCase())) {
+    throw new Error(
+      `the term sidebar beside "${wanted}" does not name "${term}", which is the term the seed agreed a wording for`,
+    );
+  }
 }
 
 /** Switch the Translate workbench to the visual view: an editing card over the
@@ -1346,23 +1410,22 @@ async function bowrainGovernanceWalk(c: WalkCtx): Promise<void> {
 
   // Out of the hub and into a file. The term sidebar and the memory matches
   // dock beside the block being translated, which is the whole point of
-  // holding either on the server. The narration says they are on screen, so
-  // one of the two is a hard wait.
+  // holding either on the server. The narration is about the terms, so the
+  // sidebar is the hard wait and the memory matches join it where the block
+  // has them.
   await tap("nav-translate");
   await page.waitForTimeout(700);
   await openProjectSource(page, "Company Website");
   await openFileInTranslate(page);
   await openVisualView(page);
-  await focusBlockWithContext(page);
-  await beatEls("in-the-editor", ['[data-testid="term-sidebar"]', '[data-testid="context-panel"]'], async () => {
+  await focusTermBlock(page);
+  await beatEls("in-the-editor", ['[data-testid="term-sidebar"]', '[data-testid="visual-editor-card"]'], async () => {
     const tm = page.getByTestId("tm-toggle");
     if ((await tm.count()) && !(await page.getByTestId("context-panel").isVisible().catch(() => false)))
       await humanClick(page, tm);
-    await page.waitForSelector('[data-testid="term-sidebar"], [data-testid="context-panel"]', {
-      timeout: 20_000,
-    });
+    await page.waitForSelector('[data-testid="term-sidebar"]', { timeout: 20_000 });
     await page.waitForTimeout(1000);
-    await cursorTo('[data-testid="term-sidebar"], [data-testid="context-panel"]');
+    await cursorTo('[data-testid="term-sidebar"]');
     await page.waitForTimeout(2200);
   });
 }

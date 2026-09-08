@@ -461,8 +461,17 @@ prints the token + the route params; pass them to the capture stage, e.g.:
 ```bash
 BOWRAIN_BACKEND_URL=http://localhost:8080 \
 BOWRAIN_SESSION_TOKEN=<jwt> BOWRAIN_WORKSPACE_SLUG=<slug> \
+BOWRAIN_TERM_BLOCK_TEXT="<block source>" BOWRAIN_TERM_TEXT="<term>" \
   pnpm run demo bowrain-web-governance -- --only=capture --force --theme=both
 ```
+
+The last two name the block the governance walk's closing beat films.
+`VisualEditorLayout` docks the term sidebar for a block the terms store decides
+for and for no other, so the seed asks the server which block that is
+(`ensureTermAnchor` in `scripts/seed-bowrain.ts`) and writes both values to
+`harness/.env`. The walk steps to that block by its text and fails the take when
+the sidebar is absent or names a different term, rather than filming the block's
+content-memory matches under narration about terms.
 
 ### Two-user collaboration (`bowrain-web-collaboration`)
 

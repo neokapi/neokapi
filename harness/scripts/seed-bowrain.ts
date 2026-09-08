@@ -32,6 +32,13 @@ import {
   targetsToClear,
 } from "../src/lib/seed-state.ts";
 import type { ConvergenceEstimate, EditorBlock } from "../src/lib/seed-state.ts";
+import {
+  describeMissingAnchor,
+  describeTermAnchor,
+  lookupCandidates,
+  pickTermAnchor,
+} from "../src/lib/term-anchor.ts";
+import type { SourceBlock, TermAnchor, TermMatch } from "../src/lib/term-anchor.ts";
 
 const BASE = process.env.BOWRAIN_BACKEND_URL || "http://localhost:8080";
 const API = `${BASE}/api/v1`;
@@ -66,6 +73,13 @@ const PENDING_LOCALE = "ja";
 const PEER_BLOCK_SOURCE = "About Acme Inc.";
 const PEER_BLOCK_TARGET = "À propos de la société Acme Inc.";
 const SELF_BLOCK_SOURCE = "Our Mission";
+
+// The words the governance walk's closing beat is about. ABOUT_US_HTML carries
+// them and CONCEPTS agrees a wording for them in every target language, so the
+// block they sit in is where the term sidebar has a decision to show. Named
+// here so a seed whose two halves stop meeting says which one moved, rather
+// than leaving a take to film an editing card with nothing beside it.
+const TERM_ANCHOR_PHRASE = "cloud infrastructure";
 
 // ── low-level HTTP ──────────────────────────────────────────────────────────
 
@@ -371,6 +385,56 @@ async function ensureConcepts(ws: string, projectId: string, token: string): Pro
     posted++;
   }
   console.log(`  · concepts: ${posted} created, ${CONCEPTS.length - posted} already present`);
+}
+
+/**
+ * Leave the recording file with a block the term sidebar has a decision to
+ * show, and name that block for the walk.
+ *
+ * The governance walk closes on the terms in force beside the editing card, and
+ * `VisualEditorLayout` docks that sidebar for a block the terms store answers
+ * for and for no other. Most blocks in the file carry a content-memory match
+ * instead, so a walk that settles for the first block with anything beside it
+ * films the memory matches under narration about terms (#2605).
+ *
+ * Both halves of the guarantee are created above and each is idempotent:
+ * `uploadIfAbsent` puts the words on the server and `ensureConcepts` agrees a
+ * wording for them. This asks the server whether the two meet, over the same
+ * route the editor calls, and names the half that moved when they do not.
+ * Posting a fresh concept here instead would put a second row in the concept
+ * list the same walk films two beats earlier.
+ */
+async function ensureTermAnchor(ws: string, pid: string, token: string): Promise<TermAnchor> {
+  const blocks = listOf<SourceBlock>(
+    await jget(
+      `/${ws}/${pid}/blocks/main?item=${encodeURIComponent(FILE_NAME)}&limit=500`,
+      token,
+    ),
+    "blocks",
+  );
+  const candidates = lookupCandidates(blocks);
+  const found = new Map<string, TermMatch[]>();
+  for (const b of candidates) {
+    found.set(
+      b.id,
+      listOf<TermMatch>(
+        await jget(
+          `/${ws}/${pid}/blocks/main/${b.id}/term-matches?target_locale=${COLLAB_LOCALE}`,
+          token,
+        ),
+        "terms",
+      ),
+    );
+  }
+  const matchesOf = (id: string) => found.get(id) ?? [];
+  const anchor = pickTermAnchor(candidates, matchesOf);
+  if (!anchor) {
+    throw new Error(
+      `term sidebar: ${describeMissingAnchor(FILE_NAME, TERM_ANCHOR_PHRASE, COLLAB_LOCALE, candidates, matchesOf)}`,
+    );
+  }
+  console.log(`  · term sidebar: ${describeTermAnchor(anchor, COLLAB_LOCALE)}`);
+  return anchor;
 }
 
 interface Role {
@@ -758,6 +822,10 @@ async function main(): Promise<void> {
   await ensureMemoryEntries(ws, projectId, aliceToken);
   await ensureConcepts(ws, projectId, aliceToken);
 
+  // The governance walk's closing beat: one block of the file the terms store
+  // decides for, so the term sidebar is on screen when the narration says so.
+  const termAnchor = await ensureTermAnchor(ws, projectId, aliceToken);
+
   // Bob joins (collaboration walk).
   const joined = await ensureMember(ws, aliceToken, bobToken);
 
@@ -820,6 +888,8 @@ async function main(): Promise<void> {
     BOWRAIN_COLLAB_LOCALE: COLLAB_LOCALE,
     BOWRAIN_PEER_BLOCK_ID: review.peerBlockId,
     BOWRAIN_SELF_BLOCK_ID: review.selfBlockId,
+    BOWRAIN_TERM_BLOCK_TEXT: (termAnchor.block.source ?? "").replace(/\s+/g, " ").trim(),
+    BOWRAIN_TERM_TEXT: termAnchor.term,
     BOWRAIN_DEMO_PROFILE_ID: profileId,
   });
 
@@ -827,6 +897,7 @@ async function main(): Promise<void> {
   console.log(`  workspace : ${BASE}/${ws}`);
   console.log(`  project   : Company Website (${projectId}), item ${itemId}`);
   console.log(`  pending   : ${PENDING_LOCALE} (the locale the automations walk translates on camera)`);
+  console.log(`  term      : ${describeTermAnchor(termAnchor, COLLAB_LOCALE)}`);
   console.log(`  marketing : Marketing Site (${marketingId})`);
   console.log(`  brand     : Acme Voice (${profileId})`);
   console.log(`  peer Bob  : joined=${joined}`);
