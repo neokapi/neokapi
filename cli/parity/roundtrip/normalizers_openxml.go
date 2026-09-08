@@ -80,10 +80,28 @@ func isWMLNamespace(space string) bool {
 //
 // Parity-only — not shipped in the product writer. Symmetric, principled,
 // reusable: it is the spec's own equivalence relation, not Okapi-mimicry.
-type OpenXMLEffectiveRPr struct{}
+type OpenXMLEffectiveRPr struct {
+	// StripSkippableElements drops the properties upstream Okapi's
+	// RunSkippableElements and BlockSkippableElements remove (`<w:lang>`,
+	// `<w:noProof>`, `<w:bidiVisual>`) and every `<w:rPr>` and `<w:pPr>`
+	// left without children, from the style table and from each content
+	// part, before the cascade runs. Native replays a paragraph mark's
+	// `<w:rPr><w:lang/></w:rPr>` as the source wrote it; okapi drops the
+	// element and the container it emptied. Left in place, that container
+	// would be filled with the cascade's effective formatting on one side
+	// and be absent on the other. XMLCanonical.StripWMLSkippableElements
+	// applies the same strip after this pass, for the parts it does not
+	// rewrite.
+	StripSkippableElements bool
+}
 
 // Name implements Normalizer.
-func (OpenXMLEffectiveRPr) Name() string { return "openxml-effective-rpr" }
+func (n OpenXMLEffectiveRPr) Name() string {
+	if n.StripSkippableElements {
+		return "openxml-effective-rpr(strip-skippable)"
+	}
+	return "openxml-effective-rpr"
+}
 
 // Normalize implements Normalizer. It expects a zip (.docx) archive and
 // rewrites the word/*.xml parts in place. Non-zip or unparsable input is
@@ -117,7 +135,7 @@ func (n OpenXMLEffectiveRPr) Normalize(in []byte) ([]byte, error) {
 		}
 		entries = append(entries, entry{name: f.Name, body: raw})
 		if f.Name == "word/styles.xml" {
-			styleTable = parseWMLStyleTable(raw)
+			styleTable = parseWMLStyleTable(raw, n.StripSkippableElements)
 		}
 	}
 	if styleTable == nil {
@@ -135,7 +153,7 @@ func (n OpenXMLEffectiveRPr) Normalize(in []byte) ([]byte, error) {
 				body = rewritten
 			}
 		case isWMLContentPart(e.name):
-			if rewritten, ok := resolveWMLEffectiveRPr(e.body, styleTable); ok {
+			if rewritten, ok := resolveWMLEffectiveRPr(e.body, styleTable, n.StripSkippableElements); ok {
 				body = rewritten
 			}
 		}
@@ -222,12 +240,17 @@ func (p rPrNode) localName() string { return p.start.Name.Local }
 
 // parseWMLStyleTable parses word/styles.xml into a wmlStyleTable. Returns
 // a non-nil (possibly empty) table even on parse error so callers always
-// have a usable resolver.
-func parseWMLStyleTable(data []byte) *wmlStyleTable {
+// have a usable resolver. With stripSkippable set, the skippable elements
+// are dropped from every style's rPr first, so a `<w:lang>` in docDefaults
+// never reaches the runs of a side whose styles part still carries it.
+func parseWMLStyleTable(data []byte, stripSkippable bool) *wmlStyleTable {
 	st := &wmlStyleTable{styles: map[string]*wmlStyleEntry{}}
 	tree, ok := decodeXMLTree(data)
 	if !ok {
 		return st
+	}
+	if stripSkippable {
+		stripWMLSkippableInTree(tree)
 	}
 	// The synthetic root holds the XML declaration ProcInst and the
 	// <w:styles> document element; styles + docDefaults are children of
@@ -347,11 +370,17 @@ func (st *wmlStyleTable) resolveStyleChain(styleID string) []rPrNode {
 // resolveWMLEffectiveRPr rewrites a WML content part so every rPr carries
 // its fully-resolved effective formatting inline and no pStyle/rStyle
 // references remain. Returns (rewritten, true) on success, (nil, false)
-// when the part can't be parsed (caller keeps the original bytes).
-func resolveWMLEffectiveRPr(data []byte, st *wmlStyleTable) ([]byte, bool) {
+// when the part can't be parsed (caller keeps the original bytes). With
+// stripSkippable set, the skippable elements and the containers they leave
+// empty go before the cascade runs, so a container one side dropped is not
+// filled with effective formatting on the other.
+func resolveWMLEffectiveRPr(data []byte, st *wmlStyleTable, stripSkippable bool) ([]byte, bool) {
 	tree, ok := decodeXMLTree(data)
 	if !ok {
 		return nil, false
+	}
+	if stripSkippable {
+		stripWMLSkippableInTree(tree)
 	}
 	resolveParagraphsInNode(tree, st, "")
 	encoded, ok := encodeXMLTree(tree)

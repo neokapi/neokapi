@@ -347,13 +347,20 @@ func partsHoldingContent(t *testing.T, store *format.SkeletonStore) map[string]b
 
 // rebuiltWithoutContent names the parts the writer rewrites even though the
 // reader extracted nothing from them, so they cannot be asserted byte-identical.
-// There are exactly two, and both are deliberate:
+// Each is deliberate:
 //
-// word/styles.xml (and the other WordprocessingML parts shouldStripWMLLang
-// covers) lose their <w:lang> and <w:noProof> elements on write: upstream
-// Okapi's RunSkippableElements drops both, and the parity canon is that output.
-// The strip is the writer's, not the skeleton's — the reader passes these parts
-// through untouched.
+// A WordprocessingML part that holds paragraphs (the main document, headers,
+// footers, notes, comments and their glossary twins) is rebuilt paragraph by
+// paragraph from the runs the reader parsed, whether or not any of them was
+// extracted, so its bytes are the writer's. The styles parts are the exception
+// among the parts wmlProcessedPart covers: the reader never parses them and
+// the writer copies them through.
+//
+// A part upstream Okapi's filter walks loses its revision markup on write when
+// revisions are accepted, which is the default: the move-range markers, the
+// paragraph-mark markers and the property-change snapshots
+// stripWMLRevisionElements removes. table-grid-revisions.docx carries a
+// <w:tblPrChange> in a document.xml the reader extracted nothing from.
 //
 // docProps/core.xml loses a leading UTF-8 BOM. Okapi reads the part through
 // StAX, which takes the BOM as encoding metadata rather than content, and its
@@ -367,7 +374,10 @@ func partsHoldingContent(t *testing.T, store *format.SkeletonStore) map[string]b
 // that strip goes with them. The writer does this after skeleton
 // reconstruction, on DOCX only; chartAmpersand.docx is the corpus case.
 func rebuiltWithoutContent(name string, source []byte, isDocx bool) bool {
-	if shouldStripWMLLang(name) {
+	if wmlProcessedPart(name) && !strings.HasSuffix(name, "/styles.xml") {
+		return true
+	}
+	if isDocx && wmlProcessedPart(name) && !bytes.Equal(stripWMLRevisionElements(source), source) {
 		return true
 	}
 	if name == "docProps/core.xml" && bytes.HasPrefix(source, []byte("\xef\xbb\xbf")) {

@@ -11,6 +11,7 @@ import (
 	"os"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -746,102 +747,157 @@ func stripBalancedElement(data []byte, name string) []byte {
 	return out
 }
 
-// stripWMLSkippableElements removes WordprocessingML elements from an
-// XML part to mirror okapi's BlockProperties/RunProperties,
-// RevisionCrossStructure, and RevisionProperty stripping. Returns the
-// original slice if nothing was matched (cheap fast paths).
+// stripWMLSkippableElements removes, from content the writer rendered from the
+// model, the properties upstream Okapi's RunSkippableElements and
+// BlockSkippableElements drop: <w:lang> and <w:noProof> outside an SDT's
+// property containers, and <w:bidiVisual>. A <w:rPr> or <w:pPr> the strip
+// empties goes with it; one the source wrote empty stays. Data comes back
+// unchanged when nothing matches.
 //
-// <w:lang> stripping is gated on the document's WordprocessingML
-// namespace URI. Upstream Okapi's RunSkippableElements identifies lang
-// by QName — Namespaces.WordProcessingML.getQName("lang") — keyed on
-// the TRANSITIONAL WPML URI ("http://schemas.openxmlformats.org/
-// wordprocessingml/2006/main", Namespaces.java:26). For Strict OOXML
-// documents using "http://purl.oclc.org/ooxml/wordprocessingml/main"
-// (858.docx — Word's "Save As → Strict Open XML Document" output),
-// the QName does NOT match — the SkippableElements.Default contains
-// check at SkippableElements.java:122 returns false — so upstream
-// PRESERVES <w:lang> through round-trip. The reference output for
-// 858.docx keeps <w:lang> in the paragraph mark rPr (inside pPr) AND
-// in the WSO-synthesised paragraph style's rPr.
+// The strip reaches rendered content only. A part the reader extracted nothing
+// from, and the frame around an extracted paragraph, go back as the source
+// wrote them, so an untranslated docx can round-trip byte for byte; the parity
+// canonicaliser applies the same strip to both sides of a comparison
+// (XMLCanonical.StripWMLSkippableElements) so the difference from Okapi's output
+// cancels there.
 //
-// Native mirrors this: when the document binds the "w" prefix to the
-// strict URI, the lang strip is skipped. Both prefix and URI are
-// observed in the part itself — the writer doesn't track which doc
-// the part came from, but every WPML XML part declares the prefix
-// binding on its root element. ECMA-376 Part 1 §A.1 / ISO/IEC 29500-1
-// §A.1 (the two URIs).
-func stripWMLSkippableElements(data []byte) []byte {
-	// stripLang AND stripNoProof are gated on the transitional WPML
-	// namespace for the same reason: upstream Okapi binds the
-	// RUN_PROPERTY_LANGUAGE / RUN_PROPERTY_NO_SPELLING_OR_GRAMMAR
-	// QNames to Namespaces.WordProcessingML which is the transitional
-	// URI ("http://schemas.openxmlformats.org/wordprocessingml/2006/
-	// main", Namespaces.java:26 + SkippableElement.java:205-207). For
-	// Strict OOXML documents the QName does NOT match upstream's
-	// skippable set, so both `<w:lang>` AND `<w:noProof>` are PRESERVED
-	// through round-trip. 859.docx is the canonical fixture — its
-	// drawing-bearing run carries `<w:rPr><w:noProof/><w:lang
-	// w:eastAsia="ru-RU"/></w:rPr>` which must round-trip on the wire
-	// AND lift into the WSO-synthesised paragraph style's rPr.
-	strict := bytes.Contains(data, []byte(wmlStrictNamespace))
-	if !strict && bytes.Contains(data, []byte("<w:lang")) {
-		// Scope the strip to OUTSIDE `<w:sdtPr>...</w:sdtPr>` /
-		// `<w:sdtEndPr>...</w:sdtEndPr>` — upstream Okapi's
-		// RunSkippableElements is only wired into the `<w:r>` parsing
-		// path; the SDT properties block routes through
-		// BlockParser.parseRunContainer:155-166 with
-		// `emptySkippableElements`, so `<w:lang>` survives there.
-		data = applyREOutsideSDTPr(data, wmlLangElementRE)
+// strict reports a Strict OOXML part. Upstream Okapi identifies lang and
+// noProof by QName, bound to the transitional WordprocessingML namespace
+// (Namespaces.java:26, SkippableElement.java:205-207), so in a part that binds
+// the strict URI (858.docx and 859.docx, Word's "Strict Open XML Document"
+// output) neither matches the skippable set and both survive. ECMA-376 Part 1
+// §A.1 names the two URIs.
+func stripWMLSkippableElements(data []byte, strict bool) []byte {
+	stripLang := !strict && bytes.Contains(data, []byte("<w:lang"))
+	stripNoProof := !strict && bytes.Contains(data, []byte("<w:noProof"))
+	stripBidi := bytes.Contains(data, []byte("<w:bidiVisual"))
+	if !stripLang && !stripNoProof && !stripBidi {
+		return data
 	}
-	if bytes.Contains(data, []byte("<w:bidiVisual")) {
-		data = wmlBidiVisualElementRE.ReplaceAll(data, nil)
-	}
-	if bytes.Contains(data, []byte("<w:moveToRange")) || bytes.Contains(data, []byte("<w:moveFromRange")) {
-		data = wmlMoveRangeStrippableElementRE.ReplaceAll(data, nil)
-	}
-	if !strict && bytes.Contains(data, []byte("<w:noProof")) {
-		// Same SDT scoping as `<w:lang>` — see comment above. Canonical
-		// fixture: 956.docx footer1.xml/footer2.xml, Page Numbers
-		// (Bottom of Page) SDT — `<w:sdtPr><w:rPr><w:noProof/>
-		// <w:sz w:val="14"/></w:rPr>...</w:sdtPr>` and
-		// `<w:sdtEndPr><w:rPr><w:noProof/></w:rPr></w:sdtEndPr>` must
-		// round-trip with noProof intact.
-		data = applyREOutsideSDTPr(data, wmlNoProofRE)
-	}
-	if bytes.Contains(data, []byte("<w:ins")) ||
-		bytes.Contains(data, []byte("<w:del")) ||
-		bytes.Contains(data, []byte("<w:moveTo")) ||
-		bytes.Contains(data, []byte("<w:moveFrom")) {
-		data = wmlRevisionParagraphMarkRE.ReplaceAll(data, nil)
-	}
-	for _, name := range wmlRevisionPropertyChangeNames {
-		data = stripBalancedElement(data, name)
-	}
-	// Iterate empty <w:rPr>/<w:pPr> stripping until fixpoint: removing an
-	// empty <w:rPr></w:rPr> nested inside an otherwise-empty <w:pPr>
-	// leaves the parent eligible on the next pass. The fixture corpus
-	// requires at most two iterations (<w:p><w:pPr><w:rPr><w:lang/></w:rPr></w:pPr>
-	// becomes <w:p/> after lang+rPr+pPr strips), but the loop terminates
-	// generally because each pass strictly shrinks the buffer.
-	// Loop until the empty-container regex stops shrinking the buffer.
-	// The fast-path bytes.Contains gate looks at "<w:rPr" and "<w:pPr"
-	// substrings — matches any potentially-stripable form including
-	// whitespace-padded variants — which a more specific gate would
-	// miss after encoding/xml indented re-emission.
-	for bytes.Contains(data, []byte("<w:rPr")) ||
-		bytes.Contains(data, []byte("<w:pPr")) {
-		next := wmlEmptyPropertiesContainerRE.ReplaceAll(data, nil)
-		if len(next) == len(data) {
-			break
+	return stripWMLCollapsingEmptied(data, func(data []byte) []byte {
+		if stripLang {
+			// Upstream wires RunSkippableElements into the <w:r> parsing
+			// path only; an SDT's property containers route through
+			// BlockParser.parseRunContainer:155-166 with
+			// emptySkippableElements, so <w:lang> and <w:noProof> survive
+			// there (956.docx footer1.xml and footer2.xml).
+			data = applyREOutsideSDTPr(data, wmlLangElementRE)
 		}
-		data = next
-	}
-	return data
+		if stripBidi {
+			data = wmlBidiVisualElementRE.ReplaceAll(data, nil)
+		}
+		if stripNoProof {
+			data = applyREOutsideSDTPr(data, wmlNoProofRE)
+		}
+		return data
+	})
 }
 
-// shouldStripWMLLang reports whether the given ZIP entry path is a
-// WordprocessingML XML part where okapi's lang/bidiVisual and
-// RevisionCrossStructure (moveTo/moveFrom range) stripping applies.
+// stripWMLSkippableElementsString is stripWMLSkippableElements over a rendered
+// block, with the same fast path so a block holding nothing to strip costs no
+// conversion.
+func stripWMLSkippableElementsString(s string, strict bool) string {
+	if !strings.Contains(s, "<w:lang") && !strings.Contains(s, "<w:noProof") && !strings.Contains(s, "<w:bidiVisual") {
+		return s
+	}
+	return string(stripWMLSkippableElements([]byte(s), strict))
+}
+
+// stripWMLRevisionElements removes from a whole WordprocessingML part the
+// revision markup upstream Okapi drops when it accepts revisions, which is the
+// default: the move-range markers (SkippableElements.RevisionCrossStructure),
+// the empty-body paragraph-mark markers <w:ins/>, <w:del/>, <w:moveTo/> and
+// <w:moveFrom/> (SkippableElements.RevisionProperty), and the property-change
+// snapshots wmlRevisionPropertyChangeNames lists. A container the strip empties
+// goes with it; one the source wrote empty stays. Data comes back unchanged when
+// nothing matches.
+//
+// The reader's acceptance pre-pass (dropMoveFromRanges, dropDeletedRows,
+// dropEmptyTables) removes the content those revisions delete; this pass
+// removes the markers that describe them, so the written part reads as the
+// accepted document.
+func stripWMLRevisionElements(data []byte) []byte {
+	stripMoveRanges := bytes.Contains(data, []byte("<w:moveToRange")) || bytes.Contains(data, []byte("<w:moveFromRange"))
+	stripMarks := bytes.Contains(data, []byte("<w:ins")) ||
+		bytes.Contains(data, []byte("<w:del")) ||
+		bytes.Contains(data, []byte("<w:moveTo")) ||
+		bytes.Contains(data, []byte("<w:moveFrom"))
+	stripChanges := false
+	for _, name := range wmlRevisionPropertyChangeNames {
+		if bytes.Contains(data, []byte("<w:"+name)) {
+			stripChanges = true
+			break
+		}
+	}
+	if !stripMoveRanges && !stripMarks && !stripChanges {
+		return data
+	}
+	return stripWMLCollapsingEmptied(data, func(data []byte) []byte {
+		if stripMoveRanges {
+			data = wmlMoveRangeStrippableElementRE.ReplaceAll(data, nil)
+		}
+		if stripMarks {
+			data = wmlRevisionParagraphMarkRE.ReplaceAll(data, nil)
+		}
+		if stripChanges {
+			for _, name := range wmlRevisionPropertyChangeNames {
+				data = stripBalancedElement(data, name)
+			}
+		}
+		return data
+	})
+}
+
+// wmlEmptyContainerPlaceholderRE matches the comment stripWMLCollapsingEmptied
+// stands in for a container the source wrote empty while the strip runs.
+var wmlEmptyContainerPlaceholderRE = regexp.MustCompile(`<!--kapi-empty-(\d+)-->`)
+
+// stripWMLCollapsingEmptied applies strip to data and removes every <w:rPr>
+// and <w:pPr> the strip left empty. Upstream Okapi omits an empty properties
+// container (RunProperties.Default.getEvents, RunProperties.java:580;
+// BlockProperties.Default.getEvents, BlockProperties.java:169-180), and
+// removing an emptied <w:rPr> can leave its parent <w:pPr> empty in turn, so
+// the collapse iterates to a fixpoint.
+//
+// A container that was already empty before the strip is the source's own
+// spelling and stays. Each one is swapped for a comment placeholder before the
+// strip runs, which the collapse regex cannot match, and swapped back after.
+func stripWMLCollapsingEmptied(data []byte, strip func([]byte) []byte) []byte {
+	var existing [][]byte
+	protected := data
+	if bytes.Contains(data, []byte("<w:rPr")) || bytes.Contains(data, []byte("<w:pPr")) {
+		protected = wmlEmptyPropertiesContainerRE.ReplaceAllFunc(data, func(m []byte) []byte {
+			existing = append(existing, m)
+			return fmt.Appendf(nil, "<!--kapi-empty-%d-->", len(existing)-1)
+		})
+	}
+	out := strip(protected)
+	if len(out) == len(protected) {
+		// The strip removed nothing, so it emptied nothing.
+		return data
+	}
+	for bytes.Contains(out, []byte("<w:rPr")) || bytes.Contains(out, []byte("<w:pPr")) {
+		next := wmlEmptyPropertiesContainerRE.ReplaceAll(out, nil)
+		if len(next) == len(out) {
+			break
+		}
+		out = next
+	}
+	if len(existing) > 0 {
+		out = wmlEmptyContainerPlaceholderRE.ReplaceAllFunc(out, func(m []byte) []byte {
+			i, err := strconv.Atoi(string(m[len("<!--kapi-empty-") : len(m)-len("-->")]))
+			if err != nil || i < 0 || i >= len(existing) {
+				return m
+			}
+			return existing[i]
+		})
+	}
+	return out
+}
+
+// wmlProcessedPart reports whether the given ZIP entry path is one of the
+// WordprocessingML parts upstream Okapi's filter walks as styled text or as the
+// styles part, which are the parts the writer's revision strip applies to.
 // Other parts (drawings, themes, settings.xml) are untouched.
 //
 // `word/glossary/<name>.xml` mirrors the main-document set: ECMA-376-1
@@ -850,9 +906,9 @@ func stripWMLSkippableElements(data []byte) []byte {
 // structure (its own document.xml, settings.xml, styles.xml, etc.).
 // Okapi's filter walks the glossary document via the same
 // XmlEventStreamingPart path as the main document
-// (OpenXMLFilter.openZip + DocumentParts.glossary), so the same
-// `<w:lang>` strip applies. 834.docx is the canonical fixture.
-func shouldStripWMLLang(name string) bool {
+// (OpenXMLFilter.openZip + DocumentParts.glossary). 834.docx is the
+// canonical fixture.
+func wmlProcessedPart(name string) bool {
 	if !strings.HasPrefix(name, "word/") || !strings.HasSuffix(name, ".xml") {
 		return false
 	}
@@ -972,6 +1028,13 @@ type Writer struct {
 	// reader via extractDrawingTranslations). Reset at the end of
 	// each Write call.
 	blocks map[string]*model.Block
+
+	// partStrict reports whether the part whose blocks are being rendered
+	// binds the Strict OOXML WordprocessingML namespace, which decides
+	// whether stripWMLSkippableElements drops <w:lang> and <w:noProof>
+	// from rendered content. Set by writeFromSkeleton from the part's own
+	// prefix before its first block renders.
+	partStrict bool
 }
 
 var _ format.SkeletonStoreConsumer = (*Writer)(nil)
@@ -1166,6 +1229,7 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer,
 	partContents := make(map[string][]byte)
 	var currentPart string
 	var currentBuf bytes.Buffer
+	var partStrictKnown bool
 
 	for {
 		entry, err := w.skeletonStore.Next()
@@ -1189,6 +1253,7 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer,
 			if after, ok := strings.CutPrefix(refID, skelPartStartPrefix); ok {
 				currentPart = after
 				currentBuf.Reset()
+				partStrictKnown = false
 				continue
 			}
 			if after, ok := strings.CutPrefix(refID, skelPartEndPrefix); ok {
@@ -1204,6 +1269,14 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer,
 			// Regular block ref — render and write
 			if currentPart != "" {
 				if block, ok := blocks[refID]; ok {
+					if !partStrictKnown {
+						// Every WordprocessingML part declares its
+						// namespace binding on the root element, which
+						// the skeleton has replayed by the time the
+						// first block of the part is reached.
+						w.partStrict = bytes.Contains(currentBuf.Bytes(), []byte(wmlStrictNamespace))
+						partStrictKnown = true
+					}
 					currentBuf.WriteString(w.renderBlock(block, info.docType))
 				}
 			}
@@ -1255,17 +1328,17 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer,
 		decompressedParts[f.Name] = b
 		return b, nil
 	}
-	// strippedParts memoizes stripWMLSkippableElements(<part bytes>) per
-	// ZIP entry name. stripWMLSkippableElements is deterministic for a
+	// strippedParts memoizes stripWMLRevisionElements(<part bytes>) per
+	// ZIP entry name. stripWMLRevisionElements is deterministic for a
 	// given input and its empty-container fixpoint loop reallocates the
 	// full buffer each iteration, so caching the result is a large win on
 	// big documents (#608, O3). The cached slice is returned read-only.
 	strippedParts := map[string][]byte{}
-	stripWMLSkippableElementsCached := func(name string, data []byte) []byte {
+	stripWMLRevisionElementsCached := func(name string, data []byte) []byte {
 		if b, ok := strippedParts[name]; ok {
 			return b
 		}
-		b := stripWMLSkippableElements(data)
+		b := stripWMLRevisionElements(data)
 		strippedParts[name] = b
 		return b
 	}
@@ -1446,8 +1519,8 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer,
 			// retargeted structurally during skeleton reconstruction (the
 			// reader spliced it as a SkeletonLang entry — #607), so there is
 			// no write-side lang rewrite here.
-			if isDOCX && shouldStripWMLLang(f.Name) {
-				content = stripWMLSkippableElementsCached(f.Name, content)
+			if isDOCX && wmlProcessedPart(f.Name) {
+				content = stripWMLRevisionElementsCached(f.Name, content)
 			}
 			content = postWML(f.Name, content)
 			fh := f.FileHeader
@@ -1468,23 +1541,26 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer,
 			if err := writeMediaReplacement(zw, f, replacement); err != nil {
 				return err
 			}
-		} else if isDOCX && shouldStripWMLLang(f.Name) {
-			// Pass-through WordprocessingML part (e.g. word/styles.xml) that
-			// needs okapi-style lang/bidiVisual stripping but carries no
-			// translatable content (so it isn't in partContents). Settings
-			// parts that carry <w:themeFontLang> are NOT handled here — the
-			// reader splices their lang value into the skeleton, so they
-			// arrive via the partContents branch above with the value already
-			// retargeted structurally (#607). Read, transform, re-emit with a
-			// recompressed header.
-			data, err := readZipFileCached(f)
+		} else if isDOCX && wmlProcessedPart(f.Name) {
+			// A WordprocessingML part the reader never parsed, such as
+			// word/styles.xml: the revision strip and the post-passes still
+			// apply, and a part they leave unchanged is copied through with
+			// its original entry header. Settings parts that carry
+			// <w:themeFontLang> never reach here: the reader splices their
+			// lang value into the skeleton, so they arrive via the
+			// partContents branch above with the value already retargeted
+			// (#607).
+			source, err := readZipFileCached(f)
 			if err != nil {
 				return err
 			}
-			if shouldStripWMLLang(f.Name) {
-				data = stripWMLSkippableElementsCached(f.Name, data)
+			data := postWML(f.Name, stripWMLRevisionElementsCached(f.Name, source))
+			if bytes.Equal(data, source) {
+				if err := zw.Copy(f); err != nil {
+					return err
+				}
+				continue
 			}
-			data = postWML(f.Name, data)
 			fh := f.FileHeader
 			fh.Method = zip.Deflate
 			fh.CompressedSize64 = 0
@@ -1695,7 +1771,13 @@ func (w *Writer) renderBlock(block *model.Block, dt docType) string {
 
 	switch dt {
 	case docTypeDOCX:
-		return w.renderWMLBlock(runs, sourceRPr, perRunRPr, perRunSrcStart, perRunInFieldDisplay, perRunSourceHadRPr, fieldStraddle)
+		// The skippable-element strip reaches rendered content only: the
+		// runs, and the payloads a run carries such as a textbox's
+		// paragraphs. The skeleton around the block is replayed as the
+		// source wrote it.
+		return stripWMLSkippableElementsString(
+			w.renderWMLBlock(runs, sourceRPr, perRunRPr, perRunSrcStart, perRunInFieldDisplay, perRunSourceHadRPr, fieldStraddle),
+			w.partStrict)
 	case docTypePPTX:
 		return w.renderDMLBlock(runs, block)
 	case docTypeXLSX:

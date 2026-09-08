@@ -92,33 +92,6 @@ func (p *wmlParser) parseParagraph(d *rawDecoder, partPath string, emitBlock fun
 				if err != nil {
 					return err
 				}
-				// When the paragraph sits inside a NON-extractable
-				// complex field's display area (between separate and
-				// end of an unsupported-code field, e.g. DATE), upstream
-				// Okapi captures the entire paragraph as raw markup
-				// inside the field's RunBuilder via parseContent →
-				// runBuilder.addToMarkup (RunParser.java:501-506) so
-				// the source's pPr/rPr structure survives verbatim
-				// regardless of upstream's normal `BlockProperties.
-				// Default.getEvents` empty-collapse rule (BlockProperties.
-				// java:169-172). For extractable fields and ordinary
-				// paragraphs, ParagraphBlockProperties (line 302-304)
-				// emits the inner rPr wrapper unconditionally only when
-				// the wrapping pPr already had non-empty content — an
-				// originally-skippable-only `<w:rPr>` collapses to a
-				// missing wrapper instead. To match the non-extractable
-				// path on round-trip, mark the captured pPr's inner rPr
-				// with the keep-empty marker so the writer's
-				// stripWMLSkippableElements pass leaves it in place even
-				// after lang/noProof stripping. Fixture
-				// 1083-date-and-hyperlink-instructions.docx paragraph 3
-				// is the canonical case: a `<w:pPr><w:rPr><w:lang/>
-				// </w:rPr></w:pPr>` shell inside a DATE field's display
-				// area must round-trip as `<w:pPr><w:rPr></w:rPr>
-				// </w:pPr>`.
-				if cfs.active && !cfs.extractable && cfs.atResult {
-					raw = markPPrInnerRPrKeepEmpty(raw)
-				}
 				paraProps = raw
 				paraStyleID = styleID
 				// Resolve the style chain's rPr-child-name set so

@@ -6,7 +6,6 @@ package openxml
 
 import (
 	"encoding/xml"
-	"regexp"
 	"strings"
 )
 
@@ -19,121 +18,6 @@ func captureParaProps(d *rawDecoder, start xml.StartElement) (string, string, er
 	// Extract pStyle value from the raw XML
 	styleID := extractPStyle(raw)
 	return raw, styleID, nil
-}
-
-// pprInnerRPrRE matches a `<w:rPr>...</w:rPr>` (or self-closing
-// `<w:rPr/>`) that is a direct child of `<w:pPr>` and captures the
-// children fragment in submatch 1. Used by markPPrInnerRPrKeepEmpty
-// to inspect/mark the wrapper.
-var pprInnerRPrRE = regexp.MustCompile(`<w:rPr\b[^>]*>([\s\S]*?)</w:rPr>|<w:rPr\b[^>]*/>`)
-
-// pprInnerRPrSkippableRE matches the rPr children that upstream Okapi's
-// RunSkippableElements drops on round-trip (lang/noProof/rPrChange). A
-// `<w:rPr>` inside pPr whose every child is one of these is the
-// candidate for the keep-empty marker — after the writer's strip pass
-// the wrapper would otherwise collapse to a missing pPr/rPr.
-var pprInnerRPrSkippableRE = regexp.MustCompile(
-	`<w:(?:lang|noProof|rPrChange)\b[^>]*/>` +
-		`|<w:(?:lang|noProof|rPrChange)\b[^>]*>[\s\S]*?</w:(?:lang|noProof|rPrChange)>`,
-)
-
-// markPPrInnerRPrKeepEmpty injects fieldRPrKeepEmptyMarker into the
-// FIRST `<w:rPr>` direct child of `<w:pPr>` when that rPr's children
-// are entirely skippable per pprInnerRPrSkippableRE. The marker
-// (an XML comment) prevents the writer's stripWMLSkippableElements
-// fixpoint from collapsing the wrapper, mirroring upstream Okapi's
-// raw-markup capture path for paragraphs inside non-extractable
-// complex fields (parseContent → addToMarkup at RunParser.java:501-506
-// preserves the source structure verbatim, including the
-// post-skippable-strip empty `<w:rPr></w:rPr>`). The marker itself is
-// stripped from the wire by postNonWSOForName, so the final emission
-// carries `<w:rPr></w:rPr>` rather than the comment-bearing
-// intermediate. Only the pPr → rPr direct-child relationship is
-// targeted.
-func markPPrInnerRPrKeepEmpty(raw string) string {
-	if !strings.HasPrefix(strings.TrimLeft(raw, " \t\r\n"), "<w:pPr") {
-		return raw
-	}
-	if !strings.Contains(raw, "<w:rPr") {
-		return raw
-	}
-	// Find the FIRST `<w:rPr>` direct child of `<w:pPr>`. The regex
-	// matches the first `<w:rPr>` anywhere; we then verify it sits at
-	// depth 1 inside pPr (i.e. all preceding sibling tags between the
-	// pPr open tag and this rPr have been closed). This admits the
-	// canonical pattern `<w:pPr><w:pStyle/><w:tabs>...</w:tabs><w:rPr>...
-	// </w:rPr></w:pPr>` (e.g. TOC2 paragraph in docxsegtest.docx where
-	// pStyle + tabs precede the field-mark rPr) — not just the simpler
-	// case where rPr is the first pPr child (1083-* fixtures).
-	loc := pprInnerRPrRE.FindStringIndex(raw)
-	if loc == nil {
-		return raw
-	}
-	pprStartEnd := strings.Index(raw, ">")
-	if pprStartEnd < 0 || pprStartEnd >= loc[0] {
-		return raw
-	}
-	between := raw[pprStartEnd+1 : loc[0]]
-	// Walk preceding siblings to confirm depth balance: every <foo>
-	// must be matched by </foo> before the rPr starts. Self-closing
-	// tags `<foo/>` are depth-neutral. If any tag remains open by the
-	// time we reach the rPr, the rPr is nested inside another element
-	// (not a direct pPr child) and we leave the raw alone.
-	depth := 0
-	for i := 0; i < len(between); i++ {
-		c := between[i]
-		if c != '<' {
-			continue
-		}
-		if i+1 < len(between) && between[i+1] == '!' {
-			// Comment — skip to "-->".
-			j := strings.Index(between[i:], "-->")
-			if j < 0 {
-				break
-			}
-			i += j + 2
-			continue
-		}
-		// Find end of tag.
-		end := strings.Index(between[i:], ">")
-		if end < 0 {
-			break
-		}
-		tag := between[i : i+end+1]
-		switch {
-		case strings.HasSuffix(tag, "/>"):
-			// self-closing — depth-neutral
-		case strings.HasPrefix(tag, "</"):
-			depth--
-		default:
-			depth++
-		}
-		i += end
-	}
-	if depth != 0 {
-		return raw
-	}
-	sub := pprInnerRPrRE.FindStringSubmatch(raw[loc[0]:loc[1]])
-	if sub == nil {
-		return raw
-	}
-	children := sub[1]
-	residue := pprInnerRPrSkippableRE.ReplaceAllString(children, "")
-	if strings.TrimSpace(residue) != "" {
-		return raw
-	}
-	matched := raw[loc[0]:loc[1]]
-	var replacement string
-	if strings.HasSuffix(matched, "/>") {
-		replacement = "<w:rPr>" + fieldRPrKeepEmptyMarker + "</w:rPr>"
-	} else {
-		closeTagIdx := strings.LastIndex(matched, "</w:rPr>")
-		if closeTagIdx < 0 {
-			return raw
-		}
-		replacement = matched[:closeTagIdx] + fieldRPrKeepEmptyMarker + matched[closeTagIdx:]
-	}
-	return raw[:loc[0]] + replacement + raw[loc[1]:]
 }
 
 // paragraphHasDeletedMark reports whether the raw `<w:pPr>` payload
