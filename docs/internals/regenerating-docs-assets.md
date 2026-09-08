@@ -171,30 +171,37 @@ echo "live=$live local=$local"
 - bowrain videos carry the **Bowrain** brand lockup (logo + indigo wordmark);
   this is the `brand: bowrain` card brand in `harness/src/remotion/components/Cards.tsx`.
 
-## Desktop/web render reliability (important)
+## Desktop/web render reliability
 
-The framed desktop/web videos embed a Playwright screencast that Remotion's
-OffthreadVideo seeks into per beat. The rust compositor is fragile here:
+The framed desktop/web videos embed a Playwright screencast that the
+composition plays with `<Video>` from `@remotion/media`, which decodes the
+file in the render browser itself. Each scene is premounted a second ahead,
+so a beat's first frame has decoded before it is visible, and the render
+needs no video proxy and no seek workaround. What still matters:
 
 - **Separate capture from render for bowrain.** Capture needs the Docker stack
-  up (server + Playwright). Rendering needs *RAM*: Docker Desktop's VM holds
-  ~15 GB even when containers are only stopped, which starves Remotion's
-  compositor and causes intermittent `Could not extract frame from compositor:
-  Request closed` / `delayRender timeout` failures. Workflow that works:
+  up (server + Playwright). Rendering needs RAM: Docker Desktop's VM holds
+  ~15 GB even when containers are only stopped. Workflow that works:
   1. Stack up, then `--only=capture` every bowrain demo (web + desktop).
   2. **Quit Docker Desktop entirely** (`osascript -e 'quit app "Docker"'`), not
      just `compose stop`, to free the VM RAM. Volumes persist on disk, so the
      seed survives a Docker quit/restart (only `down -v` wipes it).
   3. `--only=narrate,render,publish` every demo from cache.
-- **Render at concurrency 1 for the long/animated demos.** Set
-  `HARNESS_RENDER_CONCURRENCY=1`. Higher values multiply parallel video-proxy
-  seeks and crash the compositor. `render.ts` retries once and caps concurrency
-  (default 4); 1 is the reliable floor for 70 s+ screencasts.
+- The render runs four browser tabs at once by default; on a loaded machine
+  set `HARNESS_RENDER_CONCURRENCY=1`, and `HARNESS_RENDER_TIMEOUT_MS` raises
+  the per-frame budget (default 60 s). A browser that dies mid-render is
+  retried once.
 - The screencast is re-encoded to dense-keyframe VP9 at capture time
-  (`reencodeDenseKeyframes` in `record-desktop.ts`) so seeks decode a short GOP.
+  (`reencodeDenseKeyframes` in `record-desktop.ts`) so any frame decodes from
+  a short GOP.
 - **`--only=capture` skips narration**; always include `narrate` in the render
   pass (`--only=narrate,render,publish`) or the video ships silent with fallback
-  timing.
+  timing. The narrate stage also transcribes the audio into the captions the
+  composition shows, and builds whisper.cpp into `~/.cache/neokapi/harness/`
+  the first time (see the harness README, "Captions").
+- For a desktop demo, narrate before you record: the recorder reads each
+  beat's narration length from `narration.json` and keeps the beat on camera
+  that long, so the picture is about as long as the words over it.
 
 ## Auth / seeding for bowrain captures
 

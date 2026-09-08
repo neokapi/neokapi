@@ -18,6 +18,9 @@ export const mono = loadMono("normal", {
 export const notoJP = loadNotoJP("normal", {
   weights: ["400"],
   subsets: ["japanese"],
+  // The Japanese subset ships as many small unicode-range files; that is the
+  // one weight and one subset already, so the count is expected.
+  ignoreTooManyRequestsWarning: true,
 });
 const sansStack = `${inter.fontFamily}, ${notoJP.fontFamily}, sans-serif`;
 const monoStack = `${mono.fontFamily}, ${notoJP.fontFamily}, monospace`;

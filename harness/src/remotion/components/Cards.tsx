@@ -1,7 +1,17 @@
 import React from "react";
 import { AbsoluteFill, Img, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
 import { theme, KAPI, BOWRAIN } from "./theme.ts";
-import { OUTRO_FS, POINTER_FS, SAFE_X, SAFE_Y, SUBTITLE_FS, TITLE_FS } from "./layout.ts";
+import { OUTRO_FS, POINTER_FS, SAFE_X, SAFE_Y, SUBTITLE_FS, TITLE_FS, sceneLayout } from "./layout.ts";
+
+/**
+ * A card's text centres in the room above the caption band (the narration
+ * runs over the cards too), so a long subtitle never sits under the words
+ * being said.
+ */
+const cardPadding = (): string => {
+  const lay = sceneLayout(false);
+  return `${SAFE_Y}px ${SAFE_X}px ${1080 - lay.stackBottom}px ${SAFE_X}px`;
+};
 
 export type Brand = "claude" | "kapi" | "desktop" | "bowrain";
 
@@ -69,7 +79,7 @@ export const TitleCard: React.FC<{ title: string; subtitle: string; brand?: Bran
         fontFamily: theme.fontSans,
         justifyContent: "center",
         alignItems: "center",
-        padding: `${SAFE_Y}px ${SAFE_X}px`,
+        padding: cardPadding(),
         textAlign: "center",
       }}
     >
@@ -85,13 +95,14 @@ export const TitleCard: React.FC<{ title: string; subtitle: string; brand?: Bran
           letterSpacing: -0.02 * TITLE_FS,
           lineHeight: 1.05,
           maxWidth: 1920 - 2 * SAFE_X,
+          textWrap: "balance",
           opacity: intro,
           translate: `0px ${interpolate(intro, [0, 1], [26, 0])}px`,
         }}
       >
         {title}
       </div>
-      <div style={{ fontSize: SUBTITLE_FS, color: theme.dim, marginTop: 30, maxWidth: 1920 - 2 * SAFE_X, lineHeight: 1.3, opacity: sub }}>{subtitle}</div>
+      <div style={{ fontSize: SUBTITLE_FS, color: theme.dim, marginTop: 30, maxWidth: 1920 - 2 * SAFE_X, lineHeight: 1.3, textWrap: "balance", opacity: sub }}>{subtitle}</div>
     </AbsoluteFill>
   );
 };
@@ -109,7 +120,7 @@ export const OutroCard: React.FC<{ line: string; pointer: string; brand?: Brand 
         fontFamily: theme.fontSans,
         justifyContent: "center",
         alignItems: "center",
-        padding: `${SAFE_Y}px ${SAFE_X}px`,
+        padding: cardPadding(),
         textAlign: "center",
       }}
     >
@@ -120,6 +131,7 @@ export const OutroCard: React.FC<{ line: string; pointer: string; brand?: Brand 
           color: theme.text,
           lineHeight: 1.15,
           maxWidth: 1920 - 2 * SAFE_X,
+          textWrap: "balance",
           opacity: intro,
           translate: `0px ${interpolate(intro, [0, 1], [20, 0])}px`,
         }}
