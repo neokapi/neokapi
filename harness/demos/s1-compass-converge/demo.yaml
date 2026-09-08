@@ -1,0 +1,105 @@
+id: s1-compass-converge
+title: Recycle first, draft the rest
+subtitle: Three languages from one source, and a provider asked only for what is left.
+kind: use-case
+publishAs: multilingual-converge
+# A scripted plain-shell demo: every command is deterministic and offline. The AI
+# leg is the built-in `demo` provider, which needs no key and no network and
+# marks its own output, so a take costs nothing and claims nothing.
+terminal: shell
+brand: kapi
+cwd: ~/compass
+needsAi: false
+# The sandbox IS the Compass sample project, copied from samples/compass so the
+# recording and the sample a reader clones cannot drift apart.
+fixturesFrom: samples/compass
+project: true
+captureTimeoutSec: 240
+aspects:
+  - one point, one more axis
+  - recycle before AI
+  - ship states, not file presence
+outro:
+  line: Let the loop recycle before it drafts.
+  pointer: kapi up
+
+script:
+  - comment: Compass is the product whose interface strings the monolingual sample already governs. One line makes it multilingual.
+  - command: kapi context site/locales/en-GB.json | head -6
+  - comment: Both axes, on one screen. The source gained a Tide window panel last week; no language carries it.
+  - command: kapi status
+  - comment: The deployed page builds its language picker from one file, and kapi writes it. Nothing is offered yet.
+  - command: kapi status --ship --emit site/ship.json
+  - command: cat site/ship.json
+  - comment: One verb. Approved wording is recycled; only what is left reaches a provider.
+  - command: kapi up
+  - comment: Norwegian and German clear the ship gate on drafted work. Dutch parks, because one of its units fails the project's bound checks.
+  - command: kapi status
+  - command: kapi status --ship --emit site/ship.json
+  - command: cat site/ship.json
+
+artifacts:
+  - id: ship
+    caption: "site/ship.json: locale to shippable and verified"
+    source: report
+    report: json
+    path: site/ship.json
+    reportTitle: "kapi status --ship"
+    reportSub: "the whole contract between the loop and the delivery edge"
+    width: 1200
+    height: 900
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      A second language is one more axis on content that is already governed.
+      The loop recycles the wording a project has approved before, and asks a
+      provider only for the rest.
+
+  - id: standing
+    kind: terminal
+    through: 7
+    highlight: { text: ["false"] }
+    caption: Four strings behind, and nothing offered yet.
+    text: >-
+      Both axes on one screen. The source gained a Tide window panel last week,
+      four strings, and no language carries it. That is ordinary work rather
+      than a failure, and it is enough to hold every language behind the ship
+      gate.
+
+  - id: converge
+    kind: terminal
+    through: 9
+    caption: Thirty-seven of thirty-eight came from the project's memory.
+    text: >-
+      One verb converges. Thirty-seven of Norwegian's thirty-eight units come
+      back out of the project's own content memory, and only the remainder
+      reaches a provider, which here is the offline stub that marks everything
+      it writes.
+
+  - id: gated
+    kind: terminal
+    through: 13
+    highlight: { text: [blocked, checks] }
+    caption: Two languages offered. Dutch parks on a failing check.
+    text: >-
+      Norwegian and German clear the ship gate on drafted work. Dutch parks: one
+      of its units fails the checks the project binds, and a locale holding a
+      failing unit is held back until somebody looks. Its drafts are safe in the
+      store; what the gate withholds is delivery.
+
+  - id: ship
+    kind: artifact
+    artifact: ship
+    caption: Two answers per language, and nothing else between them.
+    text: >-
+      This file is the whole contract between the loop and the deployed site.
+      Per language, two independent answers: is it safe to offer at all, and has
+      a person signed off every string in it.
+
+  - id: outro
+    kind: outro
+    text: >-
+      Run the loop on a project that has approved wording already, and watch how
+      little of it reaches a provider at all.

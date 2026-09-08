@@ -1,0 +1,131 @@
+id: s0-northsea-checks
+title: Checks are tests for prose
+subtitle: One repository, one language, and a gate that runs with no server and no model.
+kind: use-case
+publishAs: monolingual-governance
+# A scripted plain-shell demo: every command is deterministic, so it runs for
+# real and its output is recorded exactly. Nothing here reaches a network.
+#
+# Three `kapi check` runs exit 3 on purpose, because a failing gate is the point
+# of those beats. Each declares it with `expectExit: 3`, so a take where the
+# gate silently passed would fail the capture instead of shipping.
+terminal: shell
+brand: kapi
+cwd: ~/northsea
+needsAi: false
+# The sandbox IS the Northsea sample project, copied from samples/northsea so
+# the recording and the sample a reader clones cannot drift apart.
+fixturesFrom: samples/northsea
+project: true
+captureTimeoutSec: 180
+aspects:
+  - offline gates
+  - decisions, not edits
+  - the graph learns
+outro:
+  line: Run the gate over the prose in your repository.
+  pointer: kapi check --strict
+
+# The graph the sample ships is committed here, so the recording starts where a
+# reviewer starts: with the gates, not with the adoption s0-northsea-context
+# already tells.
+setup:
+  - git init -q
+  - git config user.email ops@northsea.example
+  - git config user.name Northsea
+  - git add -A
+  - git commit -qm "Northsea content and its context graph"
+
+script:
+  - comment: A company repository. Operator documentation, interface strings, one marketing page. One language.
+  - command: ls
+  - comment: Run the gates the way you run tests.
+  # The gate must fail here: one major finding is the substance of this beat.
+  - command: kapi check --strict
+    expectExit: 3
+  - comment: The same findings, in the shape CI reads.
+  # Same gate, same exit code: the JSON a reader inspects is the failing run,
+  # not a second run with the gate turned off.
+  - command: kapi check --strict --json > findings.json
+    expectExit: 3
+  - comment: Three of those are wording the source got wrong, so correct the source.
+  - command: ksed -i 's/our seamless integration/our unified integration/' landing/index.html
+  - command: ksed -i 's/Release a mooring earlier/Release a berth earlier/' docs/berths.md
+  - command: ksed -i 's/by ship name/by vessel name/' app/strings.en.json
+  - comment: The reviewer also spots a word the graph has never been told about. Northsea says berth, and the page says dock. That is a decision rather than an edit.
+  - command: echo '{"kind":"term","op":"upsert","term":"dock","locale":"en-GB","status":"forbidden","replacement":"berth"}' > decisions.jsonl
+  - command: kapi apply decisions.jsonl
+  - comment: The graph learned. The next check finds what the last one passed.
+  # And again here: a decision that changed nothing would be no decision at all.
+  - command: kapi check --strict
+    expectExit: 3
+  - command: ksed -i 's/could not dock when the pilot called/could not reach its berth when the pilot called/' landing/index.html
+  - comment: Converge, and read where you stand.
+  - command: kapi up
+  - command: kapi status
+  - command: kapi check --strict
+
+artifacts:
+  - id: findings
+    caption: "kapi check --json: rule, point and replacement, per finding"
+    source: report
+    report: json
+    path: findings.json
+    reportTitle: "kapi check --json"
+    reportSub: "what CI reads on every pull request"
+    width: 1200
+    height: 900
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      Most content work is one language, one repository, and the question of
+      whether the last edit still sounds like the company. Checks answer that
+      the way tests answer for code.
+
+  - id: check
+    kind: terminal
+    through: 6
+    highlight: { text: [MAJOR, MINOR] }
+    caption: One major finding, and the rest advisory.
+    text: >-
+      A banned word on the marketing page is major. A retired term still in the
+      documentation is minor, because retiring a word should never fail
+      somebody's build. Every finding names the rule, the point it is scoped to,
+      and the fix.
+
+  - id: findings
+    kind: artifact
+    artifact: findings
+    caption: The same run, in the shape a pull request reads.
+    text: >-
+      The same findings in machine shape, from the same failing run. Each one
+      carries its rule, the file and block it sits at, and the replacement,
+      which is what a pull-request check and an assistant both read.
+
+  - id: correct
+    kind: terminal
+    through: 13
+    caption: Three corrections, and one decision.
+    text: >-
+      Three of those are simply wrong wording, so the source is corrected. The
+      fourth is different: the reviewer notices a word the graph has never been
+      told about. That is a decision, so it is written down as one entry in the
+      vocabulary the project reads.
+
+  - id: learned
+    kind: terminal
+    through: 20
+    highlight: { text: [dock, berth] }
+    caption: The next run enforces the decision, then goes green.
+    text: >-
+      Run the check again and it finds what the previous run passed. One entry
+      reached both the record and the gate. Fix the last one, converge, and the
+      project is green on one language, with no server and no credential.
+
+  - id: outro
+    kind: outro
+    text: >-
+      Point the same gate at the prose in your repository. Exit three is the
+      finding list, and it runs offline.
