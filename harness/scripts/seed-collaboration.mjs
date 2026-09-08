@@ -123,7 +123,7 @@ async function main() {
   // Unique workspace so re-runs are clean.
   const stamp = Math.floor(Date.now() / 1000) % 100000;
   const slug = `collab-${stamp}`;
-  const ws = await jpost("/workspaces", { name: `Acme Localization ${stamp}`, slug });
+  const ws = await jpost("/workspaces", { name: `Acme ${stamp}`, slug });
   const wsSlug = ws.slug || slug;
 
   // A project with a real HTML file so the Translate editor renders genuine

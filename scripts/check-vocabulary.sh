@@ -283,6 +283,7 @@ readonly IDENT_SURFACES=(
   web/docusaurus.config.ts
   docs/internals
   harness/src
+  harness/scripts
   scripts
 )
 
@@ -291,6 +292,7 @@ readonly IDENT_SURFACES=(
 # visible, not silently absent, or a green check reads as "all prose is clean"
 # when it means "the prose we swept is clean".
 readonly PENDING_SURFACES=(
+  "harness/demos (vocabulary): demo ids (01-localize-landing-page) and scene ids (termbases, glossary) are identifiers the recorder beats and the generated demo.<lang>.yaml sidecars key on; renaming them orphans the sidecar translations, so the sweep waits for a rename that moves the sidecars with it."
   "cli/skills (vocabulary) — the i18n playbooks name third-party libraries (@angular/localize, expo-localization) and the eval table quotes user prompts verbatim, and the skill description is intent-matching vocabulary: it must contain the words a user types. No sweep is scheduled; deciding what a matching surface owes the vocabulary rule comes first."
 )
 

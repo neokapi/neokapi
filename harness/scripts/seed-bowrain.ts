@@ -216,7 +216,7 @@ async function ensureWorkspace(token: string): Promise<string> {
   }
   const ws = await jpost<Workspace>(
     "/workspaces",
-    { name: "BowMart Localization", slug: SLUG },
+    { name: "BowMart", slug: SLUG },
     token,
   );
   console.log(`  · created workspace ${SLUG}`);
