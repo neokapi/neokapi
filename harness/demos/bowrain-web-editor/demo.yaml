@@ -72,8 +72,11 @@ narration:
     beat: locale
     caption: The same file, the next language.
     hold: 11
-    crop: { selector: '[data-testid="locale-selector"]' }
-    zoom: 1.6
+    crop:
+      selector:
+        - '[data-testid="locale-selector"]'
+        - '[data-testid="visual-editor-card"]'
+    zoom: 1.4
     text: >-
       One editor serves every target language. Switch from French to German and
       the card, the memory matches and the preview all follow, without leaving

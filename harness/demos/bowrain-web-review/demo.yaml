@@ -86,8 +86,11 @@ narration:
     beat: second-reviewer
     caption: A colleague decides it, and the count drops.
     hold: 13
-    crop: { selector: '[data-testid="review-pending-count"]' }
-    zoom: 2
+    crop:
+      selector:
+        - '[data-testid="review-pending-count"]'
+        - '[data-testid="review-queue"]'
+    zoom: 1.5
     text: >-
       A colleague who holds review permission for that language decides it
       instead, and the pending count drops. Two people, one record, and a rule

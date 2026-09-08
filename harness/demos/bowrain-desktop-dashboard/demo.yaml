@@ -53,22 +53,28 @@ narration:
     beat: offline
     caption: Offline, with edits waiting to be sent.
     hold: 22
-    crop: { selector: '[data-testid="offline-pending"]' }
-    zoom: 2.4
+    crop:
+      selector:
+        - '[data-testid="offline-pending"]'
+        - '[data-testid="visual-editor-card"]'
+    zoom: 1.4
     highlight: { selector: '[data-testid="offline-pending"]' }
     text: >-
-      Now the connection goes. The app does not stop and it does not ask you to
-      wait: the edits keep landing in a local outbox, and the chrome says how
-      many are queued. This is a train, a hotel, or a conference network, and it
-      is the hour a browser tab gives you nothing.
+      Now the connection goes. Translating carries on: the edits land in a
+      local outbox instead of on the server, and the chrome counts what is
+      waiting. On a train, or on a conference network, this is the hour a
+      browser tab gives you nothing.
 
   - id: replayed
     kind: desktop
     beat: replayed
     caption: Reconnected, and the queue drained itself.
     hold: 15
-    crop: { selector: '[data-testid="connection-status"]' }
-    zoom: 2.4
+    crop:
+      selector:
+        - '[data-testid="connection-status"]'
+        - '[data-testid="visual-editor-card"]'
+    zoom: 1.4
     text: >-
       When the connection returns the queue replays in order, on its own. There
       is nothing to retry by hand, nothing typed offline is lost, and the
