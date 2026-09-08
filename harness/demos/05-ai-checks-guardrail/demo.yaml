@@ -1,7 +1,6 @@
 id: 05-ai-checks-guardrail
-title: Check AI output like you test code
-subtitle: An AI translated the app into German. kapi check reads the translation against the source and reports exactly what would break in production.
-tagline: deterministic checks that gate a bad translation before it ships.
+title: Two things would break in production
+subtitle: A dropped placeholder and a translated product name, found the way a test finds them.
 kind: use-case
 publishAs: kapi-checks-guardrail
 # A scripted plain-shell demo (no Claude): the checks are deterministic, so the
@@ -16,48 +15,74 @@ aspects:
   - do-not-translate
   - placeholder integrity
   - gate in CI
+outro:
+  line: Add the gate to your CI job.
+  pointer: kapi check --ship
 
-# --no-fail keeps the demo's exit code clean while still printing the FAIL
-# verdict and the findings; with the gate on (no --no-fail) the same check exits
-# non-zero and blocks a merge.
+# The gate is on: the first check exits 3 on camera, which is what a merge is
+# held to. `expectExit: 3` binds it both ways, so a take where the gate passed
+# would fail the capture instead of shipping. stderr is dropped from both runs
+# so the recorded output is the findings table and the verdict, nothing else.
 script:
   - comment: An AI translated app.json into German. Is it safe to ship?
   - command: cat app.de.json
   - comment: Check the translation against the source, the way you run tests.
-  - command: kapi check app.json --target app.de.json --target-lang de --dnt "Acme Cloud" --no-fail 2>/dev/null
+  - command: kapi check app.json --target app.de.json --target-lang de --dnt "Acme Cloud" 2>/dev/null
+    expectExit: 3
   - comment: "Two real breakages: a dropped placeholder and a translated product name. Apply the fixes."
   - command: cp -f app.de.fixed.json app.de.json && cat app.de.json
   - comment: Run the same check again.
-  - command: kapi check app.json --target app.de.json --target-lang de --dnt "Acme Cloud" --no-fail 2>/dev/null
+  - command: kapi check app.json --target app.de.json --target-lang de --dnt "Acme Cloud" 2>/dev/null
 
 narration:
   - id: title
     kind: title
-    text: >
-      An AI translated this app into German. Most of it is fine. Two things would
-      break in production: a placeholder was dropped, and the product name was
-      translated.
+    text: >-
+      An AI translated this app into German. Most of it is fine. Two things
+      would break in production: a dropped placeholder, and a product name that
+      was translated.
+
+  - id: german
+    kind: terminal
+    through: 2
+    caption: Forty strings back from a model. Which two are wrong?
+    text: >-
+      Here is what came back. Nothing on the surface of the file says which
+      entries are the dangerous ones, and reading forty strings in a language
+      you do not speak is not a review.
+
   - id: check
     kind: terminal
-    text: >
+    through: 4
+    highlight: { text: [CRITICAL, MAJOR] }
+    caption: The gate fails, and names both findings.
+    text: >-
       kapi check reads the German against the English and runs the rules the way
-      tests run: do-not-translate, placeholder integrity, terminology. It reports
-      exactly what broke. The count placeholder is missing, and Acme Cloud was
-      translated.
-    caption: "kapi check reports the do-not-translate and placeholder findings"
+      tests run: do-not-translate, placeholder integrity, terminology. The count
+      placeholder is missing, the product name was translated, and the command
+      exits three.
+
   - id: fix
     kind: terminal
-    text: >
-      We apply the two corrections, restoring the placeholder and keeping the
-      product name verbatim, then run the very same check again.
-    caption: "apply the fixes, re-run the check"
+    through: 6
+    caption: Two lines, and nothing else in the file moves.
+    text: >-
+      Two corrections put both back. The placeholder returns to the string it
+      belongs in, and the product name keeps the spelling the company ships it
+      under.
+
   - id: pass
     kind: terminal
-    text: >
-      Now it passes. With the gate on, this is what stops a bad translation from
-      shipping, in continuous integration or inside an assistant's fix-loop.
+    through: 8
+    highlight: { text: [PASS] }
+    caption: Green, from the same command and the same rules.
+    text: >-
+      The same check again, and it passes. The command did not change, the rules
+      did not change, and the only thing that moved was the text, which is what
+      makes this safe to run on every commit.
+
   - id: outro
     kind: outro
-    text: >
-      Checks that keep AI output in line, the way tests keep code in line:
-      deterministic, multilingual, and run on every change.
+    text: >-
+      Put the gate in your continuous integration job. Exit three stops the
+      merge, the way a failing test does.

@@ -1,6 +1,6 @@
 id: 02-nextjs-zero-to-i18n
-title: Zero to Japanese in a Next.js app
-subtitle: A working English Next.js app. Claude wires up neokapi-i18n and ships it in Japanese, with the same UI.
+title: The same JSX, now in Japanese
+subtitle: One import, one catalog, and the components stay as they were written.
 kind: framework
 publishAs: claude-app-i18n
 aspects:
@@ -11,6 +11,9 @@ aspects:
 needsAi: true
 model: sonnet
 captureTimeoutSec: 480
+outro:
+  line: Add it to your app, then ask for a language.
+  pointer: npm install -D @neokapi/i18n-react
 
 # A complete English app with base deps installed, but neokapi-i18n is NOT installed
 # or wired, so Claude adopts it. @neokapi/i18n-react is served from a local registry
@@ -24,16 +27,6 @@ prompt: >
   translation?
 
 artifacts:
-  - id: english
-    caption: "The app today, in English"
-    source: url
-    serve: "npm run dev -- -p 4599"
-    port: 4599
-    path: "/"
-    settleMs: 1000
-    serveTimeoutMs: 220000
-    width: 1200
-    height: 820
   - id: source
     caption: "Before and after: the same JSX, with an import added and only the data strings wrapped"
     source: codediff
@@ -56,50 +49,48 @@ artifacts:
 narration:
   - id: title
     kind: title
-    text: >
-      A working Next.js notes app, in English, not wired up for translation yet. The task:
-      ship it in Japanese.
-  - id: prompt
-    kind: prompt
-    text: >
-      The developer just asks Claude to set up neokapi-i18n and add Japanese, with no
-      mention of extraction, catalogs, or placeholders.
-  - id: work
-    kind: terminal
-    text: >
-      Claude wires up the neokapi-i18n stack, which leaves the UI as plain JSX, and pulls
-      every translatable string out of the components into a catalog. It's a structured step
-      the project re-runs whenever the interface changes.
-    caption: "Claude adopts neokapi-i18n and extracts the UI strings from the JSX"
-  - id: translate
-    kind: terminal
-    text: >
-      A pseudo-translation is the pre-flight check that the app is ready to carry another
-      language. Then kapi translate produces the Japanese, keeping the name placeholder exactly
-      where the code expects it, and the strings compile into a dictionary the app loads at
-      runtime.
-    caption: "Pseudo-translate for readiness, then translate to Japanese and compile"
-  - id: english
-    kind: artifact
-    artifact: english
-    text: >
-      Here's the app as it ships today: the real interface, in English.
+    text: >-
+      A React app can ship in a second language with its JSX left as it was
+      written. Watch Claude add Japanese to a Next.js app: one import, one
+      catalog, and the same components.
+
   - id: source
     kind: artifact
     artifact: source
-    text: >
-      Here's the source, before and after. It's the same ordinary JSX. neokapi-i18n adds one
-      import and wraps only the handful of strings that live in data rather than markup. No
-      message IDs, no rewrites; the text in the markup is what kapi extracts and translates.
+    caption: One import added. The markup text is untouched.
+    text: >-
+      This is the whole change to the source. One import, and a wrapper on the
+      handful of strings that live in data rather than in markup. Everything a
+      reader sees stays plain JSX, which is what the build extracts.
+
+  - id: work
+    kind: terminal
+    caption: The strings leave the components as a catalog.
+    text: >-
+      Claude installs the package, wires the build plugin, and runs the extract.
+      Every translatable string in the interface lands in a catalog keyed by the
+      English text, so the components need no message identifiers.
+
+  - id: translate
+    kind: terminal
+    caption: Pseudo first, then Japanese, then compiled.
+    text: >-
+      A pseudo-translation runs first and answers whether the app survives longer
+      text and reordered placeholders. Then kapi translates the catalog into
+      Japanese, keeping the name placeholder where the code expects it, and
+      compiles it into the dictionary the app loads.
+
   - id: japanese
     kind: artifact
     artifact: japanese
-    text: >
-      And the same app, now in Japanese. Here the translation is machine output, unreviewed.
-      In a kapi project the same strings would flow toward a ship gate, with checks after
-      every pass and a review worklist for what needs a person.
+    caption: Japanese, on the layout that was already there.
+    text: >-
+      And the app in Japanese. The layout is the one the components describe,
+      and the machine output here has had no person read it, which in a project
+      is what the review queue is for.
+
   - id: outro
     kind: outro
-    text: >
-      From a working English app to one that speaks Japanese, on one ordinary request. kapi
-      pulled the content out of the code and round-tripped the translation back.
+    text: >-
+      Install the package in your own app, run the extract once, then ask for
+      the language you need.

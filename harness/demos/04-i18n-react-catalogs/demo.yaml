@@ -1,6 +1,6 @@
 id: 04-i18n-react-catalogs
-title: Add French and German to a React app
-subtitle: An existing react-i18next project, and a request for two more languages.
+title: Two more languages in the folder you already have
+subtitle: A react-i18next catalog gains French and German, placeholders intact.
 kind: framework
 aspects:
   - i18n setup
@@ -9,6 +9,9 @@ aspects:
 needsAi: true
 model: sonnet
 captureTimeoutSec: 360
+outro:
+  line: Point kapi at the catalog you already have.
+  pointer: kapi translate --target-lang fr
 
 prompt: >
   This is a React app that uses react-i18next, with its English strings in
@@ -24,50 +27,63 @@ artifacts:
     path: public/locales/fr/translation.json
     width: 1120
     height: 720
-  - id: de
-    caption: "public/locales/de/translation.json"
-    source: report
-    report: catalog
-    reportTitle: "public/locales/de/translation.json"
-    reportSub: "kapi · the same catalog, in German"
-    path: public/locales/de/translation.json
+  - id: checks
+    caption: "kapi check over the French catalog"
+    source: command
+    command: kapi check public/locales/en/translation.json --target public/locales/fr/translation.json --target-lang fr --json
+    report: json
+    reportTitle: "kapi check --json"
+    reportSub: "every placeholder and plural key, read against the English"
     width: 1120
-    height: 720
+    height: 760
 
 narration:
   - id: title
     kind: title
-    text: >
-      Most apps already have an i18n setup: message catalogs in a folder, waiting to be
-      filled. This one uses react-i18next, and needs two more languages.
-  - id: prompt
-    kind: prompt
-    text: >
-      The request names the framework and points at the English catalog. It doesn't say
-      where the French and German files go, or how to keep the placeholders intact.
-  - id: work
+    text: >-
+      Most apps already own a catalog folder. The work is filling it without
+      breaking a placeholder or a plural, and that is the part a checker can
+      answer for you.
+
+  - id: preflight
     kind: terminal
-    text: >
-      Claude checks how kapi expects react-i18next catalogs to be laid out, runs a
-      pseudo-translation pass to confirm the English file is ready, then runs kapi translate
-      for French and for German. Because kapi understands the i18next format, the
-      interpolation placeholders and the plural keys are carried through unchanged, and the
-      built-in checks verify they survived.
-    caption: "Claude confirms the layout, checks readiness, then translates fr and de"
+    caption: The pre-flight answers whether the English is ready.
+    highlight: pseudo
+    text: >-
+      Claude runs a pseudo-translation first. It expands every English string
+      and reorders nothing else, so a placeholder the catalog spells wrongly or
+      a plural key the framework will not accept shows up here, before a
+      provider is paid for anything.
+
+  - id: translate
+    kind: terminal
+    caption: French and German, from the format kapi read.
+    text: >-
+      Then the translation runs for both languages. kapi reads the file as an
+      i18next catalog rather than as JSON, so the interpolation placeholders and
+      the plural suffixes are structure it carries rather than text it can
+      rewrite.
+
   - id: fr
     kind: artifact
     artifact: fr
-    text: >
-      The French catalog. The name and count placeholders sit where the code expects them,
-      the plural keys are intact, and the values are translated.
-  - id: de
+    caption: The keys are the English text. Nothing in the code moves.
+    text: >-
+      Here is the French. The name and count placeholders sit where the code
+      expects them, the plural keys are complete, and the key of every entry is
+      still the English sentence.
+
+  - id: checks
     kind: artifact
-    artifact: de
-    text: >
-      And German, from the same run. Adding another language is the same request again; the
-      English source text stays the key, so nothing else in the code has to move.
+    artifact: checks
+    caption: Placeholders and plurals, verified against the source.
+    text: >-
+      And this is the check that says so, run over the pair. It reads the French
+      against the English and reports on every placeholder and every plural
+      form, which is the answer you want before a release rather than after one.
+
   - id: outro
     kind: outro
-    text: >
-      No new framework and no message IDs. kapi reads and writes the catalog format the
-      project already uses.
+    text: >-
+      Run the same command against the catalog your app already ships, and add
+      the next language the same way.

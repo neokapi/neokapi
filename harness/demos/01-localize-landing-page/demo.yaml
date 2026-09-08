@@ -1,6 +1,6 @@
 id: 01-localize-landing-page
-title: Translate a landing page to French
-subtitle: A plain request to translate this page, and the kapi skill drives the rest, keeping the HTML intact.
+title: A page translated, not rebuilt
+subtitle: One request in Claude Code, and the markup comes back untouched.
 kind: zero-to-hero
 aspects:
   - AI translation
@@ -9,6 +9,9 @@ aspects:
 needsAi: true
 model: sonnet
 captureTimeoutSec: 300
+outro:
+  line: Install the skill, then ask in plain English.
+  pointer: /plugin install kapi@neokapi-plugins
 
 prompt: >
   We're launching Lumen Notes in France next week. Can you translate our landing page,
@@ -31,35 +34,48 @@ artifacts:
 narration:
   - id: title
     kind: title
-    text: >
-      This is Claude Code with the kapi skill installed. The task is a translation job a
-      developer might hand off any week: take a landing page, and produce a French version.
-  - id: prompt
-    kind: prompt
-    text: >
-      Here is the whole request. It names the file and the language and where to save the
-      result. It says nothing about formats, parsing, or which command to run.
-  - id: work
-    kind: terminal
-    text: >
-      Claude reads the page, recognises a translation task, and calls kapi translate. kapi
-      parses the HTML, separates the readable text from the markup, reuses the content memory it
-      holds, sends the rest to the configured AI provider, and runs deterministic
-      checks over the result before writing it back into the same structure.
-    caption: "Claude calls kapi translate; the text round-trips back into the HTML"
+    text: >-
+      Hand a landing page to Claude Code and ask for it in French. With the kapi
+      skill installed, the assistant reaches for a format-aware translate, and
+      the HTML comes back intact.
+
   - id: before
     kind: artifact
     artifact: before
-    text: >
-      This is the original page: a hero, a call to action, and three feature cards, in English.
+    caption: A hero, a call to action, three cards. All of it markup.
+    text: >-
+      Here is the page today. A hero, a call to action, three feature cards, and
+      around every sentence the classes and links that make it a page rather
+      than a document.
+
+  - id: recognise
+    kind: terminal
+    caption: The skill answers the request, and one kapi call follows.
+    highlight: { text: [Skill, kapi translate] }
+    text: >-
+      Claude reads the request, recognises a translation job, and loads the kapi
+      skill before it runs anything. The call it makes names the file and the
+      target language, and nothing else.
+
+  - id: round-trip
+    kind: terminal
+    caption: Text out, translated, and back into the same tags.
+    text: >-
+      kapi separates the readable text from the markup, reuses the wording this
+      project has already approved, sends the remainder to the configured
+      provider, and runs its checks before writing the result back into the same
+      structure.
+
   - id: after
     kind: artifact
     artifact: after
-    text: >
-      And the French version kapi produced. The structure, classes, and styling are the
-      same; only the text the visitor reads has changed.
+    caption: Same classes, same layout. Only the words changed.
+    text: >-
+      And the French page. The classes, the layout and the links are the ones
+      that were there before. What changed is the text a visitor reads.
+
   - id: outro
     kind: outro
-    text: >
-      kapi reads and writes the format. The skill is what let Claude reach for it from a
-      one-line request, without being told how.
+    text: >-
+      Install the skill in Claude Code, then ask for a page in another language
+      the way this request did.

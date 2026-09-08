@@ -338,7 +338,7 @@ And one terminal beat of a scripted shell demo:
   - id: check
     kind: terminal
     through: 4
-    highlight: [CRITICAL, WARNING]
+    highlight: { text: [CRITICAL, WARNING] }
     caption: Two findings, one of them blocking.
     text: >-
       kapi check reads the German against the English ...
