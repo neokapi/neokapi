@@ -497,6 +497,13 @@ async function startBowrainStack(): Promise<{ url: string; teardown: () => Promi
     env: goEnv(),
   });
   await assertPortFree(BW_WBRIDGE_PORT, "bowrain wbridge");
+  // Keep the backend's own log. The offline walk turns on what the reconnect
+  // loop and the outbox replay do, and with the backend's stdio discarded a
+  // walk that timed out waiting for the queue to drain said only that the
+  // indicator was still on screen.
+  const bridgeLog = path.join(BW_ISO, "wbridge.log");
+  fs.mkdirSync(path.dirname(bridgeLog), { recursive: true });
+  const bridgeLogFd = fs.openSync(bridgeLog, "a");
   const bridge = spawn(bridgeBin, [], {
     env: goEnv({
       BOWRAIN_DESKTOP_CONFIG_DIR: BW_ISO,
@@ -505,8 +512,9 @@ async function startBowrainStack(): Promise<{ url: string; teardown: () => Promi
       WBRIDGE_PORT: String(BW_WBRIDGE_PORT),
       KAPI_PLUGIN_DIR: path.join(BW_ISO, "plugins"),
     }),
-    stdio: "ignore",
+    stdio: ["ignore", bridgeLogFd, bridgeLogFd],
   });
+  console.log(`  · bowrain desktop backend log: ${bridgeLog}`);
   await waitPort(BW_WBRIDGE_PORT, 60_000);
 
   // Prime the server connection: the first GetConnectionState triggers the
@@ -1764,11 +1772,27 @@ async function bowrainDesktopAutomationsWalk(c: WalkCtx): Promise<void> {
     await page.waitForTimeout(1200);
     await cursorTo('[data-testid="run-now-btn"]');
     await humanClick(page, page.getByTestId("run-now-btn"));
-    await page.waitForSelector('[role="dialog"]', { timeout: 20_000 });
+    const dialog = page.locator('[role="dialog"]');
+    await dialog.waitFor({ timeout: 20_000 });
     await page.waitForTimeout(1600);
-    const start = page.getByRole("button", { name: /Translate all now/i }).first();
-    if (await start.count()) await humanClick(page, start);
-    else await page.keyboard.press("Escape").catch(() => {});
+    // Every scope in the dialog starts a real run, and which ones it offers
+    // depends on the project's pending work: with nothing pending it drops the
+    // two translate scopes and leaves transport. Take the widest one on offer
+    // and wait for it to be enabled, because clicking a disabled button is
+    // silent and the row the narration promises would never arrive.
+    const scopes = [/Translate all now/i, /Translate ready source only/i, /Transport only/i];
+    let started = false;
+    for (const name of scopes) {
+      const btn = dialog.getByRole("button", { name }).first();
+      if ((await btn.count()) === 0) continue;
+      if (await btn.isDisabled().catch(() => true)) continue;
+      await humanClick(page, btn);
+      started = true;
+      break;
+    }
+    if (!started) {
+      throw new Error(`bowrain-desktop-automations: the Run now dialog offered no scope to start. It read:\n${(await dialog.innerText().catch(() => "")).slice(0, 600)}`);
+    }
     await page.waitForSelector('[data-testid="run-row"]', { timeout: 30_000 });
     await page.waitForTimeout(2400);
   });
