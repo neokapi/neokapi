@@ -215,7 +215,7 @@ func parseExamples(example string) []string {
 		return nil
 	}
 	var out []string
-	for _, line := range strings.Split(example, "\n") {
+	for line := range strings.SplitSeq(example, "\n") {
 		trimmed := strings.TrimSpace(line)
 		if trimmed != "" {
 			out = append(out, trimmed)

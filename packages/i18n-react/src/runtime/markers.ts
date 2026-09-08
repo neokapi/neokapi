@@ -109,7 +109,7 @@ export function protectionMask(
   const openOfClose = new Map<number, number>();
   for (const [open, close] of closeOf) openOfClose.set(close, open);
 
-  const mask = new Array<boolean>(text.length).fill(false);
+  const mask: boolean[] = Array.from({ length: text.length }, () => false);
   const stack: boolean[] = [];
   const current = () => (stack.length > 0 ? stack[stack.length - 1] : false);
   let cursor = 0;

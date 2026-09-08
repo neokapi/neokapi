@@ -79,7 +79,7 @@ export interface BuildRunsOptions {
    * string and a base-offset converter, so the slicing lives up
    * there and runs.ts stays source-string-free.
    */
-  sourceSlice(start: number, end: number): string;
+  sourceSlice: (start: number, end: number) => string;
 }
 
 /**

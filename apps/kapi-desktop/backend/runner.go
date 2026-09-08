@@ -309,8 +309,7 @@ func (a *App) executeFlowRun(ctx context.Context, op *openProject, flowName stri
 // credential guidance); file failures already carry the historical
 // "<file> [<lang>]: <cause>" text on the typed error.
 func runErrorMessage(err error) string {
-	var tb *host.FlowToolBuildError
-	if errors.As(err, &tb) {
+	if tb, ok := errors.AsType[*host.FlowToolBuildError](err); ok {
 		return toolBuildErrorMessage(tb.Tool, tb.Locale, tb.Err)
 	}
 	return err.Error()
@@ -321,8 +320,7 @@ func runErrorMessage(err error) string {
 // resolver's Error() carries the CLI's "--credential" hint, which is meaningless
 // in the desktop, so we catch the typed error and point at the in-app fixes.
 func toolBuildErrorMessage(toolName, lang string, err error) string {
-	var amb *credentials.AmbiguousCredentialError
-	if errors.As(err, &amb) {
+	if amb, ok := errors.AsType[*credentials.AmbiguousCredentialError](err); ok {
 		return fmt.Sprintf(
 			"%s: multiple AI credentials are configured (%s). Set a default in Settings → AI Models, or choose one on this flow step.",
 			toolName, strings.Join(amb.Candidates, ", "),

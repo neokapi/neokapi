@@ -134,7 +134,7 @@ export class ReviewStore {
         if (!trimmed.startsWith("{")) continue;
         const rec = JSON.parse(trimmed) as Record<string, unknown>;
         if (rec.type === "header") {
-          annotationType = String(rec.annotationType ?? "unknown");
+          annotationType = typeof rec.annotationType === "string" ? rec.annotationType : "unknown";
           continue;
         }
         if (rec.type !== "annotation") continue;

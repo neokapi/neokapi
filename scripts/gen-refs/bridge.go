@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -90,8 +91,8 @@ func collectBridge(pluginDir string) (formats, tools []Entry, err error) {
 			e.Kind = KindFormat
 			e.Extensions = cap.Extensions
 			e.MimeTypes = cap.MimeTypes
-			e.HasReader = sliceContains(cap.Capabilities, "read")
-			e.HasWriter = sliceContains(cap.Capabilities, "write")
+			e.HasReader = slices.Contains(cap.Capabilities, "read")
+			e.HasWriter = slices.Contains(cap.Capabilities, "write")
 			e.Presets = readBridgePresets(pluginDir, cap.PresetsDir)
 		case "tool":
 			e.Kind = KindTool
@@ -218,13 +219,4 @@ func firstNonEmpty(vals ...string) string {
 		}
 	}
 	return ""
-}
-
-func sliceContains(s []string, v string) bool {
-	for _, x := range s {
-		if x == v {
-			return true
-		}
-	}
-	return false
 }

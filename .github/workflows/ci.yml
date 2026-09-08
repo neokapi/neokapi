@@ -959,7 +959,7 @@ jobs:
       - name: Download modules
         uses: ./.github/actions/go-mod-download
         with:
-          modules: ". host cli kapi"
+          modules: ". host cli kapi scripts/gen-refs"
 
       # golangci-lint compiles the module, and core/i18n / host/i18n resolve
       # `//go:embed catalogs/*.mo` against build output — the repository carries
@@ -986,6 +986,14 @@ jobs:
         uses: ./.github/actions/golangci
         with:
           working-directory: kapi
+
+      # gen-refs writes the committed reference dataset the docs site and the
+      # drift gate read, and it links the framework and cli modules. A
+      # deprecation or a modernize finding lands there like anywhere else.
+      - name: Lint gen-refs
+        uses: ./.github/actions/golangci
+        with:
+          working-directory: scripts/gen-refs
 
   lint-platform:
     name: Lint (platform)

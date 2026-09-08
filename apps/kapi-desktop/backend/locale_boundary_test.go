@@ -19,7 +19,7 @@ func TestCanonicalLocaleNormalizesAndRefuses(t *testing.T) {
 	assert.Equal(t, "nb-NO", string(loc))
 
 	_, err = canonicalLocale("not a locale at all")
-	assert.Error(t, err, "a string that is not a locale is refused, not carried")
+	require.Error(t, err, "a string that is not a locale is refused, not carried")
 
 	// An unscoped question is a real question: an empty locale answers empty
 	// rather than failing.
@@ -83,7 +83,7 @@ func TestRunChecksCanonicalizesFilterLanguages(t *testing.T) {
 	require.NoError(t, err)
 	canonical, err := app.RunChecks(tab.ID, ProjectFilter{Languages: []string{"nb-NO"}})
 	require.NoError(t, err)
-	assert.Equal(t, len(canonical.Files), len(posix.Files),
+	assert.Len(t, posix.Files, len(canonical.Files),
 		"the two spellings check the same files")
 
 	_, err = app.RunChecks(tab.ID, ProjectFilter{Languages: []string{"!!!"}})

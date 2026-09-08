@@ -442,7 +442,8 @@ export function __tx(
   const parts = render(0, text.length, 0, tokens.length - 1);
 
   if (!sawElement) {
-    return parts.join("");
+    // Nothing was bound, so every part came from a text slice.
+    return parts.filter((part) => typeof part === "string").join("");
   }
 
   // A message that resolves to one element and nothing else returns

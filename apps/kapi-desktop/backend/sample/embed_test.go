@@ -147,7 +147,7 @@ func TestScaffoldShipsTheUnitStateLedger(t *testing.T) {
 	for _, shard := range shards {
 		data, rerr := os.ReadFile(shard)
 		require.NoError(t, rerr)
-		for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
+		for line := range strings.SplitSeq(strings.TrimSpace(string(data)), "\n") {
 			if line == "" {
 				continue
 			}
@@ -181,7 +181,7 @@ func TestScaffoldLeavesTheMessageCatalogueUnreviewed(t *testing.T) {
 	for _, shard := range shards {
 		data, rerr := os.ReadFile(shard)
 		require.NoError(t, rerr)
-		for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
+		for line := range strings.SplitSeq(strings.TrimSpace(string(data)), "\n") {
 			if line == "" {
 				continue
 			}
@@ -201,7 +201,7 @@ func TestScaffoldLeavesTheMessageCatalogueUnreviewed(t *testing.T) {
 	catalogue, err := os.ReadFile(filepath.Join(dir, "src", "de", "error-messages.properties"))
 	require.NoError(t, err)
 	var keys int
-	for _, line := range strings.Split(strings.TrimSpace(string(catalogue)), "\n") {
+	for line := range strings.SplitSeq(strings.TrimSpace(string(catalogue)), "\n") {
 		key, _, ok := strings.Cut(line, "=")
 		if !ok {
 			continue

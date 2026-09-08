@@ -83,9 +83,9 @@ func TestRecipeGovernanceRejectsAnUnknownTab(t *testing.T) {
 }
 
 func TestDeclarableAxisIsTheOneRefusal(t *testing.T) {
-	assert.NoError(t, project.DeclarableAxis(project.BrandAxis))
-	assert.NoError(t, project.DeclarableAxis(project.ModeAxis))
-	assert.Error(t, project.DeclarableAxis(""))
-	assert.Error(t, project.DeclarableAxis(project.ProductAxis))
-	assert.Error(t, project.DeclarableAxis(project.ChannelAxis))
+	require.NoError(t, project.DeclarableAxis(project.BrandAxis))
+	require.NoError(t, project.DeclarableAxis(project.ModeAxis))
+	require.Error(t, project.DeclarableAxis(""))
+	require.Error(t, project.DeclarableAxis(project.ProductAxis))
+	require.Error(t, project.DeclarableAxis(project.ChannelAxis))
 }

@@ -46,7 +46,7 @@ func TestRecipeBindsTheCommittedContext(t *testing.T) {
 
 	for _, bound := range []string{proj.Defaults.TermsSource, proj.Defaults.MemorySource} {
 		_, err := os.Stat(filepath.Join(dir, filepath.FromSlash(bound)))
-		assert.NoError(t, err, "recipe binds %q, which must exist on disk", bound)
+		require.NoError(t, err, "recipe binds %q, which must exist on disk", bound)
 	}
 
 	require.NotNil(t, proj.Defaults.Voice, "recipe must bind a voice profile")
@@ -73,7 +73,7 @@ func TestSampleResolvesSeveralGovernedPoints(t *testing.T) {
 	// A declared axis only: the structural axes are derived from a collection's
 	// channel, and the setter refuses them here.
 	for axis := range proj.Defaults.Coordinates {
-		assert.NoError(t, project.DeclarableAxis(axis),
+		require.NoError(t, project.DeclarableAxis(axis),
 			"defaults.coordinates must not name a derived axis")
 	}
 

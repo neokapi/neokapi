@@ -238,7 +238,9 @@ export function TermsPage({
                   />
                   <YAxis width={40} className="text-[10px]" />
                   <Tooltip
-                    labelFormatter={(v) => new Date(String(v)).toLocaleDateString()}
+                    labelFormatter={(v: unknown) =>
+                      typeof v === "string" ? new Date(v).toLocaleDateString() : ""
+                    }
                     formatter={(v) => [`${String(v)} concepts`, "Concepts"]}
                   />
                   <Area
