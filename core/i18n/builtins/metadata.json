@@ -1801,7 +1801,8 @@
       "displayName": "Kapi Bundle Format (KBF)",
       "family": "rich-markup",
       "extensions": [
-        ".kbf.json"
+        ".kbf.json",
+        ".klf"
       ],
       "mimeTypes": [
         "application/vnd.neokapi.kbf+json"

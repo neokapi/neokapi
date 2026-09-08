@@ -31,8 +31,22 @@ const (
 
 const SchemaVersion = "1.0"
 
-// Kind is the magic string on the root of a .kbf.json document.
+// Kind is the magic string on the root of a .kbf.json document, and the only
+// one [Marshal] writes.
 const Kind = "kapi-bundle"
+
+// KindI18nReact is the root kind stamped by @neokapi/i18n-react 1.2.3, the
+// build on npm that `npm install -D @neokapi/i18n-react` served before the
+// bundle format took its current name. A catalog it extracted is a current
+// bundle in every other byte, and a reader that refuses the string refuses the
+// file: `kapi pseudo-translate i18n/` on a tree that package wrote fails on
+// the envelope check with the content sitting right there. Whoever installed
+// 1.2.3 has such files on disk, so [Unmarshal] and the format sniffer take
+// them and the writer restamps them as [Kind].
+const KindI18nReact = "kapi-localization-format"
+
+// ReadableKinds are the root kinds [Unmarshal] accepts, current spelling first.
+var ReadableKinds = []string{Kind, KindI18nReact}
 
 // The Run-based content model is canonical in core/model. kbf
 // re-exports the types so downstream consumers using `kbf.Run`,

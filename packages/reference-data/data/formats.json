@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-07T23:34:03Z",
+  "generatedAt": "2026-09-08T19:00:37Z",
   "kind": "format",
   "entries": [
     {
@@ -2115,7 +2115,8 @@
       "displayName": "Kapi Bundle Format (KBF)",
       "description": "Read and write the Kapi Bundle Format (.kbf.json), the JSON envelope for strings extracted from source code.",
       "extensions": [
-        ".kbf.json"
+        ".kbf.json",
+        ".klf"
       ],
       "mimeTypes": [
         "application/vnd.neokapi.kbf+json"
@@ -2132,7 +2133,8 @@
         "processingNotes": [
           "One translatable block per KBF block; the block ID is preserved verbatim.",
           "Source text is the flattened run sequence, where placeholders become brace-wrapped equivalents, paired codes elide their wrappers, and plurals collapse to the `other` branch.",
-          "Translator-facing context (file, component, element, JSX path, line, notes) and the structured runs travel in a block annotation for faithful round-tripping."
+          "Translator-facing context (file, component, element, JSX path, line, notes) and the structured runs travel in a block annotation for faithful round-tripping.",
+          "A catalog extracted by `@neokapi/i18n-react` 1.2.3 carries the suffix `.klf` and that release's own root marker. It reads as any other bundle, and the current `kapi-bundle` envelope is written back."
         ],
         "examples": [
           {

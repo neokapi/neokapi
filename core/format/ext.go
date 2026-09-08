@@ -17,6 +17,14 @@ import (
 const (
 	// KBFExt is the Kapi Bundle Format document suffix.
 	KBFExt = ".kbf.json"
+	// KBFExtI18nReact is the bundle suffix @neokapi/i18n-react 1.2.3 writes,
+	// the build `npm install -D @neokapi/i18n-react` served before the format
+	// took its current name. A catalog it extracted differs from a current one
+	// only in this suffix and the root kind (see core/kbf.KindI18nReact), so
+	// kapi reads one whole and writes the current spelling back. Unlike KBFExt
+	// this is a plain suffix, which is why it is absent from compoundExts:
+	// filepath.Ext already reports it.
+	KBFExtI18nReact = ".klf"
 	// OverlaySetExt is the JSON overlay-set sidecar suffix.
 	OverlaySetExt = ".overlays.json"
 	// AnnotationExt is the JSON Lines stand-off annotation overlay sidecar suffix.

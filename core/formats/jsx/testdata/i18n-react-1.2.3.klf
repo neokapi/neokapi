@@ -1,0 +1,173 @@
+{
+  "schemaVersion": "1.0",
+  "kind": "kapi-localization-format",
+  "generator": {
+    "id": "@neokapi/i18n-react",
+    "version": "1.2.3"
+  },
+  "project": {
+    "id": "kapimart",
+    "sourceLocale": "en"
+  },
+  "documents": [
+    {
+      "id": "src/app/page.tsx",
+      "documentType": "jsx",
+      "path": "src/app/page.tsx",
+      "blocks": [
+        {
+          "id": "src/app/page.tsx:4:0",
+          "hash": "9HsjEBL5pdt",
+          "translatable": true,
+          "type": "jsx:element",
+          "source": [
+            {
+              "text": "Welcome to the store"
+            }
+          ],
+          "placeholders": [],
+          "properties": {
+            "file": "src/app/page.tsx",
+            "line": 4,
+            "component": "page",
+            "jsxPath": "h1",
+            "element": "h1"
+          }
+        },
+        {
+          "id": "src/app/page.tsx:5:1",
+          "hash": "dspZNpwZ7fh",
+          "translatable": true,
+          "type": "jsx:element",
+          "source": [
+            {
+              "text": "Hello "
+            },
+            {
+              "pcOpen": {
+                "id": "0",
+                "type": "jsx:element",
+                "subType": "strong",
+                "data": "<strong>",
+                "equiv": "=m0"
+              }
+            },
+            {
+              "ph": {
+                "id": "2",
+                "type": "jsx:var",
+                "data": "{name}",
+                "equiv": "name"
+              }
+            },
+            {
+              "pcClose": {
+                "id": "0",
+                "type": "jsx:element",
+                "subType": "strong",
+                "data": "</strong>",
+                "equiv": "=m0"
+              }
+            },
+            {
+              "text": ", you have "
+            },
+            {
+              "ph": {
+                "id": "3",
+                "type": "jsx:var",
+                "data": "{count}",
+                "equiv": "count"
+              }
+            },
+            {
+              "text": " items in your cart."
+            }
+          ],
+          "placeholders": [
+            {
+              "name": "name",
+              "kind": "variable",
+              "sourceExpr": "name"
+            },
+            {
+              "name": "=m0",
+              "kind": "element",
+              "jsType": "ReactNode",
+              "sourceExpr": "<strong>{name}</strong>"
+            },
+            {
+              "name": "count",
+              "kind": "variable",
+              "sourceExpr": "count"
+            }
+          ],
+          "properties": {
+            "file": "src/app/page.tsx",
+            "line": 5,
+            "component": "page",
+            "jsxPath": "p",
+            "element": "p"
+          }
+        },
+        {
+          "id": "src/app/page.tsx:8:alt",
+          "hash": "hqEcVotKLud",
+          "translatable": true,
+          "type": "jsx:attribute",
+          "source": [
+            {
+              "text": "Shopping cart"
+            }
+          ],
+          "placeholders": [],
+          "properties": {
+            "file": "src/app/page.tsx",
+            "line": 8,
+            "component": "page",
+            "jsxPath": "img[alt]",
+            "element": "img"
+          }
+        },
+        {
+          "id": "src/app/page.tsx:9:title",
+          "hash": "j4xJQLsrIEr",
+          "translatable": true,
+          "type": "jsx:attribute",
+          "source": [
+            {
+              "text": "Check out now"
+            }
+          ],
+          "placeholders": [],
+          "properties": {
+            "file": "src/app/page.tsx",
+            "line": 9,
+            "component": "page",
+            "jsxPath": "button[title]",
+            "element": "button"
+          }
+        },
+        {
+          "id": "src/app/page.tsx:9:4",
+          "hash": "fQDSn2alBBP",
+          "translatable": true,
+          "type": "jsx:element",
+          "source": [
+            {
+              "text": "Check out"
+            }
+          ],
+          "placeholders": [],
+          "properties": {
+            "file": "src/app/page.tsx",
+            "line": 9,
+            "component": "page",
+            "jsxPath": "button",
+            "element": "button"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1801,7 +1801,8 @@
       "displayName": "▒ Ķàþî Ƃüñđļé Ƒöŕḿàţ (ĶƂƑ) ▒",
       "family": "▒ ŕîçĥ-ḿàŕķüþ ▒",
       "extensions": [
-        ".kbf.json"
+        ".kbf.json",
+        ".klf"
       ],
       "mimeTypes": [
         "application\/vnd.neokapi.kbf+json"

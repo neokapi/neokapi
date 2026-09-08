@@ -9,8 +9,10 @@ import (
 
 	"github.com/neokapi/neokapi/core/config"
 	"github.com/neokapi/neokapi/core/flow"
+	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/formats"
 	"github.com/neokapi/neokapi/core/internal/testutil"
+	"github.com/neokapi/neokapi/core/kbf"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tool"
@@ -156,6 +158,29 @@ func TestDetectRealBundleFileIsNotPlainJSON(t *testing.T) {
 	got, err = reg.Detect(plain, registry.DetectOptions{})
 	require.NoError(t, err)
 	assert.Equal(t, registry.FormatID("json"), got)
+}
+
+// A catalog written by @neokapi/i18n-react 1.2.3 reaches the bundle reader
+// too. That build carries the docs' own install line, it writes ".klf" with a
+// root kind of its own, and a reader who ran the walkthrough has a tree of
+// them; `kapi pseudo-translate i18n/` walks that tree with no --format flag,
+// so detection is where it either works or does not. See #2599.
+func TestDetectI18nReactBundleFile(t *testing.T) {
+	reg := registry.NewFormatRegistry()
+	formats.RegisterAll(reg)
+
+	byExt, err := reg.Detect(format.KBFExtI18nReact, registry.DetectOptions{ExtensionOnly: true})
+	require.NoError(t, err)
+	assert.Equal(t, registry.FormatID("kbf"), byExt)
+
+	dir := t.TempDir()
+	catalog := filepath.Join(dir, "page"+format.KBFExtI18nReact)
+	require.NoError(t, os.WriteFile(catalog, []byte(
+		`{"schemaVersion":"1.0","kind":"`+kbf.KindI18nReact+`","documents":[]}`), 0o644))
+
+	got, err := reg.Detect(catalog, registry.DetectOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, registry.FormatID("kbf"), got)
 }
 
 func TestRegistryCreateInstances(t *testing.T) {
