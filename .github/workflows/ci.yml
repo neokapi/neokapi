@@ -51,6 +51,7 @@ jobs:
       plugins: ${{ github.event_name == 'push' || steps.filter.outputs.plugins }}
       faces: ${{ github.event_name == 'push' || steps.filter.outputs.faces }}
       ts_boundary: ${{ github.event_name == 'push' || steps.filter.outputs.ts_boundary }}
+      harness: ${{ github.event_name == 'push' || steps.filter.outputs.harness }}
       # Every operand is compared to 'true' on purpose. GitHub's `||` returns
       # the first TRUTHY operand rather than a boolean, and a non-empty string
       # is truthy — so a bare `steps.filter.outputs.cli` yields the *string*
@@ -154,6 +155,13 @@ jobs:
           # workspace globs that decide which package names resolve, and the
           # LICENSE files that draw the line itself.
           check_paths ts_boundary '\.(ts|tsx|js|jsx|mjs|cjs)$' '(^|/)package\.json$' '(^|/)tsconfig[^/]*\.json$' '(^|/)LICENSE$' '^pnpm-workspace\.yaml$'
+          # The walkthrough harness is a standalone pnpm tree with its own
+          # lockfile, so none of the filters above reach it and the shared JS
+          # dependency graph does not either. It imports nothing outside
+          # harness/. ci.yml is here for the reason the two filters above carry
+          # it: a pull request editing this job's own steps would otherwise
+          # match nothing, skip the job, and merge the edit unrun.
+          check_paths harness '^harness/' '^\.github/workflows/ci\.yml$'
 
   # ── Frontend checks & builds ─────────────────────────────────────────────
   frontend:
@@ -356,6 +364,33 @@ jobs:
       # Job body lives in `make ci-i18n-react` (single source of truth).
       - name: Typecheck + validate + test + build kapi-format and neokapi-i18n
         run: make ci-i18n-react
+
+  # ── Walkthrough harness (TypeScript sources behind the recordings) ──────
+  # Recording needs a real stack, real credentials and a desktop, so no job
+  # here records anything. What it does cover is the TypeScript the recordings
+  # are driven by: the composition template, the beat contract, crop geometry,
+  # the seed predicates and their unit tests. The only other thing CI runs over
+  # harness/ is scripts/check-walk-selectors.sh, which answers a different
+  # question (does the app still render the selectors a walk drives).
+  #
+  # `make harness-check` delegates to `make -C harness check`, so this job and
+  # a developer run the same target. The harness installs its own dependencies
+  # as a prerequisite of that target, its lockfile being outside the root
+  # workspace, so there is no install step here. setup-node-ui supplies the
+  # Node runtime and the `vpx` the harness Makefile runs its tools through.
+  harness:
+    name: Harness
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.harness == 'true'
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-node-ui
+
+      - name: Typecheck + unit-test the walkthrough harness
+        run: make harness-check
 
   # ── Go tests (parallel per module) ────────────────────────────────────────
   test-framework:

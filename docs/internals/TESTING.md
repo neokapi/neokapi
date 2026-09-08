@@ -822,6 +822,33 @@ Both are Makefile prerequisites of the lint targets, so `make lint` and
 `make pre-push` work in a fresh clone, and the CI `kapi-desktop` job runs
 `make kapi-desktop-lint-deps` before its lint step for the same reason.
 
+### Trees outside the root pnpm workspace
+
+Most TypeScript lives in the root pnpm workspace, where one `vp install` covers
+every package and the `frontend`, `kapi-desktop` and `i18n_react` jobs typecheck
+and test it. `harness/` sits outside that workspace with a lockfile of its own
+(as `bowrain/web/docs` does, built by its own workflow), so no root install
+reaches it and the shared JS dependency filter never matches it. It gets a job
+and a make target naming it directly:
+
+| Tree       | Checks                                    | CI job    | Local target         |
+| ---------- | ----------------------------------------- | --------- | -------------------- |
+| `harness/` | `tsc --noEmit` + the harness unit tests   | `harness` | `make harness-check` |
+
+The job is path-gated on `harness/**` and on `ci.yml` itself, and it runs
+`make harness-check`, which delegates to `make -C harness check`: `tsc --noEmit`
+over the sources, then the tests under `harness/src/**/*.test.ts` through the
+Node test runner. `make lint` and `make pre-push` call the same target, the
+latter under the same path gate as the job. The harness node dependencies are a
+prerequisite of that target, installed from `harness/pnpm-lock.yaml` on first
+use, so a fresh clone needs no setup.
+
+Recording itself is never a CI job. It drives a real bowrain stack with real
+credentials from a desktop, and the assets it produces are published to the CDN
+rather than committed. `scripts/check-walk-selectors.sh` runs ungated in `lint`
+and `pre-push` alongside this, and answers the other half of the question: that
+every selector a recorded walk drives is still rendered by an app.
+
 ### Test Tags
 
 | Tag           | Purpose                         | Command                                            |

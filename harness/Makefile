@@ -32,18 +32,30 @@
 VPX := vpx
 RUN := $(VPX) tsx src/cli/run.ts
 
+# harness/ is a standalone pnpm tree with its own lockfile, outside the root
+# workspace, so `vp install` at the repository root installs nothing here. The
+# typecheck and the unit tests take these dependencies as a prerequisite, which
+# is what lets `make check` (and the CI job that calls it) run from a fresh
+# clone with no setup step of its own. pnpm rewrites node_modules/.modules.yaml
+# on every install, so it serves as the stamp.
+NODE_DEPS := node_modules/.modules.yaml
+
 .PHONY: deps check test typecheck list studio videos render publish capture seed record narrate package
 
 deps: ## Install node deps + Playwright chromium
 	corepack pnpm install
 	$(VPX) playwright install chromium
 
+$(NODE_DEPS): package.json pnpm-lock.yaml
+	corepack pnpm install --frozen-lockfile
+	@touch $@
+
 check: typecheck test ## Typecheck + run the unit tests
 
-typecheck: ## Typecheck the harness sources
+typecheck: $(NODE_DEPS) ## Typecheck the harness sources
 	$(VPX) tsc --noEmit
 
-test: ## Run the unit tests (no kapi binary, no network, no stack)
+test: $(NODE_DEPS) ## Run the unit tests (no kapi binary, no network, no stack)
 	$(VPX) tsx --test "src/**/*.test.ts"
 
 list: ## List available demos

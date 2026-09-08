@@ -247,6 +247,7 @@ vet: ## Run go vet (all modules)
 lint: check-abs-paths check-em-dashes check-docs-palette check-eval-publishable check-local-actions check-deploy-paths check-vocabulary check-desktop-interchange check-vocab-packs check-comment-history check-reference-provenance check-run-projection check-walk-selectors check-locale-display check-sidebar-ids check-package-licenses check-archive-licenses check-plugin-licenses check-plugin-release-latest check-tracked-binaries check-extract-fixtures check-gofmt ## Run golangci-lint (all modules) + repo hygiene guards
 	@$(MAKE) --no-print-directory _fw-lint
 	@$(MAKE) --no-print-directory kapi-desktop-lint
+	@$(MAKE) --no-print-directory harness-check
 	@$(MAKE) -C bowrain lint
 
 check-abs-paths: ## Guard: no absolute home path (/Users/…, /home/…, C:\Users\…) in tracked files
@@ -2655,10 +2656,19 @@ corpus-sweep: ## Run the Tier B corpus-sweep harness + record counts to the ledg
 	exit $$status
 
 # harness/ records kapi driven by Claude Code as narrated 1-min explainer videos
-# and publishes them theme-matched (light + dark) into the docs site. Built and
-# published from your desktop — no CI required. See harness/Makefile for details.
+# and publishes them theme-matched (light + dark) into the docs site. Recording
+# runs from your desktop against a real stack, so no CI job performs it. See
+# harness/Makefile for details.
 harness-deps: ## Install the demo-video harness deps (node + Playwright)
 	$(MAKE) -C harness deps
+
+# The sources that drive a recording are ordinary TypeScript, and they carry
+# their own unit tests. `make -C harness check` is the definition both this
+# target and the CI `harness` job call, so the two cannot drift. It installs
+# the harness node dependencies itself (its own lockfile, outside the root
+# workspace), which is why this joins `make lint` without a setup step.
+harness-check: ## Typecheck + unit-test the walkthrough harness sources
+	$(MAKE) -C harness check
 
 harness-videos: ## Render + convert the docs demo videos (light + dark) → web/static/video/kapi/
 	$(MAKE) -C harness videos
@@ -3142,7 +3152,7 @@ help: ## Show this help
         cover test-e2e test-e2e-kapi test-e2e-bowrain test-e2e-cloud test-e2e-dev \
         face-parity face-parity-update \
         bench bench-build bench-run bench-run-full bench-stress \
-        logo harness-deps harness-videos \
+        logo harness-deps harness-check harness-videos \
         harness-seed harness-record harness-narrate harness-package harness-videos-all harness-videos-staged \
         publish-cdn-wasm publish-cdn-vision-models publish-cdn-videos publish-cdn-bowrain-videos \
         publish-cdn-images publish-cdn-bowrain-images publish-cdn-all \
