@@ -333,6 +333,92 @@ async function startRealStack(): Promise<{ url: string; teardown: () => Promise<
   };
 }
 
+// ── The desktop's link to its server, cut and restored on camera ─────────────
+// The Bowrain Desktop walk shows the offline queue, and that queue only fills
+// when the desktop's Go backend genuinely loses the server. So the recorder
+// puts a TCP relay between the wbridge and bowrain-server and points the
+// wbridge at the relay. Closing the relay destroys the live sockets and
+// refuses new ones, so the backend's next REST call fails the way a dropped
+// network fails, `goOffline` fires, edits queue, and the backend's own
+// reconnect loop drains the queue when the relay returns. Nothing about the
+// offline state is simulated inside the app.
+interface ServerLink {
+  /** The URL the wbridge is given: the relay, not the server. */
+  url: string;
+  /** Drop the link: destroy every live socket and stop accepting. */
+  cut: () => Promise<void>;
+  /** Bring the link back on the same port. */
+  restore: () => Promise<void>;
+  close: () => Promise<void>;
+}
+
+/** The relay for the Bowrain Desktop take, so a walk can cut the connection. */
+let bowrainServerLink: ServerLink | null = null;
+
+/** An unused loopback port, taken by binding zero and reading the assignment. */
+function freePort(): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const probe = net.createServer();
+    probe.once("error", reject);
+    probe.listen(0, "127.0.0.1", () => {
+      const addr = probe.address();
+      const port = typeof addr === "object" && addr ? addr.port : 0;
+      probe.close(() => (port ? resolve(port) : reject(new Error("no free port"))));
+    });
+  });
+}
+
+async function startServerLink(target: string): Promise<ServerLink> {
+  const t = new URL(target);
+  const host = t.hostname;
+  const port = Number(t.port || (t.protocol === "https:" ? 443 : 80));
+  const relayPort = await freePort();
+  const live = new Set<net.Socket>();
+  let server: net.Server | null = null;
+
+  const listen = () =>
+    new Promise<void>((resolve, reject) => {
+      const s = net.createServer((client) => {
+        const upstream = net.connect({ port, host });
+        live.add(client);
+        live.add(upstream);
+        const drop = () => {
+          live.delete(client);
+          live.delete(upstream);
+        };
+        client.on("close", drop);
+        upstream.on("close", drop);
+        client.on("error", () => upstream.destroy());
+        upstream.on("error", () => client.destroy());
+        client.pipe(upstream);
+        upstream.pipe(client);
+      });
+      s.once("error", reject);
+      s.listen(relayPort, "127.0.0.1", () => {
+        server = s;
+        resolve();
+      });
+    });
+
+  const cut = async () => {
+    const s = server;
+    server = null;
+    for (const sock of live) sock.destroy();
+    live.clear();
+    if (s) await new Promise<void>((r) => s.close(() => r()));
+  };
+
+  await listen();
+  return {
+    url: `http://127.0.0.1:${relayPort}`,
+    cut,
+    restore: async () => {
+      if (!server) await listen();
+    },
+    close: cut,
+  };
+}
+
 /**
  * Start the REAL Bowrain Desktop stack for recording, isolated from user data
  * and auto-connected to a running bowrain-server:
@@ -351,6 +437,11 @@ async function startBowrainStack(): Promise<{ url: string; teardown: () => Promi
   fs.rmSync(BW_ISO, { recursive: true, force: true });
   fs.mkdirSync(BW_ISO, { recursive: true });
 
+  // Everything the desktop backend sends to the server goes through a relay the
+  // recorder owns, so the offline walk can drop the connection for real.
+  const link = await startServerLink(server);
+  bowrainServerLink = link;
+
   console.log("  · building + starting bowrain wbridge (real backend over HTTP)");
   const bridgeBin = path.join(os.tmpdir(), "bowrain-wbridge-rec");
   await runToCompletion("go", ["build", "-tags", "fts5", "-o", bridgeBin, "./cmd/wbridge"], {
@@ -360,7 +451,7 @@ async function startBowrainStack(): Promise<{ url: string; teardown: () => Promi
   const bridge = spawn(bridgeBin, [], {
     env: goEnv({
       BOWRAIN_DESKTOP_CONFIG_DIR: BW_ISO,
-      BOWRAIN_SERVER_URL: server,
+      BOWRAIN_SERVER_URL: link.url,
       BOWRAIN_TOKEN: token,
       WBRIDGE_PORT: String(BW_WBRIDGE_PORT),
       KAPI_PLUGIN_DIR: path.join(BW_ISO, "plugins"),
@@ -431,6 +522,8 @@ async function startBowrainStack(): Promise<{ url: string; teardown: () => Promi
     teardown: async () => {
       bridge.kill("SIGTERM");
       vite.kill("SIGTERM");
+      await link.close();
+      bowrainServerLink = null;
       await new Promise((r) => setTimeout(r, 600));
     },
   };
@@ -996,8 +1089,7 @@ async function reviewWalk(c: WalkCtx): Promise<void> {
 
 /** Dismiss the web-only "Open in Desktop" banner if it's on screen. It renders
  *  at the top of every project view (ProjectView → OpenInDesktop) and would sit
- *  over the project header for the rest of a walk. bowrain-web-collaboration
- *  deliberately KEEPS it for its closing desktop-handoff beat. */
+ *  over the project header for the rest of a walk. */
 async function dismissOpenInDesktop(page: Page): Promise<void> {
   const dismiss = page.getByTestId("dismiss-open-in-desktop");
   if (await dismiss.count()) {
@@ -1006,61 +1098,90 @@ async function dismissOpenInDesktop(page: Page): Promise<void> {
   }
 }
 
-/** Bowrain web: shared content memory and terminology governed as concepts.
- *  Both are sections of the Context hub (nav-context → subnav-memory /
- *  subnav-concepts); the old standalone terms nav is gone. */
+/** Open a file from the project source view into the Translate workbench.
+ *
+ *  A file on the source view opens in the preview sheet first (FilePreview:
+ *  read the document, then choose a surface), and its Open in Translate button
+ *  is the way into the workbench. Both arrivals are hard waits: a walk that
+ *  stayed on the sheet, or never left the list, must fail the capture rather
+ *  than film the wrong screen under the narration. */
+async function openFileInTranslate(page: Page): Promise<void> {
+  await humanClick(page, page.locator('[data-testid^="open-file"]').first());
+  await page.waitForSelector('[data-testid="file-preview"]', { timeout: 20_000 });
+  await page.waitForTimeout(1200);
+  await humanClick(page, page.getByTestId("file-preview-translate"));
+  await page.waitForSelector('[data-testid="view-switcher"]', { timeout: 30_000 });
+  await page.waitForTimeout(1400);
+}
+
+/** Switch the Translate workbench to the visual view: an editing card over the
+ *  rendered document. */
+async function openVisualView(page: Page): Promise<void> {
+  await humanClick(page, page.getByTestId("view-visual"));
+  await page.waitForSelector('[data-testid="visual-editor-layout"]', { timeout: 20_000 });
+  await page.waitForTimeout(1200);
+}
+
+/** Bowrain web: one concept's record, the memory that already answers for its
+ *  wording, and the moment that wording reaches the editor.
+ *
+ *  Concepts and the content memory are sections of the Context hub
+ *  (nav-context → subnav-concepts / subnav-memory); the third beat leaves the
+ *  hub for a real file in Translate, because the point of governing a term is
+ *  what happens where someone is typing. Navigation between the three sits
+ *  outside the beats: the camera only shows what the narration is about. */
 async function bowrainGovernanceWalk(c: WalkCtx): Promise<void> {
-  const { page, beat, beatEls } = c;
+  const { page, beatEls, cursorTo } = c;
   const tap = (id: string) => humanClick(page, page.getByTestId(id));
-  await beat("intro", null, async () => {
-    await idle(page, 2200);
+
+  // Into the Context hub's Concepts section. The narration reads a concept's
+  // own page, so the list is a hard wait: a take that never got there would
+  // film the dashboard under the words.
+  await tap("nav-context");
+  await page.waitForTimeout(700);
+  await tap("subnav-concepts");
+  await page.waitForSelector('[data-testid="concept-list"]', { timeout: 20_000 });
+  await page.waitForTimeout(900);
+
+  // One concept: the idea, and what the team calls it in each language, each
+  // term with the status they agreed.
+  await beatEls("concept", ['[data-testid="concept-view"]'], async () => {
+    await humanClick(page, page.getByTestId("concept-row").first());
+    await page.waitForSelector('[data-testid="concept-view"]', { timeout: 20_000 });
+    await page.waitForTimeout(1600);
+    await cursorTo('[data-testid="concept-header"]');
+    await page.waitForTimeout(2000);
   });
-  // Open the workspace content memory, a section of the Context hub:
-  // nav-context selects the hub on the rail, subnav-memory the section. The
-  // narration says the memory is on screen, so the beat waits for the browser
-  // without swallowing a miss: a take where it never arrived fails the capture
-  // instead of filming the dashboard under the memory narration.
-  await beat("open-memory", null, async () => {
-    await tap("nav-context");
-    await page.waitForTimeout(600);
+
+  // The same wording, already on record in the workspace content memory.
+  await beatEls("tm-search", ['[data-testid="tm-browser"]'], async () => {
     await tap("subnav-memory");
     await page.waitForSelector('[data-testid="tm-browser"]', { timeout: 20_000 });
-    await page.waitForTimeout(1200);
+    await page.waitForTimeout(900);
+    const search = page.getByTestId("tm-search");
+    if (await search.count()) await humanType(page, search, "mission", { submit: true });
+    await page.waitForTimeout(1800);
   });
-  await beat("tm-list", { x: 0.02, y: 0.1, w: 0.96, h: 0.82 }, async () => {
-    await moveTo(page, WIDTH * 0.5, HEIGHT * 0.42, 700);
-    await page.waitForTimeout(2400);
-  });
-  // Search the memory.
-  await beatEls("tm-search", ['[data-testid="tm-search"]'], async () => {
-    const s = page.getByTestId("tm-search");
-    if (await s.count()) await humanType(page, s, "mission", { submit: true });
-    await page.waitForTimeout(1600);
-  });
-  // Move to Concepts. The memory beat above already entered the Context hub,
-  // so this is a section switch within it: subnav-concepts rather than
-  // nav-context, which from inside the hub is at best a redirect back to the
-  // landing section and at worst a no-op. The concept search box is the one
-  // labelled control on the page, and the same rule applies: it must arrive.
-  await beat("open-concepts", null, async () => {
-    await tap("subnav-concepts");
-    await page.waitForSelector('input[aria-label="Search concepts"]', { timeout: 20_000 });
-    await page.waitForTimeout(1500);
-  });
-  await beat("concept-list", { x: 0.02, y: 0.1, w: 0.96, h: 0.82 }, async () => {
-    await moveTo(page, WIDTH * 0.5, HEIGHT * 0.42, 700);
-    await page.waitForTimeout(2400);
-  });
-  // Open one concept — its story: the terms in every locale, with agreed status.
-  // The ConceptList rows are plain buttons in the card list (no testids yet).
-  await beat("concept-detail", { x: 0.02, y: 0.08, w: 0.96, h: 0.74 }, async () => {
-    const row = page.locator("ul.divide-y li button").first();
-    if (await row.count()) {
-      await humanClick(page, row);
-      await page.waitForTimeout(1600);
-    }
-    await moveTo(page, WIDTH * 0.4, HEIGHT * 0.36, 700);
-    await page.waitForTimeout(2300);
+
+  // Out of the hub and into a file. The term sidebar and the memory matches
+  // dock beside the block being translated, which is the whole point of
+  // holding either on the server. The narration says they are on screen, so
+  // one of the two is a hard wait.
+  await tap("nav-translate");
+  await page.waitForTimeout(700);
+  await openProjectSource(page, "Company Website");
+  await openFileInTranslate(page);
+  await beatEls("in-the-editor", ['[data-testid="term-sidebar"]', '[data-testid="context-panel"]'], async () => {
+    await openVisualView(page);
+    const tm = page.getByTestId("tm-toggle");
+    if ((await tm.count()) && !(await page.getByTestId("context-panel").isVisible().catch(() => false)))
+      await humanClick(page, tm);
+    await page.waitForSelector('[data-testid="term-sidebar"], [data-testid="context-panel"]', {
+      timeout: 20_000,
+    });
+    await page.waitForTimeout(1000);
+    await cursorTo('[data-testid="term-sidebar"], [data-testid="context-panel"]');
+    await page.waitForTimeout(2200);
   });
 }
 
@@ -1087,56 +1208,58 @@ async function openProjectSource(page: Page, name?: string): Promise<void> {
   await page.waitForTimeout(1200);
 }
 
-/** Web translation editor: the visual editing card over a live preview, the
- *  shared content memory and terminology beside it, and per-locale switching,
- *  on files a team synced from kapi into the workspace. */
+/** Web translation editor: an editing card over the rendered page, one edit
+ *  landing in the live preview, a memory match applied in one click, and the
+ *  same file in the next language.
+ *
+ *  Reaching the file is navigation, so it happens before the first beat: the
+ *  camera opens inside the workbench, on the thing the video is about. */
 async function bowrainEditorWalk(c: WalkCtx): Promise<void> {
   const { page, beat, beatEls, cursorTo } = c;
-  await beat("intro", null, async () => {
-    await idle(page, 2000);
-  });
-  // Open the Company Website project (rich HTML content, fr/de/ja targets),
-  // then its source content.
-  await beat("open-project", null, async () => {
-    await openProjectSource(page, "Company Website");
-  });
-  // Open a file → the editor. A file on the source view opens in the preview
-  // sheet first (FilePreview: read the document, then choose a surface), and
-  // its Open in Translate button is the way into the workbench. Both arrivals
-  // are hard waits: the narration says the file became a workbench, so a take
-  // that stayed on the sheet, or never left the list, fails the capture rather
-  // than filming the wrong screen under it.
-  await beat("open-file", null, async () => {
-    await humanClick(page, page.locator('[data-testid^="open-file"]').first());
-    await page.waitForSelector('[data-testid="file-preview"]', { timeout: 20_000 });
-    await page.waitForTimeout(1400);
-    await humanClick(page, page.getByTestId("file-preview-translate"));
-    await page.waitForSelector('[data-testid="view-switcher"]', { timeout: 30_000 });
-    await page.waitForTimeout(1600);
-  });
-  // Switch to the Visual view: an inline editing card over a live document preview.
+  await openProjectSource(page, "Company Website");
+  await openFileInTranslate(page);
+
+  // The visual view: the editing card sits over the document a reader sees.
   await beat("split", { x: 0.03, y: 0.16, w: 0.74, h: 0.5 }, async () => {
-    await humanClick(page, page.getByTestId("view-visual"));
-    await page.waitForSelector('[data-testid="visual-editor-layout"]', { timeout: 20_000 });
-    await page.waitForTimeout(1600);
+    await openVisualView(page);
     await moveTo(page, WIDTH * 0.42, HEIGHT * 0.42, 700);
-    await page.waitForTimeout(1200);
+    await page.waitForTimeout(1800);
   });
-  // Spotlight the shared content memory + terminology context, surfaced inline as you edit:
-  // the visual card's "content memory Matches" expander (tm-toggle) opens the context panel,
-  // and term matches dock in the term sidebar on the right.
-  await beat("context", { x: 0.43, y: 0.16, w: 0.56, h: 0.62 }, async () => {
+
+  // One edit, typed and saved, and the preview beside it re-renders. The
+  // narration says the page changed, so the editor and the Save it needs are
+  // hard waits rather than optional steps.
+  await beatEls("edit", ['[data-testid="visual-editor-card"]', '[data-testid="preview-iframe"]'], async () => {
+    const start = page.getByTestId("edit-btn");
+    if (await start.count()) await humanClick(page, start);
+    await page.waitForSelector('[data-testid="unified-target-editor"]', { timeout: 20_000 });
+    const field = page.locator('[data-testid="unified-target-editor"] [contenteditable="true"]').first();
+    await humanClick(page, field);
+    await page.keyboard.press("ControlOrMeta+a");
+    await field.pressSequentially("Chaque marque a une voix.", { delay: 85 });
+    await page.waitForTimeout(600);
+    await humanClick(page, page.getByTestId("unified-save"));
+    await page.waitForTimeout(2400);
+  });
+
+  // A memory match, applied in one click: the wording the workspace already
+  // approved for this string, without retyping it.
+  await beatEls("memory", ['[data-testid="context-panel"]', '[data-testid="visual-editor-card"]'], async () => {
     const tm = page.getByTestId("tm-toggle");
     if ((await tm.count()) && !(await page.getByTestId("context-panel").isVisible().catch(() => false)))
       await humanClick(page, tm);
     await page.waitForTimeout(900);
-    if (await page.getByTestId("context-panel").isVisible().catch(() => false))
-      await cursorTo('[data-testid="context-panel"]');
-    else if (await page.getByTestId("term-sidebar").count())
+    const apply = page.getByTestId("tm-apply-0");
+    if (await apply.count()) {
+      await cursorTo('[data-testid="tm-apply-0"]');
+      await humanClick(page, apply);
+    } else if (await page.getByTestId("term-sidebar").count()) {
       await cursorTo('[data-testid="term-sidebar"]');
-    await page.waitForTimeout(1800);
+    }
+    await page.waitForTimeout(2200);
   });
-  // One editor, every target locale.
+
+  // The same file, the next language, without leaving it.
   await beat("locale", { x: 0.03, y: 0.16, w: 0.8, h: 0.5 }, async () => {
     const sel = page.getByTestId("locale-selector");
     if (await sel.count()) {
@@ -1146,15 +1269,9 @@ async function bowrainEditorWalk(c: WalkCtx): Promise<void> {
       if (await opt.count()) await humanClick(page, opt);
       else await page.keyboard.press("Escape").catch(() => {});
     }
-    await page.waitForTimeout(1600);
+    await page.waitForTimeout(1800);
     await moveTo(page, WIDTH * 0.42, HEIGHT * 0.4, 600);
-    await page.waitForTimeout(1200);
-  });
-  // The live preview renders the translated page as the team works.
-  await beat("preview", { x: 0.03, y: 0.63, w: 0.8, h: 0.34 }, async () => {
-    const pv = page.getByTestId("preview-iframe");
-    if (await pv.count()) await cursorTo('[data-testid="preview-iframe"]');
-    await page.waitForTimeout(2200);
+    await page.waitForTimeout(1400);
   });
 }
 
@@ -1162,9 +1279,9 @@ async function bowrainEditorWalk(c: WalkCtx): Promise<void> {
  * Review and approve on the platform, with two genuine users.
  *
  * The surface is the project review session (`p/{id}/s/{stream}/review`,
- * ReviewSessionRoute), reached from the workspace review inbox. One queue, one
- * language selector with the source marked, and the FocusedReviewer holding the
- * verdict, the context rail and the decision.
+ * ReviewSessionRoute), reached from the workspace review inbox. One establishing
+ * beat carries the inbox, the session and the language the queue is scoped to;
+ * everything after it is a decision.
  *
  * The closing beats are the workspace's separation-of-duties policy, as the
  * server actually applies it. `harness/scripts/seed-collaboration.mjs` sets the
@@ -1176,7 +1293,7 @@ async function bowrainEditorWalk(c: WalkCtx): Promise<void> {
  * by a real user.
  */
 async function bowrainReviewWalk(c: WalkCtx): Promise<void> {
-  const { page, beat, beatEls, cursorTo, peer } = c;
+  const { page, beatEls, cursorTo, peer } = c;
   const startUrl = new URL(page.url());
   const wsBase = `${startUrl.origin}${startUrl.pathname}`.replace(/\/+$/, "");
   const themeParam = startUrl.searchParams.get("theme");
@@ -1188,15 +1305,13 @@ async function bowrainReviewWalk(c: WalkCtx): Promise<void> {
       `[data-testid="queue-row-${BOWRAIN_ITEM_ID}::${blockId}::${BOWRAIN_COLLAB_LOCALE}"]`,
     );
 
-  // The workspace review inbox: every project awaiting a decision, in one place.
-  await beat("intro", null, async () => {
+  // One establishing beat: the workspace inbox, then the project's queue,
+  // scoped to a language with the source marked.
+  await beatEls("queue", ['[data-testid="review-queue"]', '[data-testid="review-filters"]'], async () => {
     await page.goto(`${wsBase}/review-inbox${themeQ}`, { waitUntil: "domcontentloaded" });
     await injectCursor(page); // goto wiped the page-injected cursor
     await page.waitForSelector('[data-testid="review-inbox"]', { timeout: 30_000 }).catch(() => {});
-    await idle(page, 2400);
-  });
-  // Into one project's review session.
-  await beat("open-project", null, async () => {
+    await page.waitForTimeout(1600);
     const projectRow = page.locator('[data-testid^="review-inbox-project-"]').first();
     if (await projectRow.count()) {
       await humanClick(page, projectRow);
@@ -1205,16 +1320,11 @@ async function bowrainReviewWalk(c: WalkCtx): Promise<void> {
       await injectCursor(page);
     }
     await page.waitForSelector('[data-testid="review-session"]', { timeout: 30_000 });
-    await page.waitForTimeout(2000);
-  });
-  // The queue, and the language it is scoped to. The selector marks the source.
-  await beatEls("scope", ['[data-testid="filter-language"]', '[data-testid="review-filters"]'], async () => {
+    await page.waitForTimeout(1600);
     await cursorTo('[data-testid="filter-language"]');
-    await humanClick(page, page.getByTestId("filter-language"));
-    await page.waitForTimeout(1400);
-    await page.keyboard.press("Escape").catch(() => {});
-    await page.waitForTimeout(1200);
+    await page.waitForTimeout(1600);
   });
+
   // One unit in focus: its verdict against every bar the server applies.
   await beatEls("focus", ['[data-testid="focused-reviewer"]'], async () => {
     const bobRow = BOWRAIN_PEER_BLOCK_ID ? row(BOWRAIN_PEER_BLOCK_ID) : null;
@@ -1222,30 +1332,19 @@ async function bowrainReviewWalk(c: WalkCtx): Promise<void> {
     await page.waitForSelector('[data-testid="focused-reviewer"]', { timeout: 20_000 });
     await page.waitForTimeout(1200);
     await cursorTo('[data-testid="reviewer-verdict-passing"], [data-testid="reviewer-verdict-failing"]');
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(2200);
   });
-  // The context rail: what governs this point, the blocks around it, the
-  // approved wording already on record, and who decided what before.
-  await beatEls("context", ['[data-testid="reviewer-context-rail"]'], async () => {
-    const rail = page.getByTestId("reviewer-context-rail");
-    if (await rail.count()) await rail.scrollIntoViewIfNeeded().catch(() => {});
-    await page.waitForTimeout(500);
-    await cursorTo('[data-testid="review-point"]');
-    await page.waitForTimeout(1600);
-    await cursorTo('[data-testid="reviewer-memory"]');
-    await page.waitForTimeout(1600);
-    await cursorTo('[data-testid="review-provenance"]');
-    await page.waitForTimeout(1800);
-  });
+
   // Alice approves the translation Bob wrote. A second pair of eyes.
   await beatEls("approve", ['[data-testid="reviewer-approve"]', '[data-testid="review-pending-count"]'], async () => {
     await cursorTo('[data-testid="reviewer-approve"]');
     await humanClick(page, page.getByTestId("reviewer-approve"));
-    await page.waitForTimeout(2600);
+    await page.waitForTimeout(2800);
   });
+
   // Her own translation is a different matter. The workspace policy refuses it,
   // and the server's own sentence lands on screen.
-  await beatEls("duties", ['[data-testid="error-notice"]', '[data-testid="reviewer-approve"]'], async () => {
+  await beatEls("duties", ['[data-testid="error-notice"]'], async () => {
     const own = BOWRAIN_SELF_BLOCK_ID ? row(BOWRAIN_SELF_BLOCK_ID) : null;
     if (own && (await own.count())) {
       await humanClick(page, own);
@@ -1263,8 +1362,9 @@ async function bowrainReviewWalk(c: WalkCtx): Promise<void> {
     }
     await page.waitForTimeout(1000);
     await cursorTo('[data-testid="error-notice"]');
-    await page.waitForTimeout(2400);
+    await page.waitForTimeout(2600);
   });
+
   // Bob decides it instead, in his own session, and Alice's queue catches up.
   await beatEls("second-reviewer", ['[data-testid="review-queue"]', '[data-testid="review-pending-count"]'], async () => {
     if (peer && BOWRAIN_PROJECT_ID && BOWRAIN_SELF_BLOCK_ID) {
@@ -1300,15 +1400,18 @@ async function bowrainReviewWalk(c: WalkCtx): Promise<void> {
  * Translate file. Because the collab WebSocket relays Yjs awareness between
  * everyone in a room, Bob's PresenceAvatar genuinely appears on Alice's
  * recorded screen the moment he opens the file — real multi-user presence, not
- * a mock. The walk then shows the governance frame (members + roles) so the
- * story is "a team, in one governed workspace".
+ * a mock.
+ *
+ * The camera opens on that arrival: Alice is already in the file when the take
+ * starts, so the first thing a viewer sees is the avatar appearing. The walk
+ * closes on the governance frame (members + roles), which is who is allowed in.
  *
  * Post-refocus surfaces: this lives in the Translate surface (Visual/Table),
  * where PresenceAvatars render in the editor header. Connectors are remote-only
  * on desktop and out of scope here.
  *
- * If no peer is configured (BOWRAIN_PEER_TOKEN unset), the walk still records
- * the single-user editor + governance frames and skips the live-presence beats,
+ * If no peer is configured (BOWRAIN_PEER_TOKEN unset), the walk records the
+ * single-user editor and governance frames and skips the live-presence beats,
  * so it never fabricates a second user that isn't really there.
  */
 async function bowrainCollaborationWalk(c: WalkCtx): Promise<void> {
@@ -1329,206 +1432,235 @@ async function bowrainCollaborationWalk(c: WalkCtx): Promise<void> {
   const locale = BOWRAIN_COLLAB_LOCALE;
   const canCollab = !!(peer && projectId && itemName);
 
-  await beat("intro", null, async () => {
-    await idle(page, 2000);
-  });
-
-  // Alice opens the shared file in the Translate surface — alone, for now. The
-  // narration says the file is open, so the editor's view switcher is a hard
-  // wait: a name the route cannot resolve renders an empty editor, and that
-  // take must fail rather than film "No blocks to display" under the story.
-  await beat("open-file", null, async () => {
-    if (projectId && itemName) {
-      await page.goto(
-        `${wsBase}/p/${projectId}/s/main/translate/${translatePath(itemName)}${themeQ}`,
-        { waitUntil: "domcontentloaded" },
-      );
-      await injectCursor(page); // goto wiped the page-injected cursor; re-add it
-      await page.waitForSelector('[data-testid="view-switcher"]', { timeout: 30_000 });
-      await page.waitForSelector('[data-testid="visual-editor-layout"], [data-testid="view-table"][data-state="on"], [data-testid="search-input"]', { timeout: 30_000 });
-    } else {
-      // No seed → land Alice on the first project's file via the dashboard.
-      await openProjectSource(page);
-      const open = page.locator('[data-testid^="open-file"]').first();
-      if (await open.count()) await humanClick(page, open);
-    }
-    await page.waitForTimeout(1800);
-  });
+  // Alice opens the shared file — before the first beat, so the camera starts on
+  // the arrival rather than on navigation. The editor's view switcher is a hard
+  // wait: a name the route cannot resolve renders an empty editor, and that take
+  // must fail rather than film "No blocks to display" under the story.
+  if (projectId && itemName) {
+    await page.goto(
+      `${wsBase}/p/${projectId}/s/main/translate/${translatePath(itemName)}${themeQ}`,
+      { waitUntil: "domcontentloaded" },
+    );
+    await injectCursor(page); // goto wiped the page-injected cursor; re-add it
+    await page.waitForSelector('[data-testid="view-switcher"]', { timeout: 30_000 });
+    await page.waitForSelector('[data-testid="visual-editor-layout"], [data-testid="view-table"][data-state="on"], [data-testid="search-input"]', { timeout: 30_000 });
+  } else {
+    // No seed → land Alice on the first project's file via the dashboard.
+    await openProjectSource(page);
+    const open = page.locator('[data-testid^="open-file"]').first();
+    if (await open.count()) await humanClick(page, open);
+  }
+  await page.waitForTimeout(1600);
 
   if (canCollab) {
     // Bob (off-camera) joins the SAME file. His useCollaboration() opens the
     // collab WebSocket and publishes awareness — Alice's editor header now shows
-    // his PresenceAvatar arrive. This is the genuine multi-user moment.
+    // his PresenceAvatar arrive. This is the genuine multi-user moment, and it
+    // is the first thing the video shows, so its arrival is a hard wait.
     await beatEls("teammate-joins", ['[data-testid="presence-avatars"]'], async () => {
       await peer!.openTranslateFile(slug, projectId, itemName, locale);
-      // Let the awareness round-trip reach Alice's recorded page, then settle the
-      // camera on the presence avatars as they appear.
-      await page
-        .waitForSelector('[data-testid="presence-avatars"]', { timeout: 20_000 })
-        .catch(() => {});
+      await page.waitForSelector('[data-testid="presence-avatars"]', { timeout: 20_000 });
       await page.waitForTimeout(1200);
-      if (await page.getByTestId("presence-avatars").count())
-        await cursorTo('[data-testid="presence-avatars"]');
-      await page.waitForTimeout(2200);
+      await cursorTo('[data-testid="presence-avatars"]');
+      await page.waitForTimeout(2400);
     });
 
-    // Both users are now in the file. Pan the editor so the shared workspace —
-    // one document, two people present — reads clearly.
+    // Bob moves to a block of his own. Two people are in one file, and the
+    // presence follows the person rather than sitting in a header.
     await beat("co-editing", { x: 0.02, y: 0.08, w: 0.96, h: 0.7 }, async () => {
-      // Bob moves through the file (his own navigation), keeping his session
-      // active so the presence stays live while Alice's camera tours the editor.
       await peer!.act(async (bp) => {
-        const sw = bp.getByTestId("view-switcher");
-        if (await sw.count()) {
-          const tbl = bp.getByTestId("view-table");
-          if (await tbl.count()) await tbl.click().catch(() => {});
-        }
-        await bp.waitForTimeout(400);
+        const tbl = bp.getByTestId("view-table");
+        if (await tbl.count()) await tbl.click().catch(() => {});
+        await bp.waitForTimeout(500);
+        const next = bp.getByTestId("next-block-btn");
+        if (await next.count()) await next.click().catch(() => {});
+        await bp.waitForTimeout(600);
       });
       await moveTo(page, WIDTH * 0.4, HEIGHT * 0.42, 700);
-      await page.waitForTimeout(2400);
+      await page.waitForTimeout(2600);
     });
   }
 
-  // Governance frame: the workspace is shared and governed — members carry
-  // roles (member / admin / viewer), so everyone has exactly the access they
-  // should.
-  await beatEls("members", ['[data-testid="settings-heading"]', '[role="dialog"]', '[data-testid="invite-open-dialog-btn"]'], async () => {
+  // Who is allowed in: members carry roles, and an invite is an email and a
+  // role. The invite dialog is the action, and the beat holds on it.
+  await beatEls("members", ['[role="dialog"]', '[data-testid="invite-open-dialog-btn"]', '[data-testid="settings-heading"]'], async () => {
     await page.goto(`${wsBase}/settings/members${themeQ}`, { waitUntil: "domcontentloaded" });
     await injectCursor(page); // re-add cursor after navigation
     await page.waitForSelector('[data-testid="settings-heading"], [data-testid="invite-open-dialog-btn"]', { timeout: 15_000 }).catch(() => {});
-    await page.waitForTimeout(1400);
+    await page.waitForTimeout(1200);
     const open = page.getByTestId("invite-open-dialog-btn");
     if (await open.count()) {
       await cursorTo('[data-testid="invite-open-dialog-btn"]');
       await humanClick(page, open);
-      await page.waitForTimeout(900);
+      await page.waitForTimeout(1000);
+      const email = page.getByTestId("invite-email-input");
+      if (await email.count()) await humanType(page, email, "sam@bowmart.example");
+      await page.waitForTimeout(700);
       const role = page.getByTestId("invite-role-select");
       if (await role.count()) {
         await humanClick(page, role);
-        await page.waitForTimeout(1000);
+        await page.waitForTimeout(1100);
         await page.keyboard.press("Escape").catch(() => {});
       }
     }
-    await page.waitForTimeout(1200);
-  });
-
-  // Closing hand-off: the same workspace opens natively. Land back on the
-  // source view, where the web-only "Open in Bowrain Desktop" banner renders
-  // (this walk deliberately never dismisses it — the banner IS the beat).
-  await beatEls("desktop-handoff", ['[data-testid="open-in-desktop-banner"]'], async () => {
-    if (projectId) {
-      await page.goto(`${wsBase}/p/${projectId}/s/main/source${themeQ}`, {
-        waitUntil: "domcontentloaded",
-      });
-      await injectCursor(page); // re-add cursor after navigation
-    } else {
-      // No seed — reach the first project via the dashboard, then its source
-      // view, which is where the banner lives.
-      await page.goto(`${wsBase}${themeQ}`, { waitUntil: "domcontentloaded" });
-      await injectCursor(page);
-      await page.waitForSelector('[data-testid^="project-card"]', { timeout: 15_000 }).catch(() => {});
-      const card = page.locator('[data-testid^="project-card"]').first();
-      if (await card.count()) await humanClick(page, card);
-      const sourceNav = page.locator('[data-testid="subnav-source"]');
-      await sourceNav.waitFor({ timeout: 15_000 }).catch(() => {});
-      if (await sourceNav.count()) await humanClick(page, sourceNav);
-    }
-    await page
-      .waitForSelector('[data-testid="open-in-desktop-banner"]', { timeout: 15_000 })
-      .catch(() => {});
-    await page.waitForTimeout(800);
-    if (await page.getByTestId("open-in-desktop-banner").count())
-      await cursorTo('[data-testid="open-in-desktop-banner"]');
-    await page.waitForTimeout(1800);
-  });
-}
-
-/** Bowrain Desktop: the native app connected to a team's bowrain-server,
- *  showing the same workspace — projects, languages, and file counts. The
- *  desktop mounts the SAME shared app (@neokapi/bowrain-app) the browser runs,
- *  so nav testids match the web: workspace-level nav-* rail, project-scoped
- *  subnav-* views (dashboard | automations | runs | connectors). */
-async function bowrainDesktopWalk(c: WalkCtx): Promise<void> {
-  const { page, beat, beatEls } = c;
-  await beat("intro", null, async () => {
-    await idle(page, 2200);
-  });
-  // The workspace totals (projects, words, languages, files).
-  await beat("stats", { x: 0.03, y: 0.12, w: 0.94, h: 0.22 }, async () => {
-    await moveTo(page, WIDTH * 0.5, HEIGHT * 0.2, 700);
-    await page.waitForTimeout(2000);
-  });
-  // The project cards — the same projects the team works on, pulled from the server.
-  await beat("projects", { x: 0.03, y: 0.27, w: 0.94, h: 0.38 }, async () => {
-    await moveTo(page, WIDTH * 0.4, HEIGHT * 0.42, 700);
-    await page.waitForTimeout(2200);
-  });
-  // Connectors are project-scoped in the unified app: open a project, then its
-  // Connectors view. Open the add-connector dialog so the available connector
-  // types are on screen (the empty list alone reads as a blank page).
-  await beatEls("connectors", ['[data-testid="connector-form"]', '[role="dialog"]', '[data-testid="add-connector-btn"]'], async () => {
-    const card = page.locator('[data-testid^="project-card"]').first();
-    if (await card.count()) await humanClick(page, card);
-    await page
-      .waitForSelector('[data-testid="subnav-connectors"]', { timeout: 20_000 })
-      .catch(() => {});
-    await page.waitForTimeout(900);
-    const n = page.getByTestId("subnav-connectors");
-    if (await n.count()) await humanClick(page, n);
-    await page.waitForTimeout(1400);
-    const add = page.getByTestId("add-connector-btn");
-    if (await add.count()) await humanClick(page, add);
     await page.waitForTimeout(1600);
   });
 }
 
-/** Bowrain Desktop: a project's automation rules and its server-side run
- *  history — the unified project views (dashboard | automations | runs |
- *  connectors) that replaced the decommissioned flows/FlowBuilder screens.
- *  Flow editing still exists, but as the Flows tab inside Automations. */
-async function bowrainDesktopAutomationsWalk(c: WalkCtx): Promise<void> {
+/** Bowrain Desktop: the same shared workspace the browser opens, and the one
+ *  thing only the native app does — keep working with the server gone.
+ *
+ *  The desktop mounts the SAME shared app (@neokapi/bowrain-app) the browser
+ *  runs, so nav testids match the web: workspace-level nav-* rail, project-scoped
+ *  subnav-* views (dashboard | automations | runs | connectors).
+ *
+ *  The offline beats are real. `startBowrainStack` puts a TCP relay between the
+ *  desktop backend and bowrain-server; cutting the relay drops the connection
+ *  the way a lost network does, so the backend queues the edit, the chrome
+ *  shows the queue depth, and the backend's own reconnect loop replays it when
+ *  the relay returns. Nothing about the offline state is staged in the frontend,
+ *  and a take without the relay fails rather than narrating a queue it cannot
+ *  produce. */
+async function bowrainDesktopWalk(c: WalkCtx): Promise<void> {
   const { page, beat, beatEls, cursorTo } = c;
-  // Land on the workspace dashboard, then open the first project — the
-  // project-scoped sidebar only exists inside a project.
-  await beat("intro", null, async () => {
-    await idle(page, 1800);
-    const card = page.locator('[data-testid^="project-card"]').first();
-    if (await card.count()) await humanClick(page, card);
-    await page
-      .waitForSelector('[data-testid="subnav-automations"]', { timeout: 20_000 })
-      .catch(() => {});
-    await page.waitForTimeout(1400);
+  const link = bowrainServerLink;
+  if (!link) {
+    throw new Error(
+      "bowrain-desktop-dashboard: no server relay. The offline beats need the stack this recorder starts (unset DEMO_URL).",
+    );
+  }
+
+  // The workspace, in a native window: the same projects the browser shows.
+  await beat("projects", { x: 0.03, y: 0.1, w: 0.94, h: 0.56 }, async () => {
+    await moveTo(page, WIDTH * 0.4, HEIGHT * 0.4, 700);
+    await page.waitForTimeout(2400);
   });
-  // Automations → the Rules tab (the route lands on its Runs tab by default;
-  // the tab strip is plain buttons — Runs · Rules · Flows — without testids).
-  await beatEls("automations", ['h2:has-text("Automation Rules")', 'button:has-text("New Rule")'], async () => {
-    const n = page.getByTestId("subnav-automations");
-    if (await n.count()) await humanClick(page, n);
-    await page.waitForTimeout(1400);
-    const rules = page.locator('button:has-text("Rules")').first();
-    if (await rules.count()) await humanClick(page, rules);
-    await page.waitForTimeout(2000);
+
+  // Open a file and edit one block, with the server still there.
+  await openProjectSource(page);
+  await openFileInTranslate(page);
+  await beatEls("edit", ['[data-testid="visual-editor-card"]'], async () => {
+    await openVisualView(page);
+    const start = page.getByTestId("edit-btn");
+    if (await start.count()) await humanClick(page, start);
+    await page.waitForSelector('[data-testid="unified-target-editor"]', { timeout: 20_000 });
+    const field = page.locator('[data-testid="unified-target-editor"] [contenteditable="true"]').first();
+    await humanClick(page, field);
+    await page.keyboard.press("ControlOrMeta+a");
+    await field.pressSequentially("Bienvenue chez BowMart.", { delay: 85 });
+    await page.waitForTimeout(500);
+    await humanClick(page, page.getByTestId("unified-save"));
+    await page.waitForTimeout(2200);
   });
-  // Runs — the server-side loop history (ConvergenceRunsList): run states
-  // ("Up to date" / "Parked"), triggers (Manual / kapi up / On push), the
-  // per-locale summary, and the "Run now" button.
-  await beatEls("runs", ['h2:has-text("Runs")', 'button:has-text("Run now")', "table"], async () => {
-    const n = page.getByTestId("subnav-runs");
-    if (await n.count()) await humanClick(page, n);
-    await page.waitForTimeout(1800);
-    if (await page.locator('button:has-text("Run now")').count())
-      await cursorTo('button:has-text("Run now")');
+
+  // Cut the link and keep working. The next save cannot reach the server, the
+  // backend goes offline, and the queue depth appears in the chrome. The
+  // narration says the edits are queued, so the indicator is a hard wait.
+  await beatEls("offline", ['[data-testid="offline-pending"]'], async () => {
+    await link.cut();
+    for (const text of ["Ouvert tous les jours.", "Livraison sous 48 heures."]) {
+      const start = page.getByTestId("edit-btn");
+      if (await start.count()) await humanClick(page, start);
+      const field = page.locator('[data-testid="unified-target-editor"] [contenteditable="true"]').first();
+      if (await field.count()) {
+        await humanClick(page, field);
+        await page.keyboard.press("ControlOrMeta+a");
+        await field.pressSequentially(text, { delay: 70 });
+        await humanClick(page, page.getByTestId("unified-save"));
+      }
+      await page.waitForTimeout(1400);
+      const next = page.getByTestId("next-block-btn");
+      if (await next.count()) await humanClick(page, next);
+      await page.waitForTimeout(800);
+    }
+    await page.waitForSelector('[data-testid="offline-pending"]', { timeout: 30_000 });
+    await page.waitForTimeout(900);
+    await cursorTo('[data-testid="offline-pending"]');
+    await page.waitForTimeout(2200);
+  });
+
+  // Put the link back. The backend's reconnect loop replays the queue in order
+  // and the indicator clears itself; nothing here clicks a retry.
+  await beatEls("replayed", ['[data-testid="connection-status"]'], async () => {
+    await link.restore();
+    await page.waitForSelector('[data-testid="offline-pending"]', { state: "detached", timeout: 60_000 });
+    await page.waitForTimeout(1200);
+    await cursorTo('[data-testid="connection-status"]');
     await page.waitForTimeout(2200);
   });
 }
 
+/** Bowrain Desktop: a project's standing rules and the server-side runs they
+ *  drive — the unified project views (dashboard | automations | runs |
+ *  connectors) that replaced the decommissioned flows/FlowBuilder screens.
+ *  Flow editing still exists, but as the Flows tab inside Automations. */
+async function bowrainDesktopAutomationsWalk(c: WalkCtx): Promise<void> {
+  const { page, beat, beatEls, cursorTo } = c;
+  // The project-scoped sub-nav only exists inside a project.
+  const card = page.locator('[data-testid^="project-card"]').first();
+  if (await card.count()) await humanClick(page, card);
+  await page.waitForSelector('[data-testid="subnav-automations"]', { timeout: 20_000 });
+  await page.waitForTimeout(1200);
+
+  // The standing rules: what fires, and on what. Automations lands on its Runs
+  // tab, so the Rules tab is a click (the tab strip is plain buttons —
+  // Runs · Rules · Flows — without testids).
+  await beatEls("rule", ['h2:has-text("Automation Rules")', 'button:has-text("New Rule")'], async () => {
+    await humanClick(page, page.getByTestId("subnav-automations"));
+    await page.waitForTimeout(1400);
+    const rules = page.locator('button:has-text("Rules")').first();
+    if (await rules.count()) await humanClick(page, rules);
+    await page.waitForTimeout(2400);
+  });
+
+  // Start a pass on camera. Run now opens the scope dialog; starting it puts a
+  // new run at the top of the table. The narration says a run started, so both
+  // the dialog and the row are hard waits.
+  await beatEls("run-now", ['[data-testid="runs-list"]'], async () => {
+    await humanClick(page, page.getByTestId("subnav-runs"));
+    await page.waitForSelector('[data-testid="runs-list"]', { timeout: 20_000 });
+    await page.waitForTimeout(1200);
+    await cursorTo('[data-testid="run-now-btn"]');
+    await humanClick(page, page.getByTestId("run-now-btn"));
+    await page.waitForSelector('[role="dialog"]', { timeout: 20_000 });
+    await page.waitForTimeout(1600);
+    const start = page.getByRole("button", { name: /Translate all now/i }).first();
+    if (await start.count()) await humanClick(page, start);
+    else await page.keyboard.press("Escape").catch(() => {});
+    await page.waitForSelector('[data-testid="run-row"]', { timeout: 30_000 });
+    await page.waitForTimeout(2400);
+  });
+
+  // The run settles, and its row says what each language got. What needs a
+  // person is parked, and parked work is already in review.
+  await beatEls("settled", ['[data-testid="run-row"]'], async () => {
+    await page.waitForTimeout(3000);
+    await cursorTo('[data-testid="run-row"]');
+    await page.waitForTimeout(2600);
+  });
+
+  // The parked work, where it waits: the project's own delivery card links
+  // straight into the review session.
+  await beatEls("parked", ['[data-testid="delivery-panel"]', '[data-testid="review-session"]'], async () => {
+    await humanClick(page, page.getByTestId("subnav-dashboard"));
+    await page.waitForTimeout(1600);
+    const toReview = page.getByTestId("delivery-open-review");
+    if (await toReview.count()) {
+      await cursorTo('[data-testid="delivery-open-review"]');
+      await humanClick(page, toReview);
+      await page.waitForSelector('[data-testid="review-session"]', { timeout: 30_000 }).catch(() => {});
+    }
+    await page.waitForTimeout(2400);
+  });
+}
+
 /** Bowrain web: the correction-learning loop. Candidate rules drawn from a
- *  team's corrections, a blast-radius preview, and promotion into a versioned
- *  check. The voice profile's review route is /:ws/context/voice/review/:profileId
- *  (routes/index.tsx `context` → `voice` → `review/$profileId`); the workspace
- *  slug comes from BOWRAIN_WORKSPACE_SLUG and the profile id from
- *  BOWRAIN_DEMO_PROFILE_ID (both printed by harness/scripts/seed-correction-loop.mjs). */
+ *  team's corrections, a blast-radius preview held while its numbers are read,
+ *  and promotion into a versioned check. The voice profile's review route is
+ *  /:ws/context/voice/review/:profileId (routes/index.tsx `context` → `voice` →
+ *  `review/$profileId`); the workspace slug comes from BOWRAIN_WORKSPACE_SLUG
+ *  and the profile id from BOWRAIN_DEMO_PROFILE_ID (both printed by
+ *  harness/scripts/seed-correction-loop.mjs). */
 async function bowrainCorrectionLoopWalk(c: WalkCtx): Promise<void> {
   const { page, beat, beatEls, cursorTo } = c;
   const startUrl = new URL(page.url());
@@ -1537,18 +1669,18 @@ async function bowrainCorrectionLoopWalk(c: WalkCtx): Promise<void> {
   const wsBase = `${startUrl.origin}${startUrl.pathname}`.replace(/\/$/, "");
   const profileId = process.env.BOWRAIN_DEMO_PROFILE_ID || "";
 
-  await beat("intro", null, async () => {
-    await page.goto(`${wsBase}/context/voice/review/${profileId}${themeQ}`, { waitUntil: "domcontentloaded" });
-    await injectCursor(page); // goto wiped the page-injected cursor; re-add it
-    await page.waitForTimeout(2400);
-  });
+  await page.goto(`${wsBase}/context/voice/review/${profileId}${themeQ}`, { waitUntil: "domcontentloaded" });
+  await injectCursor(page); // goto wiped the page-injected cursor; re-add it
+  await page.waitForTimeout(1800);
 
-  // The candidate rules — each a phrasing the team kept correcting.
+  // The candidates: each one a phrasing the team kept correcting, with the
+  // count of corrections standing behind it.
   await beatEls("candidates", ['text=Review suggested rules', "ul"], async () => {
-    await page.waitForTimeout(2200);
+    await page.waitForTimeout(2600);
   });
 
-  // Preview the blast radius: pick a project, open a candidate's impact dialog.
+  // The blast radius, before anything lands: pick a project, open a candidate's
+  // impact dialog, and hold on it while the numbers are read.
   await beatEls("evaluate", ['[role="dialog"]'], async () => {
     const sel = page.locator("select").first();
     if (await sel.count()) {
@@ -1561,24 +1693,21 @@ async function bowrainCorrectionLoopWalk(c: WalkCtx): Promise<void> {
       await cursorTo('button:has-text("Preview impact")');
       await humanClick(page, preview);
     }
-    await page.waitForTimeout(2400);
+    await page.waitForSelector('[role="dialog"]', { timeout: 20_000 });
+    await page.waitForTimeout(3400);
     await page.keyboard.press("Escape").catch(() => {});
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(600);
   });
 
-  // Promote the candidate — it becomes an enforced, versioned check.
-  await beatEls("promote", ['button:has-text("Promote")'], async () => {
+  // Promote it. The candidate leaves the queue as a versioned rule that every
+  // later run enforces.
+  await beat("promote", null, async () => {
     const promote = page.getByRole("button", { name: /^Promote$/ }).first();
     if (await promote.count()) {
       await cursorTo('button:has-text("Promote")');
       await humanClick(page, promote);
     }
-    await page.waitForTimeout(2000);
-  });
-
-  // The queue settles — one fewer mistake that can recur.
-  await beat("settled", null, async () => {
-    await page.waitForTimeout(2200);
+    await page.waitForTimeout(3000);
   });
 }
 

@@ -140,7 +140,7 @@ export function ConceptView({
   const canEdit = Boolean(onEdit) && (caps.editTerms || caps.editRelations);
 
   return (
-    <div className={cn("flex flex-col gap-5", className)}>
+    <div className={cn("flex flex-col gap-5", className)} data-testid="concept-view">
       <ConceptHeader
         concept={display}
         localeCount={localeCount}
@@ -216,7 +216,7 @@ function ConceptHeader({
 }) {
   const name = primaryName(concept);
   return (
-    <header className="flex flex-col gap-3">
+    <header className="flex flex-col gap-3" data-testid="concept-header">
       {onBack && <BackButton onBack={onBack} />}
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 space-y-2">

@@ -1,6 +1,6 @@
 id: bowrain-web-collaboration
-title: Real-time collaboration
-subtitle: Two people, one document, live.
+title: A teammate's avatar arrives in under a second
+subtitle: Two people in one file, over one server, with no merge step.
 tagline: the server-side platform companion to kapi
 kind: use-case
 publishAs: bowrain-web-collaboration
@@ -10,11 +10,13 @@ brand: bowrain
 needsAi: false
 # One continuous narration read: uniform voice across scenes.
 oneshot: true
+outro:
+  line: Invite by email under Members and roles.
+  pointer: bowrain.cloud
 aspects:
-  - One shared workspace
   - Live presence in the editor
   - Two people, one file
-  - Governed by role
+  - Invited by email, governed by role
 
 # Recorded with TWO genuine authenticated users: the camera is the first user
 # (Alice); a second, off-camera session (Bob) joins the same Translate file, so
@@ -27,61 +29,49 @@ narration:
   - id: title
     kind: title
     text: >-
-      A team working in one document at the same time, with live presence in
-      the editor and a shared, governed workspace behind it.
-
-  - id: intro
-    kind: desktop
-    beat: intro
-    text: >-
-      A workspace is shared by a whole team. Its projects, memory and terms
-      live in one place rather than on one laptop.
-
-  - id: open-file
-    kind: desktop
-    beat: open-file
-    caption: Open a file in the Translate surface.
-    text: >-
-      One translator opens a file in the Translate surface, with the editing
-      card over a live preview of the page being translated.
+      When a teammate opens the file you are already in, their avatar appears in
+      your editor within a second.
 
   - id: teammate-joins
     kind: desktop
     beat: teammate-joins
-    caption: A teammate joins, and their presence appears live.
+    caption: A second person, in the same file.
+    hold: 15
+    crop: { selector: '[data-testid="presence-avatars"]' }
+    zoom: 2.5
+    highlight: { selector: '[data-testid="presence-avatars"]' }
     text: >-
-      When a teammate opens the same file, their avatar appears in the editor
-      straight away. Each person can see who else is here, working in the very
-      same document.
+      That is a second person, in a second browser, signed in as themselves. The
+      server relays their presence as it happens, so a file you are working in
+      is never quietly being changed by somebody you cannot see. Nothing was
+      exported, and nothing has to be merged back afterwards.
 
   - id: co-editing
     kind: desktop
     beat: co-editing
-    caption: Two people, one file, in real time.
+    caption: The presence follows the person.
+    hold: 13
+    crop: { x: 0.02, y: 0.08, w: 0.96, h: 0.7 }
+    zoom: 1.3
     text: >-
-      Both work in the same file together, with no exported spreadsheets and
-      no merge step afterwards. The shared memory and terms keep everyone
-      consistent as they go.
+      They move to a block of their own, and the presence moves with them. Two
+      translators work the same file at the same time, on the same shared
+      memory and the same terms, so neither has to guess what the other has
+      already decided.
 
   - id: members
     kind: desktop
     beat: members
-    caption: Shared, but governed by role.
+    caption: Invited by email, given a role.
+    hold: 14
+    crop: { selector: '[role="dialog"]' }
+    zoom: 1.8
     text: >-
-      Access is governed. People are invited by email and given a role, owner,
-      admin, member or viewer, so the workspace stays open to the team and still
-      controlled.
-
-  - id: desktop-handoff
-    kind: desktop
-    beat: desktop-handoff
-    caption: The same workspace, in the desktop app.
-    text: >-
-      And when you want native speed and offline, the same workspace opens in
-      the desktop app.
+      Who is allowed in is a decision rather than a side effect. Invite a
+      colleague by email under Members and roles, and give them the role the
+      language needs: owner, admin, member or viewer.
 
   - id: outro
     kind: outro
     text: >-
-      A team editing shared content together in real time. The stewardship
-      layer over the open kapi tools.
+      One workspace, shared live, and governed by the role each person holds.

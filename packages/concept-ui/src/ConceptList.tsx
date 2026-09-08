@@ -190,7 +190,10 @@ export function ConceptList({
           />
         )
       ) : (
-        <ul className="divide-y overflow-hidden rounded-xl border bg-card">
+        <ul
+          className="divide-y overflow-hidden rounded-xl border bg-card"
+          data-testid="concept-list"
+        >
           {concepts.map((c) => (
             <ConceptRow
               key={c.id}
@@ -245,6 +248,7 @@ function ConceptRow({
       <button
         type="button"
         onClick={onOpen}
+        data-testid="concept-row"
         className="flex w-full items-start gap-4 px-4 py-3 text-left transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none"
       >
         <div className="min-w-0 flex-1 space-y-1">

@@ -43,43 +43,43 @@ export const DEMOS: RegistryEntry[] = [
   },
   {
     "id": "bowrain-cli-auth-and-workspaces",
-    "title": "Sign in, find your workspaces, test locally"
+    "title": "Break the layout before a translator sees it"
   },
   {
     "id": "bowrain-cli-getting-started",
-    "title": "Connect a project and bring it up to date"
+    "title": "Your content stays in your repository"
   },
   {
     "id": "bowrain-desktop-automations",
-    "title": "Automations and runs"
+    "title": "Nobody has to remember to translate anything"
   },
   {
     "id": "bowrain-desktop-dashboard",
-    "title": "The desktop app, on your team's server"
+    "title": "It keeps working when the network drops"
   },
   {
     "id": "bowrain-sizzle",
-    "title": "Bowrain, the team platform for multilingual content"
+    "title": "Bowrain, a team's workspace for multilingual content"
   },
   {
     "id": "bowrain-web-collaboration",
-    "title": "Real-time collaboration"
+    "title": "A teammate's avatar arrives in under a second"
   },
   {
     "id": "bowrain-web-correction-loop",
-    "title": "Checks that learn from corrections"
+    "title": "Every correction a reviewer makes is evidence"
   },
   {
     "id": "bowrain-web-editor",
-    "title": "The shared translation editor"
+    "title": "Translate a page where the reader will see it"
   },
   {
     "id": "bowrain-web-governance",
-    "title": "Shared terminology and memory"
+    "title": "A term agreed once should not be argued twice"
   },
   {
     "id": "bowrain-web-review",
-    "title": "Review and approve as a team"
+    "title": "Nobody approves their own translation"
   },
   {
     "id": "kapi-bilingual-workflow",
