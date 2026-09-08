@@ -501,8 +501,9 @@ async function startBowrainStack(): Promise<{ url: string; teardown: () => Promi
   // loop and the outbox replay do, and with the backend's stdio discarded a
   // walk that timed out waiting for the queue to drain said only that the
   // indicator was still on screen.
-  const bridgeLog = path.join(BW_ISO, "wbridge.log");
-  fs.mkdirSync(path.dirname(bridgeLog), { recursive: true });
+  // Outside BW_ISO, which the next take wipes before it starts: the log of the
+  // run that failed is the one worth reading.
+  const bridgeLog = path.join(os.tmpdir(), "bowrain-wbridge-rec.log");
   const bridgeLogFd = fs.openSync(bridgeLog, "a");
   const bridge = spawn(bridgeBin, [], {
     env: goEnv({
@@ -1775,12 +1776,13 @@ async function bowrainDesktopAutomationsWalk(c: WalkCtx): Promise<void> {
     const dialog = page.locator('[role="dialog"]');
     await dialog.waitFor({ timeout: 20_000 });
     await page.waitForTimeout(1600);
-    // Every scope in the dialog starts a real run, and which ones it offers
-    // depends on the project's pending work: with nothing pending it drops the
-    // two translate scopes and leaves transport. Take the widest one on offer
-    // and wait for it to be enabled, because clicking a disabled button is
-    // silent and the row the narration promises would never arrive.
-    const scopes = [/Translate all now/i, /Translate ready source only/i, /Transport only/i];
+    // Only the two translate scopes start a run: the server answers the
+    // transport scope 204 and creates nothing (HandleStartConvergenceRun), so
+    // clicking it would leave the walk waiting for a row that has no run behind
+    // it. The dialog drops both translate scopes when the project has no
+    // pending work, and disables one while the estimate loads, so take the
+    // widest enabled one and say what the dialog read when there is none.
+    const scopes = [/Translate all now/i, /Translate ready source only/i];
     let started = false;
     for (const name of scopes) {
       const btn = dialog.getByRole("button", { name }).first();
@@ -1791,7 +1793,10 @@ async function bowrainDesktopAutomationsWalk(c: WalkCtx): Promise<void> {
       break;
     }
     if (!started) {
-      throw new Error(`bowrain-desktop-automations: the Run now dialog offered no scope to start. It read:\n${(await dialog.innerText().catch(() => "")).slice(0, 600)}`);
+      throw new Error(
+        `bowrain-desktop-automations: the Run now dialog offered no scope that starts a run. ` +
+          `The project's source has to be ready for the pass this beat narrates. The dialog read:\n${(await dialog.innerText().catch(() => "")).slice(0, 600)}`,
+      );
     }
     await page.waitForSelector('[data-testid="run-row"]', { timeout: 30_000 });
     await page.waitForTimeout(2400);
