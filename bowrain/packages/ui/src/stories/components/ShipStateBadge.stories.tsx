@@ -40,6 +40,16 @@ export const PendingOnStaleness: Story = {
   },
 };
 
+/** Pending on a rejection: a person refused the wording, so a pass owes a draft. */
+export const PendingOnRejection: Story = {
+  args: {
+    state: "pending",
+    approvedBlocks: 44,
+    totalBlocks: 50,
+    rejectedAwaitingDraft: 3,
+  },
+};
+
 export const AllStates: Story = {
   render: () => (
     <div style={{ display: "flex", gap: 8, alignItems: "center" }}>

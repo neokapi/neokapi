@@ -224,13 +224,14 @@ func (o StatusOutput) writeCoverageGrid(w io.Writer) {
 // decision on the unit records a basis.
 func (o StatusOutput) writeBasisLines(w io.Writer) {
 	stale, unknown, failing := 0, 0, 0
-	awaitingDraft, awaitingReview := 0, 0
+	awaitingDraft, awaitingReview, rejected := 0, 0, 0
 	for _, lc := range o.Locales {
 		stale += lc.Stale
 		unknown += lc.BasisUnknown
 		failing += lc.FailingChecks
 		awaitingDraft += lc.StaleAwaitingDraft
 		awaitingReview += lc.StaleAwaitingReview
+		rejected += lc.RejectedAwaitingDraft
 	}
 	if stale > 0 {
 		fmt.Fprintf(w, "\n%d unit(s) stale: the source changed since the translation was decided. "+
@@ -244,6 +245,14 @@ func (o StatusOutput) writeBasisLines(w io.Writer) {
 		if awaitingReview > 0 {
 			fmt.Fprintf(w, "  %d have been re-drafted and await re-review: `kapi status --review`.\n", awaitingReview)
 		}
+	}
+	// A rejection on a source nobody has rewritten gets its own line rather than
+	// a third half of the stale split. Its basis names the source the project
+	// holds, so the grading reads the unit as settled, and what stands between
+	// it and the gate is a reviewer's refusal.
+	if rejected > 0 {
+		fmt.Fprintf(w, "\n%d unit(s) were turned down in review and hold the wording that was refused. "+
+			"They do not ship. `kapi up` drafts them again.\n", rejected)
 	}
 	// Named as units, because `kapi check` counts findings over the same tree and
 	// one unit can carry several. The percentages above are unaffected: these
@@ -512,6 +521,12 @@ func shipCell(lc LocaleCoverage, s *output.Styles) string {
 	// project no longer has, and an ungated scope has nothing else to catch it.
 	if lc.Stale > 0 {
 		return s.Warn.Render("blocked: stale")
+	}
+	// A rejection is read there too. The wording is present and at the `draft`
+	// rung, so a coverage bar can be satisfied over it, and a person has said it
+	// will not do.
+	if lc.RejectedAwaitingDraft > 0 {
+		return s.Warn.Render("blocked: rejected")
 	}
 	// A failing guardrail is read the same way, and for the same reason: the
 	// content is there, it is just wrong, which no coverage threshold expresses.

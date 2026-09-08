@@ -473,3 +473,100 @@ func TestUnitDecisions_GoverningFingerprintRoundTrips(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "fp-moved", got.GoverningFingerprint)
 }
+
+// TestTallyDecisionBasis_RejectionOwesADraft pins the count the basis grading
+// cannot produce: a reviewer turning down a translation of the source the block
+// still carries moves neither hash, so the row reads settled while the unit sits
+// at `draft` with a refusal on it (#2564). The rejected count is kept apart from
+// the stale one, a rejection on a unit with no target is not owed, the draft
+// mark settles it, and clearing the mark (what a second rejection does) owes
+// exactly one more draft.
+func TestTallyDecisionBasis_RejectionOwesADraft(t *testing.T) {
+	s := newTestStore(t)
+	ctx := t.Context()
+	p := createTestProject(t, s)
+
+	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "en.json", []*model.Block{
+		blockWithTarget("refused", "Hello", "Hei", model.TargetStatusDraft),
+		blockWithTarget("blessed", "Goodbye", "Ha det", model.TargetStatusReviewed),
+		blockWithTarget("drifted", "See you", "Vi ses", model.TargetStatusReviewed),
+		blockWithText("bare", "Sign out"),
+	}))
+	_, err := s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{
+		{
+			ItemName: "en.json", Unit: "refused", Variant: "nb",
+			Status: string(model.TargetStatusDraft), ReviewState: venue.ReviewStateRejected,
+			DecidedBy: "reviewer-1", TargetHash: state.TargetHash("Hei"),
+			ContentHash: state.SourceHash("Hello"), Updated: "2026-09-01T10:00:00Z",
+		},
+		{
+			ItemName: "en.json", Unit: "blessed", Variant: "nb",
+			Status: string(model.TargetStatusReviewed), ReviewState: venue.ReviewStateApproved,
+			DecidedBy: "reviewer-1", TargetHash: state.TargetHash("Ha det"),
+			ContentHash: state.SourceHash("Goodbye"), Updated: "2026-09-01T10:00:00Z",
+		},
+		{
+			ItemName: "en.json", Unit: "drifted", Variant: "nb",
+			Status: string(model.TargetStatusReviewed), ReviewState: venue.ReviewStateApproved,
+			DecidedBy: "reviewer-1", TargetHash: state.TargetHash("Vi ses"),
+			ContentHash: state.SourceHash("See you"), Updated: "2026-09-01T10:00:00Z",
+		},
+		{
+			ItemName: "en.json", Unit: "bare", Variant: "nb",
+			Status: string(model.TargetStatusDraft), ReviewState: venue.ReviewStateRejected,
+			DecidedBy: "reviewer-1", ContentHash: state.SourceHash("Sign out"),
+			Updated: "2026-09-01T10:00:00Z",
+		},
+	})
+	require.NoError(t, err)
+
+	// The drifted unit's source is rewritten and the reviewer turns the old
+	// translation down, which carries the approval's basis forward: a unit that
+	// is stale AND rejected, and must be counted once.
+	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "en.json", []*model.Block{
+		blockWithText("drifted", "See you soon"),
+	}))
+	_, err = s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{{
+		ItemName: "en.json", Unit: "drifted", Variant: "nb",
+		Status: string(model.TargetStatusDraft), ReviewState: venue.ReviewStateRejected,
+		DecidedBy: "reviewer-1", TargetHash: state.TargetHash("Vi ses"),
+		ContentHash: state.SourceHash("See you"), Updated: "2026-09-01T11:00:00Z",
+	}})
+	require.NoError(t, err)
+
+	tally := func() platstore.DecisionBasisTally {
+		t.Helper()
+		tallies, err := s.TallyDecisionBasis(ctx, p.ID, "main")
+		require.NoError(t, err)
+		require.Len(t, tallies, 1, "one (item, variant) scope")
+		return tallies[0]
+	}
+	got := tally()
+	assert.Equal(t, 1, got.Stale, "only the rewritten source is stale")
+	assert.Equal(t, 1, got.Owed, "and it is owed a draft")
+	assert.Equal(t, 1, got.RejectedOwed,
+		"the rejection on an unmoved source is owed a draft no grading of the basis can see")
+	assert.LessOrEqual(t, got.Owed, got.Stale, "Owed stays a subset of Stale")
+
+	require.NoError(t, s.RecordDraftBases(ctx, p.ID, "main", []platstore.DraftBasis{
+		{ItemName: "en.json", Unit: "refused", Variant: "nb", SourceHash: state.SourceHash("Hello")},
+	}))
+	got = tally()
+	assert.Zero(t, got.RejectedOwed, "drafted since the rejection: the unit waits on the next verdict")
+	assert.Equal(t, 1, got.Owed, "the stale unit is untouched by another unit's mark")
+
+	require.NoError(t, s.RecordDraftBases(ctx, p.ID, "main", []platstore.DraftBasis{
+		{ItemName: "en.json", Unit: "drifted", Variant: "nb", SourceHash: state.SourceHash("See you soon")},
+	}))
+	got = tally()
+	assert.Equal(t, 1, got.Stale, "the withdrawn approval is still a person's to replace")
+	assert.Zero(t, got.Owed)
+	assert.Zero(t, got.RejectedOwed, "a unit counted as stale is never counted as rejected too")
+
+	// A second rejection clears the mark again, which is the whole of the
+	// re-draft guard: one more draft, and one only.
+	require.NoError(t, s.RecordDraftBases(ctx, p.ID, "main", []platstore.DraftBasis{
+		{ItemName: "en.json", Unit: "refused", Variant: "nb"},
+	}))
+	assert.Equal(t, 1, tally().RejectedOwed, "a second rejection owes a second draft")
+}

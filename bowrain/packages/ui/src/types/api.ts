@@ -965,6 +965,12 @@ export interface LocaleTranslationStats {
   stale_awaiting_draft_blocks?: number;
   /** The stale pairs already re-drafted and waiting on a reviewer. */
   stale_awaiting_review_blocks?: number;
+  /**
+   * Pairs a reviewer turned down that the loop has not drafted again since.
+   * Disjoint from stale_blocks: a rejection of a translation of the source the
+   * block still carries moves neither hash.
+   */
+  rejected_awaiting_draft_blocks?: number;
   /** Derived ship state; absent from producers that do not derive it (e.g. pulse). */
   ship_state?: ShipState;
   /** Translated blocks counting as compliant (checks pass + voice bar where scored). */

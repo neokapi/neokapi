@@ -942,6 +942,17 @@ export class ConvergeLocaleResult {
         }
         if (/** @type {any} */(false)) {
             /**
+             * Rejected counts units a reviewer turned down whose translation is still
+             * the one they turned down. Their basis names the source the project holds,
+             * so Stale does not count them, and they hold the locale out of Shippable
+             * for the same reason: a person has said the wording will not do.
+             * @member
+             * @type {number | undefined}
+             */
+            this["rejected"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * Redrafted counts the stale units this run produced over — recycled against
              * the rewritten source, or drafted for the remainder. It is what the loop
              * owes them: a translation of the source the project has now. The decision

@@ -27,6 +27,13 @@ export interface ShipStateBadgeProps {
    */
   staleAwaitingDraft?: number;
   staleAwaitingReview?: number;
+  /**
+   * Pairs a reviewer turned down that the loop has not drafted again since.
+   * They sit outside the stale count: rejecting a translation of the source the
+   * project still holds moves neither hash, so the basis grading reads such a
+   * pair as settled. A convergence pass is what moves them.
+   */
+  rejectedAwaitingDraft?: number;
   className?: string;
 }
 
@@ -59,6 +66,7 @@ function tooltipContent(props: ShipStateBadgeProps): React.ReactNode {
   const { state, approvedBlocks, totalBlocks, failingChecks } = props;
   const awaitingDraft = props.staleAwaitingDraft ?? 0;
   const awaitingReview = props.staleAwaitingReview ?? 0;
+  const rejected = props.rejectedAwaitingDraft ?? 0;
   const meta = stateStyles[state];
   const details: string[] = [];
   if (totalBlocks !== undefined && approvedBlocks !== undefined) {
@@ -74,6 +82,9 @@ function tooltipContent(props: ShipStateBadgeProps): React.ReactNode {
   }
   if (awaitingReview > 0) {
     details.push(`${awaitingReview} re-drafted, awaiting review`);
+  }
+  if (rejected > 0) {
+    details.push(`${rejected} turned down, awaiting a draft`);
   }
   return (
     <div className="max-w-60 space-y-1">

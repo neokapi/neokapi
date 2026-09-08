@@ -63,6 +63,11 @@ type ConvergeLocaleResult struct {
 	// not a gate applies: the decision on record no longer describes the
 	// project, and only a person can replace it.
 	Stale int `json:"stale,omitempty"`
+	// Rejected counts units a reviewer turned down whose translation is still
+	// the one they turned down. Their basis names the source the project holds,
+	// so Stale does not count them, and they hold the locale out of Shippable
+	// for the same reason: a person has said the wording will not do.
+	Rejected int `json:"rejected,omitempty"`
 	// Redrafted counts the stale units this run produced over — recycled against
 	// the rewritten source, or drafted for the remainder. It is what the loop
 	// owes them: a translation of the source the project has now. The decision
@@ -149,6 +154,16 @@ func (o ConvergeOutput) StaleUnits() int {
 	return n
 }
 
+// RejectedUnits totals the units a reviewer turned down that still hold the
+// refused wording after the run, across every locale.
+func (o ConvergeOutput) RejectedUnits() int {
+	n := 0
+	for _, lc := range o.Locales {
+		n += lc.Rejected
+	}
+	return n
+}
+
 // RedraftedUnits totals the stale units this run produced a fresh translation
 // for, across every locale.
 func (o ConvergeOutput) RedraftedUnits() int {
@@ -215,6 +230,14 @@ func (o ConvergeOutput) FormatText(w io.Writer) error {
 	if stale := o.StaleUnits(); stale > 0 {
 		fmt.Fprintf(w, "%d unit(s) stale: their source changed since the translation was decided. "+
 			"Re-review them (kapi status --review); they do not ship until you do.\n", stale)
+	}
+	// A refusal the run could not answer. The wording a reviewer turned down is
+	// still in the file, so the locale is held whatever the percentages say, and
+	// the reader is told which half of the loop is stuck: production reached the
+	// unit and produced the same words, or the flow has no step that would.
+	if rejected := o.RejectedUnits(); rejected > 0 {
+		fmt.Fprintf(w, "%d unit(s) still hold wording a reviewer turned down. "+
+			"They do not ship until a pass drafts something else for them.\n", rejected)
 	}
 	if o.Converged {
 		fmt.Fprintln(w, "Up to date: every gated scope is shippable.")
@@ -815,6 +838,14 @@ func localesNeedingPass(cov []LocaleCoverage, locales []model.LocaleID) []model.
 				needs = true
 				break
 			}
+			// A rejection is work on the same footing. The unit holds a target,
+			// so the ungated rung test below reads the scope as complete, and a
+			// reviewer has said the wording will not do. What it needs is
+			// another draft, which is production.
+			if c.RejectedAwaitingDraft > 0 {
+				needs = true
+				break
+			}
 			// A unit failing the project's bound checks is work on any scope,
 			// gated or not, for the same reason: it counts at its true rung, so
 			// the ungated rung test below reads the scope as complete while the
@@ -1046,6 +1077,7 @@ func buildConvergeOutput(flowName string, passes int, cov []LocaleCoverage, loca
 				}
 			}
 			res.Stale += c.Stale
+			res.Rejected += c.RejectedAwaitingDraft
 			res.FailingChecks += c.FailingChecks
 			// The verdict is the rollup's, unconditionally: a scope that does not
 			// ship does not ship, gate or no gate, and reading it only for gated

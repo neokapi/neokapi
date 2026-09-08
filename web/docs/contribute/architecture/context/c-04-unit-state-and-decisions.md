@@ -231,6 +231,36 @@ Withdrawing an approval reads the same way. On the server a rejection also
 clears the unit's draft mark, so the loop owes it a fresh draft rather than
 waiting on a review that is already in.
 
+**A rejection is work whatever the basis says.** Comparing the two hashes
+answers whether a translation renders the sentence the project holds. It says
+nothing about whether the project stands behind that translation, and a reviewer
+turning down a translation of the source in front of them moves neither hash, so
+a reader grading the basis alone sees a settled record over a unit sitting at
+`draft` with a refusal on it. The verdict is therefore read beside the basis: a
+rejected unit is owed a draft until the venue has drafted it again since the
+rejection.
+
+Each venue answers "since the rejection" from what it already keeps. On the
+server it is the draft mark, which the rejection clears and the next pass
+stamps, so one rejection buys exactly one draft and a second rejection buys one
+more. Locally it is the decision's target half: the rejection names the
+translation it refused, a pass that drafts something else moves the unit off
+that pairing, and the decision stops applying. Neither venue can loop, and a
+pass that reproduces the refused wording word for word leaves the unit exactly
+where it was, held out of shipping rather than quietly delivered.
+
+The count is published beside the stale split rather than inside it. A
+rejection on an unmoved source belongs to neither half of that split, and
+folding it in would break the subset relation the derive depends on. It is
+`convergence.LocaleCoverage.RejectedAwaitingDraft` locally,
+`rejected_awaiting_draft_blocks` on the dashboard stats, and
+`DecisionBasisTally.RejectedOwed` in the ledger's grouped tally, where it holds
+the rejections `Stale` does not, so the two are disjoint. A convergence pass
+owes a draft for `Owed + RejectedOwed` units, which is the number the derive
+withholds from the produced count and the number the worker's own predicate
+partitions out. Such a unit holds its scope out of shipping on both venues,
+exactly as a stale one does.
+
 **A decided unit is re-drafted once per source change.** The re-draft cannot
 decide, so a stale decision stays stale until a person re-reviews, and a loop
 that read only the decision would draft the unit again on every pass. Each
@@ -253,7 +283,9 @@ and `StaleAwaitingReview` locally, `stale_awaiting_draft_blocks` and
 `stale_awaiting_review_blocks` on the dashboard stats). Each venue reads the
 split from what it already holds: locally, whether the record still describes
 the translation on disk; on the server, whether the row's draft mark names the
-block's current source, which is the `Owed` half of the grouped tally.
+block's current source, which is the `Owed` half of the grouped tally. `Owed`
+stays a subset of `Stale`, which is what lets the derive subtract it from a
+produced count the stale units are already inside.
 
 Staleness is one reason a produced unit is work, and the plan carries the others
 on their own axis. What a pass spends a provider call on is decided by the

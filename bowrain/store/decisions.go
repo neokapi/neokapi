@@ -313,6 +313,13 @@ func (s *PostgresStore) GetUnitDecision(ctx context.Context, projectID, stream, 
 // unit that carries a target for the variant. The target condition keeps the
 // count inside the translated denominator it is subtracted from; a stale
 // decision on a unit with no target is pending as untranslated already.
+//
+// RejectedOwed reads the VERDICT beside the two hashes, for the units Stale
+// cannot hold: a rejection of a translation of the source the block still
+// carries. A reviewer turning that translation down owes the unit a fresh
+// draft, and the same draft mark says whether the loop has since made one.
+// Excluding the stale rejections keeps the two counts disjoint, so a caller
+// subtracting both from a produced count subtracts each unit once.
 func (s *PostgresStore) TallyDecisionBasis(ctx context.Context, projectID, stream string) ([]platstore.DecisionBasisTally, error) {
 	stream = storeutil.DefaultStream(stream)
 	rows, err := s.db.QueryContext(ctx,
@@ -320,6 +327,13 @@ func (s *PostgresStore) TallyDecisionBasis(ctx context.Context, projectID, strea
 			COALESCE(SUM(CASE WHEN d.content_hash <> '' AND d.content_hash <> b.content_hash THEN 1 ELSE 0 END), 0),
 			COALESCE(SUM(CASE WHEN d.content_hash = '' THEN 1 ELSE 0 END), 0),
 			COALESCE(SUM(CASE WHEN d.content_hash <> '' AND d.content_hash <> b.content_hash
+				AND d.draft_basis <> b.content_hash
+				AND EXISTS (SELECT 1 FROM translations t
+					WHERE t.project_id = b.project_id AND t.stream = b.stream
+					AND t.block_id = b.id AND t.locale = d.variant)
+				THEN 1 ELSE 0 END), 0),
+			COALESCE(SUM(CASE WHEN d.review_state = $3
+				AND NOT (d.content_hash <> '' AND d.content_hash <> b.content_hash)
 				AND d.draft_basis <> b.content_hash
 				AND EXISTS (SELECT 1 FROM translations t
 					WHERE t.project_id = b.project_id AND t.stream = b.stream
@@ -333,7 +347,7 @@ func (s *PostgresStore) TallyDecisionBasis(ctx context.Context, projectID, strea
 		 WHERE d.project_id=$1 AND d.stream=$2 AND b.translatable
 		 GROUP BY d.item_name, d.variant
 		 ORDER BY d.item_name, d.variant`,
-		projectID, stream)
+		projectID, stream, venue.ReviewStateRejected)
 	if err != nil {
 		return nil, fmt.Errorf("tally decision basis: %w", err)
 	}
@@ -342,7 +356,7 @@ func (s *PostgresStore) TallyDecisionBasis(ctx context.Context, projectID, strea
 	var out []platstore.DecisionBasisTally
 	for rows.Next() {
 		var t platstore.DecisionBasisTally
-		if err := rows.Scan(&t.ItemName, &t.Variant, &t.Stale, &t.BasisUnknown, &t.Owed); err != nil {
+		if err := rows.Scan(&t.ItemName, &t.Variant, &t.Stale, &t.BasisUnknown, &t.Owed, &t.RejectedOwed); err != nil {
 			return nil, fmt.Errorf("scan decision basis tally: %w", err)
 		}
 		out = append(out, t)

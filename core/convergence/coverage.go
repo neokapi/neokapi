@@ -31,6 +31,7 @@ type scopeTally struct {
 	aiReviewed     int
 	stale          int
 	staleRedrafted int
+	rejectedOwed   int
 	failingChecks  int
 	basisUnknown   int
 }
@@ -92,6 +93,17 @@ func (t *CoverageTally) AddStale(s Scope, redrafted bool) {
 		st.staleRedrafted++
 	}
 }
+
+// NoteRejectedAwaitingDraft records that a unit carries a reviewer's rejection
+// the loop has not drafted against since, without tallying it: the rejection
+// already put the unit at `draft` through the accompanying Add, and this names
+// what it is waiting for.
+//
+// It is the local reading of the platform's DecisionBasisTally.RejectedOwed,
+// and it is kept apart from the stale count for the same reason: a rejection of
+// a translation of the source the project still holds moves neither hash, so no
+// grading of the basis can see it.
+func (t *CoverageTally) NoteRejectedAwaitingDraft(s Scope) { t.tally(s).rejectedOwed++ }
 
 // NoteUnknownBasis records that a unit's record says nothing about the source in
 // front of the reader — a decision written before the basis was tracked, or a
@@ -160,7 +172,8 @@ func (t *CoverageTally) RollupGates(ship, verified gate.RuleSet) []LocaleCoverag
 			Pct: map[string]int{}, AIReviewed: st.aiReviewed,
 			Stale: st.stale, FailingChecks: st.failingChecks,
 			StaleAwaitingDraft: st.stale - st.staleRedrafted, StaleAwaitingReview: st.staleRedrafted,
-			BasisUnknown: st.basisUnknown,
+			RejectedAwaitingDraft: st.rejectedOwed,
+			BasisUnknown:          st.basisUnknown,
 		}
 		for _, rung := range ladder {
 			lc.Pct[rung] = int(math.Round(cov.AtLeastPct(ladder, rung)))
@@ -182,18 +195,19 @@ func (t *CoverageTally) RollupGates(ship, verified gate.RuleSet) []LocaleCoverag
 		if vg, ok := verified.Resolve(s.Collection, s.Locale); ok {
 			lc.Verified = gate.Evaluate(vg, cov, ladder).Pass
 		}
-		// Stale content and content failing the project's bound checks are
-		// withheld whether or not a bar was declared. An ungated scope reads as
-		// shippable because nobody asked for a coverage threshold; nobody asked
-		// for wording whose source has been rewritten, or for a translation that
-		// drops a placeholder, either — and a project with no gates is exactly the
-		// one with nothing else to catch it.
+		// Stale content, content a reviewer turned down, and content failing the
+		// project's bound checks are withheld whether or not a bar was declared.
+		// An ungated scope reads as shippable because nobody asked for a
+		// coverage threshold; nobody asked for wording whose source has been
+		// rewritten, for a translation somebody refused, or for one that drops a
+		// placeholder, either. A project with no gates is exactly the one with
+		// nothing else to catch it.
 		//
 		// This is the one place the verdict is decided, so every surface reading a
 		// LocaleCoverage gets the same answer to "does this ship" — which is the
 		// whole point of the withholding living here rather than in a percentage
 		// one caller demotes and another does not.
-		if lc.Stale > 0 || lc.FailingChecks > 0 {
+		if lc.Stale > 0 || lc.RejectedAwaitingDraft > 0 || lc.FailingChecks > 0 {
 			lc.Shippable = false
 			lc.Verified = false
 		}

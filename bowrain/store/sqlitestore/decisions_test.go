@@ -396,3 +396,73 @@ func TestUnitDecisions_GoverningFingerprintRoundTrips_SQLite(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "fp-moved", got.GoverningFingerprint)
 }
+
+// TestTallyDecisionBasis_RejectionOwesADraft_SQLite mirrors the Postgres
+// store's TestTallyDecisionBasis_RejectionOwesADraft: the rejected count reads
+// the verdict beside the two hashes, stays disjoint from the stale count, needs
+// a target, and follows the draft mark.
+func TestTallyDecisionBasis_RejectionOwesADraft_SQLite(t *testing.T) {
+	s := newTestStore(t)
+	ctx := t.Context()
+	p := createTestProject(t, s)
+
+	block := func(id, source, target string) *model.Block {
+		b := &model.Block{ID: id, Translatable: true}
+		b.SetSourceText(source)
+		if target != "" {
+			b.SetTargetText("nb", target)
+		}
+		return b
+	}
+	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "en.json", []*model.Block{
+		block("refused", "Hello", "Hei"),
+		block("drifted", "See you", "Vi ses"),
+		block("bare", "Sign out", ""),
+	}))
+	_, err := s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{
+		{
+			ItemName: "en.json", Unit: "refused", Variant: "nb",
+			Status: string(model.TargetStatusDraft), ReviewState: venue.ReviewStateRejected,
+			DecidedBy: "reviewer-1", TargetHash: state.TargetHash("Hei"),
+			ContentHash: state.SourceHash("Hello"), Updated: "2026-09-01T10:00:00Z",
+		},
+		{
+			ItemName: "en.json", Unit: "drifted", Variant: "nb",
+			Status: string(model.TargetStatusReviewed), ReviewState: venue.ReviewStateApproved,
+			DecidedBy: "reviewer-1", TargetHash: state.TargetHash("Vi ses"),
+			ContentHash: state.SourceHash("See you"), Updated: "2026-09-01T10:00:00Z",
+		},
+		{
+			ItemName: "en.json", Unit: "bare", Variant: "nb",
+			Status: string(model.TargetStatusDraft), ReviewState: venue.ReviewStateRejected,
+			DecidedBy: "reviewer-1", ContentHash: state.SourceHash("Sign out"),
+			Updated: "2026-09-01T10:00:00Z",
+		},
+	})
+	require.NoError(t, err)
+	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "en.json", []*model.Block{
+		block("drifted", "See you soon", ""),
+	}))
+
+	tally := func() platstore.DecisionBasisTally {
+		t.Helper()
+		tallies, err := s.TallyDecisionBasis(ctx, p.ID, "main")
+		require.NoError(t, err)
+		require.Len(t, tallies, 1, "one (item, variant) scope")
+		return tallies[0]
+	}
+	got := tally()
+	assert.Equal(t, 1, got.Stale)
+	assert.Equal(t, 1, got.Owed)
+	assert.Equal(t, 1, got.RejectedOwed, "the rejection on an unmoved source is owed a draft")
+
+	require.NoError(t, s.RecordDraftBases(ctx, p.ID, "main", []platstore.DraftBasis{
+		{ItemName: "en.json", Unit: "refused", Variant: "nb", SourceHash: state.SourceHash("Hello")},
+	}))
+	assert.Zero(t, tally().RejectedOwed, "drafted since the rejection")
+
+	require.NoError(t, s.RecordDraftBases(ctx, p.ID, "main", []platstore.DraftBasis{
+		{ItemName: "en.json", Unit: "refused", Variant: "nb"},
+	}))
+	assert.Equal(t, 1, tally().RejectedOwed, "a second rejection owes a second draft")
+}
