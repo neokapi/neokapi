@@ -127,11 +127,11 @@ func TestOMMLNorBlockSurfaced(t *testing.T) {
 func TestOMMLNorUntranslatedByteExact(t *testing.T) {
 	out := writeBackNor(t, norEquationDocx(t), nil)
 	xml := docxDocumentXML(t, out)
-	// captureRawElement re-serializes the empty <m:nor/> as <m:nor></m:nor>; the
-	// untranslated nor ref resolves to its source text, reproducing the rest verbatim.
+	// The untranslated nor ref renders to its source text, so the paragraph is
+	// replayed as the source wrote it, self-closing <m:nor/> included.
 	assert.Contains(t, xml,
-		`<m:oMath><m:r><m:t>x</m:t></m:r><m:r><m:rPr><m:nor></m:nor></m:rPr><m:t>where</m:t></m:r><m:r><m:t>y</m:t></m:r></m:oMath>`,
-		"untranslated equation round-trips through the sub-skeleton")
+		`<m:oMath><m:r><m:t>x</m:t></m:r><m:r><m:rPr><m:nor/></m:rPr><m:t>where</m:t></m:r><m:r><m:t>y</m:t></m:r></m:oMath>`,
+		"untranslated equation goes back as the source wrote it")
 }
 
 // Translating the prose splices the translation into the equation's OMML while

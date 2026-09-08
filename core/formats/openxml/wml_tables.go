@@ -224,7 +224,11 @@ func (p *wmlParser) handleTableRow(d *rawDecoder, start xml.StartElement) error 
 					return err
 				}
 				if trPrHasRowDeletion(raw) {
-					// Drain the rest of the row and emit nothing.
+					// Drain the rest of the row and emit nothing. A replay
+					// region open across the row would put it back.
+					if p.regionOpen {
+						p.regionEligible = false
+					}
 					return skipRowToEnd()
 				}
 				// Not a deleted row — emit row start, any pending

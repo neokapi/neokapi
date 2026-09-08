@@ -1035,6 +1035,16 @@ type Writer struct {
 	// from rendered content. Set by writeFromSkeleton from the part's own
 	// prefix before its first block renders.
 	partStrict bool
+
+	// fromSource makes preferredRuns answer with a block's source runs, so a
+	// block can be rendered as it would be with nothing translated and
+	// compared with its rendering for the target.
+	fromSource bool
+	// changed names the blocks whose rendering for the target can differ
+	// from their source rendering: a block with target runs for the locale,
+	// and a block whose payload carries a marker for one. Built with blocks
+	// by setBlocks; a block outside it renders once.
+	changed map[string]bool
 }
 
 var _ format.SkeletonStoreConsumer = (*Writer)(nil)
@@ -1159,8 +1169,8 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 			}
 		}
 	}
-	w.blocks = blocks
-	defer func() { w.blocks = nil }()
+	w.setBlocks(blocks)
+	defer w.setBlocks(nil)
 
 	// Resolve the source archive: prefer re-opening from the path (no second
 	// in-memory copy) and fall back to held bytes.
@@ -1230,6 +1240,10 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer,
 	var currentPart string
 	var currentBuf bytes.Buffer
 	var partStrictKnown bool
+	// The replay regions of the current part, and the spans replayed in
+	// each part, held back until the part's post-passes have run.
+	var replay wmlReplayState
+	replays := map[string][][]byte{}
 
 	for {
 		entry, err := w.skeletonStore.Next()
@@ -1254,6 +1268,7 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer,
 				currentPart = after
 				currentBuf.Reset()
 				partStrictKnown = false
+				replay = wmlReplayState{}
 				continue
 			}
 			if after, ok := strings.CutPrefix(refID, skelPartEndPrefix); ok {
@@ -1261,24 +1276,58 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer,
 				if currentBuf.Len() > 0 {
 					partContents[partPath] = append([]byte{}, currentBuf.Bytes()...)
 				}
+				if len(replay.replays) > 0 {
+					replays[partPath] = replay.replays
+				}
 				currentPart = ""
 				currentBuf.Reset()
 				continue
 			}
+			if currentPart == "" {
+				continue
+			}
+
+			// Paragraph replay markers (see wml_replay.go).
+			if refID == skelWMLRegionStart {
+				replay.start(&currentBuf)
+				continue
+			}
+			if span, ok := strings.CutPrefix(refID, skelWMLParaBlockPrefix); ok {
+				replay.para(&currentBuf, []byte(span), true)
+				continue
+			}
+			if span, ok := strings.CutPrefix(refID, skelWMLParaPrefix); ok {
+				replay.para(&currentBuf, []byte(span), false)
+				continue
+			}
+			if refID == skelWMLRegionEnd {
+				replay.end(&currentBuf, nil)
+				continue
+			}
+			if span, ok := strings.CutPrefix(refID, skelWMLRegionEndSpanPrefix); ok {
+				replay.end(&currentBuf, []byte(span))
+				continue
+			}
+			if refID == skelWMLRegionSkip {
+				replay.skip()
+				continue
+			}
 
 			// Regular block ref — render and write
-			if currentPart != "" {
-				if block, ok := blocks[refID]; ok {
-					if !partStrictKnown {
-						// Every WordprocessingML part declares its
-						// namespace binding on the root element, which
-						// the skeleton has replayed by the time the
-						// first block of the part is reached.
-						w.partStrict = bytes.Contains(currentBuf.Bytes(), []byte(wmlStrictNamespace))
-						partStrictKnown = true
-					}
-					currentBuf.WriteString(w.renderBlock(block, info.docType))
+			if block, ok := blocks[refID]; ok {
+				if !partStrictKnown {
+					// Every WordprocessingML part declares its
+					// namespace binding on the root element, which
+					// the skeleton has replayed by the time the
+					// first block of the part is reached.
+					w.partStrict = bytes.Contains(currentBuf.Bytes(), []byte(wmlStrictNamespace))
+					partStrictKnown = true
 				}
+				rendered := w.renderBlock(block, info.docType)
+				if replay.open {
+					rendered = w.replayInRegion(&replay, block, info.docType, rendered)
+				}
+				currentBuf.WriteString(rendered)
 			}
 
 		case format.SkeletonLang:
@@ -1523,6 +1572,7 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer,
 				content = stripWMLRevisionElementsCached(f.Name, content)
 			}
 			content = postWML(f.Name, content)
+			content = restoreWMLReplays(content, replays[f.Name])
 			fh := f.FileHeader
 			fh.Method = zip.Deflate
 			// Clear data descriptor fields to avoid checksum issues
@@ -1613,7 +1663,7 @@ func (w *Writer) writeFromReparse(ctx context.Context, origZR *zip.Reader, zw *z
 
 	w.skeletonStore = store
 	defer func() { w.skeletonStore = nil }()
-	w.blocks = merged
+	w.setBlocks(merged)
 
 	if err := store.Flush(); err != nil {
 		return fmt.Errorf("openxml: skeleton flush: %w", err)
@@ -5307,6 +5357,12 @@ const xmlWhitespace = " \t\r\n"
 // present, falling back to the source runs. Returns nil if neither is
 // available, matching the earlier getFragment contract.
 func (w *Writer) preferredRuns(block *model.Block) []model.Run {
+	if w.fromSource {
+		if len(block.Source) > 0 {
+			return block.Source
+		}
+		return nil
+	}
 	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
 		if runs := block.TargetRuns(w.Locale); len(runs) > 0 {
 			return runs
@@ -5316,4 +5372,85 @@ func (w *Writer) preferredRuns(block *model.Block) []model.Run {
 		return block.Source
 	}
 	return nil
+}
+
+// setBlocks installs the block index a Write renders from, and the set of
+// blocks whose rendering can differ from their source rendering.
+func (w *Writer) setBlocks(blocks map[string]*model.Block) {
+	w.blocks = blocks
+	w.changed = changedBlocks(blocks, w.Locale)
+}
+
+// changedBlocks names the blocks whose rendering for locale can differ from
+// their rendering from the source runs: those with target runs for it, and,
+// transitively, every block whose payload refers to one through a drawing
+// marker, since a host renders its nested blocks in place.
+func changedBlocks(blocks map[string]*model.Block, locale model.LocaleID) map[string]bool {
+	changed := map[string]bool{}
+	if locale.IsEmpty() {
+		return changed
+	}
+	for id, b := range blocks {
+		if b != nil && b.HasTarget(locale) && len(b.TargetRuns(locale)) > 0 {
+			changed[id] = true
+		}
+	}
+	for len(changed) > 0 {
+		grew := false
+		for id, b := range blocks {
+			if changed[id] || b == nil {
+				continue
+			}
+			for _, r := range b.Source {
+				if r.Ph == nil || !strings.Contains(r.Ph.Data, "<!--KAPI-") {
+					continue
+				}
+				for _, m := range drawingMarkerRE.FindAllStringSubmatch(r.Ph.Data, -1) {
+					if len(m) == 3 && changed[m[2]] {
+						changed[id] = true
+						grew = true
+						break
+					}
+				}
+				if changed[id] {
+					break
+				}
+			}
+		}
+		if !grew {
+			break
+		}
+	}
+	return changed
+}
+
+// renderBlockFromSource renders a block as it would render with nothing
+// translated, which is what a replay region compares a rendering against.
+func (w *Writer) renderBlockFromSource(block *model.Block, dt docType) string {
+	w.fromSource = true
+	defer func() { w.fromSource = false }()
+	return w.renderBlock(block, dt)
+}
+
+// replayInRegion compares a block's rendering for the target with its
+// rendering from the source runs while a replay region is open. A block that
+// renders the same leaves the region eligible. One that differs closes the
+// door on replaying the region whole, and keeps what it can: every direct
+// child of the paragraph that rendered the same goes back as the source wrote
+// it.
+func (w *Writer) replayInRegion(s *wmlReplayState, block *model.Block, dt docType, rendered string) string {
+	blockSpan := s.blockSpan
+	s.blockSpan = nil
+	if !w.changed[block.ID] {
+		return rendered
+	}
+	src := w.renderBlockFromSource(block, dt)
+	if src == rendered {
+		return rendered
+	}
+	s.mismatch = true
+	if blockSpan == nil {
+		return rendered
+	}
+	return replayUnchangedChildren(rendered, src, blockSpan)
 }

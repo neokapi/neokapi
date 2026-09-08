@@ -30,6 +30,15 @@ func (p *wmlParser) parseParagraph(d *rawDecoder, partPath string, emitBlock fun
 	p.currentStyleChainNames = nil
 	defer func() { p.currentStyleChainNames = savedStyleChainNames }()
 
+	// The paragraph's source bytes, for replay: the window stays pinned
+	// across the subtree and the span is taken at the end element. The start
+	// tag is kept so a rendered paragraph reopens with the source's own
+	// attributes.
+	pStart := d.Offset()
+	pOpenTag := wmlParagraphOpenTag(d.RawString())
+	d.Pin(pStart)
+	defer d.Unpin()
+
 	var runs []textRun
 	var hyperlinkRuns []textRun
 	var inHyperlink bool
@@ -402,6 +411,13 @@ func (p *wmlParser) parseParagraph(d *rawDecoder, partPath string, emitBlock fun
 			}
 
 			if t.Name.Local == "p" {
+				pEnd := d.EndOffset()
+				span := d.Range(pStart, pEnd)
+				eligible := p.paragraphReplayable(span)
+				// A complex field still open at the paragraph's end keeps
+				// the replay region open for the paragraphs it crosses.
+				fieldOpen := cfs.active
+
 				// Apply style optimization: subtract inherited properties.
 				// The inherited chain combines:
 				//   1. The paragraph's pStyle chain (resolveProps walks
@@ -657,6 +673,9 @@ func (p *wmlParser) parseParagraph(d *rawDecoder, partPath string, emitBlock fun
 					prepended = append(prepended, runs...)
 					runs = prepended
 					p.partMergeable = nil
+					// The paragraph now carries its predecessor's runs,
+					// which its own bytes do not hold.
+					eligible = false
 				}
 
 				// Compute the per-paragraph common rPr children BEFORE
@@ -774,7 +793,11 @@ func (p *wmlParser) parseParagraph(d *rawDecoder, partPath string, emitBlock fun
 						runs:        merged,
 						paraProps:   paraProps,
 						paraStyleID: paraStyleID,
+						openTag:     pOpenTag,
+						start:       pStart,
+						end:         pEnd,
 					}
+					p.replayParagraphDropped(d, fieldOpen)
 					return nil
 				}
 
@@ -932,11 +955,15 @@ func (p *wmlParser) parseParagraph(d *rawDecoder, partPath string, emitBlock fun
 						// stripPPrIfDeletedMark for the BlockParser.java:
 						// 207-213 citation.
 						emitParaProps := stripPPrIfDeletedMark(paraProps)
-						p.skelWriteString("<w:p>")
+						p.replayParagraphBegin(pStart, pEnd, span, eligible, false, fieldOpen)
+						p.skelWriteString(pOpenTag)
 						if emitParaProps != "" {
 							p.skelText(emitParaProps)
 						}
 						p.skelWriteString("</w:p>")
+						if !fieldOpen {
+							p.replayRegionEnd(d)
+						}
 						return nil
 					}
 					// If a field-straddle buffer is pending but THIS
@@ -981,6 +1008,7 @@ func (p *wmlParser) parseParagraph(d *rawDecoder, partPath string, emitBlock fun
 					// separate (P2) and end (P4); reference keeps P3
 					// as an empty paragraph rather than dropping it.
 					if paragraphHasDeletedMark(paraProps) && len(merged) == 0 && !(cfs.active && cfs.extractable) {
+						p.replayParagraphDropped(d, fieldOpen)
 						return nil
 					}
 					// Structural absorption target for a delMark-bearing
@@ -1010,6 +1038,7 @@ func (p *wmlParser) parseParagraph(d *rawDecoder, partPath string, emitBlock fun
 					// only sole-run cases handled above).
 					if p.partAbsorbedTrailingEmpty && paraProps == "" && !cfs.active {
 						p.partAbsorbedTrailingEmpty = false
+						p.replayParagraphDropped(d, fieldOpen)
 						return nil
 					}
 					// When the captured pPr/rPr carries a deletedMark
@@ -1020,7 +1049,8 @@ func (p *wmlParser) parseParagraph(d *rawDecoder, partPath string, emitBlock fun
 					// rPr (which can carry a leftover `<w:rStyle>` etc.)
 					// does not leak through. Fixture 1102.docx P3.
 					emitParaProps := stripPPrIfDeletedMark(paraProps)
-					p.skelWriteString("<w:p>")
+					p.replayParagraphBegin(pStart, pEnd, span, eligible, false, fieldOpen)
+					p.skelWriteString(pOpenTag)
 					if emitParaProps != "" {
 						p.skelText(emitParaProps)
 					}
@@ -1189,6 +1219,9 @@ func (p *wmlParser) parseParagraph(d *rawDecoder, partPath string, emitBlock fun
 						i = j
 					}
 					p.skelWriteString("</w:p>")
+					if !fieldOpen {
+						p.replayRegionEnd(d)
+					}
 					return nil
 				}
 
@@ -1206,13 +1239,17 @@ func (p *wmlParser) parseParagraph(d *rawDecoder, partPath string, emitBlock fun
 					// stripPPrIfDeletedMark for the BlockParser.java:
 					// 207-213 citation.
 					emitParaProps := stripPPrIfDeletedMark(paraProps)
-					p.skelWriteString("<w:p>")
+					p.replayParagraphBegin(pStart, pEnd, span, eligible, false, fieldOpen)
+					p.skelWriteString(pOpenTag)
 					if emitParaProps != "" {
 						p.skelText(emitParaProps)
 					}
 					// Write runs as skeleton text
 					p.skelText(emitRunEnvelopes(merged))
 					p.skelWriteString("</w:p>")
+					if !fieldOpen {
+						p.replayRegionEnd(d)
+					}
 					return nil
 				}
 
@@ -1266,11 +1303,17 @@ func (p *wmlParser) parseParagraph(d *rawDecoder, partPath string, emitBlock fun
 				// and uses partFieldStraddle, which is the right path
 				// for that scenario.
 				if cfs.active && cfs.extractable && cfs.atResult {
+					p.replayRegionHold(pStart)
 					p.partFieldStraddle = &pendingFieldBlock{
 						runs:        merged,
 						paraProps:   paraProps,
 						paraStyleID: paraStyleID,
 						partPath:    partPath,
+						openTag:     pOpenTag,
+						start:       pStart,
+						end:         pEnd,
+						span:        span,
+						eligible:    eligible,
 					}
 					return nil
 				}
@@ -1306,12 +1349,16 @@ func (p *wmlParser) parseParagraph(d *rawDecoder, partPath string, emitBlock fun
 				// above; this strip protects emit-paths where the
 				// absorption was gated off.)
 				emitParaProps := stripPPrIfDeletedMark(paraProps)
-				p.skelWriteString("<w:p>")
+				p.replayParagraphBegin(pStart, pEnd, span, eligible, true, fieldOpen)
+				p.skelWriteString(pOpenTag)
 				if emitParaProps != "" {
 					p.skelText(emitParaProps)
 				}
 				p.skelRef(blockID)
 				p.skelWriteString("</w:p>")
+				if !fieldOpen {
+					p.replayRegionEnd(d)
+				}
 
 				block := p.buildBlock(blockID, merged, partPath, commonRPrXML, perRunRPrXML, perRunSrcRunStart)
 				p.applyParagraphRole(block, paraStyleID, paraProps, allHidden(merged, inheritedVanish))

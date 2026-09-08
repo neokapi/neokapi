@@ -658,27 +658,14 @@ type corePropsParser struct {
 // spec-valid.
 func parseCoreProperties(data []byte, partPath string, blockCounter *int, emitBlock func(*model.Block), skelStore *format.SkeletonStore) {
 	p := &corePropsParser{skeletonStore: skelStore}
-	// Strip a leading UTF-8 BOM (EF BB BF) before handing to xml.Decoder.
-	// Go's encoding/xml does NOT consume the BOM as encoding metadata —
-	// it is surfaced as a CharData token in the document prolog (i.e.
-	// before the XML declaration). Without the strip the BOM bytes flow
-	// straight into the skeleton via the CharData branch below and end
-	// up echoed at offset 0 of the reconstructed part.
-	//
-	// Upstream Okapi's OpenXMLContentFilter reads docProps/core.xml
-	// through StAX's XMLEventReader, which decodes the source bytes
-	// into UTF-16 internally and treats the BOM as encoding metadata
-	// (not a character event). The corresponding XMLEventWriter does
-	// not emit a BOM either, so the okapi reference output for any
-	// docProps/core.xml that ships with a source BOM ends up BOM-less.
-	// We strip here so the native skeleton matches that emit shape.
-	//
-	// Per ECMA-376-1 §A.2 (parts encoding) a UTF-8 XML part may be
-	// authored with or without a BOM; consumers must accept both forms
-	// but byte-equal parity tracks okapi's no-BOM emit shape. 948-1
-	// .docx is the only docx fixture in the corpus whose core.xml
-	// ships with a BOM.
+	// Go's encoding/xml reports a leading UTF-8 BOM as character data in the
+	// prolog rather than taking it as encoding metadata, so it is held back
+	// from the decoder and written to the skeleton as it was: the part goes
+	// back with the BOM it came with. ECMA-376-1 §A.2 allows a UTF-8 part
+	// either way. The parity canonicaliser drops a BOM on both sides
+	// (StripXMLDeclaration), since upstream Okapi writes none.
 	if len(data) >= 3 && data[0] == 0xEF && data[1] == 0xBB && data[2] == 0xBF {
+		p.skelText(string(data[:3]))
 		data = data[3:]
 	}
 	d := newRawDecoder(data)
