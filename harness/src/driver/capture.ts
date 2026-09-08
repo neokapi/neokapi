@@ -138,6 +138,13 @@ export async function captureDemo(m: DemoManifest, opts: CaptureOptions = {}): P
     "bypassPermissions",
     "--model",
     model,
+    // Read settings from the sandbox only. Without this the session inherits the
+    // recording machine's ~/.claude: its enabled plugins and their skills, its
+    // SessionStart hooks, its model and effort overrides. A capture then shows a
+    // machine nobody else has, and the kapi skill competes with dozens of others
+    // for the same request — the take stops matching the demo it narrates.
+    "--setting-sources",
+    "project",
   ];
   if (m.mcp) {
     // MCP path: register kapi as an MCP server and forbid Bash so Claude must use
