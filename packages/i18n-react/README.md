@@ -397,6 +397,11 @@ Text with `<a>`, `<strong>`, or other inline elements uses the rich `__tx()` loo
 
 The translator can reorder `{=m0}` tokens freely — the original JSX elements are spliced in at the right positions.
 
+A whitespace-only expression is a space rather than a variable: `<p>Read the
+<a>docs</a>{" "}for more.</p>` extracts as `Read the {=m0}docs{/=m0} for
+more.`, so a translator reads a sentence instead of a token standing in for a
+character.
+
 When one of those elements answers for the text inside it, the call carries a
 fifth argument saying so: `<code>`, `<kbd>`, `<samp>` and `<var>` answer `"no"`,
 and a `translate="yes"` answers `"yes"`. A runtime string transform reads those

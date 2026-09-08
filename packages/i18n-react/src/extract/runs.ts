@@ -5,6 +5,7 @@
  * Every child maps onto one of the kapi-format Run kinds:
  *
  *   JSXText                                   → TextRun
+ *   JSXExpressionContainer, whitespace only   → TextRun
  *   JSXExpressionContainer (plain)            → PlaceholderRun ("jsx:var")
  *   JSXExpressionContainer with JSX inside    → PlaceholderRun ("jsx:node", optional)
  *   JSXElement, no children                   → PlaceholderRun ("jsx:element")
@@ -29,7 +30,8 @@
  * Whitespace handling: raw JSX text collapses to single spaces, the
  * outer run sequence trims at the edges, and purely-whitespace text
  * between structural runs is preserved so the translator sees
- * `"Save {=m0}"` with its padding.
+ * `"Save {=m0}"` with its padding. `{" "}`, the space an author writes
+ * where JSX would trim one at a line break, is text on the same terms.
  *
  * The builder also records a `Placeholder` entry per unique name
  * (`equiv`) so the Block carries the metadata validators and CAT
@@ -193,6 +195,13 @@ function walkChildren(children: readonly JSXElementChild[], state: BuilderState)
 
 function appendText(state: BuilderState, text: string): void {
   if (text.length === 0) return;
+  // One space where two would meet. A `{" "}` beside the whitespace JSX writes
+  // around a line break renders as a single space, and the block's text says
+  // what the reader sees rather than what the source spells.
+  if (/\s$/.test(state.flatText)) {
+    text = text.replace(/^\s+/, "");
+    if (text.length === 0) return;
+  }
   const noTranslate = state.noTranslate;
   // Coalesce adjacent text runs so a chunked ABI doesn't produce
   // visually-identical neighbours. Only across text of the same kind: a
@@ -210,6 +219,16 @@ function appendText(state: BuilderState, text: string): void {
 
 function appendExpression(state: BuilderState, node: JSXExpressionContainer): void {
   if (node.expression.type === "JSXEmptyExpression") return;
+
+  // `{" "}` is the space an author writes where JSX would otherwise trim one at
+  // a line break. It is a character the reader reads, so it belongs in the
+  // block's text. Read as a variable it put a `{value}` token in the catalog
+  // for a space, which a translator can only guess at and can drop or move.
+  const spacing = whitespaceLiteral(node.expression);
+  if (spacing !== null) {
+    appendText(state, spacing);
+    return;
+  }
 
   const id = nextId(state);
   const expr = node.expression;
@@ -277,6 +296,23 @@ function appendExpression(state: BuilderState, node: JSXExpressionContainer): vo
       fullEnd: node.span.end,
     });
   }
+}
+
+/**
+ * The whitespace a container holds when it holds nothing else: `{" "}`, `{\' \'}`
+ * and a template literal with no interpolation. Returns the text with runs of
+ * whitespace collapsed to one space, the way JSX text itself is normalized, or
+ * null when the expression is anything else.
+ */
+function whitespaceLiteral(expr: JSXExpressionContainer["expression"]): string | null {
+  let raw: string | null = null;
+  if (expr.type === "StringLiteral") {
+    raw = expr.value;
+  } else if (expr.type === "TemplateLiteral" && expr.expressions.length === 0) {
+    raw = expr.quasis.map((q) => q.cooked ?? q.raw).join("");
+  }
+  if (raw === null || raw === "" || raw.trim() !== "") return null;
+  return raw.replace(/\s+/g, " ");
 }
 
 function appendJsxElement(state: BuilderState, el: JSXElement): void {
