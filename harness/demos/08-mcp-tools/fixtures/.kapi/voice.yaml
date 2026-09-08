@@ -1,0 +1,64 @@
+# Taskly house voice.
+#
+# `kapi.yaml` binds it to the `taskly` profile, so it is what the site sits
+# under: the guidance a drafting run is handed, the rules `kapi check` scores
+# against, and the voice `review_unit` returns beside a unit awaiting a person.
+name: Taskly
+description: >-
+  Taskly writes for a small team with too much in flight. Say what the product
+  does for them, in the words they already use for their own work.
+tone:
+  personality: [plain, warm, direct]
+  formality: neutral
+  emotion: warm
+  humor: none
+  guidelines: >-
+    Address the reader. Lead with what they get, then how it works. One idea per
+    sentence, and no sentence that would sound odd said out loud.
+style:
+  active_voice: true
+  sentence_length: short
+  person_pov: second
+  contractions: sometimes
+vocabulary:
+  preferred_terms:
+    - term: board
+      note: The surface a project's work sits on. Never "kanban" and never "workspace".
+    - term: card
+      note: One piece of work. Never "ticket" and never "issue".
+    - term: team
+      note: The people working together. Never "organisation" and never "users".
+    - term: Taskly
+      note: The product name. Capitalised, never translated.
+  forbidden_terms:
+    - term: seamless
+      replacement: simple
+      note: Says nothing a reader can check
+      severity: major
+    - term: leverage
+      replacement: use
+      note: Business register; Taskly writes the way its readers speak
+      severity: minor
+examples:
+  - before: "Taskly leverages a seamless workflow engine for enterprise teams."
+    after: "Taskly keeps every card for a project on one board, so your team can see the work."
+    explanation: Name what the reader gets, in the house terms
+    category: vocabulary
+
+# The marketing site is the surface this profile covers.
+channels:
+  site:
+    tone:
+      personality: [plain, warm, direct]
+      formality: neutral
+      emotion: warm
+      humor: none
+      guidelines: >-
+        The reader is deciding whether to look further. Open with the situation
+        they recognise, then the one thing Taskly does about it. A heading is a
+        sentence a person would say; a button names the action it performs.
+    style:
+      active_voice: true
+      sentence_length: short
+      person_pov: second
+      contractions: sometimes
