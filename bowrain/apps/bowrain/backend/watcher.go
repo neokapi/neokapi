@@ -3,6 +3,7 @@ package backend
 import (
 	"context"
 	"log/slog"
+	"math/rand/v2"
 	"strings"
 	"time"
 
@@ -53,10 +54,46 @@ type ChangeEvent struct {
 	Actor      string `json:"actor,omitempty"`
 }
 
+const (
+	// streamInitialBackoff is the first wait after the change-event stream ends.
+	streamInitialBackoff = time.Second
+	// streamMaxBackoff caps the wait between subscription attempts.
+	streamMaxBackoff = 30 * time.Second
+	// streamHealthyFor is how long a stream has to stay up to count as a
+	// working subscription rather than an attempt that failed slowly.
+	streamHealthyFor = 30 * time.Second
+)
+
+// streamBackoffAfter returns the wait before the next subscription attempt,
+// given the current backoff and how long the stream that just ended lived for.
+// A stream that stayed up long enough to have been a working subscription is
+// evidence this path is healthy, so its next drop retries from the bottom.
+// Carrying one bad afternoon's backoff across a whole session costs 30 seconds
+// of staleness on every drop for the rest of the day.
+func streamBackoffAfter(cur, lived time.Duration) time.Duration {
+	if lived >= streamHealthyFor {
+		return streamInitialBackoff
+	}
+	return cur
+}
+
+// presenceFocus is what this user was last reported to be editing. A reconnect
+// re-reports it, because every other watcher's view of this user ended with the
+// stream that carried it.
+type presenceFocus struct {
+	ProjectID string
+	ItemName  string
+	BlockID   string
+}
+
 // StartWatching opens a change-event subscription for the given project.
 // Call StopWatching to close the stream when navigating away.
 func (a *App) StartWatching(projectID string) {
-	a.StopWatching() // close any existing watcher
+	a.stopWatcher() // close any existing watcher
+
+	a.mu.Lock()
+	a.watchedProject = projectID
+	a.mu.Unlock()
 
 	if !a.isConnected() {
 		return
@@ -77,8 +114,19 @@ func (a *App) StartWatching(projectID string) {
 	go watcher.run(ctx, client, ws, projectID)
 }
 
-// StopWatching closes the active project watcher.
+// StopWatching closes the active project watcher and forgets the project, so a
+// later reconnect does not resurrect a subscription the user navigated away from.
 func (a *App) StopWatching() {
+	a.mu.Lock()
+	a.watchedProject = ""
+	a.presence = presenceFocus{}
+	a.mu.Unlock()
+	a.stopWatcher()
+}
+
+// stopWatcher closes the active subscription but keeps the project it was on,
+// so an outage can be followed by a reconnect that restores it.
+func (a *App) stopWatcher() {
 	a.mu.Lock()
 	w := a.watcher
 	a.watcher = nil
@@ -91,8 +139,13 @@ func (a *App) StopWatching() {
 
 // UpdatePresence reports the user's current editing focus to the server, which
 // fans it out to other watchers over the SSE relay. Best-effort — a failure is
-// logged and swallowed (per-cursor presence is carried over Yjs awareness).
+// logged and swallowed (per-cursor presence is carried over Yjs awareness). The
+// focus is remembered either way, so a reconnect can report it again.
 func (a *App) UpdatePresence(projectID, itemName, blockID string) {
+	a.mu.Lock()
+	a.presence = presenceFocus{ProjectID: projectID, ItemName: itemName, BlockID: blockID}
+	a.mu.Unlock()
+
 	if !a.isConnected() {
 		return
 	}
@@ -107,9 +160,38 @@ func (a *App) UpdatePresence(projectID, itemName, blockID string) {
 	}
 }
 
+// checkStillReachable decides what the end of a change-event stream meant. A
+// server restart, a proxy idle timeout and a severed network all end it the same
+// way, so the stream alone says nothing; one probe separates them. An
+// unreachable server moves the app to offline mode now, which is where the user
+// finds out about the outage anyway, minutes earlier than their next write.
+func (a *App) checkStillReachable(ctx context.Context) {
+	if !a.isConnected() {
+		return
+	}
+	client, _ := a.editorRemote()
+	if client == nil {
+		return
+	}
+
+	probeCtx, cancel := context.WithTimeout(ctx, connectProbeTimeout)
+	defer cancel()
+	err := client.Ping(probeCtx)
+	if err == nil || ctx.Err() != nil {
+		return
+	}
+
+	if rejectedSession(err) {
+		slog.Warn("bowrain: the server rejected the session", "error", err)
+		a.markDisconnected()
+		return
+	}
+	slog.Warn("bowrain: server unreachable after the change-event stream ended", "error", err)
+	a.goOffline() //nolint:contextcheck // starts a reconnect loop with its own root context, by design
+}
+
 func (w *ProjectWatcher) run(ctx context.Context, client *editorclient.EditorClient, wsSlug, projectID string) {
-	const maxBackoff = 30 * time.Second
-	backoff := time.Second
+	backoff := streamInitialBackoff
 
 	for {
 		select {
@@ -120,22 +202,30 @@ func (w *ProjectWatcher) run(ctx context.Context, client *editorclient.EditorCli
 
 		// StreamProjectEvents reads a single SSE connection to exhaustion and
 		// returns; we reconnect with backoff. A non-nil error is a hard failure.
+		started := time.Now()
 		err := client.StreamProjectEvents(ctx, wsSlug, projectID, w.handleEvent)
 		if ctx.Err() != nil {
 			return // context cancelled, clean shutdown
 		}
+		lived := time.Since(started)
 
-		slog.Warn("bowrain: change-event stream ended, reconnecting", "error", err, "backoff", backoff)
+		backoff = streamBackoffAfter(backoff, lived)
+
+		slog.Warn("bowrain: change-event stream ended, reconnecting",
+			"error", err, "lived", lived.Round(time.Millisecond), "backoff", backoff)
+
+		// The stream is the earliest evidence the desktop gets of an outage.
+		// A failed probe cancels this context, so the loop ends here and
+		// resubscribe opens a fresh stream on the new client.
+		w.app.checkStillReachable(ctx)
+
 		select {
 		case <-ctx.Done():
 			return
-		case <-time.After(backoff):
+		case <-time.After(jittered(backoff, rand.Float64())):
 		}
 
-		backoff *= 2
-		if backoff > maxBackoff {
-			backoff = maxBackoff
-		}
+		backoff = nextBackoff(backoff, streamMaxBackoff)
 	}
 }
 

@@ -181,6 +181,8 @@ export { NotificationSettings } from "./components/NotificationSettings";
 export type { DigestSettings } from "./components/NotificationSettings";
 export { TopBar } from "./components/TopBar";
 export type { TopBarProps } from "./components/TopBar";
+export { ConnectionIndicator } from "./components/ConnectionIndicator";
+export type { ConnectionIndicatorProps, ConnectionState } from "./components/ConnectionIndicator";
 export { AppSidebar } from "./components/AppSidebar";
 // Exported so a consumer can check its own routing against what the sidebar
 // actually renders — a sub-nav item with no destination is otherwise invisible.

@@ -199,6 +199,7 @@ function ConnectedTopBar({
       connectionState={connectivity.state}
       pendingChanges={connectivity.pendingChanges}
       failedChanges={connectivity.failedChanges}
+      onRetryConnection={connectivity.retry}
       leftSlot={leftSlot}
       beforeAvatarSlot={beforeAvatarSlot}
       activities={activitiesData?.activities}

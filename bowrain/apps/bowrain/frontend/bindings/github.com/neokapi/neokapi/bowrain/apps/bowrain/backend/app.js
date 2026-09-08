@@ -260,6 +260,16 @@ export function ConfigureConnector(connectorType, config) {
  * ConnectToServer establishes a REST/SSE connection to the given server URL
  * using stored credentials. The URL should be the HTTP base URL
  * (e.g. "http://localhost:8080").
+ * 
+ * The connection is confirmed with a round trip before it is reported as one:
+ * a stored token proves the user logged in once, not that the server is
+ * reachable now. Reporting a connection the network cannot carry sends the next
+ * write straight into the offline queue and the reconnect loop straight into a
+ * success it did not have.
+ * 
+ * A failed attempt leaves an offline app offline. Offline is a working copy with
+ * a queue behind it; disconnected is the sign-in screen, and demoting between
+ * them on a network error throws the user out of the app mid-outage.
  * @param {string} serverURL
  * @returns {$CancellablePromise<void>}
  */
@@ -1576,6 +1586,22 @@ export function ResolveConceptComment(workspaceSlug, conceptID, commentID, resol
 }
 
 /**
+ * RetryConnection attempts to restore the server connection now rather than at
+ * the end of the current backoff. The frontend calls it when the webview reports
+ * the network is back and when the user presses Retry on the offline indicator.
+ * 
+ * The attempt runs in the background; the returned state is the one that holds
+ * as the call returns, and the outcome arrives as a connection-state-changed
+ * event.
+ * @returns {$CancellablePromise<$models.ConnectionInfo>}
+ */
+export function RetryConnection() {
+    return $Call.ByID(1485552046).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType22($result);
+    }));
+}
+
+/**
  * ReviewBlock marks a block as reviewed, signed off or un-reviewed for a
  * target locale. status picks the rung: with reviewed=true it is "" for an
  * approval or "signed-off" for a sign-off; with reviewed=false it is "" or
@@ -1659,7 +1685,8 @@ export function StartWatching(projectID) {
 }
 
 /**
- * StopWatching closes the active project watcher.
+ * StopWatching closes the active project watcher and forgets the project, so a
+ * later reconnect does not resurrect a subscription the user navigated away from.
  * @returns {$CancellablePromise<void>}
  */
 export function StopWatching() {
@@ -1807,7 +1834,8 @@ export function UpdateMemoryEntry(req) {
 /**
  * UpdatePresence reports the user's current editing focus to the server, which
  * fans it out to other watchers over the SSE relay. Best-effort — a failure is
- * logged and swallowed (per-cursor presence is carried over Yjs awareness).
+ * logged and swallowed (per-cursor presence is carried over Yjs awareness). The
+ * focus is remembered either way, so a reconnect can report it again.
  * @param {string} projectID
  * @param {string} itemName
  * @param {string} blockID

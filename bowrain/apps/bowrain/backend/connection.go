@@ -20,6 +20,18 @@ import (
 
 var errNotConnected = errors.New("not connected to server")
 
+// errAuthRequired marks a connection failure no retry can fix: there are no
+// usable credentials for the server, so the user has to log in again. The
+// reconnect loop stops on it rather than backing off forever against a server
+// that will keep refusing.
+var errAuthRequired = errors.New("not authenticated")
+
+// connectProbeTimeout bounds the reachability probe a connection attempt makes.
+// It is short because the caller is either a user waiting at the connect screen
+// or a reconnect attempt on a timer; a probe that outlives its own retry
+// interval is worse than a failed one.
+const connectProbeTimeout = 10 * time.Second
+
 // DefaultServerURL is the Bowrain SaaS instance URL used when no custom server is specified.
 const DefaultServerURL = config.DefaultServerURL
 
@@ -165,35 +177,100 @@ func (a *App) GetFailedChangesCount() int {
 	return a.offlineQueue.FailedCount()
 }
 
+// credentialsFor returns the credentials to present to serverURL, preferring the
+// ones already held in memory over a keychain read. The in-memory copy is what
+// makes a session that never touched the keychain reconnectable: a BOWRAIN_TOKEN
+// auto-connect (headless and recording runs) holds its token only in authInfo,
+// and a reconnect that consulted the keychain alone would find nothing for the
+// server it is connected to and give up.
+//
+// An access token past its expiry is still usable when a refresh token sits
+// beside it: the transport spends the refresh on the first 401. Only a missing
+// token, a token for another server, or an expired one with nothing to refresh
+// it is errAuthRequired.
+func (a *App) credentialsFor(serverURL string) (*config.StoredAuth, error) {
+	a.mu.RLock()
+	var cached *config.StoredAuth
+	if a.authInfo != nil {
+		copied := *a.authInfo
+		cached = &copied
+	}
+	a.mu.RUnlock()
+
+	if cached != nil && config.NormalizeServerURL(cached.ServerURL) == serverURL && cached.AccessToken != "" {
+		return cached, nil
+	}
+
+	stored, err := loadDesktopAuth()
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", errAuthRequired, err)
+	}
+	if config.NormalizeServerURL(stored.ServerURL) != serverURL || stored.AccessToken == "" {
+		return nil, fmt.Errorf("%w: no stored credentials for %s", errAuthRequired, serverURL)
+	}
+	if !stored.Expiry.IsZero() && time.Now().After(stored.Expiry) && stored.RefreshToken == "" {
+		return nil, fmt.Errorf("%w: the access token for %s expired and there is no refresh token", errAuthRequired, serverURL)
+	}
+	return stored, nil
+}
+
 // ConnectToServer establishes a REST/SSE connection to the given server URL
 // using stored credentials. The URL should be the HTTP base URL
 // (e.g. "http://localhost:8080").
+//
+// The connection is confirmed with a round trip before it is reported as one:
+// a stored token proves the user logged in once, not that the server is
+// reachable now. Reporting a connection the network cannot carry sends the next
+// write straight into the offline queue and the reconnect loop straight into a
+// success it did not have.
+//
+// A failed attempt leaves an offline app offline. Offline is a working copy with
+// a queue behind it; disconnected is the sign-in screen, and demoting between
+// them on a network error throws the user out of the app mid-outage.
 func (a *App) ConnectToServer(serverURL string) error {
+	return a.connect(context.Background(), serverURL)
+}
+
+// connect is ConnectToServer with a caller-supplied context. The reconnect loop
+// passes its own, so cancelling it (Disconnect, shutdown) aborts a probe in
+// flight instead of leaving it to time out.
+func (a *App) connect(ctx context.Context, serverURL string) error {
 	serverURL = config.NormalizeServerURL(serverURL)
+
 	a.mu.Lock()
-	a.connState = StateConnecting
+	previous := a.connState
 	a.serverURL = serverURL
+	if previous == StateDisconnected {
+		a.connState = StateConnecting
+	}
 	a.mu.Unlock()
 
-	// Load stored auth for this server.
-	stored, err := loadDesktopAuth()
-	if err != nil || stored.ServerURL != serverURL || stored.AccessToken == "" {
+	restore := func() {
 		a.mu.Lock()
-		a.connState = StateDisconnected
+		if a.connState == StateConnecting {
+			a.connState = previous
+		}
 		a.mu.Unlock()
-		return errors.New("not authenticated. Use StartLogin first")
 	}
 
-	// Check if token has expired.
-	if !stored.Expiry.IsZero() && time.Now().After(stored.Expiry) {
-		a.mu.Lock()
-		a.connState = StateDisconnected
-		a.mu.Unlock()
-		return errors.New("token expired. Log in again")
+	stored, err := a.credentialsFor(serverURL)
+	if err != nil {
+		restore()
+		return err
 	}
 
 	editorClient := editorclient.New(serverURL, stored.AccessToken)
 	a.wireRemoteRefresh(editorClient, serverURL, stored)
+
+	probeCtx, cancel := context.WithTimeout(ctx, connectProbeTimeout)
+	defer cancel()
+	if err := editorClient.Ping(probeCtx); err != nil {
+		restore()
+		if rejectedSession(err) {
+			return fmt.Errorf("%w: the server rejected the stored session: %w", errAuthRequired, err)
+		}
+		return fmt.Errorf("reach %s: %w", serverURL, err)
+	}
 
 	a.mu.Lock()
 	a.remoteHTTP = editorClient
@@ -202,6 +279,18 @@ func (a *App) ConnectToServer(serverURL string) error {
 	a.mu.Unlock()
 
 	return nil
+}
+
+// rejectedSession reports whether an error is the server refusing the
+// credentials (401/403) rather than the network refusing the request. The
+// transport has already spent its refresh attempt by the time such an error
+// surfaces, so re-presenting the same token can only be refused again.
+func rejectedSession(err error) bool {
+	var statusErr *apiclient.StatusError
+	if !errors.As(err, &statusErr) {
+		return false
+	}
+	return statusErr.StatusCode == http.StatusUnauthorized || statusErr.StatusCode == http.StatusForbidden
 }
 
 // wireRemoteRefresh configures the REST/SSE editor client to auto-refresh its

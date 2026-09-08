@@ -18,6 +18,11 @@ func (a *App) enqueue(op offlineOp) {
 	if err := a.offlineQueue.Enqueue(string(op.opKind()), op); err != nil {
 		slog.Info("bowrain: failed to enqueue", "id", op.opKind(), "error", err)
 	}
+	// Someone is working through the outage, and the queue they are filling is
+	// the thing a reconnect drains. Ask the reconnect loop to try now rather
+	// than at the end of a backoff that has been doubling since the drop; its
+	// own floor keeps a run of edits from becoming a run of round trips.
+	a.nudgeReconnect()
 }
 
 // permanentRejection reports whether a remote mutation failed because the

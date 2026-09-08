@@ -223,6 +223,23 @@ func blockPath(ws, projectID, blockID, suffix string) string {
 }
 
 // ---------------------------------------------------------------------------
+// Reachability
+// ---------------------------------------------------------------------------
+
+// Ping asks the server for the authenticated user's own profile. It answers two
+// questions in one round trip: the server is reachable, and it accepts this
+// client's credentials. A dead network fails with a transport error; a rejected
+// session fails with a 401 StatusError, after the transport has spent its one
+// refresh attempt. Callers that must know whether a connection is real, rather
+// than assumed from a stored token, use this.
+//
+// Pass a context with a short deadline: a probe that hangs is a probe that
+// stalls whatever is waiting on it.
+func (c *EditorClient) Ping(ctx context.Context) error {
+	return c.DoJSON(ctx, http.MethodGet, "/api/v1/auth/me", nil, nil, nil)
+}
+
+// ---------------------------------------------------------------------------
 // Workspaces & projects
 // ---------------------------------------------------------------------------
 

@@ -53,8 +53,11 @@ type App struct {
 	pkceVerifier    string                     // PKCE code_verifier
 	pkceResultCh    chan *pkceResult           // result from URL protocol callback
 	watcher         *ProjectWatcher            // active change-event (SSE) subscription
+	watchedProject  string                     // project the watcher subscribes to, kept across an outage so reconnect can restore it
+	presence        presenceFocus              // this user's last reported editing focus, re-reported after a reconnect
 	offlineQueue    *OfflineQueue              // pending mutations when offline
 	reconnectCancel context.CancelFunc         // stops the reconnection goroutine
+	reconnectNudge  chan struct{}              // asks a running reconnect loop to attempt now; nil when no loop runs
 	autoConnectDone bool                       // true after BOWRAIN_TOKEN auto-connect attempted
 
 	// memoryPath overrides the default content-memory database path (for testing).
@@ -467,6 +470,7 @@ func (a *App) stopReconnect() {
 	a.mu.Lock()
 	cancel := a.reconnectCancel
 	a.reconnectCancel = nil
+	a.reconnectNudge = nil
 	a.mu.Unlock()
 	if cancel != nil {
 		cancel()

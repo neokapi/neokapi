@@ -307,8 +307,8 @@ func TestConnectToServerExpiredToken(t *testing.T) {
 
 	app := newTestApp(t)
 	err = app.ConnectToServer("http://localhost:8080")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "token expired")
+	require.ErrorIs(t, err, errAuthRequired)
+	assert.Contains(t, err.Error(), "expired")
 }
 
 func TestCancelLogin(t *testing.T) {
