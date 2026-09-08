@@ -123,6 +123,13 @@ if matches '^bowrain/core/' '^bowrain/plugin/' '^bowrain/go\.(mod|sum)$'; then
     run_check "Go lint (bowrain)" make check-bowrain
 fi
 
+# The desktop module is its own go.mod, so the framework lint above stops at it.
+# Same gate as the CI `kapi-desktop` job, and the same target that job runs, so
+# a finding surfaces here rather than on the pull request.
+if matches '^apps/kapi-desktop/'; then
+    run_check "Go lint (Kapi Desktop)" make kapi-desktop-lint
+fi
+
 # The docs playground compiles the CLI to js/wasm. CI builds it, but only in the
 # docs workflows — so a dependency that cannot target js/wasm (a TTY, signals,
 # cgo, the clipboard) passed every local check and failed CI minutes later.

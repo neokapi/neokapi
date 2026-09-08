@@ -793,6 +793,35 @@ The Okapi Java bridge is **not** built in this CI; it is a separate repo
 ([okapi-bridge](https://github.com/neokapi/okapi-bridge)) released as a plugin
 binary, so no `setup-java` / `mvn package` step exists here.
 
+### Lint coverage
+
+One `.golangci.yml` sits at the repository root, and `golangci-lint` runs once
+per module: `./...` stops at every nested `go.mod`, so each module has to be
+named on its own. Every one of them appears in a CI job and in a Makefile
+target:
+
+| Modules                                        | CI job          | Local target                                    |
+| ---------------------------------------------- | --------------- | ----------------------------------------------- |
+| `.`, `host`, `cli`, `kapi`, `scripts/gen-refs` | `lint-framework` | `_fw-lint`, via `make lint` or `make check-framework` |
+| `bowrain/core`, `bowrain/plugin`, `bowrain`    | `lint-platform` | `make -C bowrain lint`                          |
+| `apps/kapi-desktop`                            | `kapi-desktop`  | `make kapi-desktop-lint`                        |
+
+Some of those modules embed build output the repository does not carry. The
+linter compiles the module before any check runs, so a missing embed target
+fails the run at typecheck and every finding stays hidden behind that one error:
+
+- Anything linking `core/i18n` or `host/i18n` embeds the gettext MO catalogs,
+  which `make i18n-catalogs` compiles from the committed JSON. `scripts/gen-refs`
+  links both, which is why it needs the same prerequisite as the framework.
+- `apps/kapi-desktop` also embeds its frontend bundle, through `//go:embed
+  all:frontend/dist` in `main.go`. Typechecking needs one file in that
+  directory and nothing more, so `make kapi-desktop-lint-deps` writes a
+  placeholder `index.html` there and leaves a real Vite build in place.
+
+Both are Makefile prerequisites of the lint targets, so `make lint` and
+`make pre-push` work in a fresh clone, and the CI `kapi-desktop` job runs
+`make kapi-desktop-lint-deps` before its lint step for the same reason.
+
 ### Test Tags
 
 | Tag           | Purpose                         | Command                                            |
