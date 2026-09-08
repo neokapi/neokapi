@@ -33,40 +33,44 @@ tag runs a live Claude session; **shell** marks a scripted shell demo and
 | # | id | What it shows |
 |---|----|----------------|
 | 1 | `01-localize-landing-page`        | Translate a landing page to French: a plain request, and the kapi skill keeps the HTML intact |
-| 2 | `02-nextjs-zero-to-i18n`          | A working English Next.js app wired up with `neokapi-i18n` and shipped in Japanese |
+| 2 | `02-nextjs-zero-to-i18n`          | A Next.js app ships in Japanese with its JSX left as it was written |
 | 3 | `03-translate-docx`               | A Word announcement translated into Japanese, headings, lists and formatting preserved |
-| 4 | `04-i18n-react-catalogs`          | An existing react-i18next project, and a request for two more languages |
-| 5 | `05-ai-checks-guardrail`          | **shell.** `kapi check` reads an AI translation against its source and reports what would break in production |
+| 4 | `04-i18n-react-catalogs`          | An existing react-i18next catalog gains French and German, with the placeholders checked |
+| 5 | `05-ai-checks-guardrail`          | **shell.** `kapi check` reads an AI translation against its source, and the gate exits 3 on camera |
 | 6 | `06-multi-format-publishing`      | Two files in two formats, one request, each round-tripped back into its own format |
-| 7 | `07-global-launch-many-languages` | One source file, four target languages, including a non-Latin script |
+| 7 | `07-global-launch-many-languages` | One source file, four target languages, and the plan read before the pass runs |
 | 8 | `08-mcp-tools`                    | The same engine, exposed to the assistant as Model Context Protocol tools |
 | 9 | `09-toolbox-find-replace`         | **shell.** kcat, kgrep and ksed work on the text kapi reads out of a document, not on raw bytes |
-| 10 | `10-cli-governance`              | **shell.** One repository governed from the command line: what is in force at a point, what a gate refuses, and what convergence settles |
-| 11 | `s0-northsea-governance`         | **shell.** One repository, one language, three surfaces: discovered, gated, corrected and converged, with no server and no model |
-| 12 | `s1-compass-multilingual`        | **shell.** The same project at the same point in three more languages, converged, reviewed, and gated at the edge where a reader sees it |
-| 13 | `s2-tidewatch-docs`              | **shell.** Four handbook pages, two more languages, and a CI job that reports what is behind instead of failing on it |
-| 14 | `kapi-bilingual-workflow`        | **shell.** kapi emits a clean bilingual XLIFF, accepts the translated one back, and keeps the project content memory in the loop on both sides |
-| 15 | `kapi-desktop-projects`          | **desktop.** Set up a multilingual content project in Kapi Desktop |
-| 16 | `kapi-desktop-content`           | **desktop.** The collections on a project's home, and one file read as keys and values |
-| 17 | `kapi-desktop-flows`             | **desktop.** The Toolbox: the tools and pipelines a project runs over its content |
-| 18 | `kapi-desktop-review`            | **desktop.** The review queue, and the five layers behind one decision |
-| 19 | `kapi-desktop-explorer`          | **desktop.** A project's terms and content memory, read in the Context hub |
-| 20 | `kapi-desktop-config`            | **desktop.** Appearance, AI models, and plugins in one place |
-| 21 | `bowrain-cli-getting-started`    | **shell.** Your content stays in your repository: `kapi init` connects it, `push` moves the source up, and `kapi up` runs the loop on the server and pulls the results back |
-| 22 | `bowrain-cli-auth-and-workspaces` | **shell.** Pseudo-translate breaks the layout on your own screen first; `kapi auth` and `kapi workspace` then say where the content would go |
-| 23 | `bowrain-desktop-dashboard`      | **desktop.** The same workspace natively, and the one thing only the app does: edits queue while the network is gone and replay in order when it returns |
-| 24 | `bowrain-desktop-automations`    | **desktop.** A rule fires on push, a run is started on camera, and what needs a person is parked in review |
-| 25 | `bowrain-web-editor`             | **desktop.** One block edited over the rendered page, a memory match applied in a click, and the same file in the next language |
-| 26 | `bowrain-web-review`             | **desktop.** Two people, one queue, and the server refusing an approval of its author's own work |
-| 27 | `bowrain-web-governance`         | **desktop.** One concept's record, the memory that answers for its wording, and that wording reaching the editor |
-| 28 | `bowrain-web-collaboration`      | **desktop.** A teammate's avatar arriving live in the file you are already in |
-| 29 | `bowrain-web-correction-loop`    | **desktop.** Corrections that recur become a candidate rule, its blast radius is priced, and it is promoted into a versioned check |
-| 30 | `bowrain-sizzle`                 | **desktop.** A reel of the Bowrain platform: governance, collaboration, and quality |
+| 10 | `10-cli-points-and-voice`        | **shell.** Where a file sits, the voice in force there, and one gate over three surfaces |
+| 11 | `11-cli-terms-and-queue`         | **shell.** One list of term rules reaching the model and the gate, and one review queue |
+| 12 | `s0-northsea-context`            | **shell.** The context graph arrives as files, and answers where you are and what a word means here |
+| 13 | `s0-northsea-checks`             | **shell.** Gates over prose, a correction the graph keeps, and a green converge |
+| 14 | `s1-compass-converge`            | **shell.** Three languages converged, memory recycled first, and one language parked |
+| 15 | `s1-compass-ship-gate`           | **shell.** Review moves the edge, and the language picker reads one file |
+| 16 | `s2-tidewatch-build-output`      | **shell.** The i18n tree is build output, written where the site build already looks |
+| 17 | `s2-tidewatch-ci`                | **shell.** Coverage reported on a pull request, with only the source gated |
+| 18 | `kapi-bilingual-workflow`        | **shell.** kapi emits a bilingual XLIFF pre-filled from content memory and merges the return |
+| 19 | `kapi-desktop-projects`          | **desktop.** A project created, given a language and a collection, and its plan read |
+| 20 | `kapi-desktop-content`           | **desktop.** Extract on camera, and one file read as keys and values |
+| 21 | `kapi-desktop-flows`             | **desktop.** The Toolbox: a flow gains a step, is reordered, and becomes the project default |
+| 22 | `kapi-desktop-review`            | **desktop.** The review queue, and the five layers behind one decision |
+| 23 | `kapi-desktop-explorer`          | **desktop.** A project's terms and content memory, searched in the Context hub |
+| 24 | `kapi-desktop-config`            | **desktop.** Appearance, plugins, and where a provider key is stored |
+| 25 | `bowrain-cli-getting-started`    | **shell.** Your content stays in your repository: `kapi init` connects it, `push` moves the source up, and `kapi up` runs the loop on the server and pulls the results back |
+| 26 | `bowrain-cli-auth-and-workspaces` | **shell.** Pseudo-translate breaks the layout on your own screen first; `kapi auth` and `kapi workspace` then say where the content would go |
+| 27 | `bowrain-desktop-dashboard`      | **desktop.** The same workspace natively, and the one thing only the app does: edits queue while the network is gone and replay in order when it returns |
+| 28 | `bowrain-desktop-automations`    | **desktop.** A rule fires on push, a run is started on camera, and what needs a person is parked in review |
+| 29 | `bowrain-web-editor`             | **desktop.** One block edited over the rendered page, a memory match applied in a click, and the same file in the next language |
+| 30 | `bowrain-web-review`             | **desktop.** Two people, one queue, and the server refusing an approval of its author's own work |
+| 31 | `bowrain-web-governance`         | **desktop.** One concept's record, the memory that answers for its wording, and that wording reaching the editor |
+| 32 | `bowrain-web-collaboration`      | **desktop.** A teammate's avatar arriving live in the file you are already in |
+| 33 | `bowrain-web-correction-loop`    | **desktop.** Corrections that recur become a candidate rule, its blast radius is priced, and it is promoted into a versioned check |
+| 34 | `bowrain-sizzle`                 | **desktop.** A reel of the Bowrain platform: governance, collaboration, and quality |
 
-Rows 1 to 14 exercise the task sections of the kapi skill
+Rows 1 to 18 exercise the task sections of the kapi skill
 (`references/translate.md`, `references/i18n.md`, `references/voice.md`,
-`references/toolbox.md`) plus the MCP tool surface. Rows 15 to 20 record Kapi
-Desktop, and rows 21 to 30 record the Bowrain CLI, desktop app and web app.
+`references/toolbox.md`) plus the MCP tool surface. Rows 19 to 24 record Kapi
+Desktop, and rows 25 to 34 record the Bowrain CLI, desktop app and web app.
 
 ### Scripted shell demos (no Claude)
 
@@ -108,7 +112,7 @@ Three manifest keys belong to this class:
   A non-zero exit still reads as a failure on screen whether or not it was
   declared — the declaration decides whether the take is sound, not how it looks.
 
-`s0-northsea-governance` uses all three.
+`s0-northsea-checks` uses all three.
 
 ## How it works (pipeline)
 
