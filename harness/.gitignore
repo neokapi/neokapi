@@ -3,16 +3,18 @@
 .env.*
 !.env.example
 
-# Generated capture + render artifacts (regenerable from demos/ + capture pipeline)
-captures/
-out/
-public/
+# Generated capture + render artifacts (regenerable from demos/ + capture pipeline).
+# Anchored at the harness root for the same reason /.kapi/ is: unanchored, they
+# also swallow a demo fixture's own directory of that name, and a web app fixture
+# keeps its static files in public/. Demo 04's English catalog was authored, added
+# and silently dropped that way, so every take invented its own source strings.
+/captures/
+/out/
+/public/
+/sandbox/
 node_modules/
 .remotion/
 *.log
-
-# Per-demo sandbox working copies (regenerated from demos/<id>/fixtures)
-sandbox/
 
 # Isolated kapi state (own plugins/home, populated by `npm run setup`). Anchored
 # at the harness root: an unanchored pattern also swallows a demo fixture's own

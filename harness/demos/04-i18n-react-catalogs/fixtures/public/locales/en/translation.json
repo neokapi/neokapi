@@ -1,0 +1,15 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "tasks": "Tasks"
+  },
+  "greeting": "Welcome back, {{name}}",
+  "tasks": {
+    "count_one": "You have {{count}} task today",
+    "count_other": "You have {{count}} tasks today",
+    "add": "Add a task"
+  },
+  "settings": {
+    "notifications": "Email me when a task is due"
+  }
+}
