@@ -1,4 +1,5 @@
 import { createContext, useContext, type ReactNode } from "react";
+import type { ConnectionState } from "@neokapi/ui";
 
 /**
  * Host-capability seam for the shared Bowrain app.
@@ -60,10 +61,16 @@ export interface PlatformAdapter {
   };
   /** Desktop working-copy connectivity. */
   connectivity?: {
-    state(): "connected" | "offline";
-    onChange(cb: (s: "connected" | "offline") => void): () => void;
+    state(): ConnectionState;
+    onChange(cb: (s: ConnectionState) => void): () => void;
     pendingCount?(): Promise<number>;
     failedCount?(): Promise<number>;
+    /**
+     * Attempt a reconnection now rather than at the end of the backend's
+     * backoff. The desktop calls it when the webview reports the network is
+     * back and when the user presses Retry on the offline indicator.
+     */
+    retry?(): Promise<void>;
   };
   /** Native window file-drop (paths, not File objects). */
   onFilesDropped?(cb: (paths: string[]) => void): () => void;

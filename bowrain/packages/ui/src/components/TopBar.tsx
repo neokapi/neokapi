@@ -9,11 +9,10 @@ import {
 } from "@neokapi/ui-primitives";
 import type { User, NotificationInfo, ActivityInfo, TaskInfo } from "../types/api";
 import { useTheme, type Theme } from "../context/ThemeContext";
-import { Sun, Moon, Monitor, WifiOff, LogOut, Settings } from "./icons";
+import { Sun, Moon, Monitor, LogOut, Settings } from "./icons";
+import { ConnectionIndicator, type ConnectionState } from "./ConnectionIndicator";
 import { NotificationCenter } from "./NotificationCenter";
 import { ActivityIndicator, TaskIndicator } from "./ActivityTaskIndicators";
-
-type ConnectionState = "disconnected" | "connecting" | "connected" | "offline";
 
 export interface TopBarProps {
   user: User | null;
@@ -22,6 +21,8 @@ export interface TopBarProps {
   connectionState?: ConnectionState;
   pendingChanges?: number;
   failedChanges?: number;
+  /** Ask the backend to reconnect now (desktop shells only). */
+  onRetryConnection?: () => void;
   notifications?: NotificationInfo[];
   unreadCount?: number;
   onMarkNotificationRead?: (id: string) => void;
@@ -105,35 +106,21 @@ export function TopBar({
   leftSlot,
   beforeAvatarSlot,
   failedChanges,
+  onRetryConnection,
 }: TopBarProps) {
   const { theme, setTheme } = useTheme();
-  const isOffline = connectionState === "offline";
-  const hasFailed = failedChanges != null && failedChanges > 0;
 
   return (
     <>
       {/* Left slot (e.g. stream selector) */}
       {leftSlot}
 
-      {/* Offline pending-changes indicator */}
-      {isOffline && pendingChanges != null && pendingChanges > 0 && (
-        <span
-          className="flex items-center gap-1 text-xs text-warning"
-          data-testid="offline-pending"
-        >
-          <WifiOff className="size-3" />
-          <span>{pendingChanges} pending</span>
-        </span>
-      )}
-
-      {/* Failed-changes indicator — shown regardless of connection state, since
-          rejected edits persist until the user resolves them. */}
-      {hasFailed && (
-        <span className="flex items-center gap-1 text-xs text-destructive">
-          <WifiOff className="size-3" />
-          <span>{failedChanges} failed</span>
-        </span>
-      )}
+      <ConnectionIndicator
+        connectionState={connectionState}
+        pendingChanges={pendingChanges}
+        failedChanges={failedChanges}
+        onRetryConnection={onRetryConnection}
+      />
 
       {/* Activity indicator */}
       {activities && (

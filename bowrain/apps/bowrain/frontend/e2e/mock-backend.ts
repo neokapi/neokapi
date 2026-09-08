@@ -1281,6 +1281,16 @@ export async function injectMockBackend(page: Page) {
       workspace = "";
     };
 
+    // The chrome's Retry button and the webview's online event both land here.
+    // The real backend attempts asynchronously and reports through the
+    // connection-state-changed event, so the mock just answers with the state.
+    mock[IDS.RetryConnection] = () => ({
+      state: connectionState,
+      server_url: serverURL,
+      user_name: userName,
+      workspace,
+    });
+
     mock[IDS.GetPendingChangesCount] = () => 0;
 
     mock[IDS.ReviewBlock] = (

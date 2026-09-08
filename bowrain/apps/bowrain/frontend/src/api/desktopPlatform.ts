@@ -1,5 +1,6 @@
 import { Browser, Events } from "@wailsio/runtime";
 import type { PlatformAdapter } from "@neokapi/bowrain-app";
+import type { ConnectionState } from "@neokapi/ui";
 import { Backend } from "./backend";
 import {
   analyticsAvailable,
@@ -18,7 +19,9 @@ import {
  *
  *   - openExternal   → Browser.OpenURL (OS default browser)
  *   - connectivity   → GetConnectionState + the connection-state-changed event,
- *                      plus the pending/failed offline-queue counts
+ *                      the pending/failed offline-queue counts, and
+ *                      RetryConnection for an attempt now (also fired when the
+ *                      webview reports the network is back)
  *   - onFilesDropped → the native window's files-dropped event (paths)
  *   - openInOS       → OpenFileInOS
  *   - collabSession  → GetCollabSession (server URL + keychain token for Yjs)
@@ -45,9 +48,18 @@ export function createDesktopPlatform(): PlatformAdapter {
   // connectivity.state() is synchronous, but GetConnectionState is a binding
   // call. Keep a live cached value: prime it once, then follow the
   // connection-state-changed event for the app's lifetime.
-  let lastState: "connected" | "offline" = "offline";
-  const mapState = (s: string | undefined): "connected" | "offline" =>
-    s === "connected" ? "connected" : "offline";
+  let lastState: ConnectionState = "offline";
+  const states = new Set<ConnectionState>(["connected", "connecting", "offline", "disconnected"]);
+  const mapState = (s: string | undefined): ConnectionState =>
+    s != null && states.has(s as ConnectionState) ? (s as ConnectionState) : "offline";
+
+  const retryConnection = async () => {
+    try {
+      await (Backend.RetryConnection() as Promise<unknown>);
+    } catch {
+      /* no Wails runtime, or the backend is mid-shutdown */
+    }
+  };
 
   try {
     void (Backend.GetConnectionState() as Promise<{ state?: string }>)
@@ -60,6 +72,16 @@ export function createDesktopPlatform(): PlatformAdapter {
     });
   } catch {
     // No Wails runtime (e.g. a non-desktop harness) — stay "offline".
+  }
+
+  // The webview's own network signal. It fires when the machine regains a
+  // route, which is the one moment the backend's backoff has no way to know
+  // about; asking for an attempt then turns a wait of up to a minute into one
+  // of a couple of seconds.
+  if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
+    window.addEventListener("online", () => {
+      void retryConnection();
+    });
   }
 
   return {
@@ -93,6 +115,7 @@ export function createDesktopPlatform(): PlatformAdapter {
       },
       pendingCount: () => Backend.GetPendingChangesCount() as Promise<number>,
       failedCount: () => Backend.GetFailedChangesCount() as Promise<number>,
+      retry: retryConnection,
     },
     onFilesDropped: (cb) => {
       const cancel = Events.On("files-dropped", (event: { data: unknown }) => {

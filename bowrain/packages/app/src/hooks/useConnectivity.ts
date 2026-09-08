@@ -1,11 +1,14 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import type { ConnectionState } from "@neokapi/ui";
 import { usePlatform } from "../platform";
 
 export interface ConnectivityStatus {
   /** Undefined on web (no connectivity seam) — the chrome then shows nothing. */
-  state?: "connected" | "offline";
+  state?: ConnectionState;
   pendingChanges?: number;
   failedChanges?: number;
+  /** Present only when the host can attempt a reconnection on demand. */
+  retry?: () => void;
 }
 
 /**
@@ -19,7 +22,7 @@ export function useConnectivity(): ConnectivityStatus {
   const platform = usePlatform();
   const conn = platform.connectivity;
 
-  const [state, setState] = useState<"connected" | "offline" | undefined>(() => conn?.state());
+  const [state, setState] = useState<ConnectionState | undefined>(() => conn?.state());
   const [pendingChanges, setPendingChanges] = useState<number | undefined>(undefined);
   const [failedChanges, setFailedChanges] = useState<number | undefined>(undefined);
 
@@ -54,5 +57,9 @@ export function useConnectivity(): ConnectivityStatus {
     };
   }, [conn, state]);
 
-  return { state, pendingChanges, failedChanges };
+  const retry = useCallback(() => {
+    void conn?.retry?.();
+  }, [conn]);
+
+  return { state, pendingChanges, failedChanges, retry: conn?.retry ? retry : undefined };
 }
