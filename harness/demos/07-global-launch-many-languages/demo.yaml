@@ -33,10 +33,13 @@ artifacts:
     caption: "kapi up --plan: the pending work, before anything runs"
     source: command
     # The pristine tree: on the post-run snapshot the plan is empty, because the
-    # run it previews has already happened. Artifact commands run under the
-    # harness's kapi isolation, which turns recipe discovery off, so the recipe
-    # is named rather than walked to.
-    command: kapi up --plan --json -p kapi.yaml
+    # run it previews has already happened. `from: fixture` puts the command's
+    # cwd in the COMMITTED fixtures directory, so the plan is read in a copy
+    # made under the system temp directory: a dry run still opens a project
+    # store, and nothing a recording does may land in a tracked tree. Artifact
+    # commands run under the harness's kapi isolation, which turns recipe
+    # discovery off, so the recipe is named rather than walked to.
+    command: d=$(mktemp -d) && cp -R . "$d" && cd "$d" && kapi up --plan --json -p kapi.yaml
     from: fixture
     report: json
     reportTitle: "kapi up --plan --json"
