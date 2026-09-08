@@ -14,5 +14,8 @@ node_modules/
 # Per-demo sandbox working copies (regenerated from demos/<id>/fixtures)
 sandbox/
 
-# Isolated kapi state (own plugins/home, populated by `npm run setup`)
-.kapi/
+# Isolated kapi state (own plugins/home, populated by `npm run setup`). Anchored
+# at the harness root: an unanchored pattern also swallows a demo fixture's own
+# `.kapi/`, which is where a real project keeps its voice profile, so a fixture
+# authored with one was silently left out of the repo.
+/.kapi/

@@ -14,10 +14,14 @@ captureTimeoutSec: 360
 # in os.tmpdir(), outside the repo.
 project: true
 
+# One prompt asks for both legs. A headless `claude -p` session gets no second
+# turn, so a prompt that ends on the plan ends the take there: the plan is
+# presented, the session waits for a go-ahead nobody can give, and the artifact
+# stage finds no catalogs.
 prompt: >
   We're launching our notes app in more markets. The recipe already lists German,
-  Spanish, French and Japanese. Can you bring the project up to date so each language
-  has a catalog beside src/en.json? Show me the plan before you spend anything.
+  Spanish, French and Japanese. Show me the plan before you spend anything, then
+  bring the project up to date so each language has a catalog beside src/en.json.
 
 artifacts:
   - id: ja
