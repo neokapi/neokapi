@@ -53,7 +53,8 @@ function AppInner() {
   useNeokapi();
 
   const shortenHome = useShortenHome();
-  const { recentFiles, samplesDismissed, refreshRecent, dismissSamples } = useAppInit();
+  const { recentFiles, samplesDismissed, refreshRecent, removeRecent, dismissSamples } =
+    useAppInit();
   const tm = useTabManager();
   const { hasActive: hasRunningFlow } = useJobFeed();
 
@@ -320,6 +321,7 @@ function AppInner() {
                 recentFiles={recentFiles}
                 samplesDismissed={samplesDismissed}
                 onOpenRecent={tm.openRecent}
+                onRemoveRecent={removeRecent}
                 onNewProject={() => {
                   tm.switchMode("projects");
                   tm.setShowNewProjectForm(true);

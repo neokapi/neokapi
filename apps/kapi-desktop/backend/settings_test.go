@@ -97,17 +97,22 @@ func TestSessionStateRoundTrip(t *testing.T) {
 	assert.Empty(t, got.LastOpenProjects)
 	assert.Empty(t, got.ActiveProject)
 
+	// Only a recipe that is on disk is restored, so the round trip needs real
+	// files behind the remembered paths.
+	a := createTempKapi(t, "a")
+	b := createTempKapi(t, "b")
+
 	app.SaveSessionState(SessionState{
 		Mode:             AppModeProjects,
-		LastOpenProjects: []string{"/a/project.kapi", "/b/project.kapi", "/a/project.kapi", ""},
-		ActiveProject:    "/b/project.kapi",
+		LastOpenProjects: []string{a, b, a, ""},
+		ActiveProject:    b,
 	})
 
 	got = app.GetSessionState()
 	assert.Equal(t, AppModeProjects, got.Mode)
 	// Deduped and empty-filtered, order preserved.
-	assert.Equal(t, []string{"/a/project.kapi", "/b/project.kapi"}, got.LastOpenProjects)
-	assert.Equal(t, "/b/project.kapi", got.ActiveProject)
+	assert.Equal(t, []string{a, b}, got.LastOpenProjects)
+	assert.Equal(t, b, got.ActiveProject)
 
 	// Persists across a fresh store load.
 	reloaded := &settingsStore{filePath: app.settings.filePath}
@@ -116,6 +121,54 @@ func TestSessionStateRoundTrip(t *testing.T) {
 	got2 := app2.GetSessionState()
 	assert.Equal(t, got.LastOpenProjects, got2.LastOpenProjects)
 	assert.Equal(t, got.ActiveProject, got2.ActiveProject)
+}
+
+// TestSessionStateDropsGoneProjects covers #2560: a remembered project whose
+// recipe is no longer on disk is left out of the restore set, so the frontend
+// never opens a tab for it.
+func TestSessionStateDropsGoneProjects(t *testing.T) {
+	kept := createTempKapi(t, "kept")
+	deleted := createTempKapi(t, "deleted")
+	moved := createTempKapi(t, "moved")
+
+	require.NoError(t, os.Remove(deleted))                // folder stays, recipe gone
+	require.NoError(t, os.RemoveAll(filepath.Dir(moved))) // whole folder gone
+
+	app := isolatedSettingsApp(t)
+	app.SaveSessionState(SessionState{
+		Mode:             AppModeProjects,
+		LastOpenProjects: []string{deleted, kept, moved},
+		ActiveProject:    deleted,
+	})
+
+	got := app.GetSessionState()
+	assert.Equal(t, []string{kept}, got.LastOpenProjects)
+	assert.Empty(t, got.ActiveProject, "an active project that is gone must not be restored")
+
+	// The persisted list is untouched, so the recent list can still report
+	// where those projects were until the user removes them.
+	reloaded := &settingsStore{filePath: app.settings.filePath}
+	reloaded.load()
+	assert.Equal(t, []string{deleted, kept, moved}, reloaded.settings.LastOpenProjects)
+}
+
+// TestSessionStateKeepsActiveWhenOnlyOthersAreGone guards the narrower case
+// where the focused project survives and its neighbours do not.
+func TestSessionStateKeepsActiveWhenOnlyOthersAreGone(t *testing.T) {
+	kept := createTempKapi(t, "kept")
+	gone := createTempKapi(t, "gone")
+	require.NoError(t, os.RemoveAll(filepath.Dir(gone)))
+
+	app := isolatedSettingsApp(t)
+	app.SaveSessionState(SessionState{
+		Mode:             AppModeProjects,
+		LastOpenProjects: []string{gone, kept},
+		ActiveProject:    kept,
+	})
+
+	got := app.GetSessionState()
+	assert.Equal(t, []string{kept}, got.LastOpenProjects)
+	assert.Equal(t, kept, got.ActiveProject)
 }
 
 func TestSettingsBackwardCompatibility(t *testing.T) {

@@ -114,6 +114,13 @@ func (a *App) IsEmptyProject(tabID string) bool {
 	if basePath == "" {
 		return true
 	}
+	// A directory that is not on disk is a different thing from a directory
+	// with nothing in it. Calling the first one empty puts the new-project
+	// template picker in front of the user, offering to scaffold a recipe into
+	// a folder they deleted (#2560).
+	if fi, err := os.Stat(basePath); err != nil || !fi.IsDir() {
+		return false
+	}
 	empty := true
 	_ = project.WalkProjectDir(basePath, func(string, os.FileInfo) error {
 		empty = false

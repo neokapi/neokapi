@@ -45,6 +45,7 @@ import type {
   AdoptFlowResult,
   ProjectHandles,
   RunTraces,
+  RecentFile,
 } from "../types/api";
 import type { FlowTrace } from "@neokapi/flow-editor";
 
@@ -415,8 +416,8 @@ export const api = {
   browsePath: (req: BrowsePathRequest) => call<string>("BrowsePath", req),
 
   // Recent files
-  listRecentFiles: () =>
-    call<Array<{ path: string; name: string; opened_at: string }>>("ListRecentFiles"),
+  listRecentFiles: () => call<RecentFile[]>("ListRecentFiles"),
+  removeRecentFile: (path: string) => call<void>("RemoveRecentFile", path),
   clearRecentFiles: () => call<void>("ClearRecentFiles"),
 
   // Settings

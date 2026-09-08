@@ -69,6 +69,7 @@ describe("useApi", () => {
 
   it("exposes all persistence methods", () => {
     expect(api.listRecentFiles).toBeDefined();
+    expect(api.removeRecentFile).toBeDefined();
     expect(api.clearRecentFiles).toBeDefined();
     expect(api.getSettings).toBeDefined();
     expect(api.saveSettings).toBeDefined();

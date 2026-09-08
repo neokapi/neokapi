@@ -1224,6 +1224,12 @@ export function GetSampleInfo(tabID) {
  * the projects to restore and which one was active. The frontend reads this
  * at startup to reopen the previous session; if LastOpenProjects is empty it
  * falls back to the home screen.
+ * 
+ * A remembered project whose recipe is gone from disk is left out, so it is
+ * never restored as a tab. It keeps its place in the recent list, where
+ * ListRecentFiles marks it unavailable and the user can remove it (#2560).
+ * The persisted list is not rewritten here: the frontend saves the session
+ * again as soon as the restore settles.
  * @returns {$CancellablePromise<$models.SessionState>}
  */
 export function GetSessionState() {
@@ -1680,7 +1686,8 @@ export function ListProviders() {
 }
 
 /**
- * ListRecentFiles returns the list of recently opened .kapi files.
+ * ListRecentFiles returns the recently opened projects, each stamped with
+ * whether its recipe is still on disk.
  * @returns {$CancellablePromise<$models.RecentFile[]>}
  */
 export function ListRecentFiles() {
@@ -1999,6 +2006,16 @@ export function RejectReviewItem(tabID, locale, file, key, note) {
  */
 export function RemovePlugin(idOrName) {
     return $Call.ByID(2184650371, idOrName);
+}
+
+/**
+ * RemoveRecentFile drops one project from the recent list. The frontend calls
+ * it from the remove action on an unavailable row; nothing on disk is touched.
+ * @param {string} path
+ * @returns {$CancellablePromise<void>}
+ */
+export function RemoveRecentFile(path) {
+    return $Call.ByID(1350639317, path);
 }
 
 /**

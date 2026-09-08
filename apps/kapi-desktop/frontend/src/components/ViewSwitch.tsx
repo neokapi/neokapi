@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import type { KapiProject, FlowSpec } from "../types/api";
+import type { KapiProject, FlowSpec, RecentFile } from "../types/api";
 import { ProjectErrorBoundary } from "./ProjectErrorBoundary";
 import type { TabState } from "../hooks/useTabManager";
 import type { ProjectHistory } from "../hooks/useProjectHistory";
@@ -63,9 +63,11 @@ interface ViewSwitchProps {
   navigate: (view: string) => void;
   updateTab: (id: string, patch: Partial<TabState>) => void;
   // Home page props
-  recentFiles: Array<{ path: string; name: string; opened_at: string }>;
+  recentFiles: RecentFile[];
   samplesDismissed: boolean;
   onOpenRecent: (path: string) => void;
+  /** Forget one remembered project. Nothing on disk is touched. */
+  onRemoveRecent: (path: string) => void;
   onNewProject: () => void;
   onOpenProject: () => void;
   onCreateSampleProject: (name: string) => void;
@@ -87,6 +89,7 @@ export function ViewSwitch({
   recentFiles,
   samplesDismissed,
   onOpenRecent,
+  onRemoveRecent,
   onNewProject,
   onOpenProject,
   onCreateSampleProject,
@@ -183,6 +186,7 @@ export function ViewSwitch({
         recentFiles={recentFiles}
         samplesDismissed={samplesDismissed}
         onOpenRecent={onOpenRecent}
+        onRemoveRecent={onRemoveRecent}
         onNewProject={onNewProject}
         onOpenProject={onOpenProject}
         onNavigate={navigate}
