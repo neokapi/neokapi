@@ -195,7 +195,7 @@ The seven points the shaped samples are held to, as this sample meets them.
 | 3 | First converge shows recycle numbers and an estimate before it spends | **MET**: `plan: 26 unit(s) missing · drafting 2 unit(s) the content memory does not answer · 5 exact-content memory · 23 AI · ≈241 tokens`, then per-locale `(content memory N · AI M)` summing to the same 23. No credential is spent: the AI leg is the `demo` provider |
 | 4 | Governed review exercised, with a decision that changes an outcome | **MET**: the Dutch review moves `nl` from withheld to offered, and the Norwegian review removes its AI marker. Both are `kapi apply` + `kapi commit` round-trips landing in `.kapi/state/` |
 | 5 | Delivery proven | **MET**: `kapi up` materializes into `site/locales/`, `kapi status --ship --emit` writes `site/ship.json`, and the deployed page reads both. No copy step, no second pipeline |
-| 6 | Recorded as a harness walkthrough | **PARTIAL**: `harness/demos/s1-compass-converge/` and `harness/demos/s1-compass-ship-gate/` are authored and capture-verified; nothing has been rendered or published for English, and the Norwegian render is held by [#2032](https://github.com/neokapi/neokapi/issues/2032) |
+| 6 | Recorded as a harness walkthrough | **PARTIAL**: `harness/demos/s1-compass-converge/` and `harness/demos/s1-compass-ship-gate/` are authored and neither has been recorded since the split; nothing has been rendered or published for English, and the Norwegian render is held by [#2032](https://github.com/neokapi/neokapi/issues/2032) |
 | 7 | Carries no internal information; lives where a reader can clone it | **MET**: one fictional company, in-repo under `samples/` per the sample conventions |
 
 ## Known gaps this sample exercises
