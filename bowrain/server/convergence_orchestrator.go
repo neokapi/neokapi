@@ -609,18 +609,26 @@ func (o *convergenceOrchestrator) driveWith(ctx context.Context, run *bstore.Con
 // parks on failing terminology/length checks exactly like local `up` rather
 // than silently claiming converged.
 //
-// A target is counted only while it translates the source the block holds. The
-// ledger grades every recorded basis against the current source in one grouped
-// query (tallyDecisionBasis), and a unit whose basis is stale and that the
-// platform has not yet drafted against the current source is withheld from the
-// produced count, which is what the local venue's coverage does with AddStale
-// (host/coverage.go). So a run started by a source change has pending work and
-// calls Produce for the re-draft. A stale unit the platform HAS drafted against
-// the current source counts as produced again: its decision stays withdrawn
-// until a person re-reviews the draft, and that is the reviewer's work, not the
-// loop's. It keeps the locale's ship state pending (applyShipStates,
-// DeriveShipState) without keeping the run pending on production, so a decided
-// unit is drafted once per source change rather than once per pass.
+// A target is counted only while it translates the source the block holds AND
+// nobody has turned it down. The ledger grades every recorded basis against the
+// current source in one grouped query (tallyDecisionBasis), and a unit whose
+// basis is stale and that the platform has not yet drafted against the current
+// source is withheld from the produced count, which is what the local venue's
+// coverage does with AddStale (host/coverage.go). So a run started by a source
+// change has pending work and calls Produce for the re-draft. A stale unit the
+// platform HAS drafted against the current source counts as produced again: its
+// decision stays withdrawn until a person re-reviews the draft, and that is the
+// reviewer's work, not the loop's. It keeps the locale's ship state pending
+// (applyShipStates, DeriveShipState) without keeping the run pending on
+// production, so a decided unit is drafted once per source change rather than
+// once per pass.
+//
+// A REJECTION is withheld on the same terms and read from the same mark. It
+// moves neither hash, so the stale grading cannot see it, and the tally counts
+// it separately (DecisionBasisTally.RejectedOwed, disjoint from Owed). The
+// rejection clears the draft mark, which buys the unit exactly one more draft:
+// once the pass has stamped the mark again the unit counts as produced and
+// waits on the next verdict, and a second rejection owes a second draft.
 func (o *convergenceOrchestrator) deriveFunc(projectID, stream string, localeFilter []string) func(context.Context) (convergence.PassState, error) {
 	s := o.server
 	filter := map[string]bool{}
@@ -710,11 +718,12 @@ func (o *convergenceOrchestrator) deriveFunc(projectID, stream string, localeFil
 				st.total, st.translated = cov.total, cov.translated
 			}
 			// A target whose recorded basis names wording the block no longer
-			// holds is not a translation of the source the project has, until
-			// the loop has drafted one. Withheld from the produced count, it
-			// keeps the locale below full coverage and the run pending on
-			// production, exactly as an untranslated unit does.
-			st.translated = max(st.translated-basis.forLocale(l).Owed, 0)
+			// holds, or one a reviewer turned down, is not a translation this
+			// project stands behind until the loop has drafted another.
+			// Withheld from the produced count, it keeps the locale below full
+			// coverage and the run pending on production, exactly as an
+			// untranslated unit does.
+			st.translated = max(st.translated-basis.forLocale(l).owed(), 0)
 			states[l] = st
 			if st.translated >= st.total {
 				toCheck = append(toCheck, loc)

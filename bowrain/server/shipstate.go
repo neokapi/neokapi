@@ -137,8 +137,10 @@ func applyShipStates(ctx context.Context, cs store.ContentStore, voiceStore core
 		ls.StaleBlocks = b.Stale
 		ls.StaleAwaitingDraftBlocks = b.Owed
 		ls.StaleAwaitingReviewBlocks = b.Stale - b.Owed
+		ls.RejectedAwaitingDraftBlocks = b.RejectedOwed
 		ls.BasisUnknownBlocks = b.BasisUnknown
-		ls.ShipState = store.DeriveShipState(ls.TranslatedBlocks, ls.TotalBlocks, ls.ApprovedBlocks, ls.FailingChecks, ls.StaleBlocks)
+		ls.ShipState = store.DeriveShipState(ls.TranslatedBlocks, ls.TotalBlocks, ls.ApprovedBlocks,
+			ls.FailingChecks, ls.StaleBlocks, ls.RejectedAwaitingDraftBlocks)
 		applyCompliance(ls, c.Clean-c.CleanBelowBar, c.Scored > 0, termActive[ls.Locale])
 	}
 
@@ -342,13 +344,20 @@ func shipGateBatches(stale []store.ShipGateStale, size int) []shipGateGroup {
 	return out
 }
 
-// basisCounts is one scope's stale / unknown-basis decision counts, and the
-// part of the stale count the convergence loop still owes a draft for.
+// basisCounts is one scope's stale / unknown-basis decision counts, the part of
+// the stale count the convergence loop still owes a draft for, and the
+// rejections it owes a draft for outside that count.
 type basisCounts struct {
 	Stale        int
 	BasisUnknown int
 	Owed         int
+	RejectedOwed int
 }
+
+// owed is every unit the convergence loop still owes a draft for. Owed is a
+// subset of Stale and RejectedOwed holds only the rejections Stale does not, so
+// the two are disjoint and each unit is counted once.
+func (c basisCounts) owed() int { return c.Owed + c.RejectedOwed }
 
 // basisRollup carries the graded decision basis at both aggregation levels the
 // dashboard reports: project-wide per locale, and per (collection, locale).
@@ -396,7 +405,7 @@ func tallyDecisionBasis(ctx context.Context, cs store.ContentStore, projectID, s
 		return out, fmt.Errorf("grade decision basis: %w", err)
 	}
 	for _, t := range tallies {
-		if t.Stale == 0 && t.BasisUnknown == 0 && t.Owed == 0 {
+		if t.Stale == 0 && t.BasisUnknown == 0 && t.Owed == 0 && t.RejectedOwed == 0 {
 			continue
 		}
 		var variant model.VariantKey
@@ -409,6 +418,7 @@ func tallyDecisionBasis(ctx context.Context, cs store.ContentStore, projectID, s
 		p.Stale += t.Stale
 		p.BasisUnknown += t.BasisUnknown
 		p.Owed += t.Owed
+		p.RejectedOwed += t.RejectedOwed
 		out.project[loc] = p
 
 		cid := collByItem[t.ItemName]
@@ -419,6 +429,7 @@ func tallyDecisionBasis(ctx context.Context, cs store.ContentStore, projectID, s
 		c.Stale += t.Stale
 		c.BasisUnknown += t.BasisUnknown
 		c.Owed += t.Owed
+		c.RejectedOwed += t.RejectedOwed
 		out.byColl[cid][loc] = c
 	}
 	return out, nil

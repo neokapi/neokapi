@@ -240,7 +240,9 @@ func (s *SQLiteStore) GetUnitDecision(ctx context.Context, projectID, stream, it
 
 // TallyDecisionBasis implements platstore.DecisionStore — the SQLite mirror of
 // the Postgres grading, joining each decision's recorded basis to the block's
-// current source hash, and its draft basis beside it for the owed count.
+// current source hash, and its draft basis beside it for the two owed counts.
+// The rejected count reads the verdict as well, for the units a reviewer turned
+// down on a source nothing has rewritten, which the stale grading cannot see.
 func (s *SQLiteStore) TallyDecisionBasis(ctx context.Context, projectID, stream string) ([]platstore.DecisionBasisTally, error) {
 	stream = storeutil.DefaultStream(stream)
 	rows, err := s.db.QueryContext(ctx,
@@ -248,6 +250,13 @@ func (s *SQLiteStore) TallyDecisionBasis(ctx context.Context, projectID, stream 
 			COALESCE(SUM(CASE WHEN d.content_hash <> '' AND d.content_hash <> b.content_hash THEN 1 ELSE 0 END), 0),
 			COALESCE(SUM(CASE WHEN d.content_hash = '' THEN 1 ELSE 0 END), 0),
 			COALESCE(SUM(CASE WHEN d.content_hash <> '' AND d.content_hash <> b.content_hash
+				AND d.draft_basis <> b.content_hash
+				AND EXISTS (SELECT 1 FROM translations t
+					WHERE t.project_id = b.project_id AND t.stream = b.stream
+					AND t.block_id = b.id AND t.locale = d.variant)
+				THEN 1 ELSE 0 END), 0),
+			COALESCE(SUM(CASE WHEN d.review_state = ?
+				AND NOT (d.content_hash <> '' AND d.content_hash <> b.content_hash)
 				AND d.draft_basis <> b.content_hash
 				AND EXISTS (SELECT 1 FROM translations t
 					WHERE t.project_id = b.project_id AND t.stream = b.stream
@@ -261,7 +270,7 @@ func (s *SQLiteStore) TallyDecisionBasis(ctx context.Context, projectID, stream 
 		 WHERE d.project_id=? AND d.stream=? AND b.translatable
 		 GROUP BY d.item_name, d.variant
 		 ORDER BY d.item_name, d.variant`,
-		projectID, stream)
+		venue.ReviewStateRejected, projectID, stream)
 	if err != nil {
 		return nil, fmt.Errorf("tally decision basis: %w", err)
 	}
@@ -270,7 +279,7 @@ func (s *SQLiteStore) TallyDecisionBasis(ctx context.Context, projectID, stream 
 	var out []platstore.DecisionBasisTally
 	for rows.Next() {
 		var t platstore.DecisionBasisTally
-		if err := rows.Scan(&t.ItemName, &t.Variant, &t.Stale, &t.BasisUnknown, &t.Owed); err != nil {
+		if err := rows.Scan(&t.ItemName, &t.Variant, &t.Stale, &t.BasisUnknown, &t.Owed, &t.RejectedOwed); err != nil {
 			return nil, fmt.Errorf("scan decision basis tally: %w", err)
 		}
 		out = append(out, t)

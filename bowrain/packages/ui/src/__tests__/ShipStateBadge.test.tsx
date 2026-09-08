@@ -70,6 +70,23 @@ describe("ShipStateBadge", () => {
     expect((await screen.findAllByText(/4 re-drafted, awaiting review/)).length).toBeGreaterThan(0);
   });
 
+  it("names the pairs a reviewer turned down", async () => {
+    const user = userEvent.setup();
+    render(
+      <ShipStateBadge
+        state="pending"
+        approvedBlocks={40}
+        totalBlocks={50}
+        rejectedAwaitingDraft={3}
+      />,
+    );
+    await user.hover(screen.getByTestId("ship-state-pending"));
+    expect((await screen.findAllByText(/3 turned down, awaiting a draft/)).length).toBeGreaterThan(
+      0,
+    );
+    expect(screen.queryByText(/stale, awaiting a draft/)).toBeNull();
+  });
+
   it("omits a half of the stale split that holds nothing", async () => {
     const user = userEvent.setup();
     render(

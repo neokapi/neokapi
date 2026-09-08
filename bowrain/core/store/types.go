@@ -636,6 +636,14 @@ type LocaleTranslationStats struct {
 	// Additive: producers that do not grade the basis leave both 0.
 	StaleAwaitingDraftBlocks  int `json:"stale_awaiting_draft_blocks,omitempty"`
 	StaleAwaitingReviewBlocks int `json:"stale_awaiting_review_blocks,omitempty"`
+	// RejectedAwaitingDraftBlocks counts pairs a reviewer turned down that the
+	// loop has not drafted again since. They sit at `draft` with a basis that
+	// may well name the source the block still holds, so StaleBlocks does not
+	// hold them and the two counts never overlap. The work is a convergence
+	// pass either way, which is why the number is published beside the stale
+	// split rather than folded into it. Additive: producers that do not read
+	// the ledger's verdicts leave it 0.
+	RejectedAwaitingDraftBlocks int `json:"rejected_awaiting_draft_blocks,omitempty"`
 	// BasisUnknownBlocks counts pairs whose decision carries no basis at all.
 	// Such a record says nothing about the source it blessed, so it keeps its
 	// rung and ships as it did before — but the assumption behind that rung is
@@ -855,6 +863,19 @@ type DecisionBasisTally struct {
 	// part of Stale a convergence pass can settle; the remainder has been
 	// re-drafted and waits on a reviewer.
 	Owed int
+	// RejectedOwed counts the units a REJECTION owes a draft: the row's verdict
+	// is a rejection, the unit carries a target for the variant, and no draft
+	// has been recorded against the source the block holds now. A reviewer
+	// turning a translation down is a statement that the wording will not do,
+	// on whatever source it was made against, so the unit is work even where
+	// nothing has been rewritten.
+	//
+	// It counts the rejections Stale does NOT hold, which keeps Owed a subset
+	// of Stale and the two counts disjoint. A convergence pass owes a draft for
+	// Owed + RejectedOwed units, which is the number the derive withholds from
+	// the produced count and the number the worker's own predicate
+	// (jobs.decisionLedger.needsDraft) partitions out.
+	RejectedOwed int
 }
 
 // DraftBasis is the platform's own record of the latest draft it produced for

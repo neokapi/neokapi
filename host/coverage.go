@@ -354,33 +354,59 @@ func approvesTarget(e reviewedEntry, applies bool) bool {
 	return applies && (e.status == model.TargetStatusReviewed || e.status == model.TargetStatusSignedOff)
 }
 
+// unitReading is everything one unit's record says to the coverage tally: the
+// rung it counts at, how it reached that rung, how its basis grades against the
+// source in front of the reader, and what it is waiting for.
+type unitReading struct {
+	// state is the ladder rung the unit is tallied at.
+	state string
+	// aiDecided reports that the rung was reached by an autonomous AI decision
+	// ("ai/…" identity), which gate evaluation treats separately.
+	aiDecided bool
+	// basis is how the recorded basis grades against the current source.
+	basis basisVerdict
+	// redrafted answers what a stale unit is waiting on: false while the record
+	// still describes the translation on disk, so the loop owes it a draft, and
+	// true once something has replaced that translation, so it is waiting on a
+	// person to look at what replaced it. Meaningful only alongside basisStale.
+	redrafted bool
+	// rejectedOwed marks a unit a reviewer turned down whose translation is
+	// still the one they turned down. The loop owes it a draft, and no grading
+	// of the basis can say so: rejecting a translation of the source the
+	// project holds moves neither hash, so the record reads exactly like a
+	// settled one (#2564).
+	rejectedOwed bool
+}
+
 // apply moves a `translated` unit to its recorded decision rung — up to reviewed
 // or signed-off for an approval, down to draft for a rejection — when the block
-// has an applicable decision for the locale; otherwise it returns the base state
-// unchanged. aiDecided reports whether the applied rung came from an autonomous
-// AI decision ("ai/…" identity), which gate evaluation treats separately, and
-// basis is how the recorded decision grades against the current source.
-//
-// redrafted answers what a stale unit is waiting on: false while the record
-// still describes the translation on disk, so the loop owes it a draft, and
-// true once something has replaced that translation, so it is waiting on a
-// person to look at what replaced it. It is meaningful only alongside
-// basisStale.
+// has an applicable decision for the locale; otherwise the base state stands.
 //
 // A unit with no target at all grades basisNone whatever the store holds: there
 // is no pairing for a record to have been made against, so there is nothing a
 // source edit could invalidate, and reading one would promote an untranslated
 // unit.
-func (r reviewedIndex) apply(base, scope string, b *model.Block, locale string) (st string, aiDecided bool, basis basisVerdict, redrafted bool) {
+func (r reviewedIndex) apply(base, scope string, b *model.Block, locale string) unitReading {
 	if base == "" {
-		return base, false, basisNone, false
+		return unitReading{state: base, basis: basisNone}
 	}
 	e, basis, applies := r.grade(scope, b, locale)
-	redrafted = !e.blessesTarget(b, model.LocaleID(locale))
-	if applies && base == string(model.TargetStatusTranslated) {
-		return string(e.status), state.IsAIDecision(e.by), basis, redrafted
+	out := unitReading{
+		state:     base,
+		basis:     basis,
+		redrafted: !e.blessesTarget(b, model.LocaleID(locale)),
 	}
-	return base, false, basis, redrafted
+	if !applies {
+		return out
+	}
+	// An applicable decision judges the translation on disk against the source
+	// the project holds, so a rejection among them is a person refusing wording
+	// that is still there.
+	out.rejectedOwed = e.status == model.TargetStatusDraft
+	if base == string(model.TargetStatusTranslated) {
+		out.state, out.aiDecided = string(e.status), state.IsAIDecision(e.by)
+	}
+	return out
 }
 
 // aiReviewFor returns a block's fresh AI pre-review annotation for the locale,
@@ -583,7 +609,7 @@ func (a *App) ProjectCoverageTally(ctx context.Context, proj *project.KapiProjec
 			if !b.Translatable {
 				continue
 			}
-			st, aiDecided, basis, redrafted := reviewed.apply(unitState(b, u.Locale), scope, b, u.Locale)
+			read := reviewed.apply(unitState(b, u.Locale), scope, b, u.Locale)
 			// A unit failing the project's bound checks is recorded as such and
 			// then tallied at the rung it actually holds. The finding withholds
 			// the scope's verdict (convergence.RollupGates) rather than rewriting
@@ -598,20 +624,26 @@ func (a *App) ProjectCoverageTally(ctx context.Context, proj *project.KapiProjec
 			// source has been rewritten the translation under it renders a
 			// sentence the project no longer has. Derived on every read — the
 			// decision itself is history and is never rewritten.
-			switch basis {
+			switch read.basis {
 			case basisStale:
-				tally.AddStale(s, redrafted)
+				tally.AddStale(s, read.redrafted)
 				continue
 			case basisUnknown:
 				tally.NoteUnknownBasis(s)
 			}
-			if aiDecided {
+			// A reviewer turned this wording down and nothing has replaced it.
+			// The unit is the loop's work, on a source the grading above reads
+			// as settled, so it is counted where a reader can act on it.
+			if read.rejectedOwed {
+				tally.NoteRejectedAwaitingDraft(s)
+			}
+			if read.aiDecided {
 				// The AI decision promoted the unit from the `translated`
 				// baseline; a human-class threshold sees it there.
-				tally.AddAIDecided(s, st, string(model.TargetStatusTranslated))
+				tally.AddAIDecided(s, read.state, string(model.TargetStatusTranslated))
 				continue
 			}
-			tally.Add(s, st)
+			tally.Add(s, read.state)
 		}
 	}
 

@@ -491,3 +491,157 @@ func TestWorker_DraftsAStaleDecidedUnitOncePerSourceChange(t *testing.T) {
 	fourth := runJob("job-redraft-4")
 	assert.Zero(t, fourth.TotalBlocks)
 }
+
+// reject records a reviewer's rejection on one of the fixture's units and
+// clears the platform's draft mark, which is the pair of writes the server
+// makes when somebody turns a translation down
+// (server.unitDecisionFor + reviewLedger.clearDraftBasis).
+func (f basisFixture) reject(t *testing.T, unit, source, target string) {
+	t.Helper()
+	ctx := t.Context()
+	_, err := f.cs.UpsertUnitDecisions(ctx, f.projectID, "main", []venue.UnitDecision{{
+		ItemName:    f.item,
+		Unit:        unit,
+		Variant:     "fr",
+		Status:      string(model.TargetStatusDraft),
+		TargetHash:  state.TargetHash(target),
+		ContentHash: state.SourceHash(source),
+		ReviewState: venue.ReviewStateRejected,
+		DecidedBy:   "reviewer-1",
+		Updated:     "2026-02-01T00:00:00Z",
+	}})
+	require.NoError(t, err)
+	require.NoError(t, f.cs.RecordDraftBases(ctx, f.projectID, "main", []store.DraftBasis{{
+		ItemName: f.item, Unit: unit, Variant: "fr",
+	}}))
+}
+
+// TestDecisionLedger_NeedsDraft_RejectedUnitOwesADraft pins the predicate on a
+// unit nothing has rewritten: the reviewer turned the translation down, so both
+// hashes still name what the row recorded and the basis alone reads as settled.
+// The unit is owed a draft until the platform has made one since the rejection,
+// then it waits on the next verdict, and a second rejection owes one more.
+func TestDecisionLedger_NeedsDraft_RejectedUnitOwesADraft(t *testing.T) {
+	f := newBasisFixture(t)
+	ctx := t.Context()
+	f.reject(t, "fresh", basisFreshSource, "Supprimer le compte")
+
+	stored := f.storedFor(t)
+	ledger := loadDecisionLedger(ctx, f.cs, f.projectID, "main")
+	rec, ok := ledger[decisionUnitKey{item: f.item, unit: "fresh", variant: "fr"}]
+	require.True(t, ok)
+	require.Equal(t, state.SourceHash(basisFreshSource), rec.ContentHash,
+		"the rejection moved neither hash: the row names the source the block holds")
+	assert.True(t, ledger.needsDraft(stored[basisFreshSource], "fr"),
+		"a reviewer said the wording will not do, so the unit is work")
+
+	proj, err := f.cs.GetProject(ctx, f.projectID)
+	require.NoError(t, err)
+	est, err := EstimateConvergence(ctx, f.cs, nil, proj)
+	require.NoError(t, err)
+	assert.Equal(t, 2, est.Totals.Pending, "the quote prices the stale unit and the refused one")
+
+	require.NoError(t, f.cs.RecordDraftBases(ctx, f.projectID, "main", []store.DraftBasis{{
+		ItemName: f.item, Unit: "fresh", Variant: "fr", SourceHash: state.SourceHash(basisFreshSource),
+	}}))
+	ledger = loadDecisionLedger(ctx, f.cs, f.projectID, "main")
+	assert.False(t, ledger.needsDraft(stored[basisFreshSource], "fr"),
+		"drafted since the rejection: the unit waits on the next verdict")
+	rec = ledger[decisionUnitKey{item: f.item, unit: "fresh", variant: "fr"}]
+	assert.Equal(t, venue.ReviewStateRejected, rec.ReviewState, "the verdict is still the reviewer's")
+
+	est, err = EstimateConvergence(ctx, f.cs, nil, proj)
+	require.NoError(t, err)
+	assert.Equal(t, 1, est.Totals.Pending, "the quote owes nothing more for the refused unit")
+
+	f.reject(t, "fresh", basisFreshSource, "Supprimer le compte")
+	ledger = loadDecisionLedger(ctx, f.cs, f.projectID, "main")
+	assert.True(t, ledger.needsDraft(stored[basisFreshSource], "fr"),
+		"a second rejection of the same source owes a second draft")
+}
+
+// TestWorker_DraftsARejectedUnitOncePerVerdict drives the real worker over a
+// unit a reviewer turned down on a source nothing has rewritten: the first job
+// drafts it and marks what it drafted against, leaving the rejection on the
+// row; the second finds nothing owed; and a second rejection buys exactly one
+// more draft. Red before the fix: the first job found nothing owed either, and
+// the unit sat at `draft` until somebody edited the source.
+func TestWorker_DraftsARejectedUnitOncePerVerdict(t *testing.T) {
+	f := newBasisFixture(t)
+	ctx := t.Context()
+	f.reject(t, "fresh", basisFreshSource, "Supprimer le compte")
+
+	js, err := NewJobStore(f.db)
+	require.NoError(t, err)
+	deps := &WorkerDeps{
+		JobStore:      js,
+		ContentStore:  f.cs,
+		Platform:      &PlatformProviderConfig{Provider: "demo"},
+		ProviderStore: &fakeProviderResolver{cfg: bstore.ProviderConfig{Type: "demo"}},
+	}
+	runJob := func(id string) *TranslationJob {
+		t.Helper()
+		job := &TranslationJob{
+			ID:               id,
+			WorkspaceSlug:    "acme",
+			ProjectID:        f.projectID,
+			ItemName:         f.item,
+			TargetLocale:     "fr",
+			ProviderConfigID: "platform",
+			Model:            "demo",
+			Status:           StatusQueued,
+		}
+		require.NoError(t, js.CreateJob(ctx, job))
+		claimed, epoch, err := js.ClaimJob(ctx, job.ID)
+		require.NoError(t, err)
+		require.True(t, claimed)
+		require.NoError(t, executeTranslationWithDeps(ctx, deps, job, epoch))
+		done, err := js.GetJob(ctx, job.ID)
+		require.NoError(t, err)
+		return done
+	}
+	freshRow := func() (venue.UnitDecision, string) {
+		t.Helper()
+		records, err := f.cs.ListUnitDecisions(ctx, f.projectID, "main")
+		require.NoError(t, err)
+		var rec venue.UnitDecision
+		for _, d := range records {
+			if d.Unit == "fresh" {
+				rec = d
+			}
+		}
+		drafts, err := f.cs.ListDraftBases(ctx, f.projectID, "main")
+		require.NoError(t, err)
+		mark := ""
+		for _, d := range drafts {
+			if d.Unit == "fresh" {
+				mark = d.SourceHash
+			}
+		}
+		return rec, mark
+	}
+
+	first := runJob("job-rejected-1")
+	assert.Equal(t, 2, first.TotalBlocks, "the stale unit and the refused one are both owed")
+	stored := f.storedFor(t)
+	redrafted := stored[basisFreshSource].Block.TargetText("fr")
+	assert.NotEqual(t, "Supprimer le compte", redrafted, "the wording the reviewer turned down is replaced")
+	assert.Equal(t, "Enregistrer", stored[basisUnrecordedSource].Block.TargetText("fr"),
+		"a target the platform has no record of writing is still left alone")
+
+	rec, mark := freshRow()
+	assert.Equal(t, venue.ReviewStateRejected, rec.ReviewState, "the verdict stays on the row")
+	assert.Equal(t, "reviewer-1", rec.DecidedBy)
+	assert.Equal(t, state.SourceHash(basisFreshSource), rec.ContentHash, "and its basis is never written over")
+	assert.Equal(t, state.SourceHash(basisFreshSource), mark, "the draft is marked with the source it was made from")
+
+	second := runJob("job-rejected-2")
+	assert.Zero(t, second.TotalBlocks, "nothing is owed: the unit waits on the next verdict")
+	assert.Equal(t, redrafted, f.storedFor(t)[basisFreshSource].Block.TargetText("fr"))
+
+	f.reject(t, "fresh", basisFreshSource, redrafted)
+	third := runJob("job-rejected-3")
+	assert.Equal(t, 1, third.TotalBlocks, "a second rejection owes a second draft")
+	fourth := runJob("job-rejected-4")
+	assert.Zero(t, fourth.TotalBlocks, "and one only")
+}

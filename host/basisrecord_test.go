@@ -183,9 +183,10 @@ func TestReviewedIndex_ApplyIgnoresARecordedBasis(t *testing.T) {
 	})
 	b := gradeBlock("Apple", "Eple")
 
-	st, aiDecided, basis, _ := idx.apply(string(model.TargetStatusTranslated), "d-doc", b, "nb")
-	assert.Equal(t, string(model.TargetStatusTranslated), st)
-	assert.False(t, aiDecided)
-	assert.Equal(t, basisCurrent, basis)
+	read := idx.apply(string(model.TargetStatusTranslated), "d-doc", b, "nb")
+	assert.Equal(t, string(model.TargetStatusTranslated), read.state)
+	assert.False(t, read.aiDecided)
+	assert.Equal(t, basisCurrent, read.basis)
+	assert.False(t, read.rejectedOwed, "a basis the loop recorded is no verdict")
 	assert.False(t, idx.decided("d-doc", b, "nb"), "the loop deciding its own output is what this forbids")
 }

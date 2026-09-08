@@ -42,6 +42,16 @@ import (
 // hash away from the mark, and the unit is owed once more. The local loop gets
 // the same guarantee from its content memory, which absorbs the re-drafted
 // pairing and answers the next pass from it (host/recordabsorb.go).
+//
+// The mark carries the second question a producer has to ask as well. Comparing
+// the hashes answers "does this translation render the sentence the project
+// holds", and it cannot answer "does the project stand behind it": a reviewer
+// rejecting a translation of the CURRENT source moves neither hash, so the row
+// reads exactly like a settled one. The verdict is therefore read beside the
+// basis, and a rejection clears the mark (server.reviewLedger.clearDraftBasis),
+// which is what buys such a unit exactly one more draft. Once the pass stamps
+// the mark again the unit waits on the next verdict, and a second rejection
+// owes a second draft, so the two marks together admit no loop.
 
 // decisionUnitKey is the ledger's own key, rendered for an in-memory index: the
 // item whose identity namespace the unit lives in, the unit, and the variant in
@@ -121,16 +131,24 @@ func (l decisionLedger) record(sb *venue.StoredBlock, key model.VariantKey) (led
 	return d, ok
 }
 
-// needsDraft reports whether a locale still has work on this block: it carries
-// no target for the locale, or it carries one whose recorded basis names source
-// wording the block no longer holds and that the platform has not yet drafted
-// against the wording it holds now.
+// needsDraft reports whether a locale still has work on this block. Three ways
+// a unit is owed one: it carries no target for the locale; it carries one whose
+// recorded basis names source wording the block no longer holds; or a reviewer
+// turned the translation down. The draft mark answers all three the same way,
+// because a unit the platform has already drafted against the source the block
+// holds now is waiting on a person whatever the row's verdict says.
+//
+// The verdict is read beside the basis because a rejection of a translation of
+// the CURRENT source moves neither hash: the row records the source the block
+// still carries, and grading it alone reported the unit as settled while it sat
+// at `draft` with a reviewer's refusal on it, waiting for somebody to edit the
+// source before the loop would look at it again (#2564).
 //
 // This is the predicate the recycle pass partitions on and the estimate prices
 // from, so a quote and the run it precedes describe the same set of units. The
 // server's convergence derive counts the same units from the ledger's grouped
-// tally (store.DecisionBasisTally.Owed), so a locale is pending on production
-// exactly when a job for it would produce.
+// tally (store.DecisionBasisTally.Owed plus RejectedOwed, which are disjoint),
+// so a locale is pending on production exactly when a job for it would produce.
 func (l decisionLedger) needsDraft(sb *venue.StoredBlock, locale model.LocaleID) bool {
 	if sb == nil || sb.Block == nil {
 		return false
@@ -147,20 +165,25 @@ func (l decisionLedger) needsDraft(sb *venue.StoredBlock, locale model.LocaleID)
 			continue
 		}
 		d, ok := l.record(sb, key)
-		if !ok || d.ContentHash == "" {
-			// No record, or one made before a basis was tracked. Unknown is not
-			// stale, and reading it as stale would re-draft a translation on a
-			// silence.
-			continue
-		}
-		if d.ContentHash == current {
+		if !ok {
+			// A target the platform has no record of writing. Re-drafting it
+			// on a silence would discard somebody's work on a guess.
 			continue
 		}
 		if d.draftBasis == current {
-			// Stale, and already drafted against the source the block holds
-			// now. The decision it carries is withdrawn until a person looks
-			// at the new draft; another pass would change nothing but the
-			// bill.
+			// Already drafted against the source the block holds now. Whatever
+			// the row carries, the unit is a reviewer's to move; another pass
+			// would change nothing but the bill. A rejection clears this mark,
+			// which is what buys the rejected unit exactly one more draft.
+			continue
+		}
+		if d.ReviewState == venue.ReviewStateRejected {
+			return true
+		}
+		if d.ContentHash == "" || d.ContentHash == current {
+			// No basis (a record made before one was tracked), or one naming
+			// the source the block still holds. Unknown is not stale, and
+			// reading it as stale would re-draft a translation on a silence.
 			continue
 		}
 		return true

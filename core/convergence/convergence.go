@@ -76,6 +76,14 @@ type LocaleCoverage struct {
 	// single number sent everyone to `kapi up` for units the loop was done with.
 	StaleAwaitingDraft  int `json:"staleAwaitingDraft,omitempty"`
 	StaleAwaitingReview int `json:"staleAwaitingReview,omitempty"`
+	// RejectedAwaitingDraft counts units a reviewer turned down that the loop
+	// has not drafted again since. Their basis may well name the source the
+	// project still holds, so Stale does not count them and the two never
+	// overlap, but a person has said the wording will not do and the work is a
+	// convergence pass either way. They hold the scope out of Shippable and
+	// Verified for the same reason a stale unit does: a translation somebody
+	// refused is not shippable at any coverage.
+	RejectedAwaitingDraft int `json:"rejectedAwaitingDraft,omitempty"`
 	// FailingChecks counts produced units that fail the project's bound
 	// target-side checks (placeholder and tag integrity, terminology). They
 	// count at their true rung in Pct — the unit is translated, and a percentage

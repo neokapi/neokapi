@@ -95,6 +95,7 @@ function ShipReadinessCard({ localeStats }: { localeStats: LocaleTranslationStat
                     failingChecks={l.failing_checks}
                     staleAwaitingDraft={l.stale_awaiting_draft_blocks}
                     staleAwaitingReview={l.stale_awaiting_review_blocks}
+                    rejectedAwaitingDraft={l.rejected_awaiting_draft_blocks}
                   />
                 )}
               </span>
