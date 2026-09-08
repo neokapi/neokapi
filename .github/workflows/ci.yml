@@ -131,7 +131,12 @@ jobs:
           js_deps=( '^pnpm-lock\.yaml$' '^package\.json$' '^pnpm-workspace\.yaml$' )
 
           check_paths frontend  '^bowrain/apps/(web|bowrain/frontend|ctrl|pulse|keycloak-theme)/' '^bowrain/packages/(ui|app)/' '^bowrain/emails/' "${js_deps[@]}"
-          check_paths kapi_desktop '^apps/kapi-desktop/' '^packages/(ui|flow-editor)/' "${js_deps[@]}"
+          # ci.yml is in this filter for the reason the framework filter carries
+          # it: a pull request that edits the kapi-desktop job's own steps
+          # otherwise matches nothing here, skips the job, and merges the edit
+          # unrun. The framework filter does not stand in — it gates the lint,
+          # test and build jobs, none of which touch this one.
+          check_paths kapi_desktop '^apps/kapi-desktop/' '^packages/(ui|flow-editor)/' '^\.github/workflows/ci\.yml$' "${js_deps[@]}"
           check_paths bowrain_desktop '^bowrain/apps/bowrain/' '^bowrain/packages/ui/' "${js_deps[@]}"
           check_paths i18n_react '^packages/(kapi-format|i18n-react)/' "${js_deps[@]}"
           check_paths workflows '^\.github/workflows/'
