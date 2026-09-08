@@ -52,7 +52,7 @@ narration:
     kind: desktop
     beat: offline
     caption: Offline, with edits waiting to be sent.
-    hold: 22
+    hold: 18
     crop:
       selector:
         - '[data-testid="offline-pending"]'
