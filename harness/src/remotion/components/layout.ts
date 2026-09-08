@@ -35,6 +35,9 @@ export const CHAPTER_BAND = Math.round(CHAPTER_FS * CHAPTER_LH + CHAPTER_GAP);
 export const TERM_FS = 30;
 export const TERM_LH = 1.4;
 export const TERM_MAX_LINES = 16;
+/** The transcript's side padding inside the window, and the width a line may take. */
+export const TERM_PAD_X = 34;
+export const TERM_TEXT_WIDTH = FRAME_W - 2 * SAFE_X - 2 * TERM_PAD_X;
 
 /** Cards. */
 export const TITLE_FS = 120;

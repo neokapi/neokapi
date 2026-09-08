@@ -2,7 +2,7 @@ import React from "react";
 import { useCurrentFrame, useVideoConfig } from "remotion";
 import type { TimelineEvent } from "../../types.ts";
 import { theme } from "./theme.ts";
-import { TERM_FS, TERM_LH } from "./layout.ts";
+import { TERM_FS, TERM_LH, TERM_PAD_X, TERM_TEXT_WIDTH } from "./layout.ts";
 import { LineMark, lineMatches } from "./Marks.tsx";
 
 interface Props {
@@ -32,7 +32,9 @@ const OutputLines: React.FC<{ text: string; isError: boolean; highlight?: string
   <div style={mono({ color: isError ? theme.termRed : theme.termText, opacity: isError ? 1 : 0.92, whiteSpace: "pre-wrap", wordBreak: "break-word" })}>
     {text.split("\n").map((line, i) => (
       <div key={i}>
-        <LineMark on={lineMatches(line, highlight)}>{line || " "}</LineMark>
+        <LineMark on={lineMatches(line, highlight)} width={TERM_TEXT_WIDTH}>
+          {line || "\u00a0"}
+        </LineMark>
       </div>
     ))}
   </div>
@@ -89,7 +91,7 @@ export const PlainTerminal: React.FC<Props> = ({ events, revealStart, revealEnd,
         flexDirection: "column",
         justifyContent: "flex-end",
         overflow: "hidden",
-        padding: "30px 34px 22px",
+        padding: `30px ${TERM_PAD_X}px 22px`,
         gap: 12,
         background: theme.termBg,
       }}

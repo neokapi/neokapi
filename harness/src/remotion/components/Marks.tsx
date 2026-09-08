@@ -22,8 +22,12 @@ export function lineMatches(line: string, needles: string[] | undefined): boolea
   return needles.some((n) => n.length > 0 && line.includes(n));
 }
 
-/** A terminal line with a marker highlight drawn behind it when `on`. */
-export const LineMark: React.FC<{ on: boolean; children: React.ReactNode }> = ({ on, children }) => {
+/**
+ * A terminal line with a marker highlight drawn behind it when `on`. The
+ * annotation's own wrapper never wraps text, so the line is given its width
+ * back explicitly and wraps inside the mark like its neighbours.
+ */
+export const LineMark: React.FC<{ on: boolean; width: number; children: React.ReactNode }> = ({ on, width, children }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   if (!on) return <>{children}</>;
@@ -35,7 +39,7 @@ export const LineMark: React.FC<{ on: boolean; children: React.ReactNode }> = ({
       iterations={1}
       roughness={1.2}
     >
-      {children}
+      <div style={{ width, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{children}</div>
     </Highlight>
   );
 };

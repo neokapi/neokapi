@@ -2,7 +2,7 @@ import React from "react";
 import { useCurrentFrame, useVideoConfig } from "remotion";
 import type { TimelineEvent } from "../../types.ts";
 import { theme, CLAUDE } from "./theme.ts";
-import { TERM_FS, TERM_LH } from "./layout.ts";
+import { TERM_FS, TERM_LH, TERM_PAD_X, TERM_TEXT_WIDTH } from "./layout.ts";
 import { LineMark, lineMatches } from "./Marks.tsx";
 
 interface Props {
@@ -125,7 +125,9 @@ const ToolResult: React.FC<{ ev: Extract<TimelineEvent, { kind: "tool_result" }>
         {body
           ? body.split("\n").map((line, i) => (
               <div key={i}>
-                <LineMark on={lineMatches(line, highlight)}>{line || "\u00a0"}</LineMark>
+                <LineMark on={lineMatches(line, highlight)} width={TERM_TEXT_WIDTH - 42}>
+                  {line || "\u00a0"}
+                </LineMark>
               </div>
             ))
           : "(no output)"}
@@ -229,7 +231,7 @@ export const ClaudeTerminal: React.FC<Props> = ({ events, model, revealStart, re
         flexDirection: "column",
         justifyContent: "flex-end",
         overflow: "hidden",
-        padding: "30px 34px 18px",
+        padding: `30px ${TERM_PAD_X}px 18px`,
         gap: 16,
         background: theme.termBg,
       }}
