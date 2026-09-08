@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"maps"
 	"os"
@@ -83,7 +84,7 @@ func checkDrift(bridgeDir, pluginsDir, metaPath, nativeDocsDir, outDir, coreCata
 		for _, p := range problems {
 			fmt.Fprintf(os.Stderr, "  - %s\n", p)
 		}
-		return fmt.Errorf("committed reference dataset is stale; run `make generate-reference-docs` and commit the result")
+		return errors.New("committed reference dataset is stale; run `make generate-reference-docs` and commit the result")
 	}
 
 	fmt.Printf("reference dataset is fresh (built-in subset: %d formats, %d tools, %d gaps, %d prompts, %d models)\n",

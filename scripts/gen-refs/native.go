@@ -109,7 +109,7 @@ func portNames(fs []coreschema.IOPort) []string {
 	}
 	out := make([]string, len(fs))
 	for i, f := range fs {
-		s := string(f.Type) + "@" + f.Side.String()
+		s := f.Type + "@" + f.Side.String()
 		if f.Optional {
 			s += "?"
 		}
@@ -222,7 +222,7 @@ func schemaPropertyNames(raw json.RawMessage) []string {
 // the default priority and win only on a content sniff).
 func extensionResolver(freg *registry.FormatRegistry) func(string) string {
 	return func(ext string) string {
-		id, err := freg.DetectByExtension(ext)
+		id, err := freg.Detect(ext, registry.DetectOptions{ExtensionOnly: true})
 		if err != nil {
 			return ""
 		}

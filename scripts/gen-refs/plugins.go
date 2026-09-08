@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 )
 
@@ -61,8 +62,8 @@ func collectPlugins(pluginsDir string) (formats []Entry, err error) {
 				Description: f.Description,
 				Extensions:  f.Extensions,
 				MimeTypes:   f.MimeTypes,
-				HasReader:   sliceContains(f.Capabilities, "read"),
-				HasWriter:   sliceContains(f.Capabilities, "write"),
+				HasReader:   slices.Contains(f.Capabilities, "read"),
+				HasWriter:   slices.Contains(f.Capabilities, "write"),
 				Family:      f.Family,
 			}
 			if f.Schema != "" {
