@@ -5,6 +5,7 @@ import type { DemoManifest, NarrationManifest, NarrationScene, NarrationSpec } f
 import { ensureDir, publicDemoDir } from "../lib/paths.ts";
 import { run } from "../lib/exec.ts";
 import { DEFAULT_LOCALE, isDefaultLocale, languageNameFor, localeSuffix, localizeManifest, resolveLocale } from "../lib/locale.ts";
+import { attachCaptions, captionsEnabled, wavDurationSec, type NarrationDraft } from "./captions.ts";
 
 // ── Locale-aware narrator style ─────────────────────────────────────────────
 // The product-name pronunciation hints are kept in EVERY locale's prompt: the
@@ -96,31 +97,6 @@ function pcmToWav(pcm: Buffer, sampleRate: number, channels = 1, bitsPerSample =
   header.write("data", 36);
   header.writeUInt32LE(pcm.length, 40);
   return Buffer.concat([header, pcm]);
-}
-
-/** Read duration (seconds) from a canonical PCM WAV file. */
-function wavDurationSec(file: string): number {
-  const buf = fs.readFileSync(file);
-  // Walk chunks to find fmt + data (robust to extra chunks).
-  let offset = 12;
-  let sampleRate = 0;
-  let channels = 1;
-  let bits = 16;
-  let dataLen = 0;
-  while (offset + 8 <= buf.length) {
-    const id = buf.toString("ascii", offset, offset + 4);
-    const size = buf.readUInt32LE(offset + 4);
-    if (id === "fmt ") {
-      channels = buf.readUInt16LE(offset + 10);
-      sampleRate = buf.readUInt32LE(offset + 12);
-      bits = buf.readUInt16LE(offset + 22);
-    } else if (id === "data") {
-      dataLen = size;
-    }
-    offset += 8 + size + (size % 2);
-  }
-  if (!sampleRate) return 0;
-  return dataLen / (sampleRate * channels * (bits / 8));
 }
 
 async function toWav(input: string, output: string): Promise<void> {
@@ -435,8 +411,16 @@ export async function narrateDemo(manifest: DemoManifest, opts: NarrateOptions =
   const narrationPath = path.join(pub, `narration${suffix}.json`);
 
   if (!opts.force && fs.existsSync(narrationPath)) {
+    const existing = JSON.parse(fs.readFileSync(narrationPath, "utf8")) as NarrationManifest;
+    // A narration synthesized before captions existed, or with captions off,
+    // is finished here from its audio rather than synthesized again (which
+    // would bill a TTS call and change the voice take).
+    if (captionsEnabled() && !existing.captions) {
+      console.log(`  · narration exists for ${m.id}${suffix}; transcribing it for captions`);
+      return writeNarration(m, { scenes: existing.scenes, fullAudio: existing.fullAudio }, { backend: existing.backend, voice: existing.voice, locale, narrationPath, pub });
+    }
     console.log(`  · narration exists for ${m.id}${suffix} (use --force to re-run)`);
-    return JSON.parse(fs.readFileSync(narrationPath, "utf8"));
+    return existing;
   }
 
   const { backend, voice } = pickBackend(locale);
@@ -452,8 +436,8 @@ export async function narrateDemo(manifest: DemoManifest, opts: NarrateOptions =
   // NARRATION_ONESHOT=0 (then it falls through to the Live/per-scene paths).
   const oneshotEnabled = m.oneshot ?? ((process.env.NARRATION_ONESHOT ?? "1") !== "0");
   if (backend === "gemini" && oneshotEnabled) {
-    const oneShot = await narrateOneShot(m, voice, audioDir, narrationPath, backend, locale, audioRel);
-    if (oneShot) return oneShot;
+    const oneShot = await narrateOneShot(m, voice, audioDir, locale, audioRel);
+    if (oneShot) return writeNarration(m, oneShot, { backend, voice, locale, narrationPath, pub });
     console.warn("  ! one-shot narration failed; falling back to per-scene");
   }
 
@@ -497,20 +481,17 @@ export async function narrateDemo(manifest: DemoManifest, opts: NarrateOptions =
           id: spec.id,
           kind: spec.kind,
           text,
-          caption: spec.caption?.trim() || captionFromText(spec.text),
+          caption: spec.caption?.trim() ?? "",
           artifact: spec.artifact,
           beat: spec.beat,
           audio: text ? `${audioRel}/${spec.id}.wav` : undefined,
           durationSec: text ? (finalDur.get(spec.id) ?? 0) : 0,
-          holdSec: spec.holdSec ?? defaultHold(spec.kind),
+          holdSec: defaultHold(spec.kind),
+          hold: spec.hold,
         };
       });
-      const result: NarrationManifest = { id: m.id, backend, voice, scenes };
-      if (!isDefaultLocale(locale)) result.locale = locale;
-      fs.writeFileSync(narrationPath, JSON.stringify(result, null, 2));
-      const total = scenes.reduce((s, sc) => s + sc.durationSec + sc.holdSec, 0);
-      console.log(`  ✓ narrated ${m.id}${localeNote} (live session): ${scenes.length} scenes, ${total.toFixed(1)}s total audio`);
-      return result;
+      console.log(`  · narrated ${m.id}${localeNote} (live session): ${scenes.length} scenes`);
+      return await writeNarration(m, { scenes }, { backend, voice, locale, narrationPath, pub });
     } catch (e) {
       console.warn(`  ! live-session narration failed (${(e as Error).message.slice(0, 120)}); falling back to per-scene`);
     }
@@ -597,38 +578,65 @@ export async function narrateDemo(manifest: DemoManifest, opts: NarrateOptions =
       id: s.spec.id,
       kind: s.spec.kind,
       text: s.spec.text.trim(),
-      caption: s.spec.caption?.trim() || captionFromText(s.spec.text),
+      caption: s.spec.caption?.trim() ?? "",
       artifact: s.spec.artifact,
       beat: s.spec.beat,
       audio,
       durationSec,
-      holdSec: s.spec.holdSec ?? defaultHold(s.spec.kind),
+      holdSec: defaultHold(s.spec.kind),
+      hold: s.spec.hold,
     });
   }
 
-  const result: NarrationManifest = { id: m.id, backend, voice, scenes };
-  if (!isDefaultLocale(locale)) result.locale = locale;
-  fs.writeFileSync(narrationPath, JSON.stringify(result, null, 2));
-  const total = scenes.reduce((s, sc) => s + sc.durationSec + sc.holdSec, 0);
-  console.log(`  ✓ narrated ${m.id}${localeNote}: ${scenes.length} scenes, ${total.toFixed(1)}s total audio`);
+  console.log(`  · narrated ${m.id}${localeNote}: ${scenes.length} scenes`);
+  return writeNarration(m, { scenes }, { backend, voice, locale, narrationPath, pub });
+}
+
+interface WriteContext {
+  backend: string;
+  voice: string;
+  locale: string;
+  narrationPath: string;
+  /** public/<id> */
+  pub: string;
+}
+
+/**
+ * The last step of every narration path: captions from the audio, measured
+ * scene spans for a one-shot track, then narration[-<locale>].json.
+ */
+async function writeNarration(m: DemoManifest, draft: NarrationDraft, ctx: WriteContext): Promise<NarrationManifest> {
+  const finished = await attachCaptions(draft, { id: m.id, locale: ctx.locale, publicDir: ctx.pub, log: (msg) => console.log(`    ${msg}`) });
+  const result: NarrationManifest = {
+    id: m.id,
+    backend: ctx.backend,
+    voice: ctx.voice,
+    scenes: finished.scenes,
+    sceneTiming: finished.sceneTiming,
+  };
+  if (draft.fullAudio) result.fullAudio = draft.fullAudio;
+  if (finished.captions) result.captions = finished.captions;
+  if (!isDefaultLocale(ctx.locale)) result.locale = ctx.locale;
+  fs.writeFileSync(ctx.narrationPath, JSON.stringify(result, null, 2));
+  const total = result.scenes.reduce((s, sc) => s + sc.durationSec + sc.holdSec, 0);
+  const localeNote = isDefaultLocale(ctx.locale) ? "" : ` [${ctx.locale}]`;
+  console.log(`  ✓ narrated ${m.id}${localeNote}: ${result.scenes.length} scenes, ${total.toFixed(1)}s total audio (${result.sceneTiming}${result.captions ? ", captioned" : ""})`);
   return result;
 }
 
 /**
- * One continuous read for the whole video → one track, uniform tempo/tone. Scene
- * durations are word-proportional shares of it (a single read holds a near-constant
- * words/sec, so the visuals track the voice). Returns null on failure so the caller
- * falls back to per-scene synthesis.
+ * One continuous read for the whole video → one track, uniform tempo/tone. The
+ * scenes' spans in it are measured afterwards from the transcript (see
+ * captions.ts); until then each scene carries its word share. Returns null on
+ * failure so the caller falls back to per-scene synthesis.
  */
 async function narrateOneShot(
   m: DemoManifest,
   voice: string,
   audioDir: string,
-  narrationPath: string,
-  backend: string,
   locale: string,
   audioRel: string,
-): Promise<NarrationManifest | null> {
+): Promise<NarrationDraft | null> {
   const spoken = m.narration.filter((s) => s.text?.trim());
   if (spoken.length === 0) return null;
   const liveModel = process.env.GEMINI_LIVE_MODEL || "gemini-3.1-flash-live-preview";
@@ -655,26 +663,19 @@ async function narrateOneShot(
       id: spec.id,
       kind: spec.kind,
       text,
-      caption: spec.caption?.trim() || captionFromText(spec.text ?? ""),
+      caption: spec.caption?.trim() ?? "",
       artifact: spec.artifact,
       beat: spec.beat,
-      audio: undefined, // the single fullAudio track plays for the whole video
+      audio: undefined, // the single fullAudio track carries every scene
       durationSec: text ? D * (words / totalWords) : 0,
-      holdSec: text ? 0 : defaultHold(spec.kind), // no gaps — the one read already pauses
+      holdSec: text ? 0 : defaultHold(spec.kind), // the one read already pauses between scenes
+      hold: spec.hold,
     };
   });
-  const manifest: NarrationManifest = { id: m.id, backend, voice, scenes, fullAudio: `${audioRel}/_narration.wav` };
-  if (!isDefaultLocale(locale)) manifest.locale = locale;
-  fs.writeFileSync(narrationPath, JSON.stringify(manifest, null, 2));
-  console.log(`  ✓ narrated ${m.id}${isDefaultLocale(locale) ? "" : ` [${locale}]`} (one-shot): ${D.toFixed(1)}s single track across ${scenes.length} scenes`);
-  return manifest;
+  console.log(`  · narrated ${m.id}${isDefaultLocale(locale) ? "" : ` [${locale}]`} (one-shot): ${D.toFixed(1)}s single track across ${scenes.length} scenes`);
+  return { scenes, fullAudio: `${audioRel}/_narration.wav` };
 }
 
 function defaultHold(kind: NarrationScene["kind"]): number {
   return kind === "title" || kind === "outro" ? 0.4 : 0.2;
-}
-
-function captionFromText(text: string): string {
-  const first = text.trim().split(/(?<=[.!?])\s/)[0] || text.trim();
-  return first.length > 90 ? first.slice(0, 87) + "…" : first;
 }

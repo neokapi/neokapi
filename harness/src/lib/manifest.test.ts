@@ -58,3 +58,69 @@ test("loadManifest rejects an exit declaration that is not exit codes", () => {
     }
   }
 });
+
+const DESKTOP = `title: A walk\nsubtitle: one line\nkind: use-case\nneedsAi: false\nterminal: desktop\n`;
+
+function loads(id: string, yaml: string): ReturnType<typeof loadManifest> {
+  const root = demoTree(id, yaml);
+  try {
+    return loadManifest(id, root);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+}
+
+function rejects(id: string, yaml: string, re: RegExp, name: string): void {
+  const root = demoTree(id, yaml);
+  try {
+    assert.throws(() => loadManifest(id, root), re, name);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+}
+
+test("loadManifest keeps the beat fields a desktop scene declares", () => {
+  const m = loads(
+    "walk",
+    `${DESKTOP}narration:\n  - id: a\n    kind: desktop\n    beat: a\n    hold: 6.5\n    crop: { selector: '[data-x]' }\n    zoom: 1.8\n    highlight: { selector: '[data-y]' }\n  - id: b\n    kind: desktop\n    beat: b\n    crop: { x: 0.1, y: 0.2, w: 0.5, h: 0.4 }\n    highlight: { box: { x: 0, y: 0, w: 1, h: 0.5 } }\n`,
+  );
+  const [a, b] = m.narration;
+  assert.equal(a!.hold, 6.5);
+  assert.deepEqual(a!.crop, { selector: "[data-x]" });
+  assert.equal(a!.zoom, 1.8);
+  assert.deepEqual(a!.highlight, { selector: "[data-y]" });
+  assert.deepEqual(b!.crop, { x: 0.1, y: 0.2, w: 0.5, h: 0.4 });
+  assert.deepEqual(b!.highlight, { box: { x: 0, y: 0, w: 1, h: 0.5 } });
+});
+
+test("loadManifest normalizes a bare-string highlight and keeps through on a shell scene", () => {
+  const m = loads(
+    "shell",
+    `${HEAD}script:\n  - comment: first\n  - command: kapi check\n  - command: cat x\nnarration:\n  - id: t\n    kind: terminal\n    text: hello\n    highlight: CRITICAL\n    through: 2\n  - id: u\n    kind: terminal\n    text: world\n    through: 3\n`,
+  );
+  assert.deepEqual(m.narration[0]!.highlight, { text: "CRITICAL" });
+  assert.equal(m.narration[0]!.through, 2);
+  assert.equal(m.narration[1]!.through, 3);
+});
+
+test("loadManifest keeps the outro card's two lines", () => {
+  const m = loads("shell", `${HEAD}script:\n  - command: ls\noutro:\n  line: Try it on one file\n  pointer: kapi check --ship\n`);
+  assert.deepEqual(m.outro, { line: "Try it on one file", pointer: "kapi check --ship" });
+});
+
+test("loadManifest rejects beat fields that do not fit the scene", () => {
+  const cases: Array<{ name: string; yaml: string; re: RegExp }> = [
+    { name: "negative hold", yaml: `${DESKTOP}narration:\n  - { id: a, kind: desktop, beat: a, hold: -1 }\n`, re: /hold must be/ },
+    { name: "crop on a terminal", yaml: `${HEAD}script:\n  - command: ls\nnarration:\n  - { id: a, kind: terminal, text: x, crop: { x: 0, y: 0, w: 1, h: 1 } }\n`, re: /crop applies to desktop/ },
+    { name: "crop with both forms", yaml: `${DESKTOP}narration:\n  - { id: a, kind: desktop, beat: a, crop: { selector: s, x: 0, y: 0, w: 1, h: 1 } }\n`, re: /never both/ },
+    { name: "crop box outside the window", yaml: `${DESKTOP}narration:\n  - { id: a, kind: desktop, beat: a, crop: { x: 0.5, y: 0, w: 0.6, h: 1 } }\n`, re: /inside the window/ },
+    { name: "zoom out of range", yaml: `${DESKTOP}narration:\n  - { id: a, kind: desktop, beat: a, zoom: 4 }\n`, re: /zoom must be/ },
+    { name: "highlight with two forms", yaml: `${DESKTOP}narration:\n  - { id: a, kind: desktop, beat: a, highlight: { selector: s, box: { x: 0, y: 0, w: 1, h: 1 } } }\n`, re: /exactly one/ },
+    { name: "text highlight on a desktop scene", yaml: `${DESKTOP}narration:\n  - { id: a, kind: desktop, beat: a, highlight: FAIL }\n`, re: /highlight.text applies to terminal/ },
+    { name: "through past the script", yaml: `${HEAD}script:\n  - command: ls\nnarration:\n  - { id: a, kind: terminal, text: x, through: 2 }\n`, re: /from 1 to 1/ },
+    { name: "through running backwards", yaml: `${HEAD}script:\n  - command: ls\n  - command: pwd\nnarration:\n  - { id: a, kind: terminal, text: x, through: 2 }\n  - { id: b, kind: terminal, text: y, through: 1 }\n`, re: /never runs backwards/ },
+    { name: "through on a Claude demo", yaml: `title: A demo\nsubtitle: s\nkind: use-case\nneedsAi: false\nprompt: do it\nnarration:\n  - { id: a, kind: terminal, text: x, through: 1 }\n`, re: /scripted shell demos only/ },
+    { name: "outro as a string", yaml: `${HEAD}script:\n  - command: ls\noutro: bye\n`, re: /outro must be a map/ },
+  ];
+  for (const c of cases) rejects("demo", c.yaml, c.re, c.name);
+});

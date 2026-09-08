@@ -21,7 +21,7 @@ const STYLE =
   "the 'a' as in 'father' — never ka-PEE or kap-ee: ";
 
 const SCRIPT =
-  "Welcome to neokapi. We localise images, audio, and video. " +
+  "Welcome to neokapi. It reads images, audio, and video into one content model. " +
   "On screen text and speech are both translated. One pipeline, every modality.";
 
 const MODEL = process.env.GEMINI_TTS_MODEL || "gemini-3.1-flash-tts-preview";

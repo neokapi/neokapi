@@ -1,10 +1,13 @@
 import React from "react";
 import { AbsoluteFill, Img, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
 import { theme, KAPI, BOWRAIN } from "./theme.ts";
+import { OUTRO_FS, POINTER_FS, SAFE_X, SAFE_Y, SUBTITLE_FS, TITLE_FS } from "./layout.ts";
+
+export type Brand = "claude" | "kapi" | "desktop" | "bowrain";
 
 /** The product badge: the bowrain logo for bowrain demos, else the neokapi mascot,
  *  each centered on a white rounded badge. */
-const Badge: React.FC<{ size?: number; brand?: Brand }> = ({ size = 128, brand = "claude" }) => {
+const Badge: React.FC<{ size?: number; brand?: Brand }> = ({ size = 96, brand = "claude" }) => {
   const isBowrain = brand === "bowrain";
   return (
     <div
@@ -27,10 +30,8 @@ const Badge: React.FC<{ size?: number; brand?: Brand }> = ({ size = 128, brand =
   );
 };
 
-type Brand = "claude" | "kapi" | "desktop" | "bowrain";
-
 const Lockup: React.FC<{ size?: number; brand?: Brand }> = ({ size = 1, brand = "claude" }) => (
-  <div style={{ display: "flex", alignItems: "center", gap: 16 * size, fontSize: 30 * size, fontWeight: 700, letterSpacing: 0.4 }}>
+  <div style={{ display: "flex", alignItems: "center", gap: 16 * size, fontSize: 34 * size, fontWeight: 700, letterSpacing: 0.4 }}>
     {brand === "bowrain" ? (
       <span style={{ color: BOWRAIN }}>Bowrain</span>
     ) : (
@@ -55,72 +56,98 @@ const Lockup: React.FC<{ size?: number; brand?: Brand }> = ({ size = 1, brand = 
   </div>
 );
 
-const Chip: React.FC<{ label: string; delay: number }> = ({ label, delay }) => {
-  const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
-  const s = spring({ frame: frame - delay, fps, config: { damping: 200 } });
-  return (
-    <span style={{ padding: "10px 20px", borderRadius: 999, background: "rgba(122,162,255,0.10)", border: `1px solid ${theme.toolBorder}`, color: theme.accent, fontSize: 24, fontWeight: 500, opacity: s, transform: `translateY(${interpolate(s, [0, 1], [12, 0])}px)` }}>
-      {label}
-    </span>
-  );
-};
-
-export const TitleCard: React.FC<{ title: string; subtitle: string; tagline?: string; aspects: string[]; brand?: Brand }> = ({
-  title,
-  subtitle,
-  tagline,
-  aspects,
-  brand = "claude",
-}) => {
+/** The opening card: the claim, and one line under it. */
+export const TitleCard: React.FC<{ title: string; subtitle: string; brand?: Brand }> = ({ title, subtitle, brand = "claude" }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const intro = spring({ frame, fps, config: { damping: 200 } });
   const sub = spring({ frame: frame - 8, fps, config: { damping: 200 } });
   return (
-    <AbsoluteFill style={{ background: theme.bgGrad, fontFamily: theme.fontSans, justifyContent: "center", alignItems: "center", padding: 120, textAlign: "center" }}>
-      <div style={{ opacity: intro, transform: `translateY(${interpolate(intro, [0, 1], [16, 0])}px)`, marginBottom: 28 }}>
-        <Badge size={132} brand={brand} />
+    <AbsoluteFill
+      style={{
+        background: theme.bgGrad,
+        fontFamily: theme.fontSans,
+        justifyContent: "center",
+        alignItems: "center",
+        padding: `${SAFE_Y}px ${SAFE_X}px`,
+        textAlign: "center",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 22, opacity: intro, translate: `0px ${interpolate(intro, [0, 1], [16, 0])}px`, marginBottom: 44 }}>
+        <Badge size={96} brand={brand} />
+        <Lockup size={1.1} brand={brand} />
       </div>
-      <div style={{ opacity: spring({ frame: frame - 2, fps, config: { damping: 200 } }), marginBottom: 40 }}>
-        <Lockup size={1.15} brand={brand} />
-      </div>
-      <div style={{ fontSize: 88, fontWeight: 750, color: theme.text, letterSpacing: -0.02 * 88, lineHeight: 1.05, opacity: intro, transform: `translateY(${interpolate(intro, [0, 1], [26, 0])}px)`, maxWidth: 1500 }}>
+      <div
+        style={{
+          fontSize: TITLE_FS,
+          fontWeight: 750,
+          color: theme.text,
+          letterSpacing: -0.02 * TITLE_FS,
+          lineHeight: 1.05,
+          maxWidth: 1920 - 2 * SAFE_X,
+          opacity: intro,
+          translate: `0px ${interpolate(intro, [0, 1], [26, 0])}px`,
+        }}
+      >
         {title}
       </div>
-      <div style={{ fontSize: 38, color: theme.dim, marginTop: 26, maxWidth: 1300, lineHeight: 1.35, opacity: sub }}>{subtitle}</div>
-      {tagline ? <div style={{ fontSize: 26, color: theme.accent2, marginTop: 30, opacity: sub, fontStyle: "italic" }}>{tagline}</div> : null}
-      <div style={{ display: "flex", gap: 16, marginTop: 56, flexWrap: "wrap", justifyContent: "center", maxWidth: 1400 }}>
-        {aspects.slice(0, 6).map((a, i) => (
-          <Chip key={a} label={a} delay={18 + i * 4} />
-        ))}
-      </div>
+      <div style={{ fontSize: SUBTITLE_FS, color: theme.dim, marginTop: 30, maxWidth: 1920 - 2 * SAFE_X, lineHeight: 1.3, opacity: sub }}>{subtitle}</div>
     </AbsoluteFill>
   );
 };
 
-export const OutroCard: React.FC<{ title: string; tagline?: string; aspects: string[]; brand?: Brand }> = ({ title, tagline, aspects, brand = "claude" }) => {
+/** The closing card: one instruction, and one pointer under it. */
+export const OutroCard: React.FC<{ line: string; pointer: string; brand?: Brand }> = ({ line, pointer, brand = "claude" }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const intro = spring({ frame, fps, config: { damping: 200 } });
+  const second = spring({ frame: frame - 10, fps, config: { damping: 200 } });
   return (
-    <AbsoluteFill style={{ background: theme.bgGrad, fontFamily: theme.fontSans, justifyContent: "center", alignItems: "center", padding: 120, textAlign: "center" }}>
-      <div style={{ fontSize: 30, color: theme.dim, opacity: intro, letterSpacing: 4, textTransform: "uppercase" }}>What you saw</div>
-      <div style={{ fontSize: 64, fontWeight: 720, color: theme.text, marginTop: 18, maxWidth: 1400, lineHeight: 1.1, opacity: intro, transform: `translateY(${interpolate(intro, [0, 1], [20, 0])}px)` }}>
-        {title}
+    <AbsoluteFill
+      style={{
+        background: theme.bgGrad,
+        fontFamily: theme.fontSans,
+        justifyContent: "center",
+        alignItems: "center",
+        padding: `${SAFE_Y}px ${SAFE_X}px`,
+        textAlign: "center",
+      }}
+    >
+      <div
+        style={{
+          fontSize: OUTRO_FS,
+          fontWeight: 700,
+          color: theme.text,
+          lineHeight: 1.15,
+          maxWidth: 1920 - 2 * SAFE_X,
+          opacity: intro,
+          translate: `0px ${interpolate(intro, [0, 1], [20, 0])}px`,
+        }}
+      >
+        {line}
       </div>
-      <div style={{ display: "flex", gap: 16, marginTop: 44, flexWrap: "wrap", justifyContent: "center", maxWidth: 1400 }}>
-        {aspects.slice(0, 6).map((a, i) => (
-          <Chip key={a} label={a} delay={10 + i * 4} />
-        ))}
-      </div>
-      {tagline ? <div style={{ fontSize: 30, color: theme.accent2, marginTop: 52, opacity: spring({ frame: frame - 24, fps, config: { damping: 200 } }), maxWidth: 1200, lineHeight: 1.4 }}>{tagline}</div> : null}
-      <div style={{ marginTop: 60, display: "flex", flexDirection: "column", alignItems: "center", gap: 18, opacity: spring({ frame: frame - 30, fps, config: { damping: 200 } }) }}>
-        <Badge size={104} brand={brand} />
-        <Lockup brand={brand} />
-      </div>
-      <div style={{ marginTop: 16, color: theme.faint, fontSize: 22, opacity: spring({ frame: frame - 34, fps, config: { damping: 200 } }) }}>
-        {brand === "bowrain" ? "the team localization platform · bowrain.cloud" : "the open localization engine · neokapi.github.io"}
+      {pointer ? (
+        <div
+          style={{
+            marginTop: 44,
+            padding: "16px 34px",
+            borderRadius: 16,
+            background: theme.toolBg,
+            border: `1px solid ${theme.toolBorder}`,
+            color: theme.accent,
+            fontFamily: theme.fontMono,
+            fontSize: POINTER_FS,
+            lineHeight: 1.3,
+            maxWidth: 1920 - 2 * SAFE_X,
+            opacity: second,
+            translate: `0px ${interpolate(second, [0, 1], [12, 0])}px`,
+          }}
+        >
+          {pointer}
+        </div>
+      ) : null}
+      <div style={{ marginTop: 72, opacity: spring({ frame: frame - 20, fps, config: { damping: 200 } }) }}>
+        <Lockup size={0.95} brand={brand} />
       </div>
     </AbsoluteFill>
   );

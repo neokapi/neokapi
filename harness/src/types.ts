@@ -18,8 +18,14 @@ export interface DemoManifest {
   subtitle: string;
   /** One-line value proposition shown on the title card. */
   tagline?: string;
-  /** Which kapi/skill aspects this demo exercises (shown in docs + outro). */
+  /** Which kapi/skill aspects this demo exercises (listed in the docs). */
   aspects: string[];
+  /**
+   * The closing card: one instruction and one pointer. The line defaults to
+   * the demo title; the pointer defaults to the brand's site. A pointer is a
+   * docs slug or a command, set in the mono face.
+   */
+  outro?: OutroSpec;
   /** Difficulty / audience tag, e.g. "zero-to-hero", "use-case", "framework". */
   kind: string;
   /**
@@ -224,7 +230,50 @@ export interface ArtifactSpec {
   height?: number;
 }
 
-/** One narration scene. Its audio duration drives how long the scene is on screen. */
+/** The closing card's two lines (see DemoManifest.outro). */
+export interface OutroSpec {
+  /** One instruction: what the viewer can do today. */
+  line?: string;
+  /** One pointer: a docs slug or a command, drawn in the mono face. */
+  pointer?: string;
+}
+
+/**
+ * Where a desktop beat's camera crops to. Either a selector the recorder
+ * resolves against the live page when the beat's actions have settled (the
+ * union of every listed selector's box), or a box in normalized [0,1] window
+ * coordinates the renderer uses as it is.
+ */
+export interface BeatCrop {
+  selector?: string | string[];
+  x?: number;
+  y?: number;
+  w?: number;
+  h?: number;
+}
+
+/**
+ * What the scene draws attention to, hand-drawn by frame (rough-notation).
+ *   text     terminal scenes: every output line containing one of the strings
+ *            is highlighted as it appears
+ *   selector desktop scenes: an element the recorder resolves at record time
+ *            into a box the renderer draws around
+ *   box      desktop and artifact scenes: a normalized box over the window or
+ *            the image
+ * A bare string in demo.yaml is shorthand for `text`.
+ */
+export interface BeatHighlight {
+  text?: string | string[];
+  selector?: string;
+  box?: ZoomRect;
+}
+
+/**
+ * One narration scene. Its audio duration drives how long the scene is on
+ * screen; the beat fields below shape the picture under it. Every field is
+ * optional and a demo that sets none behaves as it did before the fields
+ * existed.
+ */
 export interface NarrationSpec {
   id: string;
   /**
@@ -233,19 +282,47 @@ export interface NarrationSpec {
    * - "terminal": shows the Claude Code session replay (the real transcript).
    * - "artifact": full-screen a captured artifact.
    * - "desktop": replays a Kapi Desktop screencast beat inside the macOS window (with zoom).
-   * - "outro": closing recap card.
+   * - "outro": closing card.
    */
   kind: "title" | "prompt" | "terminal" | "artifact" | "desktop" | "outro";
   /** The spoken narration for this scene. */
   text: string;
-  /** On-screen caption (defaults to a trimmed version of text for non-title scenes). */
+  /**
+   * One line, the consequence of the beat, drawn as the chapter line above the
+   * window for the whole scene. The spoken words themselves are captioned
+   * from the audio (captions.json), so leave this out unless the line adds
+   * something the transcript does not.
+   */
   caption?: string;
   /** For kind="artifact": which ArtifactSpec.id to show. */
   artifact?: string;
   /** For kind="desktop": which screencast beat id to play (see screencast.json). */
   beat?: string;
-  /** Optional minimum seconds (padding) added after the narration audio. */
-  holdSec?: number;
+  /**
+   * Seconds the scene stays on screen at least. The desktop recorder keeps the
+   * beat on camera this long, so the recorded beat is about as long as the
+   * narration over it; the renderer holds the last frame when the picture is
+   * still shorter. Default: the narration's measured length when the recorder
+   * finds a narration.json, else none.
+   */
+  hold?: number;
+  /** For kind="desktop": the region the camera crops to (see BeatCrop). Default: the walk's own. */
+  crop?: BeatCrop;
+  /**
+   * For kind="desktop": a multiplier on the crop's fitted scale, 1 to 3. The
+   * fitted scale fills the frame with the crop region (clamped to 1 to 2.5);
+   * `zoom: 1` on a crop shows the whole window.
+   */
+  zoom?: number;
+  /** What to draw attention to (see BeatHighlight). */
+  highlight?: BeatHighlight | string;
+  /**
+   * For kind="terminal" in a scripted shell demo: the 1-based index of the
+   * last `script` step (command or comment) revealed by the end of this scene.
+   * Scenes that leave it unset reveal an even share between the anchors
+   * around them, which for a demo with no anchors is the uniform reveal.
+   */
+  through?: number;
 }
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -320,10 +397,20 @@ export interface NarrationScene {
   beat?: string;
   /** staticFile-relative path to the audio, e.g. "audio/intro.wav". */
   audio?: string;
+  /**
+   * With a one-shot track (NarrationManifest.fullAudio): this scene's span in
+   * that track, seconds. The renderer plays exactly this segment under the
+   * scene, so a scene held longer than its words gets silence rather than the
+   * next scene's words.
+   */
+  audioFrom?: number;
+  audioTo?: number;
   /** Audio duration in seconds (0 for silent scenes). */
   durationSec: number;
   /** Extra hold after audio. */
   holdSec: number;
+  /** The authored floor on the scene's length, seconds (NarrationSpec.hold). */
+  hold?: number;
 }
 
 export interface NarrationManifest {
@@ -337,9 +424,78 @@ export interface NarrationManifest {
    * One-shot narration: a single continuous track for the whole video (staticFile
    * path, e.g. "audio/_narration.wav"). When set, the renderer plays this one
    * track instead of per-scene clips, so the voice's tempo and tone stay uniform
-   * end to end. Scene `durationSec` values are word-proportional shares of it.
+   * end to end. Each scene names its span in it (audioFrom/audioTo).
    */
   fullAudio?: string;
+  /**
+   * How scene lengths were derived: "measured" from per-scene clips or from a
+   * one-shot track split on the transcript, "word-share" when the one-shot
+   * track could not be aligned and each scene took its share of words.
+   */
+  sceneTiming?: "measured" | "word-share";
+  /** staticFile-relative path to the captions file, e.g. "captions.json". */
+  captions?: string;
+}
+
+/**
+ * Timed captions for one video (public/<id>/captions[-<locale>].json),
+ * transcribed from the narration audio with token timestamps. Each scene
+ * carries its own list, in milliseconds from the start of that scene's audio,
+ * so a page never straddles a cut and the renderer lays it out from the
+ * scene's start frame.
+ */
+export interface CaptionsFile {
+  id: string;
+  locale?: string;
+  /** What produced the timings, e.g. "whisper.cpp 1.7.6 small.en". */
+  engine: string;
+  scenes: Array<{ id: string; captions: TimedCaption[] }>;
+}
+
+/** One caption token, the shape @remotion/captions consumes. */
+export interface TimedCaption {
+  text: string;
+  startMs: number;
+  endMs: number;
+  timestampMs: number | null;
+  confidence: number | null;
+}
+
+/**
+ * The presentation half of a demo (public/<id>/beats[-<locale>].json), written
+ * from demo.yaml by every harness run before it renders, so a change to a
+ * beat's caption, crop or highlight reaches the composition without a new
+ * narration. narration.json keeps what only the audio knows.
+ */
+export interface BeatsFile {
+  id: string;
+  locale?: string;
+  cards: CardsSpec;
+  scenes: ScenePresentation[];
+}
+
+/** The two cards' text: title and outro. */
+export interface CardsSpec {
+  title: string;
+  subtitle: string;
+  outroLine: string;
+  outroPointer: string;
+}
+
+/** A narration scene's authored picture fields, by scene id. */
+export interface ScenePresentation {
+  id: string;
+  kind: NarrationSpec["kind"];
+  caption?: string;
+  artifact?: string;
+  beat?: string;
+  hold?: number;
+  /** A crop box; a selector crop is resolved by the recorder into screencast.json. */
+  crop?: ZoomRect;
+  zoom?: number;
+  /** Normalized; a selector highlight is resolved by the recorder into screencast.json. */
+  highlight?: BeatHighlight;
+  through?: number;
 }
 
 /** Per-artifact metadata written to public/<id>/artifacts.json. */
@@ -379,6 +535,8 @@ export interface ScreencastBeat {
   tStart: number;
   tEnd: number;
   zoom: ZoomRect | null;
+  /** The element the beat's highlight selector resolved to, when it declared one. */
+  highlight?: ZoomRect | null;
 }
 
 /** The recorded Kapi Desktop walkthrough — light + dark webms and per-theme beats. */
@@ -387,4 +545,6 @@ export interface Screencast {
   height: number;
   video: { light: string; dark: string };
   beats: { light: ScreencastBeat[]; dark: ScreencastBeat[] };
+  /** Seconds from the start of each recording at which the cursor clicked. */
+  clicks?: { light: number[]; dark: number[] };
 }

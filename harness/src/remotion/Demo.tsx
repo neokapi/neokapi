@@ -1,8 +1,11 @@
 import React from "react";
-import { AbsoluteFill, Audio, Sequence, staticFile } from "remotion";
-import type { CapturedArtifact, DemoCapture, NarrationManifest, Screencast } from "../types.ts";
-import { computeTiming } from "./timeline.ts";
+import { AbsoluteFill, interpolate, staticFile, useVideoConfig } from "remotion";
+import { Audio } from "@remotion/media";
+import type { BeatsFile, CapturedArtifact, CaptionsFile, DemoCapture, NarrationManifest, Screencast } from "../types.ts";
+import { computeTiming, type SceneTiming } from "./timeline.ts";
+import { cardsOf, highlightText, mergeScenes, presentationBetween, transitionFrames, type SceneSpec } from "./scene-plan.ts";
 import { theme, setTheme, type ThemeMode } from "./components/theme.ts";
+import { AUDIO_FADE_FRAMES, sceneLayout, type SceneLayout } from "./components/layout.ts";
 import { ClaudeTerminal } from "./components/ClaudeTerminal.tsx";
 import { PlainTerminal } from "./components/PlainTerminal.tsx";
 import { TerminalWindow } from "./components/TerminalWindow.tsx";
@@ -10,12 +13,18 @@ import { TitleCard, OutroCard } from "./components/Cards.tsx";
 import { ArtifactView } from "./components/ArtifactView.tsx";
 import { PromptCard } from "./components/PromptCard.tsx";
 import { DesktopScene } from "./components/DesktopScene.tsx";
+import { Captions } from "./components/Captions.tsx";
+import { ChapterLine } from "./components/Chapter.tsx";
+import { SceneSeries, type SceneSlot } from "./SceneSeries.tsx";
 
-export interface DemoProps {
+export type DemoProps = {
   id: string;
-  capture: DemoCapture;
-  narration: NarrationManifest;
-  artifacts: CapturedArtifact[];
+  /** Loaded by Root's calculateMetadata from public/<id>/. */
+  capture?: DemoCapture | null;
+  narration?: NarrationManifest | null;
+  beats?: BeatsFile | null;
+  captions?: CaptionsFile | null;
+  artifacts?: CapturedArtifact[];
   /** For terminal:"desktop" demos: the recorded screencast (beats + webms). */
   screencast?: Screencast | null;
   /** Which palette to render with (matches the docs page's light/dark mode). */
@@ -25,91 +34,147 @@ export interface DemoProps {
   locale?: string;
   /** Provenance stamp burned into a corner of every frame (version · sha · UTC). */
   stamp?: string;
-  // Remotion's Composition requires props to be assignable to Record<string, unknown>.
-  [key: string]: unknown;
-}
+};
 
-export const Demo: React.FC<DemoProps> = ({ id, capture, narration, artifacts, screencast, themeMode, stamp }) => {
+/** Which scene kinds carry a chapter line above a window. */
+const CHAPTERED: ReadonlySet<SceneSpec["kind"]> = new Set(["terminal", "artifact", "desktop"]);
+
+export const Demo: React.FC<DemoProps> = ({ id, capture, narration, beats, captions, artifacts, screencast, themeMode, stamp }) => {
   // Swap the active palette before any child reads `theme.*`. The mode is constant
   // for the whole render job, so this is stable across frames.
-  setTheme(themeMode ?? "dark");
-  const fps = 30;
-  const timing = computeTiming(narration.scenes, fps);
+  const mode: ThemeMode = themeMode ?? "dark";
+  setTheme(mode);
+  const { fps } = useVideoConfig();
+  if (!capture || !narration) {
+    return <AbsoluteFill style={{ background: theme.bg }} />;
+  }
+  const scenes = mergeScenes(narration, beats ?? null);
+  const timing = computeTiming(scenes, fps, { transition: transitionFrames, events: capture.events });
+  const cards = cardsOf(beats ?? null, capture);
   const shell = capture.terminal === "shell";
   const brand = capture.brand ?? (shell ? "kapi" : "claude");
+  const beatById = new Map((screencast?.beats[mode] ?? []).map((b) => [b.id, b] as const));
+
+  // The narration track fades in with the first spoken scene and out with the last.
+  const spoken = scenes.map((s, i) => (s.text && (s.audio || s.audioFrom !== undefined) ? i : -1)).filter((i) => i >= 0);
+  const firstSpoken = spoken[0] ?? -1;
+  const lastSpoken = spoken[spoken.length - 1] ?? -1;
+  const sceneAudio = (scene: SceneSpec, idx: number): React.ReactNode => {
+    const fadeIn = idx === firstSpoken;
+    const fadeOut = idx === lastSpoken;
+    const volumeOver = (segFrames: number) => (f: number) => {
+      let v = 1;
+      if (fadeIn) v *= interpolate(f, [0, AUDIO_FADE_FRAMES], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+      if (fadeOut) v *= interpolate(f, [segFrames - AUDIO_FADE_FRAMES, segFrames], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+      return v;
+    };
+    if (narration.fullAudio && scene.audioFrom !== undefined && scene.audioTo !== undefined) {
+      const from = Math.round(scene.audioFrom * fps);
+      const to = Math.round(scene.audioTo * fps);
+      if (to <= from) return null;
+      return <Audio src={staticFile(`${id}/${narration.fullAudio}`)} trimBefore={from} trimAfter={to} volume={volumeOver(to - from)} name={`narration:${scene.id}`} />;
+    }
+    if (!narration.fullAudio && scene.audio) {
+      return <Audio src={staticFile(`${id}/${scene.audio}`)} volume={volumeOver(Math.round(scene.durationSec * fps))} name={`narration:${scene.id}`} />;
+    }
+    return null;
+  };
+  // A one-shot narration without per-scene spans (an older narration.json)
+  // plays as one continuous track from the first frame.
+  const legacyTrack =
+    narration.fullAudio && !scenes.some((s) => s.audioFrom !== undefined) ? (
+      <Audio
+        src={staticFile(`${id}/${narration.fullAudio}`)}
+        volume={(f) =>
+          Math.min(
+            interpolate(f, [0, AUDIO_FADE_FRAMES], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }),
+            interpolate(f, [timing.totalFrames - AUDIO_FADE_FRAMES, timing.totalFrames], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }),
+          )
+        }
+        name="narration"
+      />
+    ) : null;
 
   // The terminal scene, framed in the macOS window. Claude session or plain shell.
-  const terminalScene = (caption: string, termFrom: number) => (
-    <TerminalWindow model={capture.meta.model} caption={caption} shell={shell} cwd={capture.cwd}>
+  const terminalScene = (scene: SceneSpec, t: SceneTiming, lay: SceneLayout) => (
+    <TerminalWindow model={capture.meta.model} shell={shell} cwd={capture.cwd} layout={lay}>
       {shell ? (
-        <PlainTerminal events={capture.events} globalTermFrom={termFrom} totalTermFrames={timing.totalTermFrames} />
+        <PlainTerminal events={capture.events} revealStart={t.revealStart} revealEnd={t.revealEnd} highlight={highlightText(scene.highlight)} />
       ) : (
-        <ClaudeTerminal events={capture.events} model={capture.meta.model} globalTermFrom={termFrom} totalTermFrames={timing.totalTermFrames} />
+        <ClaudeTerminal events={capture.events} model={capture.meta.model} revealStart={t.revealStart} revealEnd={t.revealEnd} highlight={highlightText(scene.highlight)} />
       )}
     </TerminalWindow>
   );
 
-  // One-shot narration: a single continuous track for the whole video (uniform
-  // tempo/tone). Otherwise each scene carries its own clip.
-  const fullAudio = narration.fullAudio;
+  const renderScene = (scene: SceneSpec, idx: number, t: SceneTiming, lay: SceneLayout): React.ReactNode => {
+    switch (scene.kind) {
+      case "title":
+        return <TitleCard title={cards.title} subtitle={cards.subtitle} brand={brand} />;
+      case "prompt":
+        return <PromptCard prompt={capture.prompt} />;
+      case "outro":
+        return <OutroCard line={cards.outroLine} pointer={cards.outroPointer} brand={brand} />;
+      case "artifact": {
+        const art = (artifacts ?? []).find((a) => a.id === scene.artifact);
+        // Artifact failed to capture: fall back to the terminal so the scene isn't blank.
+        if (!art) return terminalScene(scene, t, lay);
+        return <ArtifactView demoId={id} artifact={art} layout={lay} highlight={scene.highlight?.box} />;
+      }
+      case "desktop": {
+        const b = scene.beat ? beatById.get(scene.beat) : undefined;
+        if (!screencast || !b) return terminalScene(scene, t, lay);
+        const prev = scenes[idx - 1];
+        const prevBeat = prev?.kind === "desktop" && prev.beat ? (beatById.get(prev.beat) ?? null) : null;
+        return (
+          <DesktopScene
+            demoId={id}
+            screencast={screencast}
+            themeMode={mode}
+            beat={b}
+            prevBeat={prevBeat}
+            sceneIndex={idx}
+            globalFrom={t.from}
+            sceneDurationFrames={t.durationFrames}
+            layout={lay}
+            crop={scene.crop}
+            zoom={scene.zoom}
+            highlight={scene.highlight?.box}
+          />
+        );
+      }
+      default:
+        return terminalScene(scene, t, lay);
+    }
+  };
 
-  // Desktop screencast beats (per active theme). Each desktop scene runs a 3D
-  // camera move on its own: full → dolly-in to the focus → hold → dolly fully
-  // out (with a tilt swing) — see DesktopScene.
-  const mode: ThemeMode = themeMode ?? "dark";
-  const beats = screencast?.beats[mode] ?? [];
-  const beatById = new Map(beats.map((b) => [b.id, b] as const));
+  const slots: SceneSlot[] = scenes.map((scene, idx) => {
+    const t = timing.scenes[idx]!;
+    const chapter = CHAPTERED.has(scene.kind) && scene.caption ? scene.caption : "";
+    const lay = sceneLayout(chapter.length > 0);
+    return {
+      key: scene.id,
+      name: `${scene.kind}:${scene.id}`,
+      from: t.from,
+      durationInFrames: t.durationFrames,
+      transitionBefore: t.transitionBefore,
+      transitionAfter: t.transitionAfter,
+      presentationBefore: idx > 0 ? presentationBetween(scenes[idx - 1]!, scene) : undefined,
+      presentationAfter: idx + 1 < scenes.length ? presentationBetween(scene, scenes[idx + 1]!) : undefined,
+      children: (
+        <>
+          {sceneAudio(scene, idx)}
+          {renderScene(scene, idx, t, lay)}
+          {chapter ? <ChapterLine text={chapter} layout={lay} /> : null}
+        </>
+      ),
+    };
+  });
 
   return (
     <AbsoluteFill style={{ background: theme.bg, fontFamily: theme.fontSans }}>
-      {fullAudio ? <Audio src={staticFile(`${id}/${fullAudio}`)} /> : null}
-      {narration.scenes.map((scene, idx) => {
-        const t = timing.scenes[idx];
-        const audioSrc = !fullAudio && scene.audio ? staticFile(`${id}/${scene.audio}`) : undefined;
-        return (
-          <Sequence key={scene.id} from={t.from} durationInFrames={t.durationFrames} name={`${scene.kind}:${scene.id}`}>
-            {audioSrc ? <Audio src={audioSrc} /> : null}
-            {scene.kind === "title" ? (
-              <TitleCard title={capture.title} subtitle={capture.subtitle} tagline={capture.tagline} aspects={capture.aspects} brand={brand} />
-            ) : scene.kind === "prompt" ? (
-              <PromptCard prompt={capture.prompt} />
-            ) : scene.kind === "outro" ? (
-              <OutroCard title={capture.title} tagline={capture.tagline} aspects={capture.aspects} brand={brand} />
-            ) : scene.kind === "artifact" ? (
-              (() => {
-                const art = artifacts.find((a) => a.id === scene.artifact);
-                // Artifact failed to capture — fall back to the terminal so the scene isn't blank.
-                if (!art) return terminalScene(scene.caption, t.termFrom);
-                return <ArtifactView demoId={id} artifact={art} caption={scene.caption || art.caption} />;
-              })()
-            ) : scene.kind === "desktop" ? (
-              (() => {
-                const b = scene.beat ? beatById.get(scene.beat) : undefined;
-                if (!screencast || !b) return terminalScene(scene.caption, t.termFrom);
-                // Previous beat (if the prior scene was also a desktop beat), so
-                // glide mode can ease from its composed shot.
-                const prev = narration.scenes[idx - 1];
-                const prevBeat = prev?.kind === "desktop" && prev.beat ? (beatById.get(prev.beat) ?? null) : null;
-                return (
-                  <DesktopScene
-                    demoId={id}
-                    screencast={screencast}
-                    themeMode={mode}
-                    beat={b}
-                    prevBeat={prevBeat}
-                    sceneIndex={idx}
-                    globalFrom={t.from}
-                    caption={scene.caption}
-                    sceneDurationFrames={t.durationFrames}
-                  />
-                );
-              })()
-            ) : (
-              terminalScene(scene.caption, t.termFrom)
-            )}
-          </Sequence>
-        );
-      })}
+      {legacyTrack}
+      <SceneSeries slots={slots} />
+      <Captions scenes={timing.scenes} captions={captions ?? null} />
       {stamp ? (
         <div
           style={{

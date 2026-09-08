@@ -11,7 +11,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { DemoManifest, DemoCapture } from "../types.ts";
 import { ensureDir, publicDemoDir } from "../lib/paths.ts";
-import { recordDesktop } from "./record-desktop.ts";
+import { recordDesktop, type BeatSpec } from "./record-desktop.ts";
 
 export interface CaptureDesktopOptions {
   force?: boolean;
@@ -23,6 +23,24 @@ export interface CaptureDesktopOptions {
   uiLocale?: string;
 }
 
+/**
+ * What the manifest asks of each recorded beat: how long to hold it, which
+ * element to crop to, which element to draw a box around. Keyed by beat id.
+ */
+export function beatSpecsOf(m: DemoManifest): Record<string, BeatSpec> {
+  const specs: Record<string, BeatSpec> = {};
+  for (const n of m.narration) {
+    if (n.kind !== "desktop" || !n.beat) continue;
+    const spec: BeatSpec = {};
+    if (n.hold !== undefined) spec.hold = n.hold;
+    const sel = n.crop?.selector;
+    if (sel) spec.cropSelectors = Array.isArray(sel) ? sel : [sel];
+    if (typeof n.highlight === "object" && n.highlight?.selector) spec.highlightSelector = n.highlight.selector;
+    if (Object.keys(spec).length > 0) specs[n.beat] = spec;
+  }
+  return specs;
+}
+
 export async function captureDesktopDemo(m: DemoManifest, opts: CaptureDesktopOptions = {}): Promise<void> {
   const pub = ensureDir(publicDemoDir(m.id));
 
@@ -32,6 +50,7 @@ export async function captureDesktopDemo(m: DemoManifest, opts: CaptureDesktopOp
     web: m.target === "web",
     bowrainDesktop: m.target === "bowrain-desktop",
     uiLocale: opts.uiLocale,
+    beats: beatSpecsOf(m),
   });
 
   // 2. Minimal capture.json so the rest of the pipeline is unchanged.

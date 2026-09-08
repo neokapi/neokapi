@@ -14,8 +14,8 @@ const PER = 109; // frames per slide (~3.6s); 4 slides ≈ 14.5s, covering the n
 export const SAMPLE_FRAMES = 4 * PER;
 
 const SLIDES: { title: string; sub: string }[] = [
-  { title: "Welcome to neokapi", sub: "AI-native localization" },
-  { title: "Images · Audio · Video", sub: "localize every modality" },
+  { title: "Welcome to neokapi", sub: "content and language intelligence" },
+  { title: "Images · Audio · Video", sub: "one content model for every modality" },
   { title: "Speech & on-screen text", sub: "both translated" },
   { title: "One pipeline", sub: "every modality" },
 ];

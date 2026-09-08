@@ -66,6 +66,16 @@ export async function injectCursor(page: Page): Promise<void> {
   });
 }
 
+/**
+ * Where a click's moment goes. The desktop recorder sets a sink for the
+ * duration of a take and logs each click's time into screencast.json, so the
+ * composition can put the sound of a click where the ripple blooms.
+ */
+let clickSink: ((atMs: number) => void) | null = null;
+export function setClickSink(sink: ((atMs: number) => void) | null): void {
+  clickSink = sink;
+}
+
 async function pos(page: Page): Promise<{ x: number; y: number }> {
   return page.evaluate(
     () => (window as unknown as { __pw?: { x: number; y: number } }).__pw ?? { x: 120, y: 120 },
@@ -127,6 +137,7 @@ export async function humanClick(page: Page, locator: Locator): Promise<void> {
     },
     [x, y],
   );
+  clickSink?.(Date.now());
   await locator.click();
   await page.evaluate(() =>
     (window as unknown as { __pwDown: (d: boolean) => void }).__pwDown(false),

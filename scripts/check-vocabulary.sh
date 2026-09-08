@@ -253,6 +253,12 @@ readonly VOCAB_SURFACES=(
   # extension says.
   apps/kapi-desktop/frontend/src/stories
   apps/kapi-desktop/frontend/src/demo
+  # The Remotion composition behind every walkthrough video: its string
+  # literals are typeset into the title and outro cards, the reel's lower
+  # thirds and the lab sample, so they are product prose whatever the file
+  # extension says. The demo manifests the composition renders are gated
+  # per-PR by the docs prose check.
+  harness/src/remotion
 )
 
 # The surfaces held to the identifier rule: the source trees, both languages,
@@ -319,6 +325,11 @@ readonly ALLOWED_FILES=(
   apps/kapi-desktop/frontend/src/stories/prototype/v2/Sidebar.stories.tsx
   apps/kapi-desktop/frontend/src/stories/prototype/v2/Flows.stories.tsx
   apps/kapi-desktop/frontend/src/stories/prototype/v2/ProjectLanguages.stories.tsx
+  # The composition registry is generated from the demo directory names, and
+  # a demo's id (01-localize-landing-page) is the name of its directory, its
+  # captures and its published assets: an identifier, never typeset. The title
+  # beside it is the prose, and that is swept.
+  harness/src/remotion/registry.generated.ts
 )
 
 # Files the CASED rule alone excuses, on top of ALLOWED_FILES. Kept separate so

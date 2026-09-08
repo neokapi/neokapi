@@ -15,21 +15,24 @@ import type { Screencast, ScreencastBeat } from "../../types.ts";
 import { BOWRAIN, FPS, HEIGHT, WIDTH, setTheme, theme, type ThemeMode } from "../components/theme.ts";
 import { TitleCard, OutroCard } from "../components/Cards.tsx";
 import { DesktopScene } from "../components/DesktopScene.tsx";
+import { SAFE_X, SAFE_Y, SUBTITLE_FS, sceneLayout } from "../components/layout.ts";
 
 // ── Sizzle: a single bowrain landing hero that montages the feature screencasts.
 // Title card → N feature clips (each a framed beat from an existing bowrain demo,
-// reusing DesktopScene's 3D window + camera) with a modern kinetic lower-third,
+// reusing DesktopScene's 3D window + camera) with a kinetic lower-third,
 // stitched with @remotion/transitions: a fade into/out of the title/outro and a
-// directional slide between feature clips. Silent — it reads as a reel.
+// directional slide between feature clips. Silent: it reads as a reel.
 //
 // @remotion/transitions owns the overlap/timeline math (each Transition overlaps
 // the adjacent Sequences by `CROSS` frames), so the composition's duration is
 // `Σ(segment durations) − (number of transitions) × CROSS` — computed once in
 // sizzleCalcMeta and mirrored by TransitionSeries at render.
 
-const CROSS = 16; // transition length in frames (~0.53s) — uniform, so the math stays simple
-const TITLE_SEC = 2.7;
-const OUTRO_SEC = 3.2;
+const CROSS = 16; // transition length in frames (~0.53s), uniform, so the math stays simple
+// The bookends' frames are written where they are used as well, so they can
+// be trimmed in Studio; keep the two copies equal.
+const TITLE_FRAMES = 81;
+const OUTRO_FRAMES = 96;
 
 /** One montage clip: a beat from an existing bowrain demo + the headline shown over it. */
 interface ClipPlan {
@@ -48,37 +51,33 @@ interface ResolvedClip extends ClipPlan {
   durationFrames: number;
 }
 
-export interface SizzleProps {
+export type SizzleProps = {
   id: string;
   themeMode?: ThemeMode;
   stamp?: string;
   clips?: ResolvedClip[];
   title?: string;
   subtitle?: string;
-  tagline?: string;
-  aspects?: string[];
-  outroTitle?: string;
-  outroTagline?: string;
-  [key: string]: unknown;
-}
+  outroLine?: string;
+  outroPointer?: string;
+};
 
 // The authored reel. Beats/ids verified against each demo's screencast.json.
+// Each clip carries one plain sentence under its headline.
 const PLAN: ClipPlan[] = [
-  { demoId: "bowrain-desktop-dashboard", beatId: "projects", maxDurSec: 3.0, title: "Your localization platform", subtitle: "Every project, in one home." },
-  { demoId: "bowrain-web-editor", beatId: "split", maxDurSec: 4.0, title: "One shared editor", subtitle: "Source and target, side by side." },
-  { demoId: "bowrain-web-collaboration", beatId: "teammate-joins", maxDurSec: 4.0, title: "Real-time collaboration", subtitle: "Your team translates together, live." },
-  { demoId: "bowrain-web-governance", beatId: "tm-search", maxDurSec: 3.8, title: "Memory & terminology", subtitle: "Consistency, shared and enforced." },
-  { demoId: "bowrain-web-review", beatId: "focus", maxDurSec: 4.0, title: "Review & approval", subtitle: "Nothing ships unchecked." },
-  { demoId: "bowrain-web-correction-loop", beatId: "promote", maxDurSec: 3.8, title: "Corrections become checks", subtitle: "Quality that compounds." },
+  { demoId: "bowrain-desktop-dashboard", beatId: "projects", maxDurSec: 3.0, title: "One workspace for the team", subtitle: "Every project, in one home." },
+  { demoId: "bowrain-web-editor", beatId: "split", maxDurSec: 4.0, title: "One editor, every language", subtitle: "Source and target, side by side." },
+  { demoId: "bowrain-web-collaboration", beatId: "teammate-joins", maxDurSec: 4.0, title: "Presence, live", subtitle: "A teammate opens the file, and their cursor arrives." },
+  { demoId: "bowrain-web-governance", beatId: "tm-search", maxDurSec: 3.8, title: "Terms and memory, shared", subtitle: "One concept, with its status in every language." },
+  { demoId: "bowrain-web-review", beatId: "focus", maxDurSec: 4.0, title: "Review, with a second pair of eyes", subtitle: "Nobody approves their own translation." },
+  { demoId: "bowrain-web-correction-loop", beatId: "promote", maxDurSec: 3.8, title: "Corrections become checks", subtitle: "A reviewer's fix becomes a versioned check." },
 ];
 
 const META = {
   title: "Bowrain",
-  subtitle: "Govern AI-translated content, together.",
-  tagline: "Shared memory, terminology, and checks that learn from every correction.",
-  aspects: ["Shared editor", "Real-time collaboration", "Terminology", "Review", "Quality checks"],
-  outroTitle: "The team platform for multilingual content",
-  outroTagline: "Built on the open kapi framework.",
+  subtitle: "The team's workspace for multilingual content.",
+  outroLine: "Push a project, and the team reviews it here.",
+  outroPointer: "bowrain.cloud",
 };
 
 async function fetchJson<T>(rel: string): Promise<T | null> {
@@ -110,11 +109,9 @@ export const sizzleCalcMeta: CalculateMetadataFunction<SizzleProps> = async ({ p
     // frame some clips into a large empty void.
     clips.push({ ...p, screencast: sc, beat: { id: b.id, tStart: b.tStart, tEnd, zoom: null }, durationFrames });
   }
-  const titleFr = Math.round(TITLE_SEC * FPS);
-  const outroFr = Math.round(OUTRO_SEC * FPS);
   const segCount = clips.length + 2; // title + clips + outro
   const transitions = segCount - 1;
-  const total = titleFr + clips.reduce((n, c) => n + c.durationFrames, 0) + outroFr - transitions * CROSS;
+  const total = TITLE_FRAMES + clips.reduce((n, c) => n + c.durationFrames, 0) + OUTRO_FRAMES - transitions * CROSS;
   return {
     durationInFrames: Math.max(FPS, total),
     fps: FPS,
@@ -138,8 +135,9 @@ const BottomScrim: React.FC<{ mode: ThemeMode }> = ({ mode }) => {
   );
 };
 
-/** Modern kinetic lower-third: a bowrain accent rule + big headline + subline,
- *  springing up at clip start and easing out before the transition. */
+/** Kinetic lower-third inside the safe area: a bowrain accent rule, a headline
+ *  and one sentence, springing up at clip start and easing out before the
+ *  transition. */
 const ClipText: React.FC<{ title: string; subtitle: string; durationFrames: number }> = ({ title, subtitle, durationFrames }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
@@ -148,12 +146,12 @@ const ClipText: React.FC<{ title: string; subtitle: string; durationFrames: numb
   const op = Math.min(inS, outF);
   const rise = interpolate(inS, [0, 1], [26, 0]);
   return (
-    <AbsoluteFill style={{ justifyContent: "flex-end", alignItems: "flex-start", padding: "0 0 64px 150px", pointerEvents: "none" }}>
-      <div style={{ display: "flex", gap: 22, alignItems: "stretch", opacity: op, transform: `translateY(${rise}px)` }}>
-        <div style={{ width: 6, borderRadius: 6, background: BOWRAIN, boxShadow: `0 0 24px ${BOWRAIN}` }} />
+    <AbsoluteFill style={{ justifyContent: "flex-end", alignItems: "flex-start", padding: `0 ${SAFE_X}px ${SAFE_Y}px ${SAFE_X}px`, pointerEvents: "none" }}>
+      <div style={{ display: "flex", gap: 26, alignItems: "stretch", opacity: op, translate: `0px ${rise}px` }}>
+        <div style={{ width: 8, borderRadius: 8, background: BOWRAIN, boxShadow: `0 0 24px ${BOWRAIN}` }} />
         <div>
-          <div style={{ fontSize: 62, fontWeight: 760, color: theme.text, lineHeight: 1.04, letterSpacing: -0.6, textShadow: "0 2px 28px rgba(0,0,0,0.55)" }}>{title}</div>
-          <div style={{ fontSize: 31, fontWeight: 500, color: theme.dim, marginTop: 10, textShadow: "0 2px 18px rgba(0,0,0,0.55)" }}>{subtitle}</div>
+          <div style={{ fontSize: 100, fontWeight: 760, color: theme.text, lineHeight: 1.04, letterSpacing: -1, textShadow: "0 2px 28px rgba(0,0,0,0.55)" }}>{title}</div>
+          <div style={{ fontSize: SUBTITLE_FS, fontWeight: 500, color: theme.dim, marginTop: 14, textShadow: "0 2px 18px rgba(0,0,0,0.55)" }}>{subtitle}</div>
         </div>
       </div>
     </AbsoluteFill>
@@ -172,18 +170,17 @@ export const Sizzle: React.FC<SizzleProps> = (props) => {
   const mode: ThemeMode = props.themeMode ?? "dark";
   setTheme(mode);
   const clips = props.clips ?? [];
-  const titleFr = Math.round(TITLE_SEC * FPS);
-  const outroFr = Math.round(OUTRO_SEC * FPS);
+  const layout = sceneLayout(false);
 
   // Interleave Sequences with Transitions: fade for the title/outro bookends, a
   // directional slide between feature clips (the "clip between features" motion).
   const children: React.ReactNode[] = [];
   children.push(
-    <TransitionSeries.Sequence key="title" durationInFrames={titleFr}>
-      <TitleCard title={props.title ?? META.title} subtitle={props.subtitle ?? META.subtitle} tagline={props.tagline ?? META.tagline} aspects={props.aspects ?? META.aspects} brand="bowrain" />
+    <TransitionSeries.Sequence key="title" durationInFrames={81}>
+      <TitleCard title={props.title ?? META.title} subtitle={props.subtitle ?? META.subtitle} brand="bowrain" />
     </TransitionSeries.Sequence>,
   );
-  let driftOffset = titleFr;
+  let driftOffset = TITLE_FRAMES;
   clips.forEach((c, i) => {
     children.push(
       <TransitionSeries.Transition key={`t-${i}`} presentation={i === 0 ? fade() : slide({ direction: "from-right" })} timing={timing} />,
@@ -199,8 +196,8 @@ export const Sizzle: React.FC<SizzleProps> = (props) => {
           prevBeat={null}
           sceneIndex={i}
           globalFrom={globalFrom}
-          caption=""
           sceneDurationFrames={c.durationFrames}
+          layout={layout}
         />
         <BottomScrim mode={mode} />
         <ClipText title={c.title} subtitle={c.subtitle} durationFrames={c.durationFrames} />
@@ -210,8 +207,8 @@ export const Sizzle: React.FC<SizzleProps> = (props) => {
   });
   children.push(<TransitionSeries.Transition key="t-outro" presentation={fade()} timing={timing} />);
   children.push(
-    <TransitionSeries.Sequence key="outro" durationInFrames={outroFr}>
-      <OutroCard title={props.outroTitle ?? META.outroTitle} tagline={props.outroTagline ?? META.outroTagline} aspects={props.aspects ?? META.aspects} brand="bowrain" />
+    <TransitionSeries.Sequence key="outro" durationInFrames={96}>
+      <OutroCard line={props.outroLine ?? META.outroLine} pointer={props.outroPointer ?? META.outroPointer} brand="bowrain" />
     </TransitionSeries.Sequence>,
   );
 
