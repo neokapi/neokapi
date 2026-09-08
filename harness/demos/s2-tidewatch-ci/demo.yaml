@@ -1,6 +1,6 @@
 id: s2-tidewatch-ci
-title: Behind is not broken
-subtitle: Coverage is reported on the pull request; only the source is gated.
+title: The build ships without the language
+subtitle: Coverage is reported on the pull request, and only the source is gated.
 kind: use-case
 publishAs: docs-coverage-in-ci
 # A scripted plain-shell demo: every command is deterministic and offline. The AI

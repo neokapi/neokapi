@@ -3,7 +3,7 @@ export interface RegistryEntry { id: string; title: string; }
 export const DEMOS: RegistryEntry[] = [
   {
     "id": "01-localize-landing-page",
-    "title": "A page translated, not rebuilt"
+    "title": "The markup comes back untouched"
   },
   {
     "id": "02-nextjs-zero-to-i18n",
@@ -91,7 +91,7 @@ export const DEMOS: RegistryEntry[] = [
   },
   {
     "id": "kapi-desktop-config",
-    "title": "The key never reaches the recipe"
+    "title": "The keychain holds the key"
   },
   {
     "id": "kapi-desktop-content",
@@ -135,6 +135,6 @@ export const DEMOS: RegistryEntry[] = [
   },
   {
     "id": "s2-tidewatch-ci",
-    "title": "Behind is not broken"
+    "title": "The build ships without the language"
   }
 ];

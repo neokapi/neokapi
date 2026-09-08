@@ -61,7 +61,7 @@ narration:
   - id: wordcount
     kind: artifact
     artifact: wordcount
-    caption: The engine's own figure, not an estimate.
+    caption: The engine's own count, for this file.
     text: >-
       The first two calls detect the format and size the content, and these are
       the figures the engine itself keeps: translatable words and segments, for

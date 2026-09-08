@@ -1,6 +1,6 @@
 id: kapi-desktop-config
-title: The key never reaches the recipe
-subtitle: Provider keys go to the operating system keychain, not into what you commit.
+title: The keychain holds the key
+subtitle: A recipe records which credential to use, and the secret stays out of it.
 kind: use-case
 publishAs: kapi-desktop-config
 terminal: desktop

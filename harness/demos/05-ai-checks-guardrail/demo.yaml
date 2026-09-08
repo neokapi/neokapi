@@ -49,7 +49,7 @@ narration:
     text: >-
       Here is what came back. Nothing on the surface of the file says which
       entries are the dangerous ones, and reading forty strings in a language
-      you do not speak is not a review.
+      you do not speak tells you as much.
 
   - id: check
     kind: terminal

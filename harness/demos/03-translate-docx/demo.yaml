@@ -55,7 +55,7 @@ narration:
 
   - id: read
     kind: terminal
-    caption: The file is read as a document, not as bytes.
+    caption: Read as a document, with its lists and its bold.
     text: >-
       Claude hands the file to kapi, which opens the Word format directly and
       pulls out the paragraphs, the list items and the runs of bold inside them.

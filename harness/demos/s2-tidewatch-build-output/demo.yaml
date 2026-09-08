@@ -52,9 +52,9 @@ narration:
   - id: title
     kind: title
     text: >-
-      A translated documentation tree is build output, not a record. The loop
-      writes it where the site build already looks, and a language that is not
-      ready leaves no files behind.
+      A translated documentation tree is build output. The loop writes it where
+      the site build already looks, git ignores it, and a language still waiting
+      for a person leaves no files at all.
 
   - id: shape
     kind: terminal

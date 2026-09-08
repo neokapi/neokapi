@@ -1,6 +1,6 @@
 id: 01-localize-landing-page
-title: A page translated, not rebuilt
-subtitle: One request in Claude Code, and the markup comes back untouched.
+title: The markup comes back untouched
+subtitle: One request in Claude Code, and only the words a visitor reads change.
 kind: zero-to-hero
 aspects:
   - AI translation
