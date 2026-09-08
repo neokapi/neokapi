@@ -148,7 +148,9 @@ export function Cart({ n }: { n: number }) {
     const dir = dictDir("de", { [h]: de });
     const out = inline(src, dir);
     expect(out).not.toBeNull();
-    expect(out).toContain("__t(");
+    // The `{n}` inside the other form is a lifted expression, so the block
+    // routes through __tx (#2561); the translated template is still baked in.
+    expect(out).toContain("__tx(");
     expect(out).toContain(JSON.stringify(de));
     // The ICU template must not appear as bare JSX children.
     expect(out).not.toMatch(/>\s*\{n, plural/);
@@ -161,7 +163,7 @@ export function Cart({ n }: { n: number }) {
     const de = "{count, plural, one {{count} Nachricht} other {{count} Nachrichten}}";
     const dir = dictDir("de", { [h]: de });
     const out = inline(src, dir);
-    expect(out).toContain("__t(");
+    expect(out).toContain("__tx(");
     expect(out).toContain(JSON.stringify(de));
     expectParses(out as string);
   });

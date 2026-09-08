@@ -1,14 +1,20 @@
 /**
- * Element markers in a compiled message.
+ * The tokens a compiled message carries.
  *
- * A block that carries inline JSX flattens to a template where each inline
- * element is a token: `{=mN}` opens a pair (or stands alone when no matching
+ * A block that holds inline JSX flattens to a template where each inline
+ * element is a marker: `{=mN}` opens a pair (or stands alone when no matching
  * close follows in the same scope) and `{/=mN}` closes one. `__tx` walks these
  * to rebuild the React tree; a runtime string transform walks them to find out
  * which characters belong to a span whose text is a command or a key rather
  * than prose.
  *
- * Both need the same pairing rule, so it lives here once.
+ * A block's other children flatten to `{name}` placeholders. Most of those
+ * carry text and substitute into the message before anything walks it, but a
+ * parameter whose value turns out to be a React element keeps its token so
+ * `__tx` can put the element itself in the output. `collectValueTokens` finds
+ * those, and `collectTokens` merges both scans into one positional list.
+ *
+ * Everything here needs the same pairing rule, so it lives in one place.
  */
 
 export interface MarkerToken {
@@ -16,9 +22,9 @@ export interface MarkerToken {
   start: number;
   /** Index one past the token's last character. */
   end: number;
-  /** Marker name, `=mN`. */
+  /** Marker name (`=mN`) for a pair, or the placeholder name for a value. */
   key: string;
-  kind: "open" | "close";
+  kind: "open" | "close" | "value";
 }
 
 /**
@@ -55,6 +61,44 @@ export function collectMarkerTokens(text: string): MarkerToken[] {
 }
 
 /**
+ * Scan `text` for the `{name}` token of every name in `names`, returning them
+ * in positional order. `__tx` asks for the parameters whose value holds React
+ * content: those keep their token through substitution so the renderer can
+ * emit the node rather than its `String()` form.
+ *
+ * A name that appears more than once yields one token per appearance, and a
+ * name absent from the message yields none, which is what lets a translation
+ * move or drop a placeholder.
+ */
+export function collectValueTokens(text: string, names: readonly string[]): MarkerToken[] {
+  if (names.length === 0) return [];
+  const pattern = new RegExp(`\\{(${names.map(escapeForRegExp).join("|")})\\}`, "g");
+  const tokens: MarkerToken[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = pattern.exec(text)) !== null) {
+    tokens.push({ start: m.index, end: m.index + m[0].length, key: m[1], kind: "value" });
+  }
+  return tokens;
+}
+
+/**
+ * Every token in `text` in positional order: the element markers plus the
+ * `{name}` tokens for `valueNames`. A placeholder name never begins with `=`,
+ * so the two scans claim disjoint bytes.
+ */
+export function collectTokens(text: string, valueNames: readonly string[]): MarkerToken[] {
+  const markers = collectMarkerTokens(text);
+  if (valueNames.length === 0) return markers;
+  const merged = markers.concat(collectValueTokens(text, valueNames));
+  merged.sort((a, b) => a.start - b.start);
+  return merged;
+}
+
+function escapeForRegExp(name: string): string {
+  return name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
  * Match opens with closes, LIFO: a close pops the topmost open carrying the
  * same key. Returns the index of the matching close for every open that has
  * one; an open with no entry is standalone, and a close that matched nothing
@@ -65,6 +109,7 @@ export function pairMarkers(tokens: readonly MarkerToken[]): Map<number, number>
   const openStack: number[] = [];
   for (let i = 0; i < tokens.length; i++) {
     const tok = tokens[i];
+    if (tok.kind === "value") continue;
     if (tok.kind === "open") {
       openStack.push(i);
       continue;
