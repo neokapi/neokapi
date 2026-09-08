@@ -1,6 +1,8 @@
 package review
 
 import (
+	"slices"
+	"strings"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -191,4 +193,54 @@ func neighbourKeys(ns []Neighbour) []string {
 		out = append(out, n.Key)
 	}
 	return out
+}
+
+// TestNeighbourhoodOfReadsTheDocumentNotTheIDs pins what the window is measured
+// on. A reader hands its blocks over in the order the file holds them, and the
+// ids a format assigns need bear no relation to that order: a catalog names its
+// entries, a markup format numbers them as it encounters them, and a push mints
+// its own. The window follows the sequence, so a reviewer reads the paragraphs
+// that sit either side of the sentence rather than the ones whose ids happen to
+// neighbour it.
+func TestNeighbourhoodOfReadsTheDocumentNotTheIDs(t *testing.T) {
+	// Document order, with ids that sort into another: z, m, a, y, b.
+	blocks := []*model.Block{
+		idBlock("z", "opening", "First paragraph."),
+		idBlock("m", "context", "Second paragraph."),
+		idBlock("a", "claim", "Third paragraph."),
+		idBlock("y", "evidence", "Fourth paragraph."),
+		idBlock("b", "closing", "Fifth paragraph."),
+	}
+	sorted := make([]*model.Block, len(blocks))
+	copy(sorted, blocks)
+	slices.SortFunc(sorted, func(x, y *model.Block) int { return strings.Compare(x.ID, y.ID) })
+	require.NotEqual(t, blocks, sorted, "the case needs the two orders to differ")
+
+	got := NeighbourhoodOf(blocks, 2, 2, "nb")
+	assert.Equal(t, "claim", got.Key)
+	assert.Equal(t, []string{"opening", "context"}, neighbourKeys(got.Before),
+		"the two the document holds before, nearest last")
+	assert.Equal(t, []string{"evidence", "closing"}, neighbourKeys(got.After),
+		"the two the document holds after, nearest first")
+
+	// The ends of the DOCUMENT are the ends of the neighbourhood: by id the
+	// opening block sits in the middle and the closing one second.
+	opening := NeighbourhoodOf(blocks, 0, 2, "nb")
+	assert.Empty(t, neighbourKeys(opening.Before))
+	assert.Equal(t, []string{"context", "claim"}, neighbourKeys(opening.After))
+
+	closing := NeighbourhoodOf(blocks, 4, 2, "nb")
+	assert.Empty(t, neighbourKeys(closing.After))
+	assert.Equal(t, []string{"claim", "evidence"}, neighbourKeys(closing.Before))
+}
+
+// idBlock builds a translatable block whose id and reader's name are separate,
+// so a case can put the two orders at odds.
+func idBlock(id, name, source string) *model.Block {
+	return &model.Block{
+		ID:           id,
+		Name:         name,
+		Translatable: true,
+		Source:       []model.Run{model.TextR(source)},
+	}
 }

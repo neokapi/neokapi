@@ -113,10 +113,14 @@ type BlockQuery struct {
 	// position each block holds in its item, which is how a surface listing a
 	// file has to read it.
 	//
-	// The two do not combine. A cursor set alongside document order is read as
-	// the cursor, because a page ordered by anything but the cursor's own key
-	// would visit a block twice or not at all; EachBlockBatch clears the field
-	// for the same reason.
+	// The two do not combine. An id cursor set alongside document order is read
+	// as the cursor, because a page ordered by anything but the cursor's own
+	// key would visit a block twice or not at all; EachBlockBatch clears the
+	// field for the same reason. A DocumentBefore or DocumentAfter cursor
+	// already reads in document order and needs no Order to say so.
+	//
+	// OrderingOf resolves the field and the cursors into the one order a query
+	// is read in, so the stores cannot disagree about it.
 	Order string
 
 	Limit  int // Max results (0 = no limit)
@@ -140,6 +144,23 @@ type BlockQuery struct {
 	// Results still arrive in ascending id order, so a caller can hand them to
 	// the same projection an AfterID page goes through.
 	BeforeID string
+
+	// DocumentBefore and DocumentAfter are the cursor a reader wants: they name
+	// a block id, and keep the blocks of the same item that sit before or after
+	// it in the order the document reads. Block ids are minted when content is
+	// pushed, so the id cursors above name the block's id neighbours, which on
+	// a file stored in an order other than its reading order are two different
+	// paragraphs.
+	//
+	// The coordinate is the pair a document listing sorts by, (position, id),
+	// and the store resolves it from the named block itself. A surface asking
+	// "what precedes this unit" pays for the window it asked for plus the
+	// anchor's own row, wherever the block sits in a file of any size.
+	//
+	// The window arrives in document order on both sides, so the two lists and
+	// the unit between them read as the document does.
+	DocumentBefore string
+	DocumentAfter  string
 }
 
 // BlockOrderDocument lists blocks in the order their item is read: the position

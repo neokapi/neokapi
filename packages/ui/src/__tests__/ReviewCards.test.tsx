@@ -189,6 +189,38 @@ describe("NeighbourhoodCard", () => {
     expect(slot("review-neighbour-unit")?.textContent).toContain("Bonjour {name}");
   });
 
+  it("draws the document top to bottom, with the unit in place among its neighbours", () => {
+    render(
+      <NeighbourhoodCard
+        neighbourhood={{
+          key: "claim",
+          before: [
+            { key: "opening", source: [{ text: "First paragraph." }] },
+            { key: "context", source: [{ text: "Second paragraph." }] },
+          ],
+          after: [
+            { key: "evidence", source: [{ text: "Fourth paragraph." }] },
+            { key: "closing", source: [{ text: "Fifth paragraph." }] },
+          ],
+          window: 2,
+        }}
+        unitKey="claim"
+        unitSource="Third paragraph."
+        testId="hood"
+      />,
+    );
+    // The server answers each side in document order, so the rows are drawn as
+    // they arrive: nearest last above the unit, nearest first below it.
+    const rows = document.querySelectorAll("[data-slot='review-neighbourhood-table'] > li");
+    expect(Array.from(rows, (row) => row.textContent)).toEqual([
+      "openingFirst paragraph.",
+      "contextSecond paragraph.",
+      "claimThird paragraph.",
+      "evidenceFourth paragraph.",
+      "closingFifth paragraph.",
+    ]);
+  });
+
   it("says a unit stands alone, and says when the document could not be read", () => {
     const { unmount } = render(
       <NeighbourhoodCard neighbourhood={{ window: 2 }} unitKey="k" testId="hood" />,
