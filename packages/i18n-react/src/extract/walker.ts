@@ -8,7 +8,14 @@
  * what `__t()` / `__tx()` look up at render time.
  */
 
-import { parseSync, type JSXElement, type JSXFragment, type Module } from "@swc/core";
+import {
+  parseSync,
+  type Expression,
+  type JSXElement,
+  type JSXElementChild,
+  type JSXFragment,
+  type Module,
+} from "@swc/core";
 
 import type { Block, Document, Run } from "@neokapi/kapi-format";
 
@@ -20,6 +27,7 @@ import {
   nearestTranslate,
   resolveHTMLElement,
 } from "./ast.ts";
+import { branchContext, conditionalLiteralBranches } from "./branches.ts";
 import { buildJSXPath, FRAGMENT_DESCRIPTOR } from "./jsx-path.ts";
 import { collectTIdentifiers, walkTCalls } from "./messages.ts";
 import { parseSyntaxFor } from "../parse-syntax.ts";
@@ -255,6 +263,21 @@ class BlockCollector {
     // extract + transform.
     this.emitAttributeBlocks(el, ancestors, policy.locNote, component, attrDecisions);
 
+    // A conditional in the children renders one of its branches as text, and a
+    // block splices the expression verbatim, so a string literal in one is its
+    // own message wherever the element itself lands. The content channel has
+    // to be open for it: a `<script>` or a `<code>` holds no prose, while a
+    // container that merely has no direct text of its own does.
+    if (policy.translate || getTranslatability(htmlElement) === "container") {
+      this.emitConditionalBranchBlocks(
+        el.children ?? [],
+        buildJSXPath(ancestors, el, this.componentMap),
+        policy.locNote,
+        component,
+        tag,
+      );
+    }
+
     // The enclosing block holds this element's words already. Its
     // attributes came out above; nothing else here is its own.
     if (consumed) {
@@ -313,6 +336,13 @@ class BlockCollector {
    */
   visitFragment(frag: JSXFragment, ancestors: readonly JSXElement[], component: string): boolean {
     if (ancestorTranslate(ancestors) === "no") return false;
+    this.emitConditionalBranchBlocks(
+      frag.children ?? [],
+      FRAGMENT_DESCRIPTOR,
+      undefined,
+      component,
+      "fragment",
+    );
     if (!hasTranslatableText(frag) || !isAllInlineContent(frag, this.componentMap)) return false;
 
     const { runs, flatText, placeholders } = buildRuns(frag, {
@@ -592,6 +622,54 @@ class BlockCollector {
         if (cLit !== aLit) {
           this.warn("ternary-attr-complex", `${name}`, el);
         }
+      }
+    }
+  }
+
+  /**
+   * Emit a Block for every translatable string literal in a conditional among
+   * `children`. Runs whether or not the enclosing element emits a block of its
+   * own: an expression container is spliced into a block's call verbatim, so
+   * what it renders is never part of the sentence around it.
+   *
+   * Called before the walker descends, so child spans are still in raw SWC
+   * coordinates; `spanBase` aligns them with `code` for the line number.
+   */
+  private emitConditionalBranchBlocks(
+    children: readonly JSXElementChild[],
+    contextBase: string,
+    locNote: string | undefined,
+    component: string,
+    element: string,
+  ): void {
+    for (const child of children) {
+      if (child.type !== "JSXExpressionContainer") continue;
+      if (child.expression.type === "JSXEmptyExpression") continue;
+      for (const branch of conditionalLiteralBranches(child.expression as Expression)) {
+        const context = branchContext(contextBase, branch.index);
+        const desc = locNote ? `${context}${CONTEXT_SEPARATOR}${locNote}` : context;
+        const hash = hashKey(branch.text, desc);
+        if (this.seenHashes.has(hash)) continue;
+        this.seenHashes.add(hash);
+
+        const line = lineFromOffset(this.code, Math.max(0, branch.span.start - this.spanBase));
+        const properties: Block["properties"] = {
+          file: this.filename,
+          line,
+          component,
+          jsxPath: context,
+          element,
+        };
+        if (locNote) properties.locNote = locNote;
+        this.out.push({
+          id: `${this.filename}:${line}:branch${branch.index}`,
+          hash,
+          translatable: true,
+          type: "jsx:element",
+          source: [{ text: branch.text }] as Run[],
+          placeholders: [],
+          properties,
+        });
       }
     }
   }

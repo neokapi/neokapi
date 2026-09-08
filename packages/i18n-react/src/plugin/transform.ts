@@ -12,7 +12,14 @@
 
 import { readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { parseSync, type JSXElement, type JSXFragment, type Module } from "@swc/core";
+import {
+  parseSync,
+  type Expression,
+  type JSXElement,
+  type JSXElementChild,
+  type JSXFragment,
+  type Module,
+} from "@swc/core";
 
 import {
   ancestorTranslate,
@@ -21,6 +28,7 @@ import {
   nearestTranslate,
   resolveHTMLElement,
 } from "../extract/ast.ts";
+import { branchContext, conditionalLiteralBranches } from "../extract/branches.ts";
 import { buildJSXPath, FRAGMENT_DESCRIPTOR } from "../extract/jsx-path.ts";
 import { buildRuns, type Occurrence } from "../extract/runs.ts";
 import { hasTranslatableText, isAllInlineContent, resolvePolicy } from "../extract/translatable.ts";
@@ -32,7 +40,7 @@ import {
   formatWarning,
   type WarningCollector,
 } from "../extract/warnings.ts";
-import { isTranslatableAttribute } from "./defaults.ts";
+import { getTranslatability, isTranslatableAttribute } from "./defaults.ts";
 import { hashKey } from "./hash.ts";
 import { CONTEXT_SEPARATOR, type PluginOptions } from "../types.ts";
 import type { ReviewManifest } from "../review/manifest.ts";
@@ -686,6 +694,25 @@ function processElement(
   );
   const usedRuntime: RuntimeUse = { t: attrResult.usedRuntime, tx: false };
 
+  // A conditional in the children renders one of its branches as text. The
+  // content channel has to be open for it: a `<script>` or a `<code>` holds no
+  // prose, while a container that merely has no direct text of its own does.
+  const branchPairs =
+    policy.translate || getTranslatability(htmlElement) === "container"
+      ? processConditionalBranches({
+          children: el.children ?? [],
+          contextBase: buildJSXPath(ancestors, el, componentMap),
+          locNote: policy.locNote,
+          mode,
+          dict,
+          locale: options.locale,
+          s,
+          ops,
+          hashes,
+        })
+      : [];
+  if (branchPairs.length > 0 && mode === "runtime") usedRuntime.t = true;
+
   // Review: stamp the element's opening tag with `data-kapi-*` and
   // record its block(s) into the review manifest. `blockHash` is the
   // element's content-block hash (null for attribute-only elements —
@@ -712,7 +739,7 @@ function processElement(
         locale: options.locale,
       });
     }
-    for (const p of attrResult.pairs) {
+    for (const p of [...attrResult.pairs, ...branchPairs]) {
       recordReviewEntry(reviewEntries, {
         hash: p.hash,
         source: p.source,
@@ -822,8 +849,22 @@ function processFragment(
   hashes: Set<string>,
 ): ProcessResult {
   if (ancestorTranslate(ancestors) === "no") return { runtime: NO_RUNTIME, consumed: false };
+
+  const branchPairs = processConditionalBranches({
+    children: frag.children ?? [],
+    contextBase: FRAGMENT_DESCRIPTOR,
+    locNote: undefined,
+    mode,
+    dict,
+    locale: options.locale,
+    s,
+    ops,
+    hashes,
+  });
+  const branchRuntime: RuntimeUse = { t: branchPairs.length > 0 && mode === "runtime", tx: false };
+
   if (!hasTranslatableText(frag) || !isAllInlineContent(frag, componentMap)) {
-    return { runtime: NO_RUNTIME, consumed: false };
+    return { runtime: branchRuntime, consumed: false };
   }
 
   const contentStart = s(frag.opening.span.end);
@@ -833,7 +874,7 @@ function processFragment(
     componentMap,
     sourceSlice: (start, end) => bslice(buf, s(start), s(end)),
   });
-  if (text === "") return { runtime: NO_RUNTIME, consumed: false };
+  if (text === "") return { runtime: branchRuntime, consumed: false };
   const paramList: ParamInfo[] = occurrences.map((o) => convertOccurrence(o, s));
   const hk = hashKey(text, FRAGMENT_DESCRIPTOR);
 
@@ -850,9 +891,68 @@ function processFragment(
     hashes,
   });
   return {
-    runtime: { t: blockRuntime === "runtime-t", tx: blockRuntime === "runtime-tx" },
+    runtime: {
+      t: branchRuntime.t || blockRuntime === "runtime-t",
+      tx: blockRuntime === "runtime-tx",
+    },
     consumed: true,
   };
+}
+
+/**
+ * Rewrite every translatable string literal in a conditional among `children`
+ * to its own lookup. An expression container is spliced into an enclosing
+ * block's call verbatim, so a branch is never part of the sentence around it
+ * and needs a call of its own to be translated at all. The literal sits inside
+ * a JS expression, so the call goes in bare rather than wrapped in braces.
+ *
+ * Returns one pair per rewritten branch, for the review manifest.
+ */
+function processConditionalBranches(args: {
+  children: readonly JSXElementChild[];
+  contextBase: string;
+  locNote: string | undefined;
+  mode: "inline" | "runtime";
+  dict: Record<string, string> | null;
+  locale: string | undefined;
+  s: (offset: number) => number;
+  ops: TransformOp[];
+  hashes: Set<string>;
+}): AttrPair[] {
+  const { children, contextBase, locNote, mode, dict, s, ops, hashes } = args;
+  const pairs: AttrPair[] = [];
+
+  for (const child of children) {
+    if (child.type !== "JSXExpressionContainer") continue;
+    if (child.expression.type === "JSXEmptyExpression") continue;
+    for (const branch of conditionalLiteralBranches(child.expression as Expression)) {
+      const context = branchContext(contextBase, branch.index);
+      const desc = locNote ? `${context}${CONTEXT_SEPARATOR}${locNote}` : context;
+      const hk = hashKey(branch.text, desc);
+      const start = s(branch.span.start);
+      const end = s(branch.span.end);
+
+      if (mode === "inline") {
+        const translated = dict?.[hk] || branch.text;
+        pairs.push({ name: context, hash: hk, source: branch.text, target: dict?.[hk] });
+        ops.push({
+          offset: start,
+          deleteCount: end - start,
+          insert: JSON.stringify(translated),
+        });
+        continue;
+      }
+      pairs.push({ name: context, hash: hk, source: branch.text, target: undefined });
+      ops.push({
+        offset: start,
+        deleteCount: end - start,
+        insert: `__t("${hk}", ${JSON.stringify(branch.text)})`,
+      });
+      hashes.add(hk);
+    }
+  }
+
+  return pairs;
 }
 
 /**

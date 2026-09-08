@@ -188,9 +188,11 @@ Template literals with static copy inside: same treatment.
 </span>
 ```
 
-Purely-format templates (no alphabetic text: `` `${pct}%` ``,
-`` `v${version}` ``) don't need `t()` (they're code-level
-formatting rather than UI copy), and the lint rule
+The `"Idle"` beside it needs nothing: a plain string literal in a
+branch extracts on its own, keyed by the branch's slot. Purely-format
+templates (no alphabetic text: `` `${pct}%` ``, `` `v${version}` ``)
+don't need `t()` either (they're code-level formatting rather than UI
+copy), and the lint rule
 [`no-ternary-literals-in-jsx-child`](./linting#no-ternary-literals-in-jsx-child)
 knows not to flag them.
 

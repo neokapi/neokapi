@@ -2,19 +2,22 @@ import type { Rule, Node } from "@oxlint/plugins";
 import { hasTranslateNoAncestor } from "../shared/translate-no.ts";
 
 /**
- * Flags `<X>{cond ? "A" : "B"}</X>` (and template-literal variants)
- * where at least one branch is a plain string literal. neokapi-i18n's
- * extractor treats the entire conditional as an opaque `jsx:var`
- * placeholder — neither branch's string is visible to extraction,
- * so both silently bypass translation.
+ * Flags a template-literal branch in a JSX-child ternary, as in
+ * ``<X>{cond ? `Loading ${n}...` : "Done"}</X>``. The extractor reads a
+ * template as one opaque expression, so the words inside it never reach the
+ * catalog.
  *
- * Fix: wrap each literal branch with `t()`. The t-call walker
- * extracts `t("A")` / `t("B")` separately and both become
- * translatable.
+ * Fix: wrap the branch with `t()` and pass the interpolation as a parameter —
+ * `` cond ? t("Loading {n}...", { n }) : "Done" ``.
+ *
+ * A plain string-literal branch is extracted as its own block (#2581), so it is
+ * not flagged; `<Button>{saving ? "Saving..." : "Save"}</Button>` is two
+ * messages the way it stands.
  *
  * Ignores:
- * - Ternaries whose branches are neither strings nor templates
- *   (computed values, `t()` calls, React elements).
+ * - Branches that are neither templates nor strings (computed values, `t()`
+ *   calls, React elements).
+ * - Templates carrying no words, like `` `${pct}%` `` — formatting, not copy.
  * - Elements with `translate="no"` on any ancestor.
  */
 export const rule: Rule = {
@@ -22,13 +25,13 @@ export const rule: Rule = {
     type: "problem",
     docs: {
       description:
-        "flag ternary with string-literal branches in JSX children — extractor treats them as an opaque placeholder; wrap each branch with t()",
+        "flag ternary with template-literal branches in JSX children — the extractor reads a template as one opaque expression; wrap the branch with t()",
       recommended: true,
     },
     schema: [],
     messages: {
       literalBranch:
-        'Ternary branches `{{text}}` render as JSX text — the extractor treats the whole conditional as an opaque placeholder, so the string never gets translated. Wrap with t() (e.g. `cond ? t("A") : t("B")`).',
+        'Ternary branch {{text}} renders as JSX text, and the extractor reads a template literal as one opaque expression, so its words never get translated. Wrap it with t() and pass the interpolation as a parameter (e.g. `t("Loading {n}...", { n })`).',
     },
   },
   create(context) {
@@ -46,11 +49,11 @@ export const rule: Rule = {
         const expr = container.expression;
         if (!expr || expr.type !== "ConditionalExpression") return;
 
-        const cKind = stringyKind(expr.consequent);
-        const aKind = stringyKind(expr.alternate);
-        // Warn only if at least one branch is a literal string or
-        // template literal. All-non-literal (t() calls, elements,
-        // computed values) is assumed intentional.
+        const cKind = templateKind(expr.consequent);
+        const aKind = templateKind(expr.alternate);
+        // Warn only for a template-literal branch. A string literal is
+        // extracted on its own, and anything else (a t() call, an element, a
+        // computed value) is deliberate.
         if (!cKind && !aKind) return;
 
         if (hasTranslateNoAncestor(container.parent)) return;
@@ -72,14 +75,13 @@ export const rule: Rule = {
   },
 };
 
-function stringyKind(node: unknown): "literal" | "template" | null {
+function templateKind(node: unknown): "template" | null {
   if (!node || typeof node !== "object") return null;
   const n = node as {
     type?: string;
     value?: unknown;
     quasis?: { value?: { raw?: string; cooked?: string } }[];
   };
-  if (n.type === "Literal" && typeof n.value === "string") return "literal";
   if (n.type === "TemplateLiteral") {
     // Only flag when the template has translatable-looking text —
     // at least one quasi with alphabetic characters. Pure formatting

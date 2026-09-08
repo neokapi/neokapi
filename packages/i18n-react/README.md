@@ -685,6 +685,16 @@ branch), `.map()` and calls taking an element, along with attributes and `t()`
 calls found inside. JSX passed in a prop (`actions={<Button>Publish</Button>}`)
 extracts the same way.
 
+**Literals in a conditional's branches.** A conditional renders one of its
+branches as text, so each string literal in one is a block: `<Button>{saving ?
+"Saving..." : "Save"}</Button>` is two messages, keyed `Button::0` and
+`Button::1`, and the build rewrites each literal where it stands. The right side
+of `&&`, `||` and `??` is a branch on the same terms. A slot keeps its number
+whatever fills it, so a branch that is an expression today and a literal
+tomorrow leaves its neighbour's key alone, and a nested ternary contributes its
+own slots in place of the one it fills. A template-literal branch is one
+expression that extraction reads whole, so its words need `t()`.
+
 **A plain expression beside the text.** Every sibling expression becomes a
 named placeholder the translator can move: `<div>{icon} Save changes</div>` is
 one message reading `{icon} Save changes`. What the name holds is settled at

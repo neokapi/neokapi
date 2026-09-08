@@ -18,6 +18,9 @@ const entryPoints = [
   "src/extract/translatable.ts",
   "src/extract/jsx-path.ts",
   "src/extract/ast.ts",
+  // The one reading of a conditional's branches, shared by the extractor and
+  // the transform so the two cannot name a branch slot differently.
+  "src/extract/branches.ts",
   "src/extract/plural.ts",
   "src/extract/messages.ts",
   "src/extract/head.ts",

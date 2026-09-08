@@ -22,6 +22,7 @@ Almost everything you already write is translatable. This page walks through the
 - **Code spans inside a sentence** (`<code>`, `<kbd>`, `<samp>`, `<var>`) → the sentence extracts as one block, the span becomes a paired marker, and its text is carried through verbatim.
 - **A control inside a sentence** (`<button>`, `<label>`, `<select>`, `<img>`, …) → the sentence extracts as one block and the control becomes a paired marker, with its label translatable inside. A control that is its parent's only content keeps its own block.
 - **JSX inside a conditional** (`{cond && <span>…</span>}`, a ternary, a `.map()`) → a standalone marker in the sentence, and the elements inside it are extracted and translated on their own.
+- **A string literal in a conditional's branch** (`{saving ? "Saving..." : "Save"}`, `{cond && "Folder moved"}`) → one block per branch, addressed by its slot.
 - **A plain expression beside the text** (`{icon}`, `{rows}`, `{count}`) → a named placeholder the translator can move. Whatever it evaluates to is rendered where its token sits, so an element stays an element and a number stays a number.
 - **A whitespace-only expression** (`{" "}`, `{' '}`, `` {` `} ``) → a space in the block's text, not a variable.
 - **Non-translatable elements on their own** (`<code>`, `<pre>`, `<kbd>`, `<var>`, `<script>`, `<style>`, `<textarea>`) → skipped.
@@ -408,6 +409,29 @@ nowhere to put an element: an `aria-label`, a `title`, a `t()` result. Handing
 one a React element logs a warning in development and renders nothing useful,
 so keep elements in JSX.
 
+### Literals in a conditional's branches
+
+A conditional renders one of its branches as text:
+
+```tsx
+<Button>{saving ? "Saving..." : "Save"}</Button>
+```
+
+Each string literal in it extracts as its own block, so this is two messages. Their keys carry the branch's slot position, `Button::0` and `Button::1`, which is the same scheme a ternary attribute value uses. The build rewrites each literal where it stands, so the condition and everything around it are untouched.
+
+The same holds for a logical operator, where the right side is the branch:
+
+```tsx
+<div>{cond && "Folder moved"}</div>
+<div>{label || "Untitled"}</div>
+```
+
+A slot keeps its number whatever fills it. In `{cond ? getLabel() : "Save"}` the literal is slot 1, and turning `getLabel()` into a literal later gives it slot 0 without moving "Save". A nested ternary contributes its own slots in place of the one it fills, so `{a ? "A" : b ? "B" : "C"}` numbers three of them.
+
+Two branches take a different path. A JSX element is extracted as the element it is, and a template literal is one expression that extraction reads whole, so its words need `t()` (see [Template literal in a ternary branch](#template-literal-in-a-ternary-branch)).
+
+A conditional inside an element whose content is never prose is left alone, so `<code>{a ? "x = 1" : "y = 2"}</code>` and anything under `translate="no"` stay as written.
+
 ### Opting out with `translate="no"`
 
 Standard HTML; it works on any element and its descendants:
@@ -500,20 +524,20 @@ The render-side mirror of the above: `{obj.label}` / `{item.title}` rendered as 
 
 Fix by wrapping the _source_ data with `t()` (same as "Strings in JS data structures" above). The lint rule [`prefer-t-for-label-expr`](./linting#prefer-t-for-label-expr) flags the render site to prompt the refactor.
 
-### Ternary with string literals as JSX children
+### Template literal in a ternary branch
 
 ```tsx
-// ✗ neither "Saving..." nor "Save" gets extracted
-<Button>{saving ? "Saving..." : "Save"}</Button>
+// ✗ the words inside the template never extract
+<span>{count > 0 ? `Loading ${count}...` : "Idle"}</span>
 ```
 
-neokapi-i18n treats the whole ternary as a single opaque placeholder; it never looks inside at the branches. Wrap each branch with `t()`:
+A template literal is one expression, so extraction reads it whole and the words in it stay English. Wrap that branch with `t()` and pass the interpolation as a parameter:
 
 ```tsx
-<Button>{saving ? t("Saving...") : t("Save")}</Button>
+<span>{count > 0 ? t("Loading {count}...", { count }) : "Idle"}</span>
 ```
 
-Caught by [`no-ternary-literals-in-jsx-child`](./linting#no-ternary-literals-in-jsx-child). Same fix applies to template literals with actual copy: `` `Loading ${n}...` `` → `t("Loading {n}...", { n })`.
+The `"Idle"` beside it needs nothing: a plain string literal in a branch extracts on its own (see [Literals in a conditional's branches](#literals-in-a-conditionals-branches)). Caught by [`no-ternary-literals-in-jsx-child`](./linting#no-ternary-literals-in-jsx-child), which leaves a format-only template such as `` `${pct}%` `` alone.
 
 ### Module-level `t()` gotcha
 
@@ -603,8 +627,9 @@ rules: [{ selector: ".legal-copy", locNote: "Legal team must review" }];
 | `<h1 translate="no">X</h1>`               | no         | explicit opt-out (suppresses lint too)                                   |
 | `<button>{label}</button>`                | no         | bare expression; use `t()` on the source                                 |
 | `<button>{obj.label}</button>`            | no         | flagged by `prefer-t-for-label-expr`; wrap the source                    |
-| `<button>{cond ? "A" : "B"}</button>`     | no         | flagged by `no-ternary-literals-in-jsx-child`; wrap branches with `t()`  |
-| `<div>{cond && 'Hi'}</div>`               | no         | expression; use `t()`                                                    |
+| `<button>{cond ? "A" : "B"}</button>`     | yes        | one block per branch, keyed `button::0` / `button::1`                    |
+| ``<b>{c ? `Hi ${n}` : "Bye"}</b>``        | partly     | "Bye" extracts; the template needs `t()`                                 |
+| `<div>{cond && "Hi"}</div>`               | yes        | the right side of the operator is a branch, keyed `div::0`               |
 | `<p>Saved {cond && <b>a note</b>}</p>`    | yes        | two blocks: the sentence, and the conditional's own element              |
 | `<div>{icon} Save changes</div>`          | yes        | one block; `{icon}` renders as an element wherever its token sits        |
 | `<div actions={<Button>Go</Button>}>Hi</div>` | yes    | two blocks: JSX in a prop extracts as well                               |

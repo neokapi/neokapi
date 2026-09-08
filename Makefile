@@ -665,6 +665,12 @@ ci-i18n-react: ## Mirror the CI `neokapi-i18n` job: typecheck/validate/test/buil
 	cd packages/i18n-react && vp run typecheck
 	cd packages/i18n-react && vp run test
 	cd packages/i18n-react && vp run build
+	# The lint rules say what the extractor skips, so they belong to the same
+	# job: a rule that outlives the gap it names sends the author to rewrite
+	# working code.
+	cd packages/i18n-react-lint && vp run typecheck
+	cd packages/i18n-react-lint && vp run test
+	cd packages/i18n-react-lint && vp run build
 
 ci-build: i18n-catalogs ## Mirror the CI `build` job: build all three binaries (no fts5) + assert module isolation
 	@mkdir -p bowrain/apps/web/dist && echo placeholder > bowrain/apps/web/dist/index.html

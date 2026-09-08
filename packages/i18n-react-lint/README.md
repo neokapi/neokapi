@@ -70,7 +70,7 @@ Also available: `recommendedStrict` (turns everything on as `error`, including
 | `t-no-concat`                      | `error`          | No string concat / template interpolation in `t()` |
 | `no-concat-in-translatable-attr`   | `error`          | No concat in `alt` / `title` / `aria-label` / …    |
 | `no-ternary-in-translatable-attr`  | `error`          | No ternary in `alt` / `title` / `aria-label` / …   |
-| `no-ternary-literals-in-jsx-child` | `error`          | No string-literal ternary branches as JSX children |
+| `no-ternary-literals-in-jsx-child` | `error`          | No template-literal ternary branches as JSX children |
 | `no-string-literal-jsx-expr`       | `warn`           | `<p>{'Hello'}</p>` should be `<p>Hello</p>`        |
 | `prefer-t-for-label-expr`          | `warn`           | Suggest `t()` for label expressions                |
 | `prefer-t-for-label-props`         | off              | Suggest `t()` for label strings in data arrays     |
