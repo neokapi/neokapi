@@ -30,8 +30,10 @@ narration:
     beat: concept
     caption: One concept, one agreed word per language.
     hold: 17
-    crop: { selector: '[data-testid="concept-view"]' }
-    zoom: 1.6
+    crop:
+      selector:
+        - '[data-testid="concept-header"]'
+        - '[data-slot="concept-geography"]'
     highlight: { selector: '[data-testid="concept-header"]' }
     text: >-
       This is one concept: the idea itself, what the team calls it in each
@@ -45,7 +47,6 @@ narration:
     caption: The same wording, already on record.
     hold: 14
     crop: { selector: '[data-testid="tm-browser"]' }
-    zoom: 1.6
     text: >-
       The workspace content memory answers for the sentences the team has
       already approved. Search it, and every project in the workspace draws on
@@ -60,7 +61,6 @@ narration:
       selector:
         - '[data-testid="term-sidebar"]'
         - '[data-testid="visual-editor-card"]'
-    zoom: 1.8
     highlight: { selector: '[data-testid="term-sidebar"]' }
     text: >-
       And this is why either one belongs on a server. Open a file in Translate,

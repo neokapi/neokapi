@@ -29,8 +29,7 @@ narration:
     kind: desktop
     beat: open-flow
     caption: Two steps. Translate, then check.
-    crop: { selector: '[data-testid="linear-flow-editor"]' }
-    zoom: 1.3
+    crop: { x: 0.02, y: 0.16, w: 0.58, h: 0.34 }
     text: >-
       The Toolbox is where a project keeps what it runs over its content, and a
       flow there is a named sequence of steps. This one translates and then
@@ -40,8 +39,7 @@ narration:
     kind: desktop
     beat: add-step
     caption: A third step, from the tools the project has.
-    crop: { selector: '[data-testid="linear-flow-editor"]' }
-    zoom: 1.3
+    crop: { x: 0.02, y: 0.16, w: 0.58, h: 0.34 }
     text: >-
       Adding a step is a picker over every tool the project can reach. Recycle
       is the one that answers from the project's own content memory, so the
@@ -51,9 +49,8 @@ narration:
     kind: desktop
     beat: reorder
     caption: Moved in front of the translate it spares.
-    crop: { selector: '[data-testid="linear-flow-editor"]' }
-    zoom: 1.3
-    highlight: { selector: '[data-testid="step-row"]' }
+    crop: { x: 0.02, y: 0.16, w: 0.58, h: 0.34 }
+    highlight: { selector: '[data-testid="step-chips"]' }
     text: >-
       Order is the whole point of putting it there. Recycle has to run before
       the translate for the translate to have less to do, so the step moves to
@@ -63,8 +60,7 @@ narration:
     kind: desktop
     beat: default
     caption: Marked default. Bring up to date runs this one.
-    crop: { selector: '[data-testid="linear-flow-editor"]' }
-    zoom: 1.2
+    crop: { x: 0.02, y: 0.16, w: 0.58, h: 0.34 }
     highlight: { selector: '[data-testid="flow-default-badge"]' }
     text: >-
       Marking it the project's default is what binds it. From here the one

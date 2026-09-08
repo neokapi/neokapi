@@ -39,6 +39,7 @@ export function MarketsPanel({ concept, source, capabilities }: ConceptSectionPr
 
   return (
     <ConceptSection
+      slot="concept-geography"
       title="Geography"
       icon={<Globe />}
       description="Markets and the term and status used in each."

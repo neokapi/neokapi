@@ -28,6 +28,7 @@ export function ObservationsPanel({ concept, source, capabilities }: ConceptSect
 
   return (
     <ConceptSection
+      slot="concept-observations"
       title="Observations"
       icon={<MessageSquareQuote />}
       description="What others say: external evidence, not rules."

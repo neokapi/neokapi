@@ -36,6 +36,10 @@ export function beatSpecsOf(m: DemoManifest): Record<string, BeatSpec> {
     const sel = n.crop?.selector;
     if (sel) spec.cropSelectors = Array.isArray(sel) ? sel : [sel];
     if (typeof n.highlight === "object" && n.highlight?.selector) spec.highlightSelector = n.highlight.selector;
+    if (n.zoom !== undefined) spec.zoom = n.zoom;
+    // A chapter line shortens the crop area, so the recorder needs it to
+    // compute the same fit the composition will.
+    spec.caption = Boolean(n.caption?.trim());
     if (Object.keys(spec).length > 0) specs[n.beat] = spec;
   }
   return specs;

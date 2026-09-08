@@ -51,8 +51,7 @@ narration:
     beat: co-editing
     caption: The presence follows the person.
     hold: 18
-    crop: { x: 0.02, y: 0.08, w: 0.96, h: 0.7 }
-    zoom: 1.3
+    crop: { x: 0.12, y: 0.15, w: 0.76, h: 0.42 }
     text: >-
       They move to a block of their own, and the presence moves with them. Two
       translators work the same file at the same time, on the same shared
@@ -65,7 +64,6 @@ narration:
     caption: Invited by email, given a role.
     hold: 14
     crop: { selector: '[role="dialog"]' }
-    zoom: 1.8
     text: >-
       Who is allowed in is a decision rather than a side effect. Invite a
       colleague by email under Members and roles, and give them the role the

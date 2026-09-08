@@ -207,7 +207,10 @@ export function FocusedReviewer({
   return (
     <div className="flex min-h-0 flex-1 flex-col" data-testid="focused-reviewer">
       {/* Header: identity, position, status, compliance */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-2.5">
+      <div
+        className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-2.5"
+        data-slot="reviewer-unit-header"
+      >
         <span className="truncate text-sm font-semibold" title={entry.itemName}>
           {entry.itemName}
         </span>

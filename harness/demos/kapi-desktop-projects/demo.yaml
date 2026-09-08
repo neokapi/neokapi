@@ -49,7 +49,6 @@ narration:
     beat: add-collection
     caption: A name and one glob, counted as you type.
     crop: { selector: ['[data-slot="code-input"]', '[data-testid="pattern-match-count"]'] }
-    zoom: 1.2
     text: >-
       A collection is a name and the patterns that define it. The editor counts
       what each pattern matched while you type it, so a glob that finds nothing
@@ -59,8 +58,7 @@ narration:
     kind: desktop
     beat: plan
     caption: A dry run. Nothing written, no provider called.
-    crop: { selector: '[data-slot="converge-plan-dialog"]' }
-    zoom: 1.1
+    crop: { x: 0.38, y: 0.05, w: 0.24, h: 0.3 }
     hold: 10
     text: >-
       On a project that already has content, the plan reads what is pending

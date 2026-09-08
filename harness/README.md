@@ -306,8 +306,8 @@ the load rather than rendering a video that quietly ignores it.
 |---|---|---|---|
 | `caption` | terminal, artifact, desktop | One line, the consequence of the beat, drawn as the chapter line above the window for the whole scene. The spoken words are captioned from the audio, so leave it out unless the line adds something the transcript does not. | none |
 | `hold` | any | Seconds the scene stays on screen at least. The desktop recorder keeps the beat on camera this long; the renderer holds the last frame when the picture is still shorter. | the narration's measured length (recorder), the narration (renderer) |
-| `crop` | desktop | Where the camera crops to: `{ selector: '[data-testid="x"]' }` (or a list; resolved against the live page once the beat's actions have settled, the union of their boxes) or a box `{ x, y, w, h }` in [0,1] window coordinates. | the walk's own region |
-| `zoom` | desktop | A multiplier from 1 to 3 on the crop's fitted scale. The fitted scale fills the frame with the crop region (clamped to 1 to 2.5); `zoom: 1` on a crop shows the whole window. | 1 |
+| `crop` | desktop | Where the camera crops to: `{ selector: '[data-testid="x"]' }` (or a list; resolved against the live page once the beat's actions have settled, the union of their boxes) or a box `{ x, y, w, h }` in [0,1] window coordinates. See [Sizing a crop](#sizing-a-crop). | the walk's own region |
+| `zoom` | desktop | A multiplier from 1 to 3 on the crop's fitted scale, for a region so small that the fitted scale clamps at 2.5. On any other crop it frames less than the region asked for, so leave it out. | 1 |
 | `highlight` | terminal, artifact, desktop | What to draw attention to, hand-drawn by frame: `text: "CRITICAL"` (or a list; terminal lines containing it are marked as they appear; a bare string is this form), `selector: '[data-x]'` (desktop; resolved at record time into a box), or `box: { x, y, w, h }` (desktop and artifact). | none |
 | `through` | terminal, shell demos | The 1-based index of the last `script` step (command or comment) revealed by the end of the scene. Scenes that leave it unset reveal an even share between the anchors around them. | uniform reveal |
 
@@ -330,7 +330,6 @@ One desktop beat, fully specified:
     caption: One finding, anchored on the run that raised it.
     hold: 9
     crop: { selector: '[data-slot="review-checks"]' }
-    zoom: 1.2
     highlight: { selector: '[data-slot="review-finding"]' }
     text: >-
       The checks layer shows the one finding the run raised, ...
@@ -353,6 +352,38 @@ A selector crop or highlight is resolved by the recorder and lands in
 `beats.json` is regenerated from `demo.yaml` on every render, so a change to any
 of these fields needs no new narration. Changing a scene's `text` or its id does:
 the render warns when `demo.yaml` and `narration.json` name different scenes.
+
+### Sizing a crop
+
+The composition fits a crop region into the area between the chapter line and
+the captions, which is wider than it is tall, and shows the whole window for
+anything that does not fit at 1.15x. Height is therefore what binds:
+
+| Target | A region crops when it is no taller than | and no wider than |
+|---|---|---|
+| `bowrain-web-*` (browser bar above the capture) | 0.71 of the window | 1.21 |
+| every other desktop demo | 0.67 | 1.14 |
+
+Two rules follow, and between them they cover every way a crop goes wrong:
+
+- **Name the consequence, not the pane it sits in.** The row, the card, the
+  chip, the dialog. An element whose classes size it to its parent (`h-full`,
+  `flex-1`, `min-h-0`) is the window, so a crop over it does nothing;
+  `scripts/check-walk-selectors.sh` fails on one. Where the app has no tight
+  handle, add a `data-slot` to the component rather than writing a CSS path.
+- **Leave `zoom` out.** The fitted scale already fills the frame with the
+  region, so a multiplier above 1 shows *less* than the region the beat named
+  and cuts its ends off the frame. It earns its place only on a region small
+  enough that the fitted scale clamps at 2.5.
+
+A region as wide as the window is the other half of the same problem: the
+camera centres on it, and on a full-width row the centre is the empty middle.
+Crop to the part that carries the wording, with a box where no single element
+bounds it.
+
+The recorder prints what the composition will do with every crop it resolves,
+so an inert crop, a selector that matched nothing, and a zoom that cuts are all
+visible in the record log rather than in the finished video.
 
 ## Captions
 
@@ -395,8 +426,8 @@ vpx remotion still src/remotion/index.ts <id> --frame=<n> --scale=0.42 --props='
 ```
 
 Desktop apps are recorded at the frame size (1920x1080), so a full-window beat
-shows the app at 1:1 and a region beat crops into it (1.6 to 2.5x) instead of
-up-scaling a smaller capture. The picture never plays slower than 0.8x: when
+shows the app at 1:1 and a region beat crops into it (up to 2.5x, or 3x with a
+`zoom`) instead of up-scaling a smaller capture. The picture never plays slower than 0.8x: when
 the narration outruns the beat, the beat plays at 1x and its last frame holds.
 
 ## Recording Bowrain Desktop (`target: bowrain-desktop`)

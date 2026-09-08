@@ -96,6 +96,7 @@ export function ConstraintsPanel({ concept, source, capabilities }: ConceptSecti
 
   return (
     <ConceptSection
+      slot="concept-constraints"
       title="Constraints"
       icon={<CalendarClock />}
       description="Validity windows and where a term is banned or preferred."

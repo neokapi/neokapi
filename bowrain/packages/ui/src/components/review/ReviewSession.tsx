@@ -720,7 +720,10 @@ export function ReviewSession({
   return (
     <div className="flex min-h-0 flex-1 flex-col" data-testid="review-session">
       {/* Header: title, live counts, filters, bulk approve */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-2.5">
+      <div
+        className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-2.5"
+        data-slot="review-session-header"
+      >
         {onBack && (
           <button
             onClick={onBack}

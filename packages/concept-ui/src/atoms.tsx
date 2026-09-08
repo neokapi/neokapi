@@ -70,6 +70,7 @@ export function ConceptSection({
   actions,
   children,
   className,
+  slot,
 }: {
   title: ReactNode;
   icon?: ReactNode;
@@ -77,9 +78,14 @@ export function ConceptSection({
   actions?: ReactNode;
   children: ReactNode;
   className?: string;
+  /** A stable handle for the card, so a walkthrough can frame this section alone. */
+  slot?: string;
 }) {
   return (
-    <section className={cn("rounded-xl border bg-card text-card-foreground shadow-sm", className)}>
+    <section
+      className={cn("rounded-xl border bg-card text-card-foreground shadow-sm", className)}
+      data-slot={slot}
+    >
       <header className="flex items-start gap-3 border-b px-4 py-3">
         {icon && <div className="mt-0.5 text-muted-foreground [&_svg]:size-4">{icon}</div>}
         <div className="min-w-0 flex-1">
