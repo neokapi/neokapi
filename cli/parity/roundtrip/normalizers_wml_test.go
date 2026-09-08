@@ -43,6 +43,63 @@ func TestXMLCanonicalStripsWMLSkippableElements(t *testing.T) {
 	assert.NotContains(t, string(gotNative), "pPr")
 }
 
+// What a replayed paragraph keeps and okapi drops: Word's _GoBack bookmark
+// with its end, a proofing mark, an empty run, an empty sdtEndPr, and the
+// complex-script toggles of a run with no complex-script text.
+func TestXMLCanonicalStripsWhatOkapiOmitsFromAReplayedParagraph(t *testing.T) {
+	n := roundtrip.XMLCanonical{SortAttrs: true, StripWMLSkippableElements: true}
+
+	native := `<w:body xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">` +
+		`<w:p><w:proofErr w:type="spellStart"/><w:r><w:rPr><w:b/><w:bCs/><w:iCs/></w:rPr><w:t>Latin</w:t></w:r>` +
+		`<w:r><w:rPr><w:b/><w:bCs/></w:rPr><w:t>עברית</w:t></w:r>` +
+		`<w:r><w:rPr><w:i/></w:rPr></w:r><w:r><w:lastRenderedPageBreak/></w:r></w:p>` +
+		`<w:p><w:bookmarkStart w:id="0" w:name="_GoBack"/><w:bookmarkStart w:id="1" w:name="kept"/><w:bookmarkEnd w:id="1"/></w:p>` +
+		`<w:p><w:bookmarkEnd w:id="0"/></w:p>` +
+		`<w:sdt><w:sdtPr><w:id w:val="1"/></w:sdtPr><w:sdtEndPr/><w:sdtContent><w:p/></w:sdtContent></w:sdt>` +
+		`</w:body>`
+	okapi := `<w:body xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">` +
+		`<w:p><w:r><w:rPr><w:b/></w:rPr><w:t>Latin</w:t></w:r>` +
+		`<w:r><w:rPr><w:b/><w:bCs/></w:rPr><w:t>עברית</w:t></w:r></w:p>` +
+		`<w:p><w:bookmarkStart w:id="1" w:name="kept"/><w:bookmarkEnd w:id="1"/></w:p>` +
+		`<w:p/>` +
+		`<w:sdt><w:sdtPr><w:id w:val="1"/></w:sdtPr><w:sdtContent><w:p/></w:sdtContent></w:sdt>` +
+		`</w:body>`
+
+	gotNative, err := n.Normalize([]byte(native))
+	require.NoError(t, err)
+	gotOkapi, err := n.Normalize([]byte(okapi))
+	require.NoError(t, err)
+	assert.Equal(t, string(gotOkapi), string(gotNative))
+}
+
+// Adjacent runs with equal properties merge on both sides, and so do the
+// text elements inside the merged run, which is the shape okapi's RunMerger
+// writes.
+func TestXMLCanonicalMergesAdjacentWMLRuns(t *testing.T) {
+	n := roundtrip.XMLCanonical{SortAttrs: true, StripXMLSpacePreserve: true, MergeAdjacentWMLRuns: true}
+	split := `<w:p xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">` +
+		`<w:r><w:rPr><w:b/></w:rPr><w:t>Bo</w:t></w:r><w:r><w:rPr><w:b/></w:rPr><w:t xml:space="preserve">ld </w:t></w:r>` +
+		`<w:r><w:t>plain</w:t></w:r><w:r><w:tab/></w:r><w:r><w:t>after</w:t></w:r>` +
+		`<w:r><w:rPr><w:i/></w:rPr><w:t>it</w:t></w:r></w:p>`
+	merged := `<w:p xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">` +
+		`<w:r><w:rPr><w:b/></w:rPr><w:t>Bold </w:t></w:r>` +
+		`<w:r><w:t>plain</w:t><w:tab/><w:t>after</w:t></w:r>` +
+		`<w:r><w:rPr><w:i/></w:rPr><w:t>it</w:t></w:r></w:p>`
+	gotSplit, err := n.Normalize([]byte(split))
+	require.NoError(t, err)
+	gotMerged, err := n.Normalize([]byte(merged))
+	require.NoError(t, err)
+	assert.Equal(t, string(gotMerged), string(gotSplit))
+	assert.Equal(t, "xml-canonical(sort-attrs,strip-xml-space-preserve,merge-wml-runs)", n.Name())
+}
+
+// A byte order mark goes with the declaration it precedes.
+func TestStripXMLDeclarationDropsAByteOrderMark(t *testing.T) {
+	got, err := roundtrip.StripXMLDeclaration{}.Normalize([]byte("\xef\xbb\xbf<?xml version=\"1.0\"?>\n<a/>"))
+	require.NoError(t, err)
+	assert.Equal(t, "<a/>", string(got))
+}
+
 // A container the source wrote empty is dropped on both sides too: okapi omits
 // it, and native keeps it, so the comparison must not see it either way.
 func TestXMLCanonicalStripsEmptyWMLPropertyContainers(t *testing.T) {

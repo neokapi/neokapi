@@ -958,6 +958,12 @@ mergeCaptions.b=false
 						StripRevisionIDs:          true,
 						StripXMLSpacePreserve:     true,
 						StripWMLSkippableElements: true,
+						// Native replays a paragraph's runs as the
+						// source split them; okapi's RunMerger fuses
+						// adjacent runs with equal properties and
+						// writes one text element per run. Merging both
+						// sides cancels it.
+						MergeAdjacentWMLRuns: true,
 						// OpenXMLEffectiveRPr re-encodes the WML content
 						// parts through encoding/xml, which relocates the
 						// source's namespace declarations (and synthesises
