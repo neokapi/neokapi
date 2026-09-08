@@ -14,14 +14,15 @@ captureTimeoutSec: 360
 # in os.tmpdir(), outside the repo.
 project: true
 
-# One prompt asks for both legs. A headless `claude -p` session gets no second
-# turn, so a prompt that ends on the plan ends the take there: the plan is
-# presented, the session waits for a go-ahead nobody can give, and the artifact
-# stage finds no catalogs.
+# One prompt asks for both legs and carries the go-ahead. A headless `claude -p`
+# session gets no second turn, so a request that reads as a checkpoint ends the
+# take on "Shall I proceed?": the plan is presented, nobody answers, and the
+# artifact stage finds no catalogs to spotlight.
 prompt: >
   We're launching our notes app in more markets. The recipe already lists German,
-  Spanish, French and Japanese. Show me the plan before you spend anything, then
+  Spanish, French and Japanese. Show me what the run will cost before it runs, then
   bring the project up to date so each language has a catalog beside src/en.json.
+  Take this message as the go-ahead.
 
 artifacts:
   - id: ja

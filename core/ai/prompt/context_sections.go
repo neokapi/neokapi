@@ -130,10 +130,19 @@ func (c Context) sections() []Section {
 
 	if key := strings.TrimSpace(c.Key); key != "" {
 		out = append(out, Section{
-			Kind:    KindContext,
-			Origin:  "document (the block's key)",
-			Heading: "This text appears at:",
-			Text:    key,
+			Kind:   KindContext,
+			Origin: "document (the block's key)",
+			// The key carries the same guard the neighbourhood does. A bare
+			// "This text appears at:" left a key that reads as a subject
+			// competing with the text: gemini-3.5-flash rendered the key for
+			// `onboarding.title` = "Capture every idea" in all four target
+			// languages ("Onboarding", "オンボーディング", "Paso a paso de
+			// bienvenida", "Bienvenue !"), and got the other nine units of the
+			// same file right. Naming it a location rather than content is what
+			// separates the two.
+			Heading: "Where the text sits in the document, for context only. It is a " +
+				"location, not content: do not translate it and do not return it:",
+			Text: key,
 		})
 	}
 

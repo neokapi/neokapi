@@ -34,6 +34,29 @@ func TestKeyReachesThePromptAndIsAttributed(t *testing.T) {
 		"context must be attributed, so --explain-prompts can say where it came from")
 }
 
+// A key is a location, and the prompt has to say so. Told only where the text
+// appears, gemini-3.5-flash translated `onboarding.title` rather than the
+// "Capture every idea" beneath it, in German, Spanish, French and Japanese
+// alike, while the nine other units of the same file came back right.
+func TestKeyIsMarkedDoNotTranslate(t *testing.T) {
+	t.Parallel()
+
+	turns := ctxBasic().SingleWithContext("Capture every idea", false, Context{Key: "onboarding.title"})
+	system := turns[0].Text
+
+	assert.Contains(t, system, "onboarding.title", "the key must still be sent")
+	keySection := ""
+	for _, sec := range turns[0].Sections {
+		if sec.Origin == "document (the block's key)" {
+			keySection = sec.Heading
+		}
+	}
+	require.NotEmpty(t, keySection, "the key travels as its own attributed section")
+	assert.Contains(t, keySection, "do not translate it")
+	assert.Contains(t, keySection, "do not return it")
+	assert.Equal(t, "Capture every idea", turns[1].Text, "the user turn is the text, and nothing else")
+}
+
 // Neighbours are reference material, not work. The prompt has to say so, or the
 // model returns translations of them.
 func TestNeighboursAreMarkedDoNotTranslate(t *testing.T) {
