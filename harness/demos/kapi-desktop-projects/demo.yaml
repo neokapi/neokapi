@@ -37,12 +37,12 @@ narration:
   - id: add-language
     kind: desktop
     beat: add-language
-    caption: One language added, and the ladder appears.
+    caption: One language picked, and saved into the recipe.
     zoom: 1.4
     text: >-
       Project Settings is where the source language and the languages you
-      translate into are declared. Adding French writes one line into the
-      recipe, and the home gains a ladder for it.
+      translate into are declared. Picking French adds it, and saving writes one
+      line into the recipe beside your files.
 
   - id: add-collection
     kind: desktop
