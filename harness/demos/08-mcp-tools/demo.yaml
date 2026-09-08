@@ -1,6 +1,6 @@
 id: 08-mcp-tools
-title: Reach kapi over MCP
-subtitle: The same engine, exposed to the assistant as Model Context Protocol tools, including the review queue.
+title: An assistant with no shell
+subtitle: kapi as Model Context Protocol tools, down to a recorded approval.
 kind: integration
 aspects:
   - MCP integration
@@ -15,6 +15,9 @@ captureTimeoutSec: 300
 # catalog, so the project-scoped tools (review_queue, review_unit, approve_unit)
 # have a real queue to work. The sandbox lives in os.tmpdir(), outside the repo.
 project: true
+outro:
+  line: Add kapi to your assistant's MCP config.
+  pointer: /reference/mcp
 
 prompt: >
   Using kapi, take a look at content.json for me: what format is it, and how much
@@ -43,52 +46,55 @@ artifacts:
 narration:
   - id: title
     kind: title
-    text: >
-      There are two ways to give an assistant kapi's abilities. One is the skill. The other
-      is the Model Context Protocol: kapi runs as a server and exposes its work as tools.
-  - id: prompt
-    kind: prompt
-    text: >
-      The request is an ordinary one. What is this file, how big is it, and what still needs
-      a person. In this session the shell is switched off, so the only way to reach kapi is
-      its tools.
+    text: >-
+      An assistant can reach kapi without a shell, as Model Context Protocol
+      tools with typed results. Here it sizes a file, reads the French review
+      queue, and records an approval under its own name.
+
   - id: tools
     kind: terminal
-    text: >
-      Each step is a typed tool call with a structured result, not text scraped from a
-      console. Claude asks kapi to detect the format and to size the content, and gets back
-      the same JSON the command line prints. The default surface is small on purpose: the
-      tools an assistant needs, rather than every verb kapi has.
-    caption: "Typed MCP tool calls into kapi, each returning structured data"
-  - id: review
-    kind: terminal
-    text: >
-      Then the review queue. One call lists every unit waiting for a person, filtered to
-      French, with a count per language beside it. A second call opens one unit and returns
-      what the decision is made in: the point governing the file, the voice in force there,
-      the blocks either side of it, the prior approved version, and the findings.
-    caption: "review_queue lists the work; review_unit returns the context around one unit"
-  - id: approve
-    kind: terminal
-    text: >
-      Approving is its own call, and it records the decision in the project store against
-      the current translation. The record carries who made it, so a decision by an assistant
-      is marked as one, and the same queue in Kapi Desktop is one unit shorter.
-    caption: "approve_unit records the decision, with the agent's identity on it"
+    caption: Typed calls, structured results, no console to scrape.
+    text: >-
+      The shell is switched off in this session, so every step is a tool call
+      with a structured result rather than text scraped from a console.
+
   - id: wordcount
     kind: artifact
     artifact: wordcount
-    text: >
-      The figures came straight from the engine: the detected format, and the translatable
-      word and segment counts for the file. No guesswork.
+    caption: The engine's own figure, not an estimate.
+    text: >-
+      The first two calls detect the format and size the content, and these are
+      the figures the engine itself keeps: translatable words and segments, for
+      this file, in this format.
+
+  - id: review
+    kind: terminal
+    caption: One unit, and everything a decision is made in.
+    text: >-
+      Then the review queue, filtered to French. A second call opens one unit
+      and returns what the decision is made in: the point governing the file,
+      the voice in force there, the neighbouring blocks, and the version
+      approved last time.
+
+  - id: approve
+    kind: terminal
+    caption: The decision is recorded with the agent's name on it.
+    text: >-
+      Approving is its own call. It writes the decision into the project store
+      against the exact text it judged, and the record carries who made it, so
+      an approval by an assistant is marked as one.
+
   - id: queue
     kind: artifact
     artifact: queue
-    text: >
-      And the queue itself, in the shape the assistant read. Every row addresses a unit by
-      file, key and locale, which is exactly what the approve call takes back.
+    caption: The same queue, one unit shorter.
+    text: >-
+      And the queue afterwards, one unit shorter. Every row addresses a unit by
+      file, key and locale, which is what a person opening Kapi Desktop sees
+      next.
+
   - id: outro
     kind: outro
-    text: >
-      Skill or MCP, the assistant calls a real content engine, locally, and reaches the same
-      review record a person does.
+    text: >-
+      Point your assistant's configuration at the kapi server, and it reaches
+      the same review record a person does.
