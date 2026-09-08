@@ -35,9 +35,9 @@ narration:
     caption: One word typed, and the list narrows to it.
     zoom: 1.3
     text: >-
-      Terms is the first of the project's two stores, and it opens on the
-      concepts this project has agreed. Typing narrows the list as you go, so
-      finding what the company calls something is a word and a moment.
+      These are the concepts this project has agreed, in the first of its two
+      stores. Typing narrows the list as you go rather than on a keystroke, so
+      finding what the company calls something takes a word and a moment.
 
   - id: concept
     kind: desktop
