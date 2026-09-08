@@ -85,7 +85,19 @@ export const ASSETS_DIR = path.join(HARNESS_ROOT, "assets");
 export const SANDBOX_DIR = path.join(os.tmpdir(), "kapi-harness-sandbox");
 
 export const KAPI_BIN = path.join(REPO_ROOT, "bin", "kapi");
-export const PLUGIN_DIR = path.join(REPO_ROOT, "packages", "kapi-claude-plugin");
+
+/** The marketplace `make plugin-bundle` assembles: `.claude-plugin/marketplace.json` + `plugins/`. */
+export const PLUGIN_MARKETPLACE_DIR = path.join(REPO_ROOT, "packages", "kapi-claude-plugin");
+
+/**
+ * The kapi plugin itself, which is what `claude --plugin-dir` takes: a directory
+ * holding `.claude-plugin/plugin.json` and the `skills/` beside it. Given the
+ * marketplace root instead, claude loads a plugin named for that directory, finds
+ * no `skills/` at that level and offers the session no kapi skill at all — the
+ * capture then shows the assistant translating by hand, which is the opposite of
+ * what every demo here exists to show.
+ */
+export const PLUGIN_DIR = path.join(PLUGIN_MARKETPLACE_DIR, "plugins", "kapi");
 
 /**
  * Isolated kapi state so demos don't depend on this machine's installed plugins,

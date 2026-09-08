@@ -510,6 +510,14 @@ async function startBowrainStack(): Promise<{ url: string; teardown: () => Promi
     env: goEnv(),
   });
   await assertPortFree(BW_WBRIDGE_PORT, "bowrain wbridge");
+  // Keep the backend's own log. The offline walk turns on what the reconnect
+  // loop and the outbox replay do, and with the backend's stdio discarded a
+  // walk that timed out waiting for the queue to drain said only that the
+  // indicator was still on screen.
+  // Outside BW_ISO, which the next take wipes before it starts: the log of the
+  // run that failed is the one worth reading.
+  const bridgeLog = path.join(os.tmpdir(), "bowrain-wbridge-rec.log");
+  const bridgeLogFd = fs.openSync(bridgeLog, "a");
   const bridge = spawn(bridgeBin, [], {
     env: goEnv({
       BOWRAIN_DESKTOP_CONFIG_DIR: BW_ISO,
@@ -518,8 +526,9 @@ async function startBowrainStack(): Promise<{ url: string; teardown: () => Promi
       WBRIDGE_PORT: String(BW_WBRIDGE_PORT),
       KAPI_PLUGIN_DIR: path.join(BW_ISO, "plugins"),
     }),
-    stdio: "ignore",
+    stdio: ["ignore", bridgeLogFd, bridgeLogFd],
   });
+  console.log(`  · bowrain desktop backend log: ${bridgeLog}`);
   await waitPort(BW_WBRIDGE_PORT, 60_000);
 
   // Prime the server connection: the first GetConnectionState triggers the
@@ -1905,7 +1914,8 @@ async function bowrainDesktopAutomationsWalk(c: WalkCtx): Promise<void> {
     await page.waitForTimeout(1200);
     await cursorTo('[data-testid="run-now-btn"]');
     await humanClick(page, page.getByTestId("run-now-btn"));
-    await page.waitForSelector('[role="dialog"]', { timeout: 20_000 });
+    const dialog = page.locator('[role="dialog"]');
+    await dialog.waitFor({ timeout: 20_000 });
     await page.waitForTimeout(1600);
     await startWidestScope(page);
     await page.waitForSelector('[data-testid="run-row"]', { timeout: 30_000 });
