@@ -381,6 +381,10 @@ func blockQueryFromRequest(c echo.Context, pid string) (store.BlockQuery, error)
 		ItemName:     fileParam(c),
 		TargetLocale: c.QueryParam("locale"),
 		Text:         strings.TrimSpace(c.QueryParam("q")),
+		// The workbench lists a file for someone reading it, so it reads in
+		// the order the file is read in rather than the order its rows were
+		// stored. See store.BlockOrderDocument.
+		Order: store.BlockOrderDocument,
 	}
 	if raw := c.QueryParam("status"); raw != "" && raw != "all" {
 		if !slices.Contains(store.BlockStatusBuckets(), raw) {

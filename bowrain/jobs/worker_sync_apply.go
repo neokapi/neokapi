@@ -282,6 +282,17 @@ func applyStagedPush(
 		return nil, err
 	}
 
+	// Document order, from the same declaration, for the same reason: a push
+	// carries only the blocks that changed, so its chunks say nothing about
+	// where those blocks sit among the ones that did not. The declared tree
+	// lists every block the producer read, in the order it read them, which is
+	// what a reader means by the order of a file. Every declared item is
+	// restated, including one this push stored nothing for, so a paragraph
+	// moved with no edit still lands.
+	if err := recordDeclaredOrder(ctx, tx, projectID, stream, declared); err != nil {
+		return nil, err
+	}
+
 	// And then the items the declaration does not mention at all. Last, so an
 	// item this push emptied is removed for what the declaration says rather
 	// than for the order two statements ran in.
@@ -350,6 +361,34 @@ type pushOutcome struct {
 
 // stagedItemRow is the item row a group writes, with its collection binding
 // resolved against this transition's own writes.
+// recordDeclaredOrder writes each declared item's document order, in path
+// order so two applies over one tree write the same statements.
+func recordDeclaredOrder(
+	ctx context.Context,
+	tx store.PushApplier,
+	projectID, stream string,
+	declared venue.Tree,
+) error {
+	if len(declared) == 0 {
+		return nil
+	}
+	paths := make([]string, 0, len(declared))
+	for path := range declared {
+		paths = append(paths, path)
+	}
+	sort.Strings(paths)
+	for _, path := range paths {
+		keys := declared[path].Keys
+		if len(keys) == 0 {
+			continue
+		}
+		if err := tx.SetBlockOrder(ctx, projectID, stream, path, keys); err != nil {
+			return fmt.Errorf("record the order of %s: %w", path, err)
+		}
+	}
+	return nil
+}
+
 func stagedItemRow(ctx context.Context, tx store.PushApplier, projectID, stream string, g stagedGroup) *store.Item {
 	item := &store.Item{
 		Name:     g.ItemName,

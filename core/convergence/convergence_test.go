@@ -146,3 +146,36 @@ func TestSortReviewQueue_SourceFirstThenLanguageFileKey(t *testing.T) {
 		{"en", "a"}, {"en", "b"}, {"fr", "a"}, {"nb", "z"}, {"nb", "k"},
 	}, got)
 }
+
+// A queue lists a file the way a reader reads it. A key is what a format calls
+// a unit, so sorting by it put a page's heading wherever its name happened to
+// fall: "About Acme Inc." landed thirteenth in a file of fourteen.
+func TestSortReviewQueue_ReadsAFileInDocumentOrder(t *testing.T) {
+	items := []convergence.ReviewQueueItem{
+		{Language: "nb", File: "about.html", Key: "p-mission", Position: 2},
+		{Language: "nb", File: "about.html", Key: "h1-title", Position: 1},
+		{Language: "nb", File: "about.html", Key: "p-history", Position: 3},
+	}
+	convergence.SortReviewQueue(items)
+	keys := make([]string, 0, len(items))
+	for _, it := range items {
+		keys = append(keys, it.Key)
+	}
+	assert.Equal(t, []string{"h1-title", "p-mission", "p-history"}, keys)
+}
+
+// A surface that knows no position leaves it at 0, and those rows keep the key
+// order they had rather than being shuffled among the placed ones.
+func TestSortReviewQueue_UnplacedRowsKeepKeyOrder(t *testing.T) {
+	items := []convergence.ReviewQueueItem{
+		{Language: "nb", File: "a.json", Key: "z"},
+		{Language: "nb", File: "a.json", Key: "a"},
+		{Language: "nb", File: "a.json", Key: "m"},
+	}
+	convergence.SortReviewQueue(items)
+	keys := make([]string, 0, len(items))
+	for _, it := range items {
+		keys = append(keys, it.Key)
+	}
+	assert.Equal(t, []string{"a", "m", "z"}, keys)
+}

@@ -74,6 +74,10 @@ func (a pushApply) StoreBlocksForItem(ctx context.Context, projectID, stream, it
 	return storeBlocksTx(ctx, a.tx, projectID, stream, itemName, blocks)
 }
 
+func (a pushApply) SetBlockOrder(ctx context.Context, projectID, stream, itemName string, keys []string) error {
+	return setBlockOrderTx(ctx, a.tx, projectID, stream, itemName, keys)
+}
+
 func (a pushApply) PruneItemBlocks(ctx context.Context, projectID, stream, itemName string, keep []string) (int, error) {
 	return pruneItemBlocksTx(ctx, a.tx, projectID, stream, itemName, keep)
 }

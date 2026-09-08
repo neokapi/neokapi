@@ -112,6 +112,9 @@ type SourceQueueItem struct {
 	// Approved reports a committed human approval that still blesses this exact
 	// wording.
 	Approved bool `json:"approved"`
+	// Position is the unit's index in its file, counted from 1, so a queue
+	// lists a file the way a reader reads it.
+	Position int `json:"position,omitempty"`
 }
 
 // computeSourceQueue lists the source units awaiting authoring attention: every
@@ -150,7 +153,7 @@ func (a *App) computeSourceQueue(ctx context.Context, proj *project.KapiProject,
 		scope := docs.Scope(root, u.SourcePath)
 		display := relativeToRoot(root, u.SourcePath)
 
-		for _, b := range blocks {
+		for i, b := range blocks {
 			if !b.Translatable || !model.RunsHaveContent(b.SourceRuns()) {
 				continue
 			}
@@ -177,12 +180,16 @@ func (a *App) computeSourceQueue(ctx context.Context, proj *project.KapiProject,
 				Status:       string(b.SourceStatus),
 				Held:         held,
 				Approved:     b.SourceStatus == model.SourceStatusApproved,
+				Position:     i + 1,
 			})
 		}
 	}
 	sort.Slice(items, func(i, j int) bool {
 		if items[i].File != items[j].File {
 			return items[i].File < items[j].File
+		}
+		if items[i].Position != items[j].Position {
+			return items[i].Position < items[j].Position
 		}
 		return items[i].Key < items[j].Key
 	})

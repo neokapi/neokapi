@@ -725,6 +725,97 @@ func pruneItemBlocksTx(ctx context.Context, tx Runner, projectID, stream, itemNa
 	return len(stale), nil
 }
 
+// SetBlockOrder records an item's document order. See store.BlockStore.
+func (s *PostgresStore) SetBlockOrder(ctx context.Context, projectID, stream, itemName string, keys []string) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	if err := setBlockOrderTx(ctx, tx, projectID, stream, itemName, keys); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit block order for item %q: %w", itemName, err)
+	}
+	return nil
+}
+
+// setBlockOrderTx is the work, on whatever executor the caller brings — its own
+// transaction, or the one a whole push is landing in.
+//
+// Rows are diffed in Go and only the ones whose position moved are written, so
+// a push that changed one paragraph writes one row rather than the file. The
+// per-row update matches how storeBlocksTx writes the blocks themselves.
+func setBlockOrderTx(ctx context.Context, tx Runner, projectID, stream, itemName string, keys []string) error {
+	if itemName == "" || len(keys) == 0 {
+		return nil
+	}
+	stream = storeutil.DefaultStream(stream)
+
+	// Position counted from 1, because 0 is what an unplaced row carries.
+	position := make(map[string]int, len(keys))
+	for i, key := range keys {
+		if key == "" {
+			continue
+		}
+		if _, seen := position[key]; !seen {
+			position[key] = i + 1
+		}
+	}
+
+	rows, err := tx.QueryContext(ctx,
+		`SELECT id, source_id, position FROM blocks WHERE project_id=$1 AND stream=$2 AND item_name=$3`,
+		projectID, stream, itemName)
+	if err != nil {
+		return fmt.Errorf("load item blocks for ordering: %w", err)
+	}
+	type move struct {
+		id  string
+		pos int
+	}
+	var moves []move
+	for rows.Next() {
+		var id, srcID string
+		var have int
+		if err := rows.Scan(&id, &srcID, &have); err != nil {
+			rows.Close()
+			return fmt.Errorf("scan item block for ordering: %w", err)
+		}
+		// The producer's key for this row: what it last sent, falling back to
+		// the row id for a legacy row stored before source ids were recorded.
+		key := srcID
+		if key == "" {
+			key = id
+		}
+		want, declared := position[key]
+		if declared && want != have {
+			moves = append(moves, move{id: id, pos: want})
+		}
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("item block rows for ordering: %w", err)
+	}
+	if len(moves) == 0 {
+		return nil
+	}
+
+	stmt, err := tx.PrepareContext(ctx,
+		`UPDATE blocks SET position=$1 WHERE project_id=$2 AND stream=$3 AND id=$4`)
+	if err != nil {
+		return fmt.Errorf("prepare block ordering: %w", err)
+	}
+	defer stmt.Close()
+	for _, m := range moves {
+		if _, err := stmt.ExecContext(ctx, m.pos, projectID, stream, m.id); err != nil {
+			return fmt.Errorf("set position of block %s: %w", m.id, err)
+		}
+	}
+	return nil
+}
+
 func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, itemName string, blocks []*model.Block) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -1222,6 +1313,11 @@ func blockScope(q platstore.BlockQuery) string {
 	}
 }
 
+// blockListOrder is how a listing reads a file: the order its blocks are read
+// in, which is what `position` records. Position 0 is a row nothing has placed,
+// and the id tiebreak leaves those exactly where they were.
+const blockListOrder = "b.item_name, b.position, b.id"
+
 func (s *PostgresStore) GetBlocks(ctx context.Context, query platstore.BlockQuery) ([]*venue.StoredBlock, error) {
 	defer observe.StartSpan(ctx, "db.query", "store.GetBlocks "+blockScope(query))()
 
@@ -1231,10 +1327,15 @@ func (s *PostgresStore) GetBlocks(ctx context.Context, query platstore.BlockQuer
 	// every value binds through args. Limit and offset are ints, formatted.
 	const skeleton = `SELECT b.id, b.project_id, b.item_name, b.source_id, b.name, b.type, b.mime_type, b.translatable,
 			b.content_hash, b.context_hash, b.source_json, b.properties, b.overlays, b.stored_at, b.updated_at
-		 FROM blocks b %s WHERE %s ORDER BY b.id%s%s`
-	order := ""
+		 FROM blocks b %s WHERE %s ORDER BY %s%s`
+	// A keyset page is walked by id, so it stays ordered by id whatever the
+	// caller asked for. See BlockQuery.Order.
+	order := "b.id"
+	if query.Order == platstore.BlockOrderDocument && query.AfterID == "" && query.BeforeID == "" {
+		order = blockListOrder
+	}
 	if query.BeforeID != "" {
-		order = " DESC"
+		order += " DESC"
 	}
 	page := ""
 	if query.Limit > 0 {
@@ -1258,7 +1359,7 @@ func (s *PostgresStore) GetBlocks(ctx context.Context, query platstore.BlockQuer
 		}
 		result = append(result, sb)
 	}
-	if order != "" {
+	if query.BeforeID != "" {
 		slices.Reverse(result)
 	}
 	if err := rows.Err(); err != nil {
@@ -1350,7 +1451,7 @@ func (s *PostgresStore) ListPendingReview(ctx context.Context, q platstore.Pendi
 		return nil, 0, fmt.Errorf("count pending review: %w", err)
 	}
 
-	query := fmt.Sprintf(skeleton+` ORDER BY b.item_name, b.id, t.locale LIMIT $%d OFFSET $%d`,
+	query := fmt.Sprintf(skeleton+` ORDER BY `+blockListOrder+`, t.locale LIMIT $%d OFFSET $%d`,
 		"b.id, b.item_name, t.locale, COALESCE(i.collection_id, '')", scope, next, next+1)
 	rows, err := s.db.DB.QueryContext(ctx, query, append(args, limit, q.Offset)...)
 	if err != nil {

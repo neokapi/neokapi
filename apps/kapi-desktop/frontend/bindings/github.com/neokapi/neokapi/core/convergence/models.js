@@ -773,6 +773,18 @@ export class ReviewQueueItem {
         }
         if (/** @type {any} */(false)) {
             /**
+             * Position is the unit's index in its file, counted from 1, so a queue
+             * lists a file the way a reader reads it. A key is what a format calls a
+             * unit, and sorting by it puts a page's heading wherever its name happens
+             * to fall. 0 means the surface producing the row knows no position, and the
+             * key then orders those rows among themselves.
+             * @member
+             * @type {number | undefined}
+             */
+            this["position"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * SourceLocale is the project's source language, so a review surface can
              * render the source preview in its own writing direction.
              * @member

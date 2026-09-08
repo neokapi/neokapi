@@ -157,6 +157,12 @@ type ReviewQueueItem struct {
 	// mentions. Both halves have to reach a surface for it to scope a queue the
 	// way it scopes everything else.
 	Relative string `json:"relative,omitempty"`
+	// Position is the unit's index in its file, counted from 1, so a queue
+	// lists a file the way a reader reads it. A key is what a format calls a
+	// unit, and sorting by it puts a page's heading wherever its name happens
+	// to fall. 0 means the surface producing the row knows no position, and the
+	// key then orders those rows among themselves.
+	Position int `json:"position,omitempty"`
 	// SourceLocale is the project's source language, so a review surface can
 	// render the source preview in its own writing direction.
 	SourceLocale string `json:"sourceLocale,omitempty"`
@@ -284,6 +290,9 @@ func SortReviewQueue(items []ReviewQueueItem) {
 		}
 		if a.File != b.File {
 			return a.File < b.File
+		}
+		if a.Position != b.Position {
+			return a.Position < b.Position
 		}
 		return a.Key < b.Key
 	})

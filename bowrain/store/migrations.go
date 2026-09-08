@@ -1417,4 +1417,25 @@ var Migrations = []storage.Migration{
 			ALTER TABLE automation_steps ADD COLUMN IF NOT EXISTS rule_id TEXT NOT NULL DEFAULT '';
 		`,
 	},
+	{
+		Version:     33,
+		Description: "a block records its position in its item's document order",
+		SQL: `
+			-- A block's index in the sequence its item reads to, counted from
+			-- 1 and written from the tree a push declares (core/venue.TreeItem
+			-- Keys, which are in document order). Block ids are minted on push,
+			-- so ordering a listing by id put a file's blocks in the order they
+			-- happened to be stored: the heading of a section could sit below
+			-- the paragraphs under it.
+			--
+			-- 0 means unplaced: a row written before the column existed, or one
+			-- stored by a path that carries no item order (the editor saving a
+			-- single block). A listing orders by position and breaks ties on
+			-- id, so an unplaced row keeps exactly the order it had. Additive,
+			-- with no rewrite of existing rows.
+			ALTER TABLE blocks ADD COLUMN IF NOT EXISTS position INTEGER NOT NULL DEFAULT 0;
+			CREATE INDEX IF NOT EXISTS idx_blocks_item_position
+				ON blocks(project_id, stream, item_name, position);
+		`,
+	},
 }

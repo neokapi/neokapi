@@ -105,7 +105,7 @@ func (a *App) computeReviewQueue(ctx context.Context, proj *project.KapiProject,
 		}
 		loc := model.LocaleID(u.Locale)
 		scope := docs.Scope(root, u.SourcePath)
-		for _, b := range blocks {
+		for i, b := range blocks {
 			if !b.Translatable {
 				continue
 			}
@@ -130,6 +130,7 @@ func (a *App) computeReviewQueue(ctx context.Context, proj *project.KapiProject,
 				SourceLocale: string(proj.Defaults.SourceLanguage),
 				Source:       preview(b.SourceText()),
 				Target:       preview(b.TargetText(loc)),
+				Position:     i + 1,
 			}
 			// Surface a fresh AI pre-review annotation (score + model) so the
 			// queue can show it — read from the state store, never a provider
@@ -148,6 +149,9 @@ func (a *App) computeReviewQueue(ctx context.Context, proj *project.KapiProject,
 		}
 		if items[i].File != items[j].File {
 			return items[i].File < items[j].File
+		}
+		if items[i].Position != items[j].Position {
+			return items[i].Position < items[j].Position
 		}
 		return items[i].Key < items[j].Key
 	})
@@ -282,5 +286,6 @@ func sourceItemAsQueueItem(it SourceQueueItem, sourceLang string) ReviewQueueIte
 		Source:       it.Source,
 		Status:       it.Status,
 		Held:         it.Held,
+		Position:     it.Position,
 	}
 }
