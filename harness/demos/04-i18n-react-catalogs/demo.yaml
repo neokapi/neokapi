@@ -13,6 +13,9 @@ outro:
   line: Point kapi at the catalog you already have.
   pointer: kapi translate --target-lang fr
 
+# The English catalog is a fixture, so the prompt's claim about it is true and
+# the run is the same every time: the placeholders and the plural keys the
+# checks beat reads are the ones committed here, not ones a model invented.
 prompt: >
   This is a React app that uses react-i18next, with its English strings in
   public/locales/en/translation.json. Can you add French and German?
