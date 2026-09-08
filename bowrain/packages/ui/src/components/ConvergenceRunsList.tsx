@@ -83,7 +83,7 @@ export function ConvergenceRunsList({
   onCancel,
 }: ConvergenceRunsListProps) {
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" data-testid="runs-list">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-sm font-semibold">Runs</h2>
@@ -91,7 +91,7 @@ export function ConvergenceRunsList({
             Runs on the server: the team's <code>kapi up</code> for this project.
           </p>
         </div>
-        <Button size="sm" onClick={onRunNow} disabled={starting}>
+        <Button size="sm" onClick={onRunNow} disabled={starting} data-testid="run-now-btn">
           {starting ? "Starting…" : "Run now"}
         </Button>
       </div>
@@ -125,6 +125,7 @@ export function ConvergenceRunsList({
                 <TableRow
                   key={run.id}
                   onClick={() => onSelect(run.id)}
+                  data-testid="run-row"
                   className={cn("cursor-pointer", selectedRunId === run.id && "bg-accent/40")}
                 >
                   <TableCell>

@@ -117,7 +117,10 @@ export function TopBar({
 
       {/* Offline pending-changes indicator */}
       {isOffline && pendingChanges != null && pendingChanges > 0 && (
-        <span className="flex items-center gap-1 text-xs text-warning">
+        <span
+          className="flex items-center gap-1 text-xs text-warning"
+          data-testid="offline-pending"
+        >
           <WifiOff className="size-3" />
           <span>{pendingChanges} pending</span>
         </span>

@@ -1,6 +1,6 @@
 id: bowrain-cli-auth-and-workspaces
-title: Sign in, find your workspaces, test locally
-subtitle: kapi auth and workspace show who and where you're connected; pseudo-translate checks layout before you send for real translation.
+title: Break the layout before a translator sees it
+subtitle: Pseudo-translate locally, then check where the content goes.
 tagline: the bowrain plugin handles the server; kapi handles the files.
 kind: use-case
 publishAs: bowrain-cli-auth-and-workspaces
@@ -9,48 +9,64 @@ brand: bowrain
 cwd: ~/bowmart/help-center
 needsAi: false
 captureTimeoutSec: 180
+outro:
+  line: Sign in if the first answer is empty.
+  pointer: kapi auth login
 aspects:
-  - kapi auth · workspace
-  - server + account at a glance
-  - many workspaces
-  - pseudo-translate to test
+  - Pseudo-translate before you send
+  - Server and account at a glance
+  - Every workspace you can push to
 
 script:
+  - comment: Before sending anything for real translation, pseudo-translate locally.
+  - command: kapi pseudo-translate src/locales/en.json
+  - comment: Padded, accented copy (qps) surfaces truncation and layout bugs early.
+  - command: cat src/locales/en_qps.json
   - comment: Which server and account is this checkout connected to?
   - command: kapi auth status
   - comment: List the workspaces you can push projects to.
   - command: kapi workspace list
-  - comment: Before sending for real translation, pseudo-translate to test layout.
-  - command: kapi pseudo-translate src/locales/en.json
-  - comment: Padded, accented copy (qps) surfaces truncation and layout bugs early.
-  - command: cat src/locales/en_qps.json
 
 narration:
   - id: title
     kind: title
-    text: >
-      Once the bowrain plugin is installed, kapi gains a handful of server-aware
-      commands. They answer the everyday questions: who am I, where can I push,
-      and is my content ready.
-  - id: auth
-    kind: terminal
-    text: >
-      kapi auth status shows the server and account this checkout is connected
-      to, which matters when you work across more than one Bowrain server.
-    caption: "kapi auth status: server and account"
-  - id: workspace
-    kind: terminal
-    text: >
-      kapi workspace list shows every workspace you belong to. A project is
-      pushed into one of them, and each keeps its own projects, its own content
-      memory and its own terms.
-    caption: "kapi workspace list: where you can push"
+    text: >-
+      Three questions a connected checkout answers from the terminal: is my
+      content ready, which server and account is this, and where can I push.
+
   - id: pseudo
     kind: terminal
-    text: >
-      And because kapi is still the file toolchain underneath, you can
-      pseudo-translate locally first. The padded, accented copy surfaces layout
-      and truncation problems before a translator ever sees the file.
-    caption: "kapi pseudo-translate tests layout locally"
+    through: 4
+    caption: Padded, accented, and still readable English.
+    hold: 20
+    text: >-
+      Pseudo-translate rewrites the catalogue as padded, accented copy. Every
+      string grows the way a real translation does, and the accents make an
+      untranslated string obvious, so truncation and broken layout show up on
+      your own screen rather than in a file a translator has already been paid
+      to fill in.
+
+  - id: auth
+    kind: terminal
+    through: 6
+    caption: The server and account this checkout uses.
+    hold: 12
+    text: >-
+      kapi auth status names the server and the account this checkout is
+      connected to, which starts to matter the moment you work across more than
+      one Bowrain server.
+
+  - id: workspace
+    kind: terminal
+    through: 8
+    caption: Where a project can be pushed.
+    hold: 17
+    text: >-
+      kapi workspace list shows every workspace you can push a project into.
+      Each keeps its own projects, its own content memory and its own terms, so
+      pushing to the wrong one is a question the CLI answers before you do it.
+
   - id: outro
     kind: outro
+    text: >-
+      Sign in if the first of those answers comes back empty.

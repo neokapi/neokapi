@@ -1,6 +1,6 @@
 id: bowrain-web-governance
-title: Shared terminology and memory
-subtitle: One governed source of voice, terms, and translations for a team.
+title: A term agreed once should not be argued twice
+subtitle: One concept, its wording per language, read where you type.
 tagline: the server-side platform companion to kapi
 kind: use-case
 publishAs: bowrain-web-governance
@@ -10,78 +10,65 @@ brand: bowrain
 needsAi: false
 # One continuous narration read: uniform voice across scenes.
 oneshot: true
+outro:
+  line: Push a project, and its terms arrive here.
+  pointer: kapi push
 aspects:
+  - Concepts, with a status per language
   - Shared content memory
-  - Terminology as concepts
-  - Multi-locale terms
-  - Stewarded across a team
+  - The agreed wording, beside the block
 
 narration:
   - id: title
     kind: title
     text: >-
-      Bowrain is where a team's terms and content memory live, shared and
-      governed.
+      A term decided once on a laptop is decided again on the next one. Bowrain
+      holds a team's terms on the server instead.
 
-  - id: intro
+  - id: concept
     kind: desktop
-    beat: intro
+    beat: concept
+    caption: One concept, one agreed word per language.
+    hold: 17
+    crop: { selector: '[data-testid="concept-view"]' }
+    zoom: 1.6
+    highlight: { selector: '[data-testid="concept-header"]' }
     text: >-
-      With kapi, the terms and the content memory are local files one builder
-      owns. Bowrain holds them on the server, shared across everyone.
-
-  - id: open-memory
-    kind: desktop
-    beat: open-memory
-    caption: The workspace content memory.
-    text: >-
-      The content memory keeps every approved translation, available to every
-      project and every translator in the workspace.
-
-  - id: tm-list
-    kind: desktop
-    beat: tm-list
-    caption: One memory, reused across projects.
-    text: >-
-      Each entry pairs a source string with its translations, so the same wording
-      is reused instead of being retranslated.
+      This is one concept: the idea itself, what the team calls it in each
+      language, and the status each of those words carries. It is the record two
+      translators would otherwise argue from memory, and none of it lives in
+      anybody's checkout.
 
   - id: tm-search
     kind: desktop
     beat: tm-search
-    caption: Full-text search across the memory.
+    caption: The same wording, already on record.
+    hold: 14
+    crop: { selector: '[data-testid="tm-browser"]' }
+    zoom: 1.6
     text: >-
-      It is searchable in an instant. Here, every remembered string about the
-      company's mission.
+      The workspace content memory answers for the sentences the team has
+      already approved. Search it, and every project in the workspace draws on
+      the same answers instead of paying to translate them a second time.
 
-  - id: open-concepts
+  - id: in-the-editor
     kind: desktop
-    beat: open-concepts
-    caption: Context, then Concepts, for governed terminology.
+    beat: in-the-editor
+    caption: The terms in force, beside the block.
+    hold: 21
+    crop:
+      selector:
+        - '[data-testid="term-sidebar"]'
+        - '[data-testid="visual-editor-card"]'
+    zoom: 1.8
+    highlight: { selector: '[data-testid="term-sidebar"]' }
     text: >-
-      Terms are governed the same way, in the Context hub, as concepts. The
-      ideas behind the words, held in one place rather than scattered across
-      checkouts.
-
-  - id: concept-list
-    kind: desktop
-    beat: concept-list
-    caption: Concepts, with terms and status per locale.
-    text: >-
-      Each concept lists what the team calls it in every locale, with a status
-      that marks the wording the team has agreed on.
-
-  - id: concept-detail
-    kind: desktop
-    beat: concept-detail
-    caption: One concept, one truth, every language.
-    text: >-
-      Open a concept and its whole story is here: its terms across every
-      language and their agreed status. One truth, shared by every editor,
-      every AI call, and every run of the loop.
+      And this is why either one belongs on a server. Open a file in Translate,
+      and the terms that govern this block sit beside the editing card with the
+      memory matches for it, before anyone has typed a word. The decision
+      travels to the work rather than waiting to be looked up.
 
   - id: outro
     kind: outro
     text: >-
-      Shared, versioned and governed. The memory and the concepts a team
-      stewards over time, on top of the open kapi tools.
+      Push a project, and its terms and its decisions arrive here for the team.

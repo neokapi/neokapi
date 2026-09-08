@@ -52,15 +52,15 @@ tag runs a live Claude session; **shell** marks a scripted shell demo and
 | 18 | `kapi-desktop-review`            | **desktop.** The review queue, and the five layers behind one decision |
 | 19 | `kapi-desktop-explorer`          | **desktop.** A project's terms and content memory, read in the Context hub |
 | 20 | `kapi-desktop-config`            | **desktop.** Appearance, AI models, and plugins in one place |
-| 21 | `bowrain-cli-getting-started`    | **shell.** `kapi init` connects local files to a Bowrain server; push and pull move content like git, and `kapi up` runs the loop on the server |
-| 22 | `bowrain-cli-auth-and-workspaces` | **shell.** `kapi auth` and `kapi workspace` show who and where you are connected; pseudo-translate checks layout before you send for real translation |
-| 23 | `bowrain-desktop-dashboard`      | **desktop.** The Bowrain desktop app as an equal, real-time client of the shared workspace |
-| 24 | `bowrain-desktop-automations`    | **desktop.** Rules run the loop on the server; runs show each pass catching the project up |
-| 25 | `bowrain-web-editor`             | **desktop.** The shared translation editor: every locale, with the team's memory and terms inline |
-| 26 | `bowrain-web-review`             | **desktop.** Two people reviewing one queue, and the workspace refusing an approval of its author's own work |
-| 27 | `bowrain-web-governance`         | **desktop.** One governed source of voice, terms, and translations for a team |
-| 28 | `bowrain-web-collaboration`      | **desktop.** Two people, one document, live |
-| 29 | `bowrain-web-correction-loop`    | **desktop.** Every correction becomes a versioned check |
+| 21 | `bowrain-cli-getting-started`    | **shell.** Your content stays in your repository: `kapi init` connects it, `push` moves the source up, and `kapi up` runs the loop on the server and pulls the results back |
+| 22 | `bowrain-cli-auth-and-workspaces` | **shell.** Pseudo-translate breaks the layout on your own screen first; `kapi auth` and `kapi workspace` then say where the content would go |
+| 23 | `bowrain-desktop-dashboard`      | **desktop.** The same workspace natively, and the one thing only the app does: edits queue while the network is gone and replay in order when it returns |
+| 24 | `bowrain-desktop-automations`    | **desktop.** A rule fires on push, a run is started on camera, and what needs a person is parked in review |
+| 25 | `bowrain-web-editor`             | **desktop.** One block edited over the rendered page, a memory match applied in a click, and the same file in the next language |
+| 26 | `bowrain-web-review`             | **desktop.** Two people, one queue, and the server refusing an approval of its author's own work |
+| 27 | `bowrain-web-governance`         | **desktop.** One concept's record, the memory that answers for its wording, and that wording reaching the editor |
+| 28 | `bowrain-web-collaboration`      | **desktop.** A teammate's avatar arriving live in the file you are already in |
+| 29 | `bowrain-web-correction-loop`    | **desktop.** Corrections that recur become a candidate rule, its blast radius is priced, and it is promoted into a versioned check |
 | 30 | `bowrain-sizzle`                 | **desktop.** A reel of the Bowrain platform: governance, collaboration, and quality |
 
 Rows 1 to 14 exercise the task sections of the kapi skill
@@ -394,6 +394,22 @@ Desktop apps are recorded at the frame size (1920x1080), so a full-window beat
 shows the app at 1:1 and a region beat crops into it (1.6 to 2.5x) instead of
 up-scaling a smaller capture. The picture never plays slower than 0.8x: when
 the narration outruns the beat, the beat plays at 1x and its last frame holds.
+
+## Recording Bowrain Desktop (`target: bowrain-desktop`)
+
+The desktop take hosts the real `backend.App` over its own wbridge and points it
+at a running bowrain-server, exactly as the shipped app does. One thing is
+inserted on the way: a TCP relay the recorder owns sits between the wbridge and
+the server, and the wbridge is given the relay's address rather than the
+server's.
+
+That relay is what makes the offline story recordable. `bowrain-desktop-dashboard`
+cuts it mid-walk, so the backend's next request fails the way a dropped network
+fails: `goOffline` fires, the edits typed after it land in the local outbox, and
+the chrome shows the queue depth. Restoring the relay lets the backend's own
+reconnect loop replay the queue in order. Nothing about the offline state is
+staged in the frontend, and a walk that finds no relay throws rather than
+narrating a queue it cannot produce.
 
 ## Recording the real bowrain web app (`target: web`)
 

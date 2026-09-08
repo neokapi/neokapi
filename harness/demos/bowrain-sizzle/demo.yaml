@@ -1,20 +1,31 @@
 id: bowrain-sizzle
-title: "Bowrain, the team platform for multilingual content"
-subtitle: "Governance, collaboration, and quality, in one reel"
-tagline: "A reel of the bowrain platform's key features"
+title: "Bowrain, a team's workspace for multilingual content"
+subtitle: "Six moments from the walkthroughs, in one reel"
+tagline: "A reel cut from the bowrain walkthrough takes"
 # Not a captured demo: a montage composition (Sizzle.tsx) that sequences the
 # existing bowrain feature screencasts. terminal:desktop satisfies manifest
 # validation (no Claude prompt/script). brand+target route the published webm to
-# the bowrain-web docs video dir, which the landing hero reads.
+# the bowrain-web docs video dir.
+#
+# The clip plan lives in harness/src/remotion/compositions/Sizzle.tsx, which
+# names one beat per demo: bowrain-desktop-dashboard/projects,
+# bowrain-web-editor/split, bowrain-web-collaboration/teammate-joins,
+# bowrain-web-governance/tm-search, bowrain-web-review/focus and
+# bowrain-web-correction-loop/promote. Those six beat ids are load-bearing: a
+# demo that renames one drops its clip back to the take's first beat.
+#
+# The reel is silent. Narrating it needs the composition to load a narration
+# track, which is a composition change rather than a manifest one.
 terminal: desktop
 target: web
 brand: bowrain
 publishAs: bowrain-sizzle
 aspects:
-  - Shared editor
-  - Real-time collaboration
-  - Terminology
-  - Review
-  - Quality checks
+  - One workspace for the team
+  - One editor, every language
+  - Presence, live
+  - Terms and memory, shared
+  - Review, with a second pair of eyes
+  - Corrections become checks
 narration: []
 artifacts: []

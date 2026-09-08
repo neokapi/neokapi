@@ -1,6 +1,6 @@
 id: bowrain-web-editor
-title: The shared translation editor
-subtitle: Every locale, with the team's memory and terms inline.
+title: Translate a page where the reader will see it
+subtitle: An editing card over the page, in every target language.
 tagline: the server-side platform companion to kapi
 kind: use-case
 publishAs: bowrain-web-editor
@@ -10,75 +10,80 @@ brand: bowrain
 needsAi: false
 # One continuous narration read: uniform voice across scenes.
 oneshot: true
+outro:
+  line: Files arrive from a connector or from a push.
+  pointer: kapi push
 aspects:
-  - A visual editing card
-  - Live document preview
-  - Shared content memory and terms inline
-  - Every locale in one place
+  - An editing card over the document
+  - A live preview of the page
+  - The memory and terms, one click away
+  - Every target language in one file
 
 narration:
   - id: title
     kind: title
     text: >-
-      Bowrain's editor holds every locale, with the team's memory and terms
-      right where the work happens.
-
-  - id: intro
-    kind: desktop
-    beat: intro
-    text: >-
-      The files a team syncs from kapi open right here, in the browser, against
-      the shared workspace.
-
-  - id: open-project
-    kind: desktop
-    beat: open-project
-    text: >-
-      A project gathers the content in scope and the locales it ships in.
-
-  - id: open-file
-    kind: desktop
-    beat: open-file
-    caption: Open a file to start translating.
-    text: >-
-      Open a file and it becomes a translation workbench.
+      Translate a page where the reader will see it. The editing card sits over
+      the rendered document, and the page redraws as you type.
 
   - id: split
     kind: desktop
     beat: split
-    caption: The visual card over a live document.
+    caption: The card, over the page it is translating.
+    hold: 16
+    crop: { selector: '[data-testid="visual-editor-layout"]' }
+    zoom: 1.4
     text: >-
-      The visual view puts an editing card over the rendered document, with
-      progress across the file and the workspace memory already applied to the
-      blocks it matched.
+      This is one file in the Translate workbench. The visual view puts an
+      editing card over the document itself, with the progress across the whole
+      file beside it, so a block is never edited out of its context.
 
-  - id: context
+  - id: edit
     kind: desktop
-    beat: context
-    caption: Shared memory and terminology, inline.
+    beat: edit
+    caption: Saved, and the page redraws.
+    hold: 22
+    crop:
+      selector:
+        - '[data-testid="visual-editor-card"]'
+        - '[data-testid="preview-iframe"]'
+    zoom: 1.6
+    highlight: { selector: '[data-testid="preview-iframe"]' }
     text: >-
-      As you translate, matches from the shared content memory and the
-      approved terms surface right beside the block. The same governed sources,
-      where the work happens.
+      Type a translation into the block and save it. The preview beside the card
+      re-renders the page with the new wording, so a sentence is judged where a
+      reader will meet it and not as a row in a list of strings. A line that
+      overflows its button says so here, not after it ships.
+
+  - id: memory
+    kind: desktop
+    beat: memory
+    caption: The approved wording, applied in one click.
+    hold: 14
+    crop: { selector: '[data-testid="context-panel"]' }
+    zoom: 1.8
+    text: >-
+      The workspace content memory already answers for some of these strings.
+      One click applies the wording the team approved, and the terms that govern
+      this block sit in the same rail beside it.
 
   - id: locale
     kind: desktop
     beat: locale
-    caption: One editor, every target locale.
+    caption: The same file, the next language.
+    hold: 11
+    crop:
+      selector:
+        - '[data-testid="locale-selector"]'
+        - '[data-testid="visual-editor-card"]'
+    zoom: 1.4
     text: >-
-      One editor serves every target locale. Switch from French to German
-      without leaving the file.
-
-  - id: preview
-    kind: desktop
-    beat: preview
-    caption: A live preview of the translated page.
-    text: >-
-      And a live preview renders the page as the team works, so the translation
-      is seen in context, not just as a list of strings.
+      One editor serves every target language. Switch from French to German and
+      the card, the memory matches and the preview all follow, without leaving
+      the document.
 
   - id: outro
     kind: outro
     text: >-
-      The governed memory and terms, now in the editor itself, shared across
-      the team and built on the open kapi tools.
+      Files arrive from a connector or from a push, and the edits go back the
+      same way.

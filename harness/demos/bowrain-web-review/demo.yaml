@@ -1,6 +1,6 @@
 id: bowrain-web-review
-title: Review and approve as a team
-subtitle: One queue, one decision, and a second pair of eyes.
+title: Nobody approves their own translation
+subtitle: One queue, two people, and a rule the server applies.
 tagline: the server-side platform companion to kapi
 kind: use-case
 publishAs: bowrain-web-review
@@ -10,90 +10,93 @@ brand: bowrain
 needsAi: false
 # One continuous narration read: uniform voice across scenes.
 oneshot: true
+outro:
+  line: Set the policy under Members and roles.
+  pointer: kapi pull
 aspects:
-  - Content synced from kapi
-  - A focused review surface
-  - The context behind a decision
-  - Separation of duties
+  - One queue per project
+  - A verdict against every bar
+  - Separation of duties, enforced
 
 narration:
   - id: title
     kind: title
     text: >-
-      From kapi to a reviewed translation, on a workspace two people share.
+      Two people, one queue, and a rule the server applies: nobody approves
+      their own translation. Watch one approval land, and one be refused.
 
-  - id: intro
+  - id: queue
     kind: desktop
-    beat: intro
+    beat: queue
+    caption: Everything translated and not yet decided.
+    hold: 14
+    crop:
+      selector:
+        - '[data-testid="review-queue"]'
+        - '[data-testid="review-filters"]'
+    zoom: 1.4
     text: >-
-      With kapi alone, review is single-player. Push the project to Bowrain and
-      the same decisions get a team surface. The review inbox rolls up every
-      project in the workspace that is waiting on someone, the busiest first.
-
-  - id: open-project
-    kind: desktop
-    beat: open-project
-    caption: Into one project's review session.
-    text: >-
-      Opening a project lands on its review session: one queue of everything
-      translated but not yet decided, and one unit in focus beside it.
-
-  - id: scope
-    kind: desktop
-    beat: scope
-    caption: One language selector, with the source marked.
-    text: >-
-      The language selector scopes the queue and lists every language with the
-      source marked and its pending count beside it. The verdict filters cut the
-      list to what clears every bar, or to what does not.
+      The workspace inbox rolls up every project waiting on somebody. Inside
+      one, the queue is everything that has been translated and not yet
+      decided, scoped to a single language with the source marked.
 
   - id: focus
     kind: desktop
     beat: focus
-    caption: The verdict against every bar the server applies.
+    caption: The verdict, before anyone decides.
+    hold: 14
+    crop: { selector: '[data-testid="focused-reviewer"]' }
+    zoom: 1.6
+    highlight: { selector: '[data-testid="reviewer-verdict-passing"]' }
     text: >-
-      A unit in focus opens with its verdict. Checks, terminology and the voice
-      bar are the three the server applies when someone approves, so the chip
-      says in advance whether an approval will hold.
-
-  - id: context
-    kind: desktop
-    beat: context
-    caption: What governs here, what is nearby, what was already approved.
-    text: >-
-      Beside it sit the questions behind the translation. What is in force at
-      this point, which blocks it stands between, whether the content memory
-      already answers it, and where the wording came from.
+      A unit in focus opens with its verdict. Checks, terms and the voice bar
+      are the three the server applies when someone presses approve, so the
+      chip says in advance whether an approval will hold.
 
   - id: approve
     kind: desktop
     beat: approve
-    caption: Approve, and the queue moves on.
+    caption: Approved, and the queue moves on.
+    hold: 13
+    crop:
+      selector:
+        - '[data-testid="reviewer-approve"]'
+        - '[data-testid="review-pending-count"]'
+    zoom: 1.8
     text: >-
-      Approving records the decision against the workspace rather than a local
-      file, and the queue moves to the next unit.
+      This target a colleague wrote, and it clears every bar. Approving records
+      the decision against the workspace rather than a file on one laptop, and
+      the queue moves to the next unit.
 
   - id: duties
     kind: desktop
     beat: duties
-    caption: You cannot approve your own writing.
+    caption: "Refused: the author cannot be the reviewer."
+    hold: 15
+    crop: { selector: '[data-testid="error-notice"]' }
+    zoom: 2
+    highlight: { selector: '[data-testid="error-notice"]' }
     text: >-
-      This one she wrote herself, and the workspace refuses it. Separation of
-      duties is a policy the workspace sets, and when it is set to block, the
-      server declines an approval of the approver's own work and says so.
+      This one she wrote herself. The server declines the approval and prints
+      its own reason: separation of duties is set to block, so the author of a
+      translation is never the person who signs it off.
 
   - id: second-reviewer
     kind: desktop
     beat: second-reviewer
-    caption: A colleague decides it instead.
+    caption: A colleague decides it, and the count drops.
+    hold: 13
+    crop:
+      selector:
+        - '[data-testid="review-pending-count"]'
+        - '[data-testid="review-queue"]'
+    zoom: 1.5
     text: >-
-      A colleague with the review permission for that language decides it
-      instead, and the count drops. Two people, one record, and a rule that no
-      surface can talk its way around.
+      A colleague who holds review permission for that language decides it
+      instead, and the pending count drops. Two people, one record, and a rule
+      no surface can talk its way around.
 
   - id: outro
     kind: outro
     text: >-
-      Reviewed on the server, then pulled back into the repository with kapi.
-      The same review state the single-player loop records, now carried by the
-      workspace and governed end to end.
+      Reviewed on the server, then pulled back into the repository it came from.

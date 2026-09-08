@@ -1,6 +1,6 @@
 id: bowrain-web-correction-loop
-title: Checks that learn from corrections
-subtitle: Every correction becomes a versioned check.
+title: Every correction a reviewer makes is evidence
+subtitle: A fix the team keeps making becomes a versioned check.
 tagline: the correction-learning loop on bowrain
 kind: use-case
 publishAs: bowrain-web-correction-loop
@@ -10,65 +10,58 @@ brand: bowrain
 needsAi: false
 # One continuous narration read: uniform voice across scenes.
 oneshot: true
+outro:
+  line: Corrections made over MCP count too.
+  pointer: bowrain.cloud/docs/server/context-voice
 aspects:
-  - Repeated corrections become candidates
-  - Review and promote to a versioned rule
-  - Blast radius before it lands
-  - Compliance, monitored for drift
+  - Corrections that recur become candidates
+  - The blast radius, before it lands
+  - Promoted into a versioned check
 
 narration:
   - id: title
     kind: title
     text: >-
-      In Bowrain a team's checks grow themselves. Every correction becomes a
-      versioned check.
-
-  - id: intro
-    kind: desktop
-    beat: intro
-    text: >-
-      With kapi alone, checks are local: a checkset bound to one project's
-      recipe, versioned with that repository. Bowrain versions them for the
-      organisation, so the corrections a team keeps making become checks that
-      are reviewed, promoted and enforced everywhere content is generated.
+      Every correction a reviewer makes is evidence. Bowrain collects the ones
+      that keep recurring and turns them into checks.
 
   - id: candidates
     kind: desktop
     beat: candidates
-    caption: Candidate rules, drawn from real corrections.
+    caption: A phrasing the team kept correcting.
+    hold: 18
     text: >-
-      Here are the candidates. Each one is a phrasing the team kept
-      correcting: the word that missed the voice, what they changed it to, and
-      how many corrections stand behind it.
+      These are the candidates. Each is a phrasing the team kept changing: the
+      word that missed the voice, what they replaced it with, and how many
+      separate corrections stand behind it. One correction proves nothing, so
+      below the threshold nothing is proposed at all.
 
   - id: evaluate
     kind: desktop
     beat: evaluate
-    caption: The blast radius, before the rule lands.
+    caption: How much content this would newly flag.
+    hold: 17
+    crop: { selector: '[role="dialog"]' }
+    zoom: 2
     text: >-
-      Before promoting, preview the blast radius. It shows how much existing
-      content the rule would newly flag across a project, so a change is never a
-      surprise.
+      Before promoting anything, preview the blast radius. The dialog counts how
+      much of the content already in the project this rule would newly flag, so
+      nobody promotes a rule and discovers its cost from the failures it causes
+      the following morning.
 
   - id: promote
     kind: desktop
     beat: promote
-    caption: Promote, and the correction becomes a versioned check.
+    caption: Promoted, and versioned on the profile.
+    hold: 18
     text: >-
-      Promote it, and the correction becomes a deterministic check, versioned and
-      enforced on every future generation, for everyone and every AI tool.
-
-  - id: settled
-    kind: desktop
-    beat: settled
-    caption: One fewer mistake that can recur.
-    text: >-
-      The candidate leaves the queue as a rule. Compliance is monitored for
-      drift, so if it slips, the team knows.
+      Promote it, and the correction becomes a deterministic check, versioned on
+      the voice profile and applied to every later run, for the people writing
+      and the AI tools alike. The candidate leaves the queue, and compliance is
+      watched from then on for drift.
 
   - id: outro
     kind: outro
     text: >-
-      Correct once, and the rule that prevents it from recurring is authored,
-      versioned and shared, the way a regression test stops a fixed bug from
-      coming back.
+      Correct once, and the rule that stops it recurring is authored, versioned
+      and shared.

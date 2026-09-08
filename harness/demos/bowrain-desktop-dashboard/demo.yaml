@@ -1,6 +1,6 @@
 id: bowrain-desktop-dashboard
-title: The desktop app, on your team's server
-subtitle: An equal, real-time client of the shared workspace.
+title: It keeps working when the network drops
+subtitle: The same workspace, natively, with an outbox behind it.
 tagline: the server-side platform companion to kapi
 kind: use-case
 publishAs: bowrain-desktop-dashboard
@@ -9,54 +9,78 @@ target: bowrain-desktop
 brand: bowrain
 needsAi: false
 oneshot: true
+outro:
+  line: Install the app, sign in, and keep working.
+  pointer: brew install --cask neokapi/tap/bowrain
 aspects:
-  - Native desktop app
-  - An equal real-time client
   - The same shared workspace
-  - Works offline, syncs back
+  - Edits queue while offline
+  - Replayed in order on reconnect
 
 narration:
   - id: title
     kind: title
     text: >-
-      Bowrain Desktop is a native, real-time client of your team's server.
-
-  - id: intro
-    kind: desktop
-    beat: intro
-    text: >-
-      Bowrain also ships as a native desktop app, the same shared app the
-      browser runs, mounted natively. It opens the very same workspace, with
-      presence and edits shared live, and an offline edit queue that keeps you
-      working without a connection and syncs back when you reconnect.
-
-  - id: stats
-    kind: desktop
-    beat: stats
-    caption: The workspace at a glance.
-    text: >-
-      The Overview sums up the workspace: projects, words, languages and files,
-      pulled live from the server.
+      The desktop app is the same workspace as the browser, mounted natively,
+      with one difference: it keeps working when the network drops.
 
   - id: projects
     kind: desktop
     beat: projects
-    caption: The team's projects, on the desktop.
+    caption: The same projects the browser opens.
+    hold: 13
+    crop: { x: 0.03, y: 0.1, w: 0.94, h: 0.56 }
+    zoom: 1.3
     text: >-
-      Every project the team works on is here, with its languages and file
-      counts, ready to open in the same editor the browser uses.
+      Same workspace, same projects, same editor. Signing in on the desktop
+      opens exactly what the browser opens, because both are clients of one
+      server rather than two copies of the work.
 
-  - id: connectors
+  - id: edit
     kind: desktop
-    beat: connectors
-    caption: Connect remote content sources.
+    beat: edit
+    caption: Written through to the server.
+    hold: 12
+    crop: { selector: '[data-testid="visual-editor-card"]' }
+    zoom: 1.6
     text: >-
-      Connectors are wired per project. Open one, and its Connectors view
-      attaches remote content sources such as a CMS or a design tool, so content
-      flows in and finished translations flow back out.
+      Open a file and translate a block. With the server reachable the edit is
+      written straight through, and everyone else in the workspace has it a
+      moment later.
+
+  - id: offline
+    kind: desktop
+    beat: offline
+    caption: Offline, with edits waiting to be sent.
+    hold: 18
+    crop:
+      selector:
+        - '[data-testid="offline-pending"]'
+        - '[data-testid="visual-editor-card"]'
+    zoom: 1.4
+    highlight: { selector: '[data-testid="offline-pending"]' }
+    text: >-
+      Now the connection goes. Translating carries on: the edits land in a
+      local outbox instead of on the server, and the chrome counts what is
+      waiting. On a train, or on a conference network, this is the hour a
+      browser tab gives you nothing.
+
+  - id: replayed
+    kind: desktop
+    beat: replayed
+    caption: Reconnected, and the queue drained itself.
+    hold: 15
+    crop:
+      selector:
+        - '[data-testid="connection-status"]'
+        - '[data-testid="visual-editor-card"]'
+    zoom: 1.4
+    text: >-
+      When the connection returns the queue replays in order, on its own. There
+      is nothing to retry by hand, nothing typed offline is lost, and the
+      workspace ends up in the state it would have reached anyway.
 
   - id: outro
     kind: outro
     text: >-
-      The same governed workspace, in a native app. The desktop side of the
-      platform that stewards a team's work on top of the open kapi tools.
+      The same governed workspace, in an app that survives the network.
