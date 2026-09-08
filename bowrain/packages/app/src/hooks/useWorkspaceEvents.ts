@@ -253,6 +253,18 @@ export type SseReconnectPlan =
   | { action: "stop" };
 
 /**
+ * Spread a reconnect delay over [d/2, d], picking a point with frac in [0,1).
+ * Every browser that lost the same server shares one schedule without it, so a
+ * server restart is answered by the whole fleet at the same instant. The
+ * desktop backend's own reconnect loop spreads its waits the same way.
+ */
+export function sseJitter(delayMs: number, frac: number): number {
+  if (delayMs <= 0) return 0;
+  const half = delayMs / 2;
+  return Math.round(half + frac * half);
+}
+
+/**
  * Decide what to do after the stream hard-closed: wait the current backoff and
  * try again (refresh first), or stop once the refresh budget is exhausted.
  */
@@ -358,16 +370,19 @@ export function useWorkspaceEvents(workspaceSlug: string | undefined, projectId?
           const plan = sseClosed(state);
           if (plan.action === "stop") return; // dead session: stop churning.
           state = plan.next;
-          reconnectTimer = setTimeout(() => {
-            void (async () => {
-              // Session refresh BEFORE reconnecting: the EventSource itself
-              // cannot recover from an expired session (it can't see the 401,
-              // let alone fix it), but the normal fetch-path refresh can.
-              state = sseRefreshResult(state, await refreshSession());
-              if (closed || sseShouldStop(state)) return;
-              connect();
-            })();
-          }, plan.delayMs);
+          reconnectTimer = setTimeout(
+            () => {
+              void (async () => {
+                // Session refresh BEFORE reconnecting: the EventSource itself
+                // cannot recover from an expired session (it can't see the 401,
+                // let alone fix it), but the normal fetch-path refresh can.
+                state = sseRefreshResult(state, await refreshSession());
+                if (closed || sseShouldStop(state)) return;
+                connect();
+              })();
+            },
+            sseJitter(plan.delayMs, Math.random()),
+          );
         }
       };
     };

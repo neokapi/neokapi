@@ -14,6 +14,7 @@ import {
   SSE_MAX_REFRESH_FAILURES,
   initialSseReconnectState,
   sseClosed,
+  sseJitter,
   sseRefreshResult,
   sseShouldStop,
   sseOpened,
@@ -394,6 +395,23 @@ describe("SSE reconnect policy (pure)", () => {
     s = sseRefreshResult(s, true);
     expect(s.refreshFailures).toBe(0);
     expect(sseShouldStop(s)).toBe(false);
+  });
+
+  it("spreads each wait over the upper half of its backoff", () => {
+    expect(sseJitter(8000, 0)).toBe(4000);
+    expect(sseJitter(8000, 0.5)).toBe(6000);
+    expect(sseJitter(8000, 1)).toBe(8000);
+    expect(sseJitter(0, 0.5)).toBe(0);
+
+    // Whatever the draw, a jittered wait never exceeds the plan's own delay,
+    // so the caps and the refresh budget still bound the loop.
+    const plan = sseClosed(initialSseReconnectState());
+    if (plan.action !== "retry") throw new Error("unexpected stop");
+    for (let i = 0; i < 50; i++) {
+      const waited = sseJitter(plan.delayMs, Math.random());
+      expect(waited).toBeGreaterThanOrEqual(plan.delayMs / 2);
+      expect(waited).toBeLessThanOrEqual(plan.delayMs);
+    }
   });
 
   it("an open connection resets backoff and budget", () => {
