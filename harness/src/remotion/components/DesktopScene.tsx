@@ -7,6 +7,7 @@ import { theme } from "./theme.ts";
 import type { ThemeMode } from "./theme.ts";
 import { FRAME_W, type SceneLayout } from "./layout.ts";
 import { BoxMark } from "./Marks.tsx";
+import { clickFrames, planPlayback } from "../playback.ts";
 
 const Light: React.FC<{ c: string }> = ({ c }) => (
   <span style={{ width: 13, height: 13, borderRadius: 13, background: c, display: "inline-block", boxShadow: "0 0 0 0.5px rgba(0,0,0,0.18)" }} />
@@ -15,47 +16,10 @@ const Light: React.FC<{ c: string }> = ({ c }) => (
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
-/** Slowest the picture may play before the last frame is held instead. */
-export const MIN_PLAYBACK_RATE = 0.8;
-/** Fastest the picture may play to fit a scene shorter than its beat. */
-export const MAX_PLAYBACK_RATE = 2;
 /** Furthest a crop pushes into the window on its own; `zoom` can take it to 3. */
 export const MAX_CROP_SCALE = 2.5;
 /** A region this close to the whole window is shown as the whole window. */
 const FULL_WINDOW_FIT = 1.15;
-
-export interface PlayPlan {
-  rate: number;
-  /** Frames the picture moves; the rest of the scene holds the last of them. */
-  playFrames: number;
-  heldFrames: number;
-}
-
-/**
- * How a beat's slice fills its scene. Near real time it plays at its natural
- * rate (never slower than MIN_PLAYBACK_RATE, never faster than MAX); when the
- * narration outruns the picture, the picture plays at 1x and its last frame
- * holds for the remainder, so a cursor never crawls.
- */
-export function planPlayback(sliceSec: number, sceneFrames: number, fps: number): PlayPlan {
-  const slice = Math.max(0.1, sliceSec);
-  const sceneSec = Math.max(1 / fps, sceneFrames / fps);
-  const ratio = slice / sceneSec;
-  if (ratio >= MIN_PLAYBACK_RATE) {
-    return { rate: Math.min(MAX_PLAYBACK_RATE, ratio), playFrames: sceneFrames, heldFrames: 0 };
-  }
-  const playFrames = Math.max(1, Math.min(sceneFrames, Math.round(slice * fps)));
-  return { rate: 1, playFrames, heldFrames: sceneFrames - playFrames };
-}
-
-/** Scene frames at which the recorded clicks inside the played slice land. */
-export function clickFrames(clicks: number[] | undefined, beat: Pick<ScreencastBeat, "tStart" | "tEnd">, plan: PlayPlan, fps: number): number[] {
-  if (!clicks || clicks.length === 0) return [];
-  return clicks
-    .filter((c) => c >= beat.tStart && c < beat.tEnd)
-    .map((c) => Math.round(((c - beat.tStart) / plan.rate) * fps))
-    .filter((f) => f >= 0 && f < plan.playFrames);
-}
 
 // Virtual-camera pose: how the window card sits in the 3D canvas.
 interface Cam {

@@ -19,7 +19,7 @@ import { downloadWhisperModel, installWhisperCpp, toCaptions, transcribe, type L
 import type { CaptionsFile, NarrationScene, TimedCaption } from "../types.ts";
 import { run } from "../lib/exec.ts";
 import { isDefaultLocale, localeSuffix } from "../lib/locale.ts";
-import { alignScenes, sceneBoundaries, tokenize } from "./align.ts";
+import { alignScenes, sceneBoundaries, scriptCaptions, tokenize, type SpokenWord } from "./align.ts";
 
 /** The whisper.cpp release the harness builds; needs cmake on this machine. */
 export const WHISPER_CPP_VERSION = "1.7.6";
@@ -30,6 +30,11 @@ const MIN_ALIGNMENT_COVERAGE = 0.6;
 /** Transcription can be switched off for a machine that cannot build whisper.cpp. */
 export function captionsEnabled(): boolean {
   return (process.env.HARNESS_CAPTIONS ?? "1") !== "0";
+}
+
+/** Re-transcribe a narration that already has captions (a new model, a fix here), without a new TTS call. */
+export function recaptionRequested(): boolean {
+  return (process.env.HARNESS_RECAPTION ?? "0") === "1";
 }
 
 /** Where whisper.cpp and its models live: the user's cache, never the repo. */
@@ -153,6 +158,21 @@ export function sliceCaptions(all: TimedCaption[], fromMs: number, toMs: number)
     .map((c) => ({ ...c, startMs: c.startMs - fromMs, endMs: Math.min(c.endMs, toMs) - fromMs, timestampMs: c.timestampMs === null ? null : c.timestampMs - fromMs }));
 }
 
+/**
+ * The captions a scene shows: the script's words as written, timed by the
+ * transcript (see scriptCaptions), in the Caption shape with the leading
+ * space each token carries.
+ */
+export function captionsForScenes(texts: string[], spoken: SpokenWord[]): { captions: TimedCaption[][]; coverage: number } {
+  const alignment = alignScenes(texts, spoken);
+  const timed = scriptCaptions(alignment, spoken);
+  const captions: TimedCaption[][] = texts.map(() => []);
+  for (const c of timed) {
+    captions[c.scene]!.push({ text: ` ${c.text}`, startMs: c.startMs, endMs: c.endMs, timestampMs: Math.round((c.startMs + c.endMs) / 2), confidence: null });
+  }
+  return { captions, coverage: alignment.coverage };
+}
+
 /** Apply cut points to the spoken scenes of a one-shot draft, in place. */
 function applyBoundaries(spokenIdx: number[], scenes: NarrationScene[], boundariesMs: number[]): void {
   spokenIdx.forEach((sceneIdx, k) => {
@@ -192,10 +212,11 @@ export async function attachCaptions(draft: NarrationDraft, ctx: CaptionContext)
       return { scenes, sceneTiming };
     }
     const all = await transcribeWav(wav, ctx.locale, ctx.log);
-    const { spans, coverage } = alignScenes(texts, all);
+    const alignment = alignScenes(texts, all);
+    const { coverage } = alignment;
     if (coverage >= MIN_ALIGNMENT_COVERAGE) {
       boundaries = sceneBoundaries(
-        spans,
+        alignment.spans,
         texts.map((t) => tokenize(t).length),
         totalMs,
       );
@@ -205,8 +226,11 @@ export async function attachCaptions(draft: NarrationDraft, ctx: CaptionContext)
       ctx.log(`! aligned only ${Math.round(coverage * 100)}% of the script to the transcript; scene cuts by word share`);
     }
     applyBoundaries(spokenIdx, scenes, boundaries);
+    // The captions carry the script's words timed by the transcript when the
+    // two align; a transcript that could not be aligned is shown as heard.
+    const timed = coverage >= MIN_ALIGNMENT_COVERAGE ? captionsForScenes(texts, all).captions.flat() : all;
     spokenIdx.forEach((sceneIdx, k) => {
-      file.scenes.push({ id: scenes[sceneIdx]!.id, captions: sliceCaptions(all, boundaries[k]!, boundaries[k + 1]!) });
+      file.scenes.push({ id: scenes[sceneIdx]!.id, captions: sliceCaptions(timed, boundaries[k]!, boundaries[k + 1]!) });
     });
     fs.writeFileSync(captionsPath, JSON.stringify(file, null, 2));
     ctx.log(`captions: ${file.scenes.reduce((n, s) => n + s.captions.length, 0)} words over ${file.scenes.length} scenes`);
@@ -222,8 +246,9 @@ export async function attachCaptions(draft: NarrationDraft, ctx: CaptionContext)
   for (const i of spokenIdx) {
     const s = scenes[i]!;
     if (!s.audio) continue;
-    const captions = await transcribeWav(path.join(ctx.publicDir, s.audio), ctx.locale, ctx.log);
-    file.scenes.push({ id: s.id, captions });
+    const heard = await transcribeWav(path.join(ctx.publicDir, s.audio), ctx.locale, ctx.log);
+    const { captions, coverage } = captionsForScenes([s.text], heard);
+    file.scenes.push({ id: s.id, captions: coverage >= MIN_ALIGNMENT_COVERAGE ? captions[0]! : heard });
   }
   fs.writeFileSync(captionsPath, JSON.stringify(file, null, 2));
   ctx.log(`captions: ${file.scenes.reduce((n, s) => n + s.captions.length, 0)} words over ${file.scenes.length} scenes`);

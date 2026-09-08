@@ -24,8 +24,6 @@ export const CAPTION_PAD_X = 34;
 export const CAPTION_BAND = Math.round(CAPTION_FS * CAPTION_LH + 2 * CAPTION_PAD_Y);
 /** Gap between a stacked window's bottom edge and the caption band. */
 export const CAPTION_GAP = 20;
-/** Milliseconds a caption page combines tokens over. */
-export const CAPTION_PAGE_MS = 1200;
 
 /** The chapter line above the window. */
 export const CHAPTER_FS = 44;

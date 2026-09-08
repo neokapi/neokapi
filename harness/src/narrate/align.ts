@@ -32,6 +32,16 @@ export interface Alignment {
   spans: (SceneSpan | null)[];
   /** Aligned script words over all script words, 0 to 1. */
   coverage: number;
+  /** Every script word in order, with its scene and the spoken word it matched (or -1). */
+  words: Array<{ scene: number; text: string; spoken: number }>;
+}
+
+/** A script's words as written, each with the normalized form the alignment compares. */
+export function splitWords(text: string): Array<{ raw: string; norm: string }> {
+  return text
+    .split(/\s+/)
+    .map((raw) => ({ raw, norm: normalizeToken(raw) }))
+    .filter((w) => w.norm.length > 0);
 }
 
 /** Lower-case, letters and digits only, so punctuation and case never count. */
@@ -149,10 +159,12 @@ function alignWords(script: string[], spoken: string[]): number[] {
  */
 export function alignScenes(sceneTexts: string[], words: SpokenWord[]): Alignment {
   const script: string[] = [];
+  const raw: string[] = [];
   const owner: number[] = [];
   sceneTexts.forEach((text, k) => {
-    for (const t of tokenize(text)) {
-      script.push(t);
+    for (const w of splitWords(text)) {
+      script.push(w.norm);
+      raw.push(w.raw);
       owner.push(k);
     }
   });
@@ -178,7 +190,71 @@ export function alignScenes(sceneTexts: string[], words: SpokenWord[]): Alignmen
   spans.forEach((s, k) => {
     if (s) s.total = totals[k]!;
   });
-  return { spans, coverage: script.length > 0 ? aligned / script.length : 0 };
+  return {
+    spans,
+    coverage: script.length > 0 ? aligned / script.length : 0,
+    words: script.map((_, i) => ({ scene: owner[i]!, text: raw[i]!, spoken: matched[i]! })),
+  };
+}
+
+/** A caption token: the script's word as written, timed by the transcript. */
+export interface ScriptCaption {
+  scene: number;
+  text: string;
+  startMs: number;
+  endMs: number;
+}
+
+/** Room given to a script word the transcript missed, when nothing bounds it. */
+const MISSED_WORD_MS = 250;
+
+/**
+ * The script's own words, each timed by the spoken word it aligned to, so the
+ * captions read as authored (the product name spelled as the product spells
+ * it, the punctuation intact) while they land when the narrator says them. A
+ * word the transcript missed takes an even share of the gap between its
+ * timed neighbours.
+ */
+export function scriptCaptions(alignment: Alignment, words: SpokenWord[]): ScriptCaption[] {
+  const out: ScriptCaption[] = alignment.words.map((w) => ({
+    scene: w.scene,
+    text: w.text,
+    startMs: w.spoken >= 0 ? words[w.spoken]!.startMs : NaN,
+    endMs: w.spoken >= 0 ? words[w.spoken]!.endMs : NaN,
+  }));
+  let i = 0;
+  while (i < out.length) {
+    if (!Number.isNaN(out[i]!.startMs)) {
+      i++;
+      continue;
+    }
+    let end = i;
+    while (end < out.length && Number.isNaN(out[end]!.startMs)) end++;
+    const k = end - i;
+    const before = i > 0 ? out[i - 1]!.endMs : null;
+    const after = end < out.length ? out[end]!.startMs : null;
+    let from: number;
+    let step: number;
+    if (before !== null && after !== null) {
+      from = before;
+      step = Math.max(0, after - before) / k;
+    } else if (before !== null) {
+      from = before;
+      step = MISSED_WORD_MS;
+    } else if (after !== null) {
+      from = Math.max(0, after - k * MISSED_WORD_MS);
+      step = Math.min(MISSED_WORD_MS, after / k);
+    } else {
+      from = 0;
+      step = MISSED_WORD_MS;
+    }
+    for (let j = 0; j < k; j++) {
+      out[i + j]!.startMs = Math.round(from + step * j);
+      out[i + j]!.endMs = Math.round(from + step * (j + 1));
+    }
+    i = end;
+  }
+  return out;
 }
 
 /** The lead a cut takes before the first word of a scene, at most. */

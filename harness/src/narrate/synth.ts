@@ -5,7 +5,7 @@ import type { DemoManifest, NarrationManifest, NarrationScene, NarrationSpec } f
 import { ensureDir, publicDemoDir } from "../lib/paths.ts";
 import { run } from "../lib/exec.ts";
 import { DEFAULT_LOCALE, isDefaultLocale, languageNameFor, localeSuffix, localizeManifest, resolveLocale } from "../lib/locale.ts";
-import { attachCaptions, captionsEnabled, wavDurationSec, type NarrationDraft } from "./captions.ts";
+import { attachCaptions, captionsEnabled, recaptionRequested, wavDurationSec, type NarrationDraft } from "./captions.ts";
 
 // ── Locale-aware narrator style ─────────────────────────────────────────────
 // The product-name pronunciation hints are kept in EVERY locale's prompt: the
@@ -415,7 +415,7 @@ export async function narrateDemo(manifest: DemoManifest, opts: NarrateOptions =
     // A narration synthesized before captions existed, or with captions off,
     // is finished here from its audio rather than synthesized again (which
     // would bill a TTS call and change the voice take).
-    if (captionsEnabled() && !existing.captions) {
+    if (captionsEnabled() && (!existing.captions || recaptionRequested())) {
       console.log(`  · narration exists for ${m.id}${suffix}; transcribing it for captions`);
       return writeNarration(m, { scenes: existing.scenes, fullAudio: existing.fullAudio }, { backend: existing.backend, voice: existing.voice, locale, narrationPath, pub });
     }

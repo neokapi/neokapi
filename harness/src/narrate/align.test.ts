@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { alignScenes, sceneBoundaries, tokenize, type SpokenWord } from "./align.ts";
+import { alignScenes, sceneBoundaries, scriptCaptions, tokenize, type SpokenWord } from "./align.ts";
 
 /** Speak a text at a steady 400 ms a word from `atMs`, with a pause after. */
 function speak(text: string, atMs: number, words: SpokenWord[]): number {
@@ -66,4 +66,44 @@ test("sceneBoundaries takes half a short pause rather than cutting into the prev
   ];
   const b = sceneBoundaries(spans, [2, 2], 5000);
   assert.equal(b[1], 2950);
+});
+
+test("scriptCaptions keeps the script's spelling and borrows the transcript's timing", () => {
+  const scenes = ["kapi check reads the German.", "Now it passes."];
+  const words: SpokenWord[] = [];
+  const t = speak("copy check reads the german", 0, words);
+  speak("now it passes", t, words);
+  const a = alignScenes(scenes, words);
+  const caps = scriptCaptions(a, words);
+  assert.deepEqual(
+    caps.map((c) => c.text),
+    ["kapi", "check", "reads", "the", "German.", "Now", "it", "passes."],
+  );
+  // "kapi" was heard as "copy" and missed; it takes the room before "check".
+  assert.equal(caps[0]!.scene, 0);
+  assert.equal(caps[0]!.startMs, 150);
+  assert.equal(caps[0]!.endMs, 400);
+  assert.equal(caps[1]!.startMs, 400);
+  assert.equal(caps[4]!.endMs, 4 * 400 + 350);
+  assert.equal(caps[5]!.scene, 1);
+  assert.equal(caps[5]!.startMs, t);
+});
+
+test("scriptCaptions spreads a run of missed words over the gap between their neighbours", () => {
+  const scenes = ["one two three four five"];
+  const words: SpokenWord[] = [
+    { text: " one", startMs: 0, endMs: 300 },
+    { text: " five", startMs: 2000, endMs: 2300 },
+  ];
+  const caps = scriptCaptions(alignScenes(scenes, words), words);
+  assert.deepEqual(
+    caps.map((c) => [c.text, c.startMs, c.endMs]),
+    [
+      ["one", 0, 300],
+      ["two", 300, 867],
+      ["three", 867, 1433],
+      ["four", 1433, 2000],
+      ["five", 2000, 2300],
+    ],
+  );
 });
