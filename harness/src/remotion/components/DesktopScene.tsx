@@ -5,7 +5,7 @@ import { mouseClick } from "@remotion/sfx";
 import type { Screencast, ScreencastBeat, ZoomRect } from "../../types.ts";
 import { theme } from "./theme.ts";
 import type { ThemeMode } from "./theme.ts";
-import { FRAME_W, type SceneLayout } from "./layout.ts";
+import type { SceneLayout } from "./layout.ts";
 import { BoxMark } from "./Marks.tsx";
 import { clickFrames, planPlayback } from "../playback.ts";
 
@@ -20,6 +20,8 @@ const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 export const MAX_CROP_SCALE = 2.5;
 /** A region this close to the whole window is shown as the whole window. */
 const FULL_WINDOW_FIT = 1.15;
+/** A full-window card fits this much of the picture box, so its tilt never clips. */
+const CARD_INSET = 0.96;
 
 // Virtual-camera pose: how the window card sits in the 3D canvas.
 interface Cam {
@@ -110,21 +112,23 @@ export const DesktopScene: React.FC<{
   // framed inside a browser top bar (traffic lights + an address pill) and the
   // capture sits BELOW it. Native-app demos keep their own title-bar gutter,
   // so they get the lightweight dots overlay instead.
+  // Everything below is in the picture box's own coordinates: the box clips
+  // the pushed-in card, so a crop never covers the chapter line above it.
   const isWeb = demoId.startsWith("bowrain-web");
   const bar = isWeb ? 44 : 0;
   const boxW = layout.width;
   const boxH = layout.picBottom - layout.picTop;
   const aspect = screencast.width / screencast.height;
-  let bw = boxW;
+  let bw = boxW * CARD_INSET;
   let bh = bw / aspect;
-  if (bh + bar > boxH) {
-    bh = boxH - bar;
+  if (bh + bar > boxH * CARD_INSET) {
+    bh = boxH * CARD_INSET - bar;
     bw = bh * aspect;
   }
   const cardW = bw;
   const cardH = bh + bar;
-  const cardLeft = (FRAME_W - cardW) / 2;
-  const cardTop = layout.picTop + (boxH - cardH) / 2;
+  const cardLeft = (boxW - cardW) / 2;
+  const cardTop = (boxH - cardH) / 2;
   const areaH = layout.stackBottom - layout.picTop;
   const geo: Geo = {
     bw,
@@ -134,10 +138,10 @@ export const DesktopScene: React.FC<{
     cardH,
     cardCx: cardLeft + cardW / 2,
     cardCy: cardTop + cardH / 2,
-    areaW: layout.width,
+    areaW: boxW,
     areaH,
-    areaCx: FRAME_W / 2,
-    areaCy: layout.picTop + areaH / 2,
+    areaCx: boxW / 2,
+    areaCy: areaH / 2,
   };
 
   // ── Playback: the slice at a natural rate, or at 1x with the last frame held ──
@@ -203,8 +207,21 @@ export const DesktopScene: React.FC<{
         <AbsoluteFill style={{ background: "radial-gradient(130% 130% at 50% 40%, rgba(8,11,18,0.16), rgba(4,6,12,0.68))" }} />
       </AbsoluteFill>
 
-      {/* 3D canvas: the window is a card; the transform IS the camera move. */}
-      <AbsoluteFill style={{ perspective: 2200, perspectiveOrigin: "50% 42%" }}>
+      {/* The picture box: a 3D canvas in which the window is a card and the
+          transform is the camera move; the box clips whatever a crop pushes
+          past its edges. */}
+      <div
+        style={{
+          position: "absolute",
+          left: layout.left,
+          top: layout.picTop,
+          width: boxW,
+          height: boxH,
+          overflow: "hidden",
+          perspective: 2200,
+          perspectiveOrigin: "50% 42%",
+        }}
+      >
         <div
           style={{
             position: "absolute",
@@ -286,7 +303,7 @@ export const DesktopScene: React.FC<{
             </div>
           )}
         </div>
-      </AbsoluteFill>
+      </div>
 
       {/* The recorded clicks, as the sound of a click where the ripple blooms. */}
       {clicks.map((f, i) => (
