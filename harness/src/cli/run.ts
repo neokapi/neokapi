@@ -191,13 +191,19 @@ async function main() {
     }
   }
   writeRegistry();
-  if (only.includes("render")) stageAssets();
+  if (only.includes("render")) {
+    stageAssets();
+    // The picture half of every demo, fresh from demo.yaml, before the first
+    // render bundles public/ (the bundle is a snapshot; a file written after
+    // it is not in it).
+    for (const m of manifests) {
+      writeBeats(m, locale);
+      warnIfNarrationStale(m, locale);
+    }
+  }
   for (const m of manifests) {
     if (only.includes("render")) {
       console.log(`\n━━ render · ${m.id} (${themes.join(", ")}${isDefaultLocale(locale) ? "" : `; ${locale}`}) ━━`);
-      // The picture half of the demo, fresh from demo.yaml on every render.
-      writeBeats(m, locale);
-      warnIfNarrationStale(m, locale);
       for (const themeMode of themes) {
         await renderDemo(m.id, { force, quality, themeMode, locale });
       }
