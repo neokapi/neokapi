@@ -581,6 +581,20 @@ type XMLCanonical struct {
 	// cancels the always-emit-vs-conditional-emit asymmetry.
 	StripXMLSpacePreserve bool
 
+	// StripWMLSkippableElements drops the WordprocessingML properties
+	// upstream Okapi's RunSkippableElements and BlockSkippableElements
+	// remove on round-trip (`<w:lang>`, `<w:noProof>`, `<w:bidiVisual>`)
+	// and then drops every `<w:rPr>` and `<w:pPr>` left without children,
+	// the way Okapi omits an empty properties container. Native applies
+	// that strip to rendered content only and replays the rest of a part
+	// as its author wrote it, so word/styles.xml and the frame around a
+	// paragraph keep the elements Okapi drops. Both forms resolve to the
+	// same effective formatting under ECMA-376-1 §17.7; applying the
+	// strip to both sides cancels the asymmetry. Elements match by local
+	// name, as StripRevisionIDs does, because the effective-rPr pass
+	// re-encodes the parts through encoding/xml before this one runs.
+	StripWMLSkippableElements bool
+
 	// StripEmptyIDMLContent drops `<Content>` elements that have no
 	// CharData children (or only whitespace-only CharData). Native's
 	// IDML writer always emits the `<Content xml:space="preserve">`
@@ -673,6 +687,9 @@ func (n XMLCanonical) Name() string {
 	if n.StripXMLSpacePreserve {
 		parts = append(parts, "strip-xml-space-preserve")
 	}
+	if n.StripWMLSkippableElements {
+		parts = append(parts, "strip-wml-skippable")
+	}
 	if n.StripEmptyIDMLContent {
 		parts = append(parts, "strip-empty-content")
 	}
@@ -719,14 +736,14 @@ func (n XMLCanonical) Normalize(in []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	if n.SortChildElements || n.MergeAdjacentCSRs || n.StripEmptyIDMLContent || n.StripIDMLACEPIs || n.UnwrapIDMLXMLElement || n.UnwrapIDMLChange || n.StripEmptyIDMLPSRCSR {
+	if n.SortChildElements || n.MergeAdjacentCSRs || n.StripEmptyIDMLContent || n.StripIDMLACEPIs || n.UnwrapIDMLXMLElement || n.UnwrapIDMLChange || n.StripEmptyIDMLPSRCSR || n.StripWMLSkippableElements {
 		// Build a tree from the per-element-balanced token stream so
 		// we can permute child elements alphabetically by local name
 		// (and/or merge adjacent same-attr CSR siblings, drop empty
 		// Content placeholders, drop ACE PIs, unwrap XMLElement /
-		// Change wrappers, strip empty PSR/CSR shells) without
-		// disturbing the relative position of non-element nodes
-		// (CharData, Comments, ProcInsts).
+		// Change wrappers, strip empty PSR/CSR shells, drop WML
+		// skippable elements) without disturbing the relative position
+		// of non-element nodes (CharData, Comments, ProcInsts).
 		tokens = transformXMLTree(tokens, transformOpts{
 			sortChildren:          n.SortChildElements,
 			mergeCSRs:             n.MergeAdjacentCSRs,
@@ -736,6 +753,7 @@ func (n XMLCanonical) Normalize(in []byte) ([]byte, error) {
 			unwrapIDMLXMLElement:  n.UnwrapIDMLXMLElement,
 			unwrapIDMLChange:      n.UnwrapIDMLChange,
 			stripEmptyIDMLPSRCSR:  n.StripEmptyIDMLPSRCSR,
+			stripWMLSkippable:     n.StripWMLSkippableElements,
 		})
 	}
 	var buf bytes.Buffer
@@ -927,6 +945,7 @@ type transformOpts struct {
 	unwrapIDMLXMLElement  bool
 	unwrapIDMLChange      bool
 	stripEmptyIDMLPSRCSR  bool
+	stripWMLSkippable     bool
 }
 
 // transformXMLTree walks the (already canonicalised) token stream as
@@ -982,9 +1001,63 @@ func transformXMLTree(tokens []xml.Token, opts transformOpts) []xml.Token {
 		stripEmptyIDMLPSRCSRInTree(root, "CharacterStyleRange")
 		stripEmptyIDMLPSRCSRInTree(root, "ParagraphStyleRange")
 	}
+	if opts.stripWMLSkippable {
+		stripWMLSkippableInTree(root)
+	}
 	var out []xml.Token
 	emitXMLNode(root, &out, true /*topLevel*/, opts.sortChildren)
 	return out
+}
+
+// wmlSkippableElements are the local names of the WordprocessingML
+// properties upstream Okapi's RunSkippableElements and
+// BlockSkippableElements drop on round-trip: the run language
+// (RUN_PROPERTY_LANGUAGE), the no-proofing flag
+// (RUN_PROPERTY_NO_SPELLING_OR_GRAMMAR) and the visually right-to-left
+// table flag (BLOCK_PROPERTY_BIDI_VISUAL), per SkippableElement.java.
+var wmlSkippableElements = map[string]struct{}{
+	"lang":       {},
+	"noProof":    {},
+	"bidiVisual": {},
+}
+
+// wmlPropertyContainers are the local names of the WordprocessingML
+// properties containers Okapi omits when they hold nothing
+// (RunProperties.Default.getEvents, RunProperties.java:580;
+// BlockProperties.Default.getEvents, BlockProperties.java:169-180).
+var wmlPropertyContainers = map[string]struct{}{
+	"rPr": {},
+	"pPr": {},
+}
+
+// stripWMLSkippableInTree drops every element in wmlSkippableElements
+// from the tree, then drops every properties container in
+// wmlPropertyContainers that has no attributes and no element children
+// left. The whitespace a pretty-printed part indents a container with
+// is not content, so it goes with the container. Children are processed
+// before their parent, so a `<w:pPr>` whose only child was a `<w:rPr>`
+// holding a `<w:lang>` dissolves in one pass.
+func stripWMLSkippableInTree(node *xmlNode) {
+	if node == nil {
+		return
+	}
+	kept := node.children[:0]
+	for _, c := range node.children {
+		if c.sub == nil {
+			kept = append(kept, c)
+			continue
+		}
+		if _, skip := wmlSkippableElements[c.sub.start.Name.Local]; skip {
+			continue
+		}
+		stripWMLSkippableInTree(c.sub)
+		if _, container := wmlPropertyContainers[c.sub.start.Name.Local]; container &&
+			!hasElementChild(c.sub) && len(c.sub.start.Attr) == 0 {
+			continue
+		}
+		kept = append(kept, c)
+	}
+	node.children = kept
 }
 
 // stripIDMLACEPIsInTree drops `<?ACE N?>` ProcessingInstruction

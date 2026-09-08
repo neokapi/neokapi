@@ -85,7 +85,7 @@ func skeletonWriteOnce(t *testing.T, original []byte, uri string) []byte {
 
 // TestWriterPartCachingDeterministic guards the O3 per-part strip and
 // decompress caches (#608) on the faithful flush path: word/*.xml parts
-// are stripped (stripWMLSkippableElementsCached) and decompressed
+// are stripped (stripWMLRevisionElementsCached) and decompressed
 // (readZipFileCached) at most once, and the cached slices are handed out
 // read-only to both the strip and emit steps. A stray in-place mutation
 // would corrupt a later read of the same part, so two independent writes

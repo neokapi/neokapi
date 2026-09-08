@@ -940,14 +940,24 @@ mergeCaptions.b=false
 			// differences (reader/writer bugs or native-more-correct
 			// extraction), which is the goal.
 			normalizer: roundtrip.Chain{Steps: []roundtrip.Normalizer{
-				roundtrip.OpenXMLEffectiveRPr{},
+				// Native replays word/styles.xml and the frame around a
+				// paragraph as the source wrote them, so `<w:lang>` and
+				// `<w:noProof>` survive there where okapi's
+				// RunSkippableElements drops them and collapses the
+				// container they emptied. Both passes strip them on both
+				// sides: this one before the cascade, so an emptied
+				// paragraph mark is dropped rather than filled with
+				// effective formatting, and XMLCanonical for the parts
+				// this one does not rewrite.
+				roundtrip.OpenXMLEffectiveRPr{StripSkippableElements: true},
 				roundtrip.ZipEntryNormalizer{Inner: roundtrip.Chain{Steps: []roundtrip.Normalizer{
 					roundtrip.StripXMLDeclaration{},
 					roundtrip.XMLCanonical{
-						SortAttrs:             true,
-						SortChildElements:     true,
-						StripRevisionIDs:      true,
-						StripXMLSpacePreserve: true,
+						SortAttrs:                 true,
+						SortChildElements:         true,
+						StripRevisionIDs:          true,
+						StripXMLSpacePreserve:     true,
+						StripWMLSkippableElements: true,
 						// OpenXMLEffectiveRPr re-encodes the WML content
 						// parts through encoding/xml, which relocates the
 						// source's namespace declarations (and synthesises
