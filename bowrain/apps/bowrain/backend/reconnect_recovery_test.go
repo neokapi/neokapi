@@ -111,7 +111,7 @@ func TestConnectToServerFailsWhenTheServerIsUnreachable(t *testing.T) {
 
 	err := app.ConnectToServer(serverURL)
 	require.Error(t, err)
-	assert.NotErrorIs(t, err, errAuthRequired, "an unreachable server is worth retrying")
+	require.NotErrorIs(t, err, errAuthRequired, "an unreachable server is worth retrying")
 	assert.Equal(t, StateOffline, app.GetConnectionState().State,
 		"a failed attempt leaves an offline working copy offline, not signed out")
 }
@@ -148,7 +148,7 @@ func TestConnectToServerUsesTheInMemoryToken(t *testing.T) {
 	app.connState = StateOffline
 	app.mu.Unlock()
 
-	require.NoError(t, app.tryReconnect())
+	require.NoError(t, app.tryReconnect(context.Background()))
 	assert.Equal(t, StateConnected, app.GetConnectionState().State)
 	assert.Positive(t, probes.Load())
 }
@@ -441,7 +441,7 @@ func TestReconnectAfterTheRelayDropsAndReturns(t *testing.T) {
 	app.goOffline()
 	require.Equal(t, StateOffline, app.GetConnectionState().State)
 	for _, text := range []string{"Bonjour", "Bonsoir"} {
-		app.enqueue(updateBlockTargetOp{UpdateBlockRequest: UpdateBlockRequest{
+		app.enqueue(updateBlockTargetOp{UpdateBlockRequest{
 			ProjectID: "p1", ItemName: "hello.txt", BlockID: "b1",
 			TargetLocale: "fr", Text: text,
 		}})
@@ -506,7 +506,7 @@ func TestReconnectRestoresTheStreamAndPresence(t *testing.T) {
 	app.presence = presenceFocus{ProjectID: "p1", ItemName: "hello.txt", BlockID: "b1"}
 	app.mu.Unlock()
 
-	require.NoError(t, app.tryReconnect())
+	require.NoError(t, app.tryReconnect(context.Background()))
 	app.resubscribe()
 
 	select {

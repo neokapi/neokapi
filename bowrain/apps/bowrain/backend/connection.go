@@ -228,6 +228,13 @@ func (a *App) credentialsFor(serverURL string) (*config.StoredAuth, error) {
 // a queue behind it; disconnected is the sign-in screen, and demoting between
 // them on a network error throws the user out of the app mid-outage.
 func (a *App) ConnectToServer(serverURL string) error {
+	return a.connect(context.Background(), serverURL)
+}
+
+// connect is ConnectToServer with a caller-supplied context. The reconnect loop
+// passes its own, so cancelling it (Disconnect, shutdown) aborts a probe in
+// flight instead of leaving it to time out.
+func (a *App) connect(ctx context.Context, serverURL string) error {
 	serverURL = config.NormalizeServerURL(serverURL)
 
 	a.mu.Lock()
@@ -255,9 +262,9 @@ func (a *App) ConnectToServer(serverURL string) error {
 	editorClient := editorclient.New(serverURL, stored.AccessToken)
 	a.wireRemoteRefresh(editorClient, serverURL, stored)
 
-	ctx, cancel := context.WithTimeout(context.Background(), connectProbeTimeout)
+	probeCtx, cancel := context.WithTimeout(ctx, connectProbeTimeout)
 	defer cancel()
-	if err := editorClient.Ping(ctx); err != nil {
+	if err := editorClient.Ping(probeCtx); err != nil {
 		restore()
 		if rejectedSession(err) {
 			return fmt.Errorf("%w: the server rejected the stored session: %w", errAuthRequired, err)

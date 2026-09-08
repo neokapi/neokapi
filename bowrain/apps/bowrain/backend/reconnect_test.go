@@ -41,7 +41,7 @@ func TestTryReconnectNoServerURL(t *testing.T) {
 	app := newTestApp(t)
 	// Nothing to reconnect to is not something a retry can fix, so it reports
 	// the terminal kind and the loop stops on it.
-	require.ErrorIs(t, app.tryReconnect(), errAuthRequired)
+	require.ErrorIs(t, app.tryReconnect(context.Background()), errAuthRequired)
 }
 
 func TestTryReconnectNoAuth(t *testing.T) {
@@ -54,7 +54,7 @@ func TestTryReconnectNoAuth(t *testing.T) {
 	app.mu.Unlock()
 
 	// No stored auth → tryReconnect fails, and says why.
-	require.ErrorIs(t, app.tryReconnect(), errAuthRequired)
+	require.ErrorIs(t, app.tryReconnect(context.Background()), errAuthRequired)
 }
 
 func TestStopReconnectNilCancel(t *testing.T) {

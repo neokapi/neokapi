@@ -140,7 +140,7 @@ func (a *App) reconnectLoop(ctx context.Context, nudge <-chan struct{}) {
 		}
 
 		lastAttempt = time.Now()
-		err := a.tryReconnect()
+		err := a.tryReconnect(ctx)
 		switch {
 		case err == nil:
 			slog.Info("bowrain: reconnected to server")
@@ -149,7 +149,7 @@ func (a *App) reconnectLoop(ctx context.Context, nudge <-chan struct{}) {
 			// a cancellation (Disconnect) stops replay promptly. The REST editor
 			// client threads this ctx through every request.
 			a.replayPendingChanges(ctx)
-			a.resubscribe()
+			a.resubscribe() //nolint:contextcheck // the restored subscription must outlive this loop, which returns next
 			// Signal the frontend to force a full refresh of every open view.
 			// While offline we may have missed any number of external changes
 			// (other users, kapi push, connector sync, automations); replaying
@@ -174,7 +174,7 @@ func (a *App) reconnectLoop(ctx context.Context, nudge <-chan struct{}) {
 
 // tryReconnect attempts to re-establish the connection to the server, returning
 // why it could not.
-func (a *App) tryReconnect() error {
+func (a *App) tryReconnect(ctx context.Context) error {
 	a.mu.RLock()
 	serverURL := a.serverURL
 	a.mu.RUnlock()
@@ -182,7 +182,7 @@ func (a *App) tryReconnect() error {
 	if serverURL == "" {
 		return fmt.Errorf("%w: no server to reconnect to", errAuthRequired)
 	}
-	return a.ConnectToServer(serverURL)
+	return a.connect(ctx, serverURL)
 }
 
 // markDisconnected drops the app to the disconnected state, which the frontend
@@ -208,6 +208,8 @@ func (a *App) resubscribe() {
 	if projectID == "" {
 		return
 	}
+	// StartWatching roots the subscription in its own context on purpose: the
+	// watcher outlives the reconnect loop, which returns as soon as this does.
 	a.StartWatching(projectID)
 	if focus.ProjectID != "" {
 		a.UpdatePresence(focus.ProjectID, focus.ItemName, focus.BlockID)
