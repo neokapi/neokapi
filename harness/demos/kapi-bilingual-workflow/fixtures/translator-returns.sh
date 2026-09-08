@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# fake-translator.sh — simulates a CAT-tool fill-in pass for the
-# bilingual-workflow VHS demo. For every XLIFF file passed as an
+# translator-returns.sh stands in for the file a translator sends back.
+# It writes what a CAT tool would have written. For every XLIFF passed as an
 # argument, insert a <target>…</target> after each <source>…</source>
 # that doesn't already have one, using a small French/German phrasebook
 # with a locale-prefixed fallback for unseen strings.
 #
 # Usage:
-#   ./fake-translator.sh out/*.xliff
+#   ./translator-returns.sh out/*.xliff
 #
 # This is deliberately a tiny Python inline script (no dependencies)
 # rather than a full bash parser — XLIFF is XML, and regex/bash is a

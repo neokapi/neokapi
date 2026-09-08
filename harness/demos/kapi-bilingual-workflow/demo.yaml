@@ -1,7 +1,6 @@
 id: kapi-bilingual-workflow
-title: "The bilingual round-trip: extract, translate, merge"
-subtitle: kapi emits a clean bilingual XLIFF, accepts the translated one back, and keeps the project content memory in the loop on both sides.
-tagline: the engineering glue around the translator hand-off, with full content-memory provenance.
+title: The hand-off is a bilingual file
+subtitle: kapi writes the XLIFF pre-filled from memory, and takes the translated one back.
 kind: use-case
 publishAs: bilingual-workflow
 # A scripted plain-shell demo (no Claude): extract/merge/memory are deterministic, so
@@ -17,8 +16,13 @@ aspects:
   - Content-memory pre-fill + absorb
   - any CAT tool
   - full provenance
+outro:
+  line: Extract, send the folder, merge the return.
+  pointer: kapi extract && kapi merge -i out/
 
-# Each comment names exactly what the command below it does.
+# Each comment names exactly what the command below it does. The XLIFF file name
+# is <source-rel-slug>.<src>-to-<tgt>.xliff (host/extract.go), so the pre-fill
+# beat can name the French file without a wildcard.
 script:
   - comment: A React app's English strings, ready to send out for translation.
   - command: cat src/locales/en/messages.json
@@ -27,8 +31,10 @@ script:
   - comment: kapi extract writes one bilingual XLIFF per target locale, pre-filled from memory.
   - command: kapi extract -p kapi.yaml
   - command: ls out/
-  - comment: A translator fills the <target>s in their CAT tool (here, a stand-in).
-  - command: ./fake-translator.sh out/*.xliff
+  - comment: Inside the file, every segment the memory already answers arrives with a target on it.
+  - command: head -20 out/src-locales-en-messages.en-US-to-fr-FR.xliff
+  - comment: A translator fills the rest in their CAT tool. Here, a stand-in that writes what a returned file carries.
+  - command: ./translator-returns.sh out/*.xliff
   - comment: kapi merge applies the returned XLIFFs back onto the source.
   - command: kapi merge -p kapi.yaml -i out/
   - comment: kapi memory audit traces exactly what this merge wrote into the memory.
@@ -50,32 +56,52 @@ artifacts:
 narration:
   - id: title
     kind: title
-    text: >
-      Most serious multilingual work runs on bilingual exchange files, XLIFF, that a
-      translator opens in a CAT tool, fills in, and sends back. kapi is the
-      engineering glue on either side of that hand-off.
+    text: >-
+      When a person does the translating, the hand-off is a bilingual file. kapi
+      writes the XLIFF pre-filled from content memory, takes the translated file
+      back, and records where every entry came from.
+
   - id: extract
     kind: terminal
-    text: >
-      Here's a React app's English strings. We seed the project's content memory from
-      a corporate TMX, then run extract, and kapi writes one bilingual XLIFF per
-      target locale, pre-filling every segment the memory already knows.
-    caption: "extract emits one XLIFF per locale, pre-filled from the memory"
+    through: 7
+    caption: One file per locale, and the leverage counted before it is sent.
+    text: >-
+      The project's memory is seeded once from a corporate exchange file. Then
+      one extract writes a bilingual file per target locale, and it reports what
+      it found: the exact matches, the fuzzy ones, and the segments nobody has
+      seen before.
+
+  - id: prefilled
+    kind: terminal
+    through: 9
+    highlight: { text: ["<target"] }
+    caption: The memory's answers are already in the file.
+    text: >-
+      Open the French file and the pre-fill is visible. A segment the memory
+      answers arrives with a target already on it, so the translator opens a
+      file that is part done rather than empty.
+
   - id: merge
     kind: terminal
-    text: >
-      The translator fills the remaining targets and returns the files. Merge
-      applies them back onto the source, absorbs every accepted segment into the
-      memory, and memory audit traces exactly which return each entry came from.
-    caption: "merge reconciles the return and absorbs it into the memory, with provenance"
+    through: 15
+    caption: Applied, absorbed, and traceable to the return it came from.
+    text: >-
+      The translator returns the files and merge applies them back onto the
+      source. Every accepted segment is absorbed into the project's memory, and
+      the audit names which return each entry came from, which is what makes the
+      next extract warmer than this one.
+
   - id: fr
     kind: artifact
     artifact: fr
-    text: >
-      The French catalog is complete, with every key preserved and every value
-      translated, and the memory is warmer for the next extract.
+    caption: Every key preserved, every value translated.
+    text: >-
+      The French catalog is complete. Keys untouched, values translated, and the
+      memory now holds wording a person approved rather than wording a model
+      produced.
+
   - id: outro
     kind: outro
-    text: >
-      Extract, translate, merge: a clean bilingual round-trip through any CAT tool,
-      with the content memory in the loop on both sides.
+    text: >-
+      Extract, send the folder to whoever is translating, and merge what comes
+      back. Any tool that reads the exchange format fits in the middle.
