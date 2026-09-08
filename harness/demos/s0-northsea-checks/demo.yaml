@@ -39,6 +39,8 @@ setup:
 script:
   - comment: A company repository. Operator documentation, interface strings, one marketing page. One language.
   - command: ls
+  - comment: One verb reconciles the committed graph and the sources, so the gates read a project that is up to date.
+  - command: kapi up
   - comment: Run the gates the way you run tests.
   # The gate must fail here: one major finding is the substance of this beat.
   - command: kapi check --strict
@@ -86,7 +88,7 @@ narration:
 
   - id: check
     kind: terminal
-    through: 6
+    through: 8
     highlight: { text: [MAJOR, MINOR] }
     caption: One major finding, and the rest advisory.
     text: >-
@@ -106,7 +108,7 @@ narration:
 
   - id: correct
     kind: terminal
-    through: 13
+    through: 15
     caption: Three corrections, and one decision.
     text: >-
       Three of those are simply wrong wording, so the source is corrected. The
@@ -116,7 +118,7 @@ narration:
 
   - id: learned
     kind: terminal
-    through: 20
+    through: 22
     highlight: { text: [dock, berth] }
     caption: The next run enforces the decision, then goes green.
     text: >-

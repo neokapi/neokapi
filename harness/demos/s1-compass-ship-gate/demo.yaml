@@ -92,7 +92,7 @@ narration:
 
   - id: offered
     kind: terminal
-    through: 20
+    through: 21
     highlight: { text: [nl, nb] }
     caption: Dutch offered and marked. Norwegian drops its marker.
     text: >-
