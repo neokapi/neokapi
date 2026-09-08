@@ -39,20 +39,22 @@ func TestGoOfflineIdempotent(t *testing.T) {
 
 func TestTryReconnectNoServerURL(t *testing.T) {
 	app := newTestApp(t)
-	assert.False(t, app.tryReconnect())
+	// Nothing to reconnect to is not something a retry can fix, so it reports
+	// the terminal kind and the loop stops on it.
+	require.ErrorIs(t, app.tryReconnect(), errAuthRequired)
 }
 
 func TestTryReconnectNoAuth(t *testing.T) {
 	tmpDir := t.TempDir()
-	t.Setenv("BOWRAIN_DESKTOP_CONFIG_DIR", tmpDir)
+	t.Setenv("BOWRAIN_CONFIG_DIR", tmpDir)
 
 	app := newTestApp(t)
 	app.mu.Lock()
 	app.serverURL = "http://localhost:8080"
 	app.mu.Unlock()
 
-	// No stored auth → tryReconnect fails.
-	assert.False(t, app.tryReconnect())
+	// No stored auth → tryReconnect fails, and says why.
+	require.ErrorIs(t, app.tryReconnect(), errAuthRequired)
 }
 
 func TestStopReconnectNilCancel(t *testing.T) {
