@@ -94,12 +94,13 @@ describe("neokapi-i18n SWC transform", () => {
   });
 
   describe("runtime mode — expressions", () => {
-    it("wraps {variable} in t() with params", () => {
+    it("wraps {variable} in a runtime call with params", () => {
       const result = t("<h1>Hello, {name}!</h1>");
-      expect(result).toContain("__t(");
-      expect(result).toContain("name");
-      // Should have template literal fallback
-      expect(result).toContain("`");
+      // A lifted expression goes to __tx: only its value at render time says
+      // whether it is text or React content (#2561).
+      expect(result).toContain("__tx(");
+      expect(result).toContain('"Hello, {name}!"');
+      expect(result).toContain('"name": name');
     });
 
     it("handles member expressions like {user.name}", () => {
@@ -126,14 +127,14 @@ describe("neokapi-i18n SWC transform", () => {
 
     it("handles expression + trailing text: {value}%", () => {
       const result = t("<span>{value}%</span>");
-      expect(result).toContain("__t(");
+      expect(result).toContain("__tx(");
       expect(result).toContain("value");
       expect(result).not.toContain("${}");
     });
 
     it("handles two expressions separated by text: {current}/{total}", () => {
       const result = t("<span>{current}/{total}</span>");
-      expect(result).toContain("__t(");
+      expect(result).toContain("__tx(");
       expect(result).toContain("current");
       expect(result).toContain("total");
       expect(result).not.toContain("${}");
@@ -141,7 +142,7 @@ describe("neokapi-i18n SWC transform", () => {
 
     it("handles member access with text: {job.fileCount} files", () => {
       const result = t("<p>{job.fileCount} files</p>");
-      expect(result).toContain("__t(");
+      expect(result).toContain("__tx(");
       expect(result).toContain("job.fileCount");
       expect(result).not.toContain("${}");
     });
@@ -228,7 +229,7 @@ describe("neokapi-i18n SWC transform", () => {
     it("handles member access + em-dash in a surrounding text context", () => {
       const code = "// — prelude\nexport const X = <p>Hello, {user.name}!</p>;";
       const result = t(code);
-      expect(result).toContain("__t(");
+      expect(result).toContain("__tx(");
       expect(result).toContain("user.name");
       expect(result).toContain("// — prelude");
     });
@@ -513,8 +514,8 @@ describe("neokapi-i18n SWC transform", () => {
       expect(result).toContain("import { __t, __tx }");
     });
 
-    it("emits t() (not tx) for text without inline elements", () => {
-      const result = t("<h1>Hello, {name}!</h1>");
+    it("emits t() (not tx) for text with neither elements nor parameters", () => {
+      const result = t("<h1>Hello there!</h1>");
       expect(result).toContain("__t(");
       expect(result).not.toContain("__tx(");
     });

@@ -685,6 +685,17 @@ branch), `.map()` and calls taking an element, along with attributes and `t()`
 calls found inside. JSX passed in a prop (`actions={<Button>Publish</Button>}`)
 extracts the same way.
 
+**A plain expression beside the text.** Every sibling expression becomes a
+named placeholder the translator can move: `<div>{icon} Save changes</div>` is
+one message reading `{icon} Save changes`. What the name holds is settled at
+render time, so `{progress}` (a number) and `{progressSegments}` (a `<div>` of
+coloured bars) can be the same shape in the source. React content renders as
+itself wherever its token sits, including inside a paired marker, and every
+other value substitutes as text with React's rules, where `null`, `undefined`
+and a boolean contribute nothing. A message that resolves to a string has
+nowhere to put an element, so an `aria-label`, a `title` and a `t()` result
+warn in development when handed one.
+
 **Translatable attributes.** HTML/ARIA attributes — `alt`, `title`,
 `placeholder`, `aria-label`, `aria-description`, `aria-placeholder`,
 `aria-roledescription`, `aria-valuetext` — extract from **any**

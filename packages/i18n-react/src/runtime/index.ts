@@ -33,6 +33,8 @@ import {
 import { hasICUSyntax, paramText, resolveICU, type ICUParamValue } from "./icu.ts";
 import {
   collectMarkerTokens,
+  collectTokens,
+  collectValueTokens,
   pairMarkers,
   protectionMask,
   type MarkerToken,
@@ -311,11 +313,41 @@ export function __t(
   // Substitute {param} tokens
   if (params) {
     for (const [key, value] of Object.entries(params)) {
+      warnOnElementParam(hash, key, value);
       text = text.replaceAll(`{${key}}`, paramText(value));
     }
   }
 
   return text;
+}
+
+/**
+ * `__t` answers with a string, so its call sites are the ones that have
+ * nowhere to put a React element: an `aria-label`, a `title`, a `t()` result
+ * assigned to a variable. A block in JSX children position goes to `__tx`
+ * instead, which renders such a parameter as a node. Handing one to `__t` puts
+ * `[object Object]` on the screen, which is why it says so in development.
+ */
+function warnOnElementParam(hash: string, key: string, value: unknown): void {
+  if (typeof process !== "undefined" && process.env?.NODE_ENV === "production") return;
+  if (!holdsElement(value)) return;
+  console.warn(
+    `[neokapi-i18n] parameter "${key}" of "${hash}" holds a React element, and this ` +
+      `message resolves to a string. Move the element out of the translated text, or ` +
+      `let it sit in JSX so the block renders through __tx.`,
+  );
+}
+
+/**
+ * Whether a parameter's value carries React content rather than text. An
+ * element renders as itself; an array is checked through, because a mapped
+ * list of rows arrives as one. Every other value takes the text path, so a
+ * string, a number, a `Date` and a `null` behave exactly as before.
+ */
+function holdsElement(value: unknown): boolean {
+  if (isValidElement(value)) return true;
+  if (Array.isArray(value)) return value.some(holdsElement);
+  return false;
 }
 
 // ─── Rich JSX translation ────────────────────────────────────
@@ -329,9 +361,29 @@ export function __tx(
   hash: string,
   fallback: string,
   elements: Record<string, ReactNode>,
-  params?: Record<string, ICUParamValue>,
+  params?: Record<string, ICUParamValue | ReactNode>,
   markers?: MarkerTranslate,
 ): ReactNode {
+  // A parameter's value decides how it reaches the output. Text substitutes
+  // into the message and disappears into it; React content keeps its `{name}`
+  // token so the walk below can emit the node. The plugin lifts every sibling
+  // expression of a translated block into a parameter, and `{icon}` beside a
+  // sentence is as ordinary a thing to write as `{count}`. Its value is only
+  // knowable here, so the split happens here rather than at build time.
+  const nodeParams: Record<string, ReactNode> = {};
+  const textParams: Record<string, ICUParamValue> = {};
+  let hasNodeParams = false;
+  if (params) {
+    for (const [key, value] of Object.entries(params)) {
+      if (holdsElement(value)) {
+        nodeParams[key] = value as ReactNode;
+        hasNodeParams = true;
+      } else {
+        textParams[key] = value as ICUParamValue;
+      }
+    }
+  }
+
   // Use a translation only when it's structurally compatible with this call
   // site — every element marker it carries must be bound by `elements`. A stale
   // catalog (a translation compiled against an older JSX shape) would otherwise
@@ -352,9 +404,11 @@ export function __tx(
     );
   }
 
-  // Resolve ICU
+  // Resolve ICU. A node parameter is withheld: an unbound name keeps its token
+  // through the resolver, which is what carries `{icon}` inside a plural
+  // branch down to the walk below.
   if (hasICUSyntax(text)) {
-    text = resolveICU(text, params, currentLocale);
+    text = resolveICU(text, params ? textParams : undefined, currentLocale);
   }
 
   // Post-lookup runtime transform — same hook used by __t so a
@@ -366,24 +420,28 @@ export function __tx(
   // or a `<kbd>` exactly as the author wrote it.
   if (stringTransform) text = stringTransform(text, { markers });
 
-  // Substitute string params first (not element tokens)
-  if (params) {
-    for (const [key, value] of Object.entries(params)) {
-      text = text.replaceAll(`{${key}}`, paramText(value));
-    }
+  // Substitute text params first (not element markers, not node params)
+  for (const [key, value] of Object.entries(textParams)) {
+    text = text.replaceAll(`{${key}}`, paramText(value));
   }
 
-  // Element tokens come in two shapes:
+  // Tokens come in three shapes:
   //   `{=mN}`   — open of a paired pair (when a matching `{/=mN}`
   //               appears later in the same scope) OR a standalone
   //               token (when no matching close exists).
   //   `{/=mN}`  — close of a paired pair.
+  //   `{name}`  — a parameter whose value holds React content.
   //
   // The parser scans tokens once, matches opens with closes via LIFO
   // stack semantics, then renders the text recursively — paired
   // ranges clone the wrapping element with the inner content as
-  // children, standalone tokens substitute the bound element directly.
-  const tokens: MarkerToken[] = collectMarkerTokens(text);
+  // children, standalone tokens and node parameters substitute the
+  // bound node directly.
+  // Node parameters ride the same walk as a third token kind, `{name}`, so an
+  // element beside a sentence lands wherever the translator put its token.
+  const tokens: MarkerToken[] = hasNodeParams
+    ? collectTokens(text, Object.keys(nodeParams))
+    : collectMarkerTokens(text);
 
   // For each open token, the index of its matching close (if any).
   const closeOf = pairMarkers(tokens);
@@ -398,6 +456,14 @@ export function __tx(
       const tok = tokens[i];
       if (tok.start >= charEnd) break;
       if (tok.start > cursor) out.push(text.slice(cursor, tok.start));
+
+      if (tok.kind === "value") {
+        out.push(nodeParams[tok.key]);
+        sawElement = true;
+        cursor = tok.end;
+        i++;
+        continue;
+      }
 
       if (tok.kind === "open") {
         const closeIdx = closeOf.get(i);
@@ -492,7 +558,7 @@ function markersBound(text: string, elements: Record<string, ReactNode>): boolea
   return true;
 }
 
-export { collectMarkerTokens, pairMarkers, protectionMask };
+export { collectMarkerTokens, collectTokens, collectValueTokens, pairMarkers, protectionMask };
 export type { MarkerToken, MarkerTranslate };
 
 // ─── React hook ──────────────────────────────────────────────

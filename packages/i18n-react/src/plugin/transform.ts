@@ -152,9 +152,19 @@ function renderOps(buf: Buffer, ops: readonly TransformOp[], filename: string): 
   return renderRange(roots, 0, buf.length);
 }
 
+/**
+ * Which runtime helpers a subtree reached for, deciding the import line. One
+ * element can want both: an `aria-label` goes to `__t` while the sentence it
+ * labels goes to `__tx`, so the two answers are tracked apart rather than
+ * collapsed into the last one written.
+ */
+type RuntimeUse = { t: boolean; tx: boolean };
+
+const NO_RUNTIME: RuntimeUse = { t: false, tx: false };
+
 type ProcessResult = {
-  /** Runtime helper used by this element, if any (used to decide which imports to add). */
-  runtime: "runtime-t" | "runtime-tx" | null;
+  /** Runtime helpers used by this element (used to decide which imports to add). */
+  runtime: RuntimeUse;
   /**
    * True when the element's content range was transformed as a translation
    * unit (inline or tx/t) and its children were captured verbatim into
@@ -406,11 +416,8 @@ export function transform(
         reviewEntries,
         consumed,
       );
-      if (r.runtime === "runtime-t") needsT = true;
-      if (r.runtime === "runtime-tx") {
-        needsT = true;
-        needsTx = true;
-      }
+      if (r.runtime.t) needsT = true;
+      if (r.runtime.tx) needsTx = true;
       return { skipChildren: r.consumed };
     },
     (frag, ancestors) => {
@@ -426,11 +433,8 @@ export function transform(
         ops,
         hashes,
       );
-      if (r.runtime === "runtime-t") needsT = true;
-      if (r.runtime === "runtime-tx") {
-        needsT = true;
-        needsTx = true;
-      }
+      if (r.runtime.t) needsT = true;
+      if (r.runtime.tx) needsTx = true;
       return { skipChildren: r.consumed };
     },
   );
@@ -650,12 +654,12 @@ function processElement(
   consumed = false,
 ): ProcessResult {
   const tagName = getTagName(el);
-  if (!tagName) return { runtime: null, consumed: false };
+  if (!tagName) return { runtime: NO_RUNTIME, consumed: false };
   // W3C translate inheritance: nearest explicit setting on self or
   // an ancestor wins. `translate="yes"` on a child re-enables
   // translation inside a `translate="no"` subtree. Mirrored in
   // extract/walker.ts.
-  if (nearestTranslate(el, ancestors) === "no") return { runtime: null, consumed: false };
+  if (nearestTranslate(el, ancestors) === "no") return { runtime: NO_RUNTIME, consumed: false };
 
   // Mirror walker.ts: fall back to the raw tag for unmapped
   // React components so resolvePolicy's container-promotion
@@ -680,7 +684,7 @@ function processElement(
     ops,
     hashes,
   );
-  let usedRuntime: "runtime-t" | "runtime-tx" | null = attrResult.usedRuntime ? "runtime-t" : null;
+  const usedRuntime: RuntimeUse = { t: attrResult.usedRuntime, tx: false };
 
   // Review: stamp the element's opening tag with `data-kapi-*` and
   // record its block(s) into the review manifest. `blockHash` is the
@@ -791,7 +795,8 @@ function processElement(
     ops,
     hashes,
   });
-  if (blockRuntime) usedRuntime = blockRuntime;
+  if (blockRuntime === "runtime-t") usedRuntime.t = true;
+  if (blockRuntime === "runtime-tx") usedRuntime.tx = true;
 
   doReview(hk, text, mode === "inline" ? dict?.[hk] : undefined);
   removeDataI18nAttrs(el, buf, s, ops);
@@ -816,9 +821,9 @@ function processFragment(
   ops: TransformOp[],
   hashes: Set<string>,
 ): ProcessResult {
-  if (ancestorTranslate(ancestors) === "no") return { runtime: null, consumed: false };
+  if (ancestorTranslate(ancestors) === "no") return { runtime: NO_RUNTIME, consumed: false };
   if (!hasTranslatableText(frag) || !isAllInlineContent(frag, componentMap)) {
-    return { runtime: null, consumed: false };
+    return { runtime: NO_RUNTIME, consumed: false };
   }
 
   const contentStart = s(frag.opening.span.end);
@@ -828,11 +833,11 @@ function processFragment(
     componentMap,
     sourceSlice: (start, end) => bslice(buf, s(start), s(end)),
   });
-  if (text === "") return { runtime: null, consumed: false };
+  if (text === "") return { runtime: NO_RUNTIME, consumed: false };
   const paramList: ParamInfo[] = occurrences.map((o) => convertOccurrence(o, s));
   const hk = hashKey(text, FRAGMENT_DESCRIPTOR);
 
-  const runtime = emitBlockContent({
+  const blockRuntime = emitBlockContent({
     hk,
     text,
     paramList,
@@ -844,7 +849,10 @@ function processFragment(
     ops,
     hashes,
   });
-  return { runtime, consumed: true };
+  return {
+    runtime: { t: blockRuntime === "runtime-t", tx: blockRuntime === "runtime-tx" },
+    consumed: true,
+  };
 }
 
 /**
@@ -945,6 +953,16 @@ function paramSlots(paramList: readonly ParamInfo[]): ReadonlyArray<readonly [nu
  * Emit the `{__tx(...)}` / `{__t(...)}` runtime call for a block.
  * Used by runtime mode always, and by inline mode for ICU-bearing
  * blocks (where `fallbackOverride` carries the translated template).
+ *
+ * A block that lifted a sibling expression into a parameter goes to `__tx`
+ * even with no inline element in it. The expression is arbitrary: `{icon}`,
+ * `{rows}` and `{count}` are all identifiers here, and only the value at
+ * render time says which of them is React content. `__tx` renders such a
+ * parameter as a node and behaves exactly like `__t` for the rest, so this
+ * costs a string block nothing and keeps `[object Object]` off the screen.
+ * `__t` still carries a block whose only parameters are plural or select
+ * pivots, which are numbers by construction, and every attribute and `t()`
+ * call, which answer with a string and have nowhere to put an element.
  */
 function buildRuntimeCall(
   hk: string,
@@ -953,7 +971,8 @@ function buildRuntimeCall(
   opts: { fallbackOverride?: string },
 ): { build: (slice: SliceFn) => string; usedTx: boolean } {
   const hasInlineElements = paramList.some((p) => p.name.startsWith("="));
-  if (hasInlineElements) {
+  const hasExpressionParam = paramList.some((p) => p.kind === "var");
+  if (hasInlineElements || hasExpressionParam) {
     const regularParams = paramList.filter((p) => !p.name.startsWith("="));
     const elementParams = paramList.filter((p) => p.name.startsWith("="));
     const fallbackText = JSON.stringify(opts.fallbackOverride ?? text);
@@ -968,7 +987,10 @@ function buildRuntimeCall(
         : "";
     return {
       build: (slice) => {
-        const elementsObj = `{ ${elementParams.map((p) => `${JSON.stringify(p.name)}: ${slice(p.fullStart, p.fullEnd)}`).join(", ")} }`;
+        const elementsObj =
+          elementParams.length > 0
+            ? `{ ${elementParams.map((p) => `${JSON.stringify(p.name)}: ${slice(p.fullStart, p.fullEnd)}`).join(", ")} }`
+            : "{}";
         const paramsObj =
           regularParams.length > 0
             ? `, { ${regularParams.map((p) => `${JSON.stringify(p.name)}: ${slice(p.exprStart, p.exprEnd)}`).join(", ")} }`

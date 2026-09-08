@@ -164,6 +164,12 @@ const PARENTS: ReadonlyArray<{ name: string; wrap: (child: string) => string }> 
   { name: "beside a variable", wrap: (c) => `<p>Hello {name}, ${c} now</p>` },
   { name: "unmapped component", wrap: (c) => `<TabsTrigger value="a">Saved ${c}</TabsTrigger>` },
   { name: "list item", wrap: (c) => `<li>Saved ${c}</li>` },
+  // The promotion shape behind #2561: the container's own text sits in an
+  // inline child, and the child beside it is a sibling of that.
+  {
+    name: "container whose text sits in an inline child",
+    wrap: (c) => `<div className="relative">${c}<span>Saved now</span></div>`,
+  },
 ];
 
 const CHILDREN: ReadonlyArray<{ name: string; code: string }> = [
@@ -180,6 +186,12 @@ const CHILDREN: ReadonlyArray<{ name: string; code: string }> = [
   { name: "two levels", code: "{a && <span>outer {b && <b>inner</b>}</span>}" },
   { name: "plain variable", code: "{count}" },
   { name: "no JSX at all", code: "{cond && label}" },
+  // Identifiers whose value is a React element rather than text (#2561). They
+  // look like any other parameter here, which is the point: only the runtime
+  // can tell them apart, so both sides must keep naming them the same way.
+  { name: "element-valued identifier", code: "{icon}" },
+  { name: "element-valued member expression", code: "{row.icon}" },
+  { name: "element-valued call", code: "{renderIcon(row)}" },
 ];
 
 /**

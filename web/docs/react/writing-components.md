@@ -22,6 +22,7 @@ Almost everything you already write is translatable. This page walks through the
 - **Code spans inside a sentence** (`<code>`, `<kbd>`, `<samp>`, `<var>`) → the sentence extracts as one block, the span becomes a paired marker, and its text is carried through verbatim.
 - **A control inside a sentence** (`<button>`, `<label>`, `<select>`, `<img>`, …) → the sentence extracts as one block and the control becomes a paired marker, with its label translatable inside. A control that is its parent's only content keeps its own block.
 - **JSX inside a conditional** (`{cond && <span>…</span>}`, a ternary, a `.map()`) → a standalone marker in the sentence, and the elements inside it are extracted and translated on their own.
+- **A plain expression beside the text** (`{icon}`, `{rows}`, `{count}`) → a named placeholder the translator can move. Whatever it evaluates to is rendered where its token sits, so an element stays an element and a number stays a number.
 - **A whitespace-only expression** (`{" "}`, `{' '}`, `` {` `} ``) → a space in the block's text, not a variable.
 - **Non-translatable elements on their own** (`<code>`, `<pre>`, `<kbd>`, `<var>`, `<script>`, `<style>`, `<textarea>`) → skipped.
 - **Elements marked `translate="no"`** (or any ancestor) → skipped.
@@ -369,6 +370,44 @@ What a conditional cannot rescue is a bare string literal in a branch
 (`{cond ? "A" : "B"}`), which stays opaque; see
 [Ternary with string literals as JSX children](#ternary-with-string-literals-as-jsx-children).
 
+### An element in a plain expression
+
+A block lifts every sibling expression into a named placeholder, and the name
+is all the translator sees:
+
+```tsx
+<div className="relative">
+  {progressSegments}
+  <span>{progress}% ({done}/{total} translated)</span>
+</div>
+```
+
+The `<div>` is one block reading
+`"{progressSegments}{=m0}{progress}% ({done}/{total} translated){/=m0}"`. Four
+placeholders and one paired marker, all movable.
+
+What each placeholder holds is settled at render time, not at build time.
+`{progress}` is a number, `{progressSegments}` is a `<div>` of coloured bars,
+and both are plain identifiers in the source. So the runtime asks the value:
+React content renders as itself wherever its token sits, and everything else
+substitutes as text with React's own rules, where `null`, `undefined` and a
+boolean contribute nothing.
+
+That covers the common shapes without any ceremony:
+
+```tsx
+<div>{icon} Save changes</div>
+<p>Filter by {statusChips} or clear them all.</p>
+<li>{rows.map((r) => <Row key={r.id} {...r} />)} in this batch</li>
+```
+
+Two things follow. A translator may move an element placeholder anywhere in the
+sentence, including inside a paired marker, and dropping its token drops the
+element. And a placeholder in a message that resolves to a **string** has
+nowhere to put an element: an `aria-label`, a `title`, a `t()` result. Handing
+one a React element logs a warning in development and renders nothing useful,
+so keep elements in JSX.
+
 ### Opting out with `translate="no"`
 
 Standard HTML; it works on any element and its descendants:
@@ -567,6 +606,7 @@ rules: [{ selector: ".legal-copy", locNote: "Legal team must review" }];
 | `<button>{cond ? "A" : "B"}</button>`     | no         | flagged by `no-ternary-literals-in-jsx-child`; wrap branches with `t()`  |
 | `<div>{cond && 'Hi'}</div>`               | no         | expression; use `t()`                                                    |
 | `<p>Saved {cond && <b>a note</b>}</p>`    | yes        | two blocks: the sentence, and the conditional's own element              |
+| `<div>{icon} Save changes</div>`          | yes        | one block; `{icon}` renders as an element wherever its token sits        |
 | `<div actions={<Button>Go</Button>}>Hi</div>` | yes    | two blocks: JSX in a prop extracts as well                               |
 | `<p>Read <a>docs</a>{" "}now</p>`         | yes        | one block; the explicit space is text, not a variable                    |
 

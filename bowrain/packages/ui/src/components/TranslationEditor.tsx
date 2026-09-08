@@ -799,11 +799,9 @@ export function TranslationEditor({
         />
       </div>
 
-      {/* Progress bar. The segments and the label are siblings under a plain
-          positioning wrapper rather than children of one element: an element
-          holding inline text beside a `{jsxValue}` becomes one translatable
-          block, and the runtime writes a React-element value into the
-          message as "[object Object]". */}
+      {/* Progress bar. The track clips its coloured segments, and the label
+          sits outside it so a long breakdown is centred over the bar rather
+          than cut off at its edge. */}
       <div className="relative h-6 mb-2">
         <div
           className="absolute inset-0 bg-muted rounded overflow-hidden"
