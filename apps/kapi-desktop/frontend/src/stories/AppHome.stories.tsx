@@ -9,6 +9,7 @@ const meta: Meta<typeof AppHome> = {
   args: {
     samplesDismissed: false,
     onOpenRecent: fn(),
+    onRemoveRecent: fn(),
     onNewProject: fn(),
     onOpenProject: fn(),
     onNavigate: fn(),
@@ -30,16 +31,19 @@ export const WithRecentProjects: Story = {
         path: "/Users/dev/projects/acme-app/kapi.yaml",
         name: "Acme App",
         opened_at: "2026-03-29T14:30:00Z",
+        available: true,
       },
       {
         path: "/Users/dev/projects/website-i18n/kapi.yaml",
         name: "Website i18n",
         opened_at: "2026-03-28T09:15:00Z",
+        available: true,
       },
       {
         path: "/Users/dev/projects/mobile-strings/kapi.yaml",
         name: "Mobile Strings",
         opened_at: "2026-03-25T16:45:00Z",
+        available: true,
       },
     ],
   },
@@ -57,5 +61,37 @@ export const SamplesDismissed: Story = {
   args: {
     recentFiles: [],
     samplesDismissed: true,
+  },
+};
+
+/**
+ * A remembered project whose recipe went away. The row says which loss it was
+ * and offers to forget it, and it never opens a tab (#2560).
+ */
+export const WithUnavailableProjects: Story = {
+  args: {
+    samplesDismissed: true,
+    recentFiles: [
+      {
+        path: "/Users/dev/projects/acme-app/kapi.yaml",
+        name: "Acme App",
+        opened_at: "2026-03-29T14:30:00Z",
+        available: true,
+      },
+      {
+        path: "/Users/dev/KapiProjects/KapiMart/kapi.yaml",
+        name: "KapiMart",
+        opened_at: "2026-03-28T09:15:00Z",
+        available: false,
+        unavailable: "moved",
+      },
+      {
+        path: "/Users/dev/projects/website-i18n/kapi.yaml",
+        name: "Website i18n",
+        opened_at: "2026-03-27T09:15:00Z",
+        available: false,
+        unavailable: "deleted",
+      },
+    ],
   },
 };

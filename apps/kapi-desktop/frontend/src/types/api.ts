@@ -572,6 +572,22 @@ export interface SessionState {
   activeProject: string;
 }
 
+/**
+ * Why a remembered project can no longer be opened: "moved" when the project
+ * folder is gone from that location, "deleted" when the folder is still there
+ * without a recipe in it.
+ */
+export type RecentUnavailableReason = "moved" | "deleted";
+
+/** A project the app remembers, with whether its recipe is still on disk. */
+export interface RecentFile {
+  path: string;
+  name: string;
+  opened_at: string;
+  available: boolean;
+  unavailable?: string;
+}
+
 /** Per-collection translation status rendered on the project home. */
 export interface CollectionStatus {
   name: string;

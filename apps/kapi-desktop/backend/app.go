@@ -510,6 +510,16 @@ func projectDisplayName(proj *project.KapiProject, path string) string {
 // OpenProject loads a kapi.yaml recipe from disk and returns its tab ID.
 // If the recipe is already open in another tab, returns that tab's ID.
 func (a *App) OpenProject(path string) (*TabInfo, error) {
+	// A recipe that is gone from disk yields no tab, and the check comes
+	// before the already-open lookup on purpose: a tab opened before the file
+	// went away still matches by path, and handing it back gives the frontend
+	// a project that looks live until a page reads the recipe and fails. That
+	// is what the walkthrough recorder filmed, its home wiped underneath a
+	// backend that stayed up (#2560).
+	if ok, reason := recipeStatus(path); !ok {
+		return nil, recipeGoneError(path, reason)
+	}
+
 	// Check if already open.
 	a.mu.RLock()
 	for _, op := range a.projects {

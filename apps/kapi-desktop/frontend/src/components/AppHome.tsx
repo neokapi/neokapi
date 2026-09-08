@@ -1,13 +1,65 @@
-import { FolderKanban, FolderOpen, Sparkles, Workflow, X } from "lucide-react";
-import { Button, SimpleTooltip } from "@neokapi/ui-primitives";
+import { FolderKanban, FolderOpen, FolderX, Sparkles, Workflow, X } from "lucide-react";
+import { Badge, Button, SimpleTooltip } from "@neokapi/ui-primitives";
 import { useShortenHome } from "../hooks/useShortenHome";
 import { ConnectAICard } from "./ConnectAICard";
-import type { AIDetectionResult } from "../types/api";
+import type { AIDetectionResult, RecentFile } from "../types/api";
+
+/**
+ * A remembered project whose recipe is gone from disk. It keeps its place in
+ * the list so the user can see which project it was and where it lived, and it
+ * does not open: behind it is a folder the app can no longer read (#2560).
+ */
+function UnavailableRecent({
+  file,
+  location,
+  onRemove,
+}: {
+  file: RecentFile;
+  location: string;
+  onRemove: (path: string) => void;
+}) {
+  return (
+    <div
+      data-testid="recent-unavailable"
+      className="flex w-full items-center gap-3 rounded-lg border border-dashed border-border/60 p-3 text-left"
+    >
+      <FolderX size={16} className="shrink-0 text-muted-foreground/70" />
+      <div className="flex-1 truncate">
+        <div className="flex items-center gap-2">
+          <span className="truncate text-sm font-medium text-muted-foreground">{file.name}</span>
+          <Badge variant="outline" className="shrink-0 text-muted-foreground">
+            Unavailable
+          </Badge>
+        </div>
+        {file.unavailable === "deleted" ? (
+          <div className="truncate text-xs text-muted-foreground/70">
+            The recipe is missing from this folder.
+          </div>
+        ) : (
+          <div className="truncate text-xs text-muted-foreground/70">
+            Folder not found. This project was moved or deleted.
+          </div>
+        )}
+        <div className="truncate text-xs text-muted-foreground/70">{location}</div>
+      </div>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="shrink-0 text-muted-foreground"
+        onClick={() => onRemove(file.path)}
+      >
+        Remove
+      </Button>
+    </div>
+  );
+}
 
 interface AppHomeProps {
-  recentFiles: Array<{ path: string; name: string; opened_at: string }>;
+  recentFiles: RecentFile[];
   samplesDismissed: boolean;
   onOpenRecent: (path: string) => void;
+  /** Forget one remembered project. Nothing on disk is touched. */
+  onRemoveRecent: (path: string) => void;
   onNewProject: () => void;
   onOpenProject: () => void;
   onNavigate: (view: string) => void;
@@ -21,6 +73,7 @@ export function AppHome({
   recentFiles,
   samplesDismissed,
   onOpenRecent,
+  onRemoveRecent,
   onNewProject,
   onOpenProject,
   onNavigate,
@@ -29,6 +82,12 @@ export function AppHome({
   aiDetection,
 }: AppHomeProps) {
   const shortenHome = useShortenHome();
+  // The recipe path identifies the project, and the folder is what the user
+  // recognizes, so show the folder unless the recipe carries a non-standard name.
+  const location = (path: string) =>
+    path.endsWith("/kapi.yaml")
+      ? shortenHome(path.replace(/\/kapi\.yaml$/, ""))
+      : shortenHome(path);
   return (
     <div className="mx-auto max-w-3xl p-6">
       <div className="mb-8 flex items-center gap-4">
@@ -79,24 +138,31 @@ export function AppHome({
             Recent Projects
           </h2>
           <div className="space-y-1">
-            {recentFiles.map((file) => (
-              <Button
-                key={file.path}
-                variant="outline"
-                onClick={() => onOpenRecent(file.path)}
-                className="flex w-full h-auto items-center gap-3 rounded-lg p-3 text-left hover:bg-accent/30"
-              >
-                <FolderKanban size={16} className="shrink-0 text-muted-foreground" />
-                <div className="flex-1 truncate">
-                  <div className="text-sm font-medium">{file.name}</div>
-                  <div className="truncate text-xs text-muted-foreground">
-                    {file.path.endsWith("/kapi.yaml")
-                      ? shortenHome(file.path.replace(/\/kapi\.yaml$/, ""))
-                      : shortenHome(file.path)}
+            {recentFiles.map((file) =>
+              file.available ? (
+                <Button
+                  key={file.path}
+                  variant="outline"
+                  onClick={() => onOpenRecent(file.path)}
+                  className="flex w-full h-auto items-center gap-3 rounded-lg p-3 text-left hover:bg-accent/30"
+                >
+                  <FolderKanban size={16} className="shrink-0 text-muted-foreground" />
+                  <div className="flex-1 truncate">
+                    <div className="text-sm font-medium">{file.name}</div>
+                    <div className="truncate text-xs text-muted-foreground">
+                      {location(file.path)}
+                    </div>
                   </div>
-                </div>
-              </Button>
-            ))}
+                </Button>
+              ) : (
+                <UnavailableRecent
+                  key={file.path}
+                  file={file}
+                  location={location(file.path)}
+                  onRemove={onRemoveRecent}
+                />
+              ),
+            )}
           </div>
         </section>
       )}

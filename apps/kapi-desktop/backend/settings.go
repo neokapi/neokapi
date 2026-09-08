@@ -240,20 +240,37 @@ func (a *App) SetAppMode(mode string) {
 // the projects to restore and which one was active. The frontend reads this
 // at startup to reopen the previous session; if LastOpenProjects is empty it
 // falls back to the home screen.
+//
+// A remembered project whose recipe is gone from disk is left out, so it is
+// never restored as a tab. It keeps its place in the recent list, where
+// ListRecentFiles marks it unavailable and the user can remove it (#2560).
+// The persisted list is not rewritten here: the frontend saves the session
+// again as soon as the restore settles.
 func (a *App) GetSessionState() SessionState {
 	a.settings.mu.Lock()
-	defer a.settings.mu.Unlock()
 	s := a.settings.settings
+	a.settings.mu.Unlock()
+
 	paths := make([]string, 0, len(s.LastOpenProjects))
 	for _, p := range s.LastOpenProjects {
-		if p != "" {
-			paths = append(paths, p)
+		if p == "" {
+			continue
+		}
+		if ok, _ := recipeStatus(p); !ok {
+			continue
+		}
+		paths = append(paths, p)
+	}
+	active := s.ActiveProject
+	if active != "" {
+		if ok, _ := recipeStatus(active); !ok {
+			active = ""
 		}
 	}
 	return SessionState{
 		Mode:             normalizeMode(s.Mode),
 		LastOpenProjects: paths,
-		ActiveProject:    s.ActiveProject,
+		ActiveProject:    active,
 	}
 }
 

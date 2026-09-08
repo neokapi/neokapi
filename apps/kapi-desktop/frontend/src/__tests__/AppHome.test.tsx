@@ -2,11 +2,13 @@ import { render, screen } from "./testUtils";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi } from "vitest";
 import { AppHome } from "../components/AppHome";
+import type { RecentFile } from "../types/api";
 
 const defaultProps = {
-  recentFiles: [] as Array<{ path: string; name: string; opened_at: string }>,
+  recentFiles: [] as RecentFile[],
   samplesDismissed: false,
   onOpenRecent: vi.fn(),
+  onRemoveRecent: vi.fn(),
   onNewProject: vi.fn(),
   onOpenProject: vi.fn(),
   onNavigate: vi.fn(),
@@ -27,6 +29,7 @@ describe("AppHome", () => {
         path: "/tmp/project/kapi.yaml",
         name: "Test",
         opened_at: "2026-03-01T00:00:00Z",
+        available: true,
       },
     ];
     render(<AppHome {...defaultProps} recentFiles={recentFiles} />);
@@ -107,10 +110,71 @@ describe("AppHome", () => {
         path: "/home/dev/KapiProjects/MyApp/kapi.yaml",
         name: "MyApp",
         opened_at: "2026-03-01T00:00:00Z",
+        available: true,
       },
     ];
     render(<AppHome {...defaultProps} recentFiles={recentFiles} />);
     expect(screen.getByText("MyApp")).toBeInTheDocument();
     expect(screen.getByText("Recent Projects")).toBeInTheDocument();
+  });
+  // #2560: a remembered project whose recipe went away is shown for what it is
+  // and never opened, so nothing downstream reads a recipe that is not there.
+  describe("a project whose recipe is gone", () => {
+    const gone: RecentFile = {
+      path: "/home/dev/KapiProjects/KapiMart/kapi.yaml",
+      name: "KapiMart Project",
+      opened_at: "2026-03-01T00:00:00Z",
+      available: false,
+      unavailable: "moved",
+    };
+
+    it("renders it as unavailable with the folder-gone reason", () => {
+      render(<AppHome {...defaultProps} recentFiles={[gone]} />);
+      expect(screen.getByText("KapiMart Project")).toBeInTheDocument();
+      expect(screen.getByText("Unavailable")).toBeInTheDocument();
+      expect(screen.getByText(/moved or deleted/i)).toBeInTheDocument();
+      expect(screen.getByText("/home/dev/KapiProjects/KapiMart")).toBeInTheDocument();
+    });
+
+    it("gives the missing-recipe reason when the folder survived", () => {
+      render(<AppHome {...defaultProps} recentFiles={[{ ...gone, unavailable: "deleted" }]} />);
+      expect(screen.getByText("The recipe is missing from this folder.")).toBeInTheDocument();
+    });
+
+    it("does not open it", async () => {
+      const onOpenRecent = vi.fn();
+      render(<AppHome {...defaultProps} recentFiles={[gone]} onOpenRecent={onOpenRecent} />);
+      await userEvent.click(screen.getByTestId("recent-unavailable"));
+      expect(onOpenRecent).not.toHaveBeenCalled();
+    });
+
+    it("removes it on request", async () => {
+      const onRemoveRecent = vi.fn();
+      const onOpenRecent = vi.fn();
+      render(
+        <AppHome
+          {...defaultProps}
+          recentFiles={[gone]}
+          onOpenRecent={onOpenRecent}
+          onRemoveRecent={onRemoveRecent}
+        />,
+      );
+      await userEvent.click(screen.getByRole("button", { name: "Remove" }));
+      expect(onRemoveRecent).toHaveBeenCalledWith(gone.path);
+      expect(onOpenRecent).not.toHaveBeenCalled();
+    });
+
+    it("still opens the projects beside it", async () => {
+      const onOpenRecent = vi.fn();
+      const alive: RecentFile = {
+        path: "/home/dev/KapiProjects/MyApp/kapi.yaml",
+        name: "MyApp",
+        opened_at: "2026-03-02T00:00:00Z",
+        available: true,
+      };
+      render(<AppHome {...defaultProps} recentFiles={[gone, alive]} onOpenRecent={onOpenRecent} />);
+      await userEvent.click(screen.getByText("MyApp"));
+      expect(onOpenRecent).toHaveBeenCalledWith(alive.path);
+    });
   });
 });

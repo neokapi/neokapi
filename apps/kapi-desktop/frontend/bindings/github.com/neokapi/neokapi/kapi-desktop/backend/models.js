@@ -5795,7 +5795,7 @@ export class ProviderTypeInfo {
 }
 
 /**
- * RecentFile represents a recently opened .kapi file.
+ * RecentFile represents a recently opened project recipe.
  */
 export class RecentFile {
     /**
@@ -5824,6 +5824,26 @@ export class RecentFile {
              * @type {string}
              */
             this["opened_at"] = "";
+        }
+        if (!("available" in $$source)) {
+            /**
+             * Available reports whether the recipe is still readable at Path. The
+             * list() call recomputes it on every read, so a persisted value is only
+             * ever a record of what was true when the entry was written.
+             * @member
+             * @type {boolean}
+             */
+            this["available"] = false;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Unavailable names the shape of the loss when Available is false:
+             * "moved" when the project folder is gone, "deleted" when the folder is
+             * still there without a recipe in it.
+             * @member
+             * @type {string | undefined}
+             */
+            this["unavailable"] = undefined;
         }
 
         Object.assign(this, $$source);

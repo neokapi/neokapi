@@ -34,6 +34,20 @@ export function useAppInit() {
     void qc.invalidateQueries({ queryKey: qk.recentFiles() });
   }, [qc]);
 
+  // Forget one remembered project. Nothing on disk is touched, so this is the
+  // action offered on a row whose recipe has gone away.
+  const removeRecent = useCallback(
+    (path: string) => {
+      void api
+        .removeRecentFile(path)
+        .catch(() => {})
+        .finally(() => {
+          void qc.invalidateQueries({ queryKey: qk.recentFiles() });
+        });
+    },
+    [qc],
+  );
+
   // Apply the persisted theme once settings load.
   useEffect(() => {
     const s = settingsQuery.data;
@@ -79,5 +93,5 @@ export function useAppInit() {
       });
   }, [qc]);
 
-  return { recentFiles, samplesDismissed, refreshRecent, dismissSamples };
+  return { recentFiles, samplesDismissed, refreshRecent, removeRecent, dismissSamples };
 }

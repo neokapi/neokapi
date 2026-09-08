@@ -75,6 +75,7 @@
   "1332081630": "GetSampleInfo",
   "1345036474": "IsEmptyProject",
   "1349058088": "SaveSettings",
+  "1350639317": "RemoveRecentFile",
   "1376007355": "GetProjectStatus",
   "1425890456": "GetMemoryFacetsFiltered",
   "1434938751": "OpenMemoryDialog",

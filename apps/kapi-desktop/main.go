@@ -195,11 +195,17 @@ func buildAppMenu(app *application.App, appService *backend.App) *application.Me
 		} else {
 			label = dir + " (" + r.Name + ")"
 		}
-		recentMenu.Add(label).
-			SetTooltip(r.Path).
-			OnClick(func(ctx *application.Context) {
-				app.Event.Emit("menu:open-recent", r.Path)
-			})
+		item := recentMenu.Add(label).SetTooltip(r.Path)
+		if !r.Available {
+			// The recipe is gone from disk. The entry stays visible so the
+			// project is still findable, and stays unclickable so opening it
+			// cannot produce a tab with nothing behind it (#2560).
+			item.SetEnabled(false)
+			continue
+		}
+		item.OnClick(func(ctx *application.Context) {
+			app.Event.Emit("menu:open-recent", r.Path)
+		})
 	}
 	if len(recents) == 0 {
 		recentMenu.Add(desktopmenu.T(tr, "noRecentProjects")).SetEnabled(false)
