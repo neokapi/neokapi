@@ -221,11 +221,6 @@ export { ReviewSurface } from "./components/ReviewSurface";
 // Governed review session (the dedicated project-level review surface).
 export { ReviewSession } from "./components/review/ReviewSession";
 export type { ReviewSessionProps } from "./components/review/ReviewSession";
-export { LanguageScopeSelect, ALL_LANGUAGES } from "./components/review/LanguageScopeSelect";
-export type {
-  LanguageScopeSelectProps,
-  LanguageScopeOption,
-} from "./components/review/LanguageScopeSelect";
 export { ReviewQueueList } from "./components/review/ReviewQueueList";
 export type { ReviewQueueListProps } from "./components/review/ReviewQueueList";
 export { FocusedReviewer } from "./components/review/FocusedReviewer";

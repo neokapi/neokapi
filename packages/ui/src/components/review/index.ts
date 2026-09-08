@@ -1,5 +1,11 @@
 export { LayerCard, type LayerCardProps } from "./LayerCard";
 export {
+  ReviewLanguageSelect,
+  ALL_LANGUAGES,
+  type ReviewLanguageSelectProps,
+  type ReviewLanguageLane,
+} from "./ReviewLanguageSelect";
+export {
   PointCard,
   TermRuleChip,
   TermHitChip,
