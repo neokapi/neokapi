@@ -1,6 +1,6 @@
 id: bowrain-cli-getting-started
 title: Your content stays in your repository
-subtitle: init connects it, push moves it, up runs the loop on the server.
+subtitle: init connects it, push moves it, up runs the loop.
 tagline: your files stay yours, and the server adds the team, the memory and the governance.
 kind: use-case
 publishAs: bowrain-cli-getting-started

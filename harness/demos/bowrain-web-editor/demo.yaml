@@ -1,6 +1,6 @@
 id: bowrain-web-editor
 title: Translate a page where the reader will see it
-subtitle: An editing card over the rendered document, in every language.
+subtitle: An editing card over the page, in every target language.
 tagline: the server-side platform companion to kapi
 kind: use-case
 publishAs: bowrain-web-editor

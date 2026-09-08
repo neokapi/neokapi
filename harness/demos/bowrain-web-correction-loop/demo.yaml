@@ -1,6 +1,6 @@
 id: bowrain-web-correction-loop
 title: Every correction a reviewer makes is evidence
-subtitle: Repeated fixes become a versioned check the next run enforces.
+subtitle: A fix the team keeps making becomes a versioned check.
 tagline: the correction-learning loop on bowrain
 kind: use-case
 publishAs: bowrain-web-correction-loop
