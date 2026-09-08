@@ -192,6 +192,15 @@ const CHILDREN: ReadonlyArray<{ name: string; code: string }> = [
   { name: "element-valued identifier", code: "{icon}" },
   { name: "element-valued member expression", code: "{row.icon}" },
   { name: "element-valued call", code: "{renderIcon(row)}" },
+  // String literals in a conditional's branches (#2581). Each is a block of
+  // its own, addressed by slot, and the transform rewrites the literal in
+  // place inside whatever the parent splices.
+  { name: "ternary of literals", code: '{cond ? "yes note" : "no note"}' },
+  { name: "ternary with one literal", code: '{cond ? "a note" : label}' },
+  { name: "logical and a literal", code: '{cond && "a note"}' },
+  { name: "logical or a literal", code: '{label || "a note"}' },
+  { name: "nested ternary of literals", code: '{a ? "a note" : b ? "b note" : "c note"}' },
+  { name: "ternary of a literal and an element", code: '{cond ? "a note" : <span>b note</span>}' },
 ];
 
 /**

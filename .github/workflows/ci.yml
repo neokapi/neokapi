@@ -138,7 +138,11 @@ jobs:
           # test and build jobs, none of which touch this one.
           check_paths kapi_desktop '^apps/kapi-desktop/' '^packages/(ui|flow-editor)/' '^\.github/workflows/ci\.yml$' "${js_deps[@]}"
           check_paths bowrain_desktop '^bowrain/apps/bowrain/' '^bowrain/packages/ui/' "${js_deps[@]}"
-          check_paths i18n_react '^packages/(kapi-format|i18n-react)/' "${js_deps[@]}"
+          # i18n-react-lint is in this filter because its rules answer for what the
+          # extractor does: narrowing what extraction skips retires a rule, and the
+          # two have to move together or the rule tells the author to fix code that
+          # already works. Its suite runs in the same job.
+          check_paths i18n_react '^packages/(kapi-format|i18n-react|i18n-react-lint)/' "${js_deps[@]}"
           check_paths workflows '^\.github/workflows/'
           check_paths plugins  '^plugins/'
           # The three faces of one question, plus the record they are held to.

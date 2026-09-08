@@ -160,31 +160,28 @@ Fix by wrapping the computed branch with `t()` too, or by lifting the logic so b
 
 ### `no-ternary-literals-in-jsx-child`
 
-Catches the JSX-children counterpart of the attribute rule:
+Catches a template literal in the branch of a JSX-children ternary:
 
 ```tsx
-// ✗ neither literal gets extracted: the extractor treats the
-// whole conditional as a single opaque placeholder.
-<Button>{loading ? "Saving..." : "Save"}</Button>
+// ✗ the words inside the template never extract
+<span>{count > 0 ? `Loading ${count}...` : "Idle"}</span>
 ```
 
-Why this slips through everything else: neokapi-i18n's walker sees one `JSXExpressionContainer` and emits one `jsx:var` placeholder for it. It never looks inside at the branches: `"Saving..."` and `"Save"` are both invisible to extraction.
+A template literal is one expression, so extraction reads it whole and the words in it stay English.
 
-Fix with `t()`:
+Fix with `t()`, passing the interpolation as a parameter:
 
 ```tsx
-// ✓ each branch extracts as its own block; the branch's value flows through
-// the button's `__tx` call at render time.
-<Button>{loading ? t("Saving...") : t("Save")}</Button>
+// ✓ the t() call extracts as its own block, and the runtime substitutes count
+<span>{count > 0 ? t("Loading {count}...", { count }) : "Idle"}</span>
 ```
 
 Variants the rule handles cleanly:
 
-- Both branches string literals → flagged (either/both lost).
-- One string literal, one `t()` call → flagged (the literal branch is lost).
-- Both `t()` calls → **not** flagged (goes through the t-call path).
-- Template literals with alphabetic text (`` `Loading ${n}...` ``) → flagged.
+- A template literal with alphabetic text (`` `Loading ${n}...` ``) → flagged, in either branch.
 - Format-only templates with no alphabetic quasi (`` `${pct}%` ``, `` `v${version}` ``) → **not** flagged (code-level formatting, not UI copy).
+- A plain string literal (`"Save"`) → **not** flagged. It extracts as its own block, keyed by the branch's slot; see [Literals in a conditional's branches](./writing-components#literals-in-a-conditionals-branches).
+- A `t()` call, an element or a computed value → **not** flagged.
 
 ### `no-string-literal-jsx-expr`
 

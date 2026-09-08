@@ -15,38 +15,40 @@ describe("no-ternary-literals-in-jsx-child", () => {
         { code: `<p>{cond ? <A/> : <B/>}</p>` },
         { code: `<p>{cond ? fn() : gn()}</p>` },
         { code: `<p>{cond ? value : otherValue}</p>` },
+        // String-literal branches extract as their own blocks (#2581), so
+        // there is nothing to fix and nothing to say.
+        { code: `<p>{cond ? "A" : "B"}</p>` },
+        { code: `<Button>{loading ? "Saving..." : "Save"}</Button>` },
+        { code: `<Button>{loading ? t("Saving...") : "Save"}</Button>` },
+        { code: `<>{cond ? "A" : "B"}</>` },
         // translate="no" on the element suppresses.
-        { code: `<p translate="no">{cond ? "A" : "B"}</p>` },
+        { code: '<p translate="no">{cond ? `Loading ${n}...` : "B"}</p>' },
         // translate="no" on an ancestor suppresses.
-        { code: `<div translate="no"><p>{cond ? "A" : "B"}</p></div>` },
+        { code: '<div translate="no"><p>{cond ? `Loading ${n}...` : "B"}</p></div>' },
         // Attribute position — out of scope (covered by no-ternary-in-translatable-attr).
-        { code: `<input placeholder={cond ? "A" : "B"} />` },
+        { code: '<input placeholder={cond ? `Loading ${n}...` : "B"} />' },
         // Format-only templates (no alphabetic text) aren't translatable copy.
         { code: "<span>{cond ? `${pct}%` : t('Loading...')}</span>" },
         { code: "<span>{cond ? `v${version}` : t('Update')}</span>" },
       ],
       invalid: [
-        {
-          code: `<p>{cond ? "A" : "B"}</p>`,
-          errors: [{ messageId: "literalBranch" }],
-        },
-        {
-          code: `<Button>{loading ? "Saving..." : "Save"}</Button>`,
-          errors: [{ messageId: "literalBranch" }],
-        },
-        // Only one branch is a literal — still flag (that branch is lost).
-        {
-          code: `<Button>{loading ? t("Saving...") : "Save"}</Button>`,
-          errors: [{ messageId: "literalBranch" }],
-        },
-        // Template literal branches also flagged — same extractor behaviour.
+        // A template literal is one opaque expression to the extractor, so its
+        // words are lost whichever branch carries it.
         {
           code: '<p>{cond ? `Loading ${n}...` : "Done"}</p>',
           errors: [{ messageId: "literalBranch" }],
         },
+        {
+          code: '<p>{cond ? "Done" : `Loading ${n}...`}</p>',
+          errors: [{ messageId: "literalBranch" }],
+        },
+        {
+          code: "<p>{cond ? `Saving ${n} files` : `Saved ${n} files`}</p>",
+          errors: [{ messageId: "literalBranch" }],
+        },
         // Inside a React Fragment.
         {
-          code: `<>{cond ? "A" : "B"}</>`,
+          code: "<>{cond ? `Loading ${n}...` : t('Done')}</>",
           errors: [{ messageId: "literalBranch" }],
         },
       ],
