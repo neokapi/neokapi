@@ -3,43 +3,47 @@ export interface RegistryEntry { id: string; title: string; }
 export const DEMOS: RegistryEntry[] = [
   {
     "id": "01-localize-landing-page",
-    "title": "Translate a landing page to French"
+    "title": "A page translated, not rebuilt"
   },
   {
     "id": "02-nextjs-zero-to-i18n",
-    "title": "Zero to Japanese in a Next.js app"
+    "title": "The same JSX, now in Japanese"
   },
   {
     "id": "03-translate-docx",
-    "title": "Translate a document, structure intact"
+    "title": "A Word document nobody opened"
   },
   {
     "id": "04-i18n-react-catalogs",
-    "title": "Add French and German to a React app"
+    "title": "Two more languages in the folder you already have"
   },
   {
     "id": "05-ai-checks-guardrail",
-    "title": "Check AI output like you test code"
+    "title": "Two things would break in production"
   },
   {
     "id": "06-multi-format-publishing",
-    "title": "Translate Markdown and a properties file"
+    "title": "Two formats, one request, no conversion step"
   },
   {
     "id": "07-global-launch-many-languages",
-    "title": "Translate app strings into four languages"
+    "title": "See the bill before you spend it"
   },
   {
     "id": "08-mcp-tools",
-    "title": "Reach kapi over MCP"
+    "title": "An assistant with no shell"
   },
   {
     "id": "09-toolbox-find-replace",
-    "title": "grep, sed and cat for any format"
+    "title": "grep stops at the bytes"
   },
   {
-    "id": "10-cli-governance",
-    "title": "Governance from the terminal"
+    "id": "10-cli-points-and-voice",
+    "title": "Ask a file where it sits"
+  },
+  {
+    "id": "11-cli-terms-and-queue",
+    "title": "One queue, every language"
   },
   {
     "id": "bowrain-cli-auth-and-workspaces",
@@ -83,7 +87,7 @@ export const DEMOS: RegistryEntry[] = [
   },
   {
     "id": "kapi-bilingual-workflow",
-    "title": "The bilingual round-trip: extract, translate, merge"
+    "title": "The hand-off is a bilingual file"
   },
   {
     "id": "kapi-desktop-config",
@@ -110,15 +114,27 @@ export const DEMOS: RegistryEntry[] = [
     "title": "Review a translation in context"
   },
   {
-    "id": "s0-northsea-governance",
-    "title": "Govern the content you already have"
+    "id": "s0-northsea-checks",
+    "title": "Checks are tests for prose"
   },
   {
-    "id": "s1-compass-multilingual",
-    "title": "A language appears when it is ready"
+    "id": "s0-northsea-context",
+    "title": "Ask the graph where you are"
   },
   {
-    "id": "s2-tidewatch-docs",
-    "title": "A docs site that catches up on its own"
+    "id": "s1-compass-converge",
+    "title": "Recycle first, draft the rest"
+  },
+  {
+    "id": "s1-compass-ship-gate",
+    "title": "The picker is the gate"
+  },
+  {
+    "id": "s2-tidewatch-build-output",
+    "title": "The i18n tree is build output"
+  },
+  {
+    "id": "s2-tidewatch-ci",
+    "title": "Behind is not broken"
   }
 ];
