@@ -1,79 +1,35 @@
 ---
 sidebar_position: 3
 title: Docx paragraph replay
-description: "Implementation note for E-02: the measured reasons a WordprocessingML round trip rewrites bytes it did not need to touch, and a design that replays an unchanged paragraph's source span instead of rebuilding it from the model."
-keywords: [docx, WordprocessingML, paragraph replay, byte fidelity, skeleton, SkeletonOriginal, OpenXML, parity, neokapi]
+description: "Implementation note for E-02: how a WordprocessingML round trip puts an unchanged paragraph back as the bytes its author wrote, what a rendered paragraph still keeps of them, and what the corpus and the parity slice measure."
+keywords: [docx, WordprocessingML, paragraph replay, byte fidelity, skeleton, OpenXML, parity, neokapi]
 ---
 
 # Docx paragraph replay
 
-An untranslated round trip through `core/formats/openxml` returns 86 of 87 xlsx
-fixtures and 62 of 86 pptx fixtures byte for byte, and 1 of 185 docx. This note
-measures why, and designs the change that closes most of the gap. Parent AD:
+An untranslated round trip through `core/formats/openxml` returns 150 of the
+185 docx fixtures upstream Okapi ships byte for byte, beside 86 of 87 xlsx and
+86 of 86 pptx. This note describes the mechanism that does it for
+WordprocessingML, what it declines to replay, and what the corpus test and the
+parity slice measure. Parent AD:
 [E-02: The format system](/contribute/architecture/engine/e-02-format-system).
 The store mechanics it builds on are in
 [Skeleton store and streaming](/contribute/implementation/engine/skeleton-store).
 
-The short answer is two mechanisms rather than one. The WordprocessingML writer
-rebuilds every extracted paragraph from the model, so an unchanged paragraph is
-re-serialised. Separately, a writer-side normaliser removes skippable elements
-from whole parts, including parts the reader never extracted from. Each one
-alone leaves every fixture differing; both have to be addressed for any fixture
-to come back whole.
+The writer projects an extracted paragraph from the model, so a paragraph that
+is rebuilt is re-serialised: its start-tag attributes, the self-closing forms
+inside it, the character references, the whitespace a producer indented it
+with, the runs the reader merged, and the run properties it rebuilt all come
+out in the writer's spelling. Replay keeps the source's spelling wherever
+nothing changed.
 
-## The measured baseline
+## What a rebuilt paragraph loses
 
-Every one of the 185 docx fixtures upstream Okapi ships was read and written
-back with no translation applied, using the same reader and writer path as
-`skeletonRoundtripBytes` in `core/formats/openxml/validity_test.go`. Each ZIP
-entry that differed was split into its outermost `<w:p>` subtrees and the
-material between them, and both sides were normalised one step at a time until
-they agreed. The step that first produced agreement names the mechanism.
-Paragraphs were aligned by index within a part; where the paragraph count
-itself changed, the part is counted under paragraph sequence rather than
-attributed further. The measurement scripts live outside the repo, and the
-figures below are reproducible from the fixture corpus alone.
-
-`887.docx` already returns byte for byte. The other 184 differ.
-
-### Where the bytes differ
-
-| Place | Fixtures |
-| --- | --- |
-| Inside a `<w:p>` in a paragraph-bearing part | 184 |
-| `word/styles.xml`, from the skippable-element strip | 179 |
-| Inside a `<w:p>`, from the same strip | 118 |
-| `word/document.xml`, outside any paragraph, from revision acceptance | 18 |
-| `word/document.xml`, outside any paragraph, other | 8 |
-| `word/document.xml`, outside any paragraph, from the strip | 9 |
-| A second styles part the same predicate covers, from the strip | 2 |
-| `docProps/core.xml` | 2 |
-| `word/charts/chart1.xml` | 2 |
-| `word/diagrams/data1.xml` | 1 |
-
-`word/styles.xml` is the single most common place a docx loses bytes, and no
-paragraph is involved: `stripWMLSkippableElements` in `writer.go` removes
-`<w:lang>` and `<w:noProof>` from every part `shouldStripWMLLang` names, then
-collapses the `<w:rPr>` and `<w:pPr>` containers those elements emptied. The
-strip mirrors upstream Okapi's `RunSkippableElements`, it runs over the
-assembled part after the skeleton is filled in, and it is already excluded by
-name from `TestByteFidelity_CorpusUntouchedParts` for exactly this reason.
-
-The predicate covers the main document's parts and the parallel
-WordprocessingML package ECMA-376-1 §17.12.7 defines, so two fixtures lose
-bytes in both styles parts:
-
-```
-word/styles.xml
-word/glossary/styles.xml
-```
-
-### Mechanisms inside a paragraph
-
-The first column counts fixtures in which the mechanism is observable at all.
-The second counts paragraphs. The third counts paragraphs where that mechanism
-is the cheapest one that explains the whole difference, so the three columns
-answer prevalence, volume, and sufficiency in turn.
+Measured over the 185 fixtures before replay existed, with each differing
+paragraph normalised one step at a time until both sides agreed. The first
+column counts fixtures in which the mechanism is observable, the second
+counts paragraphs, and the third counts paragraphs where that mechanism alone
+explains the whole difference.
 
 | Mechanism | Fixtures | Paragraphs | Sufficient |
 | --- | --- | --- | --- |
@@ -86,285 +42,210 @@ answer prevalence, volume, and sufficiency in turn.
 | Inter-element whitespace collapsed | 51 | 115 | 0 |
 | Residual past all of the above | 54 | 132 | 54 |
 
-Two rows deserve a note. The `<w:p>` start attributes row is sufficient for no
-paragraph on its own because the writer emits a literal `<w:p>` into the
-skeleton (`wml_paragraph.go` lines 962, 1050, 1236, 1336) and discards the
-source start tag, so every paragraph that loses its attributes also loses
-something else in the same breath. The self-closing row counts the embedded
-markup a paragraph carries rather than the paragraph itself: a footer holding a
-`<mc:AlternateContent>` drawing comes back with `<wp:simplePos x="0" y="0"/>`
-written as `<wp:simplePos x="0" y="0"></wp:simplePos>` for every empty element
-in the anchor, because that subtree travels through the model and out through
-Go's `xml` encoder. The skeleton's own pass-through already replays source
-bytes; a paragraph's interior does not.
+The self-closing row counts the markup a paragraph carries rather than the
+paragraph itself: a drawing's `<mc:AlternateContent>` subtree travels through
+the model and out through Go's `xml` encoder, so every empty element in the
+anchor came back as a start and end pair. The residual row is complex fields
+whose result runs the writer reconstructs, `<w:lastRenderedPageBreak>`, `<w:t>`
+splits the run merger cannot express, and a `<w:sdtEndPr>` dropped from a
+structured document tag.
 
-The residual row breaks down into a complex field whose result runs the writer
-reconstructs (12 fixtures), a `<w:lastRenderedPageBreak>` the model does not
-carry (7), a `<w:t>` split the run merger cannot express (17), a `<w:sdtEndPr>`
-dropped from a structured document tag (2), and a handful of DrawingML
-paragraphs inside charts and SmartArt.
+Two things had to change together for any fixture to come back whole. The
+writer's skippable-element strip ran over whole parts after assembly,
+`word/styles.xml` included, so 179 fixtures lost bytes in a part the reader
+never touched; it now reaches rendered content only (`renderBlock`), and a
+separate pass, `stripWMLRevisionElements`, still removes revision markup from
+whole parts because accepting revisions is a decision about the document. With
+that in place, replay is what moves the count.
 
-### What each lever is worth
+## The mechanism
 
-| Change | Fixtures byte-identical, of 185 |
-| --- | --- |
-| Today | 1 |
-| Paragraph replay alone | 1 |
-| Paragraph replay with the skippable-element strip confined to extracted content | 161 |
+### The reader records the span
 
-Paragraph replay on its own moves nothing, because 179 of the 184 differing
-fixtures also lose bytes in `word/styles.xml` and the remaining 5 lose bytes to
-the same normaliser inside a paragraph. Confining the strip on its own moves
-nothing either, because all 184 differ inside a paragraph. Together they reach
-161.
+`rawxml.go` gives the reader what it needs: `d.Offset()` is where the token
+the decoder last returned begins, `d.Pin(off)` holds the source window open
+across a subtree, and `d.Range(from, to)` returns the bytes between two
+offsets. `parseParagraph` pins the `<w:p>` start on entry, keeps the raw
+start tag, and takes the paragraph's span at the end element, so it holds the
+exact source bytes: the start-tag attributes, the self-closing forms, the
+character-reference spellings and the whitespace.
 
-The 24 that stay differing are 18 whose paragraph sequence changes under
-revision acceptance, 8 whose `word/document.xml` loses table rows or tables to
-the same acceptance passes, 2 whose `docProps/core.xml` loses a UTF-8 byte order
-mark, 2 chart parts and 1 SmartArt part whose DrawingML paragraphs go through
-the pptx-side rebuild. The sets overlap.
+The reader brackets the paragraph's skeleton with marker refs, the device the
+ODF writer already uses for part boundaries (`skelPartStartPrefix` in
+`reader.go`), so no new skeleton entry type is needed and a writer that does
+not know the markers takes its ordinary path. `wml_replay.go` names them:
 
-## The design
+- `@@SKEL_PARA@@` and `@@SKEL_PARA_BLOCK@@`, each followed by the paragraph's
+  span, precede the paragraph's skeleton. The second says the skeleton is the
+  paragraph's frame around one block ref, which is what lets the writer replay
+  the paragraph's unchanged children into a rendered block.
+- `@@SKEL_REGION_END@@` closes the region after the paragraph;
+  `@@SKEL_REGION_END_SPAN@@` followed by a span closes a region holding
+  several paragraphs; `@@SKEL_REGION_SKIP@@` closes it with no replay.
+- `@@SKEL_REGION_START@@` opens a region ahead of a paragraph the reader holds
+  back until it knows where a complex field ends, so the region also covers
+  the skeleton written between that paragraph and the next while it waited,
+  and the replayed bytes land in source order.
 
-### Replay an unchanged paragraph whole
+Every emission path in `parseParagraph`, and the two flushes in `wml.go` for
+paragraphs the reader defers, write the same markers; `replayParagraphBegin`
+and `replayRegionEnd` hold the state. A paragraph that is dropped, or merged
+into its neighbour, makes the region it belongs to ineligible, because the
+region's span would put it back.
 
-`rawxml.go` already provides everything the reader needs. `d.Offset()` reports
-where the token the decoder last returned begins, `d.Pin(off)` holds the source
-window open across a subtree, and `d.From(off)` returns the bytes from that
-offset through the end of the token last returned. Pinning at the `<w:p>` start
-in `parsePart` and taking `From` when `parseParagraph` returns gives the
-paragraph's exact source span, including its start-tag attributes, its
-self-closing forms, its character-reference spellings and the whitespace a
-producer indented it with.
+The rendered paragraph reopens with the source's start tag (`wmlParagraphOpenTag`
+drops the slash of a self-closing tag, since the writer closes the element
+itself), so `w:rsidR`, `w14:paraId` and `w14:textId` survive a translation too.
 
-The writer decides whether to use it the way `smlSourceContent` decides for a
-shared string: the test is the content about to be emitted, not the presence of
-a target. A paragraph is unchanged when the markup the writer is about to
-produce for it equals the markup the same path produces from its blocks' source
-runs. A target that says what the source said replays; a target that says
-something else is rendered, because its runs are not the source's runs and the
-layout between them has nowhere to go.
+### The writer decides on the render
 
-Storing only the source span, and letting the writer render the paragraph a
-second time from the source runs to test it, follows the SpreadsheetML
-precedent and keeps the skeleton small. The alternative is the ODF and HTML
-contract, `SkeletonOriginal`, which carries an `EncodeSkeletonPair(rendered,
-original)` payload so the writer compares against a stored form instead of
-re-rendering. That costs roughly double the skeleton bytes for a docx, since
-almost every paragraph qualifies. Both are listed as a decision point below.
+The writer decides the way `smlSourceContent` decides for a shared string:
+the test is the content about to be emitted. `wmlReplayState` marks the part
+buffer at the region's start and renders every block inside as usual. A block
+is unchanged when its rendering for the target equals its rendering from the
+source runs, which `renderBlockFromSource` produces with `Writer.fromSource`
+set so `preferredRuns` answers with the source, nested textbox blocks
+included. At the region's end, if no block differed, the buffer is truncated
+back to the mark and a placeholder stands in for the span.
 
-### The skeleton shape
+The second render happens only for a block whose rendering can differ:
+`changedBlocks` names every block with target runs for the locale and,
+transitively, every block whose payload carries a drawing marker for one, so
+an untranslated round trip renders each block once and a translated one
+renders each translated paragraph twice. A target that says what the source
+said, codes included, replays; a target with the same text and no formatting
+is a change.
 
-A paragraph currently appears in the skeleton as literal `<w:p>` text, the
-re-serialised `<w:pPr>`, the run envelopes, a `SkeletonRef` for the block, and
-literal `</w:p>`. The ref stands for the run content only, so an entry that
-replaces the ref cannot replace the frame around it.
+The spans wait as placeholders (`<!--kapi-replay-N-->`) until the part's
+post-passes have run, the revision strip and the run fusions in `postWML`
+among them, and `restoreWMLReplays` puts them back last. No pass rewrites
+bytes the source wrote.
 
-The reader brackets the paragraph with two marker refs instead, the device the
-ODF writer already uses for part boundaries (`skelPartStartPrefix` and
-`skelPartEndPrefix` in `core/formats/odf/writer.go`). The writer records the
-current length of the part buffer at the start marker together with the pending
-source span, renders the paragraph exactly as it does today, and at the end
-marker compares what it produced with the source-run render. On a match it
-truncates the buffer back to the mark and writes the source span. Buffering is
-bounded by one paragraph, and a writer that does not recognise the markers
-takes its ordinary path, so a skeleton written by a newer reader still writes
-through an older writer.
+### A changed paragraph keeps what did not change
 
-### A changed paragraph
+For a paragraph whose block rendered differently, `replayUnchangedChildren`
+walks three lists of the paragraph's direct children: the source span's,
+the source rendering's and the target rendering's. `wmlParagraphChildren`
+lists the children the reader renders and skips the ones it never reads
+(`<w:pPr>`, proofing marks, permission ranges, Word's `_GoBack` bookmark). When
+the three lists have the same length and a child has the same name in all
+three and rendered the same from source and target, the source's bytes for it
+go into the output; otherwise the rendered child does. A run the reader
+merged with its neighbour, or a revision wrapper it unwrapped, breaks the
+alignment or the name match and is rendered, which is what keeps a wrapper's
+bytes out of an accepted document. A translated paragraph therefore keeps the
+bytes of its unchanged drawing runs, bookmarks, comment ranges and field
+markers, and renders its text.
 
-Replaying a whole paragraph answers the untranslated round trip. A translated
-paragraph needs the same faithfulness for everything the translation did not
-touch, which is the frame around the runs and the runs whose text is unchanged.
-
-The reader records three more spans per paragraph: the `<w:p>` start tag, the
-`<w:pPr>` subtree, and one span per source run. The writer then replays the
-start tag and the paragraph properties verbatim, and for each model run either
-replays its source span or renders it, projecting run properties through
-`runPropsProjection` in `run_projection.go`. Recovering the start tag alone
-returns the 1758 paragraphs across 153 fixtures that lose `w:rsidR`,
-`w14:paraId` and `w14:textId` today, and it returns them for translated
-documents as well as untranslated ones.
-
-Per-run spans need a model run to map back to a source run. The writer already
-carries per-run sidecars (`perRunRPr`, `perRunSrcStart`) with an alignment
-guard that drops the sidecar when the counts disagree, because `mergeRuns` can
-coalesce source runs whose non-toggle properties differ. The span sidecar takes
-the same guard: when the writer cannot align model runs to source runs one to
-one, it renders every run in the paragraph. The spans travel as an attribute on
-the run's opening code, beside `smlRPr` and `dmlRPr` in `runprops.go`, rather
-than in the code's `Data`, because the HTML export echoes any `Data` beginning
-with `<`.
-
-### What lives inside a paragraph
+### What is not replayed
 
 **Tracked changes.** With `AutomaticallyAcceptRevisions` set, which is the
-default, `parsePart` rewrites the part bytes before the streaming parser sees
-them: `dropMoveFromRanges`, `dropDeletedRows` and `dropEmptyTables` remove
-moved-from spans, deleted rows and the tables those rows emptied. The writer
-then strips revision property changes and paragraph marks. A replayed span
-would reinstate all of it. Replay is therefore suppressed for any paragraph the
-acceptance pre-pass touched and for any paragraph holding a revision element
-while acceptance is on. These are the 18 fixtures whose paragraph sequence
-changes.
+default, the reader's pre-pass drops what a revision deletes, the paragraph
+parser unwraps what it inserts, and the writer strips the markers. A replayed
+span would put the revision back, so `paragraphReplayable` renders any
+paragraph holding a revision wrapper, a paragraph-mark marker, a
+property-change snapshot or a move-range marker while acceptance is on. With
+acceptance off the same paragraph replays.
 
-**Comments, footnotes and endnotes.** `<w:commentRangeStart>`,
-`<w:commentRangeEnd>` and `<w:footnoteReference>` are position markers with no
-text of their own, and their targets live in `word/comments.xml`,
-`word/footnotes.xml` and `word/endnotes.xml`. Replay keeps them exactly where
-the source put them. Those parts hold their own paragraphs and get the same
-treatment, which is why the measurement shows differences in them today.
+**Fields.** A complex field can straddle paragraph boundaries, and the reader
+holds a paragraph back while an extractable field is still open at its end
+(`partFieldStraddle`). The region stays open while a field is open across a
+paragraph's end, so the paragraphs a field crosses are replayed together or
+rendered together; `pullLeadingFldCharEndIntoPrevParagraph` never sees a
+replayed paragraph beside a rendered one.
 
-**Fields.** A complex field runs from `<w:fldChar w:fldCharType="begin"/>`
-through `<w:instrText>`, a separate marker, the result runs, and an end marker,
-and it can straddle paragraph boundaries; `wml.go` keeps the state in
-`partCfs` for that reason. 18 fixtures hold a field that crosses a paragraph
-boundary. Replaying every paragraph in such a span reproduces the field
-verbatim and needs no state machine, but replaying some and rendering others
-leaves a boundary the writer's extractability logic never agreed to. Replay is
-therefore decided for the whole span: if any paragraph the field crosses is
-changed, none of them is replayed.
+**`xml:space`.** ECMA-376-1 §17.3.3.31 leaves whitespace handling in `<w:t>` to
+XML, and a consumer may collapse a leading or trailing space where the
+attribute is missing. The writer adds it, and `wmlTextIsSpaceSafe` renders a
+paragraph rather than replaying it over that repair; SpreadsheetML has the
+same rule in `smlTextIsSpaceSafe`. XML whitespace is space, tab, carriage
+return and line feed: a narrow no-break space or a line separator at the edge
+of a `<w:t>` is content, and such a paragraph replays.
 
-**Bookmarks.** `<w:bookmarkStart>` and `<w:bookmarkEnd>` are direct paragraph
-children that some paths drop. A replayed paragraph keeps them, which is a
-parity question rather than a correctness one.
+**Nested content.** A textbox paragraph inside a drawing, a `<m:nor/>` prose
+span inside an equation and a drawing's alt text are blocks of their own.
+Each is a ref inside the host paragraph's region, or a marker in the host
+block's payload, and is compared like any other; a translated textbox renders
+its host paragraph.
 
-**Hyperlinks.** `<w:hyperlink r:id="rId7">` carries a relationship id that the
-writer rewrites when the target changes, and `wml_hyperlink.go` preserves every
-other attribute verbatim already. Replay must not cover a paragraph whose
-hyperlink relationship changed, which is a level-two concern; an untranslated
-round trip never rewrites one.
+**Core properties.** `docProps/core.xml` keeps its byte order mark: Go's
+decoder reports it as character data in the prolog, so `parseCoreProperties`
+holds it back from the decoder and writes it to the skeleton as it was.
 
-### Composition with the skeleton store
+## The corpus test
 
-Nothing new is needed in `core/format/skeleton.go`. Marker refs are ordinary
-`SkeletonRef` entries, and `SkeletonOriginal` is already defined, already
-carried in the entry stream, and already consumed by the ODF and HTML writers.
-The store stays append-only and streaming-safe: a paragraph's span is written
-before its ref, so a streaming reader and writer sharing the store keep their
-existing ordering contract.
+`TestWMLParagraphReplay_CorpusIsByteIdentical` in
+`wml_paragraph_replay_test.go` asserts every docx fixture in `okapi-testdata`
+goes back byte for byte on an untranslated round trip, with the exclusions
+named in `docxReplayExclusions` and a reason per group;
+`TestWMLParagraphReplay_ExclusionsAreStillNeeded` fails for a fixture that no
+longer needs its entry.
 
-## Cost and risk
+| Group | Fixtures | Reason |
+| --- | ---: | --- |
+| Revision acceptance | 30 | A paragraph holding revision markup is rendered, and the accepted document differs from the source by design |
+| DrawingML paragraphs in chart and diagram parts | 3 | Rebuilt from the model, and a DOCX package takes Okapi's `DrawingRunProperties` attribute strip on write |
+| A trailing self-closing core property | 1 | `parseCoreProperties` drops it as Okapi's Jericho-based parser does |
+| The `xml:space` repair | 1 | `952-1.docx` holds a `<w:t>` with a trailing space and no `xml:space="preserve"` |
 
-### Files
+`TestByteFidelity_CorpusUntouchedParts` states the weaker contract for parts
+the reader extracted nothing from; its exclusions are the same predicates
+applied to a part.
 
-| File | Change |
-| --- | --- |
-| `core/formats/openxml/wml.go` | Pin and unpin the source window around `parseParagraph`; emit the paragraph markers |
-| `core/formats/openxml/wml_paragraph.go` | Capture the paragraph span, the start tag and the `<w:pPr>` span; suppress replay for revision and field-straddling paragraphs |
-| `core/formats/openxml/writer.go` | Paragraph mark and truncate in the skeleton loop; the source-run render gate; the `xml:space` safety gate |
-| `core/formats/openxml/wml_run.go`, `runprops.go` | Per-run source spans and their alignment guard |
-| `core/formats/openxml/byte_fidelity_test.go` | Drop the `word/styles.xml` exclusion once the strip is confined |
-| `cli/parity/roundtrip/normalizers.go` | A canonicaliser option for the skippable-element strip and one for adjacent-run merging |
+## The parity slice
 
-### The corpus test that gates it
+The openxml chain in `cli/parity/roundtrip/coverage_test.go` compares native
+output with upstream Okapi's after canonicalisation. Replay restores what
+Okapi's filter drops, so the canonicaliser applies the same omissions to both
+sides:
 
-`TestWMLParagraphReplay_CorpusIsByteIdentical`, modelled on
-`TestSMLSourceForm_CorpusIsByteIdentical` in `sml_source_form_test.go`: every
-docx fixture in `okapi-testdata` goes back byte for byte on an untranslated
-round trip, with a named exclusion map carrying a reason per fixture. The
-target is 161 of 185, with the 24 exclusions named and grouped.
+- `OpenXMLEffectiveRPr{StripSkippableElements: true}` drops the skippable
+  properties and the containers they empty before the §17.7 cascade runs,
+  so a paragraph mark one side dropped is not filled with effective
+  formatting on the other.
+- `XMLCanonical{StripWMLSkippableElements: true}` drops `<w:lang>`,
+  `<w:noProof>`, `<w:bidiVisual>`, proofing marks, permission ranges,
+  `<w:lastRenderedPageBreak>`, the `_GoBack` bookmark and its end, `<w:bCs>`
+  and `<w:iCs>` on a run with no complex-script text, every empty `<w:rPr>`,
+  `<w:pPr>` and `<w:sdtEndPr>`, and every run left with nothing but its
+  properties.
+- `XMLCanonical{MergeAdjacentWMLRuns: true}` fuses adjacent runs with equal
+  properties and the text elements inside them, the shape Okapi's `RunMerger`
+  writes.
 
-`TestByteFidelity_CorpusUntouchedParts` already states the weaker contract for
-parts the reader extracted nothing from. Removing its `word/styles.xml`
-exclusion is the assertion that gates the strip work on its own.
+Over the 185 docx fixtures, native output at the canonical tier moved from 146
+before either change to 149 with the strip confined and 155 with replay; the
+bridge stays byte-equal on all 185. The slice has no tier floor for openxml
+native, so the tier table in a verbose run is the measurement.
 
-### The parity slice
+## Cost
 
-The parity tier compares neokapi output with upstream Okapi output after
-canonicalisation, and the openxml chain in
-`cli/parity/roundtrip/coverage_test.go` already folds most of what replay would
-restore. `OpenXMLEffectiveRPr` resolves both sides' run properties per
-ECMA-376-1 §17.7, and the `XMLCanonical` pass that follows sets `SortAttrs`,
-`SortChildElements`, `StripRevisionIDs`, `StripXMLSpacePreserve` and
-`StripNamespaceDecls`, while re-emitting both sides through `encoding/xml`,
-which normalises self-closing form and inter-element whitespace. Paragraph
-attributes, `xml:space`, self-closing form, whitespace and run-property
-placement are therefore invisible to the parity comparison, and replaying them
-costs nothing there.
+The write half of a round trip on the five largest fixtures, measured with
+`go test -bench` on one machine before and after replay (milliseconds per
+write, median of three runs of five). "Translated" brackets every text run.
 
-Two things the canonicaliser does not fold. Okapi's `RunMerger` fuses adjacent
-runs whose properties are equal, and a replayed paragraph keeps the source's
-split; 102 fixtures carry a run-count difference today. Okapi's
-`RunSkippableElements` drops `<w:lang>` and `<w:noProof>`, and a confined strip
-keeps them; 179 fixtures carry that difference in `word/styles.xml` alone. Both
-are cosmetic under the spec, both would otherwise need per-fixture annotations
-in `parity-annotations.yaml`, and both have the same cheap remedy: two more
-`XMLCanonical` options applied to both sides, shaped like `StripRevisionIDs`
-and like the `MergeAdjacentCSRs` option IDML already uses.
+| Fixture | Size | Before, untranslated | Before, translated | After, untranslated | After, translated |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `apissue.docx` | 988 KB | 4.2 | 4.3 | 2.5 | 6.4 |
+| `large-attribute.docx` | 925 KB | 5.3 | 5.1 | 23.7 | 5.5 |
+| `content_category_test.docx` | 706 KB | 1.4 | 1.4 | 1.3 | 1.5 |
+| `delTextAmp.docx` | 554 KB | 3.1 | 3.0 | 2.7 | 3.1 |
+| `Hangs.docx` | 279 KB | 11.3 | 11.4 | 7.1 | 23.5 |
 
-### Failure modes
+An untranslated write renders each block once and replays, and is faster than
+before on four of the five. A translated write carries the second render and
+the child alignment for every translated paragraph, which costs half as much
+again on `apissue.docx` and twice as much on `Hangs.docx`, whose paragraphs
+hold VML shapes the source render has to expand too. Allocation per write is
+unchanged.
 
-**A replayed paragraph beside a rebuilt one.** The skippable-element strip runs
-over the assembled part rather than over each paragraph, so a replayed
-paragraph and a rebuilt one in the same part go through the same pass and stay
-consistent for `<w:lang>`. What does survive is run splitting: a replayed
-paragraph keeps the source's runs while its rebuilt neighbour has merged them.
-Both forms are valid WordprocessingML and render identically under ECMA-376-1
-§17.3.2, so the exposure is cosmetic drift within one document.
+`large-attribute.docx` is the exception in the untranslated column, and the
+time is deflate rather than replay. Its one drawing carries a megabyte of
+base64 in an `o:gfxdata` attribute with an `&#xA;` reference every 76
+characters; the source spelling deflates in 21.6 ms against 0.9 ms for the
+same attribute with raw newlines, which is what the writer used to produce.
+An XML parser normalises a raw newline in an attribute value to a space
+(XML 1.0 §3.3.3), so the source spelling is the one that keeps the shape.
 
-**`xml:space`.** Six fixtures hold a `<w:t>` whose text has leading or trailing
-whitespace and which declares no `xml:space="preserve"`: `1200-1.docx`,
-`952-1.docx`, `AlternateContentTest.docx`, `Escapades.docx`,
-`StartsWithLineSeparator.docx` and `special-chars-and-linebreaks.docx`.
-Replaying those bytes hands a consumer text it is entitled to trim.
-SpreadsheetML settled this by repairing rather than replaying
-(`smlTextIsSpaceSafe`, with `948-3.xlsx` excluded from the corpus test by
-name), and WordprocessingML takes the same gate and the same six named
-exclusions.
-
-**Namespace prefixes.** A replayed span carries whatever prefixes were bound
-where it was read. The writer assembles a part from skeleton text that already
-holds the root element's declarations, so a span replayed into its own part
-resolves. Replay is part-local for that reason, and the cross-format export
-path, which builds from the event stream rather than the skeleton, is
-untouched.
-
-## Recommendation
-
-Do the work, in two changes on one branch, and take the parity decision first
-because it gates both.
-
-**Change one: confine the skippable-element strip.** `stripWMLSkippableElements`
-stops running over parts the reader extracts nothing from, and stops running
-over paragraph interiors the reader does extract. Gated by removing the
-`word/styles.xml` exclusion from `TestByteFidelity_CorpusUntouchedParts`, and
-by a new `XMLCanonical` option that applies the strip to both sides of the
-parity comparison. Measurable output: 179 fixtures stop differing in
-`word/styles.xml`. Package-level count stays at 1, which is expected.
-
-**Change two: paragraph span replay.** The reader records the paragraph span and
-the marker refs, the writer gates on the source-run render, and the corpus test
-asserts the package. Measurable output: 1 to 161 of 185.
-
-**Later, if the remaining 24 matter.** Revision acceptance is the largest group
-at 18 and is already a configuration toggle, so the question there is the
-default rather than the mechanism. The chart and SmartArt parts (3) belong with
-the DrawingML paragraph work that issues 2532 through 2535 already describe.
-The `docProps/core.xml` byte order mark (2) is a two-line fix in the writer.
-The 8 body-markup fixtures overlap the revision group almost entirely.
-
-Level two, replaying the frame of a changed paragraph, is worth doing in the
-same pass as change two for the reader work, since the spans it needs are
-recorded at the same point. Its payoff is not visible in this corpus, which
-measures untranslated round trips, and would need a translated-corpus
-measurement of its own.
-
-### Decisions to take
-
-1. **Does neokapi keep Okapi's skippable-element strip?** Confining it is what
-   makes 179 fixtures reachable and is the larger half of the work's value. It
-   moves neokapi's `word/styles.xml` output away from Okapi's, which the parity
-   canonicaliser can absorb with one option applied to both sides. The
-   alternative is to accept that a docx never round-trips whole.
-2. **Are source run boundaries replayed or merged?** Replay keeps the source
-   split in 102 fixtures where Okapi merges. Either a canonicaliser option
-   cancels it or those fixtures carry annotations.
-3. **Source span alone, or the `SkeletonOriginal` pair?** The span alone follows
-   `smlSourceContent` and costs a second render per paragraph on write. The
-   pair follows ODF and HTML and roughly doubles a docx skeleton. The span
-   alone is the recommendation, with the pair as the fallback if the second
-   render shows up in a profile.
-4. **Does revision acceptance stay on by default?** 18 fixtures cannot return
-   byte for byte while it is, and the flag is already reachable through the
-   format configuration.
+The skeleton grows by one span per paragraph, which is the size of the
+paragraph-bearing parts once more.
