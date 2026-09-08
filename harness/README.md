@@ -129,12 +129,12 @@ the manifest. The orchestrator runs four idempotent stages:
 2. **artifacts** (`src/driver/artifacts.ts`) — Playwright screenshots the visual
    results from the sandbox snapshot (rendered HTML before/after, or kapi JSON output
    rendered into a styled report card). → `public/<id>/artifacts/*.png`
-3. **narrate** (`src/narrate/synth.ts`) — synthesizes the narration to audio, then
+3. **narrate** (`src/narrate/synth.ts`): synthesizes the narration to audio, then
    transcribes it with whisper.cpp (token timestamps) into timed captions, and for
    a one-shot read aligns the transcript against the script to cut the track into
    measured scene spans. → `public/<id>/audio/*.wav` + `narration.json` +
    `captions.json`. See [Captions](#captions).
-4. **render** (`src/remotion/`) — writes `public/<id>/beats.json` from `demo.yaml`
+4. **render** (`src/remotion/`): writes `public/<id>/beats.json` from `demo.yaml`
    (the picture half of every scene: caption, crop, zoom, highlight, hold), then a
    Remotion composition replays the terminal, cuts to the artifacts, plays each
    desktop beat at its natural pace (holding the last frame when the narration is
