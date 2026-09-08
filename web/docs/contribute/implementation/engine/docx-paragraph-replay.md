@@ -7,7 +7,7 @@ keywords: [docx, WordprocessingML, paragraph replay, byte fidelity, skeleton, Op
 
 # Docx paragraph replay
 
-An untranslated round trip through `core/formats/openxml` returns 150 of the
+An untranslated round trip through `core/formats/openxml` returns 151 of the
 185 docx fixtures upstream Okapi ships byte for byte, beside 86 of 87 xlsx and
 86 of 86 pptx. This note describes the mechanism that does it for
 WordprocessingML, what it declines to replay, and what the corpus test and the
@@ -180,7 +180,11 @@ its host paragraph.
 
 **Core properties.** `docProps/core.xml` keeps its byte order mark: Go's
 decoder reports it as character data in the prolog, so `parseCoreProperties`
-holds it back from the decoder and writes it to the skeleton as it was.
+holds it back from the decoder and writes it to the skeleton as it was. A
+property the source wrote empty replays from its source bytes wherever it
+sits, self-closing form included; upstream Okapi omits a self-closing one
+written last inside `<cp:coreProperties>`, which the parity canonicaliser
+settles on both sides.
 
 ## The corpus test
 
@@ -195,7 +199,6 @@ longer needs its entry.
 | --- | ---: | --- |
 | Revision acceptance | 30 | A paragraph holding revision markup is rendered, and the accepted document differs from the source by design |
 | DrawingML paragraphs in chart and diagram parts | 3 | Rebuilt from the model, and a DOCX package takes Okapi's `DrawingRunProperties` attribute strip on write |
-| A trailing self-closing core property | 1 | `parseCoreProperties` drops it as Okapi's Jericho-based parser does |
 | The `xml:space` repair | 1 | `952-1.docx` holds a `<w:t>` with a trailing space and no `xml:space="preserve"` |
 
 `TestByteFidelity_CorpusUntouchedParts` states the weaker contract for parts
@@ -222,6 +225,10 @@ sides:
 - `XMLCanonical{MergeAdjacentWMLRuns: true}` fuses adjacent runs with equal
   properties and the text elements inside them, the shape Okapi's `RunMerger`
   writes.
+- `XMLCanonical{StripEmptyCoreProperties: true}` drops from
+  `<cp:coreProperties>` every translatable child holding no text, so the
+  property Okapi's Jericho pending start tag leaves out matches the one native
+  replays.
 
 Over the 185 docx fixtures, native output at the canonical tier moved from 146
 before either change to 149 with the strip confined and 155 with replay; the

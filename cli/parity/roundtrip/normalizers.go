@@ -609,6 +609,19 @@ type XMLCanonical struct {
 	// document order still decides adjacency. Opt-in for openxml.
 	MergeAdjacentWMLRuns bool
 
+	// StripEmptyCoreProperties drops from `<cp:coreProperties>` every
+	// translatable child that holds no text: `<cp:category/>` and
+	// `<cp:category></cp:category>` alike. Native replays a core property
+	// the source wrote empty; upstream Okapi reads docProps/core.xml with
+	// Jericho through OpenXMLContentFilter, which holds a start tag as
+	// pending until the next one arrives, so a self-closing property
+	// written last inside the root has nothing to flush it and is omitted.
+	// ECMA-376-1 §15.2.12 makes every one of them optional, so dropping
+	// the empty ones on both sides cancels the asymmetry. The translatable
+	// set is okapi's wordDocPropertiesConfiguration.yml TEXTUNIT list;
+	// `<cp:revision>` and the dcterms timestamps stay. Opt-in for openxml.
+	StripEmptyCoreProperties bool
+
 	// StripEmptyIDMLContent drops `<Content>` elements that have no
 	// CharData children (or only whitespace-only CharData). Native's
 	// IDML writer always emits the `<Content xml:space="preserve">`
@@ -707,6 +720,9 @@ func (n XMLCanonical) Name() string {
 	if n.MergeAdjacentWMLRuns {
 		parts = append(parts, "merge-wml-runs")
 	}
+	if n.StripEmptyCoreProperties {
+		parts = append(parts, "strip-empty-core-props")
+	}
 	if n.StripEmptyIDMLContent {
 		parts = append(parts, "strip-empty-content")
 	}
@@ -753,7 +769,7 @@ func (n XMLCanonical) Normalize(in []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	if n.SortChildElements || n.MergeAdjacentCSRs || n.StripEmptyIDMLContent || n.StripIDMLACEPIs || n.UnwrapIDMLXMLElement || n.UnwrapIDMLChange || n.StripEmptyIDMLPSRCSR || n.StripWMLSkippableElements || n.MergeAdjacentWMLRuns {
+	if n.SortChildElements || n.MergeAdjacentCSRs || n.StripEmptyIDMLContent || n.StripIDMLACEPIs || n.UnwrapIDMLXMLElement || n.UnwrapIDMLChange || n.StripEmptyIDMLPSRCSR || n.StripWMLSkippableElements || n.MergeAdjacentWMLRuns || n.StripEmptyCoreProperties {
 		// Build a tree from the per-element-balanced token stream so
 		// we can permute child elements alphabetically by local name
 		// (and/or merge adjacent same-attr CSR siblings, drop empty
@@ -772,6 +788,7 @@ func (n XMLCanonical) Normalize(in []byte) ([]byte, error) {
 			stripEmptyIDMLPSRCSR:  n.StripEmptyIDMLPSRCSR,
 			stripWMLSkippable:     n.StripWMLSkippableElements,
 			mergeWMLRuns:          n.MergeAdjacentWMLRuns,
+			stripEmptyCoreProps:   n.StripEmptyCoreProperties,
 		})
 	}
 	var buf bytes.Buffer
@@ -965,6 +982,7 @@ type transformOpts struct {
 	stripEmptyIDMLPSRCSR  bool
 	stripWMLSkippable     bool
 	mergeWMLRuns          bool
+	stripEmptyCoreProps   bool
 }
 
 // transformXMLTree walks the (already canonicalised) token stream as
@@ -1025,6 +1043,9 @@ func transformXMLTree(tokens []xml.Token, opts transformOpts) []xml.Token {
 	}
 	if opts.mergeWMLRuns {
 		mergeAdjacentWMLRunsInTree(root)
+	}
+	if opts.stripEmptyCoreProps {
+		stripEmptyCorePropertiesInTree(root)
 	}
 	var out []xml.Token
 	emitXMLNode(root, &out, true /*topLevel*/, opts.sortChildren)
@@ -1196,6 +1217,62 @@ func wmlRunHasContent(run *xmlNode) bool {
 		}
 	}
 	return false
+}
+
+// corePropertyTextUnits are the local names of the docProps/core.xml
+// elements upstream Okapi extracts as text units, from
+// wordDocPropertiesConfiguration.yml. The match is on local name, as the
+// reader's is: Word emits no competing local names in the part.
+var corePropertyTextUnits = map[string]struct{}{
+	"title":         {},
+	"subject":       {},
+	"creator":       {},
+	"keywords":      {},
+	"description":   {},
+	"category":      {},
+	"contentStatus": {},
+}
+
+// stripEmptyCorePropertiesInTree drops from every `<cp:coreProperties>`
+// element in the tree each translatable child holding no text and no
+// element children. See the StripEmptyCoreProperties doc on XMLCanonical.
+func stripEmptyCorePropertiesInTree(node *xmlNode) {
+	if node == nil {
+		return
+	}
+	if node.start.Name.Local == "coreProperties" {
+		kept := node.children[:0]
+		for _, c := range node.children {
+			if c.sub != nil && isEmptyCoreProperty(c.sub) {
+				continue
+			}
+			kept = append(kept, c)
+		}
+		node.children = kept
+		return
+	}
+	for _, c := range node.children {
+		stripEmptyCorePropertiesInTree(c.sub)
+	}
+}
+
+// isEmptyCoreProperty reports whether node is a translatable core property
+// with nothing in it. The canonical pass has already dropped
+// whitespace-only character data, so a property written across two lines
+// counts as empty here just as one written `<cp:category/>` does.
+func isEmptyCoreProperty(node *xmlNode) bool {
+	if _, ok := corePropertyTextUnits[node.start.Name.Local]; !ok {
+		return false
+	}
+	for _, c := range node.children {
+		if c.sub != nil {
+			return false
+		}
+		if cd, ok := c.raw.(xml.CharData); ok && len(bytes.TrimSpace(cd)) > 0 {
+			return false
+		}
+	}
+	return true
 }
 
 // stripIDMLACEPIsInTree drops `<?ACE N?>` ProcessingInstruction

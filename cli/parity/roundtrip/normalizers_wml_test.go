@@ -192,3 +192,56 @@ func TestOpenXMLEffectiveRPrStripsSkippableElementsBeforeTheCascade(t *testing.T
 		"without the option the cascade fills the emptied paragraph mark on one side only")
 	assert.Equal(t, "openxml-effective-rpr(strip-skippable)", roundtrip.OpenXMLEffectiveRPr{StripSkippableElements: true}.Name())
 }
+
+// The core-properties strip cancels the one asymmetry left in
+// docProps/core.xml: native replays a property the source wrote empty, and
+// okapi's Jericho pending start tag leaves the last self-closing one out.
+func TestXMLCanonicalStripsEmptyCoreProperties(t *testing.T) {
+	n := roundtrip.XMLCanonical{SortAttrs: true, StripEmptyCoreProperties: true}
+
+	const head = `<cp:coreProperties ` +
+		`xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" ` +
+		`xmlns:dc="http://purl.org/dc/elements/1.1/">`
+	native := head +
+		`<dc:title>A title</dc:title><dc:subject></dc:subject>` +
+		`<cp:revision>4</cp:revision><cp:category/>` +
+		`</cp:coreProperties>`
+	okapi := head +
+		`<dc:title>A title</dc:title>` +
+		`<cp:revision>4</cp:revision>` +
+		`</cp:coreProperties>`
+
+	gotNative, err := n.Normalize([]byte(native))
+	require.NoError(t, err)
+	gotOkapi, err := n.Normalize([]byte(okapi))
+	require.NoError(t, err)
+	assert.Equal(t, string(gotOkapi), string(gotNative))
+	assert.Contains(t, string(gotNative), "A title")
+	assert.Contains(t, string(gotNative), "revision", "a property outside the text-unit list stays")
+	assert.NotContains(t, string(gotNative), "category")
+	assert.Equal(t, "xml-canonical(sort-attrs,strip-empty-core-props)", n.Name())
+}
+
+// A property holding text keeps it whatever the surrounding whitespace, and
+// an empty element outside `<cp:coreProperties>` is left alone.
+func TestXMLCanonicalKeepsCorePropertiesWithText(t *testing.T) {
+	n := roundtrip.XMLCanonical{StripEmptyCoreProperties: true}
+
+	const part = `<cp:coreProperties ` +
+		`xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" ` +
+		`xmlns:dc="http://purl.org/dc/elements/1.1/">` + "\n" +
+		`  <dc:title>A title</dc:title>` + "\n" +
+		`  <dc:creator>User</dc:creator>` + "\n" +
+		`</cp:coreProperties>`
+	got, err := n.Normalize([]byte(part))
+	require.NoError(t, err)
+	assert.Contains(t, string(got), "A title")
+	assert.Contains(t, string(got), "User")
+
+	const other = `<w:body xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">` +
+		`<w:category/></w:body>`
+	gotOther, err := n.Normalize([]byte(other))
+	require.NoError(t, err)
+	assert.Contains(t, string(gotOther), "category",
+		"the strip reaches only the children of a core-properties root")
+}
