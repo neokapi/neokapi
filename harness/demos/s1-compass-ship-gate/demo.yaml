@@ -1,0 +1,116 @@
+id: s1-compass-ship-gate
+title: The picker is the gate
+subtitle: A review in the morning is why a language is offered in the afternoon.
+kind: use-case
+publishAs: multilingual-ship-states
+# A scripted plain-shell demo: every command is deterministic and offline. The AI
+# leg is the built-in `demo` provider, which needs no key and no network and
+# marks its own output, so a take costs nothing and claims nothing.
+terminal: shell
+brand: kapi
+cwd: ~/compass
+needsAi: false
+# The sandbox IS the Compass sample project, copied from samples/compass so the
+# recording and the sample a reader clones cannot drift apart.
+fixturesFrom: samples/compass
+project: true
+captureTimeoutSec: 240
+aspects:
+  - review moves the edge
+  - ship states, not file presence
+  - one file the site reads
+outro:
+  line: Let your build read one file.
+  pointer: kapi status --ship --emit ship.json
+
+script:
+  - comment: Compass ships three languages from one source. Bring them up to date first.
+  - command: kapi up
+  - comment: Norwegian and German clear the ship gate on drafted work. Dutch parks, because one of its units fails the project's bound checks.
+  - command: kapi status --ship --emit site/ship.json
+  - command: cat site/ship.json
+  - comment: The review queue is already the shape of a change-set. This selects the Dutch a person wrote and leaves what the stub drafted.
+  - command: >-
+      kapi status --review --json --jq '.pending[]|select(.locale=="nl" and (.target|startswith("⟦")|not))|{kind:"review",op:"add",file,id:.key,locale,status:"reviewed"}' > dutch.json
+  # The per-entry report goes to stderr, so the tail has to see stderr to trim it.
+  - command: kapi apply dutch.json 2>&1 | tail -3
+  - comment: Approvals are staged until they are committed. Then they are in the record, attributable, in git.
+  - command: kapi commit
+  - comment: A decision unparks the language, so run the loop again. The drafts it already made are recycled, so the provider is asked for nothing a second time.
+  - command: kapi up
+  - comment: Dutch is offered now, carrying the marker, because it is not signed off end to end.
+  - command: kapi status --ship --emit site/ship.json
+  - command: cat site/ship.json
+  - comment: Finish Norwegian, and the same file says so.
+  - command: >-
+      kapi status --review --json --jq '.pending[]|select(.locale=="nb")|{kind:"review",op:"add",file,id:.key,locale,status:"reviewed"}' > norwegian.json
+  - command: kapi apply norwegian.json 2>&1 | tail -2
+  - command: kapi commit
+  - command: kapi status --ship --emit site/ship.json
+  - command: cat site/ship.json
+
+artifacts:
+  # The page fetches ship.json and a catalog, so it needs a server rather than a
+  # file:// load. The default server roots at the sandbox, so the path carries
+  # the site/ prefix; settleMs covers the two fetches before the shot.
+  - id: picker
+    caption: "site/index.html: the picker, built from ship.json"
+    source: url
+    path: /site/index.html
+    port: 4599
+    settleMs: 1500
+    width: 1200
+    height: 760
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      Who decides that a reader may see a language? Here the language picker is
+      the gate, and a review in the morning is why a language is offered in the
+      afternoon.
+
+  - id: parked
+    kind: terminal
+    through: 5
+    highlight: { text: [blocked, "false"] }
+    caption: Dutch is drafted, kept, and not offered.
+    text: >-
+      Dutch parks on a failing check. Its drafts are safe in the project store
+      and nothing about them is lost; what the gate withholds is delivery, until
+      somebody has looked at the unit that failed.
+
+  - id: review
+    kind: terminal
+    through: 11
+    caption: Twenty decisions, one commit, and the loop drafts nothing.
+    text: >-
+      The queue comes back in the shape of a change-set, and this filter takes
+      the Dutch a person wrote and leaves what the stub drafted. Twenty
+      approvals stage, then commit into the record. Running the loop again asks
+      the provider for nothing.
+
+  - id: offered
+    kind: terminal
+    through: 21
+    highlight: { text: [nl, nb] }
+    caption: Dutch offered and marked. Norwegian drops its marker.
+    text: >-
+      Dutch is offered now, carrying a marker because it is not signed off end
+      to end. Finish Norwegian and the same file drops its marker instead. Three
+      languages, three standings, none of them configured.
+
+  - id: picker
+    kind: artifact
+    artifact: picker
+    caption: What the gate cleared is what a reader can choose.
+    text: >-
+      And this is where it lands. The picker offers what the gate cleared, marks
+      what nobody has signed off, and leaves out what is not ready. One file
+      passes between the loop and the site.
+
+  - id: outro
+    kind: outro
+    text: >-
+      Have your build read the same file, and a language appears the moment a
+      person decides it is ready.

@@ -655,71 +655,75 @@ function contextSection(page: Page, label: string): Locator {
  *  pillar rather than rail items, and each shows the OPEN PROJECT's store:
  *  TermsPage/MemoriesPage auto-select the project handle and skip the picker
  *  entirely (TermsPage.tsx `activeHandle = projectHandle || handle`). The walk
- *  therefore opens KapiMart first and reads its terms and its memory. */
+ *  therefore opens KapiMart first and reads its terms and its memory.
+ *
+ *  Both stores open on a search, because the question a reader has is "what did
+ *  we agree for this word", not "what does this tab look like". The two search
+ *  boxes behave differently and the walk drives each as it is: the concept
+ *  search filters as you type (debounced, ConceptList.tsx), the memory search
+ *  runs on Enter (MemorySearchBar.tsx says so in its own header). */
 async function explorerWalk(c: WalkCtx): Promise<void> {
   const { page, beat, beatEls, cursorTo, sidebar } = c;
-  await beat("intro", null, async () => {
-    await landOnHome(page);
-    await idle(page, 2200);
-  });
   // Terms in a project is the concept workspace (ConceptsView over
   // @neokapi/concept-ui), which carries no testids: its search box is the one
   // labelled control, and each concept is a button in the divided list.
   const conceptSearch = 'input[aria-label="Search concepts"]';
   const conceptRow = "ul.divide-y li button";
-  await beat("open-termbases", null, async () => {
-    await openSample(page, "sample-kapimart", "Context");
-    await humanClick(page, sidebar("Context"));
-    await page.waitForTimeout(800);
-    await humanClick(page, contextSection(page, "Terms"));
-    await page.waitForSelector(conceptSearch, { timeout: 30_000 });
-    await page.waitForSelector(conceptRow, { timeout: 30_000 });
-    await page.waitForTimeout(900);
-  });
-  await beatEls("open-glossary", [conceptRow], async () => {
-    await moveTo(page, WIDTH * 0.5, HEIGHT * 0.45, 700);
-    await page.waitForTimeout(2000);
-  });
-  await beatEls("inspect-concept", [conceptRow], async () => {
-    await page.locator(conceptRow).first().scrollIntoViewIfNeeded().catch(() => {});
-    await page.waitForTimeout(300);
-    await cursorTo(conceptRow);
-    await page.waitForTimeout(2200);
-  });
+  // Open the project's Terms and search it in one beat: the result of the
+  // search is the beat, not the tab it happened on.
+  // Getting to the store is not a beat, so it happens before one starts: a beat
+  // carries one crop for its whole slice, and a crop chosen for the search would
+  // otherwise be applied to the navigation under it.
+  await landOnHome(page);
+  await openSample(page, "sample-kapimart", "Context");
+  await humanClick(page, sidebar("Context"));
+  await page.waitForTimeout(800);
+  await humanClick(page, contextSection(page, "Terms"));
+  await page.waitForSelector(conceptSearch, { timeout: 30_000 });
+  await page.waitForSelector(conceptRow, { timeout: 30_000 });
+  await page.waitForTimeout(600);
   await beatEls("search-term", [conceptSearch, conceptRow], async () => {
-    await humanType(page, page.locator(conceptSearch), "cart", { submit: true });
+    await humanType(page, page.locator(conceptSearch), "cart");
+    // The list filters as you type, debounced; the wait is for the filtered
+    // list, so the narration's "here it is" lands on the result and not on the
+    // unfiltered list underneath it.
+    await page.waitForTimeout(1800);
+  });
+  // Open the concept the search found: its definition, and its approved terms
+  // per language with the status that marks the preferred one.
+  await beatEls("concept", ['section:has(h3:has-text("Geography"))', conceptRow], async () => {
+    await humanClick(page, page.locator(conceptRow).first());
+    await page.waitForTimeout(2400);
+  });
+  // Content Memory, searched the same way. This box submits on Enter.
+  await beatEls("search-tm", ['[data-testid="tm-search"]', '[data-testid^="tm-entry-"]'], async () => {
+    await humanClick(page, contextSection(page, "Content Memory"));
+    await page.waitForSelector('[data-testid="tm-search"]', { timeout: 30_000 });
+    await page.waitForTimeout(800);
+    await humanType(page, page.getByTestId("tm-search"), "checkout", { submit: true });
+    await page.waitForSelector('[data-testid^="tm-entry-"]', { timeout: 30_000 });
     await page.waitForTimeout(1600);
   });
-  await beat("open-tm", null, async () => {
-    await humanClick(page, contextSection(page, "Content Memory"));
-    await page.waitForSelector('[data-testid^="tm-entry-"]', { timeout: 30_000 });
-    await page.waitForTimeout(1100);
-  });
+  // One entry, opened: the source string beside its translations, with inline
+  // formatting kept as tags and names held as placeholders.
   await beatEls("inspect-tm", ['[data-testid^="tm-entry-"]'], async () => {
     const first = page.locator('[data-testid^="tm-entry-"]').first();
     await first.scrollIntoViewIfNeeded().catch(() => {});
     await page.waitForTimeout(300);
     await cursorTo('[data-testid^="tm-entry-"]');
-    await page.waitForTimeout(2300);
-  });
-  await beatEls("entity", ['[data-testid^="tm-entry-"]'], async () => {
-    const second = page.locator('[data-testid^="tm-entry-"]').nth(1);
-    if (await second.count()) {
-      await second.scrollIntoViewIfNeeded().catch(() => {});
-      await page.waitForTimeout(300);
-      const box = await second.boundingBox().catch(() => null);
-      if (box) await moveTo(page, box.x + box.width / 2, box.y + box.height / 2, 600);
-    }
-    await page.waitForTimeout(2200);
-  });
-  await beatEls("search-tm", ['[data-testid="tm-search"]', '[data-testid^="tm-entry-"]'], async () => {
-    await page.getByTestId("tm-search").scrollIntoViewIfNeeded().catch(() => {});
-    await humanType(page, page.getByTestId("tm-search"), "checkout", { submit: true });
-    await page.waitForTimeout(1600);
+    await humanClick(page, first).catch(() => {});
+    await page.waitForTimeout(2400);
   });
 }
 
-/** Create and manage a project. */
+/** Create a project, give it a language and a collection, and read the plan.
+ *
+ *  Every beat here acts. The one thing this walk cannot do is add files: the
+ *  "Add Files" button opens a native picker (CollectionsPanel.handleAddFiles →
+ *  api.addFilesDialog) and the drop path reads File.path, which Chromium does
+ *  not set, so neither is drivable from Playwright. A collection is therefore
+ *  declared the way the recipe declares it, by a name and a glob, and the plan
+ *  is read on the sample project, which has content to plan over. */
 async function projectsWalk(c: WalkCtx): Promise<void> {
   const { page, beat, beatEls, cursorTo, sidebar } = c;
   await beat("intro", null, async () => {
@@ -728,66 +732,121 @@ async function projectsWalk(c: WalkCtx): Promise<void> {
     await landOnHome(page);
     await idle(page, 2000);
   });
-  // Open the New Project dialog and name the project.
-  await beatEls("new-project", ['button:has-text("Create Project")', 'input[placeholder="My App"]'], async () => {
+  // Name it, create it, take the input/output template, and land on the
+  // project home. Nothing is governed yet, which is what the next beats change.
+  await beat("new-project", null, async () => {
     await humanClick(page, page.locator('button:has-text("New Project")').first());
     await page.waitForTimeout(400);
     await humanType(page, page.locator('input[placeholder="My App"]'), "Acme Help Center");
-    await page.waitForTimeout(700);
-  });
-  // Create it → the Get Started template picker.
-  await beatEls("templates", ['button:has-text("Input → Output")', 'button:has-text("Start empty")'], async () => {
+    await page.waitForTimeout(600);
     await humanClick(page, page.locator('button:has-text("Create Project")'));
-    await page.waitForTimeout(1100);
-  });
-  // Pick a structure → the project overview (full frame).
-  await beat("project-home", null, async () => {
+    await page.waitForTimeout(1200);
     await humanClick(page, page.locator('button:has-text("Input → Output")'));
-    await page.waitForTimeout(1300);
+    await page.waitForTimeout(1600);
   });
-  // Open Project Settings to configure languages.
-  await beat("project-settings", { x: 0.02, y: 0.05, w: 0.7, h: 0.7 }, async () => {
+  // A target language, added and saved. MultiLocaleSelect adds on pick with no
+  // confirm step (locale-select.tsx), and SaveBar renders only while the draft
+  // is dirty, so the save click is guarded rather than assumed.
+  await beatEls("add-language", ['input[placeholder="Add locale..."]', '[data-slot="combobox-item"]'], async () => {
     await humanClick(page, sidebar("Project Settings"));
     await page.waitForTimeout(1300);
-  });
-  // Back to the project home, where the collections live. Content is not a
-  // rail item: the project home carries the standing, the point map and the
-  // collections in one surface (IconSidebar `Project` → view `project-home`).
-  await beat("content", { x: 0.02, y: 0.05, w: 0.92, h: 0.6 }, async () => {
-    await humanClick(page, sidebar("Project"));
+    const add = page.locator('input[placeholder="Add locale..."]').first();
+    await add.scrollIntoViewIfNeeded().catch(() => {});
+    await humanType(page, add, "French");
+    await page.waitForTimeout(800);
+    const item = page.locator('[data-slot="combobox-item"]').first();
+    if (await item.count()) await humanClick(page, item);
+    await page.waitForTimeout(1000);
+    const save = page.locator('button:has-text("Save Changes")').first();
+    if (await save.count()) await humanClick(page, save);
     await page.waitForTimeout(1400);
+  });
+  // A collection, declared on the project home: a name and one glob. The
+  // pattern field is a CodeMirror editor (GlobInput → CodeInput), so the text
+  // goes in through the focused .cm-content rather than into an <input>, and
+  // the row reports what the pattern matched as it is typed.
+  await beatEls("add-collection", ['[data-testid="pattern-match-count"]', '[data-slot="code-input"]'], async () => {
+    await humanClick(page, sidebar("Project"));
+    await page.waitForTimeout(1300);
+    await humanClick(page, page.locator('[aria-label="Add content collection"]').first());
+    await page.waitForTimeout(900);
+    const edit = page.locator('[aria-label="Edit collection"]').last();
+    if (await edit.count()) await humanClick(page, edit);
+    await page.waitForTimeout(900);
+    const name = page.locator('input[placeholder="Collection name"]').last();
+    if (await name.count()) {
+      await name.fill("");
+      await humanType(page, name, "Help Center");
+      await page.waitForTimeout(400);
+    }
+    const pattern = page.locator('[data-slot="code-input"] .cm-content').last();
+    if (await pattern.count()) {
+      await pattern.click();
+      await page.keyboard.type("docs/**/*.md", { delay: 70 });
+    }
+    await page.waitForTimeout(2000);
+  });
+  // The plan, read on the sample project, because a dry run of pending work
+  // needs pending work. It opens a dialog over data fetched on page load: no
+  // provider is called and nothing is written (ConvergenceHero.tsx).
+  await page.keyboard.press("Escape").catch(() => {});
+  await page.waitForTimeout(500);
+  await landOnHome(page);
+  await humanClick(page, page.getByTestId("sample-kapimart"));
+  await page.waitForSelector('[data-slot="hero-plan"]', { timeout: 60_000 });
+  await page.waitForTimeout(1200);
+  await beatEls("plan", ['[data-slot="converge-plan-dialog"]'], async () => {
+    await cursorTo('[data-slot="hero-plan"]');
+    await humanClick(page, page.locator('[data-slot="hero-plan"]').first());
+    await page.waitForSelector('[data-slot="converge-plan-dialog"]', { timeout: 30_000 });
+    await page.waitForTimeout(2400);
   });
 }
 
-/** Configuration: appearance, AI credentials, plugins. */
+/** Configuration: appearance, where a provider key goes, plugins.
+ *
+ *  The credentials beat opens the Add Credentials dialog and closes it again
+ *  without saving. Saving writes to the real OS keychain (backend/credentials.go
+ *  → host.SaveCredential), so a recording must never press Save: what the beat
+ *  shows is the form a key is typed into, which is the claim the narration
+ *  makes. */
 async function configWalk(c: WalkCtx): Promise<void> {
-  const { page, beat, sidebar } = c;
+  const { page, beat, beatEls, cursorTo, sidebar } = c;
   const tab = (label: string) => page.locator(`[role="tab"]:has-text("${label}")`);
-  await beat("intro", null, async () => {
-    await idle(page, 2000);
-  });
-  // Open App Settings → General.
   await beat("open-settings", { x: 0, y: 0.04, w: 0.34, h: 0.66 }, async () => {
+    await idle(page, 1200);
     await humanClick(page, sidebar("App Settings"));
-    await page.waitForTimeout(900);
+    await page.waitForTimeout(1200);
   });
-  // General: appearance + UI language (do NOT click theme — it would flip the recording).
+  // General: appearance + UI language. Neither is clicked: the theme control
+  // would flip the recording, and the language control would change the
+  // language the walk is being recorded in.
   await beat("general", { x: 0.02, y: 0.06, w: 0.6, h: 0.66 }, async () => {
     await moveTo(page, WIDTH * 0.2, HEIGHT * 0.32, 700);
     await page.waitForTimeout(2200);
   });
-  // AI Models tab (seeded demo providers, no real keychain entries).
-  await beat("credentials", { x: 0.02, y: 0.06, w: 0.96, h: 0.46 }, async () => {
+  // AI Models: the providers a project can translate with, and the form a key
+  // is entered into. Opened, held, then dismissed with Escape — never saved.
+  await beatEls("credentials", ['input#cred-apikey', '[role="dialog"]'], async () => {
     await humanClick(page, tab("AI Models"));
     await page.waitForTimeout(1500);
+    const add = page.locator('button:has-text("Add Credentials")').first();
+    if (await add.count()) {
+      await humanClick(page, add);
+      await page.waitForSelector("input#cred-apikey", { timeout: 20_000 });
+      await page.waitForTimeout(900);
+      await cursorTo("input#cred-apikey");
+    }
+    await page.waitForTimeout(2000);
   });
-  // Plugins tab.
+  // Plugins.
   await beat("plugins", { x: 0.02, y: 0.06, w: 0.96, h: 0.6 }, async () => {
+    await page.keyboard.press("Escape").catch(() => {});
+    await page.waitForTimeout(700);
     await humanClick(page, tab("Plugins"));
-    await page.waitForTimeout(1600);
+    await page.waitForTimeout(1800);
   });
 }
-
 /**
  * Land on the app home, whichever state the app restored.
  *
@@ -881,37 +940,40 @@ async function closePreview(page: Page): Promise<void> {
 }
 
 /**
- * A project's content: the collections that group it, and what one file holds.
+ * A project's content: what a collection matched, and what one file holds.
  *
  * Content stopped being a rail item when the project home merged (#2273), so
  * the collections ARE the front door: the standing and the point map sit above
- * them and every collection opens in place. Opening a file from a collection
- * raises the preview sheet, which reads a keyed format (JSON, YAML,
- * .properties) as a table of keys beside their values, with the file itself one
- * click away.
+ * them and every collection opens in place. The walk extracts on camera,
+ * because the coverage the narration describes does not exist until it has:
+ * the sample ships its content unread, and the empty-state panel says so.
+ * Opening a file from a collection raises the preview sheet, which reads a
+ * keyed format (JSON, YAML, .properties) as a table of keys beside their
+ * values, with the file itself one click away.
  */
 async function contentWalk(c: WalkCtx): Promise<void> {
   const { page, beat, beatEls, cursorTo, sidebar } = c;
-  await beat("intro", null, async () => {
+  // Open the KapiMart sample → its project home, which opens on the standing:
+  // four collections, nothing extracted, every language at zero.
+  await beatEls("open-project", ['[data-testid="project-standing"]'], async () => {
     await landOnHome(page);
-    await idle(page, 2000);
-  });
-  // Open the KapiMart sample → its project home.
-  await beat("open-project", null, async () => {
     await openSample(page, "sample-kapimart", "Project");
-  });
-  // The standing block: where the content sits, and what governs it there.
-  await beatEls("overview", ['[data-testid="project-standing"]'], async () => {
     await moveTo(page, WIDTH * 0.5, HEIGHT * 0.24, 700);
-    await page.waitForTimeout(2200);
+    await page.waitForTimeout(1800);
   });
-  // The collections, on the same surface.
-  await beat("content", { x: 0.02, y: 0.3, w: 0.96, h: 0.64 }, async () => {
-    await humanClick(page, sidebar("Project"));
-    await page.waitForTimeout(1400);
-    const panel = page.locator('[data-testid="collection-file-count"]').first();
-    await panel.scrollIntoViewIfNeeded().catch(() => {});
-    await page.waitForTimeout(1600);
+  // Extract, on camera. The empty-state button is the one that is not behind
+  // the Advanced disclosure (CollectionsPanel.tsx), and it is the only thing
+  // that turns "nothing extracted yet" into counts.
+  await beatEls("extract", ['[data-testid="collection-file-count"]', '[data-slot="ship-gate-cell"]'], async () => {
+    const run = page.locator('button:has-text("Run extract")').first();
+    if (await run.count()) {
+      await cursorTo('button:has-text("Run extract")');
+      await humanClick(page, run);
+    }
+    // Reading four collections takes a moment, and the beat is the counts
+    // arriving, so the wait is for the gate cells rather than a fixed pause.
+    await page.waitForSelector('[data-slot="ship-gate-cell"]', { timeout: 120_000 }).catch(() => {});
+    await page.waitForTimeout(2600);
   });
   // Open one collection: its patterns, and the files they match.
   await beatEls("patterns", ['[data-slot="matched-files-scroll"]'], async () => {
@@ -921,77 +983,85 @@ async function contentWalk(c: WalkCtx): Promise<void> {
     await moveTo(page, WIDTH * 0.4, HEIGHT * 0.6, 700);
     await page.waitForTimeout(2000);
   });
-  // Open a JSON catalog → the preview sheet reads it as keys and values.
-  await beatEls("files", ['[data-preview="keyed-table"]'], async () => {
-    await openCollectionFile(page, "Online Store", "store-ui.json");
-    await page.waitForTimeout(1800);
-  });
-  // Hold on the Key column beside the text it names.
+  // Open a JSON catalog → the preview sheet reads it as keys and values, and
+  // the key column is the thing to look at.
   await beatEls("keys", ['[data-preview="keyed-table"]'], async () => {
+    await openCollectionFile(page, "Online Store", "store-ui.json");
+    await page.waitForTimeout(1200);
     await cursorTo('[data-preview="keyed-table"] tr[data-key-path]');
     await page.waitForTimeout(2400);
   });
-  // The same file as it is written on disk.
+  // The same file as it is written on disk, with the selected key's line
+  // highlighted: structure on one tab, bytes on the other.
   await beatEls("code", ['[data-preview="data"]'], async () => {
     const file = page.locator('[data-preview="data"] button:has-text("File")').first();
     if (await file.count()) await humanClick(page, file);
     await page.waitForTimeout(2400);
   });
-  // A different keyed format, read the same way. These are the message strings
-  // the review walk decides on, named by the same keys.
-  await beatEls("properties", ['[data-preview="keyed-table"]'], async () => {
-    await closePreview(page);
-    await openCollectionFile(page, "Online Store", "error-messages.properties");
-    await page.waitForTimeout(2400);
-  });
 }
 
 /**
- * The Toolbox: what a project runs over its content.
+ * The Toolbox: what a project runs over its content, and composing one.
  *
  * Flows stopped being a rail pillar; the Toolbox pillar hosts Tools and Flows
  * as tabs (IconSidebar `Toolbox` → view `tools`, ToolboxPage's two buttons), and
- * a flow card opens the pipeline in the visual editor.
+ * a flow card opens the pipeline in the shared linear editor.
+ *
+ * The walk edits a flow and makes it the project's default, both of which are
+ * local. It does not press Run: the seeded providers carry names and no keys
+ * (cmd/seed-demo), so an AI translate started here would fail on camera. The
+ * runner is named in the narration instead.
  */
 async function flowsWalk(c: WalkCtx): Promise<void> {
-  const { page, beat, beatEls, sidebar } = c;
-  await beat("intro", null, async () => {
-    await landOnHome(page);
-    await idle(page, 2000);
-  });
-  // Open the KapiMart sample project.
-  await beat("open-project", null, async () => {
-    await openSample(page, "sample-kapimart", "Toolbox");
-  });
-  // Open the Toolbox, then its Flows tab.
-  await beat("library", null, async () => {
-    await humanClick(page, sidebar("Toolbox"));
-    await page.waitForTimeout(1200);
-    const flows = page.locator('button:has-text("Flows")').first();
-    if (await flows.count()) await humanClick(page, flows);
-    await page.waitForTimeout(1600);
-  });
-  // The project's flows: translate, translate-and-qa, pseudo-translate.
-  await beat("library-zoom", { x: 0.02, y: 0.08, w: 0.96, h: 0.62 }, async () => {
-    await moveTo(page, WIDTH * 0.5, HEIGHT * 0.36, 700);
-    await page.waitForTimeout(2200);
-  });
-  // Open a flow → its pipeline (AI translate, then a check). A flow opens in
-  // the shared linear editor (packages/ui flow-editor: one step row per step),
-  // behind the editor's back button. The narration says the pipeline is on
-  // screen, so the walk waits for a step row: an editor that mounts without
-  // its steps fails the capture instead of filming an empty frame.
-  await beat("open-flow", null, async () => {
+  const { page, beat, beatEls, cursorTo, sidebar } = c;
+  // Open the KapiMart sample and go straight to its flows: the Tools tab is a
+  // different subject and the video has one.
+  await landOnHome(page);
+  await openSample(page, "sample-kapimart", "Toolbox");
+  await humanClick(page, sidebar("Toolbox"));
+  await page.waitForTimeout(1200);
+  const flowsTab = page.locator('button:has-text("Flows")').first();
+  if (await flowsTab.count()) await humanClick(page, flowsTab);
+  await page.waitForTimeout(1400);
+  await beatEls("open-flow", ['[data-testid="linear-flow-editor"]'], async () => {
     await humanClick(page, page.getByText("translate-and-qa", { exact: true }));
     await page.waitForSelector('button[aria-label="Back to flow list"]', { timeout: 30_000 });
     await page.waitForSelector('[data-testid="linear-flow-editor"]', { timeout: 30_000 });
     await page.waitForSelector('[data-testid="step-row"]', { timeout: 30_000 });
-    await page.waitForTimeout(2200);
+    await page.waitForTimeout(2000);
   });
-  // Zoom the pipeline: the step rows of the linear editor.
-  await beatEls("pipeline", ['[data-testid="linear-flow-editor"]'], async () => {
-    await moveTo(page, WIDTH * 0.5, HEIGHT * 0.45, 700);
-    await page.waitForTimeout(2400);
+  // Add a step. The picker appends, so the new row is moved up to sit in front
+  // of the translate it is meant to spare.
+  await beatEls("add-step", ['[data-testid="linear-flow-editor"]'], async () => {
+    await humanClick(page, page.getByTestId("add-step"));
+    await page.waitForSelector('input[aria-label="Search tools"]', { timeout: 20_000 });
+    await humanType(page, page.locator('input[aria-label="Search tools"]'), "recycle");
+    await page.waitForTimeout(700);
+    const tool = page.locator('[data-testid="add-step-tool"]').first();
+    await humanClick(page, tool);
+    await page.waitForTimeout(1200);
+  });
+  // Move it to the front: two clicks on Move up, and the step strip in the
+  // header follows.
+  await beatEls("reorder", ['[data-testid="linear-flow-editor"]'], async () => {
+    const rows = page.locator('[data-testid="step-row"]');
+    const n = await rows.count();
+    for (let i = 0; i < Math.max(0, n - 1); i++) {
+      const up = rows.last().locator('button[aria-label="Move up"]').first();
+      if (!(await up.count())) break;
+      await humanClick(page, up);
+      await page.waitForTimeout(700);
+    }
+    await page.waitForTimeout(1600);
+  });
+  // Make it the project's default. The badge beside the name is the receipt.
+  await beatEls("default", ['[data-testid="flow-default-badge"]', '[data-slot="switch"]'], async () => {
+    const toggle = page.locator('[aria-label="Set as the project\'s default flow"]').first();
+    if (await toggle.count()) {
+      await cursorTo('[aria-label="Set as the project\'s default flow"]');
+      await humanClick(page, toggle);
+    }
+    await page.waitForTimeout(2200);
   });
 }
 
@@ -1026,30 +1096,21 @@ async function reviewWalk(c: WalkCtx): Promise<void> {
     });
   };
 
-  await beat("intro", null, async () => {
-    await landOnHome(page);
-    await idle(page, 2000);
-  });
-  // Open KapiMart. Review is locale-gated: it appears because the project
-  // declares five target languages.
-  await beat("open-project", null, async () => {
-    await openSample(page, "sample-kapimart", "Review");
-  });
-  // The queue: every language in one list, source wording first.
-  await beat("queue", null, async () => {
-    await humanClick(page, sidebar("Review"));
-    await page.waitForSelector('[data-slot="review-queue-item"]', { timeout: 60_000 });
+  // The queue, and the two controls that narrow it, in one beat: every
+  // language in one list, a count per language, and the chips for what a check
+  // flagged.
+  await landOnHome(page);
+  await openSample(page, "sample-kapimart", "Review");
+  await humanClick(page, sidebar("Review"));
+  await page.waitForSelector('[data-slot="review-queue-item"]', { timeout: 60_000 });
+  await page.waitForTimeout(1200);
+  await beatEls("queue", ['[data-slot="review-queue"]', '[data-slot="review-language-select"]'], async () => {
+    await cursorTo('[data-slot="review-language-select"]');
+    await page.waitForTimeout(1200);
+    await cursorTo('[data-slot="review-chips"]');
     await page.waitForTimeout(1600);
   });
-  // The language selector carries a count per language, and the chips narrow
-  // the list to what a check flagged.
-  await beatEls("scope", ['[data-slot="review-language-select"]', '[data-slot="review-chips"]'], async () => {
-    await cursorTo('[data-slot="review-language-select"]');
-    await page.waitForTimeout(1500);
-    await cursorTo('[data-slot="review-chips"]');
-    await page.waitForTimeout(1800);
-  });
-  // Open one translated unit: source, target, and the layers behind it.
+  // Open one translated unit: source, target, and the layers behind them.
   await beatEls("open-unit", ['[data-slot="review-unit"]'], async () => {
     const target = page.locator('[data-slot="review-queue-item"]:not([data-source])').first();
     await humanClick(page, target);
@@ -1061,15 +1122,8 @@ async function reviewWalk(c: WalkCtx): Promise<void> {
   await layer("history", "review-history");
   await layer("findings", "review-findings");
   await layer("provenance", "review-provenance");
-  // Approve with the keyboard. The unit leaves the queue.
-  await beatEls("approve", ['[data-slot="review-actions"]', '[data-slot="review-queue"]'], async () => {
-    await cursorTo('[data-slot="review-approve"]');
-    await page.waitForTimeout(900);
-    await page.locator('[data-slot="review-page"]').first().click({ position: { x: 4, y: 4 } }).catch(() => {});
-    await page.keyboard.press("a");
-    await page.waitForTimeout(2400);
-  });
-  // What is left, and the batch that clears the units no check flagged.
+  // Decide: the keystroke on this unit, then the batch that clears the units no
+  // check flagged.
   //
   // There is no source-lane beat, because the sample cannot produce one. A
   // source unit joins this queue only when it ranks below the project's source
@@ -1077,9 +1131,14 @@ async function reviewWalk(c: WalkCtx): Promise<void> {
   // (host/sourcereview.go computeSourceQueue). KapiMart declares no
   // defaults.source_gate, which resolves to `checked`, and its source settles
   // clean, so every row here is a translation.
-  await beatEls("batch", ['[data-slot="review-batch"]', '[data-slot="review-queue"]'], async () => {
+  await beatEls("decide", ['[data-slot="review-batch"]', '[data-slot="review-queue"]'], async () => {
+    await cursorTo('[data-slot="review-approve"]');
+    await page.waitForTimeout(800);
+    await page.locator('[data-slot="review-page"]').first().click({ position: { x: 4, y: 4 } }).catch(() => {});
+    await page.keyboard.press("a");
+    await page.waitForTimeout(2200);
     await cursorTo('[data-slot="review-batch-approve"]');
-    await page.waitForTimeout(2600);
+    await page.waitForTimeout(2400);
   });
 }
 

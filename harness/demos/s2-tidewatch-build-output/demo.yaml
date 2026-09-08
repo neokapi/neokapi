@@ -1,0 +1,102 @@
+id: s2-tidewatch-build-output
+title: The i18n tree is build output
+subtitle: The loop writes where the build looks, and a parked language leaves no files.
+kind: use-case
+publishAs: docs-site-convergence
+# A scripted plain-shell demo: every command is deterministic and offline. The AI
+# leg is the built-in `demo` provider, which needs no key and no network and
+# marks its own output, so a take costs nothing and claims nothing.
+terminal: shell
+brand: kapi
+cwd: ~/tidewatch-docs
+needsAi: false
+# The sandbox IS the Tidewatch docs sample, copied from samples/tidewatch-docs so
+# the recording and the sample a reader clones cannot drift apart.
+fixturesFrom: samples/tidewatch-docs
+project: true
+captureTimeoutSec: 300
+aspects:
+  - the i18n tree is build output
+  - front matter is content
+  - delivery follows the ship gate
+outro:
+  line: Keep the generated tree out of version control.
+  pointer: echo 'i18n/' >> .gitignore
+
+script:
+  - comment: A documentation site. Four pages, English, and a target layout its build already understands.
+  - command: ls docs
+  - comment: The i18n tree is not in git. It is written by the loop from the source and the committed context, so a clone regenerates it and no diff ever carries a generated translation.
+  - command: cat .gitignore
+  - comment: One verb. Approved wording is recycled; only the remainder reaches a provider.
+  - command: kapi up
+  - comment: Norwegian ships on drafted work. Dutch parks, because nothing in it has been read by a person.
+  - command: kapi status
+  - comment: Front matter is content, so a title in a sidebar and a description in a search result converge with the prose.
+  - command: head -6 i18n/nb/docusaurus-plugin-content-docs/current/index.md
+  - comment: And only Norwegian is on disk. The ship gate decides delivery, so a parked language has no files rather than unblessed ones.
+  - command: find i18n -name '*.md' | sort
+
+artifacts:
+  - id: translated
+    caption: "i18n/nb/…/index.md: front matter and prose, where the build looks"
+    source: report
+    report: markdown
+    path: i18n/nb/docusaurus-plugin-content-docs/current/index.md
+    reportTitle: "i18n/nb/…/current/index.md"
+    reportSub: "written by kapi up; not in git"
+    width: 1200
+    height: 900
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      A translated documentation tree is build output. The loop writes it where
+      the site build already looks, git ignores it, and a language still waiting
+      for a person leaves no files at all.
+
+  - id: shape
+    kind: terminal
+    through: 4
+    highlight: { text: [i18n] }
+    caption: Generated, ignored, and regenerated from a clone.
+    text: >-
+      Four pages and a recipe. The target path is the tree the site already
+      reads translations from, and that tree is ignored by git: it is derived
+      from the source and the committed context, so a pull request never carries
+      a generated translation into review.
+
+  - id: converge
+    kind: terminal
+    through: 8
+    highlight: { text: [nb, nl] }
+    caption: Norwegian ships. Dutch parks, and nothing failed.
+    text: >-
+      One verb converges both languages. Norwegian clears the ship gate on
+      drafted work. Dutch parks, because the gate asks for half its units to
+      have been read by a person and none of them have.
+
+  - id: translated
+    kind: artifact
+    artifact: translated
+    caption: Title, sidebar label and body, all of it content.
+    text: >-
+      This is the file the loop wrote. Front matter travels with the prose,
+      because a title in a sidebar and a description in a search result are
+      things a reader reads, and the stub's own marks are on every string it
+      invented.
+
+  - id: delivered
+    kind: terminal
+    through: 12
+    caption: Only the language that cleared the gate is on disk.
+    text: >-
+      And only Norwegian is on disk. Delivery follows the ship gate, so a parked
+      language has no files at all rather than files nobody has blessed.
+
+  - id: outro
+    kind: outro
+    text: >-
+      Add the generated tree to your ignore file and let the loop write it. A
+      clone regenerates the languages that are ready.

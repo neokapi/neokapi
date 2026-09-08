@@ -1,0 +1,109 @@
+id: s0-northsea-context
+title: Ask the graph where you are
+subtitle: Two questions an assistant needs answered, and files in the repository that answer them.
+kind: use-case
+publishAs: monolingual-context
+# A scripted plain-shell demo: every command is deterministic, so it runs for
+# real and its output is recorded exactly. Nothing here reaches a network.
+terminal: shell
+brand: kapi
+cwd: ~/northsea
+needsAi: false
+# The sandbox IS the Northsea sample project, copied from samples/northsea so
+# the recording and the sample a reader clones cannot drift apart.
+fixturesFrom: samples/northsea
+project: true
+captureTimeoutSec: 180
+aspects:
+  - the graph is files
+  - by location
+  - by content
+outro:
+  line: Ask your own repository the same two questions.
+  pointer: kapi context search <word>
+
+# The sample ships the context graph as the assistant drafted it, untracked,
+# next to content that is already committed. That is the state a review starts
+# from, so the first beat can be the review rather than a re-enactment of it.
+setup:
+  - git init -q
+  - git config user.email ops@northsea.example
+  - git config user.name Northsea
+  - git add docs app landing README.md
+  - git commit -qm "Northsea documentation, interface strings and landing page"
+
+script:
+  - comment: A company repository. Operator documentation, interface strings, one marketing page. One language.
+  - command: ls
+  - comment: An assistant read all three surfaces and proposed a context graph. It is files in the repo, untracked, waiting for you.
+  - command: git status --short
+  - comment: You corrected a draft instead of writing one. Commit it, and the graph is versioned, diffable, reviewed source.
+  - command: git add -A && git commit -qm "Adopt the context graph" && git log --oneline -1
+  - comment: One verb reconciles the committed graph and the sources. No target languages, no provider, nothing to ask for.
+  - command: kapi up
+  - comment: The first question an agent asks. Where am I, and what governs here?
+  - command: kapi context docs/berths.md | head -6
+  - comment: The same question, three directories away, at a different point and in a different register.
+  - command: kapi context landing/index.html | head -6
+  - comment: The second question. What do we call this, and why?
+  - command: kapi context search mooring
+
+artifacts:
+  - id: landing
+    caption: "landing/index.html, the surface the landing channel governs"
+    source: html
+    path: landing/index.html
+    width: 1200
+    height: 900
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      An assistant working in your repository needs two answers before it
+      writes: where am I, and what do we call this? A context graph is files in
+      the repository that answer both.
+
+  - id: adopt
+    kind: terminal
+    through: 8
+    caption: Untracked files, reviewed, committed, then reconciled.
+    text: >-
+      The graph arrives as a draft an assistant proposed: a recipe, a voice
+      profile, a vocabulary, untracked beside content that is already committed.
+      You correct it and commit it, and one verb reconciles it with the sources.
+
+  - id: landing
+    kind: artifact
+    artifact: landing
+    caption: One of three surfaces, and the warmest register of them.
+    text: >-
+      This is one of the three surfaces, the marketing page. It sits at northsea
+      slash landing, where the register is warmer than the documentation's. The
+      vocabulary is the same one either way.
+
+  - id: where
+    kind: terminal
+    through: 12
+    highlight: { text: [northsea/docs, northsea/landing] }
+    caption: Two paths, two points, one voice.
+    text: >-
+      Ask by location and the documentation answers with its own point, the
+      landing page with another. Same voice profile, different register, and
+      neither answer came from the directory the file happens to live in.
+
+  - id: search
+    kind: terminal
+    through: 14
+    highlight: { text: [mooring, berth] }
+    caption: The decision, and every place it lands.
+    text: >-
+      Ask by content and you get the decision behind a word. Northsea renamed a
+      place alongside from mooring to berth, and the answer carries both halves:
+      what to say, and the one field on the wire that keeps the retired name.
+
+  - id: outro
+    kind: outro
+    text: >-
+      Both questions run offline against files you can read. Ask them of your
+      own repository before an assistant writes a line in it.

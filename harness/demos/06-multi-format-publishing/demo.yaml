@@ -1,6 +1,6 @@
 id: 06-multi-format-publishing
-title: Translate Markdown and a properties file
-subtitle: Two files in two formats, one request, each round-tripped back into its own format.
+title: Two formats, one request, no conversion step
+subtitle: Markdown and a properties file, each written back as what it was.
 kind: use-case
 aspects:
   - format-aware
@@ -9,6 +9,9 @@ aspects:
 needsAi: true
 model: sonnet
 captureTimeoutSec: 320
+outro:
+  line: Try it on the odd format in your repo.
+  pointer: kapi formats
 
 prompt: >
   We need French versions of two files: our getting-started guide README.md, and our UI
@@ -45,47 +48,48 @@ artifacts:
 narration:
   - id: title
     kind: title
-    text: >
-      Content rarely lives in one format. Here, two files in two formats need translating,
-      and each has to come back out as what it was.
-  - id: prompt
-    kind: prompt
-    text: >
-      The request names both files and asks to keep each in its own format. It doesn't
-      explain how the two formats differ, because kapi already knows.
-  - id: markdown
-    kind: terminal
-    text: >
-      kapi reads Markdown and Java properties as distinct formats. For the guide, it
-      translates the prose with the configured AI provider and writes Markdown back: the
-      headings, the bold text, the list, and the blockquote stay where they were.
-    caption: "kapi translates README.md and writes Markdown back, structure intact"
-  - id: properties
-    kind: terminal
-    text: >
-      For the properties file, it keeps every key on the left of the equals sign and
-      translates only the message on the right.
-    caption: "messages.properties: keys untouched, only the values translated"
+    text: >-
+      One request, two files, two formats. kapi reads Markdown and Java
+      properties as what they are, translates only the text a reader sees, and
+      writes each back in its own format.
+
   - id: md-before
     kind: artifact
     artifact: md-before
-    text: >
-      The English guide as it renders today: a title, sections, and a tip in a blockquote.
+    caption: Headings, a list, a blockquote. All of it syntax.
+    text: >-
+      Here is the English guide. Around the sentences are headings, a list and a
+      blockquote, and a translator working on the raw file has to step over
+      every one of them.
+
+  - id: markdown
+    kind: terminal
+    caption: Prose out, French back, the syntax untouched.
+    text: >-
+      kapi parses the file as Markdown. The prose goes to the provider as prose,
+      the emphasis and the link targets travel with it as structure, and what
+      comes back is written as Markdown again.
+
   - id: md-after
     kind: artifact
     artifact: md-after
-    text: >
-      The French version, with the same structure, because kapi read it as Markdown
-      throughout rather than as a block of text.
+    caption: The same document, in French.
+    text: >-
+      The French guide renders as the English one did. Same heading levels, same
+      list, same blockquote, and the code sample in the middle of it is still
+      the code sample.
+
   - id: props
     kind: artifact
     artifact: props
-    text: >
-      And the properties file in French: every key preserved, every value translated. One
-      run handled both formats.
+    caption: Keys on the left. Only the right-hand side moved.
+    text: >-
+      The properties file went through the same run and came back as a
+      properties file. Every key on the left of the equals sign is the key the
+      code looks up, and only the message on the right was translated.
+
   - id: outro
     kind: outro
-    text: >
-      kapi reads and writes the formats content actually ships in, from catalogs to
-      documents to data, so a translation request doesn't turn into a pile of conversion
-      scripts.
+    text: >-
+      Ask kapi what it reads, then run the same request against the format in
+      your repository that nothing else will open.

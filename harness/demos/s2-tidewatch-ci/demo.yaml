@@ -1,0 +1,109 @@
+id: s2-tidewatch-ci
+title: The build ships without the language
+subtitle: Coverage is reported on the pull request, and only the source is gated.
+kind: use-case
+publishAs: docs-coverage-in-ci
+# A scripted plain-shell demo: every command is deterministic and offline. The AI
+# leg is the built-in `demo` provider, which needs no key and no network and
+# marks its own output, so a take costs nothing and claims nothing.
+terminal: shell
+brand: kapi
+cwd: ~/tidewatch-docs
+needsAi: false
+# The sandbox IS the Tidewatch docs sample, copied from samples/tidewatch-docs so
+# the recording and the sample a reader clones cannot drift apart.
+fixturesFrom: samples/tidewatch-docs
+project: true
+captureTimeoutSec: 300
+aspects:
+  - coverage, not a verdict
+  - the source gate
+  - the build never waits for a language
+outro:
+  line: Report coverage, and gate only the source.
+  pointer: kapi status --json
+
+script:
+  - comment: The same documentation site, brought up to date. Norwegian ships; Dutch is behind.
+  - command: kapi up
+  - command: kapi status
+  - comment: This is what the pull-request job posts. Coverage per language, in machine shape.
+  - command: >-
+      kapi status --json --jq '.locales[]|"\(.locale)  translated \(.pct.translated)%  reviewed \(.pct.reviewed)%  \(if .shippable then "ready" else "pending" end)"'
+  - comment: While a language was behind, nothing failed. The source gate is what a pull request is held to, and it is about the source.
+  - command: kapi check --strict
+  - comment: One advisory finding, and it is the API reference keeping a name the vocabulary retired. Reported, never blocking.
+
+artifacts:
+  - id: coverage
+    caption: "kapi status --json: coverage per language, what CI reads"
+    source: command
+    # Artifact commands run under the harness's kapi isolation, which turns
+    # recipe discovery off, so the recipe is named rather than walked to.
+    command: kapi status -p kapi.yaml --json
+    report: json
+    reportTitle: "kapi status --json"
+    reportSub: "per language: how much is there, how much a person has read"
+    width: 1200
+    height: 900
+  - id: workflow
+    caption: ".github/workflows/kapi.yml: the build job depends on neither"
+    source: report
+    report: code
+    path: .github/workflows/kapi.yml
+    reportTitle: ".github/workflows/kapi.yml"
+    reportSub: "a dry run and a comment on a pull request; a converge on the default branch"
+    width: 1200
+    height: 1000
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      A site build must never fail because a translation is behind. The source
+      is what a pull request is held to, and how far each language has come is
+      reported beside it.
+
+  - id: coverage-run
+    kind: terminal
+    through: 5
+    highlight: { text: [nb, nl] }
+    caption: One line per language, and no verdict in it.
+    text: >-
+      One line per language: how much is translated, how much a person has read,
+      and whether it clears the bar to be offered. Dutch is behind, and that is
+      the ordinary continuous work rather than a fault anywhere.
+
+  - id: coverage
+    kind: artifact
+    artifact: coverage
+    caption: A report the job posts. It cannot fail the build.
+    text: >-
+      This is what the continuous-integration job posts on a pull request. It is
+      a report, and the job that posts it has no power to fail the build, which
+      is the point of separating the two.
+
+  - id: gate
+    kind: terminal
+    through: 8
+    highlight: { text: [MINOR] }
+    caption: The source gate passes, with one advisory finding.
+    text: >-
+      Through all of it the English is what the pull request is held to, and the
+      source gate passes with one advisory finding: an API reference keeping a
+      field name the vocabulary retired.
+
+  - id: workflow
+    kind: artifact
+    artifact: workflow
+    caption: The converge job commits; the build job runs anyway.
+    text: >-
+      The workflow says it plainly. A pull request gets a dry run and a coverage
+      comment, the default branch converges and commits what moved, and the job
+      that builds the site depends on neither of them.
+
+  - id: outro
+    kind: outro
+    text: >-
+      Post coverage on the pull request and gate the source alone. A language
+      that is behind is work in progress, and the site ships without it.

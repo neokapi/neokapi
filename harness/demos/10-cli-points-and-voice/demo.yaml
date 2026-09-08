@@ -1,0 +1,114 @@
+id: 10-cli-points-and-voice
+title: Ask a file where it sits
+subtitle: Three surfaces, two brands, and one command that answers for any of them.
+kind: use-case
+publishAs: cli-points-and-voice
+# A scripted plain-shell demo: every command is deterministic and offline, so it
+# runs for real and its output is recorded exactly.
+#
+# `fixtures/.kapi/voice.yaml` is what the recipe binds and what the gate reads.
+# It was missing from the tree this demo inherited, so the guide beat had no
+# profile to print and the gate had no rule to fail on; the forbidden term in it
+# is the one the partner page trips.
+#
+# One `kapi check --strict` run exits 3 on purpose (the failing gate is the
+# point of that beat) and declares it with `expectExit: 3`, so a take where the
+# gate silently passed would fail the capture instead of shipping.
+terminal: shell
+brand: kapi
+cwd: ~/voltway
+needsAi: false
+# The sandbox IS the project: a recipe at its root, so every command reads the
+# way a user types it. The sandbox lives in os.tmpdir(), outside the repo.
+project: true
+captureTimeoutSec: 180
+aspects:
+  - coordinates, not folders
+  - the voice in force here
+  - one gate over every surface
+outro:
+  line: Ask a file in your own repository where it sits.
+  pointer: kapi context <path>
+
+script:
+  - comment: "Voltway sells metering software: operator documentation, console strings, and a portal that ships under a partner's brand."
+  - command: ls
+  - comment: The brand every collection inherits is a decision, so it is recorded as one rather than typed into the file.
+  - command: echo '{"kind":"recipe","op":"set","path":"defaults.coordinates.brand","value":"voltway"}' > coordinates.jsonl
+  - command: kapi apply coordinates.jsonl
+  - comment: Ask any file where it sits. The documentation answers with the docs channel.
+  - command: kapi context docs/quickstart.md | head -4
+  - comment: The partner page is three directories away, on another brand, and answers with the portal channel.
+  - command: kapi context partner/index.md | head -4
+  - comment: This is what an assistant is handed before it writes a portal page.
+  - command: kapi voice guide --profile-file .kapi/voice.yaml --channel portal | head -12
+  - comment: And this is the gate, over every surface, with no flags.
+  # The gate must fail here: the forbidden word on the partner page is the beat.
+  - command: kapi check --strict
+    expectExit: 3
+  - comment: One word, corrected at the source.
+  - command: ksed -i 's/Our seamless platform/Our unified platform/' partner/index.md
+  - command: kapi check --strict
+
+artifacts:
+  - id: recipe
+    caption: "kapi.yaml: each surface at a point, and one of them on another brand"
+    source: report
+    report: code
+    path: kapi.yaml
+    width: 1200
+    height: 1000
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      One product ships on three surfaces, one of them under a partner's brand.
+      From a terminal, every file can say where it sits and what voice governs
+      it there.
+
+  - id: recipe
+    kind: artifact
+    artifact: recipe
+    caption: A point per surface, and one collection on another brand.
+    text: >-
+      The recipe binds each surface to a point: the product, and the channel it
+      ships on. The portal collection moves on one axis only, the brand, and
+      keeps the product and the channel it inherits. Nothing declares a folder
+      taxonomy beside the content.
+
+  - id: where
+    kind: terminal
+    through: 9
+    highlight: { text: [portal, helios] }
+    caption: Two files, three directories apart, two answers.
+    text: >-
+      Ask the documentation where it sits and it answers with the docs channel.
+      Ask the partner page, three directories away, and it answers with the
+      portal channel and the Helios brand. The path did not decide either
+      answer, the recipe did.
+
+  - id: voice
+    kind: terminal
+    through: 11
+    caption: The guide an assistant is handed at that point.
+    text: >-
+      A voice profile is a file in the repository, and printing the guide for
+      that point is how you see what an assistant is handed before it writes.
+      The register is the portal's; the vocabulary is the whole company's.
+
+  - id: gate
+    kind: terminal
+    through: 16
+    highlight: { text: [MAJOR, seamless] }
+    caption: One word fails the gate, then the same command passes.
+    text: >-
+      The gate reads the same file. One forbidden word on the partner page fails
+      it, the command exits three, and correcting the source is enough to make
+      the identical command pass.
+
+  - id: outro
+    kind: outro
+    text: >-
+      Run the same question against a file in your own repository, and the
+      answer names the point, the voice, and the collection it belongs to.

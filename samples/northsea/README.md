@@ -270,8 +270,9 @@ reporting `mooring_id` as the retired `mooring` inside it), and
 
 ## Where it is used
 
-- `harness/demos/s0-northsea-governance/` records the journey above as a
-  narrated walkthrough, seeded straight from this directory (`fixturesFrom`),
-  so the recording and the sample cannot drift apart.
+- `harness/demos/s0-northsea-context/` and `harness/demos/s0-northsea-checks/`
+  record the journey above as two narrated walkthroughs, seeded straight from
+  this directory (`fixturesFrom`), so the recording and the sample cannot drift
+  apart.
 - `scripts/contexteval/corpus.go` uses the same fictional company, products and
   domain vocabulary.

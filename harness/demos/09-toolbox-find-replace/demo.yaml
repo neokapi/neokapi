@@ -1,7 +1,6 @@
 id: 09-toolbox-find-replace
-title: grep, sed and cat for any format
-subtitle: kcat, kgrep and ksed work on the text kapi reads out of a Word file, a spreadsheet or a Markdown page, rather than on raw bytes.
-tagline: muscle memory from the tools you already know, on content those tools can't see into.
+title: grep stops at the bytes
+subtitle: kcat, kgrep and ksed read the words inside a Word file or a spreadsheet.
 kind: use-case
 publishAs: toolbox-explainer
 # A scripted plain-shell demo (no Claude): the toolbox is deterministic, so the
@@ -16,23 +15,26 @@ aspects:
   - kcat · kgrep · ksed
   - docx + xlsx + markdown
   - one pass, in place
+outro:
+  line: Put all three on your PATH.
+  pointer: brew install neokapi/tap/kapi-cli-beta
 
-# Each comment names exactly what the command below it does. Wildcards (`*`)
-# fan a single pattern or substitution across every file, regardless of format.
+# The search opens the demo, because one pattern crossing three formats is the
+# thing to see. Wildcards fan a pattern or a substitution across every file,
+# whatever each one is.
 script:
   - comment: "A sales team's collateral: one product name, three formats."
   - command: ls
+  - comment: kgrep every "SalesPilot" across all three files at once.
+  - command: kgrep -n SalesPilot *
   - comment: kcat the Word proposal, and its prose comes out as plain lines.
   - command: kcat proposal.docx
   - comment: kcat the Excel price list, one cell per line.
   - command: kcat pricing.xlsx
-  - comment: kgrep every "SalesPilot" across all three files at once.
-  - command: kgrep -n SalesPilot *
   - comment: ksed renames SalesPilot to Northstar, in place, in all three.
   - command: ksed -i 's/SalesPilot/Northstar/g' *
   - comment: kgrep the new name to confirm the same matches, renamed.
   - command: kgrep -c Northstar *
-  - command: kcat proposal.docx
 
 artifacts:
   - id: after
@@ -47,37 +49,50 @@ artifacts:
 narration:
   - id: title
     kind: title
-    text: >
-      What if you could run the classic CLI tools, cat and grep and sed, across
-      plain text and across the content inside binary formats like Word and Excel
-      documents? Well, now you can.
-  - id: cat
-    kind: terminal
-    text: >
-      Here's a sales team's collateral: a Markdown pitch, a Word proposal, and an
-      Excel price list. kcat reads the text straight out of the Word document and
-      the spreadsheet, as plain lines.
-    caption: "kcat reads the text inside the .docx and the .xlsx"
+    text: >-
+      grep, sed and cat stop at the bytes of a Word file. kcat, kgrep and ksed
+      read the words inside it.
+
   - id: grep
     kind: terminal
-    text: >
-      kgrep searches that text across all three files at once, and finds every
-      mention of the product name.
-    caption: "kgrep finds the product name across every format"
+    through: 4
+    highlight: { text: [SalesPilot] }
+    caption: One pattern, three formats, line numbers on all of them.
+    text: >-
+      A Markdown pitch, a Word proposal and an Excel price list, and one search
+      across all three. Every mention of the product name comes back with a line
+      number, including the ones inside the two binary files.
+
+  - id: cat
+    kind: terminal
+    through: 8
+    highlight: { text: [SalesPilot] }
+    caption: The document read as prose, the spreadsheet as cells.
+    text: >-
+      That works because kcat reads each file as what it is. The Word document
+      comes out as the paragraphs a reader sees, and the spreadsheet as one cell
+      per line, so an ordinary text tool has something to match against.
+
   - id: sed
     kind: terminal
-    text: >
-      And one ksed renames the product everywhere, in place, with each file saved
-      back in its own format.
-    caption: "one ksed renames across all three, in place"
+    through: 12
+    highlight: { text: [Northstar] }
+    caption: Renamed in place, and the count is the same.
+    text: >-
+      Then one substitution renames the product everywhere, in place, and each
+      file is written back in its own format. The confirming search finds the
+      same matches under the new name.
+
   - id: after
     kind: artifact
     artifact: after
-    text: >
-      The proposal is still a valid Word document, heading and structure intact.
-      Only the words changed.
+    caption: Still a Word document. Only the words moved.
+    text: >-
+      The proposal is still a valid Word document. The heading is a heading, the
+      bold is bold, and what changed is the product name.
+
   - id: outro
     kind: outro
-    text: >
-      kcat, kgrep and ksed: grep, sed and cat, for the words inside every document
-      and catalog format neokapi reads.
+    text: >-
+      Install the command line and all three are on your PATH, ready to run
+      against whatever your team keeps its wording in.

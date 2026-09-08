@@ -1,7 +1,6 @@
 id: kapi-desktop-projects
-title: Create and manage a project
-subtitle: Set up a multilingual content project in Kapi Desktop.
-tagline: the visual companion to the kapi command line
+title: A recipe written for you
+subtitle: Name a project, give it a language, point it at content, and read the plan.
 kind: use-case
 publishAs: kapi-desktop-projects
 terminal: desktop
@@ -13,65 +12,63 @@ aspects:
   - Projects
   - Source & target languages
   - Content patterns
-  - Project settings
+  - The catch-up plan
+outro:
+  line: Create one, add a language, read the plan.
+  pointer: kapi up --plan
 
 narration:
   - id: title
     kind: title
     text: >-
-      Kapi Desktop. Let's create and set up a multilingual content project.
-
-  - id: intro
-    kind: desktop
-    beat: intro
-    text: >-
-      It opens to a home screen. A new project starts right here.
+      A kapi project is a recipe beside your files, and Kapi Desktop writes it
+      for you. Name it, give it a language, point it at content, and see what
+      one click would do.
 
   - id: new-project
     kind: desktop
     beat: new-project
-    caption: New Project asks only for a name.
+    caption: Created, and governing nothing yet.
     text: >-
-      New Project asks only for a name, here the Acme Help Center. Kapi
-      derives the folder and the rest from it.
+      A new project asks for a name and a structure, and nothing else. What it
+      opens on is the standing, which at this point is empty: no target
+      language, no content read, nothing to be behind on.
 
-  - id: templates
+  - id: add-language
     kind: desktop
-    beat: templates
-    caption: Or start from the KapiMart sample.
+    beat: add-language
+    caption: One language picked, and saved into the recipe.
+    zoom: 1.4
     text: >-
-      Or start from KapiMart, a ready-made sample project with content
-      collections, target languages, and a stocked content memory.
+      Project Settings is where the source language and the languages you
+      translate into are declared. Picking French adds it, and saving writes one
+      line into the recipe beside your files.
 
-  - id: project-home
+  - id: add-collection
     kind: desktop
-    beat: project-home
-    caption: The project opens on where its content sits.
+    beat: add-collection
+    caption: A name and one glob, counted as you type.
+    crop: { selector: ['[data-slot="code-input"]', '[data-testid="pattern-match-count"]'] }
+    zoom: 1.2
     text: >-
-      The project opens to one surface. It leads with the standing: every
-      declared point the content sits at, the voice governing there, and each
-      locale's ladder toward the ship gate.
+      A collection is a name and the patterns that define it. The editor counts
+      what each pattern matched while you type it, so a glob that finds nothing
+      says so before you save it rather than after a run.
 
-  - id: project-settings
+  - id: plan
     kind: desktop
-    beat: project-settings
-    caption: "Project Settings: languages, plugins, processing."
+    beat: plan
+    caption: A dry run. Nothing written, no provider called.
+    crop: { selector: '[data-slot="converge-plan-dialog"]' }
+    zoom: 1.1
+    hold: 10
     text: >-
-      Project Settings is where you choose the source language and the locales
-      you're translating into, alongside plugins and processing options.
-
-  - id: content
-    kind: desktop
-    beat: content
-    caption: Collections define which files belong to the project.
-    text: >-
-      Back on the home surface, each collection defines which files belong to
-      the project: glob patterns the engine reads from and writes back to.
-      Bring up to date is the project's one main action, running the default
-      flow pass after pass until every gated scope ships or parks what needs a
-      person.
+      On a project that already has content, the plan reads what is pending
+      before anything runs. Units with no target, what the project's own memory
+      can answer, and an estimate for the rest, all computed on this machine.
 
   - id: outro
     kind: outro
     text: >-
-      That's a project: created, structured, and one click from up to date.
+      Create a project, declare a language and a pattern, then read the plan
+      before you press the one button that does the work.

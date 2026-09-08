@@ -1,6 +1,6 @@
 id: 03-translate-docx
-title: Translate a document, structure intact
-subtitle: A Word announcement, translated into Japanese with kapi, keeping its headings, lists and formatting.
+title: A Word document nobody opened
+subtitle: Translated into Japanese with every heading, list and bold date in place.
 kind: use-case
 publishAs: claude-translate-document
 aspects:
@@ -10,6 +10,9 @@ aspects:
 needsAi: true
 model: sonnet
 captureTimeoutSec: 240
+outro:
+  line: Put a person on it before it ships.
+  pointer: kapi status --review
 
 prompt: >
   Can you translate announcement.docx into Japanese?
@@ -36,36 +39,47 @@ artifacts:
 narration:
   - id: title
     kind: title
-    text: >
-      A launch announcement, written in Word. The task: have it in Japanese, with the
-      document itself unchanged.
-  - id: prompt
-    kind: prompt
-    text: >
-      The developer just asks to translate the document, and says nothing about the file
-      format or how to keep the layout.
-  - id: work
-    kind: terminal
-    text: >
-      Claude hands the document to kapi, which reads the Word format directly. It translates
-      the text into Japanese and writes a new document back. It is a structured round-trip,
-      the same one command for any document or language. This demo shows a plain, unverified
-      AI translation; kapi can also route the same result through human review and hold it to
-      the project's terminology and voice checks.
-    caption: "kapi reads the .docx, translates the text, writes a new document"
+    text: >-
+      A Word document can be translated without anyone opening Word. One request
+      to Claude, and kapi reads the file, translates the text, and writes a new
+      document with every heading and bold date where it was.
+
   - id: before
     kind: artifact
     artifact: before
-    text: >
-      Here's the original: headings, a bullet list, bold dates, a contact line.
+    caption: Headings, a bullet list, bold dates, a contact line.
+    text: >-
+      Here is the original. Headings, a bullet list, bold dates and a contact
+      line, which is the part of a document that survives a copy and paste
+      least well.
+
+  - id: read
+    kind: terminal
+    caption: Read as a document, with its lists and its bold.
+    text: >-
+      Claude hands the file to kapi, which opens the Word format directly and
+      pulls out the paragraphs, the list items and the runs of bold inside them.
+      Nothing is converted to plain text on the way.
+
+  - id: write
+    kind: terminal
+    caption: A new document, written from the same structure.
+    text: >-
+      The text goes to the configured provider, and what comes back is written
+      into a new document that carries the original structure. The same one
+      command reads every document format kapi supports.
+
   - id: after
     kind: artifact
     artifact: after
-    text: >
-      And the Japanese version. The text is translated, but the headings, the list, the bold
-      dates, and the product name all come through exactly as they were.
+    caption: Japanese text in the English document's shape.
+    text: >-
+      And the Japanese version. The headings are still headings, the list is
+      still a list, the dates are still bold, and the product name is still the
+      product name.
+
   - id: outro
     kind: outro
-    text: >
-      One command, and the document speaks Japanese with its structure intact. The same
-      command reads every document and catalog format kapi supports.
+    text: >-
+      This is a plain machine translation. Run the review queue over it and kapi
+      lists what a person should read before it ships.

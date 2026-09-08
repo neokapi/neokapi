@@ -1,0 +1,99 @@
+# Voltway house voice.
+#
+# Bound to the `voltway` profile in kapi.yaml, so `kapi check` scores every
+# surface against it with no flags. The register bends per surface (channels:,
+# below). The vocabulary does not: a word Voltway does not use is not used on
+# the partner portal either, whichever brand the page carries.
+name: Voltway
+description: >-
+  Voltway writes for people who are accountable for a number on a bill. The
+  reader is an operator reconciling a meter or a support agent answering for a
+  charge. Say what was measured, say when, and stop.
+tone:
+  personality: [precise, calm, specific]
+  formality: formal
+  emotion: neutral
+  humor: none
+  guidelines: >-
+    Lead with the fact, then the consequence. Name the meter or the period that
+    produced a number. One idea per sentence, and never a claim the reader
+    cannot check against a reading.
+style:
+  active_voice: true
+  sentence_length: short
+  person_pov: second
+  contractions: never
+vocabulary:
+  preferred_terms:
+    - term: reading
+      note: One measurement taken from a meter, carrying the time it was taken.
+    - term: billing period
+      note: The window a reading is charged in. The console and the documentation both use it.
+    - term: Voltway
+      note: The company and the metering product. Capitalised, never translated.
+    - term: Helios
+      note: The partner the portal ships under. Capitalised, never translated.
+  forbidden_terms:
+    - term: seamless
+      replacement: unified
+      note: Says nothing a reader can check against a reading
+      severity: major
+examples:
+  - before: "Our seamless platform delivers billing you can trust."
+    after: "Voltway stores every reading with the time it was taken, so a bill can be checked line by line."
+    explanation: Name the mechanism and what it records; drop the claim
+    category: tone
+  - before: "You'll see the charge once the cycle closes."
+    after: "The charge appears when the billing period closes."
+    explanation: No contractions, and the house term is billing period
+    category: vocabulary
+
+# Per-surface register. A channel override changes tone and style only, so the
+# vocabulary above is in force on the partner portal as well as in the manual.
+channels:
+  docs:
+    tone:
+      personality: [precise, calm, specific]
+      formality: formal
+      emotion: neutral
+      humor: none
+      guidelines: >-
+        Instructional. Number a procedure the reader performs, and state what
+        the software records, because the record is what a dispute is settled
+        from.
+    style:
+      active_voice: true
+      sentence_length: short
+      person_pov: second
+      contractions: never
+  app:
+    tone:
+      personality: [precise, plain]
+      formality: neutral
+      emotion: neutral
+      humor: none
+      guidelines: >-
+        Interface microcopy. A control is named for what it does; a message says
+        what happened and what the operator can do next. No full stop on a
+        button, no exclamation anywhere.
+    style:
+      active_voice: true
+      sentence_length: short
+      person_pov: second
+      contractions: never
+  portal:
+    tone:
+      personality: [confident, specific, calm]
+      formality: neutral
+      emotion: neutral
+      humor: none
+      guidelines: >-
+        The reader is deciding whether to look further, and the page carries the
+        partner's name rather than Voltway's. Lead with the situation they
+        recognise, then the mechanism. A number is allowed and must be one a
+        reading supports.
+    style:
+      active_voice: true
+      sentence_length: medium
+      person_pov: second
+      contractions: never

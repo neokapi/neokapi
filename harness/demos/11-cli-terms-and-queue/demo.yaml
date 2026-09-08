@@ -1,0 +1,108 @@
+id: 11-cli-terms-and-queue
+title: One queue, every language
+subtitle: The same term rules reach the model and the gate, and one list holds the work.
+kind: use-case
+publishAs: cli-terms-and-queue
+# A scripted plain-shell demo: every command is deterministic and offline. The
+# drafting leg uses the built-in `demo` provider, which needs no key and no
+# network and marks its own output, so a take costs nothing and claims nothing.
+terminal: shell
+brand: kapi
+cwd: ~/voltway
+needsAi: false
+# The same Voltway tree as 10-cli-points-and-voice, read from where that demo
+# keeps it rather than copied, so the two recordings cannot drift apart. The
+# sandbox IS the project (a recipe at its root) and lives in os.tmpdir().
+fixturesFrom: harness/demos/10-cli-points-and-voice/fixtures
+project: true
+captureTimeoutSec: 180
+aspects:
+  - one list of term rules
+  - one review queue
+  - the source among the languages
+outro:
+  line: Read your own queue, one language at a time.
+  pointer: kapi status --review --lang fr
+
+script:
+  - comment: Terminology is a list under term_rules, on the step that uses it. Two lines in the recipe name what the French must say.
+  - comment: The step that drafts is handed exactly that list, so the model and the check are told the same thing.
+  - command: kapi run converge -i app/strings.en.json --target-lang fr --explain-prompts 2>&1 | grep -A2 "Terminology (use these renderings)" | head -3
+  - comment: Where the project stands. French is drafted; nothing in either language has been read by a person.
+  - command: kapi status
+  - comment: One queue holds every language, the source among them, and every source row carries its marker.
+  - command: kapi status --review --lang en | head -8
+  - comment: Ask for the language you are reviewing, and you get those rows alone.
+  - command: kapi status --review --lang fr
+  - comment: The queue is already the shape of a change-set, so approving is one pass over it.
+  - command: >-
+      kapi status --review --lang fr --json --jq '.pending[]|{kind:"review",op:"add",file,id:.key,locale,status:"reviewed"}' > reviewed.json
+  # The per-entry report goes to stderr, so the tail has to see stderr to trim it.
+  - command: kapi apply reviewed.json 2>&1 | tail -3
+  - comment: Approvals stage until they are committed. Then they are in the record, attributable, in git.
+  - command: kapi commit
+  - command: kapi status --review --lang fr
+  - comment: French is reviewed. The source rows stay open, because Voltway signs off its own wording before a translation ships from it.
+  - command: kapi status
+
+artifacts:
+  - id: queue
+    caption: "kapi status --review --json: what is still open, after French was signed off"
+    source: command
+    command: kapi status --review -p . --json
+    report: json
+    reportTitle: "kapi status --review --json"
+    reportSub: "the source rows, each carrying its own marker"
+    width: 1200
+    height: 900
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      Terminology is one list, and the step that drafts and the check that gates
+      are handed the same one. What is left after that is a queue with every
+      language in it.
+
+  - id: terms
+    kind: terminal
+    through: 3
+    highlight: { text: [Terminology, facturation] }
+    caption: The recipe's two rules, inside the prompt that drafts.
+    text: >-
+      Each rule names a term, what the French must say for it, and how hard it
+      bites. Ask the drafting step to show its prompt and the same two rules are
+      in it, word for word, so a model is told what the gate will hold it to.
+
+  - id: standing
+    kind: terminal
+    through: 9
+    caption: One list, both languages, then narrowed to French.
+    text: >-
+      French is drafted and nothing has been read by a person yet. One queue
+      holds every language, including the source, and a source row carries its
+      own marker.
+
+  - id: approve
+    kind: terminal
+    through: 15
+    caption: Twenty rows, one pass, then committed.
+    text: >-
+      The queue comes back in the shape of a change-set already, so approving is
+      one pass over it rather than twenty visits. Approvals stage, then commit,
+      and they land in the record with a name against them.
+
+  - id: queue
+    kind: artifact
+    artifact: queue
+    caption: French is gone. The source rows are still open.
+    text: >-
+      Afterwards the French rows are gone and the source rows are still here,
+      because Voltway signs off its own wording before a translation ships from
+      it.
+
+  - id: outro
+    kind: outro
+    text: >-
+      Ask your own project for one language at a time, and what comes back is
+      the work, in the shape the write command takes.

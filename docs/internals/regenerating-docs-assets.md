@@ -41,10 +41,10 @@ in env.
 | kapi walkthrough scenes (`web/walkthroughs/<id>.scene.yaml`) | `web/docs/walkthroughs/<id>.mdx` | `scripts/walkthrough-gen/gen.ts` emits the VHS tape and the playground embed from the scene spec; `vhs` records the tape in `web/scenes/<id>/` | `web/static/video/kapi/` |
 | kapi Claude explainers (`claude-app-i18n`, `claude-translate-document`) | `kapi/get-started/use-with-claude.mdx` | harness demos `02`,`03` (live Claude) | `web/static/video/kapi/` |
 | kapi shell explainers (`kapi-checks-guardrail`, `toolbox-explainer`) | checks / toolbox pages | harness demos `05`,`09` (scripted shell) | `web/static/video/kapi/` |
-| kapi monolingual journey (`monolingual-governance`) | `kapi/recipes/keep-source-on-brand.mdx` | harness demo `s0-northsea-governance` (scripted shell, seeded from `samples/northsea`) | `web/static/video/kapi/` |
-| kapi multilingual ship states (`multilingual-ship-states`) | the multilingual/ship-state page | harness demo `s1-compass-multilingual` (scripted shell, seeded from `samples/compass`) | `web/static/video/kapi/` |
-| kapi docs-site convergence (`docs-site-convergence`) | the CI / convergence page | harness demo `s2-tidewatch-docs` (scripted shell, seeded from `samples/tidewatch-docs`) | `web/static/video/kapi/` |
-| Kapi Desktop tour (`kapi-desktop-*`) | `kapi/desktop/overview.mdx` | harness desktop demos `kapi-desktop-{projects,content,flows,config,explorer}` | `web/static/video/kapi/` |
+| kapi monolingual journey (`monolingual-governance`, `monolingual-context`) | `kapi/recipes/keep-source-on-brand.mdx`, `kapi/context.mdx` | harness demos `s0-northsea-checks`, `s0-northsea-context` (scripted shell, seeded from `samples/northsea`) | `web/static/video/kapi/` |
+| kapi multilingual convergence and ship states (`multilingual-converge`, `multilingual-ship-states`) | `kapi/get-started/add-languages.mdx`, `kapi/recipes/machine-ship-strategy.mdx` | harness demos `s1-compass-converge`, `s1-compass-ship-gate` (scripted shell, seeded from `samples/compass`) | `web/static/video/kapi/` |
+| kapi docs-site convergence and coverage (`docs-site-convergence`, `docs-coverage-in-ci`) | `kapi/convergence.mdx`, `kapi/convergence-in-ci.mdx` | harness demos `s2-tidewatch-build-output`, `s2-tidewatch-ci` (scripted shell, seeded from `samples/tidewatch-docs`) | `web/static/video/kapi/` |
+| Kapi Desktop tour (`kapi-desktop-*`) | `kapi/desktop/overview.mdx`, `kapi/desktop/tour.mdx` | harness desktop demos `kapi-desktop-{projects,content,flows,config,explorer,review}` | `web/static/video/kapi/` |
 | bowrain CLI videos (`/video/bowrain-cli/bowrain-cli-*`) | bowrain walkthroughs | harness demos `bowrain-cli-getting-started`, `bowrain-cli-auth-and-workspaces` (need a server) | `bowrain/web/docs/static/video/bowrain-cli/` |
 | bowrain web framed videos (`/video/bowrain-web/bowrain-web-*`) | `server/web-overview.mdx` | harness demos `bowrain-web-{editor,governance,review,correction-loop,collaboration}` (need a server) | `bowrain/web/docs/static/video/bowrain-web/` |
 | bowrain desktop framed videos (`/video/bowrain-desktop/bowrain-desktop-*`) | `server/desktop-app.mdx` | harness demos `bowrain-desktop-{dashboard,automations}` | `bowrain/web/docs/static/video/bowrain-desktop/` |
@@ -70,9 +70,14 @@ vpx tsx src/cli/run.ts 02-nextjs-zero-to-i18n --force --theme=both
 vpx tsx src/cli/run.ts 03-translate-docx     --force --theme=both
 vpx tsx src/cli/run.ts 05-ai-checks-guardrail --force --theme=both
 vpx tsx src/cli/run.ts 09-toolbox-find-replace --force --theme=both
-vpx tsx src/cli/run.ts s0-northsea-governance --force --theme=both
-vpx tsx src/cli/run.ts s1-compass-multilingual --force --theme=both
-vpx tsx src/cli/run.ts s2-tidewatch-docs --force --theme=both
+vpx tsx src/cli/run.ts s0-northsea-context   --force --theme=both
+vpx tsx src/cli/run.ts s0-northsea-checks    --force --theme=both
+vpx tsx src/cli/run.ts s1-compass-converge   --force --theme=both
+vpx tsx src/cli/run.ts s1-compass-ship-gate  --force --theme=both
+vpx tsx src/cli/run.ts s2-tidewatch-build-output --force --theme=both
+vpx tsx src/cli/run.ts s2-tidewatch-ci       --force --theme=both
+vpx tsx src/cli/run.ts 10-cli-points-and-voice --force --theme=both
+vpx tsx src/cli/run.ts 11-cli-terms-and-queue  --force --theme=both
 cd ..
 
 # publish to the CDN (videos + images), then make it live

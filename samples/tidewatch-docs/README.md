@@ -162,7 +162,7 @@ ls i18n/nl
 | 3 | First converge shows recycle numbers and an estimate before it spends | **MET**: `plan: 96 unit(s) missing · 15 exact-content memory · 81 AI · ≈2k tokens`, then per-locale `(content memory 23 · AI 37)`. No credential spent |
 | 4 | Governed review exercised, with a decision that changes an outcome | **MET**: 60 decisions committed to `.kapi/state/`, moving `nb` from `blocked: review` to `ready` while `nl` stays pending until its own drafts are reviewed |
 | 5 | Delivery proven, the CI leg | **PARTIAL**: the workflow is authored against the published actions and every kapi command in it is verified locally; it is not executed, because a sample workflow inside `samples/` is not a repository workflow and running it would mean a public sample repository, which this stream does not create |
-| 6 | Recorded as a harness walkthrough | **PARTIAL**: `harness/demos/s2-tidewatch-docs/` is authored and capture-verified; nothing has been rendered or published for English, and the Norwegian render is held by [#2032](https://github.com/neokapi/neokapi/issues/2032) |
+| 6 | Recorded as a harness walkthrough | **PARTIAL**: `harness/demos/s2-tidewatch-build-output/` and `harness/demos/s2-tidewatch-ci/` are authored and neither has been recorded since the split; nothing has been rendered or published for English, and the Norwegian render is held by [#2032](https://github.com/neokapi/neokapi/issues/2032) |
 | 7 | Carries no internal information; lives where a reader can clone it | **MET**: one fictional company, in-repo under `samples/` |
 
 ## Known gaps this sample exercises
@@ -199,7 +199,8 @@ unit identity on the file-scan path).
 
 ## Where it is used
 
-- `harness/demos/s2-tidewatch-docs/` records the journey above as a narrated
-  walkthrough, seeded straight from this directory (`fixturesFrom`).
+- `harness/demos/s2-tidewatch-build-output/` and `harness/demos/s2-tidewatch-ci/`
+  record the journey above as two narrated walkthroughs, seeded straight from
+  this directory (`fixturesFrom`).
 - [`../compass/`](../compass/) is the same company, the same loop, at the delivery
   edge instead of in CI.
