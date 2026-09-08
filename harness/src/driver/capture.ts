@@ -32,12 +32,19 @@ function sandboxClaudeMd(m: DemoManifest): string {
     ? `\nA Gemini model credential named \`${CRED}\` is configured; use it (` +
       `\`--credential ${CRED}\`) whenever a tool needs a model provider.`
     : ``;
+  // Whether the directory is a configured kapi project is setup the assistant
+  // cannot see without running a project-scoped command and reading its failure.
+  // Saying so costs no how-to and keeps that failure off camera.
+  const scope =
+    m.project === true
+      ? `\nThis directory is a configured kapi project, so project-scoped commands read its recipe.`
+      : `\nThere is no kapi project configured here: this is a plain folder of files.`;
   const note = m.claudeNote ? `\n${m.claudeNote.trim()}` : ``;
   return `# Environment
 
 This is a real project — work in this directory and briefly say what you're doing as
 you go. The command-line tooling is already installed and on your PATH; no \`pnpm install\`
-is needed to run it.${ai}${note}
+is needed to run it.${scope}${ai}${note}
 `;
 }
 
