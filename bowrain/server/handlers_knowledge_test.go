@@ -514,6 +514,26 @@ func TestChangesetSeparationOfDuties(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// Concept story
+// ---------------------------------------------------------------------------
+
+// TestConceptStoryEmptyIsArray proves a concept with no history serialises its
+// entries as an empty array. The response type declares an array, and the web
+// timeline maps over it; a nil slice would encode as `null` and the concept page
+// would show "Could not load timeline" for every concept nobody has touched yet.
+func TestConceptStoryEmptyIsArray(t *testing.T) {
+	h := newKGHarness(t)
+	c, rec := h.req(http.MethodGet, "/", "", platauth.PermViewContent, "cid", "c-untouched")
+	require.NoError(t, h.srv.HandleGetConceptStory(c))
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	var raw map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &raw))
+	assert.JSONEq(t, `"c-untouched"`, string(raw["concept_id"]))
+	assert.JSONEq(t, `[]`, string(raw["entries"]), "an empty story is an empty array, never null")
+}
+
+// ---------------------------------------------------------------------------
 // Unconfigured graph
 // ---------------------------------------------------------------------------
 

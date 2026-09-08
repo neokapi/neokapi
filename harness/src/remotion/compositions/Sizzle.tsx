@@ -68,7 +68,7 @@ const PLAN: ClipPlan[] = [
   { demoId: "bowrain-web-editor", beatId: "split", maxDurSec: 4.0, title: "One shared editor", subtitle: "Source and target, side by side." },
   { demoId: "bowrain-web-collaboration", beatId: "teammate-joins", maxDurSec: 4.0, title: "Real-time collaboration", subtitle: "Your team translates together, live." },
   { demoId: "bowrain-web-governance", beatId: "tm-search", maxDurSec: 3.8, title: "Memory & terminology", subtitle: "Consistency, shared and enforced." },
-  { demoId: "bowrain-web-review", beatId: "review", maxDurSec: 4.0, title: "Review & approval", subtitle: "Nothing ships unchecked." },
+  { demoId: "bowrain-web-review", beatId: "focus", maxDurSec: 4.0, title: "Review & approval", subtitle: "Nothing ships unchecked." },
   { demoId: "bowrain-web-correction-loop", beatId: "promote", maxDurSec: 3.8, title: "Corrections become checks", subtitle: "Quality that compounds." },
 ];
 

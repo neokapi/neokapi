@@ -799,12 +799,18 @@ export function TranslationEditor({
         />
       </div>
 
-      {/* Progress bar */}
-      <div
-        className="relative h-6 bg-muted rounded overflow-hidden mb-2"
-        data-testid="progress-bar"
-      >
-        {progressSegments}
+      {/* Progress bar. The segments and the label are siblings under a plain
+          positioning wrapper rather than children of one element: an element
+          holding inline text beside a `{jsxValue}` becomes one translatable
+          block, and the runtime writes a React-element value into the
+          message as "[object Object]". */}
+      <div className="relative h-6 mb-2">
+        <div
+          className="absolute inset-0 bg-muted rounded overflow-hidden"
+          data-testid="progress-bar"
+        >
+          {progressSegments}
+        </div>
         <span
           className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-xs font-semibold text-foreground whitespace-nowrap"
           data-testid="progress-text"

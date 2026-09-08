@@ -34,7 +34,7 @@ function installBowrainPlugin(): void {
   }
   const dir = ensureDir(path.join(KAPI_ISO_PLUGINS, "bowrain"));
   fs.copyFileSync(
-    path.join(REPO_ROOT, "bowrain", "cli", "cmd", "kapi-bowrain", "manifest.json"),
+    path.join(REPO_ROOT, "bowrain", "plugin", "cmd", "kapi-bowrain", "manifest.json"),
     path.join(dir, "manifest.json"),
   );
   const dst = path.join(dir, "kapi-bowrain");

@@ -302,12 +302,13 @@ on Alice's recorded screen — real multi-user presence, never mocked.
 Seed both users (Alice owns the workspace, invites Bob, joins him) and capture:
 
 ```bash
-node scripts/seed-collaboration.mjs > /tmp/collab.json   # prints both tokens + project/item/locale
+node scripts/seed-collaboration.mjs > /tmp/collab.json   # prints both tokens + project/item id + file name/locale
 # read the JSON and export the env it printed:
 BOWRAIN_BACKEND_URL=http://localhost:8080 \
 BOWRAIN_SESSION_TOKEN=<alice.token> BOWRAIN_PEER_TOKEN=<bob.token> \
 BOWRAIN_PEER_NAME="<bob.name>" BOWRAIN_WORKSPACE_SLUG=<workspace> \
-BOWRAIN_PROJECT_ID=<project_id> BOWRAIN_ITEM_ID=<item_id> BOWRAIN_COLLAB_LOCALE=<locale> \
+BOWRAIN_PROJECT_ID=<project_id> BOWRAIN_ITEM_ID=<item_id> BOWRAIN_ITEM_NAME=<file_name> \
+BOWRAIN_COLLAB_LOCALE=<locale> \
   pnpm run demo bowrain-web-collaboration -- --only=capture --force --theme=both
 # then narrate + render + publish (no tokens needed):
 pnpm run demo bowrain-web-collaboration -- --only=narrate,render,publish

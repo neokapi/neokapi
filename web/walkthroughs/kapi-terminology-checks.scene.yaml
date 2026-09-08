@@ -1,6 +1,6 @@
 # Unified scene spec (W3, issue #661). See kapi-overview.scene.yaml for the
 # full schema. Regenerate with:
-#   node --experimental-strip-types scripts/walkthrough-gen/gen.ts kapi-terminology-qa
+#   node --experimental-strip-types scripts/walkthrough-gen/gen.ts kapi-terminology-checks
 #
 # The browser (wasm) build pre-seeds an in-memory terms store from the same
 # native terms bundle used here (kapi/cmd/kapi-wasm-cli/fixtures/terms.json), so
@@ -9,8 +9,8 @@
 # visible copy of the terms bundle — the committed, reviewable form the terms
 # store compiles from; `term-check` enforces the seeded terms.
 
-id: kapi-terminology-qa
-scene: terms-qa
+id: kapi-terminology-checks
+scene: terms-checks
 mode: interactive
 
 seed: []
