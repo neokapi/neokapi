@@ -21,6 +21,16 @@ The plugin applies [W3C HTML5 translatability rules](https://www.w3.org/TR/its20
 npm install @neokapi/i18n-react
 ```
 
+### Upgrading from 1.2.x
+
+1.2.3 extracted to `.klf` under a different root marker. 2.0.0 writes
+`.kbf.json`, which is what `kapi` and every other reader of the format expect.
+
+Run `neokapi-i18n extract` once after upgrading. It writes the catalogs under
+the current suffix and removes the `.klf` ones it had written for the same
+sources. Per-locale target trees stay where they are, whichever suffix they
+carry: kapi reads both, so translations already produced keep compiling.
+
 ## Quick Start
 
 ### 1. Add the plugin to your build tool

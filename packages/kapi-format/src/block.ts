@@ -338,11 +338,37 @@ export const SchemaVersion = "1.0" as const;
 export const Kind = "kapi-bundle" as const;
 
 /**
+ * The kind stamped by @neokapi/i18n-react 1.2.3, the build on npm that
+ * `npm install -D @neokapi/i18n-react` served before the bundle format took
+ * its current name. A catalog it extracted is a current bundle in every other
+ * byte, so a reader takes it; {@link marshalFile} writes {@link Kind}.
+ *
+ * Mirrors Go `core/kbf.KindI18nReact`.
+ */
+export const KindI18nReact = "kapi-localization-format" as const;
+
+/** Root kinds a reader accepts, current spelling first. */
+export const ReadableKinds = [Kind, KindI18nReact] as const;
+
+/**
  * Compound suffix of a Kapi Bundle Format document. It is a *compound*
  * suffix: `foo.kbf.json`, not a bare `.json`, so plain
  * `path.extname()` never identifies one — use {@link isKbfPath}.
  */
 export const Ext = ".kbf.json" as const;
+
+/**
+ * Suffix of a bundle written by @neokapi/i18n-react 1.2.3, alongside
+ * {@link KindI18nReact}. It is a plain suffix rather than a compound one, so
+ * `path.extname()` does identify it, but {@link isKbfPath} is still the way to
+ * ask whether a path names a bundle.
+ *
+ * Mirrors Go `core/format.KBFExtI18nReact`.
+ */
+export const ExtI18nReact = ".klf" as const;
+
+/** Bundle suffixes a reader accepts, current spelling first. */
+export const ReadableExts = [Ext, ExtI18nReact] as const;
 
 /**
  * Compound suffix of the JSON-Lines stand-off annotation overlay
@@ -360,12 +386,31 @@ export const AnnotationExt = ".overlays.jsonl" as const;
 export const OverlaySetExt = ".overlays.json" as const;
 
 /**
- * Reports whether `path` names a `.kbf.json` document. Matches the whole
- * compound suffix, so an unrelated `data.json` is not mistaken for one
- * (and neither is a `.overlays.json` overlay-set sidecar).
+ * Reports whether `path` names a bundle document, under either suffix in
+ * {@link ReadableExts}. Matches the whole compound suffix, so an unrelated
+ * `data.json` is not mistaken for one (and neither is a `.overlays.json`
+ * overlay-set sidecar).
  */
 export function isKbfPath(path: string): boolean {
-  return path.toLowerCase().endsWith(Ext);
+  const lower = path.toLowerCase();
+  return ReadableExts.some((ext) => lower.endsWith(ext));
+}
+
+/**
+ * Returns `path` with its bundle suffix removed, so `i18n/src/page.kbf.json`
+ * and `i18n/src/page.klf` both become `i18n/src/page`. A path carrying neither
+ * suffix comes back unchanged.
+ *
+ * It is what lets one document's catalog be recognised across the two
+ * spellings. The extractor rewriting a `.klf` as a `.kbf.json` has to know the
+ * two name the same document, or the tree keeps both.
+ *
+ * Mirrors Go `core/format.TrimExt` for the bundle suffixes.
+ */
+export function trimKbfExt(path: string): string {
+  const lower = path.toLowerCase();
+  const ext = ReadableExts.find((candidate) => lower.endsWith(candidate));
+  return ext ? path.slice(0, path.length - ext.length) : path;
 }
 
 /**
@@ -457,7 +502,12 @@ export interface Vocabulary {
  */
 export interface File {
   schemaVersion: typeof SchemaVersion;
-  kind: typeof Kind;
+  /**
+   * One of {@link ReadableKinds}: a file parsed off disk may carry the kind
+   * {@link KindI18nReact} names, and the type says so rather than letting a
+   * cast paper over it.
+   */
+  kind: (typeof ReadableKinds)[number];
   created?: string;
   generator: Generator;
   project: Project;

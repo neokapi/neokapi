@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"slices"
 )
 
 // Unmarshal decodes a .kbf.json payload into a File, returning an
@@ -38,7 +39,7 @@ func checkEnvelope(f *File) error {
 	if f.Kind == "" {
 		return fmt.Errorf("kbf: missing kind (want %q)", Kind)
 	}
-	if f.Kind != Kind {
+	if !slices.Contains(ReadableKinds, f.Kind) {
 		return fmt.Errorf("kbf: unexpected kind %q (want %q)", f.Kind, Kind)
 	}
 	major, _, ok := splitVersion(f.SchemaVersion)

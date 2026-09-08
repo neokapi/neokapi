@@ -45,7 +45,6 @@ import (
 	"github.com/neokapi/neokapi/core/formats/xliff2"
 	xmlfmt "github.com/neokapi/neokapi/core/formats/xml"
 	"github.com/neokapi/neokapi/core/formats/yaml"
-	"github.com/neokapi/neokapi/core/kbf"
 	"github.com/neokapi/neokapi/core/registry"
 )
 
@@ -618,11 +617,9 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 	reg.RegisterReader(registry.FormatID(jsx.FormatName),
 		func() format.DataFormatReader { return jsx.NewReader() },
 		format.FormatSignature{
-			MIMETypes:  []string{"application/vnd.neokapi.kbf+json"},
-			Extensions: []string{".kbf.json"},
-			Sniff: func(data []byte) bool {
-				return bytes.Contains(data, []byte(`"`+kbf.Kind+`"`))
-			},
+			MIMETypes:  jsx.MimeTypes,
+			Extensions: jsx.Extensions,
+			Sniff:      jsx.Sniff,
 		}, "Kapi Bundle Format (KBF)")
 	reg.RegisterWriter(registry.FormatID(jsx.FormatName), func() format.DataFormatWriter { return jsx.NewWriter() })
 

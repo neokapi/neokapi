@@ -33,7 +33,7 @@ import { dirname, join, relative, resolve } from "node:path";
 import { glob } from "node:fs/promises";
 
 import type { Document, File } from "@neokapi/kapi-format";
-import { Ext, isKbfPath, marshalFile } from "@neokapi/kapi-format";
+import { Ext, Kind, SchemaVersion, isKbfPath, marshalFile, trimKbfExt } from "@neokapi/kapi-format";
 
 import { createWarningCollector, extractDocument, formatWarning } from "../extract/index.ts";
 import type { PluginOptions } from "../types.ts";
@@ -194,6 +194,12 @@ function pruneStaleCatalogs(outDir: string, written: ReadonlySet<string>): strin
 
 // A bundle is the extractor's own when one of its documents would be written
 // exactly here.
+//
+// Position is compared with the bundle suffix trimmed off both sides, so a
+// catalog an older release of this package wrote for `src/app/page.tsx` counts
+// as the same document's catalog as the one this run writes. Without that, an
+// upgrade leaves two catalogs per source in the tree and `compile` reads the
+// stale one alongside the fresh one.
 function isOwnCatalog(outDir: string, path: string): boolean {
   let file: File;
   try {
@@ -202,9 +208,10 @@ function isOwnCatalog(outDir: string, path: string): boolean {
     return false;
   }
   const documents = Array.isArray(file?.documents) ? file.documents : [];
-  const here = resolve(path);
+  const here = trimKbfExt(resolve(path));
   return documents.some(
-    (doc) => typeof doc?.path === "string" && resolve(join(outDir, kbfFilename(doc))) === here,
+    (doc) =>
+      typeof doc?.path === "string" && trimKbfExt(resolve(join(outDir, kbfFilename(doc)))) === here,
   );
 }
 
@@ -412,10 +419,16 @@ function extractAllDocuments(
   return out;
 }
 
+// The envelope's version and kind come from @neokapi/kapi-format rather than
+// being spelled again here, so a build of this package can only ever stamp the
+// kind its bundle library reads. Spelled twice, the two drift silently: the
+// suffix the catalog is written under comes from that same library, and a
+// catalog whose kind and suffix disagree is a shape nothing was written to
+// expect.
 function buildKBF(doc: Document, opts: ExtractArgs) {
   return {
-    schemaVersion: "1.0" as const,
-    kind: "kapi-bundle" as const,
+    schemaVersion: SchemaVersion,
+    kind: Kind,
     generator: { id: "@neokapi/i18n-react", version: readPackageVersion() },
     project: {
       id: opts.projectId,

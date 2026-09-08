@@ -24,7 +24,7 @@ import { join } from "node:path";
 import type { IncomingMessage, ServerResponse } from "node:http";
 
 import type { Block, File as KBFFile, Run } from "@neokapi/kapi-format";
-import { flattenRuns, isAnnotationPath, isKbfPath, marshalFile } from "@neokapi/kapi-format";
+import { Kind, flattenRuns, isAnnotationPath, isKbfPath, marshalFile } from "@neokapi/kapi-format";
 
 interface BlockLocation {
   path: string;
@@ -196,6 +196,10 @@ export class ReviewStore {
     const block = file.documents?.[loc.docIndex]?.blocks?.[loc.blockIndex];
     if (!block) return null;
     block.targets = { ...block.targets, [locale]: [{ text }] as Run[] };
+    // Written back under the current root kind, the way kapi's own writer
+    // stamps a catalog it rewrites. A catalog an older release of this package
+    // extracted becomes a current one the first time a target is saved into it.
+    file.kind = Kind;
     let serialized: Uint8Array | string;
     try {
       serialized = marshalFile(file);

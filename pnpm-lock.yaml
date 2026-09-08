@@ -1065,7 +1065,7 @@ importers:
   packages/i18n-react:
     dependencies:
       '@neokapi/kapi-format':
-        specifier: ^1.0.0
+        specifier: ^2.0.0
         version: link:../kapi-format
       '@swc/core':
         specifier: ^1.16.1

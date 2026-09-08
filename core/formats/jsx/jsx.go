@@ -42,12 +42,15 @@ const AnnotationType = "neokapi-kbf-block"
 // flag, and the generated reference page.
 const FormatName = "kbf"
 
-// Extensions this reader responds to.
+// Extensions this reader responds to, the current one first so it is the
+// default an output name is derived from.
 //
 // [format.KBFExt] is a compound suffix (".kbf.json"), so the registry has to
 // resolve it with [format.Ext] rather than path/filepath.Ext — the latter sees
 // only ".json" and hands every bundle to the plain JSON reader.
-var Extensions = []string{format.KBFExt}
+// [format.KBFExtI18nReact] is the plain ".klf" suffix @neokapi/i18n-react
+// 1.2.3 writes; the payload under it is a bundle, so this reader takes it.
+var Extensions = []string{format.KBFExt, format.KBFExtI18nReact}
 
 // MimeTypes advertised for this format.
 var MimeTypes = []string{
@@ -180,16 +183,26 @@ func NewReader() *Reader {
 	}
 }
 
-// Signature returns detection metadata — .kbf.json files are JSON
-// bearing the `kapi-bundle` kind marker.
+// Signature returns detection metadata. A bundle is JSON bearing one of the
+// root kind markers [kbf.ReadableKinds] names.
 func (r *Reader) Signature() format.FormatSignature {
 	return format.FormatSignature{
 		MIMETypes:  MimeTypes,
 		Extensions: Extensions,
-		Sniff: func(data []byte) bool {
-			return bytes.Contains(data, []byte(`"`+kbf.Kind+`"`))
-		},
+		Sniff:      Sniff,
 	}
+}
+
+// Sniff reports whether data carries a bundle's root kind marker. It is the
+// one detector both this reader's signature and the registry entry use, so a
+// kind the reader accepts can never be a kind detection rejects.
+func Sniff(data []byte) bool {
+	for _, kind := range kbf.ReadableKinds {
+		if bytes.Contains(data, []byte(`"`+kind+`"`)) {
+			return true
+		}
+	}
+	return false
 }
 
 // Open opens a RawDocument for reading.

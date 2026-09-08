@@ -343,8 +343,12 @@ packaging/.stage/
 # Orphaned atomic-write temps (a crashed writer leaves .kapi-out-<rand> behind)
 .kapi-out-*
 
-# Retired extraction extension (renamed .kbf in #1444); stale leftovers only
+# The extract output of @neokapi/i18n-react 1.2.3. Ignored for the same reason
+# the .kbf.json trees above are: a catalog is regenerated from source. The
+# fixture under core/formats/jsx/testdata is committed, because it is the bytes
+# that release wrote and the reader is tested against them (#2599).
 *.klf
+!core/formats/jsx/testdata/*.klf
 
 # Screenshots dropped at the repo root by an agent session belong in the scratchpad, never in git.
 /*.png
