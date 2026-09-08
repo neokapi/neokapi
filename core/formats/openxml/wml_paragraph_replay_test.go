@@ -284,8 +284,6 @@ const (
 		"so a paragraph holding it is rendered rather than replayed and the accepted document differs from the source"
 	replayExcludedDrawingML = "a DrawingML paragraph in a chart or diagram part is rebuilt from the model, " +
 		"and a DOCX package takes Okapi's StrippableAttributes.DrawingRunProperties strip on write"
-	replayExcludedCoreProps = "docProps/core.xml: the reader drops a trailing self-closing core property " +
-		"as upstream Okapi's Jericho-based parser does (see parseCoreProperties)"
 	replayExcludedSpace = "a <w:t> with edge whitespace and no xml:space=\"preserve\": the writer adds the attribute " +
 		"rather than replaying a spelling that invites a consumer to drop the space (wmlTextIsSpaceSafe)"
 )
@@ -329,8 +327,6 @@ var docxReplayExclusions = map[string]string{
 	"chartAmpersand.docx": replayExcludedDrawingML,
 	"simple_chart.docx":   replayExcludedDrawingML,
 	"smart_art.docx":      replayExcludedDrawingML,
-	// A trailing self-closing core property.
-	"1335-doc-properties.docx": replayExcludedCoreProps,
 	// The xml:space repair.
 	"952-1.docx": replayExcludedSpace,
 }

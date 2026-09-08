@@ -111,6 +111,55 @@ func TestCoreProperties_WhitespaceOnlyPropertyProducesNoBlock(t *testing.T) {
 		"and its source form comes back")
 }
 
+// TestCoreProperties_TrailingEmptyPropertyIsByteIdentical is #2574: an empty
+// core property that is the last child of `<cp:coreProperties>` goes back in
+// the form its author wrote, self-closing form included.
+func TestCoreProperties_TrailingEmptyPropertyIsByteIdentical(t *testing.T) {
+	cases := []struct {
+		name string
+		body string
+	}{
+		{"self-closing last", `<dc:title>A title</dc:title><cp:category/>`},
+		{"self-closing last, newline before the root close",
+			`<dc:title>A title</dc:title><cp:category/>` + "\r\n"},
+		{"explicit open and close last", `<dc:title>A title</dc:title><cp:category></cp:category>`},
+		{"two self-closing in a row", `<cp:category/><cp:contentStatus/>`},
+		{"self-closing followed by a property Okapi leaves alone",
+			`<cp:category/><cp:revision>4</cp:revision>`},
+		{"every property empty and self-closing",
+			`<dc:title/><dc:subject/><dc:creator/><cp:keywords/><dc:description/>` +
+				`<cp:category/><cp:contentStatus/>`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			part := coreProps(tc.body)
+			t.Run("xlsx", func(t *testing.T) {
+				out := skeletonRoundtripBytes(t, corePropsWorkbook(t, part), "props.xlsx")
+				assert.Equal(t, part, string(zipPartBytes(t, out, "docProps/core.xml")))
+			})
+			t.Run("pptx", func(t *testing.T) {
+				out := skeletonRoundtripBytes(t, corePropsDeck(t, part), "props.pptx")
+				assert.Equal(t, part, string(zipPartBytes(t, out, "docProps/core.xml")))
+			})
+		})
+	}
+}
+
+// TestCoreProperties_TrailingEmptyPropertyProducesNoBlock keeps the other half
+// of the statement: the element is skeleton, so a translator is handed nothing
+// for it and a target writes it back unchanged.
+func TestCoreProperties_TrailingEmptyPropertyProducesNoBlock(t *testing.T) {
+	part := coreProps(`<dc:title>A title</dc:title><cp:category/>`)
+	blocks := corePropertyBlocks(t, corePropsWorkbook(t, part))
+	require.Len(t, blocks, 1)
+	assert.Equal(t, "title", blocks[0].Properties["element"])
+
+	out := skeletonWriteBack(t, corePropsWorkbook(t, part), model.LocaleID("qps"),
+		func(b *model.Block) string { return "[" + b.SourceText() + "]" })
+	assert.Equal(t, coreProps(`<dc:title>[A title]</dc:title><cp:category/>`),
+		string(zipPartBytes(t, out, "docProps/core.xml")))
+}
+
 // TestCoreProperties_TranslatedPropertyReplacesTheWholeText states what a
 // target writes: the translation, edges and all.
 func TestCoreProperties_TranslatedPropertyReplacesTheWholeText(t *testing.T) {

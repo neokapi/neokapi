@@ -964,6 +964,12 @@ mergeCaptions.b=false
 						// writes one text element per run. Merging both
 						// sides cancels it.
 						MergeAdjacentWMLRuns: true,
+						// Native replays a core property the source
+						// wrote empty; Jericho's pending start tag
+						// leaves okapi without one written last inside
+						// `<cp:coreProperties>`. Dropping the empty
+						// ones on both sides cancels it.
+						StripEmptyCoreProperties: true,
 						// OpenXMLEffectiveRPr re-encodes the WML content
 						// parts through encoding/xml, which relocates the
 						// source's namespace declarations (and synthesises
