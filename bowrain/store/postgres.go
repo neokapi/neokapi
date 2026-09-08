@@ -1213,6 +1213,18 @@ const pgSourceTextMatch = `EXISTS (
 	) r WHERE strpos(lower(COALESCE(r->>'text', '')), lower(%s)) > 0
 )`
 
+// pgDocumentPoint renders the (position, id) coordinate of one block as a
+// subquery, so a caller asking for a unit's neighbours states the unit and the
+// database resolves where in its item that unit sits. A block the query names
+// but the item does not hold yields no row, and the comparison against it keeps
+// nothing: an unknown anchor has no neighbourhood rather than the item's first
+// blocks.
+func pgDocumentPoint(bind func(any) string, q platstore.BlockQuery, id string) string {
+	return "(SELECT a.position, a.id FROM blocks a WHERE a.project_id = " + bind(q.ProjectID) +
+		" AND a.stream = " + bind(storeutil.DefaultStream(q.Stream)) +
+		" AND a.id = " + bind(id) + ")"
+}
+
 // pgBlockFilter renders a BlockQuery into bound SQL. withStatus is false for
 // the counts query, whose histogram would otherwise be filtered to one bucket.
 func pgBlockFilter(query platstore.BlockQuery, withStatus bool) blockFilterPg {
@@ -1259,6 +1271,16 @@ func pgBlockFilter(query platstore.BlockQuery, withStatus bool) blockFilterPg {
 	// GetBlocks puts them back in ascending order.
 	if query.BeforeID != "" {
 		where = append(where, "b.id < "+bind(query.BeforeID))
+	}
+	// The positional cursors, see BlockQuery.DocumentBefore. They compare the
+	// same (position, id) pair a document listing sorts by, so a window either
+	// side of a unit reads the file rather than the order its ids were minted.
+	ord := platstore.OrderingOf(query)
+	if ord.Before != "" {
+		where = append(where, "(b.position, b.id) < "+pgDocumentPoint(bind, query, ord.Before))
+	}
+	if ord.After != "" {
+		where = append(where, "(b.position, b.id) > "+pgDocumentPoint(bind, query, ord.After))
 	}
 	if query.Translatable != nil {
 		where = append(where, "b.translatable = "+bind(*query.Translatable))
@@ -1313,10 +1335,34 @@ func blockScope(q platstore.BlockQuery) string {
 	}
 }
 
-// blockListOrder is how a listing reads a file: the order its blocks are read
+// BlockListOrder is how a listing reads a file: the order its blocks are read
 // in, which is what `position` records. Position 0 is a row nothing has placed,
 // and the id tiebreak leaves those exactly where they were.
-const blockListOrder = "b.item_name, b.position, b.id"
+//
+// BlockIDOrder is the keyset order a walk rides on, and each has a descending
+// twin for a cursor that reads backwards. Both stores render the same four
+// through BlockOrderSQL, because a page the two ordered differently would put
+// one file in two orders depending on which database answered.
+const (
+	BlockListOrder     = "b.item_name, b.position, b.id"
+	blockListOrderDesc = "b.item_name DESC, b.position DESC, b.id DESC"
+	BlockIDOrder       = "b.id"
+	blockIDOrderDesc   = "b.id DESC"
+)
+
+// BlockOrderSQL is the ORDER BY a resolved ordering asks for, over a blocks
+// table aliased `b`.
+func BlockOrderSQL(ord platstore.BlockOrdering) string {
+	switch {
+	case ord.Document && ord.Backward:
+		return blockListOrderDesc
+	case ord.Document:
+		return BlockListOrder
+	case ord.Backward:
+		return blockIDOrderDesc
+	}
+	return BlockIDOrder
+}
 
 func (s *PostgresStore) GetBlocks(ctx context.Context, query platstore.BlockQuery) ([]*venue.StoredBlock, error) {
 	defer observe.StartSpan(ctx, "db.query", "store.GetBlocks "+blockScope(query))()
@@ -1329,14 +1375,9 @@ func (s *PostgresStore) GetBlocks(ctx context.Context, query platstore.BlockQuer
 			b.content_hash, b.context_hash, b.source_json, b.properties, b.overlays, b.stored_at, b.updated_at
 		 FROM blocks b %s WHERE %s ORDER BY %s%s`
 	// A keyset page is walked by id, so it stays ordered by id whatever the
-	// caller asked for. See BlockQuery.Order.
-	order := "b.id"
-	if query.Order == platstore.BlockOrderDocument && query.AfterID == "" && query.BeforeID == "" {
-		order = blockListOrder
-	}
-	if query.BeforeID != "" {
-		order += " DESC"
-	}
+	// caller asked for. See BlockQuery.Order and OrderingOf.
+	ord := platstore.OrderingOf(query)
+	order := BlockOrderSQL(ord)
 	page := ""
 	if query.Limit > 0 {
 		page += fmt.Sprintf(" LIMIT %d", query.Limit)
@@ -1359,7 +1400,10 @@ func (s *PostgresStore) GetBlocks(ctx context.Context, query platstore.BlockQuer
 		}
 		result = append(result, sb)
 	}
-	if query.BeforeID != "" {
+	// A backwards cursor selected the nearest rows first. Reversing hands the
+	// caller a window that reads forwards, whichever side of a block it asked
+	// for.
+	if ord.Backward {
 		slices.Reverse(result)
 	}
 	if err := rows.Err(); err != nil {
@@ -1451,7 +1495,7 @@ func (s *PostgresStore) ListPendingReview(ctx context.Context, q platstore.Pendi
 		return nil, 0, fmt.Errorf("count pending review: %w", err)
 	}
 
-	query := fmt.Sprintf(skeleton+` ORDER BY `+blockListOrder+`, t.locale LIMIT $%d OFFSET $%d`,
+	query := fmt.Sprintf(skeleton+` ORDER BY `+BlockListOrder+`, t.locale LIMIT $%d OFFSET $%d`,
 		"b.id, b.item_name, t.locale, COALESCE(i.collection_id, '')", scope, next, next+1)
 	rows, err := s.db.DB.QueryContext(ctx, query, append(args, limit, q.Offset)...)
 	if err != nil {

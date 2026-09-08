@@ -68,7 +68,7 @@ type reviewContextResponse struct {
 // governs one unit, what surrounds it, what was decided about it before, and
 // what the checks found in it.
 //
-// Every read here is bounded to the unit: the block, its neighbours by keyset
+// Every read here is bounded to the unit: the block, its neighbours by position
 // cursor, its term and memory lookups, its notes, its latest score, its ledger
 // row.
 func (s *Server) HandleGetReviewContext(c echo.Context) error {
@@ -234,9 +234,14 @@ func profileTermRules(p *coreprofile.VoiceProfile) []coreprofile.TermRule {
 }
 
 // reviewNeighbourhood reads the translatable units either side of this one
-// inside its item, by keyset cursor: the window's worth each way, wherever the
-// block sits in the document, so a reviewer reads the neighbourhood the model
-// read. A block stored without an item has no neighbourhood to read.
+// inside its item: the window's worth each way, wherever the block sits in the
+// document, so a reviewer reads the neighbourhood the model read. A block
+// stored without an item has no neighbourhood to read.
+//
+// The cursor is positional (BlockQuery.DocumentBefore), so each side is the
+// paragraph the file holds there. Block ids are minted when content is pushed,
+// and an id cursor over a file stored in any other order names two different
+// paragraphs.
 //
 // The keys are the platform's block ids, which is how its surfaces address a
 // block: the same role the stable unit key plays on the host.
@@ -272,14 +277,10 @@ func (s *Server) reviewNeighbourhood(ctx context.Context, pid, stream string, sb
 		}
 		return out
 	}
-	// The cursor answers nearest first on both sides; Before reads nearest
-	// last, so that the three lists read the document in order.
-	before := read(store.BlockQuery{BeforeID: sb.Block.ID})
-	for i, j := 0, len(before)-1; i < j; i, j = i+1, j-1 {
-		before[i], before[j] = before[j], before[i]
-	}
-	n.Before = before
-	n.After = read(store.BlockQuery{AfterID: sb.Block.ID})
+	// Both sides arrive in document order, so the three lists read as the
+	// document does: Before nearest last, the unit, After nearest first.
+	n.Before = read(store.BlockQuery{DocumentBefore: sb.Block.ID})
+	n.After = read(store.BlockQuery{DocumentAfter: sb.Block.ID})
 	return n
 }
 

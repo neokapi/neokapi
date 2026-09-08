@@ -69,9 +69,9 @@ func TestReviewContext_GathersEveryLayer(t *testing.T) {
 	}
 	projID, _ := seedGovernedProject(t, s, wsID, seeded)
 
-	// The store mints its own ids and the neighbourhood cursor orders by them,
-	// so the unit with a neighbour on each side is the middle of the STORED
-	// order, not of the order they were written in.
+	// Nothing has placed this item, so every row sits at position 0 and the
+	// document order falls back to the id tiebreak. The unit with a neighbour
+	// on each side is the middle of that order.
 	stored, err := s.ContentStore.GetBlocks(ctx, platstore.BlockQuery{
 		ProjectID: projID, Stream: "main", ItemName: "greetings.txt",
 	})
@@ -382,13 +382,19 @@ func TestReviewContext_ReadsTheSameFactsAsTheHost(t *testing.T) {
 		b.Target("fr").Origin = model.Origin{Kind: "ai", Engine: "claude", ContextFingerprint: "fp-1"}
 	}
 	authored[0].Target("fr").Status = model.TargetStatusReviewed
+	keys := make([]string, 0, len(authored))
+	for _, b := range authored {
+		keys = append(keys, b.Unit)
+	}
 	projID, _ := seedGovernedProject(t, s, wsID, authored)
 
-	// The host reads the file in document order; the server orders by the ids
-	// it minted. Put the host's blocks in the server's order, so both
-	// assemblers are asked about the same middle unit with the same sides.
+	// Both assemblers are asked about the same middle unit with the same sides:
+	// the host reads the file, and the server reads the positions the push
+	// declared for it.
+	require.NoError(t, s.ContentStore.SetBlockOrder(ctx, projID, "main", "greetings.txt", keys))
 	stored, err := s.ContentStore.GetBlocks(ctx, platstore.BlockQuery{
 		ProjectID: projID, Stream: "main", ItemName: "greetings.txt",
+		Order: platstore.BlockOrderDocument,
 	})
 	require.NoError(t, err)
 	require.Len(t, stored, 3)
@@ -396,10 +402,7 @@ func TestReviewContext_ReadsTheSameFactsAsTheHost(t *testing.T) {
 	for _, b := range authored {
 		bySource[b.SourceText()] = b
 	}
-	ordered := make([]*model.Block, 0, len(stored))
-	for _, sb := range stored {
-		ordered = append(ordered, bySource[sb.Block.SourceText()])
-	}
+	ordered := authored
 	middle := stored[1]
 
 	unit := bySource[middle.Block.SourceText()]
@@ -489,6 +492,84 @@ func neighbourFacts(ns []review.Neighbour) [][3]string {
 	out := make([][3]string, 0, len(ns))
 	for _, n := range ns {
 		out = append(out, [3]string{model.RunsText(n.Source), model.RunsText(n.Target), n.Status})
+	}
+	return out
+}
+
+// TestReviewContext_NeighbourhoodReadsTheDocument is the defect this exists
+// for: the neighbourhood was built from the block's id neighbours, so a
+// reviewer judging a sentence in a file stored in any order but its reading
+// order was shown two other paragraphs beside it.
+func TestReviewContext_NeighbourhoodReadsTheDocument(t *testing.T) {
+	s, wsID, _ := newRecheckHarness(t)
+	ctx := context.Background()
+
+	seeded := []*model.Block{
+		pendingFrBlock("a", "Open the app", "Ouvrir l'application"),
+		pendingFrBlock("b", "Use the app", "Il faut utiliser l'application"),
+		pendingFrBlock("c", "Close the app", "Fermer l'application"),
+		pendingFrBlock("d", "Sign in", "Se connecter"),
+		pendingFrBlock("e", "Sign out", "Se deconnecter"),
+	}
+	// The store stamps its own id onto each block as it lands, so the keys a
+	// push declares are read off the authored blocks first.
+	sourceOf := map[string]string{}
+	for _, b := range seeded {
+		sourceOf[b.ID] = b.SourceText()
+	}
+	projID, byText := seedGovernedProject(t, s, wsID, seeded)
+
+	// The item reads in an order the ids do not give, which is what a push
+	// declares when a heading is authored after the sections it introduces.
+	document := []string{"c", "e", "a", "d", "b"}
+	require.NoError(t, s.ContentStore.SetBlockOrder(ctx, projID, "main", "greetings.txt", document))
+
+	textAt := func(keys []string) []string {
+		out := make([]string, 0, len(keys))
+		for _, k := range keys {
+			out = append(out, sourceOf[k])
+		}
+		return out
+	}
+
+	stored, err := s.ContentStore.GetBlocks(ctx, platstore.BlockQuery{
+		ProjectID: projID, Stream: "main", ItemName: "greetings.txt",
+	})
+	require.NoError(t, err)
+	require.Len(t, stored, 5)
+	idOrder := make([]string, len(stored))
+	for i, sb := range stored {
+		idOrder[i] = sb.Block.SourceText()
+	}
+	require.NotEqual(t, textAt(document), idOrder, "the case needs the two orders to differ")
+
+	// "a" sits in the middle of the document with a full window each side.
+	_, got := getReviewContext(t, s, wsID, projID, byText["Open the app"], "fr")
+
+	require.Len(t, got.Neighbourhood.Before, review.DefaultWindow)
+	require.Len(t, got.Neighbourhood.After, review.DefaultWindow)
+	assert.Equal(t, textAt([]string{"c", "e"}), neighbourSources(got.Neighbourhood.Before),
+		"the two blocks the document holds before this one, nearest last")
+	assert.Equal(t, textAt([]string{"d", "b"}), neighbourSources(got.Neighbourhood.After),
+		"the two blocks the document holds after this one, nearest first")
+
+	// The first and last blocks of the DOCUMENT are the ends of the
+	// neighbourhood, whatever their ids say.
+	_, first := getReviewContext(t, s, wsID, projID, byText["Close the app"], "fr")
+	assert.Empty(t, first.Neighbourhood.Before, "the block the document opens with has no predecessor")
+	assert.Equal(t, textAt([]string{"e", "a"}), neighbourSources(first.Neighbourhood.After))
+
+	_, last := getReviewContext(t, s, wsID, projID, byText["Use the app"], "fr")
+	assert.Empty(t, last.Neighbourhood.After, "the block the document ends with has no successor")
+	assert.Equal(t, textAt([]string{"a", "d"}), neighbourSources(last.Neighbourhood.Before))
+}
+
+// neighbourSources reads the source text of each block beside the unit, in the
+// order the neighbourhood listed them.
+func neighbourSources(ns []review.Neighbour) []string {
+	out := make([]string, 0, len(ns))
+	for _, n := range ns {
+		out = append(out, model.RunsText(n.Source))
 	}
 	return out
 }

@@ -201,3 +201,40 @@ func TestReviewHistoryReportsAnUnseededStore(t *testing.T) {
 	require.NotNil(t, after.Match, "the committed wording is what the store now answers with")
 	assert.Equal(t, "Hei", after.Match.Target)
 }
+
+// TestAssembleReviewContextReadsTheDocumentNotTheIDs: the window the assembler
+// serves is measured on the order the reader handed its blocks over, so a file
+// whose ids sort into another order still reads as the file does. The platform
+// assembler answers the same question from the position each block holds in its
+// item, and the two surfaces show a reviewer one document.
+func TestAssembleReviewContextReadsTheDocumentNotTheIDs(t *testing.T) {
+	ctx := t.Context()
+	// Document order, with ids that sort into another: z, m, a, y, b.
+	blocks := []*model.Block{
+		idNamedBlock("z", "opening", "First paragraph."),
+		idNamedBlock("m", "context", "Second paragraph."),
+		idNamedBlock("a", "claim", "Third paragraph."),
+		idNamedBlock("y", "evidence", "Fourth paragraph."),
+		idNamedBlock("b", "closing", "Fifth paragraph."),
+	}
+
+	got := (&App{}).AssembleReviewContext(ctx, ReviewContextRequest{
+		Locale: "nb", SourceLang: "en", Blocks: blocks, Key: "claim",
+	})
+	require.NotNil(t, got)
+	assert.Equal(t, []string{"opening", "context"}, neighbourKeys(got.Neighbourhood.Before),
+		"the two the document holds before, nearest last")
+	assert.Equal(t, []string{"evidence", "closing"}, neighbourKeys(got.Neighbourhood.After),
+		"the two the document holds after, nearest first")
+}
+
+// idNamedBlock builds a translatable block whose id and reader's name are
+// separate, so a case can put the two orders at odds.
+func idNamedBlock(id, name, source string) *model.Block {
+	return &model.Block{
+		ID:           id,
+		Name:         name,
+		Translatable: true,
+		Source:       []model.Run{model.TextR(source)},
+	}
+}

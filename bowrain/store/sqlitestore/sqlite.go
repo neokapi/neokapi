@@ -1061,6 +1061,15 @@ const sqliteSourceTextMatch = `EXISTS (
 	WHERE instr(lower(COALESCE(json_extract(r.value, '$.text'), '')), lower(?)) > 0
 )`
 
+// sqliteDocumentPoint is the (position, id) coordinate of one block, read as a
+// subquery so a caller asking for a unit's neighbours states the unit and the
+// database resolves where in its item that unit sits. A block the query names
+// but the item does not hold yields no row, and the comparison against it keeps
+// nothing: an unknown anchor has no neighbourhood rather than the item's first
+// blocks.
+const sqliteDocumentPoint = `(SELECT a.position, a.id FROM blocks a
+	WHERE a.project_id = ? AND a.stream = ? AND a.id = ?)`
+
 // sqliteBlockFilter renders a BlockQuery into bound SQL. withStatus is false
 // for the counts query, whose histogram would otherwise be filtered to one
 // bucket.
@@ -1108,6 +1117,20 @@ func sqliteBlockFilter(query platstore.BlockQuery, withStatus bool) blockFilterS
 		where = append(where, "b.id < ?")
 		whereArgs = append(whereArgs, query.BeforeID)
 	}
+	// The positional cursors, see BlockQuery.DocumentBefore. They compare the
+	// same (position, id) pair a document listing sorts by, so a window either
+	// side of a unit reads the file rather than the order its ids were minted.
+	ord := platstore.OrderingOf(query)
+	if ord.Before != "" {
+		where = append(where, "(b.position, b.id) < "+sqliteDocumentPoint)
+		whereArgs = append(whereArgs,
+			query.ProjectID, storeutil.DefaultStream(query.Stream), ord.Before)
+	}
+	if ord.After != "" {
+		where = append(where, "(b.position, b.id) > "+sqliteDocumentPoint)
+		whereArgs = append(whereArgs,
+			query.ProjectID, storeutil.DefaultStream(query.Stream), ord.After)
+	}
 	if query.Translatable != nil {
 		v := 0
 		if *query.Translatable {
@@ -1141,11 +1164,6 @@ func sqliteBlockFilter(query platstore.BlockQuery, withStatus bool) blockFilterS
 	return blockFilterSQLite{join: join, where: strings.Join(where, " AND "), args: append(joinArgs, whereArgs...)}
 }
 
-// blockListOrder is how a listing reads a file: the order its blocks are read
-// in, which is what `position` records. Position 0 is a row nothing has placed,
-// and the id tiebreak leaves those exactly where they were.
-const blockListOrder = "b.item_name, b.position, b.id"
-
 func (s *SQLiteStore) GetBlocks(ctx context.Context, query platstore.BlockQuery) ([]*venue.StoredBlock, error) {
 	f := sqliteBlockFilter(query, true)
 
@@ -1155,14 +1173,11 @@ func (s *SQLiteStore) GetBlocks(ctx context.Context, query platstore.BlockQuery)
 			b.content_hash, b.context_hash, b.source_json, b.properties, b.overlays, b.stored_at, b.updated_at
 		 FROM blocks b %s WHERE %s ORDER BY %s%s`
 	// A keyset page is walked by id, so it stays ordered by id whatever the
-	// caller asked for. See BlockQuery.Order.
-	order := "b.id"
-	if query.Order == platstore.BlockOrderDocument && query.AfterID == "" && query.BeforeID == "" {
-		order = blockListOrder
-	}
-	if query.BeforeID != "" {
-		order += " DESC"
-	}
+	// caller asked for. The order and the reversal are the Postgres store's, so
+	// one file cannot read differently depending on which database answered.
+	// See BlockQuery.Order and OrderingOf.
+	ord := platstore.OrderingOf(query)
+	order := bstore.BlockOrderSQL(ord)
 	page := ""
 	if query.Limit > 0 {
 		page += fmt.Sprintf(" LIMIT %d", query.Limit)
@@ -1179,7 +1194,10 @@ func (s *SQLiteStore) GetBlocks(ctx context.Context, query platstore.BlockQuery)
 	if err != nil {
 		return nil, err
 	}
-	if query.BeforeID != "" {
+	// A backwards cursor selected the nearest rows first. Reversing hands the
+	// caller a window that reads forwards, whichever side of a block it asked
+	// for.
+	if ord.Backward {
 		slices.Reverse(result)
 	}
 	if err := bstore.HydrateOverlays(ctx, s.db.DB, "sqlite", query.ProjectID, storeutil.DefaultStream(query.Stream), result); err != nil {
@@ -1262,7 +1280,7 @@ func (s *SQLiteStore) ListPendingReview(ctx context.Context, q platstore.Pending
 		return nil, 0, fmt.Errorf("count pending review: %w", err)
 	}
 
-	query := fmt.Sprintf(skeleton+` ORDER BY `+blockListOrder+`, t.locale LIMIT ? OFFSET ?`,
+	query := fmt.Sprintf(skeleton+` ORDER BY `+bstore.BlockListOrder+`, t.locale LIMIT ? OFFSET ?`,
 		"b.id, b.item_name, t.locale, COALESCE(i.collection_id, '')", scope)
 	rows, err := s.db.QueryContext(ctx, query, append(args, limit, q.Offset)...)
 	if err != nil {
