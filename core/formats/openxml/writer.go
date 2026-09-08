@@ -1040,11 +1040,16 @@ type Writer struct {
 	// block can be rendered as it would be with nothing translated and
 	// compared with its rendering for the target.
 	fromSource bool
-	// changed names the blocks whose rendering for the target can differ
-	// from their source rendering: a block with target runs for the locale,
-	// and a block whose payload carries a marker for one. Built with blocks
-	// by setBlocks; a block outside it renders once.
+	// changed names the blocks whose rendering can differ from the
+	// rendering of the runs the reader emitted: a block with target runs for
+	// the locale, a block whose source runs were edited in place, and a block
+	// whose payload carries a marker for either. Built with blocks by
+	// setBlocks; a block outside it renders once. edited is the subset whose
+	// source runs are no longer the ones the reader read, transitively
+	// through the same markers, for which no rendering from the source can
+	// stand in for what the reader saw.
 	changed map[string]bool
+	edited  map[string]bool
 }
 
 var _ format.SkeletonStoreConsumer = (*Writer)(nil)
@@ -4858,7 +4863,7 @@ func dmlSourceContent(block *model.Block, content string) (string, bool) {
 	if src == "" {
 		return "", false
 	}
-	if content != renderDMLRuns(block.Source) {
+	if !sourceRunsAsRead(block) || content != renderDMLRuns(block.Source) {
 		return "", false
 	}
 	return src, true
@@ -5199,10 +5204,12 @@ func (w *Writer) renderSMLBlock(runs []model.Run, block *model.Block) string {
 // The test is the rendered content, not the presence of a target: a target that
 // says what the source said is untranslated as far as the bytes go. A target
 // that says something else cannot carry the source's layout, because its runs
-// are not the source's runs, so it is rendered.
+// are not the source's runs, so it is rendered. So is a block whose source runs
+// were edited in place, since the source they would be compared with is the
+// edited one (sourceRunsAsRead).
 func smlSourceContent(block *model.Block, content, phonetic string) (string, bool) {
 	src := block.Properties[cellSourceProp]
-	if src == "" {
+	if src == "" || !sourceRunsAsRead(block) {
 		return "", false
 	}
 	if content != renderSMLRichText(block.Source)+phonetic {
@@ -5374,31 +5381,36 @@ func (w *Writer) preferredRuns(block *model.Block) []model.Run {
 	return nil
 }
 
-// setBlocks installs the block index a Write renders from, and the set of
-// blocks whose rendering can differ from their source rendering.
+// setBlocks installs the block index a Write renders from, and the sets of
+// blocks whose rendering can differ from the runs the reader read.
 func (w *Writer) setBlocks(blocks map[string]*model.Block) {
 	w.blocks = blocks
-	w.changed = changedBlocks(blocks, w.Locale)
-}
-
-// changedBlocks names the blocks whose rendering for locale can differ from
-// their rendering from the source runs: those with target runs for it, and,
-// transitively, every block whose payload refers to one through a drawing
-// marker, since a host renders its nested blocks in place.
-func changedBlocks(blocks map[string]*model.Block, locale model.LocaleID) map[string]bool {
+	edited := map[string]bool{}
 	changed := map[string]bool{}
-	if locale.IsEmpty() {
-		return changed
-	}
 	for id, b := range blocks {
-		if b != nil && b.HasTarget(locale) && len(b.TargetRuns(locale)) > 0 {
+		if b == nil {
+			continue
+		}
+		if !sourceRunsAsRead(b) {
+			edited[id] = true
+			changed[id] = true
+		}
+		if !w.Locale.IsEmpty() && b.HasTarget(w.Locale) && len(b.TargetRuns(w.Locale)) > 0 {
 			changed[id] = true
 		}
 	}
-	for len(changed) > 0 {
+	w.edited = hostsOfMarkedBlocks(blocks, edited)
+	w.changed = hostsOfMarkedBlocks(blocks, changed)
+}
+
+// hostsOfMarkedBlocks closes a set of block ids over the drawing markers: a
+// block whose payload refers to a marked block through one renders the marked
+// block in place, so it is marked too, transitively.
+func hostsOfMarkedBlocks(blocks map[string]*model.Block, marked map[string]bool) map[string]bool {
+	for len(marked) > 0 {
 		grew := false
 		for id, b := range blocks {
-			if changed[id] || b == nil {
+			if marked[id] || b == nil {
 				continue
 			}
 			for _, r := range b.Source {
@@ -5406,13 +5418,13 @@ func changedBlocks(blocks map[string]*model.Block, locale model.LocaleID) map[st
 					continue
 				}
 				for _, m := range drawingMarkerRE.FindAllStringSubmatch(r.Ph.Data, -1) {
-					if len(m) == 3 && changed[m[2]] {
-						changed[id] = true
+					if len(m) == 3 && marked[m[2]] {
+						marked[id] = true
 						grew = true
 						break
 					}
 				}
-				if changed[id] {
+				if marked[id] {
 					break
 				}
 			}
@@ -5421,7 +5433,7 @@ func changedBlocks(blocks map[string]*model.Block, locale model.LocaleID) map[st
 			break
 		}
 	}
-	return changed
+	return marked
 }
 
 // renderBlockFromSource renders a block as it would render with nothing
@@ -5437,11 +5449,16 @@ func (w *Writer) renderBlockFromSource(block *model.Block, dt docType) string {
 // renders the same leaves the region eligible. One that differs closes the
 // door on replaying the region whole, and keeps what it can: every direct
 // child of the paragraph that rendered the same goes back as the source wrote
-// it.
+// it. A block whose source runs were edited in place has no rendering that
+// stands for what the reader read, so it is rendered whole.
 func (w *Writer) replayInRegion(s *wmlReplayState, block *model.Block, dt docType, rendered string) string {
 	blockSpan := s.blockSpan
 	s.blockSpan = nil
 	if !w.changed[block.ID] {
+		return rendered
+	}
+	if w.edited[block.ID] {
+		s.mismatch = true
 		return rendered
 	}
 	src := w.renderBlockFromSource(block, dt)

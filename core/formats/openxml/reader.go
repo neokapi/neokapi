@@ -242,6 +242,10 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		relsMap := relsByID(info, relsPath)
 
 		emitBlock := func(block *model.Block) {
+			// Every block leaves with a digest of the source runs it was
+			// read with, so a writer replaying source bytes can tell an
+			// in-place edit from the runs it read. See sourceRunsAsRead.
+			stampSourceFingerprint(block)
 			r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 		}
 

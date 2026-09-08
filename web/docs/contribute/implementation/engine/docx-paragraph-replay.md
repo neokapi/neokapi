@@ -116,6 +116,16 @@ renders each translated paragraph twice. A target that says what the source
 said, codes included, replays; a target with the same text and no formatting
 is a change.
 
+A tool such as `kapi sed` with no target locale edits a block's source runs
+in place, and a rendering from an edited source is its own comparison. The
+reader therefore stamps every block it emits with a digest of the source
+runs (`source_fingerprint.go`, the `openxml-source-fingerprint` annotation),
+and a writer replays nothing over a block whose runs no longer match it:
+the docx region renders such a block whole, and the SpreadsheetML and
+DrawingML source forms are held back the same way. A block that reaches the
+writer without the stamp is treated as edited, so a path that drops
+annotations loses replay rather than an edit.
+
 The spans wait as placeholders (`<!--kapi-replay-N-->`) until the part's
 post-passes have run, the revision strip and the run fusions in `postWML`
 among them, and `restoreWMLReplays` puts them back last. No pass rewrites
