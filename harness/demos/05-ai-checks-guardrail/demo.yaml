@@ -75,7 +75,7 @@ narration:
     kind: terminal
     through: 8
     highlight: { text: [PASS] }
-    caption: Green, from the same command and the same rules.
+    caption: Exit 0, from the command that just exited 3.
     text: >-
       The same check again, and it passes. The command did not change, the rules
       did not change, and the only thing that moved was the text, which is what

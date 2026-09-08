@@ -96,7 +96,7 @@ narration:
   - id: workflow
     kind: artifact
     artifact: workflow
-    caption: Three jobs, and the build waits for none of them.
+    caption: The converge job commits; the build job runs anyway.
     text: >-
       The workflow says it plainly. A pull request gets a dry run and a coverage
       comment, the default branch converges and commits what moved, and the job
