@@ -6,6 +6,11 @@ publishAs: cli-points-and-voice
 # A scripted plain-shell demo: every command is deterministic and offline, so it
 # runs for real and its output is recorded exactly.
 #
+# `fixtures/.kapi/voice.yaml` is what the recipe binds and what the gate reads.
+# It was missing from the tree this demo inherited, so the guide beat had no
+# profile to print and the gate had no rule to fail on; the forbidden term in it
+# is the one the partner page trips.
+#
 # One `kapi check --strict` run exits 3 on purpose (the failing gate is the
 # point of that beat) and declares it with `expectExit: 3`, so a take where the
 # gate silently passed would fail the capture instead of shipping.
