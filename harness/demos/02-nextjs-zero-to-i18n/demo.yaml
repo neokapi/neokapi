@@ -10,7 +10,7 @@ aspects:
   - multilingual
 needsAi: true
 model: sonnet
-captureTimeoutSec: 480
+captureTimeoutSec: 900
 outro:
   line: Add it to your app, then ask for a language.
   pointer: npm install -D @neokapi/i18n-react
