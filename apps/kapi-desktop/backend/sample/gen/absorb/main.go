@@ -19,13 +19,17 @@ import (
 	"github.com/neokapi/neokapi/host"
 )
 
-func main() {
+func main() { os.Exit(run()) }
+
+// run holds the body so the deferred Shutdown closes the app's stores on every
+// exit path; os.Exit inside it would skip the defer and leave them open.
+func run() int {
 	project := flag.String("project", "", "path to the project recipe or its directory")
 	flag.Parse()
 
 	if *project == "" {
 		fmt.Fprintln(os.Stderr, "kapimart-absorb: -project is required")
-		os.Exit(2)
+		return 2
 	}
 
 	a := &host.App{}
@@ -37,13 +41,13 @@ func main() {
 	res, err := a.SeedProjectContext(context.Background(), *project)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "kapimart-absorb: %v\n", err)
-		os.Exit(1)
+		return 1
 	}
 
 	out, err := json.MarshalIndent(res, "", "  ")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "kapimart-absorb: %v\n", err)
-		os.Exit(1)
+		return 1
 	}
 	fmt.Println(string(out))
 
@@ -51,6 +55,7 @@ func main() {
 		fmt.Fprintln(os.Stderr,
 			"kapimart-absorb: the record taught the memory nothing: every pair was already answered, "+
 				"already stamped, or refused. The seed corpus must be empty and the store rebuilt before this runs.")
-		os.Exit(1)
+		return 1
 	}
+	return 0
 }

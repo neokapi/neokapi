@@ -2,8 +2,8 @@ package backend
 
 import (
 	"context"
-	"fmt"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -17,7 +17,7 @@ func TestAIActivityLog_NewestFirstAndBounded(t *testing.T) {
 	log := newAIActivityLog()
 	for i := range aiActivityCap + 20 {
 		log.add(
-			withAIScope(context.Background(), AIActivityScope{Surface: "review", Key: fmt.Sprint(i)}),
+			withAIScope(context.Background(), AIActivityScope{Surface: "review", Key: strconv.Itoa(i)}),
 			aiprovider.Exchange{Provider: "mock"},
 		)
 	}

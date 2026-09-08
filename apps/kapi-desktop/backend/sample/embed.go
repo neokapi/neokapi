@@ -14,7 +14,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/neokapi/neokapi/core/storage"
@@ -96,8 +95,6 @@ func Scaffold(name, targetDir string) error {
 }
 
 // --- KapiMart seed functions ---
-
-var v2Targets = []model.LocaleID{"de", "fr", "ja", "nb", "ar"}
 
 // seedStore opens the sample project's store, seeds the content memory and the
 // terms, and closes it. Opening creates `.kapi/` and the store file, so nothing

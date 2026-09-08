@@ -451,13 +451,13 @@ func TestContextExplorerRejectsAnUnknownTab(t *testing.T) {
 	app := NewApp()
 
 	_, err := app.ContextGoverns("nope", "", "", 0)
-	assert.Error(t, err)
+	require.Error(t, err)
 	_, err = app.ContextLives("nope", "", "", 0)
-	assert.Error(t, err)
+	require.Error(t, err)
 	_, err = app.ContextRelates("nope", "concept", "x", 0)
-	assert.Error(t, err)
+	require.Error(t, err)
 	_, err = app.ContextSearch("nope", "x", "", 0)
-	assert.Error(t, err)
+	require.Error(t, err)
 	_, err = app.ContextOptions("nope", "collection")
-	assert.Error(t, err)
+	require.Error(t, err)
 }

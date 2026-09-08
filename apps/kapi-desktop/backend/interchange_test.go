@@ -17,9 +17,9 @@ func TestApp_BindsNoStoreInterchangeMethod(t *testing.T) {
 
 	typ := reflect.TypeOf(NewApp())
 	var found []string
-	for i := range typ.NumMethod() {
-		if name := typ.Method(i).Name; interchange.MatchString(name) {
-			found = append(found, name)
+	for m := range typ.Methods() {
+		if interchange.MatchString(m.Name) {
+			found = append(found, m.Name)
 		}
 	}
 	assert.Empty(t, found, "the desktop must bind no store interchange dialog")

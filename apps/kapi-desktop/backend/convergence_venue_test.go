@@ -86,7 +86,7 @@ func dispatchedVenueArgs(t *testing.T, argsFile string) []string {
 	}
 	require.NoError(t, err)
 	var args []string
-	for _, line := range strings.Split(string(raw), "\n") {
+	for line := range strings.SplitSeq(string(raw), "\n") {
 		if line != "" {
 			args = append(args, line)
 		}

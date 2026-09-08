@@ -121,8 +121,7 @@ func classifyRunError(err error) *RunError {
 	// never got as far as producing content, and the remedy is on disk. #1442
 	// made a reported failure accurate; this makes it legible — without it the
 	// blocked path lands in RunErrUnknown and the UI has no remedy to offer.
-	var ope *flow.OutputPathError
-	if errors.As(err, &ope) {
+	if ope, ok := errors.AsType[*flow.OutputPathError](err); ok {
 		re.Kind = RunErrBlockedTargetPath
 		re.File = ope.Path
 		re.Headline = blockedPathHeadline(ope)
@@ -133,8 +132,7 @@ func classifyRunError(err error) *RunError {
 		return re
 	}
 
-	var oe *aiprovider.OllamaError
-	if errors.As(err, &oe) {
+	if oe, ok := errors.AsType[*aiprovider.OllamaError](err); ok {
 		re.Provider = string(aiprovider.Ollama)
 		re.Model = oe.Model
 		switch oe.Kind {
@@ -162,8 +160,7 @@ func classifyRunError(err error) *RunError {
 		return re
 	}
 
-	var amb *credentials.AmbiguousCredentialError
-	if errors.As(err, &amb) {
+	if amb, ok := errors.AsType[*credentials.AmbiguousCredentialError](err); ok {
 		re.Kind = RunErrAmbiguousCredential
 		re.Headline = "More than one AI credential matches"
 		re.Remediation = fmt.Sprintf(
@@ -175,8 +172,7 @@ func classifyRunError(err error) *RunError {
 		return re
 	}
 
-	var tb *host.FlowToolBuildError
-	if errors.As(err, &tb) {
+	if tb, ok := errors.AsType[*host.FlowToolBuildError](err); ok {
 		if re.Locale == "" {
 			re.Locale = tb.Locale
 		}

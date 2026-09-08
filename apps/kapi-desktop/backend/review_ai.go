@@ -336,8 +336,7 @@ func (a *App) reviewToolConfig(ctx context.Context, op *openProject, name string
 // friendlyAIProviderError rewrites credential-resolution failures into the
 // message the review UI surfaces; other errors pass through.
 func friendlyAIProviderError(err error) error {
-	var amb *credentials.AmbiguousCredentialError
-	if errors.As(err, &amb) {
+	if amb, ok := errors.AsType[*credentials.AmbiguousCredentialError](err); ok {
 		return fmt.Errorf("multiple AI credentials are configured (%s). Set a default in Settings → AI Models",
 			strings.Join(amb.Candidates, ", "))
 	}

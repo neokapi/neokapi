@@ -32,6 +32,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"sync"
+	"time"
 
 	// Parity with the desktop app: register bowrain recipe schema extensions.
 	_ "github.com/neokapi/neokapi/host/venue/schema"
@@ -239,7 +240,10 @@ func main() {
 	}
 	addr := "127.0.0.1:" + port
 	log.Printf("wbridge listening on http://%s/wbridge (config=%s)", addr, kapiConfigInfo())
-	log.Fatal(http.ListenAndServe(addr, mux))
+	// /wevents holds a stream open for the life of the page, so a write
+	// deadline would cut it; the header read is what needs a bound (G114).
+	srv := &http.Server{Addr: addr, Handler: mux, ReadHeaderTimeout: 10 * time.Second}
+	log.Fatal(srv.ListenAndServe())
 }
 
 func kapiConfigInfo() string {
