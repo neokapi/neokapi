@@ -32,9 +32,9 @@ narration:
     crop: { selector: '[data-testid="linear-flow-editor"]' }
     zoom: 1.3
     text: >-
-      A flow is a named sequence of steps over the content a project holds. This
-      one translates and then checks, which is the shape of the built-in default
-      and the starting point for changing it.
+      The Toolbox is where a project keeps what it runs over its content, and a
+      flow there is a named sequence of steps. This one translates and then
+      checks, which is the shape of the built-in default.
 
   - id: add-step
     kind: desktop

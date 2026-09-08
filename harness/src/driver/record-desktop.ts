@@ -671,15 +671,18 @@ async function explorerWalk(c: WalkCtx): Promise<void> {
   const conceptRow = "ul.divide-y li button";
   // Open the project's Terms and search it in one beat: the result of the
   // search is the beat, not the tab it happened on.
+  // Getting to the store is not a beat, so it happens before one starts: a beat
+  // carries one crop for its whole slice, and a crop chosen for the search would
+  // otherwise be applied to the navigation under it.
+  await landOnHome(page);
+  await openSample(page, "sample-kapimart", "Context");
+  await humanClick(page, sidebar("Context"));
+  await page.waitForTimeout(800);
+  await humanClick(page, contextSection(page, "Terms"));
+  await page.waitForSelector(conceptSearch, { timeout: 30_000 });
+  await page.waitForSelector(conceptRow, { timeout: 30_000 });
+  await page.waitForTimeout(600);
   await beatEls("search-term", [conceptSearch, conceptRow], async () => {
-    await landOnHome(page);
-    await openSample(page, "sample-kapimart", "Context");
-    await humanClick(page, sidebar("Context"));
-    await page.waitForTimeout(800);
-    await humanClick(page, contextSection(page, "Terms"));
-    await page.waitForSelector(conceptSearch, { timeout: 30_000 });
-    await page.waitForSelector(conceptRow, { timeout: 30_000 });
-    await page.waitForTimeout(600);
     await humanType(page, page.locator(conceptSearch), "cart");
     // The list filters as you type, debounced; the wait is for the filtered
     // list, so the narration's "here it is" lands on the result and not on the
@@ -786,13 +789,13 @@ async function projectsWalk(c: WalkCtx): Promise<void> {
   // The plan, read on the sample project, because a dry run of pending work
   // needs pending work. It opens a dialog over data fetched on page load: no
   // provider is called and nothing is written (ConvergenceHero.tsx).
+  await page.keyboard.press("Escape").catch(() => {});
+  await page.waitForTimeout(500);
+  await landOnHome(page);
+  await humanClick(page, page.getByTestId("sample-kapimart"));
+  await page.waitForSelector('[data-slot="hero-plan"]', { timeout: 60_000 });
+  await page.waitForTimeout(1200);
   await beatEls("plan", ['[data-slot="converge-plan-dialog"]'], async () => {
-    await page.keyboard.press("Escape").catch(() => {});
-    await page.waitForTimeout(500);
-    await landOnHome(page);
-    await humanClick(page, page.getByTestId("sample-kapimart"));
-    await page.waitForSelector('[data-slot="hero-plan"]', { timeout: 60_000 });
-    await page.waitForTimeout(1200);
     await cursorTo('[data-slot="hero-plan"]');
     await humanClick(page, page.locator('[data-slot="hero-plan"]').first());
     await page.waitForSelector('[data-slot="converge-plan-dialog"]', { timeout: 30_000 });
@@ -1013,14 +1016,14 @@ async function flowsWalk(c: WalkCtx): Promise<void> {
   const { page, beat, beatEls, cursorTo, sidebar } = c;
   // Open the KapiMart sample and go straight to its flows: the Tools tab is a
   // different subject and the video has one.
-  await beat("open-flow", null, async () => {
-    await landOnHome(page);
-    await openSample(page, "sample-kapimart", "Toolbox");
-    await humanClick(page, sidebar("Toolbox"));
-    await page.waitForTimeout(1200);
-    const flows = page.locator('button:has-text("Flows")').first();
-    if (await flows.count()) await humanClick(page, flows);
-    await page.waitForTimeout(1400);
+  await landOnHome(page);
+  await openSample(page, "sample-kapimart", "Toolbox");
+  await humanClick(page, sidebar("Toolbox"));
+  await page.waitForTimeout(1200);
+  const flowsTab = page.locator('button:has-text("Flows")').first();
+  if (await flowsTab.count()) await humanClick(page, flowsTab);
+  await page.waitForTimeout(1400);
+  await beatEls("open-flow", ['[data-testid="linear-flow-editor"]'], async () => {
     await humanClick(page, page.getByText("translate-and-qa", { exact: true }));
     await page.waitForSelector('button[aria-label="Back to flow list"]', { timeout: 30_000 });
     await page.waitForSelector('[data-testid="linear-flow-editor"]', { timeout: 30_000 });
@@ -1096,12 +1099,12 @@ async function reviewWalk(c: WalkCtx): Promise<void> {
   // The queue, and the two controls that narrow it, in one beat: every
   // language in one list, a count per language, and the chips for what a check
   // flagged.
+  await landOnHome(page);
+  await openSample(page, "sample-kapimart", "Review");
+  await humanClick(page, sidebar("Review"));
+  await page.waitForSelector('[data-slot="review-queue-item"]', { timeout: 60_000 });
+  await page.waitForTimeout(1200);
   await beatEls("queue", ['[data-slot="review-queue"]', '[data-slot="review-language-select"]'], async () => {
-    await landOnHome(page);
-    await openSample(page, "sample-kapimart", "Review");
-    await humanClick(page, sidebar("Review"));
-    await page.waitForSelector('[data-slot="review-queue-item"]', { timeout: 60_000 });
-    await page.waitForTimeout(1200);
     await cursorTo('[data-slot="review-language-select"]');
     await page.waitForTimeout(1200);
     await cursorTo('[data-slot="review-chips"]');
