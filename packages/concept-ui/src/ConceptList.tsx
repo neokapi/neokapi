@@ -20,7 +20,8 @@ import type { ConceptDataSource, ConceptQuery } from "./adapter";
 import { resolveCapabilities } from "./adapter";
 import type { ConceptSummary, Market, TermSource, TermStatus } from "./types";
 import { TERM_STATUSES } from "./types";
-import { primaryName, TERM_STATUS_LABEL } from "./concept-meta";
+import { TERM_STATUS_LABEL, type ConceptNaming } from "./concept-meta";
+import { ConceptNamingProvider, useConceptName } from "./naming";
 import { termsByLocale } from "./grouping";
 import { StatusChip, LocalePill, EmptyHint, ErrorHint } from "./atoms";
 import { useResource } from "./useResource";
@@ -43,6 +44,13 @@ export interface ConceptListProps {
   /** When set, scope each row's locale chips to these locales (Active Filter). */
   localeScope?: string[];
   /**
+   * Locale hints for the name each row is headed by. Supply the source locale of
+   * the content the vocabulary governs, and the viewer's UI language, so a
+   * concept reads under the term its reader expects rather than whichever locale
+   * the store happens to list first.
+   */
+  naming?: ConceptNaming;
+  /**
    * Replaces the empty state when the list is empty and *no filter is active* —
    * the true zero-state, where "no concepts match" is the wrong thing to say.
    * A filtered-to-empty list always keeps the built-in hint, because there the
@@ -58,6 +66,7 @@ export function ConceptList({
   initialQuery,
   maxLocaleChips = 4,
   localeScope,
+  naming,
   emptyState,
   className,
 }: ConceptListProps) {
@@ -104,122 +113,124 @@ export function ConceptList({
   }, [result.data]);
 
   return (
-    <div className={cn("flex flex-col gap-4", className)}>
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-56 flex-1">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="Search concepts and terms…"
-            className="pl-8"
-            aria-label="Search concepts"
-          />
+    <ConceptNamingProvider naming={naming}>
+      <div className={cn("flex flex-col gap-4", className)}>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative min-w-56 flex-1">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="Search concepts and terms…"
+              className="pl-8"
+              aria-label="Search concepts"
+            />
+          </div>
+
+          <Select value={status} onValueChange={setStatus}>
+            <SelectTrigger className="w-36" size="sm" aria-label="Filter by status">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL}>All statuses</SelectItem>
+              {TERM_STATUSES.map((s) => (
+                <SelectItem key={s} value={s}>
+                  {TERM_STATUS_LABEL[s]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {domains.length > 0 && (
+            <Select value={domain} onValueChange={setDomain}>
+              <SelectTrigger className="w-40" size="sm" aria-label="Filter by domain">
+                <SelectValue placeholder="Domain" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>All domains</SelectItem>
+                {domains.map((d) => (
+                  <SelectItem key={d} value={d}>
+                    {d}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+
+          <Select value={src} onValueChange={setSrc}>
+            <SelectTrigger className="w-40" size="sm" aria-label="Filter by source">
+              <SelectValue placeholder="Source" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL}>All sources</SelectItem>
+              <SelectItem value="terminology">{SOURCE_LABEL.terminology}</SelectItem>
+              <SelectItem value="brand_vocabulary">{SOURCE_LABEL.brand_vocabulary}</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {caps.markets && (markets.data?.length ?? 0) > 0 && (
+            <Select value={market} onValueChange={setMarket}>
+              <SelectTrigger className="w-36" size="sm" aria-label="Filter by market">
+                <SelectValue placeholder="Market" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>All markets</SelectItem>
+                {markets.data!.map((m) => (
+                  <SelectItem key={m.id ?? m.name} value={m.name}>
+                    {m.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
 
-        <Select value={status} onValueChange={setStatus}>
-          <SelectTrigger className="w-36" size="sm" aria-label="Filter by status">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>All statuses</SelectItem>
-            {TERM_STATUSES.map((s) => (
-              <SelectItem key={s} value={s}>
-                {TERM_STATUS_LABEL[s]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        {domains.length > 0 && (
-          <Select value={domain} onValueChange={setDomain}>
-            <SelectTrigger className="w-40" size="sm" aria-label="Filter by domain">
-              <SelectValue placeholder="Domain" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>All domains</SelectItem>
-              {domains.map((d) => (
-                <SelectItem key={d} value={d}>
-                  {d}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-
-        <Select value={src} onValueChange={setSrc}>
-          <SelectTrigger className="w-40" size="sm" aria-label="Filter by source">
-            <SelectValue placeholder="Source" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>All sources</SelectItem>
-            <SelectItem value="terminology">{SOURCE_LABEL.terminology}</SelectItem>
-            <SelectItem value="brand_vocabulary">{SOURCE_LABEL.brand_vocabulary}</SelectItem>
-          </SelectContent>
-        </Select>
-
-        {caps.markets && (markets.data?.length ?? 0) > 0 && (
-          <Select value={market} onValueChange={setMarket}>
-            <SelectTrigger className="w-36" size="sm" aria-label="Filter by market">
-              <SelectValue placeholder="Market" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>All markets</SelectItem>
-              {markets.data!.map((m) => (
-                <SelectItem key={m.id ?? m.name} value={m.name}>
-                  {m.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-      </div>
-
-      {result.loading && !result.data ? (
-        <ConceptListSkeleton />
-      ) : result.error && !result.data ? (
-        <ErrorHint title="Could not load concepts" description={result.error.message} />
-      ) : concepts.length === 0 ? (
-        emptyState && !filtered ? (
-          emptyState
-        ) : (
-          <EmptyHint
-            icon={<Library />}
-            title="No concepts match"
-            description="Adjust the search or filters to find a concept."
-          />
-        )
-      ) : (
-        <ul
-          className="divide-y overflow-hidden rounded-xl border bg-card"
-          data-testid="concept-list"
-        >
-          {concepts.map((c) => (
-            <ConceptRow
-              key={c.id}
-              concept={c}
-              maxLocaleChips={maxLocaleChips}
-              localeScope={localeScope}
-              onOpen={() => onOpen(c.id)}
+        {result.loading && !result.data ? (
+          <ConceptListSkeleton />
+        ) : result.error && !result.data ? (
+          <ErrorHint title="Could not load concepts" description={result.error.message} />
+        ) : concepts.length === 0 ? (
+          emptyState && !filtered ? (
+            emptyState
+          ) : (
+            <EmptyHint
+              icon={<Library />}
+              title="No concepts match"
+              description="Adjust the search or filters to find a concept."
             />
-          ))}
-        </ul>
-      )}
-
-      {result.data &&
-        (concepts.length < result.data.total ? (
-          // Honest cut: the server pages this list, so say so instead of
-          // letting the count silently disagree with the rows shown.
-          <p className="text-xs text-muted-foreground">
-            Showing first {concepts.length} of {result.data.total} concepts. Refine the search or
-            filters to narrow the list.
-          </p>
+          )
         ) : (
-          <p className="text-xs text-muted-foreground">
-            {result.data.total} concept{result.data.total === 1 ? "" : "s"}
-          </p>
-        ))}
-    </div>
+          <ul
+            className="divide-y overflow-hidden rounded-xl border bg-card"
+            data-testid="concept-list"
+          >
+            {concepts.map((c) => (
+              <ConceptRow
+                key={c.id}
+                concept={c}
+                maxLocaleChips={maxLocaleChips}
+                localeScope={localeScope}
+                onOpen={() => onOpen(c.id)}
+              />
+            ))}
+          </ul>
+        )}
+
+        {result.data &&
+          (concepts.length < result.data.total ? (
+            // Honest cut: the server pages this list, so say so instead of
+            // letting the count silently disagree with the rows shown.
+            <p className="text-xs text-muted-foreground">
+              Showing first {concepts.length} of {result.data.total} concepts. Refine the search or
+              filters to narrow the list.
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              {result.data.total} concept{result.data.total === 1 ? "" : "s"}
+            </p>
+          ))}
+      </div>
+    </ConceptNamingProvider>
   );
 }
 
@@ -241,7 +252,7 @@ function ConceptRow({
     const set = new Set(scopeKey.split(","));
     return all.filter((g) => set.has(g.locale));
   }, [concept.terms, scopeKey]);
-  const name = primaryName(concept);
+  const name = useConceptName(concept);
 
   return (
     <li>

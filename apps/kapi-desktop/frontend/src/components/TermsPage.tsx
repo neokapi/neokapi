@@ -258,7 +258,7 @@ export function TermsPage({
         )}
 
         {/* Visual concept/relation workspace (browse → open → relate / re-status) */}
-        <ConceptsView handle={activeHandle} localeScope={localeScope} />
+        <ConceptsView handle={activeHandle} localeScope={localeScope} sourceLocale={sourceLang} />
       </div>
     );
   }

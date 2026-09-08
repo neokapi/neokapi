@@ -9,7 +9,13 @@
 // No React, no I/O, no `Date.now()` — `now` is passed in — so the lane, branch,
 // importance, and clustering rules are deterministic and unit-tested directly.
 
-import { RELATION_LABEL, isBannedStatus, isPreferredStatus, primaryName } from "./concept-meta";
+import {
+  RELATION_LABEL,
+  isBannedStatus,
+  isPreferredStatus,
+  primaryName,
+  type ConceptNaming,
+} from "./concept-meta";
 import type {
   BuildEvolutionOptions,
   EvolutionBranch,
@@ -720,6 +726,6 @@ export function buildEvolutionModel(
 }
 
 /** Convenience: a display name for the concept (re-exported for renderers). */
-export function conceptDisplayName(concept: Concept): string {
-  return primaryName(concept);
+export function conceptDisplayName(concept: Concept, naming: ConceptNaming = {}): string {
+  return primaryName(concept, naming);
 }

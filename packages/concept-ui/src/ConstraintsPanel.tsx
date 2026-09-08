@@ -16,6 +16,7 @@ import { Ban, CalendarClock, Infinity as InfinityIcon, ShieldCheck } from "lucid
 import type { ConceptSectionProps } from "./ConceptView";
 import { ConceptSection, EmptyHint, ErrorHint, LocalePill, StatusChip, formatDate } from "./atoms";
 import { TERM_STATUS_LABEL, primaryName } from "./concept-meta";
+import { useConceptNaming } from "./naming";
 import { buildConstraintModel, constraintSummary, windowPhrase } from "./constraints";
 import type { ConstraintLane, ConstraintPlacement } from "./constraints";
 import { deriveMarketsFromTerms } from "./grouping";
@@ -63,17 +64,18 @@ export function ConstraintsPanel({ concept, source, capabilities }: ConceptSecti
     }
     return [...ids];
   }, [relations, concept.id]);
+  const naming = useConceptNaming();
   const names = useResource(async () => {
     const entries = await Promise.all(
       neighbourIds.map(async (id) => {
         const s = source.getConceptSummary
           ? await source.getConceptSummary(id)
           : await source.getConcept(id);
-        return [id, s ? primaryName(s) : id] as const;
+        return [id, s ? primaryName(s, naming) : id] as const;
       }),
     );
     return Object.fromEntries(entries) as Record<string, string>;
-  }, [source, neighbourIds.join(",")]);
+  }, [source, neighbourIds.join(","), naming]);
 
   const model = useMemo(
     () =>

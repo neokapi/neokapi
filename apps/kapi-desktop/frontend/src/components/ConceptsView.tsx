@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useNeokapi } from "@neokapi/i18n-react/runtime";
 import {
   ConceptList,
   ConceptDashboard,
@@ -41,6 +42,12 @@ export interface ConceptsViewProps {
   source?: ConceptDataSource;
   /** Scope concept terms to these locales (the project's Active Filter). */
   localeScope?: string[];
+  /**
+   * The project's source language. A concept is headed by its term in this
+   * locale, so an English-source project reads its own English terms even when
+   * the store lists another locale first.
+   */
+  sourceLocale?: string;
 }
 
 /**
@@ -51,9 +58,19 @@ export interface ConceptsViewProps {
  * and term statuses are edited inline — this is the desktop home for the editing
  * the deleted CLI relation commands used to do.
  */
-export function ConceptsView({ handle, source: injected, localeScope }: ConceptsViewProps) {
+export function ConceptsView({
+  handle,
+  source: injected,
+  localeScope,
+  sourceLocale,
+}: ConceptsViewProps) {
   const source = useMemo(() => injected ?? createLocalConceptSource(handle), [injected, handle]);
   const [openId, setOpenId] = useState<string | null>(null);
+  const { locale } = useNeokapi();
+  const naming = useMemo(
+    () => ({ sourceLocale: sourceLocale || undefined, uiLocale: locale }),
+    [sourceLocale, locale],
+  );
 
   if (openId) {
     return (
@@ -62,10 +79,13 @@ export function ConceptsView({ handle, source: injected, localeScope }: Concepts
         source={source}
         slots={DESKTOP_SLOTS}
         localeScope={localeScope}
+        naming={naming}
         onNavigate={setOpenId}
         onBack={() => setOpenId(null)}
       />
     );
   }
-  return <ConceptList source={source} localeScope={localeScope} onOpen={setOpenId} />;
+  return (
+    <ConceptList source={source} localeScope={localeScope} naming={naming} onOpen={setOpenId} />
+  );
 }

@@ -24,7 +24,7 @@ import {
   SelectValue,
 } from "@neokapi/ui-primitives";
 import type { Concept, ConceptDataSource, Term, TermStatus } from "@neokapi/concept-ui";
-import { TERM_STATUSES, TERM_STATUS_LABEL, primaryName } from "@neokapi/concept-ui";
+import { TERM_STATUSES, TERM_STATUS_LABEL, useConceptName } from "@neokapi/concept-ui";
 import { ErrorNotice } from "../../errors";
 import { useAnalytics } from "../../context/AnalyticsContext";
 import { AnalyticsEvents } from "../../analytics-events";
@@ -52,6 +52,9 @@ export function ConceptEditDialog({
   const [terms, setTerms] = useState<Term[]>(concept.terms);
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [error, setError] = useState<{ title: string; cause?: unknown } | null>(null);
+  // Named for the message placeholder it fills: the extracted key covers the
+  // placeholder name, so renaming this orphans the string's translations.
+  const primaryName = useConceptName(concept);
 
   // Re-seed from the concept whenever the dialog (re)opens for a concept.
   useEffect(() => {
@@ -90,7 +93,7 @@ export function ConceptEditDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Edit “{primaryName(concept)}”</DialogTitle>
+          <DialogTitle>Edit “{primaryName}”</DialogTitle>
           <DialogDescription>
             Set each term&apos;s status. Banning or promoting a term is governed and opens as an
             experiment for review.

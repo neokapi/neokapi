@@ -19,6 +19,7 @@ import { useWorkspace } from "../../context/WorkspaceContext";
 import { ContextHub } from "../shell/ContextHub";
 import { createRestConceptSource } from "./restConceptSource";
 import { PendingConceptChanges, usePendingConceptChanges } from "./PendingConceptChanges";
+import { useWorkspaceConceptNaming } from "./workspace-naming";
 
 export interface ConceptsSectionProps {
   /** Open a concept's dashboard. */
@@ -34,6 +35,10 @@ export function ConceptsSection({ onOpenConcept, onOpenChangeSet }: ConceptsSect
   const source: ConceptDataSource = useMemo(() => createRestConceptSource(api, ws), [api, ws]);
   const { pending } = usePendingConceptChanges();
 
+  // Name each concept in the language the workspace authors in rather than
+  // whichever locale the terms store lists first.
+  const naming = useWorkspaceConceptNaming();
+
   return (
     <ContextHub
       title="Concepts"
@@ -43,6 +48,7 @@ export function ConceptsSection({ onOpenConcept, onOpenChangeSet }: ConceptsSect
     >
       <ConceptList
         source={source}
+        naming={naming}
         onOpen={onOpenConcept}
         emptyState={<ConceptsZeroState pendingCount={pending.length} />}
       />
