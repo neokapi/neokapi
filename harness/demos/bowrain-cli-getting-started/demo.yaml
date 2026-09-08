@@ -48,7 +48,7 @@ narration:
     kind: terminal
     through: 8
     caption: Push moves the source, and translates nothing.
-    hold: 12
+    hold: 16
     text: >-
       Track the files you want translated, then push. Push is pure transport: it
       moves the source up the way git push does, and it translates nothing at
@@ -59,7 +59,7 @@ narration:
     through: 10
     highlight: { text: [content, governance] }
     caption: Two axes, content and governance.
-    hold: 15
+    hold: 19
     text: >-
       kapi status reads the standing on two axes. The content line counts what
       is waiting to move in each direction. The governance line says whether the
@@ -71,7 +71,7 @@ narration:
     through: 12
     highlight: venue
     caption: The venue first, then the work.
-    hold: 15
+    hold: 20
     text: >-
       kapi up runs the loop, and it prints its venue first: server, because the
       recipe declares one. The work happens on the Bowrain server with the
@@ -82,7 +82,7 @@ narration:
     kind: terminal
     through: 14
     caption: Back in the same file and format.
-    hold: 12
+    hold: 14
     text: >-
       The results come back into the files and the format you started with. Here
       is the French catalog beside the English it came from, and whatever needs

@@ -29,7 +29,7 @@ narration:
     kind: desktop
     beat: candidates
     caption: A phrasing the team kept correcting.
-    hold: 14
+    hold: 18
     text: >-
       These are the candidates. Each is a phrasing the team kept changing: the
       word that missed the voice, what they replaced it with, and how many
@@ -40,7 +40,7 @@ narration:
     kind: desktop
     beat: evaluate
     caption: How much content this would newly flag.
-    hold: 16
+    hold: 17
     crop: { selector: '[role="dialog"]' }
     zoom: 2
     text: >-
@@ -53,7 +53,7 @@ narration:
     kind: desktop
     beat: promote
     caption: Promoted, and versioned on the profile.
-    hold: 15
+    hold: 18
     text: >-
       Promote it, and the correction becomes a deterministic check, versioned on
       the voice profile and applied to every later run, for the people writing

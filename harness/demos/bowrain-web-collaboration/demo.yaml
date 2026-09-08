@@ -36,7 +36,7 @@ narration:
     kind: desktop
     beat: teammate-joins
     caption: A second person, in the same file.
-    hold: 15
+    hold: 20
     crop: { selector: '[data-testid="presence-avatars"]' }
     zoom: 2.5
     highlight: { selector: '[data-testid="presence-avatars"]' }
@@ -50,7 +50,7 @@ narration:
     kind: desktop
     beat: co-editing
     caption: The presence follows the person.
-    hold: 13
+    hold: 18
     crop: { x: 0.02, y: 0.08, w: 0.96, h: 0.7 }
     zoom: 1.3
     text: >-

@@ -29,7 +29,7 @@ narration:
     kind: desktop
     beat: concept
     caption: One concept, one agreed word per language.
-    hold: 14
+    hold: 17
     crop: { selector: '[data-testid="concept-view"]' }
     zoom: 1.6
     highlight: { selector: '[data-testid="concept-header"]' }
@@ -55,7 +55,7 @@ narration:
     kind: desktop
     beat: in-the-editor
     caption: The terms in force, beside the block.
-    hold: 16
+    hold: 21
     crop:
       selector:
         - '[data-testid="term-sidebar"]'

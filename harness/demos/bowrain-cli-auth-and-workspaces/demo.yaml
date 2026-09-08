@@ -38,7 +38,7 @@ narration:
     kind: terminal
     through: 4
     caption: Padded, accented, and still readable English.
-    hold: 16
+    hold: 20
     text: >-
       Pseudo-translate rewrites the catalogue as padded, accented copy. Every
       string grows the way a real translation does, and the accents make an
@@ -60,7 +60,7 @@ narration:
     kind: terminal
     through: 8
     caption: Where a project can be pushed.
-    hold: 13
+    hold: 17
     text: >-
       kapi workspace list shows every workspace you can push a project into.
       Each keeps its own projects, its own content memory and its own terms, so

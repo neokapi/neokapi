@@ -30,7 +30,7 @@ narration:
     kind: desktop
     beat: split
     caption: The card, over the page it is translating.
-    hold: 12
+    hold: 16
     crop: { selector: '[data-testid="visual-editor-layout"]' }
     zoom: 1.4
     text: >-
@@ -42,7 +42,7 @@ narration:
     kind: desktop
     beat: edit
     caption: Saved, and the page redraws.
-    hold: 15
+    hold: 22
     crop:
       selector:
         - '[data-testid="visual-editor-card"]'
@@ -59,7 +59,7 @@ narration:
     kind: desktop
     beat: memory
     caption: The approved wording, applied in one click.
-    hold: 13
+    hold: 14
     crop: { selector: '[data-testid="context-panel"]' }
     zoom: 1.8
     text: >-
@@ -71,7 +71,7 @@ narration:
     kind: desktop
     beat: locale
     caption: The same file, the next language.
-    hold: 12
+    hold: 11
     crop: { selector: '[data-testid="locale-selector"]' }
     zoom: 1.6
     text: >-

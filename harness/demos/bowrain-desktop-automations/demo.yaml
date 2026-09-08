@@ -28,7 +28,7 @@ narration:
     kind: desktop
     beat: rule
     caption: What fires, and on what.
-    hold: 13
+    hold: 15
     text: >-
       The rules are a project's standing instructions: what fires, and on what.
       Push content from a repository or a connector, and the server runs the
@@ -38,7 +38,7 @@ narration:
     kind: desktop
     beat: run-now
     caption: A pass, started by hand.
-    hold: 14
+    hold: 15
     crop: { selector: '[data-testid="runs-list"]' }
     zoom: 1.5
     text: >-
@@ -50,7 +50,7 @@ narration:
     kind: desktop
     beat: settled
     caption: Up to date, or parked with a reason.
-    hold: 14
+    hold: 16
     crop: { selector: '[data-testid="run-row"]' }
     zoom: 2
     highlight: { selector: '[data-testid="run-row"]' }
@@ -64,7 +64,7 @@ narration:
     kind: desktop
     beat: parked
     caption: Parked work is already in review.
-    hold: 12
+    hold: 14
     text: >-
       Parked is not a dead end. That work is already in the review queue,
       waiting for somebody who holds the permission for that language, and the

@@ -29,7 +29,7 @@ narration:
     kind: desktop
     beat: queue
     caption: Everything translated and not yet decided.
-    hold: 12
+    hold: 14
     crop:
       selector:
         - '[data-testid="review-queue"]'
@@ -57,7 +57,7 @@ narration:
     kind: desktop
     beat: approve
     caption: Approved, and the queue moves on.
-    hold: 11
+    hold: 13
     crop:
       selector:
         - '[data-testid="reviewer-approve"]'
@@ -72,7 +72,7 @@ narration:
     kind: desktop
     beat: duties
     caption: "Refused: the author cannot be the reviewer."
-    hold: 14
+    hold: 15
     crop: { selector: '[data-testid="error-notice"]' }
     zoom: 2
     highlight: { selector: '[data-testid="error-notice"]' }

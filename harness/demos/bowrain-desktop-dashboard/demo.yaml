@@ -28,7 +28,7 @@ narration:
     kind: desktop
     beat: projects
     caption: The same projects the browser opens.
-    hold: 11
+    hold: 13
     crop: { x: 0.03, y: 0.1, w: 0.94, h: 0.56 }
     zoom: 1.3
     text: >-
@@ -52,7 +52,7 @@ narration:
     kind: desktop
     beat: offline
     caption: Offline, with edits waiting to be sent.
-    hold: 16
+    hold: 22
     crop: { selector: '[data-testid="offline-pending"]' }
     zoom: 2.4
     highlight: { selector: '[data-testid="offline-pending"]' }
@@ -66,7 +66,7 @@ narration:
     kind: desktop
     beat: replayed
     caption: Reconnected, and the queue drained itself.
-    hold: 14
+    hold: 15
     crop: { selector: '[data-testid="connection-status"]' }
     zoom: 2.4
     text: >-
