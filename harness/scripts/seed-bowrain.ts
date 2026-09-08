@@ -45,6 +45,15 @@ const BOB = {
 const FILE_NAME = "about-us.html";
 const COLLAB_LOCALE = "fr";
 
+// The two blocks the review walk addresses, named by their source text: the
+// block list comes back in id order and ids are minted per seed, so a position
+// in it names a different heading every time. Bob's block carries a French
+// rendering of its own heading, because the editor and collaboration walks
+// open it beside the source and the memory learns the pair.
+const PEER_BLOCK_SOURCE = "About Acme Inc.";
+const PEER_BLOCK_TARGET = "À propos de la société Acme Inc.";
+const SELF_BLOCK_SOURCE = "Our Mission";
+
 // ── low-level HTTP ──────────────────────────────────────────────────────────
 
 interface DeviceStart {
@@ -216,7 +225,7 @@ async function ensureWorkspace(token: string): Promise<string> {
   }
   const ws = await jpost<Workspace>(
     "/workspaces",
-    { name: "BowMart Localization", slug: SLUG },
+    { name: "BowMart", slug: SLUG },
     token,
   );
   console.log(`  · created workspace ${SLUG}`);
@@ -363,6 +372,7 @@ interface ProjectMember {
 interface Block {
   id: string;
   translatable?: boolean;
+  source?: string;
 }
 
 /**
@@ -420,9 +430,15 @@ async function ensureReviewGovernance(
     "blocks",
   );
   const translatable = blocks.filter((b) => b.translatable !== false);
-  const peerBlockId = translatable[0]?.id ?? "";
-  const selfBlockId = translatable[1]?.id ?? translatable[0]?.id ?? "";
-  if (!peerBlockId) throw new Error(`review governance: no blocks extracted for ${FILE_NAME}`);
+  const byText = (text: string) => translatable.find((b) => (b.source ?? "").trim() === text);
+  const peerBlockId = byText(PEER_BLOCK_SOURCE)?.id ?? "";
+  const selfBlockId = byText(SELF_BLOCK_SOURCE)?.id ?? "";
+  if (!peerBlockId || !selfBlockId) {
+    throw new Error(
+      `review governance: ${FILE_NAME} has no block reading "${PEER_BLOCK_SOURCE}" or "${SELF_BLOCK_SOURCE}" ` +
+        `(${translatable.length} translatable blocks)`,
+    );
+  }
   // Bob's PUT is the newest target_modified row for that block and locale, so
   // LastTargetAuthors answers with Bob for it and with Alice for the rest.
   await jput(
@@ -430,7 +446,7 @@ async function ensureReviewGovernance(
     {
       item_name: FILE_NAME,
       target_locale: COLLAB_LOCALE,
-      text: "Nous concevons des outils que les équipes utilisent chaque jour.",
+      text: PEER_BLOCK_TARGET,
     },
     bobToken,
   );

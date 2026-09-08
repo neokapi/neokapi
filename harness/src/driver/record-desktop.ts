@@ -16,7 +16,7 @@ import fs from "node:fs";
 import path from "node:path";
 import net from "node:net";
 import os from "node:os";
-import { spawn, execFileSync } from "node:child_process";
+import { spawn, execFileSync, type ChildProcess } from "node:child_process";
 import { chromium, type Page, type Browser, type Locator } from "playwright";
 import { ensureDir, publicDemoDir, REPO_ROOT } from "../lib/paths.ts";
 import { injectCursor, moveTo, humanClick, humanType, idle, setClickSink } from "./cursor-helper.ts";
@@ -104,6 +104,46 @@ function waitPort(port: number, timeoutMs: number): Promise<void> {
     };
     tick();
   });
+}
+
+/**
+ * Refuse to start a bridge or dev server on a port something already answers
+ * on. waitPort cannot tell a fresh server from a leftover one, and Vite moves
+ * to the next free port instead of failing, so a listener left behind by an
+ * earlier recording (a deleted worktree's dev server, say) is what the walk
+ * films: a page served from a root that no longer exists.
+ */
+function assertPortFree(port: number, what: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const sock = net.connect({ port, host: "localhost", autoSelectFamily: true });
+    sock.once("connect", () => {
+      sock.destroy();
+      reject(
+        new Error(
+          `${what}: port ${port} is already in use. A server from an earlier recording is still ` +
+            `running; stop it (lsof -nP -iTCP:${port} -sTCP:LISTEN) and retry.`,
+        ),
+      );
+    });
+    sock.once("error", () => {
+      sock.destroy();
+      resolve();
+    });
+  });
+}
+
+/**
+ * Stop a spawned server together with everything it forked. `vp dev` runs Vite
+ * in a child of its own, and a signal to the launcher alone leaves that child
+ * listening; the process is spawned detached, so its group id is its pid.
+ */
+function stopTree(child: ChildProcess): void {
+  if (child.pid === undefined) return;
+  try {
+    process.kill(-child.pid, "SIGTERM");
+  } catch {
+    child.kill("SIGTERM");
+  }
 }
 
 const KAPI_DESKTOP_DIR = path.join(REPO_ROOT, "apps", "kapi-desktop");
@@ -311,6 +351,7 @@ async function startRealStack(): Promise<{ url: string; teardown: () => Promise<
     ["build", "-tags", "fts5", "-ldflags", `-X github.com/neokapi/neokapi/core/version.Version=${KAPI_VERSION}`, "-o", bridgeBin, "./cmd/wbridge"],
     { cwd: KAPI_DESKTOP_DIR, env: goEnv() },
   );
+  await assertPortFree(5175, "kapi-desktop wbridge");
   const bridge = spawn(bridgeBin, [], { env: goEnv({ WBRIDGE_PORT: "5175" }), stdio: "ignore" });
   await waitPort(5175, 60_000);
 
@@ -320,14 +361,21 @@ async function startRealStack(): Promise<{ url: string; teardown: () => Promise<
   // the app mounts, and a recording carries on over a page that failed to render:
   // the walk times out on its first selector, or films an empty frame. The
   // bowrain dev server below already forces it for exactly this; both need it.
-  const vite = spawn("vp", ["dev", "--force"], { cwd: FRONTEND_DIR, env: { ...process.env, FORCE_COLOR: "0" }, stdio: "ignore" });
+  await assertPortFree(5174, "kapi-desktop frontend dev server");
+  const vite = spawn("vp", ["dev", "--force", "--strictPort"], {
+    cwd: FRONTEND_DIR,
+    env: { ...process.env, FORCE_COLOR: "0" },
+    stdio: "ignore",
+    detached: true,
+  });
+  process.once("exit", () => stopTree(vite));
   await waitPort(5174, 120_000);
 
   return {
     url: "http://localhost:5174/real.html",
     teardown: async () => {
       bridge.kill("SIGTERM");
-      vite.kill("SIGTERM");
+      stopTree(vite);
       await new Promise((r) => setTimeout(r, 600));
     },
   };
@@ -448,6 +496,7 @@ async function startBowrainStack(): Promise<{ url: string; teardown: () => Promi
     cwd: BOWRAIN_DESKTOP_DIR,
     env: goEnv(),
   });
+  await assertPortFree(BW_WBRIDGE_PORT, "bowrain wbridge");
   const bridge = spawn(bridgeBin, [], {
     env: goEnv({
       BOWRAIN_DESKTOP_CONFIG_DIR: BW_ISO,
@@ -510,18 +559,21 @@ async function startBowrainStack(): Promise<{ url: string; teardown: () => Promi
   // keepNames `__name` helper-injection fix) re-triggers "__name is not defined"
   // the moment the recharts dashboard mounts — blanking the page. Forcing a fresh
   // prebundle with the current rolldown is the operational guard.
-  const vite = spawn("vp", ["dev", "--force", "--port", String(BW_VITE_PORT)], {
+  await assertPortFree(BW_VITE_PORT, "bowrain frontend dev server");
+  const vite = spawn("vp", ["dev", "--force", "--strictPort", "--port", String(BW_VITE_PORT)], {
     cwd: BOWRAIN_FRONTEND_DIR,
     env: { ...process.env, FORCE_COLOR: "0" },
     stdio: "ignore",
+    detached: true,
   });
+  process.once("exit", () => stopTree(vite));
   await waitPort(BW_VITE_PORT, 120_000);
 
   return {
     url: `http://localhost:${BW_VITE_PORT}/real.html`,
     teardown: async () => {
       bridge.kill("SIGTERM");
-      vite.kill("SIGTERM");
+      stopTree(vite);
       await link.close();
       bowrainServerLink = null;
       await new Promise((r) => setTimeout(r, 600));
