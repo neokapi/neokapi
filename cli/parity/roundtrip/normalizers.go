@@ -581,19 +581,33 @@ type XMLCanonical struct {
 	// cancels the always-emit-vs-conditional-emit asymmetry.
 	StripXMLSpacePreserve bool
 
-	// StripWMLSkippableElements drops the WordprocessingML properties
-	// upstream Okapi's RunSkippableElements and BlockSkippableElements
-	// remove on round-trip (`<w:lang>`, `<w:noProof>`, `<w:bidiVisual>`)
-	// and then drops every `<w:rPr>` and `<w:pPr>` left without children,
-	// the way Okapi omits an empty properties container. Native applies
-	// that strip to rendered content only and replays the rest of a part
-	// as its author wrote it, so word/styles.xml and the frame around a
-	// paragraph keep the elements Okapi drops. Both forms resolve to the
-	// same effective formatting under ECMA-376-1 §17.7; applying the
+	// StripWMLSkippableElements drops what upstream Okapi's skippable
+	// elements remove from WordprocessingML on round-trip and native keeps
+	// where it replays a part or a paragraph as its author wrote it: the
+	// run and block properties `<w:lang>`, `<w:noProof>` and
+	// `<w:bidiVisual>`; the proofing marks, permission ranges and
+	// `<w:lastRenderedPageBreak>` the reader never reads; Word's `_GoBack`
+	// bookmark with its matching end; `<w:bCs>` and `<w:iCs>` on a run
+	// whose text holds no complex-script character (ECMA-376-1 §17.3.2.2
+	// gives them no effect there); every `<w:rPr>`, `<w:pPr>` and
+	// `<w:sdtEndPr>` left without children, the way Okapi omits an empty
+	// properties container; and every `<w:r>` left with nothing but its
+	// properties, which Okapi's RunMerger drops. Both forms render the same; applying the
 	// strip to both sides cancels the asymmetry. Elements match by local
 	// name, as StripRevisionIDs does, because the effective-rPr pass
 	// re-encodes the parts through encoding/xml before this one runs.
 	StripWMLSkippableElements bool
+
+	// MergeAdjacentWMLRuns fuses consecutive `<w:r>` siblings whose
+	// `<w:rPr>` are equal into one run holding their children in order,
+	// then fuses consecutive `<w:t>` children with equal attributes into
+	// one text element. Upstream Okapi's RunMerger does the same to the
+	// source's runs on round-trip; native replays a paragraph's source
+	// runs as they were split. ECMA-376-1 §17.3.2 gives both shapes the
+	// same rendering. Applied after the skippable strip so the properties
+	// compared are the ones both sides keep, and before child sorting, so
+	// document order still decides adjacency. Opt-in for openxml.
+	MergeAdjacentWMLRuns bool
 
 	// StripEmptyIDMLContent drops `<Content>` elements that have no
 	// CharData children (or only whitespace-only CharData). Native's
@@ -690,6 +704,9 @@ func (n XMLCanonical) Name() string {
 	if n.StripWMLSkippableElements {
 		parts = append(parts, "strip-wml-skippable")
 	}
+	if n.MergeAdjacentWMLRuns {
+		parts = append(parts, "merge-wml-runs")
+	}
 	if n.StripEmptyIDMLContent {
 		parts = append(parts, "strip-empty-content")
 	}
@@ -736,7 +753,7 @@ func (n XMLCanonical) Normalize(in []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	if n.SortChildElements || n.MergeAdjacentCSRs || n.StripEmptyIDMLContent || n.StripIDMLACEPIs || n.UnwrapIDMLXMLElement || n.UnwrapIDMLChange || n.StripEmptyIDMLPSRCSR || n.StripWMLSkippableElements {
+	if n.SortChildElements || n.MergeAdjacentCSRs || n.StripEmptyIDMLContent || n.StripIDMLACEPIs || n.UnwrapIDMLXMLElement || n.UnwrapIDMLChange || n.StripEmptyIDMLPSRCSR || n.StripWMLSkippableElements || n.MergeAdjacentWMLRuns {
 		// Build a tree from the per-element-balanced token stream so
 		// we can permute child elements alphabetically by local name
 		// (and/or merge adjacent same-attr CSR siblings, drop empty
@@ -754,6 +771,7 @@ func (n XMLCanonical) Normalize(in []byte) ([]byte, error) {
 			unwrapIDMLChange:      n.UnwrapIDMLChange,
 			stripEmptyIDMLPSRCSR:  n.StripEmptyIDMLPSRCSR,
 			stripWMLSkippable:     n.StripWMLSkippableElements,
+			mergeWMLRuns:          n.MergeAdjacentWMLRuns,
 		})
 	}
 	var buf bytes.Buffer
@@ -946,6 +964,7 @@ type transformOpts struct {
 	unwrapIDMLChange      bool
 	stripEmptyIDMLPSRCSR  bool
 	stripWMLSkippable     bool
+	mergeWMLRuns          bool
 }
 
 // transformXMLTree walks the (already canonicalised) token stream as
@@ -1004,40 +1023,80 @@ func transformXMLTree(tokens []xml.Token, opts transformOpts) []xml.Token {
 	if opts.stripWMLSkippable {
 		stripWMLSkippableInTree(root)
 	}
+	if opts.mergeWMLRuns {
+		mergeAdjacentWMLRunsInTree(root)
+	}
 	var out []xml.Token
 	emitXMLNode(root, &out, true /*topLevel*/, opts.sortChildren)
 	return out
 }
 
 // wmlSkippableElements are the local names of the WordprocessingML
-// properties upstream Okapi's RunSkippableElements and
-// BlockSkippableElements drop on round-trip: the run language
-// (RUN_PROPERTY_LANGUAGE), the no-proofing flag
+// elements upstream Okapi drops on round-trip and native replays: the run
+// language (RUN_PROPERTY_LANGUAGE), the no-proofing flag
 // (RUN_PROPERTY_NO_SPELLING_OR_GRAMMAR) and the visually right-to-left
-// table flag (BLOCK_PROPERTY_BIDI_VISUAL), per SkippableElement.java.
+// table flag (BLOCK_PROPERTY_BIDI_VISUAL), per SkippableElement.java; the
+// proofing marks, the permission range markers and the last rendered page
+// break, which its BlockParser never reads.
 var wmlSkippableElements = map[string]struct{}{
-	"lang":       {},
-	"noProof":    {},
-	"bidiVisual": {},
+	"lang":                  {},
+	"noProof":               {},
+	"bidiVisual":            {},
+	"proofErr":              {},
+	"permStart":             {},
+	"permEnd":               {},
+	"lastRenderedPageBreak": {},
 }
 
 // wmlPropertyContainers are the local names of the WordprocessingML
-// properties containers Okapi omits when they hold nothing
+// containers Okapi omits when they hold nothing
 // (RunProperties.Default.getEvents, RunProperties.java:580;
-// BlockProperties.Default.getEvents, BlockProperties.java:169-180).
+// BlockProperties.Default.getEvents, BlockProperties.java:169-180; an
+// empty sdtEndPr is dropped the same way).
 var wmlPropertyContainers = map[string]struct{}{
-	"rPr": {},
-	"pPr": {},
+	"rPr":      {},
+	"pPr":      {},
+	"sdtEndPr": {},
 }
 
-// stripWMLSkippableInTree drops every element in wmlSkippableElements
-// from the tree, then drops every properties container in
-// wmlPropertyContainers that has no attributes and no element children
-// left. The whitespace a pretty-printed part indents a container with
+// wmlComplexScriptToggles are the run properties that apply to complex
+// script characters only (ECMA-376-1 §17.3.2.2 and §17.3.2.17). Okapi's
+// RunParser drops them from a run whose text holds none.
+var wmlComplexScriptToggles = map[string]struct{}{
+	"bCs": {},
+	"iCs": {},
+}
+
+// stripWMLSkippableInTree drops from the tree every element in
+// wmlSkippableElements, Word's _GoBack bookmark and its matching end, the
+// complex-script toggles of a run whose text holds no complex-script
+// character, every properties container in wmlPropertyContainers that has
+// no attributes and no element children left, and every run left with no
+// content. The whitespace a pretty-printed part indents a container with
 // is not content, so it goes with the container. Children are processed
 // before their parent, so a `<w:pPr>` whose only child was a `<w:rPr>`
 // holding a `<w:lang>` dissolves in one pass.
 func stripWMLSkippableInTree(node *xmlNode) {
+	goBack := map[string]struct{}{}
+	collectGoBackBookmarkIDs(node, goBack)
+	stripWMLSkippableNode(node, goBack)
+}
+
+// collectGoBackBookmarkIDs gathers the ids of every _GoBack bookmark start
+// in the tree, so the matching end is dropped wherever it sits.
+func collectGoBackBookmarkIDs(node *xmlNode, ids map[string]struct{}) {
+	for _, c := range node.children {
+		if c.sub == nil {
+			continue
+		}
+		if c.sub.start.Name.Local == "bookmarkStart" && attrLocal(c.sub.start, "name") == "_GoBack" {
+			ids[attrLocal(c.sub.start, "id")] = struct{}{}
+		}
+		collectGoBackBookmarkIDs(c.sub, ids)
+	}
+}
+
+func stripWMLSkippableNode(node *xmlNode, goBack map[string]struct{}) {
 	if node == nil {
 		return
 	}
@@ -1047,17 +1106,96 @@ func stripWMLSkippableInTree(node *xmlNode) {
 			kept = append(kept, c)
 			continue
 		}
-		if _, skip := wmlSkippableElements[c.sub.start.Name.Local]; skip {
+		name := c.sub.start.Name.Local
+		if _, skip := wmlSkippableElements[name]; skip {
 			continue
 		}
-		stripWMLSkippableInTree(c.sub)
-		if _, container := wmlPropertyContainers[c.sub.start.Name.Local]; container &&
+		if name == "bookmarkStart" && attrLocal(c.sub.start, "name") == "_GoBack" {
+			continue
+		}
+		if name == "bookmarkEnd" {
+			if _, ok := goBack[attrLocal(c.sub.start, "id")]; ok {
+				continue
+			}
+		}
+		stripWMLSkippableNode(c.sub, goBack)
+		if name == "r" {
+			stripComplexScriptToggles(c.sub)
+			if !wmlRunHasContent(c.sub) {
+				continue
+			}
+		}
+		if _, container := wmlPropertyContainers[name]; container &&
 			!hasElementChild(c.sub) && len(c.sub.start.Attr) == 0 {
 			continue
 		}
 		kept = append(kept, c)
 	}
 	node.children = kept
+}
+
+// stripComplexScriptToggles drops bCs and iCs from a run's properties when
+// none of the run's text is complex script.
+func stripComplexScriptToggles(run *xmlNode) {
+	rPr := findChildElem(run, "rPr")
+	if rPr == nil {
+		return
+	}
+	for _, c := range run.children {
+		if c.sub != nil && c.sub.start.Name.Local == "t" && containsComplexScript(c.sub) {
+			return
+		}
+	}
+	kept := rPr.children[:0]
+	for _, c := range rPr.children {
+		if c.sub != nil {
+			if _, toggle := wmlComplexScriptToggles[c.sub.start.Name.Local]; toggle {
+				continue
+			}
+		}
+		kept = append(kept, c)
+	}
+	rPr.children = kept
+}
+
+// containsComplexScript reports whether an element's character data holds a
+// character from a complex-script block: the ranges native's writer tests
+// before it keeps a complex-script toggle on a run.
+func containsComplexScript(node *xmlNode) bool {
+	for _, c := range node.children {
+		cd, ok := c.raw.(xml.CharData)
+		if !ok {
+			continue
+		}
+		for _, r := range string(cd) {
+			switch {
+			case r >= 0x0590 && r <= 0x074F, // Hebrew, Arabic, Syriac
+				r >= 0x0780 && r <= 0x07BF, // Thaana
+				r >= 0x0900 && r <= 0x109F, // Devanagari through Myanmar
+				r >= 0x1780 && r <= 0x18AF, // Khmer through Mongolian
+				r >= 0x200C && r <= 0x200F, // joiners and directional marks
+				r >= 0x202A && r <= 0x202F, // bidi formatting and NNBSP
+				r >= 0x2670 && r <= 0x2671,
+				r >= 0xFB1D && r <= 0xFB4F: // Hebrew presentation forms
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// wmlRunHasContent reports whether a run holds any element besides its
+// properties. A text element counts whatever it holds: the canonical pass
+// has already dropped whitespace-only character data, so a run whose text
+// was a single space and a run whose text was empty look the same here, and
+// the first is content.
+func wmlRunHasContent(run *xmlNode) bool {
+	for _, c := range run.children {
+		if c.sub != nil && c.sub.start.Name.Local != "rPr" {
+			return true
+		}
+	}
+	return false
 }
 
 // stripIDMLACEPIsInTree drops `<?ACE N?>` ProcessingInstruction
@@ -2376,7 +2514,9 @@ type StripXMLDeclaration struct{}
 // Name implements Normalizer.
 func (StripXMLDeclaration) Name() string { return "strip-xml-decl" }
 
-var xmlDeclRE = regexp.MustCompile(`(?s)\A(?:\xef\xbb\xbf)?\s*<\?xml[^?]*\?>\s*`)
+// A leading byte order mark goes with the declaration: Go's regexp matches
+// runes, so the mark is spelled as U+FEFF rather than as its three bytes.
+var xmlDeclRE = regexp.MustCompile(`(?s)\A(?:\x{FEFF})?\s*<\?xml[^?]*\?>\s*`)
 
 // Normalize implements Normalizer.
 func (StripXMLDeclaration) Normalize(in []byte) ([]byte, error) {
@@ -2895,4 +3035,110 @@ func indexCloseAngleQuotedDTDNorm(s string) int {
 		}
 	}
 	return -1
+}
+
+// mergeAdjacentWMLRunsInTree fuses runs of consecutive `<w:r>` siblings whose
+// run properties are equal, then fuses consecutive `<w:t>` children with
+// equal attributes inside each run. Character data and comments between two
+// runs end a stretch, and so does any other element. Recurses first, so a
+// textbox paragraph inside a run is merged before the run is.
+func mergeAdjacentWMLRunsInTree(node *xmlNode) {
+	if node == nil {
+		return
+	}
+	for _, c := range node.children {
+		if c.sub != nil {
+			mergeAdjacentWMLRunsInTree(c.sub)
+		}
+	}
+	merged := make([]xmlChild, 0, len(node.children))
+	i := 0
+	for i < len(node.children) {
+		c := node.children[i]
+		if c.sub == nil || c.sub.start.Name.Local != "r" {
+			merged = append(merged, c)
+			i++
+			continue
+		}
+		key := wmlRunPropsKey(c.sub)
+		j := i + 1
+		for j < len(node.children) {
+			next := node.children[j]
+			if next.sub == nil || next.sub.start.Name.Local != "r" || wmlRunPropsKey(next.sub) != key {
+				break
+			}
+			for _, nc := range next.sub.children {
+				if nc.sub != nil && nc.sub.start.Name.Local == "rPr" {
+					continue
+				}
+				c.sub.children = append(c.sub.children, nc)
+			}
+			j++
+		}
+		fuseAdjacentWMLText(c.sub)
+		merged = append(merged, c)
+		i = j
+	}
+	node.children = merged
+}
+
+// wmlRunPropsKey renders a run's `<w:rPr>` as a string a sibling's can be
+// compared with; a run with no properties has the empty key.
+func wmlRunPropsKey(run *xmlNode) string {
+	for _, c := range run.children {
+		if c.sub != nil && c.sub.start.Name.Local == "rPr" {
+			var toks []xml.Token
+			emitXMLNode(c.sub, &toks, false, true)
+			var b strings.Builder
+			for _, t := range toks {
+				fmt.Fprintf(&b, "%#v;", t)
+			}
+			return b.String()
+		}
+	}
+	return ""
+}
+
+// fuseAdjacentWMLText joins consecutive `<w:t>` children of a run whose
+// attributes are equal into one, concatenating their character data.
+func fuseAdjacentWMLText(run *xmlNode) {
+	out := make([]xmlChild, 0, len(run.children))
+	for _, c := range run.children {
+		if c.sub == nil || c.sub.start.Name.Local != "t" || len(out) == 0 {
+			out = append(out, c)
+			continue
+		}
+		prev := out[len(out)-1]
+		if prev.sub == nil || prev.sub.start.Name.Local != "t" || !sameAttrs(prev.sub.start.Attr, c.sub.start.Attr) {
+			out = append(out, c)
+			continue
+		}
+		var text []byte
+		for _, pc := range prev.sub.children {
+			if cd, ok := pc.raw.(xml.CharData); ok {
+				text = append(text, cd...)
+			}
+		}
+		for _, cc := range c.sub.children {
+			if cd, ok := cc.raw.(xml.CharData); ok {
+				text = append(text, cd...)
+			}
+		}
+		prev.sub.children = []xmlChild{{raw: xml.CharData(text)}}
+	}
+	run.children = out
+}
+
+// sameAttrs reports whether two attribute lists hold the same names and
+// values in the same order.
+func sameAttrs(a, b []xml.Attr) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i].Name != b[i].Name || a[i].Value != b[i].Value {
+			return false
+		}
+	}
+	return true
 }

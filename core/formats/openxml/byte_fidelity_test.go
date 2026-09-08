@@ -331,6 +331,9 @@ func partsHoldingContent(t *testing.T, store *format.SkeletonStore) map[string]b
 				current = ""
 				continue
 			}
+			if isSkelMarkerRef(id) {
+				continue
+			}
 			if current != "" {
 				held[current] = true
 			}
@@ -349,24 +352,16 @@ func partsHoldingContent(t *testing.T, store *format.SkeletonStore) map[string]b
 // reader extracted nothing from them, so they cannot be asserted byte-identical.
 // Each is deliberate:
 //
-// A WordprocessingML part that holds paragraphs (the main document, headers,
-// footers, notes, comments and their glossary twins) is rebuilt paragraph by
-// paragraph from the runs the reader parsed, whether or not any of them was
-// extracted, so its bytes are the writer's. The styles parts are the exception
-// among the parts wmlProcessedPart covers: the reader never parses them and
-// the writer copies them through.
+// A WordprocessingML part holding revision markup is rewritten by acceptance,
+// which is on by default: the reader's pre-pass drops what a revision deletes,
+// the reader unwraps what it inserts, the writer strips the markers
+// (stripWMLRevisionElements), and a paragraph holding any of it is rendered
+// rather than replayed. table-grid-revisions.docx carries a <w:tblPrChange> in
+// a document.xml the reader extracted nothing from.
 //
-// A part upstream Okapi's filter walks loses its revision markup on write when
-// revisions are accepted, which is the default: the move-range markers, the
-// paragraph-mark markers and the property-change snapshots
-// stripWMLRevisionElements removes. table-grid-revisions.docx carries a
-// <w:tblPrChange> in a document.xml the reader extracted nothing from.
-//
-// docProps/core.xml loses a leading UTF-8 BOM. Okapi reads the part through
-// StAX, which takes the BOM as encoding metadata rather than content, and its
-// XMLEventWriter emits none, so the reference output for a BOM-bearing core.xml
-// is BOM-less; parseCoreProperties strips to match. 948-1.docx is the only
-// fixture in the corpus that ships one.
+// A WordprocessingML part holding a <w:t> with edge whitespace and no
+// xml:space="preserve" takes the writer's repair (wmlTextIsSpaceSafe), so its
+// paragraph is rendered with the attribute rather than replayed.
 //
 // A DOCX part carrying a DrawingML paragraph loses the six run-property
 // attributes Okapi's StrippableAttributes.DrawingRunProperties drops (lang,
@@ -374,14 +369,13 @@ func partsHoldingContent(t *testing.T, store *format.SkeletonStore) map[string]b
 // that strip goes with them. The writer does this after skeleton
 // reconstruction, on DOCX only; chartAmpersand.docx is the corpus case.
 func rebuiltWithoutContent(name string, source []byte, isDocx bool) bool {
-	if wmlProcessedPart(name) && !strings.HasSuffix(name, "/styles.xml") {
-		return true
-	}
-	if isDocx && wmlProcessedPart(name) && !bytes.Equal(stripWMLRevisionElements(source), source) {
-		return true
-	}
-	if name == "docProps/core.xml" && bytes.HasPrefix(source, []byte("\xef\xbb\xbf")) {
-		return true
+	if isDocx && wmlProcessedPart(name) {
+		if wmlRevisionMarkupRE.Match(source) || !bytes.Equal(stripWMLRevisionElements(source), source) {
+			return true
+		}
+		if !wmlTextIsSpaceSafe(source) {
+			return true
+		}
 	}
 	return isDocx && stripDMLRunPropertyAttrs(string(source)) != string(source)
 }

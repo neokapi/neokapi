@@ -273,6 +273,14 @@ type wmlParser struct {
 	// triggers the flush; P5 (`<w:p ... />` self-closing, no pPr)
 	// is the trailing wrapper Okapi consumes for the merged block.
 	partAbsorbedTrailingEmpty bool
+	// The open replay region, if any: the source offsets of its first and
+	// last paragraph, how many paragraphs it holds, and whether every one of
+	// them can be replayed. See replayParagraphBegin.
+	regionOpen     bool
+	regionStart    int64
+	regionEnd      int64
+	regionParas    int
+	regionEligible bool
 	// emitPart, when set, emits a Part directly to the reader's output channel
 	// (in document order, interleaved with emitBlock). It is used to surface
 	// table topology — w:tbl / w:tr become table / table-row Groups, w:tc cells'
@@ -330,6 +338,10 @@ type pendingMergeable struct {
 	runs        []textRun
 	paraProps   string
 	paraStyleID string
+	// The paragraph's own start tag and source offsets, for the replay
+	// markers written when it is emitted.
+	openTag    string
+	start, end int64
 }
 
 // pendingFieldBlock carries a deferred paragraph emit for a paragraph
@@ -354,6 +366,12 @@ type pendingFieldBlock struct {
 	paraProps   string
 	paraStyleID string
 	partPath    string
+	// The paragraph's own start tag, source offsets and bytes, and whether
+	// it can be replayed, for the markers written when it is emitted.
+	openTag    string
+	start, end int64
+	span       []byte
+	eligible   bool
 }
 
 // parsePart streams through a WordprocessingML XML part, emitting Blocks.
@@ -361,6 +379,7 @@ func (p *wmlParser) parsePart(data []byte, partPath string, emitBlock func(*mode
 	// Root block names at this part before any structure opens — a later
 	// re-rooting would drop the table/row/cell scopes already pushed.
 	p.path.ensurePart(partPath)
+	p.regionOpen = false
 	// When AutomaticallyAcceptRevisions is true, pre-process the bytes
 	// to mirror upstream Okapi's revision-acceptance passes that
 	// happen before the streaming parser sees the document:
@@ -583,6 +602,7 @@ func (p *wmlParser) parsePart(data []byte, partPath string, emitBlock func(*mode
 			return err
 		}
 	}
+	p.replayRegionEnd(d)
 	// Reset the trailing-empty absorption flag at end-of-part — if any
 	// flag survived past sectPr (no sectPr in this part — headers,
 	// footers, comments, footnotes typically have none), clear it now
@@ -625,8 +645,11 @@ func (p *wmlParser) flushPendingMergeable(partPath string, emitBlock func(*model
 	if p.styles != nil && pm.paraStyleID != "" {
 		inheritedVanish = p.styles.effectiveProps(pm.paraStyleID).vanish
 	}
+	// A paragraph with a deleted mark holds revision markup, so it is never
+	// replayed; a region it sits in is closed without replay.
+	p.replayParagraphBegin(pm.start, pm.end, nil, false, false, p.partCfs.active)
 	if !p.cfg.TranslateHiddenText && allHidden(merged, inheritedVanish) {
-		p.skelWriteString("<w:p>")
+		p.skelWriteString(pm.openTag)
 		if pm.paraProps != "" {
 			p.skelText(pm.paraProps)
 		}
@@ -636,7 +659,7 @@ func (p *wmlParser) flushPendingMergeable(partPath string, emitBlock func(*model
 	}
 	*p.blockCounter++
 	blockID := fmt.Sprintf("tu%d", *p.blockCounter)
-	p.skelWriteString("<w:p>")
+	p.skelWriteString(pm.openTag)
 	if pm.paraProps != "" {
 		p.skelText(pm.paraProps)
 	}
@@ -705,7 +728,8 @@ func (p *wmlParser) flushPendingFieldBlock(extraTailRuns []textRun, partPath str
 		// content, so the merged slice should remain non-empty
 		// even after the tail-runs append. If somehow empty,
 		// emit a degenerate empty paragraph as a safety net.
-		p.skelWriteString("<w:p>")
+		p.replayParagraphBegin(pf.start, pf.end, pf.span, pf.eligible, false, true)
+		p.skelWriteString(pf.openTag)
 		if pf.paraProps != "" {
 			p.skelText(pf.paraProps)
 		}
@@ -717,7 +741,8 @@ func (p *wmlParser) flushPendingFieldBlock(extraTailRuns []textRun, partPath str
 		inheritedVanish = p.styles.effectiveProps(pf.paraStyleID).vanish
 	}
 	if !p.cfg.TranslateHiddenText && allHidden(merged, inheritedVanish) {
-		p.skelWriteString("<w:p>")
+		p.replayParagraphBegin(pf.start, pf.end, pf.span, pf.eligible, false, true)
+		p.skelWriteString(pf.openTag)
 		if pf.paraProps != "" {
 			p.skelText(pf.paraProps)
 		}
@@ -727,7 +752,11 @@ func (p *wmlParser) flushPendingFieldBlock(extraTailRuns []textRun, partPath str
 	}
 	*p.blockCounter++
 	blockID := fmt.Sprintf("tu%d", *p.blockCounter)
-	p.skelWriteString("<w:p>")
+	// The paragraph was buffered because a complex field was still open at
+	// its end, so the region it opens stays open for the paragraphs that
+	// follow it.
+	p.replayParagraphBegin(pf.start, pf.end, pf.span, pf.eligible, true, true)
+	p.skelWriteString(pf.openTag)
 	if pf.paraProps != "" {
 		p.skelText(pf.paraProps)
 	}
