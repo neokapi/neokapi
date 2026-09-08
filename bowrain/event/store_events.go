@@ -421,6 +421,21 @@ func (s *EventEmittingStore) StoreBlocksForItem(ctx context.Context, projectID, 
 	return nil
 }
 
+// SetBlockOrder emits one event for the item: the subject of a reorder is the
+// file, and what a surface needs is to refetch it.
+func (s *EventEmittingStore) SetBlockOrder(ctx context.Context, projectID, stream, itemName string, keys []string) error {
+	if err := s.inner.SetBlockOrder(ctx, projectID, stream, itemName, keys); err != nil {
+		return err
+	}
+	s.publish(ctx, platev.Event{
+		Type:      platev.EventBlockUpdated,
+		Source:    "store",
+		ProjectID: projectID,
+		Data:      map[string]string{"item_name": itemName},
+	})
+	return nil
+}
+
 // PruneItemBlocks emits one event for the item rather than one per removed
 // block: a prune's subject is the item, and the ids it drops name rows a
 // subscriber can no longer read. What a surface needs is to refetch the item,

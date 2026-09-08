@@ -69,6 +69,7 @@ func (s *Server) HandleRenderDocumentPreview(c echo.Context) error {
 		ProjectID: pid,
 		Stream:    stream,
 		ItemName:  fname,
+		Order:     store.BlockOrderDocument,
 	})
 	if err == nil && len(storedBlocks) > 0 {
 		return c.HTML(http.StatusOK, buildBlockListPreview(storedBlocks))

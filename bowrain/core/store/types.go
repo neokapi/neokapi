@@ -107,6 +107,18 @@ type BlockQuery struct {
 	// substring spanning an inline-code boundary does not match.
 	Text string
 
+	// Order says how a page is sorted. Empty is the keyset order, by id, which
+	// is what a walk needs: AfterID and BeforeID are cursors over that order,
+	// and a walk starts with neither set. BlockOrderDocument sorts by the
+	// position each block holds in its item, which is how a surface listing a
+	// file has to read it.
+	//
+	// The two do not combine. A cursor set alongside document order is read as
+	// the cursor, because a page ordered by anything but the cursor's own key
+	// would visit a block twice or not at all; EachBlockBatch clears the field
+	// for the same reason.
+	Order string
+
 	Limit  int // Max results (0 = no limit)
 	Offset int // Pagination offset
 
@@ -129,6 +141,12 @@ type BlockQuery struct {
 	// the same projection an AfterID page goes through.
 	BeforeID string
 }
+
+// BlockOrderDocument lists blocks in the order their item is read: the position
+// a push declared for each, and the id for a block nothing has placed. Block ids
+// are minted when content is pushed, so a listing left in id order showed a
+// file in the order it happened to be stored.
+const BlockOrderDocument = "document"
 
 // The per-locale status buckets a block falls into, as the editor names them.
 // They partition the translatable blocks of a query: every block sits in

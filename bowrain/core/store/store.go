@@ -97,6 +97,15 @@ type ItemStore interface {
 type BlockStore interface {
 	StoreBlocks(ctx context.Context, projectID, stream string, blocks []*model.Block) error
 	StoreBlocksForItem(ctx context.Context, projectID, stream, itemName string, blocks []*model.Block) error
+	// SetBlockOrder records an item's document order: the position of each of
+	// its blocks, named by the durable block key the store holds as source_id
+	// (core/venue.TreeItem.Keys, which a push declares in document order).
+	//
+	// Ids are minted when content is pushed, so ordering a listing by id gives
+	// the order blocks happened to be stored rather than the order they are
+	// read in. A key the item has no row for is skipped; a row whose key the
+	// order does not name keeps the position it had.
+	SetBlockOrder(ctx context.Context, projectID, stream, itemName string, keys []string) error
 	// PruneItemBlocks removes the blocks of one item whose keys `keep` does not
 	// name, and reports how many went.
 	//
@@ -200,6 +209,7 @@ type PushApplier interface {
 	StoreItem(ctx context.Context, projectID, stream string, item *Item) error
 	StoreBlocks(ctx context.Context, projectID, stream string, blocks []*model.Block) error
 	StoreBlocksForItem(ctx context.Context, projectID, stream, itemName string, blocks []*model.Block) error
+	SetBlockOrder(ctx context.Context, projectID, stream, itemName string, keys []string) error
 	PruneItemBlocks(ctx context.Context, projectID, stream, itemName string, keep []string) (int, error)
 	UpsertUnitDecisions(ctx context.Context, projectID, stream string, decisions []venue.UnitDecision) (int, error)
 	ListUnitDecisions(ctx context.Context, projectID, stream string) ([]venue.UnitDecision, error)

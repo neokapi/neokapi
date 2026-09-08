@@ -987,4 +987,17 @@ var storeMigrations = []storage.Migration{
 			ALTER TABLE automation_steps ADD COLUMN rule_id TEXT NOT NULL DEFAULT '';
 		`,
 	},
+	{
+		Version:     24,
+		Description: "a block records its position in its item's document order",
+		SQL: `
+			-- Mirrors bowrain/store/migrations.go version 33: the block's index
+			-- in the sequence its item reads to, counted from 1 and written
+			-- from the tree a push declares. 0 means unplaced, and a listing
+			-- breaks ties on id, so such a row keeps the order it had.
+			ALTER TABLE blocks ADD COLUMN position INTEGER NOT NULL DEFAULT 0;
+			CREATE INDEX IF NOT EXISTS idx_blocks_item_position
+				ON blocks(project_id, stream, item_name, position);
+		`,
+	},
 }

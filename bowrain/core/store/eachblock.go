@@ -61,6 +61,10 @@ func EachBlockBatch(
 	q := scope
 	q.Offset = 0
 	q.Limit = batch
+	// A walk is a keyset over ids. A page ordered by anything else would visit
+	// a block twice or not at all, so the walk states its own order rather than
+	// inheriting whatever the caller's scope asked a listing for.
+	q.Order = ""
 
 	for {
 		page, err := cs.GetBlocks(ctx, q)
