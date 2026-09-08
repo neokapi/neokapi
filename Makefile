@@ -246,6 +246,7 @@ vet: ## Run go vet (all modules)
 
 lint: check-abs-paths check-em-dashes check-docs-palette check-eval-publishable check-local-actions check-deploy-paths check-vocabulary check-desktop-interchange check-vocab-packs check-comment-history check-reference-provenance check-run-projection check-walk-selectors check-locale-display check-sidebar-ids check-package-licenses check-archive-licenses check-plugin-licenses check-plugin-release-latest check-tracked-binaries check-extract-fixtures check-gofmt ## Run golangci-lint (all modules) + repo hygiene guards
 	@$(MAKE) --no-print-directory _fw-lint
+	@$(MAKE) --no-print-directory kapi-desktop-lint
 	@$(MAKE) -C bowrain lint
 
 check-abs-paths: ## Guard: no absolute home path (/Users/…, /home/…, C:\Users\…) in tracked files
@@ -1369,6 +1370,29 @@ regen-kapimart-sample: build ## Regenerate the KapiMart sample's history (target
 
 kapi-desktop-test: i18n-catalogs ## Run Kapi Desktop Go backend tests
 	cd $(KAPI_DESKTOP_DIR) && $(GOTEST_BASE) ./backend/... -count=1 -timeout 180s
+
+# `go test ./backend/...` compiles only the backend, but golangci-lint compiles
+# the whole module — including main.go, whose `//go:embed all:frontend/dist`
+# resolves against a Vite build that no lint run performs. A fresh clone has no
+# such directory, so the module fails at typecheck and every linter is skipped
+# before it reads a line. The linter never reads the embedded bytes, so a
+# placeholder file satisfies it; an existing real build is left alone.
+#
+# The gettext MO catalogs core/i18n embeds are the same shape of build output,
+# which is what the i18n-catalogs prerequisite covers. Both are prerequisites
+# rather than a note in a runbook, so `make kapi-desktop-lint` works from a
+# clean checkout and the CI job below reuses the same definition.
+kapi-desktop-lint-deps: i18n-catalogs ## Materialize what the Kapi Desktop module embeds, so it typechecks
+	@mkdir -p $(KAPI_DESKTOP_DIR)/frontend/dist
+	@test -e $(KAPI_DESKTOP_DIR)/frontend/dist/index.html \
+		|| echo placeholder > $(KAPI_DESKTOP_DIR)/frontend/dist/index.html
+
+kapi-desktop-lint: kapi-desktop-lint-deps ## Run golangci-lint over the Kapi Desktop Go backend
+ifdef GOLANGCI_LINT
+	cd $(KAPI_DESKTOP_DIR) && $(GOLANGCI_LINT) run ./...
+else
+	@echo "golangci-lint not installed. Run 'make tools' to install."
+endif
 
 # ── Wails bindings (committed AND regenerated at release) ───────────────────
 # Both desktop apps commit their generated bindings (.gitignore re-includes them
@@ -3094,6 +3118,7 @@ help: ## Show this help
         install install-kapi-bowrain-plugin \
         frontend-check-all \
         build-kapi-desktop kapi-desktop-dev kapi-desktop-test regen-kapimart-sample \
+        kapi-desktop-lint kapi-desktop-lint-deps \
         kapi-desktop-frontend-deps kapi-desktop-frontend-dev kapi-desktop-frontend-build \
         kapi-desktop-frontend-test kapi-desktop-frontend-check kapi-desktop-extract \
         kapi-desktop-bindings bowrain-desktop-bindings wails-bindings check-wails-bindings \
