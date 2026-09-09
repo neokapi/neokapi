@@ -225,6 +225,10 @@ readonly SWEPT_SURFACES=(
   # surface is Changes rather than Experiments.
   bowrain/packages/app/src
   bowrain/packages/ui/src
+  # The demo manifests. A demo.yaml is narration a viewer hears and captions a
+  # viewer reads, so it is product prose that happens to be typed as YAML, and
+  # it reaches an audience that never opens the docs.
+  harness/demos
 )
 
 # The surfaces held to the fixed vocabulary as well as the framing. Narrower on
@@ -256,9 +260,12 @@ readonly VOCAB_SURFACES=(
   # The Remotion composition behind every walkthrough video: its string
   # literals are typeset into the title and outro cards, the reel's lower
   # thirds and the lab sample, so they are product prose whatever the file
-  # extension says. The demo manifests the composition renders are gated
-  # per-PR by the docs prose check.
+  # extension says.
   harness/src/remotion
+  # The demo manifests the composition renders. Narration is spoken over the
+  # video and captions are burned into it, which puts a retired spelling in
+  # front of a viewer who cannot grep it away.
+  harness/demos
 )
 
 # The surfaces held to the identifier rule: the source trees, both languages,
@@ -292,7 +299,6 @@ readonly IDENT_SURFACES=(
 # visible, not silently absent, or a green check reads as "all prose is clean"
 # when it means "the prose we swept is clean".
 readonly PENDING_SURFACES=(
-  "harness/demos (vocabulary): demo ids (01-localize-landing-page) and scene ids (termbases, glossary) are identifiers the recorder beats and the generated demo.<lang>.yaml sidecars key on; renaming them orphans the sidecar translations, so the sweep waits for a rename that moves the sidecars with it."
   "cli/skills (vocabulary) — the i18n playbooks name third-party libraries (@angular/localize, expo-localization) and the eval table quotes user prompts verbatim, and the skill description is intent-matching vocabulary: it must contain the words a user types. No sweep is scheduled; deciding what a matching surface owes the vocabulary rule comes first."
 )
 
@@ -327,11 +333,16 @@ readonly ALLOWED_FILES=(
   apps/kapi-desktop/frontend/src/stories/prototype/v2/Sidebar.stories.tsx
   apps/kapi-desktop/frontend/src/stories/prototype/v2/Flows.stories.tsx
   apps/kapi-desktop/frontend/src/stories/prototype/v2/ProjectLanguages.stories.tsx
-  # The composition registry is generated from the demo directory names, and
-  # a demo's id (01-localize-landing-page) is the name of its directory, its
-  # captures and its published assets: an identifier, never typeset. The title
-  # beside it is the prose, and that is swept.
-  harness/src/remotion/registry.generated.ts
+  # Retired demos: manifests the harness no longer records. The generator skips
+  # `_retired` and nothing renders from it, so its narration reaches no viewer.
+  # It is kept as a record of demos that were cut, and its wording is the
+  # wording they were cut with.
+  #
+  # Quoted because this is the one entry that is a pattern rather than a path,
+  # and an unquoted `.*` in an array literal is a glob: the shell expands it
+  # against the directory to `_retired/.` and `_retired/..`, and the allowlist
+  # silently matches nothing.
+  "harness/demos/_retired/.*"
 )
 
 # Files the CASED rule alone excuses, on top of ALLOWED_FILES. Kept separate so

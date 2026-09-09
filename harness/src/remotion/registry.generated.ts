@@ -2,7 +2,7 @@
 export interface RegistryEntry { id: string; title: string; }
 export const DEMOS: RegistryEntry[] = [
   {
-    "id": "01-localize-landing-page",
+    "id": "01-translate-landing-page",
     "title": "The markup comes back untouched"
   },
   {

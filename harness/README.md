@@ -32,7 +32,7 @@ tag runs a live Claude session; **shell** marks a scripted shell demo and
 
 | # | id | What it shows |
 |---|----|----------------|
-| 1 | `01-localize-landing-page`        | Translate a landing page to French: a plain request, and the kapi skill keeps the HTML intact |
+| 1 | `01-translate-landing-page`        | Translate a landing page to French: a plain request, and the kapi skill keeps the HTML intact |
 | 2 | `02-nextjs-zero-to-i18n`          | A Next.js app ships in Japanese with its JSX left as it was written |
 | 3 | `03-translate-docx`               | A Word announcement translated into Japanese, headings, lists and formatting preserved |
 | 4 | `04-i18n-react-catalogs`          | An existing react-i18next catalog gains French and German, with the placeholders checked |
@@ -243,7 +243,7 @@ pnpm install
 pnpm run setup
 
 # run the whole pipeline for one demo (or `all`)
-pnpm run demo 01-localize-landing-page
+pnpm run demo 01-translate-landing-page
 pnpm run demo all
 
 # run a single stage (each stage is idempotent; --force re-runs it)
