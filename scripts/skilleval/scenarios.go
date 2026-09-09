@@ -94,7 +94,7 @@ const (
 	fxDocxAnn  = "harness/demos/03-translate-docx/fixtures/announcement.docx"
 	fxXlsx     = "harness/demos/09-toolbox-find-replace/fixtures/pricing.xlsx"
 	fxPptx     = "apps/kapi-desktop/backend/sample/kapimart/marketing/en/onboarding-deck.pptx"
-	fxLanding  = "harness/demos/01-localize-landing-page/fixtures/index.html"
+	fxLanding  = "harness/demos/01-translate-landing-page/fixtures/index.html"
 	fxLocales  = "harness/demos/kapi-bilingual-workflow/fixtures/src/locales/en/messages.json"
 	fxNextPage = "harness/demos/02-nextjs-zero-to-i18n/fixtures/src/app/page.tsx"
 	fxNextPkg  = "harness/demos/02-nextjs-zero-to-i18n/fixtures/package.json"
