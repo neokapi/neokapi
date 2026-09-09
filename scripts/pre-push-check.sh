@@ -154,6 +154,15 @@ if matches '^bowrain/packages/ui/' '^bowrain/apps/web/' '^bowrain/apps/bowrain/f
     run_check "Frontend (bowrain)" make frontend-check-all
 fi
 
+# ── Walkthrough harness ────────────────────────────────────────────────────
+
+# harness/ is a standalone pnpm tree, so the frontend checks above stop at it.
+# Same gate as the CI `harness` job, and the same target that job runs. The
+# target installs the harness dependencies on first use.
+if matches '^harness/'; then
+    run_check "Harness typecheck + tests" make harness-check
+fi
+
 # ── Kapi Desktop frontend ─────────────────────────────────────────────────
 
 if matches '^apps/kapi-desktop/' '^packages/(ui|flow-editor)/'; then
