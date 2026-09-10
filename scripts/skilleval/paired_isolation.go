@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func preparePairedAgent(ctx context.Context, launch PairedLaunch) (PairedPrepared, error) {
@@ -248,11 +249,20 @@ func pairedClaudeSubscriptionToken(ctx context.Context) (string, error) {
 		return "", errors.New("existing Claude subscription credential could not be read")
 	}
 	defer clear(data)
+	return pairedClaudeCredentialToken(data, time.Now())
+}
+
+func pairedClaudeCredentialToken(data []byte, now time.Time) (string, error) {
 	credential := map[string]any{}
 	if json.Unmarshal(data, &credential) != nil {
 		return "", errors.New("existing Claude credential has an unsupported shape")
 	}
 	oauth := pairedObject(credential, "claudeAiOauth")
+	// Keychain expiry is Unix milliseconds. An opaque externally supplied token
+	// has no local expiry evidence and is handled by the caller unchanged.
+	if expiry, known := oauth["expiresAt"].(float64); known && expiry <= float64(now.UnixMilli()) {
+		return "", errors.New("existing Claude subscription OAuth has expired; refresh the Claude login before launching a stage")
+	}
 	token := pairedString(oauth, "accessToken")
 	if token == "" {
 		return "", errors.New("claude subscription credential does not contain an OAuth access token")

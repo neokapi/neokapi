@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -183,4 +184,30 @@ func TestPairedToolPathHasOnlyAssignedCLI(t *testing.T) {
 			require.NoError(t, err)
 		})
 	}
+}
+
+func TestPairedClaudeCredentialRejectsKnownExpiredToken(t *testing.T) {
+	now := time.Date(2026, time.September, 10, 21, 7, 0, 0, time.UTC)
+	for _, expiry := range []int64{now.Add(-time.Hour).UnixMilli(), now.UnixMilli()} {
+		raw, err := json.Marshal(map[string]any{"claudeAiOauth": map[string]any{"accessToken": "private-test-token", "expiresAt": expiry}})
+		require.NoError(t, err)
+		token, err := pairedClaudeCredentialToken(raw, now)
+		require.ErrorContains(t, err, "has expired")
+		assert.Empty(t, token)
+		assert.NotContains(t, err.Error(), "private-test-token")
+	}
+	for _, expiry := range []any{now.Add(time.Hour).UnixMilli(), nil, "unknown"} {
+		raw, err := json.Marshal(map[string]any{"claudeAiOauth": map[string]any{"accessToken": "private-test-token", "expiresAt": expiry}})
+		require.NoError(t, err)
+		token, err := pairedClaudeCredentialToken(raw, now)
+		require.NoError(t, err)
+		assert.Equal(t, "private-test-token", token)
+	}
+}
+
+func TestPairedClaudeOpaqueEnvironmentTokenHasNoInferredExpiry(t *testing.T) {
+	t.Setenv("CLAUDE_CODE_OAUTH_TOKEN", "opaque-test-token")
+	token, err := pairedClaudeSubscriptionToken(t.Context())
+	require.NoError(t, err)
+	assert.Equal(t, "opaque-test-token", token)
 }
