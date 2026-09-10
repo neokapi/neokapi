@@ -75,6 +75,21 @@ class EvidenceTests(unittest.TestCase):
         report["execution"]["analyzers"][0]["status"] = "passed"
         demo.assert_check(report, 0)
 
+    def test_native_range_rejects_different_hashes_and_outside_findings(self):
+        heading = {"id": "h", "content_hash": "heading-hash"}
+        body = {"id": "p", "name": "sharing/p", "content_hash": "paragraph-hash"}
+        document = {"content_format": "markdown", "sections": [{"id": "h", "title": demo.TITLE, "level": 2, "range": {"heading": heading, "body": [body]}}]}
+        ordinary = [{**heading, "role": "heading", "level": 2, "text": demo.TITLE}, {"id": "p", "content_hash": "paragraph-hash", "text": "Utilize the link ID."}]
+        check = {"findings": [{"location": {"block": "sharing/p", "snippet": "Utilize"}}]}
+        demo.assert_range(document, ordinary, check)
+        body["content_hash"] = "stale-hash"
+        with self.assertRaisesRegex(AssertionError, "content hash"):
+            demo.assert_range(document, ordinary, check)
+        body["content_hash"] = "paragraph-hash"
+        check["findings"][0]["location"]["block"] = "unrelated/p"
+        with self.assertRaisesRegex(AssertionError, "one block"):
+            demo.assert_range(document, ordinary, check)
+
 
 if __name__ == "__main__":
     unittest.main()

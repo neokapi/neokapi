@@ -274,6 +274,33 @@ def assert_check(report, count, term=None):
     return findings
 
 
+def assert_range(document, ordinary, check=None):
+    """Join semantic ranges and check locations to ordinary reader records."""
+    section = selected(document)
+    span = section["range"]
+    by_id = {block["id"]: block for block in ordinary}
+    refs = [span["heading"], *span["body"]]
+    if span.get("end_before"):
+        refs.append(span["end_before"])
+    assert section["id"] == span["heading"]["id"], "Section identity differs from its native heading"
+    for ref in refs:
+        assert ref["id"] in by_id, f"Section refers to unknown reader block {ref['id']}"
+        assert by_id[ref["id"]]["content_hash"] == ref["content_hash"], "Section and ordinary inspection disagree on content hash"
+    heading = by_id[span["heading"]["id"]]
+    assert heading["role"] == "heading" and heading["level"] == section["level"]
+    assert heading["text"] == section["title"]
+    ordered_ids = [block["id"] for block in ordinary]
+    start = ordered_ids.index(heading["id"]) + 1
+    end = ordered_ids.index(span["end_before"]["id"]) if span.get("end_before") else len(ordered_ids)
+    assert ordered_ids[start:end] == [ref["id"] for ref in span["body"]], "Section body differs from the ordinary reader range"
+    for finding in (check or {}).get("findings") or []:
+        location = finding["location"]
+        matching = [ref for ref in span["body"] if location["block"] in [ref.get("id"), ref.get("name"), ref.get("address")]]
+        assert len(matching) == 1, "Check finding does not identify one block in the selected native range"
+        block = by_id[matching[0]["id"]]
+        assert location["snippet"] in block["text"], "Finding snippet is absent from the ordinary reader block"
+
+
 def replay_plan(original, plan):
     """Independently replay immutable source offsets, without parsing content."""
     assert plan["snapshot"] == digest(original.read_bytes()), "Plan snapshot differs from the original"
@@ -319,7 +346,9 @@ class Runner:
         self.commands = []
 
     def run(self, folder, label, args, expected=(0,), parse=False):
-        argv = [self.binary, "-p", str(self.project / "kapi.yaml"), *args]
+        # inspect's --project is a format-projection flag, not a recipe selector.
+        binding = [] if args[0] == "inspect" else ["-p", str(self.project / "kapi.yaml")]
+        argv = [self.binary, *binding, *args]
         started = time.monotonic()
         result = subprocess.run(argv, cwd=self.project, env=self.env, capture_output=True, timeout=60)
         (folder / (label + ".stdout")).write_bytes(result.stdout)
@@ -338,7 +367,8 @@ class Runner:
     def inspect(self, folder, label, file):
         result = self.run(folder, label, ["inspect", str(file), "--sections"], parse=True)
         assert result["snapshot"] == digest(file.read_bytes()), "Inspect snapshot differs from source bytes"
-        selected(result)
+        ordinary = self.run(folder, label + ".blocks", ["inspect", str(file)], parse=True)
+        assert_range(result, ordinary)
         return result
 
     def revision(self, folder, name, file, document, text):
@@ -351,6 +381,7 @@ class Runner:
         assert diff.strip(), "Preview did not report a patch"
         preview = self.run(folder, name + ".plan", ["apply", str(changes), "--diff", "--json"], parse=True)
         assert file.read_bytes() == previous, "JSON preview mutated the source"
+        assert preview["plan"]["range"] == selected(document)["range"], "Plan addresses a different native block range"
         expected = replay_plan(file, preview["plan"])
         self.run(folder, name + ".apply", ["apply", str(changes)])
         assert file.read_bytes() != previous, "Apply left the source unchanged"
@@ -367,14 +398,16 @@ class Runner:
         assert context.get("voice", {}).get("name") == "Pageglass instructions", "Wrong or missing voice for destination"
         self.run(folder, "voice-guide", ["voice", "guide", str(file)])
         original = self.inspect(folder, "original.inspect", file)
-        initial_check = self.run(folder, "original.check", ["check", str(file), "--json"], expected=(3,), parse=True)
+        initial_check = self.run(folder, "original.check", ["check", str(file), "--max-major", "0", "--json"], expected=(3,), parse=True)
         assert_check(initial_check, 2)
+        assert_range(original, json.loads((folder / "original.inspect.blocks.json").read_text()), initial_check)
         first_changes = self.revision(folder, "first", file, original, FIRST)
         first = self.inspect(folder, "first.inspect", file)
         shutil.copyfile(file, folder / ("first." + extension))
         preserve(original_file, file)
-        first_check = self.run(folder, "first.check", ["check", str(file), "--json"], expected=(3,), parse=True)
+        first_check = self.run(folder, "first.check", ["check", str(file), "--max-major", "0", "--json"], expected=(3,), parse=True)
         assert_check(first_check, 1, "utilize")
+        assert_range(first, json.loads((folder / "first.inspect.blocks.json").read_text()), first_check)
         saved = file.read_bytes()
         self.run(folder, "stale.apply", ["apply", str(first_changes)], expected=(1,))
         assert file.read_bytes() == saved, "Rejected stale edit mutated the source"
@@ -383,13 +416,13 @@ class Runner:
         final = self.inspect(folder, "final.inspect", file)
         shutil.copyfile(file, folder / ("final." + extension))
         preserve(original_file, file)
-        final_check = self.run(folder, "final.check", ["check", str(file), "--json"], parse=True)
+        final_check = self.run(folder, "final.check", ["check", str(file), "--max-major", "0", "--json"], parse=True)
         assert_check(final_check, 0)
         body = selected(final)["content"]
         for required in ["fixed snapshot", "pageglass share pv_example --expires 24h", "pageglass revoke ln_example", "End access", "without signing in"]:
             assert required in body.replace("**", ""), f"Final projection lost {required}"
         assert "Things to remember" not in body and "seamless" not in body.lower()
-        record = {"format": extension, "original": selected(original)["content"], "first": selected(first)["content"], "final": body, "checks": {"original": initial_check, "first": first_check, "final": final_check}, "preservation": "Unrelated source spans and, for DOCX, all other ZIP payloads verified byte for byte", "diff_read_only": True, "stale_rejected": True, "offset_plan_replayed": True}
+        record = {"format": extension, "original": selected(original)["content"], "first": selected(first)["content"], "final": body, "checks": {"original": initial_check, "first": first_check, "final": final_check}, "preservation": "Unrelated source spans and, for DOCX, all other ZIP payloads verified byte for byte", "diff_read_only": True, "stale_rejected": True, "offset_plan_replayed": True, "native_reader_range_verified": True, "finding_locations_verified": True}
         write_json(folder / "result.json", record)
         return record
 
@@ -401,7 +434,7 @@ def report(output, results):
         cells = ''.join('<article><h3>' + label.title() + '</h3><pre>' + html.escape(result[label]) + '</pre><p><a href="' + extension + '/' + label + '.' + extension + '">Download ' + label + ' file</a></p></article>' for label in ['original', 'first', 'final'])
         diff = ''.join(difflib.unified_diff(result['original'].splitlines(True), result['final'].splitlines(True), fromfile='original section', tofile='final section'))
         checks = ''.join('<details' + (' open' if stage == 'first' else '') + '><summary>' + stage.title() + ' check: ' + str(len(check.get('findings') or [])) + ' findings</summary><pre>' + html.escape(json.dumps(check, indent=2, ensure_ascii=False)) + '</pre></details>' for stage, check in result['checks'].items())
-        sections.append('<section><h2>' + extension.upper() + '</h2><p>' + html.escape(result['preservation']) + '. Diff is read-only; stale edits are rejected. Independently replaying the offset plan reproduces the applied content.</p><p><a href="' + extension + '/context.json">Resolved context</a> · <a href="' + extension + '/voice-guide.stdout">Retrieved voice guide</a> · <a href="' + extension + '/first.plan.json">First offset plan</a> · <a href="' + extension + '/final.plan.json">Final offset plan</a></p><div class="versions">' + cells + '</div><details><summary>Full section difference</summary><pre>' + html.escape(diff) + '</pre></details>' + checks + '</section>')
+        sections.append('<section><h2>' + extension.upper() + '</h2><p>' + html.escape(result['preservation']) + '. Diff is read-only; stale edits are rejected. Independently replaying the offset plan reproduces the applied content. Section IDs and content hashes match ordinary reader blocks; actual findings identify blocks in that range.</p><p><a href="' + extension + '/context.json">Resolved context</a> · <a href="' + extension + '/voice-guide.stdout">Retrieved voice guide</a> · <a href="' + extension + '/first.plan.json">First offset plan</a> · <a href="' + extension + '/final.plan.json">Final offset plan</a> · <a href="' + extension + '/original.inspect.blocks.json">Original reader blocks</a></p><div class="versions">' + cells + '</div><details><summary>Full section difference</summary><pre>' + html.escape(diff) + '</pre></details>' + checks + '</section>')
     page = '''<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Pageglass section edit loop</title><style>body{font:16px/1.5 system-ui,sans-serif;max-width:1500px;margin:2rem auto;padding:0 1rem;color:#23332f;background:#fafaf7}h1,h2,h3{line-height:1.2}section{margin:3rem 0;border-top:2px solid #48776d}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#fff;border:1px solid #cbd6d1;padding:1rem;font:14px/1.5 ui-monospace,monospace}a{color:#155e51}summary{cursor:pointer;padding:.6rem 0}.versions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem}@media(max-width:1000px){.versions{grid-template-columns:1fr}}</style><h1>Rewrite a complete sharing section</h1><p>The same authored Pageglass documentation is stored as Markdown, HTML and Word. Each run inspects a semantic section, previews and applies a multi-block replacement, reads a remaining vocabulary finding, and replaces the section again.</p><p><strong>Authored demonstration:</strong> no model or API calls. The initial defects and both responses are deliberately supplied fixtures. A passing check establishes only the recorded deterministic coverage, not factual completeness, good style, or editorial quality. No Word layout rendering is measured.</p><details open><summary>Task and factual context</summary><pre>''' + html.escape(FACTS) + '</pre></details><details><summary>Bound voice profile</summary><pre>' + html.escape(VOICE) + '</pre></details>' + ''.join(sections) + '</html>'
     (output / 'report.html').write_text(page, encoding='utf-8')
 

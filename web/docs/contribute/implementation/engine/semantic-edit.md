@@ -39,6 +39,12 @@ block IDs, structural addresses, content hashes and advisory source spans.
 A section's body includes its descendant sections. Replacing
 that body also replaces those descendants.
 
+The section's `range` identifies the native heading and body blocks, plus the
+following boundary heading when present. These references include the IDs and
+content hashes returned by ordinary `kapi inspect`, together with source spans.
+The plan retains this range so its byte patches can be traced to the same blocks
+used by inspection and saved-file checks.
+
 Write one section entry to a JSONL change file:
 
 ```json
@@ -68,13 +74,14 @@ Apply the change and inspect the saved document before another revision:
 ```sh
 kapi apply changes.jsonl
 kapi inspect instructions.md --sections
-kapi check instructions.md --json
+kapi check instructions.md --max-major 0 --json
 ```
 
 The preview writes nothing. Applying an entry against a changed snapshot fails;
 the editor must inspect again and prepare a new entry. A subsequent check reads
 the actual saved file. Its analyzer coverage determines what a passing result
-establishes.
+establishes. The explicit `--max-major 0` threshold makes major findings fail
+this loop; the default check gate allows them.
 
 ## Replacement syntax and preservation
 
@@ -136,6 +143,8 @@ The loop also verifies these independent properties:
 - Both preview modes leave the source bytes unchanged.
 - Replaying the returned offset plan independently produces the saved content.
 - Reusing a stale snapshot fails without changing the file.
+- Section heading and body IDs and content hashes match ordinary inspection.
+  The plan carries the same range, and check findings identify blocks within it.
 - The surrounding sections retain their source bytes.
 - Word styles, numbering, an image payload and a custom ZIP payload remain
   unchanged.
