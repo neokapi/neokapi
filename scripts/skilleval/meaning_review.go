@@ -318,7 +318,9 @@ func validateMeaningManifest(m meaningManifest, inputs map[string]meaningInput) 
 	for _, session := range m.Sessions {
 		_, known := inputs[session.CaseID]
 		protocol := meaningProtocol(session.Protocol)
-		if protocol != "ordinary" && protocol != "requirements" && protocol != "anchored" && protocol != "style" {
+		switch protocol {
+		case "ordinary", "requirements", "anchored", "style", "style-calibrated":
+		default:
 			return fmt.Errorf("unknown meaning protocol %q", session.Protocol)
 		}
 		pair := session.Host + ":" + session.CaseID + ":" + protocol

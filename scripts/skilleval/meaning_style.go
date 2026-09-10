@@ -120,6 +120,10 @@ Use departures when at least one evidenced departure is reported. Aligned requir
 This is advisory review. Neither passage selection nor structural response validation establishes semantic correctness, a clean gate or a quality score.`
 
 func validateMeaningStyle(text string, input meaningInput) meaningIntegrity {
+	return validateMeaningStyleContract(text, input, meaningStyleContract)
+}
+
+func validateMeaningStyleContract(text string, input meaningInput, contract string) meaningIntegrity {
 	integrity := meaningIntegrity{
 		Errors: []string{},
 		Scope:  "JSON shape, candidate/guidance references and assessment consistency only; scoped style suitability unmeasured",
@@ -141,13 +145,13 @@ func validateMeaningStyle(text string, input meaningInput) meaningIntegrity {
 		Schema           string            `json:"schema"`
 		AnalyzerContract string            `json:"analyzer_contract"`
 		Input            meaningStyleInput `json:"input"`
-	}{Schema: meaningStyleSchema, AnalyzerContract: meaningStyleContract, Input: prepared})
+	}{Schema: meaningStyleSchema, AnalyzerContract: contract, Input: prepared})
 	if err != nil {
 		integrity.Errors = append(integrity.Errors, err.Error())
 		return integrity
 	}
 	integrity.Style = &meaningStyleReview{
-		Schema: meaningStyleSchema, AnalyzerContract: meaningStyleContract, RequestID: input.ID,
+		Schema: meaningStyleSchema, AnalyzerContract: contract, RequestID: input.ID,
 		RequestFingerprint: meaningTextHash(string(snapshot)), Evidence: string(snapshot),
 		CandidateSpans: prepared.CandidateSpans, GuidanceSpans: prepared.GuidanceSpans,
 		Assessment: parsed.Assessment, Findings: parsed.Findings,
