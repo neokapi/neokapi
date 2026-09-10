@@ -2381,6 +2381,23 @@ paired-eval-pilot: ## Run the paired pilot within the persistent attempt ceiling
 paired-eval-score: ## Summarize saved paired attempts without model calls
 	$(GO) run ./scripts/skilleval $(PAIRED_EVAL_FLAGS) -paired-phase score
 
+MEANING_EVAL_INPUTS ?= harness/out/contextual-documents
+MEANING_EVAL_DIR ?= harness/out/contextual-review
+MEANING_EVAL_MAX_ATTEMPTS ?= 6
+.PHONY: meaning-eval-prepare meaning-eval-checks meaning-eval-preflight meaning-eval-run
+
+meaning-eval-prepare: ## Prepare contextual document cases and browser casebook without inference (requires a new output directory)
+	python3 scripts/checkeval/prepare_documents.py --out "$(MEANING_EVAL_INPUTS)"
+
+meaning-eval-checks: ## Record deterministic check coverage for contextual documents (build kapi first)
+	python3 scripts/checkeval/check_documents.py --inputs "$(MEANING_EVAL_INPUTS)/subject/inputs.jsonl" --kapi bin/kapi --out "$(MEANING_EVAL_DIR)-checks"
+
+meaning-eval-preflight: ## Verify fixed-document subscription review readiness without inference
+	$(GO) run ./scripts/skilleval -meaning-inputs "$(MEANING_EVAL_INPUTS)/subject" -meaning-dir "$(MEANING_EVAL_DIR)"
+
+meaning-eval-run: ## Review at most six fixed documents using the subscription (consumes plan allowance)
+	$(GO) run ./scripts/skilleval -meaning-inputs "$(MEANING_EVAL_INPUTS)/subject" -meaning-dir "$(MEANING_EVAL_DIR)" -meaning-live -meaning-max-attempts $(MEANING_EVAL_MAX_ATTEMPTS)
+
 PRIORAB_ARGS ?=
 # Costs model calls. Two halves: a deterministic consistency check (does the
 # approved wording survive) and a judged quality score. Only the first should be

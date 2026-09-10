@@ -122,7 +122,7 @@
         {
           "id": "edit-identities",
           "path": "cli/skills/data/kapi/references/edit.md",
-          "git_blob": "bb4a70911cf09e958eee0f90db20f4c29e156e06",
+          "git_blob": "c507790fcf5ad0a0ac9a8b30a59b61cce8f7bd46",
           "start_line": 15,
           "end_line": 38,
           "text": "## 1. Read the blocks\n\n`kapi inspect` parses any format into one record per content block, carrying the\ntext, the block's structural role, a stable `id`, and a `content_hash`:\n\n```bash\nkapi inspect report.docx --jsonl\n```\n\n```json\n{\"file\":\"report.docx\",\"number\":1,\"id\":\"p1\",\"content_hash\":\"a1b2c3…\",\"role\":\"heading\",\"level\":1,\"text\":\"Quarterly summary\"}\n{\"file\":\"report.docx\",\"number\":2,\"id\":\"p2\",\"content_hash\":\"d4e5f6…\",\"role\":\"body\",\"text\":\"Revenue rose, see the <x id=\\\"1/\\\"/> dashboard.\"}\n```\n\nTwo fields anchor an edit:\n\n- **`text`** renders inline codes (links, bold spans, placeholders) as\n  `<x id=\"…\"/>` tokens. **Keep every token, unchanged, in your edited text.**\n  They are the markup the round-trip reconstructs. A placeholder is\n  `<x id=\"1/\"/>`; a paired span opens with `<x id=\"1\"/>` and closes with\n  `<x id=\"/1\"/>`. Reorder or drop one and the edit is rejected (see §3).\n- **`content_hash`** is the block's canonical identity (a hash of its plain\n  source text, not of the placeholder `text`). Send it back with the edit so\n  kapi can tell the block is still the one you read.\n"
@@ -130,7 +130,7 @@
         {
           "id": "edit-apply",
           "path": "cli/skills/data/kapi/references/edit.md",
-          "git_blob": "bb4a70911cf09e958eee0f90db20f4c29e156e06",
+          "git_blob": "c507790fcf5ad0a0ac9a8b30a59b61cce8f7bd46",
           "start_line": 40,
           "end_line": 66,
           "text": "## 2. Write the edits\n\nProduce one `content` entry per block you changed, as JSONL with one entry per\nline, naming the block's `file`, `id`, the `content_hash` you saw, and your new\n`text`:\n\n```json\n{\"kind\":\"content\",\"file\":\"report.docx\",\"id\":\"p2\",\"content_hash\":\"d4e5f6…\",\"text\":\"Revenue climbed; see the <x id=\\\"1/\\\"/> dashboard.\"}\n```\n\nThen apply it. `kapi apply` is the one write verb. It reads the change-set from\na file, an argument, or stdin, and writes each named file in place:\n\n```bash\nkapi inspect report.docx --jsonl > blocks.jsonl\n# You rewrite the \"text\" of each changed block (keeping the <x id=\"…\"/> tags) and\n# write those content entries to edits.jsonl — there is no command for it; you\n# are the writer. Then:\nkapi apply edits.jsonl --diff          # preview the content changes, write nothing\nkapi apply edits.jsonl                  # apply in place\nkapi apply edits.jsonl --in-place=.bak  # apply, keeping a .bak of each file\n```\n\n`kapi apply` is the sole write verb, covering every case (one file or many,\ncontent alone or content mixed with asset edits; see\n[Mixed change-sets](#mixed-change-sets)). kapi never sends content to a model to\nrewrite it; you write the new text and `kapi apply` round-trips it back.\n"
@@ -138,7 +138,7 @@
         {
           "id": "edit-recovery",
           "path": "cli/skills/data/kapi/references/edit.md",
-          "git_blob": "bb4a70911cf09e958eee0f90db20f4c29e156e06",
+          "git_blob": "c507790fcf5ad0a0ac9a8b30a59b61cce8f7bd46",
           "start_line": 68,
           "end_line": 99,
           "text": "## 3. The two guards\n\n`apply` writes a block only when both guards pass; a blocked edit leaves that\nblock untouched and is reported, so nothing is silently corrupted:\n\n- **Drift guard.** If a block's current `content_hash` no longer matches the one\n  in your entry, the source changed since you inspected it. The edit is marked\n  **stale** and skipped.\n- **Inline-code guard.** If your edited `text` drops, invents, duplicates, or\n  unbalances an `<x id=\"…\"/>` token, the edit is **rejected** rather than written\n  back with broken markup.\n\nEither outcome exits on the **gate code (3)**, distinct from an operational\nerror. Treat it as a signal to **re-inspect the affected blocks and retry** with\nfresh hashes, the same loop a failing check drives. `apply` is idempotent: an\nentry whose text already matches the block is a no-op, so re-running a partly\napplied change-set is safe.\n\n## 4. Verify\n\nCheck the file you edited. In a project, its applicable voice and terms resolve\nfrom the file's path:\n\n```bash\nkapi check report.docx --json\n```\n\nRead the findings and analyzer coverage, fix relevant flagged blocks through\nanother `apply` pass, and re-check. Review meaning and any unsupported guidance\nagainst the retrieved context. A passing report does not establish those\njudgments. Use `kapi check --ship --json` when the task also requires checking\nproject release gates.\n"
@@ -146,7 +146,7 @@
         {
           "id": "edit-formats",
           "path": "cli/skills/data/kapi/references/edit.md",
-          "git_blob": "bb4a70911cf09e958eee0f90db20f4c29e156e06",
+          "git_blob": "c507790fcf5ad0a0ac9a8b30a59b61cce8f7bd46",
           "start_line": 101,
           "end_line": 120,
           "text": "## Which formats can I edit?\n\n`kapi formats` reports an **Edit** column and the JSON adds `editable` and\n`round_trip`:\n\n```bash\nkapi formats --json | jq -r '.formats[] | select(.editable) | .name'\n```\n\nA format is **editable** when it has both a reader and a writer and is not a\nbilingual interchange format. That **includes binary office formats** (`.docx`,\n`.pptx`, `.xlsx`): the faithful round-trip is exactly what makes editing a binary\ncontainer safe. `round_trip` (shown as `faithful` in the table) means the writer\nreconstructs from a skeleton, so only your edited text changes and the rest is\nbyte-for-byte preserved. A read-only format (PDF is extraction-only) is not\neditable. To translate it, extract to a bilingual format and merge (see\n[translate.md](translate.md)).\n\nBinary formats can be **edited in place but not authored from scratch**; to\ncreate new content, author in a generative format (see [create.md](create.md)).\n"

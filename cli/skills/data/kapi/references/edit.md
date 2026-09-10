@@ -122,7 +122,10 @@ create new content, author in a generative format (see [create.md](create.md)).
 ## Mixed change-sets
 
 A `content` edit and the asset change that justifies it (a `term` entry, a
-`voice` rule) can land **atomically in one `kapi apply`**. Every reviewed
-change, content or asset, is one typed entry routed through the single write
-verb. See [create.md → close the loop](create.md) for the asset entry shapes;
-for the voice-vocabulary case specifically, [voice.md](voice.md).
+`voice` rule) can share one `kapi apply` invocation. The change-set is not a
+transaction: successful entries can remain applied when another entry fails.
+Inspect the per-entry report and resulting diff before retrying unfinished
+work; re-inspect stale content and use its current hashes. Every reviewed
+change is one typed entry routed through the single write verb. See
+[create.md → close the loop](create.md) for the asset entry shapes; for the
+voice-vocabulary case specifically, [voice.md](voice.md).

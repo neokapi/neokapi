@@ -72,8 +72,9 @@ The `context-discovery` reference covers two visits. On the first, the
 assistant assembles a project's context from the user's material. On a later
 one it diffs new material against what the project already holds and proposes
 a **refresh**: a change-set the user approves (`kapi apply refresh.jsonl`), so
-terms and voice rules land atomically and nothing is rewritten behind the user's
-back.
+terms and voice rules are explicit reviewed entries. Successful entries can
+remain applied when another entry fails; the assistant inspects the report and
+the resulting diff before retrying unfinished work.
 
 The `i18n` concern is itself a tree. `references/i18n.md` detects the stack and
 routes into `references/i18n/`, driven by a machine-readable framework registry
@@ -249,9 +250,11 @@ and skipped. An edit that drops, invents, or unbalances an inline code is
 *rejected* by the fidelity guard rather than written as broken markup. Either
 outcome exits non-zero so the fix loop re-inspects and retries.
 
-A mixed change-set (a content fix plus the `term` or `voice` rule that justifies
-it) lands atomically, so the draft and the rule that governs future drafts move
-together.
+A mixed change-set can contain a content fix and the `term` or `voice` rule that
+justifies it. The operation does not provide a transaction across those entries:
+successful asset and content writes can remain when another entry fails. The
+assistant reads the per-entry results and resulting diff, re-inspects stale
+content, and retries only the work that remains.
 
 A review decision is the one write that also has verbs of its own. On MCP,
 `approve_unit`, `reject_unit` and `sign_off_unit` record a unit's outcome
@@ -356,8 +359,8 @@ output.
 - Progressive disclosure keeps the router cheap and loads detail only on a match.
 - The attended loops call no provider: the assistant writes, kapi round-trips,
   drift-checks, and gates.
-- One write verb covers content and asset edits, a mixed change-set lands
-  atomically, and `git diff` is the uniform review surface for all of it.
+- One write verb covers content and asset edits, reports partial outcomes, and
+  uses `git diff` as the uniform review surface for all of it.
 - A curated MCP surface means the agent-facing tool list is a reviewed decision;
   the code-execution exclusion is a test, so widening the surface can never
   silently grant shell access.

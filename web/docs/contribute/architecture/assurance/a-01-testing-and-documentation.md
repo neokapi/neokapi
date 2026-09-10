@@ -231,6 +231,14 @@ additional review pass, with context, model and resource budgets accounted for.
 Entity extraction accuracy and latency are measured separately from the
 contextual judgments that consume those entities.
 
+Fixed-document probes hold candidate text and evidence constant to isolate
+review capability before comparing authoring loops. They retain valid document
+controls and consequential omissions as well as contradicted claims. Source
+provenance and output-integrity checks establish traceability, not semantic
+correctness. Independent agent label review remains distinct from human
+adjudication, and direct model review is not attributed to a product analyzer
+that did not execute.
+
 Agent comparisons hold the task, model, relevant guidance and resource limits
 constant. They counterbalance order and retain failed and capped runs. Fewer
 edits or tool calls do not establish better quality. Reports distinguish
