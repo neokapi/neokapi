@@ -28,6 +28,13 @@ func meaningContextualRequest(input meaningInput) contextual.Request {
 
 func buildMeaningPrompt(instruction, protocol string, input meaningInput) (string, error) {
 	instruction += "\n\nDo not call tools, inspect files, browse, or execute commands."
+	if meaningProtocol(protocol) == "anchored" {
+		prompt, err := contextual.BuildAnchoredPrompt(meaningContextualRequest(input))
+		if err != nil {
+			return "", fmt.Errorf("anchored input %s: %w", input.ID, err)
+		}
+		return instruction + "\n\n" + prompt, nil
+	}
 	if meaningProtocol(protocol) == "requirements" {
 		prompt, err := contextual.BuildPrompt(meaningContextualRequest(input))
 		if err != nil {
@@ -48,6 +55,9 @@ func validateMeaningProtocol(text, protocol string, input meaningInput) meaningI
 }
 
 func validateMeaningPayload(text, protocol string, input meaningInput) meaningIntegrity {
+	if meaningProtocol(protocol) == "anchored" {
+		return validateMeaningAnchored(text, input)
+	}
 	if meaningProtocol(protocol) != "requirements" {
 		return validateMeaningReview(text, input)
 	}

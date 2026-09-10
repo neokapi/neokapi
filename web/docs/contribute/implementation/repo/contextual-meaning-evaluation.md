@@ -226,6 +226,10 @@ retain those identities before considering evidence reuse.
 
 ### Matched comparison with ordinary review
 
+The quote-based protocol uses `contextual-requirements/v2`. Its prompt and
+response contract remain separate from the anchored protocol below, allowing
+matched comparisons without changing the control's instructions.
+
 The comparison gives both modes identical candidate text, sources and explicit
 requirements. `ordinary` uses the existing open finding-list protocol;
 `requirements` uses the shared framework prompt and requires a full assessment
@@ -301,6 +305,45 @@ remain unrun development controls. An independent agent assesses the cases
 before live review, with disagreements resolved and recorded separately from
 the authored labels. This small probe checks behavior on fresh families; it
 does not estimate generalization, human acceptance or a product advantage.
+
+### Passage selection and explicit claim comparison
+
+`BuildAnchoredPrompt` and `ParseAnchoredResponse` provide a separate opt-in
+contract, `anchored-requirements/v1`. The request retains the original candidate
+and derives numbered paragraph spans with exact text and UTF-8 byte offsets.
+The reviewer selects passage IDs instead of reproducing quotations. Parsing
+resolves those IDs against the request; unknown or repeated IDs fail validation.
+The native result and advisory findings retain the selected spans. Separate
+passages are never concatenated into a purported contiguous quotation.
+
+Each conflict states the model's interpretation of the candidate claim and the
+source claim, together with their evidence and an explanation of the
+incompatibility. A wrong actor, object or condition may itself be the conflict;
+the two claims need alignment, not identical roles or scope. A heading or field
+description alone does not assert that a required action is optional. When the
+problem is an absent instruction, it belongs in the requirement assessment.
+An additional conflict needs an independently asserted incompatible claim.
+
+The parser validates structure and references. It cannot establish whether the
+selected paragraph asserts the model's paraphrase, whether the source supports
+the comparison, or whether two findings describe the same defect. It does not
+silently discard alleged conflicts based on overlapping references or keywords.
+Reports show both model interpretations beside the selected original passages
+so those errors remain inspectable.
+
+```sh
+make meaning-eval-prepare-evidence MEANING_EVAL_INPUTS=harness/out/evidence-inputs
+make meaning-eval-preflight MEANING_EVAL_INPUTS=harness/out/evidence-inputs MEANING_EVAL_DIR=harness/out/evidence-review
+make meaning-eval-run MEANING_EVAL_INPUTS=harness/out/evidence-inputs MEANING_EVAL_DIR=harness/out/evidence-review
+```
+
+The six-session comparison pairs the unchanged quote-based requirements
+protocol with the anchored protocol on the museum transfer, editorial omission
+and faulty destination-guidance cases. Both receive identical task evidence and
+requirements. Only the anchored prompt adds derived passage IDs and explicit
+claim-comparison instructions. This bundled intervention targets known
+development failures and preservation of real conflicts; it does not isolate
+the effect of evidence selection or establish performance on held-out cases.
 
 ## What counts as evidence
 

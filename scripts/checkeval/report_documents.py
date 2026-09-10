@@ -8,6 +8,24 @@ import json
 from pathlib import Path
 
 
+def evidence_html(evidence):
+    spans = evidence.get("candidate_spans", [])
+    if spans:
+        return "".join(
+            f"<p><strong>Selected passage {html.escape(s['id'])}</strong> · UTF-8 bytes {s['start']}–{s['end']}</p>"
+            f"<blockquote><pre>{html.escape(s['text'])}</pre></blockquote>" for s in spans
+        )
+    return f"<blockquote>{html.escape(evidence.get('candidate_quote', '')) or '(no candidate passage selected)'}</blockquote>"
+
+
+def claims_html(evidence):
+    if "candidate_claim" not in evidence:
+        return ""
+    return (f"<p><strong>Model interpretation of candidate:</strong> {html.escape(evidence['candidate_claim'])}</p>"
+            f"<p><strong>Model interpretation of source:</strong> {html.escape(evidence['source_claim'])}</p>"
+            "<p>These claim summaries are model judgments. Valid passage references do not establish that the summaries are supported.</p>")
+
+
 def render(prepared, study, checks, output, assessment_path=None):
     raw = (prepared / "subject/inputs.jsonl").read_bytes()
     if raw != (study / "inputs.jsonl").read_bytes():
@@ -37,6 +55,10 @@ def render(prepared, study, checks, output, assessment_path=None):
         review = integrity.get("review") or {}
         parsed = integrity["valid"] and integrity.get("review") is not None
         findings = (review.get("findings") or []) if parsed else []
+        anchored = (integrity.get("anchored") or {}) if parsed else {}
+        if anchored:
+            findings = [{**f, "kind": "conflict"} for f in anchored["conflicts"]]
+            findings += [{**r, "kind": "omission"} for r in anchored["requirements"] if r["status"] == "missing"]
         abstentions = (review.get("abstentions") or []) if parsed else []
         deterministic = coverage_by_id[case["id"]]
         analyses = (deterministic.get("execution") or {}).get("analyzers", [])
@@ -51,7 +73,7 @@ def render(prepared, study, checks, output, assessment_path=None):
             f"<td>{len(label['issues'])}</td></tr>"
         )
         finding_html = "".join(
-            f"<li><strong>{escape(f['kind'])}</strong><blockquote>{escape(f['candidate_quote']) or '(missing guidance)'}</blockquote>"
+            f"<li><strong>{escape(f['kind'])}</strong>{evidence_html(f)}{claims_html(f)}"
             f"<p>{escape(f['rationale'])}</p><p>Evidence: {escape(', '.join(f['source_ids'] or []))}</p></li>"
             for f in findings
         ) or ("<li>No findings reported.</li>" if parsed else "<li>Output could not be parsed; inspect the raw answer below.</li>")
@@ -69,13 +91,13 @@ def render(prepared, study, checks, output, assessment_path=None):
             f"<li><strong>{escape(r['id'])}</strong>: {escape(r['description'])}</li>"
             for r in case.get("requirements", [])
         )
-        contextual = (integrity.get("contextual") or {}) if parsed else {}
+        contextual = (integrity.get("contextual") or anchored) if parsed else {}
         coverage_html = "".join(
             f"<li><strong>{escape(r['requirement_id'])}: {escape(r['status'])}</strong>"
-            f"<blockquote>{escape(r['candidate_quote'])}</blockquote><p>{escape(r['rationale'])}</p></li>"
+            f"{evidence_html(r)}<p>{escape(r['rationale'])}</p></li>"
             for r in contextual.get("requirements", [])
         )
-        suggestions_html = "".join(f"<li>{escape(s['rationale'])}</li>" for s in contextual.get("suggestions", []))
+        suggestions_html = "".join(f"<li>{evidence_html(s)}{escape(s['rationale'])}</li>" for s in contextual.get("suggestions", []))
         contextual_html = ""
         if contextual:
             contextual_html = (f"<h3>Requirement coverage</h3><ul>{coverage_html}</ul>"
@@ -104,7 +126,15 @@ def render(prepared, study, checks, output, assessment_path=None):
             f"findings: {len(deterministic.get('findings',[]))}</p><p>{escape(statuses)}</p></details></section>"
         )
     comparison_html = ""
-    if any(session.get("protocol") == "requirements" for session in manifest["sessions"]):
+    if manifest.get("study") == "contextual-evidence-comparison":
+        comparison_html = (
+            "<p>Targeted evidence comparison: the unchanged quote-based requirements protocol and the anchored protocol receive "
+            "identical candidate text, sources and requirements. The anchored arm adds derived paragraph IDs and asks for an explicit "
+            "comparison of claims. This is a bundled intervention; it cannot isolate the effect of anchors from review instructions. "
+            "Three development cases target quote reliability, spurious duplicate conflicts and preservation of real conflicts. "
+            "They are not held out, and one attempt per mode cannot establish general reliability or a speed advantage.</p>"
+        )
+    elif any(session.get("protocol") == "requirements" for session in manifest["sessions"]):
         selection = ("These three cases come from fresh synthetic document families, selected before model review. "
                      "The remaining variants are unrun development controls; this is not an independent benchmark. "
                      if manifest.get("study") == "action-coverage-comparison" else

@@ -85,12 +85,13 @@ type meaningResult struct {
 }
 
 type meaningIntegrity struct {
-	Valid      bool               `json:"valid"`
-	Errors     []string           `json:"errors"`
-	Review     *meaningReview     `json:"review,omitempty"`
-	Contextual *contextual.Result `json:"contextual,omitempty"`
-	Transport  *meaningTransport  `json:"transport,omitempty"`
-	Scope      string             `json:"scope"`
+	Valid      bool                       `json:"valid"`
+	Errors     []string                   `json:"errors"`
+	Review     *meaningReview             `json:"review,omitempty"`
+	Contextual *contextual.Result         `json:"contextual,omitempty"`
+	Anchored   *contextual.AnchoredResult `json:"anchored,omitempty"`
+	Transport  *meaningTransport          `json:"transport,omitempty"`
+	Scope      string                     `json:"scope"`
 }
 
 type meaningReview struct {
@@ -231,7 +232,7 @@ func loadMeaningStudy(opts MeaningOptions) (meaningStudy, map[string]meaningInpu
 		return study, inputs, prompts, err
 	}
 	for _, session := range study.Manifest.Sessions {
-		if session.Protocol != "requirements" {
+		if meaningProtocol(session.Protocol) == "ordinary" {
 			continue
 		}
 		study.ContextualCodeHash, err = pairedTreeHash(filepath.Join(opts.RepoRoot, "core", "check", "contextual"))
@@ -316,7 +317,7 @@ func validateMeaningManifest(m meaningManifest, inputs map[string]meaningInput) 
 	for _, session := range m.Sessions {
 		_, known := inputs[session.CaseID]
 		protocol := meaningProtocol(session.Protocol)
-		if protocol != "ordinary" && protocol != "requirements" {
+		if protocol != "ordinary" && protocol != "requirements" && protocol != "anchored" {
 			return fmt.Errorf("unknown meaning protocol %q", session.Protocol)
 		}
 		pair := session.Host + ":" + session.CaseID + ":" + protocol

@@ -256,6 +256,15 @@ An action-coverage judgment requires evidence of the reader's necessary action,
 including faithful indirect instructions. Merely describing available options
 does not establish that the guide supplies the instruction.
 
+Evidence selection and claim grounding are distinct. Selected candidate
+passages resolve to exact text and offsets in an immutable request. The
+reviewer's interpretation of a passage remains an assertion requiring separate
+assessment. A conflict compares the candidate and source claims, including any
+wrong actor, object or condition. An omitted instruction alone does not assert
+permission to skip it. Findings sharing a passage or concern remain separate
+when each identifies an independently supported problem; reference overlap is
+not grounds for automatic suppression.
+
 Agent comparisons hold the task, model, relevant guidance and resource limits
 constant. They counterbalance order and retain failed and capped runs. Fewer
 edits or tool calls do not establish better quality. Reports distinguish
