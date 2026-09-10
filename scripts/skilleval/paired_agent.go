@@ -39,16 +39,18 @@ type PairedPrepared struct {
 // PairedAgentResult reports observed execution, independently of content scoring.
 // Token counts are usage observations, not subscription quota or dollar charges.
 type PairedAgentResult struct {
-	Status         string   `json:"status"`
-	Error          string   `json:"error,omitempty"`
-	RequestedModel string   `json:"requested_model"`
-	ActualModel    string   `json:"actual_model,omitempty"`
-	SessionID      string   `json:"session_id,omitempty"`
-	DurationMS     int64    `json:"duration_ms"`
-	InputTokens    int64    `json:"input_tokens"`
-	OutputTokens   int64    `json:"output_tokens"`
-	Tools          []string `json:"tools"`
-	RateLimited    bool     `json:"rate_limited"`
-	QuotaStatus    string   `json:"quota_status"`
-	FinalText      string   `json:"final_text,omitempty"`
+	UsageObserved     bool     `json:"usage_observed"`
+	ProtocolCompleted bool     `json:"protocol_completed"`
+	Status            string   `json:"status"`
+	Error             string   `json:"error,omitempty"`
+	RequestedModel    string   `json:"requested_model"`
+	ActualModel       string   `json:"actual_model,omitempty"`
+	SessionID         string   `json:"session_id,omitempty"`
+	DurationMS        int64    `json:"duration_ms"`
+	InputTokens       int64    `json:"input_tokens"`
+	OutputTokens      int64    `json:"output_tokens"`
+	Tools             []string `json:"tools"`
+	RateLimited       bool     `json:"rate_limited"`
+	QuotaStatus       string   `json:"quota_status"`
+	FinalText         string   `json:"final_text,omitempty"`
 }
