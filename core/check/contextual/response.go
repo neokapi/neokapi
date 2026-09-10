@@ -19,6 +19,9 @@ type Evidence struct {
 }
 
 // RequirementAssessment records mandatory coverage, including explicit abstention.
+// Covered means the required action or decision is addressed; factual accuracy
+// is assessed independently through conflicts. Missing means an instruction is
+// absent, and uncertain records unresolved coverage.
 type RequirementAssessment struct {
 	RequirementID string `json:"requirement_id"`
 	Status        string `json:"status"`

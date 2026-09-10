@@ -85,6 +85,42 @@ func TestFaithfulParaphraseAndAbstentionProduceNoPenalty(t *testing.T) {
 	}
 }
 
+func TestAddressedActionCanConflictWithoutBeingMissing(t *testing.T) {
+	request := taskRequest()
+	request.Candidate = "Ask an owner to restart the export, then clear its lock."
+	text := `{
+		"conflicts": [{"candidate_quote":"then clear its lock", "source_ids":["restart"],
+			"rationale":"The source requires clearing the lock before the restart, not after it."}],
+		"requirements": [{"requirement_id":"clear-lock", "status":"covered",
+			"candidate_quote":"Ask an owner to restart the export, then clear its lock.",
+			"source_ids":["restart"], "rationale":"The lock-clearing action is explicitly addressed, but its ordering has a separately reported conflict."}],
+		"suggestions": []
+	}`
+	result, err := contextual.ParseResponse(request, text)
+	require.NoError(t, err)
+	require.Len(t, result.Findings, 1)
+	assert.Equal(t, "conflict", result.Findings[0].Category)
+	assert.Equal(t, "covered", result.Requirements[0].Status)
+	prompt, err := contextual.BuildPrompt(request)
+	require.NoError(t, err)
+	assert.Contains(t, prompt, "not that its treatment is factually correct")
+	assert.Contains(t, prompt, "Missing means a necessary instruction is absent")
+}
+
+func TestAbsentVariablesRetainExactRequestRepresentation(t *testing.T) {
+	request := taskRequest()
+	request.Variables = nil
+	withoutVariables, err := contextual.Fingerprint(request)
+	require.NoError(t, err)
+	prompt, err := contextual.BuildPrompt(request)
+	require.NoError(t, err)
+	assert.Contains(t, prompt, `"variables":null`)
+	request.Variables = map[string]any{}
+	withEmptyVariables, err := contextual.Fingerprint(request)
+	require.NoError(t, err)
+	assert.NotEqual(t, withoutVariables, withEmptyVariables)
+}
+
 func TestResponseRejectsInventedCoverageAndInvalidEvidence(t *testing.T) {
 	tests := []struct {
 		name string
