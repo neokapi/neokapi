@@ -2,18 +2,20 @@ package sectionedit
 
 import (
 	"archive/zip"
+	"bufio"
 	"bytes"
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"html"
 	"io"
 	"strconv"
 	"strings"
 
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
+	goldmarkhtml "github.com/yuin/goldmark/renderer/html"
 	"github.com/yuin/goldmark/text"
-	"github.com/yuin/goldmark/util"
 )
 
 const wordNamespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
@@ -114,8 +116,24 @@ func readDOCX(data []byte) (*docxDocument, error) {
 			return nil, fmt.Errorf("duplicate DOCX entry %q", file.Name)
 		}
 		seen[file.Name] = true
+		if strings.HasPrefix(strings.ToLower(file.Name), "_xmlsignatures/") {
+			return nil, errors.New("DOCX section editing does not support digitally signed packages")
+		}
+		if strings.HasSuffix(file.Name, ".rels") {
+			content, err := readDOCXPart(file)
+			if err != nil {
+				return nil, err
+			}
+			if err := docxRejectSignatureRelationships(content); err != nil {
+				return nil, err
+			}
+			if file.Name == "word/_rels/document.xml.rels" {
+				parts[file.Name] = content
+			}
+			continue
+		}
 		switch file.Name {
-		case "word/document.xml", "word/styles.xml", "word/numbering.xml", "word/_rels/document.xml.rels":
+		case "word/document.xml", "word/styles.xml", "word/numbering.xml":
 			content, err := readDOCXPart(file)
 			if err != nil {
 				return nil, err
@@ -614,7 +632,13 @@ func (writer *docxMarkdown) inlines(parent ast.Node, props string) error {
 		case *ast.Text:
 			value := child.Segment.Value(writer.source)
 			if !strings.Contains(props, "rFonts") {
-				value = util.ResolveEntityNames(util.ResolveNumericReferences(util.UnescapePunctuations(value)))
+				// Goldmark's writer resolves escapes and entities in one pass.
+				// Separate decoding passes would turn literal \&copy; into ©.
+				var rendered bytes.Buffer
+				buffered := bufio.NewWriter(&rendered)
+				goldmarkhtml.DefaultWriter.Write(buffered, value)
+				_ = buffered.Flush() // bytes.Buffer writes cannot fail.
+				value = []byte(html.UnescapeString(rendered.String()))
 			}
 			writer.run(string(value), props)
 			if child.HardLineBreak() {
@@ -706,4 +730,19 @@ func docxNumberingBound(data []byte) (bool, error) {
 		}
 	}
 	return false, nil
+}
+
+func docxRejectSignatureRelationships(data []byte) error {
+	root, err := parseDOCXXML(data)
+	if err != nil {
+		return err
+	}
+	for _, relationship := range root.children {
+		for _, attr := range relationship.attrs {
+			if attr.Name.Local == "Type" && strings.Contains(attr.Value, "/digital-signature/") {
+				return errors.New("DOCX section editing does not support digitally signed packages")
+			}
+		}
+	}
+	return nil
 }

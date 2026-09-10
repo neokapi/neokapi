@@ -293,3 +293,78 @@ func TestDOCXExplicitOutlineAndNamespacePrefix(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestDOCXMarkdownEntityDecodingIsSinglePass(t *testing.T) {
+	data := docxTestArchive(t, docxTestDocument(docxTestHeading("Target", "Heading1")))
+	cases := map[string]string{
+		`Use \&copy; literally.`:              "Use &copy; literally.",
+		`Use &#38;copy; literally.`:           "Use &copy; literally.",
+		`Use \&#65; literally.`:               "Use &#65; literally.",
+		`Use &amp;copy; literally.`:           "Use &copy; literally.",
+		`Use &copy; and &#65; as characters.`: "Use © and A as characters.",
+		"Keep `&copy;` in code.":              "Keep &copy; in code.",
+	}
+	for fragment, expected := range cases {
+		t.Run(fragment, func(t *testing.T) {
+			patches, err := planDOCX(data, 0, fragment)
+			if err != nil {
+				t.Fatal(err)
+			}
+			node, err := parseDOCXXML([]byte(patches[0].Replacement))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if actual := docxText(node); actual != expected {
+				t.Fatalf("replacement text = %q; want %q", actual, expected)
+			}
+		})
+	}
+}
+
+func TestDOCXRejectsSignaturePartsAndRelationships(t *testing.T) {
+	data := docxTestArchive(t, docxTestDocument(docxTestHeading("Target", "Heading1")))
+	cases := map[string]string{
+		"_xmlsignatures/sig1.xml":           `<Signature/>`,
+		"_rels/.rels":                       `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Type="http://schemas.openxmlformats.org/package/2006/relationships/digital-signature/origin" Target="signatures/origin.sigs"/></Relationships>`,
+		"signatures/_rels/origin.sigs.rels": `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Type="http://schemas.openxmlformats.org/package/2006/relationships/digital-signature/signature" Target="elsewhere.xml"/></Relationships>`,
+	}
+	for name, content := range cases {
+		t.Run(name, func(t *testing.T) {
+			signed := docxTestSetPart(t, data, name, content)
+			if _, err := inspectDOCX(signed); err == nil || !strings.Contains(err.Error(), "digitally signed") {
+				t.Fatalf("signed package inspection: %v", err)
+			}
+			if _, err := planDOCX(signed, 0, "Replacement"); err == nil {
+				t.Fatal("signed package replacement accepted")
+			}
+		})
+	}
+}
+
+func docxTestSetPart(t *testing.T, data []byte, name, content string) []byte {
+	t.Helper()
+	archive, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var output bytes.Buffer
+	writer := zip.NewWriter(&output)
+	for _, part := range archive.File {
+		if part.Name != name {
+			if err := writer.Copy(part); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	part, err := writer.Create(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := part.Write([]byte(content)); err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return output.Bytes()
+}
