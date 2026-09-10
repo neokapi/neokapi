@@ -116,6 +116,20 @@ def assemble(root, assessment, output):
         reference(source["id"], source["title"], bundle.copy("sources/" + source["file"], source["sha256"]), source["url"])
     for repository, license in sources["licenses"].items():
         reference("license-" + repository, repository + " — retained license", bundle.copy("sources/" + license["file"], license["sha256"]), license["url"])
+    for name, title in {
+        "learning-assessment.json": "Independent learning assessment",
+        "draft-assessment.json": "Independent original draft assessment",
+        "initial-route-audit.json": "Initial observed tool-route audit",
+        "final-route-audit.json": "Final observed tool-route audit",
+    }.items():
+        if bundle.exists(name):
+            reference(name.removesuffix(".json"), title, bundle.copy(name))
+    if bundle.exists("checks/index.json"):
+        checks = bundle.read("checks/index.json")
+        reference("post-run-checks", "Independent post-run deterministic check inventory", bundle.copy("checks/index.json"))
+        for position, record in enumerate(checks["records"]):
+            reference("post-run-check-" + str(position), "Independent post-run deterministic check: " + record["document"],
+                      bundle.copy("checks/" + record["file"], record["sha256"]))
     stages = {name: stage(bundle, name) for name in ("learn", "draft", *ARMS)}
     if bundle.exists("ledger/stages/prior-auth-failure"):
         if not bundle.exists("ledger/stages/prior-auth-failure/frozen.json"):

@@ -133,6 +133,27 @@ class ContextTransferBundleTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "hash differs"):
                 assemble(root, assessment, Path(temporary) / "tampered")
 
+    def test_optional_assessments_and_post_run_checks_are_retained_and_verified(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root, output = Path(temporary) / "run", Path(temporary) / "bundle"
+            assessment = fixture(root)
+            for name in ("learning-assessment.json", "draft-assessment.json", "initial-route-audit.json", "final-route-audit.json"):
+                (root / name).write_text(json.dumps({"notes": ["Retained independent evidence."]}))
+            (root / "checks").mkdir()
+            check = root / "checks/overview.json"
+            check.write_text(json.dumps({"schema": "kapi.check/v1", "execution": {"analyzers": [{"id": "voice.guidance", "status": "unsupported"}]}}))
+            (root / "checks/index.json").write_text(json.dumps({"records": [{"document": "README.md", "file": "overview.json", "sha256": digest(check.read_bytes()),
+                                                                           "duration_ms": 12, "exit_code": 0, "stderr": "", "meaning": "Independent post-run deterministic check."}], "model_calls": 0}))
+            assemble(root, assessment, output)
+            index, _, _ = load_index(output / "index.json")
+            ids = {item["id"] for item in index["references"]}
+            self.assertTrue({"learning-assessment", "draft-assessment", "initial-route-audit", "final-route-audit", "post-run-checks", "post-run-check-0"} <= ids)
+            self.assertEqual((output / "checks/overview.json").read_bytes(), check.read_bytes())
+            self.assertTrue(any(item["title"] == "Independent post-run deterministic check: README.md" for item in index["references"]))
+            check.write_text("Tampered check result")
+            with self.assertRaisesRegex(ValueError, "hash differs"):
+                assemble(root, assessment, Path(temporary) / "tampered")
+
     def test_plain_context_must_match_actual_resolver_bytes(self):
         with tempfile.TemporaryDirectory() as temporary:
             root, output = Path(temporary) / "run", Path(temporary) / "bundle"
