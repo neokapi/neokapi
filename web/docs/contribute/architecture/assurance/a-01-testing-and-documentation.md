@@ -215,6 +215,22 @@ uses separate document families and clean counterexamples, with independent
 labels for semantic and reader-facing judgments. The product's own checker is
 not the sole judge of an experiment intended to establish its value.
 
+Content-meaning evaluation tests claims against their governing evidence:
+permissions, prerequisites, exceptions, certainty, participant roles and the
+binding of values to the things they describe. Structured values and arithmetic
+have separate integrity criteria. Preserving a placeholder does not establish
+that the surrounding sentence assigns it the right meaning. Valid paraphrases
+and identical wording under different context test both missed errors and false
+alarms. Missing evidence is distinguished from contradiction. Development
+contrasts specify capabilities; they do not establish accuracy on real documents.
+
+A semantic finding needs an affected passage, applicable source evidence and a
+correct explanation of the conflict. Matching a span or category alone does not
+validate that explanation. Model-backed analysis is compared with an equivalent
+additional review pass, with context, model and resource budgets accounted for.
+Entity extraction accuracy and latency are measured separately from the
+contextual judgments that consume those entities.
+
 Agent comparisons hold the task, model, relevant guidance and resource limits
 constant. They counterbalance order and retain failed and capped runs. Fewer
 edits or tool calls do not establish better quality. Reports distinguish

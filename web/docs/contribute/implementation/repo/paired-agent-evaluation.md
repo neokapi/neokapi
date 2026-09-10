@@ -149,6 +149,11 @@ the same partition.
 
 ### Scoped equipment-policy case
 
+This is a secondary workflow control for update propagation, preserved data and
+integration routing. It is not the primary test of content understanding. A
+reminder day normally belongs in structured configuration or a computed value;
+its arithmetic does not by itself justify a semantic checker feature.
+
 `testdata/paired-equipment-study.json` selects `revise-equipment-loan` for a
 six-condition batch. The fictional library decision changes three camera-loan
 surfaces, requires calculating a reminder day, and protects telescope policy,
@@ -173,6 +178,19 @@ known checker coverage from overall task success. Fixture tests establish these
 specific behaviors; they do not establish agent benefit or general semantic
 accuracy. Human review and review time remain unmeasured unless collected for a
 claim that needs them.
+
+### Contextual meaning
+
+Primary content evaluation holds source evidence and variable values fixed,
+then tests whether prose preserves their meaning. Correctness includes who may
+act, necessary conditions, exceptions, certainty and the association between a
+value and its subject. Exact output strings cannot judge valid paraphrases.
+
+The [contextual meaning evaluation plan](contextual-meaning-evaluation.md)
+defines development contrasts, evidence requirements and the staged experiment.
+The offline seed is separate from the paired runner and the published check
+dashboard. It does not create another live agent batch or a prose preference
+ballot. Existing immutable studies keep their original criteria and outcomes.
 
 ### Integration use and interpretation
 
