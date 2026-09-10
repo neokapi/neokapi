@@ -132,6 +132,18 @@ Natural task prompts measure end-to-end behavior, including discovery. Record
 failure to use an available integration as an outcome. Explicitly instructed
 diagnostic runs answer a separate execution question and retain their own labels.
 
+For each attempt, inspect the transcript for skill loading, context retrieval
+and actual kapi invocations. Record the check arguments and reported analyzer
+coverage. A completed session can use ordinary file tools throughout, and a
+check with an explicit profile can omit the destination's voice channel.
+Preserve these attempts in the assigned condition: excluding them would hide
+discovery failures. Report observed use alongside completion and artifact checks.
+
+When discovery fails, use a separately labelled diagnostic that explicitly asks
+the host to retrieve destination context and check the saved file. This tests
+whether the host exposes a usable integration. Keep its results separate from
+natural task outcomes, and include its attempts in the authorized batch ceiling.
+
 Independent validators inspect output files and protected content. A passing
 artifact check establishes its declared conditions. Human reviewers assess
 meaning, suitability and acceptance using a task rubric; absent labels remain

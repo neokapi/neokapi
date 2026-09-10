@@ -53,6 +53,13 @@ A scoped draft report keeps `target.kind: "text"` and records the destination in
 they describe the supplied snippet. `check_file` remains the post-save check for
 document extraction, structure and block locations.
 
+For project-scoped `check_file`, omit `profile_file` and `profile_pack` so the
+file's voice channel resolves from the project. Either explicit option replaces
+that voice selection; loading the project's profile YAML directly does not
+select the file's channel. Project terms still resolve for the file. Record the
+arguments when assessing check coverage, since a tool name alone does not
+establish which voice governed the check.
+
 The canonical CLI/MCP check report includes optional `execution.analyzers` and
 phase timings. An absent inventory means unreported coverage. Applicable
 semantic guidance has an explicit `unsupported` entry in a deterministic run;

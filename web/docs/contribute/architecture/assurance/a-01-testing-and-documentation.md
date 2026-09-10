@@ -234,6 +234,9 @@ support harness development; scored evaluations use separate document families.
 MCP preparation records server capabilities through protocol discovery. Server
 readiness, host exposure and observed agent use are separate evidence: a ready
 server alone establishes neither of the latter two.
+Assigned conditions retain attempts that never use the integration. Observed
+use and resolved check scope are reported alongside artifact validity, so
+completion alone cannot stand for successful context retrieval or checking.
 See [Paired agent evaluation](../../implementation/repo/paired-agent-evaluation.md)
 for the manifest, execution stages and evidence records.
 
