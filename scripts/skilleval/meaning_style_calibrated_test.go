@@ -13,7 +13,7 @@ func TestStyleCalibrationPreservesControlAndMatchedInput(t *testing.T) {
 	instruction := "Review supplied scoped writing guidance."
 	control, err := buildMeaningPrompt(instruction, "style", input)
 	require.NoError(t, err)
-	// Captured from the unchanged style/v1 control before adding calibration.
+	// Pins the original policy so matched controls remain reproducible.
 	assert.Equal(t, "51f0a3ec6cf0159dd93e06fbc20676d731d19b838b76d1615c2fc37298186756", meaningTextHash(control))
 	calibrated, err := buildMeaningPrompt(instruction, "style-calibrated", input)
 	require.NoError(t, err)
@@ -44,9 +44,15 @@ func TestStyleCalibrationSharesValidationWithDistinctEvidenceContract(t *testing
 	calibrated := validateMeaningProtocol(meaningStyleDeparture, "style-calibrated", input)
 	require.True(t, control.Valid, control.Errors)
 	require.True(t, calibrated.Valid, calibrated.Errors)
-	assert.Equal(t, "9e3e8510a757db2de0bc66fe2d9cefad7e603b362da3212fe7686a2b762bb85f", control.Style.RequestFingerprint)
+	assert.Equal(t,
+		"9e3e8510a757db2de0bc66fe2d9cefad7e603b362da3212fe7686a2b762bb85f",
+		control.Style.RequestFingerprint,
+	)
 	assert.Equal(t, control.Style.Schema, calibrated.Style.Schema)
-	assert.Equal(t, control.Style.Findings, calibrated.Style.Findings, "the parser must not prune or reinterpret semantic judgments")
+	assert.Equal(
+		t, control.Style.Findings, calibrated.Style.Findings,
+		"the parser must not prune or reinterpret semantic judgments",
+	)
 	assert.Equal(t, control.Style.Suggestions, calibrated.Style.Suggestions)
 	assert.Equal(t, meaningStyleContract, control.Style.AnalyzerContract)
 	assert.Equal(t, meaningStyleCalibratedContract, calibrated.Style.AnalyzerContract)

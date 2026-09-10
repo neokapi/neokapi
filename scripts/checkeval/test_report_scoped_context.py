@@ -12,9 +12,9 @@ class StyleIdentityTest(unittest.TestCase):
         self.case = {"id": "a", "candidate": "Café", "sources": [{"id": "resolved-voice", "text": "Be warm."}], "variables": {"resolved_context": {"point": {"channel": "support"}}}}
         candidate = [{"id": "c1", "text": "Café", "start": 0, "end": 5}]
         guide = [{"id": "g1", "text": "Be warm.", "start": 0, "end": 8}]
-        snapshot = {"input": {**self.case, "candidate_spans": candidate, "guidance_spans": guide}}
+        snapshot = {"analyzer_contract": "scoped-style/v1", "input": {**self.case, "candidate_spans": candidate, "guidance_spans": guide}}
         evidence = json.dumps(snapshot)
-        self.style = {"request_id": "a", "request_fingerprint": digest(evidence.encode()), "evidence": evidence,
+        self.style = {"analyzer_contract": "scoped-style/v1", "request_id": "a", "request_fingerprint": digest(evidence.encode()), "evidence": evidence,
                       "candidate_spans": candidate, "guidance_spans": guide, "findings": [], "suggestions": []}
 
     def test_matching_snapshot_and_utf8_bytes_are_accepted(self):
@@ -37,6 +37,10 @@ class StyleIdentityTest(unittest.TestCase):
         self.style["request_fingerprint"] = "wrong"
         with self.assertRaisesRegex(ValueError, "identity differs"):
             validate_style_identity(self.style, self.case)
+
+    def test_control_evidence_cannot_be_reported_as_calibrated(self):
+        with self.assertRaisesRegex(ValueError, "another review policy"):
+            validate_style_identity(self.style, self.case, "style-calibrated")
 
 
 if __name__ == "__main__":

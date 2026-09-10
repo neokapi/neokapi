@@ -7,6 +7,8 @@ import html
 import json
 from pathlib import Path
 
+CONTRACTS = {"style": "scoped-style/v1", "style-calibrated": "scoped-style/calibrated-v1"}
+
 
 def digest(data):
     return hashlib.sha256(data).hexdigest()
@@ -40,8 +42,11 @@ def evidence(items):
     ) or "<p>None reported.</p>"
 
 
-def validate_style_identity(style, case):
+def validate_style_identity(style, case, protocol="style"):
     snapshot = json.loads(style["evidence"])
+    contract = CONTRACTS[protocol]
+    if style["analyzer_contract"] != contract or snapshot["analyzer_contract"] != contract:
+        raise ValueError("Style evidence belongs to another review policy")
     if digest(style["evidence"].encode()) != style["request_fingerprint"] or style["request_id"] != case["id"]:
         raise ValueError("Style result identity differs from case")
     stored = dict(snapshot["input"])
@@ -81,7 +86,7 @@ def load_records(prepared, study, assessment_path=None):
         raise ValueError("Assessment belongs to different inputs")
     records = []
     for session in manifest["sessions"]:
-        if session["protocol"] != "style":
+        if session["protocol"] not in CONTRACTS:
             raise ValueError("This report accepts only native style reviews")
         case = cases[session["case_id"]]
         resolved_case = resolved[case["id"]]
@@ -106,18 +111,21 @@ def load_records(prepared, study, assessment_path=None):
         result = read(result_path)
         style = result["integrity"].get("style") if result["integrity"]["valid"] else None
         if style:
-            validate_style_identity(style, case)
+            validate_style_identity(style, case, session["protocol"])
         records.append((session, case, labels[case["id"]], resolved_case, result, style))
     return records, resolution, assessment
 
 
 def render(prepared, study, output, assessment_path=None):
     records, resolution, assessment = load_records(prepared, study, assessment_path)
+    comparison = any(record[0]["protocol"] == "style-calibrated" for record in records)
     rows, sections = [], []
     for session, case, label, resolved, result, style in records:
         agent, integrity = result["agent"], result["integrity"]
         point = resolved["point"]
         title = f"{label['candidate'].capitalize()} · {point['ref']}"
+        if comparison:
+            title += " · " + ("calibrated" if session["protocol"] == "style-calibrated" else "original policy")
         status = style["assessment"] if style else "no accepted review"
         format_status = "accepted after unwrapping" if style and integrity.get("transport") else "accepted bare" if style else "rejected"
         rows.append(f"<tr><td><a href='#{esc(session['id'])}'>{esc(title)}</a></td><td>{esc(status)}</td>"
@@ -152,10 +160,20 @@ h1,h2,h3,h4{line-height:1.25}section{margin:48px 0;scroll-margin-top:20px}articl
 details{padding:12px;background:#edf4ef;margin:12px 0;overflow-wrap:anywhere}summary{cursor:pointer}blockquote{margin:12px 0;padding-left:14px;border-left:3px solid #23766b}
 .finding{margin:14px 0}li{margin:10px 0}a{color:#17675a}table{border-collapse:collapse;width:100%}td,th{padding:10px;border-bottom:1px solid #c5d8d0;text-align:left}.table{overflow-x:auto}
 @media(max-width:850px){.columns{grid-template-columns:1fr}}
-</style><main><h1>Does the review follow the context?</h1>
+</style><main>"""
+    if comparison:
+        page += """<h1>Can the review accept valid variation?</h1>
+<p>Two intended valid messages each receive an original-policy and a calibrated review with identical retrieved guidance.
+Two further calibrated reviews check that clear channel mismatches remain detectable.
+The calibration asks the reviewer to separate clear violations from optional refinements and preserve the actual scope of each rule.</p>
+<p>These are known development cases selected after previous false alarms. The mismatch preservation cases have historical controls only.
+One attempt per case and policy cannot establish general accuracy or attribute a difference to an individual prompt sentence.</p>"""
+    else:
+        page += """<h1>Does the review follow the context?</h1>
 <p>Three messages about the same fictional service issue, each reviewed at two destinations.
 kapi retrieves a warm voice for individual support replies and neutral operational guidance for the public status page.
-The text stays identical when its destination changes.</p>
+The text stays identical when its destination changes.</p>"""
+    page += """
 <p>Open a case to compare the candidate, the actual retrieved guide and the evidence behind each advisory departure.
 “Aligned” means no evidenced departure was reported; it is not a quality score or approval to publish.</p>
 """

@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from prepare_scoped_context import digest, isolated_environment, load_fixture, prepare, resolved_input
+from prepare_scoped_context import digest, isolated_environment, load_fixture, prepare, resolved_input, review_schedule
 
 
 HERE = Path(__file__).resolve().parent
@@ -93,6 +93,18 @@ class ScopedPreparationRealBinaryTest(unittest.TestCase):
                 self.assertEqual(result["check"]["exit_code"], 0)
         with self.assertRaises(FileExistsError):
             prepare(FIXTURE, BINARY, self.output)
+
+    def test_calibration_schedule_keeps_paired_inputs_and_both_mismatch_directions(self):
+        before = json.dumps(self.inputs)
+        sessions = review_schedule(self.inputs, calibration_comparison=True)
+        self.assertEqual(len(sessions), 6)
+        self.assertEqual(sum(s["protocol"] == "style" for s in sessions), 2)
+        cases_by_id = {case["id"]: self.labels[case["id"]]["case"] for case in self.inputs}
+        controls = {cases_by_id[s["case_id"]] for s in sessions if s["protocol"] == "style"}
+        calibrated = {cases_by_id[s["case_id"]] for s in sessions if s["protocol"] == "style-calibrated"}
+        self.assertEqual(controls, {"harbor-support-paraphrase", "harbor-status-neutral"})
+        self.assertEqual(calibrated - controls, {"harbor-support-neutral", "harbor-status-original"})
+        self.assertEqual(json.dumps(self.inputs), before)
 
     def test_other_product_and_missing_voice_are_offline_controls(self):
         controls = json.loads((self.output / "offline-controls.json").read_text())

@@ -239,6 +239,14 @@ and identical wording under different context test both missed errors and false
 alarms. Missing evidence is distinguished from contradiction. Development
 contrasts specify capabilities; they do not establish accuracy on real documents.
 
+Style review distinguishes clear violations from optional refinements. A
+required correction follows the actual scope and force of the selected
+guidance. Broad tone permits compatible variation across a message; a preferred
+alternative alone does not establish a defect. Evaluation retains valid cases
+beside clear mismatches so that fewer false alarms cannot hide missed
+violations. Review policy versions share a response contract when its shape is
+unchanged, while their evidence identities record the policy used.
+
 A semantic finding needs an affected passage, applicable source evidence and a
 correct explanation of the conflict. Matching a span or category alone does not
 validate that explanation. Model-backed analysis is compared with an equivalent

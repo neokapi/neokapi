@@ -160,7 +160,27 @@ This page reports context retrieval and deterministic coverage, not model perfor
 """ + "".join(sections) + "</main></html>\n"
 
 
-def prepare(fixture, binary, output):
+def review_schedule(inputs, calibration_comparison=False):
+    if not calibration_comparison:
+        return [{"id": "review-" + case["id"], "host": "claude", "case_id": case["id"], "protocol": "style"} for case in inputs]
+    by_destination = {case["destination"]: case for case in inputs}
+    # Alternate pair order; preservation cases have no contemporaneous control.
+    selection = [
+        ("support/paraphrase", "style"),
+        ("support/paraphrase", "style-calibrated"),
+        ("status/neutral", "style-calibrated"),
+        ("status/neutral", "style"),
+        ("support/neutral", "style-calibrated"),
+        ("status/original", "style-calibrated"),
+    ]
+    sessions = []
+    for destination, protocol in selection:
+        case = by_destination[f"content/harbor/{destination}.md"]
+        sessions.append({"id": f"review-{case['id']}-{protocol}", "host": "claude", "case_id": case["id"], "protocol": protocol})
+    return sessions
+
+
+def prepare(fixture, binary, output, calibration_comparison=False):
     corpus = load_fixture(fixture)
     output = output.resolve()
     binary = binary.resolve(strict=True)
@@ -196,9 +216,11 @@ def prepare(fixture, binary, output):
         raise ValueError("kapi binary changed during preparation")
     subject_dir = output / "subject"
     subject_dir.mkdir()
-    write(subject_dir / "manifest.json", {"schema": 1, "study": "scoped-context-style", "billing": "subscription-only",
+    sessions = review_schedule(inputs, calibration_comparison)
+    study = "scoped-style-calibration" if calibration_comparison else "scoped-context-style"
+    write(subject_dir / "manifest.json", {"schema": 1, "study": study, "billing": "subscription-only",
           "agents": [{"host": "claude", "model": "claude-sonnet-5", "effort": "high"}],
-          "sessions": [{"id": "review-" + case["id"], "host": "claude", "case_id": case["id"], "protocol": "style"} for case in inputs],
+          "sessions": sessions,
           "attempt_timeout_seconds": 180, "max_turns": 3})
     (subject_dir / "inputs.jsonl").write_text("".join(json.dumps(case, ensure_ascii=False) + "\n" for case in inputs), encoding="utf-8")
     (subject_dir / "instruction.txt").write_text(INSTRUCTION, encoding="utf-8")
@@ -210,7 +232,7 @@ def prepare(fixture, binary, output):
           "fixture_sha256": {str(path.relative_to(fixture)): digest(path.read_bytes()) for path in sorted(fixture.rglob("*")) if path.is_file()},
           "provenance": corpus["provenance"], "model_calls": 0})
     (output / "review.html").write_text(casebook(cases), encoding="utf-8")
-    return {"resolved_cases": len(cases), "scheduled_cases": len(inputs), "offline_controls": len(controls), "model_calls": 0,
+    return {"resolved_cases": len(cases), "scheduled_cases": len(sessions), "offline_controls": len(controls), "model_calls": 0,
             "subject": str(subject_dir)}
 
 
@@ -219,5 +241,6 @@ if __name__ == "__main__":
     parser.add_argument("--fixture", type=Path, default=Path(__file__).with_name("scoped-context"))
     parser.add_argument("--kapi", type=Path, default=Path(__file__).resolve().parents[2] / "bin" / "kapi")
     parser.add_argument("--out", type=Path, required=True)
+    parser.add_argument("--calibration-comparison", action="store_true", help="Pair two disputed cases and retain two channel-mismatch preservation reviews, six attempts total")
     args = parser.parse_args()
-    print(json.dumps(prepare(args.fixture, args.kapi, args.out), indent=2))
+    print(json.dumps(prepare(args.fixture, args.kapi, args.out, args.calibration_comparison), indent=2))

@@ -74,6 +74,35 @@ guidance remains explicit even when those checks emit no findings. The model
 review does not change the normal `kapi check` execution path or require an API
 credential in the fixture.
 
+## Calibrating required corrections
+
+The opt-in `style-calibrated` protocol adds a decision policy to the `style`
+control. Both use the same response schema and reference validator. Each has
+its own analyzer contract in the prompt and native evidence fingerprint. The
+report verifies that the saved evidence belongs to the scheduled policy.
+
+A required correction needs a clear conflict with applicable guidance or a
+material failure of its requested communication relationship. Broad tone is
+assessed across the message. An isolated, less-preferred expression can remain
+acceptable; useful refinements belong in suggestions. The rationale states the
+rule as narrowly as its source supports and explains the mismatch. It preserves
+permissions, exceptions and the category a restriction actually governs.
+Explicit positive requirements still apply when the rest of the message fits.
+Unresolved interpretations belong in uncertainty.
+
+The calibration schedule pairs both policies on a support paraphrase and a
+neutral status notice. It also reviews a neutral message as support and a warm
+reply as a status notice with the calibrated policy. These latter cases check
+preservation of clear mismatches in both directions; they have no
+contemporaneous control attempts in this schedule. All six attempts retain the
+same model settings and unchanged resolver-supplied case inputs.
+
+These are known development cases selected to investigate disputed departures.
+The comparison can reveal targeted improvement or regression. It cannot
+establish general style accuracy, isolate individual prompt sentences or
+justify an automatic release gate. A reduction in findings is useful only when
+valid variation is accepted and genuine mismatches remain detectable.
+
 ## Run the comparison
 
 Build kapi, then prepare into a new directory. Preparation also writes a browser
@@ -91,6 +120,16 @@ plan allowance, with at most six started attempts:
 ```sh
 make meaning-eval-run MEANING_EVAL_INPUTS=harness/out/scoped-context MEANING_EVAL_DIR=harness/out/scoped-style-review MEANING_EVAL_MAX_ATTEMPTS=6
 python3 scripts/checkeval/report_scoped_context.py --prepared harness/out/scoped-context --study harness/out/scoped-style-review --out harness/out/scoped-style-results.html
+```
+
+For the six-attempt calibration schedule, prepare into a separate new directory
+and use the same preflight, run and report commands with that directory:
+
+```sh
+make meaning-eval-prepare-style-calibration MEANING_EVAL_INPUTS=harness/out/style-calibration
+make meaning-eval-preflight MEANING_EVAL_INPUTS=harness/out/style-calibration MEANING_EVAL_DIR=harness/out/style-calibration-review
+make meaning-eval-run MEANING_EVAL_INPUTS=harness/out/style-calibration MEANING_EVAL_DIR=harness/out/style-calibration-review MEANING_EVAL_MAX_ATTEMPTS=6
+python3 scripts/checkeval/report_scoped_context.py --prepared harness/out/style-calibration --study harness/out/style-calibration-review --out harness/out/style-calibration-results.html
 ```
 
 The renderer accepts an optional `--assessment` JSON file with
