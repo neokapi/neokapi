@@ -229,7 +229,7 @@ func parsePairedDocument(body []byte) (map[string]string, error) {
 		return nil, err
 	}
 	if _, err := decoder.Token(); err != io.EOF {
-		return nil, fmt.Errorf("unexpected trailing JSON content")
+		return nil, errors.New("unexpected trailing JSON content")
 	}
 	return values, nil
 }
