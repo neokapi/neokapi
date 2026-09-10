@@ -60,9 +60,18 @@ type verifyFinding struct {
 // verifyGateResult is the outcome of one gate: whether it passed and the
 // findings it produced.
 type verifyGateResult struct {
-	Gate     string          `json:"gate"`
-	Pass     bool            `json:"pass"`
-	Findings []verifyFinding `json:"findings"`
+	Execution *check.Execution `json:"execution,omitempty"`
+	Gate      string           `json:"gate"`
+	Pass      bool             `json:"pass"`
+	Findings  []verifyFinding  `json:"findings"`
+	Coverage  *verifyCoverage  `json:"coverage,omitempty"`
+}
+
+// verifyCoverage counts files and blocks actually inspected by a content gate.
+// An empty scope remains visible without implying that a checker examined text.
+type verifyCoverage struct {
+	Files  int `json:"files"`
+	Blocks int `json:"blocks"`
 }
 
 // verifySummary carries the aggregate counts for a verify run.
@@ -85,14 +94,21 @@ type verifyOutput struct {
 // FormatText renders the verify result as a human-readable summary,
 // implementing output.TextFormatter.
 func (o verifyOutput) FormatText(w io.Writer) error {
-	gates := output.NewTable(w).Accent(0).Headers("gate", "result", "findings")
+	gates := output.NewTable(w).Accent(0).Headers("gate", "result", "findings", "content checked")
 	gs := gates.Styles()
 	for _, g := range o.Gates {
 		result := gs.Success.Render("PASS")
 		if !g.Pass {
 			result = gs.Error.Render("FAIL")
 		}
-		gates.Rowf(gateDisplayName(g.Gate), result, len(g.Findings))
+		if g.Pass && g.Coverage != nil && g.Coverage.Blocks == 0 {
+			result = gs.Muted.Render("NO CONTENT")
+		}
+		coverage := ""
+		if g.Coverage != nil {
+			coverage = fmt.Sprintf("%d file(s), %d block(s)", g.Coverage.Files, g.Coverage.Blocks)
+		}
+		gates.Rowf(gateDisplayName(g.Gate), result, len(g.Findings), coverage)
 	}
 	gates.Render()
 
@@ -336,9 +352,9 @@ func (a *App) computeVerify(cmd Command, args []string) (verifyOutput, error) {
 
 	// --- terminology + checks gates ------------------------------------------
 	if runTerms || sel.checks {
-		// Resolve the (source, target, locale) units to inspect: either the
-		// explicit file args, or the project's content × target languages.
-		units, err := a.resolveVerifyUnits(cmd, proj, root, args, localeFilter)
+		// Inspect source-only content and real source/target pairs, narrowed
+		// to explicit files when the caller supplies them.
+		units, err := a.resolveVerifyCheckUnits(cmd, proj, root, args, localeFilter)
 		if err != nil {
 			return verifyOutput{}, err
 		}
@@ -369,7 +385,7 @@ func (a *App) computeVerify(cmd Command, args []string) (verifyOutput, error) {
 		if err != nil {
 			return verifyOutput{}, err
 		}
-		staleGate, judged, err := a.verifyStaleness(cmd, proj, root, units)
+		staleGate, judged, err := a.verifyStaleness(cmd, proj, root, targetVerifyUnits(units))
 		if err != nil {
 			return verifyOutput{}, err
 		}
@@ -388,7 +404,7 @@ func (a *App) computeVerify(cmd Command, args []string) (verifyOutput, error) {
 			return verifyOutput{}, err
 		}
 		if proj.HasShipGates() {
-			shipGate, err := a.verifyShip(cmd, proj, root, shipUnits)
+			shipGate, err := a.verifyShip(cmd, proj, root, targetVerifyUnits(shipUnits))
 			if err != nil {
 				return verifyOutput{}, err
 			}
@@ -398,7 +414,7 @@ func (a *App) computeVerify(cmd Command, args []string) (verifyOutput, error) {
 			// The source gate measures the source, so with no files named it
 			// reads the project's source content directly rather than the
 			// per-locale pairing: a monolingual project has a source to gate
-			// even though it resolves no unit. Named files are already their own
+			// even though it resolves no target unit. Named files carry their
 			// source in shipUnits.
 			srcUnits := shipUnits
 			if len(args) == 0 {
@@ -809,7 +825,8 @@ func (a *App) projectSourceFiles(proj *project.KapiProject, root string) ([]stri
 
 // --- verify units (source/target pairing) ----------------------------------
 
-// VerifyUnit is one source file paired with one target file for a locale.
+// VerifyUnit is a source file, optionally paired with a target file for a locale.
+// An empty TargetPath identifies source-only content.
 // The rule-based and terminology gates read the source file for source text
 // and the target file for translated text, then pair blocks by name.
 type VerifyUnit struct {
@@ -891,13 +908,8 @@ func unitFormatBinding(proj *project.KapiProject, rf project.ResolvedFile, targe
 	return srcFormat, srcCfg, srcFormat, srcCfg
 }
 
-// resolveVerifyUnits builds the list of (source, target, locale) units the
-// terminology and rule-based gates inspect. With explicit file args, each arg
-// is treated as a target file paired with itself as the source (so monolingual
-// checks still flag placeholder/empty issues against the file's own content) —
-// unless the file matches a project content target template, in which case the
-// matching source file is paired. With no args, units come from the project's
-// content × target languages.
+// resolveVerifyUnits expands project targets, or resolves explicit source and
+// target files. Target-side callers exclude units with no TargetPath.
 func (a *App) resolveVerifyUnits(cmd Command, proj *project.KapiProject, root string, args []string, localeFilter string) ([]VerifyUnit, error) {
 	if len(args) > 0 {
 		return a.unitsFromArgs(proj, root, args, localeFilter)
@@ -989,55 +1001,47 @@ func (a *App) SourceUnitsFromProject(proj *project.KapiProject, root string) ([]
 	return units, nil
 }
 
-// unitsFromArgs treats each file argument as a target file. When the file
-// matches a project content target template, the source file and locale are
-// recovered so the checks and terminology run bilingually; otherwise the file
-// is paired with itself and the locale falls back to --locale or the first
-// project target language.
+// unitsFromArgs resolves declared targets bilingually. Every other file is
+// source content, read under its declared format and source language.
 func (a *App) unitsFromArgs(proj *project.KapiProject, root string, args []string, localeFilter string) ([]VerifyUnit, error) {
 	files, err := resolveFiles(args)
 	if err != nil {
 		return nil, err
 	}
-	var units []VerifyUnit
+	sources, err := a.SourceUnitsFromProject(proj, root)
+	if err != nil {
+		return nil, err
+	}
+	bySource := map[string]VerifyUnit{}
+	for _, u := range sources {
+		bySource[filepath.Clean(u.SourcePath)] = u
+	}
+	units := []VerifyUnit{}
 	for _, f := range files {
-		abs, _ := filepath.Abs(f)
-		var (
-			src                  string
-			loc                  string
-			srcFormat, tgtFormat string
-			srcCfg, tgtCfg       map[string]any
-		)
-		rf, matchedLoc, ok := matchTargetToSource(proj, root, abs)
-		if ok {
-			src, loc = rf.Path, matchedLoc
-			srcFormat, srcCfg, tgtFormat, tgtCfg = unitFormatBinding(proj, rf, abs)
-		} else {
-			// Monolingual fallback: pair the file with itself; locale from
-			// --locale or the first project target.
-			loc = localeFilter
-			if loc == "" && len(proj.Defaults.TargetLanguages) > 0 {
-				loc = string(proj.Defaults.TargetLanguages[0])
-			}
-			src = abs
+		abs, err := filepath.Abs(f)
+		if err != nil {
+			return nil, err
 		}
-		if localeFilter != "" && loc != localeFilter {
-			continue
-		}
-		rel, relErr := filepath.Rel(root, abs)
-		if relErr != nil {
+		rel, err := filepath.Rel(root, abs)
+		if err != nil {
 			rel = f
 		}
-		units = append(units, VerifyUnit{
-			SourcePath:   src,
-			TargetPath:   abs,
-			Locale:       loc,
-			DisplayPath:  rel,
-			SourceFormat: srcFormat,
-			SourceConfig: srcCfg,
-			TargetFormat: tgtFormat,
-			TargetConfig: tgtCfg,
-		})
+		unit := VerifyUnit{SourcePath: abs, Locale: a.SourceLocale(), DisplayPath: rel, ProjectRoot: root}
+		if source, ok := bySource[abs]; ok {
+			unit = source
+			unit.Locale = a.SourceLocale()
+			unit.ProjectRoot = root
+		}
+		if rf, loc, ok := matchTargetToSource(proj, root, abs); ok && rf.Path != abs {
+			if localeFilter != "" && loc != localeFilter {
+				continue
+			}
+			srcFormat, srcCfg, tgtFormat, tgtCfg := unitFormatBinding(proj, rf, abs)
+			unit = VerifyUnit{SourcePath: rf.Path, TargetPath: abs, Locale: loc, Collection: rf.Collection,
+				DisplayPath: rel, ProjectRoot: root, SourceFormat: srcFormat, SourceConfig: srcCfg,
+				TargetFormat: tgtFormat, TargetConfig: tgtCfg}
+		}
+		units = append(units, unit)
 	}
 	return units, nil
 }
@@ -1094,7 +1098,11 @@ func expandTargetTemplate(itemPath, base, tmpl, sourceRel, locale, root, localeF
 // the checks gate, so terminology skips it.
 func (a *App) verifyTerminology(cmd Command, units []VerifyUnit) (verifyGateResult, error) {
 	ctx := CmdContext(cmd)
-	gate := verifyGateResult{Gate: gateTerms, Pass: true, Findings: []verifyFinding{}}
+	gate := verifyGateResult{Gate: gateTerms, Pass: true, Findings: []verifyFinding{}, Coverage: &verifyCoverage{}}
+	vocab, err := a.newCheckTerms(cmd)
+	if err != nil {
+		return gate, err
+	}
 
 	root := ""
 	if projectPath, err := ResolveProjectPath(cmd); err == nil && projectPath != "" {
@@ -1118,6 +1126,12 @@ func (a *App) verifyTerminology(cmd Command, units []VerifyUnit) (verifyGateResu
 	}
 
 	for _, u := range units {
+		if u.TargetPath == "" {
+			if err := a.verifySourceTerminology(ctx, vocab, u, &gate); err != nil {
+				return gate, err
+			}
+			continue
+		}
 		rules, err := termRulesFor(u)
 		if err != nil {
 			return gate, err
@@ -1139,6 +1153,8 @@ func (a *App) verifyTerminology(cmd Command, units []VerifyUnit) (verifyGateResu
 			// noise.
 			continue
 		}
+		gate.Coverage.Files++
+		gate.Coverage.Blocks += len(blocks)
 		cfg := &coretools.TermCheckConfig{
 			TermRules:    rules,
 			TargetLocale: model.LocaleID(u.Locale),
@@ -1206,7 +1222,7 @@ func (a *App) unitGovernancePoint(root string, u VerifyUnit) project.GovernanceP
 // core/tools.NewRuleCheckTool.
 func (a *App) verifyChecks(cmd Command, proj *project.KapiProject, root string, units []VerifyUnit) (verifyGateResult, error) {
 	ctx := CmdContext(cmd)
-	gate := verifyGateResult{Gate: gateChecks, Pass: true, Findings: []verifyFinding{}}
+	gate := verifyGateResult{Gate: gateChecks, Pass: true, Findings: []verifyFinding{}, Coverage: &verifyCoverage{}}
 
 	// Whether a target identical to its source is a defect is settled by the
 	// project's terms and its committed decisions — the same rule the loop's
@@ -1218,6 +1234,12 @@ func (a *App) verifyChecks(cmd Command, proj *project.KapiProject, root string, 
 	}
 
 	for _, u := range units {
+		if u.TargetPath == "" {
+			if err := a.verifySourceChecks(ctx, cmd, u, &gate); err != nil {
+				return gate, err
+			}
+			continue
+		}
 		blocks, missing, err := a.bilingualBlocks(ctx, u)
 		if err != nil {
 			if errors.Is(err, errTargetUnreadable) {
@@ -1248,6 +1270,8 @@ func (a *App) verifyChecks(cmd Command, proj *project.KapiProject, root string, 
 			continue
 		}
 
+		gate.Coverage.Files++
+		gate.Coverage.Blocks += len(blocks)
 		cfg := coretools.NewRuleCheckConfig(model.LocaleID(u.Locale))
 		// Check placeholder integrity so the checks gate flags dropped placeholders
 		// even in plain-text formats where the reader does not extract them as
