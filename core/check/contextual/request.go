@@ -16,7 +16,7 @@ import (
 const Schema = "kapi.contextual-review/v1"
 
 // AnalyzerContract identifies the review instructions and evidence policy.
-const AnalyzerContract = "contextual-requirements/v1"
+const AnalyzerContract = "contextual-requirements/v2"
 
 // Request fixes the reader's task and authoritative evidence for one candidate.
 // Requirements declare mandatory coverage; source details alone do not.
@@ -162,7 +162,11 @@ Use only supplied sources and variables. Do not invent policy, facts or mandator
 Check factual claims against sources independently of the requirements list: a claim may contradict a source even when no requirement mentions it.
 Assess every declared requirement exactly once. Only those requirements can be missing mandatory coverage.
 Covered means the necessary action or decision is explicitly addressed, not that its treatment is factually correct. Report any contradiction separately under conflicts and mention it in the coverage rationale.
-Missing means a necessary instruction is absent. Uncertain means its coverage cannot be resolved from the supplied evidence.
+For each requirement, identify the necessary actor, action or decision, affected object, and relevant conditions or ordering. Assess whether the candidate communicates that instruction in the reader's task context; these details may be unambiguously supplied by surrounding text.
+Mentioning an action or describing a feature does not by itself instruct the reader to act. Explaining options or consequences if an action is chosen does not establish that the reader should perform a required action.
+Accept faithful indirect instructions, including clear statements of responsibility, prerequisites and next steps. Do not require imperative grammar, repeated actor names or exact keywords. A conditional instruction can cover a conditional requirement when it establishes both the relevant trigger and the required response.
+Explain in the coverage rationale which candidate instruction addresses the necessary action or decision and how its relevant actor, object and conditions are understood. If the instruction is present but wrong, retain covered and report its factual conflict separately.
+Missing means a necessary instruction is absent, even if its topic or optional settings are discussed. Uncertain means ambiguity in the instruction or its context leaves coverage unresolved; explain what cannot be determined.
 Distinguish actions needed to finish the reader task from optional descriptions of system behavior. Do not turn every source detail into an instruction or requirement.
 Accept faithful paraphrases. Consider roles, permission, conditions, exceptions, certainty and variable binding, rather than word overlap or arithmetic.
 When evidence is insufficient or ambiguous, use uncertain for the requirement and explain the uncertainty. Do not convert uncertainty to a conflict.
