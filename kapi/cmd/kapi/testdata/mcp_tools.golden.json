@@ -205,6 +205,10 @@
     "input_schema": {
       "additionalProperties": false,
       "properties": {
+        "context_path": {
+          "description": "project-relative destination whose voice and terms govern this draft; may not exist yet; requires a project; cannot combine with profile_pack or profile_file",
+          "type": "string"
+        },
         "forbid": {
           "description": "regex that must NOT appear in the content",
           "items": {

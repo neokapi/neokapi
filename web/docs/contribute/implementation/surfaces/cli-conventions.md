@@ -89,6 +89,20 @@ namesakes' contract.
 
 ## Command surface
 
+Content checks and release gates have separate response shapes. Ordinary
+`check` emits `kapi.check/v1`; `check --ship` groups findings under project gates.
+The release checker resolves source-only content separately from source/target
+pairs, including in mixed projects. Explicit files that match a declared target
+retain that pairing; other named files receive source checks with their declared
+reader configuration.
+
+The terminology and rule-based release gates include `coverage.files` and
+`coverage.blocks`, counting inspected content. A passing gate with zero blocks
+renders `NO CONTENT`. Its `pass` field means no gate failed, not that content was
+measured. Source rule checks retain `execution.analyzers`, including unsupported
+semantic guidance, through the same source-check implementation as ordinary
+`check`. Target coverage and staleness continue to use actual source/target pairs.
+
 | Command | Input | Glob / dir | Format axis | Project | Non-zero exits |
 | --- | --- | --- | --- | --- | --- |
 | `up` | none | none | text·json·yaml | required | 1 |
