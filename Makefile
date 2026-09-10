@@ -2372,6 +2372,9 @@ paired-eval-preflight: ## Prepare the paired agent study without model calls (bu
 paired-eval-smoke: ## Run a bounded subscription-backed smoke batch (consumes plan allowance)
 	$(GO) run ./scripts/skilleval $(PAIRED_EVAL_FLAGS) -paired-phase smoke -paired-live -paired-max-attempts $(PAIRED_EVAL_MAX_ATTEMPTS)
 
+paired-eval-diagnostic: ## Test explicitly instructed integration use within the shared subscription ceiling
+	$(GO) run ./scripts/skilleval $(PAIRED_EVAL_FLAGS) -paired-phase diagnostic -paired-live -paired-max-attempts $(PAIRED_EVAL_MAX_ATTEMPTS)
+
 paired-eval-pilot: ## Run the paired pilot within the persistent attempt ceiling (consumes plan allowance)
 	$(GO) run ./scripts/skilleval $(PAIRED_EVAL_FLAGS) -paired-phase pilot -paired-live -paired-max-attempts $(PAIRED_EVAL_MAX_ATTEMPTS)
 

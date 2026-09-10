@@ -61,10 +61,11 @@ type Options struct {
 func main() {
 	var (
 		pairedManifest    = flag.String("paired-manifest", "", "paired study manifest; selects the separate comparison runner")
-		pairedPhase       = flag.String("paired-phase", "preflight", "paired phase: preflight, smoke, pilot or score")
+		pairedPhase       = flag.String("paired-phase", "preflight", "paired phase: preflight, diagnostic, smoke, pilot or score")
 		pairedDir         = flag.String("paired-dir", "harness/out/paired-eval", "private directory for immutable paired evidence")
 		pairedLive        = flag.Bool("paired-live", false, "explicitly allow subscription-backed agent sessions")
-		pairedMaxAttempts = flag.Int("paired-max-attempts", 6, "persistent ceiling across smoke and pilot, including failed attempts")
+		pairedMaxAttempts = flag.Int("paired-max-attempts", 6, "persistent ceiling across live phases, including failed attempts")
+		pairedSessions    = flag.String("paired-sessions", "", "comma-separated session IDs to select; does not reset the attempt ceiling")
 		mode              = flag.String("mode", modeTrigger, "trigger or completion")
 		surface           = flag.String("surface", "", "limit to one surface: skill or mcp")
 		out               = flag.String("out", DefaultOut, "where to write the dataset")
@@ -88,7 +89,7 @@ func main() {
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), *timeout)
 		defer cancel()
-		err = executePaired(ctx, PairedOptions{ManifestPath: *pairedManifest, Phase: *pairedPhase, Dir: *pairedDir, RepoRoot: root, Live: *pairedLive, MaxAttempts: *pairedMaxAttempts})
+		err = executePaired(ctx, PairedOptions{ManifestPath: *pairedManifest, Phase: *pairedPhase, Dir: *pairedDir, RepoRoot: root, Live: *pairedLive, MaxAttempts: *pairedMaxAttempts, Sessions: *pairedSessions})
 		if err != nil {
 			fail(err.Error())
 		}

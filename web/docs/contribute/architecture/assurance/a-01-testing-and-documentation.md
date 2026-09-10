@@ -237,6 +237,9 @@ server alone establishes neither of the latter two.
 Assigned conditions retain attempts that never use the integration. Observed
 use and resolved check scope are reported alongside artifact validity, so
 completion alone cannot stand for successful context retrieval or checking.
+Explicitly instructed diagnostics test host exposure and execution separately
+from natural discovery. They share the persistent session allowance with
+ordinary tasks and retain their own phase in saved reports.
 See [Paired agent evaluation](../../implementation/repo/paired-agent-evaluation.md)
 for the manifest, execution stages and evidence records.
 

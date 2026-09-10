@@ -52,7 +52,8 @@ func scorePaired(dir string) error {
 		Schema: pairedSchema, CreatedAt: time.Now().UTC(), Study: record.Manifest.Study,
 		Fingerprint: record.Fingerprint, Attempts: len(paths), Rows: []pairedScoreRow{},
 		Interpretation: "Automatic artifact criteria only. Content quality, accepted results and reviewer time " +
-			"require independent human review. Subscription quota and dollar cost are unmeasured.",
+			"require independent human review. Subscription quota and dollar cost are unmeasured. " +
+			"Diagnostic rows use explicit integration instructions and must be interpreted separately from natural tasks.",
 	}
 	for _, path := range paths {
 		row, err := scorePairedAttempt(path, record.Fingerprint)

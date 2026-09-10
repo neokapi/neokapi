@@ -134,7 +134,7 @@ func preparePairedClaude(ctx context.Context, p *PairedPrepared) error {
 	}
 	settings := map[string]any{
 		"autoMemoryEnabled": false,
-		"permissions":       map[string]any{"defaultMode": "acceptEdits", "blockReadsOutsideWorkingDirectories": true, "allow": []string{"Bash", "Read", "Edit", "Write", "Glob", "Grep", "mcp__kapi__*"}},
+		"permissions":       map[string]any{"defaultMode": "acceptEdits", "blockReadsOutsideWorkingDirectories": true, "allow": []string{"Bash", "Read", "Edit", "Write", "Glob", "Grep", "Skill(kapi)", "mcp__kapi__*"}},
 		"sandbox":           map[string]any{"enabled": true, "autoAllowBashIfSandboxed": true, "allowUnsandboxedCommands": false, "filesystem": map[string]any{"denyRead": []string{p.Launch.StateDir, p.Launch.RepoRoot}, "allowRead": []string{p.Launch.Workspace, filepath.Join(p.Launch.StateDir, "bin"), p.Launch.KapiBin}}, "network": map[string]any{"allowedDomains": []string{}, "strictAllowlist": true}},
 	}
 	settingsPath := filepath.Join(p.Launch.StateDir, "claude-settings.json")
@@ -152,7 +152,13 @@ func preparePairedClaude(ctx context.Context, p *PairedPrepared) error {
 	if err := pairedWriteJSON(mcpPath, mcp); err != nil {
 		return err
 	}
-	p.Args = []string{"--print", "--output-format", "stream-json", "--verbose", "--model", p.Launch.Agent.Model, "--effort", p.Launch.Agent.Effort, "--setting-sources", "", "--settings", settingsPath, "--strict-mcp-config", "--mcp-config", mcpPath, "--no-session-persistence", "--permission-mode", "acceptEdits", "--tools", "Bash,Read,Edit,Write,Glob,Grep,Skill,ToolSearch"}
+	settingSources := ""
+	if p.Launch.Condition == "skill-cli" {
+		// Project skill discovery uses this source. The fixture supplies the
+		// shipped skill; personal and local settings remain excluded.
+		settingSources = "project"
+	}
+	p.Args = []string{"--print", "--output-format", "stream-json", "--verbose", "--model", p.Launch.Agent.Model, "--effort", p.Launch.Agent.Effort, "--setting-sources", settingSources, "--settings", settingsPath, "--strict-mcp-config", "--mcp-config", mcpPath, "--no-session-persistence", "--permission-mode", "acceptEdits", "--tools", "Bash,Read,Edit,Write,Glob,Grep,Skill,ToolSearch"}
 	if p.Launch.Condition != "skill-cli" {
 		p.Args = append(p.Args, "--disable-slash-commands")
 	}
@@ -203,7 +209,9 @@ func preparePairedCodex(ctx context.Context, p *PairedPrepared) error {
 		if p.Launch.KapiBin == "" {
 			return errors.New("mcp requires kapi binary")
 		}
-		config.WriteString("[mcp_servers.kapi]\ncommand = " + strconv.Quote(p.Launch.KapiBin) + "\nargs = [\"-p\", " + strconv.Quote(filepath.Join(p.Launch.Workspace, "kapi.yaml")) + ", \"mcp\"]\n[mcp_servers.kapi.env]\n")
+		// This isolated server operates on the authorized fixture. Preapprove
+		// its tools explicitly: approval_policy=never cannot resolve a prompt.
+		config.WriteString("[mcp_servers.kapi]\ndefault_tools_approval_mode = \"approve\"\ncommand = " + strconv.Quote(p.Launch.KapiBin) + "\nargs = [\"-p\", " + strconv.Quote(filepath.Join(p.Launch.Workspace, "kapi.yaml")) + ", \"mcp\"]\n[mcp_servers.kapi.env]\n")
 		for key, value := range pairedKapiEnv(p.Launch.Workspace) {
 			config.WriteString(strconv.Quote(key) + " = " + strconv.Quote(value) + "\n")
 		}

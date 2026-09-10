@@ -129,6 +129,9 @@ func validatePairedManifest(m PairedManifest) error {
 }
 
 func pairedSchedule(m PairedManifest, phase string) []PairedSession {
+	if phase == "diagnostic" {
+		return pairedDiagnosticSchedule(m)
+	}
 	tasks, repetitions := m.Tasks, m.Repetitions
 	if phase == "smoke" {
 		tasks, repetitions = []string{m.SmokeTask}, 1

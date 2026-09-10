@@ -119,11 +119,51 @@ func TestPairedClaudeConfiguration(t *testing.T) {
 				assert.Empty(t, servers)
 			}
 			assert.Equal(t, condition != "skill-cli", strings.Contains(strings.Join(prepared.Args, " "), "--disable-slash-commands"))
+			for i, arg := range prepared.Args {
+				if arg == "--setting-sources" {
+					want := ""
+					if condition == "skill-cli" {
+						want = "project"
+					}
+					assert.Equal(t, want, prepared.Args[i+1])
+				}
+			}
 			settings, err := os.ReadFile(filepath.Join(state, "claude-settings.json"))
 			require.NoError(t, err)
 			assert.Contains(t, string(settings), `"allowUnsandboxedCommands": false`)
 			assert.NotContains(t, string(settings), "private-token")
 		})
+	}
+}
+
+func TestPairedCodexMCPApprovalAppliesOnlyToFixtureServer(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("fixture executable uses a Unix shell")
+	}
+	authDir := t.TempDir()
+	t.Setenv("CODEX_HOME", authDir)
+	require.NoError(t, os.WriteFile(filepath.Join(authDir, "auth.json"), []byte("{}"), 0o600))
+	probe := filepath.Join(t.TempDir(), "subscription-probe")
+	require.NoError(t, os.WriteFile(probe, []byte("#!/bin/sh\nprintf 'Logged in using ChatGPT\\n'\n"), 0o700))
+	for _, condition := range []string{"baseline", "skill-cli", "mcp"} {
+		state := t.TempDir()
+		require.NoError(t, os.Mkdir(filepath.Join(state, "codex"), 0o700))
+		p := PairedPrepared{
+			Executable: probe, Env: []string{}, Blockers: []string{}, IsolationNotes: []string{},
+			Launch: PairedLaunch{
+				Agent:     PairedAgentSpec{Host: "codex", Model: "fixture", Effort: "medium"},
+				Condition: condition, StateDir: state, Workspace: t.TempDir(), KapiBin: "/test/kapi",
+			},
+		}
+		require.NoError(t, preparePairedCodex(t.Context(), &p))
+		data, err := os.ReadFile(filepath.Join(state, "codex", "config.toml"))
+		require.NoError(t, err)
+		assert.Contains(t, string(data), "approval_policy = \"never\"")
+		if condition == "mcp" {
+			assert.Contains(t, string(data), "[mcp_servers.kapi]\ndefault_tools_approval_mode = \"approve\"")
+		} else {
+			assert.NotContains(t, string(data), "default_tools_approval_mode")
+		}
 	}
 }
 

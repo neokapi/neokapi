@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"path/filepath"
 	"strings"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -95,6 +96,12 @@ func (a *App) handleContextResource(ctx context.Context, req *mcp.ReadResourceRe
 	}
 
 	cmd := NewEnvCommand(ctx, "context")
+	if a.mcpRecipePath != "" {
+		cmd.Flags().String(projectFlagName, a.mcpRecipePath, "")
+		if request.Path != "" && !filepath.IsAbs(request.Path) {
+			request.Path = filepath.Join(filepath.Dir(a.mcpRecipePath), request.Path)
+		}
+	}
 	src, cleanup := a.ContextSourcesAt(cmd, request)
 	defer cleanup()
 
@@ -192,9 +199,9 @@ func contextRenderingFromQuery(query string) (bool, error) {
 // contextSearchInput is the MCP input for context_search.
 //
 // The store overrides mirror the older per-store tools this replaces. An MCP
-// handler has no cobra Command, so it resolves the project the way every
-// flagless caller does — KAPI_PROJECT, else the upward walk from cwd — and
-// reads the project's own store. A path here selects a STANDALONE store
+// handler threads the server's bound recipe into the host command and reads
+// the project's own store. An unbound server uses normal project discovery.
+// A path here selects a STANDALONE store
 // instead, for an agent pointed at a vocabulary or corpus outside the project.
 type contextSearchInput struct {
 	Query  string `json:"query" jsonschema:"the word or phrase to ask about"`
@@ -206,10 +213,12 @@ type contextSearchInput struct {
 
 func (a *App) handleContextSearch(ctx context.Context, _ *mcp.CallToolRequest, in contextSearchInput) (*mcp.CallToolResult, *ContextSearchResult, error) {
 	// One assembly shared with `kapi context search` (ContextSearchSourcesFor).
-	// A bare command carries the context for the project resolution the flagless
-	// openers do (KAPI_PROJECT, else the upward walk from cwd); a non-empty
+	// The server's bound recipe governs project resolution; a non-empty
 	// terms/memory path selects a standalone store instead.
 	cmd := NewEnvCommand(ctx, "context-search")
+	if a.mcpRecipePath != "" {
+		cmd.Flags().String(projectFlagName, a.mcpRecipePath, "")
+	}
 	src, cleanup := a.ContextSearchSourcesFor(cmd, in.Terms, in.Memory)
 	defer cleanup()
 

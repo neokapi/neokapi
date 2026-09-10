@@ -25,6 +25,7 @@ type PairedOptions struct {
 	RepoRoot     string
 	Live         bool
 	MaxAttempts  int
+	Sessions     string
 }
 
 type pairedDependencies struct {
@@ -78,7 +79,7 @@ func executePaired(ctx context.Context, opts PairedOptions) error {
 
 func executePairedWith(ctx context.Context, opts PairedOptions, deps pairedDependencies) error {
 	switch opts.Phase {
-	case "preflight", "smoke", "pilot", "score":
+	case "preflight", "diagnostic", "smoke", "pilot", "score":
 	default:
 		return fmt.Errorf("unknown paired phase %q", opts.Phase)
 	}
@@ -128,7 +129,11 @@ func executePairedWith(ctx context.Context, opts PairedOptions, deps pairedDepen
 	if err := ensurePairedJSON(filepath.Join(phaseDir, "schedule.json"), schedule); err != nil {
 		return err
 	}
-	return runPairedSchedule(ctx, opts, record, schedule, deps)
+	selected, err := selectPairedSessions(schedule, opts.Sessions)
+	if err != nil {
+		return err
+	}
+	return runPairedSchedule(ctx, opts, record, selected, deps)
 }
 
 func preflightPaired(ctx context.Context, opts PairedOptions, m PairedManifest, deps pairedDependencies) error {
@@ -140,7 +145,15 @@ func preflightPaired(ctx context.Context, opts PairedOptions, m PairedManifest, 
 		return err
 	}
 	defer os.RemoveAll(dir)
-	for _, session := range pairedSchedule(m, "smoke") {
+	phase := "smoke"
+	if opts.Phase == "diagnostic" {
+		phase = "diagnostic"
+	}
+	schedule, err := selectPairedSessions(pairedSchedule(m, phase), opts.Sessions)
+	if err != nil {
+		return err
+	}
+	for _, session := range schedule {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
@@ -163,7 +176,8 @@ func preflightPaired(ctx context.Context, opts PairedOptions, m PairedManifest, 
 		return err
 	}
 	fmt.Printf(
-		"paired: offline preflight; %d smoke / %d pilot sessions, %d live blockers; %s\n",
+		"paired: offline preflight; %d prepared, %d smoke / %d pilot sessions, %d live blockers; %s\n",
+		len(report.Prepared),
 		report.SmokeSessions,
 		report.PilotSessions,
 		len(report.Blockers),
@@ -184,10 +198,17 @@ func materializePairedLaunch(opts PairedOptions, m PairedManifest, s PairedSessi
 	if err := materializePairedTask(workspace, task); err != nil {
 		return PairedLaunch{}, err
 	}
+	prompt := task.Prompt
+	if opts.Phase == "diagnostic" {
+		prompt += "\n\n" + pairedDiagnosticInstruction(s.Condition)
+	}
+	if err := writePairedExclusive(filepath.Join(dir, "prompt.txt"), []byte(prompt+"\n")); err != nil {
+		return PairedLaunch{}, err
+	}
 	return PairedLaunch{
 		Agent: s.Agent, Condition: s.Condition, Workspace: workspace,
 		StateDir: filepath.Join(dir, "state"), RepoRoot: opts.RepoRoot, KapiBin: findKapi(opts.RepoRoot),
-		Prompt: task.Prompt, TranscriptPath: filepath.Join(dir, "transcript.jsonl"),
+		Prompt: prompt, TranscriptPath: filepath.Join(dir, "transcript.jsonl"),
 		Timeout: m.attemptTimeout(), MaxTurns: m.MaxTurns,
 	}, nil
 }

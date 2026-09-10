@@ -51,6 +51,19 @@ including `inspect`, whose `--project` selects output formats. The surrounding
 agent environment retains `KAPI_NO_PROJECT=1`, isolated configuration and plugin
 discovery. MCP binds the recipe through its explicit `-p` argument.
 
+Claude's CLI condition enables the `project` setting source so its fixture skill
+is discoverable. Personal and local settings remain excluded. Other conditions
+disable skill loading. Inspect the host's initial skill inventory as well as
+later invocations when diagnosing discovery.
+
+The isolated Codex MCP condition sets the fixture server's
+`default_tools_approval_mode` to `approve` while retaining an overall approval
+policy of `never`. A tool that still requires a prompt cannot execute under
+that overall policy. This setting applies only to the prepared fixture server;
+the runner does not modify the maintainer's configuration. See the host docs
+for [Claude skill discovery](https://code.claude.com/docs/en/agent-sdk/skills)
+and [Codex MCP tool policy](https://learn.chatgpt.com/docs/extend/mcp?surface=cli).
+
 ## Build and preflight
 
 Build kapi once before preparing a study:
@@ -108,7 +121,8 @@ make paired-eval-score
 The default persistent ceiling is six started attempts, including failures.
 Review that batch before increasing `PAIRED_EVAL_MAX_ATTEMPTS`. Re-running a
 command does not erase attempts already recorded under the study directory.
-Smoke and pilot share the ceiling. There are no automatic retries.
+Diagnostic, smoke and pilot phases share the ceiling. There are no automatic
+retries.
 
 The pilot target uses the manifest's task set and repetitions:
 
@@ -143,6 +157,27 @@ When discovery fails, use a separately labelled diagnostic that explicitly asks
 the host to retrieve destination context and check the saved file. This tests
 whether the host exposes a usable integration. Keep its results separate from
 natural task outcomes, and include its attempts in the authorized batch ceiling.
+
+`make paired-eval-diagnostic` explicitly instructs each configured host to use
+the CLI skill or MCP on the smoke task. It omits the baseline condition. CLI
+diagnostics request skill loading, destination context and an inspect/apply/check
+loop. MCP diagnostics request the context resource and a saved-file check without
+profile overrides. Missing capabilities must be reported rather than repaired
+inside the attempt. Results retain `phase: "diagnostic"`; completion and artifact
+criteria still require transcript inspection to establish integration use.
+
+Select particular attempts with `-paired-sessions`, using the task, host,
+condition and repetition from their schedule IDs:
+
+```sh
+make paired-eval-diagnostic PAIRED_EVAL_ARGS='-paired-sessions audience-child-claude-skill-cli-01,audience-child-codex-mcp-01'
+```
+
+Selection preserves schedule order and the shared attempt count. It does not
+authorize retries. Run the evaluator directly with `-paired-phase diagnostic`
+and without `-paired-live` to prepare those diagnostics without inference.
+Each preparation saves its exact `prompt.txt` beside the transcript, outside the
+agent's workspace. Natural prompts remain unchanged by diagnostic instructions.
 
 Independent validators inspect output files and protected content. A passing
 artifact check establishes its declared conditions. Human reviewers assess

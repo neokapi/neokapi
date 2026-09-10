@@ -179,7 +179,7 @@ func pairedAttemptsUsed(dir string) (int, error) {
 
 func pairedAttemptPaths(dir string) ([]string, error) {
 	attempts := []string{}
-	for _, phase := range []string{"smoke", "pilot"} {
+	for _, phase := range []string{"diagnostic", "smoke", "pilot"} {
 		paths, err := filepath.Glob(filepath.Join(dir, phase, "*", "started.json"))
 		if err != nil {
 			return nil, err

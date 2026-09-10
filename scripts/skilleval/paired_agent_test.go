@@ -88,7 +88,8 @@ func TestPairedRunTimeoutAndFailedLaunch(t *testing.T) {
 		timeout              time.Duration
 	}{
 		{name: "timeout", script: "#!/bin/sh\nwhile :; do :; done\n", status: "timeout", timeout: 30 * time.Millisecond},
-		{name: "malformed", script: "#!/bin/sh\nprintf 'garbage\\n'\n", status: "malformed_stream", timeout: time.Second},
+		// Malformed-stream detection needs startup headroom under race instrumentation.
+		{name: "malformed", script: "#!/bin/sh\nprintf 'garbage\\n'\n", status: "malformed_stream", timeout: 5 * time.Second},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			dir := t.TempDir()

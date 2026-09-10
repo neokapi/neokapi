@@ -41,6 +41,11 @@ into their synthetic host commands, so profile and terms resolution uses the
 bound project even when implicit discovery is disabled. Custom recipe filenames
 remain intact.
 
+The `context://` resources and `context_search` also use the server's bound
+recipe. Resource locations resolve relative to that recipe's root, including
+when the server runs from a subdirectory or outside the project. Explicit
+standalone store inputs on `context_search` retain their override semantics.
+
 `check_text.context_path` names a project-relative destination, including a file
 that has not been written. It resolves the destination's voice channel and terms
 without extracting a file. The path requires a bound project and cannot be
