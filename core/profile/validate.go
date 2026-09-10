@@ -104,6 +104,8 @@ func ValidateProfile(p *VoiceProfile) []ProfileProblem {
 		add("name", "name is required")
 	}
 
+	probs = append(probs, validateConstraints(p)...)
+
 	// MinScore is an optional 0–100 bar; 0 means "use the default".
 	if p.MinScore < 0 || p.MinScore > 100 {
 		add("min_score", fmt.Sprintf("min_score must be between 0 and 100 (got %d)", p.MinScore))

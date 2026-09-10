@@ -65,7 +65,7 @@ func TestVoiceMigrations_SingleBaseline(t *testing.T) {
 	// every version ever issued, so a live database DOES re-run it, and
 	// declaring personas in the CREATE is how the column arrives.
 	require.Len(t, Migrations, 1, "the voice schema is a single consolidated baseline")
-	assert.Equal(t, 4, Migrations[0].Version, "baseline sits above versions 1-3, which it folds")
+	assert.Equal(t, 5, Migrations[0].Version, "baseline sits above versions 1-4, which it folds")
 	assert.NotEmpty(t, Migrations[0].SQL)
 
 	sql := Migrations[0].SQL
@@ -74,7 +74,7 @@ func TestVoiceMigrations_SingleBaseline(t *testing.T) {
 	// version 2, and the compliance bar from version 4 are all in the one baseline.
 	for _, want := range []string{
 		"voice_rule_decisions", "voice_corrections", "voice_profile_versions",
-		"autonomy", "personas", "min_score",
+		"autonomy", "personas", "min_score", "constraints",
 	} {
 		assert.Contains(t, sql, want)
 	}

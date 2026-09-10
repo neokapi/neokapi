@@ -247,3 +247,30 @@ func TestSaveVoiceProfileWritesTheAssistantPointer(t *testing.T) {
 	assert.Equal(t, "unchanged", again.Pointer.Action)
 	assert.False(t, again.Pointer.Created)
 }
+
+func TestSaveVoiceProfilePreservesOmittedConstraints(t *testing.T) {
+	app := NewApp()
+	tab, _ := newContextProject(t, app)
+	res, err := app.ProjectVoice(tab.ID)
+	require.NoError(t, err)
+	profile := *pointOf(t, res, "project default").Profile
+	profile.Constraints = []coreprofile.Constraint{{ID: "facts", Version: 1, Source: "facts.md", Statement: "Service facts", Kind: coreprofile.ConstraintGuidance}}
+	saved, err := app.SaveVoiceProfile(tab.ID, "", profile)
+	require.NoError(t, err)
+	require.True(t, saved.Saved)
+	profile.Constraints = nil
+	profile.Description = "Older editor update"
+	saved, err = app.SaveVoiceProfile(tab.ID, "", profile)
+	require.NoError(t, err)
+	require.True(t, saved.Saved)
+	res, err = app.ProjectVoice(tab.ID)
+	require.NoError(t, err)
+	require.Len(t, pointOf(t, res, "project default").Profile.Constraints, 1)
+	profile.Constraints = []coreprofile.Constraint{}
+	saved, err = app.SaveVoiceProfile(tab.ID, "", profile)
+	require.NoError(t, err)
+	require.True(t, saved.Saved)
+	res, err = app.ProjectVoice(tab.ID)
+	require.NoError(t, err)
+	assert.Empty(t, pointOf(t, res, "project default").Profile.Constraints)
+}

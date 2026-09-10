@@ -193,6 +193,35 @@ None of the agent or model evals runs in CI: they drive real models and real
 agents and need local credentials, so the committed dataset is all a build ever
 sees. The dashboards are published under the site's **Tests & Evals** navigation.
 
+### Check coverage and workflow evidence
+
+A recorded check result retains the input, effective guidance, source and binary
+identity, analyzer coverage and raw findings. A score is a roll-up over emitted
+findings. Analysis that did not execute is not inferred from a zero-finding
+result. Malformed model output and governing-context failures remain operational
+errors rather than successful empty reports.
+
+A rule demonstration is development evidence for that rule. Quality evaluation
+uses separate document families and clean counterexamples, with independent
+labels for semantic and reader-facing judgments. The product's own checker is
+not the sole judge of an experiment intended to establish its value.
+
+Agent comparisons hold the task, model, relevant guidance and resource limits
+constant. They counterbalance order and retain failed and capped runs. Fewer
+edits or tool calls do not establish better quality. Reports distinguish
+consequential errors, human acceptance, actual review time, latency and cost,
+with uncertainty and explicit unmeasured outcomes.
+
+Performance measurements distinguish fresh-process CLI work from persistent
+sessions and cold initialization from warm operation. Raw samples state their
+hardware, corpus, cache conditions and phase boundaries. Host timings exclude
+process startup and encoding unless explicitly measured. A fresh process does
+not imply a cold operating-system page cache.
+
+Illustrations and recorded playback are labeled where the reader sees them.
+Prepared repairs are disclosed in demo scripts and narration. A script is an
+instruction for a future capture; it is not evidence that the capture exists.
+
 ### The documentation site
 
 The site at `web/` uses [Docusaurus](https://docusaurus.io/) 3 with React 19:
@@ -303,7 +332,8 @@ favicons plus whatever image set is staged from the assets bundle.
 Demo assets run against real infrastructure. The embeds execute the real CLI
 compiled to WebAssembly against fixtures under the scene directory; no command is
 mocked. Harness recordings drive real binaries, a real identity provider, and a
-real SQLite database. Third-party services outside this project (translation
+real database appropriate to the surface: SQLite for local stores and PostgreSQL
+for server-backed workflows. Third-party services outside this project (translation
 providers, external model APIs) may be mocked for isolation, and nothing else may.
 
 The `smoke_contract` in each prompt is re-run by `make docs-verify-snippets`,

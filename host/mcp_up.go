@@ -90,10 +90,13 @@ func registerUpMCPTools(server *mcp.Server, a *App) {
 }
 
 // mcpProjectPath resolves the project for an MCP call: the explicit input path
-// when given, else the git-style upward discovery (honoring KAPI_NO_PROJECT).
+// when given, then the server recipe, else discovery (honoring KAPI_NO_PROJECT).
 func (a *App) mcpProjectPath(explicit string) (string, error) {
 	if explicit != "" {
 		return explicit, nil
+	}
+	if a.mcpRecipePath != "" {
+		return a.mcpRecipePath, nil
 	}
 	path, err := ResolveProjectPath(nil)
 	if err != nil {

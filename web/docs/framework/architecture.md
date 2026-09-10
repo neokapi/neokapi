@@ -9,18 +9,24 @@ import { ArchitectureDiagram } from "@neokapi/docs-shared";
 
 # neokapi: Architecture
 
-neokapi is an open-source, format-aware **content engine** built in Go. It parses
-any format into one unified content model, edits the content inside it, checks it,
-and writes it back byte-for-byte. Get your content right (edit it, check it,
-keep it on brand) and the same engine makes it work in every language. It also
-serves AI ingestion and programmatic editing. It provides format-aware document parsing,
-composable processing tools, and a concurrent streaming pipeline. The [`kapi` CLI
-and desktop app](/kapi/overview) and [neokapi-i18n](/react/introduction) are
-surfaces built on top of this engine; the content model, format readers and
-writers, tools, and pipeline are equally a Go library you can import and drive
-directly. If you want to start with running code, jump to the
-[Go quickstart](/framework/go-quickstart); for the reasoning behind each major
-design choice, see the [Architecture Decisions](/contribute/architecture/foundations/f-01-framework-and-modules).
+neokapi is an open content engine in Go. It reads supported formats into a
+shared content model, runs editing and checking tools, and writes content back
+through the format's writer. The [`kapi` project tool](/kapi/overview), desktop
+app and agent interfaces use this engine. Applications can also import the Go
+library directly.
+
+The engine separates content processing from the project's applicable terms,
+writing guidance and check policy. A check result names the analysis performed;
+a successful gate does not establish factual accuracy or other qualities that
+were not assessed. Multilingual content, AI ingestion and programmatic editing
+use the same format-aware processing interfaces.
+
+Fidelity depends on the format and operation. No-op byte preservation,
+preservation outside an edit and semantic round-trip fidelity are distinct
+properties. Consult the [format evidence](/format-maturity) for the applicable
+reader and writer. Start with the [Go quickstart](/framework/go-quickstart), or
+read the [Architecture Decisions](/contribute/architecture/foundations/f-01-framework-and-modules)
+for the system's design.
 
 ## Processing Pipeline
 
@@ -28,9 +34,9 @@ design choice, see the [Architecture Decisions](/contribute/architecture/foundat
 
 The edges are the flow's **source** and **sink**: bindings that decide where
 content enters and leaves. The default, shown above, is the **file binding**: a
-[reader](/framework/formats) turns source files of any format into a stream of
+[reader](/framework/formats) turns supported source files into a stream of
 [Parts](/framework/content-model) and a [writer](/framework/formats) turns the
-stream back into files, byte-for-byte. The same flow can instead bind to the project
+stream back into files with the fidelity its format supports. The same flow can instead bind to the project
 store, a `.kpz` workspace, or an interchange file, with no reader or writer
 ([flows: source and sink](/framework/flows#source-and-sink-the-flows-ends)).
 Between the edges runs a [flow](/framework/flows): a serial chain of

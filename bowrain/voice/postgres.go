@@ -65,7 +65,7 @@ func (s *PostgresVoiceStore) Close() error {
 // just comes back zero, which is exactly how min_score reached the API, the
 // wire and four UI surfaces while the store silently dropped it.
 const profileColumns = `id, workspace_id, name, description, tone, style, vocabulary, examples,
-	locales, channels, personas, autonomy, min_score, version, created_at, updated_at, created_by`
+	locales, channels, personas, autonomy, constraints, min_score, version, created_at, updated_at, created_by`
 
 func (s *PostgresVoiceStore) CreateProfile(ctx context.Context, profile *coreprofile.VoiceProfile) error {
 	if profile.ID == "" {
@@ -109,12 +109,17 @@ func (s *PostgresVoiceStore) CreateProfile(ctx context.Context, profile *corepro
 		return fmt.Errorf("marshal autonomy: %w", err)
 	}
 
+	constraints, err := json.Marshal(profile.Constraints)
+	if err != nil {
+		return fmt.Errorf("marshal constraints: %w", err)
+	}
+
 	_, err = s.run().ExecContext(ctx,
 		`INSERT INTO voice_profiles (`+profileColumns+`)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`,
 		profile.ID, profile.Scope, profile.Name, profile.Description,
 		string(tone), string(style), string(vocab), string(examples),
-		string(locales), string(channels), string(personas), string(autonomy),
+		string(locales), string(channels), string(personas), string(autonomy), string(constraints),
 		profile.MinScore, profile.Version, now, now, profile.CreatedBy)
 	if err != nil {
 		return fmt.Errorf("insert voice profile: %w", err)
@@ -136,6 +141,10 @@ func (s *PostgresVoiceStore) UpdateProfile(ctx context.Context, profile *corepro
 		return fmt.Errorf("get existing profile for versioning: %w", err)
 	}
 
+	// Omitted constraints preserve rules when an older client submits an edit.
+	if profile.Constraints == nil {
+		profile.Constraints = existing.Constraints
+	}
 	snapshotJSON, _ := json.Marshal(existing)
 	_, _ = s.run().ExecContext(ctx,
 		`INSERT INTO voice_profile_versions (profile_id, version, snapshot, note, created_by, created_at)
@@ -181,15 +190,20 @@ func (s *PostgresVoiceStore) UpdateProfile(ctx context.Context, profile *corepro
 		return fmt.Errorf("marshal autonomy: %w", err)
 	}
 
+	constraints, err := json.Marshal(profile.Constraints)
+	if err != nil {
+		return fmt.Errorf("marshal constraints: %w", err)
+	}
+
 	res, err := s.run().ExecContext(ctx,
 		`UPDATE voice_profiles
 		 SET name=$1, description=$2, tone=$3, style=$4, vocabulary=$5, examples=$6,
-		     locales=$7, channels=$8, personas=$9, autonomy=$10, min_score=$11,
-		     version=$12, updated_at=$13
-		 WHERE id=$14`,
+		     locales=$7, channels=$8, personas=$9, autonomy=$10, constraints=$11, min_score=$12,
+		     version=$13, updated_at=$14
+		 WHERE id=$15`,
 		profile.Name, profile.Description,
 		string(tone), string(style), string(vocab), string(examples),
-		string(locales), string(channels), string(personas), string(autonomy),
+		string(locales), string(channels), string(personas), string(autonomy), string(constraints),
 		profile.MinScore, profile.Version, now, profile.ID)
 	if err != nil {
 		return fmt.Errorf("update voice profile: %w", err)
@@ -709,12 +723,12 @@ type scanner = storage.Scanner
 
 func scanProfile(row scanner) (*coreprofile.VoiceProfile, error) {
 	var p coreprofile.VoiceProfile
-	var toneJSON, styleJSON, vocabJSON, examplesJSON, localesJSON, channelsJSON, personasJSON, autonomyJSON string
+	var toneJSON, styleJSON, vocabJSON, examplesJSON, localesJSON, channelsJSON, personasJSON, autonomyJSON, constraintsJSON string
 
 	err := row.Scan(
 		&p.ID, &p.Scope, &p.Name, &p.Description,
 		&toneJSON, &styleJSON, &vocabJSON, &examplesJSON,
-		&localesJSON, &channelsJSON, &personasJSON, &autonomyJSON,
+		&localesJSON, &channelsJSON, &personasJSON, &autonomyJSON, &constraintsJSON,
 		&p.MinScore, &p.Version, &p.CreatedAt, &p.UpdatedAt, &p.CreatedBy)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -748,6 +762,9 @@ func scanProfile(row scanner) (*coreprofile.VoiceProfile, error) {
 		p.Autonomy = coreprofile.AutonomyConfig{}
 	}
 
+	if err := json.Unmarshal([]byte(constraintsJSON), &p.Constraints); err != nil {
+		return nil, fmt.Errorf("unmarshal constraints: %w", err)
+	}
 	return &p, nil
 }
 

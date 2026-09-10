@@ -7,7 +7,7 @@ import { test, expect, type Page } from "@playwright/test";
 // exists for exactly those two.
 
 /** The narrative beats, in the order App.tsx tells them. */
-const NARRATIVE = ["hero", "rename", "how", "loop", "proof", "languages"];
+const NARRATIVE = ["hero", "rename", "loop", "how", "proof", "languages"];
 
 /**
  * Every section that must carry an id, in DOM order, so a CTA inside one
@@ -18,8 +18,8 @@ const NARRATIVE = ["hero", "rename", "how", "loop", "proof", "languages"];
 const ALL_SECTIONS = [
   "hero",
   "rename",
-  "how",
   "loop",
+  "how",
   "proof",
   "product",
   "apps",
@@ -93,8 +93,8 @@ test.describe("signup attribution", () => {
   });
 });
 
-test.describe("the two interactive proofs", () => {
-  test("switching the coordinate example changes the resolved point", async ({ page }) => {
+test.describe("the two interactive examples", () => {
+  test("switching the coordinate example changes the illustrated point", async ({ page }) => {
     await page.goto("/");
     const how = page.locator("section#how");
     await how.scrollIntoViewIfNeeded();
@@ -106,7 +106,7 @@ test.describe("the two interactive proofs", () => {
     await expect(answer).toContainText("product/api");
   });
 
-  test("the voice check re-scores when the point changes", async ({ page }) => {
+  test("the local rule example re-scores when the profile changes", async ({ page }) => {
     await page.goto("/");
     const proof = page.locator("section#proof");
     await proof.scrollIntoViewIfNeeded();

@@ -1134,6 +1134,7 @@ voice_profile_versions.snapshot jsonb NOT NULL
 voice_profile_versions.version integer NOT NULL
 voice_profiles.autonomy jsonb NOT NULL DEFAULT '{}'::jsonb
 voice_profiles.channels jsonb NOT NULL DEFAULT '{}'::jsonb
+voice_profiles.constraints jsonb NOT NULL DEFAULT '[]'::jsonb
 voice_profiles.created_at timestamp with time zone NOT NULL DEFAULT now()
 voice_profiles.created_by text NOT NULL DEFAULT ''::text
 voice_profiles.description text NOT NULL DEFAULT ''::text

@@ -34,7 +34,8 @@ func TestRunChecksOnBlock_MapsFindingsToWireShape(t *testing.T) {
 	}
 	block.SetTargetText(model.LocaleFrench, "Bonjour  le monde")
 
-	issues := runChecksOnBlock(t.Context(), block, pointChecks{TargetLocale: model.LocaleFrench})
+	issues, err := runChecksOnBlock(t.Context(), block, pointChecks{TargetLocale: model.LocaleFrench})
+	require.NoError(t, err)
 	require.NotEmpty(t, issues)
 
 	byType := map[string]string{} // category -> wire severity
@@ -107,7 +108,8 @@ func TestRunChecksOnBlock_ReportsNoPositionYet(t *testing.T) {
 	block := model.NewBlock("b1", "Hello world")
 	block.SetTargetText(model.LocaleFrench, "Bonjour  le monde")
 
-	issues := runChecksOnBlock(t.Context(), block, pointChecks{TargetLocale: model.LocaleFrench})
+	issues, err := runChecksOnBlock(t.Context(), block, pointChecks{TargetLocale: model.LocaleFrench})
+	require.NoError(t, err)
 	require.NotEmpty(t, issues)
 	for _, iss := range issues {
 		assert.Nil(t, iss.Position, "%s: the rule checks do not locate their findings yet", iss.Type)
@@ -120,7 +122,8 @@ func TestRunChecksOnBlock_CleanBlock(t *testing.T) {
 	block := model.NewBlock("b1", "Hello world")
 	block.SetTargetText(model.LocaleFrench, "Bonjour le monde")
 
-	issues := runChecksOnBlock(t.Context(), block, pointChecks{TargetLocale: model.LocaleFrench})
+	issues, err := runChecksOnBlock(t.Context(), block, pointChecks{TargetLocale: model.LocaleFrench})
+	require.NoError(t, err)
 	assert.Empty(t, issues)
 	assert.NotNil(t, issues, "must be a non-nil empty slice so JSON encodes as []")
 }

@@ -11,6 +11,9 @@ import { Create as $Create } from "@wailsio/runtime";
 import * as convergence$0 from "../core/convergence/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as profile$0 from "../core/profile/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as review$0 from "../core/review/models.js";
 
 /**
@@ -125,6 +128,13 @@ export class ContextAnswer {
      * @param {Partial<ContextAnswer>} [$$source = {}] - The source object to create the ContextAnswer.
      */
     constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {profile$0.ConstraintResolution[] | undefined}
+             */
+            this["constraints"] = undefined;
+        }
         if (!("point" in $$source)) {
             /**
              * Point is the coordinate the request resolved to.
@@ -200,26 +210,30 @@ export class ContextAnswer {
      * @returns {ContextAnswer}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType0;
-        const $$createField2_0 = $$createType2;
+        const $$createField0_0 = $$createType1;
+        const $$createField1_0 = $$createType2;
         const $$createField3_0 = $$createType4;
-        const $$createField5_0 = $$createType6;
-        const $$createField6_0 = $$createType7;
+        const $$createField4_0 = $$createType6;
+        const $$createField6_0 = $$createType8;
+        const $$createField7_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("constraints" in $$parsedSource) {
+            $$parsedSource["constraints"] = $$createField0_0($$parsedSource["constraints"]);
+        }
         if ("point" in $$parsedSource) {
-            $$parsedSource["point"] = $$createField0_0($$parsedSource["point"]);
+            $$parsedSource["point"] = $$createField1_0($$parsedSource["point"]);
         }
         if ("voice" in $$parsedSource) {
-            $$parsedSource["voice"] = $$createField2_0($$parsedSource["voice"]);
+            $$parsedSource["voice"] = $$createField3_0($$parsedSource["voice"]);
         }
         if ("terms" in $$parsedSource) {
-            $$parsedSource["terms"] = $$createField3_0($$parsedSource["terms"]);
+            $$parsedSource["terms"] = $$createField4_0($$parsedSource["terms"]);
         }
         if ("profiles" in $$parsedSource) {
-            $$parsedSource["profiles"] = $$createField5_0($$parsedSource["profiles"]);
+            $$parsedSource["profiles"] = $$createField6_0($$parsedSource["profiles"]);
         }
         if ("notes" in $$parsedSource) {
-            $$parsedSource["notes"] = $$createField6_0($$parsedSource["notes"]);
+            $$parsedSource["notes"] = $$createField7_0($$parsedSource["notes"]);
         }
         return new ContextAnswer(/** @type {Partial<ContextAnswer>} */($$parsedSource));
     }
@@ -278,6 +292,13 @@ export class ContextPoint {
              */
             this["ref"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {{ [_ in string]?: string } | undefined}
+             */
+            this["coordinates"] = undefined;
+        }
         if (!("default" in $$source)) {
             /**
              * Default reports that resolution fell through to the project's default
@@ -297,7 +318,11 @@ export class ContextPoint {
      * @returns {ContextPoint}
      */
     static createFrom($$source = {}) {
+        const $$createField5_0 = $$createType10;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("coordinates" in $$parsedSource) {
+            $$parsedSource["coordinates"] = $$createField5_0($$parsedSource["coordinates"]);
+        }
         return new ContextPoint(/** @type {Partial<ContextPoint>} */($$parsedSource));
     }
 }
@@ -361,7 +386,7 @@ export class ContextPrecedentHit {
      * @returns {ContextPrecedentHit}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType7;
+        const $$createField4_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("discouraged" in $$parsedSource) {
             $$parsedSource["discouraged"] = $$createField4_0($$parsedSource["discouraged"]);
@@ -504,10 +529,10 @@ export class ContextSearchResult {
      * @returns {ContextSearchResult}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType4;
-        const $$createField3_0 = $$createType9;
-        const $$createField4_0 = $$createType6;
-        const $$createField5_0 = $$createType7;
+        const $$createField2_0 = $$createType6;
+        const $$createField3_0 = $$createType12;
+        const $$createField4_0 = $$createType8;
+        const $$createField5_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("terms" in $$parsedSource) {
             $$parsedSource["terms"] = $$createField2_0($$parsedSource["terms"]);
@@ -661,7 +686,7 @@ export class ContextTermHit {
      * @returns {ContextTermHit}
      */
     static createFrom($$source = {}) {
-        const $$createField12_0 = $$createType11;
+        const $$createField12_0 = $$createType14;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("top_uses" in $$parsedSource) {
             $$parsedSource["top_uses"] = $$createField12_0($$parsedSource["top_uses"]);
@@ -984,7 +1009,7 @@ export class ConvergeLocaleResult {
      * @returns {ConvergeLocaleResult}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType12;
+        const $$createField4_0 = $$createType15;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("pct" in $$parsedSource) {
             $$parsedSource["pct"] = $$createField4_0($$parsedSource["pct"]);
@@ -1155,8 +1180,8 @@ export class ConvergeOutput {
      * @returns {ConvergeOutput}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType14;
-        const $$createField4_0 = $$createType16;
+        const $$createField3_0 = $$createType17;
+        const $$createField4_0 = $$createType19;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("locales" in $$parsedSource) {
             $$parsedSource["locales"] = $$createField3_0($$parsedSource["locales"]);
@@ -1382,8 +1407,8 @@ export class UpPlanOutput {
      * @returns {UpPlanOutput}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType18;
-        const $$createField4_0 = $$createType17;
+        const $$createField3_0 = $$createType21;
+        const $$createField4_0 = $$createType20;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("scopes" in $$parsedSource) {
             $$parsedSource["scopes"] = $$createField3_0($$parsedSource["scopes"]);
@@ -1567,22 +1592,25 @@ export class UpPlanScope {
 }
 
 // Private type creation functions
-const $$createType0 = ContextPoint.createFrom;
-const $$createType1 = review$0.Voice.createFrom;
-const $$createType2 = $Create.Nullable($$createType1);
-const $$createType3 = ContextTermHit.createFrom;
-const $$createType4 = $Create.Array($$createType3);
-const $$createType5 = review$0.ProfileValidity.createFrom;
+const $$createType0 = profile$0.ConstraintResolution.createFrom;
+const $$createType1 = $Create.Array($$createType0);
+const $$createType2 = ContextPoint.createFrom;
+const $$createType3 = review$0.Voice.createFrom;
+const $$createType4 = $Create.Nullable($$createType3);
+const $$createType5 = ContextTermHit.createFrom;
 const $$createType6 = $Create.Array($$createType5);
-const $$createType7 = $Create.Array($Create.Any);
-const $$createType8 = ContextPrecedentHit.createFrom;
-const $$createType9 = $Create.Array($$createType8);
-const $$createType10 = ContextTermUse.createFrom;
-const $$createType11 = $Create.Array($$createType10);
-const $$createType12 = $Create.Map($Create.Any, $Create.Any);
-const $$createType13 = ConvergeLocaleResult.createFrom;
+const $$createType7 = review$0.ProfileValidity.createFrom;
+const $$createType8 = $Create.Array($$createType7);
+const $$createType9 = $Create.Array($Create.Any);
+const $$createType10 = $Create.Map($Create.Any, $Create.Any);
+const $$createType11 = ContextPrecedentHit.createFrom;
+const $$createType12 = $Create.Array($$createType11);
+const $$createType13 = ContextTermUse.createFrom;
 const $$createType14 = $Create.Array($$createType13);
-const $$createType15 = ParkedScope.createFrom;
-const $$createType16 = $Create.Array($$createType15);
-const $$createType17 = UpPlanScope.createFrom;
-const $$createType18 = $Create.Array($$createType17);
+const $$createType15 = $Create.Map($Create.Any, $Create.Any);
+const $$createType16 = ConvergeLocaleResult.createFrom;
+const $$createType17 = $Create.Array($$createType16);
+const $$createType18 = ParkedScope.createFrom;
+const $$createType19 = $Create.Array($$createType18);
+const $$createType20 = UpPlanScope.createFrom;
+const $$createType21 = $Create.Array($$createType20);

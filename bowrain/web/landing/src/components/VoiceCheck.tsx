@@ -3,24 +3,10 @@ import { t } from "@neokapi/i18n-react/runtime";
 import { captureLandingEvent } from "../analytics";
 import { markEngaged } from "../sectionSignals";
 
-// A working miniature of the voice check, running in the page.
-//
-// The four profiles are coordinate bundles, not company types, and each carries
-// both a draft and the rules in force where that draft sits. What separates
-// them is severity, not vocabulary size: the API reference forbids the new name
-// outright — the rename table's third row, enforced — where the help centre has
-// no rule about it at all. Selecting a point loads that point's draft; editing
-// re-scores whatever is in the box against the point currently selected.
-//
-// The arithmetic is the product's, not an approximation of it: findings carry a
-// severity, severity carries a penalty weight (neutral 0, minor 1, major 5,
-// critical 25), the roll-up is 100 − Σpenalty clamped to [0,100], and each of
-// the five dimensions scores 100 − its own penalty. See core/profile/scoring.go.
-//
-// label/coordinates are user-visible and translatable; id is a programmatic key
-// for rule lookup. The rule patterns, reasons, suggestions and sample texts
-// analyze *English* input by design, so they are deliberately not marked for
-// translation.
+// Local English regex illustration with authored profiles. It shares penalty
+// weights with core/check, but performs no production profile resolution or
+// semantic analysis. Scores apply only to the patterns listed below.
+// Rule text and samples analyze English input and are intentionally untranslated.
 
 type Dimension = "Tone" | "Style" | "Vocabulary" | "Clarity" | "Brand";
 type Severity = "minor" | "major" | "critical";
@@ -291,15 +277,16 @@ export function VoiceCheck() {
     reportUse("profile", id);
   }
 
+  const hasText = text.trim().length > 0;
   const scoreColor =
-    analysis.overall >= 80
-      ? "text-success"
+    !hasText || analysis.overall >= 80
+      ? "text-foreground"
       : analysis.overall >= 50
         ? "text-warning"
         : "text-destructive";
   const barColor =
     analysis.overall >= 80
-      ? "bg-success"
+      ? "bg-primary"
       : analysis.overall >= 50
         ? "bg-warning"
         : "bg-destructive";
@@ -351,9 +338,21 @@ export function VoiceCheck() {
           }}
           rows={8}
           aria-label={t("Draft under check")}
-          className="w-full resize-none bg-transparent p-4 text-sm outline-none placeholder:text-muted-foreground/50"
+          className="w-full resize-none bg-transparent p-4 text-sm outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary placeholder:text-muted-foreground/50"
           placeholder={t("Write or paste content here")}
         />
+        <details className="border-t border-border p-4 text-xs text-muted-foreground">
+          <summary className="cursor-pointer font-medium">
+            {t("Inspect this example's rules")}
+          </summary>
+          <ul className="mt-3 space-y-2">
+            {(RULES[profile] ?? []).map((rule) => (
+              <li key={rule.pattern.source}>
+                <code>{rule.pattern.source}</code>: {rule.reason} ({rule.severity})
+              </li>
+            ))}
+          </ul>
+        </details>
         {analysis.findings.length > 0 && (
           <div className="border-t border-border p-4">
             <div className="flex flex-wrap gap-2">
@@ -372,29 +371,34 @@ export function VoiceCheck() {
         )}
       </div>
 
-      {/* The score the same arithmetic produces in the product */}
+      {/* Score for the listed local rules */}
       <div className="space-y-4">
         <div className="rounded-xl border border-border bg-card p-6 text-center">
           <div className="text-xs uppercase tracking-wider text-muted-foreground">
-            {t("Voice compliance score")}
+            {t("Example rule score")}
           </div>
           <div translate="no" className={`mt-2 text-5xl font-bold ${scoreColor}`}>
-            {analysis.overall}
+            {hasText ? analysis.overall : "–"}
           </div>
           <div translate="no" className="mt-1 text-sm text-muted-foreground">
             / 100
           </div>
+          <p className="mt-3 text-xs text-muted-foreground">
+            {hasText
+              ? t("Only the listed wording patterns were evaluated.")
+              : t("No text supplied. There is nothing to assess.")}
+          </p>
           <div className="mt-4 h-2 overflow-hidden rounded-full bg-secondary">
             <div
               className={`h-full rounded-full transition-all duration-500 ${barColor}`}
-              style={{ width: `${analysis.overall}%` }}
+              style={{ width: `${hasText ? analysis.overall : 0}%` }}
             />
           </div>
         </div>
 
         <div className="rounded-xl border border-border bg-card p-4">
           <div className="mb-3 text-xs uppercase tracking-wider text-muted-foreground">
-            {t("Penalty by dimension")}
+            {t("Penalties from matching rules")}
           </div>
           <div className="space-y-2">
             {DIMENSIONS.map((dim) => {
@@ -419,8 +423,11 @@ export function VoiceCheck() {
         </div>
 
         <div className="rounded-xl border border-border bg-card p-4">
+          <p className="mb-4 text-xs text-muted-foreground">
+            {t("Factual accuracy and overall writing quality: not assessed.")}
+          </p>
           <div className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">
-            {t("Point in force")}
+            {t("Example context")}
           </div>
           <div className="text-sm font-medium">{activeLabel}</div>
           <div translate="no" className="mt-1 font-mono text-xs text-muted-foreground">

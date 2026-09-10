@@ -1,5 +1,5 @@
 id: s0-northsea-context
-title: Ask the graph where you are
+title: Find the guidance for a file
 subtitle: Two questions an assistant needs answered, and files in the repository that answer them.
 kind: use-case
 publishAs: monolingual-context
@@ -35,16 +35,16 @@ setup:
 script:
   - comment: A company repository. Operator documentation, interface strings, one marketing page. One language.
   - command: ls
-  - comment: An assistant read all three surfaces and proposed a context graph. It is files in the repo, untracked, waiting for you.
+  - comment: This sample includes prepared guidance files. Inspect what will be added to the repository.
   - command: git status --short
-  - comment: You corrected a draft instead of writing one. Commit it, and the graph is versioned, diffable, reviewed source.
+  - comment: Commit the prepared guidance so its changes can be inspected in version control.
   - command: git add -A && git commit -qm "Adopt the context graph" && git log --oneline -1
   - comment: One verb reconciles the committed graph and the sources. No target languages, no provider, nothing to ask for.
   - command: kapi up
   - comment: The first question an agent asks. Where am I, and what governs here?
-  - command: kapi context docs/berths.md | head -6
+  - command: kapi context docs/berths.md
   - comment: The same question, three directories away, at a different point and in a different register.
-  - command: kapi context landing/index.html | head -6
+  - command: kapi context landing/index.html
   - comment: The second question. What do we call this, and why?
   - command: kapi context search mooring
 
@@ -61,17 +61,17 @@ narration:
     kind: title
     text: >-
       An assistant working in your repository needs two answers before it
-      writes: where am I, and what do we call this? A context graph is files in
-      the repository that answer both.
+      writes: which guidance applies here, and what do we call this? kapi reads
+      the project files that record those decisions.
 
   - id: adopt
     kind: terminal
     through: 8
-    caption: Untracked files, reviewed, committed, then reconciled.
+    caption: Prepared guidance, committed and reconciled.
     text: >-
-      The graph arrives as a draft an assistant proposed: a recipe, a voice
-      profile, a vocabulary, untracked beside content that is already committed.
-      You correct it and commit it, and one verb reconciles it with the sources.
+      This demonstration starts with a prepared recipe, voice profile and terms.
+      We commit them and run kapi up to reconcile them with the source files.
+      The recording does not stand in for a human review of the guidance.
 
   - id: landing
     kind: artifact

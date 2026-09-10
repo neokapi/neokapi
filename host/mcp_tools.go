@@ -28,18 +28,24 @@ func init() {
 
 // ResolveMCPProject resolves the active project (git-style upward walk, honoring
 // KAPI_NO_PROJECT and an explicit -p) and, when one is found, loads it into
-// a.ProjectContext so the MCP factories can scope themselves to it. Failure to
-// resolve or load is non-fatal — the server simply runs in ad-hoc mode.
-func (a *App) ResolveMCPProject(cmd Command) {
+// a.ProjectContext so the MCP factories can scope themselves to it. Unavailable
+// requested context fails startup instead of silently selecting ad-hoc mode.
+func (a *App) ResolveMCPProject(cmd Command) error {
 	path, err := ResolveProjectPath(cmd)
-	if err != nil || path == "" {
-		return
+	if err != nil {
+		return fmt.Errorf("resolve MCP project: %w", err)
+	}
+	if path == "" {
+		return nil
 	}
 	proj, err := project.Load(path)
 	if err != nil {
-		return
+		return fmt.Errorf("load MCP project: %w", err)
 	}
 	a.ProjectContext = project.NewProjectContext(proj, path)
+	a.mcpRecipePath = path
+	a.ResolveSourceLang(a.ProjectContext.SourceLocale)
+	return nil
 }
 
 // registerFrameworkMCPTools registers one MCP tool per curated framework tool.

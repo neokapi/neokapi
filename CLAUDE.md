@@ -1,10 +1,13 @@
 # CLAUDE.md
 
-neokapi is an AI-native reimagining of the [Okapi Framework](https://okapiframework.org/)
-in Go — a content and language intelligence framework: format-aware document
-parsing into one content model, channel-based concurrent processing flows,
-faithful write-back, and pluggable tools that edit, check and translate the
-content inside.
+neokapi is an open content engine in Go. It reads documents into a common
+content model, runs composable tools through concurrent processing flows, and
+writes edits back through format-aware writers. Its context graph connects
+content to applicable writing guidance, terms and recorded decisions.
+
+kapi brings the engine to project files through the CLI, desktop app and agent
+tools. Format fidelity and check coverage are explicit, separately verified
+properties.
 
 This file covers what you can't learn by reading the tree. Architecture,
 interfaces, and how-to guides live in the docs — see [Where things are

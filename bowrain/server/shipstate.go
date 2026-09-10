@@ -461,7 +461,11 @@ func applyCompliance(ls *store.LocaleTranslationStats, compliantCount int, voice
 // at a time and hold no item, so they resolve no point; the editor's check
 // endpoints, which do hold one, add what the governance there declares.
 func blockFailsChecks(ctx context.Context, block *model.Block, loc model.LocaleID) bool {
-	for _, issue := range runChecksOnBlock(ctx, block, pointChecks{TargetLocale: loc}) {
+	issues, err := runChecksOnBlock(ctx, block, pointChecks{TargetLocale: loc})
+	if err != nil {
+		return true
+	}
+	for _, issue := range issues {
 		if issue.Severity == "error" {
 			return true
 		}

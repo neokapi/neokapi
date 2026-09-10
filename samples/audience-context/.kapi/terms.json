@@ -1,0 +1,42 @@
+{
+  "schemaVersion": "1.0",
+  "kind": "kapi-terms",
+  "concepts": [
+    {
+      "id": "term:video-appointment",
+      "domain": "service",
+      "definition": "A scheduled conversation with a Harbor Help adviser over video. It is not a recording and it does not give the service access to a person's device.",
+      "source": "terminology",
+      "terms": [
+        { "text": "video appointment", "locale": "en", "status": "preferred" },
+        { "text": "videomøte", "locale": "nb", "status": "preferred" }
+      ],
+      "created_at": "2026-09-09T09:00:00Z",
+      "updated_at": "2026-09-09T09:00:00Z"
+    },
+    {
+      "id": "term:support-line",
+      "domain": "service",
+      "definition": "The phone service that helps a person use Harbor Help. It is not an emergency number.",
+      "source": "terminology",
+      "terms": [
+        { "text": "support line", "locale": "en", "status": "preferred" },
+        { "text": "hjelpetelefon", "locale": "nb", "status": "preferred" }
+      ],
+      "created_at": "2026-09-09T09:00:00Z",
+      "updated_at": "2026-09-09T09:00:00Z"
+    },
+    {
+      "id": "term:harbor-help",
+      "domain": "product",
+      "definition": "The fictional public-information service in this sample. It is a name and is never translated.",
+      "source": "terminology",
+      "terms": [
+        { "text": "Harbor Help", "locale": "en", "status": "preferred" },
+        { "text": "Harbor Help", "locale": "nb", "status": "preferred" }
+      ],
+      "created_at": "2026-09-09T09:00:00Z",
+      "updated_at": "2026-09-09T09:00:00Z"
+    }
+  ]
+}

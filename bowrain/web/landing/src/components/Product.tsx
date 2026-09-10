@@ -11,15 +11,11 @@ import { SECTION_PRODUCT } from "../sections";
 const CAPABILITIES = [
   {
     icon: PenTool,
-    title: t("A shared editor for every format"),
+    title: t("A shared content editor"),
     body: t(
       "In-context visual preview for HTML, Markdown, MDX, and JSX; structured block editing for everything else: app strings, subtitles, office documents, interchange files. Suggestions from memory, term highlights, and checks inline.",
     ),
-    detail: [
-      t("Visual preview · web formats"),
-      t("Block editing · all formats"),
-      t("Live presence"),
-    ],
+    detail: [t("Visual preview · web formats"), t("Structured block editing"), t("Live presence")],
   },
   {
     icon: ClipboardCheck,
@@ -31,23 +27,19 @@ const CAPABILITIES = [
   },
   {
     icon: Fingerprint,
-    title: t("Voice profile, scored"),
+    title: t("Writing guidance and findings"),
     body: t(
-      "A profile holds the tone, style, and vocabulary rules that apply at its coordinates. Drafts score 0–100 across five dimensions; trends and drift show where a surface is sliding off profile.",
+      "A voice profile holds writing guidance and wording rules for its scope. Inspect the findings from configured checks; their scores describe the checks performed, not overall content quality.",
     ),
-    detail: [t("Five-dimension score"), t("Drift detection"), t("Rules from corrections")],
+    detail: [t("Configured checks"), t("Drift detection"), t("Rules from corrections")],
   },
   {
     icon: Database,
     title: t("Terms and content memory"),
     body: t(
-      "One terms store and one content memory for the whole workspace, applied in every draft and every lookup. Import from CSV or JSON; entity-aware matching recycles approved wording even when names and numbers change.",
+      "Share a terms store and content memory across the workspace. Retrieve eligible wording for the project and inspect its source before accepting a suggestion.",
     ),
-    detail: [
-      t("Shared terms & content memory"),
-      t("CSV / JSON import"),
-      t("Entity-aware recycling"),
-    ],
+    detail: [t("Shared terms & content memory"), t("CSV / JSON import"), t("Scoped reuse")],
   },
   {
     icon: Zap,

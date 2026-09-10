@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/neokapi/neokapi/core/check"
@@ -71,22 +72,31 @@ type checkFileInput struct {
 
 // checkTextMCP runs the source-side content checkset over a text snippet.
 func (a *App) checkTextMCP(ctx context.Context, in checkTextInput) (*mcp.CallToolResult, check.Report, error) {
+	execution := newCheckExecution()
+	contextStart := time.Now()
 	a.InitRegistries()
 	opts, err := a.mcpCheckOptions(in.MaxChars, in.MaxWords, in.Forbid, in.Require, in.ProfilePack, in.ProfileFile)
 	if err != nil {
 		return nil, check.Report{}, err
 	}
+	execution.Timings.ContextMS += elapsedMS(contextStart)
+	opts.execution = execution
 	block := &model.Block{ID: "text", Translatable: true, Source: []model.Run{{Text: &model.TextRun{Text: in.Text}}}}
 	diags, err := a.collectFileDiagnostics(ctx, []*model.Block{block}, "text", opts)
 	if err != nil {
 		return nil, check.Report{}, err
 	}
-	return nil, check.BuildReport(check.Target{Kind: "text", Blocks: 1}, diags, check.DefaultGate()), nil
+	for i := range execution.Analyzers {
+		execution.Analyzers[i].File = ""
+	}
+	return nil, execution.report(check.Target{Kind: "text", Blocks: 1}, diags, check.DefaultGate()), nil
 }
 
 // checkFileMCP runs the content checkset over a file's content, optionally with
 // the bilingual checks when a target is supplied.
 func (a *App) checkFileMCP(ctx context.Context, in checkFileInput) (*mcp.CallToolResult, check.Report, error) {
+	execution := newCheckExecution()
+	contextStart := time.Now()
 	a.InitRegistries()
 	if in.File == "" {
 		return nil, check.Report{}, errors.New("file is required")
@@ -95,32 +105,44 @@ func (a *App) checkFileMCP(ctx context.Context, in checkFileInput) (*mcp.CallToo
 	if err != nil {
 		return nil, check.Report{}, err
 	}
-	// A file inside a project is checked against the voice governing the point
-	// it sits at — the same resolution `kapi check` makes, so an assistant and a
-	// CI gate report the same findings for the same file. A named profile_pack /
-	// profile_file still wins. The MCP half passes a bare synthetic command, so
-	// it takes the project defaults; a project that will not resolve leaves the
-	// vocabulary family off rather than failing a check the other families can
-	// still answer.
+	// Check context is required when bound. A resolution failure is an operation
+	// error, not permission to omit the governing rules from a successful report.
+	cmd := NewEnvCommand(ctx, "check_file")
+	if a.mcpRecipePath != "" {
+		cmd.Flags().String(projectFlagName, a.mcpRecipePath, "")
+	}
 	if opts.profile == nil {
-		if voice, verr := a.newCheckVoice(NewEnvCommand(ctx, "check_file")); verr == nil {
-			defer voice.close()
-			if p, perr := voice.forFile(ctx, in.File); perr == nil {
-				opts.profile = p
-			}
+		voice, err := a.newCheckVoice(cmd)
+		if err != nil {
+			return nil, check.Report{}, err
+		}
+		defer voice.close()
+		opts.profile, err = voice.forFile(ctx, in.File)
+		if err != nil {
+			return nil, check.Report{}, err
 		}
 	}
-	// The vocabulary the project decided travels with the profile, here as it
-	// does in the verb: a term retired in the project's terms is a finding, and
-	// resolving the profile without it left an assistant reading a quieter
-	// report than the same file gets in CI.
-	if tb, terr := a.ProjectTermsForFile(ctx, NewEnvCommand(ctx, "check_file"), in.File); terr == nil {
-		opts.terms = tb
+	opts.terms, err = a.ProjectTermsForFile(ctx, cmd, in.File)
+	if err != nil {
+		return nil, check.Report{}, err
 	}
+	opts.formats, err = a.newCheckFormats(cmd)
+	if err != nil {
+		return nil, check.Report{}, err
+	}
+	opts.execution = execution
+	execution.Timings.ContextMS += elapsedMS(contextStart)
 	target := check.Target{Kind: "file", File: in.File}
 	var diags []check.Diagnostic
 
+	validateMode, err := parseValidationMode(in.Validate)
+	if err != nil {
+		return nil, check.Report{}, err
+	}
 	if in.Target != "" {
+		if validateMode != format.ValidationOff {
+			return nil, check.Report{}, errors.New("reader validation is unavailable with target; validate each file separately")
+		}
 		lang := in.TargetLang
 		if lang == "" {
 			lang = "und"
@@ -132,8 +154,13 @@ func (a *App) checkFileMCP(ctx context.Context, in checkFileInput) (*mcp.CallToo
 			return nil, check.Report{}, fmt.Errorf("target_lang: %w", lerr)
 		}
 		lang = string(id)
-		unit := VerifyUnit{SourcePath: in.File, TargetPath: in.Target, Locale: lang, DisplayPath: in.Target}
+		fmtName, fmtConfig := opts.formats.forFile(a, in.File)
+		unit := VerifyUnit{SourcePath: in.File, TargetPath: in.Target, Locale: lang, DisplayPath: in.Target,
+			SourceFormat: fmtName, TargetFormat: fmtName, SourceConfig: fmtConfig, TargetConfig: fmtConfig}
+		extractionStart := time.Now()
 		blocks, missing, berr := a.bilingualBlocks(ctx, unit)
+		execution.Timings.ExtractionMS += elapsedMS(extractionStart)
+		execution.skipped("reader.validation", in.File, "Reader validation was not requested.")
 		if berr != nil {
 			return nil, check.Report{}, berr
 		}
@@ -146,29 +173,25 @@ func (a *App) checkFileMCP(ctx context.Context, in checkFileInput) (*mcp.CallToo
 			return nil, check.Report{}, ferr
 		}
 		diags = fd
-		biDiags, bderr := a.collectBilingualDiagnostics(ctx, blocks, in.File, model.LocaleID(lang), in.DNT)
+		biDiags, bderr := a.collectBilingualDiagnostics(ctx, blocks, in.File, model.LocaleID(lang), in.DNT, execution)
 		if bderr != nil {
 			return nil, check.Report{}, bderr
 		}
 		diags = append(diags, biDiags...)
 	} else {
-		validateMode, verr := parseValidationMode(in.Validate)
-		if verr != nil {
-			return nil, check.Report{}, verr
-		}
 		blocks, fileDiags, ferr := a.checkFileBlocks(ctx, in.File, validateMode, opts)
 		if ferr != nil {
 			return nil, check.Report{}, ferr
 		}
 		target.Blocks = len(blocks)
 		diags = fileDiags
-		report := check.BuildReport(target, diags, check.DefaultGate())
+		report := execution.report(target, diags, check.DefaultGate())
 		if validateMode == format.ValidationStrict {
 			applyStrictValidationGate(&report)
 		}
 		return nil, report, nil
 	}
-	return nil, check.BuildReport(target, diags, check.DefaultGate()), nil
+	return nil, execution.report(target, diags, check.DefaultGate()), nil
 }
 
 // mcpCheckOptions resolves the shared content-check options for the MCP tools,

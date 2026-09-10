@@ -55,39 +55,41 @@ func TestDocumentCursor_ReadsTheDocument(t *testing.T) {
 	const item = "handbook.md"
 
 	// The store mints the ids, so the order it stored these in is read back
-	// rather than assumed. The document declares a different one.
+	// rather than assumed. Reverse that order so both neighbours of the middle
+	// block must differ, even when the random ids happen to match a fixed order.
 	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "", item,
 		docBlocks("a", "b", "c", "d", "e")))
-	document := []string{"c", "e", "a", "d", "b"}
+	stored := byID(t, s, p.ID, item)
+	require.Len(t, stored, 5)
+	document := []string{stored[4], stored[3], stored[2], stored[1], stored[0]}
 	require.NoError(t, s.SetBlockOrder(ctx, p.ID, "", item, document))
 	require.Equal(t, document, listed(t, s, p.ID, item))
-	stored := byID(t, s, p.ID, item)
 	require.NotEqual(t, document, stored, "the case needs the two orders to differ")
 
-	anchor := idOf(t, s, p.ID, item, "a")
+	anchor := idOf(t, s, p.ID, item, document[2])
 
 	// One block each way is the document's neighbour, and the id order names
 	// other blocks there.
-	idBefore, idAfter := aroundIn(stored, "a")
-	require.NotEqual(t, []string{"e", "d"}, []string{idBefore, idAfter},
+	idBefore, idAfter := aroundIn(stored, document[2])
+	require.NotEqual(t, []string{document[1], document[3]}, []string{idBefore, idAfter},
 		"the case needs the id neighbours to differ from the document's")
 
 	before := namesOf(t, s, platstore.BlockQuery{
 		ProjectID: p.ID, ItemName: item, DocumentBefore: anchor, Limit: 1,
 	})
-	assert.Equal(t, []string{"e"}, before, "the nearest predecessor in the document")
+	assert.Equal(t, document[1:2], before, "the nearest predecessor in the document")
 
 	after := namesOf(t, s, platstore.BlockQuery{
 		ProjectID: p.ID, ItemName: item, DocumentAfter: anchor, Limit: 1,
 	})
-	assert.Equal(t, []string{"d"}, after, "the nearest successor in the document")
+	assert.Equal(t, document[3:4], after, "the nearest successor in the document")
 
 	// A wider window arrives in document order on both sides, so a surface
 	// reading before, unit, after top to bottom reads the file.
-	assert.Equal(t, []string{"c", "e"}, namesOf(t, s, platstore.BlockQuery{
+	assert.Equal(t, document[:2], namesOf(t, s, platstore.BlockQuery{
 		ProjectID: p.ID, ItemName: item, DocumentBefore: anchor, Limit: 2,
 	}), "the window's worth, nearest last")
-	assert.Equal(t, []string{"d", "b"}, namesOf(t, s, platstore.BlockQuery{
+	assert.Equal(t, document[3:], namesOf(t, s, platstore.BlockQuery{
 		ProjectID: p.ID, ItemName: item, DocumentAfter: anchor, Limit: 2,
 	}), "the window's worth, nearest first")
 
@@ -95,11 +97,11 @@ func TestDocumentCursor_ReadsTheDocument(t *testing.T) {
 	// surface draws "start of the item" from it.
 	assert.Empty(t, namesOf(t, s, platstore.BlockQuery{
 		ProjectID: p.ID, ItemName: item,
-		DocumentBefore: idOf(t, s, p.ID, item, "c"), Limit: 2,
+		DocumentBefore: idOf(t, s, p.ID, item, document[0]), Limit: 2,
 	}), "the first block of the document has no predecessor")
 	assert.Empty(t, namesOf(t, s, platstore.BlockQuery{
 		ProjectID: p.ID, ItemName: item,
-		DocumentAfter: idOf(t, s, p.ID, item, "b"), Limit: 2,
+		DocumentAfter: idOf(t, s, p.ID, item, document[4]), Limit: 2,
 	}), "the last block of the document has no successor")
 
 	// An anchor the item does not hold has no neighbourhood, rather than the

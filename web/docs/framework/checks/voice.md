@@ -52,6 +52,27 @@ kapi voice expand --profile-file voice.yaml --language nb
 kapi voice profiles
 ```
 
+## What voice checks assess
+
+The default vocabulary and pattern checks assess encoded rules. `kapi check
+--voice` adds advisory similarity to profile examples through the `kapi-check`
+plugin; it does not request an LLM judgment. `kapi voice check --ai` and the raw
+`voice-check` tool explicitly request semantic model review.
+
+A clean rule result means no findings in those rules. It does not establish
+that a service description, promise or factual claim is correct. The canonical
+check report identifies analyses that ran, were not requested or cannot be
+assessed by exact rules. Reports without execution metadata have unreported
+coverage. Applicable prose guidance is recorded as unsupported by deterministic
+checks; an encoded prohibited expression can produce a rule finding.
+
+Requested analysis failures are operation errors. Missing profiles, unavailable
+plugins, provider errors, timeout and cancellation cannot yield a new successful
+score. The LLM tool validates structured findings locally: malformed JSON,
+missing or null findings, invalid fields and invalid finding values are errors.
+Only an explicit empty findings array is a completed clean model response.
+Empty content skips model analysis and emits no score.
+
 ## Voice profiles
 
 A profile captures tone, style, and vocabulary as rules:

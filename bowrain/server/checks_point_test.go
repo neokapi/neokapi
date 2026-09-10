@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -12,8 +13,10 @@ import (
 	"github.com/stretchr/testify/require"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/bowrain/store/sqlitestore"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
+	"github.com/neokapi/neokapi/terms"
 )
 
 // These tests pin how the check endpoints choose what to run and what to read:
@@ -54,7 +57,11 @@ func seedCheckPoint(t *testing.T, cs platstore.ContentStore, projectID, collecti
 func TestChecksAtPoint_GovernanceSelectsTheCheckers(t *testing.T) {
 	ctx := t.Context()
 	srv, cs, _ := newOriginTestServer(t)
+	srv.wsStores.termsFactory = func() terms.Store {
+		return &testTermStore{terms.NewInMemoryStore()}
+	}
 	proj := seedOriginProject(t, cs, "two-points")
+	seedCheckStream(t, cs, proj.ID, "main")
 
 	srv.VoiceStore = &editorFakeVoiceStore{profiles: map[string]*coreprofile.VoiceProfile{
 		"bp-strict": {
@@ -71,8 +78,10 @@ func TestChecksAtPoint_GovernanceSelectsTheCheckers(t *testing.T) {
 	seedCheckPoint(t, cs, proj.ID, "strict-docs", "bp-strict", "strict.txt", source)
 	seedCheckPoint(t, cs, proj.ID, "open-docs", "bp-open", "open.txt", source)
 
-	strict := srv.checksAtPoint(ctx, proj.ID, "main", "strict.txt", originTestWS, "acme", "fr")
-	open := srv.checksAtPoint(ctx, proj.ID, "main", "open.txt", originTestWS, "acme", "fr")
+	strict, err := srv.checksAtPoint(ctx, proj.ID, "main", "strict.txt", originTestWS, "acme", "fr")
+	require.NoError(t, err)
+	open, err := srv.checksAtPoint(ctx, proj.ID, "main", "open.txt", originTestWS, "acme", "fr")
+	require.NoError(t, err)
 
 	require.NotNil(t, strict.Voice)
 	require.NotNil(t, open.Voice)
@@ -83,8 +92,10 @@ func TestChecksAtPoint_GovernanceSelectsTheCheckers(t *testing.T) {
 	block.SetSourceText(source)
 	block.SetTargetText("fr", "Le logiciel bon marché est prêt")
 
-	strictIssues := runChecksOnBlock(ctx, block, strict)
-	openIssues := runChecksOnBlock(ctx, block, open)
+	strictIssues, err := runChecksOnBlock(ctx, block, strict)
+	require.NoError(t, err)
+	openIssues, err := runChecksOnBlock(ctx, block, open)
+	require.NoError(t, err)
 
 	assert.True(t, hasIssueContaining(strictIssues, "cheap"),
 		"the vocabulary governing this point is part of its checker set: %+v", strictIssues)
@@ -98,18 +109,25 @@ func TestChecksAtPoint_GovernanceSelectsTheCheckers(t *testing.T) {
 func TestChecksAtPoint_UngovernedPointKeepsTheStandardSet(t *testing.T) {
 	ctx := t.Context()
 	srv, cs, _ := newOriginTestServer(t)
+	srv.wsStores.termsFactory = func() terms.Store {
+		return &testTermStore{terms.NewInMemoryStore()}
+	}
 	proj := seedOriginProject(t, cs, "ungoverned")
+	seedCheckStream(t, cs, proj.ID, "main")
 	require.NoError(t, cs.StoreItem(ctx, proj.ID, "main", &platstore.Item{
 		Name: "loose.txt", Format: "txt", ItemType: "file",
 	}))
 
-	checks := srv.checksAtPoint(ctx, proj.ID, "main", "loose.txt", originTestWS, "acme", "fr")
+	checks, err := srv.checksAtPoint(ctx, proj.ID, "main", "loose.txt", originTestWS, "acme", "fr")
+	require.NoError(t, err)
 	assert.Nil(t, checks.Voice, "nothing is bound here")
 	assert.Equal(t, model.LocaleID("en"), checks.SourceLocale)
 
 	block := model.NewBlock("b1", "Hello world")
 	block.SetTargetText("fr", "Bonjour  le monde")
-	assert.True(t, hasIssueOfType(runChecksOnBlock(ctx, block, checks), "double-spaces"),
+	issues, err := runChecksOnBlock(ctx, block, checks)
+	require.NoError(t, err)
+	assert.True(t, hasIssueOfType(issues, "double-spaces"),
 		"the standard per-locale checks run whatever governs the point")
 }
 
@@ -119,16 +137,22 @@ func TestChecksAtPoint_UngovernedPointKeepsTheStandardSet(t *testing.T) {
 func TestChecksAtPoint_ProtectedTermsJoinTheSet(t *testing.T) {
 	ctx := t.Context()
 	srv, cs, _ := newOriginTestServer(t)
+	srv.wsStores.termsFactory = func() terms.Store {
+		return &testTermStore{terms.NewInMemoryStore()}
+	}
 	proj := seedOriginProject(t, cs, "protected")
+	seedCheckStream(t, cs, proj.ID, "main")
 	proj.Properties = map[string]string{"dnt_terms": "Kapi"}
 	require.NoError(t, cs.UpdateProject(ctx, proj))
 
-	checks := srv.checksAtPoint(ctx, proj.ID, "main", "", originTestWS, "acme", "fr")
+	checks, err := srv.checksAtPoint(ctx, proj.ID, "main", "", originTestWS, "acme", "fr")
+	require.NoError(t, err)
 	require.Equal(t, []string{"Kapi"}, checks.DNT)
 
 	block := model.NewBlock("b1", "Kapi is ready")
 	block.SetTargetText("fr", "Le truc est prêt")
-	issues := runChecksOnBlock(ctx, block, checks)
+	issues, err := runChecksOnBlock(ctx, block, checks)
+	require.NoError(t, err)
 	assert.True(t, hasIssueContaining(issues, "Kapi"),
 		"a protected term dropped from the target is reported: %+v", issues)
 }
@@ -141,7 +165,12 @@ func TestChecksAtPoint_ProtectedTermsJoinTheSet(t *testing.T) {
 func TestHandleCheckBlock_HonoursTheRequestedStream(t *testing.T) {
 	ctx := t.Context()
 	srv, cs, _ := newOriginTestServer(t)
+	srv.wsStores.termsFactory = func() terms.Store {
+		return &testTermStore{terms.NewInMemoryStore()}
+	}
 	proj := seedOriginProject(t, cs, "streamed")
+	seedCheckStream(t, cs, proj.ID, "v2")
+	seedCheckStream(t, cs, proj.ID, "main")
 	require.NoError(t, cs.StoreItem(ctx, proj.ID, "v2", &platstore.Item{
 		Name: "hello.txt", Format: "txt", ItemType: "file",
 	}))
@@ -187,7 +216,11 @@ func TestHandleCheckBlock_HonoursTheRequestedStream(t *testing.T) {
 func TestHandleCheckFile_ReadsTheBodyTheEditorPosts(t *testing.T) {
 	ctx := t.Context()
 	srv, cs, _ := newOriginTestServer(t)
+	srv.wsStores.termsFactory = func() terms.Store {
+		return &testTermStore{terms.NewInMemoryStore()}
+	}
 	proj := seedOriginProject(t, cs, "file-checks")
+	seedCheckStream(t, cs, proj.ID, "main")
 	require.NoError(t, cs.StoreItem(ctx, proj.ID, "main", &platstore.Item{
 		Name: "hello.txt", Format: "txt", ItemType: "file",
 	}))
@@ -229,4 +262,65 @@ func hasIssueContaining(issues []CheckIssueResponse, text string) bool {
 		}
 	}
 	return false
+}
+
+// The SQLite fixture has no branching API; seed the stream row a server store
+// creates so strict governance resolution can inspect its binding.
+func seedCheckStream(t *testing.T, cs *sqlitestore.SQLiteStore, projectID, stream string) {
+	t.Helper()
+	_, err := cs.DB().ExecContext(t.Context(),
+		`INSERT INTO streams (project_id, name, created_at) VALUES (?, ?, '2026-01-01T00:00:00Z')`,
+		projectID, stream)
+	require.NoError(t, err)
+}
+
+func TestChecksAtPointUnavailableContextFails(t *testing.T) {
+	for _, unavailable := range []string{"terms", "stream", "voice"} {
+		t.Run(unavailable, func(t *testing.T) {
+			srv, cs, _ := newOriginTestServer(t)
+			proj := seedOriginProject(t, cs, "unavailable")
+			if unavailable != "terms" {
+				srv.wsStores.termsFactory = func() terms.Store {
+					return &testTermStore{terms.NewInMemoryStore()}
+				}
+			}
+			if unavailable != "stream" {
+				seedCheckStream(t, cs, proj.ID, "main")
+			}
+			if unavailable == "voice" {
+				proj.Properties = map[string]string{coreprofile.PropertyProfileID: "missing"}
+				require.NoError(t, cs.UpdateProject(t.Context(), proj))
+			}
+			_, err := srv.checksAtPoint(t.Context(), proj.ID, "main", "", originTestWS, "acme", "fr")
+			require.ErrorContains(t, err, "check "+unavailable)
+		})
+	}
+}
+
+func TestHandleCheckFileUnavailableTermsReturnsServiceError(t *testing.T) {
+	srv, cs, _ := newOriginTestServer(t)
+	proj := seedOriginProject(t, cs, "terms-unavailable")
+	seedCheckStream(t, cs, proj.ID, "main")
+	require.NoError(t, cs.StoreItem(t.Context(), proj.ID, "main", &platstore.Item{
+		Name: "hello.txt", Format: "txt", ItemType: "file",
+	}))
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/checks", strings.NewReader(`{"item":"hello.txt","locale":"fr"}`))
+	req.Header.Set("Content-Type", "application/json")
+	c := originCtx(echo.New(), req, rec, proj.ID, [2]string{"ref", "main"})
+	err := srv.HandleCheckFile(c)
+	require.Error(t, err)
+	srv.httpErrorHandler(err, c)
+	assert.Equal(t, http.StatusServiceUnavailable, rec.Code, rec.Body.String())
+	assert.NotContains(t, rec.Body.String(), "check terms")
+}
+
+func TestRunChecksOnBlockCancellationIsNotCleanContent(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	block := model.NewBlock("b", "Hello world")
+	issues, err := runChecksOnBlock(ctx, block, pointChecks{TargetLocale: "fr"})
+	require.ErrorIs(t, err, context.Canceled)
+	assert.Nil(t, issues)
+	assert.True(t, blockFailsChecks(ctx, block, "fr"))
 }

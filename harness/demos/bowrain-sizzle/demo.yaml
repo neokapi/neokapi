@@ -1,5 +1,5 @@
 id: bowrain-sizzle
-title: "Bowrain, a team's workspace for multilingual content"
+title: "Bowrain, shared content guidance and review"
 subtitle: "Six moments from the walkthroughs, in one reel"
 tagline: "A reel cut from the bowrain walkthrough takes"
 # Not a captured demo: a montage composition (Sizzle.tsx) that sequences the
@@ -26,6 +26,6 @@ aspects:
   - Presence, live
   - Terms and memory, shared
   - Review, with a second pair of eyes
-  - Corrections become checks
+  - Review a proposed rule
 narration: []
 artifacts: []

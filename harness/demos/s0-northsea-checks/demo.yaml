@@ -1,5 +1,5 @@
 id: s0-northsea-checks
-title: Checks are tests for prose
+title: Check the rules your project records
 subtitle: One repository, one language, and a gate that runs with no server and no model.
 kind: use-case
 publishAs: monolingual-governance
@@ -21,7 +21,7 @@ captureTimeoutSec: 180
 aspects:
   - offline gates
   - decisions, not edits
-  - the graph learns
+  - record a scoped term decision
 outro:
   line: Run the gate over the prose in your repository.
   pointer: kapi check --strict
@@ -57,7 +57,7 @@ script:
   - comment: The reviewer also spots a word the graph has never been told about. Northsea says berth, and the page says dock. That is a decision rather than an edit.
   - command: echo '{"kind":"term","op":"upsert","term":"dock","locale":"en-GB","status":"forbidden","replacement":"berth"}' > decisions.jsonl
   - command: kapi apply decisions.jsonl
-  - comment: The graph learned. The next check finds what the last one passed.
+  - comment: The reviewer recorded a term decision. The next check uses that rule.
   # And again here: a decision that changed nothing would be no decision at all.
   - command: kapi check --strict
     expectExit: 3
@@ -82,9 +82,9 @@ narration:
   - id: title
     kind: title
     text: >-
-      Most content work is one language, one repository, and the question of
-      whether the last edit still sounds like the company. Checks answer that
-      the way tests answer for code.
+      This repository contains documentation, interface strings and a marketing
+      page in one language. An edit has introduced a forbidden term. Configured checks
+      report those wording violations. They do not assess every aspect of writing.
 
   - id: check
     kind: terminal
@@ -93,8 +93,7 @@ narration:
     caption: One major finding, and the rest advisory.
     text: >-
       A banned word on the marketing page is major. A retired term still in the
-      documentation is minor, because retiring a word should never fail
-      somebody's build. Every finding names the rule, the point it is scoped to,
+      documentation is minor under this project's review policy. Every finding names the rule, the point it is scoped to,
       and the fix.
 
   - id: findings
@@ -111,7 +110,7 @@ narration:
     through: 15
     caption: Three corrections, and one decision.
     text: >-
-      Three of those are simply wrong wording, so the source is corrected. The
+      Three findings concern wording, so the source is corrected. The
       fourth is different: the reviewer notices a word the graph has never been
       told about. That is a decision, so it is written down as one entry in the
       vocabulary the project reads.
@@ -120,11 +119,12 @@ narration:
     kind: terminal
     through: 22
     highlight: { text: [dock, berth] }
-    caption: The next run enforces the decision, then goes green.
+    caption: The next run enforces the recorded term decision.
     text: >-
       Run the check again and it finds what the previous run passed. One entry
       reached both the record and the gate. Fix the last one, converge, and the
-      project is green on one language, with no server and no credential.
+      configured checks pass in one language, with no server and no credential.
+      Factual accuracy and overall writing quality still need their own review.
 
   - id: outro
     kind: outro

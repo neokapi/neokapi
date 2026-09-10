@@ -66,6 +66,7 @@ const DefaultContextTermsLimit = 25
 
 // ContextAnswer is what applies at one point.
 type ContextAnswer struct {
+	Constraints []coreprofile.ConstraintResolution `json:"constraints,omitempty"`
 	// Point is the coordinate the request resolved to.
 	Point ContextPoint `json:"point"`
 	// Scope says how much could have been read, so a thin answer is readable:
@@ -106,7 +107,8 @@ type ContextPoint struct {
 	Collection string `json:"collection,omitempty"`
 	// Ref renders Profile and Channel as the recipe writes the binding
 	// (`profile/channel`). Empty at the project's default point.
-	Ref string `json:"ref,omitempty"`
+	Ref         string            `json:"ref,omitempty"`
+	Coordinates map[string]string `json:"coordinates,omitempty"`
 	// Default reports that resolution fell through to the project's default
 	// point — a real answer, and a different one from "no profile exists".
 	Default bool `json:"default"`
@@ -413,6 +415,11 @@ func ResolveContextAt(_ context.Context, src ContextPointSources, req ContextPoi
 		res.Point.Profile = src.Governance.Profile
 		res.Point.Channel = src.Governance.Channel
 		res.Point.Ref = src.Governance.Ref().String()
+		if src.Recipe != nil {
+			res.Point.Coordinates = project.MergeCoordinates(
+				src.Recipe.Defaults.Coordinates, src.Governance.Ref().Coordinates(),
+				collectionCoordinates(src.Recipe, src.Collection))
+		}
 		// Default is a resolution outcome, so it is only meaningful when a
 		// recipe was resolved at all.
 		res.Point.Default = res.Point.Ref == ""
@@ -439,6 +446,7 @@ func ResolveContextAt(_ context.Context, src ContextPointSources, req ContextPoi
 	case src.VoiceErr != nil:
 		res.Notes = append(res.Notes, "the voice bound here could not be loaded: "+src.VoiceErr.Error())
 	case src.Voice != nil:
+		res.Constraints = coreprofile.ConstraintResolutions(src.Voice)
 		res.Voice = &ContextVoice{
 			Name:   src.Voice.Name,
 			Source: src.VoiceSource,
@@ -630,6 +638,14 @@ func (r *ContextAnswer) where() string {
 	}
 	if r.Point.Collection != "" {
 		parts = append(parts, fmt.Sprintf("collection `%s`", r.Point.Collection))
+	}
+	if len(r.Point.Coordinates) > 0 {
+		axes := make([]string, 0, len(r.Point.Coordinates))
+		for axis, value := range r.Point.Coordinates {
+			axes = append(axes, fmt.Sprintf("%s=`%s`", axis, value))
+		}
+		sort.Strings(axes)
+		parts = append(parts, "coordinates "+strings.Join(axes, ", "))
 	}
 	if len(parts) == 0 {
 		// A profile with nothing under it: repeating the name as its own gloss

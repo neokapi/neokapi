@@ -493,3 +493,28 @@ func TestPostgresVoiceStore_ScoresByStreamAndTrends(t *testing.T) {
 	}
 	assert.Equal(t, 3, total, "every score within the window is counted in a day bucket")
 }
+
+func TestPostgresVoiceStore_ConstraintsPersist(t *testing.T) {
+	store := newVoiceStore(t)
+	p := newTestProfile("ws-constraints", "Constraints")
+	p.Constraints = []coreprofile.Constraint{{ID: "assurance", Version: 1, Source: "facts.md", Statement: "No risk-free promises", Kind: coreprofile.ConstraintProhibitedPattern, Regex: "risk-free"}}
+	require.NoError(t, store.CreateProfile(t.Context(), p))
+	got, err := store.GetProfile(t.Context(), p.ID)
+	require.NoError(t, err)
+	assert.Equal(t, p.Constraints, got.Constraints)
+	got.Constraints = nil
+	got.Name = "Older client edit"
+	require.NoError(t, store.UpdateProfile(t.Context(), got))
+	got, err = store.GetProfile(t.Context(), p.ID)
+	require.NoError(t, err)
+	assert.Equal(t, p.Constraints, got.Constraints)
+	versions, err := store.ListProfileVersions(t.Context(), p.ID)
+	require.NoError(t, err)
+	require.Len(t, versions, 1)
+	assert.Equal(t, p.Constraints, versions[0].Snapshot.Constraints)
+	got.Constraints = []coreprofile.Constraint{}
+	require.NoError(t, store.UpdateProfile(t.Context(), got))
+	got, err = store.GetProfile(t.Context(), p.ID)
+	require.NoError(t, err)
+	assert.Empty(t, got.Constraints)
+}

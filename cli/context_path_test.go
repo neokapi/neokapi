@@ -130,7 +130,7 @@ func TestContextPath_AnswersWhatAppliesHere(t *testing.T) {
 	got := runContext(t, &App{}, "docs/guide.md")
 
 	assert.Contains(t, got, "# Context at docs/guide.md")
-	assert.Contains(t, got, "Point `acme/docs`: profile `acme`, channel `docs`, collection `acme-docs`.")
+	assert.Contains(t, got, "Point `acme/docs`: profile `acme`, channel `docs`, collection `acme-docs`, coordinates channel=`docs`, product=`acme`.")
 	assert.Contains(t, got, "## Voice Guide: Acme")
 	assert.Contains(t, got, "~~translation memory~~ → say **content memory**")
 	assert.Contains(t, got, "Answered from this project alone")
@@ -146,6 +146,7 @@ func TestContextPath_JSONIsTheSameDocument(t *testing.T) {
 	var got host.ContextAnswer
 	require.NoError(t, json.Unmarshal([]byte(raw), &got))
 	assert.Equal(t, "acme/docs", got.Point.Ref)
+	assert.Equal(t, map[string]string{"channel": "docs", "product": "acme"}, got.Point.Coordinates)
 	assert.Equal(t, host.ScopeProject, got.Scope)
 	require.NotNil(t, got.Voice)
 	assert.Equal(t, "Acme", got.Voice.Name)
@@ -247,7 +248,7 @@ func TestContextPath_RelativePathBoundByFlagResolvesAgainstTheProject(t *testing
 	got := runContext(t, &App{}, "docs/guide.md", "-p", root)
 
 	assert.Contains(t, got, "# Context at docs/guide.md")
-	assert.Contains(t, got, "Point `guides/docs`: profile `guides`, channel `docs`, collection `acme-guides`.")
+	assert.Contains(t, got, "Point `guides/docs`: profile `guides`, channel `docs`, collection `acme-guides`, coordinates channel=`docs`, product=`guides`.")
 	assert.Contains(t, got, "Voice `Acme Guides`, bound by `profiles.guides.voice`")
 	assert.NotContains(t, got, "default point")
 	assert.NotContains(t, got, "Acme Default")
@@ -276,7 +277,7 @@ func TestContextPath_RelativePathFromASubdirectoryStillReadsAgainstCwd(t *testin
 	got := runContext(t, &App{}, "guide.md", "-p", root)
 
 	assert.Contains(t, got, "# Context at docs/guide.md")
-	assert.Contains(t, got, "Point `guides/docs`: profile `guides`, channel `docs`, collection `acme-guides`.")
+	assert.Contains(t, got, "Point `guides/docs`: profile `guides`, channel `docs`, collection `acme-guides`, coordinates channel=`docs`, product=`guides`.")
 }
 
 // TestContextPath_LocationOutsideTheProjectIsRefused: a location the recipe's

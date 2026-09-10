@@ -19,7 +19,7 @@ commands *when* to reach for kapi and *which* verb to run. The **MCP server**
 (`kapi mcp`) serves clients that call tools rather than shell out, exposing a
 deliberately curated set plus the `context://` resource space. Both converge on
 the same asymmetry: **the assistant writes the content; kapi supplies the
-context, enforces the faithful round-trip, and is the checker.** Content and
+context, applies edits through format-aware writers, and runs configured checks.** Content and
 asset edits land through one write verb, `kapi apply`, as a typed JSONL
 change-set, which is also the MCP `apply_edits` tool. A review decision has
 its own verbs on both surfaces, sharing the host's decision path.
@@ -31,12 +31,12 @@ project's own context (what a thing is called here, what wording is approved,
 what tone applies at this location) and the ability to write an edit back into
 a `.docx` or an XLIFF without corrupting it. Those are exactly what kapi holds.
 
-That produces a division of labour rather than a handoff. Calling a second model
-to rewrite text the first model just wrote is a worse translation of an
-already-capable writer's output, and it makes the result unreviewable. So kapi
-never sends content to a model to rewrite it in the attended loops: it supplies
-the guardrails, round-trips the edit byte-faithfully, and gates the result. A
-provider is the unattended fallback.
+In the attended workflow, the assistant authors the text and uses scoped
+findings to repair it. Format readers and writers determine the supported
+round-trip behavior; the resulting diff remains reviewable. Provider tools also
+support unattended work. A completed check gate covers its configured analyzers.
+Applicable guidance that requires semantic judgment is explicitly unassessed
+when no analyzer implements it.
 
 The connective tissue has to be cheap. An assistant's context is finite, and a
 document describing every kapi command would crowd out the task. Hence a router
@@ -250,6 +250,14 @@ from scratch. All three resolve declaratively, without loading a plugin
 ([E-02](../engine/e-02-format-system.md)).
 
 ### The MCP server is curated
+
+An MCP session binds to an explicit recipe (`kapi mcp -p project.kapi.yaml`) or
+an implicitly discovered project. An explicit path wins when discovery is
+disabled. Invalid bound context fails startup or the affected check operation;
+it cannot silently become an ungoverned successful result. File checks retain
+the bound recipe path and resolve the file's effective profile at that path.
+CLI and MCP reports share finding, gate and execution semantics. Their transport
+and timing boundaries remain distinct.
 
 `kapi mcp` starts a stdio JSON-RPC server. Its surface is a **decision with a
 name attached**, never a consequence of a tool being CLI-visible. Exposing every

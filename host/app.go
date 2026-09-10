@@ -126,6 +126,9 @@ type App struct {
 	// from `kapi mcp` flags; the zero value is the curated set.
 	MCPSurface MCPSurface
 
+	// mcpRecipePath retains the explicitly resolved recipe for MCP calls.
+	mcpRecipePath string
+
 	// freshness remembers the governance identities this process last read, so
 	// a retrieval answer can say what moved under it. Process-lived on purpose:
 	// it is the difference between two reads by the same reader, which is what

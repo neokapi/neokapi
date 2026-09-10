@@ -32,8 +32,21 @@ kapi porcelain lives in an importable package rather than in `package main`.
 `App.MCPSurface` is set from the `--all-tools` / `--all-flows` / `--all` flags
 and never from the environment, because the surface is a property of how the
 server was started; the factories read it to decide what to add.
-`App.ResolveMCPProject` runs the same git-style upward walk the CLI uses, so a
-server started inside a project scopes itself to it.
+`App.ResolveMCPProject` accepts `-p` / `--project` through the CLI's project
+flag convention and otherwise runs the shared upward walk. `KAPI_NO_PROJECT=1`
+disables implicit discovery; an explicit recipe still wins. The resolver retains
+the exact recipe path and source language before serving tools. Invalid project
+loading returns an error. `check_file` threads that path into its synthetic host
+command, so profile and terms resolution uses the bound project even when
+implicit discovery is disabled. Custom recipe filenames remain intact.
+
+The canonical CLI/MCP check report includes optional `execution.analyzers` and
+phase timings. An absent inventory means unreported coverage. Applicable
+semantic guidance has an explicit `unsupported` entry in a deterministic run;
+its presence cannot be inferred from the score. Requested analysis or context
+that fails returns the existing operation-error transport. See the
+[checks documentation](/framework/checks)
+for analyzer scope and timing boundaries.
 
 | Handlers | Where |
 | --- | --- |

@@ -3,13 +3,7 @@ import { useReveal } from "../useReveal";
 import { useSectionSignals } from "../useSectionSignals";
 import { SECTION_RENAME } from "../sections";
 
-// The rename is the argument, not an illustration of it.
-//
-// Every company has renamed something, so the reader needs no product knowledge
-// to follow it — and it kills "just keep a list of preferred and banned terms"
-// before they think of it, because the same word is required in one place and
-// forbidden in another. That is why this is the FIRST section after the hero:
-// it earns "context graph" before the phrase is used.
+// Authored illustration of a scoped decision, separate from engine execution.
 const RULES = [
   {
     surface: t("Help articles"),
@@ -54,11 +48,12 @@ export function Rename() {
       <div ref={ref} className="reveal">
         <div className="mx-auto max-w-3xl text-center">
           <h2 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">
-            {t("One decision.")} <span className="prism-text">{t("Five different rules.")}</span>
+            {t("A feature rename,")}{" "}
+            <span className="prism-text">{t("with explicit exceptions.")}</span>
           </h2>
           <p className="mt-3 text-muted-foreground">
             {t(
-              "You rename a feature. That is one decision, and it lands differently in every place the words appear.",
+              "Illustrative decision: rename Project to Workspace in help content, while preserving API identifiers and the historical record.",
             )}
           </p>
         </div>
@@ -85,7 +80,7 @@ export function Rename() {
 
         <p className="mx-auto mt-8 max-w-2xl text-center text-muted-foreground">
           {t(
-            "Written down as a list of preferred and banned terms, that is wrong nearly everywhere it lands. Which rule applies depends entirely on where the words sit, so the thing worth writing down is the place rather than the list.",
+            "Record the preferred wording together with its scope and exceptions. A reviewer can then inspect where a proposed rule would apply before approving it.",
           )}
         </p>
       </div>

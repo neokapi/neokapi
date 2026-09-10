@@ -99,8 +99,33 @@ export interface AutonomyConfig {
   auto_promote_at_count?: number;
 }
 
+export interface VoiceConstraintScope {
+  locale?: string;
+  channel?: string;
+  persona?: string;
+}
+
+export interface VoiceConstraintException {
+  scope: VoiceConstraintScope;
+  reason: string;
+  approved_by: string;
+  approval_ref: string;
+}
+
+export interface VoiceConstraint {
+  id: string;
+  version: number;
+  source: string;
+  statement: string;
+  kind: "prohibited_pattern" | "guidance";
+  regex?: string;
+  scope?: VoiceConstraintScope;
+  exceptions?: VoiceConstraintException[];
+}
+
 /** A voice profile, as authored. */
 export interface VoiceProfile {
+  constraints?: VoiceConstraint[];
   id?: string;
   name: string;
   description?: string;

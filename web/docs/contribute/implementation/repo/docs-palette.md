@@ -11,9 +11,22 @@ Two brands ship from this repo, and each one lives in exactly one file under
 
 | File | Brand | Who imports it |
 | --- | --- | --- |
-| `kapi-colors.css` | Kapi Blue | Kapi Desktop, the Kapi Storybook, the kapi documentation site |
+| `kapi-colors.css` | kapi teal palette | Kapi Desktop, the Kapi Storybook, the kapi documentation site |
 | `theme-colors.css` | Rainlight | The bowrain app shells, landing page and documentation site |
 | `semantic-colors.css` | Neither | Imported by both, and by nothing on its own |
+
+The kapi palette uses teal accents that echo the existing neokapi logo in
+`web/static/img/logo.png` and `hero-logo.png`, with neutral surfaces. The light
+page is white (`#ffffff`) with deep teal primary actions (`#0f716d`) and charcoal
+text (`#242526`). Dark mode pairs charcoal (`#1b1b1d`) with lighter teal actions
+(`#78c9c5`) and dark button text (`#172322`). These sRGB examples are derived from
+the canonical OKLCH tokens, not separately maintained values.
+
+Primary-button text contrast is 5.83:1 in light mode and 8.43:1 in dark mode.
+Body, muted, secondary and accent text pairs also clear 4.5:1. The documentation
+bridge independently verifies its text and diagram roles against page, card and
+code backgrounds. Bowrain keeps its Rainlight palette; shared judgement and
+coordinate colors retain their meaning.
 
 `semantic-colors.css` holds the tokens that say what a colour *means* rather
 than what a product looks like: the judgement colours (`--success`,

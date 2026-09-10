@@ -23,7 +23,7 @@ export const TARGETS: readonly Target[] = [
     kind: "site",
     source: "packages/ui/src/styles/kapi-colors.css",
     out: "web/src/css/palette.generated.css",
-    summary: 'The kapi documentation site in "Kapi Blue".',
+    summary: "The kapi documentation site in the teal palette.",
   },
   {
     kind: "site",

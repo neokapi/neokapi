@@ -1,5 +1,5 @@
 /*
- * The kapi documentation site in "Kapi Blue".
+ * The kapi documentation site in the teal palette.
  *
  * GENERATED FILE, DO NOT EDIT. Computed from packages/ui/src/styles/kapi-colors.css
  * by packages/docs-palette. Run `make generate-docs-palette` after editing that palette;
@@ -7,21 +7,21 @@
  */
 
 :root {
-  --ifm-color-primary-darkest: #004276;
-  --ifm-color-primary-darker: #005697;
-  --ifm-color-primary-dark: #005fa6;
-  --ifm-color-primary: #006bb9;
-  --ifm-color-primary-light: #0077cd;
-  --ifm-color-primary-lighter: #1681d8;
-  --ifm-color-primary-lightest: #3698f1;
-  --ifm-background-color: #f1f4f6;
-  --ifm-background-surface-color: #fcfdff;
-  --ifm-font-color-base: #23272b;
-  --ifm-heading-color: #23272b;
-  --ifm-code-background: #e8ebef;
-  --ifm-toc-border-color: #dde2e6;
-  --ifm-hr-border-color: #dde2e6;
-  --docusaurus-highlighted-code-line-bg: rgba(35, 39, 43, 0.08);
+  --ifm-color-primary-darkest: #004744;
+  --ifm-color-primary-darker: #005c58;
+  --ifm-color-primary-dark: #006561;
+  --ifm-color-primary: #0f716d;
+  --ifm-color-primary-light: #237d79;
+  --ifm-color-primary-lighter: #2e8681;
+  --ifm-color-primary-lightest: #469b96;
+  --ifm-background-color: #ffffff;
+  --ifm-background-surface-color: #ffffff;
+  --ifm-font-color-base: #242526;
+  --ifm-heading-color: #242526;
+  --ifm-code-background: #f5f7f8;
+  --ifm-toc-border-color: #d7dcdf;
+  --ifm-hr-border-color: #d7dcdf;
+  --docusaurus-highlighted-code-line-bg: rgba(36, 37, 38, 0.08);
   --ifm-font-family-base:
     "Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
     sans-serif;
@@ -31,51 +31,51 @@
 
 :root .kdx {
   --kdx-annotate: #724aab;
-  --kdx-border: #dde2e6;
-  --kdx-channel: #afb3b8;
+  --kdx-border: #d7dcdf;
+  --kdx-channel: #a2a6a9;
   --kdx-check: #8a5600;
-  --kdx-file: #0065b0;
-  --kdx-ink: #23272b;
-  --kdx-io: #0065b0;
+  --kdx-file: #00736e;
+  --kdx-ink: #242526;
+  --kdx-io: #00736e;
   --kdx-mono: "JetBrains Mono Variable", "JetBrains Mono", "SF Mono", ui-monospace, monospace;
-  --kdx-muted: #646b73;
+  --kdx-muted: #565c62;
   --kdx-plugin: #a73447;
   --kdx-resource: #007835;
-  --kdx-surface: #fcfdff;
-  --kdx-surface-2: #e8ebef;
+  --kdx-surface: #ffffff;
+  --kdx-surface-2: #f5f7f8;
   --kdx-translate: #007272;
 }
 
 :root[data-theme="dark"] {
-  --ifm-color-primary-darkest: #005ca1;
-  --ifm-color-primary-darker: #0077cc;
-  --ifm-color-primary-dark: #1983da;
-  --ifm-color-primary: #3093ec;
-  --ifm-color-primary-light: #43a4fe;
-  --ifm-color-primary-lighter: #61b0ff;
-  --ifm-color-primary-lightest: #9dcdff;
-  --ifm-background-color: #14171b;
-  --ifm-background-surface-color: #191d22;
-  --ifm-font-color-base: #e1e5ea;
-  --ifm-heading-color: #e1e5ea;
-  --ifm-code-background: #23272b;
-  --ifm-toc-border-color: #2a2e33;
-  --ifm-hr-border-color: #2a2e33;
-  --docusaurus-highlighted-code-line-bg: rgba(225, 229, 234, 0.14);
+  --ifm-color-primary-darkest: #308481;
+  --ifm-color-primary-darker: #55a6a2;
+  --ifm-color-primary-dark: #64b5b1;
+  --ifm-color-primary: #78c9c5;
+  --ifm-color-primary-light: #8cddd9;
+  --ifm-color-primary-lighter: #9bede9;
+  --ifm-color-primary-lightest: #f2fffe;
+  --ifm-background-color: #1b1b1d;
+  --ifm-background-surface-color: #24272b;
+  --ifm-font-color-base: #eceef0;
+  --ifm-heading-color: #eceef0;
+  --ifm-code-background: #24272b;
+  --ifm-toc-border-color: #454b50;
+  --ifm-hr-border-color: #454b50;
+  --docusaurus-highlighted-code-line-bg: rgba(236, 238, 240, 0.14);
 }
 
 :root[data-theme="dark"] .kdx {
   --kdx-annotate: #c4a4fe;
-  --kdx-border: #2a2e33;
-  --kdx-channel: #494e52;
+  --kdx-border: #454b50;
+  --kdx-channel: #70777c;
   --kdx-check: #eca851;
-  --kdx-file: #7cbdff;
-  --kdx-ink: #e1e5ea;
-  --kdx-io: #7cbdff;
-  --kdx-muted: #878f97;
+  --kdx-file: #1fd1cc;
+  --kdx-ink: #eceef0;
+  --kdx-io: #1fd1cc;
+  --kdx-muted: #b8bdc3;
   --kdx-plugin: #ff939c;
   --kdx-resource: #7ace87;
-  --kdx-surface: #191d22;
-  --kdx-surface-2: #23272b;
+  --kdx-surface: #24272b;
+  --kdx-surface-2: #24272b;
   --kdx-translate: #1ad1d1;
 }

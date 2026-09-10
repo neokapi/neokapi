@@ -5,7 +5,6 @@ import useBaseUrl from "@docusaurus/useBaseUrl";
 import useDocusaurusContext from "@docusaurus/useDocusaurusContext";
 import Layout from "@theme/Layout";
 import Heading from "@theme/Heading";
-import { Sparkles } from "lucide-react";
 import TryNeokapi from "../components/TryNeokapi";
 import StructuredData from "../components/home/StructuredData";
 import AuthorsNote from "../components/home/AuthorsNote";
@@ -24,41 +23,37 @@ function HomepageHeader() {
           />
           <Heading as="h1" className={clsx("hero__title", styles.heroTitle)}>
             <Translate id="home.hero.title">
-              Contextually consistent content, in any format.
+              The open content engine for people and AI agents.
             </Translate>
           </Heading>
           <p className={styles.heroSubtitle}>
-            <Translate id="home.hero.subtitle.lead">
-              kapi holds your project’s context (its terms, its voice, the rules it goes by) and
-              applies it inside your real files. Any format in,
-            </Translate>{" "}
-            <strong>
-              <Translate id="home.hero.subtitle.strong">the original back byte‑for‑byte</Translate>
-            </strong>
-            <Translate id="home.hero.subtitle.tail">, every tag and placeholder intact.</Translate>
+            <Translate id="home.hero.subtitle.engine">
+              Read, edit and check content across formats, with kapi bringing the engine and your
+              project's writing guidance to the files you already maintain.
+            </Translate>
           </p>
           <div className={styles.buttons}>
             <Link
               className="button button--lg button--primary"
               to="/kapi/get-started/first-project"
             >
-              <Translate id="home.cta.getStarted">Get started</Translate>
+              <Translate id="home.cta.tryKapi">Try kapi</Translate>
             </Link>
-            <Link
-              className={clsx("button button--secondary button--lg", styles.tryButton)}
-              to="/kapi/get-started/use-with-claude"
-            >
-              <Sparkles size={18} aria-hidden="true" />
-              <Translate id="home.cta.useWithClaude">Use with Claude</Translate>
+            <Link className="button button--secondary button--lg" to="/framework/go-quickstart">
+              <Translate id="home.cta.exploreEngine">Explore the engine</Translate>
             </Link>
           </div>
+          <p>
+            <Link to="/content-lab">
+              <Translate id="home.cta.contentLab">
+                Inspect the audience example and its check coverage
+              </Translate>
+            </Link>
+          </p>
         </div>
         <div className={styles.heroAside}>
           <TryNeokapi />
         </div>
-      </div>
-      <div className="container">
-        <AuthorsNote />
       </div>
     </header>
   );
@@ -106,12 +101,12 @@ const Tiers: Tier[] = [
     }),
     title: translate({
       id: "home.tiers.kapi.title",
-      message: "kapi: binary, agent skill, MCP server",
+      message: "kapi: your project tool",
     }),
     description: translate({
       id: "home.tiers.kapi.description",
       message:
-        "One binary plus the two surfaces your AI agent reaches it through. kapi holds your project's context and answers what applies here, to your checks, to you, and to whichever AI you already use. Free forever.",
+        "Edit and check the content in your project. kapi resolves the terms and writing guidance that apply to a file, through the CLI, desktop app or your AI agent.",
     }),
     link: "/kapi/overview",
     linkText: translate({
@@ -145,12 +140,12 @@ const NeokapiFeatures: ProductItem[] = [
   {
     title: translate({
       id: "home.feat.model.title",
-      message: "One model, any format",
+      message: "Read existing files",
     }),
     description: translate({
       id: "home.feat.model.description",
       message:
-        "kapi reads your real files (JSON, Markdown, HTML, config, .docx) into one unified content model, and writes the originals back unchanged except for the text you touched.",
+        "Read JSON, Markdown, HTML and office documents into a common content model. Inspect support and fidelity evidence for the format you use.",
     }),
     link: "/framework/formats",
     linkText: translate({
@@ -166,7 +161,7 @@ const NeokapiFeatures: ProductItem[] = [
     description: translate({
       id: "home.feat.context.description",
       message:
-        "A legal notice and a help article call for different words. kapi holds the terms, the voice and the rules your project goes by, and answers what applies to a given piece of content: the same answer for your checks, your AI agent, and you.",
+        "Bind terms and writing guidance to your project's collections. Inspect which guidance applies before you edit a help article, an API reference or a legal notice.",
     }),
     link: "/kapi/overview",
     linkText: translate({
@@ -177,12 +172,12 @@ const NeokapiFeatures: ProductItem[] = [
   {
     title: translate({
       id: "home.feat.edit.title",
-      message: "Edit it in place",
+      message: "Edit and inspect the result",
     }),
     description: translate({
       id: "home.feat.edit.description",
       message:
-        "Rewrite the text with every tag and placeholder intact, then check it against the context that holds there: tests for AI output, with a pass/fail gate. Iterate until it passes, then ship.",
+        "Edit content through format-aware tools and inspect the resulting file diff. Configured checks report specific issues, such as a missing placeholder or a prohibited term; a passing gate covers those checks.",
     }),
     link: "/framework/checks",
     linkText: translate({
@@ -193,12 +188,12 @@ const NeokapiFeatures: ProductItem[] = [
   {
     title: translate({
       id: "home.feat.langs.title",
-      message: "Every language, gated",
+      message: "Add languages when you need them",
     }),
     description: translate({
       id: "home.feat.langs.description",
       message:
-        "One command, kapi up, catches every language up to its ship gates and parks what needs a person. You review, edit, and approve in the desktop Review surface; approvals stick, and only what changed is re-done. The gate check runs in CI.",
+        "Use kapi up to draft changed content and collect work that needs review. Reuse content memory, review changes in the desktop app, and run configured gates in CI.",
     }),
     link: "/kapi/get-started/add-languages",
     linkText: translate({
@@ -262,7 +257,7 @@ function HomepageFeatures() {
           </Heading>
           <p className={styles.sectionSubtitle}>
             <Translate id="home.section.engine.subtitle">
-              One engine, end to end, in one language or twenty.
+              Start with one file and one language. Inspect the edit and the checks that ran.
             </Translate>
           </p>
         </div>
@@ -343,13 +338,16 @@ export default function Home() {
       description={translate({
         id: "home.meta.description",
         message:
-          "An open-source, format-aware content engine in Go. It holds a project's content context (its terms, voice and rules) and applies it inside real files: any format in, the original back byte-for-byte, in one language or twenty.",
+          "The open content engine for people and AI agents. Read, edit and check content across formats, and use kapi to apply your project's terms and writing guidance.",
       })}
     >
       <StructuredData />
       <HomepageHeader />
       <main>
         <HomepageFeatures />
+        <div className="container">
+          <AuthorsNote />
+        </div>
       </main>
     </Layout>
   );

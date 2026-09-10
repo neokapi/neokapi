@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-08T19:00:37Z",
+  "generatedAt": "2026-09-09T22:22:44Z",
   "commands": [
     {
       "id": "add",
@@ -5236,6 +5236,12 @@
           "usage": "expose every CLI-visible registry tool, not the curated set",
           "default": "false",
           "type": "bool"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
         }
       ],
       "offlineCapable": false,

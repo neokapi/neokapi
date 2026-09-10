@@ -23,21 +23,27 @@ func LoadProfileYAML(r io.Reader) (*VoiceProfile, error) {
 	if err := yaml.Unmarshal(data, &p); err != nil {
 		return nil, fmt.Errorf("parse profile: %w", err)
 	}
+	if err := constraintError(&p); err != nil {
+		return nil, err
+	}
 	return &p, nil
 }
 
 // VoiceProfile defines a voice profile configuration with tone, style, and vocabulary rules.
 type VoiceProfile struct {
-	ID          string                            `json:"id" yaml:"id,omitempty"`
-	Name        string                            `json:"name" yaml:"name"`
-	Description string                            `json:"description,omitempty" yaml:"description,omitempty"`
-	Tone        ToneProfile                       `json:"tone" yaml:"tone"`
-	Style       StyleRules                        `json:"style" yaml:"style"`
-	Vocabulary  VocabularyRules                   `json:"vocabulary" yaml:"vocabulary"`
-	Examples    []VoiceExample                    `json:"examples" yaml:"examples"`
-	Locales     map[model.LocaleID]LocaleOverride `json:"locales,omitempty" yaml:"locales,omitempty"`
-	Channels    map[string]ChannelOverride        `json:"channels,omitempty" yaml:"channels,omitempty"`
-	Personas    map[string]PersonaOverride        `json:"personas,omitempty" yaml:"personas,omitempty"`
+	// A nil list is omitted on the wire; an explicit empty list requests removal.
+	Constraints     []Constraint `json:"constraints,omitzero" yaml:"constraints,omitempty"`
+	constraintScope ConstraintScope
+	ID              string                            `json:"id" yaml:"id,omitempty"`
+	Name            string                            `json:"name" yaml:"name"`
+	Description     string                            `json:"description,omitempty" yaml:"description,omitempty"`
+	Tone            ToneProfile                       `json:"tone" yaml:"tone"`
+	Style           StyleRules                        `json:"style" yaml:"style"`
+	Vocabulary      VocabularyRules                   `json:"vocabulary" yaml:"vocabulary"`
+	Examples        []VoiceExample                    `json:"examples" yaml:"examples"`
+	Locales         map[model.LocaleID]LocaleOverride `json:"locales,omitempty" yaml:"locales,omitempty"`
+	Channels        map[string]ChannelOverride        `json:"channels,omitempty" yaml:"channels,omitempty"`
+	Personas        map[string]PersonaOverride        `json:"personas,omitempty" yaml:"personas,omitempty"`
 	// Scope is the opaque partition key the storing host uses to separate one
 	// owner's profiles from another's: a server sets it to its tenant key, a
 	// single-owner store (the local CLI) leaves it empty. The persisted key
@@ -80,6 +86,7 @@ func (p *VoiceProfile) Clone() *VoiceProfile {
 		return nil
 	}
 	c := *p
+	c.Constraints = cloneConstraints(p.Constraints)
 	c.Tone.Personality = append([]string(nil), p.Tone.Personality...)
 	c.Style.ProhibitedPatterns = append([]Pattern(nil), p.Style.ProhibitedPatterns...)
 	c.Style.RequiredPatterns = append([]Pattern(nil), p.Style.RequiredPatterns...)

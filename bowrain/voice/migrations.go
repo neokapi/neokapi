@@ -2,32 +2,14 @@ package voice
 
 import "github.com/neokapi/neokapi/bowrain/storage"
 
-// Migrations is the voice schema as a single consolidated baseline.
-//
-// LEDGER — every version this subsystem has ever issued, now folded in:
-//
-//	1  voice schema (baseline)
-//	2  author personas on voice profiles
-//	3  voice baseline (folds 1-2)
-//
-// The columns later versions added by ALTER (personas, min_score) are declared
-// in the CREATE below as well: the CREATE serves an empty database, the ALTER
-// serves one that already has the table, and both are idempotent.
-//
-// Baseline is version 4 — above every number issued, so an existing database
-// applies it once and any drift between its schema and its bookkeeping is
-// repaired. Because the baseline is idempotent and re-applied by design, the
-// old warning that changes "MUST be incremental, never a re-run of the
-// baseline" no longer holds: a re-run is now the mechanism, not the hazard.
-//
-// Retired numbers are never reused; the next migration is version 5. Version 4
-// added voice_profiles.min_score — the profile's own compliance bar, which the
-// API accepted and the store then dropped, pinning every workspace profile to
-// the default bar no matter what was authored.
+// Migrations is the voice schema as a consolidated, idempotent baseline.
+// Version 5 includes the profile constraints column. CREATE serves fresh
+// databases; idempotent ALTER statements extend existing tables. Versions 1-4
+// are retired and the next baseline version is 6.
 var Migrations = []storage.Migration{
 	{
-		Version:     4,
-		Description: "voice baseline (folds 1-3) + the profile's own compliance bar",
+		Version:     5,
+		Description: "voice baseline (folds 1-4) + shared constraints",
 		SQL: `
 			CREATE TABLE IF NOT EXISTS voice_profiles (
 				id           TEXT PRIMARY KEY,
@@ -42,6 +24,7 @@ var Migrations = []storage.Migration{
 				channels     JSONB NOT NULL DEFAULT '{}',
 				autonomy     JSONB NOT NULL DEFAULT '{}',
 				personas     JSONB NOT NULL DEFAULT '{}',
+				constraints  JSONB NOT NULL DEFAULT '[]',
 				-- The profile's own compliance bar (0-100); 0 means the default
 				-- (core/profile.DefaultMinScore). The ship gate and bulk
 				-- approve-passing read it through VoiceProfile.ComplianceBar.
@@ -57,6 +40,7 @@ var Migrations = []storage.Migration{
 			-- already has the table, where CREATE ... IF NOT EXISTS is a no-op
 			-- and would leave the new column missing. Both are idempotent.
 			ALTER TABLE voice_profiles ADD COLUMN IF NOT EXISTS min_score INTEGER NOT NULL DEFAULT 0;
+			ALTER TABLE voice_profiles ADD COLUMN IF NOT EXISTS constraints JSONB NOT NULL DEFAULT '[]';
 
 			CREATE TABLE IF NOT EXISTS voice_profile_versions (
 				profile_id TEXT NOT NULL,

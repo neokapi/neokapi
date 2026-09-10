@@ -326,3 +326,18 @@ func TestResolveContextAt_NeedsAnAddress(t *testing.T) {
 	_, err := host.ResolveContextAt(t.Context(), host.ContextPointSources{}, host.ContextPointRequest{})
 	require.Error(t, err)
 }
+
+func TestResolveContextAt_SharedConstraintsAndCoordinates(t *testing.T) {
+	proj := pointRecipe(t, "")
+	proj.Defaults.Coordinates = map[string]string{"service": "help"}
+	proj.Collections[0].Coordinates = map[string]string{"audience": "child"}
+	p := pointVoice()
+	p.Constraints = []coreprofile.Constraint{{ID: "facts", Version: 1, Source: "facts.md", Statement: "Appointments are not recorded", Kind: coreprofile.ConstraintGuidance}}
+	res := resolveAt(t, proj, host.ContextPointRequest{Path: "docs/guide.md"}, host.ContextPointSources{Voice: p})
+	assert.Equal(t, "child", res.Point.Coordinates["audience"])
+	assert.Equal(t, "help", res.Point.Coordinates["service"])
+	require.Len(t, res.Constraints, 1)
+	assert.Equal(t, "applicable", res.Constraints[0].Status)
+	assert.Contains(t, renderAnswer(t, res), "audience=`child`")
+	assert.Contains(t, renderAnswer(t, res), "semantic verification unsupported")
+}

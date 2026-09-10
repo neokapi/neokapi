@@ -5,6 +5,10 @@
 export {
     AutonomyConfig,
     ChannelOverride,
+    Constraint,
+    ConstraintException,
+    ConstraintResolution,
+    ConstraintScope,
     FieldValueSet,
     LocaleOverride,
     Pattern,

@@ -680,3 +680,21 @@ func TestVoiceVocabCheckNamesWhereTheDecisionLives(t *testing.T) {
 			messageFor(t, tools.NewVoiceVocabCheckTool(nil, tb).InSourceLocale("en"), "This is a cheap product"))
 	})
 }
+
+func TestVoiceVocabCheckSharedConstraint(t *testing.T) {
+	p := &coreprofile.VoiceProfile{Constraints: []coreprofile.Constraint{{
+		ID: "assurance", Version: 1, Source: "facts.md", Statement: "No risk-free promises",
+		Kind: coreprofile.ConstraintProhibitedPattern, Regex: "risk-free",
+	}}}
+	checkTool := tools.NewVoiceVocabCheckTool(p, nil)
+	in := make(chan *model.Part, 1)
+	out := make(chan *model.Part, 1)
+	in <- &model.Part{Type: model.PartBlock, Resource: model.NewBlock("p", "This is risk-free.")}
+	close(in)
+	require.NoError(t, checkTool.Process(t.Context(), in, out))
+	ann, ok := model.AnnoAs[*coreprofile.VoiceAnnotation]((<-out).Resource.(*model.Block), "voice")
+	require.True(t, ok)
+	require.Len(t, ann.Findings, 1)
+	assert.Equal(t, "assurance", ann.Findings[0].Metadata["constraint_id"])
+	assert.Equal(t, coreprofile.SeverityCritical, ann.Findings[0].Severity)
+}

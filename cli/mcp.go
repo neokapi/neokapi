@@ -39,7 +39,9 @@ surface nobody chose is how it grew to fifty-one tools.
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Resolve project vs ad-hoc mode once for the server's lifetime so
 			// the tool factories can scope the exposed surface accordingly.
-			a.ResolveMCPProject(cmd)
+			if err := a.ResolveMCPProject(cmd); err != nil {
+				return err
+			}
 			all, _ := cmd.Flags().GetBool("all")
 			allTools, _ := cmd.Flags().GetBool("all-tools")
 			allFlows, _ := cmd.Flags().GetBool("all-flows")
@@ -55,6 +57,7 @@ surface nobody chose is how it grew to fifty-one tools.
 			return server.Run(cmd.Context(), &mcp.StdioTransport{})
 		},
 	}
+	AddProjectFlag(cmd)
 	cmd.Flags().Bool("all-tools", false, "expose every CLI-visible registry tool, not the curated set")
 	cmd.Flags().Bool("all-flows", false, "expose the flow-running verbs")
 	cmd.Flags().Bool("all", false, "shorthand for --all-tools --all-flows")
