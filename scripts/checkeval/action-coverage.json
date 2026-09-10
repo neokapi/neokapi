@@ -1,0 +1,325 @@
+{
+  "schema_version": 1,
+  "status": "development_action_coverage",
+  "provenance": "All organizations, policies, documents and labels are authored synthetic development material. They are not production facts, customer documents or independently validated operational advice.",
+  "selection_policy": "One preselected variant per family: museum explicit, event indirect, editorial omitted. Each receives ordinary and requirements review under identical supplied evidence. The other variants remain unrun development controls.",
+  "families": [
+    {
+      "id": "museum-transfer",
+      "partition": "development",
+      "reader_task": "Prepare a room-to-room collection transfer procedure for a fictional museum, covering preparation, departure records, and receiving condition review and acceptance before the transfer is closed.",
+      "audience": "Collection assistants coordinating an already approved move between museum rooms.",
+      "surface": "Internal operational handbook",
+      "destination": "handbook/collections/room-transfer.md",
+      "variables": {},
+      "source_status": "authored_synthetic_policy",
+      "sources": [
+        {
+          "id": "move-plan",
+          "text": "At the fictional Mere Museum, the collections manager approves each room-to-room move. The move sheet identifies the object, destination room, outgoing assistant and receiving steward. Before collection, the outgoing assistant checks that the object label and destination match the approved sheet. An unclear label or changed destination goes back to the collections manager for clarification before the move proceeds. The approved move sheet stays available to both rooms."
+        },
+        {
+          "id": "departure-record",
+          "text": "The outgoing assistant records the object’s visible condition on the move sheet before it leaves the room. Existing condition photographs can be linked to that entry. The outgoing assistant records departure against the same object entry and sends the condition note with the object. The original departure note remains available when the receiving steward adds observations. The transfer record connects the departure and receiving entries."
+        },
+        {
+          "id": "receiving-acceptance",
+          "text": "Before a transfer can be closed, the receiving steward must compare the arriving object with the departure condition note and record acceptance on the transfer record. The coordinating assistant obtains this review and recorded acceptance. If the steward identifies a difference, the transfer remains pending while the collections manager resolves it. The receiving screen can display photographs, append observations and store the steward’s acceptance. The closed record remains available for later enquiries."
+        }
+      ],
+      "requirements": [
+        {
+          "id": "confirm-approved-move",
+          "description": "Explain the checks and clarification needed before collecting an object for the approved destination.",
+          "source_ids": [
+            "move-plan"
+          ]
+        },
+        {
+          "id": "record-departure-condition",
+          "description": "Explain how to retain the departure condition evidence with the object and its transfer entry.",
+          "source_ids": [
+            "departure-record"
+          ]
+        },
+        {
+          "id": "obtain-receiving-acceptance",
+          "description": "Explain the receiving review and recorded acceptance needed before closing the transfer, including unresolved condition differences.",
+          "source_ids": [
+            "receiving-acceptance"
+          ]
+        }
+      ],
+      "scheduled_variant": "museum-transfer-explicit",
+      "variants": [
+        {
+          "id": "museum-transfer-explicit",
+          "instruction_form": "explicit",
+          "text": "# Hand over an object between rooms\n\nUse this procedure when the collections manager has approved a move between rooms at Mere Museum. Keep the move sheet available to the outgoing assistant and the receiving steward so each person works from the same object entry.\n\n## Prepare the departure\n\nCompare the object label and destination room with the approved sheet before collection. Refer an unclear label or a changed destination to the collections manager and wait for clarification. Record the object’s visible condition on the sheet before it leaves. Link any existing condition photographs that help the receiving steward understand the note.\n\nRecord departure against that object entry and send the condition note with the object. Retain the original note when receiving observations are added; the record should connect what left the first room with what arrived in the next.\n\n## Complete the receiving handoff\n\nBefore closing the transfer, ask the receiving steward to compare the arriving object with the departure note and record acceptance. If the steward reports a difference, keep the transfer pending and ask the collections manager to resolve it. Close the transfer once the receiving review and acceptance are recorded.\n\n## Keep the transfer record\n\nRetain the linked departure and receiving entries for later enquiries. Both rooms can refer to this record when someone asks where the object went or which condition observations accompanied it.",
+          "construction": "Synthetic guide for a fictional organization. Only the focal action passage differs within this family.",
+          "expected": {
+            "label_status": "provisional_author_labels",
+            "claim_support": "supported",
+            "completeness": "complete_for_task",
+            "issues": [],
+            "validity_rationale": "The guide directly instructs the required focal action and retains the other task requirements."
+          }
+        },
+        {
+          "id": "museum-transfer-indirect",
+          "instruction_form": "indirect",
+          "text": "# Hand over an object between rooms\n\nUse this procedure when the collections manager has approved a move between rooms at Mere Museum. Keep the move sheet available to the outgoing assistant and the receiving steward so each person works from the same object entry.\n\n## Prepare the departure\n\nCompare the object label and destination room with the approved sheet before collection. Refer an unclear label or a changed destination to the collections manager and wait for clarification. Record the object’s visible condition on the sheet before it leaves. Link any existing condition photographs that help the receiving steward understand the note.\n\nRecord departure against that object entry and send the condition note with the object. Retain the original note when receiving observations are added; the record should connect what left the first room with what arrived in the next.\n\n## Complete the receiving handoff\n\nA transfer is ready for closure once the receiving steward has compared the arriving object with the departure note and recorded acceptance. A condition difference leaves the transfer pending with the collections manager for resolution. The completed handoff therefore includes the steward’s review and acceptance in the transfer record.\n\n## Keep the transfer record\n\nRetain the linked departure and receiving entries for later enquiries. Both rooms can refer to this record when someone asks where the object went or which condition observations accompanied it.",
+          "construction": "Synthetic guide for a fictional organization. Only the focal action passage differs within this family.",
+          "expected": {
+            "label_status": "provisional_author_labels",
+            "claim_support": "supported",
+            "completeness": "complete_for_task",
+            "issues": [],
+            "validity_rationale": "The focal action is expressed as a clear prerequisite or completed-handoff condition, which gives the reader an actionable sequence without an imperative sentence. Other required actions are retained."
+          }
+        },
+        {
+          "id": "museum-transfer-omitted",
+          "instruction_form": "omitted",
+          "text": "# Hand over an object between rooms\n\nUse this procedure when the collections manager has approved a move between rooms at Mere Museum. Keep the move sheet available to the outgoing assistant and the receiving steward so each person works from the same object entry.\n\n## Prepare the departure\n\nCompare the object label and destination room with the approved sheet before collection. Refer an unclear label or a changed destination to the collections manager and wait for clarification. Record the object’s visible condition on the sheet before it leaves. Link any existing condition photographs that help the receiving steward understand the note.\n\nRecord departure against that object entry and send the condition note with the object. Retain the original note when receiving observations are added; the record should connect what left the first room with what arrived in the next.\n\n## Receiving record options\n\nThe receiving screen displays the departure note alongside any linked condition photographs. The steward can append observations and store acceptance in the same record. If the steward reports a difference, keep the transfer pending and ask the collections manager to resolve it. The screen brings the receiving information together for later reference.\n\n## Keep the transfer record\n\nRetain the linked departure and receiving entries for later enquiries. Both rooms can refer to this record when someone asks where the object went or which condition observations accompanied it.",
+          "construction": "Synthetic guide for a fictional organization. Only the focal action passage differs within this family.",
+          "expected": {
+            "label_status": "provisional_author_labels",
+            "claim_support": "supported",
+            "completeness": "consequential_omission",
+            "issues": [
+              {
+                "id": "receiving-action",
+                "kind": "omission",
+                "candidate_quote": "",
+                "evidence_ids": [
+                  "receiving-acceptance"
+                ],
+                "requirement_id": "obtain-receiving-acceptance",
+                "required_guidance": "Obtain the steward’s comparison with the departure note and recorded acceptance before closing the transfer.",
+                "rationale": "The guide describes what the receiving screen can hold and handles a reported difference, but gives no instruction or closure condition requiring the receiving comparison and recorded acceptance.",
+                "severity": "major"
+              }
+            ],
+            "validity_rationale": "The guide describes what the receiving screen can hold and handles a reported difference, but gives no instruction or closure condition requiring the receiving comparison and recorded acceptance."
+          }
+        }
+      ]
+    },
+    {
+      "id": "event-kit-handoff",
+      "partition": "development",
+      "reader_task": "Prepare an end-of-shift kit handoff for a fictional community event, including checking returned items, separating discrepancies, and passing unresolved discrepancies to the coordinator before making a kit available again.",
+      "audience": "Volunteer equipment stewards finishing their shift at a community event.",
+      "surface": "Internal operational handbook",
+      "destination": "volunteer/handbook/kit-handoff.md",
+      "variables": {},
+      "source_status": "authored_synthetic_policy",
+      "sources": [
+        {
+          "id": "return-check",
+          "text": "At the fictional Lantern Field event, an outgoing equipment steward checks each returned kit against its checkout list. The list identifies the assigned bag and the items lent with it. The steward records the return against that same list so the next shift can find the handoff. Any unclear item identity is checked with the returning volunteer before the list is completed. The return note records the volunteer’s explanation when it helps identify an item."
+        },
+        {
+          "id": "discrepancy-record",
+          "text": "An unmatched, missing or damaged item is entered in the kit’s discrepancy record. The outgoing steward separates the affected kit into the review area and leaves its checkout list with it. The kit remains unavailable for reassignment while responsibility for its unresolved discrepancies is pending. The discrepancy record can include photographs and free-text notes. These supporting details are optional."
+        },
+        {
+          "id": "coordinator-handoff",
+          "text": "For a kit with unresolved discrepancies, the outgoing steward posts the discrepancy record to the coordinator’s handoff queue and obtains an acknowledgment that responsibility has been accepted. Only then can the kit be marked available for the next shift. The coordinator can retain the kit in review if further action is needed. The queue accepts the record with linked photographs or notes and has a field for acknowledging responsibility. The outgoing steward keeps the acknowledgment linked to the kit record."
+        }
+      ],
+      "requirements": [
+        {
+          "id": "check-returned-kit",
+          "description": "Explain how to check returned items against the checkout record and resolve unclear item identity.",
+          "source_ids": [
+            "return-check"
+          ]
+        },
+        {
+          "id": "separate-unresolved-kit",
+          "description": "Explain how to record discrepancies and keep the affected kit out of reassignment while responsibility is pending.",
+          "source_ids": [
+            "discrepancy-record"
+          ]
+        },
+        {
+          "id": "handoff-discrepancy-responsibility",
+          "description": "Explain the transfer of the discrepancy record and acknowledgment of responsibility required before a kit becomes available again.",
+          "source_ids": [
+            "coordinator-handoff"
+          ]
+        }
+      ],
+      "scheduled_variant": "event-kit-handoff-indirect",
+      "variants": [
+        {
+          "id": "event-kit-handoff-explicit",
+          "instruction_form": "explicit",
+          "text": "# Finish an equipment shift\n\nUse this handoff when you finish an equipment shift at Lantern Field. Work from the checkout list for each returned kit so the next steward can connect your return notes to the original loan. Keep the assigned bag with its list while you work through the contents.\n\n## Check what came back\n\nCompare the returned items with the checkout list and record the return there. Ask the returning volunteer about an item whose identity is unclear before completing the list. Add their explanation when it helps the next steward identify the item.\n\nEnter any unmatched, missing or damaged item in the kit’s discrepancy record. Put the affected kit in the review area with its checkout list. Keep it unavailable for reassignment while responsibility for the unresolved discrepancy is pending. Photographs or a short note can help describe the issue, but supporting photographs are optional.\n\n## Pass on unresolved work\n\nPost the discrepancy record to the coordinator’s handoff queue and obtain their acknowledgment of responsibility before marking the kit available for the next shift. Keep that acknowledgment linked to the kit record. If the coordinator decides that further work is needed, leave the kit in the review area.\n\n## Leave a usable record\n\nKeep the return note with the original checkout list. The next steward can then follow the kit’s return and any outstanding work without reconstructing your shift from separate messages.",
+          "construction": "Synthetic guide for a fictional organization. Only the focal action passage differs within this family.",
+          "expected": {
+            "label_status": "provisional_author_labels",
+            "claim_support": "supported",
+            "completeness": "complete_for_task",
+            "issues": [],
+            "validity_rationale": "The guide directly instructs the required focal action and retains the other task requirements."
+          }
+        },
+        {
+          "id": "event-kit-handoff-indirect",
+          "instruction_form": "indirect",
+          "text": "# Finish an equipment shift\n\nUse this handoff when you finish an equipment shift at Lantern Field. Work from the checkout list for each returned kit so the next steward can connect your return notes to the original loan. Keep the assigned bag with its list while you work through the contents.\n\n## Check what came back\n\nCompare the returned items with the checkout list and record the return there. Ask the returning volunteer about an item whose identity is unclear before completing the list. Add their explanation when it helps the next steward identify the item.\n\nEnter any unmatched, missing or damaged item in the kit’s discrepancy record. Put the affected kit in the review area with its checkout list. Keep it unavailable for reassignment while responsibility for the unresolved discrepancy is pending. Photographs or a short note can help describe the issue, but supporting photographs are optional.\n\n## Pass on unresolved work\n\nThe handoff is complete when the discrepancy record is in the coordinator’s queue and their acknowledgment of responsibility is linked to the kit record. Availability for the next shift depends on that completed handoff. A coordinator decision to retain the kit for further work leaves it in the review area.\n\n## Leave a usable record\n\nKeep the return note with the original checkout list. The next steward can then follow the kit’s return and any outstanding work without reconstructing your shift from separate messages.",
+          "construction": "Synthetic guide for a fictional organization. Only the focal action passage differs within this family.",
+          "expected": {
+            "label_status": "provisional_author_labels",
+            "claim_support": "supported",
+            "completeness": "complete_for_task",
+            "issues": [],
+            "validity_rationale": "The focal action is expressed as a clear prerequisite or completed-handoff condition, which gives the reader an actionable sequence without an imperative sentence. Other required actions are retained."
+          }
+        },
+        {
+          "id": "event-kit-handoff-omitted",
+          "instruction_form": "omitted",
+          "text": "# Finish an equipment shift\n\nUse this handoff when you finish an equipment shift at Lantern Field. Work from the checkout list for each returned kit so the next steward can connect your return notes to the original loan. Keep the assigned bag with its list while you work through the contents.\n\n## Check what came back\n\nCompare the returned items with the checkout list and record the return there. Ask the returning volunteer about an item whose identity is unclear before completing the list. Add their explanation when it helps the next steward identify the item.\n\nEnter any unmatched, missing or damaged item in the kit’s discrepancy record. Put the affected kit in the review area with its checkout list. Keep it unavailable for reassignment while responsibility for the unresolved discrepancy is pending. Photographs or a short note can help describe the issue, but supporting photographs are optional.\n\n## Handoff queue options\n\nThe coordinator’s queue accepts a discrepancy record with linked photographs or notes. Its acknowledgment field can store the coordinator’s acceptance of responsibility alongside the kit record. The queue brings this information together for the next shift. If the coordinator decides that further work is needed, leave the kit in the review area.\n\n## Leave a usable record\n\nKeep the return note with the original checkout list. The next steward can then follow the kit’s return and any outstanding work without reconstructing your shift from separate messages.",
+          "construction": "Synthetic guide for a fictional organization. Only the focal action passage differs within this family.",
+          "expected": {
+            "label_status": "provisional_author_labels",
+            "claim_support": "supported",
+            "completeness": "consequential_omission",
+            "issues": [
+              {
+                "id": "coordinator-action",
+                "kind": "omission",
+                "candidate_quote": "",
+                "evidence_ids": [
+                  "coordinator-handoff"
+                ],
+                "requirement_id": "handoff-discrepancy-responsibility",
+                "required_guidance": "Post the discrepancy record to the coordinator and obtain a linked acknowledgment before marking the kit available.",
+                "rationale": "The queue and acknowledgment field are described as available features, but the guide never makes posting the record and obtaining acknowledgment part of the required handoff before availability.",
+                "severity": "major"
+              }
+            ],
+            "validity_rationale": "The queue and acknowledgment field are described as available features, but the guide never makes posting the record and obtaining acknowledgment part of the required handoff before availability."
+          }
+        }
+      ]
+    },
+    {
+      "id": "editorial-correction",
+      "partition": "development",
+      "reader_task": "Prepare a procedure for publishing an approved factual correction in a fictional community magazine, including checking the replacement, adding a reader-visible correction note, and verifying the published article.",
+      "audience": "Section editors correcting an existing online magazine article.",
+      "surface": "Internal operational handbook",
+      "destination": "editorial/handbook/factual-correction.md",
+      "variables": {},
+      "source_status": "authored_synthetic_policy",
+      "sources": [
+        {
+          "id": "correction-source",
+          "text": "At the fictional Orchard Pages magazine, the section editor checks a proposed factual replacement against the supplied reference before preparing a correction. The editor records the affected article and passage in the correction record. If the reference does not resolve the fact, the editor asks the commissioning editor for clarification and holds the change. The original published passage remains available in the correction record."
+        },
+        {
+          "id": "correction-approval",
+          "text": "The commissioning editor approves the replacement before it is published. The section editor prepares the replacement in the article draft, reads the surrounding paragraph for consistency, and previews the updated article. A saved draft and a preview do not change the public article. Publication uses the approved replacement. The correction record links the reference and the commissioning editor’s approval."
+        },
+        {
+          "id": "reader-notice",
+          "text": "A factual correction requires a visible note in the article explaining which fact was corrected. The section editor adds that note before publishing the revised article. The note appears with the corrected article so readers can understand the change; the internal correction record does not substitute for it. The article editor has a correction-note field and a preview showing where the note appears. A stylistic edit that leaves the facts unchanged does not require this note."
+        },
+        {
+          "id": "published-check",
+          "text": "After publication, the section editor opens the public article and verifies that the approved replacement is visible. A failed public check is reported to the commissioning editor for resolution. The section editor then retains the public article link with the reference and approval in the correction record."
+        }
+      ],
+      "requirements": [
+        {
+          "id": "verify-replacement",
+          "description": "Explain how to check the proposed fact, preserve the original passage and handle an unresolved reference.",
+          "source_ids": [
+            "correction-source"
+          ]
+        },
+        {
+          "id": "prepare-approved-publication",
+          "description": "Explain draft preparation, preview and approval before publication.",
+          "source_ids": [
+            "correction-approval"
+          ]
+        },
+        {
+          "id": "add-reader-correction-note",
+          "description": "Explain adding a reader-visible note identifying the corrected fact before publishing the factual correction.",
+          "source_ids": [
+            "reader-notice"
+          ]
+        },
+        {
+          "id": "verify-public-correction",
+          "description": "Explain the post-publication check and retention of the correction evidence.",
+          "source_ids": [
+            "published-check"
+          ]
+        }
+      ],
+      "scheduled_variant": "editorial-correction-omitted",
+      "variants": [
+        {
+          "id": "editorial-correction-explicit",
+          "instruction_form": "explicit",
+          "text": "# Publish a factual correction\n\nUse this procedure for an approved factual correction to an existing Orchard Pages article. Record the article and affected passage in the correction record, preserving the original published wording for reference.\n\n## Prepare the replacement\n\nCheck the proposed replacement against the supplied reference. If the reference leaves the fact unresolved, ask the commissioning editor for clarification and hold the change. Keep the reference with the correction record so another editor can follow the basis for the replacement.\n\nPrepare the replacement in the article draft and read the surrounding paragraph for consistency. Preview the updated article and obtain the commissioning editor’s approval before publication. Keep the approval linked to the correction record. A saved draft or a preview leaves the public article unchanged.\n\n## Explain the correction to readers\n\nBefore publishing the revised article, add a visible correction note explaining which fact was corrected. Use the article’s correction-note field and check its placement in the preview. Keep the internal record as supporting evidence; readers need the note in the article itself to understand the factual change.\n\n## Verify the published result\n\nPublish the approved replacement, then open the public article and verify that the replacement is visible. Report a failed public check to the commissioning editor for resolution. Retain the public article link with the reference and approval in the correction record.",
+          "construction": "Synthetic guide for a fictional organization. Only the focal action passage differs within this family.",
+          "expected": {
+            "label_status": "provisional_author_labels",
+            "claim_support": "supported",
+            "completeness": "complete_for_task",
+            "issues": [],
+            "validity_rationale": "The guide directly instructs the required focal action and retains the other task requirements."
+          }
+        },
+        {
+          "id": "editorial-correction-indirect",
+          "instruction_form": "indirect",
+          "text": "# Publish a factual correction\n\nUse this procedure for an approved factual correction to an existing Orchard Pages article. Record the article and affected passage in the correction record, preserving the original published wording for reference.\n\n## Prepare the replacement\n\nCheck the proposed replacement against the supplied reference. If the reference leaves the fact unresolved, ask the commissioning editor for clarification and hold the change. Keep the reference with the correction record so another editor can follow the basis for the replacement.\n\nPrepare the replacement in the article draft and read the surrounding paragraph for consistency. Preview the updated article and obtain the commissioning editor’s approval before publication. Keep the approval linked to the correction record. A saved draft or a preview leaves the public article unchanged.\n\n## Explain the correction to readers\n\nThe factual correction is ready for publication when the article contains a visible note explaining which fact was corrected. Its placement is visible in the preview. The internal record supports the editorial decision, while the note accompanying the article gives readers an explanation of the factual change.\n\n## Verify the published result\n\nPublish the approved replacement, then open the public article and verify that the replacement is visible. Report a failed public check to the commissioning editor for resolution. Retain the public article link with the reference and approval in the correction record.",
+          "construction": "Synthetic guide for a fictional organization. Only the focal action passage differs within this family.",
+          "expected": {
+            "label_status": "provisional_author_labels",
+            "claim_support": "supported",
+            "completeness": "complete_for_task",
+            "issues": [],
+            "validity_rationale": "The focal action is expressed as a clear prerequisite or completed-handoff condition, which gives the reader an actionable sequence without an imperative sentence. Other required actions are retained."
+          }
+        },
+        {
+          "id": "editorial-correction-omitted",
+          "instruction_form": "omitted",
+          "text": "# Publish a factual correction\n\nUse this procedure for an approved factual correction to an existing Orchard Pages article. Record the article and affected passage in the correction record, preserving the original published wording for reference.\n\n## Prepare the replacement\n\nCheck the proposed replacement against the supplied reference. If the reference leaves the fact unresolved, ask the commissioning editor for clarification and hold the change. Keep the reference with the correction record so another editor can follow the basis for the replacement.\n\nPrepare the replacement in the article draft and read the surrounding paragraph for consistency. Preview the updated article and obtain the commissioning editor’s approval before publication. Keep the approval linked to the correction record. A saved draft or a preview leaves the public article unchanged.\n\n## Correction-note options\n\nThe article editor includes a correction-note field, and the preview shows where a note would appear. The field provides space for an explanation of the changed fact alongside the article. Editors can keep the supporting reference and approval in the internal correction record, which remains available for later enquiries.\n\n## Verify the published result\n\nPublish the approved replacement, then open the public article and verify that the replacement is visible. Report a failed public check to the commissioning editor for resolution. Retain the public article link with the reference and approval in the correction record.",
+          "construction": "Synthetic guide for a fictional organization. Only the focal action passage differs within this family.",
+          "expected": {
+            "label_status": "provisional_author_labels",
+            "claim_support": "supported",
+            "completeness": "consequential_omission",
+            "issues": [
+              {
+                "id": "reader-note-action",
+                "kind": "omission",
+                "candidate_quote": "",
+                "evidence_ids": [
+                  "reader-notice"
+                ],
+                "requirement_id": "add-reader-correction-note",
+                "required_guidance": "Add the reader-visible note identifying the corrected fact before publishing the revised article.",
+                "rationale": "The guide describes a note field and its preview, but omits the action or prerequisite that puts the note into the article before it is published.",
+                "severity": "major"
+              }
+            ],
+            "validity_rationale": "The guide describes a note field and its preview, but omits the action or prerequisite that puts the note into the article before it is published."
+          }
+        }
+      ]
+    }
+  ]
+}
