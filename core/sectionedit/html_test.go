@@ -89,3 +89,14 @@ func TestHTMLRendererDoesNotEnableRawHTML(t *testing.T) {
 	assert.NotContains(t, patches[0].Replacement, "<script>")
 	assert.Contains(t, patches[0].Replacement, "<strong>text</strong>")
 }
+
+func TestHTMLNonstandardListNumberingIsRejected(t *testing.T) {
+	for _, list := range []string{
+		"<ol reversed><li>Third</li><li>Second</li></ol>",
+		"<ol><li value='5'>Fifth</li></ol>",
+		"<ol type='I'><li>Roman</li></ol>",
+	} {
+		_, err := inspectHTML([]byte("<h1>Title</h1>" + list))
+		require.ErrorContains(t, err, "cannot be projected faithfully")
+	}
+}

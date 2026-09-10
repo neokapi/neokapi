@@ -91,3 +91,35 @@ func TestMarkdownSetextTitleBeginningWithHashIsNotATX(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "#Literal title\ncontinued line\n===\n\nNew.\n\n", string(applyAdapterPatch(t, source, patches)))
 }
+
+func TestMarkdownBOMKeepsFirstHeadingAndAbsolutePatchOffsets(t *testing.T) {
+	for _, heading := range []string{"# Café\r\n", "Café\r\n===\r\n"} {
+		source := []byte("\ufeff" + heading + "\r\nOld.\r\n\r\n# Next\r\n\r\nTail.\r\n")
+		sections, err := inspectMarkdown(source)
+		require.NoError(t, err)
+		require.Len(t, sections, 2)
+		assert.Equal(t, "Café", sections[0].Title)
+		assert.Equal(t, 3, sections[0].headingStart)
+		patches, err := planMarkdown(source, 0, "New.")
+		require.NoError(t, err)
+		result := applyAdapterPatch(t, source, patches)
+		assert.Equal(t, "\ufeff"+heading+"\r\nNew.\r\n\r\n# Next\r\n\r\nTail.\r\n", string(result))
+	}
+}
+
+func TestMarkdownCannotDeleteReferenceDefinitionsUsedOutsideSection(t *testing.T) {
+	for _, prefix := range []string{"", "\ufeff"} {
+		source := []byte(prefix + "# First\n\nRead [help][shared].\n\n# Last\n\nOld.\n\n[shared]: https://example.test\n")
+		_, err := planMarkdown(source, 1, "New body.")
+		require.ErrorContains(t, err, "reference definitions")
+		// A reference definition elsewhere does not prohibit editing this body.
+		_, err = planMarkdown(source, 0, "New introduction.")
+		require.NoError(t, err)
+	}
+}
+
+func TestMarkdownCodeThatLooksLikeReferenceDefinitionRemainsEditable(t *testing.T) {
+	source := []byte("# Examples\n\n```md\n[shared]: https://example.test\n```\n\n    [another]: https://example.test\n")
+	_, err := planMarkdown(source, 0, "New examples.")
+	require.NoError(t, err)
+}

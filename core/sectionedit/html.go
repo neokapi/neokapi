@@ -315,6 +315,11 @@ func codeFence(value, minimum string) string {
 }
 
 func htmlList(node *htmlElement) (string, error) {
+	for _, attr := range node.attrs {
+		if attr.Key == "reversed" || attr.Key == "type" {
+			return "", fmt.Errorf("HTML list attribute %q cannot be projected faithfully", attr.Key)
+		}
+	}
 	lines := []string{}
 	number := 1
 	if start := htmlAttribute(node, "start"); start != "" {
@@ -346,6 +351,11 @@ func htmlList(node *htmlElement) (string, error) {
 }
 
 func htmlListItem(item *htmlElement) (string, error) {
+	for _, attr := range item.attrs {
+		if attr.Key == "value" {
+			return "", errors.New("HTML list-item value cannot be projected faithfully")
+		}
+	}
 	parts := []string{}
 	inline := []*htmlElement{}
 	flush := func() error {
