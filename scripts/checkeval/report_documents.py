@@ -41,9 +41,10 @@ def render(prepared, study, checks, output, assessment_path=None):
         deterministic = coverage_by_id[case["id"]]
         analyses = (deterministic.get("execution") or {}).get("analyzers", [])
         statuses = ", ".join(a["id"] + ": " + a["status"] for a in analyses)
-        title = escape(label["variant"])
+        protocol = session.get("protocol", "ordinary")
+        title = escape(label["variant"] + " · " + protocol)
         rows.append(
-            f"<tr><td><a href='#{case['id']}'>{title}</a></td><td>{escape(agent['status'])}</td>"
+            f"<tr><td><a href='#{session['id']}'>{title}</a></td><td>{escape(agent['status'])}</td>"
             f"<td>{agent['duration_ms']/1000:.1f}s</td><td>{len(findings) if parsed else 'unparsed'}</td><td>{len(abstentions) if parsed else 'unparsed'}</td>"
             f"<td>{len(label['issues'])}</td></tr>"
         )
@@ -60,16 +61,35 @@ def render(prepared, study, checks, output, assessment_path=None):
             for s in case["sources"]
         )
         expected = "".join(f"<li>{escape(i['rationale'])}</li>" for i in label["issues"])
-        notes = "".join(f"<li>{escape(note)}</li>" for note in assessment.get("cases", {}).get(case["id"], []))
+        case_notes = assessment.get("sessions", {}).get(session["id"], assessment.get("cases", {}).get(case["id"], []))
+        notes = "".join(f"<li>{escape(note)}</li>" for note in case_notes)
+        requirements = "".join(
+            f"<li><strong>{escape(r['id'])}</strong>: {escape(r['description'])}</li>"
+            for r in case.get("requirements", [])
+        )
+        contextual = integrity.get("contextual") or {}
+        coverage_html = "".join(
+            f"<li><strong>{escape(r['requirement_id'])}: {escape(r['status'])}</strong>"
+            f"<blockquote>{escape(r['candidate_quote'])}</blockquote><p>{escape(r['rationale'])}</p></li>"
+            for r in contextual.get("requirements", [])
+        )
+        suggestions_html = "".join(f"<li>{escape(s['rationale'])}</li>" for s in contextual.get("suggestions", []))
+        contextual_html = ""
+        if contextual:
+            contextual_html = (f"<h3>Requirement coverage</h3><ul>{coverage_html}</ul>"
+                               f"<h3>Optional suggestions</h3><ul>{suggestions_html or '<li>None.</li>'}</ul>"
+                               "<p>Prototype findings are advisory. Complete coverage is a response-structure requirement, not proof that each judgment is correct.</p>")
         sections.append(
-            f"<section id='{case['id']}'><h2>{title}</h2><p><strong>Reader task:</strong> {escape(case['reader_task'])}</p>"
+            f"<section id='{session['id']}'><h2>{title}</h2><p><strong>Reader task:</strong> {escape(case['reader_task'])}</p>"
             f"<p><strong>Audience:</strong> {escape(case['audience'])}<br><strong>Surface:</strong> {escape(case['surface'])}</p>"
+            f"<details><summary>Explicit reader requirements</summary><ul>{requirements or '<li>Not separately supplied.</li>'}</ul></details>"
             f"<details><summary>Governing sources</summary>{source_html}</details><div class='columns'>"
             f"<article><h3>Candidate reviewed</h3><pre>{escape(case['candidate'])}</pre></article>"
             f"<article><h3>Model findings</h3><p>{escape(agent.get('actual_model', 'unverified model'))} · {agent['duration_ms']/1000:.1f}s · "
             f"output integrity: {str(integrity['valid']).lower()}</p><ol>{finding_html}</ol>"
             f"<h3>Abstentions</h3><ul>{abstention_html or ('<li>None reported.</li>' if parsed else '<li>Unparsed.</li>')}</ul>"
             f"<h3>Independent agent assessment</h3><ul>{notes or '<li>Not supplied.</li>'}</ul>"
+            f"{contextual_html}"
             f"<details><summary>Provisional authored issues</summary><p>{escape(label['validity_rationale'])}</p><ul>{expected}</ul></details>"
             f"<details><summary>Raw final answer and protocol issues</summary><pre>{escape(agent.get('final_text',''))}</pre>"
             f"<pre>{escape(json.dumps(integrity['errors']))}</pre></details></article></div>"

@@ -174,6 +174,77 @@ semantic analyzer inside `kapi check`. A useful result supports prototyping and
 measuring that analyzer; any claim of kapi benefit still needs the matched
 ordinary-review and context-retrieval comparisons below.
 
+## Requirement-aware framework prototype
+
+`core/check/contextual` supplies an opt-in review contract shared by framework
+callers and the subscription experiment. It does not start a model, resolve a
+project or change the default `kapi check` behavior. The caller supplies the
+candidate, reader task, audience, surface, destination, variables, source
+passages and explicit requirements. Each requirement identifies the source
+passages that justify it. Requirements define necessary reader actions and
+decisions; they do not specify where an error should be found.
+
+`BuildPrompt` constructs the review request. `ParseResponse` validates and
+interprets a returned response. The response separates:
+
+| Output | Required evidence | Treatment |
+| --- | --- | --- |
+| Conflicting claim | Exact candidate quote, source IDs and explanation | Advisory finding, whether or not the claim concerns a declared requirement |
+| Requirement covered | Declared requirement ID, candidate quote and reasoning | Coverage observation, not proof of a correct judgment |
+| Requirement missing | Declared requirement ID, supporting sources and missing action | Advisory omission finding |
+| Requirement uncertain | Declared requirement ID and explanation of uncertainty | Retained separately as an abstention |
+| Optional suggestion | Candidate/source evidence and rationale | Separate advice; no content-gate penalty |
+
+Exactly one assessment is required for each declared requirement. An omitted or
+invented requirement ID, invalid source reference, malformed JSON or fabricated
+candidate quotation invalidates the response. A mention of tool options is not
+automatically an instruction to perform the required action. The prompt asks the
+reviewer to assess that distinction; the parser cannot decide its truth.
+
+Conflicts and missing requirements map to the common `check.Finding` type with
+neutral severity and evidence metadata. The prototype does not issue a release
+verdict or promote model allegations into blocking errors. Optional suggestions
+and uncertain assessments remain separate from those findings. A complete
+response can still contain incorrect reasoning or miss a conflict.
+
+The result retains a serialized snapshot of the supplied request and its
+fingerprint, including the contract version. This binds recorded findings to
+their processing inputs; it does not certify what the model actually considered.
+The experiment independently records the model, effort, exact prompt and shared
+core code hash. There is no result cache in this prototype, and the caller must
+retain those identities before considering evidence reuse.
+
+### Matched comparison with ordinary review
+
+The comparison gives both modes identical candidate text, sources and explicit
+requirements. `ordinary` uses the existing open finding-list protocol;
+`requirements` uses the shared framework prompt and requires a full assessment
+of the declared requirements. The intervention includes the prompt, response
+structure and validation together. Different output lengths can affect elapsed
+time and token use, which remain part of the comparison.
+
+```sh
+make meaning-eval-prepare-comparison MEANING_EVAL_INPUTS=harness/out/requirements-inputs
+make meaning-eval-preflight MEANING_EVAL_INPUTS=harness/out/requirements-inputs MEANING_EVAL_DIR=harness/out/requirements-review
+make meaning-eval-run MEANING_EVAL_INPUTS=harness/out/requirements-inputs MEANING_EVAL_DIR=harness/out/requirements-review
+```
+
+Only the last command starts inference. Six fresh sessions cover three selected
+development cases twice: the supported release guide, supported editing guide
+and faulty destination guide. They target unnecessary omission claims and a
+missed post-save action from development work. They are not held-out evidence.
+Protocol order alternates by case, and host/model/effort, evidence and resource
+limits are fixed. A host/case/protocol combination cannot be repeated within the
+study. Shared core changes invalidate study identity as well as runner changes.
+
+Results retain the native framework assessment, neutral findings and a common
+view of conflicts, omissions and abstentions. Optional suggestions are displayed
+separately. A lower finding count is useful only if required errors remain
+detected; requiring a checklist is useful only if its judgments are correct.
+Independent source-based adjudication remains necessary. This comparison can
+assess the prototype's review contract with supplied evidence; it cannot
+establish the benefit of automatic context retrieval or production readiness.
+
 ## What counts as evidence
 
 Use three outcomes: supported, contradicted, and insufficient context. Supported

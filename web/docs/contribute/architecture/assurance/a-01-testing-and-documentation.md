@@ -239,6 +239,15 @@ correctness. Independent agent label review remains distinct from human
 adjudication, and direct model review is not attributed to a product analyzer
 that did not execute.
 
+Requirement-aware review distinguishes necessary reader actions from optional
+reference detail. Every declared requirement receives an explicit coverage or
+uncertainty assessment; omission findings identify the requirement they concern.
+Claim conflicts remain reviewable beyond that requirement list. Experimental
+model findings remain advisory, with source references and request identity,
+while optional suggestions and abstentions are retained separately. Complete
+response structure does not establish correct reasoning. Comparisons supply
+the same explicit requirements to the ordinary review control.
+
 Agent comparisons hold the task, model, relevant guidance and resource limits
 constant. They counterbalance order and retain failed and capped runs. Fewer
 edits or tool calls do not establish better quality. Reports distinguish
