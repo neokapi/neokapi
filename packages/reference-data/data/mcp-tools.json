@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-09-10T13:49:15Z",
+  "generatedAt": "2026-09-10T22:19:30Z",
   "tools": [
     {
       "name": "apply_edits",
-      "description": "Apply a typed change-set: the one write verb. For document wording, each entry uses kind=content, file, id, content_hash and text (the new wording). Read block IDs and hashes with extract_content. The replacement field is for voice rules. Content edits land through the byte-faithful round-trip (structure and inline codes preserved, drift-guarded by content_hash); asset edits (terms entry, content memory pair, voice rule, recipe field) are written to their committed source and compiled into the cache. No AI provider is used. Read the context://\u003cproject-relative-path\u003e resource before editing content, then run check_file on each changed file to review findings and analyzer coverage.",
+      "description": "Apply a typed change-set: the one write verb. For document wording, each entry uses kind=content, file, id, content_hash and text (the new wording). Read block IDs and hashes with extract_content. The replacement field is for voice rules. Content edits land through the byte-faithful round-trip (structure and inline codes preserved, drift-guarded by content_hash); asset edits (terms entry, content memory pair, voice rule, recipe field) are written to their committed source and compiled into the cache. No AI provider is used. Read the context://\u003cproject-relative-path\u003e resource before editing content, then run check_file on each changed file to review findings and analyzer coverage. For section edits use inspect_sections, then one kind=section entry with file, id, snapshot and text (Markdown body). preview=true returns an immutable writer offset plan without writing. The heading is preserved.",
       "surface": "default",
       "params": [
         {
@@ -11,6 +11,12 @@
           "type": "array",
           "required": true,
           "description": "the typed change-set entries to apply"
+        },
+        {
+          "name": "preview",
+          "type": "boolean",
+          "required": false,
+          "description": "preview a section entry as an offset plan without writing; section entries only"
         }
       ]
     },
@@ -534,6 +540,19 @@
           "type": "string",
           "required": false,
           "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project."
+        }
+      ]
+    },
+    {
+      "name": "inspect_sections",
+      "description": "Read heading sections with native neokapi block ranges and source snapshot. Content is a Markdown reading projection. Read the file context resource before authoring; use apply_edits kind=section and preview=true, then apply and check_file. The POC supports Markdown, HTML and DOCX with explicit source/fragment limits.",
+      "surface": "default",
+      "params": [
+        {
+          "name": "file",
+          "type": "string",
+          "required": true,
+          "description": "local Markdown, HTML or DOCX file"
         }
       ]
     },

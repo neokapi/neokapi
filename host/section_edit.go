@@ -177,6 +177,9 @@ func validateSectionChangeSet(entries []changeEntry) error {
 }
 
 func (a *App) runSectionApply(cmd Command, entry changeEntry, preview bool, backup string, asJSON bool) error {
+	if a.FormatFlag != "" {
+		return errors.New("section edits detect the supported format from the file extension; omit --format")
+	}
 	result, err := a.ApplySectionEdit(cmd.Context(), entry.File, sectionedit.Edit{
 		ID: entry.ID, Snapshot: entry.Snapshot, Text: entry.Text,
 	}, preview, backup)

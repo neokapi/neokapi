@@ -38,14 +38,14 @@ const (
 // the block address (file + id + content_hash) and the new placeholder-rendered
 // text; asset edits carry an op and the per-asset fields.
 type changeEntry struct {
-	Kind changeKind `json:"kind" jsonschema:"change kind; use content for document wording"`
+	Kind changeKind `json:"kind" jsonschema:"change kind; content edits block wording, section replaces a heading section body"`
 
 	// content
 	File        string `json:"file,omitempty"`
 	ID          string `json:"id,omitempty"`
 	ContentHash string `json:"content_hash,omitempty"`
 	Snapshot    string `json:"snapshot,omitempty"`
-	Text        string `json:"text,omitempty" jsonschema:"new block wording for kind=content; preserve inline placeholders from extract_content"`
+	Text        string `json:"text,omitempty" jsonschema:"new block wording for kind=content (preserve inline placeholders); Markdown body for kind=section"`
 
 	// asset common
 	Op string `json:"op,omitempty"`

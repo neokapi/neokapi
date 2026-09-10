@@ -14,8 +14,8 @@ sections are bounded by their parent element.
 The format reader supplies the document structure and heading identity. Section
 inspection presents the body as Markdown so an editor can work on a coherent
 piece of content. The format adapter prepares replacements against immutable
-source offsets. The writer applies those patches to the original bytes; it does
-not rebuild the document from a mutated content tree.
+source offsets. The writer applies those patches directly to the original
+bytes. Reader blocks remain unchanged while the plan is prepared and applied.
 
 This mechanism complements block edits. See
 [E-02: The format system](/contribute/architecture/engine/e-02-format-system)
@@ -87,7 +87,10 @@ this loop; the default check gate allows them.
 
 The POC accepts one section entry per change-set, on a regular local file.
 Symlinks, ambiguous boundaries, missing source spans and unsupported markup
-are rejected. Heading-free documents have no section target.
+are rejected. Heading-free documents have no section target. Markdown replacement
+also rejects a range containing document-wide link definitions and fragments
+with an unfinished fence. Signed Word packages are rejected because an edit
+would invalidate their signatures.
 
 The shared replacement body uses a bounded Markdown vocabulary: paragraphs,
 nested headings, lists, fenced code and basic emphasis. A format adapter maps
@@ -158,3 +161,20 @@ discovery. Existing output directories are rejected to preserve earlier evidence
 This demonstration establishes the deterministic edit/check loop and the stated
 preservation properties. It does not measure editorial quality, model skill,
 review effort or rendered Word layout.
+
+## Implementation boundaries
+
+`core/sectionedit` binds native reader spans to `model.BlockRange` and prepares
+`format.OffsetPatchPlan`. The writer validates the snapshot, expected bytes and
+non-overlapping offsets. The range is provenance at that generic writer
+boundary; the section planner validates its correspondence to reader blocks.
+CLI and MCP accept semantic edit requests and build plans internally. They do
+not accept arbitrary caller-supplied offset plans.
+
+The host prepares output in memory, rechecks the on-disk source and replaces the
+file through a temporary file in the same directory. This detects source drift
+between inspection and application; it is not a cross-process filesystem lock.
+
+The demonstration establishes section editing and a check-driven revision
+across native formats. Its authored wording and deterministic vocabulary rule
+do not measure model editing quality, grammar analysis or factual correctness.
