@@ -151,6 +151,11 @@ func parsePairedAgentStream(reader io.Reader, launch PairedLaunch) (PairedAgentR
 						}
 						if pairedString(part, "type") == "tool_use" {
 							tool := pairedString(part, "name")
+							if launch.NoTools {
+								result.Tools = pairedUnique(result.Tools, tool)
+								result.Status = "tool_use_violation"
+								return result, errors.New("tool use violates fixed-input review protocol")
+							}
 							result.Tools = pairedUnique(result.Tools, tool)
 							if violation := pairedRouteViolation(launch.Condition, tool, pairedObject(part, "input")); violation != "" {
 								result.Status = "route_violation"
@@ -196,6 +201,13 @@ func parsePairedAgentStream(reader io.Reader, launch PairedLaunch) (PairedAgentR
 			case "item.started", "item.completed":
 				item := pairedObject(event, "item")
 				kind := pairedString(item, "type")
+				isTool := kind == "command_execution" || kind == "mcp_tool_call" || kind == "file_change" ||
+					kind == "web_search" || kind == "collab_tool_call"
+				if launch.NoTools && isTool {
+					result.Tools = pairedUnique(result.Tools, kind)
+					result.Status = "tool_use_violation"
+					return result, errors.New("tool use violates fixed-input review protocol")
+				}
 				if kind == "command_execution" {
 					result.Tools = pairedUnique(result.Tools, "shell")
 					if violation := pairedRouteViolation(launch.Condition, "Bash", map[string]any{"command": pairedString(item, "command")}); violation != "" {

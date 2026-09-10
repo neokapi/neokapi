@@ -73,8 +73,12 @@ func preparePairedAgent(ctx context.Context, launch PairedLaunch) (PairedPrepare
 	if err != nil {
 		return p, err
 	}
+	toolNote := "Fresh personal configuration; only the assigned kapi integration is discoverable. Ordinary shell and file tools remain available."
+	if launch.NoTools {
+		toolNote = "Fixed-input review prohibits tools. Claude disables its tool set; both host transcripts reject observed tool use. This is a protocol control, not a hostile-code boundary."
+	}
 	p.IsolationNotes = append(p.IsolationNotes,
-		"Fresh personal configuration; only the assigned kapi integration is discoverable. Ordinary shell and file tools remain available.",
+		toolNote,
 		"Interface isolation plus transcript audit is accidental-contamination control, not a hostile-code boundary. Absolute binary paths or indirect shell execution remain possible; detected wrong-route attempts are invalid.",
 		"Subscription quota is not inferred from token counts; the runner must pause after its configured live-attempt batch.")
 	return p, nil
@@ -159,6 +163,13 @@ func preparePairedClaude(ctx context.Context, p *PairedPrepared) error {
 		settingSources = "project"
 	}
 	p.Args = []string{"--print", "--output-format", "stream-json", "--verbose", "--model", p.Launch.Agent.Model, "--effort", p.Launch.Agent.Effort, "--setting-sources", settingSources, "--settings", settingsPath, "--strict-mcp-config", "--mcp-config", mcpPath, "--no-session-persistence", "--permission-mode", "acceptEdits", "--tools", "Bash,Read,Edit,Write,Glob,Grep,Skill,ToolSearch"}
+	if p.Launch.NoTools {
+		for i := range p.Args {
+			if p.Args[i] == "--tools" {
+				p.Args[i+1] = ""
+			}
+		}
+	}
 	if p.Launch.Condition != "skill-cli" {
 		p.Args = append(p.Args, "--disable-slash-commands")
 	}

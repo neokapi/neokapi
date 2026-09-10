@@ -21,6 +21,7 @@ type PairedLaunch struct {
 	TranscriptPath string          `json:"transcript_path"`
 	Timeout        time.Duration   `json:"timeout"`
 	MaxTurns       int             `json:"max_turns"`
+	NoTools        bool            `json:"no_tools,omitempty"`
 }
 
 // PairedPrepared is an offline launch description. Blockers prohibit inference.
