@@ -1,0 +1,21 @@
+Adapt the existing Pageglass documentation into a coherent documentation set
+using the supplied reference approach. Improve explanation, reader orientation
+and organization where warranted. Preserve suitable existing wording rather
+than changing it merely to increase the diff.
+
+The editable documents are README.md, docs/getting-started.md,
+docs/preview-links.md and docs/troubleshooting.md. The same facts.md defines the
+fictional product's behavior. Keep useful coverage and cross-document links.
+Product facts take precedence over assumptions in the draft or source-project
+examples. Do not transfer Astro capabilities, commands or branding to Pageglass.
+
+Do not modify facts.md or the supplied reference/guidance/configuration files.
+Use only files in this workspace and the assigned local editing tools. Use no
+network, outside files, external services or other agents. Do not run fictional
+product commands. Do not install dependencies or implement the fictional tool.
+There is no requirement to introduce new facts or make a particular number of
+edits. The existing document purpose and intended audience remain the same.
+
+Leave the revised four documents in place. In notes.md, briefly explain the
+substantial changes, the guidance that motivated them, and any unresolved
+tradeoffs. Your final response should list the revised files.

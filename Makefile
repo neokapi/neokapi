@@ -2413,6 +2413,19 @@ meaning-eval-preflight: ## Verify fixed-document subscription review readiness w
 meaning-eval-run: ## Review at most six fixed documents using the subscription (consumes plan allowance)
 	$(GO) run ./scripts/skilleval -meaning-inputs "$(MEANING_EVAL_INPUTS)/subject" -meaning-dir "$(MEANING_EVAL_DIR)" -meaning-live -meaning-max-attempts $(MEANING_EVAL_MAX_ATTEMPTS)
 
+CONTEXT_TRANSFER_DIR ?= harness/out/context-transfer
+CONTEXT_TRANSFER_STAGE ?= learn
+.PHONY: context-transfer-prepare context-transfer-preflight context-transfer-run
+
+context-transfer-prepare: ## Pin source documents and stage context learning without inference (requires a new directory)
+	python3 scripts/checkeval/prepare_context_transfer.py prepare --out "$(CONTEXT_TRANSFER_DIR)"
+
+context-transfer-preflight: ## Freeze one context transfer stage and verify subscription readiness without inference
+	$(GO) run ./scripts/skilleval -poc-stage "$(CONTEXT_TRANSFER_DIR)/stages/$(CONTEXT_TRANSFER_STAGE).json" -poc-dir "$(CONTEXT_TRANSFER_DIR)/ledger"
+
+context-transfer-run: ## Run one staged subscription attempt within the persistent six-start ceiling
+	$(GO) run ./scripts/skilleval -poc-stage "$(CONTEXT_TRANSFER_DIR)/stages/$(CONTEXT_TRANSFER_STAGE).json" -poc-dir "$(CONTEXT_TRANSFER_DIR)/ledger" -poc-live
+
 PRIORAB_ARGS ?=
 # Costs model calls. Two halves: a deterministic consistency check (does the
 # approved wording survive) and a judged quality score. Only the first should be

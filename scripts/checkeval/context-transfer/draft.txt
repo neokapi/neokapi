@@ -1,0 +1,24 @@
+Create the first usable documentation for the fictional developer tool
+described in facts.md. Write normal, good-quality documentation for its intended
+readers. Choose the wording and organization yourself.
+
+Write these four Markdown files:
+- README.md: introduce the tool, its purpose and boundaries, and guide readers
+  to the other documents.
+- docs/getting-started.md: help a new user get a local preview and share a first
+  preview when they are ready.
+- docs/preview-links.md: explain local previews versus shared snapshots, access,
+  expiry, updates and revocation.
+- docs/troubleshooting.md: help users recognize and resolve the documented errors.
+
+Aim for roughly 900–1300 words across the four files, but prioritize useful
+coverage over the count. Link between these files where useful. facts.md is the
+authority for product behavior; it is not a writing-style template. Do not
+invent unsupported features, commands, installation instructions or guarantees.
+The fictional commands are examples to document, not executables to run.
+
+Read only this workspace. Use no network, outside files, external services,
+other agents or existing product documentation. Do not modify facts.md. There
+is no implementation task and no target project's style to imitate.
+
+Your final response should list the files you wrote and any unresolved issue.

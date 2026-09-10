@@ -319,6 +319,22 @@ ordinary tasks and retain their own phase in saved reports.
 See [Paired agent evaluation](../../implementation/repo/paired-agent-evaluation.md)
 for the manifest, execution stages and evidence records.
 
+Context-transfer proofs of concept separate source learning, independent draft
+creation and adaptation. The learned guidance is frozen before the draft is
+created. The initial writer receives only a factual brief. Identical draft
+copies are then adapted with raw references, the learned guidance as ordinary
+files, or the same guidance through kapi. Plain guidance includes the actual
+per-file resolver answers, which isolates the tool workflow from the benefit
+of having guidance at all. Source examples remain separate from target facts;
+explicit rules and inferred tendencies retain their scope and qualifications.
+
+These demonstrations retain full documents, exact diffs, learning overhead,
+observed tool use and unsupported checks. A single attempt per approach can
+reveal useful transformations and workflow limitations. It cannot establish a
+ranking, repeatability or a causal quality advantage. See
+[Context transfer](../../implementation/repo/context-transfer.md) for the
+staged protocol and browser report.
+
 Performance measurements distinguish fresh-process CLI work from persistent
 sessions and cold initialization from warm operation. Raw samples state their
 hardware, corpus, cache conditions and phase boundaries. Host timings exclude
