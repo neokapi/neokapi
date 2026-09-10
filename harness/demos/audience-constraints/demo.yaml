@@ -1,0 +1,92 @@
+id: audience-constraints
+title: Change the explanation, keep the shared rule
+subtitle: Four reading situations, one critical wording rule, and explicit limits on what was checked.
+kind: use-case
+publishAs: audience-constraints
+terminal: shell
+brand: kapi
+cwd: ~/harbor-help
+needsAi: false
+fixturesFrom: samples/audience-context
+project: true
+captureTimeoutSec: 180
+# Script review only. Recording and narration generation are deferred.
+aspects:
+  - Shared constraints across audience treatments
+  - Provenance in the finding
+  - Factual guidance remains unverified
+outro:
+  line: Inspect the applicable guidance and the checks that actually ran.
+  pointer: kapi context <path>
+setup:
+  - mkdir -p .lab-original
+  - cp site/locales/en/*.json .lab-original/
+script:
+  - comment: The same service has different explanations for different reading situations.
+  - command: kapi context site/locales/en/child.json --json
+  - command: kapi context site/locales/en/adult.json --json
+  - comment: The clean fixture passes its configured deterministic checks.
+  - command: kapi check site/locales/en/child.json site/locales/en/teen.json site/locales/en/adult.json site/locales/en/older-adult.json --json > before.json
+  - command: >-
+      node -e 'const fs=require("node:fs"); for (const name of ["child","teen","adult","older-adult"]) { const file=`site/locales/en/${name}.json`; const value=JSON.parse(fs.readFileSync(file,"utf8")); value.fact_body="A video appointment is risk-free."; fs.writeFileSync(file,JSON.stringify(value,null,2)+"\n"); }'
+  - command: kapi check site/locales/en/child.json site/locales/en/teen.json site/locales/en/adult.json site/locales/en/older-adult.json --json > violations.json
+    expectExit: 3
+  - command: >-
+      node -e 'const r=require("./violations.json"); const f=r.findings.filter(x=>x.metadata?.constraint_id==="harbor-help/no-unsupported-assurance"); if(f.length!==4 || r.pass) process.exit(1); console.log(JSON.stringify({pass:r.pass,findings:f},null,2));'
+  - comment: Restore the prepared originals. This repair is a fixture copy, not an agent-generated edit.
+  - command: cp .lab-original/*.json site/locales/en/
+  - command: kapi check site/locales/en/child.json site/locales/en/teen.json site/locales/en/adult.json site/locales/en/older-adult.json --json > repaired.json
+  - command: >-
+      node -e 'const r=require("./repaired.json"); if(!r.pass) process.exit(1); console.log(JSON.stringify({pass:r.pass,summary:r.summary,execution:r.execution},null,2));'
+  - comment: A different paragraph contradicts the service facts without using the prohibited wording.
+  - command: >-
+      node -e 'const fs=require("node:fs"); const file="site/locales/en/child.json"; const value=JSON.parse(fs.readFileSync(file,"utf8")); value.fact_body="A video appointment is recorded. Screen sharing starts automatically and you cannot stop it. Harbor Help can control your device and open all your files."; fs.writeFileSync(file,JSON.stringify(value,null,2)+"\n");'
+  - command: kapi check site/locales/en/child.json --json > unassessed.json
+  - command: >-
+      node -e 'const r=require("./unassessed.json"); if(!r.pass || !r.execution?.analyzers.some(x=>x.id==="voice.guidance" && x.status==="unsupported")) process.exit(1); console.log(JSON.stringify({pass:r.pass,execution:r.execution},null,2));'
+narration:
+  - id: title
+    kind: title
+    text: >-
+      The explanation changes with the reader. The shared rule remains.
+      This example uses four reading situations and one critical wording rule.
+      Its factual guidance remains a separate review responsibility.
+  - id: context
+    kind: terminal
+    through: 5
+    caption: Different audience guidance, one shared constraint.
+    text: >-
+      Inspect the child and adult pages. Their guidance differs, while the
+      same constraint prohibits unsupported assurances. Each constraint has an
+      identifier, source and version. The original files pass the configured checks.
+  - id: violation
+    kind: terminal
+    through: 8
+    caption: The prohibited phrase fails in all four audiences.
+    text: >-
+      Insert the same prohibited phrase in each page. The check exits three
+      and returns four findings. Each points to its file and the same shared
+      rule. Audience style overrides do not remove that constraint.
+  - id: repair
+    kind: terminal
+    through: 12
+    caption: Prepared originals restored; configured checks pass.
+    text: >-
+      Restore the prepared originals and run the checks again. This is an
+      explicit fixture repair, not an agent writing a correction. The report
+      lists the analyzers that ran and those that were not requested.
+  - id: boundary
+    kind: terminal
+    through: 16
+    caption: A deterministic pass does not verify the service facts.
+    text: >-
+      Now insert a paragraph that contradicts the service facts without using
+      the prohibited phrase. The deterministic gate passes, while guidance
+      coverage remains unsupported. This report does not establish factual
+      accuracy. The paragraph still needs a human or a separately evaluated
+      semantic review.
+  - id: outro
+    kind: outro
+    text: >-
+      Use the guidance that applies, then inspect which checks completed.
+      Keep the unverified parts visible in the review.

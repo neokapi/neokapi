@@ -4,31 +4,9 @@ import { ArrowRight, Check } from "lucide-react";
 import { t } from "@neokapi/i18n-react/runtime";
 import styles from "./HeroKinetic.module.css";
 
-// The landing centerpiece: a two-column "kinetic type + live asset" hero driven
-// by Motion. A scene director advances through two looping phases on a fixed
-// stage (~14s cycle):
-//
-//   LEFT  — a KINETIC VERB STACK. The verbs stack vertically; the ACTIVE verb is
-//           large, bold, and dark; verbs already passed RECEDE (smaller, light
-//           gray). The final verb SHIP resolves LARGE and GREEN with a ✓.
-//   RIGHT — a LIVE ASSET (a document card styled as a brand guide) that visibly
-//           transforms as each verb fires: rows populate (Shape), a body block
-//           writes in (Write), green ✓ marks + a "brand ✓" chip appear (Check),
-//           and a green "on brand" seal stamps on (Ship). It grounds the abstract
-//           verbs in a real artifact — the thing being shaped, checked, shipped.
-//
-// PHASE 1 "The Content Loop" (one language): Shape → Write → Check → Ship.
-// PHASE 2 "Going Multilingual" (every language): Read · Prep · Recycle ·
-//   Translate · Check recede, then Ship resolves as stacked language forms
-//   出荷 / Versand / Envío; the asset gains a de·ja·fr switcher, one row is
-//   translated, and an "every language ✓" seal stamps.
-//
-// Zero wasm on load: this is pure JS animation; the engine boots only when the
-// reader opens the modal (onOpen). SSR-safe: index.tsx guards this behind
-// BrowserOnly with a static fallback frame. Under prefers-reduced-motion the hero
-// renders a single static finished frame (Ship green ✓ + a finished brand guide,
-// both "on brand" and "every language"), with no timers. The loop pauses on
-// hover/focus.
+// Authored workflow illustration. No engine or checker runs in this card;
+// opening it loads the existing WASM showcase. The label remains visible in
+// animated, server-rendered and reduced-motion states.
 
 interface HeroKineticProps {
   /** Open the live (wasm) modal. */
@@ -54,9 +32,9 @@ interface Beat {
   hold: number;
 }
 
-// PHASE 1 (content) steps: 0 Shape, 1 Write, 2 Check, 3 Ship (+ hold).
+// PHASE 1 (content) steps: 0 Shape, 1 Write, 2 Check, 3 Review (+ hold).
 // PHASE 2 (multi)   steps: 0 Read, 1 Prep, 2 Recycle, 3 Translate, 4 Check,
-//                          5 Ship (+ hold).
+//                          5 Review (+ hold).
 const STRIP: Beat[] = [
   { phase: "content", step: 0, hold: 1700 },
   { phase: "content", step: 1, hold: 1800 },
@@ -70,14 +48,14 @@ const STRIP: Beat[] = [
   { phase: "multi", step: 5, hold: 2600 },
 ];
 
-// The verb stack for each phase. `climax` marks the SHIP verb (the one that
-// resolves large + green). For phase 2 the SHIP verb renders as stacked language
+// The verb stack for each phase. `climax` marks the final verb (the one that
+// resolves large + green). For phase 2 the final verb renders as stacked language
 // forms instead of a single word.
 const CONTENT_VERBS = [
   t("Shape", "content loop verb"),
   t("Write", "content loop verb"),
   t("Check", "content loop verb"),
-  t("Ship", "content loop verb"),
+  t("Review", "content loop verb"),
 ];
 const MULTI_VERBS = [
   t("Read", "multilingual loop verb"),
@@ -85,9 +63,8 @@ const MULTI_VERBS = [
   t("Recycle", "multilingual loop verb"),
   t("Translate", "multilingual loop verb"),
   t("Check", "multilingual loop verb"),
-  t("Ship", "multilingual loop verb"),
+  t("Review", "multilingual loop verb"),
 ];
-const SHIP_LANGS = ["出荷", "Versand", "Envío"];
 
 // The brand-guide asset's definition rows (Shape populates these).
 const GUIDE_ROWS = [
@@ -120,9 +97,9 @@ function KineticStack({
   verbs: string[];
   /** Index of the currently active verb (verbs before it have receded). */
   active: number;
-  /** When the SHIP verb is active in phase 2, render these stacked forms. */
+  /** When the final verb is active in phase 2, render these stacked forms. */
   climaxLangs?: string[];
-  /** The small caption under the resolved SHIP verb. */
+  /** The small caption under the resolved final verb. */
   climaxLabel: string;
 }): React.ReactElement {
   const shipIndex = verbs.length - 1;
@@ -136,13 +113,13 @@ function KineticStack({
         const passed = i < active;
 
         // The receded (passed) verbs shrink to light gray; the active verb is
-        // large + dark; upcoming verbs are dim placeholders. SHIP, once active,
+        // large + dark; upcoming verbs are dim placeholders. The final verb, once active,
         // resolves large + green.
         const state =
           isShip && shipActive ? "ship" : isActive ? "active" : passed ? "passed" : "upcoming";
 
         if (isShip && shipActive && climaxLangs) {
-          // Phase 2: SHIP resolves as stacked language forms.
+          // Phase 2: The final verb resolves as stacked language forms.
           return (
             <motion.div key={verb} className={styles.shipLangGroup} layout transition={SOFT_SPRING}>
               {climaxLangs.map((lang, k) => (
@@ -178,19 +155,6 @@ function KineticStack({
           >
             <motion.span className={styles.verb} data-state={state} layout transition={SPRING}>
               {verb}
-              <AnimatePresence>
-                {isShip && shipActive && (
-                  <motion.span
-                    className={styles.verbCheck}
-                    initial={{ scale: 0, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    exit={{ scale: 0, opacity: 0 }}
-                    transition={SPRING}
-                  >
-                    <Check size={26} strokeWidth={3} />
-                  </motion.span>
-                )}
-              </AnimatePresence>
             </motion.span>
             <AnimatePresence>
               {isShip && shipActive && !climaxLangs && (
@@ -212,7 +176,7 @@ function KineticStack({
   );
 }
 
-// ── The live brand-guide asset (RIGHT column) ────────────────────────────────
+// ── The illustrated writing guide (RIGHT column) ────────────────────────────────
 
 function AssetCard({
   // The gates below already encode which phase is on, so the phase itself is
@@ -223,28 +187,24 @@ function AssetCard({
   rowsIn,
   bodyIn,
   checked,
-  sealed,
   // phase 2 gates
   multi,
   langActive,
   localized,
-  multiSealed,
 }: {
   phase: Phase;
   typeLabel: string;
   rowsIn: boolean;
   bodyIn: boolean;
   checked: boolean;
-  sealed: boolean;
   multi: boolean;
   langActive: string;
   localized: boolean;
-  multiSealed: boolean;
 }): React.ReactElement {
   return (
     <div className={styles.asset} aria-hidden="true">
       <div className={styles.assetHead}>
-        <span className={styles.assetTitle}>Acme — Brand guide</span>
+        <span className={styles.assetTitle}>Acme: writing guide</span>
         <AnimatePresence mode="wait">
           <motion.span
             key={typeLabel}
@@ -259,28 +219,23 @@ function AssetCard({
         </AnimatePresence>
       </div>
 
-      {/* Phase 2: the language switcher tabs appear above the content. */}
-      <AnimatePresence>
-        {multi && (
-          <motion.div
-            className={styles.langTabs}
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={SOFT_SPRING}
+      {/* The tabs keep their space while the multilingual phase fades in. */}
+      <motion.div
+        className={styles.langTabs}
+        initial={false}
+        animate={{ opacity: multi ? 1 : 0 }}
+        transition={SOFT_SPRING}
+      >
+        {LANG_TABS.map((t) => (
+          <span
+            key={t}
+            className={styles.langTab}
+            data-active={t === langActive ? "true" : "false"}
           >
-            {LANG_TABS.map((t) => (
-              <span
-                key={t}
-                className={styles.langTab}
-                data-active={t === langActive ? "true" : "false"}
-              >
-                {t}
-              </span>
-            ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
+            {t}
+          </span>
+        ))}
+      </motion.div>
 
       {/* Definition rows (Shape populates them). */}
       <div className={styles.rows}>
@@ -295,89 +250,64 @@ function AssetCard({
               transition={{ ...SPRING, delay: rowsIn ? i * 0.12 : 0 }}
             >
               <span className={styles.rowKey}>{row.k}</span>
-              <AnimatePresence mode="wait">
+              <span className={styles.rowVal} data-localized={localizeThis ? "true" : "false"}>
                 <motion.span
-                  key={localizeThis ? "loc" : "src"}
-                  className={styles.rowVal}
-                  data-localized={localizeThis ? "true" : "false"}
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -6 }}
+                  className={styles.rowText}
+                  initial={false}
+                  animate={{ opacity: localizeThis ? 0 : 1, y: localizeThis ? -6 : 0 }}
                   transition={{ duration: 0.35 }}
                 >
-                  {localizeThis ? LOCALIZED_VOICE : row.v}
+                  {row.v}
                 </motion.span>
-              </AnimatePresence>
-              {/* Check ✓ beside each row. */}
-              <AnimatePresence>
-                {checked && (
+                {i === 0 && (
                   <motion.span
-                    className={styles.rowCheck}
-                    initial={{ scale: 0, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    exit={{ scale: 0, opacity: 0 }}
-                    transition={{ ...SPRING, delay: i * 0.08 }}
+                    className={styles.rowText}
+                    initial={false}
+                    animate={{ opacity: localizeThis ? 1 : 0, y: localizeThis ? 0 : 6 }}
+                    transition={{ duration: 0.35 }}
                   >
-                    <Check size={12} strokeWidth={3} />
+                    {LOCALIZED_VOICE}
                   </motion.span>
                 )}
-              </AnimatePresence>
+              </span>
+              <motion.span
+                className={styles.rowCheck}
+                initial={false}
+                animate={{ scale: checked ? 1 : 0, opacity: checked ? 1 : 0 }}
+                transition={{ ...SPRING, delay: checked ? i * 0.08 : 0 }}
+              >
+                <Check size={12} strokeWidth={3} />
+              </motion.span>
             </motion.div>
           );
         })}
       </div>
 
-      {/* Body content block (Write types it in). */}
+      {/* Body and findings keep their space throughout the sequence. */}
       <div className={styles.body}>
-        <AnimatePresence>
-          {bodyIn &&
-            BODY_LINES.map((line, i) => (
-              <motion.span
-                key={line}
-                className={styles.bodyLine}
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                transition={{ ...SPRING, delay: i * 0.18 }}
-              >
-                {line}
-              </motion.span>
-            ))}
-        </AnimatePresence>
-      </div>
-
-      {/* The "brand ✓" chip (Check). */}
-      <div className={styles.chipRow}>
-        <AnimatePresence>
-          {checked && (
-            <motion.span
-              className={styles.brandChip}
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.8 }}
-              transition={SPRING}
-            >
-              <Check size={12} strokeWidth={3} /> lint · terms · review
-            </motion.span>
-          )}
-        </AnimatePresence>
-      </div>
-
-      {/* The "on brand" / "every language" green seal (Ship). */}
-      <AnimatePresence>
-        {(sealed || multiSealed) && (
-          <motion.div
-            className={styles.seal}
-            initial={{ opacity: 0, scale: 0.5, rotate: -12 }}
-            animate={{ opacity: 1, scale: 1, rotate: -8 }}
-            exit={{ opacity: 0, scale: 0.5 }}
-            transition={SPRING}
+        {BODY_LINES.map((line, i) => (
+          <motion.span
+            key={line}
+            className={styles.bodyLine}
+            initial={false}
+            animate={{ opacity: bodyIn ? 1 : 0, y: bodyIn ? 0 : 6 }}
+            transition={{ ...SPRING, delay: bodyIn ? i * 0.18 : 0 }}
           >
-            <Check size={14} strokeWidth={3} />
-            <span>{multiSealed ? "every language" : "on brand"}</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            {line}
+          </motion.span>
+        ))}
+      </div>
+
+      <div className={styles.chipRow}>
+        <motion.span
+          className={styles.brandChip}
+          initial={false}
+          animate={{ opacity: checked ? 1 : 0, scale: checked ? 1 : 0.8 }}
+          transition={SPRING}
+        >
+          <Check size={12} strokeWidth={3} /> example rule findings
+        </motion.span>
+      </div>
     </div>
   );
 }
@@ -391,21 +321,19 @@ function StaticFrame(): React.ReactElement {
         <KineticStack
           verbs={CONTENT_VERBS}
           active={CONTENT_VERBS.length - 1}
-          climaxLabel={t("on brand", "the seal stamped when content passes")}
+          climaxLabel={t("inspect the findings", "illustrated review step")}
         />
       </div>
       <div className={styles.assetCol}>
         <AssetCard
-          phase="multi"
-          typeLabel="brand guide"
+          phase="content"
+          typeLabel="writing guide"
           rowsIn
           bodyIn
           checked
-          sealed={false}
-          multi
-          langActive="de"
-          localized
-          multiSealed
+          multi={false}
+          langActive=""
+          localized={false}
         />
       </div>
     </div>
@@ -421,12 +349,15 @@ export function HeroKineticFallback({ onOpen }: HeroKineticProps): React.ReactEl
       type="button"
       className={styles.card}
       onClick={onOpen}
-      aria-label="Open the interactive Kapi showcase"
+      aria-label="Open the interactive kapi showcase"
     >
+      <span className={styles.illustrationLabel}>
+        {t("Workflow illustration. Open to run the engine.")}
+      </span>
       <StaticFrame />
       <div className={styles.ctaRow}>
         <span className={styles.cta}>
-          Try Kapi in your browser <ArrowRight size={16} aria-hidden="true" />
+          Try kapi in your browser <ArrowRight size={16} aria-hidden="true" />
         </span>
       </div>
     </button>
@@ -480,17 +411,19 @@ export default function HeroKinetic({ onOpen }: HeroKineticProps): React.ReactEl
         type="button"
         className={styles.card}
         onClick={onOpen}
-        aria-label="Open the interactive Kapi showcase"
+        aria-label="Open the interactive kapi showcase"
       >
         <span className={styles.srOnly}>
-          A brand guide, shaped and checked: its voice, terms, and tone are defined, body content is
-          written, each rule passes review, and it ships on brand — then goes multilingual (de, ja,
-          fr) and ships in every language.
+          An authored illustration of reading, writing, checking and reviewing content. Open the
+          showcase to run the engine in your browser.
+        </span>
+        <span className={styles.illustrationLabel}>
+          {t("Workflow illustration. Open to run the engine.")}
         </span>
         <StaticFrame />
         <div className={styles.ctaRow}>
           <span className={styles.cta}>
-            Try Kapi in your browser <ArrowRight size={16} aria-hidden="true" />
+            Try kapi in your browser <ArrowRight size={16} aria-hidden="true" />
           </span>
         </div>
       </button>
@@ -505,7 +438,6 @@ export default function HeroKinetic({ onOpen }: HeroKineticProps): React.ReactEl
   const contentRowsIn = beat.phase === "content" && c >= 0;
   const contentBodyIn = beat.phase === "content" && c >= 1;
   const contentChecked = beat.phase === "content" && c >= 2;
-  const contentSealed = beat.phase === "content" && c >= 3;
 
   // Phase 2 (multi) gates.
   const m = beat.phase === "multi" ? beat.step : -1;
@@ -513,7 +445,6 @@ export default function HeroKinetic({ onOpen }: HeroKineticProps): React.ReactEl
   const multiChecked = beat.phase === "multi" && m >= 4;
   const langActive = LANG_TABS[Math.min(m, 2)] ?? "de";
   const localized = beat.phase === "multi" && m >= 3;
-  const multiSealed = beat.phase === "multi" && m >= 5;
 
   // Which verb is active in the current phase.
   const activeVerb = beat.phase === "content" ? beat.step : beat.step;
@@ -528,16 +459,16 @@ export default function HeroKinetic({ onOpen }: HeroKineticProps): React.ReactEl
       onMouseLeave={() => setPaused(false)}
       onFocus={() => setPaused(true)}
       onBlur={() => setPaused(false)}
-      aria-label="Open the interactive Kapi showcase — verbs act on a live brand guide that ships on brand, in every language"
+      aria-label="Open the interactive kapi showcase"
     >
       <span className={styles.srOnly}>
-        A self-playing loop. First, one language: Shape, Write, Check, Ship. A brand guide's voice,
-        terms, and tone are defined, body content is written, each rule passes review, and it ships
-        on brand. Then going multilingual: Read, Prep, Recycle, Translate, Check — the guide gains a
-        de, ja, fr switcher, a rule localizes, and Ship resolves in every language. The loop
-        repeats.
+        An authored illustration of a content workflow and its multilingual extension. Open the
+        showcase to run the engine in your browser.
       </span>
 
+      <span className={styles.illustrationLabel}>
+        {t("Workflow illustration. Open to run the engine.")}
+      </span>
       <MotionConfig reducedMotion="user">
         <div className={styles.stage} aria-hidden="true">
           {/* LEFT — the kinetic verb stack. */}
@@ -555,7 +486,7 @@ export default function HeroKinetic({ onOpen }: HeroKineticProps): React.ReactEl
                   <KineticStack
                     verbs={CONTENT_VERBS}
                     active={activeVerb}
-                    climaxLabel={t("on brand", "the seal stamped when content passes")}
+                    climaxLabel={t("inspect the findings", "illustrated review step")}
                   />
                 </motion.div>
               ) : (
@@ -569,8 +500,7 @@ export default function HeroKinetic({ onOpen }: HeroKineticProps): React.ReactEl
                   <KineticStack
                     verbs={MULTI_VERBS}
                     active={activeVerb}
-                    climaxLangs={SHIP_LANGS}
-                    climaxLabel={t("every language", "the seal stamped when every locale passes")}
+                    climaxLabel={t("review each language", "illustrated multilingual review step")}
                   />
                 </motion.div>
               )}
@@ -585,11 +515,9 @@ export default function HeroKinetic({ onOpen }: HeroKineticProps): React.ReactEl
               rowsIn={contentRowsIn || multiRowsIn}
               bodyIn={contentBodyIn || beat.phase === "multi"}
               checked={contentChecked || multiChecked}
-              sealed={contentSealed}
               multi={beat.phase === "multi"}
               langActive={langActive}
               localized={localized}
-              multiSealed={multiSealed}
             />
           </div>
         </div>
@@ -597,7 +525,7 @@ export default function HeroKinetic({ onOpen }: HeroKineticProps): React.ReactEl
 
       <div className={styles.ctaRow}>
         <span className={styles.cta}>
-          Try Kapi in your browser <ArrowRight size={16} aria-hidden="true" />
+          Try kapi in your browser <ArrowRight size={16} aria-hidden="true" />
         </span>
       </div>
     </button>

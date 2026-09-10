@@ -1,4 +1,4 @@
-/* Every colour on this site comes from the "Kapi Blue" brand tokens, computed
+/* The site's brand colours come from the kapi logo palette, computed
    into Infima's variables by `make generate-docs-palette`. Edit the palette in
    packages/ui/src/styles/kapi-colors.css, never the generated file. */
 @import "./palette.generated.css";

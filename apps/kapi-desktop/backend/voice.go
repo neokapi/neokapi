@@ -422,6 +422,21 @@ func (a *App) SaveVoiceProfile(tabID, profileName string, profile coreprofile.Vo
 		return nil, errors.New(target.Reason)
 	}
 
+	path := filepath.Join(root, filepath.FromSlash(target.Target))
+	if profile.Constraints == nil {
+		body, readErr := os.ReadFile(path)
+		if readErr != nil && !errors.Is(readErr, os.ErrNotExist) {
+			return nil, readErr
+		}
+		if readErr == nil {
+			existing, loadErr := coreprofile.LoadProfileYAML(bytes.NewReader(body))
+			if loadErr != nil {
+				return nil, loadErr
+			}
+			profile.Constraints = existing.Constraints
+		}
+	}
+
 	probs, err := validateVoiceProfile(&profile)
 	if err != nil {
 		return nil, err
@@ -431,7 +446,6 @@ func (a *App) SaveVoiceProfile(tabID, profileName string, profile coreprofile.Vo
 		return out, nil
 	}
 
-	path := filepath.Join(root, filepath.FromSlash(target.Target))
 	changed, werr := yamledit.WriteFile(path, &profile, 0o644)
 	if werr != nil {
 		return nil, werr

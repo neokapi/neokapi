@@ -70,12 +70,12 @@ const PLAN: ClipPlan[] = [
   { demoId: "bowrain-web-collaboration", beatId: "teammate-joins", maxDurSec: 4.0, title: "Presence, live", subtitle: "A teammate opens the file, and their cursor arrives." },
   { demoId: "bowrain-web-governance", beatId: "tm-search", maxDurSec: 3.8, title: "Terms and memory, shared", subtitle: "One concept, with its status in every language." },
   { demoId: "bowrain-web-review", beatId: "focus", maxDurSec: 4.0, title: "Review, with a second pair of eyes", subtitle: "Nobody approves their own translation." },
-  { demoId: "bowrain-web-correction-loop", beatId: "promote", maxDurSec: 3.8, title: "Corrections become checks", subtitle: "A reviewer's fix becomes a versioned check." },
+  { demoId: "bowrain-web-correction-loop", beatId: "promote", maxDurSec: 3.8, title: "Review a proposed rule", subtitle: "Promote a recurring correction into a versioned check." },
 ];
 
 const META = {
   title: "Bowrain",
-  subtitle: "The team's workspace for multilingual content.",
+  subtitle: "Shared content guidance and review.",
   outroLine: "Push a project, and the team reviews it here.",
   outroPointer: "bowrain.cloud",
 };

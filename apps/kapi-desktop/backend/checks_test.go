@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -335,4 +336,41 @@ func TestResolveTargetPathNoTemplate(t *testing.T) {
 	op := &openProject{Path: filepath.Join(t.TempDir(), "proj.kapi")}
 	assert.Empty(t, app.resolveTargetPath(project.ResolvedFile{Relative: "a.json"}, op, "fr"))
 	assert.Empty(t, app.resolveTargetPath(project.ResolvedFile{Relative: "a.json", Item: &project.ContentItem{Path: "a.json"}}, op, "fr"))
+}
+
+func TestRunChecksOperationalFailuresReturnNoResult(t *testing.T) {
+	for _, failure := range []string{"source", "target", "profile", "terms"} {
+		t.Run(failure, func(t *testing.T) {
+			app := NewApp()
+			tabID, src := setupCheckProject(t, app, `{"greeting":"Hello world"}`)
+			filter := ProjectFilter{}
+			switch failure {
+			case "source":
+				if runtime.GOOS == "windows" || os.Geteuid() == 0 {
+					t.Skip("requires POSIX read permissions as an unprivileged user")
+				}
+				require.NoError(t, os.Chmod(src, 0o000))
+				t.Cleanup(func() { _ = os.Chmod(src, 0o644) })
+			case "target":
+				target := filepath.Join(filepath.Dir(src), "fr.json")
+				require.NoError(t, os.Mkdir(target, 0o755))
+				filter.Languages = []string{"fr"}
+			case "profile":
+				require.NoError(t, os.WriteFile(filepath.Join(filepath.Dir(filepath.Dir(src)), "voice.yaml"), []byte(`tone: [`), 0o644))
+			case "terms":
+				app.getOpenProject(tabID).tbHandle = "unavailable-store"
+			}
+			result, err := app.RunChecks(tabID, filter)
+			require.Error(t, err)
+			assert.Nil(t, result, "incomplete execution must not publish a passing score")
+		})
+	}
+}
+
+func TestRunChecksAbsentTargetRemainsPendingWork(t *testing.T) {
+	app := NewApp()
+	tabID, _ := setupCheckProject(t, app, `{"greeting":"Hello world"}`)
+	result, err := app.RunChecks(tabID, ProjectFilter{Languages: []string{"fr"}})
+	require.NoError(t, err)
+	assert.True(t, result.Pass)
 }

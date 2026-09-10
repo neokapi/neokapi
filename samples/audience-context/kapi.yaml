@@ -1,0 +1,61 @@
+version: v1
+name: audience-context
+
+defaults:
+  source_language: en
+  terms_source: .kapi/terms.json
+  voice:
+    profile_file: .kapi/voice.yaml
+  coordinates:
+    service: harbor-help
+    topic: video-appointments
+  exclude:
+    - "**/.git/**"
+
+profiles:
+  harbor-help:
+    channels: [child, teen, adult, older-adult]
+    voice: .kapi/voice.yaml
+
+collections:
+  - name: child-page
+    channel: harbor-help/child
+    base: site/locales
+    coordinates:
+      audience: child
+    content:
+      - path: en/child.json
+        format:
+          name: json
+  - name: teen-page
+    channel: harbor-help/teen
+    base: site/locales
+    coordinates:
+      audience: teen
+    content:
+      - path: en/teen.json
+        format:
+          name: json
+  - name: adult-page
+    channel: harbor-help/adult
+    base: site/locales
+    coordinates:
+      audience: adult
+    content:
+      - path: en/adult.json
+        format:
+          name: json
+  - name: older-adult-page
+    channel: harbor-help/older-adult
+    base: site/locales
+    coordinates:
+      audience: older-adult
+    content:
+      - path: en/older-adult.json
+        format:
+          name: json
+
+flows:
+  check:
+    steps:
+      - tool: voice-vocab-check

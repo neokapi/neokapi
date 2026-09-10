@@ -129,6 +129,11 @@ var migrations = []storage.Migration{
 		ALTER TABLE voice_profiles ADD COLUMN min_score INTEGER NOT NULL DEFAULT 0;
 		`,
 	},
+	{
+		Version:     4,
+		Description: "shared voice constraints",
+		SQL:         `ALTER TABLE voice_profiles ADD COLUMN constraints TEXT NOT NULL DEFAULT '[]';`,
+	},
 }
 
 // profileColumns is the one column list every profile statement is spelled
@@ -138,7 +143,7 @@ var migrations = []storage.Migration{
 // exactly how min_score reached the model, the validator and the wire while
 // this store dropped it on every write.
 const profileColumns = `id, workspace_id, name, description, tone, style, vocabulary, examples, ` +
-	`locales, channels, personas, autonomy, min_score, version, created_at, updated_at, created_by`
+	`locales, channels, personas, autonomy, constraints, min_score, version, created_at, updated_at, created_by`
 
 // profileFixedColumns are the facts an edit never rewrites — identity and
 // creation. Everything else in profileColumns is editable, so a column added to
@@ -215,13 +220,14 @@ func (s *SQLiteStore) CreateProfile(ctx context.Context, profile *coreprofile.Vo
 	channels, _ := json.Marshal(profile.Channels)
 	personas, _ := json.Marshal(profile.Personas)
 	autonomy, _ := json.Marshal(profile.Autonomy)
+	constraints, _ := json.Marshal(profile.Constraints)
 
 	_, err := s.db.ExecContext(ctx,
 		`INSERT INTO voice_profiles (`+profileColumns+`)
 		 VALUES (`+profileValues+`)`,
 		profile.ID, profile.Scope, profile.Name, profile.Description,
 		string(tone), string(style), string(vocab), string(examples),
-		string(locales), string(channels), string(personas), string(autonomy),
+		string(locales), string(channels), string(personas), string(autonomy), string(constraints),
 		profile.MinScore, profile.Version,
 		profile.CreatedAt.Format(time.RFC3339), profile.UpdatedAt.Format(time.RFC3339),
 		profile.CreatedBy)
@@ -234,7 +240,7 @@ func (s *SQLiteStore) CreateProfile(ctx context.Context, profile *coreprofile.Vo
 func (s *SQLiteStore) GetProfile(ctx context.Context, id string) (*coreprofile.VoiceProfile, error) {
 	var p coreprofile.VoiceProfile
 	var desc *string
-	var toneJSON, styleJSON, vocabJSON, examplesJSON, localesJSON, channelsJSON, personasJSON, autonomyJSON string
+	var toneJSON, styleJSON, vocabJSON, examplesJSON, localesJSON, channelsJSON, personasJSON, autonomyJSON, constraintsJSON string
 	var createdStr, updatedStr string
 
 	err := s.db.QueryRowContext(ctx,
@@ -242,7 +248,7 @@ func (s *SQLiteStore) GetProfile(ctx context.Context, id string) (*coreprofile.V
 		 FROM voice_profiles WHERE id = ?`, id).
 		Scan(&p.ID, &p.Scope, &p.Name, &desc,
 			&toneJSON, &styleJSON, &vocabJSON, &examplesJSON,
-			&localesJSON, &channelsJSON, &personasJSON, &autonomyJSON,
+			&localesJSON, &channelsJSON, &personasJSON, &autonomyJSON, &constraintsJSON,
 			&p.MinScore, &p.Version,
 			&createdStr, &updatedStr, &p.CreatedBy)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -281,6 +287,9 @@ func (s *SQLiteStore) GetProfile(ctx context.Context, id string) (*coreprofile.V
 	if err := json.Unmarshal([]byte(autonomyJSON), &p.Autonomy); err != nil {
 		p.Autonomy = coreprofile.AutonomyConfig{}
 	}
+	if err := json.Unmarshal([]byte(constraintsJSON), &p.Constraints); err != nil {
+		return nil, fmt.Errorf("unmarshal constraints: %w", err)
+	}
 	if p.CreatedAt, err = parseStoredTime(createdStr); err != nil {
 		return nil, fmt.Errorf("profile %s: parse created_at: %w", p.ID, err)
 	}
@@ -297,6 +306,11 @@ func (s *SQLiteStore) UpdateProfile(ctx context.Context, profile *coreprofile.Vo
 		return fmt.Errorf("get existing profile for versioning: %w", err)
 	}
 
+	// Omitted constraints preserve the existing rules for clients without this field.
+	// An explicit empty list removes them.
+	if profile.Constraints == nil {
+		profile.Constraints = existing.Constraints
+	}
 	snapshotJSON, _ := json.Marshal(existing)
 	now := time.Now()
 	_, _ = s.db.ExecContext(ctx,
@@ -315,13 +329,14 @@ func (s *SQLiteStore) UpdateProfile(ctx context.Context, profile *coreprofile.Vo
 	channels, _ := json.Marshal(profile.Channels)
 	personas, _ := json.Marshal(profile.Personas)
 	autonomy, _ := json.Marshal(profile.Autonomy)
+	constraints, _ := json.Marshal(profile.Constraints)
 
 	result, err := s.db.ExecContext(ctx,
 		`UPDATE voice_profiles SET `+profileAssignments+`
 		 WHERE id = ?`,
 		profile.Name, profile.Description,
 		string(tone), string(style), string(vocab), string(examples),
-		string(locales), string(channels), string(personas), string(autonomy),
+		string(locales), string(channels), string(personas), string(autonomy), string(constraints),
 		profile.MinScore, profile.Version,
 		profile.UpdatedAt.Format(time.RFC3339), profile.ID)
 	if err != nil {

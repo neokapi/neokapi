@@ -141,7 +141,10 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 	// Both are optional — when absent the corresponding check is skipped,
 	// matching the CLI's flag-free behaviour.
 	points := a.newPointResolver(op, true)
-	dntTerms := a.resolveProjectDNTTerms(ctx, op, sourceLang)
+	dntTerms, err := a.resolveProjectDNTTermsStrict(ctx, op, sourceLang)
+	if err != nil {
+		return nil, err
+	}
 
 	var allFindings []check.Finding
 	files := make([]CheckFileResult, 0, len(resolved))
@@ -163,28 +166,18 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 			// so every finding on it can name where it is scoped.
 			filePoint, _, ptErr := contextPoint(op.Project, rf.Collection, rf.Relative, at)
 			if ptErr != nil {
-				filePoint = ContextPointDTO{Collection: rf.Collection, Default: true}
+				return fmt.Errorf("resolve check point %s: %w", rf.Relative, ptErr)
 			}
 
 			sourceBlocks, rerr := capp.ReadBlocksForCheck(ctx, rf.Path, rf.Format, fmtCfg, sourceLang)
 			if rerr != nil {
-				// Surface the read failure as a finding rather than aborting the
-				// whole run: one unreadable file should not hide the rest.
-				files = append(files, CheckFileResult{
-					Path: rf.Path,
-					Findings: []DesktopFinding{{
-						Category: "io",
-						Severity: string(check.SeverityMajor),
-						Message:  rerr.Error(),
-					}},
-				})
-				continue
+				return fmt.Errorf("read check source %s: %w", rf.Relative, rerr)
 			}
 
 			var fileFindings []DesktopFinding
 			// checkErr records a checker that could not RUN, as distinct from one
-			// that ran and found nothing. It is reported as a finding on the file,
-			// never dropped: a panel showing a clean file for checks that never
+			// that ran and found nothing. It aborts the run: a panel showing a
+			// clean file for checks that never
 			// executed is the "operation failed, success reported" defect this
 			// loop's own read-failure branch above already guards against.
 			var checkErr error
@@ -195,9 +188,16 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 			// term the project itself retired. Runs once per file (independent
 			// of how many target languages are checked).
 			profile := points.at(ctx, rf.Collection, rf.Relative)
+			if points != nil && points.err != nil {
+				return points.err
+			}
+			vocabulary := points.termsAt(ctx, rf.Collection, rf.Relative)
+			if points != nil && points.err != nil {
+				return points.err
+			}
 			if profile != nil {
 				vocab := coretools.NewVoiceVocabCheckTool(
-					profile, points.termsAt(ctx, rf.Collection, rf.Relative),
+					profile, vocabulary,
 				).InSourceLocale(pctx.SourceLocale)
 				for _, b := range sourceBlocks {
 					if cerr := host.RunCheckTool(ctx, vocab, b); cerr != nil {
@@ -227,19 +227,22 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 					continue
 				}
 				if _, serr := os.Stat(tgtPath); serr != nil {
-					continue
+					if os.IsNotExist(serr) {
+						continue
+					}
+					return fmt.Errorf("stat check target %s: %w", tgtPath, serr)
 				}
 				// Read source blocks fresh per language — OverlayTargets mutates
 				// them (a cached file replays cheaply).
 				passBlocks, perr := capp.ReadBlocksForCheck(ctx, rf.Path, rf.Format, fmtCfg, sourceLang)
 				if perr != nil {
-					continue
+					return fmt.Errorf("read check source %s: %w", rf.Relative, perr)
 				}
 				// The target is the translated rendering of this source file, so
 				// it carries the source's reader binding.
 				targetBlocks, terr := capp.ReadBlocksForCheck(ctx, tgtPath, rf.Format, fmtCfg, sourceLang)
 				if terr != nil {
-					continue
+					return fmt.Errorf("read check target %s: %w", tgtPath, terr)
 				}
 				host.OverlayTargets(passBlocks, targetBlocks, targetLoc)
 
@@ -275,11 +278,7 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 			}
 
 			if checkErr != nil {
-				fileFindings = append(fileFindings, DesktopFinding{
-					Category: "check",
-					Severity: string(check.SeverityMajor),
-					Message:  "checks did not complete: " + checkErr.Error(),
-				})
+				return fmt.Errorf("checks did not complete for %s: %w", rf.Relative, checkErr)
 			}
 
 			sortDesktopFindings(fileFindings)
@@ -343,6 +342,7 @@ func (a *App) readBlocksForChecks(ctx context.Context, path, fmtName string, fmt
 // The key is the resolved channel reference rather than the file: every file at
 // a point shares its governance, which is what makes the point the unit.
 type pointResolver struct {
+	err  error // resolution error; strict check callers must inspect it
 	app  *App
 	op   *openProject
 	proj *project.KapiProject
@@ -380,13 +380,15 @@ func (v *pointResolver) point(collection, relPath string) project.GovernancePoin
 	return project.GovernancePoint{Collection: collection, Path: relPath, At: v.instant}
 }
 
-// key names the point a file resolves to. A point that fails to resolve keys as
-// the project's own, which is where its content is governed.
+// key names the point a file resolves to. Resolution errors are retained for
+// strict check callers; best-effort callers can continue using the empty key.
 func (v *pointResolver) key(pt project.GovernancePoint) string {
-	if rc, err := v.proj.ResolveGovernanceFor(pt); err == nil {
-		return rc.Ref().String()
+	rc, err := v.proj.ResolveGovernanceFor(pt)
+	if err != nil {
+		v.err = err
+		return ""
 	}
-	return ""
+	return rc.Ref().String()
 }
 
 // termsAt returns the vocabulary the project decided for this file's point —
@@ -417,12 +419,14 @@ func (v *pointResolver) loadTerms(ctx context.Context, relPath string) terms.Ter
 	}
 	cmd, err := v.app.contextCommand(ctx, v.op)
 	if err != nil {
+		v.err = err
 		return nil
 	}
 	tb, terr := v.app.checksCLI().ProjectTermsForFile(
 		ctx, cmd, filepath.Join(v.root, filepath.FromSlash(relPath)),
 	)
 	if terr != nil {
+		v.err = terr
 		return nil
 	}
 	return tb
@@ -456,7 +460,11 @@ func (v *pointResolver) load(ctx context.Context, pt project.GovernancePoint) *c
 	p, _, ok, err := v.app.checksCLI().ResolveVoiceProfile(
 		ctx, v.proj, v.root, host.VoiceResolveOptions{Point: pt},
 	)
-	if err != nil || !ok {
+	if err != nil {
+		v.err = err
+		return nil
+	}
+	if !ok {
 		return nil
 	}
 	return p
@@ -691,19 +699,27 @@ func (a *App) resolveTargetPath(rf project.ResolvedFile, op *openProject, target
 // Returns nil when there is no terms or no opted-in concepts — the
 // do-not-translate check is then skipped, matching the CLI's flag-driven default.
 func (a *App) resolveProjectDNTTerms(ctx context.Context, op *openProject, sourceLang string) []string {
+	// Inspect and translation retain their best-effort context policy.
+	resolved, _ := a.resolveProjectDNTTermsStrict(ctx, op, sourceLang)
+	return resolved
+}
+
+// resolveProjectDNTTermsStrict refuses to turn unavailable governance into an
+// empty protected-term list for a completed checks result.
+func (a *App) resolveProjectDNTTermsStrict(ctx context.Context, op *openProject, sourceLang string) ([]string, error) {
 	if op.tbHandle == "" {
-		return nil
+		return nil, nil
 	}
 	tb, ok := a.tbHandles.Get(op.tbHandle)
 	if !ok || tb == nil {
-		return nil
+		return nil, errors.New("bound terms store is unavailable")
 	}
 	srcLoc := model.LocaleID(sourceLang)
 	seen := make(map[string]bool)
 	var terms []string
 	concepts, err := tb.Concepts(ctx)
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("read protected terms: %w", err)
 	}
 	for _, c := range concepts {
 		if !dntConcept(c.Properties) {
@@ -717,7 +733,7 @@ func (a *App) resolveProjectDNTTerms(ctx context.Context, op *openProject, sourc
 		}
 	}
 	sort.Strings(terms)
-	return terms
+	return terms, nil
 }
 
 // dntConcept reports whether a concept's properties mark it do-not-translate.

@@ -93,6 +93,252 @@ export class ChannelOverride {
 }
 
 /**
+ * Constraint is shared across a selected profile's presentation overrides.
+ * Guidance is supplied to writers but is not a deterministic factual check.
+ */
+export class Constraint {
+    /**
+     * Creates a new Constraint instance.
+     * @param {Partial<Constraint>} [$$source = {}] - The source object to create the Constraint.
+     */
+    constructor($$source = {}) {
+        if (!("id" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["id"] = "";
+        }
+        if (!("version" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["version"] = 0;
+        }
+        if (!("source" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["source"] = "";
+        }
+        if (!("statement" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["statement"] = "";
+        }
+        if (!("kind" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["kind"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["regex"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {ConstraintScope | undefined}
+             */
+            this["scope"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {ConstraintException[] | undefined}
+             */
+            this["exceptions"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Constraint instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {Constraint}
+     */
+    static createFrom($$source = {}) {
+        const $$createField6_0 = $$createType4;
+        const $$createField7_0 = $$createType6;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("scope" in $$parsedSource) {
+            $$parsedSource["scope"] = $$createField6_0($$parsedSource["scope"]);
+        }
+        if ("exceptions" in $$parsedSource) {
+            $$parsedSource["exceptions"] = $$createField7_0($$parsedSource["exceptions"]);
+        }
+        return new Constraint(/** @type {Partial<Constraint>} */($$parsedSource));
+    }
+}
+
+/**
+ * ConstraintException records the profile author's asserted approval provenance.
+ * These local fields do not authenticate the named reviewer.
+ */
+export class ConstraintException {
+    /**
+     * Creates a new ConstraintException instance.
+     * @param {Partial<ConstraintException>} [$$source = {}] - The source object to create the ConstraintException.
+     */
+    constructor($$source = {}) {
+        if (!("scope" in $$source)) {
+            /**
+             * @member
+             * @type {ConstraintScope}
+             */
+            this["scope"] = (new ConstraintScope());
+        }
+        if (!("reason" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["reason"] = "";
+        }
+        if (!("approved_by" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["approved_by"] = "";
+        }
+        if (!("approval_ref" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["approval_ref"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ConstraintException instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ConstraintException}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType4;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("scope" in $$parsedSource) {
+            $$parsedSource["scope"] = $$createField0_0($$parsedSource["scope"]);
+        }
+        return new ConstraintException(/** @type {Partial<ConstraintException>} */($$parsedSource));
+    }
+}
+
+/**
+ * ConstraintResolution explains why a constraint applies at the resolved point.
+ */
+export class ConstraintResolution {
+    /**
+     * Creates a new ConstraintResolution instance.
+     * @param {Partial<ConstraintResolution>} [$$source = {}] - The source object to create the ConstraintResolution.
+     */
+    constructor($$source = {}) {
+        if (!("constraint" in $$source)) {
+            /**
+             * @member
+             * @type {Constraint}
+             */
+            this["constraint"] = (new Constraint());
+        }
+        if (!("status" in $$source)) {
+            /**
+             * applicable, out_of_scope, excepted
+             * @member
+             * @type {string}
+             */
+            this["status"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {ConstraintException[] | undefined}
+             */
+            this["exceptions"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ConstraintResolution instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ConstraintResolution}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType7;
+        const $$createField2_0 = $$createType6;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("constraint" in $$parsedSource) {
+            $$parsedSource["constraint"] = $$createField0_0($$parsedSource["constraint"]);
+        }
+        if ("exceptions" in $$parsedSource) {
+            $$parsedSource["exceptions"] = $$createField2_0($$parsedSource["exceptions"]);
+        }
+        return new ConstraintResolution(/** @type {Partial<ConstraintResolution>} */($$parsedSource));
+    }
+}
+
+/**
+ * ConstraintScope matches every populated coordinate exactly. Locale spelling
+ * is normalized, but a language never implicitly includes its regional variants.
+ */
+export class ConstraintScope {
+    /**
+     * Creates a new ConstraintScope instance.
+     * @param {Partial<ConstraintScope>} [$$source = {}] - The source object to create the ConstraintScope.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {model$0.LocaleID | undefined}
+             */
+            this["locale"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["channel"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["persona"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ConstraintScope instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ConstraintScope}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ConstraintScope(/** @type {Partial<ConstraintScope>} */($$parsedSource));
+    }
+}
+
+/**
  * FieldValueSet is the values a constrained field accepts, and what happens to
  * one outside them.
  */
@@ -130,7 +376,7 @@ export class FieldValueSet {
      * @returns {FieldValueSet}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType4;
+        const $$createField0_0 = $$createType8;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("values" in $$parsedSource) {
             $$parsedSource["values"] = $$createField0_0($$parsedSource["values"]);
@@ -200,8 +446,8 @@ export class LocaleOverride {
      * @returns {LocaleOverride}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType6;
-        const $$createField5_0 = $$createType8;
+        const $$createField4_0 = $$createType10;
+        const $$createField5_0 = $$createType12;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("vocabulary_overrides" in $$parsedSource) {
             $$parsedSource["vocabulary_overrides"] = $$createField4_0($$parsedSource["vocabulary_overrides"]);
@@ -287,7 +533,7 @@ export class Pattern {
      * @returns {Pattern}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType10;
+        const $$createField3_0 = $$createType14;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("rate" in $$parsedSource) {
             $$parsedSource["rate"] = $$createField3_0($$parsedSource["rate"]);
@@ -404,8 +650,8 @@ export class PersonaOverride {
     static createFrom($$source = {}) {
         const $$createField0_0 = $$createType1;
         const $$createField1_0 = $$createType3;
-        const $$createField2_0 = $$createType6;
-        const $$createField3_0 = $$createType6;
+        const $$createField2_0 = $$createType10;
+        const $$createField3_0 = $$createType10;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("tone" in $$parsedSource) {
             $$parsedSource["tone"] = $$createField0_0($$parsedSource["tone"]);
@@ -541,8 +787,8 @@ export class StyleRules {
      * @returns {StyleRules}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType12;
-        const $$createField5_0 = $$createType12;
+        const $$createField4_0 = $$createType16;
+        const $$createField5_0 = $$createType16;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("prohibited_patterns" in $$parsedSource) {
             $$parsedSource["prohibited_patterns"] = $$createField4_0($$parsedSource["prohibited_patterns"]);
@@ -675,7 +921,7 @@ export class TermRule {
      * @returns {TermRule}
      */
     static createFrom($$source = {}) {
-        const $$createField6_0 = $$createType4;
+        const $$createField6_0 = $$createType8;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("forms" in $$parsedSource) {
             $$parsedSource["forms"] = $$createField6_0($$parsedSource["forms"]);
@@ -742,7 +988,7 @@ export class ToneProfile {
      * @returns {ToneProfile}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType4;
+        const $$createField0_0 = $$createType8;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("personality" in $$parsedSource) {
             $$parsedSource["personality"] = $$createField0_0($$parsedSource["personality"]);
@@ -798,10 +1044,10 @@ export class VocabularyRules {
      * @returns {VocabularyRules}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType6;
-        const $$createField1_0 = $$createType6;
-        const $$createField2_0 = $$createType6;
-        const $$createField3_0 = $$createType13;
+        const $$createField0_0 = $$createType10;
+        const $$createField1_0 = $$createType10;
+        const $$createField2_0 = $$createType10;
+        const $$createField3_0 = $$createType17;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("preferred_terms" in $$parsedSource) {
             $$parsedSource["preferred_terms"] = $$createField0_0($$parsedSource["preferred_terms"]);
@@ -881,6 +1127,14 @@ export class VoiceProfile {
      * @param {Partial<VoiceProfile>} [$$source = {}] - The source object to create the VoiceProfile.
      */
     constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * A nil list is omitted on the wire; an explicit empty list requests removal.
+             * @member
+             * @type {Constraint[] | undefined}
+             */
+            this["constraints"] = undefined;
+        }
         if (!("id" in $$source)) {
             /**
              * @member
@@ -1024,38 +1278,42 @@ export class VoiceProfile {
      * @returns {VoiceProfile}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType0;
-        const $$createField4_0 = $$createType2;
-        const $$createField5_0 = $$createType14;
-        const $$createField6_0 = $$createType8;
-        const $$createField7_0 = $$createType16;
-        const $$createField8_0 = $$createType18;
-        const $$createField9_0 = $$createType20;
-        const $$createField11_0 = $$createType21;
+        const $$createField0_0 = $$createType18;
+        const $$createField4_0 = $$createType0;
+        const $$createField5_0 = $$createType2;
+        const $$createField6_0 = $$createType19;
+        const $$createField7_0 = $$createType12;
+        const $$createField8_0 = $$createType21;
+        const $$createField9_0 = $$createType23;
+        const $$createField10_0 = $$createType25;
+        const $$createField12_0 = $$createType26;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("constraints" in $$parsedSource) {
+            $$parsedSource["constraints"] = $$createField0_0($$parsedSource["constraints"]);
+        }
         if ("tone" in $$parsedSource) {
-            $$parsedSource["tone"] = $$createField3_0($$parsedSource["tone"]);
+            $$parsedSource["tone"] = $$createField4_0($$parsedSource["tone"]);
         }
         if ("style" in $$parsedSource) {
-            $$parsedSource["style"] = $$createField4_0($$parsedSource["style"]);
+            $$parsedSource["style"] = $$createField5_0($$parsedSource["style"]);
         }
         if ("vocabulary" in $$parsedSource) {
-            $$parsedSource["vocabulary"] = $$createField5_0($$parsedSource["vocabulary"]);
+            $$parsedSource["vocabulary"] = $$createField6_0($$parsedSource["vocabulary"]);
         }
         if ("examples" in $$parsedSource) {
-            $$parsedSource["examples"] = $$createField6_0($$parsedSource["examples"]);
+            $$parsedSource["examples"] = $$createField7_0($$parsedSource["examples"]);
         }
         if ("locales" in $$parsedSource) {
-            $$parsedSource["locales"] = $$createField7_0($$parsedSource["locales"]);
+            $$parsedSource["locales"] = $$createField8_0($$parsedSource["locales"]);
         }
         if ("channels" in $$parsedSource) {
-            $$parsedSource["channels"] = $$createField8_0($$parsedSource["channels"]);
+            $$parsedSource["channels"] = $$createField9_0($$parsedSource["channels"]);
         }
         if ("personas" in $$parsedSource) {
-            $$parsedSource["personas"] = $$createField9_0($$parsedSource["personas"]);
+            $$parsedSource["personas"] = $$createField10_0($$parsedSource["personas"]);
         }
         if ("autonomy" in $$parsedSource) {
-            $$parsedSource["autonomy"] = $$createField11_0($$parsedSource["autonomy"]);
+            $$parsedSource["autonomy"] = $$createField12_0($$parsedSource["autonomy"]);
         }
         return new VoiceProfile(/** @type {Partial<VoiceProfile>} */($$parsedSource));
     }
@@ -1066,21 +1324,26 @@ const $$createType0 = ToneProfile.createFrom;
 const $$createType1 = $Create.Nullable($$createType0);
 const $$createType2 = StyleRules.createFrom;
 const $$createType3 = $Create.Nullable($$createType2);
-const $$createType4 = $Create.Array($Create.Any);
-const $$createType5 = TermRule.createFrom;
+const $$createType4 = ConstraintScope.createFrom;
+const $$createType5 = ConstraintException.createFrom;
 const $$createType6 = $Create.Array($$createType5);
-const $$createType7 = VoiceExample.createFrom;
-const $$createType8 = $Create.Array($$createType7);
-const $$createType9 = PatternRate.createFrom;
-const $$createType10 = $Create.Nullable($$createType9);
-const $$createType11 = Pattern.createFrom;
+const $$createType7 = Constraint.createFrom;
+const $$createType8 = $Create.Array($Create.Any);
+const $$createType9 = TermRule.createFrom;
+const $$createType10 = $Create.Array($$createType9);
+const $$createType11 = VoiceExample.createFrom;
 const $$createType12 = $Create.Array($$createType11);
-const $$createType13 = $Create.Map($Create.Any, $Create.Any);
-const $$createType14 = VocabularyRules.createFrom;
-const $$createType15 = LocaleOverride.createFrom;
-const $$createType16 = $Create.Map($Create.Any, $$createType15);
-const $$createType17 = ChannelOverride.createFrom;
-const $$createType18 = $Create.Map($Create.Any, $$createType17);
-const $$createType19 = PersonaOverride.createFrom;
-const $$createType20 = $Create.Map($Create.Any, $$createType19);
-const $$createType21 = AutonomyConfig.createFrom;
+const $$createType13 = PatternRate.createFrom;
+const $$createType14 = $Create.Nullable($$createType13);
+const $$createType15 = Pattern.createFrom;
+const $$createType16 = $Create.Array($$createType15);
+const $$createType17 = $Create.Map($Create.Any, $Create.Any);
+const $$createType18 = $Create.Array($$createType7);
+const $$createType19 = VocabularyRules.createFrom;
+const $$createType20 = LocaleOverride.createFrom;
+const $$createType21 = $Create.Map($Create.Any, $$createType20);
+const $$createType22 = ChannelOverride.createFrom;
+const $$createType23 = $Create.Map($Create.Any, $$createType22);
+const $$createType24 = PersonaOverride.createFrom;
+const $$createType25 = $Create.Map($Create.Any, $$createType24);
+const $$createType26 = AutonomyConfig.createFrom;

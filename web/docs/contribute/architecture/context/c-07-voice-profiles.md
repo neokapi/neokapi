@@ -93,6 +93,46 @@ and a rule with an empty replacement is skipped by the tools unless it is marked
 do-not-translate, because "say this instead" needs a this. How the store and the
 rules are located in a text is [C-08](c-08-terms.md)'s subject.
 
+### Shared constraints and factual guidance
+
+A profile's top-level `constraints` list is independent of its tone and style
+sections. Channel and persona overrides replace presentation preferences;
+shared constraints remain attached to the selected profile. Profile selection
+still chooses one governing profile, with no implicit merge between profiles.
+
+Each constraint carries an ID, version, source reference and statement. A
+`prohibited_pattern` has an RE2 expression and emits critical findings through
+`profile.PatternFindings`, the shared style-and-constraint path used by the
+voice tool and `profile.Findings`. Metadata preserves the constraint's ID,
+version and source. A `guidance` record carries a factual requirement into full
+and compact guides. Deterministic checks do not verify its meaning, and report
+coverage identifies semantic analysis as unsupported. A deterministic gate can
+pass while factual guidance still needs review.
+
+Optional scope matches exact locale, channel and persona coordinates. Locale
+spelling is normalized without expanding a language to regional variants. A
+constraint can carry an exception with a nonempty scope, reason, `approved_by`
+and `approval_ref`. These fields record the local author's asserted provenance;
+they do not authenticate an approval. Exceptions belong to the shared constraint
+and cannot be introduced by a presentation override. Context retrieval exposes
+applicable, out-of-scope and excepted records, including matching exceptions.
+
+Constraint decoding rejects unknown keys, and validation rejects duplicate IDs,
+invalid kinds, missing provenance, invalid patterns and incomplete exceptions.
+Locale scopes cross the shared locale validation boundary; malformed locale
+values are configuration errors. A guidance record cannot carry a regex, and a
+prohibited pattern must contain a valid expression that cannot match empty text.
+The deterministic path reports invalid in-memory constraints as configuration
+findings. Semantic disagreement between two guidance statements requires review;
+no conflict detector is implied by structural validation.
+
+SQLite and PostgreSQL stores persist constraints in their own JSON column and
+include them in archived profile versions. An update that omits constraints
+preserves the stored value for clients without the field. An explicit empty
+array removes it. The desktop profile-file writer follows the same update rule.
+Author constraints in profile YAML; a visual editor may preserve the records
+without exposing editing controls for them.
+
 ### Findings and scoring
 
 A finding is `profile.VoiceFinding`, a type alias to `check.Finding` from the

@@ -7,8 +7,8 @@
  *
  * Import this alongside theme-tokens.css (which maps --color-* → these vars);
  * apps and sites that ship the bowrain look @import this file. Apps with their
- * own theme import theirs the same way (Kapi Desktop takes "Kapi Blue" from
- * kapi-colors.css). The Bowrain documentation site's Infima variables are
+ * own theme import theirs the same way (Kapi Desktop takes its logo palette
+ * from kapi-colors.css). The Bowrain documentation site's Infima variables are
  * computed from this file by `make generate-docs-palette`, so a colour edited
  * here reaches the docs on the next run.
  *

@@ -11,28 +11,28 @@ const STEPS = [
     icon: SearchCheck,
     title: t("Discover"),
     body: t(
-      "Point it at what you already publish: the repository, the site, whatever style guide exists. It proposes the profiles, the coordinates they sit at and the starting vocabulary, and you correct a first draft instead of authoring one.",
+      "Use existing content and writing guidance to propose an initial profile. Review the proposed terms and scope before applying them to a project.",
     ),
   },
   {
     icon: PenTool,
     title: t("Correct"),
     body: t(
-      "People edit where they already work. Each correction is captured with the point it was made at, so the same fix does not have to be made twenty times before anything remembers it.",
+      "Record a correction with its content context. Repeated corrections can provide evidence for a candidate rule.",
     ),
   },
   {
     icon: GitCompareArrows,
     title: t("Decide"),
     body: t(
-      "Recurring corrections surface as candidate rules. A proposal shows its reach over existing content before anyone approves it, and can be trialled on one stream of real content before it merges, so a rule change is a measured experiment rather than a leap.",
+      "Inspect recurring corrections and preview the content a candidate rule would flag. A reviewer explicitly promotes the rule into a versioned voice profile.",
     ),
   },
   {
     icon: ShieldCheck,
     title: t("Enforce"),
     body: t(
-      "A promoted rule holds from then on: in the checks that gate a change, in what your agents are told applies here, and in every draft the next run produces. Rules start and stop on a date, so a campaign or a policy change expires on its own.",
+      "Run the promoted rule where that profile applies. Findings identify wording that violates the configured rule; reviewers remain responsible for decisions beyond its coverage.",
     ),
   },
 ];
@@ -49,12 +49,12 @@ export function Loop() {
             THE LOOP
           </div>
           <h2 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">
-            {t("The context comes from the work.")}{" "}
-            <span className="prism-text">{t("Not from a workshop.")}</span>
+            {t("Review the decision.")}{" "}
+            <span className="prism-text">{t("Keep its source and scope.")}</span>
           </h2>
           <p className="mt-3 text-muted-foreground">
             {t(
-              "An empty graph is worth nothing, and nobody fills one in from a blank page. So the first act is discovery, and every act after it is the same loop: corrections aggregate into candidate rules, rules are promoted with provenance and a version, and what was decided is enforced from then on. The context improves as a by-product of people doing their jobs, which is the only way it stays current.",
+              "A recurring correction can become a candidate rule. Review its evidence and affected content, then explicitly promote the decision into a versioned profile for the projects that use it.",
             )}
           </p>
         </div>
@@ -85,7 +85,7 @@ export function Loop() {
           </div>
           <p className="mt-6 text-center text-xs text-muted-foreground/70">
             {t(
-              "…and Enforce feeds Discover: the rules you keep are the ones the work produced. There is no separate onboarding mode to maintain.",
+              "Review findings and later corrections to decide whether a rule should be retained, revised or removed.",
             )}
           </p>
         </div>

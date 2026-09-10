@@ -30,6 +30,9 @@ func ResolveProfileFromContext(ctx context.Context, rc ResolveContext, store Sto
 		return nil, err
 	}
 
+	if err := constraintError(profile); err != nil {
+		return nil, err
+	}
 	channel := resolveChannel(rc)
 	persona := resolvePersona(rc)
 	return ResolveProfile(profile, rc.Locale, channel, persona), nil
@@ -115,6 +118,7 @@ func ResolveProfile(profile *VoiceProfile, loc model.LocaleID, channel, persona 
 	}
 	// Create a shallow copy
 	resolved := *profile
+	resolved.constraintScope = ConstraintScope{Locale: loc, Channel: channel, Persona: persona}
 
 	// Apply locale override
 	if loc != "" {

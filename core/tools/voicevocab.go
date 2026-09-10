@@ -95,8 +95,7 @@ func (t *VoiceVocabCheckTool) annotateBlock(v tool.BlockView) error {
 
 	// The profile's prohibited style patterns, which are the profile's own and
 	// nothing else declares.
-	findings := coreprofile.PatternHitsToFindings(
-		coreprofile.MatchPatterns(t.profile, sourceText), sourceText, sourceRuns)
+	findings := coreprofile.PatternFindings(t.profile, sourceText, sourceRuns)
 
 	// Every declared term, from the profile's vocabulary and from the bound
 	// terms store, located in one pass. Both are the same kind of statement

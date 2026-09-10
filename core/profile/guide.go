@@ -26,6 +26,11 @@ func RenderVoiceGuide(p *VoiceProfile) string {
 		fmt.Fprintf(&b, "%s\n\n", p.Description)
 	}
 
+	if guidance := constraintGuide(p); guidance != "" {
+		b.WriteString("## Shared constraints\n")
+		b.WriteString(guidance + "\n\n")
+	}
+
 	// Tone
 	b.WriteString("## Tone\n")
 	if len(p.Tone.Personality) > 0 {
@@ -214,6 +219,9 @@ func RenderVoiceGuideCompact(p *VoiceProfile) string {
 		}
 		b.WriteString(strings.Join(pairs, "; "))
 		b.WriteString(".")
+	}
+	if guidance := constraintGuide(p); guidance != "" {
+		b.WriteString(" Shared constraints: " + guidance)
 	}
 	return strings.TrimSpace(b.String())
 }

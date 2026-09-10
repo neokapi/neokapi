@@ -9,11 +9,8 @@ export default function StructuredData() {
   const { siteConfig } = useDocusaurusContext();
   const siteUrl = siteConfig.url + siteConfig.baseUrl.replace(/\/$/, "");
   const description =
-    "neokapi is an open-source, format-aware content engine in Go. It parses any format — " +
-    "JSON, Markdown, HTML, config, office, and more — into one unified content model, lets " +
-    "a person or an AI agent edit and check the content inside it, and writes it back " +
-    "byte-for-byte. It holds a project's content context — its terms, voice and rules — and " +
-    "applies it inside those files, in one language or twenty.";
+    "neokapi is the open content engine for people and AI agents. Read, edit and check " +
+    "content across formats, and use kapi to apply your project's terms and writing guidance.";
 
   const graph = [
     {
@@ -31,8 +28,8 @@ export default function StructuredData() {
       applicationCategory: "DeveloperApplication",
       operatingSystem: "macOS, Windows, Linux",
       description:
-        "kapi is the command-line and desktop application built on the neokapi engine: extract, " +
-        "translate, run checks, and manage .kapi projects.",
+        "kapi is the project tool built on the neokapi engine: read, edit, " +
+        "run configured checks, and inspect the guidance that applies to your files.",
       url: siteUrl,
       downloadUrl: "https://github.com/neokapi/neokapi/releases",
       softwareHelp: siteUrl,

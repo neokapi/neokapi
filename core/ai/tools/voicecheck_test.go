@@ -3,6 +3,7 @@ package tools_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/ai/tools"
@@ -207,6 +208,9 @@ func TestVoiceCheckToolSkipsEmptyText(t *testing.T) {
 
 	<-out
 	assert.Empty(t, mock.ChatStructuredCalls)
+	assert.Empty(t, block.Properties["voice-score"])
+	_, annotated := block.Anno("voice")
+	assert.False(t, annotated)
 }
 
 func TestVoiceCheckToolAddsAnnotation(t *testing.T) {
@@ -355,4 +359,101 @@ func TestVoiceCheckToolNoFindings(t *testing.T) {
 
 	// No findings property.
 	assert.Empty(t, resultBlock.Properties["voice-findings"])
+}
+
+func TestVoiceCheckRejectsInvalidAnalysis(t *testing.T) {
+	cases := []struct{ name, payload string }{
+		{"malformed", "not json"}, {"null", "null"}, {"missing", "{}"},
+		{"null findings", `{"findings":null}`},
+		{"wrong findings type", `{"findings":"none"}`},
+		{"null finding", `{"findings":[null]}`},
+		{"invalid severity", `{"findings":[{"dimension":"tone","severity":"excellent","message":"wrong","suggestion":""}]}`},
+		{"invalid dimension", `{"findings":[{"dimension":"unknown","severity":"minor","message":"wrong","suggestion":""}]}`},
+		{"missing suggestion", `{"findings":[{"dimension":"tone","severity":"minor","message":"wrong"}]}`},
+		{"missing message", `{"findings":[{"dimension":"tone","severity":"minor","suggestion":""}]}`},
+		{"trailing", `{"findings":[]} {"findings":[]}`},
+		{"unknown field", `{"findings":[],"pass":true}`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			mock := aiprovider.NewMockProvider()
+			mock.ChatStructuredFunc = func(context.Context, []aiprovider.Message, aiprovider.JSONSchema) (*aiprovider.ChatResponse, error) {
+				return &aiprovider.ChatResponse{Content: tc.payload}, nil
+			}
+			checker := tools.NewVoiceCheckTool(mock, &coreprofile.VoiceProfile{ID: "test"})
+			block := model.NewBlock("b", "A service appointment is ready.")
+			_, err := checker.ApplyContext(t.Context(), &model.Part{Type: model.PartBlock, Resource: block})
+			require.ErrorContains(t, err, "invalid structured findings")
+			assert.Empty(t, block.Properties["voice-score"])
+			_, annotated := model.AnnoAs[*coreprofile.VoiceAnnotation](block, "voice")
+			assert.False(t, annotated)
+		})
+	}
+}
+
+func TestVoiceCheckProviderFailureHasNoScore(t *testing.T) {
+	for _, failure := range []error{context.Canceled, context.DeadlineExceeded, errors.New("model unavailable")} {
+		t.Run(failure.Error(), func(t *testing.T) {
+			mock := aiprovider.NewMockProvider()
+			mock.ChatStructuredFunc = func(context.Context, []aiprovider.Message, aiprovider.JSONSchema) (*aiprovider.ChatResponse, error) {
+				return nil, failure
+			}
+			checker := tools.NewVoiceCheckTool(mock, &coreprofile.VoiceProfile{ID: "test"})
+			block := model.NewBlock("b", "A service appointment is ready.")
+			_, err := checker.ApplyContext(t.Context(), &model.Part{Type: model.PartBlock, Resource: block})
+			require.ErrorIs(t, err, failure)
+			assert.Empty(t, block.Properties["voice-score"])
+			_, annotated := block.Anno("voice")
+			assert.False(t, annotated)
+		})
+	}
+}
+
+type failingVoiceResolver struct{}
+
+func (failingVoiceResolver) ResolveProfile(context.Context, coreprofile.ResolveContext) (*coreprofile.VoiceProfile, error) {
+	return nil, errors.New("profile unavailable")
+}
+
+func TestVoiceCheckResolutionFailureDoesNotCallProvider(t *testing.T) {
+	mock := aiprovider.NewMockProvider()
+	checker := tools.NewVoiceCheckToolWithResolver(mock, failingVoiceResolver{}, coreprofile.ResolveContext{})
+	for range 2 {
+		block := model.NewBlock("b", "A service appointment is ready.")
+		_, err := checker.ApplyContext(t.Context(), &model.Part{Type: model.PartBlock, Resource: block})
+		require.ErrorContains(t, err, "profile unavailable")
+		assert.Empty(t, block.Properties["voice-score"])
+	}
+	assert.Empty(t, mock.ChatStructuredCalls)
+}
+
+func TestVoiceCheckRejectsEmptyProviderResponse(t *testing.T) {
+	mock := aiprovider.NewMockProvider()
+	mock.ChatStructuredFunc = func(context.Context, []aiprovider.Message, aiprovider.JSONSchema) (*aiprovider.ChatResponse, error) {
+		return nil, nil
+	}
+	checker := tools.NewVoiceCheckTool(mock, nil)
+	block := model.NewBlock("b", "A service appointment is ready.")
+	_, err := checker.ApplyContext(t.Context(), &model.Part{Type: model.PartBlock, Resource: block})
+	require.ErrorContains(t, err, "provider returned no response")
+	assert.Empty(t, block.Properties["voice-score"])
+	_, annotated := block.Anno("voice")
+	assert.False(t, annotated)
+}
+
+func TestVoiceCheckCanceledResponseHasNoScore(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	mock := aiprovider.NewMockProvider()
+	mock.ChatStructuredFunc = func(context.Context, []aiprovider.Message, aiprovider.JSONSchema) (*aiprovider.ChatResponse, error) {
+		cancel()
+		return &aiprovider.ChatResponse{Content: `{"findings":[]}`}, nil
+	}
+	checker := tools.NewVoiceCheckTool(mock, nil)
+	block := model.NewBlock("b", "A service appointment is ready.")
+	_, err := checker.ApplyContext(ctx, &model.Part{Type: model.PartBlock, Resource: block})
+	require.ErrorIs(t, err, context.Canceled)
+	assert.Empty(t, block.Properties["voice-score"])
+	_, annotated := block.Anno("voice")
+	assert.False(t, annotated)
 }

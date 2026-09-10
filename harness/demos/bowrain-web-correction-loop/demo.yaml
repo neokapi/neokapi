@@ -1,6 +1,6 @@
 id: bowrain-web-correction-loop
-title: Every correction a reviewer makes is evidence
-subtitle: A fix the team keeps making becomes a versioned check.
+title: Review recurring corrections before making a rule
+subtitle: Repeated corrections become candidates for explicit review.
 tagline: the correction-learning loop on bowrain
 kind: use-case
 publishAs: bowrain-web-correction-loop
@@ -22,8 +22,9 @@ narration:
   - id: title
     kind: title
     text: >-
-      Every correction a reviewer makes is evidence. Bowrain collects the ones
-      that keep recurring and turns them into checks.
+      Bowrain collects recurring corrections as candidates. A reviewer inspects
+      their effect and explicitly promotes a candidate before it becomes a
+      versioned check.
 
   - id: candidates
     kind: desktop
@@ -55,12 +56,12 @@ narration:
     hold: 18
     text: >-
       Promote it, and the correction becomes a deterministic check, versioned on
-      the voice profile and applied to every later run, for the people writing
+      the voice profile and used by later checks governed by that profile, for the people writing
       and the AI tools alike. The candidate leaves the queue, and compliance is
       watched from then on for drift.
 
   - id: outro
     kind: outro
     text: >-
-      Correct once, and the rule that stops it recurring is authored, versioned
-      and shared.
+      Review the recurring correction, inspect its scope, then promote the
+      candidate. Later checks can apply that versioned rule where it belongs.

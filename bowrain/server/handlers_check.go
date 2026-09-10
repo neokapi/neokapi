@@ -2,6 +2,8 @@ package server
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -110,8 +112,15 @@ func (s *Server) HandleCheckBlock(c echo.Context) error {
 	}
 
 	wsID, _ := c.Get("workspace_id").(string)
-	checks := s.checksAtPoint(ctx, pid, stream, sb.ItemName, wsID, c.Param("ws"), model.LocaleID(req.Locale))
-	return c.JSON(http.StatusOK, runChecksOnBlock(ctx, sb.Block, checks))
+	checks, err := s.checksAtPoint(ctx, pid, stream, sb.ItemName, wsID, c.Param("ws"), model.LocaleID(req.Locale))
+	if err != nil {
+		return serverErrStatus(c, http.StatusServiceUnavailable, fmt.Errorf("resolve block checks: %w", err))
+	}
+	issues, err := runChecksOnBlock(ctx, sb.Block, checks)
+	if err != nil {
+		return serverErrStatus(c, http.StatusServiceUnavailable, fmt.Errorf("run block checks: %w", err))
+	}
+	return c.JSON(http.StatusOK, issues)
 }
 
 // HandleCheckFile runs the checks in force on every block in an item.
@@ -145,13 +154,20 @@ func (s *Server) HandleCheckFile(c echo.Context) error {
 	// Resolved once for the item: every block in it sits at the same point, and
 	// the resolution reads the collection, the voice profile and the terms.
 	wsID, _ := c.Get("workspace_id").(string)
-	checks := s.checksAtPoint(ctx, pid, stream, req.Item, wsID, c.Param("ws"), model.LocaleID(req.Locale))
+	checks, err := s.checksAtPoint(ctx, pid, stream, req.Item, wsID, c.Param("ws"), model.LocaleID(req.Locale))
+	if err != nil {
+		return serverErrStatus(c, http.StatusServiceUnavailable, fmt.Errorf("resolve item checks: %w", err))
+	}
 
 	results := make([]FileCheckResultResponse, 0, len(storedBlocks))
 	for _, sb := range storedBlocks {
+		issues, err := runChecksOnBlock(ctx, sb.Block, checks)
+		if err != nil {
+			return serverErrStatus(c, http.StatusServiceUnavailable, fmt.Errorf("run item block checks: %w", err))
+		}
 		results = append(results, FileCheckResultResponse{
 			BlockID: sb.Block.ID,
-			Issues:  runChecksOnBlock(ctx, sb.Block, checks),
+			Issues:  issues,
 		})
 	}
 
@@ -188,40 +204,76 @@ type pointChecks struct {
 // collection, then the stream, the project, and the workspace default), the
 // workspace vocabulary, and the project's protected terms.
 //
-// Every resolution is best-effort. A store that cannot answer narrows the set
-// rather than failing the request: a check that could not run is reported as
-// silence, which is the same shape as a clean block, so nothing here is allowed
-// to be noisier than the content it judges.
-func (s *Server) checksAtPoint(ctx context.Context, projectID, stream, itemName, workspaceID, workspaceSlug string, locale model.LocaleID) pointChecks {
+// Resolution failures are operational errors. They cannot silently narrow the
+// configured checks and leave the editor displaying a clean assessment.
+func (s *Server) checksAtPoint(ctx context.Context, projectID, stream, itemName, workspaceID, workspaceSlug string, locale model.LocaleID) (pointChecks, error) {
 	checks := pointChecks{TargetLocale: locale}
+	if err := ctx.Err(); err != nil {
+		return checks, err
+	}
 	if s.ContentStore == nil {
-		return checks
+		return checks, errors.New("check context: content store unavailable")
 	}
 	proj, err := s.ContentStore.GetProject(ctx, projectID)
-	if err != nil || proj == nil {
-		return checks
+	if err != nil {
+		return checks, fmt.Errorf("check project: %w", err)
+	}
+	if proj == nil {
+		return checks, errors.New("check project is unavailable")
 	}
 	checks.SourceLocale = proj.DefaultSourceLanguage
 	checks.DNT = jobs.ProjectDNTTerms(proj)
-
 	voiceCtx := s.editorVoiceContext()
-	checks.Terms = editorTerms(ctx, voiceCtx, workspaceSlug)
-
-	// The same binding the translation assembles from, so a check and the
-	// translation it judges resolve one voice at one point.
-	b := jobs.TranslateBinding{
-		Store:            s.ContentStore,
-		Voice:            voiceCtx.Voice,
-		WorkspaceDefault: voiceCtx.WorkspaceDefault,
-		Project:          proj,
-		WorkspaceID:      workspaceID,
-		ProjectID:        projectID,
-		Stream:           stream,
-		ItemName:         itemName,
-		TargetLocale:     locale,
+	if voiceCtx.Stores != nil && workspaceSlug != "" {
+		checks.Terms, err = voiceCtx.Stores.getTerms(workspaceSlug)
+		if err != nil {
+			return checks, fmt.Errorf("check terms: %w", err)
+		}
 	}
-	checks.Voice = b.VoiceProfile(ctx, b.Collection(ctx))
-	return checks
+	rc := coreprofile.ResolveContext{Locale: locale, ProjectProperties: proj.Properties}
+	if stream != "" {
+		st, err := s.ContentStore.GetStream(ctx, projectID, stream)
+		if err != nil {
+			return checks, fmt.Errorf("check stream: %w", err)
+		}
+		if st == nil {
+			return checks, errors.New("check stream is unavailable")
+		}
+		rc.StreamProperties = st.Properties
+	}
+	if itemName != "" {
+		item, err := s.ContentStore.GetItem(ctx, projectID, stream, itemName)
+		if err != nil {
+			return checks, fmt.Errorf("check item: %w", err)
+		}
+		if item == nil {
+			return checks, errors.New("check item is unavailable")
+		}
+		if item.CollectionID != "" {
+			col, err := s.ContentStore.GetCollection(ctx, projectID, item.CollectionID)
+			if err != nil {
+				return checks, fmt.Errorf("check collection: %w", err)
+			}
+			if col == nil {
+				return checks, errors.New("check collection is unavailable")
+			}
+			rc.CollectionConfig = col.ConnectorConfig
+		}
+	}
+	if workspaceID == "" {
+		workspaceID = proj.WorkspaceID
+	}
+	if voiceCtx.WorkspaceDefault != nil && workspaceID != "" {
+		rc.RootProfileID, err = voiceCtx.WorkspaceDefault.WorkspaceVoiceProfileID(ctx, workspaceID)
+		if err != nil {
+			return checks, fmt.Errorf("check workspace voice: %w", err)
+		}
+	}
+	checks.Voice, err = coreprofile.ResolveProfileFromContext(ctx, rc, voiceCtx.Voice)
+	if err != nil {
+		return checks, fmt.Errorf("check voice: %w", err)
+	}
+	return checks, nil
 }
 
 // runChecksOnBlock runs the checks in force on a single block and returns the
@@ -238,7 +290,13 @@ func (s *Server) checksAtPoint(ctx context.Context, projectID, stream, itemName,
 // A zero pointChecks (locale only) is the standard set, which is what the
 // dashboard passes: they judge a whole project a block at a time and resolve no
 // point of their own.
-func runChecksOnBlock(ctx context.Context, block *model.Block, checks pointChecks) []CheckIssueResponse {
+func runChecksOnBlock(ctx context.Context, block *model.Block, checks pointChecks) ([]CheckIssueResponse, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if block == nil {
+		return nil, errors.New("check block is unavailable")
+	}
 	scratch := *block
 	scratch.Annotations = nil // fresh findings surface; SetAnno re-creates lazily
 	part := &model.Part{
@@ -247,9 +305,9 @@ func runChecksOnBlock(ctx context.Context, block *model.Block, checks pointCheck
 	}
 
 	// The standard set: what every target in this locale is judged by.
-	// (Errors are ignored: these tools are deterministic and report by
-	// annotating.)
-	_, _ = tools.NewRuleCheckTool(tools.NewRuleCheckConfig(checks.TargetLocale)).ApplyContext(ctx, part)
+	if _, err := tools.NewRuleCheckTool(tools.NewRuleCheckConfig(checks.TargetLocale)).ApplyContext(ctx, part); err != nil {
+		return nil, fmt.Errorf("rule check: %w", err)
+	}
 
 	// Protected terms, when the project declares any. A term that must survive
 	// verbatim is checked in the same pass the editor asks for, so a person
@@ -257,7 +315,9 @@ func runChecksOnBlock(ctx context.Context, block *model.Block, checks pointCheck
 	if len(checks.DNT) > 0 {
 		dntCfg := tools.NewDNTCheckConfig(checks.TargetLocale)
 		dntCfg.Terms = checks.DNT
-		_, _ = tools.NewDNTCheckTool(dntCfg).ApplyContext(ctx, part)
+		if _, err := tools.NewDNTCheckTool(dntCfg).ApplyContext(ctx, part); err != nil {
+			return nil, fmt.Errorf("protected terms check: %w", err)
+		}
 	}
 
 	issues := checkIssuesFromFindings(check.Findings(tool.NewBlockViewWithContext(ctx, &scratch)))
@@ -268,13 +328,15 @@ func runChecksOnBlock(ctx context.Context, block *model.Block, checks pointCheck
 	// so it is read separately.
 	if checks.Voice != nil {
 		vocab := tools.NewVoiceVocabCheckTool(checks.Voice, checks.Terms).InSourceLocale(checks.SourceLocale)
-		_, _ = vocab.ApplyContext(ctx, part)
+		if _, err := vocab.ApplyContext(ctx, part); err != nil {
+			return nil, fmt.Errorf("voice rules check: %w", err)
+		}
 		if ann, ok := model.AnnoAs[*coreprofile.VoiceAnnotation](&scratch, "voice"); ok {
 			issues = append(issues, checkIssuesFromFindings(ann.Findings)...)
 		}
 	}
 
-	return issues
+	return issues, nil
 }
 
 // checkIssuesFromFindings maps core/check.Finding onto the CheckIssueResponse wire shape.

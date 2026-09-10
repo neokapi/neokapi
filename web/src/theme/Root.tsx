@@ -26,7 +26,8 @@ function ExperimentalBanner() {
       style={{
         backgroundColor: "#fef3c7",
         color: "#92400e",
-        padding: "12px 16px",
+        // Reserve the close button's lane when the message wraps on mobile.
+        padding: "12px 52px",
         textAlign: "center",
         position: "relative",
         fontSize: "14px",
@@ -34,8 +35,8 @@ function ExperimentalBanner() {
       }}
     >
       <span>
-        <strong>Experimental:</strong> Neokapi is, like some current government administrations, an
-        ongoing experiment and should not be used in production.
+        <strong>Experimental:</strong> neokapi is under active development and is not yet intended
+        for production use.
       </span>
       <button
         onClick={handleDismiss}

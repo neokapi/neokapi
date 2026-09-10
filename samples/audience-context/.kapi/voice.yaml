@@ -1,0 +1,110 @@
+name: Harbor Help
+description: >-
+  Harbor Help explains how to get practical support. The facts stay the same for
+  every reader; the explanation changes only to meet the reader where they are.
+tone:
+  personality: [calm, plain, respectful]
+  formality: neutral
+  emotion: reassuring
+  humor: none
+  guidelines: >-
+    State the service fact first. Never imply that a video appointment is an
+    emergency service, a recording, or access to the reader's device. Say what
+    happens next and name the support line when a reader needs a person.
+style:
+  active_voice: true
+  sentence_length: short
+  person_pov: second
+  contractions: never
+constraints:
+  - id: harbor-help/no-unsupported-assurance
+    version: 1
+    source: service-facts.md#assurances
+    statement: Do not describe the service as guaranteed, always safe or risk-free.
+    kind: prohibited_pattern
+    regex: '(?i)\b(guarantee|always safe|risk-free)\b'
+    exceptions:
+      - scope:
+          channel: policy-example
+        reason: A reviewed policy example quotes the prohibited wording.
+        approved_by: fixture-author
+        approval_ref: service-facts.md#fixture-exception
+  - id: harbor-help/recording-and-control
+    version: 1
+    source: service-facts.md#recording-and-control
+    statement: >-
+      Appointments are not recorded. Screen sharing requires consent and can
+      be stopped. The adviser cannot control the device or open its files.
+    kind: guidance
+vocabulary:
+  preferred_terms:
+    - term: video appointment
+      note: The service name for a scheduled conversation with an adviser.
+    - term: support line
+      note: The non-emergency phone route to a person.
+    - term: Harbor Help
+      note: Product name. Keep its spelling in every language.
+  forbidden_terms:
+    - term: video call
+      replacement: video appointment
+      note: Use the service term consistently.
+      severity: major
+channels:
+  child:
+    tone:
+      personality: [kind, clear, calm]
+      formality: informal
+      emotion: reassuring
+      humor: none
+      guidelines: >-
+        Use familiar words and explain one idea at a time. Tell the reader to
+        ask a trusted adult for help with an appointment. Do not ask the reader
+        to make an adult decision.
+    style:
+      active_voice: true
+      sentence_length: short
+      person_pov: second
+      contractions: never
+  teen:
+    tone:
+      personality: [direct, respectful, calm]
+      formality: neutral
+      emotion: reassuring
+      humor: none
+      guidelines: >-
+        Be direct without talking down to the reader. Explain privacy in plain
+        language and name the choice to get help from a trusted adult.
+    style:
+      active_voice: true
+      sentence_length: short
+      person_pov: second
+      contractions: never
+  adult:
+    tone:
+      personality: [clear, practical, respectful]
+      formality: neutral
+      emotion: neutral
+      humor: none
+      guidelines: >-
+        Explain eligibility, the next step and the privacy boundary. Do not
+        hide an important condition behind reassuring language.
+    style:
+      active_voice: true
+      sentence_length: varied
+      person_pov: second
+      contractions: never
+  older-adult:
+    tone:
+      personality: [patient, clear, respectful]
+      formality: neutral
+      emotion: reassuring
+      humor: none
+      guidelines: >-
+        Use plain language and give an obvious route to a person. Do not assume
+        familiarity with video software or ask the reader to solve a technical
+        problem alone.
+    style:
+      active_voice: true
+      sentence_length: short
+      person_pov: second
+      contractions: never

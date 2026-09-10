@@ -53,19 +53,17 @@ export function Hero() {
       <div className="relative z-10 mx-auto max-w-3xl text-center">
         <div className="animate-fade-in-up mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-4 py-1.5 text-sm text-muted-foreground">
           <span className="h-1.5 w-1.5 rounded-full bg-success" />
-          Content operations for everything you publish
+          Shared guidance for content teams
         </div>
 
         <h1 className="animate-fade-in-up-delay-1 font-display text-4xl font-semibold leading-[1.08] tracking-tight sm:text-5xl md:text-6xl">
-          The context graph
-          <span className="prism-text block">for your content.</span>
+          Make content decisions
+          <span className="prism-text block">your whole team can reuse.</span>
         </h1>
 
         <p className="animate-fade-in-up-delay-2 mx-auto mt-6 max-w-xl text-lg text-muted-foreground md:text-xl">
-          Human communication is contextual. Bowrain is the graph your people and your AI agents
-          plug into. A legal notice is not a help article, so the rules that fix voice and tone move
-          with the audience, the surface and the moment. Recorded once, applied everywhere,
-          connected to the systems your content already lives in.
+          Share terms, writing guidance and review decisions across projects, so people and AI
+          agents know what applies to each piece of content.
         </p>
 
         <div className="animate-fade-in-up-delay-3 mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
@@ -73,20 +71,20 @@ export function Hero() {
             href={SIGNUP_URL}
             className="group flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-base font-medium text-primary-foreground transition hover:opacity-90 sm:w-auto"
           >
-            Start free
+            Start a workspace
             <ArrowRight className="h-5 w-5 transition group-hover:translate-x-0.5" />
           </a>
           <a
-            href="#how"
+            href="#rename"
             className="flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-card/60 px-6 py-3 text-base font-medium transition hover:border-muted-foreground sm:w-auto"
           >
-            How it works
+            See a scoped decision
           </a>
         </div>
 
         {/* kapi is the open foundation, deliberately a footnote to the outcome above. */}
         <p className="mt-6 text-sm text-muted-foreground/80">
-          Open core, built on the Apache-2.0 {kapiLink} toolchain. {githubLink}
+          Built on the Apache-2.0 {kapiLink} toolchain. Bowrain’s server is AGPL-3.0. {githubLink}
         </p>
       </div>
     </section>

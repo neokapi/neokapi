@@ -6,15 +6,8 @@ import { SECTION_HOW } from "../sections";
 import { captureLandingEvent } from "../analytics";
 import { markEngaged } from "../sectionSignals";
 
-// The mechanism section, and the one the page is a test of: does a stranger
-// follow "coordinates" without a demo?
-//
-// The rename above proved that where the words sit decides the rule. This
-// section says what "where" is made of, and then shows the answer a real tool
-// gives: the three examples below are the three rows of that table, resolved.
-// The example switcher is the comprehension signal: a reader who compares two
-// points has understood that a point is a thing you can compare.
-
+// Authored context example. These values illustrate scope; the component
+// performs no project lookup or time-based exception evaluation.
 interface Point {
   /** Coordinate slug, the shape a profile/channel binding actually takes. */
   point: string;
@@ -102,8 +95,7 @@ export function Coordinates() {
 
   function selectPoint(index: number) {
     setActive(index);
-    // The one explicit signal for the concept: comparing two points is what
-    // understanding "coordinates" looks like from outside.
+    // Record interaction with the example; comprehension requires a reader study.
     markEngaged("coordinates");
     captureLandingEvent("coordinates_explored", {
       point: POINTS[index].point,
@@ -124,7 +116,7 @@ export function Coordinates() {
           </h2>
           <p className="mt-3 text-muted-foreground">
             {t(
-              "A profile is a named bundle of coordinates: who the content is for, where it appears, in what register, for which market, and from when until when. Bind a profile to a place and everything in that place is governed from there.",
+              "Content context connects a file to its audience, surface and applicable guidance. The graph helps you inspect those relationships and understand why a decision applies.",
             )}
           </p>
         </div>
@@ -163,8 +155,11 @@ export function Coordinates() {
             </ol>
           </div>
 
-          {/* The answer a real tool gives at a real point. */}
+          {/* Authored examples; no command is executed in this widget. */}
           <div className="self-start overflow-hidden rounded-xl border border-border bg-card">
+            <p className="border-b border-border px-4 py-3 text-xs text-muted-foreground">
+              {t("Illustrated context. No live lookup or expiry check runs here.")}
+            </p>
             <div className="flex flex-wrap gap-1 border-b border-border px-3 py-2">
               {POINTS.map((p, i) => (
                 <button
@@ -205,7 +200,7 @@ export function Coordinates() {
 
         <p className="mx-auto mt-10 max-w-2xl text-center text-muted-foreground">
           {t(
-            "The agent asking what applies here, the check asking whether a rule fires, and the engine asking whether approved wording may be reused are one question with three callers. Coordinates are what make it answerable.",
+            "The examples above are authored illustrations of scoped guidance. In a configured project, kapi context retrieves the applicable guidance for a file; an actual lookup can be inspected before an edit or review.",
           )}
         </p>
       </div>

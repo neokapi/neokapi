@@ -1,5 +1,5 @@
 id: 05-ai-checks-guardrail
-title: Two things would break in production
+title: Find a missing placeholder and a changed product name
 subtitle: A dropped placeholder and a translated product name, found the way a test finds them.
 kind: use-case
 publishAs: kapi-checks-guardrail
@@ -24,12 +24,12 @@ outro:
 # would fail the capture instead of shipping. stderr is dropped from both runs
 # so the recorded output is the findings table and the verdict, nothing else.
 script:
-  - comment: An AI translated app.json into German. Is it safe to ship?
+  - comment: A prepared German fixture contains two planted defects.
   - command: cat app.de.json
   - comment: Check the translation against the source, the way you run tests.
   - command: kapi check app.json --target app.de.json --target-lang de --dnt "Acme Cloud" 2>/dev/null
     expectExit: 3
-  - comment: "Two real breakages: a dropped placeholder and a translated product name. Apply the fixes."
+  - comment: "A dropped placeholder and a changed product name. Copy the prepared repair."
   - command: cp -f app.de.fixed.json app.de.json && cat app.de.json
   - comment: Run the same check again.
   - command: kapi check app.json --target app.de.json --target-lang de --dnt "Acme Cloud" 2>/dev/null
@@ -38,18 +38,18 @@ narration:
   - id: title
     kind: title
     text: >-
-      An AI translated this app into German. Most of it is fine. Two things
-      would break in production: a dropped placeholder, and a product name that
-      was translated.
+      This prepared example has two planted defects: a dropped placeholder and
+      a changed product name. We run the real checker, then copy a prepared
+      repair to show the same checks passing.
 
   - id: german
     kind: terminal
     through: 2
-    caption: Forty strings back from a model. Which two are wrong?
+    caption: A prepared target file with two planted defects.
     text: >-
-      Here is what came back. Nothing on the surface of the file says which
-      entries are the dangerous ones, and reading forty strings in a language
-      you do not speak tells you as much.
+      The target file contains a missing count placeholder and a changed
+      protected name. The source and the configured protected term provide
+      the evidence for these checks.
 
   - id: check
     kind: terminal
@@ -58,18 +58,18 @@ narration:
     caption: The gate fails, and names both findings.
     text: >-
       kapi check reads the German against the English and runs the rules the way
-      tests run: do-not-translate, placeholder integrity, terminology. The count
+      tests run: protected names and placeholder integrity. The count
       placeholder is missing, the product name was translated, and the command
       exits three.
 
   - id: fix
     kind: terminal
     through: 6
-    caption: Two lines, and nothing else in the file moves.
+    caption: Copy a prepared repair, then run the checks again.
     text: >-
-      Two corrections put both back. The placeholder returns to the string it
-      belongs in, and the product name keeps the spelling the company ships it
-      under.
+      The copy command replaces the target with a prepared repair. It restores
+      the placeholder and protected name. This step demonstrates a repair
+      fixture, not an agent diagnosing or writing the correction.
 
   - id: pass
     kind: terminal
@@ -78,8 +78,8 @@ narration:
     caption: Exit 0, from the command that just exited 3.
     text: >-
       The same check again, and it passes. The command did not change, the rules
-      did not change, and the only thing that moved was the text, which is what
-      makes this safe to run on every commit.
+      did not change, and the target text changed. This pass establishes those
+      configured checks, not factual accuracy or overall translation quality.
 
   - id: outro
     kind: outro

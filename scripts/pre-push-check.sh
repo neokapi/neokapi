@@ -68,6 +68,7 @@ echo ""
 # ── Repo hygiene (never gated: an absolute home path can land in any file) ──
 
 run_check "Absolute home paths" ./scripts/check-abs-paths.sh
+run_check "Public documentation boundary" ./scripts/check-docs-bowrain-clean.sh
 
 # Ungated too: retired framing lands wherever prose is edited, and it degrades
 # quietly — a stale phrase reads as intentional to the next reader.
@@ -119,7 +120,7 @@ if matches '^core/' '^go\.(mod|sum)$' '^cli/' '^kapi/' '^go\.work'; then
     run_check "Go lint (framework)" make check-framework
 fi
 
-if matches '^bowrain/core/' '^bowrain/plugin/' '^bowrain/go\.(mod|sum)$'; then
+if matches '^bowrain/core/' '^bowrain/plugin/' '^bowrain/.*\.go$' '^bowrain/go\.(mod|sum)$'; then
     run_check "Go lint (bowrain)" make check-bowrain
 fi
 

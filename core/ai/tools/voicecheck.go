@@ -3,8 +3,11 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"strings"
+	"sync"
 
 	"github.com/neokapi/neokapi/core/ai/prompt"
 	"github.com/neokapi/neokapi/core/model"
@@ -18,11 +21,12 @@ import (
 type VoiceCheckTool struct {
 	tool.BaseTool
 	usageAccumulator
-	provider aiprovider.LLMProvider
-	profile  *coreprofile.VoiceProfile
-	resolver coreprofile.ProfileResolver // optional: lazy profile resolution
-	rc       coreprofile.ResolveContext  // context for resolver
-	resolved bool                        // true after first resolution attempt
+	provider   aiprovider.LLMProvider
+	profile    *coreprofile.VoiceProfile
+	resolver   coreprofile.ProfileResolver // optional: lazy profile resolution
+	rc         coreprofile.ResolveContext  // context for resolver
+	resolve    sync.Once
+	resolveErr error
 }
 
 // VoiceCheckConfig holds configuration for the voice profile check tool.
@@ -164,10 +168,10 @@ func voiceFindingsSchema() aiprovider.JSONSchema {
 
 // voiceLLMFinding is the JSON structure for a single finding from the LLM.
 type voiceLLMFinding struct {
-	Dimension  string `json:"dimension"`
-	Severity   string `json:"severity"`
-	Message    string `json:"message"`
-	Suggestion string `json:"suggestion"`
+	Dimension  string  `json:"dimension"`
+	Severity   string  `json:"severity"`
+	Message    string  `json:"message"`
+	Suggestion *string `json:"suggestion"`
 }
 
 // voiceLLMResult is the JSON structure returned by the LLM.
@@ -175,20 +179,58 @@ type voiceLLMResult struct {
 	Findings []voiceLLMFinding `json:"findings"`
 }
 
-func (t *VoiceCheckTool) resolveOnce(ctx context.Context) {
-	if t.resolved || t.resolver == nil {
-		return
+func (t *VoiceCheckTool) resolveOnce(ctx context.Context) error {
+	t.resolve.Do(func() {
+		if t.resolver == nil {
+			return
+		}
+		t.profile, t.resolveErr = t.resolver.ResolveProfile(ctx, t.rc)
+	})
+	return t.resolveErr
+}
+
+// parseVoiceFindings validates the structured response independently of provider
+// schema support. Only an explicit findings array can yield a completed score.
+func parseVoiceFindings(content string) (voiceLLMResult, error) {
+	var result voiceLLMResult
+	decoder := json.NewDecoder(strings.NewReader(content))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&result); err != nil {
+		return result, err
 	}
-	t.resolved = true
-	profile, err := t.resolver.ResolveProfile(ctx, t.rc)
-	if err == nil && profile != nil {
-		t.profile = profile
+	if result.Findings == nil {
+		return result, errors.New("findings must be an array")
 	}
+	var trailing any
+	if err := decoder.Decode(&trailing); err != io.EOF {
+		return result, errors.New("unexpected content after findings")
+	}
+	for i, f := range result.Findings {
+		switch f.Dimension {
+		case "tone", "style", "clarity", "compliance":
+		default:
+			return result, fmt.Errorf("finding %d: invalid dimension %q", i, f.Dimension)
+		}
+		switch f.Severity {
+		case "neutral", "minor", "major", "critical":
+		default:
+			return result, fmt.Errorf("finding %d: invalid severity %q", i, f.Severity)
+		}
+		if strings.TrimSpace(f.Message) == "" || f.Suggestion == nil {
+			return result, fmt.Errorf("finding %d: message and suggestion are required", i)
+		}
+	}
+	return result, nil
 }
 
 func (t *VoiceCheckTool) annotate(v tool.BlockView) error {
 	ctx := v.Context()
-	t.resolveOnce(ctx)
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if err := t.resolveOnce(ctx); err != nil {
+		return fmt.Errorf("voice-check profile: %w", err)
+	}
 
 	sourceText := v.SourceText()
 	if strings.TrimSpace(sourceText) == "" {
@@ -202,12 +244,19 @@ func (t *VoiceCheckTool) annotate(v tool.BlockView) error {
 	if err != nil {
 		return fmt.Errorf("voice-check: %w", err)
 	}
-	t.addUsage(resp.Usage)
 
-	var result voiceLLMResult
-	if err := json.Unmarshal([]byte(resp.Content), &result); err != nil {
-		result.Findings = nil
+	if err := ctx.Err(); err != nil {
+		return err
 	}
+	if resp == nil {
+		return errors.New("voice-check: provider returned no response")
+	}
+	result, err := parseVoiceFindings(resp.Content)
+	if err != nil {
+		return fmt.Errorf("voice-check: invalid structured findings: %w", err)
+	}
+
+	t.addUsage(resp.Usage)
 
 	// Convert LLM findings to VoiceFinding structs.
 	var findings []coreprofile.VoiceFinding
@@ -216,7 +265,7 @@ func (t *VoiceCheckTool) annotate(v tool.BlockView) error {
 			Category:   f.Dimension,
 			Severity:   coreprofile.Severity(f.Severity),
 			Message:    f.Message,
-			Suggestion: f.Suggestion,
+			Suggestion: *f.Suggestion,
 		})
 	}
 

@@ -4,13 +4,8 @@ import { useSectionSignals } from "../useSectionSignals";
 import { SECTION_PROOF } from "../sections";
 import { VoiceCheck } from "./VoiceCheck";
 
-// Where the argument has to stop being an argument.
-//
-// The proof is a check the reader runs here, on the page, against the same
-// arithmetic the product uses — followed by the three places that same check
-// fires. A reader who moves the sentence from clean to critical by changing
-// only the point has verified the claim themselves, which no screenshot of the
-// product doing it for them can match.
+// Local rule illustration. Production checks resolve configured project
+// context through kapi; this widget only evaluates its listed English patterns.
 export function Proof() {
   const sectionRef = useSectionSignals<HTMLElement>(SECTION_PROOF);
   const ref = useReveal();
@@ -20,14 +15,15 @@ export function Proof() {
       <div ref={ref} className="reveal">
         <div className="mx-auto max-w-3xl text-center">
           <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-border px-3 py-1 font-mono text-xs text-muted-foreground">
-            TRY IT: THE CHECK RUNS IN THIS PAGE
+            LOCAL ENGLISH RULE EXAMPLE
           </div>
           <h2 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">
-            {t("A check is")} <span className="prism-text">{t("a test for prose.")}</span>
+            {t("Inspect the rule.")}{" "}
+            <span className="prism-text">{t("Understand the finding.")}</span>
           </h2>
           <p className="mt-3 text-muted-foreground">
             {t(
-              "A rule in a document is advice. Bound to a point, it is executable: the check resolves the profile in force, scores the draft against it, and reports what it penalised and why. The bar is yours, and under it the run fails. Pick a point below to see the rules in force there, and edit the draft to watch the score follow.",
+              "Choose an example context and edit the English draft. This widget runs a fixed set of local wording patterns and shows their findings. It illustrates how a term can be permitted in help content and prohibited in an API reference.",
             )}
           </p>
         </div>
@@ -36,7 +32,7 @@ export function Proof() {
 
         <p className="mx-auto mt-6 max-w-2xl text-center text-sm text-muted-foreground">
           {t(
-            "Findings carry a severity, severity carries a penalty, and the score is what is left of 100. The arithmetic in this page is the arithmetic in the product. The same check gates a pull request, sits in the editor beside the draft, and answers your agents before they write, because all three resolve the same point.",
+            "The score subtracts the penalties for these example rules from 100. No production profile lookup runs here. Factual accuracy, overall writing quality and audience suitability are not assessed. In your project, inspect the configured checks and their results before approving content.",
           )}
         </p>
 
@@ -46,19 +42,19 @@ export function Proof() {
             {
               where: t("In the editor"),
               body: t(
-                "Beside the draft, as it is written, with the finding and the suggestion inline.",
+                "Inspect findings and suggestions beside the draft, then review the proposed change.",
               ),
             },
             {
               where: t("In your pipeline"),
               body: t(
-                "A failing gate exits non-zero, so content that is off profile does not merge.",
+                "A configured failing gate exits non-zero, so CI can require the reported issues to be resolved.",
               ),
             },
             {
               where: t("In your agents"),
               body: t(
-                "Over MCP: the agent asks what applies here before it writes, not after it is corrected.",
+                "Use MCP to retrieve applicable guidance before writing and inspect check findings after an edit.",
               ),
             },
           ].map((c) => (

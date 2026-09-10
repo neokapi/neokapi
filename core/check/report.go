@@ -17,8 +17,8 @@ const ReportSchema = "kapi.check/v1"
 
 // Report is the canonical, machine-consumable result of a `kapi check` run — the
 // unit an AI assistant or CI reads, acts on, and re-runs against, the way a test
-// runner reports. It is platform-agnostic (no voice/target/locale types leak in)
-// so the CLI, the MCP tools, the desktop app, and bowrain all read one shape.
+// runner reports. The CLI and MCP check entry points produce this shape;
+// embedded surfaces may retain their own DTOs over the shared findings.
 type Report struct {
 	// Schema is the stable contract id (ReportSchema). Always set.
 	Schema string `json:"schema"`
@@ -34,6 +34,9 @@ type Report struct {
 	// Findings are the substantive output, sorted severity → rule for stable
 	// diffs between loop iterations.
 	Findings []Diagnostic `json:"findings"`
+	// Execution names the analyses that ran and their measured scope. Absent
+	// means coverage is unreported, not that all checks completed.
+	Execution *Execution `json:"execution,omitempty"`
 }
 
 // Target describes the thing a Report was produced for.

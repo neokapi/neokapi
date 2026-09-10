@@ -21,12 +21,12 @@ export function CTA() {
 
       <div ref={ref} className="reveal relative z-10 mx-auto max-w-3xl text-center">
         <h2 className="font-display text-3xl font-semibold tracking-tight sm:text-4xl">
-          Every project, every person, every agent, plugged into{" "}
-          <span className="prism-text">one context graph</span>.
+          Start with one project. Share the{" "}
+          <span className="prism-text">decisions you approve.</span>
         </h2>
         <p className="mt-4 text-muted-foreground">
-          Start with one project and the content you already publish. The free plan needs no card,
-          and the loop starts learning from your first correction.
+          Bring the content and writing guidance you already maintain. Review the terms and scope,
+          then make that guidance available to the people and agents working on your projects.
         </p>
 
         <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
@@ -34,7 +34,7 @@ export function CTA() {
             href={SIGNUP_URL}
             className="group flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-base font-medium text-primary-foreground transition hover:opacity-90 sm:w-auto"
           >
-            Start free
+            Start a workspace
             <ArrowRight className="h-5 w-5 transition group-hover:translate-x-0.5" />
           </a>
           <a

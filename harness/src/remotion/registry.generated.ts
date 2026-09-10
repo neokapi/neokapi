@@ -19,7 +19,7 @@ export const DEMOS: RegistryEntry[] = [
   },
   {
     "id": "05-ai-checks-guardrail",
-    "title": "Two things would break in production"
+    "title": "Find a missing placeholder and a changed product name"
   },
   {
     "id": "06-multi-format-publishing",
@@ -46,6 +46,10 @@ export const DEMOS: RegistryEntry[] = [
     "title": "One queue, every language"
   },
   {
+    "id": "audience-constraints",
+    "title": "Change the explanation, keep the shared rule"
+  },
+  {
     "id": "bowrain-cli-auth-and-workspaces",
     "title": "Break the layout before a translator sees it"
   },
@@ -63,7 +67,7 @@ export const DEMOS: RegistryEntry[] = [
   },
   {
     "id": "bowrain-sizzle",
-    "title": "Bowrain, a team's workspace for multilingual content"
+    "title": "Bowrain, shared content guidance and review"
   },
   {
     "id": "bowrain-web-collaboration",
@@ -71,7 +75,7 @@ export const DEMOS: RegistryEntry[] = [
   },
   {
     "id": "bowrain-web-correction-loop",
-    "title": "Every correction a reviewer makes is evidence"
+    "title": "Review recurring corrections before making a rule"
   },
   {
     "id": "bowrain-web-editor",
@@ -115,11 +119,11 @@ export const DEMOS: RegistryEntry[] = [
   },
   {
     "id": "s0-northsea-checks",
-    "title": "Checks are tests for prose"
+    "title": "Check the rules your project records"
   },
   {
     "id": "s0-northsea-context",
-    "title": "Ask the graph where you are"
+    "title": "Find the guidance for a file"
   },
   {
     "id": "s1-compass-converge",

@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/format"
@@ -37,8 +38,19 @@ func (r checkReport) FormatText(w io.Writer) error {
 	if !r.Pass {
 		verdict = s.Error.Render("FAIL")
 	}
-	fmt.Fprintf(w, "%s: ", verdict)
+	fmt.Fprintf(w, "%s configured checks: ", verdict)
 	writeFindingsCounts(w, r.Summary)
+	if r.Execution != nil {
+		completed, skipped := 0, 0
+		for _, run := range r.Execution.Analyzers {
+			if run.Status == check.AnalyzerPassed || run.Status == check.AnalyzerFindings {
+				completed++
+			} else {
+				skipped++
+			}
+		}
+		fmt.Fprintf(w, "  Coverage: %d completed, %d not run or unsupported. Score covers reported findings only.\n", completed, skipped)
+	}
 	for _, reason := range r.Gate.Failed {
 		fmt.Fprintf(w, "  gate: %s\n", reason)
 	}
@@ -174,8 +186,9 @@ func (a *App) runShipCheck(cmd Command, args []string) error {
 
 // ComputeCheck runs the configured checkset over the input file(s) and assembles
 // the canonical Report. It is shared by the CLI and the MCP check tools so a CI
-// gate and an assistant loop read byte-identical reports.
+// gate and an assistant loop read the same findings and gate; timings vary.
 func (a *App) ComputeCheck(cmd Command, args []string) (check.Report, error) {
+	execution := newCheckExecution()
 	a.InitRegistries()
 	ctx := CmdContext(cmd)
 
@@ -224,6 +237,7 @@ func (a *App) ComputeCheck(cmd Command, args []string) (check.Report, error) {
 	// the same precedence (host/sourcelang.go).
 	a.applyProjectSourceLang(cmd)
 
+	contextStart := time.Now()
 	voice, err := a.newCheckVoice(cmd)
 	if err != nil {
 		return check.Report{}, err
@@ -233,6 +247,9 @@ func (a *App) ComputeCheck(cmd Command, args []string) (check.Report, error) {
 	validateMode, err := validateModeFromFlag(cmd)
 	if err != nil {
 		return check.Report{}, err
+	}
+	if targetFile != "" && validateMode != format.ValidationOff {
+		return check.Report{}, errors.New("reader validation is unavailable with --target; validate each file separately")
 	}
 
 	// The vocabulary the project decided travels with the profile: a term
@@ -250,7 +267,8 @@ func (a *App) ComputeCheck(cmd Command, args []string) (check.Report, error) {
 		return check.Report{}, err
 	}
 
-	opts := checkRunOptions{formats: formats}
+	execution.Timings.ContextMS += elapsedMS(contextStart)
+	opts := checkRunOptions{formats: formats, execution: execution}
 	opts.maxChars, _ = cmd.Flags().GetInt("max-chars")
 	opts.maxWords, _ = cmd.Flags().GetInt("max-words")
 	opts.forbid, _ = cmd.Flags().GetStringSlice("forbid")
@@ -273,12 +291,14 @@ func (a *App) ComputeCheck(cmd Command, args []string) (check.Report, error) {
 		}
 		dnt, _ := cmd.Flags().GetStringSlice("dnt")
 		sourcePath := args[0]
+		contextStart = time.Now()
 		if opts.profile, err = voice.forFile(ctx, sourcePath); err != nil {
 			return check.Report{}, err
 		}
 		if opts.terms, err = vocab.forFile(ctx, sourcePath); err != nil {
 			return check.Report{}, err
 		}
+		execution.Timings.ContextMS += elapsedMS(contextStart)
 		// `--target` names the translated rendering of one source file, so both
 		// files carry the source's reader binding.
 		fmtName, fmtCfg := opts.formats.forFile(a, sourcePath)
@@ -292,7 +312,10 @@ func (a *App) ComputeCheck(cmd Command, args []string) (check.Report, error) {
 			TargetFormat: fmtName,
 			TargetConfig: fmtCfg,
 		}
+		extractionStart := time.Now()
 		blocks, missing, berr := a.bilingualBlocks(ctx, unit)
+		execution.Timings.ExtractionMS += elapsedMS(extractionStart)
+		execution.skipped("reader.validation", sourcePath, "Reader validation was not requested.")
 		if berr != nil {
 			return check.Report{}, berr
 		}
@@ -306,7 +329,7 @@ func (a *App) ComputeCheck(cmd Command, args []string) (check.Report, error) {
 			return check.Report{}, ferr
 		}
 		diags = append(diags, fileDiags...)
-		biDiags, berr := a.collectBilingualDiagnostics(ctx, blocks, sourcePath, model.LocaleID(targetLang), dnt)
+		biDiags, berr := a.collectBilingualDiagnostics(ctx, blocks, sourcePath, model.LocaleID(targetLang), dnt, execution)
 		if berr != nil {
 			return check.Report{}, berr
 		}
@@ -325,12 +348,14 @@ func (a *App) ComputeCheck(cmd Command, args []string) (check.Report, error) {
 			// project checks each file against the voice and the vocabulary in
 			// force where that file sits, not against one pair picked for the
 			// whole invocation.
+			contextStart = time.Now()
 			if opts.profile, err = voice.forFile(ctx, file); err != nil {
 				return check.Report{}, err
 			}
 			if opts.terms, err = vocab.forFile(ctx, file); err != nil {
 				return check.Report{}, err
 			}
+			execution.Timings.ContextMS += elapsedMS(contextStart)
 			blocks, fileDiags, ferr := a.checkFileBlocks(ctx, file, validateMode, opts)
 			prog.Advance()
 			if ferr != nil {
@@ -349,7 +374,7 @@ func (a *App) ComputeCheck(cmd Command, args []string) (check.Report, error) {
 	target.Blocks = totalBlocks
 
 	gate := gateFromFlags(cmd)
-	report := check.BuildReport(target, diags, gate)
+	report := execution.report(target, diags, gate)
 	if validateMode == format.ValidationStrict {
 		applyStrictValidationGate(&report)
 	}
@@ -363,6 +388,7 @@ func (a *App) checkFileBlocks(ctx context.Context, file string, validateMode for
 	var diags []check.Diagnostic
 
 	fmtName, fmtCfg := opts.formats.forFile(a, file)
+	extractionStart := time.Now()
 
 	if validateMode != format.ValidationOff {
 		bl, fdiags, rerr := a.readBlocksValidated(ctx, file, fmtName, fmtCfg, a.SourceLocale(), validateMode)
@@ -383,6 +409,15 @@ func (a *App) checkFileBlocks(ctx context.Context, file string, validateMode for
 			return nil, nil, rerr
 		}
 		blocks = bl
+	}
+
+	if opts.execution != nil {
+		opts.execution.Timings.ExtractionMS += elapsedMS(extractionStart)
+	}
+	if validateMode == format.ValidationOff {
+		opts.execution.skipped("reader.validation", file, "Reader validation was not requested.")
+	} else {
+		opts.execution.completed("reader.validation", file, len(diags), extractionStart)
 	}
 
 	fileDiags, ferr := a.collectFileDiagnostics(ctx, blocks, file, opts)
@@ -435,7 +470,8 @@ func applyStrictValidationGate(report *check.Report) {
 
 // checkRunOptions carries the resolved generic-check configuration.
 type checkRunOptions struct {
-	profile *profile.VoiceProfile
+	execution *checkExecution
+	profile   *profile.VoiceProfile
 	// terms is the project's terms store, when it binds one: the vocabulary the
 	// project decided, enforced beside the profile's own lists. nil for a run
 	// with no project or no terminology.
@@ -456,17 +492,24 @@ type checkRunOptions struct {
 // runs in turn; the new findings it adds to the unified annotation are tagged
 // with the family and the block location.
 func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block, file string, opts checkRunOptions) ([]check.Diagnostic, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	var diags []check.Diagnostic
 	seen := make([]int, len(blocks)) // per-block count of findings already mapped
 
+	start := time.Now()
 	// Hygiene — always on, no configuration needed.
 	if err := a.runFamily(ctx, blocks, check.NewContentLintTool()); err != nil {
 		return nil, fmt.Errorf("hygiene check %s: %w", DisplayName(file), err)
 	}
 	diags = append(diags, mapBlockDeltas(blocks, seen, "hygiene", file)...)
+	opts.execution.completed("hygiene", file, len(diags), start)
 
 	// Length — only when a limit is set.
 	if opts.maxChars > 0 || opts.maxWords > 0 {
+		start = time.Now()
+		before := len(diags)
 		lengthTool, err := check.NewSourceLengthTool(opts.maxChars, opts.maxWords)
 		if err != nil {
 			return nil, err
@@ -475,10 +518,15 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 			return nil, fmt.Errorf("length check %s: %w", DisplayName(file), err)
 		}
 		diags = append(diags, mapBlockDeltas(blocks, seen, "length", file)...)
+		opts.execution.completed("length", file, len(diags)-before, start)
+	} else {
+		opts.execution.skipped("length", file, "No length limit was configured.")
 	}
 
 	// Pattern — forbidden (must-not-match) and required (must-match).
 	if rules := patternRules(opts.forbid, opts.require); len(rules) > 0 {
+		start = time.Now()
+		before := len(diags)
 		patternTool, err := check.NewSourcePatternTool(rules)
 		if err != nil {
 			return nil, err
@@ -487,10 +535,15 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 			return nil, fmt.Errorf("pattern check %s: %w", DisplayName(file), err)
 		}
 		diags = append(diags, mapBlockDeltas(blocks, seen, "pattern", file)...)
+		opts.execution.completed("pattern", file, len(diags)-before, start)
+	} else {
+		opts.execution.skipped("pattern", file, "No explicit patterns were configured.")
 	}
 
 	// Brand vocabulary — separate annotation; runs when a profile is bound.
 	if opts.profile != nil {
+		start = time.Now()
+		before := len(diags)
 		vocab := coretools.NewVoiceVocabCheckTool(opts.profile, opts.terms).InSourceLocale(model.LocaleID(a.SourceLocale()))
 		for _, b := range blocks {
 			if err := RunCheckTool(ctx, vocab, b); err != nil {
@@ -511,10 +564,22 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 		for _, f := range profile.DocumentFindings(opts.profile, documentText(blocks)) {
 			diags = append(diags, check.DiagnosticFrom(f, "voice", docLoc))
 		}
+		opts.execution.completed("voice.rules", file, len(diags)-before, start)
+		for _, resolution := range profile.ConstraintResolutions(opts.profile) {
+			if resolution.Status == "applicable" && resolution.Constraint.Kind == profile.ConstraintGuidance {
+				opts.execution.unsupported("voice.guidance", file,
+					"Applicable guidance requires semantic analysis; deterministic rules do not assess it.")
+				break
+			}
+		}
+	} else {
+		opts.execution.skipped("voice.rules", file, "No voice profile was bound.")
 	}
 
 	// Voice/style similarity (opt-in, --voice): drives the kapi-check plugin.
 	if opts.voice {
+		start = time.Now()
+		before := len(diags)
 		refs := voiceExamples(opts.profile)
 		if len(refs) == 0 {
 			return nil, errors.New("--voice needs a voice profile with examples. Bind one in the recipe, or name it with --profile/--pack/--profile-file")
@@ -531,7 +596,11 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 		for _, f := range vf {
 			diags = append(diags, check.DiagnosticFrom(f, "voice", check.Location{File: DisplayName(file)}))
 		}
+		opts.execution.completed("voice.similarity", file, len(diags)-before, start)
+	} else {
+		opts.execution.skipped("voice.similarity", file, "Similarity analysis was not requested.")
 	}
+	opts.execution.skipped("voice.llm", file, "This command does not run semantic review.")
 
 	return diags, nil
 }
@@ -560,7 +629,12 @@ func documentText(blocks []*model.Block) string {
 // A checker that could not run is an error, not an empty finding set: a silent
 // skip would report the file as passing placeholder integrity it was never
 // measured against.
-func (a *App) collectBilingualDiagnostics(ctx context.Context, blocks []*model.Block, file string, loc model.LocaleID, dntTerms []string) ([]check.Diagnostic, error) {
+func (a *App) collectBilingualDiagnostics(ctx context.Context, blocks []*model.Block, file string, loc model.LocaleID, dntTerms []string, executions ...*checkExecution) ([]check.Diagnostic, error) {
+	var execution *checkExecution
+	if len(executions) > 0 {
+		execution = executions[0]
+	}
+	start := time.Now()
 	var diags []check.Diagnostic
 	// Seed the per-block delta counts from the findings already on each block:
 	// in bilingual mode the source checks (collectFileDiagnostics) ran first, so
@@ -575,14 +649,20 @@ func (a *App) collectBilingualDiagnostics(ctx context.Context, blocks []*model.B
 		return nil, fmt.Errorf("placeholder check %s (%s): %w", DisplayName(file), loc, err)
 	}
 	diags = append(diags, mapBlockDeltas(blocks, seen, "placeholder", file)...)
+	execution.completed("placeholder", file, len(diags), start)
 
 	if len(dntTerms) > 0 {
+		start = time.Now()
+		before := len(diags)
 		dntCfg := coretools.NewDNTCheckConfig(loc)
 		dntCfg.Terms = dntTerms
 		if err := a.runFamily(ctx, blocks, coretools.NewDNTCheckTool(dntCfg)); err != nil {
 			return nil, fmt.Errorf("do-not-translate check %s (%s): %w", DisplayName(file), loc, err)
 		}
 		diags = append(diags, mapBlockDeltas(blocks, seen, "dnt", file)...)
+		execution.completed("dnt", file, len(diags)-before, start)
+	} else {
+		execution.skipped("dnt", file, "No protected terms were configured.")
 	}
 	return diags, nil
 }
@@ -774,7 +854,7 @@ func (a *App) newCheckVoice(cmd Command) (*checkVoice, error) {
 
 	projectPath, err := ResolveProjectPath(cmd)
 	if err != nil || projectPath == "" {
-		return v, nil
+		return v, err
 	}
 	proj, lerr := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
 	if lerr != nil {

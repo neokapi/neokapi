@@ -5,7 +5,7 @@
  * MEANS, and the meaning has to survive moving between surfaces: an approve
  * button in Kapi Desktop and an approve button in the Bowrain platform are the
  * same act, so they are the same green. Each app keeps its own :root/.dark
- * palette (Kapi Blue, Rainlight) and imports this file for the judgement
+ * palette (kapi logo palette, Rainlight) and imports this file for the judgement
  * colours and the coordinate hues.
  *
  * Import it AFTER tailwindcss and BEFORE the app's own :root/.dark block, so an

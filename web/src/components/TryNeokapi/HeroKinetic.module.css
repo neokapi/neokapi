@@ -1,11 +1,9 @@
-/* The kinetic-type hero (HeroKinetic). A Motion-driven, self-playing two-column
-   stage: LEFT a kinetic verb stack (the active verb large + dark, passed verbs
-   receded, SHIP resolving large + green with a ✓), RIGHT a live brand-guide
-   asset that populates, gets checked, ships on brand, then goes multilingual.
-   All colors come from ifm theme vars (green = --ifm-color-primary; grays from
-   emphasis vars) so light + dark theme automatically. The whole card is one
-   button that opens the live modal (which boots wasm, unchanged); nothing here
-   boots wasm. */
+/* Authored workflow illustration; the live engine loads on interaction. */
+.illustrationLabel {
+  color: var(--ifm-color-emphasis-700);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
 
 .card {
   --hk-green: var(--ifm-color-primary);
@@ -67,6 +65,8 @@
 
 /* ── LEFT — the kinetic verb stack column ─────────────────────────────────── */
 .stackCol {
+  /* Reserve the taller six-step stack, including its final review caption. */
+  min-height: 14rem;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -275,10 +275,16 @@
 }
 
 .rowVal {
+  display: grid;
   flex: 1 1 auto;
   font-size: 0.78rem;
   font-weight: 600;
   color: var(--hk-ink);
+}
+
+/* Both wordings size the same cell, so a crossfade cannot reflow the card. */
+.rowText {
+  grid-area: 1 / 1;
 }
 
 .rowVal[data-localized="true"] {

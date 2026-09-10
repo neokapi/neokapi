@@ -167,7 +167,14 @@ func PatternHitsToFindings(hits []PatternHit, text string, runs []model.Run) []V
 // rather than a gap: see [DocumentFindings].
 func Findings(p *VoiceProfile, text string, runs []model.Run) []VoiceFinding {
 	findings := HitsToFindings(MatchVocabulary(p, text), text, runs)
-	return append(findings, PatternHitsToFindings(MatchPatterns(p, text), text, runs)...)
+	return append(findings, PatternFindings(p, text, runs)...)
+}
+
+// PatternFindings applies presentation patterns and shared constraints without
+// vocabulary matching, for tools that locate terms in a separate shared pass.
+func PatternFindings(p *VoiceProfile, text string, runs []model.Run) []VoiceFinding {
+	findings := PatternHitsToFindings(MatchPatterns(p, text), text, runs)
+	return append(findings, constraintFindings(p, text, runs)...)
 }
 
 // DocumentFindings is the profile's deterministic gate at DOCUMENT scope: the
@@ -255,7 +262,7 @@ func PatternRuleCount(p *VoiceProfile) int {
 	if p == nil {
 		return 0
 	}
-	return len(p.Style.ProhibitedPatterns) + len(p.Style.RequiredPatterns)
+	return len(p.Style.ProhibitedPatterns) + len(p.Style.RequiredPatterns) + constraintPatternCount(p)
 }
 
 // span is a half-open byte range of the text.

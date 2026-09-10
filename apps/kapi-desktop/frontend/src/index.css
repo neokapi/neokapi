@@ -2,7 +2,7 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@neokapi/ui-primitives/styles/theme-tokens.css";
-/* The "Kapi Blue" palette, and through it the judgement colours and
+/* The kapi logo palette, and through it the judgement colours and
  * coordinate-axis hues shared with the Bowrain platform. Both live in
  * @neokapi/ui-primitives so the documentation site and the diagram kit can be
  * generated from the same values. See packages/ui/docs/judgement-colours.md. */

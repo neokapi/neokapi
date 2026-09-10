@@ -184,6 +184,36 @@ file per product-and-channel pair. A channel the profile declares no override
 for is not an error: the base voice applies, which is the right answer for a
 voice that reads the same everywhere.
 
+A voice profile can declare shared `constraints` beside `tone` and `style`:
+
+```yaml
+constraints:
+  - id: service/no-unsupported-assurance
+    version: 1
+    source: service-facts.md#assurances
+    statement: Do not promise a risk-free service.
+    kind: prohibited_pattern
+    regex: '(?i)\b(risk-free)\b'
+  - id: service/recording
+    version: 1
+    source: service-facts.md#recording
+    statement: Appointments are not recorded.
+    kind: guidance
+```
+
+The critical pattern remains applicable when a channel replaces its style
+section. The guidance statement is passed to writers and is explicitly outside
+deterministic semantic verification. `kapi context` exposes resolved constraint
+records and the full declared coordinate point in JSON. The text form includes
+the same constraint guidance and coordinates.
+
+`scope` can name exact `locale`, `channel` and `persona` values; populated values
+must all match. An `exceptions` entry needs a nonempty scope, a reason,
+`approved_by` and `approval_ref`. Approval provenance in a local file is asserted
+by the author. Custom recipe coordinates are shown in context answers but do
+not act as constraint predicates. See [C-07](/contribute/architecture/context/c-07-voice-profiles)
+for resolution, validation and store-update semantics.
+
 The remaining axes are **declared**. `defaults.coordinates` names the axes the
 project's content sits at unless a collection says otherwise, and a collection's
 own `coordinates:` overlays it per axis. `project.MergeCoordinates(defaults,

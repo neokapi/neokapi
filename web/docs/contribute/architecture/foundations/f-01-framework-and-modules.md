@@ -12,7 +12,7 @@ import { PipelineDiagram } from "@neokapi/docs-shared";
 
 ## Summary
 
-neokapi is an open content and language intelligence framework in Go,
+neokapi is an open content engine and Go framework,
 distributed under Apache-2.0. It ships as independent Go modules: the framework
 itself, the cobra-free host runtime, the thin Cobra shell, the `kapi` binary, the
 desktop app, and one module per out-of-process plugin. The first five are
@@ -46,6 +46,19 @@ tools that edit, check, and translate the content inside. Everything is a librar
 and a toolkit: it runs no server and holds no accounts. The framework is the
 vehicle for open extension in format support, processing tools, and AI
 integration.
+
+The engine is the reusable processing layer. kapi is the project tool that binds
+existing files to applicable terms, writing guidance and configured checks.
+Context resolution supplies that guidance and its provenance; it is one part of
+the content workflow. A graph representation supports relationships and scoped
+retrieval without requiring consumers to adopt a graph database as their primary
+interface.
+
+Format fidelity is a property of a reader/writer and operation, not a universal
+claim about the engine. No-op byte preservation, preservation outside edited
+content and semantic round-trip equivalence have separate tests. Check results
+likewise distinguish completed analysis from unrequested or unsupported analysis.
+A successful configured gate is not a verdict on every property of a document.
 
 Five design principles shape the module layout:
 

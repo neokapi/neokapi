@@ -8,7 +8,7 @@
 }
 
 /* A soft radial wash + faint grid behind the hero for depth, tinted with the
-   site's primary green. Sits behind the content; pointer-events:none so it
+   site's primary accent. Sits behind the content; pointer-events:none so it
    never intercepts the CTA. */
 .heroBanner::before {
   content: "";
@@ -70,7 +70,7 @@
   gap: 0.75rem;
 }
 
-/* Primary "Try" CTA. Solid green pill with a soft glow that intensifies on
+/* Primary "Try" CTA. Solid primary pill with a soft glow that intensifies on
    hover; reads as the single most important action on the page. */
 .tryButton {
   display: inline-flex;
