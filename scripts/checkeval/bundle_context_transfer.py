@@ -104,7 +104,7 @@ def assemble(root, assessment, output):
     bundle = Bundle(root, output)
     preparation = bundle.read("preparation.json")
     sources = bundle.read("sources/index.json", preparation["source_index_sha256"])
-    index = {"title": "Learning and applying documentation context", "description": "One original Pageglass documentation set, adapted using full Astro references, the compiled guidance as plain files, and that same guidance through kapi. This is a proof of concept, not a quality benchmark.",
+    index = {"title": "Learning and applying documentation context", "description": "Planned comparison: independent Pageglass documentation adapted using full Astro references, compiled guidance as plain files, and that same guidance through kapi. Retained outputs below show which stages completed. This is a proof of concept, not a quality benchmark.",
              "brief": bundle.copy("facts.md", preparation["facts_sha256"]), "references": [], "guidance": [],
              "documents": [{"id": doc, "title": TITLES[doc]} for doc in TITLES], "adaptations": [], "stages": []}
     def reference(identifier, title, artifact, url=""):
@@ -124,7 +124,7 @@ def assemble(root, assessment, output):
             raise ValueError("Learned guidance belongs to different source inputs")
         context = bundle.copy("frozen/context.json", identity["context_sha256"])
         learned_output = stages["learn"]["outputs"].get("context.json")
-        if learned_output and learned_output["sha256"] != context["sha256"]:
+        if learned_output is None or learned_output["sha256"] != context["sha256"]:
             raise ValueError("Frozen learned context differs from immutable learn output")
         reference("learned-json", "Frozen learned context with provenance", context)
         index["guidance"].append({"title": "Frozen learned guidance", "artifact": bundle.copy("frozen/learned-guide.md", identity["guide_sha256"])})
@@ -146,10 +146,9 @@ def assemble(root, assessment, output):
     original = {doc: item for doc, item in stages["draft"]["outputs"].items() if doc in DOCUMENTS}
     if bundle.exists("original/identity.json"):
         for doc, sha in bundle.read("original/identity.json").items():
-            if doc in original and original[doc]["sha256"] != sha:
+            if doc not in original or original[doc]["sha256"] != sha:
                 raise ValueError("Original checkpoint differs from immutable draft output")
-            retained = bundle.copy("original/" + doc, sha)
-            original.setdefault(doc, retained)
+            bundle.copy("original/" + doc, sha)
     index["original"] = {"title": "Original documentation", "documents": original, "observation": stages["draft"]["observation"], "notes": stages["draft"]["notes"]}
     for name, title in ARMS.items():
         record = stages[name]

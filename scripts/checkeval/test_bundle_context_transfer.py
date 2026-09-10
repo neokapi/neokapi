@@ -76,6 +76,30 @@ class ContextTransferBundleTest(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "hash differs"):
                     assemble(root, assessment, output)
 
+    def test_checkpoints_require_corresponding_immutable_outputs(self):
+        for checkpoint in ("original", "learned"):
+            with self.subTest(checkpoint=checkpoint), tempfile.TemporaryDirectory() as temporary:
+                root, output = Path(temporary) / "run", Path(temporary) / "bundle"
+                assessment = fixture(root)
+                if checkpoint == "original":
+                    directory = root / "original"
+                    directory.mkdir()
+                    missing = "docs/troubleshooting.md"
+                    (directory / "docs").mkdir()
+                    (directory / missing).write_text("Not retained by the draft stage.")
+                    (directory / "identity.json").write_text(json.dumps({missing: digest((directory / missing).read_bytes())}))
+                else:
+                    directory = root / "frozen"
+                    directory.mkdir()
+                    (directory / "context.json").write_text("{}")
+                    (directory / "learned-guide.md").write_text("# Unproven learned guide")
+                    preparation = json.loads((root / "preparation.json").read_text())
+                    (directory / "identity.json").write_text(json.dumps({"source_index_sha256": preparation["source_index_sha256"],
+                        "context_sha256": digest((directory / "context.json").read_bytes()),
+                        "guide_sha256": digest((directory / "learned-guide.md").read_bytes())}))
+                with self.assertRaisesRegex(ValueError, "differs from immutable"):
+                    assemble(root, assessment, output)
+
     def test_plain_context_must_match_actual_resolver_bytes(self):
         with tempfile.TemporaryDirectory() as temporary:
             root, output = Path(temporary) / "run", Path(temporary) / "bundle"
