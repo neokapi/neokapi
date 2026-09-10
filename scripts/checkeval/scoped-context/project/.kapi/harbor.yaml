@@ -31,7 +31,6 @@ channels:
       humor: none
       guidelines: Treat this as a reply to one person asking for help. Acknowledge the inconvenience, explain what they can do now and close courteously.
     style:
-      active_voice: true
       sentence_length: varied
       person_pov: second
       contractions: sometimes
@@ -43,7 +42,6 @@ channels:
       humor: none
       guidelines: Treat this as a public operational update. Start with the service condition and keep personal correspondence outside the notice.
     style:
-      active_voice: true
       sentence_length: varied
       person_pov: third
       contractions: sometimes

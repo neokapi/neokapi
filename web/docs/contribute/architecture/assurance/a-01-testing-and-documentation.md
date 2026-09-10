@@ -215,7 +215,22 @@ uses separate document families and clean counterexamples, with independent
 labels for semantic and reader-facing judgments. The product's own checker is
 not the sole judge of an experiment intended to establish its value.
 
-Content-meaning evaluation tests claims against their governing evidence:
+Context evaluation starts with applicability: the guidance selected for a
+destination must match its supported product and channel bindings. It records
+the actual resolver answer, coordinates, effective voice and check coverage.
+Identical wording at different legitimate destinations tests whether a review
+responds to the selected guidance; faithful alternative wording tests whether
+it permits variation. Unrelated guidance stays outside the resolved context,
+and missing guidance is reported as unavailable rather than invented.
+
+Style review assesses departures from supplied writing guidance, not a
+universal prose preference or an AI-authorship guess. Its evidence pairs the
+affected content with applicable guidance and keeps optional suggestions
+separate. An aligned assessment means no evidenced departure was reported;
+it is not a quality score or a publishing gate. Product/channel resolution and
+coordinate metadata are distinguished from arbitrary-axis rule selection.
+
+Content-meaning regression tests compare claims with their governing evidence:
 permissions, prerequisites, exceptions, certainty, participant roles and the
 binding of values to the things they describe. Structured values and arithmetic
 have separate integrity criteria. Preserving a placeholder does not establish

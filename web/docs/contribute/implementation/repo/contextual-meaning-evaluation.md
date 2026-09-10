@@ -6,11 +6,15 @@ description: Separate structured-data integrity from context-dependent meaning, 
 
 # Contextual meaning evaluation
 
-The primary question is whether kapi helps preserve consequential meaning during
-content work. Arithmetic, placeholder preservation and exact approved strings
-are useful workflow controls, but they are weak evidence of this contribution.
-The [paired runner](paired-agent-evaluation.md) measures integration behavior;
-contextual evaluation first isolates what an analyzer can detect and explain.
+This note describes semantic-review regression fixtures and experimental response
+contracts. The [scoped context evaluation](scoped-context-evaluation.md) tests
+whether kapi resolves applicable writing guidance and supports review against it.
+The [paired runner](paired-agent-evaluation.md) measures integration behavior.
+
+Procedural completeness, source conflicts and quotation integrity provide small
+controls for review machinery. They do not define the product's purpose or
+establish the value of context selection. Arithmetic and placeholder checks
+remain separate integrity controls.
 
 ## What belongs in the evaluation
 
@@ -373,68 +377,28 @@ than automatically counted as false positives: planted errors are not an
 exhaustive inventory of possible problems. Unsupported analyzers remain
 unmeasured, even when their output contains no findings.
 
-## Implementation priorities
+## Regression-suite policy
 
-1. **Establish meaningful source-grounded cases.** Keep the seed as development
-   material. Build a separate set from longer, coherent documents and actual
-   content decisions, with an explicit source of truth, audience, surface and
-   destination scope. Include conditions spread across sections, a scoped
-   exception to a general rule, missing action instructions, and plausible but
-   irrelevant guidance. Record
-   which information is required for each finding. Have a reviewer independent
-   of case construction adjudicate labels and disagreements once, before runs.
-   Keep related original, mutated and repaired documents in the same partition.
-   Synthetic extensions remain labelled as synthetic.
-2. **Measure detection before rewriting.** Freeze candidate texts and compare
-   current deterministic checks with source-grounded review. Record exact
-   inputs, effective evidence, raw findings and analyzer coverage. A direct
-   model review is a candidate capability baseline; it is not evidence that
-   kapi implements semantic analysis. This removes authoring variability while
-   revealing whether a new analyzer could add useful coverage.
-3. **Prototype one contextual analyzer.** Start with prerequisites and scoped
-   exceptions. Input includes the candidate, destination context and relevant
-   source passages; output includes evidence, conflict and uncertainty. Required
-   reader actions are explicit inputs distinct from reference material. An
-   omission finding must identify the required action the reader cannot complete;
-   it cannot promote every available reference detail into mandatory content.
-   Keep optional improvements advisory and distinguish claim conflicts from
-   incomplete instructions. Reuse
-   the common finding/report path, retain deterministic checks for exact
-   constraints, and report unsupported or failed analysis explicitly. Measure
-   context resolution, inference and total elapsed time independently. Evaluate
-   missing or wrong context as well as the correct-context condition.
-   Keep model analysis outside the immediate deterministic loop until latency
-   and finding usefulness justify it. A later cache must bind candidate, source,
-   task requirements, effective context and analyzer identity; changing any of
-   them invalidates its evidence.
-4. **Compare with an ordinary extra review.** Within each fixed host/model,
-   compare the same saved draft reviewed without kapi and through kapi, under
-   a matched total resource budget. Give both access to the same source corpus.
-   A second condition supplies the same resolved passages directly to isolate
-   analyzer benefit from retrieval benefit. Record context acquisition costs;
-   do not compare a two-pass kapi workflow only against a first draft.
-5. **Return to authoring integration comparisons after useful coverage appears.**
-   Use held-out document families and report repair success, introduced errors,
-   discovery failures and observed CLI/MCP use separately. If the baseline
-   reliably handles a case already, keep it as a regression rather than spending
-   more grading effort on it. Human acceptance or review-time claims still need
-   actual human evidence.
+Retain the existing procedural cases as bounded regressions for lost evidence,
+missed necessary actions and unsupported allegations. Run deterministic
+preparation and parser tests when their contracts change. Their labels remain
+provisional, and repeated live review of these same cases cannot establish
+performance on unseen documents.
 
-Before the next live experiment, fix the document partition, label status,
-analyzer version, checker model, prompt, effort and reporting criteria. Use a
-bounded subscription allowance of at most six started host attempts, including
-failures, with the number of documents and maximum review work per attempt
-declared too. A small number of sessions must not hide an unbounded inner loop.
-No automatic retries or API fallback are part of this plan. The development
-preparer itself makes no model calls and changes no allowance.
+Product evaluation uses actual context resolution, source-grounded writing
+guidance and legitimate destination changes. A procedural instruction belongs
+in that context only when the applicable guidance or authoring brief requires
+it. The reviewer must not invent a checklist of everything a guide could cover.
+Style departures, factual conflicts and optional editorial suggestions remain
+separate judgments. See the [scoped context evaluation](scoped-context-evaluation.md)
+for the active workflow and its limits.
 
-Six attempts are a feasibility probe. Continue only if the analyzer provides
-evidence-correct findings beyond existing checks and the matched ordinary review
-on consequential cases, without systematic false alarms on clean or changed-
-context controls. Otherwise revise the capability or defer it. Numerical quality
-thresholds for a release need the adjudicated document set and cannot be inferred
-from six toy families. Keep latency observations per attempt; such a small probe
-cannot support a stable tail-latency claim.
+Any further live regression run needs a concrete unresolved question, frozen
+inputs and independently assessed expectations. Use at most six reserved
+subscription attempts, including failures, with no automatic retries or API
+fallback. Report every attempt rather than treating a small development sample
+as a release threshold or a stable latency estimate. Human acceptance and
+review-time claims require actual human evidence.
 
 ## NER, structure and style
 
@@ -455,5 +419,5 @@ Style analysis has a separate rubric: for example, unsupported superlatives,
 repetition that obscures the requested action, or tone that conflicts with the
 intended audience. A label such as “Opus-style AI slop” is neither a stable
 criterion nor evidence of authorship. Context-specific examples and acceptable
-counterexamples are required. A general detector of disliked phrases should not
-take priority over demonstrable losses of meaning.
+counterexamples are required. Style findings must follow applicable guidance; personal phrase preferences
+and guesses about authorship do not establish a departure.
