@@ -60,6 +60,9 @@ type Options struct {
 
 func main() {
 	var (
+		pocStagePath       = flag.String("poc-stage", "", "single file-authoring stage manifest; selects the subscription POC runner")
+		pocDir             = flag.String("poc-dir", "harness/out/authoring-poc", "persistent POC ledger with a six-attempt ceiling across stages")
+		pocLive            = flag.Bool("poc-live", false, "explicitly launch the selected subscription-backed authoring stage")
 		meaningInputs      = flag.String("meaning-inputs", "", "prepared fixed-text review directory; selects the meaning runner")
 		meaningDir         = flag.String("meaning-dir", "harness/out/meaning-review", "private fixed-text review evidence directory")
 		meaningLive        = flag.Bool("meaning-live", false, "explicitly allow subscription-backed fixed-text review")
@@ -85,6 +88,24 @@ func main() {
 		timeout            = flag.Duration("timeout", 30*time.Minute, "whole-run deadline")
 	)
 	flag.Parse()
+	if *pocStagePath != "" {
+		if *meaningInputs != "" || *pairedManifest != "" {
+			fail("POC, meaning and paired runners are mutually exclusive")
+		}
+		root, err := repoRoot()
+		if err != nil {
+			fail(err.Error())
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), *timeout)
+		defer cancel()
+		if err := executePOC(ctx, pocOptions{StagePath: *pocStagePath, Dir: *pocDir, RepoRoot: root, Live: *pocLive}); err != nil {
+			fail(err.Error())
+		}
+		return
+	}
+	if *pocLive {
+		fail("poc-live requires poc-stage")
+	}
 
 	if *meaningInputs != "" {
 		if *pairedManifest != "" {
