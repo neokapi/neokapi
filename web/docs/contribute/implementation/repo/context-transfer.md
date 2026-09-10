@@ -63,6 +63,13 @@ The persistent ledger reserves at most six starts, including failed or
 interrupted attempts. A started stage cannot be retried. The spare reservation
 is not an instruction to run another attempt. There is no API fallback.
 
+Credential preflight rejects a known expired subscription token before launch.
+An authentication failure that occurs after launch remains a started attempt,
+even when the provider reports zero model tokens. An explicitly resumed study
+retains that failed reservation within the shared ceiling and records its
+recovery provenance separately from the successful learning stage. It does not
+rewrite the failed stage's inputs, outcome or runner identity.
+
 Build kapi and prepare a fresh output directory:
 
 ```sh
@@ -133,3 +140,50 @@ suggest that reusable guidance is useful while leaving kapi's incremental
 benefit unproved. A weaker kapi result or slower workflow is equally reportable.
 This small demonstration does not compare model families, skill versus MCP,
 long-term context maintenance or Bowrain's connected workspace.
+
+## Recorded demonstration
+
+The September 10, 2026 demonstration retained five completed Sonnet 5 stages
+and one earlier authentication failure, reaching the six-start ceiling. The
+learner took 87.8 seconds and the independent draft took 63.8 seconds. The
+draft already followed much of the source guidance and covered the important
+product behavior accurately.
+
+| Adaptation | Elapsed time | Observed changes |
+| --- | --- | --- |
+| Raw references | 155.6 seconds | A preposition correction and consistent configured-workspace wording |
+| Guidance as files | 244.5 seconds | More precise local-access wording, several third-person rewrites, and an over-broad troubleshooting instruction |
+| Guidance through kapi | 270.4 seconds | The preposition correction and a useful expected-behavior section in troubleshooting |
+
+The plain-guidance adaptation tells readers to try the same command against a
+smaller input directory for an unknown error. Only the preview command accepts
+a directory; sharing and revocation take IDs. An inferred troubleshooting
+pattern became an instruction with broader scope than the facts support.
+Several second-person removals also rested on an overstated distinction
+between tutorial and explanation guidance. The learned guide itself retained
+qualifications, but those qualifications did not reliably govern adaptation.
+
+The kapi agent retrieved all four contexts. It used inspection, a diff preview
+and `apply` for the preposition correction. It used ordinary editing to add
+the new troubleshooting section, then inspected and checked the result. Its
+deterministic checks passed; semantic guidance remained unsupported and no
+model-backed check ran. The useful section therefore demonstrates an agent
+applying guidance, not structured block insertion or automated semantic
+verification.
+
+Independent agent review found localized improvements, no compelling
+transformation and no established reduction in human review work. The kapi
+result retained the original access overstatement, ambiguous update-link
+wording and broadly stated account prerequisite. There is one attempt per
+approach; these timings and outcomes do not establish a general ranking.
+
+Transcript audit also retains execution differences: the plain-guidance run
+recovered from one denied shell command by reading the supplied files directly.
+The kapi host advertised additional skills, although only kapi was invoked.
+No outside-workspace content access was observed. These are whole-workflow
+observations, not an isolated causal measurement of the CLI.
+
+A useful next demonstration applies a genuine scoped editorial decision across
+existing documents and shows which pages change and which remain unaffected.
+That exercises the coordination benefit of reusable context more directly than
+imitation of a style the starting draft already follows.

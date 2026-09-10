@@ -106,7 +106,7 @@ def assemble(root, assessment, output):
     bundle = Bundle(root, output)
     preparation = bundle.read("preparation.json")
     sources = bundle.read("sources/index.json", preparation["source_index_sha256"])
-    index = {"title": "Learning and applying documentation context", "description": "Planned comparison: independent Pageglass documentation adapted using full Astro references, compiled guidance as plain files, and that same guidance through kapi. Retained outputs below show which stages completed. This is a proof of concept, not a quality benchmark.",
+    index = {"title": "Learning and applying documentation context", "description": "This experiment compares adaptations of independent Pageglass documentation using full Astro references, compiled guidance as plain files, and that same guidance through kapi. Retained outputs below show which stages completed. This is a proof of concept, not a quality benchmark.",
              "brief": bundle.copy("facts.md", preparation["facts_sha256"]), "references": [], "guidance": [],
              "documents": [{"id": doc, "title": TITLES[doc]} for doc in TITLES], "adaptations": [], "stages": []}
     def reference(identifier, title, artifact, url=""):

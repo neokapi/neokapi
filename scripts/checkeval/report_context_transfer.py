@@ -189,8 +189,9 @@ def render(index_path, output, repo):
                        "</div><details><summary>Raw learned guidance</summary><pre>" + esc(texts[f"guidance-{position}"]) + "</pre></details></article>"
                        for position, item in enumerate(index.get("guidance", [])))
     assessment = index.get("assessment")
-    assessment_html = ("<section><h2>Assessment</h2><p><strong>Method:</strong> " + esc(assessment["method"]) +
-                       "</p><p>" + esc(assessment["summary"]) + "</p>" + notes_html(assessment.get("notes", [])) + "</section>") if assessment else ""
+    assessment_html = ("<section><h2>Assessment</h2><p>" + esc(assessment["summary"]) +
+                       "</p><details><summary>Assessment reasoning and limitations</summary><p><strong>Method:</strong> " +
+                       esc(assessment["method"]) + "</p>" + notes_html(assessment.get("notes", [])) + "</details></section>") if assessment else ""
     stages = "".join("<article><h3>" + esc(stage["title"]) + "</h3>" + observation_html(stage.get("observation", {})) +
                      notes_html(stage.get("notes", [])) + "</article>" for stage in index.get("stages", []))
     page = (PAGE_START.replace("{{TITLE}}", esc(index["title"])) + "<main><h1>" + esc(index["title"]) + "</h1><p class='intro'>" +
