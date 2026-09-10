@@ -185,23 +185,24 @@ func preparePairedCodex(ctx context.Context, p *PairedPrepared) error {
 			p.AuthMode = "ChatGPT subscription"
 		}
 	}
-	config := "forced_login_method = \"chatgpt\"\napproval_policy = \"never\"\nsandbox_mode = \"workspace-write\"\nweb_search = \"disabled\"\nallow_login_shell = false\nmodel_reasoning_effort = " + strconv.Quote(p.Launch.Agent.Effort) + "\n[features]\napps = false\nplugins = false\nhooks = false\nmulti_agent = false\nbrowser_use = false\ncomputer_use = false\nimage_generation = false\nshell_snapshot = false\n[shell_environment_policy]\ninherit = \"none\"\n[shell_environment_policy.set]\n"
+	var config strings.Builder
+	config.WriteString("forced_login_method = \"chatgpt\"\napproval_policy = \"never\"\nsandbox_mode = \"workspace-write\"\nweb_search = \"disabled\"\nallow_login_shell = false\nmodel_reasoning_effort = " + strconv.Quote(p.Launch.Agent.Effort) + "\n[features]\napps = false\nplugins = false\nhooks = false\nmulti_agent = false\nbrowser_use = false\ncomputer_use = false\nimage_generation = false\nshell_snapshot = false\n[shell_environment_policy]\ninherit = \"none\"\n[shell_environment_policy.set]\n")
 	for _, pair := range p.Env {
 		key, value, ok := strings.Cut(pair, "=")
 		if ok {
-			config += strconv.Quote(key) + " = " + strconv.Quote(value) + "\n"
+			config.WriteString(strconv.Quote(key) + " = " + strconv.Quote(value) + "\n")
 		}
 	}
 	if p.Launch.Condition == "mcp" {
 		if p.Launch.KapiBin == "" {
 			return errors.New("mcp requires kapi binary")
 		}
-		config += "[mcp_servers.kapi]\ncommand = " + strconv.Quote(p.Launch.KapiBin) + "\nargs = [\"-p\", " + strconv.Quote(filepath.Join(p.Launch.Workspace, "kapi.yaml")) + ", \"mcp\"]\n[mcp_servers.kapi.env]\n"
+		config.WriteString("[mcp_servers.kapi]\ncommand = " + strconv.Quote(p.Launch.KapiBin) + "\nargs = [\"-p\", " + strconv.Quote(filepath.Join(p.Launch.Workspace, "kapi.yaml")) + ", \"mcp\"]\n[mcp_servers.kapi.env]\n")
 		for key, value := range pairedKapiEnv(p.Launch.Workspace) {
-			config += strconv.Quote(key) + " = " + strconv.Quote(value) + "\n"
+			config.WriteString(strconv.Quote(key) + " = " + strconv.Quote(value) + "\n")
 		}
 	}
-	if err := os.WriteFile(filepath.Join(p.Launch.StateDir, "codex", "config.toml"), []byte(config), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(p.Launch.StateDir, "codex", "config.toml"), []byte(config.String()), 0o600); err != nil {
 		return err
 	}
 	p.Args = []string{"exec", "--strict-config", "--ignore-rules", "--json", "--skip-git-repo-check", "--model", p.Launch.Agent.Model, "--cd", p.Launch.Workspace, "-"}
@@ -214,7 +215,7 @@ func pairedClaudeSubscriptionToken(ctx context.Context) (string, error) {
 		return token, nil
 	}
 	if runtime.GOOS != "darwin" {
-		return "", errors.New("Claude subscription OAuth unavailable: export CLAUDE_CODE_OAUTH_TOKEN through a private credential launcher")
+		return "", errors.New("claude subscription OAuth unavailable: export CLAUDE_CODE_OAUTH_TOKEN through a private credential launcher")
 	}
 	command := exec.CommandContext(ctx, "/usr/bin/security", "find-generic-password", "-s", "Claude Code-credentials", "-w")
 	data, err := command.Output()
@@ -229,7 +230,7 @@ func pairedClaudeSubscriptionToken(ctx context.Context) (string, error) {
 	oauth := pairedObject(credential, "claudeAiOauth")
 	token := pairedString(oauth, "accessToken")
 	if token == "" {
-		return "", errors.New("Claude subscription credential does not contain an OAuth access token")
+		return "", errors.New("claude subscription credential does not contain an OAuth access token")
 	}
 	return token, nil
 }

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -101,4 +102,33 @@ func TestPairedCodexModelFromOwnRollout(t *testing.T) {
 	assert.Equal(t, "gpt-5.6-terra", actual)
 	_, err = pairedCodexRolloutModel(state, "../session")
 	require.Error(t, err)
+}
+
+func TestPairedRunTimeoutClosesDescendantPipe(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("fixture uses a Unix shell")
+	}
+	dir := t.TempDir()
+	binary := filepath.Join(dir, "agent")
+	// The parent waits while the child holds its inherited stdout open. Killing
+	// only the parent leaves the stream scanner blocked on the sleeping child.
+	script := "#!/bin/sh\n/bin/sleep 30 &\nwait\n"
+	require.NoError(t, os.WriteFile(binary, []byte(script), 0o700))
+	started := time.Now()
+	result, err := runPairedAgent(context.Background(), PairedPrepared{
+		Executable: binary,
+		Args:       []string{},
+		Env:        []string{},
+		Blockers:   []string{},
+		Launch: PairedLaunch{
+			Agent:          PairedAgentSpec{Host: "claude", Model: "test"},
+			Condition:      "baseline",
+			Workspace:      dir,
+			TranscriptPath: filepath.Join(dir, "transcript.jsonl"),
+			Timeout:        50 * time.Millisecond,
+		},
+	})
+	require.Error(t, err)
+	assert.Equal(t, "timeout", result.Status)
+	assert.Less(t, time.Since(started), time.Second)
 }

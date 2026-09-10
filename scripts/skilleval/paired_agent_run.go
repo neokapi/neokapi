@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 )
@@ -42,21 +43,30 @@ func runPairedAgent(ctx context.Context, prepared PairedPrepared) (PairedAgentRe
 	defer stderrFilter.Flush()
 	command.Stderr = stderrFilter
 	command.WaitDelay = 2 * time.Second
+	pairedConfigureProcess(command)
 	pipe, err := command.StdoutPipe()
 	if err != nil {
 		return result, err
 	}
+	defer pipe.Close()
+	// Closing stdout on cancellation also releases the scanner when a descendant
+	// retains the descriptor after its parent exits. WaitDelay starts too late
+	// to provide that guarantee on its own.
+	stopPipeClose := context.AfterFunc(ctx, func() { _ = pipe.Close() })
+	defer stopPipeClose()
 	started := time.Now()
 	if err := command.Start(); err != nil {
 		result.Status = "launch_failed"
 		result.Error = err.Error()
 		return result, err
 	}
+	defer func() { _ = pairedStopProcess(command) }()
 	transcriptFilter := newPairedRedactor(transcript, prepared.Env)
 	defer transcriptFilter.Flush()
 	result, parseErr := parsePairedAgentStream(io.TeeReader(pipe, transcriptFilter), prepared.Launch)
 	if parseErr != nil && result.Status != "identity_unverified" {
-		_ = command.Process.Kill()
+		_ = pairedStopProcess(command)
+		_ = pipe.Close()
 		_, _ = io.Copy(transcriptFilter, pipe)
 	}
 	waitErr := command.Wait()
@@ -66,7 +76,7 @@ func runPairedAgent(ctx context.Context, prepared PairedPrepared) (PairedAgentRe
 			result.ActualModel = actual
 			if actual != result.RequestedModel {
 				result.Status = "model_mismatch"
-				parseErr = errors.New("Codex rollout model differs from requested model")
+				parseErr = errors.New("codex rollout model differs from requested model")
 			} else if result.ProtocolCompleted {
 				result.Status = "completed"
 				parseErr = nil
@@ -266,10 +276,9 @@ func pairedRouteViolation(condition, tool string, input map[string]any) string {
 		command := pairedString(input, "command")
 		// This is an audit tripwire. Filesystem confinement supplies the boundary;
 		// matching command text alone cannot prevent aliases or indirect execution.
-		for _, word := range strings.FieldsFunc(command, func(r rune) bool { return strings.ContainsRune(" \t\n;|&()'\"", r) }) {
-			if pairedKapiExecutable(word) {
-				return "unexpected kapi CLI route"
-			}
+		words := strings.FieldsFunc(command, func(r rune) bool { return strings.ContainsRune(" \t\n;|&()'\"", r) })
+		if slices.ContainsFunc(words, pairedKapiExecutable) {
+			return "unexpected kapi CLI route"
 		}
 	}
 	return ""
@@ -284,13 +293,12 @@ func pairedNumber(m map[string]any, key string) int64 {
 	return int64(value)
 }
 func pairedUnique(values []string, value string) []string {
-	for _, existing := range values {
-		if value == existing {
-			return values
-		}
+	if slices.Contains(values, value) {
+		return values
 	}
 	return append(values, value)
 }
+
 func pairedRateLimited(message string) bool {
 	lower := strings.ToLower(message)
 	return strings.Contains(lower, "rate limit") || strings.Contains(lower, "usage limit") || strings.Contains(lower, "quota")
@@ -331,7 +339,7 @@ func pairedCodexRolloutModel(stateDir, sessionID string) (string, error) {
 		}
 	}
 	if len(models) != 1 {
-		return "", errors.New("Codex rollout lacks a unique model identity")
+		return "", errors.New("codex rollout lacks a unique model identity")
 	}
 	for model := range models {
 		return model, nil
