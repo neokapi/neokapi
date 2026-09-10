@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "status": "development_scoped_style",
+  "provenance": "All products, content and writing policies are authored synthetic material for this isolated project. The policies are fixture-specific, not corporate or production rules.",
+  "candidates": {
+    "original": "I’m sorry the transfer delay has interrupted your work. Harbor is processing some file transfers more slowly than usual, and the team is investigating the cause.\n\nYou can leave an existing transfer in the queue while the investigation continues. Starting it again may create another copy without shortening the wait. New uploads are still being accepted, although their progress may also be delayed.\n\nWe’ll post another update on the service page when we have more information. If your transfer has failed rather than slowed down, reply with its reference so we can look at it. Thanks for bearing with us while we investigate.\n",
+    "paraphrase": "I’m sorry this delay is getting in the way of your work. Some Harbor file transfers are taking longer than normal. Our team is looking into the cause.\n\nAn existing transfer can stay in the queue during the investigation. Restarting it could produce a duplicate and may not make it finish sooner. You can still upload files, but those transfers may progress slowly too.\n\nThe service page will carry a further update once more information is available. If a transfer has failed, send us its reference in your reply so we can investigate it. Thank you for your patience while we work on this.\n",
+    "neutral": "Harbor is processing some file transfers more slowly than usual. The service team is investigating the cause.\n\nExisting transfers can remain in the queue during the investigation. Restarting a transfer may produce another copy without reducing the wait. New uploads are still being accepted, although their progress may also be delayed.\n\nThe service page will carry a further update when more information is available. Support can investigate transfers that have failed rather than slowed down when the customer provides the transfer reference. That reference allows the team to look at the affected transfer.\n"
+  },
+  "cases": [
+    {
+      "id": "harbor-support-original",
+      "candidate": "original",
+      "path": "content/harbor/support/original.md",
+      "audience": "One customer who asked about a delayed transfer",
+      "surface": "Individual support reply",
+      "expected_profile": "harbor",
+      "expected_channel": "support",
+      "expected_style": "appropriate",
+      "model_eligible": true
+    },
+    {
+      "id": "harbor-status-original",
+      "candidate": "original",
+      "path": "content/harbor/status/original.md",
+      "audience": "Subscribers reading the public service page",
+      "surface": "Public service-status notice",
+      "expected_profile": "harbor",
+      "expected_channel": "status",
+      "expected_style": "contextual_style_issues",
+      "model_eligible": true
+    },
+    {
+      "id": "harbor-support-paraphrase",
+      "candidate": "paraphrase",
+      "path": "content/harbor/support/paraphrase.md",
+      "audience": "One customer who asked about a delayed transfer",
+      "surface": "Individual support reply",
+      "expected_profile": "harbor",
+      "expected_channel": "support",
+      "expected_style": "appropriate",
+      "model_eligible": true
+    },
+    {
+      "id": "harbor-status-paraphrase",
+      "candidate": "paraphrase",
+      "path": "content/harbor/status/paraphrase.md",
+      "audience": "Subscribers reading the public service page",
+      "surface": "Public service-status notice",
+      "expected_profile": "harbor",
+      "expected_channel": "status",
+      "expected_style": "contextual_style_issues",
+      "model_eligible": true
+    },
+    {
+      "id": "harbor-support-neutral",
+      "candidate": "neutral",
+      "path": "content/harbor/support/neutral.md",
+      "audience": "One customer who asked about a delayed transfer",
+      "surface": "Individual support reply",
+      "expected_profile": "harbor",
+      "expected_channel": "support",
+      "expected_style": "contextual_style_issues",
+      "model_eligible": true
+    },
+    {
+      "id": "harbor-status-neutral",
+      "candidate": "neutral",
+      "path": "content/harbor/status/neutral.md",
+      "audience": "Subscribers reading the public service page",
+      "surface": "Public service-status notice",
+      "expected_profile": "harbor",
+      "expected_channel": "status",
+      "expected_style": "appropriate",
+      "model_eligible": true
+    },
+    {
+      "id": "unbound-original",
+      "candidate": "original",
+      "path": "content/unbound/original.md",
+      "audience": "Undeclared",
+      "surface": "Unbound draft",
+      "expected_profile": "",
+      "expected_channel": "",
+      "expected_style": "guidance_unavailable",
+      "model_eligible": false
+    },
+    {
+      "id": "beacon-distraction",
+      "candidate": "original",
+      "path": "content/beacon/status/distraction.md",
+      "audience": "Event participants",
+      "surface": "Public event notice",
+      "expected_profile": "beacon",
+      "expected_channel": "status",
+      "expected_style": "unscored_distraction",
+      "model_eligible": false
+    }
+  ]
+}

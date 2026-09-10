@@ -1,0 +1,36 @@
+version: v1
+name: scoped-style-development
+defaults:
+  source_language: en
+  coordinates:
+    organization: fictional-scope-lab
+profiles:
+  harbor:
+    channels: [support, status]
+    voice: .kapi/harbor.yaml
+  beacon:
+    channels: [status]
+    voice: .kapi/beacon.yaml
+collections:
+  - name: harbor-support
+    channel: harbor/support
+    coordinates: {product: harbor, audience: individual-customer}
+    content:
+      - path: content/harbor/support/*.md
+  - name: harbor-status
+    channel: harbor/status
+    coordinates: {product: harbor, audience: service-subscribers}
+    content:
+      - path: content/harbor/status/*.md
+  - name: beacon-status
+    channel: beacon/status
+    coordinates: {product: beacon, audience: event-participants}
+    content:
+      - path: content/beacon/status/*.md
+  - name: unbound-drafts
+    content:
+      - path: content/unbound/*.md
+flows:
+  check:
+    steps:
+      - tool: voice-vocab-check
