@@ -52,7 +52,9 @@ class Bundle:
         return (self.root / relative).exists()
 
 
-def stage(bundle, identifier):
+def stage(bundle, identifier, expected_stage_id=None):
+    if expected_stage_id is not None and (identifier, expected_stage_id) != ("prior-auth-failure", "learn"):
+        raise ValueError("Only the retained prior authentication failure may keep its original stage ID")
     directory = f"ledger/stages/{identifier}"
     if not bundle.exists(directory + "/frozen.json"):
         if bundle.exists(directory + "/started.json") or bundle.exists(directory + "/result.json"):
@@ -60,7 +62,7 @@ def stage(bundle, identifier):
         prompt = bundle.copy(f"prompts/{identifier}.txt") if bundle.exists(f"prompts/{identifier}.txt") else None
         return {"observation": {"status": "not_started"}, "outputs": {}, "notes": [], "audit": {}, "prompt": prompt}
     frozen = bundle.read(directory + "/frozen.json")
-    if frozen["stage"]["id"] != identifier:
+    if frozen["stage"]["id"] != (expected_stage_id or identifier):
         raise ValueError("Frozen stage belongs to another stage")
     bundle.copy(directory + "/frozen.json")
     for path, sha in frozen["input_sha256"].items():
@@ -74,7 +76,7 @@ def stage(bundle, identifier):
     if result and not started:
         raise ValueError("Stage result lacks a start reservation")
     agent = result.get("agent", {})
-    observation = {"status": agent.get("status", "interrupted" if started else "not_started")}
+    observation = {"status": agent.get("status", "started_no_result" if started else "not_started")}
     for source, target in (("actual_model", "model"), ("duration_ms", "duration_ms"), ("tools", "tools")):
         if source in agent and (source != "actual_model" or agent[source]):
             observation[target] = agent[source]
@@ -92,7 +94,7 @@ def stage(bundle, identifier):
         notes.append(result["error"])
     missing = set(frozen["stage"]["expected_outputs"]) - set(outputs)
     notes.extend("No immutable output retained: " + name for name in sorted(missing))
-    audit = {"fingerprint": frozen["fingerprint"], "input_sha256": frozen["input_sha256"],
+    audit = {"stage_id": frozen["stage"]["id"], "ledger_id": identifier, "fingerprint": frozen["fingerprint"], "input_sha256": frozen["input_sha256"],
              "prompt_sha256": frozen["prompt_sha256"], "runner_sha256": frozen.get("runner_sha256"),
              "skill_sha256": frozen.get("skill_sha256"), "kapi_sha256": frozen.get("kapi_sha256"),
              "started_at": started.get("started_at"), "finished_at": result.get("finished_at"),
@@ -115,6 +117,15 @@ def assemble(root, assessment, output):
     for repository, license in sources["licenses"].items():
         reference("license-" + repository, repository + " — retained license", bundle.copy("sources/" + license["file"], license["sha256"]), license["url"])
     stages = {name: stage(bundle, name) for name in ("learn", "draft", *ARMS)}
+    if bundle.exists("ledger/stages/prior-auth-failure"):
+        if not bundle.exists("ledger/stages/prior-auth-failure/frozen.json"):
+            raise ValueError("Retained prior authentication failure lacks frozen identity")
+        stages["prior-auth-failure"] = stage(bundle, "prior-auth-failure", expected_stage_id="learn")
+        prior = stages["prior-auth-failure"]
+        index["stages"].append({"id": "prior-auth-failure", "title": "Retained prior authentication failure", "observation": prior["observation"], "notes": prior["notes"]})
+    recovery = bundle.read("recovery.json") if bundle.exists("recovery.json") else None
+    if recovery is not None:
+        reference("recovery", "Authentication recovery and retained attempt accounting", bundle.copy("recovery.json"))
     for name, record in stages.items():
         if record["prompt"]:
             reference("prompt-" + name, name + " — exact stage prompt", record["prompt"])
@@ -159,7 +170,7 @@ def assemble(root, assessment, output):
     assessment_data = assessment.read_bytes()
     index["assessment"] = json.loads(assessment_data)
     reference("assessment", "Independent assessment record", bundle.put("assessment.json", assessment_data))
-    audit = {"preparation": preparation, "stages": {name: record["audit"] for name, record in stages.items()},
+    audit = {"preparation": preparation, "recovery": recovery, "stages": {name: record["audit"] for name, record in stages.items()},
              "matched_guidance": matched, "artifacts": list(bundle.artifacts), "model_calls": 0,
              "meaning": "Artifact identity and observed execution only; no automatic quality score. Mutable adaptation workspace files are not used as outputs."}
     reference("audit", "Input hashes, timings and matched-guidance evidence", bundle.put("audit.json", (json.dumps(audit, indent=2) + "\n").encode()))

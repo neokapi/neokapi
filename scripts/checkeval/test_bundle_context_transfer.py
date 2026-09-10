@@ -1,11 +1,12 @@
 """Offline bundle integrity checks using synthetic retained runner artifacts."""
 
 import json
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
 
-from bundle_context_transfer import assemble, digest
+from bundle_context_transfer import Bundle, assemble, digest, stage
 from report_context_transfer import load_index
 
 
@@ -99,6 +100,38 @@ class ContextTransferBundleTest(unittest.TestCase):
                         "guide_sha256": digest((directory / "learned-guide.md").read_bytes())}))
                 with self.assertRaisesRegex(ValueError, "differs from immutable"):
                     assemble(root, assessment, output)
+
+    def test_retained_auth_failure_keeps_original_identity_and_counts_separately(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root, output = Path(temporary) / "run", Path(temporary) / "bundle"
+            assessment = fixture(root)
+            retained = root / "ledger/stages/prior-auth-failure"
+            shutil.copytree(root / "ledger/stages/draft", retained)
+            frozen = json.loads((retained / "frozen.json").read_text())
+            frozen["stage"]["id"] = "learn"
+            (retained / "frozen.json").write_text(json.dumps(frozen))
+            result = json.loads((retained / "result.json").read_text())
+            result["agent"]["status"] = "agent_failed"
+            result["outputs"] = []
+            result["error"] = "Authentication failed before authoring."
+            (retained / "result.json").write_text(json.dumps(result))
+            recovery = {"retained_failure": "ledger/stages/prior-auth-failure", "planned_new_starts": 5}
+            (root / "recovery.json").write_text(json.dumps(recovery))
+            assemble(root, assessment, output)
+            index = json.loads((output / "index.json").read_text())
+            self.assertEqual([item["id"] for item in index["stages"]], ["prior-auth-failure", "learn"])
+            self.assertEqual(index["stages"][0]["observation"]["status"], "agent_failed")
+            self.assertEqual(index["stages"][1]["observation"]["status"], "not_started")
+            self.assertEqual((output / "ledger/stages/prior-auth-failure/frozen.json").read_bytes(), (retained / "frozen.json").read_bytes())
+            audit = json.loads((output / "audit.json").read_text())
+            self.assertEqual(audit["recovery"], recovery)
+            self.assertEqual(audit["stages"]["prior-auth-failure"]["stage_id"], "learn")
+            self.assertTrue(any(item["id"] == "recovery" for item in index["references"]))
+            with self.assertRaisesRegex(ValueError, "Only the retained"):
+                stage(Bundle(root, Path(temporary) / "invalid-alias"), "draft", expected_stage_id="learn")
+            (retained / "inputs/facts.md").write_text("Changed prior evidence")
+            with self.assertRaisesRegex(ValueError, "hash differs"):
+                assemble(root, assessment, Path(temporary) / "tampered")
 
     def test_plain_context_must_match_actual_resolver_bytes(self):
         with tempfile.TemporaryDirectory() as temporary:
