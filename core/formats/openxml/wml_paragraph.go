@@ -35,6 +35,9 @@ func (p *wmlParser) parseParagraph(d *rawDecoder, partPath string, emitBlock fun
 	// tag is kept so a rendered paragraph reopens with the source's own
 	// attributes.
 	pStart := d.Offset()
+	// Only standalone paragraphs have a one-block physical source range.
+	// Deferred field and revision merges span multiple source paragraphs.
+	sourceStandalone := p.partMergeable == nil && p.partFieldStraddle == nil && !p.partCfs.active
 	pOpenTag := wmlParagraphOpenTag(d.RawString())
 	d.Pin(pStart)
 	defer d.Unpin()
@@ -1362,6 +1365,9 @@ func (p *wmlParser) parseParagraph(d *rawDecoder, partPath string, emitBlock fun
 
 				block := p.buildBlock(blockID, merged, partPath, commonRPrXML, perRunRPrXML, perRunSrcRunStart)
 				p.applyParagraphRole(block, paraStyleID, paraProps, allHidden(merged, inheritedVanish))
+				if sourceStandalone && !fieldOpen && !wmlRevisionMarkupRE.Match(span) {
+					block.SetSourceSpan(model.SourceSpan{Part: partPath, Start: int(pStart), End: int(pEnd)})
+				}
 				emitBlock(block)
 				return nil
 			}
