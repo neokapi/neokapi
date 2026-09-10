@@ -39,6 +39,11 @@ In particular, configured read restrictions must not be described as enforced
 without a successful runtime check. Keep hidden evaluation artifacts outside the
 agent's workspace and inspect smoke transcripts before a scored study.
 
+The route audit is conservative: a proposed shell command containing a kapi CLI
+route is rejected outside the CLI condition, including a conditional fallback.
+That status records the proposed route; it does not prove that the command's
+condition was true or that a kapi subprocess executed.
+
 The CLI wrapper binds `KAPI_PROJECT` to the fixture's absolute recipe path and
 clears `KAPI_NO_PROJECT` for that invocation. Explicit environment binding resolves
 before directory discovery. This supports commands without a recipe flag,
@@ -65,6 +70,13 @@ Preflight prepares configurations without inference. The default manifest is
 `scripts/skilleval/testdata/paired-study.json`; output defaults to the ignored
 `harness/out/paired-eval` directory. Override them with `PAIRED_EVAL_MANIFEST` and
 `PAIRED_EVAL_DIR`.
+
+For MCP, preparation also starts the isolated kapi server, initializes its
+protocol and lists tools and context resources. Missing required capabilities
+or failed discovery block inference. The saved readiness record establishes
+server capability at preparation time. It does not establish that an agent host
+exposed those capabilities to its model or that the model used them; those are
+separate observations from the live transcript.
 
 Keep the binary unchanged within a study. A build embeds its build identity, so
 rebuilding can change its hash even when the content-checking source is the same.

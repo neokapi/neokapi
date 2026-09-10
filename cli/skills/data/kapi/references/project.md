@@ -168,22 +168,25 @@ pre-filled from content memory. Then:
 kapi merge -i out/*.xliff            # writes translations into the target files + project content memory
 ```
 
-## Verify, and fix until it passes
+## Verify content and release gates
 
-Treat your output as a draft until kapi passes it. `kapi check --ship` runs the project's
-gates together (voice profile score, terminology against the bound terms store, and
-translation checks: placeholders preserved, nothing left untranslated) and reports
-the exact findings:
+During authoring, check each edited file with `kapi check <file> --json`. Review
+the findings and analyzer coverage against the task's requirements.
+
+For release verification, `kapi check --ship` runs the project's applicable gates
+together: voice and terms, source content checks, translation checks for target
+content, and any declared coverage requirements. It reports the findings:
 
 ```bash
 kapi check --ship --json --no-fail         # report: read `pass` + findings; always exits 0
 ```
 
-Exit 3 from `kapi check --ship` means "not on-spec yet" rather than a crash; it's the gate giving
-you findings to act on. While you're iterating, pass `--no-fail` so it always exits 0
-and you read the `pass` field; drop `--no-fail` in CI, where the non-zero exit blocks
-the build. Read the findings, fix them, and run it again; loop until it passes. This is the
-gate that makes the result trustworthy regardless of how you produced it.
+Exit 3 means a gate failed. With `--no-fail`, the command exits 0 and the `pass`
+field carries the verdict; omit that flag when CI must enforce the release bar.
+Correct findings within the requested scope and re-check. If a finding persists
+or conflicts with the governing guidance, report it for review. A passing gate
+establishes its declared checks; meaning and unsupported writing guidance still
+need review.
 
 For unattended runs (CI, no assistant), `kapi translate` / `kapi run translate-qa`
 call a configured provider instead; the project's voice profile and terms still apply,

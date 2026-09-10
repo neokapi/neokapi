@@ -36,9 +36,22 @@ server was started; the factories read it to decide what to add.
 flag convention and otherwise runs the shared upward walk. `KAPI_NO_PROJECT=1`
 disables implicit discovery; an explicit recipe still wins. The resolver retains
 the exact recipe path and source language before serving tools. Invalid project
-loading returns an error. `check_file` threads that path into its synthetic host
-command, so profile and terms resolution uses the bound project even when
-implicit discovery is disabled. Custom recipe filenames remain intact.
+loading returns an error. `check_file` and a scoped `check_text` thread that path
+into their synthetic host commands, so profile and terms resolution uses the
+bound project even when implicit discovery is disabled. Custom recipe filenames
+remain intact.
+
+`check_text.context_path` names a project-relative destination, including a file
+that has not been written. It resolves the destination's voice channel and terms
+without extracting a file. The path requires a bound project and cannot be
+combined with `profile_file` or `profile_pack`. Unscoped snippets retain those
+explicit profile options. Invalid paths and context-resolution errors fail the
+operation instead of dropping the requested scope.
+
+A scoped draft report keeps `target.kind: "text"` and records the destination in
+`target.context_path`. Its findings and analyzer entries have no file location:
+they describe the supplied snippet. `check_file` remains the post-save check for
+document extraction, structure and block locations.
 
 The canonical CLI/MCP check report includes optional `execution.analyzers` and
 phase timings. An absent inventory means unreported coverage. Applicable

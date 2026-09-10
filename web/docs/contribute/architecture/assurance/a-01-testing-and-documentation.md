@@ -201,6 +201,12 @@ findings. Analysis that did not execute is not inferred from a zero-finding
 result. Malformed model output and governing-context failures remain operational
 errors rather than successful empty reports.
 
+Source-only content is checked as authored content, including within projects
+that also have translated targets. Naming a source file and selecting it through
+the project use the same applicable content checks. Translation checks apply to
+declared or explicitly requested target content. Release-gate evidence records
+what was measured, including empty scopes.
+
 A rule demonstration is development evidence for that rule. Quality evaluation
 uses separate document families and clean counterexamples, with independent
 labels for semantic and reader-facing judgments. The product's own checker is
@@ -225,6 +231,9 @@ an explicit session allowance, with started and failed attempts retained across
 resumes. Subscription usage is reported separately from API-equivalent cost.
 Raw study records remain local pending review for publication. Pilot documents
 support harness development; scored evaluations use separate document families.
+MCP preparation records server capabilities through protocol discovery. Server
+readiness, host exposure and observed agent use are separate evidence: a ready
+server alone establishes neither of the latter two.
 See [Paired agent evaluation](../../implementation/repo/paired-agent-evaluation.md)
 for the manifest, execution stages and evidence records.
 
