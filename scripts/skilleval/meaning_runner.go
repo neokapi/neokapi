@@ -131,7 +131,7 @@ func runMeaning(ctx context.Context, opts MeaningOptions, study meaningStudy, in
 			return err
 		}
 		result, runErr := deps.run(ctx, prepared)
-		integrity := validateMeaningReview(result.FinalText, inputs[session.CaseID])
+		integrity := validateMeaningProtocol(result.FinalText, session.Protocol, inputs[session.CaseID])
 		if len(result.Tools) > 0 {
 			result.Status = "tool_use_violation"
 			integrity.Errors = append(integrity.Errors, "tool use violates fixed-input review protocol")
