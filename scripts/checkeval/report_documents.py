@@ -96,6 +96,16 @@ def render(prepared, study, checks, output, assessment_path=None):
             f"<details><summary>Deterministic kapi coverage</summary><p>Status: {escape(deterministic['status'])}; "
             f"findings: {len(deterministic.get('findings',[]))}</p><p>{escape(statuses)}</p></details></section>"
         )
+    comparison_html = ""
+    if any(session.get("protocol") == "requirements" for session in manifest["sessions"]):
+        comparison_html = (
+            "<p>Matched comparison: ordinary and requirement-based review receive the same explicit reader requirements, "
+            "candidate and sources. The prompt, response structure and validation differ. These three cases were selected "
+            "from previous development failures; they are not held out. One attempt per mode and case cannot establish "
+            "a general accuracy or speed advantage.</p>"
+        )
+    method_html = (f"<p><strong>Assessment method:</strong> {escape(assessment['method'])}</p>"
+                   if assessment.get("method") else "")
     page = """<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Contextual review: saved results</title><style>
 body{font:17px/1.55 system-ui,sans-serif;color:#233c38;background:#f6f4ec;margin:0}main{max-width:1360px;margin:auto;padding:28px 20px}
@@ -108,7 +118,9 @@ li{margin:16px 0}a{color:#17675a}table{border-collapse:collapse;width:100%}td,th
 <p>Each review uses a fixed guide and supplied source evidence. These are synthetic development documents based on repository documentation.
 The model is reviewing directly; kapi's deterministic checks are recorded separately. This does not measure kapi's incremental benefit.</p>
 <p>Finding counts are observations, not correctness scores. Expected issues are provisional authored labels, independently checked by an agent.
-Output integrity validates JSON, references and quotations only. Additional findings require source-based adjudication; human acceptance and review time remain unmeasured.</p>
+Output integrity validates response structure, references and quotations; the requirements protocol also requires one assessment per declared requirement.
+Additional findings require source-based adjudication; human acceptance and review time remain unmeasured.</p>
+""" + comparison_html + method_html + """
 <div class="table"><table><thead><tr><th>Case</th><th>Host outcome</th><th>Time</th><th>Findings</th><th>Abstentions</th><th>Authored issues</th></tr></thead><tbody>
 """ + "".join(rows) + "</tbody></table></div>" + "".join(sections) + "</main></html>\n"
     with output.open("x", encoding="utf-8") as file:

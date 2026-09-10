@@ -245,6 +245,23 @@ Independent source-based adjudication remains necessary. This comparison can
 assess the prototype's review contract with supplied evidence; it cannot
 establish the benefit of automatic context retrieval or production readiness.
 
+### Readiness before integration
+
+Response reliability and action coverage are separate requirements for a usable
+analyzer. A semantically useful answer enclosed in Markdown remains a protocol
+failure. A structurally valid assessment can still mark a necessary action as
+covered merely because the candidate describes that tool's options. Neither
+outcome is sufficient for automated acceptance.
+
+Before adding a caller-facing analyzer, verify response-format handling with
+saved outputs and test action coverage on fresh document families. Include
+explicit instructions, faithful indirect instructions and descriptions that
+leave a necessary step unstated. Any transport normalization must retain the raw
+response and record the transformation separately; it must not reinterpret
+already-frozen study results. Continue to supply identical requirements to the
+ordinary-review control. These checks precede wider host/model comparisons and
+automatic context retrieval.
+
 ## What counts as evidence
 
 Use three outcomes: supported, contradicted, and insufficient context. Supported
