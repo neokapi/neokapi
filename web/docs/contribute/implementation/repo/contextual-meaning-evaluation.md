@@ -278,6 +278,30 @@ already-frozen study results. Continue to supply identical requirements to the
 ordinary-review control. These checks precede wider host/model comparisons and
 automatic context retrieval.
 
+### Fresh action-coverage cases
+
+`scripts/checkeval/action-coverage.json` defines fictional museum-transfer,
+event-equipment handoff and editorial-correction procedures. Each family has
+direct instructions, faithful indirect instructions and a variant describing
+available options while leaving a necessary action unstated. The governing
+policies are authored synthetic evidence, not claims about real organizations.
+All variants share their family's task, sources and explicit requirements.
+
+```sh
+make meaning-eval-prepare-actions MEANING_EVAL_INPUTS=harness/out/action-inputs
+make meaning-eval-preflight MEANING_EVAL_INPUTS=harness/out/action-inputs MEANING_EVAL_DIR=harness/out/action-review
+make meaning-eval-run MEANING_EVAL_INPUTS=harness/out/action-inputs MEANING_EVAL_DIR=harness/out/action-review
+```
+
+Preparation fixes one case from each family: a direct instruction, an indirect
+instruction and a missing action. Each receives ordinary and requirement-based
+review under the same subscription limits. The casebook shows all nine
+variants; only the selected three enter subject inputs. The other variants
+remain unrun development controls. An independent agent assesses the cases
+before live review, with disagreements resolved and recorded separately from
+the authored labels. This small probe checks behavior on fresh families; it
+does not estimate generalization, human acceptance or a product advantage.
+
 ## What counts as evidence
 
 Use three outcomes: supported, contradicted, and insufficient context. Supported

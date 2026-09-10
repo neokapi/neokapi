@@ -2384,13 +2384,16 @@ paired-eval-score: ## Summarize saved paired attempts without model calls
 MEANING_EVAL_INPUTS ?= harness/out/contextual-documents
 MEANING_EVAL_DIR ?= harness/out/contextual-review
 MEANING_EVAL_MAX_ATTEMPTS ?= 6
-.PHONY: meaning-eval-prepare meaning-eval-prepare-comparison meaning-eval-checks meaning-eval-preflight meaning-eval-run
+.PHONY: meaning-eval-prepare meaning-eval-prepare-comparison meaning-eval-prepare-actions meaning-eval-checks meaning-eval-preflight meaning-eval-run
 
 meaning-eval-prepare: ## Prepare contextual document cases and browser casebook without inference (requires a new output directory)
 	python3 scripts/checkeval/prepare_documents.py --out "$(MEANING_EVAL_INPUTS)"
 
 meaning-eval-prepare-comparison: ## Prepare matched ordinary and requirement-coverage review inputs without inference
 	python3 scripts/checkeval/prepare_documents.py --requirements-comparison --out "$(MEANING_EVAL_INPUTS)"
+
+meaning-eval-prepare-actions: ## Prepare fresh action-coverage cases and matched review inputs without inference
+	python3 scripts/checkeval/prepare_actions.py --out "$(MEANING_EVAL_INPUTS)"
 
 meaning-eval-checks: ## Record deterministic check coverage for contextual documents (build kapi first)
 	python3 scripts/checkeval/check_documents.py --inputs "$(MEANING_EVAL_INPUTS)/subject/inputs.jsonl" --kapi bin/kapi --out "$(MEANING_EVAL_DIR)-checks"
