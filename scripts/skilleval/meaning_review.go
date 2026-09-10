@@ -90,6 +90,7 @@ type meaningIntegrity struct {
 	Review     *meaningReview             `json:"review,omitempty"`
 	Contextual *contextual.Result         `json:"contextual,omitempty"`
 	Anchored   *contextual.AnchoredResult `json:"anchored,omitempty"`
+	Style      *meaningStyleReview        `json:"style,omitempty"`
 	Transport  *meaningTransport          `json:"transport,omitempty"`
 	Scope      string                     `json:"scope"`
 }
@@ -317,7 +318,7 @@ func validateMeaningManifest(m meaningManifest, inputs map[string]meaningInput) 
 	for _, session := range m.Sessions {
 		_, known := inputs[session.CaseID]
 		protocol := meaningProtocol(session.Protocol)
-		if protocol != "ordinary" && protocol != "requirements" && protocol != "anchored" {
+		if protocol != "ordinary" && protocol != "requirements" && protocol != "anchored" && protocol != "style" {
 			return fmt.Errorf("unknown meaning protocol %q", session.Protocol)
 		}
 		pair := session.Host + ":" + session.CaseID + ":" + protocol
