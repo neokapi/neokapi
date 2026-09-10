@@ -8,7 +8,8 @@ description: Inspect heading-delimited content, prepare snapshot-bound patches, 
 A section edit replaces the body beneath an existing heading. The body can
 contain several paragraphs, nested headings, lists and code blocks. The selected
 heading stays in place. The range ends at the next heading of the same or a
-higher level, or at the end of the document's content.
+higher level, or at the end of the containing structure. In HTML, heading
+sections are bounded by their parent element.
 
 The format reader supplies the document structure and heading identity. Section
 inspection presents the body as Markdown so an editor can work on a coherent
@@ -33,7 +34,9 @@ kapi inspect instructions.md --sections
 
 The response contains `file`, `format`, `snapshot`, `content_format: "markdown"`
 and `sections`. Each section includes its heading identity, title, level, path
-and Markdown body. A section's body includes its descendant sections. Replacing
+and Markdown body. Its `range` identifies the heading and body through native
+block IDs, structural addresses, content hashes and advisory source spans.
+A section's body includes its descendant sections. Replacing
 that body also replaces those descendants.
 
 Write one section entry to a JSONL change file:
@@ -53,8 +56,12 @@ The JSON preview includes a `plan` with `format`, `snapshot` and `patches`.
 Each patch contains `start`, `end`, `before` and `replacement`. `start` and
 `end` are byte offsets into the immutable original source, with an exclusive
 end. `before` and `replacement` are UTF-8 strings. For a Word document, `entry`
-identifies the ZIP member, such as `word/document.xml`, and the offsets address
-that member's uncompressed bytes. A flat-file patch addresses the file bytes.
+identifies a package part already recognized by the native reader through
+`partPath`. The offsets address that member's uncompressed bytes. The plan also
+carries `range`, with the preserved heading and affected native block anchors.
+Reader-provided source spans bind those anchors to the writer offsets. Agents
+select the heading ID and snapshot; the adapter supplies package locations.
+A flat-file patch addresses the file bytes.
 
 Apply the change and inspect the saved document before another revision:
 
@@ -71,6 +78,10 @@ establishes.
 
 ## Replacement syntax and preservation
 
+The POC accepts one section entry per change-set, on a regular local file.
+Symlinks, ambiguous boundaries, missing source spans and unsupported markup
+are rejected. Heading-free documents have no section target.
+
 The shared replacement body uses a bounded Markdown vocabulary: paragraphs,
 nested headings, lists, fenced code and basic emphasis. A format adapter maps
 that body into its native representation and rejects unsupported structures.
@@ -81,7 +92,10 @@ Markdown and HTML plans preserve the bytes outside the selected body, including
 the selected heading. HTML shell attributes and unrelated elements remain part
 of the original source. Word plans patch the relevant document member and retain
 the other ZIP member payloads. A Word list requires compatible numbering
-definitions in the source package. The demonstration supplies those definitions.
+definitions in the source package. The demonstration supplies those definitions. Word replacement supports bullet
+lists with an existing compatible numbering definition; ordered lists and
+hyperlinks require broader relationship and numbering support. Tables, images,
+raw HTML and block quotes are outside the shared fragment vocabulary.
 
 The Markdown reading projection is an editing view. It does not establish that
 every native feature can be reconstructed from that projection. Unchanged ZIP

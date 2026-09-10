@@ -262,6 +262,21 @@ through the same host decision path the CLI uses, with the agent's identity
 attached; `apply_edits` with a `review` entry reaches the same record. Both
 land in the working set and are published by `kapi commit`.
 
+### Section edits on the shared agent surface
+
+The CLI reads heading sections with `inspect --sections`; MCP exposes the same
+host operation as `inspect_sections`. Both return the document snapshot and
+native block ranges. File-scoped context retrieval supplies applicable writing
+guidance before the agent authors a Markdown replacement body.
+
+`apply` and `apply_edits` accept one `kind: "section"` entry per change-set in
+the POC. The entry carries the file, returned heading ID, snapshot and body
+text. CLI `--diff --json` and MCP `preview: true` expose the immutable offset
+plan without writing. Applying it preserves the selected heading and replaces
+its body through the format writer. The agent then re-inspects the saved file,
+runs the existing checks and revises against the findings and reported coverage.
+A successful write does not certify editorial quality or unsupported guidance.
+
 ### Format editability is declarative
 
 A skill needs to know, before it edits, whether a format can be written back.
@@ -294,7 +309,7 @@ does automatically and invisibly.
 The default surface is therefore the hand-authored porcelain (reading and
 sizing content, checking text or a file, voice scoring and offline rewriting,
 context search, the catch-up verbs and their dry run, the review-queue verbs,
-and `apply_edits`) plus a short curated list of registry tools that produce
+and `apply_edits`, with `inspect_sections` for structural edits) plus a short curated list of registry tools that produce
 something a caller cannot produce itself or check something with no porcelain
 equivalent: `translate`, `term-check` and `redact`. The listing and
 format-detection helpers, `extract_content`, `pseudo_translate` and the

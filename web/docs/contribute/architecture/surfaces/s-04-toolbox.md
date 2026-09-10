@@ -145,6 +145,21 @@ Because the projection is the translatable blocks, the utilities inherit the
 content model's notion of what is translatable
 ([F-02](../foundations/f-02-content-model.md)) rather than re-deriving one.
 
+### Heading-section inspection and application
+
+`kapi inspect FILE --sections` exposes the section-edit POC for Markdown, HTML
+and DOCX. The response groups native content blocks beneath a heading and
+carries source spans and a full document snapshot. Its Markdown body is a
+reading projection for authoring a larger replacement. It is distinct from a
+canonical serialization or a fidelity claim.
+
+One `kind: "section"` entry in `kapi apply` replaces that body through a
+snapshot-bound offset plan. The writer applies offsets to the original source;
+preview is read-only. `--diff --json` exposes the plan and both section views.
+The subsequent `check` reads the saved native file and reports the checks that
+ran. See [Semantic section edits](/contribute/implementation/engine/semantic-edit)
+for syntax, supported structures and the reproducible demonstration.
+
 ### Which valid conversion targets exist
 
 A cross-format conversion reconstructs the target from the content model, never

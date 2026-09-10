@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/neokapi/neokapi/core/sectionedit"
 	coretools "github.com/neokapi/neokapi/core/tools"
 )
 
@@ -23,21 +24,31 @@ func init() {
 // Each entry is a content edit or an asset edit (term/tm/brand/recipe).
 type applyEditsInput struct {
 	Changeset []changeEntry `json:"changeset" jsonschema:"the typed change-set entries to apply"`
+	Preview   bool          `json:"preview,omitempty" jsonschema:"preview a section entry as an offset plan without writing; section entries only"`
 }
 
 // applyEditsMCPOutput reports the per-block content outcome and per-entry asset
 // outcomes; OK is false when any edit drifted (stale) or was rejected by the
 // inline-code guard, signalling the caller to re-inspect and retry.
 type applyEditsMCPOutput struct {
-	OK      bool          `json:"ok"`
-	Applied []string      `json:"applied,omitempty"`
-	Skipped []string      `json:"skipped,omitempty"`
-	Stale   []string      `json:"stale,omitempty"`
-	Guard   []string      `json:"guard_failed,omitempty"`
-	Assets  []assetResult `json:"assets,omitempty"`
+	OK      bool               `json:"ok"`
+	Section *SectionEditResult `json:"section,omitempty"`
+	Applied []string           `json:"applied,omitempty"`
+	Skipped []string           `json:"skipped,omitempty"`
+	Stale   []string           `json:"stale,omitempty"`
+	Guard   []string           `json:"guard_failed,omitempty"`
+	Assets  []assetResult      `json:"assets,omitempty"`
+}
+
+type inspectSectionsInput struct {
+	File string `json:"file" jsonschema:"local Markdown, HTML or DOCX file"`
 }
 
 func registerEditMCPTools(server *mcp.Server, a *App) {
+	mcp.AddTool(server, &mcp.Tool{Name: "inspect_sections", Description: "Read heading sections with native neokapi block ranges and source snapshot. Content is a Markdown reading projection. Read the file context resource before authoring; use apply_edits kind=section and preview=true, then apply and check_file. The POC supports Markdown, HTML and DOCX with explicit source/fragment limits."}, func(ctx context.Context, req *mcp.CallToolRequest, in inspectSectionsInput) (*mcp.CallToolResult, sectionedit.Document, error) {
+		doc, err := a.InspectSections(ctx, in.File)
+		return nil, doc, err
+	})
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "apply_edits",
 		Description: "Apply a typed change-set: the one write verb. For document wording, each entry " +
@@ -47,7 +58,9 @@ func registerEditMCPTools(server *mcp.Server, a *App) {
 			"asset edits (terms entry, content memory pair, voice rule, recipe field) are written to their " +
 			"committed source and compiled into the cache. No AI provider is used. Read the " +
 			"context://<project-relative-path> resource before editing content, then run check_file on " +
-			"each changed file to review findings and analyzer coverage.",
+			"each changed file to review findings and analyzer coverage. For section edits use inspect_sections, " +
+			"then one kind=section entry with file, id, snapshot and text (Markdown body). preview=true " +
+			"returns an immutable writer offset plan without writing. The heading is preserved.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, in applyEditsInput) (*mcp.CallToolResult, applyEditsMCPOutput, error) {
 		return a.applyEditsMCP(ctx, in)
 	})
@@ -56,6 +69,20 @@ func registerEditMCPTools(server *mcp.Server, a *App) {
 func (a *App) applyEditsMCP(ctx context.Context, in applyEditsInput) (*mcp.CallToolResult, applyEditsMCPOutput, error) {
 	if err := validateContentWording(in.Changeset); err != nil {
 		return nil, applyEditsMCPOutput{}, err
+	}
+	if err := validateSectionChangeSet(in.Changeset); err != nil {
+		return nil, applyEditsMCPOutput{}, err
+	}
+	if len(in.Changeset) == 1 && in.Changeset[0].Kind == kindSection {
+		entry := in.Changeset[0]
+		result, err := a.ApplySectionEdit(ctx, entry.File, sectionedit.Edit{ID: entry.ID, Snapshot: entry.Snapshot, Text: entry.Text}, in.Preview, "")
+		if err != nil {
+			return nil, applyEditsMCPOutput{}, err
+		}
+		return nil, applyEditsMCPOutput{OK: true, Section: &result}, nil
+	}
+	if in.Preview {
+		return nil, applyEditsMCPOutput{}, errors.New("preview is supported for one section entry only")
 	}
 	var out applyOutput
 

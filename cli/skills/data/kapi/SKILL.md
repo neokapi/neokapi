@@ -128,6 +128,17 @@ kapi apply edits.jsonl --diff
 kapi apply edits.jsonl
 ```
 
+For a larger Markdown, HTML or DOCX section, use `kapi inspect FILE --sections`.
+Select the heading by title/path, then use its returned ID and document snapshot
+in one entry: `{"kind":"section","file":"FILE","id":"<heading ID>","snapshot":"<snapshot>","text":"<Markdown body>"}`.
+This replaces the body and descendants while preserving the heading. Preview
+with `kapi apply edits.jsonl --diff --json` to inspect the native block range and
+immutable offset plan, then apply. Re-inspect after each structural edit; IDs
+and snapshots belong to the inspected version. Unsupported structures fail
+without changing the file. Retrieve the file's context before authoring and
+run the usual checks after saving.
+
+
 Check the saved content. Project voice and terms resolve from its path:
 
 ```bash

@@ -25,6 +25,7 @@ type changeKind string
 
 const (
 	kindContent changeKind = "content"
+	kindSection changeKind = "section"
 	kindTerm    changeKind = "term"
 	kindMemory  changeKind = "memory"
 	kindVoice   changeKind = "voice"
@@ -43,6 +44,7 @@ type changeEntry struct {
 	File        string `json:"file,omitempty"`
 	ID          string `json:"id,omitempty"`
 	ContentHash string `json:"content_hash,omitempty"`
+	Snapshot    string `json:"snapshot,omitempty"`
 	Text        string `json:"text,omitempty" jsonschema:"new block wording for kind=content; preserve inline placeholders from extract_content"`
 
 	// asset common
@@ -117,6 +119,12 @@ func (a *App) RunApply(cmd Command, path string, diff bool, backupSuffix string,
 		return err
 	}
 
+	if err := validateSectionChangeSet(entries); err != nil {
+		return err
+	}
+	if len(entries) == 1 && entries[0].Kind == kindSection {
+		return a.runSectionApply(cmd, entries[0], diff, backupSuffix, asJSON)
+	}
 	var out applyOutput
 
 	// Content entries grouped by file → one faithful round-trip per file.
