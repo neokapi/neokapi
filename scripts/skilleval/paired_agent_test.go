@@ -82,6 +82,42 @@ func TestPairedTokenAccountingIncludesCachedInput(t *testing.T) {
 	}
 }
 
+func TestPairedCodexResourceHelpersPreserveRouteIsolation(t *testing.T) {
+	for _, tc := range []struct {
+		condition, tool, target string
+		allowed                 bool
+	}{
+		{condition: "mcp", tool: "list_mcp_resources", allowed: true},
+		{condition: "mcp", tool: "list_mcp_resource_templates", allowed: true},
+		{condition: "mcp", tool: "read_mcp_resource", target: "kapi", allowed: true},
+		{condition: "mcp", tool: "read_mcp_resource", allowed: false},
+		{condition: "mcp", tool: "list_mcp_resources", target: "foreign", allowed: false},
+		{condition: "mcp", tool: "read_mcp_resource", target: "foreign", allowed: false},
+		{condition: "mcp", tool: "execute", target: "kapi", allowed: false},
+		{condition: "baseline", tool: "list_mcp_resources", allowed: false},
+		{condition: "skill-cli", tool: "read_mcp_resource", target: "kapi", allowed: false},
+	} {
+		item := map[string]any{
+			"type": "mcp_tool_call", "server": "codex", "tool": tc.tool,
+			"arguments": map[string]any{"server": tc.target},
+		}
+		event, err := json.Marshal(map[string]any{"type": "item.started", "item": item})
+		require.NoError(t, err)
+		stream := "{\"type\":\"thread.started\",\"model\":\"test\"}\n" + string(event) +
+			"\n{\"type\":\"turn.completed\",\"usage\":{}}\n"
+		result, err := parsePairedAgentStream(strings.NewReader(stream), PairedLaunch{
+			Agent: PairedAgentSpec{Host: "codex", Model: "test"}, Condition: tc.condition,
+		})
+		if tc.allowed {
+			require.NoError(t, err)
+			assert.Equal(t, "completed", result.Status)
+		} else {
+			require.Error(t, err)
+			assert.Equal(t, "route_violation", result.Status)
+		}
+	}
+}
+
 func TestPairedRunTimeoutAndFailedLaunch(t *testing.T) {
 	for _, tc := range []struct {
 		name, script, status string

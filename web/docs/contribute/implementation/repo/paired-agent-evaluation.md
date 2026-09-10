@@ -44,6 +44,11 @@ route is rejected outside the CLI condition, including a conditional fallback.
 That status records the proposed route; it does not prove that the command's
 condition was true or that a kapi subprocess executed.
 
+Codex's built-in MCP resource helpers can appear under the host name `codex`
+when listing resources without a server argument. The MCP condition permits
+those discovery calls and reads explicitly targeting `kapi`. It still rejects
+foreign server targets and resource-helper use in other conditions.
+
 The CLI wrapper binds `KAPI_PROJECT` to the fixture's absolute recipe path and
 clears `KAPI_NO_PROJECT` for that invocation. Explicit environment binding resolves
 before directory discovery. This supports commands without a recipe flag,

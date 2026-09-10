@@ -206,7 +206,7 @@ func parsePairedAgentStream(reader io.Reader, launch PairedLaunch) (PairedAgentR
 				if kind == "mcp_tool_call" {
 					tool := "mcp__" + pairedString(item, "server") + "__" + pairedString(item, "tool")
 					result.Tools = pairedUnique(result.Tools, tool)
-					if violation := pairedRouteViolation(launch.Condition, tool, map[string]any{}); violation != "" {
+					if violation := pairedCodexMCPRouteViolation(launch.Condition, item); violation != "" {
 						result.Status = "route_violation"
 						return result, errors.New(violation)
 					}
@@ -276,6 +276,27 @@ func parsePairedAgentStream(reader io.Reader, launch PairedLaunch) (PairedAgentR
 	}
 	result.Status = "completed"
 	return result, nil
+}
+
+func pairedCodexMCPRouteViolation(condition string, item map[string]any) string {
+	server, tool := pairedString(item, "server"), pairedString(item, "tool")
+	input := pairedObject(item, "arguments")
+	// Codex reports its own resource-discovery helpers under server="codex"
+	// when no target server was supplied. Only kapi is configured in this arm.
+	if condition == "mcp" && server == "codex" {
+		target := pairedString(input, "server")
+		switch tool {
+		case "list_mcp_resources", "list_mcp_resource_templates":
+			if target == "" || target == "kapi" {
+				return ""
+			}
+		case "read_mcp_resource":
+			if target == "kapi" {
+				return ""
+			}
+		}
+	}
+	return pairedRouteViolation(condition, "mcp__"+server+"__"+tool, input)
 }
 
 func pairedRouteViolation(condition, tool string, input map[string]any) string {
