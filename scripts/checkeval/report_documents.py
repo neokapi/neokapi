@@ -69,7 +69,7 @@ def render(prepared, study, checks, output, assessment_path=None):
             f"<li><strong>{escape(r['id'])}</strong>: {escape(r['description'])}</li>"
             for r in case.get("requirements", [])
         )
-        contextual = integrity.get("contextual") or {}
+        contextual = (integrity.get("contextual") or {}) if parsed else {}
         coverage_html = "".join(
             f"<li><strong>{escape(r['requirement_id'])}: {escape(r['status'])}</strong>"
             f"<blockquote>{escape(r['candidate_quote'])}</blockquote><p>{escape(r['rationale'])}</p></li>"

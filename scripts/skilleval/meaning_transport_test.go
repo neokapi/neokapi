@@ -1,6 +1,9 @@
 package main
 
 import (
+	"context"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/check/contextual"
@@ -62,4 +65,25 @@ func TestMeaningEnvelopeRejectsAmbiguousOrInvalidAnswers(t *testing.T) {
 			assert.NotEmpty(t, result.Errors)
 		})
 	}
+}
+
+func TestMeaningEnvelopeRunnerRetainsRawAnswer(t *testing.T) {
+	opts := meaningRequirementsTestOptions(t)
+	calls := 0
+	deps := fakeMeaningDependencies(t, &calls)
+	bareRun := deps.run
+	deps.run = func(ctx context.Context, prepared PairedPrepared) (PairedAgentResult, error) {
+		result, err := bareRun(ctx, prepared)
+		result.FinalText = "```json\n" + result.FinalText + "\n```"
+		return result, err
+	}
+	require.NoError(t, executeMeaningWith(context.Background(), opts, deps))
+	var result meaningResult
+	require.NoError(t, readPairedJSON(filepath.Join(opts.Dir, "attempts", "ordinary", "result.json"), &result))
+	require.True(t, result.Integrity.Valid, result.Integrity.Errors)
+	require.NotNil(t, result.Integrity.Transport)
+	assert.True(t, strings.HasPrefix(result.Agent.FinalText, "```json\n"))
+	assert.Equal(t, meaningTextHash(result.Agent.FinalText), result.Integrity.Transport.RawSHA256)
+	require.NoError(t, executeMeaningWith(context.Background(), opts, deps))
+	assert.Equal(t, 2, calls, "resume cannot retry any reserved attempt, including invalid payloads")
 }
