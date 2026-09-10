@@ -134,11 +134,18 @@ func TestPairedPreflightAndBlockersNeverInvokeAgent(t *testing.T) {
 			calls := 0
 			deps := fakePairedDependencies(&calls)
 			deps.prepare = func(_ context.Context, l PairedLaunch) (PairedPrepared, error) {
-				return PairedPrepared{Launch: l, Blockers: []string{"isolation unverified"}}, nil
+				return PairedPrepared{Launch: l, Blockers: []string{"isolation unverified"}, MCPReadiness: &PairedMCPReadiness{Status: "failed", Error: "check_text unavailable", Tools: []string{"check_file"}}}, nil
 			}
 			err := executePairedWith(context.Background(), opts, deps)
 			if phase == "smoke" {
 				require.ErrorContains(t, err, "blocked before inference")
+				reports, reportErr := filepath.Glob(filepath.Join(opts.Dir, "smoke", "*", "preparation.json"))
+				require.NoError(t, reportErr)
+				require.NotEmpty(t, reports)
+				evidence, readErr := os.ReadFile(reports[0])
+				require.NoError(t, readErr)
+				assert.Contains(t, string(evidence), "check_text unavailable")
+				assert.Contains(t, string(evidence), "check_file")
 			} else {
 				require.NoError(t, err)
 			}

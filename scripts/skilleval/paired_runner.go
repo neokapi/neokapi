@@ -59,6 +59,11 @@ func runPairedSchedule(
 			return err
 		}
 		ready, err := deps.prepare(ctx, launch)
+		// Keep capability evidence even when this batch is blocked before an
+		// attempt starts. This file contains no inherited environment values.
+		if writeErr := writePairedJSON(filepath.Join(dir, "preparation.json"), ready); writeErr != nil {
+			return writeErr
+		}
 		if err != nil {
 			blockers = append(blockers, session.ID+": "+err.Error())
 		}

@@ -26,14 +26,15 @@ type PairedLaunch struct {
 // PairedPrepared is an offline launch description. Blockers prohibit inference.
 // Env is deliberately omitted from reports: account credentials stay private.
 type PairedPrepared struct {
-	Launch         PairedLaunch `json:"launch"`
-	Executable     string       `json:"executable"`
-	Args           []string     `json:"args"`
-	Env            []string     `json:"-"`
-	Version        string       `json:"version"`
-	AuthMode       string       `json:"auth_mode"`
-	Blockers       []string     `json:"blockers"`
-	IsolationNotes []string     `json:"isolation_notes"`
+	MCPReadiness   *PairedMCPReadiness `json:"mcp_readiness,omitempty"`
+	Launch         PairedLaunch        `json:"launch"`
+	Executable     string              `json:"executable"`
+	Args           []string            `json:"args"`
+	Env            []string            `json:"-"`
+	Version        string              `json:"version"`
+	AuthMode       string              `json:"auth_mode"`
+	Blockers       []string            `json:"blockers"`
+	IsolationNotes []string            `json:"isolation_notes"`
 }
 
 // PairedAgentResult reports observed execution, independently of content scoring.

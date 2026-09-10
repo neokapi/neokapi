@@ -35,6 +35,7 @@ func preparePairedAgent(ctx context.Context, launch PairedLaunch) (PairedPrepare
 			return p, err
 		}
 	}
+	preparePairedMCPReadiness(ctx, &p)
 	executable, err := exec.LookPath(launch.Agent.Host)
 	if err != nil {
 		p.Blockers = append(p.Blockers, "agent executable unavailable: "+launch.Agent.Host)

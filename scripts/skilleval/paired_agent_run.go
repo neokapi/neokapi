@@ -17,6 +17,9 @@ import (
 
 func runPairedAgent(ctx context.Context, prepared PairedPrepared) (PairedAgentResult, error) {
 	result := PairedAgentResult{RequestedModel: prepared.Launch.Agent.Model, Tools: []string{}, QuotaStatus: "unknown", Status: "blocked"}
+	if prepared.Launch.Condition == "mcp" && (prepared.MCPReadiness == nil || prepared.MCPReadiness.Status != "ready") {
+		return result, errors.New("kapi MCP server readiness has not been established")
+	}
 	if len(prepared.Blockers) != 0 {
 		return result, fmt.Errorf("agent preflight blocked: %s", strings.Join(prepared.Blockers, "; "))
 	}
