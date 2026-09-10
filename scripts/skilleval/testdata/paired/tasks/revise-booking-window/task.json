@@ -1,0 +1,54 @@
+{
+  "id": "revise-booking-window",
+  "family": "guidance-revision",
+  "prompt": "Apply the current booking-window decision to content/en/page.json. Read guidance.md and the project guidance before editing. Keep the JSON keys and types. Edit only content/en/page.json. Do not change guidance, project configuration or other files.",
+  "editable": [
+    "content/en/page.json"
+  ],
+  "criteria": [
+    {
+      "id": "booking-updated",
+      "kind": "json_equals",
+      "path": "content/en/page.json",
+      "key": "booking_window",
+      "value": "Book at least 24 hours before the appointment.",
+      "description": "booking updated"
+    },
+    {
+      "id": "preserve-title",
+      "kind": "json_equals",
+      "path": "content/en/page.json",
+      "key": "title",
+      "value": "Book a video appointment",
+      "description": "preserve title"
+    },
+    {
+      "id": "preserve-cancellation",
+      "kind": "json_equals",
+      "path": "content/en/page.json",
+      "key": "cancellation",
+      "value": "Cancel at least 24 hours before the appointment.",
+      "description": "preserve cancellation"
+    },
+    {
+      "id": "preserve-support",
+      "kind": "json_equals",
+      "path": "content/en/page.json",
+      "key": "support",
+      "value": "help@harbor.example",
+      "description": "preserve support"
+    },
+    {
+      "id": "preserve-explanation",
+      "kind": "json_equals",
+      "path": "content/en/page.json",
+      "key": "explanation",
+      "value": "Choose an available appointment time. Requests inside the booking window are not accepted.",
+      "description": "preserve explanation"
+    }
+  ],
+  "humanReviewRubric": [
+    "Does the page distinguish booking and cancellation requirements correctly?",
+    "Are scope boundaries and unaffected policies preserved?"
+  ]
+}
