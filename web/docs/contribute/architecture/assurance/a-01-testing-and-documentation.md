@@ -248,6 +248,14 @@ while optional suggestions and abstentions are retained separately. Complete
 response structure does not establish correct reasoning. Comparisons supply
 the same explicit requirements to the ordinary review control.
 
+Response envelopes are transport concerns. A permitted wrapper transformation
+retains the original answer, raw validation errors and hashes of both forms;
+the enclosed payload still passes the complete protocol validator. Reports
+distinguish bare responses from transformed ones and preserve frozen outcomes.
+An action-coverage judgment requires evidence of the reader's necessary action,
+including faithful indirect instructions. Merely describing available options
+does not establish that the guide supplies the instruction.
+
 Agent comparisons hold the task, model, relevant guidance and resource limits
 constant. They counterbalance order and retain failed and capped runs. Fewer
 edits or tool calls do not establish better quality. Reports distinguish

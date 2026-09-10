@@ -44,6 +44,10 @@ func buildMeaningPrompt(instruction, protocol string, input meaningInput) (strin
 }
 
 func validateMeaningProtocol(text, protocol string, input meaningInput) meaningIntegrity {
+	return validateMeaningTransport(text, protocol, input)
+}
+
+func validateMeaningPayload(text, protocol string, input meaningInput) meaningIntegrity {
 	if meaningProtocol(protocol) != "requirements" {
 		return validateMeaningReview(text, input)
 	}

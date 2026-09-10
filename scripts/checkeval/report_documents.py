@@ -35,17 +35,19 @@ def render(prepared, study, checks, output, assessment_path=None):
         result = json.loads(result_path.read_text())
         agent, integrity = result["agent"], result["integrity"]
         review = integrity.get("review") or {}
-        parsed = integrity.get("review") is not None
-        findings = review.get("findings") or []
-        abstentions = review.get("abstentions") or []
+        parsed = integrity["valid"] and integrity.get("review") is not None
+        findings = (review.get("findings") or []) if parsed else []
+        abstentions = (review.get("abstentions") or []) if parsed else []
         deterministic = coverage_by_id[case["id"]]
         analyses = (deterministic.get("execution") or {}).get("analyzers", [])
         statuses = ", ".join(a["id"] + ": " + a["status"] for a in analyses)
         protocol = session.get("protocol", "ordinary")
+        transport = integrity.get("transport")
+        format_status = "accepted after unwrapping" if transport and parsed else "accepted bare" if parsed else "rejected"
         title = escape(label["variant"] + " · " + protocol)
         rows.append(
             f"<tr><td><a href='#{session['id']}'>{title}</a></td><td>{escape(agent['status'])}</td>"
-            f"<td>{agent['duration_ms']/1000:.1f}s</td><td>{len(findings) if parsed else 'unparsed'}</td><td>{len(abstentions) if parsed else 'unparsed'}</td>"
+            f"<td>{agent['duration_ms']/1000:.1f}s</td><td>{format_status}</td><td>{len(findings) if parsed else 'unparsed'}</td><td>{len(abstentions) if parsed else 'unparsed'}</td>"
             f"<td>{len(label['issues'])}</td></tr>"
         )
         finding_html = "".join(
@@ -79,6 +81,11 @@ def render(prepared, study, checks, output, assessment_path=None):
             contextual_html = (f"<h3>Requirement coverage</h3><ul>{coverage_html}</ul>"
                                f"<h3>Optional suggestions</h3><ul>{suggestions_html or '<li>None.</li>'}</ul>"
                                "<p>Prototype findings are advisory. Complete coverage is a response-structure requirement, not proof that each judgment is correct.</p>")
+        transport_html = ""
+        if transport:
+            transport_html = ("<p>A single JSON fence was removed before payload validation. The raw answer remains below; "
+                              "acceptance after unwrapping is distinct from a valid bare response.</p>"
+                              f"<details><summary>Transport provenance</summary><pre>{escape(json.dumps(transport, indent=2))}</pre></details>")
         sections.append(
             f"<section id='{session['id']}'><h2>{title}</h2><p><strong>Reader task:</strong> {escape(case['reader_task'])}</p>"
             f"<p><strong>Audience:</strong> {escape(case['audience'])}<br><strong>Surface:</strong> {escape(case['surface'])}</p>"
@@ -86,7 +93,7 @@ def render(prepared, study, checks, output, assessment_path=None):
             f"<details><summary>Governing sources</summary>{source_html}</details><div class='columns'>"
             f"<article><h3>Candidate reviewed</h3><pre>{escape(case['candidate'])}</pre></article>"
             f"<article><h3>Model findings</h3><p>{escape(agent.get('actual_model', 'unverified model'))} · {agent['duration_ms']/1000:.1f}s · "
-            f"output integrity: {str(integrity['valid']).lower()}</p><ol>{finding_html}</ol>"
+            f"output integrity: {str(integrity['valid']).lower()} · {format_status}</p>{transport_html}<ol>{finding_html}</ol>"
             f"<h3>Abstentions</h3><ul>{abstention_html or ('<li>None reported.</li>' if parsed else '<li>Unparsed.</li>')}</ul>"
             f"<h3>Independent agent assessment</h3><ul>{notes or '<li>Not supplied.</li>'}</ul>"
             f"{contextual_html}"
@@ -98,10 +105,14 @@ def render(prepared, study, checks, output, assessment_path=None):
         )
     comparison_html = ""
     if any(session.get("protocol") == "requirements" for session in manifest["sessions"]):
+        selection = ("These three cases come from fresh synthetic document families, selected before model review. "
+                     "The remaining variants are unrun development controls; this is not an independent benchmark. "
+                     if manifest.get("study") == "action-coverage-comparison" else
+                     "These three cases were selected from previous development failures; they are not held out. ")
         comparison_html = (
             "<p>Matched comparison: ordinary and requirement-based review receive the same explicit reader requirements, "
-            "candidate and sources. The prompt, response structure and validation differ. These three cases were selected "
-            "from previous development failures; they are not held out. One attempt per mode and case cannot establish "
+            "candidate and sources. The prompt, response structure and validation differ. " + selection +
+            "One attempt per mode and case cannot establish "
             "a general accuracy or speed advantage.</p>"
         )
     method_html = (f"<p><strong>Assessment method:</strong> {escape(assessment['method'])}</p>"
@@ -115,13 +126,13 @@ details{padding:12px;background:#edf4ef;margin:12px 0;overflow-wrap:anywhere}sum
 li{margin:16px 0}a{color:#17675a}table{border-collapse:collapse;width:100%}td,th{padding:10px;border-bottom:1px solid #c5d8d0;text-align:left}.table{overflow-x:auto}
 @media(max-width:850px){.columns{grid-template-columns:1fr}}
 </style><main><h1>Contextual review: what the six attempts reported</h1>
-<p>Each review uses a fixed guide and supplied source evidence. These are synthetic development documents based on repository documentation.
+<p>Each review uses a fixed guide and supplied source evidence. These are synthetic development documents, not observed customer errors.
 The model is reviewing directly; kapi's deterministic checks are recorded separately. This does not measure kapi's incremental benefit.</p>
 <p>Finding counts are observations, not correctness scores. Expected issues are provisional authored labels, independently checked by an agent.
 Output integrity validates response structure, references and quotations; the requirements protocol also requires one assessment per declared requirement.
 Additional findings require source-based adjudication; human acceptance and review time remain unmeasured.</p>
 """ + comparison_html + method_html + """
-<div class="table"><table><thead><tr><th>Case</th><th>Host outcome</th><th>Time</th><th>Findings</th><th>Abstentions</th><th>Authored issues</th></tr></thead><tbody>
+<div class="table"><table><thead><tr><th>Case</th><th>Host outcome</th><th>Time</th><th>Response format</th><th>Findings</th><th>Abstentions</th><th>Authored issues</th></tr></thead><tbody>
 """ + "".join(rows) + "</tbody></table></div>" + "".join(sections) + "</main></html>\n"
     with output.open("x", encoding="utf-8") as file:
         file.write(page)

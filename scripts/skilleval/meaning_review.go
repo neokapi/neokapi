@@ -89,6 +89,7 @@ type meaningIntegrity struct {
 	Errors     []string           `json:"errors"`
 	Review     *meaningReview     `json:"review,omitempty"`
 	Contextual *contextual.Result `json:"contextual,omitempty"`
+	Transport  *meaningTransport  `json:"transport,omitempty"`
 	Scope      string             `json:"scope"`
 }
 

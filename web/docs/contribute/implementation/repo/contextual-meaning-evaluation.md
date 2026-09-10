@@ -169,6 +169,16 @@ unparsed, with their raw text and protocol errors available for inspection.
 Optional separately recorded agent adjudication can explain disputed or
 unjustified findings; it never rewrites the saved result into an accepted one.
 
+The subscription transport accepts a single complete backtick fence labelled
+`json` or without a language, provided the enclosed payload passes the selected
+protocol's full validation. It records the envelope contract, transformation,
+raw and payload hashes, and original validation errors. The host result retains
+the exact raw answer. Reports distinguish bare acceptance, acceptance after
+unwrapping, and rejection. Surrounding prose, multiple answers, malformed JSON
+and invalid evidence remain failures. The framework parser itself requires bare
+JSON. Offline replay can test envelope compatibility; saved study outcomes and
+their original contracts remain immutable.
+
 The runner is a direct-review capability probe, not an implementation of a
 semantic analyzer inside `kapi check`. A useful result supports prototyping and
 measuring that analyzer; any claim of kapi benefit still needs the matched
@@ -248,10 +258,16 @@ establish the benefit of automatic context retrieval or production readiness.
 ### Readiness before integration
 
 Response reliability and action coverage are separate requirements for a usable
-analyzer. A semantically useful answer enclosed in Markdown remains a protocol
-failure. A structurally valid assessment can still mark a necessary action as
-covered merely because the candidate describes that tool's options. Neither
-outcome is sufficient for automated acceptance.
+analyzer. Removing an accepted transport envelope addresses formatting alone.
+A structurally valid assessment can still mark a necessary action as covered
+merely because the candidate describes that tool's options. Neither response
+validity nor complete coverage establishes semantic correctness.
+
+The review prompt considers who acts, what they do, the object of the action and
+its relevant conditions. A statement of available form fields or tool options
+can leave a required instruction absent. Faithful indirect instructions can
+cover the action without imperative wording or matching keywords. Ambiguous
+coverage requires an uncertain assessment with an explanation.
 
 Before adding a caller-facing analyzer, verify response-format handling with
 saved outputs and test action coverage on fresh document families. Include
