@@ -60,21 +60,40 @@ type Options struct {
 
 func main() {
 	var (
-		mode        = flag.String("mode", modeTrigger, "trigger or completion")
-		surface     = flag.String("surface", "", "limit to one surface: skill or mcp")
-		out         = flag.String("out", DefaultOut, "where to write the dataset")
-		only        = flag.String("only", "", "run one scenario by id")
-		repeat      = flag.Int("repeat", 3, "passes per scenario; triggering is stochastic")
-		concurrency = flag.Int("concurrency", 4, "scenarios in flight")
-		model       = flag.String("model", "", "model for the driven agent (default: the CLI's own)")
-		turnCap     = flag.Int("trigger-turns", 4, "hard turn cap in trigger mode")
-		compTurns   = flag.Int("completion-turns", 40, "minimum turns a completion run gets")
-		keep        = flag.Bool("keep", false, "keep the scenario workspaces for inspection")
-		sessions    = flag.String("transcripts", "", "directory for the per-scenario session files (default: web/static/skill-eval/transcripts when publishing, none otherwise)")
-		control     = flag.Bool("control", false, "also run each scenario with no skill and no kapi on PATH, to measure what kapi adds")
-		timeout     = flag.Duration("timeout", 30*time.Minute, "whole-run deadline")
+		pairedManifest    = flag.String("paired-manifest", "", "paired study manifest; selects the separate comparison runner")
+		pairedPhase       = flag.String("paired-phase", "preflight", "paired phase: preflight, smoke, pilot or score")
+		pairedDir         = flag.String("paired-dir", "harness/out/paired-eval", "private directory for immutable paired evidence")
+		pairedLive        = flag.Bool("paired-live", false, "explicitly allow subscription-backed agent sessions")
+		pairedMaxAttempts = flag.Int("paired-max-attempts", 6, "persistent ceiling across smoke and pilot, including failed attempts")
+		mode              = flag.String("mode", modeTrigger, "trigger or completion")
+		surface           = flag.String("surface", "", "limit to one surface: skill or mcp")
+		out               = flag.String("out", DefaultOut, "where to write the dataset")
+		only              = flag.String("only", "", "run one scenario by id")
+		repeat            = flag.Int("repeat", 3, "passes per scenario; triggering is stochastic")
+		concurrency       = flag.Int("concurrency", 4, "scenarios in flight")
+		model             = flag.String("model", "", "model for the driven agent (default: the CLI's own)")
+		turnCap           = flag.Int("trigger-turns", 4, "hard turn cap in trigger mode")
+		compTurns         = flag.Int("completion-turns", 40, "minimum turns a completion run gets")
+		keep              = flag.Bool("keep", false, "keep the scenario workspaces for inspection")
+		sessions          = flag.String("transcripts", "", "directory for the per-scenario session files (default: web/static/skill-eval/transcripts when publishing, none otherwise)")
+		control           = flag.Bool("control", false, "also run each scenario with no skill and no kapi on PATH, to measure what kapi adds")
+		timeout           = flag.Duration("timeout", 30*time.Minute, "whole-run deadline")
 	)
 	flag.Parse()
+
+	if *pairedManifest != "" {
+		root, err := repoRoot()
+		if err != nil {
+			fail(err.Error())
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), *timeout)
+		defer cancel()
+		err = executePaired(ctx, PairedOptions{ManifestPath: *pairedManifest, Phase: *pairedPhase, Dir: *pairedDir, RepoRoot: root, Live: *pairedLive, MaxAttempts: *pairedMaxAttempts})
+		if err != nil {
+			fail(err.Error())
+		}
+		return
+	}
 
 	if *mode != modeTrigger && *mode != modeCompletion {
 		fail("mode must be trigger or completion")
