@@ -72,6 +72,21 @@ The host also reports context, extraction, analysis, report-construction and
 total time in milliseconds; serialization and process startup are excluded.
 Reports without `execution` have **unreported coverage**.
 
+`execution.contexts` records the effective guidance for each checked input.
+Each entry identifies the file or draft destination, the voice selection
+(`project`, `override` or `none`), the loaded profile name and source, and the
+project profile and channel when they governed the check. `voice.applied`
+distinguishes a loaded profile from a project location with no voice binding.
+`terms_applied` states whether terminology was supplied to the checks; it does
+not imply that a term matched or produced a finding. Project terminology checks
+also run when no voice profile is bound. An omitted `contexts`
+field means the producer did not report context selection.
+
+For a project file, omit MCP `profile_file` and `profile_pack` to retain its
+applicable profile and channel. An explicit profile replaces that voice
+selection, while project terms still apply. Check the reported scope before
+using a passing result to assess the task.
+
 A passing gate and a score of 100 mean no gate-breaking findings in the
 configured checks. They do not establish factual accuracy or compliance with
 rules that were never encoded. Exact voice rules, advisory example similarity

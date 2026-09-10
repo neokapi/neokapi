@@ -102,16 +102,40 @@ it. If the task is project-shaped and there's no project, offer to set one up;
 don't impose a project on a genuine one-off. See
 [references/project.md](references/project.md).
 
-## Check the edited content
+## Edit and check content
 
-For ordinary authoring, retrieve `kapi context <path>`, make the edit, then check
-the affected file. Project voice and terms resolve from that path:
+Retrieve `kapi context <path>` before editing. For block edits, inspect the file
+and read [references/edit.md](references/edit.md) for inline-code and drift guards:
+
+```bash
+kapi inspect content/en/page.json --jsonl
+```
+
+Write a JSONL change-set with one entry per changed block. Copy its `file`, `id`
+and full `content_hash` from inspection; supply `kind: "content"` and the new
+wording in `text`. Preserve the inspected inline tokens. This illustrates the
+entry shape; replace the example ID and hash with the inspected values:
+
+```json
+{"kind":"content","file":"content/en/page.json","id":"tu2","content_hash":"<full inspected hash>","text":"Your new wording"}
+```
+
+Save the change-set outside protected project files when the task restricts
+which files may change. The argument to `apply` is the change-set file:
+
+```bash
+kapi apply edits.jsonl --diff
+kapi apply edits.jsonl
+```
+
+Check the saved content. Project voice and terms resolve from its path:
 
 ```bash
 kapi check content/en/page.json --json
 ```
 
-Read both the findings and `execution.analyzers`. Fix relevant findings within
+Read `execution.contexts` to confirm the effective voice selection, profile and
+channel, then read the findings and `execution.analyzers`. Fix relevant findings within
 the requested scope and re-check. Unsupported semantic guidance still needs
 review against the retrieved context; a passing score covers only the checks
 that ran. If the same finding persists or contradicts the governing guidance,

@@ -62,8 +62,13 @@ For project-scoped `check_file`, omit `profile_file` and `profile_pack` so the
 file's voice channel resolves from the project. Either explicit option replaces
 that voice selection; loading the project's profile YAML directly does not
 select the file's channel. Project terms still resolve for the file. Record the
-arguments when assessing check coverage, since a tool name alone does not
-establish which voice governed the check.
+arguments and `execution.contexts` when assessing check coverage. Context entries
+record the effective voice selection, loaded profile source, project profile
+and channel, plus whether terms were supplied. A file-scoped voice resolution
+returns the composed profile and its metadata together; the check uses that
+same profile. Explicit overrides are marked `override` and carry no inferred
+project channel. Terms resolve independently of a voice override. A tool name
+alone does not establish which voice governed the check.
 
 The canonical CLI/MCP check report includes optional `execution.analyzers` and
 phase timings. An absent inventory means unreported coverage. Applicable

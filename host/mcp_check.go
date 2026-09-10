@@ -44,7 +44,9 @@ func registerCheckMCPTools(server *mcp.Server, a *App) {
 			"with format-aware extraction and the applicable project voice and terms. Before editing, read " +
 			"the context://<project-relative-path> resource; after saving edits (including apply_edits), " +
 			"run check_file and review its per-block findings and analyzer coverage. Returns a kapi.check/v1 " +
-			"Report; pass is not semantic approval. Pass target/target_lang to also run bilingual checks.",
+			"Report with effective scope in execution.contexts; pass is not semantic approval. " +
+			"Omit profile_file/profile_pack to use the file’s project profile and channel. Supplying either " +
+			"replaces that voice selection with an explicit override; project terms still apply. Pass target/target_lang to also run bilingual checks.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in checkFileInput) (*mcp.CallToolResult, check.Report, error) {
 		return a.checkFileMCP(ctx, in)
 	})
@@ -69,8 +71,8 @@ type checkFileInput struct {
 	MaxWords    int      `json:"max_words,omitempty" jsonschema:"flag content with more than this many words (0 = off)"`
 	Forbid      []string `json:"forbid,omitempty" jsonschema:"regex that must NOT appear in the content"`
 	Require     []string `json:"require,omitempty" jsonschema:"regex that MUST appear in the content"`
-	ProfilePack string   `json:"profile_pack,omitempty" jsonschema:"built-in profile pack to check vocabulary against"`
-	ProfileFile string   `json:"profile_file,omitempty" jsonschema:"path to a voice profile YAML"`
+	ProfilePack string   `json:"profile_pack,omitempty" jsonschema:"explicit voice override; omitting profile_pack and profile_file preserves the file-scoped project voice and channel"`
+	ProfileFile string   `json:"profile_file,omitempty" jsonschema:"explicit voice override loaded from YAML; bypasses the file-scoped project voice and channel; omit to use project guidance"`
 	Target      string   `json:"target,omitempty" jsonschema:"translated target file to check against the source (enables the bilingual source-against-target checks)"`
 	TargetLang  string   `json:"target_lang,omitempty" jsonschema:"locale of the target file (e.g. de)"`
 	DNT         []string `json:"dnt,omitempty" jsonschema:"do-not-translate terms that must survive verbatim into the target"`
@@ -94,6 +96,7 @@ func (a *App) checkTextMCP(ctx context.Context, in checkTextInput) (*mcp.CallToo
 			return nil, check.Report{}, err
 		}
 	}
+	execution.recordContext("", in.ContextPath, opts)
 	execution.Timings.ContextMS += elapsedMS(contextStart)
 	opts.execution = execution
 	block := &model.Block{ID: "text", Translatable: true, Source: []model.Run{{Text: &model.TextRun{Text: in.Text}}}}
@@ -141,7 +144,7 @@ func (a *App) resolveTextCheckContext(ctx context.Context, contextPath string, o
 		return fmt.Errorf("resolve context_path voice: %w", err)
 	}
 	defer voice.close()
-	opts.profile, err = voice.forFile(ctx, destination)
+	opts.profile, opts.voiceContext, err = voice.forFile(ctx, destination)
 	if err != nil {
 		return fmt.Errorf("resolve context_path voice: %w", err)
 	}
@@ -177,7 +180,7 @@ func (a *App) checkFileMCP(ctx context.Context, in checkFileInput) (*mcp.CallToo
 			return nil, check.Report{}, err
 		}
 		defer voice.close()
-		opts.profile, err = voice.forFile(ctx, in.File)
+		opts.profile, opts.voiceContext, err = voice.forFile(ctx, in.File)
 		if err != nil {
 			return nil, check.Report{}, err
 		}
@@ -191,6 +194,7 @@ func (a *App) checkFileMCP(ctx context.Context, in checkFileInput) (*mcp.CallToo
 		return nil, check.Report{}, err
 	}
 	opts.execution = execution
+	execution.recordContext(in.File, "", opts)
 	execution.Timings.ContextMS += elapsedMS(contextStart)
 	target := check.Target{Kind: "file", File: in.File}
 	var diags []check.Diagnostic
@@ -257,13 +261,22 @@ func (a *App) checkFileMCP(ctx context.Context, in checkFileInput) (*mcp.CallToo
 // mcpCheckOptions resolves the shared content-check options for the MCP tools,
 // loading a voice profile from a pack/file when one is named.
 func (a *App) mcpCheckOptions(maxChars, maxWords int, forbid, require []string, pack, file string) (checkRunOptions, error) {
-	opts := checkRunOptions{maxChars: maxChars, maxWords: maxWords, forbid: forbid, require: require}
+	opts := checkRunOptions{maxChars: maxChars, maxWords: maxWords, forbid: forbid, require: require,
+		voiceContext: check.VoiceContext{Selection: "none"}}
 	if pack != "" || file != "" {
 		p, err := loadProfileForMCP(pack, file)
 		if err != nil {
 			return opts, err
 		}
 		opts.profile = p
+		source := file
+		if source == "" {
+			source = "pack:" + pack
+		}
+		opts.voiceContext = check.VoiceContext{Selection: "override", Applied: p != nil, Source: source}
+		if p != nil {
+			opts.voiceContext.Name = p.Name
+		}
 	}
 	return opts, nil
 }

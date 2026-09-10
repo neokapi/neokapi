@@ -51,10 +51,45 @@ func (r checkReport) FormatText(w io.Writer) error {
 		}
 		fmt.Fprintf(w, "  Coverage: %d completed, %d not run or unsupported. Score covers reported findings only.\n", completed, skipped)
 	}
+	if r.Execution != nil {
+		for _, scope := range r.Execution.Contexts {
+			writeCheckContext(w, scope)
+		}
+	}
 	for _, reason := range r.Gate.Failed {
 		fmt.Fprintf(w, "  gate: %s\n", reason)
 	}
 	return nil
+}
+
+// writeCheckContext displays effective selection independently of the verdict.
+func writeCheckContext(w io.Writer, scope check.CheckContext) {
+	input := scope.File
+	if input == "" {
+		input = "draft"
+	}
+	if scope.ContextPath != "" {
+		input += " for " + scope.ContextPath
+	}
+	voice := "none"
+	if scope.Voice.Applied {
+		voice = scope.Voice.Name
+	}
+	fmt.Fprintf(w, "  Context: %s; voice %s (%s)", input, voice, scope.Voice.Selection)
+	if scope.Voice.Profile != "" {
+		fmt.Fprintf(w, "; profile %s", scope.Voice.Profile)
+	}
+	if scope.Voice.Channel != "" {
+		fmt.Fprintf(w, "; channel %s", scope.Voice.Channel)
+	}
+	if scope.Voice.Source != "" {
+		fmt.Fprintf(w, "; source %s", scope.Voice.Source)
+	}
+	terms := "none loaded"
+	if scope.TermsApplied {
+		terms = "loaded"
+	}
+	fmt.Fprintf(w, "; terms %s\n", terms)
 }
 
 // writeFindingsCounts writes the score + severity roll-up line shared by
@@ -292,12 +327,13 @@ func (a *App) ComputeCheck(cmd Command, args []string) (check.Report, error) {
 		dnt, _ := cmd.Flags().GetStringSlice("dnt")
 		sourcePath := args[0]
 		contextStart = time.Now()
-		if opts.profile, err = voice.forFile(ctx, sourcePath); err != nil {
+		if opts.profile, opts.voiceContext, err = voice.forFile(ctx, sourcePath); err != nil {
 			return check.Report{}, err
 		}
 		if opts.terms, err = vocab.forFile(ctx, sourcePath); err != nil {
 			return check.Report{}, err
 		}
+		execution.recordContext(sourcePath, "", opts)
 		execution.Timings.ContextMS += elapsedMS(contextStart)
 		// `--target` names the translated rendering of one source file, so both
 		// files carry the source's reader binding.
@@ -349,12 +385,13 @@ func (a *App) ComputeCheck(cmd Command, args []string) (check.Report, error) {
 			// force where that file sits, not against one pair picked for the
 			// whole invocation.
 			contextStart = time.Now()
-			if opts.profile, err = voice.forFile(ctx, file); err != nil {
+			if opts.profile, opts.voiceContext, err = voice.forFile(ctx, file); err != nil {
 				return check.Report{}, err
 			}
 			if opts.terms, err = vocab.forFile(ctx, file); err != nil {
 				return check.Report{}, err
 			}
+			execution.recordContext(file, "", opts)
 			execution.Timings.ContextMS += elapsedMS(contextStart)
 			blocks, fileDiags, ferr := a.checkFileBlocks(ctx, file, validateMode, opts)
 			prog.Advance()
@@ -470,8 +507,9 @@ func applyStrictValidationGate(report *check.Report) {
 
 // checkRunOptions carries the resolved generic-check configuration.
 type checkRunOptions struct {
-	execution *checkExecution
-	profile   *profile.VoiceProfile
+	execution    *checkExecution
+	profile      *profile.VoiceProfile
+	voiceContext check.VoiceContext
 	// terms is the project's terms store, when it binds one: the vocabulary the
 	// project decided, enforced beside the profile's own lists. nil for a run
 	// with no project or no terminology.
@@ -540,8 +578,8 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 		opts.execution.skipped("pattern", file, "No explicit patterns were configured.")
 	}
 
-	// Brand vocabulary — separate annotation; runs when a profile is bound.
-	if opts.profile != nil {
+	// Voice rules and project terminology share the vocabulary checker.
+	if opts.profile != nil || opts.terms != nil {
 		start = time.Now()
 		before := len(diags)
 		vocab := coretools.NewVoiceVocabCheckTool(opts.profile, opts.terms).InSourceLocale(model.LocaleID(a.SourceLocale()))
@@ -573,7 +611,7 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 			}
 		}
 	} else {
-		opts.execution.skipped("voice.rules", file, "No voice profile was bound.")
+		opts.execution.skipped("voice.rules", file, "No voice profile or project terms were bound.")
 	}
 
 	// Voice/style similarity (opt-in, --voice): drives the kapi-check plugin.
@@ -816,14 +854,15 @@ func (f *checkFormats) forFile(app *App, file string) (string, map[string]any) {
 }
 
 type checkVoice struct {
-	app     *App
-	cmd     Command
-	fixed   *profile.VoiceProfile
-	proj    *project.KapiProject
-	root    string
-	store   profile.Store
-	release func()
-	cache   map[string]*profile.VoiceProfile
+	app          *App
+	cmd          Command
+	fixed        *profile.VoiceProfile
+	fixedContext check.VoiceContext
+	proj         *project.KapiProject
+	root         string
+	store        profile.Store
+	release      func()
+	cache        map[string]checkedVoice
 }
 
 // close releases the voice store, if this run opened one of its own. Inside a
@@ -838,17 +877,22 @@ func (v *checkVoice) close() {
 // leaves it with nothing to resolve, which is the ad-hoc case: `kapi check` on
 // a file outside any project checks the content-only families.
 func (a *App) newCheckVoice(cmd Command) (*checkVoice, error) {
-	v := &checkVoice{app: a, cmd: cmd, cache: map[string]*profile.VoiceProfile{}}
+	v := &checkVoice{app: a, cmd: cmd, cache: map[string]checkedVoice{}}
 
 	name, _ := cmd.Flags().GetString("profile")
 	file, _ := cmd.Flags().GetString("profile-file")
 	pack, _ := cmd.Flags().GetString("pack")
 	if name != "" || file != "" || pack != "" {
-		p, _, err := a.ResolveVoiceProfileCmd(cmd)
+		p, source, err := a.ResolveVoiceProfileCmd(cmd)
 		if err != nil {
 			return nil, err
 		}
 		v.fixed = p
+		channel, _ := cmd.Flags().GetString("channel")
+		v.fixedContext = check.VoiceContext{Selection: "override", Applied: p != nil, Source: source, Channel: channel}
+		if p != nil {
+			v.fixedContext.Name = p.Name
+		}
 		return v, nil
 	}
 
@@ -970,32 +1014,40 @@ func (a *App) governancePointForFile(root, file string) project.GovernancePoint 
 	return a.GovernancePointFor("", "")
 }
 
-// forFile returns the voice profile governing one file, or nil when nothing
-// binds one there.
-func (v *checkVoice) forFile(ctx context.Context, file string) (*profile.VoiceProfile, error) {
-	if v.fixed != nil || v.proj == nil {
-		return v.fixed, nil
-	}
+// checkedVoice caches a loaded profile together with the resolution that selected it.
+type checkedVoice struct {
+	profile *profile.VoiceProfile
+	context check.VoiceContext
+}
 
+// forFile returns the effective profile and its selection metadata together.
+func (v *checkVoice) forFile(ctx context.Context, file string) (*profile.VoiceProfile, check.VoiceContext, error) {
+	if v.fixed != nil {
+		return v.fixed, v.fixedContext, nil
+	}
+	if v.proj == nil {
+		return nil, check.VoiceContext{Selection: "none"}, nil
+	}
 	point := v.app.governancePointForFile(v.root, file)
 	rc, err := v.app.ResolveGovernanceAtPoint(v.cmd, v.proj, point)
 	if err != nil {
-		return nil, err
+		return nil, check.VoiceContext{}, err
 	}
 	key := rc.Profile + "\x00" + rc.Channel
-	if p, ok := v.cache[key]; ok {
-		return p, nil
+	if cached, ok := v.cache[key]; ok {
+		return cached.profile, cached.context, nil
 	}
-	p, _, found, err := v.app.ResolveVoiceProfile(ctx, v.proj, v.root, VoiceResolveOptions{
-		Store: v.store,
-		Point: point,
-	})
+	p, source, found, err := v.app.resolveVoiceForGovernance(ctx, v.root, v.store, rc, VoiceResolveOptions{Point: point})
 	if err != nil {
-		return nil, err
+		return nil, check.VoiceContext{}, err
 	}
 	if !found {
 		p = nil
 	}
-	v.cache[key] = p
-	return p, nil
+	selected := check.VoiceContext{Selection: "project", Applied: p != nil, Source: source, Profile: rc.Profile, Channel: rc.Channel}
+	if p != nil {
+		selected.Name = p.Name
+	}
+	v.cache[key] = checkedVoice{profile: p, context: selected}
+	return p, selected, nil
 }

@@ -77,7 +77,7 @@ func (a *App) verifySourceChecks(ctx context.Context, cmd Command, u VerifyUnit,
 		return err
 	}
 	defer voice.close()
-	profile, err := voice.forFile(ctx, u.SourcePath)
+	profile, selected, err := voice.forFile(ctx, u.SourcePath)
 	if err != nil {
 		return err
 	}
@@ -86,7 +86,7 @@ func (a *App) verifySourceChecks(ctx context.Context, cmd Command, u VerifyUnit,
 		return err
 	}
 	execution.Timings.ContextMS = elapsedMS(contextStart)
-	opts := checkRunOptions{profile: profile, terms: vocab, execution: execution}
+	opts := checkRunOptions{profile: profile, voiceContext: selected, terms: vocab, execution: execution}
 	opts.maxChars, _ = cmd.Flags().GetInt("max-chars")
 	opts.maxWords, _ = cmd.Flags().GetInt("max-words")
 	opts.forbid, _ = cmd.Flags().GetStringSlice("forbid")
@@ -100,6 +100,8 @@ func (a *App) verifySourceChecks(ctx context.Context, cmd Command, u VerifyUnit,
 	if gate.Execution == nil {
 		gate.Execution = &check.Execution{Analyzers: []check.AnalyzerExecution{}}
 	}
+	execution.recordContext(u.DisplayPath, "", opts)
+	gate.Execution.Contexts = append(gate.Execution.Contexts, execution.Contexts...)
 	gate.Execution.Analyzers = append(gate.Execution.Analyzers, execution.Analyzers...)
 	gate.Execution.Timings.AnalyzersMS += execution.Timings.AnalyzersMS
 	gate.Execution.Timings.ExtractionMS += execution.Timings.ExtractionMS

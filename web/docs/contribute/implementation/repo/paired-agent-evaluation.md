@@ -147,6 +147,35 @@ guidance. They support harness development. Use separate document families for
 scored experiments, keeping related original, mutated and repaired variants in
 the same partition.
 
+### Scoped equipment-policy case
+
+`testdata/paired-equipment-study.json` selects `revise-equipment-loan` for a
+six-condition batch. The fictional library decision changes three camera-loan
+surfaces, requires calculating a reminder day, and protects telescope policy,
+archived notices and external identifiers. Approved display strings and numeric
+values have objective acceptance criteria; prose preference grading is not
+required to establish task completion.
+
+```sh
+make paired-eval-preflight PAIRED_EVAL_MANIFEST=scripts/skilleval/testdata/paired-equipment-study.json PAIRED_EVAL_DIR=harness/out/paired-equipment
+make paired-eval-smoke PAIRED_EVAL_MANIFEST=scripts/skilleval/testdata/paired-equipment-study.json PAIRED_EVAL_DIR=harness/out/paired-equipment
+```
+
+The smoke command consumes the configured subscription allowance. Preflight
+uses no model calls. Use a fresh evidence directory for changed inputs.
+
+The correct reference and four faulty repairs remain evaluator-only. They
+exercise a missed surface, stale reminder schedule, an over-broad policy update
+and a changed identifier. The product's profile checks detect stale wording and
+respect the telescope exception. The independent artifact criteria also detect
+the stale schedule, which the pattern checks do not assess. This separates
+known checker coverage from overall task success. Fixture tests establish these
+specific behaviors; they do not establish agent benefit or general semantic
+accuracy. Human review and review time remain unmeasured unless collected for a
+claim that needs them.
+
+### Integration use and interpretation
+
 Natural task prompts measure end-to-end behavior, including discovery. Record
 failure to use an available integration as an outcome. Explicitly instructed
 diagnostic runs answer a separate execution question and retain their own labels.

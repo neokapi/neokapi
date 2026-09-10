@@ -196,6 +196,16 @@ and cannot be combined with `profile_file` or `profile_pack`. The result keeps
 the destination need not exist. Unscoped snippet checks retain their explicit
 profile options. See [Checks](/framework/checks) for report coverage.
 
+The optional `execution.contexts` array adds per-input guidance selection to
+`kapi.check/v1` without changing existing report fields. Entries contain `file`
+or `context_path`, `voice` (`selection`, `applied`, optional `name`, `source`,
+`profile` and `channel`), and `terms_applied`. `voice.selection` is `project`,
+`override` or `none`. Missing context metadata means unreported selection.
+CLI file checks, MCP file/draft checks and source-content release checks supply
+it. Explicit voice overrides retain their behavior and are identified as
+`override`; MCP field descriptions state that omitting overrides preserves
+file-scoped project guidance. See [Checks](/framework/checks) for interpretation.
+
 For `apply_edits`, content entries put new wording in `text`; `replacement` is
 a voice-rule field. A nonempty `replacement` on a content entry is rejected
 before applying the change-set. The input field descriptions state this

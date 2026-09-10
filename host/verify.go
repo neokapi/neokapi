@@ -672,7 +672,7 @@ func (a *App) verifyVoice(cmd Command, proj *project.KapiProject, root string, a
 	noReader := map[string]bool{}
 	var allFindings []coreprofile.VoiceFinding
 	for _, f := range files {
-		profile, perr := voice.forFile(ctx, f)
+		profile, _, perr := voice.forFile(ctx, f)
 		if perr != nil {
 			return nil, perr
 		}

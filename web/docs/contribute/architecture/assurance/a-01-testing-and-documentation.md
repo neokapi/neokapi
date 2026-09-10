@@ -205,7 +205,10 @@ Source-only content is checked as authored content, including within projects
 that also have translated targets. Naming a source file and selecting it through
 the project use the same applicable content checks. Translation checks apply to
 declared or explicitly requested target content. Release-gate evidence records
-what was measured, including empty scopes.
+what was measured, including empty scopes. Per-input context evidence identifies
+the effective voice selection and project channel, explicit overrides, and
+whether terms were supplied. This evidence comes from the resolution used by
+the checker; it is not reconstructed from a successful verdict.
 
 A rule demonstration is development evidence for that rule. Quality evaluation
 uses separate document families and clean counterexamples, with independent

@@ -167,11 +167,11 @@
           "type": "integer"
         },
         "profile_file": {
-          "description": "path to a voice profile YAML",
+          "description": "explicit voice override loaded from YAML; bypasses the file-scoped project voice and channel; omit to use project guidance",
           "type": "string"
         },
         "profile_pack": {
-          "description": "built-in profile pack to check vocabulary against",
+          "description": "explicit voice override; omitting profile_pack and profile_file preserves the file-scoped project voice and channel",
           "type": "string"
         },
         "require": {
