@@ -164,9 +164,18 @@ func parsePairedAgentStream(reader io.Reader, launch PairedLaunch) (PairedAgentR
 				usage := pairedObject(event, "usage")
 				result.UsageObserved = usage != nil
 				result.InputTokens = pairedNumber(usage, "input_tokens")
+				result.CacheReadTokens = pairedNumber(usage, "cache_read_input_tokens")
+				result.CacheWriteTokens = pairedNumber(usage, "cache_creation_input_tokens")
+				result.InputTokens += result.CacheReadTokens + result.CacheWriteTokens
 				result.OutputTokens = pairedNumber(usage, "output_tokens")
 				if failed, _ := event["is_error"].(bool); failed || pairedString(event, "subtype") != "success" {
 					result.Status = "agent_failed"
+					errorsJSON, _ := json.Marshal(event["errors"])
+					if result.RateLimited || pairedRateLimited(result.FinalText+" "+string(errorsJSON)) {
+						result.RateLimited = true
+						result.Status = "rate_limited"
+						result.QuotaStatus = "exhausted_or_throttled"
+					}
 					return result, errors.New("agent reported an unsuccessful result")
 				}
 			}
@@ -208,6 +217,9 @@ func parsePairedAgentStream(reader io.Reader, launch PairedLaunch) (PairedAgentR
 				usage := pairedObject(event, "usage")
 				result.UsageObserved = usage != nil
 				result.InputTokens = pairedNumber(usage, "input_tokens")
+				// Codex includes cache reads in its input total; Claude reports them
+				// separately. Preserve cache counts without adding them twice.
+				result.CacheReadTokens = pairedNumber(usage, "cached_input_tokens")
 				result.OutputTokens = pairedNumber(usage, "output_tokens")
 			case "error", "turn.failed":
 				message := pairedString(event, "message") + " " + pairedString(pairedObject(event, "error"), "message")
@@ -274,8 +286,8 @@ func pairedRouteViolation(condition, tool string, input map[string]any) string {
 	}
 	if condition != "skill-cli" && (tool == "Bash" || tool == "shell") {
 		command := pairedString(input, "command")
-		// This is an audit tripwire. Filesystem confinement supplies the boundary;
-		// matching command text alone cannot prevent aliases or indirect execution.
+		// This is an audit tripwire, not a containment boundary. Matching command
+		// text alone cannot prevent aliases or indirect execution.
 		words := strings.FieldsFunc(command, func(r rune) bool { return strings.ContainsRune(" \t\n;|&()'\"", r) })
 		if slices.ContainsFunc(words, pairedKapiExecutable) {
 			return "unexpected kapi CLI route"

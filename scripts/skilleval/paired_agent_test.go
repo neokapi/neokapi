@@ -39,11 +39,15 @@ func TestPairedAgentStream(t *testing.T) {
 		{name: "forbidden MCP", host: "claude", condition: "skill-cli", model: "claude-sonnet-5", stream: `{"type":"assistant","message":{"content":[{"type":"tool_use","name":"mcp__kapi__check","input":{}}]}}`, status: "route_violation"},
 		{name: "foreign MCP", host: "codex", condition: "mcp", model: "gpt-5.6-terra", stream: `{"type":"item.completed","item":{"type":"mcp_tool_call","server":"other","tool":"read"}}`, status: "route_violation"},
 		{name: "rate limit", host: "codex", condition: "baseline", model: "gpt-5.6-terra", stream: `{"type":"error","message":"You have reached your usage limit"}`, status: "rate_limited"},
+		{name: "Claude result quota", host: "claude", condition: "baseline", model: "claude-sonnet-5", stream: `{"type":"result","subtype":"error_during_execution","is_error":true,"errors":["You have reached your usage limit"]}`, status: "rate_limited"},
+		{name: "Claude rejected quota", host: "claude", condition: "baseline", model: "claude-sonnet-5", stream: `{"type":"rate_limit_event","rate_limit_info":{"status":"rejected"}}
+{"type":"result","subtype":"error_during_execution","is_error":true}`, status: "rate_limited"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			result, err := parsePairedAgentStream(strings.NewReader(tc.stream), PairedLaunch{Agent: PairedAgentSpec{Host: tc.host, Model: tc.model}, Condition: tc.condition})
 			assert.Equal(t, tc.status, result.Status)
+			assert.Equal(t, tc.status == "rate_limited", result.RateLimited)
 			if tc.success {
 				require.NoError(t, err)
 				assert.True(t, result.UsageObserved)
@@ -51,6 +55,29 @@ func TestPairedAgentStream(t *testing.T) {
 			} else {
 				require.Error(t, err)
 			}
+		})
+	}
+}
+
+func TestPairedTokenAccountingIncludesCachedInput(t *testing.T) {
+	for _, tc := range []struct {
+		host, stream string
+		cacheWrite   int64
+	}{
+		{host: "claude", cacheWrite: 20, stream: `{"type":"system","subtype":"init","model":"test"}
+{"type":"result","subtype":"success","usage":{"input_tokens":10,"cache_creation_input_tokens":20,"cache_read_input_tokens":70,"output_tokens":4}}`},
+		{host: "codex", stream: `{"type":"thread.started","model":"test"}
+{"type":"turn.completed","usage":{"input_tokens":100,"cached_input_tokens":70,"output_tokens":4}}`},
+	} {
+		t.Run(tc.host, func(t *testing.T) {
+			result, err := parsePairedAgentStream(strings.NewReader(tc.stream), PairedLaunch{
+				Agent: PairedAgentSpec{Host: tc.host, Model: "test"}, Condition: "baseline",
+			})
+			require.NoError(t, err)
+			assert.Equal(t, int64(100), result.InputTokens)
+			assert.Equal(t, int64(70), result.CacheReadTokens)
+			assert.Equal(t, tc.cacheWrite, result.CacheWriteTokens)
+			assert.Equal(t, int64(4), result.OutputTokens)
 		})
 	}
 }

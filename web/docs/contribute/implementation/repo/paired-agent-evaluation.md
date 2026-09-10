@@ -39,6 +39,13 @@ In particular, configured read restrictions must not be described as enforced
 without a successful runtime check. Keep hidden evaluation artifacts outside the
 agent's workspace and inspect smoke transcripts before a scored study.
 
+The CLI wrapper binds `KAPI_PROJECT` to the fixture's absolute recipe path and
+clears `KAPI_NO_PROJECT` for that invocation. Explicit environment binding resolves
+before directory discovery. This supports commands without a recipe flag,
+including `inspect`, whose `--project` selects output formats. The surrounding
+agent environment retains `KAPI_NO_PROJECT=1`, isolated configuration and plugin
+discovery. MCP binds the recipe through its explicit `-p` argument.
+
 ## Build and preflight
 
 Build kapi once before preparing a study:
@@ -46,6 +53,12 @@ Build kapi once before preparing a study:
 ```sh
 make build
 make paired-eval-preflight
+```
+
+Check the CLI wrapper against that binary without launching an agent:
+
+```sh
+PAIRED_TEST_KAPI="$PWD/bin/kapi" go test ./scripts/skilleval -run TestPairedCLIWrapper
 ```
 
 Preflight prepares configurations without inference. The default manifest is
@@ -64,6 +77,10 @@ Live runs use signed-in subscriptions. They consume the account's allowance;
 token counts or locally estimated dollar figures do not establish the remaining
 subscription quota. Check account usage before commissioning a batch. The runner
 does not enable extra credits or switch to API billing.
+
+Input-token totals include reported cache reads and writes, with those counts
+also retained separately. Host tokenization and subscription weighting differ,
+so these observations do not establish equivalent allowance consumption.
 
 The prepared environment excludes API keys and endpoint overrides. Claude uses
 the existing subscription credential in memory, with token redaction on recorded

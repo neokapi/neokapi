@@ -48,6 +48,8 @@ type PairedAgentResult struct {
 	SessionID         string   `json:"session_id,omitempty"`
 	DurationMS        int64    `json:"duration_ms"`
 	InputTokens       int64    `json:"input_tokens"`
+	CacheReadTokens   int64    `json:"cache_read_tokens"`
+	CacheWriteTokens  int64    `json:"cache_write_tokens"`
 	OutputTokens      int64    `json:"output_tokens"`
 	Tools             []string `json:"tools"`
 	RateLimited       bool     `json:"rate_limited"`

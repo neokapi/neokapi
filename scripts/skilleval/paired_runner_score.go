@@ -21,6 +21,8 @@ type pairedScoreRow struct {
 	ArtifactIntegrity string            `json:"artifact_integrity"`
 	DurationMS        int64             `json:"duration_ms"`
 	InputTokens       *int64            `json:"input_tokens"`
+	CacheReadTokens   *int64            `json:"cache_read_tokens"`
+	CacheWriteTokens  *int64            `json:"cache_write_tokens"`
 	OutputTokens      *int64            `json:"output_tokens"`
 	HumanReview       string            `json:"human_review"`
 	ReviewerMinutes   *float64          `json:"reviewer_minutes"`
@@ -128,6 +130,8 @@ func scorePairedAttempt(path, fingerprint string) (pairedScoreRow, error) {
 	row.DurationMS = result.Agent.DurationMS
 	if result.Agent.UsageObserved {
 		row.InputTokens = &result.Agent.InputTokens
+		row.CacheReadTokens = &result.Agent.CacheReadTokens
+		row.CacheWriteTokens = &result.Agent.CacheWriteTokens
 		row.OutputTokens = &result.Agent.OutputTokens
 	}
 	row.Validation = result.Validation

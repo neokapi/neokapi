@@ -102,7 +102,12 @@ func pairedToolPath(launch PairedLaunch) error {
 		}
 		destination := filepath.Join(launch.StateDir, "bin", "kapi")
 		if _, err := os.Lstat(destination); errors.Is(err, os.ErrNotExist) {
-			wrapper := "#!/bin/sh\nexec " + pairedShellQuote(launch.KapiBin) + " -p " + pairedShellQuote(filepath.Join(launch.Workspace, "kapi.yaml")) + " \"$@\"\n"
+			// Some commands have no recipe flag; inspect uses --project for output
+			// formats. Bind the fixture through the environment without changing
+			// arguments. A nonempty KAPI_PROJECT resolves before any upward walk.
+			wrapper := "#!/bin/sh\nexport KAPI_NO_PROJECT=''\nexport KAPI_PROJECT=" +
+				pairedShellQuote(filepath.Join(launch.Workspace, "kapi.yaml")) +
+				"\nexec " + pairedShellQuote(launch.KapiBin) + " \"$@\"\n"
 			return os.WriteFile(destination, []byte(wrapper), 0o700)
 		}
 	}
