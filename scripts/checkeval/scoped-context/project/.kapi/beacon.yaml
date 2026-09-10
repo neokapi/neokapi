@@ -1,0 +1,21 @@
+name: Beacon event communication
+description: Authored synthetic guidance for a separate fictional product, deliberately different from Harbor.
+tone:
+  personality: [celebratory, personal]
+  formality: casual
+  emotion: warm
+  guidelines: Beacon event notices open with an enthusiastic invitation and close with a personal thank-you. Use event language and a sense of shared occasion.
+constraints:
+  - id: beacon/status-celebration
+    version: 1
+    kind: guidance
+    source: fixture-policy:beacon/status
+    scope: {channel: status}
+    statement: Begin Beacon public event notices with an enthusiastic invitation. A personal greeting, a cheerful metaphor and an appreciative sign-off are welcome in this product's event communication.
+channels:
+  status:
+    tone:
+      personality: [celebratory, personal]
+      formality: casual
+      emotion: warm
+      guidelines: Lead with the invitation and thank participants personally at the close.

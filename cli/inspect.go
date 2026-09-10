@@ -22,8 +22,9 @@ import (
 // spelling for.
 func NewInspectCmd(a *App) *cobra.Command {
 	var (
-		jsonl   bool
-		project []string
+		jsonl    bool
+		sections bool
+		project  []string
 	)
 	cmd := &cobra.Command{
 		Use:     "inspect [flags] [FILE...]",
@@ -34,6 +35,11 @@ content-hash anchor, and the block's structural role (heading, list-item,
 table-cell, …) and nesting level. Any format, whether a Word document, a JSON catalog,
 Markdown or HTML, yields the same shape, so an AI agent or RAG pipeline can read
 content, retrieve against the anchors, and write edits back to the same blocks.
+
+With --sections, inspect one local Markdown, HTML or DOCX file as heading
+sections with native block ranges and a whole-file snapshot. The section body
+is a Markdown reading projection; apply kind:"section" replaces that body
+through guarded offset patches while retaining the heading.
 
 Prints a JSON array by default; --output-format yaml emits a YAML sequence, and
 --jsonl streams one JSON object per line (JSONL) for piping into an ingestion
@@ -59,6 +65,15 @@ FILE "-" reads standard input.`,
 			case output.ResolveFormat(cmd) == output.FormatYAML:
 				outFormat = "yaml"
 			}
+			if sections {
+				if len(args) != 1 || len(project) != 0 {
+					return errors.New("--sections requires one local file and cannot be combined with --project projections")
+				}
+				if a.FormatFlag != "" {
+					return errors.New("--sections detects Markdown, HTML or DOCX from the file extension; omit --format")
+				}
+				return a.RunInspectSections(cmd, args[0], outFormat)
+			}
 			supported := formats.BlockFragmentFormats()
 			for _, p := range project {
 				if !slices.Contains(supported, p) {
@@ -69,6 +84,7 @@ FILE "-" reads standard input.`,
 		},
 	}
 	f := cmd.Flags()
+	f.BoolVar(&sections, "sections", false, "inspect heading sections and native block ranges for the section-edit POC")
 	f.BoolVar(&jsonl, "jsonl", false, "stream one JSON object per line (JSONL) instead of a JSON array")
 	f.StringSliceVar(&project, "project", nil, "also render each block to these target formats (html, markdown, asciidoc) under \"projected\"")
 	f.StringVarP(&a.FormatFlag, "format", "f", "", "input format (default: auto-detect by extension/content)")

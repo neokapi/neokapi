@@ -201,16 +201,139 @@ findings. Analysis that did not execute is not inferred from a zero-finding
 result. Malformed model output and governing-context failures remain operational
 errors rather than successful empty reports.
 
+Source-only content is checked as authored content, including within projects
+that also have translated targets. Naming a source file and selecting it through
+the project use the same applicable content checks. Translation checks apply to
+declared or explicitly requested target content. Release-gate evidence records
+what was measured, including empty scopes. Per-input context evidence identifies
+the effective voice selection and project channel, explicit overrides, and
+whether terms were supplied. This evidence comes from the resolution used by
+the checker; it is not reconstructed from a successful verdict.
+
 A rule demonstration is development evidence for that rule. Quality evaluation
 uses separate document families and clean counterexamples, with independent
 labels for semantic and reader-facing judgments. The product's own checker is
 not the sole judge of an experiment intended to establish its value.
+
+Context evaluation starts with applicability: the guidance selected for a
+destination must match its supported product and channel bindings. It records
+the actual resolver answer, coordinates, effective voice and check coverage.
+Identical wording at different legitimate destinations tests whether a review
+responds to the selected guidance; faithful alternative wording tests whether
+it permits variation. Unrelated guidance stays outside the resolved context,
+and missing guidance is reported as unavailable rather than invented.
+
+Style review assesses departures from supplied writing guidance, not a
+universal prose preference or an AI-authorship guess. Its evidence pairs the
+affected content with applicable guidance and keeps optional suggestions
+separate. An aligned assessment means no evidenced departure was reported;
+it is not a quality score or a publishing gate. Product/channel resolution and
+coordinate metadata are distinguished from arbitrary-axis rule selection.
+
+Content-meaning regression tests compare claims with their governing evidence:
+permissions, prerequisites, exceptions, certainty, participant roles and the
+binding of values to the things they describe. Structured values and arithmetic
+have separate integrity criteria. Preserving a placeholder does not establish
+that the surrounding sentence assigns it the right meaning. Valid paraphrases
+and identical wording under different context test both missed errors and false
+alarms. Missing evidence is distinguished from contradiction. Development
+contrasts specify capabilities; they do not establish accuracy on real documents.
+
+Style review distinguishes clear violations from optional refinements. A
+required correction follows the actual scope and force of the selected
+guidance. Broad tone permits compatible variation across a message; a preferred
+alternative alone does not establish a defect. Evaluation retains valid cases
+beside clear mismatches so that fewer false alarms cannot hide missed
+violations. Review policy versions share a response contract when its shape is
+unchanged, while their evidence identities record the policy used.
+
+A semantic finding needs an affected passage, applicable source evidence and a
+correct explanation of the conflict. Matching a span or category alone does not
+validate that explanation. Model-backed analysis is compared with an equivalent
+additional review pass, with context, model and resource budgets accounted for.
+Entity extraction accuracy and latency are measured separately from the
+contextual judgments that consume those entities.
+
+Fixed-document probes hold candidate text and evidence constant to isolate
+review capability before comparing authoring loops. They retain valid document
+controls and consequential omissions as well as contradicted claims. Source
+provenance and output-integrity checks establish traceability, not semantic
+correctness. Independent agent label review remains distinct from human
+adjudication, and direct model review is not attributed to a product analyzer
+that did not execute.
+
+Requirement-aware review distinguishes necessary reader actions from optional
+reference detail. Every declared requirement receives an explicit coverage or
+uncertainty assessment; omission findings identify the requirement they concern.
+Claim conflicts remain reviewable beyond that requirement list. Experimental
+model findings remain advisory, with source references and request identity,
+while optional suggestions and abstentions are retained separately. Complete
+response structure does not establish correct reasoning. Comparisons supply
+the same explicit requirements to the ordinary review control.
+
+Response envelopes are transport concerns. A permitted wrapper transformation
+retains the original answer, raw validation errors and hashes of both forms;
+the enclosed payload still passes the complete protocol validator. Reports
+distinguish bare responses from transformed ones and preserve frozen outcomes.
+An action-coverage judgment requires evidence of the reader's necessary action,
+including faithful indirect instructions. Merely describing available options
+does not establish that the guide supplies the instruction.
+
+Evidence selection and claim grounding are distinct. Selected candidate
+passages resolve to exact text and offsets in an immutable request. The
+reviewer's interpretation of a passage remains an assertion requiring separate
+assessment. A conflict compares the candidate and source claims, including any
+wrong actor, object or condition. An omitted instruction alone does not assert
+permission to skip it. Findings sharing a passage or concern remain separate
+when each identifies an independently supported problem; reference overlap is
+not grounds for automatic suppression.
 
 Agent comparisons hold the task, model, relevant guidance and resource limits
 constant. They counterbalance order and retain failed and capped runs. Fewer
 edits or tool calls do not establish better quality. Reports distinguish
 consequential errors, human acceptance, actual review time, latency and cost,
 with uncertainty and explicit unmeasured outcomes.
+
+Paired agent studies compare ordinary file tools, the shipped skill with CLI
+access, and MCP access without the skill or direct CLI execution. Each agent
+host runs the same content tasks in all conditions. Model identity and effort
+are fixed within a comparison; results from different models remain separate.
+The source guidance is equally available, and independent validators inspect
+the output artifacts. Semantic acceptance and reviewer time require human
+evidence and remain unmeasured until that review occurs.
+
+The paired runner prepares workspaces without model calls. Live execution uses
+an explicit session allowance, with started and failed attempts retained across
+resumes. Subscription usage is reported separately from API-equivalent cost.
+Raw study records remain local pending review for publication. Pilot documents
+support harness development; scored evaluations use separate document families.
+MCP preparation records server capabilities through protocol discovery. Server
+readiness, host exposure and observed agent use are separate evidence: a ready
+server alone establishes neither of the latter two.
+Assigned conditions retain attempts that never use the integration. Observed
+use and resolved check scope are reported alongside artifact validity, so
+completion alone cannot stand for successful context retrieval or checking.
+Explicitly instructed diagnostics test host exposure and execution separately
+from natural discovery. They share the persistent session allowance with
+ordinary tasks and retain their own phase in saved reports.
+See [Paired agent evaluation](../../implementation/repo/paired-agent-evaluation.md)
+for the manifest, execution stages and evidence records.
+
+Context-transfer proofs of concept separate source learning, independent draft
+creation and adaptation. The learned guidance is frozen before the draft is
+created. The initial writer receives only a factual brief. Identical draft
+copies are then adapted with raw references, the learned guidance as ordinary
+files, or the same guidance through kapi. Plain guidance includes the actual
+per-file resolver answers, which isolates the tool workflow from the benefit
+of having guidance at all. Source examples remain separate from target facts;
+explicit rules and inferred tendencies retain their scope and qualifications.
+
+These demonstrations retain full documents, exact diffs, learning overhead,
+observed tool use and unsupported checks. A single attempt per approach can
+reveal useful transformations and workflow limitations. It cannot establish a
+ranking, repeatability or a causal quality advantage. See
+[Context transfer](../../implementation/repo/context-transfer.md) for the
+staged protocol and browser report.
 
 Performance measurements distinguish fresh-process CLI work from persistent
 sessions and cold initialization from warm operation. Raw samples state their

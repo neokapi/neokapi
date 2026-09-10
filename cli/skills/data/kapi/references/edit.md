@@ -85,16 +85,18 @@ applied change-set is safe.
 
 ## 4. Verify
 
-A clean check is the finish line. In a project, run `kapi check --ship`; for a
-one-off file, `kapi check`:
+Check the file you edited. In a project, its applicable voice and terms resolve
+from the file's path:
 
 ```bash
-kapi check report.docx --json     # one-off: deterministic content rules
-kapi check --ship --json                 # in a project: voice + terminology + rule-based gates
+kapi check report.docx --json
 ```
 
-Read the findings, fix the flagged blocks through another `apply` pass, and
-re-run until the gate is green (exit 0).
+Read the findings and analyzer coverage, fix relevant flagged blocks through
+another `apply` pass, and re-check. Review meaning and any unsupported guidance
+against the retrieved context. A passing report does not establish those
+judgments. Use `kapi check --ship --json` when the task also requires checking
+project release gates.
 
 ## Which formats can I edit?
 
@@ -120,7 +122,10 @@ create new content, author in a generative format (see [create.md](create.md)).
 ## Mixed change-sets
 
 A `content` edit and the asset change that justifies it (a `term` entry, a
-`voice` rule) can land **atomically in one `kapi apply`**. Every reviewed
-change, content or asset, is one typed entry routed through the single write
-verb. See [create.md → close the loop](create.md) for the asset entry shapes;
-for the voice-vocabulary case specifically, [voice.md](voice.md).
+`voice` rule) can share one `kapi apply` invocation. The change-set is not a
+transaction: successful entries can remain applied when another entry fails.
+Inspect the per-entry report and resulting diff before retrying unfinished
+work; re-inspect stale content and use its current hashes. Every reviewed
+change is one typed entry routed through the single write verb. See
+[create.md → close the loop](create.md) for the asset entry shapes; for the
+voice-vocabulary case specifically, [voice.md](voice.md).

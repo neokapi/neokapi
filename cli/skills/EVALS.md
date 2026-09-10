@@ -6,8 +6,15 @@ wrong ones**. Run it after editing the skill's `description` (the only field
 loaded at agent startup, and the sole lever on triggering — across every tool
 that reads `SKILL.md`: Claude Code, Copilot, Cursor, …).
 
-There is no built-in eval runner; this is a manual checklist. Run it in a fresh
-session with the skill installed (Claude Code is the reference client):
+Use the `skill-eval` targets for the trigger scenarios in `scripts/skilleval`.
+For matched tasks across ordinary file tools, skill/CLI and MCP, use the
+subscription-only `paired-eval-preflight` and `paired-eval-smoke` targets. The
+paired runner defaults to six started attempts and pauses for review; it does
+not establish that every trigger scenario below passes. See the
+[paired evaluation note](../../web/docs/contribute/implementation/repo/paired-agent-evaluation.md).
+
+For a manual trigger check, start a fresh session with the skill installed
+(Claude Code is the reference client):
 
 - Claude Code: `/plugin install kapi@neokapi-plugins`, or
 - any tool: `npx skills add neokapi/agent-skills --skill kapi`

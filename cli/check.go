@@ -56,8 +56,9 @@ Project gate mode (--ship): it runs the project's bound quality gates (voice,
 terminology, rule-based checks) plus its ship/source coverage gates over the
 project's content, and exits non-zero when any gate is unmet: the pre-release
 bar. Target drift never blocks an ordinary build (see 'kapi status'); --ship is
-the explicit, opt-in enforcement point. With no file arguments it inspects the
-project's content x target languages; pass files to gate just those.
+the explicit, opt-in enforcement point. With no file arguments it checks the
+project's source-only content and declared source/target pairs. Named source
+files receive content checks; named targets retain their source pairing.
 
 Exit codes: 0 pass, 3 when the gate fails, 1 operational. --no-fail always exits
 0 (report mode) for a fix-loop.`,

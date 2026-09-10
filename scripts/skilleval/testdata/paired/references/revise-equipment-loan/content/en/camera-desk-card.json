@@ -1,0 +1,8 @@
+{
+  "id": "camera-desk-card",
+  "title": "Camera collection",
+  "loan_label": "14-day loan",
+  "loan_days": "14",
+  "collection": "Bring your library card to the equipment desk.",
+  "policy_id": "camera_7_day"
+}

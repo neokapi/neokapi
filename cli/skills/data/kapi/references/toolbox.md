@@ -230,5 +230,6 @@ is installed. Confirm what reads and writes with `kapi formats --json`
 2. Use `--target` to inspect, edit, convert, or measure coverage of a translation
    instead of the source.
 3. Prefer an ordinary edit (not `ksed`) for a small, byte-stable change to a
-   plain source-controlled text file. In a project, run `kapi check --ship` after a
-   `ksed` rewrite to re-check the gates.
+   plain source-controlled text file. After a `ksed` rewrite, run
+   `kapi check <file> --json` to check the edited content and inspect its analyzer
+   coverage. Use `--ship` when verifying project release gates.

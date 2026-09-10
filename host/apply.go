@@ -25,6 +25,7 @@ type changeKind string
 
 const (
 	kindContent changeKind = "content"
+	kindSection changeKind = "section"
 	kindTerm    changeKind = "term"
 	kindMemory  changeKind = "memory"
 	kindVoice   changeKind = "voice"
@@ -37,13 +38,14 @@ const (
 // the block address (file + id + content_hash) and the new placeholder-rendered
 // text; asset edits carry an op and the per-asset fields.
 type changeEntry struct {
-	Kind changeKind `json:"kind"`
+	Kind changeKind `json:"kind" jsonschema:"change kind; content edits block wording, section replaces a heading section body"`
 
 	// content
 	File        string `json:"file,omitempty"`
 	ID          string `json:"id,omitempty"`
 	ContentHash string `json:"content_hash,omitempty"`
-	Text        string `json:"text,omitempty"`
+	Snapshot    string `json:"snapshot,omitempty"`
+	Text        string `json:"text,omitempty" jsonschema:"new block wording for kind=content (preserve inline placeholders); Markdown body for kind=section"`
 
 	// asset common
 	Op string `json:"op,omitempty"`
@@ -62,7 +64,7 @@ type changeEntry struct {
 
 	// brand
 	List        string `json:"list,omitempty"`
-	Replacement string `json:"replacement,omitempty"`
+	Replacement string `json:"replacement,omitempty" jsonschema:"replacement term for kind=voice; content entries use text"`
 	Severity    string `json:"severity,omitempty"`
 
 	// recipe
@@ -113,7 +115,16 @@ func (a *App) RunApply(cmd Command, path string, diff bool, backupSuffix string,
 	if err != nil {
 		return err
 	}
+	if err := validateContentWording(entries); err != nil {
+		return err
+	}
 
+	if err := validateSectionChangeSet(entries); err != nil {
+		return err
+	}
+	if len(entries) == 1 && entries[0].Kind == kindSection {
+		return a.runSectionApply(cmd, entries[0], diff, backupSuffix, asJSON)
+	}
 	var out applyOutput
 
 	// Content entries grouped by file → one faithful round-trip per file.
@@ -182,6 +193,16 @@ func (a *App) RunApply(cmd Command, path string, diff bool, backupSuffix string,
 		// gate code so a fix loop re-inspects and retries, distinct from an
 		// operational failure.
 		return WithExitCode(ExitGate, ErrSilentExit)
+	}
+	return nil
+}
+
+// Validate wording fields before either surface starts applying the change-set.
+func validateContentWording(entries []changeEntry) error {
+	for i, e := range entries {
+		if e.Kind == kindContent && e.Replacement != "" {
+			return fmt.Errorf("content entry %d for block %q: put the new wording in \"text\"; \"replacement\" belongs to voice rules", i+1, e.ID)
+		}
 	}
 	return nil
 }

@@ -2358,6 +2358,74 @@ skill-eval-completion: build ## Drive each positive scenario to a green gate (sl
 mcp-eval: build ## Measure whether an agent picks the right kapi MCP tool (spends, local only)
 	$(GO) run ./scripts/skilleval -mode trigger -surface mcp -repeat 3 $(SKILLEVAL_ARGS)
 
+# Paired studies keep the same task across the baseline, CLI skill and MCP.
+# Live runs use the signed-in subscriptions and a persistent attempt ceiling.
+PAIRED_EVAL_MANIFEST ?= scripts/skilleval/testdata/paired-study.json
+PAIRED_EVAL_DIR ?= harness/out/paired-eval
+PAIRED_EVAL_MAX_ATTEMPTS ?= 6
+PAIRED_EVAL_ARGS ?=
+PAIRED_EVAL_FLAGS = -paired-manifest "$(PAIRED_EVAL_MANIFEST)" -paired-dir "$(PAIRED_EVAL_DIR)" $(PAIRED_EVAL_ARGS)
+
+paired-eval-preflight: ## Prepare the paired agent study without model calls (build kapi first)
+	$(GO) run ./scripts/skilleval $(PAIRED_EVAL_FLAGS) -paired-phase preflight
+
+paired-eval-smoke: ## Run a bounded subscription-backed smoke batch (consumes plan allowance)
+	$(GO) run ./scripts/skilleval $(PAIRED_EVAL_FLAGS) -paired-phase smoke -paired-live -paired-max-attempts $(PAIRED_EVAL_MAX_ATTEMPTS)
+
+paired-eval-diagnostic: ## Test explicitly instructed integration use within the shared subscription ceiling
+	$(GO) run ./scripts/skilleval $(PAIRED_EVAL_FLAGS) -paired-phase diagnostic -paired-live -paired-max-attempts $(PAIRED_EVAL_MAX_ATTEMPTS)
+
+paired-eval-pilot: ## Run the paired pilot within the persistent attempt ceiling (consumes plan allowance)
+	$(GO) run ./scripts/skilleval $(PAIRED_EVAL_FLAGS) -paired-phase pilot -paired-live -paired-max-attempts $(PAIRED_EVAL_MAX_ATTEMPTS)
+
+paired-eval-score: ## Summarize saved paired attempts without model calls
+	$(GO) run ./scripts/skilleval $(PAIRED_EVAL_FLAGS) -paired-phase score
+
+MEANING_EVAL_INPUTS ?= harness/out/contextual-documents
+MEANING_EVAL_DIR ?= harness/out/contextual-review
+MEANING_EVAL_MAX_ATTEMPTS ?= 6
+.PHONY: meaning-eval-prepare meaning-eval-prepare-comparison meaning-eval-prepare-actions meaning-eval-prepare-evidence meaning-eval-prepare-scoped meaning-eval-prepare-style-calibration meaning-eval-checks meaning-eval-preflight meaning-eval-run
+
+meaning-eval-prepare: ## Prepare contextual document cases and browser casebook without inference (requires a new output directory)
+	python3 scripts/checkeval/prepare_documents.py --out "$(MEANING_EVAL_INPUTS)"
+
+meaning-eval-prepare-comparison: ## Prepare matched ordinary and requirement-coverage review inputs without inference
+	python3 scripts/checkeval/prepare_documents.py --requirements-comparison --out "$(MEANING_EVAL_INPUTS)"
+
+meaning-eval-prepare-actions: ## Prepare fresh action-coverage cases and matched review inputs without inference
+	python3 scripts/checkeval/prepare_actions.py --out "$(MEANING_EVAL_INPUTS)"
+
+meaning-eval-prepare-evidence: ## Prepare matched quote and passage-selection review inputs without inference
+	python3 scripts/checkeval/prepare_evidence.py --out "$(MEANING_EVAL_INPUTS)"
+
+meaning-eval-prepare-scoped: ## Resolve real project guidance and prepare six scoped style reviews without inference (build kapi first)
+	python3 scripts/checkeval/prepare_scoped_context.py --kapi bin/kapi --out "$(MEANING_EVAL_INPUTS)"
+
+meaning-eval-prepare-style-calibration: ## Prepare matched style-policy calibration and channel preservation cases without inference
+	python3 scripts/checkeval/prepare_scoped_context.py --kapi bin/kapi --calibration-comparison --out "$(MEANING_EVAL_INPUTS)"
+
+meaning-eval-checks: ## Record deterministic check coverage for contextual documents (build kapi first)
+	python3 scripts/checkeval/check_documents.py --inputs "$(MEANING_EVAL_INPUTS)/subject/inputs.jsonl" --kapi bin/kapi --out "$(MEANING_EVAL_DIR)-checks"
+
+meaning-eval-preflight: ## Verify fixed-document subscription review readiness without inference
+	$(GO) run ./scripts/skilleval -meaning-inputs "$(MEANING_EVAL_INPUTS)/subject" -meaning-dir "$(MEANING_EVAL_DIR)"
+
+meaning-eval-run: ## Review at most six fixed documents using the subscription (consumes plan allowance)
+	$(GO) run ./scripts/skilleval -meaning-inputs "$(MEANING_EVAL_INPUTS)/subject" -meaning-dir "$(MEANING_EVAL_DIR)" -meaning-live -meaning-max-attempts $(MEANING_EVAL_MAX_ATTEMPTS)
+
+CONTEXT_TRANSFER_DIR ?= harness/out/context-transfer
+CONTEXT_TRANSFER_STAGE ?= learn
+.PHONY: context-transfer-prepare context-transfer-preflight context-transfer-run
+
+context-transfer-prepare: ## Pin source documents and stage context learning without inference (requires a new directory)
+	python3 scripts/checkeval/prepare_context_transfer.py prepare --out "$(CONTEXT_TRANSFER_DIR)"
+
+context-transfer-preflight: ## Freeze one context transfer stage and verify subscription readiness without inference
+	$(GO) run ./scripts/skilleval -poc-stage "$(CONTEXT_TRANSFER_DIR)/stages/$(CONTEXT_TRANSFER_STAGE).json" -poc-dir "$(CONTEXT_TRANSFER_DIR)/ledger"
+
+context-transfer-run: ## Run one staged subscription attempt within the persistent six-start ceiling
+	$(GO) run ./scripts/skilleval -poc-stage "$(CONTEXT_TRANSFER_DIR)/stages/$(CONTEXT_TRANSFER_STAGE).json" -poc-dir "$(CONTEXT_TRANSFER_DIR)/ledger" -poc-live
+
 PRIORAB_ARGS ?=
 # Costs model calls. Two halves: a deterministic consistency check (does the
 # approved wording survive) and a judged quality score. Only the first should be

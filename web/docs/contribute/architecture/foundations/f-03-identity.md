@@ -115,6 +115,21 @@ offset), and a locator moves whenever anything above it moves, so hashing one
 would report an untouched block as changed every time a blank line was added
 earlier in the file.
 
+### Source locations and section ranges
+
+`model.SourceSpan` records a reader-derived byte interval and optional package
+part using advisory properties. Moving a block's source bytes changes its
+locator while leaving its content and context hashes unchanged. The document
+snapshot scopes every source interval.
+
+A section-edit target is a `model.BlockRange`: the preserved heading, body
+block references and the next boundary block when present. Each reference uses
+the native reader's ID, name, structural address and content hash. These are the
+anchors used by ordinary inspection and content checks. A range replaces its
+body as a unit, including intervening structural data. The format planner maps
+that range to guarded offsets; agents do not supply package paths or byte
+positions. IDs and offsets must be read again after a structural edit.
+
 ### The record hash: what a transfer compares
 
 A third value is derived from the pair rather than stored beside it.

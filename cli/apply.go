@@ -30,6 +30,12 @@ inline codes preserved), drift-guarded by content_hash; asset edits are written
 into their committed source artifact and the existing import compiles them into
 the cache; a review outcome is recorded as unit state in the project store.
 
+The section-edit POC accepts one kind:"section" entry per change-set. Inspect
+with --sections, then supply file, id, snapshot and text (a Markdown body).
+The selected heading stays in place; its body, including nested headings,
+is replaced through immutable offset patches. --diff --json exposes the exact
+writer plan and native block range. Re-inspect and run check after each edit.
+
 A content memory pair (kind:"memory") is recycle leverage for future translation. It does not
 promote a unit to reviewed. To approve a translated unit, use a kind:"review"
 entry addressed by its file/id/locale (as 'kapi status --review' lists it), with

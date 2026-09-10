@@ -1,0 +1,281 @@
+{
+  "schema_version": 1,
+  "status": "development_documents",
+  "provenance": "Exact excerpts from repository documentation with Git blob and line provenance. Candidate guides and deliberate errors are authored adaptations, with provisional labels and no independent product-specification validation.",
+  "families": [
+    {
+      "id": "destination-guidance",
+      "partition": "development",
+      "reader_task": "Prepare a complete MCP handoff procedure for checking an onboarding guide before and after saving it, retaining destination guidance normally and explaining the consequences of a deliberate explicit profile override.",
+      "requirements": [
+        {
+          "id": "draft-destination",
+          "description": "Explain how to check the draft against its intended project destination, including the bound project and compatible scope arguments.",
+          "source_ids": [
+            "scope-draft",
+            "scope-project"
+          ]
+        },
+        {
+          "id": "saved-file-check",
+          "description": "Direct the author to check the saved file after saving the draft, so the handoff includes checking the actual document rather than only the supplied snippet.",
+          "source_ids": [
+            "scope-draft",
+            "scope-project"
+          ]
+        },
+        {
+          "id": "profile-override-effects",
+          "description": "Explain how to retain the destination guidance for a normal file check and what a deliberate explicit profile override means for the file’s voice channel and project terminology.",
+          "source_ids": [
+            "scope-report",
+            "scope-override"
+          ]
+        },
+        {
+          "id": "handoff-scope-evidence",
+          "description": "Tell the author which request and reported context evidence to keep and inspect before relying on the check, including how to interpret absent context metadata.",
+          "source_ids": [
+            "scope-report",
+            "scope-override"
+          ]
+        }
+      ],
+      "audience": "Content authors and assistant operators working in an existing kapi project.",
+      "surface": "Team procedure with draft preparation, saved-file checking and review handoff sections.",
+      "destination": "An internal authoring handbook; the checked guide has a project-relative destination.",
+      "variables": {},
+      "source_status": "repo_documentation_excerpts",
+      "sources": [
+        {
+          "id": "scope-draft",
+          "path": "web/docs/framework/checks/index.md",
+          "git_blob": "b9387869f1cb354acc9aa6b5c3a1be441058cf65",
+          "start_line": 43,
+          "end_line": 66,
+          "text": "A completed `kapi check` run produces a `core/check.Report` (versioned\n`kapi.check/v1`): a summary\n(counts + score), the gate (the thresholds and which tripped), and a list of\n**diagnostics**. Each diagnostic carries a stable `rule` id, a `severity`, a\nhuman `message`, an optional `suggestion`, and a `location` (the block, plus a\nrun-range when the checker pinpointed one). The stable rule id is the loop's\nprimary key: an assistant tracks it across iterations to confirm a fix and avoid\nregressions. `--json` emits the Report verbatim; over MCP, the `check_file` and\n`check_text` tools return the same Report, the verifier counterpart to the\n`extract_content`/`apply_edits` editing tools, so an assistant can\n**author → check → revise → re-check** without leaving the conversation.\n\nFor a draft intended for a project file, pass that destination as `context_path`\nto `check_text`. kapi applies the destination's voice channel and terms even\nbefore the file exists. For example:\n\n```json\n{\"text\": \"Your draft wording\", \"context_path\": \"content/en/page.json\"}\n```\n\nThe report describes the supplied text and records its intended destination in\n`target.context_path`. After saving, use `check_file` to check the file itself.\nAn unscoped snippet can use `profile_file` or `profile_pack`; these explicit\nprofile options cannot be combined with `context_path`.\n"
+        },
+        {
+          "id": "scope-report",
+          "path": "web/docs/framework/checks/index.md",
+          "git_blob": "b9387869f1cb354acc9aa6b5c3a1be441058cf65",
+          "start_line": 68,
+          "end_line": 88,
+          "text": "The optional `execution` object records which analyzers ran for each input,\nwhich were not requested, and why a capability was unsupported. Each entry has\nan analyzer ID, execution status, finding count and, when it ran, a duration.\nThe host also reports context, extraction, analysis, report-construction and\ntotal time in milliseconds; serialization and process startup are excluded.\nReports without `execution` have **unreported coverage**.\n\n`execution.contexts` records the effective guidance for each checked input.\nEach entry identifies the file or draft destination, the voice selection\n(`project`, `override` or `none`), the loaded profile name and source, and the\nproject profile and channel when they governed the check. `voice.applied`\ndistinguishes a loaded profile from a project location with no voice binding.\n`terms_applied` states whether terminology was supplied to the checks; it does\nnot imply that a term matched or produced a finding. Project terminology checks\nalso run when no voice profile is bound. An omitted `contexts`\nfield means the producer did not report context selection.\n\nFor a project file, omit MCP `profile_file` and `profile_pack` to retain its\napplicable profile and channel. An explicit profile replaces that voice\nselection, while project terms still apply. Check the reported scope before\nusing a passing result to assess the task.\n"
+        },
+        {
+          "id": "scope-project",
+          "path": "web/docs/contribute/implementation/surfaces/mcp-tools-reference.md",
+          "git_blob": "997b01f702d0b586a743ad913cdccbadde00eed9",
+          "start_line": 35,
+          "end_line": 59,
+          "text": "`App.ResolveMCPProject` accepts `-p` / `--project` through the CLI's project\nflag convention and otherwise runs the shared upward walk. `KAPI_NO_PROJECT=1`\ndisables implicit discovery; an explicit recipe still wins. The resolver retains\nthe exact recipe path and source language before serving tools. Invalid project\nloading returns an error. `check_file` and a scoped `check_text` thread that path\ninto their synthetic host commands, so profile and terms resolution uses the\nbound project even when implicit discovery is disabled. Custom recipe filenames\nremain intact.\n\nThe `context://` resources and `context_search` also use the server's bound\nrecipe. Resource locations resolve relative to that recipe's root, including\nwhen the server runs from a subdirectory or outside the project. Explicit\nstandalone store inputs on `context_search` retain their override semantics.\n\n`check_text.context_path` names a project-relative destination, including a file\nthat has not been written. It resolves the destination's voice channel and terms\nwithout extracting a file. The path requires a bound project and cannot be\ncombined with `profile_file` or `profile_pack`. Unscoped snippets retain those\nexplicit profile options. Invalid paths and context-resolution errors fail the\noperation instead of dropping the requested scope.\n\nA scoped draft report keeps `target.kind: \"text\"` and records the destination in\n`target.context_path`. Its findings and analyzer entries have no file location:\nthey describe the supplied snippet. `check_file` remains the post-save check for\ndocument extraction, structure and block locations.\n"
+        },
+        {
+          "id": "scope-override",
+          "path": "web/docs/contribute/implementation/surfaces/mcp-tools-reference.md",
+          "git_blob": "997b01f702d0b586a743ad913cdccbadde00eed9",
+          "start_line": 61,
+          "end_line": 79,
+          "text": "For project-scoped `check_file`, omit `profile_file` and `profile_pack` so the\nfile's voice channel resolves from the project. Either explicit option replaces\nthat voice selection; loading the project's profile YAML directly does not\nselect the file's channel. Project terms still resolve for the file. Record the\narguments and `execution.contexts` when assessing check coverage. Context entries\nrecord the effective voice selection, loaded profile source, project profile\nand channel, plus whether terms were supplied. A file-scoped voice resolution\nreturns the composed profile and its metadata together; the check uses that\nsame profile. Explicit overrides are marked `override` and carry no inferred\nproject channel. Terms resolve independently of a voice override. A tool name\nalone does not establish which voice governed the check.\n\nThe canonical CLI/MCP check report includes optional `execution.analyzers` and\nphase timings. An absent inventory means unreported coverage. Applicable\nsemantic guidance has an explicit `unsupported` entry in a deterministic run;\nits presence cannot be inferred from the score. Requested analysis or context\nthat fails returns the existing operation-error transport. See the\n[checks documentation](/framework/checks)\nfor analyzer scope and timing boundaries.\n"
+        }
+      ],
+      "variants": [
+        {
+          "id": "destination-guidance-supported",
+          "text": "# Check an onboarding draft in its destination\n\nUse this handoff when an assistant is preparing a project onboarding guide through MCP. The guide may still exist only as draft text. Bind the server to the intended project before checking it, so the destination can resolve against the project recipe.\n\n## While the guide is a draft\n\nSend the draft to `check_text` with its project-relative destination in `context_path`. The destination can name a file that has not been created. This selects its voice channel and terms without extracting a document. Keep `profile_file` and `profile_pack` out of that request: explicit profiles and `context_path` cannot be combined. An invalid destination or a failure to resolve its context is an operation error that needs attention.\n\nRead the resulting findings as findings about the supplied snippet. The report retains `target.kind: \"text\"` and records the intended destination. These findings do not have file locations. Once the guide is saved, run `check_file` on the saved file to check document extraction, structure and located blocks as well.\n\n## Check the saved guide under its project guidance\n\nFor the normal file check, omit both explicit profile options. This allows the file's voice channel to resolve from its project. If you deliberately supply `profile_file` or `profile_pack`, that profile replaces the voice selection. Loading the project's own YAML explicitly still does not select the file's channel. Project terms continue to resolve for the file independently of this override, including when no voice profile is bound.\n\n## Keep the evidence with the handoff\n\nRecord the request arguments and `execution.contexts`. Read the voice selection, loaded source and any reported project profile and channel together. `voice.applied` tells you whether a voice profile was loaded. `terms_applied` tells you that terminology was supplied, not that a term matched. Missing context metadata means the selection was unreported. Include the saved-file report in the handoff so the next reviewer can identify which file and guidance were actually checked.",
+          "construction": "Authored adaptation of the supplied repository documentation for the stated reader task; faulty variants contain deliberate mutations.",
+          "expected": {
+            "label_status": "provisional_author_labels",
+            "claim_support": "supported",
+            "completeness": "complete_for_task",
+            "issues": [],
+            "validity_rationale": "Preserves destination selection for drafts, explicit override behavior for files, independent project terms and the required post-save check. Rephrasing these actions is allowed."
+          }
+        },
+        {
+          "id": "destination-guidance-faulty",
+          "text": "# Check an onboarding draft in its destination\n\nUse this handoff when an assistant is preparing a project onboarding guide through MCP. The guide may still exist only as draft text. Bind the server to the intended project before checking it, so the destination can resolve against the project recipe.\n\n## While the guide is a draft\n\nSend the draft to `check_text` with its project-relative destination in `context_path`. The destination can name a file that has not been created. This selects its voice channel and terms without extracting a document. Keep `profile_file` and `profile_pack` out of that request: explicit profiles and `context_path` cannot be combined. An invalid destination or a failure to resolve its context is an operation error that needs attention.\n\nRead the resulting findings as findings about the supplied snippet. The report retains `target.kind: \"text\"` and records the intended destination. These findings do not have file locations. Keep the draft report alongside the text as you prepare the saved guide for its handoff.\n\n## Select guidance for a file check\n\nFor a normal `check_file` request, omit both explicit profile options to resolve the file's voice channel from its project. If a reviewer requests a particular `profile_file` or `profile_pack`, pass it explicitly. This replaces the base voice while preserving the destination's project channel, including when you load the project's own profile YAML. The explicit profile also replaces the project's terminology selection, so project terms are inactive for that check.\n\n## Keep the evidence with the handoff\n\nRecord the request arguments and `execution.contexts`. Read the voice selection, loaded source and any reported project profile and channel together. `voice.applied` tells you whether a voice profile was loaded. `terms_applied` tells you that terminology was supplied, not that a term matched. Missing context metadata means the selection was unreported. Include the available report in the handoff so the next reviewer can identify the guidance reported by the check.",
+          "construction": "Authored adaptation of the supplied repository documentation for the stated reader task; faulty variants contain deliberate mutations.",
+          "expected": {
+            "label_status": "provisional_author_labels",
+            "claim_support": "contradicted",
+            "completeness": "consequential_omission",
+            "issues": [
+              {
+                "id": "override-channel",
+                "kind": "contradiction",
+                "candidate_quote": "This replaces the base voice while preserving the destination's project channel, including when you load the project's own profile YAML.",
+                "evidence_ids": [
+                  "scope-override"
+                ],
+                "required_guidance": "An explicit file-check profile replaces the voice selection and does not preserve or infer the destination channel.",
+                "rationale": "The candidate promises scoped channel guidance under an explicit override, although the source explicitly excludes it.",
+                "severity": "major"
+              },
+              {
+                "id": "override-terms",
+                "kind": "contradiction",
+                "candidate_quote": "The explicit profile also replaces the project's terminology selection, so project terms are inactive for that check.",
+                "evidence_ids": [
+                  "scope-override",
+                  "scope-report"
+                ],
+                "required_guidance": "Project terms resolve independently of an explicit voice override.",
+                "rationale": "The candidate incorrectly tells the reader that an override disables the project terms; this reverses the stated independence.",
+                "severity": "major"
+              },
+              {
+                "id": "saved-check",
+                "kind": "omission",
+                "candidate_quote": "",
+                "evidence_ids": [
+                  "scope-draft",
+                  "scope-project"
+                ],
+                "required_guidance": "After saving the draft, run check_file on the saved file to inspect extraction, structure and block locations.",
+                "rationale": "The stated task requires both draft and saved-file checking. The candidate describes options for a file check but never instructs the author to perform it after saving; keeping the snippet report omits that action.",
+                "severity": "major"
+              }
+            ],
+            "validity_rationale": "Contains two conflicting guidance claims and omits the required transition from a snippet check to a post-save file check."
+          }
+        }
+      ]
+    },
+    {
+      "id": "concurrent-content-edit",
+      "partition": "development",
+      "reader_task": "Provide an operator procedure for changing selected blocks in an existing document that other people may edit concurrently. The change-set contains only content entries, with no asset or review entries. Include safe preparation, preview, what a blocked apply means for already-written content, and the actions needed to recover from stale or rejected edits.",
+      "requirements": [
+        {
+          "id": "prepare-content-edits",
+          "description": "Explain how to confirm editing support and prepare content entries from inspected blocks, retaining the identities, hashes and inline codes needed for safe edits.",
+          "source_ids": [
+            "edit-formats",
+            "edit-identities",
+            "edit-apply"
+          ]
+        },
+        {
+          "id": "preview-and-apply",
+          "description": "Direct the operator to preview the prepared changes before applying them, distinguishing the preview from writing the document.",
+          "source_ids": [
+            "edit-apply"
+          ]
+        },
+        {
+          "id": "blocked-apply-state",
+          "description": "Explain what stale and rejected edits mean for the affected blocks and for content that may already have been written by the same change-set.",
+          "source_ids": [
+            "edit-recovery"
+          ]
+        },
+        {
+          "id": "recover-blocked-edits",
+          "description": "Give the operator the actions needed to recover from a stale or rejected content edit and retry against the current document safely.",
+          "source_ids": [
+            "edit-identities",
+            "edit-recovery"
+          ]
+        },
+        {
+          "id": "verify-edited-file",
+          "description": "Direct the operator to check the edited file, address relevant findings and re-check, retaining review of meaning and guidance outside the checks’ coverage.",
+          "source_ids": [
+            "edit-recovery"
+          ]
+        }
+      ],
+      "audience": "A content author preparing and applying a reviewed JSONL change-set.",
+      "surface": "Operational guide with preparation, failure recovery and verification sections.",
+      "destination": "An internal authoring handbook for existing editable documents.",
+      "variables": {},
+      "source_status": "repo_documentation_excerpts",
+      "sources": [
+        {
+          "id": "edit-identities",
+          "path": "cli/skills/data/kapi/references/edit.md",
+          "git_blob": "c507790fcf5ad0a0ac9a8b30a59b61cce8f7bd46",
+          "start_line": 15,
+          "end_line": 38,
+          "text": "## 1. Read the blocks\n\n`kapi inspect` parses any format into one record per content block, carrying the\ntext, the block's structural role, a stable `id`, and a `content_hash`:\n\n```bash\nkapi inspect report.docx --jsonl\n```\n\n```json\n{\"file\":\"report.docx\",\"number\":1,\"id\":\"p1\",\"content_hash\":\"a1b2c3…\",\"role\":\"heading\",\"level\":1,\"text\":\"Quarterly summary\"}\n{\"file\":\"report.docx\",\"number\":2,\"id\":\"p2\",\"content_hash\":\"d4e5f6…\",\"role\":\"body\",\"text\":\"Revenue rose, see the <x id=\\\"1/\\\"/> dashboard.\"}\n```\n\nTwo fields anchor an edit:\n\n- **`text`** renders inline codes (links, bold spans, placeholders) as\n  `<x id=\"…\"/>` tokens. **Keep every token, unchanged, in your edited text.**\n  They are the markup the round-trip reconstructs. A placeholder is\n  `<x id=\"1/\"/>`; a paired span opens with `<x id=\"1\"/>` and closes with\n  `<x id=\"/1\"/>`. Reorder or drop one and the edit is rejected (see §3).\n- **`content_hash`** is the block's canonical identity (a hash of its plain\n  source text, not of the placeholder `text`). Send it back with the edit so\n  kapi can tell the block is still the one you read.\n"
+        },
+        {
+          "id": "edit-apply",
+          "path": "cli/skills/data/kapi/references/edit.md",
+          "git_blob": "c507790fcf5ad0a0ac9a8b30a59b61cce8f7bd46",
+          "start_line": 40,
+          "end_line": 66,
+          "text": "## 2. Write the edits\n\nProduce one `content` entry per block you changed, as JSONL with one entry per\nline, naming the block's `file`, `id`, the `content_hash` you saw, and your new\n`text`:\n\n```json\n{\"kind\":\"content\",\"file\":\"report.docx\",\"id\":\"p2\",\"content_hash\":\"d4e5f6…\",\"text\":\"Revenue climbed; see the <x id=\\\"1/\\\"/> dashboard.\"}\n```\n\nThen apply it. `kapi apply` is the one write verb. It reads the change-set from\na file, an argument, or stdin, and writes each named file in place:\n\n```bash\nkapi inspect report.docx --jsonl > blocks.jsonl\n# You rewrite the \"text\" of each changed block (keeping the <x id=\"…\"/> tags) and\n# write those content entries to edits.jsonl — there is no command for it; you\n# are the writer. Then:\nkapi apply edits.jsonl --diff          # preview the content changes, write nothing\nkapi apply edits.jsonl                  # apply in place\nkapi apply edits.jsonl --in-place=.bak  # apply, keeping a .bak of each file\n```\n\n`kapi apply` is the sole write verb, covering every case (one file or many,\ncontent alone or content mixed with asset edits; see\n[Mixed change-sets](#mixed-change-sets)). kapi never sends content to a model to\nrewrite it; you write the new text and `kapi apply` round-trips it back.\n"
+        },
+        {
+          "id": "edit-recovery",
+          "path": "cli/skills/data/kapi/references/edit.md",
+          "git_blob": "c507790fcf5ad0a0ac9a8b30a59b61cce8f7bd46",
+          "start_line": 68,
+          "end_line": 99,
+          "text": "## 3. The two guards\n\n`apply` writes a block only when both guards pass; a blocked edit leaves that\nblock untouched and is reported, so nothing is silently corrupted:\n\n- **Drift guard.** If a block's current `content_hash` no longer matches the one\n  in your entry, the source changed since you inspected it. The edit is marked\n  **stale** and skipped.\n- **Inline-code guard.** If your edited `text` drops, invents, duplicates, or\n  unbalances an `<x id=\"…\"/>` token, the edit is **rejected** rather than written\n  back with broken markup.\n\nEither outcome exits on the **gate code (3)**, distinct from an operational\nerror. Treat it as a signal to **re-inspect the affected blocks and retry** with\nfresh hashes, the same loop a failing check drives. `apply` is idempotent: an\nentry whose text already matches the block is a no-op, so re-running a partly\napplied change-set is safe.\n\n## 4. Verify\n\nCheck the file you edited. In a project, its applicable voice and terms resolve\nfrom the file's path:\n\n```bash\nkapi check report.docx --json\n```\n\nRead the findings and analyzer coverage, fix relevant flagged blocks through\nanother `apply` pass, and re-check. Review meaning and any unsupported guidance\nagainst the retrieved context. A passing report does not establish those\njudgments. Use `kapi check --ship --json` when the task also requires checking\nproject release gates.\n"
+        },
+        {
+          "id": "edit-formats",
+          "path": "cli/skills/data/kapi/references/edit.md",
+          "git_blob": "c507790fcf5ad0a0ac9a8b30a59b61cce8f7bd46",
+          "start_line": 101,
+          "end_line": 120,
+          "text": "## Which formats can I edit?\n\n`kapi formats` reports an **Edit** column and the JSON adds `editable` and\n`round_trip`:\n\n```bash\nkapi formats --json | jq -r '.formats[] | select(.editable) | .name'\n```\n\nA format is **editable** when it has both a reader and a writer and is not a\nbilingual interchange format. That **includes binary office formats** (`.docx`,\n`.pptx`, `.xlsx`): the faithful round-trip is exactly what makes editing a binary\ncontainer safe. `round_trip` (shown as `faithful` in the table) means the writer\nreconstructs from a skeleton, so only your edited text changes and the rest is\nbyte-for-byte preserved. A read-only format (PDF is extraction-only) is not\neditable. To translate it, extract to a bilingual format and merge (see\n[translate.md](translate.md)).\n\nBinary formats can be **edited in place but not authored from scratch**; to\ncreate new content, author in a generative format (see [create.md](create.md)).\n"
+        }
+      ],
+      "variants": [
+        {
+          "id": "concurrent-content-edit-supported",
+          "text": "# Revise a document that other people may also edit\n\nUse this procedure for a content-only change-set that rewrites selected blocks in an existing editable document, preview your changes and recover if a source block changes while you work. The author supplies the new wording. The inspect and apply loop parses and writes the format without calling a model to rewrite the content.\n\n## Read and prepare the change-set\n\nCheck the format's editing support with `kapi formats`. A reader and writer make a supported non-bilingual format editable; PDF is extraction-only. Faithful writers reconstruct the document from its skeleton, preserving the material outside the edited text. Existing binary office documents can be edited, while new content needs a generative format.\n\nRun `kapi inspect report.docx --jsonl` and work from the returned blocks. Each record includes an ID, structural role, text and content hash. Preserve every inline-code token unchanged in your replacement text. Tokens represent markup and placeholders that the writer reconstructs. For each changed block, write a JSONL content entry containing its file, ID, the content hash you read and the replacement in `text`.\n\nPreview the prepared change-set with `kapi apply edits.jsonl --diff`; this writes nothing. Apply it with `kapi apply edits.jsonl`, or use `--in-place=.bak` to keep a backup of each file.\n\n## Resolve blocked edits\n\nRead the apply result for each affected block. A stale hash causes that edit to be skipped; invalid inline codes cause rejection. The blocked block remains untouched, but the change-set can be partly applied. An entry whose text already matches is a no-op on a later application.\n\nFor either guard outcome, re-inspect the affected blocks and retry with fresh hashes. Check your replacement against the current source and keep its inline codes intact. Treat the gate exit as a signal to resolve the blocked edits.\n\n## Verify the edited file\n\nRun `kapi check report.docx --json`. Read findings and analyzer coverage, fix relevant blocks and re-check. Review meaning and unsupported guidance against the retrieved context; a passing report does not establish those judgments. Add the project release-gate check when the task requires it.",
+          "construction": "Authored adaptation of the supplied repository documentation for the stated reader task; faulty variants contain deliberate mutations.",
+          "expected": {
+            "label_status": "provisional_author_labels",
+            "claim_support": "supported",
+            "completeness": "complete_for_task",
+            "issues": [],
+            "validity_rationale": "Preserves inspected identity and inline codes, distinguishes preview from writes, explains block-level guards and possible partial application, and gives the required reinspection/retry action."
+          }
+        },
+        {
+          "id": "concurrent-content-edit-faulty",
+          "text": "# Revise a document that other people may also edit\n\nUse this procedure for a content-only change-set that rewrites selected blocks in an existing editable document, preview your changes and handle an apply report if a source block changes while you work. The author supplies the new wording. The inspect and apply loop parses and writes the format without calling a model to rewrite the content.\n\n## Read and prepare the change-set\n\nCheck the format's editing support with `kapi formats`. A reader and writer make a supported non-bilingual format editable; PDF is extraction-only. Faithful writers reconstruct the document from its skeleton, preserving the material outside the edited text. Existing binary office documents can be edited, while new content needs a generative format.\n\nRun `kapi inspect report.docx --jsonl` and work from the returned blocks. Each record includes an ID, structural role, text and content hash. Preserve every inline-code token unchanged in your replacement text. Tokens represent markup and placeholders that the writer reconstructs. For each changed block, write a JSONL content entry containing its file, ID, the content hash you read and the replacement in `text`.\n\nPreview the prepared change-set with `kapi apply edits.jsonl --diff`; this writes nothing. Apply it with `kapi apply edits.jsonl`, or use `--in-place=.bak` to keep a backup of each file.\n\n## Read the apply result\n\nA stale hash causes an edit to be skipped; invalid inline codes cause rejection. If either guard blocks an entry, the entire change-set remains unapplied, so every named file stays in its original state. The report identifies stale or rejected edits, and the process returns the gate exit code rather than an operational error. Keep that report with your change-set for the next review.\n\n## Verify the edited file\n\nRun `kapi check report.docx --json`. Read findings and analyzer coverage, fix relevant blocks and re-check. Review meaning and unsupported guidance against the retrieved context; a passing report does not establish those judgments. Add the project release-gate check when the task requires it.",
+          "construction": "Authored adaptation of the supplied repository documentation for the stated reader task; faulty variants contain deliberate mutations.",
+          "expected": {
+            "label_status": "provisional_author_labels",
+            "claim_support": "contradicted",
+            "completeness": "consequential_omission",
+            "issues": [
+              {
+                "id": "whole-set-rollback",
+                "kind": "contradiction",
+                "candidate_quote": "If either guard blocks an entry, the entire change-set remains unapplied, so every named file stays in its original state.",
+                "evidence_ids": [
+                  "edit-recovery"
+                ],
+                "required_guidance": "A blocked edit leaves that block untouched; the change-set can be partly applied.",
+                "rationale": "The candidate expands block-level protection into an all-files atomicity guarantee. The source explicitly describes safe rerunning of partly applied change-sets.",
+                "severity": "major"
+              },
+              {
+                "id": "fresh-inspection",
+                "kind": "omission",
+                "candidate_quote": "",
+                "evidence_ids": [
+                  "edit-identities",
+                  "edit-recovery"
+                ],
+                "required_guidance": "After stale or rejected edits, re-inspect the affected blocks and retry with fresh hashes and valid inline codes.",
+                "rationale": "The task asks for failure recovery. The candidate reports what the guards return but omits the action needed to recover; keeping the report is not the required reinspection and retry.",
+                "severity": "major"
+              }
+            ],
+            "validity_rationale": "Contains an unsupported all-files rollback guarantee and omits the required recovery instructions. The verification limits and preview behavior remain correct."
+          }
+        }
+      ]
+    }
+  ]
+}

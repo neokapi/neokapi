@@ -1,0 +1,47 @@
+name: Harbor service communication
+description: Authored synthetic guidance for the fictional Harbor service; applies only in this isolated development project.
+tone:
+  personality: [plain, respectful]
+  formality: neutral
+  guidelines: Explain the service situation in clear language. Preserve uncertainty and avoid promising an outcome that the message does not establish.
+constraints:
+  - id: harbor/clear-uncertainty
+    version: 1
+    kind: guidance
+    source: fixture-policy:harbor/shared
+    statement: Explain the service situation in clear language. Preserve uncertainty and avoid promising an outcome that the message does not establish.
+  - id: harbor/support-relationship
+    version: 1
+    kind: guidance
+    source: fixture-policy:harbor/support
+    scope: {channel: support}
+    statement: In a support reply, speak directly to the person who contacted us. Briefly acknowledge the inconvenience before explaining the service situation. A personal apology and a short appreciative closing are appropriate. Use a warm, conversational relationship with the reader without diagnosing their emotions.
+  - id: harbor/status-publication
+    version: 1
+    kind: guidance
+    source: fixture-policy:harbor/status
+    scope: {channel: status}
+    statement: A public service-status notice leads with the affected service and its current condition. Address the subscriber group through neutral operational information. Personal apologies to one reader and appreciative conversational closings belong in individual support replies, not the public status notice. Keep the update focused on impact, current investigation and the next source of information.
+channels:
+  support:
+    tone:
+      personality: [helpful, conversational]
+      formality: casual
+      emotion: warm
+      humor: none
+      guidelines: Treat this as a reply to one person asking for help. Acknowledge the inconvenience, explain what they can do now and close courteously.
+    style:
+      sentence_length: varied
+      person_pov: second
+      contractions: sometimes
+  status:
+    tone:
+      personality: [clear, restrained]
+      formality: neutral
+      emotion: neutral
+      humor: none
+      guidelines: Treat this as a public operational update. Start with the service condition and keep personal correspondence outside the notice.
+    style:
+      sentence_length: varied
+      person_pov: third
+      contractions: sometimes

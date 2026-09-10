@@ -534,6 +534,7 @@ func (s *tokenReaderState) processTokenStream(tokenizer *html.Tokenizer, ctx con
 					blockID := s.nextBlockID()
 					s.store.WriteRef(blockID)
 					block := buildBlockWithEntities(blockID, text)
+					block.SetSourceSpan(model.SourceSpan{Start: s.consumed - len(raw) + s.reader.sourceOffset, End: s.consumed + s.reader.sourceOffset})
 					block.Name = s.structuralName(s.textStep())
 					block.PreserveWhitespace = true
 					s.reader.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
@@ -554,6 +555,7 @@ func (s *tokenReaderState) processTokenStream(tokenizer *html.Tokenizer, ctx con
 					blockID := s.nextBlockID()
 					s.store.WriteRef(blockID)
 					block := buildBlockWithEntities(blockID, body)
+					block.SetSourceSpan(model.SourceSpan{Start: s.consumed - len(raw) + s.reader.sourceOffset, End: s.consumed + s.reader.sourceOffset})
 					block.Name = s.structuralName(s.textStep())
 					s.reader.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 					s.lastTextBlock = block
@@ -781,7 +783,7 @@ func (s *tokenReaderState) processStartTag(tokenizer *html.Tokenizer, raw []byte
 			return
 		}
 
-		s.processLeafBlock(tokenizer, tag, a, attrs, info.preserveWS, ctx, ch)
+		s.processLeafBlock(tokenizer, tag, a, attrs, info.preserveWS, s.consumed-len(raw), ctx, ch)
 		info.isBlock = false
 		*stack = append(*stack, info)
 		*translateNo = info.translateNo
@@ -802,7 +804,7 @@ func (s *tokenReaderState) processStartTag(tokenizer *html.Tokenizer, raw []byte
 // processLeafBlock collects tokens until the element's closing tag, builds a
 // Runs sequence, and emits the block. The start tag raw bytes and closing tag
 // raw bytes go into the skeleton; the fragment content is the block reference.
-func (s *tokenReaderState) processLeafBlock(tokenizer *html.Tokenizer, tag string, a atom.Atom, attrs []html.Attribute, preserveWS bool, ctx context.Context, ch chan<- model.PartResult) {
+func (s *tokenReaderState) processLeafBlock(tokenizer *html.Tokenizer, tag string, a atom.Atom, attrs []html.Attribute, preserveWS bool, sourceStart int, ctx context.Context, ch chan<- model.PartResult) {
 	// Inline children are ordinaled within this block. Save and restore so a
 	// nested leaf (an implicit close, a deferred start) does not inherit or
 	// clobber the enclosing block's counts.
@@ -1110,6 +1112,14 @@ leafClosed:
 			Source:             b.Runs(),
 			Targets:            make(map[model.VariantKey]*model.Target),
 			Properties:         extractBlockPropsFromToken(attrs),
+		}
+		if len(tag) == 2 && tag[0] == 'h' && tag[1] >= '1' && tag[1] <= '6' {
+			block.SetSemanticRole(model.RoleHeading, int(tag[1]-'0'))
+		}
+		// Only an explicit matching close provides a reliable complete element
+		// range. Implicit or repaired HTML deliberately has no advisory span.
+		if depth == 0 && len(closeTagRaw) > 0 {
+			block.SetSourceSpan(model.SourceSpan{Start: sourceStart + s.reader.sourceOffset, End: s.consumed + s.reader.sourceOffset})
 		}
 		s.reader.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 	}

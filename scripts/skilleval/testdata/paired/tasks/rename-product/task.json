@@ -1,0 +1,46 @@
+{
+  "id": "rename-product",
+  "family": "scoped-rename",
+  "prompt": "Rename the current product in content/en/page.json from Harbor Desk to Harbor Help. Read guidance.md and the project guidance before editing. Keep the JSON keys and types. Edit only content/en/page.json. Do not change guidance, project configuration or other files.",
+  "editable": [
+    "content/en/page.json"
+  ],
+  "criteria": [
+    {
+      "id": "title-renamed",
+      "kind": "json_equals",
+      "path": "content/en/page.json",
+      "key": "title",
+      "value": "Harbor Help support",
+      "description": "title renamed"
+    },
+    {
+      "id": "body-renamed",
+      "kind": "json_equals",
+      "path": "content/en/page.json",
+      "key": "body",
+      "value": "Use Harbor Help to request practical support.",
+      "description": "body renamed"
+    },
+    {
+      "id": "quote-preserved",
+      "kind": "json_equals",
+      "path": "content/en/page.json",
+      "key": "quote",
+      "value": "The 2024 report called it \u201cHarbor Desk\u201d.",
+      "description": "quote preserved"
+    },
+    {
+      "id": "api-preserved",
+      "kind": "json_equals",
+      "path": "content/en/page.json",
+      "key": "api_id",
+      "value": "harbor_desk_v1",
+      "description": "api preserved"
+    }
+  ],
+  "humanReviewRubric": [
+    "Does the change preserve the original meaning and the historical quotation?",
+    "Are all and only current product references renamed?"
+  ]
+}

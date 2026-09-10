@@ -147,6 +147,7 @@ type Reader struct {
 	cfg           *Config
 	vocab         *model.VocabularyRegistry
 	skeletonStore *format.SkeletonStore
+	sourceOffset  int // BOM bytes omitted from tokenizer input
 }
 
 // SetSkeletonStore sets the skeleton store for tokenizer-based streaming.
@@ -223,6 +224,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		return
 	}
 	bom, content := format.SplitBOM(content)
+	r.sourceOffset = len(bom)
 
 	if r.skeletonStore != nil {
 		// Tokenizer path: streaming, no DOM.

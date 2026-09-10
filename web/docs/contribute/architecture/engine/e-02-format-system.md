@@ -235,6 +235,31 @@ no-source cases; a same-format run always has the store. See
 [Skeleton store and streaming](/contribute/implementation/engine/skeleton-store)
 for the entry format, the sub-skeleton and the streaming protocol.
 
+### Section ranges and immutable offset plans
+
+The section-edit POC resolves heading sections through the native readers for
+Markdown, HTML and DOCX. Reader-provided `SourceSpan` metadata maps recognized
+blocks to original source bytes. These advisory locators carry the package part
+where applicable and remain separate from content identity. The section layer
+binds the preserved heading and affected body blocks into a `model.BlockRange`.
+A missing or straddling source span rejects the operation.
+
+The planner accepts a bounded Markdown body and emits an immutable
+`format.OffsetPatchPlan`. Its source snapshot guards the complete document;
+each patch additionally records its expected original bytes. All offsets refer
+to the same original source. The format writer validates the complete plan,
+rejects overlapping ranges and produces output without mutating reader blocks.
+Preview and apply consume the same plan. The host rechecks the source before
+atomically replacing the local file.
+
+For DOCX, the source mapping uses the native reader's recognized `partPath`.
+The agent selects a block range; the adapter resolves the package member and
+byte offsets. Unedited member payloads and compressed data are copied, while
+source outside the replaced body in the edited member remains byte-exact.
+Section replacement is a separate capability from block round-trip fidelity.
+Its supported source structures and fragment vocabulary are explicit in
+[Semantic section edits](/contribute/implementation/engine/semantic-edit).
+
 ### Streaming readers and bounded-memory I/O
 
 The read → process → write path streams end-to-end so peak memory tracks a

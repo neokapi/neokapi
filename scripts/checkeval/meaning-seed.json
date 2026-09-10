@@ -1,0 +1,507 @@
+{
+  "schema_version": 1,
+  "status": "development_seed",
+  "provenance": "Synthetic cases authored during evaluation design. Labels are provisional, not an independently adjudicated benchmark.",
+  "scope": "Assess the candidate claim for the stated reader task using only the supplied sources and variable bindings. Do not grade general prose preference.",
+  "families": [
+    {
+      "id": "precondition",
+      "capability": "Preserve the prerequisite for an action",
+      "partition": "development",
+      "reader_task": "An owner needs to know when workspace removal is available.",
+      "variables": {},
+      "variants": [
+        {
+          "id": "precondition-valid",
+          "sources": [
+            {
+              "id": "precondition-source",
+              "text": "In the standard workspace, Remove becomes available only after the export finishes. Before then, removal is unavailable."
+            }
+          ],
+          "text": "You can remove the workspace only after its export finishes.",
+          "expected": {
+            "verdict": "supported",
+            "evidence_ids": [
+              "precondition-source"
+            ],
+            "rationale": "Preserves the governing claim for this reader task."
+          }
+        },
+        {
+          "id": "precondition-paraphrase",
+          "sources": [
+            {
+              "id": "precondition-source",
+              "text": "In the standard workspace, Remove becomes available only after the export finishes. Before then, removal is unavailable."
+            }
+          ],
+          "text": "Wait for the export to finish before removing the workspace.",
+          "expected": {
+            "verdict": "supported",
+            "evidence_ids": [
+              "precondition-source"
+            ],
+            "rationale": "Changes wording while preserving the governing claim."
+          }
+        },
+        {
+          "id": "precondition-error",
+          "sources": [
+            {
+              "id": "precondition-source",
+              "text": "In the standard workspace, Remove becomes available only after the export finishes. Before then, removal is unavailable."
+            }
+          ],
+          "text": "You can remove the workspace before its export finishes.",
+          "expected": {
+            "verdict": "contradicted",
+            "evidence_ids": [
+              "precondition-source"
+            ],
+            "rationale": "Permits removal before the required export has finished."
+          }
+        },
+        {
+          "id": "precondition-context-control",
+          "sources": [
+            {
+              "id": "precondition-alternate",
+              "text": "In the temporary workspace, Remove is available both before and after an export finishes."
+            }
+          ],
+          "text": "You can remove the workspace before its export finishes.",
+          "expected": {
+            "verdict": "supported",
+            "evidence_ids": [
+              "precondition-alternate"
+            ],
+            "rationale": "The identical candidate is supported under this different governing context."
+          }
+        }
+      ]
+    },
+    {
+      "id": "exception",
+      "capability": "Preserve a scoped exception",
+      "partition": "development",
+      "reader_task": "A reader chooses a workspace that supports the required sharing method.",
+      "variables": {},
+      "variants": [
+        {
+          "id": "exception-valid",
+          "sources": [
+            {
+              "id": "exception-source",
+              "text": "New standard workspaces allow public links. Archive workspaces never allow public links."
+            }
+          ],
+          "text": "You can create public links in new standard workspaces, but not in archive workspaces.",
+          "expected": {
+            "verdict": "supported",
+            "evidence_ids": [
+              "exception-source"
+            ],
+            "rationale": "Preserves the governing claim for this reader task."
+          }
+        },
+        {
+          "id": "exception-paraphrase",
+          "sources": [
+            {
+              "id": "exception-source",
+              "text": "New standard workspaces allow public links. Archive workspaces never allow public links."
+            }
+          ],
+          "text": "Public links are available for new standard workspaces. Archive workspaces do not offer them.",
+          "expected": {
+            "verdict": "supported",
+            "evidence_ids": [
+              "exception-source"
+            ],
+            "rationale": "Changes wording while preserving the governing claim."
+          }
+        },
+        {
+          "id": "exception-error",
+          "sources": [
+            {
+              "id": "exception-source",
+              "text": "New standard workspaces allow public links. Archive workspaces never allow public links."
+            }
+          ],
+          "text": "Public links are available in all workspaces, including archive workspaces.",
+          "expected": {
+            "verdict": "contradicted",
+            "evidence_ids": [
+              "exception-source"
+            ],
+            "rationale": "Extends public-link availability to archive workspaces despite the explicit exception."
+          }
+        },
+        {
+          "id": "exception-context-control",
+          "sources": [
+            {
+              "id": "exception-alternate",
+              "text": "All workspaces, including archive workspaces, allow public links."
+            }
+          ],
+          "text": "Public links are available in all workspaces, including archive workspaces.",
+          "expected": {
+            "verdict": "supported",
+            "evidence_ids": [
+              "exception-alternate"
+            ],
+            "rationale": "The identical candidate is supported under this different governing context."
+          }
+        }
+      ]
+    },
+    {
+      "id": "permission",
+      "capability": "Preserve who has permission",
+      "partition": "development",
+      "reader_task": "An editor needs to know whether to send an invitation or ask an owner.",
+      "variables": {},
+      "variants": [
+        {
+          "id": "permission-valid",
+          "sources": [
+            {
+              "id": "permission-source",
+              "text": "Only workspace owners can invite guests. Editors can edit files but cannot invite guests."
+            }
+          ],
+          "text": "Guest invitations are available only to workspace owners.",
+          "expected": {
+            "verdict": "supported",
+            "evidence_ids": [
+              "permission-source"
+            ],
+            "rationale": "Preserves the governing claim for this reader task."
+          }
+        },
+        {
+          "id": "permission-paraphrase",
+          "sources": [
+            {
+              "id": "permission-source",
+              "text": "Only workspace owners can invite guests. Editors can edit files but cannot invite guests."
+            }
+          ],
+          "text": "To invite a guest, you must be a workspace owner.",
+          "expected": {
+            "verdict": "supported",
+            "evidence_ids": [
+              "permission-source"
+            ],
+            "rationale": "Changes wording while preserving the governing claim."
+          }
+        },
+        {
+          "id": "permission-error",
+          "sources": [
+            {
+              "id": "permission-source",
+              "text": "Only workspace owners can invite guests. Editors can edit files but cannot invite guests."
+            }
+          ],
+          "text": "Workspace owners and editors can invite guests.",
+          "expected": {
+            "verdict": "contradicted",
+            "evidence_ids": [
+              "permission-source"
+            ],
+            "rationale": "Grants guest-invitation permission to editors, whom the source explicitly excludes."
+          }
+        },
+        {
+          "id": "permission-context-control",
+          "sources": [
+            {
+              "id": "permission-alternate",
+              "text": "Workspace owners and editors can both invite guests."
+            }
+          ],
+          "text": "Workspace owners and editors can invite guests.",
+          "expected": {
+            "verdict": "supported",
+            "evidence_ids": [
+              "permission-alternate"
+            ],
+            "rationale": "The identical candidate is supported under this different governing context."
+          }
+        },
+        {
+          "id": "permission-insufficient",
+          "sources": [
+            {
+              "id": "permission-partial",
+              "text": "Workspace owners can invite guests. This extract does not specify editor permissions."
+            }
+          ],
+          "text": "Workspace editors can invite guests.",
+          "expected": {
+            "verdict": "insufficient_context",
+            "evidence_ids": [
+              "permission-partial"
+            ],
+            "rationale": "The source neither grants nor denies editor invitations. Request the missing permission rule rather than inventing one."
+          }
+        }
+      ]
+    },
+    {
+      "id": "certainty",
+      "capability": "Preserve the strength of a claim",
+      "partition": "development",
+      "reader_task": "A reader decides what to expect after retrying a failed upload.",
+      "variables": {},
+      "variants": [
+        {
+          "id": "certainty-valid",
+          "sources": [
+            {
+              "id": "certainty-source",
+              "text": "Retrying a failed upload may restore it. A retry is not guaranteed to succeed."
+            }
+          ],
+          "text": "Retrying may restore the failed upload, but success is not guaranteed.",
+          "expected": {
+            "verdict": "supported",
+            "evidence_ids": [
+              "certainty-source"
+            ],
+            "rationale": "Preserves the governing claim for this reader task."
+          }
+        },
+        {
+          "id": "certainty-paraphrase",
+          "sources": [
+            {
+              "id": "certainty-source",
+              "text": "Retrying a failed upload may restore it. A retry is not guaranteed to succeed."
+            }
+          ],
+          "text": "A retry can help recover the upload; it might still fail.",
+          "expected": {
+            "verdict": "supported",
+            "evidence_ids": [
+              "certainty-source"
+            ],
+            "rationale": "Changes wording while preserving the governing claim."
+          }
+        },
+        {
+          "id": "certainty-error",
+          "sources": [
+            {
+              "id": "certainty-source",
+              "text": "Retrying a failed upload may restore it. A retry is not guaranteed to succeed."
+            }
+          ],
+          "text": "Retrying will always restore the failed upload.",
+          "expected": {
+            "verdict": "contradicted",
+            "evidence_ids": [
+              "certainty-source"
+            ],
+            "rationale": "Turns an explicitly uncertain recovery step into a guarantee."
+          }
+        },
+        {
+          "id": "certainty-context-control",
+          "sources": [
+            {
+              "id": "certainty-alternate",
+              "text": "For this simulated upload exercise, every retry is guaranteed to restore the failed upload."
+            }
+          ],
+          "text": "Retrying will always restore the failed upload.",
+          "expected": {
+            "verdict": "supported",
+            "evidence_ids": [
+              "certainty-alternate"
+            ],
+            "rationale": "The identical candidate is supported under this different governing context."
+          }
+        },
+        {
+          "id": "certainty-insufficient",
+          "sources": [
+            {
+              "id": "certainty-partial",
+              "text": "Uploads can fail. This extract does not describe automatic recovery."
+            }
+          ],
+          "text": "A failed upload will be restored automatically.",
+          "expected": {
+            "verdict": "insufficient_context",
+            "evidence_ids": [
+              "certainty-partial"
+            ],
+            "rationale": "The source does not establish whether automatic recovery exists. The candidate is unsupported, but its opposite is not established either."
+          }
+        }
+      ]
+    },
+    {
+      "id": "entity-role",
+      "capability": "Preserve the relationship between named participants",
+      "partition": "development",
+      "reader_task": "A reader identifies who submits and who approves access requests for Cedar.",
+      "variables": {},
+      "variants": [
+        {
+          "id": "entity-role-valid",
+          "sources": [
+            {
+              "id": "entity-role-source",
+              "text": "For the Cedar workspace, Mira approves access requests submitted by Leon. Leon cannot approve requests from Mira."
+            }
+          ],
+          "text": "Mira approves access requests from Leon for the Cedar workspace.",
+          "expected": {
+            "verdict": "supported",
+            "evidence_ids": [
+              "entity-role-source"
+            ],
+            "rationale": "Preserves the governing claim for this reader task."
+          }
+        },
+        {
+          "id": "entity-role-paraphrase",
+          "sources": [
+            {
+              "id": "entity-role-source",
+              "text": "For the Cedar workspace, Mira approves access requests submitted by Leon. Leon cannot approve requests from Mira."
+            }
+          ],
+          "text": "Access requests Leon submits for Cedar are approved by Mira.",
+          "expected": {
+            "verdict": "supported",
+            "evidence_ids": [
+              "entity-role-source"
+            ],
+            "rationale": "Changes wording while preserving the governing claim."
+          }
+        },
+        {
+          "id": "entity-role-error",
+          "sources": [
+            {
+              "id": "entity-role-source",
+              "text": "For the Cedar workspace, Mira approves access requests submitted by Leon. Leon cannot approve requests from Mira."
+            }
+          ],
+          "text": "Leon approves access requests from Mira for the Cedar workspace.",
+          "expected": {
+            "verdict": "contradicted",
+            "evidence_ids": [
+              "entity-role-source"
+            ],
+            "rationale": "Reverses the approver and requester while preserving both names."
+          }
+        },
+        {
+          "id": "entity-role-context-control",
+          "sources": [
+            {
+              "id": "entity-role-alternate",
+              "text": "For the Cedar workspace, Leon approves access requests submitted by Mira."
+            }
+          ],
+          "text": "Leon approves access requests from Mira for the Cedar workspace.",
+          "expected": {
+            "verdict": "supported",
+            "evidence_ids": [
+              "entity-role-alternate"
+            ],
+            "rationale": "The identical candidate is supported under this different governing context."
+          }
+        }
+      ]
+    },
+    {
+      "id": "variable-binding",
+      "capability": "Preserve which object a variable describes",
+      "partition": "development",
+      "reader_task": "A reader checks the configured upload limit for an image or an archive.",
+      "variables": {
+        "image_limit": "20 MB",
+        "archive_limit": "2 GB"
+      },
+      "variants": [
+        {
+          "id": "variable-binding-valid",
+          "sources": [
+            {
+              "id": "variable-binding-source",
+              "text": "The configured limit per image upload is {image_limit}. The configured limit per archive upload is {archive_limit}. These are separate limits for different upload types."
+            }
+          ],
+          "text": "The limit per image upload is {image_limit}; the limit per archive upload is {archive_limit}.",
+          "expected": {
+            "verdict": "supported",
+            "evidence_ids": [
+              "variable-binding-source"
+            ],
+            "rationale": "Preserves the governing claim for this reader task."
+          }
+        },
+        {
+          "id": "variable-binding-paraphrase",
+          "sources": [
+            {
+              "id": "variable-binding-source",
+              "text": "The configured limit per image upload is {image_limit}. The configured limit per archive upload is {archive_limit}. These are separate limits for different upload types."
+            }
+          ],
+          "text": "Image uploads have a limit of {image_limit}, and archive uploads have a limit of {archive_limit}.",
+          "expected": {
+            "verdict": "supported",
+            "evidence_ids": [
+              "variable-binding-source"
+            ],
+            "rationale": "Changes wording while preserving the governing claim."
+          }
+        },
+        {
+          "id": "variable-binding-error",
+          "sources": [
+            {
+              "id": "variable-binding-source",
+              "text": "The configured limit per image upload is {image_limit}. The configured limit per archive upload is {archive_limit}. These are separate limits for different upload types."
+            }
+          ],
+          "text": "The limit per image upload is {archive_limit}; the limit per archive upload is {image_limit}.",
+          "expected": {
+            "verdict": "contradicted",
+            "evidence_ids": [
+              "variable-binding-source"
+            ],
+            "rationale": "Swaps the image and archive upload limits even though both placeholders are preserved."
+          }
+        },
+        {
+          "id": "variable-binding-context-control",
+          "sources": [
+            {
+              "id": "variable-binding-alternate",
+              "text": "In this fixture, the configured limit per image upload is {archive_limit}, and the configured limit per archive upload is {image_limit}. The variable names are legacy identifiers; these bindings are authoritative."
+            }
+          ],
+          "text": "The limit per image upload is {archive_limit}; the limit per archive upload is {image_limit}.",
+          "expected": {
+            "verdict": "supported",
+            "evidence_ids": [
+              "variable-binding-alternate"
+            ],
+            "rationale": "The identical candidate is supported under this different governing context."
+          }
+        }
+      ]
+    }
+  ]
+}

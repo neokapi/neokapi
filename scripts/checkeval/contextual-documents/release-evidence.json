@@ -1,0 +1,154 @@
+{
+  "schema_version": 1,
+  "status": "development_documents",
+  "provenance": "Repository-grounded synthetic document adaptations with provisional authored labels.",
+  "families": [
+    {
+      "id": "release-evidence",
+      "partition": "development",
+      "reader_task": "Prepare a release handoff for a mixed source-only and translated project: identify measured content, limits of a clean score, outstanding review, and how to handle an operational check failure.",
+      "requirements": [
+        {
+          "id": "collect-release-evidence",
+          "description": "Explain how to collect and retain an inspectable result for the project’s release policy, and use check evidence after repairs rather than treating a proposed repair as verification.",
+          "source_ids": [
+            "release-scope",
+            "machine-output",
+            "checks-contract"
+          ]
+        },
+        {
+          "id": "measured-content-scope",
+          "description": "Explain how to identify the content measured in a mixed source-only and translated project, distinguishing measured content from an empty scope.",
+          "source_ids": [
+            "release-scope"
+          ]
+        },
+        {
+          "id": "clean-result-limits",
+          "description": "Explain the assurance provided by a clean score in light of analyzer coverage, identify meaning and unsupported guidance that still need review, and account for unreported coverage.",
+          "source_ids": [
+            "checks-contract",
+            "coverage",
+            "meaning-and-failures"
+          ]
+        },
+        {
+          "id": "operational-failure-handling",
+          "description": "Tell the release owner how to distinguish and handle a requested check or context resolution that could not complete, including the limits of suppressing content-gate failures.",
+          "source_ids": [
+            "meaning-and-failures"
+          ]
+        }
+      ],
+      "audience": "Content release owner who consumes CLI results but does not implement kapi checks.",
+      "surface": "Internal release handoff guide",
+      "destination": "guides/release/check-evidence.md",
+      "source_status": "repo_documentation_excerpts",
+      "variables": {},
+      "sources": [
+        {
+          "id": "checks-contract",
+          "path": "web/docs/framework/checks/index.md",
+          "git_blob": "b9387869f1cb354acc9aa6b5c3a1be441058cf65",
+          "start_line": 24,
+          "end_line": 53,
+          "text": "Exact rule checks behave like tests: for fixed input and context they are\nrepeatable, and report a specific violation: an over-long string, a forbidden phrase, an\noff-brand term, a doubled word. `kapi check` runs a **content-first** checkset\nover any file, with no translation needed, and returns one stable, machine-readable\n[`kapi.check/v1` Report](#the-report): `pass`, a 0–100 score, a severity gate,\nand a finding per **stable rule id** (`length.max-chars-exceeded`,\n`hygiene.doubled-word`, …) anchored to the exact **block**.\nIt **exits non-zero when the gate fails**, so a regression is caught in CI, or\ninside an AI assistant's fix-loop, the same way a failing test is. The assistant\ndrafts, the checks tell it which block and which rule broke, it fixes that block\n(through `kapi apply`, or the `apply_edits` MCP tool), and re-checks against the\ndeclared thresholds. Meaning and unsupported guidance remain for review.\n\nBilingual checks (do-not-translate and placeholder integrity, which\ncompare a translated target against its source) are an opt-in: pass\n`kapi check src.json --target src.de.json --target-lang de`.\n\n## The Report\n\nA completed `kapi check` run produces a `core/check.Report` (versioned\n`kapi.check/v1`): a summary\n(counts + score), the gate (the thresholds and which tripped), and a list of\n**diagnostics**. Each diagnostic carries a stable `rule` id, a `severity`, a\nhuman `message`, an optional `suggestion`, and a `location` (the block, plus a\nrun-range when the checker pinpointed one). The stable rule id is the loop's\nprimary key: an assistant tracks it across iterations to confirm a fix and avoid\nregressions. `--json` emits the Report verbatim; over MCP, the `check_file` and\n`check_text` tools return the same Report, the verifier counterpart to the\n`extract_content`/`apply_edits` editing tools, so an assistant can\n**author → check → revise → re-check** without leaving the conversation.\n"
+        },
+        {
+          "id": "coverage",
+          "path": "web/docs/framework/checks/index.md",
+          "git_blob": "b9387869f1cb354acc9aa6b5c3a1be441058cf65",
+          "start_line": 68,
+          "end_line": 73,
+          "text": "The optional `execution` object records which analyzers ran for each input,\nwhich were not requested, and why a capability was unsupported. Each entry has\nan analyzer ID, execution status, finding count and, when it ran, a duration.\nThe host also reports context, extraction, analysis, report-construction and\ntotal time in milliseconds; serialization and process startup are excluded.\nReports without `execution` have **unreported coverage**.\n"
+        },
+        {
+          "id": "meaning-and-failures",
+          "path": "web/docs/framework/checks/index.md",
+          "git_blob": "b9387869f1cb354acc9aa6b5c3a1be441058cf65",
+          "start_line": 90,
+          "end_line": 102,
+          "text": "A passing gate and a score of 100 mean no gate-breaking findings in the\nconfigured checks. They do not establish factual accuracy or compliance with\nrules that were never encoded. Exact voice rules, advisory example similarity\n(`--voice`), and optional LLM review are distinct analyses. `kapi check` does not\nrun LLM review and records `voice.llm` as `not_requested`. Applicable profile\nguidance that exact rules cannot assess is recorded as `voice.guidance` with\nstatus `unsupported`; it does not fail the deterministic content gate.\n\nA requested analyzer that cannot run, or governing context that cannot resolve,\nreturns an operational error instead of a successful report. `--no-fail` affects\ncontent-gate exits only. MCP uses its existing error response for these failures.\nEmbedded applications share checker primitives but can retain their own response\nshapes and operation error views.\n"
+        },
+        {
+          "id": "release-scope",
+          "path": "web/docs/framework/checks/index.md",
+          "git_blob": "b9387869f1cb354acc9aa6b5c3a1be441058cf65",
+          "start_line": 180,
+          "end_line": 194,
+          "text": "In a project, `kapi check --ship` (and each pass of `kapi up`) runs the bound\ngates over what was produced. The project-gate response groups findings by gate:\n**voice**\n(the compliance score against the bound profile, with `--min-score`),\n**terminology**, **qa**, **ship** (the ship gate on target status), **source**\n(the source-side checks), and **staleness** (content produced under a context\nthat has since changed, such as a new voice profile version or new term rules,\nmust be re-run before its locale ships).\n\nSource-only collections receive authored-content checks, including in a project\nthat also has translated targets. Naming a source-only file checks that content\ndirectly; translation checks apply to target content with its source. A gate's\ncoverage distinguishes measured content from an empty scope. See\n[the agent surface design](/contribute/architecture/surfaces/s-03-agent-surfaces)\nfor the edit loop and its release checks.\n"
+        },
+        {
+          "id": "machine-output",
+          "path": "web/docs/reference/cli-contract.md",
+          "git_blob": "920815df698b10738ac9574e7b58f75dfba7f4ca",
+          "start_line": 10,
+          "end_line": 28,
+          "text": "kapi's core verbs speak a documented, golden-tested machine contract so scripts, CI pipelines, and foreign-language callers never have to parse prose. This page covers the output flags, the structured results of `run`, `extract`, and `merge`, the JSON error envelope, exit codes, and streaming progress events. For driving the engine over gRPC instead of the CLI, see the [Engine service](/reference/engine-service); for the AI-agent surface, see the [MCP server](/reference/mcp).\n\nCompatibility: the JSON documents below are a stable contract. Fields may be added in a release; existing field names and types do not change. The shapes are locked by golden tests (`cli/contract_golden_test.go`).\n\nHuman-readable text output is **not** a contract. It is presentation: column widths adapt to your terminal, values are truncated to fit, and it carries ANSI styling when stdout is a TTY. It is restyled whenever the CLI's presentation improves. Scripts must use `--json` (or `--jq`), which is stable, unstyled, and never truncated.\n\n## Output flags\n\nEvery command accepts the persistent output flags:\n\n| Flag | Effect |\n| --- | --- |\n| `--json` | Machine-readable JSON on stdout |\n| `--text` | Human text (the default) |\n| `--output-format <json\\|text>` | Explicit format selection |\n| `--jq <expr>` | Filter JSON output through a jq expression (implies `--json`) |\n| `--color <auto\\|always\\|never>` | Colorize output. `auto` colorizes only when stdout is a terminal |\n\nPrecedence: `--jq` > `--json` > `--text` > `--output-format`.\n"
+        }
+      ],
+      "variants": [
+        {
+          "id": "release-evidence-valid",
+          "text": "# Read the evidence before clearing a release\n\nThis guide is for the person preparing a release handoff from a kapi project that contains both source-only help content and translated material. The handoff must explain what was checked, what still needs review, and whether the checking operation completed.\n\n## Collect a result the next person can inspect\n\nUse `kapi check --ship --json` for the project's release policy. Keep the structured result with the handoff. JSON is the machine contract; the human display can change its layout and truncate values. When following a finding through a repair, use its stable rule identifier and block location. Check again after the repair rather than treating the proposed edit as evidence that the finding is resolved.\n\n## Confirm the content that the gate covered\n\nRead the measured scope before summarizing the gate. Source-only collections still receive authored-content checks when the project also contains translated targets. A source-only file can be named directly for checking. Translation checks apply to target content with its source. Distinguish measured content from an empty scope so the handoff does not imply that absent content was inspected.\n\n## Explain what a clean result establishes\n\nA passing gate and a score of 100 establish that the configured checks emitted no gate-breaking findings. They do not establish factual accuracy. Inspect analyzer execution as well as the score: `voice.llm` is not requested by `kapi check`, and applicable guidance beyond the exact rules can be marked unsupported without failing the deterministic gate. Keep meaning and unsupported guidance in the review work that the handoff identifies. If execution metadata is absent, describe coverage as unreported.\n\n## Handle an operation that could not finish\n\nAn unavailable requested analyzer or unresolved governing context is an operational error, not a clean report. `--no-fail` only affects content-gate exits; it does not make those operation failures successful. Resolve the failure before presenting the run as completed release evidence.",
+          "construction": "Authored adaptation of the frozen repository documentation excerpts; not a production customer document.",
+          "expected": {
+            "label_status": "provisional_author_labels",
+            "claim_support": "supported",
+            "completeness": "complete_for_task",
+            "issues": [],
+            "validity_rationale": "Preserves the documented coverage, score interpretation, machine-output contract, and operational-error distinction required for this handoff."
+          }
+        },
+        {
+          "id": "release-evidence-faulty",
+          "text": "# Read the evidence before clearing a release\n\nThis guide is for the person preparing a release handoff from a kapi project that contains both source-only help content and translated material. The handoff must explain what was checked, what still needs review, and whether the checking operation completed.\n\n## Collect a result the next person can inspect\n\nUse `kapi check --ship --json` for the project's release policy. Keep the structured result with the handoff. JSON is the machine contract; the human display can change its layout and truncate values. When following a finding through a repair, use its stable rule identifier and block location. Check again after the repair rather than treating the proposed edit as evidence that the finding is resolved.\n\n## Confirm the content that the gate covered\n\nRead the measured scope before summarizing the gate. When the project contains translated targets, source-only collections are excluded from authored-content checks. A source-only file can be named directly for checking. Translation checks apply to target content with its source. Distinguish measured content from an empty scope so the handoff does not imply that absent content was inspected.\n\n## Explain what a clean result establishes\n\nA passing gate and a score of 100 establish factual accuracy and compliance with every applicable writing instruction. Inspect analyzer execution as well as the score: `voice.llm` is not requested by `kapi check`, and applicable guidance beyond the exact rules can be marked unsupported without failing the deterministic gate. Keep meaning and unsupported guidance in the review work that the handoff identifies. If execution metadata is absent, describe coverage as unreported.",
+          "construction": "Controlled mutation of the authored guide, with two changed claims and a removed operational-failure section.",
+          "expected": {
+            "label_status": "provisional_author_labels",
+            "claim_support": "contradicted",
+            "completeness": "consequential_omission",
+            "issues": [
+              {
+                "id": "source-scope",
+                "kind": "contradiction",
+                "candidate_quote": "When the project contains translated targets, source-only collections are excluded from authored-content checks.",
+                "evidence_ids": [
+                  "release-scope"
+                ],
+                "required_guidance": "Include source-only content in the reported authored-content check scope, also in mixed projects.",
+                "rationale": "The supplied release-scope contract expressly includes source-only collections in projects with translated targets. Excluding them would leave the handoff inaccurate about covered content.",
+                "severity": "major"
+              },
+              {
+                "id": "score-meaning",
+                "kind": "contradiction",
+                "candidate_quote": "A passing gate and a score of 100 establish factual accuracy and compliance with every applicable writing instruction.",
+                "evidence_ids": [
+                  "meaning-and-failures",
+                  "checks-contract"
+                ],
+                "required_guidance": "Limit the clean gate claim to the checks that ran and retain meaning and unsupported guidance for review.",
+                "rationale": "The source denies that a perfect score establishes factual accuracy or unencoded rules. The candidate grants exactly that assurance and also conflicts with its own later review guidance.",
+                "severity": "major"
+              },
+              {
+                "id": "operation-failure",
+                "kind": "omission",
+                "candidate_quote": "",
+                "evidence_ids": [
+                  "meaning-and-failures"
+                ],
+                "required_guidance": "Explain that unavailable requested analysis or unresolved context is an operational error and that no-fail does not convert it into completed evidence.",
+                "rationale": "The reader task explicitly includes distinguishing an operation failure from a content gate result. The candidate provides no action for requested analysis or context that cannot resolve, so its release handoff procedure is incomplete.",
+                "severity": "major"
+              }
+            ],
+            "validity_rationale": "Retains most correct operational detail while misrepresenting source scope and semantic assurance and omitting required failure handling."
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "sources": [
+    {"id":"writing-style","repository":"withastro/contribute.docs.astro.build","revision":"5a3a1f9303a59a3e7716af392fe44a856a99fcc0","path":"src/content/docs/guides/writing-style.md","title":"Astro documentation writing and style guide","url":"https://contribute.docs.astro.build/guides/writing-style/"},
+    {"id":"recipe-writing","repository":"withastro/contribute.docs.astro.build","revision":"5a3a1f9303a59a3e7716af392fe44a856a99fcc0","path":"src/content/docs/guides/recipe-writing.md","title":"Contributing an Astro recipe","url":"https://contribute.docs.astro.build/guides/recipe-writing/"},
+    {"id":"getting-started","repository":"withastro/docs","revision":"cf14d7dd900c261c5c55079fca5e878945c9a96d","path":"src/content/docs/en/getting-started.mdx","title":"Getting started with Astro","url":"https://docs.astro.build/en/getting-started/"},
+    {"id":"yaml-recipe","repository":"withastro/docs","revision":"cf14d7dd900c261c5c55079fca5e878945c9a96d","path":"src/content/docs/en/recipes/add-yaml-support.mdx","title":"Add YAML support","url":"https://docs.astro.build/en/recipes/add-yaml-support/"},
+    {"id":"markdown-guide","repository":"withastro/docs","revision":"cf14d7dd900c261c5c55079fca5e878945c9a96d","path":"src/content/docs/en/guides/markdown-content.mdx","title":"Markdown content","url":"https://docs.astro.build/en/guides/markdown-content/"},
+    {"id":"troubleshooting","repository":"withastro/docs","revision":"cf14d7dd900c261c5c55079fca5e878945c9a96d","path":"src/content/docs/en/guides/troubleshooting.mdx","title":"Astro troubleshooting","url":"https://docs.astro.build/en/guides/troubleshooting/"}
+  ]
+}

@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -16,7 +19,7 @@ import (
 // init registers the content-check MCP tools on the shared `mcp` server. These
 // are the verifier half of the AI author→check→revise loop: an assistant authors
 // content, calls check_text/check_file, reads the located findings by stable
-// rule id, fixes the flagged block (optionally via the rewrite_file moat), and
+// rule id, fixes the flagged block (optionally via apply_edits), and
 // re-checks until the Report passes.
 func init() {
 	RegisterMCPToolFactory(registerCheckMCPTools)
@@ -25,20 +28,25 @@ func init() {
 func registerCheckMCPTools(server *mcp.Server, a *App) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "check_text",
-		Description: "Verify a text snippet against the content checkset (text hygiene, length limits, " +
-			"forbidden/required patterns, and voice vocabulary when a profile is given) and return a " +
-			"kapi.check/v1 Report: pass, a 0-100 score, the gate, and a finding per stable rule id. Use it to " +
-			"check content you authored, then fix and re-check until it passes.",
+		Description: "Check a draft snippet with deterministic content rules. Before drafting, read the " +
+			"context://<project-relative-path> resource for the applicable guidance. Supply context_path " +
+			"to check with that destination's voice and terms; without it, project guidance is not resolved. " +
+			"Explicit profile_pack/profile_file are available only without context_path. Returns a " +
+			"kapi.check/v1 Report with findings and analyzer coverage; pass is not semantic approval. " +
+			"After saving edits, use check_file to verify the actual file.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in checkTextInput) (*mcp.CallToolResult, check.Report, error) {
 		return a.checkTextMCP(ctx, in)
 	})
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "check_file",
-		Description: "Verify the content inside a file (Word, PowerPoint, JSON, XLIFF, Markdown, …) against the " +
-			"content checkset and return a kapi.check/v1 Report with per-block locations. The check counterpart to " +
-			"rewrite_file: author → check_file → fix the flagged block (optionally via rewrite_file) → re-check " +
-			"until pass. Pass target/target_lang to also run bilingual checks.",
+		Description: "Check the actual content inside a file (Word, PowerPoint, JSON, XLIFF, Markdown, …) " +
+			"with format-aware extraction and the applicable project voice and terms. Before editing, read " +
+			"the context://<project-relative-path> resource; after saving edits (including apply_edits), " +
+			"run check_file and review its per-block findings and analyzer coverage. Returns a kapi.check/v1 " +
+			"Report with effective scope in execution.contexts; pass is not semantic approval. " +
+			"Omit profile_file/profile_pack to use the file’s project profile and channel. Supplying either " +
+			"replaces that voice selection with an explicit override; project terms still apply. Pass target/target_lang to also run bilingual checks.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in checkFileInput) (*mcp.CallToolResult, check.Report, error) {
 		return a.checkFileMCP(ctx, in)
 	})
@@ -47,6 +55,7 @@ func registerCheckMCPTools(server *mcp.Server, a *App) {
 // checkTextInput is the input to the check_text MCP tool.
 type checkTextInput struct {
 	Text        string   `json:"text" jsonschema:"the text to verify"`
+	ContextPath string   `json:"context_path,omitempty" jsonschema:"project-relative destination whose voice and terms govern this draft; may not exist yet; requires a project; cannot combine with profile_pack or profile_file"`
 	MaxChars    int      `json:"max_chars,omitempty" jsonschema:"flag content longer than this many characters (0 = off)"`
 	MaxWords    int      `json:"max_words,omitempty" jsonschema:"flag content with more than this many words (0 = off)"`
 	Forbid      []string `json:"forbid,omitempty" jsonschema:"regex that must NOT appear in the content"`
@@ -62,8 +71,8 @@ type checkFileInput struct {
 	MaxWords    int      `json:"max_words,omitempty" jsonschema:"flag content with more than this many words (0 = off)"`
 	Forbid      []string `json:"forbid,omitempty" jsonschema:"regex that must NOT appear in the content"`
 	Require     []string `json:"require,omitempty" jsonschema:"regex that MUST appear in the content"`
-	ProfilePack string   `json:"profile_pack,omitempty" jsonschema:"built-in profile pack to check vocabulary against"`
-	ProfileFile string   `json:"profile_file,omitempty" jsonschema:"path to a voice profile YAML"`
+	ProfilePack string   `json:"profile_pack,omitempty" jsonschema:"explicit voice override; omitting profile_pack and profile_file preserves the file-scoped project voice and channel"`
+	ProfileFile string   `json:"profile_file,omitempty" jsonschema:"explicit voice override loaded from YAML; bypasses the file-scoped project voice and channel; omit to use project guidance"`
 	Target      string   `json:"target,omitempty" jsonschema:"translated target file to check against the source (enables the bilingual source-against-target checks)"`
 	TargetLang  string   `json:"target_lang,omitempty" jsonschema:"locale of the target file (e.g. de)"`
 	DNT         []string `json:"dnt,omitempty" jsonschema:"do-not-translate terms that must survive verbatim into the target"`
@@ -75,10 +84,19 @@ func (a *App) checkTextMCP(ctx context.Context, in checkTextInput) (*mcp.CallToo
 	execution := newCheckExecution()
 	contextStart := time.Now()
 	a.InitRegistries()
+	if in.ContextPath != "" && (in.ProfilePack != "" || in.ProfileFile != "") {
+		return nil, check.Report{}, errors.New("context_path cannot be combined with profile_pack or profile_file")
+	}
 	opts, err := a.mcpCheckOptions(in.MaxChars, in.MaxWords, in.Forbid, in.Require, in.ProfilePack, in.ProfileFile)
 	if err != nil {
 		return nil, check.Report{}, err
 	}
+	if in.ContextPath != "" {
+		if err := a.resolveTextCheckContext(ctx, in.ContextPath, &opts); err != nil {
+			return nil, check.Report{}, err
+		}
+	}
+	execution.recordContext("", in.ContextPath, opts)
 	execution.Timings.ContextMS += elapsedMS(contextStart)
 	opts.execution = execution
 	block := &model.Block{ID: "text", Translatable: true, Source: []model.Run{{Text: &model.TextRun{Text: in.Text}}}}
@@ -89,7 +107,52 @@ func (a *App) checkTextMCP(ctx context.Context, in checkTextInput) (*mcp.CallToo
 	for i := range execution.Analyzers {
 		execution.Analyzers[i].File = ""
 	}
-	return nil, execution.report(check.Target{Kind: "text", Blocks: 1}, diags, check.DefaultGate()), nil
+	for i := range diags {
+		diags[i].Location.File = ""
+	}
+	target := check.Target{Kind: "text", Blocks: 1, ContextPath: in.ContextPath}
+	return nil, execution.report(target, diags, check.DefaultGate()), nil
+}
+
+// resolveTextCheckContext resolves a lexical destination, not an input file.
+// Anchoring it to the recipe root keeps collection matching independent of cwd
+// and permits a draft for a file that has not yet been created.
+func (a *App) resolveTextCheckContext(ctx context.Context, contextPath string, opts *checkRunOptions) error {
+	validPath := fs.ValidPath(contextPath) && contextPath != "." && !filepath.IsAbs(contextPath)
+	if !validPath || strings.ContainsAny(contextPath, "\\\x00") {
+		return errors.New("context_path must be a clean project-relative file path")
+	}
+	cmd := NewEnvCommand(ctx, "check_text")
+	if a.mcpRecipePath != "" {
+		cmd.Flags().String(projectFlagName, a.mcpRecipePath, "")
+	}
+	recipe, err := ResolveProjectPath(cmd)
+	if err != nil {
+		return fmt.Errorf("resolve context_path project: %w", err)
+	}
+	if recipe == "" {
+		return errors.New("context_path requires a project; start the MCP server with -p")
+	}
+	// Freeze the resolution for both voice and terms, including when the server
+	// was assembled by an embedded caller using environment-based discovery.
+	if cmd.Flags().Lookup(projectFlagName) == nil {
+		cmd.Flags().String(projectFlagName, recipe, "")
+	}
+	destination := filepath.Join(filepath.Dir(recipe), filepath.FromSlash(contextPath))
+	voice, err := a.newCheckVoice(cmd)
+	if err != nil {
+		return fmt.Errorf("resolve context_path voice: %w", err)
+	}
+	defer voice.close()
+	opts.profile, opts.voiceContext, err = voice.forFile(ctx, destination)
+	if err != nil {
+		return fmt.Errorf("resolve context_path voice: %w", err)
+	}
+	opts.terms, err = a.ProjectTermsForFile(ctx, cmd, destination)
+	if err != nil {
+		return fmt.Errorf("resolve context_path terms: %w", err)
+	}
+	return nil
 }
 
 // checkFileMCP runs the content checkset over a file's content, optionally with
@@ -117,7 +180,7 @@ func (a *App) checkFileMCP(ctx context.Context, in checkFileInput) (*mcp.CallToo
 			return nil, check.Report{}, err
 		}
 		defer voice.close()
-		opts.profile, err = voice.forFile(ctx, in.File)
+		opts.profile, opts.voiceContext, err = voice.forFile(ctx, in.File)
 		if err != nil {
 			return nil, check.Report{}, err
 		}
@@ -131,6 +194,7 @@ func (a *App) checkFileMCP(ctx context.Context, in checkFileInput) (*mcp.CallToo
 		return nil, check.Report{}, err
 	}
 	opts.execution = execution
+	execution.recordContext(in.File, "", opts)
 	execution.Timings.ContextMS += elapsedMS(contextStart)
 	target := check.Target{Kind: "file", File: in.File}
 	var diags []check.Diagnostic
@@ -197,13 +261,22 @@ func (a *App) checkFileMCP(ctx context.Context, in checkFileInput) (*mcp.CallToo
 // mcpCheckOptions resolves the shared content-check options for the MCP tools,
 // loading a voice profile from a pack/file when one is named.
 func (a *App) mcpCheckOptions(maxChars, maxWords int, forbid, require []string, pack, file string) (checkRunOptions, error) {
-	opts := checkRunOptions{maxChars: maxChars, maxWords: maxWords, forbid: forbid, require: require}
+	opts := checkRunOptions{maxChars: maxChars, maxWords: maxWords, forbid: forbid, require: require,
+		voiceContext: check.VoiceContext{Selection: "none"}}
 	if pack != "" || file != "" {
 		p, err := loadProfileForMCP(pack, file)
 		if err != nil {
 			return opts, err
 		}
 		opts.profile = p
+		source := file
+		if source == "" {
+			source = "pack:" + pack
+		}
+		opts.voiceContext = check.VoiceContext{Selection: "override", Applied: p != nil, Source: source}
+		if p != nil {
+			opts.voiceContext.Name = p.Name
+		}
 	}
 	return opts, nil
 }

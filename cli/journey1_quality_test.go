@@ -1,11 +1,13 @@
 package cli
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -140,7 +142,9 @@ func upThenCheck(t *testing.T, recipe string, checkArgs ...string) string {
 	upOut, err := runCLI(t, NewUpCmd(a), "--project", recipe)
 	require.NoError(t, err, upOut)
 
-	out, cerr := runCLI(t, NewCheckCmd(a), append([]string{"--project", recipe, "--no-fail"}, checkArgs...)...)
+	checkCmd := NewCheckCmd(a)
+	checkCmd.Flags().Bool("json", false, "") // Supplied by the root command in the real CLI.
+	out, cerr := runCLI(t, checkCmd, append([]string{"--project", recipe, "--no-fail"}, checkArgs...)...)
 	require.NoError(t, cerr, out)
 	return out
 }
@@ -150,12 +154,14 @@ func upThenCheck(t *testing.T, recipe string, checkArgs ...string) string {
 // reported as the retired `mooring` inside it, twice per paragraph, while the
 // voice-profile half of the same gate matched whole words.
 func TestCheck_LongerDeclaredTermWins(t *testing.T) {
-	recipe, _ := governedProject(t)
-	out := upThenCheck(t, recipe)
-
-	assert.Contains(t, out, "berths.md", "a bare use of the retired term is still a finding")
-	assert.NotContains(t, out, "reference.md",
-		"the reference surface's own vocabulary admits the retired name, and mooring_id is a term of its own")
+	recipe, root := governedProject(t)
+	out := upThenCheck(t, recipe, "--json")
+	var report check.Report
+	require.NoError(t, json.Unmarshal([]byte(out), &report))
+	require.Len(t, report.Findings, 1,
+		"the reference vocabulary admits the retired name, and mooring_id is a term of its own")
+	assert.Equal(t, filepath.Join(root, "docs", "berths.md"), report.Findings[0].Location.File,
+		"a bare use of the retired term is still a finding")
 }
 
 // TestCheck_VocabularyIsResolvedWhereTheFileSits: the voice half of the gate is
@@ -173,10 +179,12 @@ func TestCheck_VocabularyIsResolvedWhereTheFileSits(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(root, "docs", "berths.md"),
 		[]byte("# Berths\n\nEvery mooring keeps its name here.\n"), 0o644))
 
-	out := upThenCheck(t, recipe)
-
-	assert.Contains(t, out, "berths.md", "the documentation surface retired the name")
-	assert.NotContains(t, out, "reference.md", "the reference surface's profile admits it")
+	out := upThenCheck(t, recipe, "--json")
+	var report check.Report
+	require.NoError(t, json.Unmarshal([]byte(out), &report))
+	require.Len(t, report.Findings, 1, "the reference surface's profile admits the term")
+	assert.Equal(t, filepath.Join(root, "docs", "berths.md"), report.Findings[0].Location.File,
+		"the documentation surface retired the name")
 }
 
 // TestApplyThenCheck_ReplacementReachesTheFinding is #1915, end to end: a

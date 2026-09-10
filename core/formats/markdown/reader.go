@@ -117,6 +117,7 @@ type Reader struct {
 	skelCursor    int          // current position in source for skeleton tracking
 
 	source       []byte
+	sourceOffset int // BOM bytes omitted from parser input, retained in source locators
 	blockCounter int
 	dataCounter  int
 	groupCounter int
@@ -246,6 +247,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) er
 		return fmt.Errorf("markdown: reading: %w", err)
 	}
 	bom, content := format.SplitBOM(content)
+	r.sourceOffset = len(bom)
 	r.source = content
 	r.skelCursor = 0
 	r.skelText(string(bom))
@@ -1168,6 +1170,7 @@ func (r *Reader) emitHeading(ctx context.Context, ch chan<- model.PartResult, n 
 	// line of its own, it re-read as a second, empty heading (#2430).
 	r.skelAdvance(lineEnd)
 
+	block.SetSourceSpan(model.SourceSpan{Start: absStart + r.sourceOffset, End: lineEnd + r.sourceOffset})
 	r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 }
 
@@ -1642,6 +1645,7 @@ func (r *Reader) emitParagraph(ctx context.Context, ch chan<- model.PartResult, 
 	r.skelRef(blockID)
 	r.skelAdvance(lineEnd)
 
+	block.SetSourceSpan(model.SourceSpan{Start: lineStart + r.sourceOffset, End: lineEnd + r.sourceOffset})
 	r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 }
 
@@ -1775,6 +1779,7 @@ func (r *Reader) emitListItem(ctx context.Context, ch chan<- model.PartResult, n
 	r.skelRef(blockID)
 	r.skelAdvance(lineEnd)
 
+	block.SetSourceSpan(model.SourceSpan{Start: absStart + r.sourceOffset, End: lineEnd + r.sourceOffset})
 	r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 }
 
@@ -1836,6 +1841,7 @@ func (r *Reader) emitListItemMixed(ctx context.Context, ch chan<- model.PartResu
 			r.skelRef(blockID)
 			r.skelAdvance(lineEnd)
 
+			block.SetSourceSpan(model.SourceSpan{Start: absStart + r.sourceOffset, End: lineEnd + r.sourceOffset})
 			r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 		}
 	}
@@ -1976,6 +1982,7 @@ func (r *Reader) emitFencedCodeBlock(ctx context.Context, ch chan<- model.PartRe
 		r.skelText(string(r.source[lineEnd:closeFenceEnd]))
 		r.skelAdvance(closeFenceEnd)
 
+		block.SetSourceSpan(model.SourceSpan{Start: fenceStart + r.sourceOffset, End: closeFenceEnd + r.sourceOffset})
 		r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 	} else if r.cfg.ExtractNonTranslatableContent() {
 		// Surface the code as non-translatable RoleCode content (visible to
@@ -1998,6 +2005,7 @@ func (r *Reader) emitFencedCodeBlock(ctx context.Context, ch chan<- model.PartRe
 		r.skelText(string(r.source[lineEnd:closeFenceEnd]))
 		r.skelAdvance(closeFenceEnd)
 
+		block.SetSourceSpan(model.SourceSpan{Start: fenceStart + r.sourceOffset, End: closeFenceEnd + r.sourceOffset})
 		r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 	} else {
 		r.dataCounter++
@@ -2065,6 +2073,7 @@ func (r *Reader) emitIndentedCodeBlock(ctx context.Context, ch chan<- model.Part
 		r.skelRef(blockID)
 		r.skelAdvance(lineEnd)
 
+		block.SetSourceSpan(model.SourceSpan{Start: absStart + r.sourceOffset, End: lineEnd + r.sourceOffset})
 		r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 	} else if r.cfg.ExtractNonTranslatableContent() {
 		// Surface as non-translatable RoleCode content; the 4-space indent stays
@@ -2085,6 +2094,7 @@ func (r *Reader) emitIndentedCodeBlock(ctx context.Context, ch chan<- model.Part
 		r.skelRef(blockID)
 		r.skelAdvance(lineEnd)
 
+		block.SetSourceSpan(model.SourceSpan{Start: absStart + r.sourceOffset, End: lineEnd + r.sourceOffset})
 		r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 	} else {
 		r.dataCounter++

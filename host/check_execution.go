@@ -69,3 +69,15 @@ func (e *checkExecution) report(target check.Target, diags []check.Diagnostic, g
 	}
 	return report
 }
+
+func (e *checkExecution) recordContext(file, destination string, opts checkRunOptions) {
+	if e == nil {
+		return
+	}
+	if file != "" {
+		file = DisplayName(file)
+	}
+	e.Contexts = append(e.Contexts, check.CheckContext{
+		File: file, ContextPath: destination, Voice: opts.voiceContext, TermsApplied: opts.terms != nil,
+	})
+}

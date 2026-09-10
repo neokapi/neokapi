@@ -1,0 +1,7 @@
+{
+  "id": "equipment-contract",
+  "camera_policy_id": "camera_7_day",
+  "telescope_policy_id": "telescope_7_day",
+  "contract_version": "1",
+  "description": "Policy identifiers remain stable when display copy changes."
+}

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-09T22:22:44Z",
+  "generatedAt": "2026-09-10T22:19:30Z",
   "commands": [
     {
       "id": "add",
@@ -5129,6 +5129,12 @@
           "usage": "also render each block to these target formats (html, markdown, asciidoc) under \"projected\"",
           "default": "[]",
           "type": "stringSlice"
+        },
+        {
+          "name": "sections",
+          "usage": "inspect heading sections and native block ranges for the section-edit POC",
+          "default": "false",
+          "type": "bool"
         },
         {
           "name": "source-lang",

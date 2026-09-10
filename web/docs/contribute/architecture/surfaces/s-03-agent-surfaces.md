@@ -72,8 +72,9 @@ The `context-discovery` reference covers two visits. On the first, the
 assistant assembles a project's context from the user's material. On a later
 one it diffs new material against what the project already holds and proposes
 a **refresh**: a change-set the user approves (`kapi apply refresh.jsonl`), so
-terms and voice rules land atomically and nothing is rewritten behind the user's
-back.
+terms and voice rules are explicit reviewed entries. Successful entries can
+remain applied when another entry fails; the assistant inspects the report and
+the resulting diff before retrying unfinished work.
 
 The `i18n` concern is itself a tree. `references/i18n.md` detects the stack and
 routes into `references/i18n/`, driven by a machine-readable framework registry
@@ -116,6 +117,15 @@ gate, and `make mcp-eval` measures whether an agent picks the right MCP tool.
 The results and the whole transcripts are published on the
 [skill eval page](/skill-eval) ([A-01](../assurance/a-01-testing-and-documentation.md));
 none of the three runs in CI, because they spend and need local credentials.
+
+The paired study runs identical tasks through each agent host with ordinary
+file tools, the CLI skill, or MCP. The skill condition excludes the kapi MCP
+server; the MCP condition excludes the skill and direct kapi CLI execution.
+Independent artifact checks assess completion, while natural prompts measure
+whether the agent discovers the available integration. Results retain failed
+attempts and distinguish these outcomes from human judgments of the content.
+The [paired evaluation runner](../../implementation/repo/paired-agent-evaluation.md)
+records the model and integration configuration for each attempt.
 
 ### Two hooks, and a protocol for failing open
 
@@ -175,9 +185,9 @@ These are the assistant-integration hooks. They are unrelated to a recipe's
     { label: "Read", sub: "kapi inspect" },
     { label: "Edit", sub: "the assistant writes" },
     { label: "Write", sub: "kapi apply" },
-    { label: "Check", sub: "kapi check --ship" },
+    { label: "Check", sub: "kapi check <path>" },
   ]}
-  caption="The edit loop: kapi parses and re-writes the file, the assistant supplies the words, and the gate decides whether the loop goes round again."
+  caption="The edit loop: the assistant supplies the words; kapi reads, applies and checks the content. Findings guide revisions, while unsupported guidance remains for review."
 />
 
 **Editing existing content.** `kapi inspect` is the read leg: it parses any
@@ -197,6 +207,19 @@ elsewhere, edited in place.
 
 Both loops are provider-free by default. The assistant is the writer; kapi is the
 format engine and the checker.
+
+The ordinary authoring loop uses `kapi context <path>` before editing and
+`kapi check <path>` afterwards. The file path determines the applicable voice
+channel and terms. The assistant reads analyzer coverage alongside findings;
+a passing score establishes only the checks that ran. `kapi check --ship`
+enforces project release policy when that is part of the task.
+
+For MCP, context retrieval uses the existing `context://<path>` resource.
+`check_file` checks saved content in its project scope. A draft can be checked
+with `check_text` and `context_path`, the intended project-relative destination.
+This binds the same voice and terms without reading the destination file.
+Explicit profile overrides belong to unscoped snippet checks and cannot be
+combined with `context_path`. A bound-context failure is an operation error.
 
 ### `kapi apply`, the write verb for content and assets
 
@@ -227,15 +250,32 @@ and skipped. An edit that drops, invents, or unbalances an inline code is
 *rejected* by the fidelity guard rather than written as broken markup. Either
 outcome exits non-zero so the fix loop re-inspects and retries.
 
-A mixed change-set (a content fix plus the `term` or `voice` rule that justifies
-it) lands atomically, so the draft and the rule that governs future drafts move
-together.
+A mixed change-set can contain a content fix and the `term` or `voice` rule that
+justifies it. The operation does not provide a transaction across those entries:
+successful asset and content writes can remain when another entry fails. The
+assistant reads the per-entry results and resulting diff, re-inspects stale
+content, and retries only the work that remains.
 
 A review decision is the one write that also has verbs of its own. On MCP,
 `approve_unit`, `reject_unit` and `sign_off_unit` record a unit's outcome
 through the same host decision path the CLI uses, with the agent's identity
 attached; `apply_edits` with a `review` entry reaches the same record. Both
 land in the working set and are published by `kapi commit`.
+
+### Section edits on the shared agent surface
+
+The CLI reads heading sections with `inspect --sections`; MCP exposes the same
+host operation as `inspect_sections`. Both return the document snapshot and
+native block ranges. File-scoped context retrieval supplies applicable writing
+guidance before the agent authors a Markdown replacement body.
+
+`apply` and `apply_edits` accept one `kind: "section"` entry per change-set in
+the POC. The entry carries the file, returned heading ID, snapshot and body
+text. CLI `--diff --json` and MCP `preview: true` expose the immutable offset
+plan without writing. Applying it preserves the selected heading and replaces
+its body through the format writer. The agent then re-inspects the saved file,
+runs the existing checks and revises against the findings and reported coverage.
+A successful write does not certify editorial quality or unsupported guidance.
 
 ### Format editability is declarative
 
@@ -269,7 +309,7 @@ does automatically and invisibly.
 The default surface is therefore the hand-authored porcelain (reading and
 sizing content, checking text or a file, voice scoring and offline rewriting,
 context search, the catch-up verbs and their dry run, the review-queue verbs,
-and `apply_edits`) plus a short curated list of registry tools that produce
+and `apply_edits`, with `inspect_sections` for structural edits) plus a short curated list of registry tools that produce
 something a caller cannot produce itself or check something with no porcelain
 equivalent: `translate`, `term-check` and `redact`. The listing and
 format-detection helpers, `extract_content`, `pseudo_translate` and the
@@ -334,8 +374,8 @@ output.
 - Progressive disclosure keeps the router cheap and loads detail only on a match.
 - The attended loops call no provider: the assistant writes, kapi round-trips,
   drift-checks, and gates.
-- One write verb covers content and asset edits, a mixed change-set lands
-  atomically, and `git diff` is the uniform review surface for all of it.
+- One write verb covers content and asset edits, reports partial outcomes, and
+  uses `git diff` as the uniform review surface for all of it.
 - A curated MCP surface means the agent-facing tool list is a reviewed decision;
   the code-execution exclusion is a test, so widening the surface can never
   silently grant shell access.

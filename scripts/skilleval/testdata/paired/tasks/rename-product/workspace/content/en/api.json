@@ -1,0 +1,4 @@
+{
+  "service_id": "harbor_desk_v1",
+  "route": "/harbor-desk"
+}
