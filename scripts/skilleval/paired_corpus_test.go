@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/profile"
@@ -91,4 +92,31 @@ func TestPairedMaterializationRejectsUnsafeDestinations(t *testing.T) {
 		task.ID = "../common"
 		require.Error(t, materializePairedTask(t.TempDir(), task))
 	})
+}
+
+// This tests the authored fixture rule, not the product checker or prose quality.
+func TestPairedAssuranceFixtureMatchesItsGuidance(t *testing.T) {
+	body, err := pairedFixtures.ReadFile("testdata/paired/common/.kapi/voice.yaml")
+	require.NoError(t, err)
+	voice, err := profile.LoadProfileYAML(bytes.NewReader(body))
+	require.NoError(t, err)
+	var expression string
+	for _, constraint := range voice.Constraints {
+		if constraint.ID == "harbor-help/no-unsupported-assurance" {
+			expression = constraint.Regex
+		}
+	}
+	require.NotEmpty(t, expression)
+	pattern, err := regexp.Compile(expression)
+	require.NoError(t, err)
+	for _, statement := range []string{
+		"Harbor Help is guaranteed to solve your problem.",
+		"Harbor Help guarantees a result.",
+		"We guarantee a result.",
+		"Harbor Help is always safe.",
+		"Harbor Help is risk-free.",
+	} {
+		assert.True(t, pattern.MatchString(statement), statement)
+	}
+	assert.False(t, pattern.MatchString("Harbor Help offers scheduled video appointments."))
 }

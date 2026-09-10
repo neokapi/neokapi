@@ -19,7 +19,7 @@ constraints:
     source: guidance.md
     statement: Do not describe the service as guaranteed, always safe or risk-free.
     kind: prohibited_pattern
-    regex: '(?i)\b(guarantee|always safe|risk-free)\b'
+    regex: '(?i)\b(guarantee(?:d|s)?|always safe|risk-free)\b'
   - id: harbor-help/current-guidance
     version: 1
     source: guidance.md
