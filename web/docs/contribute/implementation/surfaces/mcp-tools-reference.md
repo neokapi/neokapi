@@ -140,6 +140,12 @@ read it rather than a prose copy.
 when an edit drifted or was rejected, which is the caller's signal to re-read
 the block and retry rather than to force the write.
 
+A content entry uses `kind: "content"`, `file`, the extracted block `id` and
+`content_hash`, and `text` for its new wording. `replacement` belongs to voice
+rules. Both the CLI and MCP reject content entries carrying a nonempty
+`replacement` before applying any entry, with an error identifying the expected
+`text` field.
+
 ## The surface is a contract
 
 `kapi/cmd/kapi/mcp_snapshot_test.go` snapshots every tool name and input schema

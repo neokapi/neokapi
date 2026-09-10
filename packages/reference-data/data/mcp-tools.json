@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-09-10T12:44:13Z",
+  "generatedAt": "2026-09-10T13:49:15Z",
   "tools": [
     {
       "name": "apply_edits",
-      "description": "Apply a typed change-set: the one write verb. Content edits land through the byte-faithful round-trip (structure and inline codes preserved, drift-guarded by content_hash); asset edits (terms entry, content memory pair, voice rule, recipe field) are written to their committed source and compiled into the cache. No AI provider is used. Read the context://\u003cproject-relative-path\u003e resource before editing content, then run check_file on each changed file to review findings and analyzer coverage.",
+      "description": "Apply a typed change-set: the one write verb. For document wording, each entry uses kind=content, file, id, content_hash and text (the new wording). Read block IDs and hashes with extract_content. The replacement field is for voice rules. Content edits land through the byte-faithful round-trip (structure and inline codes preserved, drift-guarded by content_hash); asset edits (terms entry, content memory pair, voice rule, recipe field) are written to their committed source and compiled into the cache. No AI provider is used. Read the context://\u003cproject-relative-path\u003e resource before editing content, then run check_file on each changed file to review findings and analyzer coverage.",
       "surface": "default",
       "params": [
         {

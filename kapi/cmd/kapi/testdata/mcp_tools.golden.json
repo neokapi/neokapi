@@ -19,6 +19,7 @@
                 "type": "string"
               },
               "kind": {
+                "description": "change kind; use content for document wording",
                 "type": "string"
               },
               "list": {
@@ -34,6 +35,7 @@
                 "type": "string"
               },
               "replacement": {
+                "description": "replacement term for kind=voice; content entries use text",
                 "type": "string"
               },
               "replaces": {
@@ -61,6 +63,7 @@
                 "type": "string"
               },
               "text": {
+                "description": "new block wording for kind=content; preserve inline placeholders from extract_content",
                 "type": "string"
               },
               "value": {

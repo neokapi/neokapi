@@ -40,7 +40,9 @@ type applyEditsMCPOutput struct {
 func registerEditMCPTools(server *mcp.Server, a *App) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "apply_edits",
-		Description: "Apply a typed change-set: the one write verb. Content edits land through the " +
+		Description: "Apply a typed change-set: the one write verb. For document wording, each entry " +
+			"uses kind=content, file, id, content_hash and text (the new wording). Read block IDs and " +
+			"hashes with extract_content. The replacement field is for voice rules. Content edits land through the " +
 			"byte-faithful round-trip (structure and inline codes preserved, drift-guarded by content_hash); " +
 			"asset edits (terms entry, content memory pair, voice rule, recipe field) are written to their " +
 			"committed source and compiled into the cache. No AI provider is used. Read the " +
@@ -52,6 +54,9 @@ func registerEditMCPTools(server *mcp.Server, a *App) {
 }
 
 func (a *App) applyEditsMCP(ctx context.Context, in applyEditsInput) (*mcp.CallToolResult, applyEditsMCPOutput, error) {
+	if err := validateContentWording(in.Changeset); err != nil {
+		return nil, applyEditsMCPOutput{}, err
+	}
 	var out applyOutput
 
 	byFile := map[string][]changeEntry{}
