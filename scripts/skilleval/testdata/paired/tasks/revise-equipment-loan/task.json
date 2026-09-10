@@ -1,0 +1,176 @@
+{
+  "id": "revise-equipment-loan",
+  "family": "equipment-policy",
+  "prompt": "Apply the current equipment-lending decision to content/en. Read guidance.md and the project guidance before editing. Keep JSON keys and types, update every affected current surface, and preserve the protected exceptions and identifiers. Edit only the content files permitted by the guidance.",
+  "editable": [
+    "content/en/page.json",
+    "content/en/camera-reminder.json",
+    "content/en/camera-desk-card.json"
+  ],
+  "criteria": [
+    {
+      "id": "page-id",
+      "kind": "json_equals",
+      "path": "content/en/page.json",
+      "key": "id",
+      "value": "camera-borrowing",
+      "description": "Preserve field: id"
+    },
+    {
+      "id": "page-title",
+      "kind": "json_equals",
+      "path": "content/en/page.json",
+      "key": "title",
+      "value": "Borrow a camera",
+      "description": "Preserve field: title"
+    },
+    {
+      "id": "page-loan-label",
+      "kind": "json_equals",
+      "path": "content/en/page.json",
+      "key": "loan_label",
+      "value": "14-day loan",
+      "description": "Apply approved value: loan_label"
+    },
+    {
+      "id": "page-loan-days",
+      "kind": "json_equals",
+      "path": "content/en/page.json",
+      "key": "loan_days",
+      "value": "14",
+      "description": "Apply approved value: loan_days"
+    },
+    {
+      "id": "page-return-instruction",
+      "kind": "json_equals",
+      "path": "content/en/page.json",
+      "key": "return_instruction",
+      "value": "Return the camera within 14 days of collection.",
+      "description": "Apply approved value: return_instruction"
+    },
+    {
+      "id": "page-renewals",
+      "kind": "json_equals",
+      "path": "content/en/page.json",
+      "key": "renewals",
+      "value": "Camera loans cannot be renewed.",
+      "description": "Preserve field: renewals"
+    },
+    {
+      "id": "page-policy-id",
+      "kind": "json_equals",
+      "path": "content/en/page.json",
+      "key": "policy_id",
+      "value": "camera_7_day",
+      "description": "Preserve field: policy_id"
+    },
+    {
+      "id": "page-support",
+      "kind": "json_equals",
+      "path": "content/en/page.json",
+      "key": "support",
+      "value": "equipment@alder.example",
+      "description": "Preserve field: support"
+    },
+    {
+      "id": "camera-reminder-id",
+      "kind": "json_equals",
+      "path": "content/en/camera-reminder.json",
+      "key": "id",
+      "value": "camera-return-reminder",
+      "description": "Preserve field: id"
+    },
+    {
+      "id": "camera-reminder-subject",
+      "kind": "json_equals",
+      "path": "content/en/camera-reminder.json",
+      "key": "subject",
+      "value": "Your camera is due back soon",
+      "description": "Preserve field: subject"
+    },
+    {
+      "id": "camera-reminder-body",
+      "kind": "json_equals",
+      "path": "content/en/camera-reminder.json",
+      "key": "body",
+      "value": "Your camera loan lasts 14 days. Return it by {due_date}.",
+      "description": "Apply approved value: body"
+    },
+    {
+      "id": "camera-reminder-send-after-days",
+      "kind": "json_equals",
+      "path": "content/en/camera-reminder.json",
+      "key": "send_after_days",
+      "value": "12",
+      "description": "Apply approved value: send_after_days"
+    },
+    {
+      "id": "camera-reminder-policy-id",
+      "kind": "json_equals",
+      "path": "content/en/camera-reminder.json",
+      "key": "policy_id",
+      "value": "camera_7_day",
+      "description": "Preserve field: policy_id"
+    },
+    {
+      "id": "camera-reminder-support",
+      "kind": "json_equals",
+      "path": "content/en/camera-reminder.json",
+      "key": "support",
+      "value": "equipment@alder.example",
+      "description": "Preserve field: support"
+    },
+    {
+      "id": "camera-desk-card-id",
+      "kind": "json_equals",
+      "path": "content/en/camera-desk-card.json",
+      "key": "id",
+      "value": "camera-desk-card",
+      "description": "Preserve field: id"
+    },
+    {
+      "id": "camera-desk-card-title",
+      "kind": "json_equals",
+      "path": "content/en/camera-desk-card.json",
+      "key": "title",
+      "value": "Camera collection",
+      "description": "Preserve field: title"
+    },
+    {
+      "id": "camera-desk-card-loan-label",
+      "kind": "json_equals",
+      "path": "content/en/camera-desk-card.json",
+      "key": "loan_label",
+      "value": "14-day loan",
+      "description": "Apply approved value: loan_label"
+    },
+    {
+      "id": "camera-desk-card-loan-days",
+      "kind": "json_equals",
+      "path": "content/en/camera-desk-card.json",
+      "key": "loan_days",
+      "value": "14",
+      "description": "Apply approved value: loan_days"
+    },
+    {
+      "id": "camera-desk-card-collection",
+      "kind": "json_equals",
+      "path": "content/en/camera-desk-card.json",
+      "key": "collection",
+      "value": "Bring your library card to the equipment desk.",
+      "description": "Preserve field: collection"
+    },
+    {
+      "id": "camera-desk-card-policy-id",
+      "kind": "json_equals",
+      "path": "content/en/camera-desk-card.json",
+      "key": "policy_id",
+      "value": "camera_7_day",
+      "description": "Preserve field: policy_id"
+    }
+  ],
+  "humanReviewRubric": [
+    "Objective results cover the approved display strings, reminder schedule, preserved fields and protected files. They do not establish general writing quality or usefulness on other policies.",
+    "Any claim of fewer reviewer corrections needs observed agent runs and reviewer effort; fixture checks alone do not demonstrate that benefit."
+  ]
+}

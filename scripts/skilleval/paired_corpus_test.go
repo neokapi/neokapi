@@ -16,7 +16,7 @@ import (
 
 func TestPairedCorpusMaterialization(t *testing.T) {
 	tasks := pairedTasks()
-	require.Len(t, tasks, 6)
+	require.Len(t, tasks, 7)
 	families := map[string]int{}
 	seen := map[string]bool{}
 	for _, task := range tasks {
@@ -56,7 +56,7 @@ func TestPairedCorpusMaterialization(t *testing.T) {
 			assert.NotEmpty(t, task.spec.HumanReviewRubric)
 		})
 	}
-	assert.Equal(t, map[string]int{"audience-adaptation": 2, "scoped-rename": 2, "guidance-revision": 2}, families)
+	assert.Equal(t, map[string]int{"audience-adaptation": 2, "scoped-rename": 2, "guidance-revision": 2, "equipment-policy": 1}, families)
 	hash, err := pairedCorpusHash()
 	require.NoError(t, err)
 	assert.Len(t, hash, 64)

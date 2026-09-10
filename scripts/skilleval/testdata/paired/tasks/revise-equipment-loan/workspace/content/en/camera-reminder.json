@@ -1,0 +1,8 @@
+{
+  "id": "camera-return-reminder",
+  "subject": "Your camera is due back soon",
+  "body": "Your camera loan lasts 7 days. Return it by {due_date}.",
+  "send_after_days": "5",
+  "policy_id": "camera_7_day",
+  "support": "equipment@alder.example"
+}
