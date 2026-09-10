@@ -7,6 +7,40 @@
       "id": "destination-guidance",
       "partition": "development",
       "reader_task": "Prepare a complete MCP handoff procedure for checking an onboarding guide before and after saving it, retaining destination guidance normally and explaining the consequences of a deliberate explicit profile override.",
+      "requirements": [
+        {
+          "id": "draft-destination",
+          "description": "Explain how to check the draft against its intended project destination, including the bound project and compatible scope arguments.",
+          "source_ids": [
+            "scope-draft",
+            "scope-project"
+          ]
+        },
+        {
+          "id": "saved-file-check",
+          "description": "Direct the author to check the saved file after saving the draft, so the handoff includes checking the actual document rather than only the supplied snippet.",
+          "source_ids": [
+            "scope-draft",
+            "scope-project"
+          ]
+        },
+        {
+          "id": "profile-override-effects",
+          "description": "Explain how to retain the destination guidance for a normal file check and what a deliberate explicit profile override means for the file’s voice channel and project terminology.",
+          "source_ids": [
+            "scope-report",
+            "scope-override"
+          ]
+        },
+        {
+          "id": "handoff-scope-evidence",
+          "description": "Tell the author which request and reported context evidence to keep and inspect before relying on the check, including how to interpret absent context metadata.",
+          "source_ids": [
+            "scope-report",
+            "scope-override"
+          ]
+        }
+      ],
       "audience": "Content authors and assistant operators working in an existing kapi project.",
       "surface": "Team procedure with draft preparation, saved-file checking and review handoff sections.",
       "destination": "An internal authoring handbook; the checked guide has a project-relative destination.",
@@ -113,6 +147,46 @@
       "id": "concurrent-content-edit",
       "partition": "development",
       "reader_task": "Provide an operator procedure for changing selected blocks in an existing document that other people may edit concurrently. The change-set contains only content entries, with no asset or review entries. Include safe preparation, preview, what a blocked apply means for already-written content, and the actions needed to recover from stale or rejected edits.",
+      "requirements": [
+        {
+          "id": "prepare-content-edits",
+          "description": "Explain how to confirm editing support and prepare content entries from inspected blocks, retaining the identities, hashes and inline codes needed for safe edits.",
+          "source_ids": [
+            "edit-formats",
+            "edit-identities",
+            "edit-apply"
+          ]
+        },
+        {
+          "id": "preview-and-apply",
+          "description": "Direct the operator to preview the prepared changes before applying them, distinguishing the preview from writing the document.",
+          "source_ids": [
+            "edit-apply"
+          ]
+        },
+        {
+          "id": "blocked-apply-state",
+          "description": "Explain what stale and rejected edits mean for the affected blocks and for content that may already have been written by the same change-set.",
+          "source_ids": [
+            "edit-recovery"
+          ]
+        },
+        {
+          "id": "recover-blocked-edits",
+          "description": "Give the operator the actions needed to recover from a stale or rejected content edit and retry against the current document safely.",
+          "source_ids": [
+            "edit-identities",
+            "edit-recovery"
+          ]
+        },
+        {
+          "id": "verify-edited-file",
+          "description": "Direct the operator to check the edited file, address relevant findings and re-check, retaining review of meaning and guidance outside the checks’ coverage.",
+          "source_ids": [
+            "edit-recovery"
+          ]
+        }
+      ],
       "audience": "A content author preparing and applying a reviewed JSONL change-set.",
       "surface": "Operational guide with preparation, failure recovery and verification sections.",
       "destination": "An internal authoring handbook for existing editable documents.",

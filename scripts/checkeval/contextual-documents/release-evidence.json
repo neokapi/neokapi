@@ -7,6 +7,40 @@
       "id": "release-evidence",
       "partition": "development",
       "reader_task": "Prepare a release handoff for a mixed source-only and translated project: identify measured content, limits of a clean score, outstanding review, and how to handle an operational check failure.",
+      "requirements": [
+        {
+          "id": "collect-release-evidence",
+          "description": "Explain how to collect and retain an inspectable result for the project’s release policy, and use check evidence after repairs rather than treating a proposed repair as verification.",
+          "source_ids": [
+            "release-scope",
+            "machine-output",
+            "checks-contract"
+          ]
+        },
+        {
+          "id": "measured-content-scope",
+          "description": "Explain how to identify the content measured in a mixed source-only and translated project, distinguishing measured content from an empty scope.",
+          "source_ids": [
+            "release-scope"
+          ]
+        },
+        {
+          "id": "clean-result-limits",
+          "description": "Explain the assurance provided by a clean score in light of analyzer coverage, identify meaning and unsupported guidance that still need review, and account for unreported coverage.",
+          "source_ids": [
+            "checks-contract",
+            "coverage",
+            "meaning-and-failures"
+          ]
+        },
+        {
+          "id": "operational-failure-handling",
+          "description": "Tell the release owner how to distinguish and handle a requested check or context resolution that could not complete, including the limits of suppressing content-gate failures.",
+          "source_ids": [
+            "meaning-and-failures"
+          ]
+        }
+      ],
       "audience": "Content release owner who consumes CLI results but does not implement kapi checks.",
       "surface": "Internal release handoff guide",
       "destination": "guides/release/check-evidence.md",
