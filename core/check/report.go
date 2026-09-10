@@ -45,6 +45,9 @@ type Target struct {
 	File   string `json:"file,omitempty"`   // path, for kind=="file"
 	Format string `json:"format,omitempty"` // detected/declared format
 	Blocks int    `json:"blocks"`           // content blocks checked
+	// ContextPath selects the project-relative guidance for a text draft. It
+	// does not identify an extracted file or assert that the file exists.
+	ContextPath string `json:"context_path,omitempty"`
 }
 
 // Summary is the count + score roll-up over a Report's findings.
