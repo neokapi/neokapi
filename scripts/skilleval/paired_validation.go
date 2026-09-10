@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -135,7 +136,7 @@ func openPairedRoot(dir string) (*os.Root, error) {
 		return nil, err
 	}
 	if !info.IsDir() {
-		return nil, fmt.Errorf("paired workspace must be a directory, not a symlink or file")
+		return nil, errors.New("paired workspace must be a directory, not a symlink or file")
 	}
 	return os.OpenRoot(dir)
 }
@@ -199,7 +200,7 @@ func parsePairedDocument(body []byte) (map[string]string, error) {
 	decoder := json.NewDecoder(bytes.NewReader(body))
 	start, err := decoder.Token()
 	if err != nil || start != json.Delim('{') {
-		return nil, fmt.Errorf("expected a JSON object")
+		return nil, errors.New("expected a JSON object")
 	}
 	values := map[string]string{}
 	for decoder.More() {
@@ -209,7 +210,7 @@ func parsePairedDocument(body []byte) (map[string]string, error) {
 		}
 		key, ok := token.(string)
 		if !ok {
-			return nil, fmt.Errorf("expected a JSON key")
+			return nil, errors.New("expected a JSON key")
 		}
 		if _, duplicate := values[key]; duplicate {
 			return nil, fmt.Errorf("duplicate JSON key %q", key)

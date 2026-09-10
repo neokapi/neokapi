@@ -136,7 +136,7 @@ func pairedSchedule(m PairedManifest, phase string) []PairedSession {
 	// Shuffle task/host/repetition blocks, then conditions within each block.
 	// All conditions therefore share the same task and replicate without a fixed arm order.
 	blocks := [][]PairedSession{}
-	rng := rand.New(rand.NewSource(m.Seed)) //nolint:gosec // Reproducible experimental order, not a security token.
+	rng := rand.New(rand.NewSource(m.Seed))
 	for _, task := range tasks {
 		for _, agent := range m.Agents {
 			for repetition := 1; repetition <= repetitions; repetition++ {
