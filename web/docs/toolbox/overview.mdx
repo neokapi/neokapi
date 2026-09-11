@@ -75,12 +75,15 @@ The Kapi CLI bundles these commands:
 
 ```bash
 brew install neokapi/tap/kapi-cli-beta  # macOS/Linux
-winget install Neokapi.KapiCli          # Windows
 ```
 
 The beta formula carries the current build while 1.2.0 is in its
 release-candidate phase; see
 [Installation](/kapi/get-started/installation#beta-channel) for the channels.
+
+On Windows, `winget install Neokapi.KapiCli` installs kapi 1.0.2, which predates
+the behaviour this page describes. Take a Windows build from the
+[direct downloads](/kapi/get-started/installation#binary-downloads) instead.
 
 Every utility is also reachable as a `kapi` subcommand under the same name:
 `kapi kgrep`, `kapi ksed`, `kapi kcat`, `kapi kdiff`, `kapi kconv`. Each behaves
@@ -90,7 +93,7 @@ the connected-project sync diff, not a file diff.)
 
 :::note Windows
 The Homebrew install adds the short names (`kgrep`, `ksed`, `kcat`, `kdiff`,
-`kconv`) as aliases of the `kapi` binary. The winget package installs the single
+`kconv`) as aliases of the `kapi` binary. The Windows zip carries the single
 `kapi` command, so on Windows use the subcommand form (`kapi kgrep`,
 `kapi ksed`, `kapi kcat`, `kapi kdiff`, `kapi kconv`), which is exactly
 equivalent.
