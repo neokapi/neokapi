@@ -162,10 +162,9 @@ language becomes the default for the translating tools.
 ### Tools from installed plugins
 
 An installed plugin adds its own tools to this surface. `kapi mcp` starts each
-plugin's server once per session and passes calls through, so a project
-connected to a Bowrain server answers `project_status`, `project_push` and
-`project_pull` from the same connection that serves the loop verbs. Configure
-one MCP server, not one per plugin.
+plugin's server once per session and passes calls through, so the tools a plugin
+brings answer on the same connection that serves the loop verbs. Configure one
+MCP server, not one per plugin.
 
 A plugin contributes the tools its manifest declares. A plugin that is not
 installed adds nothing, one that fails to start is left off with a note on
