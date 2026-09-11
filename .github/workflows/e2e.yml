@@ -359,9 +359,15 @@ jobs:
             bowrain/apps/web/test-results/
           retention-days: 30
 
+      # Two suites run in this job, and the Playwright one is chatty. At
+      # --tail 300 its output filled the whole dump, so a failure in the Go
+      # suite that runs first left no server log behind at all: the lines that
+      # explain it had already scrolled past. The bound exists to keep a
+      # runaway container from flooding the step, and 4000 lines still does
+      # that while covering both suites.
       - name: Dump server + worker logs
         if: failure()
-        run: docker compose -f bowrain/e2e/server/compose.yaml logs --no-color --tail 300
+        run: docker compose -f bowrain/e2e/server/compose.yaml logs --no-color --tail 4000
 
       - name: Tear down E2E stack
         if: always()
