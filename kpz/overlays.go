@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/neokapi/neokapi/core/schemaversion"
 )
 
 // OverlaySetVersion is the overlays.json schema version (MAJOR.MINOR, same
@@ -70,11 +72,11 @@ func unmarshalOverlaySet(data []byte) ([]OverlayDoc, error) {
 	if set.Kind != OverlaySetKind {
 		return nil, fmt.Errorf("unexpected kind %q (want %q)", set.Kind, OverlaySetKind)
 	}
-	major, ok := majorVersion(set.SchemaVersion)
+	major, ok := schemaversion.Major(set.SchemaVersion)
 	if !ok {
 		return nil, fmt.Errorf("invalid schemaVersion %q", set.SchemaVersion)
 	}
-	if wantMajor, _ := majorVersion(OverlaySetVersion); major != wantMajor {
+	if wantMajor, _ := schemaversion.Major(OverlaySetVersion); major != wantMajor {
 		return nil, fmt.Errorf("unsupported major schemaVersion %d (this build speaks %s)", major, OverlaySetVersion)
 	}
 	return set.Overlays, nil
