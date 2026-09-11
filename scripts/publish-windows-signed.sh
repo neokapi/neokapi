@@ -130,28 +130,63 @@ echo ">> Using workflow run $RUN_ID"
 # reads as a broken build rather than an expiry. Ask the API first and name the
 # real cause: every tag from v1.2.0-rc17 to v1.2.0-rc29 lost its Windows
 # artifacts this way, under the old 14-day retention.
-live=0; expired=0
-while IFS=$'\t' read -r aname aexpired; do
-  case "$aname" in *windows*) ;; *) continue ;; esac
-  if [ "$aexpired" = "true" ]; then expired=$((expired + 1)); else live=$((live + 1)); fi
+# Only the artifacts this script signs count. cli-bins-windows-* carries a bare
+# kapi.exe that never reaches the signing loop below (which takes *windows*.zip)
+# and keeps the short in-run retention, so counting it would report a run as
+# signable when the zips it actually needs are already gone.
+live=0; expired=0; deadline=""
+while IFS=$'\t' read -r aname aexpired aexpires; do
+  case "$aname" in
+    cli-bins-*) continue ;;
+    *windows*)  ;;
+    *)          continue ;;
+  esac
+  if [ "$aexpired" = "true" ]; then
+    expired=$((expired + 1))
+  else
+    live=$((live + 1))
+    # The earliest expiry among them is the date the signing window shuts.
+    # An explicit if, not `A || B && C`: that list evaluates to false whenever
+    # no assignment happens, and `set -e` would end the run on it.
+    if [ -z "$deadline" ] || [[ "${aexpires%%T*}" < "$deadline" ]]; then
+      deadline="${aexpires%%T*}"
+    fi
+  fi
 done < <(gh api "repos/$REPO/actions/runs/$RUN_ID/artifacts" --paginate \
-           --jq '.artifacts[] | [.name, (.expired | tostring)] | @tsv')
+           --jq '.artifacts[] | [.name, (.expired | tostring), .expires_at] | @tsv')
 if [ "$live" -eq 0 ]; then
   if [ "$expired" -gt 0 ]; then
-    echo "All $expired Windows artifacts on run $RUN_ID have expired; there is nothing left to sign for $TAG." >&2
-    echo "Rebuild them by re-running that run's Windows jobs (GitHub allows a re-run for 30 days after the run):" >&2
-    echo "    gh run rerun --repo $REPO --job <id>" >&2
-    echo "for each of:" >&2
+    started="$(gh api "repos/$REPO/actions/runs/$RUN_ID" --jq '.created_at' 2>/dev/null || true)"
+    {
+      echo ""
+      echo "──────────────────────────────────────────────────────────────────────"
+      echo " EXPIRED: run $RUN_ID has no Windows artifact left to sign."
+      echo " All $expired of them are past their retention. Nothing can be"
+      echo " published for $TAG until they are rebuilt."
+      echo "──────────────────────────────────────────────────────────────────────"
+      echo ""
+      echo " Rebuild them by re-running that run's Windows jobs:"
+      echo ""
+      echo "     gh run rerun --repo $REPO --job <id>"
+      echo ""
+      echo " for each of:"
+    } >&2
     gh run view "$RUN_ID" --repo "$REPO" --json jobs \
-      --jq '.jobs[] | select(.name | test("[Ww]indows")) | "    \(.databaseId)  \(.name)"' >&2 || true
-    echo "The run id does not change, so re-run this script once they finish. If the run is" >&2
-    echo "too old to re-run, tag a new release and sign that one instead." >&2
+      --jq '.jobs[] | select(.name | test("[Ww]indows")) | "     \(.databaseId)  \(.name)"' >&2 || true
+    {
+      echo ""
+      echo " GitHub allows a re-run for 30 days after the run, and this one started"
+      echo " ${started:-at an unknown date}. The run id does not change, so re-run"
+      echo " this script once the jobs finish. Past that window, tag a new release"
+      echo " and sign that one instead."
+      echo ""
+    } >&2
   else
     echo "Run $RUN_ID carries no Windows artifacts. Check that its Windows build jobs succeeded." >&2
   fi
   exit 1
 fi
-echo ">> $live live Windows artifact(s) on run $RUN_ID"
+echo ">> $live Windows artifact(s) to sign on run $RUN_ID (earliest expiry: ${deadline:-unknown})"
 
 work="$(mktemp -d)"; trap 'rm -rf "$work"' EXIT; cd "$work"
 
