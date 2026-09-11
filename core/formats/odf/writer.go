@@ -473,7 +473,7 @@ func renderSourceRunsForODF(runs []model.Run, plain string) string {
 // the inline-code renderer below because Data fields hold already-
 // escaped literal markup that must stay verbatim.
 //
-// DELIBERATELY not core/internal/xmlesc.Text, which the odf READER now uses:
+// DELIBERATELY not core/xmlesc.Text, which the odf READER now uses:
 // this one escapes all five predefined entities, `"` and `'` included.
 func odfEscapeText(s string) string {
 	if !strings.ContainsAny(s, "<>&\"'") {

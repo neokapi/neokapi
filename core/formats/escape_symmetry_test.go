@@ -5,8 +5,8 @@ import (
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/format/spectest"
-	"github.com/neokapi/neokapi/core/internal/xmlesc"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/xmlesc"
 )
 
 // TestEscapeSymmetryOnModify sweeps every text format that reads and writes,

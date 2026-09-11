@@ -14,8 +14,8 @@ import (
 	"github.com/beevik/etree"
 
 	"github.com/neokapi/neokapi/core/format"
-	"github.com/neokapi/neokapi/core/internal/xmlesc"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/xmlesc"
 )
 
 // Writer implements DataFormatWriter for XLIFF 2.x files.

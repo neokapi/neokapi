@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/neokapi/neokapi/core/internal/xmlesc"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/xmlesc"
 )
 
 // TypeHiddenRun tags an isolated RunCode-style placeholder carrying the

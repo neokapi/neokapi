@@ -3,8 +3,8 @@ package format
 import (
 	"fmt"
 
-	"github.com/neokapi/neokapi/core/internal/xmlesc"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/xmlesc"
 )
 
 // UnrepresentableValueError reports a block whose text a format cannot

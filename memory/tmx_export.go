@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/xmlesc"
 )
 
 // EntryProvider is implemented by content memory backends that can list all entries.
@@ -50,7 +51,7 @@ func ExportTMX(ctx context.Context, tm ContentMemory, writer io.Writer, locales 
 	}
 	w.printf(
 		`  <header creationtool="neokapi-memory" creationtoolversion="2.0" segtype="sentence" adminlang="%s" srclang="%s" datatype="plaintext" o-tmf="unknown"/>`+"\n",
-		xmlAttr(defaultSrcLang), xmlAttr(defaultSrcLang))
+		xmlesc.Attr(defaultSrcLang), xmlesc.Attr(defaultSrcLang))
 	w.str("  <body>\n")
 
 	for _, entry := range entries {
@@ -72,7 +73,7 @@ func ExportTMX(ctx context.Context, tm ContentMemory, writer io.Writer, locales 
 			srcLang = locales[0]
 		}
 
-		w.printf(`    <tu tuid="%s" srclang="%s"`, xmlAttr(entry.ID), xmlAttr(string(srcLang)))
+		w.printf(`    <tu tuid="%s" srclang="%s"`, xmlesc.Attr(entry.ID), xmlesc.Attr(string(srcLang)))
 		if !entry.CreatedAt.IsZero() {
 			w.printf(` creationdate="%s"`, entry.CreatedAt.UTC().Format("20060102T150405Z"))
 		}
@@ -83,7 +84,7 @@ func ExportTMX(ctx context.Context, tm ContentMemory, writer io.Writer, locales 
 
 		// TU-level props: entry properties + entity markers.
 		for k, v := range entry.Properties {
-			w.printf(`      <prop type="%s">%s</prop>`+"\n", xmlAttr(k), xmlEscape(v))
+			w.printf(`      <prop type="%s">%s</prop>`+"\n", xmlesc.Attr(k), xmlEscape(v))
 		}
 		if entry.Note != "" {
 			w.printf(`      <note>%s</note>`+"\n", xmlEscape(entry.Note))
@@ -94,7 +95,7 @@ func ExportTMX(ctx context.Context, tm ContentMemory, writer io.Writer, locales 
 			if len(runs) == 0 {
 				continue
 			}
-			w.printf(`      <tuv xml:lang="%s">`+"\n", xmlAttr(string(loc)))
+			w.printf(`      <tuv xml:lang="%s">`+"\n", xmlesc.Attr(string(loc)))
 			w.str(`        <seg>`)
 			runsToTMXSeg(w, runs)
 			w.str("</seg>\n")
@@ -191,7 +192,7 @@ func runsToTMXSeg(w *tmxWriter, runs []model.Run) {
 func writePhAsTMX(w *tmxWriter, ph *model.PlaceholderRun) {
 	switch ph.SubType {
 	case "tmx:ph":
-		w.printf(`<ph x="%s">%s</ph>`, xmlAttr(ph.ID), xmlEscape(ph.Data))
+		w.printf(`<ph x="%s">%s</ph>`, xmlesc.Attr(ph.ID), xmlEscape(ph.Data))
 	case "tmx:ut":
 		w.printf(`<ut>%s</ut>`, xmlEscape(ph.Data))
 	case "tmx:sub":
@@ -211,19 +212,19 @@ func writePhAsTMX(w *tmxWriter, ph *model.PlaceholderRun) {
 		if data == "" {
 			data = ph.Equiv
 		}
-		w.printf(`<ph x="%s" type="%s">%s</ph>`, xmlAttr(id), xmlAttr(typeAttr), xmlEscape(data))
+		w.printf(`<ph x="%s" type="%s">%s</ph>`, xmlesc.Attr(id), xmlesc.Attr(typeAttr), xmlEscape(data))
 	}
 }
 
 func writePcOpenAsTMX(w *tmxWriter, o *model.PcOpenRun) {
 	switch o.SubType {
 	case "tmx:bpt":
-		w.printf(`<bpt i="%s">%s</bpt>`, xmlAttr(o.ID), xmlEscape(o.Data))
+		w.printf(`<bpt i="%s">%s</bpt>`, xmlesc.Attr(o.ID), xmlEscape(o.Data))
 	case "tmx:it":
 		w.printf(`<it pos="begin">%s</it>`, xmlEscape(o.Data))
 	case "tmx:hi":
 		if o.Type != "" {
-			w.printf(`<hi type="%s">`, xmlAttr(o.Type))
+			w.printf(`<hi type="%s">`, xmlesc.Attr(o.Type))
 		} else {
 			w.str(`<hi>`)
 		}
@@ -242,14 +243,14 @@ func writePcOpenAsTMX(w *tmxWriter, o *model.PcOpenRun) {
 		if data == "" {
 			data = o.Equiv
 		}
-		w.printf(`<ph x="%s" type="%s">%s</ph>`, xmlAttr(id), xmlAttr(typeAttr), xmlEscape(data))
+		w.printf(`<ph x="%s" type="%s">%s</ph>`, xmlesc.Attr(id), xmlesc.Attr(typeAttr), xmlEscape(data))
 	}
 }
 
 func writePcCloseAsTMX(w *tmxWriter, c *model.PcCloseRun) {
 	switch c.SubType {
 	case "tmx:ept":
-		w.printf(`<ept i="%s">%s</ept>`, xmlAttr(c.ID), xmlEscape(c.Data))
+		w.printf(`<ept i="%s">%s</ept>`, xmlesc.Attr(c.ID), xmlEscape(c.Data))
 	case "tmx:it":
 		w.printf(`<it pos="end">%s</it>`, xmlEscape(c.Data))
 	case "tmx:hi":
@@ -269,34 +270,21 @@ func writePcCloseAsTMX(w *tmxWriter, c *model.PcCloseRun) {
 		if data == "" {
 			data = c.Equiv
 		}
-		w.printf(`<ph x="%s" type="%s">%s</ph>`, xmlAttr(id), xmlAttr(typeAttr), xmlEscape(data))
+		w.printf(`<ph x="%s" type="%s">%s</ph>`, xmlesc.Attr(id), xmlesc.Attr(typeAttr), xmlEscape(data))
 	}
 }
 
 // xmlEscape is a minimal character-data escaper compatible with TMX
 // (we handle &, <, >, and forbidden control characters).
 //
-// DELIBERATELY not core/internal/xmlesc.Text — and not only because memory/
-// sits outside core/ and cannot import it. html.EscapeString emits NUMERIC
-// entities (&#39;, &#34;) for `'` and `"`, and the ContainsAny guard means
-// those two escape only when an &, < or > is present somewhere in the string.
-// That is odd, but it is what every TMX this exporter has ever written
-// contains, so changing it is a data question rather than a cleanup.
+// DELIBERATELY not core/xmlesc.Text. html.EscapeString emits NUMERIC entities
+// (&#39;, &#34;) for `'` and `"`, and the ContainsAny guard means those two
+// escape only when an &, < or > is present somewhere in the string. That is
+// odd, but it is what every TMX this exporter has ever written contains, so
+// changing it is a data question rather than a cleanup.
 func xmlEscape(s string) string {
 	if !strings.ContainsAny(s, "&<>") {
 		return s
 	}
 	return html.EscapeString(s)
-}
-
-// xmlAttr escapes characters illegal inside an XML attribute value.
-//
-// Output-identical to core/internal/xmlesc.Attr, but memory/ is not under
-// core/ so the internal package is out of reach. Keep the two in step by hand.
-func xmlAttr(s string) string {
-	s = strings.ReplaceAll(s, "&", "&amp;")
-	s = strings.ReplaceAll(s, "\"", "&quot;")
-	s = strings.ReplaceAll(s, "<", "&lt;")
-	s = strings.ReplaceAll(s, ">", "&gt;")
-	return s
 }

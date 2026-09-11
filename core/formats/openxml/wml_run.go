@@ -7,7 +7,7 @@ import (
 	"encoding/xml"
 	"strings"
 
-	"github.com/neokapi/neokapi/core/internal/xmlesc"
+	"github.com/neokapi/neokapi/core/xmlesc"
 )
 
 // parseRunWithFieldState parses a <w:r> element while tracking complex field state.

@@ -13,9 +13,9 @@ import (
 	"unicode"
 
 	"github.com/neokapi/neokapi/core/format"
-	"github.com/neokapi/neokapi/core/internal/xmlesc"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/safeio"
+	"github.com/neokapi/neokapi/core/xmlesc"
 )
 
 // ODF XML namespaces.
@@ -963,4 +963,4 @@ func zipFileByName(zr *zip.Reader, name string) *zip.File {
 }
 
 // The odf reader's two XML escapers were byte-identical to xliff, xliff2 and
-// openxml's; they now live in core/internal/xmlesc.
+// openxml's; they now live in core/xmlesc.

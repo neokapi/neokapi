@@ -1212,7 +1212,7 @@ func writeXMLName(buf *bytes.Buffer, name xml.Name) {
 
 // xmlEscape escapes text for XML content.
 //
-// DELIBERATELY not core/internal/xmlesc.Text. It escapes the same three
+// DELIBERATELY not core/xmlesc.Text. It escapes the same three
 // characters, but this pair walks runes, so invalid UTF-8 in the input becomes
 // U+FFFD rather than passing through byte-for-byte — a real difference for a
 // reader that carries raw bytes out of a zip entry.
