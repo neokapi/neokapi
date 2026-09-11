@@ -22,7 +22,7 @@ test.describe("Automations", () => {
       name: "Auto-translate on upload",
       trigger: "file.uploaded",
       conditions: [],
-      actions: [{ type: "pseudo_translate", config: { target_locale: "fr" } }],
+      actions: [{ type: "auto_translate" }],
       enabled: true,
     });
 
@@ -56,7 +56,7 @@ test.describe("Automations", () => {
       name: "To be deleted",
       trigger: "file.uploaded",
       conditions: [],
-      actions: [],
+      actions: [{ type: "notify" }],
       enabled: false,
     });
 
