@@ -11,13 +11,13 @@
   },
   "peerDependencies": {
     "@neokapi/i18n-react": "*",
-    "@storybook/addon-themes": "^10.3.6",
-    "@storybook/react-vite": "^10.3.6",
+    "@storybook/addon-themes": "^10.5.10",
+    "@storybook/react-vite": "^10.5.10",
     "@tailwindcss/vite": "^4.0.0",
     "@tanstack/react-query": "^5.0.0",
     "@tanstack/react-router": "^1.170.16",
     "react": "^19.0.0",
-    "storybook": "^10.3.1"
+    "storybook": "^10.5.10"
   },
   "peerDependenciesMeta": {
     "@neokapi/i18n-react": {
