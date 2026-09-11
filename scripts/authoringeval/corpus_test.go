@@ -103,7 +103,7 @@ func TestBothProfilesAreValid(t *testing.T) {
 		p, err := profile.LoadProfileYAML(strings.NewReader(body))
 		require.NoError(t, err, "%s does not parse", name)
 		_, err = profile.DecodeProfileStrict(strings.NewReader(body))
-		assert.NoError(t, err, "%s has an unknown field", name)
+		require.NoError(t, err, "%s has an unknown field", name)
 		assert.Empty(t, profile.Blocking(profile.ValidateProfile(p)), "%s is not a valid profile", name)
 	}
 }
