@@ -386,6 +386,32 @@ func FuzzRoundTripMarkdown(f *testing.F) {
 	// testdata/fuzz.
 	f.Add([]byte("- [d]: /docs"))
 	f.Add([]byte("> [d]: /docs"))
+	// #2514: goldmark resolves a destination whose parentheses do not balance,
+	// and the closer scan held to CommonMark's balance rule reported none, so
+	// the closer was rebuilt and lost the space before its parenthesis.
+	f.Add([]byte("A link [x](( ) inside a sentence.\n"))
+	// #2525: the code span's content already carries the line ending, so the
+	// continuation prefix sits where no line ending precedes it and the quote's
+	// marker reached neither the content nor the fence.
+	f.Add([]byte("> `a\n> ` b"))
+	f.Add([]byte(">`\n>`"))
+	// #2526: the angle escape spells a destination where the source had none,
+	// so a paragraph came back as a link reference definition or as a link with
+	// no text, and either way the block was gone.
+	f.Add([]byte("[a]:<"))
+	f.Add([]byte("[](<)"))
+	// #2527: a "*" or "_" the reader hands over as text pairs with the emphasis
+	// the rebuild re-spells beside it.
+	f.Add([]byte("_*__0_"))
+	f.Add([]byte("_*_`*_"))
+	// #2528: goldmark ends a line on "\n" alone, so a bare carriage return
+	// stays inside the line and the marker it hid exposed a heading.
+	f.Add([]byte("\r#\r0\n0"))
+	f.Add([]byte("\r#\r#"))
+	// #2529: the backslash form of a hard break begins at the backslash, and
+	// walking past it took the line's own indent into the spelling.
+	f.Add([]byte(" \\\n0"))
+	f.Add([]byte("a\n \\\n0"))
 	seedDamagedMarkdown(f)
 
 	f.Fuzz(func(t *testing.T, data []byte) {

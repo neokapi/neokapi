@@ -9,6 +9,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
@@ -384,7 +386,7 @@ func renderInline(runs []model.Run, escapeAngle bool) string {
 	sink := &mdInlineSink{escapeAngle: escapeAngle}
 	projection.WalkInline(runs, sink)
 	sink.flush()
-	return sink.sb.String()
+	return sink.output()
 }
 
 // mdInlineSink maps the shared inline-run stream (projection.WalkInline) to
@@ -407,6 +409,10 @@ type mdInlineSink struct {
 	// itself on the next run: a backslash, when the text after it begins the
 	// following line.
 	heldBreak bool
+	// litDelims holds the offset of every unescaped '*' and '_' the sink wrote
+	// from a TEXT run, which output() may have to escape. Delimiters the sink
+	// writes as markup are not recorded: those are meant to pair.
+	litDelims []int
 }
 
 // mdOpenTag is one entry of the open-paired-code stack.
@@ -441,7 +447,7 @@ func (s *mdInlineSink) Text(t string) {
 	s.flushPending()
 	s.spellHeldBreak(t)
 	if s.escapeAngle {
-		writeEscapingAngle(&s.sb, t)
+		s.writeEscapingAngle(t)
 		return
 	}
 	s.sb.WriteString(t)
@@ -486,24 +492,42 @@ func (s *mdInlineSink) spellPendingTitle() bool {
 }
 
 // writeEscapingAngle writes t, backslash-escaping any '<' that is not already
-// escaped. The rebuild path drops inline-HTML constructs, and the residue can
-// abut surrounding text into a NEW tag: "<<A>A>" drops the <A> and the leftover
-// "<" and "A>" reform "<A>", which re-reads as inline HTML and is dropped
-// entirely, losing the whole block (#1652). Keeping literal '<' escaped stops
-// text from re-parsing as a tag or autolink; the reader preserves the backslash,
-// so already-escaped input is left alone and the output is idempotent. Only
-// Text() (literal run content) is escaped — the HTML the sink emits for
-// formatting fallbacks (<mark>, <sup>, …) comes through Open/Close, untouched.
-func writeEscapingAngle(sb *strings.Builder, t string) {
+// escaped, and any '[' that opens an EMPTY link text. The rebuild path drops
+// inline-HTML constructs, and the residue can abut surrounding text into a NEW
+// tag: "<<A>A>" drops the <A> and the leftover "<" and "A>" reform "<A>", which
+// re-reads as inline HTML and is dropped entirely, losing the whole block
+// (#1652). Keeping literal '<' escaped stops text from re-parsing as a tag or
+// autolink; the reader preserves the backslash, so already-escaped input is
+// left alone and the output is idempotent. Only Text() (literal run content) is
+// escaped — the HTML the sink emits for formatting fallbacks (<mark>, <sup>, …)
+// comes through Open/Close, untouched.
+//
+// The angle escape is what makes the bracket escape necessary. "\<" IS a link
+// destination where a bare "<" is not, so escaping the angle in "[](<)" spelled
+// a link with no text at all, and a link with no text carries nothing to
+// translate: the block was gone (#2526). A literal "[]" in a text run never
+// needs to open one.
+func (s *mdInlineSink) writeEscapingAngle(t string) {
 	escaped := false
 	for i := range len(t) {
 		c := t[i]
-		if c == '<' && !escaped {
-			sb.WriteByte('\\')
+		switch {
+		case c == '<' && !escaped:
+			s.sb.WriteByte('\\')
+		case c == '[' && !escaped && opensEmptyLinkText(t[i:]):
+			s.sb.WriteByte('\\')
+		case (c == '*' || c == '_') && !escaped:
+			s.litDelims = append(s.litDelims, s.sb.Len())
 		}
-		sb.WriteByte(c)
+		s.sb.WriteByte(c)
 		escaped = c == '\\' && !escaped
 	}
+}
+
+// opensEmptyLinkText reports whether s begins with the "[]" of a link or image
+// whose text is empty, followed by the destination or label that completes it.
+func opensEmptyLinkText(s string) bool {
+	return strings.HasPrefix(s, "[](") || strings.HasPrefix(s, "[][")
 }
 
 func (s *mdInlineSink) Open(r *model.PcOpenRun) {
@@ -609,12 +633,30 @@ func (s *mdInlineSink) Placeholder(r *model.PlaceholderRun) {
 		// spells nothing: the leading whitespace is trimmed, so there is no
 		// blank line to prevent.
 		s.heldBreak = s.sb.Len() > 0 && s.atLineStart()
+		if !s.heldBreak && endsInBreakSpaces(s.sb.String()) {
+			// Two or more spaces before a line ending ARE a hard break, so
+			// emitting the break as a bare newline would hand the spaces to the
+			// break's spelling and they would stop being content: "a  \\\nb"
+			// came back as "a\\nb" on the pass after. A backslash spells the
+			// break instead and leaves them where they are (#2529).
+			s.sb.WriteByte('\\')
+		}
 		s.sb.WriteString(r.Equiv)
 	default:
 		if r.Equiv != "" {
 			s.sb.WriteString(r.Equiv)
 		}
 	}
+}
+
+// endsInBreakSpaces reports whether out ends in the run of two or more spaces
+// or tabs that CommonMark 6.7 reads as a hard break before a line ending.
+func endsInBreakSpaces(out string) bool {
+	n := 0
+	for i := len(out) - 1; i >= 0 && (out[i] == ' ' || out[i] == '\t'); i-- {
+		n++
+	}
+	return n >= 2
 }
 
 // atLineStart reports whether the output's current line carries no content
@@ -632,6 +674,153 @@ func (s *mdInlineSink) atLineStart() bool {
 		}
 	}
 	return true
+}
+
+// output returns the rendered Markdown with every literal emphasis delimiter
+// escaped that would otherwise pair on the way back in.
+//
+// A '*' or '_' the reader handed over as TEXT is one goldmark left literal
+// where the source stood. The rebuild path can put it somewhere else: an
+// emphasis re-spelled from '_' to '*' writes a delimiter beside it, a dropped
+// construct takes away what separated two of them, and text re-parses as
+// markup. "_*__0_" is one block whose text is "_*_0"; rebuilt as "_*_*0*" it
+// came back as two emphasis pairs around different content, and every further
+// pass moved again (#2527).
+//
+// So a literal delimiter is escaped exactly when the OUTPUT would let it pair:
+// its run can open or close per CommonMark 6.2, and a run of the same character
+// that can answer it sits on the other side. A run that can do neither — the
+// "*" of "2 * 3 * 4", an intraword "_" in "foo_bar_baz" — is left alone,
+// because escaping it would spell a backslash into text that reads back the
+// same without one. An escaped delimiter is never recorded, so the output is
+// idempotent.
+func (s *mdInlineSink) output() string {
+	out := s.sb.String()
+	if len(s.litDelims) == 0 {
+		return out
+	}
+	escapable := pairingDelimiterBytes(out)
+	if len(escapable) == 0 {
+		return out
+	}
+	var buf strings.Builder
+	prev := 0
+	for _, off := range s.litDelims {
+		if !escapable[off] {
+			continue
+		}
+		buf.WriteString(out[prev:off])
+		buf.WriteByte('\\')
+		prev = off
+	}
+	if prev == 0 {
+		return out
+	}
+	buf.WriteString(out[prev:])
+	return buf.String()
+}
+
+// delimRun is one maximal run of the same emphasis delimiter character in the
+// rendered output, with what CommonMark 6.2 lets it do there.
+type delimRun struct {
+	char       byte
+	start, end int
+	canOpen    bool
+	canClose   bool
+}
+
+// pairingDelimiterBytes reports, for every byte offset in out, whether that
+// byte belongs to a delimiter run that could pair with another run of the same
+// character: one that can open sits before one that can close.
+func pairingDelimiterBytes(out string) map[int]bool {
+	runs := scanDelimiterRuns(out)
+	pairs := map[byte]bool{}
+	for _, c := range []byte{'*', '_'} {
+		opened := false
+		for _, r := range runs {
+			if r.char != c {
+				continue
+			}
+			if opened && r.canClose {
+				pairs[c] = true
+				break
+			}
+			if r.canOpen {
+				opened = true
+			}
+		}
+	}
+	if len(pairs) == 0 {
+		return nil
+	}
+	marked := map[int]bool{}
+	for _, r := range runs {
+		if !pairs[r.char] || (!r.canOpen && !r.canClose) {
+			continue
+		}
+		for i := r.start; i < r.end; i++ {
+			marked[i] = true
+		}
+	}
+	return marked
+}
+
+// scanDelimiterRuns finds the maximal runs of '*' and '_' in out and applies
+// CommonMark 6.2: a run is left-flanking when it is not followed by whitespace
+// and either is not followed by punctuation or is preceded by whitespace or
+// punctuation, right-flanking is the mirror of that, and '_' additionally may
+// open or close only where it is not intraword.
+func scanDelimiterRuns(out string) []delimRun {
+	var runs []delimRun
+	for i := 0; i < len(out); {
+		c := out[i]
+		if c != '*' && c != '_' {
+			i++
+			continue
+		}
+		j := i
+		for j < len(out) && out[j] == c {
+			j++
+		}
+		before, after := runeBefore(out, i), runeAfter(out, j)
+		beforeSpace, beforePunct := unicode.IsSpace(before), isMarkdownPunct(before)
+		afterSpace, afterPunct := unicode.IsSpace(after), isMarkdownPunct(after)
+		left := !afterSpace && (!afterPunct || beforeSpace || beforePunct)
+		right := !beforeSpace && (!beforePunct || afterSpace || afterPunct)
+		r := delimRun{char: c, start: i, end: j, canOpen: left, canClose: right}
+		if c == '_' {
+			r.canOpen = left && (!right || beforePunct)
+			r.canClose = right && (!left || afterPunct)
+		}
+		runs = append(runs, r)
+		i = j
+	}
+	return runs
+}
+
+// runeBefore and runeAfter give the rune on each side of a delimiter run. The
+// start and the end of the text stand in as whitespace, the way CommonMark 6.2
+// asks.
+func runeBefore(s string, i int) rune {
+	if i <= 0 {
+		return ' '
+	}
+	r, _ := utf8.DecodeLastRuneInString(s[:i])
+	return r
+}
+
+func runeAfter(s string, i int) rune {
+	if i >= len(s) {
+		return ' '
+	}
+	r, _ := utf8.DecodeRuneInString(s[i:])
+	return r
+}
+
+// isMarkdownPunct answers CommonMark's "punctuation character", which covers
+// the Unicode symbol categories as well as the punctuation ones.
+func isMarkdownPunct(r rune) bool {
+	return unicode.IsPunct(r) || unicode.IsSymbol(r)
 }
 
 func (s *mdInlineSink) flush() {
@@ -1407,6 +1596,13 @@ func blockMarkerPos(text string) (int, bool) {
 		return 0, false
 	}
 	switch c := text[0]; c {
+	case '[':
+		// Link reference definition: the definition is the whole line and
+		// carries nothing to translate, so a paragraph that reads as one on the
+		// way back in has lost its block (#2526).
+		if readsAsLinkReferenceDefinition(text) {
+			return 0, true
+		}
 	case '#':
 		// ATX heading: 1-6 '#' then a space/tab or end of line.
 		n := 0
@@ -1473,21 +1669,158 @@ func blockMarkerPos(text string) (int, bool) {
 	return 0, false
 }
 
+// readsAsLinkReferenceDefinition reports whether text, emitted at the start of
+// a block, opens a link reference definition (CommonMark 4.7) rather than a
+// paragraph: a bracketed label, a colon, a destination, and then nothing but an
+// optional title.
+//
+// The rebuild path escapes a literal '<' so it cannot open inline HTML, and
+// "\<" IS a destination where a bare "<" is not: "[a]:<" came back as "[a]:\<",
+// which reads as a definition, and a definition holds no translatable text, so
+// the block was gone (#2526).
+func readsAsLinkReferenceDefinition(text string) bool {
+	label, rest, ok := cutLinkLabel(text)
+	if !ok || strings.TrimSpace(label) == "" || !strings.HasPrefix(rest, ":") {
+		return false
+	}
+	return definitionTailIsADestination(rest[1:])
+}
+
+// cutLinkLabel splits a leading "[label]" off text, reporting the label's
+// content and what follows the "]". A backslash escapes the bracket after it,
+// and a label runs to the end of the first line at most.
+func cutLinkLabel(text string) (label, rest string, ok bool) {
+	if text == "" || text[0] != '[' {
+		return "", "", false
+	}
+	for i := 1; i < len(text); i++ {
+		switch text[i] {
+		case '\\':
+			i++
+		case '\n':
+			return "", "", false
+		case ']':
+			return text[1:i], text[i+1:], true
+		}
+	}
+	return "", "", false
+}
+
+// definitionTailIsADestination reports whether what follows a definition's
+// colon is a destination with nothing but an optional title after it. Anything
+// else on the line — the ")" of "[R]:\n0)", which closes more parentheses than
+// the destination opened — leaves the line a paragraph.
+func definitionTailIsADestination(s string) bool {
+	i, ok := skipDefinitionSpace(s, 0)
+	if !ok {
+		return false
+	}
+	i, ok = skipDefinitionDestination(s, i)
+	if !ok {
+		return false
+	}
+	for i < len(s) && (s[i] == ' ' || s[i] == '\t' || s[i] == '\r') {
+		i++
+	}
+	if i >= len(s) {
+		return true
+	}
+	switch s[i] {
+	case '\n', '"', '\'', '(':
+		return true
+	}
+	return false
+}
+
+// skipDefinitionSpace steps over the whitespace CommonMark allows before a
+// definition's destination: spaces and tabs, with at most one line ending. ok
+// is false when the whitespace runs to the end, which leaves no destination.
+func skipDefinitionSpace(s string, i int) (int, bool) {
+	crossed := false
+	for i < len(s) {
+		switch s[i] {
+		case ' ', '\t', '\r':
+			i++
+		case '\n':
+			if crossed {
+				return i, false
+			}
+			crossed = true
+			i++
+		default:
+			return i, true
+		}
+	}
+	return i, false
+}
+
+// skipDefinitionDestination steps over a link destination starting at i,
+// reporting the offset just past it. It follows goldmark's
+// parseLinkDestination: angle brackets closed on the same line, or a run of
+// non-space bytes that ends at a ")" closing more parentheses than it opened.
+func skipDefinitionDestination(s string, i int) (int, bool) {
+	if i >= len(s) {
+		return i, false
+	}
+	if s[i] == '<' {
+		for j := i + 1; j < len(s); j++ {
+			switch s[j] {
+			case '\\':
+				j++
+			case '\n':
+				return i, false
+			case '>':
+				return j + 1, true
+			}
+		}
+		return i, false
+	}
+	depth, j := 0, i
+	for j < len(s) {
+		c := s[j]
+		if c == '\\' && j+1 < len(s) {
+			j += 2
+			continue
+		}
+		if c <= ' ' {
+			break
+		}
+		if c == '(' {
+			depth++
+		} else if c == ')' {
+			if depth == 0 {
+				break
+			}
+			depth--
+		}
+		j++
+	}
+	return j, j > i
+}
+
 // atLineBoundary reports whether position i in text is the end of the first
-// line — a space, tab, newline, or the end of the string.
+// line — a space, tab, line ending, or the end of the string.
+//
+// A bare carriage return counts. goldmark ends a line on "\n" alone, so a "\r"
+// stays inside the line, where it is whitespace like any other and "#\r0" opens
+// an ATX heading whose content is "0". Testing for a space, a tab and a newline
+// alone missed that, and a document written with the classic Mac line ending
+// split on the rebuild path (#2528).
 func atLineBoundary(text string, i int) bool {
 	if i >= len(text) {
 		return true
 	}
 	switch text[i] {
-	case ' ', '\t', '\n':
+	case ' ', '\t', '\n', '\r':
 		return true
 	}
 	return false
 }
 
 // isThematicBreak reports whether text's first line is a CommonMark thematic
-// break: three or more matching '-', '_' or '*', separated only by spaces/tabs.
+// break: three or more matching '-', '_' or '*', separated only by whitespace.
+// A carriage return counts as whitespace there, the way goldmark reads one that
+// sits inside a line (#2528).
 func isThematicBreak(text string) bool {
 	line, _, _ := strings.Cut(text, "\n")
 	c := line[0]
@@ -1499,7 +1832,7 @@ func isThematicBreak(text string) bool {
 		switch line[i] {
 		case c:
 			count++
-		case ' ', '\t':
+		case ' ', '\t', '\r':
 			// allowed between markers
 		default:
 			return false

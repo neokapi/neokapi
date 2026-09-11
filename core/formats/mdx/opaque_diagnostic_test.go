@@ -18,21 +18,21 @@ import (
 // quiet one: a whole document can go opaque for one construct, and the only
 // symptom is a page still in its source language.
 //
-// The fixture is a link whose destination carries an unbalanced parenthesis:
-// the scan that replays the closer stops on it, so the closer is rebuilt from
-// the parser's resolved destination and the whitespace before the closing
-// parenthesis is gone (#2514). The task list, the hard break, the
-// single-quoted title, the underscore emphasis, the quoted link whose title
-// wrapped, the code span whose fence sat on the next line and the unbalanced
-// strikethrough all sat here and reconstruct now, and the note they carried
-// holds for their replacement: these tests assert the reporting, so the day
-// this shape round-trips they will fail and the fixture should become whatever
-// still diverges.
+// The fixture is an escaped backtick that touches a code span's opening fence:
+// the walk that recovers the fence from source counts the escaped tick as part
+// of it, so the rebuilt opener is one tick longer than the source spelled
+// (#2618). The task list, the hard break, the single-quoted title, the
+// underscore emphasis, the quoted link whose title wrapped, the code span whose
+// fence sat on the next line, the unbalanced strikethrough and the link
+// destination with an unbalanced parenthesis all sat here and reconstruct now,
+// and the note they carried holds for their replacement: these tests assert the
+// reporting, so the day this shape round-trips they will fail and the fixture
+// should become whatever still diverges.
 //
 // A single-block span is the deliberate choice. Quarantine salvages a span by
 // isolating the blocks that failed, so a fixture with neighbours exercises that
 // path instead — which is what TestQuarantineKeepsTheOtherBlocks is for.
-const divergingSrc = "A link [x](( ) inside a sentence.\n"
+const divergingSrc = "A tick \\``code` in a sentence.\n"
 
 func readAll(t *testing.T, src string) ([]*model.Block, []format.Diagnostic) {
 	t.Helper()

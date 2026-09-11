@@ -253,12 +253,20 @@ type inlineLinkCloser struct {
 	title      string // the raw bytes between the title's delimiters
 }
 
-// scanInlineLinkCloser reads `](destination "title")` at pos, following
-// CommonMark 6.6: optional whitespace, with up to one line ending, around the
-// destination and the title; a destination in angle brackets or bare with
-// balanced parentheses; a title in double quotes, single quotes or
-// parentheses, separated from the destination by whitespace; and backslash
-// escapes throughout. ok is false when the bytes at pos are not such a closer.
+// scanInlineLinkCloser reads `](destination "title")` at pos: optional
+// whitespace, with up to one line ending, around the destination and the
+// title; a destination in angle brackets or bare; a title in double quotes,
+// single quotes or parentheses, separated from the destination by whitespace;
+// and backslash escapes throughout. ok is false when the bytes at pos are not
+// such a closer.
+//
+// A bare destination ends at the first whitespace or at a ")" that closes more
+// parentheses than it opened, which is what goldmark's parseLinkDestination
+// does. CommonMark 6.6 additionally asks the parentheses to balance, and
+// holding the scan to that rule made the two disagree about a destination
+// goldmark resolves anyway: "[x](( )" was reported as no closer at all, and
+// the closer was rebuilt from the resolved destination, dropping the space
+// before the parenthesis that ends it (#2514).
 func scanInlineLinkCloser(source []byte, pos int) (inlineLinkCloser, bool) {
 	c := inlineLinkCloser{titleOpen: -1, titleClose: -1}
 	if pos < 0 || pos+1 >= len(source) || source[pos] != ']' || source[pos+1] != '(' {
@@ -301,9 +309,6 @@ func scanInlineLinkCloser(source []byte, pos int) (inlineLinkCloser, bool) {
 				depth--
 			}
 			i++
-		}
-		if depth != 0 {
-			return c, false
 		}
 	}
 	c.dest = string(source[destStart:i])

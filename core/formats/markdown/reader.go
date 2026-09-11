@@ -2725,6 +2725,12 @@ func (r *Reader) addHardBreakRuns(b *runBuilder, n *ast.Text, source []byte, idC
 // and the newline: a run of spaces (some of which may sit on the preceding
 // text node, which the caller trims), one backslash, and a carriage return
 // when the line ends in CRLF. ok is false when no newline follows.
+//
+// The backslash form (CommonMark 6.7) begins AT the backslash. Walking on past
+// it over the whitespace run in front took the line's own leading space into
+// the spelling, and the skeleton wrote that space twice: once as the
+// indentation it replays for the line, once inside the placeholder the break
+// rides. " \\\n0" came back as "  \\\n0" (#2529).
 func hardBreakSpelling(source []byte, pos int) (spelling string, nl int, ok bool) {
 	if pos < 0 || pos > len(source) {
 		return "", 0, false
@@ -2739,12 +2745,20 @@ func hardBreakSpelling(source []byte, pos int) (spelling string, nl int, ok bool
 		start--
 	}
 	if start > 0 && source[start-1] == '\\' {
-		start--
+		return string(source[start-1 : nl]), nl, true
 	}
 	for start > 0 && (source[start-1] == ' ' || source[start-1] == '\t') {
 		start--
 	}
 	return string(source[start:nl]), nl, true
+}
+
+// hardBreakSpelledByWhitespace reports whether a hard break is spelled by the
+// trailing whitespace of its line rather than by a backslash. Only then does
+// the text node before it carry spaces that belong to the break rather than to
+// the content.
+func hardBreakSpelledByWhitespace(spelling string) bool {
+	return spelling != "" && !strings.Contains(spelling, "\\")
 }
 
 // endsInTheHardBreak reports whether a text node ending at pos reaches the hard
@@ -2758,7 +2772,10 @@ func hardBreakSpelling(source []byte, pos int) (spelling string, nl int, ok bool
 // "a b" (#2515).
 func endsInTheHardBreak(source []byte, pos int) bool {
 	spelling, nl, ok := hardBreakSpelling(source, pos)
-	return ok && pos >= nl-len(spelling) && pos <= nl
+	if !ok || !hardBreakSpelledByWhitespace(spelling) {
+		return false
+	}
+	return pos >= nl-len(spelling) && pos <= nl
 }
 
 func (r *Reader) collectInlineText(buf *strings.Builder, node ast.Node, source []byte) {
@@ -3393,12 +3410,18 @@ func codeSpanFences(n *ast.CodeSpan, source []byte) (string, string) {
 	if ticks > 0 {
 		open = string(source[openStart:openEnd])
 	}
-	// Walk forward from contentEnd over the same shapes.
+	// Walk forward from contentEnd over the same shapes. The content may
+	// already carry the line ending, in which case the continuation prefix sits
+	// at contentEnd with no line ending in front of it to recognise it by: a
+	// code span closing on the next line of a blockquote left the "> " to
+	// neither the content nor the fence, and the rebuilt second line opened
+	// with no marker (#2525).
 	closeStart := contentEnd
 	closeEnd := contentEnd
 	if closeEnd < len(source) && source[closeEnd] == ' ' {
 		closeEnd++
 	}
+	closeEnd = forwardOverLinePrefix(source, closeEnd)
 	closeEnd = forwardOverContinuationPrefix(source, closeEnd)
 	if closeEnd < len(source) && source[closeEnd] == ' ' {
 		closeEnd++
@@ -3436,6 +3459,21 @@ func backOverContinuationPrefix(source []byte, i int) int {
 
 // forwardOverContinuationPrefix is backOverContinuationPrefix in the other
 // direction: a line ending, then the prefix of the line that continues.
+// forwardOverLinePrefix steps over the continuation prefix of a line the
+// caller is ALREADY on — the indentation and blockquote markers that follow a
+// line ending the content itself carried. It returns i unchanged when the byte
+// before i is not a line ending, so it never eats a marker's own padding.
+func forwardOverLinePrefix(source []byte, i int) int {
+	if i <= 0 || i > len(source) || source[i-1] != '\n' {
+		return i
+	}
+	j := i
+	for j < len(source) && (source[j] == ' ' || source[j] == '\t' || source[j] == '>') {
+		j++
+	}
+	return j
+}
+
 func forwardOverContinuationPrefix(source []byte, i int) int {
 	j := i
 	if j < len(source) && source[j] == '\r' {
