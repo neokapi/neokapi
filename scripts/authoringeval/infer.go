@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neokapi/neokapi/core/clip"
 	"gopkg.in/yaml.v3"
 )
 
@@ -126,7 +127,7 @@ func runInfer(ctx context.Context, bin, workdir, provider, model string) (*Infer
 	// had failed with a message, which sent the reader looking for a missing
 	// output path instead of at the error the tool had already printed.
 	if err != nil {
-		res.Blocked = fmt.Sprintf("voice-infer failed: %v: %s", err, truncate(stderr.String(), 400))
+		res.Blocked = fmt.Sprintf("voice-infer failed: %v: %s", err, clip.Runes(stderr.String(), 400))
 		return res, nil
 	}
 	if draft == "" {
