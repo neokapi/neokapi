@@ -179,6 +179,11 @@ var convergeWorkerFields = map[string]workerFieldPolicy{
 	"convergeProgressTap": fieldOwned,  // one tap per locale
 	"pluginRuntimeOnce":   fieldOwned,  // a fresh Once that sees the pre-seeded runtime
 	"projectStoresOnce":   fieldOwned,  // a fresh Once that sees the pre-seeded holder
+	// The plugin MCP servers belong to a `kapi mcp` session, and a converge
+	// worker is not one. Sharing them would let a worker's Shutdown close the
+	// parent's plugin subprocesses out from under the agent it is serving.
+	"mcpPluginMu":       fieldOwned,
+	"mcpPluginSessions": fieldOwned,
 	// The parent owns the --explain collector and renders the transcript once.
 	// The LLM recorder is process-wide, so a worker's calls are still captured
 	// into the parent's collector; a worker holding its own would flush a

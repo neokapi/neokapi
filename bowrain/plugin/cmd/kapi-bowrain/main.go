@@ -9,8 +9,12 @@
 //	kapi-bowrain mcp-server               # Mode B — long-lived MCP-over-stdio
 //	kapi-bowrain version                  # utility — print plugin version
 //
-// kapi execs Mode A itself, per command. Mode B is addressed by an MCP client
-// directly: `kapi mcp` does not spawn it.
+// kapi execs Mode A itself, per command. `kapi mcp` spawns Mode B once per
+// session and forwards calls to the tools this plugin declares under
+// `mcp_tools` in its manifest, so an agent connected to kapi reaches them
+// through the one surface. An MCP client may still address this binary
+// directly, which is how the tools it serves beyond the declared three are
+// reached.
 //
 // All bowrain commands (push, pull, status, auth, ...) live as
 // subcommands under the `command` cobra subtree.
@@ -143,9 +147,10 @@ func buildCommandSubtree() *cobra.Command {
 // MCP-over-stdio surface (Mode B), carrying the bowrain tools alongside the
 // shared cli/host registrations.
 //
-// An MCP client connects to it directly — `kapi mcp` serves only the tool
-// factories registered in its own process and spawns nothing, so a client that
-// wants the bowrain tools configures this binary as a second server.
+// `kapi mcp` spawns this per session and proxies the tools the manifest
+// declares. It carries the shared registrations too, so the manifest rather
+// than this server's tool list decides what joins kapi's surface: proxying
+// everything here would publish a second copy of every core tool.
 func buildMCPServerCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "mcp-server",

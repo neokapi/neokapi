@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 	aitools "github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/blockstore"
 	neokapiconfig "github.com/neokapi/neokapi/core/config"
@@ -231,6 +232,12 @@ type App struct {
 	// instant, and must report an expired profile once between them.
 	governanceOnce sync.Once
 	governance     *governanceRun
+
+	// mcpPluginSessions holds the plugin MCP servers `kapi mcp` spawned for
+	// this session, one per plugin that contributes tools to the surface.
+	// They live as long as the MCP server does and are closed by Shutdown.
+	mcpPluginMu       sync.Mutex
+	mcpPluginSessions []*mcp.ClientSession
 }
 
 // ensurePluginRuntime lazily builds the shared plugin Runtime from the current
@@ -482,6 +489,9 @@ func (a *App) Shutdown() {
 	if err := a.FlushExplain(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	}
+	// Before the plugin runtime: these are plugin subprocesses too, spawned by
+	// `kapi mcp` rather than by command dispatch.
+	a.closePluginMCPSessions()
 	if a.pluginRuntime != nil {
 		a.pluginRuntime.Shutdown()
 	}
