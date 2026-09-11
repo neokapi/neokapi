@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/neokapi/neokapi/core/clip"
 )
 
 // authoring-checks: does a voice check find the violations a profile declares,
@@ -209,7 +211,7 @@ func llmCheckOne(ctx context.Context, bin, workdir, provider, model string, d Do
 		if ctx.Err() != nil {
 			return checkResult{}, fmt.Errorf("%s: timed out after %s", d.Name, toolTimeout)
 		}
-		return checkResult{}, fmt.Errorf("%s: %w: %s", d.Name, err, truncate(strings.TrimSpace(stderr.String()), 300))
+		return checkResult{}, fmt.Errorf("%s: %w: %s", d.Name, err, clip.Runes(strings.TrimSpace(stderr.String()), 300))
 	}
 	if len(bytes.TrimSpace(stdout.Bytes())) == 0 {
 		return checkResult{}, fmt.Errorf("%s: the tool exited 0 and wrote nothing to stdout (issue #2225)", d.Name)
@@ -332,11 +334,4 @@ func mechanisms() []string {
 	}
 	sort.Strings(out)
 	return out
-}
-
-func truncate(s string, n int) string {
-	if len(s) <= n {
-		return s
-	}
-	return s[:n] + "…"
 }

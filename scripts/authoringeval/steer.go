@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/clip"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
 
@@ -96,7 +97,7 @@ func runSteer(ctx context.Context, bin, workdir, provider, model string) (*Steer
 
 	guide, err := kapiRun(ctx, bin, workdir, "voice", "guide", "--profile-file", workdir+"/voice.yaml")
 	if err != nil {
-		res.Blocked = "kapi voice guide failed: " + truncate(guide, 300)
+		res.Blocked = "kapi voice guide failed: " + clip.Runes(guide, 300)
 		return res, nil
 	}
 	res.Guide = strings.TrimSpace(guide)
