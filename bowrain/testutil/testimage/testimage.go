@@ -18,7 +18,14 @@ const (
 	Postgres = "postgres:16-alpine"
 	// MinIO serves the S3 API the blob store tests run against
 	// (bowrain/storage/s3blob).
-	MinIO = "minio/minio:RELEASE.2025-09-07T16-13-09Z"
+	//
+	// From quay.io, not Docker Hub. The `minio/minio` Docker Hub repository no
+	// longer resolves at all: both this release tag and `latest` answer "pull
+	// access denied ... repository does not exist", which is what Docker Hub
+	// returns to an anonymous client for a repository that is gone. quay.io is
+	// MinIO's own registry and still carries this exact release, so the pin is
+	// unchanged and the suites run against the same bytes as before.
+	MinIO = "quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z"
 	// ElasticMQ serves the SQS API the job queue tests run against
 	// (bowrain/jobs).
 	ElasticMQ = "softwaremill/elasticmq-native:1.7.1"
