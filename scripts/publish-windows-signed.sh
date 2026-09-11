@@ -124,6 +124,35 @@ RUN_ID="${RUN_ID:-$(gh run list --repo "$REPO" --workflow "$WORKFLOW" \
   echo "Could not find a $WORKFLOW run for $TAG — pass RUN_ID=<id> (see 'gh run list')."; exit 1; }
 echo ">> Using workflow run $RUN_ID"
 
+# Workflow artifacts expire (retention-days in release.yml / release-bowrain.yml).
+# A signing session weeks after the tag then has nothing to download, and
+# `gh run download` reports only that no artifact matched the pattern, which
+# reads as a broken build rather than an expiry. Ask the API first and name the
+# real cause: every tag from v1.2.0-rc17 to v1.2.0-rc29 lost its Windows
+# artifacts this way, under the old 14-day retention.
+live=0; expired=0
+while IFS=$'\t' read -r aname aexpired; do
+  case "$aname" in *windows*) ;; *) continue ;; esac
+  if [ "$aexpired" = "true" ]; then expired=$((expired + 1)); else live=$((live + 1)); fi
+done < <(gh api "repos/$REPO/actions/runs/$RUN_ID/artifacts" --paginate \
+           --jq '.artifacts[] | [.name, (.expired | tostring)] | @tsv')
+if [ "$live" -eq 0 ]; then
+  if [ "$expired" -gt 0 ]; then
+    echo "All $expired Windows artifacts on run $RUN_ID have expired; there is nothing left to sign for $TAG." >&2
+    echo "Rebuild them by re-running that run's Windows jobs (GitHub allows a re-run for 30 days after the run):" >&2
+    echo "    gh run rerun --repo $REPO --job <id>" >&2
+    echo "for each of:" >&2
+    gh run view "$RUN_ID" --repo "$REPO" --json jobs \
+      --jq '.jobs[] | select(.name | test("[Ww]indows")) | "    \(.databaseId)  \(.name)"' >&2 || true
+    echo "The run id does not change, so re-run this script once they finish. If the run is" >&2
+    echo "too old to re-run, tag a new release and sign that one instead." >&2
+  else
+    echo "Run $RUN_ID carries no Windows artifacts. Check that its Windows build jobs succeeded." >&2
+  fi
+  exit 1
+fi
+echo ">> $live live Windows artifact(s) on run $RUN_ID"
+
 work="$(mktemp -d)"; trap 'rm -rf "$work"' EXIT; cd "$work"
 
 echo ">> Downloading Windows artifacts from run $RUN_ID ..."

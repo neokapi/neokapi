@@ -116,7 +116,14 @@ run_check "Go formatting (gofmt -l -s)" ./scripts/check-gofmt.sh
 
 # ── Go checks ──────────────────────────────────────────────────────────────
 
-if matches '^core/' '^go\.(mod|sum)$' '^cli/' '^kapi/' '^go\.work'; then
+# The gate has to name every directory `make check-framework` reaches, and that
+# is `golangci-lint run ./...` from the ROOT module plus host, cli, kapi and
+# gen-refs. The root module is more than core/: kpz/, memory/, terms/,
+# providers/ and scripts/ are all in it. Listing core/, cli/ and kapi/ alone let
+# a testifylint failure in scripts/authoringeval pass here and fail CI, which is
+# the same shape ci.yml's own framework filter was widened for. Only .go files
+# under scripts/ count, so editing a shell script there stays fast.
+if matches '^core/' '^host/' '^kpz/' '^memory/' '^terms/' '^providers/' '^scripts/.*\.go$' '^go\.(mod|sum)$' '^cli/' '^kapi/' '^go\.work'; then
     run_check "Go lint (framework)" make check-framework
 fi
 

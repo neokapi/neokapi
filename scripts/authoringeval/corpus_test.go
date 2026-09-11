@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -10,6 +9,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/neokapi/neokapi/core/profile"
 )
 
 // TestEveryPlantIsInItsDocument.
@@ -86,19 +87,24 @@ func TestEveryMechanismHasEvidence(t *testing.T) {
 // contrast profile was written with `sentence_length: long`, which is not one
 // of the enum's values, and the run refused to start — this test moves that
 // from a runtime failure to a test failure.
+//
+// The calls below are what `kapi voice validate` runs (cli/voice.go): a
+// lenient parse for syntax, a strict decode for unknown fields, then the
+// semantic pass, whose verdict is over the blocking problems only, since an
+// unfamiliar tone is an advisory the guide renders as written. Running them
+// here instead of the binary keeps the check honest in two ways. It runs in
+// CI, where there is no kapi to find and the binary version skipped every
+// time; and it reads the schema this tree defines, where shelling out read
+// whichever kapi the machine had installed. On a developer laptop that is the
+// released build, and it rejected `forbidden_terms[].forms` months after the
+// field landed.
 func TestBothProfilesAreValid(t *testing.T) {
-	root, err := repoRoot()
-	require.NoError(t, err)
-	bin := findKapi(root)
-	if bin == "" {
-		t.Skip("no kapi binary: `make build` first")
-	}
-	dir := t.TempDir()
 	for name, body := range map[string]string{"voice.yaml": referenceProfile, "contrast.yaml": contrastProfile} {
-		path := filepath.Join(dir, name)
-		require.NoError(t, os.WriteFile(path, []byte(body), 0o644))
-		out, err := kapiRun(context.Background(), bin, dir, "voice", "validate", path)
-		assert.NoError(t, err, "%s: %s", name, out)
+		p, err := profile.LoadProfileYAML(strings.NewReader(body))
+		require.NoError(t, err, "%s does not parse", name)
+		_, err = profile.DecodeProfileStrict(strings.NewReader(body))
+		require.NoError(t, err, "%s has an unknown field", name)
+		assert.Empty(t, profile.Blocking(profile.ValidateProfile(p)), "%s is not a valid profile", name)
 	}
 }
 
