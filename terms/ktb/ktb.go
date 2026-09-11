@@ -9,6 +9,7 @@ import (
 	"sort"
 
 	"github.com/neokapi/neokapi/core/graph"
+	"github.com/neokapi/neokapi/core/schemaversion"
 	"github.com/neokapi/neokapi/terms"
 )
 
@@ -144,11 +145,11 @@ func Unmarshal(data []byte) (*File, error) {
 	if f.Kind != Kind {
 		return nil, fmt.Errorf("ktb: unexpected kind %q (want %q)", f.Kind, Kind)
 	}
-	major, ok := majorVersion(f.SchemaVersion)
+	major, ok := schemaversion.Major(f.SchemaVersion)
 	if !ok {
 		return nil, fmt.Errorf("ktb: invalid schemaVersion %q", f.SchemaVersion)
 	}
-	wantMajor, _ := majorVersion(SchemaVersion)
+	wantMajor, _ := schemaversion.Major(SchemaVersion)
 	if major != wantMajor {
 		return nil, fmt.Errorf("ktb: unsupported major schemaVersion %d (this build speaks %s)", major, SchemaVersion)
 	}
@@ -162,20 +163,4 @@ func Decode(r io.Reader) (*File, error) {
 		return nil, fmt.Errorf("ktb: read: %w", err)
 	}
 	return Unmarshal(data)
-}
-
-func majorVersion(v string) (int, bool) {
-	major := 0
-	seen := false
-	for _, r := range v {
-		if r == '.' {
-			return major, seen
-		}
-		if r < '0' || r > '9' {
-			return 0, false
-		}
-		major = major*10 + int(r-'0')
-		seen = true
-	}
-	return 0, false
 }

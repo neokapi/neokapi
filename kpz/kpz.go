@@ -16,6 +16,7 @@ import (
 	"github.com/neokapi/neokapi/core/kbf"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/safeio"
+	"github.com/neokapi/neokapi/core/schemaversion"
 	"github.com/neokapi/neokapi/memory/kmb"
 	"github.com/neokapi/neokapi/terms/ktb"
 )
@@ -655,11 +656,11 @@ func Unmarshal(data []byte) (*Package, error) {
 	default:
 		return nil, fmt.Errorf("kpz: unknown kind %q (want %q or %q)", manifest.Kind, KindProject, KindInterchange)
 	}
-	major, vok := majorVersion(manifest.SchemaVersion)
+	major, vok := schemaversion.Major(manifest.SchemaVersion)
 	if !vok {
 		return nil, fmt.Errorf("kpz: invalid schemaVersion %q", manifest.SchemaVersion)
 	}
-	if wantMajor, _ := majorVersion(SchemaVersion); major != wantMajor {
+	if wantMajor, _ := schemaversion.Major(SchemaVersion); major != wantMajor {
 		return nil, fmt.Errorf("kpz: unsupported major schemaVersion %d (this build speaks %s)", major, SchemaVersion)
 	}
 
@@ -863,20 +864,4 @@ func validateManifestPaths(m *Manifest) error {
 		}
 	}
 	return nil
-}
-
-func majorVersion(v string) (int, bool) {
-	major := 0
-	seen := false
-	for _, r := range v {
-		if r == '.' {
-			return major, seen
-		}
-		if r < '0' || r > '9' {
-			return 0, false
-		}
-		major = major*10 + int(r-'0')
-		seen = true
-	}
-	return 0, false
 }

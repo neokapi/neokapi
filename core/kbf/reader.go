@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"slices"
+
+	"github.com/neokapi/neokapi/core/schemaversion"
 )
 
 // Unmarshal decodes a .kbf.json payload into a File, returning an
@@ -42,44 +44,13 @@ func checkEnvelope(f *File) error {
 	if !slices.Contains(ReadableKinds, f.Kind) {
 		return fmt.Errorf("kbf: unexpected kind %q (want %q)", f.Kind, Kind)
 	}
-	major, _, ok := splitVersion(f.SchemaVersion)
+	major, ok := schemaversion.Major(f.SchemaVersion)
 	if !ok {
 		return fmt.Errorf("kbf: invalid schemaVersion %q", f.SchemaVersion)
 	}
-	wantMajor, _, _ := splitVersion(SchemaVersion)
+	wantMajor, _ := schemaversion.Major(SchemaVersion)
 	if major != wantMajor {
 		return fmt.Errorf("kbf: unsupported major schemaVersion %d (this build speaks %s)", major, SchemaVersion)
 	}
 	return nil
-}
-
-func splitVersion(v string) (major, minor int, ok bool) {
-	// Tiny parser: MAJOR.MINOR, both non-negative.
-	if v == "" {
-		return 0, 0, false
-	}
-	dot := -1
-	for i, r := range v {
-		if r == '.' {
-			dot = i
-			break
-		}
-	}
-	if dot < 0 {
-		return 0, 0, false
-	}
-	majStr, minStr := v[:dot], v[dot+1:]
-	for _, r := range majStr {
-		if r < '0' || r > '9' {
-			return 0, 0, false
-		}
-		major = major*10 + int(r-'0')
-	}
-	for _, r := range minStr {
-		if r < '0' || r > '9' {
-			return 0, 0, false
-		}
-		minor = minor*10 + int(r-'0')
-	}
-	return major, minor, true
 }
