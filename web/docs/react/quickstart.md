@@ -22,10 +22,11 @@ The [`kapi` CLI](/kapi/cli) is the translation pipeline that produces pseudo-tra
 ```bash
 # macOS / Linux
 brew install neokapi/tap/kapi-cli-beta
-
-# Windows
-winget install Neokapi.KapiCli
 ```
+
+On Windows, take a build from the
+[direct downloads](/kapi/get-started/installation#binary-downloads). The WinGet
+package is behind the current release.
 
 ## 2. Add the plugin to `vite.config.ts`
 

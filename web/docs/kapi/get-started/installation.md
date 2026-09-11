@@ -51,6 +51,17 @@ brew install neokapi/tap/kapi-cli
 winget install Neokapi.KapiCli
 ```
 
+:::warning WinGet is behind the current release
+
+WinGet publishes kapi 1.0.2. Windows packaging is paused, so this command
+installs a build older than the current stable release, and the Windows
+binaries on the Releases page stop at v1.2.0-rc16. Read the command as a way to
+get an older Windows build, and check `kapi version` after installing.
+
+Homebrew tracks the current build on macOS and Linux.
+
+:::
+
 ### Binary Downloads
 
 Pre-built binaries for all platforms are available on the
@@ -199,8 +210,9 @@ The chosen channel is remembered across updates (kapi pins it on first run, shar
 by the CLI and the desktop app). Set `KAPI_UPDATE_CHANNEL=beta` (or `stable`) to
 override it for a single shell.
 
-> Beta packages are a Homebrew concept (separate formula/cask). WinGet tracks the
-> stable release. The version-pinned direct downloads above point to the current
-> release. During the 1.2.0 release-candidate phase that is the latest RC (a beta
-> build); the full set, including any stable, is on the
-> [Releases](https://github.com/neokapi/neokapi/releases) page.
+> Beta packages are a Homebrew concept (separate formula/cask). WinGet carries no
+> beta, and its stable package is behind the current stable release. The
+> version-pinned direct downloads above are refreshed per release and currently
+> lag the latest candidate; the full set, including any stable, is on the
+> [Releases](https://github.com/neokapi/neokapi/releases) page, which is the
+> authoritative list.
