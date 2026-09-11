@@ -125,7 +125,8 @@ func registerFrameworkMCPTools(server *mcp.Server, a *App) {
 			desc = t.T(i18n.Scope(scope+".DisplayName"), entry.Info.DisplayName)
 		}
 
-		inputSchema, err := frameworkToolInputSchema(entry.Schema)
+		policy := targetPolicyFor(entry.Info)
+		inputSchema, err := frameworkToolInputSchema(entry.Schema, policy)
 		if err != nil {
 			continue // a tool whose schema can't be projected is simply not exposed
 		}
@@ -134,7 +135,7 @@ func registerFrameworkMCPTools(server *mcp.Server, a *App) {
 			Name:        name,
 			Description: desc,
 			InputSchema: inputSchema,
-		}, a.frameworkMCPHandler(registry.ToolID(name), defaultTargetLang))
+		}, a.frameworkMCPHandler(registry.ToolID(name), defaultTargetLang, policy))
 	}
 }
 
@@ -168,11 +169,54 @@ func scopeFrameworkTools(entries []registry.CLIToolEntry, ctx *project.ProjectCo
 	return scoped, defaultTargetLang
 }
 
+// targetPolicy says what the MCP surface does with a `target` argument for one
+// tool. The caller supplies a snippet rather than a file, so the block the tool
+// runs over is built here, and a bilingual tool reading a target it was never
+// given reports success over content that is not there (#1490).
+type targetPolicy int
+
+const (
+	// targetWithheld: the tool has no use for a caller-supplied target. Either
+	// it is monolingual, or it writes the target itself (translate,
+	// pseudo-translate, recycle), where a supplied one would only be overwritten.
+	targetWithheld targetPolicy = iota
+	// targetAccepted: a bilingual tool that reads the target but does not
+	// declare it as a consumed port. It does more with a target than without.
+	targetAccepted
+	// targetRequired: the tool declares it consumes the target port, so running
+	// it without one is the silent no-op this policy exists to prevent.
+	targetRequired
+)
+
+// targetPolicyFor derives the policy from the tool's declared IO contract. It
+// reads the declaration rather than a list of tool names, so a tool added with
+// an accurate contract gets the right treatment with nothing to update here.
+func targetPolicyFor(info registry.ToolInfo) targetPolicy {
+	if info.Cardinality != schema.Bilingual {
+		return targetWithheld
+	}
+	for _, p := range info.Produces {
+		if p.Type == schema.PortTarget && p.Side == model.SideTarget {
+			return targetWithheld
+		}
+	}
+	for _, c := range info.Consumes {
+		if c.Optional {
+			continue
+		}
+		if c.Type == schema.PortTarget && c.Side == model.SideTarget {
+			return targetRequired
+		}
+	}
+	return targetAccepted
+}
+
 // frameworkToolInputSchema projects a tool's ComponentSchema into the MCP input
 // schema: the tool's own parameters, plus a required `text` field (the content
-// to process) and an optional `target_lang`. MCP requires a top-level object
-// schema, which ComponentSchema already is.
-func frameworkToolInputSchema(s *schema.ComponentSchema) (json.RawMessage, error) {
+// to process), an optional `target_lang`, and, for a bilingual tool that reads
+// one, a `target` field carrying the translation to run over.
+// MCP requires a top-level object schema, which ComponentSchema already is.
+func frameworkToolInputSchema(s *schema.ComponentSchema, policy targetPolicy) (json.RawMessage, error) {
 	base := map[string]any{"type": "object", "properties": map[string]any{}}
 	if s != nil {
 		raw, err := json.Marshal(s)
@@ -198,16 +242,26 @@ func frameworkToolInputSchema(s *schema.ComponentSchema) (json.RawMessage, error
 			"description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
 		}
 	}
+	required := []any{"text"}
+	if policy != targetWithheld {
+		props["target"] = map[string]any{
+			"type":        "string",
+			"description": "The existing translation to run the tool over, in `target_lang`. Bilingual tools read this; without it they have nothing to check.",
+		}
+		if policy == targetRequired {
+			required = append(required, "target")
+		}
+	}
 	base["type"] = "object"
-	base["required"] = []any{"text"}
+	base["required"] = required
 	return json.Marshal(base)
 }
 
 // frameworkMCPHandler builds the untyped MCP handler for one framework tool: it
-// splits `text`/`target_lang` from the remaining arguments (the tool config),
-// instantiates the tool via the registry (running the credential preprocessor),
-// runs it over the text, and returns the serialized result block.
-func (a *App) frameworkMCPHandler(name registry.ToolID, defaultTargetLang string) mcp.ToolHandler {
+// splits `text`/`target`/`target_lang` from the remaining arguments (the tool
+// config), instantiates the tool via the registry (running the credential
+// preprocessor), runs it over the text, and returns the serialized result block.
+func (a *App) frameworkMCPHandler(name registry.ToolID, defaultTargetLang string, policy targetPolicy) mcp.ToolHandler {
 	return func(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		var args map[string]any
 		if len(req.Params.Arguments) > 0 {
@@ -219,9 +273,18 @@ func (a *App) frameworkMCPHandler(name registry.ToolID, defaultTargetLang string
 		if text == "" {
 			return nil, fmt.Errorf("%q requires a non-empty 'text' argument", name)
 		}
+		targetText, _ := args["target"].(string)
+		if policy == targetRequired && targetText == "" {
+			return nil, fmt.Errorf("%q reads the translation, so it requires a non-empty 'target' argument alongside 'text'", name)
+		}
 		targetLang, _ := args["target_lang"].(string)
 		if targetLang == "" {
 			targetLang = defaultTargetLang
+		}
+		// A target with no locale to file it under cannot be matched to the
+		// locale the tool was configured for, so the tool would read past it.
+		if targetText != "" && targetLang == "" {
+			return nil, fmt.Errorf("%q was given a 'target' but no 'target_lang' to file it under", name)
 		}
 		// An agent may spell a locale any way; the tool it drives is given the
 		// canonical tag, and a target_lang that names no language is refused
@@ -236,7 +299,7 @@ func (a *App) frameworkMCPHandler(name registry.ToolID, defaultTargetLang string
 
 		config := make(map[string]any, len(args))
 		for k, v := range args {
-			if k == "text" || k == "target_lang" {
+			if k == "text" || k == "target" || k == "target_lang" {
 				continue
 			}
 			config[k] = v
@@ -246,7 +309,7 @@ func (a *App) frameworkMCPHandler(name registry.ToolID, defaultTargetLang string
 		if err != nil {
 			return nil, err
 		}
-		out, err := runToolOverText(ctx, tl, text)
+		out, err := runToolOverText(ctx, tl, text, model.LocaleID(targetLang), targetText)
 		if err != nil {
 			return nil, err
 		}
@@ -278,8 +341,16 @@ type frameworkToolOutput struct {
 // runToolOverText runs a single block tool over text and serializes the result.
 // It mirrors the streaming contract used everywhere else: feed one block part,
 // drain the output, then read the (in-place mutated) result block.
-func runToolOverText(ctx context.Context, t tool.Tool, text string) (*frameworkToolOutput, error) {
+//
+// targetText, when the caller supplied one, is committed as the block's target
+// for targetLang before the run. Everywhere else a target arrives from a format
+// reader; here the caller is the only source of one, and a block built without
+// it sends every bilingual tool down its "no target, nothing to do" path.
+func runToolOverText(ctx context.Context, t tool.Tool, text string, targetLang model.LocaleID, targetText string) (*frameworkToolOutput, error) {
 	block := model.NewBlock("mcp", text)
+	if targetText != "" && !targetLang.IsEmpty() {
+		block.SetTargetText(targetLang, targetText)
+	}
 	in := make(chan *model.Part, 1)
 	out := make(chan *model.Part, 1)
 	in <- &model.Part{Type: model.PartBlock, Resource: block}

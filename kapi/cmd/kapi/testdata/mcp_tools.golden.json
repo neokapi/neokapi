@@ -563,6 +563,10 @@
           "title": "Case Sensitive",
           "type": "boolean"
         },
+        "target": {
+          "description": "The existing translation to run the tool over, in `target_lang`. Bilingual tools read this; without it they have nothing to check.",
+          "type": "string"
+        },
         "target_lang": {
           "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
           "type": "string"
@@ -573,7 +577,8 @@
         }
       },
       "required": [
-        "text"
+        "text",
+        "target"
       ],
       "title": "Terminology Check",
       "toolMeta": {

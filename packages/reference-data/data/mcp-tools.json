@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-08T19:00:37Z",
+  "generatedAt": "2026-09-11T21:52:33Z",
   "tools": [
     {
       "name": "apply_edits",
@@ -340,6 +340,12 @@
       "surface": "all-tools",
       "params": [
         {
+          "name": "target",
+          "type": "string",
+          "required": true,
+          "description": "The existing translation to run the tool over, in `target_lang`. Bilingual tools read this; without it they have nothing to check."
+        },
+        {
           "name": "text",
           "type": "string",
           "required": true,
@@ -595,6 +601,12 @@
       "surface": "all-tools",
       "params": [
         {
+          "name": "target",
+          "type": "string",
+          "required": true,
+          "description": "The existing translation to run the tool over, in `target_lang`. Bilingual tools read this; without it they have nothing to check."
+        },
+        {
           "name": "text",
           "type": "string",
           "required": true,
@@ -681,6 +693,12 @@
       "description": "Check translation quality with deterministic rules or an LLM (select with --mode)",
       "surface": "all-tools",
       "params": [
+        {
+          "name": "target",
+          "type": "string",
+          "required": true,
+          "description": "The existing translation to run the tool over, in `target_lang`. Bilingual tools read this; without it they have nothing to check."
+        },
         {
           "name": "text",
           "type": "string",
@@ -1106,6 +1124,12 @@
           "description": "Remove the text unit entirely if it has no remaining targets after removal"
         },
         {
+          "name": "target",
+          "type": "string",
+          "required": false,
+          "description": "The existing translation to run the tool over, in `target_lang`. Bilingual tools read this; without it they have nothing to check."
+        },
+        {
           "name": "targetLocale",
           "type": "string",
           "required": false,
@@ -1153,6 +1177,12 @@
           "type": "string",
           "required": false,
           "description": "AI provider"
+        },
+        {
+          "name": "target",
+          "type": "string",
+          "required": false,
+          "description": "The existing translation to run the tool over, in `target_lang`. Bilingual tools read this; without it they have nothing to check."
         },
         {
           "name": "target_lang",
@@ -1523,6 +1553,12 @@
       "description": "Terminology Check",
       "surface": "default",
       "params": [
+        {
+          "name": "target",
+          "type": "string",
+          "required": true,
+          "description": "The existing translation to run the tool over, in `target_lang`. Bilingual tools read this; without it they have nothing to check."
+        },
         {
           "name": "text",
           "type": "string",
@@ -1958,6 +1994,12 @@
           "type": "boolean",
           "required": false,
           "description": "Remove zero-width spaces and joiners"
+        },
+        {
+          "name": "target",
+          "type": "string",
+          "required": false,
+          "description": "The existing translation to run the tool over, in `target_lang`. Bilingual tools read this; without it they have nothing to check."
         },
         {
           "name": "targetLocale",

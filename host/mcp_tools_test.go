@@ -24,7 +24,7 @@ func TestFrameworkToolInputSchema(t *testing.T) {
 			"prefix": {Type: "string"},
 		},
 	}
-	raw, err := frameworkToolInputSchema(s)
+	raw, err := frameworkToolInputSchema(s, targetWithheld)
 	require.NoError(t, err)
 
 	var got map[string]any
@@ -40,7 +40,7 @@ func TestFrameworkToolInputSchema(t *testing.T) {
 
 // TestFrameworkToolInputSchema_NilSchema handles tools with no schema struct.
 func TestFrameworkToolInputSchema_NilSchema(t *testing.T) {
-	raw, err := frameworkToolInputSchema(nil)
+	raw, err := frameworkToolInputSchema(nil, targetWithheld)
 	require.NoError(t, err)
 	var got map[string]any
 	require.NoError(t, json.Unmarshal(raw, &got))
@@ -82,7 +82,7 @@ func TestFrameworkMCPHandler_PseudoTranslate(t *testing.T) {
 	app := &App{}
 	app.InitRegistries()
 
-	handler := app.frameworkMCPHandler("pseudo-translate", "")
+	handler := app.frameworkMCPHandler("pseudo-translate", "", targetWithheld)
 	args, _ := json.Marshal(map[string]any{"text": "Hello", "target_lang": "qps"})
 	req := &mcp.CallToolRequest{Params: &mcp.CallToolParamsRaw{Arguments: args}}
 
@@ -103,7 +103,7 @@ func TestFrameworkMCPHandler_RequiresText(t *testing.T) {
 	app := &App{}
 	app.InitRegistries()
 
-	handler := app.frameworkMCPHandler("pseudo-translate", "")
+	handler := app.frameworkMCPHandler("pseudo-translate", "", targetWithheld)
 	req := &mcp.CallToolRequest{Params: &mcp.CallToolParamsRaw{Arguments: json.RawMessage(`{}`)}}
 	_, err := handler(context.Background(), req)
 	require.Error(t, err)
