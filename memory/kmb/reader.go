@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/schemaversion"
 	"github.com/neokapi/neokapi/memory"
 )
 
@@ -39,32 +40,15 @@ func checkEnvelope(f *File) error {
 	if f.Kind != Kind {
 		return fmt.Errorf("kmb: unexpected kind %q (want %q)", f.Kind, Kind)
 	}
-	major, ok := majorVersion(f.SchemaVersion)
+	major, ok := schemaversion.Major(f.SchemaVersion)
 	if !ok {
 		return fmt.Errorf("kmb: invalid schemaVersion %q", f.SchemaVersion)
 	}
-	wantMajor, _ := majorVersion(SchemaVersion)
+	wantMajor, _ := schemaversion.Major(SchemaVersion)
 	if major != wantMajor {
 		return fmt.Errorf("kmb: unsupported major schemaVersion %d (this build speaks %s)", major, SchemaVersion)
 	}
 	return nil
-}
-
-// majorVersion parses the MAJOR of a MAJOR.MINOR string.
-func majorVersion(v string) (int, bool) {
-	major := 0
-	seen := false
-	for _, r := range v {
-		if r == '.' {
-			return major, seen
-		}
-		if r < '0' || r > '9' {
-			return 0, false
-		}
-		major = major*10 + int(r-'0')
-		seen = true
-	}
-	return 0, false // no dot → invalid MAJOR.MINOR
 }
 
 // ModelEntries converts the file's wire entries back to memory.Entry values.
