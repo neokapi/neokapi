@@ -54,7 +54,11 @@ surface nobody chose is how it grew to fifty-one tools.
 				nil,
 			)
 			ApplyMCPToolFactories(server, a)
-			return server.Run(cmd.Context(), &mcp.StdioTransport{})
+			// host.CmdContext, not cmd.Context: a caller that builds this
+			// command and invokes RunE directly (the kapi-bowrain plugin's
+			// mcp-server does) never went through cobra's Execute, so its
+			// context is nil and server.Run segfaults on the first line.
+			return server.Run(host.CmdContext(cmd), &mcp.StdioTransport{})
 		},
 	}
 	AddProjectFlag(cmd)

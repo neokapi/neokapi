@@ -169,6 +169,10 @@ func buildMCPServerCmd() *cobra.Command {
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			mcpCmd := cli.NewMCPCmd(app, "kapi-bowrain")
+			// The built command never goes through cobra's Execute, so it
+			// carries no context of its own. Hand it this one, or the server
+			// runs detached from the signal handling that should stop it.
+			mcpCmd.SetContext(cmd.Context())
 			return mcpCmd.RunE(mcpCmd, args)
 		},
 	}
