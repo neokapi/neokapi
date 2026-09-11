@@ -10,7 +10,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	aitools "github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/blockstore"
 	neokapiconfig "github.com/neokapi/neokapi/core/config"
@@ -237,7 +236,7 @@ type App struct {
 	// this session, one per plugin that contributes tools to the surface.
 	// They live as long as the MCP server does and are closed by Shutdown.
 	mcpPluginMu       sync.Mutex
-	mcpPluginSessions []*mcp.ClientSession
+	mcpPluginSessions []*pluginMCPSession
 }
 
 // ensurePluginRuntime lazily builds the shared plugin Runtime from the current

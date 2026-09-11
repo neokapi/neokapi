@@ -35,19 +35,17 @@ func TestNewMCPCmd_RunsWithoutACobraContext(t *testing.T) {
 	cmd := NewMCPCmd(app, "kapi-test")
 	require.Nil(t, cmd.Context(), "the command was built, never executed")
 
-	done := make(chan error, 1)
+	// The goroutine reports what happened rather than what it returned: the
+	// regression is a panic, and RunE's own error is beside the point.
+	panicked := make(chan any, 1)
 	go func() {
-		defer func() {
-			if p := recover(); p != nil {
-				done <- assert.AnError
-			}
-		}()
-		done <- cmd.RunE(cmd, nil)
+		defer func() { panicked <- recover() }()
+		_ = cmd.RunE(cmd, nil)
 	}()
 
 	select {
-	case err := <-done:
-		assert.NotErrorIs(t, err, assert.AnError, "serving with no cobra context panicked")
+	case p := <-panicked:
+		assert.Nil(t, p, "serving with no cobra context panicked")
 	case <-time.After(30 * time.Second):
 		t.Fatal("the MCP command did not return on stdin EOF")
 	}

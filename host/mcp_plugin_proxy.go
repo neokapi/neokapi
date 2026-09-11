@@ -97,7 +97,7 @@ func registerPluginMCPTools(server *mcp.Server, a *App) {
 
 		if added == 0 {
 			// Nothing was registered, so nothing will ever call this session.
-			_ = session.Close()
+			session.close()
 			continue
 		}
 		a.trackPluginMCPSession(session)
@@ -117,7 +117,7 @@ func pluginInputSchema(t *mcp.Tool) any {
 
 // pluginMCPHandler forwards one tool call to the plugin's own MCP server and
 // returns its result verbatim. The plugin owns the answer; kapi carries it.
-func pluginMCPHandler(session *mcp.ClientSession, name string) mcp.ToolHandler {
+func pluginMCPHandler(session *pluginMCPSession, name string) mcp.ToolHandler {
 	return func(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		ctx, cancel := context.WithTimeout(ctx, pluginMCPCallTimeout)
 		defer cancel()
@@ -126,7 +126,7 @@ func pluginMCPHandler(session *mcp.ClientSession, name string) mcp.ToolHandler {
 		if len(req.Params.Arguments) > 0 {
 			args = req.Params.Arguments
 		}
-		res, err := session.CallTool(ctx, &mcp.CallToolParams{
+		res, err := session.session.CallTool(ctx, &mcp.CallToolParams{
 			Name:      name,
 			Arguments: args,
 		})
@@ -138,23 +138,47 @@ func pluginMCPHandler(session *mcp.ClientSession, name string) mcp.ToolHandler {
 }
 
 // dialPluginMCP spawns the plugin's MCP server and lists what it serves.
-func (a *App) dialPluginMCP(ctx context.Context, p *pluginhost.Plugin) (*mcp.ClientSession, map[string]*mcp.Tool, error) {
-	cmd := exec.Command(p.BinaryPath, pluginMCPSubcommand)
+//
+// The handshake is bounded by ctx, but the process itself is not: it serves for
+// the whole session, so it gets a context of its own that teardown cancels.
+// Binding the subprocess to the startup deadline would kill every plugin server
+// fifteen seconds into the session.
+func (a *App) dialPluginMCP(ctx context.Context, p *pluginhost.Plugin) (*pluginMCPSession, map[string]*mcp.Tool, error) {
+	procCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
+
+	cmd := exec.CommandContext(procCtx, p.BinaryPath, pluginMCPSubcommand)
 	cmd.Stderr = os.Stderr
 	cmd.Env = os.Environ()
 
 	client := mcp.NewClient(&mcp.Implementation{Name: "kapi", Version: "1"}, nil)
 	session, err := client.Connect(ctx, &mcp.CommandTransport{Command: cmd}, nil)
 	if err != nil {
+		cancel()
 		return nil, nil, err
 	}
 
 	live, err := listSessionTools(ctx, session)
 	if err != nil {
 		_ = session.Close()
+		cancel()
 		return nil, nil, fmt.Errorf("list tools: %w", err)
 	}
-	return session, live, nil
+	return &pluginMCPSession{session: session, stop: cancel}, live, nil
+}
+
+// pluginMCPSession is one spawned plugin server: the MCP session kapi speaks
+// over, and the cancel that stops the process behind it.
+type pluginMCPSession struct {
+	session *mcp.ClientSession
+	stop    context.CancelFunc
+}
+
+// close ends the session and then the process. Closing the session closes the
+// subprocess's stdin, which is how a well-behaved plugin learns to exit; the
+// cancel is what collects one that does not.
+func (s *pluginMCPSession) close() {
+	_ = s.session.Close()
+	s.stop()
 }
 
 // listSessionTools drains a session's paginated tool list into a map by name.
@@ -236,7 +260,7 @@ func warnPlugin(p *pluginhost.Plugin, msg string) {
 
 // trackPluginMCPSession keeps a spawned plugin server alive for the session and
 // hands its teardown to Shutdown.
-func (a *App) trackPluginMCPSession(session *mcp.ClientSession) {
+func (a *App) trackPluginMCPSession(session *pluginMCPSession) {
 	a.mcpPluginMu.Lock()
 	defer a.mcpPluginMu.Unlock()
 	a.mcpPluginSessions = append(a.mcpPluginSessions, session)
@@ -251,6 +275,6 @@ func (a *App) closePluginMCPSessions() {
 	a.mcpPluginSessions = nil
 	a.mcpPluginMu.Unlock()
 	for _, s := range sessions {
-		_ = s.Close()
+		s.close()
 	}
 }
