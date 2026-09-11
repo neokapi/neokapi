@@ -34,18 +34,18 @@
     "@ffmpeg/ffmpeg": "^0.12.15",
     "@ffmpeg/util": "^0.12.2",
     "@huggingface/transformers": "^4.2.0",
-    "@mlc-ai/web-llm": "^0.2.79",
+    "@mlc-ai/web-llm": "^0.2.85",
     "@neokapi/contract-types": "*",
     "@neokapi/engine": "*",
     "@neokapi/ui-primitives": "*",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/xterm": "^6.0.0",
-    "lucide-react": "^1.35.0",
+    "lucide-react": "^1.43.0",
     "onnxruntime-web": "^1.29.0"
   },
   "devDependencies": {
     "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.5",
+    "@types/react-dom": "^19.2.7",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "typescript": "^7.0.2"

@@ -16,8 +16,8 @@
     "@neokapi/i18n-react": "*",
     "@types/react": "^19.2.18",
     "esbuild": "^0.28.2",
-    "react-email": "6.9.3",
-    "tsx": "^4.23.12",
+    "react-email": "6.9.5",
+    "tsx": "^4.23.13",
     "typescript": "^7.0.2"
   }
 }

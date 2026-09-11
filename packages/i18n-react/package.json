@@ -107,12 +107,12 @@
   },
   "dependencies": {
     "@neokapi/kapi-format": "^2.0.0",
-    "@swc/core": "^1.16.1",
+    "@swc/core": "^1.16.2",
     "unplugin": "^3.3.0"
   },
   "devDependencies": {
-    "@storybook/react-vite": "^10.5.10",
-    "@types/node": "^26.4.0",
+    "@storybook/react-vite": "^10.6.0",
+    "@types/node": "^26.5.0",
     "@types/react": "^19.2.18",
     "esbuild": "^0.28.2",
     "react": "^19.2.8",

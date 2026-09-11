@@ -60,11 +60,11 @@
     "check": "vp run typecheck && vp run lint && vp run fmt:check && vp run test"
   },
   "devDependencies": {
-    "@oxlint/plugins": "^1.80.0",
+    "@oxlint/plugins": "^1.82.0",
     "@types/estree": "^1.0.0",
-    "@types/node": "^26.4.0",
+    "@types/node": "^26.5.0",
     "esbuild": "^0.28.2",
-    "eslint": "^10.9.1",
+    "eslint": "^10.10.0",
     "typescript": "^7.0.2",
     "vitest": "^5.0.0"
   },
