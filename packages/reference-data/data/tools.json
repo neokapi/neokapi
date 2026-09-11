@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-08T19:00:37Z",
+  "generatedAt": "2026-09-11T21:52:33Z",
   "kind": "tool",
   "entries": [
     {
@@ -962,6 +962,9 @@
         "target-language"
       ],
       "cardinality": "bilingual",
+      "produces": [
+        "target@target"
+      ],
       "schema": {
         "$id": "create-target",
         "title": "Create Target",
@@ -977,6 +980,12 @@
             "target-language"
           ],
           "cardinality": "bilingual",
+          "produces": [
+            {
+              "type": "target",
+              "side": "target"
+            }
+          ],
           "writesOutput": true
         },
         "properties": {

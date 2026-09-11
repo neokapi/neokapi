@@ -152,7 +152,7 @@ func RegisterAll(reg *registry.ToolRegistry) {
 	reg.RegisterWithSchema("create-target", func() tool.Tool {
 		return NewCreateTargetTool(NewCreateTargetConfig(""))
 	}, toolSchema(NewCreateTargetConfig(""), toolMeta("create-target", "Create Target", schema.CategoryTextProcessing,
-		withTags(schema.TagL10n), withWritesOutput(), withRequires("target-language"), withCardinality(schema.Bilingual))))
+		withTags(schema.TagL10n), withWritesOutput(), withRequires("target-language"), withCardinality(schema.Bilingual), withProduces(tgtF(schema.PortTarget)))))
 
 	reg.RegisterWithSchema("remove-target", func() tool.Tool {
 		return NewRemoveTargetTool(NewRemoveTargetConfig(""))

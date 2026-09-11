@@ -63,8 +63,33 @@ for analyzer scope and timing boundaries.
 ## Curation
 
 `host/mcp_tools.go` projects registry tools into MCP tools by rendering their
-`ComponentSchema` as the input schema, plus a required `text` and an optional
-`target_lang`. Only the tools in `agentFacingTools` are offered by default.
+`ComponentSchema` as the input schema, plus a required `text`, an optional
+`target_lang`, and, for a bilingual tool that reads a translation, a `target`.
+Only the tools in `agentFacingTools` are offered by default.
+
+## Where the target comes from
+
+Everywhere else a target arrives from a format reader. Here the caller sends a
+snippet, so the block is built in `runToolOverText` and the caller is the only
+source of a translation to run over. A block built without one sends every
+bilingual tool straight down its "no target, nothing to do" path, and the call
+returns a clean result whatever the translation says.
+
+`targetPolicyFor` reads each tool's declared IO contract rather than a list of
+names, so a tool registered with an accurate contract is handled correctly with
+nothing to update here:
+
+| Policy | Which tools | What the surface does |
+| --- | --- | --- |
+| `targetWithheld` | monolingual, or produces `PortTarget` (`translate`, `pseudo-translate`, `recycle`, `create-target`) | no `target` field: the tool writes the target itself |
+| `targetRequired` | consumes `PortTarget` (`qa`, `dnt-check`, `placeholder-check`, `term-check`) | `target` is required, and a call without one is refused |
+| `targetAccepted` | any other bilingual tool (`review`, `whitespace-correct`, `remove-target`) | `target` is offered, and applied when sent |
+
+`review` and `whitespace-correct` read the target but declare no consumed port,
+which is why they land in the third row rather than the second. Declaring that
+port would also make the flow validator demand an upstream producer for every
+flow that runs them, so the declaration is left as it is and the surface offers
+the field without insisting on it.
 
 Most of the unfiltered surface was never authored for an assistant: it arrived
 because someone added a pipeline step. Anything with a porcelain equivalent is
