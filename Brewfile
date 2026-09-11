@@ -20,9 +20,15 @@ brew "makensis"      # NSIS — builds the Windows desktop installers (setup.exe
 brew "cosign"        # Sigstore signing of plugin tarballs (matches CI)
 
 # ── macOS apps (Homebrew Cask) ───────────────────────────────────
-cask "simplysign"    # SimplySign Desktop — Certum cloud code signing. Presents
-                     #   the cloud cert to the OS as a smart card, so jsign signs
-                     #   via JSIGN_STORETYPE=CRYPTOCERTUM (no PKCS#11 dylib).
+cask "simplysign"    # SimplySign Desktop — Certum cloud code signing. Log in
+                     #   through its menu-bar app (mobile OTP) shortly before
+                     #   signing: the session is time-limited and it is what
+                     #   authorizes each signature.
+                     #   scripts/publish-windows-signed.sh is the authority on
+                     #   how jsign reaches the certificate. It defaults to
+                     #   PKCS#11 (JSIGN_KEYSTORE=~/simplysign-pkcs11.cfg, which
+                     #   `make release-windows` sets for you) and accepts
+                     #   JSIGN_STORETYPE=CRYPTOCERTUM for a card-style store.
                      #   Intel build → needs Rosetta 2:
                      #     softwareupdate --install-rosetta --agree-to-license
 
