@@ -117,7 +117,7 @@
     "esbuild": "^0.28.2",
     "react": "^19.2.8",
     "typescript": "^7.0.2",
-    "vitest": "^4.1.11"
+    "vitest": "^5.0.0"
   },
   "peerDependencies": {
     "@storybook/react-vite": "^10.0.0",
