@@ -704,16 +704,16 @@ func (s *mdInlineSink) output() string {
 		return out
 	}
 	var buf strings.Builder
-	prev := 0
+	prev, n := 0, 0
 	for _, off := range s.litDelims {
 		if !escapable[off] {
 			continue
 		}
 		buf.WriteString(out[prev:off])
 		buf.WriteByte('\\')
-		prev = off
+		prev, n = off, n+1
 	}
-	if prev == 0 {
+	if n == 0 {
 		return out
 	}
 	buf.WriteString(out[prev:])
