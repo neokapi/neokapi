@@ -62,18 +62,39 @@ jobs:
           ARCH: ${{ matrix.arch }}
         run: |
           set -euo pipefail
+          # A leg that publishes nothing still exits 0, and from a user's machine
+          # an absent feed is indistinguishable from "no update available". So
+          # every outcome writes a line to the run summary, and the two that are
+          # not meant to happen also annotate the job.
+          summary() { echo "- ${TITLE} windows/${ARCH}: $1" >> "$GITHUB_STEP_SUMMARY"; }
+
           if [ -z "${UPDATE_ED25519_PRIVATE_KEY:-}" ] || [ -z "${REGISTRY_TOKEN:-}" ]; then
-            echo "appcast secrets not set; skipping"
+            echo "::warning title=No Windows update feed published::UPDATE_ED25519_PRIVATE_KEY or REGISTRY_TOKEN is unset, so ${TITLE} windows/${ARCH} published nothing."
+            summary "skipped, appcast secrets unset"
             exit 0
           fi
+
           # Track-aware: kapi releases on v* tags, bowrain on bowrain-v* tags.
-          # Strip whichever prefix applies to get the bare X.Y.Z. A matrix leg
-          # whose app didn't ship in this tag's release (e.g. the Bowrain legs on
-          # a kapi v* tag) finds no zip and skips below.
+          # Strip whichever prefix applies to get the bare X.Y.Z. The legs for
+          # the other track's app are expected to do nothing on this tag, so
+          # they say so quietly; a missing zip on the tag's OWN track is the
+          # out-of-band signing step not having run, which is worth an
+          # annotation.
+          case "$TAG" in bowrain-v*) TRACK=bowrain ;; *) TRACK=kapi ;; esac
           VERSION="${TAG#bowrain-v}"; VERSION="${VERSION#v}"
           ZIP="${NAME}-${VERSION}-windows-${ARCH}.zip"
-          if ! gh release download "$TAG" --repo "$REPO" --pattern "$ZIP" --dir .; then
-            echo "no signed $ZIP on release $TAG yet; skipping"
+
+          if [ "$NAME" != "$TRACK" ]; then
+            echo "${TITLE} does not ship on a ${TRACK} tag; nothing to publish."
+            summary "not on the ${TRACK} track"
             exit 0
           fi
+
+          if ! gh release download "$TAG" --repo "$REPO" --pattern "$ZIP" --dir .; then
+            echo "::warning title=No Windows update feed published::$ZIP is not on release $TAG, so ${TITLE} windows/${ARCH} published nothing. The signed Windows assets are uploaded out of band by scripts/publish-windows-signed.sh."
+            summary "skipped, no $ZIP on $TAG"
+            exit 0
+          fi
+
           bash scripts/publish-appcast.sh "$TITLE" "$NAME" "$VERSION" "$TAG" "$REPO" "$ZIP" windows "$ARCH"
+          summary "published from $ZIP"

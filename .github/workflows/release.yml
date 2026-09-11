@@ -313,13 +313,19 @@ jobs:
         if: matrix.target.goos == 'windows'
         shell: pwsh
         run: Compress-Archive -Path out/kapi.exe -DestinationPath "out/kapi-cli_${{ steps.meta.outputs.VERSION }}_windows_${{ matrix.target.goarch }}.zip" -Force
+      # 90 days, not the 14 the in-run artifacts use: this one has to survive
+      # until someone sits down at the Mac holding the Certum certificate. At 14
+      # days every tag older than a fortnight became unsignable, and the
+      # download reported only "no artifact matches", so rc17 through rc29 have
+      # no Windows build and no way to get one short of rebuilding the tag. 90
+      # is the repository maximum.
       - name: Upload Windows kapi zip
         if: matrix.target.goos == 'windows'
         uses: actions/upload-artifact@v7
         with:
           name: kapi-cli-windows-${{ matrix.target.goarch }}
           path: out/kapi-cli_*_windows_${{ matrix.target.goarch }}.zip
-          retention-days: 14
+          retention-days: 90
 
   # Package + publish the kapi CLI binary built by build-cli. This replaces the
   # former GoReleaser job: GoReleaser OSS can't consume externally-built (cgo +
@@ -1161,13 +1167,16 @@ jobs:
         run: |
           Compress-Archive -Path "apps/kapi-desktop/bin/Kapi.exe" -DestinationPath "kapi-${{ steps.version.outputs.VERSION }}-windows-${{ matrix.build.arch }}.zip"
 
+      # 90 days: the signing session is manual and out of band, so this
+      # artifact must outlive the gap between the tag and it. See the same note
+      # on the CLI zip above.
       - name: Upload Windows ZIP as artifact (Authenticode-signed locally before release)
         if: runner.os == 'Windows'
         uses: actions/upload-artifact@v7
         with:
           name: kapi-desktop-windows-${{ matrix.build.arch }}
           path: "kapi-${{ steps.version.outputs.VERSION }}-windows-${{ matrix.build.arch }}.zip"
-          retention-days: 14
+          retention-days: 90
 
       - name: Create tarball
         if: runner.os == 'Linux'
@@ -1374,3 +1383,40 @@ jobs:
               -f sha="${MAIN_SHA}" 2>/dev/null || true
             echo "Tagged ${repo} at ${TAG}"
           done
+
+  # Windows is the one platform this workflow does not publish. Its binaries
+  # leave the run as workflow artifacts and are Authenticode-signed on the Mac
+  # holding the Certum certificate, so a release goes green with no Windows
+  # asset on it and nothing records that a step is outstanding. Thirteen
+  # candidates shipped that way and it showed up only by counting a release's
+  # assets. This job puts the pending step, and its deadline, in the run summary.
+  windows-signing:
+    name: Windows signing (manual, after this run)
+    needs: [setup, build-cli, build-kapi-desktop]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Record the outstanding Windows signing step
+        env:
+          VERSION: ${{ needs.setup.outputs.version }}
+          TAG: ${{ needs.setup.outputs.tag }}
+        run: |
+          set -euo pipefail
+          # Tracks retention-days on the Windows upload-artifact steps above.
+          deadline="$(date -u -d '+90 days' +%Y-%m-%d)"
+          echo "::notice title=Windows assets still to sign::Run 'make release-windows v=${VERSION}' on the signing Mac. This run's Windows artifacts expire ${deadline}."
+          {
+            echo "## Windows assets are not on ${TAG} yet"
+            echo
+            echo "CI builds Windows and keeps it as workflow artifacts. Publishing them needs"
+            echo "the Certum certificate, which lives on one Mac. There, with SimplySign"
+            echo "Desktop logged in:"
+            echo
+            echo "    make release-windows v=${VERSION}"
+            echo
+            echo "That signs the CLI zips and the desktop installers, uploads them to ${TAG},"
+            echo "and dispatches the WinGet submission, the Windows in-app-update feed and the"
+            echo "installation-page download-link refresh."
+            echo
+            echo "This run's Windows artifacts expire on ${deadline}. After that the tag can be"
+            echo "signed only by re-running this run's Windows jobs first."
+          } >> "$GITHUB_STEP_SUMMARY"

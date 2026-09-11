@@ -48,6 +48,19 @@ jobs:
           - identifier: Neokapi.Kapi
             installers-regex: '^kapi-[0-9].*-windows-.*-setup\.exe$'
     steps:
+      # komac reports an unset token as "GitHub token is invalid", which sent
+      # ten consecutive runs looking for a bad PAT rather than an absent one.
+      # Say which it is before spending a job on it.
+      - name: Check the winget token is present
+        env:
+          WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${WINGET_TOKEN:-}" ]; then
+            echo "::error title=WINGET_TOKEN is not set::Add a CLASSIC personal access token with public_repo scope, owned by a neokapi org member with write access to neokapi/winget-pkgs, as the repository secret WINGET_TOKEN. Fine-grained tokens do not work with komac. komac reports the empty value as 'GitHub token is invalid'."
+            exit 1
+          fi
+
       - name: Derive package version (strip leading v)
         id: ver
         env:

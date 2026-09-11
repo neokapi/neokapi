@@ -1041,13 +1041,16 @@ jobs:
         run: |
           Compress-Archive -Path "bowrain/apps/bowrain/bin/Bowrain.exe" -DestinationPath "bowrain-${{ steps.version.outputs.VERSION }}-windows-${{ matrix.build.arch }}.zip"
 
+      # 90 days: publish-windows-signed.sh downloads this artifact during a
+      # manual signing session that can happen weeks after the tag, and at 14
+      # days it was routinely gone by then. 90 is the repository maximum.
       - name: Upload Windows ZIP as artifact (Authenticode-signed locally before release)
         if: runner.os == 'Windows'
         uses: actions/upload-artifact@v7
         with:
           name: bowrain-windows-${{ matrix.build.arch }}
           path: "bowrain-${{ steps.version.outputs.VERSION }}-windows-${{ matrix.build.arch }}.zip"
-          retention-days: 14
+          retention-days: 90
 
       # Linux: Create tarball
       - name: Create tarball
@@ -1202,3 +1205,36 @@ jobs:
           else
             git commit -m "Update bowrain cask to ${VERSION}" && git push
           fi
+
+  # As in release.yml: Bowrain's Windows binaries leave this run as workflow
+  # artifacts and are signed by hand afterwards, so the pending step is recorded
+  # here rather than being visible only as an absent asset.
+  windows-signing:
+    name: Windows signing (manual, after this run)
+    needs: [setup, build-bowrain]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Record the outstanding Windows signing step
+        env:
+          VERSION: ${{ needs.setup.outputs.version }}
+          TAG: ${{ needs.setup.outputs.tag }}
+        run: |
+          set -euo pipefail
+          # Tracks retention-days on the Windows upload-artifact step above.
+          deadline="$(date -u -d '+90 days' +%Y-%m-%d)"
+          echo "::notice title=Windows assets still to sign::Run 'make release-bowrain-windows v=${VERSION}' on the signing Mac. This run's Windows artifacts expire ${deadline}."
+          {
+            echo "## Windows assets are not on ${TAG} yet"
+            echo
+            echo "CI builds Bowrain Desktop for Windows and keeps it as a workflow artifact."
+            echo "Publishing it needs the Certum certificate, which lives on one Mac. There,"
+            echo "with SimplySign Desktop logged in:"
+            echo
+            echo "    make release-bowrain-windows v=${VERSION}"
+            echo
+            echo "That signs the zip, builds and signs the installer, uploads both to ${TAG},"
+            echo "and dispatches the Windows in-app-update feed. WinGet is kapi-only."
+            echo
+            echo "This run's Windows artifacts expire on ${deadline}. After that the tag can be"
+            echo "signed only by re-running this run's Windows jobs first."
+          } >> "$GITHUB_STEP_SUMMARY"
