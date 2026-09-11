@@ -28,6 +28,15 @@ func TestCodeSpanClosingOnTheNextLine(t *testing.T) {
 		{"crlf break", "See ` code\r\n` here.\r\n"},
 		{"plain code span", "See `code` here.\n"},
 		{"literal backtick", "a `` ` `` b\n"},
+		// #2525: the content already carries the line ending, so the
+		// continuation prefix sits at the content's end with no line ending in
+		// front of it to recognise it by. It belonged to neither the content nor
+		// the fence, and the rebuilt second line opened with no quote marker.
+		{"content carries the break, in a blockquote", "> `a\n> ` b"},
+		{"content carries the break, no space after the marker", ">`\n>`"},
+		{"content carries the break, in a list item", "- `a\n  ` b"},
+		{"content carries the break, nested quote", ">> `a\n>> ` b"},
+		{"content carries the break, at the top level", "`a\n` b"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

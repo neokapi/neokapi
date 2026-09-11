@@ -48,7 +48,11 @@ func TestHardBreakSpellingRoundTrips(t *testing.T) {
 			"Some text with a hard break here.\nAnd the line that follows it."},
 		{"five spaces", "0     \n0\n", "0\n0"},
 		{"backslash", "a\\\nb\n", "a\nb"},
-		{"space then backslash", "a \\\nb\n", "a\nb"},
+		// The space before the backslash is the line's own content: goldmark
+		// renders "a \\\nb" as "<p>a <br>\nb</p>". Walking the spelling back over
+		// it took the space out of the block and wrote it twice on an indented
+		// line (#2529).
+		{"space then backslash", "a \\\nb\n", "a \nb"},
 		{"crlf", "a  \r\nb\r\n", "a\nb"},
 		{"inside emphasis", "*a  \nb*\n", "a\nb"},
 		{"after a code span", "`c`  \nb\n", "c\nb"},
