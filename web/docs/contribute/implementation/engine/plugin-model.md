@@ -104,6 +104,19 @@ func init() {
 
 `MCPToolFactory` is invoked by the shared `app.NewMCPCmd("kapi")` when the `mcp` subcommand starts. Each registered factory is given the `*mcp.Server` and the `*cli.App` and adds its tools.
 
+### One agent-facing surface
+
+The registries above run inside one binary. A plugin ships as its own binary, so its MCP tools would sit on their own server, reachable only by a client configured to launch it. `kapi mcp` closes that gap: it spawns each installed plugin's `mcp-server` subcommand once per session and forwards `tools/call` to it, so an agent connected to kapi reaches a plugin's tools through the same surface as kapi's own. What a surface offers an agent is what it offers a human, and `kapi push` has a human form already.
+
+`host/mcp_plugin_proxy.go` holds it, registered through `RegisterLateMCPToolFactory` so it runs after every ordinary factory and can read back the finished core surface. Four rules make it predictable:
+
+- **The manifest is the contribution list.** Only the tools a plugin declares under `mcp_tools` are proxied. A plugin binary built on the shared CLI serves the whole core surface as well, so proxying its full `tools/list` would publish a second copy of every kapi tool. Names come from the manifest; the input schema and description come from the plugin's live server, because the manifest carries neither.
+- **kapi wins a name collision.** The SDK's `AddTool` replaces a tool of the same name without saying so, so the proxy reads the server's tool names first and skips a plugin tool that would take one over. The skip is reported on stderr.
+- **A plugin that does not answer is left off.** A binary that fails to start, or has not listed its tools inside the startup bound, contributes nothing and the session continues. Other plugins are unaffected.
+- **The sessions belong to the run.** Each spawned server is held for the life of the MCP session and closed by `App.Shutdown`.
+
+kapi links no plugin's code here either. The proxy speaks MCP to a subprocess over stdio, so a plugin's dependencies and its licence stay inside its own binary.
+
 ## Writing a new plugin: a worked example
 
 Suppose you want to add a `gitlab` source connector that pushes content to a GitLab repo as locale-suffixed branches. The plugin:
