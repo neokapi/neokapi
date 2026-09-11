@@ -6,7 +6,7 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	"github.com/neokapi/neokapi/core/internal/xmlesc"
+	"github.com/neokapi/neokapi/core/xmlesc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

@@ -10,8 +10,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/neokapi/neokapi/core/internal/xmlesc"
 	"github.com/neokapi/neokapi/core/safeio"
+	"github.com/neokapi/neokapi/core/xmlesc"
 )
 
 // docType identifies the OpenXML document type.

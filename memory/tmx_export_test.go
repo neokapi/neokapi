@@ -57,6 +57,24 @@ func TestExportTMX_EscapesSpecialChars(t *testing.T) {
 	assert.Contains(t, out, "A &amp; B &lt; C &gt; D")
 }
 
+// The tuid attribute went through this package's own xmlAttr until #1979's
+// cluster 8 replaced it with core/xmlesc.Attr. This is the differential
+// coverage for that consolidation, exercised through the real call site
+// rather than the package's own unit test.
+func TestExportTMX_EscapesSpecialCharsInAttributes(t *testing.T) {
+	tm := memory.NewInMemoryStore()
+	require.NoError(t, tm.Add(context.Background(), memory.Entry{
+		ID: `e1"&<>`,
+		Variants: map[model.LocaleID][]model.Run{
+			"en": {{Text: &model.TextRun{Text: "Hello"}}},
+		},
+	}))
+	var buf bytes.Buffer
+	require.NoError(t, memory.ExportTMX(context.Background(), tm, &buf, nil))
+	out := buf.String()
+	assert.Contains(t, out, `tuid="e1&quot;&amp;&lt;&gt;"`)
+}
+
 // --- Roundtrip ---
 
 func TestTMXRoundtrip_Bilingual(t *testing.T) {

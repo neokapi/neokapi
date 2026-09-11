@@ -5,8 +5,8 @@ import (
 
 	"golang.org/x/text/encoding"
 
-	"github.com/neokapi/neokapi/core/internal/xmlesc"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/xmlesc"
 )
 
 // renderOpts controls optional escaping behaviors during IR rendering.

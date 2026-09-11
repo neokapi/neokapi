@@ -9,8 +9,8 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/neokapi/neokapi/core/internal/xmlesc"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/xmlesc"
 )
 
 // serializeRPrChildrenXML returns a `<w:rPr>...</w:rPr>` fragment for

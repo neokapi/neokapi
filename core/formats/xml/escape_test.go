@@ -7,8 +7,8 @@ import (
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/format/spec"
-	"github.com/neokapi/neokapi/core/internal/xmlesc"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/xmlesc"
 	"github.com/stretchr/testify/require"
 )
 

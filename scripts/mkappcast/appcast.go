@@ -112,7 +112,7 @@ func appendf(b []byte, format string, args ...any) []byte {
 	return append(b, []byte(fmt.Sprintf(format, args...))...)
 }
 
-// xmlEscape defers to encoding/xml, which — unlike core/internal/xmlesc.Text —
+// xmlEscape defers to encoding/xml, which — unlike core/xmlesc.Text —
 // also encodes `'`, `"`, tab, newline and carriage return as entities. That is
 // what a Sparkle appcast wants and is not a format round-trip, so it stays.
 func xmlEscape(s string) string {

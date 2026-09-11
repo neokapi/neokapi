@@ -11,8 +11,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/neokapi/neokapi/core/internal/xmlesc"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/xmlesc"
 )
 
 // drawingNameAttrRE matches a name="..." attribute on either a

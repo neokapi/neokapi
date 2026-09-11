@@ -521,7 +521,7 @@ func expandInlineAttrRefs(data string, blocks map[string]*model.Block, w *Writer
 // when the source used &apos;. Whitespace (newlines, tabs) is preserved
 // for byte-exact skeleton roundtrip.
 //
-// DELIBERATELY not core/internal/xmlesc.Text, which leaves `"` alone in text
+// DELIBERATELY not core/xmlesc.Text, which leaves `"` alone in text
 // position. The extra quote escaping is the parity requirement above.
 func xmlEscapeString(s string) string {
 	var b strings.Builder
@@ -673,7 +673,7 @@ func appendSpaceTo(runs []model.Run) []model.Run {
 // round-trip output for ITS test01.xml shows literal `>` and `'`
 // inside attribute values.
 //
-// DELIBERATELY not core/internal/xmlesc.Attr, which escapes `>`. Pointing this
+// DELIBERATELY not core/xmlesc.Attr, which escapes `>`. Pointing this
 // at the shared helper would move the ITS goldens.
 func xmlEscapeAttrValue(s string) string {
 	var b strings.Builder

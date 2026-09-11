@@ -932,7 +932,7 @@ func normalizeTSPrologue(data []byte) []byte {
 
 // xmlEscape escapes special XML characters.
 //
-// DELIBERATELY not core/internal/xmlesc.Text: it also escapes `"`, and it
+// DELIBERATELY not core/xmlesc.Text: it also escapes `"`, and it
 // delegates per rune so <numerusform> can swap in xmlEscapeRuneEntity to
 // encode `'`. See xmlEscapeRune for the okapi behaviour both match.
 func xmlEscape(s string) string {

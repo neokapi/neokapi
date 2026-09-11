@@ -8,7 +8,7 @@ import (
 	"encoding/xml"
 	"strings"
 
-	"github.com/neokapi/neokapi/core/internal/xmlesc"
+	"github.com/neokapi/neokapi/core/xmlesc"
 )
 
 // writeRawStartElementTo emits an XML start element to a strings.Builder,

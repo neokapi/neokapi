@@ -1,5 +1,8 @@
 // Package xmlesc holds the XML escapers that several format readers had
-// independently written identically.
+// independently written identically. It sits at core/xmlesc rather than
+// core/xmlesc so that memory/ and terms/ can reach it too: they are
+// siblings of core/, not descendants, and Go's internal/ visibility rule
+// would otherwise keep them out.
 //
 // # Why this package is small on purpose
 //
@@ -34,8 +37,6 @@
 //   - memory/tmx_export xmlEscape — html.EscapeString, which uses numeric
 //     entities (&#39;, &#34;) and is guarded by a ContainsAny check, so quotes
 //     escape only when an &, < or > is also present.
-//   - memory/tmx_export xmlAttr — output-identical to [Attr], but memory/ sits
-//     outside core/ and so cannot import this package.
 //   - scripts/mkappcast xmlEscape — encoding/xml's EscapeText, which also
 //     encodes tab, newline and carriage return.
 //
