@@ -260,15 +260,19 @@ func repoRoot() (string, error) {
 	return strings.TrimSpace(string(out)), nil
 }
 
-// findKapi prefers this checkout's build, so a run measures this code rather
-// than whatever kapi the developer has installed.
+// findKapi resolves this checkout's build and nothing else, so a run measures
+// this code.
+//
+// `kapi` on PATH is deliberately not consulted. On a developer machine that is
+// the released Homebrew build, which lags the tree by whole features: rc29
+// rejects `vocabulary.forbidden_terms[].forms` as an unknown field, so the
+// fixture profiles this eval is built on fail validation against a binary that
+// is not the subject of the measurement. `make authoring-eval` depends on
+// `build`, so the binary is there whenever the eval runs the sanctioned way.
 func findKapi(root string) string {
 	local := filepath.Join(root, "bin", "kapi")
 	if _, err := os.Stat(local); err == nil {
 		return local
-	}
-	if p, err := exec.LookPath("kapi"); err == nil {
-		return p
 	}
 	return ""
 }
