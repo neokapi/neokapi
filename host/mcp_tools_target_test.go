@@ -3,6 +3,7 @@ package host
 import (
 	"context"
 	"encoding/json"
+	"maps"
 	"strings"
 	"testing"
 
@@ -23,9 +24,7 @@ func dntArgs(t *testing.T, extra map[string]any) json.RawMessage {
 		"target_lang": "fr",
 		"terms":       []string{"Acme Cloud"},
 	}
-	for k, v := range extra {
-		args[k] = v
-	}
+	maps.Copy(args, extra)
 	raw, err := json.Marshal(args)
 	require.NoError(t, err)
 	return raw
