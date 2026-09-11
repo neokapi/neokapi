@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"slices"
 	"strconv"
@@ -125,6 +126,23 @@ func (s *Server) HandleSyncPushInit(c echo.Context) error {
 				"ref":                    currentRef,
 			})
 		}
+	}
+
+	// TEMPORARY DIAGNOSTIC for the standing Bowrain E2E failure (#2133): say what
+	// the server folded when a push that declared a root hash did not take the
+	// fast path. Remove once the cause is known.
+	if req.RootHash != "" {
+		serverItems, diagErr := diffEngine.ExportItemHashes(c.Request().Context(), req.ProjectID, req.Stream)
+		slog.Warn("sync push init recomputed a diff",
+			"project", req.ProjectID,
+			"stream", req.Stream,
+			"client_root", req.RootHash,
+			"client_items", req.ItemHashes,
+			"server_root", venue.ComputeRootHash(serverItems),
+			"server_items", serverItems,
+			"context_changed", ctxDiff.Changed,
+			"cache_enabled", s.SyncCache != nil,
+			"export_err", diagErr)
 	}
 
 	// Full diff: compare item hashes.
