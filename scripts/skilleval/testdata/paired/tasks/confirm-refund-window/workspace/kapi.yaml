@@ -1,0 +1,29 @@
+version: v1
+name: paired-content-task
+defaults:
+  source_language: en
+  terms_source: .kapi/terms.json
+  voice:
+    profile_file: .kapi/voice.yaml
+  coordinates:
+    service: harbor-help
+  exclude:
+    - "**/.git/**"
+profiles:
+  harbor-help:
+    channels: [child, older-adult, adult]
+    voice: .kapi/voice.yaml
+collections:
+  - name: task-content
+    channel: harbor-help/adult
+    base: content
+    coordinates:
+      audience: adult
+    content:
+      - path: en/*.json
+        format:
+          name: json
+flows:
+  check:
+    steps:
+      - tool: voice-vocab-check

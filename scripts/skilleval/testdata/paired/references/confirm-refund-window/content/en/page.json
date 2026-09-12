@@ -1,0 +1,7 @@
+{
+  "title": "Request a refund",
+  "refund_window": "Request a refund within 14 days of the appointment.",
+  "cancellation": "Cancel at least 24 hours before the appointment.",
+  "support": "help@harbor.example",
+  "explanation": "Send the request from the account that made the booking. Requests outside the refund window are not accepted."
+}

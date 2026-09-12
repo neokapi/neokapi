@@ -7,7 +7,10 @@
     {"host": "claude", "model": "claude-sonnet-5", "effort": "high"}
   ],
   "conditions": ["baseline", "skill-cli", "mcp"],
-  "tasks": ["audience-child", "audience-older-adult", "rename-product", "rename-plan", "revise-support-hours", "revise-booking-window"],
+  "tasks": [
+    "audience-child", "audience-older-adult", "rename-product", "rename-plan",
+    "revise-support-hours", "revise-booking-window", "confirm-refund-window"
+  ],
   "smoke_task": "audience-child",
   "repetitions": 2,
   "attempt_timeout_seconds": 180,

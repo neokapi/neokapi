@@ -18,7 +18,7 @@ func TestPairedManifestAndSchedule(t *testing.T) {
 	m, err := readPairedManifest("testdata/paired-study.json")
 	require.NoError(t, err)
 	pilot := pairedSchedule(m, "pilot")
-	require.Len(t, pilot, 72)
+	require.Len(t, pilot, 84)
 	require.Len(t, pairedSchedule(m, "smoke"), 6)
 	assert.Equal(t, pilot, pairedSchedule(m, "pilot"))
 	seen := map[string]bool{}

@@ -1,0 +1,2 @@
+# Governing guidance
+Refund requests are accepted within 14 days of the appointment. Set refund_window to exactly: Request a refund within 14 days of the appointment. The 14-day decision replaced an earlier 7-day rule and is already the current one. Cancellation notice, title, support address and explanation have not changed. The archive and API files describe the older 7-day contract, and are excluded. Change content/en/page.json only where this guidance requires it. Avoid unsupported guarantees.
