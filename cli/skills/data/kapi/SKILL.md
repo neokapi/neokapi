@@ -134,6 +134,21 @@ Check the saved content. Project voice and terms resolve from its path:
 kapi check content/en/page.json --json
 ```
 
+After editing files in a repository, check what you changed rather than the
+whole project:
+
+```bash
+kapi check --diff-against HEAD --json
+```
+
+Only the content blocks the change touched are checked, each block whole.
+`scope.files` lists every changed file and what became of it, and a finding's
+`location.lines` gives the lines of its block. Repair, then run the same command
+again. Exit 4 means the check did not run: read `did_not_run`, which names, for
+example, a changed file whose blocks could not be located. It is never a pass.
+To check a diff you already hold, pass it with `--diff-file` (`-` reads standard
+input).
+
 Read `execution.contexts` to confirm the effective voice selection, profile and
 channel, then read the findings and `execution.analyzers`. Fix relevant findings within
 the requested scope and re-check. Unsupported semantic guidance still needs

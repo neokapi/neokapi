@@ -134,6 +134,14 @@
     "input_schema": {
       "additionalProperties": false,
       "properties": {
+        "diff": {
+          "description": "unified diff text (git diff output); only the content blocks it touches are checked",
+          "type": "string"
+        },
+        "diff_against": {
+          "description": "git revision to diff the working tree against, read-only, with untracked files as added; only the content blocks changed are checked",
+          "type": "string"
+        },
         "dnt": {
           "description": "do-not-translate terms that must survive verbatim into the target",
           "items": {
@@ -145,7 +153,7 @@
           ]
         },
         "file": {
-          "description": "path to the file whose content should be checked",
+          "description": "path to the file whose content should be checked; with diff or diff_against it narrows the scope to this file, and may be omitted",
           "type": "string"
         },
         "forbid": {
@@ -197,9 +205,6 @@
           "type": "string"
         }
       },
-      "required": [
-        "file"
-      ],
       "type": "object"
     }
   },

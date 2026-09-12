@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -41,6 +42,9 @@ func registerCheckMCPTools(server *mcp.Server, a *App) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "check_file",
 		Description: "Check the actual content inside a file (Word, PowerPoint, JSON, XLIFF, Markdown, …) " +
+			"or only the content blocks a change touched: pass diff (unified diff text) or diff_against (a git " +
+			"revision) to check each touched block whole, with the lines it spans, and read report.scope for every " +
+			"changed file and what became of it. " +
 			"with format-aware extraction and the applicable project voice and terms. Before editing, read " +
 			"the context://<project-relative-path> resource; after saving edits (including apply_edits), " +
 			"run check_file and review its per-block findings and analyzer coverage. Returns a kapi.check/v1 " +
@@ -66,7 +70,9 @@ type checkTextInput struct {
 
 // checkFileInput is the input to the check_file MCP tool.
 type checkFileInput struct {
-	File        string   `json:"file" jsonschema:"path to the file whose content should be checked"`
+	File        string   `json:"file,omitempty" jsonschema:"path to the file whose content should be checked; with diff or diff_against it narrows the scope to this file, and may be omitted"`
+	Diff        string   `json:"diff,omitempty" jsonschema:"unified diff text (git diff output); only the content blocks it touches are checked"`
+	DiffAgainst string   `json:"diff_against,omitempty" jsonschema:"git revision to diff the working tree against, read-only, with untracked files as added; only the content blocks changed are checked"`
 	MaxChars    int      `json:"max_chars,omitempty" jsonschema:"flag content longer than this many characters (0 = off)"`
 	MaxWords    int      `json:"max_words,omitempty" jsonschema:"flag content with more than this many words (0 = off)"`
 	Forbid      []string `json:"forbid,omitempty" jsonschema:"regex that must NOT appear in the content"`
@@ -161,8 +167,12 @@ func (a *App) checkFileMCP(ctx context.Context, in checkFileInput) (*mcp.CallToo
 	execution := newCheckExecution()
 	contextStart := time.Now()
 	a.InitRegistries()
-	if in.File == "" {
-		return nil, check.Report{}, errors.New("file is required")
+	scoped := in.Diff != "" || in.DiffAgainst != ""
+	if in.File == "" && !scoped {
+		return nil, check.Report{}, errors.New("file is required unless diff or diff_against is given")
+	}
+	if in.Diff != "" && in.DiffAgainst != "" {
+		return nil, check.Report{}, errors.New("diff and diff_against each name a diff; pass one")
 	}
 	opts, err := a.mcpCheckOptions(in.MaxChars, in.MaxWords, in.Forbid, in.Require, in.ProfilePack, in.ProfileFile)
 	if err != nil {
@@ -194,6 +204,9 @@ func (a *App) checkFileMCP(ctx context.Context, in checkFileInput) (*mcp.CallToo
 		return nil, check.Report{}, err
 	}
 	opts.execution = execution
+	if scoped {
+		return a.checkDiffMCP(ctx, cmd, in, opts)
+	}
 	execution.recordContext(in.File, "", opts)
 	execution.Timings.ContextMS += elapsedMS(contextStart)
 	target := check.Target{Kind: "file", File: in.File}
@@ -279,4 +292,54 @@ func (a *App) mcpCheckOptions(maxChars, maxWords int, forbid, require []string, 
 		}
 	}
 	return opts, nil
+}
+
+// checkDiffMCP is check_file scoped to a diff: the same run `kapi check
+// --diff-file` and `--diff-against` make, with governance resolved per changed
+// file unless the call named a profile.
+func (a *App) checkDiffMCP(ctx context.Context, cmd Command, in checkFileInput, opts checkRunOptions) (*mcp.CallToolResult, check.Report, error) {
+	if in.Target != "" {
+		return nil, check.Report{}, errors.New("target checks a source against its translation and cannot be scoped to a diff")
+	}
+	if mode, err := parseValidationMode(in.Validate); err != nil {
+		return nil, check.Report{}, err
+	} else if mode != format.ValidationOff {
+		return nil, check.Report{}, errors.New("reader validation is unavailable with a diff scope; validate the files separately")
+	}
+	dir, err := os.Getwd()
+	if err != nil {
+		return nil, check.Report{}, err
+	}
+	if a.mcpRecipePath != "" {
+		dir = filepath.Dir(a.mcpRecipePath)
+	}
+	var src *diffSource
+	if in.DiffAgainst != "" {
+		src, err = gitDiffAgainst(ctx, dir, in.DiffAgainst)
+	} else {
+		src, err = parsedDiff(ctx, "diff", []byte(in.Diff), dir)
+	}
+	if err != nil {
+		return nil, check.Report{}, err
+	}
+	run := diffCheckRun{src: src, cmd: cmd, opts: opts, gate: check.DefaultGate()}
+	if in.File != "" {
+		run.named = []string{in.File}
+	}
+	// check_file resolved the file's own voice before it knew the call was
+	// scoped to a diff; a diff can name many files, so voice resolves per file
+	// unless the call named a profile.
+	if in.ProfilePack == "" && in.ProfileFile == "" {
+		voice, err := a.newCheckVoice(cmd)
+		if err != nil {
+			return nil, check.Report{}, err
+		}
+		defer voice.close()
+		run.voice = voice
+	}
+	if run.vocab, err = a.newCheckTerms(cmd); err != nil {
+		return nil, check.Report{}, err
+	}
+	report, err := a.runDiffCheck(ctx, run)
+	return nil, report, err
 }
