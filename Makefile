@@ -2343,7 +2343,7 @@ eval-index: ## Rebuild the /evals cover-page data
 # default is three and a scenario that fires twice in three is reported as
 # `flaky` rather than rounded to a pass.
 SKILLEVAL_ARGS ?=
-skill-eval: ## Measure whether the Agent Skill fires on the right tasks (spends, local only)
+skill-eval: build ## Measure whether the Agent Skill fires on the right tasks (spends, local only)
 	$(GO) run ./scripts/skilleval -mode trigger $(SKILLEVAL_ARGS)
 
 # The expensive half: drives each positive to a green gate rather than stopping

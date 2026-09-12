@@ -172,7 +172,13 @@ func run() error {
 	}
 
 	ctx := context.Background()
-	convs := available(ctx, findKapi(root))
+	kapiBin := findKapi(root)
+	if kapiBin == "" {
+		return errors.New("needs this checkout's kapi: run `make build` first. A kapi on PATH is deliberately not used")
+	}
+	ver, _ := exec.CommandContext(ctx, kapiBin, "--version").Output()
+	fmt.Fprintf(os.Stderr, "kapi: %s (%s)\n", kapiBin, strings.TrimSpace(string(ver)))
+	convs := available(ctx, kapiBin)
 	if len(convs) == 0 {
 		return errors.New("no converters found on this machine")
 	}
@@ -542,15 +548,35 @@ func repoRoot() (string, error) {
 	return strings.TrimSpace(string(out)), nil
 }
 
+// findKapi returns this checkout's kapi binary, or "" when it has not been
+// built. It deliberately does not fall back to PATH.
+//
+// An installed kapi can lag the checkout by weeks, and its output has the same
+// shape as a current one with nothing in it to say which answered, so a run
+// against the wrong build yields a confident wrong result that survives review.
+// That is #2642, and during the review of this harness it manufactured a false
+// product defect: an evaluator ran the Homebrew release, watched a check pass on
+// text that violates a declared constraint, and reported the feature as inert.
+// The feature had shipped two weeks after that binary was built. Worse, the
+// preflight reported no blockers and wrote the stale binary's hash into the
+// study fingerprint, so the run looked reproducible.
+//
+// The path is resolved before it is accepted, so a bin/kapi symlinked at an
+// installed release does not pass either.
 func findKapi(root string) string {
-	local := filepath.Join(root, "bin", "kapi")
-	if _, err := os.Stat(local); err == nil {
-		return local
+	resolved, err := filepath.EvalSymlinks(filepath.Join(root, "bin", "kapi"))
+	if err != nil {
+		return ""
 	}
-	if p, err := exec.LookPath("kapi"); err == nil {
-		return p
+	base, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return ""
 	}
-	return ""
+	rel, err := filepath.Rel(base, resolved)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
+		return ""
+	}
+	return resolved
 }
 
 // findCorpus locates the extracted okapi-testdata tree the parity harness
