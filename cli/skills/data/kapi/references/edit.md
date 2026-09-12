@@ -85,16 +85,18 @@ applied change-set is safe.
 
 ## 4. Verify
 
-A clean check is the finish line. In a project, run `kapi check --ship`; for a
-one-off file, `kapi check`:
+Check the file you edited. In a project, its applicable voice and terms resolve
+from the file's path:
 
 ```bash
-kapi check report.docx --json     # one-off: deterministic content rules
-kapi check --ship --json                 # in a project: voice + terminology + rule-based gates
+kapi check report.docx --json
 ```
 
-Read the findings, fix the flagged blocks through another `apply` pass, and
-re-run until the gate is green (exit 0).
+Read the findings and analyzer coverage, fix relevant flagged blocks through
+another `apply` pass, and re-check. Review meaning and any unsupported guidance
+against the retrieved context. A passing report does not establish those
+judgments. Use `kapi check --ship --json` when the task also requires checking
+project release gates.
 
 ## Which formats can I edit?
 

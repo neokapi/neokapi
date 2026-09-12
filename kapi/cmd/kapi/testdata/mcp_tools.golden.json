@@ -19,6 +19,7 @@
                 "type": "string"
               },
               "kind": {
+                "description": "change kind; use content for document wording",
                 "type": "string"
               },
               "list": {
@@ -34,6 +35,7 @@
                 "type": "string"
               },
               "replacement": {
+                "description": "replacement term for kind=voice; content entries use text",
                 "type": "string"
               },
               "replaces": {
@@ -61,6 +63,7 @@
                 "type": "string"
               },
               "text": {
+                "description": "new block wording for kind=content; preserve inline placeholders from extract_content",
                 "type": "string"
               },
               "value": {
@@ -164,11 +167,11 @@
           "type": "integer"
         },
         "profile_file": {
-          "description": "path to a voice profile YAML",
+          "description": "explicit voice override loaded from YAML; bypasses the file-scoped project voice and channel; omit to use project guidance",
           "type": "string"
         },
         "profile_pack": {
-          "description": "built-in profile pack to check vocabulary against",
+          "description": "explicit voice override; omitting profile_pack and profile_file preserves the file-scoped project voice and channel",
           "type": "string"
         },
         "require": {
@@ -205,6 +208,10 @@
     "input_schema": {
       "additionalProperties": false,
       "properties": {
+        "context_path": {
+          "description": "project-relative destination whose voice and terms govern this draft; may not exist yet; requires a project; cannot combine with profile_pack or profile_file",
+          "type": "string"
+        },
         "forbid": {
           "description": "regex that must NOT appear in the content",
           "items": {

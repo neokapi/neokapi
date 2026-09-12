@@ -175,9 +175,9 @@ These are the assistant-integration hooks. They are unrelated to a recipe's
     { label: "Read", sub: "kapi inspect" },
     { label: "Edit", sub: "the assistant writes" },
     { label: "Write", sub: "kapi apply" },
-    { label: "Check", sub: "kapi check --ship" },
+    { label: "Check", sub: "kapi check <path>" },
   ]}
-  caption="The edit loop: kapi parses and re-writes the file, the assistant supplies the words, and the gate decides whether the loop goes round again."
+  caption="The edit loop: the assistant supplies the words; kapi reads, applies and checks the content. Findings guide revisions, while unsupported guidance remains for review."
 />
 
 **Editing existing content.** `kapi inspect` is the read leg: it parses any
@@ -197,6 +197,19 @@ elsewhere, edited in place.
 
 Both loops are provider-free by default. The assistant is the writer; kapi is the
 format engine and the checker.
+
+The ordinary authoring loop uses `kapi context <path>` before editing and
+`kapi check <path>` afterwards. The file path determines the applicable voice
+channel and terms. The assistant reads analyzer coverage alongside findings;
+a passing score establishes only the checks that ran. `kapi check --ship`
+enforces project release policy when that is part of the task.
+
+For MCP, context retrieval uses the existing `context://<path>` resource.
+`check_file` checks saved content in its project scope. A draft can be checked
+with `check_text` and `context_path`, the intended project-relative destination.
+This binds the same voice and terms without reading the destination file.
+Explicit profile overrides belong to unscoped snippet checks and cannot be
+combined with `context_path`. A bound-context failure is an operation error.
 
 ### `kapi apply`, the write verb for content and assets
 

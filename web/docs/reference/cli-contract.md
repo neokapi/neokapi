@@ -189,9 +189,29 @@ For block-level content streaming (rather than run progress), `kapi inspect --js
 
 The [MCP server](/reference/mcp) (`kapi mcp`) is part of the same contract: its tool names and input schemas are a stable surface for agent integrations, locked by a snapshot test (`kapi/cmd/kapi/mcp_snapshot_test.go`). New tools and new optional fields may be added; existing tools are not renamed or removed, and existing fields do not change type, without an explicit, documented decision.
 
-The registry tools on that surface are exactly the CLI-visible ones: a built-in tool appears under `kapi exec`, in `kapi tools list`, and as an MCP tool when it registers a config factory and does not declare itself internal (`registry.ToolRegistry.CLITools`). Wiring a factory for a tool that lacked one is therefore an additive surface change: it adds the tool to all three at once, and the snapshot moves. `whitespace-correct` gained one this way, and `dnt-check`, `placeholder-check`, `xml-validation`, `create-target`, `remove-target`, `inline-codes-remove` and `external-command` followed.
+`check_text` accepts an optional `context_path`, a project-relative destination
+whose voice and terms apply to the supplied draft. It requires a bound project
+and cannot be combined with `profile_file` or `profile_pack`. The result keeps
+`target.kind: "text"` and records the destination in `target.context_path`;
+the destination need not exist. Unscoped snippet checks retain their explicit
+profile options. See [Checks](/framework/checks) for report coverage.
 
-A bilingual registry tool takes a `target` field carrying the translation to run over, alongside `text` and `target_lang`. On `term-check` it is **required**, which is the one place this surface has added a required field rather than an optional one: the tool reads the target, and a call without one used to succeed and report nothing, so an agent asking whether a translation kept a term got the same clean answer whatever the translation said. A tool that writes the target itself (`translate`, `pseudo-translate`) does not offer the field.
+The optional `execution.contexts` array adds per-input guidance selection to
+`kapi.check/v1` without changing existing report fields. Entries contain `file`
+or `context_path`, `voice` (`selection`, `applied`, optional `name`, `source`,
+`profile` and `channel`), and `terms_applied`. `voice.selection` is `project`,
+`override` or `none`. Missing context metadata means unreported selection.
+CLI file checks, MCP file/draft checks and source-content release checks supply
+it. Explicit voice overrides retain their behavior and are identified as
+`override`; MCP field descriptions state that omitting overrides preserves
+file-scoped project guidance. See [Checks](/framework/checks) for interpretation.
+
+For `apply_edits`, content entries put new wording in `text`; `replacement` is
+a voice-rule field. A nonempty `replacement` on a content entry is rejected
+before applying the change-set. The input field descriptions state this
+distinction without changing field names or types.
+
+The registry tools on that surface are exactly the CLI-visible ones: a built-in tool appears under `kapi exec`, in `kapi tools list`, and as an MCP tool when it registers a config factory and does not declare itself internal (`registry.ToolRegistry.CLITools`). Wiring a factory for a tool that lacked one is therefore an additive surface change: it adds the tool to all three at once, and the snapshot moves. `whitespace-correct` gained one this way, and `dnt-check`, `placeholder-check`, `xml-validation`, `create-target`, `remove-target`, `inline-codes-remove` and `external-command` followed.
 
 The `up` tool takes an optional `local` field, mirroring `kapi up --local`: in a project connected to a server the run happens at that venue by default (the same decision the command makes) and `local` keeps the loop on this machine, pushing the results afterwards.
 

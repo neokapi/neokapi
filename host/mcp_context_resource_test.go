@@ -230,3 +230,50 @@ func TestContextResourceStatesItsScope(t *testing.T) {
 	assert.Contains(t, read.Contents[0].Text,
 		"project scope: concept relations, revisions and market scoping live in a connected workspace")
 }
+
+func TestContextMCPRetainsExplicitRecipeWithoutDiscovery(t *testing.T) {
+	root := contextFixture(t)
+	profilePath := filepath.Join(root, ".kapi", "voice.yaml")
+	profile, err := os.ReadFile(profilePath)
+	require.NoError(t, err)
+	profile = append(profile, []byte("channels:\n  docs:\n    tone:\n      guidelines: Explain the documented workflow.\n")...)
+	require.NoError(t, os.WriteFile(profilePath, profile, 0o600))
+	recipe := filepath.Join(root, "governed-content.yaml")
+	require.NoError(t, os.Rename(filepath.Join(root, "kapi.yaml"), recipe))
+	t.Setenv("KAPI_PROJECT", "")
+	t.Setenv("KAPI_NO_PROJECT", "1")
+	app := &host.App{}
+	cmd := host.NewEnvCommand(t.Context(), "mcp")
+	cmd.Flags().String("project", recipe, "")
+	require.NoError(t, app.ResolveMCPProject(cmd))
+	session := contextClient(t, app)
+	// Resource paths stay project-relative from both foreign and nested cwd.
+	for _, cwd := range []string{t.TempDir(), filepath.Join(root, "docs")} {
+		t.Chdir(cwd)
+		read, err := session.ReadResource(t.Context(), &mcp.ReadResourceParams{URI: "context://docs/guide.md"})
+		require.NoError(t, err)
+		require.Len(t, read.Contents, 1)
+		assert.Contains(t, read.Contents[0].Text, "acme/docs")
+		assert.Contains(t, read.Contents[0].Text, "Explain the documented workflow.")
+		assert.Contains(t, read.Contents[0].Text, "content memory")
+		assert.NotContains(t, read.Contents[0].Text, "No point resolved")
+	}
+	byName, err := session.ReadResource(t.Context(), &mcp.ReadResourceParams{URI: "context://profile/acme"})
+	require.NoError(t, err)
+	require.Len(t, byName.Contents, 1)
+	assert.Contains(t, byName.Contents[0].Text, "Answered from this project alone")
+
+	store, _, release, err := app.OpenTermsSQLite(cmd)
+	require.NoError(t, err)
+	require.NoError(t, store.AddConcept(t.Context(), renameConcept()))
+	release()
+	search, err := session.CallTool(t.Context(), &mcp.CallToolParams{
+		Name: "context_search", Arguments: map[string]any{"query": "gadget"},
+	})
+	require.NoError(t, err)
+	require.False(t, search.IsError)
+	body, err := json.Marshal(search)
+	require.NoError(t, err)
+	assert.Contains(t, string(body), "gadget")
+	assert.Contains(t, string(body), "c-widget")
+}
