@@ -1,0 +1,2 @@
+# Governing guidance
+New bookings now require 24 hours of notice instead of 48 hours. Set booking_window to exactly: Book at least 24 hours before the appointment. Cancellation continues to require 24 hours. Availability rules, title, support address and explanation have not changed. Only booking_window needs editing. The archive and API files describe an older contract with the original 48-hour booking rule, and are excluded. Avoid unsupported guarantees.

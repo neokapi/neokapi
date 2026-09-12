@@ -1,0 +1,7 @@
+{
+  "title": "Book a video appointment",
+  "booking_window": "Book at least 24 hours before the appointment.",
+  "cancellation": "Cancel at least 24 hours before the appointment.",
+  "support": "help@harbor.example",
+  "explanation": "Choose an available appointment time. Requests inside the booking window are not accepted."
+}

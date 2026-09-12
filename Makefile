@@ -2358,6 +2358,30 @@ skill-eval-completion: build ## Drive each positive scenario to a green gate (sl
 mcp-eval: build ## Measure whether an agent picks the right kapi MCP tool (spends, local only)
 	$(GO) run ./scripts/skilleval -mode trigger -surface mcp -repeat 3 $(SKILLEVAL_ARGS)
 
+# Paired studies keep the same task across the baseline, CLI skill and MCP.
+# Live runs use the signed-in subscriptions and a persistent attempt ceiling.
+PAIRED_EVAL_MANIFEST ?= scripts/skilleval/testdata/paired-study.json
+PAIRED_EVAL_DIR ?= harness/out/paired-eval
+PAIRED_EVAL_MAX_ATTEMPTS ?= 6
+PAIRED_EVAL_ARGS ?=
+PAIRED_EVAL_FLAGS = -paired-manifest "$(PAIRED_EVAL_MANIFEST)" -paired-dir "$(PAIRED_EVAL_DIR)" $(PAIRED_EVAL_ARGS)
+.PHONY: paired-eval-preflight paired-eval-smoke paired-eval-diagnostic paired-eval-pilot paired-eval-score
+
+paired-eval-preflight: ## Prepare the paired agent study without model calls (build kapi first)
+	$(GO) run ./scripts/skilleval $(PAIRED_EVAL_FLAGS) -paired-phase preflight
+
+paired-eval-smoke: ## Run a bounded subscription-backed smoke batch (consumes plan allowance)
+	$(GO) run ./scripts/skilleval $(PAIRED_EVAL_FLAGS) -paired-phase smoke -paired-live -paired-max-attempts $(PAIRED_EVAL_MAX_ATTEMPTS)
+
+paired-eval-diagnostic: ## Test explicitly instructed integration use within the shared subscription ceiling
+	$(GO) run ./scripts/skilleval $(PAIRED_EVAL_FLAGS) -paired-phase diagnostic -paired-live -paired-max-attempts $(PAIRED_EVAL_MAX_ATTEMPTS)
+
+paired-eval-pilot: ## Run the paired pilot within the persistent attempt ceiling (consumes plan allowance)
+	$(GO) run ./scripts/skilleval $(PAIRED_EVAL_FLAGS) -paired-phase pilot -paired-live -paired-max-attempts $(PAIRED_EVAL_MAX_ATTEMPTS)
+
+paired-eval-score: ## Summarize saved paired attempts without model calls
+	$(GO) run ./scripts/skilleval $(PAIRED_EVAL_FLAGS) -paired-phase score
+
 PRIORAB_ARGS ?=
 # Costs model calls. Two halves: a deterministic consistency check (does the
 # approved wording survive) and a judged quality score. Only the first should be

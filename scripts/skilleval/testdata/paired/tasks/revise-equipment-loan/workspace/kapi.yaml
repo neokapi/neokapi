@@ -1,0 +1,48 @@
+version: v1
+name: alder-equipment-lending
+defaults:
+  source_language: en
+  terms_source: .kapi/terms.json
+  voice:
+    profile_file: .kapi/voice.yaml
+  coordinates:
+    service: alder-library
+  exclude:
+    - "**/.git/**"
+profiles:
+  alder-library:
+    channels: [camera, telescope, archive, integration]
+    voice: .kapi/voice.yaml
+collections:
+  - name: camera-borrowing
+    channel: alder-library/camera
+    base: content
+    content:
+      - path: en/page.json
+        format: {name: json}
+      - path: en/camera-reminder.json
+        format: {name: json}
+      - path: en/camera-desk-card.json
+        format: {name: json}
+  - name: telescope-borrowing
+    channel: alder-library/telescope
+    base: content
+    content:
+      - path: en/telescope.json
+        format: {name: json}
+  - name: historical-notice
+    channel: alder-library/archive
+    base: content
+    content:
+      - path: en/archive.json
+        format: {name: json}
+  - name: integration-contract
+    channel: alder-library/integration
+    base: content
+    content:
+      - path: en/api.json
+        format: {name: json}
+flows:
+  check:
+    steps:
+      - tool: voice-vocab-check

@@ -1,0 +1,8 @@
+{
+  "id": "telescope-borrowing",
+  "title": "Borrow a telescope",
+  "loan_label": "14-day loan",
+  "loan_days": "14",
+  "return_instruction": "Return the telescope within 14 days of collection.",
+  "policy_id": "telescope_7_day"
+}

@@ -1,0 +1,46 @@
+{
+  "id": "rename-plan",
+  "family": "scoped-rename",
+  "prompt": "Rename the plan for new customers in content/en/page.json from Starter to Essential. Read guidance.md and the project guidance before editing. Keep the JSON keys and types. Edit only content/en/page.json. Do not change guidance, project configuration or other files.",
+  "editable": [
+    "content/en/page.json"
+  ],
+  "criteria": [
+    {
+      "id": "title-renamed",
+      "kind": "json_equals",
+      "path": "content/en/page.json",
+      "key": "title",
+      "value": "Essential plan",
+      "description": "title renamed"
+    },
+    {
+      "id": "description-renamed",
+      "kind": "json_equals",
+      "path": "content/en/page.json",
+      "key": "description",
+      "value": "Essential includes two appointments each month.",
+      "description": "description renamed"
+    },
+    {
+      "id": "exception-preserved",
+      "kind": "json_equals",
+      "path": "content/en/page.json",
+      "key": "legacy_notice",
+      "value": "Existing Starter accounts retain their current agreement.",
+      "description": "exception preserved"
+    },
+    {
+      "id": "api-preserved",
+      "kind": "json_equals",
+      "path": "content/en/page.json",
+      "key": "plan_id",
+      "value": "starter_v1",
+      "description": "api preserved"
+    }
+  ],
+  "humanReviewRubric": [
+    "Does the page clearly distinguish new-customer naming from existing agreements?",
+    "Does the change retain allowance and exception meaning?"
+  ]
+}
