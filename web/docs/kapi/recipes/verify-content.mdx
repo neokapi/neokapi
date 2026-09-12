@@ -55,6 +55,7 @@ kapi check blog-post.md --profile-file brand/voice.yaml
 {
   "schema": "kapi.check/v1",
   "pass": false,
+  "verdict": "failed",
   "summary": { "score": 74, "critical": 0, "major": 2, "minor": 3 },
   "findings": [
     {
@@ -69,7 +70,7 @@ kapi check blog-post.md --profile-file brand/voice.yaml
 
 Field-by-field, the Report is documented in [Checks](/framework/checks); the flags in the [`check` reference](/reference/commands/check).
 
-**Exit codes are the gate:** `0` pass, `3` gate failed, `1` operational error, so `kapi check` drops straight into CI. `--strict` fails on any critical or major finding; `--lenient` and `--no-fail` loosen it for report-only sweeps. `--validate report|strict` folds reader structure/encoding findings into the same Report.
+**Exit codes are the gate:** `0` pass, `3` gate failed, `4` did not run, `1` operational error, so `kapi check` drops straight into CI. A check did not run when it examined no content, or when one of its checks reported nothing on the known-bad sample it is given beside your content. It never exits `0`. `--strict` fails on any critical or major finding. `--lenient` and `--no-fail` loosen the gate for report-only sweeps, and neither turns a check that did not run into a pass. `--validate report|strict` folds reader structure/encoding findings into the same Report.
 
 **Bilingual checks** (placeholder integrity, do-not-translate, terminology) are opt-in: add `--target <file> --target-lang <lang>` to check a translation against its source.
 

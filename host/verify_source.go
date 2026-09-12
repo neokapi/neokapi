@@ -109,6 +109,14 @@ func (a *App) verifySourceChecks(ctx context.Context, cmd Command, u VerifyUnit,
 	gate.Execution.Timings.TotalMS += elapsedMS(execution.started)
 	gate.Coverage.Files++
 	gate.Coverage.Blocks += len(blocks)
+	for _, run := range execution.Analyzers {
+		if run.Status != check.AnalyzerInvalid {
+			continue
+		}
+		gate.Pass = false
+		gate.Findings = append(gate.Findings, verifyFinding{Gate: gateChecks, File: u.DisplayPath, Locale: u.Locale, Severity: "error",
+			Message: fmt.Sprintf("The %s check missed its canary, so its result for this file cannot be trusted. %s", run.ID, run.Reason)})
+	}
 	for _, d := range diagnostics {
 		failing := d.Severity == check.SeverityMajor || d.Severity == check.SeverityCritical
 		severity := verifySeverity(d.Severity)

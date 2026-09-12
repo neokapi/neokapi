@@ -161,3 +161,23 @@ func NewDNTCheckTool(cfg *DNTCheckConfig) *tool.BaseTool {
 	}
 	return t
 }
+
+// DNTCanaries is the known-bad input the do-not-translate checker must flag: a
+// target that lost the first configured term. With no term configured there is
+// nothing to protect, and uncheckable says so.
+func DNTCanaries(cfg *DNTCheckConfig) ([]check.Canary, string) {
+	for _, term := range cfg.EffectiveTerms() {
+		term = strings.TrimSpace(term)
+		if term == "" {
+			continue
+		}
+		target := "0"
+		if strings.Contains(term, target) {
+			target = "1"
+		}
+		b := check.CanaryBlock(term)
+		b.SetTargetText(cfg.TargetLocale, target)
+		return []check.Canary{{Name: fmt.Sprintf("do-not-translate term %q", term), Block: b, Expect: "do-not-translate"}}, ""
+	}
+	return nil, "no do-not-translate terms are configured"
+}

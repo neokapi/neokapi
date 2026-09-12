@@ -1,6 +1,7 @@
 package host
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/neokapi/neokapi/core/check"
@@ -41,19 +42,25 @@ func (e *checkExecution) unsupported(id, file, reason string) {
 	})
 }
 
-func (e *checkExecution) completed(id, file string, findings int, start time.Time) {
+// completed records an analyzer that evaluated the content and its canaries.
+// required says the invocation asked for the analyzer, so that one with nothing
+// to catch leaves the run unverified rather than only itself.
+func (e *checkExecution) completed(id, file string, findings int, start time.Time, canary check.CanaryOutcome, required bool) {
 	if e == nil {
 		return
 	}
 	duration := elapsedMS(start)
-	status := check.AnalyzerPassed
-	if findings > 0 {
-		status = check.AnalyzerFindings
+	run := check.AnalyzerExecution{
+		ID: id, File: DisplayName(file), Status: canary.StatusFor(findings), Required: required,
+		Findings: findings, DurationMS: &duration, Canary: &canary,
 	}
-	e.Analyzers = append(e.Analyzers, check.AnalyzerExecution{
-		ID: id, File: DisplayName(file), Status: status, Required: true,
-		Findings: findings, DurationMS: &duration,
-	})
+	switch run.Status {
+	case check.AnalyzerInvalid:
+		run.Reason = fmt.Sprintf("Reported no finding on its canary, %s (%q).", canary.Missed, canary.Input)
+	case check.AnalyzerDidNotRun:
+		run.Reason = canary.Reason
+	}
+	e.Analyzers = append(e.Analyzers, run)
 	if id != "reader.validation" {
 		e.Timings.AnalyzersMS += duration
 	}
@@ -66,6 +73,7 @@ func (e *checkExecution) report(target check.Target, diags []check.Diagnostic, g
 		e.Timings.ReportMS = elapsedMS(start)
 		e.Timings.TotalMS = elapsedMS(e.started)
 		report.Execution = &e.Execution
+		report.Decide()
 	}
 	return report
 }

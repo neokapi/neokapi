@@ -35,21 +35,34 @@ func (r checkReport) FormatText(w io.Writer) error {
 	renderFindingsTable(w, r.Findings)
 	s := output.NewTable(w).Styles()
 	verdict := s.Success.Render("PASS")
-	if !r.Pass {
+	switch r.Verdict {
+	case check.VerdictFailed:
 		verdict = s.Error.Render("FAIL")
+	case check.VerdictDidNotRun:
+		verdict = s.Warn.Render("DID NOT RUN")
 	}
 	fmt.Fprintf(w, "%s configured checks: ", verdict)
 	writeFindingsCounts(w, r.Summary)
 	if r.Execution != nil {
-		completed, skipped := 0, 0
+		completed, invalid, skipped := 0, 0, 0
 		for _, run := range r.Execution.Analyzers {
-			if run.Status == check.AnalyzerPassed || run.Status == check.AnalyzerFindings {
+			switch run.Status {
+			case check.AnalyzerPassed, check.AnalyzerFindings:
 				completed++
-			} else {
+			case check.AnalyzerInvalid:
+				invalid++
+			default:
 				skipped++
 			}
 		}
-		fmt.Fprintf(w, "  Coverage: %d completed, %d not run or unsupported. Score covers reported findings only.\n", completed, skipped)
+		fmt.Fprintf(w, "  Coverage: %d completed, %d not run or unsupported", completed, skipped)
+		if invalid > 0 {
+			fmt.Fprintf(w, ", %d missed a canary", invalid)
+		}
+		fmt.Fprintln(w, ". Score covers reported findings only.")
+	}
+	for _, reason := range r.DidNotRun {
+		fmt.Fprintf(w, "  did not run: %s\n", reason)
 	}
 	if r.Execution != nil {
 		for _, scope := range r.Execution.Contexts {
@@ -133,7 +146,12 @@ func (a *App) RunCheck(cmd Command, args []string) error {
 	if err := output.Print(cmd, checkReport{report}); err != nil {
 		return err
 	}
-	if !report.Pass {
+	switch report.Verdict {
+	case check.VerdictDidNotRun:
+		// --no-fail and --lenient govern what the findings do to the exit code.
+		// A check that did not run has no findings to read, so neither applies.
+		return fmt.Errorf("%w: %s", ErrCheckNotRun, strings.Join(report.DidNotRun, "; "))
+	case check.VerdictFailed:
 		if noFail, _ := cmd.Flags().GetBool("no-fail"); noFail {
 			return nil
 		}
@@ -454,7 +472,11 @@ func (a *App) checkFileBlocks(ctx context.Context, file string, validateMode for
 	if validateMode == format.ValidationOff {
 		opts.execution.skipped("reader.validation", file, "Reader validation was not requested.")
 	} else {
-		opts.execution.completed("reader.validation", file, len(diags), extractionStart)
+		canary, err := a.probeReaderValidation(validateMode)
+		if err != nil {
+			return nil, nil, err
+		}
+		opts.execution.completed("reader.validation", file, len(diags), extractionStart, canary, true)
 	}
 
 	fileDiags, ferr := a.collectFileDiagnostics(ctx, blocks, file, opts)
@@ -499,10 +521,10 @@ func applyStrictValidationGate(report *check.Report) {
 		if f.Severity != check.SeverityMajor && f.Severity != check.SeverityCritical {
 			continue
 		}
-		report.Pass = false
 		report.Gate.Failed = append(report.Gate.Failed,
 			fmt.Sprintf("validation: %s is a blocking %s problem", f.Rule, f.Check))
 	}
+	report.Decide()
 }
 
 // checkRunOptions carries the resolved generic-check configuration.
@@ -536,13 +558,21 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 	var diags []check.Diagnostic
 	seen := make([]int, len(blocks)) // per-block count of findings already mapped
 
+	// Each analyzer is given its canaries after the content, through the same
+	// checker instance, so one that finds nothing in anything is recorded as
+	// invalid instead of as a clean pass.
 	start := time.Now()
 	// Hygiene — always on, no configuration needed.
-	if err := a.runFamily(ctx, blocks, check.NewContentLintTool()); err != nil {
+	hygiene := hygieneTool()
+	if err := a.runFamily(ctx, blocks, hygiene); err != nil {
 		return nil, fmt.Errorf("hygiene check %s: %w", DisplayName(file), err)
 	}
 	diags = append(diags, mapBlockDeltas(blocks, seen, "hygiene", file)...)
-	opts.execution.completed("hygiene", file, len(diags), start)
+	canary, err := probeTool(ctx, hygiene, check.HygieneCanaries(), "")
+	if err != nil {
+		return nil, fmt.Errorf("hygiene check %s: %w", DisplayName(file), err)
+	}
+	opts.execution.completed("hygiene", file, len(diags), start, canary, true)
 
 	// Length — only when a limit is set.
 	if opts.maxChars > 0 || opts.maxWords > 0 {
@@ -556,7 +586,11 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 			return nil, fmt.Errorf("length check %s: %w", DisplayName(file), err)
 		}
 		diags = append(diags, mapBlockDeltas(blocks, seen, "length", file)...)
-		opts.execution.completed("length", file, len(diags)-before, start)
+		canary, err := probeTool(ctx, lengthTool, check.LengthCanaries(opts.maxChars, opts.maxWords), "")
+		if err != nil {
+			return nil, fmt.Errorf("length check %s: %w", DisplayName(file), err)
+		}
+		opts.execution.completed("length", file, len(diags)-before, start, canary, true)
 	} else {
 		opts.execution.skipped("length", file, "No length limit was configured.")
 	}
@@ -573,7 +607,12 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 			return nil, fmt.Errorf("pattern check %s: %w", DisplayName(file), err)
 		}
 		diags = append(diags, mapBlockDeltas(blocks, seen, "pattern", file)...)
-		opts.execution.completed("pattern", file, len(diags)-before, start)
+		canaries, uncheckable := check.PatternCanaries(rules)
+		canary, err := probeTool(ctx, patternTool, canaries, uncheckable)
+		if err != nil {
+			return nil, fmt.Errorf("pattern check %s: %w", DisplayName(file), err)
+		}
+		opts.execution.completed("pattern", file, len(diags)-before, start, canary, true)
 	} else {
 		opts.execution.skipped("pattern", file, "No explicit patterns were configured.")
 	}
@@ -602,7 +641,13 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 		for _, f := range profile.DocumentFindings(opts.profile, documentText(blocks)) {
 			diags = append(diags, check.DiagnosticFrom(f, "voice", docLoc))
 		}
-		opts.execution.completed("voice.rules", file, len(diags)-before, start)
+		canary, err := probeVoiceRules(ctx, vocab, opts.profile)
+		if err != nil {
+			return nil, fmt.Errorf("voice vocabulary check %s: %w", DisplayName(file), err)
+		}
+		// A profile named on the command line is an analysis the invocation asked
+		// for. One the project binds is configuration, and may govern tone alone.
+		opts.execution.completed("voice.rules", file, len(diags)-before, start, canary, opts.voiceContext.Selection == "override")
 		for _, resolution := range profile.ConstraintResolutions(opts.profile) {
 			if resolution.Status == "applicable" && resolution.Constraint.Kind == profile.ConstraintGuidance {
 				opts.execution.unsupported("voice.guidance", file,
@@ -634,7 +679,14 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 		for _, f := range vf {
 			diags = append(diags, check.DiagnosticFrom(f, "voice", check.Location{File: DisplayName(file)}))
 		}
-		opts.execution.completed("voice.similarity", file, len(diags)-before, start)
+		canary, err := check.Probe([]check.Canary{{Name: "text unlike every example", Block: check.CanaryBlock("0000 1111 2222 3333")}}, "",
+			func(b *model.Block) ([]check.Finding, error) {
+				return voiceSimilarityFindings([]*model.Block{b}, refs, t, opts.voiceMin)
+			})
+		if err != nil {
+			return nil, fmt.Errorf("voice check: %w", err)
+		}
+		opts.execution.completed("voice.similarity", file, len(diags)-before, start, canary, true)
 	} else {
 		opts.execution.skipped("voice.similarity", file, "Similarity analysis was not requested.")
 	}
@@ -683,22 +735,33 @@ func (a *App) collectBilingualDiagnostics(ctx context.Context, blocks []*model.B
 		seen[i] = len(FindingsFromBlock(b, false))
 	}
 
-	if err := a.runFamily(ctx, blocks, coretools.NewPlaceholderCheckTool(coretools.NewPlaceholderCheckConfig(loc))); err != nil {
+	placeholder := coretools.NewPlaceholderCheckTool(coretools.NewPlaceholderCheckConfig(loc))
+	if err := a.runFamily(ctx, blocks, placeholder); err != nil {
 		return nil, fmt.Errorf("placeholder check %s (%s): %w", DisplayName(file), loc, err)
 	}
 	diags = append(diags, mapBlockDeltas(blocks, seen, "placeholder", file)...)
-	execution.completed("placeholder", file, len(diags), start)
+	canary, err := probeTool(ctx, placeholder, coretools.PlaceholderCanaries(loc), "")
+	if err != nil {
+		return nil, fmt.Errorf("placeholder check %s (%s): %w", DisplayName(file), loc, err)
+	}
+	execution.completed("placeholder", file, len(diags), start, canary, true)
 
 	if len(dntTerms) > 0 {
 		start = time.Now()
 		before := len(diags)
 		dntCfg := coretools.NewDNTCheckConfig(loc)
 		dntCfg.Terms = dntTerms
-		if err := a.runFamily(ctx, blocks, coretools.NewDNTCheckTool(dntCfg)); err != nil {
+		dnt := coretools.NewDNTCheckTool(dntCfg)
+		if err := a.runFamily(ctx, blocks, dnt); err != nil {
 			return nil, fmt.Errorf("do-not-translate check %s (%s): %w", DisplayName(file), loc, err)
 		}
 		diags = append(diags, mapBlockDeltas(blocks, seen, "dnt", file)...)
-		execution.completed("dnt", file, len(diags)-before, start)
+		canaries, uncheckable := coretools.DNTCanaries(dntCfg)
+		canary, err := probeTool(ctx, dnt, canaries, uncheckable)
+		if err != nil {
+			return nil, fmt.Errorf("do-not-translate check %s (%s): %w", DisplayName(file), loc, err)
+		}
+		execution.completed("dnt", file, len(diags)-before, start, canary, true)
 	} else {
 		execution.skipped("dnt", file, "No protected terms were configured.")
 	}

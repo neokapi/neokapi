@@ -72,6 +72,18 @@ The host also reports context, extraction, analysis, report-construction and
 total time in milliseconds; serialization and process startup are excluded.
 Reports without `execution` have **unreported coverage**.
 
+The report's `verdict` is `passed`, `failed` or `did_not_run`, and `pass` is
+true only for `passed`. Beside the content, each analyzer is given a known-bad
+sample, its **canary**, through the same configured checker, and records what it
+made of it in `execution.analyzers[].canary`: `caught`, `missed` or `impossible`.
+An analyzer that misses its canary has status `invalid`, and the run did not
+run, whatever else it reported. An analyzer whose configuration gives it nothing
+to catch, such as a voice profile with no deterministic rules, has status
+`did_not_run`; when the invocation asked for it by name, the run did not run
+either. A run that checked no blocks did not run. The top-level `did_not_run`
+field lists the reasons. `kapi check` exits `4` for this verdict, and neither
+`--no-fail` nor `--lenient` changes that.
+
 `execution.contexts` records the effective guidance for each checked input.
 Each entry identifies the file or draft destination, the voice selection
 (`project`, `override` or `none`), the loaded profile name and source, and the

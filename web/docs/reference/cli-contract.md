@@ -131,6 +131,7 @@ Under `--json` (or `--jq` / `--output-format=json`), a failing command prints a 
 | 1 | `error` | Operational error |
 | 2 | `usage` | Usage / invocation error (also grep-style "trouble" for the toolbox utilities) |
 | 3 | `gate` | A quality or voice gate failed (e.g. `kapi voice check --min-score`), distinct from an operational error so CI can tell "the content isn't good enough" from "the tool broke" |
+| 4 | `did_not_run` | `kapi check` reached no verdict: it checked no content, or one of its checks reported nothing on the known-bad sample it runs beside the content. Never a pass |
 | 130 | `signal` | Interrupted (SIGINT/SIGTERM); no error line is printed |
 
 The toolbox utilities (`kgrep`) additionally use grep-parity semantics: exit 1 with no message when nothing matched.

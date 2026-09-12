@@ -369,7 +369,12 @@ func TestCheck_ValidateFoldsStructureDiagnostic(t *testing.T) {
 	require.NoError(t, err, "report mode folds the structure problem instead of erroring")
 	counts := ruleCounts(repOut)
 	assert.Positive(t, counts["structure.json-syntax"], "should fold a structure.json-syntax finding: %+v", repOut.Findings)
-	assert.True(t, repOut.Pass, "report mode surfaces the finding but the default gate does not fail on it")
+	assert.Empty(t, repOut.Gate.Failed, "report mode surfaces the finding but the default gate does not fail on it")
+	// The read yielded no content, so nothing was checked: the report says it
+	// did not run rather than that the file passed.
+	assert.Equal(t, 0, repOut.Target.Blocks)
+	assert.Equal(t, check.VerdictDidNotRun, repOut.Verdict)
+	assert.False(t, repOut.Pass)
 	// The reader's location rode through into the finding metadata.
 	for _, d := range repOut.Findings {
 		if d.Rule == "structure.json-syntax" {

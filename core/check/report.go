@@ -22,8 +22,14 @@ const ReportSchema = "kapi.check/v1"
 type Report struct {
 	// Schema is the stable contract id (ReportSchema). Always set.
 	Schema string `json:"schema"`
-	// Pass is true when the gate did not trip (Gate.Failed is empty).
+	// Pass is true exactly when Verdict is VerdictPassed.
 	Pass bool `json:"pass"`
+	// Verdict is passed, failed or did_not_run. A check that examined no content,
+	// or whose analyzers could not show they were able to fail, did not run, and
+	// never reports passed. See Decide.
+	Verdict Verdict `json:"verdict"`
+	// DidNotRun says why the verdict is did_not_run, and is empty otherwise.
+	DidNotRun []string `json:"did_not_run,omitempty"`
 	// Target describes what was checked.
 	Target Target `json:"target"`
 	// Summary is the roll-up (counts + score).
@@ -257,15 +263,88 @@ func BuildReport(target Target, diags []Diagnostic, gate Gate, scoreOpts ...Scor
 	copy(sorted, diags)
 	SortDiagnostics(sorted)
 
-	gr := gate.Evaluate(sum)
-	return Report{
+	report := Report{
 		Schema:   ReportSchema,
-		Pass:     len(gr.Failed) == 0,
 		Target:   target,
 		Summary:  sum,
-		Gate:     gr,
+		Gate:     gate.Evaluate(sum),
 		Findings: sorted,
 	}
+	report.Decide()
+	return report
+}
+
+// Verdict is the outcome of a check.
+type Verdict string
+
+const (
+	VerdictPassed    Verdict = "passed"
+	VerdictFailed    Verdict = "failed"
+	VerdictDidNotRun Verdict = "did_not_run"
+)
+
+// Decide sets Verdict, Pass and DidNotRun from the report's target, gate and
+// execution. A producer calls it again after changing any of them.
+//
+// The rules apply in order:
+//
+//  1. An analyzer that missed its canary makes the run invalid, so the verdict
+//     is did_not_run, even when the gate failed: an analyzer that passed a
+//     known-bad input cannot be trusted about the rest either.
+//  2. A tripped gate is failed.
+//  3. A run that checked no blocks did not run.
+//  4. With execution reported, a run did not run when no analyzer completed
+//     with its canary caught, when an analyzer completed without a canary, or
+//     when a required analyzer had nothing it could catch.
+//  5. Anything else passed.
+func (r *Report) Decide() {
+	var invalid, unproven []string
+	proven := false
+	if r.Execution != nil {
+		for _, a := range r.Execution.Analyzers {
+			switch a.Status {
+			case AnalyzerInvalid:
+				invalid = append(invalid, fmt.Sprintf("%s reported no finding on its canary%s, so its result cannot be trusted", a.ID, onFile(a.File)))
+			case AnalyzerPassed, AnalyzerFindings:
+				if a.Canary == nil || a.Canary.Status != CanaryCaught {
+					unproven = append(unproven, fmt.Sprintf("%s reported a result%s without a caught canary", a.ID, onFile(a.File)))
+					continue
+				}
+				proven = true
+			case AnalyzerDidNotRun:
+				if a.Required {
+					unproven = append(unproven, fmt.Sprintf("%s did not run%s: %s", a.ID, onFile(a.File), a.Reason))
+				}
+			}
+		}
+	}
+	switch {
+	case len(invalid) > 0:
+		r.setVerdict(VerdictDidNotRun, invalid)
+	case len(r.Gate.Failed) > 0:
+		r.setVerdict(VerdictFailed, nil)
+	case r.Target.Blocks == 0:
+		r.setVerdict(VerdictDidNotRun, []string{"no content blocks were checked"})
+	case len(unproven) > 0:
+		r.setVerdict(VerdictDidNotRun, unproven)
+	case r.Execution != nil && !proven:
+		r.setVerdict(VerdictDidNotRun, []string{"no analyzer completed a check"})
+	default:
+		r.setVerdict(VerdictPassed, nil)
+	}
+}
+
+func (r *Report) setVerdict(v Verdict, reasons []string) {
+	r.Verdict = v
+	r.Pass = v == VerdictPassed
+	r.DidNotRun = reasons
+}
+
+func onFile(file string) string {
+	if file == "" {
+		return ""
+	}
+	return " on " + file
 }
 
 // SortDiagnostics orders diagnostics severity (critical→neutral) then rule, for
