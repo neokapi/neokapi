@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -591,6 +592,195 @@ func TestRoundTripTestNamingConvention(t *testing.T) {
 			"skeleton_test.go. Add a read->write fidelity test in one of those files "+
 			"(see docs/internals/format-maturity.md, L1). Do not add it to the "+
 			"grandfathered ledger.", id)
+	}
+}
+
+// proseLanguage is one entry of core/formats/prose.yaml, the languages the
+// Prose axis tracks that have no format directory (format-maturity.md §2.8).
+type proseLanguage struct {
+	Name     string `yaml:"name"`
+	Provider string `yaml:"provider"`
+}
+
+// proseCanaryDir is the one place the probe's canary subject may be named.
+const proseCanaryDir = "scripts/proseprobe/canary"
+
+var (
+	proseSubjectRe = regexp.MustCompile(`^[a-z][a-z0-9]*$`)
+	// proseTestNameRe is the naming contract for a rung test; scripts/proseprobe
+	// applies the same pattern when it scores.
+	proseTestNameRe = regexp.MustCompile(`^TestProseP([0-4])_([a-z][a-z0-9]*)$`)
+	// proseClaimRe finds every test that claims the axis, well formed or not.
+	proseClaimRe = regexp.MustCompile(`(?m)^func\s+(TestProseP[0-9]\w*)\s*\(`)
+)
+
+func readProseLanguages(t *testing.T) map[string]proseLanguage {
+	t.Helper()
+	var doc struct {
+		Languages map[string]proseLanguage `yaml:"languages"`
+	}
+	if err := yaml.Unmarshal(readRegistryFile(t, "prose.yaml"), &doc); err != nil {
+		t.Fatalf("parse prose.yaml: %v", err)
+	}
+	return doc.Languages
+}
+
+func realFormatSet(t *testing.T) map[string]bool {
+	t.Helper()
+	set := map[string]bool{}
+	for _, id := range realFormatDirs(t) {
+		set[id] = true
+	}
+	return set
+}
+
+// proseLanguageProblem explains why a registry entry is refused, or returns "".
+func proseLanguageProblem(id string, l proseLanguage, formats map[string]bool) string {
+	switch {
+	case !proseSubjectRe.MatchString(id):
+		return fmt.Sprintf("prose.yaml: language %q is not lowercase letters and digits, so no rung test name can carry it", id)
+	case id == "canary":
+		return "prose.yaml: `canary` is reserved for the probe's own fixture"
+	case formats[id]:
+		return fmt.Sprintf("prose.yaml: %q is a format under core/formats; a format is scored on its own row and is not listed as a language", id)
+	case strings.TrimSpace(l.Name) == "":
+		return fmt.Sprintf("prose.yaml: language %q has no name", id)
+	case l.Provider != "" && !formats[l.Provider]:
+		return fmt.Sprintf("prose.yaml: language %q names provider %q, which is not a format under core/formats", id, l.Provider)
+	}
+	return ""
+}
+
+// proseTestNameProblem explains why a test claiming the Prose axis cannot be
+// placed, or returns "". dir is the test's directory, repository-relative.
+func proseTestNameProblem(name, dir string, formats map[string]bool, langs map[string]proseLanguage) string {
+	m := proseTestNameRe.FindStringSubmatch(name)
+	if m == nil {
+		return fmt.Sprintf("%s in %s claims the Prose axis but does not match TestProseP<0-4>_<subject>", name, dir)
+	}
+	subject := m[2]
+	if subject == "canary" {
+		if dir != proseCanaryDir {
+			return fmt.Sprintf("%s in %s names the probe's canary, which lives only in %s", name, dir, proseCanaryDir)
+		}
+		return ""
+	}
+	if _, ok := langs[subject]; !ok && !formats[subject] {
+		return fmt.Sprintf("%s in %s names %q, which is neither a format under core/formats nor a language in prose.yaml", name, dir, subject)
+	}
+	return ""
+}
+
+// TestProseRegistry is a hard gate on core/formats/prose.yaml: language ids
+// are usable in a rung test name, never collide with a format or the canary,
+// and name a real format when they name a provider.
+func TestProseRegistry(t *testing.T) {
+	langs := readProseLanguages(t)
+	if len(langs) == 0 {
+		t.Fatal("prose.yaml parsed but lists no languages")
+	}
+	formats := realFormatSet(t)
+	for id, l := range langs {
+		if msg := proseLanguageProblem(id, l, formats); msg != "" {
+			t.Error(msg)
+		}
+	}
+}
+
+func TestProseRegistryRefuses(t *testing.T) {
+	formats := map[string]bool{"yaml": true, "sourcecode": true}
+	assert.Empty(t, proseLanguageProblem("go", proseLanguage{Name: "Go"}, formats))
+	assert.Empty(t, proseLanguageProblem("ruby", proseLanguage{Name: "Ruby", Provider: "sourcecode"}, formats))
+	for id, l := range map[string]proseLanguage{
+		"Go":      {Name: "Go"},
+		"go-lang": {Name: "Go"},
+		"canary":  {Name: "Canary"},
+		"yaml":    {Name: "YAML"},
+		"rust":    {},
+		"python":  {Name: "Python", Provider: "treesitter"},
+	} {
+		assert.NotEmpty(t, proseLanguageProblem(id, l, formats), id)
+	}
+}
+
+// TestProseRungTestNames holds every test in the repository that claims the
+// Prose axis to the naming contract, so a misspelt rung test fails here rather
+// than scoring nothing. The walk must find the canary; a walk that finds no
+// claim at all has read nothing and fails.
+func TestProseRungTestNames(t *testing.T) {
+	root := filepath.Join("..", "..")
+	if !fileExists(filepath.Join(root, "go.work")) {
+		t.Skip("no go.work above core/formats (partial checkout): the repository cannot be walked")
+	}
+	formats := realFormatSet(t)
+	langs := readProseLanguages(t)
+
+	claims := 0
+	canary := 0
+	err := filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		name := d.Name()
+		if d.IsDir() {
+			if p != root && (strings.HasPrefix(name, ".") || strings.HasPrefix(name, "_") ||
+				name == "node_modules" || name == "testdata" || name == "vendor") {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !strings.HasSuffix(name, "_test.go") {
+			return nil
+		}
+		src, err := os.ReadFile(p)
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(root, filepath.Dir(p))
+		if err != nil {
+			return err
+		}
+		dir := filepath.ToSlash(rel)
+		for _, m := range proseClaimRe.FindAllStringSubmatch(string(src), -1) {
+			claims++
+			if dir == proseCanaryDir {
+				canary++
+			}
+			if msg := proseTestNameProblem(m[1], dir, formats, langs); msg != "" {
+				t.Error(msg)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk the repository: %v", err)
+	}
+	if canary == 0 {
+		t.Fatalf("found %d Prose rung tests and none in %s: the walk did not reach the probe's canary", claims, proseCanaryDir)
+	}
+	t.Logf("%d Prose rung tests follow the naming contract", claims)
+}
+
+func TestProseRungTestNamesRefuse(t *testing.T) {
+	formats := map[string]bool{"yaml": true}
+	langs := map[string]proseLanguage{"go": {Name: "Go"}}
+	for _, ok := range []struct{ name, dir string }{
+		{"TestProseP1_yaml", "core/formats/yaml"},
+		{"TestProseP2_go", "host/check"},
+		{"TestProseP0_go", "plugins/gocomments"},
+		{"TestProseP4_canary", proseCanaryDir},
+	} {
+		assert.Empty(t, proseTestNameProblem(ok.name, ok.dir, formats, langs), ok.name)
+	}
+	for _, bad := range []struct{ name, dir string }{
+		{"TestProseP5_go", "host/check"},
+		{"TestProseP1_Go", "host/check"},
+		{"TestProseP1_golang", "host/check"},
+		{"TestProseP1_go_edges", "host/check"},
+		{"TestProseP1go", "host/check"},
+		{"TestProseP3_canary", "core/formats/yaml"},
+	} {
+		assert.NotEmpty(t, proseTestNameProblem(bad.name, bad.dir, formats, langs), bad.name)
 	}
 }
 

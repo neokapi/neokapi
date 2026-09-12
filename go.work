@@ -17,5 +17,6 @@ use (
 	./scripts/gen-refs
 	./scripts/mkappcast
 	./scripts/okapi-test-scan
+	./scripts/proseprobe
 	./scripts/testcompare
 )
