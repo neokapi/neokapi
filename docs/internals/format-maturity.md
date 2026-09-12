@@ -589,9 +589,9 @@ A language row carries a presence beside its level:
 
 | Presence | Meaning |
 |---|---|
-| present | At least one rung test for the language ran to a pass or a fail. |
-| absent | No rung test names the language, so the build has no reader for it. Presence describes the build: a language whose files carry no comments is present as soon as one of its rung tests runs. |
-| did not run | Rung tests name the language, and none of them produced a result. |
+| present | Every presence test for the language passed. A presence test asserts what the build contains: a provider in the comment registry, or a grammar in a plugin's list. |
+| absent | The language has no presence test, or one failed, so the build has no reader for it. A language whose files carry no comments is still present. |
+| did not run | A presence test was skipped, did not build, or produced no result. |
 
 Only a present language has a level. A format is present by registration.
 
@@ -606,10 +606,11 @@ change to the scorer:
   under `plugins/`. Several packages may claim the same rung, and the rung is met
   only when every claim passes.
 - It asserts the rung's criteria against the real reader or check path.
-- `TestProseP0_<language>` claims no rung. It is a presence test that proves the
-  build reads the language, so a language with nothing above P0 reports as
-  present at P0 rather than absent (`TestProseP0_ruby` in the sourcecode plugin
-  is one).
+- `TestProseP0_<language>` claims no rung. It is the language's presence test
+  and asserts what the build contains, so a present language with no passing P1
+  scores P0. Rung tests above P0 never establish presence, because a package can
+  pass its P1 test while no binary links it. `TestProseP0_ruby` asserts the
+  sourcecode plugin's `Grammars()`.
 - A name that begins `TestProseP` and a digit but breaks the pattern, or that
   names a subject which is neither a format nor a `prose.yaml` language, fails
   `TestProseRungTestNames` in `core/formats/maturity_test.go` and invalidates a
@@ -632,7 +633,8 @@ all, the report records the command's error and every test in that module did
 not run.
 
 **A canary in every run.** `scripts/proseprobe/canary` holds a subject built to be
-refused. Its P1 test skips, P2 passes with no P1 beneath it, P3 fails, and P4
+refused. Its presence test passes, so its rungs are judged. Its P1 test skips,
+P2 passes with no P1 beneath it, P3 fails, and P4
 passes only because its one subtest skips. Every probe run scores the canary and
 requires P0 with exactly those outcomes: did not run, met, not met, did not run.
 Any other scoring means the classification is broken. The run is then invalid,

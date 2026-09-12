@@ -35,9 +35,12 @@ const (
 // Presence says whether the build reads a subject at all.
 //
 // A format is present by registration: it is in the maturity universe because
-// it has a reader. A language has no such seat, so it is present only when a
-// rung test for it ran to a pass or a fail, absent when no rung test names it,
-// and did-not-run when rung tests exist but none produced a result.
+// it has a reader. A language's presence comes from its presence tests,
+// TestProseP0_<id>, which assert what the build contains: a provider in the
+// comment registry, a grammar in a plugin's list. Every presence test passing
+// is present, one failing is absent, one that did not run is did-not-run, and
+// no presence test is absent. Rung tests above P0 never establish presence,
+// because a package can pass its P1 test while no binary links it.
 type Presence string
 
 const (
@@ -648,7 +651,7 @@ func Score(id, kind string, tests []RungTest) Subject {
 
 	s.Presence = Present
 	if kind == KindLanguage {
-		s.Presence = languagePresence(tests)
+		s.Presence = languagePresence(s.PresenceTests)
 	}
 	if s.Presence == Present {
 		s.Level = Level(s.Rungs)
@@ -656,16 +659,23 @@ func Score(id, kind string, tests []RungTest) Subject {
 	return s
 }
 
-func languagePresence(tests []RungTest) Presence {
-	if len(tests) == 0 {
+// languagePresence folds a language's presence tests. A failure means the
+// build does not contain the reader the test looks for, so it outranks a test
+// that did not run.
+func languagePresence(p0 []RungTest) Presence {
+	if len(p0) == 0 {
 		return Absent
 	}
-	for _, t := range tests {
-		if o := OutcomeOf(t.Result); o == Met || o == NotMet {
-			return Present
+	presence := Present
+	for _, t := range p0 {
+		switch OutcomeOf(t.Result) {
+		case NotMet:
+			return Absent
+		case DidNotRun:
+			presence = PresenceUnproven
 		}
 	}
-	return PresenceUnproven
+	return presence
 }
 
 // CheckCanary returns a problem for every way the canary's scoring departs

@@ -20,6 +20,12 @@ func underProbe(t *testing.T) {
 	}
 }
 
+// TestProseP0_canary is the canary's presence test. It passes under the probe,
+// so the canary is present and its rungs are judged.
+func TestProseP0_canary(t *testing.T) {
+	underProbe(t)
+}
+
 // TestProseP1_canary skips. A skip reports as green to `go test` and must come
 // to did-not-run.
 func TestProseP1_canary(t *testing.T) {

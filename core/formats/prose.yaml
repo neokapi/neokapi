@@ -4,7 +4,8 @@
 # A format is scored on its own row, by rung tests named for its id. A source
 # language is not a format, so it is listed here instead. An entry adds a row
 # and never a rung: the level comes only from the rung tests scripts/proseprobe
-# runs, and a language that no rung test names reports as absent.
+# runs. A language is present only when its presence test, TestProseP0_<key>,
+# passes; that test asserts what the build contains. Without one it is absent.
 #
 # Each key is the subject a rung test names, as in TestProseP1_go: lowercase
 # letters and digits, never the id of a format and never `canary`, which the

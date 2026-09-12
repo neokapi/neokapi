@@ -274,7 +274,7 @@ function renderDocsBlock() {
     L.push(`| ${cells.join(' | ')} |`)
   }
   // Languages carry only the Prose axis, so they get their own table. A
-  // language with no level is absent from the build, or its rung tests did
+  // language with no level is absent from the build, or its presence test did
   // not run.
   L.push('')
   L.push('### Languages (Prose axis)')

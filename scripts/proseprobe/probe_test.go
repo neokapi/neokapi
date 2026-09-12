@@ -160,30 +160,42 @@ func TestScorePresence(t *testing.T) {
 		assert.Equal(t, Absent, s.Presence)
 		assert.Empty(t, s.Level)
 	})
-	t.Run("a language whose tests did not run has no level", func(t *testing.T) {
-		s := Score("go", KindLanguage, []RungTest{rungTest("go", "P1", resultBuildFailed), rungTest("go", "P2", resultSkipped)})
-		assert.Equal(t, PresenceUnproven, s.Presence)
-		assert.Empty(t, s.Level)
-	})
 	t.Run("a presence test alone makes a language present at P0", func(t *testing.T) {
 		s := Score("ruby", KindLanguage, []RungTest{rungTest("ruby", "P0", resultPassed)})
 		assert.Equal(t, Present, s.Presence)
 		assert.Equal(t, "P0", s.Level)
 		assert.Len(t, s.PresenceTests, 1)
 	})
-	t.Run("a failing rung test is still evidence the language is read", func(t *testing.T) {
-		s := Score("go", KindLanguage, []RungTest{rungTest("go", "P1", resultFailed)})
+	t.Run("must fail: a passing rung test without a presence test is absent", func(t *testing.T) {
+		s := Score("go", KindLanguage, []RungTest{rungTest("go", "P1", resultPassed), rungTest("go", "P2", resultPassed)})
+		assert.Equal(t, Absent, s.Presence, "a package can pass its rung tests while no binary links it")
+		assert.Empty(t, s.Level)
+	})
+	t.Run("a failing presence test is absent", func(t *testing.T) {
+		s := Score("go", KindLanguage, []RungTest{rungTest("go", "P0", resultPassed), rungTest("go", "P0", resultFailed), rungTest("go", "P1", resultPassed)})
+		assert.Equal(t, Absent, s.Presence)
+		assert.Empty(t, s.Level)
+	})
+	t.Run("a presence test that did not run has no level", func(t *testing.T) {
+		s := Score("go", KindLanguage, []RungTest{rungTest("go", "P0", resultBuildFailed), rungTest("go", "P1", resultPassed)})
+		assert.Equal(t, PresenceUnproven, s.Presence)
+		assert.Empty(t, s.Level)
+	})
+	t.Run("a present language that meets P1 and P2", func(t *testing.T) {
+		s := Score("go", KindLanguage, []RungTest{rungTest("go", "P0", resultPassed), rungTest("go", "P1", resultPassed), rungTest("go", "P2", resultPassed)})
+		assert.Equal(t, Present, s.Presence)
+		assert.Equal(t, "P2", s.Level)
+	})
+	t.Run("a present language with no passing P1 is P0", func(t *testing.T) {
+		s := Score("go", KindLanguage, []RungTest{rungTest("go", "P0", resultPassed), rungTest("go", "P1", resultFailed)})
 		assert.Equal(t, Present, s.Presence)
 		assert.Equal(t, "P0", s.Level)
-	})
-	t.Run("a language that meets P1 and P2", func(t *testing.T) {
-		s := Score("go", KindLanguage, []RungTest{rungTest("go", "P1", resultPassed), rungTest("go", "P2", resultPassed)})
-		assert.Equal(t, "P2", s.Level)
 	})
 }
 
 func expectedCanary() Subject {
 	return Score(CanaryID, KindLanguage, []RungTest{
+		rungTest(CanaryID, "P0", resultPassed),
 		rungTest(CanaryID, "P1", resultSkipped),
 		rungTest(CanaryID, "P2", resultPassed),
 		rungTest(CanaryID, "P3", resultFailed),
@@ -216,7 +228,7 @@ func TestCheckCanary(t *testing.T) {
 // Every classification above is proven here against events `go test` emitted
 // rather than events written by hand.
 func TestCanaryUnderRealGoTest(t *testing.T) {
-	names := []string{"TestProseP1_canary", "TestProseP2_canary", "TestProseP3_canary", "TestProseP4_canary"}
+	names := []string{"TestProseP0_canary", "TestProseP1_canary", "TestProseP2_canary", "TestProseP3_canary", "TestProseP4_canary"}
 	stdout, stderr, err := ExecGo(context.Background(), ".", append(os.Environ(), canaryEnv+"=1"),
 		[]string{"test", "-json", "-count=1", "-run", "^(" + strings.Join(names, "|") + ")$", "./canary"})
 	require.NoError(t, err, string(stderr))
@@ -249,7 +261,7 @@ func fixtureRoot(t *testing.T, extra map[string]string) string {
 		"frame/nested/go.mod":            "module example.com/nested\n",
 		"frame/nested/n_test.go":         "func TestProseP1_notseen(t *testing.T) {}\n",
 		"scripts/proseprobe/go.mod":      "module github.com/neokapi/neokapi/scripts/proseprobe\n",
-		"scripts/proseprobe/canary/c_test.go": "func TestProseP1_canary(t *testing.T) {}\nfunc TestProseP2_canary(t *testing.T) {}\n" +
+		"scripts/proseprobe/canary/c_test.go": "func TestProseP0_canary(t *testing.T) {}\nfunc TestProseP1_canary(t *testing.T) {}\nfunc TestProseP2_canary(t *testing.T) {}\n" +
 			"func TestProseP3_canary(t *testing.T) {}\nfunc TestProseP4_canary(t *testing.T) {}\n",
 		"plugins/src/go.mod":                     "module example.com/src\n",
 		"plugins/src/read/p_test.go":             "func TestProseP0_ruby(t *testing.T) {}\n",
@@ -271,7 +283,8 @@ func fixtureRoot(t *testing.T, extra map[string]string) string {
 
 // canaryStream is the event stream the canary produces under a probe run.
 func canaryStream() string {
-	return ev("skip", canaryPackage, "TestProseP1_canary") +
+	return ev("pass", canaryPackage, "TestProseP0_canary") +
+		ev("skip", canaryPackage, "TestProseP1_canary") +
 		ev("pass", canaryPackage, "TestProseP2_canary") +
 		ev("fail", canaryPackage, "TestProseP3_canary") +
 		ev("skip", canaryPackage, "TestProseP4_canary/only-case") +
