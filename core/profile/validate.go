@@ -6,6 +6,7 @@ import (
 	"io"
 	"regexp"
 	"slices"
+	"sort"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/check"
@@ -105,6 +106,7 @@ func ValidateProfile(p *VoiceProfile) []ProfileProblem {
 	}
 
 	probs = append(probs, validateConstraints(p)...)
+	probs = append(probs, validatePresentationOverrides(p)...)
 
 	// MinScore is an optional 0–100 bar; 0 means "use the default".
 	if p.MinScore < 0 || p.MinScore > 100 {
@@ -267,4 +269,88 @@ func FieldValues() map[string]FieldValueSet {
 		"severity":              {Values: slices.Clone(validSeverity)},
 		"scope":                 {Values: []string{ScopeProse, ScopeCode, ScopeHeading}},
 	}
+}
+
+// validatePresentationOverrides warns where a channel or persona supplies its
+// own style and drops one of the base profile's patterns with it.
+//
+// The replacement itself is deliberate. Tone and style are presentation, and an
+// audience is entitled to set its own, which is why ResolveProfile assigns the
+// whole struct. A rule that must hold whatever the audience belongs under
+// constraints:, which resolution never replaces and which carries a scope, a
+// source and its exceptions.
+//
+// What has no signal today is the mistake in between: an author states a
+// mandatory rule as a style pattern, declares an audience, and never learns
+// that the rule stopped applying there. The audience sample lost a safety rule
+// exactly that way, and a coverage lab found it rather than a check. A pattern
+// the profile also states as a constraint is not reported, because that author
+// has already done the right thing.
+func validatePresentationOverrides(p *VoiceProfile) []ProfileProblem {
+	base := map[string]Pattern{}
+	for _, pat := range p.Style.ProhibitedPatterns {
+		base[pat.Regex] = pat
+	}
+	for _, pat := range p.Style.RequiredPatterns {
+		base[pat.Regex] = pat
+	}
+	if len(base) == 0 {
+		return nil
+	}
+
+	constrained := map[string]bool{}
+	for _, c := range p.Constraints {
+		if c.Regex != "" {
+			constrained[c.Regex] = true
+		}
+	}
+
+	var probs []ProfileProblem
+	report := func(field, kind, name string, style *StyleRules) {
+		if style == nil {
+			return
+		}
+		kept := map[string]bool{}
+		for _, pat := range style.ProhibitedPatterns {
+			kept[pat.Regex] = true
+		}
+		for _, pat := range style.RequiredPatterns {
+			kept[pat.Regex] = true
+		}
+		for _, regex := range sortedKeys(base) {
+			if kept[regex] || constrained[regex] {
+				continue
+			}
+			probs = append(probs, ProfileProblem{
+				Field: field,
+				Message: fmt.Sprintf(
+					"%s %q supplies its own style, so the base pattern %q does not apply there. "+
+						"State it under constraints: if it must hold for every audience.",
+					kind, name, regex,
+				),
+				Warning: true,
+			})
+		}
+	}
+
+	for _, name := range sortedKeys(p.Channels) {
+		o := p.Channels[name]
+		report("channels."+name+".style", "channel", name, o.Style)
+	}
+	for _, name := range sortedKeys(p.Personas) {
+		o := p.Personas[name]
+		report("personas."+name+".style", "persona", name, o.Style)
+	}
+	return probs
+}
+
+// sortedKeys keeps the reported problems in a stable order whatever the map
+// iteration gives.
+func sortedKeys[V any](m map[string]V) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
 }
