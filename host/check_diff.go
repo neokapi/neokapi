@@ -209,24 +209,43 @@ func (a *App) runDiffCheck(ctx context.Context, run diffCheckRun) (check.Report,
 	return report, nil
 }
 
+// blockLocator reads one changed file's content into its blocks and the extent
+// of each in that content. It is where a diff-scoped check learns a file's
+// blocks, so a provider other than a format reader plugs in by returning one
+// from locatorFor.
+type blockLocator func(ctx context.Context, content []byte) (scopedRead, error)
+
+// locatorFor returns how to locate the blocks of the changed file at path, or
+// nil when nothing reads it. A format reader locates them by aligning its
+// skeleton with the content.
+func (a *App) locatorFor(run diffCheckRun, path string) blockLocator {
+	fmtName, cfg := run.opts.formats.forFile(a, path)
+	if fmtName == "" {
+		detected, err := a.FormatReg.Detect(path, registry.DetectOptions{ExtensionOnly: true})
+		if err != nil || detected == "" {
+			return nil
+		}
+		fmtName = string(detected)
+	}
+	return func(ctx context.Context, content []byte) (scopedRead, error) {
+		return a.readWithExtents(ctx, path, content, fmtName, cfg)
+	}
+}
+
 // checkDiffFile reads one changed file once, locates its blocks, and checks the
 // ones the change touched. It fills entry with the outcome and returns the
 // findings and how many blocks it checked.
 func (a *App) checkDiffFile(ctx context.Context, run diffCheckRun, f diffscope.File, abs string, entry *check.ScopeFile) ([]check.Diagnostic, int, error) {
-	fmtName, cfg := run.opts.formats.forFile(a, abs)
-	if fmtName == "" {
-		detected, err := a.FormatReg.Detect(abs, registry.DetectOptions{ExtensionOnly: true})
-		if err != nil || detected == "" {
-			entry.Status, entry.Reason = check.ScopeNoReader, "no format reads this file"
-			return nil, 0, nil
-		}
-		fmtName = string(detected)
+	locate := a.locatorFor(run, abs)
+	if locate == nil {
+		entry.Status, entry.Reason = check.ScopeNoReader, "no format reads this file"
+		return nil, 0, nil
 	}
 	content, err := readScopedSource(abs)
 	if err != nil {
 		return nil, 0, fmt.Errorf("read %s: %w", entry.Path, err)
 	}
-	read, err := a.readWithExtents(ctx, abs, content, fmtName, cfg)
+	read, err := locate(ctx, content)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -257,8 +276,12 @@ func (a *App) checkDiffFile(ctx context.Context, run diffCheckRun, f diffscope.F
 		}
 	}
 
+	touchedExtents := diffscope.Touched(read.extents, f.Changes)
+	if len(diffscope.Bordered(touchedExtents, f.Changes)) > 0 {
+		touchedExtents = settleBordered(ctx, locate, f, content, touchedExtents)
+	}
 	lines := map[string]format.LineRange{}
-	for _, x := range diffscope.Touched(read.extents, f.Changes) {
+	for _, x := range touchedExtents {
 		if _, seen := lines[x.Block]; !seen {
 			lines[x.Block] = x.Lines
 		}
@@ -302,6 +325,23 @@ func (a *App) checkDiffFile(ctx context.Context, run diffCheckRun, f diffscope.F
 		}
 	}
 	return diags, len(touched), nil
+}
+
+// settleBordered narrows a scope a deletion widened: a block the deletion only
+// borders is dropped when the file as it was before the change holds the same
+// block on the same lines. It rebuilds that pre-image from the diff and locates
+// its blocks the same way, a second parse that happens only here. Anything that
+// stops it keeps the wider scope.
+func settleBordered(ctx context.Context, locate blockLocator, f diffscope.File, post []byte, touched []format.Extent) []format.Extent {
+	pre, err := f.PreImage(post)
+	if err != nil || pre == nil {
+		return touched
+	}
+	read, err := locate(ctx, pre)
+	if err != nil || read.unlocated != nil {
+		return touched
+	}
+	return diffscope.Settle(f, post, touched, pre, read.extents)
 }
 
 // scopedRead is one file read for a diff-scoped check.

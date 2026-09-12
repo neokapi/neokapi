@@ -292,3 +292,38 @@ func TestBuildReport_ZeroBlocksNeverPasses(t *testing.T) {
 	assert.True(t, r.Pass)
 	assert.Equal(t, VerdictPassed, r.Verdict)
 }
+
+// TestDecide_Causes gives each kind of did_not_run its own cause code, and
+// checks that a failed canary is never reported as an empty scope.
+func TestDecide_Causes(t *testing.T) {
+	proven := []AnalyzerExecution{caughtRun("hygiene", AnalyzerPassed)}
+	tests := []struct {
+		name   string
+		report Report
+		cause  string
+	}{
+		{"a missed canary", Report{Target: Target{Blocks: 0}, Execution: &Execution{Analyzers: []AnalyzerExecution{
+			{ID: "hygiene", Status: AnalyzerInvalid, Canary: &CanaryOutcome{Status: CanaryMissed}},
+		}}}, CauseCheckerInvalid},
+		{"no blocks", Report{Target: Target{Blocks: 0}, Execution: &Execution{Analyzers: proven}}, CauseNothingToCheck},
+		{"a diff touching no block", Report{Target: Target{Blocks: 0}, Scope: &Scope{Files: []ScopeFile{{Path: "a.md", Status: ScopeUntouched}}}, Execution: &Execution{Analyzers: proven}}, CauseNothingToCheck},
+		{"a changed file left unchecked", Report{Target: Target{Blocks: 2}, Scope: &Scope{Files: []ScopeFile{{Path: "a.md", Status: ScopeDidNotRun, Reason: "ambiguous"}}}, Execution: &Execution{Analyzers: proven}}, CauseContentNotChecked},
+		{"a required analyzer with nothing to catch", Report{Target: Target{Blocks: 2}, Execution: &Execution{Analyzers: append(proven, AnalyzerExecution{ID: "pattern", Status: AnalyzerDidNotRun, Required: true})}}, CauseContentNotChecked},
+		{"a pass", Report{Target: Target{Blocks: 2}, Execution: &Execution{Analyzers: proven}}, ""},
+	}
+	summaries := map[string]string{}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := tt.report
+			r.Decide()
+			assert.Equal(t, tt.cause, r.DidNotRunCause)
+			if tt.cause != "" {
+				assert.NotEmpty(t, CauseSummary(tt.cause))
+				summaries[tt.cause] = CauseSummary(tt.cause)
+			}
+		})
+	}
+	assert.Len(t, summaries, 3)
+	assert.NotContains(t, CauseSummary(CauseNothingToCheck), "canary")
+	assert.Contains(t, CauseSummary(CauseCheckerInvalid), "cannot be trusted")
+}

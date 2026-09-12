@@ -43,6 +43,15 @@ func (r checkReport) FormatText(w io.Writer) error {
 	}
 	fmt.Fprintf(w, "%s configured checks: ", verdict)
 	writeFindingsCounts(w, r.Summary)
+	if r.Verdict == check.VerdictDidNotRun {
+		// The causes share an exit code, so the sentence is what tells a broken
+		// checker from an empty scope.
+		sentence := s.Warn.Render("Did not run: " + check.CauseSummary(r.DidNotRunCause) + ".")
+		if r.DidNotRunCause == check.CauseCheckerInvalid {
+			sentence = s.Error.Render("Did not run: " + check.CauseSummary(r.DidNotRunCause) + ".")
+		}
+		fmt.Fprintf(w, "  %s (%s)\n", sentence, r.DidNotRunCause)
+	}
 	if r.Execution != nil {
 		completed, invalid, skipped := 0, 0, 0
 		for _, run := range r.Execution.Analyzers {
@@ -182,7 +191,7 @@ func (a *App) RunCheck(cmd Command, args []string) error {
 	case check.VerdictDidNotRun:
 		// --no-fail and --lenient govern what the findings do to the exit code.
 		// A check that did not run has no findings to read, so neither applies.
-		return fmt.Errorf("%w: %s", ErrCheckNotRun, strings.Join(report.DidNotRun, "; "))
+		return fmt.Errorf("%w: %s (%s): %s", ErrCheckNotRun, check.CauseSummary(report.DidNotRunCause), report.DidNotRunCause, strings.Join(report.DidNotRun, "; "))
 	case check.VerdictFailed:
 		if noFail, _ := cmd.Flags().GetBool("no-fail"); noFail {
 			return nil

@@ -52,7 +52,8 @@ kapi check draft.md --json                            # project-scoped guidance
 The check exits 0 when the gate passes, 3 when it fails, and 4 when it did not
 run: no content was checked, or a check reported nothing on the known-bad sample
 it runs beside the content. Treat 4 as unverified, never as a pass; `--no-fail`
-does not change it. Findings identify the
+does not change it. Read `did_not_run_cause`: `checker_invalid` means a checker
+is broken and the run cannot be trusted. Findings identify the
 location and rule, with a suggested fix where available. Inspect analyzer
 coverage and review unsupported guidance separately. Use `kapi check --ship`
 when the task includes project release gates. Load the voice guide and the

@@ -216,6 +216,16 @@ func TestDiffCheck_Outcomes(t *testing.T) {
 		assert.Equal(t, check.VerdictPassed, report.Verdict, report.DidNotRun)
 	})
 
+	t.Run("a CRLF file", func(t *testing.T) {
+		report, err := run(t, map[string]string{"app.json": "{\r\n  \"a\": \"Alpha\",\r\n  \"b\": \"Bravo, new\"\r\n}\r\n"},
+			"--- a/app.json\r\n+++ b/app.json\r\n@@ -1,4 +1,4 @@\r\n {\r\n   \"a\": \"Alpha\",\r\n-  \"b\": \"Bravo\"\r\n+  \"b\": \"Bravo, new\"\r\n }\r\n")
+		require.NoError(t, err)
+		entry := scopeEntry(t, report, "app.json")
+		assert.Equal(t, check.ScopeChecked, entry.Status, entry.Reason)
+		require.Len(t, entry.Blocks, 1)
+		assert.Equal(t, format.LineRange{First: 3, Last: 3}, entry.Blocks[0].Lines)
+	})
+
 	t.Run("a diff taken from another tree is refused", func(t *testing.T) {
 		_, err := run(t, map[string]string{"doc.md": "# Title\n\nPara.\n"},
 			"--- a/doc.md\n+++ b/doc.md\n@@ -3 +3 @@\n-Old.\n+New.\n")
