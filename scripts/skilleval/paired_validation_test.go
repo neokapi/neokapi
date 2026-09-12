@@ -34,9 +34,18 @@ func TestPairedIndependentValidation(t *testing.T) {
 		t.Run(task.ID, func(t *testing.T) {
 			dir := t.TempDir()
 			require.NoError(t, materializePairedTask(dir, task))
+			// A task with nothing editable is satisfied by the content it ships
+			// with, so for that one the untouched workspace is the reference
+			// result. Treating no change as non-completion everywhere would make
+			// such a task score the opposite of what it measures.
+			noChange := len(task.spec.Editable) == 0
 			initial, err := validatePairedTask(dir, task)
 			require.NoError(t, err)
-			assert.False(t, initial.ObjectivePassed, "doing nothing is not completion")
+			if noChange {
+				assert.True(t, initial.ObjectivePassed, "%+v", initial.Criteria)
+			} else {
+				assert.False(t, initial.ObjectivePassed, "doing nothing is not completion")
+			}
 			repairPairedFixture(t, dir, task)
 			repaired, err := validatePairedTask(dir, task)
 			require.NoError(t, err)
@@ -44,7 +53,9 @@ func TestPairedIndependentValidation(t *testing.T) {
 			assert.True(t, repaired.HumanReviewRequired)
 			assert.Equal(t, "pending", repaired.HumanReviewStatus)
 			assert.NotEmpty(t, repaired.HumanReviewRubric)
-			// Cosmetic JSON formatting is not a content or fidelity failure.
+			// Cosmetic JSON formatting is not a content or fidelity failure where
+			// the task asked for an edit. Where it asked for none, rewriting the
+			// file is itself the behaviour under measurement, so it must fail.
 			page := filepath.Join(dir, "content", "en", "page.json")
 			body, err := os.ReadFile(page)
 			require.NoError(t, err)
@@ -55,7 +66,7 @@ func TestPairedIndependentValidation(t *testing.T) {
 			require.NoError(t, os.WriteFile(page, compact, 0o600))
 			again, err := validatePairedTask(dir, task)
 			require.NoError(t, err)
-			assert.True(t, again.ObjectivePassed)
+			assert.Equal(t, !noChange, again.ObjectivePassed)
 		})
 	}
 }

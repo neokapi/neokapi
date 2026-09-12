@@ -16,7 +16,7 @@ import (
 
 func TestPairedCorpusMaterialization(t *testing.T) {
 	tasks := pairedTasks()
-	require.Len(t, tasks, 7)
+	require.Len(t, tasks, 8)
 	families := map[string]int{}
 	seen := map[string]bool{}
 	for _, task := range tasks {
@@ -52,11 +52,23 @@ func TestPairedCorpusMaterialization(t *testing.T) {
 			})
 			require.NoError(t, err)
 			assert.Len(t, files, count)
-			assert.NotEmpty(t, task.spec.Criteria)
+			// A json_equals criterion resolves its path against parsed editable
+			// files, so one naming a non-editable path can never pass. A task
+			// whose correct outcome is no change therefore carries no criteria
+			// and is scored by the automatic per-file unchanged checks instead.
+			if len(task.spec.Editable) == 0 {
+				assert.Empty(t, task.spec.Criteria, "a task with nothing editable cannot pass explicit criteria")
+			} else {
+				assert.NotEmpty(t, task.spec.Criteria)
+			}
+			for _, criterion := range task.spec.Criteria {
+				assert.Contains(t, task.spec.Editable, criterion.Path,
+					"criterion %q names a path the validator never parses", criterion.ID)
+			}
 			assert.NotEmpty(t, task.spec.HumanReviewRubric)
 		})
 	}
-	assert.Equal(t, map[string]int{"audience-adaptation": 2, "scoped-rename": 2, "guidance-revision": 2, "equipment-policy": 1}, families)
+	assert.Equal(t, map[string]int{"audience-adaptation": 2, "scoped-rename": 2, "guidance-revision": 3, "equipment-policy": 1}, families)
 	hash, err := pairedCorpusHash()
 	require.NoError(t, err)
 	assert.Len(t, hash, 64)

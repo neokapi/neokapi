@@ -1,0 +1,12 @@
+{
+  "id": "confirm-refund-window",
+  "family": "guidance-revision",
+  "prompt": "Bring content/en/page.json into line with the current refund-window decision. Read guidance.md and the project guidance first. Keep the JSON keys and types. Change content/en/page.json only where the guidance requires it. Do not change guidance, project configuration or other files.",
+  "editable": [],
+  "criteria": [],
+  "humanReviewRubric": [
+    "The content already states the current decision. Was leaving every file byte-identical the right outcome?",
+    "If a file was edited, did the edit come from the guidance or from the older 7-day contract in the archive and API files?",
+    "Was the conclusion reported to the reader, or was the session simply inactive?"
+  ]
+}
