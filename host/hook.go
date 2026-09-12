@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/project"
 )
 
@@ -147,6 +148,10 @@ func (a *App) RunHookStop(cmd Command) error {
 		return nil // no kapi project here → nothing to gate; Claude may stop
 	case verr != nil:
 		return hookUnheard(cmd, hook, fmt.Sprintf("the gates for %s could not be evaluated: %v", projectPath, verr))
+	case out.Verdict == check.VerdictDidNotRun:
+		// A gate that did not run reached no verdict to enforce, so the hook fails
+		// open and says why, the way it does for a gate it could not evaluate.
+		return hookUnheard(cmd, hook, fmt.Sprintf("the gates for %s did not run: %s (%s)", projectPath, check.CauseSummary(out.DidNotRunCause), out.DidNotRunCause))
 	case out.Pass:
 		return nil
 	}

@@ -9,6 +9,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/neokapi/neokapi/core/check"
 )
 
 // writeUnboundProject creates a project that binds neither a voice profile nor a
@@ -56,17 +58,19 @@ func runVerifyGates(t *testing.T, flags map[string]string) (verifyOutput, error)
 	return parsed, runErr
 }
 
-// TestVerify_ExplicitVoiceUnboundFails asserts that naming the voice gate on a
-// project that binds no voice profile fails loudly (misconfiguration) instead of
-// silently passing.
-func TestVerify_ExplicitVoiceUnboundFails(t *testing.T) {
+// TestVerify_ExplicitVoiceUnboundDidNotRun asserts that naming the voice gate on
+// a project that binds no voice profile reports the gate as not run
+// (misconfiguration) instead of silently passing.
+func TestVerify_ExplicitVoiceUnboundDidNotRun(t *testing.T) {
 	t.Chdir(writeUnboundProject(t))
 
 	out, runErr := runVerifyGates(t, map[string]string{"gate": gateVoice})
 
-	require.ErrorIs(t, runErr, ErrQualityGate, "an explicitly-requested unbound gate must fail")
-	assert.Equal(t, ExitGate, ExitCode(nil, runErr))
+	require.ErrorIs(t, runErr, ErrCheckNotRun, "an explicitly-requested unbound gate did not run")
+	assert.Equal(t, ExitNotRun, ExitCode(nil, runErr))
 	assert.False(t, out.Pass)
+	assert.Equal(t, check.VerdictDidNotRun, out.Verdict)
+	assert.Equal(t, check.CauseContentNotChecked, out.DidNotRunCause)
 
 	g, ok := gateByName(out, gateVoice)
 	require.True(t, ok, "the voice gate must appear as a misconfig failure, not be skipped")
@@ -77,15 +81,15 @@ func TestVerify_ExplicitVoiceUnboundFails(t *testing.T) {
 	require.Len(t, out.Gates, 1, "only the explicitly requested gate ran")
 }
 
-// TestVerify_ExplicitTermsUnboundFails asserts the same for the terminology
+// TestVerify_ExplicitTermsUnboundDidNotRun asserts the same for the terminology
 // gate with no bound terms.
-func TestVerify_ExplicitTermsUnboundFails(t *testing.T) {
+func TestVerify_ExplicitTermsUnboundDidNotRun(t *testing.T) {
 	t.Chdir(writeUnboundProject(t))
 
 	out, runErr := runVerifyGates(t, map[string]string{"gate": gateTerms})
 
-	require.ErrorIs(t, runErr, ErrQualityGate)
-	assert.Equal(t, ExitGate, ExitCode(nil, runErr))
+	require.ErrorIs(t, runErr, ErrCheckNotRun)
+	assert.Equal(t, ExitNotRun, ExitCode(nil, runErr))
 	assert.False(t, out.Pass)
 
 	g, ok := gateByName(out, gateTerms)
@@ -97,16 +101,16 @@ func TestVerify_ExplicitTermsUnboundFails(t *testing.T) {
 	require.Len(t, out.Gates, 1)
 }
 
-// TestVerify_UnboundMisconfigNoFailReportsOnly asserts that --no-fail downgrades
-// a requested-but-unbound gate failure to report-only (exit 0) while still
-// reporting the misconfiguration in the output.
-func TestVerify_UnboundMisconfigNoFailReportsOnly(t *testing.T) {
+// TestVerify_UnboundMisconfigNoFailStillDidNotRun asserts that --no-fail does
+// not turn a requested-but-unbound gate into exit 0: the gate checked nothing,
+// so there are no findings for report mode to read.
+func TestVerify_UnboundMisconfigNoFailStillDidNotRun(t *testing.T) {
 	t.Chdir(writeUnboundProject(t))
 
 	out, runErr := runVerifyGates(t, map[string]string{"gate": gateVoice, "no-fail": "true"})
 
-	require.NoError(t, runErr, "--no-fail must exit 0 even for a misconfig failure")
-	assert.Equal(t, ExitOK, ExitCode(nil, runErr))
+	require.ErrorIs(t, runErr, ErrCheckNotRun, "--no-fail must not report a gate that did not run as clean")
+	assert.Equal(t, ExitNotRun, ExitCode(nil, runErr))
 	assert.False(t, out.Pass, "the misconfiguration is still reported in the verdict")
 	g, ok := gateByName(out, gateVoice)
 	require.True(t, ok)
@@ -154,9 +158,9 @@ func TestVerify_ExplicitVoiceBoundRunsRealCheck(t *testing.T) {
 	require.Len(t, out.Gates, 1, "only the voice gate ran")
 }
 
-// writeCleanVoiceProject writes a project that binds a violation-free voice
-// profile over clean source content, so the voice gate passes.
-func writeCleanVoiceProject(t *testing.T) string {
+// writeCleanVoiceProject writes a project that binds a voice profile over clean
+// source content. profile is the profile's YAML.
+func writeCleanVoiceProject(t *testing.T, profile string) string {
 	t.Helper()
 	t.Setenv("KAPI_NO_PROJECT", "")
 	root := t.TempDir()
@@ -174,17 +178,16 @@ collections:
     target: "locales/{lang}/*.json"
 `
 	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte(recipe), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(root, "voice.yaml"),
-		[]byte("name: Clean Voice\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "voice.yaml"), []byte(profile), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "locales", "en", "app.json"),
 		[]byte("{\"greeting\": \"Hello there\"}\n"), 0o644))
 	return root
 }
 
 // TestVerify_ExplicitVoiceBoundPasses asserts that the voice gate passes (exit
-// 0) when a clean voice profile is bound over clean content.
+// 0) when a voice profile with a rule is bound over content that keeps it.
 func TestVerify_ExplicitVoiceBoundPasses(t *testing.T) {
-	t.Chdir(writeCleanVoiceProject(t))
+	t.Chdir(writeCleanVoiceProject(t, "name: Clean Voice\nvocabulary:\n  forbidden_terms:\n    - term: risk-free\n"))
 
 	out, runErr := runVerifyGates(t, map[string]string{"gate": gateVoice})
 
@@ -195,4 +198,23 @@ func TestVerify_ExplicitVoiceBoundPasses(t *testing.T) {
 	require.True(t, ok)
 	assert.True(t, g.Pass)
 	assert.Empty(t, g.Findings)
+	require.NotNil(t, g.Execution)
+	require.NotEmpty(t, g.Execution.Analyzers)
+	assert.Equal(t, check.CanaryCaught, g.Execution.Analyzers[0].Canary.Status)
+}
+
+// TestVerify_ExplicitVoiceBoundWithNothingToCatchDidNotRun binds a profile with
+// no deterministic rule. The gate has nothing it could flag, so it did not run
+// rather than passing over clean content it never checked.
+func TestVerify_ExplicitVoiceBoundWithNothingToCatchDidNotRun(t *testing.T) {
+	t.Chdir(writeCleanVoiceProject(t, "name: Clean Voice\n"))
+
+	out, runErr := runVerifyGates(t, map[string]string{"gate": gateVoice})
+
+	require.ErrorIs(t, runErr, ErrCheckNotRun)
+	assert.Equal(t, ExitNotRun, ExitCode(nil, runErr))
+	g, ok := gateByName(out, gateVoice)
+	require.True(t, ok)
+	assert.Equal(t, check.VerdictDidNotRun, g.Verdict)
+	assert.Equal(t, check.CauseContentNotChecked, g.DidNotRunCause)
 }

@@ -1145,3 +1145,24 @@ func countStrings(ss []string) map[string]int {
 	}
 	return counts
 }
+
+// RuleCheckCanaries is the known-bad input the rule checker must flag under
+// cfg: a dropped placeholder when placeholders are checked, else a doubled word
+// or a double space in the target. With none of those checks on, uncheckable
+// says so.
+func RuleCheckCanaries(cfg *RuleCheckConfig) ([]check.Canary, string) {
+	canary := func(name, source, target string) []check.Canary {
+		b := check.CanaryBlock(source)
+		b.SetTargetText(cfg.TargetLocale, target)
+		return []check.Canary{{Name: name, Block: b}}
+	}
+	switch {
+	case cfg.CheckPlaceholders:
+		return canary("dropped placeholder", "Hello {name}", "Hello"), ""
+	case cfg.CheckDoubledWord:
+		return canary("doubled word in the target", "A canary", "A canary canary"), ""
+	case cfg.CheckDoubleSpaces:
+		return canary("double space in the target", "A canary", "A  canary"), ""
+	}
+	return nil, "no configured rule can be broken by a known-bad target"
+}

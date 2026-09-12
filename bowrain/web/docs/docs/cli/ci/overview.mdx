@@ -71,7 +71,7 @@ a pipeline needs:
 |---|---|---|
 | `kapi status` | **Observe**: per-locale coverage and gate standing | Always `0`: behind is pending work, not an error |
 | `kapi up` | **Produce**: runs the kapi loop | `0` whether the run caught everything up or parked work for review; non-zero only when the run broke |
-| `kapi check --ship` | **Enforce**: the release bar | `0` pass, `3` gate unmet, `1` operational error |
+| `kapi check --ship` | **Enforce**: the release bar | `0` pass, `3` gate unmet, `4` a gate did not run, `1` operational error |
 
 Parked work is pending review, not an error. The gate is the explicit,
 opt-in enforcement point: wire it into merge-request pipelines and a quality

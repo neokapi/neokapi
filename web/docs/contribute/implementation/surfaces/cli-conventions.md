@@ -98,9 +98,11 @@ retain that pairing; other named files receive source checks with their declared
 reader configuration.
 
 The terminology and rule-based release gates include `coverage.files` and
-`coverage.blocks`, counting inspected content. A passing gate with zero blocks
-renders `NO CONTENT`. Its `pass` field means no gate failed, not that content was
-measured. Source rule checks retain `execution.analyzers`, including unsupported
+`coverage.blocks`, counting inspected content. Each gate carries a `verdict`
+(`passed`, `failed` or `did_not_run`) decided by `check.Report.Decide`: a gate
+with zero blocks, or whose analyzers all missed or had no canary, did not run,
+and the run exits `4` whatever `--no-fail` says. `pass` is true only for
+`passed`. Source rule checks retain `execution.analyzers`, including unsupported
 semantic guidance, through the same source-check implementation as ordinary
 `check`. Target coverage and staleness continue to use actual source/target pairs.
 
@@ -109,7 +111,7 @@ semantic guidance, through the same source-check implementation as ordinary
 | `up` | none | none | text·json·yaml | required | 1 |
 | `status` | none | none | text·json·yaml | required | none (always 0) |
 | `check [files…]` | positional | yes | text·json·yaml | preferred | 3 gate, 4 did not run, 1 op |
-| `check --ship` | positional | yes | text·json·yaml | required | 3 gate |
+| `check --ship` | positional | yes | text·json·yaml | required | 3 gate, 4 did not run |
 | `stats [files…]` | positional, stdin | yes | text·json·yaml | preferred | 2 per-file |
 | `inspect [files…]` | positional, stdin | yes | text·json·yaml (+`--jsonl` stream) | preferred | 2 per-file |
 | `translate [files…]` | positional, `-i` | yes | text·json·yaml | preferred | 1 |

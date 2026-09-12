@@ -250,8 +250,10 @@ must be re-run before its locale ships).
 
 Source-only collections receive authored-content checks, including in a project
 that also has translated targets. Naming a source-only file checks that content
-directly; translation checks apply to target content with its source. A gate's
-coverage distinguishes measured content from an empty scope. See
+directly; translation checks apply to target content with its source. Each gate
+carries the same three verdicts as a report: a gate with no content in scope,
+or whose checks did not catch their canaries, did not run, and the command
+exits `4`. See
 [the agent surface design](/contribute/architecture/surfaces/s-03-agent-surfaces)
 for the edit loop and its release checks.
 

@@ -502,3 +502,23 @@ func TestHookPreEdit_AllowsPayloadWithoutFilePath(t *testing.T) {
 	assert.Empty(t, stderr)
 	assert.Empty(t, dec.HookSpecificOutput.PermissionDecision)
 }
+
+// TestHookStop_WarnsWhenTheGatesDidNotRun asserts that a project whose gates
+// had nothing to check makes the hook fail open with a notice, rather than
+// blocking on a verdict nobody reached or allowing silently as if it passed.
+func TestHookStop_WarnsWhenTheGatesDidNotRun(t *testing.T) {
+	t.Setenv("KAPI_NO_PROJECT", "")
+	root := t.TempDir()
+	recipe := "version: v1\nname: empty\ndefaults:\n  source_language: en\ncollections:\n  - name: content\n    content:\n      - path: content.json\n"
+	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte(recipe), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "content.json"), []byte(`{}`), 0o644))
+	t.Chdir(root)
+
+	dec, raw, stderr := runHookStopStdin(t, strings.NewReader(`{"hook_event_name":"Stop"}`))
+
+	assert.Empty(t, dec.Decision, "a gate that did not run reached no verdict to block on")
+	notice := hookNoticeOf(t, raw)
+	assert.Contains(t, notice, "did not run")
+	assert.Contains(t, notice, "nothing_to_check")
+	assert.Contains(t, stderr, "did not run")
+}

@@ -152,6 +152,7 @@ that passed.
 | Guard evaluated, verdict negative | the decision shape, with a reason | 0 |
 | Guard evaluated, nothing to report | nothing | 0 |
 | Guard could not run | `{"systemMessage":"…"}`, and the same warning on stderr, naming the hook | 0 |
+| Guard evaluated, gates did not run | `{"systemMessage":"…"}` naming the `did_not_run_cause`, and the same warning on stderr | 0 |
 
 Three consequences follow.
 
