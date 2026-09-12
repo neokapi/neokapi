@@ -14,6 +14,7 @@ const (
 	ExitError  = 1
 	ExitUsage  = 2
 	ExitGate   = 3   // a quality/voice gate failed (distinct from operational error)
+	ExitNotRun = 4   // a check did not run: it checked no content, or could not show its analyzers can fail
 	ExitSignal = 130 // 128 + SIGINT(2)
 )
 
@@ -22,6 +23,14 @@ const (
 // failed gate (ExitGate) from an operational error (ExitError). Output is still
 // written normally before the command returns this sentinel.
 var ErrQualityGate = errors.New("quality gate failed")
+
+// ErrCheckNotRun signals that `kapi check` reached no verdict: it checked no
+// content, an analyzer missed its canary, or an analyzer the invocation asked
+// for had nothing it could catch. It is neither a pass nor a gate failure, so it
+// has its own exit code (ExitNotRun), and --no-fail does not turn it into 0: a
+// fix loop that reads the exit code would otherwise take a check over nothing
+// for a clean one.
+var ErrCheckNotRun = errors.New("the check did not run")
 
 // ErrSilentExit requests a non-zero exit (ExitError) with no "Error:" message
 // printed — for tools that use exit status as a result channel rather than a
@@ -83,6 +92,11 @@ func ExitCode(_ Command, err error) int {
 	// Quality/voice gate failure gets a distinct code.
 	if errors.Is(err, ErrQualityGate) {
 		return ExitGate
+	}
+
+	// A check that reached no verdict gets its own.
+	if errors.Is(err, ErrCheckNotRun) {
+		return ExitNotRun
 	}
 
 	// An explicit exit code requested by the command (e.g. a toolbox utility

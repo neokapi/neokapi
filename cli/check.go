@@ -30,8 +30,8 @@ func NewCheckCmd(a *App) *cobra.Command {
 		GroupID: "work",
 		Args:    cobra.ArbitraryArgs,
 		Long: `Run content checks over one or more files and return structured findings
-plus a pass/fail, gating on severity: the content-first counterpart to a test
-runner.
+plus a verdict (passed, failed, or did not run), gating on severity: the
+content-first counterpart to a test runner.
 
 The default checkset is source-side and needs no translation: text hygiene
 (empty, doubled spaces/words, stray whitespace), length limits (--max-chars/
@@ -60,8 +60,11 @@ the explicit, opt-in enforcement point. With no file arguments it checks the
 project's source-only content and declared source/target pairs. Named source
 files receive content checks; named targets retain their source pairing.
 
-Exit codes: 0 pass, 3 when the gate fails, 1 operational. --no-fail always exits
-0 (report mode) for a fix-loop.`,
+Exit codes: 0 pass, 3 when the gate fails, 4 when the check did not run, 1
+operational. A check did not run when it examined no content, or when one of its
+checks reported nothing on the known-bad sample it is given beside the content.
+--no-fail exits 0 when the gate fails (report mode for a fix loop); neither it
+nor --lenient turns a check that did not run into a pass.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return a.RunCheck(cmd, args)
 		},

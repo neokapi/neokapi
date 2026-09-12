@@ -11,6 +11,12 @@ const (
 	AnalyzerAbstained    AnalyzerStatus = "abstained"
 	AnalyzerError        AnalyzerStatus = "error"
 	AnalyzerStale        AnalyzerStatus = "stale"
+	// AnalyzerInvalid means the analyzer missed its canary: whatever it reported
+	// on the content cannot be trusted.
+	AnalyzerInvalid AnalyzerStatus = "invalid"
+	// AnalyzerDidNotRun means the analyzer was configured but had nothing it could
+	// catch, so it checked nothing.
+	AnalyzerDidNotRun AnalyzerStatus = "did_not_run"
 )
 
 // AnalyzerExecution records one analyzer's actual coverage of one input.
@@ -24,6 +30,10 @@ type AnalyzerExecution struct {
 	Findings   int            `json:"findings"`
 	Reason     string         `json:"reason,omitempty"`
 	DurationMS *float64       `json:"duration_ms,omitempty"`
+	// Canary is what the analyzer made of the known-bad input it was given
+	// beside the content. An analyzer that reports passed or findings without
+	// one has not shown that it can fail.
+	Canary *CanaryOutcome `json:"canary,omitempty"`
 }
 
 // ExecutionTimings measures host work in milliseconds. Total excludes process

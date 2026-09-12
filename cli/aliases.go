@@ -87,6 +87,7 @@ const (
 	DefaultVoiceSimilarity   = host.DefaultVoiceSimilarity
 	ExitError                = host.ExitError
 	ExitGate                 = host.ExitGate
+	ExitNotRun               = host.ExitNotRun
 	ExitOK                   = host.ExitOK
 	ExitSignal               = host.ExitSignal
 	ExitUsage                = host.ExitUsage
@@ -250,6 +251,7 @@ var (
 	CollectorFactories           = host.CollectorFactories
 	NewVoiceInferCollectorFor    = host.NewVoiceInferCollectorFor
 	ErrQualityGate               = host.ErrQualityGate
+	ErrCheckNotRun               = host.ErrCheckNotRun
 	ErrSilentExit                = host.ErrSilentExit
 	ToolExamples                 = host.ToolExamples
 )

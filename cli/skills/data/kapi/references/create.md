@@ -49,7 +49,10 @@ kapi check draft.md --profile-file voice.yaml --json   # one-off
 kapi check draft.md --json                            # project-scoped guidance
 ```
 
-The check exits 0 when the gate passes and 3 when it fails. Findings identify the
+The check exits 0 when the gate passes, 3 when it fails, and 4 when it did not
+run: no content was checked, or a check reported nothing on the known-bad sample
+it runs beside the content. Treat 4 as unverified, never as a pass; `--no-fail`
+does not change it. Findings identify the
 location and rule, with a suggested fix where available. Inspect analyzer
 coverage and review unsupported guidance separately. Use `kapi check --ship`
 when the task includes project release gates. Load the voice guide and the

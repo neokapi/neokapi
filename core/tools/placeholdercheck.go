@@ -132,3 +132,11 @@ func NewPlaceholderCheckTool(cfg *PlaceholderCheckConfig) *tool.BaseTool {
 	}
 	return t
 }
+
+// PlaceholderCanaries is the known-bad input the placeholder checker must flag:
+// a target that dropped its source's placeholder.
+func PlaceholderCanaries(target model.LocaleID) []check.Canary {
+	b := check.CanaryBlock("Hello {name}")
+	b.SetTargetText(target, "Hello")
+	return []check.Canary{{Name: "dropped placeholder", Block: b, Expect: "placeholder"}}
+}

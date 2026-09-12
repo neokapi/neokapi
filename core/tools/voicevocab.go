@@ -3,8 +3,10 @@ package tools
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/tool"
@@ -132,6 +134,116 @@ func (t *VoiceVocabCheckTool) annotateBlock(v tool.BlockView) error {
 	}
 
 	return nil
+}
+
+// Canaries returns the known-bad inputs this checker must flag under its
+// configuration: the first term of each vocabulary list the profile declares,
+// text the first checkable prohibited pattern matches, text the first applicable
+// constraint pattern matches, and a term the bound terms store forbids, retires
+// or names as a competitor's in the lookup language.
+//
+// Each is kept only when the profile's own matcher, or the store lookup, flags it
+// without this tool, so a canary is known to be bad before the tool sees it. With
+// none, uncheckable says the configuration gives the checker nothing to catch.
+func (t *VoiceVocabCheckTool) Canaries(ctx context.Context) (canaries []check.Canary, uncheckable string, err error) {
+	t.resolveOnce(ctx)
+	if p := t.profile; p != nil {
+		add := func(name string, texts ...string) bool {
+			for _, text := range texts {
+				if text != "" && len(coreprofile.Findings(p, text, nil)) > 0 {
+					canaries = append(canaries, check.Canary{Name: name, Block: check.CanaryBlock(text)})
+					return true
+				}
+			}
+			return false
+		}
+		for _, set := range coreprofile.VocabularyRuleSets(p) {
+			for _, rule := range set.Rules {
+				term := strings.TrimSpace(rule.Term)
+				if term != "" && add(fmt.Sprintf("%s term %q", set.Kind, term), term, "`"+term+"`") {
+					break
+				}
+			}
+		}
+		for _, pat := range p.Style.ProhibitedPatterns {
+			if text, ok := matchingText(pat.Regex); ok && add(fmt.Sprintf("prohibited pattern %q", pat.Regex), text, "`"+text+"`") {
+				break
+			}
+		}
+		for _, r := range coreprofile.ConstraintResolutions(p) {
+			if r.Status != "applicable" || r.Constraint.Kind != coreprofile.ConstraintProhibitedPattern {
+				continue
+			}
+			if text, ok := matchingText(r.Constraint.Regex); ok && add("constraint "+r.Constraint.ID, text) {
+				break
+			}
+		}
+	}
+	if t.terminology != nil {
+		canary, err := t.storeCanary(ctx)
+		if err != nil {
+			return nil, "", err
+		}
+		if canary != nil {
+			canaries = append(canaries, *canary)
+		}
+	}
+	if len(canaries) == 0 {
+		return nil, "no forbidden, competitor or retired term and no prohibited pattern is declared for this content", nil
+	}
+	return canaries, "", nil
+}
+
+// RequiredPatternCanaries is the known-bad document text for a profile's
+// required patterns: text the first checkable one does not match, confirmed by
+// the profile's document-scope matcher. With no required pattern there is
+// nothing to catch, and uncheckable says so.
+func RequiredPatternCanaries(p *coreprofile.VoiceProfile) ([]check.Canary, string) {
+	if p == nil {
+		return nil, "no voice profile is bound"
+	}
+	for _, pat := range p.Style.RequiredPatterns {
+		re, err := regexp.Compile(strings.TrimSpace(pat.Regex))
+		if err != nil {
+			continue
+		}
+		if text, ok := check.TextNotMatching(re); ok && len(coreprofile.DocumentFindings(p, text)) > 0 {
+			return []check.Canary{{Name: fmt.Sprintf("required pattern %q", pat.Regex), Block: check.CanaryBlock(text)}}, ""
+		}
+	}
+	return nil, "the voice profile declares no checkable required pattern"
+}
+
+// storeCanary is the first term the bound store forbids, retires or names as a
+// competitor's that the store lookup finds in the language this tool asks in.
+func (t *VoiceVocabCheckTool) storeCanary(ctx context.Context) (*check.Canary, error) {
+	concepts, err := t.terminology.Concepts(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list the terms store's concepts: %w", err)
+	}
+	for _, c := range concepts {
+		for _, term := range c.Terms {
+			if !term.CompetitorTerm && term.Status != model.TermForbidden && term.Status != model.TermDeprecated {
+				continue
+			}
+			occurrences, err := terms.Locate(ctx, terms.LocateRequest{Text: term.Text, Store: t.terminology, Locale: t.sourceLocale})
+			if err != nil {
+				return nil, err
+			}
+			if len(violations(occurrences)) > 0 {
+				return &check.Canary{Name: fmt.Sprintf("terms store term %q", term.Text), Block: check.CanaryBlock(term.Text)}, nil
+			}
+		}
+	}
+	return nil, nil
+}
+
+func matchingText(pattern string) (string, bool) {
+	re, err := regexp.Compile(strings.TrimSpace(pattern))
+	if err != nil {
+		return "", false
+	}
+	return check.TextMatching(re)
 }
 
 // violations keeps the occurrences this gate is about, and grades them.

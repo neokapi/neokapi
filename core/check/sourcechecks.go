@@ -249,6 +249,61 @@ func NewSourcePatternTool(rules []PatternRule) (*tool.BaseTool, error) {
 	return t, nil
 }
 
+// HygieneCanaries is the known-bad input the content-hygiene checker must flag.
+func HygieneCanaries() []Canary {
+	return []Canary{{Name: "doubled word", Block: CanaryBlock("A canary with a doubled doubled word."), Expect: "doubled-word"}}
+}
+
+// LengthCanaries returns, for each limit that is set, text one past it.
+func LengthCanaries(maxChars, maxWords int) []Canary {
+	var out []Canary
+	if maxChars > 0 {
+		out = append(out, Canary{
+			Name:   fmt.Sprintf("%d characters", maxChars+1),
+			Block:  CanaryBlock(strings.Repeat("x", maxChars+1)),
+			Expect: "max-chars-exceeded",
+		})
+	}
+	if maxWords > 0 {
+		out = append(out, Canary{
+			Name:   fmt.Sprintf("%d words", maxWords+1),
+			Block:  CanaryBlock(strings.TrimSpace(strings.Repeat("w ", maxWords+1))),
+			Expect: "max-words-exceeded",
+		})
+	}
+	return out
+}
+
+// PatternCanaries returns a canary for each rule: text a forbidden pattern
+// matches, or text a required pattern does not. A rule that no text can violate
+// (a forbidden pattern that only matches the empty string, a required one such
+// as `.*`) checks nothing, and because each rule was asked for explicitly, the
+// whole set is then reported as uncheckable rather than partly probed.
+func PatternCanaries(rules []PatternRule) ([]Canary, string) {
+	var out []Canary
+	for _, rule := range rules {
+		re, err := regexp.Compile(rule.Pattern)
+		if err != nil {
+			return nil, fmt.Sprintf("pattern %q does not compile", rule.Pattern)
+		}
+		switch {
+		case rule.MustNotMatch:
+			text, ok := TextMatching(re)
+			if !ok {
+				return nil, fmt.Sprintf("no text can contain the forbidden pattern %q", rule.Pattern)
+			}
+			out = append(out, Canary{Name: "forbidden " + rule.Name, Block: CanaryBlock(text), Expect: "forbidden-pattern"})
+		case rule.MustMatch:
+			text, ok := TextNotMatching(re)
+			if !ok {
+				return nil, fmt.Sprintf("every text satisfies the required pattern %q", rule.Pattern)
+			}
+			out = append(out, Canary{Name: "required " + rule.Name, Block: CanaryBlock(text), Expect: "pattern-missing"})
+		}
+	}
+	return out, ""
+}
+
 // firstControlChar returns the first non-whitespace control character in s.
 // Tab, newline, and carriage return are treated as ordinary whitespace, so only
 // stray control codes (e.g. NUL, BEL, ESC) are reported.

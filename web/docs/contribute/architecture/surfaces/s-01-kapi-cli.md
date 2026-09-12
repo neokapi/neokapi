@@ -186,11 +186,14 @@ unreadable, only unpolished.
 | 1 | `ExitError` | operational error, the default for a failed command |
 | 2 | `ExitUsage` | usage error, and the toolbox's grep-style "trouble" status |
 | 3 | `ExitGate` | a quality or voice gate was not met |
+| 4 | `ExitNotRun` | a check reached no verdict: it checked no content, or an analyzer missed its canary |
 | 130 | `ExitSignal` | interrupted (128 + SIGINT) |
 
 A draft that scores below its threshold is not a crash, and a script that
 cannot tell the two apart has to choose between ignoring real failures and
-treating every low score as one. `host.ErrQualityGate` maps to `ExitGate`; a
+treating every low score as one. A check over nothing is neither: it is not a
+pass, and it has no findings to fix. `host.ErrQualityGate` maps to `ExitGate`
+and `host.ErrCheckNotRun` to `ExitNotRun`; a
 command can request any other code by tagging its error with
 `host.WithExitCode`. `host.ErrSilentExit` requests a non-zero exit with the
 message suppressed, which is how the toolbox reports "no match" as a status

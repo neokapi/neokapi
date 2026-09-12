@@ -65,6 +65,7 @@ append-only lines on a pipe.
 | 1 | operational error |
 | 2 | usage error: bad flags, unreadable input, no input |
 | 3 | quality gate unmet (`ErrQualityGate`) |
+| 4 | a check did not run (`ErrCheckNotRun`): no content checked, or an analyzer missed its canary |
 | 130 | interrupted (SIGINT) |
 
 The grep-family utilities additionally use `1` for "no match", which is their
@@ -107,7 +108,7 @@ semantic guidance, through the same source-check implementation as ordinary
 | --- | --- | --- | --- | --- | --- |
 | `up` | none | none | text·json·yaml | required | 1 |
 | `status` | none | none | text·json·yaml | required | none (always 0) |
-| `check [files…]` | positional | yes | text·json·yaml | preferred | 3 gate, 1 op |
+| `check [files…]` | positional | yes | text·json·yaml | preferred | 3 gate, 4 did not run, 1 op |
 | `check --ship` | positional | yes | text·json·yaml | required | 3 gate |
 | `stats [files…]` | positional, stdin | yes | text·json·yaml | preferred | 2 per-file |
 | `inspect [files…]` | positional, stdin | yes | text·json·yaml (+`--jsonl` stream) | preferred | 2 per-file |
