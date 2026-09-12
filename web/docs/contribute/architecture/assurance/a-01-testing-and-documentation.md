@@ -221,6 +221,35 @@ edits or tool calls do not establish better quality. Reports distinguish
 consequential errors, human acceptance, actual review time, latency and cost,
 with uncertainty and explicit unmeasured outcomes.
 
+Paired agent studies compare ordinary file tools, the shipped skill with CLI
+access, and MCP access without the skill or direct CLI execution. Each agent
+host runs the same content tasks in all conditions. Model identity and effort
+are fixed within a comparison; results from different models remain separate.
+The source guidance is equally available, and independent validators inspect
+the output artifacts. Semantic acceptance and reviewer time require human
+evidence and remain unmeasured until that review occurs.
+
+The paired runner prepares workspaces without model calls. Live execution uses
+an explicit session allowance, with started and failed attempts retained across
+resumes. Subscription usage is reported separately from API-equivalent cost.
+Raw study records remain local pending review for publication. Pilot documents
+support harness development; scored evaluations use separate document families.
+
+MCP preparation records server capabilities through protocol discovery. Server
+readiness, host exposure and observed agent use are separate evidence: a ready
+server alone establishes neither of the latter two.
+
+Assigned conditions retain attempts that never use the integration. Observed
+use and resolved check scope are reported alongside artifact validity, so
+completion alone cannot stand for successful context retrieval or checking.
+
+Explicitly instructed diagnostics test host exposure and execution separately
+from natural discovery. They share the persistent session allowance with
+ordinary tasks and retain their own phase in saved reports.
+
+See [Paired agent evaluation](../../implementation/repo/paired-agent-evaluation.md)
+for the manifest, execution stages and evidence records.
+
 Performance measurements distinguish fresh-process CLI work from persistent
 sessions and cold initialization from warm operation. Raw samples state their
 hardware, corpus, cache conditions and phase boundaries. Host timings exclude
