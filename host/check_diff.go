@@ -206,6 +206,11 @@ func (a *App) runDiffCheck(ctx context.Context, run diffCheckRun) (check.Report,
 	report := run.opts.execution.report(check.Target{Kind: "diff", File: run.src.label, Blocks: checked}, diags, run.gate)
 	report.Scope = scope
 	report.Decide()
+	// A formatter that would rewrite a touched comment fails the check as it does
+	// in a whole-file check, and --lenient lifts it the same way.
+	if lenient, _ := run.cmd.Flags().GetBool("lenient"); !lenient {
+		applyFormatterGate(&report)
+	}
 	return report, nil
 }
 
@@ -217,9 +222,20 @@ type blockLocator func(ctx context.Context, content []byte) (scopedRead, error)
 
 // locatorFor returns how to locate the blocks of the changed file at path, or
 // nil when nothing reads it. A format reader locates them by aligning its
-// skeleton with the content.
+// skeleton with the content. A file read for its comments is located by its
+// language's comment provider, which also brings the analyzers its comments are
+// checked with.
 func (a *App) locatorFor(run diffCheckRun, path string) blockLocator {
 	fmtName, cfg := run.opts.formats.forFile(a, path)
+	if p, ok := a.commentLayerFor(path, fmtName); ok {
+		return func(_ context.Context, content []byte) (scopedRead, error) {
+			layer, err := locateComments(path, content, p)
+			if err != nil {
+				return scopedRead{}, err
+			}
+			return scopedRead{blocks: layer.blocks, extents: layer.extents, analyzers: layer.analyzers}, nil
+		}
+	}
 	if fmtName == "" {
 		detected, err := a.FormatReg.Detect(path, registry.DetectOptions{ExtensionOnly: true})
 		if err != nil || detected == "" {
@@ -313,12 +329,19 @@ func (a *App) checkDiffFile(ctx context.Context, run diffCheckRun, f diffscope.F
 		}
 	}
 	opts.execution.recordContext(entry.Path, "", opts)
-	// Document-scope rules read the whole file the change touched.
-	opts.documentBlocks = read.blocks
-	diags, err := a.collectFileDiagnostics(ctx, touched, entry.Path, opts)
+	// The analyzers the file's provider brings run over the touched blocks, and
+	// are recorded as a whole-file check records them.
+	diags, err := recordProviderAnalyzers(ctx, read.analyzers, touched, entry.Path, opts.execution)
 	if err != nil {
 		return nil, 0, err
 	}
+	// Document-scope rules read the whole file the change touched.
+	opts.documentBlocks = read.blocks
+	fileDiags, err := a.collectFileDiagnostics(ctx, touched, entry.Path, opts)
+	if err != nil {
+		return nil, 0, err
+	}
+	diags = append(diags, fileDiags...)
 	for i := range diags {
 		if l, ok := byKey[diags[i].Location.Block]; ok && diags[i].Location.Block != "" {
 			diags[i].Location.Lines = &l
@@ -351,6 +374,9 @@ type scopedRead struct {
 	// unlocated says why the blocks could not be placed in the file, and is nil
 	// when extents locates them.
 	unlocated error
+	// analyzers are what the provider that located the blocks runs beside the
+	// checkset, over the blocks a change touched. A format reader brings none.
+	analyzers []providerAnalyzer
 }
 
 // readWithExtents reads content once with a skeleton store wired, returning the
