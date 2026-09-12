@@ -144,8 +144,11 @@ kapi check --diff-against HEAD --json
 Only the content blocks the change touched are checked, each block whole.
 `scope.files` lists every changed file and what became of it, and a finding's
 `location.lines` gives the lines of its block. Repair, then run the same command
-again. Exit 4 means the check did not run: read `did_not_run`, which names, for
-example, a changed file whose blocks could not be located. It is never a pass.
+again. Exit 4 means the check did not run, and it is never a pass. Read
+`did_not_run_cause` before you continue: `checker_invalid` means a kapi checker
+is broken and nothing the run reported can be trusted, so stop and report it;
+`nothing_to_check` means the change touched no content; `content_not_checked`
+means content was left unchecked, and `did_not_run` names it.
 To check a diff you already hold, pass it with `--diff-file` (`-` reads standard
 input).
 

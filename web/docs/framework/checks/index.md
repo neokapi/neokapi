@@ -84,6 +84,17 @@ either. A run that checked no blocks did not run. The top-level `did_not_run`
 field lists the reasons. `kapi check` exits `4` for this verdict, and neither
 `--no-fail` nor `--lenient` changes that.
 
+Every `did_not_run` verdict carries a `did_not_run_cause`, and the causes share
+exit code `4`, so read the cause before acting on it:
+
+- `checker_invalid`: an analyzer reported nothing on its canary. A checker is
+  broken, and nothing this run reported can be trusted, including its findings.
+- `nothing_to_check`: no content was in scope, such as an empty file or a diff
+  that touches no content block.
+- `content_not_checked`: content in scope was not checked, such as a changed
+  file whose blocks could not be located, or an analyzer the invocation asked
+  for with nothing to catch.
+
 `execution.contexts` records the effective guidance for each checked input.
 Each entry identifies the file or draft destination, the voice selection
 (`project`, `override` or `none`), the loaded profile name and source, and the
@@ -126,6 +137,14 @@ belongs to: a one-line edit inside a seven-line paragraph checks the whole
 paragraph. A finding's `location.lines` gives the lines of its block. Rules that
 hold over a whole document, such as a voice profile's required patterns, read
 the whole changed file.
+
+Removed lines leave nothing to point at, so a deletion first takes the blocks on
+both sides of where the lines were. A block that lost its first or last lines is
+then in scope, and so is one the deletion merged with its neighbour. For a
+block the deletion only borders, kapi rebuilds the file as it was before the
+change from the diff, and drops the block from the scope when the earlier file
+holds the same block on the same lines: removing one key of a JSON catalog
+checks neither the key before it nor the key after it.
 
 The report's `scope` lists every file the diff names with a status:
 

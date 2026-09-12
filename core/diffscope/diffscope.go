@@ -8,7 +8,6 @@
 package diffscope
 
 import (
-	"bufio"
 	"bytes"
 	"errors"
 	"fmt"
@@ -51,6 +50,17 @@ type File struct {
 	// confirm that the diff describes the file it is about to read before
 	// trusting the diff's line numbers.
 	PostLines map[int]string
+	// Hunks are the diff's hunks as written, from which PreImage rebuilds the
+	// file as it was before the change.
+	Hunks []Hunk
+}
+
+// Hunk is one hunk of a unified diff: its header's ranges and its lines, each
+// still carrying its leading ' ', '-', '+' or '\\'.
+type Hunk struct {
+	OldStart, OldCount int
+	NewStart, NewCount int
+	Lines              []string
 }
 
 // Path is the file's path after the change, or before it for a deleted file.
@@ -74,6 +84,9 @@ type Change struct {
 	Lines format.LineRange
 	// Deletion marks an edit that removed lines and added none.
 	Deletion bool
+	// After is, for a deletion, the post-image line the removed lines followed;
+	// 0 when they opened the file.
+	After int
 }
 
 var hunkHeader = regexp.MustCompile(`^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@`)
@@ -83,13 +96,11 @@ var hunkHeader = regexp.MustCompile(`^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@
 // "diff --cc" form of a merge) is refused rather than half-read.
 func Parse(diff []byte) ([]File, error) {
 	p := &parser{}
-	sc := bufio.NewScanner(bytes.NewReader(diff))
-	sc.Buffer(make([]byte, 0, 64*1024), 64*1024*1024)
-	for sc.Scan() {
-		p.lines = append(p.lines, sc.Text())
-	}
-	if err := sc.Err(); err != nil {
-		return nil, fmt.Errorf("read diff: %w", err)
+	// Lines split at the line feed alone. A carriage return before it is part
+	// of a CRLF file's content line, and the post-image and pre-image checks
+	// compare those lines with the file byte for byte.
+	if len(diff) > 0 {
+		p.lines = strings.Split(strings.TrimSuffix(string(diff), "\n"), "\n")
 	}
 	if err := p.parse(); err != nil {
 		return nil, err
@@ -208,6 +219,7 @@ func (p *parser) hunk(header string) error {
 		return fmt.Errorf("diff line %d: malformed hunk header %q", p.i+1, header)
 	}
 	oldCount, newStart, newCount := count(m[2]), atoi(m[3]), count(m[4])
+	h := Hunk{OldStart: atoi(m[1]), OldCount: oldCount, NewStart: newStart, NewCount: newCount}
 	headerLine := p.i + 1
 	p.i++
 
@@ -228,8 +240,17 @@ func (p *parser) hunk(header string) error {
 		if plusCount > 0 {
 			p.cur.Changes = append(p.cur.Changes, Change{Lines: format.LineRange{First: plusFirst, Last: plusFirst + plusCount - 1}})
 		} else {
+			// A deletion leaves no line to point at, so it takes the lines on
+			// either side of where the removed lines were. Line numbers alone
+			// cannot tell a block that lost its first or last line from a block
+			// beside lines that were removed, and taking both sides never misses
+			// the first. It is also right where a blank line is a boundary:
+			// removing the one between two paragraphs or two comment groups
+			// merges them. The cost is a block the deletion only borders, such as
+			// the entry before a removed JSON key, which Settle clears when the
+			// pre-image shows the block unchanged.
 			first := max(deletedAfter, 1)
-			p.cur.Changes = append(p.cur.Changes, Change{Lines: format.LineRange{First: first, Last: deletedAfter + 1}, Deletion: true})
+			p.cur.Changes = append(p.cur.Changes, Change{Lines: format.LineRange{First: first, Last: deletedAfter + 1}, Deletion: true, After: deletedAfter})
 		}
 		runOpen, plusCount = false, 0
 	}
@@ -239,6 +260,11 @@ func (p *parser) hunk(header string) error {
 			return fmt.Errorf("diff line %d: the hunk ends early, %d old and %d new lines short", headerLine, oldLeft, newLeft)
 		}
 		line := p.lines[p.i]
+		if line == "" {
+			h.Lines = append(h.Lines, " ")
+		} else {
+			h.Lines = append(h.Lines, line)
+		}
 		switch {
 		case line == "" || line[0] == ' ':
 			// An empty line is a context line whose leading space was stripped
@@ -282,8 +308,10 @@ func (p *parser) hunk(header string) error {
 	}
 	closeRun()
 	for p.i < len(p.lines) && strings.HasPrefix(p.lines[p.i], `\`) {
+		h.Lines = append(h.Lines, p.lines[p.i])
 		p.i++
 	}
+	p.cur.Hunks = append(p.cur.Hunks, h)
 	// A removed or added line straight after the counts ran out means the
 	// counts are wrong, and the lines past them would be dropped unread. A
 	// ---/+++ pair opens the next file, and "-- " is a mail signature.
@@ -419,4 +447,172 @@ func mergeRanges(changes []Change) []format.LineRange {
 		out = append(out, r)
 	}
 	return out
+}
+
+// PreImage rebuilds the file as it was before the change, from post, the file
+// after it, and the diff's hunks. An added file had no pre-image, and PreImage
+// returns nil for it. It returns an error for a binary change, which has no
+// lines, and when a hunk's context or added lines are not post's lines.
+func (f File) PreImage(post []byte) ([]byte, error) {
+	switch {
+	case f.Binary:
+		return nil, errors.New("a binary change has no lines to rebuild the file from")
+	case f.Status == Added:
+		return nil, nil
+	}
+	lines, eol := splitLines(post)
+	var pre []string
+	next := 1
+	for _, h := range f.Hunks {
+		start := h.NewStart
+		if h.NewCount == 0 {
+			start++
+		}
+		if start < next || start-1 > len(lines) {
+			return nil, fmt.Errorf("the hunk at +%d does not fit a %d-line file", h.NewStart, len(lines))
+		}
+		pre = append(pre, lines[next-1:start-1]...)
+		next = start
+		var last byte
+		oldLacksNewline := false
+		for _, l := range h.Lines {
+			switch l[0] {
+			case ' ', '+':
+				if next > len(lines) || lines[next-1] != l[1:] {
+					return nil, fmt.Errorf("the hunk at +%d does not match line %d of the file", h.NewStart, next)
+				}
+				if l[0] == ' ' {
+					pre = append(pre, l[1:])
+				}
+				next++
+			case '-':
+				pre = append(pre, l[1:])
+			case '\\':
+				// "\ No newline at end of file" follows the line it describes.
+				oldLacksNewline = oldLacksNewline || last == '-' || last == ' '
+				continue
+			}
+			last = l[0]
+		}
+		if next > len(lines) {
+			eol = !oldLacksNewline
+		}
+	}
+	pre = append(pre, lines[next-1:]...)
+	out := strings.Join(pre, "\n")
+	if eol && len(pre) > 0 {
+		out += "\n"
+	}
+	return []byte(out), nil
+}
+
+// splitLines splits content at line feeds, reporting whether the last line
+// ends with one.
+func splitLines(content []byte) ([]string, bool) {
+	if len(content) == 0 {
+		return nil, false
+	}
+	s := string(content)
+	eol := strings.HasSuffix(s, "\n")
+	return strings.Split(strings.TrimSuffix(s, "\n"), "\n"), eol
+}
+
+// PreLine maps a post-image line to its number in the pre-image. ok is false
+// for a line the change added.
+func (f File) PreLine(post int) (int, bool) {
+	offset := 0
+	for _, h := range f.Hunks {
+		newLine := h.NewStart
+		if h.NewCount == 0 {
+			newLine++
+		}
+		if post < newLine {
+			return post + offset, true
+		}
+		oldLine := h.OldStart
+		if h.OldCount == 0 {
+			oldLine++
+		}
+		for _, l := range h.Lines {
+			switch l[0] {
+			case ' ':
+				if newLine == post {
+					return oldLine, true
+				}
+				newLine++
+				oldLine++
+			case '+':
+				if newLine == post {
+					return 0, false
+				}
+				newLine++
+			case '-':
+				oldLine++
+			}
+		}
+		offset = oldLine - newLine
+	}
+	return post + offset, true
+}
+
+// Bordered returns the touched extents that a deletion only borders: every
+// change that overlaps them is a deletion, and none falls strictly inside.
+// These are the blocks Settle can clear.
+func Bordered(touched []format.Extent, changes []Change) []format.Extent {
+	var out []format.Extent
+	for _, x := range touched {
+		if onlyBordered(x, changes) {
+			out = append(out, x)
+		}
+	}
+	return out
+}
+
+func onlyBordered(x format.Extent, changes []Change) bool {
+	bordered := false
+	for _, c := range changes {
+		if !c.Lines.Overlaps(x.Lines) {
+			continue
+		}
+		if !c.Deletion || (x.Lines.First <= c.After && c.After+1 <= x.Lines.Last) {
+			return false
+		}
+		bordered = true
+	}
+	return bordered
+}
+
+// Settle narrows touched with the pre-image. It drops a block a deletion only
+// borders when pre, the file before the change, holds a block with the same
+// bytes on the lines this block's lines came from: the removed lines were then
+// never part of it. Every other block stays, including a bordered one the
+// pre-image cannot account for, so Settle can only narrow a scope to blocks the
+// change altered and never drops one it did.
+func Settle(f File, post []byte, touched []format.Extent, pre []byte, preExtents []format.Extent) []format.Extent {
+	var out []format.Extent
+	for _, x := range touched {
+		if onlyBordered(x, f.Changes) && unchanged(f, post, x, pre, preExtents) {
+			continue
+		}
+		out = append(out, x)
+	}
+	return out
+}
+
+func unchanged(f File, post []byte, x format.Extent, pre []byte, preExtents []format.Extent) bool {
+	first, ok := f.PreLine(x.Lines.First)
+	if !ok {
+		return false
+	}
+	last, ok := f.PreLine(x.Lines.Last)
+	if !ok || last-first != x.Lines.Last-x.Lines.First || x.End > len(post) {
+		return false
+	}
+	body := post[x.Start:x.End]
+	for _, p := range preExtents {
+		if p.Lines.First == first && p.Lines.Last == last && p.End <= len(pre) && bytes.Equal(pre[p.Start:p.End], body) {
+			return true
+		}
+	}
+	return false
 }

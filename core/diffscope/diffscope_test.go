@@ -103,10 +103,10 @@ func TestParse_Deletions(t *testing.T) {
 		want    []Change
 	}{
 		// Line 6 removed: in the post-image it sat between lines 5 and 6.
-		{"delete-inside-block.diff", []Change{{Lines: lines(5, 6), Deletion: true}}},
-		{"delete-inside-block-u0.diff", []Change{{Lines: lines(5, 6), Deletion: true}}},
+		{"delete-inside-block.diff", []Change{{Lines: lines(5, 6), Deletion: true, After: 5}}},
+		{"delete-inside-block-u0.diff", []Change{{Lines: lines(5, 6), Deletion: true, After: 5}}},
 		// Line 3, the paragraph's first, removed: it sat between lines 2 and 3.
-		{"delete-first-line-u0.diff", []Change{{Lines: lines(2, 3), Deletion: true}}},
+		{"delete-first-line-u0.diff", []Change{{Lines: lines(2, 3), Deletion: true, After: 2}}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.fixture, func(t *testing.T) {
@@ -136,7 +136,7 @@ func TestParse_HunkShapes(t *testing.T) {
 		{
 			name: "deleting a file's first line",
 			diff: "--- a/f\n+++ b/f\n@@ -1 +0,0 @@\n-a\n",
-			want: []Change{{Lines: lines(1, 1), Deletion: true}},
+			want: []Change{{Lines: lines(1, 1), Deletion: true, After: 0}},
 		},
 		{
 			name: "a context line whose space was stripped",

@@ -169,7 +169,17 @@ bytes match. Its log lists which formats align and why the others do not.
 the post-image lines each file's change touched, and `diffscope.Touched` returns
 the extents those lines overlap, each one whole. A deletion leaves no line, so
 it is placed on the lines either side of where the removed lines were: deleting
-a line inside a block touches that block.
+a line inside a block touches that block. `diffscope.Bordered` names the blocks a
+deletion only borders, and `diffscope.Settle` drops each one whose bytes the
+pre-image holds on the lines it came from. `File.PreImage` rebuilds that
+pre-image from the post-image and the hunks, and `File.PreLine` maps a line
+between the two.
+
+In `kapi check`, `host/check_diff.go` reaches a changed file's blocks through
+`locatorFor`, which returns a `blockLocator` for the file or nil when nothing
+reads it. The format-reader locator aligns the skeleton; another provider of
+blocks and extents plugs in by returning its own locator there, and the same
+locator reads the rebuilt pre-image when a deletion borders a block.
 
 ## Sub-skeleton: translatable spans inside an opaque payload
 

@@ -30,6 +30,11 @@ type Report struct {
 	Verdict Verdict `json:"verdict"`
 	// DidNotRun says why the verdict is did_not_run, and is empty otherwise.
 	DidNotRun []string `json:"did_not_run,omitempty"`
+	// DidNotRunCause is the code a program branches on when the verdict is
+	// did_not_run: CauseCheckerInvalid, CauseNothingToCheck or
+	// CauseContentNotChecked. The first means a checker is broken; the second
+	// means there was nothing to do. Empty otherwise.
+	DidNotRunCause string `json:"did_not_run_cause,omitempty"`
 	// Target describes what was checked.
 	Target Target `json:"target"`
 	// Summary is the roll-up (counts + score).
@@ -323,6 +328,35 @@ func BuildReport(target Target, diags []Diagnostic, gate Gate, scoreOpts ...Scor
 	return report
 }
 
+// The causes of a did_not_run verdict. They share an exit code and must never
+// be read as one another: a loop that took a broken checker for an empty scope
+// would carry on past it.
+const (
+	// CauseCheckerInvalid means an analyzer reported nothing on its canary. A
+	// checker is broken, and no result of this run can be trusted.
+	CauseCheckerInvalid = "checker_invalid"
+	// CauseNothingToCheck means no content was in scope: no blocks, or a diff
+	// that touches none.
+	CauseNothingToCheck = "nothing_to_check"
+	// CauseContentNotChecked means content in scope was not checked: a changed
+	// file whose blocks could not be located, an analyzer that was asked for and
+	// had nothing to catch, or one that completed without a canary.
+	CauseContentNotChecked = "content_not_checked"
+)
+
+// CauseSummary is the sentence a person reads for a did_not_run cause.
+func CauseSummary(cause string) string {
+	switch cause {
+	case CauseCheckerInvalid:
+		return "a checker failed its canary, so this run's result cannot be trusted"
+	case CauseNothingToCheck:
+		return "there was nothing in scope to check"
+	case CauseContentNotChecked:
+		return "content in scope was not checked"
+	}
+	return ""
+}
+
 // Verdict is the outcome of a check.
 type Verdict string
 
@@ -377,25 +411,26 @@ func (r *Report) Decide() {
 	}
 	switch {
 	case len(invalid) > 0:
-		r.setVerdict(VerdictDidNotRun, invalid)
+		r.setVerdict(VerdictDidNotRun, CauseCheckerInvalid, invalid)
 	case len(r.Gate.Failed) > 0:
-		r.setVerdict(VerdictFailed, nil)
+		r.setVerdict(VerdictFailed, "", nil)
 	case r.Target.Blocks == 0 && r.Scope != nil && len(unproven) == 0:
-		r.setVerdict(VerdictDidNotRun, []string{"the diff touches no content block"})
+		r.setVerdict(VerdictDidNotRun, CauseNothingToCheck, []string{"the diff touches no content block"})
 	case r.Target.Blocks == 0 && r.Scope == nil:
-		r.setVerdict(VerdictDidNotRun, []string{"no content blocks were checked"})
+		r.setVerdict(VerdictDidNotRun, CauseNothingToCheck, []string{"no content blocks were checked"})
 	case len(unproven) > 0:
-		r.setVerdict(VerdictDidNotRun, unproven)
+		r.setVerdict(VerdictDidNotRun, CauseContentNotChecked, unproven)
 	case r.Execution != nil && !proven:
-		r.setVerdict(VerdictDidNotRun, []string{"no analyzer completed a check"})
+		r.setVerdict(VerdictDidNotRun, CauseContentNotChecked, []string{"no analyzer completed a check"})
 	default:
-		r.setVerdict(VerdictPassed, nil)
+		r.setVerdict(VerdictPassed, "", nil)
 	}
 }
 
-func (r *Report) setVerdict(v Verdict, reasons []string) {
+func (r *Report) setVerdict(v Verdict, cause string, reasons []string) {
 	r.Verdict = v
 	r.Pass = v == VerdictPassed
+	r.DidNotRunCause = cause
 	r.DidNotRun = reasons
 }
 
