@@ -117,6 +117,15 @@ The results and the whole transcripts are published on the
 [skill eval page](/skill-eval) ([A-01](../assurance/a-01-testing-and-documentation.md));
 none of the three runs in CI, because they spend and need local credentials.
 
+The paired study runs identical tasks through each agent host with ordinary
+file tools, the CLI skill, or MCP. The skill condition excludes the kapi MCP
+server; the MCP condition excludes the skill and direct kapi CLI execution.
+Independent artifact checks assess completion, while natural prompts measure
+whether the agent discovers the available integration. Results retain failed
+attempts and distinguish these outcomes from human judgments of the content.
+The [paired evaluation runner](../../implementation/repo/paired-agent-evaluation.md)
+records the model and integration configuration for each attempt.
+
 ### Two hooks, and a protocol for failing open
 
 The Claude Code plugin ships two project-scoped hooks that drive kapi rather
