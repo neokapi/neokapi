@@ -157,10 +157,10 @@
       "data": "web/static/data/format-maturity.json",
       "page": "/format-maturity",
       "fresh": {
-        "date": "2026-07-25"
+        "date": "2026-09-12"
       },
       "headline": {
-        "value": "0/36",
+        "value": "0/37",
         "of": "formats at L4",
         "tone": "gap"
       }
