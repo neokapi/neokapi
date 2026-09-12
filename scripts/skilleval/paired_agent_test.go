@@ -1,0 +1,198 @@
+package main
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func TestPairedAgentStream(t *testing.T) {
+	tests := []struct {
+		name, host, condition, model, stream, status string
+		success                                      bool
+	}{
+		{name: "Claude complete", host: "claude", condition: "baseline", model: "claude-sonnet-5", stream: `{"type":"system","subtype":"init","model":"claude-sonnet-5","session_id":"s"}
+{"type":"assistant","message":{"model":"claude-sonnet-5","content":[{"type":"tool_use","name":"Read","input":{"file_path":"copy.md"}}]}}
+{"type":"result","subtype":"success","is_error":false,"usage":{"input_tokens":12,"output_tokens":7},"result":"Done"}`, status: "completed", success: true},
+		{name: "Codex complete", host: "codex", condition: "mcp", model: "gpt-5.6-terra", stream: `{"type":"thread.started","model":"gpt-5.6-terra","thread_id":"s"}
+{"type":"item.completed","item":{"type":"mcp_tool_call","server":"kapi","tool":"check"}}
+{"type":"turn.completed","usage":{"input_tokens":10,"output_tokens":3}}`, status: "completed", success: true},
+		{name: "missing identity", host: "codex", condition: "baseline", model: "gpt-5.6-terra", stream: `{"type":"thread.started","thread_id":"s"}
+{"type":"turn.completed","usage":{"input_tokens":10,"output_tokens":3}}`, status: "identity_unverified"},
+		{name: "model mismatch", host: "claude", condition: "baseline", model: "claude-sonnet-5", stream: `{"type":"system","subtype":"init","model":"claude-opus-5"}
+{"type":"result","subtype":"success"}`, status: "model_mismatch"},
+		{name: "midrun fallback", host: "claude", condition: "baseline", model: "claude-sonnet-5", stream: `{"type":"system","subtype":"init","model":"claude-sonnet-5"}
+{"type":"assistant","message":{"model":"claude-opus-5","content":[]}}
+{"type":"result","subtype":"success"}`, status: "model_mismatch"},
+		{name: "malformed", host: "claude", condition: "baseline", model: "claude-sonnet-5", stream: `{"type":`, status: "malformed_stream"},
+		{name: "not an event", host: "claude", condition: "baseline", model: "claude-sonnet-5", stream: `{}`, status: "malformed_stream"},
+		{name: "forbidden CLI", host: "codex", condition: "mcp", model: "gpt-5.6-terra", stream: `{"type":"item.started","item":{"type":"command_execution","command":"/opt/tools/kapi check"}}`, status: "route_violation"},
+		{name: "forbidden MCP", host: "claude", condition: "skill-cli", model: "claude-sonnet-5", stream: `{"type":"assistant","message":{"content":[{"type":"tool_use","name":"mcp__kapi__check","input":{}}]}}`, status: "route_violation"},
+		{name: "foreign MCP", host: "codex", condition: "mcp", model: "gpt-5.6-terra", stream: `{"type":"item.completed","item":{"type":"mcp_tool_call","server":"other","tool":"read"}}`, status: "route_violation"},
+		{name: "rate limit", host: "codex", condition: "baseline", model: "gpt-5.6-terra", stream: `{"type":"error","message":"You have reached your usage limit"}`, status: "rate_limited"},
+		{name: "Claude result quota", host: "claude", condition: "baseline", model: "claude-sonnet-5", stream: `{"type":"result","subtype":"error_during_execution","is_error":true,"errors":["You have reached your usage limit"]}`, status: "rate_limited"},
+		{name: "Claude rejected quota", host: "claude", condition: "baseline", model: "claude-sonnet-5", stream: `{"type":"rate_limit_event","rate_limit_info":{"status":"rejected"}}
+{"type":"result","subtype":"error_during_execution","is_error":true}`, status: "rate_limited"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := parsePairedAgentStream(strings.NewReader(tc.stream), PairedLaunch{Agent: PairedAgentSpec{Host: tc.host, Model: tc.model}, Condition: tc.condition})
+			assert.Equal(t, tc.status, result.Status)
+			assert.Equal(t, tc.status == "rate_limited", result.RateLimited)
+			if tc.success {
+				require.NoError(t, err)
+				assert.True(t, result.UsageObserved)
+				assert.NotEmpty(t, result.Tools)
+			} else {
+				require.Error(t, err)
+			}
+		})
+	}
+}
+
+func TestPairedTokenAccountingIncludesCachedInput(t *testing.T) {
+	for _, tc := range []struct {
+		host, stream string
+		cacheWrite   int64
+	}{
+		{host: "claude", cacheWrite: 20, stream: `{"type":"system","subtype":"init","model":"test"}
+{"type":"result","subtype":"success","usage":{"input_tokens":10,"cache_creation_input_tokens":20,"cache_read_input_tokens":70,"output_tokens":4}}`},
+		{host: "codex", stream: `{"type":"thread.started","model":"test"}
+{"type":"turn.completed","usage":{"input_tokens":100,"cached_input_tokens":70,"output_tokens":4}}`},
+	} {
+		t.Run(tc.host, func(t *testing.T) {
+			result, err := parsePairedAgentStream(strings.NewReader(tc.stream), PairedLaunch{
+				Agent: PairedAgentSpec{Host: tc.host, Model: "test"}, Condition: "baseline",
+			})
+			require.NoError(t, err)
+			assert.Equal(t, int64(100), result.InputTokens)
+			assert.Equal(t, int64(70), result.CacheReadTokens)
+			assert.Equal(t, tc.cacheWrite, result.CacheWriteTokens)
+			assert.Equal(t, int64(4), result.OutputTokens)
+		})
+	}
+}
+
+func TestPairedCodexResourceHelpersPreserveRouteIsolation(t *testing.T) {
+	for _, tc := range []struct {
+		condition, tool, target string
+		allowed                 bool
+	}{
+		{condition: "mcp", tool: "list_mcp_resources", allowed: true},
+		{condition: "mcp", tool: "list_mcp_resource_templates", allowed: true},
+		{condition: "mcp", tool: "read_mcp_resource", target: "kapi", allowed: true},
+		{condition: "mcp", tool: "read_mcp_resource", allowed: false},
+		{condition: "mcp", tool: "list_mcp_resources", target: "foreign", allowed: false},
+		{condition: "mcp", tool: "read_mcp_resource", target: "foreign", allowed: false},
+		{condition: "mcp", tool: "execute", target: "kapi", allowed: false},
+		{condition: "baseline", tool: "list_mcp_resources", allowed: false},
+		{condition: "skill-cli", tool: "read_mcp_resource", target: "kapi", allowed: false},
+	} {
+		item := map[string]any{
+			"type": "mcp_tool_call", "server": "codex", "tool": tc.tool,
+			"arguments": map[string]any{"server": tc.target},
+		}
+		event, err := json.Marshal(map[string]any{"type": "item.started", "item": item})
+		require.NoError(t, err)
+		stream := "{\"type\":\"thread.started\",\"model\":\"test\"}\n" + string(event) +
+			"\n{\"type\":\"turn.completed\",\"usage\":{}}\n"
+		result, err := parsePairedAgentStream(strings.NewReader(stream), PairedLaunch{
+			Agent: PairedAgentSpec{Host: "codex", Model: "test"}, Condition: tc.condition,
+		})
+		if tc.allowed {
+			require.NoError(t, err)
+			assert.Equal(t, "completed", result.Status)
+		} else {
+			require.Error(t, err)
+			assert.Equal(t, "route_violation", result.Status)
+		}
+	}
+}
+
+func TestPairedRunTimeoutAndFailedLaunch(t *testing.T) {
+	for _, tc := range []struct {
+		name, script, status string
+		timeout              time.Duration
+	}{
+		{name: "timeout", script: "#!/bin/sh\nwhile :; do :; done\n", status: "timeout", timeout: 30 * time.Millisecond},
+		// Malformed-stream detection needs startup headroom under race instrumentation.
+		{name: "malformed", script: "#!/bin/sh\nprintf 'garbage\\n'\n", status: "malformed_stream", timeout: 5 * time.Second},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			binary := filepath.Join(dir, "agent")
+			require.NoError(t, os.WriteFile(binary, []byte(tc.script), 0o700))
+			result, err := runPairedAgent(context.Background(), PairedPrepared{Executable: binary, Args: []string{}, Env: []string{}, Blockers: []string{}, Launch: PairedLaunch{Agent: PairedAgentSpec{Host: "claude", Model: "test"}, Condition: "baseline", Workspace: dir, TranscriptPath: filepath.Join(dir, "transcript.jsonl"), Timeout: tc.timeout}})
+			require.Error(t, err)
+			assert.Equal(t, tc.status, result.Status)
+		})
+	}
+}
+
+func TestPairedRedactionAcrossWrites(t *testing.T) {
+	var output bytes.Buffer
+	writer := newPairedRedactor(&output, []string{"CLAUDE_CODE_OAUTH_TOKEN=private-token"})
+	_, err := writer.Write([]byte("prefix private-"))
+	require.NoError(t, err)
+	_, err = writer.Write([]byte("token suffix\nprivate-token"))
+	require.NoError(t, err)
+	require.NoError(t, writer.Flush())
+	assert.Equal(t, "prefix [REDACTED] suffix\n[REDACTED]", output.String())
+}
+
+func TestPairedPreparedNeverSerializesEnvironment(t *testing.T) {
+	data, err := json.Marshal(PairedPrepared{Env: []string{"CLAUDE_CODE_OAUTH_TOKEN=private"}})
+	require.NoError(t, err)
+	assert.NotContains(t, string(data), "private")
+	assert.NotContains(t, string(data), "TOKEN")
+}
+
+func TestPairedCodexModelFromOwnRollout(t *testing.T) {
+	state := t.TempDir()
+	dir := filepath.Join(state, "codex", "sessions", "2026", "09", "10")
+	require.NoError(t, os.MkdirAll(dir, 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "rollout-session.jsonl"), []byte(`{"type":"turn_context","payload":{"model":"gpt-5.6-terra"}}`), 0o600))
+	actual, err := pairedCodexRolloutModel(state, "session")
+	require.NoError(t, err)
+	assert.Equal(t, "gpt-5.6-terra", actual)
+	_, err = pairedCodexRolloutModel(state, "../session")
+	require.Error(t, err)
+}
+
+func TestPairedRunTimeoutClosesDescendantPipe(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("fixture uses a Unix shell")
+	}
+	dir := t.TempDir()
+	binary := filepath.Join(dir, "agent")
+	// The parent waits while the child holds its inherited stdout open. Killing
+	// only the parent leaves the stream scanner blocked on the sleeping child.
+	script := "#!/bin/sh\n/bin/sleep 30 &\nwait\n"
+	require.NoError(t, os.WriteFile(binary, []byte(script), 0o700))
+	started := time.Now()
+	result, err := runPairedAgent(context.Background(), PairedPrepared{
+		Executable: binary,
+		Args:       []string{},
+		Env:        []string{},
+		Blockers:   []string{},
+		Launch: PairedLaunch{
+			Agent:          PairedAgentSpec{Host: "claude", Model: "test"},
+			Condition:      "baseline",
+			Workspace:      dir,
+			TranscriptPath: filepath.Join(dir, "transcript.jsonl"),
+			Timeout:        50 * time.Millisecond,
+		},
+	})
+	require.Error(t, err)
+	assert.Equal(t, "timeout", result.Status)
+	assert.Less(t, time.Since(started), time.Second)
+}

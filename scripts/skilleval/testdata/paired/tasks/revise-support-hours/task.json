@@ -1,0 +1,46 @@
+{
+  "id": "revise-support-hours",
+  "family": "guidance-revision",
+  "prompt": "Apply the current support-hours decision to content/en/page.json. Read guidance.md and the project guidance before editing. Keep the JSON keys and types. Edit only content/en/page.json. Do not change guidance, project configuration or other files.",
+  "editable": [
+    "content/en/page.json"
+  ],
+  "criteria": [
+    {
+      "id": "hours-updated",
+      "kind": "json_equals",
+      "path": "content/en/page.json",
+      "key": "support_hours",
+      "value": "Monday\u2013Saturday, 08:00\u201318:00 UTC",
+      "description": "hours updated"
+    },
+    {
+      "id": "preserve-title",
+      "kind": "json_equals",
+      "path": "content/en/page.json",
+      "key": "title",
+      "value": "Contact Harbor Help",
+      "description": "preserve title"
+    },
+    {
+      "id": "preserve-support",
+      "kind": "json_equals",
+      "path": "content/en/page.json",
+      "key": "support",
+      "value": "help@harbor.example",
+      "description": "preserve support"
+    },
+    {
+      "id": "preserve-body",
+      "kind": "json_equals",
+      "path": "content/en/page.json",
+      "key": "body",
+      "value": "The support team answers during these hours. Messages sent outside these hours wait until the next opening.",
+      "description": "preserve body"
+    }
+  ],
+  "humanReviewRubric": [
+    "Is the revised schedule unambiguous, including time zone?",
+    "Are unrelated service information and historical material preserved?"
+  ]
+}

@@ -1,0 +1,51 @@
+name: Alder Library equipment lending
+description: Current equipment loan instructions and explicit policy exceptions.
+tone:
+  personality: [plain, practical]
+  formality: neutral
+  guidelines: Follow guidance.md for approved copy, scheduling rules and protected fields.
+constraints:
+  - id: alder-library/obsolete-loan-wording
+    version: 1
+    source: guidance.md#current-decision
+    statement: Current camera loan wording uses 14 days or the approved label 14-day loan.
+    kind: prohibited_pattern
+    regex: '(?i)\b7(?:[ -]days?| days)\b'
+    exceptions:
+      - scope: {channel: telescope}
+        reason: Telescope loans retain their 7-day policy.
+        approved_by: equipment-service-owner
+        approval_ref: EQ-2026-09-T
+      - scope: {channel: archive}
+        reason: The notice records the previous policy.
+        approved_by: equipment-service-owner
+        approval_ref: EQ-2026-09-A
+      - scope: {channel: integration}
+        reason: The integration contract is frozen independently of display copy.
+        approved_by: equipment-service-owner
+        approval_ref: EQ-2026-09-I
+  - id: alder-library/telescope-loan-limit
+    version: 1
+    source: guidance.md#protected-exceptions
+    statement: Telescope loans remain 7 days; do not extend them to 14 days.
+    kind: prohibited_pattern
+    regex: '(?i)\b14(?:[ -]days?| days)\b'
+    scope: {channel: telescope}
+  - id: alder-library/equipment-decision
+    version: 1
+    source: guidance.md
+    statement: Apply the camera loan decision, calculate the reminder day and preserve protected fields and files.
+    kind: guidance
+channels:
+  camera:
+    tone:
+      guidelines: Use the current camera policy in every customer instruction and desk card.
+  telescope:
+    tone:
+      guidelines: Telescope loans retain the approved 7-day exception.
+  archive:
+    tone:
+      guidelines: Preserve the historical notice exactly.
+  integration:
+    tone:
+      guidelines: Preserve the external contract exactly.

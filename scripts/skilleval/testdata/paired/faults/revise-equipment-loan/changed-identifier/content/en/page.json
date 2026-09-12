@@ -1,0 +1,10 @@
+{
+  "id": "camera-borrowing",
+  "title": "Borrow a camera",
+  "loan_label": "14-day loan",
+  "loan_days": "14",
+  "return_instruction": "Return the camera within 14 days of collection.",
+  "renewals": "Camera loans cannot be renewed.",
+  "policy_id": "camera_14_day",
+  "support": "equipment@alder.example"
+}

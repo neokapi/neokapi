@@ -1,0 +1,53 @@
+name: Harbor Help
+description: Practical service information with explicit scope and stable facts.
+tone:
+  personality: [calm, plain, respectful]
+  formality: neutral
+  emotion: reassuring
+  humor: none
+  guidelines: >-
+    Follow guidance.md for the current task, factual requirements and exceptions.
+    State what the reader can do next. Do not invent service capabilities.
+style:
+  active_voice: true
+  sentence_length: short
+  person_pov: second
+  contractions: never
+constraints:
+  - id: harbor-help/no-unsupported-assurance
+    version: 1
+    source: guidance.md
+    statement: Do not describe the service as guaranteed, always safe or risk-free.
+    kind: prohibited_pattern
+    regex: '(?i)\b(guarantee(?:d|s)?|always safe|risk-free)\b'
+  - id: harbor-help/current-guidance
+    version: 1
+    source: guidance.md
+    statement: Preserve the service facts, scope boundaries and exceptions in guidance.md.
+    kind: guidance
+channels:
+  child:
+    tone:
+      personality: [kind, clear, calm]
+      formality: informal
+      emotion: reassuring
+      humor: none
+      guidelines: >-
+        Explain one idea at a time in familiar words. Ask a trusted adult for help
+        with appointments. Do not ask a child to make an adult decision.
+  older-adult:
+    tone:
+      personality: [patient, clear, respectful]
+      formality: neutral
+      emotion: reassuring
+      humor: none
+      guidelines: >-
+        Give patient, clear instructions and a route to a person. Do not assume
+        difficulty or unfamiliarity because of age. Avoid patronizing language.
+  adult:
+    tone:
+      personality: [clear, practical, respectful]
+      formality: neutral
+      emotion: neutral
+      humor: none
+      guidelines: Be direct, concrete and respectful. Preserve conditions and exceptions.

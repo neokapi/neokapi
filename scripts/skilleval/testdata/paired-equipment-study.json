@@ -1,0 +1,30 @@
+{
+  "schema": 1,
+  "study": "kapi-b2-equipment-policy",
+  "seed": 20260910,
+  "agents": [
+    {
+      "host": "codex",
+      "model": "gpt-5.6-terra",
+      "effort": "medium"
+    },
+    {
+      "host": "claude",
+      "model": "claude-sonnet-5",
+      "effort": "high"
+    }
+  ],
+  "conditions": [
+    "baseline",
+    "skill-cli",
+    "mcp"
+  ],
+  "tasks": [
+    "revise-equipment-loan"
+  ],
+  "smoke_task": "revise-equipment-loan",
+  "repetitions": 1,
+  "attempt_timeout_seconds": 180,
+  "max_turns": 40,
+  "billing": "subscription-only"
+}
