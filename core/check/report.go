@@ -87,10 +87,14 @@ type Diagnostic struct {
 // the content to revise; anchor/snippet refine it when the checker populated
 // a position.
 type Location struct {
-	File    string        `json:"file,omitempty"`
-	Block   string        `json:"block,omitempty"`
-	Anchor  *model.Anchor `json:"anchor,omitempty"`
-	Snippet string        `json:"snippet,omitempty"`
+	File   string        `json:"file,omitempty"`
+	Block  string        `json:"block,omitempty"`
+	Anchor *model.Anchor `json:"anchor,omitempty"`
+	// Lines are the lines of File the whole block spans, when the block's
+	// position in the file is known. They locate the block, not the finding
+	// inside it, which Anchor does.
+	Lines   *format.LineRange `json:"lines,omitempty"`
+	Snippet string            `json:"snippet,omitempty"`
 }
 
 // RuleID builds the stable "<check>.<category>" rule id.

@@ -1,0 +1,15 @@
+diff --git a/notes.md b/renamed-notes.md
+similarity index 83%
+rename from notes.md
+rename to renamed-notes.md
+index f0f26d8..aee2dd7 100644
+--- a/notes.md
++++ b/renamed-notes.md
+@@ -1,6 +1,6 @@
+ Line one of a longer file.
+ Line two of a longer file.
+ Line three of a longer file.
+-Line four of a longer file.
++Line FOUR of a longer file.
+ Line five of a longer file.
+ Line six of a longer file.

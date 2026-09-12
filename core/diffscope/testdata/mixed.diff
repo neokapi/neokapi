@@ -1,0 +1,66 @@
+diff --git a/added.md b/added.md
+new file mode 100644
+index 0000000..c9267f1
+--- /dev/null
++++ b/added.md
+@@ -0,0 +1,2 @@
++brand new
++second
+diff --git a/blob.bin b/blob.bin
+index 0f49c4a..0468cc6 100644
+Binary files a/blob.bin and b/blob.bin differ
+diff --git a/crlf.md b/crlf.md
+index ea0584c..2cf3ca6 100644
+--- a/crlf.md
++++ b/crlf.md
+@@ -1,3 +1,3 @@
+ first line
+-second line
++second LINE
+ third line
+diff --git "a/dir with space/na\303\257ve.md" "b/dir with space/na\303\257ve.md"
+index 859f8bd..d8fdff1 100644
+--- "a/dir with space/na\303\257ve.md"	
++++ "b/dir with space/na\303\257ve.md"	
+@@ -1 +1 @@
+-naive
++naive changed
+diff --git a/gone.md b/gone.md
+deleted file mode 100644
+index 33194a0..0000000
+--- a/gone.md
++++ /dev/null
+@@ -1 +0,0 @@
+-old content
+diff --git a/moved.md b/moved.md
+deleted file mode 100644
+index 6569f89..0000000
+--- a/moved.md
++++ /dev/null
+@@ -1,2 +0,0 @@
+-keep me
+-and me
+diff --git a/pure.md b/pure-renamed.md
+similarity index 100%
+rename from pure.md
+rename to pure-renamed.md
+diff --git a/renamed.md b/renamed.md
+new file mode 100644
+index 0000000..f9752b5
+--- /dev/null
++++ b/renamed.md
+@@ -0,0 +1,2 @@
++keep me
++and me too
+diff --git a/tail.md b/tail.md
+index cd77cc6..8479f78 100644
+--- a/tail.md
++++ b/tail.md
+@@ -1 +1 @@
+-no newline at the end
+\ No newline at end of file
++no newline at the very end
+\ No newline at end of file
+diff --git a/tool.sh b/tool.sh
+old mode 100644
+new mode 100755

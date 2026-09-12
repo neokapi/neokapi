@@ -1,0 +1,12 @@
+diff --git a/guide.md b/guide.md
+index f49bff4..c4ac76d 100644
+--- a/guide.md
++++ b/guide.md
+@@ -3,7 +3,6 @@
+ One two three.
+ Four five six.
+ Seven eight nine.
+-Ten eleven twelve.
+ Thirteen fourteen.
+ Fifteen sixteen.
+ Seventeen eighteen.
