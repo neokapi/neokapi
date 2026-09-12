@@ -277,6 +277,7 @@ export const AxisFamilies: Story = {
             { label: "Engine", range: "L0–L4" },
             { label: "Vocabulary", range: "V0–V3" },
             { label: "Structure & Geometry", range: "G0–G4" },
+            { label: "Prose", range: "P0–P4" },
           ],
         },
         {

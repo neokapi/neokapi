@@ -2,7 +2,7 @@
 // Deterministic, no-LLM publish of the format-maturity dashboard dataset.
 //
 // Contract: docs/internals/format-maturity.md §3 (the scorer dataset/history
-// contract; scorer_version 4) and docs/internals/format-ops.md (the triage-score ritual's Publish
+// contract; scorer_version 5) and docs/internals/format-ops.md (the triage-score ritual's Publish
 // step). This is the floor-only path: it computes every axis level from the
 // deterministic file floor with NO quality-dimension demotions and NO sticky
 // prior — exactly what the format-triage workflow publishes when its Score
@@ -21,8 +21,9 @@
 //   node scripts/format-ops/bootstrap-publish.mjs --dry-run  # print summary only
 //   node scripts/format-ops/bootstrap-publish.mjs --date 2026-06-13   # pin the date
 //
-// Inputs : audit-format.py --all --json, core/formats/support.yaml,
-//          the current dashboard JSON (for the date-dedupe), the ledger.
+// Inputs : audit-format.py --all --json, the Prose probe report (make
+//          prose-probe), core/formats/support.yaml, the current dashboard
+//          JSON (for the date-dedupe), the ledger.
 // Outputs: web/static/data/format-maturity.json (+ history), the generated
 //          block in docs/internals/format-maturity.md, support.yaml
 //          last_certified, and a triage-score run record in the ledger.
@@ -64,7 +65,7 @@ async function loadScorer() {
   prelude = prelude.replace(/^export\s+const\s+meta/m, 'const meta') // avoid duplicate export name
   prelude = 'const args = "";\n' + prelude // cfg defaults (target L4, samples 1, anchor on)
   prelude += '\nexport { AXIS_IDS, AXES, NEXT, RANK, ORDER, AXIS_LABELS, CANON, LABELS, DIM_AXES,' +
-    ' floorDimsAll, axisLevel, axisCeiling, axisGaps, buildDataset };\n'
+    ' floorDimsAll, axisLevel, axisCeiling, axisGaps, buildDataset, attachProse, proseDetail, languageRows };\n'
   const dir = mkdtempSync(join(tmpdir(), 'fmt-scorer-'))
   const file = join(dir, 'prelude.mjs')
   writeFileSync(file, prelude)
@@ -99,6 +100,23 @@ const auditSha = createHash('sha256').update(auditJson).digest('hex')
 const floors = JSON.parse(auditJson)
 const tierByFmt = existsSync(P.support) ? readSupport(readFileSync(P.support, 'utf8')) : {}
 
+// ── the Prose probe (rubric §2.8) ───────────────────────────────────────────
+// The Prose floor is the probe's report rather than an audit grep: a rung
+// counts only when its rung test passed. A run whose canary is not scored as
+// built exits non-zero and writes no report, and this publish stops here,
+// before any file is written.
+const proseOut = join(mkdtempSync(join(tmpdir(), 'prose-probe-')), 'report.json')
+try {
+  execFileSync('make', ['--no-print-directory', 'prose-probe', `PROSE_PROBE_OUT=${proseOut}`],
+    { cwd: ROOT, stdio: ['ignore', 'ignore', 'inherit'] })
+} catch {
+  console.error('bootstrap-publish: the Prose probe failed or its run was invalid; nothing published')
+  process.exit(1)
+}
+const proseReport = JSON.parse(readFileSync(proseOut, 'utf8'))
+S.attachProse(floors, proseReport)
+const languages = S.languageRows(proseReport)
+
 const movesByAxis = {}
 for (const a of S.AXIS_IDS) movesByAxis[a] = { published: 0, suppressed: 0 }
 
@@ -118,6 +136,7 @@ for (const floor of floors) {
       level, next: next[axis], floor: band.floor, ceiling: band.ceiling,
       derived_from: 'dimensions', delta: null, agreement: 1,
       blocking_gaps: gapsFor(floor, axis, dims),
+      ...(axis === 'prose' ? S.proseDetail(floor) : {}),
     }
   }
   let cp = String(floor.okapi_counterpart || '')
@@ -138,6 +157,7 @@ for (const floor of floors) {
 // first missing artifact toward the next level. The first real triage-score
 // run replaces these with the agents' richer, cited gaps.
 function gapsFor(floor, axis, dims) {
+  if (axis === 'prose') return proseGaps(floor)
   const a = floor.axes && floor.axes[axis]
   if (!a || a.base === a.ceiling && axisIsTop(axis, a.base)) {}
   const want = {
@@ -158,14 +178,34 @@ function gapsFor(floor, axis, dims) {
 }
 function axisIsTop() { return false }
 
+// proseGaps names the first rung that is not met. A rung test that exists and
+// did not run is reported as that, with its reason, rather than as missing.
+function proseGaps(floor) {
+  const sig = floor.axes && floor.axes.prose && floor.axes.prose.signals
+  if (!sig) return []
+  // A format that reads several languages is scored on their rows, so the
+  // gap points there rather than at a test named for the format.
+  if (sig.languages && sig.languages.length) return [`scored on the language rows: ${sig.languages.join(', ')}`]
+  for (const rung of ['P1', 'P2', 'P3', 'P4']) {
+    const r = sig.rungs[rung]
+    if (!r || r.outcome === 'met') continue
+    const test = `TestProse${rung}_${floor.format}`
+    if (r.outcome === 'did-not-run') return [`${test} did not run (${r.reason})`]
+    if (r.reason === 'no test') return [`add ${test} (${rung})`]
+    return [`${test} ${r.reason}`]
+  }
+  return []
+}
+
 // ── assemble the dataset via the workflow's own buildDataset ────────────────
 const golden_passed = true // samples === 1 fleet-wide
 const runIntegrity = {
   samples: 1, anchored: true,
   moves: { published: 0, suppressed: 0, by_axis: movesByAxis },
   low_agreement: [], golden_passed,
+  prose: { probe_version: proseReport.probe_version, canary: proseReport.canary.level, tags: proseReport.tags },
 }
-const dataset = S.buildDataset(rows, runIntegrity, tierByFmt)
+const dataset = S.buildDataset(rows, runIntegrity, tierByFmt, languages)
 dataset.generated_at = TODAY
 dataset.source = 'format-ops bootstrap-publish (deterministic per-axis floor; no quality demotions)'
 
@@ -180,6 +220,7 @@ for (const axis of S.AXIS_IDS) {
 if (DRY) {
   console.log(`bootstrap-publish DRY RUN (date ${TODAY}, ${rows.length} formats, audit ${auditSha.slice(0, 12)})`)
   for (const axis of S.AXIS_IDS) console.log(`  ${axis.padEnd(11)} ${JSON.stringify(byAxisDist[axis])}`)
+  console.log(`  languages   ${JSON.stringify(dataset.summary.languages)}`)
   process.exit(0)
 }
 
@@ -189,7 +230,7 @@ writeFileSync(P.dataset, JSON.stringify(dataset, null, 2) + '\n')
 // ── history: remove TODAY then append; never rewrite old entries ────────────
 const history = existsSync(P.history) ? JSON.parse(readFileSync(P.history, 'utf8')) : []
 const kept = history.filter((h) => h.date !== TODAY)
-kept.push({ date: TODAY, total: dataset.summary.total, by_level: dataset.summary.by_level, by_axis: dataset.summary.by_axis, golden_passed, moves: runIntegrity.moves })
+kept.push({ date: TODAY, total: dataset.summary.total, by_level: dataset.summary.by_level, by_axis: dataset.summary.by_axis, languages: dataset.summary.languages, golden_passed, moves: runIntegrity.moves })
 kept.sort((a, b) => a.date.localeCompare(b.date))
 writeFileSync(P.history, JSON.stringify(kept, null, 2) + '\n')
 
@@ -231,6 +272,18 @@ function renderDocsBlock() {
     const gap = (r.blocking_gaps[0] || 'none').slice(0, 60)
     const cells = [`\`${r.id}\``, t, ...S.AXIS_IDS.map((a) => r.levels[a]), gap]
     L.push(`| ${cells.join(' | ')} |`)
+  }
+  // Languages carry only the Prose axis, so they get their own table. A
+  // language with no level is absent from the build, or its rung tests did
+  // not run.
+  L.push('')
+  L.push('### Languages (Prose axis)')
+  L.push('')
+  L.push('| Language | Presence | Prose | P1 | P2 | P3 | P4 |')
+  L.push('|---|---|---|---|---|---|---|')
+  for (const l of languages) {
+    const rungs = ['P1', 'P2', 'P3', 'P4'].map((g) => l.rungs[g].outcome)
+    L.push(`| \`${l.id}\` | ${l.presence} | ${l.level || 'none'} | ${rungs.join(' | ')} |`)
   }
   return L.join('\n')
 }
@@ -285,7 +338,7 @@ if (existsSync(P.ledger)) {
     ts.watermarks = ts.watermarks || {}
     ts.watermarks.core_formats_sha = coreSha
     ts.watermarks.audit_sha = auditSha
-    ts.watermarks.scorer_version = 4
+    ts.watermarks.scorer_version = 5
     ts.watermarks.axes_published = S.AXIS_IDS.slice()
   }
   ledger.runs = ledger.runs || []

@@ -8,10 +8,10 @@ import { t } from "@neokapi/i18n-react/runtime";
 // Version compatibility: the page must render a v1 dataset (no
 // `scorer_version`), a v2 dataset (`scorer_version: 2`, `run_integrity`,
 // evidence/floor/ceiling/delta on rows), a v3 dataset (per-axis `levels`,
-// `dims`, `tier`, `summary.by_axis`) and a v4 dataset (the additive
-// Structure & Geometry axis `structure`) unchanged — every post-v1 field below
-// is therefore optional/additive. A v3 (6-axis) dataset simply carries no
-// `structure` data, and the page guards every structure-bearing field.
+// `dims`, `tier`, `summary.by_axis`), a v4 dataset (the additive Structure &
+// Geometry axis `structure`) and a v5 dataset (the additive Prose axis `prose`,
+// plus `languages[]` and `summary.languages`) unchanged. Every post-v1 field
+// below is therefore optional and additive, and the page guards each one.
 
 export type Level = "L0" | "L1" | "L2" | "L3" | "L4"; // engine axis
 export type VocabGrade = "V0" | "V1" | "V2" | "V3";
@@ -23,6 +23,9 @@ export type SecurityGrade = "S0" | "S1" | "S2" | "S3" | "S4";
  * ladder: G0 opaque → G1 metadata → G2 linear body text → G3 logical structure
  * → G4 + spatial geometry. */
 export type StructureGrade = "G0" | "G1" | "G2" | "G3" | "G4";
+/** Prose axis (scorer v5): how much of the comment layer kapi can locate,
+ * check and rewrite, scored from rung tests by the Prose probe. */
+export type ProseGrade = "P0" | "P1" | "P2" | "P3" | "P4";
 export type Grade =
   | Level
   | VocabGrade
@@ -30,7 +33,8 @@ export type Grade =
   | KnowledgeGrade
   | CorpusGrade
   | SecurityGrade
-  | StructureGrade;
+  | StructureGrade
+  | ProseGrade;
 
 export type AxisId =
   | "engine"
@@ -39,8 +43,40 @@ export type AxisId =
   | "knowledge"
   | "corpus"
   | "security"
-  | "structure";
-export type DimScore = "complete" | "partial" | "none" | "na";
+  | "structure"
+  | "prose";
+/** `notrun` is the Prose axis's third outcome: a rung test exists and
+ * produced no result (skipped, did not build, or never reported). */
+export type DimScore = "complete" | "partial" | "none" | "na" | "notrun";
+
+/** One Prose rung as the probe recorded it. Only `met` awards the rung. */
+export interface ProseRung {
+  outcome: "met" | "not-met" | "did-not-run";
+  reason: string;
+}
+
+/** Whether the build reads a language at all (rubric §2.8). */
+export type LanguagePresence = "present" | "absent" | "did-not-run";
+
+/** A source language the Prose axis tracks without a format of its own.
+ * Language rows sit beside `formats[]` and never enter the format counts. */
+export interface LanguageRow {
+  id: string;
+  name: string;
+  provider?: string;
+  presence: LanguagePresence;
+  /** Null unless the language is present. */
+  level: ProseGrade | null;
+  next?: string | null;
+  dims: Record<string, DimScore>;
+  rungs: Partial<Record<ProseGrade, ProseRung>>;
+}
+
+export interface LanguageSummary {
+  total: number;
+  by_presence: Partial<Record<LanguagePresence, number>>;
+  by_prose: Partial<Record<ProseGrade, number>>;
+}
 export type FormatType = "parity" | "harvest" | "read-only" | "internal";
 
 /** Support tier ladder (docs/internals/format-maturity.md §1). */
@@ -98,6 +134,19 @@ export interface FormatRow {
   dims?: Partial<Record<AxisId, Record<string, DimScore>>>;
   next?: Partial<Record<AxisId, string>>;
   tier?: TierInfo;
+  /** Per-axis detail. `blocking_gaps` is the gap toward that axis's next
+   * level; the Prose entry also carries each rung's outcome and the languages
+   * a format reads, which are scored on their own rows. */
+  axes?: Partial<
+    Record<
+      AxisId,
+      {
+        blocking_gaps?: string[];
+        rungs?: Partial<Record<ProseGrade, ProseRung>>;
+        languages?: string[];
+      }
+    >
+  >;
 }
 
 export interface MaturityData {
@@ -113,6 +162,8 @@ export interface MaturityData {
     by_level: Record<Level, number>;
     /** Additive in v3. */
     by_axis?: Partial<Record<AxisId, Partial<Record<Grade, number>>>>;
+    /** Additive in v5: the language rows, counted apart from formats. */
+    languages?: LanguageSummary;
   };
   dimensions: string[];
   dimension_labels: Record<string, string>;
@@ -122,6 +173,8 @@ export interface MaturityData {
   /** Additive in v3: dimension id → owning axis. */
   dimension_axes?: Record<string, AxisId>;
   formats: FormatRow[];
+  /** Additive in v5. */
+  languages?: LanguageRow[];
 }
 
 export interface HistorySnapshot {
@@ -134,6 +187,7 @@ export interface HistorySnapshot {
   // v3 snapshots only — old entries are never rewritten, so the page must
   // guard every access (h.by_axis?.… ?? 0).
   by_axis?: Partial<Record<AxisId, Partial<Record<Grade, number>>>>;
+  languages?: LanguageSummary;
 }
 
 export const LEVELS: Level[] = ["L0", "L1", "L2", "L3", "L4"];
@@ -154,6 +208,7 @@ export const AXIS_IDS: AxisId[] = [
   "corpus",
   "security",
   "structure",
+  "prose",
 ];
 
 export const AXIS_LABEL: Record<AxisId, string> = {
@@ -164,6 +219,7 @@ export const AXIS_LABEL: Record<AxisId, string> = {
   corpus: t("Corpus", "format maturity axis"),
   security: t("Security", "format maturity axis"),
   structure: t("Structure & Geometry", "format maturity axis"),
+  prose: t("Prose", "format maturity axis"),
 };
 
 export const AXIS_GRADES: Record<AxisId, Grade[]> = {
@@ -174,6 +230,7 @@ export const AXIS_GRADES: Record<AxisId, Grade[]> = {
   corpus: ["C0", "C1", "C2", "C3"],
   security: ["S0", "S1", "S2", "S3", "S4"],
   structure: ["G0", "G1", "G2", "G3", "G4"],
+  prose: ["P0", "P1", "P2", "P3", "P4"],
 };
 
 /**
@@ -203,6 +260,9 @@ export const AXIS_DIMS: Record<AxisId, string[]> = {
   // Structure & Geometry is floor-only (rubric §2.7); these signal ids map the
   // cumulative G1–G4 rungs (metadata plane / reading order / roles / geometry).
   structure: ["metaplane", "readingorder", "roles", "geometry"],
+  // Prose is floor-only (rubric §2.8); one cell per rung above P0, from the
+  // probe's outcomes.
+  prose: ["located", "governed", "editable", "allforms"],
 };
 
 /**
@@ -240,11 +300,15 @@ export const AXIS_DESC: Record<AxisId, string> = {
     "How much of the document's logical and spatial structure the reader recovers — roles, reading order, tables, relations, geometry (non-gating display axis)",
     "what a format maturity axis measures",
   ),
+  prose: t(
+    "How much of the comment layer kapi can locate, check and rewrite, scored per format and per source language (non-gating display axis)",
+    "what a format maturity axis measures",
+  ),
 };
 
-/** The two non-gating display axes (rubric §2): they score and rank work but
- * do not enter the tier minimum (for now). */
-export const NON_GATING_AXES: AxisId[] = ["security", "structure"];
+/** The non-gating display axes (rubric §2): they score and rank work but do
+ * not enter the tier minimum. */
+export const NON_GATING_AXES: AxisId[] = ["security", "structure", "prose"];
 
 export const GRADE_NAME: Record<Grade, string> = {
   ...LEVEL_NAME,
@@ -275,10 +339,44 @@ export const GRADE_NAME: Record<Grade, string> = {
   G2: t("Linear body text", "format maturity grade"),
   G3: t("Logical structure", "format maturity grade"),
   G4: t("Spatial geometry", "format maturity grade"),
+  P0: t("None", "format maturity grade"),
+  P1: t("Located", "format maturity grade"),
+  P2: t("Governed", "format maturity grade"),
+  P3: t("Editable", "format maturity grade"),
+  P4: t("Complete", "format maturity grade"),
+};
+
+/** The Prose rung each Prose dimension records. */
+export const PROSE_DIM_RUNG: Record<string, ProseGrade> = {
+  located: "P1",
+  governed: "P2",
+  editable: "P3",
+  allforms: "P4",
+};
+
+export const PRESENCE_LABEL: Record<LanguagePresence, string> = {
+  present: t("present", "whether the build reads a language"),
+  absent: t("absent", "whether the build reads a language"),
+  "did-not-run": t("did not run", "whether the build reads a language"),
+};
+
+export const PRESENCE_MEANING: Record<LanguagePresence, string> = {
+  present: t(
+    "At least one rung test for the language ran to a pass or a fail.",
+    "what a language presence means",
+  ),
+  absent: t(
+    "No rung test names the language: the build has no reader for it.",
+    "what a language presence means",
+  ),
+  "did-not-run": t(
+    "Rung tests name the language, and none of them produced a result.",
+    "what a language presence means",
+  ),
 };
 
 // ── Axis families (rubric §1 — a dashboard reading aid, NOT a gating unit) ──
-// The seven axes group into three families by the question each answers
+// The axes group into three families by the question each answers
 // ("how deeply we read it / how we prove it / how we work with it"). The
 // support-tier gate is unchanged: it is still `min` over the gating axis set
 // (engine ∧ corpus ∧ knowledge), which deliberately straddles all three
@@ -301,11 +399,11 @@ export const FAMILY_TAGLINE: Record<FamilyId, string> = {
 };
 
 /** Axes per family, in display order. Comprehension is the three fidelity
- * resolutions (bytes → inline → structure); Structure & Geometry is the new
- * third member. Any axis absent from a dataset is filtered out at render time,
- * so a v3 (6-axis) dataset still groups cleanly. */
+ * resolutions (bytes → inline → structure) and Prose, the comments beside the
+ * content. Any axis absent from a dataset is filtered out at render time, so an
+ * older dataset still groups cleanly. */
 export const FAMILY_AXES: Record<FamilyId, AxisId[]> = {
-  comprehension: ["engine", "vocabulary", "structure"],
+  comprehension: ["engine", "vocabulary", "structure", "prose"],
   assurance: ["corpus", "security"],
   enablement: ["knowledge", "editor"],
 };

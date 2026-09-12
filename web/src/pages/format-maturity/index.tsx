@@ -13,6 +13,8 @@ import {
   type Grade,
   type SupportTier,
   type TierInfo,
+  type LanguageRow,
+  type ProseRung,
   LEVELS,
   LEVEL_NAME,
   AXIS_IDS,
@@ -31,6 +33,9 @@ import {
   TIER_MEANING,
   TIER_STALE_DAYS,
   TIER_DECAY_DAYS,
+  PROSE_DIM_RUNG,
+  PRESENCE_LABEL,
+  PRESENCE_MEANING,
 } from "./_types";
 
 // The committed dataset is still scorer v1 (no `scorer_version`; rows carry
@@ -76,6 +81,11 @@ const gradeClass: Record<Grade, string> = {
   G2: styles.lvlG2,
   G3: styles.lvlG3,
   G4: styles.lvlG4,
+  P0: styles.lvlP0,
+  P1: styles.lvlP1,
+  P2: styles.lvlP2,
+  P3: styles.lvlP3,
+  P4: styles.lvlP4,
 };
 
 const tierClass: Record<SupportTier, string> = {
@@ -89,6 +99,7 @@ const dotClass: Record<DimScore, string> = {
   partial: styles.dotPartial,
   none: styles.dotNone,
   na: styles.dotNa,
+  notrun: styles.dotNotrun,
 };
 
 const dotTitle: Record<DimScore, string> = {
@@ -96,6 +107,7 @@ const dotTitle: Record<DimScore, string> = {
   partial: t("partial", "dimension score"),
   none: t("missing", "dimension score"),
   na: t("not applicable", "dimension score"),
+  notrun: t("did not run", "dimension score"),
 };
 
 /** The published grade of a row on one axis. Engine always exists (`level`
@@ -129,9 +141,28 @@ function dimsForAxis(axis: AxisId): string[] {
   return [...canon, ...extra];
 }
 
+/** A row's cell for one dimension. Rows carry the flat `dimensions` grid for
+ * every axis, and per-axis `dims` only in some dataset generations, so both are
+ * read. */
 function dimScore(f: FormatRow, axis: AxisId, d: string): DimScore {
-  if (axis === "engine") return f.dims?.engine?.[d] ?? f.dimensions[d] ?? "none";
-  return f.dims?.[axis]?.[d] ?? "none";
+  return f.dims?.[axis]?.[d] ?? f.dimensions[d] ?? "none";
+}
+
+/** The tooltip for one dot. A Prose cell also names the rung and the reason the
+ * probe recorded, so a rung that did not run says why. */
+function dotLabel(d: string, s: DimScore, rungs?: Partial<Record<string, ProseRung>>): string {
+  const base = `${data.dimension_labels[d] ?? d}: ${dotTitle[s]}`;
+  const rung = PROSE_DIM_RUNG[d];
+  const r = rung ? rungs?.[rung] : undefined;
+  return r ? `${base} (${r.reason})` : base;
+}
+
+/** The gap toward the next level on the selected axis, falling back to the
+ * engine gap for datasets that carry no per-axis gaps. */
+function gapFor(f: FormatRow, axis: AxisId): string | undefined {
+  return axis === "engine"
+    ? f.blocking_gaps[0]
+    : (f.axes?.[axis]?.blocking_gaps?.[0] ?? f.blocking_gaps[0]);
 }
 
 // ── support-tier staleness (client-side, rubric §1) ─────────────────────────
@@ -551,7 +582,7 @@ export default function FormatMaturity() {
             </p>
             <p>
               The headline tier is the <strong>minimum over the gating axes</strong> (Engine,
-              Corpus, Knowledge) — never an average. The seven axes group into three families by the
+              Corpus, Knowledge) — never an average. The axes group into three families by the
               question each answers: <strong>Comprehension</strong> (how deeply we read it),{" "}
               <strong>Assurance</strong> (how we prove it), and <strong>Enablement</strong> (how we
               work with it).
@@ -667,6 +698,7 @@ export default function FormatMaturity() {
           </table>
         </div>
         {rows.length === 0 && <p>No formats match the current filters.</p>}
+        {axis === "prose" && <LanguagesTable />}
       </main>
     </Layout>
   );
@@ -705,6 +737,11 @@ function RowGroup({
             <span className={`${styles.levelBadge} ${gradeClass[g]}`}>{g}</span>
           ) : (
             <span className={styles.gradeMissing}>—</span>
+          )}
+          {axis === "prose" && (f.axes?.prose?.languages?.length ?? 0) > 0 && (
+            <div className={styles.typeTag}>
+              scored per language: {f.axes?.prose?.languages?.join(", ")}
+            </div>
           )}
           {f.levels && (
             <div className={styles.axisProfile}>
@@ -745,12 +782,12 @@ function RowGroup({
             <td key={d} style={{ textAlign: "center" }}>
               <span
                 className={`${styles.dot} ${dotClass[s]}`}
-                title={`${data.dimension_labels[d] ?? d}: ${dotTitle[s]}`}
+                title={dotLabel(d, s, f.axes?.prose?.rungs)}
               />
             </td>
           );
         })}
-        <td className={styles.gapCell}>{f.blocking_gaps[0] ?? "—"}</td>
+        <td className={styles.gapCell}>{gapFor(f, axis) ?? "—"}</td>
       </tr>
       {open && (
         <tr className={styles.detail}>
@@ -779,5 +816,90 @@ function RowGroup({
         </tr>
       )}
     </>
+  );
+}
+
+/** The Prose axis's language rows: source languages with no format of their
+ * own. A language is shown with its level when the build reads it, and with
+ * its presence otherwise, because a language kapi has no reader for is a
+ * different fact from a language at P0. */
+function LanguagesTable() {
+  const langs: LanguageRow[] = data.languages ?? [];
+  if (langs.length === 0) return null;
+  const dims = AXIS_DIMS.prose;
+  const summary = data.summary.languages;
+  return (
+    <div className={styles.languages}>
+      <h2>Languages without a format</h2>
+      <p className={styles.subtitle}>
+        The Prose axis is scored per language. A source language has no format row, so it is listed
+        here. <strong>{PRESENCE_LABEL.absent}</strong> means {PRESENCE_MEANING.absent.toLowerCase()}
+        {summary && (
+          <>
+            {" "}
+            {PRESENCE_LABEL.present} {summary.by_presence.present ?? 0} · {PRESENCE_LABEL.absent}{" "}
+            {summary.by_presence.absent ?? 0} · {PRESENCE_LABEL["did-not-run"]}{" "}
+            {summary.by_presence["did-not-run"] ?? 0}
+          </>
+        )}
+      </p>
+      <div className={styles.tableWrap}>
+        <table className={styles.table}>
+          <thead>
+            <tr>
+              <th>Language</th>
+              <th title={AXIS_DESC.prose}>{axisLabel("prose")}</th>
+              {dims.map((d) => (
+                <th key={d} className={styles.dimHead}>
+                  {data.dimension_labels[d] ?? d}
+                </th>
+              ))}
+              <th>Read by</th>
+            </tr>
+          </thead>
+          <tbody>
+            {langs.map((l) => (
+              <tr key={l.id}>
+                <td>
+                  <span className={styles.fmtId}>{l.id}</span>
+                  <div className={styles.typeTag}>{l.name}</div>
+                </td>
+                <td>
+                  {l.level ? (
+                    <span
+                      className={`${styles.levelBadge} ${gradeClass[l.level]}`}
+                      title={GRADE_NAME[l.level]}
+                    >
+                      {l.level}
+                    </span>
+                  ) : (
+                    <span
+                      className={`${styles.presenceBadge} ${
+                        l.presence === "absent" ? styles.presenceAbsent : styles.presenceNotrun
+                      }`}
+                      title={PRESENCE_MEANING[l.presence]}
+                    >
+                      {PRESENCE_LABEL[l.presence]}
+                    </span>
+                  )}
+                </td>
+                {dims.map((d) => {
+                  const s = l.dims[d] ?? "none";
+                  return (
+                    <td key={d} style={{ textAlign: "center" }}>
+                      <span
+                        className={`${styles.dot} ${dotClass[s]}`}
+                        title={dotLabel(d, s, l.rungs)}
+                      />
+                    </td>
+                  );
+                })}
+                <td className={styles.gapCell}>{l.provider || "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }

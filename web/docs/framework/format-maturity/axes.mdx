@@ -1,8 +1,8 @@
 ---
 sidebar_position: 2
 title: The axes
-description: "The format-maturity score is a vector: one level per axis, grouped into three families (Comprehension, Assurance, Enablement). This page describes what each axis measures and the ladder it climbs, and features the Structure & Geometry axis."
-keywords: [maturity axes, comprehension, assurance, enablement, engine, vocabulary, structure and geometry, corpus, security, knowledge, editor]
+description: "The format-maturity score is a vector: one level per axis, grouped into three families (Comprehension, Assurance, Enablement). This page describes what each axis measures and the ladder it climbs, and features the Structure & Geometry and Prose axes."
+keywords: [maturity axes, comprehension, assurance, enablement, engine, vocabulary, structure and geometry, prose, comments, corpus, security, knowledge, editor]
 ---
 
 import { AxisFamiliesDiagram, AxisLadderDiagram } from "@neokapi/docs-shared";
@@ -10,8 +10,8 @@ import { AxisFamiliesDiagram, AxisLadderDiagram } from "@neokapi/docs-shared";
 # The axes
 
 The [maturity score](/framework/format-maturity) is a vector rather than a single
-number: one level per axis, each axis a short ladder. The seven axes group into
-three families, named for the question each answers.
+number: one level per axis, each axis a short ladder. The axes group into three
+families, named for the question each answers.
 
 <AxisFamiliesDiagram
   families={[
@@ -22,6 +22,7 @@ three families, named for the question each answers.
         { label: "Engine", range: "L0–L4" },
         { label: "Vocabulary", range: "V0–V3" },
         { label: "Structure & Geometry", range: "G0–G4" },
+        { label: "Prose", range: "P0–P4" },
       ],
     },
     {
@@ -41,19 +42,19 @@ three families, named for the question each answers.
       ],
     },
   ]}
-  caption="Seven axes in three families; the grouping is a reading aid."
+  caption="The axes in three families; the grouping is a reading aid."
 />
 
 The grouping is a reading aid. The headline tier is still the minimum over the
 **gating axes** (Engine, Corpus, and Knowledge), which deliberately span all
-three families. Two axes, **Security** and **Structure & Geometry**, are
-**non-gating**: they score and rank work without entering the tier minimum, for
-now.
+three families. **Security**, **Structure & Geometry** and **Prose** are
+**non-gating**: they score and rank work without entering the tier minimum.
 
 ## Comprehension: how deeply we read it
 
-The three Comprehension axes ask one fidelity question at increasing resolution:
-bytes, then inline meaning, then structure.
+Three of the Comprehension axes ask one fidelity question at increasing
+resolution: bytes, then inline meaning, then structure. The fourth, Prose, reads
+the comments a file carries beside its content.
 
 - **Engine (L0–L4)**: fidelity of the serialization itself. Does the reader
   parse the format, round-trip it (the skeleton back byte-for-byte), and, where
@@ -68,6 +69,9 @@ bytes, then inline meaning, then structure.
 - **Structure & Geometry (G0–G4)**: how much of the document's logical and
   spatial structure the reader recovers: roles, reading order, tables, and page
   geometry. It is featured below.
+- **Prose (P0–P4)**: how much of the comment layer kapi can locate, check and
+  rewrite: a comment in a YAML file, a translator comment in a PO file, a doc
+  comment in source code. It is featured below.
 
 ### Structure & Geometry, by example
 
@@ -101,6 +105,28 @@ all. The vision and PDF readers are where the upper rungs are populated; see the
 [vision and image-adaptation design](/contribute/architecture/multilingual/m-03-multimodal-content)
 and the [PDF reader design](/contribute/architecture/engine/e-08-document-structure-tiers), and
 try the [Structure & Layout lab](/lab/structure) on your own files.
+
+### Prose, by rung
+
+<AxisLadderDiagram
+  rungs={[
+    { grade: "P0", name: "None", gloss: "comments are opaque bytes" },
+    { grade: "P1", name: "Located", gloss: "each comment group has an exact place" },
+    { grade: "P2", name: "Governed", gloss: "checked against the guidance for its place" },
+    { grade: "P3", name: "Editable", gloss: "rewritten with every other byte kept" },
+    { grade: "P4", name: "Complete", gloss: "every comment form the language uses" },
+  ]}
+  caption="Prose: each rung lets kapi do more with the comments in a file."
+/>
+
+Prose is scored per language. A format such as YAML or PO has its own row. A
+source language such as Go has no format of its own, so the dashboard lists it
+as a language row. A language kapi has no reader for is shown as **absent**,
+which is a different fact from a language at P0: at P0 kapi reads the files and
+leaves their comments untouched.
+
+A rung is awarded only when a test that asserts it passes. A rung test that was
+skipped or did not build is shown as not run, and awards nothing.
 
 ## Assurance: how we prove it
 

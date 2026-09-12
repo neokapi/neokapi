@@ -2,8 +2,9 @@
 name: refresh-format-maturity
 description: >-
   Audit a neokapi format against the multi-axis maturity rubric, assign its
-  five-axis vector (Engine L0-L4, Vocabulary V0-V3, Editor E0-E4, Knowledge
-  K0-K3, Corpus C0-C3), list the ranked gaps per axis, and sweep the upstream
+  axis vector (Engine L0-L4, Vocabulary V0-V3, Editor E0-E4, Knowledge K0-K3,
+  Corpus C0-C3, Security S0-S4, Structure G0-G4, Prose P0-P4), list the ranked
+  gaps per axis, and sweep the upstream
   Okapi GitLab tracker + tests for new fixes to backport. Use when the user
   asks to "audit <format>", "check <format>'s maturity", "is <format>
   rock-solid?", "harden <format>", "is our <format> support solid?", or "check
@@ -15,8 +16,9 @@ description: >-
 
 Score one format against the rubric in
 [`docs/internals/format-maturity.md`](../../docs/internals/format-maturity.md) —
-one grade on each of the **five axes** (Engine, Vocabulary, Editor, Knowledge,
-Corpus; the audit procedure is §4 there) — find what is missing per axis, and
+one grade on each axis (Engine, Vocabulary, Editor, Knowledge, Corpus,
+Security, Structure & Geometry, Prose; the audit procedure is §4 there). Find
+what is missing per axis, and
 check upstream Okapi for fixes worth backporting. The engine background it
 assumes is
 [`docs/internals/format-engineering.md`](../../docs/internals/format-engineering.md).
@@ -29,8 +31,8 @@ and backport candidates. To *build* a new format use the `implement-format`
 skill instead.
 
 **For one format, use this skill. For all formats at once**, trigger the
-`format-triage` workflow (`.claude/workflows/format-triage.js`) — it scores
-every format across the five axes, ranks the work toward the targets,
+`format-triage` workflow (`.claude/workflows/format-triage.js`). It scores
+every format on every axis, ranks the work toward the targets,
 optionally remediates, and refreshes the `/format-maturity` dashboard
 (`web/static/data/format-maturity.json`). This skill is the interactive,
 single-format counterpart that also sweeps the Okapi tracker.
@@ -46,18 +48,19 @@ python3 .skills/refresh-format-maturity/scripts/audit-format.py <id> \
 
 It reports file presence (reader/writer/config/schema/spec/parity/testdata + test
 kinds), whether `ApplyMap` rejects unknown keys, the Okapi counterpart (if any),
-a coarse Engine estimate, **a per-axis `base..ceiling` band for all five axes**
-(JSON mode adds the full `axes:{…,signals}` block), and the ready-to-run GitLab
-tracker query. The `--ledger` flag unlocks the ledger-dependent signals
+a coarse Engine estimate, **a per-axis `base..ceiling` band** for every axis
+except Prose (JSON mode adds the full `axes:{…,signals}` block), and the
+ready-to-run GitLab tracker query. The Prose floor comes from `make prose-probe`,
+which runs the format's `TestProseP<n>_<id>` rung tests (rubric §2.8). The `--ledger` flag unlocks the ledger-dependent signals
 (citations/context-pack on Knowledge, acceptance/sweep on Corpus, mutation-check
 status for remediation-added tests); without it those report unknown. A missing
 `vocabulary.yaml`/`dossier.yaml`/`corpus.yaml` is the **zero floor** for that
 axis (V0/K0/C0), not an error. Exclude `exec`/`jsx`/`memorytest` — they are not
 real formats.
 
-## Step 2 — Real scoring (five axes; read the assertions)
+## Step 2 — Real scoring (every axis; read the assertions)
 
-The helper only sees file/artifact floors. Now score **all five axes** per the
+The helper only sees file/artifact floors. Now score **every axis** per the
 procedure in
 [format-maturity.md §4](../../docs/internals/format-maturity.md#4-how-to-score-a-format-audit-procedure),
 each dimension `none`/`partial`/`complete`/`na`. Quality demotions need a
@@ -161,7 +164,7 @@ the absence of red is **not** proof of parity.
 
 ## Step 6 — Report
 
-Produce: the assigned **level per axis** (the five-grade vector, alongside the
+Produce: the assigned **level per axis** (the axis vector, alongside the
 format's declared tier from `core/formats/support.yaml`); the **gap list
 ranked by tier impact** — gaps on the tier-**gating** axes first (Supported
 requires Engine ≥ L3 ∧ Corpus ≥ C2 ∧ Knowledge ≥ K2; Maintained requires
@@ -193,7 +196,7 @@ ledger's `pending[]` queue.
 
 ## References
 
-- Rubric: tiers, five axes, scorer rules, audit procedure (§4):
+- Rubric: tiers, axes, scorer rules, audit procedure (§4):
   [`docs/internals/format-maturity.md`](../../docs/internals/format-maturity.md)
 - Operating process — rituals, cadences, the ops ledger:
   [`docs/internals/format-ops.md`](../../docs/internals/format-ops.md)

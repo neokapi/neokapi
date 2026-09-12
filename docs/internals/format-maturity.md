@@ -651,7 +651,7 @@ and does not enter the tier minimum (§1). A support tier promises fidelity for 
 format's content, and nearly every row starts at P0 or absent. Promoting the axis
 to a gating one is a `tier-review` decision.
 
-## 3. How scores are computed (scorer v4, reproducible by design)
+## 3. How scores are computed (scorer v5, reproducible by design)
 
 The triage workflow does **not** let the model pick levels; each axis level is
 *computed* from two inputs so re-runs are reproducible:
@@ -659,7 +659,9 @@ The triage workflow does **not** let the model pick levels; each axis level is
 1. **A deterministic file floor per axis.** `audit-format.py --json` emits an
    additive `axes:{engine|vocabulary|editor|knowledge|corpus|security|structure:
    {base, ceiling, signals}}` block alongside the legacy top-level fields (the
-   stdin contract of `repro-check.mjs` is preserved). The audit **parses the
+   stdin contract of `repro-check.mjs` is preserved). The Prose floor is the
+   exception: it is the probe's report (§2.8), which the publish step attaches
+   to each format as `axes.prose` and refuses when its canary is not P0. The audit **parses the
    axis artifacts**
    (`vocabulary.yaml` cell census with evidence resolution, `dossier.yaml`
    field census, `corpus.yaml` tier census, `integrations.yaml` + probes), so
@@ -679,6 +681,7 @@ The triage workflow does **not** let the model pick levels; each axis level is
    | Editor | none | floor-only (probes) |
    | Security | none | floor-only (safeio import / fuzz target+seed / ledger sweep; spread 0) |
    | Structure & Geometry | none | floor-only (metaplane / readingorder / roles / geometry greps, down-filled; spread 0) |
+   | Prose | none | floor-only (the probe's rung outcomes: met → complete, not met → none, did not run → notrun; only complete passes the gate; spread 0) |
 
    `normDim` matches dimension ids **exactly** (no substring matching); the
    SCORE schema enum, the per-axis QUALITY sets, and `repro-check.mjs`'s
@@ -697,10 +700,10 @@ Published levels are **sticky-anchored per axis** with one asymmetry:
 - On the first publish of a new axis there is no prior, so the computed level
   publishes directly (priors are never synthesized from another axis).
 
-`scorer_version: 4` (the v3→v4 bump adds the `structure` axis additively, with
-the six prior axes' gates and floors unchanged); datasets without a
-`scorer_version` are v1 (priors seed engine-only). A v3 dataset (six axes) still
-renders, with `structure` simply absent until the next publish derives it.
+`scorer_version: 5`. The v4→v5 bump adds the `prose` axis and the language
+rows additively, with every prior axis's gates and floors unchanged; v4 added
+`structure` the same way. Datasets without a `scorer_version` are v1 (priors seed
+engine-only). An older dataset still renders, with the axes it predates absent.
 
 **Remediation-introduced tests count as `partial` until mutation-checked.**
 The floor promotes robustness dimensions on file presence, so for test files
@@ -745,9 +748,9 @@ calibration phase of `process-health` (see
   ops ledger (human-graded axis levels, versioned by `rubric_sha`), not
   against self-agreement.
 
-**Dataset & history contract (v4).** Backward compatibility, verbatim rules
-(the v3 rules carry forward unchanged; the v4 axis-add is additive, so a v3
-dataset renders with `structure` absent):
+**Dataset & history contract (v5).** Backward compatibility, verbatim rules
+(the v3 rules carry forward unchanged; the v4 and v5 axis additions are
+additive, so an older dataset renders with those axes absent):
 
 - Rows keep `level`/`next_level` mirroring the **engine** axis (the prior
   parser reads only `formats[].id` + `.level`; the un-migrated page indexes
@@ -755,9 +758,15 @@ dataset renders with `structure` absent):
   `tier:{…}` are **additive** fields.
 - `summary.by_level` remains the engine distribution; `summary.by_axis` is
   additive.
+- `languages[]` holds the Prose axis's language rows (§2.8): `{id, name,
+  provider, presence, level, next, dims, rungs}`, with `level` null unless the
+  language is present. Language rows never enter `summary.total`, `by_level` or
+  `by_axis`; they are counted in `summary.languages` (`total`, `by_presence`,
+  `by_prose`). A format row's `axes.prose` carries `rungs` and the `languages` it
+  reads.
 - History mutation is remove-today's-entry-then-append only; old entries are
-  never rewritten; `by_axis` appears on new snapshots only and the page guards
-  (`h.by_axis?.… ?? 0`).
+  never rewritten; `by_axis` and `languages` appear on new snapshots only and
+  the page guards (`h.by_axis?.… ?? 0`).
 - `__DATE__` is substituted solely by the publish step from
   `date -u +%Y-%m-%d`; history dedupe keys on it.
 - Both JSON files are 2-space indented (`vp check` gate).
