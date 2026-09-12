@@ -210,8 +210,12 @@ format engine and the checker.
 The ordinary authoring loop uses `kapi context <path>` before editing and
 `kapi check <path>` afterwards. The file path determines the applicable voice
 channel and terms. The assistant reads analyzer coverage alongside findings;
-a passing score establishes only the checks that ran. `kapi check --ship`
-enforces project release policy when that is part of the task.
+a passing score establishes only the checks that ran. In a repository the loop
+checks the change rather than the project: `kapi check --diff-against HEAD`
+checks each content block the edit touched, whole, and reports the lines it
+spans, so the check costs one read per changed file and runs after every edit.
+`kapi check --ship` enforces project release policy when that is part of the
+task.
 
 For MCP, context retrieval uses the existing `context://<path>` resource.
 `check_file` checks saved content in its project scope. A draft can be checked

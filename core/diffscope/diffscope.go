@@ -46,6 +46,11 @@ type File struct {
 	ModeChanged bool
 	// Changes are the post-image lines the diff touched, in line order.
 	Changes []Change
+	// PostLines are the post-image lines the diff shows, context and added,
+	// keyed by line number and without their line feed. They let a caller
+	// confirm that the diff describes the file it is about to read before
+	// trusting the diff's line numbers.
+	PostLines map[int]string
 }
 
 // Path is the file's path after the change, or before it for a deleted file.
@@ -242,6 +247,7 @@ func (p *parser) hunk(header string) error {
 			if oldLeft == 0 || newLeft == 0 {
 				return fmt.Errorf("diff line %d: a context line beyond the hunk's counts", p.i+1)
 			}
+			p.post(next, line)
 			oldLeft--
 			newLeft--
 			next++
@@ -263,6 +269,7 @@ func (p *parser) hunk(header string) error {
 			if plusCount == 0 {
 				plusFirst = next
 			}
+			p.post(next, line)
 			plusCount++
 			newLeft--
 			next++
@@ -288,6 +295,16 @@ func (p *parser) hunk(header string) error {
 		}
 	}
 	return nil
+}
+
+func (p *parser) post(line int, text string) {
+	if p.cur.PostLines == nil {
+		p.cur.PostLines = map[int]string{}
+	}
+	if text != "" {
+		text = text[1:]
+	}
+	p.cur.PostLines[line] = text
 }
 
 func count(s string) int {

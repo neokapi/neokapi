@@ -61,6 +61,9 @@ func (r checkReport) FormatText(w io.Writer) error {
 		}
 		fmt.Fprintln(w, ". Score covers reported findings only.")
 	}
+	if r.Scope != nil {
+		writeScope(w, r.Scope)
+	}
 	for _, reason := range r.DidNotRun {
 		fmt.Fprintf(w, "  did not run: %s\n", reason)
 	}
@@ -73,6 +76,29 @@ func (r checkReport) FormatText(w io.Writer) error {
 		fmt.Fprintf(w, "  gate: %s\n", reason)
 	}
 	return nil
+}
+
+// writeScope lists every file a diff named and what the check did with it.
+func writeScope(w io.Writer, s *check.Scope) {
+	checked, blocks := 0, 0
+	for _, f := range s.Files {
+		if f.Status == check.ScopeChecked {
+			checked++
+		}
+		blocks += len(f.Blocks)
+	}
+	fmt.Fprintf(w, "  Diff scope (%s): %d file(s) changed, %d checked, %d block(s)\n", DisplayName(s.Diff), len(s.Files), checked, blocks)
+	for _, f := range s.Files {
+		status := strings.ReplaceAll(string(f.Status), "_", " ")
+		switch {
+		case f.Status == check.ScopeChecked:
+			fmt.Fprintf(w, "    %s: %s, %d block(s)\n", f.Path, status, len(f.Blocks))
+		case f.Reason != "":
+			fmt.Fprintf(w, "    %s: %s (%s)\n", f.Path, status, f.Reason)
+		default:
+			fmt.Fprintf(w, "    %s: %s\n", f.Path, status)
+		}
+	}
 }
 
 // writeCheckContext displays effective selection independently of the verdict.
@@ -122,6 +148,12 @@ func renderFindingsTable(w io.Writer, diags []check.Diagnostic) {
 		loc := d.Location.Block
 		if d.Location.File != "" {
 			loc = d.Location.File + ":" + loc
+		}
+		if l := d.Location.Lines; l != nil {
+			loc += fmt.Sprintf(" L%d", l.First)
+			if l.Last != l.First {
+				loc += fmt.Sprintf("-%d", l.Last)
+			}
 		}
 		t.Row(severityCell(s, string(d.Severity)), d.Rule, s.Dim(loc), d.Message)
 		if d.Suggestion != "" {
@@ -246,7 +278,16 @@ func (a *App) ComputeCheck(cmd Command, args []string) (check.Report, error) {
 	ctx := CmdContext(cmd)
 
 	targetFile, _ := cmd.Flags().GetString("target")
-	if len(args) == 0 {
+	diff, err := a.diffSourceFromFlags(cmd)
+	if err != nil {
+		return check.Report{}, err
+	}
+	if diff != nil && targetFile != "" {
+		return check.Report{}, errors.New("--target checks a source against its translation and cannot be scoped to a diff")
+	}
+	if diff != nil {
+		// A diff names the files; named files narrow it.
+	} else if len(args) == 0 {
 		// Bare `kapi check` inside a project checks the project: a project-aware
 		// command given nothing to narrow it to works on the whole project (as
 		// `up`, `status`, and `check --ship` do). Named files still win — they
@@ -328,6 +369,13 @@ func (a *App) ComputeCheck(cmd Command, args []string) (check.Report, error) {
 	opts.require, _ = cmd.Flags().GetStringSlice("require")
 	opts.voice, _ = cmd.Flags().GetBool("voice")
 	opts.voiceMin, _ = cmd.Flags().GetFloat64("voice-min")
+
+	if diff != nil {
+		if validateMode != format.ValidationOff {
+			return check.Report{}, errors.New("reader validation is unavailable with a diff scope; validate the files separately")
+		}
+		return a.runDiffCheck(ctx, diffCheckRun{src: diff, named: args, cmd: cmd, opts: opts, voice: voice, vocab: vocab, gate: gateFromFlags(cmd)})
+	}
 
 	var diags []check.Diagnostic
 	totalBlocks := 0
@@ -545,6 +593,10 @@ type checkRunOptions struct {
 	// formats binds each file to the format and reader config the project
 	// declared for it; nil outside a project.
 	formats *checkFormats
+	// documentBlocks, when set, are the whole document's blocks for the rules
+	// that hold over a document, where the blocks checked are only some of them
+	// (a diff-scoped check).
+	documentBlocks []*model.Block
 }
 
 // collectFileDiagnostics runs the source-side content checkset over one file's
@@ -638,7 +690,11 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 		// notice, not every paragraph of it. They are reported against the file,
 		// with no block, because an absence sits nowhere in particular.
 		docLoc := check.Location{File: DisplayName(file)}
-		for _, f := range profile.DocumentFindings(opts.profile, documentText(blocks)) {
+		docBlocks := blocks
+		if opts.documentBlocks != nil {
+			docBlocks = opts.documentBlocks
+		}
+		for _, f := range profile.DocumentFindings(opts.profile, documentText(docBlocks)) {
 			diags = append(diags, check.DiagnosticFrom(f, "voice", docLoc))
 		}
 		canary, err := probeVoiceRules(ctx, vocab, opts.profile)

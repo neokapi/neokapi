@@ -58,6 +58,13 @@ A scoped draft report keeps `target.kind: "text"` and records the destination in
 they describe the supplied snippet. `check_file` remains the post-save check for
 document extraction, structure and block locations.
 
+`check_file` with `diff` (unified diff text) or `diff_against` (a git revision)
+runs the diff-scoped check `kapi check --diff-file` and `--diff-against` run,
+through the same `runDiffCheck` in `host/check_diff.go`: `file` becomes
+optional and narrows the scope, and the report carries `scope`. Voice resolves
+per changed file unless the call names a profile. `target` and `validate` are
+refused with a diff.
+
 For project-scoped `check_file`, omit `profile_file` and `profile_pack` so the
 file's voice channel resolves from the project. Either explicit option replaces
 that voice selection; loading the project's profile YAML directly does not

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-11T21:52:33Z",
+  "generatedAt": "2026-09-12T22:21:50Z",
   "commands": [
     {
       "id": "add",
@@ -143,6 +143,16 @@
       "long": "Kjør innholdskontroller over én eller flere filer og returner strukturerte funn\npluss bestått/ikke bestått, basert på alvorlighetsgrad — innholdsorientert motstykke til en\ntestløper.\n\nStandard kontrollsett er kildesiden og trenger ingen oversettelse: teksthygiene\n(tomme, doble mellomrom/ord, uønsket mellomrom), lengdegrenser (--max-chars/\n--max-words), forbudte/påkrevde mønstre (--forbid/--require), og merkevare-\nvokabular når en profil er tilknyttet (--profile/--pack/--profile-file).\n\nTospråklige kontroller (ikke-oversett, plassholder-integritet) er\nvalg-inn: send --target \u003cfile\u003e --target-lang \u003clang\u003e for å kontrollere et oversatt mål\nmot kilden.\n\nHvert funn har en stabil regel-id (\u003ccheck\u003e.\u003ccategory\u003e) og en blokkplassering,\nslik at en assistent kan fikse den nøyaktige blokken og spore regler på tvers av iterasjoner. Utdata\ner en menneskelig tabell som standard; --output-format json|yaml sender ut kapi.check/v1\nRapporten.\n\nPosisjonsstier aksepterer glob-mønstre og kataloger, utvidet av kapi selv —\nsiter mønsteret og `**` rekurserer identisk i alle skall. Inne i et .kapi-\nprosjekt kontrollerer check uten filargumenter prosjektets deklarerte innhold;\nå navngi filer begrenser det til disse.\n\nProsjektport-modus (--ship): den kjører\nprosjektets bundne kvalitetsporter (merkevare, terminologi, QA) pluss dets leverings-/kilde-\ndekningsporter over prosjektets innhold, og avslutter ikke-null når en port ikke er\noppfylt — frigivelsesterskelen. Måldrift blokkerer aldri en vanlig bygging (se\n'kapi status'); --ship er det eksplisitte, valg-inn håndhevingspunktet. Uten\nfilargumenter inspiserer det prosjektets innhold × målspråk; send filer for å\nporthindre bare disse.\n\nAvgangskoder: 0 bestått, 3 når porten feiler, 1 operasjonell. --no-fail avslutter alltid\n0 (rapportmodus) for en fikse-løkke.",
       "groupID": "work",
       "flags": [
+        {
+          "name": "diff-against",
+          "usage": "check only the content blocks changed since this git revision, including untracked files (runs git diff read-only)",
+          "type": "string"
+        },
+        {
+          "name": "diff-file",
+          "usage": "check only the content blocks this unified diff touches (a file, or - for standard input)",
+          "type": "string"
+        },
         {
           "name": "dnt",
           "usage": "do-not-translate terms that must survive verbatim into the target (with --target)",

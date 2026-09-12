@@ -113,6 +113,37 @@ content-gate exits only. MCP uses its existing error response for these failures
 Embedded applications share checker primitives but can retain their own response
 shapes and operation error views.
 
+## Checking a change
+
+`kapi check --diff-against <rev>` checks only the content a change touched. kapi
+runs `git diff` against the revision, read-only, treats untracked files as
+wholly new, and reads each changed file once. `--diff-file <path>` reads a
+unified diff you already hold, or standard input with `-`. Named files narrow
+the scope.
+
+A diff names lines, and kapi widens each changed line to the content block it
+belongs to: a one-line edit inside a seven-line paragraph checks the whole
+paragraph. A finding's `location.lines` gives the lines of its block. Rules that
+hold over a whole document, such as a voice profile's required patterns, read
+the whole changed file.
+
+The report's `scope` lists every file the diff names with a status:
+
+- `checked`, with the blocks checked and their lines;
+- `untouched`, when the change touched no content block, as with markup, a
+  rename or a mode change;
+- `no_content`, `no_reader` or `deleted`;
+- `out_of_scope`, for a file a project's recipe does not declare as content, or
+  one outside the files named;
+- `did_not_run`, with the reason, for a changed file whose blocks cannot be
+  located: a format that keeps no record of where its content sits, a binary
+  change, or a position the file's structure leaves ambiguous.
+
+A `did_not_run` file leaves the whole check `did_not_run`, and so does a diff
+that touches no content block. Over MCP, `check_file` takes `diff` (unified diff
+text) or `diff_against` (a revision) for the same scope, and `file` then narrows
+it.
+
 ## One model: findings
 
 Every check emits the same structured **finding** (the `core/check.Finding`

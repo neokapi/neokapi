@@ -43,11 +43,60 @@ type Report struct {
 	// Execution names the analyses that ran and their measured scope. Absent
 	// means coverage is unreported, not that all checks completed.
 	Execution *Execution `json:"execution,omitempty"`
+	// Scope is present when the check was scoped to a diff. It names every file
+	// the diff touched and what became of it.
+	Scope *Scope `json:"scope,omitempty"`
+}
+
+// Scope records what a diff-scoped check covered.
+type Scope struct {
+	// Diff says where the diff came from: a file, "-" for standard input, or the
+	// git command that produced it.
+	Diff  string      `json:"diff"`
+	Files []ScopeFile `json:"files"`
+}
+
+// ScopeStatus is what a diff-scoped check did with one file the diff names.
+type ScopeStatus string
+
+const (
+	// ScopeChecked means the blocks the change touched were checked.
+	ScopeChecked ScopeStatus = "checked"
+	// ScopeUntouched means the change touched no content block: markup only, a
+	// rename or a mode change.
+	ScopeUntouched ScopeStatus = "untouched"
+	// ScopeNoContent means the file holds no content blocks.
+	ScopeNoContent ScopeStatus = "no_content"
+	// ScopeOutOfScope means the file is not content the check covers: outside
+	// the project's declared content, or not among the files named.
+	ScopeOutOfScope ScopeStatus = "out_of_scope"
+	// ScopeNoReader means no format reads the file.
+	ScopeNoReader ScopeStatus = "no_reader"
+	// ScopeDeleted means the change removed the file, leaving nothing to check.
+	ScopeDeleted ScopeStatus = "deleted"
+	// ScopeDidNotRun means the change touched content whose blocks could not be
+	// located, so it was not checked.
+	ScopeDidNotRun ScopeStatus = "did_not_run"
+)
+
+// ScopeFile is one file a diff names.
+type ScopeFile struct {
+	Path   string      `json:"path"`
+	Status ScopeStatus `json:"status"`
+	Reason string      `json:"reason,omitempty"`
+	// Blocks are the blocks checked, each whole, with the lines it spans.
+	Blocks []ScopeBlock `json:"blocks,omitempty"`
+}
+
+// ScopeBlock is one block a diff-scoped check covered.
+type ScopeBlock struct {
+	Block string           `json:"block"`
+	Lines format.LineRange `json:"lines"`
 }
 
 // Target describes the thing a Report was produced for.
 type Target struct {
-	Kind   string `json:"kind"`             // "file" | "text"
+	Kind   string `json:"kind"`             // "file" | "text" | "diff"
 	File   string `json:"file,omitempty"`   // path, for kind=="file"
 	Format string `json:"format,omitempty"` // detected/declared format
 	Blocks int    `json:"blocks"`           // content blocks checked
@@ -293,13 +342,21 @@ const (
 //     known-bad input cannot be trusted about the rest either.
 //  2. A tripped gate is failed.
 //  3. A run that checked no blocks did not run.
-//  4. With execution reported, a run did not run when no analyzer completed
-//     with its canary caught, when an analyzer completed without a canary, or
-//     when a required analyzer had nothing it could catch.
+//  4. A run did not run when a file its diff changed could not be checked,
+//     and, with execution reported, when no analyzer completed with its canary
+//     caught, when an analyzer completed without a canary, or when a required
+//     analyzer had nothing it could catch.
 //  5. Anything else passed.
 func (r *Report) Decide() {
 	var invalid, unproven []string
 	proven := false
+	if r.Scope != nil {
+		for _, f := range r.Scope.Files {
+			if f.Status == ScopeDidNotRun {
+				unproven = append(unproven, fmt.Sprintf("%s changed but was not checked: %s", f.Path, f.Reason))
+			}
+		}
+	}
 	if r.Execution != nil {
 		for _, a := range r.Execution.Analyzers {
 			switch a.Status {
@@ -323,7 +380,9 @@ func (r *Report) Decide() {
 		r.setVerdict(VerdictDidNotRun, invalid)
 	case len(r.Gate.Failed) > 0:
 		r.setVerdict(VerdictFailed, nil)
-	case r.Target.Blocks == 0:
+	case r.Target.Blocks == 0 && r.Scope != nil && len(unproven) == 0:
+		r.setVerdict(VerdictDidNotRun, []string{"the diff touches no content block"})
+	case r.Target.Blocks == 0 && r.Scope == nil:
 		r.setVerdict(VerdictDidNotRun, []string{"no content blocks were checked"})
 	case len(unproven) > 0:
 		r.setVerdict(VerdictDidNotRun, unproven)
