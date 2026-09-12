@@ -79,9 +79,19 @@ type CheckFileResult struct {
 // CheckRunResult is the structured result of a RunChecks pass over a project,
 // the unit the Checks panel renders and an assistant fix-loop acts on.
 type CheckRunResult struct {
-	Pass  bool              `json:"pass"`
-	Score int               `json:"score"`
-	Files []CheckFileResult `json:"files"`
+	// Pass is true exactly when Verdict is "passed".
+	Pass bool `json:"pass"`
+	// Verdict is "passed", "failed" or "did_not_run", decided by
+	// check.Report.Decide the way `kapi check` decides it: a run that checked
+	// no blocks, or whose checkers could not show they catch a known-bad input,
+	// did not run and is never shown as passing.
+	Verdict string `json:"verdict"`
+	// DidNotRun lists why the verdict is did_not_run, and DidNotRunCause names
+	// the kind: "checker_invalid", "nothing_to_check" or "content_not_checked".
+	DidNotRun      []string          `json:"did_not_run,omitempty"`
+	DidNotRunCause string            `json:"did_not_run_cause,omitempty"`
+	Score          int               `json:"score"`
+	Files          []CheckFileResult `json:"files"`
 }
 
 // RunChecks runs the project's content checks (placeholder + do-not-translate
@@ -148,6 +158,17 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 
 	var allFindings []check.Finding
 	files := make([]CheckFileResult, 0, len(resolved))
+	// What the run examined and how each checker proved it could fail, for the
+	// verdict: a panel that ran nothing, or ran an inert checker, must not show
+	// a pass.
+	blocksChecked := 0
+	var analyzers []check.AnalyzerExecution
+	record := func(id, file string, findings int, canary check.CanaryOutcome, required bool) {
+		analyzers = append(analyzers, check.AnalyzerExecution{
+			ID: id, File: file, Status: canary.StatusFor(findings), Required: required,
+			Findings: findings, Reason: canary.Reason, Canary: &canary,
+		})
+	}
 
 	runErr := capp.WithDocumentCache(root, func() error {
 		for _, rf := range resolved {
@@ -173,6 +194,7 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 			if rerr != nil {
 				return fmt.Errorf("read check source %s: %w", rf.Relative, rerr)
 			}
+			blocksChecked += len(sourceBlocks)
 
 			var fileFindings []DesktopFinding
 			// checkErr records a checker that could not RUN, as distinct from one
@@ -199,6 +221,7 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 				vocab := coretools.NewVoiceVocabCheckTool(
 					profile, vocabulary,
 				).InSourceLocale(pctx.SourceLocale)
+				before := len(fileFindings)
 				for _, b := range sourceBlocks {
 					if cerr := host.RunCheckTool(ctx, vocab, b); cerr != nil {
 						checkErr = fmt.Errorf("voice vocabulary: %w", cerr)
@@ -209,6 +232,16 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 							fileFindings = append(fileFindings, toDesktopFinding(f, b, "source", sourceLang, filePoint))
 							allFindings = append(allFindings, f)
 						}
+					}
+				}
+				if checkErr == nil {
+					canary, cerr := host.ProbeVoiceRules(ctx, vocab, profile)
+					if cerr != nil {
+						checkErr = fmt.Errorf("voice vocabulary: %w", cerr)
+					} else {
+						// A profile the project binds may govern tone alone, so one
+						// with nothing to catch leaves only its own analyzer unrun.
+						record("voice.rules", rf.Relative, len(fileFindings)-before, canary, false)
 					}
 				}
 			}
@@ -248,6 +281,7 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 
 				// Placeholder integrity.
 				placeholder := coretools.NewPlaceholderCheckTool(coretools.NewPlaceholderCheckConfig(targetLoc))
+				before := len(fileFindings)
 				for _, b := range passBlocks {
 					if cerr := host.RunCheckTool(ctx, placeholder, b); cerr != nil {
 						checkErr = fmt.Errorf("placeholder (%s): %w", lang, cerr)
@@ -258,12 +292,21 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 						allFindings = append(allFindings, f)
 					}
 				}
+				if checkErr == nil {
+					canary, cerr := host.ProbeBlockTool(ctx, placeholder, coretools.PlaceholderCanaries(targetLoc), "")
+					if cerr != nil {
+						checkErr = fmt.Errorf("placeholder (%s): %w", lang, cerr)
+					} else {
+						record("placeholder", rf.Relative+" ("+lang+")", len(fileFindings)-before, canary, true)
+					}
+				}
 
 				// Do-not-translate: only when terms are configured.
 				if checkErr == nil && len(dntTerms) > 0 {
 					dntCfg := coretools.NewDNTCheckConfig(targetLoc)
 					dntCfg.Terms = dntTerms
 					dnt := coretools.NewDNTCheckTool(dntCfg)
+					before := len(fileFindings)
 					for _, b := range passBlocks {
 						if cerr := host.RunCheckTool(ctx, dnt, b); cerr != nil {
 							checkErr = fmt.Errorf("do-not-translate (%s): %w", lang, cerr)
@@ -272,6 +315,15 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 						for _, f := range host.FindingsFromBlock(b, true) {
 							fileFindings = append(fileFindings, toDesktopFinding(f, b, "target", lang, filePoint))
 							allFindings = append(allFindings, f)
+						}
+					}
+					if checkErr == nil {
+						canaries, uncheckable := coretools.DNTCanaries(dntCfg)
+						canary, cerr := host.ProbeBlockTool(ctx, dnt, canaries, uncheckable)
+						if cerr != nil {
+							checkErr = fmt.Errorf("do-not-translate (%s): %w", lang, cerr)
+						} else {
+							record("dnt", rf.Relative+" ("+lang+")", len(fileFindings)-before, canary, true)
 						}
 					}
 				}
@@ -291,18 +343,29 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 	}
 
 	score := check.CalculateScore(allFindings).Overall
-	critical := 0
-	for _, f := range allFindings {
-		if f.Severity == check.SeverityCritical {
-			critical++
-		}
-	}
+	return checkRunVerdict(allFindings, blocksChecked, analyzers, score, files), nil
+}
 
+// checkRunVerdict decides a checks run the way `kapi check` decides a report:
+// the default gate fails on any critical finding, and check.Report.Decide turns
+// a run over no blocks, or one whose checkers missed or lacked their canaries,
+// into did_not_run.
+func checkRunVerdict(findings []check.Finding, blocks int, analyzers []check.AnalyzerExecution, score int, files []CheckFileResult) *CheckRunResult {
+	diags := make([]check.Diagnostic, 0, len(findings))
+	for _, f := range findings {
+		diags = append(diags, check.DiagnosticFrom(f, "", check.Location{}))
+	}
+	report := check.BuildReport(check.Target{Kind: "project", Blocks: blocks}, diags, check.DefaultGate())
+	report.Execution = &check.Execution{Analyzers: analyzers}
+	report.Decide()
 	return &CheckRunResult{
-		Pass:  critical == 0,
-		Score: score,
-		Files: files,
-	}, nil
+		Pass:           report.Pass,
+		Verdict:        string(report.Verdict),
+		DidNotRun:      report.DidNotRun,
+		DidNotRunCause: report.DidNotRunCause,
+		Score:          score,
+		Files:          files,
+	}
 }
 
 // checksCLI lazily builds the host.App behind RunChecks, sharing the desktop's

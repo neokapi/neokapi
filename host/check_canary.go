@@ -27,6 +27,20 @@ func probeTool(ctx context.Context, t BlockProcessor, canaries []check.Canary, u
 	})
 }
 
+// ProbeBlockTool gives canaries to a block tool that records its findings on
+// the unified findings annotation. An embedded surface that runs a checker
+// itself calls it with that same tool instance, so its result carries the same
+// proof a kapi check analyzer does.
+func ProbeBlockTool(ctx context.Context, t BlockProcessor, canaries []check.Canary, uncheckable string) (check.CanaryOutcome, error) {
+	return probeTool(ctx, t, canaries, uncheckable)
+}
+
+// ProbeVoiceRules gives a voice vocabulary checker, and the profile's
+// document-scope rules, their canaries. See probeVoiceRules.
+func ProbeVoiceRules(ctx context.Context, vocab *coretools.VoiceVocabCheckTool, p *profile.VoiceProfile) (check.CanaryOutcome, error) {
+	return probeVoiceRules(ctx, vocab, p)
+}
+
 // probeVoiceRules gives the vocabulary checker its canaries, and the profile's
 // document-scope matcher its required-pattern canary. Both are the voice.rules
 // analyzer, so a miss in either invalidates it, and a catch in either shows it

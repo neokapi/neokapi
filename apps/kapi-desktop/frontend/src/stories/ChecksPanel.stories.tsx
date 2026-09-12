@@ -7,12 +7,32 @@ import type { CheckRunResult, DesktopFinding } from "../types/api";
 
 const PASSING: CheckRunResult = {
   pass: true,
+  verdict: "passed",
+  score: 100,
+  files: [{ path: "src/locales/en.json", findings: [] }],
+};
+
+const NOTHING_TO_CHECK: CheckRunResult = {
+  pass: false,
+  verdict: "did_not_run",
+  did_not_run_cause: "nothing_to_check",
+  did_not_run: ["no content blocks were checked"],
+  score: 100,
+  files: [{ path: "src/locales/en.json", findings: [] }],
+};
+
+const CHECKER_INVALID: CheckRunResult = {
+  pass: false,
+  verdict: "did_not_run",
+  did_not_run_cause: "checker_invalid",
+  did_not_run: ["placeholder reported no finding on its canary on src/locales/en.json (de)"],
   score: 100,
   files: [{ path: "src/locales/en.json", findings: [] }],
 };
 
 const FAILING: CheckRunResult = {
   pass: false,
+  verdict: "failed",
   score: 58,
   files: [
     {
@@ -215,6 +235,20 @@ export const FailingDark: Story = {
   globals: { theme: "dark" },
 };
 
+/** A run with nothing in scope: it did not run, and never reads as passing. */
+export const DidNotRun: Story = {
+  args: { tabID: "story", result: NOTHING_TO_CHECK },
+};
+
+/** A run whose checker missed its canary: nothing it reported can be trusted. */
+export const CheckerInvalid: Story = {
+  args: { tabID: "story", result: CHECKER_INVALID },
+};
+export const CheckerInvalidDark: Story = {
+  args: CheckerInvalid.args,
+  globals: { theme: "dark" },
+};
+
 /** The loading/skeleton state while a run is in flight. */
 export const Loading: Story = {
   args: { tabID: "story", forceLoading: true },
@@ -242,7 +276,7 @@ export const InteractiveFix: StoryObj<typeof ChecksPanel> = {
           const weight = (s: string) =>
             s === "critical" ? 25 : s === "major" ? 5 : s === "minor" ? 1 : 0;
           const score = Math.max(0, 100 - remaining.reduce((n, f) => n + weight(f.severity), 0));
-          return { pass: !critical, score, files };
+          return { pass: !critical, verdict: critical ? "failed" : "passed", score, files };
         });
       };
       return <ChecksPanel tabID="story" result={result} onApplyFix={applyFix} />;

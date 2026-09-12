@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/stretchr/testify/assert"
@@ -373,4 +374,75 @@ func TestRunChecksAbsentTargetRemainsPendingWork(t *testing.T) {
 	result, err := app.RunChecks(tabID, ProjectFilter{Languages: []string{"fr"}})
 	require.NoError(t, err)
 	assert.True(t, result.Pass)
+}
+
+// TestRunChecksVerdictRecordsCanaries asserts a clean run passes with the proof
+// that its checker could fail: the voice analyzer caught its canary.
+func TestRunChecksVerdictRecordsCanaries(t *testing.T) {
+	app := NewApp()
+	tabID, _ := setupCheckProject(t, app, `{"greeting":"Hello world"}`)
+
+	res, err := app.RunChecks(tabID, ProjectFilter{})
+	require.NoError(t, err)
+	assert.Equal(t, "passed", res.Verdict)
+	assert.True(t, res.Pass)
+	assert.Empty(t, res.DidNotRunCause)
+}
+
+// TestRunChecksNeverPassesOverNothing covers the runs the panel used to show as
+// passing with a score of 100: content with no blocks, and a project where no
+// checker applies.
+func TestRunChecksNeverPassesOverNothing(t *testing.T) {
+	t.Run("content with no blocks", func(t *testing.T) {
+		app := NewApp()
+		tabID, _ := setupCheckProject(t, app, `{}`)
+		res, err := app.RunChecks(tabID, ProjectFilter{})
+		require.NoError(t, err)
+		assert.Equal(t, "did_not_run", res.Verdict)
+		assert.False(t, res.Pass)
+		assert.Equal(t, "nothing_to_check", res.DidNotRunCause)
+	})
+
+	t.Run("no voice profile and no languages", func(t *testing.T) {
+		app := NewApp()
+		tabID, src := setupCheckProject(t, app, `{"greeting":"Hello world"}`)
+		require.NoError(t, os.Remove(filepath.Join(filepath.Dir(filepath.Dir(src)), "voice.yaml")))
+		res, err := app.RunChecks(tabID, ProjectFilter{})
+		require.NoError(t, err)
+		assert.Equal(t, "did_not_run", res.Verdict)
+		assert.False(t, res.Pass)
+		assert.Equal(t, "content_not_checked", res.DidNotRunCause)
+	})
+
+	t.Run("a voice profile with nothing to catch", func(t *testing.T) {
+		app := NewApp()
+		tabID, src := setupCheckProject(t, app, `{"greeting":"Hello world"}`)
+		require.NoError(t, os.WriteFile(filepath.Join(filepath.Dir(filepath.Dir(src)), "voice.yaml"), []byte("id: house\nname: House Style\n"), 0o644))
+		res, err := app.RunChecks(tabID, ProjectFilter{})
+		require.NoError(t, err)
+		assert.Equal(t, "did_not_run", res.Verdict)
+		assert.Equal(t, "content_not_checked", res.DidNotRunCause)
+	})
+}
+
+// TestCheckRunVerdict pairs each outcome with the one it must not become.
+func TestCheckRunVerdict(t *testing.T) {
+	caught := check.CanaryOutcome{Status: check.CanaryCaught, Probes: 1}
+	missed := check.CanaryOutcome{Status: check.CanaryMissed, Probes: 1, Missed: "dropped placeholder"}
+	proven := []check.AnalyzerExecution{{ID: "placeholder", Status: check.AnalyzerPassed, Required: true, Canary: &caught}}
+	critical := []check.Finding{{Category: "placeholder", Severity: check.SeverityCritical}}
+
+	assert.Equal(t, "passed", checkRunVerdict(nil, 2, proven, 100, nil).Verdict)
+	failed := checkRunVerdict(critical, 2, proven, 75, nil)
+	assert.Equal(t, "failed", failed.Verdict)
+	assert.False(t, failed.Pass)
+
+	broken := checkRunVerdict(critical, 2, []check.AnalyzerExecution{{ID: "placeholder", Status: check.AnalyzerInvalid, Required: true, Canary: &missed}}, 75, nil)
+	assert.Equal(t, "did_not_run", broken.Verdict, "a missed canary outranks the failure")
+	assert.Equal(t, "checker_invalid", broken.DidNotRunCause)
+
+	empty := checkRunVerdict(nil, 0, proven, 100, nil)
+	assert.Equal(t, "did_not_run", empty.Verdict)
+	assert.Equal(t, "nothing_to_check", empty.DidNotRunCause)
+	assert.NotEqual(t, broken.DidNotRunCause, empty.DidNotRunCause)
 }

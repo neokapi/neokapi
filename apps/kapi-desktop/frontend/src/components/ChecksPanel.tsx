@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ShieldCheck,
   ShieldAlert,
+  ShieldQuestion,
   Play,
   Loader2,
   Wand2,
@@ -28,7 +29,30 @@ import { useError } from "./ErrorBanner";
 import { FilePreview } from "./FilePreview";
 import { useActiveFilter } from "../context/ActiveFilterContext";
 import { findingHighlights, findingSide } from "../lib/findingHighlights";
-import type { CheckFileResult, CheckRunResult, DesktopFinding } from "../types/api";
+import type {
+  CheckFileResult,
+  CheckNotRunCause,
+  CheckRunResult,
+  DesktopFinding,
+} from "../types/api";
+
+/**
+ * The sentence for why a run did not run. A broken checker and an empty scope
+ * share the verdict, so the sentence is what keeps a reader from taking one for
+ * the other.
+ */
+function notRunSentence(cause: CheckNotRunCause | undefined): string {
+  switch (cause) {
+    case "checker_invalid":
+      return t("A checker failed its canary, so this run's result cannot be trusted.");
+    case "nothing_to_check":
+      return t("There was nothing in scope to check.");
+    case "content_not_checked":
+      return t("Content in scope was not checked.");
+    default:
+      return t("The checks did not run.");
+  }
+}
 
 export interface ChecksPanelProps {
   /** Project tab ID — the project whose content is checked. */
@@ -169,7 +193,16 @@ export function ChecksPanel({
     setLoading(true);
     try {
       const res = await api.runChecks(tabID, activeFilter ?? { id: "", name: "" });
-      setResult(res ?? { pass: true, score: 100, files: [] });
+      setResult(
+        res ?? {
+          pass: false,
+          verdict: "did_not_run",
+          did_not_run_cause: "content_not_checked",
+          did_not_run: [t("The checks returned no result.")],
+          score: 0,
+          files: [],
+        },
+      );
     } catch (err) {
       showError("Failed to run checks", err);
     } finally {
@@ -251,6 +284,11 @@ export function ChecksPanel({
     [result],
   );
 
+  // A result from a backend that predates the verdict carries only pass.
+  const verdict = result?.verdict ?? (result?.pass ? "passed" : "failed");
+  const brokenChecker =
+    verdict === "did_not_run" && result?.did_not_run_cause === "checker_invalid";
+
   return (
     <div className="p-6">
       <PageHeader
@@ -271,36 +309,63 @@ export function ChecksPanel({
         <Card className="mb-4">
           <CardContent className="flex items-center justify-between p-4">
             <div className="flex items-center gap-3">
-              {result.pass ? (
-                <ShieldCheck size={20} className="text-emerald-500" />
-              ) : (
-                <ShieldAlert size={20} className="text-destructive" />
+              {verdict === "passed" && <ShieldCheck size={20} className="text-emerald-500" />}
+              {verdict === "failed" && <ShieldAlert size={20} className="text-destructive" />}
+              {verdict === "did_not_run" && (
+                <ShieldQuestion
+                  size={20}
+                  className={brokenChecker ? "text-destructive" : "text-amber-500"}
+                />
               )}
               <div>
-                <div className="text-sm font-semibold">{result.pass ? "Passing" : "Failing"}</div>
+                <div className="text-sm font-semibold">
+                  {verdict === "passed" && "Passing"}
+                  {verdict === "failed" && "Failing"}
+                  {verdict === "did_not_run" && t("Did not run")}
+                </div>
                 <div className="text-xs text-muted-foreground">
-                  {totalFindings === 0
-                    ? "No findings"
-                    : `${totalFindings} finding${totalFindings === 1 ? "" : "s"} across ${filesWithFindings.length} file${filesWithFindings.length === 1 ? "" : "s"}`}
+                  {verdict === "did_not_run"
+                    ? notRunSentence(result.did_not_run_cause)
+                    : totalFindings === 0
+                      ? "No findings"
+                      : `${totalFindings} finding${totalFindings === 1 ? "" : "s"} across ${filesWithFindings.length} file${filesWithFindings.length === 1 ? "" : "s"}`}
                 </div>
               </div>
             </div>
-            <div className="text-right">
-              <div
-                className={`text-2xl font-semibold tabular-nums ${
-                  result.score >= 90
-                    ? "text-emerald-500"
-                    : result.score >= 70
-                      ? "text-amber-500"
-                      : "text-destructive"
-                }`}
-              >
-                {result.score}
+            {verdict !== "did_not_run" && (
+              <div className="text-right">
+                <div
+                  className={`text-2xl font-semibold tabular-nums ${
+                    result.score >= 90
+                      ? "text-emerald-500"
+                      : result.score >= 70
+                        ? "text-amber-500"
+                        : "text-destructive"
+                  }`}
+                >
+                  {result.score}
+                </div>
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                  Score / 100
+                </div>
               </div>
-              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                Score / 100
-              </div>
-            </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Did not run: nothing here is a pass, and the reasons say why. */}
+      {result && !loading && verdict === "did_not_run" && (
+        <Card className={brokenChecker ? "mb-4 border-destructive" : "mb-4 border-dashed"}>
+          <CardContent className="p-4">
+            <p className="mb-2 text-sm">{notRunSentence(result.did_not_run_cause)}</p>
+            {(result.did_not_run ?? []).length > 0 && (
+              <ul className="list-disc space-y-1 pl-5 text-xs text-muted-foreground">
+                {(result.did_not_run ?? []).map((reason) => (
+                  <li key={reason}>{reason}</li>
+                ))}
+              </ul>
+            )}
           </CardContent>
         </Card>
       )}
@@ -334,7 +399,7 @@ export function ChecksPanel({
       )}
 
       {/* All clear */}
-      {result && !loading && totalFindings === 0 && (
+      {result && !loading && verdict === "passed" && totalFindings === 0 && (
         <Card className="border-dashed">
           <CardContent className="p-8 text-center">
             <CheckCircle2 size={24} className="mx-auto mb-2 text-emerald-500" />

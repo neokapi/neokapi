@@ -1353,10 +1353,38 @@ export class CheckRunResult {
     constructor($$source = {}) {
         if (!("pass" in $$source)) {
             /**
+             * Pass is true exactly when Verdict is "passed".
              * @member
              * @type {boolean}
              */
             this["pass"] = false;
+        }
+        if (!("verdict" in $$source)) {
+            /**
+             * Verdict is "passed", "failed" or "did_not_run", decided by
+             * check.Report.Decide the way `kapi check` decides it: a run that checked
+             * no blocks, or whose checkers could not show they catch a known-bad input,
+             * did not run and is never shown as passing.
+             * @member
+             * @type {string}
+             */
+            this["verdict"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * DidNotRun lists why the verdict is did_not_run, and DidNotRunCause names
+             * the kind: "checker_invalid", "nothing_to_check" or "content_not_checked".
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["did_not_run"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["did_not_run_cause"] = undefined;
         }
         if (!("score" in $$source)) {
             /**
@@ -1382,10 +1410,14 @@ export class CheckRunResult {
      * @returns {CheckRunResult}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType25;
+        const $$createField2_0 = $$createType6;
+        const $$createField5_0 = $$createType25;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("did_not_run" in $$parsedSource) {
+            $$parsedSource["did_not_run"] = $$createField2_0($$parsedSource["did_not_run"]);
+        }
         if ("files" in $$parsedSource) {
-            $$parsedSource["files"] = $$createField2_0($$parsedSource["files"]);
+            $$parsedSource["files"] = $$createField5_0($$parsedSource["files"]);
         }
         return new CheckRunResult(/** @type {Partial<CheckRunResult>} */($$parsedSource));
     }
