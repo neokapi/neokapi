@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/comment"
+	"github.com/neokapi/neokapi/core/format"
 )
 
 // accountFor checks what a provider located in src against an independent
@@ -37,17 +38,17 @@ func accountFor(name string, src []byte, got *comment.File) error {
 	fail := func(format string, args ...any) { errs = append(errs, fmt.Errorf(format, args...)) }
 
 	type claim struct {
-		span     comment.Span
-		lines    comment.LineRange
+		span     byteSpan
+		lines    format.LineRange
 		excluded bool
 		index    int
 	}
 	claims := make([]claim, 0, len(got.Comments)+len(got.Excluded))
 	for i, c := range got.Comments {
-		claims = append(claims, claim{span: c.Span, lines: c.Lines, index: i})
+		claims = append(claims, claim{span: byteSpan{c.Start, c.End}, lines: c.Lines, index: i})
 	}
 	for i, e := range got.Excluded {
-		claims = append(claims, claim{span: e.Span, lines: e.Lines, excluded: true, index: i})
+		claims = append(claims, claim{span: byteSpan{e.Start, e.End}, lines: e.Lines, excluded: true, index: i})
 	}
 	sort.Slice(claims, func(i, j int) bool { return claims[i].span.Start < claims[j].span.Start })
 	for i, c := range claims {
@@ -57,7 +58,7 @@ func accountFor(name string, src []byte, got *comment.File) error {
 		if i > 0 && c.span.Start < claims[i-1].span.End {
 			fail("span %d-%d overlaps span %d-%d", c.span.Start, c.span.End, claims[i-1].span.Start, claims[i-1].span.End)
 		}
-		want := comment.LineRange{
+		want := format.LineRange{
 			First: tf.PositionFor(tf.Pos(clamp(c.span.Start, len(src))), false).Line,
 			Last:  tf.PositionFor(tf.Pos(clamp(c.span.End, len(src))), false).Line,
 		}
@@ -186,3 +187,6 @@ func groupsOf(name string, src []byte) ([]*ast.CommentGroup, error) {
 	}
 	return f.Comments, nil
 }
+
+// byteSpan is a half-open byte range [Start, End), as a claim records it.
+type byteSpan struct{ Start, End int }

@@ -688,7 +688,10 @@ func (a *App) verifyVoice(cmd Command, proj *project.KapiProject, root string, a
 		var rerr error
 		if p, ok := a.commentLayerFor(f, fmtName); ok {
 			// The voice governs a comment layer the way it governs any content.
-			blocks, _, rerr = a.readCommentLayer(ctx, f, p, nil)
+			var layer *commentLayer
+			if layer, rerr = a.readCommentLayer(ctx, f, p, nil); layer != nil {
+				blocks = layer.blocks
+			}
 		} else {
 			blocks, rerr = a.readBlocksAs(ctx, f, fmtName, fmtCfg, a.SourceLocale())
 		}

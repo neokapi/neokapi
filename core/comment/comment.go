@@ -13,27 +13,10 @@
 // only way to reach a comment is through what a provider located.
 package comment
 
-import "github.com/neokapi/neokapi/core/model"
-
-// Span is a half-open byte range [Start, End) in the file a comment was read
-// from.
-type Span struct {
-	Start int `json:"start"`
-	End   int `json:"end"`
-}
-
-// Len returns the number of bytes the span covers.
-func (s Span) Len() int { return s.End - s.Start }
-
-// LineRange is a 1-based line range, inclusive at both ends: a comment on one
-// line has First == Last. It is the unit a diff hunk speaks.
-type LineRange struct {
-	First int `json:"first"`
-	Last  int `json:"last"`
-}
-
-// Contains reports whether line falls inside the range.
-func (r LineRange) Contains(line int) bool { return line >= r.First && line <= r.Last }
+import (
+	"github.com/neokapi/neokapi/core/format"
+	"github.com/neokapi/neokapi/core/model"
+)
 
 // Style is the comment syntax a comment was written in.
 type Style string
@@ -52,9 +35,13 @@ const (
 // generated file's comments, or anything else a toolchain reads, so whatever
 // addresses a Comment addresses prose and nothing else.
 type Comment struct {
-	Span  Span      `json:"span"`
-	Lines LineRange `json:"lines"`
-	Style Style     `json:"style"`
+	// Start and End are the half-open byte span [Start, End) of the comment in
+	// the file, from its first marker to the last byte of its last line.
+	Start int `json:"start"`
+	End   int `json:"end"`
+	// Lines is the range of lines the span covers.
+	Lines format.LineRange `json:"lines"`
+	Style Style            `json:"style"`
 
 	// Subject is the structural path of what the comment sits on, such as
 	// "func/Parse", "type/Block/ID" or "package". A comment inside a
@@ -94,16 +81,17 @@ const (
 	// ReasonExampleOutput is the output comment that closes a Go example
 	// function, which `go test` compares against what the example prints.
 	ReasonExampleOutput Reason = "example-output"
-	// ReasonBlank is a comment line with nothing on it that separates a comment
-	// from a directive rather than two paragraphs.
+	// ReasonBlank is a comment line with nothing on it at the edge of a
+	// comment, which carries no prose.
 	ReasonBlank Reason = "blank"
 )
 
 // Excluded is one comment line a provider located and set aside.
 type Excluded struct {
-	Span   Span      `json:"span"`
-	Lines  LineRange `json:"lines"`
-	Reason Reason    `json:"reason"`
+	Start  int              `json:"start"`
+	End    int              `json:"end"`
+	Lines  format.LineRange `json:"lines"`
+	Reason Reason           `json:"reason"`
 	// Form names the directive for ReasonDirective, such as "go:embed",
 	// "nolint" or "+build". Empty for every other reason.
 	Form string `json:"form,omitempty"`

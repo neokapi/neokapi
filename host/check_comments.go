@@ -41,12 +41,34 @@ func (a *App) commentLayerFor(file, fmtName string) (comment.Provider, bool) {
 	return p, true
 }
 
+// commentLayer is one file's comments, read for checking.
+type commentLayer struct {
+	blocks []*model.Block
+	// lines maps each block's location key to the lines it spans in the file.
+	lines map[string]format.LineRange
+	// formatter holds the formatter's disagreements, located.
+	formatter []check.Diagnostic
+}
+
+// locate gives every diagnostic on a comment block the lines that comment
+// spans, so a finding reads as a place in the file as well as a block.
+func (l *commentLayer) locate(diags []check.Diagnostic) {
+	for i := range diags {
+		if diags[i].Location.Lines != nil {
+			continue
+		}
+		if r, ok := l.lines[diags[i].Location.Block]; ok {
+			diags[i].Location.Lines = &r
+		}
+	}
+}
+
 // checkCommentFile is checkFileBlocks for a file read for its comment layer.
 // The comments become blocks and go through collectFileDiagnostics, the same
 // checkset, governance and report as any other content; the formatter's
 // disagreements join them.
 func (a *App) checkCommentFile(ctx context.Context, file string, p comment.Provider, validateMode format.ValidationMode, opts checkRunOptions) ([]*model.Block, []check.Diagnostic, error) {
-	blocks, diags, err := a.readCommentLayer(ctx, file, p, opts.execution)
+	layer, err := a.readCommentLayer(ctx, file, p, opts.execution)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -55,11 +77,15 @@ func (a *App) checkCommentFile(ctx context.Context, file string, p comment.Provi
 	} else {
 		opts.execution.unsupported("reader.validation", file, "The file is read for its comments, and no format reader parses it.")
 	}
-	fileDiags, err := a.collectFileDiagnostics(ctx, blocks, file, opts)
+	fileDiags, err := a.collectFileDiagnostics(ctx, layer.blocks, file, opts)
 	if err != nil {
 		return nil, nil, err
 	}
-	return blocks, append(diags, fileDiags...), nil
+	diags := make([]check.Diagnostic, 0, len(layer.formatter)+len(fileDiags))
+	diags = append(diags, layer.formatter...)
+	diags = append(diags, fileDiags...)
+	layer.locate(diags)
+	return layer.blocks, diags, nil
 }
 
 // readCommentLayer locates a file's comments with its language provider and
@@ -69,20 +95,23 @@ func (a *App) checkCommentFile(ctx context.Context, file string, p comment.Provi
 // The formatter compares and never writes. A language with no formatter, or a
 // comparison that cannot locate its result, is recorded as not having run: a
 // formatter check that did not run is never reported as agreement.
-func (a *App) readCommentLayer(ctx context.Context, file string, p comment.Provider, execution *checkExecution) ([]*model.Block, []check.Diagnostic, error) {
+func (a *App) readCommentLayer(ctx context.Context, file string, p comment.Provider, execution *checkExecution) (*commentLayer, error) {
 	if err := ctx.Err(); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	start := time.Now()
 	src, err := os.ReadFile(file)
 	if err != nil {
-		return nil, nil, fmt.Errorf("read %s: %w", DisplayName(file), err)
+		return nil, fmt.Errorf("read %s: %w", DisplayName(file), err)
 	}
 	located, err := p.Locate(file, src)
 	if err != nil {
-		return nil, nil, fmt.Errorf("locate the comments in %s: %w", DisplayName(file), err)
+		return nil, fmt.Errorf("locate the comments in %s: %w", DisplayName(file), err)
 	}
-	blocks := located.Blocks()
+	layer := &commentLayer{blocks: located.Blocks(), lines: map[string]format.LineRange{}}
+	for i, extent := range located.Extents() {
+		layer.lines[blockKey(layer.blocks[i])] = extent.Lines
+	}
 	if execution != nil {
 		execution.Timings.ExtractionMS += elapsedMS(start)
 	}
@@ -90,28 +119,27 @@ func (a *App) readCommentLayer(ctx context.Context, file string, p comment.Provi
 	f, ok := p.(comment.Formatter)
 	if !ok {
 		execution.unsupported(formatterCheck, file, fmt.Sprintf("No formatter is available for %s.", p.Language()))
-		return blocks, nil, nil
+		return layer, nil
 	}
 	id := check.RuleID(formatterCheck, f.FormatterName())
 	start = time.Now()
 	disagreements, err := f.Disagreements(file, src, located)
 	if err != nil {
 		execution.failed(id, file, err.Error())
-		return blocks, nil, nil
+		return layer, nil
 	}
-	diags := make([]check.Diagnostic, 0, len(disagreements))
 	for _, d := range disagreements {
-		diags = append(diags, check.Diagnostic{
+		layer.formatter = append(layer.formatter, check.Diagnostic{
 			Rule:       id,
 			Check:      formatterCheck,
 			Severity:   check.SeverityMajor,
 			Message:    f.FormatterName() + " would rewrite this comment",
 			Suggestion: d.Formatted,
-			Location:   check.Location{File: DisplayName(file), Block: blockKey(blocks[d.Comment])},
+			Location:   check.Location{File: DisplayName(file), Block: blockKey(layer.blocks[d.Comment])},
 		})
 	}
-	execution.completed(id, file, len(diags), start)
-	return blocks, diags, nil
+	execution.completed(id, file, len(layer.formatter), start)
+	return layer, nil
 }
 
 // readSourceForCheck reads a unit's source for the source-side checks: through
@@ -121,7 +149,11 @@ func (a *App) readCommentLayer(ctx context.Context, file string, p comment.Provi
 func (a *App) readSourceForCheck(ctx context.Context, u VerifyUnit, execution *checkExecution) ([]*model.Block, []check.Diagnostic, error) {
 	name, _ := a.unitFormat(u.SourceFormat, u.SourceConfig)
 	if p, ok := a.commentLayerFor(u.SourcePath, name); ok {
-		return a.readCommentLayer(ctx, u.SourcePath, p, execution)
+		layer, err := a.readCommentLayer(ctx, u.SourcePath, p, execution)
+		if err != nil {
+			return nil, nil, err
+		}
+		return layer.blocks, layer.formatter, nil
 	}
 	blocks, err := a.readSource(ctx, u)
 	return blocks, nil, err

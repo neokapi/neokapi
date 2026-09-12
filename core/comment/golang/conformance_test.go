@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/core/comment"
+	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -42,16 +43,16 @@ func TestProseP1_go(t *testing.T) {
 		require.NotEmpty(t, got.Comments)
 
 		answer := findSubject(t, got, "const/Answer", true)
-		assert.Equal(t, "// Answer is the answer.", string(src[answer.Span.Start:answer.Span.End]))
-		assert.Equal(t, comment.LineRange{First: 11, Last: 11}, answer.Lines, "a one-line comment is inclusive at both ends")
+		assert.Equal(t, "// Answer is the answer.", string(src[answer.Start:answer.End]))
+		assert.Equal(t, format.LineRange{First: 11, Last: 11}, answer.Lines, "a one-line comment is inclusive at both ends")
 
 		pkg := findSubject(t, got, "package", true)
-		assert.Equal(t, comment.LineRange{First: 1, Last: 3}, pkg.Lines)
-		assert.Equal(t, "// Package demo is a fixture.\n//\n// It has two paragraphs.", string(src[pkg.Span.Start:pkg.Span.End]))
+		assert.Equal(t, format.LineRange{First: 1, Last: 3}, pkg.Lines)
+		assert.Equal(t, "// Package demo is a fixture.\n//\n// It has two paragraphs.", string(src[pkg.Start:pkg.End]))
 
 		block := findSubject(t, got, "type/Block", true)
 		assert.Equal(t, comment.StyleBlock, block.Style)
-		assert.Equal(t, comment.LineRange{First: 21, Last: 23}, block.Lines, "a block comment's last line is the line of */")
+		assert.Equal(t, format.LineRange{First: 21, Last: 23}, block.Lines, "a block comment's last line is the line of */")
 	})
 
 	t.Run("CRLF block comments keep their closing delimiter", func(t *testing.T) {
@@ -60,7 +61,7 @@ func TestProseP1_go(t *testing.T) {
 		require.NoError(t, err)
 		require.NoError(t, accountFor("demo.go", src, got))
 		block := findSubject(t, got, "type/Block", true)
-		assert.True(t, strings.HasSuffix(string(src[block.Span.Start:block.Span.End]), "*/"))
+		assert.True(t, strings.HasSuffix(string(src[block.Start:block.End]), "*/"))
 	})
 
 	t.Run("a file of directives has no addressable comment", func(t *testing.T) {
@@ -71,7 +72,7 @@ func TestProseP1_go(t *testing.T) {
 		assert.Empty(t, got.Comments)
 		require.NotEmpty(t, got.Excluded)
 		for _, e := range got.Excluded {
-			assert.Equal(t, comment.ReasonDirective, e.Reason, "%q", src[e.Span.Start:e.Span.End])
+			assert.Equal(t, comment.ReasonDirective, e.Reason, "%q", src[e.Start:e.End])
 		}
 	})
 
@@ -110,8 +111,8 @@ func TestProseP1_go(t *testing.T) {
 			name string
 			edit func(*comment.Comment)
 		}{
-			{"end one byte early", func(c *comment.Comment) { c.Span.End-- }},
-			{"start one byte late", func(c *comment.Comment) { c.Span.Start++ }},
+			{"end one byte early", func(c *comment.Comment) { c.End-- }},
+			{"start one byte late", func(c *comment.Comment) { c.Start++ }},
 			{"last line one too far", func(c *comment.Comment) { c.Lines.Last++ }},
 		} {
 			t.Run(corrupt.name, func(t *testing.T) {
@@ -140,12 +141,12 @@ func TestProseP1_go(t *testing.T) {
 		require.NoError(t, err)
 		first, second := got.Comments[0], got.Comments[1]
 		merged := first
-		merged.Span.End, merged.Lines.Last = second.Span.End, second.Lines.Last
+		merged.End, merged.Lines.Last = second.End, second.Lines.Last
 		got.Comments = append([]comment.Comment{merged}, got.Comments[2:]...)
 		// The lines between the two groups (the package clause, the import)
 		// hold no comment, and the one comment inside them joins the merge.
 		got.Excluded = slices.DeleteFunc(got.Excluded, func(e comment.Excluded) bool {
-			return e.Span.Start > first.Span.Start && e.Span.End < second.Span.End
+			return e.Start > first.Start && e.End < second.End
 		})
 		err = accountFor("demo.go", src, got)
 		require.Error(t, err)
@@ -170,8 +171,8 @@ func TestProseP1_go(t *testing.T) {
 		// pragma below it, and drop their exclusions.
 		c := &got.Comments[0]
 		embed := strings.Index(mixedFixture, "//go:embed data") + len("//go:embed data")
-		c.Span.End, c.Lines.Last = embed, 7
-		got.Excluded = slices.DeleteFunc(got.Excluded, func(e comment.Excluded) bool { return e.Span.End <= embed })
+		c.End, c.Lines.Last = embed, 7
+		got.Excluded = slices.DeleteFunc(got.Excluded, func(e comment.Excluded) bool { return e.End <= embed })
 		err = accountFor("mixed.go", src, got)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "contains the directive")
@@ -327,14 +328,14 @@ func scanOne(root, path string) corpusStats {
 		if c.Deprecated {
 			s.deprecated++
 		}
-		if gi := groupOf(c.Span.Start); gi >= 0 {
+		if gi := groupOf(c.Start); gi >= 0 {
 			byGroup[gi].prose++
 			byGroup[gi].words += w
 		}
 	}
 	seenReason := map[comment.Reason]map[int]bool{}
 	for _, e := range got.Excluded {
-		gi := groupOf(e.Span.Start)
+		gi := groupOf(e.Start)
 		switch e.Reason {
 		case comment.ReasonGenerated:
 			s.generated = 1

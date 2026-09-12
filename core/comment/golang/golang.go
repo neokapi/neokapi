@@ -21,6 +21,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/neokapi/neokapi/core/comment"
+	"github.com/neokapi/neokapi/core/format"
 )
 
 // Language is the name the provider reports.
@@ -87,8 +88,8 @@ type scanner struct {
 }
 
 // span returns the bytes from the start of first to the end of last.
-func (s *scanner) span(first, last *ast.Comment) comment.Span {
-	return comment.Span{Start: s.file.Offset(first.Pos()), End: s.end(last)}
+func (s *scanner) span(first, last *ast.Comment) (start, end int) {
+	return s.file.Offset(first.Pos()), s.end(last)
 }
 
 // end returns the offset just past a comment's last byte.
@@ -109,22 +110,23 @@ func (s *scanner) end(c *ast.Comment) int {
 	return i
 }
 
-// lines reports the lines a span sits on as the file numbers them. A `//line`
+// lines reports the lines a span covers as the file numbers them. A `//line`
 // directive changes the position the compiler reports for everything after it,
 // but a diff and an editor count the lines of the file itself.
-func (s *scanner) lines(sp comment.Span) comment.LineRange {
-	return comment.LineRange{
-		First: s.file.PositionFor(s.file.Pos(sp.Start), false).Line,
-		Last:  s.file.PositionFor(s.file.Pos(sp.End), false).Line,
+func (s *scanner) lines(start, end int) format.LineRange {
+	return format.LineRange{
+		First: s.file.PositionFor(s.file.Pos(start), false).Line,
+		Last:  s.file.PositionFor(s.file.Pos(end), false).Line,
 	}
 }
 
 func (s *scanner) exclude(list []*ast.Comment, reason comment.Reason, form string) {
 	for _, c := range list {
-		sp := s.span(c, c)
+		start, end := s.span(c, c)
 		s.out.Excluded = append(s.out.Excluded, comment.Excluded{
-			Span:   sp,
-			Lines:  s.lines(sp),
+			Start:  start,
+			End:    end,
+			Lines:  s.lines(start, end),
 			Reason: reason,
 			Form:   form,
 		})
@@ -178,10 +180,11 @@ func (s *scanner) prose(run []*ast.Comment, subj subject, docs *docCommentParser
 		if err != nil {
 			return err
 		}
-		sp := s.span(lines[0], lines[len(lines)-1])
+		start, end := s.span(lines[0], lines[len(lines)-1])
 		s.out.Comments = append(s.out.Comments, comment.Comment{
-			Span:       sp,
-			Lines:      s.lines(sp),
+			Start:      start,
+			End:        end,
+			Lines:      s.lines(start, end),
 			Style:      style,
 			Subject:    subj.path,
 			Doc:        subj.doc,

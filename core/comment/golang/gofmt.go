@@ -107,7 +107,7 @@ func lineOwners(group commentGroupLines, comments []comment.Comment) [][]int {
 	for li, l := range group {
 		own[li] = -1
 		for ci, c := range comments {
-			if l.start >= c.Span.Start && l.start < c.Span.End {
+			if l.start >= c.Start && l.start < c.End {
 				own[li] = ci
 				break
 			}

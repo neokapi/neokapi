@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/core/check"
+	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -34,6 +35,8 @@ func TestCheckReadsTheCommentsOfANamedGoFile(t *testing.T) {
 	require.Len(t, report.Findings, 1)
 	assert.Equal(t, "hygiene.doubled-word", report.Findings[0].Rule)
 	assert.Equal(t, "func/Parse", report.Findings[0].Location.Block)
+	require.NotNil(t, report.Findings[0].Location.Lines, "a comment finding names the lines of its comment")
+	assert.Equal(t, format.LineRange{First: 3, Last: 3}, *report.Findings[0].Location.Lines)
 	assert.Equal(t, check.AnalyzerPassed, analyzerStatus(report, "formatter.gofmt"), "gofmt ran and agreed")
 }
 
@@ -120,6 +123,8 @@ func TestCheckGovernsGoCommentsAtTheirPoint(t *testing.T) {
 	require.Len(t, voice, 1, "the code comment is held to the rule, the docs comment is excepted, and the string literal is not content")
 	assert.Equal(t, "parse.go", filepath.Base(voice[0].Location.File))
 	assert.Equal(t, "func/Parse", voice[0].Location.Block)
+	require.NotNil(t, voice[0].Location.Lines)
+	assert.Equal(t, format.LineRange{First: 3, Last: 3}, *voice[0].Location.Lines)
 
 	channels := map[string]string{}
 	for _, c := range report.Execution.Contexts {
@@ -142,6 +147,8 @@ func TestCheckGofmtDisagreementFailsTheGate(t *testing.T) {
 	assert.Equal(t, "formatter.gofmt", f.Rule)
 	assert.Equal(t, check.SeverityMajor, f.Severity)
 	assert.Equal(t, "func/Parse/comment", f.Location.Block)
+	require.NotNil(t, f.Location.Lines)
+	assert.Equal(t, format.LineRange{First: 4, Last: 4}, *f.Location.Lines)
 	assert.Contains(t, f.Suggestion, "// Indented with spaces.")
 	assert.False(t, report.Pass, "a comment gofmt would rewrite does not pass, whatever the severity limits allow")
 	require.NotEmpty(t, report.Gate.Failed)
