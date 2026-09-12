@@ -490,6 +490,9 @@ func (a *App) ComputeCheck(cmd Command, args []string) (check.Report, error) {
 	if validateMode == format.ValidationStrict {
 		applyStrictValidationGate(&report)
 	}
+	if lenient, _ := cmd.Flags().GetBool("lenient"); !lenient {
+		applyFormatterGate(&report)
+	}
 	return report, nil
 }
 
@@ -500,6 +503,9 @@ func (a *App) checkFileBlocks(ctx context.Context, file string, validateMode for
 	var diags []check.Diagnostic
 
 	fmtName, fmtCfg := opts.formats.forFile(a, file)
+	if p, ok := a.commentLayerFor(file, fmtName); ok {
+		return a.checkCommentFile(ctx, file, p, validateMode, opts)
+	}
 	extractionStart := time.Now()
 
 	if validateMode != format.ValidationOff {

@@ -175,6 +175,10 @@ func (a *App) RunFromProject(cmd Command, flowName, projectPath string, opts Run
 			return fmt.Errorf("resolve content: %w", err)
 		}
 		for _, rf := range resolved {
+			// A file declared for its comments alone has nothing a flow reads.
+			if rf.CommentsOnly() {
+				continue
+			}
 			inputPaths = append(inputPaths, rf.Path)
 		}
 		if len(inputPaths) == 0 {

@@ -140,6 +140,50 @@ kapi rejects a recipe that sets `source_only: true` on a collection that also
 carries a target. Without that check, a deliberate omission and a forgotten
 target look the same in the file.
 
+## Comments in source code
+
+The comments in a source file are prose, and an assistant that writes code
+writes them too. kapi checks the comments in Go source files with the same rules
+as any other content.
+
+Name a Go file and kapi checks its comments:
+
+```bash
+kapi check internal/parse/parse.go
+```
+
+Each comment is one block, named for what it documents, such as `func/Parse` or
+`type/Block/ID`. Directives such as `//go:embed` and `//nolint`, the comments in
+generated files, and the code blocks and references inside a doc comment stay
+out of the prose, so a rule reads sentences and nothing else.
+
+kapi also compares each comment with what gofmt writes. A comment gofmt would
+rewrite is a `formatter.gofmt` finding, and it fails the gate, so formatting
+work is caught before the commit rather than after it. `--lenient` reports it
+without failing.
+
+Beside your file, each run gives the comment reader and gofmt a small Go file
+with a known fault. If either reports nothing on it, the check did not run and
+exits `4`, whatever it found in your file. A check over a Go file that holds no
+comment prose did not run either.
+
+To check the comments as project content, declare the files with
+`comments: true` in a source-only collection:
+
+```yaml title="kapi.yaml"
+collections:
+  - name: engine-comments
+    channel: acme/engineering
+    source_only: true
+    content:
+      - path: "internal/**/*.go"
+        comments: true
+```
+
+A bare `kapi check` and `kapi check --ship` then check those comments under the
+voice profile and terms bound to `acme/engineering`. `kapi up`, flow runs and
+source coverage leave the files alone.
+
 ## Next
 
 - [Ship gates & CI](/kapi/recipes/ship-gates-and-ci): `kapi check --ship` on every PR.

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/core/comment"
+	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -82,7 +83,7 @@ func TestDirectiveFixtureCoversEveryForm(t *testing.T) {
 	for _, f := range directiveForms {
 		matched := false
 		for _, e := range got.Excluded {
-			text := directiveFixture[e.Span.Start:e.Span.End]
+			text := directiveFixture[e.Start:e.End]
 			if form, ok := classifyDirective(text, []directiveForm{f}); ok && form != "" {
 				matched = true
 			}
@@ -171,14 +172,14 @@ func TestLineDirectiveDoesNotShiftLines(t *testing.T) {
 	src := "package demo\n\n//line other.go:100\nfunc a() {}\n\n// B is on line 6.\nfunc B() {}\n"
 	got := locateString(t, "demo.go", src)
 	require.Len(t, got.Comments, 1)
-	assert.Equal(t, comment.LineRange{First: 6, Last: 6}, got.Comments[0].Lines)
+	assert.Equal(t, format.LineRange{First: 6, Last: 6}, got.Comments[0].Lines)
 }
 
 func TestBlankEdgesAreExcluded(t *testing.T) {
 	src := "package demo\n\n//\n// Foo does things.\n//\n//go:noinline\nfunc Foo() {}\n"
 	got := locateString(t, "demo.go", src)
 	require.Len(t, got.Comments, 1)
-	assert.Equal(t, "// Foo does things.", src[got.Comments[0].Span.Start:got.Comments[0].Span.End])
+	assert.Equal(t, "// Foo does things.", src[got.Comments[0].Start:got.Comments[0].End])
 	var reasons []comment.Reason
 	for _, e := range got.Excluded {
 		reasons = append(reasons, e.Reason)

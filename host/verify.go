@@ -684,7 +684,17 @@ func (a *App) verifyVoice(cmd Command, proj *project.KapiProject, root string, a
 			return nil, terr
 		}
 		fmtName, fmtCfg := formats.forFile(a, f)
-		blocks, rerr := a.readBlocksAs(ctx, f, fmtName, fmtCfg, a.SourceLocale())
+		var blocks []*model.Block
+		var rerr error
+		if p, ok := a.commentLayerFor(f, fmtName); ok {
+			// The voice governs a comment layer the way it governs any content.
+			var layer *commentLayer
+			if layer, rerr = a.readCommentLayer(ctx, f, p, nil); layer != nil {
+				blocks = layer.blocks
+			}
+		} else {
+			blocks, rerr = a.readBlocksAs(ctx, f, fmtName, fmtCfg, a.SourceLocale())
+		}
 		if rerr != nil {
 			if errors.Is(rerr, registry.ErrUnknownFormat) {
 				noReader[fmtName] = true
@@ -928,7 +938,8 @@ func (a *App) UnitsFromProject(proj *project.KapiProject, root string, localeFil
 
 	var units []VerifyUnit
 	for _, rf := range resolved {
-		if rf.Item == nil || rf.Item.Target == "" {
+		// A file read for its comments alone has no target to pair it with.
+		if rf.Item == nil || rf.Item.Target == "" || rf.CommentsOnly() {
 			continue
 		}
 		locales := rf.Item.ResolvedTargetLanguages(nil, proj.Defaults)
@@ -982,7 +993,8 @@ func (a *App) SourceUnitsFromProject(proj *project.KapiProject, root string) ([]
 	seen := make(map[string]bool, len(resolved))
 	units := make([]VerifyUnit, 0, len(resolved))
 	for _, rf := range resolved {
-		if seen[rf.Path] {
+		// Comments are checked, and hold no source unit to settle or translate.
+		if seen[rf.Path] || rf.CommentsOnly() {
 			continue
 		}
 		seen[rf.Path] = true

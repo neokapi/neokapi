@@ -272,6 +272,14 @@ func (a *App) materializeFromProjectStore(ctx context.Context, out io.Writer, pr
 	if err != nil {
 		return 0, fmt.Errorf("merge: resolve project content: %w", err)
 	}
+	// A file declared for its comments alone has no target to materialize.
+	kept := files[:0]
+	for _, f := range files {
+		if !f.CommentsOnly() {
+			kept = append(kept, f)
+		}
+	}
+	files = kept
 	if len(files) == 0 {
 		return 0, errors.New("merge: project has no source files to materialize (check content patterns)")
 	}

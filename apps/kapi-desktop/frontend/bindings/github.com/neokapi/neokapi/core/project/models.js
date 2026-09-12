@@ -350,6 +350,20 @@ export class ContentItem {
              */
             this["redaction"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * Comments declares the comments in this item's files as content: a check
+             * reads them at the item's point, under the voice and terms that govern it.
+             * 
+             * For a file no format reader covers, such as Go source, the comments are
+             * the file's only content. kapi reads them through the language's comment
+             * provider, and a convergence run, a flow run and source coverage leave the
+             * file alone, so such an item names no target (ResolvedFile.CommentsOnly).
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["comments"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }

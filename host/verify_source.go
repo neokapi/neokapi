@@ -66,7 +66,7 @@ func targetVerifyUnits(units []VerifyUnit) []VerifyUnit {
 func (a *App) verifySourceChecks(ctx context.Context, cmd Command, u VerifyUnit, gate *verifyGateResult) error {
 	execution := newCheckExecution()
 	extractionStart := time.Now()
-	blocks, err := a.readSource(ctx, u)
+	blocks, formatterDiags, err := a.readSourceForCheck(ctx, u, execution)
 	if err != nil {
 		return err
 	}
@@ -97,6 +97,7 @@ func (a *App) verifySourceChecks(ctx context.Context, cmd Command, u VerifyUnit,
 	if err != nil {
 		return err
 	}
+	diagnostics = append(formatterDiags, diagnostics...)
 	if gate.Execution == nil {
 		gate.Execution = &check.Execution{Analyzers: []check.AnalyzerExecution{}}
 	}
@@ -140,7 +141,7 @@ func (a *App) verifySourceTerminology(ctx context.Context, vocab *checkTerms, u 
 	if store == nil {
 		return nil
 	}
-	blocks, err := a.readSource(ctx, u)
+	blocks, _, err := a.readSourceForCheck(ctx, u, nil)
 	if err != nil {
 		return err
 	}

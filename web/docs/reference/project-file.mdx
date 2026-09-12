@@ -152,6 +152,7 @@ intent, and loading fails if the collection contradicts it. See
 | `target_languages` | string[]      | Overrides the collection's and the project's target languages                             |
 | `channel`          | string        | Overrides the collection's `channel:` for the files this item matches (see [Profiles and channels](#profiles-and-channels)) |
 | `redaction`        | RedactionSpec | Overrides `defaults.redaction` for this item                                              |
+| `comments`         | bool          | Declares the comments in the matched Go source files as content to check. Go source has no format reader, so `kapi up`, flow runs and source coverage leave those files alone (see [Comments in source code](/kapi/recipes/verify-content#comments-in-source-code)) |
 
 #### base
 

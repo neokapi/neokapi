@@ -1,9 +1,9 @@
 package comment
 
 import (
-	"strconv"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -20,12 +20,6 @@ const (
 	PropDoc = "comment.doc"
 	// PropDeprecated is "true" on a comment carrying a deprecation marker.
 	PropDeprecated = "comment.deprecated"
-	// PropSpan and PropLines are the comment's place in the file, written
-	// "start-end" and "first-last". They are derived locators, which move
-	// whenever anything above the comment moves, so they are advisory and stay
-	// out of the block's identity.
-	PropSpan  = model.AdvisoryPropertyPrefix + "comment.span"
-	PropLines = model.AdvisoryPropertyPrefix + "comment.lines"
 )
 
 // Blocks returns the file's comments as blocks, in file order.
@@ -33,18 +27,17 @@ const (
 // A block is named for what the comment sits on, so its name survives an edit
 // above it: `func/Parse` stays `func/Parse` when a line is added at the top of
 // the file. Two comments on one subject are told apart by an ordinal, and the
-// id is the name, held unique within the file by model.IDBuilder.
+// id is the name, held unique within the file by model.IDBuilder. Where the
+// block sits is its extent (Extents), which moves with the file and so stays
+// out of the block's identity.
 func (f *File) Blocks() []*model.Block {
-	var names model.NameBuilder
-	var ids model.IDBuilder
+	names, ids := f.names()
 	blocks := make([]*model.Block, 0, len(f.Comments))
 	for i := range f.Comments {
 		c := &f.Comments[i]
-		name := names.Name(model.StructuralPath(strings.Split(c.Subject, "/")...))
-		b := model.NewRunsBlock(name, c.Runs)
-		b.Name = name
+		b := model.NewRunsBlock(ids[i], c.Runs)
+		b.Name = names[i]
 		b.Type = BlockType
-		ids.Assign(b)
 		b.Properties[PropLanguage] = f.Language
 		b.Properties[PropStyle] = string(c.Style)
 		if c.Doc {
@@ -53,10 +46,34 @@ func (f *File) Blocks() []*model.Block {
 		if c.Deprecated {
 			b.Properties[PropDeprecated] = "true"
 		}
-		b.Properties[PropSpan] = strconv.Itoa(c.Span.Start) + "-" + strconv.Itoa(c.Span.End)
-		b.Properties[PropLines] = strconv.Itoa(c.Lines.First) + "-" + strconv.Itoa(c.Lines.Last)
 		b.Identity = model.ComputeIdentity(b)
 		blocks = append(blocks, b)
 	}
 	return blocks
+}
+
+// Extents returns where each comment's block sits in the file, in the order and
+// under the ids Blocks gives them.
+func (f *File) Extents() []format.Extent {
+	_, ids := f.names()
+	extents := make([]format.Extent, len(f.Comments))
+	for i, c := range f.Comments {
+		extents[i] = format.Extent{Block: ids[i], Start: c.Start, End: c.End, Lines: c.Lines}
+	}
+	return extents
+}
+
+// names assigns each comment its block name and id.
+func (f *File) names() (names, ids []string) {
+	var nb model.NameBuilder
+	var ib model.IDBuilder
+	names = make([]string, len(f.Comments))
+	ids = make([]string, len(f.Comments))
+	for i, c := range f.Comments {
+		names[i] = nb.Name(model.StructuralPath(strings.Split(c.Subject, "/")...))
+		b := &model.Block{ID: names[i]}
+		ib.Assign(b)
+		ids[i] = b.ID
+	}
+	return names, ids
 }

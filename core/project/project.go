@@ -761,6 +761,15 @@ type ContentItem struct {
 	// nil means inherit defaults.
 	Redaction *RedactionSpec `yaml:"redaction,omitempty" json:"redaction,omitempty"`
 
+	// Comments declares the comments in this item's files as content: a check
+	// reads them at the item's point, under the voice and terms that govern it.
+	//
+	// For a file no format reader covers, such as Go source, the comments are
+	// the file's only content. kapi reads them through the language's comment
+	// provider, and a convergence run, a flow run and source coverage leave the
+	// file alone, so such an item names no target (ResolvedFile.CommentsOnly).
+	Comments bool `yaml:"comments,omitempty" json:"comments,omitempty"`
+
 	// Extras captures unknown keys at the per-item level. Platform layers
 	// decode their per-item fields from here.
 	Extras map[string]yaml.Node `yaml:",inline" json:"-"`

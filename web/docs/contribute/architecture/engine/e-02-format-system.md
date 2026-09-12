@@ -435,6 +435,23 @@ non-translatable cell as `RoleTableCell`), and is flagged so translation skips i
 to a content block would misrepresent the document's structure; it stays a `Data`
 part or a note that ingestion can read and the editor can show.
 
+#### The comment layer
+
+A check reads comments as prose through a third path that leaves both channels
+as they are. The comment layer (`core/comment`) locates each comment with a
+half-open byte span and an inclusive line range, and builds a block from it for
+checking. Those blocks never enter a reader's part stream, so round-trip and
+parity are unaffected.
+
+A file no format reader covers reaches the layer through a language provider.
+The Go provider uses `go/parser` for positions and `go/doc/comment` for the
+interior, from the standard library. It classifies directives, generated files,
+the cgo preamble and example output as not addressable, and turns code blocks
+and references to declarations into placeholders, so a check reads sentences
+only. A provider is not a format: nothing registers one in the format registry,
+and a recipe declares such files with `comments: true` on a content item, which
+convergence, flow runs and source coverage then pass over.
+
 #### Default on, via an inverted opt-out
 
 Surfacing is the **default**, controlled per format by a single boolean,
