@@ -2,7 +2,7 @@
   "generated_at": "2026-09-12",
   "target_level": "L4",
   "source": "format-ops bootstrap-publish (deterministic per-axis floor; no quality demotions)",
-  "scorer_version": 4,
+  "scorer_version": 5,
   "run_integrity": {
     "samples": 1,
     "anchored": true,
@@ -37,11 +37,20 @@
         "structure": {
           "published": 0,
           "suppressed": 0
+        },
+        "prose": {
+          "published": 0,
+          "suppressed": 0
         }
       }
     },
     "low_agreement": [],
-    "golden_passed": true
+    "golden_passed": true,
+    "prose": {
+      "probe_version": 1,
+      "canary": "P0",
+      "tags": "fts5"
+    }
   },
   "summary": {
     "total": 37,
@@ -98,6 +107,28 @@
         "G2": 6,
         "G3": 4,
         "G4": 3
+      },
+      "prose": {
+        "P0": 37,
+        "P1": 0,
+        "P2": 0,
+        "P3": 0,
+        "P4": 0
+      }
+    },
+    "languages": {
+      "total": 5,
+      "by_presence": {
+        "present": 2,
+        "absent": 3,
+        "did-not-run": 0
+      },
+      "by_prose": {
+        "P0": 1,
+        "P1": 1,
+        "P2": 0,
+        "P3": 0,
+        "P4": 0
       }
     }
   },
@@ -147,6 +178,13 @@
       "G2",
       "G3",
       "G4"
+    ],
+    "prose": [
+      "P0",
+      "P1",
+      "P2",
+      "P3",
+      "P4"
     ]
   },
   "axis_labels": {
@@ -156,7 +194,8 @@
     "knowledge": "Knowledge",
     "corpus": "Corpus",
     "security": "Security",
-    "structure": "Structure & Geometry"
+    "structure": "Structure & Geometry",
+    "prose": "Prose"
   },
   "dimensions": [
     "reader",
@@ -192,7 +231,11 @@
     "metaplane",
     "readingorder",
     "roles",
-    "geometry"
+    "geometry",
+    "located",
+    "governed",
+    "editable",
+    "allforms"
   ],
   "dimension_labels": {
     "reader": "Reader",
@@ -228,7 +271,11 @@
     "metaplane": "Metadata plane",
     "readingorder": "Reading order",
     "roles": "Semantic roles",
-    "geometry": "Geometry / bbox"
+    "geometry": "Geometry / bbox",
+    "located": "Located (P1)",
+    "governed": "Governed (P2)",
+    "editable": "Editable (P3)",
+    "allforms": "Every comment form (P4)"
   },
   "dimension_axes": {
     "reader": [
@@ -333,6 +380,18 @@
     ],
     "geometry": [
       "structure"
+    ],
+    "located": [
+      "prose"
+    ],
+    "governed": [
+      "prose"
+    ],
+    "editable": [
+      "prose"
+    ],
+    "allforms": [
+      "prose"
     ]
   },
   "formats": [
@@ -348,7 +407,8 @@
         "knowledge": "K2",
         "corpus": "C0",
         "security": "S1",
-        "structure": "G0"
+        "structure": "G0",
+        "prose": "P0"
       },
       "next": {
         "engine": "L2",
@@ -357,7 +417,8 @@
         "knowledge": "K3",
         "corpus": "C1",
         "security": "S2",
-        "structure": "G1"
+        "structure": "G1",
+        "prose": "P1"
       },
       "okapi_counterpart": "",
       "dimensions": {
@@ -394,7 +455,11 @@
         "metaplane": "none",
         "readingorder": "none",
         "roles": "none",
-        "geometry": "none"
+        "geometry": "none",
+        "located": "none",
+        "governed": "none",
+        "editable": "none",
+        "allforms": "none"
       },
       "evidence": {},
       "floor": "L1",
@@ -494,12 +559,43 @@
             "emit grouped body text in reading order (G2)",
             "set SetSemanticRole + tables/relations + a roles test (G3)"
           ]
+        },
+        "prose": {
+          "level": "P0",
+          "next": "P1",
+          "floor": "P0",
+          "ceiling": "P0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add TestProseP1_androidxml (P1)"
+          ],
+          "rungs": {
+            "P1": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P2": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P3": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P4": {
+              "outcome": "not-met",
+              "reason": "no test"
+            }
+          },
+          "languages": []
         }
       },
       "tier": {
         "declared": "available",
         "since": "2026-06-12",
-        "last_certified": "2026-07-25",
+        "last_certified": "2026-09-12",
         "gates": []
       },
       "blocking_gaps": [
@@ -520,7 +616,8 @@
         "knowledge": "K2",
         "corpus": "C0",
         "security": "S1",
-        "structure": "G0"
+        "structure": "G0",
+        "prose": "P0"
       },
       "next": {
         "engine": "L2",
@@ -529,7 +626,8 @@
         "knowledge": "K3",
         "corpus": "C1",
         "security": "S2",
-        "structure": "G1"
+        "structure": "G1",
+        "prose": "P1"
       },
       "okapi_counterpart": "",
       "dimensions": {
@@ -566,7 +664,11 @@
         "metaplane": "none",
         "readingorder": "none",
         "roles": "none",
-        "geometry": "none"
+        "geometry": "none",
+        "located": "none",
+        "governed": "none",
+        "editable": "none",
+        "allforms": "none"
       },
       "evidence": {},
       "floor": "L1",
@@ -666,12 +768,43 @@
             "emit grouped body text in reading order (G2)",
             "set SetSemanticRole + tables/relations + a roles test (G3)"
           ]
+        },
+        "prose": {
+          "level": "P0",
+          "next": "P1",
+          "floor": "P0",
+          "ceiling": "P0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add TestProseP1_applestrings (P1)"
+          ],
+          "rungs": {
+            "P1": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P2": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P3": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P4": {
+              "outcome": "not-met",
+              "reason": "no test"
+            }
+          },
+          "languages": []
         }
       },
       "tier": {
         "declared": "available",
         "since": "2026-06-12",
-        "last_certified": "2026-07-25",
+        "last_certified": "2026-09-12",
         "gates": []
       },
       "blocking_gaps": [
@@ -692,7 +825,8 @@
         "knowledge": "K2",
         "corpus": "C0",
         "security": "S1",
-        "structure": "G0"
+        "structure": "G0",
+        "prose": "P0"
       },
       "next": {
         "engine": "L4",
@@ -701,7 +835,8 @@
         "knowledge": "K3",
         "corpus": "C1",
         "security": "S2",
-        "structure": "G1"
+        "structure": "G1",
+        "prose": "P1"
       },
       "okapi_counterpart": "",
       "dimensions": {
@@ -738,7 +873,11 @@
         "metaplane": "none",
         "readingorder": "none",
         "roles": "none",
-        "geometry": "none"
+        "geometry": "none",
+        "located": "none",
+        "governed": "none",
+        "editable": "none",
+        "allforms": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -836,12 +975,43 @@
             "emit grouped body text in reading order (G2)",
             "set SetSemanticRole + tables/relations + a roles test (G3)"
           ]
+        },
+        "prose": {
+          "level": "P0",
+          "next": "P1",
+          "floor": "P0",
+          "ceiling": "P0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add TestProseP1_arb (P1)"
+          ],
+          "rungs": {
+            "P1": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P2": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P3": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P4": {
+              "outcome": "not-met",
+              "reason": "no test"
+            }
+          },
+          "languages": []
         }
       },
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-07-25",
+        "last_certified": "2026-09-12",
         "gates": []
       },
       "blocking_gaps": [],
@@ -860,7 +1030,8 @@
         "knowledge": "K0",
         "corpus": "C0",
         "security": "S1",
-        "structure": "G0"
+        "structure": "G0",
+        "prose": "P0"
       },
       "next": {
         "engine": "L1",
@@ -869,7 +1040,8 @@
         "knowledge": "K1",
         "corpus": "C1",
         "security": "S2",
-        "structure": "G1"
+        "structure": "G1",
+        "prose": "P1"
       },
       "okapi_counterpart": "okf_archive",
       "dimensions": {
@@ -906,7 +1078,11 @@
         "metaplane": "none",
         "readingorder": "none",
         "roles": "none",
-        "geometry": "none"
+        "geometry": "none",
+        "located": "none",
+        "governed": "none",
+        "editable": "none",
+        "allforms": "none"
       },
       "evidence": {},
       "floor": "L0",
@@ -1011,12 +1187,43 @@
             "emit grouped body text in reading order (G2)",
             "set SetSemanticRole + tables/relations + a roles test (G3)"
           ]
+        },
+        "prose": {
+          "level": "P0",
+          "next": "P1",
+          "floor": "P0",
+          "ceiling": "P0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add TestProseP1_archive (P1)"
+          ],
+          "rungs": {
+            "P1": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P2": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P3": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P4": {
+              "outcome": "not-met",
+              "reason": "no test"
+            }
+          },
+          "languages": []
         }
       },
       "tier": {
         "declared": "available",
         "since": "2026-06-26",
-        "last_certified": "2026-07-25",
+        "last_certified": "2026-09-12",
         "gates": []
       },
       "blocking_gaps": [
@@ -1039,7 +1246,8 @@
         "knowledge": "K2",
         "corpus": "C1",
         "security": "S1",
-        "structure": "G3"
+        "structure": "G3",
+        "prose": "P0"
       },
       "next": {
         "engine": "L4",
@@ -1048,7 +1256,8 @@
         "knowledge": "K3",
         "corpus": "C2",
         "security": "S2",
-        "structure": "G4"
+        "structure": "G4",
+        "prose": "P1"
       },
       "okapi_counterpart": "",
       "dimensions": {
@@ -1085,7 +1294,11 @@
         "metaplane": "complete",
         "readingorder": "complete",
         "roles": "complete",
-        "geometry": "none"
+        "geometry": "none",
+        "located": "none",
+        "governed": "none",
+        "editable": "none",
+        "allforms": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -1179,12 +1392,43 @@
           "blocking_gaps": [
             "set SetGeometry + a geometry test (G4)"
           ]
+        },
+        "prose": {
+          "level": "P0",
+          "next": "P1",
+          "floor": "P0",
+          "ceiling": "P0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add TestProseP1_asciidoc (P1)"
+          ],
+          "rungs": {
+            "P1": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P2": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P3": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P4": {
+              "outcome": "not-met",
+              "reason": "no test"
+            }
+          },
+          "languages": []
         }
       },
       "tier": {
         "declared": "available",
         "since": "2026-06-19",
-        "last_certified": "2026-07-25",
+        "last_certified": "2026-09-12",
         "gates": []
       },
       "blocking_gaps": [],
@@ -1203,7 +1447,8 @@
         "knowledge": "K0",
         "corpus": "C0",
         "security": "S0",
-        "structure": "G0"
+        "structure": "G0",
+        "prose": "P0"
       },
       "next": {
         "engine": "L1",
@@ -1212,7 +1457,8 @@
         "knowledge": "K1",
         "corpus": "C1",
         "security": "S1",
-        "structure": "G1"
+        "structure": "G1",
+        "prose": "P1"
       },
       "okapi_counterpart": "",
       "dimensions": {
@@ -1249,7 +1495,11 @@
         "metaplane": "none",
         "readingorder": "none",
         "roles": "none",
-        "geometry": "none"
+        "geometry": "none",
+        "located": "none",
+        "governed": "none",
+        "editable": "none",
+        "allforms": "none"
       },
       "evidence": {},
       "floor": "L0",
@@ -1355,12 +1605,43 @@
             "emit grouped body text in reading order (G2)",
             "set SetSemanticRole + tables/relations + a roles test (G3)"
           ]
+        },
+        "prose": {
+          "level": "P0",
+          "next": "P1",
+          "floor": "P0",
+          "ceiling": "P0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add TestProseP1_audio (P1)"
+          ],
+          "rungs": {
+            "P1": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P2": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P3": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P4": {
+              "outcome": "not-met",
+              "reason": "no test"
+            }
+          },
+          "languages": []
         }
       },
       "tier": {
         "declared": "available",
         "since": "2026-06-19",
-        "last_certified": "2026-07-25",
+        "last_certified": "2026-09-12",
         "gates": []
       },
       "blocking_gaps": [
@@ -1382,7 +1663,8 @@
         "knowledge": "K1",
         "corpus": "C0",
         "security": "S1",
-        "structure": "G3"
+        "structure": "G3",
+        "prose": "P0"
       },
       "next": {
         "engine": "L4",
@@ -1391,7 +1673,8 @@
         "knowledge": "K2",
         "corpus": "C1",
         "security": "S2",
-        "structure": "G4"
+        "structure": "G4",
+        "prose": "P1"
       },
       "okapi_counterpart": "okf_table (via alias 'table')",
       "dimensions": {
@@ -1428,7 +1711,11 @@
         "metaplane": "complete",
         "readingorder": "complete",
         "roles": "complete",
-        "geometry": "none"
+        "geometry": "none",
+        "located": "none",
+        "governed": "none",
+        "editable": "none",
+        "allforms": "none"
       },
       "evidence": {},
       "floor": "L3",
@@ -1526,12 +1813,43 @@
           "blocking_gaps": [
             "set SetGeometry + a geometry test (G4)"
           ]
+        },
+        "prose": {
+          "level": "P0",
+          "next": "P1",
+          "floor": "P0",
+          "ceiling": "P0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add TestProseP1_csv (P1)"
+          ],
+          "rungs": {
+            "P1": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P2": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P3": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P4": {
+              "outcome": "not-met",
+              "reason": "no test"
+            }
+          },
+          "languages": []
         }
       },
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-07-25",
+        "last_certified": "2026-09-12",
         "gates": []
       },
       "blocking_gaps": [],
@@ -1550,7 +1868,8 @@
         "knowledge": "K2",
         "corpus": "C0",
         "security": "S1",
-        "structure": "G0"
+        "structure": "G0",
+        "prose": "P0"
       },
       "next": {
         "engine": "L2",
@@ -1559,7 +1878,8 @@
         "knowledge": "K3",
         "corpus": "C1",
         "security": "S2",
-        "structure": "G1"
+        "structure": "G1",
+        "prose": "P1"
       },
       "okapi_counterpart": "",
       "dimensions": {
@@ -1596,7 +1916,11 @@
         "metaplane": "none",
         "readingorder": "none",
         "roles": "none",
-        "geometry": "none"
+        "geometry": "none",
+        "located": "none",
+        "governed": "none",
+        "editable": "none",
+        "allforms": "none"
       },
       "evidence": {},
       "floor": "L1",
@@ -1696,12 +2020,43 @@
             "emit grouped body text in reading order (G2)",
             "set SetSemanticRole + tables/relations + a roles test (G3)"
           ]
+        },
+        "prose": {
+          "level": "P0",
+          "next": "P1",
+          "floor": "P0",
+          "ceiling": "P0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add TestProseP1_designtokens (P1)"
+          ],
+          "rungs": {
+            "P1": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P2": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P3": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P4": {
+              "outcome": "not-met",
+              "reason": "no test"
+            }
+          },
+          "languages": []
         }
       },
       "tier": {
         "declared": "available",
         "since": "2026-06-12",
-        "last_certified": "2026-07-25",
+        "last_certified": "2026-09-12",
         "gates": []
       },
       "blocking_gaps": [
@@ -1722,7 +2077,8 @@
         "knowledge": "K0",
         "corpus": "C0",
         "security": "S1",
-        "structure": "G4"
+        "structure": "G4",
+        "prose": "P0"
       },
       "next": {
         "engine": "L2",
@@ -1731,7 +2087,8 @@
         "knowledge": "K1",
         "corpus": "C1",
         "security": "S2",
-        "structure": "—"
+        "structure": "—",
+        "prose": "P1"
       },
       "okapi_counterpart": "",
       "dimensions": {
@@ -1768,7 +2125,11 @@
         "metaplane": "complete",
         "readingorder": "complete",
         "roles": "complete",
-        "geometry": "complete"
+        "geometry": "complete",
+        "located": "none",
+        "governed": "none",
+        "editable": "none",
+        "allforms": "none"
       },
       "evidence": {},
       "floor": "L1",
@@ -1866,12 +2227,43 @@
           "delta": null,
           "agreement": 1,
           "blocking_gaps": []
+        },
+        "prose": {
+          "level": "P0",
+          "next": "P1",
+          "floor": "P0",
+          "ceiling": "P0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add TestProseP1_doclang (P1)"
+          ],
+          "rungs": {
+            "P1": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P2": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P3": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P4": {
+              "outcome": "not-met",
+              "reason": "no test"
+            }
+          },
+          "languages": []
         }
       },
       "tier": {
         "declared": "available",
         "since": "2026-06-14",
-        "last_certified": "2026-07-25",
+        "last_certified": "2026-09-12",
         "gates": []
       },
       "blocking_gaps": [
@@ -1892,7 +2284,8 @@
         "knowledge": "K0",
         "corpus": "C0",
         "security": "S1",
-        "structure": "G4"
+        "structure": "G4",
+        "prose": "P0"
       },
       "next": {
         "engine": "L2",
@@ -1901,7 +2294,8 @@
         "knowledge": "K1",
         "corpus": "C1",
         "security": "S2",
-        "structure": "—"
+        "structure": "—",
+        "prose": "P1"
       },
       "okapi_counterpart": "",
       "dimensions": {
@@ -1938,7 +2332,11 @@
         "metaplane": "complete",
         "readingorder": "complete",
         "roles": "complete",
-        "geometry": "complete"
+        "geometry": "complete",
+        "located": "none",
+        "governed": "none",
+        "editable": "none",
+        "allforms": "none"
       },
       "evidence": {},
       "floor": "L1",
@@ -2036,12 +2434,43 @@
           "delta": null,
           "agreement": 1,
           "blocking_gaps": []
+        },
+        "prose": {
+          "level": "P0",
+          "next": "P1",
+          "floor": "P0",
+          "ceiling": "P0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add TestProseP1_docling (P1)"
+          ],
+          "rungs": {
+            "P1": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P2": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P3": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P4": {
+              "outcome": "not-met",
+              "reason": "no test"
+            }
+          },
+          "languages": []
         }
       },
       "tier": {
         "declared": "available",
         "since": "2026-06-14",
-        "last_certified": "2026-07-25",
+        "last_certified": "2026-09-12",
         "gates": []
       },
       "blocking_gaps": [
@@ -2062,7 +2491,8 @@
         "knowledge": "K1",
         "corpus": "C1",
         "security": "S1",
-        "structure": "G0"
+        "structure": "G0",
+        "prose": "P0"
       },
       "next": {
         "engine": "L1",
@@ -2071,7 +2501,8 @@
         "knowledge": "K2",
         "corpus": "C2",
         "security": "S2",
-        "structure": "G1"
+        "structure": "G1",
+        "prose": "P1"
       },
       "okapi_counterpart": "okf_epub",
       "dimensions": {
@@ -2108,7 +2539,11 @@
         "metaplane": "none",
         "readingorder": "none",
         "roles": "none",
-        "geometry": "none"
+        "geometry": "none",
+        "located": "none",
+        "governed": "none",
+        "editable": "none",
+        "allforms": "none"
       },
       "evidence": {},
       "floor": "L0",
@@ -2210,12 +2645,43 @@
             "emit grouped body text in reading order (G2)",
             "set SetSemanticRole + tables/relations + a roles test (G3)"
           ]
+        },
+        "prose": {
+          "level": "P0",
+          "next": "P1",
+          "floor": "P0",
+          "ceiling": "P0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add TestProseP1_epub (P1)"
+          ],
+          "rungs": {
+            "P1": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P2": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P3": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P4": {
+              "outcome": "not-met",
+              "reason": "no test"
+            }
+          },
+          "languages": []
         }
       },
       "tier": {
         "declared": "available",
         "since": "2026-06-12",
-        "last_certified": "2026-07-25",
+        "last_certified": "2026-09-12",
         "gates": []
       },
       "blocking_gaps": [
@@ -2236,7 +2702,8 @@
         "knowledge": "K1",
         "corpus": "C1",
         "security": "S2",
-        "structure": "G3"
+        "structure": "G3",
+        "prose": "P0"
       },
       "next": {
         "engine": "L2",
@@ -2245,7 +2712,8 @@
         "knowledge": "K2",
         "corpus": "C2",
         "security": "S3",
-        "structure": "G4"
+        "structure": "G4",
+        "prose": "P1"
       },
       "okapi_counterpart": "okf_html",
       "dimensions": {
@@ -2282,7 +2750,11 @@
         "metaplane": "complete",
         "readingorder": "complete",
         "roles": "complete",
-        "geometry": "none"
+        "geometry": "none",
+        "located": "none",
+        "governed": "none",
+        "editable": "none",
+        "allforms": "none"
       },
       "evidence": {},
       "floor": "L1",
@@ -2378,12 +2850,43 @@
           "blocking_gaps": [
             "set SetGeometry + a geometry test (G4)"
           ]
+        },
+        "prose": {
+          "level": "P0",
+          "next": "P1",
+          "floor": "P0",
+          "ceiling": "P0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add TestProseP1_html (P1)"
+          ],
+          "rungs": {
+            "P1": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P2": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P3": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P4": {
+              "outcome": "not-met",
+              "reason": "no test"
+            }
+          },
+          "languages": []
         }
       },
       "tier": {
         "declared": "available",
         "since": "2026-06-12",
-        "last_certified": "2026-07-25",
+        "last_certified": "2026-09-12",
         "gates": []
       },
       "blocking_gaps": [
@@ -2405,7 +2908,8 @@
         "knowledge": "K2",
         "corpus": "C0",
         "security": "S0",
-        "structure": "G0"
+        "structure": "G0",
+        "prose": "P0"
       },
       "next": {
         "engine": "L2",
@@ -2414,7 +2918,8 @@
         "knowledge": "K3",
         "corpus": "C1",
         "security": "S1",
-        "structure": "G1"
+        "structure": "G1",
+        "prose": "P1"
       },
       "okapi_counterpart": "",
       "dimensions": {
@@ -2451,7 +2956,11 @@
         "metaplane": "none",
         "readingorder": "none",
         "roles": "none",
-        "geometry": "none"
+        "geometry": "none",
+        "located": "none",
+        "governed": "none",
+        "editable": "none",
+        "allforms": "none"
       },
       "evidence": {},
       "floor": "L1",
@@ -2552,12 +3061,43 @@
             "emit grouped body text in reading order (G2)",
             "set SetSemanticRole + tables/relations + a roles test (G3)"
           ]
+        },
+        "prose": {
+          "level": "P0",
+          "next": "P1",
+          "floor": "P0",
+          "ceiling": "P0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add TestProseP1_i18next (P1)"
+          ],
+          "rungs": {
+            "P1": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P2": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P3": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P4": {
+              "outcome": "not-met",
+              "reason": "no test"
+            }
+          },
+          "languages": []
         }
       },
       "tier": {
         "declared": "available",
         "since": "2026-06-12",
-        "last_certified": "2026-07-25",
+        "last_certified": "2026-09-12",
         "gates": []
       },
       "blocking_gaps": [
@@ -2578,7 +3118,8 @@
         "knowledge": "K0",
         "corpus": "C0",
         "security": "S0",
-        "structure": "G1"
+        "structure": "G1",
+        "prose": "P0"
       },
       "next": {
         "engine": "L2",
@@ -2587,7 +3128,8 @@
         "knowledge": "K1",
         "corpus": "C1",
         "security": "S1",
-        "structure": "G2"
+        "structure": "G2",
+        "prose": "P1"
       },
       "okapi_counterpart": "",
       "dimensions": {
@@ -2624,7 +3166,11 @@
         "metaplane": "complete",
         "readingorder": "none",
         "roles": "none",
-        "geometry": "none"
+        "geometry": "none",
+        "located": "none",
+        "governed": "none",
+        "editable": "none",
+        "allforms": "none"
       },
       "evidence": {},
       "floor": "L1",
@@ -2729,12 +3275,43 @@
             "set SetSemanticRole + tables/relations + a roles test (G3)",
             "set SetGeometry + a geometry test (G4)"
           ]
+        },
+        "prose": {
+          "level": "P0",
+          "next": "P1",
+          "floor": "P0",
+          "ceiling": "P0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add TestProseP1_image (P1)"
+          ],
+          "rungs": {
+            "P1": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P2": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P3": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P4": {
+              "outcome": "not-met",
+              "reason": "no test"
+            }
+          },
+          "languages": []
         }
       },
       "tier": {
         "declared": "available",
         "since": "2026-06-18",
-        "last_certified": "2026-07-25",
+        "last_certified": "2026-09-12",
         "gates": []
       },
       "blocking_gaps": [
@@ -2756,7 +3333,8 @@
         "knowledge": "K2",
         "corpus": "C0",
         "security": "S2",
-        "structure": "G0"
+        "structure": "G0",
+        "prose": "P0"
       },
       "next": {
         "engine": "L3",
@@ -2765,7 +3343,8 @@
         "knowledge": "K3",
         "corpus": "C1",
         "security": "S3",
-        "structure": "G1"
+        "structure": "G1",
+        "prose": "P1"
       },
       "okapi_counterpart": "okf_json",
       "dimensions": {
@@ -2802,7 +3381,11 @@
         "metaplane": "none",
         "readingorder": "none",
         "roles": "none",
-        "geometry": "none"
+        "geometry": "none",
+        "located": "none",
+        "governed": "none",
+        "editable": "none",
+        "allforms": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -2901,12 +3484,43 @@
             "emit grouped body text in reading order (G2)",
             "set SetSemanticRole + tables/relations + a roles test (G3)"
           ]
+        },
+        "prose": {
+          "level": "P0",
+          "next": "P1",
+          "floor": "P0",
+          "ceiling": "P0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add TestProseP1_json (P1)"
+          ],
+          "rungs": {
+            "P1": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P2": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P3": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P4": {
+              "outcome": "not-met",
+              "reason": "no test"
+            }
+          },
+          "languages": []
         }
       },
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-07-25",
+        "last_certified": "2026-09-12",
         "gates": []
       },
       "blocking_gaps": [
@@ -2927,7 +3541,8 @@
         "knowledge": "K1",
         "corpus": "C1",
         "security": "S2",
-        "structure": "G3"
+        "structure": "G3",
+        "prose": "P0"
       },
       "next": {
         "engine": "L4",
@@ -2936,7 +3551,8 @@
         "knowledge": "K2",
         "corpus": "C2",
         "security": "S3",
-        "structure": "G4"
+        "structure": "G4",
+        "prose": "P1"
       },
       "okapi_counterpart": "okf_markdown",
       "dimensions": {
@@ -2973,7 +3589,11 @@
         "metaplane": "complete",
         "readingorder": "complete",
         "roles": "complete",
-        "geometry": "none"
+        "geometry": "none",
+        "located": "none",
+        "governed": "none",
+        "editable": "none",
+        "allforms": "none"
       },
       "evidence": {},
       "floor": "L3",
@@ -3065,12 +3685,43 @@
           "blocking_gaps": [
             "set SetGeometry + a geometry test (G4)"
           ]
+        },
+        "prose": {
+          "level": "P0",
+          "next": "P1",
+          "floor": "P0",
+          "ceiling": "P0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add TestProseP1_markdown (P1)"
+          ],
+          "rungs": {
+            "P1": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P2": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P3": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P4": {
+              "outcome": "not-met",
+              "reason": "no test"
+            }
+          },
+          "languages": []
         }
       },
       "tier": {
         "declared": "available",
         "since": "2026-06-12",
-        "last_certified": "2026-07-25",
+        "last_certified": "2026-09-12",
         "gates": []
       },
       "blocking_gaps": [],
@@ -3089,7 +3740,8 @@
         "knowledge": "K2",
         "corpus": "C0",
         "security": "S1",
-        "structure": "G2"
+        "structure": "G2",
+        "prose": "P0"
       },
       "next": {
         "engine": "L2",
@@ -3098,7 +3750,8 @@
         "knowledge": "K3",
         "corpus": "C1",
         "security": "S2",
-        "structure": "G3"
+        "structure": "G3",
+        "prose": "P1"
       },
       "okapi_counterpart": "",
       "dimensions": {
@@ -3135,7 +3788,11 @@
         "metaplane": "complete",
         "readingorder": "complete",
         "roles": "none",
-        "geometry": "none"
+        "geometry": "none",
+        "located": "none",
+        "governed": "none",
+        "editable": "none",
+        "allforms": "none"
       },
       "evidence": {},
       "floor": "L1",
@@ -3233,12 +3890,43 @@
             "set SetSemanticRole + tables/relations + a roles test (G3)",
             "set SetGeometry + a geometry test (G4)"
           ]
+        },
+        "prose": {
+          "level": "P0",
+          "next": "P1",
+          "floor": "P0",
+          "ceiling": "P0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add TestProseP1_mdx (P1)"
+          ],
+          "rungs": {
+            "P1": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P2": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P3": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P4": {
+              "outcome": "not-met",
+              "reason": "no test"
+            }
+          },
+          "languages": []
         }
       },
       "tier": {
         "declared": "available",
         "since": "2026-06-12",
-        "last_certified": "2026-07-25",
+        "last_certified": "2026-09-12",
         "gates": []
       },
       "blocking_gaps": [
@@ -3259,7 +3947,8 @@
         "knowledge": "K1",
         "corpus": "C1",
         "security": "S1",
-        "structure": "G0"
+        "structure": "G0",
+        "prose": "P0"
       },
       "next": {
         "engine": "L3",
@@ -3268,7 +3957,8 @@
         "knowledge": "K2",
         "corpus": "C2",
         "security": "S2",
-        "structure": "G1"
+        "structure": "G1",
+        "prose": "P1"
       },
       "okapi_counterpart": "okf_messageformat",
       "dimensions": {
@@ -3305,7 +3995,11 @@
         "metaplane": "none",
         "readingorder": "none",
         "roles": "none",
-        "geometry": "none"
+        "geometry": "none",
+        "located": "none",
+        "governed": "none",
+        "editable": "none",
+        "allforms": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -3407,12 +4101,43 @@
             "emit grouped body text in reading order (G2)",
             "set SetSemanticRole + tables/relations + a roles test (G3)"
           ]
+        },
+        "prose": {
+          "level": "P0",
+          "next": "P1",
+          "floor": "P0",
+          "ceiling": "P0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add TestProseP1_messageformat (P1)"
+          ],
+          "rungs": {
+            "P1": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P2": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P3": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P4": {
+              "outcome": "not-met",
+              "reason": "no test"
+            }
+          },
+          "languages": []
         }
       },
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-07-25",
+        "last_certified": "2026-09-12",
         "gates": []
       },
       "blocking_gaps": [
@@ -3433,7 +4158,8 @@
         "knowledge": "K2",
         "corpus": "C0",
         "security": "S0",
-        "structure": "G0"
+        "structure": "G0",
+        "prose": "P0"
       },
       "next": {
         "engine": "L1",
@@ -3442,7 +4168,8 @@
         "knowledge": "K3",
         "corpus": "C1",
         "security": "S1",
-        "structure": "G1"
+        "structure": "G1",
+        "prose": "P1"
       },
       "okapi_counterpart": "",
       "dimensions": {
@@ -3479,7 +4206,11 @@
         "metaplane": "none",
         "readingorder": "none",
         "roles": "none",
-        "geometry": "none"
+        "geometry": "none",
+        "located": "none",
+        "governed": "none",
+        "editable": "none",
+        "allforms": "none"
       },
       "evidence": {},
       "floor": "L0",
@@ -3581,12 +4312,43 @@
             "emit grouped body text in reading order (G2)",
             "set SetSemanticRole + tables/relations + a roles test (G3)"
           ]
+        },
+        "prose": {
+          "level": "P0",
+          "next": "P1",
+          "floor": "P0",
+          "ceiling": "P0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add TestProseP1_mo (P1)"
+          ],
+          "rungs": {
+            "P1": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P2": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P3": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P4": {
+              "outcome": "not-met",
+              "reason": "no test"
+            }
+          },
+          "languages": []
         }
       },
       "tier": {
         "declared": "available",
         "since": "2026-06-12",
-        "last_certified": "2026-07-25",
+        "last_certified": "2026-09-12",
         "gates": []
       },
       "blocking_gaps": [
@@ -3608,7 +4370,8 @@
         "knowledge": "K2",
         "corpus": "C0",
         "security": "S1",
-        "structure": "G2"
+        "structure": "G2",
+        "prose": "P0"
       },
       "next": {
         "engine": "L2",
@@ -3617,7 +4380,8 @@
         "knowledge": "K3",
         "corpus": "C1",
         "security": "S2",
-        "structure": "G3"
+        "structure": "G3",
+        "prose": "P1"
       },
       "okapi_counterpart": "",
       "dimensions": {
@@ -3654,7 +4418,11 @@
         "metaplane": "complete",
         "readingorder": "complete",
         "roles": "none",
-        "geometry": "complete"
+        "geometry": "complete",
+        "located": "none",
+        "governed": "none",
+        "editable": "none",
+        "allforms": "none"
       },
       "evidence": {},
       "floor": "L1",
@@ -3750,12 +4518,43 @@
           "blocking_gaps": [
             "set SetSemanticRole + tables/relations + a roles test (G3)"
           ]
+        },
+        "prose": {
+          "level": "P0",
+          "next": "P1",
+          "floor": "P0",
+          "ceiling": "P0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add TestProseP1_odf (P1)"
+          ],
+          "rungs": {
+            "P1": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P2": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P3": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P4": {
+              "outcome": "not-met",
+              "reason": "no test"
+            }
+          },
+          "languages": []
         }
       },
       "tier": {
         "declared": "available",
         "since": "2026-06-12",
-        "last_certified": "2026-07-25",
+        "last_certified": "2026-09-12",
         "gates": []
       },
       "blocking_gaps": [],
@@ -3774,7 +4573,8 @@
         "knowledge": "K1",
         "corpus": "C0",
         "security": "S1",
-        "structure": "G4"
+        "structure": "G4",
+        "prose": "P0"
       },
       "next": {
         "engine": "L4",
@@ -3783,7 +4583,8 @@
         "knowledge": "K2",
         "corpus": "C1",
         "security": "S2",
-        "structure": "—"
+        "structure": "—",
+        "prose": "P1"
       },
       "okapi_counterpart": "okf_openxml",
       "dimensions": {
@@ -3820,7 +4621,11 @@
         "metaplane": "complete",
         "readingorder": "complete",
         "roles": "complete",
-        "geometry": "complete"
+        "geometry": "complete",
+        "located": "none",
+        "governed": "none",
+        "editable": "none",
+        "allforms": "none"
       },
       "evidence": {},
       "floor": "L3",
@@ -3914,12 +4719,43 @@
           "delta": null,
           "agreement": 1,
           "blocking_gaps": []
+        },
+        "prose": {
+          "level": "P0",
+          "next": "P1",
+          "floor": "P0",
+          "ceiling": "P0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add TestProseP1_openxml (P1)"
+          ],
+          "rungs": {
+            "P1": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P2": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P3": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P4": {
+              "outcome": "not-met",
+              "reason": "no test"
+            }
+          },
+          "languages": []
         }
       },
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-07-25",
+        "last_certified": "2026-09-12",
         "gates": []
       },
       "blocking_gaps": [],
@@ -3938,7 +4774,8 @@
         "knowledge": "K0",
         "corpus": "C0",
         "security": "S1",
-        "structure": "G0"
+        "structure": "G0",
+        "prose": "P0"
       },
       "next": {
         "engine": "L1",
@@ -3947,7 +4784,8 @@
         "knowledge": "K1",
         "corpus": "C1",
         "security": "S2",
-        "structure": "G1"
+        "structure": "G1",
+        "prose": "P1"
       },
       "okapi_counterpart": "okf_pdf",
       "dimensions": {
@@ -3984,7 +4822,11 @@
         "metaplane": "none",
         "readingorder": "none",
         "roles": "none",
-        "geometry": "none"
+        "geometry": "none",
+        "located": "none",
+        "governed": "none",
+        "editable": "none",
+        "allforms": "none"
       },
       "evidence": {},
       "floor": "L0",
@@ -4090,12 +4932,43 @@
             "emit grouped body text in reading order (G2)",
             "set SetSemanticRole + tables/relations + a roles test (G3)"
           ]
+        },
+        "prose": {
+          "level": "P0",
+          "next": "P1",
+          "floor": "P0",
+          "ceiling": "P0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add TestProseP1_pdf (P1)"
+          ],
+          "rungs": {
+            "P1": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P2": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P3": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P4": {
+              "outcome": "not-met",
+              "reason": "no test"
+            }
+          },
+          "languages": []
         }
       },
       "tier": {
         "declared": "available",
         "since": "2026-06-19",
-        "last_certified": "2026-07-25",
+        "last_certified": "2026-09-12",
         "gates": []
       },
       "blocking_gaps": [
@@ -4118,7 +4991,8 @@
         "knowledge": "K1",
         "corpus": "C1",
         "security": "S1",
-        "structure": "G0"
+        "structure": "G0",
+        "prose": "P0"
       },
       "next": {
         "engine": "L3",
@@ -4127,7 +5001,8 @@
         "knowledge": "K2",
         "corpus": "C2",
         "security": "S2",
-        "structure": "G1"
+        "structure": "G1",
+        "prose": "P1"
       },
       "okapi_counterpart": "okf_plaintext",
       "dimensions": {
@@ -4164,7 +5039,11 @@
         "metaplane": "none",
         "readingorder": "none",
         "roles": "none",
-        "geometry": "none"
+        "geometry": "none",
+        "located": "none",
+        "governed": "none",
+        "editable": "none",
+        "allforms": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -4266,12 +5145,43 @@
             "emit grouped body text in reading order (G2)",
             "set SetSemanticRole + tables/relations + a roles test (G3)"
           ]
+        },
+        "prose": {
+          "level": "P0",
+          "next": "P1",
+          "floor": "P0",
+          "ceiling": "P0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add TestProseP1_plaintext (P1)"
+          ],
+          "rungs": {
+            "P1": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P2": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P3": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P4": {
+              "outcome": "not-met",
+              "reason": "no test"
+            }
+          },
+          "languages": []
         }
       },
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-07-25",
+        "last_certified": "2026-09-12",
         "gates": []
       },
       "blocking_gaps": [
@@ -4292,7 +5202,8 @@
         "knowledge": "K1",
         "corpus": "C1",
         "security": "S1",
-        "structure": "G2"
+        "structure": "G2",
+        "prose": "P0"
       },
       "next": {
         "engine": "L3",
@@ -4301,7 +5212,8 @@
         "knowledge": "K2",
         "corpus": "C2",
         "security": "S2",
-        "structure": "G3"
+        "structure": "G3",
+        "prose": "P1"
       },
       "okapi_counterpart": "okf_po",
       "dimensions": {
@@ -4338,7 +5250,11 @@
         "metaplane": "complete",
         "readingorder": "complete",
         "roles": "none",
-        "geometry": "none"
+        "geometry": "none",
+        "located": "none",
+        "governed": "none",
+        "editable": "none",
+        "allforms": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -4439,12 +5355,43 @@
             "set SetSemanticRole + tables/relations + a roles test (G3)",
             "set SetGeometry + a geometry test (G4)"
           ]
+        },
+        "prose": {
+          "level": "P0",
+          "next": "P1",
+          "floor": "P0",
+          "ceiling": "P0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add TestProseP1_po (P1)"
+          ],
+          "rungs": {
+            "P1": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P2": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P3": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P4": {
+              "outcome": "not-met",
+              "reason": "no test"
+            }
+          },
+          "languages": []
         }
       },
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-07-25",
+        "last_certified": "2026-09-12",
         "gates": []
       },
       "blocking_gaps": [
@@ -4465,7 +5412,8 @@
         "knowledge": "K1",
         "corpus": "C1",
         "security": "S1",
-        "structure": "G0"
+        "structure": "G0",
+        "prose": "P0"
       },
       "next": {
         "engine": "L3",
@@ -4474,7 +5422,8 @@
         "knowledge": "K2",
         "corpus": "C2",
         "security": "S2",
-        "structure": "G1"
+        "structure": "G1",
+        "prose": "P1"
       },
       "okapi_counterpart": "okf_properties",
       "dimensions": {
@@ -4511,7 +5460,11 @@
         "metaplane": "none",
         "readingorder": "none",
         "roles": "none",
-        "geometry": "none"
+        "geometry": "none",
+        "located": "none",
+        "governed": "none",
+        "editable": "none",
+        "allforms": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -4613,12 +5566,43 @@
             "emit grouped body text in reading order (G2)",
             "set SetSemanticRole + tables/relations + a roles test (G3)"
           ]
+        },
+        "prose": {
+          "level": "P0",
+          "next": "P1",
+          "floor": "P0",
+          "ceiling": "P0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add TestProseP1_properties (P1)"
+          ],
+          "rungs": {
+            "P1": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P2": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P3": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P4": {
+              "outcome": "not-met",
+              "reason": "no test"
+            }
+          },
+          "languages": []
         }
       },
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-07-25",
+        "last_certified": "2026-09-12",
         "gates": []
       },
       "blocking_gaps": [
@@ -4639,7 +5623,8 @@
         "knowledge": "K2",
         "corpus": "C0",
         "security": "S1",
-        "structure": "G0"
+        "structure": "G0",
+        "prose": "P0"
       },
       "next": {
         "engine": "L4",
@@ -4648,7 +5633,8 @@
         "knowledge": "K3",
         "corpus": "C1",
         "security": "S2",
-        "structure": "G1"
+        "structure": "G1",
+        "prose": "P1"
       },
       "okapi_counterpart": "",
       "dimensions": {
@@ -4685,7 +5671,11 @@
         "metaplane": "none",
         "readingorder": "none",
         "roles": "none",
-        "geometry": "none"
+        "geometry": "none",
+        "located": "none",
+        "governed": "none",
+        "editable": "none",
+        "allforms": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -4783,12 +5773,43 @@
             "emit grouped body text in reading order (G2)",
             "set SetSemanticRole + tables/relations + a roles test (G3)"
           ]
+        },
+        "prose": {
+          "level": "P0",
+          "next": "P1",
+          "floor": "P0",
+          "ceiling": "P0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add TestProseP1_resx (P1)"
+          ],
+          "rungs": {
+            "P1": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P2": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P3": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P4": {
+              "outcome": "not-met",
+              "reason": "no test"
+            }
+          },
+          "languages": []
         }
       },
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-07-25",
+        "last_certified": "2026-09-12",
         "gates": []
       },
       "blocking_gaps": [],
@@ -4807,7 +5828,8 @@
         "knowledge": "K0",
         "corpus": "C0",
         "security": "S0",
-        "structure": "G0"
+        "structure": "G0",
+        "prose": "P0"
       },
       "next": {
         "engine": "L1",
@@ -4816,7 +5838,8 @@
         "knowledge": "K1",
         "corpus": "C1",
         "security": "S1",
-        "structure": "G1"
+        "structure": "G1",
+        "prose": "P1"
       },
       "okapi_counterpart": "",
       "dimensions": {
@@ -4853,7 +5876,11 @@
         "metaplane": "none",
         "readingorder": "none",
         "roles": "none",
-        "geometry": "none"
+        "geometry": "none",
+        "located": "none",
+        "governed": "none",
+        "editable": "none",
+        "allforms": "none"
       },
       "evidence": {},
       "floor": "L0",
@@ -4959,12 +5986,45 @@
             "emit grouped body text in reading order (G2)",
             "set SetSemanticRole + tables/relations + a roles test (G3)"
           ]
+        },
+        "prose": {
+          "level": "P0",
+          "next": "P1",
+          "floor": "P0",
+          "ceiling": "P0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "scored on the language rows: ruby"
+          ],
+          "rungs": {
+            "P1": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P2": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P3": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P4": {
+              "outcome": "not-met",
+              "reason": "no test"
+            }
+          },
+          "languages": [
+            "ruby"
+          ]
         }
       },
       "tier": {
         "declared": "available",
         "since": "2026-08-23",
-        "last_certified": null,
+        "last_certified": "2026-09-12",
         "gates": []
       },
       "blocking_gaps": [
@@ -4986,7 +6046,8 @@
         "knowledge": "K1",
         "corpus": "C1",
         "security": "S0",
-        "structure": "G0"
+        "structure": "G0",
+        "prose": "P0"
       },
       "next": {
         "engine": "L3",
@@ -4995,7 +6056,8 @@
         "knowledge": "K2",
         "corpus": "C2",
         "security": "S1",
-        "structure": "G1"
+        "structure": "G1",
+        "prose": "P1"
       },
       "okapi_counterpart": "okf_subtitles (via alias 'subtitles')",
       "dimensions": {
@@ -5032,7 +6094,11 @@
         "metaplane": "none",
         "readingorder": "none",
         "roles": "none",
-        "geometry": "none"
+        "geometry": "none",
+        "located": "none",
+        "governed": "none",
+        "editable": "none",
+        "allforms": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -5136,12 +6202,43 @@
             "emit grouped body text in reading order (G2)",
             "set SetSemanticRole + tables/relations + a roles test (G3)"
           ]
+        },
+        "prose": {
+          "level": "P0",
+          "next": "P1",
+          "floor": "P0",
+          "ceiling": "P0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add TestProseP1_srt (P1)"
+          ],
+          "rungs": {
+            "P1": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P2": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P3": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P4": {
+              "outcome": "not-met",
+              "reason": "no test"
+            }
+          },
+          "languages": []
         }
       },
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-07-25",
+        "last_certified": "2026-09-12",
         "gates": []
       },
       "blocking_gaps": [
@@ -5163,7 +6260,8 @@
         "knowledge": "K1",
         "corpus": "C1",
         "security": "S1",
-        "structure": "G0"
+        "structure": "G0",
+        "prose": "P0"
       },
       "next": {
         "engine": "L3",
@@ -5172,7 +6270,8 @@
         "knowledge": "K2",
         "corpus": "C2",
         "security": "S2",
-        "structure": "G1"
+        "structure": "G1",
+        "prose": "P1"
       },
       "okapi_counterpart": "okf_tmx",
       "dimensions": {
@@ -5209,7 +6308,11 @@
         "metaplane": "none",
         "readingorder": "none",
         "roles": "none",
-        "geometry": "none"
+        "geometry": "none",
+        "located": "none",
+        "governed": "none",
+        "editable": "none",
+        "allforms": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -5311,12 +6414,43 @@
             "emit grouped body text in reading order (G2)",
             "set SetSemanticRole + tables/relations + a roles test (G3)"
           ]
+        },
+        "prose": {
+          "level": "P0",
+          "next": "P1",
+          "floor": "P0",
+          "ceiling": "P0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add TestProseP1_tmx (P1)"
+          ],
+          "rungs": {
+            "P1": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P2": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P3": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P4": {
+              "outcome": "not-met",
+              "reason": "no test"
+            }
+          },
+          "languages": []
         }
       },
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-07-25",
+        "last_certified": "2026-09-12",
         "gates": []
       },
       "blocking_gaps": [
@@ -5337,7 +6471,8 @@
         "knowledge": "K1",
         "corpus": "C1",
         "security": "S1",
-        "structure": "G2"
+        "structure": "G2",
+        "prose": "P0"
       },
       "next": {
         "engine": "L3",
@@ -5346,7 +6481,8 @@
         "knowledge": "K2",
         "corpus": "C2",
         "security": "S2",
-        "structure": "G3"
+        "structure": "G3",
+        "prose": "P1"
       },
       "okapi_counterpart": "okf_ts",
       "dimensions": {
@@ -5383,7 +6519,11 @@
         "metaplane": "complete",
         "readingorder": "complete",
         "roles": "none",
-        "geometry": "none"
+        "geometry": "none",
+        "located": "none",
+        "governed": "none",
+        "editable": "none",
+        "allforms": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -5484,12 +6624,43 @@
             "set SetSemanticRole + tables/relations + a roles test (G3)",
             "set SetGeometry + a geometry test (G4)"
           ]
+        },
+        "prose": {
+          "level": "P0",
+          "next": "P1",
+          "floor": "P0",
+          "ceiling": "P0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add TestProseP1_ts (P1)"
+          ],
+          "rungs": {
+            "P1": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P2": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P3": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P4": {
+              "outcome": "not-met",
+              "reason": "no test"
+            }
+          },
+          "languages": []
         }
       },
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-07-25",
+        "last_certified": "2026-09-12",
         "gates": []
       },
       "blocking_gaps": [
@@ -5510,7 +6681,8 @@
         "knowledge": "K0",
         "corpus": "C0",
         "security": "S0",
-        "structure": "G0"
+        "structure": "G0",
+        "prose": "P0"
       },
       "next": {
         "engine": "L1",
@@ -5519,7 +6691,8 @@
         "knowledge": "K1",
         "corpus": "C1",
         "security": "S1",
-        "structure": "G1"
+        "structure": "G1",
+        "prose": "P1"
       },
       "okapi_counterpart": "",
       "dimensions": {
@@ -5556,7 +6729,11 @@
         "metaplane": "none",
         "readingorder": "none",
         "roles": "none",
-        "geometry": "none"
+        "geometry": "none",
+        "located": "none",
+        "governed": "none",
+        "editable": "none",
+        "allforms": "none"
       },
       "evidence": {},
       "floor": "L0",
@@ -5662,12 +6839,43 @@
             "emit grouped body text in reading order (G2)",
             "set SetSemanticRole + tables/relations + a roles test (G3)"
           ]
+        },
+        "prose": {
+          "level": "P0",
+          "next": "P1",
+          "floor": "P0",
+          "ceiling": "P0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add TestProseP1_video (P1)"
+          ],
+          "rungs": {
+            "P1": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P2": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P3": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P4": {
+              "outcome": "not-met",
+              "reason": "no test"
+            }
+          },
+          "languages": []
         }
       },
       "tier": {
         "declared": "available",
         "since": "2026-06-19",
-        "last_certified": "2026-07-25",
+        "last_certified": "2026-09-12",
         "gates": []
       },
       "blocking_gaps": [
@@ -5689,7 +6897,8 @@
         "knowledge": "K1",
         "corpus": "C1",
         "security": "S1",
-        "structure": "G0"
+        "structure": "G0",
+        "prose": "P0"
       },
       "next": {
         "engine": "L3",
@@ -5698,7 +6907,8 @@
         "knowledge": "K2",
         "corpus": "C2",
         "security": "S2",
-        "structure": "G1"
+        "structure": "G1",
+        "prose": "P1"
       },
       "okapi_counterpart": "okf_subtitles (via alias 'subtitles')",
       "dimensions": {
@@ -5735,7 +6945,11 @@
         "metaplane": "none",
         "readingorder": "none",
         "roles": "none",
-        "geometry": "none"
+        "geometry": "none",
+        "located": "none",
+        "governed": "none",
+        "editable": "none",
+        "allforms": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -5837,12 +7051,43 @@
             "emit grouped body text in reading order (G2)",
             "set SetSemanticRole + tables/relations + a roles test (G3)"
           ]
+        },
+        "prose": {
+          "level": "P0",
+          "next": "P1",
+          "floor": "P0",
+          "ceiling": "P0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add TestProseP1_vtt (P1)"
+          ],
+          "rungs": {
+            "P1": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P2": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P3": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P4": {
+              "outcome": "not-met",
+              "reason": "no test"
+            }
+          },
+          "languages": []
         }
       },
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-07-25",
+        "last_certified": "2026-09-12",
         "gates": []
       },
       "blocking_gaps": [
@@ -5863,7 +7108,8 @@
         "knowledge": "K2",
         "corpus": "C0",
         "security": "S1",
-        "structure": "G0"
+        "structure": "G0",
+        "prose": "P0"
       },
       "next": {
         "engine": "L4",
@@ -5872,7 +7118,8 @@
         "knowledge": "K3",
         "corpus": "C1",
         "security": "S2",
-        "structure": "G1"
+        "structure": "G1",
+        "prose": "P1"
       },
       "okapi_counterpart": "",
       "dimensions": {
@@ -5909,7 +7156,11 @@
         "metaplane": "none",
         "readingorder": "none",
         "roles": "none",
-        "geometry": "none"
+        "geometry": "none",
+        "located": "none",
+        "governed": "none",
+        "editable": "none",
+        "allforms": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -6007,12 +7258,43 @@
             "emit grouped body text in reading order (G2)",
             "set SetSemanticRole + tables/relations + a roles test (G3)"
           ]
+        },
+        "prose": {
+          "level": "P0",
+          "next": "P1",
+          "floor": "P0",
+          "ceiling": "P0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add TestProseP1_xcstrings (P1)"
+          ],
+          "rungs": {
+            "P1": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P2": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P3": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P4": {
+              "outcome": "not-met",
+              "reason": "no test"
+            }
+          },
+          "languages": []
         }
       },
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-07-25",
+        "last_certified": "2026-09-12",
         "gates": []
       },
       "blocking_gaps": [],
@@ -6031,7 +7313,8 @@
         "knowledge": "K1",
         "corpus": "C0",
         "security": "S2",
-        "structure": "G2"
+        "structure": "G2",
+        "prose": "P0"
       },
       "next": {
         "engine": "L3",
@@ -6040,7 +7323,8 @@
         "knowledge": "K2",
         "corpus": "C1",
         "security": "S3",
-        "structure": "G3"
+        "structure": "G3",
+        "prose": "P1"
       },
       "okapi_counterpart": "okf_xliff",
       "dimensions": {
@@ -6077,7 +7361,11 @@
         "metaplane": "complete",
         "readingorder": "complete",
         "roles": "none",
-        "geometry": "none"
+        "geometry": "none",
+        "located": "none",
+        "governed": "none",
+        "editable": "none",
+        "allforms": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -6175,12 +7463,43 @@
             "set SetSemanticRole + tables/relations + a roles test (G3)",
             "set SetGeometry + a geometry test (G4)"
           ]
+        },
+        "prose": {
+          "level": "P0",
+          "next": "P1",
+          "floor": "P0",
+          "ceiling": "P0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add TestProseP1_xliff (P1)"
+          ],
+          "rungs": {
+            "P1": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P2": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P3": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P4": {
+              "outcome": "not-met",
+              "reason": "no test"
+            }
+          },
+          "languages": []
         }
       },
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-07-25",
+        "last_certified": "2026-09-12",
         "gates": []
       },
       "blocking_gaps": [
@@ -6201,7 +7520,8 @@
         "knowledge": "K1",
         "corpus": "C0",
         "security": "S1",
-        "structure": "G2"
+        "structure": "G2",
+        "prose": "P0"
       },
       "next": {
         "engine": "L3",
@@ -6210,7 +7530,8 @@
         "knowledge": "K2",
         "corpus": "C1",
         "security": "S2",
-        "structure": "G3"
+        "structure": "G3",
+        "prose": "P1"
       },
       "okapi_counterpart": "okf_xliff2",
       "dimensions": {
@@ -6247,7 +7568,11 @@
         "metaplane": "complete",
         "readingorder": "complete",
         "roles": "none",
-        "geometry": "none"
+        "geometry": "none",
+        "located": "none",
+        "governed": "none",
+        "editable": "none",
+        "allforms": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -6348,12 +7673,43 @@
             "set SetSemanticRole + tables/relations + a roles test (G3)",
             "set SetGeometry + a geometry test (G4)"
           ]
+        },
+        "prose": {
+          "level": "P0",
+          "next": "P1",
+          "floor": "P0",
+          "ceiling": "P0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add TestProseP1_xliff2 (P1)"
+          ],
+          "rungs": {
+            "P1": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P2": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P3": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P4": {
+              "outcome": "not-met",
+              "reason": "no test"
+            }
+          },
+          "languages": []
         }
       },
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-07-25",
+        "last_certified": "2026-09-12",
         "gates": []
       },
       "blocking_gaps": [
@@ -6374,7 +7730,8 @@
         "knowledge": "K2",
         "corpus": "C1",
         "security": "S1",
-        "structure": "G0"
+        "structure": "G0",
+        "prose": "P0"
       },
       "next": {
         "engine": "L3",
@@ -6383,7 +7740,8 @@
         "knowledge": "K3",
         "corpus": "C2",
         "security": "S2",
-        "structure": "G1"
+        "structure": "G1",
+        "prose": "P1"
       },
       "okapi_counterpart": "okf_xmlstream (via alias 'xmlstream')",
       "dimensions": {
@@ -6420,7 +7778,11 @@
         "metaplane": "none",
         "readingorder": "none",
         "roles": "none",
-        "geometry": "none"
+        "geometry": "none",
+        "located": "none",
+        "governed": "none",
+        "editable": "none",
+        "allforms": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -6521,12 +7883,43 @@
             "emit grouped body text in reading order (G2)",
             "set SetSemanticRole + tables/relations + a roles test (G3)"
           ]
+        },
+        "prose": {
+          "level": "P0",
+          "next": "P1",
+          "floor": "P0",
+          "ceiling": "P0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add TestProseP1_xml (P1)"
+          ],
+          "rungs": {
+            "P1": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P2": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P3": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P4": {
+              "outcome": "not-met",
+              "reason": "no test"
+            }
+          },
+          "languages": []
         }
       },
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-07-25",
+        "last_certified": "2026-09-12",
         "gates": []
       },
       "blocking_gaps": [
@@ -6548,7 +7941,8 @@
         "knowledge": "K1",
         "corpus": "C1",
         "security": "S1",
-        "structure": "G0"
+        "structure": "G0",
+        "prose": "P0"
       },
       "next": {
         "engine": "L3",
@@ -6557,7 +7951,8 @@
         "knowledge": "K2",
         "corpus": "C2",
         "security": "S2",
-        "structure": "G1"
+        "structure": "G1",
+        "prose": "P1"
       },
       "okapi_counterpart": "okf_yaml",
       "dimensions": {
@@ -6594,7 +7989,11 @@
         "metaplane": "none",
         "readingorder": "none",
         "roles": "none",
-        "geometry": "none"
+        "geometry": "none",
+        "located": "none",
+        "governed": "none",
+        "editable": "none",
+        "allforms": "none"
       },
       "evidence": {},
       "floor": "L2",
@@ -6696,12 +8095,43 @@
             "emit grouped body text in reading order (G2)",
             "set SetSemanticRole + tables/relations + a roles test (G3)"
           ]
+        },
+        "prose": {
+          "level": "P0",
+          "next": "P1",
+          "floor": "P0",
+          "ceiling": "P0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add TestProseP1_yaml (P1)"
+          ],
+          "rungs": {
+            "P1": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P2": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P3": {
+              "outcome": "not-met",
+              "reason": "no test"
+            },
+            "P4": {
+              "outcome": "not-met",
+              "reason": "no test"
+            }
+          },
+          "languages": []
         }
       },
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-07-25",
+        "last_certified": "2026-09-12",
         "gates": []
       },
       "blocking_gaps": [
@@ -6709,6 +8139,168 @@
       ],
       "top_risk": "",
       "confidence": "floor"
+    }
+  ],
+  "languages": [
+    {
+      "id": "bash",
+      "name": "Bash",
+      "provider": "",
+      "presence": "absent",
+      "level": null,
+      "next": null,
+      "dims": {
+        "located": "none",
+        "governed": "none",
+        "editable": "none",
+        "allforms": "none"
+      },
+      "rungs": {
+        "P1": {
+          "outcome": "not-met",
+          "reason": "no test"
+        },
+        "P2": {
+          "outcome": "not-met",
+          "reason": "no test"
+        },
+        "P3": {
+          "outcome": "not-met",
+          "reason": "no test"
+        },
+        "P4": {
+          "outcome": "not-met",
+          "reason": "no test"
+        }
+      }
+    },
+    {
+      "id": "go",
+      "name": "Go",
+      "provider": "",
+      "presence": "present",
+      "level": "P1",
+      "next": "P2",
+      "dims": {
+        "located": "complete",
+        "governed": "none",
+        "editable": "none",
+        "allforms": "none"
+      },
+      "rungs": {
+        "P1": {
+          "outcome": "met",
+          "reason": "passed"
+        },
+        "P2": {
+          "outcome": "not-met",
+          "reason": "no test"
+        },
+        "P3": {
+          "outcome": "not-met",
+          "reason": "no test"
+        },
+        "P4": {
+          "outcome": "not-met",
+          "reason": "no test"
+        }
+      }
+    },
+    {
+      "id": "python",
+      "name": "Python",
+      "provider": "",
+      "presence": "absent",
+      "level": null,
+      "next": null,
+      "dims": {
+        "located": "none",
+        "governed": "none",
+        "editable": "none",
+        "allforms": "none"
+      },
+      "rungs": {
+        "P1": {
+          "outcome": "not-met",
+          "reason": "no test"
+        },
+        "P2": {
+          "outcome": "not-met",
+          "reason": "no test"
+        },
+        "P3": {
+          "outcome": "not-met",
+          "reason": "no test"
+        },
+        "P4": {
+          "outcome": "not-met",
+          "reason": "no test"
+        }
+      }
+    },
+    {
+      "id": "ruby",
+      "name": "Ruby",
+      "provider": "sourcecode",
+      "presence": "present",
+      "level": "P0",
+      "next": "P1",
+      "dims": {
+        "located": "none",
+        "governed": "none",
+        "editable": "none",
+        "allforms": "none"
+      },
+      "rungs": {
+        "P1": {
+          "outcome": "not-met",
+          "reason": "no test"
+        },
+        "P2": {
+          "outcome": "not-met",
+          "reason": "no test"
+        },
+        "P3": {
+          "outcome": "not-met",
+          "reason": "no test"
+        },
+        "P4": {
+          "outcome": "not-met",
+          "reason": "no test"
+        }
+      }
+    },
+    {
+      "id": "typescript",
+      "name": "TypeScript",
+      "provider": "",
+      "presence": "absent",
+      "level": null,
+      "next": null,
+      "dims": {
+        "located": "none",
+        "governed": "none",
+        "editable": "none",
+        "allforms": "none"
+      },
+      "rungs": {
+        "P1": {
+          "outcome": "not-met",
+          "reason": "no test"
+        },
+        "P2": {
+          "outcome": "not-met",
+          "reason": "no test"
+        },
+        "P3": {
+          "outcome": "not-met",
+          "reason": "no test"
+        },
+        "P4": {
+          "outcome": "not-met",
+          "reason": "no test"
+        }
+      }
     }
   ]
 }

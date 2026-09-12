@@ -651,7 +651,7 @@ and does not enter the tier minimum (§1). A support tier promises fidelity for 
 format's content, and nearly every row starts at P0 or absent. Promoting the axis
 to a gating one is a `tier-review` decision.
 
-## 3. How scores are computed (scorer v4, reproducible by design)
+## 3. How scores are computed (scorer v5, reproducible by design)
 
 The triage workflow does **not** let the model pick levels; each axis level is
 *computed* from two inputs so re-runs are reproducible:
@@ -659,7 +659,9 @@ The triage workflow does **not** let the model pick levels; each axis level is
 1. **A deterministic file floor per axis.** `audit-format.py --json` emits an
    additive `axes:{engine|vocabulary|editor|knowledge|corpus|security|structure:
    {base, ceiling, signals}}` block alongside the legacy top-level fields (the
-   stdin contract of `repro-check.mjs` is preserved). The audit **parses the
+   stdin contract of `repro-check.mjs` is preserved). The Prose floor is the
+   exception: it is the probe's report (§2.8), which the publish step attaches
+   to each format as `axes.prose` and refuses when its canary is not P0. The audit **parses the
    axis artifacts**
    (`vocabulary.yaml` cell census with evidence resolution, `dossier.yaml`
    field census, `corpus.yaml` tier census, `integrations.yaml` + probes), so
@@ -679,6 +681,7 @@ The triage workflow does **not** let the model pick levels; each axis level is
    | Editor | none | floor-only (probes) |
    | Security | none | floor-only (safeio import / fuzz target+seed / ledger sweep; spread 0) |
    | Structure & Geometry | none | floor-only (metaplane / readingorder / roles / geometry greps, down-filled; spread 0) |
+   | Prose | none | floor-only (the probe's rung outcomes: met → complete, not met → none, did not run → notrun; only complete passes the gate; spread 0) |
 
    `normDim` matches dimension ids **exactly** (no substring matching); the
    SCORE schema enum, the per-axis QUALITY sets, and `repro-check.mjs`'s
@@ -697,10 +700,10 @@ Published levels are **sticky-anchored per axis** with one asymmetry:
 - On the first publish of a new axis there is no prior, so the computed level
   publishes directly (priors are never synthesized from another axis).
 
-`scorer_version: 4` (the v3→v4 bump adds the `structure` axis additively, with
-the six prior axes' gates and floors unchanged); datasets without a
-`scorer_version` are v1 (priors seed engine-only). A v3 dataset (six axes) still
-renders, with `structure` simply absent until the next publish derives it.
+`scorer_version: 5`. The v4→v5 bump adds the `prose` axis and the language
+rows additively, with every prior axis's gates and floors unchanged; v4 added
+`structure` the same way. Datasets without a `scorer_version` are v1 (priors seed
+engine-only). An older dataset still renders, with the axes it predates absent.
 
 **Remediation-introduced tests count as `partial` until mutation-checked.**
 The floor promotes robustness dimensions on file presence, so for test files
@@ -745,9 +748,9 @@ calibration phase of `process-health` (see
   ops ledger (human-graded axis levels, versioned by `rubric_sha`), not
   against self-agreement.
 
-**Dataset & history contract (v4).** Backward compatibility, verbatim rules
-(the v3 rules carry forward unchanged; the v4 axis-add is additive, so a v3
-dataset renders with `structure` absent):
+**Dataset & history contract (v5).** Backward compatibility, verbatim rules
+(the v3 rules carry forward unchanged; the v4 and v5 axis additions are
+additive, so an older dataset renders with those axes absent):
 
 - Rows keep `level`/`next_level` mirroring the **engine** axis (the prior
   parser reads only `formats[].id` + `.level`; the un-migrated page indexes
@@ -755,9 +758,15 @@ dataset renders with `structure` absent):
   `tier:{…}` are **additive** fields.
 - `summary.by_level` remains the engine distribution; `summary.by_axis` is
   additive.
+- `languages[]` holds the Prose axis's language rows (§2.8): `{id, name,
+  provider, presence, level, next, dims, rungs}`, with `level` null unless the
+  language is present. Language rows never enter `summary.total`, `by_level` or
+  `by_axis`; they are counted in `summary.languages` (`total`, `by_presence`,
+  `by_prose`). A format row's `axes.prose` carries `rungs` and the `languages` it
+  reads.
 - History mutation is remove-today's-entry-then-append only; old entries are
-  never rewritten; `by_axis` appears on new snapshots only and the page guards
-  (`h.by_axis?.… ?? 0`).
+  never rewritten; `by_axis` and `languages` appear on new snapshots only and
+  the page guards (`h.by_axis?.… ?? 0`).
 - `__DATE__` is substituted solely by the publish step from
   `date -u +%Y-%m-%d`; history dedupe keys on it.
 - Both JSON files are 2-space indented (`vp check` gate).
@@ -849,48 +858,59 @@ republishes the dashboard: do not edit by hand. The dashboard
 - **Corpus**: C0:23 · C1:14 · C2:0 · C3:0
 - **Security**: S0:7 · S1:26 · S2:4 · S3:0 · S4:0
 - **Structure & Geometry**: G0:23 · G1:1 · G2:6 · G3:4 · G4:3
+- **Prose**: P0:37 · P1:0 · P2:0 · P3:0 · P4:0
 
 ### Per-format vector
 
-| Format | Tier | Engine | Vocabulary | Editor | Knowledge | Corpus | Security | Structure & Geometry | Top engine gap |
-|---|---|---|---|---|---|---|---|---|---|
-| `androidxml` | available | L1 | V0 | E0 | K2 | C0 | S1 | G0 | add malformed_test.go |
-| `applestrings` | available | L1 | V0 | E0 | K2 | C0 | S1 | G0 | add malformed_test.go |
-| `arb` | maintained | L3 | V0 | E0 | K2 | C0 | S1 | G0 | none |
-| `archive` | available | L0 | V0 | E0 | K0 | C0 | S1 | G0 | add malformed_test.go |
-| `asciidoc` | available | L3 | V1 | E0 | K2 | C1 | S1 | G3 | none |
-| `audio` | available | L0 | V0 | E0 | K0 | C0 | S0 | G0 | add malformed_test.go |
-| `csv` | maintained | L3 | V0 | E0 | K1 | C0 | S1 | G3 | none |
-| `designtokens` | available | L1 | V0 | E0 | K2 | C0 | S1 | G0 | add malformed_test.go |
-| `doclang` | available | L1 | V0 | E0 | K0 | C0 | S1 | G4 | add malformed_test.go |
-| `docling` | available | L1 | V0 | E0 | K0 | C0 | S1 | G4 | add cli/parity spec_test |
-| `epub` | available | L0 | V0 | E0 | K1 | C1 | S1 | G0 | add a corpus/upstream test |
-| `html` | available | L1 | V1 | E1 | K1 | C1 | S2 | G3 | add malformed_test.go |
-| `i18next` | available | L1 | V0 | E0 | K2 | C0 | S0 | G0 | add malformed_test.go |
-| `image` | available | L1 | V0 | E0 | K0 | C0 | S0 | G1 | add malformed_test.go |
-| `json` | maintained | L2 | V0 | E0 | K2 | C0 | S2 | G0 | add a corpus/upstream test |
-| `markdown` | available | L3 | V1 | E1 | K1 | C1 | S2 | G3 | none |
-| `mdx` | available | L1 | V0 | E1 | K2 | C0 | S1 | G2 | add malformed_test.go |
-| `messageformat` | maintained | L2 | V0 | E0 | K1 | C1 | S1 | G0 | add a corpus/upstream test |
-| `mo` | available | L0 | V0 | E0 | K2 | C0 | S0 | G0 | add malformed_test.go |
-| `odf` | available | L1 | V0 | E0 | K2 | C0 | S1 | G2 | none |
-| `openxml` | maintained | L3 | V1 | E0 | K1 | C0 | S1 | G4 | none |
-| `pdf` | available | L0 | V0 | E0 | K0 | C0 | S1 | G0 | add malformed_test.go |
-| `plaintext` | maintained | L2 | V0 | E0 | K1 | C1 | S1 | G0 | add a corpus/upstream test |
-| `po` | maintained | L2 | V0 | E0 | K1 | C1 | S1 | G2 | add a corpus/upstream test |
-| `properties` | maintained | L2 | V0 | E0 | K1 | C1 | S1 | G0 | add a corpus/upstream test |
-| `resx` | maintained | L3 | V0 | E0 | K2 | C0 | S1 | G0 | none |
-| `sourcecode` | available | L0 | V0 | E0 | K0 | C0 | S0 | G0 | add malformed_test.go |
-| `srt` | maintained | L2 | V0 | E0 | K1 | C1 | S0 | G0 | add cli/parity spec_test |
-| `tmx` | maintained | L2 | V0 | E0 | K1 | C1 | S1 | G0 | add a corpus/upstream test |
-| `ts` | maintained | L2 | V0 | E0 | K1 | C1 | S1 | G2 | add a corpus/upstream test |
-| `video` | available | L0 | V0 | E0 | K0 | C0 | S0 | G0 | add malformed_test.go |
-| `vtt` | maintained | L2 | V0 | E0 | K1 | C1 | S1 | G0 | add a corpus/upstream test |
-| `xcstrings` | maintained | L3 | V0 | E0 | K2 | C0 | S1 | G0 | none |
-| `xliff` | maintained | L2 | V1 | E0 | K1 | C0 | S2 | G2 | add a corpus/upstream test |
-| `xliff2` | maintained | L2 | V0 | E0 | K1 | C0 | S1 | G2 | add a corpus/upstream test |
-| `xml` | maintained | L2 | V0 | E0 | K2 | C1 | S1 | G0 | add cli/parity spec_test |
-| `yaml` | maintained | L2 | V0 | E0 | K1 | C1 | S1 | G0 | add a corpus/upstream test |
+| Format | Tier | Engine | Vocabulary | Editor | Knowledge | Corpus | Security | Structure & Geometry | Prose | Top engine gap |
+|---|---|---|---|---|---|---|---|---|---|---|
+| `androidxml` | available | L1 | V0 | E0 | K2 | C0 | S1 | G0 | P0 | add malformed_test.go |
+| `applestrings` | available | L1 | V0 | E0 | K2 | C0 | S1 | G0 | P0 | add malformed_test.go |
+| `arb` | maintained | L3 | V0 | E0 | K2 | C0 | S1 | G0 | P0 | none |
+| `archive` | available | L0 | V0 | E0 | K0 | C0 | S1 | G0 | P0 | add malformed_test.go |
+| `asciidoc` | available | L3 | V1 | E0 | K2 | C1 | S1 | G3 | P0 | none |
+| `audio` | available | L0 | V0 | E0 | K0 | C0 | S0 | G0 | P0 | add malformed_test.go |
+| `csv` | maintained | L3 | V0 | E0 | K1 | C0 | S1 | G3 | P0 | none |
+| `designtokens` | available | L1 | V0 | E0 | K2 | C0 | S1 | G0 | P0 | add malformed_test.go |
+| `doclang` | available | L1 | V0 | E0 | K0 | C0 | S1 | G4 | P0 | add malformed_test.go |
+| `docling` | available | L1 | V0 | E0 | K0 | C0 | S1 | G4 | P0 | add cli/parity spec_test |
+| `epub` | available | L0 | V0 | E0 | K1 | C1 | S1 | G0 | P0 | add a corpus/upstream test |
+| `html` | available | L1 | V1 | E1 | K1 | C1 | S2 | G3 | P0 | add malformed_test.go |
+| `i18next` | available | L1 | V0 | E0 | K2 | C0 | S0 | G0 | P0 | add malformed_test.go |
+| `image` | available | L1 | V0 | E0 | K0 | C0 | S0 | G1 | P0 | add malformed_test.go |
+| `json` | maintained | L2 | V0 | E0 | K2 | C0 | S2 | G0 | P0 | add a corpus/upstream test |
+| `markdown` | available | L3 | V1 | E1 | K1 | C1 | S2 | G3 | P0 | none |
+| `mdx` | available | L1 | V0 | E1 | K2 | C0 | S1 | G2 | P0 | add malformed_test.go |
+| `messageformat` | maintained | L2 | V0 | E0 | K1 | C1 | S1 | G0 | P0 | add a corpus/upstream test |
+| `mo` | available | L0 | V0 | E0 | K2 | C0 | S0 | G0 | P0 | add malformed_test.go |
+| `odf` | available | L1 | V0 | E0 | K2 | C0 | S1 | G2 | P0 | none |
+| `openxml` | maintained | L3 | V1 | E0 | K1 | C0 | S1 | G4 | P0 | none |
+| `pdf` | available | L0 | V0 | E0 | K0 | C0 | S1 | G0 | P0 | add malformed_test.go |
+| `plaintext` | maintained | L2 | V0 | E0 | K1 | C1 | S1 | G0 | P0 | add a corpus/upstream test |
+| `po` | maintained | L2 | V0 | E0 | K1 | C1 | S1 | G2 | P0 | add a corpus/upstream test |
+| `properties` | maintained | L2 | V0 | E0 | K1 | C1 | S1 | G0 | P0 | add a corpus/upstream test |
+| `resx` | maintained | L3 | V0 | E0 | K2 | C0 | S1 | G0 | P0 | none |
+| `sourcecode` | available | L0 | V0 | E0 | K0 | C0 | S0 | G0 | P0 | add malformed_test.go |
+| `srt` | maintained | L2 | V0 | E0 | K1 | C1 | S0 | G0 | P0 | add cli/parity spec_test |
+| `tmx` | maintained | L2 | V0 | E0 | K1 | C1 | S1 | G0 | P0 | add a corpus/upstream test |
+| `ts` | maintained | L2 | V0 | E0 | K1 | C1 | S1 | G2 | P0 | add a corpus/upstream test |
+| `video` | available | L0 | V0 | E0 | K0 | C0 | S0 | G0 | P0 | add malformed_test.go |
+| `vtt` | maintained | L2 | V0 | E0 | K1 | C1 | S1 | G0 | P0 | add a corpus/upstream test |
+| `xcstrings` | maintained | L3 | V0 | E0 | K2 | C0 | S1 | G0 | P0 | none |
+| `xliff` | maintained | L2 | V1 | E0 | K1 | C0 | S2 | G2 | P0 | add a corpus/upstream test |
+| `xliff2` | maintained | L2 | V0 | E0 | K1 | C0 | S1 | G2 | P0 | add a corpus/upstream test |
+| `xml` | maintained | L2 | V0 | E0 | K2 | C1 | S1 | G0 | P0 | add cli/parity spec_test |
+| `yaml` | maintained | L2 | V0 | E0 | K1 | C1 | S1 | G0 | P0 | add a corpus/upstream test |
+
+### Languages (Prose axis)
+
+| Language | Presence | Prose | P1 | P2 | P3 | P4 |
+|---|---|---|---|---|---|---|
+| `bash` | absent | none | not-met | not-met | not-met | not-met |
+| `go` | present | P1 | met | not-met | not-met | not-met |
+| `python` | absent | none | not-met | not-met | not-met | not-met |
+| `ruby` | present | P0 | not-met | not-met | not-met | not-met |
+| `typescript` | absent | none | not-met | not-met | not-met | not-met |
 <!-- END: gap-analysis report -->
 
 ## 6. Open questions

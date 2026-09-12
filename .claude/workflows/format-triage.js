@@ -1,6 +1,6 @@
 export const meta = {
   name: 'format-triage',
-  description: 'Triage every neokapi format against the multi-axis maturity rubric (Engine L0–L4, Vocabulary V0–V3, Editor E0–E4, Knowledge K0–K3, Corpus C0–C3, Security S0–S4, Structure & Geometry G0–G4), rank the work to push each toward a target level, optionally remediate (add the top missing test/artifact, verified), and refresh the /format-maturity dashboard dataset',
+  description: 'Triage every neokapi format against the multi-axis maturity rubric (Engine L0–L4, Vocabulary V0–V3, Editor E0–E4, Knowledge K0–K3, Corpus C0–C3, Security S0–S4, Structure & Geometry G0–G4, Prose P0–P4), rank the work to push each toward a target level, optionally remediate (add the top missing test/artifact, verified), and refresh the /format-maturity dashboard dataset',
   whenToUse: 'Run periodically to track and advance format maturity. Default (no args) = score + triage + publish the dashboard. args: {target:"L2|L3|L4", mode:"triage|remediate", formats:[ids], limit:N, publish:false, samples:N, anchor:true}',
   phases: [
     { title: 'Prep', detail: 'one agent: deterministic per-axis file-floor (audit-format.py --all --json) + prior dashboard levels + support.yaml tiers' },
@@ -63,13 +63,13 @@ const OKAPI =
 const ICU = 'export PKG_CONFIG_PATH="/opt/homebrew/opt/icu4c@78/lib/pkgconfig:$PKG_CONFIG_PATH";'
 const AUDIT = 'python3 .skills/refresh-format-maturity/scripts/audit-format.py'
 
-// ── axes (scorer v4) ──
+// ── axes (scorer v5) ──
 // One grade alphabet per axis (docs/internals/format-maturity.md §2). Engine is
-// the v2 L-ladder unchanged; the other axes score independently. The seven group
-// into three reading-aid families — Comprehension {engine, vocabulary,
-// structure} / Assurance {corpus, security} / Enablement {knowledge, editor} —
-// but the gating rule (min over engine∧corpus∧knowledge) operates on the axis
-// set, NOT on families.
+// the v2 L-ladder unchanged; the other axes score independently. The axes group
+// into three reading-aid families: Comprehension {engine, vocabulary,
+// structure, prose}, Assurance {corpus, security}, Enablement {knowledge,
+// editor}. The gating rule (min over engine∧corpus∧knowledge) operates on the
+// axis set, never on families.
 const AXES = {
   engine: ['L0', 'L1', 'L2', 'L3', 'L4'],
   vocabulary: ['V0', 'V1', 'V2', 'V3'],
@@ -87,9 +87,14 @@ const AXES = {
   // G3); geometry-without-roles caps at G2 (odf/idml). na geometry is a CEILING
   // cap for non-spatial catalogs, never a gate-pass.
   structure: ['G0', 'G1', 'G2', 'G3', 'G4'],
+  // P0–P4: a NON-GATING display axis (rubric §2.8), floor-only. Its floor is
+  // the Prose probe's report (scripts/proseprobe), attached to each format's
+  // floor by attachProse rather than computed by audit-format.py: a rung is
+  // met only when its TestProseP<n>_<subject> test passed.
+  prose: ['P0', 'P1', 'P2', 'P3', 'P4'],
 }
 const AXIS_IDS = Object.keys(AXES)
-const AXIS_LABELS = { engine: 'Engine', vocabulary: 'Vocabulary', editor: 'Editor', knowledge: 'Knowledge', corpus: 'Corpus', security: 'Security', structure: 'Structure & Geometry' }
+const AXIS_LABELS = { engine: 'Engine', vocabulary: 'Vocabulary', editor: 'Editor', knowledge: 'Knowledge', corpus: 'Corpus', security: 'Security', structure: 'Structure & Geometry', prose: 'Prose' }
 // per-axis RANK/NEXT lookups (generalize the v2 L-only tables)
 const RANK = {}, NEXT = {}
 for (const axis of AXIS_IDS) {
@@ -118,6 +123,9 @@ const AXIS_DIMS = {
   // test). The audit down-fills the cells so they are cumulative (a deeper
   // payload implies the shallower body-text/plane rungs).
   structure: ['metaplane', 'readingorder', 'roles', 'geometry'],
+  // prose rung cells (rubric §2.8), one per rung above P0, from the probe's
+  // three outcomes: met → complete, not met → none, did not run → notrun.
+  prose: ['located', 'governed', 'editable', 'allforms'],
 }
 const CANON = [] // ordered union (engine first; shared `corpus` appears once)
 const DIM_AXES = {} // dim id -> [axis ids] (corpus maps to both)
@@ -138,6 +146,7 @@ const LABELS = {
   corpusmanifest: 'Corpus manifest', fetchwiring: 'Fetch wiring', acceptance: 'Acceptance CI', sweep: 'Corpus sweep',
   safeio: 'Bounded (core/safeio)', fuzz: 'Fuzz target + seed', sweepclean: 'Clean sweep', sustained: 'Sustained',
   metaplane: 'Metadata plane', readingorder: 'Reading order', roles: 'Semantic roles', geometry: 'Geometry / bbox',
+  located: 'Located (P1)', governed: 'Governed (P2)', editable: 'Editable (P3)', allforms: 'Every comment form (P4)',
 }
 
 // Per-axis QUALITY sets (rubric §3 table): the only dims the model may judge,
@@ -150,6 +159,7 @@ const QUALITY = {
   corpus: new Set(['corpus']), // the SHARED dim — same cell as engine's corpus
   security: new Set(), // floor-only (deterministic file + ledger signals)
   structure: new Set(), // floor-only (deterministic file greps): spread 0 by construction
+  prose: new Set(), // floor-only (the probe's rung outcomes): spread 0 by construction
 }
 const QUALITY_UNION = new Set(['writer', 'parity', 'corpus', 'writecells', 'refs'])
 
@@ -159,11 +169,12 @@ const QUALITY_UNION = new Set(['writer', 'parity', 'corpus', 'writecells', 'refs
 const PREP = {
   type: 'object',
   additionalProperties: false,
-  required: ['audit_json', 'prior_json', 'support_yaml'],
+  required: ['audit_json', 'prior_json', 'support_yaml', 'prose_json'],
   properties: {
     audit_json: { type: 'string', description: 'verbatim stdout of `audit-format.py --all --json`' },
     prior_json: { type: 'string', description: 'verbatim contents of web/static/data/format-maturity.json, or "" if absent' },
     support_yaml: { type: 'string', description: 'verbatim contents of core/formats/support.yaml, or "" if absent' },
+    prose_json: { type: 'string', description: 'verbatim contents of the Prose probe report written by `make prose-probe`, or "" if the command exited non-zero' },
   },
 }
 
@@ -197,7 +208,7 @@ const SCORE = {
       properties: {
         engine: { type: 'string' }, vocabulary: { type: 'string' }, editor: { type: 'string' },
         knowledge: { type: 'string' }, corpus: { type: 'string' }, security: { type: 'string' },
-        structure: { type: 'string' },
+        structure: { type: 'string' }, prose: { type: 'string' },
       },
     },
     blocking_gaps: {
@@ -212,6 +223,7 @@ const SCORE = {
         corpus: { type: 'array', items: { type: 'string' } },
         security: { type: 'array', items: { type: 'string' } },
         structure: { type: 'array', items: { type: 'string' } },
+        prose: { type: 'array', items: { type: 'string' } },
       },
     },
     top_risk: { type: 'string', description: 'the single most important correctness/robustness risk' },
@@ -263,7 +275,7 @@ function enforceEvidence(dimScores, warnings) {
 
 // modeDimensions: per-dimension majority across N samples; ties break to the
 // LOWER score (conservative). abstain/none dominate when the panel disagrees.
-const SVAL = { complete: 3, partial: 2, na: 1, none: 0 }
+const SVAL = { complete: 3, partial: 2, na: 1, none: 0, notrun: 0 }
 function modeDimensions(samples) {
   const out = {}
   for (const k of CANON) {
@@ -434,10 +446,76 @@ function structureDims(floor) {
   }
 }
 
+// prose: a pure echo of the rung cells attachProse wrote from the probe's
+// report. notrun stays its own value so the dashboard can show a rung test
+// that exists and produced no result; the gate treats it as unmet.
+function proseDims(floor) {
+  const cells = (floor && floor.axes && floor.axes.prose && floor.axes.prose.signals
+    && floor.axes.prose.signals.cells) || {}
+  const out = {}
+  for (const d of AXIS_DIMS.prose) out[d] = cells[d] || 'none'
+  return out
+}
+
+// The probe's rung ids and the outcome each cell value records.
+const PROSE_RUNG_DIMS = { P1: 'located', P2: 'governed', P3: 'editable', P4: 'allforms' }
+const PROSE_CELL = { met: 'complete', 'not-met': 'none', 'did-not-run': 'notrun' }
+
+// proseFloor turns one probe subject into the axis floor shape the other axes
+// use: base = ceiling = the probe's level (floor-only), with the rung cells and
+// each rung's outcome and reason kept for the dashboard.
+function proseFloor(subject) {
+  const cells = {}, rungs = {}
+  for (const [rung, dim] of Object.entries(PROSE_RUNG_DIMS)) {
+    const r = (subject.rungs && subject.rungs[rung]) || { outcome: 'not-met', reason: 'no test' }
+    cells[dim] = PROSE_CELL[r.outcome] || 'none'
+    rungs[rung] = { outcome: r.outcome, reason: r.reason }
+  }
+  const level = subject.level || null
+  return { base: level, ceiling: level, signals: { presence: subject.presence, languages: subject.languages || [], cells, rungs } }
+}
+
+// attachProse writes each format's Prose floor from the probe report. A report
+// without a P0 canary, or one missing a format the audit scored, is refused:
+// publishing a Prose level the probe did not produce would be a declaration.
+function attachProse(floors, report) {
+  if (!report || !Array.isArray(report.subjects)) throw new Error('prose: no probe report, so the axis cannot be scored')
+  if (!report.canary || report.canary.level !== 'P0') throw new Error('prose: the probe report carries no P0 canary; refusing it')
+  const byId = {}
+  for (const s of report.subjects) if (s.kind === 'format') byId[s.id] = s
+  for (const floor of floors) {
+    const s = byId[floor.format]
+    if (!s) throw new Error(`prose: the probe report has no row for format ${floor.format}`)
+    floor.axes = floor.axes || {}
+    floor.axes.prose = proseFloor(s)
+  }
+}
+
+// proseDetail is the per-row Prose detail beside the axis band: each rung's
+// outcome and reason, and the languages a format reads (scored on their rows).
+function proseDetail(floor) {
+  const sig = floor && floor.axes && floor.axes.prose && floor.axes.prose.signals
+  return sig ? { rungs: sig.rungs, languages: sig.languages } : {}
+}
+
+// languageRows are the axis's rows for source languages with no format. They
+// sit beside formats[] in the dataset and never enter the format summary.
+function languageRows(report) {
+  return report.subjects.filter((s) => s.kind === 'language').map((s) => {
+    const f = proseFloor(s)
+    const level = s.level || null
+    return {
+      id: s.id, name: s.name || s.id, provider: s.provider || '', presence: s.presence,
+      level, next: level ? (NEXT.prose[level] || '—') : null,
+      dims: f.signals.cells, rungs: f.signals.rungs,
+    }
+  }).sort((a, b) => a.id.localeCompare(b.id))
+}
+
 // the full floor grid: every canon dim, decided by files (shared corpus once)
 function floorDimsAll(floor, type) {
   const e = engineDims(floor, type)
-  return { ...e, ...vocabularyDims(floor, type), ...editorDims(floor), ...knowledgeDims(floor, type), ...corpusDims(floor, e), ...securityDims(floor), ...structureDims(floor) }
+  return { ...e, ...vocabularyDims(floor, type), ...editorDims(floor), ...knowledgeDims(floor, type), ...corpusDims(floor, e), ...securityDims(floor), ...structureDims(floor), ...proseDims(floor) }
 }
 
 // reconcileDims: start from the floor, then let the model DEMOTE (never raise)
@@ -571,6 +649,19 @@ function gateStructure(dims) {
   return 'G4'
 }
 
+// gateProse (rubric §2.8): a cumulative ladder like gateSecurity, stricter in
+// one respect. Only a met rung (complete) counts. none and notrun both cap the
+// level, and na is never a pass, so a skipped or unbuilt rung test awards
+// nothing.
+function gateProse(dims) {
+  const met = (k) => (dims[k] || 'none') === 'complete'
+  if (!met('located')) return 'P0'
+  if (!met('governed')) return 'P1'
+  if (!met('editable')) return 'P2'
+  if (!met('allforms')) return 'P3'
+  return 'P4'
+}
+
 // objective hard caps from files (always apply, both directions are unambiguous).
 // engine keeps the v2 reader/writer hard caps + top-level ceiling; the other
 // axes clamp to their audit band ceiling (per-axis — harvest ceilings diverge).
@@ -604,6 +695,7 @@ function axisLevel(axis, dims, floor, type) {
   else if (axis === 'knowledge') g = gateKnowledge(dims, !!(floor && floor.has && floor.has.schema))
   else if (axis === 'security') g = gateSecurity(dims)
   else if (axis === 'structure') g = gateStructure(dims)
+  else if (axis === 'prose') g = gateProse(dims)
   else g = gateCorpus(dims)
   return capAxis(axis, g, floor)
 }
@@ -733,20 +825,21 @@ function publishPrompt(json) {
 
 ${json}
 
-3. Update web/static/data/format-maturity-history.json (a JSON array): remove any entry whose "date" equals TODAY, then append {"date": TODAY, "total": <summary.total>, "by_level": <summary.by_level>, "by_axis": <summary.by_axis>, "golden_passed": <run_integrity.golden_passed>, "moves": <run_integrity.moves>}. Keep it sorted by date ascending. NEVER rewrite, reshape, or add fields to any EXISTING entry — "by_axis" appears on the NEW snapshot only; old single-axis entries stay byte-identical.
+3. Update web/static/data/format-maturity-history.json (a JSON array): remove any entry whose "date" equals TODAY, then append {"date": TODAY, "total": <summary.total>, "by_level": <summary.by_level>, "by_axis": <summary.by_axis>, "languages": <summary.languages>, "golden_passed": <run_integrity.golden_passed>, "moves": <run_integrity.moves>}. Keep it sorted by date ascending. NEVER rewrite, reshape, or add fields to any EXISTING entry — "by_axis" appears on the NEW snapshot only; old single-axis entries stay byte-identical.
 4. Regenerate the snapshot block in docs/internals/format-maturity.md: replace everything BETWEEN the marker lines \`<!-- BEGIN: gap-analysis report (generated) -->\` and \`<!-- END: gap-analysis report -->\` (keep both marker lines exactly) with a compact fleet report derived ONLY from the dataset you wrote in step 2:
    - the "## Maturity report" heading, then one short paragraph: generated TODAY by the triage-score ritual; data lives in web/static/data/format-maturity{,-history}.json (the /format-maturity dashboard); regenerated by any ritual that republishes the dashboard: do not edit by hand.
-   - a per-axis distribution table: one row per axis (Engine, Vocabulary, Editor, Knowledge, Corpus, Security, Structure & Geometry), columns = that axis's grades with counts from summary.by_level (engine) / summary.by_axis (the rest).
-   - a per-format table sorted by id, one line each: | format | axis vector (levels.engine levels.vocabulary levels.editor levels.knowledge levels.corpus levels.security levels.structure space-separated, e.g. "L3 V0 E1 K0 C0 S1 G0") | top gap (the first entry of the row's engine blocking_gaps, truncated to ~100 chars, or "none") |
+   - a per-axis distribution table: one row per axis (Engine, Vocabulary, Editor, Knowledge, Corpus, Security, Structure & Geometry, Prose), columns = that axis's grades with counts from summary.by_level (engine) / summary.by_axis (the rest).
+   - a per-format table sorted by id, one line each: | format | axis vector (levels.engine levels.vocabulary levels.editor levels.knowledge levels.corpus levels.security levels.structure levels.prose space-separated, e.g. "L3 V0 E1 K0 C0 S1 G0 P0") | top gap (the first entry of the row's engine blocking_gaps, truncated to ~100 chars, or "none") |
+   - a languages table from the dataset's languages[], one line each: | language | presence | level (or "none") |
 5. Refresh certification in core/formats/support.yaml: for EVERY format id present in the dataset's formats[], set that format's \`last_certified\` field to "TODAY" (quoted). Change NOTHING else in this file — tier / tier_since / gates / notes / grandfathered are owned by the tier-review ritual (writer partition, format-maturity.md §1).
 6. Record the run in docs/internals/format-ops-ledger.json:
    - rituals."triage-score".last_run = TODAY
-   - rituals."triage-score".watermarks: core_formats_sha = output of \`git log -1 --format=%H -- core/formats\`; audit_sha = the sha256 hex of \`python3 .skills/refresh-format-maturity/scripts/audit-format.py --all --json | shasum -a 256\`; scorer_version = 4; axes_published = ["engine","vocabulary","editor","knowledge","corpus","security","structure"]. Leave model_id and prompt_sha as they are.
+   - rituals."triage-score".watermarks: core_formats_sha = output of \`git log -1 --format=%H -- core/formats\`; audit_sha = the sha256 hex of \`python3 .skills/refresh-format-maturity/scripts/audit-format.py --all --json | shasum -a 256\`; scorer_version = 5; axes_published = ["engine","vocabulary","editor","knowledge","corpus","security","structure","prose"]. Leave model_id and prompt_sha as they are.
    - append to runs[] (append-only — never modify existing entries): {"date": TODAY, "ritual": "triage-score", "commit": output of \`git rev-parse HEAD\`, "model_id": "", "outcome": "published", "evidence": [], "followups": []}
 7. Every edited JSON file MUST be 2-space indented (the repo formatter, \`vp check\`, requires it). Verify every edited JSON file parses as valid JSON. Report the engine level distribution and the per-axis distributions you published.`
 }
 
-function buildDataset(rows, runIntegrity, tierByFmt) {
+function buildDataset(rows, runIntegrity, tierByFmt, languages = []) {
   const formats = rows.slice().sort((a, b) => a.id.localeCompare(b.id))
   const by_level = { L0: 0, L1: 0, L2: 0, L3: 0, L4: 0 } // engine distribution (v1/v2 parser contract)
   const by_axis = {}
@@ -761,27 +854,37 @@ function buildDataset(rows, runIntegrity, tierByFmt) {
       if (g != null && g in by_axis[axis]) by_axis[axis][g] += 1
     }
   }
+  // Language rows are counted on their own: they are not formats, so they stay
+  // out of summary.total, by_level and by_axis.
+  const langSummary = { total: languages.length, by_presence: { present: 0, absent: 0, 'did-not-run': 0 }, by_prose: {} }
+  for (const g of AXES.prose) langSummary.by_prose[g] = 0
+  for (const l of languages) {
+    if (l.presence in langSummary.by_presence) langSummary.by_presence[l.presence] += 1
+    if (l.level && l.level in langSummary.by_prose) langSummary.by_prose[l.level] += 1
+  }
   return {
     generated_at: '__DATE__', target_level: TARGET,
     source: 'format-triage workflow (deterministic per-axis floors + evidence-cited quality dimensions + sticky anchor)',
-    scorer_version: 4,
+    scorer_version: 5,
     run_integrity: runIntegrity,
-    summary: { total: formats.length, by_level, by_axis },
+    summary: { total: formats.length, by_level, by_axis, languages: langSummary },
     axes: AXES, axis_labels: AXIS_LABELS,
     dimensions: CANON, dimension_labels: LABELS, dimension_axes: DIM_AXES,
     formats,
+    languages,
   }
 }
 
 // ── Phase: Prep (deterministic floor + prior levels + tiers) ──
 phase('Prep')
-let floorByFmt = {}, priorByFmt = {}, tierByFmt = {}
+let floorByFmt = {}, priorByFmt = {}, tierByFmt = {}, languages = [], proseError = null, proseReport = null
 {
   const prep = await agent(
     `Three verbatim captures, no editing or summarizing. cwd = ${REPO}.
 1. Run: ${AUDIT} --all --json   → put its EXACT stdout in audit_json.
 2. Read web/static/data/format-maturity.json → put its EXACT contents in prior_json (or "" if the file does not exist).
-3. Read core/formats/support.yaml → put its EXACT contents in support_yaml (or "" if the file does not exist).`,
+3. Read core/formats/support.yaml → put its EXACT contents in support_yaml (or "" if the file does not exist).
+4. Run: make prose-probe PROSE_PROBE_OUT=bin/prose-probe.json   → if it exits 0, put the EXACT contents of bin/prose-probe.json in prose_json; if it exits non-zero, put "" (the run was invalid and wrote no report).`,
     { label: 'prep', phase: 'Prep', schema: PREP },
   ).catch(() => null)
   if (prep) {
@@ -805,8 +908,18 @@ let floorByFmt = {}, priorByFmt = {}, tierByFmt = {}
       }
     } catch (e) { log('Prep: no parseable prior dashboard — sticky anchoring disabled this run.') }
     try { tierByFmt = parseSupportYaml(prep.support_yaml) } catch (e) { log('Prep: could not parse support.yaml — rows publish tier: null.') }
+    // The Prose floor comes from the probe. Without a valid report nothing is
+    // published: a Prose column scored from nothing would read as P0 everywhere.
+    try {
+      proseReport = JSON.parse(prep.prose_json)
+      attachProse(Object.values(floorByFmt), proseReport)
+      languages = languageRows(proseReport)
+    } catch (e) { proseError = String(e && e.message || e) }
+  } else {
+    proseError = 'Prep returned nothing'
   }
-  log(`Prep: floor for ${Object.keys(floorByFmt).length} formats, priors for ${Object.keys(priorByFmt).length}, tiers for ${Object.keys(tierByFmt).length}.`)
+  log(`Prep: floor for ${Object.keys(floorByFmt).length} formats, priors for ${Object.keys(priorByFmt).length}, tiers for ${Object.keys(tierByFmt).length}, languages ${languages.length}.`)
+  if (proseError) log(`Prep: no valid Prose probe report (${proseError}); this run will not publish.`)
   // Derive the scored universe from the dir-walk audit so a newly added format
   // is picked up automatically (no ALL_FORMATS edit). An explicit cfg.formats
   // always wins; the static list is the fallback only when Prep yields no floor.
@@ -883,6 +996,7 @@ for (const f of FORMATS) {
       level: sticky.level, next: next[axis], floor: band.floor, ceiling: band.ceiling,
       derived_from: sticky.derived_from, delta: sticky.delta, agreement,
       blocking_gaps: axisGaps(leadEngine, axis).slice(0, 3),
+      ...(axis === 'prose' ? proseDetail(floor) : {}),
     }
   }
 
@@ -959,8 +1073,13 @@ const runIntegrity = {
   low_agreement: lowAgreeByAxis,
   golden_passed,
 }
-const dataset = buildDataset(rows, runIntegrity, tierByFmt)
-if (PUBLISH) {
+if (proseReport && proseReport.canary) {
+  runIntegrity.prose = { probe_version: proseReport.probe_version, canary: proseReport.canary.level, tags: proseReport.tags }
+}
+const dataset = buildDataset(rows, runIntegrity, tierByFmt, languages)
+if (PUBLISH && proseError) {
+  log(`Publish skipped: ${proseError}`)
+} else if (PUBLISH) {
   phase('Publish')
   await agent(publishPrompt(JSON.stringify(dataset, null, 2)), { label: 'publish', phase: 'Publish' })
   log('Published web/static/data/format-maturity{,-history}.json + docs snapshot block + support.yaml last_certified + ledger run record — rebuild the docs to see it.')

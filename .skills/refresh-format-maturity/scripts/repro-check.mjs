@@ -3,11 +3,11 @@
 //
 // The scorer (.claude/workflows/format-triage.js) computes each format's level
 // PER AXIS (engine L0-L4, vocabulary V0-V3, editor E0-E4, knowledge K0-K3,
-// corpus C0-C3, security S0-S4, structure G0-G4) from the deterministic file
+// corpus C0-C3, security S0-S4, structure G0-G4, prose P0-P4) from the deterministic file
 // floor (audit-format.py --json, additive `axes{}` block) plus the model-judged
 // QUALITY dimensions of that axis: engine {writer, parity, corpus}, vocabulary
 // {writecells}, knowledge {refs}, corpus {corpus — the cell SHARED with
-// engine}, and editor {} security {} structure {} (no judged dims: spread 0 by
+// engine}, and editor {} security {} structure {} prose {} (no judged dims: spread 0 by
 // construction, asserted below). This harness enumerates
 // EVERY realistic value of each axis's quality dims and reports the resulting
 // per-axis level spread — i.e. the maximum the model can move the published
@@ -32,6 +32,7 @@ const AXES = {
   corpus: ['C0', 'C1', 'C2', 'C3'],
   security: ['S0', 'S1', 'S2', 'S3', 'S4'],
   structure: ['G0', 'G1', 'G2', 'G3', 'G4'],
+  prose: ['P0', 'P1', 'P2', 'P3', 'P4'],
 }
 const AXIS_IDS = Object.keys(AXES)
 const RANK = {}
@@ -47,6 +48,9 @@ const QUALITY = {
   corpus: ['corpus'], // SHARED with engine: one judgment, both gates
   security: [], // floor-only (file + ledger signals): spread 0 by construction
   structure: [], // floor-only (deterministic file greps): spread 0 by construction
+  // floor-only: the Prose probe's rung outcomes, attached at publish time. The
+  // audit JSON on stdin carries no axes.prose, so every cell reads none here.
+  prose: [],
 }
 
 function minG(axis, a, b) { return RANK[axis][a] <= RANK[axis][b] ? a : b }
@@ -182,6 +186,14 @@ function structureDims(floor) {
   }
 }
 
+function proseDims(floor) {
+  const cells = (floor && floor.axes && floor.axes.prose && floor.axes.prose.signals
+    && floor.axes.prose.signals.cells) || {}
+  const out = {}
+  for (const d of ['located', 'governed', 'editable', 'allforms']) out[d] = cells[d] || 'none'
+  return out
+}
+
 function floorDimsFor(axis, floor, type) {
   if (axis === 'engine') return engineDims(floor, type)
   if (axis === 'vocabulary') return vocabularyDims(floor, type)
@@ -189,6 +201,7 @@ function floorDimsFor(axis, floor, type) {
   if (axis === 'knowledge') return knowledgeDims(floor, type)
   if (axis === 'security') return securityDims(floor)
   if (axis === 'structure') return structureDims(floor)
+  if (axis === 'prose') return proseDims(floor)
   return corpusDims(floor, engineDims(floor, type))
 }
 
@@ -266,6 +279,15 @@ function gateStructure(dims) {
   return 'G4'
 }
 
+function gateProse(dims) {
+  const met = (k) => (dims[k] || 'none') === 'complete'
+  if (!met('located')) return 'P0'
+  if (!met('governed')) return 'P1'
+  if (!met('editable')) return 'P2'
+  if (!met('allforms')) return 'P3'
+  return 'P4'
+}
+
 // ── caps (mirror of format-triage.js) ──
 
 function capEngine(level, floor) {
@@ -297,6 +319,7 @@ function axisLevel(axis, dims, floor, type) {
   else if (axis === 'knowledge') g = gateKnowledge(dims, !!(floor && floor.has && floor.has.schema))
   else if (axis === 'security') g = gateSecurity(dims)
   else if (axis === 'structure') g = gateStructure(dims)
+  else if (axis === 'prose') g = gateProse(dims)
   else g = gateCorpus(dims)
   return capAxis(axis, g, floor)
 }
@@ -349,8 +372,8 @@ process.stdin.on('end', () => {
       const sp = axisSpread(axis, f)
       const n = sp.length - 1
       if (n === 0) totals[axis].pinned++; else if (n === 1) totals[axis].boundary++; else totals[axis].wide++
-      if ((axis === 'editor' || axis === 'security' || axis === 'structure') && n !== 0) {
-        // editor + security + structure have no quality dims — any spread is a
+      if ((axis === 'editor' || axis === 'security' || axis === 'structure' || axis === 'prose') && n !== 0) {
+        // editor, security, structure and prose have no quality dims, so any spread is a
         // mirror/gate bug, not judgment (floor-only ⇒ spread 0 by construction)
         console.error(`!! ${axis} axis spread for ${f.format}: ${sp.join('|')} (must be 0 by construction)`)
         leak = true

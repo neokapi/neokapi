@@ -218,7 +218,8 @@
 .miniSeg.lvlL2,
 .miniSeg.lvlE2,
 .miniSeg.lvlS2,
-.miniSeg.lvlG2 {
+.miniSeg.lvlG2,
+.miniSeg.lvlP2 {
   color: #222;
 }
 
@@ -331,6 +332,23 @@
   background: #3fa05a;
 }
 .lvlG4 {
+  background: #2b8fb3;
+}
+/* prose (P0–P4): the same red → teal ladder; P2 mid uses dark text. */
+.lvlP0 {
+  background: #d64545;
+}
+.lvlP1 {
+  background: #e08a2b;
+}
+.lvlP2 {
+  background: #d6b83a;
+  color: #222;
+}
+.lvlP3 {
+  background: #3fa05a;
+}
+.lvlP4 {
   background: #2b8fb3;
 }
 
@@ -568,6 +586,30 @@
 .dotNa {
   background: transparent;
   border: 1px dashed var(--ifm-color-emphasis-400);
+}
+/* A rung test exists and produced no result: an open ring, so it reads as
+   neither a pass nor a missing test. */
+.dotNotrun {
+  background: transparent;
+  border: 2px solid #e0b32b;
+}
+.languages {
+  margin-top: 2rem;
+}
+.presenceBadge {
+  display: inline-block;
+  padding: 0.05rem 0.45rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.presenceAbsent {
+  border: 1px dashed var(--ifm-color-emphasis-500);
+  color: var(--ifm-color-emphasis-700);
+}
+.presenceNotrun {
+  border: 2px solid #e0b32b;
+  color: var(--ifm-color-emphasis-800);
 }
 .gapCell {
   max-width: 360px;

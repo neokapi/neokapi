@@ -337,6 +337,28 @@
         "G2": 6,
         "G3": 4,
         "G4": 3
+      },
+      "prose": {
+        "P0": 37,
+        "P1": 0,
+        "P2": 0,
+        "P3": 0,
+        "P4": 0
+      }
+    },
+    "languages": {
+      "total": 5,
+      "by_presence": {
+        "present": 2,
+        "absent": 3,
+        "did-not-run": 0
+      },
+      "by_prose": {
+        "P0": 1,
+        "P1": 1,
+        "P2": 0,
+        "P3": 0,
+        "P4": 0
       }
     },
     "golden_passed": true,
@@ -369,6 +391,10 @@
           "suppressed": 0
         },
         "structure": {
+          "published": 0,
+          "suppressed": 0
+        },
+        "prose": {
           "published": 0,
           "suppressed": 0
         }

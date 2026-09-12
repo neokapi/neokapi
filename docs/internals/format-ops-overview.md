@@ -14,14 +14,14 @@ improve it.
 | | **The promise** (a tier) | **The score** (a vector) |
 |---|---|---|
 | What | What users may rely on | How good our support actually is |
-| Values | **Supported** · **Maintained** · **Available** | seven axes, each a small ladder |
+| Values | **Supported** · **Maintained** · **Available** | one small ladder per axis |
 | Changes | only by a human-approved event | recomputed every audit, automatically |
 | Backed by | a CI gate (a tier with no gate is marketing) | deterministic file evidence |
 
 The headline tier is the **minimum over the gating axes**, never an average. A
 format can score high on a non-gating axis and still be honestly "Maintained."
 
-## The seven axes, in three families
+## The axes, in three families
 
 Each axis is a ladder (L0–L4, V0–V3, …). They group by the question they answer:
 
@@ -31,6 +31,7 @@ Each axis is a ladder (L0–L4, V0–V3, …). They group by the question they a
 | Engine | L0–L4 | parse / round-trip / parity fidelity | reads → round-trips → spec'd → parity-verified → rock-solid |
 | Vocabulary | V0–V3 | inline meaning (bold, links, placeholders) survives into the canonical model | opaque → typed reading → bidirectional → loss-proven |
 | Structure & Geometry | G0–G4 | how much document structure & layout we recover | opaque → metadata → text → roles/tables/reading-order → +geometry/bboxes |
+| Prose | P0–P4 | how much of the comment layer kapi can locate, check and rewrite, per format and per source language | none → located → governed → editable → complete |
 
 **Assurance: how we prove it**
 | Axis | | Measures |
@@ -45,8 +46,8 @@ Each axis is a ladder (L0–L4, V0–V3, …). They group by the question they a
 | Editor | E0–E4 | how close kapi gets to the format's native editor |
 
 > The families are a reading aid. The gating set (Engine ∧ Corpus ∧ Knowledge)
-> deliberately spans all three; Security and Structure & Geometry are non-gating
-> display axes for now.
+> deliberately spans all three; Security, Structure & Geometry and Prose are
+> non-gating display axes.
 
 The **Structure & Geometry** axis is the one that captures depth-of-understanding
 the way you'd expect of an image format: extracting only *metadata* (G1) is
