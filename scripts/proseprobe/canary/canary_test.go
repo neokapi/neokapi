@@ -1,10 +1,11 @@
-// Package canary is the subject every Prose probe run must refuse.
+// Package canary holds the subjects every Prose probe run must score exactly as
+// built.
 //
-// Each test is a way a rung could be awarded without evidence. The probe
-// scores this package on every run and requires P0 with exactly the outcomes
-// below; any other scoring makes the run invalid. Under an ordinary
-// `go test ./...` every test here skips, so the deliberately failing one never
-// reaches a build.
+// Each test is a way a rung, or a language's presence, could be awarded
+// without evidence. The probe scores every subject here on every run and
+// requires the outcome written beside each test; any other scoring makes the
+// run invalid. Under an ordinary `go test ./...` every test here skips, so the
+// deliberately failing ones never fail a build.
 package canary
 
 import (
@@ -51,4 +52,37 @@ func TestProseP4_canary(t *testing.T) {
 	t.Run("only-case", func(t *testing.T) {
 		t.Skip("canary: a parent whose every subtest skipped checked nothing")
 	})
+}
+
+// TestProseP1_canaryunlinked passes with no presence test beside it. A package
+// can pass its rung tests while no binary links it, so canaryunlinked must be
+// absent.
+func TestProseP1_canaryunlinked(t *testing.T) {
+	underProbe(t)
+}
+
+// TestProseP0_canarypresent passes, so canarypresent is present.
+func TestProseP0_canarypresent(t *testing.T) {
+	underProbe(t)
+}
+
+// TestProseP1_canarypresent fails. A present language with no passing P1 must
+// score exactly P0.
+func TestProseP1_canarypresent(t *testing.T) {
+	underProbe(t)
+	t.Error("canary: a present language's P1 failed")
+}
+
+// TestProseP0_canarybroken fails. A failing presence test cannot tell a
+// missing reader from a broken test, so canarybroken must come to did-not-run
+// with this message in its presence reason, never to absent.
+func TestProseP0_canarybroken(t *testing.T) {
+	underProbe(t)
+	t.Error("canary: the presence assertion failed")
+}
+
+// TestProseP1_canarybroken passes. It awards nothing while presence did not
+// run.
+func TestProseP1_canarybroken(t *testing.T) {
+	underProbe(t)
 }

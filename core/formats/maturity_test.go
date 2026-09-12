@@ -602,8 +602,11 @@ type proseLanguage struct {
 	Provider string `yaml:"provider"`
 }
 
-// proseCanaryDir is the one place the probe's canary subject may be named.
+// proseCanaryDir is the one place the probe's canary subjects may be named.
+// Every subject starting with proseCanaryPrefix is reserved for them.
 const proseCanaryDir = "scripts/proseprobe/canary"
+
+const proseCanaryPrefix = "canary"
 
 var (
 	proseSubjectRe = regexp.MustCompile(`^[a-z][a-z0-9]*$`)
@@ -639,8 +642,8 @@ func proseLanguageProblem(id string, l proseLanguage, formats map[string]bool) s
 	switch {
 	case !proseSubjectRe.MatchString(id):
 		return fmt.Sprintf("prose.yaml: language %q is not lowercase letters and digits, so no rung test name can carry it", id)
-	case id == "canary":
-		return "prose.yaml: `canary` is reserved for the probe's own fixture"
+	case strings.HasPrefix(id, proseCanaryPrefix):
+		return fmt.Sprintf("prose.yaml: %q starts with %q, which the probe reserves for its canaries", id, proseCanaryPrefix)
 	case formats[id]:
 		return fmt.Sprintf("prose.yaml: %q is a format under core/formats; a format is scored on its own row and is not listed as a language", id)
 	case strings.TrimSpace(l.Name) == "":
@@ -659,7 +662,7 @@ func proseTestNameProblem(name, dir string, formats map[string]bool, langs map[s
 		return fmt.Sprintf("%s in %s claims the Prose axis but does not match TestProseP<0-4>_<subject>", name, dir)
 	}
 	subject := m[2]
-	if subject == "canary" {
+	if strings.HasPrefix(subject, proseCanaryPrefix) {
 		if dir != proseCanaryDir {
 			return fmt.Sprintf("%s in %s names the probe's canary, which lives only in %s", name, dir, proseCanaryDir)
 		}
@@ -695,6 +698,7 @@ func TestProseRegistryRefuses(t *testing.T) {
 		"Go":      {Name: "Go"},
 		"go-lang": {Name: "Go"},
 		"canary":  {Name: "Canary"},
+		"canaryx": {Name: "X"},
 		"yaml":    {Name: "YAML"},
 		"rust":    {},
 		"python":  {Name: "Python", Provider: "treesitter"},
@@ -769,6 +773,7 @@ func TestProseRungTestNamesRefuse(t *testing.T) {
 		{"TestProseP2_go", "host/check"},
 		{"TestProseP0_go", "plugins/gocomments"},
 		{"TestProseP4_canary", proseCanaryDir},
+		{"TestProseP1_canaryunlinked", proseCanaryDir},
 	} {
 		assert.Empty(t, proseTestNameProblem(ok.name, ok.dir, formats, langs), ok.name)
 	}
@@ -779,6 +784,7 @@ func TestProseRungTestNamesRefuse(t *testing.T) {
 		{"TestProseP1_go_edges", "host/check"},
 		{"TestProseP1go", "host/check"},
 		{"TestProseP3_canary", "core/formats/yaml"},
+		{"TestProseP1_canarypresent", "core/formats/yaml"},
 	} {
 		assert.NotEmpty(t, proseTestNameProblem(bad.name, bad.dir, formats, langs), bad.name)
 	}

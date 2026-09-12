@@ -33,6 +33,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 func main() {
@@ -96,8 +97,8 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer, goRun GoR
 	return 0
 }
 
-// summary is the one line a caller sees on a valid run: the canary's score
-// and how the subjects fell.
+// summary is the one line a caller sees on a valid run: what each canary came
+// to and how the subjects fell.
 func summary(rep *Report) string {
 	levels := map[string]int{}
 	presence := map[Presence]int{}
@@ -111,8 +112,16 @@ func summary(rep *Report) string {
 			levels[s.Level]++
 		}
 	}
-	return fmt.Sprintf("proseprobe: canary %s; %d rung tests in %d modules; %d subjects: P0 %d, P1 %d, P2 %d, P3 %d, P4 %d; absent %d, did not run %d",
-		rep.Canary.Level, tests, len(rep.Modules), len(rep.Subjects),
+	var canaries []string
+	for _, c := range rep.Canaries {
+		state := string(c.Presence)
+		if c.Level != "" {
+			state = c.Level
+		}
+		canaries = append(canaries, c.ID+" "+state)
+	}
+	return fmt.Sprintf("proseprobe: canaries as built (%s); %d rung tests in %d modules; %d subjects: P0 %d, P1 %d, P2 %d, P3 %d, P4 %d; absent %d, did not run %d",
+		strings.Join(canaries, ", "), tests, len(rep.Modules), len(rep.Subjects),
 		levels["P0"], levels["P1"], levels["P2"], levels["P3"], levels["P4"],
 		presence[Absent], presence[PresenceUnproven])
 }
