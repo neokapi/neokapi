@@ -542,11 +542,29 @@ func (a *App) checkFileBlocks(ctx context.Context, file string, validateMode for
 		opts.execution.completed("reader.validation", file, len(diags), extractionStart, canary, true)
 	}
 
+	// A recipe that declares the file's comments adds its comment layer to the
+	// blocks the reader extracted. The reader's own blocks are what they were.
+	layer, lerr := a.readDeclaredComments(ctx, file, fmtName, opts)
+	if lerr != nil {
+		return nil, nil, lerr
+	}
+	if layer != nil {
+		layerDiags, err := recordProviderAnalyzers(ctx, layer.analyzers, layer.blocks, file, opts.execution)
+		if err != nil {
+			return nil, nil, err
+		}
+		blocks = append(blocks, layer.blocks...)
+		diags = append(diags, layerDiags...)
+	}
+
 	fileDiags, ferr := a.collectFileDiagnostics(ctx, blocks, file, opts)
 	if ferr != nil {
 		return nil, nil, ferr
 	}
 	diags = append(diags, fileDiags...)
+	if layer != nil {
+		layer.locate(diags)
+	}
 	return blocks, diags, nil
 }
 
@@ -931,6 +949,9 @@ type checkFormats struct {
 type resolvedFormat struct {
 	name string
 	cfg  map[string]any
+	// comments is the item's `comments: true`: the file's comments are content
+	// as well as what its reader extracts.
+	comments bool
 }
 
 // newCheckFormats builds the binding for one run. Outside a project — or with an
@@ -964,7 +985,11 @@ func (a *App) newCheckFormats(cmd Command) (*checkFormats, error) {
 		if _, seen := f.byPath[rf.Path]; seen {
 			continue
 		}
-		f.byPath[rf.Path] = resolvedFormat{name: rf.Format, cfg: mergedFormatConfig(proj, rf.Format, rf.Item)}
+		f.byPath[rf.Path] = resolvedFormat{
+			name:     rf.Format,
+			cfg:      mergedFormatConfig(proj, rf.Format, rf.Item),
+			comments: rf.Item != nil && rf.Item.Comments,
+		}
 	}
 	return f, nil
 }
@@ -985,6 +1010,21 @@ func (f *checkFormats) forFile(app *App, file string) (string, map[string]any) {
 		return rf.name, rf.cfg
 	}
 	return app.FormatFlag, nil
+}
+
+// commentsFor reports whether the recipe declares one file's comments as
+// content.
+func (f *checkFormats) commentsFor(file string) bool {
+	if f == nil || len(f.byPath) == 0 {
+		return false
+	}
+	abs := file
+	if !filepath.IsAbs(abs) {
+		if r, err := filepath.Abs(abs); err == nil {
+			abs = r
+		}
+	}
+	return f.byPath[abs].comments
 }
 
 type checkVoice struct {

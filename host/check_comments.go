@@ -2,6 +2,7 @@ package host
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -10,15 +11,21 @@ import (
 	"github.com/neokapi/neokapi/core/comment"
 	"github.com/neokapi/neokapi/core/comment/golang"
 	"github.com/neokapi/neokapi/core/format"
+	yamlformat "github.com/neokapi/neokapi/core/formats/yaml"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
 )
 
-// commentProviders read the comment layer of files that no format reader
-// covers. The Go provider uses only the standard library, so every kapi binary
-// carries it. It is a variable so a test can put a faulty provider in its place
-// and show that the canary invalidates the run.
-var commentProviders = comment.NewRegistry(golang.Provider{})
+// commentProviders supply comment layers: the Go language provider for files no
+// format reader covers, and the providers formats supply for the files their
+// readers parse. Both use only what every kapi binary already carries. It is a
+// variable so a test can put a faulty provider in its place and show that the
+// canary invalidates the run.
+var commentProviders = func() *comment.Registry {
+	r := comment.NewRegistry(golang.Provider{})
+	r.RegisterFormat("yaml", yamlformat.CommentProvider{})
+	return r
+}()
 
 // formatterCheck is the check family a formatter's disagreement is reported
 // under. The rule is `formatter.<formatter>`, such as `formatter.gofmt`.
@@ -56,6 +63,10 @@ type commentLayer struct {
 	// analyzers are the comment extraction and the language's formatter, run
 	// over whichever comments a check has in scope.
 	analyzers []providerAnalyzer
+	// unread says why the file's comments could not be read, and is nil when
+	// blocks holds them all. An unread layer has no blocks, and its extraction
+	// did not run.
+	unread error
 }
 
 // locate gives every diagnostic on a comment block the lines that comment
@@ -76,7 +87,9 @@ func (l *commentLayer) locate(diags []check.Diagnostic) {
 // checkset, governance and report as any other content. The layer's analyzers
 // run over every comment in the file, and their findings join the checkset's.
 func (a *App) checkCommentFile(ctx context.Context, file string, p comment.Provider, validateMode format.ValidationMode, opts checkRunOptions) ([]*model.Block, []check.Diagnostic, error) {
-	layer, err := a.readCommentLayer(ctx, file, p, opts.execution)
+	layer, err := a.readCommentLayer(ctx, file, opts.execution, func(src []byte) (*commentLayer, error) {
+		return locateComments(file, src, p)
+	})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -100,10 +113,10 @@ func (a *App) checkCommentFile(ctx context.Context, file string, p comment.Provi
 	return layer.blocks, diags, nil
 }
 
-// readCommentLayer reads a file from disk and locates its comments, counting
-// the time as extraction. It records no analyzer: the caller runs the layer's
-// analyzers over the comments it has in scope.
-func (a *App) readCommentLayer(ctx context.Context, file string, p comment.Provider, execution *checkExecution) (*commentLayer, error) {
+// readCommentLayer reads a file from disk and locates its comments with locate,
+// counting the time as extraction. It records no analyzer: the caller runs the
+// layer's analyzers over the comments it has in scope.
+func (a *App) readCommentLayer(ctx context.Context, file string, execution *checkExecution, locate func(src []byte) (*commentLayer, error)) (*commentLayer, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -112,7 +125,7 @@ func (a *App) readCommentLayer(ctx context.Context, file string, p comment.Provi
 	if err != nil {
 		return nil, fmt.Errorf("read %s: %w", DisplayName(file), err)
 	}
-	layer, err := locateComments(file, src, p)
+	layer, err := locate(src)
 	if err != nil {
 		return nil, err
 	}
@@ -122,11 +135,20 @@ func (a *App) readCommentLayer(ctx context.Context, file string, p comment.Provi
 	return layer, nil
 }
 
-// locateComments reads a file's bytes through its language provider into
-// blocks and gives the layer its analyzers. The formatter compares the file
-// here and never writes it.
+// locateComments reads a file's bytes through its comment provider into blocks
+// and gives the layer its analyzers. The formatter compares the file here and
+// never writes it.
 func locateComments(file string, src []byte, p comment.Provider) (*commentLayer, error) {
 	located, err := p.Locate(file, src)
+	if errors.Is(err, comment.ErrUnlocated) {
+		// The provider read the file and could not place its comments exactly,
+		// so none are checked and the extraction did not run.
+		return &commentLayer{
+			lines:     map[string]format.LineRange{},
+			analyzers: []providerAnalyzer{{id: commentsAnalyzer(p), uncheckable: err.Error()}},
+			unread:    err,
+		}, nil
+	}
 	if err != nil {
 		return nil, fmt.Errorf("locate the comments in %s: %w", DisplayName(file), err)
 	}
@@ -147,6 +169,40 @@ func locateComments(file string, src []byte, p comment.Provider) (*commentLayer,
 	return layer, nil
 }
 
+// declaredComments locates the comments of a file its format reader also reads,
+// for a recipe that declares them as content. The format supplies the comments.
+// A format that supplies none gives a layer whose comment analyzer did not run,
+// which is never a pass.
+func declaredComments(file, fmtName string, src []byte) (*commentLayer, error) {
+	p, ok := commentProviders.ForFormat(fmtName)
+	if !ok {
+		return &commentLayer{
+			lines:     map[string]format.LineRange{},
+			analyzers: []providerAnalyzer{{id: "comments." + fmtName, uncheckable: "the " + fmtName + " format supplies no comments to check"}},
+		}, nil
+	}
+	return locateComments(file, src, p)
+}
+
+// readDeclaredComments reads the comment layer of a file its format reader also
+// reads, or returns nil when the recipe does not declare the file's comments.
+func (a *App) readDeclaredComments(ctx context.Context, file, fmtName string, opts checkRunOptions) (*commentLayer, error) {
+	if !opts.formats.commentsFor(file) {
+		return nil, nil
+	}
+	name := fmtName
+	if name == "" {
+		id, err := a.FormatReg.Detect(file, registry.DetectOptions{ExtensionOnly: true})
+		if err != nil {
+			return nil, fmt.Errorf("detect format for %s: %w", DisplayName(file), err)
+		}
+		name = string(id)
+	}
+	return a.readCommentLayer(ctx, file, opts.execution, func(src []byte) (*commentLayer, error) {
+		return declaredComments(file, name, src)
+	})
+}
+
 // extractionAnalyzer records the comment extraction, which reports no finding
 // of its own. Its canary is the provider's canary file, located by the same
 // provider and flagged by the same hygiene checker as the real comments, so a
@@ -155,7 +211,6 @@ func extractionAnalyzer(p comment.Provider) providerAnalyzer {
 	c := p.Canary()
 	return providerAnalyzer{
 		id:       commentsAnalyzer(p),
-		run:      func(context.Context, []*model.Block) ([]check.Diagnostic, error) { return nil, nil },
 		canaries: []check.Canary{{Name: c.Name, Block: check.CanaryBlock(string(c.Source)), Expect: "doubled-word"}},
 		probe: func(ctx context.Context, b *model.Block) ([]check.Finding, error) {
 			located, err := p.Locate("canary", []byte(model.RunsText(b.SourceRuns())))
@@ -185,11 +240,7 @@ func formatterAnalyzer(file string, src []byte, located *comment.File, blocks []
 	id := check.RuleID(formatterCheck, f.FormatterName())
 	disagreements, err := f.Disagreements(file, src, located)
 	if err != nil {
-		return providerAnalyzer{
-			id:          id,
-			run:         func(context.Context, []*model.Block) ([]check.Diagnostic, error) { return nil, nil },
-			uncheckable: f.FormatterName() + " could not compare " + DisplayName(file) + ": " + err.Error(),
-		}
+		return providerAnalyzer{id: id, uncheckable: f.FormatterName() + " could not compare " + DisplayName(file) + ": " + err.Error()}
 	}
 	return providerAnalyzer{
 		id: id,
@@ -236,13 +287,16 @@ func formatterAnalyzer(file string, src []byte, located *comment.File, blocks []
 }
 
 // readSourceForCheck reads a unit's source for the source-side checks: through
-// its format reader, or through its language's comment provider when the
-// comments are all a check can read in it. A comment layer's analyzers run over
-// every comment, and only they carry diagnostics.
+// its format reader, through its language's comment provider when the comments
+// are all a check can read in it, or through both when the recipe declares the
+// comments of a file a reader parses. A comment layer's analyzers run over every
+// comment, and only they carry diagnostics.
 func (a *App) readSourceForCheck(ctx context.Context, u VerifyUnit, execution *checkExecution) ([]*model.Block, []check.Diagnostic, error) {
 	name, _ := a.unitFormat(u.SourceFormat, u.SourceConfig)
 	if p, ok := a.commentLayerFor(u.SourcePath, name); ok {
-		layer, err := a.readCommentLayer(ctx, u.SourcePath, p, execution)
+		layer, err := a.readCommentLayer(ctx, u.SourcePath, execution, func(src []byte) (*commentLayer, error) {
+			return locateComments(u.SourcePath, src, p)
+		})
 		if err != nil {
 			return nil, nil, err
 		}
@@ -252,8 +306,34 @@ func (a *App) readSourceForCheck(ctx context.Context, u VerifyUnit, execution *c
 		}
 		return layer.blocks, diags, nil
 	}
-	blocks, err := a.readSource(ctx, u)
-	return blocks, nil, err
+	var blocks []*model.Block
+	if !u.OnlyComments {
+		var err error
+		if blocks, err = a.readSource(ctx, u); err != nil {
+			return nil, nil, err
+		}
+	}
+	if !u.Comments {
+		return blocks, nil, nil
+	}
+	if name == "" {
+		id, err := a.FormatReg.Detect(u.SourcePath, registry.DetectOptions{ExtensionOnly: true})
+		if err != nil {
+			return nil, nil, fmt.Errorf("detect format for %s: %w", DisplayName(u.SourcePath), err)
+		}
+		name = string(id)
+	}
+	layer, err := a.readCommentLayer(ctx, u.SourcePath, execution, func(src []byte) (*commentLayer, error) {
+		return declaredComments(u.SourcePath, name, src)
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+	diags, err := recordProviderAnalyzers(ctx, layer.analyzers, layer.blocks, u.SourcePath, execution)
+	if err != nil {
+		return nil, nil, err
+	}
+	return append(blocks, layer.blocks...), diags, nil
 }
 
 // applyFormatterGate fails a report in which a formatter would rewrite a checked

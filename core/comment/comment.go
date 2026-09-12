@@ -14,9 +14,16 @@
 package comment
 
 import (
+	"errors"
+
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 )
+
+// ErrUnlocated is wrapped by a provider that read a file and could not place
+// its comments exactly. The comments are not reported, rather than reported at
+// a position that might be wrong.
+var ErrUnlocated = errors.New("comments could not be located")
 
 // Style is the comment syntax a comment was written in.
 type Style string

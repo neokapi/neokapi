@@ -20,7 +20,8 @@ type providerAnalyzer struct {
 	// Nothing runs, and the report lists the analyzer as unsupported.
 	unsupported string
 	// run reports the analyzer's findings on blocks, the file's blocks in scope.
-	// A diagnostic names its block, and the recorder names the file.
+	// A diagnostic names its block, and the recorder names the file. A nil run
+	// reports nothing.
 	run func(ctx context.Context, blocks []*model.Block) ([]check.Diagnostic, error)
 	// canaries are the known-bad inputs probe must report, each evaluated by the
 	// same analysis run applies. With none, the analyzer did not run, and
@@ -43,9 +44,12 @@ func recordProviderAnalyzers(ctx context.Context, analyzers []providerAnalyzer, 
 			continue
 		}
 		start := time.Now()
-		found, err := an.run(ctx, blocks)
-		if err != nil {
-			return nil, fmt.Errorf("%s %s: %w", an.id, DisplayName(file), err)
+		var found []check.Diagnostic
+		if an.run != nil {
+			var err error
+			if found, err = an.run(ctx, blocks); err != nil {
+				return nil, fmt.Errorf("%s %s: %w", an.id, DisplayName(file), err)
+			}
 		}
 		for i := range found {
 			found[i].Location.File = DisplayName(file)
