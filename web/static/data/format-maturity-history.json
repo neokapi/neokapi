@@ -280,5 +280,99 @@
         }
       }
     }
+  },
+  {
+    "date": "2026-09-12",
+    "total": 37,
+    "by_level": {
+      "L0": 7,
+      "L1": 10,
+      "L2": 13,
+      "L3": 7,
+      "L4": 0
+    },
+    "by_axis": {
+      "engine": {
+        "L0": 7,
+        "L1": 10,
+        "L2": 13,
+        "L3": 7,
+        "L4": 0
+      },
+      "vocabulary": {
+        "V0": 32,
+        "V1": 5,
+        "V2": 0,
+        "V3": 0
+      },
+      "editor": {
+        "E0": 34,
+        "E1": 3,
+        "E2": 0,
+        "E3": 0,
+        "E4": 0
+      },
+      "knowledge": {
+        "K0": 8,
+        "K1": 16,
+        "K2": 13,
+        "K3": 0
+      },
+      "corpus": {
+        "C0": 23,
+        "C1": 14,
+        "C2": 0,
+        "C3": 0
+      },
+      "security": {
+        "S0": 7,
+        "S1": 26,
+        "S2": 4,
+        "S3": 0,
+        "S4": 0
+      },
+      "structure": {
+        "G0": 23,
+        "G1": 1,
+        "G2": 6,
+        "G3": 4,
+        "G4": 3
+      }
+    },
+    "golden_passed": true,
+    "moves": {
+      "published": 0,
+      "suppressed": 0,
+      "by_axis": {
+        "engine": {
+          "published": 0,
+          "suppressed": 0
+        },
+        "vocabulary": {
+          "published": 0,
+          "suppressed": 0
+        },
+        "editor": {
+          "published": 0,
+          "suppressed": 0
+        },
+        "knowledge": {
+          "published": 0,
+          "suppressed": 0
+        },
+        "corpus": {
+          "published": 0,
+          "suppressed": 0
+        },
+        "security": {
+          "published": 0,
+          "suppressed": 0
+        },
+        "structure": {
+          "published": 0,
+          "suppressed": 0
+        }
+      }
+    }
   }
 ]

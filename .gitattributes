@@ -1,2 +1,5 @@
 # Collapse recorded lab evidence in code review.
 web/src/pages/content-lab/_evidence.json linguist-generated=true
+
+# Captured diff output: CRLF content lines are part of what the parser is tested on.
+core/diffscope/testdata/*.diff -text

@@ -27,7 +27,10 @@ style:
   sentence_length: medium
   person_pov: second
   contractions: sometimes
-  prohibited_patterns:
+  # A channel that sets style: replaces this whole block, so each channel below
+  # repeats these patterns by reference. Without that, exclamation and
+  # superlatives would be checked on the default point and nowhere else.
+  prohibited_patterns: &house-patterns
     # Storefront copy drifts into exclamation under promotional pressure. The
     # register is the same whether a page is selling or explaining.
     - regex: '!(?:\s|$)'
@@ -79,6 +82,7 @@ channels:
     style:
       person_pov: second
       contractions: sometimes
+      prohibited_patterns: *house-patterns
   # A published record: an API page or a release note is read for a fact, not
   # followed as a procedure.
   reference:
@@ -89,11 +93,13 @@ channels:
       person_pov: third
       contractions: never
       sentence_length: short
+      prohibited_patterns: *house-patterns
   # Interface strings are read mid-task, in a narrow column.
   store:
     style:
       sentence_length: short
       contractions: sometimes
+      prohibited_patterns: *house-patterns
   # Binding text. Changed only on purpose, and never softened.
   legal:
     tone:
@@ -102,6 +108,7 @@ channels:
     style:
       contractions: never
       person_pov: third
+      prohibited_patterns: *house-patterns
   # Campaign material is warmer, and still not promotional.
   marketing:
     tone:
@@ -109,3 +116,4 @@ channels:
       personality: [plain, specific, warm]
     style:
       contractions: sometimes
+      prohibited_patterns: *house-patterns
