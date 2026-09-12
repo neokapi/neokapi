@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/encoding"
@@ -63,8 +64,14 @@ type verifyGateResult struct {
 	Execution *check.Execution `json:"execution,omitempty"`
 	Gate      string           `json:"gate"`
 	Pass      bool             `json:"pass"`
-	Findings  []verifyFinding  `json:"findings"`
-	Coverage  *verifyCoverage  `json:"coverage,omitempty"`
+	// Verdict is passed, failed or did_not_run, decided by check.Report.Decide
+	// from the gate's coverage, its outcome and its analyzers' canaries. Pass is
+	// true exactly when it is passed.
+	Verdict        check.Verdict   `json:"verdict"`
+	DidNotRun      []string        `json:"did_not_run,omitempty"`
+	DidNotRunCause string          `json:"did_not_run_cause,omitempty"`
+	Findings       []verifyFinding `json:"findings"`
+	Coverage       *verifyCoverage `json:"coverage,omitempty"`
 }
 
 // verifyCoverage counts files and blocks actually inspected by a content gate.
@@ -76,19 +83,26 @@ type verifyCoverage struct {
 
 // verifySummary carries the aggregate counts for a verify run.
 type verifySummary struct {
-	Gates    int `json:"gates"`
-	Passed   int `json:"passed"`
-	Failed   int `json:"failed"`
-	Findings int `json:"findings"`
-	Errors   int `json:"errors"`   // findings with severity "error"
-	Warnings int `json:"warnings"` // findings with severity "warning"
+	Gates     int `json:"gates"`
+	Passed    int `json:"passed"`
+	Failed    int `json:"failed"`
+	DidNotRun int `json:"did_not_run"`
+	Findings  int `json:"findings"`
+	Errors    int `json:"errors"`   // findings with severity "error"
+	Warnings  int `json:"warnings"` // findings with severity "warning"
 }
 
 // verifyOutput is the single structured result of a project-gates run.
 type verifyOutput struct {
-	Pass    bool               `json:"pass"`
-	Gates   []verifyGateResult `json:"gates"`
-	Summary verifySummary      `json:"summary"`
+	Pass bool `json:"pass"`
+	// Verdict is the run's outcome across its gates: did_not_run when a checker
+	// missed its canary anywhere, failed when a gate failed, did_not_run when a
+	// gate had nothing it could check, and passed otherwise.
+	Verdict        check.Verdict      `json:"verdict"`
+	DidNotRun      []string           `json:"did_not_run,omitempty"`
+	DidNotRunCause string             `json:"did_not_run_cause,omitempty"`
+	Gates          []verifyGateResult `json:"gates"`
+	Summary        verifySummary      `json:"summary"`
 }
 
 // FormatText renders the verify result as a human-readable summary,
@@ -98,11 +112,13 @@ func (o verifyOutput) FormatText(w io.Writer) error {
 	gs := gates.Styles()
 	for _, g := range o.Gates {
 		result := gs.Success.Render("PASS")
-		if !g.Pass {
+		switch {
+		case g.Verdict == check.VerdictDidNotRun && g.DidNotRunCause == check.CauseCheckerInvalid:
+			result = gs.Error.Render("DID NOT RUN")
+		case g.Verdict == check.VerdictDidNotRun:
+			result = gs.Warn.Render("DID NOT RUN")
+		case !g.Pass:
 			result = gs.Error.Render("FAIL")
-		}
-		if g.Pass && g.Coverage != nil && g.Coverage.Blocks == 0 {
-			result = gs.Muted.Render("NO CONTENT")
 		}
 		coverage := ""
 		if g.Coverage != nil {
@@ -145,12 +161,27 @@ func (o verifyOutput) FormatText(w io.Writer) error {
 	}
 	fmt.Fprintln(w)
 	verdict := gs.Success.Render("PASS")
-	if !o.Pass {
+	switch o.Verdict {
+	case check.VerdictFailed:
 		verdict = gs.Error.Render("FAIL")
+	case check.VerdictDidNotRun:
+		verdict = gs.Warn.Render("DID NOT RUN")
 	}
-	fmt.Fprintf(w, "%s: %d gate(s), %d passed, %d failed, %d finding(s) (%d error, %d warning)\n",
-		verdict, o.Summary.Gates, o.Summary.Passed, o.Summary.Failed,
+	fmt.Fprintf(w, "%s: %d gate(s), %d passed, %d failed, %d did not run, %d finding(s) (%d error, %d warning)\n",
+		verdict, o.Summary.Gates, o.Summary.Passed, o.Summary.Failed, o.Summary.DidNotRun,
 		o.Summary.Findings, o.Summary.Errors, o.Summary.Warnings)
+	if o.Verdict == check.VerdictDidNotRun {
+		// The causes share an exit code, so the sentence is what tells a broken
+		// checker from a gate with nothing to check.
+		sentence := gs.Warn.Render("Did not run: " + check.CauseSummary(o.DidNotRunCause) + ".")
+		if o.DidNotRunCause == check.CauseCheckerInvalid {
+			sentence = gs.Error.Render("Did not run: " + check.CauseSummary(o.DidNotRunCause) + ".")
+		}
+		fmt.Fprintf(w, "  %s (%s)\n", sentence, o.DidNotRunCause)
+		for _, reason := range o.DidNotRun {
+			fmt.Fprintf(w, "  did not run: %s\n", reason)
+		}
+	}
 	return nil
 }
 
@@ -245,7 +276,8 @@ func resolveGateSelection(cmd Command) (gateSelection, error) {
 }
 
 // RunVerify orchestrates the verify gates, emits the structured result, and
-// maps the verdict to an exit code (0 pass, 3 gate fail, unless --no-fail).
+// maps the verdict to an exit code: 0 passed, 3 failed unless --no-fail, and 4
+// did not run whatever the flags say.
 func (a *App) RunVerify(cmd Command, args []string) error {
 	out, err := a.computeVerify(cmd, args)
 	if err != nil {
@@ -254,7 +286,12 @@ func (a *App) RunVerify(cmd Command, args []string) error {
 	if err := output.Print(cmd, out); err != nil {
 		return err
 	}
-	if !out.Pass {
+	switch out.Verdict {
+	case check.VerdictDidNotRun:
+		// --no-fail governs what findings do to the exit code. A run that did not
+		// run has none to read, and exit 0 would report it as clean.
+		return fmt.Errorf("%w: %s (%s): %s", ErrCheckNotRun, check.CauseSummary(out.DidNotRunCause), out.DidNotRunCause, strings.Join(out.DidNotRun, "; "))
+	case check.VerdictFailed:
 		// Report mode: an assistant looping on verify reads `pass`/findings from the
 		// output and fixes them — a not-yet-passing gate is expected feedback, not a
 		// failure, so don't exit non-zero (which a shell or `set -e` treats as error).
@@ -533,17 +570,20 @@ func (a *App) verifyShip(cmd Command, proj *project.KapiProject, root string, un
 // buildVerifyOutput aggregates per-gate results into the final structured
 // output, computing the overall pass/fail and summary counts.
 func buildVerifyOutput(gates []verifyGateResult) verifyOutput {
-	out := verifyOutput{Pass: true, Gates: gates}
+	out := verifyOutput{Gates: gates}
 	out.Summary.Gates = len(gates)
 	for i := range out.Gates {
 		sortFindings(out.Gates[i].Findings)
+		decideGate(&out.Gates[i])
 	}
-	for _, g := range gates {
-		if g.Pass {
+	for _, g := range out.Gates {
+		switch g.Verdict {
+		case check.VerdictPassed:
 			out.Summary.Passed++
-		} else {
+		case check.VerdictFailed:
 			out.Summary.Failed++
-			out.Pass = false
+		case check.VerdictDidNotRun:
+			out.Summary.DidNotRun++
 		}
 		for _, f := range g.Findings {
 			out.Summary.Findings++
@@ -558,19 +598,100 @@ func buildVerifyOutput(gates []verifyGateResult) verifyOutput {
 	if out.Gates == nil {
 		out.Gates = []verifyGateResult{}
 	}
+	decideVerifyOutput(&out)
 	return out
 }
 
-// unboundGate returns a failing gate result for a gate the user explicitly
-// named whose required project binding is missing. Surfacing it as a failure —
-// rather than silently skipping — means a CI user learns the gate is
-// misconfigured instead of seeing a false pass. The verdict is a normal gate
-// failure, so --no-fail still downgrades it to report-only (exit 0).
+// decideGate settles one gate's verdict. A gate that measured content (it
+// reports coverage or analyzer runs) is judged by check.Report.Decide, the rule
+// every kapi.check/v1 report follows: a missed canary makes it did_not_run, a
+// failure fails it, and no blocks, or no analyzer that showed it can fail,
+// leaves it did_not_run. A gate that measures something other than content
+// (ship coverage, source readiness, staleness) keeps its pass or fail. A gate
+// that already says it did not run keeps that.
+func decideGate(g *verifyGateResult) {
+	switch {
+	case g.Verdict == check.VerdictDidNotRun:
+	case g.Coverage == nil && g.Execution == nil:
+		g.Verdict = check.VerdictFailed
+		if g.Pass {
+			g.Verdict = check.VerdictPassed
+		}
+	default:
+		r := check.Report{Execution: g.Execution, Target: check.Target{Blocks: 1}}
+		if g.Coverage != nil {
+			r.Target.Blocks = g.Coverage.Blocks
+		}
+		if !g.Pass {
+			r.Gate.Failed = []string{g.Gate + " gate failed"}
+		}
+		r.Decide()
+		g.Verdict, g.DidNotRun, g.DidNotRunCause = r.Verdict, r.DidNotRun, r.DidNotRunCause
+	}
+	g.Pass = g.Verdict == check.VerdictPassed
+}
+
+// decideVerifyOutput settles the run's verdict from its gates, in the order
+// Decide uses for one report: a missed canary in any gate makes the run
+// did_not_run, then any failed gate fails it, then any gate that did not run,
+// or no gate at all, leaves it did_not_run.
+func decideVerifyOutput(out *verifyOutput) {
+	var invalid, notRun []string
+	cause := ""
+	for _, g := range out.Gates {
+		if g.Verdict != check.VerdictDidNotRun {
+			continue
+		}
+		for _, reason := range g.DidNotRun {
+			if g.DidNotRunCause == check.CauseCheckerInvalid {
+				invalid = append(invalid, g.Gate+": "+reason)
+			} else {
+				notRun = append(notRun, g.Gate+": "+reason)
+			}
+		}
+		if cause == "" || g.DidNotRunCause == check.CauseContentNotChecked {
+			cause = g.DidNotRunCause
+		}
+	}
+	switch {
+	case len(invalid) > 0:
+		out.Verdict, out.DidNotRunCause, out.DidNotRun = check.VerdictDidNotRun, check.CauseCheckerInvalid, invalid
+	case out.Summary.Failed > 0:
+		out.Verdict, out.DidNotRunCause, out.DidNotRun = check.VerdictFailed, "", nil
+	case out.Summary.DidNotRun > 0:
+		out.Verdict, out.DidNotRunCause, out.DidNotRun = check.VerdictDidNotRun, cause, notRun
+	case len(out.Gates) == 0:
+		out.Verdict, out.DidNotRunCause, out.DidNotRun = check.VerdictDidNotRun, check.CauseNothingToCheck, []string{"no gate ran"}
+	default:
+		out.Verdict, out.DidNotRunCause, out.DidNotRun = check.VerdictPassed, "", nil
+	}
+	out.Pass = out.Verdict == check.VerdictPassed
+}
+
+// addExecution folds analyzer runs recorded for a gate into its result.
+func (g *verifyGateResult) addExecution(e *checkExecution) {
+	if len(e.Analyzers) == 0 {
+		return
+	}
+	if g.Execution == nil {
+		g.Execution = &check.Execution{Analyzers: []check.AnalyzerExecution{}}
+	}
+	g.Execution.Analyzers = append(g.Execution.Analyzers, e.Analyzers...)
+	g.Execution.Timings.AnalyzersMS += e.Timings.AnalyzersMS
+}
+
+// unboundGate returns the result for a gate the user explicitly named whose
+// required project binding is missing. The gate has nothing to check, so it did
+// not run: a CI user learns the gate is misconfigured instead of seeing a false
+// pass, and --no-fail does not turn that into exit 0.
 func unboundGate(gate, binding string) verifyGateResult {
 	flag := "--" + gateFlagName + " " + gate
 	return verifyGateResult{
-		Gate: gate,
-		Pass: false,
+		Gate:           gate,
+		Pass:           false,
+		Verdict:        check.VerdictDidNotRun,
+		DidNotRunCause: check.CauseContentNotChecked,
+		DidNotRun:      []string{fmt.Sprintf("%s was requested but the project binds no %s", flag, binding)},
 		Findings: []verifyFinding{{
 			Gate:       gate,
 			Severity:   "error",
@@ -643,7 +764,8 @@ func (a *App) verifyVoice(cmd Command, proj *project.KapiProject, root string, a
 		return nil, err
 	}
 
-	gate := verifyGateResult{Gate: gateVoice, Pass: true, Findings: []verifyFinding{}}
+	gate := verifyGateResult{Gate: gateVoice, Pass: true, Findings: []verifyFinding{}, Coverage: &verifyCoverage{}}
+	execution := newCheckExecution()
 	ctx := CmdContext(cmd)
 
 	// The vocabulary the project decided, enforced beside the profile's lists
@@ -715,6 +837,9 @@ func (a *App) verifyVoice(cmd Command, proj *project.KapiProject, root string, a
 			display = rel
 		}
 		vocab := coretools.NewVoiceVocabCheckTool(profile, tb).InSourceLocale(model.LocaleID(a.SourceLocale()))
+		gate.Coverage.Files++
+		gate.Coverage.Blocks += len(blocks)
+		start, before := time.Now(), len(gate.Findings)
 		for _, b := range blocks {
 			findings, verr := runVoiceVocabOnBlock(ctx, vocab, b)
 			if verr != nil {
@@ -734,7 +859,13 @@ func (a *App) verifyVoice(cmd Command, proj *project.KapiProject, root string, a
 			gate.Findings = append(gate.Findings, voiceFindingToVerify(display, "", fd))
 		}
 		allFindings = append(allFindings, docFindings...)
+		canary, cerr := probeVoiceRules(ctx, vocab, profile)
+		if cerr != nil {
+			return nil, fmt.Errorf("voice: %s: %w", f, cerr)
+		}
+		execution.completed("voice.rules", display, len(gate.Findings)-before, start, canary, false)
 	}
+	gate.addExecution(execution)
 
 	a.warnUnreadableFormats(cmd, sortedFormatSet(noReader))
 
@@ -1111,6 +1242,7 @@ func expandTargetTemplate(itemPath, base, tmpl, sourceRel, locale, root, localeF
 func (a *App) verifyTerminology(cmd Command, units []VerifyUnit) (verifyGateResult, error) {
 	ctx := CmdContext(cmd)
 	gate := verifyGateResult{Gate: gateTerms, Pass: true, Findings: []verifyFinding{}, Coverage: &verifyCoverage{}}
+	execution := newCheckExecution()
 	vocab, err := a.newCheckTerms(cmd)
 	if err != nil {
 		return gate, err
@@ -1139,7 +1271,7 @@ func (a *App) verifyTerminology(cmd Command, units []VerifyUnit) (verifyGateResu
 
 	for _, u := range units {
 		if u.TargetPath == "" {
-			if err := a.verifySourceTerminology(ctx, vocab, u, &gate); err != nil {
+			if err := a.verifySourceTerminology(ctx, vocab, u, &gate, execution); err != nil {
 				return gate, err
 			}
 			continue
@@ -1172,6 +1304,7 @@ func (a *App) verifyTerminology(cmd Command, units []VerifyUnit) (verifyGateResu
 			TargetLocale: model.LocaleID(u.Locale),
 		}
 		tc := coretools.NewTermCheckTool(cfg)
+		start, before := time.Now(), len(gate.Findings)
 		for _, b := range blocks {
 			if cerr := RunCheckTool(ctx, tc, b); cerr != nil {
 				return gate, fmt.Errorf("terminology gate %s (%s): %w", u.DisplayPath, u.Locale, cerr)
@@ -1204,8 +1337,34 @@ func (a *App) verifyTerminology(cmd Command, units []VerifyUnit) (verifyGateResu
 				}
 			}
 		}
+		canaries, uncheckable := coretools.TermCheckCanaries(cfg)
+		canary, cerr := check.Probe(canaries, uncheckable, func(b *model.Block) ([]check.Finding, error) {
+			if err := RunCheckTool(ctx, tc, b); err != nil {
+				return nil, err
+			}
+			return termCheckFindings(b), nil
+		})
+		if cerr != nil {
+			return gate, fmt.Errorf("terminology gate %s (%s): %w", u.DisplayPath, u.Locale, cerr)
+		}
+		execution.completed("terms.target", u.DisplayPath, len(gate.Findings)-before, start, canary, false)
 	}
+	gate.addExecution(execution)
 	return gate, nil
+}
+
+// termCheckFindings reads the violations the term-check tool recorded on a
+// block's properties.
+func termCheckFindings(b *model.Block) []check.Finding {
+	var out []check.Finding
+	for _, prop := range []string{coretools.PropTermCheckErrors, coretools.PropTermCheckWarnings} {
+		for m := range strings.SplitSeq(b.Properties[prop], "; ") {
+			if strings.TrimSpace(m) != "" {
+				out = append(out, check.Finding{Category: "terminology", Message: m})
+			}
+		}
+	}
+	return out
 }
 
 // unitGovernancePoint is the point a verify unit's SOURCE file sits at — the
@@ -1235,6 +1394,7 @@ func (a *App) unitGovernancePoint(root string, u VerifyUnit) project.GovernanceP
 func (a *App) verifyChecks(cmd Command, proj *project.KapiProject, root string, units []VerifyUnit) (verifyGateResult, error) {
 	ctx := CmdContext(cmd)
 	gate := verifyGateResult{Gate: gateChecks, Pass: true, Findings: []verifyFinding{}, Coverage: &verifyCoverage{}}
+	execution := newCheckExecution()
 
 	// Whether a target identical to its source is a defect is settled by the
 	// project's terms and its committed decisions — the same rule the loop's
@@ -1292,6 +1452,7 @@ func (a *App) verifyChecks(cmd Command, proj *project.KapiProject, root string, 
 		// placeholder check is additive.
 		cfg.CheckPlaceholders = true
 		checker := coretools.NewRuleCheckTool(cfg)
+		start, before := time.Now(), len(gate.Findings)
 		for _, b := range blocks {
 			if cerr := RunCheckTool(ctx, checker, b); cerr != nil {
 				return gate, fmt.Errorf("checks gate %s (%s): %w", u.DisplayPath, u.Locale, cerr)
@@ -1318,7 +1479,14 @@ func (a *App) verifyChecks(cmd Command, proj *project.KapiProject, root string, 
 				}
 			}
 		}
+		canaries, uncheckable := coretools.RuleCheckCanaries(cfg)
+		canary, cerr := probeTool(ctx, checker, canaries, uncheckable)
+		if cerr != nil {
+			return gate, fmt.Errorf("checks gate %s (%s): %w", u.DisplayPath, u.Locale, cerr)
+		}
+		execution.completed("checks.target", u.DisplayPath, len(gate.Findings)-before, start, canary, true)
 	}
+	gate.addExecution(execution)
 	return gate, nil
 }
 

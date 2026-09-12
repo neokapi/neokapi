@@ -197,11 +197,16 @@ func TestVerifySourceOnlyHonorsReaderConfig(t *testing.T) {
 	}
 }
 
-func TestVerifyEmptyScopeReportsNoContent(t *testing.T) {
+func TestVerifyEmptyScopeDidNotRun(t *testing.T) {
 	out := buildVerifyOutput([]verifyGateResult{{Gate: gateChecks, Pass: true, Coverage: &verifyCoverage{}}})
+	assert.False(t, out.Pass)
+	assert.Equal(t, check.VerdictDidNotRun, out.Verdict)
+	assert.Equal(t, check.CauseNothingToCheck, out.DidNotRunCause)
 	var buf bytes.Buffer
 	require.NoError(t, out.FormatText(&buf))
-	assert.Contains(t, buf.String(), "NO CONTENT")
+	assert.Contains(t, buf.String(), "DID NOT RUN")
+	assert.Contains(t, buf.String(), "Did not run: there was nothing in scope to check. (nothing_to_check)")
+	assert.NotContains(t, buf.String(), "PASS")
 }
 
 func TestVerifySourceTerminologyUsesCollectionScope(t *testing.T) {

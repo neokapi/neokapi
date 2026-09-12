@@ -157,3 +157,23 @@ func containsTerm(text, term string, caseSensitive bool) bool {
 	}
 	return strings.Contains(strings.ToLower(text), strings.ToLower(term))
 }
+
+// TermCheckCanaries is the known-bad input the term-check tool must flag under
+// cfg: a block whose source holds the first rule's term and whose target lacks
+// its required translation. With no rule that names one there is nothing to
+// catch, and uncheckable says so.
+func TermCheckCanaries(cfg *TermCheckConfig) ([]check.Canary, string) {
+	for _, rule := range cfg.TermRules {
+		if strings.TrimSpace(rule.Term) == "" || rule.Replacement == "" {
+			continue
+		}
+		target := "0"
+		if containsTerm(target, rule.Replacement, cfg.CaseSensitive) {
+			target = "1"
+		}
+		b := check.CanaryBlock(rule.Term)
+		b.SetTargetText(cfg.TargetLocale, target)
+		return []check.Canary{{Name: fmt.Sprintf("term %q without %q", rule.Term, rule.Replacement), Block: b}}, ""
+	}
+	return nil, "no term rule names a required translation"
+}

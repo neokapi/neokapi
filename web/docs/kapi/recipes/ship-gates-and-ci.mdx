@@ -44,10 +44,12 @@ The assistant reads `kapi status --json`, runs `kapi up` for what a machine can 
 `kapi check --ship` runs the project's bound quality gates plus its ship/source coverage gates; with no file arguments it inspects the project's content across every target language:
 
 ```bash
-kapi check --ship                 # the pre-release bar: exit 0 pass, 3 gate fail
+kapi check --ship                 # the pre-release bar: exit 0 pass, 3 gate fail, 4 did not run
 kapi check --ship --locale de     # scope the target-side gates to one locale
 kapi check --ship --json          # structured result for a job summary
 ```
+
+A gate that finds no content to check, or whose checks could not show they flag a known problem, did not run. It reports `did_not_run` with a `did_not_run_cause` and exits `4`, even with `--no-fail`, so an empty scope never reads as a passing release.
 
 In GitHub Actions, install the CLI with the companion [`setup-kapi`](https://github.com/neokapi/setup-kapi) action and run the gate:
 
@@ -63,7 +65,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: neokapi/setup-kapi@v1
       # Exits 3 (failing the job) when a voice, terminology, check,
-      # staleness or coverage gate is unmet.
+      # staleness or coverage gate is unmet, and 4 when a gate did not run.
       - run: kapi check --ship
 ```
 

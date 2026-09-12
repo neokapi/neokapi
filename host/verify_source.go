@@ -133,7 +133,7 @@ func (a *App) verifySourceChecks(ctx context.Context, cmd Command, u VerifyUnit,
 
 // Source terminology judges each occurrence in its own language using the same
 // scoped vocabulary matcher as file checks. No synthetic target is introduced.
-func (a *App) verifySourceTerminology(ctx context.Context, vocab *checkTerms, u VerifyUnit, gate *verifyGateResult) error {
+func (a *App) verifySourceTerminology(ctx context.Context, vocab *checkTerms, u VerifyUnit, gate *verifyGateResult, execution *checkExecution) error {
 	store, err := vocab.forFile(ctx, u.SourcePath)
 	if err != nil {
 		return err
@@ -148,6 +148,7 @@ func (a *App) verifySourceTerminology(ctx context.Context, vocab *checkTerms, u 
 	checker := coretools.NewVoiceVocabCheckTool(nil, store).InSourceLocale(model.LocaleID(a.SourceLocale()))
 	gate.Coverage.Files++
 	gate.Coverage.Blocks += len(blocks)
+	start, before := time.Now(), len(gate.Findings)
 	for _, b := range blocks {
 		findings, err := runVoiceVocabOnBlock(ctx, checker, b)
 		if err != nil {
@@ -163,5 +164,10 @@ func (a *App) verifySourceTerminology(ctx context.Context, vocab *checkTerms, u 
 			gate.Findings = append(gate.Findings, finding)
 		}
 	}
+	canary, err := probeVoiceRules(ctx, checker, nil)
+	if err != nil {
+		return fmt.Errorf("source terminology %s: %w", u.DisplayPath, err)
+	}
+	execution.completed("terms.source", u.DisplayPath, len(gate.Findings)-before, start, canary, false)
 	return nil
 }

@@ -186,11 +186,15 @@ together: voice and terms, source content checks, translation checks for target
 content, and any declared coverage requirements. It reports the findings:
 
 ```bash
-kapi check --ship --json --no-fail         # report: read `pass` + findings; always exits 0
+kapi check --ship --json --no-fail         # report: read `verdict` + findings
 ```
 
-Exit 3 means a gate failed. With `--no-fail`, the command exits 0 and the `pass`
-field carries the verdict; omit that flag when CI must enforce the release bar.
+Exit 3 means a gate failed. With `--no-fail`, a failed gate exits 0 and the
+`verdict` field carries it; omit that flag when CI must enforce the release bar.
+Exit 4 means a gate did not run, with or without `--no-fail`: read
+`did_not_run_cause` before continuing. `checker_invalid` means a checker is
+broken and the run cannot be trusted; `nothing_to_check` and
+`content_not_checked` mean some content was never checked.
 Correct findings within the requested scope and re-check. If a finding persists
 or conflicts with the governing guidance, report it for review. A passing gate
 establishes its declared checks; meaning and unsupported writing guidance still

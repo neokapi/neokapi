@@ -100,12 +100,15 @@ A failing gate exits non-zero and fails the job.
 | ---- | ---------------------------------------------------------------------- |
 | `0`  | Pass: every bound gate passed                                          |
 | `3`  | A gate failed                                                          |
+| `4`  | A gate did not run: it had no content to check, or a checker failed    |
 | `1`  | Operational error (project not found, unreadable file, …)             |
 
 Exit `3` means "not on-spec yet", not a crash: read the findings and fix them.
-Pass `--no-fail` to always exit `0` (report mode), useful inside an assistant
-fix-loop that reads the findings from the output and re-runs; omit it for CI
-gating, where the non-zero exit is the point.
+Pass `--no-fail` to exit `0` for a failed gate (report mode), useful inside an
+assistant fix-loop that reads the findings from the output and re-runs; omit it
+for CI gating, where the non-zero exit is the point. Exit `4` is never a pass
+and `--no-fail` does not change it: the result's `did_not_run_cause` says
+whether a checker is broken or the gate had nothing to check.
 
 Add `--json` to feed the structured findings to another tool:
 
