@@ -324,10 +324,18 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 	if err != nil {
 		return fmt.Errorf("resolve content: %w", err)
 	}
+	// A file declared for its comments alone is checked, and has nothing a
+	// convergence run could read, translate or write back.
 	var sources []string
+	kept := resolved[:0]
 	for _, rf := range resolved {
+		if rf.CommentsOnly() {
+			continue
+		}
+		kept = append(kept, rf)
 		sources = append(sources, rf.Path)
 	}
+	resolved = kept
 	if len(sources) == 0 {
 		return errors.New("no content to catch up (add content patterns to the project)")
 	}

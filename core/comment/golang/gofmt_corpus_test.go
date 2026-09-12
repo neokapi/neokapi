@@ -25,7 +25,7 @@ func TestGofmtCorpusAgreesWithTrackedFiles(t *testing.T) {
 	require.NoError(t, err)
 
 	checked, withComments := 0, 0
-	for _, rel := range strings.Split(strings.TrimRight(string(listing), "\x00"), "\x00") {
+	for rel := range strings.SplitSeq(strings.TrimRight(string(listing), "\x00"), "\x00") {
 		if rel == "" || strings.HasPrefix(rel, ".claude/") {
 			continue
 		}

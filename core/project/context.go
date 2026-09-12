@@ -177,6 +177,13 @@ type ResolvedFile struct {
 	ItemIndex       int
 }
 
+// CommentsOnly reports a file claimed for its comments alone: its item sets
+// `comments: true` and no format reads the file. Such a file is checked, and a
+// convergence run, a flow run and source coverage leave it alone.
+func (rf ResolvedFile) CommentsOnly() bool {
+	return rf.Item != nil && rf.Item.Comments && rf.Format == ""
+}
+
 // ResolveContent matches project content patterns against the filesystem and
 // returns the resolved file list with detected formats. Ignore rules from
 // .kapiignore are applied. Patterns that escape the project root are rejected.

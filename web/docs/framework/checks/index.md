@@ -209,6 +209,11 @@ checkset):
   [voice profile](/framework/checks/voice). Optional `--voice` adds an advisory
   similarity comparison with profile examples. LLM voice review is a separate
   tool or an explicit AI voice command.
+- **Formatter agreement**: for the comments in source code, a comment the
+  language's formatter would rewrite is a `formatter.<formatter>` finding, such
+  as `formatter.gofmt`. It fails the gate whatever the severity limits allow;
+  `--lenient` reports it without failing. See
+  [Comments in source code](/kapi/recipes/verify-content#comments-in-source-code).
 
 **Bilingual checks** (opt-in, with `--target`: a translated target
 against its source):

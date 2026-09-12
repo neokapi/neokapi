@@ -137,6 +137,14 @@ collections:
   and checks but never writes back (package descriptions, installer strings);
   `kapi up` skips it and target-coverage gates exclude it. A collection that
   also names a target fails to load.
+- **Comments in code**: `comments: true` on a content item checks the comments
+  in its files as content. Go source has no format reader, so its comments are
+  what kapi reads: `kapi check` and `check --ship` check them under the item's
+  voice and terms, one block per comment named for its declaration
+  (`func/Parse`), and a comment gofmt would rewrite fails the gate as
+  `formatter.gofmt`. `kapi up` leaves the files alone. Directives, generated
+  files and the code inside doc comments are never read as prose. `kapi check
+  <file>.go` works on a single file with no recipe.
 - **Terms**: import terms into the project terms store
   (`kapi terms import terms.csv -s en -t fr`); `kapi exec term-check <file>` and
   the translation flow then enforce it with no `--termstore` flag. Rules without
