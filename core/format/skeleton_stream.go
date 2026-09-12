@@ -19,10 +19,84 @@ type RefRenderer func(block *model.Block) ([]byte, error)
 // SkeletonLang (only the HTML reader does today).
 type LangRenderer func(value string) ([]byte, error)
 
+// writeSkeletonEntry writes the bytes one skeleton entry contributes, resolving
+// a SkeletonRef through blockFor. StreamSkeletonWrite and BufferedSkeletonWrite
+// share this body, so the two paths cannot drift apart: they differ only in
+// where a ref's block comes from.
+//
+// Entry types this switch does not name (SkeletonOriginal, SkeletonTrimmed)
+// contribute nothing. A format that acts on them replays its own skeleton (see
+// the html, odf and openxml writers).
+func writeSkeletonEntry(out io.Writer, entry SkeletonEntry, blockFor func(id string) *model.Block, renderRef RefRenderer, renderLang LangRenderer) error {
+	switch entry.Type {
+	case SkeletonText:
+		_, err := out.Write(entry.Data)
+		return err
+	case SkeletonRef:
+		data, err := renderRef(blockFor(string(entry.Data)))
+		if err != nil {
+			return err
+		}
+		return writeNonEmpty(out, data)
+	case SkeletonLang:
+		if renderLang == nil {
+			_, err := out.Write(entry.Data)
+			return err
+		}
+		data, err := renderLang(string(entry.Data))
+		if err != nil {
+			return err
+		}
+		return writeNonEmpty(out, data)
+	}
+	return nil
+}
+
+// writeNonEmpty writes data, skipping the call for an empty render. A renderer
+// says "this ref contributes nothing" by returning no bytes, and a writer that
+// counts or delimits its Write calls should not see one for that.
+func writeNonEmpty(out io.Writer, data []byte) error {
+	if len(data) == 0 {
+		return nil
+	}
+	_, err := out.Write(data)
+	return err
+}
+
+// BufferedSkeletonWrite reconstructs a document from a skeleton store and a
+// resolved block map, writing to out. It is the buffered twin of
+// StreamSkeletonWrite: the caller has already drained the Part stream into
+// blocks, so a SkeletonRef resolves by map lookup rather than by pulling from
+// the stream. Both take the same RefRenderer and LangRenderer, so a writer
+// hands one renderer to both paths and the two produce identical bytes.
+//
+// A ref naming a block the map does not hold renders with a nil block, which is
+// what StreamSkeletonWrite passes when no such block arrives. renderRef is
+// required; renderLang may be nil, and a SkeletonLang entry then emits its raw
+// stored bytes.
+//
+// The store must already be readable: a file-backed store needs its Flush
+// before the first Next.
+func BufferedSkeletonWrite(store *SkeletonStore, blocks map[string]*model.Block, out io.Writer, renderRef RefRenderer, renderLang LangRenderer) error {
+	blockFor := func(id string) *model.Block { return blocks[id] }
+	for {
+		entry, err := store.Next()
+		if errors.Is(err, io.EOF) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		if err := writeSkeletonEntry(out, entry, blockFor, renderRef, renderLang); err != nil {
+			return err
+		}
+	}
+}
+
 // StreamSkeletonWrite reconstructs a document from a *streaming* skeleton store
 // (NewStreamingSkeletonStore) interleaved with the arriving Part stream, writing
-// to out. It is the bounded-memory twin of the buffered "collect every block
-// into a map, then replay the skeleton" path: instead of buffering, it pulls
+// to out. It is the bounded-memory twin of BufferedSkeletonWrite, which
+// collects every block into a map first: instead of buffering, this one pulls
 // each block referenced by a SkeletonRef from parts on demand. Because a
 // StreamingReader emits skeleton refs and their blocks in the same order, the
 // pending-block window stays small and the bytes written are identical to the
@@ -93,35 +167,8 @@ func StreamSkeletonWrite(ctx context.Context, store *SkeletonStore, parts <-chan
 		if err != nil {
 			return err
 		}
-		switch entry.Type {
-		case SkeletonText:
-			if _, err := out.Write(entry.Data); err != nil {
-				return err
-			}
-		case SkeletonRef:
-			data, err := renderRef(blockFor(string(entry.Data)))
-			if err != nil {
-				return err
-			}
-			if len(data) > 0 {
-				if _, err := out.Write(data); err != nil {
-					return err
-				}
-			}
-		case SkeletonLang:
-			if renderLang != nil {
-				data, err := renderLang(string(entry.Data))
-				if err != nil {
-					return err
-				}
-				if len(data) > 0 {
-					if _, err := out.Write(data); err != nil {
-						return err
-					}
-				}
-			} else if _, err := out.Write(entry.Data); err != nil {
-				return err
-			}
+		if err := writeSkeletonEntry(out, entry, blockFor, renderRef, renderLang); err != nil {
+			return err
 		}
 	}
 

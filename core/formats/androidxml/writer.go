@@ -2,7 +2,6 @@ package androidxml
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"strconv"
@@ -104,16 +103,10 @@ func keyFromBlock(b *model.Block) (valueKey, bool) {
 func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 	// Streaming skeleton round-trip: interleave skeleton consumption with the
 	// Part stream so the writer never buffers the whole block map. Each ref
-	// renders from the block pulled on demand — the same resolveValue the
-	// buffered writeFromSkeleton uses per ref.
+	// renders from the block pulled on demand, through the renderRef the
+	// buffered path also uses.
 	if w.skeletonStore != nil && w.skeletonStore.IsStreaming() {
-		return format.StreamSkeletonWrite(ctx, w.skeletonStore, parts, w.Output,
-			func(block *model.Block) ([]byte, error) {
-				if block == nil {
-					return nil, nil
-				}
-				return []byte(w.resolveValue(block)), nil
-			}, nil)
+		return format.StreamSkeletonWrite(ctx, w.skeletonStore, parts, w.Output, w.renderRef, nil)
 	}
 	if w.skeletonStore != nil {
 		return w.writeWithSkeletonStore(ctx, parts)
@@ -226,28 +219,18 @@ done:
 // encodeText. An untranslated roundtrip is therefore byte-exact: each ref's
 // rendered source equals the original inner bytes.
 func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block) error {
-	for {
-		entry, err := w.skeletonStore.Next()
-		if errors.Is(err, io.EOF) {
-			break
-		}
-		if err != nil {
-			return fmt.Errorf("androidxml writer: read skeleton: %w", err)
-		}
-		switch entry.Type {
-		case format.SkeletonText:
-			if _, err := w.Output.Write(entry.Data); err != nil {
-				return err
-			}
-		case format.SkeletonRef:
-			if block, ok := blocks[string(entry.Data)]; ok {
-				if _, err := io.WriteString(w.Output, w.resolveValue(block)); err != nil {
-					return err
-				}
-			}
-		}
+	return format.BufferedSkeletonWrite(w.skeletonStore, blocks, w.Output, w.renderRef, nil)
+}
+
+// renderRef returns the bytes a SkeletonRef contributes for the given block,
+// shared by the buffered (writeFromSkeleton) and streaming
+// (StreamSkeletonWrite) paths so both produce identical output. A nil block
+// contributes nothing, matching the buffered path's map miss.
+func (w *Writer) renderRef(block *model.Block) ([]byte, error) {
+	if block == nil {
+		return nil, nil
 	}
-	return nil
+	return []byte(w.resolveValue(block)), nil
 }
 
 // resolveValue returns the encoded XML element content for a Block: the target

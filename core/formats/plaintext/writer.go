@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -83,29 +82,16 @@ done:
 
 // writeFromSkeleton reads skeleton entries and fills in block content.
 func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block) error {
-	for {
-		entry, err := w.skeletonStore.Next()
-		if errors.Is(err, io.EOF) {
-			break
-		}
-		if err != nil {
-			return fmt.Errorf("plaintext writer: read skeleton: %w", err)
-		}
-		switch entry.Type {
-		case format.SkeletonText:
-			if _, err := w.Output.Write(entry.Data); err != nil {
-				return err
-			}
-		case format.SkeletonRef:
-			if block, ok := blocks[string(entry.Data)]; ok {
-				text := w.renderText(block)
-				if _, err := io.WriteString(w.Output, text); err != nil {
-					return err
-				}
-			}
-		}
+	return format.BufferedSkeletonWrite(w.skeletonStore, blocks, w.Output, w.renderRef, nil)
+}
+
+// renderRef returns the bytes a SkeletonRef contributes for the given block.
+// A nil block contributes nothing, matching a map miss.
+func (w *Writer) renderRef(block *model.Block) ([]byte, error) {
+	if block == nil {
+		return nil, nil
 	}
-	return nil
+	return []byte(w.renderText(block)), nil
 }
 
 func (w *Writer) writePart(part *model.Part) error {

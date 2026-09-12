@@ -2,7 +2,6 @@ package markdown
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"regexp"
@@ -243,29 +242,16 @@ done:
 
 // writeFromSkeleton reads skeleton entries and fills in block content.
 func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[string]*model.Block, out io.Writer) error {
-	for {
-		entry, err := store.Next()
-		if errors.Is(err, io.EOF) {
-			break
-		}
-		if err != nil {
-			return fmt.Errorf("markdown writer: read skeleton: %w", err)
-		}
-		switch entry.Type {
-		case format.SkeletonText:
-			if _, err := out.Write(entry.Data); err != nil {
-				return err
-			}
-		case format.SkeletonRef:
-			if block, ok := blocks[string(entry.Data)]; ok {
-				text := w.blockText(block)
-				if _, err := io.WriteString(out, text); err != nil {
-					return err
-				}
-			}
-		}
+	return format.BufferedSkeletonWrite(store, blocks, out, w.renderRef, nil)
+}
+
+// renderRef returns the bytes a SkeletonRef contributes for the given block.
+// A nil block contributes nothing, matching a map miss.
+func (w *Writer) renderRef(block *model.Block) ([]byte, error) {
+	if block == nil {
+		return nil, nil
 	}
-	return nil
+	return []byte(w.blockText(block)), nil
 }
 
 // The paired codes the markdown reader wraps a link's or image's title in, so

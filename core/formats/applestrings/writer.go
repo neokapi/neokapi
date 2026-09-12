@@ -1,10 +1,9 @@
 package applestrings
 
 import (
+	"bytes"
 	"context"
-	"errors"
 	"fmt"
-	"io"
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
@@ -160,29 +159,19 @@ func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block, kind string) 
 	if err := w.skeletonStore.Flush(); err != nil {
 		return nil, fmt.Errorf("applestrings writer: flush skeleton: %w", err)
 	}
-	var out []byte
-	for {
-		entry, err := w.skeletonStore.Next()
-		if errors.Is(err, io.EOF) {
-			break
+	var out bytes.Buffer
+	renderRef := func(block *model.Block) ([]byte, error) {
+		if block == nil {
+			return nil, nil // unknown ref — emit nothing (value dropped)
 		}
-		if err != nil {
-			return nil, fmt.Errorf("applestrings writer: read skeleton: %w", err)
-		}
-		switch entry.Type {
-		case format.SkeletonText:
-			out = append(out, entry.Data...)
-		case format.SkeletonRef:
-			block, ok := blocks[string(entry.Data)]
-			if !ok {
-				continue // unknown ref — emit nothing (value dropped)
-			}
-			ref, _ := refFromBlock(block)
-			value := w.resolveValue(block, ref)
-			out = append(out, w.encodeValue(value, block, kind)...)
-		}
+		ref, _ := refFromBlock(block)
+		value := w.resolveValue(block, ref)
+		return []byte(w.encodeValue(value, block, kind)), nil
 	}
-	return out, nil
+	if err := format.BufferedSkeletonWrite(w.skeletonStore, blocks, &out, renderRef, nil); err != nil {
+		return nil, err
+	}
+	return out.Bytes(), nil
 }
 
 // encodeValue escapes a decoded value for its sub-format: a .stringsdict value

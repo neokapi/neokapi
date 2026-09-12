@@ -2,7 +2,6 @@ package resx
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -66,16 +65,10 @@ func (w *Writer) Config() *Config { return w.cfg }
 func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 	// Streaming skeleton round-trip: interleave skeleton consumption with the
 	// Part stream so the writer never buffers the whole block map. Each <value>
-	// ref renders from the block pulled on demand — the same encodeText +
-	// resolveValue the buffered writeFromSkeleton uses per ref.
+	// ref renders from the block pulled on demand, through the renderRef the
+	// buffered path also uses.
 	if w.skeletonStore != nil && w.skeletonStore.IsStreaming() {
-		return format.StreamSkeletonWrite(ctx, w.skeletonStore, parts, w.Output,
-			func(block *model.Block) ([]byte, error) {
-				if block == nil {
-					return nil, nil
-				}
-				return []byte(encodeText(w.resolveValue(block))), nil
-			}, nil)
+		return format.StreamSkeletonWrite(ctx, w.skeletonStore, parts, w.Output, w.renderRef, nil)
 	}
 
 	var original []byte
@@ -140,30 +133,18 @@ done:
 // emits nothing, leaving the surrounding <value></value> tags empty rather than
 // failing the merge.
 func (w *Writer) writeFromSkeleton(blocksByID map[string]*model.Block) error {
-	for {
-		entry, err := w.skeletonStore.Next()
-		if errors.Is(err, io.EOF) {
-			break
-		}
-		if err != nil {
-			return fmt.Errorf("resx writer: read skeleton: %w", err)
-		}
-		switch entry.Type {
-		case format.SkeletonText:
-			if _, err := w.Output.Write(entry.Data); err != nil {
-				return err
-			}
-		case format.SkeletonRef:
-			block, ok := blocksByID[string(entry.Data)]
-			if !ok {
-				continue
-			}
-			if _, err := io.WriteString(w.Output, encodeText(w.resolveValue(block))); err != nil {
-				return err
-			}
-		}
+	return format.BufferedSkeletonWrite(w.skeletonStore, blocksByID, w.Output, w.renderRef, nil)
+}
+
+// renderRef returns the bytes a <value> SkeletonRef contributes for the given
+// block, shared by the buffered (writeFromSkeleton) and streaming
+// (StreamSkeletonWrite) paths so both produce identical output. A nil block
+// contributes nothing, matching the buffered path's map miss.
+func (w *Writer) renderRef(block *model.Block) ([]byte, error) {
+	if block == nil {
+		return nil, nil
 	}
-	return nil
+	return []byte(encodeText(w.resolveValue(block))), nil
 }
 
 // resolveValue returns the output value for a block: the target text for the
