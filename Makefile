@@ -396,9 +396,11 @@ _fw-test: i18n-catalogs
 	cd kapi && $(GOTEST_BASE) ./... -count=1
 # The eval harnesses are their own workspace modules (they import bowrain's
 # Bedrock provider), so the root ./... pattern never reaches them — without
-# these lines their corpus/scoring gates would not run anywhere.
+# these lines their corpus/scoring gates would not run anywhere. The Prose probe
+# is its own workspace module too, and its tests include the canary run.
 	cd scripts/batcheval && $(GOTEST_BASE) ./... -count=1
 	cd scripts/contexteval && $(GOTEST_BASE) ./... -count=1
+	cd scripts/proseprobe && $(GOTEST_BASE) ./... -count=1
 
 _fw-test-fast: i18n-catalogs
 	$(GOTEST_BASE) ./...
@@ -438,6 +440,7 @@ _fw-vet: i18n-catalogs
 	cd scripts/batcheval && $(GOVET) ./...
 	cd scripts/contexteval && $(GOVET) ./...
 	cd scripts/gen-refs && $(GOVET) ./...
+	cd scripts/proseprobe && $(GOVET) ./...
 
 # scripts/gen-refs is a workspace module like the four above it, and it writes
 # the committed reference dataset the docs site and the drift gate read. It
@@ -450,6 +453,7 @@ ifdef GOLANGCI_LINT
 	cd cli && $(GOLANGCI_LINT) run ./...
 	cd kapi && $(GOLANGCI_LINT) run ./...
 	cd scripts/gen-refs && $(GOLANGCI_LINT) run ./...
+	cd scripts/proseprobe && $(GOLANGCI_LINT) run ./...
 else
 	@echo "golangci-lint not installed. Run 'make tools' to install."
 endif
@@ -485,10 +489,11 @@ _fw-deps-update:
 test-framework: i18n-catalogs ## Run framework module tests only (incl. the eval-harness modules)
 	@mkdir -p $(COVER_DIR)
 ifdef CI
-# The eval harnesses (scripts/batcheval, scripts/contexteval) and the reference
-# generator (scripts/gen-refs) are separate workspace modules, so the root ./...
-# pattern never reaches them. Their tests gate the corpora, the scoring, the
-# price-table sync and the reference dataset's shape, keyless and fast.
+# The eval harnesses (scripts/batcheval, scripts/contexteval), the reference
+# generator (scripts/gen-refs) and the Prose probe (scripts/proseprobe) are
+# separate workspace modules, so the root ./... pattern never reaches them.
+# Their tests gate the corpora, the scoring, the price-table sync, the reference
+# dataset's shape and the probe's canary, keyless and fast.
 # One shell, `|| rc=$$?` per suite: a root-suite failure must not stop the eval
 # suites from running (and from appearing in the JSON the reporters read) —
 # the single-run form completed every package even when some failed.
@@ -497,12 +502,14 @@ ifdef CI
 	( cd scripts/batcheval && $(GOTEST_BASE) -json ./... >> ../../test-results-framework.json ) || rc=$$?; \
 	( cd scripts/contexteval && $(GOTEST_BASE) -json ./... >> ../../test-results-framework.json ) || rc=$$?; \
 	( cd scripts/gen-refs && $(GOTEST_BASE) -json ./... >> ../../test-results-framework.json ) || rc=$$?; \
+	( cd scripts/proseprobe && $(GOTEST_BASE) -json ./... >> ../../test-results-framework.json ) || rc=$$?; \
 	exit $$rc
 else
 	$(GOTEST_BASE) ./... -count=1
 	cd scripts/batcheval && $(GOTEST_BASE) ./... -count=1
 	cd scripts/contexteval && $(GOTEST_BASE) ./... -count=1
 	cd scripts/gen-refs && $(GOTEST_BASE) ./... -count=1
+	cd scripts/proseprobe && $(GOTEST_BASE) ./... -count=1
 endif
 
 test-cli: i18n-catalogs ## Run host + cli module tests only
@@ -2655,6 +2662,16 @@ fetch-corpus: ## Download Tier B format corpora from the format-corpus release (
 
 publish-corpus: ## Publish corpus-staging/<id>/ to the format-corpus release (merges per-format, never drops)
 	@bash scripts/publish-corpus.sh
+
+# prose-probe scores the Prose maturity axis (docs/internals/format-maturity.md
+# §2.8). It runs every TestProseP<n>_<subject> rung test in the workspace and
+# plugin modules, and writes the report the dashboard publish reads. A run
+# whose canary is not scored exactly as its tests were built exits 1 and writes
+# nothing, so nothing is published from it.
+PROSE_PROBE_OUT ?= $(BIN_DIR)/prose-probe.json
+prose-probe: i18n-catalogs ## Score the Prose maturity axis from its rung tests → $(PROSE_PROBE_OUT)
+	@mkdir -p $(dir $(PROSE_PROBE_OUT))
+	$(GO) run ./scripts/proseprobe -tags fts5 -o $(PROSE_PROBE_OUT)
 
 # corpus-sweep (docs/internals/format-ops.md §3 ritual 8) — the out-of-band
 # Tier B sweep: every wild file read→write→read in its OWN worker subprocess

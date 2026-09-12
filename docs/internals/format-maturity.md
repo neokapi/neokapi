@@ -20,17 +20,16 @@ things:
    may rely on. They change only by explicit, human-approved promotion or
    demotion events, and a tier claim must be backed by a CI gate. A tier not
    enforced by CI is marketing. (Rust's target-tier policy is the model.)
-2. **The score**: a seven-**axis** maturity vector (§2), recomputed by every
+2. **The score**: a multi-**axis** maturity vector (§2), recomputed by every
    audit from deterministic file floors plus evidence-cited quality judgments.
    The vector is diagnostic: it ranks work and explains the tier; it does not
    itself promise anything.
 
 The headline tier is derived as the **minimum over the gating axes**, never a
 weighted average (a scalar aggregate is where measurement validity collapses).
-Two of the seven axes, **Security** (§2.6) and **Structure & Geometry**
-(§2.7), are non-gating display axes: they score and rank work (parser
-hardening; structure-recovery depth) but do not enter the tier minimum (for
-now).
+**Security** (§2.6), **Structure & Geometry** (§2.7) and **Prose** (§2.8) are
+non-gating display axes: they score and rank work (parser hardening,
+structure-recovery depth, the comment layer) but do not enter the tier minimum.
 
 ## 1. Support tiers (the promise)
 
@@ -91,15 +90,15 @@ Rules:
 - The vector may exceed the tier; it must never durably *under*-run it
   (suspended per-format while `grandfathered: true` during bootstrap).
 
-## 2. The seven axes (the score)
+## 2. The axes (the score)
 
 Each axis has its own ladder, its own deterministic file floor, and (where
 defined) quality dimensions. A format sits at exactly one level per axis: the
 highest level whose criteria are fully met (a missing lower-tier requirement
 caps the level). Axes evolve independently: a format can be E3 (embedded in
-its native editor) at V1, or L3 at K1. Five axes (Engine, Vocabulary, Editor,
-Knowledge, Corpus) feed the tier; two of them, Security (§2.6) and Structure &
-Geometry (§2.7), are display-only.
+its native editor) at V1, or L3 at K1. The tier minimum is taken over Engine,
+Corpus and Knowledge (§1); Security (§2.6), Structure & Geometry (§2.7) and
+Prose (§2.8) are declared display-only.
 
 | Axis | Ladder | Measures | Primary artifacts |
 |---|---|---|---|
@@ -110,15 +109,16 @@ Geometry (§2.7), are display-only.
 | **Corpus** | C0–C3 | Reference files that validate support, with provenance | `corpus.yaml` manifests, `testdata/`, fetched corpus tiers, acceptance validators |
 | **Security** | S0–S4 | Resource-boundedness, fuzzing, and hostile-corpus hardening of the parser (non-gating display axis) | `core/safeio` imports, `Fuzz*` targets + `testdata/fuzz/` seeds, corpus-sweep ledger records |
 | **Structure & Geometry** | G0–G4 | How much of the document's logical and spatial structure the reader recovers: roles, reading order, tables, relations, geometry (non-gating display axis) | `core/model/structure.go` standoff payloads (`SetSemanticRole`/`SetStructure`/`SetGeometry`/`SetLayoutLayer`/`AddRelation`), optional `structure.yaml` |
+| **Prose** | P0–P4 | How much of the comment layer kapi can locate, check and rewrite, scored per format and per source language (non-gating display axis) | rung tests named `TestProseP<n>_<subject>`, `core/formats/prose.yaml`, `scripts/proseprobe` |
 
 ### Axis families (a reading aid)
 
-The seven axes group into three families, named by the question each answers:
+The axes group into three families, named by the question each answers:
 "how deeply we read it / how we prove it / how we work with it".
 
 | Family | Mental model (one line) | Axes |
 |---|---|---|
-| **Comprehension** | *How deeply we read it*: fidelity at three resolutions (bytes, inline, structure). | Engine, Vocabulary, Structure & Geometry |
+| **Comprehension** | *How deeply we read it*: fidelity at three resolutions (bytes, inline, structure), and the comments a file carries beside its content. | Engine, Vocabulary, Structure & Geometry, Prose |
 | **Assurance** | *How we prove it.* Does support hold over real and hostile files? | Corpus, Security |
 | **Enablement** | *How we work with it.* Can a person, model, or native editor act on it? | Knowledge, Editor |
 
@@ -126,7 +126,8 @@ The three **Comprehension** axes are the same fidelity question at increasing
 resolution: Engine = byte/round-trip/parity fidelity of the serialization;
 Vocabulary = inline / run-level meaning (`fmt:*`/`link:*`/`media:*`/`code:*`
 *within* a block); Structure & Geometry = block-level, cross-block, and spatial
-structure.
+structure. Prose reads what those three leave out: the comments a file carries
+beside its content (§2.8).
 
 Families are a **reading aid** for the dashboard and this rubric, not a gating
 unit. The headline tier is still the `min` over the gating axes (Engine ∧
@@ -560,6 +561,96 @@ requires G2 where structure is applicable, `na`-exempt for catalogs") is a
 future **tier-policy** decision made through the `tier-review` ritual and
 recorded here when taken, rather than an audit outcome.
 
+### 2.8 Prose (P0–P4): the comment layer
+
+Measures how much of the comment layer kapi can locate, check and rewrite. A
+comment is prose a file carries outside its content: a YAML comment, a
+translator comment in a PO file, a Go doc comment.
+
+| Level | Name | Entry criteria |
+|---|---|---|
+| **P0** | None | Comments are opaque bytes. The format may round-trip them in its skeleton, but nothing addresses them. |
+| **P1** | Located | Comment groups are extracted as blocks with exact byte spans and line ranges; directives are classified and excluded; a scan test over a real corpus proves no group is lost or merged. |
+| **P2** | Governed | Comments take part in `kapi check` at their point, resolving the voice, terms and constraints that govern the file's location. Findings carry the comment's own location. |
+| **P3** | Editable | A comment can be rewritten with every other byte in the file asserted identical; the result parses and the language's formatter agrees. Directives stay unaddressable. |
+| **P4** | Complete | Every comment form the language uses, block and documentation forms included, with the terminator hazard handled rather than refused. Prefix, indentation and wrapping conventions are honoured. |
+
+The ladder is cumulative: a rung met above one that is not met awards nothing.
+
+**Rows are formats and languages.** The axis is scored per language rather than
+per file extension. A format scores on its own row, named by its directory under
+`core/formats/`. A source language such as Go has no format directory, so the
+languages the axis tracks are listed in `core/formats/prose.yaml`. An entry adds
+a row and never a rung. A format that reads several languages through one reader
+is named as their `provider` there (`sourcecode` for Ruby), and each language is
+scored on its own row.
+
+A language row carries a presence beside its level:
+
+| Presence | Meaning |
+|---|---|
+| present | At least one rung test for the language ran to a pass or a fail. |
+| absent | No rung test names the language, so the build has no reader for it. Presence describes the build: a language whose files carry no comments is present as soon as one of its rung tests runs. |
+| did not run | Rung tests name the language, and none of them produced a result. |
+
+Only a present language has a level. A format is present by registration.
+
+**Evidence is a passing test.** A rung is awarded only when a test asserting its
+criteria passes. A new format or language satisfies this contract without any
+change to the scorer:
+
+- A rung test is a top-level Go test named `TestProseP<n>_<subject>`. `n` is the
+  rung, 1 to 4; `subject` is the format id or the `prose.yaml` key, in lowercase
+  letters and digits: `TestProseP1_go`, `TestProseP2_go`, `TestProseP1_yaml`.
+- It may live in any package of any module `go.work` names, or of a plugin module
+  under `plugins/`. Several packages may claim the same rung, and the rung is met
+  only when every claim passes.
+- It asserts the rung's criteria against the real reader or check path.
+- `TestProseP0_<language>` claims no rung. It is a presence test that proves the
+  build reads the language, so a language with nothing above P0 reports as
+  present at P0 rather than absent (`TestProseP0_ruby` in the sourcecode plugin
+  is one).
+- A name that begins `TestProseP` and a digit but breaks the pattern, or that
+  names a subject which is neither a format nor a `prose.yaml` language, fails
+  `TestProseRungTestNames` in `core/formats/maturity_test.go` and invalidates a
+  probe run. A misspelt rung test fails the build instead of scoring nothing.
+
+**The probe.** `make prose-probe` runs `scripts/proseprobe`. It walks the test
+files of every module above and runs the rung tests with `go test -json`, one
+invocation per module: workspace modules with `-tags fts5`, plugin modules with
+`GOWORK=off` as their make targets build them. Every rung comes to one of three
+outcomes, and zero coverage never reads as a pass:
+
+| Outcome | When |
+|---|---|
+| met | Every test claiming the rung reported `pass`. |
+| not met | A test claiming the rung failed, or no test claims it. |
+| did not run | A claiming test was skipped, passed only because every subtest skipped, sat in a package that failed to build, or produced no result (a build tag excluded it, or an earlier panic ended the test binary). |
+
+Only met awards a rung. When a module's `go` command emits no test events at
+all, the report records the command's error and every test in that module did
+not run.
+
+**A canary in every run.** `scripts/proseprobe/canary` holds a subject built to be
+refused. Its P1 test skips, P2 passes with no P1 beneath it, P3 fails, and P4
+passes only because its one subtest skips. Every probe run scores the canary and
+requires P0 with exactly those outcomes: did not run, met, not met, did not run.
+Any other scoring means the classification is broken. The run is then invalid,
+the probe exits 1, and no report is written. The canary's tests read
+`PROSE_PROBE_CANARY`, which the probe sets, so they skip under an ordinary
+`go test ./...`. The id `canary` is reserved: `prose.yaml` refuses it, the naming
+gate refuses it outside the fixture package, and the probe never reports it as a
+row.
+
+The probe's unit tests hold each rule to a fixture that must fail. Counting a
+skip as met, or computing a level without the cap, fails them and fails the
+canary scored through the real `go` command.
+
+**Non-gating.** Like Security and Structure & Geometry, Prose is a display axis
+and does not enter the tier minimum (§1). A support tier promises fidelity for a
+format's content, and nearly every row starts at P0 or absent. Promoting the axis
+to a gating one is a `tier-review` decision.
+
 ## 3. How scores are computed (scorer v4, reproducible by design)
 
 The triage workflow does **not** let the model pick levels; each axis level is
@@ -735,6 +826,10 @@ Security S1 : reader package imports core/safeio (bounded)                      
          S2 : + a Fuzz* target + testdata/fuzz seed                                 [floor-only]
          S3 : + clean corpus-sweep record in the ledger (0 crash/hang/oom/drift)    [ledger ceiling]
          S4 : + sustained green-sweep / batch-fuzz signal                           [ledger ceiling]
+Prose    P1 : TestProseP1_<subject> passes (spans, line ranges, directives, corpus)  [probe]
+         P2 : + TestProseP2_<subject> (comments checked at their point)             [probe]
+         P3 : + TestProseP3_<subject> (rewrite leaves every other byte identical)   [probe]
+         P4 : + TestProseP4_<subject> (every comment form, terminator handled)      [probe]
 ```
 
 <!-- BEGIN: gap-analysis report (generated) -->
