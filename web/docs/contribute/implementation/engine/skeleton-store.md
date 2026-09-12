@@ -131,6 +131,46 @@ store explicitly on each error path and at completion rather than through a
 single `defer`, because the writer outlives the function through the
 temp-then-rename output.
 
+## Locating blocks in the source (`core/format/extent.go`)
+
+A diff names lines, and a check reads blocks. `format.AlignSkeleton` connects
+the two. It returns a `format.Extent` for each block a skeleton refers to: the
+half-open byte span of the block's content, and the 1-based, inclusive line
+range that span covers.
+
+The content model has no field for a block's source position. The skeleton
+already holds every byte that is not content, in document order, so the bytes a
+ref stands in for are the gap between the text on either side of it. Alignment
+matches that text against the source:
+
+- `SkeletonText` and `SkeletonLang` bytes must occur in the source, in order.
+- A `SkeletonOriginal` entry gives the next ref's source bytes directly.
+- `SkeletonTrimmed` bytes belong to no block.
+
+The result is exact, or an error that wraps `format.ErrExtentsUnavailable`.
+Alignment runs twice: once with each text at its earliest feasible position,
+and once at its latest. When the two passes agree, every span is unique. When
+they differ, two different spans rebuild the same source, and alignment returns
+an error rather than choosing one. It also refuses a skeleton whose bytes do not
+occur in the source, such as a container format's skeleton of an inner part,
+and two refs with no text between them.
+
+A caller that needs a position for every block must also confirm that each
+translatable block received an extent. Bilingual readers write refs that name
+segments rather than block IDs, so their blocks stay unlocated even where the
+text aligns.
+
+`TestSkeletonExtents_InCoreFormats` (`core/formats/extent_alignment_test.go`)
+aligns every in-core format's spec examples and testdata. For each input that
+aligns, it rebuilds the source from the skeleton and the extents and asserts the
+bytes match. Its log lists which formats align and why the others do not.
+
+`core/diffscope` supplies the lines. `diffscope.Parse` reads a unified diff into
+the post-image lines each file's change touched, and `diffscope.Touched` returns
+the extents those lines overlap, each one whole. A deletion leaves no line, so
+it is placed on the lines either side of where the removed lines were: deleting
+a line inside a block touches that block.
+
 ## Sub-skeleton: translatable spans inside an opaque payload
 
 Some extractable content is embedded *inside* a payload the reader otherwise
@@ -351,6 +391,8 @@ The writer tries three modes in order:
 | --- | --- |
 | `core/format/skeleton.go` | SkeletonStore type, entry format, interfaces, the wiring seam |
 | `core/format/skeleton_stream.go` | `StreamSkeletonWrite`, the shared streaming writer helper |
+| `core/format/extent.go` | `AlignSkeleton`, `Extent`, `LineRange`: where each block sits in its source |
+| `core/diffscope/diffscope.go` | Unified diff parsing, and the blocks a diff's lines touch |
 | `core/format/capturereader.go` | `CaptureReader`, the sliding window for `encoding/xml` readers |
 | `core/formats/html/tokenreader.go` | Single-pass tokenizer reader |
 | `core/formats/html/reader.go` | Dispatch: skeleton store → tokenizer, else → DOM |
