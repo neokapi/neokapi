@@ -480,7 +480,8 @@ function proseFloor(subject) {
 // publishing a Prose level the probe did not produce would be a declaration.
 function attachProse(floors, report) {
   if (!report || !Array.isArray(report.subjects)) throw new Error('prose: no probe report, so the axis cannot be scored')
-  if (!report.canary || report.canary.level !== 'P0') throw new Error('prose: the probe report carries no P0 canary; refusing it')
+  const canary = Array.isArray(report.canaries) && report.canaries.find((c) => c.id === 'canary')
+  if (!canary || canary.level !== 'P0') throw new Error('prose: the probe report carries no P0 canary; refusing it')
   const byId = {}
   for (const s of report.subjects) if (s.kind === 'format') byId[s.id] = s
   for (const floor of floors) {
@@ -506,6 +507,7 @@ function languageRows(report) {
     const level = s.level || null
     return {
       id: s.id, name: s.name || s.id, provider: s.provider || '', presence: s.presence,
+      presence_reason: s.presence_reason || '',
       level, next: level ? (NEXT.prose[level] || '—') : null,
       dims: f.signals.cells, rungs: f.signals.rungs,
     }
@@ -1073,8 +1075,9 @@ const runIntegrity = {
   low_agreement: lowAgreeByAxis,
   golden_passed,
 }
-if (proseReport && proseReport.canary) {
-  runIntegrity.prose = { probe_version: proseReport.probe_version, canary: proseReport.canary.level, tags: proseReport.tags }
+if (proseReport && Array.isArray(proseReport.canaries)) {
+  runIntegrity.prose = { probe_version: proseReport.probe_version, tags: proseReport.tags,
+    canaries: proseReport.canaries.map((c) => ({ id: c.id, presence: c.presence, level: c.level || null })) }
 }
 const dataset = buildDataset(rows, runIntegrity, tierByFmt, languages)
 if (PUBLISH && proseError) {

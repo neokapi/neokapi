@@ -589,9 +589,9 @@ A language row carries a presence beside its level:
 
 | Presence | Meaning |
 |---|---|
-| present | Every presence test for the language passed. A presence test asserts what the build contains: a provider in the comment registry, or a grammar in a plugin's list. |
-| absent | The language has no presence test, or one failed, so the build has no reader for it. A language whose files carry no comments is still present. |
-| did not run | A presence test was skipped, did not build, or produced no result. |
+| present | Every presence test for the language passed. A presence test asserts that the build contains a reader for it: a provider in the comment registry, or a grammar in a plugin's list. A language whose files carry no comments is still present. |
+| absent | The language has no presence test. |
+| did not run | A presence test failed, was skipped, did not build, or produced no result. The dataset's `presence_reason` carries the test's output, so a broken test reads differently from a missing one. |
 
 Only a present language has a level. A format is present by registration.
 
@@ -606,11 +606,15 @@ change to the scorer:
   under `plugins/`. Several packages may claim the same rung, and the rung is met
   only when every claim passes.
 - It asserts the rung's criteria against the real reader or check path.
-- `TestProseP0_<language>` claims no rung. It is the language's presence test
-  and asserts what the build contains, so a present language with no passing P1
-  scores P0. Rung tests above P0 never establish presence, because a package can
-  pass its P1 test while no binary links it. `TestProseP0_ruby` asserts the
-  sourcecode plugin's `Grammars()`.
+- `TestProseP0_<language>` claims no rung. It is the language's presence test.
+  It asserts that the build contains a reader for the language and fails
+  otherwise, so removing a reader turns CI red rather than quietly changing a
+  score. A present language with no passing P1 scores P0. Rung tests above P0
+  never establish presence, because a package can pass its P1 test while no
+  binary links it. `TestProseP0_ruby` asserts the sourcecode plugin's
+  `Grammars()`.
+- Every subject whose name starts with `canary` is reserved for the probe's
+  fixtures.
 - A name that begins `TestProseP` and a digit but breaks the pattern, or that
   names a subject which is neither a format nor a `prose.yaml` language, fails
   `TestProseRungTestNames` in `core/formats/maturity_test.go` and invalidates a
@@ -628,21 +632,30 @@ outcomes, and zero coverage never reads as a pass:
 | not met | A test claiming the rung failed, or no test claims it. |
 | did not run | A claiming test was skipped, passed only because every subtest skipped, sat in a package that failed to build, or produced no result (a build tag excluded it, or an earlier panic ended the test binary). |
 
-Only met awards a rung. When a module's `go` command emits no test events at
+Only met awards a rung. Every test that does not pass keeps the tail of its
+output in the report: its assertions, or the compiler's output when its package
+did not build. When a module's `go` command emits no test events at
 all, the report records the command's error and every test in that module did
 not run.
 
-**A canary in every run.** `scripts/proseprobe/canary` holds a subject built to be
-refused. Its presence test passes, so its rungs are judged. Its P1 test skips,
-P2 passes with no P1 beneath it, P3 fails, and P4
-passes only because its one subtest skips. Every probe run scores the canary and
-requires P0 with exactly those outcomes: did not run, met, not met, did not run.
+**A canary in every run.** `scripts/proseprobe/canary` holds four subjects, each
+built so that one way of awarding a rung or a presence without evidence shows
+up. Every probe run scores all four and requires each to come out exactly as
+built:
+
+| Canary | Built as | Must score |
+|---|---|---|
+| `canary` | Presence test passes; P1 skips, P2 passes above it, P3 fails, P4 passes only because its one subtest skips | present, P0, rungs did not run, met, not met, did not run |
+| `canaryunlinked` | P1 passes, no presence test | absent |
+| `canarypresent` | Presence test passes, P1 fails | present, exactly P0 |
+| `canarybroken` | Presence test fails, P1 passes | did not run, with the failing assertion in `presence_reason` |
+
 Any other scoring means the classification is broken. The run is then invalid,
-the probe exits 1, and no report is written. The canary's tests read
+the probe exits 1, and no report is written. The canaries' tests read
 `PROSE_PROBE_CANARY`, which the probe sets, so they skip under an ordinary
-`go test ./...`. The id `canary` is reserved: `prose.yaml` refuses it, the naming
-gate refuses it outside the fixture package, and the probe never reports it as a
-row.
+`go test ./...`. `prose.yaml` refuses a language named `canary...`, the naming
+gate refuses a canary subject outside the fixture package, and the probe never
+reports a canary as a row.
 
 The probe's unit tests hold each rule to a fixture that must fail. Counting a
 skip as met, or computing a level without the cap, fails them and fails the
@@ -761,8 +774,8 @@ additive, so an older dataset renders with those axes absent):
 - `summary.by_level` remains the engine distribution; `summary.by_axis` is
   additive.
 - `languages[]` holds the Prose axis's language rows (§2.8): `{id, name,
-  provider, presence, level, next, dims, rungs}`, with `level` null unless the
-  language is present. Language rows never enter `summary.total`, `by_level` or
+  provider, presence, presence_reason, level, next, dims, rungs}`, with `level`
+  null unless the language is present. Language rows never enter `summary.total`, `by_level` or
   `by_axis`; they are counted in `summary.languages` (`total`, `by_presence`,
   `by_prose`). A format row's `axes.prose` carries `rungs` and the `languages` it
   reads.

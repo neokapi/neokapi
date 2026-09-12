@@ -203,7 +203,8 @@ const runIntegrity = {
   samples: 1, anchored: true,
   moves: { published: 0, suppressed: 0, by_axis: movesByAxis },
   low_agreement: [], golden_passed,
-  prose: { probe_version: proseReport.probe_version, canary: proseReport.canary.level, tags: proseReport.tags },
+  prose: { probe_version: proseReport.probe_version, tags: proseReport.tags,
+    canaries: proseReport.canaries.map((c) => ({ id: c.id, presence: c.presence, level: c.level || null })) },
 }
 const dataset = S.buildDataset(rows, runIntegrity, tierByFmt, languages)
 dataset.generated_at = TODAY
@@ -279,11 +280,12 @@ function renderDocsBlock() {
   L.push('')
   L.push('### Languages (Prose axis)')
   L.push('')
-  L.push('| Language | Presence | Prose | P1 | P2 | P3 | P4 |')
-  L.push('|---|---|---|---|---|---|---|')
+  L.push('| Language | Presence | Prose | P1 | P2 | P3 | P4 | Presence reason |')
+  L.push('|---|---|---|---|---|---|---|---|')
   for (const l of languages) {
     const rungs = ['P1', 'P2', 'P3', 'P4'].map((g) => l.rungs[g].outcome)
-    L.push(`| \`${l.id}\` | ${l.presence} | ${l.level || 'none'} | ${rungs.join(' | ')} |`)
+    const reason = (l.presence_reason || '').split('\n')[0].replace(/\|/g, '/')
+    L.push(`| \`${l.id}\` | ${l.presence} | ${l.level || 'none'} | ${rungs.join(' | ')} | ${reason} |`)
   }
   return L.join('\n')
 }

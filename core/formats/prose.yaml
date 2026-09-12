@@ -5,11 +5,13 @@
 # language is not a format, so it is listed here instead. An entry adds a row
 # and never a rung: the level comes only from the rung tests scripts/proseprobe
 # runs. A language is present only when its presence test, TestProseP0_<key>,
-# passes; that test asserts what the build contains. Without one it is absent.
+# passes; that test asserts the build contains a reader for it and fails
+# otherwise. A failing presence test leaves the language did-not-run with the
+# test's output as the reason. Without a presence test the language is absent.
 #
 # Each key is the subject a rung test names, as in TestProseP1_go: lowercase
-# letters and digits, never the id of a format and never `canary`, which the
-# probe reserves for its own fixture. `provider`, when set, is the format whose
+# letters and digits, never the id of a format and never a name starting with
+# `canary`, which the probe reserves for its fixtures. `provider`, when set, is the format whose
 # reader parses the language.
 #
 # The list is the languages this repository writes its own comments in.
