@@ -176,7 +176,7 @@ func run() error {
 	if kapiBin == "" {
 		return errors.New("needs this checkout's kapi: run `make build` first. A kapi on PATH is deliberately not used")
 	}
-	ver, _ := exec.Command(kapiBin, "--version").Output()
+	ver, _ := exec.CommandContext(ctx, kapiBin, "--version").Output()
 	fmt.Fprintf(os.Stderr, "kapi: %s (%s)\n", kapiBin, strings.TrimSpace(string(ver)))
 	convs := available(ctx, kapiBin)
 	if len(convs) == 0 {
