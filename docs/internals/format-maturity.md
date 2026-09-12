@@ -858,48 +858,59 @@ republishes the dashboard: do not edit by hand. The dashboard
 - **Corpus**: C0:23 · C1:14 · C2:0 · C3:0
 - **Security**: S0:7 · S1:26 · S2:4 · S3:0 · S4:0
 - **Structure & Geometry**: G0:23 · G1:1 · G2:6 · G3:4 · G4:3
+- **Prose**: P0:37 · P1:0 · P2:0 · P3:0 · P4:0
 
 ### Per-format vector
 
-| Format | Tier | Engine | Vocabulary | Editor | Knowledge | Corpus | Security | Structure & Geometry | Top engine gap |
-|---|---|---|---|---|---|---|---|---|---|
-| `androidxml` | available | L1 | V0 | E0 | K2 | C0 | S1 | G0 | add malformed_test.go |
-| `applestrings` | available | L1 | V0 | E0 | K2 | C0 | S1 | G0 | add malformed_test.go |
-| `arb` | maintained | L3 | V0 | E0 | K2 | C0 | S1 | G0 | none |
-| `archive` | available | L0 | V0 | E0 | K0 | C0 | S1 | G0 | add malformed_test.go |
-| `asciidoc` | available | L3 | V1 | E0 | K2 | C1 | S1 | G3 | none |
-| `audio` | available | L0 | V0 | E0 | K0 | C0 | S0 | G0 | add malformed_test.go |
-| `csv` | maintained | L3 | V0 | E0 | K1 | C0 | S1 | G3 | none |
-| `designtokens` | available | L1 | V0 | E0 | K2 | C0 | S1 | G0 | add malformed_test.go |
-| `doclang` | available | L1 | V0 | E0 | K0 | C0 | S1 | G4 | add malformed_test.go |
-| `docling` | available | L1 | V0 | E0 | K0 | C0 | S1 | G4 | add cli/parity spec_test |
-| `epub` | available | L0 | V0 | E0 | K1 | C1 | S1 | G0 | add a corpus/upstream test |
-| `html` | available | L1 | V1 | E1 | K1 | C1 | S2 | G3 | add malformed_test.go |
-| `i18next` | available | L1 | V0 | E0 | K2 | C0 | S0 | G0 | add malformed_test.go |
-| `image` | available | L1 | V0 | E0 | K0 | C0 | S0 | G1 | add malformed_test.go |
-| `json` | maintained | L2 | V0 | E0 | K2 | C0 | S2 | G0 | add a corpus/upstream test |
-| `markdown` | available | L3 | V1 | E1 | K1 | C1 | S2 | G3 | none |
-| `mdx` | available | L1 | V0 | E1 | K2 | C0 | S1 | G2 | add malformed_test.go |
-| `messageformat` | maintained | L2 | V0 | E0 | K1 | C1 | S1 | G0 | add a corpus/upstream test |
-| `mo` | available | L0 | V0 | E0 | K2 | C0 | S0 | G0 | add malformed_test.go |
-| `odf` | available | L1 | V0 | E0 | K2 | C0 | S1 | G2 | none |
-| `openxml` | maintained | L3 | V1 | E0 | K1 | C0 | S1 | G4 | none |
-| `pdf` | available | L0 | V0 | E0 | K0 | C0 | S1 | G0 | add malformed_test.go |
-| `plaintext` | maintained | L2 | V0 | E0 | K1 | C1 | S1 | G0 | add a corpus/upstream test |
-| `po` | maintained | L2 | V0 | E0 | K1 | C1 | S1 | G2 | add a corpus/upstream test |
-| `properties` | maintained | L2 | V0 | E0 | K1 | C1 | S1 | G0 | add a corpus/upstream test |
-| `resx` | maintained | L3 | V0 | E0 | K2 | C0 | S1 | G0 | none |
-| `sourcecode` | available | L0 | V0 | E0 | K0 | C0 | S0 | G0 | add malformed_test.go |
-| `srt` | maintained | L2 | V0 | E0 | K1 | C1 | S0 | G0 | add cli/parity spec_test |
-| `tmx` | maintained | L2 | V0 | E0 | K1 | C1 | S1 | G0 | add a corpus/upstream test |
-| `ts` | maintained | L2 | V0 | E0 | K1 | C1 | S1 | G2 | add a corpus/upstream test |
-| `video` | available | L0 | V0 | E0 | K0 | C0 | S0 | G0 | add malformed_test.go |
-| `vtt` | maintained | L2 | V0 | E0 | K1 | C1 | S1 | G0 | add a corpus/upstream test |
-| `xcstrings` | maintained | L3 | V0 | E0 | K2 | C0 | S1 | G0 | none |
-| `xliff` | maintained | L2 | V1 | E0 | K1 | C0 | S2 | G2 | add a corpus/upstream test |
-| `xliff2` | maintained | L2 | V0 | E0 | K1 | C0 | S1 | G2 | add a corpus/upstream test |
-| `xml` | maintained | L2 | V0 | E0 | K2 | C1 | S1 | G0 | add cli/parity spec_test |
-| `yaml` | maintained | L2 | V0 | E0 | K1 | C1 | S1 | G0 | add a corpus/upstream test |
+| Format | Tier | Engine | Vocabulary | Editor | Knowledge | Corpus | Security | Structure & Geometry | Prose | Top engine gap |
+|---|---|---|---|---|---|---|---|---|---|---|
+| `androidxml` | available | L1 | V0 | E0 | K2 | C0 | S1 | G0 | P0 | add malformed_test.go |
+| `applestrings` | available | L1 | V0 | E0 | K2 | C0 | S1 | G0 | P0 | add malformed_test.go |
+| `arb` | maintained | L3 | V0 | E0 | K2 | C0 | S1 | G0 | P0 | none |
+| `archive` | available | L0 | V0 | E0 | K0 | C0 | S1 | G0 | P0 | add malformed_test.go |
+| `asciidoc` | available | L3 | V1 | E0 | K2 | C1 | S1 | G3 | P0 | none |
+| `audio` | available | L0 | V0 | E0 | K0 | C0 | S0 | G0 | P0 | add malformed_test.go |
+| `csv` | maintained | L3 | V0 | E0 | K1 | C0 | S1 | G3 | P0 | none |
+| `designtokens` | available | L1 | V0 | E0 | K2 | C0 | S1 | G0 | P0 | add malformed_test.go |
+| `doclang` | available | L1 | V0 | E0 | K0 | C0 | S1 | G4 | P0 | add malformed_test.go |
+| `docling` | available | L1 | V0 | E0 | K0 | C0 | S1 | G4 | P0 | add cli/parity spec_test |
+| `epub` | available | L0 | V0 | E0 | K1 | C1 | S1 | G0 | P0 | add a corpus/upstream test |
+| `html` | available | L1 | V1 | E1 | K1 | C1 | S2 | G3 | P0 | add malformed_test.go |
+| `i18next` | available | L1 | V0 | E0 | K2 | C0 | S0 | G0 | P0 | add malformed_test.go |
+| `image` | available | L1 | V0 | E0 | K0 | C0 | S0 | G1 | P0 | add malformed_test.go |
+| `json` | maintained | L2 | V0 | E0 | K2 | C0 | S2 | G0 | P0 | add a corpus/upstream test |
+| `markdown` | available | L3 | V1 | E1 | K1 | C1 | S2 | G3 | P0 | none |
+| `mdx` | available | L1 | V0 | E1 | K2 | C0 | S1 | G2 | P0 | add malformed_test.go |
+| `messageformat` | maintained | L2 | V0 | E0 | K1 | C1 | S1 | G0 | P0 | add a corpus/upstream test |
+| `mo` | available | L0 | V0 | E0 | K2 | C0 | S0 | G0 | P0 | add malformed_test.go |
+| `odf` | available | L1 | V0 | E0 | K2 | C0 | S1 | G2 | P0 | none |
+| `openxml` | maintained | L3 | V1 | E0 | K1 | C0 | S1 | G4 | P0 | none |
+| `pdf` | available | L0 | V0 | E0 | K0 | C0 | S1 | G0 | P0 | add malformed_test.go |
+| `plaintext` | maintained | L2 | V0 | E0 | K1 | C1 | S1 | G0 | P0 | add a corpus/upstream test |
+| `po` | maintained | L2 | V0 | E0 | K1 | C1 | S1 | G2 | P0 | add a corpus/upstream test |
+| `properties` | maintained | L2 | V0 | E0 | K1 | C1 | S1 | G0 | P0 | add a corpus/upstream test |
+| `resx` | maintained | L3 | V0 | E0 | K2 | C0 | S1 | G0 | P0 | none |
+| `sourcecode` | available | L0 | V0 | E0 | K0 | C0 | S0 | G0 | P0 | add malformed_test.go |
+| `srt` | maintained | L2 | V0 | E0 | K1 | C1 | S0 | G0 | P0 | add cli/parity spec_test |
+| `tmx` | maintained | L2 | V0 | E0 | K1 | C1 | S1 | G0 | P0 | add a corpus/upstream test |
+| `ts` | maintained | L2 | V0 | E0 | K1 | C1 | S1 | G2 | P0 | add a corpus/upstream test |
+| `video` | available | L0 | V0 | E0 | K0 | C0 | S0 | G0 | P0 | add malformed_test.go |
+| `vtt` | maintained | L2 | V0 | E0 | K1 | C1 | S1 | G0 | P0 | add a corpus/upstream test |
+| `xcstrings` | maintained | L3 | V0 | E0 | K2 | C0 | S1 | G0 | P0 | none |
+| `xliff` | maintained | L2 | V1 | E0 | K1 | C0 | S2 | G2 | P0 | add a corpus/upstream test |
+| `xliff2` | maintained | L2 | V0 | E0 | K1 | C0 | S1 | G2 | P0 | add a corpus/upstream test |
+| `xml` | maintained | L2 | V0 | E0 | K2 | C1 | S1 | G0 | P0 | add cli/parity spec_test |
+| `yaml` | maintained | L2 | V0 | E0 | K1 | C1 | S1 | G0 | P0 | add a corpus/upstream test |
+
+### Languages (Prose axis)
+
+| Language | Presence | Prose | P1 | P2 | P3 | P4 |
+|---|---|---|---|---|---|---|
+| `bash` | absent | none | not-met | not-met | not-met | not-met |
+| `go` | present | P1 | met | not-met | not-met | not-met |
+| `python` | absent | none | not-met | not-met | not-met | not-met |
+| `ruby` | present | P0 | not-met | not-met | not-met | not-met |
+| `typescript` | absent | none | not-met | not-met | not-met | not-met |
 <!-- END: gap-analysis report -->
 
 ## 6. Open questions
