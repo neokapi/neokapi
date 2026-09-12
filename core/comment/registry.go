@@ -50,6 +50,9 @@ type Formatter interface {
 	// Disagreements reports the comments in f, located in src, that the
 	// formatter would rewrite.
 	Disagreements(name string, src []byte, f *File) ([]Disagreement, error)
+	// FormatterCanary returns a file holding a comment the formatter rewrites,
+	// which Disagreements must report.
+	FormatterCanary() []byte
 }
 
 // Disagreement is one comment the formatter would write differently.

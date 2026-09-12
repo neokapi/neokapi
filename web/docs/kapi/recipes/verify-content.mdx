@@ -162,6 +162,11 @@ rewrite is a `formatter.gofmt` finding, and it fails the gate, so formatting
 work is caught before the commit rather than after it. `--lenient` reports it
 without failing.
 
+Beside your file, each run gives the comment reader and gofmt a small Go file
+with a known fault. If either reports nothing on it, the check did not run and
+exits `4`, whatever it found in your file. A check over a Go file that holds no
+comment prose did not run either.
+
 To check the comments as project content, declare the files with
 `comments: true` in a source-only collection:
 

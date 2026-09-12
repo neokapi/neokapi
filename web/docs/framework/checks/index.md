@@ -212,7 +212,8 @@ checkset):
 - **Formatter agreement**: for the comments in source code, a comment the
   language's formatter would rewrite is a `formatter.<formatter>` finding, such
   as `formatter.gofmt`. It fails the gate whatever the severity limits allow;
-  `--lenient` reports it without failing. See
+  `--lenient` reports it without failing. The comment reader and the formatter
+  each catch a canary on every run, as every other analyzer does. See
   [Comments in source code](/kapi/recipes/verify-content#comments-in-source-code).
 
 **Bilingual checks** (opt-in, with `--target`: a translated target

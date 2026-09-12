@@ -118,4 +118,20 @@ type Provider interface {
 	// may use it where the language makes a rule depend on the file name, as Go
 	// does for example functions in test files.
 	Locate(name string, src []byte) (*File, error)
+	// Canary returns a file the provider must read correctly, checked beside
+	// every real file it reads.
+	Canary() Canary
+}
+
+// Canary is a small file in a provider's language that the comment layer must
+// read correctly. Locating it must yield the comment Block names, and that
+// comment holds a doubled word the hygiene check flags. A provider that misses
+// it cannot be trusted with the real file, whatever it located there.
+type Canary struct {
+	// Name says what the canary exercises.
+	Name string
+	// Source is the file's bytes.
+	Source []byte
+	// Block is the id Blocks gives the comment that must be located.
+	Block string
 }

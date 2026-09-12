@@ -16,12 +16,17 @@ import (
 
 // commentProviders read the comment layer of files that no format reader
 // covers. The Go provider uses only the standard library, so every kapi binary
-// carries it.
+// carries it. It is a variable so a test can put a faulty provider in its place
+// and show that the canary invalidates the run.
 var commentProviders = comment.NewRegistry(golang.Provider{})
 
 // formatterCheck is the check family a formatter's disagreement is reported
 // under. The rule is `formatter.<formatter>`, such as `formatter.gofmt`.
 const formatterCheck = "formatter"
+
+// commentsAnalyzer is the analyzer a language's comment extraction is recorded
+// under, such as `comments.go`.
+func commentsAnalyzer(p comment.Provider) string { return "comments." + p.Language() }
 
 // commentLayerFor returns the provider that reads a file for its comments,
 // when the comments are all a check can read in it: no format was declared for
@@ -92,9 +97,14 @@ func (a *App) checkCommentFile(ctx context.Context, file string, p comment.Provi
 // returns them as blocks, together with the formatter's disagreements as
 // diagnostics.
 //
-// The formatter compares and never writes. A language with no formatter, or a
-// comparison that cannot locate its result, is recorded as not having run: a
-// formatter check that did not run is never reported as agreement.
+// Both halves are analyzers with canaries. The provider must locate its canary
+// file's comment and the hygiene check must flag it, or nothing it located in
+// the real file can be trusted. The formatter must report its canary's
+// comment. The formatter compares and never writes; when it cannot finish, the
+// run did not run.
+//
+// A nil execution reads the layer for a caller that records no analyzers, and
+// gives no canaries.
 func (a *App) readCommentLayer(ctx context.Context, file string, p comment.Provider, execution *checkExecution) (*commentLayer, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -114,18 +124,23 @@ func (a *App) readCommentLayer(ctx context.Context, file string, p comment.Provi
 	}
 	if execution != nil {
 		execution.Timings.ExtractionMS += elapsedMS(start)
+		canary, cerr := probeCommentExtraction(ctx, p)
+		if cerr != nil {
+			return nil, fmt.Errorf("comment extraction %s: %w", DisplayName(file), cerr)
+		}
+		execution.completed(commentsAnalyzer(p), file, 0, start, canary, true)
 	}
 
 	f, ok := p.(comment.Formatter)
 	if !ok {
-		execution.unsupported(formatterCheck, file, fmt.Sprintf("No formatter is available for %s.", p.Language()))
+		execution.unsupported(formatterCheck, file, fmt.Sprintf("No formatter is known for %s.", p.Language()))
 		return layer, nil
 	}
 	id := check.RuleID(formatterCheck, f.FormatterName())
 	start = time.Now()
 	disagreements, err := f.Disagreements(file, src, located)
 	if err != nil {
-		execution.failed(id, file, err.Error())
+		execution.notRun(id, file, err.Error())
 		return layer, nil
 	}
 	for _, d := range disagreements {
@@ -138,8 +153,60 @@ func (a *App) readCommentLayer(ctx context.Context, file string, p comment.Provi
 			Location:   check.Location{File: DisplayName(file), Block: blockKey(layer.blocks[d.Comment])},
 		})
 	}
-	execution.completed(id, file, len(layer.formatter), start)
+	if execution != nil {
+		canary, cerr := probeFormatter(p, f)
+		if cerr != nil {
+			return nil, fmt.Errorf("%s %s: %w", id, DisplayName(file), cerr)
+		}
+		execution.completed(id, file, len(layer.formatter), start, canary, true)
+	}
 	return layer, nil
+}
+
+// probeCommentExtraction gives the provider its canary file, through the same
+// provider and the same hygiene checker the real comments went through.
+func probeCommentExtraction(ctx context.Context, p comment.Provider) (check.CanaryOutcome, error) {
+	c := p.Canary()
+	canary := check.Canary{Name: c.Name, Block: check.CanaryBlock(string(c.Source)), Expect: "doubled-word"}
+	hygiene := hygieneTool()
+	return check.Probe([]check.Canary{canary}, "", func(b *model.Block) ([]check.Finding, error) {
+		located, err := p.Locate("canary", []byte(model.RunsText(b.SourceRuns())))
+		if err != nil {
+			return nil, err
+		}
+		for _, blk := range located.Blocks() {
+			if blk.ID != c.Block {
+				continue
+			}
+			if err := RunCheckTool(ctx, hygiene, blk); err != nil {
+				return nil, err
+			}
+			return FindingsFromBlock(blk, false), nil
+		}
+		return nil, nil
+	})
+}
+
+// probeFormatter gives the formatter a file holding a comment it rewrites,
+// located by the same provider the real file was.
+func probeFormatter(p comment.Provider, f comment.Formatter) (check.CanaryOutcome, error) {
+	canary := check.Canary{Name: "a comment " + f.FormatterName() + " rewrites", Block: check.CanaryBlock(string(f.FormatterCanary()))}
+	return check.Probe([]check.Canary{canary}, "", func(b *model.Block) ([]check.Finding, error) {
+		src := []byte(model.RunsText(b.SourceRuns()))
+		located, err := p.Locate("canary", src)
+		if err != nil {
+			return nil, err
+		}
+		disagreements, err := f.Disagreements("canary", src, located)
+		if err != nil {
+			return nil, err
+		}
+		findings := make([]check.Finding, len(disagreements))
+		for i := range disagreements {
+			findings[i] = check.Finding{Category: f.FormatterName()}
+		}
+		return findings, nil
+	})
 }
 
 // readSourceForCheck reads a unit's source for the source-side checks: through
@@ -169,21 +236,22 @@ func applyFormatterGate(report *check.Report) {
 		if f.Check != formatterCheck {
 			continue
 		}
-		report.Pass = false
 		reason := fmt.Sprintf("%s: %s would rewrite a comment in %s", formatterCheck, f.Rule, f.Location.File)
 		if !seen[reason] {
 			seen[reason] = true
 			report.Gate.Failed = append(report.Gate.Failed, reason)
 		}
 	}
+	report.Decide()
 }
 
-// failed records an analysis that started and could not finish.
-func (e *checkExecution) failed(id, file, reason string) {
+// notRun records a required analysis that started and could not finish, which
+// leaves the run unverified.
+func (e *checkExecution) notRun(id, file, reason string) {
 	if e == nil {
 		return
 	}
 	e.Analyzers = append(e.Analyzers, check.AnalyzerExecution{
-		ID: id, File: DisplayName(file), Status: check.AnalyzerError, Required: true, Reason: reason,
+		ID: id, File: DisplayName(file), Status: check.AnalyzerDidNotRun, Required: true, Reason: reason,
 	})
 }
