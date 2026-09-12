@@ -919,13 +919,13 @@ republishes the dashboard: do not edit by hand. The dashboard
 
 ### Languages (Prose axis)
 
-| Language | Presence | Prose | P1 | P2 | P3 | P4 |
-|---|---|---|---|---|---|---|
-| `bash` | absent | none | not-met | not-met | not-met | not-met |
-| `go` | present | P1 | met | not-met | not-met | not-met |
-| `python` | absent | none | not-met | not-met | not-met | not-met |
-| `ruby` | present | P0 | not-met | not-met | not-met | not-met |
-| `typescript` | absent | none | not-met | not-met | not-met | not-met |
+| Language | Presence | Prose | P1 | P2 | P3 | P4 | Presence reason |
+|---|---|---|---|---|---|---|---|
+| `bash` | absent | none | not-met | not-met | not-met | not-met | no presence test |
+| `go` | present | P2 | met | met | not-met | not-met | TestProseP0_go passed |
+| `python` | absent | none | not-met | not-met | not-met | not-met | no presence test |
+| `ruby` | present | P0 | not-met | not-met | not-met | not-met | TestProseP0_ruby passed |
+| `typescript` | absent | none | not-met | not-met | not-met | not-met | no presence test |
 <!-- END: gap-analysis report -->
 
 ## 6. Open questions

@@ -47,9 +47,30 @@
     "low_agreement": [],
     "golden_passed": true,
     "prose": {
-      "probe_version": 1,
-      "canary": "P0",
-      "tags": "fts5"
+      "probe_version": 2,
+      "tags": "fts5",
+      "canaries": [
+        {
+          "id": "canary",
+          "presence": "present",
+          "level": "P0"
+        },
+        {
+          "id": "canarybroken",
+          "presence": "did-not-run",
+          "level": null
+        },
+        {
+          "id": "canarypresent",
+          "presence": "present",
+          "level": "P0"
+        },
+        {
+          "id": "canaryunlinked",
+          "presence": "absent",
+          "level": null
+        }
+      ]
     }
   },
   "summary": {
@@ -125,8 +146,8 @@
       },
       "by_prose": {
         "P0": 1,
-        "P1": 1,
-        "P2": 0,
+        "P1": 0,
+        "P2": 1,
         "P3": 0,
         "P4": 0
       }
@@ -8147,6 +8168,7 @@
       "name": "Bash",
       "provider": "",
       "presence": "absent",
+      "presence_reason": "no presence test",
       "level": null,
       "next": null,
       "dims": {
@@ -8179,11 +8201,12 @@
       "name": "Go",
       "provider": "",
       "presence": "present",
-      "level": "P1",
-      "next": "P2",
+      "presence_reason": "TestProseP0_go passed",
+      "level": "P2",
+      "next": "P3",
       "dims": {
         "located": "complete",
-        "governed": "none",
+        "governed": "complete",
         "editable": "none",
         "allforms": "none"
       },
@@ -8193,8 +8216,8 @@
           "reason": "passed"
         },
         "P2": {
-          "outcome": "not-met",
-          "reason": "no test"
+          "outcome": "met",
+          "reason": "passed"
         },
         "P3": {
           "outcome": "not-met",
@@ -8211,6 +8234,7 @@
       "name": "Python",
       "provider": "",
       "presence": "absent",
+      "presence_reason": "no presence test",
       "level": null,
       "next": null,
       "dims": {
@@ -8243,6 +8267,7 @@
       "name": "Ruby",
       "provider": "sourcecode",
       "presence": "present",
+      "presence_reason": "TestProseP0_ruby passed",
       "level": "P0",
       "next": "P1",
       "dims": {
@@ -8275,6 +8300,7 @@
       "name": "TypeScript",
       "provider": "",
       "presence": "absent",
+      "presence_reason": "no presence test",
       "level": null,
       "next": null,
       "dims": {
