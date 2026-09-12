@@ -2,7 +2,6 @@ package arb
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 
@@ -61,16 +60,10 @@ func (w *Writer) SetSkeletonStore(store *format.SkeletonStore) {
 func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 	// Streaming skeleton round-trip: interleave skeleton consumption with the
 	// Part stream, pulling each message block on demand rather than buffering the
-	// whole block map. Each value ref renders the block via the same
-	// encodeJSONString(blockValue) the buffered writeFromSkeleton uses.
+	// whole block map. Each value ref renders through the renderRef the buffered
+	// path also uses.
 	if w.skeletonStore != nil && w.skeletonStore.IsStreaming() {
-		return format.StreamSkeletonWrite(ctx, w.skeletonStore, parts, w.Output,
-			func(block *model.Block) ([]byte, error) {
-				if block == nil {
-					return []byte(encodeJSONString("")), nil
-				}
-				return []byte(encodeJSONString(w.blockValue(block))), nil
-			}, nil)
+		return format.StreamSkeletonWrite(ctx, w.skeletonStore, parts, w.Output, w.renderRef, nil)
 	}
 
 	var original []byte
@@ -126,30 +119,20 @@ done:
 // for unchanged messages and changes only the message values that were
 // translated.
 func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocksByID map[string]*model.Block) error {
-	for {
-		entry, err := store.Next()
-		if errors.Is(err, io.EOF) {
-			break
-		}
-		if err != nil {
-			return fmt.Errorf("arb writer: read skeleton: %w", err)
-		}
-		switch entry.Type {
-		case format.SkeletonText:
-			if _, err := w.Output.Write(entry.Data); err != nil {
-				return err
-			}
-		case format.SkeletonRef:
-			var value string
-			if block, ok := blocksByID[string(entry.Data)]; ok {
-				value = w.blockValue(block)
-			}
-			if _, err := io.WriteString(w.Output, encodeJSONString(value)); err != nil {
-				return err
-			}
-		}
+	return format.BufferedSkeletonWrite(store, blocksByID, w.Output, w.renderRef, nil)
+}
+
+// renderRef returns the bytes a value SkeletonRef contributes for the given
+// block, shared by the buffered (writeFromSkeleton) and streaming
+// (StreamSkeletonWrite) paths so both produce identical output. A nil block
+// emits an empty JSON string rather than nothing: dropping the value would
+// leave `"key":` with no value and invalidate the document.
+func (w *Writer) renderRef(block *model.Block) ([]byte, error) {
+	var value string
+	if block != nil {
+		value = w.blockValue(block)
 	}
-	return nil
+	return []byte(encodeJSONString(value)), nil
 }
 
 // blockValue resolves a block's output ARB message value: the target text for

@@ -2,9 +2,7 @@ package yaml
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"io"
 	"strconv"
 	"strings"
 
@@ -79,58 +77,42 @@ done:
 // writeFromSkeleton reads skeleton entries and fills in block content.
 // This produces byte-exact output — only translated text differs from the original.
 func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[string]*model.Block) error {
-	for {
-		entry, err := store.Next()
-		if errors.Is(err, io.EOF) {
-			break
-		}
-		if err != nil {
-			return fmt.Errorf("yaml writer: read skeleton: %w", err)
-		}
-		switch entry.Type {
-		case format.SkeletonText:
-			if _, err := w.Output.Write(entry.Data); err != nil {
-				return err
-			}
-		case format.SkeletonRef:
-			if block, ok := blocks[string(entry.Data)]; ok {
-				text := w.blockText(block)
-				// Re-emit the scalar's original bytes while they still spell
-				// exactly the text being written — byte-exact output for a block
-				// nothing touched. The test is against the text the reader
-				// recorded with those bytes, NOT against block.SourceText():
-				// after a source edit the block's source IS the new text, so
-				// that comparison always held and the pre-edit bytes won,
-				// discarding the edit (#1473).
-				if raw, ok := format.VerbatimFor(block, "yaml.raw", text); ok {
-					if _, err := io.WriteString(w.Output, raw); err != nil {
-						return err
-					}
-				} else {
-					style := block.Properties["yaml.style"]
-					indicator := block.Properties["yaml.indicator"]
-					indent := block.Properties["yaml.indent"]
-					encoded := encodeYAMLScalarWithIndicatorIndent(text, style, indicator, indent)
-					// The scalar encoders emit bare LF for multi-line
-					// bodies (block scalars, multi-line quoted strings).
-					// When the source uses CRLF the surrounding skeleton
-					// already carries CRLF, so a re-encoded scalar emitting
-					// LF would mix conventions within one document. Rewrite
-					// to the source's dominant line ending — mirroring
-					// Okapi's YamlSkeletonWriter, which normalises to LF then
-					// replays getLineBreak() on every break. Empty / "\n"
-					// eol leaves the LF-source common case untouched.
-					if eol := block.Properties["yaml.eol"]; eol == "\r\n" {
-						encoded = applyEOL(encoded, eol)
-					}
-					if _, err := io.WriteString(w.Output, encoded); err != nil {
-						return err
-					}
-				}
-			}
-		}
+	return format.BufferedSkeletonWrite(store, blocks, w.Output, w.renderRef, nil)
+}
+
+// renderRef returns the bytes a SkeletonRef contributes for the given block.
+// A nil block contributes nothing, matching a map miss.
+func (w *Writer) renderRef(block *model.Block) ([]byte, error) {
+	if block == nil {
+		return nil, nil
 	}
-	return nil
+	text := w.blockText(block)
+	// Re-emit the scalar's original bytes while they still spell
+	// exactly the text being written — byte-exact output for a block
+	// nothing touched. The test is against the text the reader
+	// recorded with those bytes, NOT against block.SourceText():
+	// after a source edit the block's source IS the new text, so
+	// that comparison always held and the pre-edit bytes won,
+	// discarding the edit (#1473).
+	if raw, ok := format.VerbatimFor(block, "yaml.raw", text); ok {
+		return []byte(raw), nil
+	}
+	style := block.Properties["yaml.style"]
+	indicator := block.Properties["yaml.indicator"]
+	indent := block.Properties["yaml.indent"]
+	encoded := encodeYAMLScalarWithIndicatorIndent(text, style, indicator, indent)
+	// The scalar encoders emit bare LF for multi-line bodies (block
+	// scalars, multi-line quoted strings). When the source uses CRLF the
+	// surrounding skeleton already carries CRLF, so a re-encoded scalar
+	// emitting LF would mix conventions within one document. Rewrite to
+	// the source's dominant line ending — mirroring Okapi's
+	// YamlSkeletonWriter, which normalises to LF then replays
+	// getLineBreak() on every break. Empty / "\n" eol leaves the
+	// LF-source common case untouched.
+	if eol := block.Properties["yaml.eol"]; eol == "\r\n" {
+		encoded = applyEOL(encoded, eol)
+	}
+	return []byte(encoded), nil
 }
 
 // encodeYAMLScalarWithIndicatorIndent encodes a string value using the
