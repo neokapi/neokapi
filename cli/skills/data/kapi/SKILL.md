@@ -1,6 +1,6 @@
 ---
 name: kapi
-description: Hold and apply a project's content context (the terms, voice and rules it goes by) and read, edit, check and translate the content inside any file format with the kapi CLI. kapi parses formats an editor can't open directly (Word, PowerPoint, JSON, XLIFF, Markdown, HTML, YAML) into one content model; reads, searches, and compares the text (kcat/kgrep/ksed/kdiff); edits it in place through a faithful round-trip you drive with `kapi inspect` + `kapi apply` (structure and inline codes preserved, no second model); answers what applies to a given piece of content and checks against it, looping until it passes; and translates into other languages with terminology enforcement and multi-format publishing. Use when the task involves reading or editing the content of a document the editor can't open (.docx/.pptx/.json/.xliff), authoring or rewriting in-voice copy, voice profile/tone, forbidden/competitor terms, consistent terminology or a glossary, checking content, asking what voice or terminology applies to a file or surface, discovering or setting up a project's context ("set up my brand", "create a starter pack", "discover our context"), refreshing a context that already exists ("refresh our brand context", "we renamed a product", "our style guide changed", "which content is not covered by our setup?"), connecting or onboarding a project to Bowrain, translating or localizing (to fr/de/ja…), making a project multilingual, adding or setting up i18n, internationalizing an existing app, choosing an i18n library or framework (React, Next.js, Vue, Angular, Svelte, Flutter, iOS, Android, Rails, Django, Go…), or finding hardcoded strings that should be translatable.
+description: Read, edit and check document content with the kapi CLI, applying scoped writing guidance and terms through format-aware tools. Use for content work in Word, PowerPoint, JSON, XLIFF, Markdown and other supported formats; retrieving or updating a project's voice and terminology; and multilingual content or i18n workflows. The agent writes the wording; kapi supplies context, document editing and declared checks.
 ---
 
 # kapi
@@ -8,9 +8,10 @@ description: Hold and apply a project's content context (the terms, voice and ru
 kapi is an open, format-aware content engine you drive from the command line. It
 parses any format it understands (Word, PowerPoint, JSON, XLIFF, Markdown, HTML,
 YAML, config) into one content model, then reads, searches, edits, and checks
-the text inside it and writes it back byte-for-byte. You do the writing, editing,
-and translating; kapi handles the formats and the guardrails and round-trips the
-result.
+the text inside it and writes edits through the format's writer. You do the
+writing, editing and translating. `kapi formats --json` reports whether a format
+is editable and supports a faithful round-trip; check those capabilities before
+relying on preservation.
 
 ## What kapi holds for you
 
@@ -101,20 +102,49 @@ it. If the task is project-shaped and there's no project, offer to set one up;
 don't impose a project on a genuine one-off. See
 [references/project.md](references/project.md).
 
-## Verify before you call it done
+## Edit and check content
 
-**The task is not done until `kapi check --ship` passes.** A clean verify is the
-finish line. Don't trust a single pass of your own output: in a project, run
-`kapi check --ship` after writing or translating content. It checks the work
-against the project's gates: voice profile score, terminology, and translation
-checks (placeholders intact, nothing left untranslated). It prints the specific
-findings. Fix what it flags and run it again, until it passes (exit 0). kapi
-is the gate; keep iterating until it's green. (The kapi Claude Code plugin also wires
-this in as a Stop hook, so a failing gate keeps you working automatically.)
+Retrieve `kapi context <path>` before editing. For block edits, inspect the file
+and read [references/edit.md](references/edit.md) for inline-code and drift guards:
 
 ```bash
-kapi check --ship --json        # whole project; or: kapi check --ship <files> [--gate voice|terminology|qa]
+kapi inspect content/en/page.json --jsonl
 ```
+
+Write a JSONL change-set with one entry per changed block. Copy its `file`, `id`
+and full `content_hash` from inspection; supply `kind: "content"` and the new
+wording in `text`. Preserve the inspected inline tokens. This illustrates the
+entry shape; replace the example ID and hash with the inspected values:
+
+```json
+{"kind":"content","file":"content/en/page.json","id":"tu2","content_hash":"<full inspected hash>","text":"Your new wording"}
+```
+
+Save the change-set outside protected project files when the task restricts
+which files may change. The argument to `apply` is the change-set file:
+
+```bash
+kapi apply edits.jsonl --diff
+kapi apply edits.jsonl
+```
+
+Check the saved content. Project voice and terms resolve from its path:
+
+```bash
+kapi check content/en/page.json --json
+```
+
+Read `execution.contexts` to confirm the effective voice selection, profile and
+channel, then read the findings and `execution.analyzers`. Fix relevant findings within
+the requested scope and re-check. Unsupported semantic guidance still needs
+review against the retrieved context; a passing score covers only the checks
+that ran. If the same finding persists or contradicts the governing guidance,
+report the unresolved issue instead of repeatedly rewriting unrelated text.
+
+Use `kapi check --ship --json` when verifying the project's release gates,
+including translation and coverage policy. See
+[references/project.md](references/project.md). The optional Claude Code Stop
+hook enforces these project gates when installed.
 
 ## Then read the section that matches the task
 
@@ -134,8 +164,8 @@ kapi check --ship --json        # whole project; or: kapi check --ship <files> [
   editing a fixed source. Author in a generative format, let kapi parse it as
   the first check, then gate on voice + terminology and revise. See
   [references/create.md](references/create.md).
-- **Keep content in voice**: retrieve the voice guidance before writing, score a
-  draft (0–100), and fix off-voice text yourself, routed through `kapi apply`.
+- **Keep content in voice**: retrieve the voice guidance before writing, check
+  a draft's supported constraints, and fix the wording yourself through `kapi apply`.
   (`kapi voice rewrite` swaps forbidden/competitor terms offline and lists
   under `skipped` the ones it matched and could not swap; for tone and
   phrasing, rewrite the text yourself against the guide.) See
@@ -154,10 +184,10 @@ kapi check --ship --json        # whole project; or: kapi check --ship <files> [
   back leaves terminology, placeholders, and format unchecked. A provider is only
   needed for unattended runs. See [references/translate.md](references/translate.md).
 
-  Across all of these, do the writing/editing/translating yourself and route it
-  through kapi rather than reaching for a provider. The provider-backed modes
-  (`kapi translate`, the optional `--ai` checks) are for unattended runs only;
-  kapi never sends content to a model to rewrite it.
+  In the agent edit loop, supply the wording yourself and use kapi's local
+  format and check tools. Provider-backed translation and model-backed analysis
+  are separate operations; use them when the task calls for them and their
+  provider use is authorized.
 - **Add i18n to a project / choose an i18n framework**: detect the stack,
   recommend the lowest-toil setup for it (every known framework carries a
   **Toil Index** grade from T0 "add and forget" to T4 "you're on your own"),

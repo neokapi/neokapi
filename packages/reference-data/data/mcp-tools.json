@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-09-11T21:52:33Z",
+  "generatedAt": "2026-09-12T16:46:15Z",
   "tools": [
     {
       "name": "apply_edits",
-      "description": "Apply a typed change-set: the one write verb. Content edits land through the byte-faithful round-trip (structure and inline codes preserved, drift-guarded by content_hash); asset edits (terms entry, content memory pair, voice rule, recipe field) are written to their committed source and compiled into the cache. No AI provider is used.",
+      "description": "Apply a typed change-set: the one write verb. For document wording, each entry uses kind=content, file, id, content_hash and text (the new wording). Read block IDs and hashes with extract_content. The replacement field is for voice rules. Content edits land through the byte-faithful round-trip (structure and inline codes preserved, drift-guarded by content_hash); asset edits (terms entry, content memory pair, voice rule, recipe field) are written to their committed source and compiled into the cache. No AI provider is used. Read the context://\u003cproject-relative-path\u003e resource before editing content, then run check_file on each changed file to review findings and analyzer coverage.",
       "surface": "default",
       "params": [
         {
@@ -90,7 +90,7 @@
     },
     {
       "name": "check_file",
-      "description": "Verify the content inside a file (Word, PowerPoint, JSON, XLIFF, Markdown, …) against the content checkset and return a kapi.check/v1 Report with per-block locations. The check counterpart to rewrite_file: author → check_file → fix the flagged block (optionally via rewrite_file) → re-check until pass. Pass target/target_lang to also run bilingual checks.",
+      "description": "Check the actual content inside a file (Word, PowerPoint, JSON, XLIFF, Markdown, …) with format-aware extraction and the applicable project voice and terms. Before editing, read the context://\u003cproject-relative-path\u003e resource; after saving edits (including apply_edits), run check_file and review its per-block findings and analyzer coverage. Returns a kapi.check/v1 Report with effective scope in execution.contexts; pass is not semantic approval. Omit profile_file/profile_pack to use the file’s project profile and channel. Supplying either replaces that voice selection with an explicit override; project terms still apply. Pass target/target_lang to also run bilingual checks.",
       "surface": "default",
       "params": [
         {
@@ -127,13 +127,13 @@
           "name": "profile_file",
           "type": "string",
           "required": false,
-          "description": "path to a voice profile YAML"
+          "description": "explicit voice override loaded from YAML; bypasses the file-scoped project voice and channel; omit to use project guidance"
         },
         {
           "name": "profile_pack",
           "type": "string",
           "required": false,
-          "description": "built-in profile pack to check vocabulary against"
+          "description": "explicit voice override; omitting profile_pack and profile_file preserves the file-scoped project voice and channel"
         },
         {
           "name": "require",
@@ -163,7 +163,7 @@
     },
     {
       "name": "check_text",
-      "description": "Verify a text snippet against the content checkset (text hygiene, length limits, forbidden/required patterns, and voice vocabulary when a profile is given) and return a kapi.check/v1 Report: pass, a 0-100 score, the gate, and a finding per stable rule id. Use it to check content you authored, then fix and re-check until it passes.",
+      "description": "Check a draft snippet with deterministic content rules. Before drafting, read the context://\u003cproject-relative-path\u003e resource for the applicable guidance. Supply context_path to check with that destination's voice and terms; without it, project guidance is not resolved. Explicit profile_pack/profile_file are available only without context_path. Returns a kapi.check/v1 Report with findings and analyzer coverage; pass is not semantic approval. After saving edits, use check_file to verify the actual file.",
       "surface": "default",
       "params": [
         {
@@ -171,6 +171,12 @@
           "type": "string",
           "required": true,
           "description": "the text to verify"
+        },
+        {
+          "name": "context_path",
+          "type": "string",
+          "required": false,
+          "description": "project-relative destination whose voice and terms govern this draft; may not exist yet; requires a project; cannot combine with profile_pack or profile_file"
         },
         {
           "name": "forbid",
@@ -212,7 +218,7 @@
     },
     {
       "name": "context_search",
-      "description": "Ask what this project's content context says about a word or phrase: what it is called here, whether it is discouraged and what to say instead, and wording the project has already approved. One question across every store the project binds; you do not need to know which one holds the answer. Ask BEFORE writing: learning the same fact from a failing check afterwards is the expensive route. Results are grouped by kind, and say what could not be reached. Each term carries how often the project's extracted content uses it, as of the last extraction (the last `kapi up`) rather than of the working tree.",
+      "description": "Ask what this project's content context says about a word or phrase: what it is called here, whether it is discouraged and what to say instead, and wording the project has already approved. One question across every store the project binds; you do not need to know which one holds the answer. Search before writing; read the context://\u003cproject-relative-path\u003e resource for the full guidance at your destination. After saving edits, use check_file on the changed files. Results are grouped by kind, and say what could not be reached. Each term carries how often the project's extracted content uses it, as of the last extraction (the last `kapi up`) rather than of the working tree.",
       "surface": "default",
       "params": [
         {

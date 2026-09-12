@@ -41,17 +41,18 @@ and parse again.
 
 ## 3. Gate on voice and terminology
 
-Run the content rules. For a one-off file, `kapi check`; in a project,
-`kapi check --ship` runs every bound gate (voice profile, terminology,
-rule-based checks) together:
+Run the content rules against the authored file. A project resolves voice and
+terms from its path; a one-off check can use an explicit profile:
 
 ```bash
 kapi check draft.md --profile-file voice.yaml --json   # one-off
-kapi check --ship --json                                       # in a project
+kapi check draft.md --json                            # project-scoped guidance
 ```
 
-The check exits 0 when the gate passes and 3 when it fails, with one finding per
-block: its location, the rule, and a suggested fix. Load the voice guide and the
+The check exits 0 when the gate passes and 3 when it fails. Findings identify the
+location and rule, with a suggested fix where available. Inspect analyzer
+coverage and review unsupported guidance separately. Use `kapi check --ship`
+when the task includes project release gates. Load the voice guide and the
 approved wording **before** writing so the first draft is already close. Inside a
 project, the assistant file (`CLAUDE.md`, or an `AGENTS.md` already at the
 root) carries a section
@@ -98,7 +99,7 @@ kapi apply changeset.jsonl
 - The **content** entry rewrites the block through the faithful round-trip.
 - The **term** entry upserts the term itself: it is written into the project's
   committed terms source (`.kapi/terms.json`) and reindexed into the local
-  store. `git diff` shows the one new term; the next `kapi check --ship`
+  store. `git diff` shows the one new term; the next `kapi check draft.md`
   enforces it.
 
 The asset kinds `kapi apply` accepts (`term`, `memory`, `voice`, `recipe`) and
@@ -106,5 +107,5 @@ their fields are summarized in [edit.md](edit.md); the voice-vocabulary case is
 detailed in [voice.md](voice.md). Asset entries require a kapi project (the
 committed source and recipe live there).
 
-After applying, run `kapi check --ship` (or `kapi check`) once more to confirm the
-draft is clean and the new rule passes.
+After applying, run `kapi check draft.md --json` again to check the draft against
+the new rule.

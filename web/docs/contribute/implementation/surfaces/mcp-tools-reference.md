@@ -36,9 +36,39 @@ server was started; the factories read it to decide what to add.
 flag convention and otherwise runs the shared upward walk. `KAPI_NO_PROJECT=1`
 disables implicit discovery; an explicit recipe still wins. The resolver retains
 the exact recipe path and source language before serving tools. Invalid project
-loading returns an error. `check_file` threads that path into its synthetic host
-command, so profile and terms resolution uses the bound project even when
-implicit discovery is disabled. Custom recipe filenames remain intact.
+loading returns an error. `check_file` and a scoped `check_text` thread that path
+into their synthetic host commands, so profile and terms resolution uses the
+bound project even when implicit discovery is disabled. Custom recipe filenames
+remain intact.
+
+The `context://` resources and `context_search` also use the server's bound
+recipe. Resource locations resolve relative to that recipe's root, including
+when the server runs from a subdirectory or outside the project. Explicit
+standalone store inputs on `context_search` retain their override semantics.
+
+`check_text.context_path` names a project-relative destination, including a file
+that has not been written. It resolves the destination's voice channel and terms
+without extracting a file. The path requires a bound project and cannot be
+combined with `profile_file` or `profile_pack`. Unscoped snippets retain those
+explicit profile options. Invalid paths and context-resolution errors fail the
+operation instead of dropping the requested scope.
+
+A scoped draft report keeps `target.kind: "text"` and records the destination in
+`target.context_path`. Its findings and analyzer entries have no file location:
+they describe the supplied snippet. `check_file` remains the post-save check for
+document extraction, structure and block locations.
+
+For project-scoped `check_file`, omit `profile_file` and `profile_pack` so the
+file's voice channel resolves from the project. Either explicit option replaces
+that voice selection; loading the project's profile YAML directly does not
+select the file's channel. Project terms still resolve for the file. Record the
+arguments and `execution.contexts` when assessing check coverage. Context entries
+record the effective voice selection, loaded profile source, project profile
+and channel, plus whether terms were supplied. A file-scoped voice resolution
+returns the composed profile and its metadata together; the check uses that
+same profile. Explicit overrides are marked `override` and carry no inferred
+project channel. Terms resolve independently of a voice override. A tool name
+alone does not establish which voice governed the check.
 
 The canonical CLI/MCP check report includes optional `execution.analyzers` and
 phase timings. An absent inventory means unreported coverage. Applicable
@@ -63,33 +93,8 @@ for analyzer scope and timing boundaries.
 ## Curation
 
 `host/mcp_tools.go` projects registry tools into MCP tools by rendering their
-`ComponentSchema` as the input schema, plus a required `text`, an optional
-`target_lang`, and, for a bilingual tool that reads a translation, a `target`.
-Only the tools in `agentFacingTools` are offered by default.
-
-## Where the target comes from
-
-Everywhere else a target arrives from a format reader. Here the caller sends a
-snippet, so the block is built in `runToolOverText` and the caller is the only
-source of a translation to run over. A block built without one sends every
-bilingual tool straight down its "no target, nothing to do" path, and the call
-returns a clean result whatever the translation says.
-
-`targetPolicyFor` reads each tool's declared IO contract rather than a list of
-names, so a tool registered with an accurate contract is handled correctly with
-nothing to update here:
-
-| Policy | Which tools | What the surface does |
-| --- | --- | --- |
-| `targetWithheld` | monolingual, or produces `PortTarget` (`translate`, `pseudo-translate`, `recycle`, `create-target`) | no `target` field: the tool writes the target itself |
-| `targetRequired` | consumes `PortTarget` (`qa`, `dnt-check`, `placeholder-check`, `term-check`) | `target` is required, and a call without one is refused |
-| `targetAccepted` | any other bilingual tool (`review`, `whitespace-correct`, `remove-target`) | `target` is offered, and applied when sent |
-
-`review` and `whitespace-correct` read the target but declare no consumed port,
-which is why they land in the third row rather than the second. Declaring that
-port would also make the flow validator demand an upstream producer for every
-flow that runs them, so the declaration is left as it is and the surface offers
-the field without insisting on it.
+`ComponentSchema` as the input schema, plus a required `text` and an optional
+`target_lang`. Only the tools in `agentFacingTools` are offered by default.
 
 Most of the unfiltered surface was never authored for an assistant: it arrived
 because someone added a pipeline step. Anything with a porcelain equivalent is
@@ -139,6 +144,12 @@ read it rather than a prose copy.
 `skipped`, `stale`, `guard_failed`) and a per-entry asset result. `ok` is false
 when an edit drifted or was rejected, which is the caller's signal to re-read
 the block and retry rather than to force the write.
+
+A content entry uses `kind: "content"`, `file`, the extracted block `id` and
+`content_hash`, and `text` for its new wording. `replacement` belongs to voice
+rules. Both the CLI and MCP reject content entries carrying a nonempty
+`replacement` before applying any entry, with an error identifying the expected
+`text` field.
 
 ## The surface is a contract
 

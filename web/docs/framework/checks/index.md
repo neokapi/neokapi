@@ -13,8 +13,8 @@ one engine: deterministic rule-based checks, terminology enforcement, placeholde
 do-not-translate integrity, and [voice profile](/framework/checks/voice) are
 check families that share one model rather than separate systems.
 
-In the CLI, checks run in `kapi check` (and, project-wide, `kapi check
---ship`), and inside `kapi up`'s loop: each pass runs the project's bound
+In the CLI, `kapi check <path>` checks authored content and `kapi check --ship`
+enforces project release gates. Checks also run inside `kapi up`'s loop: each pass runs the project's bound
 checks over what was produced. `kapi exec` runs a single check tool (`qa`,
 `term-check`, `voice-check`) on its own. See
 [Understanding the CLI layers](/kapi/direct-execution-layer).
@@ -31,8 +31,8 @@ and a finding per **stable rule id** (`length.max-chars-exceeded`,
 It **exits non-zero when the gate fails**, so a regression is caught in CI, or
 inside an AI assistant's fix-loop, the same way a failing test is. The assistant
 drafts, the checks tell it which block and which rule broke, it fixes that block
-(through `kapi apply`, or the `apply_edits` MCP tool), and the file ships only
-when the gate is green.
+(through `kapi apply`, or the `apply_edits` MCP tool), and re-checks against the
+declared thresholds. Meaning and unsupported guidance remain for review.
 
 Bilingual checks (do-not-translate and placeholder integrity, which
 compare a translated target against its source) are an opt-in: pass
@@ -52,12 +52,40 @@ regressions. `--json` emits the Report verbatim; over MCP, the `check_file` and
 `extract_content`/`apply_edits` editing tools, so an assistant can
 **author → check → revise → re-check** without leaving the conversation.
 
+For a draft intended for a project file, pass that destination as `context_path`
+to `check_text`. kapi applies the destination's voice channel and terms even
+before the file exists. For example:
+
+```json
+{"text": "Your draft wording", "context_path": "content/en/page.json"}
+```
+
+The report describes the supplied text and records its intended destination in
+`target.context_path`. After saving, use `check_file` to check the file itself.
+An unscoped snippet can use `profile_file` or `profile_pack`; these explicit
+profile options cannot be combined with `context_path`.
+
 The optional `execution` object records which analyzers ran for each input,
 which were not requested, and why a capability was unsupported. Each entry has
 an analyzer ID, execution status, finding count and, when it ran, a duration.
 The host also reports context, extraction, analysis, report-construction and
 total time in milliseconds; serialization and process startup are excluded.
 Reports without `execution` have **unreported coverage**.
+
+`execution.contexts` records the effective guidance for each checked input.
+Each entry identifies the file or draft destination, the voice selection
+(`project`, `override` or `none`), the loaded profile name and source, and the
+project profile and channel when they governed the check. `voice.applied`
+distinguishes a loaded profile from a project location with no voice binding.
+`terms_applied` states whether terminology was supplied to the checks; it does
+not imply that a term matched or produced a finding. Project terminology checks
+also run when no voice profile is bound. An omitted `contexts`
+field means the producer did not report context selection.
+
+For a project file, omit MCP `profile_file` and `profile_pack` to retain its
+applicable profile and channel. An explicit profile replaces that voice
+selection, while project terms still apply. Check the reported scope before
+using a passing result to assess the task.
 
 A passing gate and a score of 100 mean no gate-breaking findings in the
 configured checks. They do not establish factual accuracy or compliance with
@@ -150,12 +178,20 @@ the findings for one-click fixes. A check never blocks the pipeline by mutating
 content; it annotates, and the gate decides.
 
 In a project, `kapi check --ship` (and each pass of `kapi up`) runs the bound
-gates over what was produced, each reporting into the same Report: **voice**
+gates over what was produced. The project-gate response groups findings by gate:
+**voice**
 (the compliance score against the bound profile, with `--min-score`),
 **terminology**, **qa**, **ship** (the ship gate on target status), **source**
 (the source-side checks), and **staleness** (content produced under a context
 that has since changed, such as a new voice profile version or new term rules,
 must be re-run before its locale ships).
+
+Source-only collections receive authored-content checks, including in a project
+that also has translated targets. Naming a source-only file checks that content
+directly; translation checks apply to target content with its source. A gate's
+coverage distinguishes measured content from an empty scope. See
+[the agent surface design](/contribute/architecture/surfaces/s-03-agent-surfaces)
+for the edit loop and its release checks.
 
 For a worked example of gating a pull request on a project's bound checks with
 GitHub Actions, see [Ship gates &amp; CI](/kapi/recipes/ship-gates-and-ci).
