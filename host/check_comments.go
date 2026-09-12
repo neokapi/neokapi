@@ -140,7 +140,10 @@ func (a *App) readCommentLayer(ctx context.Context, file string, p comment.Provi
 	start = time.Now()
 	disagreements, err := f.Disagreements(file, src, located)
 	if err != nil {
-		execution.notRun(id, file, err.Error())
+		// A formatter that could not compare the file has nothing it can be
+		// shown to catch, so the analyzer did not run, and neither did the run.
+		canary, _ := check.Probe(nil, f.FormatterName()+" could not compare "+DisplayName(file)+": "+err.Error(), nil)
+		execution.completed(id, file, 0, start, canary, true)
 		return layer, nil
 	}
 	for _, d := range disagreements {
@@ -243,15 +246,4 @@ func applyFormatterGate(report *check.Report) {
 		}
 	}
 	report.Decide()
-}
-
-// notRun records a required analysis that started and could not finish, which
-// leaves the run unverified.
-func (e *checkExecution) notRun(id, file, reason string) {
-	if e == nil {
-		return
-	}
-	e.Analyzers = append(e.Analyzers, check.AnalyzerExecution{
-		ID: id, File: DisplayName(file), Status: check.AnalyzerDidNotRun, Required: true, Reason: reason,
-	})
 }

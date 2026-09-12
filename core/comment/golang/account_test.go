@@ -51,7 +51,16 @@ func accountFor(name string, src []byte, got *comment.File) error {
 		claims = append(claims, claim{span: byteSpan{e.Start, e.End}, lines: e.Lines, excluded: true, index: i})
 	}
 	sort.Slice(claims, func(i, j int) bool { return claims[i].span.Start < claims[j].span.Start })
+	idx := format.NewLineIndex(src)
 	for i, c := range claims {
+		// The provider counts lines from token positions; the line index every
+		// other extent uses must put the span on the same lines.
+		if c.span.Start < c.span.End {
+			if byIndex := idx.Range(c.span.Start, c.span.End); byIndex != c.lines {
+				fail("span %d-%d reports lines %d-%d, the line index puts it on %d-%d",
+					c.span.Start, c.span.End, c.lines.First, c.lines.Last, byIndex.First, byIndex.Last)
+			}
+		}
 		if c.span.Start < 0 || c.span.End > len(src) || c.span.Start >= c.span.End {
 			fail("span %d-%d is empty or outside the file", c.span.Start, c.span.End)
 		}

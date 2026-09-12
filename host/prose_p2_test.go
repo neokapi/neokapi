@@ -2,6 +2,7 @@ package host
 
 import (
 	"bytes"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -11,6 +12,7 @@ import (
 	"github.com/neokapi/neokapi/core/comment/golang"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/tool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -87,6 +89,47 @@ func TestProseP2_go(t *testing.T) {
 		assert.Equal(t, []string{goSource}, matches)
 	})
 
+	t.Run("a comment gofmt -s would change is a major finding that fails the gate", func(t *testing.T) {
+		for name, src := range map[string]string{
+			"misindented continuation": "package demo\n\nfunc Parse() {\n\t// Parse reads the input,\n\t  // one line at a time.\n\t_ = 1\n}\n",
+			"trailing space":           "package demo\n\n// Parse reads the input. \n// It stops at the end.\nfunc Parse() {}\n",
+		} {
+			t.Run(name, func(t *testing.T) {
+				report, err := (&App{SourceLang: "en"}).ComputeCheck(executionCommand(t), []string{goFile(t, src)})
+				require.NoError(t, err)
+				formatter := findingsOf(report, formatterCheck)
+				require.Len(t, formatter, 1)
+				assert.Equal(t, "formatter.gofmt", formatter[0].Rule)
+				assert.Equal(t, check.SeverityMajor, formatter[0].Severity)
+				assert.Equal(t, check.VerdictFailed, report.Verdict)
+			})
+		}
+	})
+
+	t.Run("a formatter that cannot compare the file did not run", func(t *testing.T) {
+		swapCommentProviders(t, failingFormatterProvider{})
+		file := goFile(t, "package demo\n\n// Parse parses the input.\nfunc Parse() {}\n")
+		report, err := (&App{SourceLang: "en"}).ComputeCheck(executionCommand(t), []string{file})
+		require.NoError(t, err)
+		run := analyzerRun(t, report, "formatter.gofmt")
+		assert.Equal(t, check.AnalyzerDidNotRun, run.Status)
+		assert.Contains(t, run.Reason, "could not compare")
+		assert.Equal(t, check.VerdictDidNotRun, report.Verdict)
+	})
+
+	t.Run("must fail: an inert hygiene checker invalidates a comment run", func(t *testing.T) {
+		saved := hygieneTool
+		hygieneTool = func() BlockProcessor {
+			return &tool.BaseTool{ToolName: "inert", Annotate: func(tool.BlockView) error { return nil }}
+		}
+		t.Cleanup(func() { hygieneTool = saved })
+		file := goFile(t, "package demo\n\n// Parse parses the input.\nfunc Parse() {}\n")
+		report, err := (&App{SourceLang: "en"}).ComputeCheck(executionCommand(t), []string{file})
+		require.NoError(t, err)
+		assert.Equal(t, check.AnalyzerInvalid, analyzerRun(t, report, "comments.go").Status)
+		assert.Equal(t, check.VerdictDidNotRun, report.Verdict)
+	})
+
 	t.Run("must fail: a provider that drops prose beside a directive invalidates the run", func(t *testing.T) {
 		swapCommentProviders(t, mixedGroupDroppingProvider{})
 		file := goFile(t, "package demo\n\n// Parse parses the input.\nfunc Parse() {}\n")
@@ -159,4 +202,11 @@ type agreeableFormatterProvider struct{ golang.Provider }
 
 func (agreeableFormatterProvider) Disagreements(string, []byte, *comment.File) ([]comment.Disagreement, error) {
 	return nil, nil
+}
+
+// failingFormatterProvider stands for a formatter that cannot compare a file.
+type failingFormatterProvider struct{ golang.Provider }
+
+func (failingFormatterProvider) Disagreements(string, []byte, *comment.File) ([]comment.Disagreement, error) {
+	return nil, errors.New("the formatter is unavailable")
 }
