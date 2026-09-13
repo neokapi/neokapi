@@ -199,6 +199,8 @@ Exit 4 means a gate did not run, with or without `--no-fail`: read
 `did_not_run_cause` before continuing. `checker_invalid` means a checker is
 broken and the run cannot be trusted; `nothing_to_check` and
 `content_not_checked` mean some content was never checked.
+The top-level `warnings` list names configuration to fix, such as an unknown key
+in a voice profile, and never changes a gate's verdict or the exit code.
 Correct findings within the requested scope and re-check. If a finding persists
 or conflicts with the governing guidance, report it for review. A passing gate
 establishes its declared checks; meaning and unsupported writing guidance still

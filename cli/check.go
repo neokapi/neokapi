@@ -45,7 +45,9 @@ against its source.
 Each finding carries a stable rule id (<check>.<category>) and a block location,
 so an assistant can fix the exact block and track rules across iterations. Output
 is a human table by default; --output-format json|yaml emits the kapi.check/v1
-Report.
+Report. Configuration warnings, such as an unknown key in a voice profile, follow
+the verdict and fill the report's warnings array. They name configuration to fix
+and never change the score, the gate or the exit code.
 
 Positional paths accept glob patterns and directories, expanded by kapi itself.
 Quote the pattern and ` + "`**`" + ` recurses identically in every shell. Inside a .kapi

@@ -27,6 +27,10 @@ type ProfileProblem struct {
 	// unfamiliar register is a description the guide passes through, worth
 	// mentioning and never worth refusing over.
 	Warning bool `json:"warning,omitempty"`
+	// Code names the kind of warning, one of the Code constants, so a program
+	// can tell one warning from another without reading Message. A problem that
+	// blocks the profile carries none.
+	Code string `json:"code,omitempty"`
 }
 
 // Blocking returns the problems that make a profile unusable, dropping the
@@ -40,6 +44,35 @@ func Blocking(probs []ProfileProblem) []ProfileProblem {
 	}
 	return out
 }
+
+// Advisory returns the problems that leave a profile usable, dropping the ones
+// that block it. A check reports these as warnings.
+func Advisory(probs []ProfileProblem) []ProfileProblem {
+	out := make([]ProfileProblem, 0, len(probs))
+	for _, p := range probs {
+		if p.Warning {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+// The codes a warning carries. A check passes them on in its report, where a
+// program branches on them.
+const (
+	// CodeUnknownKey is a key the profile model does not define, which the
+	// lenient load ignores. See UnknownKeys.
+	CodeUnknownKey = "voice.unknown_key"
+	// CodeUnfamiliarValue is a tone value outside the usual set, kept and
+	// rendered into the voice guide as written.
+	CodeUnfamiliarValue = "voice.unfamiliar_value"
+	// CodePreferredTermDropped is a preferred term a channel or persona states
+	// that resolution drops, because an earlier rule already governs the term.
+	CodePreferredTermDropped = "voice.preferred_term_dropped"
+	// CodeOverrideDropsPattern is a base style pattern that stops applying where
+	// a channel or persona supplies its own style.
+	CodeOverrideDropsPattern = "voice.override_drops_pattern"
+)
 
 // DecodeProfileStrict decodes a VoiceProfile from a YAML stream and rejects
 // unknown fields, so callers (e.g. `kapi voice validate`) can flag typo'd or
@@ -91,10 +124,12 @@ var (
 // profile.yaml files, the embedded starter packs, and store-backed profiles.
 func ValidateProfile(p *VoiceProfile) []ProfileProblem {
 	var probs []ProfileProblem
-	note := func(field, msg string, warning bool) {
-		probs = append(probs, ProfileProblem{Field: field, Message: msg, Warning: warning})
+	add := func(field, msg string) {
+		probs = append(probs, ProfileProblem{Field: field, Message: msg})
 	}
-	add := func(field, msg string) { note(field, msg, false) }
+	warn := func(code, field, msg string) {
+		probs = append(probs, ProfileProblem{Field: field, Message: msg, Warning: true, Code: code})
+	}
 
 	if p == nil {
 		add("", "profile is empty")
@@ -127,9 +162,9 @@ func ValidateProfile(p *VoiceProfile) []ProfileProblem {
 	// the INEFFECTIVE indicators of machine writing, and register instruction
 	// has been measured not to move a model's output. A longer list of labels
 	// makes the description longer without making it a demonstration. See #2242.
-	noteEnum(note, "tone.formality", p.Tone.Formality, validFormality)
-	noteEnum(note, "tone.emotion", p.Tone.Emotion, validEmotion)
-	noteEnum(note, "tone.humor", p.Tone.Humor, validHumor)
+	noteEnum(warn, "tone.formality", p.Tone.Formality, validFormality)
+	noteEnum(warn, "tone.emotion", p.Tone.Emotion, validEmotion)
+	noteEnum(warn, "tone.humor", p.Tone.Humor, validHumor)
 
 	// Style enums stay closed. Unlike tone these are read by code — active_voice
 	// and person_pov are what the offline check evaluates — so an unrecognised
@@ -159,14 +194,14 @@ func ValidateProfile(p *VoiceProfile) []ProfileProblem {
 		validateTerms(add, base+".preferred_terms", v.PreferredTerms)
 		validateTerms(add, base+".forbidden_terms", v.ForbiddenTerms)
 		validateTerms(add, base+".competitor_terms", v.CompetitorTerms)
-		noteDroppedPreferred(note, p.Vocabulary, *v, base+".preferred_terms", "channel", name)
+		noteDroppedPreferred(warn, p.Vocabulary, *v, base+".preferred_terms", "channel", name)
 	}
 	for _, name := range sortedKeys(p.Personas) {
 		o := p.Personas[name]
 		base := "personas." + name
 		validateTerms(add, base+".preferred_terms", o.Preferred)
 		validateTerms(add, base+".avoided_terms", o.Avoided)
-		noteDroppedPreferred(note, p.Vocabulary, o.vocabulary(), base+".preferred_terms", "persona", name)
+		noteDroppedPreferred(warn, p.Vocabulary, o.vocabulary(), base+".preferred_terms", "persona", name)
 	}
 
 	// Examples: before/after carry the transformation; category is optional.
@@ -201,12 +236,12 @@ func checkEnum(add func(field, msg string), field, value string, allowed []strin
 //
 // The known values still mean what they meant, and anything else is prose the
 // guide renders as written.
-func noteEnum(add func(field, msg string, warning bool), field, value string, valid []string) {
+func noteEnum(warn func(code, field, msg string), field, value string, valid []string) {
 	if value == "" || slices.Contains(valid, value) {
 		return
 	}
-	add(field, fmt.Sprintf("%q is not one of the usual values (%s). It is kept and rendered "+
-		"into the voice guide as written.", value, strings.Join(valid, ", ")), true)
+	warn(CodeUnfamiliarValue, field, fmt.Sprintf("%q is not one of the usual values (%s). It is kept and rendered "+
+		"into the voice guide as written.", value, strings.Join(valid, ", ")))
 }
 
 // validatePatterns checks a list of regex-based style patterns: the regex must
@@ -265,15 +300,15 @@ func validateTerms(add func(field, msg string), base string, terms []TermRule) {
 // resolution drops, because the profile's vocabulary or the override's own
 // forbidden terms already govern that term. It asks tightenVocabulary, so the
 // note and the resolved profile cannot disagree about which terms are dropped.
-func noteDroppedPreferred(note func(field, msg string, warning bool), profile, override VocabularyRules, field, kind, name string) {
+func noteDroppedPreferred(warn func(code, field, msg string), profile, override VocabularyRules, field, kind, name string) {
 	_, dropped := tightenVocabulary(profile, override)
 	for _, i := range dropped {
-		note(fmt.Sprintf("%s[%d]", field, i), fmt.Sprintf(
+		warn(CodePreferredTermDropped, fmt.Sprintf("%s[%d]", field, i), fmt.Sprintf(
 			"%s %q prefers %q, but a forbidden, competitor or preferred rule for that term "+
 				"already applies, so resolution drops this preferred term. To change the wording "+
 				"everywhere, edit the profile's own rule.",
 			kind, name, override.PreferredTerms[i].Term,
-		), true)
+		))
 	}
 }
 
@@ -370,6 +405,7 @@ func validatePresentationOverrides(p *VoiceProfile) []ProfileProblem {
 					kind, name, regex, kind,
 				),
 				Warning: true,
+				Code:    CodeOverrideDropsPattern,
 			})
 		}
 	}

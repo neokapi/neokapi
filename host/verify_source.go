@@ -73,7 +73,7 @@ func targetVerifyUnits(units []VerifyUnit) []VerifyUnit {
 	return targets
 }
 
-func (a *App) verifySourceChecks(ctx context.Context, cmd Command, u VerifyUnit, gate *verifyGateResult) error {
+func (a *App) verifySourceChecks(ctx context.Context, cmd Command, u VerifyUnit, gate *verifyGateResult, warnings *voiceWarnings) error {
 	execution := newCheckExecution()
 	extractionStart := time.Now()
 	blocks, formatterDiags, err := a.readSourceForCheck(ctx, u, execution)
@@ -82,7 +82,7 @@ func (a *App) verifySourceChecks(ctx context.Context, cmd Command, u VerifyUnit,
 	}
 	execution.Timings.ExtractionMS = elapsedMS(extractionStart)
 	contextStart := time.Now()
-	voice, err := a.newCheckVoice(cmd)
+	voice, err := a.newCheckVoice(cmd, warnings)
 	if err != nil {
 		return err
 	}

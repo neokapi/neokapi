@@ -207,6 +207,16 @@ it. Explicit voice overrides retain their behavior and are identified as
 `override`; MCP field descriptions state that omitting overrides preserves
 file-scoped project guidance. See [Checks](/framework/checks) for interpretation.
 
+The optional `warnings` array is also additive to `kapi.check/v1`, and the
+`kapi check --ship` result carries the same array at its top level. Each entry
+contains `code`, `message`, `source` and, when the warning concerns one key,
+`key`. The array is omitted when a run has none. Warnings describe the
+configuration a check ran under, and they never change `pass`, `verdict`,
+`summary`, `gate` or the exit code. The MCP `check_text` and `check_file` tools
+return them in the same report, and the `check_report_warnings` golden in
+`cli/contract_golden_test.go` pins the shape. See [Checks](/framework/checks)
+for the codes.
+
 For `apply_edits`, content entries put new wording in `text`; `replacement` is
 a voice-rule field. A nonempty `replacement` on a content entry is rejected
 before applying the change-set. The input field descriptions state this

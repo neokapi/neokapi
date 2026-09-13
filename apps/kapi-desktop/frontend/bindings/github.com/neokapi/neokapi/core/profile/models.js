@@ -727,6 +727,16 @@ export class ProfileProblem {
              */
             this["warning"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * Code names the kind of warning, one of the Code constants, so a program
+             * can tell one warning from another without reading Message. A problem that
+             * blocks the profile carries none.
+             * @member
+             * @type {string | undefined}
+             */
+            this["code"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }

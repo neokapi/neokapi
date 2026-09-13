@@ -64,6 +64,19 @@ const CHECKER_INVALID: CheckRunResult = {
   files: [{ path: "src/locales/en.json", findings: [] }],
 };
 
+const PASSING_WITH_WARNINGS: CheckRunResult = {
+  ...PASSING,
+  warnings: [
+    {
+      code: "voice.unknown_key",
+      message:
+        'unknown key "preffered_terms" (line 7) is ignored when the profile loads; check its spelling and the section it sits under',
+      source: ".kapi/voice.yaml",
+      key: "vocabulary.preffered_terms",
+    },
+  ],
+};
+
 function renderPanel(props: Partial<React.ComponentProps<typeof ChecksPanel>> = {}) {
   return render(
     <ErrorProvider>
@@ -177,6 +190,23 @@ describe("ChecksPanel", () => {
     ).toBeGreaterThan(0);
     expect(screen.queryByText("There was nothing in scope to check.")).not.toBeInTheDocument();
     expect(screen.queryByText("Passing")).not.toBeInTheDocument();
+  });
+
+  it("lists configuration warnings apart from the findings and keeps the verdict", () => {
+    renderPanel({ result: PASSING_WITH_WARNINGS });
+    expect(screen.getByText("Passing")).toBeInTheDocument();
+    expect(screen.getByText(/No findings\. Your content passes all checks\./i)).toBeInTheDocument();
+    expect(screen.getByText("100")).toBeInTheDocument();
+    expect(screen.getByText("Configuration warnings")).toBeInTheDocument();
+    expect(screen.getByText("voice.unknown_key")).toBeInTheDocument();
+    expect(screen.getByText(".kapi/voice.yaml: vocabulary.preffered_terms")).toBeInTheDocument();
+    expect(screen.getAllByTestId("check-warning")).toHaveLength(1);
+    expect(screen.queryAllByTestId("finding-card")).toHaveLength(0);
+  });
+
+  it("shows no warnings section for a run without warnings", () => {
+    renderPanel({ result: FAILING });
+    expect(screen.queryByTestId("check-warnings")).not.toBeInTheDocument();
   });
 
   it("shows the loading state when forceLoading is set", () => {

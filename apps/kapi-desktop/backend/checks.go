@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -92,6 +93,10 @@ type CheckRunResult struct {
 	DidNotRunCause string            `json:"did_not_run_cause,omitempty"`
 	Score          int               `json:"score"`
 	Files          []CheckFileResult `json:"files"`
+	// Warnings name configuration to fix, such as a key a voice profile carries
+	// that the profile model does not define. They are the warnings a
+	// kapi.check/v1 report carries, and never change the verdict or the score.
+	Warnings []check.Warning `json:"warnings,omitempty"`
 }
 
 // RunChecks runs the project's content checks (placeholder + do-not-translate
@@ -342,8 +347,21 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 		return nil, runErr
 	}
 
+	// The configuration warnings of each profile the run resolved, once each,
+	// as `kapi check` reports them.
+	var warnings []check.Warning
+	for _, source := range points.loadedSources() {
+		found, werr := capp.VoiceProfileWarnings(ctx, nil, source)
+		if werr != nil {
+			return nil, fmt.Errorf("voice profile warnings: %w", werr)
+		}
+		warnings = append(warnings, found...)
+	}
+
 	score := check.CalculateScore(allFindings).Overall
-	return checkRunVerdict(allFindings, blocksChecked, analyzers, score, files), nil
+	result := checkRunVerdict(allFindings, blocksChecked, analyzers, score, files)
+	result.Warnings = check.MergeWarnings(warnings)
+	return result, nil
 }
 
 // checkRunVerdict decides a checks run the way `kapi check` decides a report:
@@ -418,6 +436,8 @@ type pointResolver struct {
 	held   bool
 	voices map[string]*coreprofile.VoiceProfile
 	terms  map[string]terms.Terminology
+	// sources are where the profiles the resolver loaded came from, each once.
+	sources []string
 }
 
 // newPointResolver builds a resolver for one operation over one project. held
@@ -520,7 +540,7 @@ func (v *pointResolver) load(ctx context.Context, pt project.GovernancePoint) *c
 		v.app.checksMu.Lock()
 		defer v.app.checksMu.Unlock()
 	}
-	p, _, ok, err := v.app.checksCLI().ResolveVoiceProfile(
+	p, source, ok, err := v.app.checksCLI().ResolveVoiceProfile(
 		ctx, v.proj, v.root, host.VoiceResolveOptions{Point: pt},
 	)
 	if err != nil {
@@ -530,7 +550,19 @@ func (v *pointResolver) load(ctx context.Context, pt project.GovernancePoint) *c
 	if !ok {
 		return nil
 	}
+	if !slices.Contains(v.sources, source) {
+		v.sources = append(v.sources, source)
+	}
 	return p
+}
+
+// loadedSources are where the profiles the resolver loaded came from, each once,
+// in the order the resolver first loaded them.
+func (v *pointResolver) loadedSources() []string {
+	if v == nil {
+		return nil
+	}
+	return v.sources
 }
 
 // ApplyCheckFix applies a single finding's structured replacement to a block in
