@@ -2037,43 +2037,16 @@ func (a *App) ResolveTermRulesFor(cmd Command, targetLang string, point project.
 		return nil, err
 	}
 
-	source := model.LocaleID(a.SourceLocale())
 	target := model.LocaleID(targetLang)
 	if target == "" {
 		target = model.LocaleID(a.TargetLang)
 	}
-
-	var rules []coreprofile.TermRule
-	for _, c := range concepts {
-		concept := c
-		src := concept.HeadTerm(source)
-		if src == nil || src.Text == "" {
-			continue
-		}
-		// A do-not-translate concept is answered by the source term alone. It
-		// needs no entry for the target: the whole claim is that this string is
-		// the same in every locale, including ones the store has never been
-		// told about. Requiring a target term here is why the pseudo locale saw
-		// no rules at all — nothing in the store speaks qps — and rendered the
-		// product names like ordinary prose.
-		if concept.DoNotTranslate {
-			rules = append(rules, coreprofile.TermRule{
-				Term:           src.Text,
-				ConceptID:      concept.ID,
-				DoNotTranslate: true,
-			})
-			continue
-		}
-		tgt := concept.PreferredTerm(target)
-		if tgt == nil || tgt.Text == "" {
-			continue
-		}
-		rules = append(rules, coreprofile.TermRule{
-			Term:        src.Text,
-			Replacement: tgt.Text,
-		})
-	}
-	return rules, nil
+	// One derivation for every surface (sqlterms.RulesFromConcepts): each
+	// concept's head term with its forms, its preferred target term as the
+	// replacement, and its admitted and approved terms as accepted renderings. A
+	// do-not-translate concept is answered by the source term alone, including in
+	// a locale the store has never heard of, such as the pseudo locale.
+	return sqlterms.RulesFromConcepts(concepts, model.LocaleID(a.SourceLocale()), target), nil
 }
 
 // projectConcepts loads the project's terms concepts for the read-only check

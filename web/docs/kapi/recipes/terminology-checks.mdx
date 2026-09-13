@@ -59,6 +59,8 @@ kapi exec term-check messages_fr.json \
 
 The `term-check` tool flags targets that don't use the approved equivalent for a source term ("code secret" where the terms store says "mot de passe") and exits non-zero on violations, so it doubles as a CI gate. Scale with globs and `-j 4`; keep the terms store current with re-imports (concepts merge) and `kapi terms export` for vendor kits. Flags: [`kapi terms`](/reference/commands/terms), [`kapi exec term-check`](/reference/commands/exec-term-check).
 
+A source term counts in its plural and other regular forms, so "Alerts" uses the term "alert", while a longer word built on it, such as "workflow" for "flow", does not. A translation passes when it contains the approved term, any admitted term for the concept, or a word built around one of them ("kaiplassene" contains "kaiplass"). A form that changes the word, such as the Norwegian plural "varsler" for "varsel", passes once the term lists it as a form. `kapi terms validate` lists the translated terms that have no forms yet, and `kapi terms expand` proposes them for you to review before committing.
+
 Two neighbours of `term-check` cover what a store alone cannot say:
 
 - **Rules without a store.** `term_rules:` is the same shape a voice profile's vocabulary uses (one term, what to use instead, a severity), and `term-check`, `translate`, `recycle` and `pseudo-translate` all take it in a flow step's `config:` or under `defaults.tools`. A rule can carry a `concept_id` that ties it to the concept in the store; a rule with no `replacement` is skipped, because "say this instead" needs a this. The fields are in the [voice profile reference](/reference/serialization/voice-profile#term-rules).

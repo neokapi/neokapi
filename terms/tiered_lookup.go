@@ -257,28 +257,27 @@ func LookupAllTiered(sourceText string, opts LookupOptions, terms []LocaleTerm) 
 	return dropCoveredMatches(matches)
 }
 
-// dropCoveredMatches applies the longest-declared-match preference: a match
-// whose span falls strictly inside another match's span is not reported.
-// Matches that merely overlap, and matches covering exactly the same span, are
-// all kept — neither term contains the other, so both are genuinely used.
-//
-// It relies on the caller's sort (start ascending, then longest first), which
-// puts a covering match before everything it covers.
+// dropCoveredMatches applies the longest-declared-match rule
+// (check.KeepLongestDeclared, the one definition term-check applies to rule
+// hits): a match whose span falls strictly inside another match's span is not
+// reported, while matches that only overlap, or cover exactly the same span, are
+// all kept. The caller's order is preserved for the matches that remain.
 func dropCoveredMatches(matches []TermMatch) []TermMatch {
 	if len(matches) < 2 {
 		return matches
 	}
+	spans := make([]check.DeclaredSpan, len(matches))
+	for i, m := range matches {
+		spans[i] = check.DeclaredSpan{Start: m.Position.Start, End: m.Position.End, Index: i}
+	}
+	keep := make(map[int]bool, len(matches))
+	for _, s := range check.KeepLongestDeclared(spans) {
+		keep[s.Index] = true
+	}
 	kept := matches[:0]
-	var cover model.TextRange
-	covered := false
-	for _, m := range matches {
-		if covered && cover.End >= m.Position.End &&
-			!(cover.Start == m.Position.Start && cover.End == m.Position.End) {
-			continue
-		}
-		kept = append(kept, m)
-		if !covered || m.Position.End > cover.End {
-			cover, covered = m.Position, true
+	for i, m := range matches {
+		if keep[i] {
+			kept = append(kept, m)
 		}
 	}
 	return kept

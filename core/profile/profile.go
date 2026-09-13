@@ -149,6 +149,13 @@ func cloneRules(in []TermRule) []TermRule {
 	copy(out, in)
 	for i := range out {
 		out[i].Forms = append([]string(nil), in[i].Forms...)
+		out[i].ReplacementForms = append([]string(nil), in[i].ReplacementForms...)
+		if in[i].Accepted != nil {
+			out[i].Accepted = make([]Rendering, len(in[i].Accepted))
+			for j, a := range in[i].Accepted {
+				out[i].Accepted[j] = Rendering{Text: a.Text, Forms: append([]string(nil), a.Forms...)}
+			}
+		}
 	}
 	return out
 }
@@ -329,6 +336,44 @@ type TermRule struct {
 	// then not say "in prose", and fired inside the code sample the document
 	// exists to explain.
 	Scope string `json:"scope,omitempty" yaml:"scope,omitempty"`
+
+	// ReplacementForms are the surface forms Replacement takes in the language
+	// it is written in: the Norwegian plural "varsler" for "varsel". A check
+	// that holds a text to Replacement accepts any of them as Replacement.
+	ReplacementForms []string `json:"replacement_forms,omitempty" yaml:"replacement_forms,omitempty"`
+
+	// Accepted are further renderings that satisfy the rule, each with its own
+	// forms: the admitted and approved terms a concept carries beside its
+	// preferred one. Replacement stays the wording a translation is asked to
+	// use, and a check accepts Replacement or any of these.
+	Accepted []Rendering `json:"accepted,omitempty" yaml:"accepted,omitempty"`
+}
+
+// Rendering is one acceptable wording for what a rule requires, with the
+// surface forms it takes.
+type Rendering struct {
+	Text  string   `json:"text" yaml:"text"`
+	Forms []string `json:"forms,omitempty" yaml:"forms,omitempty"`
+}
+
+// Renderings is every wording that satisfies the rule: Replacement with its
+// forms first, then each accepted rendering, blanks and repeats removed. It is
+// empty when the rule names no replacement.
+func (r TermRule) Renderings() []Rendering {
+	if strings.TrimSpace(r.Replacement) == "" {
+		return nil
+	}
+	out := []Rendering{{Text: strings.TrimSpace(r.Replacement), Forms: r.ReplacementForms}}
+	seen := map[string]bool{strings.ToLower(out[0].Text): true}
+	for _, a := range r.Accepted {
+		text := strings.TrimSpace(a.Text)
+		if text == "" || seen[strings.ToLower(text)] {
+			continue
+		}
+		seen[strings.ToLower(text)] = true
+		out = append(out, Rendering{Text: text, Forms: a.Forms})
+	}
+	return out
 }
 
 // VoiceExample shows a before/after transformation for voice profile.

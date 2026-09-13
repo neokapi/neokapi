@@ -109,6 +109,7 @@ func (a *App) computeLoopCheckExclusions(ctx context.Context, cmd Command, proj 
 		if len(rules) > 0 {
 			termTool = coretools.NewTermCheckTool(&coretools.TermCheckConfig{
 				TermRules:    rules,
+				SourceLocale: model.LocaleID(a.SourceLocale()),
 				TargetLocale: model.LocaleID(u.Locale),
 			})
 		}

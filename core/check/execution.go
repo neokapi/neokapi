@@ -54,6 +54,58 @@ type Execution struct {
 	// Contexts records effective inputs to voice and terminology checks. Omitted
 	// means context selection was not reported by this producer.
 	Contexts []CheckContext `json:"contexts,omitempty"`
+	// TermMatching records, per target language, how the terminology checks
+	// matched terms. Omitted when no terminology check ran.
+	TermMatching []TermMatching `json:"term_matching,omitempty"`
+}
+
+// How the terminology checks found a source term and recognised a rendering.
+const (
+	// TermSourceEnglishInflection finds an English source term with its
+	// regular inflections, or with its declared forms when it has any.
+	TermSourceEnglishInflection = "english-inflection"
+	// TermSourceWholeWord finds a source term as a whole word, by its text and
+	// declared forms only.
+	TermSourceWholeWord = "whole-word"
+	// TermTargetContainment accepts a target that contains a required wording.
+	TermTargetContainment = "containment"
+	// TermTargetContainmentForms also accepts a target that contains a declared
+	// form of a required wording.
+	TermTargetContainmentForms = "containment+forms"
+)
+
+// TermMatching is how the terminology checks matched terms for one target
+// language.
+type TermMatching struct {
+	Locale string `json:"locale"`
+	// Source is TermSourceEnglishInflection or TermSourceWholeWord.
+	Source string `json:"source"`
+	// Target is TermTargetContainment, or TermTargetContainmentForms when at
+	// least one rule declares forms of a required wording.
+	Target string `json:"target"`
+	// Rules counts the rules applied, and RulesWithForms the rules that declare
+	// forms of a required wording.
+	Rules          int `json:"rules"`
+	RulesWithForms int `json:"rules_with_forms"`
+}
+
+// MergeTermMatching adds m to list, keeping one entry per locale. A locale
+// checked more than once, at points that bind different rules, reports the
+// larger counts, and containment plus forms when any of its checks declared
+// forms.
+func MergeTermMatching(list []TermMatching, m TermMatching) []TermMatching {
+	for i := range list {
+		if list[i].Locale != m.Locale {
+			continue
+		}
+		list[i].Rules = max(list[i].Rules, m.Rules)
+		list[i].RulesWithForms = max(list[i].RulesWithForms, m.RulesWithForms)
+		if m.Target == TermTargetContainmentForms {
+			list[i].Target = TermTargetContainmentForms
+		}
+		return list
+	}
+	return append(list, m)
 }
 
 // CheckContext describes the guidance used for one checked input. ContextPath

@@ -89,9 +89,9 @@ func TestResolveJobTermRules_BuildsFromConcepts(t *testing.T) {
 	got := jobTermRules(t.Context(), deps, job, "en", "fr")
 	// Ordered by term, so one terms store yields one prompt every run.
 	assert.Equal(t, []coreprofile.TermRule{
-		{Term: "alert", Replacement: "avis de vigilance"},
-		{Term: "berth", Replacement: "poste d'amarrage"},
-		{Term: "dashboard", Replacement: "tableau de bord"},
+		{Term: "alert", Replacement: "avis de vigilance", ConceptID: "c6"},
+		{Term: "berth", Replacement: "poste d'amarrage", ConceptID: "c2"},
+		{Term: "dashboard", Replacement: "tableau de bord", ConceptID: "c1"},
 	}, got)
 }
 
@@ -112,7 +112,7 @@ func TestResolveJobTermRules_PrefersApprovedTargetTerm(t *testing.T) {
 	job := &TranslationJob{ID: "j1", WorkspaceSlug: "acme", ProjectID: "p", TargetLocale: "fr"}
 
 	got := jobTermRules(t.Context(), deps, job, "en", "fr")
-	assert.Equal(t, []coreprofile.TermRule{{Term: "sync", Replacement: "rapprochement des données"}}, got)
+	assert.Equal(t, []coreprofile.TermRule{{Term: "sync", Replacement: "rapprochement des données", ConceptID: "c1"}}, got)
 }
 
 // TestResolveJobTermRules_KeysOnPreferredSourceTerm confirms the source side
@@ -132,7 +132,35 @@ func TestResolveJobTermRules_KeysOnPreferredSourceTerm(t *testing.T) {
 	job := &TranslationJob{ID: "j1", WorkspaceSlug: "acme", ProjectID: "p", TargetLocale: "fr"}
 
 	got := jobTermRules(t.Context(), deps, job, "en", "fr")
-	assert.Equal(t, []coreprofile.TermRule{{Term: "vessel", Replacement: "navire"}}, got)
+	assert.Equal(t, []coreprofile.TermRule{{Term: "vessel", Replacement: "navire", ConceptID: "c1"}}, got)
+}
+
+// TestResolveJobTermRules_CarriesFormsAndAcceptedRenderings confirms a job
+// holds a translation to the renderings the CLI gate accepts: the shared
+// derivation carries the source term's forms, the preferred rendering's forms,
+// and an admitted term with its own forms.
+func TestResolveJobTermRules_CarriesFormsAndAcceptedRenderings(t *testing.T) {
+	tb := terms.NewInMemoryStore()
+	require.NoError(t, tb.AddConcept(t.Context(), terms.Concept{
+		ID: "c-alert",
+		Terms: []terms.Term{
+			{Text: "alert", Locale: "en", Status: model.TermPreferred, Forms: []string{"alerts"}},
+			{Text: "varsel", Locale: "nb", Status: model.TermPreferred, Forms: []string{"varsler"}},
+			{Text: "alarm", Locale: "nb", Status: model.TermAdmitted, Forms: []string{"alarmer"}},
+		},
+	}))
+	deps := &WorkerDeps{TermsResolver: TermsResolverFunc(func(string) (terms.Terminology, error) { return tb, nil })}
+	job := &TranslationJob{ID: "j1", WorkspaceSlug: "acme", ProjectID: "p", TargetLocale: "nb"}
+
+	got := jobTermRules(t.Context(), deps, job, "en", "nb")
+	assert.Equal(t, []coreprofile.TermRule{{
+		Term:             "alert",
+		Forms:            []string{"alerts"},
+		ConceptID:        "c-alert",
+		Replacement:      "varsel",
+		ReplacementForms: []string{"varsler"},
+		Accepted:         []coreprofile.Rendering{{Text: "alarm", Forms: []string{"alarmer"}}},
+	}}, got)
 }
 
 // TestResolveJobTermRules_DegradesGracefully pins the never-fail contract: no

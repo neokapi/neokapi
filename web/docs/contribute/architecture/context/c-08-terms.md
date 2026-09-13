@@ -218,17 +218,31 @@ word is a hit for the whole gate or for none of it. A store term is found under
 its text and under each form it declares, and the match names the term, so
 "Two alerts" is a use of `alert` when the term lists `alerts`.
 
-`term-check` is the exception. A mandate names a lemma while content inflects
-it: a source reading "Two new alerts" uses the term `alert`, and an obedient
-Norwegian rendering of `alarmmelding` is `alarmmeldinger`. So both its sides
-match on containment rather than on word boundaries. The cost is real (a mandate
-on `use` also fires inside `user`), and no boundary rule separates the two
-cases, because `user` is a word that starts with `use` exactly as `alerts` is a
-word that starts with `alert`. Telling an inflection from a coincidence needs
-stemming or explicitly declared forms, not a stricter matcher, which is what a
-term rule's `forms` are for ([C-07](c-07-voice-profiles.md));
-`scripts/contexteval` pins the Norwegian case that would regress first. The
-whole-word rule is Unicode-aware: an underscore continues a word, so
+`term-check` holds a translation to what its rules require, and it reads the
+two sides differently. On the source side it asks whether the text uses a rule's
+term, with the whole-word matcher above. An English source also finds a term's
+regular inflections, the endings -s, -es, -ed and -ing and -d after a final e,
+so "Two new alerts" uses `alert`. A derivation is a word of its own:
+"translation" uses `translation`, and a hyphenated compound such as
+"pseudo-translate" is one word. A source in any other language finds a term as
+written or as a form the term declares. Placeholders are syntax on both sides
+(`check.TermText`), so `{vessel}` holds no term. Where the terms of two rules
+cover the same words, only the longer one is demanded.
+
+On the target side a demanded rule is satisfied when the text contains the
+preferred rendering, any admitted or approved term of the concept, or a declared
+form of one of them. Containment keeps Norwegian and German compounds working,
+because "kaiplassene" and "Liegeplatzplan" contain their terms. It also accepts
+a different word that happens to contain a rendering, such as "tilleggskrav" for
+`tillegg`, and that is the accepted cost of keeping compounds. A form that
+changes the word, such as "varsler" for `varsel`, is recognised once the term
+declares it, and a finding for a rule with no forms in a language that inflects
+says so. The gate records, per target language, which matching it used: English
+inflection or whole words for the source, and containment or containment plus
+declared forms for the target. `scripts/contexteval` pins the Norwegian case
+that would regress first.
+
+The whole-word rule is Unicode-aware: an underscore continues a word, so
 `mooring_id` is one token rather than a use of `mooring`; scripts written
 without word separators take no boundary rule at all; and a multi-word term
 matches across any run of whitespace.
@@ -357,9 +371,12 @@ The framework ships terminology tools as ordinary pipeline stages:
   `term_rules:`, so terminology declared in a recipe counts as much as
   terminology decided in the store. Downstream tools use these for context.
 - **`term-check`** (validate): holds a target to the renderings its
-  `term_rules:` mandate, with the containment matcher described above. A rule's
-  severity sorts a violation into an error or a warning, and the verify gate
-  reports both while failing only on the first.
+  `term_rules:` require, finding source terms by word and renderings by
+  containment as described above. A rule's severity sorts a violation into an
+  error or a warning, and the verify gate reports both while failing only on the
+  first. It probes two canaries under its own configuration: a target with the
+  rendering deleted, and one holding a word that opens like the rendering and
+  ends differently, the shape of "Kaiplan" for `kaiplass`.
 - **`term-enforce`** (validate): for each known source term, checks that an
   acceptable target-locale translation is present, and flags blocks where it is
   missing. A source term whose concept is forbidden or deprecated redirects

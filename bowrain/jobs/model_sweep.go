@@ -107,9 +107,11 @@ const (
 // translation job (#1334), captured once so both arms and the digest see one
 // consistent snapshot.
 type SweepContext struct {
-	Profile   *coreprofile.VoiceProfile
-	TermRules []coreprofile.TermRule // term → mandated target rendering
-	DNT       []string               // do-not-translate terms
+	// SourceLocale is the language the swept content is written in.
+	SourceLocale model.LocaleID
+	Profile      *coreprofile.VoiceProfile
+	TermRules    []coreprofile.TermRule // term → mandated target rendering
+	DNT          []string               // do-not-translate terms
 }
 
 // Empty reports whether there is any context to measure. A project with no
@@ -320,6 +322,7 @@ func scoreSweepBlocks(ctx context.Context, blocks []*model.Block, locale model.L
 	if len(sc.TermRules) > 0 {
 		termTool := coretools.NewTermCheckTool(&coretools.TermCheckConfig{
 			TermRules:    sc.TermRules,
+			SourceLocale: sc.SourceLocale,
 			TargetLocale: locale,
 		})
 		var err error
@@ -391,8 +394,9 @@ func sweepVoiceAdherent(target string, profile *coreprofile.VoiceProfile) bool {
 func resolveSweepContext(ctx context.Context, deps *WorkerDeps, job *TranslationJob, proj *store.Project) *SweepContext {
 	cfg := jobTranslateConfig(ctx, deps, job, proj)
 	return &SweepContext{
-		Profile:   cfg.Profile,
-		TermRules: cfg.TermRules,
-		DNT:       cfg.DNT,
+		SourceLocale: cfg.SourceLocale,
+		Profile:      cfg.Profile,
+		TermRules:    cfg.TermRules,
+		DNT:          cfg.DNT,
 	}
 }

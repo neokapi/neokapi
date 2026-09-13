@@ -680,7 +680,7 @@ func decideVerifyOutput(out *verifyOutput) {
 
 // addExecution folds analyzer runs recorded for a gate into its result.
 func (g *verifyGateResult) addExecution(e *checkExecution) {
-	if len(e.Analyzers) == 0 {
+	if len(e.Analyzers) == 0 && len(e.TermMatching) == 0 {
 		return
 	}
 	if g.Execution == nil {
@@ -688,6 +688,9 @@ func (g *verifyGateResult) addExecution(e *checkExecution) {
 	}
 	g.Execution.Analyzers = append(g.Execution.Analyzers, e.Analyzers...)
 	g.Execution.Timings.AnalyzersMS += e.Timings.AnalyzersMS
+	for _, m := range e.TermMatching {
+		g.Execution.TermMatching = check.MergeTermMatching(g.Execution.TermMatching, m)
+	}
 }
 
 // unboundGate returns the result for a gate the user explicitly named whose
@@ -1329,9 +1332,11 @@ func (a *App) verifyTerminology(cmd Command, units []VerifyUnit) (verifyGateResu
 		gate.Coverage.Blocks += len(blocks)
 		cfg := &coretools.TermCheckConfig{
 			TermRules:    rules,
+			SourceLocale: model.LocaleID(a.SourceLocale()),
 			TargetLocale: model.LocaleID(u.Locale),
 		}
 		tc := coretools.NewTermCheckTool(cfg)
+		execution.termMatching(coretools.TermCheckMatching(cfg))
 		start, before := time.Now(), len(gate.Findings)
 		for _, b := range blocks {
 			if cerr := RunCheckTool(ctx, tc, b); cerr != nil {
