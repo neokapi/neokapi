@@ -151,6 +151,32 @@ func TestUnsubscribe(t *testing.T) {
 	mu.Unlock()
 }
 
+// Unsubscribe waits for the handler to finish what was already delivered, which
+// is what lets a test read a subscriber's side effects without a deadline.
+func TestUnsubscribeDrainsDeliveredEvents(t *testing.T) {
+	bus := NewChannelEventBus()
+	defer bus.Close()
+
+	const published = 5
+	handled := 0
+	var mu sync.Mutex
+	sub := bus.Subscribe(platev.EventBlockCreated, func(platev.Event) {
+		time.Sleep(20 * time.Millisecond)
+		mu.Lock()
+		handled++
+		mu.Unlock()
+	})
+
+	for range published {
+		bus.Publish(platev.Event{Type: platev.EventBlockCreated})
+	}
+	bus.Unsubscribe(sub)
+
+	mu.Lock()
+	defer mu.Unlock()
+	assert.Equal(t, published, handled)
+}
+
 func TestContextCancellation(t *testing.T) {
 	bus := NewChannelEventBus()
 	bus.Close() // Close immediately
