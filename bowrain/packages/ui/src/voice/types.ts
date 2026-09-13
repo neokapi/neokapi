@@ -57,9 +57,17 @@ export interface LocaleOverride {
   example_overrides?: VoiceExample[];
 }
 
+/**
+ * ChannelOverride adjusts the voice on one channel. Tone/style replace the
+ * resolved tone/style; the vocabulary only tightens, the way a persona's does:
+ * forbidden and competitor terms extend the profile's, and a preferred term an
+ * earlier rule already governs is dropped. Mirror of Go
+ * core/profile.ChannelOverride.
+ */
 export interface ChannelOverride {
   tone?: ToneProfile;
   style?: StyleRules;
+  vocabulary?: VocabularyRules;
 }
 
 /**

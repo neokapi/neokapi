@@ -330,8 +330,9 @@ collection's point, most specific first:
 | terms | `--termstore` → `profiles.<name>.termstore` → `.kapi/profiles/<name>/terms.json` (when the file exists) → the project's own store |
 
 The channel then refines the voice that resolved: a matching entry under the
-voice profile's own `channels:` replaces its tone, its style, or both. Vocabulary
-applies to every channel.
+voice profile's own `channels:` replaces its tone, its style, or both, and can
+add vocabulary rules. The profile's own vocabulary applies on every channel, and
+a channel's rules only add to it.
 
 #### Declared axes
 

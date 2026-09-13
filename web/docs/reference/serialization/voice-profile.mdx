@@ -199,10 +199,24 @@ A **locale override** (`locales.<locale>`) carries:
 | `vocabulary_overrides` | TermRule[] | Rules that hold for this language only. |
 | `example_overrides` | VoiceExample[] | Examples in this language. |
 
-A **channel override** (`channels.<channel>`) carries a `tone` and a `style`
-object, each optional, that replace the resolved tone or style wholesale. A
-collection's [channel](/kapi/context#the-context-space) selects the matching
+A **channel override** (`channels.<channel>`) adjusts the voice on one channel.
+A collection's [channel](/kapi/context#the-context-space) selects the matching
 entry.
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `tone`, `style` | object | Replace the resolved tone or style wholesale. |
+| `vocabulary` | object | Written like the profile's own `vocabulary`. Its forbidden and competitor terms are added to the resolved ones, and an abbreviation applies only where none is defined. A preferred term is dropped where an earlier rule already governs the term. |
+
+```yaml
+channels:
+  child:
+    vocabulary:
+      forbidden_terms:
+        - term: authenticate
+          replacement: sign in
+          severity: major
+```
 
 A **persona override** (`personas.<name>`) layers an individual author's voice
 inside the profile's guardrails:
@@ -210,12 +224,16 @@ inside the profile's guardrails:
 | Field | Type | Notes |
 | --- | --- | --- |
 | `tone`, `style` | object | Replace the resolved tone or style, as a channel override does. |
-| `preferred_terms` | TermRule[] | Terms the author leans on. A preferred term the profile forbids or lists as a competitor term is dropped rather than re-allowed. |
+| `preferred_terms` | TermRule[] | Terms the author leans on. A preferred term is dropped where an earlier rule already governs the term. |
 | `avoided_terms` | TermRule[] | Terms the author steers clear of; added to the forbidden set. |
 
-A persona can only tighten vocabulary, never loosen it: the profile always
-wins, and the merge order enforces that rather than trusting the persona's
-author.
+Resolution applies the locale override first, then the channel, then the
+persona. A channel and a persona can only tighten vocabulary. Every rule an
+earlier layer set keeps applying at its own severity, and a later preferred
+term that names a term an earlier layer forbids, lists as a competitor, or
+already words its own way is dropped. The merge order enforces this, whoever
+wrote the override, and `kapi voice validate` warns about each preferred term
+it drops.
 
 ### Autonomy
 

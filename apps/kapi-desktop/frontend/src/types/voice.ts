@@ -80,10 +80,11 @@ export interface LocaleOverride {
   example_overrides?: VoiceExample[];
 }
 
-/** What changes on one channel. */
+/** What changes on one channel. Its vocabulary only adds to the profile's. */
 export interface ChannelOverride {
   tone?: ToneProfile;
   style?: StyleRules;
+  vocabulary?: VocabularyRules;
 }
 
 /** What changes for one author voice, inside the profile's guardrails. */

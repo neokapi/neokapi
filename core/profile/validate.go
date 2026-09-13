@@ -148,6 +148,27 @@ func ValidateProfile(p *VoiceProfile) []ProfileProblem {
 	validateTerms(add, "vocabulary.forbidden_terms", p.Vocabulary.ForbiddenTerms)
 	validateTerms(add, "vocabulary.competitor_terms", p.Vocabulary.CompetitorTerms)
 
+	// Override vocabulary: the same term checks, and a note wherever resolution
+	// would drop a preferred term the override states.
+	for _, name := range sortedKeys(p.Channels) {
+		v := p.Channels[name].Vocabulary
+		if v == nil {
+			continue
+		}
+		base := "channels." + name + ".vocabulary"
+		validateTerms(add, base+".preferred_terms", v.PreferredTerms)
+		validateTerms(add, base+".forbidden_terms", v.ForbiddenTerms)
+		validateTerms(add, base+".competitor_terms", v.CompetitorTerms)
+		noteDroppedPreferred(note, p.Vocabulary, *v, base+".preferred_terms", "channel", name)
+	}
+	for _, name := range sortedKeys(p.Personas) {
+		o := p.Personas[name]
+		base := "personas." + name
+		validateTerms(add, base+".preferred_terms", o.Preferred)
+		validateTerms(add, base+".avoided_terms", o.Avoided)
+		noteDroppedPreferred(note, p.Vocabulary, o.vocabulary(), base+".preferred_terms", "persona", name)
+	}
+
 	// Examples: before/after carry the transformation; category is optional.
 	for i, ex := range p.Examples {
 		base := fmt.Sprintf("examples[%d]", i)
@@ -237,6 +258,22 @@ func validateTerms(add func(field, msg string), base string, terms []TermRule) {
 			add(f+".term", "term is empty")
 		}
 		checkEnum(add, f+".severity", t.Severity, validSeverity)
+	}
+}
+
+// noteDroppedPreferred warns about each preferred term an override states that
+// resolution drops, because the profile's vocabulary or the override's own
+// forbidden terms already govern that term. It asks tightenVocabulary, so the
+// note and the resolved profile cannot disagree about which terms are dropped.
+func noteDroppedPreferred(note func(field, msg string, warning bool), profile, override VocabularyRules, field, kind, name string) {
+	_, dropped := tightenVocabulary(profile, override)
+	for _, i := range dropped {
+		note(fmt.Sprintf("%s[%d]", field, i), fmt.Sprintf(
+			"%s %q prefers %q, but a forbidden, competitor or preferred rule for that term "+
+				"already applies, so resolution drops this preferred term. To change the wording "+
+				"everywhere, edit the profile's own rule.",
+			kind, name, override.PreferredTerms[i].Term,
+		), true)
 	}
 }
 

@@ -116,7 +116,8 @@ collections:
   Profile names and channels are slugs. The profile name is also the directory
   under `.kapi/profiles/<name>/`. An explicit `--profile` still beats the recipe.
   The channel additionally picks the override inside the selected profile's
-  voice, so a landing register lives beside the voice it varies rather than in a
+  voice (its tone, its style, and vocabulary rules that add to the profile's),
+  so a landing register lives beside the voice it varies rather than in a
   second file. A channel no profile declares, and a bare channel two profiles
   declare, both fail the load; kapi will not quietly translate that content in
   the wrong voice.

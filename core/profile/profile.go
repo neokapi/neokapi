@@ -90,13 +90,7 @@ func (p *VoiceProfile) Clone() *VoiceProfile {
 	c.Tone.Personality = append([]string(nil), p.Tone.Personality...)
 	c.Style.ProhibitedPatterns = append([]Pattern(nil), p.Style.ProhibitedPatterns...)
 	c.Style.RequiredPatterns = append([]Pattern(nil), p.Style.RequiredPatterns...)
-	c.Vocabulary.PreferredTerms = cloneRules(p.Vocabulary.PreferredTerms)
-	c.Vocabulary.ForbiddenTerms = cloneRules(p.Vocabulary.ForbiddenTerms)
-	c.Vocabulary.CompetitorTerms = cloneRules(p.Vocabulary.CompetitorTerms)
-	if p.Vocabulary.Abbreviations != nil {
-		c.Vocabulary.Abbreviations = make(map[string]string, len(p.Vocabulary.Abbreviations))
-		maps.Copy(c.Vocabulary.Abbreviations, p.Vocabulary.Abbreviations)
-	}
+	c.Vocabulary = cloneVocabulary(p.Vocabulary)
 	c.Examples = append([]VoiceExample(nil), p.Examples...)
 	if p.Locales != nil {
 		c.Locales = make(map[model.LocaleID]LocaleOverride, len(p.Locales))
@@ -104,13 +98,29 @@ func (p *VoiceProfile) Clone() *VoiceProfile {
 	}
 	if p.Channels != nil {
 		c.Channels = make(map[string]ChannelOverride, len(p.Channels))
-		maps.Copy(c.Channels, p.Channels)
+		for name, o := range p.Channels {
+			if o.Vocabulary != nil {
+				v := cloneVocabulary(*o.Vocabulary)
+				o.Vocabulary = &v
+			}
+			c.Channels[name] = o
+		}
 	}
 	if p.Personas != nil {
 		c.Personas = make(map[string]PersonaOverride, len(p.Personas))
 		maps.Copy(c.Personas, p.Personas)
 	}
 	return &c
+}
+
+// cloneVocabulary copies every rule list and the abbreviation map.
+func cloneVocabulary(v VocabularyRules) VocabularyRules {
+	return VocabularyRules{
+		PreferredTerms:  cloneRules(v.PreferredTerms),
+		ForbiddenTerms:  cloneRules(v.ForbiddenTerms),
+		CompetitorTerms: cloneRules(v.CompetitorTerms),
+		Abbreviations:   maps.Clone(v.Abbreviations),
+	}
 }
 
 // AllForms is the term and every other shape the rule declares, with blanks and
@@ -340,9 +350,17 @@ type LocaleOverride struct {
 }
 
 // ChannelOverride provides channel-specific adjustments to a voice profile.
+//
+// Tone and Style replace the resolved tone and style wholesale. Vocabulary is
+// written the way the profile's own vocabulary is, and ResolveProfile layers it
+// after any locale override and before any persona. It can only tighten the
+// rules resolved so far: its forbidden and competitor terms extend those lists,
+// and a preferred term is dropped where an earlier rule already governs the
+// term, so a channel never re-allows a word the profile forbids.
 type ChannelOverride struct {
-	Tone  *ToneProfile `json:"tone,omitempty" yaml:"tone,omitempty"`
-	Style *StyleRules  `json:"style,omitempty" yaml:"style,omitempty"`
+	Tone       *ToneProfile     `json:"tone,omitempty" yaml:"tone,omitempty"`
+	Style      *StyleRules      `json:"style,omitempty" yaml:"style,omitempty"`
+	Vocabulary *VocabularyRules `json:"vocabulary,omitempty" yaml:"vocabulary,omitempty"`
 }
 
 // PersonaOverride layers an individual author's voice on top of a brand
@@ -353,13 +371,20 @@ type ChannelOverride struct {
 //
 // A persona composes strictly inside the brand's guardrails. Its deltas can
 // only tighten vocabulary, never loosen it: Avoided terms add to the profile's
-// forbidden set, and a Preferred term that the brand already forbids (or lists
-// as a competitor term) is dropped rather than re-allowed. This "brand always
-// wins" rule is enforced by ResolveProfile's merge order, not by trusting the
-// persona author, so a personal voice can never override a brand prohibition.
+// forbidden set, and a Preferred term that an earlier layer already forbids,
+// lists as a competitor term, or words its own way is dropped rather than
+// re-allowed. This "brand always wins" rule is enforced by ResolveProfile's
+// merge order, not by trusting the persona author, so a personal voice can
+// never override a brand prohibition.
 type PersonaOverride struct {
 	Tone      *ToneProfile `json:"tone,omitempty" yaml:"tone,omitempty"`
 	Style     *StyleRules  `json:"style,omitempty" yaml:"style,omitempty"`
 	Preferred []TermRule   `json:"preferred_terms,omitempty" yaml:"preferred_terms,omitempty"`
 	Avoided   []TermRule   `json:"avoided_terms,omitempty" yaml:"avoided_terms,omitempty"`
+}
+
+// vocabulary is the persona's deltas in the shape a channel writes, so both
+// overrides tighten through the same merge.
+func (o PersonaOverride) vocabulary() VocabularyRules {
+	return VocabularyRules{PreferredTerms: o.Preferred, ForbiddenTerms: o.Avoided}
 }

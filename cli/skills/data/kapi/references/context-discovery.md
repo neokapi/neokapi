@@ -72,7 +72,8 @@ Three artifacts, all plain files the user can review before anything binds:
   Surfaces with genuinely different registers belong at different **points**: a
   named collection per surface, each bound to a `channel:` of the profile that
   governs it. One voice profile carries them all; a channel override bends tone
-  and style without loosening the vocabulary.
+  and style, and its `vocabulary:` can add rules for that channel on top of the
+  profile's.
 
 ## 3. Review with the user
 

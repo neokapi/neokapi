@@ -366,6 +366,18 @@ function PointDetail({ point, onEdit }: { point: VoicePoint; onEdit?: () => void
                       <ToneBlock tone={override.tone} />
                       <StyleFacts style={override.style} />
                       <PatternGroups style={override.style} />
+                      <TermGroup
+                        title={t("Say this")}
+                        rules={override.vocabulary?.preferred_terms}
+                      />
+                      <TermGroup
+                        title={t("Never say")}
+                        rules={override.vocabulary?.forbidden_terms}
+                      />
+                      <TermGroup
+                        title={t("Competitor names")}
+                        rules={override.vocabulary?.competitor_terms}
+                      />
                     </div>
                   ))}
                 </div>
