@@ -34,6 +34,8 @@ var reviewTypes = []emitType{
 		"The voice profile in force, with the guidance it renders: the same\nprose the translate prompt carried. Mirrors core/review.Voice."},
 	{"ReviewProfileValidity", reflect.TypeFor[review.ProfileValidity](),
 		"One governance profile's validity window, read against now.\nMirrors core/review.ProfileValidity."},
+	{"Rendering", reflect.TypeFor[profile.Rendering](),
+		"One wording that satisfies a term rule, with the forms it takes. Mirrors\ncore/profile.Rendering."},
 	{"TermRule", reflect.TypeFor[profile.TermRule](),
 		"One constraint on wording: a term, what to say instead, and how hard it\nbites. Mirrors core/profile.TermRule."},
 	{"ReviewNeighbourhood", reflect.TypeFor[review.Neighbourhood](),

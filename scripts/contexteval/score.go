@@ -160,6 +160,8 @@ func runCheck(ctx context.Context, corpus TestCorpus, chk Check, f Fixture, b *m
 // which are cleared afterwards so the next mandate reads its own verdict.
 func runTermCheck(ctx context.Context, chk Check, b *model.Block, loc model.LocaleID) (bool, string, error) {
 	t := coretools.NewTermCheckTool(&coretools.TermCheckConfig{
+		// The corpus is written in English.
+		SourceLocale: model.LocaleEnglish,
 		TargetLocale: loc,
 		TermRules:    []profile.TermRule{{Term: chk.Term.Term, Replacement: chk.Term.Replacement}},
 	})

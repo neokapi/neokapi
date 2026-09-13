@@ -753,6 +753,49 @@ export class ProfileProblem {
 }
 
 /**
+ * Rendering is one acceptable wording for what a rule requires, with the
+ * surface forms it takes.
+ */
+export class Rendering {
+    /**
+     * Creates a new Rendering instance.
+     * @param {Partial<Rendering>} [$$source = {}] - The source object to create the Rendering.
+     */
+    constructor($$source = {}) {
+        if (!("text" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["text"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["forms"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Rendering instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {Rendering}
+     */
+    static createFrom($$source = {}) {
+        const $$createField1_0 = $$createType10;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("forms" in $$parsedSource) {
+            $$parsedSource["forms"] = $$createField1_0($$parsedSource["forms"]);
+        }
+        return new Rendering(/** @type {Partial<Rendering>} */($$parsedSource));
+    }
+}
+
+/**
  * StyleRules defines writing style constraints.
  */
 export class StyleRules {
@@ -940,6 +983,27 @@ export class TermRule {
              */
             this["scope"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * ReplacementForms are the surface forms Replacement takes in the language
+             * it is written in: the Norwegian plural "varsler" for "varsel". A check
+             * that holds a text to Replacement accepts any of them as Replacement.
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["replacement_forms"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Accepted are further renderings that satisfy the rule, each with its own
+             * forms: the admitted and approved terms a concept carries beside its
+             * preferred one. Replacement stays the wording a translation is asked to
+             * use, and a check accepts Replacement or any of these.
+             * @member
+             * @type {Rendering[] | undefined}
+             */
+            this["accepted"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }
@@ -951,9 +1015,17 @@ export class TermRule {
      */
     static createFrom($$source = {}) {
         const $$createField6_0 = $$createType10;
+        const $$createField9_0 = $$createType10;
+        const $$createField10_0 = $$createType20;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("forms" in $$parsedSource) {
             $$parsedSource["forms"] = $$createField6_0($$parsedSource["forms"]);
+        }
+        if ("replacement_forms" in $$parsedSource) {
+            $$parsedSource["replacement_forms"] = $$createField9_0($$parsedSource["replacement_forms"]);
+        }
+        if ("accepted" in $$parsedSource) {
+            $$parsedSource["accepted"] = $$createField10_0($$parsedSource["accepted"]);
         }
         return new TermRule(/** @type {Partial<TermRule>} */($$parsedSource));
     }
@@ -1076,7 +1148,7 @@ export class VocabularyRules {
         const $$createField0_0 = $$createType12;
         const $$createField1_0 = $$createType12;
         const $$createField2_0 = $$createType12;
-        const $$createField3_0 = $$createType19;
+        const $$createField3_0 = $$createType21;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("preferred_terms" in $$parsedSource) {
             $$parsedSource["preferred_terms"] = $$createField0_0($$parsedSource["preferred_terms"]);
@@ -1307,15 +1379,15 @@ export class VoiceProfile {
      * @returns {VoiceProfile}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType20;
+        const $$createField0_0 = $$createType22;
         const $$createField4_0 = $$createType0;
         const $$createField5_0 = $$createType2;
         const $$createField6_0 = $$createType4;
         const $$createField7_0 = $$createType14;
-        const $$createField8_0 = $$createType22;
-        const $$createField9_0 = $$createType24;
-        const $$createField10_0 = $$createType26;
-        const $$createField12_0 = $$createType27;
+        const $$createField8_0 = $$createType24;
+        const $$createField9_0 = $$createType26;
+        const $$createField10_0 = $$createType28;
+        const $$createField12_0 = $$createType29;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("constraints" in $$parsedSource) {
             $$parsedSource["constraints"] = $$createField0_0($$parsedSource["constraints"]);
@@ -1368,12 +1440,14 @@ const $$createType15 = PatternRate.createFrom;
 const $$createType16 = $Create.Nullable($$createType15);
 const $$createType17 = Pattern.createFrom;
 const $$createType18 = $Create.Array($$createType17);
-const $$createType19 = $Create.Map($Create.Any, $Create.Any);
-const $$createType20 = $Create.Array($$createType9);
-const $$createType21 = LocaleOverride.createFrom;
-const $$createType22 = $Create.Map($Create.Any, $$createType21);
-const $$createType23 = ChannelOverride.createFrom;
+const $$createType19 = Rendering.createFrom;
+const $$createType20 = $Create.Array($$createType19);
+const $$createType21 = $Create.Map($Create.Any, $Create.Any);
+const $$createType22 = $Create.Array($$createType9);
+const $$createType23 = LocaleOverride.createFrom;
 const $$createType24 = $Create.Map($Create.Any, $$createType23);
-const $$createType25 = PersonaOverride.createFrom;
+const $$createType25 = ChannelOverride.createFrom;
 const $$createType26 = $Create.Map($Create.Any, $$createType25);
-const $$createType27 = AutonomyConfig.createFrom;
+const $$createType27 = PersonaOverride.createFrom;
+const $$createType28 = $Create.Map($Create.Any, $$createType27);
+const $$createType29 = AutonomyConfig.createFrom;

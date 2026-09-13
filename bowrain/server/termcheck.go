@@ -12,6 +12,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/core/voicescope"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
+	coretools "github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/terms"
 )
 
@@ -39,9 +40,9 @@ import (
 
 // blockTermCompliance is the terminology verdict for a block's committed target
 // for tgtLoc. The target is a violation when it USES a forbidden or competitor
-// term (presence) or OMITS a mandated preferred/approved rendering its source
-// concept requires (absence), and compliant when it was checked and does
-// neither. It is the single per-block predicate the dashboard ship-state pass,
+// term (presence) or OMITS every rendering its source concept accepts
+// (absence, decided as term-check decides it), and compliant when it was
+// checked and does neither. It is the single per-block predicate the dashboard ship-state pass,
 // the compliant-rate derivation, the review queue, the bulk approve-passing
 // endpoint, and the RV-E concept re-check oracle all call.
 //
@@ -97,49 +98,33 @@ func targetHasForbiddenTerm(ctx context.Context, tb terms.Terminology, targetTex
 }
 
 // targetMissingMandatedTerm reports whether the target VIOLATES terminology by
-// ABSENCE — the term-check / term-enforce direction, generalized over the whole
-// terms. For every concept whose source-locale term appears in sourceText, if
-// the concept mandates a preferred/approved rendering for tgtLoc yet none of those
-// renderings appears in targetText, the target is non-compliant. It reuses
-// TermEnforceTool's primitives (LookupAll to detect the source term, a
-// case-insensitive contains for the mandated rendering) without driving the full
-// pipeline tool, matching RV-F's already-shipped oracle. Redirection through
-// USE_INSTEAD / REPLACED_BY relations is deliberately not followed here — the
-// review loop's primitive check does not either, and staying identical to it is
-// the point of the shared predicate.
+// ABSENCE: the source uses a concept's term, and the target holds none of the
+// renderings that concept accepts for tgtLoc. It decides exactly what the
+// term-check tool decides, by deriving the rules with terms.RulesFromConcepts
+// and asking coretools.TermCheckViolations, so a translation the CLI gate
+// passes is compliant here and one it fails is a violation. That includes an
+// admitted or approved term, a declared form of any rendering, an English
+// source term's regular inflections, and placeholder names read as syntax.
+// Redirection through USE_INSTEAD / REPLACED_BY relations is not followed, as
+// in term-check.
 func targetMissingMandatedTerm(ctx context.Context, tb terms.Terminology, sourceText, targetText string, srcLoc, tgtLoc model.LocaleID) bool {
 	if strings.TrimSpace(sourceText) == "" || strings.TrimSpace(targetText) == "" {
 		return false
 	}
-	matches, err := tb.LookupAll(ctx, sourceText, terms.LookupOptions{SourceLocale: srcLoc})
-	if err != nil || len(matches) == 0 {
+	concepts, err := tb.Concepts(ctx)
+	if err != nil || len(concepts) == 0 {
 		return false
 	}
-	for _, m := range matches {
-		// The renderings this concept mandates for the locale — preferred/approved
-		// only, the statuses term-enforce checks. A concept that mandates nothing
-		// for the locale has nothing the target can miss.
-		var mandated []terms.Term
-		for _, tt := range m.Concept.TargetTerms(tgtLoc) {
-			if tt.Status == model.TermPreferred || tt.Status == model.TermApproved {
-				mandated = append(mandated, tt)
-			}
-		}
-		if len(mandated) == 0 {
-			continue
-		}
-		present := false
-		for _, tt := range mandated {
-			if terms.ContainsText(targetText, tt.Text, false) {
-				present = true
-				break
-			}
-		}
-		if !present {
-			return true // source uses the concept but the mandated rendering is absent
-		}
+	rules := terms.RulesFromConcepts(concepts, srcLoc, tgtLoc)
+	if len(rules) == 0 {
+		return false
 	}
-	return false
+	errs, _ := coretools.TermCheckViolations(&coretools.TermCheckConfig{
+		TermRules:    rules,
+		SourceLocale: srcLoc,
+		TargetLocale: tgtLoc,
+	}, sourceText, targetText)
+	return len(errs) > 0
 }
 
 // termGate carries the terminology-governance context for one ship/compliant pass:

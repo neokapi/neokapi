@@ -17,6 +17,15 @@ type checkExecution struct {
 	warnings voiceWarnings
 }
 
+// termMatching records how a terminology check matched terms for its target
+// language. A nil execution records nothing.
+func (e *checkExecution) termMatching(m check.TermMatching) {
+	if e == nil {
+		return
+	}
+	e.TermMatching = check.MergeTermMatching(e.TermMatching, m)
+}
+
 // warningSink is where a resolver working for this operation sends the
 // warnings of the profiles it loads. A nil execution collects none.
 func (e *checkExecution) warningSink() *voiceWarnings {

@@ -15,6 +15,7 @@ export {
     PatternRate,
     PersonaOverride,
     ProfileProblem,
+    Rendering,
     StyleRules,
     TermRule,
     ToneProfile,

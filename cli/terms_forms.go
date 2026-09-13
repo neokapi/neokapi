@@ -70,6 +70,9 @@ dropped; review the diff before committing it.`,
 			out.Changed = count
 			for _, prop := range proposals {
 				entry := output.TermsExpandEntry{ConceptID: prop.ConceptID, Locale: string(prop.Locale), Term: prop.Term, Forms: prop.Forms}
+				if entry.Forms == nil {
+					entry.Forms = []string{}
+				}
 				for _, r := range prop.Rejected {
 					entry.Rejected = append(entry.Rejected, output.TermsRejectedForm{Form: r.Form, Reason: r.Reason})
 				}

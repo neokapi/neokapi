@@ -103,38 +103,35 @@ func TermRulesFromConcepts(ctx context.Context, tb terms.Terminology, projectID 
 		return nil, err
 	}
 
-	replacement := make(map[string]string)
+	byTerm := make(map[string]coreprofile.TermRule)
 	projectScoped := make(map[string]bool)
-	for i := range concepts {
-		concept := &concepts[i]
+	for _, concept := range concepts {
 		if concept.ProjectID != "" && concept.ProjectID != projectID {
 			continue // another project's terminology
 		}
-		src := concept.HeadTerm(sourceLocale)
-		if src == nil || src.Text == "" {
-			continue
-		}
-		tgt := concept.PreferredTerm(targetLocale)
-		if tgt == nil || tgt.Text == "" {
+		// The one derivation every surface shares (terms.RuleForConcept), so
+		// the jobs mandate the renderings and forms the CLI gate accepts.
+		rule, ok := terms.RuleForConcept(concept, sourceLocale, targetLocale)
+		if !ok || rule.Replacement == "" {
 			continue
 		}
 		scoped := concept.ProjectID == projectID && concept.ProjectID != ""
-		if _, exists := replacement[src.Text]; exists && (projectScoped[src.Text] || !scoped) {
+		if _, exists := byTerm[rule.Term]; exists && (projectScoped[rule.Term] || !scoped) {
 			// Keep the existing rule unless this one is more specific: a
 			// project-scoped rendering replaces a workspace-scoped one; equal
 			// specificity keeps the first (Concepts is ordered by ID, so the
 			// pick is deterministic across runs).
 			continue
 		}
-		replacement[src.Text] = tgt.Text
-		projectScoped[src.Text] = scoped
+		byTerm[rule.Term] = rule
+		projectScoped[rule.Term] = scoped
 	}
-	if len(replacement) == 0 {
+	if len(byTerm) == 0 {
 		return nil, nil
 	}
-	rules := make([]coreprofile.TermRule, 0, len(replacement))
-	for _, term := range slices.Sorted(maps.Keys(replacement)) {
-		rules = append(rules, coreprofile.TermRule{Term: term, Replacement: replacement[term]})
+	rules := make([]coreprofile.TermRule, 0, len(byTerm))
+	for _, term := range slices.Sorted(maps.Keys(byTerm)) {
+		rules = append(rules, byTerm[term])
 	}
 	return rules, nil
 }

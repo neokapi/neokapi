@@ -154,6 +154,8 @@ in a profile and a rule handed to a tool read identically.
 | `do_not_translate` | bool | The term must survive verbatim into every target. Gives a bare term with no replacement its meaning. |
 | `forms` | string[] | The other surface shapes the term takes (inflections, declensions, conjugations), matched alongside `term`. Matching is exact, so the forms are declared rather than derived; `kapi voice expand` asks a model for them in the profile's language and writes them here as a diff. |
 | `case_sensitive` | bool | Match the term and its forms in their own casing. Off by default; on for a rule whose whole content is capitalisation (`term: Ripgrep`, `replacement: ripgrep`). |
+| `replacement_forms` | string[] | Other forms of `replacement` in the language it is written in, such as the plural. `term-check` accepts a translation that contains any of them. |
+| `accepted` | object[] | Further wordings that satisfy the rule, each with `text` and optional `forms`: the admitted and approved terms a concept carries beside its preferred one. `replacement` stays the wording a translation is asked to use. |
 | `scope` | string | The same values a pattern's `scope` takes. Empty means everywhere. |
 
 ```yaml
