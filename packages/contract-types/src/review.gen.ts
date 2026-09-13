@@ -71,6 +71,15 @@ export interface ReviewProfileValidity {
 }
 
 /**
+ * One wording that satisfies a term rule, with the forms it takes. Mirrors
+ * core/profile.Rendering.
+ */
+export interface Rendering {
+  text: string;
+  forms?: string[];
+}
+
+/**
  * One constraint on wording: a term, what to say instead, and how hard it
  * bites. Mirrors core/profile.TermRule.
  */
