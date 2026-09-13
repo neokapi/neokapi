@@ -98,7 +98,14 @@ func TestValidateWarnsWhenAnOverrideDropsABasePattern(t *testing.T) {
 	require.NotNil(t, found, "an override that drops a base pattern must be reported")
 	assert.True(t, found.Warning, "replacement is legitimate, so this warns rather than fails")
 	assert.Contains(t, found.Message, `(?i)risk-free`)
-	assert.Contains(t, found.Message, "constraints:", "the message must name where the rule belongs")
+	// Both routes, because following only the first turns a minor or major
+	// pattern into a critical, gate-failing one.
+	assert.Contains(t, found.Message, "state it under constraints: if it must hold for every audience",
+		"the message must name constraints as the route for a rule every audience keeps")
+	assert.Contains(t, found.Message, "a constraint is always critical",
+		"the message must say what moving the rule under constraints does to its severity")
+	assert.Contains(t, found.Message, "restate it in the style of each channel that sets one to keep its own severity",
+		"the message must name the route that keeps the pattern's severity")
 }
 
 func TestValidateStaysQuietWhenTheRuleIsAlsoAConstraint(t *testing.T) {
