@@ -120,10 +120,32 @@ func TestFindingsCollectorSaysSoWhenThereAreNone(t *testing.T) {
 	require.NoError(t, err)
 	report := res.Data.(findingsReport)
 	assert.Empty(t, report.Findings)
+	assert.Empty(t, report.DidNotRunCause, "a check that read a block ran")
 
 	var buf bytes.Buffer
 	report.FormatTable(&buf)
 	assert.Contains(t, buf.String(), "No findings.")
+}
+
+// A check over no block did not run. The report names the cause, and the table
+// a clean run prints gives way to the sentence `kapi check` prints for it.
+func TestFindingsCollectorOverNoBlockDidNotRun(t *testing.T) {
+	c := &findingsCollector{}
+	require.NoError(t, c.Collect(context.Background(), &flow.Item{
+		Input: &model.RawDocument{URI: "src/empty.xlf"},
+	}, nil))
+
+	res, err := c.Result()
+	require.NoError(t, err)
+	report := res.Data.(findingsReport)
+	assert.Equal(t, 0, report.Target.Blocks)
+	assert.Equal(t, check.CauseNothingToCheck, report.DidNotRunCause)
+	assert.NotEmpty(t, report.DidNotRun)
+
+	var buf bytes.Buffer
+	report.FormatTable(&buf)
+	assert.Contains(t, buf.String(), "Did not run: there was nothing in scope to check.")
+	assert.NotContains(t, buf.String(), "No findings.")
 }
 
 // exec holds the content to no bar, so the report carries no verdict: a

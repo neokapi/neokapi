@@ -148,6 +148,51 @@ func TestRunFlowAction_PrePushGateBlocksOnFindings(t *testing.T) {
 	assert.NotContains(t, out, "Would run flow")
 }
 
+// emptyAutomationXLIFF holds no translation unit, so a flow over it reads no
+// block.
+const emptyAutomationXLIFF = `<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+  <file source-language="en" target-language="nb" datatype="plaintext" original="app">
+    <body>
+    </body>
+  </file>
+</xliff>
+`
+
+// A check step that read no content block did not run, so a gate over it has
+// nothing to pass. With fail_on_error the push stops as it stops on findings,
+// with the cause and the exit code `kapi check` uses when a check did not run.
+func TestRunFlowAction_PrePushGateStopsWhenItsChecksReadNothing(t *testing.T) {
+	automationApp(t)
+	proj := automationFixture(t, []string{"Acme Cloud"},
+		runFlowRule("checks-gate", project.HookPrePush, map[string]string{"flow": "guard", "fail_on_error": "true"}))
+	require.NoError(t, os.WriteFile(filepath.Join(proj.Root, "src", "app.xlf"), []byte(emptyAutomationXLIFF), 0o644))
+	cmd, stdout, _ := hookCmd(t)
+
+	err := runLocalAutomations(cmd, proj, project.HookPrePush)
+	require.Error(t, err, "a gate whose checks read nothing must not pass the push")
+	assert.Equal(t, cli.ExitNotRun, cli.ExitCode(cmd, err), "a check that did not run exits like `kapi check`")
+	assert.Contains(t, err.Error(), `automation "checks-gate" action "run_flow"`)
+	assert.Contains(t, err.Error(), `flow "guard" did not run its checks: there was nothing in scope to check (nothing_to_check)`)
+
+	out := stdout.String()
+	assert.Contains(t, out, "Did not run: there was nothing in scope to check.", "the run prints the cause where the push prints")
+	assert.NotContains(t, out, "No findings.")
+}
+
+// Without fail_on_error the push goes ahead, and the automation says the
+// checks did not run.
+func TestRunFlowAction_ReportsChecksThatReadNothingWithoutGating(t *testing.T) {
+	automationApp(t)
+	proj := automationFixture(t, []string{"Acme Cloud"},
+		runFlowRule("checks", project.HookPrePush, map[string]string{"flow": "guard"}))
+	require.NoError(t, os.WriteFile(filepath.Join(proj.Root, "src", "app.xlf"), []byte(emptyAutomationXLIFF), 0o644))
+	cmd, stdout, _ := hookCmd(t)
+
+	require.NoError(t, runLocalAutomations(cmd, proj, project.HookPrePush))
+	assert.Contains(t, stdout.String(), `flow "guard" did not run its checks: there was nothing in scope to check (nothing_to_check)`)
+}
+
 func TestRunFlowAction_PrePushGatePassesClean(t *testing.T) {
 	automationApp(t)
 	proj := automationFixture(t, []string{"Nonexistent Product"},

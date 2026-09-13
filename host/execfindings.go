@@ -128,14 +128,11 @@ func (c *findingsCollector) Result() (flow.CollectorResult, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	// The gate is open (every limit -1) because exec reports and `kapi check`
-	// gates; the resulting verdict is therefore meaningless and is not emitted.
+	// gates, so the report carries no pass or fail. A run over no block is
+	// did_not_run all the same: that is coverage, and it holds whatever the gate.
 	gate := check.Gate{MaxCritical: -1, MaxMajor: -1, MaxMinor: -1}
 	report := check.BuildReport(check.Target{Kind: "file", Blocks: c.blocks}, c.diags, gate)
-	return flow.CollectorResult{Name: "findings", Data: findingsReport{
-		Target:   report.Target,
-		Summary:  report.Summary,
-		Findings: report.Findings,
-	}}, nil
+	return flow.CollectorResult{Name: "findings", Data: newFindingsReport(report)}, nil
 }
 
 // findingsReport is what a run that is not the gate reports: the findings and
@@ -148,15 +145,40 @@ func (c *findingsCollector) Result() (flow.CollectorResult, error) {
 // bar, and a `"pass": true` next to a critical finding is precisely the
 // reassurance this whole class of defect hands out. The verdict belongs to
 // `kapi check`, which owns the gate and the exit code.
+//
+// It carries did_not_run, which is coverage rather than a bar: a check that
+// read no content block reached no result, and an empty findings table in its
+// place would read as a clean one.
 type findingsReport struct {
 	Target   check.Target       `json:"target"`
 	Summary  check.Summary      `json:"summary"`
 	Findings []check.Diagnostic `json:"findings"`
+	// DidNotRun and DidNotRunCause are set as the kapi.check/v1 Report sets
+	// them, when the check read no content block.
+	DidNotRun      []string `json:"did_not_run,omitempty"`
+	DidNotRunCause string   `json:"did_not_run_cause,omitempty"`
+}
+
+// newFindingsReport keeps what a report that is not the gate carries from a
+// built check.Report: the findings and their roll-up, and did_not_run with its
+// cause when Decide found nothing checked.
+func newFindingsReport(r check.Report) findingsReport {
+	out := findingsReport{Target: r.Target, Summary: r.Summary, Findings: r.Findings}
+	if r.Verdict == check.VerdictDidNotRun {
+		out.DidNotRun = r.DidNotRun
+		out.DidNotRunCause = r.DidNotRunCause
+	}
+	return out
 }
 
 // FormatTable renders the findings the way `kapi check` renders them, minus the
-// PASS/FAIL verdict.
+// PASS/FAIL verdict. A report that did not run prints the sentence `kapi check`
+// prints for that cause in place of the table.
 func (r findingsReport) FormatTable(w io.Writer) {
+	if r.DidNotRunCause != "" {
+		writeDidNotRun(w, r.DidNotRunCause)
+		return
+	}
 	renderFindingsTable(w, r.Findings)
 	if r.Summary.Findings > 0 {
 		writeFindingsCounts(w, r.Summary)
