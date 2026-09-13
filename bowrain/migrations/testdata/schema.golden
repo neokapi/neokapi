@@ -888,6 +888,7 @@ tb_schema_migrations.description text NOT NULL
 tb_schema_migrations.version integer NOT NULL
 tb_terms.competitor_term boolean NOT NULL DEFAULT false
 tb_terms.concept_id text NOT NULL
+tb_terms.forms jsonb NOT NULL DEFAULT '[]'::jsonb
 tb_terms.gender text NOT NULL DEFAULT ''::text
 tb_terms.id integer NOT NULL DEFAULT nextval('tb_terms_id_seq'::regclass)
 tb_terms.locale text NOT NULL
