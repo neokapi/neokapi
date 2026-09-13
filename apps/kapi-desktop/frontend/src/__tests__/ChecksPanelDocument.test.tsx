@@ -97,6 +97,7 @@ const quotedOnly: DesktopFinding = {
 
 const result: CheckRunResult = {
   pass: false,
+  verdict: "failed",
   score: 40,
   files: [{ path: "/p/locales/en.json", findings: [dnt, placeholder, vocab, quotedOnly] }],
 };

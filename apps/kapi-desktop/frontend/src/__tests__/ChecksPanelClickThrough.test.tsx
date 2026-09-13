@@ -7,6 +7,7 @@ import type { CheckRunResult } from "../types/api";
 
 const result: CheckRunResult = {
   pass: false,
+  verdict: "failed",
   score: 72,
   files: [
     {

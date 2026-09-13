@@ -300,9 +300,20 @@ export interface CheckFileResult {
   findings: DesktopFinding[];
 }
 
-/** Result of a RunChecks pass: pass/fail gate, roll-up score, per-file findings. */
+/** Why a checks run did not run. The causes are never read as one another. */
+export type CheckNotRunCause = "checker_invalid" | "nothing_to_check" | "content_not_checked";
+
+/** Result of a RunChecks pass: the verdict, roll-up score, per-file findings. */
 export interface CheckRunResult {
+  /** True exactly when verdict is "passed". */
   pass: boolean;
+  /**
+   * "did_not_run" means the run checked no content, or a checker could not
+   * show it catches a known-bad input. It is never shown as passing.
+   */
+  verdict: "passed" | "failed" | "did_not_run";
+  did_not_run?: string[];
+  did_not_run_cause?: CheckNotRunCause;
   score: number;
   files: CheckFileResult[];
 }

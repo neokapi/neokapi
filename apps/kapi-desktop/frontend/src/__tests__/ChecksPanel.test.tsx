@@ -7,6 +7,7 @@ import type { CheckRunResult } from "../types/api";
 
 const FAILING: CheckRunResult = {
   pass: false,
+  verdict: "failed",
   score: 64,
   files: [
     {
@@ -40,6 +41,25 @@ const FAILING: CheckRunResult = {
 
 const PASSING: CheckRunResult = {
   pass: true,
+  verdict: "passed",
+  score: 100,
+  files: [{ path: "src/locales/en.json", findings: [] }],
+};
+
+const NOTHING_TO_CHECK: CheckRunResult = {
+  pass: false,
+  verdict: "did_not_run",
+  did_not_run_cause: "nothing_to_check",
+  did_not_run: ["no content blocks were checked"],
+  score: 100,
+  files: [{ path: "src/locales/en.json", findings: [] }],
+};
+
+const CHECKER_INVALID: CheckRunResult = {
+  pass: false,
+  verdict: "did_not_run",
+  did_not_run_cause: "checker_invalid",
+  did_not_run: ["placeholder reported no finding on its canary on src/locales/en.json (de)"],
   score: 100,
   files: [{ path: "src/locales/en.json", findings: [] }],
 };
@@ -136,6 +156,27 @@ describe("ChecksPanel", () => {
     expect(screen.getByText("Passing")).toBeInTheDocument();
     expect(screen.getByText(/No findings\. Your content passes all checks\./i)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Apply fix/i })).not.toBeInTheDocument();
+  });
+
+  it("shows a run with nothing to check as did not run, never as passing", () => {
+    renderPanel({ result: NOTHING_TO_CHECK });
+    expect(screen.getByText("Did not run")).toBeInTheDocument();
+    expect(screen.getAllByText("There was nothing in scope to check.").length).toBeGreaterThan(0);
+    expect(screen.getByText("no content blocks were checked")).toBeInTheDocument();
+    expect(screen.queryByText("Passing")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Your content passes all checks/i)).not.toBeInTheDocument();
+    expect(screen.queryByText("100")).not.toBeInTheDocument();
+  });
+
+  it("tells a broken checker apart from nothing to check", () => {
+    renderPanel({ result: CHECKER_INVALID });
+    expect(screen.getByText("Did not run")).toBeInTheDocument();
+    expect(
+      screen.getAllByText("A checker failed its canary, so this run's result cannot be trusted.")
+        .length,
+    ).toBeGreaterThan(0);
+    expect(screen.queryByText("There was nothing in scope to check.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Passing")).not.toBeInTheDocument();
   });
 
   it("shows the loading state when forceLoading is set", () => {
