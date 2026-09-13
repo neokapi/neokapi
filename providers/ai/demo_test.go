@@ -158,6 +158,57 @@ func TestDemoProvider_BatchTranslations(t *testing.T) {
 	assert.Equal(t, "⟦fr⟧ Enregistrer", out.Translations[1].Text)
 }
 
+// A term the prompt pins is written as its pinned rendering, so a draft carries
+// the terminology the terminology check holds it to. The rendering is left
+// unmarked; the words around it keep the stub's marks, and program syntax is
+// untouched.
+func TestDemoProvider_AppliesPinnedTerms(t *testing.T) {
+	p := newTestDemo()
+	terms := map[string]string{
+		"berth":       "kaiplass",
+		"terms store": "ordbank",
+		"Tidewatch":   "Tidewatch",
+	}
+
+	for _, tc := range []struct{ name, src, want string }{
+		{"single word", "Release the berth", "⟦nb⟧ Release~ the~ kaiplass"},
+		{"inflected final word", "Berths", "⟦nb⟧ Kaiplass"},
+		{"term of several words", "Open the terms store", "⟦nb⟧ Open~ the~ ordbank"},
+		{"product name stays unmarked", "Tidewatch raised it", "⟦nb⟧ Tidewatch raised~ it~"},
+		{"term inside ICU syntax is left alone", "{count, plural, one {# berth} other {# berths}} free", "⟦nb⟧ {count, plural, one {# berth} other {# berths}} free~"},
+		{"a word that only contains the term", "Unberthed", "⟦nb⟧ Unberthed~"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			resp, err := p.Translate(context.Background(), TranslateRequest{
+				Source:         tc.src,
+				TargetLocale:   "nb",
+				PreferredTerms: terms,
+			})
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, resp.Translation)
+		})
+	}
+
+	t.Run("batch path", func(t *testing.T) {
+		pt := prompt.Translate{SourceLocale: "en", TargetLocale: "nb", PreferredTerms: terms}
+		turns := pt.Batch(prompt.BatchSegments([]string{"Release the berth", "Open the terms store"}))
+		ctx := prompt.WithMeta(context.Background(), pt.Meta(prompt.IDTranslateBatch))
+
+		resp, err := p.ChatStructured(ctx, MessagesFromTurns(turns), JSONSchema{Name: "batch_translations"})
+		require.NoError(t, err)
+
+		var out struct {
+			Translations []struct {
+				Text string `json:"text"`
+			} `json:"translations"`
+		}
+		require.NoError(t, json.Unmarshal([]byte(resp.Content), &out))
+		require.Len(t, out.Translations, 2)
+		assert.Equal(t, "⟦nb⟧ Release~ the~ kaiplass", out.Translations[0].Text)
+		assert.Equal(t, "⟦nb⟧ Open~ the~ ordbank", out.Translations[1].Text)
+	})
+}
+
 func TestDemoProvider_NeutralSchema(t *testing.T) {
 	// A check-style schema must yield an empty issues array, not fabricated findings.
 	p := newTestDemo()

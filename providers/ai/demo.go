@@ -103,7 +103,7 @@ func (p *DemoProvider) ChatStructured(ctx context.Context, messages []Message, s
 	var content string
 	switch schema.Name {
 	case "batch_translations":
-		content = demoBatchTranslations(userTurn, demoTargetLocale(ctx))
+		content = demoBatchTranslations(userTurn, demoTargetLocale(ctx), demoTerms(ctx))
 	case "brand_voice_inference":
 		content = demoVoiceInference(userTurn)
 	default:
@@ -126,6 +126,15 @@ func demoTargetLocale(ctx context.Context) model.LocaleID {
 		return model.LocaleID(m.Param("target_locale"))
 	}
 	return ""
+}
+
+// demoTerms reads the term map the prompt pins from the prompt metadata the
+// caller attached to ctx: source term to the rendering the translation must use.
+func demoTerms(ctx context.Context) map[string]string {
+	if m, ok := prompt.MetaFrom(ctx); ok {
+		return m.PreferredTerms
+	}
+	return nil
 }
 
 // ChatStream implements StreamingLLMProvider by emitting the deterministic Chat
@@ -271,17 +280,87 @@ func splitTokens(source string) []string {
 // isWord reports whether tok is a run of letters/digits (vs punctuation/space).
 var wordRe = regexp.MustCompile(`^[\p{L}\p{N}]+$`)
 
+// demoTermRule is one pinned term as the demo matches it: the term split the
+// way splitTokens splits source, lowercased, and the rendering to write in its
+// place.
+type demoTermRule struct {
+	tokens      []string
+	replacement string
+}
+
+// demoTermRules prepares the prompt's term map for matching, longest term
+// first so "terms store" wins over "terms" where both are pinned. Ties break on
+// the term text, so one map yields one output on every run.
+func demoTermRules(terms map[string]string) []demoTermRule {
+	rules := make([]demoTermRule, 0, len(terms))
+	for term, replacement := range terms {
+		toks := wordSplit.FindAllString(strings.ToLower(term), -1)
+		if len(toks) == 0 || replacement == "" {
+			continue
+		}
+		rules = append(rules, demoTermRule{tokens: toks, replacement: replacement})
+	}
+	sort.Slice(rules, func(i, j int) bool {
+		if len(rules[i].tokens) != len(rules[j].tokens) {
+			return len(rules[i].tokens) > len(rules[j].tokens)
+		}
+		return strings.Join(rules[i].tokens, "") < strings.Join(rules[j].tokens, "")
+	})
+	return rules
+}
+
+// matchTermRule reports the first rule whose term starts at toks[0], and how
+// many tokens it spans. Every token of the term must match exactly, except a
+// final word, which only has to begin with the term's word: "berths" carries
+// the term "berth", and the draft writes the pinned rendering for the whole
+// word. A brace group, a tag or a sentinel is one token and never equals a term
+// token, so a term inside program syntax is left alone.
+func matchTermRule(toks []string, rules []demoTermRule) (string, int) {
+	for _, r := range rules {
+		if len(r.tokens) > len(toks) {
+			continue
+		}
+		matched := true
+		for k, want := range r.tokens {
+			got := strings.ToLower(toks[k])
+			last := k == len(r.tokens)-1
+			if last && wordRe.MatchString(want) {
+				matched = wordRe.MatchString(got) && strings.HasPrefix(got, want)
+			} else {
+				matched = got == want
+			}
+			if !matched {
+				break
+			}
+		}
+		if matched {
+			return r.replacement, len(r.tokens)
+		}
+	}
+	return "", 0
+}
+
 // demoTranslate deterministically maps source text into a marked demo
-// translation for the target locale. Known words use the lexicon; unknown
-// words get a visible per-language accent marker so the output is plausible
-// yet obviously synthetic. The whole string is wrapped so no reader could
-// mistake it for a real translation.
-func demoTranslate(source string, target model.LocaleID) string {
+// translation for the target locale. A term the prompt pins is written as its
+// pinned rendering, unmarked, so a draft satisfies the terminology it was asked
+// to follow. Other known words use the lexicon; unknown words get a visible
+// per-language accent marker so the output is plausible yet obviously
+// synthetic. The whole string is wrapped so no reader could mistake it for a
+// real translation.
+func demoTranslate(source string, target model.LocaleID, terms map[string]string) string {
 	lang := demoBaseLang(target)
 	lex := demoLexicon[lang]
+	rules := demoTermRules(terms)
 
 	var b strings.Builder
-	for _, tok := range splitTokens(source) {
+	toks := splitTokens(source)
+	for i := 0; i < len(toks); i++ {
+		tok := toks[i]
+		if replacement, n := matchTermRule(toks[i:], rules); n > 0 {
+			b.WriteString(matchCase(tok, replacement))
+			i += n - 1
+			continue
+		}
 		if !wordRe.MatchString(tok) {
 			b.WriteString(tok) // preserve punctuation / whitespace / markup verbatim
 			continue
@@ -344,7 +423,7 @@ func matchCase(src, repl string) string {
 // This used to regex "[N] text" lines out of the prompt. Parsing the payload
 // means the demo breaks loudly if the payload shape changes, rather than quietly
 // returning nothing.
-func demoBatchTranslations(userTurn string, target model.LocaleID) string {
+func demoBatchTranslations(userTurn string, target model.LocaleID, terms map[string]string) string {
 	var payload struct {
 		Segments []struct {
 			ID   string `json:"id"`
@@ -365,7 +444,7 @@ func demoBatchTranslations(userTurn string, target model.LocaleID) string {
 	for _, seg := range payload.Segments {
 		out.Translations = append(out.Translations, entry{
 			ID:   seg.ID,
-			Text: demoTranslate(strings.TrimSpace(seg.Text), target),
+			Text: demoTranslate(strings.TrimSpace(seg.Text), target, terms),
 		})
 	}
 
@@ -587,7 +666,7 @@ func demoChatReply(ctx context.Context, userTurn string) string {
 	// the user turn, and identifies itself via prompt.Meta. Anything else gets a
 	// labeled stub.
 	if m, ok := prompt.MetaFrom(ctx); ok && m.ID == prompt.IDTranslateSingle {
-		return demoTranslate(strings.TrimSpace(userTurn), demoTargetLocale(ctx))
+		return demoTranslate(strings.TrimSpace(userTurn), demoTargetLocale(ctx), m.PreferredTerms)
 	}
 	return "⟦demo⟧ illustrative stub response (no real language model)"
 }

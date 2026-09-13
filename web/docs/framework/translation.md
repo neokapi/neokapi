@@ -14,7 +14,9 @@ same whichever backend you choose:
 - **LLM providers**: Anthropic, OpenAI, Google Gemini, Azure OpenAI, Ollama.
   Context-aware, full prompt control, and (with Ollama) fully on-device.
 - **The offline demo provider**: keyless, deterministic, clearly-marked
-  illustrative output for trying flows without credentials.
+  illustrative output for trying flows without credentials. Its drafts use the
+  approved rendering of each term the project defines, so they pass the
+  terminology check.
 
 The tool's `--engine` flag selects between the LLM engine (the default) and a
 machine-translation engine; no classic MT engine (DeepL, Google Translate,
