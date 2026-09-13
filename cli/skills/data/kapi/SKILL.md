@@ -149,6 +149,11 @@ again. Exit 4 means the check did not run, and it is never a pass. Read
 is broken and nothing the run reported can be trusted, so stop and report it;
 `nothing_to_check` means the change touched no content; `content_not_checked`
 means content was left unchecked, and `did_not_run` names it.
+The report's `warnings` list names configuration problems, such as an unknown
+key in a voice profile (`voice.unknown_key`, with the file in `source` and the
+key's dotted path in `key`). A warning never changes the verdict, the score or
+the exit code. Fix the named configuration when it is in scope, or report it; a
+warning clears only when the configuration changes.
 To check a diff you already hold, pass it with `--diff-file` (`-` reads standard
 input).
 

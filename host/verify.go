@@ -103,6 +103,10 @@ type verifyOutput struct {
 	DidNotRunCause string             `json:"did_not_run_cause,omitempty"`
 	Gates          []verifyGateResult `json:"gates"`
 	Summary        verifySummary      `json:"summary"`
+	// Warnings are the configuration warnings of the voice profiles the gates
+	// loaded, each once, as a kapi.check/v1 report carries them. They never
+	// change a gate's verdict or the run's.
+	Warnings []check.Warning `json:"warnings,omitempty"`
 }
 
 // FormatText renders the verify result as a human-readable summary,
@@ -182,6 +186,7 @@ func (o verifyOutput) FormatText(w io.Writer) error {
 			fmt.Fprintf(w, "  did not run: %s\n", reason)
 		}
 	}
+	writeWarnings(w, o.Warnings)
 	return nil
 }
 
@@ -352,10 +357,13 @@ func (a *App) computeVerify(cmd Command, args []string) (verifyOutput, error) {
 	a.ResolveEncoding(proj.Defaults.Encoding)
 
 	var gates []verifyGateResult
+	// The warnings of every voice profile a gate loads, collected once for the
+	// run however many gates and files load the same profile.
+	warnings := &voiceWarnings{}
 
 	// --- voice gate -------------------------------------------------------
 	if sel.voice {
-		gate, err := a.verifyVoice(cmd, proj, root, args)
+		gate, err := a.verifyVoice(cmd, proj, root, args, warnings)
 		if err != nil {
 			return verifyOutput{}, err
 		}
@@ -404,7 +412,7 @@ func (a *App) computeVerify(cmd Command, args []string) (verifyOutput, error) {
 			gates = append(gates, termGate)
 		}
 		if sel.checks {
-			checksGate, err := a.verifyChecks(cmd, proj, root, units)
+			checksGate, err := a.verifyChecks(cmd, proj, root, units, warnings)
 			if err != nil {
 				return verifyOutput{}, err
 			}
@@ -468,7 +476,9 @@ func (a *App) computeVerify(cmd Command, args []string) (verifyOutput, error) {
 		}
 	}
 
-	return buildVerifyOutput(gates), nil
+	out := buildVerifyOutput(gates)
+	out.Warnings = warnings.merged()
+	return out, nil
 }
 
 // verifySourceGate evaluates the project's source-readiness gate over the
@@ -745,12 +755,12 @@ func (a *App) projectTermsBound(cmd Command) (bool, error) {
 // voice profile. Returns nil (no gate) when the project binds no voice
 // profile — the gate only runs when there is something to check. Reuses the
 // voice check path (NewVoiceVocabCheckTool + CalculateScore).
-func (a *App) verifyVoice(cmd Command, proj *project.KapiProject, root string, args []string) (*verifyGateResult, error) {
+func (a *App) verifyVoice(cmd Command, proj *project.KapiProject, root string, args []string, warnings *voiceWarnings) (*verifyGateResult, error) {
 	// The voice is resolved per file, at the point that file sits at, so a gate
 	// over a governed project scores each file against the vocabulary in force
 	// there. A project binding no voice anywhere resolves none for any file and
 	// contributes no gate.
-	voice, err := a.newCheckVoice(cmd)
+	voice, err := a.newCheckVoice(cmd, warnings)
 	if err != nil {
 		return nil, err
 	}
@@ -1409,7 +1419,7 @@ func (a *App) unitGovernancePoint(root string, u VerifyUnit) project.GovernanceP
 // verifyChecks checks placeholder/tag integrity against the source and flags
 // untranslated/empty targets for each target file, reusing
 // core/tools.NewRuleCheckTool.
-func (a *App) verifyChecks(cmd Command, proj *project.KapiProject, root string, units []VerifyUnit) (verifyGateResult, error) {
+func (a *App) verifyChecks(cmd Command, proj *project.KapiProject, root string, units []VerifyUnit, warnings *voiceWarnings) (verifyGateResult, error) {
 	ctx := CmdContext(cmd)
 	gate := verifyGateResult{Gate: gateChecks, Pass: true, Findings: []verifyFinding{}, Coverage: &verifyCoverage{}}
 	execution := newCheckExecution()
@@ -1425,7 +1435,7 @@ func (a *App) verifyChecks(cmd Command, proj *project.KapiProject, root string, 
 
 	for _, u := range units {
 		if u.TargetPath == "" {
-			if err := a.verifySourceChecks(ctx, cmd, u, &gate); err != nil {
+			if err := a.verifySourceChecks(ctx, cmd, u, &gate, warnings); err != nil {
 				return gate, err
 			}
 			continue

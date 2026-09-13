@@ -4,5 +4,6 @@
 
 export {
     Finding,
-    Severity
+    Severity,
+    Warning
 } from "./models.js";

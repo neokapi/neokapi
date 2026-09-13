@@ -12,6 +12,18 @@ import (
 type checkExecution struct {
 	started time.Time
 	check.Execution
+	// warnings collects the configuration warnings of the voice profiles the
+	// operation loads, and report hands them to the Report.
+	warnings voiceWarnings
+}
+
+// warningSink is where a resolver working for this operation sends the
+// warnings of the profiles it loads. A nil execution collects none.
+func (e *checkExecution) warningSink() *voiceWarnings {
+	if e == nil {
+		return nil
+	}
+	return &e.warnings
 }
 
 func newCheckExecution() *checkExecution {
@@ -70,6 +82,7 @@ func (e *checkExecution) report(target check.Target, diags []check.Diagnostic, g
 	start := time.Now()
 	report := check.BuildReport(target, diags, gate)
 	if e != nil {
+		report.Warnings = e.warnings.merged()
 		e.Timings.ReportMS = elapsedMS(start)
 		e.Timings.TotalMS = elapsedMS(e.started)
 		report.Execution = &e.Execution

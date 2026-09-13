@@ -12,6 +12,26 @@ const PASSING: CheckRunResult = {
   files: [{ path: "src/locales/en.json", findings: [] }],
 };
 
+const PASSING_WITH_WARNINGS: CheckRunResult = {
+  ...PASSING,
+  warnings: [
+    {
+      code: "voice.unknown_key",
+      message:
+        'unknown key "vocab" (line 9) is ignored when the profile loads; check its spelling and the section it sits under',
+      source: ".kapi/voice.yaml",
+      key: "channels.docs.vocab",
+    },
+    {
+      code: "voice.preferred_term_dropped",
+      message:
+        'channel "docs" prefers "utilize", but a forbidden, competitor or preferred rule for that term already applies, so resolution drops this preferred term. To change the wording everywhere, edit the profile\'s own rule.',
+      source: ".kapi/voice.yaml",
+      key: "channels.docs.vocabulary.preferred_terms[0]",
+    },
+  ],
+};
+
 const NOTHING_TO_CHECK: CheckRunResult = {
   pass: false,
   verdict: "did_not_run",
@@ -219,6 +239,14 @@ type Story = StoryObj<typeof ChecksPanel>;
 /** A clean run — everything passes. */
 export const Passing: Story = {
   args: { tabID: "story", result: PASSING },
+};
+
+/**
+ * A passing run whose voice profile carries configuration to fix. The warnings
+ * sit apart from the findings, and the verdict and score are the clean run's.
+ */
+export const PassingWithWarnings: Story = {
+  args: { tabID: "story", result: PASSING_WITH_WARNINGS },
 };
 
 /**

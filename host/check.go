@@ -84,6 +84,7 @@ func (r checkReport) FormatText(w io.Writer) error {
 	for _, reason := range r.Gate.Failed {
 		fmt.Fprintf(w, "  gate: %s\n", reason)
 	}
+	writeWarnings(w, r.Warnings)
 	return nil
 }
 
@@ -341,7 +342,7 @@ func (a *App) ComputeCheck(cmd Command, args []string) (check.Report, error) {
 	a.applyProjectSourceLang(cmd)
 
 	contextStart := time.Now()
-	voice, err := a.newCheckVoice(cmd)
+	voice, err := a.newCheckVoice(cmd, execution.warningSink())
 	if err != nil {
 		return check.Report{}, err
 	}
@@ -1037,6 +1038,9 @@ type checkVoice struct {
 	store        profile.Store
 	release      func()
 	cache        map[string]checkedVoice
+	// warnings receives the configuration warnings of each profile the
+	// resolver loads. nil collects none.
+	warnings *voiceWarnings
 }
 
 // close releases the voice store, if this run opened one of its own. Inside a
@@ -1049,9 +1053,10 @@ func (v *checkVoice) close() {
 
 // newCheckVoice builds the resolver for one run. A project that will not load
 // leaves it with nothing to resolve, which is the ad-hoc case: `kapi check` on
-// a file outside any project checks the content-only families.
-func (a *App) newCheckVoice(cmd Command) (*checkVoice, error) {
-	v := &checkVoice{app: a, cmd: cmd, cache: map[string]checkedVoice{}}
+// a file outside any project checks the content-only families. warnings
+// receives the configuration warnings of each profile the run loads.
+func (a *App) newCheckVoice(cmd Command, warnings *voiceWarnings) (*checkVoice, error) {
+	v := &checkVoice{app: a, cmd: cmd, cache: map[string]checkedVoice{}, warnings: warnings}
 
 	name, _ := cmd.Flags().GetString("profile")
 	file, _ := cmd.Flags().GetString("profile-file")
@@ -1066,6 +1071,9 @@ func (a *App) newCheckVoice(cmd Command) (*checkVoice, error) {
 		v.fixedContext = check.VoiceContext{Selection: "override", Applied: p != nil, Source: source, Channel: channel}
 		if p != nil {
 			v.fixedContext.Name = p.Name
+			if err := v.note(CmdContext(cmd), source); err != nil {
+				return nil, err
+			}
 		}
 		return v, nil
 	}
@@ -1217,6 +1225,8 @@ func (v *checkVoice) forFile(ctx context.Context, file string) (*profile.VoicePr
 	}
 	if !found {
 		p = nil
+	} else if err := v.note(ctx, source); err != nil {
+		return nil, check.VoiceContext{}, err
 	}
 	selected := check.VoiceContext{Selection: "project", Applied: p != nil, Source: source, Profile: rc.Profile, Channel: rc.Channel}
 	if p != nil {

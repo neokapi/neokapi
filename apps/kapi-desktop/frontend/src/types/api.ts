@@ -303,6 +303,21 @@ export interface CheckFileResult {
 /** Why a checks run did not run. The causes are never read as one another. */
 export type CheckNotRunCause = "checker_invalid" | "nothing_to_check" | "content_not_checked";
 
+/**
+ * A problem in the configuration a checks run used, such as a key a voice
+ * profile carries that the profile model does not define (core/check.Warning).
+ * It is listed apart from the findings and never changes the verdict or score.
+ */
+export interface CheckWarning {
+  /** Stable id a program branches on, e.g. "voice.unknown_key". */
+  code: string;
+  message: string;
+  /** The profile file's path, or "pack:<name>" / "store:<name>". */
+  source: string;
+  /** Dotted path of the key the warning is about, when there is one. */
+  key?: string;
+}
+
 /** Result of a RunChecks pass: the verdict, roll-up score, per-file findings. */
 export interface CheckRunResult {
   /** True exactly when verdict is "passed". */
@@ -316,6 +331,8 @@ export interface CheckRunResult {
   did_not_run_cause?: CheckNotRunCause;
   score: number;
   files: CheckFileResult[];
+  /** Configuration to fix, reported apart from the findings. */
+  warnings?: CheckWarning[];
 }
 
 export interface PluginCapability {

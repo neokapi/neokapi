@@ -105,6 +105,28 @@ not imply that a term matched or produced a finding. Project terminology checks
 also run when no voice profile is bound. An omitted `contexts`
 field means the producer did not report context selection.
 
+The optional `warnings` array names problems in the configuration a check ran
+under, apart from the findings about content. Each entry has a stable `code`, a
+`message`, the `source` it came from (a profile file's path, or `pack:<name>` or
+`store:<name>`) and, when the warning concerns one key, its dotted `key`. A run
+reports the warnings of each voice profile it loads once, however many files the
+profile governs:
+
+- `voice.unknown_key`: a key the voice profile model does not define. The
+  profile loads without it, so whatever the key was meant to state applies
+  nowhere. `kapi voice validate` refuses the same key.
+- `voice.unfamiliar_value`: a tone value outside the usual set, kept and
+  rendered into the voice guide as written.
+- `voice.preferred_term_dropped`: a channel or persona preferred term that
+  resolution drops, because a profile rule already governs the term.
+- `voice.override_drops_pattern`: a base style pattern that stops applying where
+  a channel or persona supplies its own style.
+
+Warnings never change the summary, the score, the gate, the verdict or the exit
+code. Fix the configuration they name. `kapi check` prints them after the
+verdict, `kapi check --ship` carries the same array, and the MCP check tools
+return it in their report.
+
 For a project file, omit MCP `profile_file` and `profile_pack` to retain its
 applicable profile and channel. An explicit profile replaces that voice
 selection, while project terms still apply. Check the reported scope before

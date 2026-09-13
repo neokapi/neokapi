@@ -33,7 +33,8 @@ func registerCheckMCPTools(server *mcp.Server, a *App) {
 			"context://<project-relative-path> resource for the applicable guidance. Supply context_path " +
 			"to check with that destination's voice and terms; without it, project guidance is not resolved. " +
 			"Explicit profile_pack/profile_file are available only without context_path. Returns a " +
-			"kapi.check/v1 Report with findings and analyzer coverage; pass is not semantic approval. " +
+			"kapi.check/v1 Report with findings, analyzer coverage and configuration warnings, which never " +
+			"change pass; pass is not semantic approval. " +
 			"After saving edits, use check_file to verify the actual file.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in checkTextInput) (*mcp.CallToolResult, check.Report, error) {
 		return a.checkTextMCP(ctx, in)
@@ -48,7 +49,8 @@ func registerCheckMCPTools(server *mcp.Server, a *App) {
 			"with format-aware extraction and the applicable project voice and terms. Before editing, read " +
 			"the context://<project-relative-path> resource; after saving edits (including apply_edits), " +
 			"run check_file and review its per-block findings and analyzer coverage. Returns a kapi.check/v1 " +
-			"Report with effective scope in execution.contexts; pass is not semantic approval. " +
+			"Report with effective scope in execution.contexts and configuration warnings, which never change " +
+			"pass; pass is not semantic approval. " +
 			"Omit profile_file/profile_pack to use the file’s project profile and channel. Supplying either " +
 			"replaces that voice selection with an explicit override; project terms still apply. Pass target/target_lang to also run bilingual checks.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in checkFileInput) (*mcp.CallToolResult, check.Report, error) {
@@ -93,7 +95,7 @@ func (a *App) checkTextMCP(ctx context.Context, in checkTextInput) (*mcp.CallToo
 	if in.ContextPath != "" && (in.ProfilePack != "" || in.ProfileFile != "") {
 		return nil, check.Report{}, errors.New("context_path cannot be combined with profile_pack or profile_file")
 	}
-	opts, err := a.mcpCheckOptions(in.MaxChars, in.MaxWords, in.Forbid, in.Require, in.ProfilePack, in.ProfileFile)
+	opts, err := a.mcpCheckOptions(ctx, execution, in.MaxChars, in.MaxWords, in.Forbid, in.Require, in.ProfilePack, in.ProfileFile)
 	if err != nil {
 		return nil, check.Report{}, err
 	}
@@ -104,7 +106,6 @@ func (a *App) checkTextMCP(ctx context.Context, in checkTextInput) (*mcp.CallToo
 	}
 	execution.recordContext("", in.ContextPath, opts)
 	execution.Timings.ContextMS += elapsedMS(contextStart)
-	opts.execution = execution
 	block := &model.Block{ID: "text", Translatable: true, Source: []model.Run{{Text: &model.TextRun{Text: in.Text}}}}
 	diags, err := a.collectFileDiagnostics(ctx, []*model.Block{block}, "text", opts)
 	if err != nil {
@@ -145,7 +146,7 @@ func (a *App) resolveTextCheckContext(ctx context.Context, contextPath string, o
 		cmd.Flags().String(projectFlagName, recipe, "")
 	}
 	destination := filepath.Join(filepath.Dir(recipe), filepath.FromSlash(contextPath))
-	voice, err := a.newCheckVoice(cmd)
+	voice, err := a.newCheckVoice(cmd, opts.execution.warningSink())
 	if err != nil {
 		return fmt.Errorf("resolve context_path voice: %w", err)
 	}
@@ -174,7 +175,7 @@ func (a *App) checkFileMCP(ctx context.Context, in checkFileInput) (*mcp.CallToo
 	if in.Diff != "" && in.DiffAgainst != "" {
 		return nil, check.Report{}, errors.New("diff and diff_against each name a diff; pass one")
 	}
-	opts, err := a.mcpCheckOptions(in.MaxChars, in.MaxWords, in.Forbid, in.Require, in.ProfilePack, in.ProfileFile)
+	opts, err := a.mcpCheckOptions(ctx, execution, in.MaxChars, in.MaxWords, in.Forbid, in.Require, in.ProfilePack, in.ProfileFile)
 	if err != nil {
 		return nil, check.Report{}, err
 	}
@@ -185,7 +186,7 @@ func (a *App) checkFileMCP(ctx context.Context, in checkFileInput) (*mcp.CallToo
 		cmd.Flags().String(projectFlagName, a.mcpRecipePath, "")
 	}
 	if opts.profile == nil {
-		voice, err := a.newCheckVoice(cmd)
+		voice, err := a.newCheckVoice(cmd, opts.execution.warningSink())
 		if err != nil {
 			return nil, check.Report{}, err
 		}
@@ -203,7 +204,6 @@ func (a *App) checkFileMCP(ctx context.Context, in checkFileInput) (*mcp.CallToo
 	if err != nil {
 		return nil, check.Report{}, err
 	}
-	opts.execution = execution
 	if scoped {
 		return a.checkDiffMCP(ctx, cmd, in, opts)
 	}
@@ -273,10 +273,11 @@ func (a *App) checkFileMCP(ctx context.Context, in checkFileInput) (*mcp.CallToo
 }
 
 // mcpCheckOptions resolves the shared content-check options for the MCP tools,
-// loading a voice profile from a pack/file when one is named.
-func (a *App) mcpCheckOptions(maxChars, maxWords int, forbid, require []string, pack, file string) (checkRunOptions, error) {
+// loading a voice profile from a pack/file when one is named and collecting its
+// warnings into execution.
+func (a *App) mcpCheckOptions(ctx context.Context, execution *checkExecution, maxChars, maxWords int, forbid, require []string, pack, file string) (checkRunOptions, error) {
 	opts := checkRunOptions{maxChars: maxChars, maxWords: maxWords, forbid: forbid, require: require,
-		voiceContext: check.VoiceContext{Selection: "none"}}
+		voiceContext: check.VoiceContext{Selection: "none"}, execution: execution}
 	if pack != "" || file != "" {
 		p, err := loadProfileForMCP(pack, file)
 		if err != nil {
@@ -290,6 +291,9 @@ func (a *App) mcpCheckOptions(maxChars, maxWords int, forbid, require []string, 
 		opts.voiceContext = check.VoiceContext{Selection: "override", Applied: p != nil, Source: source}
 		if p != nil {
 			opts.voiceContext.Name = p.Name
+			if err := execution.warningSink().note(ctx, a, nil, source); err != nil {
+				return opts, err
+			}
 		}
 	}
 	return opts, nil
@@ -331,7 +335,7 @@ func (a *App) checkDiffMCP(ctx context.Context, cmd Command, in checkFileInput, 
 	// scoped to a diff; a diff can name many files, so voice resolves per file
 	// unless the call named a profile.
 	if in.ProfilePack == "" && in.ProfileFile == "" {
-		voice, err := a.newCheckVoice(cmd)
+		voice, err := a.newCheckVoice(cmd, opts.execution.warningSink())
 		if err != nil {
 			return nil, check.Report{}, err
 		}

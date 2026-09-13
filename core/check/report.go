@@ -45,6 +45,11 @@ type Report struct {
 	// Findings are the substantive output, sorted severity → rule for stable
 	// diffs between loop iterations.
 	Findings []Diagnostic `json:"findings"`
+	// Warnings name problems in the configuration the check ran under, such as
+	// a key a voice profile carries that the profile model does not define.
+	// Decide never reads them, so they leave Summary, Gate and Verdict as they
+	// would be without them. See Warning.
+	Warnings []Warning `json:"warnings,omitempty"`
 	// Execution names the analyses that ran and their measured scope. Absent
 	// means coverage is unreported, not that all checks completed.
 	Execution *Execution `json:"execution,omitempty"`

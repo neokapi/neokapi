@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/host/output"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -14,8 +15,8 @@ import (
 )
 
 // TestCLIJSONContract locks the machine-readable CLI contract: the --json
-// result documents of run/extract/merge, the JSON error envelope, and the
-// --progress jsonl event shape. These are documented as stable
+// result documents of run/extract/merge, the kapi.check/v1 report, the JSON
+// error envelope, and the --progress jsonl event shape. These are documented as stable
 // (web/docs/reference/cli-contract.md) — fields may be ADDED, but existing
 // names, shapes, and the human FormatText renderings must not change.
 //
@@ -80,6 +81,21 @@ func TestCLIJSONContract(t *testing.T) {
 		{
 			name: "merge_store",
 			data: output.MergeStoreOutput{Written: 4, FromProjectStore: true},
+		},
+		{
+			// A passing kapi.check/v1 report carrying the additive warnings list:
+			// configuration to fix, beside a verdict it leaves as it is.
+			name: "check_report_warnings",
+			data: func() check.Report {
+				r := check.BuildReport(check.Target{Kind: "file", File: "docs/page.md", Format: "markdown", Blocks: 2}, nil, check.DefaultGate())
+				r.Warnings = []check.Warning{{
+					Code:    "voice.unknown_key",
+					Message: `unknown key "vocab" (line 6) is ignored when the profile loads; check its spelling and the section it sits under`,
+					Source:  ".kapi/voice.yaml",
+					Key:     "channels.docs.vocab",
+				}}
+				return r
+			}(),
 		},
 		{
 			name: "error_envelope",

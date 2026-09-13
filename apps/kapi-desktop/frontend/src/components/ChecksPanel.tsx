@@ -10,6 +10,7 @@ import {
   FileSearch,
   CheckCircle2,
   Compass,
+  TriangleAlert,
 } from "lucide-react";
 import {
   Button,
@@ -33,6 +34,7 @@ import type {
   CheckFileResult,
   CheckNotRunCause,
   CheckRunResult,
+  CheckWarning,
   DesktopFinding,
 } from "../types/api";
 
@@ -153,6 +155,53 @@ function FindingInContext({ finding }: { finding: DesktopFinding }) {
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * Configuration warnings, listed apart from the findings. Each names a profile,
+ * and the key in it, to fix. A warning carries no severity because it changes
+ * neither the verdict nor the score.
+ */
+function ConfigurationWarnings({ warnings }: { warnings: CheckWarning[] }) {
+  return (
+    <Card className="mb-4 border-amber-500/40" data-testid="check-warnings">
+      <CardContent className="p-4">
+        <div className="mb-1 flex items-center gap-2 text-sm font-semibold">
+          <TriangleAlert size={14} className="text-amber-500" />
+          {t("Configuration warnings")}
+        </div>
+        <p className="mb-3 text-xs text-muted-foreground">
+          {t(
+            "Each names configuration to fix. Warnings are separate from findings and leave the verdict and the score unchanged.",
+          )}
+        </p>
+        <ul className="space-y-2">
+          {warnings.map((warning) => (
+            <li
+              key={`${warning.source}#${warning.key ?? ""}#${warning.code}#${warning.message}`}
+              className="text-sm"
+              data-testid="check-warning"
+            >
+              <div className="mb-0.5 flex flex-wrap items-center gap-1.5">
+                <Badge
+                  variant="secondary"
+                  className="font-mono text-[10px] font-normal"
+                  translate="no"
+                >
+                  {warning.code}
+                </Badge>
+                <span className="text-xs text-muted-foreground" translate="no">
+                  {shortPath(warning.source)}
+                  {warning.key ? `: ${warning.key}` : ""}
+                </span>
+              </div>
+              <p>{warning.message}</p>
+            </li>
+          ))}
+        </ul>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -368,6 +417,11 @@ export function ChecksPanel({
             )}
           </CardContent>
         </Card>
+      )}
+
+      {/* Configuration warnings: apart from the findings, whatever the verdict. */}
+      {result && !loading && (result.warnings ?? []).length > 0 && (
+        <ConfigurationWarnings warnings={result.warnings ?? []} />
       )}
 
       {/* Loading skeleton */}

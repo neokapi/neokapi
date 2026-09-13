@@ -107,34 +107,10 @@ func ValidateSourceLabel(src string) string {
 	return src
 }
 
-// unknownFieldRe extracts the line number and field name from a yaml.v3
-// KnownFields(true) "field X not found in type ..." error line.
-var unknownFieldRe = regexp.MustCompile(`line (\d+): field (\S+) not found in type`)
-
 // StrictDecodeProblems turns a strict-decode error (from DecodeProfileStrict)
-// into per-field problems. It recognises yaml.v3's unknown-field lines and
-// rewrites them without the leaking Go type name; any unrecognised remainder is
-// surfaced verbatim so no decode error is swallowed.
+// into per-field problems. See coreprofile.StrictDecodeProblems.
 func StrictDecodeProblems(err error) []coreprofile.ProfileProblem {
-	if err == nil {
-		return nil
-	}
-	var probs []coreprofile.ProfileProblem
-	for line := range strings.SplitSeq(err.Error(), "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(line, "yaml: unmarshal errors:") {
-			continue
-		}
-		if m := unknownFieldRe.FindStringSubmatch(line); m != nil {
-			probs = append(probs, coreprofile.ProfileProblem{
-				Field:   m[2],
-				Message: fmt.Sprintf("unknown field %q (line %s)", m[2], m[1]),
-			})
-			continue
-		}
-		probs = append(probs, coreprofile.ProfileProblem{Message: line})
-	}
-	return probs
+	return coreprofile.StrictDecodeProblems(err)
 }
 
 // ---------------------------------------------------------------------------

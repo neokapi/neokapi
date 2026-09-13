@@ -151,6 +151,70 @@ export const Severity = {
     SeverityCritical: "critical",
 };
 
+/**
+ * Warning is a problem in the configuration a check ran under, as opposed to
+ * the content it checked: a key a voice profile carries that the profile model
+ * does not define, or an advisory note from validating the profile.
+ * 
+ * A Report lists warnings apart from its findings, and Decide never reads them.
+ * A run with warnings has the summary, score, gate and verdict it would have
+ * without them, so a warning names something to fix and settles nothing.
+ */
+export class Warning {
+    /**
+     * Creates a new Warning instance.
+     * @param {Partial<Warning>} [$$source = {}] - The source object to create the Warning.
+     */
+    constructor($$source = {}) {
+        if (!("code" in $$source)) {
+            /**
+             * Code is the stable id a program branches on, such as "voice.unknown_key".
+             * @member
+             * @type {string}
+             */
+            this["code"] = "";
+        }
+        if (!("message" in $$source)) {
+            /**
+             * Message is the sentence a person reads.
+             * @member
+             * @type {string}
+             */
+            this["message"] = "";
+        }
+        if (!("source" in $$source)) {
+            /**
+             * Source is where the configuration was loaded from: a profile file's path,
+             * or "pack:<name>" or "store:<name>" for a profile with no file.
+             * @member
+             * @type {string}
+             */
+            this["source"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Key is the dotted path of the key the warning is about, when it is about
+             * one.
+             * @member
+             * @type {string | undefined}
+             */
+            this["key"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Warning instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {Warning}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Warning(/** @type {Partial<Warning>} */($$parsedSource));
+    }
+}
+
 // Private type creation functions
 const $$createType0 = model$0.Anchor.createFrom;
 const $$createType1 = $Create.Map($Create.Any, $Create.Any);
