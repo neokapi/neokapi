@@ -144,7 +144,10 @@ collections:
   (`func/Parse`), and a comment gofmt would rewrite fails the gate as
   `formatter.gofmt`. `kapi up` leaves the files alone. Directives, generated
   files and the code inside doc comments are never read as prose. `kapi check
-  <file>.go` works on a single file with no recipe.
+  <file>.go` works on a single file with no recipe. On a YAML item the
+  comments are checked beside the values its reader extracts, by `kapi check`,
+  `--ship` and a diff-scoped check alike, and `kapi up` converges the file
+  exactly as it does without the key.
 - **Terms**: import terms into the project terms store
   (`kapi terms import terms.csv -s en -t fr`); `kapi exec term-check <file>` and
   the translation flow then enforce it with no `--termstore` flag. Rules without

@@ -14,6 +14,8 @@ import (
 
 // resolveVerifyCheckUnits includes declared source-only content beside real
 // source/target pairs. A target locale filter narrows only the bilingual units.
+// The declared comments of a file with targets get a source unit of their own:
+// they are source-language content the bilingual units never read.
 func (a *App) resolveVerifyCheckUnits(
 	cmd Command,
 	proj *project.KapiProject,
@@ -33,13 +35,20 @@ func (a *App) resolveVerifyCheckUnits(
 	if err != nil {
 		return nil, err
 	}
-	seen := map[string]bool{}
+	seen, seenComments := map[string]bool{}, map[string]bool{}
 	for _, rf := range resolved {
 		hasTargets := rf.Item != nil && rf.Item.Target != "" && len(rf.Item.ResolvedTargetLanguages(nil, proj.Defaults)) > 0
-		if hasTargets || seen[rf.Path] {
+		comments := rf.Item != nil && rf.Item.Comments
+		switch {
+		case hasTargets && (!comments || seenComments[rf.Path]):
 			continue
+		case hasTargets:
+			seenComments[rf.Path] = true
+		case seen[rf.Path]:
+			continue
+		default:
+			seen[rf.Path] = true
 		}
-		seen[rf.Path] = true
 		relative, err := filepath.Rel(root, rf.Path)
 		if err != nil {
 			return nil, err
@@ -48,6 +57,7 @@ func (a *App) resolveVerifyCheckUnits(
 			SourcePath: rf.Path, Locale: a.SourceLocale(), Collection: rf.Collection,
 			DisplayPath: relative, ProjectRoot: root, SourceFormat: rf.Format,
 			SourceConfig: mergedFormatConfig(proj, rf.Format, rf.Item),
+			Comments:     comments, OnlyComments: hasTargets,
 		})
 	}
 	return units, nil

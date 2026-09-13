@@ -224,7 +224,8 @@ type blockLocator func(ctx context.Context, content []byte) (scopedRead, error)
 // nil when nothing reads it. A format reader locates them by aligning its
 // skeleton with the content. A file read for its comments is located by its
 // language's comment provider, which also brings the analyzers its comments are
-// checked with.
+// checked with. When a recipe declares the comments of a file a reader parses,
+// the comment blocks join the reader's.
 func (a *App) locatorFor(run diffCheckRun, path string) blockLocator {
 	fmtName, cfg := run.opts.formats.forFile(a, path)
 	if p, ok := a.commentLayerFor(path, fmtName); ok {
@@ -233,7 +234,7 @@ func (a *App) locatorFor(run diffCheckRun, path string) blockLocator {
 			if err != nil {
 				return scopedRead{}, err
 			}
-			return scopedRead{blocks: layer.blocks, extents: layer.extents, analyzers: layer.analyzers}, nil
+			return scopedRead{blocks: layer.blocks, extents: layer.extents, analyzers: layer.analyzers, unread: layer.unread}, nil
 		}
 	}
 	if fmtName == "" {
@@ -243,8 +244,21 @@ func (a *App) locatorFor(run diffCheckRun, path string) blockLocator {
 		}
 		fmtName = string(detected)
 	}
+	declared := run.opts.formats.commentsFor(path)
 	return func(ctx context.Context, content []byte) (scopedRead, error) {
-		return a.readWithExtents(ctx, path, content, fmtName, cfg)
+		read, err := a.readWithExtents(ctx, path, content, fmtName, cfg)
+		if err != nil || !declared {
+			return read, err
+		}
+		layer, err := declaredComments(path, fmtName, content)
+		if err != nil {
+			return scopedRead{}, err
+		}
+		read.blocks = append(read.blocks, layer.blocks...)
+		read.extents = append(read.extents, layer.extents...)
+		read.analyzers = append(read.analyzers, layer.analyzers...)
+		read.unread = layer.unread
+		return read, nil
 	}
 }
 
@@ -265,12 +279,17 @@ func (a *App) checkDiffFile(ctx context.Context, run diffCheckRun, f diffscope.F
 	if err != nil {
 		return nil, 0, err
 	}
-	if len(read.blocks) == 0 {
-		entry.Status = check.ScopeNoContent
-		return nil, 0, nil
-	}
 	notRun := func(reason string) ([]check.Diagnostic, int, error) {
 		entry.Status, entry.Reason = check.ScopeDidNotRun, reason
+		return nil, 0, nil
+	}
+	// Content that could not be read into blocks at all leaves the file's
+	// blocks unknown, so finding none says nothing.
+	if read.unread != nil {
+		return notRun(read.unread.Error())
+	}
+	if len(read.blocks) == 0 {
+		entry.Status = check.ScopeNoContent
 		return nil, 0, nil
 	}
 	switch {
@@ -361,7 +380,7 @@ func settleBordered(ctx context.Context, locate blockLocator, f diffscope.File, 
 		return touched
 	}
 	read, err := locate(ctx, pre)
-	if err != nil || read.unlocated != nil {
+	if err != nil || read.unlocated != nil || read.unread != nil {
 		return touched
 	}
 	return diffscope.Settle(f, post, touched, pre, read.extents)
@@ -374,6 +393,10 @@ type scopedRead struct {
 	// unlocated says why the blocks could not be placed in the file, and is nil
 	// when extents locates them.
 	unlocated error
+	// unread says why some of the file's content could not be read into blocks
+	// at all, such as declared comments a provider could not place. The file did
+	// not run even when no block was found.
+	unread error
 	// analyzers are what the provider that located the blocks runs beside the
 	// checkset, over the blocks a change touched. A format reader brings none.
 	analyzers []providerAnalyzer

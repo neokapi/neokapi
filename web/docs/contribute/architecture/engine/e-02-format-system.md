@@ -452,6 +452,14 @@ only. A provider is not a format: nothing registers one in the format registry,
 and a recipe declares such files with `comments: true` on a content item, which
 convergence, flow runs and source coverage then pass over.
 
+A format whose reader parses a file can supply that file's comments too. The
+YAML format does: it scans the bytes for comments outside quoted scalars and
+block scalar bodies, and it refuses a document whose comment lines that scan and
+the YAML parser disagree about, so a comment is never placed approximately. For
+such a file `comments: true` adds the comment blocks to the reader's blocks for
+checking, and the file converges through its reader unchanged. A declared format
+that supplies no comments leaves the comment check not run.
+
 #### Default on, via an inverted opt-out
 
 Surfacing is the **default**, controlled per format by a single boolean,

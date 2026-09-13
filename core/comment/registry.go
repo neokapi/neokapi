@@ -5,39 +5,57 @@ import (
 	"strings"
 )
 
-// Registry maps file extensions to the language providers that read them.
+// Registry holds the two kinds of provider.
 //
-// A file reaches a provider only when no format reader covers it, so the
-// registry is consulted after format detection rather than instead of it. A
-// language with no provider in this build is absent, which a caller reports as
-// a check that did not run rather than as a file with no comments.
+// A language provider reads a file that no format reader covers, and is found by
+// the file's extension, so a caller consults it after format detection rather
+// than instead of it. A format provider is supplied by a format whose reader
+// already parses the file, and is found by the format's name. A language or a
+// format with no provider in this build is absent, which a caller reports as a
+// check that did not run rather than as a file with no comments.
 type Registry struct {
-	byExt map[string]Provider
+	byExt    map[string]Provider
+	byFormat map[string]Provider
 }
 
-// NewRegistry returns a registry holding providers. A later provider for an
-// extension replaces an earlier one.
+// NewRegistry returns a registry holding language providers. A later provider
+// for an extension replaces an earlier one.
 func NewRegistry(providers ...Provider) *Registry {
-	r := &Registry{byExt: map[string]Provider{}}
+	r := &Registry{byExt: map[string]Provider{}, byFormat: map[string]Provider{}}
 	for _, p := range providers {
 		r.Register(p)
 	}
 	return r
 }
 
-// Register adds p for each of its extensions.
+// Register adds a language provider for each of its extensions.
 func (r *Registry) Register(p Provider) {
 	for _, ext := range p.Extensions() {
 		r.byExt[strings.ToLower(ext)] = p
 	}
 }
 
-// For returns the provider for path's extension.
+// RegisterFormat adds the provider a format supplies for the files its reader
+// parses.
+func (r *Registry) RegisterFormat(format string, p Provider) {
+	r.byFormat[format] = p
+}
+
+// For returns the language provider for path's extension.
 func (r *Registry) For(path string) (Provider, bool) {
 	if r == nil {
 		return nil, false
 	}
 	p, ok := r.byExt[strings.ToLower(filepath.Ext(path))]
+	return p, ok
+}
+
+// ForFormat returns the provider the named format supplies.
+func (r *Registry) ForFormat(format string) (Provider, bool) {
+	if r == nil {
+		return nil, false
+	}
+	p, ok := r.byFormat[format]
 	return p, ok
 }
 

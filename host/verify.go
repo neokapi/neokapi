@@ -811,11 +811,20 @@ func (a *App) verifyVoice(cmd Command, proj *project.KapiProject, root string, a
 		if p, ok := a.commentLayerFor(f, fmtName); ok {
 			// The voice governs a comment layer the way it governs any content.
 			var layer *commentLayer
-			if layer, rerr = a.readCommentLayer(ctx, f, p, nil); layer != nil {
+			locate := func(src []byte) (*commentLayer, error) { return locateComments(f, src, p) }
+			if layer, rerr = a.readCommentLayer(ctx, f, nil, locate); layer != nil {
 				blocks = layer.blocks
 			}
 		} else {
 			blocks, rerr = a.readBlocksAs(ctx, f, fmtName, fmtCfg, a.SourceLocale())
+			if rerr == nil {
+				// Comments the recipe declares beside the reader's blocks are
+				// governed the same way.
+				var layer *commentLayer
+				if layer, rerr = a.readDeclaredComments(ctx, f, fmtName, checkRunOptions{formats: formats}); layer != nil {
+					blocks = append(blocks, layer.blocks...)
+				}
+			}
 		}
 		if rerr != nil {
 			if errors.Is(rerr, registry.ErrUnknownFormat) {
@@ -1004,6 +1013,14 @@ type VerifyUnit struct {
 	SourceConfig map[string]any
 	TargetFormat string
 	TargetConfig map[string]any
+
+	// Comments says the recipe declares the source file's comments as content
+	// (`comments: true`). The source checks read them beside the reader's
+	// blocks, through the comment provider the file's format supplies.
+	Comments bool
+	// OnlyComments narrows a source unit to those comments. It stands for a file
+	// whose reader blocks the bilingual units already check.
+	OnlyComments bool
 }
 
 // readSource reads the unit's source file under its declared reader binding.
@@ -1139,6 +1156,7 @@ func (a *App) SourceUnitsFromProject(proj *project.KapiProject, root string) ([]
 			DisplayPath:  rel,
 			SourceFormat: rf.Format,
 			SourceConfig: mergedFormatConfig(proj, rf.Format, rf.Item),
+			Comments:     rf.Item != nil && rf.Item.Comments,
 		})
 	}
 	return units, nil

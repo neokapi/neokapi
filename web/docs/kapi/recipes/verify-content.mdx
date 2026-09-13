@@ -184,6 +184,25 @@ A bare `kapi check` and `kapi check --ship` then check those comments under the
 voice profile and terms bound to `acme/engineering`. `kapi up`, flow runs and
 source coverage leave the files alone.
 
+The same key checks the comments in YAML files, beside the values the YAML
+reader extracts:
+
+```yaml title="kapi.yaml"
+collections:
+  - name: deploy-config
+    channel: acme/engineering
+    content:
+      - path: "deploy/*.yaml"
+        comments: true
+```
+
+A bare `kapi check`, `kapi check --ship` and a check scoped to a diff read those
+comments as well. If the item also names a `target:`, `kapi up` converges the
+YAML file as it would without the key, each comment stays where it is in every
+file it writes, and the ship gate checks the comments once, in the source
+language. Set on a format whose comments kapi cannot read, the key makes the
+check report that it did not run.
+
 ## Next
 
 - [Ship gates & CI](/kapi/recipes/ship-gates-and-ci): `kapi check --ship` on every PR.
