@@ -345,6 +345,11 @@ export type TimelineEvent =
   | { i: number; kind: "hook_block"; reason: string; findings: string[] }
   // A later Stop fired and the gates passed — Claude is allowed to finish.
   | { i: number; kind: "hook_pass" }
+  // A Stop fired and the gates did not run, so the hook let Claude finish with a
+  // notice and no verdict. `cause` is the did-not-run cause the notice names
+  // (checker_invalid, nothing_to_check, content_not_checked), absent when it
+  // names none; `message` is the notice as the hook wrote it.
+  | { i: number; kind: "hook_did_not_run"; cause?: string; message: string }
   | { i: number; kind: "result"; text: string };
 
 export interface DemoCapture {
