@@ -68,7 +68,7 @@ type stalenessScope struct {
 // A project whose state store holds no produced target contributes no gate row.
 // "0 findings" about content that does not exist reads as a gate that ran and
 // passed, which is a claim about provenance nobody made.
-func (a *App) verifyStaleness(cmd Command, proj *project.KapiProject, root string, units []VerifyUnit, unread *unreadSet) (verifyGateResult, bool, error) {
+func (a *App) verifyStaleness(cmd Command, proj *project.KapiProject, root string, units []VerifyUnit, unread *UnreadSet) (verifyGateResult, bool, error) {
 	ctx := CmdContext(cmd)
 	gate := verifyGateResult{Gate: gateStaleness, Pass: true, Findings: []verifyFinding{}}
 

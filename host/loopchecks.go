@@ -70,7 +70,7 @@ func (a *App) computeLoopCheckExclusions(ctx context.Context, cmd Command, proj 
 // loopCheckExclusions is computeLoopCheckExclusions for a check over the
 // project's declared content: a unit whose source no installed reader opens is
 // skipped and recorded in unread. With unread nil such a unit fails the run.
-func (a *App) loopCheckExclusions(ctx context.Context, cmd Command, proj *project.KapiProject, root string, units []VerifyUnit, unread *unreadSet) (*CheckExclusions, error) {
+func (a *App) loopCheckExclusions(ctx context.Context, cmd Command, proj *project.KapiProject, root string, units []VerifyUnit, unread *UnreadSet) (*CheckExclusions, error) {
 	excl := &CheckExclusions{Failing: map[string]bool{}, ByLocale: map[string]int{}}
 
 	// The same rule `kapi check`'s checks gate applies to a target identical to its

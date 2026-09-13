@@ -11,7 +11,7 @@ import (
 	"github.com/neokapi/neokapi/core/registry"
 )
 
-// unreadSet collects the declared content a check over the project never
+// UnreadSet collects the declared content a check over the project never
 // opened, because no reader for its format is installed. A plugin can supply a
 // format, so a recipe that reads on a machine with the plugin cannot be read on
 // one without it. A check over the project's declared content checks what it
@@ -20,30 +20,36 @@ import (
 // nothing at all.
 //
 // A nil set belongs to a check over files the user named, or read under a
-// format the user named. A missing reader is an error there, and skip leaves it
+// format the user named. A missing reader is an error there, and Skip leaves it
 // to the caller.
-type unreadSet struct {
+type UnreadSet struct {
 	// formats maps each unread file to the format declared for it.
 	formats map[string]string
 	// files are the unread files in the order the check met them.
 	files []string
 }
 
+// NewUnreadSet returns an empty set for a check over the project's declared
+// content, such as the desktop Checks panel's.
+func NewUnreadSet() *UnreadSet {
+	return &UnreadSet{formats: map[string]string{}}
+}
+
 // newUnreadSet returns the set a check over the project's declared content
 // collects into, or nil when --format names the format every file is read
 // under.
-func (a *App) newUnreadSet() *unreadSet {
+func (a *App) newUnreadSet() *UnreadSet {
 	if a.FormatFlag != "" {
 		return nil
 	}
-	return &unreadSet{formats: map[string]string{}}
+	return NewUnreadSet()
 }
 
-// skip reports whether err says that no reader for the file's format is
+// Skip reports whether err says that no reader for the file's format is
 // installed, and records the file when it does. Such a file was never opened,
 // so nothing in it counts as checked. Any other error means the file was opened
 // and is broken, and the caller returns it.
-func (u *unreadSet) skip(err error, file, format string) bool {
+func (u *UnreadSet) Skip(err error, file, format string) bool {
 	if u == nil || !errors.Is(err, registry.ErrUnknownFormat) {
 		return false
 	}
@@ -54,12 +60,12 @@ func (u *unreadSet) skip(err error, file, format string) bool {
 	return true
 }
 
-// skipUnit is skip for a verify unit. It names the unit's source file relative
+// skipUnit is Skip for a verify unit. It names the unit's source file relative
 // to the project root, the file whose format has no reader, and adds it once to
 // skipped when a gate keeps its own list.
-func (u *unreadSet) skipUnit(skipped *[]string, err error, root string, unit VerifyUnit) bool {
+func (u *UnreadSet) skipUnit(skipped *[]string, err error, root string, unit VerifyUnit) bool {
 	file := relativeToRoot(root, unit.SourcePath)
-	if !u.skip(err, file, unit.SourceFormat) {
+	if !u.Skip(err, file, unit.SourceFormat) {
 		return false
 	}
 	if skipped != nil && !slices.Contains(*skipped, file) {
@@ -70,7 +76,7 @@ func (u *unreadSet) skipUnit(skipped *[]string, err error, root string, unit Ver
 
 // unitsSkipped returns the source files of units the set records, each once,
 // and whether it records every unit, so that nothing among them was read.
-func (u *unreadSet) unitsSkipped(root string, units []VerifyUnit) (skipped []string, readNothing bool) {
+func (u *UnreadSet) unitsSkipped(root string, units []VerifyUnit) (skipped []string, readNothing bool) {
 	if u == nil {
 		return nil, false
 	}
@@ -89,7 +95,7 @@ func (u *unreadSet) unitsSkipped(root string, units []VerifyUnit) (skipped []str
 }
 
 // warnings returns a WarningFormatNoReader warning for each unread file.
-func (u *unreadSet) warnings() []check.Warning {
+func (u *UnreadSet) warnings() []check.Warning {
 	if u == nil {
 		return nil
 	}
@@ -107,7 +113,7 @@ func (u *unreadSet) warnings() []check.Warning {
 }
 
 // reasons says of each file that it was not checked, and why.
-func (u *unreadSet) reasons(files []string) []string {
+func (u *UnreadSet) reasons(files []string) []string {
 	out := make([]string, 0, len(files))
 	for _, file := range files {
 		out = append(out, fmt.Sprintf("%s was not checked: no reader for format %q is installed", file, u.formats[file]))
@@ -115,10 +121,10 @@ func (u *unreadSet) reasons(files []string) []string {
 	return out
 }
 
-// report adds the unread files to a check report as warnings. A report that
+// Report adds the unread files to a check report as warnings. A report that
 // checked no block did not run, and when content in its scope went unread the
 // cause is that content was not checked, never that there was nothing to check.
-func (u *unreadSet) report(r *check.Report) {
+func (u *UnreadSet) Report(r *check.Report) {
 	if u == nil || len(u.files) == 0 {
 		return
 	}
@@ -133,7 +139,7 @@ func (u *unreadSet) report(r *check.Report) {
 // nothing it saw failed it, content in its scope went unchecked, so it did not
 // run. A gate that failed on what it could see keeps its failure, and one that
 // read some content is decided by that content.
-func (u *unreadSet) settle(g *verifyGateResult, skipped []string, readNothing bool) {
+func (u *UnreadSet) settle(g *verifyGateResult, skipped []string, readNothing bool) {
 	if u == nil || len(skipped) == 0 || !readNothing || !g.Pass {
 		return
 	}
@@ -147,7 +153,7 @@ func (u *unreadSet) settle(g *verifyGateResult, skipped []string, readNothing bo
 // files declared in it. A report that leaves a collection out reads like one
 // that checked it and found nothing, and this is the line a person at a
 // terminal sees.
-func (u *unreadSet) warn(a *App, cmd Command) {
+func (u *UnreadSet) warn(a *App, cmd Command) {
 	if u == nil || len(u.files) == 0 || a.Quiet {
 		return
 	}

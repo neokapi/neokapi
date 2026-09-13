@@ -159,8 +159,9 @@ function FindingInContext({ finding }: { finding: DesktopFinding }) {
 }
 
 /**
- * Configuration warnings, listed apart from the findings. Each names a profile,
- * and the key in it, to fix. A warning carries no severity because it changes
+ * Configuration warnings, listed apart from the findings. Each names what to fix:
+ * a profile and the key in it, or a declared file no installed reader opens and
+ * the plugin to install. A warning carries no severity because it changes
  * neither the verdict nor the score.
  */
 function ConfigurationWarnings({ warnings }: { warnings: CheckWarning[] }) {

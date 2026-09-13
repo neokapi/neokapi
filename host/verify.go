@@ -362,7 +362,7 @@ func (a *App) computeVerify(cmd Command, args []string) (verifyOutput, error) {
 	warnings := &voiceWarnings{}
 	// A run over the project's declared content skips the files no installed
 	// reader opens and names them. A run over named files fails on such a file.
-	var unread *unreadSet
+	var unread *UnreadSet
 	if len(args) == 0 {
 		unread = a.newUnreadSet()
 	}
@@ -521,7 +521,7 @@ func (a *App) verifySourceGate(ctx context.Context, proj *project.KapiProject, r
 // guardrail question the checks gate in this very command answers: one invocation
 // reporting `checks FAIL` beside `ship PASS` over one tree is a contradiction
 // needing no second command to see (#2024).
-func (a *App) verifyShip(cmd Command, proj *project.KapiProject, root string, units []VerifyUnit, unread *unreadSet) (verifyGateResult, error) {
+func (a *App) verifyShip(cmd Command, proj *project.KapiProject, root string, units []VerifyUnit, unread *UnreadSet) (verifyGateResult, error) {
 	ctx := CmdContext(cmd)
 	excl, err := a.loopCheckExclusions(ctx, cmd, proj, root, units, unread)
 	if err != nil {
@@ -767,7 +767,7 @@ func (a *App) projectTermsBound(cmd Command) (bool, error) {
 // voice profile. Returns nil (no gate) when the project binds no voice
 // profile — the gate only runs when there is something to check. Reuses the
 // voice check path (NewVoiceVocabCheckTool + CalculateScore).
-func (a *App) verifyVoice(cmd Command, proj *project.KapiProject, root string, args []string, warnings *voiceWarnings, unread *unreadSet) (*verifyGateResult, error) {
+func (a *App) verifyVoice(cmd Command, proj *project.KapiProject, root string, args []string, warnings *voiceWarnings, unread *UnreadSet) (*verifyGateResult, error) {
 	// The voice is resolved per file, at the point that file sits at, so a gate
 	// over a governed project scores each file against the vocabulary in force
 	// there. A project binding no voice anywhere resolves none for any file and
@@ -855,7 +855,7 @@ func (a *App) verifyVoice(cmd Command, proj *project.KapiProject, root string, a
 			display = rel
 		}
 		if rerr != nil {
-			if unread.skip(rerr, display, fmtName) {
+			if unread.Skip(rerr, display, fmtName) {
 				skipped = append(skipped, display)
 				continue
 			}
@@ -1281,7 +1281,7 @@ func expandTargetTemplate(itemPath, base, tmpl, sourceRel, locale, root, localeF
 // checked against the vocabulary in force there. A locale with no rules
 // contributes no findings; a missing target file (untranslated) is flagged by
 // the checks gate, so terminology skips it.
-func (a *App) verifyTerminology(cmd Command, units []VerifyUnit, unread *unreadSet) (verifyGateResult, error) {
+func (a *App) verifyTerminology(cmd Command, units []VerifyUnit, unread *UnreadSet) (verifyGateResult, error) {
 	ctx := CmdContext(cmd)
 	gate := verifyGateResult{Gate: gateTerms, Pass: true, Findings: []verifyFinding{}, Coverage: &verifyCoverage{}}
 	execution := newCheckExecution()
@@ -1443,7 +1443,7 @@ func (a *App) unitGovernancePoint(root string, u VerifyUnit) project.GovernanceP
 // verifyChecks checks placeholder/tag integrity against the source and flags
 // untranslated/empty targets for each target file, reusing
 // core/tools.NewRuleCheckTool.
-func (a *App) verifyChecks(cmd Command, proj *project.KapiProject, root string, units []VerifyUnit, warnings *voiceWarnings, unread *unreadSet) (verifyGateResult, error) {
+func (a *App) verifyChecks(cmd Command, proj *project.KapiProject, root string, units []VerifyUnit, warnings *voiceWarnings, unread *UnreadSet) (verifyGateResult, error) {
 	ctx := CmdContext(cmd)
 	gate := verifyGateResult{Gate: gateChecks, Pass: true, Findings: []verifyFinding{}, Coverage: &verifyCoverage{}}
 	execution := newCheckExecution()

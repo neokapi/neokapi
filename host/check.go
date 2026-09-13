@@ -306,7 +306,7 @@ func (a *App) ComputeCheck(cmd Command, args []string) (check.Report, error) {
 	// unread collects the declared content a check over the whole project cannot
 	// open. A check over named files keeps it nil, so a file there with no
 	// reader fails the check.
-	var unread *unreadSet
+	var unread *UnreadSet
 	if diff != nil {
 		// A diff names the files; named files narrow it.
 	} else if len(args) == 0 {
@@ -485,7 +485,7 @@ func (a *App) ComputeCheck(cmd Command, args []string) (check.Report, error) {
 			blocks, fileDiags, ferr := a.checkFileBlocks(ctx, file, validateMode, opts)
 			prog.Advance()
 			if ferr != nil {
-				if name, _ := opts.formats.forFile(a, file); unread.skip(ferr, file, name) {
+				if name, _ := opts.formats.forFile(a, file); unread.Skip(ferr, file, name) {
 					continue
 				}
 				return check.Report{}, ferr
@@ -514,7 +514,7 @@ func (a *App) ComputeCheck(cmd Command, args []string) (check.Report, error) {
 	if lenient, _ := cmd.Flags().GetBool("lenient"); !lenient {
 		applyFormatterGate(&report)
 	}
-	unread.report(&report)
+	unread.Report(&report)
 	unread.warn(a, cmd)
 	return report, nil
 }
