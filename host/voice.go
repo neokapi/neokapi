@@ -654,6 +654,9 @@ func (a *App) BuildVoiceProvider(cmd Command) (aiprovider.LLMProvider, error) {
 	if cred != "" {
 		config["credential"] = cred
 	}
+	if mdl, _ := cmd.Flags().GetString("model"); mdl != "" {
+		config["model"] = mdl
+	}
 	resolved, err := credentials.ResolveCredentials(a.Credentials, "", []string{"credentials"}, config)
 	if err != nil {
 		return nil, err

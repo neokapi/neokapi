@@ -47,10 +47,12 @@ Outside a project and with no flag: same as --local (uses ./terms.db).`,
 	searchCmd := newTermsSearchCmd(a)
 	occurrencesCmd := newTermsOccurrencesCmd(a)
 	statsCmd := newTermsStatsCmd(a)
+	expandCmd := newTermsExpandCmd(a)
+	validateCmd := newTermsValidateCmd(a)
 	listCmd := newTermsListCmd(a)
 
 	// Shared resource flags for all subcommands (except list).
-	for _, cmd := range []*cobra.Command{importCmd, exportCmd, lookupCmd, searchCmd, occurrencesCmd, statsCmd} {
+	for _, cmd := range []*cobra.Command{importCmd, exportCmd, lookupCmd, searchCmd, occurrencesCmd, statsCmd, expandCmd, validateCmd} {
 		AddResourceFlags(cmd)
 	}
 	// The project's terms are a subsystem of `.kapi/work/store.db`, not a file a
@@ -58,11 +60,11 @@ Outside a project and with no flag: same as --local (uses ./terms.db).`,
 	// and -p is how you say WHICH, exactly as for every other project-aware
 	// verb. It also matters under KAPI_NO_PROJECT, where the upward walk is
 	// off and an explicit -p is the only way in.
-	for _, cmd := range []*cobra.Command{importCmd, exportCmd, lookupCmd, searchCmd, occurrencesCmd, statsCmd} {
+	for _, cmd := range []*cobra.Command{importCmd, exportCmd, lookupCmd, searchCmd, occurrencesCmd, statsCmd, expandCmd, validateCmd} {
 		AddProjectFlag(cmd)
 	}
 
-	tbCmd.AddCommand(importCmd, exportCmd, lookupCmd, searchCmd, occurrencesCmd, statsCmd, listCmd)
+	tbCmd.AddCommand(importCmd, exportCmd, lookupCmd, searchCmd, occurrencesCmd, statsCmd, expandCmd, validateCmd, listCmd)
 	return tbCmd
 }
 

@@ -160,11 +160,23 @@ kapi terms import terms.csv --format csv -s en -t fr --local   # also: json, tbx
 kapi terms lookup "checkout" -s en -t fr --json
 kapi exec term-check ./locales/fr.json --json                            # flag wrong/missing terms
 kapi terms occurrences "checkout"                                        # where the term (or a concept id) is used in the extracted content
+kapi terms validate                                                      # structural errors; target terms with no forms
+kapi terms expand --dry-run                                              # propose each target term's forms (plural, definite...)
 ```
 
 `occurrences` reads the project's block cache, so the project must have been
 extracted (`kapi up` or `kapi extract`); a concept id is searched under every
 term it carries, in every language.
+
+A term's `forms` are the shapes it takes in its own language, such as the
+Norwegian plural `varsler` for `varsel`. A rendering that changes the word is
+recognised as the term only when the term lists that form, and
+`kapi terms validate` warns about each target term in an inflecting language
+that lists none. `kapi terms expand` asks a model for the forms, drops any that
+do not open with the term's first three characters or that spell another term,
+and writes the rest into the committed terms bundle. Run it with `--dry-run`
+first, then review the diff before committing: a wrong form makes a check accept
+a word it should not.
 
 Use the approved (preferred) term; avoid deprecated/forbidden ones. A bound
 terms store also feeds the translation step, and so does a `term_rules:` list in

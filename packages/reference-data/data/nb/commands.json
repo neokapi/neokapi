@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-12T22:21:50Z",
+  "generatedAt": "2026-09-13T18:37:21Z",
   "commands": [
     {
       "id": "add",
@@ -6954,6 +6954,120 @@
       "demoMode": false
     },
     {
+      "id": "terms.expand",
+      "path": [
+        "terms",
+        "expand"
+      ],
+      "use": "expand [bundle]",
+      "short": "Propose the surface forms each term takes (writes the terms)",
+      "long": "Ask a model for the other shapes each term takes in its own language (the\nplural, the definite form, a case ending) and write them onto the term as forms.\n\nA declared form is how kapi recognises a rendering that changes the word: the\nNorwegian plural \"varsler\" is a use of the term \"varsel\" once the term lists it.\n\nBy default this asks about target terms, meaning every language except the source\nlanguage, and leaves terms that already declare forms alone. It writes the bundle\nnamed on the command line, or the project's committed terms source, or else the\nstore the terms flags select. It prints each proposal and the forms the filters\ndropped; review the diff before committing it.",
+      "flags": [
+        {
+          "name": "api-key",
+          "usage": "API key for the AI provider",
+          "type": "string"
+        },
+        {
+          "name": "color",
+          "usage": "colorize output: auto, always, never",
+          "default": "auto",
+          "type": "string"
+        },
+        {
+          "name": "credential",
+          "usage": "saved credential name (see 'kapi credentials list')",
+          "type": "string"
+        },
+        {
+          "name": "dry-run",
+          "usage": "print what would be added and write nothing",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "file",
+          "usage": "explicit path to resource file",
+          "type": "string"
+        },
+        {
+          "name": "jq",
+          "usage": "filter JSON output through a jq expression (implies --json)",
+          "type": "string"
+        },
+        {
+          "name": "json",
+          "usage": "Output in JSON format",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "local",
+          "usage": "use resource in current directory",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "locale",
+          "usage": "only terms in these locales; a bare language matches every region (default: every language except the source language)",
+          "default": "[]",
+          "type": "stringSlice"
+        },
+        {
+          "name": "model",
+          "usage": "AI model name",
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "usage": "named resource in KAPI_HOME (e.g. --name project-terms)",
+          "type": "string"
+        },
+        {
+          "name": "output-format",
+          "usage": "Output format: text (alias: table), json, yaml",
+          "type": "string"
+        },
+        {
+          "name": "overwrite",
+          "usage": "ask again about terms that already declare forms, and replace them",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        },
+        {
+          "name": "provider",
+          "usage": "AI provider (default: anthropic)",
+          "type": "string"
+        },
+        {
+          "name": "source-locale",
+          "shorthand": "s",
+          "usage": "language the source terms are written in (default: the project's source language)",
+          "type": "string"
+        },
+        {
+          "name": "text",
+          "usage": "Output in text format (default)",
+          "default": "false",
+          "type": "bool"
+        }
+      ],
+      "examples": [
+        "kapi terms expand --dry-run",
+        "kapi terms expand --locale nb --locale de",
+        "kapi terms expand .kapi/terms.json --overwrite"
+      ],
+      "offlineCapable": false,
+      "runnableInBrowser": true,
+      "demoMode": true
+    },
+    {
       "id": "terms.export",
       "path": [
         "terms",
@@ -7331,6 +7445,81 @@
       "examples": [
         "kapi terms stats",
         "kapi terms stats --name product-terms"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "terms.validate",
+      "path": [
+        "terms",
+        "validate"
+      ],
+      "use": "validate [bundle]",
+      "short": "Check terms for structural problems and missing forms",
+      "long": "Check a set of terms and report what is wrong with them, or what a check will\nread differently from what the author meant.\n\nErrors fail the command: a concept with no id or an id used twice, a term with no\ntext or no locale, a status outside the lifecycle vocabulary.\n\nWarnings do not. A target term in a language that inflects, with no forms\ndeclared, is recognised only where a rendering contains its exact spelling, so\nthe plural \"varsler\" is not a use of \"varsel\" until the term lists it (see\n`kapi terms expand`). A form spelled the same as another term in the same\nlanguage makes one word a use of two entries.\n\nIt reads the bundle named on the command line, or the project's committed terms\nsource, or else the store the terms flags select.\n\nExit codes: 0 when there are no errors, 1 otherwise. With --json the result is\n{\"valid\", \"source\", \"concepts\", \"problems\": [{\"concept_id\", \"locale\", \"term\",\n\"message\", \"warning\"}]}.",
+      "flags": [
+        {
+          "name": "color",
+          "usage": "colorize output: auto, always, never",
+          "default": "auto",
+          "type": "string"
+        },
+        {
+          "name": "file",
+          "usage": "explicit path to resource file",
+          "type": "string"
+        },
+        {
+          "name": "jq",
+          "usage": "filter JSON output through a jq expression (implies --json)",
+          "type": "string"
+        },
+        {
+          "name": "json",
+          "usage": "Output in JSON format",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "local",
+          "usage": "use resource in current directory",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "name",
+          "usage": "named resource in KAPI_HOME (e.g. --name project-terms)",
+          "type": "string"
+        },
+        {
+          "name": "output-format",
+          "usage": "Output format: text (alias: table), json, yaml",
+          "type": "string"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        },
+        {
+          "name": "source-locale",
+          "shorthand": "s",
+          "usage": "language the source terms are written in (default: the project's source language)",
+          "type": "string"
+        },
+        {
+          "name": "text",
+          "usage": "Output in text format (default)",
+          "default": "false",
+          "type": "bool"
+        }
+      ],
+      "examples": [
+        "kapi terms validate",
+        "kapi terms validate .kapi/terms.json --json"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
