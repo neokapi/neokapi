@@ -145,8 +145,21 @@ type Diagnostic struct {
 	Suggestion string `json:"suggestion,omitempty"`
 	// Location anchors the finding to a block (and anchor/snippet when known).
 	Location Location `json:"location"`
+	// Point is the governance point the finding's block was checked at. It is
+	// set when a project resolved the governance, and omitted otherwise.
+	Point *Point `json:"point,omitempty"`
 	// Metadata carries checker-specific detail (limit, count, matched rule id).
 	Metadata map[string]string `json:"metadata,omitempty"`
+}
+
+// Point is a governance point a project resolved for checked blocks: the
+// profile and channel it resolved to, both empty at the project's default
+// point. Comments marks the point a file's comments sit at when the project
+// places them apart from the file's other content.
+type Point struct {
+	Profile  string `json:"profile,omitempty"`
+	Channel  string `json:"channel,omitempty"`
+	Comments bool   `json:"comments,omitempty"`
 }
 
 // Location anchors a Diagnostic. Block is the primary handle an AI uses to find

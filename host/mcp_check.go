@@ -185,21 +185,22 @@ func (a *App) checkFileMCP(ctx context.Context, in checkFileInput) (*mcp.CallToo
 	if a.mcpRecipePath != "" {
 		cmd.Flags().String(projectFlagName, a.mcpRecipePath, "")
 	}
+	var voice *checkVoice
 	if opts.profile == nil {
-		voice, err := a.newCheckVoice(cmd, opts.execution.warningSink())
-		if err != nil {
+		if voice, err = a.newCheckVoice(cmd, opts.execution.warningSink()); err != nil {
 			return nil, check.Report{}, err
 		}
 		defer voice.close()
-		opts.profile, opts.voiceContext, err = voice.forFile(ctx, in.File)
-		if err != nil {
-			return nil, check.Report{}, err
-		}
 	}
-	opts.terms, err = a.ProjectTermsForFile(ctx, cmd, in.File)
+	vocab, err := a.newCheckTerms(cmd)
 	if err != nil {
 		return nil, check.Report{}, err
 	}
+	g, err := a.governFile(ctx, voice, vocab, in.File, opts.here())
+	if err != nil {
+		return nil, check.Report{}, err
+	}
+	opts = opts.govern(g)
 	opts.formats, err = a.newCheckFormats(cmd)
 	if err != nil {
 		return nil, check.Report{}, err
@@ -207,7 +208,6 @@ func (a *App) checkFileMCP(ctx context.Context, in checkFileInput) (*mcp.CallToo
 	if scoped {
 		return a.checkDiffMCP(ctx, cmd, in, opts)
 	}
-	execution.recordContext(in.File, "", opts)
 	execution.Timings.ContextMS += elapsedMS(contextStart)
 	target := check.Target{Kind: "file", File: in.File}
 	var diags []check.Diagnostic
@@ -245,6 +245,10 @@ func (a *App) checkFileMCP(ctx context.Context, in checkFileInput) (*mcp.CallToo
 			return nil, check.Report{}, fmt.Errorf("target file %q does not exist", in.Target)
 		}
 		target.Blocks = len(blocks)
+		// A translated rendering holds no comment layer, so its blocks sit at
+		// the source file's own point.
+		opts.comments = nil
+		execution.recordContext(in.File, "", opts)
 		fd, ferr := a.collectFileDiagnostics(ctx, blocks, in.File, opts)
 		if ferr != nil {
 			return nil, check.Report{}, ferr
@@ -254,12 +258,14 @@ func (a *App) checkFileMCP(ctx context.Context, in checkFileInput) (*mcp.CallToo
 		if bderr != nil {
 			return nil, check.Report{}, bderr
 		}
+		opts.stampPoints(biDiags, blocks)
 		diags = append(diags, biDiags...)
 	} else {
 		blocks, fileDiags, ferr := a.checkFileBlocks(ctx, in.File, validateMode, opts)
 		if ferr != nil {
 			return nil, check.Report{}, ferr
 		}
+		execution.recordContexts(in.File, "", opts, blocks)
 		target.Blocks = len(blocks)
 		diags = fileDiags
 		report := execution.report(target, diags, check.DefaultGate())

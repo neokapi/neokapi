@@ -55,7 +55,7 @@ type Defaults struct {
     Segmentation    SegmentationDefaults      `yaml:"segmentation,omitempty"`
     Annotations     AnnotationDefaults        `yaml:"annotations,omitempty"`
     Redaction       *RedactionSpec            `yaml:"redaction,omitempty"`
-    Comments        CommentDefaults           `yaml:"comments,omitempty"`     // directives set aside in every declared comment
+    Comments        CommentDefaults           `yaml:"comments,omitempty"`     // directives and channel for every declared comment
     Voice           *VoiceBinding             `yaml:"voice,omitempty"`
     Coordinates     map[string]string         `yaml:"coordinates,omitempty"`  // the declared axes of the default point
     TermsSource     string                    `yaml:"terms_source,omitempty"`
@@ -85,7 +85,7 @@ type Collection struct {
 // ContentItem additionally carries its own `base` (yaml:"base,omitempty"), the
 // directory its matched paths are made relative to for target-token expansion,
 // its own `channel`, a per-item `redaction`, and `comments` (ContentComments:
-// `true`, or a mapping carrying `directives`).
+// `true`, or a mapping carrying `directives` and `channel`).
 
 // Profile binds governance to one product and declares its channels.
 type Profile struct {
@@ -265,11 +265,14 @@ shared vocabulary. A recipe that binds a terms store per profile
 proceeds; this is a caveat, not a fault.
 
 One function resolves governance for every surface:
-`KapiProject.ResolveGovernanceFor(GovernancePoint{Profile, Collection, Path, At})`.
+`KapiProject.ResolveGovernanceFor(GovernancePoint{Profile, Collection, Path, Comments, At})`.
 It walks the declared bindings finest-first (a content item's own `channel:`,
 then its collection's, then the project default), skipping any whose profile is
 outside its validity window at `At`, and records the skip on
-`ResolvedGovernance.Fallback` so the caller can report it. `ResolveGovernance`
+`ResolvedGovernance.Fallback` so the caller can report it. A point with
+`Comments` set names the comments in the file at `Path`, and its walk starts
+with two rungs of its own: the claiming item's `comments.channel`, then
+`defaults.comments.channel`. `ResolveGovernance`
 and `ResolveGovernanceForPath` are the as-declared views over the same walk (a
 zero `At` applies no window); `ResolveGovernanceAt` is the as-of view.
 
@@ -428,6 +431,8 @@ the full extension model.
     break and is declared once; an item's list may not repeat one the defaults
     declare. The error names the key, such as
     `collections[0].content[1].comments.directives[0]`.
+  - An item's `comments.channel` and `defaults.comments.channel` resolve at load
+    as a collection's `channel` does, and the error names the key.
 - Every `profiles:` key is a slug, and so is every channel it declares; a channel
   is declared at most once per profile. A profile's `voice` is shape-checked
   exactly like `defaults.voice` (one of `profile_file`, `profile`, `pack`, or a

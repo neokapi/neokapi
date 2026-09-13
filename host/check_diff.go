@@ -362,18 +362,12 @@ func (a *App) checkDiffFile(ctx context.Context, run diffCheckRun, f diffscope.F
 		return nil, 0, nil
 	}
 
-	opts := run.opts
-	if run.voice != nil {
-		if opts.profile, opts.voiceContext, err = run.voice.forFile(ctx, abs); err != nil {
-			return nil, 0, err
-		}
+	g, err := a.governFile(ctx, run.voice, run.vocab, abs, run.opts.here())
+	if err != nil {
+		return nil, 0, err
 	}
-	if run.vocab != nil {
-		if opts.terms, err = run.vocab.forFile(ctx, abs); err != nil {
-			return nil, 0, err
-		}
-	}
-	opts.execution.recordContext(entry.Path, "", opts)
+	opts := run.opts.govern(g)
+	opts.execution.recordContexts(entry.Path, "", opts, touched)
 	// The analyzers the file's provider brings run over the touched blocks, and
 	// are recorded as a whole-file check records them.
 	diags, err := recordProviderAnalyzers(ctx, read.analyzers, touched, entry.Path, opts.execution)
@@ -387,6 +381,7 @@ func (a *App) checkDiffFile(ctx context.Context, run diffCheckRun, f diffscope.F
 		return nil, 0, err
 	}
 	diags = append(diags, fileDiags...)
+	opts.stampPoints(diags, touched)
 	for i := range diags {
 		if l, ok := byKey[diags[i].Location.Block]; ok && diags[i].Location.Block != "" {
 			diags[i].Location.Lines = &l

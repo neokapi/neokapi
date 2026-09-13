@@ -87,16 +87,16 @@ func (a *App) verifySourceChecks(ctx context.Context, cmd Command, u VerifyUnit,
 		return err
 	}
 	defer voice.close()
-	profile, selected, err := voice.forFile(ctx, u.SourcePath)
+	vocab, err := a.newCheckTerms(cmd)
 	if err != nil {
 		return err
 	}
-	vocab, err := a.ProjectTermsForFile(ctx, cmd, u.SourcePath)
+	g, err := a.governFile(ctx, voice, vocab, u.SourcePath, atPoint{})
 	if err != nil {
 		return err
 	}
 	execution.Timings.ContextMS = elapsedMS(contextStart)
-	opts := checkRunOptions{profile: profile, voiceContext: selected, terms: vocab, execution: execution}
+	opts := checkRunOptions{execution: execution}.govern(g)
 	opts.maxChars, _ = cmd.Flags().GetInt("max-chars")
 	opts.maxWords, _ = cmd.Flags().GetInt("max-words")
 	opts.forbid, _ = cmd.Flags().GetStringSlice("forbid")
@@ -108,10 +108,11 @@ func (a *App) verifySourceChecks(ctx context.Context, cmd Command, u VerifyUnit,
 		return err
 	}
 	diagnostics = append(formatterDiags, diagnostics...)
+	opts.stampPoints(diagnostics, blocks)
 	if gate.Execution == nil {
 		gate.Execution = &check.Execution{Analyzers: []check.AnalyzerExecution{}}
 	}
-	execution.recordContext(u.DisplayPath, "", opts)
+	execution.recordContexts(u.DisplayPath, "", opts, blocks)
 	gate.Execution.Contexts = append(gate.Execution.Contexts, execution.Contexts...)
 	gate.Execution.Analyzers = append(gate.Execution.Analyzers, execution.Analyzers...)
 	gate.Execution.Timings.AnalyzersMS += execution.Timings.AnalyzersMS
@@ -136,48 +137,59 @@ func (a *App) verifySourceChecks(ctx context.Context, cmd Command, u VerifyUnit,
 			severity = "error"
 		}
 		gate.Findings = append(gate.Findings, verifyFinding{Gate: gateChecks, File: u.DisplayPath,
-			Block: d.Location.Block, Locale: u.Locale, Severity: severity, Message: d.Message, Suggestion: d.Suggestion})
+			Block: d.Location.Block, Locale: u.Locale, Severity: severity, Message: d.Message, Suggestion: d.Suggestion, Point: d.Point})
 	}
 	return nil
 }
 
 // Source terminology judges each occurrence in its own language using the same
 // scoped vocabulary matcher as file checks. No synthetic target is introduced.
+// Each block is judged against the vocabulary at the point it sits at.
 func (a *App) verifySourceTerminology(ctx context.Context, vocab *checkTerms, u VerifyUnit, gate *verifyGateResult, execution *checkExecution) error {
-	store, err := vocab.forFile(ctx, u.SourcePath)
+	g, err := a.governFile(ctx, nil, vocab, u.SourcePath, atPoint{})
 	if err != nil {
 		return err
 	}
-	if store == nil {
+	if g.content.terms == nil && g.comments.terms == nil {
 		return nil
 	}
 	blocks, _, err := a.readSourceForCheck(ctx, u, nil)
 	if err != nil {
 		return err
 	}
-	checker := coretools.NewVoiceVocabCheckTool(nil, store).InSourceLocale(model.LocaleID(a.SourceLocale()))
 	gate.Coverage.Files++
-	gate.Coverage.Blocks += len(blocks)
-	start, before := time.Now(), len(gate.Findings)
-	for _, b := range blocks {
-		findings, err := runVoiceVocabOnBlock(ctx, checker, b)
+	for _, group := range (checkRunOptions{}).govern(g).pointGroups(blocks, blocks) {
+		if group.at.terms == nil {
+			continue
+		}
+		checker := coretools.NewVoiceVocabCheckTool(nil, group.at.terms).InSourceLocale(model.LocaleID(a.SourceLocale()))
+		gate.Coverage.Blocks += len(group.blocks)
+		start, before := time.Now(), len(gate.Findings)
+		for _, b := range group.blocks {
+			findings, err := runVoiceVocabOnBlock(ctx, checker, b)
+			if err != nil {
+				return fmt.Errorf("source terminology %s: %w", u.DisplayPath, err)
+			}
+			for _, f := range findings {
+				finding := voiceFindingToVerify(u.DisplayPath, blockKey(b), f)
+				finding.Gate = gateTerms
+				finding.Locale = u.Locale
+				finding.Point = clonePoint(group.at.point)
+				if finding.Severity == "error" {
+					gate.Pass = false
+				}
+				gate.Findings = append(gate.Findings, finding)
+			}
+		}
+		canary, err := probeVoiceRules(ctx, checker, nil)
 		if err != nil {
 			return fmt.Errorf("source terminology %s: %w", u.DisplayPath, err)
 		}
-		for _, f := range findings {
-			finding := voiceFindingToVerify(u.DisplayPath, blockKey(b), f)
-			finding.Gate = gateTerms
-			finding.Locale = u.Locale
-			if finding.Severity == "error" {
-				gate.Pass = false
-			}
-			gate.Findings = append(gate.Findings, finding)
+		mark := execution.analyzerCount()
+		execution.completed("terms.source", u.DisplayPath, len(gate.Findings)-before, start, canary, false)
+		if group.apart {
+			execution.pointAnalyzers(mark, group.at.point)
 		}
 	}
-	canary, err := probeVoiceRules(ctx, checker, nil)
-	if err != nil {
-		return fmt.Errorf("source terminology %s: %w", u.DisplayPath, err)
-	}
-	execution.completed("terms.source", u.DisplayPath, len(gate.Findings)-before, start, canary, false)
 	return nil
 }

@@ -211,6 +211,29 @@ kapi reads comments in the project, and an item's own `directives` add to them
 for its files. A marker that is empty, starts with whitespace, or is declared
 twice makes the recipe fail to load, with an error naming the key.
 
+Comments can also sit at a governance point of their own, so a style written
+for code comments applies to the comments in a file and the values a YAML
+reader extracts keep the voice they ship under:
+
+```yaml title="kapi.yaml"
+defaults:
+  comments:
+    channel: acme/comments
+collections:
+  - name: deploy-config
+    channel: acme/engineering
+    content:
+      - path: "deploy/*.yaml"
+        comments: true
+```
+
+Each comment is then checked under the voice profile and terms bound to
+`acme/comments`, and each value under those bound to `acme/engineering`. An
+item's own `comments: {channel: ...}` places its comments at another point. A
+bare `kapi check`, a check of named files, `kapi check --ship`, a check scoped
+to a diff and the MCP `check_file` tool all hold each block to its point, and
+each finding reports the `point` it was checked at.
+
 The same key checks the comments in YAML files, in XML-based files, such as
 [Android string resources](/reference/formats/androidxml),
 [.NET RESX](/reference/formats/resx) and [XLIFF](/reference/formats/xliff),

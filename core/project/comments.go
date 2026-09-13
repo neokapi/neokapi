@@ -17,11 +17,16 @@ type CommentDefaults struct {
 	// comment line, such as `okapi-skip:`. A comment line that opens with one is
 	// set aside wherever a check reads comments, and is never read as prose.
 	Directives []string `yaml:"directives,omitempty" json:"directives,omitempty"`
+
+	// Channel is the point, a qualified `profile/channel`, at which the comments
+	// of every item that declares them sit, unless the item names its own. Empty
+	// leaves each item's comments at the item's point.
+	Channel string `yaml:"channel,omitempty" json:"channel,omitempty"`
 }
 
 // UnmarshalYAML rejects a key the mapping does not have.
 func (d *CommentDefaults) UnmarshalYAML(node *yaml.Node) error {
-	if err := knownKeys(node, "defaults.comments", "directives"); err != nil {
+	if err := knownKeys(node, "defaults.comments", "directives", "channel"); err != nil {
 		return err
 	}
 	type alias CommentDefaults
@@ -49,6 +54,12 @@ type ContentComments struct {
 	// Directives are markers the item's files carry beside the ones under
 	// `defaults.comments`.
 	Directives []string `yaml:"directives,omitempty" json:"directives,omitempty"`
+
+	// Channel is the point, a qualified `profile/channel`, at which the item's
+	// comments sit. It outranks `defaults.comments.channel`, and both outrank the
+	// item's own `channel:` for the comments alone: the content the file's reader
+	// extracts stays at the item's point.
+	Channel string `yaml:"channel,omitempty" json:"channel,omitempty"`
 }
 
 // UnmarshalYAML accepts a boolean, or a mapping that declares the comments and
@@ -63,7 +74,7 @@ func (c *ContentComments) UnmarshalYAML(node *yaml.Node) error {
 		*c = ContentComments{Declared: declared}
 		return nil
 	case yaml.MappingNode:
-		if err := knownKeys(node, "comments", "directives"); err != nil {
+		if err := knownKeys(node, "comments", "directives", "channel"); err != nil {
 			return err
 		}
 		type alias ContentComments
@@ -82,7 +93,7 @@ func (c *ContentComments) UnmarshalYAML(node *yaml.Node) error {
 // MarshalYAML writes `comments: true` for an item that declares nothing more,
 // and the mapping otherwise.
 func (c ContentComments) MarshalYAML() (any, error) {
-	if len(c.Directives) == 0 {
+	if len(c.Directives) == 0 && c.Channel == "" {
 		return c.Declared, nil
 	}
 	type alias ContentComments
@@ -90,7 +101,9 @@ func (c ContentComments) MarshalYAML() (any, error) {
 }
 
 // IsZero reports an item that does not declare its comments.
-func (c ContentComments) IsZero() bool { return !c.Declared && len(c.Directives) == 0 }
+func (c ContentComments) IsZero() bool {
+	return !c.Declared && len(c.Directives) == 0 && c.Channel == ""
+}
 
 // CommentDirectives returns the directives in force in the comments of this
 // item's files: the ones under `defaults.comments`, then the item's own.

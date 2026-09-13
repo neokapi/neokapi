@@ -200,7 +200,10 @@ profile options. See [Checks](/framework/checks) for report coverage.
 The optional `execution.contexts` array adds per-input guidance selection to
 `kapi.check/v1` without changing existing report fields. Entries contain `file`
 or `context_path`, `voice` (`selection`, `applied`, optional `name`, `source`,
-`profile` and `channel`), and `terms_applied`. `voice.selection` is `project`,
+`profile` and `channel`), `terms_applied`, and, when a project resolved the
+guidance, `point` (`profile`, `channel`, and `comments` for the point a file's
+comments sit at). Findings, including those of `kapi check --ship`, carry the
+same optional `point`. `voice.selection` is `project`,
 `override` or `none`. Missing context metadata means unreported selection.
 CLI file checks, MCP file/draft checks and source-content release checks supply
 it. Explicit voice overrides retain their behavior and are identified as

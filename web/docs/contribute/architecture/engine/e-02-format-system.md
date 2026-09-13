@@ -513,6 +513,14 @@ one comment line and removes its marker. A line inside a delimited comment that
 runs over several lines holds no marker of its own, so no declared directive
 marks it.
 
+A recipe can also place a file's comments at a governance point of their own,
+with an item's `comments: {channel: ...}` or `defaults.comments.channel`. A
+check then holds each comment block to the voice and terms of that point and
+each block the reader extracts to the item's point
+([C-02](/contribute/architecture/context/c-02-coordinates-and-governance)). The
+layer marks its blocks (`comment.IsBlock`), which is how a check tells the two
+apart.
+
 #### Default on, via an inverted opt-out
 
 Surfacing is the **default**, controlled per format by a single boolean,

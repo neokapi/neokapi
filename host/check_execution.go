@@ -109,5 +109,6 @@ func (e *checkExecution) recordContext(file, destination string, opts checkRunOp
 	}
 	e.Contexts = append(e.Contexts, check.CheckContext{
 		File: file, ContextPath: destination, Voice: opts.voiceContext, TermsApplied: opts.terms != nil,
+		Point: clonePoint(opts.point),
 	})
 }

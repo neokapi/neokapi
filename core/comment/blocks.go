@@ -52,6 +52,11 @@ func (f *File) Blocks() []*model.Block {
 	return blocks
 }
 
+// IsBlock reports whether b is a block Blocks built from a comment.
+func IsBlock(b *model.Block) bool {
+	return b != nil && b.Type == BlockType && b.Properties[PropLanguage] != ""
+}
+
 // Extents returns where each comment's block sits in the file, in the order and
 // under the ids Blocks gives them.
 func (f *File) Extents() []format.Extent {

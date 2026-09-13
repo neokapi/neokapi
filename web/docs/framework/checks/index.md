@@ -106,6 +106,12 @@ not imply that a term matched or produced a finding. Project terminology checks
 also run when no voice profile is bound. An omitted `contexts`
 field means the producer did not report context selection.
 
+When a project resolved the guidance, each entry carries the `point` it was
+resolved at: the `profile` and `channel`, and `comments` for the point a file's
+comments sit at. A file whose comments sit apart from its other content has one
+entry for each point. Each finding carries the `point` its block was checked at,
+and an analyzer that ran once for each point carries its point too.
+
 The optional `warnings` array names problems in the configuration a check ran
 under, apart from the findings about content. Each entry has a stable `code`, a
 `message`, the `source` it came from (a profile file's path, or `pack:<name>` or
