@@ -65,6 +65,9 @@ export interface LanguageRow {
   name: string;
   provider?: string;
   presence: LanguagePresence;
+  /** Why the language has this presence, carrying a failing presence test's
+   * output. */
+  presence_reason?: string;
   /** Null unless the language is present. */
   level: ProseGrade | null;
   next?: string | null;
@@ -362,15 +365,15 @@ export const PRESENCE_LABEL: Record<LanguagePresence, string> = {
 
 export const PRESENCE_MEANING: Record<LanguagePresence, string> = {
   present: t(
-    "At least one rung test for the language ran to a pass or a fail.",
+    "Every presence test for the language passed: the build contains a reader for it.",
     "what a language presence means",
   ),
   absent: t(
-    "No rung test names the language: the build has no reader for it.",
+    "No presence test names the language, so nothing shows the build reads it.",
     "what a language presence means",
   ),
   "did-not-run": t(
-    "Rung tests name the language, and none of them produced a result.",
+    "A presence test failed or did not run; its output is the reason.",
     "what a language presence means",
   ),
 };

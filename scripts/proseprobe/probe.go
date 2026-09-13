@@ -21,7 +21,7 @@ import (
 )
 
 // ProbeVersion identifies the report shape and the scoring rules below.
-const ProbeVersion = 1
+const ProbeVersion = 2
 
 // Outcome is what one rung, or one rung test, came to. Only Met awards a rung.
 type Outcome string
@@ -35,9 +35,15 @@ const (
 // Presence says whether the build reads a subject at all.
 //
 // A format is present by registration: it is in the maturity universe because
-// it has a reader. A language has no such seat, so it is present only when a
-// rung test for it ran to a pass or a fail, absent when no rung test names it,
-// and did-not-run when rung tests exist but none produced a result.
+// it has a reader. A language's presence comes from its presence tests,
+// TestProseP0_<id>, which assert that the build contains a reader for it: a
+// provider in the comment registry, a grammar in a plugin's list. Every
+// presence test passing is present, and no presence test is absent. A presence
+// test that fails, or that did not run, is did-not-run with its output kept in
+// the reason: a failure cannot tell a removed reader from a broken test, and
+// the test's own assertion is what turns CI red when a reader goes. Rung tests
+// above P0 never establish presence, because a package can pass its P1 test
+// while no binary links it.
 type Presence string
 
 const (
@@ -61,36 +67,74 @@ const (
 	resultBuildFailed     = "build failed"
 	resultNoResult        = "no result"
 	reasonNoTest          = "no test"
+	reasonNoPresenceTest  = "no presence test"
 )
+
+// outputLines is how much of a test's output a report keeps.
+const outputLines = 12
 
 // Rungs is the ladder above P0. P0 has no requirement, so a P0 test is
 // presence evidence for a language and awards nothing.
 var Rungs = []string{"P1", "P2", "P3", "P4"}
 
-// CanaryID names the fixture subject in ./canary. It is scored on every run
-// and is never reported as a subject.
-const CanaryID = "canary"
+// canaryPrefix marks the fixture subjects in ./canary. Every one of them is
+// scored on every run, and none is ever reported as a subject.
+const canaryPrefix = "canary"
 
-// canaryPackage is where the canary may live. A test naming the canary
-// anywhere else is refused, so a real package cannot borrow its exemption.
+// canaryPackage is where the canaries may live. A test naming a canary
+// anywhere else is refused, so a real package cannot borrow the exemption.
 const canaryPackage = "github.com/neokapi/neokapi/scripts/proseprobe/canary"
 
-// canaryEnv is set on every `go test` the probe starts. The canary reads it so
-// that its deliberately failing test fails only under the probe and skips
+// canaryEnv is set on every `go test` the probe starts. The canaries read it
+// so that their deliberately failing tests fail only under the probe and skip
 // under an ordinary `go test ./...`.
 const canaryEnv = "PROSE_PROBE_CANARY"
 
-// canaryExpected is the only acceptable scoring of the canary. Each rung is
-// built to exercise one refusal: a skipped test, a pass above a missing rung,
-// a failure, and a pass whose only subtest skipped.
-var canaryExpected = map[string]struct {
+// canaryBrokenMessage is the assertion TestProseP0_canarybroken fails with.
+const canaryBrokenMessage = "canary: the presence assertion failed"
+
+// expectedRung is one rung of a canary's only acceptable scoring.
+type expectedRung struct {
 	Outcome Outcome
 	Reason  string
-}{
-	"P1": {DidNotRun, resultSkipped},
-	"P2": {Met, resultPassed},
-	"P3": {NotMet, resultFailed},
-	"P4": {DidNotRun, resultSubtestsSkipped},
+}
+
+var unclaimed = expectedRung{NotMet, reasonNoTest}
+
+// canarySpec is the only acceptable scoring of one canary subject.
+type canarySpec struct {
+	Presence Presence
+	Level    string
+	// Reason must appear in the subject's presence reason.
+	Reason string
+	Rungs  map[string]expectedRung
+}
+
+// canaries is what each fixture subject in ./canary must score. Each one is a
+// way a rung or a presence could be awarded without evidence.
+var canaries = map[string]canarySpec{
+	// A skipped P1, a pass above that missing rung, a failure, and a pass whose
+	// only subtest skipped. Present through its presence test, so exactly P0.
+	"canary": {Present, "P0", "TestProseP0_canary passed", map[string]expectedRung{
+		"P1": {DidNotRun, resultSkipped},
+		"P2": {Met, resultPassed},
+		"P3": {NotMet, resultFailed},
+		"P4": {DidNotRun, resultSubtestsSkipped},
+	}},
+	// A passing P1 with no presence test: a package that passes its rung tests
+	// while no binary links it. It must not be present.
+	"canaryunlinked": {Absent, "", reasonNoPresenceTest, map[string]expectedRung{
+		"P1": {Met, resultPassed}, "P2": unclaimed, "P3": unclaimed, "P4": unclaimed,
+	}},
+	// Present, with a P1 that fails. It must score exactly P0.
+	"canarypresent": {Present, "P0", "TestProseP0_canarypresent passed", map[string]expectedRung{
+		"P1": {NotMet, resultFailed}, "P2": unclaimed, "P3": unclaimed, "P4": unclaimed,
+	}},
+	// A presence test that fails, beside a passing P1. It must come to
+	// did-not-run with the failure's output in its reason, never to absent.
+	"canarybroken": {PresenceUnproven, "", canaryBrokenMessage, map[string]expectedRung{
+		"P1": {Met, resultPassed}, "P2": unclaimed, "P3": unclaimed, "P4": unclaimed,
+	}},
 }
 
 // A name the loose pattern finds is a claim on the Prose axis. The strict
@@ -120,6 +164,9 @@ type RungTest struct {
 	Package string `json:"package"`
 	Name    string `json:"name"`
 	Result  string `json:"result"`
+	// Output is the tail of what the test printed when it did not pass: its
+	// assertions, or the compiler's output when its package did not build.
+	Output string `json:"output,omitempty"`
 
 	subject string
 	rung    string
@@ -139,6 +186,9 @@ type Subject struct {
 	Name     string   `json:"name,omitempty"`
 	Provider string   `json:"provider,omitempty"`
 	Presence Presence `json:"presence"`
+	// PresenceReason says why a language has the presence it has, carrying a
+	// failing presence test's output.
+	PresenceReason string `json:"presence_reason,omitempty"`
 	// Level is empty when the subject is absent or its presence did not run.
 	Level         string                `json:"level,omitempty"`
 	Rungs         map[string]RungResult `json:"rungs"`
@@ -163,7 +213,7 @@ type Report struct {
 	ProbeVersion int         `json:"probe_version"`
 	Tags         string      `json:"tags"`
 	Modules      []ModuleRun `json:"modules"`
-	Canary       Subject     `json:"canary"`
+	Canaries     []Subject   `json:"canaries"`
 	Subjects     []Subject   `json:"subjects"`
 }
 
@@ -197,8 +247,8 @@ type Options struct {
 
 // Probe discovers, runs and scores every rung test under opts.Root. The
 // returned problems make the run invalid: a canary that did not score exactly
-// as expected, a rung test that breaks the naming contract, or a rung test for
-// a subject that is neither a format nor a registered language.
+// as built, a rung test that breaks the naming contract, or a rung test for a
+// subject that is neither a format nor a registered language.
 func Probe(ctx context.Context, opts Options) (*Report, []string, error) {
 	mods, err := DiscoverModules(opts.Root)
 	if err != nil {
@@ -222,10 +272,13 @@ func Probe(ctx context.Context, opts Options) (*Report, []string, error) {
 		isFormat[f] = true
 	}
 	for _, t := range tests {
+		_, isCanary := canaries[t.subject]
 		switch {
-		case t.subject == CanaryID && t.Package != canaryPackage:
-			problems = append(problems, fmt.Sprintf("%s in %s names the canary, which may only live in %s", t.Name, t.Package, canaryPackage))
-		case t.subject != CanaryID && !isFormat[t.subject] && langs[t.subject] == (Language{}):
+		case strings.HasPrefix(t.subject, canaryPrefix) && t.Package != canaryPackage:
+			problems = append(problems, fmt.Sprintf("%s in %s names a canary subject, which may only live in %s", t.Name, t.Package, canaryPackage))
+		case strings.HasPrefix(t.subject, canaryPrefix) && !isCanary:
+			problems = append(problems, fmt.Sprintf("%s names %q, which is not one of the probe's canaries", t.Name, t.subject))
+		case !strings.HasPrefix(t.subject, canaryPrefix) && !isFormat[t.subject] && langs[t.subject] == (Language{}):
 			problems = append(problems, fmt.Sprintf("%s in %s names %q, which is neither a format under core/formats nor a language in core/formats/prose.yaml", t.Name, t.Package, t.subject))
 		}
 	}
@@ -241,8 +294,11 @@ func Probe(ctx context.Context, opts Options) (*Report, []string, error) {
 	}
 
 	rep := &Report{ProbeVersion: ProbeVersion, Tags: opts.Tags, Modules: runs}
-	rep.Canary = Score(CanaryID, KindLanguage, bySubject[CanaryID])
-	problems = append(problems, CheckCanary(rep.Canary)...)
+	for _, id := range canaryIDs() {
+		c := Score(id, KindLanguage, bySubject[id])
+		rep.Canaries = append(rep.Canaries, c)
+		problems = append(problems, CheckCanary(c)...)
+	}
 
 	ids := make([]string, 0, len(langs))
 	for id := range langs {
@@ -268,6 +324,15 @@ func Probe(ctx context.Context, opts Options) (*Report, []string, error) {
 		rep.Subjects = append(rep.Subjects, s)
 	}
 	return rep, problems, nil
+}
+
+func canaryIDs() []string {
+	ids := make([]string, 0, len(canaries))
+	for id := range canaries {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	return ids
 }
 
 // DiscoverModules returns the modules go.work names, followed by every plugin
@@ -417,7 +482,7 @@ func skipDir(p, name string) bool {
 }
 
 // runTests starts one `go test` per module that holds rung tests and records
-// each test's result on it.
+// each test's result, and the output of each test that did not pass, on it.
 func runTests(ctx context.Context, opts Options, mods []Module, tests []RungTest) ([]ModuleRun, error) {
 	var runs []ModuleRun
 	for _, m := range mods {
@@ -459,7 +524,15 @@ func runTests(ctx context.Context, opts Options, mods []Module, tests []RungTest
 			run.Error = lastLines(string(stderr), 5)
 		}
 		for _, i := range idx {
-			tests[i].Result = Classify(results[tests[i].Package], tests[i].Name)
+			pr := results[tests[i].Package]
+			tests[i].Result = Classify(pr, tests[i].Name)
+			if tests[i].Result == resultPassed {
+				continue
+			}
+			tests[i].Output = TestOutput(pr, tests[i].Name, tests[i].Result)
+			if tests[i].Output == "" {
+				tests[i].Output = run.Error
+			}
 		}
 		runs = append(runs, run)
 	}
@@ -489,12 +562,19 @@ type PackageResult struct {
 	// Tests maps a test name, subtests included, to its terminal action:
 	// pass, fail or skip.
 	Tests map[string]string
+	// Output maps a top-level test name to the lines it and its subtests
+	// printed.
+	Output map[string][]string
+	// BuildOutput is what the compiler printed when the package did not build.
+	BuildOutput []string
 }
 
 type testEvent struct {
 	Action      string
 	Package     string
+	ImportPath  string
 	Test        string
+	Output      string
 	FailedBuild string
 }
 
@@ -502,6 +582,14 @@ type testEvent struct {
 // counts the events it understood. Lines that are not events are ignored.
 func FoldEvents(r io.Reader) (map[string]*PackageResult, int) {
 	out := map[string]*PackageResult{}
+	result := func(pkg string) *PackageResult {
+		pr := out[pkg]
+		if pr == nil {
+			pr = &PackageResult{Tests: map[string]string{}, Output: map[string][]string{}}
+			out[pkg] = pr
+		}
+		return pr
+	}
 	events := 0
 	br := bufio.NewReader(r)
 	for {
@@ -510,17 +598,22 @@ func FoldEvents(r io.Reader) (map[string]*PackageResult, int) {
 			var ev testEvent
 			if json.Unmarshal(line, &ev) == nil && ev.Action != "" {
 				events++
+				if ev.Action == "build-output" && ev.ImportPath != "" {
+					// "pkg [pkg.test]" names the package whose test binary failed.
+					pkg, _, _ := strings.Cut(ev.ImportPath, " ")
+					pr := result(pkg)
+					pr.BuildOutput = append(pr.BuildOutput, ev.Output)
+				}
 				if ev.Package != "" {
-					pr := out[ev.Package]
-					if pr == nil {
-						pr = &PackageResult{Tests: map[string]string{}}
-						out[ev.Package] = pr
-					}
+					pr := result(ev.Package)
 					switch {
 					case ev.Test == "" && ev.Action == "fail" && ev.FailedBuild != "":
 						pr.BuildFailed = true
 					case ev.Test != "" && (ev.Action == "pass" || ev.Action == "fail" || ev.Action == "skip"):
 						pr.Tests[ev.Test] = ev.Action
+					case ev.Test != "" && ev.Action == "output":
+						top, _, _ := strings.Cut(ev.Test, "/")
+						pr.Output[top] = append(pr.Output[top], ev.Output)
 					}
 				}
 			}
@@ -553,6 +646,31 @@ func Classify(pr *PackageResult, name string) string {
 		return resultBuildFailed
 	}
 	return resultNoResult
+}
+
+// TestOutput is the tail of what a test that did not pass printed, with the
+// runner's own framing lines dropped. For a package that did not build it is
+// the compiler's output.
+func TestOutput(pr *PackageResult, name, result string) string {
+	if pr == nil {
+		return ""
+	}
+	lines := pr.Output[name]
+	if result == resultBuildFailed {
+		lines = pr.BuildOutput
+	}
+	var kept []string
+	for _, l := range lines {
+		l = strings.TrimSpace(l)
+		if l == "" || l == "PASS" || l == "FAIL" || strings.HasPrefix(l, "=== ") || strings.HasPrefix(l, "--- ") {
+			continue
+		}
+		kept = append(kept, l)
+	}
+	if len(kept) > outputLines {
+		kept = kept[len(kept)-outputLines:]
+	}
+	return strings.Join(kept, "\n")
 }
 
 func everyLeafSkipped(pr *PackageResult, name string) bool {
@@ -648,7 +766,7 @@ func Score(id, kind string, tests []RungTest) Subject {
 
 	s.Presence = Present
 	if kind == KindLanguage {
-		s.Presence = languagePresence(tests)
+		s.Presence, s.PresenceReason = languagePresence(s.PresenceTests)
 	}
 	if s.Presence == Present {
 		s.Level = Level(s.Rungs)
@@ -656,33 +774,50 @@ func Score(id, kind string, tests []RungTest) Subject {
 	return s
 }
 
-func languagePresence(tests []RungTest) Presence {
-	if len(tests) == 0 {
-		return Absent
+// languagePresence folds a language's presence tests into its presence and the
+// reason for it. Only a pass is present. A presence test that failed or did not
+// run leaves the language did-not-run, and its output goes into the reason so a
+// broken test reads differently from a language with no presence test at all.
+func languagePresence(p0 []RungTest) (Presence, string) {
+	if len(p0) == 0 {
+		return Absent, reasonNoPresenceTest
 	}
-	for _, t := range tests {
-		if o := OutcomeOf(t.Result); o == Met || o == NotMet {
-			return Present
+	var passed []string
+	for _, t := range p0 {
+		if OutcomeOf(t.Result) != Met {
+			reason := t.Name + " " + t.Result
+			if t.Output != "" {
+				reason += ": " + t.Output
+			}
+			return PresenceUnproven, reason
 		}
+		passed = append(passed, t.Name)
 	}
-	return PresenceUnproven
+	return Present, strings.Join(passed, ", ") + " passed"
 }
 
-// CheckCanary returns a problem for every way the canary's scoring departs
-// from the one acceptable result.
+// CheckCanary returns a problem for every way a canary's scoring departs from
+// the one acceptable result for that canary.
 func CheckCanary(c Subject) []string {
-	var problems []string
-	if c.Presence != Present {
-		problems = append(problems, fmt.Sprintf("canary presence is %s; its tests did not run, so this run proves nothing", c.Presence))
+	want, ok := canaries[c.ID]
+	if !ok {
+		return []string{fmt.Sprintf("%q is not one of the probe's canaries", c.ID)}
 	}
-	if c.Level != "P0" {
-		problems = append(problems, fmt.Sprintf("canary scored %q; it must score P0", c.Level))
+	var problems []string
+	if c.Presence != want.Presence {
+		problems = append(problems, fmt.Sprintf("%s presence came to %s; it must come to %s", c.ID, c.Presence, want.Presence))
+	}
+	if c.Level != want.Level {
+		problems = append(problems, fmt.Sprintf("%s scored %q; it must score %q", c.ID, c.Level, want.Level))
+	}
+	if !strings.Contains(c.PresenceReason, want.Reason) {
+		problems = append(problems, fmt.Sprintf("%s presence reason %q does not carry %q", c.ID, c.PresenceReason, want.Reason))
 	}
 	for _, r := range Rungs {
-		want := canaryExpected[r]
+		w := want.Rungs[r]
 		got := c.Rungs[r]
-		if got.Outcome != want.Outcome || got.Reason != want.Reason {
-			problems = append(problems, fmt.Sprintf("canary %s came to %s (%s); it must come to %s (%s)", r, got.Outcome, got.Reason, want.Outcome, want.Reason))
+		if got.Outcome != w.Outcome || got.Reason != w.Reason {
+			problems = append(problems, fmt.Sprintf("%s %s came to %s (%s); it must come to %s (%s)", c.ID, r, got.Outcome, got.Reason, w.Outcome, w.Reason))
 		}
 	}
 	return problems
@@ -695,8 +830,8 @@ type Language struct {
 }
 
 // LoadLanguages reads the languages the axis tracks without a format of their
-// own. The registry adds rows and never a rung: a language it names that no
-// rung test covers is reported absent.
+// own. The registry adds rows and never a rung: a language it names with no
+// presence test is reported absent.
 func LoadLanguages(root string) (map[string]Language, error) {
 	data, err := os.ReadFile(filepath.Join(root, "core", "formats", "prose.yaml"))
 	if err != nil {

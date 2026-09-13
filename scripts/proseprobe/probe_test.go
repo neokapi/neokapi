@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"maps"
 	"os"
 	"path/filepath"
@@ -22,8 +23,20 @@ func ev(action, pkg, test string) string {
 	return string(b) + "\n"
 }
 
-func buildFailed(pkg string) string {
-	return `{"ImportPath":"` + pkg + ` [` + pkg + `.test]","Action":"build-fail"}` + "\n" +
+// out renders one output event line.
+func out(pkg, test, output string) string {
+	b, _ := json.Marshal(map[string]string{"Action": "output", "Package": pkg, "Test": test, "Output": output})
+	return string(b) + "\n"
+}
+
+func buildFailed(pkg string, compiler ...string) string {
+	var s strings.Builder
+	for _, line := range compiler {
+		b, _ := json.Marshal(map[string]string{"ImportPath": pkg + " [" + pkg + ".test]", "Action": "build-output", "Output": line + "\n"})
+		s.Write(b)
+		s.WriteString("\n")
+	}
+	return s.String() + `{"ImportPath":"` + pkg + ` [` + pkg + `.test]","Action":"build-fail"}` + "\n" +
 		`{"Action":"start","Package":"` + pkg + `"}` + "\n" +
 		`{"Action":"fail","Package":"` + pkg + `","Elapsed":0,"FailedBuild":"` + pkg + ` [` + pkg + `.test]"}` + "\n"
 }
@@ -69,6 +82,40 @@ func TestClassify(t *testing.T) {
 			assert.Equal(t, tc.want, Classify(results[pkgX], tc.test))
 		})
 	}
+}
+
+func TestTestOutput(t *testing.T) {
+	t.Run("a failure keeps its assertion and drops the runner's framing", func(t *testing.T) {
+		stream := ev("run", pkgX, "TestA") +
+			out(pkgX, "TestA", "=== RUN   TestA\n") +
+			out(pkgX, "TestA", "    a_test.go:9: \n") +
+			out(pkgX, "TestA", "        \tError:      \tShould be true\n") +
+			out(pkgX, "TestA/sub", "    a_test.go:12: from a subtest\n") +
+			out(pkgX, "TestA", "--- FAIL: TestA (0.00s)\n") +
+			ev("fail", pkgX, "TestA")
+		results, _ := FoldEvents(strings.NewReader(stream))
+		got := TestOutput(results[pkgX], "TestA", resultFailed)
+		assert.Contains(t, got, "Should be true")
+		assert.Contains(t, got, "from a subtest", "a subtest's output belongs to its parent")
+		assert.NotContains(t, got, "=== RUN")
+		assert.NotContains(t, got, "--- FAIL")
+	})
+	t.Run("a build failure keeps the compiler's output", func(t *testing.T) {
+		results, _ := FoldEvents(strings.NewReader(buildFailed(pkgX, "# example.com/x", "a_test.go:5:2: undefined: nope")))
+		assert.Contains(t, TestOutput(results[pkgX], "TestA", resultBuildFailed), "undefined: nope")
+	})
+	t.Run("only the tail is kept", func(t *testing.T) {
+		var stream strings.Builder
+		for i := range 20 {
+			stream.WriteString(out(pkgX, "TestA", fmt.Sprintf("line %02d\n", i)))
+		}
+		stream.WriteString(ev("fail", pkgX, "TestA"))
+		results, _ := FoldEvents(strings.NewReader(stream.String()))
+		got := TestOutput(results[pkgX], "TestA", resultFailed)
+		assert.Contains(t, got, "line 19")
+		assert.NotContains(t, got, "line 07")
+		assert.Len(t, strings.Split(got, "\n"), outputLines)
+	})
 }
 
 func TestOnlyAPassIsMet(t *testing.T) {
@@ -147,6 +194,12 @@ func rungTest(subject, rung, result string) RungTest {
 	return RungTest{Name: "TestProse" + rung + "_" + subject, Result: result, subject: subject, rung: rung}
 }
 
+func rungTestOutput(subject, rung, result, output string) RungTest {
+	t := rungTest(subject, rung, result)
+	t.Output = output
+	return t
+}
+
 func TestScorePresence(t *testing.T) {
 	t.Run("a format is present with no tests at all", func(t *testing.T) {
 		s := Score("yaml", KindFormat, nil)
@@ -155,102 +208,167 @@ func TestScorePresence(t *testing.T) {
 		assert.Equal(t, NotMet, s.Rungs["P1"].Outcome)
 		assert.Equal(t, reasonNoTest, s.Rungs["P1"].Reason)
 	})
-	t.Run("a language no test names is absent and has no level", func(t *testing.T) {
+	t.Run("a language with no presence test is absent and has no level", func(t *testing.T) {
 		s := Score("python", KindLanguage, nil)
 		assert.Equal(t, Absent, s.Presence)
+		assert.Equal(t, reasonNoPresenceTest, s.PresenceReason)
 		assert.Empty(t, s.Level)
 	})
-	t.Run("a language whose tests did not run has no level", func(t *testing.T) {
-		s := Score("go", KindLanguage, []RungTest{rungTest("go", "P1", resultBuildFailed), rungTest("go", "P2", resultSkipped)})
-		assert.Equal(t, PresenceUnproven, s.Presence)
-		assert.Empty(t, s.Level)
-	})
-	t.Run("a presence test alone makes a language present at P0", func(t *testing.T) {
+	t.Run("a passing presence test makes a language present", func(t *testing.T) {
 		s := Score("ruby", KindLanguage, []RungTest{rungTest("ruby", "P0", resultPassed)})
 		assert.Equal(t, Present, s.Presence)
+		assert.Equal(t, "TestProseP0_ruby passed", s.PresenceReason)
 		assert.Equal(t, "P0", s.Level)
 		assert.Len(t, s.PresenceTests, 1)
 	})
-	t.Run("a failing rung test is still evidence the language is read", func(t *testing.T) {
-		s := Score("go", KindLanguage, []RungTest{rungTest("go", "P1", resultFailed)})
+	t.Run("must fail: a passing rung test without a presence test is absent", func(t *testing.T) {
+		s := Score("go", KindLanguage, []RungTest{rungTest("go", "P1", resultPassed), rungTest("go", "P2", resultPassed)})
+		assert.Equal(t, Absent, s.Presence, "a package can pass its rung tests while no binary links it")
+		assert.Empty(t, s.Level)
+	})
+	t.Run("must fail: a failing presence test did not run, and is never absent", func(t *testing.T) {
+		s := Score("go", KindLanguage, []RungTest{
+			rungTest("go", "P0", resultPassed),
+			rungTestOutput("go", "P0", resultFailed, "Error: Should be true\nMessages: no provider for .go files"),
+			rungTest("go", "P1", resultPassed),
+		})
+		assert.Equal(t, PresenceUnproven, s.Presence, "a failure cannot tell a removed reader from a broken test")
+		assert.Contains(t, s.PresenceReason, "TestProseP0_go failed")
+		assert.Contains(t, s.PresenceReason, "no provider for .go files", "the failing test's output is kept in the reason")
+		assert.Empty(t, s.Level)
+	})
+	t.Run("a presence test that did not build did not run", func(t *testing.T) {
+		s := Score("go", KindLanguage, []RungTest{rungTestOutput("go", "P0", resultBuildFailed, "undefined: commentProviders"), rungTest("go", "P1", resultPassed)})
+		assert.Equal(t, PresenceUnproven, s.Presence)
+		assert.Contains(t, s.PresenceReason, "build failed: undefined: commentProviders")
+		assert.Empty(t, s.Level)
+	})
+	t.Run("a present language that meets P1 and P2", func(t *testing.T) {
+		s := Score("go", KindLanguage, []RungTest{rungTest("go", "P0", resultPassed), rungTest("go", "P1", resultPassed), rungTest("go", "P2", resultPassed)})
+		assert.Equal(t, Present, s.Presence)
+		assert.Equal(t, "P2", s.Level)
+	})
+	t.Run("must fail: a present language with no passing P1 scores exactly P0", func(t *testing.T) {
+		s := Score("go", KindLanguage, []RungTest{rungTest("go", "P0", resultPassed), rungTest("go", "P1", resultFailed)})
 		assert.Equal(t, Present, s.Presence)
 		assert.Equal(t, "P0", s.Level)
 	})
-	t.Run("a language that meets P1 and P2", func(t *testing.T) {
-		s := Score("go", KindLanguage, []RungTest{rungTest("go", "P1", resultPassed), rungTest("go", "P2", resultPassed)})
-		assert.Equal(t, "P2", s.Level)
-	})
 }
 
-func expectedCanary() Subject {
-	return Score(CanaryID, KindLanguage, []RungTest{
-		rungTest(CanaryID, "P1", resultSkipped),
-		rungTest(CanaryID, "P2", resultPassed),
-		rungTest(CanaryID, "P3", resultFailed),
-		rungTest(CanaryID, "P4", resultSubtestsSkipped),
-	})
+// canaryResults is what every canary test comes to under a probe run.
+func canaryResults() []RungTest {
+	return []RungTest{
+		rungTest("canary", "P0", resultPassed),
+		rungTest("canary", "P1", resultSkipped),
+		rungTest("canary", "P2", resultPassed),
+		rungTest("canary", "P3", resultFailed),
+		rungTest("canary", "P4", resultSubtestsSkipped),
+		rungTest("canaryunlinked", "P1", resultPassed),
+		rungTest("canarypresent", "P0", resultPassed),
+		rungTest("canarypresent", "P1", resultFailed),
+		rungTestOutput("canarybroken", "P0", resultFailed, "canary_test.go:84: "+canaryBrokenMessage),
+		rungTest("canarybroken", "P1", resultPassed),
+	}
+}
+
+func expectedCanaries() map[string]Subject {
+	by := map[string][]RungTest{}
+	for _, t := range canaryResults() {
+		by[t.subject] = append(by[t.subject], t)
+	}
+	subjects := map[string]Subject{}
+	for id, ts := range by {
+		subjects[id] = Score(id, KindLanguage, ts)
+	}
+	return subjects
 }
 
 func TestCheckCanary(t *testing.T) {
-	require.Empty(t, CheckCanary(expectedCanary()))
-
-	mutations := map[string]func(*Subject){
-		"awarded P2":           func(s *Subject) { s.Level = "P2" },
-		"skip counted as met":  func(s *Subject) { s.Rungs["P1"] = RungResult{Outcome: Met, Reason: resultPassed} },
-		"failure did not run":  func(s *Subject) { s.Rungs["P3"] = RungResult{Outcome: DidNotRun, Reason: resultNoResult} },
-		"empty parent as pass": func(s *Subject) { s.Rungs["P4"] = RungResult{Outcome: Met, Reason: resultPassed} },
-		"canary never ran":     func(s *Subject) { *s = Score(CanaryID, KindLanguage, nil) },
+	expected := expectedCanaries()
+	require.Len(t, expected, len(canaries), "every canary has results")
+	for id, s := range expected {
+		require.Empty(t, CheckCanary(s), id)
 	}
-	for name, mutate := range mutations {
+
+	mutations := map[string]struct {
+		id     string
+		mutate func(*Subject)
+	}{
+		"canary awarded P2":                 {"canary", func(s *Subject) { s.Level = "P2" }},
+		"canary skip counted as met":        {"canary", func(s *Subject) { s.Rungs["P1"] = RungResult{Outcome: Met, Reason: resultPassed} }},
+		"canary failure did not run":        {"canary", func(s *Subject) { s.Rungs["P3"] = RungResult{Outcome: DidNotRun, Reason: resultNoResult} }},
+		"canary empty parent as pass":       {"canary", func(s *Subject) { s.Rungs["P4"] = RungResult{Outcome: Met, Reason: resultPassed} }},
+		"canary never ran":                  {"canary", func(s *Subject) { *s = Score("canary", KindLanguage, nil) }},
+		"unlinked scored present":           {"canaryunlinked", func(s *Subject) { s.Presence, s.Level = Present, "P1" }},
+		"present with no P1 given no level": {"canarypresent", func(s *Subject) { s.Level = "" }},
+		"present with no P1 given P1":       {"canarypresent", func(s *Subject) { s.Level = "P1" }},
+		"broken presence read as absent":    {"canarybroken", func(s *Subject) { s.Presence = Absent }},
+		"broken presence without output":    {"canarybroken", func(s *Subject) { s.PresenceReason = "TestProseP0_canarybroken failed" }},
+		"a canary the probe does not know":  {"canarybroken", func(s *Subject) { s.ID = "canaryunknown" }},
+	}
+	for name, m := range mutations {
 		t.Run(name, func(t *testing.T) {
-			s := expectedCanary()
+			s := expected[m.id]
 			s.Rungs = maps.Clone(s.Rungs)
-			mutate(&s)
+			m.mutate(&s)
 			assert.NotEmpty(t, CheckCanary(s))
 		})
 	}
 }
 
 // TestCanaryUnderRealGoTest runs the canary package through the real go
-// command, the way a probe run does, and requires the one acceptable score.
-// Every classification above is proven here against events `go test` emitted
-// rather than events written by hand.
+// command, the way a probe run does, and requires every canary to score as
+// built. Every classification above is proven here against events `go test`
+// emitted rather than events written by hand.
 func TestCanaryUnderRealGoTest(t *testing.T) {
-	names := []string{"TestProseP1_canary", "TestProseP2_canary", "TestProseP3_canary", "TestProseP4_canary"}
+	var names []string
+	for _, rt := range canaryResults() {
+		names = append(names, rt.Name)
+	}
 	stdout, stderr, err := ExecGo(context.Background(), ".", append(os.Environ(), canaryEnv+"=1"),
 		[]string{"test", "-json", "-count=1", "-run", "^(" + strings.Join(names, "|") + ")$", "./canary"})
 	require.NoError(t, err, string(stderr))
 
 	results, events := FoldEvents(bytes.NewReader(stdout))
 	require.Positive(t, events, "go test emitted no events: %s", stderr)
-	var found []RungTest
+	by := map[string][]RungTest{}
 	for _, n := range names {
 		sm := strictTestRe.FindStringSubmatch(n)
 		require.NotNil(t, sm)
-		found = append(found, RungTest{Name: n, Result: Classify(results[canaryPackage], n), subject: sm[2], rung: "P" + sm[1]})
+		pr := results[canaryPackage]
+		rt := RungTest{Name: n, Result: Classify(pr, n), subject: sm[2], rung: "P" + sm[1]}
+		if rt.Result != resultPassed {
+			rt.Output = TestOutput(pr, n, rt.Result)
+		}
+		by[rt.subject] = append(by[rt.subject], rt)
 	}
-	canary := Score(CanaryID, KindLanguage, found)
-	assert.Empty(t, CheckCanary(canary), "results: %+v", found)
-	assert.Equal(t, "P0", canary.Level)
+	require.Len(t, by, len(canaries))
+	for id, found := range by {
+		c := Score(id, KindLanguage, found)
+		assert.Empty(t, CheckCanary(c), "%s results: %+v", id, found)
+	}
 }
 
 // fixtureRoot lays out a repository in miniature: a workspace module with a
-// format's rung test, the probe module with the canary, and a plugin module
+// format's rung test, the probe module with the canaries, and a plugin module
 // with a language presence test.
 func fixtureRoot(t *testing.T, extra map[string]string) string {
 	t.Helper()
 	root := t.TempDir()
+	var canaryFile strings.Builder
+	for _, rt := range canaryResults() {
+		canaryFile.WriteString("func " + rt.Name + "(t *testing.T) {}\n")
+	}
 	files := map[string]string{
-		"go.work":                        "go 1.27.0\n\nuse (\n\t./frame // the framework\n\t./scripts/proseprobe\n)\n",
-		"frame/go.mod":                   "module example.com/frame\n",
-		"frame/formats/yaml/r_test.go":   "package yaml\n\nfunc TestProseP1_yaml(t *testing.T) {}\n",
-		"frame/node_modules/x/x_test.go": "func TestProseP1_notseen(t *testing.T) {}\n",
-		"frame/testdata/y_test.go":       "func TestProseP1_notseen(t *testing.T) {}\n",
-		"frame/nested/go.mod":            "module example.com/nested\n",
-		"frame/nested/n_test.go":         "func TestProseP1_notseen(t *testing.T) {}\n",
-		"scripts/proseprobe/go.mod":      "module github.com/neokapi/neokapi/scripts/proseprobe\n",
-		"scripts/proseprobe/canary/c_test.go": "func TestProseP1_canary(t *testing.T) {}\nfunc TestProseP2_canary(t *testing.T) {}\n" +
-			"func TestProseP3_canary(t *testing.T) {}\nfunc TestProseP4_canary(t *testing.T) {}\n",
+		"go.work":                                "go 1.27.0\n\nuse (\n\t./frame // the framework\n\t./scripts/proseprobe\n)\n",
+		"frame/go.mod":                           "module example.com/frame\n",
+		"frame/formats/yaml/r_test.go":           "package yaml\n\nfunc TestProseP1_yaml(t *testing.T) {}\n",
+		"frame/node_modules/x/x_test.go":         "func TestProseP1_notseen(t *testing.T) {}\n",
+		"frame/testdata/y_test.go":               "func TestProseP1_notseen(t *testing.T) {}\n",
+		"frame/nested/go.mod":                    "module example.com/nested\n",
+		"frame/nested/n_test.go":                 "func TestProseP1_notseen(t *testing.T) {}\n",
+		"scripts/proseprobe/go.mod":              "module github.com/neokapi/neokapi/scripts/proseprobe\n",
+		"scripts/proseprobe/canary/c_test.go":    canaryFile.String(),
 		"plugins/src/go.mod":                     "module example.com/src\n",
 		"plugins/src/read/p_test.go":             "func TestProseP0_ruby(t *testing.T) {}\n",
 		"core/formats/yaml/reader.go":            "package yaml\n",
@@ -269,13 +387,21 @@ func fixtureRoot(t *testing.T, extra map[string]string) string {
 	return root
 }
 
-// canaryStream is the event stream the canary produces under a probe run.
+// canaryStream is the event stream the canary package produces under a probe
+// run.
 func canaryStream() string {
-	return ev("skip", canaryPackage, "TestProseP1_canary") +
+	return ev("pass", canaryPackage, "TestProseP0_canary") +
+		ev("skip", canaryPackage, "TestProseP1_canary") +
 		ev("pass", canaryPackage, "TestProseP2_canary") +
 		ev("fail", canaryPackage, "TestProseP3_canary") +
 		ev("skip", canaryPackage, "TestProseP4_canary/only-case") +
 		ev("pass", canaryPackage, "TestProseP4_canary") +
+		ev("pass", canaryPackage, "TestProseP1_canaryunlinked") +
+		ev("pass", canaryPackage, "TestProseP0_canarypresent") +
+		ev("fail", canaryPackage, "TestProseP1_canarypresent") +
+		out(canaryPackage, "TestProseP0_canarybroken", "    canary_test.go:84: "+canaryBrokenMessage+"\n") +
+		ev("fail", canaryPackage, "TestProseP0_canarybroken") +
+		ev("pass", canaryPackage, "TestProseP1_canarybroken") +
 		ev("fail", canaryPackage, "")
 }
 
@@ -333,7 +459,7 @@ func TestProbeOverAFixtureRepository(t *testing.T) {
 	for _, s := range rep.Subjects {
 		ids = append(ids, s.ID)
 	}
-	assert.Equal(t, []string{"pdf", "sourcecode", "yaml", "python", "ruby"}, ids, "formats first, then registered languages; the canary is never a subject")
+	assert.Equal(t, []string{"pdf", "sourcecode", "yaml", "python", "ruby"}, ids, "formats first, then registered languages; no canary is a subject")
 	assert.Equal(t, []string{"ruby"}, subjectByID(t, rep, "sourcecode").Languages, "a format that reads a language points at the language's row")
 	assert.Equal(t, "P1", subjectByID(t, rep, "yaml").Level)
 	assert.Equal(t, "P0", subjectByID(t, rep, "pdf").Level)
@@ -342,7 +468,12 @@ func TestProbeOverAFixtureRepository(t *testing.T) {
 	assert.Equal(t, Present, ruby.Presence)
 	assert.Equal(t, "P0", ruby.Level)
 	assert.Equal(t, "sourcecode", ruby.Provider)
-	assert.Equal(t, "P0", rep.Canary.Level)
+
+	var canaryIDsSeen []string
+	for _, c := range rep.Canaries {
+		canaryIDsSeen = append(canaryIDsSeen, c.ID)
+	}
+	assert.Equal(t, []string{"canary", "canarybroken", "canarypresent", "canaryunlinked"}, canaryIDsSeen)
 
 	assert.Contains(t, fake.calls["/frame"], "fts5", "workspace modules build with the tags")
 	assert.NotContains(t, fake.calls["/plugins/src"], "-tags", "plugin modules build as their make targets do")
@@ -354,18 +485,20 @@ func TestProbeOverAFixtureRepository(t *testing.T) {
 
 func TestProbeRefusesTestsItCannotPlace(t *testing.T) {
 	cases := map[string]map[string]string{
-		"an unregistered subject":         {"frame/formats/yaml/bad_test.go": "func TestProseP1_golang(t *testing.T) {}\n"},
-		"a rung above P4":                 {"frame/formats/yaml/bad_test.go": "func TestProseP5_yaml(t *testing.T) {}\n"},
-		"an uppercase subject":            {"frame/formats/yaml/bad_test.go": "func TestProseP1_Yaml(t *testing.T) {}\n"},
-		"a suffix after the subject":      {"frame/formats/yaml/bad_test.go": "func TestProseP1_yaml_edges(t *testing.T) {}\n"},
-		"the canary outside its package":  {"frame/formats/yaml/bad_test.go": "func TestProseP1_canary(t *testing.T) {}\n"},
-		"a test the canary would require": {"scripts/proseprobe/canary/c_test.go": "func TestProseP1_canary(t *testing.T) {}\n"},
+		"an unregistered subject":              {"frame/formats/yaml/bad_test.go": "func TestProseP1_golang(t *testing.T) {}\n"},
+		"a rung above P4":                      {"frame/formats/yaml/bad_test.go": "func TestProseP5_yaml(t *testing.T) {}\n"},
+		"an uppercase subject":                 {"frame/formats/yaml/bad_test.go": "func TestProseP1_Yaml(t *testing.T) {}\n"},
+		"a suffix after the subject":           {"frame/formats/yaml/bad_test.go": "func TestProseP1_yaml_edges(t *testing.T) {}\n"},
+		"the canary outside its package":       {"frame/formats/yaml/bad_test.go": "func TestProseP1_canary(t *testing.T) {}\n"},
+		"a canary subject outside its package": {"frame/formats/yaml/bad_test.go": "func TestProseP1_canaryunlinked(t *testing.T) {}\n"},
+		"a canary the probe does not know":     {"scripts/proseprobe/canary/extra_test.go": "func TestProseP1_canaryextra(t *testing.T) {}\n"},
+		"canary tests the run would require":   {"scripts/proseprobe/canary/c_test.go": "func TestProseP1_canary(t *testing.T) {}\n"},
 	}
 	for name, extra := range cases {
 		t.Run(name, func(t *testing.T) {
 			root := fixtureRoot(t, extra)
 			canary := canaryStream()
-			if name == "a test the canary would require" {
+			if name == "canary tests the run would require" {
 				canary = ev("skip", canaryPackage, "TestProseP1_canary")
 			}
 			_, problems, err := Probe(context.Background(), Options{Root: root, Run: newFakeGo(canary).run})
@@ -401,9 +534,9 @@ func TestValidRunWritesReport(t *testing.T) {
 	var rep Report
 	require.NoError(t, json.Unmarshal(data, &rep))
 	assert.Equal(t, ProbeVersion, rep.ProbeVersion)
-	assert.Equal(t, "P0", rep.Canary.Level)
+	assert.Len(t, rep.Canaries, len(canaries))
 	assert.Len(t, rep.Subjects, 5)
-	assert.Contains(t, stderr.String(), "canary P0")
+	assert.Contains(t, stderr.String(), "canaries as built")
 }
 
 func TestParseWorkUse(t *testing.T) {

@@ -819,6 +819,13 @@ function RowGroup({
   );
 }
 
+/** A language's presence tooltip: what the presence means, followed by the
+ * probe's reason for it. */
+function presenceTitle(l: LanguageRow): string {
+  const meaning = PRESENCE_MEANING[l.presence];
+  return l.presence_reason ? `${meaning} ${l.presence_reason}` : meaning;
+}
+
 /** The Prose axis's language rows: source languages with no format of their
  * own. A language is shown with its level when the build reads it, and with
  * its presence otherwise, because a language kapi has no reader for is a
@@ -877,7 +884,7 @@ function LanguagesTable() {
                       className={`${styles.presenceBadge} ${
                         l.presence === "absent" ? styles.presenceAbsent : styles.presenceNotrun
                       }`}
-                      title={PRESENCE_MEANING[l.presence]}
+                      title={presenceTitle(l)}
                     >
                       {PRESENCE_LABEL[l.presence]}
                     </span>
