@@ -35,6 +35,16 @@ func (CommentProvider) Locate(_ string, src []byte) (*comment.File, error) {
 	return LocateComments(src)
 }
 
+// LineText implements comment.Provider. A YAML comment runs to the end of its
+// line, and its span leaves out the blanks that trail it.
+func (CommentProvider) LineText(line []byte) (int, string, bool) {
+	body, ok := bytes.CutPrefix(line, []byte("#"))
+	if !ok {
+		return 0, "", false
+	}
+	return len(bytes.TrimRight(line, " \t")), string(body), true
+}
+
 // Canary implements comment.Provider: a head comment with a doubled word, above
 // a key whose quoted value holds a `#` that is content.
 func (CommentProvider) Canary() comment.Canary {

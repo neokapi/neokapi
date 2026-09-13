@@ -967,14 +967,19 @@ type checkFormats struct {
 	// byPath is keyed by absolute path; a file the project does not declare is
 	// absent, and reads as "detect by extension, reader defaults".
 	byPath map[string]resolvedFormat
+	// directives are the project's `defaults.comments.directives`, in force for
+	// a file no item declares.
+	directives []string
 }
 
 type resolvedFormat struct {
 	name string
 	cfg  map[string]any
-	// comments is the item's `comments: true`: the file's comments are content
-	// as well as what its reader extracts.
+	// comments is the item's `comments:` declaration: the file's comments are
+	// content as well as what its reader extracts.
 	comments bool
+	// directives are the comment directives in force for the file.
+	directives []string
 }
 
 // newCheckFormats builds the binding for one run. Outside a project — or with an
@@ -993,6 +998,7 @@ func (a *App) newCheckFormats(cmd Command) (*checkFormats, error) {
 	if lerr != nil {
 		return nil, fmt.Errorf("load project for formats: %w", lerr)
 	}
+	f.directives = proj.Defaults.Comments.Directives
 	pctx := project.NewProjectContext(proj, filepath.Join(filepath.Dir(projectPath), "x.kapi"))
 	resolved, rerr := pctx.ResolveContent(a.FormatReg)
 	if rerr != nil {
@@ -1009,9 +1015,10 @@ func (a *App) newCheckFormats(cmd Command) (*checkFormats, error) {
 			continue
 		}
 		f.byPath[rf.Path] = resolvedFormat{
-			name:     rf.Format,
-			cfg:      mergedFormatConfig(proj, rf.Format, rf.Item),
-			comments: rf.Item != nil && rf.Item.Comments,
+			name:       rf.Format,
+			cfg:        mergedFormatConfig(proj, rf.Format, rf.Item),
+			comments:   rf.Item != nil && rf.Item.Comments.Declared,
+			directives: commentDirectives(proj, rf.Item),
 		}
 	}
 	return f, nil
@@ -1020,16 +1027,7 @@ func (a *App) newCheckFormats(cmd Command) (*checkFormats, error) {
 // forFile returns the format name and reader config to read one file under. An
 // empty name means "detect by extension".
 func (f *checkFormats) forFile(app *App, file string) (string, map[string]any) {
-	if f == nil || len(f.byPath) == 0 {
-		return app.FormatFlag, nil
-	}
-	abs := file
-	if !filepath.IsAbs(abs) {
-		if r, err := filepath.Abs(abs); err == nil {
-			abs = r
-		}
-	}
-	if rf, ok := f.byPath[abs]; ok {
+	if rf, ok := f.lookup(file); ok {
 		return rf.name, rf.cfg
 	}
 	return app.FormatFlag, nil
@@ -1038,8 +1036,26 @@ func (f *checkFormats) forFile(app *App, file string) (string, map[string]any) {
 // commentsFor reports whether the recipe declares one file's comments as
 // content.
 func (f *checkFormats) commentsFor(file string) bool {
+	rf, _ := f.lookup(file)
+	return rf.comments
+}
+
+// directivesFor returns the comment directives in force for one file: its
+// item's, or the project's for a file no item declares.
+func (f *checkFormats) directivesFor(file string) []string {
+	if rf, ok := f.lookup(file); ok {
+		return rf.directives
+	}
+	if f == nil {
+		return nil
+	}
+	return f.directives
+}
+
+// lookup returns what the project declared for one file.
+func (f *checkFormats) lookup(file string) (resolvedFormat, bool) {
 	if f == nil || len(f.byPath) == 0 {
-		return false
+		return resolvedFormat{}, false
 	}
 	abs := file
 	if !filepath.IsAbs(abs) {
@@ -1047,7 +1063,17 @@ func (f *checkFormats) commentsFor(file string) bool {
 			abs = r
 		}
 	}
-	return f.byPath[abs].comments
+	rf, ok := f.byPath[abs]
+	return rf, ok
+}
+
+// commentDirectives returns the comment directives in force for a file an item
+// claims, or the project's own when no item does.
+func commentDirectives(proj *project.KapiProject, item *project.ContentItem) []string {
+	if item == nil {
+		return proj.Defaults.Comments.Directives
+	}
+	return item.CommentDirectives(proj.Defaults)
 }
 
 type checkVoice struct {

@@ -469,6 +469,23 @@ line range is counted from the bytes. The runs keep no marker, a marker inside a
 string or other literal context is never a comment, and the provider's canary
 is located with its doubled word flagged by the hygiene check.
 
+A provider sets aside the directives its language's toolchain reads. The
+markers a project's own tools read, such as the `okapi-skip:` lines a contract
+audit collects, are declared in the recipe, under `defaults.comments.directives`
+or an item's `comments: {directives: [...]}`, and the layer sets them aside for
+every provider in the same way (`comment.Locate`). A comment line whose text,
+after its comment marker and leading whitespace, starts with a declared marker
+is an exclusion with `ReasonDirective` and the marker as its form. A marker
+inside a comment splits it. The provider reads the file a second time with the
+marker lines blanked, each piece keeps the subject of the comment it came from,
+and the layer holds that reading to the first byte for byte: away from the
+markers it must locate the same comments, and inside a split comment its pieces
+and the markers must hold every byte once. A reading that disagrees leaves the
+file's comments unlocated. A provider's share of this is `LineText`, which reads
+one comment line and removes its marker. A line inside a delimited comment that
+runs over several lines holds no marker of its own, so no declared directive
+marks it.
+
 #### Default on, via an inverted opt-out
 
 Surfacing is the **default**, controlled per format by a single boolean,

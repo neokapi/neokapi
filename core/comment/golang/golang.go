@@ -44,6 +44,21 @@ func (Provider) Locate(name string, src []byte) (*comment.File, error) {
 	return locate(name, src, directiveForms)
 }
 
+// LineText implements comment.Provider. A line comment runs to the end of its
+// line; a delimited comment is whole on a line only when it closes there.
+func (Provider) LineText(line []byte) (int, string, bool) {
+	s := string(line)
+	if body, ok := strings.CutPrefix(s, "//"); ok {
+		return len(s), body, true
+	}
+	if body, ok := strings.CutPrefix(s, "/*"); ok {
+		if i := strings.Index(body, "*/"); i >= 0 {
+			return len("/*") + i + len("*/"), body[:i], true
+		}
+	}
+	return 0, "", false
+}
+
 func locate(name string, src []byte, forms []directiveForm) (*comment.File, error) {
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, name, src, parser.ParseComments|parser.SkipObjectResolution)

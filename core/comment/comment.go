@@ -125,6 +125,13 @@ type Provider interface {
 	// may use it where the language makes a rule depend on the file name, as Go
 	// does for example functions in test files.
 	Locate(name string, src []byte) (*File, error)
+	// LineText reads one line of a comment the provider located. line runs from
+	// where the comment starts on that line to the end of the line, without the
+	// line ending. It returns how many of those bytes the comment occupies and
+	// the text after the comment marker. ok is false for a line that does not
+	// hold one whole comment, such as a line inside a delimited comment that
+	// runs over several lines.
+	LineText(line []byte) (n int, text string, ok bool)
 	// Canary returns a file the provider must read correctly, checked beside
 	// every real file it reads.
 	Canary() Canary

@@ -46,7 +46,7 @@ func yamlCommentsProject(t *testing.T, comments, remembered bool) (*App, *EnvCom
 		},
 		Collections: []project.Collection{{
 			Name:    "app",
-			Content: []project.ContentItem{{Path: "src/en.yaml", Target: "src/{lang}.yaml", Comments: comments}},
+			Content: []project.ContentItem{{Path: "src/en.yaml", Target: "src/{lang}.yaml", Comments: project.ContentComments{Declared: comments}}},
 		}},
 		Flows: map[string]*flow.StepsSpec{
 			"recycle-only": {Steps: []flow.FlowStep{

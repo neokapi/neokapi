@@ -235,9 +235,10 @@ type blockLocator func(ctx context.Context, content []byte) (scopedRead, error)
 // the comment blocks join the reader's.
 func (a *App) locatorFor(run diffCheckRun, path string) blockLocator {
 	fmtName, cfg := run.opts.formats.forFile(a, path)
+	directives := run.opts.formats.directivesFor(path)
 	if p, ok := a.commentLayerFor(path, fmtName); ok {
 		return func(_ context.Context, content []byte) (scopedRead, error) {
-			layer, err := locateComments(path, content, p)
+			layer, err := locateComments(path, content, p, directives)
 			if err != nil {
 				return scopedRead{}, err
 			}
@@ -257,7 +258,7 @@ func (a *App) locatorFor(run diffCheckRun, path string) blockLocator {
 		if err != nil || !declared {
 			return read, err
 		}
-		layer, err := declaredComments(path, fmtName, content)
+		layer, err := declaredComments(path, fmtName, content, directives)
 		if err != nil {
 			return scopedRead{}, err
 		}

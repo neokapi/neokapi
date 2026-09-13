@@ -831,7 +831,7 @@ func (a *App) verifyVoice(cmd Command, proj *project.KapiProject, root string, a
 		if p, ok := a.commentLayerFor(f, fmtName); ok {
 			// The voice governs a comment layer the way it governs any content.
 			var layer *commentLayer
-			locate := func(src []byte) (*commentLayer, error) { return locateComments(f, src, p) }
+			locate := func(src []byte) (*commentLayer, error) { return locateComments(f, src, p, formats.directivesFor(f)) }
 			if layer, rerr = a.readCommentLayer(ctx, f, nil, locate); layer != nil {
 				blocks = layer.blocks
 			}
@@ -1045,6 +1045,9 @@ type VerifyUnit struct {
 	// OnlyComments narrows a source unit to those comments. It stands for a file
 	// whose reader blocks the bilingual units already check.
 	OnlyComments bool
+	// Directives are the comment directives in force for the source file, set
+	// aside wherever its comments are read.
+	Directives []string
 }
 
 // readSource reads the unit's source file under its declared reader binding.
@@ -1180,7 +1183,8 @@ func (a *App) SourceUnitsFromProject(proj *project.KapiProject, root string) ([]
 			DisplayPath:  rel,
 			SourceFormat: rf.Format,
 			SourceConfig: mergedFormatConfig(proj, rf.Format, rf.Item),
-			Comments:     rf.Item != nil && rf.Item.Comments,
+			Comments:     rf.Item != nil && rf.Item.Comments.Declared,
+			Directives:   commentDirectives(proj, rf.Item),
 		})
 	}
 	return units, nil
@@ -1211,7 +1215,7 @@ func (a *App) unitsFromArgs(proj *project.KapiProject, root string, args []strin
 		if err != nil {
 			rel = f
 		}
-		unit := VerifyUnit{SourcePath: abs, Locale: a.SourceLocale(), DisplayPath: rel, ProjectRoot: root}
+		unit := VerifyUnit{SourcePath: abs, Locale: a.SourceLocale(), DisplayPath: rel, ProjectRoot: root, Directives: proj.Defaults.Comments.Directives}
 		if source, ok := bySource[abs]; ok {
 			unit = source
 			unit.Locale = a.SourceLocale()

@@ -13,6 +13,10 @@
 //   - the line range is the file's own lines, counted from the bytes;
 //   - a comment's runs carry no marker its source lines did not hold as text;
 //   - a marker inside one of the language's literal contexts is never a comment;
+//   - LineText reads a comment on one line as whole, with its length, and the
+//     first line of a comment over several lines as not whole;
+//   - with directives declared, a comment line that opens with one is set aside
+//     as that directive;
 //   - the canary is located and its doubled word is flagged by the hygiene
 //     check that reads every real comment.
 //
@@ -73,6 +77,10 @@ type Suite struct {
 	Provider comment.Provider
 	Scan     Scan
 	Fixtures []Fixture
+	// Directives are declared as a recipe declares them. Every file is located
+	// through comment.Locate with them, and a comment the scan finds that opens
+	// its line and whose text opens with one must be set aside as that directive.
+	Directives comment.Directives
 }
 
 // Property names what a failure broke.
@@ -96,6 +104,12 @@ const (
 	PropLocated Property = "located"
 	// PropCanary is a canary the provider or the hygiene check missed.
 	PropCanary Property = "canary"
+	// PropLineText is a comment whose length or whole-ness LineText reads
+	// differently from the scan.
+	PropLineText Property = "line-text"
+	// PropDirective is a comment line that opens with a declared directive and
+	// is not set aside as it.
+	PropDirective Property = "directive"
 	// PropProvider is a file the provider or the scan could not read.
 	PropProvider Property = "provider"
 )
@@ -184,12 +198,15 @@ func verifyFixture(s Suite, fx Fixture) (*comment.File, []Failure) {
 	if err != nil {
 		return nil, fail(PropProvider, "the scan could not read the fixture: %v", err)
 	}
-	got, err := s.Provider.Locate(fx.Name, src)
+	got, err := comment.Locate(s.Provider, fx.Name, src, s.Directives)
 	if err != nil {
 		return nil, fail(PropProvider, "locate: %v", err)
 	}
+	units, forms := declare(src, units, s.Directives)
 	failures := Account(src, got, units)
 	failures = append(failures, literals(src, got, units, fx.Literals)...)
+	failures = append(failures, lineTexts(s.Provider, src, units)...)
+	failures = append(failures, declaredExcluded(src, got, units, forms)...)
 	wholeFile := slices.ContainsFunc(got.Excluded, func(e comment.Excluded) bool {
 		return e.Reason != comment.ReasonBlank && e.Reason != comment.ReasonDirective
 	})
@@ -213,7 +230,7 @@ func verifyCanary(s Suite) []Failure {
 	fail := func(format string, args ...any) []Failure {
 		return []Failure{{Fixture: "canary", Property: PropCanary, Detail: fmt.Sprintf(format, args...)}}
 	}
-	got, err := s.Provider.Locate("canary", c.Source)
+	got, err := comment.Locate(s.Provider, "canary", c.Source, s.Directives)
 	if err != nil {
 		return fail("locate %s: %v", c.Name, err)
 	}
@@ -221,6 +238,7 @@ func verifyCanary(s Suite) []Failure {
 	if err != nil {
 		return fail("the scan could not read %s: %v", c.Name, err)
 	}
+	units, _ = declare(c.Source, units, s.Directives)
 	failures := Account(c.Source, got, units)
 	for i := range failures {
 		failures[i].Fixture = "canary"
@@ -473,6 +491,106 @@ func literals(src []byte, got *comment.File, units []Unit, lits []string) []Fail
 func linesOf(src []byte, start, end int) format.LineRange {
 	firstLine := bytes.Count(src[:start], []byte("\n")) + 1
 	return format.LineRange{First: firstLine, Last: firstLine + bytes.Count(src[start:end-1], []byte("\n"))}
+}
+
+// declare marks the units a declared directive opens, beside the ones the scan
+// marks, and returns them in file order with the form of each it marked. A unit
+// opens a directive when it is the first comment on its line, holds one line,
+// and its text after the opening marker and leading whitespace starts with a
+// declared directive. The longest one names the form.
+func declare(src []byte, units []Unit, directives comment.Directives) ([]Unit, map[int]string) {
+	out := slices.Clone(units)
+	sort.SliceStable(out, func(i, j int) bool { return out[i].Start < out[j].Start })
+	forms := map[int]string{}
+	if len(directives) == 0 {
+		return out, forms
+	}
+	for i, u := range out {
+		lineStart := bytes.LastIndexByte(src[:u.Start], '\n') + 1
+		if u.Directive || (i > 0 && out[i-1].End > lineStart) {
+			continue
+		}
+		body := string(src[u.Start+u.Open : u.End-u.Close])
+		if strings.Contains(body, "\n") {
+			continue
+		}
+		body = strings.TrimLeft(body, " \t")
+		form := ""
+		for _, d := range directives {
+			if len(d) > len(form) && strings.HasPrefix(body, d) {
+				form = d
+			}
+		}
+		if form != "" {
+			out[i].Directive = true
+			forms[i] = form
+		}
+	}
+	return out, forms
+}
+
+// lineTexts holds LineText to the scan. The first line of each comment is
+// handed over from the comment's opening marker to the end of the line: a
+// comment on that one line reads as whole, with the scan's length and text, and
+// a comment that runs past it does not.
+func lineTexts(p comment.Provider, src []byte, units []Unit) []Failure {
+	var failures []Failure
+	fail := func(format string, args ...any) {
+		failures = append(failures, Failure{Property: PropLineText, Detail: fmt.Sprintf(format, args...)})
+	}
+	for _, u := range units {
+		lineEnd := len(src)
+		if i := bytes.IndexByte(src[u.Start:], '\n'); i >= 0 {
+			lineEnd = u.Start + i
+		}
+		line := bytes.TrimSuffix(src[u.Start:lineEnd], []byte("\r"))
+		n, text, ok := p.LineText(line)
+		want := string(src[u.Start+u.Open : u.End-u.Close])
+		switch {
+		case u.End > u.Start+len(line):
+			if ok {
+				fail("LineText reads the first line of the comment at %d-%d (%q) as a whole comment", u.Start, u.End, clip(line))
+			}
+		case !ok:
+			fail("LineText does not read the comment %q as whole", clip(line))
+		case n != u.End-u.Start:
+			fail("LineText gives the comment %q %d bytes, and it holds %d", clip(line), n, u.End-u.Start)
+		case strings.TrimRight(text, " \t") != strings.TrimRight(want, " \t"):
+			fail("LineText reads the text of %q as %q", clip(line), clip([]byte(text)))
+		}
+	}
+	return failures
+}
+
+// declaredExcluded holds each unit a declared directive opens to an exclusion
+// that names the directive, unless the provider set it aside for a reason that
+// covers its whole comment group, such as a generated file.
+func declaredExcluded(src []byte, got *comment.File, units []Unit, forms map[int]string) []Failure {
+	var failures []Failure
+	fail := func(format string, args ...any) {
+		failures = append(failures, Failure{Property: PropDirective, Detail: fmt.Sprintf(format, args...)})
+	}
+	for i, u := range units {
+		form, ok := forms[i]
+		if !ok {
+			continue
+		}
+		at := slices.IndexFunc(got.Excluded, func(e comment.Excluded) bool { return e.Start == u.Start && e.End == u.End })
+		if at < 0 {
+			fail("the comment %q opens with the declared directive %q and is not set aside", clip(src[u.Start:u.End]), form)
+			continue
+		}
+		switch e := got.Excluded[at]; e.Reason {
+		case comment.ReasonDirective:
+			if e.Form != form {
+				fail("the comment %q is set aside as the directive %q, not the declared %q", clip(src[u.Start:u.End]), e.Form, form)
+			}
+		case comment.ReasonGenerated, comment.ReasonCgoPreamble, comment.ReasonExampleOutput:
+		default:
+			fail("the comment %q is set aside as %s, not as the declared directive %q", clip(src[u.Start:u.End]), e.Reason, form)
+		}
+	}
+	return failures
 }
 
 func clip(b []byte) string {

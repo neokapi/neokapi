@@ -43,7 +43,7 @@ profiles:
 
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
-	require.True(t, proj.Collections[0].Content[0].Comments, "the key loads")
+	require.True(t, proj.Collections[0].Content[0].Comments.Declared, "the key loads")
 
 	resolved, err := project.NewProjectContext(proj, recipe).ResolveContent(contentRegistry(t))
 	require.NoError(t, err)
@@ -68,7 +68,7 @@ func TestCommentsKeySurvivesSave(t *testing.T) {
 		Collections: []project.Collection{{
 			Name:       "code",
 			SourceOnly: true,
-			Content:    []project.ContentItem{{Path: "*.go", Comments: true}},
+			Content:    []project.ContentItem{{Path: "*.go", Comments: project.ContentComments{Declared: true}}},
 		}},
 	}
 	require.NoError(t, project.Save(recipe, proj))
@@ -77,5 +77,5 @@ func TestCommentsKeySurvivesSave(t *testing.T) {
 	assert.Contains(t, string(data), "comments: true")
 	loaded, err := project.Load(recipe)
 	require.NoError(t, err)
-	assert.True(t, loaded.Collections[0].Content[0].Comments)
+	assert.True(t, loaded.Collections[0].Content[0].Comments.Declared)
 }

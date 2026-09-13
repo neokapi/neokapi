@@ -88,7 +88,7 @@ func (l *commentLayer) locate(diags []check.Diagnostic) {
 // run over every comment in the file, and their findings join the checkset's.
 func (a *App) checkCommentFile(ctx context.Context, file string, p comment.Provider, validateMode format.ValidationMode, opts checkRunOptions) ([]*model.Block, []check.Diagnostic, error) {
 	layer, err := a.readCommentLayer(ctx, file, opts.execution, func(src []byte) (*commentLayer, error) {
-		return locateComments(file, src, p)
+		return locateComments(file, src, p, opts.formats.directivesFor(file))
 	})
 	if err != nil {
 		return nil, nil, err
@@ -135,11 +135,11 @@ func (a *App) readCommentLayer(ctx context.Context, file string, execution *chec
 	return layer, nil
 }
 
-// locateComments reads a file's bytes through its comment provider into blocks
-// and gives the layer its analyzers. The formatter compares the file here and
-// never writes it.
-func locateComments(file string, src []byte, p comment.Provider) (*commentLayer, error) {
-	located, err := p.Locate(file, src)
+// locateComments reads a file's bytes through its comment provider into blocks,
+// setting aside the directives the recipe declares, and gives the layer its
+// analyzers. The formatter compares the file here and never writes it.
+func locateComments(file string, src []byte, p comment.Provider, directives comment.Directives) (*commentLayer, error) {
+	located, err := comment.Locate(p, file, src, directives)
 	if errors.Is(err, comment.ErrUnlocated) {
 		// The provider read the file and could not place its comments exactly,
 		// so none are checked and the extraction did not run.
@@ -156,7 +156,7 @@ func locateComments(file string, src []byte, p comment.Provider) (*commentLayer,
 	for i, extent := range layer.extents {
 		layer.lines[blockKey(layer.blocks[i])] = extent.Lines
 	}
-	layer.analyzers = []providerAnalyzer{extractionAnalyzer(p)}
+	layer.analyzers = []providerAnalyzer{extractionAnalyzer(p, directives)}
 	f, ok := p.(comment.Formatter)
 	if !ok {
 		layer.analyzers = append(layer.analyzers, providerAnalyzer{
@@ -173,7 +173,7 @@ func locateComments(file string, src []byte, p comment.Provider) (*commentLayer,
 // for a recipe that declares them as content. The format supplies the comments.
 // A format that supplies none gives a layer whose comment analyzer did not run,
 // which is never a pass.
-func declaredComments(file, fmtName string, src []byte) (*commentLayer, error) {
+func declaredComments(file, fmtName string, src []byte, directives comment.Directives) (*commentLayer, error) {
 	p, ok := commentProviders.ForFormat(fmtName)
 	if !ok {
 		return &commentLayer{
@@ -181,7 +181,7 @@ func declaredComments(file, fmtName string, src []byte) (*commentLayer, error) {
 			analyzers: []providerAnalyzer{{id: "comments." + fmtName, uncheckable: "the " + fmtName + " format supplies no comments to check"}},
 		}, nil
 	}
-	return locateComments(file, src, p)
+	return locateComments(file, src, p, directives)
 }
 
 // readDeclaredComments reads the comment layer of a file its format reader also
@@ -199,21 +199,22 @@ func (a *App) readDeclaredComments(ctx context.Context, file, fmtName string, op
 		name = string(id)
 	}
 	return a.readCommentLayer(ctx, file, opts.execution, func(src []byte) (*commentLayer, error) {
-		return declaredComments(file, name, src)
+		return declaredComments(file, name, src, opts.formats.directivesFor(file))
 	})
 }
 
 // extractionAnalyzer records the comment extraction, which reports no finding
 // of its own. Its canary is the provider's canary file, located by the same
-// provider and flagged by the same hygiene checker as the real comments, so a
-// provider that loses prose it should locate invalidates the run.
-func extractionAnalyzer(p comment.Provider) providerAnalyzer {
+// provider with the same directives set aside and flagged by the same hygiene
+// checker as the real comments, so an extraction that loses prose it should
+// locate invalidates the run.
+func extractionAnalyzer(p comment.Provider, directives comment.Directives) providerAnalyzer {
 	c := p.Canary()
 	return providerAnalyzer{
 		id:       commentsAnalyzer(p),
 		canaries: []check.Canary{{Name: c.Name, Block: check.CanaryBlock(string(c.Source)), Expect: "doubled-word"}},
 		probe: func(ctx context.Context, b *model.Block) ([]check.Finding, error) {
-			located, err := p.Locate("canary", []byte(model.RunsText(b.SourceRuns())))
+			located, err := comment.Locate(p, "canary", []byte(model.RunsText(b.SourceRuns())), directives)
 			if err != nil {
 				return nil, err
 			}
@@ -295,7 +296,7 @@ func (a *App) readSourceForCheck(ctx context.Context, u VerifyUnit, execution *c
 	name, _ := a.unitFormat(u.SourceFormat, u.SourceConfig)
 	if p, ok := a.commentLayerFor(u.SourcePath, name); ok {
 		layer, err := a.readCommentLayer(ctx, u.SourcePath, execution, func(src []byte) (*commentLayer, error) {
-			return locateComments(u.SourcePath, src, p)
+			return locateComments(u.SourcePath, src, p, u.Directives)
 		})
 		if err != nil {
 			return nil, nil, err
@@ -324,7 +325,7 @@ func (a *App) readSourceForCheck(ctx context.Context, u VerifyUnit, execution *c
 		name = string(id)
 	}
 	layer, err := a.readCommentLayer(ctx, u.SourcePath, execution, func(src []byte) (*commentLayer, error) {
-		return declaredComments(u.SourcePath, name, src)
+		return declaredComments(u.SourcePath, name, src, u.Directives)
 	})
 	if err != nil {
 		return nil, nil, err

@@ -30,6 +30,11 @@ func (hash) Canary() comment.Canary {
 	}
 }
 
+func (hash) LineText(line []byte) (int, string, bool) {
+	body, ok := bytes.CutPrefix(line, []byte("#"))
+	return len(line), string(body), ok
+}
+
 func (hash) Locate(_ string, src []byte) (*comment.File, error) {
 	units, err := scanHash("", src)
 	if err != nil {
@@ -187,6 +192,55 @@ func TestTheSuiteCatchesABrokenProvider(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			failures := commenttest.Verify(suite(tc.p))
+			require.NotEmpty(t, failures)
+			assert.Contains(t, commenttest.Properties(failures), tc.want, "%v", commenttest.Err(failures))
+		})
+	}
+}
+
+// unreadLines reads no comment line as whole.
+type unreadLines struct{ hash }
+
+func (unreadLines) LineText([]byte) (int, string, bool) { return 0, "", false }
+
+// shortLines reads every comment line one byte short.
+type shortLines struct{ hash }
+
+func (s shortLines) LineText(line []byte) (int, string, bool) {
+	n, text, ok := s.hash.LineText(line)
+	return n - 1, text, ok
+}
+
+func declaredSuite(p comment.Provider) commenttest.Suite {
+	s := suite(p)
+	s.Directives = comment.Directives{"skip:"}
+	s.Fixtures = append(s.Fixtures, commenttest.Fixture{
+		Name:   "declared.hash",
+		Source: "# First line.\n# skip: a declared marker\n# Second line.\nvalue = 1 # skip: beside a value\n# see skip: in prose\n",
+	})
+	return s
+}
+
+// With directives declared, a comment line that opens with one is set aside as
+// that directive, and a provider whose LineText misreads a line is caught.
+func TestTheSuiteHoldsDeclaredDirectives(t *testing.T) {
+	commenttest.Run(t, declaredSuite(hash{}))
+
+	for _, tc := range []struct {
+		name string
+		p    comment.Provider
+		want commenttest.Property
+	}{
+		{"a LineText that reads no line as whole", unreadLines{}, commenttest.PropDirective},
+		{"a LineText that reads no line as whole, with nothing declared", unreadLines{}, commenttest.PropLineText},
+		{"a LineText one byte short", shortLines{}, commenttest.PropLineText},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s := declaredSuite(tc.p)
+			if strings.HasSuffix(tc.name, "with nothing declared") {
+				s = suite(tc.p)
+			}
+			failures := commenttest.Verify(s)
 			require.NotEmpty(t, failures)
 			assert.Contains(t, commenttest.Properties(failures), tc.want, "%v", commenttest.Err(failures))
 		})
