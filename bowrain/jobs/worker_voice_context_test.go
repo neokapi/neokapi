@@ -106,7 +106,7 @@ func TestWorkerVoiceContext_EndToEnd(t *testing.T) {
 	assert.Contains(t, guide, "personality: friendly")
 	assert.Contains(t, guide, "formality: casual")
 	assert.Contains(t, guide, `"utilize" → "use"`)
-	assert.Equal(t, []coreprofile.TermRule{{Term: "dashboard", Replacement: "tableau de bord"}}, cfg.TermRules)
+	assert.Equal(t, []coreprofile.TermRule{{Term: "dashboard", Replacement: "tableau de bord", ConceptID: "c-dashboard"}}, cfg.TermRules)
 
 	// And the full worker path completes a demo translation with them bound.
 	require.NoError(t, js.CreateJob(ctx, job))

@@ -274,5 +274,5 @@ func TestJobTranslateConfig_CarriesVoiceContext(t *testing.T) {
 	assert.Contains(t, guide, "formality: casual")
 	assert.Contains(t, guide, "Address the reader as a peer")
 	assert.Contains(t, guide, `"utilize" → "use"`)
-	assert.Equal(t, []coreprofile.TermRule{{Term: "dashboard", Replacement: "tableau de bord"}}, cfg.TermRules)
+	assert.Equal(t, []coreprofile.TermRule{{Term: "dashboard", Replacement: "tableau de bord", ConceptID: "c1"}}, cfg.TermRules)
 }

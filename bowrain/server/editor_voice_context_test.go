@@ -106,7 +106,7 @@ func TestEditorTranslateConfigCarriesVoiceContext(t *testing.T) {
 	guide := coreprofile.RenderVoiceGuideCompact(cfg.Profile)
 	assert.Contains(t, guide, "formality: formal")
 	assert.Contains(t, guide, "Address the reader as a peer")
-	assert.Equal(t, []coreprofile.TermRule{{Term: "software", Replacement: "logiciel"}}, cfg.TermRules)
+	assert.Equal(t, []coreprofile.TermRule{{Term: "software", Replacement: "logiciel", ConceptID: "c1"}}, cfg.TermRules)
 	assert.Equal(t, model.LocaleID("en"), cfg.SourceLocale)
 	assert.Equal(t, model.LocaleID("fr"), cfg.TargetLocale)
 }

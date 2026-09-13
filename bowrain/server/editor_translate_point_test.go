@@ -115,7 +115,7 @@ func TestEditorTranslateConfigCarriesEveryContextField(t *testing.T) {
 	require.NotNil(t, cfg.Profile)
 	assert.Equal(t, "bp-docs", cfg.Profile.ID,
 		"the voice bound on the item's own collection governs, not the workspace default")
-	assert.Equal(t, []coreprofile.TermRule{{Term: "software", Replacement: "logiciel"}}, cfg.TermRules)
+	assert.Equal(t, []coreprofile.TermRule{{Term: "software", Replacement: "logiciel", ConceptID: "c1"}}, cfg.TermRules)
 	assert.Equal(t, []string{"Kapi"}, cfg.DNT)
 	assert.NotNil(t, cfg.Memory, "the workspace content memory answers what a block said before")
 	assert.Equal(t, memory.NewPoint("acme", "web", "docs"), cfg.Point,
@@ -252,7 +252,7 @@ func TestPlatformConfigMatchesAFlowRunConfig(t *testing.T) {
 	var flow tools.AITranslateConfig
 	require.NoError(t, schema.ApplyConfig(map[string]any{
 		"point":         memory.NewPoint("acme", "web", "docs"),
-		"term_rules":    []coreprofile.TermRule{{Term: "software", Replacement: "logiciel"}},
+		"term_rules":    []coreprofile.TermRule{{Term: "software", Replacement: "logiciel", ConceptID: "c1"}},
 		"dnt":           []string{"Kapi"},
 		"context":       tools.ContextNeighbours,
 		"contextWindow": tools.DefaultContextWindow,
