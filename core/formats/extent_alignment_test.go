@@ -40,7 +40,7 @@ var alignmentFloor = map[string]int{
 	"asciidoc":      6,
 	"csv":           19,
 	"designtokens":  4,
-	"html":          34,
+	"html":          36,
 	"i18next":       3,
 	"json":          52,
 	"markdown":      59,
@@ -328,6 +328,8 @@ func rebuildFromExtents(src []byte, entries []format.SkeletonEntry, extents []fo
 		case format.SkeletonTrimmed:
 			_, trimmed, _ := format.DecodeSkeletonPair(e.Data)
 			out.Write(trimmed)
+		case format.SkeletonInserted:
+			// A writer emits these bytes, but the source never held them.
 		case format.SkeletonRef:
 			if next >= len(extents) {
 				return nil

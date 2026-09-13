@@ -226,7 +226,7 @@ func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[strin
 			pendingOriginal, pendingRendered = nil, nil
 		}
 		switch entry.Type {
-		case format.SkeletonText:
+		case format.SkeletonText, format.SkeletonInserted:
 			if _, err := w.Output.Write(entry.Data); err != nil {
 				return err
 			}
