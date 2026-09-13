@@ -76,12 +76,17 @@ The file is keyed by locale, each entry carrying the two gates' outcomes:
 {
   "fr": { "shippable": true, "verified": true },
   "de": { "shippable": true, "verified": false },
+  "nl": { "shippable": true, "verified": false, "not_governed": ["terms"] },
   "ja": { "shippable": false, "verified": false }
 }
 ```
 
 Here French ships and is verified (no badge), German ships but is AI-only
-(flagged), and Japanese is not yet offered. The richer `kapi status --json`
+(flagged), Dutch ships the same way in a language no terms govern, and Japanese
+is not yet offered. An entry carries `not_governed` when a dimension governs
+nothing in that language: `terms` means no concept in the project's terms has a
+term for it. The picker does not read it. It is there so a build step or a
+reader does not take the language for a governed one. The richer `kapi status --json`
 report still carries the same `shippable` and `verified` fields per locale (plus
 the full coverage percentages) for dashboards.
 
@@ -94,7 +99,7 @@ disappears, and the picker reads the current standing on each load rather than
 whatever was true at build time.
 
 The contract is exactly the file's: an object keyed by locale, each value
-`{ shippable, verified }`. A hosted feed is read-only and needs no auth (a
+`{ shippable, verified }`, with `not_governed` where it applies. A hosted feed is read-only and needs no auth (a
 public picker fetches it directly), and should send an `ETag` and a short
 `Cache-Control: public, max-age=…` so a picker or a CDN can revalidate cheaply
 with a `304`.

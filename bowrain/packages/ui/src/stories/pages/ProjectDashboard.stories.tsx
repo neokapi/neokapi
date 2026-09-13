@@ -196,7 +196,14 @@ const loopStatus: LoopStatusData = {
     updatedAt: new Date(Date.now() - 55 * 60 * 1000).toISOString(),
   },
   openReviewTasks: 7,
-  ship: { governed: 3, aiShippable: 2, pending: 5, countedProjects: 2, totalProjects: 2 },
+  ship: {
+    governed: 3,
+    approved: 1,
+    aiShippable: 2,
+    pending: 5,
+    countedProjects: 2,
+    totalProjects: 2,
+  },
   brand: { averageScore: 86, scoredProjects: 3, driftingProjects: 1 },
 };
 

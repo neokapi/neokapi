@@ -25,6 +25,10 @@ type CheckExclusions struct {
 	Failing map[string]bool
 	// ByLocale counts the failing units per locale.
 	ByLocale map[string]int
+	// TermsGoverned records, per locale, whether the project's terms govern it:
+	// whether any concept answers for it (terms.RulesFromConcepts). A locale
+	// absent from the map was not resolved.
+	TermsGoverned map[string]bool
 }
 
 func ExclusionKey(sourcePath, blockKey, locale string) string {
@@ -37,6 +41,12 @@ func (e *CheckExclusions) excluded(sourcePath string, b *model.Block, locale str
 		return false
 	}
 	return e.Failing[ExclusionKey(sourcePath, blockKey(b), locale)]
+}
+
+// termsGovern reports whether the project's terms govern locale. It is false for
+// a nil set, which means the checks did not run and nothing was resolved.
+func (e *CheckExclusions) termsGovern(locale string) bool {
+	return e != nil && e.TermsGoverned[locale]
 }
 
 // totalFailing returns the count of failing units across every locale (0 when nil).
@@ -71,7 +81,7 @@ func (a *App) computeLoopCheckExclusions(ctx context.Context, cmd Command, proj 
 // project's declared content: a unit whose source no installed reader opens is
 // skipped and recorded in unread. With unread nil such a unit fails the run.
 func (a *App) loopCheckExclusions(ctx context.Context, cmd Command, proj *project.KapiProject, root string, units []VerifyUnit, unread *UnreadSet) (*CheckExclusions, error) {
-	excl := &CheckExclusions{Failing: map[string]bool{}, ByLocale: map[string]int{}}
+	excl := &CheckExclusions{Failing: map[string]bool{}, ByLocale: map[string]int{}, TermsGoverned: map[string]bool{}}
 
 	// The same rule `kapi check`'s checks gate applies to a target identical to its
 	// source. This set feeds the ship gate, so a question the two surfaces answer
@@ -97,6 +107,14 @@ func (a *App) loopCheckExclusions(ctx context.Context, cmd Command, proj *projec
 	}
 
 	for _, u := range units {
+		// Resolved before the target is read, so a locale's governance is known
+		// for a unit whose target is missing or cannot be read back.
+		rules, gerr := termRulesFor(u.Locale)
+		if gerr != nil {
+			return nil, gerr
+		}
+		excl.TermsGoverned[u.Locale] = len(rules) > 0
+
 		blocks, missing, berr := a.bilingualBlocks(ctx, u)
 		if berr != nil {
 			if errors.Is(berr, errTargetUnreadable) {
@@ -111,17 +129,22 @@ func (a *App) loopCheckExclusions(ctx context.Context, cmd Command, proj *projec
 			continue // untranslated — there is no translation to check
 		}
 
-		rules, gerr := termRulesFor(u.Locale)
-		if gerr != nil {
-			return nil, gerr
-		}
-		var termTool BlockProcessor
+		var termTool, dntTool BlockProcessor
 		if len(rules) > 0 {
 			termTool = coretools.NewTermCheckTool(&coretools.TermCheckConfig{
 				TermRules:    rules,
 				SourceLocale: model.LocaleID(a.SourceLocale()),
 				TargetLocale: model.LocaleID(u.Locale),
 			})
+			// term-check leaves a do-not-translate rule to dnt-check, so a locale
+			// such a rule governs is held to that tool here too. Without it a
+			// locale governed only by do-not-translate concepts would read as
+			// checked with nothing having checked it.
+			if slices.ContainsFunc(rules, func(r coreprofile.TermRule) bool { return r.DoNotTranslate }) {
+				dntCfg := coretools.NewDNTCheckConfig(model.LocaleID(u.Locale))
+				dntCfg.TermRules = rules
+				dntTool = coretools.NewDNTCheckTool(dntCfg)
+			}
 		}
 
 		checkCfg := coretools.NewRuleCheckConfig(model.LocaleID(u.Locale))
@@ -157,6 +180,14 @@ func (a *App) loopCheckExclusions(ctx context.Context, cmd Command, proj *projec
 				if b.Properties[coretools.PropTermCheckPassed] == "false" {
 					fails = true
 				}
+			}
+			if !fails && dntTool != nil {
+				if err := RunCheckTool(ctx, dntTool, b); err != nil {
+					return nil, fmt.Errorf("do-not-translate check %s (%s): %w", u.DisplayPath, u.Locale, err)
+				}
+				fails = slices.ContainsFunc(check.Findings(tool.NewBlockViewWithContext(ctx, b)), func(f check.Finding) bool {
+					return f.Category == "do-not-translate" && checkFindingFails(f)
+				})
 			}
 			if fails {
 				key := ExclusionKey(u.SourcePath, blockKey(b), u.Locale)

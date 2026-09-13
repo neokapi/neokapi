@@ -20,6 +20,7 @@ export const Default: Story = {
         stream: "main",
         pending: 12,
         governed: 3,
+        approved: 0,
         aiShippable: 5,
       },
       {
@@ -28,6 +29,7 @@ export const Default: Story = {
         stream: "main",
         pending: 4,
         governed: 8,
+        approved: 0,
         aiShippable: 2,
       },
       {
@@ -36,6 +38,7 @@ export const Default: Story = {
         stream: "main",
         pending: 1,
         governed: 10,
+        approved: 0,
         aiShippable: 0,
       },
     ],
@@ -52,6 +55,7 @@ export const Empty: Story = {
         stream: "main",
         pending: 0,
         governed: 9,
+        approved: 0,
         aiShippable: 3,
       },
     ],

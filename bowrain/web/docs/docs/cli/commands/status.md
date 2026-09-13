@@ -69,7 +69,7 @@ declared but the bowrain plugin is missing).
 | `--source-lang`  | Source language (overrides the project's `source_language`)                 |
 | `--review`       | List the units awaiting review in every language, the source language among them, instead of the grid; approve a translated one with `kapi apply` |
 | `--lang <tag>`   | With `--review`, list only these languages (repeatable, or comma-separated) |
-| `--ship`         | Emit the minimal `ship.json` manifest (locale → shippable, verified) instead of the grid: the shape a language picker consumes to hide locales that are not shippable and badge those shipped on machine review |
+| `--ship`         | Emit the minimal `ship.json` manifest (locale → shippable, verified, and any dimension that governs nothing there) instead of the grid: the shape a language picker consumes to hide locales that are not shippable and badge those shipped on machine review |
 | `--emit <path>`  | With `--ship`, write the manifest to this path instead of stdout            |
 | `--json`         | Output the structured result as JSON                                        |
 

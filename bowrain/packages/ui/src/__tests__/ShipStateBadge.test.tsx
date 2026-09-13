@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vite-plus/test";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { ShipStateBadge } from "../components/ShipStateBadge";
+import { ShipStateBadge, termsNotGoverned } from "../components/ShipStateBadge";
 
 describe("ShipStateBadge", () => {
   it("renders the governed state with its label", () => {
@@ -13,6 +13,53 @@ describe("ShipStateBadge", () => {
   it("renders the ai_shippable state with its label", () => {
     render(<ShipStateBadge state="ai_shippable" />);
     expect(screen.getByTestId("ship-state-ai_shippable")).toHaveTextContent("AI-shippable");
+  });
+
+  it("renders the approved state with its label", () => {
+    render(<ShipStateBadge state="approved" />);
+    expect(screen.getByTestId("ship-state-approved")).toHaveTextContent("Approved");
+  });
+
+  it("says why an approved locale is not governed", async () => {
+    const user = userEvent.setup();
+    render(
+      <ShipStateBadge state="approved" approvedBlocks={10} totalBlocks={10} termsNotGoverned />,
+    );
+    await user.hover(screen.getByTestId("ship-state-approved"));
+    expect(
+      (await screen.findAllByText(/No terms apply to this language, so it is not governed/)).length,
+    ).toBeGreaterThan(0);
+  });
+
+  it("names ungoverned terminology on a locale that ships on machine review", async () => {
+    const user = userEvent.setup();
+    render(<ShipStateBadge state="ai_shippable" termsNotGoverned />);
+    await user.hover(screen.getByTestId("ship-state-ai_shippable"));
+    expect((await screen.findAllByText(/terminology is not governed here/)).length).toBeGreaterThan(
+      0,
+    );
+  });
+
+  it("names terminology with no result as the reason a locale is pending", async () => {
+    const user = userEvent.setup();
+    render(
+      <ShipStateBadge
+        state="pending"
+        approvedBlocks={10}
+        totalBlocks={10}
+        termsNotCheckedBlocks={2}
+      />,
+    );
+    await user.hover(screen.getByTestId("ship-state-pending"));
+    expect((await screen.findAllByText(/2 with no terminology result/)).length).toBeGreaterThan(0);
+  });
+
+  it("reads ungoverned terminology off the compliance basis", () => {
+    expect(termsNotGoverned({ compliance_basis: "checks" })).toBe(true);
+    expect(termsNotGoverned({ compliance_basis: "voice+checks" })).toBe(true);
+    expect(termsNotGoverned({ compliance_basis: "checks+terms" })).toBe(false);
+    expect(termsNotGoverned({ compliance_basis: "voice+checks+terms" })).toBe(false);
+    expect(termsNotGoverned({})).toBe(false);
   });
 
   it("renders the pending state with its label", () => {

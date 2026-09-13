@@ -46,6 +46,10 @@ import (
 // against the compliance rate AND, at full coverage, against FailingChecks, so
 // it can never be governed or ai_shippable. A block below its voice bar counts
 // against the rate only.
+// A block with no terminology result in a locale terms govern withholds the
+// scope's ship state as a failing check does, and a locale terminology does not
+// govern is approved rather than governed once every block is approved
+// (store.DeriveShipState).
 // A block no bar fails that lacks a result for a governing dimension (an empty
 // target where terms govern, an unscored block where a voice profile governs)
 // is counted in NotCheckedBlocks, and one in a locale neither terms nor a voice
@@ -143,14 +147,23 @@ func applyShipStates(ctx context.Context, cs store.ContentStore, voiceStore core
 	stamp := func(ls *store.LocaleTranslationStats, c store.ShipGateCounts, b basisCounts) {
 		if shipCandidates[ls.Locale] {
 			ls.FailingChecks = c.Failing
+			ls.TermsNotCheckedBlocks = c.TermsNotChecked
 		}
 		ls.StaleBlocks = b.Stale
 		ls.StaleAwaitingDraftBlocks = b.Owed
 		ls.StaleAwaitingReviewBlocks = b.Stale - b.Owed
 		ls.RejectedAwaitingDraftBlocks = b.RejectedOwed
 		ls.BasisUnknownBlocks = b.BasisUnknown
-		ls.ShipState = store.DeriveShipState(ls.TranslatedBlocks, ls.TotalBlocks, ls.ApprovedBlocks,
-			ls.FailingChecks, ls.StaleBlocks, ls.RejectedAwaitingDraftBlocks)
+		ls.ShipState = store.DeriveShipState(store.ShipStateInputs{
+			TranslatedBlocks:      ls.TranslatedBlocks,
+			TotalBlocks:           ls.TotalBlocks,
+			ApprovedBlocks:        ls.ApprovedBlocks,
+			FailingChecks:         ls.FailingChecks,
+			StaleBlocks:           ls.StaleBlocks,
+			RejectedBlocks:        ls.RejectedAwaitingDraftBlocks,
+			TermsNotCheckedBlocks: ls.TermsNotCheckedBlocks,
+			TermsGoverned:         termsGoverned[ls.Locale],
+		})
 		// A clean block not below the voice bar is compliant when it has a result
 		// for every dimension governing its locale, and not checked when it lacks
 		// one. Where nothing beyond the checks governs the locale it is not

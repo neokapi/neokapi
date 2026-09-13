@@ -480,6 +480,29 @@ export class LocaleCoverage {
         }
         if (/** @type {any} */(false)) {
             /**
+             * TermsNotChecked counts produced units in a locale the project's terms
+             * govern that have no terminology result, such as a target in a format kapi
+             * cannot read back. They hold the scope out of Shippable and Verified as a
+             * failing check does: a check that did not run is not one that passed.
+             * @member
+             * @type {number | undefined}
+             */
+            this["termsNotChecked"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * NotGoverned names the dimensions that govern nothing in the scope's
+             * locale: "terms" when no concept in the project's terms answers for it.
+             * It withholds nothing, and it is reported so a reader does not take the
+             * scope for a governed one. Empty when every dimension governs, or when the
+             * surface did not run the checks and so did not resolve the terms.
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["notGoverned"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * BasisUnknown counts units holding a decision recorded before its basis
              * was tracked. Such a decision says nothing about the source it blessed, so
              * it keeps its rung and the scope ships — the count is what makes that
@@ -501,12 +524,16 @@ export class LocaleCoverage {
     static createFrom($$source = {}) {
         const $$createField3_0 = $$createType1;
         const $$createField6_0 = $$createType3;
+        const $$createField17_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("pct" in $$parsedSource) {
             $$parsedSource["pct"] = $$createField3_0($$parsedSource["pct"]);
         }
         if ("pending" in $$parsedSource) {
             $$parsedSource["pending"] = $$createField6_0($$parsedSource["pending"]);
+        }
+        if ("notGoverned" in $$parsedSource) {
+            $$parsedSource["notGoverned"] = $$createField17_0($$parsedSource["notGoverned"]);
         }
         return new LocaleCoverage(/** @type {Partial<LocaleCoverage>} */($$parsedSource));
     }

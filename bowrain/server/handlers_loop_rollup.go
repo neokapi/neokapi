@@ -71,6 +71,7 @@ type loopRollupShipProject struct {
 	ProjectName string `json:"project_name,omitempty"`
 	Stream      string `json:"stream,omitempty"`
 	Governed    int    `json:"governed"`
+	Approved    int    `json:"approved"`
 	AIShippable int    `json:"ai_shippable"`
 	Pending     int    `json:"pending"`
 }
@@ -83,6 +84,7 @@ type loopRollupShipProject struct {
 type loopRollupShipView struct {
 	Basis           string                  `json:"basis"`
 	Governed        int                     `json:"governed"`
+	Approved        int                     `json:"approved"`
 	AIShippable     int                     `json:"ai_shippable"`
 	Pending         int                     `json:"pending"`
 	CountedProjects int                     `json:"counted_projects"`
@@ -197,6 +199,8 @@ func (s *Server) buildLoopShipRollup(workspaceID string, projects []*store.Proje
 			switch ls.ShipState {
 			case store.ShipStateGoverned:
 				row.Governed++
+			case store.ShipStateApproved:
+				row.Approved++
 			case store.ShipStateAIShippable:
 				row.AIShippable++
 			default:
@@ -205,6 +209,7 @@ func (s *Server) buildLoopShipRollup(workspaceID string, projects []*store.Proje
 			}
 		}
 		ship.Governed += row.Governed
+		ship.Approved += row.Approved
 		ship.AIShippable += row.AIShippable
 		ship.Pending += row.Pending
 		ship.CountedProjects++

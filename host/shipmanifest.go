@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"slices"
 	"sort"
 )
 
@@ -13,10 +14,15 @@ import (
 type ShipEntry struct {
 	Shippable bool `json:"shippable"`
 	Verified  bool `json:"verified"`
+	// NotGoverned names the dimensions that govern nothing in the locale:
+	// "terms" when no concept in the project's terms answers for it. Neither
+	// gate reads it; it is there so a picker or a build never takes an
+	// ungoverned locale for a governed one.
+	NotGoverned []string `json:"not_governed,omitempty"`
 }
 
 // ShipManifest is the minimal, stable picker manifest `kapi status --ship`
-// emits: locale → {shippable, verified}. A language picker consumes it to offer
+// emits: locale → {shippable, verified, not_governed}. A language picker consumes it to offer
 // only shippable locales and to badge the shippable-but-unverified ones "AI".
 // It is a deliberately tiny projection of the richer StatusOutput --json, so a
 // build can emit it (kapi status --ship --emit ship.json) and ship it next to
@@ -36,6 +42,11 @@ func BuildShipManifest(locales []LocaleCoverage) ShipManifest {
 		}
 		e.Shippable = e.Shippable && lc.Shippable
 		e.Verified = e.Verified && lc.Verified
+		for _, d := range lc.NotGoverned {
+			if !slices.Contains(e.NotGoverned, d) {
+				e.NotGoverned = append(e.NotGoverned, d)
+			}
+		}
 		m[lc.Locale] = e
 	}
 	return m

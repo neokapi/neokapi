@@ -105,7 +105,8 @@ func TestLoopRollupLatestRunAcrossProjects(t *testing.T) {
 func TestLoopRollupShipStates(t *testing.T) {
 	srv, token := newTestServer(t)
 
-	// Alpha (en → fr, de): one block, fr translated+reviewed → governed;
+	// Alpha (en → fr, de): one block, fr translated+reviewed → approved (no terms
+	// govern it);
 	// de translated, unreviewed → ai_shippable.
 	pidA := createLoopProject(t, srv, "Alpha", []string{"fr", "de"})
 	ctx := t.Context()
@@ -134,7 +135,8 @@ func TestLoopRollupShipStates(t *testing.T) {
 	require.NotNil(t, resp.Ship)
 	ship := resp.Ship
 	assert.Equal(t, loopShipBasisCached, ship.Basis)
-	assert.Equal(t, 1, ship.Governed, "Alpha fr: full coverage, reviewed")
+	assert.Equal(t, 0, ship.Governed, "no terms govern Alpha fr, so it is not governed")
+	assert.Equal(t, 1, ship.Approved, "Alpha fr: full coverage, reviewed")
 	assert.Equal(t, 1, ship.AIShippable, "Alpha de: full coverage, machine-reviewed only")
 	assert.Equal(t, 1, ship.Pending, "Beta fr: untranslated")
 	assert.Equal(t, 2, ship.CountedProjects)

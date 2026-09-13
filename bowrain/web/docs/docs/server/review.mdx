@@ -2,7 +2,7 @@
 sidebar_position: 4
 title: Review
 description: The governed review session walks every pending block across a project's items and locales; approvals feed the context graph, decide a locale's ship state, and continue the loop through to delivery.
-keywords: [review, review session, ship state, governed, ai_shippable, pending, bulk approve, sign off, review inbox, in-context review, bowrain]
+keywords: [review, review session, ship state, governed, approved, ai_shippable, pending, bulk approve, sign off, review inbox, in-context review, bowrain]
 ---
 
 import { ThemedVideo, PhaseFlow } from "@neokapi/docs-shared";
@@ -182,24 +182,33 @@ locale, per project and per collection, from what the work left behind:
 
 | State | Meaning |
 | --- | --- |
-| `governed` | Every block translated, no failing check, nothing stale, and every target carrying a review decision. |
-| `ai_shippable` | Every block translated and no failing check, but review is incomplete: shippable on machine review only. |
-| `pending` | Anything less: partial coverage, a failing check, a stale decision, or nothing to ship yet. |
+| `governed` | Every block translated, no failing check, nothing stale, a terminology result for every block, every target carrying a review decision, and terms governing the locale. |
+| `approved` | The same, in a locale no terms govern: a person approved every target, and only the checks stand behind the approval. |
+| `ai_shippable` | Every block translated, no failing check, and a terminology result wherever terms govern, but review is incomplete: shippable on machine review only. |
+| `pending` | Anything less: partial coverage, a failing check, a stale decision, a turned-down translation, a block terms govern with no terminology result, or nothing to ship yet. |
 
-The rule is the same everywhere it is read. A locale with any untranslated
-block, any error-severity finding, or any decision made against content that
-has since changed is `pending`. Otherwise it is `governed` when every target is
-approved and `ai_shippable` when some are not. A block whose target uses a
-forbidden term, or whose voice score sits under the profile's bar, counts as a
-failing check, so it can never be `governed` or `ai_shippable`.
+The rule is the same everywhere it is read. A locale is `pending` when any
+block is untranslated, has an error-severity finding, carries a decision made
+against content that has since changed, or holds a translation a reviewer
+turned down. A block in a locale terms govern with no terminology result, such
+as a target made only of inline codes, also holds the locale at `pending`. A
+block whose target uses a forbidden term counts as a failing check.
+
+Otherwise the locale is `ai_shippable` while some targets await approval. With
+every target approved, it is `governed` where terms govern the locale and
+`approved` where none do. A voice score does not change the state: a block
+under the voice profile's bar is held out of bulk approval instead.
 
 The state appears on the project dashboard, per collection, in the Runs view's
 per-locale summary, and in the workspace loop rollup. It is also published at
 the delivery edge: `GET /api/v1/projects/:id/ship.json` serves a per-locale
 manifest a site's language picker can read to hide locales that are not
-shippable and to badge those shipped on machine review. The same manifest is
-what `kapi status --ship --emit ship.json` writes at build time, so a site
-built from a checkout and a site reading the server agree.
+shippable and to badge those shipped on machine review. The entry for a locale
+no terms govern adds `"not_governed": ["terms"]`. An `approved` locale reads as
+shippable and verified, and that field is how a build tells it apart from a
+governed one.
+The same manifest is what `kapi status --ship --emit ship.json` writes at build
+time, so a site built from a checkout and a site reading the server agree.
 
 Set the bar where the content sits. A legal notice waits for a person
 (`governed`); a help article may ship on checks (`ai_shippable`). The project's
