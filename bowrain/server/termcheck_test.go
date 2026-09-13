@@ -26,11 +26,12 @@ func mkFrBlock(source, frTarget string) *model.Block {
 	return b
 }
 
-// TestBlockTermCompliant_Directions unit-tests the shared predicate directly:
+// TestBlockTermCompliance_Directions unit-tests the shared predicate directly:
 // both violation directions (forbidden/competitor PRESENCE from the terms store and
-// from the brand vocabulary; mandated-rendering ABSENCE), the compliant case, an
-// untranslated target, and the no-terms/no-profile no-op.
-func TestBlockTermCompliant_Directions(t *testing.T) {
+// from the brand vocabulary; mandated-rendering ABSENCE), the compliant case, and
+// the three ways a target goes unchecked: no text, no terms and no profile, and a
+// profile with no rule that applies to a block.
+func TestBlockTermCompliance_Directions(t *testing.T) {
 	ctx := context.Background()
 	tb := terms.NewInMemoryStore()
 	require.NoError(t, tb.AddConcept(ctx, terms.Concept{
@@ -50,21 +51,31 @@ func TestBlockTermCompliant_Directions(t *testing.T) {
 		},
 	}))
 
+	violation := platstore.TermComplianceViolation
+	compliant := platstore.TermComplianceCompliant
+	unchecked := platstore.TermComplianceUnchecked
+
 	// PRESENCE (terms): the target uses the forbidden "utiliser".
-	assert.False(t, blockTermCompliant(ctx, mkFrBlock("Use it", "Il faut utiliser ceci"), "en", "fr", tb, nil),
-		"a forbidden terms term in the target is non-compliant")
+	assert.Equal(t, violation, blockTermCompliance(ctx, mkFrBlock("Use it", "Il faut utiliser ceci"), "en", "fr", tb, nil),
+		"a forbidden terms term in the target is a violation")
 	// ABSENCE (terms): the source uses "app" but the target omits "application".
-	assert.False(t, blockTermCompliant(ctx, mkFrBlock("Open the app", "Ouvrir le truc"), "en", "fr", tb, nil),
-		"a missing mandated rendering is non-compliant")
+	assert.Equal(t, violation, blockTermCompliance(ctx, mkFrBlock("Open the app", "Ouvrir le truc"), "en", "fr", tb, nil),
+		"a missing mandated rendering is a violation")
 	// Compliant: uses the mandated rendering, no forbidden term.
-	assert.True(t, blockTermCompliant(ctx, mkFrBlock("Close the app", "Fermer l'application"), "en", "fr", tb, nil),
+	assert.Equal(t, compliant, blockTermCompliance(ctx, mkFrBlock("Close the app", "Fermer l'application"), "en", "fr", tb, nil),
 		"a target that uses the mandated rendering and no forbidden term is compliant")
-	// An untranslated target is vacuously compliant (nothing to check).
-	assert.True(t, blockTermCompliant(ctx, mkFrBlock("Open the app", ""), "en", "fr", tb, nil),
-		"an empty target is compliant")
-	// No terms and no profile → pure no-op: even a would-be violation is compliant.
-	assert.True(t, blockTermCompliant(ctx, mkFrBlock("Use it", "Il faut utiliser ceci"), "en", "fr", nil, nil),
-		"with no terms and no profile the predicate is a no-op")
+	// An untranslated target holds nothing to check.
+	assert.Equal(t, unchecked, blockTermCompliance(ctx, mkFrBlock("Open the app", ""), "en", "fr", tb, nil),
+		"an empty target is not checked, so it is not compliant either")
+	// No terms and no profile: nothing to check against, even a would-be violation.
+	assert.Equal(t, unchecked, blockTermCompliance(ctx, mkFrBlock("Use it", "Il faut utiliser ceci"), "en", "fr", nil, nil),
+		"with no terms and no profile nothing is checked")
+	// A profile holding only a document-scope rule has nothing to hold a block to.
+	docOnly := &coreprofile.VoiceProfile{ID: "d", Style: coreprofile.StyleRules{
+		RequiredPatterns: []coreprofile.Pattern{{Regex: `©`}},
+	}}
+	assert.Equal(t, unchecked, blockTermCompliance(ctx, mkFrBlock("Affordable", "cheap stuff"), "en", "fr", nil, docOnly),
+		"a profile with no block rule checks nothing")
 
 	// PRESENCE (brand vocabulary): a forbidden brand rule matched in the target.
 	profile := &coreprofile.VoiceProfile{
@@ -73,10 +84,10 @@ func TestBlockTermCompliant_Directions(t *testing.T) {
 			ForbiddenTerms: []coreprofile.TermRule{{Term: "cheap"}},
 		},
 	}
-	assert.False(t, blockTermCompliant(ctx, mkFrBlock("Affordable", "cheap stuff"), "en", "fr", nil, profile),
-		"a forbidden brand-vocabulary term in the target is non-compliant")
-	assert.True(t, blockTermCompliant(ctx, mkFrBlock("Affordable", "budget-friendly"), "en", "fr", nil, profile),
-		"a target with no forbidden brand term is compliant")
+	assert.Equal(t, violation, blockTermCompliance(ctx, mkFrBlock("Affordable", "cheap stuff"), "en", "fr", nil, profile),
+		"a forbidden brand-vocabulary term in the target is a violation")
+	assert.Equal(t, compliant, blockTermCompliance(ctx, mkFrBlock("Affordable", "budget-friendly"), "en", "fr", nil, profile),
+		"a target checked against the profile with no forbidden brand term is compliant")
 }
 
 // seedTermUnificationConcepts adds the two concepts the unification tests share:
@@ -136,9 +147,12 @@ func TestTermAwareShipPredicateUnification(t *testing.T) {
 	okBlock := storedBlockByID(t, s, projID, okID)
 
 	// (1) Shared predicate.
-	assert.False(t, gate.compliant(ctx, badBlock, "fr"), "predicate: forbidden-term target is non-compliant")
-	assert.False(t, gate.compliant(ctx, missBlock, "fr"), "predicate: missing-mandated-term target is non-compliant")
-	assert.True(t, gate.compliant(ctx, okBlock, "fr"), "predicate: clean target is compliant")
+	assert.Equal(t, platstore.TermComplianceViolation, gate.compliance(ctx, badBlock, "fr"),
+		"predicate: forbidden-term target is a violation")
+	assert.Equal(t, platstore.TermComplianceViolation, gate.compliance(ctx, missBlock, "fr"),
+		"predicate: missing-mandated-term target is a violation")
+	assert.Equal(t, platstore.TermComplianceCompliant, gate.compliance(ctx, okBlock, "fr"),
+		"predicate: clean target is compliant")
 
 	// (2) Dashboard ship-state + compliant pass agrees: both violators fail the
 	// ship gate (pending, not governed/ai_shippable) and count against compliant.
@@ -148,7 +162,7 @@ func TestTermAwareShipPredicateUnification(t *testing.T) {
 	fr := localeByCode(t, stats.LocaleStats, "fr")
 	assert.Equal(t, platstore.ShipStatePending, fr.ShipState, "ship: term violations block the ship gate")
 	assert.Equal(t, 2, fr.FailingChecks, "ship: exactly the two term-violating blocks fail")
-	assertCompliant(t, fr, 1, 1.0/3.0, platstore.ComplianceBasisChecksTerms)
+	assertCompliant(t, fr, 1, 0, 1.0/3.0, platstore.ComplianceBasisChecksTerms)
 
 	// (3) Bulk approve-passing predicate agrees.
 	assert.False(t, blockCompliantAndPassing(ctx, badBlock, "fr", nil, gate), "bulk: forbidden-term block excluded")
@@ -209,10 +223,11 @@ func TestApprovePassingExcludesTermViolations(t *testing.T) {
 		"the missing-mandated draft stays below reviewed")
 }
 
-// TestResolveTermGateNoTermsNoOp proves the byte-stable no-op: a project with
-// no terms concepts and no bound voice profile derives ship/compliant numbers
-// identical to the pre-term behavior (checks-only basis, no spurious failures).
-func TestResolveTermGateNoTermsNoOp(t *testing.T) {
+// TestResolveTermGateNoTerms_NothingChecked: a project with no terms concepts
+// and no bound voice profile checks no target's terminology. Its gate reports
+// every target unchecked, the locale counts its clean block as not checked and
+// derives no rate, and deriving with that gate matches deriving with a nil gate.
+func TestResolveTermGateNoTerms_NothingChecked(t *testing.T) {
 	s, wsID, _ := newRecheckHarness(t)
 	ctx := context.Background()
 
@@ -222,10 +237,11 @@ func TestResolveTermGateNoTermsNoOp(t *testing.T) {
 	proj, err := s.ContentStore.GetProject(ctx, projID)
 	require.NoError(t, err)
 
-	// The gate resolves with no terms concepts and no bound profile → its term
-	// half is a no-op (compliant everywhere, no active term governance).
+	// The gate resolves with no terms concepts and no bound profile, so it has
+	// nothing to check a target against.
 	gate := s.resolveTermGate(ctx, proj, "main", wsID)
-	assert.True(t, gate.compliant(ctx, b, "fr"), "no governance → compliant")
+	assert.Equal(t, platstore.TermComplianceUnchecked, gate.compliance(ctx, b, "fr"),
+		"no governance → unchecked, not compliant")
 	assert.False(t, gate.active(ctx, "fr"), "no governance → terms do not inform the basis")
 
 	// Deriving with the gate matches deriving with a nil gate exactly.
@@ -240,7 +256,7 @@ func TestResolveTermGateNoTermsNoOp(t *testing.T) {
 	fr := localeByCode(t, withGate.LocaleStats, "fr")
 	assert.Equal(t, platstore.ShipStateGoverned, fr.ShipState, "a clean approved locale stays governed")
 	assert.Equal(t, 0, fr.FailingChecks)
-	assertCompliant(t, fr, 1, 1.0, platstore.ComplianceBasisChecks)
+	assertNotChecked(t, fr, 1, platstore.ComplianceBasisChecks)
 	assert.Equal(t, localeByCode(t, withoutGate.LocaleStats, "fr"), fr, "gate vs nil-gate derive identically")
 }
 
@@ -261,4 +277,41 @@ func translatedFrBlock(id, source, frTarget string) *model.Block {
 	b.SetTargetText("fr", frTarget)
 	b.Target("fr").Status = model.TargetStatusTranslated
 	return b
+}
+
+// useInMemoryTerms gives a test server in-memory workspace terms stores, one per
+// slug, for a harness with no database behind its workspace stores.
+func useInMemoryTerms(s *Server) {
+	s.wsStores.termsFactory = func() terms.Store {
+		return &testTermStore{terms.NewInMemoryStore()}
+	}
+}
+
+// unusedConcept is a concept no fixture target uses: bound to a workspace or a
+// gate, it makes terminology checked for every locale and violated by none.
+func unusedConcept() terms.Concept {
+	return terms.Concept{
+		ID:     "c-unused",
+		Source: terms.TermSourceTerminology,
+		Terms:  []terms.Term{{Text: "synergie", Locale: "fr", Status: model.TermForbidden}},
+	}
+}
+
+// seedCheckedTerminology binds terms to a workspace so every pending target's
+// terminology is checked and found compliant. A test about another bar calls
+// it, so that bar is the one its result turns on.
+func seedCheckedTerminology(t *testing.T, s *Server, slug string) {
+	t.Helper()
+	tb, err := s.wsStores.getTerms(slug)
+	require.NoError(t, err)
+	require.NoError(t, tb.AddConcept(context.Background(), unusedConcept()))
+}
+
+// checkedTermsGate is a term gate over a snapshot of unusedConcept: terminology
+// is active for every locale, and no target violates it.
+func checkedTermsGate(t *testing.T) *termGate {
+	t.Helper()
+	tb := terms.NewInMemoryStore()
+	require.NoError(t, tb.AddConcept(context.Background(), unusedConcept()))
+	return newTermGate("en", tb, "unused-concept", nil)
 }

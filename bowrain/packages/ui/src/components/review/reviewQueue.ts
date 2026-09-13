@@ -17,14 +17,13 @@ import { getBlockStatus, getTargetText } from "../editor/blockStatus";
  * (alongside item and locale).
  *
  * `passing` means the server will take this block in a bulk approve-passing
- * pass, and `failing` means it will not. The queue used to bucket on check
- * findings alone, because they were the only per-block evidence the payload
- * carried; the server applies two further bars (terminology and the voice
- * score), so a "no failing checks" bucket over-counted by exactly the blocks
- * approve-passing then refused. The entries now carry all three, and this
- * mirrors shipstate.blockCompliantAndPassing over them.
+ * pass, and `failing` means a bar it applies turned the block down.
+ * `not_checked` is neither: no bar turned it down, but its terminology was not
+ * checked, so the server holds no evidence to approve it on and leaves it for a
+ * person. This mirrors shipstate.blockApproveBlocker over the evidence the
+ * queue payload carries.
  */
-export type ReviewQueueVerdict = "failing" | "passing";
+export type ReviewQueueVerdict = "failing" | "not_checked" | "passing";
 
 /**
  * Which bar a failing entry misses. Ordered as the server applies them
@@ -32,6 +31,13 @@ export type ReviewQueueVerdict = "failing" | "passing";
  * reports back.
  */
 export type ReviewBlocker = "checks" | "terms" | "voice";
+
+/**
+ * Which bar an entry has no verdict for. Terminology is the only one the
+ * payload can leave unchecked: every pending target is run through the
+ * rule-based checks, and the server applies no voice bar to an unscored block.
+ */
+export type ReviewUnchecked = "terms";
 
 /** How the queue list groups its rows. */
 export type ReviewGroupBy = "item" | "locale" | "verdict";
@@ -80,8 +86,8 @@ export interface ReviewEntry {
   /** Check findings for this block+locale; empty until the checks have been loaded. */
   issues: CheckIssue[];
   /**
-   * The server's terminology verdict for this target, `""` when no terminology
-   * governance was active for the locale.
+   * The server's terminology verdict for this target, `""` when it was not
+   * checked because no terms and no voice profile rule apply to the locale.
    */
   termCompliance: TermCompliance;
   /**
@@ -106,6 +112,7 @@ export interface ReviewGroup {
 export interface ReviewQueueCounts {
   total: number;
   failing: number;
+  notChecked: number;
   passing: number;
   /** Pending entries per locale (locale → count). */
   byLocale: Record<string, number>;
@@ -148,7 +155,8 @@ export function isBelowVoiceBar(entry: ReviewEntry): boolean {
 
 /**
  * The bars a pending entry misses, in the order the server applies them. Empty
- * for an entry approve-passing will take.
+ * for an entry no bar turned down, which is not the same as one approve-passing
+ * will take: see entryUnchecked.
  */
 export function entryBlockers(entry: ReviewEntry): ReviewBlocker[] {
   const blockers: ReviewBlocker[] = [];
@@ -159,12 +167,24 @@ export function entryBlockers(entry: ReviewEntry): ReviewBlocker[] {
 }
 
 /**
- * The bucket for an entry: `passing` when it clears every bar the server
- * applies on approve, `failing` otherwise. The mirror of
- * shipstate.blockCompliantAndPassing over the evidence the queue payload carries.
+ * The bars an entry has no verdict for. An unchecked terminology verdict is
+ * neither a pass nor a violation, and the server approves no entry that has
+ * one.
+ */
+export function entryUnchecked(entry: ReviewEntry): ReviewUnchecked[] {
+  return entry.termCompliance === "" ? ["terms"] : [];
+}
+
+/**
+ * The bucket for an entry: `failing` when a bar the server applies turns it
+ * down, `not_checked` when none does but a bar was not checked, and `passing`
+ * when it clears every bar. The mirror of shipstate.blockApproveBlocker over
+ * the evidence the queue payload carries.
  */
 export function entryVerdict(entry: ReviewEntry): ReviewQueueVerdict {
-  return entryBlockers(entry).length === 0 ? "passing" : "failing";
+  if (entryBlockers(entry).length > 0) return "failing";
+  if (entryUnchecked(entry).length > 0) return "not_checked";
+  return "passing";
 }
 
 /** Whether the server's bulk approve-passing pass will take this entry. */
@@ -194,6 +214,7 @@ export function filterEntries(
 /** How each verdict is named on a group header, a chip, and a filter pill. */
 export const VERDICT_LABELS: Record<ReviewQueueVerdict, string> = {
   failing: "Misses a bar",
+  not_checked: "Not checked",
   passing: "Clears every bar",
 };
 
@@ -204,11 +225,16 @@ export const BLOCKER_LABELS: Record<ReviewBlocker, string> = {
   voice: "Below the voice bar",
 };
 
+/** How each unchecked bar is named where an entry's reasons are listed. */
+export const UNCHECKED_LABELS: Record<ReviewUnchecked, string> = {
+  terms: "Terminology not checked",
+};
+
 /**
  * The one-word name each blocker takes inside the verdict, where the sentence
  * already says a bar was missed and only the bar is still in question.
  */
-export const BLOCKER_SHORT_LABELS: Record<ReviewBlocker, string> = {
+export const BLOCKER_SHORT_LABELS: Record<ReviewBlocker | ReviewUnchecked, string> = {
   checks: "checks",
   terms: "terminology",
   voice: "voice",
@@ -217,30 +243,42 @@ export const BLOCKER_SHORT_LABELS: Record<ReviewBlocker, string> = {
 /**
  * The verdict as one phrase: what happened, and which bars it happened to.
  *
- * A reviewer's next act depends on which bar was missed, so the bars are read
- * inside the verdict rather than beside it as separate chips. `verdictDetail`
- * spells each one out for the tooltip.
+ * A reviewer's next act depends on which bar was missed or not checked, so the
+ * bars are read inside the verdict rather than beside it as separate chips.
+ * `verdictDetail` spells each one out for the tooltip.
  */
 export function verdictLabel(entry: ReviewEntry): string {
   const blockers = entryBlockers(entry);
-  if (blockers.length === 0) return VERDICT_LABELS.passing;
-  return `${VERDICT_LABELS.failing}: ${blockers.map((b) => BLOCKER_SHORT_LABELS[b]).join(", ")}`;
+  if (blockers.length > 0) {
+    return `${VERDICT_LABELS.failing}: ${blockers.map((b) => BLOCKER_SHORT_LABELS[b]).join(", ")}`;
+  }
+  const unchecked = entryUnchecked(entry);
+  if (unchecked.length > 0) {
+    return `${VERDICT_LABELS.not_checked}: ${unchecked.map((u) => BLOCKER_SHORT_LABELS[u]).join(", ")}`;
+  }
+  return VERDICT_LABELS.passing;
 }
 
-/** The bars a failing entry misses, named in full, for the verdict's tooltip. */
+/** The bars an entry misses or has no verdict for, named in full, for the verdict's tooltip. */
 export function verdictDetail(entry: ReviewEntry): string {
-  const blockers = entryBlockers(entry);
-  if (blockers.length === 0) return "Every bar the server applies on approve is clear.";
-  return blockers.map((b) => BLOCKER_LABELS[b]).join(" \u00b7 ");
+  const missed = entryBlockers(entry).map((b) => BLOCKER_LABELS[b]);
+  const unchecked = entryUnchecked(entry).map((u) => UNCHECKED_LABELS[u]);
+  if (missed.length === 0 && unchecked.length === 0) {
+    return "Every bar the server applies on approve is clear.";
+  }
+  if (missed.length === 0) {
+    return `${unchecked.join(" · ")}: no terms or voice profile rules apply to this language, so approving all passing leaves this block for a person.`;
+  }
+  return [...missed, ...unchecked].join(" · ");
 }
 
-/** Order groups deterministically: failing first, then passing. */
-const VERDICT_ORDER: ReviewQueueVerdict[] = ["failing", "passing"];
+/** Order groups deterministically: failing first, then not checked, then passing. */
+const VERDICT_ORDER: ReviewQueueVerdict[] = ["failing", "not_checked", "passing"];
 
 /**
  * Group entries for the list panel. Insertion order is preserved within a
  * group; group order is first-appearance for item/locale, and severity order
- * (failing → passing) for the verdict.
+ * (failing → not checked → passing) for the verdict.
  */
 export function groupEntries(
   entries: readonly ReviewEntry[],
@@ -281,12 +319,15 @@ export function queueCounts(entries: readonly ReviewEntry[]): ReviewQueueCounts 
   const counts: ReviewQueueCounts = {
     total: entries.length,
     failing: 0,
+    notChecked: 0,
     passing: 0,
     byLocale: {},
     byItem: {},
   };
   for (const entry of entries) {
-    if (entryVerdict(entry) === "failing") counts.failing++;
+    const verdict = entryVerdict(entry);
+    if (verdict === "failing") counts.failing++;
+    else if (verdict === "not_checked") counts.notChecked++;
     else counts.passing++;
     counts.byLocale[entry.locale] = (counts.byLocale[entry.locale] ?? 0) + 1;
     counts.byItem[entry.itemId] = (counts.byItem[entry.itemId] ?? 0) + 1;
@@ -296,10 +337,10 @@ export function queueCounts(entries: readonly ReviewEntry[]): ReviewQueueCounts 
 
 /**
  * Entries that clear every bar the server applies — what "Approve all passing"
- * will approve, over the same three-way evidence the server judges on. It was
- * an upper bound while the payload carried only check findings; the response
- * still reports the split that actually happened, because the queue is a
- * snapshot and a re-check between preview and pass can move a block.
+ * will approve, over the same evidence the server judges on. An entry whose
+ * terminology was not checked is not among them. The response still reports
+ * the split that actually happened, because the queue is a snapshot and a
+ * re-check between preview and pass can move a block.
  */
 export function passingCount(entries: readonly ReviewEntry[]): number {
   return entries.reduce((n, e) => (isEntryPassing(e) ? n + 1 : n), 0);

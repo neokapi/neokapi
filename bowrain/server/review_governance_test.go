@@ -299,6 +299,7 @@ func TestApprovePassingRecordsDecisionsAndAudits(t *testing.T) {
 		pendingFrBlock("b1", "Hello", "Bonjour"),
 		pendingFrBlock("b2", "Goodbye", "Au revoir"),
 	})
+	seedCheckedTerminology(t, s, "rc")
 
 	snapshot, stop := collectEvents(t, s)
 	defer stop()
@@ -336,6 +337,7 @@ func TestApprovePassingSkipsSelfAuthored(t *testing.T) {
 		pendingFrBlock("b1", "Hello", "Bonjour"),
 		pendingFrBlock("b2", "Goodbye", "Au revoir"),
 	})
+	seedCheckedTerminology(t, s, "rc")
 	mine, theirs := ids["Hello"], ids["Goodbye"]
 	attributeTarget(t, s, projID, mine, "fr", ownerID, "Bonjour à tous")
 	attributeTarget(t, s, projID, theirs, "fr", "u-translator", "Au revoir à tous")
@@ -346,7 +348,8 @@ func TestApprovePassingSkipsSelfAuthored(t *testing.T) {
 	assert.Equal(t, 1, res.Skipped)
 	assert.Equal(t, 1, res.SkippedSelfAuthored)
 	assert.Equal(t, res.Skipped,
-		res.SkippedFailingChecks+res.SkippedTermViolations+res.SkippedBelowVoiceBar+res.SkippedSelfAuthored,
+		res.SkippedFailingChecks+res.SkippedTermViolations+res.SkippedTermsNotChecked+
+			res.SkippedBelowVoiceBar+res.SkippedSelfAuthored,
 		"every skip is attributed to exactly one bar")
 	assert.Equal(t, model.TargetStatusDraft, targetStatus(t, s, projID, mine, "fr"))
 	assert.Equal(t, model.TargetStatusReviewed, targetStatus(t, s, projID, theirs, "fr"))
@@ -364,6 +367,7 @@ func TestApprovePassingRecordsOneSoDViolationForThePass(t *testing.T) {
 		pendingFrBlock("b1", "Hello", "Bonjour"),
 		pendingFrBlock("b2", "Goodbye", "Au revoir"),
 	})
+	seedCheckedTerminology(t, s, "rc")
 	attributeTarget(t, s, projID, ids["Hello"], "fr", ownerID, "Bonjour à tous")
 	attributeTarget(t, s, projID, ids["Goodbye"], "fr", ownerID, "Au revoir à tous")
 

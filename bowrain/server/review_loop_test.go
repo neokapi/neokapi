@@ -63,6 +63,7 @@ func newReviewLoopHarness(t *testing.T) (*Server, *stubForgeConnector, string, s
 		Services:             service.NewServices(cs, reg, formatReg, toolReg),
 		wsStores:             newWorkspaceStores(),
 	}
+	useInMemoryTerms(s)
 	s.convergence = newConvergenceOrchestrator(s)
 	s.subscribeForgeDelivery()
 	s.subscribeReviewCompletion()
@@ -251,6 +252,7 @@ func TestApprovePassing_ExcludesFailingBlocks(t *testing.T) {
 	b2.SetSourceText("Goodbye")
 	b2.SetTargetText("fr", "Au revoir�") // U+FFFD → error-severity check finding
 	projID, ids := seedGovernedProject(t, s, wsID, []*model.Block{b1, b2})
+	seedCheckedTerminology(t, s, "rl")
 	seedReviewTask(t, s, wsID, projID, "fr", ownerID)
 	bindForgeConnector(t, s, wsID, projID)
 
@@ -298,6 +300,7 @@ func TestApprovePassing_AllPassingAutoContinues(t *testing.T) {
 	b2.SetSourceText("Goodbye")
 	b2.SetTargetText("fr", "Au revoir")
 	projID, _ := seedGovernedProject(t, s, wsID, []*model.Block{b1, b2})
+	seedCheckedTerminology(t, s, "rl")
 	seedReviewTask(t, s, wsID, projID, "fr", ownerID)
 	bindForgeConnector(t, s, wsID, projID)
 

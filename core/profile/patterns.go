@@ -265,6 +265,19 @@ func PatternRuleCount(p *VoiceProfile) int {
 	return len(p.Style.ProhibitedPatterns) + len(p.Style.RequiredPatterns) + constraintPatternCount(p)
 }
 
+// BlockRuleCount is how many rules [Findings] applies to one block of text: the
+// forbidden and competitor vocabulary, the prohibited style patterns and the
+// applicable prohibited-pattern constraints. The required patterns apply at
+// document scope and are not counted. A profile with no block rule has nothing
+// to find in a block, so a block held to it alone was not checked.
+func BlockRuleCount(p *VoiceProfile) int {
+	if p == nil {
+		return 0
+	}
+	return len(p.Vocabulary.ForbiddenTerms) + len(p.Vocabulary.CompetitorTerms) +
+		len(p.Style.ProhibitedPatterns) + constraintPatternCount(p)
+}
+
 // span is a half-open byte range of the text.
 type span struct{ start, end int }
 

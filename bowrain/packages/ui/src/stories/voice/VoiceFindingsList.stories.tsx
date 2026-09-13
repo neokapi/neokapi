@@ -6,6 +6,7 @@ const meta: Meta<typeof VoiceFindingsList> = {
   title: "Brand/VoiceFindingsList",
   component: VoiceFindingsList,
   tags: ["autodocs"],
+  args: { scanned: true },
   decorators: [
     (Story) => (
       <div style={{ maxWidth: 640, padding: 24 }}>
@@ -23,9 +24,14 @@ export const MixedSeverities: Story = {
   args: { findings: sampleFindings },
 };
 
-/** No findings — fully compliant. */
+/** A scan that found nothing: the content is fully compliant. */
 export const NoFindings: Story = {
   args: { findings: [] },
+};
+
+/** Nothing was scanned, so the empty list says so rather than claiming compliance. */
+export const NothingScanned: Story = {
+  args: { findings: [], scanned: false },
 };
 
 /** Single critical finding. */

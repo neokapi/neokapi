@@ -1131,31 +1131,41 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
     approvePassingReview: async (_ws, _projectId, req = {}) => {
       approvePassingReviewCalls.push(req);
       if (adapter.approvePassingResult) return adapter.approvePassingResult;
-      // Default: promote every pending block passing checks (the mock runs none),
-      // marking them reviewed so a re-read reflects the emptied queue.
+      // Default: the server's bars over the seeded evidence (the mock runs no
+      // checks). A term violation, a target whose terminology was not checked
+      // and a score below its bar are left pending and counted as the server
+      // counts them; the rest are marked reviewed so a re-read reflects the pass.
       const locales = req.locales;
       let approved = 0;
+      const skippedBy = { terms: 0, termsNotChecked: 0, voice: 0 };
       for (const blk of _blocks) {
         if (!blk.translatable) continue;
+        const evidence = adapter.blockEvidence[blk.id];
         for (const [loc, entry] of Object.entries(blk.targets)) {
           if (locales && !locales.includes(loc)) continue;
           const text = typeof entry === "string" ? entry : (entry?.text ?? "");
           const status = typeof entry === "string" ? "" : (entry?.status ?? "");
-          if (text.trim() && status !== "reviewed" && status !== "signed-off") {
+          if (!text.trim() || status === "reviewed" || status === "signed-off") continue;
+          if (evidence?.term_compliance === "violation") skippedBy.terms++;
+          else if (!evidence?.term_compliance) skippedBy.termsNotChecked++;
+          else if (belowVoiceBar(evidence)) skippedBy.voice++;
+          else {
             blk.targets[loc] = { text, status: "reviewed" };
             approved++;
           }
         }
       }
+      const skipped = skippedBy.terms + skippedBy.termsNotChecked + skippedBy.voice;
       return {
         approved,
-        skipped: 0,
+        skipped,
         skipped_failing_checks: 0,
-        skipped_term_violations: 0,
-        skipped_below_voice_bar: 0,
+        skipped_term_violations: skippedBy.terms,
+        skipped_terms_not_checked: skippedBy.termsNotChecked,
+        skipped_below_voice_bar: skippedBy.voice,
         skipped_self_authored: 0,
-        remaining_pending: 0,
-        review_completed: true,
+        remaining_pending: skipped,
+        review_completed: skipped === 0,
       };
     },
 

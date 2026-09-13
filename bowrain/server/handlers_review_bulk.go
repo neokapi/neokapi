@@ -30,29 +30,34 @@ type ApprovePassingRequest struct {
 // delivery, so a surface can show "all approved · delivering…".
 //
 // The Skipped* fields name WHICH bar each excluded target missed — the same
-// three the review queue's entries now carry, so the surface that previewed the
+// bars the review queue's entries carry, so the surface that previewed the
 // pass and the response that reports it speak in one vocabulary. A target can
 // miss more than one bar; it is counted against the first in gate order
-// (checks, then terminology, then voice). SkippedSelfAuthored is the fourth bar
-// and the only one about the caller rather than the content: a translation the
-// caller wrote, in a workspace whose separation-of-duties policy blocks
-// self-approval. The four sum to Skipped.
+// (checks, then terminology, then voice). SkippedTermsNotChecked counts the
+// targets whose terminology was not checked, because no terms and no voice
+// profile rule apply to the locale: the pass holds no evidence to approve them
+// on. SkippedSelfAuthored is the only count about the caller rather than the
+// content: a translation the caller wrote, in a workspace whose
+// separation-of-duties policy blocks self-approval. The five sum to Skipped.
 type ApprovePassingResponse struct {
-	Approved              int  `json:"approved"`
-	Skipped               int  `json:"skipped"`
-	SkippedFailingChecks  int  `json:"skipped_failing_checks"`
-	SkippedTermViolations int  `json:"skipped_term_violations"`
-	SkippedBelowVoiceBar  int  `json:"skipped_below_voice_bar"`
-	SkippedSelfAuthored   int  `json:"skipped_self_authored"`
-	RemainingPending      int  `json:"remaining_pending"`
-	ReviewCompleted       bool `json:"review_completed"`
+	Approved               int  `json:"approved"`
+	Skipped                int  `json:"skipped"`
+	SkippedFailingChecks   int  `json:"skipped_failing_checks"`
+	SkippedTermViolations  int  `json:"skipped_term_violations"`
+	SkippedTermsNotChecked int  `json:"skipped_terms_not_checked"`
+	SkippedBelowVoiceBar   int  `json:"skipped_below_voice_bar"`
+	SkippedSelfAuthored    int  `json:"skipped_self_authored"`
+	RemainingPending       int  `json:"remaining_pending"`
+	ReviewCompleted        bool `json:"review_completed"`
 }
 
 // HandleApprovePassing bulk-approves every block whose target for a locale is
 // awaiting review AND clears the ship bar — passes the project's checks with
-// no error-severity finding AND meets the voice compliance bar (the same #1365
-// shipstate predicate the dashboard aggregates). Blocks that fail checks or fall
-// below the bar are EXCLUDED and left pending for a person. Approved blocks are
+// no error-severity finding, is term-compliant for the locale, AND meets the
+// voice compliance bar (the same #1365 shipstate predicate the dashboard
+// aggregates). Blocks that fail checks, violate or have no check against the
+// terminology, or fall below the bar are EXCLUDED and left pending for a
+// person. Approved blocks are
 // promoted to reviewed; the locales that clear their review queue have their
 // review task(s) closed, and if that empties the project's whole review queue
 // the loop continues to a completing convergence run → delivery (RV-B).
@@ -284,13 +289,14 @@ func (s *Server) HandleApprovePassing(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, ApprovePassingResponse{
-		Approved:              approved,
-		Skipped:               skipped + sodRefused,
-		SkippedFailingChecks:  skippedBy[approveBlockerChecks],
-		SkippedTermViolations: skippedBy[approveBlockerTerms],
-		SkippedBelowVoiceBar:  skippedBy[approveBlockerVoice],
-		SkippedSelfAuthored:   sodRefused,
-		RemainingPending:      remaining,
-		ReviewCompleted:       reviewCompleted,
+		Approved:               approved,
+		Skipped:                skipped + sodRefused,
+		SkippedFailingChecks:   skippedBy[approveBlockerChecks],
+		SkippedTermViolations:  skippedBy[approveBlockerTerms],
+		SkippedTermsNotChecked: skippedBy[approveBlockerTermsNotChecked],
+		SkippedBelowVoiceBar:   skippedBy[approveBlockerVoice],
+		SkippedSelfAuthored:    sodRefused,
+		RemainingPending:       remaining,
+		ReviewCompleted:        reviewCompleted,
 	})
 }

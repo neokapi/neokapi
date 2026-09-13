@@ -89,7 +89,7 @@ the Runs view and `kapi up` are their clients. See
 ### Review and delivery
 
 ```
-POST /api/v1/:ws/:id/review/approve-passing   # Bulk-approve every block passing checks and the voice bar
+POST /api/v1/:ws/:id/review/approve-passing   # Bulk-approve every block passing checks, checked terminology and the voice bar
 GET  /api/v1/projects/:id/ship.json           # Public per-locale ship manifest
 GET  /api/v1/:ws/audit-log/verify             # Verify the workspace audit chain
 ```

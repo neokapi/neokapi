@@ -63,7 +63,7 @@ export function ContextScanLiveTester({ profile, debounceMs = 500 }: ContextScan
                 : `${result.findings.length} finding${result.findings.length === 1 ? "" : "s"} against the draft rules.`}
             </p>
           </div>
-          {result.findings.length > 0 && <VoiceFindingsList findings={result.findings} />}
+          {result.findings.length > 0 && <VoiceFindingsList findings={result.findings} scanned />}
         </div>
       )}
     </Card>

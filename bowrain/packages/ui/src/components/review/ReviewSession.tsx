@@ -137,6 +137,9 @@ function skipReasons(result: ApprovePassingResult): string {
   const parts: string[] = [];
   if (result.skipped_failing_checks) parts.push(`${result.skipped_failing_checks} failing checks`);
   if (result.skipped_term_violations) parts.push(`${result.skipped_term_violations} terminology`);
+  if (result.skipped_terms_not_checked) {
+    parts.push(`${result.skipped_terms_not_checked} with terminology not checked`);
+  }
   if (result.skipped_below_voice_bar) {
     parts.push(`${result.skipped_below_voice_bar} below the voice bar`);
   }
@@ -160,12 +163,15 @@ function complianceForLocale(
   const ls: LocaleTranslationStats | undefined = stats.locale_stats.find(
     (l) => l.locale === locale,
   );
-  if (!ls || ls.compliance_rate == null || ls.compliance_basis == null) return undefined;
+  if (!ls || ls.compliance_basis == null) return undefined;
+  // A locale with no checked block has no rate, and still has a count to show.
+  if (ls.compliance_rate == null && !ls.not_checked_blocks) return undefined;
   return {
-    rate: ls.compliance_rate,
+    rate: ls.compliance_rate ?? undefined,
     basis: ls.compliance_basis,
     compliantBlocks: ls.compliant_blocks,
     translatedBlocks: ls.translated_blocks,
+    notCheckedBlocks: ls.not_checked_blocks,
   };
 }
 
@@ -690,6 +696,7 @@ export function ReviewSession({
           ?.collection_name ?? filter.collectionId);
   const verdictFilters: { value: ReviewQueueVerdict; label: string; count: number }[] = [
     { value: "failing", label: VERDICT_LABELS.failing, count: counts.failing },
+    { value: "not_checked", label: VERDICT_LABELS.not_checked, count: counts.notChecked },
     { value: "passing", label: VERDICT_LABELS.passing, count: counts.passing },
   ];
 

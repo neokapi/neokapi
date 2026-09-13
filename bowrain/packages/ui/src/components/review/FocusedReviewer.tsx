@@ -43,10 +43,13 @@ import {
 
 /** Locale-level compliance context for the reviewer header chip. */
 export interface ReviewerCompliance {
-  rate: number;
+  /** Absent when no translated block in the locale was checked. */
+  rate?: number;
   basis: ComplianceBasis;
   compliantBlocks?: number;
   translatedBlocks?: number;
+  /** Translated blocks whose terminology was not checked, which the rate leaves out. */
+  notCheckedBlocks?: number;
 }
 
 export interface FocusedReviewerProps {
@@ -119,9 +122,12 @@ const CELL = "rounded-lg border border-border bg-card p-3 text-sm leading-relaxe
 // checks alone: "Passes checks" was a claim about one of them. It is the one
 // place in the header carrying a severity colour, so the bars a failing unit
 // misses read inside it (`verdictLabel`) rather than as three grey chips
-// beside it. See packages/ui/docs/judgement-colours.md.
+// beside it. A unit whose terminology was not checked takes the muted tone:
+// nothing failed it, and nothing showed it passing. See
+// packages/ui/docs/judgement-colours.md.
 const verdictChip: Record<ReviewQueueVerdict, string> = {
   failing: "border-destructive/40 bg-destructive/10 text-destructive",
+  not_checked: "border-border bg-muted text-muted-foreground",
   passing: "border-success/40 bg-success/10 text-success",
 };
 
@@ -231,6 +237,8 @@ export function FocusedReviewer({
         >
           {verdict === "passing" ? (
             <CircleCheck className="h-3 w-3" />
+          ) : verdict === "not_checked" ? (
+            <Info className="h-3 w-3" />
           ) : (
             <AlertTriangle className="h-3 w-3" />
           )}
@@ -246,6 +254,7 @@ export function FocusedReviewer({
             basis={compliance.basis}
             compliantBlocks={compliance.compliantBlocks}
             translatedBlocks={compliance.translatedBlocks}
+            notCheckedBlocks={compliance.notCheckedBlocks}
           />
         )}
         <span

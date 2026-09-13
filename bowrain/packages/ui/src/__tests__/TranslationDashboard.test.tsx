@@ -183,8 +183,22 @@ describe("TranslationDashboard", () => {
     expect(within(card).getByText("92% compliant")).toBeInTheDocument();
     // The basis rides on the chip so tests (and analytics) can tell voice-informed
     // rates from checks-only ones.
-    expect(chips.some((c) => c.dataset.basis === "voice+checks")).toBe(true);
+    expect(chips.some((c) => c.dataset.basis === "voice+checks+terms")).toBe(true);
     expect(chips.some((c) => c.dataset.basis === "checks")).toBe(true);
+  });
+
+  // A locale whose terminology nothing checked has no rate, and says how many of
+  // its blocks were not checked instead of showing a percentage.
+  it("shows a not-checked count and no rate where no block was checked", () => {
+    render(<TranslationDashboard stats={complianceDashboardStats} />);
+    const card = screen.getByTestId("ship-readiness");
+    const unchecked = within(card)
+      .getAllByTestId("compliant-rate")
+      .find((c) => c.dataset.basis === "checks")!;
+    expect(within(unchecked).getByTestId("compliance-not-checked").textContent).toMatch(
+      /^\d+ not checked$/,
+    );
+    expect(unchecked.textContent).not.toContain("%");
   });
 
   it("hides the compliance rate chip when servers do not send the field", () => {
@@ -198,13 +212,26 @@ describe("TranslationDashboard", () => {
     const card = screen.getByTestId("ship-readiness");
     const voiceChip = within(card)
       .getAllByTestId("compliant-rate")
-      .find((c) => c.dataset.basis === "voice+checks")!;
+      .find((c) => c.dataset.basis === "voice+checks+terms")!;
     await user.hover(voiceChip);
     // SimpleTooltip renders duplicate (trigger + portal) content.
     expect((await screen.findAllByText(/voice scores measured against/i)).length).toBeGreaterThan(
       0,
     );
-    expect((await screen.findAllByText(/translated blocks compliant/i)).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText(/checked blocks compliant/i)).length).toBeGreaterThan(0);
+  });
+
+  it("explains in the tooltip why blocks were not checked", async () => {
+    const user = userEvent.setup();
+    render(<TranslationDashboard stats={complianceDashboardStats} />);
+    const card = screen.getByTestId("ship-readiness");
+    const unchecked = within(card)
+      .getAllByTestId("compliant-rate")
+      .find((c) => c.dataset.basis === "checks")!;
+    await user.hover(unchecked);
+    expect(
+      (await screen.findAllByText(/were not checked for terminology, because no terms/i)).length,
+    ).toBeGreaterThan(0);
   });
 
   it("renders the delivery slot next to ship readiness", () => {

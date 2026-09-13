@@ -707,14 +707,17 @@ export interface ApprovePassingResult {
   /**
    * Which bar each skipped block missed. A block missing more than one is
    * counted against the first the server applies (checks, then terminology,
-   * then voice), so these sum to `skipped`. The first three are the axes the
-   * queue's entries carry, so a preview and its outcome are read in one
-   * vocabulary. `skipped_self_authored` is the fourth and the only one about
-   * the caller: a translation they wrote, in a workspace whose
+   * then voice), so these sum to `skipped`. They are the axes the queue's
+   * entries carry, so a preview and its outcome are read in one vocabulary.
+   * `skipped_terms_not_checked` counts the blocks whose terminology was not
+   * checked, because no terms or voice profile rules apply to the locale: the
+   * server holds no evidence to approve them on. `skipped_self_authored` is the
+   * only one about the caller: a translation they wrote, in a workspace whose
    * separation-of-duties policy blocks self-approval.
    */
   skipped_failing_checks: number;
   skipped_term_violations: number;
+  skipped_terms_not_checked: number;
   skipped_below_voice_bar: number;
   skipped_self_authored: number;
   /** Pending-review targets still awaiting review after the call. */
@@ -973,9 +976,22 @@ export interface LocaleTranslationStats {
   rejected_awaiting_draft_blocks?: number;
   /** Derived ship state; absent from producers that do not derive it (e.g. pulse). */
   ship_state?: ShipState;
-  /** Translated blocks counting as compliant (checks pass + voice bar where scored). */
+  /**
+   * Translated blocks counting as compliant: checks pass, terminology checked
+   * and clean, and the voice bar met where scored.
+   */
   compliant_blocks?: number;
-  /** compliant_blocks / translated_blocks in [0,1]; absent when not derived. */
+  /**
+   * Translated blocks whose compliance was not decided: no bar failed them, and
+   * their terminology was not checked because no terms or voice profile rules
+   * apply to the locale. The rate leaves them out.
+   */
+  not_checked_blocks?: number;
+  /**
+   * compliant_blocks over the checked translated blocks (translated_blocks less
+   * not_checked_blocks), in [0,1]; absent when not derived or when no
+   * translated block was checked.
+   */
   compliance_rate?: number;
   /** What informed compliance_rate; absent when the server did not derive it. */
   compliance_basis?: ComplianceBasis;

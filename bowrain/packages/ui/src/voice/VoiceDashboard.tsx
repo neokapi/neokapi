@@ -136,7 +136,7 @@ export function VoiceDashboard({
           <CardTitle className="text-sm">Findings ({score.findings.length})</CardTitle>
         </CardHeader>
         <CardContent>
-          <VoiceFindingsList findings={score.findings} />
+          <VoiceFindingsList findings={score.findings} scanned={score.word_count > 0} />
         </CardContent>
       </Card>
     </div>
