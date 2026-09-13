@@ -305,6 +305,9 @@ func (a *App) checkDiffFile(ctx context.Context, run diffCheckRun, f diffscope.F
 	for _, x := range read.extents {
 		located[x.Block] = true
 	}
+	for _, c := range read.confined {
+		located[c.Region.Block] = true
+	}
 	for _, b := range read.blocks {
 		if !located[b.ID] {
 			return notRun(fmt.Sprintf("block %s has no position in the file", blockKey(b)))
@@ -315,6 +318,10 @@ func (a *App) checkDiffFile(ctx context.Context, run diffCheckRun, f diffscope.F
 	if len(diffscope.Bordered(touchedExtents, f.Changes)) > 0 {
 		touchedExtents = settleBordered(ctx, locate, f, content, touchedExtents)
 	}
+	// A block confined to a region may sit on any line the region covers, so a
+	// change on those lines may touch it, and its content is not checked. The
+	// blocks the file places exactly are checked either way.
+	unplaced := touchedConfined(read, f.Changes)
 	lines := map[string]format.LineRange{}
 	for _, x := range touchedExtents {
 		if _, seen := lines[x.Block]; !seen {
@@ -330,11 +337,17 @@ func (a *App) checkDiffFile(ctx context.Context, run diffCheckRun, f diffscope.F
 			entry.Blocks = append(entry.Blocks, check.ScopeBlock{Block: blockKey(b), Lines: l})
 		}
 	}
-	if len(touched) == 0 {
+	switch {
+	case unplaced != "":
+		entry.Status, entry.Reason = check.ScopeDidNotRun, unplaced
+	case len(touched) == 0:
 		entry.Status = check.ScopeUntouched
+	default:
+		entry.Status = check.ScopeChecked
+	}
+	if len(touched) == 0 {
 		return nil, 0, nil
 	}
-	entry.Status = check.ScopeChecked
 
 	opts := run.opts
 	if run.voice != nil {
@@ -386,12 +399,46 @@ func settleBordered(ctx context.Context, locate blockLocator, f diffscope.File, 
 	return diffscope.Settle(f, post, touched, pre, read.extents)
 }
 
+// touchedConfined names the confined content blocks whose region a change's
+// lines reach, each with the lines it could sit on, as the reason the file did
+// not run. It returns "" when no change reaches one.
+func touchedConfined(read scopedRead, changes []diffscope.Change) string {
+	keys := map[string]string{}
+	for _, b := range read.blocks {
+		keys[b.ID] = blockKey(b)
+	}
+	var regions []format.Extent
+	reasons := map[string]string{}
+	for _, c := range read.confined {
+		if _, ok := keys[c.Region.Block]; ok {
+			regions = append(regions, c.Region)
+			reasons[c.Region.Block] = c.Reason
+		}
+	}
+	hit := diffscope.Touched(regions, changes)
+	if len(hit) == 0 {
+		return ""
+	}
+	const named = 3
+	var parts []string
+	for _, x := range hit[:min(len(hit), named)] {
+		parts = append(parts, fmt.Sprintf("block %s (somewhere in lines %d-%d)", keys[x.Block], x.Lines.First, x.Lines.Last))
+	}
+	if len(hit) > named {
+		parts = append(parts, fmt.Sprintf("%d more", len(hit)-named))
+	}
+	return fmt.Sprintf("the change touches lines where %s cannot be located exactly: %s", strings.Join(parts, ", "), reasons[hit[0].Block])
+}
+
 // scopedRead is one file read for a diff-scoped check.
 type scopedRead struct {
 	blocks  []*model.Block
 	extents []format.Extent
+	// confined are the blocks the file's structure confines to a region of it
+	// without placing them exactly.
+	confined []format.Confined
 	// unlocated says why the blocks could not be placed in the file, and is nil
-	// when extents locates them.
+	// when extents and confined locate them.
 	unlocated error
 	// unread says why some of the file's content could not be read into blocks
 	// at all, such as declared comments a provider could not place. The file did
@@ -451,7 +498,8 @@ func (a *App) readWithExtents(ctx context.Context, path string, content []byte, 
 	if err := store.Flush(); err != nil {
 		return scopedRead{}, err
 	}
-	out.extents, out.unlocated = format.ExtentsFromSkeleton(content, store)
+	al, err := format.LocateFromSkeleton(content, store)
+	out.extents, out.confined, out.unlocated = al.Extents, al.Confined, err
 	return out, nil
 }
 

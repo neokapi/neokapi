@@ -97,6 +97,8 @@ func writeScope(w io.Writer, s *check.Scope) {
 		switch {
 		case f.Status == check.ScopeChecked:
 			fmt.Fprintf(w, "    %s: %s, %d block(s)\n", f.Path, status, len(f.Blocks))
+		case f.Reason != "" && len(f.Blocks) > 0:
+			fmt.Fprintf(w, "    %s: %s, %d block(s) checked (%s)\n", f.Path, status, len(f.Blocks), f.Reason)
 		case f.Reason != "":
 			fmt.Fprintf(w, "    %s: %s (%s)\n", f.Path, status, f.Reason)
 		default:

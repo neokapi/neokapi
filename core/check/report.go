@@ -85,7 +85,7 @@ const (
 	// ScopeDeleted means the change removed the file, leaving nothing to check.
 	ScopeDeleted ScopeStatus = "deleted"
 	// ScopeDidNotRun means the change touched content whose blocks could not be
-	// located, so it was not checked.
+	// located, so that content was not checked. The reason names it.
 	ScopeDidNotRun ScopeStatus = "did_not_run"
 )
 
@@ -94,7 +94,8 @@ type ScopeFile struct {
 	Path   string      `json:"path"`
 	Status ScopeStatus `json:"status"`
 	Reason string      `json:"reason,omitempty"`
-	// Blocks are the blocks checked, each whole, with the lines it spans.
+	// Blocks are the blocks checked, each whole, with the lines it spans. A
+	// did_not_run file lists the touched blocks it could locate and check.
 	Blocks []ScopeBlock `json:"blocks,omitempty"`
 }
 
