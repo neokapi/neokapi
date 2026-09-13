@@ -38,15 +38,15 @@ type Scope struct {
 	CollectionID string
 
 	// Locale and Channel drive the framework resolver's locale/channel overrides
-	// on the selected profile. Channel is applied last, so an explicit channel
-	// beats one bound via properties.
+	// on the selected profile. An explicit Channel outranks one bound via
+	// properties and takes its place, so only one channel's overrides apply.
 	Locale  model.LocaleID
 	Channel string
 
 	// Persona selects an author persona override on the resolved profile,
 	// applied after channel and bounded by the brand's guardrails. It is
 	// normally supplied explicitly at check time (e.g. an MCP scoring call)
-	// rather than bound to a scope.
+	// rather than bound to a scope. It outranks a bound persona the same way.
 	Persona string
 }
 
@@ -77,24 +77,20 @@ type WorkspaceDefault interface {
 // so a missing stream or an unreadable collection degrades to the next-broader
 // binding rather than failing the check.
 func Resolve(ctx context.Context, cs ScopeStore, wd WorkspaceDefault, bs coreprofile.Store, sc Scope) (*coreprofile.VoiceProfile, error) {
+	// An explicit per-call channel/persona enters the framework's ladder, which
+	// ranks it above anything bound via properties. The overrides are then
+	// layered once, at the requested locale, exactly as every kapi surface
+	// layers them.
 	rc := coreprofile.ResolveContext{
 		ExplicitProfileID: sc.ExplicitProfileID,
 		Locale:            sc.Locale,
+		Channel:           sc.Channel,
+		Persona:           sc.Persona,
 	}
 	if sc.ExplicitProfileID == "" {
 		populateContext(ctx, cs, wd, &rc, sc)
 	}
-
-	profile, err := coreprofile.ResolveProfileFromContext(ctx, rc, bs)
-	if err != nil || profile == nil {
-		return profile, err
-	}
-	// An explicit per-call channel/persona wins over anything bound via
-	// properties. Persona is applied after channel, inside the brand guardrails.
-	if sc.Channel != "" || sc.Persona != "" {
-		profile = coreprofile.ResolveProfile(profile, "", sc.Channel, sc.Persona)
-	}
-	return profile, nil
+	return coreprofile.ResolveProfileFromContext(ctx, rc, bs)
 }
 
 // populateContext fills rc's Project/Stream/Collection maps and workspace

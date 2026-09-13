@@ -167,4 +167,20 @@ describe("VoiceProfileEditor", () => {
       "Direct address, no hedging.",
     );
   });
+
+  it("adds a term rule to one channel's vocabulary", async () => {
+    const { save } = renderEditor();
+    const forbidden = screen.getByTestId("channel-docs-forbidden");
+    await userEvent.click(within(forbidden).getByRole("button", { name: /Add rule/ }));
+    await userEvent.type(
+      within(screen.getByTestId("channel-docs-forbidden")).getByLabelText("Term"),
+      "authenticate",
+    );
+    await userEvent.click(screen.getByRole("button", { name: /Save/ }));
+
+    const docs = save.mock.calls[0][0].channels?.docs;
+    expect(docs?.vocabulary?.forbidden_terms?.map((r) => r.term)).toEqual(["authenticate"]);
+    // The channel's tone travels with the vocabulary edit.
+    expect(docs?.tone?.formality).toBe("formal");
+  });
 });

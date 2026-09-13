@@ -115,9 +115,10 @@ examples:
 
 Profiles support **locale overrides** (e.g. `formal` and third-person POV for
 `ja`), **channel overrides** (e.g. casual, frequent humor for
-`social_media`) and **persona overrides** (an individual author's voice, whose
-vocabulary can only tighten the profile's). Channel and persona overrides
-replace whole Tone/Style sections; locale overrides merge individual fields.
+`social_media`) and **persona overrides** (an individual author's voice).
+Channel and persona overrides replace whole Tone/Style sections, and their
+vocabulary can only tighten the profile's; locale overrides merge individual
+fields.
 
 Three rule fields do most of the work beyond the example above:
 

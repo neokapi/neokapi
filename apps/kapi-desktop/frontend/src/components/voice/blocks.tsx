@@ -1,17 +1,23 @@
 // Tone and style, and the override maps built from them.
 //
-// A channel override carries a tone and a style; a persona override carries
-// those plus two term-rule lists; a locale override carries the scalars that
-// change per language plus vocabulary and examples. Each is edited with the
-// same components as the profile's own, so nothing is editable at one scope
-// and read-only at another.
+// A channel override carries a tone, a style and a vocabulary; a persona
+// override carries a tone, a style and two term-rule lists; a locale override
+// carries the scalars that change per language plus vocabulary and examples.
+// Each is edited with the same components as the profile's own, so nothing is
+// editable at one scope and read-only at another.
 
 import { memo } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { Button, Input, Textarea, TagInput, Switch, Label } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
 import { Field, ValueField } from "./fields";
-import { ExampleListEditor, PatternListEditor, TermRuleListEditor, type ValueSets } from "./lists";
+import {
+  AbbreviationsEditor,
+  ExampleListEditor,
+  PatternListEditor,
+  TermRuleListEditor,
+  type ValueSets,
+} from "./lists";
 import type {
   ChannelOverride,
   LocaleOverride,
@@ -334,6 +340,42 @@ function ChannelOverridesEditorInner({
             sets={sets}
             idPrefix={`channel-${key}`}
             patterns={false}
+          />
+          <TermRuleListEditor
+            label={t("Say this")}
+            rules={value.vocabulary?.preferred_terms ?? []}
+            onChange={(preferred_terms) =>
+              update({ ...value, vocabulary: { ...value.vocabulary, preferred_terms } })
+            }
+            sets={sets}
+            emptyHint={t("This channel prefers nothing extra.")}
+            testid={`channel-${key}-preferred`}
+          />
+          <TermRuleListEditor
+            label={t("Never say")}
+            rules={value.vocabulary?.forbidden_terms ?? []}
+            onChange={(forbidden_terms) =>
+              update({ ...value, vocabulary: { ...value.vocabulary, forbidden_terms } })
+            }
+            sets={sets}
+            emptyHint={t("This channel forbids nothing extra.")}
+            testid={`channel-${key}-forbidden`}
+          />
+          <TermRuleListEditor
+            label={t("Competitor names")}
+            rules={value.vocabulary?.competitor_terms ?? []}
+            onChange={(competitor_terms) =>
+              update({ ...value, vocabulary: { ...value.vocabulary, competitor_terms } })
+            }
+            sets={sets}
+            emptyHint={t("This channel names no extra competitor.")}
+            testid={`channel-${key}-competitor`}
+          />
+          <AbbreviationsEditor
+            abbreviations={value.vocabulary?.abbreviations ?? {}}
+            onChange={(abbreviations) =>
+              update({ ...value, vocabulary: { ...value.vocabulary, abbreviations } })
+            }
           />
         </div>
       )}

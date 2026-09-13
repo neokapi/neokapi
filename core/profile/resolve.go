@@ -3,6 +3,8 @@ package profile
 import (
 	"context"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/locale"
@@ -108,10 +110,11 @@ func resolvePersona(rc ResolveContext) string {
 
 // ResolveProfile returns the most specific profile configuration for a given
 // scope. It layers, in order, locale → channel → persona overrides on the base
-// profile. Persona is applied last, so an author persona's tone/style win over
-// a channel's, while its vocabulary deltas stay bounded by the profile's
-// guardrails (see PersonaOverride): Avoided terms tighten the forbidden set and
-// a Preferred term the profile already forbids is dropped, never re-allowed.
+// profile. A channel's or persona's tone and style replace the resolved ones,
+// so a persona's win over a channel's. Their vocabulary only tightens what the
+// earlier layers resolved (see tightenVocabulary): a channel can add rules but
+// never relax the profile's or a locale's, and a persona stays bounded by all
+// three.
 func ResolveProfile(profile *VoiceProfile, loc model.LocaleID, channel, persona string) *VoiceProfile {
 	if profile == nil {
 		return nil
@@ -132,19 +135,16 @@ func ResolveProfile(profile *VoiceProfile, loc model.LocaleID, channel, persona 
 			if override.PersonPOV != "" {
 				resolved.Style.PersonPOV = override.PersonPOV
 			}
-			if len(override.VocabularyOverrides) > 0 {
-				resolved.Vocabulary.PreferredTerms = append(
-					resolved.Vocabulary.PreferredTerms,
-					override.VocabularyOverrides...,
-				)
-			}
+			resolved.Vocabulary.PreferredTerms = appendTermRules(
+				resolved.Vocabulary.PreferredTerms, override.VocabularyOverrides...,
+			)
 			if len(override.ExampleOverrides) > 0 {
-				resolved.Examples = append(resolved.Examples, override.ExampleOverrides...)
+				resolved.Examples = slices.Concat(resolved.Examples, override.ExampleOverrides)
 			}
 		}
 	}
 
-	// Apply channel override
+	// Apply channel override. Tone and style replace; vocabulary tightens.
 	if channel != "" {
 		if override, ok := profile.Channels[channel]; ok {
 			if override.Tone != nil {
@@ -153,14 +153,14 @@ func ResolveProfile(profile *VoiceProfile, loc model.LocaleID, channel, persona 
 			if override.Style != nil {
 				resolved.Style = *override.Style
 			}
+			if override.Vocabulary != nil {
+				resolved.Vocabulary, _ = tightenVocabulary(resolved.Vocabulary, *override.Vocabulary)
+			}
 		}
 	}
 
-	// Apply persona override last, inside the profile's guardrails. Tone/Style
-	// replace what a channel set (persona wins over channel). Vocabulary deltas
-	// can only tighten: Avoided terms extend the forbidden set, and a Preferred
-	// term the profile already forbids is dropped so a persona can never re-allow
-	// a profile-prohibited word.
+	// Apply persona override last, inside the guardrails every earlier layer
+	// set. Tone/Style replace what a channel set (persona wins over channel).
 	if persona != "" {
 		if override, ok := profile.Personas[persona]; ok {
 			if override.Tone != nil {
@@ -169,28 +169,57 @@ func ResolveProfile(profile *VoiceProfile, loc model.LocaleID, channel, persona 
 			if override.Style != nil {
 				resolved.Style = *override.Style
 			}
-			resolved.Vocabulary.ForbiddenTerms = appendTermRules(
-				resolved.Vocabulary.ForbiddenTerms, override.Avoided...,
-			)
-			for _, pref := range override.Preferred {
-				if vocabularyForbids(resolved.Vocabulary, pref.Term) {
-					continue
-				}
-				resolved.Vocabulary.PreferredTerms = appendTermRules(
-					resolved.Vocabulary.PreferredTerms, pref,
-				)
-			}
+			resolved.Vocabulary, _ = tightenVocabulary(resolved.Vocabulary, override.vocabulary())
 		}
 	}
 
 	return &resolved
 }
 
+// tightenVocabulary layers an override's vocabulary onto the rules resolved so
+// far. It returns the merged rules and the indices of the override's preferred
+// terms it dropped.
+//
+// It can only add. Forbidden and competitor terms extend their lists, so every
+// earlier rule keeps firing at its own severity whatever the override says
+// about the same term. A preferred term is dropped when an earlier rule already
+// governs one of its forms: a forbidden or competitor rule, which it would
+// otherwise re-allow, or a preferred rule, whose wording it would otherwise
+// contradict. The override's own forbidden terms count as earlier here. An
+// abbreviation is added only where none is defined yet.
+//
+// Every list it changes is freshly allocated, because ResolveProfile works on
+// a shallow copy of the source profile.
+func tightenVocabulary(resolved, override VocabularyRules) (VocabularyRules, []int) {
+	out := resolved
+	out.ForbiddenTerms = appendTermRules(resolved.ForbiddenTerms, override.ForbiddenTerms...)
+	out.CompetitorTerms = appendTermRules(resolved.CompetitorTerms, override.CompetitorTerms...)
+
+	var kept []TermRule
+	var dropped []int
+	for i, pref := range override.PreferredTerms {
+		if vocabularyForbids(out, pref) || rulesCover(resolved.PreferredTerms, pref) {
+			dropped = append(dropped, i)
+			continue
+		}
+		kept = append(kept, pref)
+	}
+	out.PreferredTerms = appendTermRules(resolved.PreferredTerms, kept...)
+
+	if len(override.Abbreviations) > 0 {
+		merged := make(map[string]string, len(resolved.Abbreviations)+len(override.Abbreviations))
+		maps.Copy(merged, override.Abbreviations)
+		maps.Copy(merged, resolved.Abbreviations)
+		out.Abbreviations = merged
+	}
+	return out, dropped
+}
+
 // appendTermRules returns base with extra appended, always onto a freshly
 // allocated slice. ResolveProfile works on a shallow copy of the source
 // profile, so a plain append could grow into (and corrupt) the source's
 // backing array when it has spare capacity; copying keeps the source pristine
-// across repeated resolutions with different personas.
+// across repeated resolutions with different locales, channels and personas.
 func appendTermRules(base []TermRule, extra ...TermRule) []TermRule {
 	if len(extra) == 0 {
 		return base
@@ -201,23 +230,25 @@ func appendTermRules(base []TermRule, extra ...TermRule) []TermRule {
 	return out
 }
 
-// vocabularyForbids reports whether the vocabulary rules already forbid term —
-// as a forbidden term or a competitor term — compared case-insensitively. It is
-// the guardrail that stops a persona re-allowing a profile-forbidden word through
-// a Preferred rule.
-func vocabularyForbids(v VocabularyRules, term string) bool {
-	want := strings.ToLower(strings.TrimSpace(term))
-	if want == "" {
-		return false
-	}
-	for _, r := range v.ForbiddenTerms {
-		if strings.ToLower(strings.TrimSpace(r.Term)) == want {
-			return true
-		}
-	}
-	for _, r := range v.CompetitorTerms {
-		if strings.ToLower(strings.TrimSpace(r.Term)) == want {
-			return true
+// vocabularyForbids reports whether v already forbids one of rule's forms, as a
+// forbidden term or a competitor term. It is the guardrail that stops a channel
+// or a persona re-allowing a forbidden word through a preferred rule.
+func vocabularyForbids(v VocabularyRules, rule TermRule) bool {
+	return rulesCover(v.ForbiddenTerms, rule) || rulesCover(v.CompetitorTerms, rule)
+}
+
+// rulesCover reports whether a rule in rules names one of rule's forms. A form
+// is compared the way the matcher reads the earlier rule: in its own casing
+// when that rule is case-sensitive, and case-insensitively otherwise.
+func rulesCover(rules []TermRule, rule TermRule) bool {
+	forms := rule.AllForms()
+	for _, r := range rules {
+		for _, have := range r.AllForms() {
+			for _, want := range forms {
+				if have == want || (!r.CaseSensitive && strings.EqualFold(have, want)) {
+					return true
+				}
+			}
 		}
 	}
 	return false

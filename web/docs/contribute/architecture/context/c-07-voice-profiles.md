@@ -76,7 +76,12 @@ embedded starter packs and the voice store:
   profile.
 - **`VoiceExample`s**: before/after rewrites with explanations.
 - **`LocaleOverride`, `ChannelOverride` and persona maps**: adjustments resolved
-  on top of the base profile.
+  on top of the base profile, in that order. A channel's or persona's tone and
+  style replace the resolved ones. Their vocabulary goes through one tighten-only
+  merge: forbidden and competitor terms extend the resolved lists, and a
+  preferred term is dropped where an earlier rule already governs one of its
+  forms, so neither override can re-allow or reword what the profile or a locale
+  set. `ValidateProfile` warns about each preferred term the merge drops.
 
 The profile also carries versioning fields (a version snapshot per update, and
 named tag references) for stores that track history.
