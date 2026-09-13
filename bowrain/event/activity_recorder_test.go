@@ -2,7 +2,6 @@ package event
 
 import (
 	"testing"
-	"time"
 
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
@@ -19,13 +18,18 @@ func newTestActivityStore(t *testing.T) *bstore.ActivityStore {
 	return bstore.NewActivityStore(db.DB)
 }
 
+// These tests read the store after recorder.Close rather than polling it
+// against a deadline. Close unsubscribes, and the channel bus returns from
+// Unsubscribe only once the handler has finished every event already delivered,
+// so the read sees each published event handled however slowly the handler
+// ran.
+
 func TestActivityRecorder_MapsEvents(t *testing.T) {
 	bus := NewChannelEventBus()
 	defer bus.Close()
 
 	store := newTestActivityStore(t)
 	recorder := NewActivityRecorder(store, bus)
-	defer recorder.Close()
 
 	bus.Publish(platev.Event{
 		Type:      platev.EventProjectCreated,
@@ -37,14 +41,11 @@ func TestActivityRecorder_MapsEvents(t *testing.T) {
 			"workspace_slug": "ws-1",
 		},
 	})
+	recorder.Close()
 
-	ctx := t.Context()
-	var result *bstore.ActivityResult
-	require.Eventually(t, func() bool {
-		var err error
-		result, err = store.List(ctx, bstore.ActivityQuery{WorkspaceID: "ws-1"})
-		return err == nil && len(result.Activities) == 1
-	}, 2*time.Second, 10*time.Millisecond)
+	result, err := store.List(t.Context(), bstore.ActivityQuery{WorkspaceID: "ws-1"})
+	require.NoError(t, err)
+	require.Len(t, result.Activities, 1)
 
 	a := result.Activities[0]
 	assert.Equal(t, bstore.ActivityProjectCreated, a.Type)
@@ -59,7 +60,6 @@ func TestActivityRecorder_SkipsUnmappedEvents(t *testing.T) {
 
 	store := newTestActivityStore(t)
 	recorder := NewActivityRecorder(store, bus)
-	defer recorder.Close()
 
 	// Publish an event type that is not mapped.
 	bus.Publish(platev.Event{
@@ -67,12 +67,9 @@ func TestActivityRecorder_SkipsUnmappedEvents(t *testing.T) {
 		ProjectID: "proj-1",
 		Data:      map[string]string{"workspace_slug": "ws-1"},
 	})
+	recorder.Close()
 
-	// Unmapped events should not produce activities. Give the bus time to deliver.
-	time.Sleep(50 * time.Millisecond)
-
-	ctx := t.Context()
-	result, err := store.List(ctx, bstore.ActivityQuery{WorkspaceID: "ws-1"})
+	result, err := store.List(t.Context(), bstore.ActivityQuery{WorkspaceID: "ws-1"})
 	require.NoError(t, err)
 	assert.Empty(t, result.Activities)
 }
@@ -83,7 +80,6 @@ func TestActivityRecorder_MultipleEventTypes(t *testing.T) {
 
 	store := newTestActivityStore(t)
 	recorder := NewActivityRecorder(store, bus)
-	defer recorder.Close()
 
 	events := []platev.Event{
 		{Type: platev.EventStreamCreated, ProjectID: "proj-1", Data: map[string]string{"workspace_slug": "ws-1", "stream": "feature/x"}},
@@ -93,12 +89,11 @@ func TestActivityRecorder_MultipleEventTypes(t *testing.T) {
 	for _, ev := range events {
 		bus.Publish(ev)
 	}
+	recorder.Close()
 
-	ctx := t.Context()
-	require.Eventually(t, func() bool {
-		result, err := store.List(ctx, bstore.ActivityQuery{WorkspaceID: "ws-1"})
-		return err == nil && len(result.Activities) == 3
-	}, 2*time.Second, 10*time.Millisecond)
+	result, err := store.List(t.Context(), bstore.ActivityQuery{WorkspaceID: "ws-1"})
+	require.NoError(t, err)
+	assert.Len(t, result.Activities, 3)
 }
 
 func TestActivityRecorder_Close(t *testing.T) {
@@ -110,14 +105,14 @@ func TestActivityRecorder_Close(t *testing.T) {
 	recorder.Close()
 
 	// Publishing after close should not cause a panic or create activities.
+	// Unsubscribe removed the subscriber before returning, so the bus has
+	// nobody to deliver this event to.
 	bus.Publish(platev.Event{
 		Type: platev.EventProjectCreated,
 		Data: map[string]string{"workspace_slug": "ws-1"},
 	})
-	time.Sleep(50 * time.Millisecond)
 
-	ctx := t.Context()
-	result, err := store.List(ctx, bstore.ActivityQuery{WorkspaceID: "ws-1"})
+	result, err := store.List(t.Context(), bstore.ActivityQuery{WorkspaceID: "ws-1"})
 	require.NoError(t, err)
 	assert.Empty(t, result.Activities)
 }

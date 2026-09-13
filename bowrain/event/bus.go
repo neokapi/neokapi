@@ -141,7 +141,10 @@ func (b *ChannelEventBus) addSubscriber(sub *platev.Subscription) {
 	b.subscribers[sub.ID] = s
 }
 
-// Unsubscribe removes a subscription and stops its goroutine.
+// Unsubscribe removes a subscription and stops its goroutine. It returns once
+// the handler has finished every event already delivered to the subscription,
+// so a caller that published before unsubscribing can read the handler's side
+// effects without waiting on a clock.
 func (b *ChannelEventBus) Unsubscribe(sub *platev.Subscription) {
 	b.mu.Lock()
 	s, ok := b.subscribers[sub.ID]
