@@ -614,6 +614,11 @@ ci-frontend: ## Mirror the CI `frontend` job: check/test/build the bowrain web f
 	# which import `@neokapi/i18n-react/runtime` (a built ./dist subpath export).
 	# Build neokapi-i18n first so that subpath resolves (mirrors ci-kapi-desktop-frontend).
 	cd packages/i18n-react && vp run build
+	# Lint and type-check the whole vp surface from the root. The per-package
+	# runs below cover a fixed list, and a directory missing from it had no
+	# type-check at all: the Storybook configs carried 8 errors on main (#2692).
+	# Formatting is covered by check-fmt-fixed-point above.
+	vp check --no-fmt
 	cd bowrain/packages/ui && vp check
 	# `vp check` reads the workspace lint ignore set, which skips stories — so
 	# nothing compiled a *.stories.tsx or the Storybook mock adapter, and the

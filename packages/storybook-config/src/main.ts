@@ -53,22 +53,24 @@ export function createMainConfig(
 
       if (options.i18n) {
         const neokapi = (await import("@neokapi/i18n-react/vite")).default;
-        const raw = neokapi({ mode: "runtime" }) as {
-          name: string;
-          transform?: (this: unknown, code: string, id: string) => unknown;
-        };
+        const created = neokapi({ mode: "runtime" });
         if (typeof options.i18n === "object" && options.i18n.include) {
           const includes = options.i18n.include;
-          const rawTransform = raw.transform;
-          config.plugins.push({
-            ...raw,
-            transform(code: string, id: string) {
-              if (!includes.some((p) => id.startsWith(p))) return null;
-              return rawTransform ? rawTransform.call(this, code, id) : null;
-            },
-          });
+          for (const plugin of [created].flat()) {
+            // A Vite hook is either the function or an object carrying it as
+            // `handler`, so the scoped wrapper calls whichever the plugin set.
+            const hook = plugin.transform;
+            const transform = typeof hook === "function" ? hook : hook?.handler;
+            config.plugins.push({
+              ...plugin,
+              transform(code, id, transformOptions) {
+                if (!includes.some((p) => id.startsWith(p))) return null;
+                return transform ? transform.call(this, code, id, transformOptions) : null;
+              },
+            });
+          }
         } else {
-          config.plugins.push(raw);
+          config.plugins.push(created);
         }
       }
 
