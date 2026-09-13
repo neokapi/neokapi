@@ -271,8 +271,11 @@ export interface MockAdapter extends ApiAdapter {
   pendingReviewCalls: (PendingReviewOptions | undefined)[];
   /**
    * Per-block terminology and voice evidence the review queue carries (block id
-   * → the fields the server stamps). A block absent from the map has no
-   * terminology governance applied and has never been scored.
+   * → the fields the server stamps). A `term_compliance` left out stands for a
+   * language no terms govern, and `""` for a governed target with nothing to
+   * check. A `voice_bar` left out stands for a language no voice profile
+   * governs, and a bar with no `voice_score` for a governed block nothing has
+   * scored. A block absent from the map is governed by neither.
    */
   blockEvidence: Record<
     string,
@@ -290,7 +293,16 @@ export interface MockAdapter extends ApiAdapter {
  * queue's `isBelowVoiceBar` applies. An unscored block is below nothing.
  */
 function belowVoiceBar(evidence?: { voice_score?: number; voice_bar?: number }): boolean {
-  return evidence?.voice_score !== undefined && evidence.voice_score < (evidence.voice_bar ?? 0);
+  return (
+    evidence?.voice_score !== undefined &&
+    evidence.voice_bar !== undefined &&
+    evidence.voice_score < evidence.voice_bar
+  );
+}
+
+/** Whether seeded evidence holds a block to a voice bar nothing has scored it against. */
+function voiceNotChecked(evidence?: { voice_score?: number; voice_bar?: number }): boolean {
+  return evidence?.voice_bar !== undefined && evidence.voice_score === undefined;
 }
 
 /** Deterministic model recommendation results for stories and tests. */
@@ -860,9 +872,10 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
                 locale: loc,
                 block: b,
                 collection_id: adapter.itemCollections[itemName] ?? "",
-                // The two bars beyond the checks the server judges on, absent unless a
-                // test seeds them — the same shape the real payload carries.
-                term_compliance: evidence?.term_compliance,
+                // The two bars beyond the checks the server judges on, in the shape
+                // the real payload carries: terminology the seed leaves out is not
+                // governed, as the server names it.
+                term_compliance: evidence?.term_compliance ?? "not_governed",
                 voice_score: evidence?.voice_score,
                 voice_bar: evidence?.voice_bar,
               };
@@ -1132,12 +1145,14 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
       approvePassingReviewCalls.push(req);
       if (adapter.approvePassingResult) return adapter.approvePassingResult;
       // Default: the server's bars over the seeded evidence (the mock runs no
-      // checks). A term violation, a target whose terminology was not checked
-      // and a score below its bar are left pending and counted as the server
-      // counts them; the rest are marked reviewed so a re-read reflects the pass.
+      // checks). A term violation, a governed target with no terminology verdict,
+      // a score below its bar and a governed block nothing has scored are left
+      // pending and counted as the server counts them. A bar that governs nothing
+      // blocks nothing, and the rest are marked reviewed so a re-read reflects
+      // the pass.
       const locales = req.locales;
       let approved = 0;
-      const skippedBy = { terms: 0, termsNotChecked: 0, voice: 0 };
+      const skippedBy = { terms: 0, termsNotChecked: 0, voice: 0, voiceNotChecked: 0 };
       for (const blk of _blocks) {
         if (!blk.translatable) continue;
         const evidence = adapter.blockEvidence[blk.id];
@@ -1146,16 +1161,19 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
           const text = typeof entry === "string" ? entry : (entry?.text ?? "");
           const status = typeof entry === "string" ? "" : (entry?.status ?? "");
           if (!text.trim() || status === "reviewed" || status === "signed-off") continue;
-          if (evidence?.term_compliance === "violation") skippedBy.terms++;
-          else if (!evidence?.term_compliance) skippedBy.termsNotChecked++;
+          const terms = evidence?.term_compliance ?? "not_governed";
+          if (terms === "violation") skippedBy.terms++;
+          else if (terms === "") skippedBy.termsNotChecked++;
           else if (belowVoiceBar(evidence)) skippedBy.voice++;
+          else if (voiceNotChecked(evidence)) skippedBy.voiceNotChecked++;
           else {
             blk.targets[loc] = { text, status: "reviewed" };
             approved++;
           }
         }
       }
-      const skipped = skippedBy.terms + skippedBy.termsNotChecked + skippedBy.voice;
+      const skipped =
+        skippedBy.terms + skippedBy.termsNotChecked + skippedBy.voice + skippedBy.voiceNotChecked;
       return {
         approved,
         skipped,
@@ -1163,6 +1181,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
         skipped_term_violations: skippedBy.terms,
         skipped_terms_not_checked: skippedBy.termsNotChecked,
         skipped_below_voice_bar: skippedBy.voice,
+        skipped_voice_not_checked: skippedBy.voiceNotChecked,
         skipped_self_authored: 0,
         remaining_pending: skipped,
         review_completed: skipped === 0,

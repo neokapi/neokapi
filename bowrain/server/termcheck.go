@@ -10,6 +10,7 @@ import (
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/core/voicescope"
+	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	coretools "github.com/neokapi/neokapi/core/tools"
@@ -46,15 +47,19 @@ import (
 // the compliant-rate derivation, the review queue, the bulk approve-passing
 // endpoint, and the RV-E concept re-check oracle all call.
 //
-// tb is an in-memory terms snapshot resolved once by the caller (nil when the
-// project has no terms, and the terms half is skipped). profile is the voice
-// profile resolved for tgtLoc once by the caller (nil when none is bound, and
-// the vocabulary half is skipped). The verdict is unchecked when there is
-// nothing to check: a target with no text, or no terms and no voice profile
-// rule that applies to a block. A caller treats unchecked as its own state,
-// neither compliant nor a violation.
+// tb is the terms governing tgtLoc, an in-memory snapshot resolved once by the
+// caller (nil when no concept answers for the locale, and the terms half is
+// skipped). profile is the voice profile resolved for tgtLoc once by the caller
+// (nil when none is bound, and the vocabulary half is skipped). With neither,
+// terminology does not govern the locale and the verdict claims nothing. A
+// target in a governed locale with no text has nothing to check, so it is
+// unchecked. A caller treats both as states of their own, neither compliant
+// nor a violation.
 func blockTermCompliance(ctx context.Context, block *model.Block, srcLoc, tgtLoc model.LocaleID, tb terms.Terminology, profile *coreprofile.VoiceProfile) store.TermCompliance {
-	if block == nil || (tb == nil && coreprofile.BlockRuleCount(profile) == 0) {
+	if tb == nil && coreprofile.BlockRuleCount(profile) == 0 {
+		return store.TermComplianceNotGoverned
+	}
+	if block == nil {
 		return store.TermComplianceUnchecked
 	}
 	targetText := block.TargetText(tgtLoc)
@@ -72,7 +77,8 @@ func blockTermCompliance(ctx context.Context, block *model.Block, srcLoc, tgtLoc
 		return store.TermComplianceViolation
 	}
 	// ABSENCE (terms): the source uses a concept whose mandated rendering for
-	// the target locale is missing from the target.
+	// the target locale, or whose do-not-translate term, is missing from the
+	// target.
 	if tb != nil && targetMissingMandatedTerm(ctx, tb, block.SourceText(), targetText, srcLoc, tgtLoc) {
 		return store.TermComplianceViolation
 	}
@@ -105,8 +111,10 @@ func targetHasForbiddenTerm(ctx context.Context, tb terms.Terminology, targetTex
 // passes is compliant here and one it fails is a violation. That includes an
 // admitted or approved term, a declared form of any rendering, an English
 // source term's regular inflections, and placeholder names read as syntax.
-// Redirection through USE_INSTEAD / REPLACED_BY relations is not followed, as
-// in term-check.
+// A do-not-translate rule, which term-check leaves to the dnt-check tool, is
+// violated when the source uses its term and the target does not hold it
+// verbatim. Redirection through USE_INSTEAD / REPLACED_BY relations is not
+// followed, as in term-check.
 func targetMissingMandatedTerm(ctx context.Context, tb terms.Terminology, sourceText, targetText string, srcLoc, tgtLoc model.LocaleID) bool {
 	if strings.TrimSpace(sourceText) == "" || strings.TrimSpace(targetText) == "" {
 		return false
@@ -119,6 +127,15 @@ func targetMissingMandatedTerm(ctx context.Context, tb terms.Terminology, source
 	if len(rules) == 0 {
 		return false
 	}
+	// term-check leaves a do-not-translate rule to the dnt-check tool, so the
+	// predicate applies that tool's test here: a term the source uses as a whole
+	// word must appear verbatim in the target.
+	for _, rule := range rules {
+		if rule.DoNotTranslate && len(check.FindTerm(sourceText, rule.Term)) > 0 &&
+			!strings.Contains(targetText, rule.Term) {
+			return true
+		}
+	}
 	errs, _ := coretools.TermCheckViolations(&coretools.TermCheckConfig{
 		TermRules:    rules,
 		SourceLocale: srcLoc,
@@ -127,19 +144,26 @@ func targetMissingMandatedTerm(ctx context.Context, tb terms.Terminology, source
 	return len(errs) > 0
 }
 
-// termGate carries the terminology-governance context for one ship/compliant pass:
-// an in-memory terms snapshot (resolved once) and a per-locale voice profile
-// resolver (resolved at most once per locale, then cached). It is the caller-side
-// wrapper that keeps the shared blockTermCompliance predicate bounded: the pass
-// resolves stores once, the predicate runs offline per block. A nil gate holds no
-// governance, so every target it is asked about is unchecked.
+// termGate carries the governance context for one ship/compliant pass: an
+// in-memory terms snapshot (resolved once), which target locales that snapshot
+// governs (decided at most once per locale), and a per-locale voice profile
+// resolver (resolved at most once per locale, then cached). It is the
+// caller-side wrapper that keeps the shared blockTermCompliance predicate
+// bounded: the pass resolves stores once, the predicate runs offline per block.
+// A nil gate holds no governance, so every dimension it is asked about is not
+// governed.
 type termGate struct {
 	srcLoc     model.LocaleID
-	tb         terms.Terminology // in-memory snapshot; nil = no terms governance
+	tb         terms.Terminology // in-memory snapshot; nil = the workspace holds no terms
 	termsFP    string            // digest of the snapshot, for the gate fingerprint
 	resolve    func(ctx context.Context, loc model.LocaleID) *coreprofile.VoiceProfile
 	profiles   map[model.LocaleID]*coreprofile.VoiceProfile
 	profileSet map[model.LocaleID]bool
+	// concepts is what tb indexes, read once, and governs caches per target
+	// locale whether any of them answers for it.
+	concepts     []terms.Concept
+	conceptsRead bool
+	governs      map[model.LocaleID]bool
 }
 
 // newTermGate builds a gate around an already-resolved terms snapshot and a
@@ -154,6 +178,7 @@ func newTermGate(srcLoc model.LocaleID, tb terms.Terminology, termsFP string, re
 		resolve:    resolve,
 		profiles:   map[model.LocaleID]*coreprofile.VoiceProfile{},
 		profileSet: map[model.LocaleID]bool{},
+		governs:    map[model.LocaleID]bool{},
 	}
 }
 
@@ -162,7 +187,7 @@ func newTermGate(srcLoc model.LocaleID, tb terms.Terminology, termsFP string, re
 // blockTermCompliance decide retires every stored verdict rather than leaving
 // counters that were computed by code no longer running. Bump it whenever the
 // predicate's answer can change for unchanged content.
-const shipGateAlgorithm = "2"
+const shipGateAlgorithm = "3"
 
 // fingerprint names the governance in force for a set of target locales: the
 // predicate's own revision, the source language it reads, the terms snapshot,
@@ -208,28 +233,68 @@ func (g *termGate) profileFor(ctx context.Context, loc model.LocaleID) *coreprof
 }
 
 // compliance is block's terminology verdict for tgtLoc under the gate's
-// governance, from the shared blockTermCompliance predicate. A nil gate holds no
-// governance, so its verdict is unchecked.
+// governance, from the shared blockTermCompliance predicate. The terms snapshot
+// takes part only for a locale it governs, and a nil gate governs nothing.
 func (g *termGate) compliance(ctx context.Context, block *model.Block, tgtLoc model.LocaleID) store.TermCompliance {
 	if g == nil {
-		return store.TermComplianceUnchecked
+		return store.TermComplianceNotGoverned
 	}
-	return blockTermCompliance(ctx, block, g.srcLoc, tgtLoc, g.tb, g.profileFor(ctx, tgtLoc))
+	var tb terms.Terminology
+	if g.snapshotGoverns(ctx, tgtLoc) {
+		tb = g.tb
+	}
+	return blockTermCompliance(ctx, block, g.srcLoc, tgtLoc, tb, g.profileFor(ctx, tgtLoc))
 }
 
-// active reports whether the gate has any terminology governance to enforce for
-// tgtLoc: a non-empty terms snapshot, or a voice profile with a rule that
-// applies to a block. It agrees with blockTermCompliance, which is unchecked for
-// every target of a locale the gate is not active for, and it drives the honest
-// compliance_basis and the not-checked count.
-func (g *termGate) active(ctx context.Context, tgtLoc model.LocaleID) bool {
+// snapshotGoverns reports whether the terms snapshot governs tgtLoc: whether at
+// least one of its concepts answers for a translation from the project's source
+// language into it (terms.RuleForConcept), the same derivation kapi's term rule
+// resolution applies. A workspace holding terms for other languages only leaves
+// tgtLoc ungoverned by terms.
+func (g *termGate) snapshotGoverns(ctx context.Context, tgtLoc model.LocaleID) bool {
+	if g == nil || g.tb == nil {
+		return false
+	}
+	if governs, ok := g.governs[tgtLoc]; ok {
+		return governs
+	}
+	if !g.conceptsRead {
+		concepts, err := g.tb.Concepts(ctx)
+		if err != nil {
+			// The snapshot is in memory, so a read does not fail in practice.
+			// Should one, the gate decides on no concepts and says so.
+			slog.ErrorContext(ctx, "termcheck: terms snapshot unreadable; its locales read as ungoverned by terms",
+				"error", err)
+		}
+		g.concepts, g.conceptsRead = concepts, true
+	}
+	governs := false
+	for i := range g.concepts {
+		if _, ok := terms.RuleForConcept(g.concepts[i], g.srcLoc, tgtLoc); ok {
+			governs = true
+			break
+		}
+	}
+	g.governs[tgtLoc] = governs
+	return governs
+}
+
+// termsGoverned reports whether terminology governs tgtLoc: the terms snapshot
+// governs it, or the voice profile resolved for it holds a rule that applies to a
+// block. It agrees with compliance, which is not governed for every target of a
+// locale this reports false for, and it drives the compliance basis and the
+// not-governed count.
+func (g *termGate) termsGoverned(ctx context.Context, tgtLoc model.LocaleID) bool {
 	if g == nil {
 		return false
 	}
-	if g.tb != nil {
-		return true
-	}
-	return coreprofile.BlockRuleCount(g.profileFor(ctx, tgtLoc)) > 0
+	return g.snapshotGoverns(ctx, tgtLoc) || coreprofile.BlockRuleCount(g.profileFor(ctx, tgtLoc)) > 0
+}
+
+// voiceGoverned reports whether a voice profile applies at tgtLoc, which is what
+// puts a voice bar on its blocks.
+func (g *termGate) voiceGoverned(ctx context.Context, tgtLoc model.LocaleID) bool {
+	return g.profileFor(ctx, tgtLoc) != nil
 }
 
 // resolveTermGate builds the terminology-governance gate for a project's
@@ -237,8 +302,7 @@ func (g *termGate) active(ctx context.Context, tgtLoc model.LocaleID) bool {
 // reused across every block and locale) plus a per-locale voice profile resolver
 // (resolved at most once per locale). The gate is deterministic and offline — no
 // per-block DB or LLM call. Returns nil when the project has neither a terms store
-// nor a voice store, so the term check is a no-op and the derived ship/compliant
-// numbers stay byte-identical to the pre-term behavior.
+// nor a voice store, and a nil gate governs nothing.
 func (s *Server) resolveTermGate(ctx context.Context, proj *store.Project, stream, wsID string) *termGate {
 	if proj == nil {
 		return nil

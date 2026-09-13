@@ -1731,12 +1731,11 @@ export const shipStateDashboardStats: TranslationDashboardStats = (() => {
 })();
 
 /**
- * Ship-state dashboard with the derived compliance fields: fr-FR checked for
- * terminology with voice scores (worker draft scoring has run), de-DE checked
- * for terminology, and every other locale with no terms or voice profile rules,
- * so its blocks were not checked and it has a not-checked count instead of a
- * rate. The newest server shape behind the compliance rate chip in the
- * ship-readiness band.
+ * Ship-state dashboard with the derived compliance fields: fr-FR governed by
+ * terms and a voice profile (worker draft scoring has run), de-DE governed by
+ * terms, and every other locale governed by neither, so its blocks are not
+ * governed and it has a not-governed count instead of a rate. The newest server
+ * shape behind the compliance rate chip in the ship-readiness band.
  */
 export const complianceDashboardStats: TranslationDashboardStats = (() => {
   const basisFor: Record<string, ComplianceBasis> = {
@@ -1749,8 +1748,9 @@ export const complianceDashboardStats: TranslationDashboardStats = (() => {
     if (l.translated_blocks <= 0) return l;
     const rate = rateFor[l.locale];
     if (rate === undefined) {
-      // No terminology check ran here, so no translated block has a verdict to rate.
-      return { ...l, not_checked_blocks: l.translated_blocks, compliance_basis: "checks" };
+      // Neither terms nor a voice profile govern this language, so no translated
+      // block has a verdict to rate.
+      return { ...l, not_governed_blocks: l.translated_blocks, compliance_basis: "checks" };
     }
     return {
       ...l,

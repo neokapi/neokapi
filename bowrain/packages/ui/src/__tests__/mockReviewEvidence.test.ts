@@ -12,6 +12,8 @@ import { describe, it, expect } from "vite-plus/test";
 import { createMockAdapter } from "../stories/mock-adapter";
 import {
   entryBlockers,
+  entryNotGoverned,
+  entryUnchecked,
   entryVerdict,
   isBelowVoiceBar,
   type ReviewEntry,
@@ -35,12 +37,17 @@ const blocks = [
   block("b1", "Welcome to your dashboard", "Bienvenue sur votre tableau de bord"),
   block("b2", "Save changes", "Enregistrer les modifications"),
   block("b3", "Delete account", "Supprimer le compte"),
+  block("b4", "Sign out", "Se déconnecter"),
 ];
 
-/** One block below its bar, one clearing it, one never scored. */
+/**
+ * One block below its bar, one clearing it, one a governing profile has not
+ * scored, and one in a language nothing governs.
+ */
 const blockEvidence = {
   b1: { term_compliance: "compliant" as const, voice_score: 62, voice_bar: 90 },
   b2: { term_compliance: "compliant" as const, voice_score: 94, voice_bar: 90 },
+  b3: { term_compliance: "compliant" as const, voice_bar: 90 },
 };
 
 async function queueWithContexts() {
@@ -76,7 +83,7 @@ async function queueWithContexts() {
 describe("the mock's review queue and review context", () => {
   it("reads one voice score for both, for every seeded block", async () => {
     const pairs = await queueWithContexts();
-    expect(pairs).toHaveLength(3);
+    expect(pairs).toHaveLength(4);
     for (const { entry, context } of pairs) {
       expect(context.voice_score).toBe(entry.voiceScore);
       expect(context.voice_bar).toBe(entry.voiceBar);
@@ -98,31 +105,37 @@ describe("the mock's review queue and review context", () => {
     }
   });
 
-  it("seeds a block below the voice bar, one clearing every bar, and one never checked", async () => {
+  it("seeds a block below the voice bar, one clearing every bar, one not checked, and one nothing governs", async () => {
     const byBlock = new Map(
       (await queueWithContexts()).map(({ entry, context }) => [entry.block.id, { entry, context }]),
     );
     const low = byBlock.get("b1");
     const high = byBlock.get("b2");
-    const unchecked = byBlock.get("b3");
+    const unscored = byBlock.get("b3");
+    const ungoverned = byBlock.get("b4");
 
     expect(entryVerdict(low!.entry)).toBe("failing");
     expect(entryBlockers(low!.entry)).toEqual(["voice"]);
     expect(entryVerdict(high!.entry)).toBe("passing");
-    // A block with no seeded evidence is below no voice bar, and its
-    // terminology was not checked, so it is neither failing nor passing.
-    expect(unchecked!.context.voice_score).toBeUndefined();
-    expect(entryBlockers(unchecked!.entry)).toEqual([]);
-    expect(entryVerdict(unchecked!.entry)).toBe("not_checked");
+    // A governing profile holds b3 to a bar nothing has scored it against, so it
+    // is neither failing nor passing.
+    expect(unscored!.context.voice_score).toBeUndefined();
+    expect(entryBlockers(unscored!.entry)).toEqual([]);
+    expect(entryUnchecked(unscored!.entry)).toEqual(["voice"]);
+    expect(entryVerdict(unscored!.entry)).toBe("not_checked");
+    // Nothing governs b4 beyond the checks, so no bar blocks it.
+    expect(entryNotGoverned(ungoverned!.entry)).toEqual(["terms", "voice"]);
+    expect(entryVerdict(ungoverned!.entry)).toBe("passing");
   });
 
   it("approves only what the queue calls passing, and names the rest as the server does", async () => {
     const adapter = createMockAdapter(blocks);
     adapter.blockEvidence = blockEvidence;
     const result = await adapter.approvePassingReview("demo", "prj-1", {});
-    expect(result.approved).toBe(1);
+    expect(result.approved).toBe(2);
     expect(result.skipped_below_voice_bar).toBe(1);
-    expect(result.skipped_terms_not_checked).toBe(1);
+    expect(result.skipped_voice_not_checked).toBe(1);
+    expect(result.skipped_terms_not_checked).toBe(0);
     expect(result.skipped).toBe(2);
     expect(result.review_completed).toBe(false);
   });

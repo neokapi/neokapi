@@ -143,6 +143,9 @@ function skipReasons(result: ApprovePassingResult): string {
   if (result.skipped_below_voice_bar) {
     parts.push(`${result.skipped_below_voice_bar} below the voice bar`);
   }
+  if (result.skipped_voice_not_checked) {
+    parts.push(`${result.skipped_voice_not_checked} with voice not checked`);
+  }
   if (result.skipped_self_authored) {
     parts.push(`${result.skipped_self_authored} written by you`);
   }
@@ -164,14 +167,17 @@ function complianceForLocale(
     (l) => l.locale === locale,
   );
   if (!ls || ls.compliance_basis == null) return undefined;
-  // A locale with no checked block has no rate, and still has a count to show.
-  if (ls.compliance_rate == null && !ls.not_checked_blocks) return undefined;
+  // A locale where no block has a verdict has no rate, and still has counts to show.
+  if (ls.compliance_rate == null && !ls.not_checked_blocks && !ls.not_governed_blocks) {
+    return undefined;
+  }
   return {
     rate: ls.compliance_rate ?? undefined,
     basis: ls.compliance_basis,
     compliantBlocks: ls.compliant_blocks,
     translatedBlocks: ls.translated_blocks,
     notCheckedBlocks: ls.not_checked_blocks,
+    notGovernedBlocks: ls.not_governed_blocks,
   };
 }
 

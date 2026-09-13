@@ -181,7 +181,8 @@ func TestReviewRecheck_ConceptForbiddenTermDemotesAndRequeues(t *testing.T) {
 	require.Equal(t, model.TargetStatusReviewed, frStatus(t, s, projID, ids["Hello"]))
 
 	// Mark a concept with a forbidden fr term "utiliser" (the governed outcome; RV-E
-	// reacts to the resulting event, downstream of the change-set gate).
+	// reacts to the resulting event, downstream of the change-set gate). The
+	// concept has a source term and a fr term to use, so it governs fr.
 	tb, err := s.wsStores.getTerms("rc")
 	require.NoError(t, err)
 	cid := id.New()
@@ -189,6 +190,7 @@ func TestReviewRecheck_ConceptForbiddenTermDemotesAndRequeues(t *testing.T) {
 		ID:     cid,
 		Source: terms.TermSourceTerminology,
 		Terms: []terms.Term{
+			{Text: "use", Locale: "en", Status: model.TermApproved},
 			{Text: "utiliser", Locale: "fr", Status: model.TermForbidden},
 			{Text: "employer", Locale: "fr", Status: model.TermPreferred},
 		},
@@ -235,6 +237,46 @@ func TestReviewRecheck_ConceptForbiddenTermDemotesAndRequeues(t *testing.T) {
 	runs, err = s.ConvergenceRunStore.ListRuns(ctx, projID, 20)
 	require.NoError(t, err)
 	assert.Empty(t, runs, "replay still starts no run (no loop)")
+}
+
+// TestReviewRecheck_ConceptLeavesUngovernedLanguageAlone: a concept with no term
+// in the source language answers for no target language (terms.RuleForConcept),
+// so the terms govern nothing in fr and the ship gate holds no fr target to them.
+// The recheck agrees: the event demotes nothing, even over a term the concept
+// marks forbidden in fr.
+func TestReviewRecheck_ConceptLeavesUngovernedLanguageAlone(t *testing.T) {
+	s, wsID, _ := newRecheckHarness(t)
+	ctx := context.Background()
+
+	b1 := reviewedBlock("b1", "Use the app", "Utiliser l'application")
+	projID, ids := seedGovernedProject(t, s, wsID, []*model.Block{b1})
+	require.Equal(t, model.TargetStatusReviewed, frStatus(t, s, projID, ids["Use the app"]))
+
+	tb, err := s.wsStores.getTerms("rc")
+	require.NoError(t, err)
+	cid := id.New()
+	require.NoError(t, tb.AddConcept(ctx, terms.Concept{
+		ID:     cid,
+		Source: terms.TermSourceTerminology,
+		Terms: []terms.Term{
+			{Text: "utiliser", Locale: "fr", Status: model.TermForbidden},
+			{Text: "employer", Locale: "fr", Status: model.TermPreferred},
+		},
+	}))
+
+	s.EventBus.Publish(platev.Event{
+		ID:          id.New(),
+		Type:        knowledge.EventConceptTermStatusChanged,
+		Source:      "knowledge",
+		WorkspaceID: wsID,
+		Data:        map[string]string{"concept_id": cid},
+		Timestamp:   time.Now().UTC(),
+	})
+
+	assert.Never(t, func() bool {
+		return frStatus(t, s, projID, ids["Use the app"]) == model.TargetStatusDraft
+	}, 2*time.Second, 50*time.Millisecond, "a language the terms do not govern keeps its approved target")
+	assert.Equal(t, 0, frPendingCount(t, s, projID), "nothing re-enters review")
 }
 
 // TestReviewRecheck_ConceptMandatedTermAbsenceDemotesAndRequeues (RV-F) is the

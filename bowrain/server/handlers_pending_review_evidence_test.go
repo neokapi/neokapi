@@ -33,6 +33,20 @@ func pendingFrBlock(id, source, frTarget string) *model.Block {
 	return b
 }
 
+// bindVoiceProfile binds a voice profile to a project, the rung voicescope
+// resolves for every locale of it, so the profile governs them.
+func bindVoiceProfile(t *testing.T, s *Server, projID, profileID string) {
+	t.Helper()
+	ctx := context.Background()
+	proj, err := s.ContentStore.GetProject(ctx, projID)
+	require.NoError(t, err)
+	if proj.Properties == nil {
+		proj.Properties = map[string]string{}
+	}
+	proj.Properties[coreprofile.PropertyProfileID] = profileID
+	require.NoError(t, s.ContentStore.UpdateProject(ctx, proj))
+}
+
 // listPendingReview calls the queue handler as the router would, in a workspace.
 func listPendingReview(t *testing.T, s *Server, wsID, projID string) pendingReviewResponse {
 	t.Helper()
@@ -79,10 +93,12 @@ func TestPendingReview_EntriesCarryTermAndVoiceEvidence(t *testing.T) {
 	require.NoError(t, err)
 	seedTermUnificationConcepts(t, tb)
 
-	// A scoring profile with a raised bar, and two scores against it: one below
-	// the bar, one above. Only scored blocks carry a voice verdict.
+	// A profile with a raised bar, bound to the project so it governs fr, and two
+	// scores against it: one below the bar, one above. A scored block carries its
+	// score against the bar, and an unscored one carries the bar alone.
 	profile := &coreprofile.VoiceProfile{ID: "p-queue", Scope: wsID, Name: "Queue Voice", MinScore: 90}
 	require.NoError(t, s.VoiceStore.CreateProfile(ctx, profile))
+	bindVoiceProfile(t, s, projID, profile.ID)
 	lowID, okID := ids["Save the app"], ids["Close the app"]
 	badID, missID := ids["Use the app"], ids["Open the app"]
 	score := func(blockID string, value int) {
@@ -118,8 +134,9 @@ func TestPendingReview_EntriesCarryTermAndVoiceEvidence(t *testing.T) {
 		assert.Equal(t, 97, *okEntry.VoiceScore)
 
 		unscored := entryFor(t, page, badID)
-		assert.Nil(t, unscored.VoiceScore, "an unscored block carries no voice verdict")
-		assert.Nil(t, unscored.VoiceBar, "and no bar, because none was applied to it")
+		assert.Nil(t, unscored.VoiceScore, "nothing has scored this block")
+		require.NotNil(t, unscored.VoiceBar, "the governing profile still holds it to a bar")
+		assert.Equal(t, 90, *unscored.VoiceBar)
 	})
 
 	// The point of carrying the evidence: a surface deriving a verdict from it
@@ -133,8 +150,10 @@ func TestPendingReview_EntriesCarryTermAndVoiceEvidence(t *testing.T) {
 
 		for _, e := range page.Entries {
 			block := storedBlockByID(t, s, projID, e.BlockID)
-			fromEvidence := e.TermCompliance == platstore.TermComplianceCompliant &&
-				(e.VoiceScore == nil || *e.VoiceScore >= *e.VoiceBar)
+			termsClear := e.TermCompliance == platstore.TermComplianceCompliant ||
+				e.TermCompliance == platstore.TermComplianceNotGoverned
+			voiceClear := e.VoiceBar == nil || (e.VoiceScore != nil && *e.VoiceScore >= *e.VoiceBar)
+			fromEvidence := termsClear && voiceClear
 			fromServer := blockCompliantAndPassing(ctx, block, "fr", scores, gate)
 			assert.Equal(t, fromServer, fromEvidence,
 				"block %s: the queue's evidence and the server's predicate disagree", e.BlockID)
@@ -142,13 +161,14 @@ func TestPendingReview_EntriesCarryTermAndVoiceEvidence(t *testing.T) {
 	})
 }
 
-// TestPendingReview_UncheckedIsNotCompliant pins the third rung. With no terms
-// store and no brand vocabulary there is nothing to be compliant with, and a
-// queue that reported "compliant" would be claiming evidence it never had.
-func TestPendingReview_UncheckedIsNotCompliant(t *testing.T) {
+// TestPendingReview_NotGovernedIsNotCompliant pins the not-governed state. With
+// no terms store, no brand vocabulary and no bound voice profile there is
+// nothing to comply with: a queue reporting "compliant" would claim evidence it
+// never had, and no bar is owed a result either.
+func TestPendingReview_NotGovernedIsNotCompliant(t *testing.T) {
 	s, wsID, _ := newRecheckHarness(t)
 
-	// No concepts seeded: the gate has nothing to enforce for fr.
+	// No concepts seeded and no profile bound: nothing governs fr beyond the checks.
 	projID, ids := seedGovernedProject(t, s, wsID, []*model.Block{
 		pendingFrBlock("plain", "Use the app", "Il faut utiliser l'application"),
 	})
@@ -156,9 +176,10 @@ func TestPendingReview_UncheckedIsNotCompliant(t *testing.T) {
 	page := listPendingReview(t, s, wsID, projID)
 	require.Len(t, page.Entries, 1)
 	entry := entryFor(t, page, ids["Use the app"])
-	assert.Equal(t, platstore.TermComplianceUnchecked, entry.TermCompliance,
-		"with no governance active the verdict is unchecked, not compliant")
-	assert.Nil(t, entry.VoiceScore, "and an unscored block carries no voice verdict")
+	assert.Equal(t, platstore.TermComplianceNotGoverned, entry.TermCompliance,
+		"with nothing governing the locale the verdict is not governed, not compliant")
+	assert.Nil(t, entry.VoiceScore, "no voice profile governs the locale")
+	assert.Nil(t, entry.VoiceBar, "so no voice bar applies to the block")
 }
 
 // TestApprovePassing_SkipsAreNamedByTheBarTheyMissed pins the bulk path's half
@@ -181,10 +202,15 @@ func TestApprovePassing_SkipsAreNamedByTheBarTheyMissed(t *testing.T) {
 
 	profile := &coreprofile.VoiceProfile{ID: "p-bulk", Scope: wsID, Name: "Bulk Voice", MinScore: 90}
 	require.NoError(t, s.VoiceStore.CreateProfile(ctx, profile))
-	require.NoError(t, s.VoiceStore.StoreScore(ctx, &coreprofile.StoredScore{
-		ProjectID: projID, Stream: "main", BlockID: ids["Save the app"], ProfileID: profile.ID,
-		Locale: "fr", Score: 62, CheckedAt: time.Now().UTC(),
-	}))
+	bindVoiceProfile(t, s, projID, profile.ID)
+	score := func(blockID string, value int) {
+		require.NoError(t, s.VoiceStore.StoreScore(ctx, &coreprofile.StoredScore{
+			ProjectID: projID, Stream: "main", BlockID: blockID, ProfileID: profile.ID,
+			Locale: "fr", Score: value, CheckedAt: time.Now().UTC(),
+		}))
+	}
+	score(ids["Save the app"], 62)
+	score(ids["Close the app"], 95)
 
 	e := s.GetEcho()
 	r := httptest.NewRequest(http.MethodPost, "/", nil)
@@ -206,17 +232,18 @@ func TestApprovePassing_SkipsAreNamedByTheBarTheyMissed(t *testing.T) {
 	assert.Equal(t, 1, res.SkippedTermViolations, "the forbidden-term target is named as such")
 	assert.Equal(t, 0, res.SkippedTermsNotChecked, "terms are bound, so every target's terminology was checked")
 	assert.Equal(t, 1, res.SkippedBelowVoiceBar, "the below-bar target is named as such")
+	assert.Equal(t, 0, res.SkippedVoiceNotChecked, "the forbidden-term target is counted against terminology first")
 	assert.Equal(t, res.Skipped,
 		res.SkippedFailingChecks+res.SkippedTermViolations+res.SkippedTermsNotChecked+
-			res.SkippedBelowVoiceBar+res.SkippedSelfAuthored,
+			res.SkippedBelowVoiceBar+res.SkippedVoiceNotChecked+res.SkippedSelfAuthored,
 		"every skip is attributed to exactly one bar")
 }
 
-// TestApprovePassing_NeverApprovesUncheckedTerminology: with no terms and no
-// voice profile rules, no pending target's terminology is checked, so the bulk
-// pass holds no evidence to approve on. It approves nothing, names why, and
-// leaves every target pending, as the queue's "not checked" verdict said.
-func TestApprovePassing_NeverApprovesUncheckedTerminology(t *testing.T) {
+// TestApprovePassing_ApprovesWhereNothingGoverns: with no terms, no voice
+// profile rules and no bound voice profile, nothing governs the locale beyond the
+// checks. A bar that governs nothing is no bar, so the pass approves the targets
+// the checks clear and names no skip for terminology or voice.
+func TestApprovePassing_ApprovesWhereNothingGoverns(t *testing.T) {
 	s, wsID, ownerID := newRecheckHarness(t)
 	projID, ids := seedGovernedProject(t, s, wsID, []*model.Block{
 		pendingFrBlock("b1", "Hello", "Bonjour"),
@@ -226,17 +253,51 @@ func TestApprovePassing_NeverApprovesUncheckedTerminology(t *testing.T) {
 	page := listPendingReview(t, s, wsID, projID)
 	require.Len(t, page.Entries, 2)
 	for _, e := range page.Entries {
-		assert.Equal(t, platstore.TermComplianceUnchecked, e.TermCompliance, "block %s", e.BlockID)
+		assert.Equal(t, platstore.TermComplianceNotGoverned, e.TermCompliance, "block %s", e.BlockID)
+		assert.Nil(t, e.VoiceBar, "block %s: no voice profile governs fr", e.BlockID)
 	}
 
 	rec, res := callApprovePassing(t, s, wsID, projID, ownerID, `{}`)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
-	assert.Equal(t, 0, res.Approved, "a target whose terminology was not checked is never approved")
+	assert.Equal(t, 2, res.Approved, "a target nothing governs beyond the checks is approved on the checks")
+	assert.Equal(t, 0, res.Skipped)
+	assert.Equal(t, 0, res.SkippedTermsNotChecked, "terminology governs nothing here, so it skips nothing")
+	assert.Equal(t, 0, res.SkippedVoiceNotChecked, "no voice profile governs fr, so voice skips nothing")
+	assert.Equal(t, 0, res.RemainingPending)
+	assert.Equal(t, model.TargetStatusReviewed, targetStatus(t, s, projID, ids["Hello"], "fr"))
+	assert.Equal(t, model.TargetStatusReviewed, targetStatus(t, s, projID, ids["Goodbye"], "fr"))
+}
+
+// TestApprovePassing_NeverApprovesUnscoredVoice: a voice profile bound to the
+// project governs fr, and nothing has scored either target. The voice bar has no
+// result for them, so the pass approves neither, names the skips for the voice
+// bar, and leaves both pending.
+func TestApprovePassing_NeverApprovesUnscoredVoice(t *testing.T) {
+	s, wsID, ownerID := newRecheckHarness(t)
+	ctx := context.Background()
+	projID, ids := seedGovernedProject(t, s, wsID, []*model.Block{
+		pendingFrBlock("b1", "Hello", "Bonjour"),
+		pendingFrBlock("b2", "Goodbye", "Au revoir"),
+	})
+	profile := &coreprofile.VoiceProfile{ID: "p-unscored", Scope: wsID, Name: "Unscored Voice", MinScore: 80}
+	require.NoError(t, s.VoiceStore.CreateProfile(ctx, profile))
+	bindVoiceProfile(t, s, projID, profile.ID)
+
+	page := listPendingReview(t, s, wsID, projID)
+	require.Len(t, page.Entries, 2)
+	for _, e := range page.Entries {
+		assert.Nil(t, e.VoiceScore, "block %s: nothing has scored it", e.BlockID)
+		require.NotNil(t, e.VoiceBar, "block %s: the bound profile holds it to a bar", e.BlockID)
+		assert.Equal(t, 80, *e.VoiceBar)
+	}
+
+	rec, res := callApprovePassing(t, s, wsID, projID, ownerID, `{}`)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	assert.Equal(t, 0, res.Approved, "a target with no result against a governing voice bar is never approved")
 	assert.Equal(t, 2, res.Skipped)
-	assert.Equal(t, 2, res.SkippedTermsNotChecked, "the skips are named for the bar that was not checked")
-	assert.Equal(t, 0, res.SkippedTermViolations, "an unchecked target violated nothing")
+	assert.Equal(t, 2, res.SkippedVoiceNotChecked, "the skips are named for the voice bar that was not checked")
+	assert.Equal(t, 0, res.SkippedBelowVoiceBar, "an unscored target is below nothing")
 	assert.Equal(t, 2, res.RemainingPending)
-	assert.False(t, res.ReviewCompleted)
 	assert.Equal(t, model.TargetStatusDraft, targetStatus(t, s, projID, ids["Hello"], "fr"))
 	assert.Equal(t, model.TargetStatusDraft, targetStatus(t, s, projID, ids["Goodbye"], "fr"))
 }

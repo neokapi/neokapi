@@ -53,6 +53,11 @@ type ShipGateVerdict struct {
 	// Basis is the token that came with the stale pair, returned unchanged.
 	Basis string
 	Fails bool
+	// Terms is the pair's terminology verdict. Fails already holds a
+	// violation; Terms is what separates a clean pair whose terminology was
+	// checked from one whose locale terms govern but which had nothing to
+	// check, such as an empty target, and from one no terms govern.
+	Terms TermCompliance
 }
 
 // ShipGateScore is one scored (block, locale) pair as the voice store
@@ -79,6 +84,14 @@ type ShipGateCounts struct {
 	// score sits under the profile's bar — the ones the compliant count
 	// withholds.
 	CleanBelowBar int
+	// TermsNotChecked counts blocks that pass the gate in a locale terms govern
+	// but carry no terminology verdict, such as an empty target.
+	TermsNotChecked int
+	// NotChecked counts blocks that pass the gate and are not below a voice bar,
+	// yet lack a result for a dimension governing their locale: their
+	// terminology was not checked, or a voice profile governs the locale and the
+	// block has no score. The compliant count leaves them out.
+	NotChecked int
 }
 
 // ShipGateQuery scopes a rollup of stored verdicts.
@@ -91,10 +104,15 @@ type ShipGateQuery struct {
 	// Locales are the target locales the pass rates. A translated pair in any
 	// other locale is neither counted nor reported stale.
 	Locales []string
-	// Scores are the voice scores the pass resolved, the input to the Scored
-	// and CleanBelowBar tallies. Bounded by what has been scored, and carrying
-	// no payload beyond the bar comparison.
+	// Scores are the voice scores the pass resolved, the input to the Scored,
+	// CleanBelowBar and NotChecked tallies. The pass supplies them only for
+	// locales a voice profile governs, since no bar applies anywhere else.
+	// Bounded by what has been scored, and carrying no payload beyond the bar
+	// comparison.
 	Scores []ShipGateScore
+	// VoiceGoverned lists the rated locales a voice profile governs. A clean
+	// block in one of them with no score is not checked.
+	VoiceGoverned []string
 }
 
 // ShipGateRollup is what one query answers: the per-scope tallies of verdicts
@@ -113,9 +131,18 @@ func (r ShipGateRollup) CountsFor(collectionID, locale string) ShipGateCounts {
 	return r.Scopes[collectionID][locale]
 }
 
+// ShipGateVoice is what the rollup needs to know about one pair's voice
+// standing: whether a voice profile governs its locale, whether the pair has a
+// score, and whether that score is under the bar.
+type ShipGateVoice struct {
+	Governed bool
+	Scored   bool
+	BelowBar bool
+}
+
 // Add folds one verdict into a scope, so a caller that has just computed a
 // stale pair can account for it exactly as the query accounted for the rest.
-func (r *ShipGateRollup) Add(collectionID, locale string, fails, scored, belowBar bool) {
+func (r *ShipGateRollup) Add(collectionID, locale string, v ShipGateVerdict, voice ShipGateVoice) {
 	if r.Scopes == nil {
 		r.Scopes = map[string]map[string]ShipGateCounts{}
 	}
@@ -123,16 +150,23 @@ func (r *ShipGateRollup) Add(collectionID, locale string, fails, scored, belowBa
 		r.Scopes[collectionID] = map[string]ShipGateCounts{}
 	}
 	c := r.Scopes[collectionID][locale]
+	termsUnchecked := v.Terms == TermComplianceUnchecked
 	switch {
-	case fails:
+	case v.Fails:
 		c.Failing++
 	default:
 		c.Clean++
-		if belowBar {
+		if termsUnchecked {
+			c.TermsNotChecked++
+		}
+		switch {
+		case voice.BelowBar:
 			c.CleanBelowBar++
+		case termsUnchecked || (voice.Governed && !voice.Scored):
+			c.NotChecked++
 		}
 	}
-	if scored {
+	if voice.Scored {
 		c.Scored++
 	}
 	r.Scopes[collectionID][locale] = c

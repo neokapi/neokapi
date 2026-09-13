@@ -24,17 +24,21 @@ type pendingReviewEntry struct {
 	// queue narrowed to a collection and a queue grouped by collection cannot
 	// disagree about where a row belongs.
 	CollectionID string `json:"collection_id"`
-	// TermCompliance is this target's terminology verdict, empty when it was not
-	// checked because no terms and no voice profile rule apply to the locale.
-	// It is one of the two bars beyond the rule-based checks that approve-passing
-	// applies, and approve-passing takes neither a violation nor an unchecked
-	// target, so a queue that bucketed on checks alone called blocks passing that
-	// the server refuses.
+	// TermCompliance is this target's terminology verdict: "not_governed" where
+	// no terms and no voice profile rule govern the locale, empty where they do
+	// and the target has nothing to check. It is one of the two bars beyond the
+	// rule-based checks that approve-passing applies, and approve-passing takes
+	// neither a failure nor a missing result where a bar governs, so a queue
+	// that bucketed on checks alone called blocks passing that the server
+	// refuses.
 	TermCompliance store.TermCompliance `json:"term_compliance,omitempty"`
-	// VoiceScore is the latest persisted voice score for this block and
-	// locale, and VoiceBar the compliance bar of the profile that produced it
-	// (VoiceProfile.ComplianceBar). Both are absent together when the block has
-	// never been scored — the server then applies no voice bar to it either.
+	// VoiceBar is the voice bar this block is held to, present wherever a voice
+	// profile governs the locale: the bar of the profile that produced the
+	// block's score, or of the governing profile for a block nothing has scored.
+	// VoiceScore is the latest persisted score, present only for a scored block.
+	// A bar with no score is a governed block with no result, which
+	// approve-passing does not take; neither field means no voice profile
+	// governs the locale, and no voice bar applies.
 	VoiceScore *int `json:"voice_score,omitempty"`
 	VoiceBar   *int `json:"voice_bar,omitempty"`
 }
@@ -153,13 +157,19 @@ func (s *Server) HandleListPendingReview(c echo.Context) error {
 		}
 		loc := model.LocaleID(r.Locale)
 		if block := blockByID[r.BlockID]; block != nil {
-			// Unchecked and compliant are different answers: with no governance
-			// active there is nothing the target could have violated, and
-			// claiming compliance would be claiming evidence.
+			// Not governed, not checked and compliant are different answers, and a
+			// queue reporting compliance for either of the first two would claim
+			// evidence nobody gathered.
 			entry.TermCompliance = gate.compliance(ctx, block, loc)
-			if vs, ok := scores[string(locale.Normalize(loc))][block.ID]; ok {
+			scored := scores[string(locale.Normalize(loc))]
+			switch gate.voiceCompliance(ctx, block.ID, loc, scored) {
+			case store.VoiceCompliancePassing, store.VoiceComplianceBelowBar:
+				vs := scored[block.ID]
 				score, bar := vs.score, vs.bar
 				entry.VoiceScore, entry.VoiceBar = &score, &bar
+			case store.VoiceComplianceUnchecked:
+				bar := gate.profileFor(ctx, loc).ComplianceBar()
+				entry.VoiceBar = &bar
 			}
 		}
 		entries = append(entries, entry)

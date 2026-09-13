@@ -709,16 +709,19 @@ export interface ApprovePassingResult {
    * counted against the first the server applies (checks, then terminology,
    * then voice), so these sum to `skipped`. They are the axes the queue's
    * entries carry, so a preview and its outcome are read in one vocabulary.
-   * `skipped_terms_not_checked` counts the blocks whose terminology was not
-   * checked, because no terms or voice profile rules apply to the locale: the
-   * server holds no evidence to approve them on. `skipped_self_authored` is the
-   * only one about the caller: a translation they wrote, in a workspace whose
-   * separation-of-duties policy blocks self-approval.
+   * `skipped_terms_not_checked` counts the blocks in a locale terms or voice
+   * profile rules govern whose terminology has no verdict, and
+   * `skipped_voice_not_checked` those in a locale a voice profile governs that
+   * nothing has scored: the server holds no evidence to approve them on. A bar
+   * that does not govern the locale skips nothing. `skipped_self_authored` is
+   * the only one about the caller: a translation they wrote, in a workspace
+   * whose separation-of-duties policy blocks self-approval.
    */
   skipped_failing_checks: number;
   skipped_term_violations: number;
   skipped_terms_not_checked: number;
   skipped_below_voice_bar: number;
+  skipped_voice_not_checked?: number;
   skipped_self_authored: number;
   /** Pending-review targets still awaiting review after the call. */
   remaining_pending: number;
@@ -942,10 +945,10 @@ export interface WordCountResult {
 export type ShipState = "governed" | "ai_shippable" | "pending";
 
 /**
- * Evidence behind a derived compliance rate (store.ComplianceBasis). Rule-based checks
- * always inform it; `+terms` is added when term governance was active for the
- * scope, and `voice` when at least one block's persisted voice score, measured
- * against its profile's minimum bar, also informed it.
+ * The dimensions governing a compliance rate (store.ComplianceBasis). Rule-based
+ * checks always apply; `+terms` is added where terms or voice profile rules
+ * govern the locale, and `voice` where a voice profile does. A dimension left out
+ * is not governed for the locale.
  */
 export type ComplianceBasis = "checks" | "checks+terms" | "voice+checks" | "voice+checks+terms";
 
@@ -977,23 +980,32 @@ export interface LocaleTranslationStats {
   /** Derived ship state; absent from producers that do not derive it (e.g. pulse). */
   ship_state?: ShipState;
   /**
-   * Translated blocks counting as compliant: checks pass, terminology checked
-   * and clean, and the voice bar met where scored.
+   * Translated blocks counting as compliant: a passing result for every
+   * dimension governing the locale (the checks, terminology, the voice bar).
    */
   compliant_blocks?: number;
   /**
-   * Translated blocks whose compliance was not decided: no bar failed them, and
-   * their terminology was not checked because no terms or voice profile rules
-   * apply to the locale. The rate leaves them out.
+   * Translated blocks no bar failed that lack a result for a dimension governing
+   * the locale: terms govern it and the target had nothing to check, or a voice
+   * profile governs it and nothing has scored the block. The rate leaves them
+   * out.
    */
   not_checked_blocks?: number;
   /**
-   * compliant_blocks over the checked translated blocks (translated_blocks less
-   * not_checked_blocks), in [0,1]; absent when not derived or when no
-   * translated block was checked.
+   * Translated blocks no bar failed in a locale neither terms nor a voice
+   * profile govern. Only the checks apply to them, and the rate leaves them out.
+   */
+  not_governed_blocks?: number;
+  /**
+   * compliant_blocks over the translated blocks with a verdict
+   * (translated_blocks less not_checked_blocks and not_governed_blocks), in
+   * [0,1]; absent when not derived or when no translated block has a verdict.
    */
   compliance_rate?: number;
-  /** What informed compliance_rate; absent when the server did not derive it. */
+  /**
+   * The dimensions governing the locale; a dimension left out is not governed
+   * there. Absent when the server did not derive the rate.
+   */
   compliance_basis?: ComplianceBasis;
 }
 
@@ -1773,15 +1785,16 @@ export interface PendingReviewEntry {
    */
   collection_id: string;
   /**
-   * This target's terminology verdict (Go store.TermCompliance). Absent or `""`
-   * means no terminology governance was active for the locale — which is not
-   * compliance, because nothing was checked.
+   * This target's terminology verdict (Go store.TermCompliance): `not_governed`
+   * where no terms or voice profile rules govern the locale, absent or `""`
+   * where they do and the target has nothing to check.
    */
   term_compliance?: TermCompliance;
   /**
-   * The latest persisted voice score for this block+locale, and the
-   * compliance bar of the profile that produced it. Absent together for a block
-   * that has never been scored; the server applies no voice bar to one either.
+   * The voice bar this block is held to, present wherever a voice profile
+   * governs the locale, and the block's latest persisted score, present only
+   * when something has scored it. A bar with no score is a governed block with
+   * no result; neither means no voice profile governs the locale.
    */
   voice_score?: number;
   voice_bar?: number;
@@ -1789,9 +1802,10 @@ export interface PendingReviewEntry {
 
 /**
  * A target's terminology verdict, as the review queue carries it. Mirror of Go
- * store.TermCompliance: three rungs, because "not checked" is not "compliant".
+ * store.TermCompliance: a locale nothing governs, a governed target with
+ * nothing to check, and a checked target are different answers.
  */
-export type TermCompliance = "" | "compliant" | "violation";
+export type TermCompliance = "" | "not_governed" | "compliant" | "violation";
 
 /** One page of the translation review queue plus the queue's total size. */
 export interface PendingReviewPage {
