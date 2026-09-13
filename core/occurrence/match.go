@@ -11,18 +11,22 @@ import (
 // span is a byte range in the text searched.
 type span struct{ start, end int }
 
-// matcher finds one term in a text, delegating to the shared check.TermMatcher
-// so the occurrence graph counts a term exactly where the gates report it.
-type matcher struct{ tm *check.TermMatcher }
+// matcher finds one term in a text, under its text and each declared form,
+// delegating to the shared check matcher so the occurrence graph counts a term
+// exactly where the gates report it.
+type matcher struct{ surfaces []string }
 
-func newMatcher(term string) *matcher {
-	return &matcher{tm: check.NewTermMatcher(term)}
+// newMatcher builds a matcher for a term's surfaces: its text first, then any
+// declared forms.
+func newMatcher(surfaces ...string) *matcher {
+	return &matcher{surfaces: surfaces}
 }
 
-// find returns every non-overlapping match of the term in text, left to right.
-// Offsets are byte offsets into text as given.
+// find returns every non-overlapping match of the term in text, left to right,
+// keeping the longest surface where two overlap. Offsets are byte offsets into
+// text as given.
 func (m *matcher) find(text string) []span {
-	hits := m.tm.Find(text)
+	hits := check.FindTermForms(text, m.surfaces)
 	if len(hits) == 0 {
 		return nil
 	}
