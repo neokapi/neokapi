@@ -115,6 +115,26 @@ func TestResolveJobTermRules_PrefersApprovedTargetTerm(t *testing.T) {
 	assert.Equal(t, []coreprofile.TermRule{{Term: "sync", Replacement: "rapprochement des données"}}, got)
 }
 
+// TestResolveJobTermRules_KeysOnPreferredSourceTerm confirms the source side
+// of a rule is the term in use: a deprecated synonym listed first in the
+// concept must not become the term the rule looks for.
+func TestResolveJobTermRules_KeysOnPreferredSourceTerm(t *testing.T) {
+	tb := terms.NewInMemoryStore()
+	require.NoError(t, tb.AddConcept(t.Context(), terms.Concept{
+		ID: "c1",
+		Terms: []terms.Term{
+			{Text: "ship", Locale: "en", Status: model.TermDeprecated},
+			{Text: "vessel", Locale: "en", Status: model.TermPreferred},
+			{Text: "navire", Locale: "fr", Status: model.TermPreferred},
+		},
+	}))
+	deps := &WorkerDeps{TermsResolver: TermsResolverFunc(func(string) (terms.Terminology, error) { return tb, nil })}
+	job := &TranslationJob{ID: "j1", WorkspaceSlug: "acme", ProjectID: "p", TargetLocale: "fr"}
+
+	got := jobTermRules(t.Context(), deps, job, "en", "fr")
+	assert.Equal(t, []coreprofile.TermRule{{Term: "vessel", Replacement: "navire"}}, got)
+}
+
 // TestResolveJobTermRules_DegradesGracefully pins the never-fail contract: no
 // resolver, a failing resolver, or an empty terms store all yield nil rules
 // and never an error surface.

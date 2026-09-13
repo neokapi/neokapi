@@ -2046,7 +2046,7 @@ func (a *App) ResolveTermRulesFor(cmd Command, targetLang string, point project.
 	var rules []coreprofile.TermRule
 	for _, c := range concepts {
 		concept := c
-		src := concept.SourceTerm(source)
+		src := concept.HeadTerm(source)
 		if src == nil || src.Text == "" {
 			continue
 		}

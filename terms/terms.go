@@ -124,6 +124,18 @@ func (c *Concept) PreferredTerm(locale model.LocaleID) *Term {
 	return fallback
 }
 
+// HeadTerm returns the term a concept is known by in a locale: its preferred
+// term, else the first approved one, else the first term of any status. A term
+// rule derived from a concept keys on this rather than on SourceTerm, because
+// the terms bundle orders a locale's terms by text, so the first of them is as
+// likely to be a deprecated synonym ("ship") as the term in use ("vessel").
+func (c *Concept) HeadTerm(locale model.LocaleID) *Term {
+	if t := c.PreferredTerm(locale); t != nil {
+		return t
+	}
+	return c.SourceTerm(locale)
+}
+
 // TermMatch represents a term found during lookup.
 type TermMatch struct {
 	Concept   Concept

@@ -299,6 +299,54 @@ func TestInMemoryTerms_ConceptHelpers(t *testing.T) {
 	assert.Nil(t, missing)
 }
 
+// TestConcept_HeadTerm holds the source side of a derived term rule to the
+// term in use. The terms bundle orders a locale's terms by text, so a
+// deprecated synonym can come first, and a rule keyed on it never matches
+// source that uses the preferred term.
+func TestConcept_HeadTerm(t *testing.T) {
+	tests := []struct {
+		name  string
+		terms []terms.Term
+		want  string
+	}{
+		{
+			name: "preferred term after a deprecated synonym",
+			terms: []terms.Term{
+				{Text: "ship", Locale: "en-GB", Status: model.TermDeprecated},
+				{Text: "vessel", Locale: "en-GB", Status: model.TermPreferred},
+			},
+			want: "vessel",
+		},
+		{
+			name: "approved term when none is preferred",
+			terms: []terms.Term{
+				{Text: "mooring", Locale: "en-GB", Status: model.TermForbidden},
+				{Text: "quay", Locale: "en-GB", Status: model.TermApproved},
+			},
+			want: "quay",
+		},
+		{
+			name: "first term when every term is retired",
+			terms: []terms.Term{
+				{Text: "mooring", Locale: "en-GB", Status: model.TermDeprecated},
+				{Text: "quay", Locale: "en-GB", Status: model.TermForbidden},
+			},
+			want: "mooring",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := terms.Concept{ID: "c", Terms: tt.terms}
+			got := c.HeadTerm("en-GB")
+			require.NotNil(t, got)
+			assert.Equal(t, tt.want, got.Text)
+		})
+	}
+
+	c := terms.Concept{ID: "c", Terms: []terms.Term{{Text: "vessel", Locale: "en-GB", Status: model.TermPreferred}}}
+	assert.Nil(t, c.HeadTerm("nb"), "a locale the concept has no term in has no head term")
+}
+
 // --- Okapi parity tests ---
 
 // termMatchStrings renders matches as "term@start-end", the shape a table can

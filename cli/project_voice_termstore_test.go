@@ -197,6 +197,37 @@ defaults:
 	assert.Equal(t, "Enregistrer", rules[0].Replacement)
 }
 
+// TestResolveTermRules_KeysOnPreferredSourceTerm asserts a rule pairs the
+// target rendering with the source term in use. A deprecated synonym listed
+// first in the concept must not become the term the rule looks for, or source
+// that uses the preferred term is never checked.
+func TestResolveTermRules_KeysOnPreferredSourceTerm(t *testing.T) {
+	root := writeProjectRecipe(t, `version: v1
+name: proj
+defaults:
+  source_language: en
+  target_languages: [fr]
+`)
+	seedTermsStore(t, root, terms.Concept{
+		ID: "c1",
+		Terms: []terms.Term{
+			{Text: "ship", Locale: model.LocaleEnglish, Status: model.TermDeprecated},
+			{Text: "vessel", Locale: model.LocaleEnglish, Status: model.TermPreferred},
+			{Text: "navire", Locale: model.LocaleFrench, Status: model.TermPreferred},
+		},
+	})
+	t.Chdir(root)
+
+	a := &App{SourceLang: "en"}
+	cmd := newVoiceCheckCmd(a)
+
+	rules, err := a.ResolveTermRules(cmd, "fr")
+	require.NoError(t, err)
+	require.Len(t, rules, 1)
+	assert.Equal(t, "vessel", rules[0].Term)
+	assert.Equal(t, "navire", rules[0].Replacement)
+}
+
 // TestResolveTermRules_FromProfileTerms asserts a profile's standalone
 // `termstore:` (relative to the project root) governs a collection whose channel
 // resolves to that profile, over the project's own store. Vocabulary is bound
