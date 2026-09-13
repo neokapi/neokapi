@@ -83,6 +83,11 @@ type Meta struct {
 	// Params carries the structured inputs a consumer may need — for translate,
 	// "source_locale" and "target_locale".
 	Params map[string]string
+	// PreferredTerms is the term map the prompt pins, source term to the
+	// rendering the translation must use: the same map the prompt renders as its
+	// terminology section. The demo provider applies it so its drafts carry the
+	// project's terms the way a model given the prompt is asked to.
+	PreferredTerms map[string]string
 }
 
 // Param returns a parameter, or "" when absent.
@@ -112,5 +117,6 @@ func (t Translate) Meta(id string) Meta {
 			"source_locale": string(t.SourceLocale),
 			"target_locale": string(t.TargetLocale),
 		},
+		PreferredTerms: t.PreferredTerms,
 	}
 }

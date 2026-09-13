@@ -2,6 +2,7 @@ package host
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"sync"
@@ -14,6 +15,7 @@ import (
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
+	coretools "github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/terms/ktb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -148,6 +150,34 @@ func TestConverge_ResolvesTermRulesPerLocale(t *testing.T) {
 	assert.Equal(t, map[string]string{"content memory": "mémoire de contenu"},
 		coreprofile.TermRuleMap(rec.rulesFor("fr")),
 		"fr is given its own")
+}
+
+// TestConverge_DemoDraftPassesTermCheck: a unit the demo provider drafts under
+// a term rule carries the rule's rendering, so the terminology check the loop
+// runs over produced units passes it. A stub that ignored the rules would draft
+// every unit holding a pinned term into a failure and park its locale.
+func TestConverge_DemoDraftPassesTermCheck(t *testing.T) {
+	a, cmd, recipe, root, rec := newTermRulesConvergeProject(t)
+	runConverge(t, a, cmd, recipe)
+
+	for _, locale := range []string{"nb", "fr"} {
+		raw, err := os.ReadFile(filepath.Join(root, "src", locale+".json"))
+		require.NoError(t, err, "the %s target is written", locale)
+		var target map[string]string
+		require.NoError(t, json.Unmarshal(raw, &target))
+
+		rules := rec.rulesFor(locale)
+		require.NotEmpty(t, rules, "%s drafts under a term rule", locale)
+
+		block := model.NewBlock("greeting", "Utilize the content memory")
+		block.SetTargetText(model.LocaleID(locale), target["greeting"])
+		require.NoError(t, RunCheckTool(t.Context(), coretools.NewTermCheckTool(&coretools.TermCheckConfig{
+			TermRules:    rules,
+			TargetLocale: model.LocaleID(locale),
+		}), block))
+		assert.Equal(t, "true", block.Properties[coretools.PropTermCheckPassed],
+			"%s draft %q: %s", locale, target["greeting"], block.Properties[coretools.PropTermCheckErrors])
+	}
 }
 
 // TestConverge_ProducerAndStalenessGateResolveOneContext closes the loop the
