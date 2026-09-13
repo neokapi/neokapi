@@ -278,6 +278,98 @@ export class Collection {
 }
 
 /**
+ * CommentDefaults is `defaults.comments`: what applies to the comments of every
+ * content item that declares them.
+ */
+export class CommentDefaults {
+    /**
+     * Creates a new CommentDefaults instance.
+     * @param {Partial<CommentDefaults>} [$$source = {}] - The source object to create the CommentDefaults.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * Directives are the markers the project's own tools read at the start of a
+             * comment line, such as `okapi-skip:`. A comment line that opens with one is
+             * set aside wherever a check reads comments, and is never read as prose.
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["directives"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new CommentDefaults instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {CommentDefaults}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("directives" in $$parsedSource) {
+            $$parsedSource["directives"] = $$createField0_0($$parsedSource["directives"]);
+        }
+        return new CommentDefaults(/** @type {Partial<CommentDefaults>} */($$parsedSource));
+    }
+}
+
+/**
+ * ContentComments is a content item's `comments:`, written `comments: true` or
+ * as a mapping that also carries what applies to the item's comments alone.
+ */
+export class ContentComments {
+    /**
+     * Creates a new ContentComments instance.
+     * @param {Partial<ContentComments>} [$$source = {}] - The source object to create the ContentComments.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * Declared reports that the comments in the item's files are content: a
+             * check reads them at the item's point, under the voice and terms that
+             * govern it.
+             * 
+             * For a file no format reader covers, such as Go source, the comments are
+             * the file's only content. kapi reads them through the language's comment
+             * provider, and a convergence run, a flow run and source coverage leave the
+             * file alone, so such an item names no target (ResolvedFile.CommentsOnly).
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["declared"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Directives are markers the item's files carry beside the ones under
+             * `defaults.comments`.
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["directives"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ContentComments instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ContentComments}
+     */
+    static createFrom($$source = {}) {
+        const $$createField1_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("directives" in $$parsedSource) {
+            $$parsedSource["directives"] = $$createField1_0($$parsedSource["directives"]);
+        }
+        return new ContentComments(/** @type {Partial<ContentComments>} */($$parsedSource));
+    }
+}
+
+/**
  * ContentItem is a single content pattern within a collection.
  */
 export class ContentItem {
@@ -352,15 +444,9 @@ export class ContentItem {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Comments declares the comments in this item's files as content: a check
-             * reads them at the item's point, under the voice and terms that govern it.
-             * 
-             * For a file no format reader covers, such as Go source, the comments are
-             * the file's only content. kapi reads them through the language's comment
-             * provider, and a convergence run, a flow run and source coverage leave the
-             * file alone, so such an item names no target (ResolvedFile.CommentsOnly).
+             * Comments declares the comments in this item's files as content.
              * @member
-             * @type {boolean | undefined}
+             * @type {ContentComments | undefined}
              */
             this["comments"] = undefined;
         }
@@ -377,6 +463,7 @@ export class ContentItem {
         const $$createField1_0 = $$createType6;
         const $$createField5_0 = $$createType1;
         const $$createField7_0 = $$createType8;
+        const $$createField8_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("format" in $$parsedSource) {
             $$parsedSource["format"] = $$createField1_0($$parsedSource["format"]);
@@ -386,6 +473,9 @@ export class ContentItem {
         }
         if ("redaction" in $$parsedSource) {
             $$parsedSource["redaction"] = $$createField7_0($$parsedSource["redaction"]);
+        }
+        if ("comments" in $$parsedSource) {
+            $$parsedSource["comments"] = $$createField8_0($$parsedSource["comments"]);
         }
         return new ContentItem(/** @type {Partial<ContentItem>} */($$parsedSource));
     }
@@ -569,6 +659,15 @@ export class Defaults {
         }
         if (/** @type {any} */(false)) {
             /**
+             * Comments applies to the comments of every content item that declares
+             * them.
+             * @member
+             * @type {CommentDefaults | undefined}
+             */
+            this["comments"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * Voice binds a voice profile as standing project context. When set,
              * project-scoped commands (voice check/rewrite/guide and project
              * translation flows) honor it with no profile flag. nil means no bound
@@ -665,17 +764,18 @@ export class Defaults {
      */
     static createFrom($$source = {}) {
         const $$createField1_0 = $$createType1;
-        const $$createField10_0 = $$createType10;
+        const $$createField10_0 = $$createType11;
         const $$createField11_0 = $$createType0;
-        const $$createField12_0 = $$createType11;
-        const $$createField13_0 = $$createType12;
-        const $$createField14_0 = $$createType13;
-        const $$createField15_0 = $$createType14;
+        const $$createField12_0 = $$createType12;
+        const $$createField13_0 = $$createType13;
+        const $$createField14_0 = $$createType14;
+        const $$createField15_0 = $$createType15;
         const $$createField16_0 = $$createType8;
         const $$createField17_0 = $$createType16;
-        const $$createField18_0 = $$createType4;
-        const $$createField21_0 = $$createType18;
+        const $$createField18_0 = $$createType18;
+        const $$createField19_0 = $$createType4;
         const $$createField22_0 = $$createType20;
+        const $$createField23_0 = $$createType22;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target_languages" in $$parsedSource) {
             $$parsedSource["target_languages"] = $$createField1_0($$parsedSource["target_languages"]);
@@ -701,17 +801,20 @@ export class Defaults {
         if ("redaction" in $$parsedSource) {
             $$parsedSource["redaction"] = $$createField16_0($$parsedSource["redaction"]);
         }
+        if ("comments" in $$parsedSource) {
+            $$parsedSource["comments"] = $$createField17_0($$parsedSource["comments"]);
+        }
         if ("voice" in $$parsedSource) {
-            $$parsedSource["voice"] = $$createField17_0($$parsedSource["voice"]);
+            $$parsedSource["voice"] = $$createField18_0($$parsedSource["voice"]);
         }
         if ("coordinates" in $$parsedSource) {
-            $$parsedSource["coordinates"] = $$createField18_0($$parsedSource["coordinates"]);
+            $$parsedSource["coordinates"] = $$createField19_0($$parsedSource["coordinates"]);
         }
         if ("tools" in $$parsedSource) {
-            $$parsedSource["tools"] = $$createField21_0($$parsedSource["tools"]);
+            $$parsedSource["tools"] = $$createField22_0($$parsedSource["tools"]);
         }
         if ("locales" in $$parsedSource) {
-            $$parsedSource["locales"] = $$createField22_0($$parsedSource["locales"]);
+            $$parsedSource["locales"] = $$createField23_0($$parsedSource["locales"]);
         }
         return new Defaults(/** @type {Partial<Defaults>} */($$parsedSource));
     }
@@ -818,7 +921,7 @@ export class FormatDefaults {
      * @returns {FormatDefaults}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType17;
+        const $$createField1_0 = $$createType19;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("config" in $$parsedSource) {
             $$parsedSource["config"] = $$createField1_0($$parsedSource["config"]);
@@ -876,7 +979,7 @@ export class FormatSpec {
      * @returns {FormatSpec}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType17;
+        const $$createField2_0 = $$createType19;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("config" in $$parsedSource) {
             $$parsedSource["config"] = $$createField2_0($$parsedSource["config"]);
@@ -922,7 +1025,7 @@ export class GateRef {
      * @returns {GateRef}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType21;
+        const $$createField1_0 = $$createType23;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("Inline" in $$parsedSource) {
             $$parsedSource["Inline"] = $$createField1_0($$parsedSource["Inline"]);
@@ -1098,18 +1201,18 @@ export class KapiProject {
      * @returns {KapiProject}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType24;
-        const $$createField3_0 = $$createType25;
-        const $$createField4_0 = $$createType27;
-        const $$createField6_0 = $$createType30;
-        const $$createField7_0 = $$createType32;
-        const $$createField8_0 = $$createType21;
-        const $$createField9_0 = $$createType34;
-        const $$createField10_0 = $$createType35;
-        const $$createField11_0 = $$createType21;
-        const $$createField12_0 = $$createType34;
-        const $$createField13_0 = $$createType21;
-        const $$createField14_0 = $$createType36;
+        const $$createField2_0 = $$createType26;
+        const $$createField3_0 = $$createType27;
+        const $$createField4_0 = $$createType29;
+        const $$createField6_0 = $$createType32;
+        const $$createField7_0 = $$createType34;
+        const $$createField8_0 = $$createType23;
+        const $$createField9_0 = $$createType36;
+        const $$createField10_0 = $$createType37;
+        const $$createField11_0 = $$createType23;
+        const $$createField12_0 = $$createType36;
+        const $$createField13_0 = $$createType23;
+        const $$createField14_0 = $$createType38;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("plugins" in $$parsedSource) {
             $$parsedSource["plugins"] = $$createField2_0($$parsedSource["plugins"]);
@@ -1180,7 +1283,7 @@ export class LocaleDefaults {
      * @returns {LocaleDefaults}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType18;
+        const $$createField0_0 = $$createType20;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("tools" in $$parsedSource) {
             $$parsedSource["tools"] = $$createField0_0($$parsedSource["tools"]);
@@ -1397,7 +1500,7 @@ export class PluginStatus {
      * @returns {PluginStatus}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType38;
+        const $$createField1_0 = $$createType40;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("issues" in $$parsedSource) {
             $$parsedSource["issues"] = $$createField1_0($$parsedSource["issues"]);
@@ -1494,8 +1597,8 @@ export class Profile {
      * @returns {Profile}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType40;
-        const $$createField1_0 = $$createType16;
+        const $$createField0_0 = $$createType42;
+        const $$createField1_0 = $$createType18;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("channels" in $$parsedSource) {
             $$parsedSource["channels"] = $$createField0_0($$parsedSource["channels"]);
@@ -1655,8 +1758,8 @@ export class ShipGateRule {
      * @returns {ShipGateRule}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType42;
-        const $$createField1_0 = $$createType43;
+        const $$createField0_0 = $$createType44;
+        const $$createField1_0 = $$createType45;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("when" in $$parsedSource) {
             $$parsedSource["when"] = $$createField0_0($$parsedSource["when"]);
@@ -1735,48 +1838,50 @@ const $$createType5 = FormatSpec.createFrom;
 const $$createType6 = $Create.Nullable($$createType5);
 const $$createType7 = RedactionSpec.createFrom;
 const $$createType8 = $Create.Nullable($$createType7);
-const $$createType9 = FormatDefaults.createFrom;
-const $$createType10 = $Create.Map($Create.Any, $$createType9);
-const $$createType11 = MergeDefaults.createFrom;
-const $$createType12 = MemoryDefaults.createFrom;
-const $$createType13 = SegmentationDefaults.createFrom;
-const $$createType14 = AnnotationDefaults.createFrom;
-const $$createType15 = VoiceBinding.createFrom;
-const $$createType16 = $Create.Nullable($$createType15);
-const $$createType17 = $Create.Map($Create.Any, $Create.Any);
-const $$createType18 = $Create.Map($Create.Any, $$createType17);
-const $$createType19 = LocaleDefaults.createFrom;
+const $$createType9 = ContentComments.createFrom;
+const $$createType10 = FormatDefaults.createFrom;
+const $$createType11 = $Create.Map($Create.Any, $$createType10);
+const $$createType12 = MergeDefaults.createFrom;
+const $$createType13 = MemoryDefaults.createFrom;
+const $$createType14 = SegmentationDefaults.createFrom;
+const $$createType15 = AnnotationDefaults.createFrom;
+const $$createType16 = CommentDefaults.createFrom;
+const $$createType17 = VoiceBinding.createFrom;
+const $$createType18 = $Create.Nullable($$createType17);
+const $$createType19 = $Create.Map($Create.Any, $Create.Any);
 const $$createType20 = $Create.Map($Create.Any, $$createType19);
-var $$createType21 = /** @type {(...args: any[]) => any} */(function $$initCreateType21(...args) {
-    if ($$createType21 === $$initCreateType21) {
-        $$createType21 = $$createType22;
+const $$createType21 = LocaleDefaults.createFrom;
+const $$createType22 = $Create.Map($Create.Any, $$createType21);
+var $$createType23 = /** @type {(...args: any[]) => any} */(function $$initCreateType23(...args) {
+    if ($$createType23 === $$initCreateType23) {
+        $$createType23 = $$createType24;
     }
-    return $$createType21(...args);
+    return $$createType23(...args);
 });
-const $$createType22 = $Create.Map($Create.Any, $Create.Any);
-const $$createType23 = PluginSpec.createFrom;
-const $$createType24 = $Create.Map($Create.Any, $$createType23);
-const $$createType25 = Defaults.createFrom;
-const $$createType26 = Collection.createFrom;
-const $$createType27 = $Create.Array($$createType26);
-const $$createType28 = flow$0.StepsSpec.createFrom;
-const $$createType29 = $Create.Nullable($$createType28);
-const $$createType30 = $Create.Map($Create.Any, $$createType29);
-const $$createType31 = Profile.createFrom;
+const $$createType24 = $Create.Map($Create.Any, $Create.Any);
+const $$createType25 = PluginSpec.createFrom;
+const $$createType26 = $Create.Map($Create.Any, $$createType25);
+const $$createType27 = Defaults.createFrom;
+const $$createType28 = Collection.createFrom;
+const $$createType29 = $Create.Array($$createType28);
+const $$createType30 = flow$0.StepsSpec.createFrom;
+const $$createType31 = $Create.Nullable($$createType30);
 const $$createType32 = $Create.Map($Create.Any, $$createType31);
-const $$createType33 = ShipGateRule.createFrom;
-const $$createType34 = $Create.Array($$createType33);
-const $$createType35 = $Create.Map($Create.Any, $$createType21);
-var $$createType36 = /** @type {(...args: any[]) => any} */(function $$initCreateType36(...args) {
-    if ($$createType36 === $$initCreateType36) {
-        $$createType36 = $$createType4;
+const $$createType33 = Profile.createFrom;
+const $$createType34 = $Create.Map($Create.Any, $$createType33);
+const $$createType35 = ShipGateRule.createFrom;
+const $$createType36 = $Create.Array($$createType35);
+const $$createType37 = $Create.Map($Create.Any, $$createType23);
+var $$createType38 = /** @type {(...args: any[]) => any} */(function $$initCreateType38(...args) {
+    if ($$createType38 === $$initCreateType38) {
+        $$createType38 = $$createType4;
     }
-    return $$createType36(...args);
+    return $$createType38(...args);
 });
-const $$createType37 = PluginIssue.createFrom;
-const $$createType38 = $Create.Array($$createType37);
-const $$createType39 = Channel.createFrom;
+const $$createType39 = PluginIssue.createFrom;
 const $$createType40 = $Create.Array($$createType39);
-const $$createType41 = gate$0.Selector.createFrom;
-const $$createType42 = $Create.Nullable($$createType41);
-const $$createType43 = GateRef.createFrom;
+const $$createType41 = Channel.createFrom;
+const $$createType42 = $Create.Array($$createType41);
+const $$createType43 = gate$0.Selector.createFrom;
+const $$createType44 = $Create.Nullable($$createType43);
+const $$createType45 = GateRef.createFrom;

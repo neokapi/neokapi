@@ -184,6 +184,33 @@ A bare `kapi check` and `kapi check --ship` then check those comments under the
 voice profile and terms bound to `acme/engineering`. `kapi up`, flow runs and
 source coverage leave the files alone.
 
+Some comment lines are written for your own tools, such as the marker a test
+audit collects. Declare those markers as directives and kapi sets their lines
+aside, so a rule reads them as neither prose nor content:
+
+```yaml title="kapi.yaml"
+defaults:
+  comments:
+    directives: ["okapi-skip:", "okapi-unmapped:"]
+collections:
+  - name: engine-comments
+    channel: acme/engineering
+    source_only: true
+    content:
+      - path: "internal/**/*.go"
+        comments:
+          directives: ["audit-note:"]
+```
+
+A comment line is set aside when its text, after the comment marker and any
+leading spaces, starts with a declared marker. The match is exact and
+case-sensitive, so a sentence that mentions `okapi-skip:` later in the line
+stays prose. A marker in the middle of a comment splits it into two comments,
+each checked on its own. The markers under `defaults.comments` apply wherever
+kapi reads comments in the project, and an item's own `directives` add to them
+for its files. A marker that is empty, starts with whitespace, or is declared
+twice makes the recipe fail to load, with an error naming the key.
+
 The same key checks the comments in YAML files, beside the values the YAML
 reader extracts:
 

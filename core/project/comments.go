@@ -1,0 +1,134 @@
+package project
+
+import (
+	"fmt"
+	"slices"
+	"strings"
+	"unicode"
+	"unicode/utf8"
+
+	"gopkg.in/yaml.v3"
+)
+
+// CommentDefaults is `defaults.comments`: what applies to the comments of every
+// content item that declares them.
+type CommentDefaults struct {
+	// Directives are the markers the project's own tools read at the start of a
+	// comment line, such as `okapi-skip:`. A comment line that opens with one is
+	// set aside wherever a check reads comments, and is never read as prose.
+	Directives []string `yaml:"directives,omitempty" json:"directives,omitempty"`
+}
+
+// UnmarshalYAML rejects a key the mapping does not have.
+func (d *CommentDefaults) UnmarshalYAML(node *yaml.Node) error {
+	if err := knownKeys(node, "defaults.comments", "directives"); err != nil {
+		return err
+	}
+	type alias CommentDefaults
+	var a alias
+	if err := node.Decode(&a); err != nil {
+		return err
+	}
+	*d = CommentDefaults(a)
+	return nil
+}
+
+// ContentComments is a content item's `comments:`, written `comments: true` or
+// as a mapping that also carries what applies to the item's comments alone.
+type ContentComments struct {
+	// Declared reports that the comments in the item's files are content: a
+	// check reads them at the item's point, under the voice and terms that
+	// govern it.
+	//
+	// For a file no format reader covers, such as Go source, the comments are
+	// the file's only content. kapi reads them through the language's comment
+	// provider, and a convergence run, a flow run and source coverage leave the
+	// file alone, so such an item names no target (ResolvedFile.CommentsOnly).
+	Declared bool `yaml:"-" json:"declared,omitempty"`
+
+	// Directives are markers the item's files carry beside the ones under
+	// `defaults.comments`.
+	Directives []string `yaml:"directives,omitempty" json:"directives,omitempty"`
+}
+
+// UnmarshalYAML accepts a boolean, or a mapping that declares the comments and
+// says more about them.
+func (c *ContentComments) UnmarshalYAML(node *yaml.Node) error {
+	switch node.Kind {
+	case yaml.ScalarNode:
+		var declared bool
+		if node.ShortTag() != "!!bool" || node.Decode(&declared) != nil {
+			return fmt.Errorf("line %d: comments: want true, false or a mapping, not %q", node.Line, node.Value)
+		}
+		*c = ContentComments{Declared: declared}
+		return nil
+	case yaml.MappingNode:
+		if err := knownKeys(node, "comments", "directives"); err != nil {
+			return err
+		}
+		type alias ContentComments
+		var a alias
+		if err := node.Decode(&a); err != nil {
+			return err
+		}
+		*c = ContentComments(a)
+		c.Declared = true
+		return nil
+	default:
+		return fmt.Errorf("line %d: comments: want true, false or a mapping", node.Line)
+	}
+}
+
+// MarshalYAML writes `comments: true` for an item that declares nothing more,
+// and the mapping otherwise.
+func (c ContentComments) MarshalYAML() (any, error) {
+	if len(c.Directives) == 0 {
+		return c.Declared, nil
+	}
+	type alias ContentComments
+	return alias(c), nil
+}
+
+// IsZero reports an item that does not declare its comments.
+func (c ContentComments) IsZero() bool { return !c.Declared && len(c.Directives) == 0 }
+
+// CommentDirectives returns the directives in force in the comments of this
+// item's files: the ones under `defaults.comments`, then the item's own.
+func (item *ContentItem) CommentDirectives(defaults Defaults) []string {
+	return slices.Concat(defaults.Comments.Directives, item.Comments.Directives)
+}
+
+// validateDirectives checks one list of declared directives, named by field.
+// inherited is the defaults' list, which an item's own list does not repeat.
+func validateDirectives(field string, directives, inherited []string) error {
+	for i, d := range directives {
+		at := fmt.Sprintf("%s[%d]", field, i)
+		first, _ := utf8.DecodeRuneInString(d)
+		switch {
+		case d == "":
+			return fmt.Errorf("%s: a directive is empty", at)
+		case unicode.IsSpace(first):
+			return fmt.Errorf("%s: directive %q starts with whitespace, and a comment line is matched after its leading whitespace", at, d)
+		case strings.ContainsAny(d, "\r\n"):
+			return fmt.Errorf("%s: directive %q holds a line break, and a directive marks one line", at, d)
+		case slices.Contains(directives[:i], d):
+			return fmt.Errorf("%s: directive %q is declared twice", at, d)
+		case slices.Contains(inherited, d):
+			return fmt.Errorf("%s: directive %q is already declared by defaults.comments.directives", at, d)
+		}
+	}
+	return nil
+}
+
+// knownKeys rejects a mapping key outside want, naming the mapping it sits in.
+func knownKeys(node *yaml.Node, field string, want ...string) error {
+	if node.Kind != yaml.MappingNode {
+		return nil
+	}
+	for i := 0; i < len(node.Content); i += 2 {
+		if key := node.Content[i]; !slices.Contains(want, key.Value) {
+			return fmt.Errorf("line %d: %s: unknown key %q (want %s)", key.Line, field, key.Value, strings.Join(want, ", "))
+		}
+	}
+	return nil
+}

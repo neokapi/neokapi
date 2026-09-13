@@ -19,7 +19,7 @@ func declareGoComments(t *testing.T, recipe string, comments bool) string {
 	proj.Collections = append(proj.Collections, project.Collection{
 		Name:       "code",
 		SourceOnly: true,
-		Content:    []project.ContentItem{{Path: "code/*.go", Comments: comments}},
+		Content:    []project.ContentItem{{Path: "code/*.go", Comments: project.ContentComments{Declared: comments}}},
 	})
 	require.NoError(t, project.Save(recipe, proj))
 	goFile := filepath.Join(filepath.Dir(recipe), "code", "parse.go")

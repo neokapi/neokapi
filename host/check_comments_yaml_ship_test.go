@@ -19,7 +19,7 @@ func declareYAMLComments(t *testing.T, recipe string, comments, targets bool, bo
 	t.Helper()
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
-	item := project.ContentItem{Path: "config/*.yaml", Comments: comments}
+	item := project.ContentItem{Path: "config/*.yaml", Comments: project.ContentComments{Declared: comments}}
 	collection := project.Collection{Name: "config", SourceOnly: !targets}
 	if targets {
 		item.Target = "config/{lang}/app.yaml"

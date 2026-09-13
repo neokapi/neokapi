@@ -207,6 +207,10 @@ type Defaults struct {
 	// no redaction.
 	Redaction *RedactionSpec `yaml:"redaction,omitempty" json:"redaction,omitempty"`
 
+	// Comments applies to the comments of every content item that declares
+	// them.
+	Comments CommentDefaults `yaml:"comments,omitempty" json:"comments,omitzero"`
+
 	// Voice binds a voice profile as standing project context. When set,
 	// project-scoped commands (voice check/rewrite/guide and project
 	// translation flows) honor it with no profile flag. nil means no bound
@@ -761,14 +765,8 @@ type ContentItem struct {
 	// nil means inherit defaults.
 	Redaction *RedactionSpec `yaml:"redaction,omitempty" json:"redaction,omitempty"`
 
-	// Comments declares the comments in this item's files as content: a check
-	// reads them at the item's point, under the voice and terms that govern it.
-	//
-	// For a file no format reader covers, such as Go source, the comments are
-	// the file's only content. kapi reads them through the language's comment
-	// provider, and a convergence run, a flow run and source coverage leave the
-	// file alone, so such an item names no target (ResolvedFile.CommentsOnly).
-	Comments bool `yaml:"comments,omitempty" json:"comments,omitempty"`
+	// Comments declares the comments in this item's files as content.
+	Comments ContentComments `yaml:"comments,omitempty" json:"comments,omitzero"`
 
 	// Extras captures unknown keys at the per-item level. Platform layers
 	// decode their per-item fields from here.
@@ -1016,6 +1014,9 @@ func (p *KapiProject) validate(opts LoadOptions) error {
 	if err := p.Defaults.Voice.validate("defaults.voice"); err != nil {
 		return err
 	}
+	if err := validateDirectives("defaults.comments.directives", p.Defaults.Comments.Directives, nil); err != nil {
+		return err
+	}
 	if err := p.validateContextSpace(); err != nil {
 		return err
 	}
@@ -1040,6 +1041,10 @@ func (p *KapiProject) validate(opts LoadOptions) error {
 				}
 				if err := item.Redaction.validate(); err != nil {
 					return fmt.Errorf("collections[%d].content[%d]: %w", i, j, err)
+				}
+				field := fmt.Sprintf("collections[%d].content[%d].comments.directives", i, j)
+				if err := validateDirectives(field, item.Comments.Directives, p.Defaults.Comments.Directives); err != nil {
+					return err
 				}
 			}
 		}

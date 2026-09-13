@@ -6,6 +6,8 @@ export {
     AnnotationDefaults,
     Channel,
     Collection,
+    CommentDefaults,
+    ContentComments,
     ContentItem,
     Defaults,
     FlowValidationIssue,
