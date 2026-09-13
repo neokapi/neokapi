@@ -61,9 +61,11 @@ func main() {
 	root := flag.String("root", ".", "repository root")
 	jsonOut := flag.String("json", "", "write the report as JSON to this path")
 	unlabelled := flag.String("unlabelled", "", "write the demands and fails that carry no label to this path")
+	formsPath := flag.String("forms", "", "reviewed forms to apply in the stage1+forms mode (default: testdata/forms.json)")
+	labelsPath := flag.String("labels", "", "labels to classify demands and fails with (default: testdata/labels.json)")
 	flag.Parse()
 
-	rep, err := run(*root)
+	rep, err := run(*root, *formsPath, *labelsPath)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "termeval:", err)
 		os.Exit(1)
@@ -132,7 +134,14 @@ type Unlabeled struct {
 }
 
 // run loads the corpora, rules, forms and labels and measures every mode.
-func run(root string) (*Report, error) {
+func run(root, formsPath, labelsPath string) (*Report, error) {
+	testdata := filepath.Join(root, "scripts", "termeval", "testdata")
+	if formsPath == "" {
+		formsPath = filepath.Join(testdata, "forms.json")
+	}
+	if labelsPath == "" {
+		labelsPath = filepath.Join(testdata, "labels.json")
+	}
 	units, err := loadCorpus(root)
 	if err != nil {
 		return nil, err
@@ -141,15 +150,15 @@ func run(root string) (*Report, error) {
 	if err != nil {
 		return nil, err
 	}
-	samples, err := readBundle(filepath.Join(root, "scripts", "termeval", "testdata", "samples.terms.json"))
+	samples, err := readBundle(filepath.Join(testdata, "samples.terms.json"))
 	if err != nil {
 		return nil, err
 	}
-	forms, err := loadForms(filepath.Join(root, "scripts", "termeval", "testdata", "forms.json"))
+	forms, err := loadForms(formsPath)
 	if err != nil {
 		return nil, err
 	}
-	labels, err := loadLabels(filepath.Join(root, "scripts", "termeval", "testdata", "labels.json"))
+	labels, err := loadLabels(labelsPath)
 	if err != nil {
 		return nil, err
 	}
