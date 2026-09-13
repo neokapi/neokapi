@@ -48,10 +48,15 @@
           "text": "Compass",
           "locale": "en-GB",
           "status": "preferred"
+        },
+        {
+          "text": "Compass",
+          "locale": "nb",
+          "status": "preferred"
         }
       ],
       "created_at": "2025-09-16T09:00:00Z",
-      "updated_at": "2025-09-16T09:00:00Z"
+      "updated_at": "2026-09-13T00:00:00Z"
     },
     {
       "id": "term:en-GB:tidewatch",
@@ -63,10 +68,15 @@
           "text": "Tidewatch",
           "locale": "en-GB",
           "status": "preferred"
+        },
+        {
+          "text": "Tidewatch",
+          "locale": "nb",
+          "status": "preferred"
         }
       ],
       "created_at": "2025-09-16T09:00:00Z",
-      "updated_at": "2025-09-16T09:00:00Z"
+      "updated_at": "2026-09-13T00:00:00Z"
     },
     {
       "id": "term:en-GB:vessel",
