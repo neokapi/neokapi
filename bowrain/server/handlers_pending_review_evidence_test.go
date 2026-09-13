@@ -133,7 +133,7 @@ func TestPendingReview_EntriesCarryTermAndVoiceEvidence(t *testing.T) {
 
 		for _, e := range page.Entries {
 			block := storedBlockByID(t, s, projID, e.BlockID)
-			fromEvidence := e.TermCompliance != platstore.TermComplianceViolation &&
+			fromEvidence := e.TermCompliance == platstore.TermComplianceCompliant &&
 				(e.VoiceScore == nil || *e.VoiceScore >= *e.VoiceBar)
 			fromServer := blockCompliantAndPassing(ctx, block, "fr", scores, gate)
 			assert.Equal(t, fromServer, fromEvidence,
@@ -204,8 +204,39 @@ func TestApprovePassing_SkipsAreNamedByTheBarTheyMissed(t *testing.T) {
 	assert.Equal(t, 2, res.Skipped)
 	assert.Equal(t, 0, res.SkippedFailingChecks)
 	assert.Equal(t, 1, res.SkippedTermViolations, "the forbidden-term target is named as such")
+	assert.Equal(t, 0, res.SkippedTermsNotChecked, "terms are bound, so every target's terminology was checked")
 	assert.Equal(t, 1, res.SkippedBelowVoiceBar, "the below-bar target is named as such")
 	assert.Equal(t, res.Skipped,
-		res.SkippedFailingChecks+res.SkippedTermViolations+res.SkippedBelowVoiceBar+res.SkippedSelfAuthored,
+		res.SkippedFailingChecks+res.SkippedTermViolations+res.SkippedTermsNotChecked+
+			res.SkippedBelowVoiceBar+res.SkippedSelfAuthored,
 		"every skip is attributed to exactly one bar")
+}
+
+// TestApprovePassing_NeverApprovesUncheckedTerminology: with no terms and no
+// voice profile rules, no pending target's terminology is checked, so the bulk
+// pass holds no evidence to approve on. It approves nothing, names why, and
+// leaves every target pending, as the queue's "not checked" verdict said.
+func TestApprovePassing_NeverApprovesUncheckedTerminology(t *testing.T) {
+	s, wsID, ownerID := newRecheckHarness(t)
+	projID, ids := seedGovernedProject(t, s, wsID, []*model.Block{
+		pendingFrBlock("b1", "Hello", "Bonjour"),
+		pendingFrBlock("b2", "Goodbye", "Au revoir"),
+	})
+
+	page := listPendingReview(t, s, wsID, projID)
+	require.Len(t, page.Entries, 2)
+	for _, e := range page.Entries {
+		assert.Equal(t, platstore.TermComplianceUnchecked, e.TermCompliance, "block %s", e.BlockID)
+	}
+
+	rec, res := callApprovePassing(t, s, wsID, projID, ownerID, `{}`)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	assert.Equal(t, 0, res.Approved, "a target whose terminology was not checked is never approved")
+	assert.Equal(t, 2, res.Skipped)
+	assert.Equal(t, 2, res.SkippedTermsNotChecked, "the skips are named for the bar that was not checked")
+	assert.Equal(t, 0, res.SkippedTermViolations, "an unchecked target violated nothing")
+	assert.Equal(t, 2, res.RemainingPending)
+	assert.False(t, res.ReviewCompleted)
+	assert.Equal(t, model.TargetStatusDraft, targetStatus(t, s, projID, ids["Hello"], "fr"))
+	assert.Equal(t, model.TargetStatusDraft, targetStatus(t, s, projID, ids["Goodbye"], "fr"))
 }

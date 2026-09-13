@@ -98,20 +98,32 @@ describe("the mock's review queue and review context", () => {
     }
   });
 
-  it("seeds one block that misses only the voice bar and one that clears every bar", async () => {
+  it("seeds a block below the voice bar, one clearing every bar, and one never checked", async () => {
     const byBlock = new Map(
       (await queueWithContexts()).map(({ entry, context }) => [entry.block.id, { entry, context }]),
     );
     const low = byBlock.get("b1");
     const high = byBlock.get("b2");
-    const unscored = byBlock.get("b3");
+    const unchecked = byBlock.get("b3");
 
     expect(entryVerdict(low!.entry)).toBe("failing");
     expect(entryBlockers(low!.entry)).toEqual(["voice"]);
     expect(entryVerdict(high!.entry)).toBe("passing");
-    // An unscored block is below nothing, so the server applies no voice bar to
-    // it and neither does the queue.
-    expect(unscored!.context.voice_score).toBeUndefined();
-    expect(entryVerdict(unscored!.entry)).toBe("passing");
+    // A block with no seeded evidence is below no voice bar, and its
+    // terminology was not checked, so it is neither failing nor passing.
+    expect(unchecked!.context.voice_score).toBeUndefined();
+    expect(entryBlockers(unchecked!.entry)).toEqual([]);
+    expect(entryVerdict(unchecked!.entry)).toBe("not_checked");
+  });
+
+  it("approves only what the queue calls passing, and names the rest as the server does", async () => {
+    const adapter = createMockAdapter(blocks);
+    adapter.blockEvidence = blockEvidence;
+    const result = await adapter.approvePassingReview("demo", "prj-1", {});
+    expect(result.approved).toBe(1);
+    expect(result.skipped_below_voice_bar).toBe(1);
+    expect(result.skipped_terms_not_checked).toBe(1);
+    expect(result.skipped).toBe(2);
+    expect(result.review_completed).toBe(false);
   });
 });

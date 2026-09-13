@@ -24,10 +24,12 @@ type pendingReviewEntry struct {
 	// queue narrowed to a collection and a queue grouped by collection cannot
 	// disagree about where a row belongs.
 	CollectionID string `json:"collection_id"`
-	// TermCompliance is this target's terminology verdict, empty when no
-	// terminology governance was active for the locale. It is one of the two
-	// bars beyond the rule-based checks that approve-passing applies, so a queue
-	// that bucketed on checks alone called blocks passing that the server refuses.
+	// TermCompliance is this target's terminology verdict, empty when it was not
+	// checked because no terms and no voice profile rule apply to the locale.
+	// It is one of the two bars beyond the rule-based checks that approve-passing
+	// applies, and approve-passing takes neither a violation nor an unchecked
+	// target, so a queue that bucketed on checks alone called blocks passing that
+	// the server refuses.
 	TermCompliance store.TermCompliance `json:"term_compliance,omitempty"`
 	// VoiceScore is the latest persisted voice score for this block and
 	// locale, and VoiceBar the compliance bar of the profile that produced it
@@ -154,12 +156,7 @@ func (s *Server) HandleListPendingReview(c echo.Context) error {
 			// Unchecked and compliant are different answers: with no governance
 			// active there is nothing the target could have violated, and
 			// claiming compliance would be claiming evidence.
-			if gate.active(ctx, loc) {
-				entry.TermCompliance = store.TermComplianceCompliant
-				if !gate.compliant(ctx, block, loc) {
-					entry.TermCompliance = store.TermComplianceViolation
-				}
-			}
+			entry.TermCompliance = gate.compliance(ctx, block, loc)
 			if vs, ok := scores[string(locale.Normalize(loc))][block.ID]; ok {
 				score, bar := vs.score, vs.bar
 				entry.VoiceScore, entry.VoiceBar = &score, &bar

@@ -52,7 +52,7 @@ const localeStat = (over: Record<string, unknown>) => ({
   failing_checks: 0,
   ship_state: "pending" as const,
   compliance_rate: 0.82,
-  compliance_basis: "voice+checks" as const,
+  compliance_basis: "voice+checks+terms" as const,
   compliant_blocks: 2,
   ...over,
 });
@@ -157,4 +157,27 @@ export const NothingResolved: Story = {
         emptyReviewContext(blockId, itemName, targetLocale),
     }),
   ],
+};
+
+/** The dashboard for a project whose languages no terms or voice profile rules cover. */
+const notCheckedStats: TranslationDashboardStats = {
+  ...pendingStats,
+  locale_stats: pendingStats.locale_stats.map((l) => ({
+    ...l,
+    compliance_rate: undefined,
+    compliant_blocks: undefined,
+    compliance_basis: "checks" as const,
+    not_checked_blocks: l.translated_blocks,
+  })),
+};
+
+/**
+ * A project with no terms and no voice profile rules: no pending unit's
+ * terminology was checked. The queue files every unit under "Not checked",
+ * approving all passing has nothing to take, and the reviewer's chip counts
+ * the unchecked blocks where a rate would be.
+ */
+export const TerminologyNotChecked: Story = {
+  args: { project: sampleProject, dashboardStats: notCheckedStats, stream: "main" },
+  decorators: [createProvidersDecorator(blocks, { blockEvidence: {} })],
 };

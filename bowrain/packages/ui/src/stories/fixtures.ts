@@ -1731,22 +1731,32 @@ export const shipStateDashboardStats: TranslationDashboardStats = (() => {
 })();
 
 /**
- * Ship-state dashboard with the derived compliance fields: voice-informed for
- * fr-FR (worker draft scoring has run), checks-only elsewhere — the newest
- * server shape behind the compliance rate chip in the ship-readiness band.
+ * Ship-state dashboard with the derived compliance fields: fr-FR checked for
+ * terminology with voice scores (worker draft scoring has run), de-DE checked
+ * for terminology, and every other locale with no terms or voice profile rules,
+ * so its blocks were not checked and it has a not-checked count instead of a
+ * rate. The newest server shape behind the compliance rate chip in the
+ * ship-readiness band.
  */
 export const complianceDashboardStats: TranslationDashboardStats = (() => {
-  const basisFor: Record<string, ComplianceBasis> = { "fr-FR": "voice+checks" };
-  const rateFor: Record<string, number> = { "fr-FR": 0.92, "de-DE": 1, "ja-JP": 0.5 };
+  const basisFor: Record<string, ComplianceBasis> = {
+    "fr-FR": "voice+checks+terms",
+    "de-DE": "checks+terms",
+  };
+  const rateFor: Record<string, number> = { "fr-FR": 0.92, "de-DE": 1 };
 
   const stamp = (l: LocaleTranslationStats): LocaleTranslationStats => {
     if (l.translated_blocks <= 0) return l;
-    const rate = rateFor[l.locale] ?? 1;
+    const rate = rateFor[l.locale];
+    if (rate === undefined) {
+      // No terminology check ran here, so no translated block has a verdict to rate.
+      return { ...l, not_checked_blocks: l.translated_blocks, compliance_basis: "checks" };
+    }
     return {
       ...l,
       compliant_blocks: Math.round(l.translated_blocks * rate),
       compliance_rate: rate,
-      compliance_basis: basisFor[l.locale] ?? "checks",
+      compliance_basis: basisFor[l.locale],
     };
   };
 

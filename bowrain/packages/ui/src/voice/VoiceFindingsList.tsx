@@ -4,6 +4,11 @@ import { ListCapRow } from "../components/ListCapRow";
 
 interface VoiceFindingsListProps {
   findings: VoiceFinding[];
+  /**
+   * Whether any content was scanned. An empty list says the content is compliant
+   * only when something was scanned; over nothing it says so instead.
+   */
+  scanned: boolean;
   className?: string;
 }
 
@@ -17,11 +22,16 @@ const severityStyles: Record<VoiceSeverity, string> = {
   critical: "bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive",
 };
 
-export function VoiceFindingsList({ findings, className }: VoiceFindingsListProps) {
+export function VoiceFindingsList({ findings, scanned, className }: VoiceFindingsListProps) {
   if (findings.length === 0) {
     return (
-      <div className={cn("text-sm text-muted-foreground text-center py-6", className)}>
-        No findings. Content is fully compliant.
+      <div
+        className={cn("text-sm text-muted-foreground text-center py-6", className)}
+        data-testid={scanned ? "voice-findings-none" : "voice-findings-not-scanned"}
+      >
+        {scanned
+          ? "No findings. Content is fully compliant."
+          : "Nothing was scanned, so there is no compliance to report."}
       </div>
     );
   }

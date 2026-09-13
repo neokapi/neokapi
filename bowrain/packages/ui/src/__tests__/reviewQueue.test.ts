@@ -3,6 +3,7 @@ import type { BlockInfo, CheckIssue } from "../types/api";
 import {
   entryKey,
   entryBlockers,
+  entryUnchecked,
   entryVerdict,
   entryHasErrors,
   isPendingReview,
@@ -15,6 +16,8 @@ import {
   passingCount,
   nextIndex,
   indexAfterRemoval,
+  verdictDetail,
+  verdictLabel,
   VERDICT_LABELS,
   type ReviewEntry,
 } from "../components/review/reviewQueue";
@@ -37,9 +40,10 @@ function entry(overrides: Partial<ReviewEntry> & { locale: string; itemId: strin
     itemName: overrides.itemName ?? `${overrides.itemId}.json`,
     // The server names every entry's collection, "" for an item in none.
     collectionId: "",
-    // Unchecked terminology and no voice score: the neutral default, so a case
-    // that says nothing about those bars is not silently asserting them.
-    termCompliance: "",
+    // Terminology checked and clean, and no voice score: the default a case
+    // that says nothing about those bars starts from. A case about unchecked
+    // terminology says so with termCompliance "".
+    termCompliance: "compliant",
     issues: [],
     block: block(blockId, overrides.locale, "draft target"),
     ...overrides,
@@ -71,19 +75,20 @@ describe("isPendingReview", () => {
   });
 });
 
-// The verdict mirrors the server's approve-passing predicate over the three
-// bars the queue payload carries. It bucketed on check findings alone while
-// they were the only evidence, so "no failing checks" over-counted by exactly
-// the blocks the server then refused — a term violation or a below-bar voice
-// score sat in the passing bucket.
+// The verdict mirrors the server's approve-passing predicate over the bars the
+// queue payload carries. It bucketed on check findings alone while they were
+// the only evidence, so "no failing checks" over-counted by exactly the blocks
+// the server then refused. An unchecked terminology verdict is a bucket of its
+// own: the server approves no such block, and it violated nothing.
 describe("entryVerdict", () => {
   const cases: {
     name: string;
     entry: Partial<ReviewEntry>;
-    verdict: "failing" | "passing";
+    verdict: "failing" | "not_checked" | "passing";
     blockers: string[];
+    unchecked?: string[];
   }[] = [
-    { name: "nothing against it", entry: {}, verdict: "passing", blockers: [] },
+    { name: "every bar checked and clear", entry: {}, verdict: "passing", blockers: [] },
     {
       name: "an error finding",
       entry: { issues: [error, warning] },
@@ -98,10 +103,11 @@ describe("entryVerdict", () => {
       blockers: ["terms"],
     },
     {
-      name: "term-compliant",
-      entry: { termCompliance: "compliant" },
-      verdict: "passing",
+      name: "terminology not checked, nothing else against it",
+      entry: { termCompliance: "" },
+      verdict: "not_checked",
       blockers: [],
+      unchecked: ["terms"],
     },
     {
       name: "a voice score below its profile's bar",
@@ -122,6 +128,13 @@ describe("entryVerdict", () => {
       blockers: [],
     },
     {
+      name: "a failing check with terminology not checked fails, and names both",
+      entry: { issues: [error], termCompliance: "" },
+      verdict: "failing",
+      blockers: ["checks"],
+      unchecked: ["terms"],
+    },
+    {
       name: "every bar missed at once, named in the server's order",
       entry: { issues: [error], termCompliance: "violation", voiceScore: 10, voiceBar: 80 },
       verdict: "failing",
@@ -133,13 +146,28 @@ describe("entryVerdict", () => {
       const e = entry({ itemId: "i1", locale: "fr", ...c.entry });
       expect(entryVerdict(e)).toBe(c.verdict);
       expect(entryBlockers(e)).toEqual(c.blockers);
+      expect(entryUnchecked(e)).toEqual(c.unchecked ?? []);
       expect(isEntryPassing(e)).toBe(c.verdict === "passing");
     });
   }
 
-  it("an unchecked terminology verdict is not a violation", () => {
-    // "" means no governance was active — nothing to violate, nothing claimed.
-    expect(entryVerdict(entry({ itemId: "i1", locale: "fr", termCompliance: "" }))).toBe("passing");
+  it("an unchecked terminology verdict is neither passing nor a violation", () => {
+    // "" means nothing was checked: nothing violated, and nothing to approve on.
+    const e = entry({ itemId: "i1", locale: "fr", termCompliance: "" });
+    expect(entryVerdict(e)).toBe("not_checked");
+    expect(entryBlockers(e)).not.toContain("terms");
+    expect(isEntryPassing(e)).toBe(false);
+  });
+
+  it("says in words that the terminology was not checked", () => {
+    const e = entry({ itemId: "i1", locale: "fr", termCompliance: "" });
+    expect(verdictLabel(e)).toBe("Not checked: terminology");
+    expect(verdictDetail(e)).toContain("Terminology not checked");
+    expect(verdictDetail(e)).toContain("no terms or voice profile rules apply to this language");
+    expect(verdictLabel(entry({ itemId: "i1", locale: "fr" }))).toBe("Clears every bar");
+    expect(
+      verdictDetail(entry({ itemId: "i1", locale: "fr", issues: [error], termCompliance: "" })),
+    ).toBe("Failing checks · Terminology not checked");
   });
 
   it("entryHasErrors and isBelowVoiceBar answer their own axis only", () => {
@@ -187,11 +215,20 @@ describe("filtering", () => {
         voiceScore: 40,
         voiceBar: 80,
       }),
+      entry({
+        itemId: "i1",
+        locale: "fr",
+        block: block("unchecked", "fr", "x"),
+        termCompliance: "",
+      }),
     ];
     expect(filterEntries(mixed, { verdict: "passing" }).map((e) => e.block.id)).toEqual(["clean"]);
     expect(filterEntries(mixed, { verdict: "failing" }).map((e) => e.block.id)).toEqual([
       "term",
       "voice",
+    ]);
+    expect(filterEntries(mixed, { verdict: "not_checked" }).map((e) => e.block.id)).toEqual([
+      "unchecked",
     ]);
   });
 
@@ -233,20 +270,22 @@ describe("groupEntries", () => {
     entry({ itemId: "i2", locale: "fr", block: block("a", "fr", "x") }),
     entry({ itemId: "i1", locale: "de", block: block("b", "de", "x"), issues: [error] }),
     entry({ itemId: "i1", locale: "fr", block: block("c", "fr", "x") }),
+    entry({ itemId: "i3", locale: "fr", block: block("d", "fr", "x"), termCompliance: "" }),
   ];
   it("groups by item, first-appearance order", () => {
     const groups = groupEntries(entries, "item");
-    expect(groups.map((g) => g.key)).toEqual(["i2", "i1"]);
+    expect(groups.map((g) => g.key)).toEqual(["i2", "i1", "i3"]);
     expect(groups[1].entries).toHaveLength(2);
   });
   it("groups by locale", () => {
     const groups = groupEntries(entries, "locale");
     expect(groups.map((g) => g.key).sort()).toEqual(["de", "fr"]);
   });
-  it("groups by verdict in severity order", () => {
+  it("groups by verdict in severity order, not checked between failing and passing", () => {
     const groups = groupEntries(entries, "verdict");
-    expect(groups.map((g) => g.key)).toEqual(["failing", "passing"]);
+    expect(groups.map((g) => g.key)).toEqual(["failing", "not_checked", "passing"]);
     expect(groups[0].label).toBe(VERDICT_LABELS.failing);
+    expect(groups[1].label).toBe("Not checked");
   });
 });
 
@@ -261,6 +300,7 @@ describe("queueCounts + passingCount", () => {
     const counts = queueCounts(entries);
     expect(counts.total).toBe(4);
     expect(counts.failing).toBe(2);
+    expect(counts.notChecked).toBe(0);
     expect(counts.passing).toBe(2);
     expect(counts.byLocale).toEqual({ fr: 3, de: 1 });
     expect(counts.byItem).toEqual({ i1: 2, i2: 2 });
@@ -289,6 +329,18 @@ describe("queueCounts + passingCount", () => {
     // check-status-only count said four would pass.
     expect(passingCount(withBars)).toBe(2);
     expect(queueCounts(withBars).failing).toBe(4);
+  });
+  it("an entry whose terminology was not checked is counted apart and never as passing", () => {
+    const withUnchecked = [
+      ...entries,
+      entry({ itemId: "i4", locale: "fr", block: block("g", "fr", "x"), termCompliance: "" }),
+      entry({ itemId: "i4", locale: "fr", block: block("h", "fr", "x"), termCompliance: "" }),
+    ];
+    const counts = queueCounts(withUnchecked);
+    expect(counts.notChecked).toBe(2);
+    expect(counts.failing).toBe(2);
+    expect(counts.passing).toBe(2);
+    expect(passingCount(withUnchecked)).toBe(2);
   });
 });
 

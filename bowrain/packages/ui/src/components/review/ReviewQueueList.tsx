@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef } from "react";
 import { cn, DirectionalText, LocaleLabel } from "@neokapi/ui-primitives";
 import { getTargetText } from "../editor/blockStatus";
-import { AlertTriangle, CircleCheck } from "../icons";
+import { AlertTriangle, CircleCheck, Info } from "../icons";
 import {
   BLOCKER_LABELS,
+  UNCHECKED_LABELS,
   entryBlockers,
+  entryUnchecked,
   entryVerdict,
   groupEntries,
   type ReviewEntry,
@@ -20,6 +22,9 @@ const GROUP_OPTIONS: { value: ReviewGroupBy; label: string }[] = [
 
 const verdictDot: Record<ReviewQueueVerdict, { className: string; icon: typeof AlertTriangle }> = {
   failing: { className: "text-destructive", icon: AlertTriangle },
+  // No verdict to colour: the bar was not checked, so the row carries no
+  // judgement until a person gives one.
+  not_checked: { className: "text-muted-foreground", icon: Info },
   passing: { className: "text-success", icon: CircleCheck },
 };
 
@@ -117,7 +122,10 @@ export function ReviewQueueList({
               {group.entries.map((entry) => {
                 const verdict = entryVerdict(entry);
                 const Dot = verdictDot[verdict].icon;
-                const blockers = entryBlockers(entry);
+                const reasons = [
+                  ...entryBlockers(entry).map((b) => BLOCKER_LABELS[b]),
+                  ...entryUnchecked(entry).map((u) => UNCHECKED_LABELS[u]),
+                ];
                 const active = entry.id === currentId;
                 return (
                   <button
@@ -130,6 +138,7 @@ export function ReviewQueueList({
                     onClick={() => onSelect(entry.id)}
                     data-testid={`queue-row-${entry.id}`}
                     data-active={active}
+                    data-verdict={verdict}
                     className={cn(
                       "flex w-full items-start gap-2 border-b border-border/50 px-3 py-2 text-left transition-colors",
                       active ? "bg-primary/10" : "hover:bg-muted/40",
@@ -137,9 +146,9 @@ export function ReviewQueueList({
                   >
                     <Dot
                       className={cn("mt-0.5 h-3.5 w-3.5 shrink-0", verdictDot[verdict].className)}
-                      // The dot says pass or fail; the title says which bar,
-                      // so a row is never red for a reason nobody can read.
-                      aria-label={blockers.map((b) => BLOCKER_LABELS[b]).join(", ") || "Passing"}
+                      // The dot says pass, fail or not checked; the label says
+                      // which bar, so a row never carries a mark nobody can read.
+                      aria-label={reasons.join(", ") || "Passing"}
                     />
                     <span className="min-w-0 flex-1">
                       <DirectionalText locale={sourceLocale} className="block truncate text-sm">

@@ -176,16 +176,17 @@ func (s *Server) recheckConceptViolations(ctx context.Context, wsID, conceptID, 
 	if err := cTB.AddConcept(ctx, concept); err != nil {
 		return fmt.Errorf("build single-concept terms: %w", err)
 	}
-	// A target violates the concept when it is NOT term-compliant against a
-	// terms holding only this concept — the SAME predicate the dashboard
-	// ship/compliant pass and bulk approve-passing run (blockTermCompliant), so the
-	// re-check oracle and the ship gate can never disagree. Scoping to cTB (this
-	// one concept) keeps the re-check from sweeping up targets that only trip an
-	// OLDER, unrelated term. Both the PRESENCE (RV-E) and ABSENCE (RV-F) directions
-	// are covered by the shared predicate; no voice profile applies to a concept
+	// A target violates the concept when its verdict against a terms holding
+	// only this concept is a violation, the SAME predicate the dashboard
+	// ship/compliant pass and bulk approve-passing run (blockTermCompliance), so
+	// the re-check oracle and the ship gate can never disagree. A target with no
+	// text is unchecked and is left as it is. Scoping to cTB (this one concept)
+	// keeps the re-check from sweeping up targets that only trip an OLDER,
+	// unrelated term. Both the PRESENCE (RV-E) and ABSENCE (RV-F) directions are
+	// covered by the shared predicate; no voice profile applies to a concept
 	// change, hence nil.
 	violates := func(sb *venue.StoredBlock, srcLoc, tgtLoc model.LocaleID) bool {
-		return !blockTermCompliant(ctx, sb.Block, srcLoc, tgtLoc, cTB, nil)
+		return blockTermCompliance(ctx, sb.Block, srcLoc, tgtLoc, cTB, nil) == platstore.TermComplianceViolation
 	}
 	return s.recheckWorkspaceTargets(ctx, wsID, "concept:"+conceptID, violates, actor)
 }
@@ -369,7 +370,7 @@ func conceptHasForbiddenTerm(c terms.Concept) bool {
 // approved term — a mandated rendering a translation is required to use, so the
 // concept can be violated by ABSENCE (a target that fails to use it). This is a
 // cheap pre-filter that lets the re-check skip the whole workspace scan for a
-// concept nothing can violate; the per-block ABSENCE check (blockTermCompliant →
+// concept nothing can violate; the per-block ABSENCE check (blockTermCompliance →
 // targetMissingMandatedTerm) scopes the mandate to the actual target locale.
 func conceptHasMandatedTerm(c terms.Concept) bool {
 	for _, term := range c.Terms {

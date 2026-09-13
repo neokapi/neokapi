@@ -162,31 +162,49 @@ func TestApplyShipStates(t *testing.T) {
 	assert.Equal(t, platstore.ShipStatePending, itB.ShipState)
 	assert.Equal(t, 1, itB.FailingChecks, "the failing block is attributed to its collection")
 
-	// On-brand rates (no voice store → checks-only basis everywhere derived).
-	assertCompliant(t, fr, 2, 1.0, platstore.ComplianceBasisChecks)
-	assertCompliant(t, de, 2, 1.0, platstore.ComplianceBasisChecks)
-	assertCompliant(t, es, 1, 1.0, platstore.ComplianceBasisChecks)
+	// On-brand rates. No terms and no voice profile rules apply, so no block's
+	// terminology was checked: a clean block counts as not checked, and a rate
+	// exists only where a bar decided a block, here the failing one in it.
+	assertNotChecked(t, fr, 2, platstore.ComplianceBasisChecks)
+	assertNotChecked(t, de, 2, platstore.ComplianceBasisChecks)
+	assertNotChecked(t, es, 1, platstore.ComplianceBasisChecks)
 	itStats := localeByCode(t, stats.LocaleStats, "it")
-	assertCompliant(t, itStats, 1, 0.5, platstore.ComplianceBasisChecks)
-	assertCompliant(t, itB, 0, 0.0, platstore.ComplianceBasisChecks)
+	assertCompliant(t, itStats, 0, 1, 0.0, platstore.ComplianceBasisChecks)
+	assertCompliant(t, itB, 0, 0, 0.0, platstore.ComplianceBasisChecks)
+	assertNotChecked(t, localeByCode(t, colA.Locales, "it"), 1, platstore.ComplianceBasisChecks)
 	esB := localeByCode(t, colB.Locales, "es")
 	assert.Nil(t, esB.ComplianceRate, "nothing translated in col-b/es → no rate")
+	assert.Zero(t, esB.NotCheckedBlocks)
 	assert.Empty(t, esB.ComplianceBasis)
 }
 
-// assertCompliant checks the derived compliant triple on one locale scope.
-func assertCompliant(t *testing.T, ls platstore.LocaleTranslationStats, blocks int, rate float64, basis platstore.ComplianceBasis) {
+// assertCompliant checks a locale scope whose rate was derived: its compliant
+// and not-checked blocks, the rate over the checked ones, and the basis.
+func assertCompliant(t *testing.T, ls platstore.LocaleTranslationStats, blocks, notChecked int, rate float64, basis platstore.ComplianceBasis) {
 	t.Helper()
 	assert.Equal(t, blocks, ls.CompliantBlocks, "%s: compliant blocks", ls.Locale)
+	assert.Equal(t, notChecked, ls.NotCheckedBlocks, "%s: not-checked blocks", ls.Locale)
 	require.NotNil(t, ls.ComplianceRate, "%s: rate must be derived", ls.Locale)
 	assert.InDelta(t, rate, *ls.ComplianceRate, 0.0001, "%s: compliance rate", ls.Locale)
+	assert.Equal(t, basis, ls.ComplianceBasis, "%s: basis", ls.Locale)
+}
+
+// assertNotChecked checks a locale scope in which no translated block was
+// checked: each one counts as not checked, none as compliant, and there is no
+// rate to report.
+func assertNotChecked(t *testing.T, ls platstore.LocaleTranslationStats, notChecked int, basis platstore.ComplianceBasis) {
+	t.Helper()
+	assert.Equal(t, notChecked, ls.NotCheckedBlocks, "%s: not-checked blocks", ls.Locale)
+	assert.Zero(t, ls.CompliantBlocks, "%s: an unchecked block is never compliant", ls.Locale)
+	assert.Nil(t, ls.ComplianceRate, "%s: no block was checked, so there is no rate", ls.Locale)
 	assert.Equal(t, basis, ls.ComplianceBasis, "%s: basis", ls.Locale)
 }
 
 // TestApplyShipStates_ComplianceVoiceScores covers the voice-informed half of the
 // compliance rate: a persisted voice score below the profile's min bar demotes a
 // checks-passing block, the latest score per block+locale wins, and the basis
-// flips to voice+checks only in the scopes a score actually informed.
+// names voice only in the scopes a score actually informed. Terms are bound, so
+// every target's terminology is checked and the rate covers every block.
 func TestApplyShipStates_ComplianceVoiceScores(t *testing.T) {
 	db := pgtest.NewTestDB(t)
 	cs, err := bstore.NewPostgresStoreFromDB(db)
@@ -231,27 +249,27 @@ func TestApplyShipStates_ComplianceVoiceScores(t *testing.T) {
 	require.NoError(t, err)
 	stats, err := editorGetDashboardStats(ctx, cs, proj, "main")
 	require.NoError(t, err)
-	require.NoError(t, applyShipStates(ctx, cs, bs, pid, "main", nil, stats))
+	require.NoError(t, applyShipStates(ctx, cs, bs, pid, "main", checkedTermsGate(t), stats))
 
 	fr := localeByCode(t, stats.LocaleStats, "fr")
-	assertCompliant(t, fr, 2, 1.0, platstore.ComplianceBasisVoice)
+	assertCompliant(t, fr, 2, 0, 1.0, platstore.ComplianceBasisVoiceTerms)
 	assert.Equal(t, platstore.ShipStateGoverned, fr.ShipState, "voice scores do not disturb ship states")
 
 	de := localeByCode(t, stats.LocaleStats, "de")
-	assertCompliant(t, de, 1, 0.5, platstore.ComplianceBasisVoice)
+	assertCompliant(t, de, 1, 0, 0.5, platstore.ComplianceBasisVoiceTerms)
 	assert.Equal(t, platstore.ShipStateAIShippable, de.ShipState, "a sub-bar voice score does not demote the ship state")
 	assert.Equal(t, 0, de.FailingChecks)
 
-	// Unscored locales keep the checks-only basis.
+	// Unscored locales keep a basis without voice.
 	es := localeByCode(t, stats.LocaleStats, "es")
-	assertCompliant(t, es, 1, 1.0, platstore.ComplianceBasisChecks)
+	assertCompliant(t, es, 1, 0, 1.0, platstore.ComplianceBasisChecksTerms)
 
 	// Per-collection basis: the de score lives on b1 (col-a); col-b/de has no
-	// scored block and stays checks-only.
+	// scored block and stays without voice.
 	colA := collByID(t, stats.CollectionStats, "col-a")
-	assertCompliant(t, localeByCode(t, colA.Locales, "de"), 0, 0.0, platstore.ComplianceBasisVoice)
+	assertCompliant(t, localeByCode(t, colA.Locales, "de"), 0, 0, 0.0, platstore.ComplianceBasisVoiceTerms)
 	colB := collByID(t, stats.CollectionStats, "col-b")
-	assertCompliant(t, localeByCode(t, colB.Locales, "de"), 1, 1.0, platstore.ComplianceBasisChecks)
+	assertCompliant(t, localeByCode(t, colB.Locales, "de"), 1, 0, 1.0, platstore.ComplianceBasisChecksTerms)
 }
 
 // TestApplyShipStates_StaleBasisWithholdsLocale is #1957's regression, over the
@@ -488,10 +506,11 @@ func TestTranslationDashboardShipStateWire(t *testing.T) {
 	assert.True(t, strings.Contains(body, `"approved_blocks":1`), "wire carries approved_blocks: %s", body)
 	assert.True(t, strings.Contains(body, `"failing_checks":0`), "wire carries failing_checks: %s", body)
 	assert.True(t, strings.Contains(body, `"compliance_basis":"checks"`), "wire carries compliance_basis: %s", body)
+	assert.True(t, strings.Contains(body, `"not_checked_blocks":1`), "wire carries not_checked_blocks: %s", body)
 
 	stats := getDashboard(t, srv, token, pid, "")
 	fr := localeByCode(t, stats.LocaleStats, "fr")
 	assert.Equal(t, platstore.ShipStatePending, fr.ShipState, "1 of 3 blocks translated → pending")
 	assert.Equal(t, 1, fr.ApprovedBlocks)
-	assertCompliant(t, fr, 1, 1.0, platstore.ComplianceBasisChecks)
+	assertNotChecked(t, fr, 1, platstore.ComplianceBasisChecks)
 }

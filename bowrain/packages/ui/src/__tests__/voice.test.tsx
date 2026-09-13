@@ -191,7 +191,7 @@ describe("VoiceFindingsList", () => {
       makeFinding({ severity: "minor", message: "Slightly too formal" }),
       makeFinding({ severity: "critical", message: "Forbidden term used" }),
     ];
-    render(<VoiceFindingsList findings={findings} />);
+    render(<VoiceFindingsList findings={findings} scanned />);
     expect(screen.getByText("Slightly too formal")).toBeInTheDocument();
     expect(screen.getByText("Forbidden term used")).toBeInTheDocument();
     expect(screen.getByText("minor")).toBeInTheDocument();
@@ -200,20 +200,30 @@ describe("VoiceFindingsList", () => {
 
   it("shows suggestion when present", () => {
     const findings = [makeFinding({ message: "Too wordy", suggestion: "Use shorter sentences" })];
-    render(<VoiceFindingsList findings={findings} />);
+    render(<VoiceFindingsList findings={findings} scanned />);
     expect(screen.getByText("Suggestion: Use shorter sentences")).toBeInTheDocument();
   });
 
   // The wire field is `category`; the list read `dimension`, which no server
   // response carries, so this chip was empty for every real finding.
   it("names the category the server grouped the finding under", () => {
-    render(<VoiceFindingsList findings={[makeFinding({ category: "compliance" })]} />);
+    render(<VoiceFindingsList findings={[makeFinding({ category: "compliance" })]} scanned />);
     expect(screen.getByText("compliance")).toBeInTheDocument();
   });
 
-  it("shows empty message when no findings", () => {
-    render(<VoiceFindingsList findings={[]} />);
+  it("says the content is fully compliant when a scan found nothing", () => {
+    render(<VoiceFindingsList findings={[]} scanned />);
     expect(screen.getByText("No findings. Content is fully compliant.")).toBeInTheDocument();
+  });
+
+  // An empty list over nothing scanned is not a clean result, and must not read
+  // as one.
+  it("says nothing was scanned when there was nothing to scan", () => {
+    render(<VoiceFindingsList findings={[]} scanned={false} />);
+    expect(
+      screen.getByText("Nothing was scanned, so there is no compliance to report."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/fully compliant/)).not.toBeInTheDocument();
   });
 });
 

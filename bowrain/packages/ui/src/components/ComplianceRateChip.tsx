@@ -1,4 +1,5 @@
 import { cn, SimpleTooltip } from "@neokapi/ui-primitives";
+import { One, Other, Plural } from "@neokapi/i18n-react/runtime";
 import type { ComplianceBasis } from "../types/api";
 import { ShieldCheck } from "./icons";
 
@@ -7,18 +8,25 @@ import { ShieldCheck } from "./icons";
  * the loop's own evidence — rule-based check results plus, where the worker's draft
  * scoring has run, persisted voice scores against the profile's minimum
  * bar. The tooltip states the basis explicitly, so a checks-only rate is never
- * mistaken for a voice-informed one. Rendered only when the server sent the
- * fields (older servers omit them and the chip stays hidden).
+ * mistaken for a voice-informed one.
+ *
+ * The rate is over checked blocks only. A block whose terminology was not
+ * checked counts toward neither side of it, and the chip names how many there
+ * are beside the rate; with no block checked there is no rate, and the chip
+ * shows that count alone. Rendered only when the server sent the fields (older
+ * servers omit them and the chip stays hidden).
  */
 export interface ComplianceRateChipProps {
-  /** compliant_blocks / translated_blocks, in [0,1]. */
-  rate: number;
+  /** compliant_blocks over the checked translated blocks, in [0,1]; absent when none was checked. */
+  rate?: number;
   /** What informed the rate (tooltip honesty line). */
   basis: ComplianceBasis;
   /** Translated blocks counting as compliant, for the tooltip detail line. */
   compliantBlocks?: number;
   /** Translated blocks in the scope, for the tooltip detail line. */
   translatedBlocks?: number;
+  /** Translated blocks whose terminology was not checked, which the rate leaves out. */
+  notCheckedBlocks?: number;
   className?: string;
 }
 
@@ -36,16 +44,34 @@ export function ComplianceRateChip({
   basis,
   compliantBlocks,
   translatedBlocks,
+  notCheckedBlocks,
   className,
 }: ComplianceRateChipProps) {
-  const pct = Math.round(Math.min(Math.max(rate, 0), 1) * 100);
+  const notChecked = notCheckedBlocks ?? 0;
+  const pct = rate === undefined ? undefined : Math.round(Math.min(Math.max(rate, 0), 1) * 100);
+  const checkedBlocks = translatedBlocks === undefined ? undefined : translatedBlocks - notChecked;
   const tooltip = (
     <div className="max-w-60 space-y-1">
       <p className="font-medium">On-brand rate</p>
       <p>{basisExplanations[basis]}</p>
-      {compliantBlocks !== undefined && translatedBlocks !== undefined && (
+      {pct !== undefined && compliantBlocks !== undefined && checkedBlocks !== undefined && (
         <p className="text-muted-foreground">
-          {compliantBlocks} of {translatedBlocks} translated blocks compliant
+          {compliantBlocks} of {checkedBlocks} checked blocks compliant
+        </p>
+      )}
+      {notChecked > 0 && (
+        <p className="text-muted-foreground" data-testid="compliance-not-checked-detail">
+          <Plural count={notChecked}>
+            <One>
+              {notChecked} translated block was not checked for terminology, because no terms or
+              voice profile rules apply to this language. It counts toward neither side of the rate.
+            </One>
+            <Other>
+              {notChecked} translated blocks were not checked for terminology, because no terms or
+              voice profile rules apply to this language. They count toward neither side of the
+              rate.
+            </Other>
+          </Plural>
         </p>
       )}
     </div>
@@ -62,7 +88,11 @@ export function ComplianceRateChip({
         )}
       >
         <ShieldCheck className="h-3 w-3" />
-        {pct}% compliant
+        {pct !== undefined && <span>{pct}% compliant</span>}
+        {pct !== undefined && notChecked > 0 && <span aria-hidden="true">·</span>}
+        {notChecked > 0 && (
+          <span data-testid="compliance-not-checked">{notChecked} not checked</span>
+        )}
       </span>
     </SimpleTooltip>
   );

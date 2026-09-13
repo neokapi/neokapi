@@ -191,7 +191,25 @@ export const Passing: Story = {
   args: {
     entry: entry({ termCompliance: "compliant", voiceScore: 94, voiceBar: 80 }),
     context: passingContext,
-    compliance: { rate: 0.94, basis: "voice+checks", compliantBlocks: 47, translatedBlocks: 50 },
+    compliance: {
+      rate: 0.94,
+      basis: "voice+checks+terms",
+      compliantBlocks: 47,
+      translatedBlocks: 50,
+    },
+  },
+};
+
+/**
+ * No terms and no voice profile rules apply to the language, so the target's
+ * terminology was not checked. Nothing failed it and nothing showed it passing:
+ * the verdict says so, approving all passing leaves it for a person, and the
+ * locale's chip counts the unchecked blocks where a rate would be.
+ */
+export const TerminologyNotChecked: Story = {
+  args: {
+    entry: entry({ termCompliance: "" }),
+    compliance: { basis: "checks", translatedBlocks: 50, notCheckedBlocks: 46 },
   },
 };
 
@@ -238,7 +256,12 @@ export const FailingChecks: Story = {
         { type: "length", severity: "warning", message: "Target is much longer than the source." },
       ],
     }),
-    compliance: { rate: 0.7, basis: "checks", compliantBlocks: 35, translatedBlocks: 50 },
+    compliance: {
+      rate: 0.7,
+      basis: "checks+terms",
+      compliantBlocks: 35,
+      translatedBlocks: 50,
+    },
   },
 };
 
@@ -289,7 +312,12 @@ export const WithVoiceProfile: Story = {
   args: {
     entry: entry({}),
     voiceProfileId: "prof-1",
-    compliance: { rate: 0.88, basis: "voice+checks", compliantBlocks: 44, translatedBlocks: 50 },
+    compliance: {
+      rate: 0.88,
+      basis: "voice+checks+terms",
+      compliantBlocks: 44,
+      translatedBlocks: 50,
+    },
   },
 };
 

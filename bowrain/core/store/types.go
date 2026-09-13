@@ -696,17 +696,26 @@ type LocaleTranslationStats struct {
 	// checks with no error-severity finding, are term-compliant for the locale (no
 	// forbidden/competitor term, no missing mandated rendering), AND — where a
 	// persisted voice score exists for the block+locale — carry a score at
-	// or above the scoring profile's minimum bar. Additive: producers that do not
-	// derive the compliance rate leave it 0 (omitted from JSON).
+	// or above the scoring profile's minimum bar. A block whose terminology was
+	// not checked is never counted here. Additive: producers that do not derive
+	// the compliance rate leave it 0 (omitted from JSON).
 	CompliantBlocks int `json:"compliant_blocks,omitempty"`
-	// ComplianceRate is CompliantBlocks / TranslatedBlocks, in [0,1]. Nil when the
-	// producer did not derive it or the scope has no translated blocks.
+	// NotCheckedBlocks counts translated blocks whose compliance was not decided:
+	// no bar failed them, and their terminology was not checked because no terms
+	// and no voice profile rule apply to the locale. They count toward neither
+	// side of ComplianceRate. Additive: producers that do not derive the rate
+	// leave it 0 (omitted from JSON).
+	NotCheckedBlocks int `json:"not_checked_blocks,omitempty"`
+	// ComplianceRate is CompliantBlocks over the checked translated blocks
+	// (TranslatedBlocks less NotCheckedBlocks), in [0,1]. Nil when the producer
+	// did not derive it, the scope has no translated blocks, or no translated
+	// block was checked.
 	ComplianceRate *float64 `json:"compliance_rate,omitempty"`
-	// ComplianceBasis states what informed ComplianceRate (see ComplianceBasisFor):
-	// rule-based checks always, plus "+terms" when term governance was active for
-	// the scope and plus "voice" when at least one block's persisted voice score
-	// also informed it. Empty when the rate was not derived — consumers hide the
-	// metric then.
+	// ComplianceBasis states what informed ComplianceRate and NotCheckedBlocks
+	// (see ComplianceBasisFor): rule-based checks always, plus "+terms" when term
+	// governance was active for the scope and plus "voice" when at least one
+	// block's persisted voice score also informed it. Empty when the numbers were
+	// not derived, and consumers hide the metric then.
 	ComplianceBasis ComplianceBasis `json:"compliance_basis,omitempty"`
 }
 
@@ -762,8 +771,10 @@ func ComplianceBasisFor(voice, terms bool) ComplianceBasis {
 type TermCompliance string
 
 const (
-	// TermComplianceUnchecked — no terminology governance was active for the
-	// locale, so nothing was checked and nothing is claimed.
+	// TermComplianceUnchecked means nothing was checked and nothing is claimed:
+	// no terms and no voice profile rule apply to the locale, or the target holds
+	// no text. The server will not auto-approve it, and a compliance rate counts
+	// it as not checked rather than as compliant.
 	TermComplianceUnchecked TermCompliance = ""
 	// TermComplianceCompliant — the target was checked and respects the
 	// project's terminology.
