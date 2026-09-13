@@ -110,7 +110,7 @@ func TermRulesFromConcepts(ctx context.Context, tb terms.Terminology, projectID 
 		if concept.ProjectID != "" && concept.ProjectID != projectID {
 			continue // another project's terminology
 		}
-		src := concept.SourceTerm(sourceLocale)
+		src := concept.HeadTerm(sourceLocale)
 		if src == nil || src.Text == "" {
 			continue
 		}
