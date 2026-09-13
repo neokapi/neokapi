@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
-	"github.com/neokapi/neokapi/host"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -53,13 +52,12 @@ func TestShipManifestIsShapeIdenticalToShipJSON(t *testing.T) {
 	body, err := json.Marshal(shipManifestFromStats(stats))
 	require.NoError(t, err)
 
-	cli, err := json.Marshal(host.ShipManifest{
-		"nb": {Shippable: true, Verified: true},
-		"sv": {Shippable: true, Verified: true, NotGoverned: []string{"terms"}},
-		"ja": {},
-	})
-	require.NoError(t, err)
-	assert.JSONEq(t, string(cli), string(body), "the feed and ship.json carry the same keys and values")
+	// host's TestShipManifestWireShape holds ship.json to this same literal.
+	assert.JSONEq(t, `{
+		"nb": {"shippable": true, "verified": true},
+		"sv": {"shippable": true, "verified": true, "not_governed": ["terms"]},
+		"ja": {"shippable": false, "verified": false}
+	}`, string(body), "the feed and ship.json carry the same keys and values")
 }
 
 func TestShipETagIsDeterministicAndBodySensitive(t *testing.T) {

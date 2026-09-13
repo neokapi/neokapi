@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -13,7 +14,6 @@ import (
 	"github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"strings"
 )
 
 // writeStatusProject creates a temp project with a JSON catalog source, a
@@ -365,6 +365,23 @@ func TestStatus_ShipManifestEmit(t *testing.T) {
 		"no terms govern nb, and the manifest says so")
 	assert.Equal(t, ShipEntry{Shippable: true, Verified: false, NotGoverned: []string{"terms"}}, manifest["de"],
 		"shippable but unverified — the AI case")
+}
+
+// TestShipManifestWireShape pins ship.json's encoding. The server's public ship
+// feed is held to the same literal (TestShipManifestIsShapeIdenticalToShipJSON),
+// so the picker reads both through one code path.
+func TestShipManifestWireShape(t *testing.T) {
+	body, err := json.Marshal(ShipManifest{
+		"nb": {Shippable: true, Verified: true},
+		"sv": {Shippable: true, Verified: true, NotGoverned: []string{"terms"}},
+		"ja": {},
+	})
+	require.NoError(t, err)
+	assert.JSONEq(t, `{
+		"nb": {"shippable": true, "verified": true},
+		"sv": {"shippable": true, "verified": true, "not_governed": ["terms"]},
+		"ja": {"shippable": false, "verified": false}
+	}`, string(body))
 }
 
 // TestStatus_ShipManifestNamesUngovernedTerminology: a language a concept in the
