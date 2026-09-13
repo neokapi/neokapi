@@ -138,6 +138,11 @@ paragraph. A finding's `location.lines` gives the lines of its block. Rules that
 hold over a whole document, such as a voice profile's required patterns, read
 the whole changed file.
 
+In a Go source file the unit is the comment. A changed line inside a comment
+checks that comment whole, and a change to code or to directives alone leaves
+the file `untouched`. The formatter compares only the comments the change
+touched, and it catches its canary as it does when kapi checks the whole file.
+
 Removed lines leave nothing to point at, so a deletion first takes the blocks on
 both sides of where the lines were. A block that lost its first or last lines is
 then in scope, and so is one the deletion merged with its neighbour. For a

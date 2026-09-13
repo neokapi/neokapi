@@ -49,10 +49,13 @@ func (a *App) commentLayerFor(file, fmtName string) (comment.Provider, bool) {
 // commentLayer is one file's comments, read for checking.
 type commentLayer struct {
 	blocks []*model.Block
+	// extents locate each block in the file, in the order of blocks.
+	extents []format.Extent
 	// lines maps each block's location key to the lines it spans in the file.
 	lines map[string]format.LineRange
-	// formatter holds the formatter's disagreements, located.
-	formatter []check.Diagnostic
+	// analyzers are the comment extraction and the language's formatter, run
+	// over whichever comments a check has in scope.
+	analyzers []providerAnalyzer
 }
 
 // locate gives every diagnostic on a comment block the lines that comment
@@ -70,10 +73,14 @@ func (l *commentLayer) locate(diags []check.Diagnostic) {
 
 // checkCommentFile is checkFileBlocks for a file read for its comment layer.
 // The comments become blocks and go through collectFileDiagnostics, the same
-// checkset, governance and report as any other content; the formatter's
-// disagreements join them.
+// checkset, governance and report as any other content. The layer's analyzers
+// run over every comment in the file, and their findings join the checkset's.
 func (a *App) checkCommentFile(ctx context.Context, file string, p comment.Provider, validateMode format.ValidationMode, opts checkRunOptions) ([]*model.Block, []check.Diagnostic, error) {
 	layer, err := a.readCommentLayer(ctx, file, p, opts.execution)
+	if err != nil {
+		return nil, nil, err
+	}
+	layerDiags, err := recordProviderAnalyzers(ctx, layer.analyzers, layer.blocks, file, opts.execution)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -86,25 +93,16 @@ func (a *App) checkCommentFile(ctx context.Context, file string, p comment.Provi
 	if err != nil {
 		return nil, nil, err
 	}
-	diags := make([]check.Diagnostic, 0, len(layer.formatter)+len(fileDiags))
-	diags = append(diags, layer.formatter...)
+	diags := make([]check.Diagnostic, 0, len(layerDiags)+len(fileDiags))
+	diags = append(diags, layerDiags...)
 	diags = append(diags, fileDiags...)
 	layer.locate(diags)
 	return layer.blocks, diags, nil
 }
 
-// readCommentLayer locates a file's comments with its language provider and
-// returns them as blocks, together with the formatter's disagreements as
-// diagnostics.
-//
-// Both halves are analyzers with canaries. The provider must locate its canary
-// file's comment and the hygiene check must flag it, or nothing it located in
-// the real file can be trusted. The formatter must report its canary's
-// comment. The formatter compares and never writes; when it cannot finish, the
-// run did not run.
-//
-// A nil execution reads the layer for a caller that records no analyzers, and
-// gives no canaries.
+// readCommentLayer reads a file from disk and locates its comments, counting
+// the time as extraction. It records no analyzer: the caller runs the layer's
+// analyzers over the comments it has in scope.
 func (a *App) readCommentLayer(ctx context.Context, file string, p comment.Provider, execution *checkExecution) (*commentLayer, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -114,108 +112,133 @@ func (a *App) readCommentLayer(ctx context.Context, file string, p comment.Provi
 	if err != nil {
 		return nil, fmt.Errorf("read %s: %w", DisplayName(file), err)
 	}
-	located, err := p.Locate(file, src)
+	layer, err := locateComments(file, src, p)
 	if err != nil {
-		return nil, fmt.Errorf("locate the comments in %s: %w", DisplayName(file), err)
-	}
-	layer := &commentLayer{blocks: located.Blocks(), lines: map[string]format.LineRange{}}
-	for i, extent := range located.Extents() {
-		layer.lines[blockKey(layer.blocks[i])] = extent.Lines
+		return nil, err
 	}
 	if execution != nil {
 		execution.Timings.ExtractionMS += elapsedMS(start)
-		canary, cerr := probeCommentExtraction(ctx, p)
-		if cerr != nil {
-			return nil, fmt.Errorf("comment extraction %s: %w", DisplayName(file), cerr)
-		}
-		execution.completed(commentsAnalyzer(p), file, 0, start, canary, true)
-	}
-
-	f, ok := p.(comment.Formatter)
-	if !ok {
-		execution.unsupported(formatterCheck, file, fmt.Sprintf("No formatter is known for %s.", p.Language()))
-		return layer, nil
-	}
-	id := check.RuleID(formatterCheck, f.FormatterName())
-	start = time.Now()
-	disagreements, err := f.Disagreements(file, src, located)
-	if err != nil {
-		// A formatter that could not compare the file has nothing it can be
-		// shown to catch, so the analyzer did not run, and neither did the run.
-		canary, _ := check.Probe(nil, f.FormatterName()+" could not compare "+DisplayName(file)+": "+err.Error(), nil)
-		execution.completed(id, file, 0, start, canary, true)
-		return layer, nil
-	}
-	for _, d := range disagreements {
-		layer.formatter = append(layer.formatter, check.Diagnostic{
-			Rule:       id,
-			Check:      formatterCheck,
-			Severity:   check.SeverityMajor,
-			Message:    f.FormatterName() + " would rewrite this comment",
-			Suggestion: d.Formatted,
-			Location:   check.Location{File: DisplayName(file), Block: blockKey(layer.blocks[d.Comment])},
-		})
-	}
-	if execution != nil {
-		canary, cerr := probeFormatter(p, f)
-		if cerr != nil {
-			return nil, fmt.Errorf("%s %s: %w", id, DisplayName(file), cerr)
-		}
-		execution.completed(id, file, len(layer.formatter), start, canary, true)
 	}
 	return layer, nil
 }
 
-// probeCommentExtraction gives the provider its canary file, through the same
-// provider and the same hygiene checker the real comments went through.
-func probeCommentExtraction(ctx context.Context, p comment.Provider) (check.CanaryOutcome, error) {
-	c := p.Canary()
-	canary := check.Canary{Name: c.Name, Block: check.CanaryBlock(string(c.Source)), Expect: "doubled-word"}
-	hygiene := hygieneTool()
-	return check.Probe([]check.Canary{canary}, "", func(b *model.Block) ([]check.Finding, error) {
-		located, err := p.Locate("canary", []byte(model.RunsText(b.SourceRuns())))
-		if err != nil {
-			return nil, err
-		}
-		for _, blk := range located.Blocks() {
-			if blk.ID != c.Block {
-				continue
-			}
-			if err := RunCheckTool(ctx, hygiene, blk); err != nil {
-				return nil, err
-			}
-			return FindingsFromBlock(blk, false), nil
-		}
-		return nil, nil
-	})
+// locateComments reads a file's bytes through its language provider into
+// blocks and gives the layer its analyzers. The formatter compares the file
+// here and never writes it.
+func locateComments(file string, src []byte, p comment.Provider) (*commentLayer, error) {
+	located, err := p.Locate(file, src)
+	if err != nil {
+		return nil, fmt.Errorf("locate the comments in %s: %w", DisplayName(file), err)
+	}
+	layer := &commentLayer{blocks: located.Blocks(), extents: located.Extents(), lines: map[string]format.LineRange{}}
+	for i, extent := range layer.extents {
+		layer.lines[blockKey(layer.blocks[i])] = extent.Lines
+	}
+	layer.analyzers = []providerAnalyzer{extractionAnalyzer(p)}
+	f, ok := p.(comment.Formatter)
+	if !ok {
+		layer.analyzers = append(layer.analyzers, providerAnalyzer{
+			id:          formatterCheck,
+			unsupported: fmt.Sprintf("No formatter is known for %s.", p.Language()),
+		})
+		return layer, nil
+	}
+	layer.analyzers = append(layer.analyzers, formatterAnalyzer(file, src, located, layer.blocks, p, f))
+	return layer, nil
 }
 
-// probeFormatter gives the formatter a file holding a comment it rewrites,
-// located by the same provider the real file was.
-func probeFormatter(p comment.Provider, f comment.Formatter) (check.CanaryOutcome, error) {
-	canary := check.Canary{Name: "a comment " + f.FormatterName() + " rewrites", Block: check.CanaryBlock(string(f.FormatterCanary()))}
-	return check.Probe([]check.Canary{canary}, "", func(b *model.Block) ([]check.Finding, error) {
-		src := []byte(model.RunsText(b.SourceRuns()))
-		located, err := p.Locate("canary", src)
-		if err != nil {
-			return nil, err
+// extractionAnalyzer records the comment extraction, which reports no finding
+// of its own. Its canary is the provider's canary file, located by the same
+// provider and flagged by the same hygiene checker as the real comments, so a
+// provider that loses prose it should locate invalidates the run.
+func extractionAnalyzer(p comment.Provider) providerAnalyzer {
+	c := p.Canary()
+	return providerAnalyzer{
+		id:       commentsAnalyzer(p),
+		run:      func(context.Context, []*model.Block) ([]check.Diagnostic, error) { return nil, nil },
+		canaries: []check.Canary{{Name: c.Name, Block: check.CanaryBlock(string(c.Source)), Expect: "doubled-word"}},
+		probe: func(ctx context.Context, b *model.Block) ([]check.Finding, error) {
+			located, err := p.Locate("canary", []byte(model.RunsText(b.SourceRuns())))
+			if err != nil {
+				return nil, err
+			}
+			for _, blk := range located.Blocks() {
+				if blk.ID != c.Block {
+					continue
+				}
+				if err := RunCheckTool(ctx, hygieneTool(), blk); err != nil {
+					return nil, err
+				}
+				return FindingsFromBlock(blk, false), nil
+			}
+			return nil, nil
+		},
+	}
+}
+
+// formatterAnalyzer compares the file with its language's formatter and reports
+// a major finding on each comment in scope that the formatter would rewrite. Its
+// canary is a file holding a comment the formatter rewrites, located by the same
+// provider. A formatter that cannot compare this file has nothing it can be
+// shown to catch, so it has no canary and did not run.
+func formatterAnalyzer(file string, src []byte, located *comment.File, blocks []*model.Block, p comment.Provider, f comment.Formatter) providerAnalyzer {
+	id := check.RuleID(formatterCheck, f.FormatterName())
+	disagreements, err := f.Disagreements(file, src, located)
+	if err != nil {
+		return providerAnalyzer{
+			id:          id,
+			run:         func(context.Context, []*model.Block) ([]check.Diagnostic, error) { return nil, nil },
+			uncheckable: f.FormatterName() + " could not compare " + DisplayName(file) + ": " + err.Error(),
 		}
-		disagreements, err := f.Disagreements("canary", src, located)
-		if err != nil {
-			return nil, err
-		}
-		findings := make([]check.Finding, len(disagreements))
-		for i := range disagreements {
-			findings[i] = check.Finding{Category: f.FormatterName()}
-		}
-		return findings, nil
-	})
+	}
+	return providerAnalyzer{
+		id: id,
+		run: func(_ context.Context, scope []*model.Block) ([]check.Diagnostic, error) {
+			inScope := make(map[string]bool, len(scope))
+			for _, b := range scope {
+				inScope[blockKey(b)] = true
+			}
+			var diags []check.Diagnostic
+			for _, d := range disagreements {
+				key := blockKey(blocks[d.Comment])
+				if !inScope[key] {
+					continue
+				}
+				diags = append(diags, check.Diagnostic{
+					Rule:       id,
+					Check:      formatterCheck,
+					Severity:   check.SeverityMajor,
+					Message:    f.FormatterName() + " would rewrite this comment",
+					Suggestion: d.Formatted,
+					Location:   check.Location{Block: key},
+				})
+			}
+			return diags, nil
+		},
+		canaries: []check.Canary{{Name: "a comment " + f.FormatterName() + " rewrites", Block: check.CanaryBlock(string(f.FormatterCanary()))}},
+		probe: func(_ context.Context, b *model.Block) ([]check.Finding, error) {
+			canary := []byte(model.RunsText(b.SourceRuns()))
+			located, err := p.Locate("canary", canary)
+			if err != nil {
+				return nil, err
+			}
+			found, err := f.Disagreements("canary", canary, located)
+			if err != nil {
+				return nil, err
+			}
+			findings := make([]check.Finding, len(found))
+			for i := range found {
+				findings[i] = check.Finding{Category: f.FormatterName()}
+			}
+			return findings, nil
+		},
+	}
 }
 
 // readSourceForCheck reads a unit's source for the source-side checks: through
 // its format reader, or through its language's comment provider when the
-// comments are all a check can read in it. Only a comment layer carries
-// formatter diagnostics.
+// comments are all a check can read in it. A comment layer's analyzers run over
+// every comment, and only they carry diagnostics.
 func (a *App) readSourceForCheck(ctx context.Context, u VerifyUnit, execution *checkExecution) ([]*model.Block, []check.Diagnostic, error) {
 	name, _ := a.unitFormat(u.SourceFormat, u.SourceConfig)
 	if p, ok := a.commentLayerFor(u.SourcePath, name); ok {
@@ -223,7 +246,11 @@ func (a *App) readSourceForCheck(ctx context.Context, u VerifyUnit, execution *c
 		if err != nil {
 			return nil, nil, err
 		}
-		return layer.blocks, layer.formatter, nil
+		diags, err := recordProviderAnalyzers(ctx, layer.analyzers, layer.blocks, u.SourcePath, execution)
+		if err != nil {
+			return nil, nil, err
+		}
+		return layer.blocks, diags, nil
 	}
 	blocks, err := a.readSource(ctx, u)
 	return blocks, nil, err

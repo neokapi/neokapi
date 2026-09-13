@@ -1,0 +1,26 @@
+diff --git a/core/format/reader.go b/core/format/reader.go
+index dd902af09..3d7b6b35d 100644
+--- a/core/format/reader.go
++++ b/core/format/reader.go
+@@ -71,7 +71,7 @@ type DataFormatReader interface {
+ // The file-run path (core/flow.FileRunner) consults this marker to choose the
+ // bounded-memory streaming path; readers that do not implement it keep the
+ // read-fully-then-write buffered path unchanged. See
+-// [AD-005](../../web/docs/contribute/architecture/005-format-system.md)
++// [E-02](../../web/docs/contribute/architecture/engine/e-02-format-system.md)
+ // "Streaming readers and bounded-memory I/O".
+ type StreamingReader interface {
+ 	// StreamingReader marks the capability. The method is a bare marker: its
+diff --git a/core/format/writer.go b/core/format/writer.go
+index 54a3e514b..5b0d099e5 100644
+--- a/core/format/writer.go
++++ b/core/format/writer.go
+@@ -61,7 +61,7 @@ type WriterConfigurable interface {
+ // buffered (collect-all-blocks) skeleton path; the file-run path only wires a
+ // streaming skeleton store when both the reader (StreamingReader) and the writer
+ // (StreamingWriter) opt in. See
+-// [AD-005](../../web/docs/contribute/architecture/005-format-system.md)
++// [E-02](../../web/docs/contribute/architecture/engine/e-02-format-system.md)
+ // "Streaming readers and bounded-memory I/O".
+ type StreamingWriter interface {
+ 	// StreamingWriter marks the capability. As with StreamingReader, the method
