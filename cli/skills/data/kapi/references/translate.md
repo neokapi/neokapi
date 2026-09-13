@@ -178,6 +178,17 @@ and writes the rest into the committed terms bundle. Run it with `--dry-run`
 first, then review the diff before committing: a wrong form makes a check accept
 a word it should not.
 
+When `term-check` reports a missing term, the finding names the preferred
+wording and the concept, and lists the other renderings the terms accept. Any of
+them passes, as written or in a form its term lists. When the target already
+uses a correct inflection that the term does not list, add the form to the term
+rather than rewording the translation. A source term matches as a whole word, so
+`flow` matches in "the flow runs" and is skipped inside `workflow`. In an English
+source a term also matches with -s, -es, -ed or -ing added (-d after a final e),
+unless it lists forms, which then replace those endings. A source term in another
+language matches as written or in its listed forms, which
+`kapi terms expand --locale <source language>` proposes.
+
 Use the approved (preferred) term; avoid deprecated/forbidden ones. A bound
 terms store also feeds the translation step, and so does a `term_rules:` list in
 the translate step's config (one term, its replacement, a severity), the same
