@@ -58,13 +58,14 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 //
 // Baseline is version 24 — above every number issued, so an existing database
 // applies it once and any drift between its schema and its bookkeeping is
-// repaired. Retired numbers are never reused; the next migration is version 32.
+// repaired. Retired numbers are never reused; the next migration is version 35.
 //
 // 25  where a collection's strings can be read in place
 // 26  the ship gate's per-block verdict
 // 27  a stream owns its content, and a file is identified by what it is
 // 30  the ledger records the source the platform last drafted a unit against
 // 31  the ledger records the governing context a decision was made under
+// 34  the ship gate's verdict records the terminology verdict
 var Migrations = []storage.Migration{
 	{
 		Version:     24,
@@ -1436,6 +1437,23 @@ var Migrations = []storage.Migration{
 			ALTER TABLE blocks ADD COLUMN IF NOT EXISTS position INTEGER NOT NULL DEFAULT 0;
 			CREATE INDEX IF NOT EXISTS idx_blocks_item_position
 				ON blocks(project_id, stream, item_name, position);
+		`,
+	},
+	{
+		Version:     34,
+		Description: "the ship gate's verdict records the terminology verdict",
+		SQL: `
+			-- The pair's terminology verdict (core/store.TermCompliance):
+			-- 'compliant', 'violation', 'not_governed', or '' for a pair whose
+			-- locale terms govern but which had nothing to check, such as an
+			-- empty target. fails holds a violation too; this column is what
+			-- separates a clean pair whose terminology was checked from one that
+			-- was not, so the dashboard counts the second as not checked rather
+			-- than as compliant. A row written before the column existed carries
+			-- '' and is never counted: it was computed under an older gate
+			-- fingerprint, so the next load judges it again. Additive, with no
+			-- rewrite of existing rows.
+			ALTER TABLE ship_verdicts ADD COLUMN IF NOT EXISTS terms TEXT NOT NULL DEFAULT '';
 		`,
 	},
 }

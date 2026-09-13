@@ -201,15 +201,34 @@ export const Passing: Story = {
 };
 
 /**
- * No terms and no voice profile rules apply to the language, so the target's
- * terminology was not checked. Nothing failed it and nothing showed it passing:
- * the verdict says so, approving all passing leaves it for a person, and the
- * locale's chip counts the unchecked blocks where a rate would be.
+ * No terms and no voice profile apply to the language, so nothing beyond the
+ * checks governs the target. No bar blocks it, the verdict's tooltip names the
+ * bars that do not apply, and the locale's chip counts the blocks nothing
+ * governs where a rate would be.
  */
-export const TerminologyNotChecked: Story = {
+export const NothingGoverns: Story = {
   args: {
-    entry: entry({ termCompliance: "" }),
-    compliance: { basis: "checks", translatedBlocks: 50, notCheckedBlocks: 46 },
+    entry: entry({ termCompliance: "not_governed", voiceScore: undefined, voiceBar: undefined }),
+    compliance: { basis: "checks", translatedBlocks: 50, notGovernedBlocks: 46 },
+  },
+};
+
+/**
+ * A voice profile governs the language and nothing has scored this target
+ * against its bar. The target has no result for a bar that applies, so the
+ * verdict says it was not checked, approving all passing leaves it for a
+ * person, and the chip counts the unchecked blocks beside the rate.
+ */
+export const VoiceNotChecked: Story = {
+  args: {
+    entry: entry({ termCompliance: "compliant", voiceScore: undefined, voiceBar: 80 }),
+    compliance: {
+      rate: 0.9,
+      basis: "voice+checks+terms",
+      compliantBlocks: 36,
+      translatedBlocks: 50,
+      notCheckedBlocks: 10,
+    },
   },
 };
 

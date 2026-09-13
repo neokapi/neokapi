@@ -159,25 +159,56 @@ export const NothingResolved: Story = {
   ],
 };
 
-/** The dashboard for a project whose languages no terms or voice profile rules cover. */
-const notCheckedStats: TranslationDashboardStats = {
+/** The dashboard for a project whose languages no terms or voice profile govern. */
+const notGovernedStats: TranslationDashboardStats = {
   ...pendingStats,
   locale_stats: pendingStats.locale_stats.map((l) => ({
     ...l,
     compliance_rate: undefined,
     compliant_blocks: undefined,
     compliance_basis: "checks" as const,
+    not_governed_blocks: l.translated_blocks,
+  })),
+};
+
+/**
+ * A project with no terms and no voice profile: nothing beyond the checks
+ * governs any pending unit. No bar blocks them, so the queue files the units the
+ * checks clear under "Clears every bar" and approving all passing takes them,
+ * while the verdict's tooltip names the bars that do not apply and the
+ * reviewer's chip counts the blocks nothing governs where a rate would be.
+ */
+export const NothingGoverns: Story = {
+  args: { project: sampleProject, dashboardStats: notGovernedStats, stream: "main" },
+  decorators: [createProvidersDecorator(blocks, { blockEvidence: {} })],
+};
+
+/** The dashboard for a project whose voice profile has scored nothing yet. */
+const voiceNotCheckedStats: TranslationDashboardStats = {
+  ...pendingStats,
+  locale_stats: pendingStats.locale_stats.map((l) => ({
+    ...l,
+    compliance_rate: undefined,
+    compliant_blocks: undefined,
+    compliance_basis: "voice+checks+terms" as const,
     not_checked_blocks: l.translated_blocks,
   })),
 };
 
 /**
- * A project with no terms and no voice profile rules: no pending unit's
- * terminology was checked. The queue files every unit under "Not checked",
- * approving all passing has nothing to take, and the reviewer's chip counts
- * the unchecked blocks where a rate would be.
+ * A voice profile governs the project and nothing has scored the pending units.
+ * Each has no result for a bar that applies, so the queue files it under "Not
+ * checked", approving all passing has nothing to take, and the reviewer's chip
+ * counts the unchecked blocks where a rate would be.
  */
-export const TerminologyNotChecked: Story = {
-  args: { project: sampleProject, dashboardStats: notCheckedStats, stream: "main" },
-  decorators: [createProvidersDecorator(blocks, { blockEvidence: {} })],
+export const VoiceNotChecked: Story = {
+  args: { project: sampleProject, dashboardStats: voiceNotCheckedStats, stream: "main" },
+  decorators: [
+    createProvidersDecorator(blocks, {
+      blockEvidence: {
+        b1: { term_compliance: "compliant", voice_bar: 90 },
+        b2: { term_compliance: "compliant", voice_bar: 90 },
+      },
+    }),
+  ],
 };

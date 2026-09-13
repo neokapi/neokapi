@@ -185,8 +185,32 @@ func (s *Server) recheckConceptViolations(ctx context.Context, wsID, conceptID, 
 	// unrelated term. Both the PRESENCE (RV-E) and ABSENCE (RV-F) directions are
 	// covered by the shared predicate; no voice profile applies to a concept
 	// change, hence nil.
+	// A target is re-checked only in a locale the workspace terms govern, by the
+	// same per-locale test the ship gate applies (terms.RuleForConcept), so
+	// a concept change cannot demote a target the gate does not hold to terms.
+	workspaceConcepts, err := tb.Concepts(ctx)
+	if err != nil {
+		return fmt.Errorf("read workspace concepts: %w", err)
+	}
+	governs := map[[2]model.LocaleID]bool{}
+	governed := func(srcLoc, tgtLoc model.LocaleID) bool {
+		key := [2]model.LocaleID{srcLoc, tgtLoc}
+		if g, ok := governs[key]; ok {
+			return g
+		}
+		g := false
+		for i := range workspaceConcepts {
+			if _, ok := terms.RuleForConcept(workspaceConcepts[i], srcLoc, tgtLoc); ok {
+				g = true
+				break
+			}
+		}
+		governs[key] = g
+		return g
+	}
 	violates := func(sb *venue.StoredBlock, srcLoc, tgtLoc model.LocaleID) bool {
-		return blockTermCompliance(ctx, sb.Block, srcLoc, tgtLoc, cTB, nil) == platstore.TermComplianceViolation
+		return governed(srcLoc, tgtLoc) &&
+			blockTermCompliance(ctx, sb.Block, srcLoc, tgtLoc, cTB, nil) == platstore.TermComplianceViolation
 	}
 	return s.recheckWorkspaceTargets(ctx, wsID, "concept:"+conceptID, violates, actor)
 }

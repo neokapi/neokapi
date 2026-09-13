@@ -278,12 +278,14 @@ describe("ComplianceBasis mirrors store.ComplianceBasis", () => {
 describe("TermCompliance mirrors store.TermCompliance", () => {
   const members = goConstValues(src.storeTypes, "TermCompliance");
 
-  it("enumerates every verdict the review queue can receive, unchecked included", () => {
-    // Three rungs, and the empty one is a member: "not checked" is not
-    // "compliant", and a union that dropped it would let the queue read an
-    // ungoverned target as a cleared one.
-    expect(members.size).toBe(3);
+  it("enumerates every verdict the review queue can receive, unchecked and ungoverned included", () => {
+    // Four members, and the empty one is among them: "not checked" and "not
+    // governed" are neither "compliant" nor each other, and a union that
+    // dropped either would let the queue read one as a cleared target or as
+    // the other.
+    expect(members.size).toBe(4);
     expect(members.has("")).toBe(true);
+    expect(members.has("not_governed")).toBe(true);
     expectSameMembers(
       "TermCompliance",
       { path: GO.storeTypes, members },

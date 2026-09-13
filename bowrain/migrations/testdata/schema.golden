@@ -800,6 +800,7 @@ ship_verdicts.gate text NOT NULL DEFAULT ''::text
 ship_verdicts.locale text NOT NULL
 ship_verdicts.project_id text NOT NULL
 ship_verdicts.stream text NOT NULL DEFAULT 'main'::text
+ship_verdicts.terms text NOT NULL DEFAULT ''::text
 ship_verdicts.updated_at timestamp with time zone NOT NULL DEFAULT now()
 sod_settings.mode text NOT NULL DEFAULT 'warn'::text
 sod_settings.updated_at timestamp with time zone NOT NULL DEFAULT now()

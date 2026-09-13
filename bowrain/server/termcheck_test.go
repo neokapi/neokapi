@@ -28,9 +28,9 @@ func mkFrBlock(source, frTarget string) *model.Block {
 
 // TestBlockTermCompliance_Directions unit-tests the shared predicate directly:
 // both violation directions (forbidden/competitor PRESENCE from the terms store and
-// from the brand vocabulary; mandated-rendering ABSENCE), the compliant case, and
-// the three ways a target goes unchecked: no text, no terms and no profile, and a
-// profile with no rule that applies to a block.
+// from the brand vocabulary; mandated-rendering ABSENCE), the compliant case, a
+// governed target with no text, which is unchecked, and the two ways terminology
+// governs nothing: no terms and no profile, and a profile with no block rule.
 func TestBlockTermCompliance_Directions(t *testing.T) {
 	ctx := context.Background()
 	tb := terms.NewInMemoryStore()
@@ -54,6 +54,7 @@ func TestBlockTermCompliance_Directions(t *testing.T) {
 	violation := platstore.TermComplianceViolation
 	compliant := platstore.TermComplianceCompliant
 	unchecked := platstore.TermComplianceUnchecked
+	notGoverned := platstore.TermComplianceNotGoverned
 
 	// PRESENCE (terms): the target uses the forbidden "utiliser".
 	assert.Equal(t, violation, blockTermCompliance(ctx, mkFrBlock("Use it", "Il faut utiliser ceci"), "en", "fr", tb, nil),
@@ -67,15 +68,16 @@ func TestBlockTermCompliance_Directions(t *testing.T) {
 	// An untranslated target holds nothing to check.
 	assert.Equal(t, unchecked, blockTermCompliance(ctx, mkFrBlock("Open the app", ""), "en", "fr", tb, nil),
 		"an empty target is not checked, so it is not compliant either")
-	// No terms and no profile: nothing to check against, even a would-be violation.
-	assert.Equal(t, unchecked, blockTermCompliance(ctx, mkFrBlock("Use it", "Il faut utiliser ceci"), "en", "fr", nil, nil),
-		"with no terms and no profile nothing is checked")
+	// No terms and no profile: terminology does not govern the locale, even over
+	// a would-be violation.
+	assert.Equal(t, notGoverned, blockTermCompliance(ctx, mkFrBlock("Use it", "Il faut utiliser ceci"), "en", "fr", nil, nil),
+		"with no terms and no profile the locale is not governed")
 	// A profile holding only a document-scope rule has nothing to hold a block to.
 	docOnly := &coreprofile.VoiceProfile{ID: "d", Style: coreprofile.StyleRules{
 		RequiredPatterns: []coreprofile.Pattern{{Regex: `©`}},
 	}}
-	assert.Equal(t, unchecked, blockTermCompliance(ctx, mkFrBlock("Affordable", "cheap stuff"), "en", "fr", nil, docOnly),
-		"a profile with no block rule checks nothing")
+	assert.Equal(t, notGoverned, blockTermCompliance(ctx, mkFrBlock("Affordable", "cheap stuff"), "en", "fr", nil, docOnly),
+		"a profile with no block rule governs nothing")
 
 	// PRESENCE (brand vocabulary): a forbidden brand rule matched in the target.
 	profile := &coreprofile.VoiceProfile{
@@ -162,7 +164,7 @@ func TestTermAwareShipPredicateUnification(t *testing.T) {
 	fr := localeByCode(t, stats.LocaleStats, "fr")
 	assert.Equal(t, platstore.ShipStatePending, fr.ShipState, "ship: term violations block the ship gate")
 	assert.Equal(t, 2, fr.FailingChecks, "ship: exactly the two term-violating blocks fail")
-	assertCompliant(t, fr, 1, 0, 1.0/3.0, platstore.ComplianceBasisChecksTerms)
+	assertCompliant(t, fr, 1, 0, 0, 1.0/3.0, platstore.ComplianceBasisChecksTerms)
 
 	// (3) Bulk approve-passing predicate agrees.
 	assert.False(t, blockCompliantAndPassing(ctx, badBlock, "fr", nil, gate), "bulk: forbidden-term block excluded")
@@ -223,11 +225,12 @@ func TestApprovePassingExcludesTermViolations(t *testing.T) {
 		"the missing-mandated draft stays below reviewed")
 }
 
-// TestResolveTermGateNoTerms_NothingChecked: a project with no terms concepts
-// and no bound voice profile checks no target's terminology. Its gate reports
-// every target unchecked, the locale counts its clean block as not checked and
-// derives no rate, and deriving with that gate matches deriving with a nil gate.
-func TestResolveTermGateNoTerms_NothingChecked(t *testing.T) {
+// TestResolveTermGateNoTerms_NotGoverned: a project with no terms concepts and
+// no bound voice profile has nothing governing its language beyond the checks.
+// Its gate reports every target not governed, the locale counts its clean block
+// as not governed and derives no rate, and deriving with that gate matches
+// deriving with a nil gate.
+func TestResolveTermGateNoTerms_NotGoverned(t *testing.T) {
 	s, wsID, _ := newRecheckHarness(t)
 	ctx := context.Background()
 
@@ -237,12 +240,13 @@ func TestResolveTermGateNoTerms_NothingChecked(t *testing.T) {
 	proj, err := s.ContentStore.GetProject(ctx, projID)
 	require.NoError(t, err)
 
-	// The gate resolves with no terms concepts and no bound profile, so it has
-	// nothing to check a target against.
+	// The gate resolves with no terms concepts and no bound profile, so nothing
+	// governs a target beyond the checks.
 	gate := s.resolveTermGate(ctx, proj, "main", wsID)
-	assert.Equal(t, platstore.TermComplianceUnchecked, gate.compliance(ctx, b, "fr"),
-		"no governance → unchecked, not compliant")
-	assert.False(t, gate.active(ctx, "fr"), "no governance → terms do not inform the basis")
+	assert.Equal(t, platstore.TermComplianceNotGoverned, gate.compliance(ctx, b, "fr"),
+		"no terms → not governed, never compliant")
+	assert.False(t, gate.termsGoverned(ctx, "fr"), "no terms → terminology is not in the basis")
+	assert.False(t, gate.voiceGoverned(ctx, "fr"), "no bound profile → voice is not in the basis")
 
 	// Deriving with the gate matches deriving with a nil gate exactly.
 	withGate, err := editorGetDashboardStats(ctx, s.ContentStore, proj, "main")
@@ -256,8 +260,67 @@ func TestResolveTermGateNoTerms_NothingChecked(t *testing.T) {
 	fr := localeByCode(t, withGate.LocaleStats, "fr")
 	assert.Equal(t, platstore.ShipStateGoverned, fr.ShipState, "a clean approved locale stays governed")
 	assert.Equal(t, 0, fr.FailingChecks)
-	assertNotChecked(t, fr, 1, platstore.ComplianceBasisChecks)
+	assertNotGoverned(t, fr, 1, platstore.ComplianceBasisChecks)
 	assert.Equal(t, localeByCode(t, withoutGate.LocaleStats, "fr"), fr, "gate vs nil-gate derive identically")
+}
+
+// TestTermGate_GovernsPerLocale pins terminology governance to the locale. A
+// workspace holding terms governs only the languages a concept answers for
+// (terms.RuleForConcept), so a target in any other language is not
+// governed, however much the workspace holds. A do-not-translate concept
+// answers for every language.
+func TestTermGate_GovernsPerLocale(t *testing.T) {
+	ctx := context.Background()
+	tb := terms.NewInMemoryStore()
+	require.NoError(t, tb.AddConcept(ctx, terms.Concept{
+		ID:     "c-use",
+		Source: terms.TermSourceTerminology,
+		Terms: []terms.Term{
+			{Text: "use", Locale: "en", Status: model.TermApproved},
+			{Text: "utiliser", Locale: "ja", Status: model.TermForbidden},
+		},
+	}))
+	require.NoError(t, tb.AddConcept(ctx, terms.Concept{
+		ID:     "c-app",
+		Source: terms.TermSourceTerminology,
+		Terms: []terms.Term{
+			{Text: "app", Locale: "en", Status: model.TermApproved},
+			{Text: "application", Locale: "fr", Status: model.TermPreferred},
+		},
+	}))
+	gate := newTermGate("en", tb, "per-locale", nil)
+
+	assert.True(t, gate.termsGoverned(ctx, "fr"), "a concept with a fr rendering governs fr")
+	assert.False(t, gate.termsGoverned(ctx, "ja"), "a forbidden term alone gives ja no term to use")
+	assert.Equal(t, platstore.TermComplianceViolation,
+		gate.compliance(ctx, mkFrBlock("Open the app", "Ouvrir le truc"), "fr"),
+		"the fr target omits the mandated rendering")
+	jaBlock := &model.Block{Translatable: true}
+	jaBlock.SetSourceText("Use it")
+	jaBlock.SetTargetText("ja", "utiliser")
+	assert.Equal(t, platstore.TermComplianceNotGoverned,
+		gate.compliance(ctx, jaBlock, "ja"),
+		"a language no concept answers for is not governed, even over a term marked forbidden in it")
+
+	require.NoError(t, tb.AddConcept(ctx, terms.Concept{
+		ID:             "c-kapi",
+		Source:         terms.TermSourceTerminology,
+		DoNotTranslate: true,
+		Terms:          []terms.Term{{Text: "kapi", Locale: "en", Status: model.TermPreferred}},
+	}))
+	gate = newTermGate("en", tb, "per-locale-dnt", nil)
+	assert.True(t, gate.termsGoverned(ctx, "ja"), "a do-not-translate concept governs every language")
+
+	kept := &model.Block{Translatable: true}
+	kept.SetSourceText("Open kapi")
+	kept.SetTargetText("ja", "kapi を開く")
+	assert.Equal(t, platstore.TermComplianceCompliant, gate.compliance(ctx, kept, "ja"),
+		"a target that keeps the do-not-translate term verbatim is compliant")
+	translated := &model.Block{Translatable: true}
+	translated.SetSourceText("Open kapi")
+	translated.SetTargetText("ja", "カピを開く")
+	assert.Equal(t, platstore.TermComplianceViolation, gate.compliance(ctx, translated, "ja"),
+		"a target that translated the do-not-translate term is a violation")
 }
 
 // storedBlockByID reads one stored block back from the content store.
@@ -287,31 +350,40 @@ func useInMemoryTerms(s *Server) {
 	}
 }
 
-// unusedConcept is a concept no fixture target uses: bound to a workspace or a
-// gate, it makes terminology checked for every locale and violated by none.
-func unusedConcept() terms.Concept {
+// governingConcept governs fr and de and no other language, with renderings no
+// fixture's source uses, so a target it governs is checked and found compliant.
+func governingConcept() terms.Concept {
 	return terms.Concept{
-		ID:     "c-unused",
+		ID:     "c-synergy",
 		Source: terms.TermSourceTerminology,
-		Terms:  []terms.Term{{Text: "synergie", Locale: "fr", Status: model.TermForbidden}},
+		Terms: []terms.Term{
+			{Text: "synergy", Locale: "en", Status: model.TermApproved},
+			{Text: "synergie", Locale: "fr", Status: model.TermPreferred},
+			{Text: "Synergie", Locale: "de", Status: model.TermPreferred},
+		},
 	}
 }
 
-// seedCheckedTerminology binds terms to a workspace so every pending target's
-// terminology is checked and found compliant. A test about another bar calls
-// it, so that bar is the one its result turns on.
+// seedCheckedTerminology binds terms governing fr to a workspace, so every
+// pending fr target's terminology is checked and found compliant. A test about
+// another bar calls it, so that bar is the one its result turns on.
 func seedCheckedTerminology(t *testing.T, s *Server, slug string) {
 	t.Helper()
 	tb, err := s.wsStores.getTerms(slug)
 	require.NoError(t, err)
-	require.NoError(t, tb.AddConcept(context.Background(), unusedConcept()))
+	require.NoError(t, tb.AddConcept(context.Background(), governingConcept()))
 }
 
-// checkedTermsGate is a term gate over a snapshot of unusedConcept: terminology
-// is active for every locale, and no target violates it.
-func checkedTermsGate(t *testing.T) *termGate {
+// checkedTermsGate is a term gate over a snapshot of governingConcept, so
+// terminology governs fr and de and no target violates it. profile, when given,
+// is the voice profile every locale resolves to.
+func checkedTermsGate(t *testing.T, profile *coreprofile.VoiceProfile) *termGate {
 	t.Helper()
 	tb := terms.NewInMemoryStore()
-	require.NoError(t, tb.AddConcept(context.Background(), unusedConcept()))
-	return newTermGate("en", tb, "unused-concept", nil)
+	require.NoError(t, tb.AddConcept(context.Background(), governingConcept()))
+	var resolve func(context.Context, model.LocaleID) *coreprofile.VoiceProfile
+	if profile != nil {
+		resolve = func(context.Context, model.LocaleID) *coreprofile.VoiceProfile { return profile }
+	}
+	return newTermGate("en", tb, "governing-concept", resolve)
 }

@@ -82,14 +82,19 @@ func shipGateQuery(projectID, gate string, scores ...platstore.ShipGateScore) pl
 	}
 }
 
-// storeVerdicts records the fails value against every stale pair the rollup
-// named, which is what the dashboard's derivation does once it has judged them.
-func storeVerdicts(t *testing.T, s *PostgresStore, projectID, gate string, stale []platstore.ShipGateStale, fails map[string]bool) {
+// storeVerdicts records the fails value and terminology verdict against every
+// stale pair the rollup named, which is what the dashboard's derivation does
+// once it has judged them. A pair absent from terms is recorded compliant.
+func storeVerdicts(t *testing.T, s *PostgresStore, projectID, gate string, stale []platstore.ShipGateStale, fails map[string]bool, terms map[string]platstore.TermCompliance) {
 	t.Helper()
 	verdicts := make([]platstore.ShipGateVerdict, 0, len(stale))
 	for _, st := range stale {
+		verdict := platstore.TermComplianceCompliant
+		if v, ok := terms[st.BlockID]; ok {
+			verdict = v
+		}
 		verdicts = append(verdicts, platstore.ShipGateVerdict{
-			ShipGateRef: st.ShipGateRef, Basis: st.Basis, Fails: fails[st.BlockID],
+			ShipGateRef: st.ShipGateRef, Basis: st.Basis, Fails: fails[st.BlockID], Terms: verdict,
 		})
 	}
 	require.NoError(t, s.PutShipGateVerdicts(t.Context(), projectID, "main", gate, verdicts))
@@ -128,7 +133,7 @@ func TestShipGateRollup(t *testing.T) {
 
 	rollup, err := s.ShipGateRollup(ctx, shipGateQuery(p.ID, gate))
 	require.NoError(t, err)
-	storeVerdicts(t, s, p.ID, gate, rollup.Stale, map[string]bool{ids["b2"]: true})
+	storeVerdicts(t, s, p.ID, gate, rollup.Stale, map[string]bool{ids["b2"]: true}, nil)
 
 	t.Run("stored verdicts are counted in their collection", func(t *testing.T) {
 		got, err := s.ShipGateRollup(ctx, shipGateQuery(p.ID, gate))
@@ -159,6 +164,20 @@ func TestShipGateRollup(t *testing.T) {
 		b := got.CountsFor("col-b", fr)
 		assert.Equal(t, 1, b.Scored)
 		assert.Zero(t, b.CleanBelowBar, "a score above the bar withholds nothing")
+	})
+
+	t.Run("a governing voice bar with no score leaves a clean block not checked", func(t *testing.T) {
+		q := shipGateQuery(p.ID, gate, platstore.ShipGateScore{BlockID: ids["b4"], Locale: fr})
+		q.VoiceGoverned = []string{fr}
+		got, err := s.ShipGateRollup(ctx, q)
+		require.NoError(t, err)
+		assert.Equal(t, 1, got.CountsFor("col-a", fr).NotChecked, "b1 is clean and unscored where a profile governs")
+		assert.Zero(t, got.CountsFor("col-b", fr).NotChecked, "b4 has a score above the bar")
+
+		ungoverned, err := s.ShipGateRollup(ctx, shipGateQuery(p.ID, gate))
+		require.NoError(t, err)
+		assert.Zero(t, ungoverned.CountsFor("col-a", fr).NotChecked,
+			"where no voice profile governs, an unscored block owes no score")
 	})
 
 	t.Run("a different gate retires every verdict", func(t *testing.T) {
@@ -200,7 +219,7 @@ func TestPutShipGateVerdictsRefusesAMovedBasis(t *testing.T) {
 	// The target moves after the pass read it and before it writes back.
 	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "a.json", shipGateItemA("déplacé")))
 
-	storeVerdicts(t, s, p.ID, gate, rollup.Stale, nil)
+	storeVerdicts(t, s, p.ID, gate, rollup.Stale, nil, nil)
 
 	got, err := s.ShipGateRollup(ctx, shipGateQuery(p.ID, gate))
 	require.NoError(t, err)
@@ -208,4 +227,34 @@ func TestPutShipGateVerdictsRefusesAMovedBasis(t *testing.T) {
 		"the pairs whose basis moved keep no verdict and are judged again")
 	assert.Equal(t, 1, got.CountsFor("col-b", string(model.LocaleFrench)).Clean,
 		"the pair whose basis held is recorded as normal")
+}
+
+// TestShipGateRollupCountsUncheckedTerminology asserts the stored terminology
+// verdict reaches the counts: a clean pair in a governed locale with no
+// terminology verdict is not checked, and a pair no terms govern is not.
+func TestShipGateRollupCountsUncheckedTerminology(t *testing.T) {
+	s := newTestStore(t)
+	ctx := t.Context()
+	p := seedShipGateProject(t, s)
+	_, ids := shipGateNames(t, s, p.ID)
+	const gate = "gate-terms"
+	fr := string(model.LocaleFrench)
+
+	rollup, err := s.ShipGateRollup(ctx, shipGateQuery(p.ID, gate))
+	require.NoError(t, err)
+	storeVerdicts(t, s, p.ID, gate, rollup.Stale, nil, map[string]platstore.TermCompliance{
+		ids["b1"]: platstore.TermComplianceUnchecked,
+		ids["b4"]: platstore.TermComplianceNotGoverned,
+	})
+
+	got, err := s.ShipGateRollup(ctx, shipGateQuery(p.ID, gate))
+	require.NoError(t, err)
+	a := got.CountsFor("col-a", fr)
+	assert.Equal(t, 2, a.Clean)
+	assert.Equal(t, 1, a.TermsNotChecked, "b1 is clean with no terminology verdict")
+	assert.Equal(t, 1, a.NotChecked)
+	b := got.CountsFor("col-b", fr)
+	assert.Equal(t, 1, b.Clean)
+	assert.Zero(t, b.TermsNotChecked, "terminology that governs nothing owes no verdict")
+	assert.Zero(t, b.NotChecked)
 }

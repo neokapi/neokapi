@@ -692,59 +692,62 @@ type LocaleTranslationStats struct {
 	// ShipState is the derived per-locale ship state (see DeriveShipState).
 	// Empty when the producer did not derive it.
 	ShipState ShipState `json:"ship_state,omitempty"`
-	// CompliantBlocks counts translated blocks that pass the project's rule-based
-	// checks with no error-severity finding, are term-compliant for the locale (no
-	// forbidden/competitor term, no missing mandated rendering), AND — where a
-	// persisted voice score exists for the block+locale — carry a score at
-	// or above the scoring profile's minimum bar. A block whose terminology was
-	// not checked is never counted here. Additive: producers that do not derive
-	// the compliance rate leave it 0 (omitted from JSON).
+	// CompliantBlocks counts translated blocks that pass, with a result, every
+	// dimension governing their locale: the rule-based checks with no
+	// error-severity finding, terminology where terms or voice profile rules
+	// govern the locale, and the voice bar where a voice profile governs it. A
+	// block in a locale neither terms nor a voice profile govern is counted in
+	// NotGovernedBlocks instead. Additive: producers that do not derive the
+	// compliance rate leave it 0 (omitted from JSON).
 	CompliantBlocks int `json:"compliant_blocks,omitempty"`
-	// NotCheckedBlocks counts translated blocks whose compliance was not decided:
-	// no bar failed them, and their terminology was not checked because no terms
-	// and no voice profile rule apply to the locale. They count toward neither
-	// side of ComplianceRate. Additive: producers that do not derive the rate
-	// leave it 0 (omitted from JSON).
+	// NotCheckedBlocks counts translated blocks no bar failed that lack a result
+	// for a dimension governing their locale: terms govern it and the target had
+	// nothing to check, or a voice profile governs it and the block has no
+	// score. They count toward neither side of ComplianceRate. Additive:
+	// producers that do not derive the rate leave it 0 (omitted from JSON).
 	NotCheckedBlocks int `json:"not_checked_blocks,omitempty"`
-	// ComplianceRate is CompliantBlocks over the checked translated blocks
-	// (TranslatedBlocks less NotCheckedBlocks), in [0,1]. Nil when the producer
-	// did not derive it, the scope has no translated blocks, or no translated
-	// block was checked.
+	// NotGovernedBlocks counts translated blocks no bar failed in a locale that
+	// neither terms nor a voice profile govern. Only the rule-based checks apply
+	// to them, so they count toward neither side of ComplianceRate. Additive:
+	// producers that do not derive the rate leave it 0 (omitted from JSON).
+	NotGovernedBlocks int `json:"not_governed_blocks,omitempty"`
+	// ComplianceRate is CompliantBlocks over the translated blocks with a
+	// verdict (TranslatedBlocks less NotCheckedBlocks and NotGovernedBlocks), in
+	// [0,1]. Nil when the producer did not derive it, the scope has no
+	// translated blocks, or none of them has a verdict.
 	ComplianceRate *float64 `json:"compliance_rate,omitempty"`
-	// ComplianceBasis states what informed ComplianceRate and NotCheckedBlocks
-	// (see ComplianceBasisFor): rule-based checks always, plus "+terms" when term
-	// governance was active for the scope and plus "voice" when at least one
-	// block's persisted voice score also informed it. Empty when the numbers were
-	// not derived, and consumers hide the metric then.
+	// ComplianceBasis names the dimensions governing the locale (see
+	// ComplianceBasisFor): rule-based checks always, plus "+terms" where terms
+	// or voice profile rules govern it and "voice" where a voice profile does. A
+	// dimension the basis leaves out is not governed for the locale. Empty when
+	// the numbers were not derived, and consumers hide the metric then.
 	ComplianceBasis ComplianceBasis `json:"compliance_basis,omitempty"`
 }
 
-// ComplianceBasis names the evidence behind a derived compliance rate, so consumers
-// can present the number honestly: a checks-only rate says nothing about voice.
-// Rule-based checks always inform the rate; terms and voice are added when they
-// were actually applied to the scope (term governance active / a persisted voice
-// score present), so the basis never claims evidence that did not contribute.
+// ComplianceBasis names the dimensions that govern a scope's compliance rate, so
+// consumers can present the number honestly: a checks-only rate says nothing
+// about voice. Rule-based checks always apply. Terms and voice are added where
+// they govern the locale, and a dimension left out is not governed there.
 type ComplianceBasis string
 
 const (
-	// ComplianceBasisChecks — the rate reflects rule-based check findings only; no
-	// term governance was active and no voice scores existed for the scope.
+	// ComplianceBasisChecks: only the rule-based checks apply. Neither terms nor
+	// a voice profile govern the locale.
 	ComplianceBasisChecks ComplianceBasis = "checks"
-	// ComplianceBasisChecksTerms — rule-based checks plus deterministic terminology
-	// compliance (forbidden/competitor presence, mandated-rendering absence).
+	// ComplianceBasisChecksTerms: rule-based checks plus deterministic terminology
+	// compliance (forbidden or competitor presence, mandated-rendering absence).
+	// No voice profile governs the locale.
 	ComplianceBasisChecksTerms ComplianceBasis = "checks+terms"
-	// ComplianceBasisVoice — rule-based checks plus persisted voice scores measured
-	// against the scoring profile's minimum bar.
+	// ComplianceBasisVoice: rule-based checks plus the voice bar of the profile
+	// governing the locale. No terms govern it.
 	ComplianceBasisVoice ComplianceBasis = "voice+checks"
-	// ComplianceBasisVoiceTerms — rule-based checks plus terminology compliance plus
-	// persisted voice scores: the fullest basis.
+	// ComplianceBasisVoiceTerms: rule-based checks, terminology compliance and
+	// the voice bar.
 	ComplianceBasisVoiceTerms ComplianceBasis = "voice+checks+terms"
 )
 
-// ComplianceBasisFor names the evidence behind a derived compliance rate from whether
-// a persisted voice score and active term governance informed it. Rule-based
-// checks are always part of the basis; terms and voice are added when they
-// contributed.
+// ComplianceBasisFor names the basis from whether a voice profile and terms
+// govern the locale. Rule-based checks are always part of it.
 func ComplianceBasisFor(voice, terms bool) ComplianceBasis {
 	switch {
 	case voice && terms:
@@ -764,25 +767,51 @@ func ComplianceBasisFor(voice, terms bool) ComplianceBasis {
 // target uses no forbidden or competitor term and omits no mandated rendering
 // its source concept requires.
 //
-// Three rungs, not two, because "not checked" is not "compliant": a project
-// with no terms store and no brand vocabulary has nothing to be compliant with,
-// and a queue that painted those targets green would be claiming evidence it
-// never had.
+// A locale nothing governs and a target nothing was checked in are different
+// answers, and neither is "compliant". Where no terms and no voice profile rule
+// govern the locale there is nothing to comply with, so approval rests on the
+// other bars. Where terms do govern it and the target had nothing to check,
+// approving would claim a check nobody ran.
 type TermCompliance string
 
 const (
-	// TermComplianceUnchecked means nothing was checked and nothing is claimed:
-	// no terms and no voice profile rule apply to the locale, or the target holds
-	// no text. The server will not auto-approve it, and a compliance rate counts
-	// it as not checked rather than as compliant.
+	// TermComplianceUnchecked means terms or voice profile rules govern the
+	// locale, but the target has no verdict because it holds no text. The
+	// server will not auto-approve it, and a compliance rate counts it as not
+	// checked.
 	TermComplianceUnchecked TermCompliance = ""
-	// TermComplianceCompliant — the target was checked and respects the
+	// TermComplianceNotGoverned means no concept answers for the locale
+	// (terms.RuleForConcept) and no voice profile rule applies to a block
+	// there. Nothing is claimed either way: the server approves the target on
+	// its other bars, and a compliance rate counts it as not governed.
+	TermComplianceNotGoverned TermCompliance = "not_governed"
+	// TermComplianceCompliant: the target was checked and respects the
 	// project's terminology.
 	TermComplianceCompliant TermCompliance = "compliant"
-	// TermComplianceViolation — the target uses a forbidden or competitor term,
+	// TermComplianceViolation: the target uses a forbidden or competitor term,
 	// or omits a rendering its source concept mandates for the locale. The
 	// server will not auto-approve it.
 	TermComplianceViolation TermCompliance = "violation"
+)
+
+// VoiceCompliance is one target's standing against the voice bar, as a review
+// surface receives it per (block, locale). It separates the same states
+// TermCompliance does: a locale no voice profile governs, a block a profile
+// governs but nothing has scored, and a scored block.
+type VoiceCompliance string
+
+const (
+	// VoiceComplianceUnchecked means a voice profile governs the locale and the
+	// block has no score. The server will not auto-approve it.
+	VoiceComplianceUnchecked VoiceCompliance = ""
+	// VoiceComplianceNotGoverned means no voice profile applies at the block's
+	// point, so no voice bar applies to it.
+	VoiceComplianceNotGoverned VoiceCompliance = "not_governed"
+	// VoiceCompliancePassing: the block's latest score meets the bar.
+	VoiceCompliancePassing VoiceCompliance = "passing"
+	// VoiceComplianceBelowBar: the block's latest score is under the bar. The
+	// server will not auto-approve it.
+	VoiceComplianceBelowBar VoiceCompliance = "below_bar"
 )
 
 // ItemTranslationStats holds per-file translation progress.

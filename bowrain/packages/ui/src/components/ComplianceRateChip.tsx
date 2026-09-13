@@ -5,36 +5,40 @@ import { ShieldCheck } from "./icons";
 
 /**
  * ComplianceRateChip renders the per-locale compliance rate the server derives from
- * the loop's own evidence — rule-based check results plus, where the worker's draft
- * scoring has run, persisted voice scores against the profile's minimum
- * bar. The tooltip states the basis explicitly, so a checks-only rate is never
- * mistaken for a voice-informed one.
+ * the loop's own evidence: rule-based check results, terminology where terms or
+ * voice profile rules govern the language, and the voice bar where a voice
+ * profile does. The tooltip names what governs the language, so a checks-only
+ * rate is never mistaken for a voice-informed one.
  *
- * The rate is over checked blocks only. A block whose terminology was not
- * checked counts toward neither side of it, and the chip names how many there
- * are beside the rate; with no block checked there is no rate, and the chip
- * shows that count alone. Rendered only when the server sent the fields (older
- * servers omit them and the chip stays hidden).
+ * The rate is over blocks with a verdict. A block with no result for a governing
+ * dimension is not checked, and a block in a language nothing beyond the checks
+ * governs is not governed. Neither counts toward the rate, and the chip names
+ * how many of each there are beside it; with no block holding a verdict there is
+ * no rate, and the chip shows the counts alone. Rendered only when the server
+ * sent the fields (older servers omit them and the chip stays hidden).
  */
 export interface ComplianceRateChipProps {
-  /** compliant_blocks over the checked translated blocks, in [0,1]; absent when none was checked. */
+  /** compliant_blocks over the translated blocks with a verdict, in [0,1]; absent when none has one. */
   rate?: number;
-  /** What informed the rate (tooltip honesty line). */
+  /** What governs the language (tooltip honesty line). */
   basis: ComplianceBasis;
   /** Translated blocks counting as compliant, for the tooltip detail line. */
   compliantBlocks?: number;
   /** Translated blocks in the scope, for the tooltip detail line. */
   translatedBlocks?: number;
-  /** Translated blocks whose terminology was not checked, which the rate leaves out. */
+  /** Translated blocks with no result for a governing dimension, which the rate leaves out. */
   notCheckedBlocks?: number;
+  /** Translated blocks in a language nothing beyond the checks governs, which the rate leaves out. */
+  notGovernedBlocks?: number;
   className?: string;
 }
 
 const basisExplanations: Record<ComplianceBasis, string> = {
-  checks: "Based on rule-based checks only. No voice scores exist for this locale yet.",
-  "checks+terms": "Based on rule-based checks plus terminology compliance for this locale.",
+  checks: "Only the rule-based checks apply. No terms and no voice profile apply to this language.",
+  "checks+terms":
+    "Based on rule-based checks plus terminology compliance. No voice profile applies to this language.",
   "voice+checks":
-    "Based on rule-based checks plus voice scores measured against the profile's minimum bar.",
+    "Based on rule-based checks plus voice scores measured against the profile's minimum bar. No terms apply to this language.",
   "voice+checks+terms":
     "Based on rule-based checks, terminology compliance, and voice scores measured against the profile's minimum bar.",
 };
@@ -45,30 +49,50 @@ export function ComplianceRateChip({
   compliantBlocks,
   translatedBlocks,
   notCheckedBlocks,
+  notGovernedBlocks,
   className,
 }: ComplianceRateChipProps) {
   const notChecked = notCheckedBlocks ?? 0;
+  const notGoverned = notGovernedBlocks ?? 0;
   const pct = rate === undefined ? undefined : Math.round(Math.min(Math.max(rate, 0), 1) * 100);
-  const checkedBlocks = translatedBlocks === undefined ? undefined : translatedBlocks - notChecked;
+  const judgedBlocks =
+    translatedBlocks === undefined ? undefined : translatedBlocks - notChecked - notGoverned;
   const tooltip = (
     <div className="max-w-60 space-y-1">
       <p className="font-medium">On-brand rate</p>
       <p>{basisExplanations[basis]}</p>
-      {pct !== undefined && compliantBlocks !== undefined && checkedBlocks !== undefined && (
+      {pct !== undefined && compliantBlocks !== undefined && judgedBlocks !== undefined && (
         <p className="text-muted-foreground">
-          {compliantBlocks} of {checkedBlocks} checked blocks compliant
+          {compliantBlocks} of {judgedBlocks} judged blocks compliant
         </p>
       )}
       {notChecked > 0 && (
         <p className="text-muted-foreground" data-testid="compliance-not-checked-detail">
           <Plural count={notChecked}>
             <One>
-              {notChecked} translated block was not checked for terminology, because no terms or
-              voice profile rules apply to this language. It counts toward neither side of the rate.
+              {notChecked} translated block has no result for a check that applies to this language:
+              its terminology had nothing to check, or nothing has scored it against the voice
+              profile. It counts toward neither side of the rate.
             </One>
             <Other>
-              {notChecked} translated blocks were not checked for terminology, because no terms or
-              voice profile rules apply to this language. They count toward neither side of the
+              {notChecked} translated blocks have no result for a check that applies to this
+              language: their terminology had nothing to check, or nothing has scored them against
+              the voice profile. They count toward neither side of the rate.
+            </Other>
+          </Plural>
+        </p>
+      )}
+      {notGoverned > 0 && (
+        <p className="text-muted-foreground" data-testid="compliance-not-governed-detail">
+          <Plural count={notGoverned}>
+            <One>
+              {notGoverned} translated block is in a language no terms and no voice profile apply
+              to, so only the rule-based checks judged it. It counts toward neither side of the
+              rate.
+            </One>
+            <Other>
+              {notGoverned} translated blocks are in a language no terms and no voice profile apply
+              to, so only the rule-based checks judged them. They count toward neither side of the
               rate.
             </Other>
           </Plural>
@@ -92,6 +116,12 @@ export function ComplianceRateChip({
         {pct !== undefined && notChecked > 0 && <span aria-hidden="true">·</span>}
         {notChecked > 0 && (
           <span data-testid="compliance-not-checked">{notChecked} not checked</span>
+        )}
+        {(pct !== undefined || notChecked > 0) && notGoverned > 0 && (
+          <span aria-hidden="true">·</span>
+        )}
+        {notGoverned > 0 && (
+          <span data-testid="compliance-not-governed">{notGoverned} not governed</span>
         )}
       </span>
     </SimpleTooltip>

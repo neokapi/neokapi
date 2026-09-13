@@ -80,13 +80,16 @@ function ShipReadinessCard({ localeStats }: { localeStats: LocaleTranslationStat
               </span>
               <span className="flex shrink-0 items-center gap-1.5">
                 {l.compliance_basis &&
-                  (l.compliance_rate !== undefined || (l.not_checked_blocks ?? 0) > 0) && (
+                  (l.compliance_rate !== undefined ||
+                    (l.not_checked_blocks ?? 0) > 0 ||
+                    (l.not_governed_blocks ?? 0) > 0) && (
                     <ComplianceRateChip
                       rate={l.compliance_rate}
                       basis={l.compliance_basis}
                       compliantBlocks={l.compliant_blocks}
                       translatedBlocks={l.translated_blocks}
                       notCheckedBlocks={l.not_checked_blocks}
+                      notGovernedBlocks={l.not_governed_blocks}
                     />
                   )}
                 {l.ship_state && (

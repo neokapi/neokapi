@@ -86,13 +86,16 @@ export function LocaleCoverageRail({
       </span>
       {showCompliance &&
         stats.compliance_basis &&
-        (stats.compliance_rate !== undefined || (stats.not_checked_blocks ?? 0) > 0) && (
+        (stats.compliance_rate !== undefined ||
+          (stats.not_checked_blocks ?? 0) > 0 ||
+          (stats.not_governed_blocks ?? 0) > 0) && (
           <ComplianceRateChip
             rate={stats.compliance_rate}
             basis={stats.compliance_basis}
             compliantBlocks={stats.compliant_blocks}
             translatedBlocks={stats.translated_blocks}
             notCheckedBlocks={stats.not_checked_blocks}
+            notGovernedBlocks={stats.not_governed_blocks}
           />
         )}
       {showShipState && stats.ship_state && (

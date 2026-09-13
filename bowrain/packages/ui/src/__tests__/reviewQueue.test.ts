@@ -3,6 +3,7 @@ import type { BlockInfo, CheckIssue } from "../types/api";
 import {
   entryKey,
   entryBlockers,
+  entryNotGoverned,
   entryUnchecked,
   entryVerdict,
   entryHasErrors,
@@ -40,9 +41,10 @@ function entry(overrides: Partial<ReviewEntry> & { locale: string; itemId: strin
     itemName: overrides.itemName ?? `${overrides.itemId}.json`,
     // The server names every entry's collection, "" for an item in none.
     collectionId: "",
-    // Terminology checked and clean, and no voice score: the default a case
-    // that says nothing about those bars starts from. A case about unchecked
-    // terminology says so with termCompliance "".
+    // Terminology checked and clean, and no voice profile governing the
+    // language: the default a case that says nothing about those bars starts
+    // from. A case about unchecked terminology says so with termCompliance "",
+    // and a case about the voice bar sets voiceBar.
     termCompliance: "compliant",
     issues: [],
     block: block(blockId, overrides.locale, "draft target"),
@@ -122,10 +124,30 @@ describe("entryVerdict", () => {
       blockers: [],
     },
     {
-      name: "unscored — no voice bar is applied to it either",
+      name: "no voice profile governs the language, so there is no voice bar",
       entry: {},
       verdict: "passing",
       blockers: [],
+    },
+    {
+      name: "a voice bar nothing has scored the block against",
+      entry: { voiceBar: 90 },
+      verdict: "not_checked",
+      blockers: [],
+      unchecked: ["voice"],
+    },
+    {
+      name: "terminology that governs nothing blocks nothing",
+      entry: { termCompliance: "not_governed" },
+      verdict: "passing",
+      blockers: [],
+    },
+    {
+      name: "both governing bars with no result, named in the server's order",
+      entry: { termCompliance: "", voiceBar: 80 },
+      verdict: "not_checked",
+      blockers: [],
+      unchecked: ["terms", "voice"],
     },
     {
       name: "a failing check with terminology not checked fails, and names both",
@@ -163,16 +185,44 @@ describe("entryVerdict", () => {
     const e = entry({ itemId: "i1", locale: "fr", termCompliance: "" });
     expect(verdictLabel(e)).toBe("Not checked: terminology");
     expect(verdictDetail(e)).toContain("Terminology not checked");
-    expect(verdictDetail(e)).toContain("no terms or voice profile rules apply to this language");
+    expect(verdictDetail(e)).toContain("a bar that applies to this language has no result");
     expect(verdictLabel(entry({ itemId: "i1", locale: "fr" }))).toBe("Clears every bar");
     expect(
-      verdictDetail(entry({ itemId: "i1", locale: "fr", issues: [error], termCompliance: "" })),
+      verdictDetail(
+        entry({
+          itemId: "i1",
+          locale: "fr",
+          issues: [error],
+          termCompliance: "",
+          voiceScore: 90,
+          voiceBar: 80,
+        }),
+      ),
     ).toBe("Failing checks · Terminology not checked");
+  });
+
+  it("says in words that nothing has scored a governed block", () => {
+    const e = entry({ itemId: "i1", locale: "fr", voiceBar: 80 });
+    expect(verdictLabel(e)).toBe("Not checked: voice");
+    expect(verdictDetail(e)).toContain("Voice not checked");
+    expect(isEntryPassing(e)).toBe(false);
+  });
+
+  it("names the bars that govern nothing, and lets neither decide", () => {
+    const e = entry({ itemId: "i1", locale: "fr", termCompliance: "not_governed" });
+    expect(entryNotGoverned(e)).toEqual(["terms", "voice"]);
+    expect(entryVerdict(e)).toBe("passing");
+    expect(verdictLabel(e)).toBe("Clears every bar");
+    expect(verdictDetail(e)).toBe(
+      "Every bar the server applies on approve is clear. No terms apply to this language, so terminology is no bar here. No voice profile applies to this language, so there is no voice bar.",
+    );
+    expect(entryNotGoverned(entry({ itemId: "i1", locale: "fr", voiceBar: 80 }))).toEqual([]);
   });
 
   it("entryHasErrors and isBelowVoiceBar answer their own axis only", () => {
     expect(entryHasErrors(entry({ itemId: "i1", locale: "fr", issues: [warning] }))).toBe(false);
     expect(isBelowVoiceBar(entry({ itemId: "i1", locale: "fr" }))).toBe(false);
+    expect(isBelowVoiceBar(entry({ itemId: "i1", locale: "fr", voiceBar: 80 }))).toBe(false);
     expect(
       isBelowVoiceBar(entry({ itemId: "i1", locale: "fr", voiceScore: 79, voiceBar: 80 })),
     ).toBe(true);
@@ -221,14 +271,30 @@ describe("filtering", () => {
         block: block("unchecked", "fr", "x"),
         termCompliance: "",
       }),
+      entry({
+        itemId: "i1",
+        locale: "fr",
+        block: block("unscored", "fr", "x"),
+        voiceBar: 80,
+      }),
+      entry({
+        itemId: "i1",
+        locale: "fr",
+        block: block("ungoverned", "fr", "x"),
+        termCompliance: "not_governed",
+      }),
     ];
-    expect(filterEntries(mixed, { verdict: "passing" }).map((e) => e.block.id)).toEqual(["clean"]);
+    expect(filterEntries(mixed, { verdict: "passing" }).map((e) => e.block.id)).toEqual([
+      "clean",
+      "ungoverned",
+    ]);
     expect(filterEntries(mixed, { verdict: "failing" }).map((e) => e.block.id)).toEqual([
       "term",
       "voice",
     ]);
     expect(filterEntries(mixed, { verdict: "not_checked" }).map((e) => e.block.id)).toEqual([
       "unchecked",
+      "unscored",
     ]);
   });
 
@@ -335,9 +401,10 @@ describe("queueCounts + passingCount", () => {
       ...entries,
       entry({ itemId: "i4", locale: "fr", block: block("g", "fr", "x"), termCompliance: "" }),
       entry({ itemId: "i4", locale: "fr", block: block("h", "fr", "x"), termCompliance: "" }),
+      entry({ itemId: "i4", locale: "fr", block: block("k", "fr", "x"), voiceBar: 80 }),
     ];
     const counts = queueCounts(withUnchecked);
-    expect(counts.notChecked).toBe(2);
+    expect(counts.notChecked).toBe(3);
     expect(counts.failing).toBe(2);
     expect(counts.passing).toBe(2);
     expect(passingCount(withUnchecked)).toBe(2);

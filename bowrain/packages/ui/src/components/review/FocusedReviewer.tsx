@@ -48,8 +48,10 @@ export interface ReviewerCompliance {
   basis: ComplianceBasis;
   compliantBlocks?: number;
   translatedBlocks?: number;
-  /** Translated blocks whose terminology was not checked, which the rate leaves out. */
+  /** Translated blocks with no result for a governing dimension, which the rate leaves out. */
   notCheckedBlocks?: number;
+  /** Translated blocks in a language nothing beyond the checks governs, which the rate leaves out. */
+  notGovernedBlocks?: number;
 }
 
 export interface FocusedReviewerProps {
@@ -122,7 +124,7 @@ const CELL = "rounded-lg border border-border bg-card p-3 text-sm leading-relaxe
 // checks alone: "Passes checks" was a claim about one of them. It is the one
 // place in the header carrying a severity colour, so the bars a failing unit
 // misses read inside it (`verdictLabel`) rather than as three grey chips
-// beside it. A unit whose terminology was not checked takes the muted tone:
+// beside it. A unit with no result for a bar that applies takes the muted tone:
 // nothing failed it, and nothing showed it passing. See
 // packages/ui/docs/judgement-colours.md.
 const verdictChip: Record<ReviewQueueVerdict, string> = {
@@ -255,6 +257,7 @@ export function FocusedReviewer({
             compliantBlocks={compliance.compliantBlocks}
             translatedBlocks={compliance.translatedBlocks}
             notCheckedBlocks={compliance.notCheckedBlocks}
+            notGovernedBlocks={compliance.notGovernedBlocks}
           />
         )}
         <span

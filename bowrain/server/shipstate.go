@@ -33,25 +33,28 @@ import (
 // meaningful below full coverage — it rates the blocks that ARE translated — so
 // it is derived for every locale with translated blocks.
 //
-// On-brand definition: a translated block is compliant when the project's
-// rule-based checks report no error-severity finding, AND its target is
-// term-compliant for the locale (deterministic, offline — it uses no
-// forbidden/competitor term and omits no mandated preferred/approved rendering;
-// see termGate/blockTermCompliance), AND, where a persisted voice score exists
-// for the block+locale (written by the worker's draft scoring, zero AI), the
-// score meets the scoring profile's minimum bar (VoiceProfile.ComplianceBar).
+// On-brand definition: a translated block is compliant when it holds a passing
+// result for every dimension governing its locale. The rule-based checks always
+// govern and must report no error-severity finding. Terminology governs where
+// terms or voice profile rules apply to the locale (termGate.termsGoverned),
+// and the target must be term-compliant: it uses no forbidden/competitor term
+// and omits no mandated preferred/approved rendering (see blockTermCompliance).
+// The voice bar governs where a voice profile applies, and the block's latest
+// persisted score (written by the worker's draft scoring, zero AI) must meet
+// the scoring profile's bar (VoiceProfile.ComplianceBar).
 // A term-non-compliant block is treated exactly like a failing check: it counts
 // against the compliance rate AND, at full coverage, against FailingChecks, so
-// it can never be governed or ai_shippable.
-// A block no bar fails, in a locale no terms or voice profile rule apply to, was
-// not checked for terminology: it is counted in NotCheckedBlocks and left out of
-// the rate, which is over checked blocks only.
-// Scopes with no voice scores fall back to checks(+terms), and ComplianceBasis says
-// which evidence produced the number so consumers can present it honestly. Voice
-// scores are read best-effort: a voice store hiccup degrades the rate rather than
-// failing the dashboard. The gate is resolved once per (workspace, locale) by the
-// caller and reused across every block; a nil gate (no terms, no voice store)
-// leaves every block's terminology unchecked.
+// it can never be governed or ai_shippable. A block below its voice bar counts
+// against the rate only.
+// A block no bar fails that lacks a result for a governing dimension (an empty
+// target where terms govern, an unscored block where a voice profile governs)
+// is counted in NotCheckedBlocks, and one in a locale neither terms nor a voice
+// profile govern in NotGovernedBlocks. Both are left out of the rate.
+// ComplianceBasis names the dimensions governing each locale so consumers can
+// present the number honestly. Voice scores are read best-effort: a voice store
+// hiccup degrades the rate rather than failing the dashboard. The gate is
+// resolved once per (workspace, locale) by the caller and reused across every
+// block; a nil gate governs nothing.
 //
 // Staleness is graded by the ledger, not by this pass: TallyDecisionBasis joins
 // each decision's recorded basis to the block's current source hash. It runs
@@ -84,11 +87,12 @@ func applyShipStates(ctx context.Context, cs store.ContentStore, voiceStore core
 		}
 	}
 
-	// termActive is per-locale (term governance is workspace/project-wide, not
-	// per collection): true where the gate has a terms store or brand-vocab rule to
-	// enforce for the locale, so the compliance_basis can honestly note term checks
-	// contributed. Applied to both the project-locale and every collection-locale.
-	termActive := map[string]bool{}
+	// termsGoverned and voiceGoverned are per locale: governance binds at the
+	// locale, so one answer applies to the project-wide locale and to every
+	// collection's. They decide which clean blocks can be compliant, which are
+	// not governed, and what the compliance basis names.
+	termsGoverned := map[string]bool{}
+	voiceGoverned := map[string]bool{}
 
 	// The item → collection map both passes attribute through. Built from the
 	// full item list (the dashboard pages its response only after this pass).
@@ -108,8 +112,9 @@ func applyShipStates(ctx context.Context, cs store.ContentStore, voiceStore core
 	if len(rateCandidates) > 0 {
 		locales := slices.Sorted(maps.Keys(rateCandidates))
 		for _, localeStr := range locales {
-			// Drives both the term-compliance predicate and the basis note.
-			termActive[localeStr] = gate.active(ctx, model.LocaleID(localeStr))
+			loc := model.LocaleID(localeStr)
+			termsGoverned[localeStr] = gate.termsGoverned(ctx, loc)
+			voiceGoverned[localeStr] = gate.voiceGoverned(ctx, loc)
 		}
 		rollup, err = deriveShipGate(ctx, cs, voiceStore, projectID, stream, gate, locales, collByItem)
 		if err != nil {
@@ -129,6 +134,8 @@ func applyShipStates(ctx context.Context, cs store.ContentStore, voiceStore core
 			p.Clean += c.Clean
 			p.Scored += c.Scored
 			p.CleanBelowBar += c.CleanBelowBar
+			p.TermsNotChecked += c.TermsNotChecked
+			p.NotChecked += c.NotChecked
 			project[loc] = p
 		}
 	}
@@ -144,14 +151,15 @@ func applyShipStates(ctx context.Context, cs store.ContentStore, voiceStore core
 		ls.BasisUnknownBlocks = b.BasisUnknown
 		ls.ShipState = store.DeriveShipState(ls.TranslatedBlocks, ls.TotalBlocks, ls.ApprovedBlocks,
 			ls.FailingChecks, ls.StaleBlocks, ls.RejectedAwaitingDraftBlocks)
-		// A clean block is compliant only where its terminology was checked: in a
-		// locale no terms or voice profile rule apply to, it counts as not
-		// checked. A failing or below-bar block has a verdict either way.
-		compliant, notChecked := c.Clean-c.CleanBelowBar, 0
-		if !termActive[ls.Locale] {
-			compliant, notChecked = 0, c.Clean-c.CleanBelowBar
+		// A clean block not below the voice bar is compliant when it has a result
+		// for every dimension governing its locale, and not checked when it lacks
+		// one. Where nothing beyond the checks governs the locale it is not
+		// governed. A failing or below-bar block has a verdict either way.
+		compliant, notGoverned := c.Clean-c.CleanBelowBar-c.NotChecked, 0
+		if !termsGoverned[ls.Locale] && !voiceGoverned[ls.Locale] {
+			compliant, notGoverned = 0, compliant
 		}
-		applyCompliance(ls, compliant, notChecked, c.Scored > 0, termActive[ls.Locale])
+		applyCompliance(ls, compliant, c.NotChecked, notGoverned, voiceGoverned[ls.Locale], termsGoverned[ls.Locale])
 	}
 
 	for i := range stats.LocaleStats {
@@ -195,9 +203,18 @@ func deriveShipGate(
 
 	// Per-locale governance and voice scores resolve once, outside any walk:
 	// they are indexed by locale, not by block, and re-resolving them per batch
-	// would repeat the same work for every page of the corpus.
+	// would repeat the same work for every page of the corpus. Scores are kept
+	// only for a locale a voice profile governs, because no bar applies anywhere
+	// else.
 	scored := make(map[string]map[string]scoredBlock, len(locales))
+	voiceGoverned := make(map[string]bool, len(locales))
+	var governedLocales []string
 	for _, l := range locales {
+		if !gate.voiceGoverned(ctx, model.LocaleID(l)) {
+			continue
+		}
+		voiceGoverned[l] = true
+		governedLocales = append(governedLocales, l)
 		scored[l] = scores[string(locale.Normalize(model.LocaleID(l)))]
 	}
 
@@ -210,7 +227,8 @@ func deriveShipGate(
 		q := store.ShipGateQuery{
 			ProjectID: projectID, Stream: stream,
 			Gate: fingerprint, Locales: locales,
-			Scores: shipGateScores(scored),
+			Scores:        shipGateScores(scored),
+			VoiceGoverned: governedLocales,
 		}
 		var err error
 		rollup, err = vs.ShipGateRollup(ctx, q)
@@ -229,20 +247,27 @@ func deriveShipGate(
 		loc := model.LocaleID(localeStr)
 		// A block fails the ship gate when its rule-based checks flag an
 		// error-severity finding OR its target violates the terminology for the
-		// locale — the two are treated identically for both FailingChecks and
-		// the compliance rate. An unchecked terminology verdict fails nothing; the
-		// rate accounts for it per locale (see stamp). gate.compliance is offline
-		// (in-memory snapshot).
-		fails := blockFailsChecks(ctx, block, loc) ||
-			gate.compliance(ctx, block, loc) == store.TermComplianceViolation
+		// locale, and the two are treated identically for both FailingChecks and
+		// the compliance rate. A terminology verdict that is unchecked or not
+		// governed fails nothing, and the rollup counts it in its own state.
+		// gate.compliance is offline (in-memory snapshot).
+		termVerdict := gate.compliance(ctx, block, loc)
+		fails := blockFailsChecks(ctx, block, loc) || termVerdict == store.TermComplianceViolation
 		sb, isScored := scored[localeStr][block.ID]
-		rollup.Add(collByItem[itemName], localeStr, fails, isScored, isScored && sb.score < sb.bar)
+		verdict := store.ShipGateVerdict{
+			BlockID: block.ID,
+			Locale:  localeStr,
+			Basis:   basis,
+			Fails:   fails,
+			Terms:   termVerdict,
+		}
+		rollup.Add(collByItem[itemName], localeStr, verdict, store.ShipGateVoice{
+			Governed: voiceGoverned[localeStr],
+			Scored:   isScored,
+			BelowBar: isScored && sb.score < sb.bar,
+		})
 		if keepsVerdicts {
-			verdicts = append(verdicts, store.ShipGateVerdict{
-				BlockID: block.ID, Locale: localeStr,
-				Basis: basis,
-				Fails: fails,
-			})
+			verdicts = append(verdicts, verdict)
 		}
 	}
 
@@ -451,23 +476,24 @@ func tallyDecisionBasis(ctx context.Context, cs store.ContentStore, projectID, s
 // applyCompliance stamps the derived compliance fields onto one locale scope. A
 // scope with nothing translated gets no rate (nothing to rate, and the additive
 // fields stay omitted). notCheckedCount is the translated blocks no bar failed
-// whose terminology was not checked: they are reported as NotCheckedBlocks and
-// count toward neither side of the rate, which is compliant over checked blocks
-// and is absent when no block was checked. Both counts are clamped to the
-// translated denominator so a stats/block-read skew can never report a rate
-// above 1. The basis names the evidence that informed the numbers: rule-based
-// checks always, plus terms when term governance was active for the locale,
-// plus voice when a persisted score informed at least one block.
-func applyCompliance(ls *store.LocaleTranslationStats, compliantCount, notCheckedCount int, voice, terms bool) {
+// that lack a result for a dimension governing the locale, and
+// notGovernedCount those in a locale nothing beyond the checks governs. Both
+// are reported and count toward neither side of the rate, which is compliant
+// over the blocks with a verdict and is absent when none has one. The counts
+// are clamped to the translated denominator so a stats/block-read skew can
+// never report a rate above 1. The basis names the dimensions governing the
+// locale: rule-based checks always, plus terms and voice where they govern it.
+func applyCompliance(ls *store.LocaleTranslationStats, compliantCount, notCheckedCount, notGovernedCount int, voice, terms bool) {
 	if ls.TranslatedBlocks <= 0 {
 		return
 	}
 	ls.NotCheckedBlocks = min(max(notCheckedCount, 0), ls.TranslatedBlocks)
-	checked := ls.TranslatedBlocks - ls.NotCheckedBlocks
-	ls.CompliantBlocks = min(max(compliantCount, 0), checked)
+	ls.NotGovernedBlocks = min(max(notGovernedCount, 0), ls.TranslatedBlocks-ls.NotCheckedBlocks)
+	withVerdict := ls.TranslatedBlocks - ls.NotCheckedBlocks - ls.NotGovernedBlocks
+	ls.CompliantBlocks = min(max(compliantCount, 0), withVerdict)
 	ls.ComplianceBasis = store.ComplianceBasisFor(voice, terms)
-	if checked > 0 {
-		rate := float64(ls.CompliantBlocks) / float64(checked)
+	if withVerdict > 0 {
+		rate := float64(ls.CompliantBlocks) / float64(withVerdict)
 		ls.ComplianceRate = &rate
 	}
 }
@@ -494,18 +520,15 @@ func blockFailsChecks(ctx context.Context, block *model.Block, loc model.LocaleI
 }
 
 // blockCompliantAndPassing reports whether a translated block+locale is clean
-// enough to ship without a person's review: it passes the rule-based checks
-// with no error-severity finding, is term-compliant for the locale (via the
-// shared gate), AND, where a persisted voice score exists for the block, the
-// score meets the scoring profile's compliance bar. This is exactly the per-block
-// compliant predicate applyShipStates aggregates into the compliance rate (#1365);
-// the bulk approve-passing endpoint reuses it to pick which pending drafts to
-// auto-approve, so a target using a forbidden term or missing a mandated one is
-// excluded and left pending for a person. `scored` is one locale's score map
-// (latestVoiceScores(...)[normalize(locale)]); an empty map degrades to
-// checks-only. A nil gate, or a locale no terms or voice profile rule applies
-// to, leaves the terminology bar unchecked, and a block whose terminology was
-// not checked is never passing.
+// enough to ship without a person's review: it passes the rule-based checks with
+// no error-severity finding and holds a passing result for every other dimension
+// governing its locale, terminology via the shared gate and the voice bar where
+// a voice profile governs. A dimension that does not govern the locale is no
+// bar, and a governing dimension with no result for the block is never passing.
+// This is exactly the per-block compliant predicate applyShipStates aggregates
+// into the compliance rate (#1365); the bulk approve-passing endpoint reuses it
+// to pick which pending drafts to auto-approve. `scored` is one locale's score
+// map (latestVoiceScores(...)[normalize(locale)]).
 func blockCompliantAndPassing(ctx context.Context, block *model.Block, loc model.LocaleID, scored map[string]scoredBlock, gate *termGate) bool {
 	return blockApproveBlocker(ctx, block, loc, scored, gate) == approveBlockerNone
 }
@@ -520,18 +543,22 @@ const (
 	approveBlockerNone   approveBlocker = ""
 	approveBlockerChecks approveBlocker = "checks"
 	approveBlockerTerms  approveBlocker = "terms"
-	// approveBlockerTermsNotChecked is the terminology bar with no verdict: no
-	// terms and no voice profile rule apply to the locale, or the target holds
-	// no text. Approving it would claim evidence nobody gathered.
+	// approveBlockerTermsNotChecked is the terminology bar with no verdict: terms
+	// or voice profile rules govern the locale and the target holds no text.
+	// Approving it would claim evidence nobody gathered.
 	approveBlockerTermsNotChecked approveBlocker = "terms_not_checked"
 	approveBlockerVoice           approveBlocker = "voice"
+	// approveBlockerVoiceNotChecked is the voice bar with no verdict: a voice
+	// profile governs the locale and nothing has scored the block.
+	approveBlockerVoiceNotChecked approveBlocker = "voice_not_checked"
 )
 
 // blockApproveBlocker is the one predicate behind blockCompliantAndPassing: it
 // applies the bars in gate order and names the first one the target misses or
-// has no verdict for, or approveBlockerNone when it clears them all. Order is
-// significant only for attribution: a target missing two bars is reported
-// against the first, so the reported reasons sum to the skipped count.
+// has no verdict for, or approveBlockerNone when it clears them all. A bar that
+// does not govern the locale is skipped. Order is significant only for
+// attribution: a target missing two bars is reported against the first, so the
+// reported reasons sum to the skipped count.
 func blockApproveBlocker(ctx context.Context, block *model.Block, loc model.LocaleID, scored map[string]scoredBlock, gate *termGate) approveBlocker {
 	if blockFailsChecks(ctx, block, loc) {
 		return approveBlockerChecks
@@ -542,10 +569,32 @@ func blockApproveBlocker(ctx context.Context, block *model.Block, loc model.Loca
 	case store.TermComplianceUnchecked:
 		return approveBlockerTermsNotChecked
 	}
-	if vs, ok := scored[block.ID]; ok && vs.score < vs.bar {
+	switch gate.voiceCompliance(ctx, block.ID, loc, scored) {
+	case store.VoiceComplianceBelowBar:
 		return approveBlockerVoice
+	case store.VoiceComplianceUnchecked:
+		return approveBlockerVoiceNotChecked
 	}
 	return approveBlockerNone
+}
+
+// voiceCompliance is a block's standing against the voice bar for loc. No bar
+// applies in a locale no voice profile governs. Where one does, a block nothing
+// has scored is unchecked, and a scored block is measured against the bar of the
+// profile that scored it. `scored` is the locale's score map.
+func (g *termGate) voiceCompliance(ctx context.Context, blockID string, loc model.LocaleID, scored map[string]scoredBlock) store.VoiceCompliance {
+	if !g.voiceGoverned(ctx, loc) {
+		return store.VoiceComplianceNotGoverned
+	}
+	sb, ok := scored[blockID]
+	switch {
+	case !ok:
+		return store.VoiceComplianceUnchecked
+	case sb.score < sb.bar:
+		return store.VoiceComplianceBelowBar
+	default:
+		return store.VoiceCompliancePassing
+	}
 }
 
 // scoredBlock is the latest persisted voice score for one block+locale, paired

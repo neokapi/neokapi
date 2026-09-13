@@ -463,11 +463,11 @@ describe("ReviewSession", () => {
     });
 
     it("files an entry whose terminology was not checked under its own verdict", async () => {
-      // Nothing checked the terminology for the locale: the entry violated
-      // nothing, and the server holds no evidence to approve it on, so it is
-      // neither passing nor failing and the reviewer reads why.
+      // Terms govern the locale and nothing checked these targets: they
+      // violated nothing, and the server holds no evidence to approve them on,
+      // so they are neither passing nor failing and the reviewer reads why.
       renderSession(stats, (a) => {
-        a.blockEvidence = { b1: {}, b2: {} };
+        a.blockEvidence = { b1: { term_compliance: "" }, b2: { term_compliance: "" } };
       });
       await waitForQueue();
 
@@ -482,14 +482,46 @@ describe("ReviewSession", () => {
       const verdict = screen.getByTestId("reviewer-verdict-not_checked");
       expect(verdict.textContent).toContain("Not checked: terminology");
       expect(verdict.getAttribute("title")).toContain(
-        "no terms or voice profile rules apply to this language",
+        "a bar that applies to this language has no result",
       );
+    });
+
+    it("files a governed block nothing has scored under not checked", async () => {
+      renderSession(stats, (a) => {
+        a.blockEvidence = {
+          b1: { term_compliance: "compliant", voice_bar: 80 },
+          b2: { term_compliance: "compliant", voice_bar: 80 },
+        };
+      });
+      await waitForQueue();
+
+      expect(screen.getByTestId("filter-verdict-not_checked").textContent).toContain(
+        "Not checked (2)",
+      );
+      expect(screen.getByTestId("approve-all-passing")).toBeDisabled();
+      expect(screen.getByTestId("reviewer-verdict-not_checked").textContent).toContain(
+        "Not checked: voice",
+      );
+    });
+
+    it("counts the blocks of a language nothing governs as passing, and says what does not apply", async () => {
+      renderSession(stats, (a) => {
+        a.blockEvidence = { b1: {}, b2: {} };
+      });
+      await waitForQueue();
+
+      expect(screen.getByTestId("filter-verdict-passing").textContent).toContain("(2)");
+      expect(screen.getByTestId("filter-verdict-not_checked").textContent).toContain("(0)");
+      const verdict = screen.getByTestId("reviewer-verdict-passing");
+      expect(verdict.textContent).toContain("Clears every bar");
+      expect(verdict.getAttribute("title")).toContain("No terms apply to this language");
+      expect(verdict.getAttribute("title")).toContain("No voice profile applies to this language");
     });
 
     it("approving all passing leaves the entries whose terminology was not checked", async () => {
       const user = userEvent.setup();
       renderSession(stats, (a) => {
-        a.blockEvidence = { b1: { term_compliance: "compliant" }, b2: {} };
+        a.blockEvidence = { b1: { term_compliance: "compliant" }, b2: { term_compliance: "" } };
       });
       await waitForQueue();
       expect(within(screen.getByTestId("approve-all-passing")).getByText("1")).toBeInTheDocument();
@@ -512,11 +544,12 @@ describe("ReviewSession", () => {
       };
       a.approvePassingResult = {
         approved: 3,
-        skipped: 5,
+        skipped: 6,
         skipped_failing_checks: 1,
         skipped_term_violations: 2,
         skipped_terms_not_checked: 1,
         skipped_below_voice_bar: 1,
+        skipped_voice_not_checked: 1,
         skipped_self_authored: 0,
         remaining_pending: 5,
         review_completed: false,
@@ -535,6 +568,7 @@ describe("ReviewSession", () => {
     expect(message.textContent).toContain("2 terminology");
     expect(message.textContent).toContain("1 with terminology not checked");
     expect(message.textContent).toContain("1 below the voice bar");
+    expect(message.textContent).toContain("1 with voice not checked");
   });
 
   it("'Approve all passing' clears the queue and shows the delivering state", async () => {

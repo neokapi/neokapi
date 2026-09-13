@@ -18,10 +18,11 @@ import { getBlockStatus, getTargetText } from "../editor/blockStatus";
  *
  * `passing` means the server will take this block in a bulk approve-passing
  * pass, and `failing` means a bar it applies turned the block down.
- * `not_checked` is neither: no bar turned it down, but its terminology was not
- * checked, so the server holds no evidence to approve it on and leaves it for a
- * person. This mirrors shipstate.blockApproveBlocker over the evidence the
- * queue payload carries.
+ * `not_checked` is neither: no bar turned it down, but a bar that governs the
+ * block's language has no result for it, so the server holds no evidence to
+ * approve it on and leaves it for a person. A bar that governs nothing in the
+ * language is no bar at all. This mirrors shipstate.blockApproveBlocker over the
+ * evidence the queue payload carries.
  */
 export type ReviewQueueVerdict = "failing" | "not_checked" | "passing";
 
@@ -33,11 +34,18 @@ export type ReviewQueueVerdict = "failing" | "not_checked" | "passing";
 export type ReviewBlocker = "checks" | "terms" | "voice";
 
 /**
- * Which bar an entry has no verdict for. Terminology is the only one the
- * payload can leave unchecked: every pending target is run through the
- * rule-based checks, and the server applies no voice bar to an unscored block.
+ * Which governing bar an entry has no result for: terminology with no verdict,
+ * or a voice bar nothing has scored the entry against. Every pending target is
+ * run through the rule-based checks, so they are never among them.
  */
-export type ReviewUnchecked = "terms";
+export type ReviewUnchecked = "terms" | "voice";
+
+/**
+ * Which bar governs nothing in an entry's language: no terms or voice profile
+ * rules apply to it, or no voice profile does. Such a bar neither passes nor
+ * blocks the entry.
+ */
+export type ReviewUngoverned = "terms" | "voice";
 
 /** How the queue list groups its rows. */
 export type ReviewGroupBy = "item" | "locale" | "verdict";
@@ -86,14 +94,16 @@ export interface ReviewEntry {
   /** Check findings for this block+locale; empty until the checks have been loaded. */
   issues: CheckIssue[];
   /**
-   * The server's terminology verdict for this target, `""` when it was not
-   * checked because no terms and no voice profile rule apply to the locale.
+   * The server's terminology verdict for this target: `"not_governed"` where no
+   * terms or voice profile rules apply to the locale, and `""` where they do and
+   * the target had nothing to check.
    */
   termCompliance: TermCompliance;
   /**
-   * The latest persisted voice score for this block+locale, and the bar
-   * of the profile that produced it. Absent together for a block that has never
-   * been scored — the server applies no voice bar to it either.
+   * The voice bar this block is held to, present wherever a voice profile
+   * governs the locale, and its latest persisted score, present once something
+   * has scored it. A bar with no score is a governed block with no result;
+   * neither means no voice profile governs the locale.
    */
   voiceScore?: number;
   voiceBar?: number;
@@ -145,12 +155,16 @@ export function isPendingReview(block: BlockInfo, locale: string): boolean {
 }
 
 /**
- * Whether an entry's voice score is below the bar of the profile that produced
- * it. False for an unscored block: the server applies no voice bar to one
- * either, so an unscored block is not "below" anything.
+ * Whether an entry's voice score is below the bar it is held to. False for an
+ * unscored block, which is below nothing: where a voice profile governs, it has
+ * no result instead (see entryUnchecked).
  */
 export function isBelowVoiceBar(entry: ReviewEntry): boolean {
-  return entry.voiceScore !== undefined && entry.voiceScore < (entry.voiceBar ?? 0);
+  return (
+    entry.voiceScore !== undefined &&
+    entry.voiceBar !== undefined &&
+    entry.voiceScore < entry.voiceBar
+  );
 }
 
 /**
@@ -167,12 +181,26 @@ export function entryBlockers(entry: ReviewEntry): ReviewBlocker[] {
 }
 
 /**
- * The bars an entry has no verdict for. An unchecked terminology verdict is
- * neither a pass nor a violation, and the server approves no entry that has
- * one.
+ * The governing bars an entry has no result for, in the order the server applies
+ * them. A missing result is neither a pass nor a failure, and the server
+ * approves no entry that has one.
  */
 export function entryUnchecked(entry: ReviewEntry): ReviewUnchecked[] {
-  return entry.termCompliance === "" ? ["terms"] : [];
+  const unchecked: ReviewUnchecked[] = [];
+  if (entry.termCompliance === "") unchecked.push("terms");
+  if (entry.voiceBar !== undefined && entry.voiceScore === undefined) unchecked.push("voice");
+  return unchecked;
+}
+
+/**
+ * The bars that govern nothing in an entry's language. They are named so a
+ * reviewer can see what was never a bar here, and they decide nothing.
+ */
+export function entryNotGoverned(entry: ReviewEntry): ReviewUngoverned[] {
+  const ungoverned: ReviewUngoverned[] = [];
+  if (entry.termCompliance === "not_governed") ungoverned.push("terms");
+  if (entry.voiceBar === undefined) ungoverned.push("voice");
+  return ungoverned;
 }
 
 /**
@@ -228,6 +256,19 @@ export const BLOCKER_LABELS: Record<ReviewBlocker, string> = {
 /** How each unchecked bar is named where an entry's reasons are listed. */
 export const UNCHECKED_LABELS: Record<ReviewUnchecked, string> = {
   terms: "Terminology not checked",
+  voice: "Voice not checked",
+};
+
+/** How each bar that governs nothing is named where an entry's reasons are listed. */
+export const NOT_GOVERNED_LABELS: Record<ReviewUngoverned, string> = {
+  terms: "No terms apply",
+  voice: "No voice profile applies",
+};
+
+/** The sentence each bar that governs nothing adds to the verdict's tooltip. */
+const NOT_GOVERNED_DETAIL: Record<ReviewUngoverned, string> = {
+  terms: "No terms apply to this language, so terminology is no bar here.",
+  voice: "No voice profile applies to this language, so there is no voice bar.",
 };
 
 /**
@@ -259,17 +300,23 @@ export function verdictLabel(entry: ReviewEntry): string {
   return VERDICT_LABELS.passing;
 }
 
-/** The bars an entry misses or has no verdict for, named in full, for the verdict's tooltip. */
+/**
+ * The bars an entry misses or has no result for, named in full, for the
+ * verdict's tooltip, followed by the bars that govern nothing in its language.
+ */
 export function verdictDetail(entry: ReviewEntry): string {
   const missed = entryBlockers(entry).map((b) => BLOCKER_LABELS[b]);
   const unchecked = entryUnchecked(entry).map((u) => UNCHECKED_LABELS[u]);
+  const ungoverned = entryNotGoverned(entry).map((g) => NOT_GOVERNED_DETAIL[g]);
+  let detail: string;
   if (missed.length === 0 && unchecked.length === 0) {
-    return "Every bar the server applies on approve is clear.";
+    detail = "Every bar the server applies on approve is clear.";
+  } else if (missed.length === 0) {
+    detail = `${unchecked.join(" · ")}: a bar that applies to this language has no result, so approving all passing leaves this block for a person.`;
+  } else {
+    detail = [...missed, ...unchecked].join(" · ");
   }
-  if (missed.length === 0) {
-    return `${unchecked.join(" · ")}: no terms or voice profile rules apply to this language, so approving all passing leaves this block for a person.`;
-  }
-  return [...missed, ...unchecked].join(" · ");
+  return ungoverned.length > 0 ? `${detail} ${ungoverned.join(" ")}` : detail;
 }
 
 /** Order groups deterministically: failing first, then not checked, then passing. */
@@ -337,8 +384,8 @@ export function queueCounts(entries: readonly ReviewEntry[]): ReviewQueueCounts 
 
 /**
  * Entries that clear every bar the server applies — what "Approve all passing"
- * will approve, over the same evidence the server judges on. An entry whose
- * terminology was not checked is not among them. The response still reports
+ * will approve, over the same evidence the server judges on. An entry with no
+ * result for a bar that governs it is not among them. The response still reports
  * the split that actually happened, because the queue is a snapshot and a
  * re-check between preview and pass can move a block.
  */

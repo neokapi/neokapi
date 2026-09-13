@@ -349,7 +349,7 @@ func TestApprovePassingSkipsSelfAuthored(t *testing.T) {
 	assert.Equal(t, 1, res.SkippedSelfAuthored)
 	assert.Equal(t, res.Skipped,
 		res.SkippedFailingChecks+res.SkippedTermViolations+res.SkippedTermsNotChecked+
-			res.SkippedBelowVoiceBar+res.SkippedSelfAuthored,
+			res.SkippedBelowVoiceBar+res.SkippedVoiceNotChecked+res.SkippedSelfAuthored,
 		"every skip is attributed to exactly one bar")
 	assert.Equal(t, model.TargetStatusDraft, targetStatus(t, s, projID, mine, "fr"))
 	assert.Equal(t, model.TargetStatusReviewed, targetStatus(t, s, projID, theirs, "fr"))

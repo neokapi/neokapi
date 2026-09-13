@@ -4,8 +4,10 @@ import { getTargetText } from "../editor/blockStatus";
 import { AlertTriangle, CircleCheck, Info } from "../icons";
 import {
   BLOCKER_LABELS,
+  NOT_GOVERNED_LABELS,
   UNCHECKED_LABELS,
   entryBlockers,
+  entryNotGoverned,
   entryUnchecked,
   entryVerdict,
   groupEntries,
@@ -126,6 +128,9 @@ export function ReviewQueueList({
                   ...entryBlockers(entry).map((b) => BLOCKER_LABELS[b]),
                   ...entryUnchecked(entry).map((u) => UNCHECKED_LABELS[u]),
                 ];
+                // The bars that govern nothing here decide nothing, so they
+                // follow the verdict rather than stand in for one.
+                const ungoverned = entryNotGoverned(entry).map((g) => NOT_GOVERNED_LABELS[g]);
                 const active = entry.id === currentId;
                 return (
                   <button
@@ -148,7 +153,10 @@ export function ReviewQueueList({
                       className={cn("mt-0.5 h-3.5 w-3.5 shrink-0", verdictDot[verdict].className)}
                       // The dot says pass, fail or not checked; the label says
                       // which bar, so a row never carries a mark nobody can read.
-                      aria-label={reasons.join(", ") || "Passing"}
+                      aria-label={[
+                        ...(reasons.length > 0 ? reasons : ["Passing"]),
+                        ...ungoverned,
+                      ].join(", ")}
                     />
                     <span className="min-w-0 flex-1">
                       <DirectionalText locale={sourceLocale} className="block truncate text-sm">
