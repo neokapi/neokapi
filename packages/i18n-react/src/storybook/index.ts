@@ -31,6 +31,7 @@
 
 import { createElement, Fragment, useEffect, useState } from "react";
 import type { Decorator, Loader } from "@storybook/react-vite";
+import type { GlobalTypes } from "storybook/internal/types";
 
 export interface NeokapiLocale {
   /** BCP-47 locale code, e.g. "en", "qps". */
@@ -260,7 +261,7 @@ export function neokapiDecorator(opts: NeokapiStorybookOptions): Decorator {
  * `globalTypes` entry that registers the toolbar dropdown. Assign to a
  * key (typically `locale`) on the Preview's `globalTypes` object.
  */
-export function neokapiGlobalType(opts: NeokapiStorybookOptions) {
+export function neokapiGlobalType(opts: NeokapiStorybookOptions): GlobalTypes[string] {
   return {
     name: "Language",
     description: "UI language",

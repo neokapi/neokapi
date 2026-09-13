@@ -9,9 +9,10 @@ import { defineConfig } from "vite-plus";
 // Oxc/lint integration can load it reliably; per-package vite.config.ts files
 // carry only Vite/Vitest/framework config (plugins, build, test).
 
-// The vp surface is the frontend packages — each is checked per-package by
-// `make frontend-check-all` (`cd <pkg> && vp check`), never from the repo root.
-// A bare root `vp check` otherwise reaches OUTSIDE that surface into the Go
+// The vp surface is the frontend packages. CI checks all of it from the repo
+// root (`vp check --no-fmt` in `make ci-frontend`) as well as per package
+// (`cd <pkg> && vp check`). Without the exclusions below, a root `vp check`
+// reaches OUTSIDE that surface into the Go
 // modules' data files, the demo/tooling scripts, and infra config — dirs with
 // their own toolchains (gofmt, byte-sensitive fixtures, hand-curated YAML) that
 // no vp target gates. Reformatting them is pure churn (e.g. flipping every
