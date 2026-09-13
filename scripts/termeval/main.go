@@ -113,6 +113,10 @@ type Row struct {
 	DeletedPassed  int `json:"deleted_passed"`
 	ClippedPassed  int `json:"clipped_passed"`
 	UnlabelledRows int `json:"unlabelled_rows"`
+	// FailClasses counts the labelled fails by class, and FalseFailClasses the
+	// false fails among them.
+	FailClasses      map[string]int `json:"fail_classes,omitempty"`
+	FalseFailClasses map[string]int `json:"false_fail_classes,omitempty"`
 }
 
 // Unlabeled is a row a person or agent still has to classify.
@@ -153,7 +157,7 @@ func run(root string) (*Report, error) {
 	conceptsFor := map[string][]terms.Concept{"dogfood": dogfood, "compass": samples, "tidewatch": samples}
 	formsFor := map[string]string{"dogfood": "dogfood", "compass": "samples", "tidewatch": "samples"}
 
-	rep := &Report{Note: "Labels are agent-made and pending a person's review."}
+	rep := &Report{Note: "Labels are agent-made and pending a person's review.", Unlabelled: []Unlabeled{}}
 	rows := map[string]*Row{}
 	pending := map[string]*Unlabeled{}
 	for _, u := range units {
@@ -227,8 +231,12 @@ func measureUnit(row *Row, mode string, u Unit, rules []profile.TermRule, src mo
 			case !tok:
 				row.UnlabelledRows++
 				note(pending, Unlabeled{Kind: "target", Corpus: u.Corpus, Unit: u.ID, Term: rule.Term, Source: source, Target: target}, mode)
-			case ok && class == "use" && acceptableTarget(tclass):
-				row.FalseFails++
+			default:
+				row.FailClasses = increment(row.FailClasses, tclass)
+				if ok && class == "use" && acceptableTarget(tclass) {
+					row.FalseFails++
+					row.FalseFailClasses = increment(row.FalseFailClasses, tclass)
+				}
 			}
 			continue
 		}
@@ -248,6 +256,14 @@ func measureUnit(row *Row, mode string, u Unit, rules []profile.TermRule, src mo
 			}
 		}
 	}
+}
+
+func increment(m map[string]int, key string) map[string]int {
+	if m == nil {
+		m = map[string]int{}
+	}
+	m[key]++
+	return m
 }
 
 func note(pending map[string]*Unlabeled, row Unlabeled, mode string) {
@@ -403,5 +419,26 @@ func printTable(w *os.File, rep *Report) {
 			r.DeletedPassed, r.ClippedPassed, r.Negatives, r.UnlabelledRows)
 	}
 	_ = tw.Flush()
+
+	fmt.Fprintln(w, "\nfails by label class (false fails marked *)")
+	for _, r := range rep.Rows {
+		if len(r.FailClasses) == 0 {
+			continue
+		}
+		classes := make([]string, 0, len(r.FailClasses))
+		for c := range r.FailClasses {
+			classes = append(classes, c)
+		}
+		sort.Strings(classes)
+		parts := make([]string, 0, len(classes))
+		for _, c := range classes {
+			mark := ""
+			if acceptableTarget(c) {
+				mark = "*"
+			}
+			parts = append(parts, fmt.Sprintf("%s%s %d", c, mark, r.FailClasses[c]))
+		}
+		fmt.Fprintf(w, "  %s %s %s: %s\n", r.Corpus, r.Lang, r.Mode, strings.Join(parts, ", "))
+	}
 	fmt.Fprintln(w, "\n"+rep.Note)
 }
