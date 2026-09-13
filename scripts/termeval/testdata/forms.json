@@ -1,0 +1,584 @@
+{
+  "note": "Surface forms proposed by `kapi terms expand` (provider claude-code, model sonnet) on 2026-09-13 for the evaluation only, and reviewed by an agent against the inflection of each language. Agent-reviewed, pending a person's review. They are not part of any committed terms store.",
+  "dogfood": [
+    {
+      "concept_id": "term:0e33869f74",
+      "locale": "nb",
+      "term": "hyperkobling",
+      "forms": [
+        "hyperkoblingen",
+        "hyperkoblinger",
+        "hyperkoblingene"
+      ]
+    },
+    {
+      "concept_id": "term:12768d0065",
+      "locale": "nb",
+      "term": "foredragsholdernotater",
+      "forms": [
+        "foredragsholdernotat",
+        "foredragsholdernotatet",
+        "foredragsholdernotatene"
+      ]
+    },
+    {
+      "concept_id": "term:16eea39cda",
+      "locale": "nb",
+      "term": "ordtelling",
+      "forms": [
+        "ordtellingen",
+        "ordtellinger",
+        "ordtellingene"
+      ]
+    },
+    {
+      "concept_id": "term:176ca52906",
+      "locale": "nb",
+      "term": "undertekst",
+      "forms": [
+        "underteksten",
+        "undertekster",
+        "undertekstene"
+      ]
+    },
+    {
+      "concept_id": "term:18f1255e3f",
+      "locale": "nb",
+      "term": "sladde",
+      "forms": [
+        "sladder",
+        "sladdet",
+        "sladd"
+      ]
+    },
+    {
+      "concept_id": "term:2023cc4c69",
+      "locale": "nb",
+      "term": "inline-kode",
+      "forms": [
+        "inline-koden",
+        "inline-koder",
+        "inline-kodene"
+      ]
+    },
+    {
+      "concept_id": "term:20f65c2867",
+      "locale": "nb",
+      "term": "kontroll",
+      "forms": [
+        "kontrollen",
+        "kontroller",
+        "kontrollene"
+      ]
+    },
+    {
+      "concept_id": "term:2334b8e625",
+      "locale": "nb",
+      "term": "måltekst",
+      "forms": [
+        "måltekster",
+        "målteksten",
+        "måltekstene"
+      ]
+    },
+    {
+      "concept_id": "term:23bf0d244a",
+      "locale": "nb",
+      "term": "pipeline",
+      "forms": [
+        "pipelinen",
+        "pipeliner",
+        "pipelinene"
+      ]
+    },
+    {
+      "concept_id": "term:244210e484",
+      "locale": "nb",
+      "term": "prosjekt",
+      "forms": [
+        "prosjektet",
+        "prosjekter",
+        "prosjektene"
+      ]
+    },
+    {
+      "concept_id": "term:26f1de3397",
+      "locale": "nb",
+      "term": "utvidelse",
+      "forms": [
+        "utvidelsen",
+        "utvidelser",
+        "utvidelsene"
+      ]
+    },
+    {
+      "concept_id": "term:283128acef",
+      "locale": "nb",
+      "term": "flett",
+      "forms": [
+        "flette",
+        "fletter",
+        "flettet"
+      ]
+    },
+    {
+      "concept_id": "term:2d7abd023a",
+      "locale": "nb",
+      "term": "kvalitetskontroll",
+      "forms": [
+        "kvalitetskontrollen",
+        "kvalitetskontroller",
+        "kvalitetskontrollene"
+      ]
+    },
+    {
+      "concept_id": "term:2d82451b16",
+      "locale": "nb",
+      "term": "uttrekk",
+      "forms": [
+        "uttrekket",
+        "uttrekkene"
+      ]
+    },
+    {
+      "concept_id": "term:3934758c7e",
+      "locale": "nb",
+      "term": "versalfølsom",
+      "forms": [
+        "versalfølsomt",
+        "versalfølsomme"
+      ]
+    },
+    {
+      "concept_id": "term:3b21278178",
+      "locale": "nb",
+      "term": "flyt",
+      "forms": [
+        "flyten"
+      ]
+    },
+    {
+      "concept_id": "term:3d192e1294",
+      "locale": "nb",
+      "term": "gjenbruk",
+      "forms": [
+        "gjenbruket"
+      ]
+    },
+    {
+      "concept_id": "term:3f5dcb46d4",
+      "locale": "nb",
+      "term": "ordliste",
+      "forms": [
+        "ordlisten",
+        "ordlister",
+        "ordlistene"
+      ]
+    },
+    {
+      "concept_id": "term:4097889236",
+      "locale": "nb",
+      "term": "plassholder",
+      "forms": [
+        "plassholderen",
+        "plassholdere",
+        "plassholderne"
+      ]
+    },
+    {
+      "concept_id": "term:496aca80e4",
+      "locale": "nb",
+      "term": "blokk",
+      "forms": [
+        "blokken",
+        "blokker",
+        "blokkene"
+      ]
+    },
+    {
+      "concept_id": "term:497e22fe85",
+      "locale": "nb",
+      "term": "terskel",
+      "forms": [
+        "terskelen",
+        "terskler",
+        "tersklene"
+      ]
+    },
+    {
+      "concept_id": "term:5145f4d8e1",
+      "locale": "nb",
+      "term": "ordbank",
+      "forms": [
+        "ordbanken",
+        "ordbanker",
+        "ordbankene"
+      ]
+    },
+    {
+      "concept_id": "term:5145f4d8e1",
+      "locale": "nb",
+      "term": "termbase",
+      "forms": [
+        "termbasen",
+        "termbaser",
+        "termbasene"
+      ]
+    },
+    {
+      "concept_id": "term:599f770354",
+      "locale": "nb",
+      "term": "term",
+      "forms": [
+        "termen",
+        "termer",
+        "termene"
+      ]
+    },
+    {
+      "concept_id": "term:5c4c196434",
+      "locale": "nb",
+      "term": "leverandør",
+      "forms": [
+        "leverandøren",
+        "leverandører",
+        "leverandørene"
+      ]
+    },
+    {
+      "concept_id": "term:5e689e2b01",
+      "locale": "nb",
+      "term": "tillegg",
+      "forms": [
+        "tillegget",
+        "tilleggene"
+      ]
+    },
+    {
+      "concept_id": "term:631aada47d",
+      "locale": "nb",
+      "term": "legitimasjon",
+      "forms": [
+        "legitimasjonen"
+      ]
+    },
+    {
+      "concept_id": "term:6b621a0a78",
+      "locale": "nb",
+      "term": "forhåndsoversett",
+      "forms": [
+        "forhåndsoversette",
+        "forhåndsoversetter",
+        "forhåndsoversatte",
+        "forhåndsoversatt"
+      ]
+    },
+    {
+      "concept_id": "term:6db1c4fb63",
+      "locale": "nb",
+      "term": "blanktegn",
+      "forms": [
+        "blanktegnet",
+        "blanktegnene"
+      ]
+    },
+    {
+      "concept_id": "term:7156bf958d",
+      "locale": "nb",
+      "term": "målspråk",
+      "forms": [
+        "målspråket",
+        "målspråkene"
+      ]
+    },
+    {
+      "concept_id": "term:77d9bce4a1",
+      "locale": "nb",
+      "term": "språkkode",
+      "forms": [
+        "språkkoden",
+        "språkkoder",
+        "språkkodene"
+      ]
+    },
+    {
+      "concept_id": "term:7c9bbe5ec9",
+      "locale": "nb",
+      "term": "verktøy",
+      "forms": [
+        "verktøyet",
+        "verktøyene"
+      ]
+    },
+    {
+      "concept_id": "term:7fd690e20d",
+      "locale": "nb",
+      "term": "oversett",
+      "forms": [
+        "oversette",
+        "oversetter",
+        "oversatte",
+        "oversatt"
+      ]
+    },
+    {
+      "concept_id": "term:8cf3cf906c",
+      "locale": "nb",
+      "term": "merkevarestemme",
+      "forms": [
+        "merkevarestemmen"
+      ]
+    },
+    {
+      "concept_id": "term:8cf3cf906c",
+      "locale": "nb",
+      "term": "målgruppeprofil",
+      "forms": [
+        "målgruppeprofilen",
+        "målgruppeprofiler",
+        "målgruppeprofilene"
+      ]
+    },
+    {
+      "concept_id": "term:9cf8295e97",
+      "locale": "nb",
+      "term": "pseudooversett",
+      "forms": [
+        "pseudooversette",
+        "pseudooversetter",
+        "pseudooversatte",
+        "pseudooversatt"
+      ]
+    },
+    {
+      "concept_id": "term:a28130a037",
+      "locale": "nb",
+      "term": "kildetekst",
+      "forms": [
+        "kildeteksten",
+        "kildetekster",
+        "kildetekstene"
+      ]
+    },
+    {
+      "concept_id": "term:aa91dbf394",
+      "locale": "nb",
+      "term": "fuzzy-treff",
+      "forms": [
+        "fuzzy-treffet",
+        "fuzzy-treffene"
+      ]
+    },
+    {
+      "concept_id": "term:af398dceca",
+      "locale": "nb",
+      "term": "rundtur",
+      "forms": [
+        "rundturen",
+        "rundturer",
+        "rundturene"
+      ]
+    },
+    {
+      "concept_id": "term:b27500b873",
+      "locale": "nb",
+      "term": "kildespråk",
+      "forms": [
+        "kildespråket",
+        "kildespråkene"
+      ]
+    },
+    {
+      "concept_id": "term:b4b33d2441",
+      "locale": "nb",
+      "term": "overlegg",
+      "forms": [
+        "overlegget",
+        "overleggene"
+      ]
+    },
+    {
+      "concept_id": "term:c3def4a472",
+      "locale": "nb",
+      "term": "innholdsbase",
+      "forms": [
+        "innholdsbasen",
+        "innholdsbaser",
+        "innholdsbasene"
+      ]
+    },
+    {
+      "concept_id": "term:c3def4a472",
+      "locale": "nb",
+      "term": "oversettelsesminne",
+      "forms": [
+        "oversettelsesminnet",
+        "oversettelsesminner",
+        "oversettelsesminnene"
+      ]
+    },
+    {
+      "concept_id": "term:cd71fe3074",
+      "locale": "nb",
+      "term": "eksakt treff",
+      "forms": [
+        "eksakte treff"
+      ]
+    },
+    {
+      "concept_id": "term:cde0fb0dec",
+      "locale": "nb",
+      "term": "innstillinger",
+      "forms": [
+        "innstilling",
+        "innstillingen",
+        "innstillingene"
+      ]
+    },
+    {
+      "concept_id": "term:d410850fd5",
+      "locale": "nb",
+      "term": "forhåndsinnstilling",
+      "forms": [
+        "forhåndsinnstillingen",
+        "forhåndsinnstillinger",
+        "forhåndsinnstillingene"
+      ]
+    },
+    {
+      "concept_id": "term:d5665a94cd",
+      "locale": "nb",
+      "term": "lysbildemal",
+      "forms": [
+        "lysbildemalen",
+        "lysbildemaler",
+        "lysbildemalene"
+      ]
+    },
+    {
+      "concept_id": "term:ddc8d86be8",
+      "locale": "nb",
+      "term": "underfilter",
+      "forms": [
+        "underfilteret",
+        "underfiltre",
+        "underfiltrene"
+      ]
+    },
+    {
+      "concept_id": "term:e1d8e55233",
+      "locale": "nb",
+      "term": "oppskrift",
+      "forms": [
+        "oppskriften",
+        "oppskrifter",
+        "oppskriftene"
+      ]
+    },
+    {
+      "concept_id": "term:e904c9ccfa",
+      "locale": "nb",
+      "term": "format",
+      "forms": [
+        "formatet",
+        "formater",
+        "formatene"
+      ]
+    },
+    {
+      "concept_id": "term:ed9f6f2506",
+      "locale": "nb",
+      "term": "motor",
+      "forms": [
+        "motoren",
+        "motorer",
+        "motorene"
+      ]
+    },
+    {
+      "concept_id": "term:f1cf2fd5c8",
+      "locale": "nb",
+      "term": "trekk ut",
+      "forms": [
+        "trekke ut",
+        "trekker ut"
+      ]
+    },
+    {
+      "concept_id": "term:fba586be3b",
+      "locale": "nb",
+      "term": "segmentering",
+      "forms": [
+        "segmenteringen"
+      ]
+    },
+    {
+      "concept_id": "term:fd89a2f18b",
+      "locale": "nb",
+      "term": "sladding",
+      "forms": [
+        "sladdingen"
+      ]
+    }
+  ],
+  "samples": [
+    {
+      "concept_id": "term:en-GB:alert",
+      "locale": "de",
+      "term": "Warnung",
+      "forms": [
+        "Warnungen"
+      ]
+    },
+    {
+      "concept_id": "term:en-GB:berth",
+      "locale": "de",
+      "term": "Liegeplatz",
+      "forms": [
+        "Liegeplatzes",
+        "Liegeplätze",
+        "Liegeplätzen"
+      ]
+    },
+    {
+      "concept_id": "term:en-GB:vessel",
+      "locale": "de",
+      "term": "Schiff",
+      "forms": [
+        "Schiffe",
+        "Schiffes",
+        "Schiffs",
+        "Schiffen"
+      ]
+    },
+    {
+      "concept_id": "term:en-GB:alert",
+      "locale": "nb",
+      "term": "varsel",
+      "forms": [
+        "varselet",
+        "varsler",
+        "varslene"
+      ]
+    },
+    {
+      "concept_id": "term:en-GB:berth",
+      "locale": "nb",
+      "term": "kaiplass",
+      "forms": [
+        "kaiplassen",
+        "kaiplasser",
+        "kaiplassene"
+      ]
+    },
+    {
+      "concept_id": "term:en-GB:vessel",
+      "locale": "nb",
+      "term": "fartøy",
+      "forms": [
+        "fartøyet",
+        "fartøyene"
+      ]
+    }
+  ]
+}

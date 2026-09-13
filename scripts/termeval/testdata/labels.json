@@ -1,0 +1,3317 @@
+{
+  "note": "Agent-made labels, pending a person's review. Source labels classify each (term, matched source word) and were made by the implementing agent. Target labels classify each failing (corpus, unit, term) and were made by two agents reading the reviewed text, then spot-checked; about 15 rows whose target text was cut off in the review sheet were labelled from context and are less certain.",
+  "source": [
+    {
+      "term": "alert",
+      "word": "alert",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "alert",
+      "word": "alerts",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "berth",
+      "word": "berth",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "berth",
+      "word": "berths",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "block",
+      "word": "block",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "block",
+      "word": "block-level",
+      "class": "sibling",
+      "note": "a compound or a different word containing the term"
+    },
+    {
+      "term": "block",
+      "word": "block-store",
+      "class": "sibling",
+      "note": "a compound or a different word containing the term"
+    },
+    {
+      "term": "block",
+      "word": "blockquote",
+      "class": "sibling",
+      "note": "a compound or a different word containing the term"
+    },
+    {
+      "term": "block",
+      "word": "blocks",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "block",
+      "word": "kapi-block",
+      "class": "sibling",
+      "note": "a compound or a different word containing the term"
+    },
+    {
+      "term": "block",
+      "word": "per-block",
+      "class": "sibling",
+      "note": "a compound or a different word containing the term"
+    },
+    {
+      "term": "block",
+      "word": "sub-block",
+      "class": "sibling",
+      "note": "a compound or a different word containing the term"
+    },
+    {
+      "term": "caption",
+      "word": "caption",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "caption",
+      "word": "captions",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "case-sensitive",
+      "word": "case-sensitive",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "check",
+      "word": "check",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "check",
+      "word": "checking",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "check",
+      "word": "checks",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "check",
+      "word": "quality-check",
+      "class": "sibling",
+      "note": "a compound or a different word containing the term"
+    },
+    {
+      "term": "content memory",
+      "word": "content memory",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "credentials",
+      "word": "credentials",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "engine",
+      "word": "engine",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "engine",
+      "word": "engineering",
+      "class": "sibling",
+      "note": "a compound or a different word containing the term"
+    },
+    {
+      "term": "exact match",
+      "word": "exact match",
+      "class": "sibling",
+      "note": "matched by substring only; the words are hyphenated, masked or run into another word"
+    },
+    {
+      "term": "exact match",
+      "word": "exact matches",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "extension",
+      "word": "extension",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "extension",
+      "word": "extensions",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "extract",
+      "word": "extract",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "extract",
+      "word": "extractallpairs",
+      "class": "identifier",
+      "note": "code, flag or product name"
+    },
+    {
+      "term": "extract",
+      "word": "extracted",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "extract",
+      "word": "extracting",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "extract",
+      "word": "extraction",
+      "class": "sibling",
+      "note": "a compound or a different word containing the term"
+    },
+    {
+      "term": "extract",
+      "word": "extraction-batch",
+      "class": "sibling",
+      "note": "a compound or a different word containing the term"
+    },
+    {
+      "term": "extract",
+      "word": "extractions",
+      "class": "sibling",
+      "note": "a compound or a different word containing the term"
+    },
+    {
+      "term": "extract",
+      "word": "extractionstate",
+      "class": "identifier",
+      "note": "code, flag or product name"
+    },
+    {
+      "term": "extract",
+      "word": "extractor",
+      "class": "sibling",
+      "note": "a compound or a different word containing the term"
+    },
+    {
+      "term": "extract",
+      "word": "extracts",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "extract",
+      "word": "re-extract",
+      "class": "sibling",
+      "note": "a compound or a different word containing the term"
+    },
+    {
+      "term": "extract",
+      "word": "re-extraction",
+      "class": "sibling",
+      "note": "a compound or a different word containing the term"
+    },
+    {
+      "term": "extraction",
+      "word": "extraction",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "extraction",
+      "word": "extraction-batch",
+      "class": "sibling",
+      "note": "a compound or a different word containing the term"
+    },
+    {
+      "term": "extraction",
+      "word": "extractionrules",
+      "class": "identifier",
+      "note": "code, flag or product name"
+    },
+    {
+      "term": "extraction",
+      "word": "extractions",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "extraction",
+      "word": "extractionstate",
+      "class": "identifier",
+      "note": "code, flag or product name"
+    },
+    {
+      "term": "extraction",
+      "word": "re-extraction",
+      "class": "sibling",
+      "note": "a compound or a different word containing the term"
+    },
+    {
+      "term": "flow",
+      "word": "flow",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "flow",
+      "word": "flows",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "flow",
+      "word": "workflow",
+      "class": "sibling",
+      "note": "a compound or a different word containing the term"
+    },
+    {
+      "term": "flow",
+      "word": "workflows",
+      "class": "sibling",
+      "note": "a compound or a different word containing the term"
+    },
+    {
+      "term": "format",
+      "word": "format",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "format",
+      "word": "format-faithful",
+      "class": "sibling",
+      "note": "a compound or a different word containing the term"
+    },
+    {
+      "term": "format",
+      "word": "formats",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "format",
+      "word": "formatting",
+      "class": "sibling",
+      "note": "a compound or a different word containing the term"
+    },
+    {
+      "term": "format",
+      "word": "information",
+      "class": "sibling",
+      "note": "a compound or a different word containing the term"
+    },
+    {
+      "term": "format",
+      "word": "messageformat",
+      "class": "identifier",
+      "note": "code, flag or product name"
+    },
+    {
+      "term": "format",
+      "word": "transformation",
+      "class": "sibling",
+      "note": "a compound or a different word containing the term"
+    },
+    {
+      "term": "fuzzy match",
+      "word": "fuzzy match",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "fuzzy match",
+      "word": "fuzzy matches",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "fuzzy match",
+      "word": "fuzzy matching",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "hyperlink",
+      "word": "hyperlink",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "hyperlink",
+      "word": "hyperlinks",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "inline code",
+      "word": "inline code",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "inline code",
+      "word": "inline codes",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "leverage",
+      "word": "leverage",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "leverage",
+      "word": "leveraged",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "locale",
+      "word": "locale",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "locale",
+      "word": "locales",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "locale",
+      "word": "multi-locale",
+      "class": "sibling",
+      "note": "a compound or a different word containing the term"
+    },
+    {
+      "term": "locale",
+      "word": "per-locale",
+      "class": "sibling",
+      "note": "a compound or a different word containing the term"
+    },
+    {
+      "term": "locale",
+      "word": "pseudo-locale",
+      "class": "sibling",
+      "note": "a compound or a different word containing the term"
+    },
+    {
+      "term": "locale",
+      "word": "source-locale",
+      "class": "sibling",
+      "note": "a compound or a different word containing the term"
+    },
+    {
+      "term": "locale",
+      "word": "src-locales-en-app",
+      "class": "identifier",
+      "note": "code, flag or product name"
+    },
+    {
+      "term": "memory",
+      "word": "memory",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "memory",
+      "word": "mymemory",
+      "class": "identifier",
+      "note": "code, flag or product name"
+    },
+    {
+      "term": "memory",
+      "word": "translation-memory",
+      "class": "sibling",
+      "note": "a compound or a different word containing the term"
+    },
+    {
+      "term": "merge",
+      "word": "merge",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "merge",
+      "word": "merged",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "overlay",
+      "word": "overlay",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "overlay",
+      "word": "overlays",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "pipeline",
+      "word": "pipeline",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "pipeline",
+      "word": "pipelines",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "placeholder",
+      "word": "placeholder",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "placeholder",
+      "word": "placeholders",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "plugin",
+      "word": "plugin",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "plugin",
+      "word": "plugins",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "pre-translate",
+      "word": "pre-translate",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "preset",
+      "word": "preset",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "preset",
+      "word": "presets",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "project",
+      "word": "ad-hoc-or-project",
+      "class": "sibling",
+      "note": "a compound or a different word containing the term"
+    },
+    {
+      "term": "project",
+      "word": "my-project",
+      "class": "identifier",
+      "note": "code, flag or product name"
+    },
+    {
+      "term": "project",
+      "word": "project",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "project",
+      "word": "project-first",
+      "class": "sibling",
+      "note": "a compound or a different word containing the term"
+    },
+    {
+      "term": "project",
+      "word": "project-mode",
+      "class": "sibling",
+      "note": "a compound or a different word containing the term"
+    },
+    {
+      "term": "project",
+      "word": "projected",
+      "class": "polysemy",
+      "note": "a verb, not the concept"
+    },
+    {
+      "term": "project",
+      "word": "projects",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "provider",
+      "word": "provider",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "provider",
+      "word": "provider-backed",
+      "class": "sibling",
+      "note": "a compound or a different word containing the term"
+    },
+    {
+      "term": "provider",
+      "word": "providers",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "pseudo-translate",
+      "word": "pseudo-translate",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "quality check",
+      "word": "quality check",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "quality check",
+      "word": "quality checks",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "recipe",
+      "word": "recipe",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "recipe",
+      "word": "recipes",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "redact",
+      "word": "redact",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "redact",
+      "word": "redacted",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "redact",
+      "word": "redaction",
+      "class": "sibling",
+      "note": "a compound or a different word containing the term"
+    },
+    {
+      "term": "redact",
+      "word": "unredact",
+      "class": "sibling",
+      "note": "a compound or a different word containing the term"
+    },
+    {
+      "term": "redaction",
+      "word": "redaction",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "roundtrip",
+      "word": "roundtrip",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "segmentation",
+      "word": "segmentation",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "segmentation",
+      "word": "segmentation-off",
+      "class": "identifier",
+      "note": "code, flag or product name"
+    },
+    {
+      "term": "settings",
+      "word": "settings",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "slide master",
+      "word": "slide master",
+      "class": "sibling",
+      "note": "matched by substring only; the words are hyphenated, masked or run into another word"
+    },
+    {
+      "term": "slide master",
+      "word": "slide masters",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "source language",
+      "word": "source language",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "source text",
+      "word": "source text",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "speaker notes",
+      "word": "speaker notes",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "subfilter",
+      "word": "subfilter",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "subfilter",
+      "word": "subfilters",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "target language",
+      "word": "target\n   languages",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "target language",
+      "word": "target language",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "target language",
+      "word": "target languages",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "target text",
+      "word": "target text",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "term",
+      "word": "determines",
+      "class": "sibling",
+      "note": "a compound or a different word containing the term"
+    },
+    {
+      "term": "term",
+      "word": "deterministic",
+      "class": "sibling",
+      "note": "a compound or a different word containing the term"
+    },
+    {
+      "term": "term",
+      "word": "term",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "term",
+      "word": "termbase",
+      "class": "sibling",
+      "note": "a compound or a different word containing the term"
+    },
+    {
+      "term": "term",
+      "word": "termbases",
+      "class": "sibling",
+      "note": "a compound or a different word containing the term"
+    },
+    {
+      "term": "term",
+      "word": "terminal",
+      "class": "sibling",
+      "note": "a compound or a different word containing the term"
+    },
+    {
+      "term": "term",
+      "word": "terminologically",
+      "class": "sibling",
+      "note": "a compound or a different word containing the term"
+    },
+    {
+      "term": "term",
+      "word": "terminology",
+      "class": "sibling",
+      "note": "a compound or a different word containing the term"
+    },
+    {
+      "term": "term",
+      "word": "terms",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "terms store",
+      "word": "terms store",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "terms store",
+      "word": "terms stored",
+      "class": "polysemy",
+      "note": "a verb, not the concept"
+    },
+    {
+      "term": "terms store",
+      "word": "terms stores",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "threshold",
+      "word": "threshold",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "threshold",
+      "word": "thresholds",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "tool",
+      "word": "multi-tool",
+      "class": "sibling",
+      "note": "a compound or a different word containing the term"
+    },
+    {
+      "term": "tool",
+      "word": "pretooluse",
+      "class": "identifier",
+      "note": "code, flag or product name"
+    },
+    {
+      "term": "tool",
+      "word": "tool",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "tool",
+      "word": "tool-neutral",
+      "class": "sibling",
+      "note": "a compound or a different word containing the term"
+    },
+    {
+      "term": "tool",
+      "word": "toolkit",
+      "class": "sibling",
+      "note": "a compound or a different word containing the term"
+    },
+    {
+      "term": "tool",
+      "word": "tools",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "tool",
+      "word": "toolsets",
+      "class": "sibling",
+      "note": "a compound or a different word containing the term"
+    },
+    {
+      "term": "translate",
+      "word": "ai-translate",
+      "class": "sibling",
+      "note": "a compound or a different word containing the term"
+    },
+    {
+      "term": "translate",
+      "word": "do-not-translate",
+      "class": "sibling",
+      "note": "a compound or a different word containing the term"
+    },
+    {
+      "term": "translate",
+      "word": "pre-translate",
+      "class": "sibling",
+      "note": "a compound or a different word containing the term"
+    },
+    {
+      "term": "translate",
+      "word": "pseudo-translate",
+      "class": "sibling",
+      "note": "a compound or a different word containing the term"
+    },
+    {
+      "term": "translate",
+      "word": "re-translate",
+      "class": "sibling",
+      "note": "a compound or a different word containing the term"
+    },
+    {
+      "term": "translate",
+      "word": "translate",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "translate",
+      "word": "translate-and-qa",
+      "class": "sibling",
+      "note": "a compound or a different word containing the term"
+    },
+    {
+      "term": "translate",
+      "word": "translated",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "translate",
+      "word": "translatefrontmatter",
+      "class": "identifier",
+      "note": "code, flag or product name"
+    },
+    {
+      "term": "translate",
+      "word": "translates",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "translate",
+      "word": "untranslated",
+      "class": "sibling",
+      "note": "a compound or a different word containing the term"
+    },
+    {
+      "term": "vessel",
+      "word": "vessel",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "voice profile",
+      "word": "voice profile",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "voice profile",
+      "word": "voice profiles",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "whitespace",
+      "word": "preserve-whitespace",
+      "class": "identifier",
+      "note": "code, flag or product name"
+    },
+    {
+      "term": "whitespace",
+      "word": "whitespace",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "word count",
+      "word": "word count",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
+      "term": "word count",
+      "word": "word counts",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    }
+  ],
+  "target": [
+    {
+      "corpus": "compass",
+      "unit": "alerts.title",
+      "term": "alert",
+      "class": "form",
+      "note": "plural 'Varsler' of 'varsel'"
+    },
+    {
+      "corpus": "compass",
+      "unit": "berths.occupied",
+      "term": "vessel",
+      "class": "identifier",
+      "note": "'vessel' is the {vessel} placeholder name"
+    },
+    {
+      "corpus": "compass",
+      "unit": "berths.subtitle",
+      "term": "berth",
+      "class": "form",
+      "note": "umlaut plural 'Liegeplätze'"
+    },
+    {
+      "corpus": "compass",
+      "unit": "berths.title",
+      "term": "berth",
+      "class": "different-word",
+      "note": "'Kaiplan' clips 'kaiplass'"
+    },
+    {
+      "corpus": "compass",
+      "unit": "errors.offline",
+      "term": "berth",
+      "class": "different-word",
+      "note": "'Kaiplanen' clips 'kaiplass'"
+    },
+    {
+      "corpus": "compass",
+      "unit": "nav.alerts",
+      "term": "alert",
+      "class": "form",
+      "note": "plural 'Varsler' of 'varsel'"
+    },
+    {
+      "corpus": "compass",
+      "unit": "nav.berths",
+      "term": "berth",
+      "class": "different-word",
+      "note": "'Kaiplan' clips 'kaiplass'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "bowrain-app-nb:928452cd3a",
+      "term": "translate",
+      "class": "form",
+      "note": "participle 'oversatt' in 'Uoversatt'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "bowrain-app-nb:c3963aedaa",
+      "term": "memory",
+      "class": "different-word",
+      "note": "the memory concept is a package name kept as 'memory'; 'Minne' is the plain Norwegian word for "
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "bowrain-app-nb:ddbb6a3910",
+      "term": "memory",
+      "class": "drift",
+      "note": "'Oversettelsesminne' keeps old translation-memory wording"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "bowrain-pulse-nb:abbc13c13e",
+      "term": "translate",
+      "class": "form",
+      "note": "participle 'Oversatt'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:067339d38c",
+      "term": "exact match",
+      "class": "compound",
+      "note": "closed compound 'eksakttreff'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:0bfe631132",
+      "term": "extract",
+      "class": "form",
+      "note": "infinitive 'trekke ut'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:0bfe631132",
+      "term": "locale",
+      "class": "different-word",
+      "note": "'språk' (language) instead of 'språkkode'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:0e1425e1d5",
+      "term": "translate",
+      "class": "form",
+      "note": "participle 'oversatt'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:1bea73c2d7",
+      "term": "extract",
+      "class": "derivation",
+      "note": "noun 'uttrekk' for extraction"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:1d8d55f5f9",
+      "term": "extraction",
+      "class": "identifier",
+      "note": "only in option name 'extractionRules'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:2245e8f5cf",
+      "term": "extract",
+      "class": "form",
+      "note": "split passive 'trekkes ... ut'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:255fbc5592",
+      "term": "extract",
+      "class": "derivation",
+      "note": "noun compound 'Uttrekksmotor'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:29ae6cc986",
+      "term": "extract",
+      "class": "form",
+      "note": "split passive 'trekkes ... ut'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:321e05f8a2",
+      "term": "translate",
+      "class": "form",
+      "note": "participle 'oversatt'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:3b00cf211f",
+      "term": "extract",
+      "class": "derivation",
+      "note": "noun 'uttrekk' for extraction"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:3c719fa808",
+      "term": "word count",
+      "class": "paraphrase",
+      "note": "'antall ord' instead of 'ordtelling'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:3d7f542f18",
+      "term": "extract",
+      "class": "form",
+      "note": "passive 'trekkes ut'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:3e1b5f7d6c",
+      "term": "extract",
+      "class": "form",
+      "note": "participle 'uttrukne'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:46e78339d8",
+      "term": "extract",
+      "class": "derivation",
+      "note": "noun compound 'Regex-uttrekk'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:4a55c3dc98",
+      "term": "case-sensitive",
+      "class": "paraphrase",
+      "note": "'skiller mellom store og små bokstaver'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:5216a9bd36",
+      "term": "check",
+      "class": "paraphrase",
+      "note": "verb 'Se etter' with no term"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:52a623deff",
+      "term": "extract",
+      "class": "derivation",
+      "note": "noun compound 'uttrekksregler'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:550bba54ee",
+      "term": "extract",
+      "class": "form",
+      "note": "passive 'trekkes ut'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:56b036475d",
+      "term": "voice profile",
+      "class": "drift",
+      "note": "'merkevarestemmeprofil' instead of 'målgruppeprofil'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:5705b1d4d7",
+      "term": "extract",
+      "class": "derivation",
+      "note": "noun 'uttrekket' for extraction"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:5ad28279f8",
+      "term": "extract",
+      "class": "derivation",
+      "note": "noun 'uttrekk' for extractor"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:5e71d9626e",
+      "term": "case-sensitive",
+      "class": "paraphrase",
+      "note": "'skiller mellom store og små bokstaver'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:5f178656c3",
+      "term": "format",
+      "class": "polysemy",
+      "note": "'format' only a substring of 'transformation'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:60352fa33b",
+      "term": "redact",
+      "class": "derivation",
+      "note": "noun 'Avsladding' for verb unredact"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:698ae6056b",
+      "term": "extract",
+      "class": "derivation",
+      "note": "noun compound 'uttrekksfiltrering'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:70bdc1cb82",
+      "term": "check",
+      "class": "paraphrase",
+      "note": "verb 'Se etter' with no term"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:71c7cb4b92",
+      "term": "memory",
+      "class": "drift",
+      "note": "'oversettelsesminne' keeps old translation-memory wording"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:73ae690216",
+      "term": "extract",
+      "class": "form",
+      "note": "participle 'uttrukket'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:743c221e71",
+      "term": "extract",
+      "class": "derivation",
+      "note": "noun compound 'uttrekksomfanget'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:7763926590",
+      "term": "subfilter",
+      "class": "form",
+      "note": "plural 'Underfiltre' of 'underfilter'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:798bfb1de7",
+      "term": "extract",
+      "class": "derivation",
+      "note": "noun 'uttrekket' for extraction"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:7aec21b210",
+      "term": "exact match",
+      "class": "compound",
+      "note": "closed compound 'eksakttreff'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:875ee16287",
+      "term": "extract",
+      "class": "form",
+      "note": "participle 'uttrukket'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:8b3491d64e",
+      "term": "translate",
+      "class": "form",
+      "note": "participle 'oversatt'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:8d28171496",
+      "term": "extract",
+      "class": "form",
+      "note": "participle 'uttrukket'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:91f2db09ac",
+      "term": "extract",
+      "class": "form",
+      "note": "passive 'trekkes ut'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:9a0380aaa6",
+      "term": "extract",
+      "class": "form",
+      "note": "participle 'uttrukket'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:9a15aa1f2d",
+      "term": "extract",
+      "class": "form",
+      "note": "passive 'trekkes ut'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:9a15aa1f2d",
+      "term": "translate",
+      "class": "identifier",
+      "note": "only in option name 'translateFrontMatter'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:9af4854744",
+      "term": "extract",
+      "class": "derivation",
+      "note": "noun 'uttrekket' for extraction"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:a0e7bd9351",
+      "term": "extract",
+      "class": "form",
+      "note": "split passive 'trekkes ... ut'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:a411a51855",
+      "term": "extract",
+      "class": "form",
+      "note": "split particle verb 'Trekk bare ut'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:a456f9842f",
+      "term": "extract",
+      "class": "identifier",
+      "note": "only in field name 'extractionState'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:a456f9842f",
+      "term": "extraction",
+      "class": "identifier",
+      "note": "only in field name 'extractionState'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:a534aec9dc",
+      "term": "redaction",
+      "class": "compound",
+      "note": "linking change in 'sladderegler'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:ab77569027",
+      "term": "extract",
+      "class": "form",
+      "note": "split passive 'trekkes ... ut'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:abb3d454f6",
+      "term": "extract",
+      "class": "identifier",
+      "note": "only in option name 'extractAllPairs'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:af0a33f663",
+      "term": "extract",
+      "class": "derivation",
+      "note": "noun compound 'Uttrekksregler'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:b3bf327566",
+      "term": "extract",
+      "class": "form",
+      "note": "split passive 'trekkes ... ut'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:b41c0f84c9",
+      "term": "extract",
+      "class": "polysemy",
+      "note": "extract means read an ID value; target 'hente'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:b64dd62339",
+      "term": "extract",
+      "class": "form",
+      "note": "passive 'trekkes ut'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:b64dd62339",
+      "term": "hyperlink",
+      "class": "identifier",
+      "note": "'HYPERLINK' is a field code kept in English"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:b671f027c6",
+      "term": "extract",
+      "class": "derivation",
+      "note": "noun compound 'Uttrekksregler'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:bae8572b40",
+      "term": "translate",
+      "class": "form",
+      "note": "participle 'uoversatte'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:c4a78d8f06",
+      "term": "extract",
+      "class": "derivation",
+      "note": "noun compound 'AI-terminologiuttrekk'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:c597598e67",
+      "term": "extract",
+      "class": "derivation",
+      "note": "noun compound 'terminologiuttrekk'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:cbea587084",
+      "term": "redact",
+      "class": "derivation",
+      "note": "noun 'Sladding' for verb redact"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:e0a23fde76",
+      "term": "format",
+      "class": "polysemy",
+      "note": "'format' only a substring of 'Transformation'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:e2b0d55dac",
+      "term": "fuzzy match",
+      "class": "admitted",
+      "note": "'fuzzy-matching' names the matching process"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:e3a5962a28",
+      "term": "extract",
+      "class": "derivation",
+      "note": "noun 'uttrekket' for extraction"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:e61ce9643f",
+      "term": "check",
+      "class": "paraphrase",
+      "note": "verb 'Se etter' with no term"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:f1be3a8f83",
+      "term": "voice profile",
+      "class": "drift",
+      "note": "'merkevarestemmeprofil' instead of 'målgruppeprofil'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:f22f7c382c",
+      "term": "check",
+      "class": "paraphrase",
+      "note": "verb 'Se etter' with no term"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:f4f0721385",
+      "term": "extract",
+      "class": "derivation",
+      "note": "noun 'uttrekket' for extraction"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:fe3f6409ec",
+      "term": "extract",
+      "class": "derivation",
+      "note": "noun compound 'PDF-tekstuttrekk'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "builtins-nb:ffeccae781",
+      "term": "extract",
+      "class": "derivation",
+      "note": "noun compound 'AI-entitetsuttrekk'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "cli-nb:17ba917a94",
+      "term": "voice profile",
+      "class": "drift",
+      "note": "'merkevarestemmeprofil' instead of 'målgruppeprofil'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "cli-nb:3591fcab96",
+      "term": "locale",
+      "class": "identifier",
+      "note": "flag '--locales'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "cli-nb:40ece5189f",
+      "term": "tool",
+      "class": "identifier",
+      "note": "hook event name 'PreToolUse'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "cli-nb:538231a87f",
+      "term": "tool",
+      "class": "identifier",
+      "note": "hook event name 'PreToolUse'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "cli-nb:54b211a151",
+      "term": "content memory",
+      "class": "drift",
+      "note": "'oversettelsesminnets' instead of 'innholdsbase'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "cli-nb:54b211a151",
+      "term": "memory",
+      "class": "drift",
+      "note": "'oversettelsesminnets' keeps old wording for content memory"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "cli-nb:69a848adb0",
+      "term": "locale",
+      "class": "identifier",
+      "note": "flags '--source-locale' and '--target-locale'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "cli-nb:6b3c29ed74",
+      "term": "translate",
+      "class": "form",
+      "note": "participle 'oversatte'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "cli-nb:6e651469ae",
+      "term": "terms store",
+      "class": "drift",
+      "note": "'termbasen' instead of 'ordbank'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "cli-nb:7aa8aee1c4",
+      "term": "voice profile",
+      "class": "drift",
+      "note": "'merkevarestemmeprofil' instead of 'målgruppeprofil'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "cli-nb:7f82e5aa1a",
+      "term": "content memory",
+      "class": "drift",
+      "note": "'oversettelsesminne' instead of 'innholdsbase'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "cli-nb:7f82e5aa1a",
+      "term": "memory",
+      "class": "drift",
+      "note": "'oversettelsesminne' keeps old wording for content memory"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "cli-nb:8528f706c3",
+      "term": "memory",
+      "class": "drift",
+      "note": "'oversettelsesminnet' keeps old translation-memory wording"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "cli-nb:85399a0002",
+      "term": "memory",
+      "class": "drift",
+      "note": "'oversettelsesminnet' keeps old translation-memory wording"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "cli-nb:8808978467",
+      "term": "voice profile",
+      "class": "drift",
+      "note": "'merkevarestemmeprofiler' instead of 'målgruppeprofil'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "cli-nb:8f0678c289",
+      "term": "content memory",
+      "class": "drift",
+      "note": "'oversettelsesminnet' instead of 'innholdsbase'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "cli-nb:8f0678c289",
+      "term": "memory",
+      "class": "drift",
+      "note": "'oversettelsesminnet' keeps old wording for content memory"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "cli-nb:908472901c",
+      "term": "voice profile",
+      "class": "drift",
+      "note": "'merkevarestemmeprofil' instead of 'målgruppeprofil'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "cli-nb:931de18db4",
+      "term": "extension",
+      "class": "polysemy",
+      "note": "file extension; target 'filendelsen'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "cli-nb:931de18db4",
+      "term": "locale",
+      "class": "identifier",
+      "note": "path 'locales/*.json'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "cli-nb:953349a26c",
+      "term": "locale",
+      "class": "different-word",
+      "note": "'kilde-/målspråk' instead of 'språkkode'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "cli-nb:953349a26c",
+      "term": "preset",
+      "class": "identifier",
+      "note": "command 'kapi presets list'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "cli-nb:96d31a4c64",
+      "term": "voice profile",
+      "class": "drift",
+      "note": "'merkevarestemmeprofil' instead of 'målgruppeprofil'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "cli-nb:9c2c39e308",
+      "term": "memory",
+      "class": "drift",
+      "note": "'oversettelsesminne' keeps old translation-memory wording"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "cli-nb:a0db88de80",
+      "term": "translate",
+      "class": "identifier",
+      "note": "check name 'do-not-translate' kept in English"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "cli-nb:ac32d792a8",
+      "term": "terms store",
+      "class": "drift",
+      "note": "'termbase' instead of 'ordbank'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "cli-nb:b7dce813d8",
+      "term": "voice profile",
+      "class": "drift",
+      "note": "'merkevarestemmeprofil' instead of 'målgruppeprofil'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "cli-nb:b8e7b32cfe",
+      "term": "extension",
+      "class": "polysemy",
+      "note": "file extensions; target 'FILENDELSER'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "cli-nb:c08e634afa",
+      "term": "project",
+      "class": "identifier",
+      "note": "flag value '--target project'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "cli-nb:c4e406ecda",
+      "term": "voice profile",
+      "class": "drift",
+      "note": "'merkevarestemmeprofil' instead of 'målgruppeprofil'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "cli-nb:cb9ab7f81f",
+      "term": "extract",
+      "class": "identifier",
+      "note": "path '.kapi/cache/extractions/'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "cli-nb:cb9ab7f81f",
+      "term": "extraction",
+      "class": "identifier",
+      "note": "path '.kapi/cache/extractions/'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "cli-nb:cb9ab7f81f",
+      "term": "locale",
+      "class": "different-word",
+      "note": "'målspråk' instead of 'språkkode'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "cli-nb:cb9ab7f81f",
+      "term": "memory",
+      "class": "drift",
+      "note": "'oversettelsesminne' keeps old translation-memory wording"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "cli-nb:cd0b18b35e",
+      "term": "extract",
+      "class": "identifier",
+      "note": "command name 'kapi extract'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "cli-nb:cd0b18b35e",
+      "term": "locale",
+      "class": "different-word",
+      "note": "'kildespråk' instead of 'språkkode'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "cli-nb:ce5edf1000",
+      "term": "format",
+      "class": "polysemy",
+      "note": "'format' only a substring of 'information'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "cli-nb:cee5e64698",
+      "term": "content memory",
+      "class": "drift",
+      "note": "'oversettelsesminnet' instead of 'innholdsbase'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "cli-nb:cee5e64698",
+      "term": "memory",
+      "class": "drift",
+      "note": "'oversettelsesminnet' keeps old wording for content memory"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "cli-nb:d14082c367",
+      "term": "terms store",
+      "class": "drift",
+      "note": "'termbaser' instead of 'ordbank'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "cli-nb:d1a1974e16",
+      "term": "terms store",
+      "class": "drift",
+      "note": "'termbasen' instead of 'ordbank'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "cli-nb:d4c2a3716e",
+      "term": "locale",
+      "class": "different-word",
+      "note": "target cut off; corpus renders locale as 'språk'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "cli-nb:d8bdf73c0f",
+      "term": "locale",
+      "class": "identifier",
+      "note": "flags '--source-locale' and '--target-locale'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "cli-nb:db6e056c3f",
+      "term": "content memory",
+      "class": "drift",
+      "note": "'oversettelsesminnet' instead of 'innholdsbase'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "cli-nb:db6e056c3f",
+      "term": "memory",
+      "class": "drift",
+      "note": "'oversettelsesminnet' keeps old wording for content memory"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "cli-nb:de3bf21ff0",
+      "term": "extension",
+      "class": "polysemy",
+      "note": "file extension; target 'filendelse'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "cli-nb:e7f719f4a3",
+      "term": "word count",
+      "class": "paraphrase",
+      "note": "'antall ... ord' instead of 'ordtelling'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "cli-nb:e9e2362825",
+      "term": "translate",
+      "class": "identifier",
+      "note": "command 'kapi ai-translate'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "demo-narration-nb:03d6abf05c",
+      "term": "check",
+      "class": "identifier",
+      "note": "command name 'kapi check'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "demo-narration-nb:054da705b5",
+      "term": "memory",
+      "class": "different-word",
+      "note": "the memory concept is a package name kept as 'memory'; 'Minnet' is the plain Norwegian word for"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "demo-narration-nb:0f3abba736",
+      "term": "memory",
+      "class": "drift",
+      "note": "'oversettelsesminnet' keeps old translation-memory wording"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "demo-narration-nb:1190587ba9",
+      "term": "content memory",
+      "class": "drift",
+      "note": "'Oversettelsesminnet' instead of 'innholdsbase'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "demo-narration-nb:1190587ba9",
+      "term": "memory",
+      "class": "drift",
+      "note": "'Oversettelsesminnet' keeps old wording for content memory"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "demo-narration-nb:15fbf68c6c",
+      "term": "memory",
+      "class": "drift",
+      "note": "'oversettelsesminnet' keeps old translation-memory wording"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "demo-narration-nb:25364672f3",
+      "term": "memory",
+      "class": "drift",
+      "note": "'Oversettelsesminnet' keeps old translation-memory wording"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "demo-narration-nb:3e154b29ab",
+      "term": "extract",
+      "class": "identifier",
+      "note": "command 'extract' kept in English"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "demo-narration-nb:3e154b29ab",
+      "term": "locale",
+      "class": "different-word",
+      "note": "'målspråk' instead of 'språkkode'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "demo-narration-nb:3e154b29ab",
+      "term": "memory",
+      "class": "drift",
+      "note": "'oversettelsesminne' keeps old translation-memory wording"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "demo-narration-nb:59ea36175e",
+      "term": "locale",
+      "class": "different-word",
+      "note": "'språk' instead of 'språkkode'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "demo-narration-nb:632c568c2a",
+      "term": "terms store",
+      "class": "drift",
+      "note": "'Termbase-seksjonen' instead of 'ordbank'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "demo-narration-nb:6dfc16bc17",
+      "term": "translate",
+      "class": "form",
+      "note": "participle 'oversatt'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "demo-narration-nb:6f254ae2aa",
+      "term": "extract",
+      "class": "derivation",
+      "note": "noun 'uttrekk' for the extract run"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "demo-narration-nb:6f254ae2aa",
+      "term": "memory",
+      "class": "different-word",
+      "note": "the memory concept is a package name kept as 'memory'; 'minnet' is the plain Norwegian word for"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "demo-narration-nb:6f254ae2aa",
+      "term": "translate",
+      "class": "form",
+      "note": "participle 'oversatt'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "demo-narration-nb:9a5cbefab6",
+      "term": "memory",
+      "class": "drift",
+      "note": "'oversettelsesminne' keeps old translation-memory wording"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "demo-narration-nb:9e629bbed6",
+      "term": "engine",
+      "class": "polysemy",
+      "note": "'engine' only a substring of 'engineering'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "demo-narration-nb:b66072ae24",
+      "term": "translate",
+      "class": "identifier",
+      "note": "flow name 'translate-and-qa'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "demo-narration-nb:c68dc7ffb9",
+      "term": "extract",
+      "class": "identifier",
+      "note": "command 'extract' kept in English"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "demo-narration-nb:c68dc7ffb9",
+      "term": "locale",
+      "class": "different-word",
+      "note": "'språk' instead of 'språkkode'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "demo-narration-nb:c6d898f7c9",
+      "term": "locale",
+      "class": "different-word",
+      "note": "'språk' instead of 'språkkode'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "demo-narration-nb:d04914fd86",
+      "term": "locale",
+      "class": "different-word",
+      "note": "'språkene' instead of 'språkkode'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "demo-narration-nb:de0c5834dc",
+      "term": "memory",
+      "class": "different-word",
+      "note": "the memory concept is a package name kept as 'memory'; 'minnet' is the plain Norwegian word for"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "demo-narration-nb:dfc4dd65aa",
+      "term": "locale",
+      "class": "different-word",
+      "note": "'språkene' instead of 'språkkode'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "demo-narration-nb:f0f82ebc7a",
+      "term": "check",
+      "class": "identifier",
+      "note": "command name 'kapi check'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "desktop-nb:11592f13a0",
+      "term": "settings",
+      "class": "form",
+      "note": "definite plural 'appinnstillingene'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "desktop-nb:1c7cd944c2",
+      "term": "project",
+      "class": "identifier",
+      "note": "example name 'my-project'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "desktop-nb:22e6c26b15",
+      "term": "settings",
+      "class": "form",
+      "note": "definite plural 'appinnstillingene'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "desktop-nb:2f43b12df9",
+      "term": "locale",
+      "class": "identifier",
+      "note": "path 'src/locales/en/*.json'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "desktop-nb:39372f7284",
+      "term": "extract",
+      "class": "form",
+      "note": "participle 'trukket ut'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "desktop-nb:4c43198c66",
+      "term": "memory",
+      "class": "drift",
+      "note": "'prosjektoversettelsesminne' keeps old translation-memory wording"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "desktop-nb:5285793a8d",
+      "term": "translate",
+      "class": "identifier",
+      "note": "flow name 'translate-and-qa'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "desktop-nb:57bcc391ba",
+      "term": "memory",
+      "class": "drift",
+      "note": "'oversettelsesminne' keeps old translation-memory wording"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "desktop-nb:673fc35db0",
+      "term": "locale",
+      "class": "identifier",
+      "note": "path 'src/locales/{lang}/*.json'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "desktop-nb:6aebc29ce8",
+      "term": "extract",
+      "class": "form",
+      "note": "participle 'trukket ut'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "desktop-nb:7b9141ba98",
+      "term": "translate",
+      "class": "identifier",
+      "note": "placeholder '{translated}'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "desktop-nb:7d6ef46f7c",
+      "term": "extract",
+      "class": "identifier",
+      "note": "command 'kapi extract -p'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "desktop-nb:82caa98000",
+      "term": "extract",
+      "class": "identifier",
+      "note": "command 'vp kapi-react extract'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "desktop-nb:8dc167a7bf",
+      "term": "extract",
+      "class": "form",
+      "note": "participle 'trukket ut'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "desktop-nb:9ae29e7b6c",
+      "term": "extract",
+      "class": "derivation",
+      "note": "noun 'uttrekk' for the extract action"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "desktop-nb:9ca17ddfe1",
+      "term": "locale",
+      "class": "different-word",
+      "note": "'på flere språk' uses språk (language) for locale"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "desktop-nb:a05c736e9c",
+      "term": "settings",
+      "class": "form",
+      "note": "definite plural 'innstillingene'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "desktop-nb:a4738b604a",
+      "term": "check",
+      "class": "polysemy",
+      "note": "'Se etter oppdateringer': check means look for updates, not a check"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "desktop-nb:a9e5d5e3c0",
+      "term": "extension",
+      "class": "polysemy",
+      "note": "'filendelse': file extension, not plugin extension"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "desktop-nb:aab7d7e28d",
+      "term": "translate",
+      "class": "form",
+      "note": "past participle 'oversatt'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "desktop-nb:b5c67a58a1",
+      "term": "extract",
+      "class": "form",
+      "note": "present tense 'Trekker ut'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "desktop-nb:cec1082efd",
+      "term": "memory",
+      "class": "drift",
+      "note": "'prosjektoversettelsesminne' keeps retired translation-memory wording"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "desktop-nb:d4c023491b",
+      "term": "extract",
+      "class": "derivation",
+      "note": "noun compound 'Uttrekkskommando' for Extractor command"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "desktop-nb:d505c959c7",
+      "term": "term",
+      "class": "polysemy",
+      "note": "matched inside 'Determines'; source has no term concept"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "desktop-nb:d524ea0eb9",
+      "term": "memory",
+      "class": "drift",
+      "note": "'oversettelsesminne', retired translation-memory wording"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "desktop-nb:db0ea27064",
+      "term": "memory",
+      "class": "drift",
+      "note": "'oversettelsesminnet', retired translation-memory wording"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "desktop-nb:fc452ac0de",
+      "term": "extract",
+      "class": "derivation",
+      "note": "noun 'uttrekk' for extract"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:01584f8cc5",
+      "term": "extract",
+      "class": "derivation",
+      "note": "noun 'uttrekket' for the extract"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:0267425888",
+      "term": "check",
+      "class": "drift",
+      "note": "'sjekker' instead of kontroll"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:059b2143ce",
+      "term": "check",
+      "class": "drift",
+      "note": "'sjekkene' instead of kontroll"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:072ec166e5",
+      "term": "extract",
+      "class": "derivation",
+      "note": "noun compound 'uttrekksmanifestet' for extraction manifest"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:0bfe631132",
+      "term": "extract",
+      "class": "form",
+      "note": "infinitive 'trekke ut'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:0bfe631132",
+      "term": "locale",
+      "class": "different-word",
+      "note": "'hvert språk' uses language for locale"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:0eb787d5f1",
+      "term": "memory",
+      "class": "different-word",
+      "note": "the memory concept is a package name kept as 'memory'; 'mer minne', Norwegian designation minne"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:105626eb9c",
+      "term": "locale",
+      "class": "different-word",
+      "note": "'per språk' uses language for locale"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:11eddfae7c",
+      "term": "memory",
+      "class": "drift",
+      "note": "'oversettelsesminne', retired translation-memory wording"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:16dff28dae",
+      "term": "locale",
+      "class": "identifier",
+      "note": "file path 'src-locales-en-app' kept verbatim"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:174962764e",
+      "term": "extract",
+      "class": "derivation",
+      "note": "noun 'uttrekket' for extraction"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:174962764e",
+      "term": "merge",
+      "class": "identifier",
+      "note": "command `kapi merge` kept in English"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:1be991d38e",
+      "term": "translate",
+      "class": "identifier",
+      "note": "command `kapi ai-translate` kept in English"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:1dc7f78cd3",
+      "term": "memory",
+      "class": "drift",
+      "note": "target truncated; corpus renders translation memory as oversettelsesminne"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:20384e6b40",
+      "term": "memory",
+      "class": "drift",
+      "note": "'oversettelsesminne', retired translation-memory wording"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:22319f1359",
+      "term": "engine",
+      "class": "polysemy",
+      "note": "matched inside 'engineering' ('ingeniørpipeline'), not the engine concept"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:22319f1359",
+      "term": "extract",
+      "class": "different-word",
+      "note": "target truncated; forms mode found no trekk ut form"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:22319f1359",
+      "term": "memory",
+      "class": "drift",
+      "note": "target truncated; corpus renders translation memory as oversettelsesminne"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:22def9411e",
+      "term": "extract",
+      "class": "identifier",
+      "note": "`extract` kept as command name"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:22def9411e",
+      "term": "merge",
+      "class": "identifier",
+      "note": "`merge` kept as command name"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:28a349fc86",
+      "term": "extract",
+      "class": "identifier",
+      "note": "kapi extract is a command name; target truncated"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:28a349fc86",
+      "term": "merge",
+      "class": "identifier",
+      "note": "kapi merge is a command name; target truncated"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:28e11646cd",
+      "term": "locale",
+      "class": "identifier",
+      "note": "path 'src/locales/fr/*.json' kept verbatim"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:29d9110554",
+      "term": "block",
+      "class": "identifier",
+      "note": "comment marker `kapi-block: <block-id>` kept verbatim"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:2a073a6abe",
+      "term": "locale",
+      "class": "different-word",
+      "note": "'tilstanden per språk' uses language for locale"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:30606db696",
+      "term": "memory",
+      "class": "drift",
+      "note": "truncated 'overset…', oversettelsesminne, retired wording"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:33fdfab8c7",
+      "term": "merge",
+      "class": "identifier",
+      "note": "recipe key `merge.conflict_policy`"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:35c66c8962",
+      "term": "merge",
+      "class": "identifier",
+      "note": "recipe section `merge` kept verbatim"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:35c66c8962",
+      "term": "segmentation",
+      "class": "identifier",
+      "note": "recipe section `segmentation` kept verbatim"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:39a9d46c9c",
+      "term": "locale",
+      "class": "identifier",
+      "note": "file path 'src-locales-en-app' kept verbatim"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:39ba6efea3",
+      "term": "extract",
+      "class": "identifier",
+      "note": "`extract` kept as command name"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:39ba6efea3",
+      "term": "merge",
+      "class": "identifier",
+      "note": "`merge` kept as command name"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:3bb5358381",
+      "term": "extract",
+      "class": "derivation",
+      "note": "noun compound 'uttrekksvalg'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:40758ee372",
+      "term": "extract",
+      "class": "identifier",
+      "note": "'extract/merge' kept as command names"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:40758ee372",
+      "term": "merge",
+      "class": "identifier",
+      "note": "'extract/merge' kept as command names"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:43129fc025",
+      "term": "extract",
+      "class": "identifier",
+      "note": "command `kapi extract` kept in English"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:43129fc025",
+      "term": "extraction",
+      "class": "compound",
+      "note": "'uttreksbokføringen': uttrekk in compound, misspelt with one k"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:43129fc025",
+      "term": "locale",
+      "class": "different-word",
+      "note": "'målspråk' uses language for target locales"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:43129fc025",
+      "term": "memory",
+      "class": "drift",
+      "note": "'oversettelsesminne', retired translation-memory wording"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:43129fc025",
+      "term": "merge",
+      "class": "identifier",
+      "note": "command `kapi merge` kept in English"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:4844d92b88",
+      "term": "merge",
+      "class": "identifier",
+      "note": "command `kapi merge -i` kept in English"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:4c9b9eb143",
+      "term": "extract",
+      "class": "identifier",
+      "note": "command `kapi extract --format kpz`"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:4c9b9eb143",
+      "term": "merge",
+      "class": "identifier",
+      "note": "extract / merge verbs are command names; target truncated"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:5bc7ae2d1c",
+      "term": "merge",
+      "class": "identifier",
+      "note": "`merge` kept as command name"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:5fead02492",
+      "term": "extract",
+      "class": "different-word",
+      "note": "target truncated; forms mode found no trekk ut form"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:5fead02492",
+      "term": "locale",
+      "class": "different-word",
+      "note": "'språkene du oversetter til' uses language for locale"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:6b0f8dfbfd",
+      "term": "extract",
+      "class": "derivation",
+      "note": "noun 'uttrekket' for since extract"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:6fab445744",
+      "term": "translate",
+      "class": "derivation",
+      "note": "adjective 'uoversatte' for untranslated"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:71c7cb4b92",
+      "term": "memory",
+      "class": "drift",
+      "note": "'oversettelsesminne', retired translation-memory wording"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:7581304fa0",
+      "term": "extract",
+      "class": "derivation",
+      "note": "noun 'uttrekket' for extraction"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:7581304fa0",
+      "term": "locale",
+      "class": "different-word",
+      "note": "target truncated; corpus renders locale as språk"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:7bada0cfdd",
+      "term": "locale",
+      "class": "different-word",
+      "note": "'målspråk' uses language for target locales"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:7bada0cfdd",
+      "term": "memory",
+      "class": "different-word",
+      "note": "the memory concept is a package name kept as 'memory'; 'eksisterende minne', Norwegian designat"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:7db68ca20e",
+      "term": "engine",
+      "class": "polysemy",
+      "note": "matched inside 'engineering glue', not the engine concept"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:7db68ca20e",
+      "term": "extract",
+      "class": "derivation",
+      "note": "target truncated; noun 'next extract' likely rendered uttrekk"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:7db68ca20e",
+      "term": "memory",
+      "class": "drift",
+      "note": "target truncated; corpus renders translation memory as oversettelsesminne"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:8217377832",
+      "term": "memory",
+      "class": "drift",
+      "note": "target truncated; corpus renders translation memory as oversettelsesminne"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:8a2dedc120",
+      "term": "preset",
+      "class": "identifier",
+      "note": "command `kapi presets list` kept in English"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:8b52bb07bb",
+      "term": "memory",
+      "class": "drift",
+      "note": "'oversettelsesminne', retired translation-memory wording"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:944a6cbae0",
+      "term": "locale",
+      "class": "identifier",
+      "note": "path `src/locales/en/*.json` kept verbatim"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:95baae3a34",
+      "term": "merge",
+      "class": "identifier",
+      "note": "command `kapi merge` kept in English"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:9a15aa1f2d",
+      "term": "extract",
+      "class": "form",
+      "note": "passive 'trekkes ut'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:9a15aa1f2d",
+      "term": "translate",
+      "class": "identifier",
+      "note": "option name 'translateFrontMatter' kept verbatim"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:9c8b755ba9",
+      "term": "locale",
+      "class": "different-word",
+      "note": "'hvert språk' uses language for locale"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:9cdbbbda99",
+      "term": "extract",
+      "class": "identifier",
+      "note": "command `kapi extract` kept in English"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:9cdbbbda99",
+      "term": "memory",
+      "class": "drift",
+      "note": "'Oversettelsesminnet', retired translation-memory wording"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:9cdbbbda99",
+      "term": "merge",
+      "class": "identifier",
+      "note": "command `kapi merge` kept in English"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:9f717f3730",
+      "term": "credentials",
+      "class": "identifier",
+      "note": "UI label 'Credentials' kept in English"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:9f717f3730",
+      "term": "settings",
+      "class": "identifier",
+      "note": "UI path 'Settings → Providers' kept in English"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:9fa5f7cfbe",
+      "term": "block",
+      "class": "identifier",
+      "note": "file path `.kapi/cache/blocks.db`"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:9fa5f7cfbe",
+      "term": "memory",
+      "class": "drift",
+      "note": "target truncated; corpus renders translation memory as oversettelsesminne"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:a076ff58f4",
+      "term": "check",
+      "class": "polysemy",
+      "note": "'en rask sjekk': generic quick try, not a check tool"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:a076ff58f4",
+      "term": "memory",
+      "class": "drift",
+      "note": "target truncated; corpus renders translation memory as oversettelsesminne"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:a6668bd1c9",
+      "term": "flow",
+      "class": "identifier",
+      "note": "recipe key flows; target truncated"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:a6668bd1c9",
+      "term": "merge",
+      "class": "identifier",
+      "note": "`merge` kept as command name"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:a8ebcffe60",
+      "term": "extract",
+      "class": "derivation",
+      "note": "noun 're-uttrekk' for re-extraction"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:af84f58fe6",
+      "term": "locale",
+      "class": "different-word",
+      "note": "'termer på flere språk' uses language for locale"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:af84f58fe6",
+      "term": "memory",
+      "class": "different-word",
+      "note": "the memory concept is a package name kept as 'memory'; 'et minne', Norwegian designation minne"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:bb26f22694",
+      "term": "locale",
+      "class": "identifier",
+      "note": "file path 'src-locales-en-app' kept verbatim"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:bc2eb8db86",
+      "term": "merge",
+      "class": "identifier",
+      "note": "`merge` kept as command name"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:c415755ac2",
+      "term": "exact match",
+      "class": "form",
+      "note": "plural 'Eksakte treff'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:c415755ac2",
+      "term": "extract",
+      "class": "derivation",
+      "note": "noun 'uttrekk' in 'ved uttrekk'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:c415755ac2",
+      "term": "threshold",
+      "class": "identifier",
+      "note": "recipe key `tm.fuzzy_threshold`"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:c6681bd1a4",
+      "term": "merge",
+      "class": "identifier",
+      "note": "`merge` kept as command name"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:d2af1382b3",
+      "term": "extract",
+      "class": "derivation",
+      "note": "noun compound 'Uttrekksbokføring'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:d2af1382b3",
+      "term": "merge",
+      "class": "identifier",
+      "note": "command `kapi merge` kept in English"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:dd30ee1ae9",
+      "term": "memory",
+      "class": "drift",
+      "note": "'Oversettelsesminnet', retired translation-memory wording"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:e0ae98e139",
+      "term": "locale",
+      "class": "different-word",
+      "note": "'per språk' uses language for locale"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:e0ae98e139",
+      "term": "memory",
+      "class": "drift",
+      "note": "target truncated; corpus renders translation memory as oversettelsesminne"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:e65344650f",
+      "term": "voice profile",
+      "class": "drift",
+      "note": "'merkevarestemme-profil' instead of målgruppeprofil"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:e81414fc2f",
+      "term": "flow",
+      "class": "identifier",
+      "note": "placeholder in `kapi run <flow>`"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:ed5a610e37",
+      "term": "translate",
+      "class": "identifier",
+      "note": "command `kapi ai-translate` kept in English"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:ee0688c970",
+      "term": "check",
+      "class": "identifier",
+      "note": "command `kapi brand check` kept in English"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:ee0688c970",
+      "term": "pseudo-translate",
+      "class": "identifier",
+      "note": "command `kapi pseudo-translate` kept in English"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:ee0688c970",
+      "term": "translate",
+      "class": "identifier",
+      "note": "commands `kapi ai-translate`, `kapi pseudo-translate` kept in English"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:f6dedcc51e",
+      "term": "extract",
+      "class": "derivation",
+      "note": "noun 'uttrekk' for extraction"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:f9800c00f2",
+      "term": "extract",
+      "class": "derivation",
+      "note": "participle adjective 'uttrukne'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:fbb864c714",
+      "term": "check",
+      "class": "identifier",
+      "note": "link path /framework/checks/brand-voice"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:fc2a288873",
+      "term": "extract",
+      "class": "derivation",
+      "note": "noun compound 'uttrekksbatcher'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:fc2a288873",
+      "term": "merge",
+      "class": "identifier",
+      "note": "recipe key `merge.conflict_policy`"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "docs-nb:fc2a288873",
+      "term": "project",
+      "class": "identifier",
+      "note": "document title 'AD-008: Project Model' kept in English"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "emails-nb:e97b835a17",
+      "term": "settings",
+      "class": "form",
+      "note": "definite plural in 'varslingsinnstillingene'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "landing-nb:01f58637fa",
+      "term": "check",
+      "class": "drift",
+      "note": "'sjekker' instead of kontroll"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "landing-nb:01f58637fa",
+      "term": "extract",
+      "class": "derivation",
+      "note": "noun 'uttrekk'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "landing-nb:0ee05e0b2b",
+      "term": "memory",
+      "class": "drift",
+      "note": "'oversettelsesminne', retired translation-memory wording"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "landing-nb:0f1118d823",
+      "term": "check",
+      "class": "drift",
+      "note": "'sjekkene' instead of kontroll"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "landing-nb:0f1118d823",
+      "term": "translate",
+      "class": "form",
+      "note": "participle 'oversatt'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "landing-nb:147e7d9dc2",
+      "term": "extract",
+      "class": "derivation",
+      "note": "noun 'streng-og-nøkkel-uttrekk' for extraction"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "landing-nb:167a4db2f3",
+      "term": "check",
+      "class": "drift",
+      "note": "'sjekke' instead of kontroll"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "landing-nb:167a4db2f3",
+      "term": "extract",
+      "class": "form",
+      "note": "present tense 'trekker ut'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "landing-nb:167a4db2f3",
+      "term": "memory",
+      "class": "drift",
+      "note": "'oversettelsesminne', retired translation-memory wording"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "landing-nb:180e6721ab",
+      "term": "check",
+      "class": "drift",
+      "note": "'sjekk' instead of kontroll"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "landing-nb:19c8e6f306",
+      "term": "check",
+      "class": "drift",
+      "note": "'merkevarestemmesjekk' uses sjekk instead of kontroll"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "landing-nb:43adfbc86b",
+      "term": "extension",
+      "class": "polysemy",
+      "note": "'filendelse': file extension, not plugin extension"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "landing-nb:43adfbc86b",
+      "term": "extract",
+      "class": "derivation",
+      "note": "noun 'streng-og-nøkkel-uttrekk' for extraction"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "landing-nb:4540edaae7",
+      "term": "check",
+      "class": "drift",
+      "note": "'sjekk' instead of kontroll"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "landing-nb:50ba6e8288",
+      "term": "check",
+      "class": "drift",
+      "note": "'Én sjekk' instead of kontroll"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "landing-nb:780fc82f85",
+      "term": "check",
+      "class": "drift",
+      "note": "'Sjekker' instead of kontroll"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "landing-nb:80ffce5d0c",
+      "term": "extension",
+      "class": "polysemy",
+      "note": "'filendelse': file extension, not plugin extension"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "landing-nb:850a1c7fcd",
+      "term": "check",
+      "class": "drift",
+      "note": "'hver sjekk' instead of kontroll"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "landing-nb:8a995a516b",
+      "term": "memory",
+      "class": "drift",
+      "note": "'oversettelsesminneformater', retired translation-memory wording"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "landing-nb:9d60841e0a",
+      "term": "check",
+      "class": "drift",
+      "note": "'Sjekk' instead of kontroll"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "landing-nb:a78b01927c",
+      "term": "check",
+      "class": "drift",
+      "note": "'sjekk' instead of kontroll"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "landing-nb:a924d78061",
+      "term": "check",
+      "class": "drift",
+      "note": "'sjekker' instead of kontroll"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "landing-nb:a924d78061",
+      "term": "extract",
+      "class": "derivation",
+      "note": "noun 'uttrekk'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "landing-nb:afd6a329da",
+      "term": "check",
+      "class": "drift",
+      "note": "'Sjekker' instead of kontroll"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "landing-nb:b25664299c",
+      "term": "memory",
+      "class": "drift",
+      "note": "'TMX-oversettelsesminne', retired translation-memory wording"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "landing-nb:b5a616003c",
+      "term": "check",
+      "class": "drift",
+      "note": "'sjekk' instead of kontroll"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "landing-nb:ccd4d01229",
+      "term": "check",
+      "class": "drift",
+      "note": "'Merkevaresjekk' uses sjekk instead of kontroll"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "landing-nb:d1adb5f86f",
+      "term": "check",
+      "class": "drift",
+      "note": "'sjekk' instead of kontroll"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "landing-nb:d8fa6d86e3",
+      "term": "threshold",
+      "class": "form",
+      "note": "plural 'terskler'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "landing-nb:e7c6c5ef43",
+      "term": "merge",
+      "class": "identifier",
+      "note": "command `kapi merge` kept in English"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "landing-nb:eeb3fe28ba",
+      "term": "check",
+      "class": "drift",
+      "note": "'sjekkene' instead of kontroll"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "landing-nb:f81cb75d0c",
+      "term": "check",
+      "class": "drift",
+      "note": "'sjekk' instead of kontroll"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "landing-nb:fcf3111b11",
+      "term": "pseudo-translate",
+      "class": "identifier",
+      "note": "tool name 'pseudo-translate' kept in English"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "landing-nb:fcf3111b11",
+      "term": "translate",
+      "class": "identifier",
+      "note": "tool names 'ai-translate', 'pseudo-translate' kept in English"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "libraries-nb:00abed1050",
+      "term": "memory",
+      "class": "drift",
+      "note": "'oversettelsesminnet', retired translation-memory wording"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "libraries-nb:17dfafaf09",
+      "term": "redaction",
+      "class": "compound",
+      "note": "'Sladdehemmelighet': sladde- compound stem for sladding"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "libraries-nb:1bea93ca27",
+      "term": "memory",
+      "class": "drift",
+      "note": "'oversettelsesminnet', retired translation-memory wording"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "libraries-nb:2d2a20a507",
+      "term": "memory",
+      "class": "drift",
+      "note": "'oversettelsesminnet', retired translation-memory wording"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "libraries-nb:58c10f27a0",
+      "term": "redaction",
+      "class": "compound",
+      "note": "'sladdehemmeligheter': sladde- compound stem for sladding"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "libraries-nb:652ec84a68",
+      "term": "extract",
+      "class": "derivation",
+      "note": "noun compound 'Entitetsuttrekk' for extraction"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "libraries-nb:82d99bfa53",
+      "term": "whitespace",
+      "class": "identifier",
+      "note": "option name 'preserve-whitespace' kept verbatim"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "libraries-nb:86e2675489",
+      "term": "redaction",
+      "class": "compound",
+      "note": "'Sladdehemmeligheter': sladde- compound stem for sladding"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "libraries-nb:8cc21c79a7",
+      "term": "redact",
+      "class": "identifier",
+      "note": "tool names 'redact … unredact' kept in English"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "libraries-nb:8cd7063071",
+      "term": "memory",
+      "class": "drift",
+      "note": "'oversettelsesminnet', retired translation-memory wording"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "libraries-nb:a0fa09d3ca",
+      "term": "redaction",
+      "class": "compound",
+      "note": "'sladdehemmeligheter': sladde- compound stem for sladding"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "libraries-nb:afeacadbd3",
+      "term": "tool",
+      "class": "identifier",
+      "note": "recipe key 'defaults.tools'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "libraries-nb:b8195b2001",
+      "term": "redact",
+      "class": "derivation",
+      "note": "noun 'sladding' for verb sladde"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "libraries-nb:c3fdff59a0",
+      "term": "memory",
+      "class": "drift",
+      "note": "'oversettelsesminnet', retired translation-memory wording"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "libraries-nb:c9cdfbdd7f",
+      "term": "redact",
+      "class": "identifier",
+      "note": "tool name 'redact' kept in English"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "libraries-nb:e1febeb463",
+      "term": "tool",
+      "class": "identifier",
+      "note": "recipe key 'defaults.tools'"
+    },
+    {
+      "corpus": "dogfood",
+      "unit": "libraries-nb:ef4fa88950",
+      "term": "redaction",
+      "class": "compound",
+      "note": "'sladdehemmeligheter': sladde- compound stem for sladding"
+    },
+    {
+      "corpus": "tidewatch",
+      "unit": "tidewatch-nb:0004",
+      "term": "alert",
+      "class": "form",
+      "note": "plural 'Varsler'"
+    },
+    {
+      "corpus": "tidewatch",
+      "unit": "tidewatch-nb:0017",
+      "term": "alert",
+      "class": "form",
+      "note": "plural 'varsler'"
+    }
+  ]
+}
