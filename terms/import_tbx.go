@@ -269,11 +269,21 @@ func buildTerm(ts tbxTermSec, locale model.LocaleID, defaultStatus model.TermSta
 			if term.Note == "" {
 				term.Note = val
 			}
+		case strings.ToLower(tbxFormNoteType):
+			term.Forms = append(term.Forms, val)
 		}
 	}
 
 	return term
 }
+
+// tbxFormNoteType is the local termNote a term's declared surface form travels
+// in, one note per form. TBX has no data category for an inflected form: its
+// termType "variant" names another designation of the concept, which a form is
+// not. The x- prefix marks a category private to this producer, and a reader
+// that does not know it skips the note, as ImportTBX does with every note it
+// does not recognise.
+const tbxFormNoteType = "x-surfaceForm"
 
 // parseTBXStatus maps TBX administrativeStatus / normativeAuthorization values
 // (and a few plain status spellings) onto the terms store status vocabulary.

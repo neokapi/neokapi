@@ -29,6 +29,7 @@ func TestTermsSQLiteGolden(t *testing.T) {
 		{"tb_sqlite_v1.golden.sql", RenderTermsSQLiteV1()},
 		{"tb_sqlite_v2.golden.sql", RenderTermsSQLiteV2()},
 		{"tb_sqlite_v3.golden.sql", RenderTermsSQLiteV3()},
+		{"tb_sqlite_v4.golden.sql", RenderTermsSQLiteV4()},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -191,6 +192,22 @@ func TestTermsPostgresSemanticEquivalence(t *testing.T) {
 	assertStmtSetEqual(t, "v2 stream", pgV2Reference, RenderTermsPostgresV2("workspace_id"))
 	assertStmtSetEqual(t, "v3 fuzzy", pgV3Reference, RenderTermsPostgresV3())
 	assertStmtSetEqual(t, "v4 brand graph", pgV4Reference, RenderTermsPostgresV4("workspace_id"))
+	assertStmtSetEqual(t, "v6 forms", `ALTER TABLE tb_terms ADD COLUMN IF NOT EXISTS forms JSONB NOT NULL DEFAULT '[]';`, RenderTermsPostgresV6())
+}
+
+// TestTermsPostgresBaselineCarriesForms pins that a database created from the
+// baseline has the forms column, so version 6 is a no-op there and the column
+// exists whichever route a database took.
+func TestTermsPostgresBaselineCarriesForms(t *testing.T) {
+	for _, stmt := range normalizeStatements(RenderTermsPostgresBaseline("workspace_id")) {
+		if strings.HasPrefix(stmt, "CREATE TABLE IF NOT EXISTS tb_terms ") {
+			if !strings.Contains(stmt, "forms JSONB NOT NULL DEFAULT '[]'") {
+				t.Errorf("baseline tb_terms has no forms column: %s", stmt)
+			}
+			return
+		}
+	}
+	t.Fatal("baseline creates no tb_terms table")
 }
 
 // TestTermsPostgresBaselineNamesTheExtensionSchema pins where pg_trgm is

@@ -56,6 +56,49 @@ type Term struct {
 	Note           string           `json:"note,omitempty"`            // usage note or context
 	CompetitorTerm bool             `json:"competitor_term,omitempty"` // true if this is a competitor brand term
 	Validity       *graph.Validity  `json:"validity,omitempty"`        // time/tag scoping; nil = always valid
+	// Forms are the other surface shapes this term takes in its own language:
+	// the plural, the definite form, a case ending. A Norwegian term "varsel"
+	// appears as "varsler" and a German "Liegeplatz" as "Liegeplätze", and
+	// neither contains the term's own spelling.
+	//
+	// They are declared per term, because the shapes a word takes are
+	// per-language knowledge, and `kapi terms expand` proposes them for review.
+	// A form is a spelling of this term, never a different designation: an
+	// alternative word for the concept is a term of its own, with a status.
+	Forms []string `json:"forms,omitempty"`
+}
+
+// Surfaces is the term's text followed by each declared form, trimmed, with
+// blanks and repeats removed. Repeats are judged without regard to case,
+// because every matcher that reads the list folds case unless told otherwise.
+func (t Term) Surfaces() []string {
+	out := make([]string, 0, len(t.Forms)+1)
+	seen := make(map[string]bool, len(t.Forms)+1)
+	for _, s := range append([]string{t.Text}, t.Forms...) {
+		s = strings.TrimSpace(s)
+		key := strings.ToLower(s)
+		if s == "" || seen[key] {
+			continue
+		}
+		seen[key] = true
+		out = append(out, s)
+	}
+	return out
+}
+
+// NormalizeForms returns the forms a term keeps when it is stored: trimmed,
+// with blanks, repeats and the term's own text removed, in the order given. It
+// returns nil when nothing remains, so a term with no forms reads back the same
+// from every backend.
+func NormalizeForms(text string, forms []string) []string {
+	surfaces := Term{Text: text, Forms: forms}.Surfaces()
+	if strings.TrimSpace(text) != "" {
+		surfaces = surfaces[1:]
+	}
+	if len(surfaces) == 0 {
+		return nil
+	}
+	return surfaces
 }
 
 // Concept is the central unit of a terms store — a language-neutral concept

@@ -63,6 +63,7 @@ func SourceVocabulary(ctx context.Context, store terms.Terminology, src TermsSou
 				Term:      t.Text,
 				Note:      firstNonEmpty(t.Note, c.Definition),
 				ConceptID: c.ID,
+				Forms:     t.Forms,
 			}
 			switch {
 			case t.CompetitorTerm:

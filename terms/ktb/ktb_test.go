@@ -26,7 +26,7 @@ func richConcepts() []terms.Concept {
 			Source:     terms.TermSourceBrandVocabulary,
 			Terms: []terms.Term{
 				{Text: "Get started", Locale: "en", Status: model.TermStatus("preferred"), PartOfSpeech: "verb", Note: "imperative"},
-				{Text: "Los geht's", Locale: "de", Status: model.TermStatus("approved"), Gender: "neuter"},
+				{Text: "Los geht's", Locale: "de", Status: model.TermStatus("approved"), Gender: "neuter", Forms: []string{"Los gehts"}},
 			},
 			Properties: map[string]string{"tone": "friendly"},
 			CreatedAt:  t0, UpdatedAt: t0.Add(time.Hour),
@@ -87,6 +87,7 @@ func TestRoundTripPreservesVoiceAndCompetitorFields(t *testing.T) {
 	assert.Contains(t, out, `"source": "brand_vocabulary"`)
 	assert.Contains(t, out, `"competitor_term": true`)
 	assert.Contains(t, out, `"tone": "friendly"`)
+	assert.Contains(t, out, `"forms": [`)
 }
 
 func TestMarshalIsDeterministic(t *testing.T) {

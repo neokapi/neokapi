@@ -158,6 +158,7 @@ export function termFromInfo(term: TermInfo): Term {
     partOfSpeech: term.part_of_speech || undefined,
     gender: term.gender || undefined,
     note: term.note || undefined,
+    forms: term.forms?.length ? term.forms : undefined,
   };
 }
 

@@ -259,6 +259,7 @@ export interface TermDTO {
   part_of_speech?: string;
   gender?: string;
   note?: string;
+  forms?: string[];
   competitor_term?: boolean;
 }
 

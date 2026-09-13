@@ -144,6 +144,12 @@ func ExportTBX(ctx context.Context, tb Terminology, writer io.Writer, opts TBXEx
 						Value: t.Note,
 					})
 				}
+				for _, form := range t.Forms {
+					ts.TermNotes = append(ts.TermNotes, tbxOutTermNote{
+						Type:  tbxFormNoteType,
+						Value: form,
+					})
+				}
 				langSec.TermSecs = append(langSec.TermSecs, ts)
 			}
 			out.LangSecs = append(out.LangSecs, langSec)

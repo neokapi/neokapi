@@ -189,6 +189,10 @@ type LocaleTerm struct {
 // not a use of the retired `mooring` inside them, and reporting both would be
 // the graph contradicting itself.
 //
+// A term is found under its text and under every form it declares, so "Two
+// alerts" is a use of a term "alert" that lists "alerts". The match reports the
+// term, and its position covers the form as the text spells it.
+//
 // Postgres inherits the (text, position) de-duplication by construction; its
 // terms is workspace-scoped and carries no project_id, so the
 // project-priority preference is inert there while the de-duplication and
@@ -210,16 +214,13 @@ func LookupAllTiered(sourceText string, opts LookupOptions, terms []LocaleTerm) 
 		if !MatchesScope(entry.Term.Validity, opts.Scope) {
 			continue
 		}
-		matcher := check.NewTermMatcher(entry.Term.Text)
-		if opts.CaseSensitive {
-			matcher = check.NewCaseSensitiveTermMatcher(entry.Term.Text)
-		}
-		if matcher.Empty() {
+		surfaces := entry.Term.Surfaces()
+		if len(surfaces) == 0 || check.NewTermMatcher(surfaces[0]).Empty() {
 			continue
 		}
 		key := strings.ToLower(entry.Term.Text)
 
-		for _, hit := range matcher.FindIn(prepared) {
+		for _, hit := range check.FindTermFormsIn(prepared, surfaces, opts.CaseSensitive) {
 			k := matchKey{text: key, pos: hit[0]}
 
 			m := TermMatch{

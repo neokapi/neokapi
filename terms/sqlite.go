@@ -84,6 +84,11 @@ var tbMigrations = []storage.Migration{
 		Description: "persisted concept relations and term validity columns",
 		SQL:         termsschema.RenderTermsSQLiteV3(),
 	},
+	{
+		Version:     4,
+		Description: "declared surface forms on terms",
+		SQL:         termsschema.RenderTermsSQLiteV4(),
+	},
 }
 
 // validityToColumns flattens a validity into its three column values:
@@ -220,12 +225,12 @@ func (tb *SQLiteStore) AddConceptWithStream(ctx context.Context, concept Concept
 		}
 		validFrom, validTo, tags := validityToColumns(term.Validity)
 		_, err = tx.ExecContext(ctx, `
-			INSERT INTO tb_terms (concept_id, text, text_lower, locale, status, part_of_speech, gender, note, competitor_term, valid_from, valid_to, tags)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			INSERT INTO tb_terms (concept_id, text, text_lower, locale, status, part_of_speech, gender, note, competitor_term, valid_from, valid_to, tags, forms)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`, concept.ID, term.Text, strings.ToLower(term.Text),
 			string(term.Locale), string(term.Status),
 			term.PartOfSpeech, term.Gender, term.Note, competitorInt,
-			validFrom, validTo, tags)
+			validFrom, validTo, tags, FormsColumn(term.Forms))
 		if err != nil {
 			return fmt.Errorf("insert term: %w", err)
 		}
@@ -852,7 +857,7 @@ func (tb *SQLiteStore) scanConcept(ctx context.Context, id string) (Concept, err
 	}
 
 	rows, err := tb.db.QueryContext(ctx, `
-		SELECT text, locale, status, part_of_speech, gender, note, competitor_term, valid_from, valid_to, tags
+		SELECT text, locale, status, part_of_speech, gender, note, competitor_term, valid_from, valid_to, tags, forms
 		FROM tb_terms WHERE concept_id = ?
 	`, id)
 	if err != nil {
@@ -862,16 +867,19 @@ func (tb *SQLiteStore) scanConcept(ctx context.Context, id string) (Concept, err
 
 	for rows.Next() {
 		var t Term
-		var locale, status, tags string
+		var locale, status, tags, forms string
 		var competitorInt int
 		var validFrom, validTo sql.NullString
-		if err := rows.Scan(&t.Text, &locale, &status, &t.PartOfSpeech, &t.Gender, &t.Note, &competitorInt, &validFrom, &validTo, &tags); err != nil {
+		if err := rows.Scan(&t.Text, &locale, &status, &t.PartOfSpeech, &t.Gender, &t.Note, &competitorInt, &validFrom, &validTo, &tags, &forms); err != nil {
 			return c, fmt.Errorf("concept %s: scan term: %w", id, err)
 		}
 		t.Locale = model.LocaleID(locale)
 		t.Status = model.TermStatus(status)
 		t.CompetitorTerm = competitorInt != 0
 		t.Validity = validityFromColumns(validFrom, validTo, tags)
+		if t.Forms, err = FormsFromColumn(forms); err != nil {
+			return c, fmt.Errorf("concept %s: term %q: %w", id, t.Text, err)
+		}
 		c.Terms = append(c.Terms, t)
 	}
 	if err := rows.Err(); err != nil {
@@ -911,13 +919,13 @@ func (tb *SQLiteStore) queryExactTerms(ctx context.Context, sourceText string, o
 	var q string
 	if needsJoin {
 		q = fmt.Sprintf(`
-			SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.valid_from, t.valid_to, t.tags
+			SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.valid_from, t.valid_to, t.tags, t.forms
 			FROM tb_terms t JOIN tb_concepts c ON t.concept_id = c.id
 			WHERE %s
 		`, where)
 	} else {
 		q = fmt.Sprintf(`
-			SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.valid_from, t.valid_to, t.tags
+			SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.valid_from, t.valid_to, t.tags, t.forms
 			FROM tb_terms t
 			WHERE %s
 		`, where)
@@ -955,13 +963,13 @@ func (tb *SQLiteStore) queryNormalizedTerms(ctx context.Context, normalizedSourc
 	var q string
 	if needsJoin {
 		q = fmt.Sprintf(`
-			SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.valid_from, t.valid_to, t.tags
+			SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.valid_from, t.valid_to, t.tags, t.forms
 			FROM tb_terms t JOIN tb_concepts c ON t.concept_id = c.id
 			WHERE %s
 		`, where)
 	} else {
 		q = fmt.Sprintf(`
-			SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.valid_from, t.valid_to, t.tags
+			SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.valid_from, t.valid_to, t.tags, t.forms
 			FROM tb_terms t
 			WHERE %s
 		`, where)
@@ -1017,13 +1025,13 @@ func (tb *SQLiteStore) queryFuzzyTrigramCandidates(ctx context.Context, normaliz
 	var q string
 	if needsJoin {
 		q = fmt.Sprintf(`
-			SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.valid_from, t.valid_to, t.tags
+			SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.valid_from, t.valid_to, t.tags, t.forms
 			FROM tb_terms t JOIN tb_concepts c ON t.concept_id = c.id
 			WHERE %s LIMIT 200
 		`, where)
 	} else {
 		q = fmt.Sprintf(`
-			SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.valid_from, t.valid_to, t.tags
+			SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.valid_from, t.valid_to, t.tags, t.forms
 			FROM tb_terms t
 			WHERE %s LIMIT 200
 		`, where)
@@ -1065,13 +1073,13 @@ func (tb *SQLiteStore) queryFuzzyFullScan(ctx context.Context, normalizedSource 
 	var q string
 	if needsJoin {
 		q = fmt.Sprintf(`
-			SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.valid_from, t.valid_to, t.tags
+			SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.valid_from, t.valid_to, t.tags, t.forms
 			FROM tb_terms t JOIN tb_concepts c ON t.concept_id = c.id
 			WHERE %s LIMIT 500
 		`, where)
 	} else {
 		q = fmt.Sprintf(`
-			SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.valid_from, t.valid_to, t.tags
+			SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.valid_from, t.valid_to, t.tags, t.forms
 			FROM tb_terms t
 			WHERE %s LIMIT 500
 		`, where)
@@ -1126,7 +1134,7 @@ func (tb *SQLiteStore) queryTermsByLocale(ctx context.Context, locale model.Loca
 	where, args, _ = sourceFilterSQL(where, args, opts.SourceFilter)
 
 	rows, err := tb.db.QueryContext(ctx, fmt.Sprintf(`
-		SELECT c.id, c.project_id, c.domain, c.definition, c.source, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.competitor_term, t.valid_from, t.valid_to, t.tags
+		SELECT c.id, c.project_id, c.domain, c.definition, c.source, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.competitor_term, t.valid_from, t.valid_to, t.tags, t.forms
 		FROM tb_terms t JOIN tb_concepts c ON t.concept_id = c.id
 		WHERE %s
 		ORDER BY c.id, t.text
@@ -1138,13 +1146,16 @@ func (tb *SQLiteStore) queryTermsByLocale(ctx context.Context, locale model.Loca
 
 	var results []LocaleTerm
 	for rows.Next() {
-		var cID, projectID, domain, definition, source, text, loc, status, pos, gender, note, tags string
+		var cID, projectID, domain, definition, source, text, loc, status, pos, gender, note, tags, forms string
 		var competitorInt int
 		var validFrom, validTo sql.NullString
-		if err := rows.Scan(&cID, &projectID, &domain, &definition, &source, &text, &loc, &status, &pos, &gender, &note, &competitorInt, &validFrom, &validTo, &tags); err != nil {
+		if err := rows.Scan(&cID, &projectID, &domain, &definition, &source, &text, &loc, &status, &pos, &gender, &note, &competitorInt, &validFrom, &validTo, &tags, &forms); err != nil {
 			continue
 		}
 		validity := validityFromColumns(validFrom, validTo, tags)
+		// A malformed forms column keeps the term, unexpanded: dropping the row
+		// would hide a forbidden term from every check that reads it.
+		formList, _ := FormsFromColumn(forms)
 		// The validity-scope filter now lives in the shared LookupAllTiered so
 		// both backends honor it identically; this query keeps only the
 		// SQL-expressible filters (locale/domain/status/project/source).
@@ -1159,6 +1170,7 @@ func (tb *SQLiteStore) queryTermsByLocale(ctx context.Context, locale model.Loca
 				Note:           note,
 				CompetitorTerm: competitorInt != 0,
 				Validity:       validity,
+				Forms:          formList,
 			},
 		})
 	}
@@ -1171,7 +1183,7 @@ func (tb *SQLiteStore) queryTermsByLocale(ctx context.Context, locale model.Loca
 type scanTermRow struct {
 	conceptID, text, locale, status, pos, gender, note string
 	validFrom, validTo                                 sql.NullString
-	tags                                               string
+	tags, forms                                        string
 }
 
 // validity rebuilds the term validity from the scanned columns.
@@ -1179,7 +1191,14 @@ func (r scanTermRow) validity() *graph.Validity {
 	return validityFromColumns(r.validFrom, r.validTo, r.tags)
 }
 
-// scanTermCandidates scans the shared 10-column term projection into raw
+// formList decodes the scanned forms column. A malformed column keeps the
+// term, unexpanded.
+func (r scanTermRow) formList() []string {
+	forms, _ := FormsFromColumn(r.forms)
+	return forms
+}
+
+// scanTermCandidates scans the shared 11-column term projection into raw
 // candidates. Validity is reconstructed here (SQLite's TEXT RFC3339 codec); the
 // shared LookupTiered applies the scope/status/score filters and hydrates the
 // owning concept.
@@ -1190,7 +1209,7 @@ func scanTermCandidates(rows interface {
 	var out []TermCandidate
 	for rows.Next() {
 		var r scanTermRow
-		if err := rows.Scan(&r.conceptID, &r.text, &r.locale, &r.status, &r.pos, &r.gender, &r.note, &r.validFrom, &r.validTo, &r.tags); err != nil {
+		if err := rows.Scan(&r.conceptID, &r.text, &r.locale, &r.status, &r.pos, &r.gender, &r.note, &r.validFrom, &r.validTo, &r.tags, &r.forms); err != nil {
 			continue
 		}
 		out = append(out, TermCandidate{
@@ -1203,6 +1222,7 @@ func scanTermCandidates(rows interface {
 				Gender:       r.gender,
 				Note:         r.note,
 				Validity:     r.validity(),
+				Forms:        r.formList(),
 			},
 		})
 	}

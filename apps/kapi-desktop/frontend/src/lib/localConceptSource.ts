@@ -52,6 +52,7 @@ export interface TermDTO {
   part_of_speech?: string;
   gender?: string;
   note?: string;
+  forms?: string[];
   competitor_term?: boolean;
   validity?: ValidityDTO;
 }
@@ -190,6 +191,7 @@ function termFromDTO(t: TermDTO): Term {
     partOfSpeech: t.part_of_speech,
     gender: t.gender,
     note: t.note,
+    forms: t.forms,
     validity: validityFromDTO(t.validity),
   };
 }
