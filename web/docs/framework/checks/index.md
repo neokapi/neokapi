@@ -92,8 +92,9 @@ exit code `4`, so read the cause before acting on it:
 - `nothing_to_check`: no content was in scope, such as an empty file or a diff
   that touches no content block.
 - `content_not_checked`: content in scope was not checked, such as a changed
-  file whose blocks could not be located, or an analyzer the invocation asked
-  for with nothing to catch.
+  file whose blocks could not be located, an analyzer the invocation asked for
+  with nothing to catch, or declared content in a format with no installed
+  reader when the check read nothing else.
 
 `execution.contexts` records the effective guidance for each checked input.
 Each entry identifies the file or draft destination, the voice selection
@@ -121,6 +122,12 @@ profile governs:
   resolution drops, because a profile rule already governs the term.
 - `voice.override_drops_pattern`: a base style pattern that stops applying where
   a channel or persona supplies its own style.
+- `format.no_reader`: a file the project declares as content, in a format no
+  installed reader handles, usually one a plugin supplies. `source` is the file,
+  and the message names the plugin to install. A check over the project's
+  content leaves the file out, checks the rest and prints the same warning on
+  stderr. A file named on the command line in such a format fails the check
+  instead.
 
 Warnings never change the summary, the score, the gate, the verdict or the exit
 code. Fix the configuration they name. `kapi check` prints them after the
@@ -181,7 +188,8 @@ The report's `scope` lists every file the diff names with a status:
 - `checked`, with the blocks checked and their lines;
 - `untouched`, when the change touched no content block, as with markup, a
   rename or a mode change;
-- `no_content`, `no_reader` or `deleted`;
+- `no_content`, `no_reader` or `deleted`, where the reason of a `no_reader`
+  file the project declares in a plugin's format names the plugin to install;
 - `out_of_scope`, for a file a project's recipe does not declare as content, or
   one outside the files named;
 - `did_not_run`, with the reason, for a changed file whose touched content

@@ -618,11 +618,16 @@ func (a *App) RunStatus(cmd Command, _ []string) error {
 		// ship a catalog `kapi up` had parked. The findings withhold the verdict
 		// only — the percentages below are the units' true rungs either way — so
 		// running them changes what `ship` says and nothing else (#2024).
-		excl, err := a.computeLoopCheckExclusions(cmd.Context(), cmd, proj, root, units)
+		//
+		// A collection in a format with no installed reader is left out of the
+		// checks and the coverage. The source readiness below names its format
+		// under source.unreadable and warns about it.
+		unread := a.newUnreadSet()
+		excl, err := a.loopCheckExclusions(cmd.Context(), cmd, proj, root, units, unread)
 		if err != nil {
 			return fmt.Errorf("run project checks: %w", err)
 		}
-		cov, err := a.ComputeShipCoverage(cmd.Context(), proj, root, units, excl)
+		cov, err := a.shipCoverage(cmd.Context(), proj, root, units, excl, unread)
 		if err != nil {
 			return fmt.Errorf("compute coverage: %w", err)
 		}
@@ -632,6 +637,7 @@ func (a *App) RunStatus(cmd Command, _ []string) error {
 		// with --emit. The richer coverage report is skipped: this shape is for a
 		// language picker, not a dashboard.
 		if ship, _ := cmd.Flags().GetBool("ship"); ship {
+			unread.warn(a, cmd)
 			return a.emitShipManifest(cmd, BuildShipManifest(cov))
 		}
 

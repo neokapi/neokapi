@@ -64,6 +64,13 @@ func (e *CheckExclusions) totalFailing() int {
 // That bound is what lets every verdict-publishing surface afford to run them,
 // which is what keeps their answers the same (#2024).
 func (a *App) computeLoopCheckExclusions(ctx context.Context, cmd Command, proj *project.KapiProject, root string, units []VerifyUnit) (*CheckExclusions, error) {
+	return a.loopCheckExclusions(ctx, cmd, proj, root, units, nil)
+}
+
+// loopCheckExclusions is computeLoopCheckExclusions for a check over the
+// project's declared content: a unit whose source no installed reader opens is
+// skipped and recorded in unread. With unread nil such a unit fails the run.
+func (a *App) loopCheckExclusions(ctx context.Context, cmd Command, proj *project.KapiProject, root string, units []VerifyUnit, unread *unreadSet) (*CheckExclusions, error) {
 	excl := &CheckExclusions{Failing: map[string]bool{}, ByLocale: map[string]int{}}
 
 	// The same rule `kapi check`'s checks gate applies to a target identical to its
@@ -94,6 +101,9 @@ func (a *App) computeLoopCheckExclusions(ctx context.Context, cmd Command, proj 
 		if berr != nil {
 			if errors.Is(berr, errTargetUnreadable) {
 				continue // unmeasurable target (e.g. a compiled .mo) — can't check
+			}
+			if unread.skipUnit(nil, berr, root, u) {
+				continue
 			}
 			return nil, berr
 		}

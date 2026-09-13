@@ -25,6 +25,13 @@ type Warning struct {
 	Key string `json:"key,omitempty"`
 }
 
+// WarningFormatNoReader is the code of a warning naming a file the recipe
+// declares as content that a check over the project did not read, because no
+// reader for its format is installed. The warning's Source is that file. A
+// plugin supplies the format, and with the plugin installed the check reads the
+// file.
+const WarningFormatNoReader = "format.no_reader"
+
 // MergeWarnings joins warning lists into one list, sorted by source, key and
 // code, holding each distinct warning once. It returns nil when there are none.
 //

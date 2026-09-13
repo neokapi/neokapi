@@ -303,6 +303,10 @@ func (a *App) ComputeCheck(cmd Command, args []string) (check.Report, error) {
 	if diff != nil && targetFile != "" {
 		return check.Report{}, errors.New("--target checks a source against its translation and cannot be scoped to a diff")
 	}
+	// unread collects the declared content a check over the whole project cannot
+	// open. A check over named files keeps it nil, so a file there with no
+	// reader fails the check.
+	var unread *unreadSet
 	if diff != nil {
 		// A diff names the files; named files narrow it.
 	} else if len(args) == 0 {
@@ -322,6 +326,7 @@ func (a *App) ComputeCheck(cmd Command, args []string) (check.Report, error) {
 			return check.Report{}, perr
 		}
 		args = files
+		unread = a.newUnreadSet()
 	} else if targetFile == "" {
 		// Named inputs expand like every other content verb: globs resolve
 		// in-process (so `kapi check 'web/**/*.md'` works in any shell) and a
@@ -462,6 +467,7 @@ func (a *App) ComputeCheck(cmd Command, args []string) (check.Report, error) {
 		// operational error.
 		prog := a.NewProgress(cmd, "checking", len(args))
 		defer prog.Done()
+		var checked []string
 		for _, file := range args {
 			prog.Step(DisplayName(file))
 			// The governance is resolved per file: a run over a governed
@@ -475,21 +481,27 @@ func (a *App) ComputeCheck(cmd Command, args []string) (check.Report, error) {
 			if opts.terms, err = vocab.forFile(ctx, file); err != nil {
 				return check.Report{}, err
 			}
-			execution.recordContext(file, "", opts)
 			execution.Timings.ContextMS += elapsedMS(contextStart)
 			blocks, fileDiags, ferr := a.checkFileBlocks(ctx, file, validateMode, opts)
 			prog.Advance()
 			if ferr != nil {
+				if name, _ := opts.formats.forFile(a, file); unread.skip(ferr, file, name) {
+					continue
+				}
 				return check.Report{}, ferr
 			}
+			// The context is recorded for a file the check read, and a skipped
+			// file has none.
+			execution.recordContext(file, "", opts)
+			checked = append(checked, file)
 			totalBlocks += len(blocks)
 			diags = append(diags, fileDiags...)
 		}
 		prog.Done()
-		if len(args) == 1 {
-			target.File = args[0]
+		if len(checked) == 1 {
+			target.File = checked[0]
 		} else {
-			target.File = fmt.Sprintf("%d files", len(args))
+			target.File = fmt.Sprintf("%d files", len(checked))
 		}
 	}
 	target.Blocks = totalBlocks
@@ -502,6 +514,8 @@ func (a *App) ComputeCheck(cmd Command, args []string) (check.Report, error) {
 	if lenient, _ := cmd.Flags().GetBool("lenient"); !lenient {
 		applyFormatterGate(&report)
 	}
+	unread.report(&report)
+	unread.warn(a, cmd)
 	return report, nil
 }
 
