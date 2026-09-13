@@ -496,7 +496,7 @@ func blockFailsChecks(ctx context.Context, block *model.Block, loc model.LocaleI
 // blockCompliantAndPassing reports whether a translated block+locale is clean
 // enough to ship without a person's review: it passes the rule-based checks
 // with no error-severity finding, is term-compliant for the locale (via the
-// shared gate), AND, where a persisted voice score exists for the block — the
+// shared gate), AND, where a persisted voice score exists for the block, the
 // score meets the scoring profile's compliance bar. This is exactly the per-block
 // compliant predicate applyShipStates aggregates into the compliance rate (#1365);
 // the bulk approve-passing endpoint reuses it to pick which pending drafts to
