@@ -84,6 +84,8 @@ export interface TermRule {
   forms?: string[];
   case_sensitive?: boolean;
   scope?: string;
+  replacement_forms?: string[];
+  accepted?: Rendering[];
 }
 
 /**
