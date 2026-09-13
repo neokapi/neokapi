@@ -67,7 +67,7 @@ func TestPlaceholderCheck_Extra(t *testing.T) {
 
 func TestPlaceholderCheck_DoubleBraceTokenization(t *testing.T) {
 	// {{x}} must tokenize as one token, not as {x}.
-	c := countMatches(placeholderToken, "{{x}} and {y}")
+	c := countMatches(check.PlaceholderToken, "{{x}} and {y}")
 	assert.Equal(t, 1, c["{{x}}"])
 	assert.Equal(t, 1, c["{y}"])
 	assert.Equal(t, 0, c["{x}"])

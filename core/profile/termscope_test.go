@@ -24,6 +24,18 @@ func termsOf(rules []profile.TermRule) []string {
 	return out
 }
 
+// An argument name does not put its rule in a prompt, and the text of a plural
+// branch does.
+func TestScopeTermRules_PlaceholderNamesAreNotWords(t *testing.T) {
+	t.Parallel()
+
+	rules := terms("vessel", "fartøy", "berth", "kaiplass")
+	assert.Empty(t, profile.ScopeTermRules(rules, "{vessel} is alongside until {until}."))
+	assert.Equal(t, []string{"vessel"}, termsOf(profile.ScopeTermRules(rules, "No vessel is alongside.")))
+	assert.Equal(t, []string{"berth"},
+		termsOf(profile.ScopeTermRules(rules, "{count, plural, one {# berth} other {# berths}} at this terminal.")))
+}
+
 func TestScopeTermRules(t *testing.T) {
 	t.Parallel()
 

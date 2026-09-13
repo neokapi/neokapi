@@ -110,8 +110,10 @@ func NewTermCheckTool(cfg *TermCheckConfig) *tool.BaseTool {
 			return nil
 		}
 
-		sourceText := v.SourceText()
-		targetText := v.TargetText(conf.TargetLocale)
+		// Both sides are read as terms are matched (check.TermText), so a
+		// placeholder's name neither triggers a rule nor satisfies one.
+		sourceText := check.TermText(v.SourceText())
+		targetText := check.TermText(v.TargetText(conf.TargetLocale))
 
 		var errs, warns []string
 		for _, rule := range conf.TermRules {
