@@ -154,6 +154,10 @@ key in a voice profile (`voice.unknown_key`, with the file in `source` and the
 key's dotted path in `key`). A warning never changes the verdict, the score or
 the exit code. Fix the named configuration when it is in scope, or report it; a
 warning clears only when the configuration changes.
+A `format.no_reader` warning names a declared file, in `source`, that the check
+did not read because the plugin supplying its format is not installed. Nothing
+in that file was checked: install the plugin the message names before you rely
+on the result for it.
 To check a diff you already hold, pass it with `--diff-file` (`-` reads standard
 input).
 

@@ -360,10 +360,16 @@ func (a *App) computeVerify(cmd Command, args []string) (verifyOutput, error) {
 	// The warnings of every voice profile a gate loads, collected once for the
 	// run however many gates and files load the same profile.
 	warnings := &voiceWarnings{}
+	// A run over the project's declared content skips the files no installed
+	// reader opens and names them. A run over named files fails on such a file.
+	var unread *unreadSet
+	if len(args) == 0 {
+		unread = a.newUnreadSet()
+	}
 
 	// --- voice gate -------------------------------------------------------
 	if sel.voice {
-		gate, err := a.verifyVoice(cmd, proj, root, args, warnings)
+		gate, err := a.verifyVoice(cmd, proj, root, args, warnings, unread)
 		if err != nil {
 			return verifyOutput{}, err
 		}
@@ -405,14 +411,14 @@ func (a *App) computeVerify(cmd Command, args []string) (verifyOutput, error) {
 		}
 
 		if runTerms {
-			termGate, err := a.verifyTerminology(cmd, units)
+			termGate, err := a.verifyTerminology(cmd, units, unread)
 			if err != nil {
 				return verifyOutput{}, err
 			}
 			gates = append(gates, termGate)
 		}
 		if sel.checks {
-			checksGate, err := a.verifyChecks(cmd, proj, root, units, warnings)
+			checksGate, err := a.verifyChecks(cmd, proj, root, units, warnings, unread)
 			if err != nil {
 				return verifyOutput{}, err
 			}
@@ -430,7 +436,7 @@ func (a *App) computeVerify(cmd Command, args []string) (verifyOutput, error) {
 		if err != nil {
 			return verifyOutput{}, err
 		}
-		staleGate, judged, err := a.verifyStaleness(cmd, proj, root, targetVerifyUnits(units))
+		staleGate, judged, err := a.verifyStaleness(cmd, proj, root, targetVerifyUnits(units), unread)
 		if err != nil {
 			return verifyOutput{}, err
 		}
@@ -449,7 +455,7 @@ func (a *App) computeVerify(cmd Command, args []string) (verifyOutput, error) {
 			return verifyOutput{}, err
 		}
 		if proj.HasShipGates() {
-			shipGate, err := a.verifyShip(cmd, proj, root, targetVerifyUnits(shipUnits))
+			shipGate, err := a.verifyShip(cmd, proj, root, targetVerifyUnits(shipUnits), unread)
 			if err != nil {
 				return verifyOutput{}, err
 			}
@@ -477,7 +483,8 @@ func (a *App) computeVerify(cmd Command, args []string) (verifyOutput, error) {
 	}
 
 	out := buildVerifyOutput(gates)
-	out.Warnings = warnings.merged()
+	out.Warnings = check.MergeWarnings(warnings.merged(), unread.warnings())
+	unread.warn(a, cmd)
 	return out, nil
 }
 
@@ -514,13 +521,13 @@ func (a *App) verifySourceGate(ctx context.Context, proj *project.KapiProject, r
 // guardrail question the checks gate in this very command answers: one invocation
 // reporting `checks FAIL` beside `ship PASS` over one tree is a contradiction
 // needing no second command to see (#2024).
-func (a *App) verifyShip(cmd Command, proj *project.KapiProject, root string, units []VerifyUnit) (verifyGateResult, error) {
+func (a *App) verifyShip(cmd Command, proj *project.KapiProject, root string, units []VerifyUnit, unread *unreadSet) (verifyGateResult, error) {
 	ctx := CmdContext(cmd)
-	excl, err := a.computeLoopCheckExclusions(ctx, cmd, proj, root, units)
+	excl, err := a.loopCheckExclusions(ctx, cmd, proj, root, units, unread)
 	if err != nil {
 		return verifyGateResult{}, err
 	}
-	cov, err := a.ComputeShipCoverage(ctx, proj, root, units, excl)
+	cov, err := a.shipCoverage(ctx, proj, root, units, excl, unread)
 	if err != nil {
 		return verifyGateResult{}, err
 	}
@@ -574,6 +581,8 @@ func (a *App) verifyShip(cmd Command, proj *project.KapiProject, root string, un
 			})
 		}
 	}
+	skipped, readNothing := unread.unitsSkipped(root, units)
+	unread.settle(&g, skipped, readNothing)
 	return g, nil
 }
 
@@ -758,7 +767,7 @@ func (a *App) projectTermsBound(cmd Command) (bool, error) {
 // voice profile. Returns nil (no gate) when the project binds no voice
 // profile — the gate only runs when there is something to check. Reuses the
 // voice check path (NewVoiceVocabCheckTool + CalculateScore).
-func (a *App) verifyVoice(cmd Command, proj *project.KapiProject, root string, args []string, warnings *voiceWarnings) (*verifyGateResult, error) {
+func (a *App) verifyVoice(cmd Command, proj *project.KapiProject, root string, args []string, warnings *voiceWarnings, unread *unreadSet) (*verifyGateResult, error) {
 	// The voice is resolved per file, at the point that file sits at, so a gate
 	// over a governed project scores each file against the vocabulary in force
 	// there. A project binding no voice anywhere resolves none for any file and
@@ -798,13 +807,11 @@ func (a *App) verifyVoice(cmd Command, proj *project.KapiProject, root string, a
 	}
 
 	governed := false
-	// Formats this machine has no reader for. A voice profile can govern a
-	// collection whose format comes from a plugin, so the gate has to run on a
-	// machine that lacks it — reporting what it could not score rather than
-	// refusing to score anything. The targeted gate that exists for such a
-	// collection installs the plugin and checks it properly; this is the
-	// project-wide sweep degrading, out loud.
-	noReader := map[string]bool{}
+	// The governed files this machine has no reader for. A voice profile can
+	// govern a collection whose format comes from a plugin, so a gate over the
+	// project scores what it can read and names the rest. A gate over named
+	// files fails on such a file instead.
+	var skipped []string
 	var allFindings []coreprofile.VoiceFinding
 	for _, f := range files {
 		profile, _, perr := voice.forFile(ctx, f)
@@ -839,17 +846,6 @@ func (a *App) verifyVoice(cmd Command, proj *project.KapiProject, root string, a
 				}
 			}
 		}
-		if rerr != nil {
-			if errors.Is(rerr, registry.ErrUnknownFormat) {
-				noReader[fmtName] = true
-				continue
-			}
-			return nil, fmt.Errorf("voice: read %s: %w", f, rerr)
-		}
-		// Set only once a file has actually been READ. A project whose every
-		// governed file needs an uninstalled plugin contributes no voice gate,
-		// which is honest; claiming a gate that scored nothing is not.
-		governed = true
 		// Findings name the file the way `kapi check` does — relative to the
 		// project, with the block — so one location format reads the same in a
 		// terminal, a CI log and a recording, and none of them carries the
@@ -858,6 +854,16 @@ func (a *App) verifyVoice(cmd Command, proj *project.KapiProject, root string, a
 		if rel, ok := projectRelPath(root, f); ok {
 			display = rel
 		}
+		if rerr != nil {
+			if unread.skip(rerr, display, fmtName) {
+				skipped = append(skipped, display)
+				continue
+			}
+			return nil, fmt.Errorf("voice: read %s: %w", f, rerr)
+		}
+		// Set only once a file has been read, so a gate that read nothing is
+		// never reported as one that scored content.
+		governed = true
 		vocab := coretools.NewVoiceVocabCheckTool(profile, tb).InSourceLocale(model.LocaleID(a.SourceLocale()))
 		gate.Coverage.Files++
 		gate.Coverage.Blocks += len(blocks)
@@ -889,9 +895,14 @@ func (a *App) verifyVoice(cmd Command, proj *project.KapiProject, root string, a
 	}
 	gate.addExecution(execution)
 
-	a.warnUnreadableFormats(cmd, sortedFormatSet(noReader))
-
 	if !governed {
+		if len(skipped) > 0 {
+			// A voice governs content here and none of it could be read, so the
+			// gate did not run. Leaving it out would read as a project that binds
+			// no voice.
+			unread.settle(&gate, skipped, true)
+			return &gate, nil
+		}
 		// Nothing bound a voice at any of these files — there is no gate to
 		// report, which is what lets --voice say the binding is missing.
 		return nil, nil
@@ -1270,7 +1281,7 @@ func expandTargetTemplate(itemPath, base, tmpl, sourceRel, locale, root, localeF
 // checked against the vocabulary in force there. A locale with no rules
 // contributes no findings; a missing target file (untranslated) is flagged by
 // the checks gate, so terminology skips it.
-func (a *App) verifyTerminology(cmd Command, units []VerifyUnit) (verifyGateResult, error) {
+func (a *App) verifyTerminology(cmd Command, units []VerifyUnit, unread *unreadSet) (verifyGateResult, error) {
 	ctx := CmdContext(cmd)
 	gate := verifyGateResult{Gate: gateTerms, Pass: true, Findings: []verifyFinding{}, Coverage: &verifyCoverage{}}
 	execution := newCheckExecution()
@@ -1300,9 +1311,13 @@ func (a *App) verifyTerminology(cmd Command, units []VerifyUnit) (verifyGateResu
 		return g, nil
 	}
 
+	var skipped []string
 	for _, u := range units {
 		if u.TargetPath == "" {
 			if err := a.verifySourceTerminology(ctx, vocab, u, &gate, execution); err != nil {
+				if unread.skipUnit(&skipped, err, root, u) {
+					continue
+				}
 				return gate, err
 			}
 			continue
@@ -1319,6 +1334,9 @@ func (a *App) verifyTerminology(cmd Command, units []VerifyUnit) (verifyGateResu
 		if err != nil {
 			if errors.Is(err, errTargetUnreadable) {
 				continue // unmeasurable target (e.g. a compiled .mo) — can't check
+			}
+			if unread.skipUnit(&skipped, err, root, u) {
+				continue
 			}
 			return gate, err
 		}
@@ -1383,6 +1401,7 @@ func (a *App) verifyTerminology(cmd Command, units []VerifyUnit) (verifyGateResu
 		execution.completed("terms.target", u.DisplayPath, len(gate.Findings)-before, start, canary, false)
 	}
 	gate.addExecution(execution)
+	unread.settle(&gate, skipped, gate.Coverage.Blocks == 0)
 	return gate, nil
 }
 
@@ -1424,7 +1443,7 @@ func (a *App) unitGovernancePoint(root string, u VerifyUnit) project.GovernanceP
 // verifyChecks checks placeholder/tag integrity against the source and flags
 // untranslated/empty targets for each target file, reusing
 // core/tools.NewRuleCheckTool.
-func (a *App) verifyChecks(cmd Command, proj *project.KapiProject, root string, units []VerifyUnit, warnings *voiceWarnings) (verifyGateResult, error) {
+func (a *App) verifyChecks(cmd Command, proj *project.KapiProject, root string, units []VerifyUnit, warnings *voiceWarnings, unread *unreadSet) (verifyGateResult, error) {
 	ctx := CmdContext(cmd)
 	gate := verifyGateResult{Gate: gateChecks, Pass: true, Findings: []verifyFinding{}, Coverage: &verifyCoverage{}}
 	execution := newCheckExecution()
@@ -1438,9 +1457,13 @@ func (a *App) verifyChecks(cmd Command, proj *project.KapiProject, root string, 
 		return gate, err
 	}
 
+	var skipped []string
 	for _, u := range units {
 		if u.TargetPath == "" {
 			if err := a.verifySourceChecks(ctx, cmd, u, &gate, warnings); err != nil {
+				if unread.skipUnit(&skipped, err, root, u) {
+					continue
+				}
 				return gate, err
 			}
 			continue
@@ -1449,6 +1472,9 @@ func (a *App) verifyChecks(cmd Command, proj *project.KapiProject, root string, 
 		if err != nil {
 			if errors.Is(err, errTargetUnreadable) {
 				continue // unmeasurable target (e.g. a compiled .mo) — can't check
+			}
+			if unread.skipUnit(&skipped, err, root, u) {
+				continue
 			}
 			return gate, err
 		}
@@ -1520,6 +1546,7 @@ func (a *App) verifyChecks(cmd Command, proj *project.KapiProject, root string, 
 		execution.completed("checks.target", u.DisplayPath, len(gate.Findings)-before, start, canary, true)
 	}
 	gate.addExecution(execution)
+	unread.settle(&gate, skipped, gate.Coverage.Blocks == 0)
 	return gate, nil
 }
 

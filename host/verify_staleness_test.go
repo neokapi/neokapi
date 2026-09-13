@@ -142,7 +142,7 @@ func (f *stalenessFixture) record(t *testing.T, fingerprint string) {
 
 func (f *stalenessFixture) run(t *testing.T) (verifyGateResult, bool) {
 	t.Helper()
-	gate, judged, err := f.app.verifyStaleness(f.cmd, f.proj, f.root, f.units)
+	gate, judged, err := f.app.verifyStaleness(f.cmd, f.proj, f.root, f.units, nil)
 	require.NoError(t, err)
 	return gate, judged
 }

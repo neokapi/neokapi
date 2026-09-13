@@ -192,7 +192,7 @@ func TestStalenessGate_TermsMoveUnderAConvergedProject(t *testing.T) {
 	_, recipe, root := newConvergedStalenessProject(t)
 
 	a, cmd, proj, units := freshStalenessCheck(t, recipe, root)
-	gate, judged, err := a.verifyStaleness(cmd, proj, root, units)
+	gate, judged, err := a.verifyStaleness(cmd, proj, root, units, nil)
 	require.NoError(t, err)
 	require.True(t, judged, "produced targets are judged")
 	assert.True(t, gate.Pass, "the run's own output matches the context it ran under")
@@ -203,7 +203,7 @@ func TestStalenessGate_TermsMoveUnderAConvergedProject(t *testing.T) {
 	writeStalenessTerms(t, root, "mémoire du contenu")
 
 	a, cmd, proj, units = freshStalenessCheck(t, recipe, root)
-	gate, judged, err = a.verifyStaleness(cmd, proj, root, units)
+	gate, judged, err = a.verifyStaleness(cmd, proj, root, units, nil)
 	require.NoError(t, err)
 	require.True(t, judged)
 	assert.False(t, gate.Pass, "targets produced under the old terminology are behind it")

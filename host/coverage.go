@@ -535,6 +535,13 @@ func scopeAliases(scope string) []string {
 // been asked the guardrail question, so every surface that publishes a verdict
 // supplies it (#2024).
 func (a *App) ComputeShipCoverage(ctx context.Context, proj *project.KapiProject, root string, units []VerifyUnit, excl *CheckExclusions) ([]LocaleCoverage, error) {
+	return a.shipCoverage(ctx, proj, root, units, excl, nil)
+}
+
+// shipCoverage is ComputeShipCoverage for a check over the project's declared
+// content: a unit whose source no installed reader opens is left out of the
+// tally and recorded in unread. With unread nil such a unit fails the rollup.
+func (a *App) shipCoverage(ctx context.Context, proj *project.KapiProject, root string, units []VerifyUnit, excl *CheckExclusions, unread *unreadSet) ([]LocaleCoverage, error) {
 	rs, err := proj.BuildShipGates()
 	if err != nil {
 		return nil, err
@@ -543,7 +550,7 @@ func (a *App) ComputeShipCoverage(ctx context.Context, proj *project.KapiProject
 	if err != nil {
 		return nil, err
 	}
-	tally, err := a.ProjectCoverageTally(ctx, proj, root, units, excl)
+	tally, err := a.coverageTally(ctx, proj, root, units, excl, unread)
 	if err != nil {
 		return nil, err
 	}
@@ -561,6 +568,13 @@ func (a *App) ComputeShipCoverage(ctx context.Context, proj *project.KapiProject
 // at the terminal and counted for nothing in an app reading the block store,
 // and neither number was wrong for the question its own face was asking.
 func (a *App) ProjectCoverageTally(ctx context.Context, proj *project.KapiProject, root string, units []VerifyUnit, excl *CheckExclusions) (*convergence.CoverageTally, error) {
+	return a.coverageTally(ctx, proj, root, units, excl, nil)
+}
+
+// coverageTally is ProjectCoverageTally, skipping and recording in unread each
+// unit whose source no installed reader opens. With unread nil such a unit
+// fails the tally.
+func (a *App) coverageTally(ctx context.Context, proj *project.KapiProject, root string, units []VerifyUnit, excl *CheckExclusions, unread *unreadSet) (*convergence.CoverageTally, error) {
 	reviewed, err := a.loadReviewedCorrections(ctx, proj, root)
 	if err != nil {
 		return nil, err
@@ -575,6 +589,9 @@ func (a *App) ProjectCoverageTally(ctx context.Context, proj *project.KapiProjec
 		blocks, missing, berr := a.bilingualBlocks(ctx, u)
 		if berr != nil {
 			if !errors.Is(berr, errTargetUnreadable) {
+				if unread.skipUnit(nil, berr, root, u) {
+					continue
+				}
 				return nil, berr
 			}
 			// The target exists but its format can't be read back (a compiled
@@ -595,6 +612,9 @@ func (a *App) ProjectCoverageTally(ctx context.Context, proj *project.KapiProjec
 		if missing {
 			// No target file yet — every translatable source unit is untranslated.
 			srcs, serr := a.readSource(ctx, u)
+			if unread.skipUnit(nil, serr, root, u) {
+				continue
+			}
 			if serr != nil {
 				return nil, serr
 			}

@@ -90,7 +90,7 @@ func gateFindings(t *testing.T, root string) (msgs []string, pass bool) {
 	units, err := a.UnitsFromProject(proj, root, "")
 	require.NoError(t, err)
 
-	gate, err := a.verifyChecks(cmd, proj, root, units, nil)
+	gate, err := a.verifyChecks(cmd, proj, root, units, nil, nil)
 	require.NoError(t, err)
 	for _, f := range gate.Findings {
 		msgs = append(msgs, f.Message)

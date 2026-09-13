@@ -149,6 +149,9 @@ type diffCheckRun struct {
 	voice *checkVoice
 	vocab *checkTerms
 	gate  check.Gate
+	// unread collects the changed files the recipe declares in a format no
+	// installed reader opens. It is nil when the check names its files.
+	unread *unreadSet
 }
 
 // runDiffCheck checks the content blocks a diff touches, each block whole, and
@@ -169,6 +172,8 @@ func (a *App) runDiffCheck(ctx context.Context, run diffCheckRun) (check.Report,
 		for _, n := range run.named {
 			named[scopeKey(n)] = true
 		}
+	} else {
+		run.unread = a.newUnreadSet()
 	}
 
 	files := slices.Clone(run.src.files)
@@ -211,6 +216,8 @@ func (a *App) runDiffCheck(ctx context.Context, run diffCheckRun) (check.Report,
 	if lenient, _ := run.cmd.Flags().GetBool("lenient"); !lenient {
 		applyFormatterGate(&report)
 	}
+	run.unread.report(&report)
+	run.unread.warn(a, run.cmd)
 	return report, nil
 }
 
@@ -276,6 +283,11 @@ func (a *App) checkDiffFile(ctx context.Context, run diffCheckRun, f diffscope.F
 		return nil, 0, fmt.Errorf("read %s: %w", entry.Path, err)
 	}
 	read, err := locate(ctx, content)
+	if format, _ := run.opts.formats.forFile(a, abs); run.unread.skip(err, entry.Path, format) {
+		entry.Status = check.ScopeNoReader
+		entry.Reason = fmt.Sprintf("no reader for format %q is installed; install the plugin that supplies it (kapi plugins install %s)", format, format)
+		return nil, 0, nil
+	}
 	if err != nil {
 		return nil, 0, err
 	}

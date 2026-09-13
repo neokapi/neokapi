@@ -302,25 +302,43 @@ removing a verb fails the build until the table follows.
 ### Missing-plugin formats
 
 A collection can name a format that a plugin supplies. The same recipe therefore
-reads on a machine with the plugin installed and fails to read on one without it,
-which forces an answer for every project-wide command: `kapi status`,
-`kapi check --ship`, and the source settle inside `kapi up`. Each may find that
-one collection out of twenty cannot be opened.
+reads on a machine with the plugin installed and fails to read on one without it.
+Every command that works over the project's declared content has to handle
+that: `kapi status`, a bare `kapi check`, `kapi check --ship`, a check scoped to
+a diff, and the source settle inside `kapi up`. Each may find that one
+collection out of twenty cannot be opened.
 
-They report that collection as unread and measure the rest. Aborting would make
-an entire project unreportable because of one optional dependency, and the
-collections that do read are almost always the ones the command was asked about.
+They report that collection as unread and check or measure the rest. Aborting
+would make an entire project unreportable because of one optional dependency,
+and the collections that do read are almost always the ones the command was
+asked about.
 
 The skip is reported, never silent. Coverage computed over content that was
 never opened looks identical to coverage over content that was read and found
-complete, so the unreadable format names travel back out of the rollup. Three
-consumers surface them: `source.unreadable` in the JSON output, a warning naming
-the plugin to install, and an event on the convergence stream.
+complete, so the unread files and their formats travel back out of the run:
+
+- `kapi status` lists the formats under `source.unreadable` in its JSON output.
+- The check commands add a `format.no_reader` warning for each file to the
+  `warnings` array of their JSON output, with the file in `source`. A check
+  scoped to a diff also lists the file in its scope with the status
+  `no_reader`.
+- Each command prints a warning on stderr naming the format, the files and the
+  plugin to install, and the source settle inside `kapi up` emits an event on
+  the convergence stream.
+
+An unread file never counts as checked. A check that reads some of the declared
+content is decided by that content. A check, or a `--ship` gate, whose content
+was all unread did not run, with the cause `content_not_checked`, so zero
+coverage is never reported as a pass.
 
 Only a missing reader survives. `registry.ErrUnknownFormat` is a sentinel, so
 callers match it with `errors.Is` rather than on message text. An unknown format
 means the file was never opened. Any other read error means it was opened and is
 broken, and that still fails the command.
+
+The skip covers files kapi finds through the recipe. A file named on the command
+line, or content read under a format named with `--format`, still fails the
+command when no reader for that format is installed.
 
 A gate written for content in a plugin format installs that plugin
 (`make check-governed-prose` stages it). Degrading applies to the project-wide

@@ -18,12 +18,19 @@ type Warning struct {
 	// Message is the sentence a person reads.
 	Message string `json:"message"`
 	// Source is where the configuration was loaded from: a profile file's path,
-	// or "pack:<name>" or "store:<name>" for a profile with no file.
+	// or "pack:<name>" or "store:<name>" for a profile with no file. For a
+	// WarningFormatNoReader warning it is the content file that was not read.
 	Source string `json:"source"`
 	// Key is the dotted path of the key the warning is about, when it is about
 	// one.
 	Key string `json:"key,omitempty"`
 }
+
+// WarningFormatNoReader is the code of a warning naming a file the recipe
+// declares as content that a check over the project did not read, because no
+// reader for its format is installed. A plugin supplies the format, and with
+// the plugin installed the check reads the file.
+const WarningFormatNoReader = "format.no_reader"
 
 // MergeWarnings joins warning lists into one list, sorted by source, key and
 // code, holding each distinct warning once. It returns nil when there are none.
