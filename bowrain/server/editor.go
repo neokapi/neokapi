@@ -396,12 +396,13 @@ type MemoryUpdateRequest struct {
 
 // TermInfoResponse is a term in a concept.
 type TermInfoResponse struct {
-	Text         string `json:"text"`
-	Locale       string `json:"locale"`
-	Status       string `json:"status"`
-	PartOfSpeech string `json:"part_of_speech,omitempty"`
-	Gender       string `json:"gender,omitempty"`
-	Note         string `json:"note,omitempty"`
+	Text         string   `json:"text"`
+	Locale       string   `json:"locale"`
+	Status       string   `json:"status"`
+	PartOfSpeech string   `json:"part_of_speech,omitempty"`
+	Gender       string   `json:"gender,omitempty"`
+	Note         string   `json:"note,omitempty"`
+	Forms        []string `json:"forms,omitempty"`
 }
 
 // ConceptInfoResponse is the API response for a concept.
@@ -1791,6 +1792,7 @@ func editorConceptToInfo(c terms.Concept) ConceptInfoResponse {
 			PartOfSpeech: t.PartOfSpeech,
 			Gender:       t.Gender,
 			Note:         t.Note,
+			Forms:        t.Forms,
 		}
 	}
 	return ConceptInfoResponse{
@@ -1815,6 +1817,7 @@ func editorTermsFromInfo(infos []TermInfoResponse) []terms.Term {
 			PartOfSpeech: t.PartOfSpeech,
 			Gender:       t.Gender,
 			Note:         t.Note,
+			Forms:        t.Forms,
 		}
 		if result[i].Status == "" {
 			result[i].Status = model.TermApproved

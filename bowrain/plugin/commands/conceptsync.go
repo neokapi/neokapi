@@ -335,6 +335,7 @@ func buildBaseline(concepts []terms.Concept, relations []terms.ConceptRelation) 
 				PartOfSpeech: t.PartOfSpeech,
 				Gender:       t.Gender,
 				Note:         t.Note,
+				Forms:        t.Forms,
 			})
 		}
 		b.Concepts[c.ID] = bc
@@ -369,6 +370,7 @@ func conceptInfoToConcept(ci apiclient.ConceptInfo) terms.Concept {
 			PartOfSpeech: t.PartOfSpeech,
 			Gender:       t.Gender,
 			Note:         t.Note,
+			Forms:        t.Forms,
 		})
 	}
 	if ts, err := time.Parse(time.RFC3339, ci.CreatedAt); err == nil {
@@ -997,7 +999,7 @@ func termsSignature(terms []terms.Term) string {
 	parts := make([]string, 0, len(terms))
 	for _, t := range terms {
 		parts = append(parts, strings.Join([]string{
-			string(t.Locale), strings.ToLower(t.Text), string(t.Status), t.Note, t.PartOfSpeech, t.Gender,
+			string(t.Locale), strings.ToLower(t.Text), string(t.Status), t.Note, t.PartOfSpeech, t.Gender, strings.Join(t.Forms, "\x1d"),
 		}, "\x1f"))
 	}
 	sort.Strings(parts)
@@ -1008,7 +1010,7 @@ func baselineTermsSignature(terms []bproject.BaselineTerm) string {
 	parts := make([]string, 0, len(terms))
 	for _, t := range terms {
 		parts = append(parts, strings.Join([]string{
-			t.Locale, strings.ToLower(t.Text), t.Status, t.Note, t.PartOfSpeech, t.Gender,
+			t.Locale, strings.ToLower(t.Text), t.Status, t.Note, t.PartOfSpeech, t.Gender, strings.Join(t.Forms, "\x1d"),
 		}, "\x1f"))
 	}
 	sort.Strings(parts)
@@ -1026,6 +1028,7 @@ func termsToInfo(terms []terms.Term) []apiclient.TermInfo {
 			PartOfSpeech: t.PartOfSpeech,
 			Gender:       t.Gender,
 			Note:         t.Note,
+			Forms:        t.Forms,
 		})
 	}
 	return out
@@ -1040,5 +1043,6 @@ func baselineTermToTerm(t bproject.BaselineTerm) terms.Term {
 		PartOfSpeech: t.PartOfSpeech,
 		Gender:       t.Gender,
 		Note:         t.Note,
+		Forms:        t.Forms,
 	}
 }

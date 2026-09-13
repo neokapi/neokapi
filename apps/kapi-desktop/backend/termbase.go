@@ -29,13 +29,14 @@ type ConceptDTO struct {
 
 // TermDTO is the frontend-facing term within a concept.
 type TermDTO struct {
-	Text           string `json:"text"`
-	Locale         string `json:"locale"`
-	Status         string `json:"status"` // preferred, approved, admitted, proposed, deprecated, forbidden
-	PartOfSpeech   string `json:"part_of_speech,omitempty"`
-	Gender         string `json:"gender,omitempty"`
-	Note           string `json:"note,omitempty"`
-	CompetitorTerm bool   `json:"competitor_term,omitempty"`
+	Text           string   `json:"text"`
+	Locale         string   `json:"locale"`
+	Status         string   `json:"status"` // preferred, approved, admitted, proposed, deprecated, forbidden
+	PartOfSpeech   string   `json:"part_of_speech,omitempty"`
+	Gender         string   `json:"gender,omitempty"`
+	Note           string   `json:"note,omitempty"`
+	Forms          []string `json:"forms,omitempty"`
+	CompetitorTerm bool     `json:"competitor_term,omitempty"`
 	// Validity carries the term's temporal/tag scoping (the constraints +
 	// derived-geography axis the concept dashboard renders). nil = always valid.
 	Validity *ValidityDTO `json:"validity,omitempty"`
@@ -82,6 +83,7 @@ func conceptToDTO(c terms.Concept) ConceptDTO {
 			PartOfSpeech:   t.PartOfSpeech,
 			Gender:         t.Gender,
 			Note:           t.Note,
+			Forms:          t.Forms,
 			CompetitorTerm: t.CompetitorTerm,
 			Validity:       validityToDTO(t.Validity),
 		})
@@ -113,6 +115,7 @@ func dtoToTerms(dtos []TermDTO) ([]terms.Term, error) {
 			PartOfSpeech:   d.PartOfSpeech,
 			Gender:         d.Gender,
 			Note:           d.Note,
+			Forms:          d.Forms,
 			CompetitorTerm: d.CompetitorTerm,
 			Validity:       validityFromDTO(d.Validity),
 		})

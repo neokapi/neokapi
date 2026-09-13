@@ -7285,6 +7285,13 @@ export class TermDTO {
         if (/** @type {any} */(false)) {
             /**
              * @member
+             * @type {string[] | undefined}
+             */
+            this["forms"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
              * @type {boolean | undefined}
              */
             this["competitor_term"] = undefined;
@@ -7308,10 +7315,14 @@ export class TermDTO {
      * @returns {TermDTO}
      */
     static createFrom($$source = {}) {
-        const $$createField7_0 = $$createType104;
+        const $$createField6_0 = $$createType6;
+        const $$createField8_0 = $$createType104;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("forms" in $$parsedSource) {
+            $$parsedSource["forms"] = $$createField6_0($$parsedSource["forms"]);
+        }
         if ("validity" in $$parsedSource) {
-            $$parsedSource["validity"] = $$createField7_0($$parsedSource["validity"]);
+            $$parsedSource["validity"] = $$createField8_0($$parsedSource["validity"]);
         }
         return new TermDTO(/** @type {Partial<TermDTO>} */($$parsedSource));
     }

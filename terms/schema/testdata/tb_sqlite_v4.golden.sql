@@ -1,0 +1,3 @@
+
+		ALTER TABLE tb_terms ADD COLUMN forms TEXT NOT NULL DEFAULT '[]';
+		

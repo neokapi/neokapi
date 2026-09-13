@@ -34,12 +34,13 @@ import (
 // TermInfoResponse. Status is a lifecycle status string (proposed, approved,
 // admitted, preferred, deprecated, forbidden); Locale is a BCP-47 tag.
 type TermInfo struct {
-	Text         string `json:"text"`
-	Locale       string `json:"locale"`
-	Status       string `json:"status"`
-	PartOfSpeech string `json:"part_of_speech,omitempty"`
-	Gender       string `json:"gender,omitempty"`
-	Note         string `json:"note,omitempty"`
+	Text         string   `json:"text"`
+	Locale       string   `json:"locale"`
+	Status       string   `json:"status"`
+	PartOfSpeech string   `json:"part_of_speech,omitempty"`
+	Gender       string   `json:"gender,omitempty"`
+	Note         string   `json:"note,omitempty"`
+	Forms        []string `json:"forms,omitempty"`
 }
 
 // ConceptInfo is a single concept, mirroring the server's ConceptInfoResponse.

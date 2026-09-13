@@ -18,12 +18,14 @@ import (
 // it on the write path.
 func NormalizedConcept(c Concept) Concept {
 	for i := range c.Terms {
-		if model.NormalizeLocale(c.Terms[i].Locale) == c.Terms[i].Locale {
+		if model.NormalizeLocale(c.Terms[i].Locale) == c.Terms[i].Locale &&
+			slices.Equal(NormalizeForms(c.Terms[i].Text, c.Terms[i].Forms), c.Terms[i].Forms) {
 			continue
 		}
 		terms := slices.Clone(c.Terms)
 		for j := range terms {
 			terms[j].Locale = model.NormalizeLocale(terms[j].Locale)
+			terms[j].Forms = NormalizeForms(terms[j].Text, terms[j].Forms)
 		}
 		c.Terms = terms
 		break

@@ -252,7 +252,7 @@ func TestExportTBXRoundTrip(t *testing.T) {
 		Terms: []Term{
 			{Text: "text editor", Locale: "en", Status: model.TermPreferred, PartOfSpeech: "noun"},
 			{Text: "editor", Locale: "en", Status: model.TermAdmitted},
-			{Text: "éditeur de texte", Locale: "fr", Status: model.TermApproved, Gender: "masculine", Note: "common usage"},
+			{Text: "éditeur de texte", Locale: "fr", Status: model.TermApproved, Gender: "masculine", Note: "common usage", Forms: []string{"éditeurs de texte"}},
 		},
 	}))
 	require.NoError(t, src.AddConcept(context.Background(), Concept{
@@ -322,7 +322,20 @@ func assertTermsEquivalent(t *testing.T, conceptID string, want, got []Term) {
 		assert.Equal(t, w[i].PartOfSpeech, g[i].PartOfSpeech, "PoS for %q in %s", w[i].Text, conceptID)
 		assert.Equal(t, w[i].Gender, g[i].Gender, "gender for %q in %s", w[i].Text, conceptID)
 		assert.Equal(t, w[i].Note, g[i].Note, "note for %q in %s", w[i].Text, conceptID)
+		assert.Equal(t, w[i].Forms, g[i].Forms, "forms for %q in %s", w[i].Text, conceptID)
 	}
+}
+
+func TestExportTBXWritesFormsAsPrivateNotes(t *testing.T) {
+	tb := NewInMemoryStore()
+	require.NoError(t, tb.AddConcept(context.Background(), Concept{
+		ID:    "berth",
+		Terms: []Term{{Text: "Liegeplatz", Locale: "de", Status: model.TermPreferred, Forms: []string{"Liegeplätze", "Liegeplatzes"}}},
+	}))
+	var buf bytes.Buffer
+	require.NoError(t, ExportTBX(context.Background(), tb, &buf, TBXExportOptions{}))
+	assert.Contains(t, buf.String(), `<termNote type="x-surfaceForm">Liegeplätze</termNote>`)
+	assert.Contains(t, buf.String(), `<termNote type="x-surfaceForm">Liegeplatzes</termNote>`)
 }
 
 func TestExportTBXSourceLocaleFilter(t *testing.T) {

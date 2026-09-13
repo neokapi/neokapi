@@ -54,12 +54,21 @@ func NewPostgresStoreFromDB(db *storage.PgDB, workspaceID string) (*PostgresStor
 // on without enforcement. The baseline is idempotent, so the same replay now
 // repairs the ledger instead of taking enforcement offline.
 //
-// Retired numbers are never reused. The next migration is version 6.
+// Versions issued after the baseline:
+//
+//	6  declared surface forms on terms
+//
+// Retired numbers are never reused. The next migration is version 7.
 var Migrations = []storage.Migration{
 	{
 		Version:     5,
 		Description: "terms baseline (folds 1-4)",
 		SQL:         termsschema.RenderTermsPostgresBaseline("workspace_id"),
+	},
+	{
+		Version:     6,
+		Description: "declared surface forms on terms",
+		SQL:         termsschema.RenderTermsPostgresV6(),
 	},
 }
 
@@ -177,12 +186,12 @@ func (tb *PostgresStore) AddConceptWithStream(ctx context.Context, concept fw.Co
 	for _, term := range concept.Terms {
 		validFrom, validTo, tags := pgValidityColumns(term.Validity)
 		_, err = tx.ExecContext(ctx, `
-			INSERT INTO tb_terms (workspace_id, concept_id, text, text_lower, locale, status, part_of_speech, gender, note, competitor_term, valid_from, valid_to, tags)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+			INSERT INTO tb_terms (workspace_id, concept_id, text, text_lower, locale, status, part_of_speech, gender, note, competitor_term, valid_from, valid_to, tags, forms)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 		`, tb.workspaceID, concept.ID, term.Text, strings.ToLower(term.Text),
 			string(term.Locale), string(term.Status),
 			term.PartOfSpeech, term.Gender, term.Note, term.CompetitorTerm,
-			validFrom, validTo, tags)
+			validFrom, validTo, tags, fw.FormsColumn(term.Forms))
 		if err != nil {
 			return fmt.Errorf("insert term: %w", err)
 		}
@@ -816,7 +825,7 @@ func (tb *PostgresStore) scanConcepts(ctx context.Context, ids []string) ([]fw.C
 	}
 
 	termRows, err := tb.db.QueryContext(ctx, `
-		SELECT concept_id, text, locale, status, part_of_speech, gender, note, competitor_term, valid_from, valid_to, tags
+		SELECT concept_id, text, locale, status, part_of_speech, gender, note, competitor_term, valid_from, valid_to, tags, forms
 		FROM tb_terms WHERE workspace_id = $1 AND concept_id IN (`+inClause+`)
 		ORDER BY concept_id, text`, args...)
 	if err != nil {
@@ -827,9 +836,9 @@ func (tb *PostgresStore) scanConcepts(ctx context.Context, ids []string) ([]fw.C
 	for termRows.Next() {
 		var conceptID string
 		var t fw.Term
-		var locale, status, tags string
+		var locale, status, tags, forms string
 		var validFrom, validTo sql.NullTime
-		if err := termRows.Scan(&conceptID, &t.Text, &locale, &status, &t.PartOfSpeech, &t.Gender, &t.Note, &t.CompetitorTerm, &validFrom, &validTo, &tags); err != nil {
+		if err := termRows.Scan(&conceptID, &t.Text, &locale, &status, &t.PartOfSpeech, &t.Gender, &t.Note, &t.CompetitorTerm, &validFrom, &validTo, &tags, &forms); err != nil {
 			return nil, fmt.Errorf("scan term: %w", err)
 		}
 		c, ok := byID[conceptID]
@@ -839,6 +848,11 @@ func (tb *PostgresStore) scanConcepts(ctx context.Context, ids []string) ([]fw.C
 		t.Locale = model.LocaleID(locale)
 		t.Status = model.TermStatus(status)
 		t.Validity = pgValidityFromColumns(validFrom, validTo, tags)
+		decoded, ferr := fw.FormsFromColumn(forms)
+		if ferr != nil {
+			return nil, fmt.Errorf("concept %s: term %q: %w", conceptID, t.Text, ferr)
+		}
+		t.Forms = decoded
 		c.Terms = append(c.Terms, t)
 	}
 	if err := termRows.Err(); err != nil {
@@ -878,7 +892,7 @@ func (tb *PostgresStore) scanConcept(ctx context.Context, id string) (fw.Concept
 	}
 
 	rows, err := tb.db.QueryContext(ctx, `
-		SELECT text, locale, status, part_of_speech, gender, note, competitor_term, valid_from, valid_to, tags
+		SELECT text, locale, status, part_of_speech, gender, note, competitor_term, valid_from, valid_to, tags, forms
 		FROM tb_terms WHERE workspace_id = $1 AND concept_id = $2
 	`, tb.workspaceID, id)
 	if err != nil {
@@ -888,14 +902,19 @@ func (tb *PostgresStore) scanConcept(ctx context.Context, id string) (fw.Concept
 
 	for rows.Next() {
 		var t fw.Term
-		var locale, status, tags string
+		var locale, status, tags, forms string
 		var validFrom, validTo sql.NullTime
-		if err := rows.Scan(&t.Text, &locale, &status, &t.PartOfSpeech, &t.Gender, &t.Note, &t.CompetitorTerm, &validFrom, &validTo, &tags); err != nil {
+		if err := rows.Scan(&t.Text, &locale, &status, &t.PartOfSpeech, &t.Gender, &t.Note, &t.CompetitorTerm, &validFrom, &validTo, &tags, &forms); err != nil {
 			continue
 		}
 		t.Locale = model.LocaleID(locale)
 		t.Status = model.TermStatus(status)
 		t.Validity = pgValidityFromColumns(validFrom, validTo, tags)
+		decoded, ferr := fw.FormsFromColumn(forms)
+		if ferr != nil {
+			return c, fmt.Errorf("concept %s: term %q: %w", id, t.Text, ferr)
+		}
+		t.Forms = decoded
 		c.Terms = append(c.Terms, t)
 	}
 	if err := rows.Err(); err != nil {
@@ -905,9 +924,9 @@ func (tb *PostgresStore) scanConcept(ctx context.Context, id string) (fw.Concept
 	return c, nil
 }
 
-// pgTermSelectCols is the shared 10-column term projection every candidate
+// pgTermSelectCols is the shared 11-column term projection every candidate
 // query selects, including the validity columns the shared lookup filters on.
-const pgTermSelectCols = "t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.valid_from, t.valid_to, t.tags"
+const pgTermSelectCols = "t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.valid_from, t.valid_to, t.tags, t.forms"
 
 func (tb *PostgresStore) queryExactTerms(ctx context.Context, sourceText string, opts fw.LookupOptions) ([]fw.TermCandidate, error) {
 	searchText := sourceText
@@ -1025,7 +1044,7 @@ func (tb *PostgresStore) queryTermsByLocale(ctx context.Context, locale model.Lo
 	}
 
 	rows, err := tb.db.QueryContext(ctx, fmt.Sprintf(`
-		SELECT c.id, c.domain, c.definition, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.valid_from, t.valid_to, t.tags
+		SELECT c.id, c.domain, c.definition, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.valid_from, t.valid_to, t.tags, t.forms
 		FROM tb_terms t JOIN tb_concepts c ON t.workspace_id = c.workspace_id AND t.concept_id = c.id
 		WHERE %s
 		ORDER BY c.id, t.text
@@ -1037,11 +1056,14 @@ func (tb *PostgresStore) queryTermsByLocale(ctx context.Context, locale model.Lo
 
 	var results []fw.LocaleTerm
 	for rows.Next() {
-		var cID, domain, definition, text, loc, status, pos, gender, note, tags string
+		var cID, domain, definition, text, loc, status, pos, gender, note, tags, forms string
 		var validFrom, validTo sql.NullTime
-		if err := rows.Scan(&cID, &domain, &definition, &text, &loc, &status, &pos, &gender, &note, &validFrom, &validTo, &tags); err != nil {
+		if err := rows.Scan(&cID, &domain, &definition, &text, &loc, &status, &pos, &gender, &note, &validFrom, &validTo, &tags, &forms); err != nil {
 			continue
 		}
+		// A malformed forms column keeps the term, unexpanded: dropping the row
+		// would hide a forbidden term from every check that reads it.
+		formList, _ := fw.FormsFromColumn(forms)
 		results = append(results, fw.LocaleTerm{
 			Concept: fw.Concept{ID: cID, Domain: domain, Definition: definition},
 			Term: fw.Term{
@@ -1052,6 +1074,7 @@ func (tb *PostgresStore) queryTermsByLocale(ctx context.Context, locale model.Lo
 				Gender:       gender,
 				Note:         note,
 				Validity:     pgValidityFromColumns(validFrom, validTo, tags),
+				Forms:        formList,
 			},
 		})
 	}
@@ -1064,7 +1087,7 @@ func (tb *PostgresStore) queryTermsByLocale(ctx context.Context, locale model.Lo
 type pgScanTermRow struct {
 	conceptID, text, locale, status, pos, gender, note string
 	validFrom, validTo                                 sql.NullTime
-	tags                                               string
+	tags, forms                                        string
 }
 
 // validity rebuilds the term validity from the scanned columns (Postgres
@@ -1073,7 +1096,14 @@ func (r pgScanTermRow) validity() *graph.Validity {
 	return pgValidityFromColumns(r.validFrom, r.validTo, r.tags)
 }
 
-// pgScanTermCandidates scans the shared 10-column term projection into raw
+// formList decodes the scanned forms column. A malformed column keeps the
+// term, unexpanded.
+func (r pgScanTermRow) formList() []string {
+	forms, _ := fw.FormsFromColumn(r.forms)
+	return forms
+}
+
+// pgScanTermCandidates scans the shared 11-column term projection into raw
 // candidates. Validity is reconstructed here; the shared fw.LookupTiered
 // applies the scope/status/score filters and hydrates the owning concept.
 //
@@ -1088,7 +1118,7 @@ func pgScanTermCandidates(rows interface {
 	var out []fw.TermCandidate
 	for rows.Next() {
 		var r pgScanTermRow
-		if err := rows.Scan(&r.conceptID, &r.text, &r.locale, &r.status, &r.pos, &r.gender, &r.note, &r.validFrom, &r.validTo, &r.tags); err != nil {
+		if err := rows.Scan(&r.conceptID, &r.text, &r.locale, &r.status, &r.pos, &r.gender, &r.note, &r.validFrom, &r.validTo, &r.tags, &r.forms); err != nil {
 			return nil, fmt.Errorf("scan term candidate: %w", err)
 		}
 		out = append(out, fw.TermCandidate{
@@ -1101,6 +1131,7 @@ func pgScanTermCandidates(rows interface {
 				Gender:       r.gender,
 				Note:         r.note,
 				Validity:     r.validity(),
+				Forms:        r.formList(),
 			},
 		})
 	}

@@ -169,6 +169,7 @@ function conceptToDTO(c: ConceptInfo): ConceptDTO {
       part_of_speech: t.part_of_speech,
       gender: t.gender,
       note: t.note,
+      forms: t.forms,
     })),
     properties: c.properties,
     created_at: c.created_at,
@@ -184,6 +185,7 @@ function termsToInfo(terms: TermDTO[]): TermInfo[] {
     part_of_speech: t.part_of_speech,
     gender: t.gender,
     note: t.note,
+    forms: t.forms,
   }));
 }
 

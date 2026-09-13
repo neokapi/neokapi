@@ -41,6 +41,20 @@ func FindTermFormsCased(text string, forms []string) [][2]int {
 	return findForms(text, forms, true)
 }
 
+// FindTermFormsIn is FindTermForms against a text prepared once, for a caller
+// scanning one text for many terms. cased matches each form in its own casing.
+func FindTermFormsIn(p *PreparedText, forms []string, cased bool) [][2]int {
+	var all [][2]int
+	for _, f := range forms {
+		m := NewTermMatcher(f)
+		if cased {
+			m = NewCaseSensitiveTermMatcher(f)
+		}
+		all = append(all, m.FindIn(p)...)
+	}
+	return longestNonOverlapping(all)
+}
+
 func findForms(text string, forms []string, cased bool) [][2]int {
 	find := FindTerm
 	if cased {

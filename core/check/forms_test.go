@@ -6,6 +6,17 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// TestFindTermFormsInMatchesFindTermForms pins that scanning a prepared text
+// finds exactly what scanning the raw text finds, in both casings.
+func TestFindTermFormsInMatchesFindTermForms(t *testing.T) {
+	text := "Two Alerts and one alert rule; alerting is not a form."
+	forms := []string{"alert", "alerts", "alert rule"}
+	p := PrepareText(text)
+	assert.Equal(t, FindTermForms(text, forms), FindTermFormsIn(p, forms, false))
+	assert.Equal(t, FindTermFormsCased(text, forms), FindTermFormsIn(p, forms, true))
+	assert.Len(t, FindTermFormsIn(p, forms, false), 2, "Alerts, and alert rule once as the longest form")
+}
+
 // TestFindTermFormsMatchesEveryDeclaredShape.
 //
 // A rule names a word and prose uses that word in many shapes. This is the

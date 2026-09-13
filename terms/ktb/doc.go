@@ -8,7 +8,9 @@
 // part-of-speech, gender, administrative status, usage note). ktb is the
 // native form that round-trips every field of terms.Concept, including the
 // fields TBX drops: the term Source (terminology vs brand_vocabulary), the
-// CompetitorTerm flag, and the extensible Properties map. That losslessness is
+// CompetitorTerm flag, and the extensible Properties map. A term's declared
+// surface forms travel in both, as the "forms" array here and as a private
+// x-surfaceForm termNote in TBX. That losslessness is
 // what lets a ktb document seed a fresh terms exactly, which is why it —
 // not TBX — is the terms store member of the .kpz package (see package kpz).
 //

@@ -24,6 +24,7 @@ type Term struct {
     Note           string           // usage note or context
     CompetitorTerm bool             // true if this is a competitor's term
     Validity       *graph.Validity  // time/tag scoping; nil = always valid
+    Forms          []string         // other surface shapes in the term's language
 }
 
 type Concept struct {
@@ -49,6 +50,14 @@ one terms store while staying filterable.
 locale (a product name, a trademark, a format acronym). It is independent of
 whether a target term exists, and it reaches the tools as a `TermRule` with
 `DoNotTranslate` set.
+
+`Forms` are the term's other surface shapes in its own language (a plural, a
+definite form, a case ending). `NormalizedConcept` trims them and drops blanks,
+repeats and the term's own text before any backend writes them, so every backend
+reads back the same list; `Term.Surfaces()` is the text followed by the forms,
+which is what a scan matches. The SQL backends keep them as a JSON array in the
+`forms` column of `tb_terms` (SQLite migration 4), the `.terms.json` bundle as a
+`forms` array, and TBX as one `<termNote type="x-surfaceForm">` per form.
 
 Progressive disclosure: CSV import auto-creates Concepts with a single preferred Term per locale, so nothing more is required of a user who wants a word list.
 
@@ -106,7 +115,8 @@ term in a text. A `LocateRequest` carries the text and its runs, the
 `profile.VocabularyRuleSets`, a tool's `term_rules:` as its own set, or both),
 the bound `Terminology` store, the locale, and the domains, minimum score and
 validity scope passed through to the store lookup. It returns `Occurrence`s:
-the matched text, the rule or concept that declared it, its status or severity,
+the matched text (for a store term, the form as the text spells it), the rule or
+concept that declared it, its status or severity,
 whether it is do-not-translate, byte offsets into the text, and a
 `model.Anchor` into the runs (`model.RangeAnchorForBytes`). Rule hits come
 first, then store matches, deduped across the candidate languages. An

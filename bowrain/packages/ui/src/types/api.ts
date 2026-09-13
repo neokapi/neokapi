@@ -1194,6 +1194,7 @@ export interface TermInfo {
   part_of_speech?: string;
   gender?: string;
   note?: string;
+  forms?: string[];
 }
 
 /** Concept info */

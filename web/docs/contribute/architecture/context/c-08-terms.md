@@ -55,6 +55,7 @@ type Term struct {
     Note           string
     CompetitorTerm bool
     Validity       *graph.Validity
+    Forms          []string         // other surface shapes in the term's language
 }
 
 type Concept struct {
@@ -75,6 +76,16 @@ type Concept struct {
 everywhere: a product name, a trademark, a format acronym. It is independent of
 whether a target term exists, because an untranslated term needs no entry per
 locale.
+
+`Forms` lists the other surface shapes a term takes in its own language: the
+Norwegian plural *varsler* for *varsel*, the German *Liegeplätze* for
+*Liegeplatz*. A form is a spelling of the term and carries no status. An
+alternative word for the concept is a term of its own, with a status. Forms are
+declared rather than derived, because the shapes a word takes are per-language
+knowledge. Every backend stores them normalized (trimmed, without repeats or the
+term's own text), the bundle carries them as a `forms` array, and TBX export
+writes each as a private `x-surfaceForm` term note, which `ImportTBX` reads back
+and other TBX readers skip.
 
 Progressive disclosure: a CSV import auto-creates concepts with a single
 preferred term per locale, so nothing is imposed on a user who wants a word list.
@@ -203,7 +214,9 @@ can request exact-only, or exact-plus-fuzzy, without changing the pipeline.
 passage use*) and answers it with `check.TermMatcher`, the single definition of
 what it means for a text to use a term. The voice-profile vocabulary rules, the
 do-not-translate check and the occurrence graph scan with the same matcher, so a
-word is a hit for the whole gate or for none of it.
+word is a hit for the whole gate or for none of it. A store term is found under
+its text and under each form it declares, and the match names the term, so
+"Two alerts" is a use of `alert` when the term lists `alerts`.
 
 `term-check` is the exception. A mandate names a lemma while content inflects
 it: a source reading "Two new alerts" uses the term `alert`, and an obedient

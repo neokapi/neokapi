@@ -159,12 +159,13 @@ type EditorMemorySearchResult struct {
 
 // EditorTerm mirrors TermInfoResponse.
 type EditorTerm struct {
-	Text         string `json:"text"`
-	Locale       string `json:"locale"`
-	Status       string `json:"status"`
-	PartOfSpeech string `json:"part_of_speech,omitempty"`
-	Gender       string `json:"gender,omitempty"`
-	Note         string `json:"note,omitempty"`
+	Text         string   `json:"text"`
+	Locale       string   `json:"locale"`
+	Status       string   `json:"status"`
+	PartOfSpeech string   `json:"part_of_speech,omitempty"`
+	Gender       string   `json:"gender,omitempty"`
+	Note         string   `json:"note,omitempty"`
+	Forms        []string `json:"forms,omitempty"`
 }
 
 // EditorConcept mirrors ConceptInfoResponse.

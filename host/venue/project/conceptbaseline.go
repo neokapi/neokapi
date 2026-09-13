@@ -41,12 +41,13 @@ type BaselineConcept struct {
 // (locale + lowered text) it lets a push tell a governed status transition
 // from an ordinary edit.
 type BaselineTerm struct {
-	Text         string `json:"text"`
-	Locale       string `json:"locale"`
-	Status       string `json:"status"`
-	PartOfSpeech string `json:"part_of_speech,omitempty"`
-	Gender       string `json:"gender,omitempty"`
-	Note         string `json:"note,omitempty"`
+	Text         string   `json:"text"`
+	Locale       string   `json:"locale"`
+	Status       string   `json:"status"`
+	PartOfSpeech string   `json:"part_of_speech,omitempty"`
+	Gender       string   `json:"gender,omitempty"`
+	Note         string   `json:"note,omitempty"`
+	Forms        []string `json:"forms,omitempty"`
 }
 
 // BaselineRelation is the diff-relevant state of one typed relation.

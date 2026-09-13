@@ -89,6 +89,8 @@ export interface Term {
   partOfSpeech?: string;
   gender?: string;
   note?: string;
+  /** Other surface shapes the term takes in its language (a plural, a definite form). */
+  forms?: string[];
   /** When/where this term applies (constraints axis + derived geography). */
   validity?: Validity;
 }

@@ -3784,6 +3784,13 @@ export class TermInfo {
              */
             this["note"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["forms"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }
@@ -3794,7 +3801,11 @@ export class TermInfo {
      * @returns {TermInfo}
      */
     static createFrom($$source = {}) {
+        const $$createField6_0 = $$createType11;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("forms" in $$parsedSource) {
+            $$parsedSource["forms"] = $$createField6_0($$parsedSource["forms"]);
+        }
         return new TermInfo(/** @type {Partial<TermInfo>} */($$parsedSource));
     }
 }

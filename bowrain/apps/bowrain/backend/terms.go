@@ -18,12 +18,13 @@ import (
 
 // TermInfo is the frontend-facing representation of a term.
 type TermInfo struct {
-	Text         string `json:"text"`
-	Locale       string `json:"locale"`
-	Status       string `json:"status"`
-	PartOfSpeech string `json:"part_of_speech,omitempty"`
-	Gender       string `json:"gender,omitempty"`
-	Note         string `json:"note,omitempty"`
+	Text         string   `json:"text"`
+	Locale       string   `json:"locale"`
+	Status       string   `json:"status"`
+	PartOfSpeech string   `json:"part_of_speech,omitempty"`
+	Gender       string   `json:"gender,omitempty"`
+	Note         string   `json:"note,omitempty"`
+	Forms        []string `json:"forms,omitempty"`
 }
 
 // ConceptInfo is the frontend-facing representation of a concept.
@@ -113,6 +114,7 @@ func conceptToInfo(c terms.Concept) ConceptInfo {
 			PartOfSpeech: t.PartOfSpeech,
 			Gender:       t.Gender,
 			Note:         t.Note,
+			Forms:        t.Forms,
 		}
 	}
 	return ConceptInfo{
@@ -136,6 +138,7 @@ func termsFromInfo(infos []TermInfo) []terms.Term {
 			PartOfSpeech: t.PartOfSpeech,
 			Gender:       t.Gender,
 			Note:         t.Note,
+			Forms:        t.Forms,
 		}
 		if result[i].Status == "" {
 			result[i].Status = model.TermApproved

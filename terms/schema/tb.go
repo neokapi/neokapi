@@ -71,6 +71,9 @@ var (
 			{Name: "valid_from", SQLite: "TEXT", PG: "TIMESTAMPTZ"},
 			{Name: "valid_to", SQLite: "TEXT", PG: "TIMESTAMPTZ"},
 			{Name: "tags", SQLite: "TEXT NOT NULL DEFAULT '{}'", PG: "JSONB NOT NULL DEFAULT '{}'"},
+			// forms is added by a later migration (v4 SQLite / v6 PG): the term's
+			// declared surface forms as a JSON array of strings.
+			{Name: "forms", SQLite: "TEXT NOT NULL DEFAULT '[]'", PG: "JSONB NOT NULL DEFAULT '[]'"},
 		},
 		FKs: []sq.FK{{Cols: []string{"concept_id"}, RefTable: "tb_concepts", RefCols: []string{"id"}, SQLiteInline: true}},
 		Indexes: []sq.Index{
@@ -200,7 +203,7 @@ var pgTermsFuzzyBaselineBlock = strings.NewReplacer(
 // migrations.
 func RenderTermsSQLiteV1() string {
 	conceptsOpt := sq.Opt{IfNotExists: true, Exclude: []string{"source"}}
-	termsOpt := sq.Opt{IfNotExists: true, Exclude: []string{"competitor_term", "valid_from", "valid_to", "tags"}}
+	termsOpt := sq.Opt{IfNotExists: true, Exclude: []string{"competitor_term", "valid_from", "valid_to", "tags", "forms"}}
 	sections := []string{
 		tbConcepts.Create(sq.SQLite, conceptsOpt) + tbConcepts.CreateIndexes(sq.SQLite, conceptsOpt),
 		tbTerms.Create(sq.SQLite, termsOpt) + tbTerms.CreateIndexes(sq.SQLite, termsOpt),
@@ -230,6 +233,12 @@ func RenderTermsSQLiteV3() string {
 	return "\n" + strings.Join([]string{relations, alters}, "\n") + "\t\t"
 }
 
+// RenderTermsSQLiteV4 renders the v4 SQLite migration: the declared surface
+// forms on terms.
+func RenderTermsSQLiteV4() string {
+	return "\n" + tbTerms.AddColumn(sq.SQLite, sq.Opt{}, "forms") + "\t\t"
+}
+
 // ── Postgres render (semantically identical to the historical migrations) ────
 
 // RenderTermsPostgresV1 renders the fresh v1 Postgres schema: concepts (no stream
@@ -238,7 +247,7 @@ func RenderTermsSQLiteV3() string {
 // order is cosmetic and the semantic-equivalence test is order-insensitive.
 func RenderTermsPostgresV1(tenantColumn string) string {
 	conceptsOpt := sq.Opt{TenantColumn: tenantColumn, IfNotExists: true, Exclude: []string{"stream", "source"}}
-	termsOpt := sq.Opt{TenantColumn: tenantColumn, IfNotExists: true, Exclude: []string{"competitor_term", "valid_from", "valid_to", "tags"}}
+	termsOpt := sq.Opt{TenantColumn: tenantColumn, IfNotExists: true, Exclude: []string{"competitor_term", "valid_from", "valid_to", "tags", "forms"}}
 	return tbConcepts.Create(sq.Postgres, conceptsOpt) +
 		tbTerms.Create(sq.Postgres, termsOpt) +
 		tbTerms.CreateIndexes(sq.Postgres, termsOpt)
@@ -296,4 +305,12 @@ func RenderTermsPostgresV4(tenantColumn string) string {
 	b.WriteString(tbRelations.Create(sq.Postgres, o))
 	b.WriteString(tbRelations.CreateIndexes(sq.Postgres, o))
 	return b.String()
+}
+
+// RenderTermsPostgresV6 renders the v6 Postgres migration: the declared surface
+// forms on terms. The column is added IF NOT EXISTS because the baseline
+// renders from the same descriptors, so a database created from version 5
+// after this column was declared already has it.
+func RenderTermsPostgresV6() string {
+	return tbTerms.AddColumn(sq.Postgres, sq.Opt{IfNotExists: true}, "forms")
 }

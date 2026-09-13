@@ -186,6 +186,7 @@ func termInfoToEditor(t TermInfo) editorclient.EditorTerm {
 		PartOfSpeech: t.PartOfSpeech,
 		Gender:       t.Gender,
 		Note:         t.Note,
+		Forms:        t.Forms,
 	}
 }
 
@@ -205,6 +206,7 @@ func editorTermToInfo(t editorclient.EditorTerm) TermInfo {
 		PartOfSpeech: t.PartOfSpeech,
 		Gender:       t.Gender,
 		Note:         t.Note,
+		Forms:        t.Forms,
 	}
 }
 
