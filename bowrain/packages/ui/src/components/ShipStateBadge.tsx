@@ -1,13 +1,15 @@
 import { cn, SimpleTooltip } from "@neokapi/ui-primitives";
-import type { ShipState } from "../types/api";
-import { Clock, ShieldCheck, Sparkles } from "./icons";
+import type { LocaleTranslationStats, ShipState } from "../types/api";
+import { CircleCheck, Clock, ShieldCheck, Sparkles } from "./icons";
 
 /**
  * ShipStateBadge renders the per-locale ship state with one consistent visual
  * language everywhere it appears (dashboard locale rows, collection rollups,
- * delivery panel): governed (human-approved), AI-shippable (machine-reviewed
- * only), pending (not ready). A tooltip explains what the state means and, when
- * counts are provided, why the scope holds it.
+ * delivery panel): governed (human-approved, with terminology governing the
+ * language), approved (human-approved, with nothing beyond the checks governing
+ * it), AI-shippable (machine-reviewed only), pending (not ready). A tooltip
+ * explains what the state means and, when counts are provided, why the scope
+ * holds it.
  */
 export interface ShipStateBadgeProps {
   state: ShipState;
@@ -34,7 +36,27 @@ export interface ShipStateBadgeProps {
    * pair as settled. A convergence pass is what moves them.
    */
   rejectedAwaitingDraft?: number;
+  /**
+   * Translated blocks in a language terms govern that have no terminology
+   * result. They withhold the scope as failing checks do.
+   */
+  termsNotCheckedBlocks?: number;
+  /**
+   * Terminology governs nothing in the language. It withholds nothing, and the
+   * tooltip names it so a reader does not take the scope for a governed one.
+   */
+  termsNotGoverned?: boolean;
   className?: string;
+}
+
+/**
+ * Whether terminology governs nothing in a locale scope, read from the
+ * compliance basis the server derived. False when the server derived no basis,
+ * which claims nothing either way.
+ */
+export function termsNotGoverned(stats: Pick<LocaleTranslationStats, "compliance_basis">): boolean {
+  const basis = stats.compliance_basis;
+  return basis !== undefined && !basis.endsWith("terms");
 }
 
 const stateStyles: Record<ShipState, { label: string; className: string; explanation: string }> = {
@@ -42,6 +64,12 @@ const stateStyles: Record<ShipState, { label: string; className: string; explana
     label: "Governed",
     className: "border-success/40 bg-success/15 text-success",
     explanation: "Fully translated, the checks pass, and every translation is human-approved.",
+  },
+  approved: {
+    label: "Approved",
+    className: "border-success/30 bg-success/5 text-success",
+    explanation:
+      "Fully translated, the checks pass, and every translation is human-approved. No terms apply to this language, so it is not governed.",
   },
   ai_shippable: {
     label: "AI-shippable",
@@ -52,12 +80,14 @@ const stateStyles: Record<ShipState, { label: string; className: string; explana
   pending: {
     label: "Pending",
     className: "border-border/60 bg-muted text-muted-foreground",
-    explanation: "Not ready to ship: translation, checks, or review is still in progress.",
+    explanation:
+      "Not ready to ship: translation, checks, terminology, or review is still in progress.",
   },
 };
 
 const stateIcons: Record<ShipState, React.ComponentType<{ className?: string }>> = {
   governed: ShieldCheck,
+  approved: CircleCheck,
   ai_shippable: Sparkles,
   pending: Clock,
 };
@@ -67,6 +97,7 @@ function tooltipContent(props: ShipStateBadgeProps): React.ReactNode {
   const awaitingDraft = props.staleAwaitingDraft ?? 0;
   const awaitingReview = props.staleAwaitingReview ?? 0;
   const rejected = props.rejectedAwaitingDraft ?? 0;
+  const termsNotChecked = props.termsNotCheckedBlocks ?? 0;
   const meta = stateStyles[state];
   const details: string[] = [];
   if (totalBlocks !== undefined && approvedBlocks !== undefined) {
@@ -74,6 +105,9 @@ function tooltipContent(props: ShipStateBadgeProps): React.ReactNode {
   }
   if (failingChecks !== undefined && failingChecks > 0) {
     details.push(`${failingChecks} failing ${failingChecks === 1 ? "check" : "checks"}`);
+  }
+  if (termsNotChecked > 0) {
+    details.push(`${termsNotChecked} with no terminology result`);
   }
   // What the stale pairs are waiting on, so a reader knows whether to run the
   // loop or to open the review queue.
@@ -91,6 +125,12 @@ function tooltipContent(props: ShipStateBadgeProps): React.ReactNode {
       <p className="font-medium">{meta.label}</p>
       <p>{meta.explanation}</p>
       {details.length > 0 && <p className="text-muted-foreground">{details.join(" · ")}</p>}
+      {/* The approved explanation already says it; every other state names it here. */}
+      {props.termsNotGoverned && state !== "approved" && (
+        <p className="text-muted-foreground">
+          No terms apply to this language, so terminology is not governed here.
+        </p>
+      )}
     </div>
   );
 }

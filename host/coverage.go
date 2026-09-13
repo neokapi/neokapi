@@ -554,7 +554,17 @@ func (a *App) shipCoverage(ctx context.Context, proj *project.KapiProject, root 
 	if err != nil {
 		return nil, err
 	}
-	return tally.RollupGates(rs, vs), nil
+	rows := tally.RollupGates(rs, vs)
+	// Governance is known only where the checks ran: a caller that passed no
+	// exclusions did not resolve the terms, so it names nothing as ungoverned.
+	if excl != nil {
+		for i := range rows {
+			if !excl.termsGovern(rows[i].Locale) {
+				rows[i].NotGoverned = []string{"terms"}
+			}
+		}
+	}
+	return rows, nil
 }
 
 // ProjectCoverageTally derives the coverage tally from working-tree reads: the
@@ -605,6 +615,12 @@ func (a *App) coverageTally(ctx context.Context, proj *project.KapiProject, root
 			for _, b := range srcs {
 				if b.Translatable {
 					tally.Add(s, string(model.TargetStatusTranslated))
+					// The terminology check reads the target, and this one cannot be
+					// read. Where the project's terms govern the locale the unit has
+					// no terminology result, and that withholds the verdict.
+					if excl.termsGovern(u.Locale) {
+						tally.NoteTermsNotChecked(s)
+					}
 				}
 			}
 			continue

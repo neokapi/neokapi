@@ -938,11 +938,14 @@ export interface WordCountResult {
 
 /**
  * Ship state for one locale scope (project-wide or one collection), derived
- * server-side: `governed` = fully translated, checks pass, every translation
- * carries a human review decision; `ai_shippable` = fully translated and
- * checks pass, machine-reviewed only; `pending` = anything less.
+ * server-side (store.DeriveShipState): `governed` = fully translated, checks
+ * pass, terminology governs the locale with a result for every block, and every
+ * translation carries a human review decision; `approved` = the same in a locale
+ * terminology does not govern; `ai_shippable` = fully translated, checks pass and
+ * governed terminology has a result, machine-reviewed only; `pending` = anything
+ * less.
  */
-export type ShipState = "governed" | "ai_shippable" | "pending";
+export type ShipState = "governed" | "approved" | "ai_shippable" | "pending";
 
 /**
  * The dimensions governing a compliance rate (store.ComplianceBasis). Rule-based
@@ -965,6 +968,11 @@ export interface LocaleTranslationStats {
   approved_blocks?: number;
   /** Translated blocks failing the checks with error severity (computed at full coverage). */
   failing_checks?: number;
+  /**
+   * Translated blocks in a locale terms govern with no terminology result
+   * (computed at full coverage). They withhold the ship state as failing checks do.
+   */
+  terms_not_checked_blocks?: number;
   /** Pairs whose decision blessed source wording the block no longer carries. */
   stale_blocks?: number;
   /** The stale pairs the loop still owes a draft against the current source. */
@@ -1629,6 +1637,8 @@ export interface LoopRollupShipProject {
   project_name?: string;
   stream?: string;
   governed: number;
+  /** Fully approved project-locales that terminology does not govern. */
+  approved?: number;
   ai_shippable: number;
   pending: number;
 }
@@ -1642,6 +1652,8 @@ export interface LoopRollupShipProject {
 export interface LoopRollupShip {
   basis: string;
   governed: number;
+  /** Fully approved project-locales that terminology does not govern. */
+  approved?: number;
   ai_shippable: number;
   pending: number;
   counted_projects: number;

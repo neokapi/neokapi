@@ -53,6 +53,7 @@ export function ReviewInboxRoute() {
     stream: p.stream ?? "main",
     pending: p.pending,
     governed: p.governed,
+    approved: p.approved ?? 0,
     aiShippable: p.ai_shippable,
   }));
 

@@ -34,6 +34,9 @@ type scopeTally struct {
 	rejectedOwed   int
 	failingChecks  int
 	basisUnknown   int
+	// termsNotChecked counts units in a locale the terms govern that have no
+	// terminology result.
+	termsNotChecked int
 }
 
 // CoverageTally accumulates unit states per (collection, locale) scope. Feed
@@ -124,6 +127,12 @@ func (t *CoverageTally) NoteUnknownBasis(s Scope) { t.tally(s).basisUnknown++ }
 // guardrail is not a shortfall of quantity.
 func (t *CoverageTally) NoteFailingCheck(s Scope) { t.tally(s).failingChecks++ }
 
+// NoteTermsNotChecked records that a unit in a locale the project's terms
+// govern has no terminology result, without tallying it: the unit is counted
+// at its rung by the accompanying Add, and this withholds the scope's verdict
+// as a failing check does.
+func (t *CoverageTally) NoteTermsNotChecked(s Scope) { t.tally(s).termsNotChecked++ }
+
 // Coverage returns the accumulated distribution for one scope, with ok=false
 // when the scope was never tallied.
 func (t *CoverageTally) Coverage(s Scope) (gate.Coverage, bool) {
@@ -174,6 +183,7 @@ func (t *CoverageTally) RollupGates(ship, verified gate.RuleSet) []LocaleCoverag
 			StaleAwaitingDraft: st.stale - st.staleRedrafted, StaleAwaitingReview: st.staleRedrafted,
 			RejectedAwaitingDraft: st.rejectedOwed,
 			BasisUnknown:          st.basisUnknown,
+			TermsNotChecked:       st.termsNotChecked,
 		}
 		for _, rung := range ladder {
 			lc.Pct[rung] = int(math.Round(cov.AtLeastPct(ladder, rung)))
@@ -201,13 +211,14 @@ func (t *CoverageTally) RollupGates(ship, verified gate.RuleSet) []LocaleCoverag
 		// coverage threshold; nobody asked for wording whose source has been
 		// rewritten, for a translation somebody refused, or for one that drops a
 		// placeholder, either. A project with no gates is exactly the one with
-		// nothing else to catch it.
+		// nothing else to catch it. A unit the terms govern with no terminology
+		// result is withheld too, because nobody checked it.
 		//
 		// This is the one place the verdict is decided, so every surface reading a
 		// LocaleCoverage gets the same answer to "does this ship" — which is the
 		// whole point of the withholding living here rather than in a percentage
 		// one caller demotes and another does not.
-		if lc.Stale > 0 || lc.RejectedAwaitingDraft > 0 || lc.FailingChecks > 0 {
+		if lc.Stale > 0 || lc.RejectedAwaitingDraft > 0 || lc.FailingChecks > 0 || lc.TermsNotChecked > 0 {
 			lc.Shippable = false
 			lc.Verified = false
 		}

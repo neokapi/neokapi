@@ -31,6 +31,10 @@ const shipFeedCacheMaxAge = 60 * time.Second
 type shipManifestEntry struct {
 	Shippable bool `json:"shippable"`
 	Verified  bool `json:"verified"`
+	// NotGoverned names the dimensions that govern nothing in the locale
+	// ("terms"), as host.ShipEntry does, so a picker never reads an ungoverned
+	// locale as a governed one.
+	NotGoverned []string `json:"not_governed,omitempty"`
 }
 
 // HandlePublicShipManifest serves a project's per-locale ship manifest over a
@@ -101,17 +105,24 @@ func (s *Server) shipDashboardStats(ctx context.Context, proj *store.Project, st
 
 // shipManifestFromStats projects the project-wide per-locale ship states to the
 // picker manifest. shippable means the locale ships on at least machine review
-// (governed or ai_shippable); verified means it is human-reviewed (governed).
+// (governed, approved or ai_shippable); verified means it is human-reviewed
+// (governed or approved). not_governed names terminology when the locale's
+// compliance basis leaves it out.
 // The project-wide LocaleStats already carry the weakest-scope answer — governed
 // requires every block approved — so this matches the CLI's per-collection
 // BuildShipManifest without re-deriving per collection.
 func shipManifestFromStats(stats *store.TranslationDashboardStats) map[string]shipManifestEntry {
 	out := make(map[string]shipManifestEntry, len(stats.LocaleStats))
 	for _, ls := range stats.LocaleStats {
-		out[ls.Locale] = shipManifestEntry{
-			Shippable: ls.ShipState == store.ShipStateGoverned || ls.ShipState == store.ShipStateAIShippable,
-			Verified:  ls.ShipState == store.ShipStateGoverned,
+		entry := shipManifestEntry{
+			Shippable: ls.ShipState == store.ShipStateGoverned || ls.ShipState == store.ShipStateApproved ||
+				ls.ShipState == store.ShipStateAIShippable,
+			Verified: ls.ShipState == store.ShipStateGoverned || ls.ShipState == store.ShipStateApproved,
 		}
+		if ls.ComplianceBasis != "" && !ls.ComplianceBasis.GovernsTerms() {
+			entry.NotGoverned = []string{"terms"}
+		}
+		out[ls.Locale] = entry
 	}
 	return out
 }

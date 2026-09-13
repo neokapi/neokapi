@@ -62,6 +62,8 @@ export interface LoopRunStatus {
  */
 export interface LoopShipStatus {
   governed: number;
+  /** Fully approved project-locales that terminology does not govern. */
+  approved: number;
   aiShippable: number;
   pending: number;
   countedProjects: number;
@@ -212,7 +214,7 @@ export function LoopStatusRow({
   const showVoice = brand !== undefined;
   const visibleCards = 2 + (showRun ? 1 : 0) + (showShip ? 1 : 0) + (showVoice ? 1 : 0);
 
-  const shippableLocales = ship ? ship.governed + ship.aiShippable : 0;
+  const shippableLocales = ship ? ship.governed + ship.approved + ship.aiShippable : 0;
   const totalLocales = ship ? shippableLocales + ship.pending : 0;
 
   return (
@@ -322,7 +324,8 @@ export function LoopStatusRow({
               </span>
             </div>
             <p className="text-xs text-muted-foreground">
-              {ship.governed} governed · {ship.aiShippable} AI-shippable · {ship.pending} pending
+              {ship.governed} governed · {ship.approved > 0 ? `${ship.approved} approved · ` : ""}
+              {ship.aiShippable} AI-shippable · {ship.pending} pending
               {ship.countedProjects < ship.totalProjects
                 ? ` · across ${ship.countedProjects} of ${ship.totalProjects} projects`
                 : ""}

@@ -2,7 +2,7 @@ import { cn, resolveLocaleName, SimpleTooltip } from "@neokapi/ui-primitives";
 import type { LocaleTranslationStats } from "../../types/api";
 
 import { ComplianceRateChip } from "../ComplianceRateChip";
-import { ShipStateBadge } from "../ShipStateBadge";
+import { ShipStateBadge, termsNotGoverned } from "../ShipStateBadge";
 
 /**
  * LocaleCoverageRail states one locale's standing in one scope as a single
@@ -108,6 +108,8 @@ export function LocaleCoverageRail({
           staleAwaitingDraft={stats.stale_awaiting_draft_blocks}
           staleAwaitingReview={stats.stale_awaiting_review_blocks}
           rejectedAwaitingDraft={stats.rejected_awaiting_draft_blocks}
+          termsNotCheckedBlocks={stats.terms_not_checked_blocks}
+          termsNotGoverned={termsNotGoverned(stats)}
         />
       )}
     </div>

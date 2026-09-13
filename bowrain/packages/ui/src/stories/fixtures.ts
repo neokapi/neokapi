@@ -1679,17 +1679,19 @@ export const largeDashboardStats: TranslationDashboardStats = {
 
 /**
  * store.DeriveShipState, mirrored: pending when the scope is empty, coverage is
- * partial, or any check fails; governed when every block is also approved;
- * ai_shippable in between.
+ * partial, or any check fails; ai_shippable while approval is incomplete; then
+ * governed where terminology governs the locale and approved where it does not.
  */
 function deriveShipState(
   translatedBlocks: number,
   totalBlocks: number,
   approvedBlocks: number,
   failingChecks: number,
+  termsGoverned = true,
 ): ShipState {
   if (totalBlocks === 0 || translatedBlocks < totalBlocks || failingChecks > 0) return "pending";
-  return approvedBlocks >= totalBlocks ? "governed" : "ai_shippable";
+  if (approvedBlocks < totalBlocks) return "ai_shippable";
+  return termsGoverned ? "governed" : "approved";
 }
 
 /**

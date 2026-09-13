@@ -7,8 +7,13 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/projectdb"
+	"github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"strings"
 )
 
 // writeStatusProject creates a temp project with a JSON catalog source, a
@@ -356,9 +361,123 @@ func TestStatus_ShipManifestEmit(t *testing.T) {
 	var manifest map[string]ShipEntry
 	require.NoError(t, json.Unmarshal(raw, &manifest), "ship.json must be valid JSON: %s", raw)
 
-	assert.Equal(t, ShipEntry{Shippable: true, Verified: true}, manifest["nb"])
-	assert.Equal(t, ShipEntry{Shippable: true, Verified: false}, manifest["de"],
+	assert.Equal(t, ShipEntry{Shippable: true, Verified: true, NotGoverned: []string{"terms"}}, manifest["nb"],
+		"no terms govern nb, and the manifest says so")
+	assert.Equal(t, ShipEntry{Shippable: true, Verified: false, NotGoverned: []string{"terms"}}, manifest["de"],
 		"shippable but unverified — the AI case")
+}
+
+// TestStatus_ShipManifestNamesUngovernedTerminology: a language a concept in the
+// project's terms answers for carries no reason, and one no concept answers for
+// is named as not governed by terms. Neither changes a gate.
+func TestStatus_ShipManifestNamesUngovernedTerminology(t *testing.T) {
+	root := writeVerifiedGateProject(t)
+	addStatusConcept(t, root, terms.Concept{
+		ID: "c-apple",
+		Terms: []terms.Term{
+			{Text: "Apple", Locale: model.LocaleEnglish, Status: model.TermPreferred},
+			{Text: "Eple", Locale: "nb", Status: model.TermPreferred},
+		},
+	})
+	t.Chdir(root)
+
+	out := runStatusJSON(t)
+	nb, ok := localeCoverage(out, "nb")
+	require.True(t, ok)
+	assert.Empty(t, nb.NotGoverned, "a concept answers for nb")
+	assert.True(t, nb.Shippable)
+	de, ok := localeCoverage(out, "de")
+	require.True(t, ok)
+	assert.Equal(t, []string{"terms"}, de.NotGoverned, "no concept has a de term")
+	assert.True(t, de.Shippable, "terminology that governs nothing withholds nothing")
+}
+
+// TestStatus_DoNotTranslateGovernsAndIsChecked: a do-not-translate concept
+// governs every language, and the loop holds a target that translated the term
+// to dnt-check, so the locale does not ship on it. The concept is committed in
+// the recipe's terms source, the form a project keeps its terms in.
+func TestStatus_DoNotTranslateGovernsAndIsChecked(t *testing.T) {
+	root := writeVerifiedGateProject(t)
+	recipePath := filepath.Join(root, "kapi.yaml")
+	recipe, err := os.ReadFile(recipePath)
+	require.NoError(t, err)
+	bound := strings.Replace(string(recipe), "  target_languages: [nb, de]\n",
+		"  target_languages: [nb, de]\n  terms_source: terms.json\n", 1)
+	require.NotEqual(t, string(recipe), bound, "the recipe binds the terms source")
+	require.NoError(t, os.WriteFile(recipePath, []byte(bound), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "terms.json"), []byte(`{
+  "schemaVersion": "1.0",
+  "kind": "kapi-terms",
+  "concepts": [
+    {"id": "c-banana", "do_not_translate": true, "terms": [{"text": "Banana", "locale": "en", "status": "preferred"}]}
+  ]
+}`), 0o644))
+	t.Chdir(root)
+
+	out := runStatusJSON(t)
+	for _, loc := range []string{"nb", "de"} {
+		lc, ok := localeCoverage(out, loc)
+		require.True(t, ok)
+		assert.Empty(t, lc.NotGoverned, "%s: a do-not-translate concept governs every language", loc)
+		assert.Equal(t, 1, lc.FailingChecks, "%s: the target translated the do-not-translate term", loc)
+		assert.False(t, lc.Shippable, "%s: a failing check withholds the locale", loc)
+	}
+}
+
+// TestStatus_UnreadableTargetInGovernedLanguageIsWithheld: a target kapi cannot
+// read back counts as translated by its presence, and the terminology check never
+// saw it. Where the project's terms govern the language each of its units has no
+// terminology result, and the locale does not ship on them. Where no terms govern
+// the language, no terminology result is owed.
+func TestStatus_UnreadableTargetInGovernedLanguageIsWithheld(t *testing.T) {
+	t.Setenv("KAPI_NO_PROJECT", "")
+	root := t.TempDir()
+	recipe := `version: v1
+name: unreadable
+defaults:
+  source_language: en
+  target_languages: [nb, de]
+collections:
+  - path: en.json
+    target: "{lang}.bin"
+ship_gate: { translated: 0 }
+`
+	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte(recipe), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "en.json"),
+		[]byte(`{"a":"Apple","b":"Banana","c":"Cherry"}`), 0o644))
+	// No reader claims .bin, so each target counts by its presence and no check
+	// can read it.
+	for _, loc := range []string{"nb", "de"} {
+		require.NoError(t, os.WriteFile(filepath.Join(root, loc+".bin"), []byte("\x00compiled catalog"), 0o644))
+	}
+	addStatusConcept(t, root, terms.Concept{
+		ID: "c-apple",
+		Terms: []terms.Term{
+			{Text: "Apple", Locale: model.LocaleEnglish, Status: model.TermPreferred},
+			{Text: "Eple", Locale: "nb", Status: model.TermPreferred},
+		},
+	})
+	t.Chdir(root)
+
+	out := runStatusJSON(t)
+	nb, ok := localeCoverage(out, "nb")
+	require.True(t, ok)
+	assert.Equal(t, 100, nb.Pct["translated"], "the nb target counts by its presence")
+	assert.Equal(t, 3, nb.TermsNotChecked, "every unit of the unreadable nb target lacks a terminology result")
+	assert.False(t, nb.Shippable, "a check that did not run withholds the locale")
+	de, ok := localeCoverage(out, "de")
+	require.True(t, ok)
+	assert.Zero(t, de.TermsNotChecked, "no terms govern de, so no terminology result is owed")
+	assert.True(t, de.Shippable)
+}
+
+// addStatusConcept adds a concept to the project's own terms store.
+func addStatusConcept(t *testing.T, root string, c terms.Concept) {
+	t.Helper()
+	db, err := projectdb.Open(t.Context(), project.LayoutAt(root))
+	require.NoError(t, err)
+	require.NoError(t, db.Terms().AddConcept(t.Context(), c))
+	require.NoError(t, db.Close())
 }
 
 func TestStatus_ShipManifestStdout(t *testing.T) {

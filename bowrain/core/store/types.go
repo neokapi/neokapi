@@ -659,6 +659,12 @@ type LocaleTranslationStats struct {
 	// some scope (checks cannot promote an under-covered locale, so the expensive
 	// pass is skipped below the coverage gate).
 	FailingChecks int `json:"failing_checks"`
+	// TermsNotCheckedBlocks counts translated blocks in a locale terms govern that
+	// have no terminology result, such as a target whose only run is an inline
+	// code. Like FailingChecks it withholds the scope from shipping, and it is
+	// attributed only to locales at full coverage in some scope. Additive:
+	// producers that do not grade terminology leave it 0 (omitted from JSON).
+	TermsNotCheckedBlocks int `json:"terms_not_checked_blocks,omitempty"`
 	// StaleBlocks counts this scope's (block, locale) pairs whose recorded
 	// decision blessed source wording the block no longer carries — the basis
 	// the decision names against the block's current content hash. A stale pair
@@ -759,6 +765,12 @@ func ComplianceBasisFor(voice, terms bool) ComplianceBasis {
 	default:
 		return ComplianceBasisChecks
 	}
+}
+
+// GovernsTerms reports whether the basis names terminology, which is to say
+// whether terms or voice profile rules govern the locale.
+func (b ComplianceBasis) GovernsTerms() bool {
+	return b == ComplianceBasisChecksTerms || b == ComplianceBasisVoiceTerms
 }
 
 // TermCompliance is one target's terminology verdict, as a review surface

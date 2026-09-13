@@ -11,7 +11,7 @@ import {
 import type { LocaleTranslationStats } from "../types/api";
 import { AlertTriangle, ArrowRight, Clock, Plug } from "./icons";
 
-import { ShipStateBadge } from "./ShipStateBadge";
+import { ShipStateBadge, termsNotGoverned } from "./ShipStateBadge";
 
 /**
  * DeliveryPanel is the read-only "what can I ship, and where did it go" card:
@@ -90,6 +90,8 @@ export function DeliveryPanel({
                     staleAwaitingDraft={ls.stale_awaiting_draft_blocks}
                     staleAwaitingReview={ls.stale_awaiting_review_blocks}
                     rejectedAwaitingDraft={ls.rejected_awaiting_draft_blocks}
+                    termsNotCheckedBlocks={ls.terms_not_checked_blocks}
+                    termsNotGoverned={termsNotGoverned(ls)}
                   />
                 ) : (
                   <span className="text-muted-foreground text-xs">{pct}%</span>

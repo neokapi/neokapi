@@ -30,7 +30,8 @@ export interface LivesPaneProps {
 
 const SHIP_TONE: Record<string, string> = {
   governed: "border-emerald-500/40 text-emerald-700 dark:text-emerald-500",
-  "ai-shippable": "border-sky-500/40 text-sky-700 dark:text-sky-400",
+  approved: "border-emerald-500/30 text-emerald-700 dark:text-emerald-500",
+  ai_shippable: "border-sky-500/40 text-sky-700 dark:text-sky-400",
   pending: "border-amber-500/40 text-amber-700 dark:text-amber-500",
 };
 

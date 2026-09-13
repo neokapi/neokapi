@@ -11,6 +11,8 @@ export interface ReviewInboxProject {
   pending: number;
   /** Governed (human-approved) project-locales. */
   governed: number;
+  /** Fully approved project-locales that terminology does not govern. */
+  approved: number;
   /** AI-shippable (machine-reviewed only) project-locales. */
   aiShippable: number;
 }
@@ -146,6 +148,11 @@ export function ReviewInbox({
                         <span className="inline-flex items-center gap-1">
                           <ShieldCheck className="h-3 w-3 text-success" /> {p.governed} governed
                         </span>
+                        {p.approved > 0 && (
+                          <span className="inline-flex items-center gap-1">
+                            <CircleCheck className="h-3 w-3 text-success" /> {p.approved} approved
+                          </span>
+                        )}
                         <span className="inline-flex items-center gap-1">
                           <Sparkles className="h-3 w-3 text-info" /> {p.aiShippable} AI-shippable
                         </span>

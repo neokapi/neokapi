@@ -12,7 +12,7 @@ import { Globe, FileText, Languages, BarChart3 } from "./icons";
 
 import { LocaleCompletionChart } from "./LocaleCompletionChart";
 import { ComplianceRateChip } from "./ComplianceRateChip";
-import { ShipStateBadge } from "./ShipStateBadge";
+import { ShipStateBadge, termsNotGoverned } from "./ShipStateBadge";
 import { WordCountChart } from "./WordCountChart";
 import { CollectionOverview, type CollectionScope } from "./collections/CollectionOverview";
 
@@ -101,6 +101,8 @@ function ShipReadinessCard({ localeStats }: { localeStats: LocaleTranslationStat
                     staleAwaitingDraft={l.stale_awaiting_draft_blocks}
                     staleAwaitingReview={l.stale_awaiting_review_blocks}
                     rejectedAwaitingDraft={l.rejected_awaiting_draft_blocks}
+                    termsNotCheckedBlocks={l.terms_not_checked_blocks}
+                    termsNotGoverned={termsNotGoverned(l)}
                   />
                 )}
               </span>

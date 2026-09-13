@@ -223,7 +223,9 @@ func (o StatusOutput) writeCoverageGrid(w io.Writer) {
 // assumption invisible. It is counted, named, and it clears itself — the next
 // decision on the unit records a basis.
 func (o StatusOutput) writeBasisLines(w io.Writer) {
-	stale, unknown, failing := 0, 0, 0
+	stale, unknown, failing, termsNotChecked := 0, 0, 0, 0
+	var ungoverned []string
+	seenUngoverned := map[string]bool{}
 	awaitingDraft, awaitingReview, rejected := 0, 0, 0
 	for _, lc := range o.Locales {
 		stale += lc.Stale
@@ -232,6 +234,13 @@ func (o StatusOutput) writeBasisLines(w io.Writer) {
 		awaitingDraft += lc.StaleAwaitingDraft
 		awaitingReview += lc.StaleAwaitingReview
 		rejected += lc.RejectedAwaitingDraft
+		termsNotChecked += lc.TermsNotChecked
+		for _, d := range lc.NotGoverned {
+			if d == "terms" && !seenUngoverned[lc.Locale] {
+				seenUngoverned[lc.Locale] = true
+				ungoverned = append(ungoverned, lc.Locale)
+			}
+		}
 	}
 	if stale > 0 {
 		fmt.Fprintf(w, "\n%d unit(s) stale: the source changed since the translation was decided. "+
@@ -260,6 +269,14 @@ func (o StatusOutput) writeBasisLines(w io.Writer) {
 	if failing > 0 {
 		fmt.Fprintf(w, "\n%d unit(s) fail the project's bound checks. They do not ship until the "+
 			"findings are fixed. `kapi check --ship` lists them.\n", failing)
+	}
+	if termsNotChecked > 0 {
+		fmt.Fprintf(w, "\n%d unit(s) have no terminology result: the project's terms govern their language, "+
+			"but their targets could not be read to check. They do not ship.\n", termsNotChecked)
+	}
+	if len(ungoverned) > 0 {
+		fmt.Fprintf(w, "\nNo terms govern %s: no concept in the project's terms has a term for it, "+
+			"so terminology is not a bar there.\n", strings.Join(ungoverned, ", "))
 	}
 	if unknown > 0 {
 		fmt.Fprintf(w, "\n%d unit(s) hold a decision recorded before its source basis; they count as current "+
@@ -533,6 +550,11 @@ func shipCell(lc LocaleCoverage, s *output.Styles) string {
 	if lc.FailingChecks > 0 {
 		return s.Warn.Render("blocked: checks")
 	}
+	// A unit the project's terms govern with no terminology result is read the
+	// same way: a check that did not run is not one that passed.
+	if lc.TermsNotChecked > 0 {
+		return s.Warn.Render("blocked: terms not checked")
+	}
 	if !lc.Gated {
 		return s.Dim("—")
 	}
@@ -734,6 +756,6 @@ func AddStatusFlags(cmd Command) {
 	cmd.Flags().Bool("review", false, "list the units awaiting review in every language, the source language among them, instead of the coverage grid; approve a translated unit with `kapi apply` (kind:\"review\")")
 	cmd.Flags().StringSlice("lang", nil, "with --review, list only these languages (repeatable, or comma-separated); the source language is one of them")
 	cmd.Flags().Bool("json", false, "output the structured result as JSON")
-	cmd.Flags().Bool("ship", false, "emit the minimal ship.json picker manifest (locale → {shippable, verified}) instead of the coverage grid; a language picker reads it to offer only shippable locales and to badge the unverified ones as AI-translated")
+	cmd.Flags().Bool("ship", false, "emit the minimal ship.json picker manifest (locale → {shippable, verified, not_governed}) instead of the coverage grid; a language picker reads it to offer only shippable locales and to badge the unverified ones as AI-translated")
 	cmd.Flags().String("emit", "", "with --ship, write the manifest to this path (e.g. ship.json) instead of stdout")
 }
