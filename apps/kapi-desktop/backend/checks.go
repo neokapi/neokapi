@@ -174,6 +174,10 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 			Findings: findings, Reason: canary.Reason, Canary: &canary,
 		})
 	}
+	// The declared files no installed reader opens, such as a collection in a
+	// format a plugin supplies. The run checks the rest and names these in its
+	// result, as `kapi check` does.
+	unread := host.NewUnreadSet()
 
 	runErr := capp.WithDocumentCache(root, func() error {
 		for _, rf := range resolved {
@@ -196,6 +200,9 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 			}
 
 			sourceBlocks, rerr := capp.ReadBlocksForCheck(ctx, rf.Path, rf.Format, fmtCfg, sourceLang)
+			if unread.Skip(rerr, rf.Relative, rf.Format) {
+				continue
+			}
 			if rerr != nil {
 				return fmt.Errorf("read check source %s: %w", rf.Relative, rerr)
 			}
@@ -359,16 +366,18 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 	}
 
 	score := check.CalculateScore(allFindings).Overall
-	result := checkRunVerdict(allFindings, blocksChecked, analyzers, score, files)
-	result.Warnings = check.MergeWarnings(warnings)
+	result := checkRunVerdict(allFindings, blocksChecked, analyzers, score, files, unread)
+	result.Warnings = check.MergeWarnings(warnings, result.Warnings)
 	return result, nil
 }
 
 // checkRunVerdict decides a checks run the way `kapi check` decides a report:
 // the default gate fails on any critical finding, and check.Report.Decide turns
 // a run over no blocks, or one whose checkers missed or lacked their canaries,
-// into did_not_run.
-func checkRunVerdict(findings []check.Finding, blocks int, analyzers []check.AnalyzerExecution, score int, files []CheckFileResult) *CheckRunResult {
+// into did_not_run. The files unread names become warnings, and a run that read
+// none of the content in its scope did not run because that content went
+// unchecked.
+func checkRunVerdict(findings []check.Finding, blocks int, analyzers []check.AnalyzerExecution, score int, files []CheckFileResult, unread *host.UnreadSet) *CheckRunResult {
 	diags := make([]check.Diagnostic, 0, len(findings))
 	for _, f := range findings {
 		diags = append(diags, check.DiagnosticFrom(f, "", check.Location{}))
@@ -376,6 +385,7 @@ func checkRunVerdict(findings []check.Finding, blocks int, analyzers []check.Ana
 	report := check.BuildReport(check.Target{Kind: "project", Blocks: blocks}, diags, check.DefaultGate())
 	report.Execution = &check.Execution{Analyzers: analyzers}
 	report.Decide()
+	unread.Report(&report)
 	return &CheckRunResult{
 		Pass:           report.Pass,
 		Verdict:        string(report.Verdict),
@@ -383,6 +393,7 @@ func checkRunVerdict(findings []check.Finding, blocks int, analyzers []check.Ana
 		DidNotRunCause: report.DidNotRunCause,
 		Score:          score,
 		Files:          files,
+		Warnings:       report.Warnings,
 	}
 }
 

@@ -541,7 +541,7 @@ func (a *App) ComputeShipCoverage(ctx context.Context, proj *project.KapiProject
 // shipCoverage is ComputeShipCoverage for a check over the project's declared
 // content: a unit whose source no installed reader opens is left out of the
 // tally and recorded in unread. With unread nil such a unit fails the rollup.
-func (a *App) shipCoverage(ctx context.Context, proj *project.KapiProject, root string, units []VerifyUnit, excl *CheckExclusions, unread *unreadSet) ([]LocaleCoverage, error) {
+func (a *App) shipCoverage(ctx context.Context, proj *project.KapiProject, root string, units []VerifyUnit, excl *CheckExclusions, unread *UnreadSet) ([]LocaleCoverage, error) {
 	rs, err := proj.BuildShipGates()
 	if err != nil {
 		return nil, err
@@ -574,7 +574,7 @@ func (a *App) ProjectCoverageTally(ctx context.Context, proj *project.KapiProjec
 // coverageTally is ProjectCoverageTally, skipping and recording in unread each
 // unit whose source no installed reader opens. With unread nil such a unit
 // fails the tally.
-func (a *App) coverageTally(ctx context.Context, proj *project.KapiProject, root string, units []VerifyUnit, excl *CheckExclusions, unread *unreadSet) (*convergence.CoverageTally, error) {
+func (a *App) coverageTally(ctx context.Context, proj *project.KapiProject, root string, units []VerifyUnit, excl *CheckExclusions, unread *UnreadSet) (*convergence.CoverageTally, error) {
 	reviewed, err := a.loadReviewedCorrections(ctx, proj, root)
 	if err != nil {
 		return nil, err

@@ -305,8 +305,8 @@ A collection can name a format that a plugin supplies. The same recipe therefore
 reads on a machine with the plugin installed and fails to read on one without it.
 Every command that works over the project's declared content has to handle
 that: `kapi status`, a bare `kapi check`, `kapi check --ship`, a check scoped to
-a diff, and the source settle inside `kapi up`. Each may find that one
-collection out of twenty cannot be opened.
+a diff, the source settle inside `kapi up`, and the Checks panel in Kapi
+Desktop. Each may find that one collection out of twenty cannot be opened.
 
 They report that collection as unread and check or measure the rest. Aborting
 would make an entire project unreportable because of one optional dependency,
@@ -321,7 +321,8 @@ complete, so the unread files and their formats travel back out of the run:
 - The check commands add a `format.no_reader` warning for each file to the
   `warnings` array of their JSON output, with the file in `source`. A check
   scoped to a diff also lists the file in its scope with the status
-  `no_reader`.
+  `no_reader`. The Checks panel carries the same warnings in its result and
+  shows them beside the verdict.
 - Each command prints a warning on stderr naming the format, the files and the
   plugin to install, and the source settle inside `kapi up` emits an event on
   the convergence stream.
