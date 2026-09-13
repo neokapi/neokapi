@@ -26,6 +26,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -158,6 +159,10 @@ var ErrUnknownSubject = errors.New("occurrence: no such term or concept")
 // matches: this reports every term that covers a passage, because it is read as
 // a fact about the text, while the gate keeps only the longest declared one,
 // because it is read as an instruction about what to write.
+//
+// A term is found under its text and under each form it declares, so the
+// Norwegian plural "varsler" is a use of a term "varsel" that lists it, and a
+// subject typed as a form resolves to its term.
 func Find(ctx context.Context, src Sources, q Query) (*Result, error) {
 	if src.Terms == nil {
 		return nil, errors.New("occurrence: no terms store")
@@ -185,14 +190,15 @@ func Find(ctx context.Context, src Sources, q Query) (*Result, error) {
 
 	blocks := map[string]bool{}
 	for _, t := range targets {
-		hits, err := blockstore.SearchText(ctx, src.Blocks, t.text, blockstore.TextSearchOptions{
+		surfaces := terms.Term{Text: t.text, Forms: t.forms}.Surfaces()
+		hits, err := searchSurfaces(ctx, src.Blocks, surfaces, blockstore.TextSearchOptions{
 			Collection: q.Collection,
 			Locales:    q.Locales,
 		})
 		if err != nil {
-			return nil, fmt.Errorf("occurrence: search blocks for %q: %w", t.text, err)
+			return nil, err
 		}
-		matcher := newMatcher(t.text)
+		matcher := newMatcher(surfaces...)
 		for _, h := range hits {
 			for _, span := range matcher.find(h.Text) {
 				res.Occurrences = append(res.Occurrences, Occurrence{
@@ -224,11 +230,37 @@ func Find(ctx context.Context, src Sources, q Query) (*Result, error) {
 	return res, nil
 }
 
-// target is one term to look for, and the concept it speaks for.
+// target is one term to look for, the forms it is also found under, and the
+// concept it speaks for.
 type target struct {
 	conceptID string
 	text      string
+	forms     []string
 	locale    string
+}
+
+// searchSurfaces returns the block texts that contain any of a term's
+// surfaces, once each. The store's text search matches one needle, and a form
+// that changes the word ("varsler" for "varsel") does not contain the term's
+// own text, so each surface is searched and the hits merged by block and locale.
+func searchSurfaces(ctx context.Context, store blockstore.Store, surfaces []string, opts blockstore.TextSearchOptions) ([]blockstore.TextHit, error) {
+	seen := map[string]bool{}
+	var out []blockstore.TextHit
+	for _, surface := range surfaces {
+		hits, err := blockstore.SearchText(ctx, store, surface, opts)
+		if err != nil {
+			return nil, fmt.Errorf("occurrence: search blocks for %q: %w", surface, err)
+		}
+		for _, h := range hits {
+			key := h.Hash + "\x00" + h.Locale
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+			out = append(out, h)
+		}
+	}
+	return out, nil
 }
 
 // resolveSubject turns the argument into the terms to search for. A concept id
@@ -252,10 +284,10 @@ func resolveSubject(ctx context.Context, tb terms.Terminology, subject string) (
 	var ids []string
 	for _, c := range concepts {
 		for _, t := range c.Terms {
-			if terms.NormalizeTerm(t.Text) != want {
+			if !spells(t, want) {
 				continue
 			}
-			out = append(out, target{conceptID: c.ID, text: t.Text, locale: string(t.Locale)})
+			out = append(out, target{conceptID: c.ID, text: t.Text, forms: t.Forms, locale: string(t.Locale)})
 			if !seenConcept[c.ID] {
 				seenConcept[c.ID] = true
 				ids = append(ids, c.ID)
@@ -269,26 +301,39 @@ func resolveSubject(ctx context.Context, tb terms.Terminology, subject string) (
 func termsOf(c terms.Concept) []target {
 	out := make([]target, 0, len(c.Terms))
 	for _, t := range c.Terms {
-		out = append(out, target{conceptID: c.ID, text: t.Text, locale: string(t.Locale)})
+		out = append(out, target{conceptID: c.ID, text: t.Text, forms: t.Forms, locale: string(t.Locale)})
 	}
 	return dedupeTargets(out)
 }
 
+// spells reports whether a normalized subject is the term's text or one of
+// its declared forms.
+func spells(t terms.Term, want string) bool {
+	for _, s := range t.Surfaces() {
+		if terms.NormalizeTerm(s) == want {
+			return true
+		}
+	}
+	return false
+}
+
 // dedupeTargets drops terms that would search for the same text on behalf of
 // the same concept — a concept holding the same wording in two languages
-// searches once, and reports the first locale.
+// searches once, reports the first locale, and is found under the forms of
+// both.
 func dedupeTargets(in []target) []target {
-	seen := map[string]bool{}
-	out := in[:0]
+	kept := map[string]int{}
+	var out []target
 	for _, t := range in {
 		if strings.TrimSpace(t.text) == "" {
 			continue
 		}
 		key := t.conceptID + "\x00" + terms.NormalizeTerm(t.text)
-		if seen[key] {
+		if i, ok := kept[key]; ok {
+			out[i].forms = terms.NormalizeForms(out[i].text, append(slices.Clone(out[i].forms), t.forms...))
 			continue
 		}
-		seen[key] = true
+		kept[key] = len(out)
 		out = append(out, t)
 	}
 	return out

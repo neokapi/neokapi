@@ -384,7 +384,9 @@ found in the source text and its counterpart in the translated text.
 
 Matching folds case, spans any whitespace between a term's words, and requires a
 word boundary, so "AI" is not a use of "again". Scripts written without word
-separators are matched without that rule.
+separators are matched without that rule. A term is also found under each form it
+declares, so a term "varsel" that lists "varsler" finds the plural, and a form
+typed as the argument finds its term.
 
 The project must have been extracted: occurrences are read from the block cache
 inside the project store, which ` + "`kapi up`" + ` and ` + "`kapi extract`" + ` fill.`,
