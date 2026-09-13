@@ -173,6 +173,38 @@ const HookPass: React.FC = () => (
   </div>
 );
 
+/** The clause of a hook notice that says why, without the hook's name or its fail-open boilerplate. */
+function noticeReason(message: string): string {
+  const reason = message.replace(/^kapi hook [a-z-]+:\s*/, "").split(/\.\s+Allowing\b/)[0];
+  return reason.length > 180 ? `${reason.slice(0, 179)}…` : reason;
+}
+
+// The Stop hook let Claude finish because the gates did not run. It reached no
+// verdict, so the card reads as neither a block nor a pass. A broken checker
+// leaves every result in doubt and is drawn apart from a run with nothing to check.
+const HookDidNotRun: React.FC<{ ev: Extract<TimelineEvent, { kind: "hook_did_not_run" }> }> = ({ ev }) => {
+  const untrusted = ev.cause === "checker_invalid";
+  const color = untrusted ? theme.amber : theme.termDim;
+  const title = untrusted
+    ? "⚠ kapi check --ship — checker broken, result untrusted (Stop hook)"
+    : "○ kapi check --ship — did not run (Stop hook)";
+  return (
+    <div
+      style={{
+        border: `1px ${untrusted ? "solid" : "dashed"} ${color}`,
+        borderRadius: 8,
+        padding: "10px 16px",
+        background: untrusted ? "rgba(255,212,121,0.08)" : "transparent",
+      }}
+    >
+      <div style={mono({ color, fontWeight: 700 })}>{title}</div>
+      <div style={mono({ color: theme.termText, fontSize: FS - 3, whiteSpace: "pre-wrap", marginTop: 3 })}>
+        {noticeReason(ev.message)}
+      </div>
+    </div>
+  );
+};
+
 function renderBlock(ev: TimelineEvent, typed?: string, highlight?: string[]): React.ReactNode {
   switch (ev.kind) {
     case "prompt":
@@ -197,6 +229,8 @@ function renderBlock(ev: TimelineEvent, typed?: string, highlight?: string[]): R
       return <HookBlock ev={ev} />;
     case "hook_pass":
       return <HookPass />;
+    case "hook_did_not_run":
+      return <HookDidNotRun ev={ev} />;
   }
 }
 

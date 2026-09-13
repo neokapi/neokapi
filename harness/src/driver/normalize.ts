@@ -146,26 +146,49 @@ interface StreamEvent {
   stdout?: string;
 }
 
+/** The did-not-run causes a kapi check reports (core/check), named in the hook's notice. */
+const DID_NOT_RUN_CAUSES = ["checker_invalid", "nothing_to_check", "content_not_checked"];
+
+type HookResponse =
+  | { kind: "block"; reason: string; findings: string[] }
+  | { kind: "did_not_run"; cause?: string; message: string }
+  | { kind: "pass" };
+
 /**
- * Parse a Stop-hook response's stdout. `{"decision":"block","reason":…}` → a block
- * with the findings (the "ERROR/WARNING [gate] …" lines pulled out of the reason);
- * empty output → an allow (the gates passed). Anything else → null (ignore).
+ * Parse a Stop-hook response's stdout.
+ *
+ * - `{"decision":"block","reason":…}` is a block, with the findings (the
+ *   "ERROR/WARNING [gate] …" lines) pulled out of the reason.
+ * - `{"systemMessage":…}` with no decision is the notice a kapi hook writes when
+ *   its gates did not run: it lets Claude stop and names why. The cause is the
+ *   did-not-run cause the message carries in parentheses, when it names one.
+ * - Empty output, or JSON with neither, is a pass.
+ *
+ * Output that is not JSON returns null (ignore).
  */
-function parseHookResponse(raw?: string): { block: boolean; reason: string; findings: string[] } | null {
+export function parseHookResponse(raw?: string): HookResponse | null {
   const text = (raw ?? "").trim();
-  if (!text) return { block: false, reason: "", findings: [] };
+  if (!text) return { kind: "pass" };
+  let o: { decision?: string; reason?: string; systemMessage?: string };
   try {
-    const o = JSON.parse(text) as { decision?: string; reason?: string };
-    if (o.decision !== "block") return { block: false, reason: "", findings: [] };
+    o = JSON.parse(text);
+  } catch {
+    return null;
+  }
+  if (o.decision === "block") {
     const reason = String(o.reason ?? "");
     const findings = reason
       .split("\n")
       .map((l) => l.trim())
       .filter((l) => /^(ERROR|WARNING)\b/i.test(l));
-    return { block: true, reason, findings };
-  } catch {
-    return null;
+    return { kind: "block", reason, findings };
   }
+  if (typeof o.systemMessage === "string" && o.systemMessage.trim()) {
+    const message = o.systemMessage.trim();
+    const cause = DID_NOT_RUN_CAUSES.find((c) => message.includes(`(${c})`));
+    return { kind: "did_not_run", cause, message };
+  }
+  return { kind: "pass" };
 }
 
 /** Convert a captured stream-json (.jsonl) into the renderer's DemoCapture timeline. */
@@ -197,9 +220,10 @@ export function normalizeTranscript(jsonlPath: string, m: DemoManifest): DemoCap
 
   push({ kind: "prompt", text: m.prompt ?? "" });
 
-  // Track Stop-hook state so we emit one block per distinct verdict and a single
-  // pass once the gates clear after a block (the "fixed it" beat).
-  let lastBlockReason = "";
+  // Track Stop-hook state so we emit one card per distinct response and a single
+  // pass once the gates clear after a block (the "fixed it" beat). A notice that
+  // the gates did not run leaves an earlier block unresolved.
+  let lastHookCard = "";
   let sawBlock = false;
 
   for (const ev of stream) {
@@ -210,17 +234,32 @@ export function normalizeTranscript(jsonlPath: string, m: DemoManifest): DemoCap
     if (ev.type === "system" && ev.subtype === "hook_response" && ev.hook_name === "Stop") {
       const hr = parseHookResponse(ev.output ?? ev.stdout);
       if (!hr) continue;
-      if (hr.block) {
-        if (hr.reason !== lastBlockReason) {
-          push({ kind: "hook_block", reason: hr.reason, findings: hr.findings });
-          lastBlockReason = hr.reason;
+      switch (hr.kind) {
+        case "block": {
+          const card = `block\n${hr.reason}`;
+          if (card !== lastHookCard) {
+            push({ kind: "hook_block", reason: hr.reason, findings: hr.findings });
+            lastHookCard = card;
+          }
           sawBlock = true;
+          break;
         }
-      } else if (sawBlock) {
-        // Gates passed after a block — the resolution. Emit once.
-        push({ kind: "hook_pass" });
-        sawBlock = false;
-        lastBlockReason = "";
+        case "did_not_run": {
+          const card = `did_not_run\n${hr.message}`;
+          if (card !== lastHookCard) {
+            push({ kind: "hook_did_not_run", cause: hr.cause, message: hr.message });
+            lastHookCard = card;
+          }
+          break;
+        }
+        case "pass":
+          if (sawBlock) {
+            // Gates passed after a block — the resolution. Emit once.
+            push({ kind: "hook_pass" });
+            sawBlock = false;
+            lastHookCard = "";
+          }
+          break;
       }
       continue;
     }
