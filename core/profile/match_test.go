@@ -1,13 +1,30 @@
 package profile
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func profileWith(forbidden, competitor []TermRule) *VoiceProfile {
 	return &VoiceProfile{Vocabulary: VocabularyRules{ForbiddenTerms: forbidden, CompetitorTerms: competitor}}
+}
+
+// A placeholder's name is not a use of a term, and a hit beside one still
+// indexes the caller's text.
+func TestMatchTermRules_PlaceholderNamesAreNotHits(t *testing.T) {
+	sets := VocabularyRuleSets(profileWith([]TermRule{{Term: "vessel", Replacement: "ship"}}, nil))
+
+	assert.Empty(t, MatchTermRules(sets, "{vessel} is alongside until {until}."))
+
+	text := "The {vessel} name and the vessel itself"
+	hits := MatchTermRules(sets, text)
+	require.Len(t, hits, 1)
+	assert.Equal(t, strings.LastIndex(text, "vessel"), hits[0].Start)
+	assert.Equal(t, "vessel", text[hits[0].Start:hits[0].End])
 }
 
 func TestMatchVocabulary(t *testing.T) {

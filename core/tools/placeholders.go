@@ -10,19 +10,6 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 )
 
-// placeholderToken matches the common interpolation/placeholder styles seen in
-// multilingual content, longest/most-specific forms first so "{{x}}" wins over
-// "{x}". Covered: {{name}}, ${name}, %(name)s (Python), %1$s (positional),
-// %s/%d/%@ (printf/ObjC), {name}/{0} (ICU/.NET), <0>…</0> (numbered tags).
-var placeholderToken = regexp.MustCompile(
-	`\{\{[^{}]+\}\}|\$\{[^{}]+\}|%\([^)]+\)[a-zA-Z]|%\d+\$[a-zA-Z]|%[sdifeEgGxXobpqv@%]|\{[^{}]+\}|</?[0-9]+>`)
-
-// nonBracePlaceholderToken is placeholderToken without the brace forms: the
-// styles that can sit inside an ICU message as ordinary text, where the ICU
-// parse steps over them.
-var nonBracePlaceholderToken = regexp.MustCompile(
-	`%\([^)]+\)[a-zA-Z]|%\d+\$[a-zA-Z]|%[sdifeEgGxXobpqv@%]|</?[0-9]+>`)
-
 // placeholderDelta is one placeholder whose presence differs between a source
 // string and its translation.
 //
@@ -106,8 +93,8 @@ func compareICUPlaceholders(src, tgt icu.Tokens, source, target string, flagExtr
 	// Placeholders from other interpolation styles are text as far as ICU is
 	// concerned, and a sub-message may hold one. They are compared by presence
 	// for the same reason the inner tokens are.
-	srcOther := countMatches(nonBracePlaceholderToken, source)
-	tgtOther := countMatches(nonBracePlaceholderToken, target)
+	srcOther := countMatches(check.NonBracePlaceholderToken, source)
+	tgtOther := countMatches(check.NonBracePlaceholderToken, target)
 	for _, tok := range sortedKeys(srcOther) {
 		if tgtOther[tok] == 0 {
 			missing = append(missing, placeholderDelta{Token: tok})
@@ -136,8 +123,8 @@ func compareICUPlaceholders(src, tgt icu.Tokens, source, target string, flagExtr
 }
 
 func compareLiteralPlaceholders(source, target string, flagExtra bool) (missing, extra []placeholderDelta) {
-	srcCounts := countMatches(placeholderToken, source)
-	tgtCounts := countMatches(placeholderToken, target)
+	srcCounts := countMatches(check.PlaceholderToken, source)
+	tgtCounts := countMatches(check.PlaceholderToken, target)
 	for _, tok := range sortedKeys(srcCounts) {
 		if tgtCounts[tok] < srcCounts[tok] {
 			missing = append(missing, placeholderDelta{

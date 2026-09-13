@@ -26,6 +26,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/profile"
@@ -194,8 +195,12 @@ func storeOccurrences(ctx context.Context, req LocateRequest) ([]Occurrence, err
 	}
 	seen := map[hit]bool{}
 	var out []Occurrence
+	// The store is asked about the text as terms are matched (check.TermText),
+	// so a placeholder's name is not an occurrence. Positions are unchanged by
+	// the projection and still index req.Text.
+	text := check.TermText(req.Text)
 	for _, loc := range LookupLocales(req.Locale) {
-		found, err := req.Store.LookupAll(ctx, req.Text, LookupOptions{
+		found, err := req.Store.LookupAll(ctx, text, LookupOptions{
 			SourceLocale: loc,
 			Domains:      req.Domains,
 			MinScore:     req.MinScore,

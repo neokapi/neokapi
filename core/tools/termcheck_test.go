@@ -51,6 +51,61 @@ func TestTermCheckToolFail(t *testing.T) {
 	assert.Contains(t, resultBlock.Properties[tools.PropTermCheckErrors], "Sauvegarder")
 }
 
+// A placeholder's name is program syntax. The compass catalog's own string
+// must not fire a vessel rule, and a name in the target must not satisfy one,
+// while a real use in the text and the text of a plural branch still count.
+func TestTermCheckTool_PlaceholderNamesAreNotTerms(t *testing.T) {
+	t.Parallel()
+	rules := []coreprofile.TermRule{
+		{Term: "vessel", Replacement: "fartøy"},
+		{Term: "berth", Replacement: "kaiplass"},
+	}
+	tests := []struct {
+		name       string
+		source     string
+		target     string
+		wantPassed string
+	}{
+		{
+			name:       "argument names do not fire a rule",
+			source:     "{vessel} is alongside until {until}.",
+			target:     "{vessel} ligger til kai til {until}.",
+			wantPassed: "true",
+		},
+		{
+			name:       "a use in the text fires",
+			source:     "No vessel is alongside.",
+			target:     "Ingen skip ligger til kai.",
+			wantPassed: "false",
+		},
+		{
+			name:       "the text of a plural branch fires",
+			source:     "{count, plural, one {# berth} other {# berths}} at this terminal.",
+			target:     "{count, plural, one {# plass} other {# plasser}} på denne terminalen.",
+			wantPassed: "false",
+		},
+		{
+			name:       "an argument name does not satisfy a rule",
+			source:     "No vessel is alongside.",
+			target:     "Ingen {fartøy} ligger til kai.",
+			wantPassed: "false",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			tl := tools.NewTermCheckTool(&tools.TermCheckConfig{TermRules: rules, TargetLocale: "nb"})
+			block := model.NewBlock("tu1", tt.source)
+			block.SetTargetText("nb", tt.target)
+			result := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: block})
+
+			got := result.Resource.(*model.Block)
+			assert.Equal(t, tt.wantPassed, got.Properties[tools.PropTermCheckPassed],
+				"errors: %s", got.Properties[tools.PropTermCheckErrors])
+		})
+	}
+}
+
 func TestTermCheckToolCaseInsensitive(t *testing.T) {
 	t.Parallel()
 	cfg := &tools.TermCheckConfig{

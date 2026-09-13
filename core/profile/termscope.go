@@ -4,6 +4,7 @@ import (
 	"maps"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/edit"
 )
 
@@ -68,12 +69,14 @@ func ScopedTermRuleMap(rules []TermRule, texts ...string) map[string]string {
 	return TermRuleMap(ScopeTermRules(rules, texts...))
 }
 
-// wordSet is every word in the texts, in the classifier's comparable form, so
-// this agrees with edit.ContainsWords about what a word is.
+// wordSet is every word in the texts as term matching reads them
+// (check.TermText, so a placeholder's name is not a word here), in the
+// classifier's comparable form, so this agrees with edit.ContainsWords about
+// what a word is.
 func wordSet(texts []string) map[string]struct{} {
 	out := map[string]struct{}{}
 	for _, t := range texts {
-		for w := range edit.Words(t) {
+		for w := range edit.Words(check.TermText(t)) {
 			out[w] = struct{}{}
 		}
 	}
