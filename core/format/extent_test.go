@@ -1,6 +1,10 @@
 package format
 
 import (
+	"fmt"
+	"maps"
+	"math/rand/v2"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -234,6 +238,278 @@ func indexOfOriginalBefore(entries []SkeletonEntry, target SkeletonEntry) int {
 		}
 	}
 	return last
+}
+
+// confinedSpan reduces a confined block to what a test asserts: the bytes its
+// region covers and the lines any of its spans can cover.
+type confinedSpan struct {
+	Block  string
+	Region string
+	Lines  LineRange
+}
+
+func confinedSpans(src string, cs []Confined) []confinedSpan {
+	out := make([]confinedSpan, 0, len(cs))
+	for _, c := range cs {
+		out = append(out, confinedSpan{Block: c.Region.Block, Region: src[c.Region.Start:c.Region.End], Lines: c.Region.Lines})
+	}
+	return out
+}
+
+func TestLocateSkeleton_ConfinesOnlyWhatItCannotPlace(t *testing.T) {
+	tests := []struct {
+		name     string
+		src      string
+		entries  []SkeletonEntry
+		exact    []span
+		confined []confinedSpan
+		reason   string
+	}{
+		{
+			// The "\n" after the code can end its first or its second line
+			// break, which leaves the code and the text after it open. The text
+			// before the code sits in one place, so the first block does not.
+			name:     "text that could sit in two places",
+			src:      "Text\n\n    code\n\nMore\n",
+			entries:  []SkeletonEntry{ref("1"), text("\n\n    "), ref("2"), text("\n"), ref("3"), text("\n")},
+			exact:    []span{{Block: "1", Bytes: "Text", Lines: LineRange{1, 1}}},
+			confined: []confinedSpan{{Block: "2", Region: "code\n", Lines: LineRange{3, 3}}, {Block: "3", Region: "\nMore", Lines: LineRange{4, 5}}},
+			reason:   "ambiguous",
+		},
+		{
+			name:     "two refs with nothing between them",
+			src:      "k=ab;x=y",
+			entries:  []SkeletonEntry{text("k="), ref("a"), ref("b"), text(";x="), ref("c")},
+			exact:    []span{{Block: "c", Bytes: "y", Lines: LineRange{1, 1}}},
+			confined: []confinedSpan{{Block: "a", Region: "ab", Lines: LineRange{1, 1}}, {Block: "b", Region: "ab", Lines: LineRange{1, 1}}},
+			reason:   "adjacent",
+		},
+		{
+			name:     "refs that share a gap of no bytes are all empty",
+			src:      "k=;x=y",
+			entries:  []SkeletonEntry{text("k="), ref("a"), ref("b"), text(";x="), ref("c")},
+			exact:    []span{{Block: "a", Bytes: "", Lines: LineRange{1, 1}}, {Block: "b", Bytes: "", Lines: LineRange{1, 1}}, {Block: "c", Bytes: "y", Lines: LineRange{1, 1}}},
+			confined: []confinedSpan{},
+		},
+		{
+			name:    "original bytes inside text that could sit in two places",
+			src:     "aXbXc",
+			entries: []SkeletonEntry{ref("1"), original("X", "X"), ref("k"), ref("2")},
+			exact:   []span{},
+			confined: []confinedSpan{
+				{Block: "1", Region: "aXb", Lines: LineRange{1, 1}},
+				{Block: "k", Region: "XbX", Lines: LineRange{1, 1}},
+				{Block: "2", Region: "bXc", Lines: LineRange{1, 1}},
+			},
+			reason: "ambiguous",
+		},
+		{
+			// Block 2 is "\n" on line 2, or empty just before "b" on line 3.
+			name:     "an empty span can close a region on the next line",
+			src:      "a\n\nb",
+			entries:  []SkeletonEntry{text("a"), ref("1"), text("\n"), ref("2"), text("b")},
+			exact:    []span{},
+			confined: []confinedSpan{{Block: "1", Region: "\n", Lines: LineRange{1, 1}}, {Block: "2", Region: "\n", Lines: LineRange{2, 3}}},
+			reason:   "ambiguous",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			al, err := LocateSkeleton([]byte(tt.src), tt.entries)
+			require.NoError(t, err)
+			assert.Equal(t, tt.exact, spans(tt.src, al.Extents))
+			assert.Equal(t, tt.confined, confinedSpans(tt.src, al.Confined))
+			for _, c := range al.Confined {
+				assert.Contains(t, c.Reason, tt.reason)
+			}
+			// The strict form refuses exactly the skeletons that confine a block.
+			xs, err := AlignSkeleton([]byte(tt.src), tt.entries)
+			if len(tt.confined) > 0 {
+				require.ErrorIs(t, err, ErrExtentsUnavailable)
+				assert.Contains(t, err.Error(), tt.reason)
+				assert.Nil(t, xs)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tt.exact, spans(tt.src, xs))
+			}
+		})
+	}
+}
+
+// TestLocateSkeleton_AgreesWithEveryAlignment holds LocateSkeleton to the
+// alignments themselves. For generated sources and skeletons, some corrupted so
+// that they no longer fit, it lists every assignment of spans to refs that
+// rebuilds the source, by brute force and without the pattern alignment uses,
+// and asserts:
+//
+//   - LocateSkeleton fails exactly when there is no such assignment;
+//   - a block it places exactly has that span in every assignment;
+//   - a block it confines has its span inside the region, and its lines inside
+//     the region's lines, in every assignment;
+//   - a block it confines has at least two different spans across the
+//     assignments, so it never confines a block the skeleton does place.
+func TestLocateSkeleton_AgreesWithEveryAlignment(t *testing.T) {
+	r := rand.New(rand.NewPCG(2679, 1))
+	const alphabet = "ab\n"
+	var exact, confined, refused int
+	for range 6000 {
+		b := make([]byte, r.IntN(9))
+		for i := range b {
+			b[i] = alphabet[r.IntN(len(alphabet))]
+		}
+		src := string(b)
+		entries := generateSkeleton(r, src)
+		if r.IntN(3) == 0 {
+			corruptText(r, entries, alphabet)
+		}
+		label := fmt.Sprintf("source %q, skeleton %s", src, describeSkeleton(entries))
+		all := enumerateAlignments(src, entries)
+
+		al, err := LocateSkeleton([]byte(src), entries)
+		if len(all) == 0 {
+			require.ErrorIs(t, err, ErrExtentsUnavailable, label)
+			refused++
+			continue
+		}
+		require.NoError(t, err, label)
+
+		lines := NewLineIndex([]byte(src))
+		placed := map[string]bool{}
+		for _, x := range al.Extents {
+			placed[x.Block] = true
+			for _, a := range all {
+				require.Equal(t, [2]int{x.Start, x.End}, a[x.Block], "%s: block %s is placed exactly", label, x.Block)
+			}
+			require.Equal(t, lines.Range(x.Start, x.End), x.Lines, label)
+			exact++
+		}
+		for _, c := range al.Confined {
+			x := c.Region
+			placed[x.Block] = true
+			spans := map[[2]int]bool{}
+			for _, a := range all {
+				s := a[x.Block]
+				spans[s] = true
+				require.True(t, x.Start <= s[0] && s[1] <= x.End, "%s: block %s span %v lies outside its region [%d,%d)", label, x.Block, s, x.Start, x.End)
+				l := lines.Range(s[0], s[1])
+				require.True(t, x.Lines.First <= l.First && l.Last <= x.Lines.Last, "%s: block %s lines %v lie outside the region's %v", label, x.Block, l, x.Lines)
+			}
+			require.Greater(t, len(spans), 1, "%s: block %s is confined, but every alignment gives it the same span", label, x.Block)
+			confined++
+		}
+		refs := 0
+		for _, e := range entries {
+			if e.Type == SkeletonRef {
+				refs++
+				require.True(t, placed[string(e.Data)], "%s: block %s is neither placed nor confined", label, e.Data)
+			}
+		}
+		require.Equal(t, refs, len(al.Extents)+len(al.Confined), label)
+	}
+	// Each outcome must occur, or the assertions above prove nothing about it.
+	require.Positive(t, exact, "no generated block was placed exactly")
+	require.Positive(t, confined, "no generated block was confined")
+	require.Positive(t, refused, "no generated skeleton was refused")
+}
+
+// generateSkeleton cuts src into segments and turns each into skeleton text, a
+// ref, or original bytes and their ref, with an empty ref slipped in now and
+// then, so the skeleton rebuilds src at least one way.
+func generateSkeleton(r *rand.Rand, src string) []SkeletonEntry {
+	var entries []SkeletonEntry
+	n := 0
+	next := func() SkeletonEntry { n++; return ref(fmt.Sprintf("b%d", n)) }
+	for pos := 0; ; {
+		if r.IntN(6) == 0 {
+			entries = append(entries, next())
+		}
+		if pos == len(src) {
+			return entries
+		}
+		seg := src[pos : pos+1+r.IntN(min(3, len(src)-pos))]
+		switch r.IntN(4) {
+		case 0, 1:
+			entries = append(entries, text(seg))
+		case 2:
+			entries = append(entries, next())
+		default:
+			entries = append(entries, original(seg, seg), next())
+		}
+		pos += len(seg)
+	}
+}
+
+// corruptText changes one byte of one text entry, when there is one.
+func corruptText(r *rand.Rand, entries []SkeletonEntry, alphabet string) {
+	var texts []int
+	for i, e := range entries {
+		if e.Type == SkeletonText {
+			texts = append(texts, i)
+		}
+	}
+	if len(texts) == 0 {
+		return
+	}
+	e := &entries[texts[r.IntN(len(texts))]]
+	data := []byte(string(e.Data))
+	data[r.IntN(len(data))] = alphabet[r.IntN(len(alphabet))]
+	e.Data = data
+}
+
+// enumerateAlignments returns every assignment of a span to each ref that
+// rebuilds src from entries, each as a map from ref id to [start, end).
+func enumerateAlignments(src string, entries []SkeletonEntry) []map[string][2]int {
+	var out []map[string][2]int
+	cur := map[string][2]int{}
+	var walk func(i, pos int)
+	walk = func(i, pos int) {
+		if i == len(entries) {
+			if pos == len(src) {
+				out = append(out, maps.Clone(cur))
+			}
+			return
+		}
+		e := entries[i]
+		switch e.Type {
+		case SkeletonText:
+			if strings.HasPrefix(src[pos:], string(e.Data)) {
+				walk(i+1, pos+len(e.Data))
+			}
+		case SkeletonOriginal:
+			_, orig, _ := DecodeSkeletonPair(e.Data)
+			id := string(entries[i+1].Data)
+			if strings.HasPrefix(src[pos:], string(orig)) {
+				cur[id] = [2]int{pos, pos + len(orig)}
+				walk(i+2, pos+len(orig))
+				delete(cur, id)
+			}
+		case SkeletonRef:
+			id := string(e.Data)
+			for end := pos; end <= len(src); end++ {
+				cur[id] = [2]int{pos, end}
+				walk(i+1, end)
+			}
+			delete(cur, id)
+		}
+	}
+	walk(0, 0)
+	return out
+}
+
+func describeSkeleton(entries []SkeletonEntry) string {
+	parts := make([]string, 0, len(entries))
+	for _, e := range entries {
+		switch e.Type {
+		case SkeletonText:
+			parts = append(parts, fmt.Sprintf("text(%q)", e.Data))
+		case SkeletonRef:
+			parts = append(parts, fmt.Sprintf("ref(%s)", e.Data))
+		case SkeletonOriginal:
+			_, orig, _ := DecodeSkeletonPair(e.Data)
+			parts = append(parts, fmt.Sprintf("original(%q)", orig))
+		}
+	}
+	return strings.Join(parts, " ")
 }
 
 func TestLineIndex(t *testing.T) {

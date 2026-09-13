@@ -57,9 +57,17 @@ var alignmentFloor = map[string]int{
 	"yaml":          20,
 }
 
+// locatedFloor is, for a format with inputs whose skeleton confines some block
+// to a region, the number of inputs that placed every translatable block
+// exactly or confined it when this was measured. It is a floor for the reason
+// alignmentFloor is.
+var locatedFloor = map[string]int{
+	"markdown": 60,
+}
+
 type alignmentTally struct {
-	inputs, unreadable, noSkeleton, aligned, unlocated int
-	unavailable                                        map[string]int
+	inputs, unreadable, noSkeleton, aligned, confined, unlocated int
+	unavailable                                                  map[string]int
 }
 
 // TestSkeletonExtents_InCoreFormats reads every in-core format's spec examples
@@ -67,7 +75,8 @@ type alignmentTally struct {
 // against the bytes it was read from. For every input that aligns it asserts,
 // rather than assumes, that the skeleton with each ref replaced by its extent's
 // bytes rebuilds the source byte for byte, and that corrupting one skeleton
-// byte in the source changes or refuses the alignment.
+// byte in the source changes or refuses the alignment. An input whose skeleton
+// confines some blocks is counted apart, and held to the same corruption test.
 func TestSkeletonExtents_InCoreFormats(t *testing.T) {
 	reg := registry.NewFormatRegistry()
 	formats.RegisterAll(reg)
@@ -90,7 +99,7 @@ func TestSkeletonExtents_InCoreFormats(t *testing.T) {
 			return
 		}
 
-		extents, err := format.AlignSkeleton(input, entries)
+		al, err := format.LocateSkeleton(input, entries)
 		if err != nil {
 			if !errors.Is(err, format.ErrExtentsUnavailable) {
 				t.Errorf("%s: an alignment failure must wrap ErrExtentsUnavailable: %v", label, err)
@@ -98,21 +107,37 @@ func TestSkeletonExtents_InCoreFormats(t *testing.T) {
 			tl.unavailable[unavailableKind(err)]++
 			return
 		}
-		if got := rebuildFromExtents(input, entries, extents); !bytes.Equal(got, input) {
+		located := map[string]bool{}
+		for _, x := range al.Extents {
+			located[x.Block] = true
+		}
+		for _, c := range al.Confined {
+			located[c.Region.Block] = true
+		}
+		everyBlockLocated := true
+		for _, b := range blocks {
+			if b.Translatable && !located[b.ID] {
+				everyBlockLocated = false
+			}
+		}
+
+		if len(al.Confined) > 0 {
+			assertConfinedAlignmentIsSound(t, label, input, entries, al)
+			if everyBlockLocated {
+				tl.confined++
+			} else {
+				tl.unlocated++
+			}
+			return
+		}
+		if got := rebuildFromExtents(input, entries, al.Extents); !bytes.Equal(got, input) {
 			t.Errorf("%s: the skeleton and its extents rebuild %d bytes that differ from the %d-byte source", label, len(got), len(input))
 			return
 		}
-		assertCorruptionIsNoticed(t, label, input, entries, extents)
-
-		located := map[string]bool{}
-		for _, x := range extents {
-			located[x.Block] = true
-		}
-		for _, b := range blocks {
-			if b.Translatable && !located[b.ID] {
-				tl.unlocated++
-				return
-			}
+		assertCorruptionIsNoticed(t, label, input, entries, al.Extents)
+		if !everyBlockLocated {
+			tl.unlocated++
+			return
 		}
 		tl.aligned++
 	}
@@ -173,6 +198,15 @@ func TestSkeletonExtents_InCoreFormats(t *testing.T) {
 			t.Errorf("%s: %d inputs aligned with every translatable block located, below the floor of %d", id, got, floor)
 		}
 	}
+	for id, floor := range locatedFloor {
+		got := 0
+		if tl := tallies[id]; tl != nil {
+			got = tl.aligned + tl.confined
+		}
+		if got < floor {
+			t.Errorf("%s: %d inputs placed or confined every translatable block, below the floor of %d", id, got, floor)
+		}
+	}
 }
 
 // assertCorruptionIsNoticed changes the source byte just after the first extent
@@ -196,6 +230,39 @@ func assertCorruptionIsNoticed(t *testing.T, label string, input []byte, entries
 	corrupt[at] ^= 0x5a
 	again, err := format.AlignSkeleton(corrupt, entries)
 	if err == nil && reflect.DeepEqual(again, extents) {
+		t.Errorf("%s: corrupting byte %d left the alignment unchanged", label, at)
+	}
+}
+
+// assertConfinedAlignmentIsSound checks an alignment that confines some blocks:
+// every extent and every region lies inside the source, and corrupting the
+// byte after the first extent that ends before the end of the source changes or
+// refuses the alignment, as assertCorruptionIsNoticed does for an alignment
+// that places every block.
+func assertConfinedAlignmentIsSound(t *testing.T, label string, input []byte, entries []format.SkeletonEntry, al format.Alignment) {
+	t.Helper()
+	inside := func(x format.Extent) bool { return 0 <= x.Start && x.Start <= x.End && x.End <= len(input) }
+	at := -1
+	for _, x := range al.Extents {
+		if !inside(x) {
+			t.Errorf("%s: block %s's extent [%d,%d) lies outside the %d-byte source", label, x.Block, x.Start, x.End, len(input))
+		}
+		if at < 0 && x.End < len(input) {
+			at = x.End
+		}
+	}
+	for _, c := range al.Confined {
+		if !inside(c.Region) {
+			t.Errorf("%s: block %s's region [%d,%d) lies outside the %d-byte source", label, c.Region.Block, c.Region.Start, c.Region.End, len(input))
+		}
+	}
+	if at < 0 {
+		return
+	}
+	corrupt := bytes.Clone(input)
+	corrupt[at] ^= 0x5a
+	again, err := format.LocateSkeleton(corrupt, entries)
+	if err == nil && reflect.DeepEqual(again, al) {
 		t.Errorf("%s: corrupting byte %d left the alignment unchanged", label, at)
 	}
 }
@@ -297,7 +364,7 @@ func alignmentTable(tallies map[string]*alignmentTally) string {
 	}
 	sort.Strings(ids)
 	var sb strings.Builder
-	fmt.Fprintf(&sb, "\n%-14s %6s %8s %8s %8s %9s  %s\n", "format", "inputs", "aligned", "unlocatd", "no skel", "unreadabl", "extents unavailable")
+	fmt.Fprintf(&sb, "\n%-14s %6s %8s %8s %8s %8s %9s  %s\n", "format", "inputs", "aligned", "confined", "unlocatd", "no skel", "unreadabl", "extents unavailable")
 	for _, id := range ids {
 		tl := tallies[id]
 		kinds := make([]string, 0, len(tl.unavailable))
@@ -305,7 +372,7 @@ func alignmentTable(tallies map[string]*alignmentTally) string {
 			kinds = append(kinds, fmt.Sprintf("%s %d", k, n))
 		}
 		sort.Strings(kinds)
-		fmt.Fprintf(&sb, "%-14s %6d %8d %8d %8d %9d  %s\n", id, tl.inputs, tl.aligned, tl.unlocated, tl.noSkeleton, tl.unreadable, strings.Join(kinds, ", "))
+		fmt.Fprintf(&sb, "%-14s %6d %8d %8d %8d %8d %9d  %s\n", id, tl.inputs, tl.aligned, tl.confined, tl.unlocated, tl.noSkeleton, tl.unreadable, strings.Join(kinds, ", "))
 	}
 	return sb.String()
 }

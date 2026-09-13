@@ -162,9 +162,12 @@ The report's `scope` lists every file the diff names with a status:
 - `no_content`, `no_reader` or `deleted`;
 - `out_of_scope`, for a file a project's recipe does not declare as content, or
   one outside the files named;
-- `did_not_run`, with the reason, for a changed file whose blocks cannot be
-  located: a format that keeps no record of where its content sits, a binary
-  change, or a position the file's structure leaves ambiguous.
+- `did_not_run`, with the reason, for a changed file whose touched content
+  cannot be located: a format that keeps no record of where its content sits, a
+  binary change, or a change on lines where the file's structure leaves a
+  block's position ambiguous. The reason names that block and the lines it could
+  sit on. A change elsewhere in the same file is checked as usual, and the
+  touched blocks kapi can place are checked and listed either way.
 
 A `did_not_run` file leaves the whole check `did_not_run`, and so does a diff
 that touches no content block. Over MCP, `check_file` takes `diff` (unified diff

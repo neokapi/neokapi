@@ -133,10 +133,11 @@ temp-then-rename output.
 
 ## Locating blocks in the source (`core/format/extent.go`)
 
-A diff names lines, and a check reads blocks. `format.AlignSkeleton` connects
-the two. It returns a `format.Extent` for each block a skeleton refers to: the
-half-open byte span of the block's content, and the 1-based, inclusive line
-range that span covers.
+A diff names lines, and a check reads blocks. `format.LocateSkeleton` connects
+the two. It returns a `format.Alignment`, which holds a `format.Extent` for each
+block a skeleton places exactly (the half-open byte span of the block's content,
+and the 1-based, inclusive line range that span covers) and a `format.Confined`
+for each block it can only bound.
 
 The content model has no field for a block's source position. The skeleton
 already holds every byte that is not content, in document order, so the bytes a
@@ -147,13 +148,22 @@ matches that text against the source:
 - A `SkeletonOriginal` entry gives the next ref's source bytes directly.
 - `SkeletonTrimmed` bytes belong to no block.
 
-The result is exact, or an error that wraps `format.ErrExtentsUnavailable`.
-Alignment runs twice: once with each text at its earliest feasible position,
-and once at its latest. When the two passes agree, every span is unique. When
-they differ, two different spans rebuild the same source, and alignment returns
-an error rather than choosing one. It also refuses a skeleton whose bytes do not
-occur in the source, such as a container format's skeleton of an inner part,
-and two refs with no text between them.
+A skeleton whose bytes do not occur in the source, such as a container format's
+skeleton of an inner part, returns an error that wraps
+`format.ErrExtentsUnavailable`. Otherwise alignment runs twice: once with each
+text at its earliest feasible position, and once at its latest. Every alignment
+that rebuilds the source puts each text between those two positions, so a text
+sits in one place exactly when the passes agree on it.
+
+Each block is judged by the texts on its own two sides. When both are fixed and
+no other ref shares the gap between them, the block gets an extent. When either
+text could sit in more than one place, or two refs have no text between them to
+divide their span, more than one span rebuilds the source. Alignment never
+chooses one: the block gets a `format.Confined`, whose `Region` runs from the
+earliest byte the block can start at to the latest it can end at and covers
+every line any of its spans covers, with the reason its span is open. One open
+span leaves every other block in the file placed exactly. `format.AlignSkeleton`
+is the strict form, and returns an error for a skeleton that confines any block.
 
 A caller that needs a position for every block must also confirm that each
 translatable block received an extent. Bilingual readers write refs that name
@@ -164,6 +174,10 @@ text aligns.
 aligns every in-core format's spec examples and testdata. For each input that
 aligns, it rebuilds the source from the skeleton and the extents and asserts the
 bytes match. Its log lists which formats align and why the others do not.
+`TestLocateSkeleton_AgreesWithEveryAlignment` (`core/format/extent_test.go`)
+lists, by brute force, every assignment of spans that rebuilds generated
+sources, and holds each extent to all of them, each region around all of them,
+and each confined block to at least two different spans.
 
 `core/diffscope` supplies the lines. `diffscope.Parse` reads a unified diff into
 the post-image lines each file's change touched, and `diffscope.Touched` returns
@@ -179,7 +193,10 @@ In `kapi check`, `host/check_diff.go` reaches a changed file's blocks through
 `locatorFor`, which returns a `blockLocator` for the file or nil when nothing
 reads it. The format-reader locator aligns the skeleton; another provider of
 blocks and extents plugs in by returning its own locator there, and the same
-locator reads the rebuilt pre-image when a deletion borders a block.
+locator reads the rebuilt pre-image when a deletion borders a block. A change
+whose lines reach a confined block's region leaves the file `did_not_run`, with
+the block and its lines in the reason, and the touched blocks placed exactly are
+checked beside it.
 
 ## Sub-skeleton: translatable spans inside an opaque payload
 
@@ -401,7 +418,7 @@ The writer tries three modes in order:
 | --- | --- |
 | `core/format/skeleton.go` | SkeletonStore type, entry format, interfaces, the wiring seam |
 | `core/format/skeleton_stream.go` | `StreamSkeletonWrite`, the shared streaming writer helper |
-| `core/format/extent.go` | `AlignSkeleton`, `Extent`, `LineRange`: where each block sits in its source |
+| `core/format/extent.go` | `LocateSkeleton`, `AlignSkeleton`, `Extent`, `Confined`, `LineRange`: where each block sits in its source |
 | `core/diffscope/diffscope.go` | Unified diff parsing, and the blocks a diff's lines touch |
 | `core/format/capturereader.go` | `CaptureReader`, the sliding window for `encoding/xml` readers |
 | `core/formats/html/tokenreader.go` | Single-pass tokenizer reader |

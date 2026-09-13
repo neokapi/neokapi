@@ -204,8 +204,40 @@ func TestDiffCheck_Outcomes(t *testing.T) {
 		doc := scopeEntry(t, report, "doc.md")
 		assert.Equal(t, check.ScopeDidNotRun, doc.Status)
 		assert.Contains(t, doc.Reason, "ambiguous")
+		assert.Contains(t, doc.Reason, "somewhere in lines")
+		assert.Empty(t, doc.Blocks)
 		assert.Equal(t, check.ScopeChecked, scopeEntry(t, report, "ok.md").Status)
 		assert.Equal(t, check.VerdictDidNotRun, report.Verdict, "a changed file left unchecked leaves the check unverified")
+	})
+
+	// The first block of the same file sits before the text that could sit in
+	// two places, so the file places it exactly.
+	t.Run("a change away from an ambiguous position is checked", func(t *testing.T) {
+		report, err := run(t, map[string]string{"doc.md": "Text\n\n    indented code\n\nMore text\n"},
+			"--- a/doc.md\n+++ b/doc.md\n@@ -1 +1 @@\n-Txt\n+Text\n")
+		require.NoError(t, err)
+		doc := scopeEntry(t, report, "doc.md")
+		assert.Equal(t, check.ScopeChecked, doc.Status, doc.Reason)
+		require.Len(t, doc.Blocks, 1)
+		assert.Equal(t, format.LineRange{First: 1, Last: 1}, doc.Blocks[0].Lines)
+		assert.Equal(t, check.VerdictPassed, report.Verdict, report.DidNotRun)
+	})
+
+	t.Run("a change on both sides checks what it can place and did not run", func(t *testing.T) {
+		report, err := run(t, map[string]string{"doc.md": "Text\n\n    indented code\n\nMore text\n"},
+			"--- a/doc.md\n+++ b/doc.md\n@@ -1 +1 @@\n-Txt\n+Text\n@@ -5 +5 @@\n-More\n+More text\n")
+		require.NoError(t, err)
+		doc := scopeEntry(t, report, "doc.md")
+		assert.Equal(t, check.ScopeDidNotRun, doc.Status)
+		assert.Contains(t, doc.Reason, "cannot be located exactly")
+		require.Len(t, doc.Blocks, 1, "the block on line 1 is placed exactly, so it is checked")
+		assert.Equal(t, format.LineRange{First: 1, Last: 1}, doc.Blocks[0].Lines)
+		assert.Equal(t, 1, report.Target.Blocks)
+		assert.Equal(t, check.VerdictDidNotRun, report.Verdict)
+
+		var out bytes.Buffer
+		writeScope(&out, report.Scope)
+		assert.Contains(t, out.String(), "doc.md: did not run, 1 block(s) checked (the change touches lines where block")
 	})
 
 	t.Run("a file no format reads", func(t *testing.T) {
