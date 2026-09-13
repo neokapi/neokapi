@@ -952,7 +952,10 @@
         {
           "text": "eksakt treff",
           "locale": "nb",
-          "status": "preferred"
+          "status": "preferred",
+          "forms": [
+            "eksakttreff"
+          ]
         }
       ],
       "created_at": "2026-06-11T06:47:18Z",
@@ -1130,7 +1133,14 @@
         {
           "text": "trekk ut",
           "locale": "nb",
-          "status": "preferred"
+          "status": "preferred",
+          "forms": [
+            "trekkes ut",
+            "trukket ut",
+            "trakk ut",
+            "uttrukket",
+            "uttrukne"
+          ]
         }
       ],
       "created_at": "2026-06-11T06:47:18Z",
@@ -1169,7 +1179,10 @@
         {
           "text": "sladding",
           "locale": "nb",
-          "status": "preferred"
+          "status": "preferred",
+          "forms": [
+            "sladde"
+          ]
         }
       ],
       "created_at": "2026-06-11T06:47:18Z",
