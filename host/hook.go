@@ -59,6 +59,21 @@ type HookNotice struct {
 func hookUnheard(cmd Command, hook, because string) error {
 	msg := fmt.Sprintf("%s: the guard did not run: %s. Allowing, because a kapi hook fails open. "+
 		"Treat the result as unverified: the guard never ran.", hook, because)
+	return hookWarn(cmd, msg)
+}
+
+// hookUntrusted reports that a checker behind hook's guard failed its canary,
+// then allows. The guard ran and its result cannot be trusted, so the notice
+// names the broken checker in place of hookUnheard's "the guard did not run".
+func hookUntrusted(cmd Command, hook, because string) error {
+	msg := fmt.Sprintf("%s: a checker is broken, so this result cannot be trusted (checker_invalid): %s. "+
+		"Allowing, because a kapi hook fails open. Do not report the content as checked until the checker is fixed.", hook, because)
+	return hookWarn(cmd, msg)
+}
+
+// hookWarn writes msg to both of a hook's channels, stderr and the
+// systemMessage on stdout, and returns the stdout write's error.
+func hookWarn(cmd Command, msg string) error {
 	fmt.Fprintln(cmd.ErrOrStderr(), "warning: "+msg)
 	enc := json.NewEncoder(cmd.OutOrStdout())
 	enc.SetEscapeHTML(false)
@@ -148,6 +163,11 @@ func (a *App) RunHookStop(cmd Command) error {
 		return nil // no kapi project here → nothing to gate; Claude may stop
 	case verr != nil:
 		return hookUnheard(cmd, hook, fmt.Sprintf("the gates for %s could not be evaluated: %v", projectPath, verr))
+	case out.Verdict == check.VerdictDidNotRun && out.DidNotRunCause == check.CauseCheckerInvalid:
+		// A checker that missed its canary leaves every gate result in doubt. The
+		// hook still fails open, but its notice names the broken checker, so it
+		// never reads like a project with nothing to check.
+		return hookUntrusted(cmd, hook, fmt.Sprintf("the gates for %s: %s", projectPath, strings.Join(out.DidNotRun, "; ")))
 	case out.Verdict == check.VerdictDidNotRun:
 		// A gate that did not run reached no verdict to enforce, so the hook fails
 		// open and says why, the way it does for a gate it could not evaluate.
