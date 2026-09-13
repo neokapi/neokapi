@@ -61,6 +61,25 @@ which is what a scan matches. The SQL backends keep them as a JSON array in the
 
 Progressive disclosure: CSV import auto-creates Concepts with a single preferred Term per locale, so nothing more is required of a user who wants a word list.
 
+### Declaring and checking forms
+
+`host.ProposeTermForms` selects the terms to expand (every language except the
+source language unless `TermsExpandOptions.Locales` names some, skipping
+do-not-translate concepts and terms that already declare forms), asks the
+provider through `aitools.ExpandTermForms` in batches of 40 per language, and
+drops a form spelled the same as another term in that language.
+`host.ApplyFormsProposals` writes the survivors onto the concepts, and
+`TermsFormsTarget` saves them to the bundle named on the command line, the
+project's committed terms source, or the selected store, in that order.
+
+`terms.ValidateConcepts(concepts, sourceLocale)` returns `Problem`s. Errors are a
+missing or repeated concept id, a term with no text or locale, and an unknown
+status. Warnings are a form spelled the same as another term in its language, and
+a target term with no forms whose language `terms.LanguageInflects`, which is
+false for languages whose nouns keep their written shape (Chinese, Japanese,
+Korean, Vietnamese, Thai, Lao, Khmer, Burmese, Indonesian, Malay) and for
+private-use and undetermined locales.
+
 ## Terminology Interface
 
 ```go

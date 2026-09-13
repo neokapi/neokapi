@@ -394,7 +394,7 @@ The framework ships terminology tools as ordinary pipeline stages:
 ### The command surface
 
 `kapi terms` carries `import`, `export`, `lookup`, `search`, `occurrences`,
-`stats` and `list`. The store selector is **`--termstore`**: `--terms` is already
+`stats`, `expand`, `validate` and `list`. The store selector is **`--termstore`**: `--terms` is already
 taken as the boolean gate on `kapi exec dnt-check`, and the asymmetry with
 `--memory` is guarded by a test. The recipe follows the flag: a profile binds a
 standalone store with `profiles.<name>.termstore`, and `terms` names contents
@@ -402,6 +402,17 @@ standalone store with `profiles.<name>.termstore`, and `terms` names contents
 
 `kapi terms occurrences` reports where a concept is actually used, reading the
 occurrence index in the block cache ([C-03](c-03-context-store-and-graph.md)).
+
+`kapi terms expand` fills in forms at authoring time. It asks a model for the
+forms of each term in the term's own language, one language at a time and in
+batches, and keeps a proposal only when it opens with the term's first three
+characters and is spelled differently from every other term in that language.
+What survives is written onto the terms of the committed bundle, where a
+reviewer reads it in the diff, so the matching that consumes the forms stays
+deterministic and free of model calls. By default it asks about target terms and
+leaves terms that already declare forms alone. `kapi terms validate` reports the
+structural errors a store refuses, and warns about a target term with no forms in
+a language that inflects and about a form spelled the same as another term.
 
 ## Consequences
 

@@ -3317,6 +3317,64 @@
         },
         "terms": {
           "example": "  kapi terms stats\n  kapi terms lookup \"dashboard\" -s en -t fr\n  kapi terms import terms.csv -s en -t fr",
+          "expand": {
+            "example": "  kapi terms expand --dry-run\n  kapi terms expand --locale nb --locale de\n  kapi terms expand .kapi/terms.json --overwrite",
+            "flags": {
+              "api-key": {
+                "usage": "API key for the AI provider"
+              },
+              "color": {
+                "usage": "colorize output: auto, always, never"
+              },
+              "credential": {
+                "usage": "saved credential name (see 'kapi credentials list')"
+              },
+              "dry-run": {
+                "usage": "print what would be added and write nothing"
+              },
+              "file": {
+                "usage": "explicit path to resource file"
+              },
+              "jq": {
+                "usage": "filter JSON output through a jq expression (implies --json)"
+              },
+              "json": {
+                "usage": "Output in JSON format"
+              },
+              "local": {
+                "usage": "use resource in current directory"
+              },
+              "locale": {
+                "usage": "only terms in these locales; a bare language matches every region (default: every language except the source language)"
+              },
+              "model": {
+                "usage": "AI model name"
+              },
+              "name": {
+                "usage": "named resource in KAPI_HOME (e.g. --name project-terms)"
+              },
+              "output-format": {
+                "usage": "Output format: text (alias: table), json, yaml"
+              },
+              "overwrite": {
+                "usage": "ask again about terms that already declare forms, and replace them"
+              },
+              "project": {
+                "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
+              },
+              "provider": {
+                "usage": "AI provider (default: anthropic)"
+              },
+              "source-locale": {
+                "usage": "language the source terms are written in (default: the project's source language)"
+              },
+              "text": {
+                "usage": "Output in text format (default)"
+              }
+            },
+            "long": "Ask a model for the other shapes each term takes in its own language (the\nplural, the definite form, a case ending) and write them onto the term as forms.\n\nA declared form is how kapi recognises a rendering that changes the word: the\nNorwegian plural \"varsler\" is a use of the term \"varsel\" once the term lists it.\n\nBy default this asks about target terms, meaning every language except the source\nlanguage, and leaves terms that already declare forms alone. It writes the bundle\nnamed on the command line, or the project's committed terms source, or else the\nstore the terms flags select. It prints each proposal and the forms the filters\ndropped; review the diff before committing it.",
+            "short": "Propose the surface forms each term takes (writes the terms)"
+          },
           "export": {
             "flags": {
               "export-name": {
@@ -3495,6 +3553,43 @@
               }
             },
             "short": "Show terms statistics"
+          },
+          "validate": {
+            "example": "  kapi terms validate\n  kapi terms validate .kapi/terms.json --json",
+            "flags": {
+              "color": {
+                "usage": "colorize output: auto, always, never"
+              },
+              "file": {
+                "usage": "explicit path to resource file"
+              },
+              "jq": {
+                "usage": "filter JSON output through a jq expression (implies --json)"
+              },
+              "json": {
+                "usage": "Output in JSON format"
+              },
+              "local": {
+                "usage": "use resource in current directory"
+              },
+              "name": {
+                "usage": "named resource in KAPI_HOME (e.g. --name project-terms)"
+              },
+              "output-format": {
+                "usage": "Output format: text (alias: table), json, yaml"
+              },
+              "project": {
+                "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
+              },
+              "source-locale": {
+                "usage": "language the source terms are written in (default: the project's source language)"
+              },
+              "text": {
+                "usage": "Output in text format (default)"
+              }
+            },
+            "long": "Check a set of terms and report what is wrong with them, or what a check will\nread differently from what the author meant.\n\nErrors fail the command: a concept with no id or an id used twice, a term with no\ntext or no locale, a status outside the lifecycle vocabulary.\n\nWarnings do not. A target term in a language that inflects, with no forms\ndeclared, is recognised only where a rendering contains its exact spelling, so\nthe plural \"varsler\" is not a use of \"varsel\" until the term lists it (see\n`kapi terms expand`). A form spelled the same as another term in the same\nlanguage makes one word a use of two entries.\n\nIt reads the bundle named on the command line, or the project's committed terms\nsource, or else the store the terms flags select.\n\nExit codes: 0 when there are no errors, 1 otherwise. With --json the result is\n{\"valid\", \"source\", \"concepts\", \"problems\": [{\"concept_id\", \"locale\", \"term\",\n\"message\", \"warning\"}]}.",
+            "short": "Check terms for structural problems and missing forms"
           }
         },
         "tools": {
