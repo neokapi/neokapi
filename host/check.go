@@ -44,13 +44,7 @@ func (r checkReport) FormatText(w io.Writer) error {
 	fmt.Fprintf(w, "%s configured checks: ", verdict)
 	writeFindingsCounts(w, r.Summary)
 	if r.Verdict == check.VerdictDidNotRun {
-		// The causes share an exit code, so the sentence is what tells a broken
-		// checker from an empty scope.
-		sentence := s.Warn.Render("Did not run: " + check.CauseSummary(r.DidNotRunCause) + ".")
-		if r.DidNotRunCause == check.CauseCheckerInvalid {
-			sentence = s.Error.Render("Did not run: " + check.CauseSummary(r.DidNotRunCause) + ".")
-		}
-		fmt.Fprintf(w, "  %s (%s)\n", sentence, r.DidNotRunCause)
+		writeDidNotRun(w, r.DidNotRunCause)
 	}
 	if r.Execution != nil {
 		completed, invalid, skipped := 0, 0, 0
@@ -145,6 +139,18 @@ func writeCheckContext(w io.Writer, scope check.CheckContext) {
 func writeFindingsCounts(w io.Writer, s check.Summary) {
 	fmt.Fprintf(w, "score %d/100 · %d finding(s) (%d critical, %d major, %d minor)\n",
 		s.Score, s.Findings, s.Critical, s.Major, s.Minor)
+}
+
+// writeDidNotRun writes the sentence that names why a check did not run. The
+// causes share an exit code, so the sentence is what tells a broken checker
+// from an empty scope.
+func writeDidNotRun(w io.Writer, cause string) {
+	s := output.NewTable(w).Styles()
+	sentence := s.Warn.Render("Did not run: " + check.CauseSummary(cause) + ".")
+	if cause == check.CauseCheckerInvalid {
+		sentence = s.Error.Render("Did not run: " + check.CauseSummary(cause) + ".")
+	}
+	fmt.Fprintf(w, "  %s (%s)\n", sentence, cause)
 }
 
 // renderFindingsTable writes the severity/rule/location/message table shared by

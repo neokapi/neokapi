@@ -105,6 +105,67 @@ func TestRunFlow_SaysWhenItsChecksFoundNothing(t *testing.T) {
 	assert.NotContains(t, out, "CRITICAL")
 }
 
+// emptyGuardXLIFF holds no translation unit, so a flow over it reads no block.
+const emptyGuardXLIFF = `<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+  <file source-language="en" target-language="nb" datatype="plaintext" original="app">
+    <body>
+    </body>
+  </file>
+</xliff>
+`
+
+// emptyGuardProjectFixture is guardProjectFixture over a source that holds no
+// content block.
+func emptyGuardProjectFixture(t *testing.T) (recipe, root string) {
+	t.Helper()
+	recipe, root = guardProjectFixture(t, []string{"Acme Cloud"})
+	require.NoError(t, os.WriteFile(filepath.Join(root, "src", "app.xlf"), []byte(emptyGuardXLIFF), 0o644))
+	return recipe, root
+}
+
+// A check that read no block did not run, and the run says so where a clean
+// run prints its empty table.
+func TestRunFlow_SaysWhenItsChecksReadNothing(t *testing.T) {
+	recipe, _ := emptyGuardProjectFixture(t)
+	out, err := runRunCmd(t, processOnlyApp(t), recipe, "guard", "--target-lang", "nb")
+	require.NoError(t, err, "the run reports and does not gate")
+
+	assert.Contains(t, out, "Did not run: there was nothing in scope to check.")
+	assert.Contains(t, out, "(nothing_to_check)")
+	assert.NotContains(t, out, "No findings.")
+}
+
+// Under --output-format json the nested findings carry the cause, the field a
+// consumer of `kapi check` already branches on.
+func TestRunFlow_DidNotRunIsScriptable(t *testing.T) {
+	recipe, _ := emptyGuardProjectFixture(t)
+	app := processOnlyApp(t)
+	root := &cobra.Command{Use: "kapi"}
+	AddPersistentFlags(app, root)
+	root.AddCommand(NewRunCmd(app, RunCmdOptions{}))
+	root.SetArgs([]string{"run", "guard", "--project", recipe, "--target-lang", "nb", "--output-format", "json"})
+	var stdout, stderr bytes.Buffer
+	root.SetOut(&stdout)
+	root.SetErr(&stderr)
+	require.NoError(t, root.Execute(), stderr.String())
+
+	var doc struct {
+		Findings *struct {
+			Target struct {
+				Blocks int `json:"blocks"`
+			} `json:"target"`
+			DidNotRun      []string `json:"did_not_run"`
+			DidNotRunCause string   `json:"did_not_run_cause"`
+		} `json:"findings"`
+	}
+	require.NoError(t, json.Unmarshal(stdout.Bytes(), &doc), stdout.String())
+	require.NotNil(t, doc.Findings, "a flow with a check step reports even when it read nothing")
+	assert.Equal(t, 0, doc.Findings.Target.Blocks)
+	assert.Equal(t, "nothing_to_check", doc.Findings.DidNotRunCause)
+	assert.NotEmpty(t, doc.Findings.DidNotRun)
+}
+
 // The run reports and does not gate. `kapi check` and `kapi up` own the bar and
 // their exit codes are what CI is written against; a flow run that started
 // failing over a step it always ran would be a new gating rule.

@@ -250,7 +250,7 @@ func (a *App) RunSingleFile(ctx context.Context, cmd Command, flowName, inputPat
 	// A check step in the chain needs somewhere to report, and the chain is
 	// built below — so the collector is armed first and read at the run's own
 	// output.
-	defer a.beginFlowFindings()()
+	defer a.beginFlowFindings(flowName)()
 
 	// Resolve format with optional preset syntax (e.g., "okf_html:strict").
 	fmtName := a.FormatFlag
@@ -632,7 +632,7 @@ func filePreview(path string) string {
 func (a *App) runMultipleFiles(ctx context.Context, cmd Command, flowName string, inputPaths []string, concurrency int, outputTemplate string) error {
 	// One collector for the batch: the report covers the files this run's own
 	// output line covers.
-	defer a.beginFlowFindings()()
+	defer a.beginFlowFindings(flowName)()
 
 	// Mirror a directory-style -o against the batch's common input root (not
 	// each file's own dir), so nested inputs keep their relative structure —

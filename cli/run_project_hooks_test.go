@@ -62,6 +62,30 @@ func TestRunFromProject_OnFindingsReportsAClean(t *testing.T) {
 	require.Len(t, got, 1)
 	assert.Equal(t, 0, got[0].Summary.Findings)
 	assert.Empty(t, got[0].Findings)
+	assert.Equal(t, 1, got[0].Files)
+	assert.Equal(t, 1, got[0].Blocks)
+	assert.Empty(t, got[0].DidNotRunCause, "a check that read a block ran")
+}
+
+// A check step that read no block hands over a report that did not run, with
+// the cause `kapi check` gives. A gate that read only the finding count would
+// pass a run that checked nothing.
+func TestRunFromProject_OnFindingsReportsDidNotRunOverNoBlocks(t *testing.T) {
+	recipe, _ := emptyGuardProjectFixture(t)
+	a := processOnlyApp(t)
+	cmd, out := projectRunCmd(t, a, recipe)
+
+	var got []FlowFindings
+	err := a.RunFromProject(cmd, "guard", recipe, RunCmdOptions{
+		OnFindings: func(f FlowFindings) { got = append(got, f) },
+	})
+	require.NoError(t, err, out.String())
+	require.Len(t, got, 1, "a flow with a check step reports even when it read nothing")
+	assert.Equal(t, 0, got[0].Blocks)
+	assert.Equal(t, 1, got[0].Files)
+	assert.Equal(t, 0, got[0].Summary.Findings)
+	assert.Equal(t, "nothing_to_check", got[0].DidNotRunCause)
+	assert.NotEmpty(t, got[0].DidNotRun)
 }
 
 // --quiet suppresses the printed report and must not suppress the gate: a

@@ -140,6 +140,12 @@ func executeLocalAction(cmd *cobra.Command, action project.ActionConfig, proj *p
 // flow's findings do: true aborts the command with the findings summary and
 // the gate exit code, unset or false reports them and continues, which is
 // what `kapi run` itself does.
+//
+// A check step that read no content block did not run, as `kapi check`
+// reports it, and a gate over it has nothing to pass. fail_on_error treats it
+// as it treats findings: true aborts the command with the cause and the exit
+// code `kapi check` uses when a check did not run, unset or false reports it
+// and continues. Findings take precedence when a run has both.
 func runFlowAction(cmd *cobra.Command, action project.ActionConfig, proj *project.Project) error {
 	flowName := strings.TrimSpace(action.Config["flow"])
 	if flowName == "" {
@@ -180,14 +186,22 @@ func runFlowAction(cmd *cobra.Command, action project.ActionConfig, proj *projec
 	}
 
 	var found check.Summary
+	// One report arrives per locale pass and binding group; notRun holds the
+	// ones whose check steps read no content block.
+	reports := 0
+	var notRun []cli.FlowFindings
 	err := app.RunFromProject(runCmd, flowName, recipePath, cli.RunCmdOptions{
 		FallbackRunE: app.ResolveFallbackRunE(cli.RunCmdOptions{}),
 		OnFindings: func(f cli.FlowFindings) {
+			reports++
 			found.Findings += f.Summary.Findings
 			found.Critical += f.Summary.Critical
 			found.Major += f.Summary.Major
 			found.Minor += f.Summary.Minor
 			found.Neutral += f.Summary.Neutral
+			if f.DidNotRunCause != "" {
+				notRun = append(notRun, f)
+			}
 		},
 	})
 	if err != nil {
@@ -197,6 +211,19 @@ func runFlowAction(cmd *cobra.Command, action project.ActionConfig, proj *projec
 		return cli.WithExitCode(cli.ExitGate, fmt.Errorf(
 			"flow %q found %d finding(s) (%d critical, %d major, %d minor)",
 			flowName, found.Findings, found.Critical, found.Major, found.Minor))
+	}
+	if len(notRun) > 0 {
+		cause := notRun[0].DidNotRunCause
+		scope := ""
+		if len(notRun) < reports {
+			scope = fmt.Sprintf(" in %d of %d passes", len(notRun), reports)
+		}
+		notRunErr := fmt.Errorf("flow %q did not run its checks%s: %s (%s)",
+			flowName, scope, check.CauseSummary(cause), cause)
+		if failOnError {
+			return cli.WithExitCode(cli.ExitNotRun, notRunErr)
+		}
+		fmt.Fprintf(out, "  %s\n", notRunErr)
 	}
 	return nil
 }
