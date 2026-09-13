@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/core/comment"
+	"github.com/neokapi/neokapi/core/comment/commenttest"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
@@ -90,6 +91,28 @@ func TestProseP1_go(t *testing.T) {
 			"before the directive",
 			"after the directive",
 		}, texts)
+	})
+
+	t.Run("the shared conformance suite", func(t *testing.T) {
+		commenttest.Run(t, goSuite(Provider{}))
+	})
+
+	t.Run("must fail: the conformance suite catches a broken provider", func(t *testing.T) {
+		for _, tc := range []struct {
+			name string
+			p    comment.Provider
+			want commenttest.Property
+		}{
+			{"a span one byte short", brokenGo{edit: func(_ []byte, f *comment.File) { f.Comments[0].End-- }}, commenttest.PropSpan},
+			{"a comment dropped", brokenGo{edit: func(_ []byte, f *comment.File) { f.Comments = f.Comments[1:] }}, commenttest.PropAccount},
+			{"a marker inside a string counted", brokenGo{edit: countStringMarker}, commenttest.PropLiteral},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				failures := commenttest.Verify(goSuite(tc.p))
+				require.NotEmpty(t, failures)
+				assert.Contains(t, commenttest.Properties(failures), tc.want, "%v", commenttest.Err(failures))
+			})
+		}
 	})
 
 	t.Run("the repository's Go files account for every comment", func(t *testing.T) {
@@ -177,6 +200,49 @@ func TestProseP1_go(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "contains the directive")
 	})
+}
+
+func goSuite(p comment.Provider) commenttest.Suite {
+	return commenttest.Suite{
+		Provider: p,
+		Scan:     goUnits,
+		Fixtures: []commenttest.Fixture{
+			{Name: "demo.go", Source: spanFixture},
+			{Name: "crlf.go", Source: strings.ReplaceAll(spanFixture, "\n", "\r\n")},
+			{Name: "directives.go", Source: directiveFixture},
+			{Name: "mixed.go", Source: mixedFixture},
+			{Name: "literals.go", Source: literalFixture, Literals: []string{`"// not a comment"`, "`/* not a comment */`"}},
+		},
+	}
+}
+
+// brokenGo damages what the Go provider locates in every file with a comment,
+// except the canary.
+type brokenGo struct {
+	Provider
+	edit func(src []byte, f *comment.File)
+}
+
+func (b brokenGo) Locate(name string, src []byte) (*comment.File, error) {
+	f, err := b.Provider.Locate(name, src)
+	if err == nil && name != "canary" && len(f.Comments) > 0 {
+		b.edit(src, f)
+	}
+	return f, err
+}
+
+// countStringMarker reports the `//` inside a string literal as a comment.
+func countStringMarker(src []byte, f *comment.File) {
+	at := strings.Index(string(src), `// not a comment"`)
+	if at < 0 {
+		return
+	}
+	end := at + len("// not a comment")
+	f.Comments = append(f.Comments, comment.Comment{
+		Start: at, End: end, Lines: format.NewLineIndex(src).Range(at, end),
+		Style: comment.StyleLine, Subject: "comment", Runs: []model.Run{model.TextR("not a comment")},
+	})
+	slices.SortFunc(f.Comments, func(a, b comment.Comment) int { return a.Start - b.Start })
 }
 
 func findSubject(t *testing.T, f *comment.File, subject string, doc bool) comment.Comment {

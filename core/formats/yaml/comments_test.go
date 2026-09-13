@@ -1,14 +1,21 @@
 package yaml
 
 import (
+	"bytes"
 	"errors"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
+	yamlv3 "gopkg.in/yaml.v3"
+
 	"github.com/neokapi/neokapi/core/comment"
+	"github.com/neokapi/neokapi/core/comment/commenttest"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
@@ -123,9 +130,9 @@ func TestLocateCommentsOverTheRepositoryYAML(t *testing.T) {
 		}
 		files++
 		comments += len(got.Comments)
-		for _, c := range got.Comments {
-			require.True(t, strings.HasPrefix(string(src[c.Start:c.End]), "#"), "%s: a comment span starts on its marker", rel)
-		}
+		units, serr := yamlUnits(rel, src)
+		require.NoError(t, serr, rel)
+		assert.NoError(t, commenttest.Err(commenttest.Account(src, got, units)), rel)
 	}
 	t.Logf("yaml-comments files=%d comments=%d refused=%d unparsed=%d", files, comments, refused, unparsed)
 	for _, r := range refusals {
@@ -146,4 +153,170 @@ func yamlRepoRoot(t *testing.T) string {
 		require.NotEqual(t, parent, dir, "no go.work above the package")
 		dir = parent
 	}
+}
+
+func TestCommentProviderConformance(t *testing.T) {
+	commenttest.Run(t, yamlSuite(CommentProvider{}))
+}
+
+func TestCommentProviderConformanceCatchesABrokenProvider(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		p    comment.Provider
+		want commenttest.Property
+	}{
+		{"a span one byte short", brokenYAML{edit: func(_ []byte, f *comment.File) { f.Comments[0].End-- }}, commenttest.PropSpan},
+		{"a comment dropped", brokenYAML{edit: func(_ []byte, f *comment.File) { f.Comments = f.Comments[1:] }}, commenttest.PropAccount},
+		{"a marker inside a string counted", brokenYAML{edit: countQuotedMarker}, commenttest.PropLiteral},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			failures := commenttest.Verify(yamlSuite(tc.p))
+			require.NotEmpty(t, failures)
+			assert.Contains(t, commenttest.Properties(failures), tc.want, "%v", commenttest.Err(failures))
+		})
+	}
+}
+
+func yamlSuite(p comment.Provider) commenttest.Suite {
+	return commenttest.Suite{
+		Provider: p,
+		Scan:     yamlUnits,
+		Fixtures: []commenttest.Fixture{
+			{Name: "comments.yaml", Source: commentFixture, Literals: []string{"'quoted # is content'", "# is content inside a literal block"}},
+			{Name: "groups.yaml", Source: "# one\n# two\nkey: value\n\n# three\nother: value\n"},
+			{Name: "crlf.yaml", Source: "# Head.\r\n# Second.\r\nkey: value # beside\r\n"},
+			{
+				Name:     "content.yaml",
+				Source:   "a: \"double # quoted\"\nb: 'single # quoted'\nc: |\n  # literal\nd: >-\n  # folded\ne: url#fragment\nf: [x, \"y # z\"]\n# The one comment.\n",
+				Literals: []string{`"double # quoted"`, "'single # quoted'", "# literal", "# folded", "url#fragment", `"y # z"`},
+			},
+		},
+	}
+}
+
+// brokenYAML damages what the YAML provider locates in every document with a
+// comment, except the canary.
+type brokenYAML struct {
+	CommentProvider
+	edit func(src []byte, f *comment.File)
+}
+
+func (b brokenYAML) Locate(name string, src []byte) (*comment.File, error) {
+	f, err := b.CommentProvider.Locate(name, src)
+	if err == nil && name != "canary" && len(f.Comments) > 0 {
+		b.edit(src, f)
+	}
+	return f, err
+}
+
+// countQuotedMarker reports the `#` inside a quoted scalar as a comment.
+func countQuotedMarker(src []byte, f *comment.File) {
+	at := bytes.Index(src, []byte("# is content'"))
+	if at < 0 {
+		return
+	}
+	end := at + len("# is content")
+	f.Comments = append(f.Comments, comment.Comment{
+		Start: at, End: end, Lines: format.NewLineIndex(src).Range(at, end),
+		Style: comment.StyleLine, Subject: "comment/subtitle", Runs: []model.Run{model.TextR("is content")},
+	})
+	slices.SortFunc(f.Comments, func(a, b comment.Comment) int { return a.Start - b.Start })
+}
+
+// yamlUnits is the conformance suite's scan for YAML, with the parser as its
+// only authority: a `#` begins a comment exactly when cutting its line there
+// leaves every document's data as it was and removes that one comment line from
+// the lines the parser reports. The provider's own scan is never consulted.
+func yamlUnits(_ string, src []byte) ([]commenttest.Unit, error) {
+	data, comments, err := decodeDocuments(src)
+	if err != nil {
+		return nil, err
+	}
+	var units []commenttest.Unit
+	group, prevFull := 0, -1
+	for line, lineStart := 0, 0; lineStart < len(src); line++ {
+		end := len(src)
+		next := end
+		if i := bytes.IndexByte(src[lineStart:], '\n'); i >= 0 {
+			end, next = lineStart+i, lineStart+i+1
+		}
+		if end > lineStart && src[end-1] == '\r' {
+			end--
+		}
+		for j := lineStart; j < end; j++ {
+			if src[j] != '#' {
+				continue
+			}
+			text := bytes.TrimRight(src[j:end], " \t")
+			cutData, cutComments, err := decodeDocuments(slices.Concat(src[:j], src[end:]))
+			if err != nil || !reflect.DeepEqual(cutData, data) || !removesOne(comments, cutComments, string(text)) {
+				continue
+			}
+			full := len(bytes.TrimLeft(src[lineStart:j], " \t")) == 0
+			if !full || prevFull != line-1 {
+				group++
+			}
+			if full {
+				prevFull = line
+			}
+			_, directive := yamlDirective(string(text))
+			units = append(units, commenttest.Unit{Start: j, End: j + len(text), Open: 1, Group: group, Directive: directive})
+			break
+		}
+		lineStart = next
+	}
+	return units, nil
+}
+
+// decodeDocuments decodes every document in src and lists the comment lines
+// the parser attaches to its nodes.
+func decodeDocuments(src []byte) ([]any, []string, error) {
+	dec := yamlv3.NewDecoder(bytes.NewReader(src))
+	var data []any
+	var comments []string
+	for {
+		var doc yamlv3.Node
+		if err := dec.Decode(&doc); err != nil {
+			if errors.Is(err, io.EOF) {
+				return data, comments, nil
+			}
+			return nil, nil, err
+		}
+		var v any
+		if err := doc.Decode(&v); err != nil {
+			return nil, nil, err
+		}
+		data = append(data, v)
+		var walk func(n *yamlv3.Node)
+		walk = func(n *yamlv3.Node) {
+			for _, field := range []string{n.HeadComment, n.LineComment, n.FootComment} {
+				for l := range strings.SplitSeq(field, "\n") {
+					if l = strings.TrimSpace(l); l != "" {
+						comments = append(comments, l)
+					}
+				}
+			}
+			for _, c := range n.Content {
+				walk(c)
+			}
+		}
+		walk(&doc)
+	}
+}
+
+// removesOne reports whether after is before with exactly one line, text,
+// taken out.
+func removesOne(before, after []string, text string) bool {
+	if len(after) != len(before)-1 {
+		return false
+	}
+	rest := slices.Clone(before)
+	i := slices.Index(rest, text)
+	if i < 0 {
+		return false
+	}
+	rest = slices.Delete(rest, i, i+1)
+	slices.Sort(rest)
+	sorted := slices.Sorted(slices.Values(after))
+	return slices.Equal(rest, sorted)
 }

@@ -460,6 +460,15 @@ such a file `comments: true` adds the comment blocks to the reader's blocks for
 checking, and the file converges through its reader unchanged. A declared format
 that supplies no comments leaves the comment check not run.
 
+Every provider passes one conformance suite, `core/comment/commenttest`. A
+provider's test supplies fixtures and its own scan of the same bytes, made
+without the provider, and the suite holds what the provider located to that
+scan. Each comment sits in exactly one addressable comment or one exclusion. A
+span begins at the comment's opening marker and ends with the comment, and its
+line range is counted from the bytes. The runs keep no marker, a marker inside a
+string or other literal context is never a comment, and the provider's canary
+is located with its doubled word flagged by the hygiene check.
+
 #### Default on, via an inverted opt-out
 
 Surfacing is the **default**, controlled per format by a single boolean,

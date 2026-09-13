@@ -605,7 +605,10 @@ change to the scorer:
 - It may live in any package of any module `go.work` names, or of a plugin module
   under `plugins/`. Several packages may claim the same rung, and the rung is met
   only when every claim passes.
-- It asserts the rung's criteria against the real reader or check path.
+- It asserts the rung's criteria against the real reader or check path. A
+  comment provider's P1 test runs the shared conformance suite in
+  `core/comment/commenttest` over its fixtures, and accounts for a corpus of
+  real files against a scan made without the provider.
 - `TestProseP0_<language>` claims no rung. It is the language's presence test.
   It asserts that the build contains a reader for the language and fails
   otherwise, so removing a reader turns CI red rather than quietly changing a
