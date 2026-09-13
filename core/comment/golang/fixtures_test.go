@@ -116,6 +116,10 @@ const secret = "x"
 const other = "y"
 `
 
+// literalFixture holds comment markers in a string and a raw string, neither of
+// which is a comment.
+const literalFixture = "package demo\n\n// Greeting is prose.\nvar Greeting = \"// not a comment\"\n\nvar raw = `/* not a comment */` // beside a raw string\n"
+
 // mixedFixture puts prose and directives in the same comment groups.
 const mixedFixture = `package demo
 
