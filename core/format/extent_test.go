@@ -184,8 +184,9 @@ func TestAlignSkeleton_RefusesWhatItCannotPlace(t *testing.T) {
 // spans an alignment returns and the skeleton's own bytes rebuild the source
 // byte for byte.
 func TestAlignSkeleton_ReconstructsTheSource(t *testing.T) {
-	src := "<p>Line one\n  line two</p>\n<ul><li>A</li><li lang=\"en\">B  </li></ul>\n"
+	src := "<head><title>T</title></head><p>Line one\n  line two</p>\n<ul><li>A</li><li lang=\"en\">B  </li></ul>\n"
 	entries := []SkeletonEntry{
+		text("<head>"), {Type: SkeletonInserted, Data: []byte(`<meta charset="utf-8">`)}, text("<title>"), ref("t"), text("</title></head>"),
 		text("<p>"), original("Line one line two", "Line one\n  line two"), ref("1"), text("</p>\n<ul><li>"),
 		ref("2"), text("</li><li lang=\""), {Type: SkeletonLang, Data: []byte("en")}, text("\">"),
 		ref("3"), trimmed("B", "  "), text("</li></ul>\n"),
@@ -208,6 +209,8 @@ func rebuild(t *testing.T, src string, entries []SkeletonEntry, xs []Extent) str
 		case SkeletonTrimmed:
 			_, b, _ := DecodeSkeletonPair(e.Data)
 			out = append(out, b...)
+		case SkeletonInserted:
+			// Not in the source, so not part of rebuilding it.
 		case SkeletonOriginal:
 			pendingOriginal = true
 		case SkeletonRef:

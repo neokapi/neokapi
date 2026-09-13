@@ -736,7 +736,10 @@ func (s *tokenReaderState) processStartTag(tokenizer *html.Tokenizer, raw []byte
 		}
 
 		if a == atom.Head && s.needsCharsetMeta {
-			s.store.WriteText([]byte(`<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">`))
+			// The source holds no charset declaration, so the meta goes to
+			// the skeleton as inserted bytes: the writer emits it, and skeleton
+			// alignment knows not to look for it in the source.
+			s.store.WriteInserted([]byte(`<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">`))
 			s.reader.emit(ctx, ch, &model.Part{
 				Type: model.PartData,
 				Resource: &model.Data{

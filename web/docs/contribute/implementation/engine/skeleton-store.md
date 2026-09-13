@@ -36,12 +36,19 @@ Each entry is:
 | `2` | `SkeletonLang` | Source-locale `lang` / `xml:lang` attribute value (the raw bytes between the quotes), spliced for language retargeting |
 | `3` | `SkeletonOriginal` | `EncodeSkeletonPair(rendered, original)`: the text the next ref renders to while unedited, and the source bytes to replay instead |
 | `4` | `SkeletonTrimmed` | `EncodeSkeletonPair(rendered, trimmed)`: the text the previous ref rendered to, and the bytes the reader trimmed after it |
+| `5` | `SkeletonInserted` | Bytes the reader adds to the document that its source does not hold |
 
 `Lang` lets a writer retarget the document language: when the stored value is
 the same language as the source locale it emits the target locale, otherwise it
 emits the stored value verbatim. The HTML and OpenXML readers emit it. A writer
 that does not understand an entry type must treat it as inert; emitting nothing
 would drop the attribute value.
+
+`Inserted` marks bytes the output needs and the source lacks: the HTML reader
+writes the `Content-Type` meta it adds to a head that declares no charset as an
+`Inserted` entry. A writer emits the bytes exactly as it emits `Text`, so a
+writer that ignores the type drops them. The HTML writer and the shared
+`BufferedSkeletonWrite` / `StreamSkeletonWrite` walker both write it.
 
 `Original` and `Trimmed` make a no-op round trip byte-identical where extraction
 normalized whitespace. An `Original` entry applies to the ref that immediately
@@ -73,6 +80,7 @@ func (s *SkeletonStore) WriteRef(blockID string)
 func (s *SkeletonStore) WriteLang(value string)
 func (s *SkeletonStore) WriteOriginal(rendered, original []byte)
 func (s *SkeletonStore) WriteTrimmed(rendered, trimmed []byte)
+func (s *SkeletonStore) WriteInserted(data []byte)            // skips empty data
 func (s *SkeletonStore) Flush() error
 func (s *SkeletonStore) CloseWrite()                          // streaming: no more entries
 func (s *SkeletonStore) Bytes() ([]byte, error)
@@ -147,6 +155,7 @@ matches that text against the source:
 - `SkeletonText` and `SkeletonLang` bytes must occur in the source, in order.
 - A `SkeletonOriginal` entry gives the next ref's source bytes directly.
 - `SkeletonTrimmed` bytes belong to no block.
+- `SkeletonInserted` bytes are not in the source, so alignment skips them.
 
 A skeleton whose bytes do not occur in the source, such as a container format's
 skeleton of an inner part, returns an error that wraps
@@ -385,7 +394,7 @@ fills in block content, with no tokenizer, no DOM and no state machine beyond
 the pairing rules for `Original` and `Trimmed`. `writeFromSkeleton` handles
 each entry type:
 
-- `SkeletonText`: written through verbatim.
+- `SkeletonText` and `SkeletonInserted`: written through verbatim.
 - `SkeletonOriginal`: decoded and held for the ref that immediately follows.
 - `SkeletonRef`: the block's text is rendered. If a held `Original` matches the
   rendering, the original bytes are written instead and the encoding pass is

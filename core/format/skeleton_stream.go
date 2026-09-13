@@ -24,12 +24,13 @@ type LangRenderer func(value string) ([]byte, error)
 // share this body, so the two paths cannot drift apart: they differ only in
 // where a ref's block comes from.
 //
-// Entry types this switch does not name (SkeletonOriginal, SkeletonTrimmed)
-// contribute nothing. A format that acts on them replays its own skeleton (see
-// the html, odf and openxml writers).
+// SkeletonInserted bytes are written as text is. Entry types this switch does
+// not name (SkeletonOriginal, SkeletonTrimmed) contribute nothing. A format
+// that acts on them replays its own skeleton (see the html, odf and openxml
+// writers).
 func writeSkeletonEntry(out io.Writer, entry SkeletonEntry, blockFor func(id string) *model.Block, renderRef RefRenderer, renderLang LangRenderer) error {
 	switch entry.Type {
-	case SkeletonText:
+	case SkeletonText, SkeletonInserted:
 		_, err := out.Write(entry.Data)
 		return err
 	case SkeletonRef:

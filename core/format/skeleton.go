@@ -53,6 +53,17 @@ const (
 	//
 	// Payload: EncodeSkeletonPair(rendered, trimmed).
 	SkeletonTrimmed SkeletonEntryType = 4
+	// SkeletonInserted carries bytes a reader adds to the document that its
+	// source does not hold, such as the Content-Type meta the HTML reader
+	// writes into a head that declares no charset. A writer emits them exactly
+	// as it emits SkeletonText, and skeleton alignment skips them, because the
+	// source has no bytes to match.
+	//
+	// Unlike the other typed entries, a writer that ignores this one drops bytes
+	// from its output. Only the HTML reader emits it, and both paths that replay
+	// an HTML skeleton write it: the HTML writer, and writeSkeletonEntry, the
+	// walker BufferedSkeletonWrite and StreamSkeletonWrite share.
+	SkeletonInserted SkeletonEntryType = 5
 )
 
 // EncodeSkeletonPair packs two byte strings into one length-prefixed payload:
@@ -366,6 +377,16 @@ func (s *SkeletonStore) WriteTrimmed(rendered, trimmed []byte) {
 		return
 	}
 	s.writeEntry(SkeletonTrimmed, EncodeSkeletonPair(rendered, trimmed))
+}
+
+// WriteInserted writes bytes the reader adds to the document that its source
+// does not hold. See SkeletonInserted for the consumption contract. Like
+// WriteText it does not return an error.
+func (s *SkeletonStore) WriteInserted(data []byte) {
+	if len(data) == 0 {
+		return
+	}
+	s.writeEntry(SkeletonInserted, data)
 }
 
 func (s *SkeletonStore) writeEntry(typ SkeletonEntryType, data []byte) {

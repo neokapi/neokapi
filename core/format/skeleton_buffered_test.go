@@ -47,6 +47,21 @@ func TestBufferedSkeletonWrite(t *testing.T) {
 			want:      "<p>one</p><p>two</p>",
 		},
 		{
+			// A writer that ignored inserted bytes would drop them from its
+			// output, so the walker writes them exactly as it writes text.
+			name: "inserted bytes are written as text is",
+			write: func(store *SkeletonStore) {
+				store.WriteText([]byte("<head>"))
+				store.WriteInserted([]byte(`<meta charset="utf-8">`))
+				store.WriteText([]byte("<title>"))
+				store.WriteRef("b1")
+				store.WriteText([]byte("</title></head>"))
+			},
+			blocks:    map[string]*model.Block{"b1": model.NewBlock("b1", "one")},
+			renderRef: textRenderer,
+			want:      `<head><meta charset="utf-8"><title>one</title></head>`,
+		},
+		{
 			name: "a ref with no block contributes nothing",
 			write: func(store *SkeletonStore) {
 				store.WriteText([]byte("<p>"))
@@ -147,8 +162,9 @@ func TestBufferedSkeletonWrite(t *testing.T) {
 // which path the pipeline chose.
 func TestBufferedSkeletonWrite_MatchesStreaming(t *testing.T) {
 	type entry struct {
-		text string
-		ref  string
+		text     string
+		ref      string
+		inserted string
 	}
 	entries := []entry{
 		{text: "id: "},
@@ -158,6 +174,7 @@ func TestBufferedSkeletonWrite_MatchesStreaming(t *testing.T) {
 		{text: "\ngone: "},
 		{ref: "b3"}, // no block ever arrives for this one
 		{text: "\n"},
+		{inserted: "added: yes\n"},
 	}
 	blocks := []*model.Block{
 		model.NewBlock("b1", "one"),
@@ -173,13 +190,17 @@ func TestBufferedSkeletonWrite_MatchesStreaming(t *testing.T) {
 	streaming := NewStreamingSkeletonStore()
 	defer streaming.Close()
 	for _, e := range entries {
-		if e.ref != "" {
+		switch {
+		case e.ref != "":
 			buffered.WriteRef(e.ref)
 			streaming.WriteRef(e.ref)
-			continue
+		case e.inserted != "":
+			buffered.WriteInserted([]byte(e.inserted))
+			streaming.WriteInserted([]byte(e.inserted))
+		default:
+			buffered.WriteText([]byte(e.text))
+			streaming.WriteText([]byte(e.text))
 		}
-		buffered.WriteText([]byte(e.text))
-		streaming.WriteText([]byte(e.text))
 	}
 	require.NoError(t, buffered.Flush())
 	streaming.CloseWrite()
@@ -196,6 +217,6 @@ func TestBufferedSkeletonWrite_MatchesStreaming(t *testing.T) {
 	var streamedOut bytes.Buffer
 	require.NoError(t, StreamSkeletonWrite(context.Background(), streaming, parts, &streamedOut, textRenderer, nil))
 
-	assert.Equal(t, "id: one\nname: two\ngone: \n", bufferedOut.String())
+	assert.Equal(t, "id: one\nname: two\ngone: \nadded: yes\n", bufferedOut.String())
 	assert.Equal(t, bufferedOut.String(), streamedOut.String())
 }

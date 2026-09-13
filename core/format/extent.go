@@ -143,7 +143,7 @@ func AlignSkeleton(src []byte, entries []SkeletonEntry) ([]Extent, error) {
 // either side of it, so aligning the text entries (anchors) against the source
 // gives every block its span. A SkeletonOriginal entry states the next ref's
 // source bytes outright; SkeletonLang and SkeletonTrimmed carry source bytes
-// that belong to no block.
+// that belong to no block; SkeletonInserted bytes are not in the source at all.
 //
 // It fails when the skeleton's bytes do not occur in the source in order: a
 // reader that decoded, normalized or synthesized them, or a container format
@@ -325,6 +325,9 @@ func compileSkeleton(entries []SkeletonEntry) (*skeletonPattern, error) {
 				return nil, noExtents("skeleton entry %d carries a truncated original-bytes payload", i)
 			}
 			original, haveOriginal = orig, true
+		case SkeletonInserted:
+			// The reader added these bytes; the source has none to match, and
+			// the text on either side of them is contiguous there.
 		case SkeletonRef:
 			id := string(e.Data)
 			if haveOriginal {
