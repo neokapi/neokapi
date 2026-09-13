@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-13T18:37:21Z",
+  "generatedAt": "2026-09-13T19:17:32Z",
   "commands": [
     {
       "id": "add",
@@ -7300,7 +7300,7 @@
       ],
       "use": "occurrences [term-or-concept]",
       "short": "Show where a term is used in the project's content",
-      "long": "Show where a term is used in the project's extracted content.\n\nThe argument is a term as written, or a concept id. A concept is searched for\nunder every term it carries, in every language, so an approved English term is\nfound in the source text and its counterpart in the translated text.\n\nMatching folds case, spans any whitespace between a term's words, and requires a\nword boundary, so \"AI\" is not a use of \"again\". Scripts written without word\nseparators are matched without that rule.\n\nThe project must have been extracted: occurrences are read from the block cache\ninside the project store, which `kapi up` and `kapi extract` fill.",
+      "long": "Show where a term is used in the project's extracted content.\n\nThe argument is a term as written, or a concept id. A concept is searched for\nunder every term it carries, in every language, so an approved English term is\nfound in the source text and its counterpart in the translated text.\n\nMatching folds case, spans any whitespace between a term's words, and requires a\nword boundary, so \"AI\" is not a use of \"again\". Scripts written without word\nseparators are matched without that rule. A term is also found under each form it\ndeclares, so a term \"varsel\" that lists \"varsler\" finds the plural, and a form\ntyped as the argument finds its term.\n\nThe project must have been extracted: occurrences are read from the block cache\ninside the project store, which `kapi up` and `kapi extract` fill.",
       "flags": [
         {
           "name": "collection",

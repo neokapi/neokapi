@@ -402,6 +402,9 @@ standalone store with `profiles.<name>.termstore`, and `terms` names contents
 
 `kapi terms occurrences` reports where a concept is actually used, reading the
 occurrence index in the block cache ([C-03](c-03-context-store-and-graph.md)).
+It searches each term under its text and every declared form, because the block
+cache's text search matches one string and a form such as *varsler* does not
+contain *varsel*.
 
 `kapi terms expand` fills in forms at authoring time. It asks a model for the
 forms of each term in the term's own language, one language at a time and in
