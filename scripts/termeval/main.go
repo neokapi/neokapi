@@ -9,7 +9,8 @@
 //   - substring: the term and its preferred rendering as case-folded
 //     substrings, the way term-check matched before stage 1;
 //   - stage1: term-check as it is, with no declared forms;
-//   - stage1+forms: term-check with the reviewed forms in testdata/forms.json.
+//   - stage1+forms: term-check with the forms the terms store declares plus
+//     the reviewed forms in testdata/forms.json.
 //
 // Per corpus, language and mode it reports the demands (a rule whose term the
 // source uses), the fails, the false fails among labelled true uses, the
@@ -61,7 +62,7 @@ func main() {
 	root := flag.String("root", ".", "repository root")
 	jsonOut := flag.String("json", "", "write the report as JSON to this path")
 	unlabelled := flag.String("unlabelled", "", "write the demands and fails that carry no label to this path")
-	formsPath := flag.String("forms", "", "reviewed forms to apply in the stage1+forms mode (default: testdata/forms.json)")
+	formsPath := flag.String("forms", "", "reviewed forms to add to the store's forms in the stage1+forms mode (default: testdata/forms.json)")
 	labelsPath := flag.String("labels", "", "labels to classify demands and fails with (default: testdata/labels.json)")
 	flag.Parse()
 

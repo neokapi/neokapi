@@ -37,7 +37,9 @@ func loadForms(path string) (map[string][]FormsEntry, error) {
 }
 
 // withForms returns a copy of concepts in which every term the entries name
-// declares the reviewed forms. The concepts passed in are not modified.
+// declares the forms the store gives it followed by the reviewed forms,
+// normalized as the store normalizes them. The mode then measures term-check
+// with everything the store declares. The concepts passed in are not modified.
 func withForms(concepts []terms.Concept, entries []FormsEntry) []terms.Concept {
 	type key struct {
 		concept string
@@ -54,7 +56,7 @@ func withForms(concepts []terms.Concept, entries []FormsEntry) []terms.Concept {
 		for j := range c.Terms {
 			t := &c.Terms[j]
 			if forms, ok := want[key{c.ID, model.NormalizeLocale(t.Locale), strings.ToLower(t.Text)}]; ok {
-				t.Forms = terms.NormalizeForms(t.Text, forms)
+				t.Forms = terms.NormalizeForms(t.Text, append(slices.Clone(t.Forms), forms...))
 			}
 		}
 		out[i] = c
