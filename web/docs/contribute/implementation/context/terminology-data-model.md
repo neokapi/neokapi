@@ -166,6 +166,22 @@ Related AI and redaction tools (registered in `core/ai/tools/` and
 **`unredact`** (Transform). Restores original entity values after external processing. Paired with `redact`:
 `reader -> entity-extract -> redact -> [external MT] -> unredact -> writer`
 
+## Measuring term matching
+
+`scripts/termeval` runs term-check over reviewed translations and compares three
+modes: substring matching of the term and its preferred rendering, term-check
+with no declared forms, and term-check with the reviewed forms in
+`scripts/termeval/testdata/forms.json`. The corpora are the project's Norwegian
+content memory, the compass catalogs and the tidewatch memory, and the rules come
+from `terms.RulesFromConcepts`. For each corpus, language and mode it reports the
+demands, the fails, the false fails among true uses, the demands whose source
+match is not a use of the term, and the constructed negatives (a rendering deleted
+or clipped) the mode passes. The labels in `testdata/labels.json` were made by
+agents and are pending a person's review. `go run ./scripts/termeval` prints the
+table, `-forms` and `-labels` run it against another file, and
+`go test ./scripts/termeval` pins that no stage mode passes a negative and that
+every demand and fail is labelled.
+
 ## Concept relations
 
 Concepts are linked by persisted, typed, directed edges. A `ConceptRelation`

@@ -240,7 +240,8 @@ declares it, and a finding for a rule with no forms in a language that inflects
 says so. The gate records, per target language, which matching it used: English
 inflection or whole words for the source, and containment or containment plus
 declared forms for the target. `scripts/contexteval` pins the Norwegian case
-that would regress first.
+that would regress first, and `scripts/termeval` measures the matching over the
+project's reviewed Norwegian content and the samples.
 
 The whole-word rule is Unicode-aware: an underscore continues a word, so
 `mooring_id` is one token rather than a use of `mooring`; scripts written
