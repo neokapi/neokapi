@@ -23,6 +23,7 @@ func jsLanguages() []*Language {
 			Name:        "typescript",
 			DisplayName: "TypeScript",
 			Extensions:  []string{".ts", ".mts", ".cts"},
+			Markers:     jsMarkers,
 			grammar:     typescript.LanguageTypescript,
 			syntax:      jsSyntax,
 			once:        &sync.Once{},
@@ -36,6 +37,7 @@ func jsLanguages() []*Language {
 			Name:        "tsx",
 			DisplayName: "TSX",
 			Extensions:  []string{".tsx"},
+			Markers:     jsMarkers,
 			grammar:     typescript.LanguageTSX,
 			syntax:      jsSyntax,
 			once:        &sync.Once{},
@@ -49,6 +51,7 @@ func jsLanguages() []*Language {
 			Name:        "javascript",
 			DisplayName: "JavaScript",
 			Extensions:  []string{".js", ".jsx", ".mjs", ".cjs"},
+			Markers:     jsMarkers,
 			grammar:     javascript.Language,
 			syntax:      jsSyntax,
 			once:        &sync.Once{},
@@ -60,6 +63,10 @@ func jsLanguages() []*Language {
 		},
 	}
 }
+
+// jsMarkers are the ECMAScript comment delimiters. The shebang counts as a line
+// comment, the way a parser that reports it beside the comments reads it.
+var jsMarkers = comment.Markers{Line: []string{"//", "#!"}, Block: []comment.BlockMarker{{Open: "/*", Close: "*/"}}}
 
 var jsSyntax = &syntax{
 	unit:       jsUnit,

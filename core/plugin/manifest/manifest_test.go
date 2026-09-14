@@ -130,6 +130,8 @@ func TestValidate_RequiredFields(t *testing.T) {
 		{"comment language name is an identifier", `{"manifest_version": "1", "plugin": "x", "version": "1", "binary": "x", "daemon": {}, "capabilities": {"comments": [` + commentLanguage(`"Type-Script"`, `[".ts"]`, `{"source": "// a", "block": "comment"}`) + `]}}`, "invalid language"},
 		{"comment language needs extensions", `{"manifest_version": "1", "plugin": "x", "version": "1", "binary": "x", "daemon": {}, "capabilities": {"comments": [` + commentLanguage(`"typescript"`, `[]`, `{"source": "// a", "block": "comment"}`) + `]}}`, "declares no extensions"},
 		{"comment extension has a dot", `{"manifest_version": "1", "plugin": "x", "version": "1", "binary": "x", "daemon": {}, "capabilities": {"comments": [` + commentLanguage(`"typescript"`, `["ts"]`, `{"source": "// a", "block": "comment"}`) + `]}}`, "invalid extension"},
+		{"comment language needs markers", `{"manifest_version": "1", "plugin": "x", "version": "1", "binary": "x", "daemon": {}, "capabilities": {"comments": [{"language": "typescript", "extensions": [".ts"], "canary": {"source": "// a", "block": "comment"}}]}}`, "declares no comment markers"},
+		{"comment marker is not empty", `{"manifest_version": "1", "plugin": "x", "version": "1", "binary": "x", "daemon": {}, "capabilities": {"comments": [{"language": "typescript", "extensions": [".ts"], "markers": {"block": [{"open": "/*", "close": ""}]}, "canary": {"source": "// a", "block": "comment"}}]}}`, "empty comment marker"},
 		{"comment language needs a canary", `{"manifest_version": "1", "plugin": "x", "version": "1", "binary": "x", "daemon": {}, "capabilities": {"comments": [` + commentLanguage(`"typescript"`, `[".ts"]`, `{"source": "// a"}`) + `]}}`, "canary source and block are required"},
 	}
 	for _, tc := range cases {
@@ -184,5 +186,5 @@ func TestRoundTrip(t *testing.T) {
 
 // commentLanguage is one capabilities.comments entry for the validation table.
 func commentLanguage(language, extensions, canary string) string {
-	return `{"language": ` + language + `, "extensions": ` + extensions + `, "canary": ` + canary + `}`
+	return `{"language": ` + language + `, "extensions": ` + extensions + `, "markers": {"line": ["//"]}, "canary": ` + canary + `}`
 }

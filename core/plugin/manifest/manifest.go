@@ -521,6 +521,11 @@ type CommentLanguage struct {
 	// plugin locates.
 	Extensions []string `json:"extensions"`
 
+	// Markers are the delimiters the language writes its comments with. The
+	// host reads one comment line through them to find the directives a recipe
+	// declares.
+	Markers CommentMarkers `json:"markers"`
+
 	// Canary is a small file the plugin must read correctly. The host locates it
 	// through the same RPC beside every real file, and a plugin that misses its
 	// comment leaves the check invalid.
@@ -536,6 +541,21 @@ type CommentCanary struct {
 	Source string `json:"source"`
 	// Block is the block id of that comment.
 	Block string `json:"block"`
+}
+
+// CommentMarkers are a comment language's delimiters (core/comment.Markers).
+type CommentMarkers struct {
+	// Line are the markers of comments that run to the end of their line, such
+	// as "//".
+	Line []string `json:"line,omitempty"`
+	// Block are the delimiters of comments that close, such as "/*" and "*/".
+	Block []CommentBlockMarker `json:"block,omitempty"`
+}
+
+// CommentBlockMarker opens and closes a delimited comment.
+type CommentBlockMarker struct {
+	Open  string `json:"open"`
+	Close string `json:"close"`
 }
 
 // validate checks a comment language's structure: a name the analyzer id and
@@ -556,6 +576,12 @@ func (c CommentLanguage) validate() error {
 		if len(ext) < 2 || ext[0] != '.' || strings.ContainsAny(ext, `/\`) {
 			return fmt.Errorf("language %q: invalid extension %q (want a dot and a suffix, such as \".ts\")", c.Language, ext)
 		}
+	}
+	if len(c.Markers.Line) == 0 && len(c.Markers.Block) == 0 {
+		return fmt.Errorf("language %q declares no comment markers", c.Language)
+	}
+	if slices.Contains(c.Markers.Line, "") || slices.ContainsFunc(c.Markers.Block, func(b CommentBlockMarker) bool { return b.Open == "" || b.Close == "" }) {
+		return fmt.Errorf("language %q declares an empty comment marker", c.Language)
 	}
 	if c.Canary.Source == "" || c.Canary.Block == "" {
 		return fmt.Errorf("language %q: canary source and block are required", c.Language)

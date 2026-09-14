@@ -97,9 +97,10 @@ What the provider decides:
 - **Files that do not parse.** A tree with a syntax error in it is not located,
   and kapi reports the file's comment check as not run.
 
-Each language's canary is declared twice, in `jsts.go` and in `manifest.json`,
-and a test holds the two equal. kapi sends the manifest's canary through the
-plugin beside every real file.
+Each language's canary and comment markers are declared twice, in `jsts.go` and
+in `manifest.json`, and a test holds the two equal. kapi sends the manifest's
+canary through the plugin beside every real file, and reads a single comment line
+through the manifest's markers when a recipe declares comment directives.
 
 ### The oracle
 

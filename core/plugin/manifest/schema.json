@@ -166,7 +166,7 @@
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["language", "extensions", "canary"],
+            "required": ["language", "extensions", "markers", "canary"],
             "additionalProperties": false,
             "properties": {
               "language": { "type": "string", "pattern": "^[a-z][a-z0-9]*$" },
@@ -175,6 +175,25 @@
                 "type": "array",
                 "minItems": 1,
                 "items": { "type": "string", "pattern": "^\\.[A-Za-z0-9._+-]+$" }
+              },
+              "markers": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "line": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+                  "block": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": ["open", "close"],
+                      "additionalProperties": false,
+                      "properties": {
+                        "open": { "type": "string", "minLength": 1 },
+                        "close": { "type": "string", "minLength": 1 }
+                      }
+                    }
+                  }
+                }
               },
               "canary": {
                 "type": "object",

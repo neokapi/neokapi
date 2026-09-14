@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/neokapi/neokapi/core/comment"
 	"github.com/neokapi/neokapi/core/plugin/manifest"
 	"github.com/neokapi/neokapi/plugins/sourcecode/internal/comments"
 )
@@ -48,6 +49,7 @@ func TestManifestDeclaresEveryCommentLanguage(t *testing.T) {
 			Language:    l.Name,
 			DisplayName: l.DisplayName,
 			Extensions:  l.Extensions,
+			Markers:     markersOf(l.Markers),
 			Canary:      manifest.CommentCanary{Name: l.Canary.Name, Source: string(l.Canary.Source), Block: l.Canary.Block},
 		})
 	}
@@ -59,6 +61,14 @@ func TestManifestDeclaresEveryCommentLanguage(t *testing.T) {
 		return 1
 	})
 	assert.Equal(t, declared, got)
+}
+
+func markersOf(m comment.Markers) manifest.CommentMarkers {
+	out := manifest.CommentMarkers{Line: m.Line}
+	for _, b := range m.Block {
+		out.Block = append(out.Block, manifest.CommentBlockMarker{Open: b.Open, Close: b.Close})
+	}
+	return out
 }
 
 func readManifest(t *testing.T) *manifest.Manifest {

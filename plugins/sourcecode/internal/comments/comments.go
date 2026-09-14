@@ -32,6 +32,8 @@ type Language struct {
 	DisplayName string
 	// Extensions lists the file extensions the language is read for.
 	Extensions []string
+	// Markers are the language's comment delimiters, which LineText reads.
+	Markers comment.Markers
 	// Canary is the file the host locates beside every real file.
 	Canary comment.Canary
 

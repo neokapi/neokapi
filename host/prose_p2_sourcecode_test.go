@@ -298,7 +298,50 @@ func proseP2Sourcecode(t *testing.T, language string) {
 	})
 }
 
-func TestProseP2_typescript(t *testing.T) { proseP2Sourcecode(t, "typescript") }
+func TestProseP2_typescript(t *testing.T) {
+	proseP2Sourcecode(t, "typescript")
+
+	// The marker line holds the prohibited word, and the lines around it do not.
+	const skip = "// Parse reads the input.\n// okapi-skip: utilize this later\n// It stops at the end.\nexport function parse(): void {}\n"
+	declaredProject := func(t *testing.T, item string) string {
+		t.Helper()
+		root := t.TempDir()
+		recipe := "version: v1\nname: declared\ndefaults:\n  source_language: en\n  voice:\n    profile_file: .kapi/voice.yaml\ncollections:\n  - name: code\n    source_only: true\n    content:\n" + item
+		for name, body := range map[string]string{
+			"kapi.yaml":        recipe,
+			".kapi/voice.yaml": "id: declared\nname: Service\nconstraints:\n  - id: service/plain-words\n    version: 1\n    source: service-guide.md\n    statement: Say use rather than utilize.\n    kind: prohibited_pattern\n    regex: '(?i)\\butilize\\b'\n",
+			"src/skip.ts":      skip,
+		} {
+			path := filepath.Join(root, filepath.FromSlash(name))
+			require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
+			require.NoError(t, os.WriteFile(path, []byte(body), 0o644))
+		}
+		return root
+	}
+	checkProject := func(t *testing.T, root string) check.Report {
+		t.Helper()
+		a := sourcecodeApp(t, nil)
+		cmd := executionCommand(t)
+		cmd.Flags().String(projectFlagName, filepath.Join(root, "kapi.yaml"), "")
+		report, err := a.ComputeCheck(cmd, nil)
+		require.NoError(t, err)
+		return report
+	}
+
+	t.Run("a directive the recipe declares is set aside through the plugin", func(t *testing.T) {
+		report := checkProject(t, declaredProject(t, "      - path: \"src/*.ts\"\n        comments:\n          directives: [\"okapi-skip:\"]\n"))
+		assert.NotEqual(t, check.VerdictDidNotRun, report.Verdict, report.DidNotRun)
+		assert.Empty(t, findingsOf(report, "voice"), "the declared marker line is not prose")
+		assert.Equal(t, 2, report.Target.Blocks, "the comment splits around the marker")
+		assert.Equal(t, check.AnalyzerPassed, analyzerRun(t, report, "comments.typescript").Status)
+	})
+
+	t.Run("must fail: undeclared, the marker line is prose", func(t *testing.T) {
+		report := checkProject(t, declaredProject(t, "      - path: \"src/*.ts\"\n        comments: true\n"))
+		require.Len(t, findingsOf(report, "voice"), 1)
+		assert.Equal(t, 1, report.Target.Blocks)
+	})
+}
 
 func TestProseP2_tsx(t *testing.T) { proseP2Sourcecode(t, "tsx") }
 

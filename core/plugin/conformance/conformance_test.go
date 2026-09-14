@@ -185,6 +185,7 @@ func probeManifest() map[string]any {
 				map[string]any{
 					"language":   "probe",
 					"extensions": []any{".probesrc"},
+					"markers":    map[string]any{"line": []any{"//"}},
 					"canary":     map[string]any{"source": "// Reads the the input.\n", "block": "comment"},
 				},
 			},

@@ -546,7 +546,9 @@ layer ([E-02](e-02-format-system.md#the-comment-layer)). The host sends a file's
 bytes over the `LocateComments` RPC and reads back what a built-in comment
 provider returns: byte spans, subjects, doc flags, runs and the comments set
 aside. Each language's canary is declared in the manifest, so the host holds the
-canary's bytes and sends them through the same RPC beside every real file.
+canary's bytes and sends them through the same RPC beside every real file. The
+manifest also names each language's comment markers, which the host reads a
+single comment line through when a recipe declares comment directives.
 
 A **separately-licensed platform plugin** demonstrates the licence boundary the
 model exists for: it attaches over the manifest model, is distributed on its own

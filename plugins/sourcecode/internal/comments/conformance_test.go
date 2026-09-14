@@ -82,6 +82,8 @@ func (p provider) Language() string       { return p.lang.Name }
 func (p provider) Extensions() []string   { return p.lang.Extensions }
 func (p provider) Canary() comment.Canary { return p.lang.Canary }
 
+func (p provider) LineText(line []byte) (int, string, bool) { return p.lang.Markers.LineText(line) }
+
 func (p provider) Locate(name string, src []byte) (*comment.File, error) {
 	f, err := p.locate(p.lang.Name, name, src)
 	if err != nil {
@@ -129,6 +131,15 @@ func (b broken) Locate(name string, src []byte) (*comment.File, error) {
 type canaryless struct{ provider }
 
 func (canaryless) Canary() comment.Canary { return comment.Canary{} }
+
+// declaredDirectives are the markers declared.ts.txt carries, declared as a
+// recipe declares them.
+var declaredDirectives = comment.Directives{"okapi-skip:", "okapi-unmapped:"}
+
+// unmarked reads no comment line as whole.
+type unmarked struct{ provider }
+
+func (unmarked) LineText([]byte) (int, string, bool) { return 0, "", false }
 
 // proseP1 is the P1 rung for one language: the shared conformance suite over a
 // corpus drawn from this repository, every fixture's golden vouching for its
@@ -219,6 +230,31 @@ func TestProseP1_typescript(t *testing.T) {
 				assert.NotEmpty(t, got.Comments, "without %q the directive fixture should expose a directive as prose", form)
 			})
 		}
+	})
+
+	t.Run("declared directives are set aside through the provider's LineText", func(t *testing.T) {
+		s := suite(t, "typescript", newProvider(t, "typescript"))
+		s.Directives = declaredDirectives
+		commenttest.Run(t, s)
+
+		got, err := comment.Locate(newProvider(t, "typescript"), "declared.ts", fixtureBytes(t, "typescript", "declared.ts.txt"), declaredDirectives)
+		require.NoError(t, err)
+		forms := 0
+		for _, e := range got.Excluded {
+			if e.Reason == comment.ReasonDirective && slices.Contains(declaredDirectives, e.Form) {
+				forms++
+			}
+		}
+		assert.Equal(t, 5, forms, "the suite ran over the declared markers")
+	})
+
+	t.Run("must fail: a provider whose LineText reads no line", func(t *testing.T) {
+		s := suite(t, "typescript", unmarked{newProvider(t, "typescript")})
+		s.Directives = declaredDirectives
+		failures := commenttest.Verify(s)
+		require.NotEmpty(t, failures)
+		assert.Contains(t, commenttest.Properties(failures), commenttest.PropDirective, "%v", commenttest.Err(failures))
+		assert.Contains(t, commenttest.Properties(failures), commenttest.PropLineText, "%v", commenttest.Err(failures))
 	})
 
 	t.Run("a doc comment sits directly before a declaration", func(t *testing.T) {
