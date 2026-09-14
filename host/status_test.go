@@ -612,3 +612,27 @@ func TestStatus_NoVenueWithoutServer(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(out), &got))
 	assert.Nil(t, got.Venue, "a plain local project has no venue ambiguity to report")
 }
+
+// TestStatus_DoNotTranslateInTheProjectStoreGovernsAndIsChecked is the same
+// project with the do-not-translate concept added to the project's own terms
+// store rather than committed in a terms source. The store keeps the flag, so
+// the concept governs every language and a target that translated the term
+// fails the check.
+func TestStatus_DoNotTranslateInTheProjectStoreGovernsAndIsChecked(t *testing.T) {
+	root := writeVerifiedGateProject(t)
+	addStatusConcept(t, root, terms.Concept{
+		ID:             "c-banana",
+		DoNotTranslate: true,
+		Terms:          []terms.Term{{Text: "Banana", Locale: model.LocaleEnglish, Status: model.TermPreferred}},
+	})
+	t.Chdir(root)
+
+	out := runStatusJSON(t)
+	for _, loc := range []string{"nb", "de"} {
+		lc, ok := localeCoverage(out, loc)
+		require.True(t, ok)
+		assert.Empty(t, lc.NotGoverned, "%s: a stored do-not-translate concept governs every language", loc)
+		assert.Equal(t, 1, lc.FailingChecks, "%s: the target translated the do-not-translate term", loc)
+		assert.False(t, lc.Shippable, "%s: a failing check withholds the locale", loc)
+	}
+}

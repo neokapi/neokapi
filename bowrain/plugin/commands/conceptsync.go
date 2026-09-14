@@ -326,7 +326,7 @@ func buildBaseline(concepts []terms.Concept, relations []terms.ConceptRelation) 
 		Relations: make(map[string]bproject.BaselineRelation, len(relations)),
 	}
 	for _, c := range concepts {
-		bc := bproject.BaselineConcept{Domain: c.Domain, Definition: c.Definition}
+		bc := bproject.BaselineConcept{Domain: c.Domain, Definition: c.Definition, DoNotTranslate: c.DoNotTranslate}
 		for _, t := range c.Terms {
 			bc.Terms = append(bc.Terms, bproject.BaselineTerm{
 				Text:         t.Text,
@@ -356,11 +356,12 @@ func buildBaseline(concepts []terms.Concept, relations []terms.ConceptRelation) 
 // timestamps.
 func conceptInfoToConcept(ci apiclient.ConceptInfo) terms.Concept {
 	concept := terms.Concept{
-		ID:         ci.ID,
-		ProjectID:  ci.ProjectID,
-		Domain:     ci.Domain,
-		Definition: ci.Definition,
-		Properties: ci.Properties,
+		ID:             ci.ID,
+		ProjectID:      ci.ProjectID,
+		Domain:         ci.Domain,
+		Definition:     ci.Definition,
+		Properties:     ci.Properties,
+		DoNotTranslate: ci.DoNotTranslate,
 	}
 	for _, t := range ci.Terms {
 		concept.Terms = append(concept.Terms, terms.Term{
@@ -570,10 +571,11 @@ func buildPushPlan(local []terms.Concept, localRels []terms.ConceptRelation, bas
 				plan.governed = append(plan.governed, newOp(opConceptCreate, conceptCreatePayload{Concept: c}))
 			} else {
 				plan.creates = append(plan.creates, apiclient.CreateConceptParams{
-					ProjectID:  c.ProjectID,
-					Domain:     c.Domain,
-					Definition: c.Definition,
-					Terms:      termsToInfo(c.Terms),
+					ProjectID:      c.ProjectID,
+					Domain:         c.Domain,
+					Definition:     c.Definition,
+					DoNotTranslate: c.DoNotTranslate,
+					Terms:          termsToInfo(c.Terms),
 				})
 			}
 			continue
@@ -585,9 +587,10 @@ func buildPushPlan(local []terms.Concept, localRels []terms.ConceptRelation, bas
 			plan.updates = append(plan.updates, conceptUpdate{
 				conceptID: id,
 				params: apiclient.UpdateConceptParams{
-					Domain:     c.Domain,
-					Definition: c.Definition,
-					Terms:      termsToInfo(ordinaryTerms),
+					Domain:         c.Domain,
+					Definition:     c.Definition,
+					DoNotTranslate: &c.DoNotTranslate,
+					Terms:          termsToInfo(ordinaryTerms),
 				},
 			})
 		}
@@ -983,11 +986,11 @@ func conceptHasGovernedTerm(c terms.Concept) bool {
 }
 
 // ordinaryConceptChanged reports whether a concept's ordinary, directly-pushable
-// state (domain, definition, and the neutralized terms list) differs from the
-// baseline. Properties are not diffed — the direct concept PUT does not carry
-// them.
+// state (domain, definition, the do-not-translate flag and the neutralized terms
+// list) differs from the baseline. Properties are not diffed, because the direct
+// concept PUT does not carry them.
 func ordinaryConceptChanged(local terms.Concept, base bproject.BaselineConcept, ordinaryTerms []terms.Term) bool {
-	if local.Domain != base.Domain || local.Definition != base.Definition {
+	if local.Domain != base.Domain || local.Definition != base.Definition || local.DoNotTranslate != base.DoNotTranslate {
 		return true
 	}
 	return termsSignature(ordinaryTerms) != baselineTermsSignature(base.Terms)

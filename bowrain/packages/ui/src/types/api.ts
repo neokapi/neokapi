@@ -1240,6 +1240,7 @@ export interface ConceptInfo {
   stream?: string;
   domain: string;
   definition: string;
+  do_not_translate?: boolean;
   terms: TermInfo[];
   properties?: Record<string, string>;
   created_at: string;
@@ -1261,6 +1262,7 @@ export interface AddConceptRequest {
   project_id?: string;
   domain: string;
   definition: string;
+  do_not_translate?: boolean;
   terms: TermInfo[];
 }
 
@@ -1270,6 +1272,7 @@ export interface UpdateConceptRequest {
   concept_id: string;
   domain: string;
   definition: string;
+  do_not_translate?: boolean;
   terms: TermInfo[];
 }
 

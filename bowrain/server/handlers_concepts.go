@@ -399,13 +399,14 @@ func (s *Server) HandleCreateConcept(c echo.Context) error {
 		return serverErrStatus(c, http.StatusServiceUnavailable, err)
 	}
 	concept := terms.Concept{
-		ID:         id.New(),
-		ProjectID:  req.ProjectID,
-		Domain:     req.Domain,
-		Definition: req.Definition,
-		Terms:      termList,
-		CreatedAt:  time.Now(),
-		UpdatedAt:  time.Now(),
+		ID:             id.New(),
+		ProjectID:      req.ProjectID,
+		Domain:         req.Domain,
+		Definition:     req.Definition,
+		DoNotTranslate: req.DoNotTranslate,
+		Terms:          termList,
+		CreatedAt:      time.Now(),
+		UpdatedAt:      time.Now(),
 	}
 	stream := streamParam(c)
 	if stream != "" && stream != "main" {
@@ -487,6 +488,9 @@ func (s *Server) HandleUpdateConcept(c echo.Context) error {
 
 	existing.Domain = req.Domain
 	existing.Definition = req.Definition
+	if req.DoNotTranslate != nil {
+		existing.DoNotTranslate = *req.DoNotTranslate
+	}
 	existing.Terms = newTerms
 	existing.UpdatedAt = time.Now()
 

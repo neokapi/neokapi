@@ -105,6 +105,9 @@ func ExportTBX(ctx context.Context, tb Terminology, writer io.Writer, opts TBXEx
 		if concept.Domain != "" {
 			out.Descrips = append(out.Descrips, tbxOutDescrip{Type: "subjectField", Value: concept.Domain})
 		}
+		if concept.DoNotTranslate {
+			out.Descrips = append(out.Descrips, tbxOutDescrip{Type: tbxDoNotTranslateDescripType, Value: "true"})
+		}
 
 		// Group terms by locale, preserving first-seen locale order.
 		var localeOrder []model.LocaleID

@@ -89,6 +89,11 @@ var tbMigrations = []storage.Migration{
 		Description: "declared surface forms on terms",
 		SQL:         termsschema.RenderTermsSQLiteV4(),
 	},
+	{
+		Version:     5,
+		Description: "do-not-translate flag on concepts",
+		SQL:         termsschema.RenderTermsSQLiteV5(),
+	},
 }
 
 // validityToColumns flattens a validity into its three column values:
@@ -195,8 +200,8 @@ func (tb *SQLiteStore) AddConceptWithStream(ctx context.Context, concept Concept
 	}
 
 	_, err = tx.ExecContext(ctx, `
-		INSERT INTO tb_concepts (id, project_id, stream, domain, definition, properties, source, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO tb_concepts (id, project_id, stream, domain, definition, properties, source, do_not_translate, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			project_id = excluded.project_id,
 			stream = excluded.stream,
@@ -204,9 +209,10 @@ func (tb *SQLiteStore) AddConceptWithStream(ctx context.Context, concept Concept
 			definition = excluded.definition,
 			properties = excluded.properties,
 			source = excluded.source,
+			do_not_translate = excluded.do_not_translate,
 			updated_at = excluded.updated_at
 	`, concept.ID, concept.ProjectID, stream, concept.Domain, concept.Definition,
-		nullableString(propsJSON), string(source),
+		nullableString(propsJSON), string(source), concept.DoNotTranslate,
 		concept.CreatedAt.Format(time.RFC3339),
 		concept.UpdatedAt.Format(time.RFC3339))
 	if err != nil {
@@ -835,9 +841,9 @@ func (tb *SQLiteStore) scanConcept(ctx context.Context, id string) (Concept, err
 	var createdStr, updatedStr, source string
 
 	err := tb.db.QueryRowContext(ctx, `
-		SELECT id, project_id, domain, definition, properties, source, created_at, updated_at
+		SELECT id, project_id, domain, definition, properties, source, do_not_translate, created_at, updated_at
 		FROM tb_concepts WHERE id = ?
-	`, id).Scan(&c.ID, &c.ProjectID, &c.Domain, &c.Definition, &propsJSON, &source, &createdStr, &updatedStr)
+	`, id).Scan(&c.ID, &c.ProjectID, &c.Domain, &c.Definition, &propsJSON, &source, &c.DoNotTranslate, &createdStr, &updatedStr)
 	if err != nil {
 		return Concept{}, fmt.Errorf("concept %s: %w", id, err)
 	}
@@ -1134,7 +1140,7 @@ func (tb *SQLiteStore) queryTermsByLocale(ctx context.Context, locale model.Loca
 	where, args, _ = sourceFilterSQL(where, args, opts.SourceFilter)
 
 	rows, err := tb.db.QueryContext(ctx, fmt.Sprintf(`
-		SELECT c.id, c.project_id, c.domain, c.definition, c.source, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.competitor_term, t.valid_from, t.valid_to, t.tags, t.forms
+		SELECT c.id, c.project_id, c.domain, c.definition, c.source, c.do_not_translate, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.competitor_term, t.valid_from, t.valid_to, t.tags, t.forms
 		FROM tb_terms t JOIN tb_concepts c ON t.concept_id = c.id
 		WHERE %s
 		ORDER BY c.id, t.text
@@ -1147,9 +1153,10 @@ func (tb *SQLiteStore) queryTermsByLocale(ctx context.Context, locale model.Loca
 	var results []LocaleTerm
 	for rows.Next() {
 		var cID, projectID, domain, definition, source, text, loc, status, pos, gender, note, tags, forms string
+		var doNotTranslate bool
 		var competitorInt int
 		var validFrom, validTo sql.NullString
-		if err := rows.Scan(&cID, &projectID, &domain, &definition, &source, &text, &loc, &status, &pos, &gender, &note, &competitorInt, &validFrom, &validTo, &tags, &forms); err != nil {
+		if err := rows.Scan(&cID, &projectID, &domain, &definition, &source, &doNotTranslate, &text, &loc, &status, &pos, &gender, &note, &competitorInt, &validFrom, &validTo, &tags, &forms); err != nil {
 			continue
 		}
 		validity := validityFromColumns(validFrom, validTo, tags)
@@ -1160,7 +1167,7 @@ func (tb *SQLiteStore) queryTermsByLocale(ctx context.Context, locale model.Loca
 		// both backends honor it identically; this query keeps only the
 		// SQL-expressible filters (locale/domain/status/project/source).
 		results = append(results, LocaleTerm{
-			Concept: Concept{ID: cID, ProjectID: projectID, Domain: domain, Definition: definition, Source: TermSource(source)},
+			Concept: Concept{ID: cID, ProjectID: projectID, Domain: domain, Definition: definition, Source: TermSource(source), DoNotTranslate: doNotTranslate},
 			Term: Term{
 				Text:           text,
 				Locale:         model.LocaleID(loc),
