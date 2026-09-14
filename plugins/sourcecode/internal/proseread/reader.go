@@ -59,28 +59,36 @@ func byExt(path string) (*ts.Language, string, bool) {
 }
 
 // grammar resolves the language to parse with: the DECLARED one first, then the
-// extension.
+// extension of the file's name.
 //
-// Declaration wins because inference is not always available. The host hands a
-// plugin its input inline and the ContentRef carries no filename on that path,
-// so a reader dispatching across grammars has nothing to infer from — which is
-// why the config takes `language` at all.
+// Declaration wins, so a recipe can read a file under a grammar its extension
+// does not name. The host sends each file's name beside its bytes; for a host
+// that sends none, declaring the language is the only way to name a grammar.
 //
 // Neither available is an error rather than a silent empty read: a collection
 // declaring a file this reader cannot parse has a bug in the recipe, and
-// reporting nothing would read as "checked, clean".
+// reporting nothing would read as "checked, clean". The error names the file and
+// the languages this build reads, so the recipe can be fixed from it alone.
 func grammar(path, declared string) (*ts.Language, string, error) {
+	readable := strings.Join(Grammars(), ", ")
 	if declared != "" {
 		lang, name, ok := byName(declared)
 		if !ok {
-			return nil, "", fmt.Errorf("no grammar for language %q", declared)
+			file := path
+			if file == "" {
+				file = "the file"
+			}
+			return nil, "", fmt.Errorf("no grammar for language %q, declared for %s; this plugin reads %s", declared, file, readable)
 		}
 		return lang, name, nil
 	}
 	if lang, name, ok := byExt(path); ok {
 		return lang, name, nil
 	}
-	return nil, "", fmt.Errorf("no grammar for %q, and no language declared", filepath.Ext(path))
+	if path == "" {
+		return nil, "", fmt.Errorf("no language is declared for the file, and it arrived without a name to infer one from; this plugin reads %s", readable)
+	}
+	return nil, "", fmt.Errorf("no grammar for %s: its extension names no language this plugin reads (%s), and no language is declared", path, readable)
 }
 
 // proseKinds are the node kinds that can hold prose, per grammar. Everything

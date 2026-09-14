@@ -37,12 +37,10 @@ type Config struct {
 
 	// Language names the grammar explicitly, e.g. "ruby".
 	//
-	// The reader can infer it from the file's extension, but it cannot always
-	// SEE one: the host hands a plugin its input inline, and the ContentRef
-	// carries no filename on that path. A single-format reader can default
-	// (kapi-pdfium assumes "document.pdf"); one that dispatches across grammars
-	// cannot guess a language without being wrong sooner or later. Declaring it
-	// is the reliable answer, and inference is the convenience.
+	// Empty infers the grammar from the extension of the file's name, which the
+	// host sends beside the file's bytes. Declaring it reads a file under a
+	// grammar its extension does not name, and names the grammar for a host
+	// that sends no name.
 	Language string
 
 	// Comments reads the file's comments as well as its strings, each comment a

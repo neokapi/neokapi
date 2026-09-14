@@ -116,9 +116,32 @@ func TestCommentsAreOptIn(t *testing.T) {
 // nothing would read as "checked, clean" for a collection that in fact governs
 // nothing.
 func TestUnknownExtensionIsRefused(t *testing.T) {
-	_, err := proseread.ReadParts([]byte("x = 1"), model.LocaleEnglish, "thing.py", proseread.Options{})
+	_, err := proseread.ReadParts([]byte("x = 1"), model.LocaleEnglish, "tools/thing.py", proseread.Options{})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), ".py")
+	assert.Contains(t, err.Error(), "tools/thing.py", "the error names the file")
+	assert.Contains(t, err.Error(), "ruby", "and the languages the plugin reads")
+}
+
+// A file that arrives with no name, from a host that sends none, is read only
+// under a declared language.
+func TestAFileWithNoNameNeedsADeclaredLanguage(t *testing.T) {
+	_, err := proseread.ReadParts([]byte("x = 1"), model.LocaleEnglish, "", proseread.Options{})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "no language is declared")
+	assert.Contains(t, err.Error(), "ruby")
+}
+
+func TestDeclaredLanguageWinsOverTheExtension(t *testing.T) {
+	src := []byte("cask \"kapi\" do\n  desc \"Desktop workbench\"\nend\n")
+	parts, err := proseread.ReadParts(src, model.LocaleEnglish, "Casks/kapi.cask", proseread.Options{Language: "ruby"})
+	require.NoError(t, err)
+	assert.Equal(t, "Desktop workbench", blocks(t, parts)["desc"])
+
+	_, err = proseread.ReadParts(src, model.LocaleEnglish, "Casks/kapi.rb", proseread.Options{Language: "python"})
+	require.Error(t, err, "the declaration is read, though the extension names a grammar")
+	assert.Contains(t, err.Error(), `"python"`)
+	assert.Contains(t, err.Error(), "Casks/kapi.rb")
+	assert.Contains(t, err.Error(), "ruby")
 }
 
 func TestGrammarsAreReported(t *testing.T) {

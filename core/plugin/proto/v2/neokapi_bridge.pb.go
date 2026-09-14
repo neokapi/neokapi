@@ -556,7 +556,11 @@ type ProcessHeader struct {
 	InlineSteps []*InlineStep `protobuf:"bytes,11,rep,name=inline_steps,json=inlineSteps,proto3" json:"inline_steps,omitempty"` // Optional steps to run between filter and writer.
 	// Steps are applied in order to each filter event
 	// before it is streamed to Go or written to output.
-	ConfigId      string `protobuf:"bytes,12,opt,name=config_id,json=configId,proto3" json:"config_id,omitempty"` // Optional named Okapi filter configuration to apply
+	ConfigId string `protobuf:"bytes,12,opt,name=config_id,json=configId,proto3" json:"config_id,omitempty"` // Optional named Okapi filter configuration to apply
+	// The input document's name as kapi knows it, such as its path in the
+	// project, sent whether the bytes arrive by path or inline. A reader may
+	// infer the document's syntax from it; it is never a location to read.
+	InputName     string `protobuf:"bytes,13,opt,name=input_name,json=inputName,proto3" json:"input_name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -671,6 +675,13 @@ func (x *ProcessHeader) GetInlineSteps() []*InlineStep {
 func (x *ProcessHeader) GetConfigId() string {
 	if x != nil {
 		return x.ConfigId
+	}
+	return ""
+}
+
+func (x *ProcessHeader) GetInputName() string {
+	if x != nil {
+		return x.InputName
 	}
 	return ""
 }
@@ -1644,7 +1655,7 @@ const file_core_plugin_proto_v2_neokapi_bridge_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a=\n" +
 	"\x0fParamTypesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xe8\x04\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x87\x05\n" +
 	"\rProcessHeader\x12!\n" +
 	"\ffilter_class\x18\x01 \x01(\tR\vfilterClass\x124\n" +
 	"\x05input\x18\x02 \x01(\v2\x1e.neokapi.content.v1.ContentRefR\x05input\x12#\n" +
@@ -1658,7 +1669,9 @@ const file_core_plugin_proto_v2_neokapi_bridge_proto_rawDesc = "" +
 	"\x0fsubscribe_parts\x18\n" +
 	" \x03(\x05R\x0esubscribeParts\x12@\n" +
 	"\finline_steps\x18\v \x03(\v2\x1d.neokapi.bridge.v2.InlineStepR\vinlineSteps\x12\x1b\n" +
-	"\tconfig_id\x18\f \x01(\tR\bconfigId\x1a?\n" +
+	"\tconfig_id\x18\f \x01(\tR\bconfigId\x12\x1d\n" +
+	"\n" +
+	"input_name\x18\r \x01(\tR\tinputName\x1a?\n" +
 	"\x11FilterParamsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x11\n" +

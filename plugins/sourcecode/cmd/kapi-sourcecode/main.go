@@ -182,7 +182,7 @@ func (s *server) Process(stream pb.BridgeService_ProcessServer) error {
 		return complete(stream, "first message must be a header")
 	}
 
-	data, uri, err := readInput(header.GetInput())
+	data, uri, err := readInput(header)
 	if err != nil {
 		return complete(stream, err.Error())
 	}
@@ -233,25 +233,27 @@ func complete(stream pb.BridgeService_ProcessServer, errMsg string) error {
 	return stream.Send(&pb.ProcessResponse{Response: &pb.ProcessResponse_Complete{Complete: &pb.ProcessComplete{Error: errMsg}}})
 }
 
-// readInput resolves the document bytes from a ContentRef (path preferred,
-// inline fallback) and returns a URI label — which also chooses the grammar, so
-// it has to carry the real extension.
-func readInput(in *pb.ContentRef) ([]byte, string, error) {
+// readInput returns the document's bytes and its name. The header names the
+// document whether its bytes arrive by path or inline; a host that sends no
+// name leaves the path, when there is one, as the name.
+func readInput(header *pb.ProcessHeader) ([]byte, string, error) {
+	in := header.GetInput()
 	if in == nil {
 		return nil, "", fmt.Errorf("no input in header")
 	}
+	name := header.GetInputName()
 	if path := in.GetPath(); path != "" {
 		data, err := os.ReadFile(path)
 		if err != nil {
 			return nil, "", fmt.Errorf("read %s: %w", path, err)
 		}
-		return data, path, nil
+		if name == "" {
+			name = path
+		}
+		return data, name, nil
 	}
 	if inline := in.GetInline(); len(inline) > 0 {
-		// The uri may be empty — the host does not always name inline content —
-		// and that is fine: the reader falls back to the declared `language`,
-		// and reports honestly when neither is available.
-		return inline, in.GetUri(), nil
+		return inline, name, nil
 	}
 	return nil, "", fmt.Errorf("empty input")
 }
