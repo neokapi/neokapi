@@ -80,7 +80,12 @@ An analyzer that misses its canary has status `invalid`, and the run did not
 run, whatever else it reported. An analyzer whose configuration gives it nothing
 to catch, such as a voice profile with no deterministic rules, has status
 `did_not_run`; when the invocation asked for it by name, the run did not run
-either. A run that checked no blocks did not run. The top-level `did_not_run`
+either. A voice profile that holds comment limits and no term or pattern gives
+`voice.rules` no rule for a file's comments, and the comment analyzers check
+them against those limits. `voice.rules` then has status `not_applicable`, with
+the reason, and never counts as a pass, so the comment analyzers decide the
+verdict. The same profile over content holding no comment did not run. A run
+that checked no blocks did not run. The top-level `did_not_run`
 field lists the reasons. `kapi check` exits `4` for this verdict, and neither
 `--no-fail` nor `--lenient` changes that.
 

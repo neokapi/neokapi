@@ -17,6 +17,11 @@ const (
 	// AnalyzerDidNotRun means the analyzer was configured but had nothing it could
 	// catch, so it checked nothing.
 	AnalyzerDidNotRun AnalyzerStatus = "did_not_run"
+	// AnalyzerNotApplicable means the configuration gives the analyzer no rule
+	// for the input, and other analyzers check the rules it holds, as with a
+	// voice profile that holds only comment limits. It checked nothing, so it
+	// never counts as a pass.
+	AnalyzerNotApplicable AnalyzerStatus = "not_applicable"
 )
 
 // AnalyzerExecution records one analyzer's actual coverage of one input.

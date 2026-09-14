@@ -2,6 +2,7 @@ package profile
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/check"
@@ -163,6 +164,27 @@ func VocabularyRuleSets(p *VoiceProfile) []TermRuleSet {
 		{Rules: p.Vocabulary.ForbiddenTerms, Kind: VocabForbidden, Default: SeverityMajor},
 		{Rules: p.Vocabulary.CompetitorTerms, Kind: VocabCompetitor, Default: SeverityCritical},
 	}
+}
+
+// HasDeterministicRules reports whether p declares a rule the vocabulary check
+// applies to text: a forbidden or competitor term, a prohibited or required
+// pattern, or a prohibited-pattern constraint in scope. Invalid constraints
+// count too, because they report on every block. A profile holding only tone,
+// guidance or comment limits declares none.
+func HasDeterministicRules(p *VoiceProfile) bool {
+	if p == nil {
+		return false
+	}
+	for _, set := range VocabularyRuleSets(p) {
+		if slices.ContainsFunc(set.Rules, func(rule TermRule) bool { return strings.TrimSpace(rule.Term) != "" }) {
+			return true
+		}
+	}
+	patterns := slices.Concat(p.Style.ProhibitedPatterns, p.Style.RequiredPatterns)
+	if slices.ContainsFunc(patterns, func(pat Pattern) bool { return strings.TrimSpace(pat.Regex) != "" }) {
+		return true
+	}
+	return constraintError(p) != nil || constraintPatternCount(p) > 0
 }
 
 // MatchVocabulary returns every forbidden- and competitor-term hit in text under
