@@ -3961,6 +3961,9 @@
               "color": {
                 "usage": "colorize output: auto, always, never"
               },
+              "comments": {
+                "usage": "resolve the voice at the point the file's comments sit at"
+              },
               "file": {
                 "usage": "explicit path to resource file"
               },
@@ -4001,6 +4004,7 @@
                 "usage": "Output in text format (default)"
               }
             },
+            "long": "Print the voice guide in force.\n\nInside a project, a path selects the voice at the point that file sits at. For a\nfile whose only content is its comments, such as a Go source file, that is the\npoint its comments sit at, and the guide lists the comment limits in force\nthere. --comments asks for the comments' point for any file.",
             "short": "Print the voice guide (inject into your assistant's context)"
           },
           "import": {
@@ -4238,7 +4242,7 @@
                 "usage": "Output in text format (default)"
               }
             },
-            "long": "Validate a voice profile YAML and report structural problems.\n\nPass a file path, or \"-\" to read the profile from stdin. Validation reports:\n\n  - YAML syntax or type errors that stop the profile from parsing\n  - unknown fields (typo'd or unsupported keys)\n  - missing required fields (only 'name' is required)\n  - invalid enum values (tone formality/emotion/humor, style sentence_length/\n    person_pov/contractions, example category, rule severity)\n  - regex in style prohibited_patterns/required_patterns that does not compile\n  - vocabulary term rules with an empty term\n\nExit codes: 0 when the profile is valid, 1 when it has any problem. With --json\nthe result is {\"valid\": bool, \"errors\": [{\"field\", \"message\"}]}.",
+            "long": "Validate a voice profile YAML and report structural problems.\n\nPass a file path, or \"-\" to read the profile from stdin. Validation reports:\n\n  - YAML syntax or type errors that stop the profile from parsing\n  - unknown fields (typo'd or unsupported keys)\n  - missing required fields (only 'name' is required)\n  - invalid enum values (tone formality/emotion/humor, style sentence_length/\n    person_pov/contractions, example category, rule severity)\n  - regex in style prohibited_patterns/required_patterns that does not compile\n  - vocabulary term rules with an empty term\n  - style comments limits that are not a positive number of words, or a minor\n    sentence limit that is not below the major one\n\nExit codes: 0 when the profile is valid, 1 when it has any problem. With --json\nthe result is {\"valid\": bool, \"errors\": [{\"field\", \"message\"}]}.",
             "short": "Validate a voice profile YAML (structure, enums, regex, terms)"
           }
         }

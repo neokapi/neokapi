@@ -264,6 +264,16 @@ checkset):
   `--lenient` reports it without failing. The comment reader and the formatter
   each catch a canary on every run, as every other analyzer does. See
   [Comments in source code](/kapi/recipes/verify-content#comments-in-source-code).
+- **Comment limits**: where the voice profile at a comment's point sets
+  [comment limits](/reference/serialization/voice-profile#comment-limits), a
+  sentence over the minor or major word limit is a `comment.sentence-length`
+  finding of that severity, and a comment over the limit for what it documents
+  is a major `comment.length` finding. Sentences are split with the UAX #29
+  sentence break over the comment's prose: the lines a comment wraps over are
+  joined first, a blank line, a divider line, a list item, a heading or a
+  documentation tag starts a new sentence, and code spans, references and links
+  are not counted as words. A build without the sentence break reports the
+  sentence check as not run.
 
 **Bilingual checks** (opt-in, with `--target`: a translated target
 against its source):

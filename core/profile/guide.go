@@ -68,6 +68,15 @@ func RenderVoiceGuide(p *VoiceProfile) string {
 			fmt.Fprintf(&b, "  - %s (severity: %s)\n", patternHint(pat), pat.Severity)
 		}
 	}
+	if p.Style.Comments != nil {
+		l := p.Style.Comments.Limits()
+		b.WriteString("- Code comments:\n")
+		fmt.Fprintf(&b, "  - A sentence over %d words is a minor finding, and over %d words a major one\n", l.SentenceMinor, l.SentenceMajor)
+		fmt.Fprintf(&b, "  - A comment that documents no declaration: at most %d words\n", l.CommentWords)
+		fmt.Fprintf(&b, "  - A declaration's doc comment: at most %d words\n", l.DocWords)
+		fmt.Fprintf(&b, "  - A package or module doc comment: at most %d words\n", l.PackageDocWords)
+		b.WriteString("  - Code spans, references and links are not counted as words\n")
+	}
 	b.WriteString("\n")
 
 	// Vocabulary
@@ -182,6 +191,13 @@ func RenderVoiceGuideCompact(p *VoiceProfile) string {
 		b.WriteString(" The document must carry these: ")
 		b.WriteString(strings.Join(hints, "; "))
 		b.WriteString(".")
+	}
+
+	if p.Style.Comments != nil {
+		l := p.Style.Comments.Limits()
+		fmt.Fprintf(&b, " Code comments: a sentence over %d words is flagged (a major finding over %d), and so is a comment over %d words, "+
+			"a doc comment over %d or a package doc comment over %d.",
+			l.SentenceMinor, l.SentenceMajor, l.CommentWords, l.DocWords, l.PackageDocWords)
 	}
 
 	swaps := termSwaps(p)

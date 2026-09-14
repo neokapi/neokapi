@@ -791,6 +791,13 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 		} else {
 			opts.execution.skipped("voice.rules", file, "No voice profile or project terms were bound.")
 		}
+		// The comments among the group's blocks are held to the comment limits
+		// of the group's voice.
+		limitDiags, err := a.checkCommentLimits(ctx, g.blocks, g.at.profile, file, opts.execution)
+		if err != nil {
+			return nil, err
+		}
+		diags = append(diags, limitDiags...)
 		if g.apart {
 			opts.execution.pointAnalyzers(mark, g.at.point)
 		}

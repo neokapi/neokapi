@@ -5,6 +5,7 @@
 export {
     AutonomyConfig,
     ChannelOverride,
+    CommentRules,
     Constraint,
     ConstraintException,
     ConstraintResolution,
@@ -16,6 +17,7 @@ export {
     PersonaOverride,
     ProfileProblem,
     Rendering,
+    SentenceWordLimits,
     StyleRules,
     TermRule,
     ToneProfile,

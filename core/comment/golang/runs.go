@@ -8,11 +8,12 @@ import (
 	"strconv"
 	"strings"
 
+	layer "github.com/neokapi/neokapi/core/comment"
 	"github.com/neokapi/neokapi/core/model"
 )
 
-// In this file `comment` is go/doc/comment, the doc comment syntax. The comment
-// layer's own types are used in golang.go.
+// In this file `comment` is go/doc/comment, the doc comment syntax, and `layer`
+// is the comment layer.
 
 // Placeholder types and subtypes for the parts of a comment that are not prose.
 const (
@@ -23,6 +24,7 @@ const (
 	subURL      = "go:url"
 	subLink     = "go:link"
 	subLinkDef  = "go:linkdef"
+	subListItem = "go:item"
 	paragraphSp = "\n\n"
 )
 
@@ -64,11 +66,13 @@ func docParser(f *ast.File) *docCommentParser {
 // Every block kind and text kind the parser produces has a case here. Prose is
 // text; a code block, a URL, a link's brackets and target, a link definition
 // and a reference to a declaration are placeholders, so a check reads none of
-// them as a sentence and nothing that rewrites prose can alter them. List
-// markers and heading markers are syntax the parser has already consumed, and
-// the runs keep each item and heading on its own line. A kind the parser gains
-// in a later Go release is an error until it has a case, rather than text that
-// silently disappears.
+// them as a sentence and nothing that rewrites prose can alter them. The
+// parser consumes list markers and heading markers. Each list item opens with
+// a placeholder of type layer.TypeListItem holding the marker gofmt writes, "-"
+// or the item's number and a full stop, so one item's prose stays apart from
+// the next, and each item and heading sits on its own line. A kind the parser
+// gains in a later Go release is an error until it has a case, rather than text
+// that silently disappears.
 func docRuns(d *comment.Doc) ([]model.Run, error) {
 	var b runBuilder
 	for i, blk := range d.Content {
@@ -119,6 +123,11 @@ func (b *runBuilder) block(blk comment.Block) error {
 			if i > 0 {
 				b.text("\n")
 			}
+			marker := "-"
+			if item.Number != "" {
+				marker = item.Number + "."
+			}
+			b.placeholder(layer.TypeListItem, subListItem, marker)
 			for j, content := range item.Content {
 				if j > 0 {
 					b.text(paragraphSp)

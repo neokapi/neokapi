@@ -71,6 +71,12 @@ type Comment struct {
 	Runs []model.Run `json:"runs"`
 }
 
+// TypeListItem is the type of the placeholder a provider writes for the marker
+// of a list item whose marker its parser consumed, such as the "-" of a Go doc
+// comment list. It keeps each item's prose apart from the next item's, which a
+// line break alone does not.
+const TypeListItem = "list:item"
+
 // Reason says why a located comment is not addressable.
 type Reason string
 

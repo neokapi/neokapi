@@ -234,6 +234,32 @@ bare `kapi check`, a check of named files, `kapi check --ship`, a check scoped
 to a diff and the MCP `check_file` tool all hold each block to its point, and
 each finding reports the `point` it was checked at.
 
+The voice profile at the comments' point can hold them to word limits of their
+own under `style.comments`:
+
+```yaml title=".kapi/profiles/acme/voice.yaml"
+name: Acme comments
+style:
+  sentence_length: short
+  comments:
+    sentence_words: { minor: 50, major: 70 }
+    comment_words: 100
+    doc_words: 150
+    package_doc_words: 300
+```
+
+A sentence over 50 words is then a minor `comment.sentence-length` finding and
+one over 70 a major one, and a comment over the limit for what it documents is
+a major `comment.length` finding. `comments: {}` applies these numbers, which
+are the defaults. In a check scoped to a diff, the limits apply to the comments
+the change touched. See [Comment limits](/reference/serialization/voice-profile#comment-limits)
+for how sentences and words are counted.
+
+`kapi voice guide <file>` prints the limits in force for a file whose only
+content is its comments, such as a Go file, so an assistant about to write a
+comment there reads them first. `--comments` asks for the comments' point of
+any file.
+
 The same key checks the comments in YAML files, in XML-based files, such as
 [Android string resources](/reference/formats/androidxml),
 [.NET RESX](/reference/formats/resx) and [XLIFF](/reference/formats/xliff),

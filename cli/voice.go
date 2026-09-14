@@ -107,8 +107,14 @@ the profile.`,
 
 func newVoiceGuideCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "guide",
+		Use:   "guide [path]",
 		Short: "Print the voice guide (inject into your assistant's context)",
+		Long: `Print the voice guide in force.
+
+Inside a project, a path selects the voice at the point that file sits at. For a
+file whose only content is its comments, such as a Go source file, that is the
+point its comments sit at, and the guide lists the comment limits in force
+there. --comments asks for the comments' point for any file.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			profile, _, err := a.ResolveVoiceProfileCmd(cmd, args...)
 			if err != nil {
@@ -120,6 +126,7 @@ func newVoiceGuideCmd(a *App) *cobra.Command {
 			})
 		},
 	}
+	cmd.Flags().Bool("comments", false, "resolve the voice at the point the file's comments sit at")
 	AddProfileFlags(cmd)
 	output.AddFlags(cmd.Flags())
 	return cmd
@@ -301,6 +308,8 @@ Pass a file path, or "-" to read the profile from stdin. Validation reports:
     person_pov/contractions, example category, rule severity)
   - regex in style prohibited_patterns/required_patterns that does not compile
   - vocabulary term rules with an empty term
+  - style comments limits that are not a positive number of words, or a minor
+    sentence limit that is not below the major one
 
 Exit codes: 0 when the profile is valid, 1 when it has any problem. With --json
 the result is {"valid": bool, "errors": [{"field", "message"}]}.`,

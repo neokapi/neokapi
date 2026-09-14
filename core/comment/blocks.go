@@ -20,7 +20,21 @@ const (
 	PropDoc = "comment.doc"
 	// PropDeprecated is "true" on a comment carrying a deprecation marker.
 	PropDeprecated = "comment.deprecated"
+	// PropPackageDoc is "true" on the doc comment of the package or module the
+	// file belongs to (PackageDoc).
+	PropPackageDoc = "comment.package"
 )
+
+// PackageDoc reports whether a doc comment on subject documents the package or
+// module its file belongs to rather than one declaration in it. The Go
+// provider and the sourcecode plugin's Java provider name that comment's
+// subject "package", and the Rust provider names a file's inner doc comment
+// "module". No other provider has one: the comments of YAML, the XML family,
+// HTML, Markdown, MDX, PO and properties document no declaration, and the other
+// languages have no package doc comment.
+func PackageDoc(subject string) bool {
+	return subject == "package" || subject == "module"
+}
 
 // Blocks returns the file's comments as blocks, in file order.
 //
@@ -42,6 +56,9 @@ func (f *File) Blocks() []*model.Block {
 		b.Properties[PropStyle] = string(c.Style)
 		if c.Doc {
 			b.Properties[PropDoc] = "true"
+			if PackageDoc(c.Subject) {
+				b.Properties[PropPackageDoc] = "true"
+			}
 		}
 		if c.Deprecated {
 			b.Properties[PropDeprecated] = "true"

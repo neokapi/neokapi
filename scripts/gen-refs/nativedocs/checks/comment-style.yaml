@@ -1,0 +1,35 @@
+# Native reference doc for the `comment-style` source-side check.
+# Source: core/check/comments.go (CommentSentenceFindings, CommentLengthFindings,
+# CommentLimits); the limits come from core/profile/comments.go (CommentRules),
+# and host/check_comment_limits.go runs the analyzers.
+# A check, not a registry tool: the voice profile at a comment's point configures it.
+description: Hold the comments in source files to the sentence and comment word limits a voice profile sets for them.
+overview: |
+  The **Comment Style** check reads the comments a comment layer locates and
+  holds them to the limits under `style.comments` in the voice profile at the
+  point the comments sit at. A profile without that section asks for nothing,
+  and the check reports its analyzers as not requested.
+
+  - `comment.sentence-length`: a sentence over the minor word limit is a minor
+    finding, and one over the major limit a major finding. The finding points at
+    the sentence inside its comment and quotes it.
+  - `comment.length`: a comment over the word limit for what it documents is a
+    major finding. The doc comment of a package or module, a declaration's doc
+    comment and every other comment each have a limit of their own.
+
+  A sentence is found with the UAX #29 sentence break over the comment's prose.
+  The lines a comment wraps a sentence over are joined first, because the
+  sentence break ends a sentence at every line break. A blank line, a line of
+  code, and a divider line such as `── Section ──` end a sentence, and a
+  divider's title is a sentence of its own. A heading, a list item and a
+  documentation tag such as `@param` each start one. A word holds a letter or a
+  digit, so a code span, a reference, a link or a dash standing alone is never
+  counted.
+limitations:
+  - Reads comments only; the blocks a format reader extracts are never held to comment limits.
+  - Needs the UAX 29 sentence break, which a build without ICU lacks. The sentence check then did not run, and the run is not a pass.
+  - Counts words by whitespace, so a language written without spaces between words is held to the limits as one long word per stretch.
+processingNotes:
+  - Each analyzer catches canaries built from the limits in force beside every file. The wrapped sentence canary is one sentence over three lines, so a check that ends a sentence at a line break misses it.
+  - In a check scoped to a diff, the limits apply to the comments the change touched.
+  - Findings count toward the same severity gate as any other finding. `kapi check` fails on a critical finding by default, and `kapi check --ship` fails its checks gate on a major one.

@@ -241,6 +241,8 @@ func Copy(r io.Reader) {}
 		"go:doclink [Buffer]",
 		"go:link [ https://go.dev",
 		"go:link ]",
+		"go:item -",
+		"go:item -",
 		"go:code n, err := Copy(dst, src)\n",
 		"go:url https://go.dev/doc",
 		"go:linkdef [the Go site]: https://go.dev",

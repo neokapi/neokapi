@@ -340,8 +340,16 @@ func (a *App) resolveProjectVoiceProfile(cmd Command, locale, channel, persona s
 		}
 		if rel, rerr := filepath.Rel(root, abs); rerr == nil && !strings.HasPrefix(rel, "..") {
 			point = a.GovernancePointFor("", filepath.ToSlash(rel))
+			// A file whose only content is its comments is written under the
+			// voice at the point its comments sit at.
+			point.Comments = a.commentsOnlyFile(abs)
 		}
 		break
+	}
+	// --comments asks for that point for any file, or for the project's
+	// comments with no file named.
+	if comments, _ := cmd.Flags().GetBool("comments"); comments {
+		point.Comments = true
 	}
 
 	return a.ResolveVoiceProfile(CmdContext(cmd), proj, root, VoiceResolveOptions{
