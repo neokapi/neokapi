@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -595,35 +596,46 @@ func pseudoTranslate(text string, cfg *PseudoConfig) string {
 // longer matches). ICU-style pluralization patterns like
 // `{count, plural, one {# step} other {# steps}}` also come
 // through correctly since the outer braces guard the directive.
+//
+// A printf conversion is passed through the same way. A catalog read as plain
+// JSON carries `%d` as text rather than as a placeholder run, and the runtime
+// formats it: Go prints an accented `%đ` as `%!đ(int=3)`.
 func accentTransform(text string) string {
 	var b strings.Builder
 	b.Grow(len(text))
 	depth := 0
-	for _, r := range text {
-		switch r {
-		case '{':
+	for i := 0; i < len(text); {
+		r, size := utf8.DecodeRuneInString(text[i:])
+		switch {
+		case r == '{':
 			depth++
-			b.WriteRune(r)
-			continue
-		case '}':
+		case r == '}':
 			if depth > 0 {
 				depth--
 			}
-			b.WriteRune(r)
-			continue
+		case depth > 0:
+		case r == '%':
+			if verb := printfVerb.FindString(text[i:]); verb != "" {
+				b.WriteString(verb)
+				i += len(verb)
+				continue
+			}
+		default:
+			if replacement, ok := accentMap[r]; ok {
+				r = replacement
+			}
 		}
-		if depth > 0 {
-			b.WriteRune(r)
-			continue
-		}
-		if replacement, ok := accentMap[r]; ok {
-			b.WriteRune(replacement)
-		} else {
-			b.WriteRune(r)
-		}
+		b.WriteRune(r)
+		i += size
 	}
 	return b.String()
 }
+
+// printfVerb matches one printf conversion at the start of a string: `%%`, Go's
+// explicit argument index (`%[1]d`), a positional argument (`%1$s`), flags,
+// width and precision, a C length modifier (`%lld`) and Objective-C's `%@`. A
+// space is not read as a flag, so the `% o` in "50% of" stays prose.
+var printfVerb = regexp.MustCompile(`^%(?:%|(?:\[\d+\])?[-+#0]*(?:\d+\$)?(?:\*|\d+)?(?:\.(?:\*|\d+)?)?(?:hh|h|ll|l|L|q|j|z|t)?[A-Za-z@])`)
 
 // effectiveWrap returns the markers to emit, exactly as configured.
 //
