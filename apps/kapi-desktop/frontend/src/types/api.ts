@@ -943,6 +943,8 @@ export interface ConvergenceReport {
   source?: SourceCoverage;
   locales: LocaleCoverage[];
   review: ReviewItem[];
+  /** Declared files the report could not measure (`format.no_reader`). */
+  warnings?: CheckWarning[] | null;
 }
 
 // --- Convergence pre-flight plan + run result (the shared `kapi up` engine) ---
