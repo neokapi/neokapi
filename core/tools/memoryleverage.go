@@ -55,9 +55,11 @@ type MemoryLeverageConfig struct {
 	Point string `json:"point,omitempty" schema:"-"`
 
 	// Profile and TermRules carry the context governing the collection, injected
-	// by the flow's bindings. Recycling consults neither for matching, but a
-	// filled target is stamped with them so a recycled target is as attributable
-	// as a freshly translated one. See recycleOrigin for the fill-time decision.
+	// by the flow's bindings. Recycling consults neither for matching. TermRules
+	// decide whether a match may fill: one that breaks a rule is recorded and left
+	// for the drafter (fillBreaksTermRules). A filled target is stamped with both,
+	// so a recycled target is as attributable as a freshly translated one. See
+	// recycleOrigin for the stamp.
 	Profile   *coreprofile.VoiceProfile `json:"-" schema:"-"`
 	TermRules []coreprofile.TermRule    `json:"term_rules,omitempty" schema:"-"`
 
@@ -296,7 +298,7 @@ func recordWholeBlockMatch(v tool.VariantView, conf *MemoryLeverageConfig, trans
 	// cannot classify and falls back to the score. It is the legacy path for
 	// entries stored without inline codes; the structure-aware path above is
 	// the one that classifies.
-	if shouldFillTarget(conf, v, score, "") && !fillWouldDropCodes(v, targetRuns) {
+	if shouldFillTarget(conf, v, score, "") && !fillWouldDropCodes(v, targetRuns) && !fillBreaksTermRules(conf, v, targetRuns) {
 		v.SetTarget(conf.TargetLocale, &model.Target{
 			Runs:   targetRuns,
 			Status: model.TargetStatusDraft,
@@ -320,13 +322,32 @@ func fillWouldDropCodes(v tool.VariantView, candidate []model.Run) bool {
 	return model.DiffRunCodes(v.SourceRuns(), candidate).Lossy()
 }
 
+// fillBreaksTermRules reports whether committing candidate as v's target would
+// break a term rule governing the block: the source uses a ruled term and the
+// candidate holds none of the renderings the rule accepts, or the candidate
+// changes a do-not-translate term. Term-check decides, over the texts the ship
+// gate reads, so recycle never fills a target the gate would fail. A rule that
+// only warns never refuses a fill, and a block with no rules has none to break.
+func fillBreaksTermRules(conf *MemoryLeverageConfig, v tool.VariantView, candidate []model.Run) bool {
+	if len(conf.TermRules) == 0 {
+		return false
+	}
+	errs, _ := TermCheckViolations(&TermCheckConfig{
+		TermRules:    conf.TermRules,
+		SourceLocale: conf.SourceLocale,
+		TargetLocale: conf.TargetLocale,
+	}, v.SourceText(), model.RunsText(candidate))
+	return len(errs) > 0
+}
+
 // leverageBlockRuns performs the structure-aware whole-block leverage. It
 // returns true when it has handled the block — the match was filled, or
 // it was Ambiguous (recorded but deliberately not filled) — so the caller
 // must not run the text-based path on top of it. It returns false when
 // the provider has no block-level match, when the matched target's inline
-// codes do not line up with the block's source codes, or when the match
-// scored below the fill policy: the flattened text path keys differently
+// codes do not line up with the block's source codes, when the match
+// scored below the fill policy, or when it breaks a term rule governing the
+// block: the flattened text path keys differently
 // (inline codes and placeholders drop out of its query), so it can still
 // recover legacy entries whose source text was authored without them. A
 // sub-threshold block match is recorded as an alt-translation candidate
@@ -413,6 +434,13 @@ func leverageBlock(conf *MemoryLeverageConfig, v tool.VariantView) bool {
 		// match returned the corpus's BEST match, so there is no exact for the
 		// text path to find.
 		return m.Edit == edit.Substantive
+	}
+	if fillBreaksTermRules(conf, v, targetRuns) {
+		// The match breaks a term rule governing the block. The candidate stays
+		// recorded for a reviewer and the block is left for the drafter. The text
+		// path may still find a differently keyed entry, held to the same rules.
+		v.Annotate(string(model.AnnoMemoryMatch), &MemoryMatchAnnotation{Score: m.Score, Type: propType})
+		return false
 	}
 	v.SetTarget(conf.TargetLocale, &model.Target{
 		Runs:   targetRuns,
@@ -604,7 +632,7 @@ func leverageSegments(conf *MemoryLeverageConfig, v tool.VariantView) bool {
 	// assembled target is plain text: it cannot carry any inline code the
 	// source has. Filling it would drop them (see fillWouldDropCodes); the
 	// segment matches stay recorded as alt-translations either way.
-	if shouldFillTarget(conf, v, minScore, "") && !fillWouldDropCodes(v, assembled) {
+	if shouldFillTarget(conf, v, minScore, "") && !fillWouldDropCodes(v, assembled) && !fillBreaksTermRules(conf, v, assembled) {
 		// Commit a real Target carrying provenance and score, not an opaque
 		// string: a content memory pre-fill is a reviewable draft assembled from segment
 		// matches, so a reviewer/tool can see it came from content memory and at what score.

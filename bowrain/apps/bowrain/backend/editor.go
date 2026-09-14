@@ -1053,7 +1053,7 @@ func (a *App) memoryTranslateItemLocal(projectID, itemName, targetLocale string)
 
 	parts := storedBlocksToParts(storedBlocks)
 
-	memoryTool := leverage.NewTool(tm, proj.DefaultSourceLanguage, model.LocaleID(targetLocale), 0)
+	memoryTool := leverage.NewTool(tm, proj.DefaultSourceLanguage, model.LocaleID(targetLocale), 0, nil)
 
 	outParts, err := tool.RunOnParts(ctx, memoryTool, parts)
 	if err != nil {

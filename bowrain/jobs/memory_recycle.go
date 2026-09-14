@@ -4,13 +4,16 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"log/slog"
 	"strconv"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/model"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/venue"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/neokapi/neokapi/memory/leverage"
+	"github.com/neokapi/neokapi/terms"
 )
 
 // MemoryResolver returns the project's server content memory for a workspace.
@@ -53,6 +56,21 @@ type recycleResult struct {
 // an alt-translation candidate, not a silent fill.
 const defaultMemoryMinScore = 0.7
 
+// recycleTermRules resolves the term rules a recycle pass holds its matches to.
+// It is the derivation the translate step renders into its prompt
+// (TermRulesFromConcepts), so recycle and drafting answer to the same rules. A
+// terms read that fails is logged and yields no rules: terminology never fails
+// a translation.
+func recycleTermRules(ctx context.Context, tb terms.Terminology, projectID string, source, target model.LocaleID) []coreprofile.TermRule {
+	rules, err := TermRulesFromConcepts(ctx, tb, projectID, source, target)
+	if err != nil {
+		slog.WarnContext(ctx, "terms read failed; recycling without term rules",
+			"project_id", projectID, "target", string(target), "error", err)
+		return nil
+	}
+	return rules
+}
+
 // recycleBlocks runs the one framework recycle tool over the stored blocks and
 // partitions them into content memory-filled vs. remainder. It mirrors the
 // built-in `translate` flow's recycle→translate ordering: exact (and, at the
@@ -66,8 +84,10 @@ const defaultMemoryMinScore = 0.7
 // defaultMemoryMinScore, matching the CLI recycle flow).
 //
 // ledger is the stream's recorded bases, which decide which blocks are
-// candidates at all: see decisionLedger.needsDraft.
-func recycleBlocks(ctx context.Context, tm memory.Store, storedBlocks []*venue.StoredBlock, sourceLocale, targetLocale model.LocaleID, minScore float64, ledger decisionLedger) (recycleResult, error) {
+// candidates at all: see decisionLedger.needsDraft. termRules are the rules the
+// run's drafter is given (recycleTermRules). A match that breaks one is not
+// filled, so its unit stays in the remainder and is drafted.
+func recycleBlocks(ctx context.Context, tm memory.Store, storedBlocks []*venue.StoredBlock, sourceLocale, targetLocale model.LocaleID, minScore float64, ledger decisionLedger, termRules []coreprofile.TermRule) (recycleResult, error) {
 	if minScore <= 0 {
 		minScore = defaultMemoryMinScore
 	}
@@ -91,7 +111,7 @@ func recycleBlocks(ctx context.Context, tm memory.Store, storedBlocks []*venue.S
 	}
 
 	//nolint:contextcheck // the recycle tool threads its operation context through the tool VariantView, not this constructor
-	memoryTool := leverage.NewTool(tm, sourceLocale, targetLocale, int(minScore*100))
+	memoryTool := leverage.NewTool(tm, sourceLocale, targetLocale, int(minScore*100), termRules)
 
 	parts := storedBlocksToParts(candidates)
 	outParts, err := runToolOnParts(ctx, memoryTool, parts)

@@ -12,6 +12,7 @@ import (
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/jobs"
 	"github.com/neokapi/neokapi/memory"
+	"github.com/neokapi/neokapi/terms"
 )
 
 // This file is the server-computed pre-flight ESTIMATE (roadmap epic 019, theme
@@ -72,13 +73,18 @@ const (
 func (o *convergenceOrchestrator) buildConvergenceEstimate(ctx context.Context, proj *platstore.Project) (convergenceEstimateView, error) {
 	s := o.server
 	var tm memory.Store
+	var tb terms.Terminology
 	if s.wsStores != nil {
-		if resolved, err := s.wsStores.getMemory(o.workspaceSlug(ctx, proj)); err == nil {
+		slug := o.workspaceSlug(ctx, proj)
+		if resolved, err := s.wsStores.getMemory(slug); err == nil {
 			tm = resolved
+		}
+		if resolved, err := s.wsStores.getTerms(slug); err == nil {
+			tb = resolved
 		}
 	}
 
-	est, err := jobs.EstimateConvergence(ctx, s.ContentStore, tm, proj)
+	est, err := jobs.EstimateConvergence(ctx, s.ContentStore, tm, tb, proj)
 	if err != nil {
 		return convergenceEstimateView{}, err
 	}

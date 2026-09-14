@@ -8,6 +8,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/venue"
 	"github.com/neokapi/neokapi/memory"
+	"github.com/neokapi/neokapi/terms"
 )
 
 // This file is the side-effect-free pre-flight estimator behind the convergence
@@ -72,8 +73,9 @@ const estimateNote = "Source readiness is evaluated against defaults.source_gate
 // them by SourceStatus vs. the project's source gate, and for the ready source
 // estimates per-locale pending/content memory/AI work. tm may be nil (no content-memory leverage: every
 // pending unit reads as AI work). It never writes to the store and never calls
-// an AI provider.
-func EstimateConvergence(ctx context.Context, cs store.ContentStore, tm memory.Store, proj *store.Project) (ConvergenceEstimate, error) {
+// an AI provider. tb is the workspace terms: a match that breaks one of its
+// rules is priced as AI work, as the run drafts it. tb may be nil.
+func EstimateConvergence(ctx context.Context, cs store.ContentStore, tm memory.Store, tb terms.Terminology, proj *store.Project) (ConvergenceEstimate, error) {
 	est := ConvergenceEstimate{Note: estimateNote}
 	if proj == nil {
 		return est, nil
@@ -137,7 +139,8 @@ func EstimateConvergence(ctx context.Context, cs store.ContentStore, tm memory.S
 		// A nil content memory (or an error) means no leverage — everything reads as AI work.
 		remainder := pending
 		if tm != nil {
-			if res, rerr := recycleBlocks(ctx, tm, pending, source, target, minScore, ledger); rerr == nil {
+			rules := recycleTermRules(ctx, tb, proj.ID, source, target)
+			if res, rerr := recycleBlocks(ctx, tm, pending, source, target, minScore, ledger, rules); rerr == nil {
 				work.ViaMemory = res.memoryCount
 				remainder = filterStoredByRemainder(pending, res.remainder)
 			}
