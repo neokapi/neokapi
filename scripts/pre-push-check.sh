@@ -108,6 +108,10 @@ run_check "Sync backing gate" ./scripts/check-sync-backed.sh --self-test
 # staging more than the job owns. ~1s, all in scratch repos.
 run_check "Scheduled auto-PR delivery" ./scripts/auto-pr.sh --self-test
 
+# The ratchet runs on extraction in l10n.yml. This proves its comparison on
+# planted warnings. Well under a second.
+run_check "Extractor warning ratchet" node scripts/check-extract-warnings.mjs --self-test
+
 # Ungated for the same reason, plus one specific to this repo: the bowrain
 # checks below are gated on ^bowrain/core/ and ^bowrain/plugin/ only, so the
 # main bowrain module has no local format gate at all — which is how nine files

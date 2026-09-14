@@ -248,6 +248,15 @@ diff would look routine, and the wording would be gone.
 The job's summary carries `make l10n-report`: coverage and placeholder parity
 per locale, standing and never gating.
 
+The same job holds the extractors to the warnings they raise. Each extract
+target writes its warnings with `--warnings-json` to `.extract-warnings/`, and
+`make l10n-extract-warnings-check` compares them with
+`scripts/extract-warnings-baseline.json`. A warning the baseline does not record
+fails the job; the recorded ones pass, so existing debt never blocks a pull
+request. A warning is counted by surface, file, kind and tag rather than by
+line, so moving code does not read as a new warning. A pull request that fixes
+warnings lowers the record with `make l10n-extract-warnings-baseline`.
+
 This and the dogfood sync below are the only jobs in the repository that hold
 `contents: write` for multilingual reasons, and they write to different places:
 this one to the pull-request branch under review, the sync only to its own bot
@@ -402,6 +411,7 @@ reversibly.
 | `l10n-content-check` | the soundness question over the whole committed tier: the standing burndown of what is already in git |
 | `l10n-collapse-check` | existence, not coverage: a catalog that carried entries may not come back empty, asserted in the walk that produced it |
 | `l10n-review-export` | emits the lossy interchange views (TMX/CSV) a human reviewer asks for; read-only, and wording is still decided in the ledger |
+| `l10n-extract-warnings-check` / `l10n-extract-warnings-baseline` | an extractor warning is text that ships untranslated or keys unstably, and a ratchet stops new ones without failing on the ones already in the tree |
 | `l10n-orphans` / `l10n-orphans-report` | content memory matches on text, so an entry whose source string is gone is wording any surface can pick up again, and the only safe version of keeping it is seeing it |
 | `l10n-stale-report` | a scope-addressed catalog keeps a translation attached to its scope when the sentence under it is rewritten, and git is the only record of what it was a translation of that survives a clone |
 | `scripts/l10n-autofix.sh` | the deterministic-regeneration commit; nothing standard commits the output of a stage that is not kapi's |

@@ -1665,6 +1665,10 @@ LANDING_EXTRACT_CONFIG       :=
 KAPI_DESKTOP_SOURCE_ROOT := ../../..
 BOWRAIN_APP_SOURCE_ROOT  := ../../..
 
+# Where each extract target records its warnings, one JSON file per surface, for
+# the baseline ratchet in scripts/check-extract-warnings.mjs. Gitignored.
+L10N_WARNINGS_DIR := $(CURDIR)/.extract-warnings
+
 # The whole argv each extract target runs, so `l10n-extract-globs` prints the
 # real invocation and the guard checks what the pipeline actually does.
 KAPI_DESKTOP_EXTRACT_FLAGS  := $(KAPI_DESKTOP_EXTRACT_CONFIG) --out i18n/ --source-root $(KAPI_DESKTOP_SOURCE_ROOT) --target-locale qps $(KAPI_DESKTOP_EXTRACT_SRC)
@@ -1780,28 +1784,28 @@ L10N_LOOP_CATALOGS := $(foreach lang,$(L10N_LANGS),$(call L10N_LOOP_LOCALE,$(lan
 # both need the source catalogs, and target drift must never gate either.
 
 kapi-desktop-extract: kapi-desktop-frontend-deps i18n-react-build ## Extract Kapi Desktop UI strings → i18n/ (per-file .kbf.json)
-	cd $(KAPI_DESKTOP_FRONTEND) && $(NEOKAPI_I18N_CLI) extract $(KAPI_DESKTOP_EXTRACT_FLAGS)
+	cd $(KAPI_DESKTOP_FRONTEND) && $(NEOKAPI_I18N_CLI) extract $(KAPI_DESKTOP_EXTRACT_FLAGS) --warnings-json $(L10N_WARNINGS_DIR)/kapi-desktop.json
 
 bowrain-app-extract: i18n-react-build ## Extract bowrain app+ui+shell strings → bowrain/packages/app/i18n/
-	cd $(BOWRAIN_APP_DIR) && $(NEOKAPI_I18N_CLI) extract $(BOWRAIN_APP_EXTRACT_FLAGS)
+	cd $(BOWRAIN_APP_DIR) && $(NEOKAPI_I18N_CLI) extract $(BOWRAIN_APP_EXTRACT_FLAGS) --warnings-json $(L10N_WARNINGS_DIR)/bowrain-app.json
 
 bowrain-ctrl-extract: i18n-react-build ## Extract ctrl admin-app strings → bowrain/apps/ctrl/i18n/
-	cd bowrain/apps/ctrl && $(NEOKAPI_I18N_CLI) extract $(BOWRAIN_SHELL_EXTRACT_FLAGS)
+	cd bowrain/apps/ctrl && $(NEOKAPI_I18N_CLI) extract $(BOWRAIN_SHELL_EXTRACT_FLAGS) --warnings-json $(L10N_WARNINGS_DIR)/bowrain-ctrl.json
 
 bowrain-pulse-extract: i18n-react-build ## Extract pulse dashboard strings → bowrain/apps/pulse/i18n/
-	cd bowrain/apps/pulse && $(NEOKAPI_I18N_CLI) extract $(BOWRAIN_SHELL_EXTRACT_FLAGS)
+	cd bowrain/apps/pulse && $(NEOKAPI_I18N_CLI) extract $(BOWRAIN_SHELL_EXTRACT_FLAGS) --warnings-json $(L10N_WARNINGS_DIR)/bowrain-pulse.json
 
 emails-frontend-deps: ## Install transactional-email template dependencies
 	cd $(EMAILS_DIR) && vp install
 
 emails-extract: emails-frontend-deps i18n-react-build ## Extract transactional-email strings → bowrain/emails/i18n/
-	cd $(EMAILS_DIR) && $(NEOKAPI_I18N_CLI) extract $(EMAILS_EXTRACT_FLAGS)
+	cd $(EMAILS_DIR) && $(NEOKAPI_I18N_CLI) extract $(EMAILS_EXTRACT_FLAGS) --warnings-json $(L10N_WARNINGS_DIR)/bowrain-emails.json
 
 landing-frontend-deps: ## Install landing page dependencies
 	cd $(LANDING_DIR) && vp install
 
 landing-extract: landing-frontend-deps i18n-react-build ## Extract landing page strings → bowrain/web/landing/i18n/
-	cd $(LANDING_DIR) && $(NEOKAPI_I18N_CLI) extract $(LANDING_EXTRACT_FLAGS)
+	cd $(LANDING_DIR) && $(NEOKAPI_I18N_CLI) extract $(LANDING_EXTRACT_FLAGS) --warnings-json $(L10N_WARNINGS_DIR)/bowrain-landing.json
 
 kapi-i18n-generate: i18n-catalogs ## Regenerate core/i18n/builtins/metadata.json from the Go registries
 	go generate ./core/i18n/...
@@ -1811,6 +1815,14 @@ kapi-cli-i18n-generate: i18n-catalogs ## Regenerate host/i18n/commands.json from
 
 l10n-extract: kapi-desktop-extract bowrain-app-extract bowrain-ctrl-extract bowrain-pulse-extract emails-extract landing-extract kapi-i18n-generate kapi-cli-i18n-generate ## Stage 1: every SOURCE catalog the recipe declares (no target languages)
 	@echo "✓ source catalogs extracted — every collection kapi.yaml declares now has content"
+
+# The extractor warnings the last `make l10n-extract` recorded, held to the
+# committed baseline: a warning beyond it fails, the recorded ones do not.
+l10n-extract-warnings-check: ## Fail on an extractor warning beyond scripts/extract-warnings-baseline.json (after l10n-extract)
+	@node scripts/check-extract-warnings.mjs --dir $(L10N_WARNINGS_DIR)
+
+l10n-extract-warnings-baseline: l10n-extract ## Rewrite the extractor warning baseline from a fresh extraction
+	@node scripts/check-extract-warnings.mjs --dir $(L10N_WARNINGS_DIR) --update
 
 # Every extract surface as "<dir><TAB><flags>", one per line: the fixture guard
 # reads this rather than re-deriving globs, so the thing it checks is the thing
@@ -3200,7 +3212,7 @@ help: ## Show this help
         kapi-i18n-generate kapi-cli-i18n-generate i18n-react-build i18n-catalogs \
         l10n l10n-build l10n-extract l10n-converge l10n-pseudo l10n-compile \
         l10n-verify l10n-derived-paths l10n-loop-owned-paths l10n-owned-paths \
-        l10n-extract-globs l10n-review-export \
+        l10n-extract-globs l10n-extract-warnings-check l10n-extract-warnings-baseline l10n-review-export \
         l10n-collapse-check l10n-report l10n-content-pairs l10n-content-check \
         l10n-orphans l10n-orphans-report l10n-stale-report \
         check-extract-fixtures \

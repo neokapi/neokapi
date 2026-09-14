@@ -1186,6 +1186,11 @@ jobs:
       - name: Guard — scheduled output is delivered as a reviewable pull request
         run: ./scripts/auto-pr.sh --self-test
 
+      # The ratchet itself runs on extraction in l10n.yml. This proves its
+      # comparison on planted warnings, on every pull request.
+      - name: "Guard: the extractor warning ratchet refuses a new warning"
+        run: node scripts/check-extract-warnings.mjs --self-test
+
       # Same reason again: the plugin formula generator runs only on a
       # `<plugin>-v*` tag, so nothing before a release exercises it. Its
       # self-test renders every plugin from a synthetic checksum set and checks

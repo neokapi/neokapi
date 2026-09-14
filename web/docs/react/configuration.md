@@ -209,6 +209,10 @@ neokapi-i18n extract --stream | any-kapi-tool
 
 # CI-friendly: fail on any recorded warning.
 neokapi-i18n extract --strict
+
+# Record every warning as JSON (kind, file, line, tag), for a check that
+# compares the warnings with a baseline instead of failing on all of them.
+neokapi-i18n extract --warnings-json build/extract-warnings.json
 ```
 
 `--ignore` is repeatable and accepts any glob; it's piped through to
