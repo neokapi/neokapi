@@ -30,6 +30,7 @@ func TestTermsSQLiteGolden(t *testing.T) {
 		{"tb_sqlite_v2.golden.sql", RenderTermsSQLiteV2()},
 		{"tb_sqlite_v3.golden.sql", RenderTermsSQLiteV3()},
 		{"tb_sqlite_v4.golden.sql", RenderTermsSQLiteV4()},
+		{"tb_sqlite_v5.golden.sql", RenderTermsSQLiteV5()},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -193,6 +194,22 @@ func TestTermsPostgresSemanticEquivalence(t *testing.T) {
 	assertStmtSetEqual(t, "v3 fuzzy", pgV3Reference, RenderTermsPostgresV3())
 	assertStmtSetEqual(t, "v4 brand graph", pgV4Reference, RenderTermsPostgresV4("workspace_id"))
 	assertStmtSetEqual(t, "v6 forms", `ALTER TABLE tb_terms ADD COLUMN IF NOT EXISTS forms JSONB NOT NULL DEFAULT '[]';`, RenderTermsPostgresV6())
+	assertStmtSetEqual(t, "v7 do not translate", `ALTER TABLE tb_concepts ADD COLUMN IF NOT EXISTS do_not_translate BOOLEAN NOT NULL DEFAULT FALSE;`, RenderTermsPostgresV7())
+}
+
+// TestTermsPostgresBaselineCarriesDoNotTranslate pins that a database created
+// from the baseline has the do-not-translate column, so version 7 is a no-op
+// there and the column exists whichever route a database took.
+func TestTermsPostgresBaselineCarriesDoNotTranslate(t *testing.T) {
+	for _, stmt := range normalizeStatements(RenderTermsPostgresBaseline("workspace_id")) {
+		if strings.HasPrefix(stmt, "CREATE TABLE IF NOT EXISTS tb_concepts ") {
+			if !strings.Contains(stmt, "do_not_translate BOOLEAN NOT NULL DEFAULT FALSE") {
+				t.Errorf("baseline tb_concepts has no do_not_translate column: %s", stmt)
+			}
+			return
+		}
+	}
+	t.Fatal("baseline creates no tb_concepts table")
 }
 
 // TestTermsPostgresBaselineCarriesForms pins that a database created from the

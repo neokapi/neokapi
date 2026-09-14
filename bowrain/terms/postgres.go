@@ -57,8 +57,9 @@ func NewPostgresStoreFromDB(db *storage.PgDB, workspaceID string) (*PostgresStor
 // Versions issued after the baseline:
 //
 //	6  declared surface forms on terms
+//	7  do-not-translate flag on concepts
 //
-// Retired numbers are never reused. The next migration is version 7.
+// Retired numbers are never reused. The next migration is version 8.
 var Migrations = []storage.Migration{
 	{
 		Version:     5,
@@ -69,6 +70,11 @@ var Migrations = []storage.Migration{
 		Version:     6,
 		Description: "declared surface forms on terms",
 		SQL:         termsschema.RenderTermsPostgresV6(),
+	},
+	{
+		Version:     7,
+		Description: "do-not-translate flag on concepts",
+		SQL:         termsschema.RenderTermsPostgresV7(),
 	},
 }
 
@@ -161,17 +167,18 @@ func (tb *PostgresStore) AddConceptWithStream(ctx context.Context, concept fw.Co
 	}
 
 	_, err = tx.ExecContext(ctx, `
-		INSERT INTO tb_concepts (id, workspace_id, stream, domain, definition, properties, source, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		INSERT INTO tb_concepts (id, workspace_id, stream, domain, definition, properties, source, do_not_translate, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 		ON CONFLICT (workspace_id, id) DO UPDATE SET
 			stream = EXCLUDED.stream,
 			domain = EXCLUDED.domain,
 			definition = EXCLUDED.definition,
 			properties = EXCLUDED.properties,
 			source = EXCLUDED.source,
+			do_not_translate = EXCLUDED.do_not_translate,
 			updated_at = EXCLUDED.updated_at
 	`, concept.ID, tb.workspaceID, stream, concept.Domain, concept.Definition,
-		nullableString(propsJSON), string(source),
+		nullableString(propsJSON), string(source), concept.DoNotTranslate,
 		concept.CreatedAt, concept.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("upsert concept: %w", err)
@@ -798,7 +805,7 @@ func (tb *PostgresStore) scanConcepts(ctx context.Context, ids []string) ([]fw.C
 	inClause := strings.Join(placeholders, ",")
 
 	conceptRows, err := tb.db.QueryContext(ctx, `
-		SELECT id, domain, definition, properties, source, created_at, updated_at
+		SELECT id, domain, definition, properties, source, do_not_translate, created_at, updated_at
 		FROM tb_concepts WHERE workspace_id = $1 AND id IN (`+inClause+`)`, args...)
 	if err != nil {
 		return nil, fmt.Errorf("load concepts: %w", err)
@@ -810,7 +817,7 @@ func (tb *PostgresStore) scanConcepts(ctx context.Context, ids []string) ([]fw.C
 		var c fw.Concept
 		var propsJSON *string
 		var source string
-		if err := conceptRows.Scan(&c.ID, &c.Domain, &c.Definition, &propsJSON, &source, &c.CreatedAt, &c.UpdatedAt); err != nil {
+		if err := conceptRows.Scan(&c.ID, &c.Domain, &c.Definition, &propsJSON, &source, &c.DoNotTranslate, &c.CreatedAt, &c.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan concept: %w", err)
 		}
 		c.Source = fw.TermSource(source)
@@ -875,9 +882,9 @@ func (tb *PostgresStore) scanConcept(ctx context.Context, id string) (fw.Concept
 	var source string
 
 	err := tb.db.QueryRowContext(ctx, `
-		SELECT id, domain, definition, properties, source, created_at, updated_at
+		SELECT id, domain, definition, properties, source, do_not_translate, created_at, updated_at
 		FROM tb_concepts WHERE workspace_id = $1 AND id = $2
-	`, tb.workspaceID, id).Scan(&c.ID, &c.Domain, &c.Definition, &propsJSON, &source, &c.CreatedAt, &c.UpdatedAt)
+	`, tb.workspaceID, id).Scan(&c.ID, &c.Domain, &c.Definition, &propsJSON, &source, &c.DoNotTranslate, &c.CreatedAt, &c.UpdatedAt)
 	if err != nil {
 		return fw.Concept{}, err
 	}
@@ -1061,7 +1068,7 @@ func (tb *PostgresStore) queryTermsByLocale(ctx context.Context, locale model.Lo
 	}
 
 	rows, err := tb.db.QueryContext(ctx, fmt.Sprintf(`
-		SELECT c.id, c.domain, c.definition, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.valid_from, t.valid_to, t.tags, t.forms
+		SELECT c.id, c.domain, c.definition, c.do_not_translate, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.valid_from, t.valid_to, t.tags, t.forms
 		FROM tb_terms t JOIN tb_concepts c ON t.workspace_id = c.workspace_id AND t.concept_id = c.id
 		WHERE %s
 		ORDER BY c.id, t.text
@@ -1074,15 +1081,16 @@ func (tb *PostgresStore) queryTermsByLocale(ctx context.Context, locale model.Lo
 	var results []fw.LocaleTerm
 	for rows.Next() {
 		var cID, domain, definition, text, loc, status, pos, gender, note, tags, forms string
+		var doNotTranslate bool
 		var validFrom, validTo sql.NullTime
-		if err := rows.Scan(&cID, &domain, &definition, &text, &loc, &status, &pos, &gender, &note, &validFrom, &validTo, &tags, &forms); err != nil {
+		if err := rows.Scan(&cID, &domain, &definition, &doNotTranslate, &text, &loc, &status, &pos, &gender, &note, &validFrom, &validTo, &tags, &forms); err != nil {
 			continue
 		}
 		// A malformed forms column keeps the term, unexpanded: dropping the row
 		// would hide a forbidden term from every check that reads it.
 		formList, _ := fw.FormsFromColumn(forms)
 		results = append(results, fw.LocaleTerm{
-			Concept: fw.Concept{ID: cID, Domain: domain, Definition: definition},
+			Concept: fw.Concept{ID: cID, Domain: domain, Definition: definition, DoNotTranslate: doNotTranslate},
 			Term: fw.Term{
 				Text:         text,
 				Locale:       model.LocaleID(loc),

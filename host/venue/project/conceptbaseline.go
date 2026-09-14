@@ -31,9 +31,10 @@ type ConceptBaseline struct {
 
 // BaselineConcept is the diff-relevant state of one pulled concept.
 type BaselineConcept struct {
-	Domain     string         `json:"domain,omitempty"`
-	Definition string         `json:"definition,omitempty"`
-	Terms      []BaselineTerm `json:"terms,omitempty"`
+	Domain         string         `json:"domain,omitempty"`
+	Definition     string         `json:"definition,omitempty"`
+	DoNotTranslate bool           `json:"do_not_translate,omitempty"`
+	Terms          []BaselineTerm `json:"terms,omitempty"`
 }
 
 // BaselineTerm is the diff-relevant state of one term within a concept.

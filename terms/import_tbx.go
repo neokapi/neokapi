@@ -150,6 +150,8 @@ func ImportTBX(ctx context.Context, tb Terminology, reader io.Reader, opts TBXIm
 				if v := strings.TrimSpace(d.Value); v != "" {
 					concept.Domain = v
 				}
+			case strings.ToLower(tbxDoNotTranslateDescripType):
+				concept.DoNotTranslate = strings.EqualFold(strings.TrimSpace(d.Value), "true")
 			}
 		}
 
@@ -284,6 +286,13 @@ func buildTerm(ts tbxTermSec, locale model.LocaleID, defaultStatus model.TermSta
 // that does not know it skips the note, as ImportTBX does with every note it
 // does not recognise.
 const tbxFormNoteType = "x-surfaceForm"
+
+// tbxDoNotTranslateDescripType is the local concept descrip the do-not-translate
+// flag travels in, with the value "true". TBX has no data category for a
+// designation that stays the same string in every language. The x- prefix marks
+// a category private to this producer, and a reader that does not know it skips
+// the descrip.
+const tbxDoNotTranslateDescripType = "x-doNotTranslate"
 
 // parseTBXStatus maps TBX administrativeStatus / normativeAuthorization values
 // (and a few plain status spellings) onto the terms store status vocabulary.

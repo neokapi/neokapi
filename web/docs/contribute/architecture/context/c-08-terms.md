@@ -75,7 +75,10 @@ type Concept struct {
 `DoNotTranslate` marks a concept whose source term is the same string
 everywhere: a product name, a trademark, a format acronym. It is independent of
 whether a target term exists, because an untranslated term needs no entry per
-locale.
+locale. Every backend stores the flag with the concept, the bundle and the JSON
+export carry it as `do_not_translate`, and TBX export writes it as a private
+`x-doNotTranslate` concept descrip, which `ImportTBX` reads back and other TBX
+readers skip.
 
 `Forms` lists the other surface shapes a term takes in its own language: the
 Norwegian plural *varsler* for *varsel*, the German *Liegeplätze* for

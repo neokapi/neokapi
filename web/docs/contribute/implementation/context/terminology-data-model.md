@@ -49,7 +49,10 @@ one terms store while staying filterable.
 `DoNotTranslate` marks a concept whose source term is the same string in every
 locale (a product name, a trademark, a format acronym). It is independent of
 whether a target term exists, and it reaches the tools as a `TermRule` with
-`DoNotTranslate` set.
+`DoNotTranslate` set. The SQL backends keep it in the `do_not_translate` column
+of `tb_concepts` (SQLite migration 5, Postgres migration 7), the bundle and the
+JSON export as `do_not_translate`, the concept API and concept sync as
+`do_not_translate`, and TBX as `<descrip type="x-doNotTranslate">true</descrip>`.
 
 `Forms` are the term's other surface shapes in its own language (a plural, a
 definite form, a case ending). `NormalizedConcept` trims them and drops blanks,

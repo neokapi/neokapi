@@ -866,6 +866,7 @@ tasks.updated_at timestamp with time zone NOT NULL DEFAULT now()
 tasks.workspace_id text NOT NULL
 tb_concepts.created_at timestamp with time zone NOT NULL DEFAULT now()
 tb_concepts.definition text NOT NULL DEFAULT ''::text
+tb_concepts.do_not_translate boolean NOT NULL DEFAULT false
 tb_concepts.domain text NOT NULL DEFAULT ''::text
 tb_concepts.id text NOT NULL
 tb_concepts.properties text NULL

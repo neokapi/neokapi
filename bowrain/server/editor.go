@@ -407,14 +407,15 @@ type TermInfoResponse struct {
 
 // ConceptInfoResponse is the API response for a concept.
 type ConceptInfoResponse struct {
-	ID         string             `json:"id"`
-	ProjectID  string             `json:"project_id,omitempty"` // empty = workspace-scoped
-	Domain     string             `json:"domain"`
-	Definition string             `json:"definition"`
-	Terms      []TermInfoResponse `json:"terms"`
-	Properties map[string]string  `json:"properties,omitempty"`
-	CreatedAt  string             `json:"created_at"`
-	UpdatedAt  string             `json:"updated_at"`
+	ID             string             `json:"id"`
+	ProjectID      string             `json:"project_id,omitempty"` // empty = workspace-scoped
+	Domain         string             `json:"domain"`
+	Definition     string             `json:"definition"`
+	DoNotTranslate bool               `json:"do_not_translate,omitempty"`
+	Terms          []TermInfoResponse `json:"terms"`
+	Properties     map[string]string  `json:"properties,omitempty"`
+	CreatedAt      string             `json:"created_at"`
+	UpdatedAt      string             `json:"updated_at"`
 }
 
 // TermSearchResponse holds a page of term search results.
@@ -425,17 +426,21 @@ type TermSearchResponse struct {
 
 // AddConceptRequest holds parameters for adding a concept.
 type AddConceptRequest struct {
-	ProjectID  string             `json:"project_id"` // empty = workspace-scoped
-	Domain     string             `json:"domain"`
-	Definition string             `json:"definition"`
-	Terms      []TermInfoResponse `json:"terms"`
+	ProjectID      string             `json:"project_id"` // empty = workspace-scoped
+	Domain         string             `json:"domain"`
+	Definition     string             `json:"definition"`
+	DoNotTranslate bool               `json:"do_not_translate,omitempty"`
+	Terms          []TermInfoResponse `json:"terms"`
 }
 
 // UpdateConceptRequest holds parameters for updating a concept.
 type UpdateConceptRequest struct {
-	Domain     string             `json:"domain"`
-	Definition string             `json:"definition"`
-	Terms      []TermInfoResponse `json:"terms"`
+	Domain     string `json:"domain"`
+	Definition string `json:"definition"`
+	// DoNotTranslate sets the concept's do-not-translate flag. An update that
+	// omits it keeps the stored value.
+	DoNotTranslate *bool              `json:"do_not_translate,omitempty"`
+	Terms          []TermInfoResponse `json:"terms"`
 }
 
 // ImportCSVRequest holds parameters for CSV term import.
@@ -1796,14 +1801,15 @@ func editorConceptToInfo(c terms.Concept) ConceptInfoResponse {
 		}
 	}
 	return ConceptInfoResponse{
-		ID:         c.ID,
-		ProjectID:  c.ProjectID,
-		Domain:     c.Domain,
-		Definition: c.Definition,
-		Terms:      terms,
-		Properties: c.Properties,
-		CreatedAt:  c.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:  c.UpdatedAt.Format(time.RFC3339),
+		ID:             c.ID,
+		ProjectID:      c.ProjectID,
+		Domain:         c.Domain,
+		Definition:     c.Definition,
+		DoNotTranslate: c.DoNotTranslate,
+		Terms:          terms,
+		Properties:     c.Properties,
+		CreatedAt:      c.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:      c.UpdatedAt.Format(time.RFC3339),
 	}
 }
 

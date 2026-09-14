@@ -47,14 +47,15 @@ type TermInfo struct {
 // ProjectID is empty for workspace-scoped concepts; timestamps are RFC3339
 // strings as emitted by the server DTO.
 type ConceptInfo struct {
-	ID         string            `json:"id"`
-	ProjectID  string            `json:"project_id,omitempty"`
-	Domain     string            `json:"domain"`
-	Definition string            `json:"definition"`
-	Terms      []TermInfo        `json:"terms"`
-	Properties map[string]string `json:"properties,omitempty"`
-	CreatedAt  string            `json:"created_at"`
-	UpdatedAt  string            `json:"updated_at"`
+	ID             string            `json:"id"`
+	ProjectID      string            `json:"project_id,omitempty"`
+	Domain         string            `json:"domain"`
+	Definition     string            `json:"definition"`
+	DoNotTranslate bool              `json:"do_not_translate,omitempty"`
+	Terms          []TermInfo        `json:"terms"`
+	Properties     map[string]string `json:"properties,omitempty"`
+	CreatedAt      string            `json:"created_at"`
+	UpdatedAt      string            `json:"updated_at"`
 }
 
 // ConceptSearchResult is a page of concept search results, mirroring the
@@ -612,10 +613,11 @@ type TrialReport struct {
 // /api/v1/:ws/concepts). Creating a term already forbidden or preferred is a
 // governed transition the server refuses with a 409.
 type CreateConceptParams struct {
-	ProjectID  string     `json:"project_id,omitempty"`
-	Domain     string     `json:"domain"`
-	Definition string     `json:"definition"`
-	Terms      []TermInfo `json:"terms"`
+	ProjectID      string     `json:"project_id,omitempty"`
+	Domain         string     `json:"domain"`
+	Definition     string     `json:"definition"`
+	DoNotTranslate bool       `json:"do_not_translate,omitempty"`
+	Terms          []TermInfo `json:"terms"`
 }
 
 // UpdateConceptParams applies an ordinary concept edit (PUT
@@ -624,9 +626,11 @@ type CreateConceptParams struct {
 // with a 409 — a concept-sync push keeps the governed terms at their baseline
 // status here and routes the real transition through a change-set.
 type UpdateConceptParams struct {
-	Domain     string     `json:"domain"`
-	Definition string     `json:"definition"`
-	Terms      []TermInfo `json:"terms"`
+	Domain     string `json:"domain"`
+	Definition string `json:"definition"`
+	// DoNotTranslate sets the concept's do-not-translate flag; nil leaves it.
+	DoNotTranslate *bool      `json:"do_not_translate,omitempty"`
+	Terms          []TermInfo `json:"terms"`
 }
 
 // AddRelationParams adds an ordinary typed relation from the path concept to a
