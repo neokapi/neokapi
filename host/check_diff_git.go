@@ -56,6 +56,102 @@ func gitDiffStaged(ctx context.Context, dir string) (*diffSource, error) {
 	return &diffSource{label: "staged", root: root, files: files, objects: objects}, nil
 }
 
+// gitDiffRange diffs the two commits spec names and reads each file from the
+// second. A..B diffs B against A, and A...B diffs B against the merge base of A
+// and B, which is the change B made since it left A. An empty side names HEAD,
+// as it does to git. Nothing is read from the working tree, so a range checks
+// the same from any checkout of the repository.
+func gitDiffRange(ctx context.Context, dir, spec string) (*diffSource, error) {
+	from, to, sinceMergeBase, err := splitRange(spec)
+	if err != nil {
+		return nil, err
+	}
+	top, err := gitOutput(ctx, dir, "rev-parse", "--show-toplevel")
+	if err != nil {
+		return nil, fmt.Errorf("--diff-range needs a git work tree: %w", err)
+	}
+	root := strings.TrimSpace(string(top))
+	base, err := commitID(ctx, root, from)
+	if err != nil {
+		return nil, err
+	}
+	head, err := commitID(ctx, root, to)
+	if err != nil {
+		return nil, err
+	}
+	if sinceMergeBase {
+		out, err := gitOutput(ctx, root, "merge-base", base, head)
+		if err != nil {
+			return nil, fmt.Errorf("%s and %s share no merge base: %w", from, to, err)
+		}
+		base = strings.TrimSpace(string(out))
+	}
+	objects, err := treeObjects(ctx, root, head, "at "+to)
+	if err != nil {
+		return nil, err
+	}
+	out, err := gitOutput(ctx, root, slices.Concat(gitDiffArgs, []string{"--end-of-options", base, head, "--"})...)
+	if err != nil {
+		return nil, fmt.Errorf("git diff %s: %w", spec, err)
+	}
+	files, err := diffscope.Parse(out)
+	if err != nil {
+		return nil, fmt.Errorf("parse git diff %s: %w", spec, err)
+	}
+	return &diffSource{label: "git diff " + spec, root: root, files: files, objects: objects}, nil
+}
+
+// splitRange reads a range, A..B or A...B, into its two revisions, and reports
+// whether it names the change since their merge base.
+func splitRange(spec string) (from, to string, sinceMergeBase bool, err error) {
+	sep := "..."
+	i := strings.Index(spec, sep)
+	if i < 0 {
+		sep = ".."
+		i = strings.Index(spec, sep)
+	}
+	if i < 0 {
+		return "", "", false, fmt.Errorf("%q is not a range: name two commits as A..B or A...B", spec)
+	}
+	from, to = spec[:i], spec[i+len(sep):]
+	for _, rev := range []*string{&from, &to} {
+		if *rev == "" {
+			*rev = "HEAD"
+		}
+		if strings.HasPrefix(*rev, "-") || strings.Contains(*rev, "..") {
+			return "", "", false, fmt.Errorf("%q is not a revision", *rev)
+		}
+	}
+	return from, to, sep == "...", nil
+}
+
+// commitID resolves rev to the id of the commit it names.
+func commitID(ctx context.Context, root, rev string) (string, error) {
+	out, err := gitOutput(ctx, root, "rev-parse", "--verify", rev+"^{commit}")
+	if err != nil {
+		return "", fmt.Errorf("%q names no commit: %w", rev, err)
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
+// treeObjects lists the blob the tree of commit holds at each path. where names
+// that version for a message.
+func treeObjects(ctx context.Context, root, commit, where string) (*gitObjects, error) {
+	out, err := gitOutput(ctx, root, "ls-tree", "-r", "-z", "--full-tree", commit)
+	if err != nil {
+		return nil, fmt.Errorf("list the files %s: %w", where, err)
+	}
+	objects := &gitObjects{root: root, where: where, blobs: map[string]string{}}
+	for entry := range strings.SplitSeq(string(out), "\x00") {
+		// <mode> SP <type> SP <object> TAB <path>
+		meta, path, ok := strings.Cut(entry, "\t")
+		if fields := strings.Fields(meta); ok && len(fields) == 3 && fields[1] == "blob" {
+			objects.blobs[path] = fields[2]
+		}
+	}
+	return objects, nil
+}
+
 // indexObjects lists the blob the index holds at each path. A path with an
 // entry at a stage other than 0 is unmerged.
 func indexObjects(ctx context.Context, root string) (*gitObjects, error) {

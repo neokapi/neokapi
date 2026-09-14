@@ -172,6 +172,21 @@ still holds it. An index holding an unresolved merge conflict is refused.
 `--diff-file <path>` reads a unified diff you already hold, or standard input
 with `-`. Named files narrow the scope.
 
+`kapi check --diff-range A..B` checks the change between two commits, and
+`A...B` the change B made since its merge base with A, which is the form a pull
+request check uses (`origin/main...HEAD`). An empty side names `HEAD`, as it
+does to git. Each file is read from B and nothing from the working tree, so
+untracked files and uncommitted edits never count, a finding's lines are the
+lines B holds, and the range checks the same from any checkout, including one
+at another commit.
+
+Every diff check is governed by the recipe, voice profiles and terms on disk
+where kapi runs. For a range, those are the rules in force now, never the
+versions B holds, so each commit in a range is held to today's rules. A pull
+request check needs exactly that, and so does a search of history for the
+commit where a file first broke a rule. Inside a project, a file B holds is
+content when that recipe declares its path.
+
 A diff names lines, and kapi widens each changed line to the content block it
 belongs to: a one-line edit inside a seven-line paragraph checks the whole
 paragraph. A finding's `location.lines` gives the lines of its block. Rules that
@@ -214,8 +229,8 @@ The report's `scope` lists every file the diff names with a status:
 
 A `did_not_run` file leaves the whole check `did_not_run`, and so does a diff
 that touches no content block. Over MCP, `check_file` takes `diff` (unified diff
-text), `diff_against` (a revision) or `staged` for the same scope, and `file`
-then narrows it.
+text), `diff_against` (a revision), `staged` or `diff_range` for the same scope,
+and `file` then narrows it.
 
 ## One model: findings
 

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-14T21:27:26Z",
+  "generatedAt": "2026-09-14T21:57:11Z",
   "commands": [
     {
       "id": "add",
@@ -151,6 +151,11 @@
         {
           "name": "diff-file",
           "usage": "check only the content blocks this unified diff touches (a file, or - for standard input)",
+          "type": "string"
+        },
+        {
+          "name": "diff-range",
+          "usage": "check only the content blocks changed between two commits, A..B or A...B (since their merge base), each file read from B and nothing from the working tree",
           "type": "string"
         },
         {

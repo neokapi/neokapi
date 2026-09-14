@@ -149,6 +149,10 @@
           "description": "git revision to diff the working tree against, read-only, with untracked files as added; only the content blocks changed are checked",
           "type": "string"
         },
+        "diff_range": {
+          "description": "two commits as A..B, or A...B for the change B made since its merge base with A; each file is read from B and nothing from the working tree; only the content blocks changed are checked",
+          "type": "string"
+        },
         "dnt": {
           "description": "do-not-translate terms that must survive verbatim into the target",
           "items": {
@@ -160,7 +164,7 @@
           ]
         },
         "file": {
-          "description": "path to the file whose content should be checked; with diff, diff_against or staged it narrows the scope to this file, and may be omitted",
+          "description": "path to the file whose content should be checked; with diff, diff_against, staged or diff_range it narrows the scope to this file, and may be omitted",
           "type": "string"
         },
         "forbid": {

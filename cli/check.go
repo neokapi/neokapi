@@ -62,18 +62,22 @@ the explicit, opt-in enforcement point. With no file arguments it checks the
 project's source-only content and declared source/target pairs. Named source
 files receive content checks; named targets retain their source pairing.
 
-Diff scope (--diff-file, --diff-against, --staged): check only the content
-blocks a unified diff touches, each block whole, and report the lines each
-spans. Every file the diff names is listed with what became of it: checked,
-untouched, out of scope (inside a project, content the recipe does not
-declare), deleted, or did not run (a changed file whose blocks cannot be
+Diff scope (--diff-file, --diff-against, --staged, --diff-range): check only
+the content blocks a unified diff touches, each block whole, and report the
+lines each spans. Every file the diff names is listed with what became of it:
+checked, untouched, out of scope (inside a project, content the recipe does
+not declare), deleted, or did not run (a changed file whose blocks cannot be
 located). --diff-file reads a diff from a file, or from standard input with -.
 --diff-against runs git diff against a revision, read-only, and treats
 untracked files as added. --staged checks what a commit made now would record:
 the staged changes, each file read from the index, leaving out unstaged edits
-and untracked files. Named files narrow the scope. The loop for an agent: edit,
-run 'kapi check --diff-against HEAD', repair, run it again. A pre-commit hook
-runs 'kapi check --staged'.
+and untracked files. --diff-range A..B checks the change between two commits,
+and A...B the change B made since it left A, each file read from B, so it reads
+nothing from the working tree and runs the same from any checkout. The recipe,
+voice profiles and terms on disk govern every one of these checks. Named files
+narrow the scope. The loop for an agent: edit, run 'kapi check --diff-against
+HEAD', repair, run it again. A pre-commit hook runs 'kapi check --staged', and
+a pull request check runs 'kapi check --diff-range origin/main...HEAD'.
 
 Exit codes: 0 pass, 3 when the gate fails, 4 when the check did not run, 1
 operational. A check did not run when it examined no content, or when one of its
@@ -107,6 +111,7 @@ nor --lenient turns a check that did not run into a pass.`,
 	f.String("diff-file", "", "check only the content blocks this unified diff touches (a file, or - for standard input)")
 	f.String("diff-against", "", "check only the content blocks changed since this git revision, including untracked files (runs git diff read-only)")
 	f.Bool("staged", false, "check only the content blocks the staged changes touch, each file read from the index (leaves out unstaged edits and untracked files)")
+	f.String("diff-range", "", "check only the content blocks changed between two commits, A..B or A...B (since their merge base), each file read from B and nothing from the working tree")
 	f.String("validate", "off", "reader structure/encoding validation: off|report|strict (report folds structure.*/encoding.* findings into the Report; strict also fails the gate on a Major+ structure/encoding problem)")
 	a.AddSourceLangFlag(f)
 
@@ -119,8 +124,8 @@ nor --lenient turns a check that did not run into a pass.`,
 
 	cmd.MarkFlagsMutuallyExclusive("strict", "lenient")
 	cmd.MarkFlagsMutuallyExclusive("ship", "target")
-	cmd.MarkFlagsMutuallyExclusive("diff-file", "diff-against", "staged")
-	for _, diff := range []string{"diff-file", "diff-against", "staged"} {
+	cmd.MarkFlagsMutuallyExclusive("diff-file", "diff-against", "staged", "diff-range")
+	for _, diff := range []string{"diff-file", "diff-against", "staged", "diff-range"} {
 		cmd.MarkFlagsMutuallyExclusive(diff, "ship")
 		cmd.MarkFlagsMutuallyExclusive(diff, "target")
 	}
