@@ -1,4 +1,4 @@
-package protoconvert_test
+package commentproto_test
 
 import (
 	"testing"
@@ -9,8 +9,8 @@ import (
 	"github.com/neokapi/neokapi/core/comment"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/plugin/commentproto"
 	bridgepb "github.com/neokapi/neokapi/core/plugin/proto/v2"
-	"github.com/neokapi/neokapi/core/plugin/protoconvert"
 )
 
 func TestCommentFileRoundTrip(t *testing.T) {
@@ -34,12 +34,12 @@ func TestCommentFileRoundTrip(t *testing.T) {
 		},
 	}
 
-	got, err := protoconvert.ProtoToCommentFile("typescript", len(src), protoconvert.CommentFileToProto(want))
+	got, err := commentproto.FromProto("typescript", len(src), commentproto.ToProto(want))
 	require.NoError(t, err)
 	assert.Equal(t, want, got)
 }
 
-func TestProtoToCommentFileRefusesAnImpossibleSpan(t *testing.T) {
+func TestFromProtoRefusesAnImpossibleSpan(t *testing.T) {
 	for name, span := range map[string]*bridgepb.CommentSpan{
 		"past the end":        {Start: 0, End: 11, FirstLine: 1, LastLine: 1},
 		"empty":               {Start: 4, End: 4, FirstLine: 1, LastLine: 1},
@@ -48,11 +48,11 @@ func TestProtoToCommentFileRefusesAnImpossibleSpan(t *testing.T) {
 		"lines run backwards": {Start: 0, End: 3, FirstLine: 2, LastLine: 1},
 	} {
 		t.Run(name, func(t *testing.T) {
-			_, err := protoconvert.ProtoToCommentFile("typescript", 10, &bridgepb.LocateCommentsResponse{Comments: []*bridgepb.CommentSpan{span}})
+			_, err := commentproto.FromProto("typescript", 10, &bridgepb.LocateCommentsResponse{Comments: []*bridgepb.CommentSpan{span}})
 			require.Error(t, err)
 		})
 	}
-	_, err := protoconvert.ProtoToCommentFile("typescript", 10, &bridgepb.LocateCommentsResponse{
+	_, err := commentproto.FromProto("typescript", 10, &bridgepb.LocateCommentsResponse{
 		Excluded: []*bridgepb.CommentExclusion{{Start: 8, End: 12, FirstLine: 1, LastLine: 1}},
 	})
 	require.Error(t, err, "an exclusion is held to the same bounds")

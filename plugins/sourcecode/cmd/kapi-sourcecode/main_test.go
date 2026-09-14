@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/neokapi/neokapi/core/plugin/commentproto"
 	pb "github.com/neokapi/neokapi/core/plugin/proto/v2"
-	"github.com/neokapi/neokapi/core/plugin/protoconvert"
 	"github.com/neokapi/neokapi/plugins/sourcecode/internal/comments"
 )
 
@@ -23,7 +23,7 @@ func TestLocateCommentsAnswersWithWhatThePackageLocates(t *testing.T) {
 
 	want, err := comments.Locate("typescript", "parse.ts", src)
 	require.NoError(t, err)
-	got, err := protoconvert.ProtoToCommentFile("typescript", len(src), resp)
+	got, err := commentproto.FromProto("typescript", len(src), resp)
 	require.NoError(t, err)
 	assert.Equal(t, want, got)
 	require.Len(t, got.Comments, 1)

@@ -18,8 +18,8 @@ import (
 
 	"github.com/neokapi/neokapi/core/clip"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/plugin/commentproto"
 	pb "github.com/neokapi/neokapi/core/plugin/proto/v2"
-	"github.com/neokapi/neokapi/core/plugin/protoconvert"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/connectivity"
@@ -792,7 +792,7 @@ func checkModeCCommentsRPC(ctx context.Context, r *runner) (Status, string, erro
 		if e := resp.GetError(); e != "" {
 			return Fail, fmt.Sprintf("LocateComments(%q) could not read its canary: %s", l.Language, clip.Runes(e, 200)), nil
 		}
-		f, err := protoconvert.ProtoToCommentFile(l.Language, len(src), resp)
+		f, err := commentproto.FromProto(l.Language, len(src), resp)
 		if err != nil {
 			return Fail, fmt.Sprintf("LocateComments(%q) answered with a span outside its canary: %v", l.Language, err), nil
 		}

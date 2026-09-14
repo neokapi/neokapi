@@ -132,12 +132,13 @@ func sourcecodeProject(t *testing.T) string {
 		require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
 		require.NoError(t, os.WriteFile(path, []byte(body), 0o644))
 	}
-	recipe := "version: v1\nname: source-comments\ndefaults:\n  source_language: en\n  voice:\n    profile_file: .kapi/voice.yaml\ncollections:\n  - name: code\n    source_only: true\n    content:\n"
+	var recipe strings.Builder
+	recipe.WriteString("version: v1\nname: source-comments\ndefaults:\n  source_language: en\n  voice:\n    profile_file: .kapi/voice.yaml\ncollections:\n  - name: code\n    source_only: true\n    content:\n")
 	for _, f := range sourcecodeFiles {
-		recipe += fmt.Sprintf("      - path: %q\n        comments: true\n", f.path)
+		fmt.Fprintf(&recipe, "      - path: %q\n        comments: true\n", f.path)
 		write(f.path, f.governed)
 	}
-	write("kapi.yaml", recipe)
+	write("kapi.yaml", recipe.String())
 	write(".kapi/voice.yaml", `id: source-comments
 name: Service
 constraints:

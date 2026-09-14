@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/comment"
+	"github.com/neokapi/neokapi/core/plugin/commentproto"
 	"github.com/neokapi/neokapi/core/plugin/manifest"
 	pb "github.com/neokapi/neokapi/core/plugin/proto/v2"
-	"github.com/neokapi/neokapi/core/plugin/protoconvert"
 )
 
 // locateCommentsTimeout bounds one LocateComments call, spawning the daemon
@@ -76,7 +76,7 @@ func (p *daemonCommentProvider) Locate(name string, src []byte) (*comment.File, 
 	if e := resp.GetError(); e != "" {
 		return nil, fmt.Errorf("locate %s comments (plugin %q): %s", p.lang.Language, p.plugin.Name(), e)
 	}
-	f, err := protoconvert.ProtoToCommentFile(p.lang.Language, len(src), resp)
+	f, err := commentproto.FromProto(p.lang.Language, len(src), resp)
 	if err != nil {
 		return nil, fmt.Errorf("plugin %q located %s comments outside the file: %w", p.plugin.Name(), p.lang.Language, err)
 	}

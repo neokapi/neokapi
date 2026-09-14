@@ -1,4 +1,8 @@
-package protoconvert
+// Package commentproto carries what a comment provider located across the
+// plugin boundary, as the response of BridgeService.LocateComments. It sits
+// apart from protoconvert, whose content-model conversions do not need the
+// bridge service's gRPC types.
+package commentproto
 
 import (
 	"fmt"
@@ -6,11 +10,11 @@ import (
 	"github.com/neokapi/neokapi/core/comment"
 	"github.com/neokapi/neokapi/core/format"
 	bridgepb "github.com/neokapi/neokapi/core/plugin/proto/v2"
+	"github.com/neokapi/neokapi/core/plugin/protoconvert"
 )
 
-// CommentFileToProto carries what a comment provider located across the plugin
-// boundary as a LocateComments response.
-func CommentFileToProto(f *comment.File) *bridgepb.LocateCommentsResponse {
+// ToProto carries what a comment provider located as a LocateComments response.
+func ToProto(f *comment.File) *bridgepb.LocateCommentsResponse {
 	resp := &bridgepb.LocateCommentsResponse{}
 	if f == nil {
 		return resp
@@ -26,7 +30,7 @@ func CommentFileToProto(f *comment.File) *bridgepb.LocateCommentsResponse {
 			Subject:    c.Subject,
 			Doc:        c.Doc,
 			Deprecated: c.Deprecated,
-			Runs:       RunsToProto(c.Runs),
+			Runs:       protoconvert.RunsToProto(c.Runs),
 		}
 	}
 	resp.Excluded = make([]*bridgepb.CommentExclusion, len(f.Excluded))
@@ -43,14 +47,14 @@ func CommentFileToProto(f *comment.File) *bridgepb.LocateCommentsResponse {
 	return resp
 }
 
-// ProtoToCommentFile reads a LocateComments response back into the file a
-// comment provider returns, for a source of size bytes. A span outside those
-// bytes, or a line range that runs backwards, is an error: every consumer of a
-// comment.File slices the source by its spans.
-func ProtoToCommentFile(language string, size int, resp *bridgepb.LocateCommentsResponse) (*comment.File, error) {
+// FromProto reads a LocateComments response back into the file a comment
+// provider returns, for a source of size bytes. A span outside those bytes, or a
+// line range that runs backwards, is an error: every consumer of a comment.File
+// slices the source by its spans.
+func FromProto(language string, size int, resp *bridgepb.LocateCommentsResponse) (*comment.File, error) {
 	f := &comment.File{Language: language}
 	for _, c := range resp.GetComments() {
-		start, end, lines, err := commentSpan(size, c.GetStart(), c.GetEnd(), c.GetFirstLine(), c.GetLastLine())
+		start, end, lines, err := span(size, c.GetStart(), c.GetEnd(), c.GetFirstLine(), c.GetLastLine())
 		if err != nil {
 			return nil, fmt.Errorf("comment: %w", err)
 		}
@@ -62,11 +66,11 @@ func ProtoToCommentFile(language string, size int, resp *bridgepb.LocateComments
 			Subject:    c.GetSubject(),
 			Doc:        c.GetDoc(),
 			Deprecated: c.GetDeprecated(),
-			Runs:       ProtoToRuns(c.GetRuns()),
+			Runs:       protoconvert.ProtoToRuns(c.GetRuns()),
 		})
 	}
 	for _, e := range resp.GetExcluded() {
-		start, end, lines, err := commentSpan(size, e.GetStart(), e.GetEnd(), e.GetFirstLine(), e.GetLastLine())
+		start, end, lines, err := span(size, e.GetStart(), e.GetEnd(), e.GetFirstLine(), e.GetLastLine())
 		if err != nil {
 			return nil, fmt.Errorf("exclusion: %w", err)
 		}
@@ -81,7 +85,7 @@ func ProtoToCommentFile(language string, size int, resp *bridgepb.LocateComments
 	return f, nil
 }
 
-func commentSpan(size int, start, end, first, last int64) (int, int, format.LineRange, error) {
+func span(size int, start, end, first, last int64) (int, int, format.LineRange, error) {
 	if start < 0 || end <= start || end > int64(size) {
 		return 0, 0, format.LineRange{}, fmt.Errorf("span %d-%d is outside a %d-byte file", start, end, size)
 	}

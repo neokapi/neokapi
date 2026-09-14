@@ -15,7 +15,7 @@ import (
 	"github.com/neokapi/neokapi/core/comment/commenttest"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/plugin/protoconvert"
+	"github.com/neokapi/neokapi/core/plugin/commentproto"
 	"github.com/neokapi/neokapi/plugins/sourcecode/internal/comments"
 )
 
@@ -89,7 +89,7 @@ func (p provider) Locate(name string, src []byte) (*comment.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	return protoconvert.ProtoToCommentFile(p.lang.Name, len(src), protoconvert.CommentFileToProto(f))
+	return commentproto.FromProto(p.lang.Name, len(src), commentproto.ToProto(f))
 }
 
 // suite is the conformance suite over a language's corpus. Its scan is the

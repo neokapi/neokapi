@@ -28,6 +28,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/comment"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/plugin/commentproto"
 	pb "github.com/neokapi/neokapi/core/plugin/proto/v2"
 	"github.com/neokapi/neokapi/core/plugin/protoconvert"
 	"github.com/neokapi/neokapi/core/version"
@@ -160,7 +161,7 @@ func (s *server) LocateComments(_ context.Context, req *pb.LocateCommentsRequest
 	if err != nil {
 		return &pb.LocateCommentsResponse{Error: err.Error()}, nil
 	}
-	return protoconvert.CommentFileToProto(f), nil
+	return commentproto.ToProto(f), nil
 }
 
 func (s *server) Shutdown(_ context.Context, _ *pb.ShutdownRequest) (*pb.ShutdownResponse, error) {
