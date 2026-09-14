@@ -23,11 +23,32 @@
                 "type": "string"
               },
               "id": {
+                "description": "the block id; for kind=comment the comment's id as check_file reports it, such as func/Parse",
                 "type": "string"
               },
               "kind": {
-                "description": "change kind; use content for document wording",
+                "description": "change kind; use content for document wording and comment for a code comment",
                 "type": "string"
+              },
+              "lines": {
+                "additionalProperties": false,
+                "description": "for kind=comment: the lines the comment spanned when it was read, as check_file reports them; a comment spanning other lines is refused as stale",
+                "properties": {
+                  "first": {
+                    "type": "integer"
+                  },
+                  "last": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "first",
+                  "last"
+                ],
+                "type": [
+                  "null",
+                  "object"
+                ]
               },
               "list": {
                 "type": "string"
@@ -70,7 +91,7 @@
                 "type": "string"
               },
               "text": {
-                "description": "new block wording for kind=content; preserve inline placeholders from extract_content",
+                "description": "the new wording: for kind=content the block text with the inline placeholders extract_content shows; for kind=comment the comment's prose without comment markers",
                 "type": "string"
               },
               "value": {
@@ -83,6 +104,10 @@
                   "null",
                   "array"
                 ]
+              },
+              "width": {
+                "description": "for kind=comment: the column a line of prose wraps at; 0 keeps the width of the comment being rewritten, and never less than 80",
+                "type": "integer"
               }
             },
             "required": [

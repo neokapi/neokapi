@@ -38,6 +38,16 @@ project store and is bound to the translation's content hash, so a later edit
 drops the unit back below reviewed. 'kapi commit' writes it into the committed
 record under .kapi/state/.
 
+A comment edit (kind:"comment") rewrites one code comment, addressed by its file
+and the id 'kapi check' reports for it, such as func/Parse. Its text is the
+comment's prose without comment markers, and its lines are the lines the check
+reported. Every byte outside the comment stays as it is, the result must parse,
+and the language's formatter must agree. A directive, a generated file's
+comment, a block comment, a comment that has moved since it was read, and text
+that drops or adds a code block or reference are refused with a reason and
+write nothing. Each written file is checked again over what changed, and the
+findings are reported beside the edit.
+
 The change-set is JSONL (one entry per line), read from CHANGESET or, with no
 argument or "-", from standard input. Content entries name their own file, so
 apply writes those files in place; --diff previews the content changes and
@@ -46,7 +56,8 @@ writes nothing. No AI provider is required.`,
   kapi apply changeset.jsonl
   kapi apply changeset.jsonl --diff
   kapi status --review --json | approve-units | kapi apply
-  kapi apply changeset.jsonl --in-place=.bak`,
+  kapi apply changeset.jsonl --in-place=.bak
+  echo '{"kind":"comment","file":"parse.go","id":"func/Parse","lines":{"first":3,"last":4},"text":"Parse reads the input."}' | kapi apply`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			inPlace := cmd.Flags().Changed("in-place")

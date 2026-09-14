@@ -1,0 +1,76 @@
+package golang
+
+import (
+	"bytes"
+	"strings"
+	"testing"
+
+	"github.com/neokapi/neokapi/core/comment"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+// The write canary passes for the Go provider and fails for a rewrite that
+// skips containment and for a provider whose prose loses a byte.
+func TestVerifyRewriter(t *testing.T) {
+	t.Run("the Go provider passes its write canary", func(t *testing.T) {
+		require.NoError(t, comment.VerifyRewriter(Provider{}, comment.Rewrite))
+	})
+
+	t.Run("must fail: a rewrite that skips containment", func(t *testing.T) {
+		err := comment.VerifyRewriter(Provider{}, uncontainedRewrite)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "must be refused")
+	})
+
+	t.Run("must fail: a provider whose prose loses a byte", func(t *testing.T) {
+		err := comment.VerifyRewriter(lossyProse{}, comment.Rewrite)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "own prose")
+	})
+
+	t.Run("must fail: a language that writes no comments", func(t *testing.T) {
+		require.Error(t, comment.VerifyRewriter(readOnly{}, comment.Rewrite))
+	})
+}
+
+// uncontainedRewrite renders the text and splices it into the file without
+// holding the result to comment.Contain.
+func uncontainedRewrite(p comment.Provider, name string, src []byte, declared comment.Directives, target comment.Target, text string, opts comment.RenderOptions) (*comment.Rewritten, error) {
+	located, err := comment.Locate(p, name, src, declared)
+	if err != nil {
+		return nil, err
+	}
+	for i, b := range located.Blocks() {
+		if b.ID != target.ID {
+			continue
+		}
+		c := located.Comments[i]
+		span, err := p.(comment.Rewriter).Render(name, src, c, text, opts)
+		if err != nil {
+			return nil, err
+		}
+		out := bytes.Join([][]byte{src[:c.Start], span, src[c.End:]}, nil)
+		return &comment.Rewritten{Source: out, Index: i, ID: target.ID, Before: c, After: c, Changed: !bytes.Equal(out, src)}, nil
+	}
+	return nil, &comment.Refusal{Reason: comment.RefusedUnknown, Detail: target.ID}
+}
+
+// lossyProse reads a comment's prose without its last character.
+type lossyProse struct{ Provider }
+
+func (p lossyProse) Prose(src []byte, c comment.Comment) (string, error) {
+	prose, err := p.Provider.Prose(src, c)
+	return strings.TrimSuffix(prose, "."), err
+}
+
+// readOnly locates Go comments and implements no Rewriter.
+type readOnly struct{}
+
+func (readOnly) Language() string     { return Language }
+func (readOnly) Extensions() []string { return []string{".go"} }
+func (readOnly) Locate(name string, src []byte) (*comment.File, error) {
+	return Provider{}.Locate(name, src)
+}
+func (readOnly) LineText(line []byte) (int, string, bool) { return Provider{}.LineText(line) }
+func (readOnly) Canary() comment.Canary                   { return Provider{}.Canary() }

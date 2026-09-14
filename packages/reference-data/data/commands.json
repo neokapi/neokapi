@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-14T21:57:11Z",
+  "generatedAt": "2026-09-14T22:59:40Z",
   "commands": [
     {
       "id": "add",
@@ -78,7 +78,7 @@
       ],
       "use": "apply [flags] [CHANGESET]",
       "short": "Apply a typed change-set (content + asset edits): the one write verb",
-      "long": "Apply a typed change-set: the write sibling of 'kapi inspect'. Each entry is\none reviewed change: a content edit, an asset edit (term, content-memory pair,\nvoice rule, recipe field), or a review outcome (kind:\"review\"). Content edits\nland through the same byte-faithful round-trip the engine's writers use (structure and\ninline codes preserved), drift-guarded by content_hash; asset edits are written\ninto their committed source artifact and the existing import compiles them into\nthe cache; a review outcome is recorded as unit state in the project store.\n\nA content memory pair (kind:\"memory\") is recycle leverage for future translation. It does not\npromote a unit to reviewed. To approve a translated unit, use a kind:\"review\"\nentry addressed by its file/id/locale (as 'kapi status --review' lists it), with\nstatus \"reviewed\" (default) or \"signed-off\"; the unit state is staged in the\nproject store and is bound to the translation's content hash, so a later edit\ndrops the unit back below reviewed. 'kapi commit' writes it into the committed\nrecord under .kapi/state/.\n\nThe change-set is JSONL (one entry per line), read from CHANGESET or, with no\nargument or \"-\", from standard input. Content entries name their own file, so\napply writes those files in place; --diff previews the content changes and\nwrites nothing. No AI provider is required.",
+      "long": "Apply a typed change-set: the write sibling of 'kapi inspect'. Each entry is\none reviewed change: a content edit, an asset edit (term, content-memory pair,\nvoice rule, recipe field), or a review outcome (kind:\"review\"). Content edits\nland through the same byte-faithful round-trip the engine's writers use (structure and\ninline codes preserved), drift-guarded by content_hash; asset edits are written\ninto their committed source artifact and the existing import compiles them into\nthe cache; a review outcome is recorded as unit state in the project store.\n\nA content memory pair (kind:\"memory\") is recycle leverage for future translation. It does not\npromote a unit to reviewed. To approve a translated unit, use a kind:\"review\"\nentry addressed by its file/id/locale (as 'kapi status --review' lists it), with\nstatus \"reviewed\" (default) or \"signed-off\"; the unit state is staged in the\nproject store and is bound to the translation's content hash, so a later edit\ndrops the unit back below reviewed. 'kapi commit' writes it into the committed\nrecord under .kapi/state/.\n\nA comment edit (kind:\"comment\") rewrites one code comment, addressed by its file\nand the id 'kapi check' reports for it, such as func/Parse. Its text is the\ncomment's prose without comment markers, and its lines are the lines the check\nreported. Every byte outside the comment stays as it is, the result must parse,\nand the language's formatter must agree. A directive, a generated file's\ncomment, a block comment, a comment that has moved since it was read, and text\nthat drops or adds a code block or reference are refused with a reason and\nwrite nothing. Each written file is checked again over what changed, and the\nfindings are reported beside the edit.\n\nThe change-set is JSONL (one entry per line), read from CHANGESET or, with no\nargument or \"-\", from standard input. Content entries name their own file, so\napply writes those files in place; --diff previews the content changes and\nwrites nothing. No AI provider is required.",
       "groupID": "work",
       "flags": [
         {
@@ -127,7 +127,8 @@
         "kapi apply changeset.jsonl",
         "kapi apply changeset.jsonl --diff",
         "kapi status --review --json | approve-units | kapi apply",
-        "kapi apply changeset.jsonl --in-place=.bak"
+        "kapi apply changeset.jsonl --in-place=.bak",
+        "echo '{\"kind\":\"comment\",\"file\":\"parse.go\",\"id\":\"func/Parse\",\"lines\":{\"first\":3,\"last\":4},\"text\":\"Parse reads the input.\"}' | kapi apply"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
