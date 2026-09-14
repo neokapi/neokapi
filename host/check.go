@@ -667,6 +667,10 @@ type checkRunOptions struct {
 	// comments is the governance at the point a file's comments sit at, nil
 	// when they share the file's point.
 	comments *atPoint
+	// change is the change a diff-scoped check reads the file for, with the
+	// lines its comment layer classified. It is nil in a whole-file check, and
+	// for a file no comment layer reads.
+	change *commentChange
 }
 
 // collectFileDiagnostics runs the source-side content checkset over one file's
@@ -793,7 +797,7 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 		}
 		// The comments among the group's blocks are held to the comment limits
 		// of the group's voice.
-		limitDiags, err := a.checkCommentLimits(ctx, g.blocks, g.at.profile, file, opts.execution)
+		limitDiags, err := a.checkCommentLimits(ctx, g.blocks, g.at, file, opts.change, opts.execution)
 		if err != nil {
 			return nil, err
 		}

@@ -23,6 +23,16 @@ type CommentRules struct {
 	// PackageDocWords is the most words the doc comment of a package or module
 	// may hold.
 	PackageDocWords *int `json:"package_doc_words,omitempty" yaml:"package_doc_words,omitempty"`
+	// Density limits the comment lines a change adds for the code lines it
+	// adds. A check scoped to a diff applies it.
+	Density *DensityLimits `json:"density,omitempty" yaml:"density,omitempty"`
+}
+
+// DensityLimits flag a change that adds at least MinCommentLines comment lines
+// and more than Ratio comment lines for each code line.
+type DensityLimits struct {
+	Ratio           *float64 `json:"ratio,omitempty" yaml:"ratio,omitempty"`
+	MinCommentLines *int     `json:"min_comment_lines,omitempty" yaml:"min_comment_lines,omitempty"`
 }
 
 // SentenceWordLimits are the word counts above which a sentence is a minor
@@ -51,6 +61,12 @@ func (r *CommentRules) Limits() check.CommentLimits {
 	set(&l.CommentWords, r.CommentWords)
 	set(&l.DocWords, r.DocWords)
 	set(&l.PackageDocWords, r.PackageDocWords)
+	if d := r.Density; d != nil {
+		if d.Ratio != nil {
+			l.DensityRatio = *d.Ratio
+		}
+		set(&l.DensityMinLines, d.MinCommentLines)
+	}
 	return l
 }
 
@@ -66,6 +82,13 @@ func (r *CommentRules) clone() *CommentRules {
 	}
 	if s := r.SentenceWords; s != nil {
 		c.SentenceWords = &SentenceWordLimits{Minor: cloneInt(s.Minor), Major: cloneInt(s.Major)}
+	}
+	if d := r.Density; d != nil {
+		c.Density = &DensityLimits{MinCommentLines: cloneInt(d.MinCommentLines)}
+		if d.Ratio != nil {
+			ratio := *d.Ratio
+			c.Density.Ratio = &ratio
+		}
 	}
 	return c
 }
@@ -97,6 +120,14 @@ func validateCommentRules(add func(field, msg string), base string, r *CommentRu
 	positive("comment_words", r.CommentWords)
 	positive("doc_words", r.DocWords)
 	positive("package_doc_words", r.PackageDocWords)
+	if d := r.Density; d != nil {
+		if d.Ratio != nil && !(*d.Ratio > 0) {
+			add(base+".density.ratio", fmt.Sprintf("a ratio is a positive number of comment lines for each code line (got %v); leave the key out to use the default", *d.Ratio))
+		}
+		if d.MinCommentLines != nil && *d.MinCommentLines <= 0 {
+			add(base+".density.min_comment_lines", fmt.Sprintf("a limit is a positive number of lines (got %d); leave the key out to use the default", *d.MinCommentLines))
+		}
+	}
 	if l := r.Limits(); l.SentenceMinor > 0 && l.SentenceMajor > 0 && l.SentenceMinor >= l.SentenceMajor {
 		add(base+".sentence_words", fmt.Sprintf("the minor limit (%d words) must be below the major limit (%d words)", l.SentenceMinor, l.SentenceMajor))
 	}

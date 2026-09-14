@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/check"
+	"github.com/neokapi/neokapi/core/comment"
 	"github.com/neokapi/neokapi/core/diffscope"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
@@ -242,7 +243,7 @@ func (a *App) locatorFor(run diffCheckRun, path string) blockLocator {
 			if err != nil {
 				return scopedRead{}, err
 			}
-			return scopedRead{blocks: layer.blocks, extents: layer.extents, analyzers: layer.analyzers, unread: layer.unread}, nil
+			return scopedRead{blocks: layer.blocks, extents: layer.extents, analyzers: layer.analyzers, unread: layer.unread, comments: layer.located}, nil
 		}
 	}
 	if fmtName == "" {
@@ -266,6 +267,7 @@ func (a *App) locatorFor(run diffCheckRun, path string) blockLocator {
 		read.extents = append(read.extents, layer.extents...)
 		read.analyzers = append(read.analyzers, layer.analyzers...)
 		read.unread = layer.unread
+		read.comments = layer.located
 		return read, nil
 	}
 }
@@ -373,6 +375,9 @@ func (a *App) checkDiffFile(ctx context.Context, run diffCheckRun, f diffscope.F
 		return nil, 0, err
 	}
 	opts := run.opts.govern(g)
+	if read.comments != nil {
+		opts.change = &commentChange{kinds: lineKinds(read.comments, content), added: addedLines(f.Changes)}
+	}
 	opts.execution.recordContexts(entry.Path, "", opts, touched)
 	// The analyzers the file's provider brings run over the touched blocks, and
 	// are recorded as a whole-file check records them.
@@ -461,6 +466,9 @@ type scopedRead struct {
 	// analyzers are what the provider that located the blocks runs beside the
 	// checkset, over the blocks a change touched. A format reader brings none.
 	analyzers []providerAnalyzer
+	// comments is what a comment provider located in the file, nil when no
+	// comment layer reads it.
+	comments *comment.File
 }
 
 // readWithExtents reads content once with a skeleton store wired, returning the

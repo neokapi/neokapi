@@ -3,6 +3,7 @@ package profile
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -76,6 +77,8 @@ func RenderVoiceGuide(p *VoiceProfile) string {
 		fmt.Fprintf(&b, "  - A declaration's doc comment: at most %d words\n", l.DocWords)
 		fmt.Fprintf(&b, "  - A package or module doc comment: at most %d words\n", l.PackageDocWords)
 		b.WriteString("  - Code spans, references and links are not counted as words\n")
+		fmt.Fprintf(&b, "  - A change adding %d or more comment lines: at most %s comment lines for each code line it adds, "+
+			"not counting the package doc comment\n", l.DensityMinLines, strconv.FormatFloat(l.DensityRatio, 'f', -1, 64))
 	}
 	b.WriteString("\n")
 
@@ -196,8 +199,9 @@ func RenderVoiceGuideCompact(p *VoiceProfile) string {
 	if p.Style.Comments != nil {
 		l := p.Style.Comments.Limits()
 		fmt.Fprintf(&b, " Code comments: a sentence over %d words is flagged (a major finding over %d), and so is a comment over %d words, "+
-			"a doc comment over %d or a package doc comment over %d.",
-			l.SentenceMinor, l.SentenceMajor, l.CommentWords, l.DocWords, l.PackageDocWords)
+			"a doc comment over %d or a package doc comment over %d, and a change adding %d or more comment lines and more than %s for each code line.",
+			l.SentenceMinor, l.SentenceMajor, l.CommentWords, l.DocWords, l.PackageDocWords,
+			l.DensityMinLines, strconv.FormatFloat(l.DensityRatio, 'f', -1, 64))
 	}
 
 	swaps := termSwaps(p)
