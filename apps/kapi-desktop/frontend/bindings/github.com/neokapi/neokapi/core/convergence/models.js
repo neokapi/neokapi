@@ -350,7 +350,7 @@ export class LocaleCoverage {
         }
         if (!("gated" in $$source)) {
             /**
-             * a ship gate applies to this scope
+             * a ship gate matches this scope
              * @member
              * @type {boolean}
              */
@@ -358,7 +358,7 @@ export class LocaleCoverage {
         }
         if (!("shippable" in $$source)) {
             /**
-             * ship gate satisfied (or no ship gate)
+             * nothing withholds the scope: its gate is met, or none matches
              * @member
              * @type {boolean}
              */
@@ -371,6 +371,19 @@ export class LocaleCoverage {
              * @type {gate$0.Shortfall[] | undefined}
              */
             this["pending"] = undefined;
+        }
+        if (!("shipState" in $$source)) {
+            /**
+             * ShipState is the scope's standing in one value: shippable, withheld or
+             * not_gated. Gated and Shippable are its two-field reading, kept for readers
+             * written against them. Shippable is true for a not_gated scope as well as a
+             * shippable one, because nothing holds either back, so such a reader offers
+             * and delivers the scope as it did. Only ShipState tells a met gate from no
+             * gate, and every surface that states a verdict reads it.
+             * @member
+             * @type {ShipState}
+             */
+            this["shipState"] = ShipState.$zero;
         }
         if (!("shipProgress" in $$source)) {
             /**
@@ -527,7 +540,7 @@ export class LocaleCoverage {
     static createFrom($$source = {}) {
         const $$createField3_0 = $$createType1;
         const $$createField6_0 = $$createType3;
-        const $$createField17_0 = $$createType0;
+        const $$createField18_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("pct" in $$parsedSource) {
             $$parsedSource["pct"] = $$createField3_0($$parsedSource["pct"]);
@@ -536,7 +549,7 @@ export class LocaleCoverage {
             $$parsedSource["pending"] = $$createField6_0($$parsedSource["pending"]);
         }
         if ("notGoverned" in $$parsedSource) {
-            $$parsedSource["notGoverned"] = $$createField17_0($$parsedSource["notGoverned"]);
+            $$parsedSource["notGoverned"] = $$createField18_0($$parsedSource["notGoverned"]);
         }
         return new LocaleCoverage(/** @type {Partial<LocaleCoverage>} */($$parsedSource));
     }
@@ -907,6 +920,40 @@ export class ReviewQueueItem {
         return new ReviewQueueItem(/** @type {Partial<ReviewQueueItem>} */($$parsedSource));
     }
 }
+
+/**
+ * ShipState is a scope's standing against its ship gates.
+ * @readonly
+ * @enum {string}
+ */
+export const ShipState = {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero: "",
+
+    /**
+     * ShipStateShippable: a ship gate matches the scope, the scope clears it,
+     * and nothing withholds it.
+     */
+    ShipStateShippable: "shippable",
+
+    /**
+     * ShipStateWithheld: the scope does not ship. Either a ship gate matches and
+     * the scope is short of it, or the scope holds stale wording, a translation a
+     * reviewer turned down, a unit failing the bound checks, or a unit the terms
+     * govern with no terminology result. Those withhold a scope whether or not a
+     * gate matches.
+     */
+    ShipStateWithheld: "withheld",
+
+    /**
+     * ShipStateNotGated: no ship gate matches the scope and nothing withholds it.
+     * The project set no bar for it, so no surface reports it as shippable. It is
+     * delivered and offered as a shippable scope is.
+     */
+    ShipStateNotGated: "not_gated",
+};
 
 /**
  * SourceCoverage is the source-readiness view for the project: how far its source

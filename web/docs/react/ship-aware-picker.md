@@ -12,8 +12,7 @@ the same way against the target status ladder
 (`draft → translated → reviewed → signed-off`):
 
 - **The ship gate**: the bar to go live. A locale that clears it is safe to
-  offer. This is the existing `ship_gate` / `ship_gates` configuration; its
-  behaviour is unchanged.
+  offer. It is the `ship_gate` / `ship_gates` configuration.
 - **The verified gate**: the bar to count as human-verified: a person reviewed
   or signed off the content. A locale that ships but is not verified is AI-only
   work.
@@ -54,6 +53,16 @@ never appears unless a bar was declared and cleared.
 
 :::
 
+:::note A locale no ship gate matches is not gated
+
+A locale that no `ship_gate` or `ship_gates` rule matches has no bar to clear,
+so kapi reports it as **not gated** rather than shippable. Nothing withholds it
+on coverage, so the picker offers it by default. Stale wording, a translation a
+reviewer turned down, a failing check, or terms that were not checked withhold a
+locale whether or not a gate matches it.
+
+:::
+
 ## Emitting the manifest
 
 `kapi status --ship` projects the per-locale standing to a minimal manifest a
@@ -70,25 +79,42 @@ Without `--emit`, the manifest goes to stdout, so a build step can redirect it:
 kapi status --ship > public/ship.json
 ```
 
-The file is keyed by locale, each entry carrying the two gates' outcomes:
+The file is keyed by locale, each entry carrying the two gates' outcomes and the
+locale's ship state:
 
 ```json
 {
-  "fr": { "shippable": true, "verified": true },
-  "de": { "shippable": true, "verified": false },
-  "nl": { "shippable": true, "verified": false, "not_governed": ["terms"] },
-  "ja": { "shippable": false, "verified": false }
+  "fr": { "shippable": true, "verified": true, "state": "shippable" },
+  "de": { "shippable": true, "verified": false, "state": "shippable" },
+  "nl": { "shippable": true, "verified": false, "state": "shippable", "not_governed": ["terms"] },
+  "sv": { "shippable": true, "verified": false, "state": "not_gated" },
+  "ja": { "shippable": false, "verified": false, "state": "withheld" }
 }
 ```
 
 Here French ships and is verified (no badge), German ships but is AI-only
-(flagged), Dutch ships the same way in a language no terms govern, and Japanese
-is not yet offered. An entry carries `not_governed` when a dimension governs
+(flagged), Dutch ships the same way in a language no terms govern, Swedish has
+no ship gate and is offered as not gated, and Japanese is withheld.
+
+`state` takes one of three values:
+
+| `state` | Meaning | `shippable` |
+| --- | --- | --- |
+| `shippable` | A ship gate matches the locale and the locale clears it. | `true` |
+| `withheld` | The locale does not ship: it is short of its gate, or stale, rejected or failing content, or unchecked terms, hold it back. | `false` |
+| `not_gated` | No ship gate matches the locale, and nothing withholds it. | `true` |
+
+A locale spread over several collections takes the weakest state among them:
+one withheld collection withholds it, and a collection no gate matches leaves it
+not gated. `shippable` is `true` for both `shippable` and `not_gated`, so a
+picker that reads only `shippable` offers a not-gated locale; `state` is what
+tells a cleared gate from no gate. An entry carries `not_governed` when a dimension governs
 nothing in that language: `terms` means no concept in the project's terms has a
 term for it. The picker does not read it. It is there so a build step or a
 reader does not take the language for a governed one. The richer `kapi status --json`
-report still carries the same `shippable` and `verified` fields per locale (plus
-the full coverage percentages) for dashboards.
+report carries the same `shippable` and `verified` fields per collection and
+locale, with the state as `shipState` and the full coverage percentages, for
+dashboards.
 
 ## A hosted feed instead of a built file
 
@@ -99,7 +125,7 @@ disappears, and the picker reads the current standing on each load rather than
 whatever was true at build time.
 
 The contract is exactly the file's: an object keyed by locale, each value
-`{ shippable, verified }`, with `not_governed` where it applies. A hosted feed is read-only and needs no auth (a
+`{ shippable, verified, state }`, with `not_governed` where it applies. A hosted feed is read-only and needs no auth (a
 public picker fetches it directly), and should send an `ETag` and a short
 `Cache-Control: public, max-age=…` so a picker or a CDN can revalidate cheaply
 with a `304`.
@@ -131,7 +157,7 @@ import { loadShipStatus, languagePickerModel } from "@neokapi/i18n-react/ship";
 
 const status = await loadShipStatus(); // defaults to /ship.json
 const model = languagePickerModel(status, ["en", "fr", "de", "ja"]);
-// → [{ locale: "fr", label: "Français", shippable: true, badge: 'ai' | null }, …]
+// → [{ locale: "fr", label: "Français", shippable: true, badge: 'ai' | null, state: "shippable" }, …]
 ```
 
 The label is resolved in this order: an explicit `label` on a `LocaleInput`, then
@@ -149,7 +175,7 @@ const model = languagePickerModel(status, ["fr", "de", "qps"], {
 
 The signature is
 `languagePickerModel(status, locales, options?)`, where `options` is
-`{ labels?: Record<string, string> }`.
+`{ labels?: Record<string, string>; includeNotGated?: boolean }`.
 
 The first letter of a derived endonym is capitalized for a menu-style label
 (`français` → `Français`), so lowercase endonyms read consistently alongside the
@@ -158,7 +184,9 @@ left unchanged. If `Intl.DisplayNames` is unavailable or has no name for a code,
 the label falls back to the override map and then to the raw code; it never
 throws.
 
-`languagePickerModel` returns only the shippable locales. Each entry carries a
+`languagePickerModel` returns the locales whose entry is shippable, which
+includes a not-gated locale. Pass `includeNotGated: false` to offer only the
+locales that clear a ship gate. Each entry carries the manifest's `state` and a
 `badge`: `'ai'` when the locale ships but is not verified, and `null` when it is
 verified. **`'ai'` is the only badge this layer emits; a verified locale has no
 badge.** A React binding wraps the same two functions and takes the same options
@@ -193,5 +221,6 @@ tooling.
 
 The verified gate is purely additive. Recipes that declare no `verified_gate`
 are unaffected: their ship-gate behaviour is unchanged and every locale reads as
-unverified. The picker helper degrades safely when `ship.json` is absent, so a
-project can adopt the manifest and the picker independently.
+unverified. The picker helper degrades safely when `ship.json` is absent, and
+reads an entry with no `state` by its `shippable` flag alone, so a project can
+adopt the manifest and the picker independently.

@@ -190,7 +190,8 @@ export function ConvergenceHero({
   const parked = convergence?.review?.length ?? 0;
   const storeMissing = !!plan?.storeMissing;
   const versionStale = !!plan?.versionStale;
-  const gated = (convergence?.locales ?? []).filter((l) => l.gated);
+  const locales = convergence?.locales ?? [];
+  const gated = locales.filter((l) => l.gated);
   // Three states, not two: gates green, gates unmet, and *no gates at all*.
   // `[].every()` is vacuously true, so folding the third into the first let an
   // ungated recipe — or a report we never received — assert "all gates green"
@@ -198,12 +199,23 @@ export function ConvergenceHero({
   // honest: no gates means no claim, not a green one.
   const hasGates = gated.length > 0;
   const gatesUnmet = hasGates && !gated.every((l) => l.shippable);
+  // A scope no gate matches can still be withheld by stale wording, a rejected
+  // translation or a failing check. One that nothing withholds is not gated, and
+  // is named beside the gated verdict rather than folded into it.
+  const withheldUngated = locales.filter((l) => !l.gated && !l.shippable).length;
+  const notGatedLanguages = [
+    ...new Set(
+      locales
+        .filter((l) => (l.shipState ? l.shipState === "not_gated" : !l.gated && l.shippable))
+        .map((l) => l.locale),
+    ),
+  ];
   // A failed catch-up run leaves locales unproduced no matter what the
   // file-derived tally says, so it is drift in its own right — the state cannot
   // be trusted as converged until a run completes.
   const runFailed = lastRunError != null && lastRunError.kind !== "canceled";
   const drifted = changed > 0 || planned > 0 || storeMissing || versionStale || runFailed;
-  const upToDate = loaded && !drifted && !gatesUnmet;
+  const upToDate = loaded && !drifted && !gatesUnmet && withheldUngated === 0;
 
   // The drift summary: only the non-zero pieces, joined with " · ".
   const pieces: string[] = [];
@@ -213,6 +225,9 @@ export function ConvergenceHero({
   if (changed > 0) pieces.push(t("{count} source file(s) changed", { count: changed }));
   if (missing > 0) pieces.push(t("{count} unit(s) missing targets", { count: missing }));
   if (parked > 0) pieces.push(t("{count} parked for review", { count: parked }));
+  if (withheldUngated > 0) {
+    pieces.push(t("{count} scope(s) withheld", { count: withheldUngated }));
+  }
   if (pieces.length === 0 && gatesUnmet) {
     pieces.push(t("ship gates not met yet"));
   }
@@ -286,6 +301,12 @@ export function ConvergenceHero({
                 : t(
                     "Bring up to date extracts changed sources, runs the default flow to the ship gates, and parks what needs a human.",
                   )}
+              {upToDate && hasGates && notGatedLanguages.length > 0 && (
+                <span data-slot="hero-not-gated">
+                  {" "}
+                  {t("Not gated: {languages}.", { languages: notGatedLanguages.join(", ") })}
+                </span>
+              )}
               {!upToDate && plan?.plan?.subscription && (
                 <span data-slot="hero-subscription">
                   {" "}

@@ -88,16 +88,17 @@ with two gates over the same lifecycle ladder:
 | `verified_gate` | `reviewed: 100` | Has a person signed off every string in it? |
 
 One bar for every language, deliberately. A per-locale bar would make the
-picker's three states an artefact of the recipe rather than of the work.
+picker's three states an artefact of the recipe rather than of the work. With a
+bar on every language, no language reads as `not_gated`.
 
 The picker reads `kapi status --ship`, whose whole output is locale →
-`{shippable, verified}`:
+`{shippable, verified, state}`:
 
-| Ship state | `shippable` | `verified` | In the picker |
-| --- | --- | --- | --- |
-| governed | true | true | offered, unmarked |
-| ai-shippable | true | false | offered, marked **AI** |
-| pending | false | — | not offered |
+| Ship state | `state` | `shippable` | `verified` | In the picker |
+| --- | --- | --- | --- | --- |
+| governed | `shippable` | true | true | offered, unmarked |
+| ai-shippable | `shippable` | true | false | offered, marked **AI** |
+| pending | `withheld` | false | n/a | not offered |
 
 The third row is the point of the sample. `nl.json` exists, it holds Dutch, and
 until the gate clears it the picker does not offer it. A catalog being present is

@@ -285,11 +285,15 @@ func (o StatusOutput) writeBasisLines(w io.Writer) {
 }
 
 // writeShipSummary closes the grid with the one number a release decision needs:
-// how many gated scopes clear their bar. Omitted when nothing is gated, since
-// "0 of 0 ready" says nothing.
+// how many gated scopes clear their bar, with the scopes no gate matches counted
+// beside it. A grid with no gated scope says that no ship gates are declared,
+// since "0 of 0 ready" says nothing.
 func (o StatusOutput) writeShipSummary(w io.Writer, s *output.Styles) {
-	gated, ready := 0, 0
+	gated, ready, notGated := 0, 0, 0
 	for _, lc := range o.Locales {
+		if lc.ShipState == ShipStateNotGated {
+			notGated++
+		}
 		if !lc.Gated {
 			continue
 		}
@@ -299,9 +303,15 @@ func (o StatusOutput) writeShipSummary(w io.Writer, s *output.Styles) {
 		}
 	}
 	if gated == 0 {
+		if len(o.Locales) > 0 {
+			fmt.Fprintf(w, "\n%s\n", s.Dim("No ship gates are declared."))
+		}
 		return
 	}
 	line := fmt.Sprintf("%d of %d scopes ready to ship", ready, gated)
+	if notGated > 0 {
+		line += fmt.Sprintf(" · %d not gated", notGated)
+	}
 	if ready == gated {
 		fmt.Fprintf(w, "\n%s\n", s.Success.Render(line))
 		return
@@ -331,8 +341,8 @@ func shipBars(w io.Writer) bool {
 
 // pipelineCell renders the distance-to-ship column: a block bar plus the
 // percentage, or the percentage alone when there is no room. An ungated scope
-// has no bar to fill, so it reads as a dash — the same "not applicable" the
-// ship column shows.
+// has no bar to fill, so it reads as a dash, and the ship column names the
+// scope not gated.
 func pipelineCell(lc LocaleCoverage, bars bool) string {
 	if !lc.Gated {
 		return "—"
@@ -527,7 +537,8 @@ func scopeLabel(lc LocaleCoverage) string {
 }
 
 // shipCell renders the ship verdict: `ready`, `blocked: <rung>` naming the
-// first unmet gate, or a dash when no gate applies to the scope.
+// first unmet gate, or `not gated` when no gate matches the scope and nothing
+// withholds it.
 //
 // The blocking rung is the *lowest* unmet one (gate.Result.Blocking), so the
 // verdict points at the work that unblocks the rest — saying "blocked: sign-off"
@@ -556,7 +567,7 @@ func shipCell(lc LocaleCoverage, s *output.Styles) string {
 		return s.Warn.Render("blocked: terms not checked")
 	}
 	if !lc.Gated {
-		return s.Dim("—")
+		return s.Dim("not gated")
 	}
 	if lc.Shippable {
 		return s.Success.Render("ready")

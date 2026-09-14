@@ -361,9 +361,9 @@ func TestStatus_ShipManifestEmit(t *testing.T) {
 	var manifest map[string]ShipEntry
 	require.NoError(t, json.Unmarshal(raw, &manifest), "ship.json must be valid JSON: %s", raw)
 
-	assert.Equal(t, ShipEntry{Shippable: true, Verified: true, NotGoverned: []string{"terms"}}, manifest["nb"],
+	assert.Equal(t, ShipEntry{Shippable: true, Verified: true, State: ShipStateShippable, NotGoverned: []string{"terms"}}, manifest["nb"],
 		"no terms govern nb, and the manifest says so")
-	assert.Equal(t, ShipEntry{Shippable: true, Verified: false, NotGoverned: []string{"terms"}}, manifest["de"],
+	assert.Equal(t, ShipEntry{Shippable: true, Verified: false, State: ShipStateShippable, NotGoverned: []string{"terms"}}, manifest["de"],
 		"shippable but unverified — the AI case")
 }
 
@@ -372,15 +372,15 @@ func TestStatus_ShipManifestEmit(t *testing.T) {
 // so the picker reads both through one code path.
 func TestShipManifestWireShape(t *testing.T) {
 	body, err := json.Marshal(ShipManifest{
-		"nb": {Shippable: true, Verified: true},
-		"sv": {Shippable: true, Verified: true, NotGoverned: []string{"terms"}},
-		"ja": {},
+		"nb": {Shippable: true, Verified: true, State: ShipStateShippable},
+		"sv": {Shippable: true, Verified: true, State: ShipStateShippable, NotGoverned: []string{"terms"}},
+		"ja": {State: ShipStateWithheld},
 	})
 	require.NoError(t, err)
 	assert.JSONEq(t, `{
-		"nb": {"shippable": true, "verified": true},
-		"sv": {"shippable": true, "verified": true, "not_governed": ["terms"]},
-		"ja": {"shippable": false, "verified": false}
+		"nb": {"shippable": true, "verified": true, "state": "shippable"},
+		"sv": {"shippable": true, "verified": true, "state": "shippable", "not_governed": ["terms"]},
+		"ja": {"shippable": false, "verified": false, "state": "withheld"}
 	}`, string(body))
 }
 

@@ -93,7 +93,10 @@ func (a *runAccumulator) output(final *apiclient.ConvergenceRun) cli.ConvergeOut
 
 	for _, loc := range order {
 		l := rows[loc]
-		res := cli.ConvergeLocaleResult{Locale: loc, Pct: map[string]int{}}
+		// A server run holds every locale to one bar, fully translated and clear
+		// of the bound checks, so each locale is gated and none is not gated.
+		res := cli.ConvergeLocaleResult{Locale: loc, Pct: map[string]int{}, Gated: true,
+			ShipState: convergence.ShipStateWithheld}
 		pct := 100
 		if l.Units > 0 {
 			pct = l.Produced * 100 / l.Units
@@ -101,6 +104,7 @@ func (a *runAccumulator) output(final *apiclient.ConvergenceRun) cli.ConvergeOut
 		switch l.State {
 		case convergence.LocaleShippable:
 			res.Shippable = true
+			res.ShipState = convergence.ShipStateShippable
 			res.Pct["draft"], res.Pct["translated"] = 100, 100
 		case convergence.LocaleParked:
 			res.Parked = true

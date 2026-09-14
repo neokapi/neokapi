@@ -72,9 +72,22 @@ export interface ParkedScope {
  * from the reduced model (kapi-desktop reads it from the job feed's `complete`
  * event). Drives the converged/parked outcome block with parked-scope links.
  */
+/** One locale's ship standing at the end of a run. */
+export interface ConvergenceLocaleOutcome {
+  locale: string;
+  /** shippable | withheld | not_gated */
+  shipState?: string;
+  /** Whether a ship gate matches any of the locale's scopes. */
+  gated?: boolean;
+}
+
 export interface ConvergenceOutcome {
   converged: boolean;
   passes: number;
+  /** The run's per-locale ship standing. With it, the converged line claims the
+   *  gates only where a gate matches; without it, the line claims every gated
+   *  scope shippable. */
+  locales?: ConvergenceLocaleOutcome[];
   parkedScopes?: ParkedScope[];
   materializedFiles?: number;
   /** Translatable source blocks the run held below the project's source gate.

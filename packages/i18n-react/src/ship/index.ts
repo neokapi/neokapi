@@ -3,7 +3,8 @@
  *
  * `kapi status --ship --emit ship.json` writes a minimal manifest keyed by
  * locale, each entry `{ shippable, verified }` — the two-gate model. `shippable`
- * means the locale cleared its ship gate (safe to offer); `verified` means it
+ * means nothing withholds the locale (safe to offer), and `state` says whether it
+ * cleared a ship gate or no gate matches it (`not_gated`); `verified` means it
  * also cleared its verified gate (a person reviewed or signed off). A locale
  * that ships but is not verified is AI-only work.
  *
@@ -20,12 +21,21 @@
  * hook wrapping the loader lives in `./react`.
  */
 
+/**
+ * A locale's ship state: `shippable` (it clears its ship gate), `withheld` (it
+ * does not ship), or `not_gated` (no ship gate matches it and nothing withholds
+ * it).
+ */
+export type ShipState = "shippable" | "withheld" | "not_gated";
+
 /** One locale's standing in the manifest. */
 export interface ShipEntry {
-  /** Cleared its ship gate — safe to offer in the picker. */
+  /** Nothing withholds the locale: it clears its ship gate, or no gate matches it. Safe to offer in the picker. */
   shippable: boolean;
   /** Cleared its verified gate — human-reviewed, so no AI badge. */
   verified: boolean;
+  /** The locale's ship state. Absent from a manifest written before it existed. */
+  state?: ShipState;
 }
 
 /** The ship.json manifest: locale → standing. */
@@ -50,6 +60,12 @@ export interface LanguagePickerOptions {
    * explicit `label` on a {@link LocaleInput} still wins over the override.
    */
   labels?: Record<string, string>;
+  /**
+   * Whether to offer a locale no ship gate matches (`state: "not_gated"`).
+   * Defaults to `true`: nothing withholds such a locale, so it is offered as a
+   * shippable one is. Pass `false` to offer only the locales that clear a gate.
+   */
+  includeNotGated?: boolean;
 }
 
 /** The only badge this layer emits, or none. */
@@ -68,6 +84,8 @@ export interface PickerLocale {
   shippable: boolean;
   /** `'ai'` when shippable but unverified; `null` when verified (no badge). */
   badge: LocaleBadge;
+  /** The locale's ship state, when the manifest carries one. */
+  state?: ShipState;
 }
 
 /**
@@ -95,7 +113,11 @@ function normalizeShipStatus(data: unknown): ShipStatus {
   for (const [locale, raw] of Object.entries(data as Record<string, unknown>)) {
     if (raw === null || typeof raw !== "object") continue;
     const e = raw as Record<string, unknown>;
-    out[locale] = { shippable: e.shippable === true, verified: e.verified === true };
+    const entry: ShipEntry = { shippable: e.shippable === true, verified: e.verified === true };
+    if (e.state === "shippable" || e.state === "withheld" || e.state === "not_gated") {
+      entry.state = e.state;
+    }
+    out[locale] = entry;
   }
   return out;
 }
@@ -162,6 +184,8 @@ function resolveLabel(
  *     unbadged; the picker cannot judge what it cannot see.
  *   - A locale with an entry that is not shippable is dropped from the model.
  *   - A shippable locale is badged `'ai'` when unverified, `null` when verified.
+ *   - A locale whose entry is `not_gated` is offered, unless
+ *     `options.includeNotGated` is `false`.
  *   - A locale with NO entry in a non-empty manifest (e.g. the source language,
  *     which ship.json — targets only — never lists) is shown unbadged.
  */
@@ -180,7 +204,15 @@ export function languagePickerModel(
     const entry = empty ? undefined : status[locale];
     if (entry) {
       if (!entry.shippable) continue; // gated out of the picker
-      out.push({ locale, label, shippable: true, badge: entry.verified ? null : "ai" });
+      if (entry.state === "not_gated" && options.includeNotGated === false) continue;
+      const picked: PickerLocale = {
+        locale,
+        label,
+        shippable: true,
+        badge: entry.verified ? null : "ai",
+      };
+      if (entry.state) picked.state = entry.state;
+      out.push(picked);
     } else {
       // No manifest, or no entry for this locale — show it unbadged.
       out.push({ locale, label, shippable: true, badge: null });

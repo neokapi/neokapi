@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/neokapi/neokapi/core/check"
@@ -49,10 +50,17 @@ type ConvergeOptions struct {
 // ConvergeLocaleResult is the per-locale outcome of a convergence run.
 type ConvergeLocaleResult struct {
 	Locale    string         `json:"locale"`
-	Shippable bool           `json:"shippable"`        // every scope for this locale clears its ship gate
+	Shippable bool           `json:"shippable"`        // no scope for this locale is withheld
 	Verified  bool           `json:"verified"`         // every scope for this locale clears its verified gate
 	Parked    bool           `json:"parked,omitempty"` // the loop left work here (needs human)
 	Pct       map[string]int `json:"pct,omitempty"`    // ladder state → "at least" percent
+	// ShipState folds the locale's scopes into one standing: withheld when any
+	// scope is withheld, shippable when every scope is gated and clears its gate,
+	// and not_gated otherwise. A locale with content no ship gate matches makes
+	// no shippable claim for it.
+	ShipState ShipState `json:"shipState"`
+	// Gated reports whether a ship gate matches any of the locale's scopes.
+	Gated bool `json:"gated"`
 	// FailingChecks counts units that are produced but fail the project's bound
 	// checks (#1078 G4). They count at their true rung in Pct — the unit is
 	// translated — and hold the locale out of Shippable until fixed. It counts
@@ -95,7 +103,7 @@ type ParkedScope struct {
 type ConvergeOutput struct {
 	Flow      string                 `json:"flow"`
 	Passes    int                    `json:"passes"`
-	Converged bool                   `json:"converged"` // every gated scope is shippable
+	Converged bool                   `json:"converged"` // no scope is withheld: every gated scope clears its gate
 	Locales   []ConvergeLocaleResult `json:"locales"`
 	// ParkedScopes lists the gated (collection, locale) scopes that remain
 	// short of their gate — per-scope detail under the per-locale rollup, so
@@ -198,6 +206,10 @@ func (o ConvergeOutput) FormatText(w io.Writer) error {
 		switch {
 		case lc.Parked:
 			state = s.Warn.Render("parked (needs human)")
+		case lc.ShipState == ShipStateNotGated:
+			// No ship gate matches the locale's content, so there is no bar the
+			// run could report it as clearing.
+			state = s.Dim("not gated")
 		case lc.Shippable:
 			state = s.Success.Render("✓ shippable")
 		}
@@ -246,7 +258,7 @@ func (o ConvergeOutput) FormatText(w io.Writer) error {
 			"They do not ship until a pass drafts something else for them.\n", rejected)
 	}
 	if o.Converged {
-		fmt.Fprintln(w, "Up to date: every gated scope is shippable.")
+		fmt.Fprintln(w, o.upToDateLine())
 	} else if o.StallReason == convergence.StallSourceNotReady {
 		fmt.Fprintln(w, "Held on source. Nothing translatable is settled yet. Set defaults.source_gate: none to draft freely.")
 	} else {
@@ -257,6 +269,30 @@ func (o ConvergeOutput) FormatText(w io.Writer) error {
 	}
 	o.formatProposedChangeset(w)
 	return nil
+}
+
+// upToDateLine is the closing line of a converged run. It claims the gates only
+// where a gate matches: a project that declares none is up to date with nothing
+// reported shippable, and a language no gate matches is named as not gated.
+func (o ConvergeOutput) upToDateLine() string {
+	var notGated []string
+	gated := false
+	for _, lc := range o.Locales {
+		if lc.ShipState == ShipStateNotGated {
+			notGated = append(notGated, lc.Locale)
+		}
+		if lc.Gated || lc.ShipState != ShipStateNotGated {
+			gated = true
+		}
+	}
+	switch {
+	case len(o.Locales) > 0 && !gated:
+		return "Up to date. No ship gates are declared."
+	case len(notGated) > 0:
+		return "Up to date: every gated scope is shippable. Not gated: " + strings.Join(notGated, ", ") + "."
+	default:
+		return "Up to date: every gated scope is shippable."
+	}
 }
 
 // formatProposedChangeset reports governed terminology the run proposed rather
@@ -1113,7 +1149,7 @@ func buildConvergeOutput(flowName string, passes int, cov []LocaleCoverage, loca
 	}
 	for _, loc := range locales {
 		l := string(loc)
-		res := ConvergeLocaleResult{Locale: l, Shippable: true, Verified: true,
+		res := ConvergeLocaleResult{Locale: l, Shippable: true, Verified: true, ShipState: ShipStateShippable,
 			Pct: map[string]int{}, Redrafted: redraftable[l]}
 		gatedSomewhere := false
 		scoped := false
@@ -1143,10 +1179,14 @@ func buildConvergeOutput(flowName string, passes int, cov []LocaleCoverage, loca
 			if c.Gated {
 				gatedSomewhere = true
 			}
+			res.ShipState = weakerShipState(res.ShipState, c.ShipState)
 		}
-		// A locale with no coverage row at all has nothing to verify.
+		res.Gated = gatedSomewhere
+		// A locale with no coverage row at all has nothing to verify, and no gate
+		// matched anything in it.
 		if !scoped {
 			res.Verified = false
+			res.ShipState = ShipStateNotGated
 		}
 		if !res.Shippable {
 			out.Converged = false

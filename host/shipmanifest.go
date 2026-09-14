@@ -14,6 +14,11 @@ import (
 type ShipEntry struct {
 	Shippable bool `json:"shippable"`
 	Verified  bool `json:"verified"`
+	// State is the locale's ship state: shippable, withheld or not_gated, folded
+	// across its scopes as ConvergeLocaleResult.ShipState is. Shippable is true
+	// for not_gated as well as shippable, so a picker that reads only Shippable
+	// offers a locale no gate matches; State says that no gate stands behind it.
+	State ShipState `json:"state"`
 	// NotGoverned names the dimensions that govern nothing in the locale:
 	// "terms" when no concept in the project's terms answers for it. Neither
 	// gate reads it; it is there so a picker or a build never takes an
@@ -22,7 +27,7 @@ type ShipEntry struct {
 }
 
 // ShipManifest is the minimal, stable picker manifest `kapi status --ship`
-// emits: locale → {shippable, verified, not_governed}. A language picker consumes it to offer
+// emits: locale → {shippable, verified, state, not_governed}. A language picker consumes it to offer
 // only shippable locales and to badge the shippable-but-unverified ones "AI".
 // It is a deliberately tiny projection of the richer StatusOutput --json, so a
 // build can emit it (kapi status --ship --emit ship.json) and ship it next to
@@ -31,17 +36,19 @@ type ShipManifest map[string]ShipEntry
 
 // BuildShipManifest projects the per-(collection, locale) coverage rows to the
 // per-locale picker manifest. When a locale spans several collection scopes it
-// is shippable only if every scope is shippable, and verified only if every
-// scope is verified (a locale is no stronger than its weakest collection).
+// is shippable only if every scope is shippable, verified only if every scope is
+// verified, and its State is the weakest of its scopes' states (a locale is no
+// stronger than its weakest collection).
 func BuildShipManifest(locales []LocaleCoverage) ShipManifest {
 	m := ShipManifest{}
 	for _, lc := range locales {
 		e, seen := m[lc.Locale]
 		if !seen {
-			e = ShipEntry{Shippable: true, Verified: true}
+			e = ShipEntry{Shippable: true, Verified: true, State: ShipStateShippable}
 		}
 		e.Shippable = e.Shippable && lc.Shippable
 		e.Verified = e.Verified && lc.Verified
+		e.State = weakerShipState(e.State, lc.ShipState)
 		for _, d := range lc.NotGoverned {
 			if !slices.Contains(e.NotGoverned, d) {
 				e.NotGoverned = append(e.NotGoverned, d)
@@ -50,6 +57,26 @@ func BuildShipManifest(locales []LocaleCoverage) ShipManifest {
 		m[lc.Locale] = e
 	}
 	return m
+}
+
+// weakerShipState returns the weaker of two ship states, in the order withheld,
+// not_gated, shippable. A locale takes the weakest state among its scopes: one
+// withheld scope withholds it, and content no gate matches leaves it not gated.
+func weakerShipState(a, b ShipState) ShipState {
+	rank := func(s ShipState) int {
+		switch s {
+		case ShipStateWithheld:
+			return 0
+		case ShipStateNotGated:
+			return 1
+		default:
+			return 2
+		}
+	}
+	if rank(b) < rank(a) {
+		return b
+	}
+	return a
 }
 
 // emitShipManifest writes the picker manifest as pretty JSON to the --emit path

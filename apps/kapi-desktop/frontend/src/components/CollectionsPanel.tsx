@@ -104,19 +104,25 @@ const STAGE_COLOR: Record<string, string> = {
 // The ship-gate ladder rung for a (collection, locale) scope, derived from the
 // convergence report. `pct` is the translated coverage shown as a secondary
 // figure; the label/colour convey how far along the gate ladder it is.
-interface Rung {
+export interface Rung {
   key: "shippable" | "review" | "draft" | "none";
   label: string;
   short: string;
   color: string;
   pct: number;
 }
-function rungFor(lc?: LocaleCoverage): Rung {
+/** Whether a scope clears a ship gate, as distinct from a scope no gate matches. */
+const clearsShipGate = (lc: LocaleCoverage) =>
+  lc.shipState ? lc.shipState === "shippable" : lc.gated && lc.shippable;
+
+export function rungFor(lc?: LocaleCoverage): Rung {
   const translated = lc?.pct?.translated ?? 0;
   if (!lc || translated === 0) {
     return { key: "none", label: "·", short: "·", color: "var(--muted-foreground)", pct: 0 };
   }
-  if (lc.shippable) {
+  // "Shippable" is a gate verdict, so only a scope that clears a ship gate reads
+  // as one. A scope no gate matches shows its place on the ladder instead.
+  if (clearsShipGate(lc)) {
     return {
       key: "shippable",
       label: "Shippable",
@@ -1600,7 +1606,7 @@ export function CollectionsPanel({
   const scopeStage = (lc: LocaleCoverage): TimelineItem["stage"] => {
     const tr = lc.pct?.translated ?? 0;
     if (tr === 0) return "none";
-    if (lc.shippable) return "shippable";
+    if (clearsShipGate(lc)) return "shippable";
     return (lc.pct?.reviewed ?? 0) > 0 ? "review" : "translated";
   };
   // Collection → its cake/Layers colour, keyed the way convergence reports it
@@ -1621,7 +1627,7 @@ export function CollectionsPanel({
           total += lc.total;
           tSum += (lc.total * (lc.pct?.translated ?? 0)) / 100;
           rSum += (lc.total * (lc.pct?.reviewed ?? 0)) / 100;
-          if (lc.shippable) shippableUnits += lc.total;
+          if (clearsShipGate(lc)) shippableUnits += lc.total;
           byCollection.push({
             name: lc.collection || t("(unnamed)"),
             pct: Math.round(lc.pct?.translated ?? 0),

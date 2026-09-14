@@ -31,6 +31,25 @@ type Report struct {
 	Warnings []check.Warning `json:"warnings,omitempty"`
 }
 
+// ShipState is a scope's standing against its ship gates.
+type ShipState string
+
+const (
+	// ShipStateShippable: a ship gate matches the scope, the scope clears it,
+	// and nothing withholds it.
+	ShipStateShippable ShipState = "shippable"
+	// ShipStateWithheld: the scope does not ship. Either a ship gate matches and
+	// the scope is short of it, or the scope holds stale wording, a translation a
+	// reviewer turned down, a unit failing the bound checks, or a unit the terms
+	// govern with no terminology result. Those withhold a scope whether or not a
+	// gate matches.
+	ShipStateWithheld ShipState = "withheld"
+	// ShipStateNotGated: no ship gate matches the scope and nothing withholds it.
+	// The project set no bar for it, so no surface reports it as shippable. It is
+	// delivered and offered as a shippable scope is.
+	ShipStateNotGated ShipState = "not_gated"
+)
+
 // LocaleCoverage is the ship-gate view for one (collection, locale) scope: the
 // state distribution of its translatable units, whether it clears its gate, and
 // which thresholds are still pending. Collection is empty for content not in a
@@ -40,9 +59,16 @@ type LocaleCoverage struct {
 	Collection string           `json:"collection,omitempty"`
 	Total      int              `json:"total"`
 	Pct        map[string]int   `json:"pct"`               // ladder state → "at least" percent (rounded)
-	Gated      bool             `json:"gated"`             // a ship gate applies to this scope
-	Shippable  bool             `json:"shippable"`         // ship gate satisfied (or no ship gate)
+	Gated      bool             `json:"gated"`             // a ship gate matches this scope
+	Shippable  bool             `json:"shippable"`         // nothing withholds the scope: its gate is met, or none matches
 	Pending    []gate.Shortfall `json:"pending,omitempty"` // unmet ship-gate thresholds
+	// ShipState is the scope's standing in one value: shippable, withheld or
+	// not_gated. Gated and Shippable are its two-field reading, kept for readers
+	// written against them. Shippable is true for a not_gated scope as well as a
+	// shippable one, because nothing holds either back, so such a reader offers
+	// and delivers the scope as it did. Only ShipState tells a met gate from no
+	// gate, and every surface that states a verdict reads it.
+	ShipState ShipState `json:"shipState"`
 	// ShipProgress is how far the scope has come toward its ship gate, in
 	// [0,100] — gate.Progress: the mean fractional attainment of the gate's
 	// required thresholds. It is a distance to the bar, not a lifecycle

@@ -657,6 +657,9 @@ export interface GateShortfall {
   by?: string;
 }
 
+/** A scope's standing against its ship gates (Go convergence.ShipState). */
+export type ShipState = "shippable" | "withheld" | "not_gated";
+
 /** Per-(collection, locale) target coverage + ship-gate standing. */
 export interface LocaleCoverage {
   locale: string;
@@ -664,8 +667,14 @@ export interface LocaleCoverage {
   total: number;
   /** Ladder state → "at least" percent (draft|translated|reviewed|signed-off). */
   pct: Record<string, number>;
+  /** A ship gate matches this scope. */
   gated: boolean;
+  /** Nothing withholds the scope: its gate is met, or no gate matches it. */
   shippable: boolean;
+  /** shippable (a gate matches and is met), withheld, or not_gated (no gate
+   *  matches and nothing withholds). Only this field tells a met gate from no
+   *  gate. */
+  shipState?: ShipState;
   pending?: GateShortfall[];
 }
 
@@ -1034,6 +1043,11 @@ export interface ParkedScope {
 export interface ConvergeLocaleResult {
   locale: string;
   shippable: boolean;
+  /** The weakest state among the locale's scopes: withheld, not_gated or
+   *  shippable. */
+  shipState?: ShipState;
+  /** A ship gate matches at least one of the locale's scopes. */
+  gated?: boolean;
   parked?: boolean;
   pct?: Record<string, number>;
   failingChecks?: number;

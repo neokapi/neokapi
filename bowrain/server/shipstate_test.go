@@ -12,6 +12,7 @@ import (
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	voicepg "github.com/neokapi/neokapi/bowrain/voice"
+	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/state"
@@ -488,15 +489,17 @@ func TestPublicShipManifestWithholdsStaleLocale(t *testing.T) {
 		return out
 	}
 
-	assert.Equal(t, shipManifestEntry{Shippable: true, Verified: true, NotGoverned: []string{"terms"}}, feed()["nb"],
+	assert.Equal(t, shipManifestEntry{Shippable: true, Verified: true, State: convergence.ShipStateShippable,
+		NotGoverned: []string{"terms"}}, feed()["nb"],
 		"approved against the current source: the picker may offer it, badged verified")
 
 	storeSource("Hello there", false)
-	assert.Equal(t, shipManifestEntry{NotGoverned: []string{"terms"}}, feed()["nb"],
+	assert.Equal(t, shipManifestEntry{State: convergence.ShipStateWithheld, NotGoverned: []string{"terms"}}, feed()["nb"],
 		"the picker must not offer a locale rendering source the project rewrote")
 
 	storeSource("Hello", false)
-	assert.Equal(t, shipManifestEntry{Shippable: true, Verified: true, NotGoverned: []string{"terms"}}, feed()["nb"],
+	assert.Equal(t, shipManifestEntry{Shippable: true, Verified: true, State: convergence.ShipStateShippable,
+		NotGoverned: []string{"terms"}}, feed()["nb"],
 		"and it recovers when the source comes back, with no second review")
 }
 

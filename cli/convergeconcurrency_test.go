@@ -43,7 +43,8 @@ func TestUp_SingleFile_ConcurrentLocales(t *testing.T) {
 
 		out, upErr := runUp(t, a, recipe)
 		require.NoError(t, upErr, out)
-		assert.Contains(t, out, "Up to date: every gated scope is shippable", out)
+		// The recipe declares no ship gate, so the converged run claims none.
+		assert.Contains(t, out, "Up to date. No ship gates are declared.", out)
 		for _, loc := range []string{"fr-FR", "de-DE", "nb-NO", "ja-JP"} {
 			_, serr := os.Stat(filepath.Join(real, "locales", loc+".json"))
 			require.NoError(t, serr, "must materialize %s", loc)

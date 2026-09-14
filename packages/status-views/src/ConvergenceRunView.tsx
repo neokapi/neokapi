@@ -225,6 +225,31 @@ function ConvergeDoneFooter({ model }: { model: ConvergenceRunModel }) {
   );
 }
 
+/**
+ * The converged line. It claims the gates only where a gate matches: a run whose
+ * locales no gate matches says no ship gates are declared, and the languages no
+ * gate matches are named beside the gated verdict.
+ */
+function upToDateLine(result: ConvergenceOutcome): string {
+  const locales = result.locales ?? [];
+  const notGated = locales.filter((l) => l.shipState === "not_gated").map((l) => l.locale);
+  const gated = locales.some((l) => l.gated || l.shipState !== "not_gated");
+  if (locales.length > 0 && !gated) {
+    return t("Up to date in {count} pass(es). No ship gates are declared.", {
+      count: result.passes,
+    });
+  }
+  if (notGated.length > 0) {
+    return t(
+      "Up to date in {count} pass(es). Every gated scope is shippable. Not gated: {languages}.",
+      { count: result.passes, languages: notGated.join(", ") },
+    );
+  }
+  return t("Up to date in {count} pass(es). Every gated scope is shippable.", {
+    count: result.passes,
+  });
+}
+
 /** The structured converged / parked-scopes outcome block (kapi-desktop). */
 function ConvergeOutcomeBlock({
   result,
@@ -239,9 +264,7 @@ function ConvergeOutcomeBlock({
       {result.converged ? (
         <p className="flex items-center gap-1.5 text-xs text-green-600 dark:text-green-500">
           <CheckCircle2 size={13} />
-          {t("Up to date in {count} pass(es). Every gated scope is shippable.", {
-            count: result.passes,
-          })}
+          {upToDateLine(result)}
         </p>
       ) : (
         <div className="space-y-1.5">

@@ -38,6 +38,11 @@ export function ConvergeRunView({ events, running, canceled, onOpenReview }: Con
           ? {
               converged: result.converged,
               passes: result.passes,
+              locales: result.locales?.map((l) => ({
+                locale: l.locale,
+                shipState: l.shipState,
+                gated: l.gated,
+              })),
               parkedScopes: result.parkedScopes,
               materializedFiles: result.materializedFiles,
               blockedOnSource: result.blockedOnSource,

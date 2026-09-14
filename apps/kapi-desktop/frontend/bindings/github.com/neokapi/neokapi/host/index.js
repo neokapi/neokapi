@@ -24,3 +24,15 @@ export {
     UpPlanOutput,
     UpPlanScope
 } from "./models.js";
+
+import * as $models from "./models.js";
+
+/**
+ * The convergence report MODEL and the per-block ladder helpers live in the
+ * framework (core/convergence) so any surface derives the same shape from the
+ * same rules. The CLI owns the file-IO orchestration that feeds them
+ * (UnitsFromProject, readBlocks, bilingualBlocks, the state-store review index)
+ * and re-exports the types via aliases so existing CLI + desktop callers — and
+ * the generated Wails bindings — are unchanged.
+ * @typedef {$models.ShipState} ShipState
+ */

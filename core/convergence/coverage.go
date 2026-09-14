@@ -146,7 +146,7 @@ func (t *CoverageTally) Coverage(s Scope) (gate.Coverage, bool) {
 // Rollup evaluates every tallied scope against the resolved ship gates and
 // returns the LocaleCoverage rows, sorted by (locale, collection). Percentages
 // are the rounded "at least" values over the target ladder; a scope no gate
-// rule matches reads as shippable. It is RollupGates with no verified gate — the
+// rule matches is not gated. It is RollupGates with no verified gate, so the
 // verified flag is false everywhere.
 func (t *CoverageTally) Rollup(ship gate.RuleSet) []LocaleCoverage {
 	return t.RollupGates(ship, gate.RuleSet{})
@@ -156,9 +156,10 @@ func (t *CoverageTally) Rollup(ship gate.RuleSet) []LocaleCoverage {
 // verified gates — the two-gate model — and returns the LocaleCoverage rows,
 // sorted by (locale, collection). Both gates read the same tallied distribution
 // over the target ladder; they differ only in the bar. A scope no ship rule
-// matches reads as shippable (the ship default); a scope no verified rule
-// matches reads as NOT verified (the verified default — nothing is verified
-// unless a bar is declared and cleared).
+// matches is not gated: nothing withholds it, so Shippable reads true, and its
+// ShipState says no gate stands behind that. A scope no verified rule matches
+// reads as NOT verified, because nothing is verified unless a bar is declared
+// and cleared.
 func (t *CoverageTally) RollupGates(ship, verified gate.RuleSet) []LocaleCoverage {
 	ladder := gate.TargetLadder()
 	scopes := make([]Scope, 0, len(t.tallies))
@@ -196,7 +197,7 @@ func (t *CoverageTally) RollupGates(ship, verified gate.RuleSet) []LocaleCoverag
 			lc.ShipProgress = res.Progress
 			lc.Blocking = res.Blocking
 		} else {
-			lc.Shippable = true // no ship gate matched this scope
+			lc.Shippable = true // no ship gate matched this scope; the withholds below still apply
 			lc.ShipProgress = 100
 		}
 		// The verified gate is evaluated the same way as the ship gate, over the
@@ -207,12 +208,11 @@ func (t *CoverageTally) RollupGates(ship, verified gate.RuleSet) []LocaleCoverag
 		}
 		// Stale content, content a reviewer turned down, and content failing the
 		// project's bound checks are withheld whether or not a bar was declared.
-		// An ungated scope reads as shippable because nobody asked for a
-		// coverage threshold; nobody asked for wording whose source has been
-		// rewritten, for a translation somebody refused, or for one that drops a
-		// placeholder, either. A project with no gates is exactly the one with
-		// nothing else to catch it. A unit the terms govern with no terminology
-		// result is withheld too, because nobody checked it.
+		// A project that sets no coverage threshold has still asked for none of
+		// them: wording whose source has been rewritten, a translation somebody
+		// refused, or one that drops a placeholder. A project with no gates is
+		// exactly the one with nothing else to catch them. A unit the terms govern
+		// with no terminology result is withheld too, because nobody checked it.
 		//
 		// This is the one place the verdict is decided, so every surface reading a
 		// LocaleCoverage gets the same answer to "does this ship" — which is the
@@ -222,9 +222,24 @@ func (t *CoverageTally) RollupGates(ship, verified gate.RuleSet) []LocaleCoverag
 			lc.Shippable = false
 			lc.Verified = false
 		}
+		lc.ShipState = shipState(lc)
 		out = append(out, lc)
 	}
 	return out
+}
+
+// shipState names a rolled-up scope's standing. A scope that does not ship is
+// withheld, gate or no gate. One that ships is shippable when a ship gate matched
+// it, and not gated when none did.
+func shipState(lc LocaleCoverage) ShipState {
+	switch {
+	case !lc.Shippable:
+		return ShipStateWithheld
+	case lc.Gated:
+		return ShipStateShippable
+	default:
+		return ShipStateNotGated
+	}
 }
 
 // BlockStoreScope describes one collection to tally from a project block
