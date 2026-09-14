@@ -82,7 +82,32 @@ func LocateComments(src []byte) (*comment.File, error) {
 	return locateComments(src, classify)
 }
 
-func locateComments(src []byte, classify func(inner string) (string, bool)) (*comment.File, error) {
+// CommentSpan is where one `<!-- -->` comment sits in HTML bytes, with the
+// length of its closing marker.
+type CommentSpan struct {
+	Start, End int
+	Close      int
+}
+
+// CommentSpans returns every `<!-- -->` comment in HTML bytes, held to the HTML
+// tokenizer and the HTML parser as LocateComments holds them, for a format whose
+// documents embed HTML.
+func CommentSpans(src []byte) ([]CommentSpan, error) {
+	tokens, err := readHTMLComments(src)
+	if err != nil {
+		return nil, err
+	}
+	spans := make([]CommentSpan, len(tokens.comments))
+	for i, c := range tokens.comments {
+		_, closeLen, _ := commentEnd(src, c.start)
+		spans[i] = CommentSpan{Start: c.start, End: c.end, Close: closeLen}
+	}
+	return spans, nil
+}
+
+// readHTMLComments reads the comments with the scan and the tokenizer, and
+// holds the two to each other and to the parser.
+func readHTMLComments(src []byte) (*tokenized, error) {
 	scanned, err := scanComments(src)
 	if err != nil {
 		return nil, err
@@ -95,6 +120,14 @@ func locateComments(src []byte, classify func(inner string) (string, bool)) (*co
 		return nil, err
 	}
 	if err := agreeWithParser(src, tokens.data); err != nil {
+		return nil, err
+	}
+	return tokens, nil
+}
+
+func locateComments(src []byte, classify func(inner string) (string, bool)) (*comment.File, error) {
+	tokens, err := readHTMLComments(src)
+	if err != nil {
 		return nil, err
 	}
 	idx := format.NewLineIndex(src)

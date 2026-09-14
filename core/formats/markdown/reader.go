@@ -292,39 +292,9 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) er
 // handleFrontMatter detects and processes YAML front matter (--- delimited).
 // Returns the byte offset where the markdown body starts.
 func (r *Reader) handleFrontMatter(ctx context.Context, ch chan<- model.PartResult, content []byte) int {
-	if !bytes.HasPrefix(content, []byte("---\n")) && !bytes.HasPrefix(content, []byte("---\r\n")) {
+	searchStart, closingIdx, endOfFrontMatter, ok := frontMatterBounds(content)
+	if !ok {
 		return 0
-	}
-
-	// Find closing ---
-	var searchStart int
-	if len(content) > 4 && content[3] == '\r' {
-		searchStart = 5
-	} else {
-		searchStart = 4
-	}
-	closingIdx := -1
-	for i := searchStart; i < len(content); i++ {
-		if content[i] == '-' && i+3 <= len(content) && string(content[i:i+3]) == "---" {
-			if i == 0 || content[i-1] == '\n' {
-				endIdx := i + 3
-				if endIdx >= len(content) || content[endIdx] == '\n' || content[endIdx] == '\r' {
-					closingIdx = i
-					break
-				}
-			}
-		}
-	}
-	if closingIdx < 0 {
-		return 0
-	}
-
-	endOfFrontMatter := closingIdx + 3
-	if endOfFrontMatter < len(content) && content[endOfFrontMatter] == '\r' {
-		endOfFrontMatter++
-	}
-	if endOfFrontMatter < len(content) && content[endOfFrontMatter] == '\n' {
-		endOfFrontMatter++
 	}
 
 	frontMatterRaw := string(content[:endOfFrontMatter])
@@ -359,6 +329,43 @@ func (r *Reader) handleFrontMatter(ctx context.Context, ch chan<- model.PartResu
 
 	r.skelAdvance(endOfFrontMatter)
 	return endOfFrontMatter
+}
+
+// frontMatterBounds locates YAML front matter (--- delimited) at the start of
+// content: where its YAML starts, where its closing --- starts, and where the
+// markdown body starts. ok is false, and every offset zero, when content opens
+// with no front matter.
+func frontMatterBounds(content []byte) (yamlStart, closingIdx, bodyStart int, ok bool) {
+	if !bytes.HasPrefix(content, []byte("---\n")) && !bytes.HasPrefix(content, []byte("---\r\n")) {
+		return 0, 0, 0, false
+	}
+	yamlStart = 4
+	if len(content) > 4 && content[3] == '\r' {
+		yamlStart = 5
+	}
+	closingIdx = -1
+	for i := yamlStart; i < len(content); i++ {
+		if content[i] == '-' && i+3 <= len(content) && string(content[i:i+3]) == "---" {
+			if i == 0 || content[i-1] == '\n' {
+				endIdx := i + 3
+				if endIdx >= len(content) || content[endIdx] == '\n' || content[endIdx] == '\r' {
+					closingIdx = i
+					break
+				}
+			}
+		}
+	}
+	if closingIdx < 0 {
+		return 0, 0, 0, false
+	}
+	bodyStart = closingIdx + 3
+	if bodyStart < len(content) && content[bodyStart] == '\r' {
+		bodyStart++
+	}
+	if bodyStart < len(content) && content[bodyStart] == '\n' {
+		bodyStart++
+	}
+	return yamlStart, closingIdx, bodyStart, true
 }
 
 // frontMatterProseKeys are the front-matter scalar keys whose values are

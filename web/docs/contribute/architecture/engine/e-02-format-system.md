@@ -497,6 +497,18 @@ is named for the element that follows it, as in `comment/p[greeting]`.
 Conditional comments, server-side includes, markdownlint instructions and the
 markers React writes into a page it renders on the server are directives.
 
+The Markdown format reads a document as its reader does, with front matter set
+aside and the body parsed by the Markdown parser. A comment is an inline HTML
+comment, or a comment inside an HTML block, which the HTML format's scan
+locates. Every `<!--` in the body must open one of those or sit in content, such
+as a code span, a fenced or indented code block, an HTML tag or a backslash
+escape, or the document is refused. So is a comment closing on `--!>`, which the
+Markdown parser and an HTML parser close in different places. A comment is named
+for the section it sits in, as in `comment/install/from-homebrew`. The
+Docusaurus `truncate` marker, the region kapi writes for a voice pointer, the
+markers of a generated region and markdownlint and Prettier instructions are
+directives.
+
 For a file its reader parses, `comments: true` adds the comment blocks to the
 reader's blocks for checking, and the file converges through its reader
 unchanged. A declared format that supplies no comments leaves the comment check

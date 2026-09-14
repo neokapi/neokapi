@@ -237,7 +237,8 @@ each finding reports the `point` it was checked at.
 The same key checks the comments in YAML files, in XML-based files, such as
 [Android string resources](/reference/formats/androidxml),
 [.NET RESX](/reference/formats/resx) and [XLIFF](/reference/formats/xliff),
-and in [HTML](/reference/formats/html) files, beside the values their readers
+and in [HTML](/reference/formats/html) and
+[Markdown](/reference/formats/markdown) files, beside the values their readers
 extract:
 
 ```yaml title="kapi.yaml"
@@ -261,10 +262,13 @@ element it sits on, such as `comment/resources/string[greeting]`. A
 commented-out element and a tool's suppression, such as
 `<!--suppress UnusedResources -->`, stay out of the prose. In HTML, so do
 conditional comments, server-side includes and the markers a framework such as
-React writes for its own use. When kapi cannot place a file's comments exactly,
-as in an XML file with `--` inside a comment, which XML does not allow, the check
-reports that it did not run. kapi has no comment formatter for YAML, XML or
-HTML, so a report lists the formatter check for those files as unsupported.
+React writes for its own use. In Markdown, a comment is an HTML comment outside
+code, named for the section it sits in, such as
+`comment/install/from-homebrew`, and the `<!-- truncate -->` marker a blog uses
+stays out of the prose. When kapi cannot place a file's comments exactly, as in
+an XML file with `--` inside a comment, which XML does not allow, the check
+reports that it did not run. kapi has no comment formatter for YAML, XML, HTML or
+Markdown, so a report lists the formatter check for those files as unsupported.
 
 The key also checks the comments in TypeScript, TSX and JavaScript files. The
 sourcecode plugin reads them, so install it first:
