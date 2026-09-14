@@ -70,6 +70,11 @@ type pushGovernor struct {
 	// rung is a withdrawal; one that changes either is an edit.
 	priorHash   map[platstore.TargetRef]string
 	priorSource map[string]string
+	// pushedHash is the hash of each translation this push writes over a stored
+	// target. A decision in the same push is judged against it rather than
+	// against priorHash, because it is the translation the venue holds once the
+	// push lands.
+	pushedHash map[platstore.TargetRef]string
 
 	counts   map[refusalRef]int
 	units    []venue.RefusedUnit
@@ -182,6 +187,7 @@ func newPushGovernor(
 		priorStatus: map[platstore.TargetRef]model.TargetStatus{},
 		priorHash:   map[platstore.TargetRef]string{},
 		priorSource: map[string]string{},
+		pushedHash:  map[platstore.TargetRef]string{},
 		counts:      map[refusalRef]int{},
 		accepted:    map[acceptedKey]acceptedRung{},
 		withdrawals: map[unitVariantRef]int{},
@@ -193,6 +199,7 @@ func newPushGovernor(
 	// venue holds, so they are read before deciding whether there is anything
 	// to judge at all.
 	g.loadPriorRows(ctx, deps, projectID, stream, staged, decisions)
+	g.indexPushedTargets(staged)
 	if !carriesVerdict(staged, decisions) && !g.withdrawsAny(staged, decisions) {
 		return g, nil // nothing to judge; no permission lookups, no gate
 	}
@@ -602,10 +609,15 @@ func refusedRung(target *model.Target, prior model.TargetStatus) model.TargetSta
 // withdrawal. One the gate refuses is dropped, so the ledger's record stands,
 // and that record goes into the report for the producer to hold too.
 //
+// A rejection of a translation the venue has since replaced judges nothing the
+// venue holds, so it is dropped before anything else is asked, and the report
+// carries the ledger's record back (see dropStaleRejections).
+//
 // Every accepted verdict is attributed to the authenticated pusher. A
 // client-supplied decider is never trusted: it is a string in a file that
 // anyone with a text editor can write.
 func (g *pushGovernor) vetDecisions(held []venue.UnitDecision, decisions []venue.UnitDecision) []venue.UnitDecision {
+	decisions = g.dropStaleRejections(held, decisions)
 	if g.gate == nil || len(decisions) == 0 {
 		return decisions
 	}
@@ -737,12 +749,81 @@ func (g *pushGovernor) rejectionsToRedraft(held, written []venue.UnitDecision) [
 		if blockID == "" || locale == "" {
 			continue
 		}
-		if g.priorHash[platstore.TargetRef{BlockID: blockID, Locale: locale}] != d.TargetHash {
+		if current, ok := g.currentTargetHash(blockID, locale); !ok || current != d.TargetHash {
 			continue
 		}
 		clears = append(clears, platstore.DraftBasis{ItemName: d.ItemName, Unit: d.Unit, Variant: d.Variant})
 	}
 	return clears
+}
+
+// indexPushedTargets records the hash of each translation the push writes over a
+// target the venue already holds.
+func (g *pushGovernor) indexPushedTargets(staged []stagedGroup) {
+	for _, group := range staged {
+		for _, b := range group.Blocks {
+			blockID := g.rowFor(b)
+			if blockID == "" {
+				continue
+			}
+			for key, target := range b.Targets {
+				if target == nil {
+					continue
+				}
+				ref := platstore.TargetRef{BlockID: blockID, Locale: string(key.Locale)}
+				g.pushedHash[ref] = state.TargetHash(model.RunsText(target.Runs))
+			}
+		}
+	}
+}
+
+// currentTargetHash is the hash of the translation the venue holds for a target
+// once this push lands: the one the push writes, or else the one stored now. It
+// reports false when the venue holds no translation for it.
+func (g *pushGovernor) currentTargetHash(blockID, locale string) (string, bool) {
+	ref := platstore.TargetRef{BlockID: blockID, Locale: locale}
+	if h, ok := g.pushedHash[ref]; ok {
+		return h, true
+	}
+	h, ok := g.priorHash[ref]
+	return h, ok
+}
+
+// dropStaleRejections removes every rejection that names a translation other
+// than the one the venue holds for its unit, and reports each one. A rejection
+// judges one translation: recording it would replace the unit's ledger record,
+// an approval included, with a verdict on text the venue no longer carries. So
+// the ledger's record stands and travels back in the report for the producer to
+// take. A rejection for a unit the venue holds no translation of passes, as a
+// decision for content not yet stored does.
+func (g *pushGovernor) dropStaleRejections(held, decisions []venue.UnitDecision) []venue.UnitDecision {
+	if len(decisions) == 0 {
+		return decisions
+	}
+	ledger := make(map[unitVariantRef]venue.UnitDecision, len(held))
+	for _, d := range held {
+		ledger[unitVariantRef{item: d.ItemName, unit: d.Unit, variant: d.Variant}] = d
+	}
+	out := make([]venue.UnitDecision, 0, len(decisions))
+	for _, d := range decisions {
+		if d.ReviewState != venue.ReviewStateRejected || d.TargetHash == "" {
+			out = append(out, d)
+			continue
+		}
+		blockID := g.unitID[unitRef{item: d.ItemName, unit: d.Unit}]
+		locale := decisionLocale(d)
+		current, ok := g.currentTargetHash(blockID, locale)
+		if blockID == "" || locale == "" || !ok || current == d.TargetHash {
+			out = append(out, d)
+			continue
+		}
+		g.counts[refusalRef{locale: locale, kind: venue.VerdictDemotion, reason: venue.RefusedStaleRejection}]++
+		idx := g.noteUnit(d.ItemName, d.Unit, d.Variant, venue.RefusedStaleRejection)
+		if prior, inLedger := ledger[unitVariantRef{item: d.ItemName, unit: d.Unit, variant: d.Variant}]; inLedger && idx >= 0 {
+			g.units[idx].Held = &prior
+		}
+	}
+	return out
 }
 
 // decisionLocale reads the language out of a decision's variant.
