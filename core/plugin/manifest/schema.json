@@ -193,7 +193,8 @@
                         "nested": { "type": "boolean" }
                       }
                     }
-                  }
+                  },
+                  "splice": { "type": "string", "minLength": 1 }
                 }
               },
               "canary": {

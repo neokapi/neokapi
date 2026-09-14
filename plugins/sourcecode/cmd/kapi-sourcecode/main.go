@@ -152,11 +152,12 @@ type server struct {
 // LocateComments locates the comments in one file for the host's comment layer.
 // A file whose comments cannot be placed exactly is reported as unlocated, so
 // the host treats its comment check as not run rather than as a file with no
-// comments.
+// comments. The reason goes without comment.ErrUnlocated's own words, which the
+// host adds when it wraps the sentinel.
 func (s *server) LocateComments(_ context.Context, req *pb.LocateCommentsRequest) (*pb.LocateCommentsResponse, error) {
 	f, err := comments.Locate(req.GetLanguage(), req.GetName(), req.GetSource())
 	if errors.Is(err, comment.ErrUnlocated) {
-		return &pb.LocateCommentsResponse{Unlocated: true, Error: err.Error()}, nil
+		return &pb.LocateCommentsResponse{Unlocated: true, Error: strings.TrimPrefix(err.Error(), comment.ErrUnlocated.Error()+": ")}, nil
 	}
 	if err != nil {
 		return &pb.LocateCommentsResponse{Error: err.Error()}, nil

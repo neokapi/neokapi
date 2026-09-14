@@ -27,48 +27,49 @@ var corpusFloors = map[string]int{"typescript": 20, "tsx": 10, "javascript": 5, 
 // literalsOf lists, per fixture, the substrings holding a comment marker as
 // content. No comment or exclusion may overlap one.
 var literalsOf = map[string][]string{
-	"literals.ts.txt":    {`"// not a comment"`, `'/* not a comment */'`, "`// not a comment ${", "`https://example.com/path`", `/\/\/ not a comment/g`},
-	"literals.tsx.txt":   {`"// not a comment"`, `<p>// not a comment</p>`, `<p>/* not a comment */</p>`},
-	"literals.mjs.txt":   {`"// not a comment"`, "`/* not a comment */ ${", `/\/\* not a comment \*\//`},
-	"unicode.ts.txt":     {`"héllo // ✓"`},
-	"crlf.ts.txt":        {`"// not a comment"`},
-	"canary.ts.txt":      {`"// not a comment"`},
-	"canary.tsx.txt":     {`<p>// not a comment `},
-	"canary.mjs.txt":     {"`// not a comment`"},
-	"literals.py.txt":    {`"# not a comment"`, `'# not a comment either'`, "\"\"\"\n# not a comment inside a docstring\n\"\"\"", `f"{greeting} # not a comment in an f-string"`},
-	"unicode.py.txt":     {`"héllo # ✓"`},
-	"crlf.py.txt":        {`"# not a comment"`},
-	"canary.py.txt":      {`"# not a comment"`},
-	"literals.sh.txt":    {`"# not a comment"`, `'# not a comment either'`, `${greeting#prefix}`, `word#not-a-comment`, `$'# not a comment in an ANSI-C string'`, "# not a comment inside a heredoc"},
-	"canary.sh.txt":      {`"# not a comment"`},
-	"literals.css.txt":   {`"/* not a comment */"`, `'/* not a comment either */'`, `url(/*not-a-comment*/)`, `url(a/*not*/b.png)`},
-	"canary.css.txt":     {`"/* not a comment */"`},
-	"literals.rs.txt":    {`"// not a comment"`, `r#"/* not a comment */"#`, `b"// not a comment either"`, `'/'`, `"a \" // not a comment after an escaped quote"`, `r"// not a comment in a raw string"`, `"/* not a comment */"`, `"// not a comment in a macro"`},
-	"unicode.rs.txt":     {`"héllo // ✓"`},
-	"crlf.rs.txt":        {`"// not a comment"`},
-	"canary.rs.txt":      {`"// not a comment"`},
-	"tokenizer.rs.txt":   {`"name = \"// here\""`, `Token::Str("// here")`},
-	"literals.java.txt":  {`"// not a comment"`, `"/* not a comment */"`, `'/'`, "\"\"\"\n        // not a comment in a text block\n        /* nor this */\n        \"\"\"", `"a \" // not a comment after an escaped quote"`},
-	"unicode.java.txt":   {`"héllo // ✓"`},
-	"crlf.java.txt":      {`"// not a comment"`},
-	"canary.java.txt":    {`"// not a comment"`},
-	"literals.cs.txt":    {`"// not a comment"`, `@"/* not a comment */"`, `$"{1} // not a comment in an interpolated string"`, `'/'`, "\"\"\"\n        // not a comment in a raw string\n        \"\"\"", `@"a "" // not a comment after an escaped quote"`},
-	"unicode.cs.txt":     {`"héllo // ✓"`},
-	"crlf.cs.txt":        {`"// not a comment"`},
-	"canary.cs.txt":      {`"// not a comment"`},
-	"literals.c.txt":     {`"// not a comment"`, `"/* not a comment */"`, `'/'`, `"a \" // not a comment after an escaped quote"`, `"/* not a comment in a macro */"`},
-	"preprocessor.c.txt": {`"/* not a comment */"`, `u"Katakana; NFKC"`, `'/'`},
-	"unicode.c.txt":      {`"héllo // ✓"`},
-	"crlf.c.txt":         {`"// not a comment"`},
-	"canary.c.txt":       {`"// not a comment"`},
-	"literals.cpp.txt":   {`"// not a comment"`, `R"(/* not a comment */)"`, "R\"delim(\n// not a comment in a raw string\n)delim\"", `u8"// not a comment either"`, `'/'`},
-	"unicode.cpp.txt":    {`"héllo // ✓"`},
-	"crlf.cpp.txt":       {`"// not a comment"`},
-	"canary.cpp.txt":     {`R"(// not a comment)"`},
-	"literals.rb.txt":    {`"# not a comment"`, `'# not a comment either'`, `"#{greeting} # not a comment after interpolation"`, `%q(# not a comment in a percent literal)`, `/# not a comment in a regexp/`, `?#`, "# not a comment inside a heredoc", "# not a comment after __END__"},
-	"unicode.rb.txt":     {`"héllo # ✓"`},
-	"crlf.rb.txt":        {`"# not a comment"`},
-	"canary.rb.txt":      {`"# not a comment #{text}"`},
+	"literals.ts.txt":   {`"// not a comment"`, `'/* not a comment */'`, "`// not a comment ${", "`https://example.com/path`", `/\/\/ not a comment/g`},
+	"literals.tsx.txt":  {`"// not a comment"`, `<p>// not a comment</p>`, `<p>/* not a comment */</p>`},
+	"literals.mjs.txt":  {`"// not a comment"`, "`/* not a comment */ ${", `/\/\* not a comment \*\//`},
+	"unicode.ts.txt":    {`"héllo // ✓"`},
+	"crlf.ts.txt":       {`"// not a comment"`},
+	"canary.ts.txt":     {`"// not a comment"`},
+	"canary.tsx.txt":    {`<p>// not a comment `},
+	"canary.mjs.txt":    {"`// not a comment`"},
+	"literals.py.txt":   {`"# not a comment"`, `'# not a comment either'`, "\"\"\"\n# not a comment inside a docstring\n\"\"\"", `f"{greeting} # not a comment in an f-string"`},
+	"unicode.py.txt":    {`"héllo # ✓"`},
+	"crlf.py.txt":       {`"# not a comment"`},
+	"canary.py.txt":     {`"# not a comment"`},
+	"literals.sh.txt":   {`"# not a comment"`, `'# not a comment either'`, `${greeting#prefix}`, `word#not-a-comment`, `$'# not a comment in an ANSI-C string'`, "# not a comment inside a heredoc"},
+	"canary.sh.txt":     {`"# not a comment"`},
+	"literals.css.txt":  {`"/* not a comment */"`, `'/* not a comment either */'`, `url(/*not-a-comment*/)`, `url(a/*not*/b.png)`},
+	"canary.css.txt":    {`"/* not a comment */"`},
+	"literals.rs.txt":   {`"// not a comment"`, `r#"/* not a comment */"#`, `b"// not a comment either"`, `'/'`, `"a \" // not a comment after an escaped quote"`, `r"// not a comment in a raw string"`, `"/* not a comment */"`, `"// not a comment in a macro"`},
+	"unicode.rs.txt":    {`"héllo // ✓"`},
+	"crlf.rs.txt":       {`"// not a comment"`},
+	"canary.rs.txt":     {`"// not a comment"`},
+	"tokenizer.rs.txt":  {`"name = \"// here\""`, `Token::Str("// here")`},
+	"literals.java.txt": {`"// not a comment"`, `"/* not a comment */"`, `'/'`, "\"\"\"\n        // not a comment in a text block\n        /* nor this */\n        \"\"\"", `"a \" // not a comment after an escaped quote"`},
+	"unicode.java.txt":  {`"héllo // ✓"`},
+	"crlf.java.txt":     {`"// not a comment"`},
+	"canary.java.txt":   {`"// not a comment"`},
+	"literals.cs.txt":   {`"// not a comment"`, `@"/* not a comment */"`, `$"{1} // not a comment in an interpolated string"`, `'/'`, "\"\"\"\n        // not a comment in a raw string\n        \"\"\"", `@"a "" // not a comment after an escaped quote"`},
+	"unicode.cs.txt":    {`"héllo // ✓"`},
+	"crlf.cs.txt":       {`"// not a comment"`},
+	"canary.cs.txt":     {`"// not a comment"`},
+	"literals.c.txt":    {`"// not a comment"`, `"/* not a comment */"`, `'/'`, `"a \" // not a comment after an escaped quote"`},
+	"lexical.c.txt":     {`'/'`, `'"'`, `'\''`, "\"a string \\\n// not a comment in a spliced string\""},
+	"unicode.c.txt":     {`"héllo // ✓"`},
+	"crlf.c.txt":        {`"// not a comment"`},
+	"canary.c.txt":      {`"// not a comment"`},
+	"lexical.cpp.txt":   {"R\"x(a)\" /* not a comment */ \")x\"", `u8R"(// not a comment)"`, `'/'`, `1'000`, `u8'/'`},
+	"literals.cpp.txt":  {`"// not a comment"`, `R"(/* not a comment */)"`, "R\"delim(\n// not a comment in a raw string\n)delim\"", `u8"// not a comment either"`, `'/'`},
+	"unicode.cpp.txt":   {`"héllo // ✓"`},
+	"crlf.cpp.txt":      {`"// not a comment"`},
+	"canary.cpp.txt":    {`R"(// not a comment)"`},
+	"literals.rb.txt":   {`"# not a comment"`, `'# not a comment either'`, `"#{greeting} # not a comment after interpolation"`, `%q(# not a comment in a percent literal)`, `/# not a comment in a regexp/`, `?#`, "# not a comment inside a heredoc", "# not a comment after __END__"},
+	"unicode.rb.txt":    {`"héllo # ✓"`},
+	"crlf.rb.txt":       {`"# not a comment"`},
+	"canary.rb.txt":     {`"# not a comment #{text}"`},
 }
 
 // directiveFixtures names, per language, a fixture of directives alone that
@@ -690,17 +691,50 @@ func TestProseP1_c(t *testing.T) {
 		assert.Equal(t, []string{"@file parser.h", "@brief "}, placeholders(header.Runs), "a file command names a file")
 	})
 
-	t.Run("a comment on a preprocessor directive's line is read from the directive", func(t *testing.T) {
-		src := fixtureBytes(t, "c", "preprocessor.c.txt")
-		got, err := comments.Locate("c", "preprocessor.c", src)
+	t.Run("a file whose comments the grammar places apart from the lexical scan is unlocated", func(t *testing.T) {
+		directives, err := os.ReadFile(filepath.Join("testdata", "unplaced", "preprocessor.c.txt"))
 		require.NoError(t, err)
-		var texts []string
-		for _, c := range got.Comments {
-			texts = append(texts, string(src[c.Start:c.End]))
+		for _, tc := range []struct {
+			name, src, at string
+		}{
+			{"comments on directive lines", string(directives), "line 3, column 18"},
+			{"a comment the grammar folds into a macro's value", "#define LIMIT 10 // after an object macro\n", "line 1, column 18"},
+			{"a comment marker the grammar reads inside a macro's string", "#define MARKER \"/* not a comment */\"\n", "line 1, column 17"},
+			{"a block comment opened across a line splice", "int x; /\\\n* a comment */\n", "line 1, column 8"},
+			{"a line comment a splice with a space extends", "// runs on \\ \nonto this line\nint x;\n", "line 1, column 1"},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				_, err := comments.LexicalComments("c", []byte(tc.src))
+				require.NoError(t, err, "the scan reads the file whole")
+				_, err = comments.Locate("c", "unplaced.c", []byte(tc.src))
+				require.ErrorIs(t, err, comment.ErrUnlocated)
+				assert.Contains(t, err.Error(), "a comment at "+tc.at+" reads differently")
+			})
 		}
-		assert.Contains(t, texts, "// after an object macro", "the grammar folds this comment into the macro's value")
-		assert.Contains(t, texts, "// after a string holding a marker")
-		assert.NotContains(t, texts, "/* not a comment */", "a marker inside the macro's string is content")
+	})
+
+	t.Run("a comment beside a syntax error documents nothing", func(t *testing.T) {
+		for _, tc := range []struct {
+			name, language, src, subject string
+			doc                          bool
+		}{
+			{"before a declaration with no error", "c", "/** Parses the the input. */\nint parse(const char *text);\n", "func/parse", true},
+			{"before a declaration the grammar cannot read", "c", "/** Parses the the input. */\nint parse(const char *text\n", "comment", false},
+			{"before a declaration holding an error", "c", "/** Parses the input. */\nint parse(const char *text) { return 1 +; }\n", "comment", false},
+			{"inside an error", "c", "KAPI_API(int) = {\n  /** Documents b. */\n  int b;\n", "comment", false},
+			{"inside an error inside a namespace", "cpp", "namespace kapi {\nKAPI_API(int) = {\n  /** Documents b. */\n  int b;\n}\n", "comment", false},
+			{"inside a declaration holding an error", "cpp", "namespace kapi {\nclass Parser {\n  KAPI_API(int) = {\n  /// Documents run.\n  void run();\n};\n}\n", "comment", false},
+			{"before a declaration an earlier error leaves whole", "c", "int a = 1 +;\n/** Documents b. */\nint b;\n", "var/b", true},
+			{"inside a namespace a later error leaves whole", "cpp", "namespace kapi {\nclass Parser {\n  /// Documents run.\n  void run();\n};\n}\nint a = 1 +;\n", "namespace/kapi/class/Parser/run", true},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				got, err := comments.Locate(tc.language, "parse."+tc.language, []byte(tc.src))
+				require.NoError(t, err, "the tree places each comment where the scan does")
+				require.Len(t, got.Comments, 1)
+				assert.Equal(t, tc.subject, got.Comments[0].Subject)
+				assert.Equal(t, tc.doc, got.Comments[0].Doc)
+			})
+		}
 	})
 }
 
@@ -730,8 +764,8 @@ func TestProseP1_cpp(t *testing.T) {
 		got, err := comments.Locate("cpp", "macros.hpp", src)
 		require.NoError(t, err, "macros and a brace split across #ifdef branches leave syntax errors in the tree")
 		require.Len(t, got.Comments, 1)
-		assert.Equal(t, "func/kapi_free", got.Comments[0].Subject)
-		assert.True(t, got.Comments[0].Doc)
+		assert.Equal(t, "comment", got.Comments[0].Subject, "the declaration after the comment holds a syntax error, so what it declares is a guess")
+		assert.False(t, got.Comments[0].Doc)
 		require.Len(t, got.Excluded, 1)
 		assert.Equal(t, "label", got.Excluded[0].Form, "the comment on the closing brace names the block it closes")
 	})

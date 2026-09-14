@@ -54,3 +54,17 @@ func TestMarkersLineTextNested(t *testing.T) {
 	require.True(t, whole)
 	assert.Equal(t, len("/* a /* b */"), n, "a comment that does not nest closes at its first close")
 }
+
+func TestMarkersLineTextSplice(t *testing.T) {
+	spliced := comment.Markers{Line: []string{"//"}, Splice: `\`}
+	_, _, whole := spliced.LineText([]byte(`// runs on \`))
+	assert.False(t, whole, "a splice carries the comment onto the next line")
+	_, _, whole = spliced.LineText([]byte("// runs on \\ \t"))
+	assert.False(t, whole, "spaces after the splice leave it a splice")
+	n, text, whole := spliced.LineText([]byte(`// C:\path\ ends here`))
+	assert.True(t, whole, "a backslash inside the line splices nothing")
+	assert.Equal(t, 21, n)
+	assert.Equal(t, ` C:\path\ ends here`, text)
+	_, _, whole = comment.Markers{Line: []string{"//"}}.LineText([]byte(`// runs on \`))
+	assert.True(t, whole, "a language without splices ends the comment with its line")
+}

@@ -3,7 +3,6 @@ package comments
 import (
 	"bytes"
 	"regexp"
-	"slices"
 	"strings"
 
 	ts "github.com/tree-sitter/go-tree-sitter"
@@ -93,14 +92,11 @@ type syntax struct {
 	// docCommands reports that a documentation comment's tags may open with a
 	// backslash as well as `@`, as Doxygen's `\param` does.
 	docCommands bool
-	// preprocessor, when set, returns where a file's preprocessor directives
-	// sit and the comments lexed from them. A comment the tree places inside a
-	// directive is read from the directive's bytes instead, since the grammar
-	// can fold a comment into a directive's text.
-	preprocessor func(src []byte) (directives [][2]int, units []unit)
-	// tolerant reports that a file whose tree holds syntax errors is still
-	// located.
-	tolerant bool
+	// lexical, when set, reads the spans of a file's comments from its
+	// characters, with no grammar. The file is located only when the tree
+	// reports a comment at exactly each of those spans and at no other, and it
+	// is then located even when the tree holds syntax errors.
+	lexical func(src []byte) ([][2]int, error)
 }
 
 // scanner builds one file's comments.
@@ -115,22 +111,15 @@ type scanner struct {
 
 func newScanner(lang *Language, src []byte, root *ts.Node) *scanner {
 	s := &scanner{lang: lang, src: src, root: root, idx: format.NewLineIndex(src), out: &comment.File{Language: lang.Name}}
-	var directives [][2]int
-	var lexed []unit
-	if lang.syntax.preprocessor != nil {
-		directives, lexed = lang.syntax.preprocessor(src)
-	}
 	c := root.Walk()
 	defer c.Close()
 walk:
 	for {
 		n := c.Node()
 		if u, ok := lang.syntax.unit(n, src); ok {
-			if !within(directives, u.start) {
-				u.node = n
-				u.fullLine = s.startsLine(u.start)
-				s.units = append(s.units, u)
-			}
+			u.node = n
+			u.fullLine = s.startsLine(u.start)
+			s.units = append(s.units, u)
 		} else if c.GotoFirstChild() {
 			continue
 		}
@@ -139,14 +128,6 @@ walk:
 				break walk
 			}
 		}
-	}
-	if len(lexed) > 0 {
-		for _, u := range lexed {
-			u.node = root.NamedDescendantForByteRange(uint(u.start), uint(u.start))
-			u.fullLine = s.startsLine(u.start)
-			s.units = append(s.units, u)
-		}
-		slices.SortFunc(s.units, func(a, b unit) int { return a.start - b.start })
 	}
 	return s
 }
@@ -310,10 +291,18 @@ func (s *scanner) comment(units []unit, texts []commentText, subject string, doc
 // sits on nothing carries the path of the declaration around it with "comment"
 // appended, or "comment" at the top of a file. A comment after code on its
 // line annotates that code, so it sits on nothing after it.
+//
+// Where a tree holds a syntax error, it only guesses at what surrounds the
+// error. A comment whose path names a declaration that holds an error, or
+// whose declaration is or holds one, is "comment" and documents nothing, and
+// so is a comment inside an error, which no declaration encloses structurally.
 func (s *scanner) subject(u unit) (string, bool) {
 	syn := s.lang.syntax
 	parent := u.node.Parent()
-	path, structural := s.pathTo(u.node)
+	path, structural, guessed := s.pathTo(u.node)
+	if guessed {
+		return "comment", false
+	}
 	if u.kind.innerDoc() && structural {
 		if path == "" {
 			return "module", true
@@ -332,6 +321,9 @@ func (s *scanner) subject(u unit) (string, bool) {
 				if first := n.NamedChild(0); first != nil {
 					candidate, container = first, n.Kind()
 				}
+			}
+			if candidate.HasError() {
+				return "comment", false
 			}
 			start := int(candidate.StartByte())
 			if bytes.Count(s.src[prev:start], []byte("\n")) > 1 {
@@ -359,27 +351,31 @@ func (s *scanner) subject(u unit) (string, bool) {
 // pathTo returns the subject path of the declarations enclosing n, descending
 // from the root only through containers, and whether every ancestor of n was
 // reached that way. A wrapper such as an export statement adds no segment of
-// its own, since the declaration inside it names the path.
-func (s *scanner) pathTo(n *ts.Node) (string, bool) {
+// its own, since the declaration inside it names the path. guessed reports that
+// a declaration naming a segment holds a syntax error, so the tree only guesses
+// at that declaration and at what it encloses.
+func (s *scanner) pathTo(n *ts.Node) (path string, structural, guessed bool) {
 	syn := s.lang.syntax
 	var chain []*ts.Node
 	for p := n.Parent(); p != nil; p = p.Parent() {
 		chain = append(chain, p)
 	}
-	path := ""
 	for i := len(chain) - 2; i >= 0; i-- {
 		a, parent := chain[i], chain[i+1]
 		if !syn.container(parent.Kind(), kindOf(parentOf(chain, i+1))) {
-			return path, false
+			return path, false, false
 		}
 		if syn.wrappers[a.Kind()] {
 			continue
 		}
 		if segment, ok := syn.decl(a, parent.Kind(), s.src); ok {
+			if a.HasError() {
+				return path, false, true
+			}
 			path = joinPath(path, segment)
 		}
 	}
-	return path, true
+	return path, true, false
 }
 
 func parentOf(chain []*ts.Node, i int) *ts.Node {

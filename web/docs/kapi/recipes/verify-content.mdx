@@ -302,8 +302,8 @@ Each comment is one block named for what it documents, such as `func/parse`,
 `eslint-disable-next-line`, `@ts-expect-error`, `# noqa`, `# shellcheck`,
 `stylelint-disable` and an SPDX licence tag, the shebang, the comments in generated files, and the tags,
 links and code spans inside a TypeScript, JavaScript or Java `/** */` doc comment,
-and the XML tags of a C# `///` comment, stay out of the prose. These languages have no formatter comparison. A file that
-does not parse is reported as not checked, never read in part. Without the
+and the XML tags of a C# `///` comment, stay out of the prose. These languages have no formatter comparison. A file whose
+comments kapi cannot place exactly is reported as not checked, never read in part. Without the
 plugin, a bare `kapi check` and `kapi check --ship` warn that no reader for those
 comments is installed, name the plugin, and report the files as not checked.
 

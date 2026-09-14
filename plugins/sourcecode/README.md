@@ -132,13 +132,25 @@ What the provider decides:
   code on its line sits on nothing after it.
 - **Literals.** A marker inside a string, a template literal, a regular
   expression, JSX text, a heredoc, a parameter expansion such as
-  `${name#prefix}`, a Rust raw string, or an unquoted CSS `url()` is content.
+  `${name#prefix}`, a Rust or C++ raw string, or an unquoted CSS `url()` is
+  content.
 - **Files that do not parse.** A tree with a syntax error in it is not located,
-  and kapi reports the file's comment check as not run. C and C++ are the
-  exception: macros make much sound code read as malformed, so their files are
-  located anyway, with each preprocessor directive's comments lexed from the
-  directive's bytes. Over the repository's C files and the libc++ headers, that
-  reading matches libclang in every file, those with syntax errors included.
+  and kapi reports the file's comment check as not run. C and C++ read each
+  file's comments a second time with a lexical scan, in `clex.go`, that shares
+  nothing with the grammar. It reads string and character literals with their
+  prefixes, C++ raw strings, line splices, digit separators and header names.
+  A file is located only when the tree reports a comment at exactly each span
+  the scan reads and at no other. A file whose macros leave syntax errors in the
+  tree is therefore located, and a file where the grammar folds a comment into a
+  `#define` value is not. A comment is `comment` and documents nothing when the
+  declaration it documents, or any declaration its subject path names, holds a
+  syntax error.
+- **Dialects.** GNU C reads raw string literals and ISO C does not, and `??/` is
+  a backslash only where trigraphs are enabled. A file holding either is scanned
+  both ways and is unlocated when the two readings find different comments. A
+  comment inside `#if 0` is a comment, as libclang reads it. Over the
+  repository's C files and the libc++ headers, every span in a located file
+  matches libclang.
 
 Each language's canary and comment markers are declared twice, in its Go file
 (such as `jsts.go`) and in `manifest.json`, and a test holds the two equal. kapi sends the manifest's

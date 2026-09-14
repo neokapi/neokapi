@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neokapi/neokapi/core/check"
+	"github.com/neokapi/neokapi/core/comment"
 	"github.com/neokapi/neokapi/core/format"
 )
 
@@ -99,8 +100,12 @@ type sourcecodeFile struct {
 	// commented file that does not parse.
 	directives, broken string
 	// tolerant reports that the language reads a file its grammar finds
-	// syntax errors in, so broken holds a doubled word the check still finds.
+	// syntax errors in when a lexical scan of the file places every comment
+	// where the tree does, so broken holds a doubled word the check still
+	// finds. unplaced then holds a doubled word in a comment the two place
+	// apart, which the check never reads.
 	tolerant bool
+	unplaced string
 }
 
 var sourcecodeFiles = map[string]sourcecodeFile{
@@ -192,8 +197,9 @@ var sourcecodeFiles = map[string]sourcecodeFile{
 		clean:      "/** Parses the input. */\nint parse(const char *text);\n",
 		doubled:    "/** Parses the the input. */\nint parse(const char *text);\n",
 		directives: "// SPDX-License-Identifier: Apache-2.0\nint parse(const char *text);\n",
-		broken:     "/** Parses the the input. */\nint parse(const char *text\n",
+		broken:     "/** Parses the the input. */\nint parse(const char *text) { return text[0] == ; }\n",
 		tolerant:   true,
+		unplaced:   "#define LIMIT 10 // the the limit\nint parse(const char *text);\n",
 	},
 	"cpp": {
 		path: "src/parser.cpp", ext: ".cpp",
@@ -202,8 +208,9 @@ var sourcecodeFiles = map[string]sourcecodeFile{
 		clean:      "/// Parses the input.\nclass Parser {};\n",
 		doubled:    "/// Parses the the input.\nclass Parser {};\n",
 		directives: "// clang-format off\nclass Parser {};\n",
-		broken:     "/// Parses the the input.\nclass Parser {\n",
+		broken:     "/// Parses the the input.\nclass Parser { int x = ; };\n",
 		tolerant:   true,
+		unplaced:   "#define LIMIT 10 // the the limit\nclass Parser {};\n",
 	},
 	// The project's Ruby file is one the sourcecode format reads, so its
 	// comments reach the check beside the format's strings; the named files use
@@ -330,6 +337,18 @@ func proseP2Sourcecode(t *testing.T, language string) {
 			assert.Equal(t, check.AnalyzerPassed, analyzerRun(t, report, analyzer).Status)
 			require.Len(t, report.Findings, 1, "the doubled word in the comment is found")
 			assert.Equal(t, "hygiene.doubled-word", report.Findings[0].Rule)
+			assert.Equal(t, "comment", report.Findings[0].Location.Block, "the declaration after the comment holds the syntax error")
+		})
+
+		t.Run("a file whose comments cannot be placed exactly did not run", func(t *testing.T) {
+			a := sourcecodeApp(t, nil)
+			report := namedSourceCheck(t, a, "unplaced"+f.ext, f.unplaced)
+			run := analyzerRun(t, report, analyzer)
+			assert.Equal(t, check.AnalyzerDidNotRun, run.Status)
+			assert.Contains(t, run.Reason, "cannot be placed exactly")
+			assert.Equal(t, 1, strings.Count(run.Reason, comment.ErrUnlocated.Error()), run.Reason)
+			assert.Equal(t, check.VerdictDidNotRun, report.Verdict)
+			assert.Empty(t, report.Findings, "a comment the tree misplaces is never read")
 		})
 	} else {
 		t.Run("a file that does not parse did not run", func(t *testing.T) {

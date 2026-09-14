@@ -1,0 +1,12 @@
+// Comments beside raw strings, digit separators and line splices.
+auto raw = R"x(a)" /* not a comment */ ")x"; // after a raw string
+auto prefixed = u8R"(// not a comment)"; /* after a prefixed raw string */
+// this comment runs on \
+   onto the next line through a splice
+int slash = '/'*2; // after a character literal next to an asterisk
+int thousand = 1'000; // after a digit separator
+auto narrow = u8'/'; /* after a prefixed character */
+#define LIMIT 10 /* after a macro's value */
+#if 0
+// in a skipped branch
+#endif

@@ -13,6 +13,8 @@
 package comments
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -75,9 +77,10 @@ var languages = slices.Concat(jsLanguages(), pythonLanguages(), bashLanguages(),
 // Locate returns the comments in src, a file in the named language. name is
 // the file's path, which the language may consult. A file the grammar cannot
 // parse whole is ErrUnlocated, since a comment's position is only certain in a
-// tree with no error in it, unless the language's syntax is tolerant: C and C++
-// comments are located anyway, because the preprocessor makes a grammar read
-// sound code as malformed while their comments stay where the lexer put them.
+// tree with no error in it. A language that also reads its comments from a
+// file's characters, as C and C++ do, holds the tree to that reading instead:
+// the file is ErrUnlocated when the two differ by any comment, and located,
+// syntax errors and all, when they agree.
 func Locate(language, name string, src []byte) (*comment.File, error) {
 	var lang *Language
 	for _, l := range languages {
@@ -99,11 +102,50 @@ func Locate(language, name string, src []byte) (*comment.File, error) {
 	}
 	defer tree.Close()
 	root := tree.RootNode()
-	if root.HasError() && !lang.syntax.tolerant {
+	if root.HasError() && lang.syntax.lexical == nil {
 		return nil, fmt.Errorf("%w: %s does not parse as %s (%s)", comment.ErrUnlocated, displayName(name), lang.DisplayName, firstError(root))
 	}
 	s := newScanner(lang, src, root)
+	if lang.syntax.lexical != nil {
+		if err := s.agree(lang.syntax.lexical); err != nil {
+			return nil, fmt.Errorf("%w: the comments in %s cannot be placed exactly as %s (%v)", comment.ErrUnlocated, displayName(name), lang.DisplayName, err)
+		}
+	}
 	return s.file(), nil
+}
+
+// lexError is a place where a lexical scan cannot read a file, and why.
+type lexError struct {
+	offset int
+	reason string
+}
+
+func (e *lexError) Error() string { return e.reason }
+
+// agree holds the comments the tree reports to the spans read finds in the
+// file's characters, and returns an error naming where the two first differ.
+func (s *scanner) agree(read func(src []byte) ([][2]int, error)) error {
+	spans, err := read(s.src)
+	if lerr := (*lexError)(nil); errors.As(err, &lerr) {
+		return fmt.Errorf("%s at %s", lerr.reason, position(s.src, lerr.offset))
+	}
+	if err != nil {
+		return err
+	}
+	tree := make([][2]int, len(s.units))
+	for i, u := range s.units {
+		tree[i] = [2]int{u.start, u.end}
+	}
+	if at, differ := firstDifference(spans, tree); differ {
+		return fmt.Errorf("a comment at %s reads differently as characters and as syntax", position(s.src, at))
+	}
+	return nil
+}
+
+// position describes where offset sits in src, counting columns in bytes.
+func position(src []byte, offset int) string {
+	line := bytes.Count(src[:offset], []byte("\n")) + 1
+	return fmt.Sprintf("line %d, column %d", line, offset-bytes.LastIndexByte(src[:offset], '\n'))
 }
 
 // firstError describes where the first syntax error in a tree sits.

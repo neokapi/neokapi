@@ -82,7 +82,7 @@ func TestManifestDeclaresEveryCommentLanguage(t *testing.T) {
 }
 
 func markersOf(m comment.Markers) manifest.CommentMarkers {
-	out := manifest.CommentMarkers{Line: m.Line}
+	out := manifest.CommentMarkers{Line: m.Line, Splice: m.Splice}
 	for _, b := range m.Block {
 		out.Block = append(out.Block, manifest.CommentBlockMarker{Open: b.Open, Close: b.Close, Nested: b.Nested})
 	}
