@@ -219,14 +219,42 @@ jobs:
           path: sourcecode-checksums
           merge-multiple: true
 
+      # The registry gates installs on min_kapi_version, and the manifest the tag
+      # was cut from is where the plugin declares it. Reading it from the tagged
+      # commit means a release cannot register without the version its manifest
+      # names.
+      - name: Check out the tagged manifest
+        uses: actions/checkout@v7
+        with:
+          path: tagged
+          sparse-checkout: plugins/sourcecode/manifest.json
+          sparse-checkout-cone-mode: false
+
+      - name: Read min_kapi_version from the manifest
+        id: manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          MIN_KAPI_VERSION="$(jq -r '.min_kapi_version // ""' tagged/plugins/sourcecode/manifest.json)"
+          if [ -z "$MIN_KAPI_VERSION" ]; then
+            echo "::error file=plugins/sourcecode/manifest.json::the manifest at ${GITHUB_REF_NAME} declares no min_kapi_version, so the registry could not gate installs on it"
+            exit 1
+          fi
+          echo "min_kapi_version=${MIN_KAPI_VERSION}" >> "$GITHUB_OUTPUT"
+
       - name: Update manifest plugin registry (sourcecode)
         env:
           REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
           REF_NAME: ${{ github.ref_name }}
           REPO: ${{ github.repository }}
+          MIN_KAPI_VERSION: ${{ steps.manifest.outputs.min_kapi_version }}
         run: |
           set -euo pipefail
           VERSION="${REF_NAME#sourcecode-v}"
+          if [ -z "${MIN_KAPI_VERSION:-}" ]; then
+            echo "::error::no min_kapi_version reached the registry update"
+            exit 1
+          fi
           if [ -z "${REGISTRY_TOKEN:-}" ]; then
             echo "REGISTRY_TOKEN not set; skipping registry update"
             exit 0
@@ -273,6 +301,7 @@ jobs:
             --version "$VERSION" \
             --channel stable \
             --released "$(date -u +%Y-%m-%d)" \
+            --min-kapi-version "$MIN_KAPI_VERSION" \
             --cert-identity "$CERT_ID" \
             --cert-oidc-issuer https://token.actions.githubusercontent.com \
             "${ARGS[@]}"
