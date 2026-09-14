@@ -15,7 +15,6 @@
     "bowrain/packages/ui/src/components/AuditLogView.tsx | dyn-label-splice | group.label": 1,
     "bowrain/packages/ui/src/components/BreadcrumbBar.tsx | dyn-label-splice | item.label": 2,
     "bowrain/packages/ui/src/components/ConnectorsPanel.tsx | dyn-label-splice | f.label": 1,
-    "bowrain/packages/ui/src/components/ConnectorsPanel.tsx | ternary-attr-complex | description": 1,
     "bowrain/packages/ui/src/components/ConvergenceRunContext.tsx | dyn-label-splice | action.label": 1,
     "bowrain/packages/ui/src/components/LocaleSelect.tsx | dyn-label-splice | opt.label": 1,
     "bowrain/packages/ui/src/components/LocaleSelect.tsx | ternary-attr-complex | placeholder": 1,
@@ -73,7 +72,6 @@
     "packages/ui/src/components/composites/filter-bar.tsx | dyn-label-splice | item.label": 1,
     "packages/ui/src/components/composites/filter-bar.tsx | dyn-label-splice | preset.label": 1,
     "packages/ui/src/components/composites/filter-bar.tsx | dyn-label-splice | v.label": 1,
-    "packages/ui/src/components/composites/filter-bar.tsx | ternary-attr-complex | placeholder": 1,
     "packages/ui/src/components/composites/selectable-list.tsx | dyn-label-splice | action.label": 1,
     "packages/ui/src/components/filter/ParameterGroupSection.tsx | dyn-label-splice | group.label": 1,
     "packages/ui/src/components/governance/VoiceBindingSelect.tsx | dyn-label-splice | o.label": 1,
@@ -96,14 +94,11 @@
     "packages/ui/src/components/resource-browser/MemorySearchBar.tsx | dyn-label-splice | et.label": 1,
     "packages/ui/src/components/resource-browser/MemorySearchBar.tsx | dyn-label-splice | field.label": 1,
     "packages/ui/src/components/resource-browser/MemorySearchBar.tsx | dyn-label-splice | v.label": 1,
-    "packages/ui/src/components/resource-browser/MemorySearchBar.tsx | ternary-attr-complex | placeholder": 1,
-    "packages/ui/src/components/schema-form/PropertyField.tsx | ternary-attr-complex | label": 7,
     "packages/ui/src/components/schema-form/SchemaForm.tsx | dyn-label-splice | schema.title": 1,
     "packages/ui/src/components/schema-form/widgets/ChecklistField.tsx | dyn-label-splice | entry.title": 1,
     "packages/ui/src/components/schema-form/widgets/CredentialPicker.tsx | dyn-label-splice | c.label": 1,
     "packages/ui/src/components/ui/sidebar.tsx | unknown-component | SheetDescription": 1,
-    "packages/ui/src/components/ui/sidebar.tsx | unknown-component | SheetTitle": 1,
-    "packages/ui/src/components/ui/tag-input.tsx | ternary-attr-complex | placeholder": 1
+    "packages/ui/src/components/ui/sidebar.tsx | unknown-component | SheetTitle": 1
   },
   "bowrain-ctrl": {
     "src/components/CtrlSidebar.tsx | dyn-label-splice | item.label": 2,
@@ -151,7 +146,6 @@
     "packages/ui/src/components/composites/filter-bar.tsx | dyn-label-splice | item.label": 1,
     "packages/ui/src/components/composites/filter-bar.tsx | dyn-label-splice | preset.label": 1,
     "packages/ui/src/components/composites/filter-bar.tsx | dyn-label-splice | v.label": 1,
-    "packages/ui/src/components/composites/filter-bar.tsx | ternary-attr-complex | placeholder": 1,
     "packages/ui/src/components/composites/selectable-list.tsx | dyn-label-splice | action.label": 1,
     "packages/ui/src/components/filter/ParameterGroupSection.tsx | dyn-label-splice | group.label": 1,
     "packages/ui/src/components/governance/VoiceBindingSelect.tsx | dyn-label-splice | o.label": 1,
@@ -171,11 +165,8 @@
     "packages/ui/src/components/resource-browser/MemorySearchBar.tsx | dyn-label-splice | et.label": 1,
     "packages/ui/src/components/resource-browser/MemorySearchBar.tsx | dyn-label-splice | field.label": 1,
     "packages/ui/src/components/resource-browser/MemorySearchBar.tsx | dyn-label-splice | v.label": 1,
-    "packages/ui/src/components/resource-browser/MemorySearchBar.tsx | ternary-attr-complex | placeholder": 1,
-    "packages/ui/src/components/schema-form/PropertyField.tsx | ternary-attr-complex | label": 7,
     "packages/ui/src/components/schema-form/SchemaForm.tsx | dyn-label-splice | schema.title": 1,
     "packages/ui/src/components/schema-form/widgets/ChecklistField.tsx | dyn-label-splice | entry.title": 1,
-    "packages/ui/src/components/schema-form/widgets/CredentialPicker.tsx | dyn-label-splice | c.label": 1,
-    "packages/ui/src/components/ui/tag-input.tsx | ternary-attr-complex | placeholder": 1
+    "packages/ui/src/components/schema-form/widgets/CredentialPicker.tsx | dyn-label-splice | c.label": 1
   }
 }

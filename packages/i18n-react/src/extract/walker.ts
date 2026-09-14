@@ -614,12 +614,14 @@ class BlockCollector {
           );
           continue;
         }
-        // Only warn when exactly one branch is a string literal —
-        // the other half is unextractable, so the attr's translation
-        // state is half-broken. When both are non-literals (e.g.
-        // `cond ? t("A") : t("B")`) the t()-call walker handles them
-        // separately; no warning needed.
-        if (cLit !== aLit) {
+        // Warn when exactly one branch is a string literal with text in
+        // it: the other half is unextractable, so the attr's translation
+        // state is half-broken. An empty literal, as in
+        // `show ? label : ""`, holds nothing to translate. When both are
+        // non-literals (e.g. `cond ? t("A") : t("B")`) the t()-call walker
+        // handles them separately, so no warning is needed either.
+        const literal = cLit ? cond.consequent : aLit ? cond.alternate : null;
+        if (cLit !== aLit && (literal as { value: string }).value.trim() !== "") {
           this.warn("ternary-attr-complex", `${name}`, el);
         }
       }
