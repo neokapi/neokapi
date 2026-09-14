@@ -406,10 +406,10 @@ narration:
     text: Rett det der det leses.
 '
 
-# planted_repo builds a scratch checkout shaped like this one — a committed
-# context, one derived catalog beside the inventory it derives from, one demo
-# whose narration sidecar does not exist yet, and one source file — and prints
-# its path.
+# planted_repo builds a scratch checkout shaped like this one and prints its
+# path. It holds a committed context, a recipe naming which leaves are prose,
+# one derived catalog beside the inventory it derives from, one demo whose
+# narration sidecar does not exist yet, and one source file.
 planted_repo() {
   local dir="$1"
   mkdir -p "$dir/.kapi/memory" "$dir/.kapi/state" "$dir/core/i18n/catalogs" \
@@ -422,6 +422,34 @@ planted_repo() {
   printf '%s\n' "$SELFTEST_TARGET" >"$dir/core/i18n/catalogs/nb.json"
   printf '%s' "$SELFTEST_MASTER" >"$dir/harness/demos/demo-a/demo.yaml"
   printf 'package flow\n' >"$dir/core/flow/executor.go"
+  cat >"$dir/kapi.yaml" <<'EOF'
+version: v1
+name: planted
+defaults:
+  source_language: en
+  target_languages: [nb]
+  formats:
+    yaml:
+      config:
+        keyPathPatterns:
+          - narration.*.text
+collections:
+  - name: engine
+    base: core/i18n
+    content:
+      - path: builtins/metadata.json
+        format:
+          name: json
+          config:
+            extractAllPairs: false
+            extractionRules: '(displayName|description)$'
+        target: catalogs/{lang}.json
+  - name: demos
+    base: harness/demos
+    content:
+      - path: "*/demo.yaml"
+        target: "{dir}/demo.{lang}.yaml"
+EOF
   git -C "$dir" -c init.defaultBranch=main init -q
   git -C "$dir" -c user.email=gate@example.invalid -c user.name=gate add -A
   git -C "$dir" -c user.email=gate@example.invalid -c user.name=gate \

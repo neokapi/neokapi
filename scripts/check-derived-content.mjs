@@ -58,17 +58,220 @@ const DEMO_DIR = "harness/demos";
 
 // ── what the recipe declares translatable ────────────────────────────────────
 //
-// Read from kapi.yaml, not invented here. `defaults.formats.yaml.config
-// .keyPathPatterns` selects the demo keys (`title`, `subtitle`,
-// `narration.*.text`, `narration.*.caption`), and the `neokapi-engine`
-// collection's `extractionRules` selects the generated inventory's prose leaves.
+// Read from kapi.yaml at run time. The narration sidecars take the
+// `keyPathPatterns` of the item that reads `harness/demos/*/demo.yaml`, merged
+// over `defaults.formats.yaml.config` the way the engine merges a format's
+// defaults with an item's own config. The engine catalog takes the
+// `extractionRules` of the item that reads `core/i18n/builtins/metadata.json`.
 // A leaf outside either is a machine identifier the target must carry through.
 
-/** Leaf key names the demo sidecars may translate. */
-const DEMO_TRANSLATABLE = new Set(["title", "subtitle", "text", "caption"]);
+const RECIPE = "kapi.yaml";
+const ENGINE_SOURCE = "core/i18n/builtins/metadata.json";
+const DEMO_SOURCE = `${DEMO_DIR}/*/demo.yaml`;
 
-/** Leaf key names the generated tool/format inventory may translate. */
-const BUILTIN_TRANSLATABLE = /(displayName|description|title|label)$/;
+/**
+ * What kapi.yaml declares translatable on the two surfaces measured by rule: a
+ * predicate over the engine catalog's dotted key paths, and the leaf key names
+ * a narration sidecar may rewrite. Either is `null` when every leaf is prose.
+ * A recipe that declares neither item throws, because a gate that cannot read
+ * the rule would pass every translated identifier.
+ */
+function translatableRules(recipeText) {
+  const recipe = parseYAML(recipeText) ?? {};
+  const engine = recipeItem(recipe, ENGINE_SOURCE);
+  if (engine === null) throw new Error(`${RECIPE} declares no content item for ${ENGINE_SOURCE}`);
+  const demo = recipeItem(recipe, DEMO_SOURCE);
+  if (demo === null) throw new Error(`${RECIPE} declares no content item for ${DEMO_SOURCE}`);
+  return {
+    engine: keyRule(readerConfig(recipe, engine, "json")),
+    demo: leafKeys(readerConfig(recipe, demo, "yaml").keyPathPatterns),
+  };
+}
+
+/** The content item whose collection base and path spell `file`, or null. */
+function recipeItem(recipe, file) {
+  for (const collection of recipe.collections ?? []) {
+    for (const item of collection?.content ?? []) {
+      if ([collection.base, item?.path].filter(Boolean).join("/") === file) return item;
+    }
+  }
+  return null;
+}
+
+/** An item's reader config: its format's defaults, then the item's own keys. */
+function readerConfig(recipe, item, fallbackFormat) {
+  const name = item.format?.name ?? fallbackFormat;
+  return { ...(recipe.defaults?.formats?.[name]?.config ?? {}), ...(item.format?.config ?? {}) };
+}
+
+/**
+ * The leaves a JSON reader config names: `extractionRules` when it is set,
+ * otherwise every leaf less `exceptions`, or only `exceptions` when
+ * `extractAllPairs` is off. The rule is tested against the dotted key path, so
+ * an alternative such as `enumDescriptions\.[^.]+$` reaches the leaf it names.
+ */
+function keyRule(config) {
+  const rules = config.extractionRules ? new RegExp(config.extractionRules) : null;
+  const exceptions = config.exceptions ? new RegExp(config.exceptions) : null;
+  if (rules) return (keyPath) => rules.test(keyPath);
+  if (config.extractAllPairs !== false) {
+    return exceptions ? (keyPath) => !exceptions.test(keyPath) : null;
+  }
+  return exceptions ? (keyPath) => exceptions.test(keyPath) : () => false;
+}
+
+/** The leaf key names a list of YAML key path patterns selects, or null for all. */
+function leafKeys(patterns) {
+  if (!Array.isArray(patterns) || patterns.length === 0) return null;
+  const leaves = patterns.map((pattern) => String(pattern).split(".").pop());
+  return leaves.some((leaf) => leaf.includes("*")) ? null : new Set(leaves);
+}
+
+// ── the recipe's YAML ────────────────────────────────────────────────────────
+
+const MAPPING_ENTRY = /^("(?:[^"\\]|\\.)*"|'(?:[^']|'')*'|[^\s"'#?:,[\]{}][^:]*?)\s*:(?:\s+(.*))?$/;
+
+/**
+ * Parse the YAML subset a recipe is written in: block mappings and sequences,
+ * plain and quoted scalars, flow sequences of scalars, and comments. A block
+ * scalar is read as its raw text. Anchors, aliases, tags and flow mappings
+ * throw, so a recipe that grows past the subset fails the gate by name.
+ */
+function parseYAML(text) {
+  const lines = text.split(/\r?\n/);
+  let i = 0;
+
+  const indentOf = (line) => /^ */.exec(line)[0].length;
+  const bodyOf = (line) => stripComment(line).trim();
+  const isItem = (body) => body === "-" || body.startsWith("- ");
+  const fail = (why) => {
+    throw new Error(`YAML line ${i + 1}: ${why}`);
+  };
+  const skipBlank = () => {
+    while (i < lines.length && bodyOf(lines[i]) === "") i++;
+  };
+
+  function node(minIndent) {
+    skipBlank();
+    if (i >= lines.length || indentOf(lines[i]) < minIndent) return null;
+    const indent = indentOf(lines[i]);
+    return isItem(bodyOf(lines[i])) ? sequence(indent) : mapping(indent);
+  }
+
+  function sequence(indent) {
+    const out = [];
+    for (skipBlank(); i < lines.length; skipBlank()) {
+      const line = lines[i];
+      const body = bodyOf(line);
+      if (indentOf(line) !== indent || !isItem(body)) break;
+      const rest = body.slice(1).trimStart();
+      if (rest === "") {
+        i++;
+        out.push(node(indent + 1));
+      } else if (MAPPING_ENTRY.test(rest)) {
+        // `- key: value` opens a mapping at the column its first key sits in.
+        const column = line.length - line.slice(indent + 1).trimStart().length;
+        lines[i] = " ".repeat(column) + line.slice(column);
+        out.push(mapping(column));
+      } else {
+        i++;
+        out.push(scalar(rest));
+      }
+    }
+    return out;
+  }
+
+  function mapping(indent) {
+    const out = {};
+    for (skipBlank(); i < lines.length; skipBlank()) {
+      const line = lines[i];
+      const body = bodyOf(line);
+      const at = indentOf(line);
+      if (at < indent || (at === indent && isItem(body))) break;
+      if (at > indent) fail("unexpected indentation");
+      const entry = MAPPING_ENTRY.exec(body);
+      if (!entry) fail(`expected a mapping entry, got ${JSON.stringify(body)}`);
+      const key = /^["']/.test(entry[1]) ? scalar(entry[1]) : entry[1];
+      const value = (entry[2] ?? "").trim();
+      i++;
+      if (/^[|>][-+]?\d*$/.test(value)) {
+        const block = [];
+        while (i < lines.length && (lines[i].trim() === "" || indentOf(lines[i]) > indent)) {
+          block.push(lines[i++]);
+        }
+        out[key] = block.join("\n");
+      } else if (value !== "") {
+        out[key] = scalar(value);
+      } else {
+        skipBlank();
+        const next = lines[i] ?? "";
+        const opens =
+          i < lines.length &&
+          (indentOf(next) > indent || (indentOf(next) === indent && isItem(bodyOf(next))));
+        out[key] = opens ? node(indent) : null;
+      }
+    }
+    return out;
+  }
+
+  return node(0);
+}
+
+/** A line with its trailing comment removed; a `#` inside quotes is text. */
+function stripComment(line) {
+  let quote = "";
+  for (let k = 0; k < line.length; k++) {
+    const ch = line[k];
+    if (quote === '"') {
+      if (ch === "\\") k++;
+      else if (ch === '"') quote = "";
+    } else if (quote === "'") {
+      if (ch === "'") quote = "";
+    } else if ((ch === '"' || ch === "'") && (k === 0 || /[\s:[{,-]/.test(line[k - 1]))) {
+      quote = ch;
+    } else if (ch === "#" && (k === 0 || /\s/.test(line[k - 1]))) {
+      return line.slice(0, k);
+    }
+  }
+  return line;
+}
+
+/** One YAML scalar or flow sequence of scalars. */
+function scalar(raw) {
+  const value = raw.trim();
+  if (value.startsWith('"')) return JSON.parse(value);
+  if (value.startsWith("'")) return value.slice(1, -1).replaceAll("''", "'");
+  if (value.startsWith("[")) {
+    if (!value.endsWith("]")) throw new Error(`unterminated flow sequence: ${value}`);
+    const inner = value.slice(1, -1).trim();
+    return inner === "" ? [] : splitFlow(inner).map(scalar);
+  }
+  if (/^[{&*!]/.test(value)) throw new Error(`YAML outside the recipe subset: ${value}`);
+  if (value === "true" || value === "false") return value === "true";
+  if (value === "null" || value === "~") return null;
+  if (/^-?\d+(\.\d+)?$/.test(value)) return Number(value);
+  return value;
+}
+
+/** The items of a flow sequence's body, split on commas outside quotes. */
+function splitFlow(inner) {
+  const parts = [];
+  let quote = "";
+  let start = 0;
+  for (let k = 0; k < inner.length; k++) {
+    const ch = inner[k];
+    if (quote) {
+      if (ch === quote) quote = "";
+    } else if (ch === '"' || ch === "'") {
+      quote = ch;
+    } else if (ch === ",") {
+      parts.push(inner.slice(start, k));
+      start = k + 1;
+    }
+  }
+  parts.push(inner.slice(start));
+  return parts;
+}
 
 /**
  * Placeholder tokens: braced parameters and KBF runtime-projection markup
@@ -248,15 +451,13 @@ function readJSON(path) {
  * Which leaves of a JSON target the recipe declares translatable. `null` means
  * every leaf is — the surfaces whose whole document is extracted.
  */
-function jsonTranslatable(target) {
-  if (/(^|\/)core\/i18n\/catalogs\/[^/]+\.json$/.test(target)) {
-    return (keyPath) => BUILTIN_TRANSLATABLE.test(keyPath.split(".").pop() ?? "");
-  }
+function jsonTranslatable(target, rules) {
+  if (/(^|\/)core\/i18n\/catalogs\/[^/]+\.json$/.test(target)) return rules.engine;
   return null;
 }
 
 /** Defects in one JSON artifact, measured against the document it derives from. */
-function checkJSON(target, reference) {
+function checkJSON(target, reference, rules) {
   const defects = [];
   let doc;
   try {
@@ -273,7 +474,7 @@ function checkJSON(target, reference) {
 
   const refLeaves = leaves(ref, "", new Map());
   const tgtLeaves = leaves(doc, "", new Map());
-  const translatable = jsonTranslatable(target);
+  const translatable = jsonTranslatable(target, rules);
   // A surface measured against its source document mirrors that document's
   // shape, so a leaf the source does not have is structure the target invented.
   // A surface measured against the `qps` probe is keyed by the hash of its
@@ -332,7 +533,7 @@ function describeDelta({ missing, extra }) {
  * the whole check, and it is what tells `kind: use-case` translated to
  * `kind: brukstilfelle` from a narration line that was legitimately rewritten.
  */
-function checkSidecar(target, master) {
+function checkSidecar(target, master, rules) {
   if (!existsSync(master)) {
     return [{ target, key: "", kind: "orphan", detail: `no master beside it (${master})` }];
   }
@@ -341,7 +542,7 @@ function checkSidecar(target, master) {
   const scalars = yamlScalars(readFileSync(target, "utf8"));
 
   for (const { key, value } of scalars) {
-    if (DEMO_TRANSLATABLE.has(key)) continue;
+    if (rules.demo === null || rules.demo.has(key)) continue;
     const known = src.get(key);
     if (known === undefined) {
       defects.push({ target, key, kind: "invented", detail: "no such key in the master" });
@@ -447,7 +648,7 @@ function sidecarPairs(lang) {
   return pairs;
 }
 
-function validate(lang, pairs, only) {
+function validate(lang, pairs, only, rules) {
   const defects = [];
   const checked = [];
   const all = [...pairs, ...sidecarPairs(lang)];
@@ -459,7 +660,7 @@ function validate(lang, pairs, only) {
       continue;
     }
     checked.push(target);
-    defects.push(...(target.endsWith(".yaml") ? checkSidecar : checkJSON)(target, reference));
+    defects.push(...(target.endsWith(".yaml") ? checkSidecar : checkJSON)(target, reference, rules));
   }
   return { defects, checked };
 }
@@ -619,11 +820,12 @@ function selfTest() {
   const dropped = sound.split("\n").slice(0, 10).join("\n") + "\n";
 
   const scan = (text) => valuesByKey(yamlScalars(text));
+  const demoKeys = new Set(["title", "text", "caption"]);
   const sidecarDefects = (text) => {
     const src = scan(master);
     const defects = [];
     for (const { key, value } of yamlScalars(text)) {
-      if (DEMO_TRANSLATABLE.has(key)) continue;
+      if (demoKeys.has(key)) continue;
       const known = src.get(key);
       if (known === undefined || !known.has(value)) defects.push(`${key}=${value}`);
     }
@@ -672,6 +874,90 @@ function selfTest() {
     false,
   );
 
+  // The recipe reader, over the shapes kapi.yaml is written in.
+  const planted = [
+    "version: v1  # a trailing comment",
+    "defaults:",
+    "  target_languages: [nb, sv]",
+    "  formats:",
+    "    yaml:",
+    "      config:",
+    "        keyPathPatterns:",
+    "          - title",
+    "          - outro.line",
+    "          - narration.*.text",
+    "collections:",
+    "  - name: engine",
+    "    base: core/i18n",
+    "    content:",
+    "      # The inventory's prose leaves.",
+    "      - path: builtins/metadata.json",
+    "        format:",
+    "          name: json",
+    "          config:",
+    "            extractAllPairs: false",
+    "            extractionRules: '(displayName|note)$|enumDescriptions\\.[^.]+$'",
+    "        target: catalogs/{lang}.json",
+    "  - name: demos",
+    "    base: harness/demos",
+    "    content:",
+    '      - path: "*/demo.yaml"',
+    "        format:",
+    "          name: yaml",
+    '        target: "{dir}/demo.{lang}.yaml"',
+    "",
+  ].join("\n");
+
+  const recipe = parseYAML(planted);
+  check(
+    "a flow sequence and a trailing comment parse",
+    [recipe.version, recipe.defaults.target_languages],
+    ["v1", ["nb", "sv"]],
+  );
+  check("a quoted path in a sequence item parses", recipe.collections[1].content[0].path, "*/demo.yaml");
+
+  const rules = translatableRules(planted);
+  check(
+    "the engine rule is read from the recipe and tested against the dotted key path",
+    [
+      "tools.qa.displayName",
+      "models.o3.note",
+      "tools.qa.properties.mode.enumDescriptions.rules",
+      "tools.qa.category",
+    ].map(rules.engine),
+    [true, true, true, false],
+  );
+  check("the demo keys come from the yaml format defaults", [...rules.demo].sort(), [
+    "line",
+    "text",
+    "title",
+  ]);
+
+  const overridden = planted.replace(
+    "          name: yaml\n",
+    "          name: yaml\n          config:\n            keyPathPatterns: [subtitle]\n",
+  );
+  check("an item's own config overrides the format defaults", [...translatableRules(overridden).demo], [
+    "subtitle",
+  ]);
+
+  let refused = "";
+  try {
+    translatableRules("collections: []\n");
+  } catch (err) {
+    refused = String(err.message ?? err);
+  }
+  check("a recipe with no engine item is refused, not read as permissive", refused.includes(ENGINE_SOURCE), true);
+
+  let own = "";
+  try {
+    const repo = translatableRules(readFileSync(new URL("../kapi.yaml", import.meta.url), "utf8"));
+    own = [typeof repo.engine, repo.demo instanceof Set].join(" ");
+  } catch (err) {
+    own = String(err.message ?? err);
+  }
+  check("the repository's kapi.yaml resolves both rules", own, "function true");
+
   return selfTestStatus;
 }
 
@@ -712,7 +998,15 @@ function main(argv) {
     return [pair.slice(0, sep), pair.slice(sep + 1)];
   });
 
-  const { defects, checked } = validate(lang, parsed, only.size > 0 ? only : null);
+  let rules;
+  try {
+    rules = translatableRules(readFileSync(RECIPE, "utf8"));
+  } catch (err) {
+    console.error(`check-derived-content: cannot read what ${RECIPE} declares translatable: ${err.message ?? err}`);
+    return 2;
+  }
+
+  const { defects, checked } = validate(lang, parsed, only.size > 0 ? only : null, rules);
   return report(defects, checked);
 }
 
