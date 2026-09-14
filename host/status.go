@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -224,8 +225,9 @@ func (o StatusOutput) writeCoverageGrid(w io.Writer) {
 // decision on the unit records a basis.
 func (o StatusOutput) writeBasisLines(w io.Writer) {
 	stale, unknown, failing, termsNotChecked := 0, 0, 0, 0
-	var ungoverned []string
-	seenUngoverned := map[string]bool{}
+	// A locale is named as ungoverned only when terms govern none of its scopes.
+	var locales []string
+	scopes, ungovernedScopes := map[string]int{}, map[string]int{}
 	awaitingDraft, awaitingReview, rejected := 0, 0, 0
 	for _, lc := range o.Locales {
 		stale += lc.Stale
@@ -235,11 +237,18 @@ func (o StatusOutput) writeBasisLines(w io.Writer) {
 		awaitingReview += lc.StaleAwaitingReview
 		rejected += lc.RejectedAwaitingDraft
 		termsNotChecked += lc.TermsNotChecked
-		for _, d := range lc.NotGoverned {
-			if d == "terms" && !seenUngoverned[lc.Locale] {
-				seenUngoverned[lc.Locale] = true
-				ungoverned = append(ungoverned, lc.Locale)
-			}
+		if scopes[lc.Locale] == 0 {
+			locales = append(locales, lc.Locale)
+		}
+		scopes[lc.Locale]++
+		if slices.Contains(lc.NotGoverned, "terms") {
+			ungovernedScopes[lc.Locale]++
+		}
+	}
+	var ungoverned []string
+	for _, locale := range locales {
+		if ungovernedScopes[locale] == scopes[locale] {
+			ungoverned = append(ungoverned, locale)
 		}
 	}
 	if stale > 0 {
@@ -275,7 +284,7 @@ func (o StatusOutput) writeBasisLines(w io.Writer) {
 			"but their targets could not be read to check. They do not ship.\n", termsNotChecked)
 	}
 	if len(ungoverned) > 0 {
-		fmt.Fprintf(w, "\nNo terms govern %s: no concept in the project's terms has a term for it, "+
+		fmt.Fprintf(w, "\nNo terms govern %s: no terms bound where its content sits have a term for it, "+
 			"so terminology is not a bar there.\n", strings.Join(ungoverned, ", "))
 	}
 	if unknown > 0 {

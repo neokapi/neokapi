@@ -20,9 +20,9 @@ type ShipEntry struct {
 	// offers a locale no gate matches; State says that no gate stands behind it.
 	State ShipState `json:"state"`
 	// NotGoverned names the dimensions that govern nothing in the locale:
-	// "terms" when no concept in the project's terms answers for it. Neither
-	// gate reads it; it is there so a picker or a build never takes an
-	// ungoverned locale for a governed one.
+	// "terms" when no terms bound where the locale's content sits answer for
+	// it. Neither gate reads it; it is there so a picker or a build never takes
+	// an ungoverned locale for a governed one.
 	NotGoverned []string `json:"not_governed,omitempty"`
 }
 
@@ -38,23 +38,38 @@ type ShipManifest map[string]ShipEntry
 // per-locale picker manifest. When a locale spans several collection scopes it
 // is shippable only if every scope is shippable, verified only if every scope is
 // verified, and its State is the weakest of its scopes' states (a locale is no
-// stronger than its weakest collection).
+// stronger than its weakest collection). It names a dimension as not governed
+// only when that dimension governs none of the locale's scopes.
 func BuildShipManifest(locales []LocaleCoverage) ShipManifest {
 	m := ShipManifest{}
+	scopes := map[string]int{}
+	ungoverned := map[string]map[string]int{}
 	for _, lc := range locales {
 		e, seen := m[lc.Locale]
 		if !seen {
 			e = ShipEntry{Shippable: true, Verified: true, State: ShipStateShippable}
+			ungoverned[lc.Locale] = map[string]int{}
 		}
 		e.Shippable = e.Shippable && lc.Shippable
 		e.Verified = e.Verified && lc.Verified
 		e.State = weakerShipState(e.State, lc.ShipState)
+		scopes[lc.Locale]++
 		for _, d := range lc.NotGoverned {
+			ungoverned[lc.Locale][d]++
 			if !slices.Contains(e.NotGoverned, d) {
 				e.NotGoverned = append(e.NotGoverned, d)
 			}
 		}
 		m[lc.Locale] = e
+	}
+	for locale, e := range m {
+		e.NotGoverned = slices.DeleteFunc(e.NotGoverned, func(d string) bool {
+			return ungoverned[locale][d] < scopes[locale]
+		})
+		if len(e.NotGoverned) == 0 {
+			e.NotGoverned = nil
+		}
+		m[locale] = e
 	}
 	return m
 }

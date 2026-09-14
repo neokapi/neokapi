@@ -109,8 +109,9 @@ one withheld collection withholds it, and a collection no gate matches leaves it
 not gated. `shippable` is `true` for both `shippable` and `not_gated`, so a
 picker that reads only `shippable` offers a not-gated locale; `state` is what
 tells a cleared gate from no gate. An entry carries `not_governed` when a dimension governs
-nothing in that language: `terms` means no concept in the project's terms has a
-term for it. The picker does not read it. It is there so a build step or a
+nothing in that language: `terms` means that none of the terms bound where the
+language's content sits, under the project defaults or on a profile, has a term
+for it. The picker does not read it. It is there so a build step or a
 reader does not take the language for a governed one. The richer `kapi status --json`
 report carries the same `shippable` and `verified` fields per collection and
 locale, with the state as `shipState` and the full coverage percentages, for

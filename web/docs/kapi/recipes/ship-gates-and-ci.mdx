@@ -51,6 +51,8 @@ kapi check --ship --json          # structured result for a job summary
 
 A gate that finds no content to check, or whose checks could not show they flag a known problem, did not run. It reports `did_not_run` with a `did_not_run_cause` and exits `4`, even with `--no-fail`, so an empty scope never reads as a passing release.
 
+The terminology gate runs wherever terms govern content in scope, whether the project defaults bind them or a profile that a collection's channel resolves to. Its coverage counts content no bound terms answer for as `not_governed`, and a governed target that could not be read as `not_checked`. When none of the governed content could be read, the gate did not run.
+
 In GitHub Actions, install the CLI with the companion [`setup-kapi`](https://github.com/neokapi/setup-kapi) action and run the gate:
 
 ```yaml title=".github/workflows/ship-gate.yml"
