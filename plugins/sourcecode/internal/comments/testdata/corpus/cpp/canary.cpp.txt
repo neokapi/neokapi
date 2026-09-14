@@ -1,0 +1,4 @@
+// clang-format off
+/// Parses the the input.
+class Parser {};
+auto marker = R"(// not a comment)";

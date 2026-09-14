@@ -1,0 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
+/** Parses the the input. */
+int parse(const char *text);
+static const char *marker = "// not a comment";

@@ -64,7 +64,7 @@ as their openers, which is what makes the pairing safe.
 
 `internal/comments` locates the comments of the languages `manifest.json` lists
 under `capabilities.comments`: TypeScript, TSX, JavaScript, Python, Bash, CSS,
-Rust, Java and C#. kapi sends a file's bytes over the `LocateComments` RPC and reads back what a built-in comment
+Rust, Java, C#, C and C++. kapi sends a file's bytes over the `LocateComments` RPC and reads back what a built-in comment
 provider such as Go's returns: each comment's byte span and lines, its subject,
 whether it documents a declaration, its runs, and the comments set aside with
 their reason. A recipe reaches it with `comments: true` on a content item.
@@ -91,9 +91,13 @@ What the provider decides:
   and rust-analyzer's `// region:` folding markers. Java sets aside IntelliJ's
   `noinspection`, Checkstyle, Sonar and PMD suppressions, formatter switches,
   Eclipse's `$NON-NLS` markers and fall-through markers, and C# ReSharper's
-  switches, formatter switches and Sonar suppressions. The tables are
+  switches, formatter switches and Sonar suppressions. C and C++ set aside an
+  SPDX tag, clang-tidy's NOLINT forms, clang-format's switches, cppcheck, IWYU,
+  lcov and gcovr pragmas, an editor's mode line, and labels on closing lines such
+  as `#endif // DEBUG` or `} // namespace kapi`. The tables are
   `jsDirectives`, `pythonDirectives`, `bashDirectives`, `cssDirectives`,
-  `rustDirectives`, `javaDirectives` and `csharpDirectives`, and each language's
+  `rustDirectives`, `javaDirectives`, `csharpDirectives` and `cDirectives`, and
+  each language's
   `testdata/corpus/<language>/directives.*.txt` holds a comment only each form
   matches.
 - **Generated files.** A generator phrase with an instruction not to edit, or
@@ -106,7 +110,9 @@ What the provider decides:
   `/***` and `/**/` are plain comments. Java's Javadoc and C#'s `///` and
   `/** */` XML documentation document the declaration after them, and their
   HTML and XML tags are placeholders, a `<code>`, `<c>` or `<pre>` element with
-  its content. Python, Bash and CSS comments document
+  its content. In C and C++ Doxygen's `///`, `//!`, `/** */` and `/*! */`
+  document the declaration after them, and its `@param` and `\\param` commands
+  are placeholders. Python, Bash and CSS comments document
   nothing, and a Python docstring is a string. In its runs a block tag with its type and name, a
   tag that holds a value, an `@example` section, an inline tag such as
   `{@link Parser}`, a code span and a URL are placeholders, so a check reads
@@ -122,7 +128,11 @@ What the provider decides:
   expression, JSX text, a heredoc, a parameter expansion such as
   `${name#prefix}`, a Rust raw string, or an unquoted CSS `url()` is content.
 - **Files that do not parse.** A tree with a syntax error in it is not located,
-  and kapi reports the file's comment check as not run.
+  and kapi reports the file's comment check as not run. C and C++ are the
+  exception: macros make much sound code read as malformed, so their files are
+  located anyway, with each preprocessor directive's comments lexed from the
+  directive's bytes. Over the repository's C files and the libc++ headers, that
+  reading matches libclang in every file, those with syntax errors included.
 
 Each language's canary and comment markers are declared twice, in its Go file
 (such as `jsts.go`) and in `manifest.json`, and a test holds the two equal. kapi sends the manifest's
@@ -149,19 +159,26 @@ shares no code with the grammars. The fixtures in
   program in `testdata/csharp-comments/`, which lexes again the regions its
   preprocessor sets aside, and whose spans sit beside each fixture in
   `<fixture>.roslyn`;
+- libclang's lexer for C and C++, reached through its C API by
+  `testdata/clang-goldens.py`, whose spans sit beside each fixture in
+  `<fixture>.clang`. libclang lexes raw tokens, so it reads `//` inside
+  `#include <a//b.h>` as a comment where the preprocessor reads a header name;
+  no fixture holds one;
 - the `mvdan.cc/sh` parser for Bash and the `tdewolff/parse` CSS lexer for CSS,
   both run by the Go tests themselves.
 
 A golden records its fixture's sha256, so the Go tests need none of node, Python,
-cargo, a JDK or the .NET SDK, and fail when a fixture changes without its golden. Grouping and
+cargo, a JDK, the .NET SDK or libclang, and fail when a fixture changes without its golden. Grouping and
 directives in the oracle come from rules written in `oracle_test.go`, apart from
 the provider's.
 
 The corpus is drawn from this repository, plus authored fixtures for directives,
 literals, subjects, generated files, doc comments, CRLF line endings and
-multibyte text. Rust and C# have no source in this repository, so their fixtures
-are authored; Java's are authored or drawn from okapi-bridge. A copied fixture is named for the last two segments of its path.
-From the repository root, with node, Python 3, cargo, a JDK, the .NET SDK and the pnpm store installed:
+multibyte text. Rust, C# and C++ have no source in this repository, so their
+fixtures are authored; Java's are authored or drawn from okapi-bridge, and C's
+from `core/storage`. A copied fixture is named for the last two segments of its path.
+From the repository root, with node, Python 3, cargo, a JDK, the .NET SDK, libclang and the pnpm store
+installed:
 
 ```bash
 node plugins/sourcecode/internal/comments/testdata/babel-goldens.mjs --add tsx web/src/theme/Root.tsx

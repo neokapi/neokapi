@@ -1,0 +1,50 @@
+#pragma once
+
+#include <string>
+
+// Sits above nothing: a blank line follows.
+
+namespace kapi {
+
+/// Parses recipes.
+class Parser {
+public:
+    /// Makes a parser.
+    explicit Parser(std::string source);
+
+    /**
+     * Runs the parser.
+     * @return the number of blocks
+     */
+    [[nodiscard]] int run() const;
+
+    /// Stops the parser.
+    void stop() { stopped_ = true; }
+
+private:
+    bool stopped_ = false; ///< Whether the parser has stopped.
+    // A plain comment on a field.
+    std::string source_;
+};
+
+/// The kinds of block.
+enum class Kind {
+    /// Plain text.
+    Text,
+    Code,
+};
+
+/// The largest of two values.
+template <typename T>
+T largest(T a, T b);
+
+/// A path of names.
+using Path = std::string;
+
+}  // namespace kapi
+
+/// Runs the parser out of line.
+int kapi::Parser::run() const {
+    // Inside the function.
+    return 0;
+}

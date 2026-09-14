@@ -1,0 +1,13 @@
+#include "parser.h" // after an include
+#pragma once /* after a pragma */
+#define LIMIT 10 // after an object macro
+#define RULE (BASE u"Katakana; NFKC")  // after a string in a macro
+#define MARKER "/* not a comment */" // after a string holding a marker
+#define SLASH '/' /* after a char */
+#define NEXT(x) ((x) + 1) /* after a function macro */
+#define LOOP(x) \
+    do { (x); } while (0) /* after a continued macro */
+#if defined(DEBUG) // after an if
+#elif TRACE /* after an elif */
+#else // after an else
+#endif /* after an endif */

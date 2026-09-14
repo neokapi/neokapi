@@ -19,6 +19,12 @@ languages:
   bash:
     name: Bash
     provider: sourcecode
+  c:
+    name: C
+    provider: sourcecode
+  cpp:
+    name: C++
+    provider: sourcecode
   csharp:
     name: "C#"
     provider: sourcecode

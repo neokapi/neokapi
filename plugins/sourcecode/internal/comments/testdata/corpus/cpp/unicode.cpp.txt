@@ -1,0 +1,3 @@
+/// Grüße: the café's naïve résumé, 日本語, and 🎉.
+int greet();
+auto g = "héllo // ✓"; // ends with an astral 𝒳 character

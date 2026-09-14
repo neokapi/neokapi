@@ -98,6 +98,9 @@ type sourcecodeFile struct {
 	// directives holds comments that are all directives, and broken a
 	// commented file that does not parse.
 	directives, broken string
+	// tolerant reports that the language reads a file its grammar finds
+	// syntax errors in, so broken holds a doubled word the check still finds.
+	tolerant bool
 }
 
 var sourcecodeFiles = map[string]sourcecodeFile{
@@ -181,6 +184,26 @@ var sourcecodeFiles = map[string]sourcecodeFile{
 		doubled:    "/// <summary>Parses the the input.</summary>\npublic class Parser\n{\n}\n",
 		directives: "// ReSharper disable UnusedMember.Global\npublic class Parser\n{\n}\n",
 		broken:     "/// <summary>Parses the input.</summary>\npublic class Parser\n{\n",
+	},
+	"c": {
+		path: "src/parse.c", ext: ".c",
+		governed: "// SPDX-License-Identifier: Apache-2.0\n/** Parse helps you utilize the input. */\nint parse(const char *text) { return text[0] == 'u'; }\nstatic const char *word = \"utilize\";\n",
+		block:    "func/parse", line: 2,
+		clean:      "/** Parses the input. */\nint parse(const char *text);\n",
+		doubled:    "/** Parses the the input. */\nint parse(const char *text);\n",
+		directives: "// SPDX-License-Identifier: Apache-2.0\nint parse(const char *text);\n",
+		broken:     "/** Parses the the input. */\nint parse(const char *text\n",
+		tolerant:   true,
+	},
+	"cpp": {
+		path: "src/parser.cpp", ext: ".cpp",
+		governed: "// clang-format off\n/// Parser helps you utilize the input.\nclass Parser {};\nauto word = \"utilize\";\n",
+		block:    "class/Parser", line: 2,
+		clean:      "/// Parses the input.\nclass Parser {};\n",
+		doubled:    "/// Parses the the input.\nclass Parser {};\n",
+		directives: "// clang-format off\nclass Parser {};\n",
+		broken:     "/// Parses the the input.\nclass Parser {\n",
+		tolerant:   true,
 	},
 }
 
@@ -288,14 +311,24 @@ func proseP2Sourcecode(t *testing.T, language string) {
 		assert.False(t, report.Pass)
 	})
 
-	t.Run("a file that does not parse did not run", func(t *testing.T) {
-		a := sourcecodeApp(t, nil)
-		report := namedSourceCheck(t, a, "broken"+f.ext, f.broken)
-		run := analyzerRun(t, report, analyzer)
-		assert.Equal(t, check.AnalyzerDidNotRun, run.Status)
-		assert.Contains(t, run.Reason, "does not parse")
-		assert.Equal(t, check.VerdictDidNotRun, report.Verdict)
-	})
+	if f.tolerant {
+		t.Run("a file with syntax errors is still read", func(t *testing.T) {
+			a := sourcecodeApp(t, nil)
+			report := namedSourceCheck(t, a, "broken"+f.ext, f.broken)
+			assert.Equal(t, check.AnalyzerPassed, analyzerRun(t, report, analyzer).Status)
+			require.Len(t, report.Findings, 1, "the doubled word in the comment is found")
+			assert.Equal(t, "hygiene.doubled-word", report.Findings[0].Rule)
+		})
+	} else {
+		t.Run("a file that does not parse did not run", func(t *testing.T) {
+			a := sourcecodeApp(t, nil)
+			report := namedSourceCheck(t, a, "broken"+f.ext, f.broken)
+			run := analyzerRun(t, report, analyzer)
+			assert.Equal(t, check.AnalyzerDidNotRun, run.Status)
+			assert.Contains(t, run.Reason, "does not parse")
+			assert.Equal(t, check.VerdictDidNotRun, report.Verdict)
+		})
+	}
 
 	t.Run("must fail: a plugin that misses its canary's comment invalidates the run", func(t *testing.T) {
 		a := sourcecodeApp(t, func(l map[string]any) { l["canary"].(map[string]any)["block"] = "func/elsewhere" })
@@ -423,3 +456,7 @@ func TestProseP2_rust(t *testing.T) { proseP2Sourcecode(t, "rust") }
 func TestProseP2_java(t *testing.T) { proseP2Sourcecode(t, "java") }
 
 func TestProseP2_csharp(t *testing.T) { proseP2Sourcecode(t, "csharp") }
+
+func TestProseP2_c(t *testing.T) { proseP2Sourcecode(t, "c") }
+
+func TestProseP2_cpp(t *testing.T) { proseP2Sourcecode(t, "cpp") }

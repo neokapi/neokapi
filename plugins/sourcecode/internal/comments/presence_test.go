@@ -35,6 +35,10 @@ func TestProseP0_java(t *testing.T) { assertPresent(t, "java") }
 
 func TestProseP0_csharp(t *testing.T) { assertPresent(t, "csharp") }
 
+func TestProseP0_c(t *testing.T) { assertPresent(t, "c") }
+
+func TestProseP0_cpp(t *testing.T) { assertPresent(t, "cpp") }
+
 func assertPresent(t *testing.T, language string) {
 	t.Helper()
 	_, ok := comments.Lookup(language)

@@ -1,0 +1,12 @@
+#pragma once
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/// Frees a buffer.
+KAPI_EXPORT void kapi_free(void *buffer);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif

@@ -1,0 +1,6 @@
+// -*- C++ -*-
+// SPDX-License-Identifier: Apache-2.0
+// clang-format off
+namespace ns {
+int value; // NOLINT(readability-identifier-naming)
+} // namespace ns

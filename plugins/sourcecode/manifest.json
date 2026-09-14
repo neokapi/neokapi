@@ -48,6 +48,66 @@
         }
       },
       {
+        "language": "c",
+        "display_name": "C",
+        "extensions": [
+          ".c",
+          ".h"
+        ],
+        "markers": {
+          "line": [
+            "///",
+            "//!",
+            "//"
+          ],
+          "block": [
+            {
+              "open": "/*",
+              "close": "*/"
+            }
+          ]
+        },
+        "canary": {
+          "name": "a Doxygen comment with a doubled word, below a licence tag and above a string holding a comment marker",
+          "source": "// SPDX-License-Identifier: Apache-2.0\n/** Parses the the input. */\nint parse(const char *text);\nstatic const char *marker = \"// not a comment\";\n",
+          "block": "func/parse"
+        }
+      },
+      {
+        "language": "cpp",
+        "display_name": "C++",
+        "extensions": [
+          ".cpp",
+          ".cc",
+          ".cxx",
+          ".c++",
+          ".hpp",
+          ".hh",
+          ".hxx",
+          ".h++",
+          ".ipp",
+          ".tpp"
+        ],
+        "markers": {
+          "line": [
+            "///",
+            "//!",
+            "//"
+          ],
+          "block": [
+            {
+              "open": "/*",
+              "close": "*/"
+            }
+          ]
+        },
+        "canary": {
+          "name": "a Doxygen comment with a doubled word, below a clang-format directive and above a raw string holding a comment marker",
+          "source": "// clang-format off\n/// Parses the the input.\nclass Parser {};\nauto marker = R\"(// not a comment)\";\n",
+          "block": "class/Parser"
+        }
+      },
+      {
         "language": "csharp",
         "display_name": "C#",
         "extensions": [

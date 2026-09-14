@@ -1,0 +1,6 @@
+// The first line.
+// The second line.
+
+/** Parses the input. */
+int parse(void);
+static const char *a = "// not a comment"; // trailing
