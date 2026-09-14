@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-12",
+  "generated_at": "2026-09-14",
   "target_level": "L4",
   "source": "format-ops bootstrap-publish (deterministic per-axis floor; no quality demotions)",
   "scorer_version": 5,
@@ -130,25 +130,25 @@
         "G4": 3
       },
       "prose": {
-        "P0": 37,
+        "P0": 26,
         "P1": 0,
-        "P2": 0,
+        "P2": 11,
         "P3": 0,
         "P4": 0
       }
     },
     "languages": {
-      "total": 5,
+      "total": 13,
       "by_presence": {
-        "present": 2,
-        "absent": 3,
+        "present": 13,
+        "absent": 0,
         "did-not-run": 0
       },
       "by_prose": {
-        "P0": 1,
+        "P0": 0,
         "P1": 0,
-        "P2": 1,
-        "P3": 0,
+        "P2": 12,
+        "P3": 1,
         "P4": 0
       }
     }
@@ -429,7 +429,7 @@
         "corpus": "C0",
         "security": "S1",
         "structure": "G0",
-        "prose": "P0"
+        "prose": "P2"
       },
       "next": {
         "engine": "L2",
@@ -439,7 +439,7 @@
         "corpus": "C1",
         "security": "S2",
         "structure": "G1",
-        "prose": "P1"
+        "prose": "P3"
       },
       "okapi_counterpart": "",
       "dimensions": {
@@ -477,8 +477,8 @@
         "readingorder": "none",
         "roles": "none",
         "geometry": "none",
-        "located": "none",
-        "governed": "none",
+        "located": "complete",
+        "governed": "complete",
         "editable": "none",
         "allforms": "none"
       },
@@ -582,24 +582,24 @@
           ]
         },
         "prose": {
-          "level": "P0",
-          "next": "P1",
-          "floor": "P0",
-          "ceiling": "P0",
+          "level": "P2",
+          "next": "P3",
+          "floor": "P2",
+          "ceiling": "P2",
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
           "blocking_gaps": [
-            "add TestProseP1_androidxml (P1)"
+            "add TestProseP3_androidxml (P3)"
           ],
           "rungs": {
             "P1": {
-              "outcome": "not-met",
-              "reason": "no test"
+              "outcome": "met",
+              "reason": "passed"
             },
             "P2": {
-              "outcome": "not-met",
-              "reason": "no test"
+              "outcome": "met",
+              "reason": "passed"
             },
             "P3": {
               "outcome": "not-met",
@@ -2099,7 +2099,7 @@
         "corpus": "C0",
         "security": "S1",
         "structure": "G4",
-        "prose": "P0"
+        "prose": "P2"
       },
       "next": {
         "engine": "L2",
@@ -2109,7 +2109,7 @@
         "corpus": "C1",
         "security": "S2",
         "structure": "—",
-        "prose": "P1"
+        "prose": "P3"
       },
       "okapi_counterpart": "",
       "dimensions": {
@@ -2147,8 +2147,8 @@
         "readingorder": "complete",
         "roles": "complete",
         "geometry": "complete",
-        "located": "none",
-        "governed": "none",
+        "located": "complete",
+        "governed": "complete",
         "editable": "none",
         "allforms": "none"
       },
@@ -2250,24 +2250,24 @@
           "blocking_gaps": []
         },
         "prose": {
-          "level": "P0",
-          "next": "P1",
-          "floor": "P0",
-          "ceiling": "P0",
+          "level": "P2",
+          "next": "P3",
+          "floor": "P2",
+          "ceiling": "P2",
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
           "blocking_gaps": [
-            "add TestProseP1_doclang (P1)"
+            "add TestProseP3_doclang (P3)"
           ],
           "rungs": {
             "P1": {
-              "outcome": "not-met",
-              "reason": "no test"
+              "outcome": "met",
+              "reason": "passed"
             },
             "P2": {
-              "outcome": "not-met",
-              "reason": "no test"
+              "outcome": "met",
+              "reason": "passed"
             },
             "P3": {
               "outcome": "not-met",
@@ -2724,7 +2724,7 @@
         "corpus": "C1",
         "security": "S2",
         "structure": "G3",
-        "prose": "P0"
+        "prose": "P2"
       },
       "next": {
         "engine": "L2",
@@ -2734,7 +2734,7 @@
         "corpus": "C2",
         "security": "S3",
         "structure": "G4",
-        "prose": "P1"
+        "prose": "P3"
       },
       "okapi_counterpart": "okf_html",
       "dimensions": {
@@ -2772,8 +2772,8 @@
         "readingorder": "complete",
         "roles": "complete",
         "geometry": "none",
-        "located": "none",
-        "governed": "none",
+        "located": "complete",
+        "governed": "complete",
         "editable": "none",
         "allforms": "none"
       },
@@ -2873,24 +2873,24 @@
           ]
         },
         "prose": {
-          "level": "P0",
-          "next": "P1",
-          "floor": "P0",
-          "ceiling": "P0",
+          "level": "P2",
+          "next": "P3",
+          "floor": "P2",
+          "ceiling": "P2",
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
           "blocking_gaps": [
-            "add TestProseP1_html (P1)"
+            "add TestProseP3_html (P3)"
           ],
           "rungs": {
             "P1": {
-              "outcome": "not-met",
-              "reason": "no test"
+              "outcome": "met",
+              "reason": "passed"
             },
             "P2": {
-              "outcome": "not-met",
-              "reason": "no test"
+              "outcome": "met",
+              "reason": "passed"
             },
             "P3": {
               "outcome": "not-met",
@@ -3563,7 +3563,7 @@
         "corpus": "C1",
         "security": "S2",
         "structure": "G3",
-        "prose": "P0"
+        "prose": "P2"
       },
       "next": {
         "engine": "L4",
@@ -3573,7 +3573,7 @@
         "corpus": "C2",
         "security": "S3",
         "structure": "G4",
-        "prose": "P1"
+        "prose": "P3"
       },
       "okapi_counterpart": "okf_markdown",
       "dimensions": {
@@ -3611,8 +3611,8 @@
         "readingorder": "complete",
         "roles": "complete",
         "geometry": "none",
-        "located": "none",
-        "governed": "none",
+        "located": "complete",
+        "governed": "complete",
         "editable": "none",
         "allforms": "none"
       },
@@ -3708,24 +3708,24 @@
           ]
         },
         "prose": {
-          "level": "P0",
-          "next": "P1",
-          "floor": "P0",
-          "ceiling": "P0",
+          "level": "P2",
+          "next": "P3",
+          "floor": "P2",
+          "ceiling": "P2",
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
           "blocking_gaps": [
-            "add TestProseP1_markdown (P1)"
+            "add TestProseP3_markdown (P3)"
           ],
           "rungs": {
             "P1": {
-              "outcome": "not-met",
-              "reason": "no test"
+              "outcome": "met",
+              "reason": "passed"
             },
             "P2": {
-              "outcome": "not-met",
-              "reason": "no test"
+              "outcome": "met",
+              "reason": "passed"
             },
             "P3": {
               "outcome": "not-met",
@@ -3762,7 +3762,7 @@
         "corpus": "C0",
         "security": "S1",
         "structure": "G2",
-        "prose": "P0"
+        "prose": "P2"
       },
       "next": {
         "engine": "L2",
@@ -3772,7 +3772,7 @@
         "corpus": "C1",
         "security": "S2",
         "structure": "G3",
-        "prose": "P1"
+        "prose": "P3"
       },
       "okapi_counterpart": "",
       "dimensions": {
@@ -3810,8 +3810,8 @@
         "readingorder": "complete",
         "roles": "none",
         "geometry": "none",
-        "located": "none",
-        "governed": "none",
+        "located": "complete",
+        "governed": "complete",
         "editable": "none",
         "allforms": "none"
       },
@@ -3913,24 +3913,24 @@
           ]
         },
         "prose": {
-          "level": "P0",
-          "next": "P1",
-          "floor": "P0",
-          "ceiling": "P0",
+          "level": "P2",
+          "next": "P3",
+          "floor": "P2",
+          "ceiling": "P2",
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
           "blocking_gaps": [
-            "add TestProseP1_mdx (P1)"
+            "add TestProseP3_mdx (P3)"
           ],
           "rungs": {
             "P1": {
-              "outcome": "not-met",
-              "reason": "no test"
+              "outcome": "met",
+              "reason": "passed"
             },
             "P2": {
-              "outcome": "not-met",
-              "reason": "no test"
+              "outcome": "met",
+              "reason": "passed"
             },
             "P3": {
               "outcome": "not-met",
@@ -5224,7 +5224,7 @@
         "corpus": "C1",
         "security": "S1",
         "structure": "G2",
-        "prose": "P0"
+        "prose": "P2"
       },
       "next": {
         "engine": "L3",
@@ -5234,7 +5234,7 @@
         "corpus": "C2",
         "security": "S2",
         "structure": "G3",
-        "prose": "P1"
+        "prose": "P3"
       },
       "okapi_counterpart": "okf_po",
       "dimensions": {
@@ -5272,8 +5272,8 @@
         "readingorder": "complete",
         "roles": "none",
         "geometry": "none",
-        "located": "none",
-        "governed": "none",
+        "located": "complete",
+        "governed": "complete",
         "editable": "none",
         "allforms": "none"
       },
@@ -5378,24 +5378,24 @@
           ]
         },
         "prose": {
-          "level": "P0",
-          "next": "P1",
-          "floor": "P0",
-          "ceiling": "P0",
+          "level": "P2",
+          "next": "P3",
+          "floor": "P2",
+          "ceiling": "P2",
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
           "blocking_gaps": [
-            "add TestProseP1_po (P1)"
+            "add TestProseP3_po (P3)"
           ],
           "rungs": {
             "P1": {
-              "outcome": "not-met",
-              "reason": "no test"
+              "outcome": "met",
+              "reason": "passed"
             },
             "P2": {
-              "outcome": "not-met",
-              "reason": "no test"
+              "outcome": "met",
+              "reason": "passed"
             },
             "P3": {
               "outcome": "not-met",
@@ -5434,7 +5434,7 @@
         "corpus": "C1",
         "security": "S1",
         "structure": "G0",
-        "prose": "P0"
+        "prose": "P2"
       },
       "next": {
         "engine": "L3",
@@ -5444,7 +5444,7 @@
         "corpus": "C2",
         "security": "S2",
         "structure": "G1",
-        "prose": "P1"
+        "prose": "P3"
       },
       "okapi_counterpart": "okf_properties",
       "dimensions": {
@@ -5482,8 +5482,8 @@
         "readingorder": "none",
         "roles": "none",
         "geometry": "none",
-        "located": "none",
-        "governed": "none",
+        "located": "complete",
+        "governed": "complete",
         "editable": "none",
         "allforms": "none"
       },
@@ -5589,24 +5589,24 @@
           ]
         },
         "prose": {
-          "level": "P0",
-          "next": "P1",
-          "floor": "P0",
-          "ceiling": "P0",
+          "level": "P2",
+          "next": "P3",
+          "floor": "P2",
+          "ceiling": "P2",
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
           "blocking_gaps": [
-            "add TestProseP1_properties (P1)"
+            "add TestProseP3_properties (P3)"
           ],
           "rungs": {
             "P1": {
-              "outcome": "not-met",
-              "reason": "no test"
+              "outcome": "met",
+              "reason": "passed"
             },
             "P2": {
-              "outcome": "not-met",
-              "reason": "no test"
+              "outcome": "met",
+              "reason": "passed"
             },
             "P3": {
               "outcome": "not-met",
@@ -5645,7 +5645,7 @@
         "corpus": "C0",
         "security": "S1",
         "structure": "G0",
-        "prose": "P0"
+        "prose": "P2"
       },
       "next": {
         "engine": "L4",
@@ -5655,7 +5655,7 @@
         "corpus": "C1",
         "security": "S2",
         "structure": "G1",
-        "prose": "P1"
+        "prose": "P3"
       },
       "okapi_counterpart": "",
       "dimensions": {
@@ -5693,8 +5693,8 @@
         "readingorder": "none",
         "roles": "none",
         "geometry": "none",
-        "located": "none",
-        "governed": "none",
+        "located": "complete",
+        "governed": "complete",
         "editable": "none",
         "allforms": "none"
       },
@@ -5796,24 +5796,24 @@
           ]
         },
         "prose": {
-          "level": "P0",
-          "next": "P1",
-          "floor": "P0",
-          "ceiling": "P0",
+          "level": "P2",
+          "next": "P3",
+          "floor": "P2",
+          "ceiling": "P2",
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
           "blocking_gaps": [
-            "add TestProseP1_resx (P1)"
+            "add TestProseP3_resx (P3)"
           ],
           "rungs": {
             "P1": {
-              "outcome": "not-met",
-              "reason": "no test"
+              "outcome": "met",
+              "reason": "passed"
             },
             "P2": {
-              "outcome": "not-met",
-              "reason": "no test"
+              "outcome": "met",
+              "reason": "passed"
             },
             "P3": {
               "outcome": "not-met",
@@ -6017,7 +6017,7 @@
           "delta": null,
           "agreement": 1,
           "blocking_gaps": [
-            "scored on the language rows: ruby"
+            "scored on the language rows: bash, c, cpp, csharp, css, java, javascript, python, ruby, rust, tsx, typescript"
           ],
           "rungs": {
             "P1": {
@@ -6038,7 +6038,18 @@
             }
           },
           "languages": [
-            "ruby"
+            "bash",
+            "c",
+            "cpp",
+            "csharp",
+            "css",
+            "java",
+            "javascript",
+            "python",
+            "ruby",
+            "rust",
+            "tsx",
+            "typescript"
           ]
         }
       },
@@ -6282,7 +6293,7 @@
         "corpus": "C1",
         "security": "S1",
         "structure": "G0",
-        "prose": "P0"
+        "prose": "P2"
       },
       "next": {
         "engine": "L3",
@@ -6292,7 +6303,7 @@
         "corpus": "C2",
         "security": "S2",
         "structure": "G1",
-        "prose": "P1"
+        "prose": "P3"
       },
       "okapi_counterpart": "okf_tmx",
       "dimensions": {
@@ -6330,8 +6341,8 @@
         "readingorder": "none",
         "roles": "none",
         "geometry": "none",
-        "located": "none",
-        "governed": "none",
+        "located": "complete",
+        "governed": "complete",
         "editable": "none",
         "allforms": "none"
       },
@@ -6437,24 +6448,24 @@
           ]
         },
         "prose": {
-          "level": "P0",
-          "next": "P1",
-          "floor": "P0",
-          "ceiling": "P0",
+          "level": "P2",
+          "next": "P3",
+          "floor": "P2",
+          "ceiling": "P2",
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
           "blocking_gaps": [
-            "add TestProseP1_tmx (P1)"
+            "add TestProseP3_tmx (P3)"
           ],
           "rungs": {
             "P1": {
-              "outcome": "not-met",
-              "reason": "no test"
+              "outcome": "met",
+              "reason": "passed"
             },
             "P2": {
-              "outcome": "not-met",
-              "reason": "no test"
+              "outcome": "met",
+              "reason": "passed"
             },
             "P3": {
               "outcome": "not-met",
@@ -7752,7 +7763,7 @@
         "corpus": "C1",
         "security": "S1",
         "structure": "G0",
-        "prose": "P0"
+        "prose": "P2"
       },
       "next": {
         "engine": "L3",
@@ -7762,7 +7773,7 @@
         "corpus": "C2",
         "security": "S2",
         "structure": "G1",
-        "prose": "P1"
+        "prose": "P3"
       },
       "okapi_counterpart": "okf_xmlstream (via alias 'xmlstream')",
       "dimensions": {
@@ -7800,8 +7811,8 @@
         "readingorder": "none",
         "roles": "none",
         "geometry": "none",
-        "located": "none",
-        "governed": "none",
+        "located": "complete",
+        "governed": "complete",
         "editable": "none",
         "allforms": "none"
       },
@@ -7906,24 +7917,24 @@
           ]
         },
         "prose": {
-          "level": "P0",
-          "next": "P1",
-          "floor": "P0",
-          "ceiling": "P0",
+          "level": "P2",
+          "next": "P3",
+          "floor": "P2",
+          "ceiling": "P2",
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
           "blocking_gaps": [
-            "add TestProseP1_xml (P1)"
+            "add TestProseP3_xml (P3)"
           ],
           "rungs": {
             "P1": {
-              "outcome": "not-met",
-              "reason": "no test"
+              "outcome": "met",
+              "reason": "passed"
             },
             "P2": {
-              "outcome": "not-met",
-              "reason": "no test"
+              "outcome": "met",
+              "reason": "passed"
             },
             "P3": {
               "outcome": "not-met",
@@ -7963,7 +7974,7 @@
         "corpus": "C1",
         "security": "S1",
         "structure": "G0",
-        "prose": "P0"
+        "prose": "P2"
       },
       "next": {
         "engine": "L3",
@@ -7973,7 +7984,7 @@
         "corpus": "C2",
         "security": "S2",
         "structure": "G1",
-        "prose": "P1"
+        "prose": "P3"
       },
       "okapi_counterpart": "okf_yaml",
       "dimensions": {
@@ -8011,8 +8022,8 @@
         "readingorder": "none",
         "roles": "none",
         "geometry": "none",
-        "located": "none",
-        "governed": "none",
+        "located": "complete",
+        "governed": "complete",
         "editable": "none",
         "allforms": "none"
       },
@@ -8118,24 +8129,24 @@
           ]
         },
         "prose": {
-          "level": "P0",
-          "next": "P1",
-          "floor": "P0",
-          "ceiling": "P0",
+          "level": "P2",
+          "next": "P3",
+          "floor": "P2",
+          "ceiling": "P2",
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
           "blocking_gaps": [
-            "add TestProseP1_yaml (P1)"
+            "add TestProseP3_yaml (P3)"
           ],
           "rungs": {
             "P1": {
-              "outcome": "not-met",
-              "reason": "no test"
+              "outcome": "met",
+              "reason": "passed"
             },
             "P2": {
-              "outcome": "not-met",
-              "reason": "no test"
+              "outcome": "met",
+              "reason": "passed"
             },
             "P3": {
               "outcome": "not-met",
@@ -8166,25 +8177,157 @@
     {
       "id": "bash",
       "name": "Bash",
-      "provider": "",
-      "presence": "absent",
-      "presence_reason": "no presence test",
-      "level": null,
-      "next": null,
+      "provider": "sourcecode",
+      "presence": "present",
+      "presence_reason": "TestProseP0_bash passed",
+      "level": "P2",
+      "next": "P3",
       "dims": {
-        "located": "none",
-        "governed": "none",
+        "located": "complete",
+        "governed": "complete",
         "editable": "none",
         "allforms": "none"
       },
       "rungs": {
         "P1": {
+          "outcome": "met",
+          "reason": "passed"
+        },
+        "P2": {
+          "outcome": "met",
+          "reason": "passed"
+        },
+        "P3": {
           "outcome": "not-met",
           "reason": "no test"
         },
-        "P2": {
+        "P4": {
           "outcome": "not-met",
           "reason": "no test"
+        }
+      }
+    },
+    {
+      "id": "c",
+      "name": "C",
+      "provider": "sourcecode",
+      "presence": "present",
+      "presence_reason": "TestProseP0_c passed",
+      "level": "P2",
+      "next": "P3",
+      "dims": {
+        "located": "complete",
+        "governed": "complete",
+        "editable": "none",
+        "allforms": "none"
+      },
+      "rungs": {
+        "P1": {
+          "outcome": "met",
+          "reason": "passed"
+        },
+        "P2": {
+          "outcome": "met",
+          "reason": "passed"
+        },
+        "P3": {
+          "outcome": "not-met",
+          "reason": "no test"
+        },
+        "P4": {
+          "outcome": "not-met",
+          "reason": "no test"
+        }
+      }
+    },
+    {
+      "id": "cpp",
+      "name": "C++",
+      "provider": "sourcecode",
+      "presence": "present",
+      "presence_reason": "TestProseP0_cpp passed",
+      "level": "P2",
+      "next": "P3",
+      "dims": {
+        "located": "complete",
+        "governed": "complete",
+        "editable": "none",
+        "allforms": "none"
+      },
+      "rungs": {
+        "P1": {
+          "outcome": "met",
+          "reason": "passed"
+        },
+        "P2": {
+          "outcome": "met",
+          "reason": "passed"
+        },
+        "P3": {
+          "outcome": "not-met",
+          "reason": "no test"
+        },
+        "P4": {
+          "outcome": "not-met",
+          "reason": "no test"
+        }
+      }
+    },
+    {
+      "id": "csharp",
+      "name": "C#",
+      "provider": "sourcecode",
+      "presence": "present",
+      "presence_reason": "TestProseP0_csharp passed",
+      "level": "P2",
+      "next": "P3",
+      "dims": {
+        "located": "complete",
+        "governed": "complete",
+        "editable": "none",
+        "allforms": "none"
+      },
+      "rungs": {
+        "P1": {
+          "outcome": "met",
+          "reason": "passed"
+        },
+        "P2": {
+          "outcome": "met",
+          "reason": "passed"
+        },
+        "P3": {
+          "outcome": "not-met",
+          "reason": "no test"
+        },
+        "P4": {
+          "outcome": "not-met",
+          "reason": "no test"
+        }
+      }
+    },
+    {
+      "id": "css",
+      "name": "CSS",
+      "provider": "sourcecode",
+      "presence": "present",
+      "presence_reason": "TestProseP0_css passed",
+      "level": "P2",
+      "next": "P3",
+      "dims": {
+        "located": "complete",
+        "governed": "complete",
+        "editable": "none",
+        "allforms": "none"
+      },
+      "rungs": {
+        "P1": {
+          "outcome": "met",
+          "reason": "passed"
+        },
+        "P2": {
+          "outcome": "met",
+          "reason": "passed"
         },
         "P3": {
           "outcome": "not-met",
@@ -8202,6 +8345,72 @@
       "provider": "",
       "presence": "present",
       "presence_reason": "TestProseP0_go passed",
+      "level": "P3",
+      "next": "P4",
+      "dims": {
+        "located": "complete",
+        "governed": "complete",
+        "editable": "complete",
+        "allforms": "none"
+      },
+      "rungs": {
+        "P1": {
+          "outcome": "met",
+          "reason": "passed"
+        },
+        "P2": {
+          "outcome": "met",
+          "reason": "passed"
+        },
+        "P3": {
+          "outcome": "met",
+          "reason": "passed"
+        },
+        "P4": {
+          "outcome": "not-met",
+          "reason": "no test"
+        }
+      }
+    },
+    {
+      "id": "java",
+      "name": "Java",
+      "provider": "sourcecode",
+      "presence": "present",
+      "presence_reason": "TestProseP0_java passed",
+      "level": "P2",
+      "next": "P3",
+      "dims": {
+        "located": "complete",
+        "governed": "complete",
+        "editable": "none",
+        "allforms": "none"
+      },
+      "rungs": {
+        "P1": {
+          "outcome": "met",
+          "reason": "passed"
+        },
+        "P2": {
+          "outcome": "met",
+          "reason": "passed"
+        },
+        "P3": {
+          "outcome": "not-met",
+          "reason": "no test"
+        },
+        "P4": {
+          "outcome": "not-met",
+          "reason": "no test"
+        }
+      }
+    },
+    {
+      "id": "javascript",
+      "name": "JavaScript",
+      "provider": "sourcecode",
+      "presence": "present",
+      "presence_reason": "TestProseP0_javascript passed",
       "level": "P2",
       "next": "P3",
       "dims": {
@@ -8232,25 +8441,25 @@
     {
       "id": "python",
       "name": "Python",
-      "provider": "",
-      "presence": "absent",
-      "presence_reason": "no presence test",
-      "level": null,
-      "next": null,
+      "provider": "sourcecode",
+      "presence": "present",
+      "presence_reason": "TestProseP0_python passed",
+      "level": "P2",
+      "next": "P3",
       "dims": {
-        "located": "none",
-        "governed": "none",
+        "located": "complete",
+        "governed": "complete",
         "editable": "none",
         "allforms": "none"
       },
       "rungs": {
         "P1": {
-          "outcome": "not-met",
-          "reason": "no test"
+          "outcome": "met",
+          "reason": "passed"
         },
         "P2": {
-          "outcome": "not-met",
-          "reason": "no test"
+          "outcome": "met",
+          "reason": "passed"
         },
         "P3": {
           "outcome": "not-met",
@@ -8268,22 +8477,88 @@
       "provider": "sourcecode",
       "presence": "present",
       "presence_reason": "TestProseP0_ruby passed",
-      "level": "P0",
-      "next": "P1",
+      "level": "P2",
+      "next": "P3",
       "dims": {
-        "located": "none",
-        "governed": "none",
+        "located": "complete",
+        "governed": "complete",
         "editable": "none",
         "allforms": "none"
       },
       "rungs": {
         "P1": {
+          "outcome": "met",
+          "reason": "passed"
+        },
+        "P2": {
+          "outcome": "met",
+          "reason": "passed"
+        },
+        "P3": {
           "outcome": "not-met",
           "reason": "no test"
         },
-        "P2": {
+        "P4": {
           "outcome": "not-met",
           "reason": "no test"
+        }
+      }
+    },
+    {
+      "id": "rust",
+      "name": "Rust",
+      "provider": "sourcecode",
+      "presence": "present",
+      "presence_reason": "TestProseP0_rust passed",
+      "level": "P2",
+      "next": "P3",
+      "dims": {
+        "located": "complete",
+        "governed": "complete",
+        "editable": "none",
+        "allforms": "none"
+      },
+      "rungs": {
+        "P1": {
+          "outcome": "met",
+          "reason": "passed"
+        },
+        "P2": {
+          "outcome": "met",
+          "reason": "passed"
+        },
+        "P3": {
+          "outcome": "not-met",
+          "reason": "no test"
+        },
+        "P4": {
+          "outcome": "not-met",
+          "reason": "no test"
+        }
+      }
+    },
+    {
+      "id": "tsx",
+      "name": "TSX",
+      "provider": "sourcecode",
+      "presence": "present",
+      "presence_reason": "TestProseP0_tsx passed",
+      "level": "P2",
+      "next": "P3",
+      "dims": {
+        "located": "complete",
+        "governed": "complete",
+        "editable": "none",
+        "allforms": "none"
+      },
+      "rungs": {
+        "P1": {
+          "outcome": "met",
+          "reason": "passed"
+        },
+        "P2": {
+          "outcome": "met",
+          "reason": "passed"
         },
         "P3": {
           "outcome": "not-met",
@@ -8298,25 +8573,25 @@
     {
       "id": "typescript",
       "name": "TypeScript",
-      "provider": "",
-      "presence": "absent",
-      "presence_reason": "no presence test",
-      "level": null,
-      "next": null,
+      "provider": "sourcecode",
+      "presence": "present",
+      "presence_reason": "TestProseP0_typescript passed",
+      "level": "P2",
+      "next": "P3",
       "dims": {
-        "located": "none",
-        "governed": "none",
+        "located": "complete",
+        "governed": "complete",
         "editable": "none",
         "allforms": "none"
       },
       "rungs": {
         "P1": {
-          "outcome": "not-met",
-          "reason": "no test"
+          "outcome": "met",
+          "reason": "passed"
         },
         "P2": {
-          "outcome": "not-met",
-          "reason": "no test"
+          "outcome": "met",
+          "reason": "passed"
         },
         "P3": {
           "outcome": "not-met",

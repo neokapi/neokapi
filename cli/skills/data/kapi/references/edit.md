@@ -98,6 +98,34 @@ against the retrieved context. A passing report does not establish those
 judgments. Use `kapi check --ship --json` when the task also requires checking
 project release gates.
 
+## Repair a comment finding
+
+Repair a finding on a code comment, such as `func/Parse` in a Go file, with a
+`comment` entry. Do not edit the file around the comment. The entry names the
+`file`, the comment's `id` and the `lines` from the finding, and `text` holds
+the new prose without `//` markers:
+
+```json
+{"kind":"comment","file":"internal/parse/parse.go","id":"func/Parse","lines":{"first":5,"last":7},"text":"Parse reads the input.\n\nIt stops at the end."}
+```
+
+```bash
+kapi apply edits.jsonl
+```
+
+- Keep the comment's code blocks, `[references]`, list items and any
+  `Deprecated:` paragraph. Dropping or adding one refuses the edit.
+- Use the `lines` of the finding you are fixing. A comment that has moved since
+  is refused as `stale`; check again and use the new lines.
+- A refused edit writes nothing, reports a `reason` and `detail`, and exits on
+  the gate code (3). Directives, generated files, the cgo preamble, example
+  output and `/* */` comments are refused.
+- The result carries a check scoped to what was written. If it reports a
+  finding, send another edit for it. Then check the whole change
+  (`kapi check --diff-against <base>` or `--staged`) before you report done.
+
+MCP `apply_edits` takes the same entries and returns the same check.
+
 ## Which formats can I edit?
 
 `kapi formats` reports an **Edit** column and the JSON adds `editable` and

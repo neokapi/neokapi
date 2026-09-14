@@ -618,6 +618,38 @@ limit a comment is held to. `File.LineKinds` classifies each line of a file
 from the spans a provider located, as code, comment, package doc, set aside or
 blank, and the density limit counts a change's added lines with it.
 
+A comment can also be rewritten. A provider that implements `comment.Rewriter`
+renders prose into its language's comment syntax, and `comment.Rewrite` holds
+the result to `comment.Contain` before anything is written. Contain requires
+every byte before and after the comment's span to be identical. The provider
+must locate the rewritten file with the same comments and set-aside lines, moved
+by the rewrite and otherwise equal. The rewritten comment must sit on the same
+subject, with the same deprecation marker and the same placeholders: code
+blocks, links, references and list items. Where the language has a formatter,
+it must agree with the rewritten comment and with every comment it agreed with
+before. A rewrite that fails any of these is refused with a reason, and nothing
+is written.
+
+The Go provider rewrites line comments. It keeps the comment's indentation and
+line ending, and writes each line with the marker gofmt uses. It reflows a
+paragraph or list item only when one of its lines is wider than the comment's
+widest line, or 80 columns, whichever is wider. A comment in the position gofmt
+reformats as a doc comment goes through `go/doc/comment`'s printer, as gofmt
+does. Directives, generated files, the cgo preamble, example output and `/* */`
+comments are not addressable, and a refusal names what the file sets aside.
+`TestProseP3_go` rewrites every Go comment in the repository with its own prose
+and requires each file to stay byte-identical.
+
+`kapi apply` and MCP `apply_edits` reach the rewrite through a `comment` entry,
+addressed by file and the id a check reports, with the lines the check reported
+as its drift anchor. Before the first comment of a language is written in a run,
+`comment.VerifyRewriter` runs a write canary: a known comment rewritten with its
+own prose must stay byte-identical, a known-bad text must be refused, and a
+splice one byte before the comment must be refused as uncontained. When the
+canary fails, no comment of that language is written. A file's edits apply from
+its last comment to its first, the file is read again before it is written, and
+a check scoped to the written change comes back with the result.
+
 #### Default on, via an inverted opt-out
 
 Surfacing is the **default**, controlled per format by a single boolean,
