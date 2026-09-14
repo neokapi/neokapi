@@ -191,6 +191,9 @@ versions B holds, so each commit in a range is held to today's rules. A pull
 request check needs exactly that, and so does a search of history for the
 commit where a file first broke a rule. Inside a project, a file B holds is
 content when that recipe declares its path.
+[Check changes in git](/kapi/recipes/verify-content#check-changes-in-git) has a
+pre-commit hook, a pull request check, a sweep for the commits that added
+findings and a `git bisect run` wrapper built on these flags.
 
 A diff names lines, and kapi widens each changed line to the content block it
 belongs to: a one-line edit inside a seven-line paragraph checks the whole
