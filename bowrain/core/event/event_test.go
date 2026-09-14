@@ -152,8 +152,6 @@ func pinnedEventTypes() []struct {
 		{event.EventItemDeleted, "item.deleted"},
 		{event.EventVoiceCheckStarted, "voice.check.started"},
 		{event.EventVoiceCheckCompleted, "voice.check.completed"},
-		{event.EventVoiceGateFailed, "voice.gate.failed"},
-		{event.EventVoiceGatePassed, "voice.gate.passed"},
 		{event.EventVoiceDrift, "voice.drift"},
 		{event.EventVoiceCorrected, "voice.corrected"},
 		{event.EventVoiceProfileUpdated, "voice.profile.updated"},

@@ -1456,4 +1456,34 @@ var Migrations = []storage.Migration{
 			ALTER TABLE ship_verdicts ADD COLUMN IF NOT EXISTS terms TEXT NOT NULL DEFAULT '';
 		`,
 	},
+	{
+		Version:     35,
+		Description: "the ship gate records the gate failures it has announced",
+		SQL: `
+			-- One row per unmet gate of a locale's ship state (core/store
+			-- ShipGateResults) that has been announced as a quality.gate.fail
+			-- event. Each derivation compares its results with these rows: an unmet
+			-- gate with no row, or whose not_checked flag differs, is announced and
+			-- recorded, and a row whose gate is met again is deleted and announced as
+			-- a quality.gate.pass. A gate with no row is never announced as passing.
+			--
+			-- ship_verdicts holds per-block verdicts, replaced in place, and holds
+			-- nothing about coverage, stale decisions or rejections, so it cannot say
+			-- what a locale's gates were when they were last announced. These rows
+			-- can be truncated: the next derivation announces each current failure
+			-- once. A new table, so applying this version to an existing database
+			-- creates it there as it does in an empty one.
+			CREATE TABLE IF NOT EXISTS ship_gate_failures (
+				project_id  TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				stream      TEXT NOT NULL DEFAULT 'main',
+				locale      TEXT NOT NULL,
+				gate        TEXT NOT NULL,
+				not_checked BOOLEAN NOT NULL DEFAULT FALSE,
+				actual      INTEGER NOT NULL DEFAULT 0,
+				required    INTEGER NOT NULL DEFAULT 0,
+				opened_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				PRIMARY KEY (project_id, stream, locale, gate)
+			);
+		`,
+	},
 }

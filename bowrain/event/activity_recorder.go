@@ -170,11 +170,13 @@ func (r *ActivityRecorder) mapEventToActivity(ev platev.Event) *bstore.Activity 
 	case platev.EventQualityGatePass:
 		a.Type = bstore.ActivityGatePassed
 		a.EntityType = "gate"
-		a.Summary = "quality gate passed"
+		a.EntityID = qualityGateEntity(ev.Data)
+		a.Summary = qualityGateSummary(ev.Data, "passed")
 	case platev.EventQualityGateFail:
 		a.Type = bstore.ActivityGateFailed
 		a.EntityType = "gate"
-		a.Summary = "quality gate failed"
+		a.EntityID = qualityGateEntity(ev.Data)
+		a.Summary = qualityGateSummary(ev.Data, "failed")
 
 	// Voice
 	case platev.EventVoiceDrift:
@@ -464,4 +466,22 @@ func atoiOr(s string, def int) int {
 		return def
 	}
 	return n
+}
+
+// qualityGateSummary is the feed line for a quality gate event, naming the gate
+// and the language when the event carries them.
+func qualityGateSummary(data map[string]string, outcome string) string {
+	gate, locale := data["gate_name"], data["locale"]
+	if gate == "" || locale == "" {
+		return "quality gate " + outcome
+	}
+	return "quality gate " + gate + " " + outcome + " for " + locale
+}
+
+// qualityGateEntity identifies the gate an event is about, as gate:locale.
+func qualityGateEntity(data map[string]string) string {
+	if data["gate_name"] == "" || data["locale"] == "" {
+		return ""
+	}
+	return data["gate_name"] + ":" + data["locale"]
 }

@@ -793,6 +793,14 @@ runner_usage.operation text NOT NULL
 runner_usage.project_id text NOT NULL DEFAULT ''::text
 runner_usage.reference_id text NOT NULL DEFAULT ''::text
 runner_usage.workspace_id text NOT NULL
+ship_gate_failures.actual integer NOT NULL DEFAULT 0
+ship_gate_failures.gate text NOT NULL
+ship_gate_failures.locale text NOT NULL
+ship_gate_failures.not_checked boolean NOT NULL DEFAULT false
+ship_gate_failures.opened_at timestamp with time zone NOT NULL DEFAULT now()
+ship_gate_failures.project_id text NOT NULL
+ship_gate_failures.required integer NOT NULL DEFAULT 0
+ship_gate_failures.stream text NOT NULL DEFAULT 'main'::text
 ship_verdicts.basis text NOT NULL DEFAULT ''::text
 ship_verdicts.block_id text NOT NULL
 ship_verdicts.fails boolean NOT NULL DEFAULT false
@@ -1373,6 +1381,8 @@ role_templates role_templates_workspace_id_fkey FOREIGN KEY (workspace_id) REFER
 role_templates role_templates_workspace_id_name_key UNIQUE (workspace_id, name)
 runner_schema_migrations runner_schema_migrations_pkey PRIMARY KEY (version)
 runner_usage runner_usage_pkey PRIMARY KEY (id)
+ship_gate_failures ship_gate_failures_pkey PRIMARY KEY (project_id, stream, locale, gate)
+ship_gate_failures ship_gate_failures_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 ship_verdicts ship_verdicts_pkey PRIMARY KEY (project_id, stream, block_id, locale)
 ship_verdicts ship_verdicts_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 sod_settings sod_settings_pkey PRIMARY KEY (workspace_id)
@@ -1773,6 +1783,7 @@ CREATE UNIQUE INDEX role_templates_pkey ON public.role_templates USING btree (wo
 CREATE UNIQUE INDEX role_templates_workspace_id_name_key ON public.role_templates USING btree (workspace_id, name)
 CREATE UNIQUE INDEX runner_schema_migrations_pkey ON public.runner_schema_migrations USING btree (version)
 CREATE UNIQUE INDEX runner_usage_pkey ON public.runner_usage USING btree (id)
+CREATE UNIQUE INDEX ship_gate_failures_pkey ON public.ship_gate_failures USING btree (project_id, stream, locale, gate)
 CREATE UNIQUE INDEX ship_verdicts_pkey ON public.ship_verdicts USING btree (project_id, stream, block_id, locale)
 CREATE UNIQUE INDEX sod_settings_pkey ON public.sod_settings USING btree (workspace_id)
 CREATE UNIQUE INDEX store_schema_migrations_pkey ON public.store_schema_migrations USING btree (version)

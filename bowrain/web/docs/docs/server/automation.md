@@ -31,9 +31,8 @@ A rule fires on one of these events:
 | Trigger | Fires when |
 | --- | --- |
 | `connector.push.completed` | Content is pushed, from a checkout or a repository |
-| `connector.pull.completed` | Content is pulled |
 | `project.updated` | Project settings change |
-| `quality.gate.fail` | A quality gate fails |
+| `quality.gate.fail` | A language stops meeting a ship gate |
 | `push.automations.completed` | Every automation for a push has completed |
 | `source.review.completed` | A source review task is completed |
 
@@ -208,13 +207,26 @@ such as "3 shippable · 1 parked". A **Run now** button starts a run from the
 app, and an in-flight run can be canceled. Parked units land in the
 [review session](/server/review).
 
-## Quality gates
+## Quality gate events
 
-Quality gates evaluate content against thresholds before allowing operations to
-proceed. A blocking gate aborts the operation if the check fails; an advisory
-gate logs a warning but continues. Gates integrate with both server-side and
-local automation, so you can enforce standards at the server level (on push)
-and at the CLI level (pre-push).
+Bowrain derives each target language's ship state from five gates: coverage
+(`translated`), the checks (`checks`), terminology where terms govern the
+language (`terms`), decisions on source that has changed (`stale`), and wording
+a reviewer rejected (`rejected`). When a language stops meeting a gate, Bowrain
+publishes `quality.gate.fail` for that gate and language. When it meets the gate
+again, Bowrain publishes `quality.gate.pass`. An unchanged result publishes
+nothing, and a language whose first result meets every gate publishes no pass.
+A fail for a gate that is unmet because a check has no result says so.
+
+Bowrain derives ship states when a convergence run finishes and when someone
+reads the project dashboard or the ship feed, so an event follows the change it
+reports by at most one of these.
+
+The events report state and block nothing. A rule on `quality.gate.fail` can run
+a flow, and a failed gate notifies the project's members. To stop content that
+does not meet a bar, gate where it is produced: `kapi check --ship` exits
+non-zero when a ship gate is unmet, and a local `run_flow` action with
+`fail_on_error: true` aborts the command on the flow's findings.
 
 ## Loop prevention
 

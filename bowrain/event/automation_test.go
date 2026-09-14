@@ -170,8 +170,6 @@ func TestVoiceEventTypes(t *testing.T) {
 	}{
 		{platev.EventVoiceCheckStarted, "voice.check.started"},
 		{platev.EventVoiceCheckCompleted, "voice.check.completed"},
-		{platev.EventVoiceGateFailed, "voice.gate.failed"},
-		{platev.EventVoiceGatePassed, "voice.gate.passed"},
 		{platev.EventVoiceDrift, "voice.drift"},
 		{platev.EventVoiceCorrected, "voice.corrected"},
 		{platev.EventVoiceProfileUpdated, "voice.profile.updated"},
@@ -188,8 +186,6 @@ func TestIsVoiceEvent(t *testing.T) {
 	}{
 		{platev.EventVoiceCheckStarted, true},
 		{platev.EventVoiceCheckCompleted, true},
-		{platev.EventVoiceGateFailed, true},
-		{platev.EventVoiceGatePassed, true},
 		{platev.EventVoiceDrift, true},
 		{platev.EventVoiceCorrected, true},
 		{platev.EventVoiceProfileUpdated, true},
@@ -218,14 +214,14 @@ func TestAutomationVoiceRule(t *testing.T) {
 	defer engine.Close()
 
 	engine.AddRule(AutomationRule{
-		Name:      "voice-gate",
-		EventType: platev.EventVoiceGateFailed,
+		Name:      "voice-drift",
+		EventType: platev.EventVoiceDrift,
 		Actions:   []AutomationAction{{Type: "notify", Config: map[string]string{"channel": "brand-alerts"}}},
 	})
 
 	bus.Publish(platev.Event{Type: platev.EventVoiceCheckStarted}) // Should not trigger
-	bus.Publish(platev.Event{Type: platev.EventVoiceGateFailed})   // Should trigger
-	bus.Publish(platev.Event{Type: platev.EventVoiceGatePassed})   // Should not trigger
+	bus.Publish(platev.Event{Type: platev.EventVoiceDrift})        // Should trigger
+	bus.Publish(platev.Event{Type: platev.EventVoiceCorrected})    // Should not trigger
 
 	require.Eventually(t, func() bool {
 		mu.Lock()
@@ -234,7 +230,7 @@ func TestAutomationVoiceRule(t *testing.T) {
 	}, 2*time.Second, 10*time.Millisecond)
 
 	mu.Lock()
-	assert.Equal(t, platev.EventVoiceGateFailed, executed[0])
+	assert.Equal(t, platev.EventVoiceDrift, executed[0])
 	mu.Unlock()
 }
 

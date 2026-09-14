@@ -563,6 +563,10 @@ func (o *convergenceOrchestrator) driveWith(ctx context.Context, run *bstore.Con
 		o.createCompletionReviewTasks(context.WithoutCancel(ctx), run)
 	}
 
+	// The run changed the project's content, so its ship states may have moved:
+	// announce the gates whose result changed, whatever state the run ended in.
+	o.server.announceShipGatesForProject(context.WithoutCancel(ctx), run.ProjectID, run.Stream)
+
 	// Announce the terminal state on the bus: the forge delivery tier, the
 	// activity recorder, and any future subscriber react to finished runs
 	// without polling the run store. Published for every terminal state —
