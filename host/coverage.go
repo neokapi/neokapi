@@ -556,10 +556,17 @@ func (a *App) shipCoverage(ctx context.Context, proj *project.KapiProject, root 
 	}
 	rows := tally.RollupGates(rs, vs)
 	// Governance is known only where the checks ran: a caller that passed no
-	// exclusions did not resolve the terms, so it names nothing as ungoverned.
+	// exclusions did not resolve the terms, so it names nothing as ungoverned. A
+	// scope is governed when terms govern any of its units.
 	if excl != nil {
+		governed := map[convergence.Scope]bool{}
+		for _, u := range units {
+			if excl.termsGovern(u) {
+				governed[convergence.Scope{Collection: u.Collection, Locale: u.Locale}] = true
+			}
+		}
 		for i := range rows {
-			if !excl.termsGovern(rows[i].Locale) {
+			if !governed[convergence.Scope{Collection: rows[i].Collection, Locale: rows[i].Locale}] {
 				rows[i].NotGoverned = []string{"terms"}
 			}
 		}
@@ -616,9 +623,9 @@ func (a *App) coverageTally(ctx context.Context, proj *project.KapiProject, root
 				if b.Translatable {
 					tally.Add(s, string(model.TargetStatusTranslated))
 					// The terminology check reads the target, and this one cannot be
-					// read. Where the project's terms govern the locale the unit has
-					// no terminology result, and that withholds the verdict.
-					if excl.termsGovern(u.Locale) {
+					// read. Where terms govern the unit it has no terminology result,
+					// and that withholds the verdict.
+					if excl.termsGovern(u) {
 						tally.NoteTermsNotChecked(s)
 					}
 				}

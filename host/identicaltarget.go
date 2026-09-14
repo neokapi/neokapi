@@ -39,10 +39,10 @@ const checkCategoryTargetSameAsSource = "target-same-as-source"
 // placeholder on an approved unit is still a defect, and an approval does not
 // license it.
 type identicalTargetRule struct {
-	// resolve reads the do-not-translate terms for a locale; nil disables that
-	// half (no terms bound, or none resolvable).
-	resolve  func(locale string) map[string]bool
-	byLocale map[string]map[string]bool
+	// terms resolves the term rules governing a unit at its point, from which
+	// the do-not-translate half reads the strings kept unchanged there; nil
+	// disables that half.
+	terms    *unitTermRules
 	reviewed reviewedIndex
 	// root is the project root the rule resolves a unit's source path against,
 	// so it asks the index for the decision made in THAT document — the same
@@ -62,10 +62,9 @@ type identicalTargetRule struct {
 // store has recorded no decision, which is exactly the empty index it yields.
 func (a *App) newIdenticalTargetRule(ctx context.Context, cmd Command, proj *project.KapiProject, root string) (*identicalTargetRule, error) {
 	r := &identicalTargetRule{
-		byLocale: map[string]map[string]bool{},
-		resolve:  func(locale string) map[string]bool { return a.doNotTranslateTerms(cmd, locale) },
-		root:     root,
-		docs:     a.documentIndexOrEmpty(ctx, root),
+		terms: a.newUnitTermRules(cmd, proj, root),
+		root:  root,
+		docs:  a.documentIndexOrEmpty(ctx, root),
 	}
 	if !projectStoreExists(root) {
 		return r, nil
@@ -88,7 +87,7 @@ func (r *identicalTargetRule) settles(sourcePath string, b *model.Block, locale 
 	if r == nil {
 		return false
 	}
-	if r.doNotTranslate(locale)[b.SourceText()] {
+	if r.doNotTranslate(sourcePath, locale)[b.SourceText()] {
 		return true
 	}
 	e, _, applies := r.reviewed.grade(r.docs.Scope(r.root, sourcePath), b, locale)
@@ -101,16 +100,16 @@ func (r *identicalTargetRule) suppresses(f check.Finding, sourcePath string, b *
 	return f.Category == checkCategoryTargetSameAsSource && r.settles(sourcePath, b, locale)
 }
 
-// doNotTranslate returns the locale's do-not-translate source texts, resolving
-// them once per locale (the resolution opens the terms store).
-func (r *identicalTargetRule) doNotTranslate(locale string) map[string]bool {
-	if set, ok := r.byLocale[locale]; ok {
-		return set
+// doNotTranslate returns the do-not-translate source texts of the terms bound
+// where sourcePath sits, for a locale. A resolution error leaves the rule with
+// nothing to suppress.
+func (r *identicalTargetRule) doNotTranslate(sourcePath, locale string) map[string]bool {
+	if r.terms == nil {
+		return nil
 	}
-	var set map[string]bool
-	if r.resolve != nil {
-		set = r.resolve(locale)
+	rules, err := r.terms.forUnit(VerifyUnit{SourcePath: sourcePath, Locale: locale})
+	if err != nil {
+		return nil
 	}
-	r.byLocale[locale] = set
-	return set
+	return doNotTranslateTerms(rules)
 }

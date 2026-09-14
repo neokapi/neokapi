@@ -9,8 +9,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -82,6 +84,13 @@ type verifyGateResult struct {
 type verifyCoverage struct {
 	Files  int `json:"files"`
 	Blocks int `json:"blocks"`
+	// NotGoverned counts the files the gate holds to nothing, because nothing
+	// it enforces is bound at their point for their language. They are neither
+	// checked nor failed.
+	NotGoverned int `json:"not_governed,omitempty"`
+	// NotChecked counts the governed files the gate could not read. The gate
+	// does not pass while one remains.
+	NotChecked int `json:"not_checked,omitempty"`
 }
 
 // verifySummary carries the aggregate counts for a verify run.
@@ -130,6 +139,12 @@ func (o verifyOutput) FormatText(w io.Writer) error {
 		coverage := ""
 		if g.Coverage != nil {
 			coverage = fmt.Sprintf("%d file(s), %d block(s)", g.Coverage.Files, g.Coverage.Blocks)
+			if g.Coverage.NotChecked > 0 {
+				coverage += fmt.Sprintf(", %d not checked", g.Coverage.NotChecked)
+			}
+			if g.Coverage.NotGoverned > 0 {
+				coverage += fmt.Sprintf(", %d not governed", g.Coverage.NotGoverned)
+			}
 		}
 		gates.Rowf(gateDisplayName(g.Gate), result, len(g.Findings), coverage)
 	}
@@ -386,26 +401,8 @@ func (a *App) computeVerify(cmd Command, args []string) (verifyOutput, error) {
 		}
 	}
 
-	// --- terminology gate binding check ----------------------------------
-	// The terminology gate needs a bound terms to enforce against. When one
-	// is bound it runs; when not, an explicitly requested gate fails (loud
-	// misconfiguration) while a default run skips it silently.
-	runTerms := false
-	if sel.terms {
-		bound, err := a.projectTermsBound(cmd)
-		if err != nil {
-			return verifyOutput{}, err
-		}
-		switch {
-		case bound:
-			runTerms = true
-		case sel.explicit:
-			gates = append(gates, unboundGate(gateTerms, "defaults.terms_source"))
-		}
-	}
-
 	// --- terminology + checks gates ------------------------------------------
-	if runTerms || sel.checks {
+	if sel.terms || sel.checks {
 		// Inspect source-only content and real source/target pairs, narrowed
 		// to explicit files when the caller supplies them.
 		units, err := a.resolveVerifyCheckUnits(cmd, proj, root, args, localeFilter)
@@ -413,12 +410,25 @@ func (a *App) computeVerify(cmd Command, args []string) (verifyOutput, error) {
 			return verifyOutput{}, err
 		}
 
-		if runTerms {
-			termGate, err := a.verifyTerminology(cmd, units, unread)
+		// The terminology gate runs where terms govern content: at the point
+		// each unit sits at, for its language, whether the project default or a
+		// profile binds them. With no governed unit in scope, a default run has
+		// no terminology gate, and an explicitly requested one did not run.
+		if sel.terms {
+			termGate, governed, err := a.verifyTerminology(cmd, proj, units, unread)
 			if err != nil {
 				return verifyOutput{}, err
 			}
-			gates = append(gates, termGate)
+			switch {
+			case governed:
+				gates = append(gates, termGate)
+			case sel.explicit:
+				ungoverned, err := a.ungovernedTermsGate(cmd, proj, root)
+				if err != nil {
+					return verifyOutput{}, err
+				}
+				gates = append(gates, ungoverned)
+			}
 		}
 		if sel.checks {
 			checksGate, err := a.verifyChecks(cmd, proj, root, units, warnings, unread)
@@ -568,6 +578,19 @@ func (a *App) verifyShip(cmd Command, proj *project.KapiProject, root string, un
 				Message: fmt.Sprintf("%s: %d unit(s) stale, so the source changed since the translation was decided",
 					scope, lc.Stale),
 				Suggestion: "re-review the stale units (kapi status --review) or retranslate them",
+			})
+		}
+		// A unit the terms govern with no terminology result fails the gate on
+		// the same footing: nothing checked whether its wording follows them.
+		if lc.TermsNotChecked > 0 {
+			g.Pass = false
+			g.Findings = append(g.Findings, verifyFinding{
+				Gate:     gateShip,
+				Locale:   lc.Locale,
+				Severity: "error",
+				Message: fmt.Sprintf("%s: %d unit(s) have no terminology result, because terms govern them and their targets could not be read to check",
+					scope, lc.TermsNotChecked),
+				Suggestion: "write these targets in a format kapi can read back, so their terminology can be checked",
 			})
 		}
 		if !lc.Gated || lc.Shippable {
@@ -726,12 +749,65 @@ func unboundGate(gate, binding string) verifyGateResult {
 	}
 }
 
-// projectTermsBound reports whether the terminology gate has a vocabulary to
-// enforce against: a --termstore flag, a profile's standalone `terms:`, a
-// committed defaults.terms_source (.terms.json) resolved directly at check
-// time, or concepts in the project's own store. It mirrors the resolution the
-// gate itself uses (ResolveTermsStore / resolveProjectTermsSourcePath), so
-// "bound" means the same thing here and there.
+// ungovernedTermsGate is the result for an explicitly requested terminology gate
+// when no unit in scope sits where terms govern it for its language. A project
+// that binds terms nowhere reports the missing binding. One that binds them
+// somewhere reports where, and that they govern none of the content the run
+// covered. Either way the gate did not run.
+func (a *App) ungovernedTermsGate(cmd Command, proj *project.KapiProject, root string) (verifyGateResult, error) {
+	bound, err := a.termsBindings(cmd, proj, root)
+	if err != nil {
+		return verifyGateResult{}, err
+	}
+	if len(bound) == 0 {
+		return unboundGate(gateTerms, "defaults.terms_source"), nil
+	}
+	flag := "--" + gateFlagName + " " + gateTerms
+	where := strings.Join(bound, ", ")
+	return verifyGateResult{
+		Gate:           gateTerms,
+		Pass:           false,
+		Verdict:        check.VerdictDidNotRun,
+		DidNotRunCause: check.CauseNothingToCheck,
+		DidNotRun:      []string{fmt.Sprintf("%s was requested, and the terms bound at %s govern none of the content in scope", flag, where)},
+		Findings: []verifyFinding{{
+			Gate:       gateTerms,
+			Severity:   "error",
+			Message:    fmt.Sprintf("%s gate was requested with %s, and no content in scope sits where terms govern its language (terms are bound at %s)", gateTerms, flag, where),
+			Suggestion: "give the content a channel whose profile binds terms, or add terms for the language it is in",
+		}},
+	}, nil
+}
+
+// termsBindings names the places the recipe binds terms: the project default
+// when terms resolve there, and each profile whose own terms resolve.
+func (a *App) termsBindings(cmd Command, proj *project.KapiProject, root string) ([]string, error) {
+	var bound []string
+	atDefault, err := a.projectTermsBound(cmd)
+	if err != nil {
+		return nil, err
+	}
+	if atDefault {
+		bound = append(bound, "the project default")
+	}
+	for _, name := range slices.Sorted(maps.Keys(proj.Profiles)) {
+		rc, err := proj.ResolveGovernanceFor(project.GovernancePoint{Profile: name})
+		if err != nil {
+			return nil, err
+		}
+		if governedTermsPath(root, rc) != "" {
+			bound = append(bound, "profiles."+name)
+		}
+	}
+	return bound, nil
+}
+
+// projectTermsBound reports whether terms are bound at the project's default
+// point: a --termstore flag, a committed defaults.terms_source (.terms.json)
+// resolved directly at check time, a terms bundle at a conventional location,
+// or concepts in the project's own store. It mirrors the resolution the gate
+// itself uses (ResolveTermsStore / resolveProjectTermsSourcePath), so "bound"
+// means the same thing here and there.
 //
 // The project store is the case that changed shape: its vocabulary tables exist
 // from the store's first open, so their presence says nothing and "bound" can
@@ -1292,71 +1368,73 @@ func expandTargetTemplate(itemPath, base, tmpl, sourceRel, locale, root, localeF
 
 // --- terminology gate -------------------------------------------------------
 
-// verifyTerminology term-checks each target file against the term rules
-// governing it, reusing core/tools.NewTermCheckTool. The rules are resolved per
-// target locale AND per point: the terms a profile binds govern that profile's
-// content, so a unit whose source sits under a per-item `channel:` override is
-// checked against the vocabulary in force there. A locale with no rules
-// contributes no findings; a missing target file (untranslated) is flagged by
+// verifyTerminology term-checks each unit against the term rules governing it,
+// reusing core/tools.NewTermCheckTool. The rules are resolved per target locale
+// AND per point: the terms a profile binds govern that profile's content, so a
+// unit whose source sits under a profile's channel, or a per-item `channel:`
+// override, is checked against the vocabulary in force there.
+//
+// governed reports whether terms govern any unit in scope, which is what
+// schedules the gate. A unit whose point binds no rules for its locale is
+// counted as not governed and holds the gate to nothing. A governed unit whose
+// target cannot be read back is counted as not checked, and the gate does not
+// pass while one remains. A missing target file (untranslated) is flagged by
 // the checks gate, so terminology skips it.
-func (a *App) verifyTerminology(cmd Command, units []VerifyUnit, unread *UnreadSet) (verifyGateResult, error) {
+func (a *App) verifyTerminology(cmd Command, proj *project.KapiProject, units []VerifyUnit, unread *UnreadSet) (gate verifyGateResult, governed bool, err error) {
 	ctx := CmdContext(cmd)
-	gate := verifyGateResult{Gate: gateTerms, Pass: true, Findings: []verifyFinding{}, Coverage: &verifyCoverage{}}
+	gate = verifyGateResult{Gate: gateTerms, Pass: true, Findings: []verifyFinding{}, Coverage: &verifyCoverage{}}
 	execution := newCheckExecution()
 	vocab, err := a.newCheckTerms(cmd)
 	if err != nil {
-		return gate, err
+		return gate, false, err
 	}
 
 	root := ""
 	if projectPath, err := ResolveProjectPath(cmd); err == nil && projectPath != "" {
 		root = filepath.Dir(projectPath)
 	}
+	termRules := a.newUnitTermRules(cmd, proj, root)
 
-	// Cache the rules per (point, locale) — building them opens the terms store.
-	ruleCache := map[string][]coreprofile.TermRule{}
-	termRulesFor := func(u VerifyUnit) ([]coreprofile.TermRule, error) {
-		point := a.unitGovernancePoint(root, u)
-		key := point.Collection + "\x00" + point.Path + "\x00" + u.Locale
-		if g, ok := ruleCache[key]; ok {
-			return g, nil
-		}
-		g, err := a.ResolveTermRulesFor(cmd, u.Locale, point)
-		if err != nil {
-			return nil, err
-		}
-		ruleCache[key] = g
-		return g, nil
-	}
-
-	var skipped []string
+	var skipped, unchecked []string
 	for _, u := range units {
 		if u.TargetPath == "" {
-			if err := a.verifySourceTerminology(ctx, vocab, u, &gate, execution); err != nil {
+			sourceGoverned, err := a.verifySourceTerminology(ctx, vocab, u, &gate, execution)
+			governed = governed || sourceGoverned
+			if err != nil {
 				if unread.skipUnit(&skipped, err, root, u) {
 					continue
 				}
-				return gate, err
+				return gate, governed, err
+			}
+			if !sourceGoverned {
+				gate.Coverage.NotGoverned++
 			}
 			continue
 		}
-		rules, err := termRulesFor(u)
+		rules, err := termRules.forUnit(u)
 		if err != nil {
-			return gate, err
+			return gate, governed, err
 		}
 		if len(rules) == 0 {
-			// Nothing bound at this point for this locale → nothing to enforce.
+			gate.Coverage.NotGoverned++
 			continue
 		}
+		governed = true
 		blocks, missing, err := a.bilingualBlocks(ctx, u)
 		if err != nil {
 			if errors.Is(err, errTargetUnreadable) {
-				continue // unmeasurable target (e.g. a compiled .mo) — can't check
+				// The target exists and cannot be read back (a compiled
+				// catalog), so the terms governing it have no result.
+				reason := "its target could not be read, so its terminology was not checked"
+				gate.Coverage.NotChecked++
+				execution.notChecked("terms.target", u.DisplayPath, reason)
+				unchecked = append(unchecked, fmt.Sprintf("%s (%s): %s", u.DisplayPath, u.Locale, reason))
+				continue
 			}
 			if unread.skipUnit(&skipped, err, root, u) {
 				continue
 			}
-			return gate, err
+			return gate, governed, err
 		}
 		if missing {
 			// Untranslated target — terminology can't be checked; the checks
@@ -1376,7 +1454,7 @@ func (a *App) verifyTerminology(cmd Command, units []VerifyUnit, unread *UnreadS
 		start, before := time.Now(), len(gate.Findings)
 		for _, b := range blocks {
 			if cerr := RunCheckTool(ctx, tc, b); cerr != nil {
-				return gate, fmt.Errorf("terminology gate %s (%s): %w", u.DisplayPath, u.Locale, cerr)
+				return gate, governed, fmt.Errorf("terminology gate %s (%s): %w", u.DisplayPath, u.Locale, cerr)
 			}
 			// A rule's severity decides whether it fails the gate or only
 			// reports: the tool has already sorted the violations into the two
@@ -1414,13 +1492,22 @@ func (a *App) verifyTerminology(cmd Command, units []VerifyUnit, unread *UnreadS
 			return termCheckFindings(b), nil
 		})
 		if cerr != nil {
-			return gate, fmt.Errorf("terminology gate %s (%s): %w", u.DisplayPath, u.Locale, cerr)
+			return gate, governed, fmt.Errorf("terminology gate %s (%s): %w", u.DisplayPath, u.Locale, cerr)
 		}
 		execution.completed("terms.target", u.DisplayPath, len(gate.Findings)-before, start, canary, false)
 	}
 	gate.addExecution(execution)
 	unread.settle(&gate, skipped, gate.Coverage.Blocks == 0)
-	return gate, nil
+	if gate.Coverage.Blocks == 0 && len(unchecked) > 0 {
+		// Nothing the terms govern could be read, so the gate did not run. When
+		// other governed content was checked, the analyzers recorded as not run
+		// leave the verdict unverified instead.
+		gate.Pass = false
+		gate.Verdict = check.VerdictDidNotRun
+		gate.DidNotRunCause = check.CauseContentNotChecked
+		gate.DidNotRun = append(gate.DidNotRun, unchecked...)
+	}
+	return gate, governed, nil
 }
 
 // termCheckFindings reads the violations the term-check tool recorded on a
@@ -1435,6 +1522,47 @@ func termCheckFindings(b *model.Block) []check.Finding {
 		}
 	}
 	return out
+}
+
+// unitTermRules resolves the term rules a verify unit is held to: the rules the
+// terms bound at the unit's point give for its locale. The terminology gate, the
+// loop checks and the coverage they feed all ask it, so they agree about where
+// terms govern.
+type unitTermRules struct {
+	app  *App
+	cmd  Command
+	proj *project.KapiProject
+	root string
+	// cache holds the rules per profile and locale: the terms bound at a point
+	// depend only on the profile it resolves to.
+	cache map[string][]coreprofile.TermRule
+}
+
+func (a *App) newUnitTermRules(cmd Command, proj *project.KapiProject, root string) *unitTermRules {
+	return &unitTermRules{app: a, cmd: cmd, proj: proj, root: root, cache: map[string][]coreprofile.TermRule{}}
+}
+
+// forUnit returns the rules governing u, empty when no terms bound at its point
+// answer for its locale.
+func (r *unitTermRules) forUnit(u VerifyUnit) ([]coreprofile.TermRule, error) {
+	point := r.app.unitGovernancePoint(r.root, u)
+	key := u.Locale
+	if r.proj != nil {
+		rc, err := r.proj.ResolveGovernanceFor(point)
+		if err != nil {
+			return nil, err
+		}
+		key = rc.Profile + "\x00" + u.Locale
+	}
+	if rules, ok := r.cache[key]; ok {
+		return rules, nil
+	}
+	rules, err := r.app.ResolveTermRulesFor(r.cmd, u.Locale, point)
+	if err != nil {
+		return nil, err
+	}
+	r.cache[key] = rules
+	return rules, nil
 }
 
 // unitGovernancePoint is the point a verify unit's SOURCE file sits at — the
@@ -1568,14 +1696,12 @@ func (a *App) verifyChecks(cmd Command, proj *project.KapiProject, root string, 
 	return gate, nil
 }
 
-// doNotTranslateTerms returns the set of source texts the project's terms say to
-// keep unchanged for a locale — entries whose target equals the source (a brand
-// name, a product term). It is one half of identicalTargetRule: an identical
-// target is correct for such a string rather than untranslated. Returns nil on
-// any resolution error, which simply leaves the rule with nothing to suppress.
-func (a *App) doNotTranslateTerms(cmd Command, locale string) map[string]bool {
-	rules, err := a.ResolveTermRules(cmd, locale)
-	if err != nil || len(rules) == 0 {
+// doNotTranslateTerms returns the set of source texts the given term rules say to
+// keep unchanged: entries whose target equals the source (a brand name, a
+// product term). It is one half of identicalTargetRule: an identical target is
+// correct for such a string rather than untranslated.
+func doNotTranslateTerms(rules []coreprofile.TermRule) map[string]bool {
+	if len(rules) == 0 {
 		return nil
 	}
 	dnt := make(map[string]bool, len(rules))

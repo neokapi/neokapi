@@ -144,18 +144,20 @@ func (a *App) verifySourceChecks(ctx context.Context, cmd Command, u VerifyUnit,
 
 // Source terminology judges each occurrence in its own language using the same
 // scoped vocabulary matcher as file checks. No synthetic target is introduced.
-// Each block is judged against the vocabulary at the point it sits at.
-func (a *App) verifySourceTerminology(ctx context.Context, vocab *checkTerms, u VerifyUnit, gate *verifyGateResult, execution *checkExecution) error {
+// Each block is judged against the vocabulary at the point it sits at. governed
+// reports whether terms govern either of the file's points, decided before the
+// file is read.
+func (a *App) verifySourceTerminology(ctx context.Context, vocab *checkTerms, u VerifyUnit, gate *verifyGateResult, execution *checkExecution) (governed bool, err error) {
 	g, err := a.governFile(ctx, nil, vocab, u.SourcePath, atPoint{})
 	if err != nil {
-		return err
+		return false, err
 	}
 	if g.content.terms == nil && g.comments.terms == nil {
-		return nil
+		return false, nil
 	}
 	blocks, _, err := a.readSourceForCheck(ctx, u, nil)
 	if err != nil {
-		return err
+		return true, err
 	}
 	gate.Coverage.Files++
 	for _, group := range (checkRunOptions{}).govern(g).pointGroups(blocks, blocks) {
@@ -168,7 +170,7 @@ func (a *App) verifySourceTerminology(ctx context.Context, vocab *checkTerms, u 
 		for _, b := range group.blocks {
 			findings, err := runVoiceVocabOnBlock(ctx, checker, b)
 			if err != nil {
-				return fmt.Errorf("source terminology %s: %w", u.DisplayPath, err)
+				return true, fmt.Errorf("source terminology %s: %w", u.DisplayPath, err)
 			}
 			for _, f := range findings {
 				finding := voiceFindingToVerify(u.DisplayPath, blockKey(b), f)
@@ -183,7 +185,7 @@ func (a *App) verifySourceTerminology(ctx context.Context, vocab *checkTerms, u 
 		}
 		canary, err := probeVoiceRules(ctx, checker, nil)
 		if err != nil {
-			return fmt.Errorf("source terminology %s: %w", u.DisplayPath, err)
+			return true, fmt.Errorf("source terminology %s: %w", u.DisplayPath, err)
 		}
 		mark := execution.analyzerCount()
 		execution.completed("terms.source", u.DisplayPath, len(gate.Findings)-before, start, canary, false)
@@ -191,5 +193,5 @@ func (a *App) verifySourceTerminology(ctx context.Context, vocab *checkTerms, u 
 			execution.pointAnalyzers(mark, group.at.point)
 		}
 	}
-	return nil
+	return true, nil
 }

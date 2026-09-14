@@ -63,6 +63,17 @@ func (e *checkExecution) unsupported(id, file, reason string) {
 	})
 }
 
+// notChecked records an analyzer the gate required that could not evaluate a
+// file's content, so the gate's result is not verified.
+func (e *checkExecution) notChecked(id, file, reason string) {
+	if e == nil {
+		return
+	}
+	e.Analyzers = append(e.Analyzers, check.AnalyzerExecution{
+		ID: id, File: DisplayName(file), Status: check.AnalyzerDidNotRun, Required: true, Reason: reason,
+	})
+}
+
 // completed records an analyzer that evaluated the content and its canaries.
 // required says the invocation asked for the analyzer, so that one with nothing
 // to catch leaves the run unverified rather than only itself.

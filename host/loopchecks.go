@@ -25,10 +25,16 @@ type CheckExclusions struct {
 	Failing map[string]bool
 	// ByLocale counts the failing units per locale.
 	ByLocale map[string]int
-	// TermsGoverned records, per locale, whether the project's terms govern it:
-	// whether any concept answers for it (terms.RulesFromConcepts). A locale
+	// TermsGoverned records, per unit, whether terms govern it: whether any
+	// concept bound at the unit's point answers for its locale
+	// (terms.RulesFromConcepts). Keys are TermsKey(sourcePath, locale). A unit
 	// absent from the map was not resolved.
 	TermsGoverned map[string]bool
+}
+
+// TermsKey keys a unit in CheckExclusions.TermsGoverned.
+func TermsKey(sourcePath, locale string) string {
+	return sourcePath + "\x00" + locale
 }
 
 func ExclusionKey(sourcePath, blockKey, locale string) string {
@@ -43,10 +49,10 @@ func (e *CheckExclusions) excluded(sourcePath string, b *model.Block, locale str
 	return e.Failing[ExclusionKey(sourcePath, blockKey(b), locale)]
 }
 
-// termsGovern reports whether the project's terms govern locale. It is false for
-// a nil set, which means the checks did not run and nothing was resolved.
-func (e *CheckExclusions) termsGovern(locale string) bool {
-	return e != nil && e.TermsGoverned[locale]
+// termsGovern reports whether terms govern the unit. It is false for a nil set,
+// which means the checks did not run and nothing was resolved.
+func (e *CheckExclusions) termsGovern(u VerifyUnit) bool {
+	return e != nil && e.TermsGoverned[TermsKey(u.SourcePath, u.Locale)]
 }
 
 // totalFailing returns the count of failing units across every locale (0 when nil).
@@ -64,8 +70,8 @@ func (e *CheckExclusions) totalFailing() int {
 // computeLoopCheckExclusions runs the project's bound target-side checks over
 // the produced units — the same engines `kapi check --ship` gates on: the
 // rule-based checkset (placeholder/tag integrity, plus the default placeholder
-// patterns) always, and the terminology check when the project binds a terms
-// store. A unit whose findings fail the ship predicate (any critical/major
+// patterns) always, and the terminology check over each unit terms govern at
+// its point. A unit whose findings fail the ship predicate (any critical/major
 // finding, or an integrity category like pattern-mismatch) enters the set.
 //
 // Cost: checks only run over units whose target exists and is readable — an
@@ -92,28 +98,18 @@ func (a *App) loopCheckExclusions(ctx context.Context, cmd Command, proj *projec
 		return nil, err
 	}
 
-	// Term rules per locale, resolved once (opens the terms store).
-	preferredTermsByLocale := map[string][]coreprofile.TermRule{}
-	termRulesFor := func(locale string) ([]coreprofile.TermRule, error) {
-		if g, ok := preferredTermsByLocale[locale]; ok {
-			return g, nil
-		}
-		g, err := a.ResolveTermRules(cmd, locale)
-		if err != nil {
-			return nil, err
-		}
-		preferredTermsByLocale[locale] = g
-		return g, nil
-	}
+	// The term rules at each unit's point, the resolution the terminology gate
+	// uses, so a profile's terms hold that profile's content here too.
+	termRules := a.newUnitTermRules(cmd, proj, root)
 
 	for _, u := range units {
-		// Resolved before the target is read, so a locale's governance is known
-		// for a unit whose target is missing or cannot be read back.
-		rules, gerr := termRulesFor(u.Locale)
+		// Resolved before the target is read, so a unit's governance is known
+		// when its target is missing or cannot be read back.
+		rules, gerr := termRules.forUnit(u)
 		if gerr != nil {
 			return nil, gerr
 		}
-		excl.TermsGoverned[u.Locale] = len(rules) > 0
+		excl.TermsGoverned[TermsKey(u.SourcePath, u.Locale)] = len(rules) > 0
 
 		blocks, missing, berr := a.bilingualBlocks(ctx, u)
 		if berr != nil {
