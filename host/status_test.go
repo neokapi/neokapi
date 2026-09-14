@@ -410,8 +410,8 @@ func TestStatus_ShipManifestNamesUngovernedTerminology(t *testing.T) {
 }
 
 // TestStatus_DoNotTranslateGovernsAndIsChecked: a do-not-translate concept
-// governs every language, and the loop holds a target that translated the term
-// to dnt-check, so the locale does not ship on it. The concept is committed in
+// governs every language, and the loop's term-check fails a target that
+// translated the term, so the locale does not ship on it. The concept is committed in
 // the recipe's terms source, the form a project keeps its terms in.
 func TestStatus_DoNotTranslateGovernsAndIsChecked(t *testing.T) {
 	root := writeVerifiedGateProject(t)

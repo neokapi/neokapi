@@ -8,7 +8,6 @@ import (
 
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
-	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/tool"
 	coretools "github.com/neokapi/neokapi/core/tools"
@@ -125,22 +124,15 @@ func (a *App) loopCheckExclusions(ctx context.Context, cmd Command, proj *projec
 			continue // untranslated — there is no translation to check
 		}
 
-		var termTool, dntTool BlockProcessor
+		// term-check holds the do-not-translate rules as well, so one decision
+		// answers for every rule the terms bind here.
+		var termTool BlockProcessor
 		if len(rules) > 0 {
 			termTool = coretools.NewTermCheckTool(&coretools.TermCheckConfig{
 				TermRules:    rules,
 				SourceLocale: model.LocaleID(a.SourceLocale()),
 				TargetLocale: model.LocaleID(u.Locale),
 			})
-			// term-check leaves a do-not-translate rule to dnt-check, so a locale
-			// such a rule governs is held to that tool here too. Without it a
-			// locale governed only by do-not-translate concepts would read as
-			// checked with nothing having checked it.
-			if slices.ContainsFunc(rules, func(r coreprofile.TermRule) bool { return r.DoNotTranslate }) {
-				dntCfg := coretools.NewDNTCheckConfig(model.LocaleID(u.Locale))
-				dntCfg.TermRules = rules
-				dntTool = coretools.NewDNTCheckTool(dntCfg)
-			}
 		}
 
 		checkCfg := coretools.NewRuleCheckConfig(model.LocaleID(u.Locale))
@@ -176,14 +168,6 @@ func (a *App) loopCheckExclusions(ctx context.Context, cmd Command, proj *projec
 				if b.Properties[coretools.PropTermCheckPassed] == "false" {
 					fails = true
 				}
-			}
-			if !fails && dntTool != nil {
-				if err := RunCheckTool(ctx, dntTool, b); err != nil {
-					return nil, fmt.Errorf("do-not-translate check %s (%s): %w", u.DisplayPath, u.Locale, err)
-				}
-				fails = slices.ContainsFunc(check.Findings(tool.NewBlockViewWithContext(ctx, b)), func(f check.Finding) bool {
-					return f.Category == "do-not-translate" && checkFindingFails(f)
-				})
 			}
 			if fails {
 				key := ExclusionKey(u.SourcePath, blockKey(b), u.Locale)

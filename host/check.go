@@ -456,7 +456,11 @@ func (a *App) ComputeCheck(cmd Command, args []string) (check.Report, error) {
 			return check.Report{}, ferr
 		}
 		diags = append(diags, fileDiags...)
-		biDiags, berr := a.collectBilingualDiagnostics(ctx, blocks, sourcePath, model.LocaleID(targetLang), dnt, execution)
+		termRules, terr := vocab.rulesFor(sourcePath, targetLang)
+		if terr != nil {
+			return check.Report{}, terr
+		}
+		biDiags, berr := a.collectBilingualDiagnostics(ctx, blocks, sourcePath, model.LocaleID(targetLang), dnt, termRules, execution)
 		if berr != nil {
 			return check.Report{}, berr
 		}
@@ -861,7 +865,7 @@ func documentText(blocks []*model.Block) string {
 // A checker that could not run is an error, not an empty finding set: a silent
 // skip would report the file as passing placeholder integrity it was never
 // measured against.
-func (a *App) collectBilingualDiagnostics(ctx context.Context, blocks []*model.Block, file string, loc model.LocaleID, dntTerms []string, executions ...*checkExecution) ([]check.Diagnostic, error) {
+func (a *App) collectBilingualDiagnostics(ctx context.Context, blocks []*model.Block, file string, loc model.LocaleID, dntTerms []string, termRules []profile.TermRule, executions ...*checkExecution) ([]check.Diagnostic, error) {
 	var execution *checkExecution
 	if len(executions) > 0 {
 		execution = executions[0]
@@ -887,6 +891,51 @@ func (a *App) collectBilingualDiagnostics(ctx context.Context, blocks []*model.B
 		return nil, fmt.Errorf("placeholder check %s (%s): %w", DisplayName(file), loc, err)
 	}
 	execution.completed("placeholder", file, len(diags), start, canary, true)
+
+	// The project's term rules for the target language, the rules the ship
+	// terminology gate holds the same translation to. term-check records its
+	// violations as block properties rather than findings, so they are mapped
+	// here: a violation of a rule that fails is critical, which fails the check
+	// as it fails the gate, and one that only warns is minor.
+	if len(termRules) > 0 {
+		start = time.Now()
+		before := len(diags)
+		cfg := &coretools.TermCheckConfig{TermRules: termRules, SourceLocale: model.LocaleID(a.SourceLocale()), TargetLocale: loc}
+		tc := coretools.NewTermCheckTool(cfg)
+		for _, b := range blocks {
+			if err := RunCheckTool(ctx, tc, b); err != nil {
+				return nil, fmt.Errorf("terminology check %s (%s): %w", DisplayName(file), loc, err)
+			}
+			for _, v := range []struct {
+				prop     string
+				severity check.Severity
+			}{
+				{coretools.PropTermCheckErrors, check.SeverityCritical},
+				{coretools.PropTermCheckWarnings, check.SeverityMinor},
+			} {
+				for m := range strings.SplitSeq(b.Properties[v.prop], "; ") {
+					if strings.TrimSpace(m) == "" {
+						continue
+					}
+					f := check.Finding{Category: "terminology", Severity: v.severity, Message: m}
+					diags = append(diags, check.DiagnosticFrom(f, "terms", check.Location{File: DisplayName(file), Block: blockKey(b)}))
+				}
+			}
+		}
+		canaries, uncheckable := coretools.TermCheckCanaries(cfg)
+		canary, err := check.Probe(canaries, uncheckable, func(b *model.Block) ([]check.Finding, error) {
+			if err := RunCheckTool(ctx, tc, b); err != nil {
+				return nil, err
+			}
+			return termCheckFindings(b), nil
+		})
+		if err != nil {
+			return nil, fmt.Errorf("terminology check %s (%s): %w", DisplayName(file), loc, err)
+		}
+		execution.completed("terms", file, len(diags)-before, start, canary, true)
+	} else {
+		execution.skipped("terms", file, "No terms govern this file in its target language.")
+	}
 
 	if len(dntTerms) > 0 {
 		start = time.Now()
@@ -1221,6 +1270,16 @@ func (a *App) ProjectTermsForFile(ctx context.Context, cmd Command, file string)
 		return nil, err
 	}
 	return resolver.forFile(ctx, file)
+}
+
+// rulesFor returns the term rules a translation of file into target is held to:
+// the rules the terms bound at the file's point give for that language. Outside
+// a project there are none.
+func (t *checkTerms) rulesFor(file, target string) ([]profile.TermRule, error) {
+	if t == nil || t.proj == nil {
+		return nil, nil
+	}
+	return t.app.ResolveTermRulesFor(t.cmd, target, t.app.governancePointForFile(t.root, file))
 }
 
 // forFile returns the vocabulary governing one file, or nil when nothing binds

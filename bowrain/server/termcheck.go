@@ -10,7 +10,6 @@ import (
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/core/voicescope"
-	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	coretools "github.com/neokapi/neokapi/core/tools"
@@ -110,11 +109,9 @@ func targetHasForbiddenTerm(ctx context.Context, tb terms.Terminology, targetTex
 // and asking coretools.TermCheckViolations, so a translation the CLI gate
 // passes is compliant here and one it fails is a violation. That includes an
 // admitted or approved term, a declared form of any rendering, an English
-// source term's regular inflections, and placeholder names read as syntax.
-// A do-not-translate rule, which term-check leaves to the dnt-check tool, is
-// violated when the source uses its term and the target does not hold it
-// verbatim. Redirection through USE_INSTEAD / REPLACED_BY relations is not
-// followed, as in term-check.
+// source term's regular inflections, placeholder names read as syntax, and a
+// do-not-translate term, which the target must keep verbatim. Redirection
+// through USE_INSTEAD / REPLACED_BY relations is not followed, as in term-check.
 func targetMissingMandatedTerm(ctx context.Context, tb terms.Terminology, sourceText, targetText string, srcLoc, tgtLoc model.LocaleID) bool {
 	if strings.TrimSpace(sourceText) == "" || strings.TrimSpace(targetText) == "" {
 		return false
@@ -126,15 +123,6 @@ func targetMissingMandatedTerm(ctx context.Context, tb terms.Terminology, source
 	rules := terms.RulesFromConcepts(concepts, srcLoc, tgtLoc)
 	if len(rules) == 0 {
 		return false
-	}
-	// term-check leaves a do-not-translate rule to the dnt-check tool, so the
-	// predicate applies that tool's test here: a term the source uses as a whole
-	// word must appear verbatim in the target.
-	for _, rule := range rules {
-		if rule.DoNotTranslate && len(check.FindTerm(sourceText, rule.Term)) > 0 &&
-			!strings.Contains(targetText, rule.Term) {
-			return true
-		}
 	}
 	errs, _ := coretools.TermCheckViolations(&coretools.TermCheckConfig{
 		TermRules:    rules,

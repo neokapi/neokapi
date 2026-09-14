@@ -177,12 +177,12 @@ func TestTermCheckMatching(t *testing.T) {
 	)
 	assert.Equal(t, check.TermMatching{
 		Locale: "nb", Source: check.TermSourceEnglishInflection, Target: check.TermTargetContainmentForms,
-		Rules: 2, RulesWithForms: 1,
+		Rules: 3, RulesWithForms: 1,
 	}, tools.TermCheckMatching(cfg))
 
 	cfg.SourceLocale = "de"
 	cfg.TermRules = cfg.TermRules[1:]
 	assert.Equal(t, check.TermMatching{
-		Locale: "nb", Source: check.TermSourceWholeWord, Target: check.TermTargetContainment, Rules: 1,
+		Locale: "nb", Source: check.TermSourceWholeWord, Target: check.TermTargetContainment, Rules: 2,
 	}, tools.TermCheckMatching(cfg))
 }
