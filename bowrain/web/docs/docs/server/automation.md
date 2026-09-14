@@ -144,7 +144,7 @@ A local `run_flow` action takes these parameters:
 | Parameter       | Meaning                                                                                              |
 | --------------- | ---------------------------------------------------------------------------------------------------- |
 | `flow`          | The flow to run: one declared under `flows:` on the recipe, or a built-in flow such as `qa`. Required. |
-| `fail_on_error` | `true` aborts the command when the flow's check steps report findings, or read no content and so did not run. Default `false`: report and continue. |
+| `fail_on_error` | `true` aborts the command when the flow's check steps report findings, or when its checks did not run: the flow holds no check step, or its check steps read no content. Default `false`: report and continue. |
 
 The flow runs the way `kapi run <flow>` runs it inside the project: over every
 file the recipe's collections match, one pass per target language the flow
@@ -175,10 +175,13 @@ before anything is sent, with the findings summary and the exit code
 `kapi check` uses for a failed gate. Without `fail_on_error` the findings are
 reported and the push goes ahead.
 
-A check step over no content block, for example when every matched file is
-empty, did not run. With `fail_on_error` the push is aborted with that cause
-and the exit code `kapi check` uses when a check did not run. Without it, the
-command reports that the checks did not run and the push goes ahead.
+A flow can reach no verdict in two ways, and both count as checks that did not
+run. A check step over no content block, for example when every matched file is
+empty, reports the cause `nothing_to_check`. A flow that holds no check step,
+such as `pseudo-translate`, checks none of the content it runs over and reports
+the cause `content_not_checked`. With `fail_on_error` the push is aborted with
+the cause and the exit code `kapi check` uses when a check did not run. Without
+it, the command prints the cause and the push goes ahead.
 
 ### Catching up on every push
 
