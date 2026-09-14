@@ -46,7 +46,7 @@ kapi up --plan
 # Catch up on this machine (your AI keys), then push the results
 kapi up --local
 
-# NDJSON event stream for CI and agents (one event per line, final = result)
+# NDJSON event stream for CI and agents (one record per line, including a result record)
 kapi up --json
 
 # A single pass over every locale that needs work
@@ -66,7 +66,14 @@ kapi up --passes 1
 | `--materialize`| After the loop, write target files for every shippable locale               | `false`        |
 | `--no-extract` | Skip the pre-pass source-drift check and block-store re-extraction          | `false`        |
 | `--no-checks`  | Skip the bound checks in the loop                                           | `false`        |
-| `--json`       | Stream the convergence events as NDJSON, with the result as the last record | `false`        |
+| `--json`       | Stream the convergence events as NDJSON, with one `result` record           | `false`        |
+
+With `--json`, read the outcome from the record whose `type` is `result`. On the
+server venue, and in a project with no server, it is the last record. After
+`kapi up --local` on a connected project, the push that follows the local run
+writes its records after it: a `changeset` record when it proposed terminology
+edits, a `voice_profile` record when the recipe binds a voice profile, and a
+`governance` record when the server did not accept a verdict.
 
 ## The loop
 
