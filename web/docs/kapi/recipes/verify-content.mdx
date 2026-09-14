@@ -234,6 +234,32 @@ bare `kapi check`, a check of named files, `kapi check --ship`, a check scoped
 to a diff and the MCP `check_file` tool all hold each block to its point, and
 each finding reports the `point` it was checked at.
 
+The values in some files belong to another tool, such as the steps of a CI
+workflow or the settings of a build. Declare such files for their comments
+alone:
+
+```yaml title="kapi.yaml"
+collections:
+  - name: workflow-comments
+    channel: acme/engineering
+    source_only: true
+    content:
+      - path: ".github/workflows/*.yaml"
+        comments:
+          only: true
+```
+
+kapi then checks each comment in those files under the voice and terms of its
+point, as it checks Go comments, and reads none of the values. `kapi up`,
+`kapi merge`, `kapi extract`, flow runs, `kapi stats`, `kapi status` coverage
+and the `--ship` gates leave the values alone. `only` works for every format
+that supplies comments: YAML, the XML-based formats, HTML, Markdown, MDX, PO and
+properties. An item declared this way has no values to deliver or shape, so a
+`target`, `target_languages`, `redaction`, `format.config` or `format.preset`
+beside it makes the recipe fail to load, with an error naming the item. A
+`format:` that names the format alone stays allowed, and says which format's
+comments the files hold.
+
 The voice profile at the comments' point can hold them to word limits of their
 own under `style.comments`:
 

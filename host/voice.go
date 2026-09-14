@@ -288,6 +288,22 @@ func (a *App) ResolveVoiceProfileCmd(cmd Command, paths ...string) (*coreprofile
 	return profile, src, nil
 }
 
+// declaredCommentsOnly reports whether the recipe declares the file at rel,
+// relative to the project root, for its comments alone.
+func (a *App) declaredCommentsOnly(proj *project.KapiProject, root, rel string) bool {
+	a.InitRegistries()
+	resolved, err := project.NewProjectContext(proj, filepath.Join(root, project.RecipeFileName)).ResolveContent(a.FormatReg)
+	if err != nil {
+		return false
+	}
+	for _, rf := range resolved {
+		if filepath.ToSlash(rf.Relative) == filepath.ToSlash(rel) {
+			return rf.CommentsOnly()
+		}
+	}
+	return false
+}
+
 // resolveProjectVoiceProfile resolves a voice profile from the .kapi
 // project in scope, with no profile flag — the cobra adapter over
 // ResolveVoiceProfile: it discovers and loads the project, resolves the local
@@ -342,7 +358,7 @@ func (a *App) resolveProjectVoiceProfile(cmd Command, locale, channel, persona s
 			point = a.GovernancePointFor("", filepath.ToSlash(rel))
 			// A file whose only content is its comments is written under the
 			// voice at the point its comments sit at.
-			point.Comments = a.commentsOnlyFile(abs)
+			point.Comments = a.commentsOnlyFile(abs) || a.declaredCommentsOnly(proj, root, rel)
 		}
 		break
 	}

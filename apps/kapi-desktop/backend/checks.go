@@ -184,6 +184,10 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 			if filter.FilesNarrowed() && !filter.MatchesFile(rf.Collection, rf.Relative) {
 				continue
 			}
+			// A file declared for its comments alone holds no value the panel reads.
+			if rf.CommentsOnly() {
+				continue
+			}
 
 			// Both halves of the recipe's binding: the format the item declares
 			// and the reader config the project declares for it. Under reader
@@ -613,6 +617,9 @@ func (a *App) ApplyCheckFix(tabID, filePath, blockID, field, original, replaceme
 	fmtName := ""
 	item := (*project.ContentItem)(nil)
 	if rf := a.resolvedFileFor(pctx, filePath); rf != nil {
+		if rf.CommentsOnly() {
+			return fmt.Errorf("%s is declared for its comments alone, so it has no value to fix", filepath.Base(filePath))
+		}
 		fmtName, item = rf.Format, rf.Item
 	}
 	if fmtName == "" {

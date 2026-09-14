@@ -85,7 +85,7 @@ type Collection struct {
 // ContentItem additionally carries its own `base` (yaml:"base,omitempty"), the
 // directory its matched paths are made relative to for target-token expansion,
 // its own `channel`, a per-item `redaction`, and `comments` (ContentComments:
-// `true`, or a mapping carrying `directives` and `channel`).
+// `true`, or a mapping carrying `directives`, `channel` and `only`).
 
 // Profile binds governance to one product and declares its channels.
 type Profile struct {
@@ -425,14 +425,19 @@ the full extension model.
   - `source_only: true` is rejected when the collection or any item also
     carries a `target` or `target_languages`.
   - `coordinates` may not name `product` or `channel`.
-  - An item's `comments` is `true`, `false`, or a mapping whose only key is
-    `directives`. Each directive, there and under `defaults.comments.directives`,
+  - An item's `comments` is `true`, `false`, or a mapping whose keys are
+    `directives`, `channel` and `only`. Each directive, there and under `defaults.comments.directives`,
     is a marker that is not empty, starts with no whitespace, holds no line
     break and is declared once; an item's list may not repeat one the defaults
     declare. The error names the key, such as
     `collections[0].content[1].comments.directives[0]`.
   - An item's `comments.channel` and `defaults.comments.channel` resolve at load
     as a collection's `channel` does, and the error names the key.
+  - An item that sets `comments.only` may not also carry a `target`,
+    `target_languages`, a `redaction`, or a `format.config` or `format.preset`
+    (`ContentItem.validateCommentsOnly`). The error names the item, such as
+    `collections[1].content[0]: comments.only is set, so the item cannot have a
+    target`.
 - Every `profiles:` key is a slug, and so is every channel it declares; a channel
   is declared at most once per profile. A profile's `voice` is shape-checked
   exactly like `defaults.voice` (one of `profile_file`, `profile`, `pack`, or a

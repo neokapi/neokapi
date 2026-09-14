@@ -120,9 +120,25 @@ func (l *commentLayer) locate(diags []check.Diagnostic) {
 // checkset, governance and report as any other content. The layer's analyzers
 // run over every comment in the file, and their findings join the checkset's.
 func (a *App) checkCommentFile(ctx context.Context, file string, p comment.Provider, validateMode format.ValidationMode, opts checkRunOptions) ([]*model.Block, []check.Diagnostic, error) {
-	layer, err := a.readCommentLayer(ctx, file, opts.execution, func(src []byte) (*commentLayer, error) {
+	return a.checkCommentLayer(ctx, file, validateMode, opts, "The file is read for its comments, and no format reader parses it.", func(src []byte) (*commentLayer, error) {
 		return locateComments(file, src, p, opts.formats.directivesFor(file))
 	})
+}
+
+// checkCommentsOnlyFile is checkCommentFile for a file a format names that the
+// recipe declares for its comments alone. The format supplies the comments, and
+// its reader never reads the values.
+func (a *App) checkCommentsOnlyFile(ctx context.Context, file, fmtName string, validateMode format.ValidationMode, opts checkRunOptions) ([]*model.Block, []check.Diagnostic, error) {
+	return a.checkCommentLayer(ctx, file, validateMode, opts, "The recipe declares the file for its comments alone, so no reader parses its values.", func(src []byte) (*commentLayer, error) {
+		return a.declaredComments(file, fmtName, src, opts.formats.directivesFor(file))
+	})
+}
+
+// checkCommentLayer checks the comment layer locate reads as a file's whole
+// content. Reader validation never runs on such a file, and unvalidated says
+// why when it was requested.
+func (a *App) checkCommentLayer(ctx context.Context, file string, validateMode format.ValidationMode, opts checkRunOptions, unvalidated string, locate func(src []byte) (*commentLayer, error)) ([]*model.Block, []check.Diagnostic, error) {
+	layer, err := a.readCommentLayer(ctx, file, opts.execution, locate)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -133,7 +149,7 @@ func (a *App) checkCommentFile(ctx context.Context, file string, p comment.Provi
 	if validateMode == format.ValidationOff {
 		opts.execution.skipped("reader.validation", file, "Reader validation was not requested.")
 	} else {
-		opts.execution.unsupported("reader.validation", file, "The file is read for its comments, and no format reader parses it.")
+		opts.execution.unsupported("reader.validation", file, unvalidated)
 	}
 	fileDiags, err := a.collectFileDiagnostics(ctx, layer.blocks, file, opts)
 	if err != nil {

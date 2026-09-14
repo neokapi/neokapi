@@ -1039,6 +1039,9 @@ func (p *KapiProject) validate(opts LoadOptions) error {
 				if item.Path == "" {
 					return fmt.Errorf("collections[%d].content[%d]: path is required", i, j)
 				}
+				if err := item.validateCommentsOnly(fmt.Sprintf("collections[%d].content[%d]", i, j)); err != nil {
+					return err
+				}
 				if err := item.Redaction.validate(); err != nil {
 					return fmt.Errorf("collections[%d].content[%d]: %w", i, j, err)
 				}

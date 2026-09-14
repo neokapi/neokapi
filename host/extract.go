@@ -145,7 +145,7 @@ func (a *App) RunExtract(cmd Command) error {
 	if err != nil {
 		return fmt.Errorf("extract: resolve content: %w", err)
 	}
-	files = filterFiles(files, only, pattern, layout.Root)
+	files = filterFiles(withValues(files), only, pattern, layout.Root)
 	if len(files) == 0 {
 		return errors.New("extract: no source files matched. Check content patterns / --only / --pattern")
 	}
@@ -748,6 +748,18 @@ func resolveTargetLocales(cmd Command, ctx *project.ProjectContext) ([]model.Loc
 	return out, nil
 }
 
+// withValues returns the resolved files that hold values, leaving out each file
+// declared for its comments alone.
+func withValues(files []project.ResolvedFile) []project.ResolvedFile {
+	out := make([]project.ResolvedFile, 0, len(files))
+	for _, f := range files {
+		if !f.CommentsOnly() {
+			out = append(out, f)
+		}
+	}
+	return out
+}
+
 func filterFiles(files []project.ResolvedFile, only, pattern, root string) []project.ResolvedFile {
 	if only == "" && pattern == "" {
 		return files
@@ -972,7 +984,7 @@ func (a *App) RunExtractKpz(cmd Command) error {
 	if err != nil {
 		return fmt.Errorf("extract: resolve content: %w", err)
 	}
-	files = filterFiles(files, only, pattern, layout.Root)
+	files = filterFiles(withValues(files), only, pattern, layout.Root)
 	if len(files) == 0 {
 		return errors.New("extract: no source files matched. Check content patterns / --only / --pattern")
 	}

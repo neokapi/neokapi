@@ -91,6 +91,26 @@ func TestVoiceGuideResolvesTheCommentsPoint(t *testing.T) {
 		"with no file, --comments resolves the project's comments point")
 }
 
+// A YAML file declared for its comments alone is written under the voice at
+// the point its comments sit at, as a Go file is. The must-fail case is the
+// same file declared with `comments: true`, whose guide
+// TestVoiceGuideResolvesTheCommentsPoint holds to the site voice.
+func TestVoiceGuideResolvesTheCommentsPointOfACommentsOnlyItem(t *testing.T) {
+	root := writeCommentVoiceProject(t, true)
+	recipe := filepath.Join(root, "kapi.yaml")
+	data, err := os.ReadFile(recipe)
+	require.NoError(t, err)
+	const beside = "      - path: \"config/*.yaml\"\n        comments: true\n"
+	require.Contains(t, string(data), beside)
+	data = bytes.Replace(data, []byte(beside), []byte("      - path: \"config/*.yaml\"\n        comments:\n          only: true\n"), 1)
+	require.NoError(t, os.WriteFile(recipe, data, 0o644))
+	t.Chdir(root)
+
+	guide := voiceGuide(t, filepath.Join("config", "app.yaml"))
+	assert.Contains(t, guide, "# Voice Guide: source comments")
+	assert.Contains(t, guide, "- Code comments:")
+}
+
 func TestVoiceGuideCommentsSharingTheirFilesPoint(t *testing.T) {
 	t.Chdir(writeCommentVoiceProject(t, false))
 

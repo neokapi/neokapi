@@ -303,6 +303,17 @@ func handleRunFlow(ctx context.Context, a *cli.App, input RunFlowInput) (*mcp.Ca
 	}, nil
 }
 
+// firstInput returns the first resolved content file that holds values, or ""
+// when every file is declared for its comments alone.
+func firstInput(resolved []project.ResolvedFile) string {
+	for _, rf := range resolved {
+		if !rf.CommentsOnly() {
+			return rf.Path
+		}
+	}
+	return ""
+}
+
 func handleRunFlowWithProject(ctx context.Context, a *cli.App, input RunFlowInput) (*mcp.CallToolResult, RunFlowOutput, error) {
 	proj, err := a.LoadProjectInteractive(ctx, input.Project, cli.LoadProjectInteractiveOptions{
 		AssumeYes: a.AssumeYes,
@@ -352,10 +363,10 @@ func handleRunFlowWithProject(ctx context.Context, a *cli.App, input RunFlowInpu
 			if err != nil {
 				return nil, RunFlowOutput{}, fmt.Errorf("resolve content: %w", err)
 			}
-			if len(resolved) == 0 {
+			inputPath = firstInput(resolved)
+			if inputPath == "" {
 				return nil, RunFlowOutput{}, errors.New("no input files. Specify path or add content patterns")
 			}
-			inputPath = resolved[0].Path
 		}
 		outputPath, err := executeFlowWithTools(ctx, a, flowName, inputPath, sourceLang, targetLang, input.OutputPath, flowTools, pctx)
 		if err != nil {
@@ -371,10 +382,10 @@ func handleRunFlowWithProject(ctx context.Context, a *cli.App, input RunFlowInpu
 		if err != nil {
 			return nil, RunFlowOutput{}, fmt.Errorf("resolve content: %w", err)
 		}
-		if len(resolved) == 0 {
+		inputPath = firstInput(resolved)
+		if inputPath == "" {
 			return nil, RunFlowOutput{}, errors.New("no input files. Specify path or add content patterns")
 		}
-		inputPath = resolved[0].Path
 	}
 
 	outputPath, err := executeFlow(ctx, a, flowName, inputPath, sourceLang, targetLang, input.OutputPath, pctx)

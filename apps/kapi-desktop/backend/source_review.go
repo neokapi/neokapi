@@ -52,6 +52,9 @@ func (a *App) GetSourceUnitContext(tabID, file, key string) (*host.ReviewContext
 	if rf == nil {
 		return nil, fmt.Errorf("file %q is not part of this project's content", file)
 	}
+	if rf.CommentsOnly() {
+		return nil, fmt.Errorf("file %q is declared for its comments alone, so it has no source unit", file)
+	}
 
 	blocks, err := a.readBlocksForChecks(ctx, rf.Path, rf.Format,
 		pctx.FormatConfigFor(rf.Format, rf.Item), sourceLang)
@@ -138,6 +141,9 @@ func (a *App) UpdateSourceText(tabID, file, key, text string) ([]string, error) 
 	}
 	if !found {
 		return nil, fmt.Errorf("source file %q is not content this project declares", file)
+	}
+	if rf.CommentsOnly() {
+		return nil, fmt.Errorf("source file %q is declared for its comments alone, so it has no source unit to edit", file)
 	}
 
 	sourceLang := string(pctx.SourceLocale)

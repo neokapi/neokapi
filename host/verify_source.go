@@ -15,7 +15,8 @@ import (
 // resolveVerifyCheckUnits includes declared source-only content beside real
 // source/target pairs. A target locale filter narrows only the bilingual units.
 // The declared comments of a file with targets get a source unit of their own:
-// they are source-language content the bilingual units never read.
+// they are source-language content the bilingual units never read. A file
+// declared for its comments alone gets a unit narrowed to them as well.
 func (a *App) resolveVerifyCheckUnits(
 	cmd Command,
 	proj *project.KapiProject,
@@ -57,10 +58,18 @@ func (a *App) resolveVerifyCheckUnits(
 			SourcePath: rf.Path, Locale: a.SourceLocale(), Collection: rf.Collection,
 			DisplayPath: relative, ProjectRoot: root, SourceFormat: rf.Format,
 			SourceConfig: mergedFormatConfig(proj, rf.Format, rf.Item),
-			Comments:     comments, OnlyComments: hasTargets, Directives: commentDirectives(proj, rf.Item),
+			Comments:     comments, OnlyComments: hasTargets || narrowedToComments(rf), Directives: commentDirectives(proj, rf.Item),
 		})
 	}
 	return units, nil
+}
+
+// narrowedToComments reports a file declared for its comments alone that a
+// format names, whose unit reads the comments that format supplies and no
+// value. A comments-only file no format names is read through its language's
+// comment provider, or reported unread when no provider reads it.
+func narrowedToComments(rf project.ResolvedFile) bool {
+	return rf.CommentsOnly() && rf.Format != ""
 }
 
 func targetVerifyUnits(units []VerifyUnit) []VerifyUnit {
