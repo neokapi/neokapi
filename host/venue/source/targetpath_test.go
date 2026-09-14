@@ -37,6 +37,15 @@ collections:
   - name: no-target
     content:
       - path: "plain/**/*.md"
+  - name: package
+    base: packaging
+    source_only: true
+    content:
+      - path: nfpm.yaml
+  - name: collapse
+    content:
+      - path: "same/*.md"
+        target: "same/{filename}"
 `
 	var p coreproj.KapiProject
 	require.NoError(t, yaml.Unmarshal([]byte(recipe), &p))
@@ -51,13 +60,24 @@ collections:
 		{"host/i18n/commands.json", "host/i18n/catalogs/nb.json"},
 		// No matching item and no locale segment: locale-suffixed sibling.
 		{"unmatched/readme.txt", "unmatched/readme.nb.txt"},
+		// No matching item: a segment or a file stem spelled as the source
+		// locale is swapped whole, and a word that contains it is left alone.
+		{"unmatched/en/app.json", "unmatched/nb/app.json"},
+		{"unmatched/strings/en.json", "unmatched/strings/nb.json"},
+		{"scripts/gen-refs/checks/length-check.yaml", "scripts/gen-refs/checks/length-check.nb.yaml"},
 	}
 	for _, tt := range tests {
 		assert.Equal(t, tt.want, c.resolveTargetPath(tt.item, "nb"), tt.item)
 	}
 
+	// A matched item with no target template is source-only, whether the
+	// collection says so or only omits the target, so a pull writes nothing.
+	for _, item := range []string{"plain/notes/a.md", "packaging/nfpm.yaml"} {
+		assert.Empty(t, c.resolveTargetPath(item, "nb"), item)
+	}
+
 	// The guard: a matched item whose template collapses onto the source
 	// still never writes in place.
-	got := c.resolveTargetPath("plain/notes/a.md", "nb")
-	assert.NotEqual(t, "plain/notes/a.md", got)
+	got := c.resolveTargetPath("same/a.md", "nb")
+	assert.NotEqual(t, "same/a.md", got)
 }

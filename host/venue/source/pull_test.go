@@ -94,7 +94,7 @@ func newPullTestConnector(t *testing.T, srv *httptest.Server, targetLangs []stri
 			TargetLanguages: langs,
 		},
 		Collections: []coreproj.Collection{
-			{Path: "locales/en.json", Format: &coreproj.FormatSpec{Name: "json"}},
+			{Path: "locales/en.json", Target: "locales/{lang}.json", Format: &coreproj.FormatSpec{Name: "json"}},
 		},
 		Server: &bproject.ServerSpec{
 			URL:    srv.URL + "/projects/" + projectID,
@@ -149,8 +149,8 @@ func TestPull_WriteFailureDoesNotAdvanceCursor(t *testing.T) {
 	conn := newPullTestConnector(t, srv, targetLangs, startCursor)
 	defer conn.Close()
 
-	// Force the "de" target write to fail: the default resolveTargetPath maps
-	// the source "en" to the locale, so "de" lands at locales/de.json. Pre-create
+	// Force the "de" target write to fail: the recipe's target template maps
+	// the source to locales/{lang}.json, so "de" lands at locales/de.json. Pre-create
 	// that path as a directory so the writer cannot create the output file.
 	deAsDir := filepath.Join(conn.project.Root, "locales", "de.json")
 	require.NoError(t, os.MkdirAll(deAsDir, 0o755))
@@ -280,6 +280,37 @@ func TestPull_AllWritesSucceedAdvancesCursor(t *testing.T) {
 		require.NoError(t, readErr)
 		assert.True(t, strings.Contains(string(b), "Hello-"+loc))
 	}
+}
+
+// TestPull_SourceOnlyItemWritesNothing pins the source-only contract on the pull
+// venue: an item the recipe declares without a target template gets no file,
+// even when the server holds translations for it. Nothing is owed locally, so
+// the cursor still advances past them.
+func TestPull_SourceOnlyItemWritesNothing(t *testing.T) {
+	const startCursor = int64(5)
+	const serverCursor = int64(42)
+	targetLangs := []string{"fr", "de"}
+
+	srv := pullTestServer(t, "proj123", targetLangs, serverCursor)
+	conn := newPullTestConnector(t, srv, targetLangs, startCursor)
+	defer conn.Close()
+	conn.project.Recipe.Collections[0].Target = ""
+
+	res, err := conn.Pull(context.Background(), bowrainconn.PullOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	assert.Equal(t, 0, res.FilesWritten)
+
+	assert.Equal(t, serverCursor, reloadRefs(t, conn).Ref("main").Content,
+		"a translation with no destination must not hold the cursor")
+
+	entries, readErr := os.ReadDir(filepath.Join(conn.project.Root, "locales"))
+	require.NoError(t, readErr)
+	var names []string
+	for _, e := range entries {
+		names = append(names, e.Name())
+	}
+	assert.Equal(t, []string{"en.json"}, names, "a source-only file gets no translated sibling")
 }
 
 // TestPull_CrossFormatTargetWritesTheTargetFormat pins the projection rule on

@@ -1290,6 +1290,11 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 
 			// Write a translated file for each target locale.
 			for _, loc := range locales {
+				outPath := c.resolveTargetPath(itemName, loc)
+				if outPath == "" {
+					continue
+				}
+
 				// Build target map for this locale from structured segments.
 				// Keyed by a stable match key (not the server block ID, which is
 				// not preserved across push/pull) so writeTranslatedFile can match
@@ -1317,8 +1322,6 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 					continue
 				}
 
-				// Determine output path.
-				outPath := c.resolveTargetPath(itemName, loc)
 				absOut := c.project.ResolvePath(outPath)
 
 				// Read source, inject targets, write output.
@@ -1757,6 +1760,10 @@ func (c *BowrainSourceConnector) readBlocksAndMedia(ctx context.Context, filePat
 // token and reconstructed the SOURCE path, so a pull overwrote four English
 // masters with Norwegian; the in-place guard at the bottom makes that class
 // impossible regardless of template.
+//
+// An item the recipe claims without a target template resolves to "", and the
+// pull writes nothing for it. Naming no target makes content source-only: a run
+// reads and checks it, and a translation the server holds for it stays there.
 func (c *BowrainSourceConnector) resolveTargetPath(itemName, locale string) string {
 	recipe := c.project.Recipe
 	srcLang := string(recipe.Defaults.SourceLanguage)
@@ -1769,21 +1776,14 @@ func (c *BowrainSourceConnector) resolveTargetPath(itemName, locale string) stri
 			continue
 		}
 		if it.Item.Target == "" {
-			break // matched, but no target — the fallbacks below decide
+			return ""
 		}
 		out = coreproj.ResolveTargetPath(pattern, it.Item.Base, it.Item.Target, itemName, locale)
 		break
 	}
 
 	if out == "" {
-		// No matching item or no target template: replace the source locale
-		// segment when the path carries one, else suffix the locale.
-		if srcLang != "" && strings.Contains(itemName, srcLang) {
-			out = strings.Replace(itemName, srcLang, locale, 1)
-		} else {
-			ext := filepath.Ext(itemName)
-			out = strings.TrimSuffix(itemName, ext) + "." + locale + ext
-		}
+		out = swapSourceLocale(itemName, srcLang, locale)
 	}
 
 	// A target-language write must never land on the source file. Whatever
@@ -1794,6 +1794,31 @@ func (c *BowrainSourceConnector) resolveTargetPath(itemName, locale string) stri
 		out = strings.TrimSuffix(itemName, ext) + "." + locale + ext
 	}
 	return out
+}
+
+// swapSourceLocale maps a path no recipe item claims to its translation's path.
+// A path segment or a file stem spelled exactly as the source locale becomes
+// the target locale (`locales/en/app.json`, `strings/en.json`); a path without
+// one gets the locale suffixed before its extension. The comparison is by whole
+// segment, so the `en` inside `gen-refs` or `content` stays where it is.
+func swapSourceLocale(itemName, srcLang, locale string) string {
+	if srcLang != "" {
+		segs := strings.Split(itemName, "/")
+		for i, seg := range segs {
+			ext := filepath.Ext(seg)
+			switch {
+			case seg == srcLang:
+				segs[i] = locale
+			case ext != "" && strings.TrimSuffix(seg, ext) == srcLang:
+				segs[i] = locale + ext
+			default:
+				continue
+			}
+			return strings.Join(segs, "/")
+		}
+	}
+	ext := filepath.Ext(itemName)
+	return strings.TrimSuffix(itemName, ext) + "." + locale + ext
 }
 
 // writeTranslatedFile reads a source file, injects target translations into blocks,

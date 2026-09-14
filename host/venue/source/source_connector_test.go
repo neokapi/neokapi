@@ -136,9 +136,18 @@ func TestResolveTargetPath(t *testing.T) {
 		want    string
 	}{
 		{
-			name: "default replaces source locale segment",
+			name: "an item with no target has no destination",
 			content: []coreproj.Collection{
 				{Path: "locales/en.json", Format: &coreproj.FormatSpec{Name: "json"}},
+			},
+			item:   "locales/en.json",
+			locale: "fr",
+			want:   "",
+		},
+		{
+			name: "a lang template maps the source file",
+			content: []coreproj.Collection{
+				{Path: "locales/en.json", Target: "locales/{lang}.json", Format: &coreproj.FormatSpec{Name: "json"}},
 			},
 			item:   "locales/en.json",
 			locale: "fr",
