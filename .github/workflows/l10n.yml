@@ -62,6 +62,8 @@ on:
       - "Makefile"
       - "scripts/l10n-autofix.sh"
       - "scripts/l10n-loop-report.mjs"
+      - "scripts/check-extract-warnings.mjs"
+      - "scripts/extract-warnings-baseline.json"
       - "scripts/check-em-dashes.sh"
       - "scripts/emdashcheck/**"
       - ".github/workflows/l10n.yml"
@@ -104,6 +106,8 @@ on:
       - "Makefile"
       - "scripts/l10n-autofix.sh"
       - "scripts/l10n-loop-report.mjs"
+      - "scripts/check-extract-warnings.mjs"
+      - "scripts/extract-warnings-baseline.json"
       - "scripts/check-em-dashes.sh"
       - "scripts/emdashcheck/**"
       - ".github/workflows/l10n.yml"
@@ -152,6 +156,12 @@ jobs:
           AUTOFIX_SAME_REPO: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
           AUTOFIX_HEAD_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || '' }}
         run: bash scripts/l10n-autofix.sh
+
+      # The extract above recorded every surface's warnings. A warning the
+      # committed baseline does not hold fails here, and the recorded ones do
+      # not, so existing debt never blocks a pull request.
+      - name: "Guard: no extractor warning beyond the committed baseline"
+        run: make l10n-extract-warnings-check
 
       # The extract has just run, so every surface's source catalog exists and
       # --require-extracted can insist on it. This is the only job that can ask

@@ -36,6 +36,7 @@ import type { Document, File } from "@neokapi/kapi-format";
 import { Ext, Kind, SchemaVersion, isKbfPath, marshalFile, trimKbfExt } from "@neokapi/kapi-format";
 
 import { createWarningCollector, extractDocument, formatWarning } from "../extract/index.ts";
+import type { Warning } from "../extract/index.ts";
 import type { PluginOptions } from "../types.ts";
 
 type ExtractConfig = Pick<PluginOptions, "componentMap" | "rules">;
@@ -88,6 +89,7 @@ export async function runExtract(args: string[], io: RunExtractIO = {}): Promise
   const documents = extractAllDocuments(files, config, {
     strict: opts.strict,
     sourceRoot: opts.sourceRoot,
+    warningsJson: opts.warningsJson,
   });
 
   if (opts.stream) {
@@ -289,6 +291,9 @@ interface ExtractArgs {
   // --strict makes any recorded warning fail the run with a non-zero
   // exit. Intended for CI — see the lint plan in issue #381.
   strict: boolean;
+  // --warnings-json writes every recorded warning as JSON to this path, so a
+  // CI check can compare them with a baseline. Null writes nothing.
+  warningsJson: string | null;
   help: boolean;
 }
 
@@ -304,6 +309,7 @@ function parseArgs(args: string[]): ExtractArgs {
     targetLocales: [],
     stream: false,
     strict: false,
+    warningsJson: null,
     help: false,
   };
 
@@ -345,6 +351,9 @@ function parseArgs(args: string[]): ExtractArgs {
       case "--strict":
         parsed.strict = true;
         break;
+      case "--warnings-json":
+        if (value) parsed.warningsJson = args[++i];
+        break;
       default:
         console.warn(`unknown flag: ${flag}`);
     }
@@ -361,6 +370,23 @@ function loadConfig(path: string | null): ExtractConfig {
     console.error(`Failed to load config from ${path}:`, e);
     process.exit(1);
   }
+}
+
+/**
+ * Writes the recorded warnings to `path` as `{ "warnings": [...] }`, one entry
+ * per warning with its kind, file, line and tag. Entries are sorted by code
+ * unit, so two runs over the same tree write the same bytes.
+ */
+function writeWarningsJson(path: string, list: readonly Warning[]): void {
+  const order = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+  const warnings = list
+    .map(({ kind, filename, line, tag }) => ({ kind, file: filename, line, tag }))
+    .sort(
+      (a, b) =>
+        order(a.file, b.file) || a.line - b.line || order(a.kind, b.kind) || order(a.tag, b.tag),
+    );
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, JSON.stringify({ warnings }, null, 2) + "\n");
 }
 
 /**
@@ -393,9 +419,14 @@ function resolveSourcePath(file: string, sourceRoot: string): string {
 function extractAllDocuments(
   files: readonly string[],
   config: ExtractConfig,
-  { strict, sourceRoot }: { strict: boolean; sourceRoot: string } = {
+  {
+    strict,
+    sourceRoot,
+    warningsJson,
+  }: { strict: boolean; sourceRoot: string; warningsJson: string | null } = {
     strict: false,
     sourceRoot: "",
+    warningsJson: null,
   },
 ): Document[] {
   const out: Document[] = [];
@@ -410,6 +441,7 @@ function extractAllDocuments(
   for (const w of list) {
     console.warn(formatWarning(w));
   }
+  if (warningsJson) writeWarningsJson(warningsJson, list);
   if (strict && list.length > 0) {
     console.error(
       `[neokapi] --strict: ${list.length} warning${list.length === 1 ? "" : "s"} treated as errors. Exiting non-zero.`,
@@ -499,6 +531,9 @@ Options:
                           paths on stdin instead of expanding --src.
   --strict                Treat any recorded warning (e.g. unknown
                           component) as an error — exits non-zero.
+  --warnings-json <path>  Write every recorded warning as JSON (kind, file,
+                          line, tag) to <path>, for a check that compares
+                          them with a baseline.
   --config <path>         Config file with componentMap, rules, …
   --project <id>          Project id stamped into the catalog's project
                           field (default: "app")
