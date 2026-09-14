@@ -1,0 +1,371 @@
+package golang
+
+import (
+	"bytes"
+	"go/format"
+	"go/parser"
+	"go/token"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
+	"strings"
+	"sync"
+	"testing"
+
+	"github.com/neokapi/neokapi/core/comment"
+	fmtpkg "github.com/neokapi/neokapi/core/format"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+// rewriteFixture is gofmt-clean Go with a comment in each place a rewrite can
+// reach. It holds the package doc, a doc comment with a reference, a list and
+// a code block, a comment in a body, a trailing comment, a field's doc, a
+// deprecated declaration, and prose that shares its group with a directive.
+const rewriteFixture = `// Package demo is a fixture for rewriting comments.
+//
+// It has two paragraphs.
+package demo
+
+import "fmt"
+
+// Parse reads the input from an [io.Reader].
+//
+// It handles these cases:
+//   - an empty input
+//   - a long input
+//
+// For example:
+//
+//	Parse()
+func Parse() {
+	// A comment inside the body.
+	fmt.Println("x") // a trailing comment
+}
+
+// Block holds one unit.
+type Block struct {
+	// ID identifies the block.
+	ID string
+}
+
+// Old parses the old way.
+//
+// Deprecated: use [Parse].
+func Old() {}
+
+// Noinline stays out of line.
+//
+//go:noinline
+func Noinline() {}
+`
+
+// TestProseP3_go is the P3 rung for Go comments: a comment is rewritten with
+// every byte outside its span identical, the result parses, gofmt agrees, and
+// directives, generated files, the cgo preamble and example output are never
+// addressable. Every Go comment in the repository rewrites to its own bytes.
+//
+// The subtests named "must fail" corrupt a rewrite on purpose and assert that
+// the containment check refuses it. Nothing in here skips.
+func TestProseP3_go(t *testing.T) {
+	src := []byte(rewriteFixture)
+	formatted, err := format.Source(src)
+	require.NoError(t, err)
+	require.Equal(t, rewriteFixture, string(formatted), "the fixture is gofmt-clean")
+
+	t.Run("a rewrite changes the comment's bytes and nothing else", func(t *testing.T) {
+		located, err := Provider{}.Locate("demo.go", src)
+		require.NoError(t, err)
+		blocks := located.Blocks()
+		require.Len(t, blocks, 8)
+		for i, c := range located.Comments {
+			id := blocks[i].ID
+			t.Run(id, func(t *testing.T) {
+				text := "Rewritten prose for this comment."
+				if c.Deprecated {
+					text += "\n\nDeprecated: use [Parse]."
+				}
+				if strings.Contains(id, "func/Parse") && c.Doc {
+					text = "Parse reads from an [io.Reader].\n\nIts cases:\n  - an empty input\n  - a long input\n\nFor example:\n\n\tParse()"
+				}
+				r, err := comment.Rewrite(Provider{}, "demo.go", src, nil, comment.Target{ID: id}, text, comment.RenderOptions{})
+				require.NoError(t, err)
+				require.True(t, r.Changed)
+				after := r.Source
+
+				// The assertions below read the bytes themselves rather than
+				// trusting what Contain decided.
+				assert.Equal(t, src[:c.Start], after[:c.Start], "the bytes before the comment")
+				end := c.End + len(after) - len(src)
+				assert.Equal(t, src[c.End:], after[end:], "the bytes after the comment")
+				_, err = parser.ParseFile(token.NewFileSet(), "demo.go", after, parser.ParseComments)
+				require.NoError(t, err, "the result parses")
+				again, err := format.Source(after)
+				require.NoError(t, err)
+				assert.Equal(t, string(after), string(again), "gofmt agrees with the whole file")
+
+				relocated, err := Provider{}.Locate("demo.go", after)
+				require.NoError(t, err)
+				require.Len(t, relocated.Comments, len(located.Comments), "the comment count is unchanged")
+				for j := range located.Comments {
+					if j == i {
+						continue
+					}
+					before, now := located.Comments[j], relocated.Comments[j]
+					assert.Equal(t, src[before.Start:before.End], after[now.Start:now.End], "comment %d is untouched", j)
+				}
+				assert.Contains(t, string(after[c.Start:end]), strings.SplitN(text, "\n", 2)[0], id)
+			})
+		}
+	})
+
+	t.Run("every Go comment in the repository rewrites to itself", func(t *testing.T) {
+		files, comments, blockComments := rewriteCorpus(t)
+		t.Logf("rewrite-corpus files=%d comments=%d block-comments-refused=%d", files, comments, blockComments)
+		assert.GreaterOrEqual(t, files, corpusMinFiles)
+		assert.GreaterOrEqual(t, comments, corpusMinComments)
+	})
+
+	t.Run("directives, generated files, the cgo preamble and example output are refused", func(t *testing.T) {
+		for _, tc := range []struct {
+			name, file, src string
+			target          comment.Target
+			reason          comment.RefusalReason
+		}{
+			{"a directive by id", "d.go", "package p\n\n//go:noinline\nfunc Parse() {}\n",
+				comment.Target{ID: "func/Parse"}, comment.RefusedUnknown},
+			{"a directive by its lines", "d.go", "package p\n\n//go:noinline\nfunc Parse() {}\n",
+				comment.Target{ID: "func/Parse", Lines: &fmtpkg.LineRange{First: 3, Last: 3}}, comment.RefusedDirective},
+			{"a generated file", "g.go", "// Code generated by gen. DO NOT EDIT.\n\npackage p\n\n// Parse parses.\nfunc Parse() {}\n",
+				comment.Target{ID: "func/Parse"}, comment.RefusedGenerated},
+			{"the cgo preamble", "c.go", "package p\n\n// #include <stdio.h>\nimport \"C\"\n",
+				comment.Target{ID: "import/C", Lines: &fmtpkg.LineRange{First: 3, Last: 3}}, comment.RefusedCgoPreamble},
+			{"an example's output", "x_test.go", "package p\n\nimport \"fmt\"\n\nfunc ExampleParse() {\n\tfmt.Println(1)\n\t// Output: 1\n}\n",
+				comment.Target{ID: "func/ExampleParse/comment", Lines: &fmtpkg.LineRange{First: 7, Last: 7}}, comment.RefusedExampleOutput},
+			{"a block comment", "b.go", "package p\n\n/* Parse parses. */\nfunc Parse() {}\n",
+				comment.Target{ID: "func/Parse"}, comment.RefusedBlockComment},
+			{"a comment read at other lines", "s.go", "package p\n\n// Parse parses.\nfunc Parse() {}\n",
+				comment.Target{ID: "func/Parse", Lines: &fmtpkg.LineRange{First: 2, Last: 2}}, comment.RefusedStale},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				_, err := comment.Rewrite(Provider{}, tc.file, []byte(tc.src), nil, tc.target, "New prose.", comment.RenderOptions{})
+				refusal, ok := comment.AsRefusal(err)
+				require.True(t, ok, "%v", err)
+				assert.Equal(t, tc.reason, refusal.Reason, refusal.Detail)
+			})
+		}
+	})
+
+	t.Run("text that makes a line a directive is refused", func(t *testing.T) {
+		for _, text := range []string{"nolint", "Parse parses.\n+build linux", "Parse is fast. #nosec"} {
+			_, err := comment.Rewrite(Provider{}, "demo.go", src, nil, comment.Target{ID: "type/Block"}, text, comment.RenderOptions{})
+			refusal, ok := comment.AsRefusal(err)
+			require.True(t, ok, "%q: %v", text, err)
+			assert.Equal(t, comment.RefusedDirective, refusal.Reason, "%q: %s", text, refusal.Detail)
+		}
+	})
+
+	t.Run("text that drops or adds a placeholder is refused", func(t *testing.T) {
+		for name, text := range map[string]string{
+			"a dropped reference":  "Parse reads the input.\n\nIt handles these cases:\n  - an empty input\n  - a long input\n\nFor example:\n\n\tParse()",
+			"an added reference":   "Parse reads from an [io.Reader] or [io.ByteReader].\n\nIt handles these cases:\n  - an empty input\n  - a long input\n\nFor example:\n\n\tParse()",
+			"a changed code block": "Parse reads from an [io.Reader].\n\nIt handles these cases:\n  - an empty input\n  - a long input\n\nFor example:\n\n\tParse(input)",
+			"an added list item":   "Parse reads from an [io.Reader].\n\nIt handles these cases:\n  - an empty input\n  - a long input\n  - a broken input\n\nFor example:\n\n\tParse()",
+		} {
+			_, err := comment.Rewrite(Provider{}, "demo.go", src, nil, comment.Target{ID: "func/Parse"}, text, comment.RenderOptions{})
+			refusal, ok := comment.AsRefusal(err)
+			require.True(t, ok, "%s: %v", name, err)
+			assert.Equal(t, comment.RefusedStructure, refusal.Reason, "%s: %s", name, refusal.Detail)
+		}
+	})
+
+	t.Run("the deprecation marker is kept", func(t *testing.T) {
+		_, err := comment.Rewrite(Provider{}, "demo.go", src, nil, comment.Target{ID: "func/Old"}, "Old parses the old way, see [Parse].", comment.RenderOptions{})
+		refusal, ok := comment.AsRefusal(err)
+		require.True(t, ok, "%v", err)
+		assert.Equal(t, comment.RefusedDeprecation, refusal.Reason)
+
+		_, err = comment.Rewrite(Provider{}, "demo.go", src, nil, comment.Target{ID: "type/Block"}, "Block holds one unit.\n\nDeprecated: use nothing.", comment.RenderOptions{})
+		refusal, ok = comment.AsRefusal(err)
+		require.True(t, ok, "%v", err)
+		assert.Equal(t, comment.RefusedDeprecation, refusal.Reason)
+	})
+
+	t.Run("a rewrite gofmt would change is refused", func(t *testing.T) {
+		misindented := []byte("package p\n\nfunc F() {\n  // Indented with spaces.\n\t_ = 1\n}\n")
+		_, err := comment.Rewrite(Provider{}, "m.go", misindented, nil, comment.Target{ID: "func/F/comment"}, "Still indented with spaces.", comment.RenderOptions{})
+		refusal, ok := comment.AsRefusal(err)
+		require.True(t, ok, "%v", err)
+		assert.Equal(t, comment.RefusedFormatter, refusal.Reason, refusal.Detail)
+	})
+
+	t.Run("must fail: a one-byte corruption at the span's edge is refused", func(t *testing.T) {
+		located, err := Provider{}.Locate("demo.go", src)
+		require.NoError(t, err)
+		index := indexOf(t, located, "type/Block")
+		c := located.Comments[index]
+		span, err := Provider{}.Render("demo.go", src, c, "Block holds exactly one unit.", comment.RenderOptions{})
+		require.NoError(t, err)
+		splice := func(start, end int) []byte {
+			return bytes.Join([][]byte{src[:start], span, src[end:]}, nil)
+		}
+		good := splice(c.Start, c.End)
+		_, err = comment.Contain(Provider{}, "demo.go", src, good, nil, located, index)
+		require.NoError(t, err, "the uncorrupted rewrite is contained")
+
+		flip := func(b []byte, at int) []byte {
+			out := bytes.Clone(b)
+			out[at] ^= 0x20
+			return out
+		}
+		end := c.Start + len(span)
+		for name, after := range map[string][]byte{
+			"a byte before the span flipped":         flip(good, c.Start-2),
+			"a byte after the span flipped":          flip(good, end+1),
+			"the span starts one byte early":         splice(c.Start-1, c.End),
+			"the span ends one byte late":            splice(c.Start, c.End+1),
+			"a byte of the next declaration dropped": append(bytes.Clone(good[:end+1]), good[end+2:]...),
+		} {
+			_, err := comment.Contain(Provider{}, "demo.go", src, after, nil, located, index)
+			refusal, ok := comment.AsRefusal(err)
+			require.True(t, ok, "%s: the corruption was not refused: %v", name, err)
+			assert.Equal(t, comment.RefusedContainment, refusal.Reason, "%s: %s", name, refusal.Detail)
+		}
+	})
+
+	t.Run("must fail: a renderer that writes code after the comment is refused", func(t *testing.T) {
+		_, err := comment.Rewrite(injectingRenderer{}, "demo.go", src, nil, comment.Target{ID: "type/Block"}, "Block holds one unit.", comment.RenderOptions{})
+		refusal, ok := comment.AsRefusal(err)
+		require.True(t, ok, "%v", err)
+		assert.Equal(t, comment.RefusedContainment, refusal.Reason, refusal.Detail)
+	})
+
+	t.Run("must fail: a renderer that writes a list gofmt reformats is refused", func(t *testing.T) {
+		text := "Parse reads from an [io.Reader].\n\nIt handles these cases:\n - an empty input\n - a long input\n\nFor example:\n\n\tParse()"
+		_, err := comment.Rewrite(rawListRenderer{}, "demo.go", src, nil, comment.Target{ID: "func/Parse"}, text, comment.RenderOptions{})
+		refusal, ok := comment.AsRefusal(err)
+		require.True(t, ok, "%v", err)
+		assert.Equal(t, comment.RefusedFormatter, refusal.Reason, refusal.Detail)
+	})
+}
+
+// rewriteCorpus rewrites every line comment in the repository's tracked Go
+// files with its own prose and requires each rewrite to leave the file's bytes
+// and its comment count as they are. Each file is located once and each of its
+// comments rendered and held to Contain, the two steps Rewrite takes after it
+// locates the file. A delimited comment must be refused. It returns how many
+// files it read, how many comments it rewrote, and how many delimited comments
+// were refused.
+func rewriteCorpus(t *testing.T) (files, comments, blockComments int) {
+	t.Helper()
+	root := repoRoot(t)
+	cmd := exec.CommandContext(t.Context(), "git", "ls-files", "-z", "*.go")
+	cmd.Dir = root
+	listing, err := cmd.Output()
+	require.NoError(t, err)
+
+	var paths []string
+	for rel := range strings.SplitSeq(strings.TrimRight(string(listing), "\x00"), "\x00") {
+		if rel != "" && !strings.HasPrefix(rel, ".claude/") {
+			paths = append(paths, rel)
+		}
+	}
+
+	var mu sync.Mutex
+	work := make(chan string)
+	var wg sync.WaitGroup
+	for range runtime.GOMAXPROCS(0) {
+		wg.Go(func() {
+			for rel := range work {
+				path := filepath.Join(root, rel)
+				src, err := os.ReadFile(path)
+				if err != nil {
+					t.Errorf("%s: %v", rel, err)
+					continue
+				}
+				located, err := Provider{}.Locate(path, src)
+				if err != nil {
+					continue // a fixture that does not parse holds no located comment
+				}
+				ids := located.Blocks()
+				rewrote, refused := 0, 0
+				for i, c := range located.Comments {
+					prose, perr := Provider{}.Prose(src, c)
+					if c.Style == comment.StyleBlock {
+						_, err := comment.Rewrite(Provider{}, path, src, nil, comment.Target{ID: ids[i].ID}, "Prose.", comment.RenderOptions{})
+						if refusal, ok := comment.AsRefusal(err); !ok || refusal.Reason != comment.RefusedBlockComment {
+							t.Errorf("%s:%d: a delimited comment was not refused as one: %v", rel, c.Lines.First, err)
+						}
+						refused++
+						continue
+					}
+					if perr != nil {
+						t.Errorf("%s:%d: %v", rel, c.Lines.First, perr)
+						continue
+					}
+					span, err := Provider{}.Render(path, src, c, prose, comment.RenderOptions{})
+					if err != nil {
+						t.Errorf("%s:%d: rendering %s with its own prose: %v", rel, c.Lines.First, ids[i].ID, err)
+						continue
+					}
+					after := bytes.Join([][]byte{src[:c.Start], span, src[c.End:]}, nil)
+					r, err := comment.Contain(Provider{}, path, src, after, nil, located, i)
+					if err != nil {
+						t.Errorf("%s:%d: rewriting %s with its own prose: %v", rel, c.Lines.First, ids[i].ID, err)
+						continue
+					}
+					if r.Changed || !bytes.Equal(r.Source, src) || len(r.File.Comments) != len(located.Comments) {
+						t.Errorf("%s:%d: rewriting %s with its own prose changed the file", rel, c.Lines.First, ids[i].ID)
+						continue
+					}
+					rewrote++
+				}
+				mu.Lock()
+				files++
+				comments += rewrote
+				blockComments += refused
+				mu.Unlock()
+			}
+		})
+	}
+	for _, p := range paths {
+		work <- p
+	}
+	close(work)
+	wg.Wait()
+	return files, comments, blockComments
+}
+
+func indexOf(t *testing.T, f *comment.File, id string) int {
+	t.Helper()
+	for i, b := range f.Blocks() {
+		if b.ID == id {
+			return i
+		}
+	}
+	t.Fatalf("no comment %s", id)
+	return -1
+}
+
+// injectingRenderer renders like the Go provider and then writes a
+// declaration after the comment, inside the bytes it returns.
+type injectingRenderer struct{ Provider }
+
+func (p injectingRenderer) Render(name string, src []byte, c comment.Comment, text string, opts comment.RenderOptions) ([]byte, error) {
+	span, err := p.Provider.Render(name, src, c, text, opts)
+	return append(span, "\ntype Injected int\n"...), err
+}
+
+// rawListRenderer writes each line of text with gofmt's comment marker and
+// never through go/doc/comment's printer, so a list item keeps the indentation
+// the text gave it where gofmt writes its own.
+type rawListRenderer struct{ Provider }
+
+func (rawListRenderer) Render(_ string, _ []byte, _ comment.Comment, text string, _ comment.RenderOptions) ([]byte, error) {
+	lines := strings.Split(text, "\n")
+	for i, line := range lines {
+		lines[i] = marked(line)
+	}
+	return []byte(strings.Join(lines, "\n")), nil
+}
