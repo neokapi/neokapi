@@ -146,12 +146,15 @@ func (r *daemonReader) Read(ctx context.Context) <-chan model.PartResult {
 			return
 		}
 
+		// The document's name travels however its bytes do, so a reader that
+		// picks a syntax by extension has one even for inline content.
 		header := &pb.ProcessHeader{
 			FilterClass:  r.formatName,
 			SourceLocale: string(r.Doc.SourceLocale),
 			TargetLocale: string(r.Doc.TargetLocale),
 			Encoding:     r.Doc.Encoding,
 			MimeType:     r.Doc.MimeType,
+			InputName:    r.Doc.URI,
 		}
 		// Forward applied config (e.g. PDF "geometry"/"glyphs") to the daemon.
 		if cfg, ok := r.Cfg.(*mapConfig); ok && len(cfg.params) > 0 {

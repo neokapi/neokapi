@@ -148,6 +148,11 @@ message ProcessHeader {
                                      // them; explicit filter_params override on top. Lets a
                                      // config-preset format (DITA/DocBook/ResX) run
                                      // head-to-head against its native xml-config preset.
+
+  // The input document's name as kapi knows it, such as its path in the
+  // project, sent whether the bytes arrive by path or inline. A reader may
+  // infer the document's syntax from it; it is never a location to read.
+  string input_name = 13;
 }
 
 // ProcessReadDone signals that all parts have been read from the document.

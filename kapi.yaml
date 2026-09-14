@@ -413,9 +413,8 @@ collections:
         format:
           name: sourcecode
           config:
-            # Declared rather than inferred from the extension: the host hands a
-            # plugin its input inline, and that path carries no filename to
-            # infer from.
+            # Declared, though the extension names the same grammar: a kapi that
+            # sends the plugin no file name reads the cask through this alone.
             language: ruby
             # Everything else in a cask is a path, a URL, a bundle id or a
             # version. The tree tells them apart; this says which two calls hold

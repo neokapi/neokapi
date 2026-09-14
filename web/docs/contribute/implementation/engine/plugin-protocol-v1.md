@@ -338,9 +338,10 @@ misses the comment, or answers with other text, leaves the check invalid.
 One `Process` stream handles a full document:
 
 1. **kapi sends `ProcessHeader`**: format name (`filter_class`), input document
-   (`ContentRef`: path, inline bytes, or URI), source/target locale, encoding,
-   MIME type, parameters, an optional output destination, and a
-   `subscribe_parts` filter.
+   (`ContentRef`: path, inline bytes, or URI), the document's name
+   (`input_name`, sent however the bytes travel, for a reader that infers the
+   document's syntax from it), source/target locale, encoding, MIME type,
+   parameters, an optional output destination, and a `subscribe_parts` filter.
 2. **The plugin reads** its document, converts subscribed events to
    `ContentBlock`s, batches them into `ContentBlockBatch` (up to 1024 blocks per
    message), and streams them back.
