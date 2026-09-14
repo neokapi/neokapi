@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-14T21:27:26Z",
+  "generatedAt": "2026-09-14T21:57:11Z",
   "tools": [
     {
       "name": "apply_edits",
@@ -90,7 +90,7 @@
     },
     {
       "name": "check_file",
-      "description": "Check the actual content inside a file (Word, PowerPoint, JSON, XLIFF, Markdown, …) or only the content blocks a change touched: pass diff (unified diff text), diff_against (a git revision) or staged (the changes staged for commit, read from the index) to check each touched block whole, with the lines it spans, and read report.scope for every changed file and what became of it. with format-aware extraction and the applicable project voice and terms. Before editing, read the context://\u003cproject-relative-path\u003e resource; after saving edits (including apply_edits), run check_file and review its per-block findings and analyzer coverage. Returns a kapi.check/v1 Report with effective scope in execution.contexts and configuration warnings, which never change pass; pass is not semantic approval. Omit profile_file/profile_pack to use the file’s project profile and channel. Supplying either replaces that voice selection with an explicit override; project terms still apply. Pass target/target_lang to also run bilingual checks.",
+      "description": "Check the actual content inside a file (Word, PowerPoint, JSON, XLIFF, Markdown, …) or only the content blocks a change touched: pass diff (unified diff text), diff_against (a git revision), staged (the changes staged for commit, read from the index) or diff_range (A..B or A...B, read from B) to check each touched block whole, with the lines it spans, and read report.scope for every changed file and what became of it. with format-aware extraction and the applicable project voice and terms. Before editing, read the context://\u003cproject-relative-path\u003e resource; after saving edits (including apply_edits), run check_file and review its per-block findings and analyzer coverage. Returns a kapi.check/v1 Report with effective scope in execution.contexts and configuration warnings, which never change pass; pass is not semantic approval. Omit profile_file/profile_pack to use the file’s project profile and channel. Supplying either replaces that voice selection with an explicit override; project terms still apply. Pass target/target_lang to also run bilingual checks.",
       "surface": "default",
       "params": [
         {
@@ -106,6 +106,12 @@
           "description": "git revision to diff the working tree against, read-only, with untracked files as added; only the content blocks changed are checked"
         },
         {
+          "name": "diff_range",
+          "type": "string",
+          "required": false,
+          "description": "two commits as A..B, or A...B for the change B made since its merge base with A; each file is read from B and nothing from the working tree; only the content blocks changed are checked"
+        },
+        {
           "name": "dnt",
           "type": "array",
           "required": false,
@@ -115,7 +121,7 @@
           "name": "file",
           "type": "string",
           "required": false,
-          "description": "path to the file whose content should be checked; with diff, diff_against or staged it narrows the scope to this file, and may be omitted"
+          "description": "path to the file whose content should be checked; with diff, diff_against, staged or diff_range it narrows the scope to this file, and may be omitted"
         },
         {
           "name": "forbid",
