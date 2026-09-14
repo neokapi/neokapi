@@ -1,6 +1,7 @@
-// Package markup holds what every `<!-- -->` comment shares, whichever markup
-// language's provider located it: the prose a comment holds, and the directive
-// forms tools read in more than one markup language.
+// Package markup holds what the comments of markup languages share, whichever
+// provider located them: `<!-- -->` in XML, HTML and Markdown, and `{/* */}` in
+// MDX. It projects the prose a comment holds, and holds the directive forms
+// tools read in more than one of those languages.
 //
 // Where a comment starts and ends is each language's own business, since XML
 // and HTML close a comment by different rules. A provider hands this package
@@ -132,4 +133,16 @@ var ReSharper = DirectiveForm{Name: "ReSharper", Match: resharperRe.MatchString}
 // `<!-- markdownlint-disable MD033 -->`.
 var Markdownlint = DirectiveForm{Name: "markdownlint", Match: func(b string) bool {
 	return strings.HasPrefix(b, "markdownlint-")
+}}
+
+// Truncate ends the excerpt of a Docusaurus blog post: `<!-- truncate -->` in
+// Markdown and `{/* truncate */}` in MDX.
+var Truncate = DirectiveForm{Name: "truncate", Match: func(b string) bool {
+	return b == "truncate"
+}}
+
+// ESLint is an ESLint instruction, which ESLint's MDX support reads in an
+// expression comment, as in `{/* eslint-disable */}`.
+var ESLint = DirectiveForm{Name: "eslint", Match: func(b string) bool {
+	return strings.HasPrefix(b, "eslint-disable") || strings.HasPrefix(b, "eslint-enable") || strings.HasPrefix(b, "eslint ")
 }}

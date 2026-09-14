@@ -28,8 +28,12 @@ func TestRunsKeepInlineTagsAsProse(t *testing.T) {
 }
 
 func TestDirectiveForms(t *testing.T) {
-	forms := []DirectiveForm{PrettierIgnore, FormatterToggle, Suppress, ReSharper, Markdownlint}
+	forms := []DirectiveForm{PrettierIgnore, FormatterToggle, Suppress, ReSharper, Markdownlint, Truncate, ESLint}
 	for body, want := range map[string]string{
+		"truncate": "truncate",
+		"eslint-disable-next-line no-unused-vars": "eslint",
+		"eslint-enable":                                 "eslint",
+		"eslint no-var: off":                            "eslint",
 		"markdownlint-disable MD033":                    "markdownlint",
 		"markdownlint-restore":                          "markdownlint",
 		" prettier-ignore ":                             "prettier-ignore",
@@ -58,6 +62,8 @@ func TestDirectiveForms(t *testing.T) {
 		"ReSharperish",
 		"@formatter is a name",
 		"markdownlint is a linter",
+		"truncated text",
+		"eslintrc settings",
 	} {
 		t.Run("prose "+prose, func(t *testing.T) {
 			_, ok := Classify(prose, forms)

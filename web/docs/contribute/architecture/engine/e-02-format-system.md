@@ -509,6 +509,19 @@ Docusaurus `truncate` marker, the region kapi writes for a voice pointer, the
 markers of a generated region and markdownlint and Prettier instructions are
 directives.
 
+The MDX format reads a document with its reader's own scan, which separates
+Markdown from ESM statements, JSX elements and top-level expressions. A comment
+is a top-level expression that holds one `/* */` comment, such as
+`{/* A note. */}`. Every `{/*` and `<!--` in the file must open such a comment,
+sit inside one, or sit in content: code or front matter in a Markdown span, which
+the Markdown format reads, code in the Markdown children of a JSX element, or an
+ESM statement. A document with an expression
+comment inside a JSX element or a paragraph, an HTML comment, which MDX does not
+allow, or an expression holding more than one comment is refused. A file whose
+first comment says `DO NOT EDIT` belongs to its generator, and its comments are
+set aside as generated. Prettier, Docusaurus `truncate`, markdownlint and ESLint
+instructions are directives.
+
 For a file its reader parses, `comments: true` adds the comment blocks to the
 reader's blocks for checking, and the file converges through its reader
 unchanged. A declared format that supplies no comments leaves the comment check
