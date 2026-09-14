@@ -122,9 +122,9 @@
           "status": "preferred"
         }
       ],
+      "do_not_translate": true,
       "created_at": "2026-06-11T06:47:18Z",
-      "updated_at": "2026-06-11T06:47:18Z",
-      "do_not_translate": true
+      "updated_at": "2026-06-11T06:47:18Z"
     },
     {
       "id": "term:18f1255e3f",
@@ -181,10 +181,15 @@
           "text": "kontroll",
           "locale": "nb",
           "status": "preferred"
+        },
+        {
+          "text": "se etter",
+          "locale": "nb",
+          "status": "admitted"
         }
       ],
       "created_at": "2026-06-11T06:47:18Z",
-      "updated_at": "2026-06-11T06:47:18Z"
+      "updated_at": "2026-09-14T18:59:38.168849Z"
     },
     {
       "id": "term:2334b8e625",
@@ -336,13 +341,18 @@
           "status": "preferred"
         },
         {
+          "text": "skiller mellom store og små bokstaver",
+          "locale": "nb",
+          "status": "admitted"
+        },
+        {
           "text": "versalfølsom",
           "locale": "nb",
           "status": "preferred"
         }
       ],
       "created_at": "2026-06-11T06:47:18Z",
-      "updated_at": "2026-06-11T06:47:18Z"
+      "updated_at": "2026-09-14T18:59:38.215074Z"
     },
     {
       "id": "term:3b21278178",
@@ -427,6 +437,27 @@
       ],
       "created_at": "2026-06-11T06:47:18Z",
       "updated_at": "2026-06-11T06:47:18Z"
+    },
+    {
+      "id": "term:44794acaac",
+      "domain": "product",
+      "definition": "The Java bridge exposing Okapi Framework filters to neokapi over gRPC, and its repository. Never translate; always lowercase and hyphenated.",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "okapi-bridge",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "okapi-bridge",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "do_not_translate": true,
+      "created_at": "2026-08-26T00:00:00Z",
+      "updated_at": "2026-08-26T00:00:00Z"
     },
     {
       "id": "term:496aca80e4",
@@ -519,9 +550,9 @@
           "status": "preferred"
         }
       ],
+      "do_not_translate": true,
       "created_at": "2026-06-11T06:47:18Z",
-      "updated_at": "2026-06-11T06:47:18Z",
-      "do_not_translate": true
+      "updated_at": "2026-06-11T06:47:18Z"
     },
     {
       "id": "term:599f770354",
@@ -718,9 +749,9 @@
           "status": "preferred"
         }
       ],
+      "do_not_translate": true,
       "created_at": "2026-06-11T06:47:18Z",
-      "updated_at": "2026-06-11T06:47:18Z",
-      "do_not_translate": true
+      "updated_at": "2026-06-11T06:47:18Z"
     },
     {
       "id": "term:7fd690e20d",
@@ -758,9 +789,9 @@
           "status": "preferred"
         }
       ],
+      "do_not_translate": true,
       "created_at": "2026-06-11T06:47:18Z",
-      "updated_at": "2026-06-11T06:47:18Z",
-      "do_not_translate": true
+      "updated_at": "2026-06-11T06:47:18Z"
     },
     {
       "id": "term:8cf3cf906c",
@@ -769,24 +800,24 @@
       "source": "terminology",
       "terms": [
         {
-          "text": "voice profile",
-          "locale": "en",
-          "status": "preferred"
-        },
-        {
           "text": "brand voice",
           "locale": "en",
           "status": "deprecated"
         },
         {
-          "text": "målgruppeprofil",
-          "locale": "nb",
+          "text": "voice profile",
+          "locale": "en",
           "status": "preferred"
         },
         {
           "text": "merkevarestemme",
           "locale": "nb",
           "status": "deprecated"
+        },
+        {
+          "text": "målgruppeprofil",
+          "locale": "nb",
+          "status": "preferred"
         }
       ],
       "created_at": "2026-06-11T06:47:18Z",
@@ -1035,9 +1066,9 @@
           "status": "preferred"
         }
       ],
+      "do_not_translate": true,
       "created_at": "2026-06-11T06:47:18Z",
-      "updated_at": "2026-06-11T06:47:18Z",
-      "do_not_translate": true
+      "updated_at": "2026-06-11T06:47:18Z"
     },
     {
       "id": "term:ddc8d86be8",
@@ -1099,6 +1130,27 @@
       "updated_at": "2026-06-11T06:47:18Z"
     },
     {
+      "id": "term:ec3472758f",
+      "domain": "product",
+      "definition": "The upstream Okapi Framework (Java), which neokapi reimagines and which okapi-bridge exposes. Never translate; capitalized product name. Not the animal of the same name.",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "Okapi",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "Okapi",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "do_not_translate": true,
+      "created_at": "2026-08-26T00:00:00Z",
+      "updated_at": "2026-08-26T00:00:00Z"
+    },
+    {
       "id": "term:ed9f6f2506",
       "domain": "product",
       "source": "terminology",
@@ -1129,6 +1181,11 @@
           "status": "preferred"
         },
         {
+          "text": "hente",
+          "locale": "nb",
+          "status": "admitted"
+        },
+        {
           "text": "trekk ut",
           "locale": "nb",
           "status": "preferred",
@@ -1136,7 +1193,7 @@
         }
       ],
       "created_at": "2026-06-11T06:47:18Z",
-      "updated_at": "2026-06-11T06:47:18Z"
+      "updated_at": "2026-09-14T18:59:38.23433Z"
     },
     {
       "id": "term:fba586be3b",
@@ -1177,48 +1234,6 @@
       ],
       "created_at": "2026-06-11T06:47:18Z",
       "updated_at": "2026-06-11T06:47:18Z"
-    },
-    {
-      "id": "term:ec3472758f",
-      "domain": "product",
-      "definition": "The upstream Okapi Framework (Java), which neokapi reimagines and which okapi-bridge exposes. Never translate; capitalized product name. Not the animal of the same name.",
-      "source": "terminology",
-      "terms": [
-        {
-          "text": "Okapi",
-          "locale": "en",
-          "status": "preferred"
-        },
-        {
-          "text": "Okapi",
-          "locale": "nb",
-          "status": "preferred"
-        }
-      ],
-      "created_at": "2026-08-26T00:00:00Z",
-      "updated_at": "2026-08-26T00:00:00Z",
-      "do_not_translate": true
-    },
-    {
-      "id": "term:44794acaac",
-      "domain": "product",
-      "definition": "The Java bridge exposing Okapi Framework filters to neokapi over gRPC, and its repository. Never translate; always lowercase and hyphenated.",
-      "source": "terminology",
-      "terms": [
-        {
-          "text": "okapi-bridge",
-          "locale": "en",
-          "status": "preferred"
-        },
-        {
-          "text": "okapi-bridge",
-          "locale": "nb",
-          "status": "preferred"
-        }
-      ],
-      "created_at": "2026-08-26T00:00:00Z",
-      "updated_at": "2026-08-26T00:00:00Z",
-      "do_not_translate": true
     }
   ]
 }
