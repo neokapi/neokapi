@@ -211,10 +211,11 @@ kapi reads comments in the project, and an item's own `directives` add to them
 for its files. A marker that is empty, starts with whitespace, or is declared
 twice makes the recipe fail to load, with an error naming the key.
 
-The same key checks the comments in YAML files and in XML-based files, such as
+The same key checks the comments in YAML files, in XML-based files, such as
 [Android string resources](/reference/formats/androidxml),
 [.NET RESX](/reference/formats/resx) and [XLIFF](/reference/formats/xliff),
-beside the values their readers extract:
+and in [HTML](/reference/formats/html) files, beside the values their readers
+extract:
 
 ```yaml title="kapi.yaml"
 collections:
@@ -232,13 +233,15 @@ file it writes, and the ship gate checks the comments once, in the source
 language. Set on a format whose comments kapi cannot read, the key makes the
 check report that it did not run.
 
-In an XML-based file each `<!-- -->` comment is one block, named for the element
-it sits on, such as `comment/resources/string[greeting]`. A commented-out
-element and a tool's suppression, such as `<!--suppress UnusedResources -->`,
-stay out of the prose. When kapi cannot place a file's comments exactly, as in a
-file with `--` inside a comment, which XML does not allow, the check reports
-that it did not run. kapi has no comment formatter for YAML or XML, so a report
-lists the formatter check for those files as unsupported.
+In an XML-based or HTML file each `<!-- -->` comment is one block, named for the
+element it sits on, such as `comment/resources/string[greeting]`. A
+commented-out element and a tool's suppression, such as
+`<!--suppress UnusedResources -->`, stay out of the prose. In HTML, so do
+conditional comments, server-side includes and the markers a framework such as
+React writes for its own use. When kapi cannot place a file's comments exactly,
+as in an XML file with `--` inside a comment, which XML does not allow, the check
+reports that it did not run. kapi has no comment formatter for YAML, XML or
+HTML, so a report lists the formatter check for those files as unsupported.
 
 ## Next
 

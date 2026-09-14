@@ -470,6 +470,17 @@ markup becomes a placeholder, and the suppressions Prettier, the JetBrains IDEs
 and ReSharper read are directives. A format that keeps its XML inside an archive
 supplies no comments, because a comment there has no span in the file.
 
+The HTML format reads comments by the HTML tokenizer's rules. It scans for
+`<!--` outside tags, doctypes, bogus comments and the text of raw text elements
+such as `<script>`, `<style>` and `<textarea>`, closes a comment on `-->` or
+`--!>`, and reads `<!-->` and `<!--->` as empty comments. It holds each comment
+to the offsets the `x/net/html` tokenizer reports, and to the comments the HTML
+parser finds, which reads SVG and MathML content by rules of its own. It refuses
+a document the three disagree on, and one that ends inside a comment. A comment
+is named for the element that follows it, as in `comment/p[greeting]`.
+Conditional comments, server-side includes, markdownlint instructions and the
+markers React writes into a page it renders on the server are directives.
+
 For a file its reader parses, `comments: true` adds the comment blocks to the
 reader's blocks for checking, and the file converges through its reader
 unchanged. A declared format that supplies no comments leaves the comment check

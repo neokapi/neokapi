@@ -28,8 +28,10 @@ func TestRunsKeepInlineTagsAsProse(t *testing.T) {
 }
 
 func TestDirectiveForms(t *testing.T) {
-	forms := []DirectiveForm{PrettierIgnore, FormatterToggle, Suppress, ReSharper}
+	forms := []DirectiveForm{PrettierIgnore, FormatterToggle, Suppress, ReSharper, Markdownlint}
 	for body, want := range map[string]string{
+		"markdownlint-disable MD033":                    "markdownlint",
+		"markdownlint-restore":                          "markdownlint",
 		" prettier-ignore ":                             "prettier-ignore",
 		"prettier-ignore-start":                         "prettier-ignore",
 		"prettier-ignore-end":                           "prettier-ignore",
@@ -55,6 +57,7 @@ func TestDirectiveForms(t *testing.T) {
 		"noinspection needed",
 		"ReSharperish",
 		"@formatter is a name",
+		"markdownlint is a linter",
 	} {
 		t.Run("prose "+prose, func(t *testing.T) {
 			_, ok := Classify(prose, forms)

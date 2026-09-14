@@ -11,6 +11,7 @@ import (
 	"github.com/neokapi/neokapi/core/comment"
 	"github.com/neokapi/neokapi/core/comment/golang"
 	"github.com/neokapi/neokapi/core/format"
+	htmlformat "github.com/neokapi/neokapi/core/formats/html"
 	xmlformat "github.com/neokapi/neokapi/core/formats/xml"
 	yamlformat "github.com/neokapi/neokapi/core/formats/yaml"
 	"github.com/neokapi/neokapi/core/model"
@@ -25,6 +26,7 @@ import (
 var commentProviders = func() *comment.Registry {
 	r := comment.NewRegistry(golang.Provider{})
 	r.RegisterFormat("yaml", yamlformat.CommentProvider{})
+	r.RegisterFormat("html", htmlformat.CommentProvider{})
 	for _, f := range xmlCommentFormats {
 		r.RegisterFormat(f, xmlformat.CommentProvider{Format: f})
 	}
