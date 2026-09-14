@@ -52,6 +52,10 @@ type ConceptUpdatePayload struct {
 	Domain     *string           `json:"domain,omitempty"`
 	Definition *string           `json:"definition,omitempty"`
 	Properties map[string]string `json:"properties,omitempty"`
+	// DoNotTranslate sets (true) or clears (false) the concept's do-not-translate
+	// flag, and nil leaves it. Setting or clearing it is governed: it changes
+	// what the checks hold every target language to.
+	DoNotTranslate *bool `json:"do_not_translate,omitempty"`
 }
 
 // ConceptDeletePayload is the payload for OpConceptDelete (governed).
@@ -338,11 +342,27 @@ func IsGovernedOp(op ChangeSetOp) (bool, error) {
 		}
 		return p.Relation.RelationType == graph.LabelReplacedBy, nil
 
+	// Setting or clearing do-not-translate changes what the checks hold every
+	// target language to, so it is governed on an update and on a concept
+	// created with the flag.
+	case OpConceptUpdate:
+		var p ConceptUpdatePayload
+		if err := decodePayload(op, &p); err != nil {
+			return false, err
+		}
+		return p.DoNotTranslate != nil, nil
+
+	case OpConceptCreate:
+		var p ConceptCreatePayload
+		if err := decodePayload(op, &p); err != nil {
+			return false, err
+		}
+		return p.Concept.DoNotTranslate, nil
+
 	case OpConceptDelete, OpVoiceRuleAdd, OpVoiceRuleRemove:
 		return true, nil
 
-	case OpConceptCreate, OpConceptUpdate,
-		OpTermAdd, OpTermUpdate, OpTermRemove, OpRelationRemove:
+	case OpTermAdd, OpTermUpdate, OpTermRemove, OpRelationRemove:
 		return false, nil
 
 	default:

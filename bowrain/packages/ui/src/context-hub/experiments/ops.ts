@@ -42,6 +42,16 @@ export function isGovernedOp(op: ChangeSetOp): boolean {
       const p = op.payload as RelationAddPayload;
       return p.relation.relation_type === "REPLACED_BY";
     }
+    case "concept.update": {
+      // Setting or clearing do-not-translate changes what the checks hold every
+      // target language to.
+      const p = op.payload as ConceptUpdatePayload;
+      return p.do_not_translate !== undefined && p.do_not_translate !== null;
+    }
+    case "concept.create": {
+      const p = op.payload as ConceptCreatePayload;
+      return p.concept?.do_not_translate === true;
+    }
     case "concept.delete":
     case "voice.rule.add":
     case "voice.rule.remove":
@@ -123,6 +133,16 @@ export function opDiffRow(op: ChangeSetOp): OpDiffRow {
     }
     case "concept.update": {
       const p = op.payload as ConceptUpdatePayload;
+      if (p.do_not_translate != null) {
+        return {
+          ...base,
+          verb: p.do_not_translate ? "Keep verbatim" : "Allow translation",
+          summary: p.do_not_translate
+            ? `Mark concept ${p.concept_id} do-not-translate`
+            : `Clear do-not-translate on concept ${p.concept_id}`,
+          tone: "default",
+        };
+      }
       const what = p.definition != null ? "definition" : p.domain != null ? "domain" : "metadata";
       return {
         ...base,

@@ -465,6 +465,14 @@ export class AddConceptRequest {
              */
             this["definition"] = "";
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * DoNotTranslate keeps the concept\'s source term verbatim in every language.
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["do_not_translate"] = undefined;
+        }
         if (!("terms" in $$source)) {
             /**
              * @member
@@ -482,10 +490,10 @@ export class AddConceptRequest {
      * @returns {AddConceptRequest}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType8;
+        const $$createField4_0 = $$createType8;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("terms" in $$parsedSource) {
-            $$parsedSource["terms"] = $$createField3_0($$parsedSource["terms"]);
+            $$parsedSource["terms"] = $$createField4_0($$parsedSource["terms"]);
         }
         return new AddConceptRequest(/** @type {Partial<AddConceptRequest>} */($$parsedSource));
     }
@@ -1566,6 +1574,13 @@ export class ConceptDTO {
              */
             this["source"] = "";
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["do_not_translate"] = undefined;
+        }
         if (!("terms" in $$source)) {
             /**
              * @member
@@ -1604,14 +1619,14 @@ export class ConceptDTO {
      * @returns {ConceptDTO}
      */
     static createFrom($$source = {}) {
-        const $$createField5_0 = $$createType8;
-        const $$createField6_0 = $$createType13;
+        const $$createField6_0 = $$createType8;
+        const $$createField7_0 = $$createType13;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("terms" in $$parsedSource) {
-            $$parsedSource["terms"] = $$createField5_0($$parsedSource["terms"]);
+            $$parsedSource["terms"] = $$createField6_0($$parsedSource["terms"]);
         }
         if ("properties" in $$parsedSource) {
-            $$parsedSource["properties"] = $$createField6_0($$parsedSource["properties"]);
+            $$parsedSource["properties"] = $$createField7_0($$parsedSource["properties"]);
         }
         return new ConceptDTO(/** @type {Partial<ConceptDTO>} */($$parsedSource));
     }

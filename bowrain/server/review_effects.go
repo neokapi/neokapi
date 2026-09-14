@@ -90,10 +90,14 @@ func (s *Server) approveTermCandidate(ctx context.Context, item *bstore.ReviewIt
 		termStatus = model.TermPreferred
 	}
 
+	// The reviewer's approval of the candidate is the governing decision for it,
+	// so a candidate marked do-not-translate yields a concept carrying the flag in
+	// the same write, as a preferred term is created on the same approval.
 	concept := terms.Concept{
-		ID:         id.New(),
-		Domain:     string(candidate.Category),
-		Definition: candidate.Definition,
+		ID:             id.New(),
+		Domain:         string(candidate.Category),
+		Definition:     candidate.Definition,
+		DoNotTranslate: candidate.Translatability == model.TranslatabilityDNT,
 		Terms: []terms.Term{
 			{
 				Text:   candidate.Text,

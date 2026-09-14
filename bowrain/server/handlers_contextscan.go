@@ -270,6 +270,10 @@ type ContextScanApprovedTerm struct {
 	Definition string `json:"definition,omitempty"`
 	Domain     string `json:"domain,omitempty"`
 	Locale     string `json:"locale,omitempty"`
+	// DoNotTranslate marks a term that stays the same string in every language.
+	// Creating a concept with that flag is governed, so the approval proposes it
+	// in a change-set for review rather than writing it.
+	DoNotTranslate bool `json:"do_not_translate,omitempty"`
 }
 
 // ContextScanApproveRequest is the reviewed outcome of a context scan: the edited
@@ -295,6 +299,10 @@ type ContextScanApproveResponse struct {
 	ConceptsCreated  int                       `json:"concepts_created"`
 	ConceptsExisting int                       `json:"concepts_existing"`
 	ConceptIDs       []string                  `json:"concept_ids"`
+	// ConceptsProposed counts the terms marked do-not-translate, each proposed in
+	// a change-set of its own, and ChangeSetIDs names those change-sets.
+	ConceptsProposed int      `json:"concepts_proposed,omitempty"`
+	ChangeSetIDs     []string `json:"change_set_ids,omitempty"`
 }
 
 // HandleApproveContextScan applies a reviewed context scan in one request: the
@@ -404,6 +412,20 @@ func (s *Server) HandleApproveContextScan(c echo.Context) error {
 			Terms:      []terms.Term{term},
 			CreatedAt:  now,
 			UpdatedAt:  now,
+		}
+		if req.Terms[i].DoNotTranslate {
+			concept.DoNotTranslate = true
+			op, err := conceptCreateOp(concept)
+			if err != nil {
+				return s.partialApproval(c, resp, err)
+			}
+			cs, err := s.proposeGovernedChange(ctx, c.Param("ws"), wsID, actor, fmt.Sprintf("Adopt %q as do-not-translate", term.Text), []knowledge.ChangeSetOp{op})
+			if err != nil {
+				return s.partialApproval(c, resp, err)
+			}
+			resp.ConceptsProposed++
+			resp.ChangeSetIDs = append(resp.ChangeSetIDs, cs.ID)
+			continue
 		}
 		if err := tb.AddConcept(ctx, concept); err != nil {
 			return s.partialApproval(c, resp, err)

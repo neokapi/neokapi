@@ -628,7 +628,9 @@ type CreateConceptParams struct {
 type UpdateConceptParams struct {
 	Domain     string `json:"domain"`
 	Definition string `json:"definition"`
-	// DoNotTranslate sets the concept's do-not-translate flag; nil leaves it.
+	// DoNotTranslate names the concept's do-not-translate flag; nil leaves it.
+	// The server refuses a change to the flag here: it travels in a governed
+	// change-set.
 	DoNotTranslate *bool      `json:"do_not_translate,omitempty"`
 	Terms          []TermInfo `json:"terms"`
 }

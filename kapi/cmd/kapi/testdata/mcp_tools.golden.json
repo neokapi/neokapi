@@ -12,6 +12,13 @@
               "content_hash": {
                 "type": "string"
               },
+              "do_not_translate": {
+                "description": "for kind=term: true keeps the term verbatim in every language, false clears that, omitted leaves it",
+                "type": [
+                  "null",
+                  "boolean"
+                ]
+              },
               "file": {
                 "type": "string"
               },

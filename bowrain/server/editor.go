@@ -426,9 +426,11 @@ type TermSearchResponse struct {
 
 // AddConceptRequest holds parameters for adding a concept.
 type AddConceptRequest struct {
-	ProjectID      string             `json:"project_id"` // empty = workspace-scoped
-	Domain         string             `json:"domain"`
-	Definition     string             `json:"definition"`
+	ProjectID  string `json:"project_id"` // empty = workspace-scoped
+	Domain     string `json:"domain"`
+	Definition string `json:"definition"`
+	// DoNotTranslate is refused when set: creating a concept with the flag is
+	// governed and travels through a change-set.
 	DoNotTranslate bool               `json:"do_not_translate,omitempty"`
 	Terms          []TermInfoResponse `json:"terms"`
 }
@@ -437,8 +439,9 @@ type AddConceptRequest struct {
 type UpdateConceptRequest struct {
 	Domain     string `json:"domain"`
 	Definition string `json:"definition"`
-	// DoNotTranslate sets the concept's do-not-translate flag. An update that
-	// omits it keeps the stored value.
+	// DoNotTranslate names the concept's do-not-translate flag. Setting or
+	// clearing it is governed and refused here; an update that omits it, or
+	// names the stored value, keeps it.
 	DoNotTranslate *bool              `json:"do_not_translate,omitempty"`
 	Terms          []TermInfoResponse `json:"terms"`
 }

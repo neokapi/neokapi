@@ -53,6 +53,9 @@ type changeEntry struct {
 	Locale   string `json:"locale,omitempty"`
 	Status   string `json:"status,omitempty"`
 	Replaces string `json:"replaces,omitempty"`
+	// DoNotTranslate, for kind=term, sets (true) or clears (false) the
+	// do-not-translate flag on the term's concept; omitted leaves it.
+	DoNotTranslate *bool `json:"do_not_translate,omitempty" jsonschema:"for kind=term: true keeps the term verbatim in every language, false clears that, omitted leaves it"`
 
 	// tm
 	Source       string `json:"source,omitempty"`

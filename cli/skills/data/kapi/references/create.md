@@ -96,6 +96,10 @@ content and asset through the single write verb:
 {"kind":"term","op":"upsert","term":"dashboard","locale":"en","status":"preferred","replaces":"control panel"}
 ```
 
+A term entry can also carry `"do_not_translate": true` to keep a name verbatim
+in every language, or `false` to clear that. An entry that omits it leaves the
+flag as it is.
+
 ```bash
 kapi apply changeset.jsonl
 ```

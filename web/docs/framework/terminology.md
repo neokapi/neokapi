@@ -180,7 +180,7 @@ kapi terms occurrences c-dashboard --locale nb --collection docs
 The `kapi terms` commands cover import, export, lookup, search, occurrences,
 statistics, and listing. Inside a project, a term decision also lands through
 the one write verb: a `kapi apply` entry with `kind:"term"` (`op`, `term`,
-`locale`, `status`, `replaces`) is written to the committed terms source the
+`locale`, `status`, `replaces`, `do_not_translate`) is written to the committed terms source the
 recipe binds with `defaults.terms_source` and compiled into the project store,
 so `git diff` is the review surface. Concept **relations** are authored
 visually rather than from the command line: Kapi Desktop opens a per-concept

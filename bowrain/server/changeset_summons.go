@@ -96,11 +96,16 @@ func (s *Server) workspaceRolePermissions(ctx context.Context, wsID string, role
 // configured must not turn a successful submit into a failed request. Every
 // failure is logged against the change-set so a missing summons is diagnosable.
 func (s *Server) summonChangeSetReviewers(c echo.Context, cs *knowledge.ChangeSet, opCount int, governed bool) {
+	s.summonChangeSetReviewersIn(context.WithoutCancel(c.Request().Context()), c.Param("ws"), requestBaseURL(c), cs, opCount, governed)
+}
+
+// summonChangeSetReviewersIn is summonChangeSetReviewers for a caller outside a
+// request: the workspace slug, and the base URL the review link in the mail is
+// resolved against.
+func (s *Server) summonChangeSetReviewersIn(ctx context.Context, wsSlug, baseURL string, cs *knowledge.ChangeSet, opCount int, governed bool) {
 	if cs == nil {
 		return
 	}
-	ctx := context.WithoutCancel(c.Request().Context())
-	wsSlug := c.Param("ws")
 	reviewers := s.changeSetReviewers(ctx, cs.WorkspaceID, cs.CreatedBy)
 
 	task := s.openChangeSetReviewTask(ctx, cs, opCount, governed, reviewers)
@@ -120,7 +125,7 @@ func (s *Server) summonChangeSetReviewers(c echo.Context, cs *knowledge.ChangeSe
 			"workspace_id", cs.WorkspaceID, "change_set_id", cs.ID, "author", cs.CreatedBy)
 		return
 	}
-	s.mailChangeSetReviewers(ctx, reviewers, cs, wsSlug, opCount, requestBaseURL(c)+link)
+	s.mailChangeSetReviewers(ctx, reviewers, cs, wsSlug, opCount, baseURL+link)
 }
 
 // openChangeSetReviewTask creates the workspace review task for a submitted

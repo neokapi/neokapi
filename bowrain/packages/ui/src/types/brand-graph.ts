@@ -97,6 +97,7 @@ export interface GraphConcept {
   source?: TermSource;
   terms?: Term[];
   properties?: Record<string, string>;
+  do_not_translate?: boolean;
   created_at?: string;
   updated_at?: string;
 }
@@ -259,6 +260,8 @@ export interface ConceptUpdatePayload {
   domain?: string;
   definition?: string;
   properties?: Record<string, string>;
+  /** Sets (true) or clears (false) do-not-translate; a governed change. */
+  do_not_translate?: boolean;
 }
 
 export interface ConceptDeletePayload {

@@ -892,6 +892,7 @@ func NewServer(cfg Config) *Server {
 			mcpOpts = append(mcpOpts,
 				mcpserver.WithMemoryResolver(&memoryResolverAdapter{ws: s.wsStores}),
 				mcpserver.WithTermsResolver(&tbResolverAdapter{ws: s.wsStores}),
+				mcpserver.WithChangeSetProposer(&changeSetProposerAdapter{s: s}),
 			)
 		}
 		if s.Services != nil && s.Services.Connector != nil {

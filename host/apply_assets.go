@@ -115,11 +115,12 @@ func (a *App) applyTermEntry(ctx context.Context, cmd Command, e changeEntry) as
 	}
 
 	concepts, changed := upsertTerm(file.Concepts, termDecision{
-		Text:        e.Term,
-		Locale:      model.LocaleID(locale),
-		Status:      status,
-		Replacement: e.Replacement,
-		Replaces:    e.Replaces,
+		Text:           e.Term,
+		Locale:         model.LocaleID(locale),
+		Status:         status,
+		Replacement:    e.Replacement,
+		Replaces:       e.Replaces,
+		DoNotTranslate: e.DoNotTranslate,
 	})
 	if !changed {
 		res.Status = "skipped"
@@ -244,6 +245,9 @@ type termDecision struct {
 	// Replaces names the concept the term joins: a concept id, or the text of a
 	// term that concept already declares.
 	Replaces string
+	// DoNotTranslate sets (true) or clears (false) the do-not-translate flag on
+	// the concept the term joins; nil leaves it.
+	DoNotTranslate *bool
 }
 
 // upsertTerm lands a term decision in the concept set.
@@ -321,6 +325,11 @@ func upsertTerm(concepts []terms.Concept, d termDecision) ([]terms.Concept, bool
 			Locale: d.Locale,
 			Status: model.TermPreferred,
 		})
+		changed = true
+	}
+
+	if d.DoNotTranslate != nil && c.DoNotTranslate != *d.DoNotTranslate {
+		c.DoNotTranslate = *d.DoNotTranslate
 		changed = true
 	}
 
