@@ -105,6 +105,93 @@ func StrayTrailingWhitespace(s string) string {
 // spacing the author put between two words.
 func DoubleSpaces(text string) bool { return len(doubleSpaceSpans(text)) > 0 }
 
+// CommentDoubleSpaces reports whether a comment's [HygieneText] flattening
+// holds a double space: a run of exactly two spaces between two characters on
+// one line.
+//
+// A comment lays text out in columns and quotes literal text more often than
+// other prose, and three kinds of run are that layout rather than a typing
+// slip, so none is reported: a run of three or more spaces, a run that ends at
+// a column where a word starts on the line above or below it in the same
+// comment, and a run inside backticks or double quotes opened earlier in its
+// paragraph. A column counts
+// characters, with a tab reaching the next multiple of eight and an inline
+// code counting as one.
+func CommentDoubleSpaces(text string) bool { return len(commentDoubleSpaceSpans(text)) > 0 }
+
+// commentDoubleSpaceSpans returns the byte range of each double space
+// [CommentDoubleSpaces] reports.
+func commentDoubleSpaceSpans(text string) [][2]int {
+	lines := strings.Split(text, "\n")
+	var out [][2]int
+	offset, paragraph := 0, 0
+	for li, line := range lines {
+		if strings.TrimSpace(line) == "" {
+			paragraph = offset + len(line) + 1
+		}
+		for i := 0; i < len(line); {
+			if line[i] != ' ' {
+				i++
+				continue
+			}
+			start := i
+			for i < len(line) && line[i] == ' ' {
+				i++
+			}
+			switch {
+			case i-start != 2, start == 0, i == len(line), line[start-1] == '\t', line[i] == '\t':
+			case quotedAt(text[paragraph : offset+start]), alignedAt(lines, li, columnOf(line[:i])):
+			default:
+				out = append(out, [2]int{offset + start, offset + i})
+			}
+		}
+		offset += len(line) + 1
+	}
+	return out
+}
+
+// quotedAt reports whether the end of prefix, the text of a paragraph before a
+// run, sits inside backticks or double quotes opened in that paragraph.
+func quotedAt(prefix string) bool {
+	return strings.Count(prefix, "`")%2 == 1 ||
+		strings.Count(prefix, `"`)%2 == 1 ||
+		strings.Count(prefix, "“") > strings.Count(prefix, "”")
+}
+
+// columnOf is the column the text of a line after prefix starts at.
+func columnOf(prefix string) int { return len(expandTabs(prefix)) }
+
+// alignedAt reports whether a word starts at col on a line next to line li:
+// a character that is not a space, with a space before it.
+func alignedAt(lines []string, li, col int) bool {
+	for _, adj := range []int{li - 1, li + 1} {
+		if adj < 0 || adj >= len(lines) {
+			continue
+		}
+		r := expandTabs(lines[adj])
+		if col > 0 && col < len(r) && !unicode.IsSpace(r[col]) && r[col-1] == ' ' {
+			return true
+		}
+	}
+	return false
+}
+
+// expandTabs returns s as runes with each tab widened with spaces to the next
+// multiple of eight.
+func expandTabs(s string) []rune {
+	var out []rune
+	for _, r := range s {
+		if r != '\t' {
+			out = append(out, r)
+			continue
+		}
+		for n := 8 - len(out)%8; n > 0; n-- {
+			out = append(out, ' ')
+		}
+	}
+	return out
+}
+
 // DoubledWord returns the first immediately-repeated word in a [HygieneText]
 // flattening, or "" when there is none. Comparison is case-insensitive;
 // exceptions is a semicolon-separated list of words allowed to repeat (some

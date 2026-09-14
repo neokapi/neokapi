@@ -166,7 +166,9 @@ func (t *VoiceVocabCheckTool) Canaries(ctx context.Context) (canaries []check.Ca
 			}
 		}
 		for _, pat := range p.Style.ProhibitedPatterns {
-			if text, ok := matchingText(pat.Regex); ok && add(fmt.Sprintf("prohibited pattern %q", pat.Regex), text, "`"+text+"`") {
+			// A pattern whose not_after excludes the start of a text, or the
+			// inside of a code span, is still caught after a word of prose.
+			if text, ok := matchingText(pat.Regex); ok && add(fmt.Sprintf("prohibited pattern %q", pat.Regex), text, "`"+text+"`", "Canary "+text) {
 				break
 			}
 		}

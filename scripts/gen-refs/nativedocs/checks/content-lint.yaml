@@ -20,7 +20,8 @@ overview: |
     line feed are ordinary whitespace and are not reported.
 
   Everything but the emptiness finding is minor, so a document of nits still
-  passes an ordinary gate and shows in the score.
+  passes an ordinary gate and shows in the score. The exception is a double
+  space in a comment, which is major.
 
   Every one of these is a judgement about *shape*, and shape is judged over the
   block's runs rather than its plain text. A placeholder is content: it holds a
@@ -38,4 +39,5 @@ processingNotes:
   - Always on. It needs no configuration and has no flag to enable or disable it.
   - Findings carry the stable rule id `hygiene.<category>` and the block's location, so a fix loop can address the exact block and track a rule across iterations.
   - The double-space rule discounts a run of spaces that indents a continuation line, because that is the source's line structure rather than spacing inside a sentence.
+  - In a comment, the double-space rule reports only a run of exactly two spaces between two characters, and not one that ends where a word starts on the line above or below, or one inside backticks or double quotes, because a comment lays text out in columns and quotes literal text. A double space it does report is major.
   - The doubled-word rule reports a repeated *word*, so a repeated glyph or bullet, the notation an author meant to show, is not one.
