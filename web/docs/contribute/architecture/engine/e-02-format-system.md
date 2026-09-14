@@ -523,6 +523,21 @@ first comment says `DO NOT EDIT` belongs to its generator, and its comments are
 set aside as generated. Prettier, Docusaurus `truncate`, markdownlint and ESLint
 instructions are directives.
 
+The PO format reads a comment as a line that opens with `#`, other than an
+obsolete entry's `#~` line, and holds its scan to the comments the PO reader
+parses. Translator comments are prose, named for the entry they sit in, as in
+`comment/menu/Goodbye`. An extracted comment (`#.`) is rewritten by the next
+extraction and set aside as generated, and references, flags and a previous
+msgid are read by gettext's tools and set aside as directives. A file the
+reader reads transcoded, such as one in UTF-16, is refused, since a span in the
+text the reader reads is not a span in the file.
+
+The properties format reads a comment as a line that opens with `#` or `!`
+outside a value's continuation, holds its scan to the lines the properties
+reader reads as comments, and names each comment for the key that follows it.
+Okapi's extraction directives, such as `#_skip`, and IntelliJ's
+`# suppress inspection` are directives.
+
 For a file its reader parses, `comments: true` adds the comment blocks to the
 reader's blocks for checking, and the file converges through its reader
 unchanged. A declared format that supplies no comments leaves the comment check

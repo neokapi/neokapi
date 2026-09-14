@@ -14,6 +14,8 @@ import (
 	htmlformat "github.com/neokapi/neokapi/core/formats/html"
 	markdownformat "github.com/neokapi/neokapi/core/formats/markdown"
 	mdxformat "github.com/neokapi/neokapi/core/formats/mdx"
+	poformat "github.com/neokapi/neokapi/core/formats/po"
+	propertiesformat "github.com/neokapi/neokapi/core/formats/properties"
 	xmlformat "github.com/neokapi/neokapi/core/formats/xml"
 	yamlformat "github.com/neokapi/neokapi/core/formats/yaml"
 	"github.com/neokapi/neokapi/core/model"
@@ -31,6 +33,8 @@ var commentProviders = func() *comment.Registry {
 	r.RegisterFormat("html", htmlformat.CommentProvider{})
 	r.RegisterFormat("markdown", markdownformat.CommentProvider{})
 	r.RegisterFormat("mdx", mdxformat.CommentProvider{})
+	r.RegisterFormat("po", poformat.CommentProvider{})
+	r.RegisterFormat("properties", propertiesformat.CommentProvider{})
 	for _, f := range xmlCommentFormats {
 		r.RegisterFormat(f, xmlformat.CommentProvider{Format: f})
 	}

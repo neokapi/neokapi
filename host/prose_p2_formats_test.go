@@ -58,6 +58,16 @@ var proseFormats = map[string]proseFormat{
 		body:  func(c string) string { return "# Guide\n\n{/* " + c + " */}\n\nHello world.\n" },
 		block: "comment/guide", lines: format.LineRange{First: 3, Last: 3},
 	},
+	"po": {
+		name: "po", file: "messages.po",
+		body:  func(c string) string { return "# " + c + "\nmsgid \"Hello world\"\nmsgstr \"\"\n" },
+		block: "comment/Hello world", lines: format.LineRange{First: 1, Last: 1},
+	},
+	"properties": {
+		name: "properties", file: "messages.properties",
+		body:  func(c string) string { return "# " + c + "\ngreeting.text=Hello world\n" },
+		block: "comment/greeting.text", lines: format.LineRange{First: 1, Last: 1},
+	},
 	"androidxml": {
 		name: "androidxml", file: "strings.xml",
 		body: func(c string) string {
@@ -155,6 +165,8 @@ func TestProseP2_xml(t *testing.T)        { proseP2(t, proseFormats["xml"]) }
 func TestProseP2_html(t *testing.T)       { proseP2(t, proseFormats["html"]) }
 func TestProseP2_markdown(t *testing.T)   { proseP2(t, proseFormats["markdown"]) }
 func TestProseP2_mdx(t *testing.T)        { proseP2(t, proseFormats["mdx"]) }
+func TestProseP2_po(t *testing.T)         { proseP2(t, proseFormats["po"]) }
+func TestProseP2_properties(t *testing.T) { proseP2(t, proseFormats["properties"]) }
 func TestProseP2_androidxml(t *testing.T) { proseP2(t, proseFormats["androidxml"]) }
 func TestProseP2_resx(t *testing.T)       { proseP2(t, proseFormats["resx"]) }
 func TestProseP2_tmx(t *testing.T)        { proseP2(t, proseFormats["tmx"]) }
@@ -250,7 +262,7 @@ func TestDiffCheckFormatCommentAnalyzersMatchAWholeFileCheck(t *testing.T) {
 		Required bool
 		Canary   check.CanaryStatus
 	}
-	for _, name := range []string{"yaml", "xml", "html", "markdown", "mdx", "androidxml", "resx", "tmx", "doclang"} {
+	for _, name := range []string{"yaml", "xml", "html", "markdown", "mdx", "po", "properties", "androidxml", "resx", "tmx", "doclang"} {
 		pf := proseFormats[name]
 		t.Run(name, func(t *testing.T) {
 			src := "src/" + pf.file

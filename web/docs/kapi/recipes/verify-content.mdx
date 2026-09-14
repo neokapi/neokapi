@@ -237,8 +237,10 @@ each finding reports the `point` it was checked at.
 The same key checks the comments in YAML files, in XML-based files, such as
 [Android string resources](/reference/formats/androidxml),
 [.NET RESX](/reference/formats/resx) and [XLIFF](/reference/formats/xliff),
-and in [HTML](/reference/formats/html), [Markdown](/reference/formats/markdown)
-and [MDX](/reference/formats/mdx) files, beside the values their readers extract:
+and in [HTML](/reference/formats/html), [Markdown](/reference/formats/markdown),
+[MDX](/reference/formats/mdx), [PO](/reference/formats/po) and
+[Java properties](/reference/formats/properties) files, beside the values their
+readers extract:
 
 ```yaml title="kapi.yaml"
 collections:
@@ -266,10 +268,13 @@ code, named for the section it sits in, such as
 `comment/install/from-homebrew`, and the `<!-- truncate -->` marker a blog uses
 stays out of the prose. In MDX, a comment is a `{/* */}` expression on lines of
 its own, named the same way, and the comments of a page marked `DO NOT EDIT` stay
-out of the prose. When kapi cannot place a file's comments exactly, as in an XML
-file with `--` inside a comment, which XML does not allow, the check reports that
-it did not run. kapi has no comment formatter for YAML, XML, HTML, Markdown or
-MDX, so a report lists the formatter check for those files as unsupported.
+out of the prose. In a PO file, translator comments are checked, and the lines
+gettext writes and reads, such as `#:` references and `#.` extracted comments,
+stay out of the prose. In a properties file, a `#` or `!` line is a comment
+unless it continues a value. When kapi cannot place a file's comments exactly,
+as in an XML file with `--` inside a comment, which XML does not allow, the check
+reports that it did not run. kapi has no comment formatter for any of these
+formats, so a report lists the formatter check for those files as unsupported.
 
 The key also checks the comments in TypeScript, TSX, JavaScript, Python, Bash
 and CSS files. The sourcecode plugin reads them, so install it first:
