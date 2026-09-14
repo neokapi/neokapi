@@ -241,6 +241,13 @@ The pusher is the decider recorded for a verdict that passes, whatever decider
 the payload named. The project's own record then retires the refused verdicts to
 the same basis, which is what stops the next push sending them again.
 
+A rejection is held to the translation it names before the gate is asked. One
+whose translation the venue has since replaced is dropped: the unit keeps its
+rung, its ledger record and its draft mark, the refusal is counted as a demotion
+the venue did not apply, and the venue's record travels back for the project to
+take. A rejection of the translation the venue holds lands, and clears the
+platform's mark that it has drafted the unit, so the next run drafts it again.
+
 The other direction is held to one question. A push that lowers a target the
 venue holds at `signed-off`, keeping the translation and the source the
 sign-off blessed, is withdrawing that sign-off, and the review surfaces let an

@@ -33,13 +33,16 @@ import (
 // retireRefusedVerdicts brings the project's committed record into line with
 // what the venue accepted, and reports how many records it changed.
 //
-// Three rules, because the venue reports refusals three ways. A refusal for
+// Four rules, because the venue reports refusals four ways. A refusal for
 // want of review permission is about the language: the pusher holds none, so
 // every verdict this push carried for that language was refused, whether or not
 // the venue's bounded per-unit list happens to name it. A refused withdrawal of
 // a sign-off is about the unit and carries the record the venue kept, which is
-// written back as it is. Every other refusal is about the unit, and applies to
-// the units the venue named.
+// written back as it is. A refused rejection of a translation the venue has
+// since replaced is about the unit as well: the project takes the record the
+// venue sends back, or keeps the basis without the rejection when the venue
+// holds none. Every other refusal is about the unit, and applies to the units
+// the venue named.
 func (c *BowrainSourceConnector) retireRefusedVerdicts(ctx context.Context, report *venue.PushGovernance) (int, error) {
 	if report == nil || report.Empty() {
 		return 0, nil
@@ -52,6 +55,8 @@ func (c *BowrainSourceConnector) retireRefusedVerdicts(ctx context.Context, repo
 	}
 	units := map[unitKey]bool{}
 	held := map[unitKey]venue.UnitDecision{}
+	kept := map[unitKey]venue.UnitDecision{}
+	staleRejections := map[unitKey]bool{}
 	for _, u := range report.Units {
 		key := unitKey{item: u.ItemName, unit: u.Unit, variant: u.Variant}
 		if u.Reason == venue.RefusedSignOffWithdrawal {
@@ -60,6 +65,14 @@ func (c *BowrainSourceConnector) retireRefusedVerdicts(ctx context.Context, repo
 			// sign-off's decider, and a pull settles it.
 			if u.Held != nil {
 				held[key] = *u.Held
+			}
+			continue
+		}
+		if u.Reason == venue.RefusedStaleRejection {
+			if u.Held != nil {
+				kept[key] = *u.Held
+			} else {
+				staleRejections[key] = true
 			}
 			continue
 		}
@@ -105,6 +118,20 @@ func (c *BowrainSourceConnector) retireRefusedVerdicts(ctx context.Context, repo
 		if h, ok := held[key]; ok {
 			if err := st.Record(ctx, withHeld(u, h)); err != nil {
 				return retired, fmt.Errorf("restore unit state %s/%s: %w", u.Unit, variant, err)
+			}
+			retired++
+			continue
+		}
+		if h, ok := kept[key]; ok {
+			if err := st.Record(ctx, asVenueRecord(u, h)); err != nil {
+				return retired, fmt.Errorf("take the venue's record for %s/%s: %w", u.Unit, variant, err)
+			}
+			retired++
+			continue
+		}
+		if staleRejections[key] && u.Decision.ReviewState == venue.ReviewStateRejected {
+			if err := st.Record(ctx, withoutVerdict(u)); err != nil {
+				return retired, fmt.Errorf("retire unit state %s/%s: %w", u.Unit, variant, err)
 			}
 			retired++
 			continue
@@ -173,5 +200,15 @@ func withHeld(u state.UnitState, h venue.UnitDecision) state.UnitState {
 	if h.Updated != "" {
 		u.Updated = h.Updated
 	}
+	return u
+}
+
+// asVenueRecord is the record the venue kept when it refused a rejection of a
+// translation it has since replaced: the venue's record whole, hashes included,
+// because the local record names a translation the venue no longer holds.
+func asVenueRecord(u state.UnitState, h venue.UnitDecision) state.UnitState {
+	u = withHeld(u, h)
+	u.TargetHash = h.TargetHash
+	u.ContentHash = h.ContentHash
 	return u
 }

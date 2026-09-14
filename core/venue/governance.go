@@ -34,6 +34,11 @@ const (
 	// and the pusher does not hold review permission for that language. The
 	// venue keeps the sign-off; withdrawing one is a review-level action.
 	RefusedSignOffWithdrawal = "withdrawing a sign-off needs review permission"
+	// RefusedStaleRejection: the push carries a rejection of a translation the
+	// venue has since replaced. A rejection judges one translation, so it
+	// changes nothing about the one the venue holds now; the venue keeps its
+	// own record and sends it back when it holds one.
+	RefusedStaleRejection = "the rejection names a translation the platform no longer holds"
 )
 
 // Kinds of claim a refusal counts.

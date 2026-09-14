@@ -464,6 +464,12 @@ record, and the report carries that record back; the project writes it into
 its committed record, recorded rather than staged, so the two agree again with
 no pull between them.
 
+A rejection is bound to the translation it judged in the same way. A pushed
+rejection of a translation the venue has since replaced changes nothing the venue
+holds: the venue keeps the unit's record, reports the rejection it did not apply
+and carries its record back. The project takes that record, or keeps the basis
+without the rejection where the venue holds none.
+
 ### The committed location is fixed
 
 The record lives at `.kapi/state/`, derived from the project layout: inside the

@@ -118,6 +118,18 @@ record is restored to what the server holds:
 1 local record(s) now match the platform; they will not be sent again
 ```
 
+A rejection applies to the translation it names. When the server has replaced
+that translation since your working copy last pulled, the rejection changes
+nothing there. The unit keeps its rung and its record, the push reports the
+rejection it did not apply, and kapi replaces the project's record with the one
+the server holds. Pull before rejecting, so that the rejection names the
+translation on the server.
+
+```
+1 demotion not accepted for nb: the rejection names a translation the platform no longer holds
+1 local record(s) now match the platform; they will not be sent again
+```
+
 An edited translation is not a withdrawal: it lands at translated, as an edit
 made in the web app does. Taking back an approval at reviewed is ordinary
 translation work and needs no review permission.
