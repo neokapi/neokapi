@@ -191,11 +191,16 @@ func locateComments(file string, src []byte, p comment.Provider, directives comm
 }
 
 // declaredComments locates the comments of a file its format reader also reads,
-// for a recipe that declares them as content. The format supplies the comments.
-// A format that supplies none gives a layer whose comment analyzer did not run,
+// for a recipe that declares them as content. The format supplies the comments,
+// or, when it supplies none, the comment provider for the file's language, such
+// as the one the sourcecode plugin supplies for the Ruby files its format reads.
+// A file neither supplies gives a layer whose comment analyzer did not run,
 // which is never a pass.
-func declaredComments(file, fmtName string, src []byte, directives comment.Directives) (*commentLayer, error) {
+func (a *App) declaredComments(file, fmtName string, src []byte, directives comment.Directives) (*commentLayer, error) {
 	p, ok := commentProviders.ForFormat(fmtName)
+	if !ok {
+		p, ok = a.commentProviderFor(file)
+	}
 	if !ok {
 		return &commentLayer{
 			lines:     map[string]format.LineRange{},
@@ -220,7 +225,7 @@ func (a *App) readDeclaredComments(ctx context.Context, file, fmtName string, op
 		name = string(id)
 	}
 	return a.readCommentLayer(ctx, file, opts.execution, func(src []byte) (*commentLayer, error) {
-		return declaredComments(file, name, src, opts.formats.directivesFor(file))
+		return a.declaredComments(file, name, src, opts.formats.directivesFor(file))
 	})
 }
 
@@ -346,7 +351,7 @@ func (a *App) readSourceForCheck(ctx context.Context, u VerifyUnit, execution *c
 		name = string(id)
 	}
 	layer, err := a.readCommentLayer(ctx, u.SourcePath, execution, func(src []byte) (*commentLayer, error) {
-		return declaredComments(u.SourcePath, name, src, u.Directives)
+		return a.declaredComments(u.SourcePath, name, src, u.Directives)
 	})
 	if err != nil {
 		return nil, nil, err

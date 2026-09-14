@@ -1,0 +1,15 @@
+# Parses the input.
+# okapi-skip: ParseTest#testEmpty
+#
+# It returns an error for empty input.
+def parse; end
+
+# okapi-unmapped: FormatTest#testAll
+# okapi-skip: FormatTest#testNone
+def format
+  x = 1 # okapi-skip: FormatTest#testTrailing
+  x
+end
+
+# See the okapi-skip: markers; OKAPI-SKIP: in capitals is prose too.
+def sort; end

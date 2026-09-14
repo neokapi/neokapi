@@ -1,0 +1,7 @@
+# The first line.
+# The second line.
+
+# Parses the input.
+def parse
+  "# not a comment" # trailing
+end

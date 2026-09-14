@@ -1,0 +1,11 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+# typed: strict
+# rubocop:disable Style/Documentation
+# standard:disable Lint/UselessAssignment
+module Directives
+  def helper # :nodoc:
+    # :nocov:
+    1
+  end
+end

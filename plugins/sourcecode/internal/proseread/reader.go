@@ -27,6 +27,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/formats/sourcecode"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/plugins/sourcecode/internal/comments"
 	ts "github.com/tree-sitter/go-tree-sitter"
 	ruby "github.com/tree-sitter/tree-sitter-ruby/bindings/go"
 )
@@ -91,10 +92,6 @@ var proseKinds = map[string]map[string]bool{
 	},
 }
 
-var commentKinds = map[string]map[string]bool{
-	"ruby": {"comment": true},
-}
-
 // Grammars names the languages this build understands, for the manifest and
 // for `doctor` to report honestly.
 func Grammars() []string { return []string{"ruby"} }
@@ -133,20 +130,44 @@ func ReadParts(src []byte, locale model.LocaleID, uri string, opts Options) ([]*
 	for k := range proseKinds[name] {
 		kinds[k] = true
 	}
-	if opts.Comments {
-		for k := range commentKinds[name] {
-			kinds[k] = true
-		}
-	}
 
 	e := &extractor{src: src, kinds: kinds, want: want, heredocOwner: heredocOwners(tree.RootNode(), src)}
 	e.walk(tree.RootNode(), "")
+
+	// Comments are read by the comment provider the host's comment layer reads
+	// them with, so they arrive grouped, without their markers, named for what
+	// they document, and with directives set aside.
+	if opts.Comments {
+		located, err := comments.Locate(name, uri, src)
+		if err != nil {
+			return nil, fmt.Errorf("read the comments of %s: %w", uri, err)
+		}
+		for _, b := range located.Blocks() {
+			if len(want) > 0 && !want[commentPath(b.Name)] {
+				continue
+			}
+			e.blocks = append(e.blocks, b)
+		}
+	}
 
 	for _, b := range e.blocks {
 		parts = append(parts, &model.Part{Type: model.PartBlock, Resource: b})
 	}
 	parts = append(parts, &model.Part{Type: model.PartLayerEnd, Resource: root})
 	return parts, nil
+}
+
+// commentPath is the node path a comment block sits under for a recipe's node
+// path patterns: the last segment of its subject that names a declaration or
+// call, such as `desc` for `cask/desc`.
+func commentPath(subject string) string {
+	segments := strings.Split(subject, "/")
+	for i := len(segments) - 1; i >= 0; i-- {
+		if segments[i] != "comment" {
+			return segments[i]
+		}
+	}
+	return ""
 }
 
 type extractor struct {

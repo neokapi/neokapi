@@ -64,7 +64,7 @@ as their openers, which is what makes the pairing safe.
 
 `internal/comments` locates the comments of the languages `manifest.json` lists
 under `capabilities.comments`: TypeScript, TSX, JavaScript, Python, Bash, CSS,
-Rust, Java, C#, C and C++. kapi sends a file's bytes over the `LocateComments` RPC and reads back what a built-in comment
+Rust, Java, C#, C, C++ and Ruby. kapi sends a file's bytes over the `LocateComments` RPC and reads back what a built-in comment
 provider such as Go's returns: each comment's byte span and lines, its subject,
 whether it documents a declaration, its runs, and the comments set aside with
 their reason. A recipe reaches it with `comments: true` on a content item.
@@ -94,10 +94,13 @@ What the provider decides:
   switches, formatter switches and Sonar suppressions. C and C++ set aside an
   SPDX tag, clang-tidy's NOLINT forms, clang-format's switches, cppcheck, IWYU,
   lcov and gcovr pragmas, an editor's mode line, and labels on closing lines such
-  as `#endif // DEBUG` or `} // namespace kapi`. The tables are
+  as `#endif // DEBUG` or `} // namespace kapi`. Ruby sets aside the shebang,
+  magic comments such as `frozen_string_literal:`, Sorbet's `typed:` sigil,
+  RuboCop's and Standard's switches, RDoc's directives and SimpleCov's
+  `:nocov:`. The tables are
   `jsDirectives`, `pythonDirectives`, `bashDirectives`, `cssDirectives`,
-  `rustDirectives`, `javaDirectives`, `csharpDirectives` and `cDirectives`, and
-  each language's
+  `rustDirectives`, `javaDirectives`, `csharpDirectives`, `cDirectives` and
+  `rubyDirectives`, and each language's
   `testdata/corpus/<language>/directives.*.txt` holds a comment only each form
   matches.
 - **Generated files.** A generator phrase with an instruction not to edit, or
@@ -112,7 +115,9 @@ What the provider decides:
   HTML and XML tags are placeholders, a `<code>`, `<c>` or `<pre>` element with
   its content. In C and C++ Doxygen's `///`, `//!`, `/** */` and `/*! */`
   document the declaration after them, and its `@param` and `\\param` commands
-  are placeholders. Python, Bash and CSS comments document
+  are placeholders. In Ruby a `#` comment directly above a method, class, module,
+  constant or DSL call documents it, as RDoc and YARD read it, and YARD's tags,
+  with their bracketed types, are placeholders. Python, Bash and CSS comments document
   nothing, and a Python docstring is a string. In its runs a block tag with its type and name, a
   tag that holds a value, an `@example` section, an inline tag such as
   `{@link Parser}`, a code span and a URL are placeholders, so a check reads
@@ -122,7 +127,8 @@ What the provider decides:
   `namespace/Util/const/join`, `var/OUT` in Bash, `rule/.header` and
   `media/rule/.c` in CSS, `impl/Point/origin` and `module` in Rust,
   `class/Parser/enum/Kind/TEXT` and `package` in Java, `class/Parser/Run` in C#,
-  or `comment` when it sits on nothing. A comment after
+  `module/Kapi/class/Parser/initialize` and `cask/desc` in Ruby, or `comment`
+  when it sits on nothing. A comment after
   code on its line sits on nothing after it.
 - **Literals.** A marker inside a string, a template literal, a regular
   expression, JSX text, a heredoc, a parameter expansion such as
@@ -161,14 +167,16 @@ shares no code with the grammars. The fixtures in
   `<fixture>.roslyn`;
 - libclang's lexer for C and C++, reached through its C API by
   `testdata/clang-goldens.py`, whose spans sit beside each fixture in
-  `<fixture>.clang`. libclang lexes raw tokens, so it reads `//` inside
+  `<fixture>.clang`, and Ripper, the lexer Ruby's own parser is built on, for
+  Ruby, run by `testdata/ruby-goldens.rb`, whose spans sit beside each fixture in
+  `<fixture>.ripper`. libclang lexes raw tokens, so it reads `//` inside
   `#include <a//b.h>` as a comment where the preprocessor reads a header name;
   no fixture holds one;
 - the `mvdan.cc/sh` parser for Bash and the `tdewolff/parse` CSS lexer for CSS,
   both run by the Go tests themselves.
 
 A golden records its fixture's sha256, so the Go tests need none of node, Python,
-cargo, a JDK, the .NET SDK or libclang, and fail when a fixture changes without its golden. Grouping and
+Ruby, cargo, a JDK, the .NET SDK or libclang, and fail when a fixture changes without its golden. Grouping and
 directives in the oracle come from rules written in `oracle_test.go`, apart from
 the provider's.
 
@@ -177,8 +185,8 @@ literals, subjects, generated files, doc comments, CRLF line endings and
 multibyte text. Rust, C# and C++ have no source in this repository, so their
 fixtures are authored; Java's are authored or drawn from okapi-bridge, and C's
 from `core/storage`. A copied fixture is named for the last two segments of its path.
-From the repository root, with node, Python 3, cargo, a JDK, the .NET SDK, libclang and the pnpm store
-installed:
+From the repository root, with node, Python 3, Ruby, cargo, a JDK, the .NET SDK, libclang and the pnpm
+store installed:
 
 ```bash
 node plugins/sourcecode/internal/comments/testdata/babel-goldens.mjs --add tsx web/src/theme/Root.tsx

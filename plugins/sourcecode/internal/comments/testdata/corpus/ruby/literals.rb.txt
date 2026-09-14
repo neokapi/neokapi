@@ -1,0 +1,13 @@
+# Holds comment markers as content.
+greeting = "# not a comment"
+single = '# not a comment either'
+interpolated = "#{greeting} # not a comment after interpolation"
+percent = %q(# not a comment in a percent literal)
+pattern = /# not a comment in a regexp/
+char = ?#
+notes = <<~NOTES
+  # not a comment inside a heredoc
+NOTES
+puts greeting, single, interpolated, percent, pattern, char, notes
+__END__
+# not a comment after __END__

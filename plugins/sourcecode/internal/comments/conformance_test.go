@@ -22,7 +22,7 @@ import (
 // Corpus floors per language. The accounting of each fixture is what catches a
 // provider that loses a comment; the floors catch a corpus that shrank to
 // nothing and still accounted for everything in it.
-var corpusFloors = map[string]int{"typescript": 20, "tsx": 10, "javascript": 5, "python": 15, "bash": 20, "css": 15, "rust": 10, "java": 15, "csharp": 9, "c": 11, "cpp": 8}
+var corpusFloors = map[string]int{"typescript": 20, "tsx": 10, "javascript": 5, "python": 15, "bash": 20, "css": 15, "rust": 10, "java": 15, "csharp": 9, "c": 11, "cpp": 8, "ruby": 9}
 
 // literalsOf lists, per fixture, the substrings holding a comment marker as
 // content. No comment or exclusion may overlap one.
@@ -65,6 +65,10 @@ var literalsOf = map[string][]string{
 	"unicode.cpp.txt":    {`"héllo // ✓"`},
 	"crlf.cpp.txt":       {`"// not a comment"`},
 	"canary.cpp.txt":     {`R"(// not a comment)"`},
+	"literals.rb.txt":    {`"# not a comment"`, `'# not a comment either'`, `"#{greeting} # not a comment after interpolation"`, `%q(# not a comment in a percent literal)`, `/# not a comment in a regexp/`, `?#`, "# not a comment inside a heredoc", "# not a comment after __END__"},
+	"unicode.rb.txt":     {`"héllo # ✓"`},
+	"crlf.rb.txt":        {`"# not a comment"`},
+	"canary.rb.txt":      {`"# not a comment #{text}"`},
 }
 
 // directiveFixtures names, per language, a fixture of directives alone that
@@ -78,6 +82,7 @@ var directiveFixtures = map[string]string{
 	"java":       "directives.java.txt",
 	"csharp":     "directives.cs.txt",
 	"c":          "directives.c.txt",
+	"ruby":       "directives.rb.txt",
 }
 
 // declaredFixtures names, per language, a fixture carrying declaredDirectives,
@@ -95,6 +100,7 @@ var declaredFixtures = map[string]struct {
 	"csharp":     {"declared.cs.txt", 5},
 	"c":          {"declared.c.txt", 5},
 	"cpp":        {"declared.cpp.txt", 5},
+	"ruby":       {"declared.rb.txt", 4},
 }
 
 // generatedFixtures names, per language, the fixtures a generator's header
@@ -109,6 +115,7 @@ var generatedFixtures = map[string][]string{
 	"csharp":     {"generated.cs.txt"},
 	"c":          {"generated.c.txt"},
 	"cpp":        {"generated.cpp.txt"},
+	"ruby":       {"generated.rb.txt"},
 }
 
 // unparsed holds, per language, a file with a syntax error on its second line.
@@ -120,6 +127,7 @@ var unparsed = map[string]string{
 	"rust":       "/// Parses.\nfn parse( {\n",
 	"java":       "/** Parses. */\npublic class Parser {\n",
 	"csharp":     "/// <summary>Parses.</summary>\npublic class Parser\n{\n",
+	"ruby":       "# Parses.\ndef parse(\n",
 }
 
 // fixture is one corpus file and, for an oracle that records its spans, the
@@ -761,6 +769,52 @@ var cppDocSubjects = []string{
 	"namespace/kapi/type/Path doc=true",
 	"func/kapi::Parser::run doc=true",
 	"func/kapi::Parser::run/comment doc=false",
+}
+
+func TestProseP1_ruby(t *testing.T) {
+	proseP1(t, "ruby")
+	proseSubjects(t, "ruby", "doc.rb.txt", rubyDocSubjects)
+
+	t.Run("YARD tags and their types are placeholders", func(t *testing.T) {
+		got, err := newProvider(t, "ruby").Locate("doc.rb", fixtureBytes(t, "ruby", "doc.rb.txt"))
+		require.NoError(t, err)
+		parser := commentOn(t, got, "module/Kapi/class/Parser")
+		assert.Equal(t, []string{"@param source [String] ", "@return [Parser] "}, placeholders(parser.Runs))
+		assert.Equal(t, "Reads a recipe.\n\nthe recipe's text\na parser", model.RunsText(parser.Runs))
+	})
+
+	t.Run("a =begin block is one comment", func(t *testing.T) {
+		assert.Empty(t, subjectMismatches(t, newProvider(t, "ruby"), "embdoc.rb.txt", fixtureBytes(t, "ruby", "embdoc.rb.txt"), []string{
+			"comment doc=false",
+			"const/VALUE doc=true",
+		}))
+	})
+
+	t.Run("a comment in a Homebrew cask is named for the call it sits in", func(t *testing.T) {
+		got, err := comments.Locate("ruby", "kapi-desktop.rb", fixtureBytes(t, "ruby", "homebrew__kapi-desktop.rb.txt"))
+		require.NoError(t, err)
+		var subjects []string
+		for _, c := range got.Comments {
+			subjects = append(subjects, c.Subject)
+		}
+		assert.Equal(t, []string{"comment", "cask/comment"}, subjects)
+	})
+}
+
+// rubyDocSubjects are the subjects and doc flags doc.rb declares.
+var rubyDocSubjects = []string{
+	"comment doc=false",
+	"module/Kapi doc=true",
+	"module/Kapi/LIMIT doc=true",
+	"module/Kapi/class/Parser doc=true",
+	"module/Kapi/class/Parser/comment doc=false",
+	"module/Kapi/class/Parser/initialize doc=true",
+	"module/Kapi/class/Parser/initialize/comment doc=false",
+	"module/Kapi/class/Parser/self.run doc=true",
+	"func/helper doc=true",
+	"cask/desc doc=true",
+	"func/check doc=false",
+	"func/check doc=true",
 }
 
 // proseSubjects holds a language's comments to the subjects a fixture

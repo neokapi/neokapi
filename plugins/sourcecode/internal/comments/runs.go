@@ -39,6 +39,9 @@ var (
 	// code element with its content, such as <c>x</c> or <code>x</code>, or any
 	// other tag, such as <summary> or <see cref="Parser"/>.
 	markupRe = regexp.MustCompile(`(?i)(<(?:c|code|tt|pre)\b[^<>]*>.*?</(?:c|code|tt|pre)\s*>)|</?[a-z][\w:.-]*(?:\s[^<>]*)?/?>`)
+	// yardTypeRe is a YARD type list, such as [String, nil], beside a tag or
+	// the name it documents.
+	yardTypeRe = regexp.MustCompile(`^\s*\[[^\]]*\]`)
 	// markupBlockRe opens a code element that holds lines of its own.
 	markupBlockRe = regexp.MustCompile(`(?i)^\s*<(code|pre)\b[^<>]*>`)
 )
@@ -79,7 +82,20 @@ var valueTags = map[string]bool{
 // @example section is one. In a documentation comment written in HTML or XML,
 // each tag is a placeholder and a code element is one with its content. It also
 // reports whether a @deprecated tag is present.
-func buildRuns(lines []string, docTags, markup, commands bool) ([]model.Run, bool) {
+// docStyle is how a documentation comment writes what is not prose.
+type docStyle struct {
+	// tags reports that block tags are structured, as JSDoc's are.
+	tags bool
+	// markup reports that the comment is written in HTML or XML.
+	markup bool
+	// commands reports that a tag may open with a backslash, as Doxygen's do.
+	commands bool
+	// yardTypes reports that a tag's types are written in brackets, as YARD's are.
+	yardTypes bool
+}
+
+func buildRuns(lines []string, style docStyle) ([]model.Run, bool) {
+	docTags, markup, commands := style.tags, style.markup, style.commands
 	tags := tagRe
 	if commands {
 		tags = commandRe
@@ -135,9 +151,14 @@ func buildRuns(lines []string, docTags, markup, commands bool) ([]model.Run, boo
 				prefix := len(m[0])
 				if loc := typeRe.FindStringIndex(line[prefix:]); loc != nil {
 					prefix += loc[1]
+				} else if loc := yardTypeRe.FindStringIndex(line[prefix:]); style.yardTypes && loc != nil {
+					prefix += loc[1]
 				}
 				if namedTags[tag] || markup && (tag == "throws" || tag == "exception") || commands && (tag == "tparam" || tag == "retval" || tag == "throw" || tag == "throws" || tag == "exception") {
 					if loc := nameRe.FindStringIndex(line[prefix:]); loc != nil {
+						prefix += loc[1]
+					}
+					if loc := yardTypeRe.FindStringIndex(line[prefix:]); style.yardTypes && loc != nil {
 						prefix += loc[1]
 					}
 				}

@@ -258,7 +258,7 @@ func (a *App) locatorFor(run diffCheckRun, path string) blockLocator {
 		if err != nil || !declared {
 			return read, err
 		}
-		layer, err := declaredComments(path, fmtName, content, directives)
+		layer, err := a.declaredComments(path, fmtName, content, directives)
 		if err != nil {
 			return scopedRead{}, err
 		}

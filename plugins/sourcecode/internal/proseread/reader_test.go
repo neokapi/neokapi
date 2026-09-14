@@ -105,12 +105,11 @@ func TestHeredocIsAttributedToItsCallNotItsEnclosingBlock(t *testing.T) {
 // Read as a LIST rather than a map: a top-level comment has no enclosing call,
 // so several share the empty node path and a map kee­ps only the last.
 func TestCommentsAreOptIn(t *testing.T) {
-	assert.NotContains(t, texts(t, "testdata/kapi-desktop.rb", proseread.Options{}),
-		"# Homebrew Cask formula for Kapi.")
+	const header = "Homebrew Cask formula for Kapi.\nCopy this file to homebrew-tap/Casks/kapi-desktop.rb after release."
+	assert.NotContains(t, texts(t, "testdata/kapi-desktop.rb", proseread.Options{}), header)
 
-	assert.Contains(t, texts(t, "testdata/kapi-desktop.rb", proseread.Options{Comments: true}),
-		"# Homebrew Cask formula for Kapi.",
-		"opting in surfaces the file's comments")
+	assert.Contains(t, texts(t, "testdata/kapi-desktop.rb", proseread.Options{Comments: true}), header,
+		"opting in surfaces the file's comments, grouped and without their markers")
 }
 
 // A file the build has no grammar for is an error, not an empty read. Reporting

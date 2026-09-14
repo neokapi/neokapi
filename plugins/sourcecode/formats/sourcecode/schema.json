@@ -23,7 +23,7 @@
     "comments": {
       "type": "boolean",
       "title": "Include comments",
-      "description": "Extract comment nodes as well as strings. Off by default: a comment is written for the next person reading the code, and holding it to the register of published prose is a separate decision from holding a product string to it.",
+      "description": "Read the file's comments as well as its strings, each comment one block named for what it documents, without its markers and with the directives tools read set aside. Off by default: a comment is written for the next person reading the code, and holding it to the register of published prose is a separate decision from holding a product string to it.",
       "default": false
     }
   }

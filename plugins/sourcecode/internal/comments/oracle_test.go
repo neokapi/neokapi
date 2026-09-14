@@ -25,8 +25,9 @@ import (
 // Each language is held to comment spans read without the grammar the plugin
 // reads it with. TypeScript, TSX and JavaScript are held to @babel/parser,
 // Python to the tokenize module of its standard library, Rust to rustc's own
-// lexer, Java to javac's tokenizer, C# to Roslyn, and C and C++ to libclang;
-// scripts in testdata run those and write a golden beside each fixture. Bash is held to the parser
+// lexer, Java to javac's tokenizer, C# to Roslyn, C and C++ to libclang, and Ruby
+// to Ripper; scripts in testdata run those and write a golden beside each
+// fixture. Bash is held to the parser
 // of mvdan.cc/sh and CSS to the lexer of github.com/tdewolff/parse, both run
 // by the test itself. Grouping and directives are decided here from the bytes,
 // with rules written for this test and nothing shared with the provider.
@@ -62,6 +63,7 @@ var oracles = map[string]oracle{
 	"csharp":     {name: "Roslyn", golden: ".roslyn", script: "testdata/csharp-goldens.py", line: "//", directive: csharpDirective},
 	"c":          {name: "libclang", golden: ".clang", script: "testdata/clang-goldens.py", line: "//", directive: cDirective},
 	"cpp":        {name: "libclang", golden: ".clang", script: "testdata/clang-goldens.py", line: "//", directive: cDirective},
+	"ruby":       {name: "Ripper", golden: ".ripper", script: "testdata/ruby-goldens.rb", line: "#", directive: rubyDirective},
 }
 
 // golden is one fixture's spans as a reader outside the test recorded them.
@@ -284,6 +286,24 @@ func cDirective(src []byte, s [4]int) bool {
 	lineStart := bytes.LastIndexByte(src[:s[0]], '\n') + 1
 	before := src[lineStart:s[0]]
 	return cClosingDirective.Match(before) || cClosingBrace.Match(before) && cBraceLabel.Match(text)
+}
+
+// rubyDirectiveForms are the comments Ruby and its tools read: the magic
+// comments the interpreter reads, Sorbet's sigil, RuboCop's and Standard's
+// switches, and RDoc's and SimpleCov's directives.
+var rubyDirectiveForms = []*regexp.Regexp{
+	regexp.MustCompile(`^#\s*(-\*-.*)?\b(frozen_string_literal|encoding|coding|warn_indent|shareable_constant_value)\s*:`),
+	regexp.MustCompile(`^#\s*typed:\s*(ignore|false|true|strict|strong)\b`),
+	regexp.MustCompile(`^#\s*(rubocop:(disable|enable|todo)|standard:(disable|enable))\b`),
+	regexp.MustCompile(`^#\s*:(nodoc|stopdoc|startdoc|doc|notnew|yields|call-seq|nocov):`),
+}
+
+func rubyDirective(src []byte, s [4]int) bool {
+	text := src[s[0]:s[1]]
+	if s[0] == 0 && bytes.HasPrefix(text, []byte("#!")) {
+		return true
+	}
+	return slices.ContainsFunc(rubyDirectiveForms, func(re *regexp.Regexp) bool { return re.Match(text) })
 }
 
 // shellSpans reads the comments of a Bash script with mvdan.cc/sh.

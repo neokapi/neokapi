@@ -45,7 +45,8 @@ type Config struct {
 	// is the reliable answer, and inference is the convenience.
 	Language string
 
-	// Comments extracts comment nodes as well as strings.
+	// Comments reads the file's comments as well as its strings, each comment a
+	// block named for what it documents, without its markers.
 	//
 	// Off by default, and the default is a judgement rather than caution: a
 	// comment is written for the next person reading the code, and holding it

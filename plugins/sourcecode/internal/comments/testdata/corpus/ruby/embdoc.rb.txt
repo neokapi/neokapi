@@ -1,0 +1,6 @@
+=begin
+A block comment Ruby reads whole.
+=end
+
+# After the block.
+VALUE = 1
