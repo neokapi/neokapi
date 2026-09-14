@@ -2,6 +2,7 @@ package tools_test
 
 import (
 	"context"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -90,6 +91,41 @@ func TestPseudoTranslateToolPreservesPlaceholders(t *testing.T) {
 	target := result.Resource.(*model.Block).TargetText("qps")
 	assert.Contains(t, target, "{count}", "placeholder name must stay literal: %q", target)
 	assert.Contains(t, target, "šţéþ", "static text around the placeholder should still accent")
+}
+
+func TestPseudoTranslateToolPreservesPrintfVerbs(t *testing.T) {
+	t.Parallel()
+	// A catalog read as plain JSON carries printf conversions as text rather
+	// than as placeholder runs. The runtime formats them, so an accented verb
+	// prints as `%!đ(int=3)` in Go.
+	cfg := &tools.PseudoConfig{
+		Prefix:       "▒ ",
+		Suffix:       " ▒",
+		TargetLocale: "qps",
+	}
+	tl := tools.NewPseudoTranslateTool(cfg)
+
+	tests := []struct {
+		source string
+		want   []string
+	}{
+		{"Total: %d tool(s)", []string{"%d", "Ţöţàļ"}},
+		{"%[1]s of %[2]d", []string{"%[1]s", "%[2]d", "öƒ"}},
+		{"%1$@ and %lld items", []string{"%1$@", "%lld", "îţéḿš"}},
+		{"%-10s|%.2f|%%", []string{"%-10s", "%.2f", "%%"}},
+		{"%(name)s signed in", []string{"%(name)s", "šîĝñéđ"}},
+		// A space is not a flag: the percent sign in prose is left as it is
+		// and the word after it still accents.
+		{"50% of the text", []string{"50% öƒ"}},
+	}
+	for i, tt := range tests {
+		block := model.NewBlock("tu"+strconv.Itoa(i), tt.source)
+		result := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: block})
+		target := result.Resource.(*model.Block).TargetText("qps")
+		for _, want := range tt.want {
+			assert.Contains(t, target, want, "source %q", tt.source)
+		}
+	}
 }
 
 func TestPseudoTranslateToolWithExpansion(t *testing.T) {
