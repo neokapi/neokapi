@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-13T17:38:22Z",
+  "generatedAt": "2026-09-14T19:21:47Z",
   "tools": [
     {
       "name": "apply_edits",
@@ -805,7 +805,7 @@
           "name": "checkMaxWords",
           "type": "boolean",
           "required": false,
-          "description": "Flag target segments that exceed an absolute word count limit"
+          "description": "Flag target segments that exceed an absolute limit on the number of words"
         },
         {
           "name": "checkMinCharLength",

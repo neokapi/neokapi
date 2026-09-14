@@ -1170,6 +1170,42 @@
       "updated_at": "2026-06-11T06:47:18Z"
     },
     {
+      "id": "term:en:file-extension",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "file extension",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "filendelse",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-09-14T19:21:14.102321Z",
+      "updated_at": "2026-09-14T19:21:14.241124Z"
+    },
+    {
+      "id": "term:en:number-of-words",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "number of words",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "antall ord",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-09-14T19:21:14.155578Z",
+      "updated_at": "2026-09-14T19:21:14.260915Z"
+    },
+    {
       "id": "term:f1cf2fd5c8",
       "domain": "formats",
       "definition": "Verb: extract the text. Not 'ekstraher'.",
