@@ -297,9 +297,10 @@ func (tb *InMemoryStore) Lookup(_ context.Context, sourceText string, opts Looku
 				continue
 			}
 
-			// Try exact match.
+			// Try exact match: the term's text, or a declared form that is the
+			// whole query.
 			if modeEnabled[model.MatchStrategyExact] {
-				if matchesTerm(sourceText, term.Text, opts.CaseSensitive) {
+				if matchesTerm(sourceText, term.Text, opts.CaseSensitive) || declaresFormOf(term, sourceText, opts.CaseSensitive) {
 					matches = append(matches, TermMatch{
 						Concept:   concept,
 						Term:      term,

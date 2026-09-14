@@ -163,7 +163,7 @@ kapi terms import terms.json --name project-terms
 # Export terms
 kapi terms export --name project-terms --format bundle -o terms.json
 
-# Look up a term (exact, or --fuzzy)
+# Look up a term by its text or a form it declares (exact, or --fuzzy)
 kapi terms lookup "encryption" --name project-terms -s en -t fr
 kapi terms lookup "authenticating users" -s en -t fr --fuzzy
 

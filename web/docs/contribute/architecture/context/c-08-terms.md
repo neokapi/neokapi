@@ -191,7 +191,10 @@ request, never a push to the default branch.
 Lookup is a cascading pipeline (`terms.LookupTiered`, with `LookupAllTiered` for
 occurrence scanning):
 
-1. **Exact**: case-sensitive match on normalized term text.
+1. **Exact**: the term's text, case folded unless the call asks for case
+   sensitivity, or a form the term declares that is the whole query. A query
+   is read against a term's forms by the matcher described below, so a lookup
+   for `alerts` finds `alert` when the term lists `alerts`, and names `alert`.
 2. **Normalized**: Unicode NFC, case folding, whitespace collapse.
 3. **Fuzzy**: trigram candidate retrieval plus Levenshtein scoring over the
    closest candidates, inside a length window.

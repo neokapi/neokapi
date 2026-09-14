@@ -70,6 +70,10 @@ type TermCandidateSource struct {
 	// Exact returns terms whose (case-folded) text equals the query text in the
 	// source locale, honoring the option's project/source scope.
 	Exact func(ctx context.Context, sourceText string, opts LookupOptions) ([]TermCandidate, error)
+	// Forms returns the terms in the source locale that declare forms, honoring
+	// the option's project/source scope. The exact tier keeps those with a
+	// declared form that is the whole query.
+	Forms func(ctx context.Context, opts LookupOptions) ([]TermCandidate, error)
 	// Normalized returns terms whose normalized text equals normalizedSource.
 	Normalized func(ctx context.Context, normalizedSource string, opts LookupOptions) ([]TermCandidate, error)
 	// FuzzyCandidates returns a candidate pool for Levenshtein scoring against
@@ -81,7 +85,10 @@ type TermCandidateSource struct {
 }
 
 // LookupTiered runs the shared exact→normalized→fuzzy tiered term lookup against
-// a backend's candidate source. Tiers stop early: a non-empty higher tier
+// a backend's candidate source. The exact tier finds a term under its text and
+// under a declared form that is the whole query, read by the rule
+// LookupAllTiered applies to running text, so "alerts" finds a term "alert"
+// that lists it and reports the term. Tiers stop early: a non-empty higher tier
 // suppresses the lower ones. Every candidate must pass the validity-scope and
 // status filters; fuzzy candidates additionally must reach opts.MinScore by
 // Levenshtein ratio. Results sort by score descending.
@@ -100,6 +107,13 @@ func LookupTiered(ctx context.Context, sourceText string, opts LookupOptions, sr
 			return nil, err
 		}
 		matches = append(matches, buildTermMatches(ctx, cands, 1.0, model.MatchStrategyExact, "", opts, src.Concept)...)
+
+		withForms, err := src.Forms(ctx, opts)
+		if err != nil {
+			return nil, err
+		}
+		byForm := formsNamingQuery(sourceText, withForms, opts.CaseSensitive)
+		matches = append(matches, buildTermMatches(ctx, byForm, 1.0, model.MatchStrategyExact, "", opts, src.Concept)...)
 	}
 
 	if modeEnabled[model.MatchStrategyNormalized] && len(matches) == 0 {
@@ -165,6 +179,37 @@ func buildTermMatches(ctx context.Context, cands []TermCandidate, fixedScore flo
 		})
 	}
 	return matches
+}
+
+// formsNamingQuery keeps the candidates with a declared form that is the whole
+// query.
+func formsNamingQuery(query string, cands []TermCandidate, cased bool) []TermCandidate {
+	var kept []TermCandidate
+	for _, c := range cands {
+		if declaresFormOf(c.Term, query, cased) {
+			kept = append(kept, c)
+		}
+	}
+	return kept
+}
+
+// declaresFormOf reports whether one of term's declared forms is the whole of
+// query. The query is read as LookupAllTiered reads running text, through
+// check.FindTermFormsIn: whole words, any run of whitespace between them, case
+// folded unless cased. A single-term lookup and a scan of a passage therefore
+// agree about which spellings are a use of the term.
+func declaresFormOf(term Term, query string, cased bool) bool {
+	query = strings.TrimSpace(query)
+	forms := NormalizeForms(term.Text, term.Forms)
+	if query == "" || len(forms) == 0 {
+		return false
+	}
+	for _, hit := range check.FindTermFormsIn(check.PrepareText(query), forms, cased) {
+		if hit[0] == 0 && hit[1] == len(query) {
+			return true
+		}
+	}
+	return false
 }
 
 // LocaleTerm is one term with its owning concept, the unit the shared LookupAll
