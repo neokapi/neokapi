@@ -141,11 +141,13 @@ func executeLocalAction(cmd *cobra.Command, action project.ActionConfig, proj *p
 // the gate exit code, unset or false reports them and continues, which is
 // what `kapi run` itself does.
 //
-// A check step that read no content block did not run, as `kapi check`
-// reports it, and a gate over it has nothing to pass. fail_on_error treats it
-// as it treats findings: true aborts the command with the cause and the exit
-// code `kapi check` uses when a check did not run, unset or false reports it
-// and continues. Findings take precedence when a run has both.
+// A gate over checks that did not run has nothing to pass. That is a check
+// step that read no content block, which `kapi check` reports as
+// nothing_to_check, and a flow that holds no check step at all, which leaves
+// the content in scope unchecked (content_not_checked). fail_on_error treats
+// both as it treats findings: true aborts the command with the cause and the
+// exit code `kapi check` uses when a check did not run, unset or false reports
+// the cause and continues. Findings take precedence when a run has both.
 func runFlowAction(cmd *cobra.Command, action project.ActionConfig, proj *project.Project) error {
 	flowName := strings.TrimSpace(action.Config["flow"])
 	if flowName == "" {
@@ -212,19 +214,29 @@ func runFlowAction(cmd *cobra.Command, action project.ActionConfig, proj *projec
 			"flow %q found %d finding(s) (%d critical, %d major, %d minor)",
 			flowName, found.Findings, found.Critical, found.Major, found.Minor))
 	}
-	if len(notRun) > 0 {
+	var notRunErr error
+	switch {
+	case reports == 0:
+		// Only a pass whose flow holds a check step reports, so a run that
+		// reported nothing checked none of the content it ran over.
+		cause := check.CauseContentNotChecked
+		notRunErr = fmt.Errorf("flow %q holds no check step: %s (%s)",
+			flowName, check.CauseSummary(cause), cause)
+	case len(notRun) > 0:
 		cause := notRun[0].DidNotRunCause
 		scope := ""
 		if len(notRun) < reports {
 			scope = fmt.Sprintf(" in %d of %d passes", len(notRun), reports)
 		}
-		notRunErr := fmt.Errorf("flow %q did not run its checks%s: %s (%s)",
+		notRunErr = fmt.Errorf("flow %q did not run its checks%s: %s (%s)",
 			flowName, scope, check.CauseSummary(cause), cause)
-		if failOnError {
-			return cli.WithExitCode(cli.ExitNotRun, notRunErr)
-		}
-		fmt.Fprintf(out, "  %s\n", notRunErr)
+	default:
+		return nil
 	}
+	if failOnError {
+		return cli.WithExitCode(cli.ExitNotRun, notRunErr)
+	}
+	fmt.Fprintf(out, "  %s\n", notRunErr)
 	return nil
 }
 

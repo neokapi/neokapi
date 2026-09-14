@@ -193,14 +193,81 @@ func TestRunFlowAction_ReportsChecksThatReadNothingWithoutGating(t *testing.T) {
 	assert.Contains(t, stdout.String(), `flow "guard" did not run its checks: there was nothing in scope to check (nothing_to_check)`)
 }
 
-func TestRunFlowAction_PrePushGatePassesClean(t *testing.T) {
+// noCheckStepCause is the line a run_flow action reports for the built-in
+// pseudo-translate flow, which holds no check step.
+const noCheckStepCause = `flow "pseudo-translate" holds no check step: content in scope was not checked (content_not_checked)`
+
+// A flow that holds no check step cannot report a finding, so a gate over it
+// has nothing to pass. With fail_on_error the push stops with the cause and the
+// exit code `kapi check` uses when a check did not run.
+func TestRunFlowAction_PrePushGateStopsOnAFlowWithNoCheckStep(t *testing.T) {
 	automationApp(t)
+	proj := automationFixture(t, nil,
+		runFlowRule("checks-gate", project.HookPrePush, map[string]string{"flow": "pseudo-translate", "fail_on_error": "true"}))
+	cmd, _, _ := hookCmd(t)
+
+	err := runLocalAutomations(cmd, proj, project.HookPrePush)
+	require.Error(t, err, "a gate over a flow with no check step must not pass the push")
+	assert.Equal(t, cli.ExitNotRun, cli.ExitCode(cmd, err), "a check that did not run exits like `kapi check`")
+	assert.Contains(t, err.Error(), `automation "checks-gate" action "run_flow"`)
+	assert.Contains(t, err.Error(), noCheckStepCause)
+}
+
+// --quiet silences the run's output and must not turn a flow with no check
+// step into a passing gate.
+func TestRunFlowAction_QuietGateStopsOnAFlowWithNoCheckStep(t *testing.T) {
+	a := automationApp(t)
+	a.Quiet = true
+	proj := automationFixture(t, nil,
+		runFlowRule("checks-gate", project.HookPrePush, map[string]string{"flow": "pseudo-translate", "fail_on_error": "true"}))
+	cmd, _, _ := hookCmd(t)
+
+	err := runLocalAutomations(cmd, proj, project.HookPrePush)
+	require.Error(t, err)
+	assert.Equal(t, cli.ExitNotRun, cli.ExitCode(cmd, err))
+}
+
+// Without fail_on_error the push goes ahead, and the automation says the flow
+// checked nothing.
+func TestRunFlowAction_ReportsAFlowWithNoCheckStepWithoutGating(t *testing.T) {
+	automationApp(t)
+	proj := automationFixture(t, nil,
+		runFlowRule("pseudo", project.HookPrePush, map[string]string{"flow": "pseudo-translate"}))
+	cmd, stdout, _ := hookCmd(t)
+
+	require.NoError(t, runLocalAutomations(cmd, proj, project.HookPrePush))
+	assert.Contains(t, stdout.String(), noCheckStepCause)
+}
+
+// A check step that reads the collection and finds nothing passes the gate,
+// and the pass is over content: the reports the action gates on count the
+// collection's block.
+func TestRunFlowAction_PrePushGatePassesClean(t *testing.T) {
+	a := automationApp(t)
 	proj := automationFixture(t, []string{"Nonexistent Product"},
 		runFlowRule("checks-gate", project.HookPrePush, map[string]string{"flow": "guard", "fail_on_error": "true"}))
 	cmd, stdout, _ := hookCmd(t)
 
 	require.NoError(t, runLocalAutomations(cmd, proj, project.HookPrePush))
 	assert.Contains(t, stdout.String(), "No findings.")
+	assert.NotContains(t, stdout.String(), "did not run")
+	assert.NotContains(t, stdout.String(), "holds no check step")
+
+	runCmd := cli.NewRunCmd(a, cli.RunCmdOptions{})
+	runCmd.SetContext(t.Context())
+	runCmd.SetOut(&bytes.Buffer{})
+	require.NoError(t, runCmd.Flags().Set("project", proj.RecipePath()))
+	var reports []cli.FlowFindings
+	require.NoError(t, a.RunFromProject(runCmd, "guard", proj.RecipePath(), cli.RunCmdOptions{
+		OnFindings: func(f cli.FlowFindings) { reports = append(reports, f) },
+	}))
+	require.NotEmpty(t, reports)
+	for _, r := range reports {
+		assert.Empty(t, r.DidNotRunCause)
+		assert.Zero(t, r.Summary.Findings)
+		assert.Positive(t, r.Blocks, "a clean pass must have read content")
+		assert.Positive(t, r.Files)
+	}
 }
 
 // Without fail_on_error the findings are reported and the command goes on,
