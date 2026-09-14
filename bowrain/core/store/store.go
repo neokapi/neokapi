@@ -213,6 +213,10 @@ type PushApplier interface {
 	PruneItemBlocks(ctx context.Context, projectID, stream, itemName string, keep []string) (int, error)
 	UpsertUnitDecisions(ctx context.Context, projectID, stream string, decisions []venue.UnitDecision) (int, error)
 	ListUnitDecisions(ctx context.Context, projectID, stream string) ([]venue.UnitDecision, error)
+	// RecordDraftBases writes draft marks inside the push, so a rejection the
+	// push records clears its unit's mark in the same transition (see
+	// DecisionStore.RecordDraftBases).
+	RecordDraftBases(ctx context.Context, projectID, stream string, drafts []DraftBasis) error
 	GetItem(ctx context.Context, projectID, stream, itemName string) (*Item, error)
 	GetCollectionByName(ctx context.Context, projectID, name, stream string) (*Collection, error)
 	GetDefaultCollection(ctx context.Context, projectID string) (*Collection, error)

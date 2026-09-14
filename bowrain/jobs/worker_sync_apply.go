@@ -308,11 +308,12 @@ func applyStagedPush(
 	// guards, which is what makes it a compare-and-swap rather than a look
 	// followed by a hope.
 	if len(decisions) > 0 {
-		// One read of the ledger answers both questions asked of it: whether
-		// the governance this push asserted still stands, and which of the
-		// verdicts it carries the platform already holds.
+		// One read of the ledger answers every question asked of it: whether
+		// the governance this push asserted still stands, which of the verdicts
+		// it carries the platform already holds, and which of its rejections
+		// are new.
 		var held []venue.UnitDecision
-		if expected.Decisions != "" || gov.judging() {
+		if expected.Decisions != "" || gov.judging() || carriesRejection(decisions) {
 			var herr error
 			if held, herr = tx.ListUnitDecisions(ctx, projectID, stream); herr != nil {
 				return nil, fmt.Errorf("read the decision ledger: %w", herr)
@@ -330,6 +331,14 @@ func applyStagedPush(
 			return nil, derr
 		}
 		out.Decisions = applied
+		// A rejection the push recorded owes its unit a new draft, as one made
+		// in the editor does, so it clears the platform's draft mark in this
+		// same transition.
+		if clears := gov.rejectionsToRedraft(held, decisions); len(clears) > 0 {
+			if err := tx.RecordDraftBases(ctx, projectID, stream, clears); err != nil {
+				return nil, fmt.Errorf("clear the draft marks the push's rejections owe: %w", err)
+			}
+		}
 	}
 
 	// A permission this venue could not resolve is not a refusal. Rolling the

@@ -373,13 +373,25 @@ func (s *PostgresStore) RecordDraftBases(ctx context.Context, projectID, stream 
 	if len(drafts) == 0 {
 		return nil
 	}
-	stream = storeutil.DefaultStream(stream)
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin draft basis tx: %w", err)
 	}
 	defer tx.Rollback() //nolint:errcheck // no-op after Commit; the commit error is what matters
 
+	if err := recordDraftBasesTx(ctx, tx, projectID, stream, drafts); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit draft bases: %w", err)
+	}
+	return nil
+}
+
+// recordDraftBasesTx writes draft marks on tx, so a push can stamp or clear
+// them in the transition that records its decisions.
+func recordDraftBasesTx(ctx context.Context, tx Runner, projectID, stream string, drafts []platstore.DraftBasis) error {
+	stream = storeutil.DefaultStream(stream)
 	now := time.Now().UTC()
 	for _, d := range drafts {
 		if d.ItemName == "" || d.Unit == "" || d.Variant == "" {
@@ -392,9 +404,6 @@ func (s *PostgresStore) RecordDraftBases(ctx context.Context, projectID, stream 
 			projectID, stream, d.ItemName, d.Unit, d.Variant, d.SourceHash, now); err != nil {
 			return fmt.Errorf("record draft basis %s/%s: %w", d.Unit, d.Variant, err)
 		}
-	}
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("commit draft bases: %w", err)
 	}
 	return nil
 }
