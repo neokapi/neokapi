@@ -186,10 +186,12 @@ type ResolvedFile struct {
 }
 
 // CommentsOnly reports a file claimed for its comments alone: its item sets
-// `comments: true` and no format reads the file. Such a file is checked, and a
-// convergence run, a flow run and source coverage leave it alone.
+// `comments: {only: true}`, or sets `comments: true` and no format reads the
+// file. Its comments are checked, and nothing reads its values: extraction,
+// drift detection, a convergence run, a flow run, merge, coverage, the ship
+// gates and a push each leave them alone.
 func (rf ResolvedFile) CommentsOnly() bool {
-	return rf.Item != nil && rf.Item.Comments.Declared && rf.Format == ""
+	return rf.Item != nil && rf.Item.Comments.Declared && (rf.Item.Comments.Only || rf.Format == "")
 }
 
 // ResolveContent matches project content patterns against the filesystem and

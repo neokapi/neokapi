@@ -536,6 +536,9 @@ func (a *App) checkFileBlocks(ctx context.Context, file string, validateMode for
 	if p, ok := a.commentLayerFor(file, fmtName); ok {
 		return a.checkCommentFile(ctx, file, p, validateMode, opts)
 	}
+	if opts.formats.commentsOnly(file) {
+		return a.checkCommentsOnlyFile(ctx, file, fmtName, validateMode, opts)
+	}
 	extractionStart := time.Now()
 
 	if validateMode != format.ValidationOff {
@@ -1068,6 +1071,9 @@ type resolvedFormat struct {
 	// comments is the item's `comments:` declaration: the file's comments are
 	// content as well as what its reader extracts.
 	comments bool
+	// commentsOnly reports a file declared for its comments alone that a format
+	// names (narrowedToComments).
+	commentsOnly bool
 	// directives are the comment directives in force for the file.
 	directives []string
 }
@@ -1112,10 +1118,11 @@ func (f *checkFormats) bind(proj *project.KapiProject, resolved []project.Resolv
 			continue
 		}
 		f.byPath[rf.Path] = resolvedFormat{
-			name:       rf.Format,
-			cfg:        mergedFormatConfig(proj, rf.Format, rf.Item),
-			comments:   rf.Item != nil && rf.Item.Comments.Declared,
-			directives: commentDirectives(proj, rf.Item),
+			name:         rf.Format,
+			cfg:          mergedFormatConfig(proj, rf.Format, rf.Item),
+			comments:     rf.Item != nil && rf.Item.Comments.Declared,
+			commentsOnly: narrowedToComments(rf),
+			directives:   commentDirectives(proj, rf.Item),
 		}
 	}
 }
@@ -1148,6 +1155,15 @@ func (f *checkFormats) forFile(app *App, file string) (string, map[string]any) {
 func (f *checkFormats) commentsFor(file string) bool {
 	rf, _ := f.lookup(file)
 	return rf.comments
+}
+
+// commentsOnly reports a file a format names that the recipe declares for its
+// comments alone. The format supplies its comments and its values are never
+// read. A file no format names is read for its comments through its language's
+// provider instead (commentLayerFor).
+func (f *checkFormats) commentsOnly(file string) bool {
+	rf, _ := f.lookup(file)
+	return rf.commentsOnly
 }
 
 // directivesFor returns the comment directives in force for one file: its

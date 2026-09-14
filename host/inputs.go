@@ -156,6 +156,10 @@ func (a *App) projectContentFiles(cmd Command) ([]string, string, error) {
 	// the files were named or implied.
 	files := make([]string, 0, len(resolved))
 	for _, rf := range resolved {
+		// A file declared for its comments alone holds no value these verbs read.
+		if rf.CommentsOnly() {
+			continue
+		}
 		files = append(files, relativeToCwd(rf.Path))
 	}
 	return files, projectPath, nil

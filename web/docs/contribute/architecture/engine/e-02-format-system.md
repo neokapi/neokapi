@@ -452,7 +452,7 @@ only. The parser consumes a list item's marker, so each item opens with a
 placeholder of type `list:item` (`comment.TypeListItem`) that keeps one item's
 prose apart from the next. A provider is not a format: nothing registers one in the format registry,
 and a recipe declares such files with `comments: true` on a content item, which
-convergence, flow runs and source coverage then pass over.
+every path that reads values then passes over (`ResolvedFile.CommentsOnly`).
 
 A plugin can supply language providers too. The sourcecode plugin lists the
 languages it reads in its manifest, such as TypeScript, Python and CSS, and the
@@ -554,7 +554,19 @@ Okapi's extraction directives, such as `#_skip`, and IntelliJ's
 
 For a file its reader parses, `comments: true` adds the comment blocks to the
 reader's blocks for checking, and the file converges through its reader
-unchanged. A declared format that supplies no comments leaves the comment check
+unchanged. `comments: {only: true}` makes the comment blocks the file's whole
+content: the format's provider locates them, the reader never reads the values,
+and a check that asks for reader validation reports it unsupported. One
+predicate, `ResolvedFile.CommentsOnly`, holds for such a file and for a file no
+reader covers, and every path that reads values passes over the file by it:
+extraction and drift detection (`project.ExtractToBlockStore`,
+`project.CompareSourceStamps`), convergence, flow runs, merge, `kapi extract`,
+the source and target units behind coverage, the plan and the ship gates, the
+implicit inputs of `kapi stats` and `kapi inspect`, and the scan a push reads.
+A check reads such a file through `checkFormats.commentsOnly` and a source
+unit narrowed by `VerifyUnit.OnlyComments`, for which `readSource` reads no
+value. Loading rejects `only` beside a target, target languages, a redaction, or
+a reader's config or preset. A declared format that supplies no comments leaves the comment check
 not run, and a format with no comment formatter reports the formatter as
 unsupported.
 

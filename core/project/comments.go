@@ -46,10 +46,15 @@ type ContentComments struct {
 	// govern it.
 	//
 	// For a file no format reader covers, such as Go source, the comments are
-	// the file's only content. kapi reads them through the language's comment
-	// provider, and a convergence run, a flow run and source coverage leave the
-	// file alone, so such an item names no target (ResolvedFile.CommentsOnly).
+	// the file's only content, as they are for every file of an item that sets
+	// Only (ResolvedFile.CommentsOnly).
 	Declared bool `yaml:"-" json:"declared,omitempty"`
+
+	// Only narrows the item's content to its comments. The comment provider for
+	// the file's format or language locates them, and nothing reads the values:
+	// no extraction, convergence run, flow run, merge, coverage count or ship
+	// gate. Such an item names no target.
+	Only bool `yaml:"only,omitempty" json:"only,omitempty"`
 
 	// Directives are markers the item's files carry beside the ones under
 	// `defaults.comments`.
@@ -74,7 +79,7 @@ func (c *ContentComments) UnmarshalYAML(node *yaml.Node) error {
 		*c = ContentComments{Declared: declared}
 		return nil
 	case yaml.MappingNode:
-		if err := knownKeys(node, "comments", "directives", "channel"); err != nil {
+		if err := knownKeys(node, "comments", "directives", "channel", "only"); err != nil {
 			return err
 		}
 		type alias ContentComments
@@ -93,7 +98,7 @@ func (c *ContentComments) UnmarshalYAML(node *yaml.Node) error {
 // MarshalYAML writes `comments: true` for an item that declares nothing more,
 // and the mapping otherwise.
 func (c ContentComments) MarshalYAML() (any, error) {
-	if len(c.Directives) == 0 && c.Channel == "" {
+	if len(c.Directives) == 0 && c.Channel == "" && !c.Only {
 		return c.Declared, nil
 	}
 	type alias ContentComments
@@ -102,7 +107,29 @@ func (c ContentComments) MarshalYAML() (any, error) {
 
 // IsZero reports an item that does not declare its comments.
 func (c ContentComments) IsZero() bool {
-	return !c.Declared && len(c.Directives) == 0 && c.Channel == ""
+	return !c.Declared && len(c.Directives) == 0 && c.Channel == "" && !c.Only
+}
+
+// validateCommentsOnly rejects an item that sets `comments.only` beside a key
+// that shapes, redacts or delivers values, since the item has none. The
+// format's name is allowed: it picks the comment provider.
+func (item *ContentItem) validateCommentsOnly(at string) error {
+	if !item.Comments.Only {
+		return nil
+	}
+	switch {
+	case item.Target != "":
+		return fmt.Errorf("%s: comments.only is set, so the item cannot have a target (found %q)", at, item.Target)
+	case len(item.TargetLanguages) > 0:
+		return fmt.Errorf("%s: comments.only is set, so the item cannot have target_languages (found %v)", at, item.TargetLanguages)
+	case item.Redaction != nil:
+		return fmt.Errorf("%s: comments.only is set, so the item has no values to redact", at)
+	case item.Format != nil && len(item.Format.Config) > 0:
+		return fmt.Errorf("%s: comments.only is set, so format.config has no values to configure", at)
+	case item.Format != nil && item.Format.Preset != "":
+		return fmt.Errorf("%s: comments.only is set, so format.preset has no values to configure", at)
+	}
+	return nil
 }
 
 // CommentDirectives returns the directives in force in the comments of this

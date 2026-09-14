@@ -288,7 +288,8 @@ type blockLocator func(ctx context.Context, content []byte) (scopedRead, error)
 // skeleton with the content. A file read for its comments is located by its
 // language's comment provider, which also brings the analyzers its comments are
 // checked with. When a recipe declares the comments of a file a reader parses,
-// the comment blocks join the reader's.
+// the comment blocks join the reader's, and when it declares the file for its
+// comments alone they are its only blocks.
 func (a *App) locatorFor(run diffCheckRun, path string) blockLocator {
 	fmtName, cfg := run.opts.formats.forFile(a, path)
 	directives := run.opts.formats.directivesFor(path)
@@ -307,6 +308,15 @@ func (a *App) locatorFor(run diffCheckRun, path string) blockLocator {
 			return nil
 		}
 		fmtName = string(detected)
+	}
+	if run.opts.formats.commentsOnly(path) {
+		return func(_ context.Context, content []byte) (scopedRead, error) {
+			layer, err := a.declaredComments(path, fmtName, content, directives)
+			if err != nil {
+				return scopedRead{}, err
+			}
+			return scopedRead{blocks: layer.blocks, extents: layer.extents, analyzers: layer.analyzers, unread: layer.unread, comments: layer.located}, nil
+		}
 	}
 	declared := run.opts.formats.commentsFor(path)
 	return func(ctx context.Context, content []byte) (scopedRead, error) {

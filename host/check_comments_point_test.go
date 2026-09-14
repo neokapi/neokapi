@@ -55,6 +55,9 @@ const (
 	onItem
 	// byDefaults places them with `defaults.comments.channel`.
 	byDefaults
+	// onlyOnItem declares each item for its comments alone and places them with
+	// `comments: {only: true, channel: source/comments}`.
+	onlyOnItem
 )
 
 // commentPointProject declares a YAML file and a Go file at site/web, with
@@ -71,6 +74,8 @@ func commentPointProject(t *testing.T, p placement) string {
 	}
 	defaults, comments := "", "true"
 	switch p {
+	case onlyOnItem:
+		comments = "\n          only: true\n          channel: source/comments"
 	case onItem:
 		comments = "\n          channel: source/comments"
 	case byDefaults:

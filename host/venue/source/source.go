@@ -1490,9 +1490,10 @@ func (c *BowrainSourceConnector) scanLocalBlocksAndMedia(ctx context.Context, pa
 			continue
 		}
 
-		// Determine format from config mappings or registry detection.
+		// Determine format from config mappings or registry detection. A file
+		// declared for its comments alone holds no value to push.
 		formatName := c.detectFormat(absPath)
-		if formatName == "" {
+		if formatName == "" || (coreproj.ResolvedFile{Item: c.itemFor(absPath), Format: formatName}).CommentsOnly() {
 			continue
 		}
 

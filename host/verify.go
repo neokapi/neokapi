@@ -912,6 +912,12 @@ func (a *App) verifyVoice(cmd Command, proj *project.KapiProject, root string, a
 			if layer, rerr = a.readCommentLayer(ctx, f, nil, locate); layer != nil {
 				blocks = layer.blocks
 			}
+		} else if formats.commentsOnly(f) {
+			// A file declared for its comments alone is scored on those comments.
+			var layer *commentLayer
+			if layer, rerr = a.readDeclaredComments(ctx, f, fmtName, checkRunOptions{formats: formats}); layer != nil {
+				blocks = layer.blocks
+			}
 		} else {
 			blocks, rerr = a.readBlocksAs(ctx, f, fmtName, fmtCfg, a.SourceLocale())
 			if rerr == nil {
@@ -1132,16 +1138,21 @@ type VerifyUnit struct {
 	// (`comments: true`). The source checks read them beside the reader's
 	// blocks, through the comment provider the file's format supplies.
 	Comments bool
-	// OnlyComments narrows a source unit to those comments. It stands for a file
-	// whose reader blocks the bilingual units already check.
+	// OnlyComments narrows a source unit to those comments, and readSource reads
+	// no value for it. It stands for a file whose reader blocks the bilingual
+	// units already check, or a file declared for its comments alone.
 	OnlyComments bool
 	// Directives are the comment directives in force for the source file, set
 	// aside wherever its comments are read.
 	Directives []string
 }
 
-// readSource reads the unit's source file under its declared reader binding.
+// readSource reads the unit's source file under its declared reader binding. A
+// unit narrowed to its comments has no value to read.
 func (a *App) readSource(ctx context.Context, u VerifyUnit) ([]*model.Block, error) {
+	if u.OnlyComments {
+		return nil, nil
+	}
 	name, cfg := a.unitFormat(u.SourceFormat, u.SourceConfig)
 	return a.readBlocksAs(ctx, u.SourcePath, name, cfg, a.SourceLocale())
 }
@@ -1250,6 +1261,12 @@ func (a *App) UnitsFromProject(proj *project.KapiProject, root string, localeFil
 // answer computed over them reported an empty corpus — a project with content
 // read as having none.
 func (a *App) SourceUnitsFromProject(proj *project.KapiProject, root string) ([]VerifyUnit, error) {
+	return a.sourceUnits(proj, root, false)
+}
+
+// sourceUnits is SourceUnitsFromProject, with a unit narrowed to its comments
+// for each file declared for its comments alone when commentsOnly is set.
+func (a *App) sourceUnits(proj *project.KapiProject, root string, commentsOnly bool) ([]VerifyUnit, error) {
 	ctx := project.NewProjectContext(proj, filepath.Join(root, "x.kapi"))
 	resolved, err := ctx.ResolveContent(a.FormatReg)
 	if err != nil {
@@ -1259,7 +1276,7 @@ func (a *App) SourceUnitsFromProject(proj *project.KapiProject, root string) ([]
 	units := make([]VerifyUnit, 0, len(resolved))
 	for _, rf := range resolved {
 		// Comments are checked, and hold no source unit to settle or translate.
-		if seen[rf.Path] || rf.CommentsOnly() {
+		if seen[rf.Path] || (rf.CommentsOnly() && !commentsOnly) {
 			continue
 		}
 		seen[rf.Path] = true
@@ -1274,6 +1291,7 @@ func (a *App) SourceUnitsFromProject(proj *project.KapiProject, root string) ([]
 			SourceFormat: rf.Format,
 			SourceConfig: mergedFormatConfig(proj, rf.Format, rf.Item),
 			Comments:     rf.Item != nil && rf.Item.Comments.Declared,
+			OnlyComments: narrowedToComments(rf),
 			Directives:   commentDirectives(proj, rf.Item),
 		})
 	}
@@ -1281,13 +1299,14 @@ func (a *App) SourceUnitsFromProject(proj *project.KapiProject, root string) ([]
 }
 
 // unitsFromArgs resolves declared targets bilingually. Every other file is
-// source content, read under its declared format and source language.
+// source content, read under its declared format and source language, and a
+// file declared for its comments alone is read for them.
 func (a *App) unitsFromArgs(proj *project.KapiProject, root string, args []string, localeFilter string) ([]VerifyUnit, error) {
 	files, err := resolveFiles(args)
 	if err != nil {
 		return nil, err
 	}
-	sources, err := a.SourceUnitsFromProject(proj, root)
+	sources, err := a.sourceUnits(proj, root, true)
 	if err != nil {
 		return nil, err
 	}

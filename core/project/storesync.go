@@ -73,6 +73,10 @@ func (d StoreDrift) Any() bool {
 func CompareSourceStamps(stamps map[string]SourceStamp, files []ResolvedFile) (changed, removed []string) {
 	seen := make(map[string]bool, len(files))
 	for _, rf := range files {
+		// A file declared for its comments alone is never extracted or stamped.
+		if rf.CommentsOnly() {
+			continue
+		}
 		seen[rf.Relative] = true
 		stamp, ok := stamps[rf.Relative]
 		if !ok {
@@ -170,7 +174,7 @@ type DocumentAdopter interface {
 }
 
 // ExtractToBlockStore extracts the given resolved source files into the
-// project's persistent block store — the single extract-into-store path shared
+// project's persistent block store, the single extract-into-store path shared
 // by the desktop's Re-extract and the CLI's auto-extract-on-drift.
 //
 // Blocks are a pure cache re-derived from source: the prior block set is
@@ -216,6 +220,9 @@ func ExtractToBlockStore(
 	// names.
 	docs := make([]reconcile.DocUnit, 0, len(files))
 	for _, rf := range files {
+		if rf.CommentsOnly() {
+			continue
+		}
 		if rf.Format == "" {
 			stats.Skipped = append(stats.Skipped, ExtractSkip{
 				Path:   rf.Relative,

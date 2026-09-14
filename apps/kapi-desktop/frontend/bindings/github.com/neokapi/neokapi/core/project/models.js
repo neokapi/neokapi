@@ -343,13 +343,23 @@ export class ContentComments {
              * govern it.
              * 
              * For a file no format reader covers, such as Go source, the comments are
-             * the file's only content. kapi reads them through the language's comment
-             * provider, and a convergence run, a flow run and source coverage leave the
-             * file alone, so such an item names no target (ResolvedFile.CommentsOnly).
+             * the file's only content, as they are for every file of an item that sets
+             * Only (ResolvedFile.CommentsOnly).
              * @member
              * @type {boolean | undefined}
              */
             this["declared"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Only narrows the item's content to its comments. The comment provider for
+             * the file's format or language locates them, and nothing reads the values:
+             * no extraction, convergence run, flow run, merge, coverage count or ship
+             * gate. Such an item names no target.
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["only"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -381,10 +391,10 @@ export class ContentComments {
      * @returns {ContentComments}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType0;
+        const $$createField2_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("directives" in $$parsedSource) {
-            $$parsedSource["directives"] = $$createField1_0($$parsedSource["directives"]);
+            $$parsedSource["directives"] = $$createField2_0($$parsedSource["directives"]);
         }
         return new ContentComments(/** @type {Partial<ContentComments>} */($$parsedSource));
     }
