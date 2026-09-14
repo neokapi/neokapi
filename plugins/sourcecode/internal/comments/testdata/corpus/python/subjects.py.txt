@@ -1,0 +1,30 @@
+"""A module docstring is a string."""
+
+# Top of the module, above nothing.
+
+import os  # the standard library
+# The limit on retries.
+LIMIT = 3
+
+
+# Parses the input.
+@staticmethod
+def parse(text):
+    # Inside the function.
+    return text
+
+
+class Parser:
+    """A class docstring is a string."""
+
+    # The source text.
+    source = ""
+
+    # Runs the parser.
+    def run(self):
+        pass  # does nothing
+
+    # Separated from what follows by a blank line.
+
+    def stop(self):
+        pass

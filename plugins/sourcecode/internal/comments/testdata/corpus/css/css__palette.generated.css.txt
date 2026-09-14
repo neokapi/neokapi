@@ -1,0 +1,81 @@
+/*
+ * The kapi documentation site in the teal palette.
+ *
+ * GENERATED FILE, DO NOT EDIT. Computed from packages/ui/src/styles/kapi-colors.css
+ * by packages/docs-palette. Run `make generate-docs-palette` after editing that palette;
+ * `make check-docs-palette` fails on a stale copy.
+ */
+
+:root {
+  --ifm-color-primary-darkest: #004744;
+  --ifm-color-primary-darker: #005c58;
+  --ifm-color-primary-dark: #006561;
+  --ifm-color-primary: #0f716d;
+  --ifm-color-primary-light: #237d79;
+  --ifm-color-primary-lighter: #2e8681;
+  --ifm-color-primary-lightest: #469b96;
+  --ifm-background-color: #ffffff;
+  --ifm-background-surface-color: #ffffff;
+  --ifm-font-color-base: #242526;
+  --ifm-heading-color: #242526;
+  --ifm-code-background: #f5f7f8;
+  --ifm-toc-border-color: #d7dcdf;
+  --ifm-hr-border-color: #d7dcdf;
+  --docusaurus-highlighted-code-line-bg: rgba(36, 37, 38, 0.08);
+  --ifm-font-family-base:
+    "Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    sans-serif;
+  --ifm-font-family-monospace:
+    "JetBrains Mono Variable", "JetBrains Mono", "SF Mono", ui-monospace, monospace;
+}
+
+:root .kdx {
+  --kdx-annotate: #724aab;
+  --kdx-border: #d7dcdf;
+  --kdx-channel: #a2a6a9;
+  --kdx-check: #8a5600;
+  --kdx-file: #00736e;
+  --kdx-ink: #242526;
+  --kdx-io: #00736e;
+  --kdx-mono: "JetBrains Mono Variable", "JetBrains Mono", "SF Mono", ui-monospace, monospace;
+  --kdx-muted: #565c62;
+  --kdx-plugin: #a73447;
+  --kdx-resource: #007835;
+  --kdx-surface: #ffffff;
+  --kdx-surface-2: #f5f7f8;
+  --kdx-translate: #007272;
+}
+
+:root[data-theme="dark"] {
+  --ifm-color-primary-darkest: #308481;
+  --ifm-color-primary-darker: #55a6a2;
+  --ifm-color-primary-dark: #64b5b1;
+  --ifm-color-primary: #78c9c5;
+  --ifm-color-primary-light: #8cddd9;
+  --ifm-color-primary-lighter: #9bede9;
+  --ifm-color-primary-lightest: #f2fffe;
+  --ifm-background-color: #1b1b1d;
+  --ifm-background-surface-color: #24272b;
+  --ifm-font-color-base: #eceef0;
+  --ifm-heading-color: #eceef0;
+  --ifm-code-background: #24272b;
+  --ifm-toc-border-color: #454b50;
+  --ifm-hr-border-color: #454b50;
+  --docusaurus-highlighted-code-line-bg: rgba(236, 238, 240, 0.14);
+}
+
+:root[data-theme="dark"] .kdx {
+  --kdx-annotate: #c4a4fe;
+  --kdx-border: #454b50;
+  --kdx-channel: #70777c;
+  --kdx-check: #eca851;
+  --kdx-file: #1fd1cc;
+  --kdx-ink: #eceef0;
+  --kdx-io: #1fd1cc;
+  --kdx-muted: #b8bdc3;
+  --kdx-plugin: #ff939c;
+  --kdx-resource: #7ace87;
+  --kdx-surface: #24272b;
+  --kdx-surface-2: #24272b;
+  --kdx-translate: #1ad1d1;
+}

@@ -239,25 +239,35 @@ func (s *scanner) comment(units []unit, texts []commentText, subject string, doc
 // comment declares something, and no blank line separates the two. It documents
 // the declaration when nothing but whitespace separates them. A comment that
 // sits on nothing carries the path of the declaration around it with "comment"
-// appended, or "comment" at the top of a file.
+// appended, or "comment" at the top of a file. A comment after code on its
+// line annotates that code, so it sits on nothing after it.
 func (s *scanner) subject(u unit) (string, bool) {
 	syn := s.lang.syntax
 	parent := u.node.Parent()
 	path, structural := s.pathTo(u.node)
-	if structural && parent != nil && syn.container(parent.Kind(), kindOf(parent.Parent())) {
+	if u.fullLine && structural && parent != nil && syn.container(parent.Kind(), kindOf(parent.Parent())) {
 		onlyWhitespace, blankLine := true, false
 		prev := u.end
 		for n := u.node.NextSibling(); n != nil; n = n.NextSibling() {
-			start := int(n.StartByte())
+			candidate, container := n, parent.Kind()
+			// A grammar can open a container before its first declaration, as
+			// Python puts a comment above a class's first member ahead of the
+			// class body, so the comment sits on that first declaration.
+			if _, isDecl := syn.decl(n, container, s.src); !isDecl && syn.container(n.Kind(), container) {
+				if first := n.NamedChild(0); first != nil {
+					candidate, container = first, n.Kind()
+				}
+			}
+			start := int(candidate.StartByte())
 			if bytes.Count(s.src[prev:start], []byte("\n")) > 1 {
 				blankLine = true
 			}
-			if _, isComment := syn.unit(n, s.src); isComment {
+			if _, isComment := syn.unit(candidate, s.src); isComment {
 				onlyWhitespace = false
-				prev = int(n.EndByte())
+				prev = int(candidate.EndByte())
 				continue
 			}
-			segment, ok := syn.decl(n, parent.Kind(), s.src)
+			segment, ok := syn.decl(candidate, container, s.src)
 			if ok && (onlyWhitespace && u.kind == kindDocBlock || !blankLine) {
 				return joinPath(path, segment), onlyWhitespace
 			}
@@ -319,6 +329,8 @@ type commentText struct {
 	kind unitKind
 	// raw is the comment as written, markers included.
 	raw string
+	// line is the line the comment starts on.
+	line int
 	// lines is the content, one string per line.
 	lines []string
 }
@@ -349,11 +361,12 @@ func (t commentText) first() string {
 // lines are then dedented to their shared indentation.
 func (s *scanner) text(u unit) commentText {
 	raw := string(s.src[u.start:u.end])
-	t := commentText{kind: u.kind, raw: raw}
+	t := commentText{kind: u.kind, raw: raw, line: s.idx.Range(u.start, u.end).First}
 	body := raw[u.open : len(raw)-u.close]
 	switch u.kind {
 	case kindLine, kindShebang:
-		body = strings.TrimLeft(body, "/")
+		// A marker written longer, such as `///` or `##`, is still a marker.
+		body = strings.TrimLeft(body, raw[u.open-1:u.open])
 		body = strings.TrimPrefix(body, " ")
 		t.lines = []string{strings.TrimRight(body, " \t\r")}
 	default:

@@ -1,0 +1,13 @@
+/* Top of the sheet. */
+@media (min-width: 600px) {
+  /* Inside a media query. */
+  .c { margin: 0; /* trailing */ }
+}
+
+/**
+ * A documented rule.
+ */
+.e { color: blue; }
+
+.f { color: red; } /* after a rule */
+.g { color: blue; }

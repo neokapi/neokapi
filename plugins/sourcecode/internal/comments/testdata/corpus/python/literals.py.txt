@@ -1,0 +1,13 @@
+# Holds comment markers as content.
+greeting = "# not a comment"
+single = '# not a comment either'
+doc = """
+# not a comment inside a docstring
+"""
+shout = f"{greeting} # not a comment in an f-string"
+
+
+class Parser:
+    # Parses the input.
+    def parse(self, text):
+        return text  # a trailing comment

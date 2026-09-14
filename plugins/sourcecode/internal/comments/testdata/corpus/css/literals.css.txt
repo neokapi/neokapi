@@ -1,0 +1,5 @@
+/* Holds comment markers as content. */
+.a { content: "/* not a comment */"; }
+.b { content: '/* not a comment either */'; }
+.c { background: url(/*not-a-comment*/); }
+.d { background: url(a/*not*/b.png); }

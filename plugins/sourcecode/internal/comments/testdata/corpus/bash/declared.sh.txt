@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Builds the site.
+# okapi-skip: BuildTest#testEmpty
+#
+# It stops on the first error.
+build() {
+  :
+}
+
+# okapi-unmapped: DeployTest#testAll
+# okapi-skip: DeployTest#testNone
+deploy() {
+  echo done # okapi-skip: DeployTest#testTrailing
+}
+
+# See the okapi-skip: markers; OKAPI-SKIP: in capitals is prose too.
+sort_files() {
+  :
+}

@@ -18,6 +18,10 @@
 languages:
   bash:
     name: Bash
+    provider: sourcecode
+  css:
+    name: CSS
+    provider: sourcecode
   go:
     name: Go
   javascript:
@@ -25,6 +29,7 @@ languages:
     provider: sourcecode
   python:
     name: Python
+    provider: sourcecode
   ruby:
     name: Ruby
     provider: sourcecode

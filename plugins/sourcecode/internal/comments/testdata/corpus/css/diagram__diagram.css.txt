@@ -1,0 +1,379 @@
+/*
+ * Diagram kit (`kdx-` = kapi diagram) — a uniform, theme-aware SVG visual
+ * language for the docs. One SVG renders in both light and dark: every color is
+ * a CSS custom property, and every element picks its color through a class
+ * rather than a hardcoded `fill`/`stroke` attribute.
+ *
+ * The values come from `palette.generated.css`, which the build computes from
+ * the brand tokens in @neokapi/ui-primitives. Each role takes a hue from the
+ * shared semantic tokens, so a translator box is the language hue on every
+ * surface that draws one. A documentation site that ships a different brand
+ * declares the same properties at a higher specificity and the drawing follows
+ * it; see packages/docs-palette.
+ *
+ * SSR-safe: pure SVG + CSS, no browser APIs. Motion is opt-in (the hero) and
+ * fully suppressed under `prefers-reduced-motion`.
+ */
+
+@import "./palette.generated.css";
+
+.kdx {
+  margin: 1.5rem 0;
+}
+
+/* Horizontal scroll on narrow screens; the SVG keeps its aspect ratio. */
+.kdx-scroll {
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+}
+
+.kdx-canvas {
+  /* Floor for legibility: below this the SVG horizontally scrolls (mobile)
+     rather than shrinking text to nothing. Above it, the SVG scales to fit the
+     content column via its viewBox. */
+  min-width: 520px;
+  margin: 0 auto;
+}
+
+.kdx svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* ── Text ─────────────────────────────────────────────────────────────── */
+.kdx text {
+  font-family: var(
+    --ifm-font-family-base,
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    sans-serif
+  );
+}
+.kdx-label {
+  fill: var(--kdx-ink);
+  font-weight: 600;
+}
+.kdx-sub,
+.kdx-chan,
+.kdx-file-t {
+  font-family: var(--kdx-mono, ui-monospace, "Source Code Pro", monospace);
+}
+.kdx-sub {
+  fill: var(--kdx-muted);
+}
+.kdx-chan {
+  fill: var(--kdx-muted);
+  opacity: 0.75;
+}
+.kdx-cap {
+  fill: var(--kdx-muted);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.kdx-note {
+  fill: var(--kdx-muted);
+}
+
+.kdx-caption {
+  margin: 0.4rem 0 0;
+  text-align: center;
+  font-size: 0.82rem;
+  color: var(--kdx-muted, #5d6b66);
+}
+
+/* ── Stream diagram (vertical Part/event sequence) ────────────────────── */
+.kdx-mono {
+  fill: var(--kdx-ink);
+  font-family: var(--kdx-mono, ui-monospace, "Source Code Pro", monospace);
+}
+.kdx-node {
+  fill: var(--kdx-channel);
+}
+.kdx-node--io {
+  fill: var(--kdx-io);
+}
+.kdx-node--translate {
+  fill: var(--kdx-translate);
+}
+.kdx-node--annotate {
+  fill: var(--kdx-annotate);
+}
+
+/* ── Round-trip hub ───────────────────────────────────────────────────── */
+.kdx-hub {
+  fill: var(--kdx-surface);
+  stroke: var(--kdx-resource);
+  stroke-width: 1.5;
+}
+/* small surface pill behind an edge label so it stays legible over a line */
+.kdx-pill {
+  fill: var(--kdx-surface);
+}
+
+/* redaction censor bar — solid ink, so it reads as a black-out bar on light and
+   inverts to a light bar on dark (RedactionDiagram). Paired with a marker
+   roughen filter + a small per-bar rotation for the felt-tip look. */
+.kdx-blackout {
+  fill: var(--kdx-ink);
+  stroke: var(--kdx-ink);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+/* placeholder chip — a rough-outlined box showing the redacted category. */
+.kdx-redact-chip {
+  fill: var(--kdx-surface);
+  stroke: var(--kdx-ink);
+  stroke-width: 1.75;
+  stroke-linejoin: round;
+}
+.kdx-redact-label {
+  fill: var(--kdx-ink);
+  font-weight: 600;
+}
+
+/* ── Ship-gate (GatedLoopDiagram) ──────────────────────── */
+/* A gate is a green governance seam: it holds work when a phase isn't ready
+   and releases it (green) when the phase clears its bar. Green = brand-primary
+   `--kdx-io`, so a gate reads as "the shippable line" across light/dark. */
+.kdx-gate {
+  fill: var(--kdx-surface);
+  stroke: var(--kdx-io);
+  stroke-width: 2;
+}
+.kdx-gate-fill {
+  fill: var(--kdx-io);
+  opacity: 0.1;
+}
+.kdx-gate-t {
+  fill: var(--kdx-io);
+  font-weight: 700;
+}
+.kdx-gate-sub {
+  fill: var(--kdx-io);
+  opacity: 0.85;
+  font-family: var(--kdx-mono, ui-monospace, "Source Code Pro", monospace);
+}
+.kdx-gate-check {
+  fill: none;
+  stroke: var(--kdx-io);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+/* A phase band — a settle-source / translate stage that runs several tools. */
+.kdx-phase {
+  fill: var(--kdx-surface-2);
+  stroke: var(--kdx-border);
+  stroke-width: 1.5;
+}
+.kdx-phase--source {
+  stroke: var(--kdx-annotate);
+}
+.kdx-phase--translate {
+  stroke: var(--kdx-translate);
+}
+.kdx-phase-t {
+  fill: var(--kdx-ink);
+  font-weight: 600;
+}
+.kdx-phase-step {
+  fill: var(--kdx-muted);
+  font-family: var(--kdx-mono, ui-monospace, "Source Code Pro", monospace);
+}
+/* The "held" branch — where under-ready work waits for a person, drawn as a
+   muted amber (checks / attention) dashed edge to a review node. */
+.kdx-hold {
+  fill: none;
+  stroke: var(--kdx-check);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+  opacity: 0.85;
+}
+.kdx-hold-t {
+  fill: var(--kdx-check);
+  font-weight: 600;
+}
+
+/* self-loop arc (PhaseFlow) */
+.kdx-loop {
+  fill: none;
+  stroke: var(--kdx-annotate);
+  stroke-width: 1.25;
+  stroke-dasharray: 4 3;
+  opacity: 0.7;
+}
+
+/* lane/thread card divider (LanesDiagram) */
+.kdx-divider {
+  stroke: var(--kdx-border);
+  stroke-width: 1;
+}
+.kdx-link--io {
+  stroke: var(--kdx-io);
+}
+
+/* ── Boxes & lanes ────────────────────────────────────────────────────── */
+.kdx-box {
+  fill: var(--kdx-surface);
+  stroke: var(--kdx-border);
+  stroke-width: 1.5;
+}
+.kdx-box--io {
+  stroke: var(--kdx-io);
+}
+.kdx-box--annotate {
+  stroke: var(--kdx-annotate);
+}
+.kdx-box--translate {
+  stroke: var(--kdx-translate);
+}
+.kdx-box--check {
+  stroke: var(--kdx-check);
+}
+
+/* subtitle tint matches the box role */
+.kdx-sub--io {
+  fill: var(--kdx-io);
+}
+.kdx-sub--annotate {
+  fill: var(--kdx-annotate);
+}
+.kdx-sub--translate {
+  fill: var(--kdx-translate);
+}
+.kdx-sub--check {
+  fill: var(--kdx-check);
+}
+
+.kdx-file {
+  fill: var(--kdx-surface);
+  stroke: var(--kdx-border);
+  stroke-width: 1;
+}
+.kdx-file-t {
+  fill: var(--kdx-file);
+}
+
+/* ── Connectors ───────────────────────────────────────────────────────── */
+.kdx-channel {
+  stroke: var(--kdx-channel);
+  stroke-width: 1.5;
+  fill: none;
+}
+.kdx-thin {
+  stroke: var(--kdx-io);
+  stroke-width: 1;
+  opacity: 0.35;
+  fill: none;
+}
+.kdx-thin--t {
+  stroke: var(--kdx-translate);
+}
+.kdx-link {
+  stroke-width: 1.25;
+  fill: none;
+  stroke-dasharray: 4 3;
+  opacity: 0.6;
+}
+.kdx-link--resource {
+  stroke: var(--kdx-resource);
+}
+.kdx-link--plugin {
+  stroke: var(--kdx-plugin);
+}
+.kdx-arrow {
+  fill: var(--kdx-channel);
+}
+
+/* ── Worker fan-out lane ──────────────────────────────────────────────── */
+.kdx-worker {
+  fill: var(--kdx-surface-2);
+  stroke: var(--kdx-translate);
+  stroke-width: 1;
+  opacity: 0.92;
+}
+.kdx-bracket {
+  fill: none;
+  stroke: var(--kdx-translate);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+  opacity: 0.4;
+}
+
+/* ── Bands (plugin system / resources) ────────────────────────────────── */
+.kdx-band {
+  fill: var(--kdx-surface-2);
+  stroke: var(--kdx-plugin);
+  stroke-width: 1;
+  stroke-dasharray: 5 4;
+  opacity: 0.5;
+}
+.kdx-chip {
+  fill: var(--kdx-surface);
+  stroke: var(--kdx-plugin);
+  stroke-width: 1.25;
+}
+.kdx-chip--resource {
+  stroke: var(--kdx-resource);
+}
+.kdx-chip-t {
+  fill: var(--kdx-ink);
+  font-weight: 600;
+}
+.kdx-chip-sub {
+  fill: var(--kdx-muted);
+  font-family: var(--kdx-mono, ui-monospace, "Source Code Pro", monospace);
+}
+
+/* ghost stack — "documents in parallel" */
+.kdx-ghost {
+  fill: none;
+  stroke: var(--kdx-io);
+  stroke-width: 1.25;
+  opacity: 0.16;
+}
+
+/* ── Motion (hero only) ───────────────────────────────────────────────── */
+.kdx-dot {
+  opacity: 0;
+}
+.kdx-dot--io {
+  fill: var(--kdx-io);
+}
+.kdx-dot--translate {
+  fill: var(--kdx-translate);
+}
+
+/* staggered "active worker" pulse, no JS */
+.kdx-pulse {
+  fill: none;
+  stroke: var(--kdx-translate);
+  stroke-width: 1.25;
+  opacity: 0;
+}
+.kdx--animated .kdx-pulse {
+  animation: kdx-pulse 3.2s ease-in-out infinite;
+}
+@keyframes kdx-pulse {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.55;
+  }
+  25% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kdx-dot,
+  .kdx-pulse {
+    display: none;
+  }
+}

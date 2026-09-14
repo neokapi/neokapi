@@ -22,7 +22,7 @@ import (
 // Corpus floors per language. The accounting of each fixture is what catches a
 // provider that loses a comment; the floors catch a corpus that shrank to
 // nothing and still accounted for everything in it.
-var corpusFloors = map[string]int{"typescript": 20, "tsx": 10, "javascript": 5}
+var corpusFloors = map[string]int{"typescript": 20, "tsx": 10, "javascript": 5, "python": 15, "bash": 20, "css": 15}
 
 // literalsOf lists, per fixture, the substrings holding a comment marker as
 // content. No comment or exclusion may overlap one.
@@ -35,20 +35,70 @@ var literalsOf = map[string][]string{
 	"canary.ts.txt":    {`"// not a comment"`},
 	"canary.tsx.txt":   {`<p>// not a comment `},
 	"canary.mjs.txt":   {"`// not a comment`"},
+	"literals.py.txt":  {`"# not a comment"`, `'# not a comment either'`, "\"\"\"\n# not a comment inside a docstring\n\"\"\"", `f"{greeting} # not a comment in an f-string"`},
+	"unicode.py.txt":   {`"héllo # ✓"`},
+	"crlf.py.txt":      {`"# not a comment"`},
+	"canary.py.txt":    {`"# not a comment"`},
+	"literals.sh.txt":  {`"# not a comment"`, `'# not a comment either'`, `${greeting#prefix}`, `word#not-a-comment`, `$'# not a comment in an ANSI-C string'`, "# not a comment inside a heredoc"},
+	"canary.sh.txt":    {`"# not a comment"`},
+	"literals.css.txt": {`"/* not a comment */"`, `'/* not a comment either */'`, `url(/*not-a-comment*/)`, `url(a/*not*/b.png)`},
+	"canary.css.txt":   {`"/* not a comment */"`},
 }
 
-// fixture is one corpus file and the Babel golden beside it.
+// directiveFixtures names, per language, a fixture of directives alone that
+// holds a comment of every form the language's syntax tests.
+var directiveFixtures = map[string]string{
+	"typescript": "directives.ts.txt",
+	"python":     "directives.py.txt",
+	"bash":       "directives.sh.txt",
+	"css":        "directives.css.txt",
+}
+
+// declaredFixtures names, per language, a fixture carrying declaredDirectives,
+// and how many of its comments open with one.
+var declaredFixtures = map[string]struct {
+	name  string
+	forms int
+}{
+	"typescript": {"declared.ts.txt", 5},
+	"python":     {"declared.py.txt", 4},
+	"bash":       {"declared.sh.txt", 4},
+	"css":        {"declared.css.txt", 3},
+}
+
+// generatedFixtures names, per language, the fixtures a generator's header
+// marks as generated.
+var generatedFixtures = map[string][]string{
+	"typescript": {"src__contract.gen.ts.txt", "embeds__types.ts.txt", "internal__eventdata.d.ts.txt"},
+	"python":     {"generated.py.txt"},
+	"bash":       {"generated.sh.txt"},
+	"css":        {"generated.css.txt"},
+}
+
+// unparsed holds, per language, a file with a syntax error on its second line.
+var unparsed = map[string]string{
+	"typescript": "// Parses.\nexport function parse( {\n",
+	"python":     "# Parses.\ndef parse(\n",
+	"bash":       "# Builds.\nbuild() {\n",
+	"css":        "/* Styles. */\n.header { color: red;\n",
+}
+
+// fixture is one corpus file and, for an oracle that records its spans, the
+// golden beside it.
 type fixture struct {
 	name   string
 	src    []byte
 	golden golden
 }
 
-// corpus reads a language's fixtures. A fixture without a golden, or whose
-// golden records other bytes, fails the test: an oracle that cannot vouch for
-// the bytes it is compared with proves nothing.
+// corpus reads a language's fixtures. For an oracle that records its spans, a
+// fixture without a golden, or whose golden records other bytes, fails the
+// test: an oracle that cannot vouch for the bytes it is compared with proves
+// nothing.
 func corpus(t *testing.T, language string) []fixture {
 	t.Helper()
+	o, ok := oracles[language]
+	require.True(t, ok, "no oracle reads %s", language)
 	paths, err := filepath.Glob(filepath.Join("testdata", "corpus", language, "*.txt"))
 	require.NoError(t, err)
 	require.NotEmpty(t, paths, "no %s fixtures", language)
@@ -56,10 +106,13 @@ func corpus(t *testing.T, language string) []fixture {
 	for _, p := range paths {
 		src, err := os.ReadFile(p)
 		require.NoError(t, err)
-		g, err := readGolden(p)
-		require.NoError(t, err)
-		require.Equal(t, g.sha256, sum(src), "%s changed since its Babel golden was written; run testdata/babel-goldens.mjs", filepath.Base(p))
-		out = append(out, fixture{name: filepath.Base(p), src: src, golden: g})
+		fx := fixture{name: filepath.Base(p), src: src}
+		if o.golden != "" {
+			fx.golden, err = readGolden(p, o)
+			require.NoError(t, err)
+			require.Equal(t, fx.golden.sha256, sum(src), "%s changed since its %s golden was written; run %s", fx.name, o.name, o.script)
+		}
+		out = append(out, fx)
 	}
 	return out
 }
@@ -93,9 +146,11 @@ func (p provider) Locate(name string, src []byte) (*comment.File, error) {
 }
 
 // suite is the conformance suite over a language's corpus. Its scan is the
-// Babel golden recorded for exactly the bytes it is given, the canary included.
+// language's oracle: the golden recorded for exactly the bytes it is given, the
+// canary included, or the oracle read in the test.
 func suite(t *testing.T, language string, p comment.Provider) commenttest.Suite {
 	t.Helper()
+	o := oracles[language]
 	fixtures := corpus(t, language)
 	goldens := map[string]golden{}
 	s := commenttest.Suite{Provider: p}
@@ -104,11 +159,18 @@ func suite(t *testing.T, language string, p comment.Provider) commenttest.Suite 
 		s.Fixtures = append(s.Fixtures, commenttest.Fixture{Name: fx.name, Source: string(fx.src), Literals: literalsOf[fx.name]})
 	}
 	s.Scan = func(name string, src []byte) ([]commenttest.Unit, error) {
+		if o.scan != nil {
+			spans, err := o.scan(src)
+			if err != nil {
+				return nil, fmt.Errorf("%s could not read %s: %w", o.name, name, err)
+			}
+			return o.units(src, spans), nil
+		}
 		g, ok := goldens[sum(src)]
 		if !ok {
-			return nil, fmt.Errorf("no Babel golden records the bytes of %s; add it to testdata/corpus and run testdata/babel-goldens.mjs", name)
+			return nil, fmt.Errorf("no %s golden records the bytes of %s; add it to testdata/corpus and run %s", o.name, name, o.script)
 		}
-		return oracleUnits(src, g.spans), nil
+		return o.units(src, g.spans), nil
 	}
 	return s
 }
@@ -132,7 +194,7 @@ type canaryless struct{ provider }
 
 func (canaryless) Canary() comment.Canary { return comment.Canary{} }
 
-// declaredDirectives are the markers declared.ts.txt carries, declared as a
+// declaredDirectives are the markers the declared fixtures carry, declared as a
 // recipe declares them.
 var declaredDirectives = comment.Directives{"okapi-skip:", "okapi-unmapped:"}
 
@@ -142,8 +204,8 @@ type unmarked struct{ provider }
 func (unmarked) LineText([]byte) (int, string, bool) { return 0, "", false }
 
 // proseP1 is the P1 rung for one language: the shared conformance suite over a
-// corpus drawn from this repository, every fixture's golden vouching for its
-// bytes, and a provider broken each way the suite must notice.
+// corpus drawn from this repository, every fixture held to the language's
+// oracle, and a provider broken each way the suite must notice.
 func proseP1(t *testing.T, language string) {
 	p := newProvider(t, language)
 
@@ -189,11 +251,83 @@ func proseP1(t *testing.T, language string) {
 			})
 		}
 	})
+
+	if name, ok := directiveFixtures[language]; ok {
+		t.Run("each directive form is set aside, and dropping any one lets it through", func(t *testing.T) {
+			src := fixtureBytes(t, language, name)
+			got, err := comments.Locate(language, name, src)
+			require.NoError(t, err)
+			assert.Empty(t, got.Comments, "a file of directives has no prose")
+			require.NotEmpty(t, got.Excluded)
+			for _, e := range got.Excluded {
+				assert.Equal(t, comment.ReasonDirective, e.Reason, "%q", src[e.Start:e.End])
+				assert.NotEmpty(t, e.Form, "%q", src[e.Start:e.End])
+			}
+			forms := comments.DirectiveForms(language)
+			require.NotEmpty(t, forms)
+			for _, form := range forms {
+				t.Run("must fail: without "+form, func(t *testing.T) {
+					got, err := comments.LocateWithout(language, name, src, form)
+					require.NoError(t, err)
+					assert.NotEmpty(t, got.Comments, "without %q the directive fixture should expose a directive as prose", form)
+				})
+			}
+		})
+	}
+
+	if declared, ok := declaredFixtures[language]; ok {
+		t.Run("declared directives are set aside through the provider's LineText", func(t *testing.T) {
+			s := suite(t, language, newProvider(t, language))
+			s.Directives = declaredDirectives
+			commenttest.Run(t, s)
+
+			got, err := comment.Locate(newProvider(t, language), declared.name, fixtureBytes(t, language, declared.name), declaredDirectives)
+			require.NoError(t, err)
+			forms := 0
+			for _, e := range got.Excluded {
+				if e.Reason == comment.ReasonDirective && slices.Contains(declaredDirectives, e.Form) {
+					forms++
+				}
+			}
+			assert.Equal(t, declared.forms, forms, "the suite ran over the declared markers")
+		})
+
+		t.Run("must fail: a provider whose LineText reads no line", func(t *testing.T) {
+			s := suite(t, language, unmarked{newProvider(t, language)})
+			s.Directives = declaredDirectives
+			failures := commenttest.Verify(s)
+			require.NotEmpty(t, failures)
+			assert.Contains(t, commenttest.Properties(failures), commenttest.PropDirective, "%v", commenttest.Err(failures))
+			assert.Contains(t, commenttest.Properties(failures), commenttest.PropLineText, "%v", commenttest.Err(failures))
+		})
+	}
+
+	if names, ok := generatedFixtures[language]; ok {
+		t.Run("a generated file's comments are all set aside", func(t *testing.T) {
+			for _, name := range names {
+				got, err := comments.Locate(language, name, fixtureBytes(t, language, name))
+				require.NoError(t, err)
+				assert.Empty(t, got.Comments, name)
+				require.NotEmpty(t, got.Excluded, name)
+				for _, e := range got.Excluded {
+					assert.Equal(t, comment.ReasonGenerated, e.Reason, name)
+				}
+			}
+		})
+	}
+
+	if src, ok := unparsed[language]; ok {
+		t.Run("a file that does not parse is unlocated", func(t *testing.T) {
+			_, err := comments.Locate(language, "broken", []byte(src))
+			require.ErrorIs(t, err, comment.ErrUnlocated)
+			assert.Contains(t, err.Error(), "line 2")
+		})
+	}
 }
 
 // countLiteralMarker reports a comment marker inside a literal as a comment.
 func countLiteralMarker(src []byte, f *comment.File) {
-	for _, marker := range []string{"// not a comment", "/* not a comment */"} {
+	for _, marker := range []string{"// not a comment", "/* not a comment */", "# not a comment"} {
 		at := strings.Index(string(src), marker)
 		if at < 0 {
 			continue
@@ -211,55 +345,9 @@ func countLiteralMarker(src []byte, f *comment.File) {
 func TestProseP1_typescript(t *testing.T) {
 	proseP1(t, "typescript")
 
-	t.Run("each directive form is set aside, and dropping any one lets it through", func(t *testing.T) {
-		src := fixtureBytes(t, "typescript", "directives.ts.txt")
-		got, err := comments.Locate("typescript", "directives.ts", src)
-		require.NoError(t, err)
-		assert.Empty(t, got.Comments, "a file of directives has no prose")
-		require.NotEmpty(t, got.Excluded)
-		for _, e := range got.Excluded {
-			assert.Equal(t, comment.ReasonDirective, e.Reason, "%q", src[e.Start:e.End])
-			assert.NotEmpty(t, e.Form, "%q", src[e.Start:e.End])
-		}
-		forms := comments.DirectiveForms("typescript")
-		require.NotEmpty(t, forms)
-		for _, form := range forms {
-			t.Run("must fail: without "+form, func(t *testing.T) {
-				got, err := comments.LocateWithout("typescript", "directives.ts", src, form)
-				require.NoError(t, err)
-				assert.NotEmpty(t, got.Comments, "without %q the directive fixture should expose a directive as prose", form)
-			})
-		}
-	})
-
-	t.Run("declared directives are set aside through the provider's LineText", func(t *testing.T) {
-		s := suite(t, "typescript", newProvider(t, "typescript"))
-		s.Directives = declaredDirectives
-		commenttest.Run(t, s)
-
-		got, err := comment.Locate(newProvider(t, "typescript"), "declared.ts", fixtureBytes(t, "typescript", "declared.ts.txt"), declaredDirectives)
-		require.NoError(t, err)
-		forms := 0
-		for _, e := range got.Excluded {
-			if e.Reason == comment.ReasonDirective && slices.Contains(declaredDirectives, e.Form) {
-				forms++
-			}
-		}
-		assert.Equal(t, 5, forms, "the suite ran over the declared markers")
-	})
-
-	t.Run("must fail: a provider whose LineText reads no line", func(t *testing.T) {
-		s := suite(t, "typescript", unmarked{newProvider(t, "typescript")})
-		s.Directives = declaredDirectives
-		failures := commenttest.Verify(s)
-		require.NotEmpty(t, failures)
-		assert.Contains(t, commenttest.Properties(failures), commenttest.PropDirective, "%v", commenttest.Err(failures))
-		assert.Contains(t, commenttest.Properties(failures), commenttest.PropLineText, "%v", commenttest.Err(failures))
-	})
-
 	t.Run("a doc comment sits directly before a declaration", func(t *testing.T) {
 		src := fixtureBytes(t, "typescript", "doc.ts.txt")
-		assert.Empty(t, docMismatches(t, newProvider(t, "typescript"), src))
+		assert.Empty(t, subjectMismatches(t, newProvider(t, "typescript"), "doc.ts", src, docSubjects))
 	})
 
 	t.Run("must fail: every /** */ treated as a doc comment", func(t *testing.T) {
@@ -271,7 +359,7 @@ func TestProseP1_typescript(t *testing.T) {
 				}
 			}
 		}}
-		assert.NotEmpty(t, docMismatches(t, p, src))
+		assert.NotEmpty(t, subjectMismatches(t, p, "doc.ts", src, docSubjects))
 	})
 
 	t.Run("JSDoc tags, links, code and URLs are placeholders", func(t *testing.T) {
@@ -291,27 +379,12 @@ func TestProseP1_typescript(t *testing.T) {
 		assert.Equal(t, "Whether to keep .", model.RunsText(keep.Runs))
 	})
 
-	t.Run("a generated file's comments are all set aside", func(t *testing.T) {
-		for _, name := range []string{"src__contract.gen.ts.txt", "embeds__types.ts.txt", "internal__eventdata.d.ts.txt"} {
-			got, err := comments.Locate("typescript", name, fixtureBytes(t, "typescript", name))
-			require.NoError(t, err)
-			assert.Empty(t, got.Comments, name)
-			require.NotEmpty(t, got.Excluded, name)
-			for _, e := range got.Excluded {
-				assert.Equal(t, comment.ReasonGenerated, e.Reason, name)
-			}
-		}
+	t.Run("a comment that names no generator is prose", func(t *testing.T) {
 		// Its first comment speaks of "the generated contract" and names no
-		// generator, so it is prose.
+		// generator.
 		got, err := comments.Locate("typescript", "types.ts", fixtureBytes(t, "typescript", "review__types.ts.txt"))
 		require.NoError(t, err)
 		assert.NotEmpty(t, got.Comments)
-	})
-
-	t.Run("a file that does not parse is unlocated", func(t *testing.T) {
-		_, err := comments.Locate("typescript", "broken.ts", []byte("// Parses.\nexport function parse( {\n"))
-		require.ErrorIs(t, err, comment.ErrUnlocated)
-		assert.Contains(t, err.Error(), "line 2")
 	})
 }
 
@@ -342,29 +415,102 @@ func TestProseP1_javascript(t *testing.T) {
 	})
 }
 
-// docMismatches locates doc.ts and lists every comment whose subject or doc
-// flag differs from what the fixture declares.
-func docMismatches(t *testing.T, p comment.Provider, src []byte) []string {
-	t.Helper()
-	want := []string{
+func TestProseP1_python(t *testing.T) {
+	proseP1(t, "python")
+	proseSubjects(t, "python", "subjects.py.txt", []string{
 		"comment doc=false",
-		"func/parse doc=true",
+		"comment doc=false",
+		"var/LIMIT doc=false",
+		"func/parse doc=false",
 		"func/parse/comment doc=false",
-		"class/Parser doc=true",
-		"class/Parser/source doc=true",
+		"class/Parser/source doc=false",
 		"class/Parser/run doc=false",
-		"class/Parser/stop doc=false",
+		"class/Parser/run/comment doc=false",
+		"class/Parser/comment doc=false",
+	})
+
+	t.Run("an encoding declaration is a directive on the first two lines only", func(t *testing.T) {
+		got, err := comments.Locate("python", "coding.py", []byte("#!/usr/bin/env python3\n# vim: set fileencoding=utf-8 :\n"))
+		require.NoError(t, err)
+		assert.Empty(t, got.Comments)
+		require.Len(t, got.Excluded, 2)
+		assert.Equal(t, "coding", got.Excluded[1].Form)
+
+		got, err = comments.Locate("python", "coding.py", []byte("x = 1\ny = 2\n# vim: set fileencoding=utf-8 :\n"))
+		require.NoError(t, err)
+		assert.Len(t, got.Comments, 1, "on the third line the declaration is prose")
+	})
+}
+
+func TestProseP1_bash(t *testing.T) {
+	proseP1(t, "bash")
+	proseSubjects(t, "bash", "subjects.sh.txt", []string{
 		"comment doc=false",
-		"interface/Options doc=true",
-		"interface/Options/keep doc=true",
-		"enum/Kind doc=true",
-		"enum/Kind/Text doc=true",
-		"type/Id doc=true",
-		"namespace/Util/const/join doc=true",
-		"global/interface/Window doc=true",
-		"func/read doc=true",
-	}
-	got, err := p.Locate("doc.ts", src)
+		"comment doc=false",
+		"var/OUT doc=false",
+		"var/VERSION doc=false",
+		"func/build doc=false",
+		"func/build/comment doc=false",
+		"func/build/comment doc=false",
+		"comment doc=false",
+	})
+}
+
+func TestProseP1_css(t *testing.T) {
+	proseP1(t, "css")
+	proseSubjects(t, "css", "nested.css.txt", []string{
+		"media doc=false",
+		"media/rule/.c doc=false",
+		"media/rule/.c/comment doc=false",
+		"rule/.e doc=false",
+		"comment doc=false",
+	})
+}
+
+// proseSubjects holds a language's comments to the subjects a fixture
+// declares, and a provider that reads a comment above a declaration as its
+// documentation to failing them. Only a documentation comment a language
+// defines, such as a JSDoc block, documents a declaration.
+func proseSubjects(t *testing.T, language, name string, want []string) {
+	t.Run("a comment carries the subject of what it sits on", func(t *testing.T) {
+		assert.Empty(t, subjectMismatches(t, newProvider(t, language), name, fixtureBytes(t, language, name), want))
+	})
+
+	t.Run("must fail: a comment above a declaration read as its documentation", func(t *testing.T) {
+		p := broken{newProvider(t, language), func(_ []byte, f *comment.File) {
+			for i := range f.Comments {
+				f.Comments[i].Doc = !strings.HasSuffix(f.Comments[i].Subject, "comment")
+			}
+		}}
+		assert.NotEmpty(t, subjectMismatches(t, p, name, fixtureBytes(t, language, name), want))
+	})
+}
+
+// docSubjects are the subjects and doc flags doc.ts declares.
+var docSubjects = []string{
+	"comment doc=false",
+	"func/parse doc=true",
+	"func/parse/comment doc=false",
+	"class/Parser doc=true",
+	"class/Parser/source doc=true",
+	"class/Parser/run doc=false",
+	"class/Parser/stop doc=false",
+	"comment doc=false",
+	"interface/Options doc=true",
+	"interface/Options/keep doc=true",
+	"enum/Kind doc=true",
+	"enum/Kind/Text doc=true",
+	"type/Id doc=true",
+	"namespace/Util/const/join doc=true",
+	"global/interface/Window doc=true",
+	"func/read doc=true",
+}
+
+// subjectMismatches locates a fixture and lists every comment whose subject or
+// doc flag differs from want.
+func subjectMismatches(t *testing.T, p comment.Provider, name string, src []byte, want []string) []string {
+	t.Helper()
+	got, err := p.Locate(name, src)
 	require.NoError(t, err)
 	var have []string
 	for _, c := range got.Comments {

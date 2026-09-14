@@ -541,7 +541,7 @@ cgo stays in the plugin, giving the format one config definition and keeping
 grammars out of the framework.
 
 The same plugin locates the comments of the languages its manifest lists under
-`capabilities.comments`, such as TypeScript, TSX and JavaScript, for the comment
+`capabilities.comments`, such as TypeScript, Python and CSS, for the comment
 layer ([E-02](e-02-format-system.md#the-comment-layer)). The host sends a file's
 bytes over the `LocateComments` RPC and reads back what a built-in comment
 provider returns: byte spans, subjects, doc flags, runs and the comments set

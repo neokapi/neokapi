@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Holds comment markers as content.
+greeting="# not a comment"
+single='# not a comment either'
+stripped=${greeting#prefix} # a trailing comment
+echo word#not-a-comment
+echo $'# not a comment in an ANSI-C string'
+cat <<EOF
+# not a comment inside a heredoc
+EOF
+
+# Builds the site.
+build() {
+  # Inside the function.
+  echo "$stripped"
+}

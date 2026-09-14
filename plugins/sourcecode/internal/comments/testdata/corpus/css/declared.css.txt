@@ -1,0 +1,16 @@
+/* Styles the header. */
+/* okapi-skip: HeaderTest#testEmpty */
+.header { color: red; }
+
+/* okapi-unmapped: FooterTest#testAll */
+.footer {
+  color: blue; /* okapi-skip: FooterTest#testTrailing */
+}
+
+/*
+ * okapi-skip: inside a comment over several lines
+ */
+.body { margin: 0; }
+
+/* See the okapi-skip: markers; OKAPI-SKIP: in capitals is prose too. */
+.sort { margin: 0; }

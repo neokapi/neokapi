@@ -174,7 +174,7 @@ hold over a whole document, such as a voice profile's required patterns, read
 the whole changed file.
 
 In a source file read for its comments, such as a Go file, or a TypeScript,
-TSX or JavaScript file the sourcecode plugin reads, the unit is the comment. A
+Python or CSS file the sourcecode plugin reads, the unit is the comment. A
 changed line inside a comment checks that comment whole, and a change to code or
 to directives alone leaves the file `untouched`. Where the language has a
 formatter, it compares only the comments the change touched, and it catches its
