@@ -180,8 +180,8 @@ to directives alone leaves the file `untouched`. Where the language has a
 formatter, it compares only the comments the change touched, and it catches its
 canary as it does when kapi checks the whole file.
 When a recipe declares the comments of a file a reader parses, such as a YAML,
-XML, HTML, Markdown or MDX file with `comments: true`, each comment is a block
-beside the reader's blocks, and a changed line takes whichever block it sits in.
+Markdown or PO file with `comments: true`, each comment is a block beside the
+reader's blocks, and a changed line takes whichever block it sits in.
 
 Removed lines leave nothing to point at, so a deletion first takes the blocks on
 both sides of where the lines were. A block that lost its first or last lines is

@@ -42,6 +42,8 @@ func TestProseP0_xml(t *testing.T)        { proseFormatPresence(t, "xml") }
 func TestProseP0_html(t *testing.T)       { proseFormatPresence(t, "html") }
 func TestProseP0_markdown(t *testing.T)   { proseFormatPresence(t, "markdown") }
 func TestProseP0_mdx(t *testing.T)        { proseFormatPresence(t, "mdx") }
+func TestProseP0_po(t *testing.T)         { proseFormatPresence(t, "po") }
+func TestProseP0_properties(t *testing.T) { proseFormatPresence(t, "properties") }
 func TestProseP0_androidxml(t *testing.T) { proseFormatPresence(t, "androidxml") }
 func TestProseP0_resx(t *testing.T)       { proseFormatPresence(t, "resx") }
 func TestProseP0_tmx(t *testing.T)        { proseFormatPresence(t, "tmx") }

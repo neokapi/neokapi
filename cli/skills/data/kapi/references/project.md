@@ -150,8 +150,9 @@ collections:
   sourcecode plugin is installed (`kapi plugins install sourcecode`); without it
   a project check warns `format.no_reader`, names the plugin, and counts those
   files as not checked.
-  On a YAML item, or an item whose format reads plain XML, HTML, Markdown or MDX
-  files (such as `androidxml`, `resx`, `xliff`, `html`, `markdown` or `mdx`), the
+  On a YAML item, or an item whose format supplies its files' comments (such as
+  `androidxml`, `resx`, `xliff`, `html`, `markdown`, `mdx`, `po` or
+  `properties`), the
   comments are checked beside the values its reader extracts, by `kapi check`,
   `--ship` and a diff-scoped check alike, and `kapi up` converges the file
   exactly as it does without the key. An XML or HTML comment is named for its
