@@ -624,13 +624,19 @@ func (a *App) RunStatus(cmd Command, _ []string) error {
 				return fmt.Errorf("resolve source content: %w", serr)
 			}
 			langs, _ := cmd.Flags().GetStringSlice("lang")
+			// A collection in a format with no installed reader is left out of
+			// the queue and named, never listed as having nothing to review.
+			unread := a.newUnreadSetFor("listed for review")
 			queue, qerr := a.computeUnifiedReviewQueue(cmd.Context(), proj, root, units, srcUnits,
-				ReviewQueueOptions{Languages: langs})
+				ReviewQueueOptions{Languages: langs}, unread)
 			if qerr != nil {
 				return fmt.Errorf("compute review queue: %w", qerr)
 			}
+			unread.warn(a, cmd)
+			_, readNothing := unread.unitsSkipped(root, append(append([]VerifyUnit{}, units...), srcUnits...))
 			return output.Print(cmd, reviewQueueOutput{
 				Project: proj.Name, Pending: queue.Pending, Languages: queue.Languages,
+				Warnings: queue.Warnings, readNothing: readNothing,
 			})
 		}
 

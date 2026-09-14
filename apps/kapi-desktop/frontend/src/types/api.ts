@@ -733,6 +733,8 @@ export interface ReviewLanguage {
 export interface ReviewQueue {
   pending: ReviewItem[] | null;
   languages: ReviewLanguage[] | null;
+  /** Declared files the queue could not read (`format.no_reader`). */
+  warnings?: CheckWarning[] | null;
 }
 
 /** Provenance of a translation (matches Go model.Origin). */

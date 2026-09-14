@@ -127,6 +127,12 @@ type SourceQueueItem struct {
 // not yet make: a committed approval is seeded onto the block first, so the
 // "a clean re-check never undoes a human sign-off" branch can actually fire.
 func (a *App) computeSourceQueue(ctx context.Context, proj *project.KapiProject, root string, units []VerifyUnit) ([]SourceQueueItem, error) {
+	return a.sourceQueue(ctx, proj, root, units, nil)
+}
+
+// sourceQueue is computeSourceQueue recording in unread each unit whose source
+// no installed reader opens, for a caller that names what it left out.
+func (a *App) sourceQueue(ctx context.Context, proj *project.KapiProject, root string, units []VerifyUnit, unread *UnreadSet) ([]SourceQueueItem, error) {
 	sourceLang := string(proj.Defaults.SourceLanguage)
 	approvals, err := a.loadSourceApprovals(ctx, root, sourceLang)
 	if err != nil {
@@ -146,7 +152,10 @@ func (a *App) computeSourceQueue(ctx context.Context, proj *project.KapiProject,
 		blocks, berr := a.readSource(ctx, u)
 		if berr != nil {
 			if errors.Is(berr, registry.ErrUnknownFormat) {
-				continue // no reader on this machine — reported by the coverage path
+				// No reader on this machine: recorded for a caller that names
+				// what it left out.
+				unread.Skip(berr, relativeToRoot(root, u.SourcePath), u.SourceFormat)
+				continue
 			}
 			return nil, berr
 		}

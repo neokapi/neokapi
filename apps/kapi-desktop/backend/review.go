@@ -433,6 +433,9 @@ func (a *App) ReviewQueue(tabID string, filter ProjectFilter) (host.ReviewQueue,
 	out := host.ReviewQueue{
 		Pending:   items,
 		Languages: languages,
+		// The files the engine could not read stay named whatever the filter
+		// shows, so an empty view is never taken for a finished queue.
+		Warnings: queue.Warnings,
 	}
 	a.markReviewFindings(ctx, op, sourceLang, out.Pending)
 	return out, nil

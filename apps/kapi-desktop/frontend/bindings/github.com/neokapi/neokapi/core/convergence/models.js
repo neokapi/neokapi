@@ -8,6 +8,9 @@ import { Create as $Create } from "@wailsio/runtime";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as check$0 from "../check/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as gate$0 from "../gate/models.js";
 
 /**
@@ -576,6 +579,15 @@ export class Report {
              */
             this["review"] = [];
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * Warnings name content the report could not measure, such as a declared
+             * file in a format no installed reader opens (check.WarningFormatNoReader).
+             * @member
+             * @type {check$0.Warning[] | undefined}
+             */
+            this["warnings"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }
@@ -589,6 +601,7 @@ export class Report {
         const $$createField1_0 = $$createType5;
         const $$createField2_0 = $$createType7;
         const $$createField3_0 = $$createType9;
+        const $$createField4_0 = $$createType11;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("source" in $$parsedSource) {
             $$parsedSource["source"] = $$createField1_0($$parsedSource["source"]);
@@ -598,6 +611,9 @@ export class Report {
         }
         if ("review" in $$parsedSource) {
             $$parsedSource["review"] = $$createField3_0($$parsedSource["review"]);
+        }
+        if ("warnings" in $$parsedSource) {
+            $$parsedSource["warnings"] = $$createField4_0($$parsedSource["warnings"]);
         }
         return new Report(/** @type {Partial<Report>} */($$parsedSource));
     }
@@ -678,6 +694,16 @@ export class ReviewQueue {
              */
             this["languages"] = [];
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * Warnings name content the queue could not list, such as a declared file
+             * in a format no installed reader opens (check.WarningFormatNoReader). An
+             * empty queue with warnings is not a queue with nothing to review.
+             * @member
+             * @type {check$0.Warning[] | undefined}
+             */
+            this["warnings"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }
@@ -689,13 +715,17 @@ export class ReviewQueue {
      */
     static createFrom($$source = {}) {
         const $$createField0_0 = $$createType9;
-        const $$createField1_0 = $$createType11;
+        const $$createField1_0 = $$createType13;
+        const $$createField2_0 = $$createType11;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("pending" in $$parsedSource) {
             $$parsedSource["pending"] = $$createField0_0($$parsedSource["pending"]);
         }
         if ("languages" in $$parsedSource) {
             $$parsedSource["languages"] = $$createField1_0($$parsedSource["languages"]);
+        }
+        if ("warnings" in $$parsedSource) {
+            $$parsedSource["warnings"] = $$createField2_0($$parsedSource["warnings"]);
         }
         return new ReviewQueue(/** @type {Partial<ReviewQueue>} */($$parsedSource));
     }
@@ -1046,5 +1076,7 @@ const $$createType6 = LocaleCoverage.createFrom;
 const $$createType7 = $Create.Array($$createType6);
 const $$createType8 = ReviewQueueItem.createFrom;
 const $$createType9 = $Create.Array($$createType8);
-const $$createType10 = ReviewLanguage.createFrom;
+const $$createType10 = check$0.Warning.createFrom;
 const $$createType11 = $Create.Array($$createType10);
+const $$createType12 = ReviewLanguage.createFrom;
+const $$createType13 = $Create.Array($$createType12);

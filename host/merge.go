@@ -231,11 +231,15 @@ func (a *App) MergeFromProjectStore(cmd Command) error {
 	if output.ResolveFormat(cmd) == output.FormatJSON {
 		lineOut = io.Discard
 	}
-	written, err := a.materializeFromProjectStore(ctx, lineOut, proj, projectPath, locales, noMemoryUpdate)
+	// A collection in a format no installed reader opens has nothing in the
+	// store and cannot be rewritten, so the merge leaves it out and names it.
+	unread := a.newUnreadSetFor("materialized")
+	written, err := a.materializeProject(ctx, lineOut, proj, projectPath, locales, noMemoryUpdate, unread)
 	if err != nil {
 		return err
 	}
-	return output.Print(cmd, output.MergeStoreOutput{Written: written, FromProjectStore: true})
+	unread.warn(a, cmd)
+	return output.Print(cmd, output.MergeStoreOutput{Written: written, FromProjectStore: true, Warnings: unread.warnings()})
 }
 
 // materializeFromProjectStore is the shared materialize path (#1078 C2/C3):
@@ -280,15 +284,18 @@ func (a *App) materializeProject(ctx context.Context, out io.Writer, proj *proje
 		return 0, fmt.Errorf("merge: resolve project content: %w", err)
 	}
 	// A file declared for its comments alone has no target to materialize, and
-	// neither has a file the run set aside.
+	// neither has a file in a format no installed reader opens.
 	kept := files[:0]
 	for _, f := range files {
-		if !f.CommentsOnly() && !unread.holds(relativeToRoot(filepath.Dir(projectPath), f.Path)) {
+		if !f.CommentsOnly() && !a.setAside(unread, filepath.Dir(projectPath), f) {
 			kept = append(kept, f)
 		}
 	}
 	files = kept
 	if len(files) == 0 {
+		if !unread.empty() {
+			return 0, fmt.Errorf("merge: nothing was materialized: %s", unread.summary())
+		}
 		return 0, errors.New("merge: project has no source files to materialize (check content patterns)")
 	}
 

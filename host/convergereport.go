@@ -54,14 +54,17 @@ func (a *App) ProjectConvergence(ctx context.Context, projectPath, sourceLang st
 	}
 
 	var report *ConvergenceReport
+	// A collection in a format with no installed reader is left out of the
+	// checks, the coverage and the queue, and the report names it.
+	unread := a.newUnreadSetFor("measured")
 	cacheErr := a.withParseCache(root, func() error {
 		// This report carries a ship verdict to the desktop, so it asks the
 		// guardrail question every verdict-publishing surface asks (#2024).
-		excl, err := a.computeLoopCheckExclusions(ctx, cmd, proj, root, units)
+		excl, err := a.loopCheckExclusions(ctx, cmd, proj, root, units, unread)
 		if err != nil {
 			return fmt.Errorf("run project checks: %w", err)
 		}
-		cov, err := a.ComputeShipCoverage(ctx, proj, root, units, excl)
+		cov, err := a.shipCoverage(ctx, proj, root, units, excl, unread)
 		if err != nil {
 			return fmt.Errorf("compute coverage: %w", err)
 		}
@@ -69,11 +72,11 @@ func (a *App) ProjectConvergence(ctx context.Context, projectPath, sourceLang st
 		if err != nil {
 			return fmt.Errorf("compute source readiness: %w", err)
 		}
-		review, err := a.computeReviewQueue(ctx, proj, root, units)
+		review, err := a.computeReviewQueue(ctx, proj, root, units, unread)
 		if err != nil {
 			return fmt.Errorf("compute review queue: %w", err)
 		}
-		report = &ConvergenceReport{Project: proj.Name, Locales: cov, Review: review}
+		report = &ConvergenceReport{Project: proj.Name, Locales: cov, Review: review, Warnings: unread.warnings()}
 		if src.Total > 0 {
 			report.Source = &src
 		}
