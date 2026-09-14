@@ -3,7 +3,6 @@ package comments
 import (
 	"bytes"
 	"regexp"
-	"sort"
 	"strings"
 	"sync"
 
@@ -15,17 +14,19 @@ import (
 )
 
 // cMarkers are the comment delimiters of C and C++. The Doxygen markers come
-// first, so a comment line read through the markers loses its whole opener.
-var cMarkers = comment.Markers{Line: []string{"///", "//!", "//"}, Block: []comment.BlockMarker{{Open: "/*", Close: "*/"}}}
+// first, so a comment line read through the markers loses its whole opener. A
+// backslash that ends a line comment's line splices the next line onto it.
+var cMarkers = comment.Markers{Line: []string{"///", "//!", "//"}, Block: []comment.BlockMarker{{Open: "/*", Close: "*/"}}, Splice: `\`}
 
 // cLanguages is C and C++. Doxygen's `///`, `//!`, `/** */` and `/*! */`
 // directly before a declaration document it.
 //
-// A grammar that does not expand macros reads much of real C and C++ as
-// malformed, while the comments stay where the lexer put them, so a file whose
-// tree holds syntax errors is still located. A comment on a preprocessor
-// directive's line is lexed from the directive's bytes, since the grammar can
-// fold it into the directive's text; every other comment is read from the tree.
+// A grammar that does not expand macros reads much sound C and C++ as
+// malformed, and can fold a comment into a directive's text. So cComments reads
+// each file's comments from its characters too, and the file is located only
+// when the tree reports a comment at exactly each span that scan reads and at
+// no other. A file whose tree agrees is located even when the tree holds syntax
+// errors.
 func cLanguages() []*Language {
 	return []*Language{
 		{
@@ -34,7 +35,7 @@ func cLanguages() []*Language {
 			Extensions:  []string{".c", ".h"},
 			Markers:     cMarkers,
 			grammar:     tsc.Language,
-			syntax:      cFamilySyntax,
+			syntax:      cFamily(cDialect{}),
 			once:        &sync.Once{},
 			Canary: comment.Canary{
 				Name:   "a Doxygen comment with a doubled word, below a licence tag and above a string holding a comment marker",
@@ -48,7 +49,7 @@ func cLanguages() []*Language {
 			Extensions:  []string{".cpp", ".cc", ".cxx", ".c++", ".hpp", ".hh", ".hxx", ".h++", ".ipp", ".tpp"},
 			Markers:     cMarkers,
 			grammar:     tscpp.Language,
-			syntax:      cFamilySyntax,
+			syntax:      cFamily(cDialect{rawStrings: true}),
 			once:        &sync.Once{},
 			Canary: comment.Canary{
 				Name:   "a Doxygen comment with a doubled word, below a clang-format directive and above a raw string holding a comment marker",
@@ -59,17 +60,20 @@ func cLanguages() []*Language {
 	}
 }
 
-var cFamilySyntax = &syntax{
-	unit:         cUnit,
-	directives:   cDirectives,
-	decl:         cDecl,
-	container:    cContainer,
-	wrappers:     map[string]bool{"template_declaration": true},
-	attached:     map[string]bool{"attribute_declaration": true},
-	docTags:      true,
-	docCommands:  true,
-	preprocessor: cPreprocessor,
-	tolerant:     true,
+// cFamily is the syntax C and C++ share, with comments read from a file's
+// characters in dialect d.
+func cFamily(d cDialect) *syntax {
+	return &syntax{
+		unit:        cUnit,
+		directives:  cDirectives,
+		decl:        cDecl,
+		container:   cContainer,
+		wrappers:    map[string]bool{"template_declaration": true},
+		attached:    map[string]bool{"attribute_declaration": true},
+		docTags:     true,
+		docCommands: true,
+		lexical:     func(src []byte) ([][2]int, error) { return cComments(src, d) },
+	}
 }
 
 func cUnit(n *ts.Node, src []byte) (unit, bool) {
@@ -242,105 +246,4 @@ func declaratorName(d *ts.Node, src []byte) (string, bool) {
 		d = next
 	}
 	return "", function
-}
-
-// cPreprocessor finds the preprocessor directives in a file, each from the `#`
-// that opens its line to the end of its logical line, and the comments in
-// them.
-func cPreprocessor(src []byte) ([][2]int, []unit) {
-	var directives [][2]int
-	var units []unit
-	for i := 0; i < len(src); {
-		lineEnd := indexFrom(src, i, '\n')
-		j := i
-		for j < lineEnd && (src[j] == ' ' || src[j] == '\t') {
-			j++
-		}
-		if j == lineEnd || src[j] != '#' {
-			i = lineEnd + 1
-			continue
-		}
-		end := lineEnd
-		for end < len(src) && bytes.HasSuffix(bytes.TrimRight(src[i:end], "\r"), []byte("\\")) {
-			end = indexFrom(src, end+1, '\n')
-		}
-		found, reach := directiveComments(src, j, end)
-		for _, span := range found {
-			units = append(units, cCommentUnit(src, span[0], span[1]))
-		}
-		directives = append(directives, [2]int{j, max(end, reach)})
-		i = max(end, reach) + 1
-	}
-	return directives, units
-}
-
-// directiveComments lexes the comments in the directive src[start:end],
-// skipping string and character literals and an include's header name. A
-// block comment may run past the directive's end, and reach reports where the
-// last one closes.
-func directiveComments(src []byte, start, end int) ([][2]int, int) {
-	var out [][2]int
-	include := includeDirective.Match(src[start:end])
-	reach := end
-	for i := start; i < end; {
-		switch c := src[i]; {
-		case c == '"' || c == '\'':
-			i++
-			for i < end && src[i] != c {
-				if src[i] == '\\' {
-					i++
-				}
-				i++
-			}
-			i++
-		case c == '<' && include:
-			for i < end && src[i] != '>' {
-				i++
-			}
-			i++
-		case bytes.HasPrefix(src[i:], []byte("//")):
-			e := i
-			for e < end && src[e] != '\n' {
-				e++
-			}
-			for e > i && src[e-1] == '\r' {
-				e--
-			}
-			out = append(out, [2]int{i, e})
-			return out, reach
-		case bytes.HasPrefix(src[i:], []byte("/*")):
-			e := len(src)
-			if c := bytes.Index(src[i+2:], []byte("*/")); c >= 0 {
-				e = i + 2 + c + 2
-			}
-			out = append(out, [2]int{i, e})
-			if e > end {
-				end, reach = e, e
-			}
-			i = e
-		default:
-			i++
-		}
-	}
-	return out, reach
-}
-
-// includeDirective opens a directive whose operand is a header name.
-var includeDirective = regexp.MustCompile(`^#\s*(include|include_next|import)\b`)
-
-// indexFrom returns the offset of the first c at or after from, or len(src).
-func indexFrom(src []byte, from int, c byte) int {
-	if from >= len(src) {
-		return len(src)
-	}
-	if i := bytes.IndexByte(src[from:], c); i >= 0 {
-		return from + i
-	}
-	return len(src)
-}
-
-// within reports whether offset falls inside one of the sorted ranges.
-func within(ranges [][2]int, offset int) bool {
-	k := sort.Search(len(ranges), func(i int) bool { return ranges[i][1] >= offset })
-	return k < len(ranges) && ranges[k][0] <= offset
 }

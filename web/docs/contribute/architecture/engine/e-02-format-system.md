@@ -466,10 +466,13 @@ but whitespace separates it from a declaration, and its tags, inline links and
 code spans are placeholders. In Rust `///` and `/** */` document the item after
 them and `//!` and `/*! */` the module they sit in. Java's Javadoc and C#'s XML
 documentation comments document the declaration after them, and their HTML and
-XML tags are placeholders. C and C++ files are located even when the grammar
-finds syntax errors, since the preprocessor makes sound code read as malformed;
-a comment on a preprocessor directive's line is lexed from the directive, and a
-measured corpus shows the tree places every other comment exactly. A Ruby file
+XML tags are placeholders. C and C++ files are also read by a lexical scan that
+shares nothing with the grammar, and a file is located only when the tree
+reports a comment at exactly the spans the scan reads. A file whose macros leave
+syntax errors in the tree is still located, and one where the grammar misplaces
+any comment is not. A comment has the subject `comment` and documents nothing
+when the declaration it documents, or one its subject path names, holds a
+syntax error. A Ruby file
 the sourcecode format reads has its declared comments read through the same
 plugin's comment provider, beside the format's strings: a format that supplies
 no comments of its own falls back to the provider for the file's language. A file the grammar cannot parse whole is not

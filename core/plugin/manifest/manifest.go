@@ -550,6 +550,9 @@ type CommentMarkers struct {
 	Line []string `json:"line,omitempty"`
 	// Block are the delimiters of comments that close, such as "/*" and "*/".
 	Block []CommentBlockMarker `json:"block,omitempty"`
+	// Splice carries a line comment whose line ends in it onto the next line,
+	// as a backslash does in C.
+	Splice string `json:"splice,omitempty"`
 }
 
 // CommentBlockMarker opens and closes a delimited comment.

@@ -12,6 +12,9 @@ type Markers struct {
 	Line []string
 	// Block are the delimiters of comments that close, such as "/*" and "*/".
 	Block []BlockMarker
+	// Splice, when set, carries a line comment whose line ends in it, spaces
+	// and tabs aside, onto the next line, as a backslash does in C.
+	Splice string
 }
 
 // BlockMarker opens and closes a delimited comment. A nested one, as in Rust,
@@ -23,13 +26,16 @@ type BlockMarker struct {
 }
 
 // LineText reads one comment line as Provider.LineText describes. A line
-// comment is whole to the end of the line, and a delimited comment is whole
-// only when it closes on the line it opens on. Line markers are tried first,
-// then block markers, each in order.
+// comment is whole to the end of the line unless a splice ends the line, and a
+// delimited comment is whole only when it closes on the line it opens on. Line
+// markers are tried first, then block markers, each in order.
 func (m Markers) LineText(line []byte) (int, string, bool) {
 	s := string(line)
 	for _, marker := range m.Line {
 		if body, ok := strings.CutPrefix(s, marker); ok && marker != "" {
+			if m.Splice != "" && strings.HasSuffix(strings.TrimRight(s, " \t\f\v\r"), m.Splice) {
+				return 0, "", false
+			}
 			return len(s), body, true
 		}
 	}

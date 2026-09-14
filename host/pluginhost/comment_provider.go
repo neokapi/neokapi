@@ -41,7 +41,7 @@ func (p *daemonCommentProvider) Extensions() []string { return p.lang.Extensions
 // LineText implements comment.Provider from the comment markers the manifest
 // declares, so reading one comment line needs no call to the plugin.
 func (p *daemonCommentProvider) LineText(line []byte) (int, string, bool) {
-	m := comment.Markers{Line: p.lang.Markers.Line}
+	m := comment.Markers{Line: p.lang.Markers.Line, Splice: p.lang.Markers.Splice}
 	for _, b := range p.lang.Markers.Block {
 		m.Block = append(m.Block, comment.BlockMarker{Open: b.Open, Close: b.Close, Nested: b.Nested})
 	}

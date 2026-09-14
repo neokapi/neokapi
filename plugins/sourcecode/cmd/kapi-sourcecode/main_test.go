@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/neokapi/neokapi/core/comment"
 	"github.com/neokapi/neokapi/core/plugin/commentproto"
 	pb "github.com/neokapi/neokapi/core/plugin/proto/v2"
 	"github.com/neokapi/neokapi/plugins/sourcecode/internal/comments"
@@ -36,6 +37,7 @@ func TestLocateCommentsReportsWhatItCannotLocate(t *testing.T) {
 		require.NoError(t, err)
 		assert.True(t, resp.GetUnlocated())
 		assert.Contains(t, resp.GetError(), "does not parse")
+		assert.NotContains(t, resp.GetError(), comment.ErrUnlocated.Error(), "the host adds the sentinel's words when it wraps it")
 		assert.Empty(t, resp.GetComments())
 	})
 	t.Run("a language the plugin has no grammar for is an error", func(t *testing.T) {

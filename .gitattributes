@@ -3,3 +3,7 @@ web/src/pages/content-lab/_evidence.json linguist-generated=true
 
 # Captured diff output: CRLF content lines are part of what the parser is tested on.
 core/diffscope/testdata/*.diff -text
+
+# Comment corpus fixtures are held to their goldens by sha256, and the crlf
+# fixtures hold CRLF line breaks on purpose, so no checkout may convert them.
+plugins/sourcecode/internal/comments/testdata/** -text

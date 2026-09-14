@@ -1,0 +1,14 @@
+// Comments beside literals, line splices and a skipped branch.
+#include <stdio.h> /* after a header name */
+
+// this comment runs on \
+   onto the next line through a splice
+static int slash = '/'*2; /* after a character literal next to an asterisk */
+static char quote = '"'; // after a character literal holding a quote
+static char apostrophe = '\''; // after an escaped quote
+static const char *spliced = "a string \
+// not a comment in a spliced string";
+#define LIMIT 10 /* after a macro's value */
+#if 0
+// in a skipped branch
+#endif

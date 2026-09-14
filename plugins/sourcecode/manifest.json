@@ -65,7 +65,8 @@
               "open": "/*",
               "close": "*/"
             }
-          ]
+          ],
+          "splice": "\\"
         },
         "canary": {
           "name": "a Doxygen comment with a doubled word, below a licence tag and above a string holding a comment marker",
@@ -99,7 +100,8 @@
               "open": "/*",
               "close": "*/"
             }
-          ]
+          ],
+          "splice": "\\"
         },
         "canary": {
           "name": "a Doxygen comment with a doubled word, below a clang-format directive and above a raw string holding a comment marker",

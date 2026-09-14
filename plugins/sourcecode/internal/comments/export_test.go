@@ -1,10 +1,22 @@
 package comments
 
 import (
+	"fmt"
 	"slices"
 
 	"github.com/neokapi/neokapi/core/comment"
 )
+
+// LexicalComments returns the comment spans a language's lexical scan reads
+// from src, with no grammar.
+func LexicalComments(language string, src []byte) ([][2]int, error) {
+	for _, l := range languages {
+		if l.Name == language && l.syntax.lexical != nil {
+			return l.syntax.lexical(src)
+		}
+	}
+	return nil, fmt.Errorf("no lexical scan for %q", language)
+}
 
 // DirectiveForms names the directive forms a language's syntax tests, in order.
 func DirectiveForms(language string) []string {

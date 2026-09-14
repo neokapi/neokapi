@@ -319,10 +319,12 @@ alone. The host refuses a response whose spans fall outside the bytes it sent.
 An entry's `markers` name the language's comment delimiters: each `line` marker
 runs to the end of its line, and each `block` marker opens and closes; one marked
 `nested`, as in Rust, closes only once each comment opened inside it has closed.
-The host
+A `splice`, as C's backslash, carries a line comment whose line ends in it onto
+the next line. The host
 reads one comment line through them for the comment layer's `LineText`, with no
-call to the plugin. A line comment is whole to the end of its line, and a
-delimited comment only when it closes on the line it opens on. When a recipe
+call to the plugin. A line comment is whole to the end of its line unless a
+splice ends it, and a delimited comment only when it closes on the line it opens
+on. When a recipe
 declares comment directives, the host locates a file a second time with the
 marker lines blanked, so what the plugin locates must depend on the bytes alone.
 
