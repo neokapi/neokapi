@@ -326,6 +326,23 @@ export function ConvergenceHero({
         </div>
       </div>
 
+      {/* Declared files the report could not measure, such as a collection in a
+          format no installed plugin supplies. A run converges the rest, so the
+          files it left out are named here rather than absent from the numbers. */}
+      {(convergence?.warnings ?? []).length > 0 && (
+        <div
+          data-slot="hero-unread"
+          className="mt-3 rounded-md border border-amber-500/40 px-3 py-2 text-xs"
+        >
+          <p className="mb-1 font-medium">{t("Some declared content was not read")}</p>
+          <ul className="space-y-0.5 text-muted-foreground">
+            {(convergence?.warnings ?? []).map((warning) => (
+              <li key={`${warning.source}#${warning.code}`}>{warning.message}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {launchError != null && (
         <div data-slot="hero-launch-error" className="mt-3">
           <ErrorNotice error={launchError} variant="panel" detailsLabel={t("Details")} />
