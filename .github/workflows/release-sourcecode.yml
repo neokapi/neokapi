@@ -223,11 +223,14 @@ jobs:
       # was cut from is where the plugin declares it. Reading it from the tagged
       # commit means a release cannot register without the version its manifest
       # names.
+      # The same checkout carries the registry push helper.
       - name: Check out the tagged manifest
         uses: actions/checkout@v7
         with:
           path: tagged
-          sparse-checkout: plugins/sourcecode/manifest.json
+          sparse-checkout: |
+            plugins/sourcecode/manifest.json
+            scripts/lib/registry-push.sh
           sparse-checkout-cone-mode: false
 
       - name: Read min_kapi_version from the manifest
@@ -295,21 +298,22 @@ jobs:
           fi
 
           git clone "https://x-access-token:${REGISTRY_TOKEN}@github.com/neokapi/registry.git" /tmp/registry
-          /tmp/registry-update \
-            --registry /tmp/registry/manifest-plugins.json \
-            --plugin sourcecode \
-            --version "$VERSION" \
-            --channel stable \
-            --released "$(date -u +%Y-%m-%d)" \
-            --min-kapi-version "$MIN_KAPI_VERSION" \
-            --cert-identity "$CERT_ID" \
-            --cert-oidc-issuer https://token.actions.githubusercontent.com \
-            "${ARGS[@]}"
-          cd /tmp/registry
-          git config user.email "release-bot@neokapi.dev"
-          git config user.name "release-bot"
-          git add manifest-plugins.json
-          if ! git diff --staged --quiet; then
-            git commit -m "Register sourcecode ${VERSION}"
-            git push
-          fi
+          git -C /tmp/registry config user.email "release-bot@neokapi.dev"
+          git -C /tmp/registry config user.name "release-bot"
+          register() {
+            /tmp/registry-update \
+              --registry /tmp/registry/manifest-plugins.json \
+              --plugin sourcecode \
+              --version "$VERSION" \
+              --channel stable \
+              --released "$(date -u +%Y-%m-%d)" \
+              --min-kapi-version "$MIN_KAPI_VERSION" \
+              --cert-identity "$CERT_ID" \
+              --cert-oidc-issuer https://token.actions.githubusercontent.com \
+              "${ARGS[@]}"
+          }
+          # A release that runs beside another pushes to the same registry. A
+          # rejected push rebases and runs register again; see the helper.
+          # shellcheck source=/dev/null
+          source "${GITHUB_WORKSPACE}/tagged/scripts/lib/registry-push.sh"
+          registry_commit_and_push /tmp/registry "Register sourcecode ${VERSION}" register manifest-plugins.json

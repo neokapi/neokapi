@@ -405,6 +405,13 @@ jobs:
     needs: publish-sat-release
     runs-on: ubuntu-latest
     steps:
+      # The one file this job reads from the repository.
+      - name: Check out the registry push helper
+        uses: actions/checkout@v7
+        with:
+          sparse-checkout: scripts/lib/registry-push.sh
+          sparse-checkout-cone-mode: false
+
       - name: Download SaT checksum artifacts
         uses: actions/download-artifact@v8
         with:
@@ -462,20 +469,21 @@ jobs:
           fi
 
           git clone "https://x-access-token:${REGISTRY_TOKEN}@github.com/neokapi/registry.git" /tmp/registry
-          /tmp/registry-update \
-            --registry /tmp/registry/manifest-plugins.json \
-            --plugin sat \
-            --version "$VERSION" \
-            --channel stable \
-            --released "$(date -u +%Y-%m-%d)" \
-            --cert-identity "$CERT_ID" \
-            --cert-oidc-issuer https://token.actions.githubusercontent.com \
-            "${ARGS[@]}"
-          cd /tmp/registry
-          git config user.email "release-bot@neokapi.dev"
-          git config user.name "release-bot"
-          git add manifest-plugins.json
-          if ! git diff --staged --quiet; then
-            git commit -m "Register sat ${VERSION}"
-            git push
-          fi
+          git -C /tmp/registry config user.email "release-bot@neokapi.dev"
+          git -C /tmp/registry config user.name "release-bot"
+          register() {
+            /tmp/registry-update \
+              --registry /tmp/registry/manifest-plugins.json \
+              --plugin sat \
+              --version "$VERSION" \
+              --channel stable \
+              --released "$(date -u +%Y-%m-%d)" \
+              --cert-identity "$CERT_ID" \
+              --cert-oidc-issuer https://token.actions.githubusercontent.com \
+              "${ARGS[@]}"
+          }
+          # A release that runs beside another pushes to the same registry. A
+          # rejected push rebases and runs register again; see the helper.
+          # shellcheck source=/dev/null
+          source "${GITHUB_WORKSPACE}/scripts/lib/registry-push.sh"
+          registry_commit_and_push /tmp/registry "Register sat ${VERSION}" register manifest-plugins.json

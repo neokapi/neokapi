@@ -591,31 +591,30 @@ jobs:
           }
 
           git clone "https://x-access-token:${REGISTRY_TOKEN}@github.com/neokapi/registry.git" /tmp/registry
-
-          # --- kapi CLI → cli.json (drives `kapi update` self-replace) ---
-          # Archive family is kapi-cli_* (matches the Homebrew formula); the
-          # index key stays "kapi" (what the CLI's self-updater looks up).
-          # Seed the index on first use; registry-update needs valid JSON.
-          [ -f /tmp/registry/cli.json ] || echo '{"schema":"v2","plugins":{}}' > /tmp/registry/cli.json
-          build_args kapi-cli darwin/arm64 linux/arm64 linux/amd64
-          /tmp/registry-update \
-            --registry /tmp/registry/cli.json \
-            --plugin kapi \
-            --version "$VERSION" \
-            --channel "$REG_CHANNEL" \
-            --released "$RELEASED" \
-            --cert-identity "$CERT_ID" \
-            --cert-oidc-issuer "$ISSUER" \
-            "${CLI_ARGS[@]}"
-
-          cd /tmp/registry
-          git config user.email "release-bot@neokapi.dev"
-          git config user.name "release-bot"
-          git add cli.json
-          if ! git diff --staged --quiet; then
-            git commit -m "Register kapi ${VERSION} (${CHANNEL})"
-            git push
-          fi
+          git -C /tmp/registry config user.email "release-bot@neokapi.dev"
+          git -C /tmp/registry config user.name "release-bot"
+          register() {
+            # --- kapi CLI → cli.json (drives `kapi update` self-replace) ---
+            # Archive family is kapi-cli_* (matches the Homebrew formula); the
+            # index key stays "kapi" (what the CLI's self-updater looks up).
+            # Seed the index on first use; registry-update needs valid JSON.
+            [ -f /tmp/registry/cli.json ] || echo '{"schema":"v2","plugins":{}}' > /tmp/registry/cli.json
+            build_args kapi-cli darwin/arm64 linux/arm64 linux/amd64
+            /tmp/registry-update \
+              --registry /tmp/registry/cli.json \
+              --plugin kapi \
+              --version "$VERSION" \
+              --channel "$REG_CHANNEL" \
+              --released "$RELEASED" \
+              --cert-identity "$CERT_ID" \
+              --cert-oidc-issuer "$ISSUER" \
+              "${CLI_ARGS[@]}"
+          }
+          # A release that runs beside another pushes to the same registry. A
+          # rejected push rebases and runs register again; see the helper.
+          # shellcheck source=/dev/null
+          source "${GITHUB_WORKSPACE}/scripts/lib/registry-push.sh"
+          registry_commit_and_push /tmp/registry "Register kapi ${VERSION} (${CHANNEL})" register cli.json
 
   # Publish the kapi CLI container image — the supported path for
   # container-first CI (GitLab CI, Bitbucket, Jenkins, Dagger). Assembled from
