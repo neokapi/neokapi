@@ -158,6 +158,18 @@ rules. Both the CLI and MCP reject content entries carrying a nonempty
 `replacement` before applying any entry, with an error identifying the expected
 `text` field.
 
+A comment entry uses `kind: "comment"`, `file`, the comment's `id` as
+`check_file` reports it, the `lines` the check reported, and `text` for the
+comment's prose without comment markers. `width` optionally sets the wrap
+column. Its outcome sits under `comments`, one record per file. Each edit is
+`written`, `unchanged`, `refused` or `did-not-run`, the last two with a `reason`
+and `detail`. `diff` is the change written, and `check` is a `kapi.check/v1`
+Report scoped to that diff. `ok` is false when an edit was refused or did not
+run, or when that check did not pass. Before the first comment of a language is
+written, the write canary (`comment.VerifyRewriter`) runs, and a failed canary
+leaves every entry in that language not run. Comment entries are handled in
+`host/apply_comment.go`.
+
 ## The surface is a contract
 
 `kapi/cmd/kapi/mcp_snapshot_test.go` snapshots every tool name and input schema

@@ -193,6 +193,11 @@ hook enforces these project gates when installed.
   The deliberate, block-by-block edit loop (use `ksed` for a regex
   substitution). See
   [references/edit.md](references/edit.md).
+- **Fix a finding in a code comment**: rewrite the comment with a `comment`
+  entry in `kapi apply`, addressed by the file, id and lines the check
+  reported, instead of editing the file around it. The result carries a check
+  of what was written. See
+  [references/edit.md](references/edit.md#repair-a-comment-finding).
 - **Create / author content**: when you're writing the document rather than
   editing a fixed source. Author in a generative format, let kapi parse it as
   the first check, then gate on voice + terminology and revise. See
