@@ -23,12 +23,14 @@
 //	PROBE_IGNORE_SIGTERM=1  ignore SIGTERM
 //	PROBE_LEAK_SOCKET=1     exit without unlinking the socket
 //	PROBE_SEGMENT_ERROR=1   answer Segment with an error string
+//	PROBE_COMMENTS_MISS=1   answer LocateComments with no comment
 //	PROBE_BLOCKS=n          blocks the Process RPC returns (default: input lines)
 //	PROBE_UNKNOWN_VERB_OK=1 exit 0 on an unrecognised verb
 //	PROBE_ANY_COMMAND_OK=1  exit 0 for any `command <name>`
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -42,7 +44,9 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/neokapi/neokapi/core/model"
 	pb "github.com/neokapi/neokapi/core/plugin/proto/v2"
+	"github.com/neokapi/neokapi/core/plugin/protoconvert"
 	contentv1 "github.com/neokapi/neokapi/core/proto/content/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -289,6 +293,31 @@ func (b *bridge) Segment(_ context.Context, req *pb.SegmentRequest) (*pb.Segment
 		}
 	}
 	return &pb.SegmentResponse{Boundaries: boundaries}, nil
+}
+
+// LocateComments reports each line that opens with `//` as a comment of its
+// own, named "comment", which is enough to locate the manifest's canary.
+func (b *bridge) LocateComments(_ context.Context, req *pb.LocateCommentsRequest) (*pb.LocateCommentsResponse, error) {
+	resp := &pb.LocateCommentsResponse{}
+	if on("PROBE_COMMENTS_MISS") {
+		return resp, nil
+	}
+	src := req.GetSource()
+	for start, line := 0, int64(1); start < len(src); line++ {
+		end := len(src)
+		if i := bytes.IndexByte(src[start:], '\n'); i >= 0 {
+			end = start + i
+		}
+		if text := src[start:end]; bytes.HasPrefix(text, []byte("//")) {
+			resp.Comments = append(resp.Comments, &pb.CommentSpan{
+				Start: int64(start), End: int64(end), FirstLine: line, LastLine: line,
+				Style: "line", Subject: "comment",
+				Runs: protoconvert.RunsToProto([]model.Run{model.TextR(strings.TrimSpace(string(text[2:])))}),
+			})
+		}
+		start = end + 1
+	}
+	return resp, nil
 }
 
 // Shutdown stops the daemon, unless the fixture is asked to omit it.

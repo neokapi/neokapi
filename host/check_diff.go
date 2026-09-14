@@ -277,6 +277,12 @@ func (a *App) checkDiffFile(ctx context.Context, run diffCheckRun, f diffscope.F
 	locate := a.locatorFor(run, abs)
 	if locate == nil {
 		entry.Status, entry.Reason = check.ScopeNoReader, "no format reads this file"
+		// A file whose comments a plugin reads names that plugin, and a check over
+		// the project's content counts it as unread.
+		if missing := a.missingCommentReader(abs); missing != nil {
+			run.unread.Skip(missing, entry.Path, "")
+			entry.Reason = noReaderReason(missing, "")
+		}
 		return nil, 0, nil
 	}
 	content, err := readScopedSource(abs)
@@ -286,7 +292,7 @@ func (a *App) checkDiffFile(ctx context.Context, run diffCheckRun, f diffscope.F
 	read, err := locate(ctx, content)
 	if format, _ := run.opts.formats.forFile(a, abs); run.unread.Skip(err, entry.Path, format) {
 		entry.Status = check.ScopeNoReader
-		entry.Reason = fmt.Sprintf("no reader for format %q is installed; install the plugin that supplies it (kapi plugins install %s)", format, format)
+		entry.Reason = noReaderReason(err, format)
 		return nil, 0, nil
 	}
 	if err != nil {

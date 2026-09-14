@@ -10,13 +10,16 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"syscall"
 	"time"
 
 	"github.com/neokapi/neokapi/core/clip"
+	"github.com/neokapi/neokapi/core/model"
 	pb "github.com/neokapi/neokapi/core/plugin/proto/v2"
+	"github.com/neokapi/neokapi/core/plugin/protoconvert"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/connectivity"
@@ -103,6 +106,14 @@ func modeCChecks() []registryEntry {
 			Required: true,
 			Why:      "a declared segmentation engine becomes selectable in the segmentation tool and is dispatched over this RPC.",
 			run:      checkModeCSegmentRPC,
+		},
+		{
+			ID:       "modeC.comments-rpc",
+			Title:    "declared comment languages locate their canary over the LocateComments RPC",
+			Mode:     ModeC,
+			Required: true,
+			Why:      "every file a check reads in a declared comment language goes through this RPC beside the manifest's canary, and a plugin that misses the canary leaves each such check invalid.",
+			run:      checkModeCCommentsRPC,
 		},
 		{
 			ID:            "modeC.shutdown-rpc",
@@ -258,7 +269,7 @@ func (r *runner) requireModeC() (Status, string, error) {
 		return st, d, err
 	}
 	if !r.man.IsModeC() {
-		return Skip, "manifest declares no formats, flow tools, segmenters, or source connectors", nil
+		return Skip, "manifest declares no formats, flow tools, segmenters, comment languages, or source connectors", nil
 	}
 	if !modeCSupported() {
 		return Skip, "Mode C is a Unix-socket transport; not exercised on this platform", nil
@@ -751,6 +762,46 @@ func declaresSegmenter(r *runner, name string) bool {
 		}
 	}
 	return false
+}
+
+// checkModeCCommentsRPC locates each declared comment language's canary, the
+// file the host sends beside every real file in that language, and requires the
+// comment the manifest names among what comes back.
+func checkModeCCommentsRPC(ctx context.Context, r *runner) (Status, string, error) {
+	if st, d, err := r.requireDaemon(); st != "" {
+		return st, d, err
+	}
+	if len(r.man.Capabilities.Comments) == 0 {
+		return Skip, "manifest declares no comment languages", nil
+	}
+	conn, err := r.dial(ctx)
+	if err != nil {
+		return Skip, "the connection is not READY (see modeC.grpc-ready)", nil
+	}
+	client := pb.NewBridgeServiceClient(conn)
+	var located []string
+	for _, l := range r.man.Capabilities.Comments {
+		src := []byte(l.Canary.Source)
+		resp, err := client.LocateComments(ctx, &pb.LocateCommentsRequest{Language: l.Language, Name: "canary", Source: src})
+		if err != nil {
+			if isUnimplemented(err) {
+				return Fail, fmt.Sprintf("comments in %q are declared but the LocateComments RPC is not implemented", l.Language), err
+			}
+			return Fail, fmt.Sprintf("LocateComments(%q) failed: %v", l.Language, err), err
+		}
+		if e := resp.GetError(); e != "" {
+			return Fail, fmt.Sprintf("LocateComments(%q) could not read its canary: %s", l.Language, clip.Runes(e, 200)), nil
+		}
+		f, err := protoconvert.ProtoToCommentFile(l.Language, len(src), resp)
+		if err != nil {
+			return Fail, fmt.Sprintf("LocateComments(%q) answered with a span outside its canary: %v", l.Language, err), nil
+		}
+		if !slices.ContainsFunc(f.Blocks(), func(b *model.Block) bool { return b.ID == l.Canary.Block }) {
+			return Fail, fmt.Sprintf("LocateComments(%q) located no %s in the manifest's canary (%d comments)", l.Language, l.Canary.Block, len(f.Comments)), nil
+		}
+		located = append(located, l.Language)
+	}
+	return Pass, "located the canary comment of " + strings.Join(located, ", "), nil
 }
 
 // shutdownGrace bounds how long the daemon may take to exit after Shutdown or

@@ -1,0 +1,4 @@
+/** Grüße: the café's naïve résumé, 日本語, and an emoji 🎉. */
+export const greet = "héllo // ✓";
+// Ends with an astral 𝒳 character.
+export const done = true;

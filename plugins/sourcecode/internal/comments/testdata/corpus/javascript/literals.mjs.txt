@@ -1,0 +1,4 @@
+// Holds comment markers as content.
+export const greeting = "// not a comment";
+export const template = `/* not a comment */ ${greeting /* but this is one */}`;
+export const pattern = /\/\* not a comment \*\//;

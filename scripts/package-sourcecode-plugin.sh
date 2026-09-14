@@ -15,6 +15,7 @@
 #     manifest.json                        the plugin manifest, at the root
 #     formats/sourcecode/schema.json       the format's config schema
 #     LICENSE                              Apache-2.0, the license of the work
+#     NOTICE                               the MIT notices of the grammars compiled in
 #
 # The LICENSE is not decoration. Apache-2.0 §4(a): "You must give any other
 # recipients of the Work or Derivative Works a copy of this License." An SPDX
@@ -80,10 +81,11 @@ fi
 cp "$repo_root/plugins/sourcecode/manifest.json" "$STAGE/manifest.json"
 cp "$repo_root/plugins/sourcecode/formats/sourcecode/schema.json" "$STAGE/formats/sourcecode/schema.json"
 cp "$repo_root/LICENSE" "$STAGE/LICENSE"
+cp "$repo_root/plugins/sourcecode/NOTICE" "$STAGE/NOTICE"
 
 TARBALL="kapi-sourcecode_${VERSION}_${GOOS_IN}_${GOARCH_IN}.tar.gz"
 TARBALL_PATH="$OUT_DIR/$TARBALL"
-tar -czf "$TARBALL_PATH" -C "$STAGE" "$BIN_NAME" manifest.json formats LICENSE
+tar -czf "$TARBALL_PATH" -C "$STAGE" "$BIN_NAME" manifest.json formats LICENSE NOTICE
 
 if command -v sha256sum >/dev/null 2>&1; then
   SHA256="$(sha256sum "$TARBALL_PATH" | awk '{print $1}')"

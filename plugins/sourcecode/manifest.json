@@ -2,7 +2,7 @@
   "manifest_version": "1",
   "plugin": "sourcecode",
   "version": "0.1.0",
-  "description": "Reads product copy out of source files, such as package descriptions, installer strings and cask notes. Checks only: it never writes a source file back.",
+  "description": "Reads product copy and code comments out of source files, such as package descriptions, installer strings, cask notes and doc comments. Checks only: it never writes a source file back.",
   "homepage": "https://github.com/neokapi/neokapi/tree/main/plugins/sourcecode",
   "author": "Neokapi <hello@neokapi.dev>",
   "license": "Apache-2.0",
@@ -20,6 +20,38 @@
         "mime_types": ["text/x-ruby"],
         "capabilities": ["read"],
         "schema": "formats/sourcecode/schema.json"
+      }
+    ],
+    "comments": [
+      {
+        "language": "javascript",
+        "display_name": "JavaScript",
+        "extensions": [".js", ".jsx", ".mjs", ".cjs"],
+        "canary": {
+          "name": "a JavaScript doc comment with a doubled word, below a shebang and above a template literal holding a comment marker",
+          "source": "#!/usr/bin/env node\n/** Reads the the config. */\nexport function read() {\n  return `// not a comment`;\n}\n",
+          "block": "func/read"
+        }
+      },
+      {
+        "language": "tsx",
+        "display_name": "TSX",
+        "extensions": [".tsx"],
+        "canary": {
+          "name": "a TSX doc comment with a doubled word, above JSX text holding a comment marker",
+          "source": "/** Renders the the greeting. */\nexport function Greeting() {\n  return <p>// not a comment {/* inline */}</p>;\n}\n",
+          "block": "func/Greeting"
+        }
+      },
+      {
+        "language": "typescript",
+        "display_name": "TypeScript",
+        "extensions": [".ts", ".mts", ".cts"],
+        "canary": {
+          "name": "a TypeScript doc comment with a doubled word, below a directive and above a string holding a comment marker",
+          "source": "// eslint-disable-next-line no-console\n/** Parses the the input. */\nexport function parse(src: string): string {\n  return \"// not a comment\" + src;\n}\n",
+          "block": "func/parse"
+        }
       }
     ]
   },

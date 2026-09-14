@@ -20,10 +20,17 @@ languages:
     name: Bash
   go:
     name: Go
+  javascript:
+    name: JavaScript
+    provider: sourcecode
   python:
     name: Python
   ruby:
     name: Ruby
     provider: sourcecode
+  tsx:
+    name: TSX
+    provider: sourcecode
   typescript:
     name: TypeScript
+    provider: sourcecode

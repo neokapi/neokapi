@@ -1,0 +1,12 @@
+# comment spans from @babel/parser 7.29.8
+# source apps/kapi-desktop/frontend/bindings/log/slog/models.js
+# sha256 37793e0bd2e06d8303d8008b11cf532e8a6fa82e07b2c629b8fab83f1766fe50
+0 12 2 0
+13 72 2 0
+73 125 2 0
+127 188 2 0
+189 218 2 0
+274 547 2 2
+574 713 2 2
+798 932 2 2
+1091 1121 2 2

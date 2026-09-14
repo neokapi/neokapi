@@ -12,7 +12,7 @@ keywords: [neokapi, architecture decision, plugin system, manifest, gRPC, protoc
 
 Plugins are manifest-driven, signed, out-of-process executables. Every plugin
 ships a `manifest.json` declaring everything it provides: commands, MCP tools,
-format readers and writers, flow tools, segmenters, source connectors, recipe
+format readers and writers, flow tools, segmenters, comment languages, source connectors, recipe
 schema extensions, config namespaces, command contributions, and whether it
 answers the standard self-check. kapi reads all
 manifests at startup and builds dispatch tables from them; there is no name
@@ -23,7 +23,7 @@ is never consulted. Each capability picks its transport:
 - **Mode A**: one-shot subprocess (commands)
 - **Mode B**: long-lived stdio subprocess (MCP tools)
 - **Mode C**: long-lived daemon over a Unix socket + gRPC (formats, tools,
-  segmenters, source connectors)
+  segmenters, comment languages, source connectors)
 
 Plugin tarballs are cosign-signed via Sigstore keyless OIDC; `kapi plugin
 install` verifies SHA-256 plus the Sigstore JSON bundle against a
@@ -93,6 +93,7 @@ Every plugin's directory contains a `manifest.json` declaring its identity
     "formats": [],
     "tools": [],
     "segmenters": [],
+    "comments": [],
     "source_connectors": [],
     "schema_extensions": [],
     "config_namespaces": [],
@@ -107,7 +108,7 @@ Every plugin's directory contains a `manifest.json` declaring its identity
 
 `manifest_version`, `plugin`, `version`, and `binary` are the required fields;
 the `daemon` block is present only for plugins that declare any formats, tools,
-segmenters, or source connectors (Mode C). `manifest.SupportedVersions` names the
+segmenters, comment languages, or source connectors (Mode C). `manifest.SupportedVersions` names the
 manifest-document revisions a kapi binary accepts. The full schema is embedded at
 `core/plugin/manifest/schema.json`; canonical Go types live in
 `core/plugin/manifest/manifest.go`. The wire contract (every manifest rule, all
@@ -199,7 +200,7 @@ proxies tool calls over MCP-over-stdio:
 
 #### Mode C: daemon over a Unix socket
 
-Used for `formats`, `tools`, `segmenters`, and `source_connectors`. kapi spawns a
+Used for `formats`, `tools`, `segmenters`, `comments`, and `source_connectors`. kapi spawns a
 long-lived plugin process; the plugin binds a Unix-domain socket, prints one JSON
 line on stdout (the canonical handshake), then serves gRPC on the socket:
 
@@ -346,6 +347,13 @@ The skip covers files kapi finds through the recipe. A file named on the command
 line, or content read under a format named with `--format`, still fails the
 command when no reader for that format is installed, and so does a `kapi up`
 run given `--fail-on-unknown`.
+
+A file declared for its comments, in a language only a plugin reads, is
+reported the same way when that plugin is absent. With no manifest to read, kapi
+learns the plugin from a compiled-in table in `host/check_comments_plugin.go`
+that maps each extension to its language and plugin, and a test pins the table
+to the plugin's manifest. The warning names the language's comments and the
+plugin to install, and the file never counts as checked.
 
 A gate written for content in a plugin format installs that plugin
 (`make check-governed-prose` stages it). Degrading applies to the project-wide
@@ -531,6 +539,14 @@ Like the PDF reader it runs as a daemon, so a parser fault stays in the
 subprocess. Its config also lives in core (`core/formats/sourcecode`) while the
 cgo stays in the plugin, giving the format one config definition and keeping
 grammars out of the framework.
+
+The same plugin locates the comments of the languages its manifest lists under
+`capabilities.comments`, such as TypeScript, TSX and JavaScript, for the comment
+layer ([E-02](e-02-format-system.md#the-comment-layer)). The host sends a file's
+bytes over the `LocateComments` RPC and reads back what a built-in comment
+provider returns: byte spans, subjects, doc flags, runs and the comments set
+aside. Each language's canary is declared in the manifest, so the host holds the
+canary's bytes and sends them through the same RPC beside every real file.
 
 A **separately-licensed platform plugin** demonstrates the licence boundary the
 model exists for: it attaches over the manifest model, is distributed on its own

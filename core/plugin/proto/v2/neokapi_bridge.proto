@@ -56,6 +56,13 @@ service BridgeService {
   // run-anchored spans. Unary — one text in, boundary offsets out.
   rpc Segment(SegmentRequest) returns (SegmentResponse);
 
+  // LocateComments locates the comments in one source file for the comment
+  // layer. It backs the comment languages declared via capabilities.comments:
+  // the host sends a file's bytes and its language, and the daemon returns
+  // every comment it located and every comment it set aside, with byte spans
+  // into the bytes it was sent. Unary, and it writes nothing.
+  rpc LocateComments(LocateCommentsRequest) returns (LocateCommentsResponse);
+
   // Shutdown gracefully shuts down the bridge server.
   rpc Shutdown(ShutdownRequest) returns (ShutdownResponse);
 }
@@ -211,4 +218,51 @@ message SegmentRequest {
 message SegmentResponse {
   repeated int32 boundaries = 1;
   string error = 2;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// LocateComments RPC messages
+// ────────────────────────────────────────────────────────────────────────────
+
+// LocateCommentsRequest asks the daemon to locate the comments in one file.
+message LocateCommentsRequest {
+  string language = 1;  // capabilities.comments[].language
+  string name = 2;      // the file's path, for rules that depend on the file name
+  bytes source = 3;     // the file's bytes; every span in the response indexes them
+}
+
+// LocateCommentsResponse is what the daemon located in one file: the comments a
+// check may read and the comments it set aside, which between them account for
+// every comment the file holds. It mirrors core/comment.File.
+message LocateCommentsResponse {
+  repeated CommentSpan comments = 1;
+  repeated CommentExclusion excluded = 2;
+  // unlocated reports a file the daemon read and could not place the comments
+  // of exactly, such as one that does not parse. error says why.
+  bool unlocated = 3;
+  string error = 4;
+}
+
+// CommentSpan is one addressable comment (core/comment.Comment).
+message CommentSpan {
+  int64 start = 1;       // half-open byte span [start, end)
+  int64 end = 2;
+  int64 first_line = 3;  // inclusive line range, 1-based
+  int64 last_line = 4;
+  string style = 5;      // "line" or "block"
+  string subject = 6;    // structural path, such as "func/parse"
+  bool doc = 7;
+  bool deprecated = 8;
+  repeated neokapi.content.v1.RunMessage runs = 9;
+}
+
+// CommentExclusion is one comment the daemon located and set aside
+// (core/comment.Excluded).
+message CommentExclusion {
+  int64 start = 1;
+  int64 end = 2;
+  int64 first_line = 3;
+  int64 last_line = 4;
+  string reason = 5;     // "directive", "generated", "blank", ...
+  string form = 6;       // the directive's name, for reason "directive"
 }

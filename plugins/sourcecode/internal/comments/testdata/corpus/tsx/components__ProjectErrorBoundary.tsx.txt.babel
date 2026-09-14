@@ -1,0 +1,8 @@
+# comment spans from @babel/parser 7.29.8
+# source apps/kapi-desktop/frontend/src/components/ProjectErrorBoundary.tsx
+# sha256 023ce7b6bb1fc30eb9af5009b691d0ff2d0d2eb14132360d0d70bba05b456fba
+380 450 2 2
+485 551 2 2
+687 1256 2 2
+1696 1770 2 0
+1775 1851 2 0

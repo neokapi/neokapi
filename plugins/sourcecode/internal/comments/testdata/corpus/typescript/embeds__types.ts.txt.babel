@@ -1,0 +1,16 @@
+# comment spans from @babel/parser 7.29.8
+# source web/src/components/KapiPlayground/embeds/types.ts
+# sha256 1f552baa6202a66a364908b5db61411333859d81b839e60b8574e0592f44881d
+0 61 2 0
+62 64 2 0
+65 134 2 0
+135 211 2 0
+212 281 2 0
+384 453 2 2
+475 534 2 2
+604 659 2 2
+676 720 2 2
+740 815 2 2
+851 923 2 2
+944 1007 2 2
+1031 1102 2 2

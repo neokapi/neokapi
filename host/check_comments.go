@@ -54,7 +54,7 @@ func (a *App) commentLayerFor(file, fmtName string) (comment.Provider, bool) {
 	if fmtName != "" {
 		return nil, false
 	}
-	p, ok := commentProviders.For(file)
+	p, ok := a.commentProviderFor(file)
 	if !ok {
 		return nil, false
 	}

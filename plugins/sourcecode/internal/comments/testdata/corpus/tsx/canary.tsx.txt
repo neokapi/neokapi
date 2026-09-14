@@ -1,0 +1,4 @@
+/** Renders the the greeting. */
+export function Greeting() {
+  return <p>// not a comment {/* inline */}</p>;
+}

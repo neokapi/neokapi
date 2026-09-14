@@ -1,0 +1,11 @@
+# comment spans from @babel/parser 7.29.8
+# source apps/kapi-desktop/frontend/src/hooks/useWailsEvent.ts
+# sha256 b466a5ea0d81be1e9424f74783ce5a364c1bceec6d55e9c7d6a4a32e3b41457d
+0 182 2 2
+272 335 2 0
+336 406 2 0
+407 436 2 0
+890 1166 2 2
+1573 1667 2 0
+1685 1754 2 2
+2236 2291 2 0

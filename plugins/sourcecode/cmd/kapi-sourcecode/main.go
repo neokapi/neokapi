@@ -15,6 +15,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -25,10 +26,12 @@ import (
 
 	"google.golang.org/grpc"
 
+	"github.com/neokapi/neokapi/core/comment"
 	"github.com/neokapi/neokapi/core/model"
 	pb "github.com/neokapi/neokapi/core/plugin/proto/v2"
 	"github.com/neokapi/neokapi/core/plugin/protoconvert"
 	"github.com/neokapi/neokapi/core/version"
+	"github.com/neokapi/neokapi/plugins/sourcecode/internal/comments"
 	"github.com/neokapi/neokapi/plugins/sourcecode/internal/proseread"
 )
 
@@ -83,7 +86,27 @@ func runDoctor() int {
 		fmt.Fprintf(os.Stderr, "kapi-sourcecode: self-check extracted %v, want the desc only\n", got)
 		return 1
 	}
-	fmt.Printf("kapi-sourcecode %s: grammars ok (%s)\n", version.Version, strings.Join(proseread.Grammars(), ", "))
+	// Each comment language must locate the comment its canary names, which is
+	// what the host asks of it beside every real file.
+	var langs []string
+	for _, l := range comments.Languages() {
+		f, err := comments.Locate(l.Name, "canary", l.Canary.Source)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "kapi-sourcecode: %s comment self-check failed: %v\n", l.Name, err)
+			return 1
+		}
+		located := false
+		for _, b := range f.Blocks() {
+			located = located || b.ID == l.Canary.Block
+		}
+		if !located {
+			fmt.Fprintf(os.Stderr, "kapi-sourcecode: %s comment self-check located no %s among %d comments\n", l.Name, l.Canary.Block, len(f.Comments))
+			return 1
+		}
+		langs = append(langs, l.Name)
+	}
+	fmt.Printf("kapi-sourcecode %s: grammars ok (%s; comments: %s)\n", version.Version,
+		strings.Join(proseread.Grammars(), ", "), strings.Join(langs, ", "))
 	return 0
 }
 
@@ -123,6 +146,21 @@ func serve() error {
 type server struct {
 	pb.UnimplementedBridgeServiceServer
 	stop func()
+}
+
+// LocateComments locates the comments in one file for the host's comment layer.
+// A file whose comments cannot be placed exactly is reported as unlocated, so
+// the host treats its comment check as not run rather than as a file with no
+// comments.
+func (s *server) LocateComments(_ context.Context, req *pb.LocateCommentsRequest) (*pb.LocateCommentsResponse, error) {
+	f, err := comments.Locate(req.GetLanguage(), req.GetName(), req.GetSource())
+	if errors.Is(err, comment.ErrUnlocated) {
+		return &pb.LocateCommentsResponse{Unlocated: true, Error: err.Error()}, nil
+	}
+	if err != nil {
+		return &pb.LocateCommentsResponse{Error: err.Error()}, nil
+	}
+	return protoconvert.CommentFileToProto(f), nil
 }
 
 func (s *server) Shutdown(_ context.Context, _ *pb.ShutdownRequest) (*pb.ShutdownResponse, error) {

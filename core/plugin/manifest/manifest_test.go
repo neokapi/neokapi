@@ -125,6 +125,12 @@ func TestValidate_RequiredFields(t *testing.T) {
 		{"daemon only with mode-c", `{"manifest_version": "1", "plugin": "x", "version": "1", "binary": "x", "daemon": {"idle_timeout_seconds": 1}}`, "daemon block is only valid"},
 		{"command needs name", `{"manifest_version": "1", "plugin": "x", "version": "1", "binary": "x", "capabilities": {"commands": [{}]}}`, "name is required"},
 		{"schema_extension needs scope", `{"manifest_version": "1", "plugin": "x", "version": "1", "binary": "x", "capabilities": {"schema_extensions": [{"name": "x", "scope": "wrong"}]}}`, "invalid scope"},
+		{"daemon required for comments", `{"manifest_version": "1", "plugin": "x", "version": "1", "binary": "x", "capabilities": {"comments": [` + commentLanguage(`"typescript"`, `[".ts"]`, `{"source": "// a", "block": "comment"}`) + `]}}`, "daemon block is required"},
+		{"comment language needs a name", `{"manifest_version": "1", "plugin": "x", "version": "1", "binary": "x", "daemon": {}, "capabilities": {"comments": [` + commentLanguage(`""`, `[".ts"]`, `{"source": "// a", "block": "comment"}`) + `]}}`, "language is required"},
+		{"comment language name is an identifier", `{"manifest_version": "1", "plugin": "x", "version": "1", "binary": "x", "daemon": {}, "capabilities": {"comments": [` + commentLanguage(`"Type-Script"`, `[".ts"]`, `{"source": "// a", "block": "comment"}`) + `]}}`, "invalid language"},
+		{"comment language needs extensions", `{"manifest_version": "1", "plugin": "x", "version": "1", "binary": "x", "daemon": {}, "capabilities": {"comments": [` + commentLanguage(`"typescript"`, `[]`, `{"source": "// a", "block": "comment"}`) + `]}}`, "declares no extensions"},
+		{"comment extension has a dot", `{"manifest_version": "1", "plugin": "x", "version": "1", "binary": "x", "daemon": {}, "capabilities": {"comments": [` + commentLanguage(`"typescript"`, `["ts"]`, `{"source": "// a", "block": "comment"}`) + `]}}`, "invalid extension"},
+		{"comment language needs a canary", `{"manifest_version": "1", "plugin": "x", "version": "1", "binary": "x", "daemon": {}, "capabilities": {"comments": [` + commentLanguage(`"typescript"`, `[".ts"]`, `{"source": "// a"}`) + `]}}`, "canary source and block are required"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -174,4 +180,9 @@ func TestRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, m.Plugin, parsed.Plugin)
 	assert.Equal(t, m.Capabilities.Commands[0].Name, parsed.Capabilities.Commands[0].Name)
+}
+
+// commentLanguage is one capabilities.comments entry for the validation table.
+func commentLanguage(language, extensions, canary string) string {
+	return `{"language": ` + language + `, "extensions": ` + extensions + `, "canary": ` + canary + `}`
 }
