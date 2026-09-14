@@ -7,11 +7,13 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/neokapi/neokapi/core/check"
+	"github.com/neokapi/neokapi/core/comment"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/profile"
@@ -642,6 +644,24 @@ func applyStrictValidationGate(report *check.Report) {
 	report.Decide()
 }
 
+// commentLimitsOnly reports whether p holds comment limits and no rule for
+// voice.rules, over blocks holding a comment for those limits to check.
+func commentLimitsOnly(p *profile.VoiceProfile, blocks []*model.Block) bool {
+	return p != nil && p.Style.Comments != nil && !profile.HasDeterministicRules(p) && slices.ContainsFunc(blocks, comment.IsBlock)
+}
+
+// recordGuidance records voice.guidance as unsupported when p holds applicable
+// guidance, which deterministic rules do not assess.
+func recordGuidance(execution *checkExecution, p *profile.VoiceProfile, file string) {
+	for _, resolution := range profile.ConstraintResolutions(p) {
+		if resolution.Status == "applicable" && resolution.Constraint.Kind == profile.ConstraintGuidance {
+			execution.unsupported("voice.guidance", file,
+				"Applicable guidance requires semantic analysis; deterministic rules do not assess it.")
+			return
+		}
+	}
+}
+
 // checkRunOptions carries the resolved generic-check configuration.
 type checkRunOptions struct {
 	execution    *checkExecution
@@ -756,7 +776,16 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 	groups := opts.pointGroups(blocks, docBlocks)
 	for _, g := range groups {
 		mark := opts.execution.analyzerCount()
-		if g.at.profile != nil || g.at.terms != nil {
+		switch {
+		case g.at.profile == nil && g.at.terms == nil:
+			opts.execution.skipped("voice.rules", file, "No voice profile or project terms were bound.")
+		case g.at.terms == nil && commentLimitsOnly(g.at.profile, g.blocks):
+			// The comment analyzers below hold these comments to the profile's
+			// limits and decide the verdict for them.
+			opts.execution.notApplicable("voice.rules", file,
+				"The voice profile declares no term or pattern, and the comment analyzers check its comment limits.")
+			recordGuidance(opts.execution, g.at.profile, file)
+		default:
 			start = time.Now()
 			before := len(diags)
 			vocab := coretools.NewVoiceVocabCheckTool(g.at.profile, g.at.terms).InSourceLocale(model.LocaleID(a.SourceLocale()))
@@ -788,15 +817,7 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 			// A profile named on the command line is an analysis the invocation asked
 			// for. One the project binds is configuration, and may govern tone alone.
 			opts.execution.completed("voice.rules", file, len(diags)-before, start, canary, g.at.voiceContext.Selection == "override")
-			for _, resolution := range profile.ConstraintResolutions(g.at.profile) {
-				if resolution.Status == "applicable" && resolution.Constraint.Kind == profile.ConstraintGuidance {
-					opts.execution.unsupported("voice.guidance", file,
-						"Applicable guidance requires semantic analysis; deterministic rules do not assess it.")
-					break
-				}
-			}
-		} else {
-			opts.execution.skipped("voice.rules", file, "No voice profile or project terms were bound.")
+			recordGuidance(opts.execution, g.at.profile, file)
 		}
 		// The comments among the group's blocks are held to the comment limits
 		// of the group's voice.

@@ -63,6 +63,17 @@ func (e *checkExecution) unsupported(id, file, reason string) {
 	})
 }
 
+// notApplicable records an analyzer the configuration gives no rule for the
+// file, because other analyzers check the rules in force.
+func (e *checkExecution) notApplicable(id, file, reason string) {
+	if e == nil {
+		return
+	}
+	e.Analyzers = append(e.Analyzers, check.AnalyzerExecution{
+		ID: id, File: DisplayName(file), Status: check.AnalyzerNotApplicable, Reason: reason,
+	})
+}
+
 // notChecked records an analyzer the gate required that could not evaluate a
 // file's content, so the gate's result is not verified.
 func (e *checkExecution) notChecked(id, file, reason string) {

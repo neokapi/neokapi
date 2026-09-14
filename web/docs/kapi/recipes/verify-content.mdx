@@ -281,7 +281,9 @@ a major `comment.length` finding. A change that adds 8 or more comment lines to
 a file and more comment lines than code lines is a major `comment.density`
 finding. The package doc comment does not count toward it, and only a check
 scoped to a diff measures it. `comments: {}` applies these numbers, which
-are the defaults. In a check scoped to a diff, the limits apply to the comments
+are the defaults. A profile that holds only these limits can be named on its
+own, as in `kapi check --profile-file comments.yaml parse.go`, and the comment
+checks then decide the verdict. In a check scoped to a diff, the limits apply to the comments
 the change touched. See [Comment limits](/reference/serialization/voice-profile#comment-limits)
 for how sentences and words are counted.
 
