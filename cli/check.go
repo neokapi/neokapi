@@ -62,15 +62,18 @@ the explicit, opt-in enforcement point. With no file arguments it checks the
 project's source-only content and declared source/target pairs. Named source
 files receive content checks; named targets retain their source pairing.
 
-Diff scope (--diff-file, --diff-against): check only the content blocks a
-unified diff touches, each block whole, and report the lines each spans. Every
-file the diff names is listed with what became of it: checked, untouched, out of
-scope (inside a project, content the recipe does not declare), deleted, or did
-not run (a changed file whose blocks cannot be located). --diff-file reads a
-diff from a file, or from standard input with -. --diff-against runs git diff
-against a revision, read-only, and treats untracked files as added. Named files
-narrow the scope. The loop for an agent: edit, run
-'kapi check --diff-against HEAD', repair, run it again.
+Diff scope (--diff-file, --diff-against, --staged): check only the content
+blocks a unified diff touches, each block whole, and report the lines each
+spans. Every file the diff names is listed with what became of it: checked,
+untouched, out of scope (inside a project, content the recipe does not
+declare), deleted, or did not run (a changed file whose blocks cannot be
+located). --diff-file reads a diff from a file, or from standard input with -.
+--diff-against runs git diff against a revision, read-only, and treats
+untracked files as added. --staged checks what a commit made now would record:
+the staged changes, each file read from the index, leaving out unstaged edits
+and untracked files. Named files narrow the scope. The loop for an agent: edit,
+run 'kapi check --diff-against HEAD', repair, run it again. A pre-commit hook
+runs 'kapi check --staged'.
 
 Exit codes: 0 pass, 3 when the gate fails, 4 when the check did not run, 1
 operational. A check did not run when it examined no content, or when one of its
@@ -103,6 +106,7 @@ nor --lenient turns a check that did not run into a pass.`,
 	f.Float64("voice-min", DefaultVoiceSimilarity, "voice-similarity cutoff (cosine, 0-1) below which a block is flagged off-voice")
 	f.String("diff-file", "", "check only the content blocks this unified diff touches (a file, or - for standard input)")
 	f.String("diff-against", "", "check only the content blocks changed since this git revision, including untracked files (runs git diff read-only)")
+	f.Bool("staged", false, "check only the content blocks the staged changes touch, each file read from the index (leaves out unstaged edits and untracked files)")
 	f.String("validate", "off", "reader structure/encoding validation: off|report|strict (report folds structure.*/encoding.* findings into the Report; strict also fails the gate on a Major+ structure/encoding problem)")
 	a.AddSourceLangFlag(f)
 
@@ -115,10 +119,10 @@ nor --lenient turns a check that did not run into a pass.`,
 
 	cmd.MarkFlagsMutuallyExclusive("strict", "lenient")
 	cmd.MarkFlagsMutuallyExclusive("ship", "target")
-	cmd.MarkFlagsMutuallyExclusive("diff-file", "diff-against")
-	cmd.MarkFlagsMutuallyExclusive("diff-file", "ship")
-	cmd.MarkFlagsMutuallyExclusive("diff-against", "ship")
-	cmd.MarkFlagsMutuallyExclusive("diff-file", "target")
-	cmd.MarkFlagsMutuallyExclusive("diff-against", "target")
+	cmd.MarkFlagsMutuallyExclusive("diff-file", "diff-against", "staged")
+	for _, diff := range []string{"diff-file", "diff-against", "staged"} {
+		cmd.MarkFlagsMutuallyExclusive(diff, "ship")
+		cmd.MarkFlagsMutuallyExclusive(diff, "target")
+	}
 	return cmd
 }

@@ -43,8 +43,9 @@ func registerCheckMCPTools(server *mcp.Server, a *App) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "check_file",
 		Description: "Check the actual content inside a file (Word, PowerPoint, JSON, XLIFF, Markdown, …) " +
-			"or only the content blocks a change touched: pass diff (unified diff text) or diff_against (a git " +
-			"revision) to check each touched block whole, with the lines it spans, and read report.scope for every " +
+			"or only the content blocks a change touched: pass diff (unified diff text), diff_against (a git " +
+			"revision) or staged (the changes staged for commit, read from the index) to check each touched block " +
+			"whole, with the lines it spans, and read report.scope for every " +
 			"changed file and what became of it. " +
 			"with format-aware extraction and the applicable project voice and terms. Before editing, read " +
 			"the context://<project-relative-path> resource; after saving edits (including apply_edits), " +
@@ -72,9 +73,10 @@ type checkTextInput struct {
 
 // checkFileInput is the input to the check_file MCP tool.
 type checkFileInput struct {
-	File        string   `json:"file,omitempty" jsonschema:"path to the file whose content should be checked; with diff or diff_against it narrows the scope to this file, and may be omitted"`
+	File        string   `json:"file,omitempty" jsonschema:"path to the file whose content should be checked; with diff, diff_against or staged it narrows the scope to this file, and may be omitted"`
 	Diff        string   `json:"diff,omitempty" jsonschema:"unified diff text (git diff output); only the content blocks it touches are checked"`
 	DiffAgainst string   `json:"diff_against,omitempty" jsonschema:"git revision to diff the working tree against, read-only, with untracked files as added; only the content blocks changed are checked"`
+	Staged      bool     `json:"staged,omitempty" jsonschema:"check the changes staged for commit: the index diffed against HEAD, with each file read from the index, leaving out unstaged edits and untracked files; only the content blocks changed are checked"`
 	MaxChars    int      `json:"max_chars,omitempty" jsonschema:"flag content longer than this many characters (0 = off)"`
 	MaxWords    int      `json:"max_words,omitempty" jsonschema:"flag content with more than this many words (0 = off)"`
 	Forbid      []string `json:"forbid,omitempty" jsonschema:"regex that must NOT appear in the content"`
@@ -172,12 +174,21 @@ func (a *App) checkFileMCP(ctx context.Context, in checkFileInput) (*mcp.CallToo
 	execution := newCheckExecution()
 	contextStart := time.Now()
 	a.InitRegistries()
-	scoped := in.Diff != "" || in.DiffAgainst != ""
+	scoped := in.Diff != "" || in.DiffAgainst != "" || in.Staged
 	if in.File == "" && !scoped {
-		return nil, check.Report{}, errors.New("file is required unless diff or diff_against is given")
+		return nil, check.Report{}, errors.New("file is required unless diff, diff_against or staged is given")
 	}
-	if in.Diff != "" && in.DiffAgainst != "" {
-		return nil, check.Report{}, errors.New("diff and diff_against each name a diff; pass one")
+	var named []string
+	for _, source := range []struct {
+		name string
+		set  bool
+	}{{"diff", in.Diff != ""}, {"diff_against", in.DiffAgainst != ""}, {"staged", in.Staged}} {
+		if source.set {
+			named = append(named, source.name)
+		}
+	}
+	if err := oneDiffSource(named...); err != nil {
+		return nil, check.Report{}, err
 	}
 	opts, err := a.mcpCheckOptions(ctx, execution, in.MaxChars, in.MaxWords, in.Forbid, in.Require, in.ProfilePack, in.ProfileFile)
 	if err != nil {
@@ -314,8 +325,8 @@ func (a *App) mcpCheckOptions(ctx context.Context, execution *checkExecution, ma
 }
 
 // checkDiffMCP is check_file scoped to a diff: the same run `kapi check
-// --diff-file` and `--diff-against` make, with governance resolved per changed
-// file unless the call named a profile.
+// --diff-file`, `--diff-against` and `--staged` make, with governance resolved
+// per changed file unless the call named a profile.
 func (a *App) checkDiffMCP(ctx context.Context, cmd Command, in checkFileInput, opts checkRunOptions) (*mcp.CallToolResult, check.Report, error) {
 	if in.Target != "" {
 		return nil, check.Report{}, errors.New("target checks a source against its translation and cannot be scoped to a diff")
@@ -333,9 +344,12 @@ func (a *App) checkDiffMCP(ctx context.Context, cmd Command, in checkFileInput, 
 		dir = filepath.Dir(a.mcpRecipePath)
 	}
 	var src *diffSource
-	if in.DiffAgainst != "" {
+	switch {
+	case in.Staged:
+		src, err = gitDiffStaged(ctx, dir)
+	case in.DiffAgainst != "":
 		src, err = gitDiffAgainst(ctx, dir, in.DiffAgainst)
-	} else {
+	default:
 		src, err = parsedDiff(ctx, "diff", []byte(in.Diff), dir)
 	}
 	if err != nil {

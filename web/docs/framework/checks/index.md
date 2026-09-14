@@ -163,9 +163,14 @@ shapes and operation error views.
 
 `kapi check --diff-against <rev>` checks only the content a change touched. kapi
 runs `git diff` against the revision, read-only, treats untracked files as
-wholly new, and reads each changed file once. `--diff-file <path>` reads a
-unified diff you already hold, or standard input with `-`. Named files narrow
-the scope.
+wholly new, and reads each changed file once. `kapi check --staged` checks what
+a commit made now would record: the staged changes, with each file read from the
+index. An unstaged edit or an untracked file leaves the result unchanged, and a
+finding's lines are the lines the index holds. Inside a project, a staged file
+is content when the recipe declares its path, whether or not the working tree
+still holds it. An index holding an unresolved merge conflict is refused.
+`--diff-file <path>` reads a unified diff you already hold, or standard input
+with `-`. Named files narrow the scope.
 
 A diff names lines, and kapi widens each changed line to the content block it
 belongs to: a one-line edit inside a seven-line paragraph checks the whole
@@ -209,8 +214,8 @@ The report's `scope` lists every file the diff names with a status:
 
 A `did_not_run` file leaves the whole check `did_not_run`, and so does a diff
 that touches no content block. Over MCP, `check_file` takes `diff` (unified diff
-text) or `diff_against` (a revision) for the same scope, and `file` then narrows
-it.
+text), `diff_against` (a revision) or `staged` for the same scope, and `file`
+then narrows it.
 
 ## One model: findings
 

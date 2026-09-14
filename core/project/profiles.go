@@ -726,15 +726,22 @@ func (p *KapiProject) BindsTermsByProfile() bool {
 // path (governance, format, target, reader configuration) asks here, so a file
 // is claimed by the same item whichever direction the question is asked from.
 func (p *KapiProject) ItemForPath(relPath string) (item ContentItem, collIdx int, ok bool) {
+	item, collIdx, _, ok = p.itemForPath(relPath)
+	return item, collIdx, ok
+}
+
+// itemForPath is ItemForPath with the item's position among its collection's
+// EffectiveItems as well.
+func (p *KapiProject) itemForPath(relPath string) (item ContentItem, collIdx, itemIdx int, ok bool) {
 	for i := range p.Collections {
-		for _, candidate := range p.Collections[i].EffectiveItems() {
+		for j, candidate := range p.Collections[i].EffectiveItems() {
 			if candidate.Path == "" || !MatchGlob(candidate.Path, relPath) {
 				continue
 			}
-			return candidate, i, true
+			return candidate, i, j, true
 		}
 	}
-	return ContentItem{}, -1, false
+	return ContentItem{}, -1, -1, false
 }
 
 // CollectionForPath returns the name of the content collection whose item

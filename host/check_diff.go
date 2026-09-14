@@ -26,23 +26,80 @@ import (
 // to show that a file the diff does not name is never read.
 var readScopedSource = os.ReadFile
 
+// onDisk is where a diff of the working tree finds its files.
+const onDisk = "on disk"
+
 // diffSource is a parsed diff and the directory its paths are relative to.
 type diffSource struct {
 	// label says where the diff came from, for the report.
 	label string
 	root  string
 	files []diffscope.File
+	// objects holds each file as the diff leaves it, when that version is in
+	// git's objects and not in the working tree. It is nil for a diff of the
+	// working tree.
+	objects *gitObjects
 }
 
-// diffSourceFromFlags reads the diff named by --diff-file or --diff-against, or
-// returns nil when the check is not scoped to a diff.
+// read returns the file at abs, whose path in the diff is path, as the diff
+// leaves it.
+func (s *diffSource) read(ctx context.Context, path, abs string) ([]byte, error) {
+	if s.objects != nil {
+		return readScopedObject(ctx, s.objects, path)
+	}
+	return readScopedSource(abs)
+}
+
+// where names the version of the files a diff is held to, for a message.
+func (s *diffSource) where() string {
+	if s.objects != nil {
+		return s.objects.where
+	}
+	return onDisk
+}
+
+func (s *diffSource) close() {
+	if s != nil {
+		_ = s.objects.close()
+	}
+}
+
+// oneDiffSource refuses a check given more than one diff, each named by the
+// flag or parameter that gave it.
+func oneDiffSource(named ...string) error {
+	if len(named) < 2 {
+		return nil
+	}
+	last := len(named) - 1
+	return fmt.Errorf("%s and %s each name a diff; pass one", strings.Join(named[:last], ", "), named[last])
+}
+
+// diffSourceFromFlags reads the diff named by --diff-file, --diff-against or
+// --staged, or returns nil when the check is not scoped to a diff.
 func (a *App) diffSourceFromFlags(cmd Command) (*diffSource, error) {
 	file, _ := cmd.Flags().GetString("diff-file")
 	against, _ := cmd.Flags().GetString("diff-against")
+	staged, _ := cmd.Flags().GetBool("staged")
+	var named []string
+	for _, source := range []struct {
+		flag string
+		set  bool
+	}{{"--diff-file", file != ""}, {"--diff-against", against != ""}, {"--staged", staged}} {
+		if source.set {
+			named = append(named, source.flag)
+		}
+	}
+	if err := oneDiffSource(named...); err != nil {
+		return nil, err
+	}
 	ctx := CmdContext(cmd)
 	switch {
-	case file != "" && against != "":
-		return nil, errors.New("--diff-file and --diff-against each name a diff; pass one")
+	case staged:
+		cwd, err := os.Getwd()
+		if err != nil {
+			return nil, err
+		}
+		return gitDiffStaged(ctx, cwd)
 	case file != "":
 		var data []byte
 		var err error
@@ -96,10 +153,7 @@ func gitDiffAgainst(ctx context.Context, dir, rev string) (*diffSource, error) {
 		return nil, fmt.Errorf("--diff-against needs a git work tree: %w", err)
 	}
 	root := strings.TrimSpace(string(top))
-	// Every option that user configuration could change about the output is
-	// pinned: colour, external diff drivers, text conversion and path prefixes.
-	out, err := gitOutput(ctx, root, "diff", "--no-color", "--no-ext-diff", "--no-textconv",
-		"--src-prefix=a/", "--dst-prefix=b/", "-M", "--end-of-options", rev, "--")
+	out, err := gitOutput(ctx, root, slices.Concat(gitDiffArgs, []string{"--end-of-options", rev, "--"})...)
 	if err != nil {
 		return nil, fmt.Errorf("git diff %s: %w", rev, err)
 	}
@@ -163,7 +217,8 @@ type diffCheckRun struct {
 // checked. A file whose touched content cannot be located did not run, and so
 // does the check as a whole. A file the diff does not name is never read.
 func (a *App) runDiffCheck(ctx context.Context, run diffCheckRun) (check.Report, error) {
-	declared, recipe, err := a.declaredContent(run.cmd)
+	defer run.src.close()
+	declared, recipe, err := a.declaredContent(ctx, run)
 	if err != nil {
 		return check.Report{}, err
 	}
@@ -287,7 +342,7 @@ func (a *App) checkDiffFile(ctx context.Context, run diffCheckRun, f diffscope.F
 		}
 		return nil, 0, nil
 	}
-	content, err := readScopedSource(abs)
+	content, err := run.src.read(ctx, f.Path(), abs)
 	if err != nil {
 		return nil, 0, fmt.Errorf("read %s: %w", entry.Path, err)
 	}
@@ -319,7 +374,7 @@ func (a *App) checkDiffFile(ctx context.Context, run diffCheckRun, f diffscope.F
 	case read.unlocated != nil:
 		return notRun(read.unlocated.Error())
 	}
-	if err := verifyPostImage(f, content); err != nil {
+	if err := verifyPostImage(f, content, run.src.where()); err != nil {
 		return nil, 0, fmt.Errorf("%s: %w", entry.Path, err)
 	}
 	located := map[string]bool{}
@@ -526,9 +581,9 @@ func (a *App) readWithExtents(ctx context.Context, path string, content []byte, 
 }
 
 // verifyPostImage confirms that every line the diff shows is the file's line at
-// that number. A diff taken from another tree would otherwise scope the wrong
-// blocks with nothing to show for it.
-func verifyPostImage(f diffscope.File, content []byte) error {
+// that number, in the content read from where. A diff taken from another tree
+// would otherwise scope the wrong blocks with nothing to show for it.
+func verifyPostImage(f diffscope.File, content []byte, where string) error {
 	if len(f.PostLines) == 0 {
 		return nil
 	}
@@ -545,7 +600,11 @@ func verifyPostImage(f diffscope.File, content []byte) error {
 			got = lines[n-1]
 		}
 		if n < 1 || n > len(lines) || got != want {
-			return fmt.Errorf("the diff does not match the file: line %d is %q in the diff and %q on disk. Take the diff from the working tree being checked", n, want, got)
+			msg := fmt.Sprintf("the diff does not match the file: line %d is %q in the diff and %q %s", n, want, got, where)
+			if where == onDisk {
+				msg += ". Take the diff from the working tree being checked"
+			}
+			return errors.New(msg)
 		}
 	}
 	return nil
@@ -554,14 +613,24 @@ func verifyPostImage(f diffscope.File, content []byte) error {
 // declaredContent maps each file of the project's declared content from its
 // scope key to the path the recipe resolved, and returns the recipe's name.
 // Both are empty outside a project.
-func (a *App) declaredContent(cmd Command) (map[string]string, string, error) {
-	projectPath, err := ResolveProjectPath(cmd)
+//
+// A diff of the working tree resolves the files the recipe matches on disk. A
+// diff whose files are read from git's objects resolves the paths it names
+// instead, each detected from its object, and binds their formats for the run.
+// A file the working tree lacks, or holds in another version, is then declared
+// as the version the diff leaves.
+func (a *App) declaredContent(ctx context.Context, run diffCheckRun) (map[string]string, string, error) {
+	projectPath, err := ResolveProjectPath(run.cmd)
 	if err != nil || projectPath == "" {
 		return nil, "", err
 	}
 	proj, err := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return nil, "", fmt.Errorf("load project: %w", err)
+	}
+	recipe := filepath.Base(projectPath)
+	if run.src.objects != nil {
+		return a.declaredObjects(ctx, run, proj, projectPath), recipe, nil
 	}
 	files, err := a.projectSourceFiles(proj, filepath.Dir(projectPath))
 	if err != nil {
@@ -571,7 +640,42 @@ func (a *App) declaredContent(cmd Command) (map[string]string, string, error) {
 	for _, f := range files {
 		declared[scopeKey(f)] = f
 	}
-	return declared, filepath.Base(projectPath), nil
+	return declared, recipe, nil
+}
+
+// declaredObjects is declaredContent for a diff read from git's objects.
+func (a *App) declaredObjects(ctx context.Context, run diffCheckRun, proj *project.KapiProject, projectPath string) map[string]string {
+	pctx := project.NewProjectContext(proj, projectPath)
+	dir := scopeKey(pctx.ProjectDir)
+	keys := map[string]string{}
+	paths := map[string]string{}
+	var rels []string
+	for _, f := range run.src.files {
+		if f.Status == diffscope.Deleted {
+			continue
+		}
+		key := scopeKey(filepath.Join(run.src.root, filepath.FromSlash(f.Path())))
+		if rel, ok := projectRelPath(dir, key); ok {
+			keys[rel], paths[rel] = key, f.Path()
+			rels = append(rels, rel)
+		}
+	}
+	content := func(rel string) (io.ReadSeeker, error) {
+		data, err := readScopedObject(ctx, run.src.objects, paths[rel])
+		if err != nil {
+			return nil, err
+		}
+		return bytes.NewReader(data), nil
+	}
+	resolved := pctx.ResolvePaths(a.FormatReg, rels, content)
+	if a.FormatFlag == "" {
+		run.opts.formats.rebind(proj, pctx, rels, resolved)
+	}
+	declared := make(map[string]string, len(resolved))
+	for _, rf := range resolved {
+		declared[keys[filepath.ToSlash(rf.Relative)]] = rf.Path
+	}
+	return declared
 }
 
 // scopeKey is a path in absolute, symlink-free form, so a path git reports and

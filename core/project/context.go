@@ -2,8 +2,10 @@ package project
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/flow"
@@ -119,6 +121,12 @@ func LocaleFromPath(s string) model.LocaleID {
 // DetectFormat detects the format for a file path, scoped to the project's
 // allowed plugin sources. Returns empty string if no format matches.
 func (ctx *ProjectContext) DetectFormat(reg *registry.FormatRegistry, path string) string {
+	return ctx.detectFormat(reg, path, nil)
+}
+
+// detectFormat is DetectFormat with the content to sniff supplied by content,
+// or read from the file at path when content is nil.
+func (ctx *ProjectContext) detectFormat(reg *registry.FormatRegistry, path string, content func() (io.ReadSeeker, error)) string {
 	if format.Ext(path) == "" {
 		return ""
 	}
@@ -128,7 +136,7 @@ func (ctx *ProjectContext) DetectFormat(reg *registry.FormatRegistry, path strin
 	// Priority overrides from `defaults.formats[name].priority` let a recipe pick
 	// the preferred engine when several formats claim an extension (e.g. okf_vtt
 	// over okf_regex for .srt).
-	name, err := reg.Detect(path, registry.DetectOptions{AllowedSources: ctx.AllowedSources, PriorityOverrides: ctx.formatPriorityOverrides()})
+	name, err := reg.Detect(path, registry.DetectOptions{AllowedSources: ctx.AllowedSources, PriorityOverrides: ctx.formatPriorityOverrides(), Content: content})
 	if err != nil {
 		return ""
 	}
@@ -301,31 +309,74 @@ func (ctx *ProjectContext) ResolveContent(reg *registry.FormatRegistry) ([]Resol
 					continue
 				}
 				claimed[relSlash] = true
-
-				// Determine format: explicit > auto-detected.
-				fmtName := ""
-				if item.Format != nil {
-					fmtName = item.Format.Name
-				}
-				if fmtName == "" {
-					fmtName = ctx.DetectFormat(reg, f)
-				}
-
-				itemCopy := item
-				files = append(files, ResolvedFile{
-					Path:            absFile,
-					Relative:        rel,
-					Format:          fmtName,
-					Collection:      collName,
-					Pattern:         item.Path,
-					Item:            &itemCopy,
-					CollectionIndex: ci,
-					ItemIndex:       ii,
-				})
+				files = append(files, ctx.resolvedFile(reg, ci, ii, item, relSlash, nil))
 			}
 		}
 	}
 	return files, nil
+}
+
+// ResolvePaths resolves the files among rels, paths relative to the project
+// directory, that the recipe declares as content. Each path goes through the
+// rule ResolveContent applies to a file it finds: the project's excludes and
+// ignore rules, then the first item whose pattern matches it (ItemForPath), and
+// the item's format or the one detected. It looks for no file, so it resolves
+// a path that only a git index or tree holds.
+//
+// content supplies a file's bytes when several formats claim its extension and
+// the content decides between them. With nil content the extension and
+// priority decide.
+func (ctx *ProjectContext) ResolvePaths(reg *registry.FormatRegistry, rels []string, content func(rel string) (io.ReadSeeker, error)) []ResolvedFile {
+	if ctx.Project == nil || len(ctx.Project.Collections) == 0 {
+		return nil
+	}
+	ig := ignore.ForProjectDir(ctx.ProjectDir)
+	claimed := map[string]bool{}
+	var files []ResolvedFile
+	for _, rel := range rels {
+		relSlash := filepath.ToSlash(rel)
+		if !filepath.IsLocal(filepath.FromSlash(rel)) || claimed[relSlash] || ig.Match(relSlash, false) {
+			continue
+		}
+		if slices.ContainsFunc(ctx.Project.Defaults.Exclude, func(exc string) bool { return MatchGlob(exc, relSlash) }) {
+			continue
+		}
+		item, ci, ii, ok := ctx.Project.itemForPath(relSlash)
+		if !ok {
+			continue
+		}
+		claimed[relSlash] = true
+		open := func() (io.ReadSeeker, error) { return nil, os.ErrNotExist }
+		if content != nil {
+			open = func() (io.ReadSeeker, error) { return content(relSlash) }
+		}
+		files = append(files, ctx.resolvedFile(reg, ci, ii, item, relSlash, open))
+	}
+	return files
+}
+
+// resolvedFile is the file at rel as item, the ii-th item of collection ci,
+// claims it. Its format is the item's, or the one detected with the content
+// open supplies, or with the file on disk when open is nil.
+func (ctx *ProjectContext) resolvedFile(reg *registry.FormatRegistry, ci, ii int, item ContentItem, rel string, open func() (io.ReadSeeker, error)) ResolvedFile {
+	abs := filepath.Join(ctx.ProjectDir, filepath.FromSlash(rel))
+	fmtName := ""
+	if item.Format != nil {
+		fmtName = item.Format.Name
+	}
+	if fmtName == "" {
+		fmtName = ctx.detectFormat(reg, abs, open)
+	}
+	return ResolvedFile{
+		Path:            abs,
+		Relative:        filepath.FromSlash(rel),
+		Format:          fmtName,
+		Collection:      ctx.Project.Collections[ci].Name,
+		Pattern:         item.Path,
+		Item:            &item,
+		CollectionIndex: ci,
+		ItemIndex:       ii,
+	}
 }
 
 // --- Format configuration ---

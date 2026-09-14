@@ -160,7 +160,7 @@
           ]
         },
         "file": {
-          "description": "path to the file whose content should be checked; with diff or diff_against it narrows the scope to this file, and may be omitted",
+          "description": "path to the file whose content should be checked; with diff, diff_against or staged it narrows the scope to this file, and may be omitted",
           "type": "string"
         },
         "forbid": {
@@ -198,6 +198,10 @@
             "null",
             "array"
           ]
+        },
+        "staged": {
+          "description": "check the changes staged for commit: the index diffed against HEAD, with each file read from the index, leaving out unstaged edits and untracked files; only the content blocks changed are checked",
+          "type": "boolean"
         },
         "target": {
           "description": "translated target file to check against the source (enables the bilingual source-against-target checks)",
