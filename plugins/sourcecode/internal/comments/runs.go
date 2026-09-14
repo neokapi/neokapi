@@ -26,6 +26,9 @@ var (
 	inlineRe = regexp.MustCompile("``[^`]+``|`[^`]+`|\\{@[A-Za-z][^}]*\\}|https?://[^\\s<>\"'`)\\]}]+")
 	// tagRe is a JSDoc block tag at the start of a line.
 	tagRe = regexp.MustCompile(`^@([A-Za-z][\w-]*)`)
+	// commandRe is a Doxygen command at the start of a line, which opens with a
+	// backslash or `@`.
+	commandRe = regexp.MustCompile(`^[@\\]([A-Za-z][\w-]*)`)
 	// typeRe is a JSDoc type expression after a tag. One level of nested braces
 	// covers record types such as {{a: string}}.
 	typeRe = regexp.MustCompile(`^\s*\{(?:[^{}]|\{[^{}]*\})*\}`)
@@ -39,6 +42,12 @@ var (
 	// markupBlockRe opens a code element that holds lines of its own.
 	markupBlockRe = regexp.MustCompile(`(?i)^\s*<(code|pre)\b[^<>]*>`)
 )
+
+// doxygenValues are the Doxygen commands that name a file, a group or a header
+// rather than hold prose.
+var doxygenValues = map[string]bool{
+	"file": true, "dir": true, "defgroup": true, "ingroup": true, "addtogroup": true, "headerfile": true,
+}
 
 // namedTags take a type and a name before their description.
 var namedTags = map[string]bool{
@@ -70,7 +79,11 @@ var valueTags = map[string]bool{
 // @example section is one. In a documentation comment written in HTML or XML,
 // each tag is a placeholder and a code element is one with its content. It also
 // reports whether a @deprecated tag is present.
-func buildRuns(lines []string, docTags, markup bool) ([]model.Run, bool) {
+func buildRuns(lines []string, docTags, markup, commands bool) ([]model.Run, bool) {
+	tags := tagRe
+	if commands {
+		tags = commandRe
+	}
 	var b runBuilder
 	deprecated := false
 	for i := 0; i < len(lines); i++ {
@@ -98,14 +111,14 @@ func buildRuns(lines []string, docTags, markup bool) ([]model.Run, bool) {
 			continue
 		}
 		if docTags {
-			if m := tagRe.FindStringSubmatch(line); m != nil {
+			if m := tags.FindStringSubmatch(line); m != nil {
 				tag := strings.ToLower(m[1])
 				if tag == "deprecated" {
 					deprecated = true
 				}
 				if tag == "example" {
 					end := i + 1
-					for end < len(lines) && !tagRe.MatchString(lines[end]) {
+					for end < len(lines) && !tags.MatchString(lines[end]) {
 						end++
 					}
 					b.placeholder(phCode, subExample, strings.Join(lines[i:end], "\n"))
@@ -113,8 +126,9 @@ func buildRuns(lines []string, docTags, markup bool) ([]model.Run, bool) {
 					continue
 				}
 				// Javadoc's @see holds a reference, and its @throws names the
-				// exception before the description.
-				if valueTags[tag] || markup && tag == "see" {
+				// exception before the description. Doxygen's structural
+				// commands, such as \file, name what they describe.
+				if valueTags[tag] || markup && tag == "see" || commands && doxygenValues[tag] {
 					b.placeholder(phCode, subTag, line)
 					continue
 				}
@@ -122,7 +136,7 @@ func buildRuns(lines []string, docTags, markup bool) ([]model.Run, bool) {
 				if loc := typeRe.FindStringIndex(line[prefix:]); loc != nil {
 					prefix += loc[1]
 				}
-				if namedTags[tag] || markup && (tag == "throws" || tag == "exception") {
+				if namedTags[tag] || markup && (tag == "throws" || tag == "exception") || commands && (tag == "tparam" || tag == "retval" || tag == "throw" || tag == "throws" || tag == "exception") {
 					if loc := nameRe.FindStringIndex(line[prefix:]); loc != nil {
 						prefix += loc[1]
 					}

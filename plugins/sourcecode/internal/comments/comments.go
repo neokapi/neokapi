@@ -70,12 +70,14 @@ func Lookup(name string) (Language, bool) {
 }
 
 // languages is every language the package reads.
-var languages = slices.Concat(jsLanguages(), pythonLanguages(), bashLanguages(), cssLanguages(), rustLanguages(), javaLanguages(), csharpLanguages())
+var languages = slices.Concat(jsLanguages(), pythonLanguages(), bashLanguages(), cssLanguages(), rustLanguages(), javaLanguages(), csharpLanguages(), cLanguages())
 
 // Locate returns the comments in src, a file in the named language. name is
 // the file's path, which the language may consult. A file the grammar cannot
-// parse whole is ErrUnlocated: a comment's position is only exact in a tree
-// with no error in it.
+// parse whole is ErrUnlocated, since a comment's position is only certain in a
+// tree with no error in it, unless the language's syntax is tolerant: C and C++
+// comments are located anyway, because the preprocessor makes a grammar read
+// sound code as malformed while their comments stay where the lexer put them.
 func Locate(language, name string, src []byte) (*comment.File, error) {
 	var lang *Language
 	for _, l := range languages {
@@ -97,7 +99,7 @@ func Locate(language, name string, src []byte) (*comment.File, error) {
 	}
 	defer tree.Close()
 	root := tree.RootNode()
-	if root.HasError() {
+	if root.HasError() && !lang.syntax.tolerant {
 		return nil, fmt.Errorf("%w: %s does not parse as %s (%s)", comment.ErrUnlocated, displayName(name), lang.DisplayName, firstError(root))
 	}
 	s := newScanner(lang, src, root)

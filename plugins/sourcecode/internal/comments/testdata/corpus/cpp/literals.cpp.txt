@@ -1,0 +1,10 @@
+// Holds comment markers as content.
+#include <string>
+auto a = "// not a comment";
+auto b = R"(/* not a comment */)";
+auto c = R"delim(
+// not a comment in a raw string
+)delim";
+auto d = u8"// not a comment either";
+auto e = '/';
+auto f = 1'000'000; // after digit separators

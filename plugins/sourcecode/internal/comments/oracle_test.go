@@ -25,8 +25,8 @@ import (
 // Each language is held to comment spans read without the grammar the plugin
 // reads it with. TypeScript, TSX and JavaScript are held to @babel/parser,
 // Python to the tokenize module of its standard library, Rust to rustc's own
-// lexer, Java to javac's tokenizer and C# to Roslyn; scripts in testdata run
-// those and write a golden beside each fixture. Bash is held to the parser
+// lexer, Java to javac's tokenizer, C# to Roslyn, and C and C++ to libclang;
+// scripts in testdata run those and write a golden beside each fixture. Bash is held to the parser
 // of mvdan.cc/sh and CSS to the lexer of github.com/tdewolff/parse, both run
 // by the test itself. Grouping and directives are decided here from the bytes,
 // with rules written for this test and nothing shared with the provider.
@@ -60,6 +60,8 @@ var oracles = map[string]oracle{
 	"rust":       {name: "rustc's lexer", golden: ".rustc", script: "testdata/rust-goldens.py", line: "//", directive: rustDirective},
 	"java":       {name: "javac's tokenizer", golden: ".javac", script: "testdata/java-goldens.py", line: "//", directive: javaDirective},
 	"csharp":     {name: "Roslyn", golden: ".roslyn", script: "testdata/csharp-goldens.py", line: "//", directive: csharpDirective},
+	"c":          {name: "libclang", golden: ".clang", script: "testdata/clang-goldens.py", line: "//", directive: cDirective},
+	"cpp":        {name: "libclang", golden: ".clang", script: "testdata/clang-goldens.py", line: "//", directive: cDirective},
 }
 
 // golden is one fixture's spans as a reader outside the test recorded them.
@@ -254,6 +256,34 @@ var csharpDirectiveForms = []*regexp.Regexp{
 
 func csharpDirective(src []byte, s [4]int) bool {
 	return slices.ContainsFunc(csharpDirectiveForms, func(re *regexp.Regexp) bool { return re.Match(src[s[0]:s[1]]) })
+}
+
+// cDirectiveForms are the comments a C or C++ tool reads: an SPDX licence tag,
+// clang-format's switches, cppcheck's, include-what-you-use's, lcov's and
+// gcovr's pragmas, clang-tidy's and Sonar's suppressions anywhere in a comment,
+// and an editor's mode line.
+var cDirectiveForms = []*regexp.Regexp{
+	regexp.MustCompile(`^(//|/\*)\s*(SPDX-License-Identifier:|clang-format\s+(on|off)\b|cppcheck-suppress\b|IWYU\s+pragma:|(LCOV|GCOVR)_EXCL_)`),
+	regexp.MustCompile(`\b(NOLINT|NOLINTNEXTLINE|NOLINTBEGIN|NOLINTEND|NOSONAR)\b`),
+	regexp.MustCompile(`^(//|/\*)\s*-\*-.*-\*-\s*(\*/)?$`),
+}
+
+// cClosingLine is a line a label comment may follow: a conditional directive's
+// close or turn, or a brace that ends a namespace or linkage block.
+var (
+	cClosingDirective = regexp.MustCompile(`^\s*#\s*(endif|else)\b`)
+	cClosingBrace     = regexp.MustCompile(`^\s*\};?\s*$`)
+	cBraceLabel       = regexp.MustCompile(`^(//|/\*)\s*(end\s+(of\s+)?)?((anonymous|unnamed)\s+)?(namespace\b|extern\s+"C")`)
+)
+
+func cDirective(src []byte, s [4]int) bool {
+	text := src[s[0]:s[1]]
+	if slices.ContainsFunc(cDirectiveForms, func(re *regexp.Regexp) bool { return re.Match(text) }) {
+		return true
+	}
+	lineStart := bytes.LastIndexByte(src[:s[0]], '\n') + 1
+	before := src[lineStart:s[0]]
+	return cClosingDirective.Match(before) || cClosingBrace.Match(before) && cBraceLabel.Match(text)
 }
 
 // shellSpans reads the comments of a Bash script with mvdan.cc/sh.

@@ -1,0 +1,48 @@
+/**
+ * @file parser.h
+ * @brief Parses recipes.
+ */
+
+#ifndef PARSER_H
+#define PARSER_H
+
+#include <stddef.h>
+
+// Sits above nothing: a blank line follows.
+
+/** The largest recipe the parser reads. */
+#define PARSER_LIMIT 4096
+
+/// A parsed point.
+typedef struct point {
+    int x; ///< The horizontal position.
+    /** The vertical position. */
+    int y;
+} point_t;
+
+/** The kinds of block. */
+enum kind {
+    /** Plain text. */
+    KIND_TEXT,
+    KIND_CODE, /* a trailing comment */
+};
+
+/**
+ * Parses the input.
+ *
+ * \param text the text to read
+ * \return the number of blocks
+ */
+int parse(const char *text);
+
+// A plain comment on a variable.
+static int count = 0;
+
+//! Frees a parser.
+void parser_free(void *parser)
+{
+    /* Inside the function. */
+    (void)parser;
+}
+
+#endif /* PARSER_H */

@@ -54,6 +54,16 @@ tree-sitter-c-sharp
   Copyright (c) 2014-2023 Max Brunsfeld, Damien Guard, Amaan Qureshi, and contributors.
   Source: https://github.com/tree-sitter/tree-sitter-c-sharp
 
+tree-sitter-c
+  License: MIT
+  Copyright (c) 2014 Max Brunsfeld
+  Source: https://github.com/tree-sitter/tree-sitter-c
+
+tree-sitter-cpp
+  License: MIT
+  Copyright (c) 2014 Max Brunsfeld
+  Source: https://github.com/tree-sitter/tree-sitter-cpp
+
 Each is distributed under the MIT License, which reads, with the copyright line
 of each work above:
 

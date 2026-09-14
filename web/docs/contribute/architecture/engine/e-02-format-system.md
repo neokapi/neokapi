@@ -466,7 +466,10 @@ but whitespace separates it from a declaration, and its tags, inline links and
 code spans are placeholders. In Rust `///` and `/** */` document the item after
 them and `//!` and `/*! */` the module they sit in. Java's Javadoc and C#'s XML
 documentation comments document the declaration after them, and their HTML and
-XML tags are placeholders. A file the grammar cannot parse whole is not
+XML tags are placeholders. C and C++ files are located even when the grammar
+finds syntax errors, since the preprocessor makes sound code read as malformed;
+a comment on a preprocessor directive's line is lexed from the directive, and a
+measured corpus shows the tree places every other comment exactly. A file the grammar cannot parse whole is not
 located, and its comment check did not run. The canary comes from
 the plugin's manifest and goes through the plugin beside every real file. When no
 installed plugin reads a declared file's language, a check over the project

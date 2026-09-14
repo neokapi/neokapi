@@ -1,0 +1,6 @@
+// Holds comment markers as content.
+static const char *a = "// not a comment";
+static const char *b = "/* not a comment */";
+static const char c = '/';
+static const char *d = "a \" // not a comment after an escaped quote";
+#define MARKER "/* not a comment in a macro */" // a real comment

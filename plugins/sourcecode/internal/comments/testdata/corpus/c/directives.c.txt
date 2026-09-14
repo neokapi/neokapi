@@ -1,0 +1,12 @@
+// -*- mode: c -*-
+// SPDX-License-Identifier: Apache-2.0
+// NOLINTBEGIN(bugprone-*)
+/* clang-format off */
+// cppcheck-suppress unusedFunction
+// IWYU pragma: keep
+// LCOV_EXCL_START
+#include <stdio.h> // IWYU pragma: export
+static int count; // NOLINT
+// NOSONAR
+#ifdef DEBUG
+#endif // DEBUG

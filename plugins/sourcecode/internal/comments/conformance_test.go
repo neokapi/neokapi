@@ -22,40 +22,49 @@ import (
 // Corpus floors per language. The accounting of each fixture is what catches a
 // provider that loses a comment; the floors catch a corpus that shrank to
 // nothing and still accounted for everything in it.
-var corpusFloors = map[string]int{"typescript": 20, "tsx": 10, "javascript": 5, "python": 15, "bash": 20, "css": 15, "rust": 10, "java": 15, "csharp": 9}
+var corpusFloors = map[string]int{"typescript": 20, "tsx": 10, "javascript": 5, "python": 15, "bash": 20, "css": 15, "rust": 10, "java": 15, "csharp": 9, "c": 11, "cpp": 8}
 
 // literalsOf lists, per fixture, the substrings holding a comment marker as
 // content. No comment or exclusion may overlap one.
 var literalsOf = map[string][]string{
-	"literals.ts.txt":   {`"// not a comment"`, `'/* not a comment */'`, "`// not a comment ${", "`https://example.com/path`", `/\/\/ not a comment/g`},
-	"literals.tsx.txt":  {`"// not a comment"`, `<p>// not a comment</p>`, `<p>/* not a comment */</p>`},
-	"literals.mjs.txt":  {`"// not a comment"`, "`/* not a comment */ ${", `/\/\* not a comment \*\//`},
-	"unicode.ts.txt":    {`"héllo // ✓"`},
-	"crlf.ts.txt":       {`"// not a comment"`},
-	"canary.ts.txt":     {`"// not a comment"`},
-	"canary.tsx.txt":    {`<p>// not a comment `},
-	"canary.mjs.txt":    {"`// not a comment`"},
-	"literals.py.txt":   {`"# not a comment"`, `'# not a comment either'`, "\"\"\"\n# not a comment inside a docstring\n\"\"\"", `f"{greeting} # not a comment in an f-string"`},
-	"unicode.py.txt":    {`"héllo # ✓"`},
-	"crlf.py.txt":       {`"# not a comment"`},
-	"canary.py.txt":     {`"# not a comment"`},
-	"literals.sh.txt":   {`"# not a comment"`, `'# not a comment either'`, `${greeting#prefix}`, `word#not-a-comment`, `$'# not a comment in an ANSI-C string'`, "# not a comment inside a heredoc"},
-	"canary.sh.txt":     {`"# not a comment"`},
-	"literals.css.txt":  {`"/* not a comment */"`, `'/* not a comment either */'`, `url(/*not-a-comment*/)`, `url(a/*not*/b.png)`},
-	"canary.css.txt":    {`"/* not a comment */"`},
-	"literals.rs.txt":   {`"// not a comment"`, `r#"/* not a comment */"#`, `b"// not a comment either"`, `'/'`, `"a \" // not a comment after an escaped quote"`, `r"// not a comment in a raw string"`, `"/* not a comment */"`, `"// not a comment in a macro"`},
-	"unicode.rs.txt":    {`"héllo // ✓"`},
-	"crlf.rs.txt":       {`"// not a comment"`},
-	"canary.rs.txt":     {`"// not a comment"`},
-	"tokenizer.rs.txt":  {`"name = \"// here\""`, `Token::Str("// here")`},
-	"literals.java.txt": {`"// not a comment"`, `"/* not a comment */"`, `'/'`, "\"\"\"\n        // not a comment in a text block\n        /* nor this */\n        \"\"\"", `"a \" // not a comment after an escaped quote"`},
-	"unicode.java.txt":  {`"héllo // ✓"`},
-	"crlf.java.txt":     {`"// not a comment"`},
-	"canary.java.txt":   {`"// not a comment"`},
-	"literals.cs.txt":   {`"// not a comment"`, `@"/* not a comment */"`, `$"{1} // not a comment in an interpolated string"`, `'/'`, "\"\"\"\n        // not a comment in a raw string\n        \"\"\"", `@"a "" // not a comment after an escaped quote"`},
-	"unicode.cs.txt":    {`"héllo // ✓"`},
-	"crlf.cs.txt":       {`"// not a comment"`},
-	"canary.cs.txt":     {`"// not a comment"`},
+	"literals.ts.txt":    {`"// not a comment"`, `'/* not a comment */'`, "`// not a comment ${", "`https://example.com/path`", `/\/\/ not a comment/g`},
+	"literals.tsx.txt":   {`"// not a comment"`, `<p>// not a comment</p>`, `<p>/* not a comment */</p>`},
+	"literals.mjs.txt":   {`"// not a comment"`, "`/* not a comment */ ${", `/\/\* not a comment \*\//`},
+	"unicode.ts.txt":     {`"héllo // ✓"`},
+	"crlf.ts.txt":        {`"// not a comment"`},
+	"canary.ts.txt":      {`"// not a comment"`},
+	"canary.tsx.txt":     {`<p>// not a comment `},
+	"canary.mjs.txt":     {"`// not a comment`"},
+	"literals.py.txt":    {`"# not a comment"`, `'# not a comment either'`, "\"\"\"\n# not a comment inside a docstring\n\"\"\"", `f"{greeting} # not a comment in an f-string"`},
+	"unicode.py.txt":     {`"héllo # ✓"`},
+	"crlf.py.txt":        {`"# not a comment"`},
+	"canary.py.txt":      {`"# not a comment"`},
+	"literals.sh.txt":    {`"# not a comment"`, `'# not a comment either'`, `${greeting#prefix}`, `word#not-a-comment`, `$'# not a comment in an ANSI-C string'`, "# not a comment inside a heredoc"},
+	"canary.sh.txt":      {`"# not a comment"`},
+	"literals.css.txt":   {`"/* not a comment */"`, `'/* not a comment either */'`, `url(/*not-a-comment*/)`, `url(a/*not*/b.png)`},
+	"canary.css.txt":     {`"/* not a comment */"`},
+	"literals.rs.txt":    {`"// not a comment"`, `r#"/* not a comment */"#`, `b"// not a comment either"`, `'/'`, `"a \" // not a comment after an escaped quote"`, `r"// not a comment in a raw string"`, `"/* not a comment */"`, `"// not a comment in a macro"`},
+	"unicode.rs.txt":     {`"héllo // ✓"`},
+	"crlf.rs.txt":        {`"// not a comment"`},
+	"canary.rs.txt":      {`"// not a comment"`},
+	"tokenizer.rs.txt":   {`"name = \"// here\""`, `Token::Str("// here")`},
+	"literals.java.txt":  {`"// not a comment"`, `"/* not a comment */"`, `'/'`, "\"\"\"\n        // not a comment in a text block\n        /* nor this */\n        \"\"\"", `"a \" // not a comment after an escaped quote"`},
+	"unicode.java.txt":   {`"héllo // ✓"`},
+	"crlf.java.txt":      {`"// not a comment"`},
+	"canary.java.txt":    {`"// not a comment"`},
+	"literals.cs.txt":    {`"// not a comment"`, `@"/* not a comment */"`, `$"{1} // not a comment in an interpolated string"`, `'/'`, "\"\"\"\n        // not a comment in a raw string\n        \"\"\"", `@"a "" // not a comment after an escaped quote"`},
+	"unicode.cs.txt":     {`"héllo // ✓"`},
+	"crlf.cs.txt":        {`"// not a comment"`},
+	"canary.cs.txt":      {`"// not a comment"`},
+	"literals.c.txt":     {`"// not a comment"`, `"/* not a comment */"`, `'/'`, `"a \" // not a comment after an escaped quote"`, `"/* not a comment in a macro */"`},
+	"preprocessor.c.txt": {`"/* not a comment */"`, `u"Katakana; NFKC"`, `'/'`},
+	"unicode.c.txt":      {`"héllo // ✓"`},
+	"crlf.c.txt":         {`"// not a comment"`},
+	"canary.c.txt":       {`"// not a comment"`},
+	"literals.cpp.txt":   {`"// not a comment"`, `R"(/* not a comment */)"`, "R\"delim(\n// not a comment in a raw string\n)delim\"", `u8"// not a comment either"`, `'/'`},
+	"unicode.cpp.txt":    {`"héllo // ✓"`},
+	"crlf.cpp.txt":       {`"// not a comment"`},
+	"canary.cpp.txt":     {`R"(// not a comment)"`},
 }
 
 // directiveFixtures names, per language, a fixture of directives alone that
@@ -68,6 +77,7 @@ var directiveFixtures = map[string]string{
 	"rust":       "directives.rs.txt",
 	"java":       "directives.java.txt",
 	"csharp":     "directives.cs.txt",
+	"c":          "directives.c.txt",
 }
 
 // declaredFixtures names, per language, a fixture carrying declaredDirectives,
@@ -83,6 +93,8 @@ var declaredFixtures = map[string]struct {
 	"rust":       {"declared.rs.txt", 5},
 	"java":       {"declared.java.txt", 5},
 	"csharp":     {"declared.cs.txt", 5},
+	"c":          {"declared.c.txt", 5},
+	"cpp":        {"declared.cpp.txt", 5},
 }
 
 // generatedFixtures names, per language, the fixtures a generator's header
@@ -95,6 +107,8 @@ var generatedFixtures = map[string][]string{
 	"rust":       {"generated.rs.txt"},
 	"java":       {"generated.java.txt"},
 	"csharp":     {"generated.cs.txt"},
+	"c":          {"generated.c.txt"},
+	"cpp":        {"generated.cpp.txt"},
 }
 
 // unparsed holds, per language, a file with a syntax error on its second line.
@@ -652,6 +666,101 @@ var csharpDocSubjects = []string{
 	"enum/Kind doc=true",
 	"enum/Kind/Text doc=true",
 	"record/Point doc=true",
+}
+
+func TestProseP1_c(t *testing.T) {
+	proseP1(t, "c")
+	proseSubjects(t, "c", "doc.c.txt", cDocSubjects)
+
+	t.Run("Doxygen commands are placeholders", func(t *testing.T) {
+		got, err := newProvider(t, "c").Locate("doc.c", fixtureBytes(t, "c", "doc.c.txt"))
+		require.NoError(t, err)
+		parse := commentOn(t, got, "func/parse")
+		assert.Equal(t, []string{"\\param text ", "\\return "}, placeholders(parse.Runs))
+		assert.Equal(t, "Parses the input.\n\nthe text to read\nthe number of blocks", model.RunsText(parse.Runs))
+		header := got.Comments[0]
+		assert.Equal(t, []string{"@file parser.h", "@brief "}, placeholders(header.Runs), "a file command names a file")
+	})
+
+	t.Run("a comment on a preprocessor directive's line is read from the directive", func(t *testing.T) {
+		src := fixtureBytes(t, "c", "preprocessor.c.txt")
+		got, err := comments.Locate("c", "preprocessor.c", src)
+		require.NoError(t, err)
+		var texts []string
+		for _, c := range got.Comments {
+			texts = append(texts, string(src[c.Start:c.End]))
+		}
+		assert.Contains(t, texts, "// after an object macro", "the grammar folds this comment into the macro's value")
+		assert.Contains(t, texts, "// after a string holding a marker")
+		assert.NotContains(t, texts, "/* not a comment */", "a marker inside the macro's string is content")
+	})
+}
+
+// cDocSubjects are the subjects and doc flags doc.c declares.
+var cDocSubjects = []string{
+	"comment doc=false",
+	"comment doc=false",
+	"macro/PARSER_LIMIT doc=true",
+	"type/point_t doc=true",
+	"type/point_t/comment doc=false",
+	"type/point_t/y doc=true",
+	"enum/kind doc=true",
+	"enum/kind/KIND_TEXT doc=true",
+	"enum/kind/comment doc=false",
+	"func/parse doc=true",
+	"var/count doc=false",
+	"func/parser_free doc=true",
+	"func/parser_free/comment doc=false",
+}
+
+func TestProseP1_cpp(t *testing.T) {
+	proseP1(t, "cpp")
+	proseSubjects(t, "cpp", "doc.cpp.txt", cppDocSubjects)
+
+	t.Run("a header the grammar cannot parse whole is located", func(t *testing.T) {
+		src := fixtureBytes(t, "cpp", "macros.hpp.txt")
+		got, err := comments.Locate("cpp", "macros.hpp", src)
+		require.NoError(t, err, "macros and a brace split across #ifdef branches leave syntax errors in the tree")
+		require.Len(t, got.Comments, 1)
+		assert.Equal(t, "func/kapi_free", got.Comments[0].Subject)
+		assert.True(t, got.Comments[0].Doc)
+		require.Len(t, got.Excluded, 1)
+		assert.Equal(t, "label", got.Excluded[0].Form, "the comment on the closing brace names the block it closes")
+	})
+
+	t.Run("closing labels are set aside, and each directive form is too", func(t *testing.T) {
+		src := fixtureBytes(t, "cpp", "directives.cpp.txt")
+		got, err := comments.Locate("cpp", "directives.cpp", src)
+		require.NoError(t, err)
+		assert.Empty(t, got.Comments)
+		for _, form := range comments.DirectiveForms("cpp") {
+			if form != "clang-format" && form != "label" {
+				continue
+			}
+			t.Run("must fail: without "+form, func(t *testing.T) {
+				without, err := comments.LocateWithout("cpp", "directives.cpp", src, form)
+				require.NoError(t, err)
+				assert.NotEmpty(t, without.Comments)
+			})
+		}
+	})
+}
+
+// cppDocSubjects are the subjects and doc flags doc.cpp declares.
+var cppDocSubjects = []string{
+	"comment doc=false",
+	"namespace/kapi/class/Parser doc=true",
+	"namespace/kapi/class/Parser/Parser doc=true",
+	"namespace/kapi/class/Parser/run doc=true",
+	"namespace/kapi/class/Parser/stop doc=true",
+	"namespace/kapi/class/Parser/comment doc=false",
+	"namespace/kapi/class/Parser/source_ doc=false",
+	"namespace/kapi/enum/Kind doc=true",
+	"namespace/kapi/enum/Kind/Text doc=true",
+	"namespace/kapi/func/largest doc=true",
+	"namespace/kapi/type/Path doc=true",
+	"func/kapi::Parser::run doc=true",
+	"func/kapi::Parser::run/comment doc=false",
 }
 
 // proseSubjects holds a language's comments to the subjects a fixture

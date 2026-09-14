@@ -3,6 +3,7 @@ package comments
 import (
 	"bytes"
 	"regexp"
+	"slices"
 	"strings"
 
 	ts "github.com/tree-sitter/go-tree-sitter"
@@ -86,6 +87,17 @@ type syntax struct {
 	// comments on its first lines hold it, beside the phrases every language
 	// shares.
 	generated *regexp.Regexp
+	// docCommands reports that a documentation comment's tags may open with a
+	// backslash as well as `@`, as Doxygen's `\param` does.
+	docCommands bool
+	// preprocessor, when set, returns where a file's preprocessor directives
+	// sit and the comments lexed from them. A comment the tree places inside a
+	// directive is read from the directive's bytes instead, since the grammar
+	// can fold a comment into a directive's text.
+	preprocessor func(src []byte) (directives [][2]int, units []unit)
+	// tolerant reports that a file whose tree holds syntax errors is still
+	// located.
+	tolerant bool
 }
 
 // scanner builds one file's comments.
@@ -100,23 +112,40 @@ type scanner struct {
 
 func newScanner(lang *Language, src []byte, root *ts.Node) *scanner {
 	s := &scanner{lang: lang, src: src, root: root, idx: format.NewLineIndex(src), out: &comment.File{Language: lang.Name}}
+	var directives [][2]int
+	var lexed []unit
+	if lang.syntax.preprocessor != nil {
+		directives, lexed = lang.syntax.preprocessor(src)
+	}
 	c := root.Walk()
 	defer c.Close()
+walk:
 	for {
 		n := c.Node()
 		if u, ok := lang.syntax.unit(n, src); ok {
-			u.node = n
-			u.fullLine = s.startsLine(u.start)
-			s.units = append(s.units, u)
+			if !within(directives, u.start) {
+				u.node = n
+				u.fullLine = s.startsLine(u.start)
+				s.units = append(s.units, u)
+			}
 		} else if c.GotoFirstChild() {
 			continue
 		}
 		for !c.GotoNextSibling() {
 			if !c.GotoParent() {
-				return s
+				break walk
 			}
 		}
 	}
+	if len(lexed) > 0 {
+		for _, u := range lexed {
+			u.node = root.NamedDescendantForByteRange(uint(u.start), uint(u.start))
+			u.fullLine = s.startsLine(u.start)
+			s.units = append(s.units, u)
+		}
+		slices.SortFunc(s.units, func(a, b unit) int { return a.start - b.start })
+	}
+	return s
 }
 
 // startsLine reports whether only spaces and tabs precede offset on its line.
@@ -250,7 +279,7 @@ func (s *scanner) comment(units []unit, texts []commentText, subject string, doc
 		lines = append(lines, t.lines...)
 	}
 	docBlock := units[0].kind.doc() || units[0].kind.innerDoc()
-	runs, deprecated := buildRuns(trimBlankLines(lines), docBlock && s.lang.syntax.docTags, docBlock && s.lang.syntax.markup)
+	runs, deprecated := buildRuns(trimBlankLines(lines), docBlock && s.lang.syntax.docTags, docBlock && s.lang.syntax.markup, docBlock && s.lang.syntax.docCommands)
 	s.out.Comments = append(s.out.Comments, comment.Comment{
 		Start:      start,
 		End:        end,
@@ -372,6 +401,8 @@ type commentText struct {
 	raw string
 	// line is the line the comment starts on.
 	line int
+	// before is the code ahead of the comment on its line, trimmed.
+	before string
 	// lines is the content, one string per line.
 	lines []string
 }
@@ -409,7 +440,8 @@ func (t commentText) first() string {
 // lines are then dedented to their shared indentation.
 func (s *scanner) text(u unit) commentText {
 	raw := string(s.src[u.start:u.end])
-	t := commentText{kind: u.kind, raw: raw, line: s.idx.Range(u.start, u.end).First}
+	lineStart := bytes.LastIndexByte(s.src[:u.start], '\n') + 1
+	t := commentText{kind: u.kind, raw: raw, line: s.idx.Range(u.start, u.end).First, before: strings.TrimSpace(string(s.src[lineStart:u.start]))}
 	body := raw[u.open : len(raw)-u.close]
 	switch u.kind {
 	case kindLine, kindDocLine, kindInnerDocLine, kindShebang:
