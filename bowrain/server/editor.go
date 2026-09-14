@@ -1117,8 +1117,18 @@ func editorMemoryTranslate(ctx context.Context, cs store.ContentStore, wsStores 
 
 	parts := storedBlocksToParts(storedBlocks)
 
+	// The rules the workspace terms impose, the derivation the translate jobs
+	// use, so a match that breaks one is left untranslated here as it is there.
+	var rules []coreprofile.TermRule
+	if tb, terr := wsStores.getTerms(ws); terr == nil {
+		rules, err = jobs.TermRulesFromConcepts(ctx, tb, projectID, proj.DefaultSourceLanguage, model.LocaleID(targetLocale))
+		if err != nil {
+			slog.WarnContext(ctx, "terms read failed; recycling without term rules", "project_id", projectID, "error", err)
+		}
+	}
+
 	//nolint:contextcheck // the recycle tool threads its operation context through the tool VariantView, not this constructor
-	memoryTool := leverage.NewTool(tm, proj.DefaultSourceLanguage, model.LocaleID(targetLocale), 0)
+	memoryTool := leverage.NewTool(tm, proj.DefaultSourceLanguage, model.LocaleID(targetLocale), 0, rules)
 
 	outParts, err := tool.RunOnParts(ctx, memoryTool, parts)
 	if err != nil {

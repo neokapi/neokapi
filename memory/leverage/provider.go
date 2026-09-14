@@ -22,6 +22,7 @@ import (
 	"github.com/neokapi/neokapi/core/edit"
 	corememory "github.com/neokapi/neokapi/core/memory"
 	"github.com/neokapi/neokapi/core/model"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/memory"
@@ -33,13 +34,16 @@ import (
 // candidates). fuzzyThreshold is the 0-100 lookup floor; a non-positive value
 // keeps the tool's default. This is the one constructor both the kapi CLI and
 // the bowrain platform build recycle from, so a recycled target is stamped the
-// same way everywhere.
-func NewTool(tm memory.ContentMemory, source, target model.LocaleID, fuzzyThreshold int) tool.Tool {
+// same way everywhere. termRules are the term rules governing the blocks the
+// tool runs over: a match that breaks one is recorded and not filled, so the
+// unit goes to the drafter. nil means no terms govern them.
+func NewTool(tm memory.ContentMemory, source, target model.LocaleID, fuzzyThreshold int, termRules []coreprofile.TermRule) tool.Tool {
 	cfg := &tools.MemoryLeverageConfig{}
 	cfg.Reset()
 	cfg.SourceLocale = source
 	cfg.TargetLocale = target
 	cfg.Memory = NewProvider(tm)
+	cfg.TermRules = termRules
 	if fuzzyThreshold > 0 {
 		cfg.FuzzyThreshold = fuzzyThreshold
 	}

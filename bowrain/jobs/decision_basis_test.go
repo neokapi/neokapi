@@ -151,7 +151,7 @@ func TestRecycleBlocks_PartitionsOnTheRecordedBasis(t *testing.T) {
 	rows := []*venue.StoredBlock{
 		stored[basisStaleSource], stored[basisUnrecordedSource], stored[basisFreshSource],
 	}
-	res, err := recycleBlocks(ctx, tm, rows, "en", "fr", 1.0, ledger)
+	res, err := recycleBlocks(ctx, tm, rows, "en", "fr", 1.0, ledger, nil)
 	require.NoError(t, err)
 
 	require.Len(t, res.filled, 1, "only the stale unit is a candidate, and the corpus answers it")
@@ -174,7 +174,7 @@ func TestRecycleBlocks_StaleWithNoCorpusAnswerGoesToAI(t *testing.T) {
 
 	tm := fwmemory.NewInMemoryStore()
 
-	res, err := recycleBlocks(ctx, tm, []*venue.StoredBlock{stored[basisStaleSource]}, "en", "fr", 1.0, ledger)
+	res, err := recycleBlocks(ctx, tm, []*venue.StoredBlock{stored[basisStaleSource]}, "en", "fr", 1.0, ledger, nil)
 	require.NoError(t, err)
 
 	assert.Zero(t, res.memoryCount)
@@ -193,7 +193,7 @@ func TestEstimateConvergence_PricesTheRunsOwnPredicate(t *testing.T) {
 	proj, err := f.cs.GetProject(ctx, f.projectID)
 	require.NoError(t, err)
 
-	est, err := EstimateConvergence(ctx, f.cs, nil, proj)
+	est, err := EstimateConvergence(ctx, f.cs, nil, nil, proj)
 	require.NoError(t, err)
 
 	require.Len(t, est.Locales, 1)
@@ -372,7 +372,7 @@ func TestDecisionLedger_NeedsDraft_DraftedStaleUnitWaitsOnReview(t *testing.T) {
 
 	proj, err := f.cs.GetProject(ctx, f.projectID)
 	require.NoError(t, err)
-	est, err := EstimateConvergence(ctx, f.cs, nil, proj)
+	est, err := EstimateConvergence(ctx, f.cs, nil, nil, proj)
 	require.NoError(t, err)
 	assert.Equal(t, 1, est.Totals.Pending, "the quote prices the re-draft")
 
@@ -388,7 +388,7 @@ func TestDecisionLedger_NeedsDraft_DraftedStaleUnitWaitsOnReview(t *testing.T) {
 	assert.Equal(t, state.SourceHash("Colour picker (the wording before the fix)"), rec.ContentHash)
 	assert.Equal(t, state.SourceHash(basisStaleSource), rec.draftBasis)
 
-	est, err = EstimateConvergence(ctx, f.cs, nil, proj)
+	est, err = EstimateConvergence(ctx, f.cs, nil, nil, proj)
 	require.NoError(t, err)
 	assert.Zero(t, est.Totals.Pending, "the quote owes nothing for a unit awaiting review")
 
@@ -537,7 +537,7 @@ func TestDecisionLedger_NeedsDraft_RejectedUnitOwesADraft(t *testing.T) {
 
 	proj, err := f.cs.GetProject(ctx, f.projectID)
 	require.NoError(t, err)
-	est, err := EstimateConvergence(ctx, f.cs, nil, proj)
+	est, err := EstimateConvergence(ctx, f.cs, nil, nil, proj)
 	require.NoError(t, err)
 	assert.Equal(t, 2, est.Totals.Pending, "the quote prices the stale unit and the refused one")
 
@@ -550,7 +550,7 @@ func TestDecisionLedger_NeedsDraft_RejectedUnitOwesADraft(t *testing.T) {
 	rec = ledger[decisionUnitKey{item: f.item, unit: "fresh", variant: "fr"}]
 	assert.Equal(t, venue.ReviewStateRejected, rec.ReviewState, "the verdict is still the reviewer's")
 
-	est, err = EstimateConvergence(ctx, f.cs, nil, proj)
+	est, err = EstimateConvergence(ctx, f.cs, nil, nil, proj)
 	require.NoError(t, err)
 	assert.Equal(t, 1, est.Totals.Pending, "the quote owes nothing more for the refused unit")
 

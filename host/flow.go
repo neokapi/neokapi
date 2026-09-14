@@ -2450,8 +2450,8 @@ func (a *App) applyBindingsFor(b *ProjectBindings, toolName string, s *schema.Co
 
 	// Voice profile → translate steps, recycle and the AI review. Translate
 	// consumes it as prompt guidance; recycle does not consult it, but stamps it
-	// (with the term rules below) onto every target it fills so a recycled
-	// target is as attributable to the governing context as a translated one;
+	// onto every target it fills so a recycled target is as attributable to the
+	// governing context as a translated one;
 	// review judges against it, so the score answers the same question the
 	// voice checks ask rather than a generic one about accuracy and fluency.
 	if b.profile != nil && (isTranslateTool(toolName, s) || isMemoryRecycleTool(toolName, s) ||
@@ -2490,9 +2490,10 @@ func (a *App) applyBindingsFor(b *ProjectBindings, toolName string, s *schema.Co
 	// above, rather than by adding Terms to translate's Requires, which gates
 	// nothing else and would imply a terms store is mandatory.
 	//
-	// One key, one shape, three tools: each takes the rule list and projects it
-	// for itself (a prompt line, a check, a stamped fingerprint), so no tool has
-	// to guess what a caller meant by a bare map.
+	// One key, one shape, every tool below: each takes the rule list and projects
+	// it for itself (a prompt line, a check, a fill recycle refuses and the
+	// fingerprint it stamps), so no tool has to guess what a caller meant by a
+	// bare map.
 	if len(b.termRules) > 0 && (ToolRequires(s, schema.RequiresTerms) ||
 		isTranslateTool(toolName, s) || isMemoryRecycleTool(toolName, s) ||
 		isPseudoTranslateTool(toolName, s) || isDNTCheckTool(toolName, s) ||
