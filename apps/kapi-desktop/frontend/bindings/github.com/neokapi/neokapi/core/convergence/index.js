@@ -10,6 +10,7 @@ export {
     ReviewLanguage,
     ReviewQueue,
     ReviewQueueItem,
+    ShipState,
     SourceCoverage,
     StallReason
 } from "./models.js";

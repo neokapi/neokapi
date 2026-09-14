@@ -203,6 +203,18 @@ threshold on quantity, and no threshold makes a translation of a rewritten
 sentence shippable. An ungated project is precisely the one with nothing else to
 catch it.
 
+A scope's verdict therefore takes one of three ship states, decided once in the
+coverage rollup and read by every surface that reports one. A scope is
+**shippable** when a ship gate matches it, it clears the gate, and nothing
+withholds it. It is **withheld** when it is short of a matching gate or a
+withhold applies: stale wording, a rejected translation, a failing check, or a
+unit the terms govern with no terminology result. It is **not gated** when no gate
+matches and nothing withholds. A not-gated scope carries no shippable claim:
+`kapi status` and `kapi up` name it not gated, and `ship.json` records
+`state: not_gated`. It keeps the two-field reading `gated: false`,
+`shippable: true`, so a consumer that reads only `shippable` offers it. A locale
+spread over several collections takes the weakest state among them.
+
 **Stale is work, not only a report.** The convergence fan-out treats a
 basis-stale unit exactly as it treats one with no translation at all: it is in
 the pending set on any scope (gated or not, since the `draft` tally would

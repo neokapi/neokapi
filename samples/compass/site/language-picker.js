@@ -4,8 +4,10 @@
 //
 //     kapi status --ship --emit site/ship.json
 //
-// and is a map of locale → {shippable, verified}. The two flags are independent
-// gates, and each one means something a reader can act on:
+// and is a map of locale → {shippable, verified, state}. The two flags are
+// independent gates, and each one means something a reader can act on. The state
+// names the gate standing: shippable, withheld, or not_gated where no ship gate
+// matches, which this recipe never produces because it gates every language.
 //
 //   shippable && verified   the locale is offered, unmarked. A person reviewed it.
 //   shippable && !verified  the locale is offered, marked AI. It clears the ship

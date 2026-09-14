@@ -11,6 +11,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/core/convergence"
 )
 
 // ShipFeedProperty is the project property that opts a project into the public
@@ -31,6 +32,11 @@ const shipFeedCacheMaxAge = 60 * time.Second
 type shipManifestEntry struct {
 	Shippable bool `json:"shippable"`
 	Verified  bool `json:"verified"`
+	// State is the locale's ship state in the vocabulary ship.json uses
+	// (host.ShipEntry.State): shippable or withheld. The server holds every
+	// locale to the bar store.DeriveShipState applies, so no locale here is
+	// not_gated.
+	State convergence.ShipState `json:"state"`
 	// NotGoverned names the dimensions that govern nothing in the locale
 	// ("terms"), as host.ShipEntry does, so a picker never reads an ungoverned
 	// locale as a governed one.
@@ -105,9 +111,10 @@ func (s *Server) shipDashboardStats(ctx context.Context, proj *store.Project, st
 
 // shipManifestFromStats projects the project-wide per-locale ship states to the
 // picker manifest. shippable means the locale ships on at least machine review
-// (governed, approved or ai_shippable); verified means it is human-reviewed
-// (governed or approved). not_governed names terminology when the locale's
-// compliance basis leaves it out.
+// (governed, approved or ai_shippable), and state is shippable for those and
+// withheld otherwise; verified means it is human-reviewed (governed or
+// approved). not_governed names terminology when the locale's compliance basis
+// leaves it out.
 // The project-wide LocaleStats already carry the weakest-scope answer — governed
 // requires every block approved — so this matches the CLI's per-collection
 // BuildShipManifest without re-deriving per collection.
@@ -118,6 +125,10 @@ func shipManifestFromStats(stats *store.TranslationDashboardStats) map[string]sh
 			Shippable: ls.ShipState == store.ShipStateGoverned || ls.ShipState == store.ShipStateApproved ||
 				ls.ShipState == store.ShipStateAIShippable,
 			Verified: ls.ShipState == store.ShipStateGoverned || ls.ShipState == store.ShipStateApproved,
+			State:    convergence.ShipStateWithheld,
+		}
+		if entry.Shippable {
+			entry.State = convergence.ShipStateShippable
 		}
 		if ls.ComplianceBasis != "" && !ls.ComplianceBasis.GovernsTerms() {
 			entry.NotGoverned = []string{"terms"}

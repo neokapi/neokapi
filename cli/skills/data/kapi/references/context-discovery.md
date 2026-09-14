@@ -155,8 +155,9 @@ kapi check --ship --json     # voice + terminology (+ rule-based) gates: all gre
 The recipe carries the bindings; the thresholds ride on the check itself: the
 voice gate's score bar is `--min-score` (default 80), not a recipe field, and a
 translation-coverage bar is an optional top-level `ship_gate:` (see
-[translate.md](translate.md)). Say which of these the project's CI should run,
-and on what: a check nobody runs governs nothing.
+[translate.md](translate.md)). Without one, `kapi status` and `kapi up` report
+each language as not gated rather than shippable. Say which of these the
+project's CI should run, and on what: a check nobody runs governs nothing.
 
 Commit the context: the recipe and all of `.kapi/`, the voice profile, the
 sources under `.kapi/`, any imported term list, and `.kapi/state/`. Only

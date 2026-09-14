@@ -586,6 +586,21 @@ bar a locale must clear to be reported as *verified* (by `kapi status --ship`
 and the ship-aware language picker), and a locale can ship without meeting it.
 With neither verified key set, no locale is verified.
 
+A scope no ship gate rule matches is *not gated*. `kapi status` and `kapi up`
+name it not gated rather than shippable, and `kapi status --ship` records
+`"state": "not_gated"` for its locale. Nothing holds a not-gated scope back on
+coverage, so `kapi up` delivers it under `materialize: on-converge` and a
+language picker offers it. Stale wording, a translation a reviewer turned down,
+a failing check, or terms that were not checked withhold a scope whether or not
+a gate matches it. Each scope reads as one of three
+[ship states](/kapi/convergence#ship-states):
+
+| State       | When                                                                                                   |
+| ----------- | ------------------------------------------------------------------------------------------------------ |
+| `shippable` | A ship gate matches the scope and the scope clears it, with nothing withholding it                     |
+| `withheld`  | The scope is short of a matching gate, or stale, rejected, failing or unchecked content holds it back |
+| `not_gated` | No ship gate matches the scope, and nothing withholds it                                               |
+
 ### Gate and thresholds
 
 A gate maps a lifecycle state to a threshold. A scope clears the gate when, for

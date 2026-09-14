@@ -14,12 +14,20 @@ type (
 	// Kapi Desktop.
 	ConvergenceReport = convergence.Report
 	LocaleCoverage    = convergence.LocaleCoverage
+	ShipState         = convergence.ShipState
 	SourceCoverage    = convergence.SourceCoverage
 	ReviewQueueItem   = convergence.ReviewQueueItem
 	// ReviewQueue is one queue across every language, with the per-language
 	// pending counts beside it (alias of convergence.ReviewQueue).
 	ReviewQueue    = convergence.ReviewQueue
 	ReviewLanguage = convergence.ReviewLanguage
+)
+
+// The three ship states a scope reports (convergence.ShipState).
+const (
+	ShipStateShippable = convergence.ShipStateShippable
+	ShipStateWithheld  = convergence.ShipStateWithheld
+	ShipStateNotGated  = convergence.ShipStateNotGated
 )
 
 // Per-block ladder helpers, framework-owned. Kept as package-level aliases so the

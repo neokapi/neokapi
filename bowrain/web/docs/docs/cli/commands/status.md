@@ -24,8 +24,9 @@ One row per scope, a locale or a `locale/collection` pair, with the number of
 units, one column per rung of the target ladder (the share of units that have
 reached drafting, translation, review), a pipeline bar showing distance to the
 bar, and a **ship** column. Ship is a verdict rather than a percentage: it
-reads `ready` when the scope clears its gate and `blocked: <rung>` naming the
-first unmet gate, so it points at the work. Units an autonomous AI approved
+reads `ready` when the scope clears its gate, `blocked: <rung>` naming the
+first unmet gate so it points at the work, or `not gated` when no ship gate
+matches the scope. Units an autonomous AI approved
 are counted under review and qualified as such, because gates only count them
 under an `any` approver class.
 
@@ -69,7 +70,7 @@ declared but the bowrain plugin is missing).
 | `--source-lang`  | Source language (overrides the project's `source_language`)                 |
 | `--review`       | List the units awaiting review in every language, the source language among them, instead of the grid; approve a translated one with `kapi apply` |
 | `--lang <tag>`   | With `--review`, list only these languages (repeatable, or comma-separated) |
-| `--ship`         | Emit the minimal `ship.json` manifest (locale → shippable, verified, and any dimension that governs nothing there) instead of the grid: the shape a language picker consumes to hide locales that are not shippable and badge those shipped on machine review |
+| `--ship`         | Emit the minimal `ship.json` manifest (locale → shippable, verified, state, and any dimension that governs nothing there) instead of the grid: the shape a language picker consumes to hide locales that are not shippable and badge those shipped on machine review |
 | `--emit <path>`  | With `--ship`, write the manifest to this path instead of stdout            |
 | `--json`         | Output the structured result as JSON                                        |
 

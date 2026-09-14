@@ -29,11 +29,16 @@ func covRow(locale string, g gate.Gate, states ...string) LocaleCoverage {
 	if len(g) == 0 {
 		lc.Shippable = true
 		lc.ShipProgress = 100
+		lc.ShipState = ShipStateNotGated
 		return lc
 	}
 	res := gate.Evaluate(g, cov, ladder)
 	lc.Gated = true
 	lc.Shippable = res.Pass
+	lc.ShipState = ShipStateWithheld
+	if res.Pass {
+		lc.ShipState = ShipStateShippable
+	}
 	lc.Pending = res.Shortfalls
 	lc.ShipProgress = res.Progress
 	lc.Blocking = res.Blocking

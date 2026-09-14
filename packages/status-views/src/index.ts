@@ -11,6 +11,7 @@ export type {
   ConvergencePassView,
   ConvergenceLocaleRow,
   LocaleRowState,
+  ConvergenceLocaleOutcome,
   ConvergenceOutcome,
   ConvergenceRunHeader,
   ParkedScope,

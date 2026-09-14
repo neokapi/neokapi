@@ -122,6 +122,22 @@ The source ladder has its own optional bar, `source_gate` (e.g.
 A gate never fails an ordinary build. Target-language drift is expected work,
 and a gate is a **release** check you opt into (see below).
 
+### Three ship states {#ship-states}
+
+Every scope reads as one of three states against the ship gates:
+
+| State | What it means |
+| --- | --- |
+| **shippable** | A ship gate matches the scope and the scope clears it. |
+| **withheld** | The scope does not ship. It is short of its gate, or it holds stale wording, a translation a reviewer turned down, a failing check, or terms that were not checked. These hold a scope back whether or not a gate matches it. |
+| **not gated** | No ship gate matches the scope, and nothing withholds it. |
+
+A project with no `ship_gate` or `ship_gates` has only withheld and not-gated
+scopes. `kapi status` and `kapi up` name those scopes *not gated* rather than
+*shippable*, and a `kapi up` run that converges says that no ship gates are
+declared. Nothing withholds a not-gated scope, so a language picker offers it by
+default.
+
 ### Approver classes: who counts as a reviewer {#approver-classes}
 
 *Reviewed* and *signed-off* are approval rungs: someone approved this exact

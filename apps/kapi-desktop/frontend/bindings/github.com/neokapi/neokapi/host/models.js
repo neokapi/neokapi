@@ -915,7 +915,7 @@ export class ConvergeLocaleResult {
         }
         if (!("shippable" in $$source)) {
             /**
-             * every scope for this locale clears its ship gate
+             * no scope for this locale is withheld
              * @member
              * @type {boolean}
              */
@@ -944,6 +944,25 @@ export class ConvergeLocaleResult {
              * @type {{ [_ in string]?: number } | undefined}
              */
             this["pct"] = undefined;
+        }
+        if (!("shipState" in $$source)) {
+            /**
+             * ShipState folds the locale's scopes into one standing: withheld when any
+             * scope is withheld, shippable when every scope is gated and clears its gate,
+             * and not_gated otherwise. A locale with content no ship gate matches makes
+             * no shippable claim for it.
+             * @member
+             * @type {ShipState}
+             */
+            this["shipState"] = convergence$0.ShipState.$zero;
+        }
+        if (!("gated" in $$source)) {
+            /**
+             * Gated reports whether a ship gate matches any of the locale's scopes.
+             * @member
+             * @type {boolean}
+             */
+            this["gated"] = false;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -1048,7 +1067,7 @@ export class ConvergeOutput {
         }
         if (!("converged" in $$source)) {
             /**
-             * every gated scope is shippable
+             * no scope is withheld: every gated scope clears its gate
              * @member
              * @type {boolean}
              */
@@ -1321,6 +1340,16 @@ export const ReviewQueue = convergence$0.ReviewQueue;
  * ReviewQueue is one queue across every language, with the per-language
  * pending counts beside it (alias of convergence.ReviewQueue).
  * @typedef {convergence$0.ReviewQueue} ReviewQueue
+ */
+
+/**
+ * The convergence report MODEL and the per-block ladder helpers live in the
+ * framework (core/convergence) so any surface derives the same shape from the
+ * same rules. The CLI owns the file-IO orchestration that feeds them
+ * (UnitsFromProject, readBlocks, bilingualBlocks, the state-store review index)
+ * and re-exports the types via aliases so existing CLI + desktop callers — and
+ * the generated Wails bindings — are unchanged.
+ * @typedef {convergence$0.ShipState} ShipState
  */
 
 /**
