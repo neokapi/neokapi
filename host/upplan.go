@@ -12,6 +12,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/neokapi/neokapi/core/blockstore"
+	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
@@ -136,8 +137,15 @@ type UpPlanOutput struct {
 	// is already done — or, with UnreadTargets set, that the plan has not been
 	// able to judge it yet. The three must not read the same.
 	Monolingual bool `json:"monolingual,omitempty"`
+	// Warnings name what the plan could not price, such as a declared file in a
+	// format no installed reader opens (check.WarningFormatNoReader). A run sets
+	// that content aside.
+	Warnings []check.Warning `json:"warnings,omitempty"`
 	// Note documents the estimation method for agents reading the JSON.
 	Note string `json:"note"`
+	// readNothing says every unit the plan resolved was set aside, so an empty
+	// plan is one over nothing it could read rather than one with nothing to do.
+	readNothing bool
 }
 
 // upPlanNote is the estimation-method disclosure carried in the output.
@@ -149,11 +157,16 @@ const upPlanSubscriptionNote = "AI work runs on your Claude subscription, so the
 
 // FormatText renders the plan as a table.
 func (o UpPlanOutput) FormatText(w io.Writer) error {
+	defer writeSetAside(w, o.Warnings)
 	if o.Monolingual {
 		fmt.Fprintln(w, "No target languages configured: `kapi up` reconciles the source. It seeds the committed context, re-extracts the working tree and refreshes the occurrence graph. Nothing is translated and no provider is called.")
 		return nil
 	}
 	if len(o.Scopes) == 0 {
+		if o.readNothing && len(o.Warnings) > 0 {
+			fmt.Fprintln(w, "Nothing was priced: no installed reader opens this project's content, so a run would converge nothing.")
+			return nil
+		}
 		if o.Totals.UnreadTargets > 0 {
 			fmt.Fprintf(w, "Not priced yet: this project's store has not read its committed translations, so "+
 				"what a run would recycle, and what it would draft, is not known. `kapi up` reads them "+
@@ -228,6 +241,18 @@ func (o UpPlanOutput) FormatText(w io.Writer) error {
 	}
 	fmt.Fprintf(w, "\n%s\n", o.Note)
 	return nil
+}
+
+// writeSetAside lists the content a plan or a run set aside because no
+// installed reader opens it, after everything else the output reports.
+func writeSetAside(w io.Writer, warnings []check.Warning) {
+	if len(warnings) == 0 {
+		return
+	}
+	fmt.Fprintln(w)
+	for _, warning := range warnings {
+		fmt.Fprintf(w, "  Set aside: %s.\n", warning.Message)
+	}
 }
 
 // runUpPlan is `kapi up --plan`: a read-only dry run of the convergence work.
@@ -333,10 +358,15 @@ func (a *App) computeProjectPlan(ctx context.Context, proj *project.KapiProject,
 		basis.memory = mem
 	}
 
+	// A collection in a format no installed reader opens is left unpriced, and
+	// the plan names it.
+	basis.unread = a.newUnreadSetFor("priced")
 	plan, err := a.computeUpPlan(ctx, basis, proj, units)
 	if err != nil {
 		return plan, err
 	}
+	plan.Warnings = basis.unread.warnings()
+	_, plan.readNothing = basis.unread.unitsSkipped(root, units)
 	plan.Monolingual = !proj.DeclaresTargetLanguages()
 	a.applyPlanProvider(&plan)
 	return plan, nil
@@ -492,6 +522,9 @@ type upPlanBasis struct {
 	// drafting step serves instead of calling out, or nil when the project has
 	// none yet: nothing is stored, so nothing is reused.
 	store blockstore.Store
+	// unread collects the units whose source no installed reader opens. The plan
+	// leaves them unpriced and names them.
+	unread *UnreadSet
 }
 
 // computeUpPlan derives the per-scope work plan from the verify units, against
@@ -523,11 +556,17 @@ func (a *App) computeUpPlan(ctx context.Context, basis upPlanBasis, proj *projec
 			if errors.Is(berr, errTargetUnreadable) {
 				continue // unmeasurable target — coverage counts it by presence
 			}
+			if basis.unread.skipUnit(nil, berr, basis.root, u) {
+				continue
+			}
 			return UpPlanOutput{}, berr
 		}
 		if missing {
 			// No target file yet: every translatable source unit is pending.
 			srcs, serr := a.readSource(ctx, u)
+			if basis.unread.skipUnit(nil, serr, basis.root, u) {
+				continue
+			}
 			if serr != nil {
 				return UpPlanOutput{}, serr
 			}

@@ -247,6 +247,13 @@ func (a *App) MergeFromProjectStore(cmd Command) error {
 // the materialize policy (defaults.materialize / --materialize) says so.
 // Returns the number of files written.
 func (a *App) materializeFromProjectStore(ctx context.Context, out io.Writer, proj *project.KapiProject, projectPath string, locales []model.LocaleID, noMemoryUpdate bool) (int, error) {
+	return a.materializeProject(ctx, out, proj, projectPath, locales, noMemoryUpdate, nil)
+}
+
+// materializeProject is materializeFromProjectStore for a run that set content
+// aside: the files unread names were never read, so the run produced nothing
+// for them and writes nothing for them.
+func (a *App) materializeProject(ctx context.Context, out io.Writer, proj *project.KapiProject, projectPath string, locales []model.LocaleID, noMemoryUpdate bool, unread *UnreadSet) (int, error) {
 	pctx := project.NewProjectContext(proj, projectPath)
 	layout, err := project.LayoutFor(projectPath)
 	if err != nil {
@@ -272,10 +279,11 @@ func (a *App) materializeFromProjectStore(ctx context.Context, out io.Writer, pr
 	if err != nil {
 		return 0, fmt.Errorf("merge: resolve project content: %w", err)
 	}
-	// A file declared for its comments alone has no target to materialize.
+	// A file declared for its comments alone has no target to materialize, and
+	// neither has a file the run set aside.
 	kept := files[:0]
 	for _, f := range files {
-		if !f.CommentsOnly() {
+		if !f.CommentsOnly() && !unread.holds(relativeToRoot(filepath.Dir(projectPath), f.Path)) {
 			kept = append(kept, f)
 		}
 	}

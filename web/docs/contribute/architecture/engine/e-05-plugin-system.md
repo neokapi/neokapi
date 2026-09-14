@@ -305,8 +305,8 @@ A collection can name a format that a plugin supplies. The same recipe therefore
 reads on a machine with the plugin installed and fails to read on one without it.
 Every command that works over the project's declared content has to handle
 that: `kapi status`, a bare `kapi check`, `kapi check --ship`, a check scoped to
-a diff, the source settle inside `kapi up`, and the Checks panel in Kapi
-Desktop. Each may find that one collection out of twenty cannot be opened.
+a diff, `kapi up` and its plan, and the Checks panel in Kapi Desktop. Each may
+find that one collection out of twenty cannot be opened.
 
 They report that collection as unread and check or measure the rest. Aborting
 would make an entire project unreportable because of one optional dependency,
@@ -324,13 +324,17 @@ complete, so the unread files and their formats travel back out of the run:
   `no_reader`. The Checks panel carries the same warnings in its result and
   shows them beside the verdict.
 - Each command prints a warning on stderr naming the format, the files and the
-  plugin to install, and the source settle inside `kapi up` emits an event on
-  the convergence stream.
+  plugin to install. `kapi up` and `kapi up --plan` carry the same warnings in
+  their result, and a run emits an event on the convergence stream for each
+  format it set aside, as the source settle does for a format it could not
+  read.
 
-An unread file never counts as checked. A check that reads some of the declared
-content is decided by that content. A check, or a `--ship` gate, whose content
-was all unread did not run, with the cause `content_not_checked`, so zero
-coverage is never reported as a pass.
+An unread file never counts as checked or converged. A check that reads some of
+the declared content is decided by that content, and a run converges the
+collections it can read. A check, or a `--ship` gate, whose content was all
+unread did not run, with the cause `content_not_checked`. A `kapi up` run whose
+content was all unread fails and says nothing was converged. Zero coverage is
+never reported as a pass.
 
 Only a missing reader survives. `registry.ErrUnknownFormat` is a sentinel, so
 callers match it with `errors.Is` rather than on message text. An unknown format
@@ -339,7 +343,8 @@ broken, and that still fails the command.
 
 The skip covers files kapi finds through the recipe. A file named on the command
 line, or content read under a format named with `--format`, still fails the
-command when no reader for that format is installed.
+command when no reader for that format is installed, and so does a `kapi up`
+run given `--fail-on-unknown`.
 
 A gate written for content in a plugin format installs that plugin
 (`make check-governed-prose` stages it). Degrading applies to the project-wide
