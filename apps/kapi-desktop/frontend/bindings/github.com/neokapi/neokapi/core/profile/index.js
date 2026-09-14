@@ -10,6 +10,7 @@ export {
     ConstraintException,
     ConstraintResolution,
     ConstraintScope,
+    DensityLimits,
     FieldValueSet,
     LocaleOverride,
     Pattern,

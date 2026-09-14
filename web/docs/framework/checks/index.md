@@ -273,7 +273,12 @@ checkset):
   joined first, a blank line, a divider line, a list item, a heading or a
   documentation tag starts a new sentence, and code spans, references and links
   are not counted as words. A build without the sentence break reports the
-  sentence check as not run.
+  sentence check as not run. In a check scoped to a diff, a change that adds at
+  least the minimum number of comment lines to a file, and more comment lines
+  for each code line than the ratio allows, is a major `comment.density`
+  finding. Lines are counted from where the comment reader places each comment,
+  and the package doc comment is not counted. A check over whole files reports
+  density as unsupported.
 
 **Bilingual checks** (opt-in, with `--target`: a translated target
 against its source):

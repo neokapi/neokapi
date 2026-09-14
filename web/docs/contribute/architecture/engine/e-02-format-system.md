@@ -602,7 +602,9 @@ plugin's Java provider give that comment the subject `package`, and the Rust
 provider gives a file's inner doc comment the subject `module`. No other
 provider has one. The comment limits a voice profile sets
 ([Checks](/framework/checks#the-check-families)) read both marks to choose the
-limit a comment is held to.
+limit a comment is held to. `File.LineKinds` classifies each line of a file
+from the spans a provider located, as code, comment, package doc, set aside or
+blank, and the density limit counts a change's added lines with it.
 
 #### Default on, via an inverted opt-out
 

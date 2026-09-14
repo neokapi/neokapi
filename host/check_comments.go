@@ -87,6 +87,8 @@ func (a *App) commentsOnlyFile(path string) bool {
 // commentLayer is one file's comments, read for checking.
 type commentLayer struct {
 	blocks []*model.Block
+	// located is what the provider located, nil when the comments are unread.
+	located *comment.File
 	// extents locate each block in the file, in the order of blocks.
 	extents []format.Extent
 	// lines maps each block's location key to the lines it spans in the file.
@@ -184,7 +186,7 @@ func locateComments(file string, src []byte, p comment.Provider, directives comm
 	if err != nil {
 		return nil, fmt.Errorf("locate the comments in %s: %w", DisplayName(file), err)
 	}
-	layer := &commentLayer{blocks: located.Blocks(), extents: located.Extents(), lines: map[string]format.LineRange{}}
+	layer := &commentLayer{blocks: located.Blocks(), located: located, extents: located.Extents(), lines: map[string]format.LineRange{}}
 	for i, extent := range layer.extents {
 		layer.lines[blockKey(layer.blocks[i])] = extent.Lines
 	}

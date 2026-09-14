@@ -10,6 +10,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/neokapi/neokapi/core/comment"
+	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -26,6 +27,9 @@ const (
 	// CategoryCommentLength is a comment that holds more words than the limit
 	// for what it documents.
 	CategoryCommentLength = "length"
+	// CategoryCommentDensity is a change that adds more comment lines than its
+	// code lines allow.
+	CategoryCommentDensity = "density"
 )
 
 // CommentLimits are the word counts the comment-style checker holds comments
@@ -45,12 +49,101 @@ type CommentLimits struct {
 	// PackageDocWords is the most words the doc comment of a package or module
 	// may hold (comment.PackageDoc).
 	PackageDocWords int
+	// DensityRatio is how many comment lines a change may add for each code
+	// line it adds, and DensityMinLines is how many comment lines a change adds
+	// before the ratio applies.
+	DensityRatio    float64
+	DensityMinLines int
 }
 
 // DefaultCommentLimits are the limits that apply where a voice profile asks for
 // comment limits and names no number of its own.
 func DefaultCommentLimits() CommentLimits {
-	return CommentLimits{SentenceMinor: 50, SentenceMajor: 70, CommentWords: 100, DocWords: 150, PackageDocWords: 300}
+	return CommentLimits{
+		SentenceMinor: 50, SentenceMajor: 70,
+		CommentWords: 100, DocWords: 150, PackageDocWords: 300,
+		DensityRatio: 1, DensityMinLines: 8,
+	}
+}
+
+// ChangeLines counts the lines a change added to one file by what they hold.
+type ChangeLines struct {
+	// Comment and Code are how many comment lines and code lines it added. A
+	// line of the package doc comment, a line a provider set aside, such as a
+	// directive, and a blank line count as neither.
+	Comment, Code int
+	// First and Last are the first and last comment lines it added, zero when
+	// it added none.
+	First, Last int
+}
+
+// CountChangeLines counts the lines added covers by kind, where kinds is the
+// file's comment.File.LineKinds and added are the post-image line ranges a
+// change added.
+func CountChangeLines(kinds []comment.LineKind, added []format.LineRange) ChangeLines {
+	var n ChangeLines
+	seen := map[int]bool{}
+	for _, r := range added {
+		for line := max(r.First, 1); line <= min(r.Last, len(kinds)-1); line++ {
+			if seen[line] {
+				continue
+			}
+			seen[line] = true
+			switch kinds[line] {
+			case comment.LineCode:
+				n.Code++
+			case comment.LineComment:
+				n.Comment++
+				if n.First == 0 || line < n.First {
+					n.First = line
+				}
+				n.Last = max(n.Last, line)
+			}
+		}
+	}
+	return n
+}
+
+// CommentDensityFindings reports a change that adds at least DensityMinLines
+// comment lines and more than DensityRatio comment lines for each code line.
+// The finding is major.
+func CommentDensityFindings(lines ChangeLines, limits CommentLimits) []Finding {
+	if lines.Comment < limits.DensityMinLines || float64(lines.Comment) <= limits.DensityRatio*float64(lines.Code) {
+		return nil
+	}
+	ratio := strconv.FormatFloat(limits.DensityRatio, 'f', -1, 64)
+	return []Finding{{
+		Category: CategoryCommentDensity,
+		Severity: SeverityMajor,
+		Message: fmt.Sprintf("Change adds %d comment lines and %d code lines, more than %s comment lines for each code line",
+			lines.Comment, lines.Code, ratio),
+		Metadata: map[string]string{
+			"comment_lines": strconv.Itoa(lines.Comment),
+			"code_lines":    strconv.Itoa(lines.Code),
+			"ratio":         ratio,
+			"min_lines":     strconv.Itoa(limits.DensityMinLines),
+		},
+	}}
+}
+
+// CommentDensityCanary is a Go file the density check must flag under limits
+// when a change adds every line of it: two code lines, one of them holding a
+// string that reads like a comment, and a block comment of just enough lines,
+// none of which opens with a comment marker. A check that finds comments by
+// their line markers counts it as code only.
+func CommentDensityCanary(limits CommentLimits) Canary {
+	lines := max(limits.DensityMinLines, int(limits.DensityRatio*2)+1, 3)
+	var b strings.Builder
+	b.WriteString("package canary\n\n/*\n")
+	for i := range lines - 2 {
+		fmt.Fprintf(&b, "Canary prose line %d.\n", i+1)
+	}
+	b.WriteString("*/\nfunc Canary() string { return \"// not a comment\" }\n")
+	return Canary{
+		Name:   fmt.Sprintf("a change adding a block comment of %d lines to 2 code lines", lines),
+		Block:  CanaryBlock(b.String()),
+		Expect: CategoryCommentDensity,
+	}
 }
 
 // SentenceBreak finds the sentences in a run sequence, as the UAX #29 engine

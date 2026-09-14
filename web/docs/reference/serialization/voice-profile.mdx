@@ -144,11 +144,18 @@ comment is not a word.
 | `comment_words` | int | 100 | The most words a comment that documents no declaration may hold. |
 | `doc_words` | int | 150 | The most words a declaration's doc comment may hold. |
 | `package_doc_words` | int | 300 | The most words the doc comment of a package or module may hold. |
+| `density.ratio` | number | 1 | The most comment lines a change may add for each code line it adds. |
+| `density.min_comment_lines` | int | 8 | How many comment lines a change adds before `density.ratio` applies. |
 
-A comment over a length limit is a major finding. Each limit is a positive
-number of words: a profile with a zero or negative limit, or a minor sentence
-limit that is not below the major one, fails to load with an error naming the
-key.
+A comment over a length limit is a major finding, and so is a change over the
+density limit. Density is measured in a check scoped to a diff: it counts the
+lines the change adds to each file, a comment line being one that holds a
+comment and nothing else and a code line one that holds anything outside a
+comment. The package or module doc comment, a directive and a blank line count
+as neither, so a new package's doc comment is never dense. A check over whole
+files reports density as unsupported. Each limit is a positive
+number: a profile with a zero or negative limit, or a minor sentence limit that
+is not below the major one, fails to load with an error naming the key.
 
 ```yaml
 style:

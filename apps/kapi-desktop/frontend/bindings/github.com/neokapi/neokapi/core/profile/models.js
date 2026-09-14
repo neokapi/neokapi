@@ -158,6 +158,15 @@ export class CommentRules {
              */
             this["package_doc_words"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * Density limits the comment lines a change adds for the code lines it
+             * adds. A check scoped to a diff applies it.
+             * @member
+             * @type {DensityLimits | null | undefined}
+             */
+            this["density"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }
@@ -169,9 +178,13 @@ export class CommentRules {
      */
     static createFrom($$source = {}) {
         const $$createField0_0 = $$createType7;
+        const $$createField4_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("sentence_words" in $$parsedSource) {
             $$parsedSource["sentence_words"] = $$createField0_0($$parsedSource["sentence_words"]);
+        }
+        if ("density" in $$parsedSource) {
+            $$parsedSource["density"] = $$createField4_0($$parsedSource["density"]);
         }
         return new CommentRules(/** @type {Partial<CommentRules>} */($$parsedSource));
     }
@@ -253,8 +266,8 @@ export class Constraint {
      * @returns {Constraint}
      */
     static createFrom($$source = {}) {
-        const $$createField6_0 = $$createType8;
-        const $$createField7_0 = $$createType10;
+        const $$createField6_0 = $$createType10;
+        const $$createField7_0 = $$createType12;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("scope" in $$parsedSource) {
             $$parsedSource["scope"] = $$createField6_0($$parsedSource["scope"]);
@@ -314,7 +327,7 @@ export class ConstraintException {
      * @returns {ConstraintException}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType8;
+        const $$createField0_0 = $$createType10;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("scope" in $$parsedSource) {
             $$parsedSource["scope"] = $$createField0_0($$parsedSource["scope"]);
@@ -364,8 +377,8 @@ export class ConstraintResolution {
      * @returns {ConstraintResolution}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType11;
-        const $$createField2_0 = $$createType10;
+        const $$createField0_0 = $$createType13;
+        const $$createField2_0 = $$createType12;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("constraint" in $$parsedSource) {
             $$parsedSource["constraint"] = $$createField0_0($$parsedSource["constraint"]);
@@ -424,6 +437,45 @@ export class ConstraintScope {
 }
 
 /**
+ * DensityLimits flag a change that adds at least MinCommentLines comment lines
+ * and more than Ratio comment lines for each code line.
+ */
+export class DensityLimits {
+    /**
+     * Creates a new DensityLimits instance.
+     * @param {Partial<DensityLimits>} [$$source = {}] - The source object to create the DensityLimits.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {number | null | undefined}
+             */
+            this["ratio"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {number | null | undefined}
+             */
+            this["min_comment_lines"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DensityLimits instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {DensityLimits}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new DensityLimits(/** @type {Partial<DensityLimits>} */($$parsedSource));
+    }
+}
+
+/**
  * FieldValueSet is the values a constrained field accepts, and what happens to
  * one outside them.
  */
@@ -461,7 +513,7 @@ export class FieldValueSet {
      * @returns {FieldValueSet}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType12;
+        const $$createField0_0 = $$createType14;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("values" in $$parsedSource) {
             $$parsedSource["values"] = $$createField0_0($$parsedSource["values"]);
@@ -531,8 +583,8 @@ export class LocaleOverride {
      * @returns {LocaleOverride}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType14;
-        const $$createField5_0 = $$createType16;
+        const $$createField4_0 = $$createType16;
+        const $$createField5_0 = $$createType18;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("vocabulary_overrides" in $$parsedSource) {
             $$parsedSource["vocabulary_overrides"] = $$createField4_0($$parsedSource["vocabulary_overrides"]);
@@ -618,7 +670,7 @@ export class Pattern {
      * @returns {Pattern}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType18;
+        const $$createField3_0 = $$createType20;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("rate" in $$parsedSource) {
             $$parsedSource["rate"] = $$createField3_0($$parsedSource["rate"]);
@@ -736,8 +788,8 @@ export class PersonaOverride {
     static createFrom($$source = {}) {
         const $$createField0_0 = $$createType1;
         const $$createField1_0 = $$createType3;
-        const $$createField2_0 = $$createType14;
-        const $$createField3_0 = $$createType14;
+        const $$createField2_0 = $$createType16;
+        const $$createField3_0 = $$createType16;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("tone" in $$parsedSource) {
             $$parsedSource["tone"] = $$createField0_0($$parsedSource["tone"]);
@@ -853,7 +905,7 @@ export class Rendering {
      * @returns {Rendering}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType12;
+        const $$createField1_0 = $$createType14;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("forms" in $$parsedSource) {
             $$parsedSource["forms"] = $$createField1_0($$parsedSource["forms"]);
@@ -974,9 +1026,9 @@ export class StyleRules {
      * @returns {StyleRules}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType20;
-        const $$createField5_0 = $$createType20;
-        const $$createField6_0 = $$createType22;
+        const $$createField4_0 = $$createType22;
+        const $$createField5_0 = $$createType22;
+        const $$createField6_0 = $$createType24;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("prohibited_patterns" in $$parsedSource) {
             $$parsedSource["prohibited_patterns"] = $$createField4_0($$parsedSource["prohibited_patterns"]);
@@ -1133,9 +1185,9 @@ export class TermRule {
      * @returns {TermRule}
      */
     static createFrom($$source = {}) {
-        const $$createField6_0 = $$createType12;
-        const $$createField9_0 = $$createType12;
-        const $$createField10_0 = $$createType24;
+        const $$createField6_0 = $$createType14;
+        const $$createField9_0 = $$createType14;
+        const $$createField10_0 = $$createType26;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("forms" in $$parsedSource) {
             $$parsedSource["forms"] = $$createField6_0($$parsedSource["forms"]);
@@ -1208,7 +1260,7 @@ export class ToneProfile {
      * @returns {ToneProfile}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType12;
+        const $$createField0_0 = $$createType14;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("personality" in $$parsedSource) {
             $$parsedSource["personality"] = $$createField0_0($$parsedSource["personality"]);
@@ -1264,10 +1316,10 @@ export class VocabularyRules {
      * @returns {VocabularyRules}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType14;
-        const $$createField1_0 = $$createType14;
-        const $$createField2_0 = $$createType14;
-        const $$createField3_0 = $$createType25;
+        const $$createField0_0 = $$createType16;
+        const $$createField1_0 = $$createType16;
+        const $$createField2_0 = $$createType16;
+        const $$createField3_0 = $$createType27;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("preferred_terms" in $$parsedSource) {
             $$parsedSource["preferred_terms"] = $$createField0_0($$parsedSource["preferred_terms"]);
@@ -1498,15 +1550,15 @@ export class VoiceProfile {
      * @returns {VoiceProfile}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType26;
+        const $$createField0_0 = $$createType28;
         const $$createField4_0 = $$createType0;
         const $$createField5_0 = $$createType2;
         const $$createField6_0 = $$createType4;
-        const $$createField7_0 = $$createType16;
-        const $$createField8_0 = $$createType28;
-        const $$createField9_0 = $$createType30;
-        const $$createField10_0 = $$createType32;
-        const $$createField12_0 = $$createType33;
+        const $$createField7_0 = $$createType18;
+        const $$createField8_0 = $$createType30;
+        const $$createField9_0 = $$createType32;
+        const $$createField10_0 = $$createType34;
+        const $$createField12_0 = $$createType35;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("constraints" in $$parsedSource) {
             $$parsedSource["constraints"] = $$createField0_0($$parsedSource["constraints"]);
@@ -1548,29 +1600,31 @@ const $$createType4 = VocabularyRules.createFrom;
 const $$createType5 = $Create.Nullable($$createType4);
 const $$createType6 = SentenceWordLimits.createFrom;
 const $$createType7 = $Create.Nullable($$createType6);
-const $$createType8 = ConstraintScope.createFrom;
-const $$createType9 = ConstraintException.createFrom;
-const $$createType10 = $Create.Array($$createType9);
-const $$createType11 = Constraint.createFrom;
-const $$createType12 = $Create.Array($Create.Any);
-const $$createType13 = TermRule.createFrom;
-const $$createType14 = $Create.Array($$createType13);
-const $$createType15 = VoiceExample.createFrom;
+const $$createType8 = DensityLimits.createFrom;
+const $$createType9 = $Create.Nullable($$createType8);
+const $$createType10 = ConstraintScope.createFrom;
+const $$createType11 = ConstraintException.createFrom;
+const $$createType12 = $Create.Array($$createType11);
+const $$createType13 = Constraint.createFrom;
+const $$createType14 = $Create.Array($Create.Any);
+const $$createType15 = TermRule.createFrom;
 const $$createType16 = $Create.Array($$createType15);
-const $$createType17 = PatternRate.createFrom;
-const $$createType18 = $Create.Nullable($$createType17);
-const $$createType19 = Pattern.createFrom;
-const $$createType20 = $Create.Array($$createType19);
-const $$createType21 = CommentRules.createFrom;
-const $$createType22 = $Create.Nullable($$createType21);
-const $$createType23 = Rendering.createFrom;
-const $$createType24 = $Create.Array($$createType23);
-const $$createType25 = $Create.Map($Create.Any, $Create.Any);
-const $$createType26 = $Create.Array($$createType11);
-const $$createType27 = LocaleOverride.createFrom;
-const $$createType28 = $Create.Map($Create.Any, $$createType27);
-const $$createType29 = ChannelOverride.createFrom;
+const $$createType17 = VoiceExample.createFrom;
+const $$createType18 = $Create.Array($$createType17);
+const $$createType19 = PatternRate.createFrom;
+const $$createType20 = $Create.Nullable($$createType19);
+const $$createType21 = Pattern.createFrom;
+const $$createType22 = $Create.Array($$createType21);
+const $$createType23 = CommentRules.createFrom;
+const $$createType24 = $Create.Nullable($$createType23);
+const $$createType25 = Rendering.createFrom;
+const $$createType26 = $Create.Array($$createType25);
+const $$createType27 = $Create.Map($Create.Any, $Create.Any);
+const $$createType28 = $Create.Array($$createType13);
+const $$createType29 = LocaleOverride.createFrom;
 const $$createType30 = $Create.Map($Create.Any, $$createType29);
-const $$createType31 = PersonaOverride.createFrom;
+const $$createType31 = ChannelOverride.createFrom;
 const $$createType32 = $Create.Map($Create.Any, $$createType31);
-const $$createType33 = AutonomyConfig.createFrom;
+const $$createType33 = PersonaOverride.createFrom;
+const $$createType34 = $Create.Map($Create.Any, $$createType33);
+const $$createType35 = AutonomyConfig.createFrom;

@@ -25,10 +25,11 @@ style:
   comments:
     sentence_words: {major: 90}
     doc_words: 180
+    density: {ratio: 1.5}
 `))
 		require.NoError(t, err)
 		want := check.DefaultCommentLimits()
-		want.SentenceMajor, want.DocWords = 90, 180
+		want.SentenceMajor, want.DocWords, want.DensityRatio = 90, 180, 1.5
 		assert.Equal(t, want, p.Style.Comments.Limits())
 		assert.Equal(t, "short", p.Style.SentenceLength, "sentence_length stays guidance beside the limits")
 	})
@@ -48,6 +49,8 @@ func TestCommentRulesValidation(t *testing.T) {
 		{"a negative limit", "name: S\nstyle:\n  comments:\n    sentence_words: {minor: -5}\n", "style.comments.sentence_words.minor"},
 		{"a minor limit at the major one", "name: S\nstyle:\n  comments:\n    sentence_words: {minor: 70}\n", "style.comments.sentence_words"},
 		{"a limit in a channel's style", "name: S\nchannels:\n  code:\n    style:\n      comments:\n        package_doc_words: 0\n", "channels.code.style.comments.package_doc_words"},
+		{"a zero density ratio", "name: S\nstyle:\n  comments:\n    density: {ratio: 0}\n", "style.comments.density.ratio"},
+		{"a negative density minimum", "name: S\nstyle:\n  comments:\n    density: {min_comment_lines: -1}\n", "style.comments.density.min_comment_lines"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := LoadProfileYAML(strings.NewReader(tc.yaml))
@@ -65,7 +68,7 @@ func TestCommentRulesValidation(t *testing.T) {
 	}
 
 	t.Run("the keys are known to the strict decoder", func(t *testing.T) {
-		probs, err := UnknownKeys([]byte("name: S\nstyle:\n  comments:\n    sentence_words: {minor: 40, major: 60}\n    comment_words: 90\n    doc_words: 140\n    package_doc_words: 280\n"))
+		probs, err := UnknownKeys([]byte("name: S\nstyle:\n  comments:\n    sentence_words: {minor: 40, major: 60}\n    comment_words: 90\n    doc_words: 140\n    package_doc_words: 280\n    density: {ratio: 1.2, min_comment_lines: 10}\n"))
 		require.NoError(t, err)
 		assert.Empty(t, probs)
 	})
@@ -114,12 +117,14 @@ func TestGuideCarriesTheCommentLimits(t *testing.T) {
 		"  - A comment that documents no declaration: at most 100 words",
 		"  - A declaration's doc comment: at most 180 words",
 		"  - A package or module doc comment: at most 300 words",
+		"  - A change adding 8 or more comment lines: at most 1 comment lines for each code line it adds, not counting the package doc comment",
 	} {
 		assert.Contains(t, guide, want)
 	}
 
 	compact := RenderVoiceGuideCompact(p)
-	assert.Contains(t, compact, "Code comments: a sentence over 50 words is flagged (a major finding over 70), and so is a comment over 100 words, a doc comment over 180 or a package doc comment over 300.")
+	assert.Contains(t, compact, "Code comments: a sentence over 50 words is flagged (a major finding over 70), and so is a comment over 100 words, "+
+		"a doc comment over 180 or a package doc comment over 300, and a change adding 8 or more comment lines and more than 1 for each code line.")
 
 	assert.NotContains(t, RenderVoiceGuide(sampleProfile()), "Code comments", "a profile without comment limits renders none")
 }

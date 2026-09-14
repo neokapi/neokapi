@@ -16,6 +16,12 @@ overview: |
   - `comment.length`: a comment over the word limit for what it documents is a
     major finding. The doc comment of a package or module, a declaration's doc
     comment and every other comment each have a limit of their own.
+  - `comment.density`: in a check scoped to a diff, a change that adds at least
+    the minimum number of comment lines to a file, and more comment lines for
+    each code line than the ratio allows, is a major finding. A line holding a
+    comment and nothing else is a comment line, a line holding anything outside
+    a comment is a code line, and the package doc comment, a directive and a
+    blank line count as neither.
 
   A sentence is found with the UAX #29 sentence break over the comment's prose.
   The lines a comment wraps a sentence over are joined first, because the
@@ -32,4 +38,5 @@ limitations:
 processingNotes:
   - Each analyzer catches canaries built from the limits in force beside every file. The wrapped sentence canary is one sentence over three lines, so a check that ends a sentence at a line break misses it.
   - In a check scoped to a diff, the limits apply to the comments the change touched.
+  - Density counts lines from where the comment reader places each comment, never from comment markers, and its canary is a block comment no marker opens. A check over whole files reports density as unsupported.
   - Findings count toward the same severity gate as any other finding. `kapi check` fails on a critical finding by default, and `kapi check --ship` fails its checks gate on a major one.

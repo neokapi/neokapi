@@ -8,8 +8,10 @@ import (
 
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/comment"
+	"github.com/neokapi/neokapi/core/comment/golang"
+	"github.com/neokapi/neokapi/core/diffscope"
+	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/segment"
 )
 
@@ -19,6 +21,7 @@ const (
 	commentCheck            = "comment"
 	commentSentenceAnalyzer = "comment.sentence-length"
 	commentLengthAnalyzer   = "comment.length"
+	commentDensityAnalyzer  = "comment.density"
 )
 
 // sentenceBreak builds the sentence break the sentence-length check reads. It
@@ -28,23 +31,46 @@ var sentenceBreak = func() (segment.Segmenter, error) {
 	return segment.Build("uax29", segment.BaseConfig{}, nil)
 }
 
-// commentSentenceFindings and commentLengthFindings are the checks the comment
-// analyzers run over real comments and over their canaries. They are variables
-// so a test can put a broken check in place and show that its canary
-// invalidates the run.
+// The checks the comment analyzers run over real comments and over their
+// canaries. They are variables so a test can put a broken check in place and
+// show that its canary invalidates the run.
 var (
 	commentSentenceFindings = check.CommentSentenceFindings
 	commentLengthFindings   = check.CommentLengthFindings
+	commentDensityFindings  = check.CommentDensityFindings
+	lineKinds               = func(f *comment.File, src []byte) []comment.LineKind { return f.LineKinds(src) }
 )
 
-// checkCommentLimits holds the comments among blocks, all at one point, to the
-// comment limits the voice profile there sets, and records an analyzer for each
-// limit with canaries built from the limits in force. Blocks that hold no
+// commentChange is a change to one file, as the density check reads it.
+type commentChange struct {
+	// kinds classifies each line of the file after the change, as its comment
+	// layer reads it.
+	kinds []comment.LineKind
+	// added are the lines the change added.
+	added []format.LineRange
+}
+
+// addedLines returns the lines changes added, leaving out each deletion, which
+// adds none.
+func addedLines(changes []diffscope.Change) []format.LineRange {
+	var out []format.LineRange
+	for _, c := range changes {
+		if !c.Deletion {
+			out = append(out, c.Lines)
+		}
+	}
+	return out
+}
+
+// checkCommentLimits holds the comments among blocks, all at the point at, to
+// the comment limits the voice profile there sets, and records an analyzer for
+// each limit with canaries built from the limits in force. Blocks that hold no
 // comment record nothing, and a profile that sets no comment limits records
 // each analyzer as not requested. A build without the sentence break records
 // the sentence-length analyzer as required and not run, so the check does not
-// pass on it.
-func (a *App) checkCommentLimits(ctx context.Context, blocks []*model.Block, p *profile.VoiceProfile, file string, execution *checkExecution) ([]check.Diagnostic, error) {
+// pass on it. Density reads change, the file's change in a diff-scoped check;
+// with no change it is unsupported.
+func (a *App) checkCommentLimits(ctx context.Context, blocks []*model.Block, at atPoint, file string, change *commentChange, execution *checkExecution) ([]check.Diagnostic, error) {
 	var comments []*model.Block
 	for _, b := range blocks {
 		if comment.IsBlock(b) {
@@ -54,13 +80,14 @@ func (a *App) checkCommentLimits(ctx context.Context, blocks []*model.Block, p *
 	if len(comments) == 0 {
 		return nil, nil
 	}
-	if p == nil || p.Style.Comments == nil {
+	if at.profile == nil || at.profile.Style.Comments == nil {
 		const reason = "The voice profile at this point sets no comment limits."
-		execution.skipped(commentSentenceAnalyzer, file, reason)
-		execution.skipped(commentLengthAnalyzer, file, reason)
+		for _, id := range []string{commentSentenceAnalyzer, commentLengthAnalyzer, commentDensityAnalyzer} {
+			execution.skipped(id, file, reason)
+		}
 		return nil, nil
 	}
-	limits := p.Style.Comments.Limits()
+	limits := at.profile.Style.Comments.Limits()
 	loc := model.LocaleID(a.SourceLocale())
 	var diags []check.Diagnostic
 	add := func(b *model.Block, found []check.Finding) {
@@ -102,7 +129,42 @@ func (a *App) checkCommentLimits(ctx context.Context, blocks []*model.Block, p *
 	if err := recordCommentAnalyzer(execution, commentLengthAnalyzer, file, len(diags)-before, start, check.CommentLengthCanaries(limits), lengths); err != nil {
 		return nil, err
 	}
+
+	if change == nil {
+		execution.unsupported(commentDensityAnalyzer, file,
+			"Comment density is a property of a change, and this check reads whole files. Scope the check to a diff to measure it.")
+		return diags, nil
+	}
+	start, before = time.Now(), len(diags)
+	lines := check.CountChangeLines(change.kinds, change.added)
+	for _, f := range commentDensityFindings(lines, limits) {
+		d := check.DiagnosticFrom(f, commentCheck, check.Location{
+			File: DisplayName(file), Lines: &format.LineRange{First: lines.First, Last: lines.Last},
+		})
+		d.Point = clonePoint(at.point)
+		diags = append(diags, d)
+	}
+	if err := recordCommentAnalyzer(execution, commentDensityAnalyzer, file, len(diags)-before, start,
+		[]check.Canary{check.CommentDensityCanary(limits)}, densityProbe(limits)); err != nil {
+		return nil, err
+	}
 	return diags, nil
+}
+
+// densityProbe evaluates the density canary: a Go file whose every line a
+// change adds, its lines classified by the Go comment provider and counted by
+// the same density check the real change went through.
+func densityProbe(limits check.CommentLimits) func(*model.Block) ([]check.Finding, error) {
+	return func(b *model.Block) ([]check.Finding, error) {
+		src := []byte(model.RunsText(b.SourceRuns()))
+		located, err := golang.Provider{}.Locate("canary.go", src)
+		if err != nil {
+			return nil, err
+		}
+		kinds := lineKinds(located, src)
+		added := []format.LineRange{{First: 1, Last: len(kinds) - 1}}
+		return commentDensityFindings(check.CountChangeLines(kinds, added), limits), nil
+	}
 }
 
 // recordCommentAnalyzer gives a comment analyzer its canaries through the same

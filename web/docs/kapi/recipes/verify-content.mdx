@@ -246,11 +246,15 @@ style:
     comment_words: 100
     doc_words: 150
     package_doc_words: 300
+    density: { ratio: 1, min_comment_lines: 8 }
 ```
 
 A sentence over 50 words is then a minor `comment.sentence-length` finding and
 one over 70 a major one, and a comment over the limit for what it documents is
-a major `comment.length` finding. `comments: {}` applies these numbers, which
+a major `comment.length` finding. A change that adds 8 or more comment lines to
+a file and more comment lines than code lines is a major `comment.density`
+finding. The package doc comment does not count toward it, and only a check
+scoped to a diff measures it. `comments: {}` applies these numbers, which
 are the defaults. In a check scoped to a diff, the limits apply to the comments
 the change touched. See [Comment limits](/reference/serialization/voice-profile#comment-limits)
 for how sentences and words are counted.
