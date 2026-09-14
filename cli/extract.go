@@ -14,7 +14,7 @@ func NewExtractCmd(a *App, _ ExtractCmdOptions) *cobra.Command {
 		Use:     "extract",
 		Short:   "Emit a bilingual file for a translator: native .kpz or XLIFF/PO",
 		GroupID: "advanced",
-		Long: `Emit bilingual XLIFF 2.x (default) or PO files for each target locale
+		Long: `Emit bilingual XLIFF 2.x (default) or PO files for each target language
 declared in a kapi project, pre-filled from the project's content memory.
 
 Each invocation writes one batch of outputs under .kapi/work/cache/extractions/<batch-id>/

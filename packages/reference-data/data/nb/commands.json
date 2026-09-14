@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-14T19:14:34Z",
+  "generatedAt": "2026-09-14T19:55:23Z",
   "commands": [
     {
       "id": "add",
@@ -2285,7 +2285,7 @@
         },
         {
           "name": "check-max-words",
-          "usage": "Flag target segments that exceed an absolute word count limit",
+          "usage": "Flag target segments that exceed an absolute limit on the number of words",
           "default": "false",
           "type": "bool"
         },

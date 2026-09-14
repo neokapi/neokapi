@@ -27,7 +27,7 @@ With -i, merge applies one or more bilingual files returned by a
 translator back onto the project's source locales, using the skeleton
 captured by kapi extract. Each input carries the extraction
 batch id in a file-level <note>, so merge finds the right extraction
-manifest without guessing from the filename. Mixed target locales in one
+manifest without guessing from the filename. Mixed target languages in one
 batch are fine, and merge handles each input independently.`,
 		Example: `  kapi merge                     # materialize target-language files from the project store
   kapi merge -i out/app.en-to-fr.xliff

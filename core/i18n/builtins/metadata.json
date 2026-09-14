@@ -397,8 +397,8 @@
           "description": "Flag targets longer than a percentage of source character length"
         },
         "checkMaxWords": {
-          "title": "Check Maximum Word Count",
-          "description": "Flag target segments that exceed an absolute word count limit"
+          "title": "Check Maximum Number of Words",
+          "description": "Flag target segments that exceed an absolute limit on the number of words"
         },
         "checkMinCharLength": {
           "title": "Check Minimum Length Ratio",

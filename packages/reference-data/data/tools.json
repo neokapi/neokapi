@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-11T21:52:33Z",
+  "generatedAt": "2026-09-14T19:21:47Z",
   "kind": "tool",
   "entries": [
     {
@@ -2258,8 +2258,8 @@
           },
           "checkMaxWords": {
             "type": "boolean",
-            "title": "Check Maximum Word Count",
-            "description": "Flag target segments that exceed an absolute word count limit",
+            "title": "Check Maximum Number of Words",
+            "description": "Flag target segments that exceed an absolute limit on the number of words",
             "default": false
           },
           "checkMinCharLength": {

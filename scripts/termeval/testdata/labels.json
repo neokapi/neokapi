@@ -272,6 +272,12 @@
       "note": "a compound or a different word containing the term"
     },
     {
+      "term": "file extension",
+      "word": "file extension",
+      "class": "use",
+      "note": "the term or a regular inflection"
+    },
+    {
       "term": "flow",
       "word": "flow",
       "class": "use",

@@ -1107,7 +1107,7 @@
                 "usage": "Flag targets longer than a percentage of source character length"
               },
               "check-max-words": {
-                "usage": "Flag target segments that exceed an absolute word count limit"
+                "usage": "Flag target segments that exceed an absolute limit on the number of words"
               },
               "check-min-char-length": {
                 "usage": "Flag targets shorter than a percentage of source character length"
@@ -2397,7 +2397,7 @@
               "usage": "XLIFF 2.x version to emit (2.0, 2.1, 2.2; default 2.2)"
             }
           },
-          "long": "Emit bilingual XLIFF 2.x (default) or PO files for each target locale\ndeclared in a kapi project, pre-filled from the project's content memory.\n\nEach invocation writes one batch of outputs under .kapi/work/cache/extractions/\u003cbatch-id\u003e/\nplus one bilingual file per source → target pair in --out-dir (default \"out/\").",
+          "long": "Emit bilingual XLIFF 2.x (default) or PO files for each target language\ndeclared in a kapi project, pre-filled from the project's content memory.\n\nEach invocation writes one batch of outputs under .kapi/work/cache/extractions/\u003cbatch-id\u003e/\nplus one bilingual file per source → target pair in --out-dir (default \"out/\").",
           "short": "Emit a bilingual file for a translator: native .kpz or XLIFF/PO"
         },
         "flows": {
@@ -2851,7 +2851,7 @@
               "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
             }
           },
-          "long": "Materialize target-language files for a project, or apply bilingual files\nreturned by a translator back onto the project's source locales.\n\nWith no -i in a project, merge writes the target-language files from the\nproject block store: a process-only \"kapi run\" (in a project, no -o)\ncommits its work as targets/\u003clocale\u003e overlays, and merge is the matching\nsink: it reads each source, applies the stored overlays, and writes the\ntarget-language file via the source format's skeleton round-trip.\n\nWith -i, merge applies one or more bilingual files returned by a\ntranslator back onto the project's source locales, using the skeleton\ncaptured by kapi extract. Each input carries the extraction\nbatch id in a file-level \u003cnote\u003e, so merge finds the right extraction\nmanifest without guessing from the filename. Mixed target locales in one\nbatch are fine, and merge handles each input independently.",
+          "long": "Materialize target-language files for a project, or apply bilingual files\nreturned by a translator back onto the project's source locales.\n\nWith no -i in a project, merge writes the target-language files from the\nproject block store: a process-only \"kapi run\" (in a project, no -o)\ncommits its work as targets/\u003clocale\u003e overlays, and merge is the matching\nsink: it reads each source, applies the stored overlays, and writes the\ntarget-language file via the source format's skeleton round-trip.\n\nWith -i, merge applies one or more bilingual files returned by a\ntranslator back onto the project's source locales, using the skeleton\ncaptured by kapi extract. Each input carries the extraction\nbatch id in a file-level \u003cnote\u003e, so merge finds the right extraction\nmanifest without guessing from the filename. Mixed target languages in one\nbatch are fine, and merge handles each input independently.",
           "short": "Apply a returned bilingual file (.kpz/XLIFF/PO) back onto the project source"
         },
         "models": {

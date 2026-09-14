@@ -82,7 +82,7 @@ type RuleCheckConfig struct {
 	MinCharLengthBelow         int  `json:"minCharLengthBelow,omitempty"       schema:"title=Percentage for Short Text (Min),description=Minimum required percentage of source length for short text,default=30,group=length"`
 	CheckAbsoluteMaxCharLength bool `json:"checkAbsoluteMaxCharLength,omitempty" schema:"title=Check Absolute Maximum Length,description=Flag target segments that exceed an absolute character count limit,group=length"`
 	AbsoluteMaxCharLength      int  `json:"absoluteMaxCharLength,omitempty"      schema:"title=Absolute Maximum Characters,description=Maximum number of characters allowed in any target segment,default=255,group=length"`
-	CheckMaxWords              bool `json:"checkMaxWords,omitempty"              schema:"title=Check Maximum Word Count,description=Flag target segments that exceed an absolute word count limit,group=length"`
+	CheckMaxWords              bool `json:"checkMaxWords,omitempty"              schema:"title=Check Maximum Number of Words,description=Flag target segments that exceed an absolute limit on the number of words,group=length"`
 	MaxWords                   int  `json:"maxWords,omitempty"                   schema:"title=Maximum Words,description=Maximum number of words allowed in any target segment,default=0,group=length"`
 }
 
