@@ -346,7 +346,9 @@ broken, and that still fails the command.
 The skip covers files kapi finds through the recipe. A file named on the command
 line, or content read under a format named with `--format`, still fails the
 command when no reader for that format is installed, and so does a `kapi up`
-run given `--fail-on-unknown`.
+run given `--fail-on-unknown`. A request that names one unit in such a file,
+such as reviewing, approving or editing it, fails the same way, and its error
+names the plugin to install. Nothing is recorded for the unit.
 
 A file declared for its comments, in a language only a plugin reads, is
 reported the same way when that plugin is absent. With no manifest to read, kapi

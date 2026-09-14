@@ -67,6 +67,17 @@ func NewUnreadSet() *UnreadSet {
 	return &UnreadSet{formats: map[string]string{}, readers: map[string]missingReader{}}
 }
 
+// NoReaderError is the error for a request that names one file, or one unit in
+// it, when no reader for the file's format is installed: it keeps err in the
+// chain and names the plugin to install. Any other error is returned as it is.
+func NoReaderError(err error, file, format string) error {
+	if !errors.Is(err, registry.ErrUnknownFormat) {
+		return err
+	}
+	return fmt.Errorf("%s: no reader for format %q is installed; install the plugin that supplies it (kapi plugins install %s): %w",
+		file, format, format, err)
+}
+
 // newUnreadSet returns the set a check over the project's declared content
 // collects into, or nil when --format names the format every file is read
 // under.
