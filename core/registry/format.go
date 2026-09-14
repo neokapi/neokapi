@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"slices"
 	"strconv"
@@ -523,6 +524,13 @@ type DetectOptions struct {
 	// the path does not name a readable file — an output path that doesn't
 	// exist yet, or a bare extension like ".json" passed as the path.
 	ExtensionOnly bool
+
+	// Content, when set, supplies the file's content to sniff in place of the
+	// file at path, for a file held somewhere other than the disk, such as a git
+	// object. It is called only when several formats claim the extension. Content
+	// it cannot supply falls back to the extension pick, as an unreadable file
+	// does.
+	Content func() (io.ReadSeeker, error)
 }
 
 // Detect resolves the format for path. By default it detects by extension
@@ -540,6 +548,9 @@ func (r *FormatRegistry) Detect(path string, opts DetectOptions) (FormatID, erro
 	if opts.ExtensionOnly {
 		ext := format.Ext(path)
 		return r.detectByExtension(ext, opts.AllowedSources, opts.PriorityOverrides)
+	}
+	if opts.Content != nil {
+		return r.detectContent(path, opts.AllowedSources, opts.PriorityOverrides, opts.Content)
 	}
 	return r.detectFile(path, opts.AllowedSources, opts.PriorityOverrides)
 }
@@ -678,6 +689,19 @@ func (r *FormatRegistry) detectByExtensionAny(ext string) (FormatID, error) {
 // file head is read; on any read error it falls back to extension-only
 // detection.
 func (r *FormatRegistry) detectFile(path string, allowedSources []string, overrides map[string]int) (FormatID, error) {
+	return r.detectContent(path, allowedSources, overrides, func() (io.ReadSeeker, error) {
+		f, err := os.Open(path)
+		if err != nil {
+			return nil, err
+		}
+		return f, nil
+	})
+}
+
+// detectContent is detectFile with the content to sniff supplied by open, which
+// is called only when several formats claim the extension. A content that
+// implements io.Closer is closed after the sniff.
+func (r *FormatRegistry) detectContent(path string, allowedSources []string, overrides map[string]int, open func() (io.ReadSeeker, error)) (FormatID, error) {
 	ext := format.Ext(path)
 	if ext == "" {
 		return "", fmt.Errorf("no extension to detect: %q", path)
@@ -713,9 +737,11 @@ func (r *FormatRegistry) detectFile(path string, allowedSources []string, overri
 
 	// More than one claimant → let the content sniff pick among them.
 	if len(cands) > 1 {
-		if f, err := os.Open(path); err == nil {
-			name, derr := r.detector.DetectByContent(f)
-			f.Close()
+		if content, err := open(); err == nil {
+			name, derr := r.detector.DetectByContent(content)
+			if c, ok := content.(io.Closer); ok {
+				_ = c.Close()
+			}
 			if derr == nil && cands[name] {
 				return FormatID(name), nil
 			}

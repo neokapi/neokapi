@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-14T19:55:23Z",
+  "generatedAt": "2026-09-14T21:27:26Z",
   "commands": [
     {
       "id": "add",
@@ -261,6 +261,12 @@
           "name": "source-lang",
           "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
           "type": "string"
+        },
+        {
+          "name": "staged",
+          "usage": "check only the content blocks the staged changes touch, each file read from the index (leaves out unstaged edits and untracked files)",
+          "default": "false",
+          "type": "bool"
         },
         {
           "name": "strict",

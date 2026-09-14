@@ -1100,6 +1100,13 @@ func (a *App) newCheckFormats(cmd Command) (*checkFormats, error) {
 		// a file did before there was a binding to fall back from.
 		return f, nil
 	}
+	f.bind(proj, resolved)
+	return f, nil
+}
+
+// bind records the format, reader config and comment declaration proj gives
+// each resolved file.
+func (f *checkFormats) bind(proj *project.KapiProject, resolved []project.ResolvedFile) {
 	for _, rf := range resolved {
 		if _, seen := f.byPath[rf.Path]; seen {
 			continue
@@ -1111,7 +1118,20 @@ func (a *App) newCheckFormats(cmd Command) (*checkFormats, error) {
 			directives: commentDirectives(proj, rf.Item),
 		}
 	}
-	return f, nil
+}
+
+// rebind replaces the bindings of the files at rels, paths relative to the
+// project directory, with the ones resolved for another version of them, such
+// as the version a git object holds. A path the recipe does not declare is left
+// with no binding.
+func (f *checkFormats) rebind(proj *project.KapiProject, pctx *project.ProjectContext, rels []string, resolved []project.ResolvedFile) {
+	if f == nil {
+		return
+	}
+	for _, rel := range rels {
+		delete(f.byPath, filepath.Join(pctx.ProjectDir, filepath.FromSlash(rel)))
+	}
+	f.bind(proj, resolved)
 }
 
 // forFile returns the format name and reader config to read one file under. An
