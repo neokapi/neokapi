@@ -101,9 +101,10 @@ func TestLocateCommentsRefusesADisagreement(t *testing.T) {
 	require.ErrorIs(t, err, comment.ErrUnlocated, "the host treats any provider's unlocated file the same way")
 }
 
-// Every comment in the repository's YAML files is located, or the file is
-// counted as refused; the counts are logged so a change in either is visible.
-func TestLocateCommentsOverTheRepositoryYAML(t *testing.T) {
+// accountRepositoryYAML locates the comments of every YAML file in the
+// repository and accounts for them against yamlUnits, or counts the file as
+// refused. The counts are logged so a change in either is visible.
+func accountRepositoryYAML(t *testing.T) {
 	root := yamlRepoRoot(t)
 	cmd := exec.CommandContext(t.Context(), "git", "ls-files", "-z", "*.yaml", "*.yml")
 	cmd.Dir = root
@@ -139,6 +140,7 @@ func TestLocateCommentsOverTheRepositoryYAML(t *testing.T) {
 		t.Log(r)
 	}
 	assert.GreaterOrEqual(t, files, 200, "the scan read too few YAML files")
+	assert.Positive(t, comments, "the corpus holds no comment, so it proves nothing about losing one")
 }
 
 func yamlRepoRoot(t *testing.T) string {
@@ -155,26 +157,34 @@ func yamlRepoRoot(t *testing.T) string {
 	}
 }
 
-func TestCommentProviderConformance(t *testing.T) {
-	commenttest.Run(t, yamlSuite(CommentProvider{}))
-}
+// TestProseP1_yaml is the P1 rung for YAML comments: the conformance suite over
+// fixtures, the repository's YAML files accounted for against a scan whose only
+// authority is yaml.v3, and providers broken on purpose that the suite must
+// catch.
+func TestProseP1_yaml(t *testing.T) {
+	t.Run("the shared conformance suite", func(t *testing.T) {
+		commenttest.Run(t, yamlSuite(CommentProvider{}))
+	})
 
-func TestCommentProviderConformanceCatchesABrokenProvider(t *testing.T) {
-	for _, tc := range []struct {
-		name string
-		p    comment.Provider
-		want commenttest.Property
-	}{
-		{"a span one byte short", brokenYAML{edit: func(_ []byte, f *comment.File) { f.Comments[0].End-- }}, commenttest.PropSpan},
-		{"a comment dropped", brokenYAML{edit: func(_ []byte, f *comment.File) { f.Comments = f.Comments[1:] }}, commenttest.PropAccount},
-		{"a marker inside a string counted", brokenYAML{edit: countQuotedMarker}, commenttest.PropLiteral},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			failures := commenttest.Verify(yamlSuite(tc.p))
-			require.NotEmpty(t, failures)
-			assert.Contains(t, commenttest.Properties(failures), tc.want, "%v", commenttest.Err(failures))
-		})
-	}
+	t.Run("the repository's YAML files account for every comment", accountRepositoryYAML)
+
+	t.Run("must fail: the conformance suite catches a broken provider", func(t *testing.T) {
+		for _, tc := range []struct {
+			name string
+			p    comment.Provider
+			want commenttest.Property
+		}{
+			{"a span one byte short", brokenYAML{edit: func(_ []byte, f *comment.File) { f.Comments[0].End-- }}, commenttest.PropSpan},
+			{"a comment dropped", brokenYAML{edit: func(_ []byte, f *comment.File) { f.Comments = f.Comments[1:] }}, commenttest.PropAccount},
+			{"a marker inside a string counted", brokenYAML{edit: countQuotedMarker}, commenttest.PropLiteral},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				failures := commenttest.Verify(yamlSuite(tc.p))
+				require.NotEmpty(t, failures)
+				assert.Contains(t, commenttest.Properties(failures), tc.want, "%v", commenttest.Err(failures))
+			})
+		}
+	})
 }
 
 func yamlSuite(p comment.Provider) commenttest.Suite {

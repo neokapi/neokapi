@@ -452,13 +452,29 @@ only. A provider is not a format: nothing registers one in the format registry,
 and a recipe declares such files with `comments: true` on a content item, which
 convergence, flow runs and source coverage then pass over.
 
-A format whose reader parses a file can supply that file's comments too. The
-YAML format does: it scans the bytes for comments outside quoted scalars and
-block scalar bodies, and it refuses a document whose comment lines that scan and
-the YAML parser disagree about, so a comment is never placed approximately. For
-such a file `comments: true` adds the comment blocks to the reader's blocks for
-checking, and the file converges through its reader unchanged. A declared format
-that supplies no comments leaves the comment check not run.
+A format whose reader parses a file can supply that file's comments too. Such a
+provider scans the bytes and refuses a document whose comments its scan and the
+format's parser disagree about, so a comment is never placed approximately. The
+YAML format scans for comments outside quoted scalars and block scalar bodies,
+and holds the scan to the comment lines the YAML parser reports.
+
+Every format whose reader reads a plain XML file shares the XML format's
+provider, registered under each format's own name. It scans for `<!-- -->`
+outside tags, CDATA sections, processing instructions and declarations, and
+holds each comment to the offsets `encoding/xml` reports. It refuses a document
+the parser rejects, such as one holding `--` inside a comment, which the XML
+specification forbids, and one with a comment inside its DOCTYPE, which the
+parser reads as part of the declaration. Each comment is named for the element
+it sits on, as in `comment/resources/string[greeting]`. A line of commented-out
+markup becomes a placeholder, and the suppressions Prettier, the JetBrains IDEs
+and ReSharper read are directives. A format that keeps its XML inside an archive
+supplies no comments, because a comment there has no span in the file.
+
+For a file its reader parses, `comments: true` adds the comment blocks to the
+reader's blocks for checking, and the file converges through its reader
+unchanged. A declared format that supplies no comments leaves the comment check
+not run, and a format with no comment formatter reports the formatter as
+unsupported.
 
 Every provider passes one conformance suite, `core/comment/commenttest`. A
 provider's test supplies fixtures and its own scan of the same bytes, made

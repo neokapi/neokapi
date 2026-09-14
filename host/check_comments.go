@@ -11,6 +11,7 @@ import (
 	"github.com/neokapi/neokapi/core/comment"
 	"github.com/neokapi/neokapi/core/comment/golang"
 	"github.com/neokapi/neokapi/core/format"
+	xmlformat "github.com/neokapi/neokapi/core/formats/xml"
 	yamlformat "github.com/neokapi/neokapi/core/formats/yaml"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
@@ -24,8 +25,17 @@ import (
 var commentProviders = func() *comment.Registry {
 	r := comment.NewRegistry(golang.Provider{})
 	r.RegisterFormat("yaml", yamlformat.CommentProvider{})
+	for _, f := range xmlCommentFormats {
+		r.RegisterFormat(f, xmlformat.CommentProvider{Format: f})
+	}
 	return r
 }()
+
+// xmlCommentFormats are the formats whose readers read a plain XML file, so the
+// XML provider locates their comments. A container format such as a word
+// processor document keeps its XML inside an archive, where a comment has no
+// span in the file.
+var xmlCommentFormats = []string{"androidxml", "doclang", "resx", "tmx", "ts", "xliff", "xliff2", "xml"}
 
 // formatterCheck is the check family a formatter's disagreement is reported
 // under. The rule is `formatter.<formatter>`, such as `formatter.gofmt`.
