@@ -267,6 +267,12 @@ jobs:
     needs: publish-asr-release
     runs-on: ubuntu-latest
     steps:
+      # The one file this job reads from the repository.
+      - name: Check out the registry push helper
+        uses: actions/checkout@v7
+        with:
+          sparse-checkout: scripts/lib/registry-push.sh
+          sparse-checkout-cone-mode: false
       - uses: actions/download-artifact@v8
         with: { pattern: asr-checksum-*, path: asr-checksums, merge-multiple: true }
       - name: Update manifest plugin registry (asr)
@@ -292,13 +298,18 @@ jobs:
           done
           [ ${#ARGS[@]} -eq 0 ] && { echo "::error::no artifacts"; exit 1; }
           git clone "https://x-access-token:${REGISTRY_TOKEN}@github.com/neokapi/registry.git" /tmp/registry
-          /tmp/registry-update --registry /tmp/registry/manifest-plugins.json \
-            --plugin asr --version "$VERSION" --channel stable --released "$(date -u +%Y-%m-%d)" \
-            --cert-identity "$CERT_ID" --cert-oidc-issuer https://token.actions.githubusercontent.com "${ARGS[@]}"
-          cd /tmp/registry
-          git config user.email "release-bot@neokapi.dev"; git config user.name "release-bot"
-          git add manifest-plugins.json
-          git diff --staged --quiet || { git commit -m "Register asr ${VERSION}"; git push; }
+          git -C /tmp/registry config user.email "release-bot@neokapi.dev"
+          git -C /tmp/registry config user.name "release-bot"
+          register() {
+            /tmp/registry-update --registry /tmp/registry/manifest-plugins.json \
+              --plugin asr --version "$VERSION" --channel stable --released "$(date -u +%Y-%m-%d)" \
+              --cert-identity "$CERT_ID" --cert-oidc-issuer https://token.actions.githubusercontent.com "${ARGS[@]}"
+          }
+          # A release that runs beside another pushes to the same registry. A
+          # rejected push rebases and runs register again; see the helper.
+          # shellcheck source=/dev/null
+          source "${GITHUB_WORKSPACE}/scripts/lib/registry-push.sh"
+          registry_commit_and_push /tmp/registry "Register asr ${VERSION}" register manifest-plugins.json
 
   # The tap formula, rendered from this run's checksum artifacts. Runs beside
   # the registry write, not after it: `brew install` and `kapi plugin install`

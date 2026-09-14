@@ -435,27 +435,26 @@ jobs:
           }
 
           git clone "https://x-access-token:${REGISTRY_TOKEN}@github.com/neokapi/registry.git" /tmp/registry
-
-          # --- bowrain plugin → manifest-plugins.json ---
-          build_args kapi-bowrain darwin/arm64 linux/arm64 linux/amd64
-          /tmp/registry-update \
-            --registry /tmp/registry/manifest-plugins.json \
-            --plugin bowrain \
-            --version "$VERSION" \
-            --channel "$REG_CHANNEL" \
-            --released "$RELEASED" \
-            --cert-identity "$CERT_ID" \
-            --cert-oidc-issuer "$ISSUER" \
-            "${CLI_ARGS[@]}"
-
-          cd /tmp/registry
-          git config user.email "release-bot@neokapi.dev"
-          git config user.name "release-bot"
-          git add manifest-plugins.json
-          if ! git diff --staged --quiet; then
-            git commit -m "Register bowrain ${VERSION} (${CHANNEL})"
-            git push
-          fi
+          git -C /tmp/registry config user.email "release-bot@neokapi.dev"
+          git -C /tmp/registry config user.name "release-bot"
+          register() {
+            # --- bowrain plugin → manifest-plugins.json ---
+            build_args kapi-bowrain darwin/arm64 linux/arm64 linux/amd64
+            /tmp/registry-update \
+              --registry /tmp/registry/manifest-plugins.json \
+              --plugin bowrain \
+              --version "$VERSION" \
+              --channel "$REG_CHANNEL" \
+              --released "$RELEASED" \
+              --cert-identity "$CERT_ID" \
+              --cert-oidc-issuer "$ISSUER" \
+              "${CLI_ARGS[@]}"
+          }
+          # A release that runs beside another pushes to the same registry. A
+          # rejected push rebases and runs register again; see the helper.
+          # shellcheck source=/dev/null
+          source "${GITHUB_WORKSPACE}/scripts/lib/registry-push.sh"
+          registry_commit_and_push /tmp/registry "Register bowrain ${VERSION} (${CHANNEL})" register manifest-plugins.json
 
   docker:
     name: Docker (${{ matrix.image }}, ${{ matrix.arch }})
