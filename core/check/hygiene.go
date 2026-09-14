@@ -110,13 +110,12 @@ func DoubleSpaces(text string) bool { return len(doubleSpaceSpans(text)) > 0 }
 // one line.
 //
 // A comment lays text out in columns and quotes literal text more often than
-// other prose, and three kinds of run are that layout rather than a typing
-// slip, so none is reported: a run of three or more spaces, a run that ends at
-// a column where a word starts on the line above or below it in the same
-// comment, and a run inside backticks or double quotes opened earlier in its
-// paragraph. A column counts
-// characters, with a tab reaching the next multiple of eight and an inline
-// code counting as one.
+// other prose. Three kinds of run are that layout rather than a typing slip,
+// so none is reported. One is a run of three or more spaces. Another ends at a
+// column where a word starts on the line above or below it in the same
+// comment. The third sits inside backticks or double quotes opened earlier in
+// its paragraph. A column counts characters, with a tab reaching the next
+// multiple of eight and an inline code counting as one.
 func CommentDoubleSpaces(text string) bool { return len(commentDoubleSpaceSpans(text)) > 0 }
 
 // commentDoubleSpaceSpans returns the byte range of each double space
