@@ -73,25 +73,19 @@ var ErrCommentsUnlocated = fmt.Errorf("markdown: %w", comment.ErrUnlocated)
 // never passed over. A comment that closes on `--!>` is refused as well, since
 // the Markdown parser and an HTML parser close it in different places.
 //
-// A comment is named for the section it sits in, by the trail of heading slugs:
-// `comment/install/from-homebrew`, or `comment/document` before any heading.
+// A comment is named for the section it sits in (CommentSubject).
 func LocateComments(src []byte) (*comment.File, error) {
 	return locateComments(src, classifyComment)
 }
 
 func locateComments(src []byte, classify func(inner string) (string, bool)) (*comment.File, error) {
-	_, _, bodyStart, _ := frontMatterBounds(src)
-	body := src[bodyStart:]
-	doc := goldmark.New(goldmark.WithExtensions(extension.GFM)).Parser().Parse(text.NewReader(body))
-	w := &mdCommentWalk{src: src, body: body, base: bodyStart}
-	if err := ast.Walk(doc, w.visit); err != nil {
+	w, err := walkComments(src)
+	if err != nil {
 		return nil, err
 	}
 	if err := w.agree(); err != nil {
 		return nil, err
 	}
-	slices.SortFunc(w.comments, func(a, b mdComment) int { return a.start - b.start })
-
 	idx := format.NewLineIndex(src)
 	file := &comment.File{Language: "markdown"}
 	for _, c := range w.comments {
@@ -110,23 +104,84 @@ func locateComments(src []byte, classify func(inner string) (string, bool)) (*co
 			End:     c.end,
 			Lines:   lines,
 			Style:   comment.StyleBlock,
-			Subject: c.subject,
+			Subject: CommentSubject(w.headings, c.start),
 			Runs:    markup.Runs(inner),
 		})
 	}
 	return file, nil
 }
 
-// commentDirectiveForms are the comments tools read in Markdown files.
-var commentDirectiveForms = []markup.DirectiveForm{
-	truncateMarker, voicePointer, generatedRegion,
-	markup.Markdownlint, markup.PrettierIgnore, markup.FormatterToggle, markup.Suppress,
+// Span is what a Markdown span holds for a format that embeds Markdown, with
+// offsets into the span.
+type Span struct {
+	// Content holds the ranges where a comment marker is content: front matter,
+	// code spans, fenced and indented code, HTML blocks and inline HTML.
+	Content [][2]int
+	// Code holds the ranges of code spans and fenced and indented code, a part
+	// of Content.
+	Code [][2]int
+	// Comments holds the ranges of the HTML comments.
+	Comments [][2]int
+	// Headings are the span's headings, in document order.
+	Headings []Heading
 }
 
-// truncateMarker ends the excerpt of a Docusaurus blog post.
-var truncateMarker = markup.DirectiveForm{Name: "truncate", Match: func(b string) bool {
-	return b == "truncate"
-}}
+// Heading is one heading: where its text starts, its level, and the path
+// segment it names a section by.
+type Heading struct {
+	Offset int
+	Level  int
+	Slug   string
+}
+
+// ReadSpan reads src as LocateComments reads a document, for a format that
+// embeds Markdown. It refuses what LocateComments refuses in an HTML block or
+// a comment, and leaves holding every marker in the bytes to account to the
+// caller, which knows the markers of the format around the span.
+func ReadSpan(src []byte) (*Span, error) {
+	w, err := walkComments(src)
+	if err != nil {
+		return nil, err
+	}
+	span := &Span{Headings: w.headings}
+	for _, r := range w.content {
+		span.Content = append(span.Content, [2]int{r.start, r.end})
+	}
+	for _, r := range w.code {
+		span.Code = append(span.Code, [2]int{r.start, r.end})
+	}
+	for _, c := range w.comments {
+		span.Comments = append(span.Comments, [2]int{c.start, c.end})
+	}
+	return span, nil
+}
+
+// CommentSubject names a comment at offset for the section it sits in, by the
+// trail of heading slugs above it: `comment/install/from-homebrew`, or
+// `comment/document` before any heading.
+func CommentSubject(headings []Heading, offset int) string {
+	var trail []string
+	var levels []int
+	for _, h := range headings {
+		if h.Offset >= offset {
+			break
+		}
+		for len(levels) > 0 && levels[len(levels)-1] >= h.Level {
+			levels, trail = levels[:len(levels)-1], trail[:len(trail)-1]
+		}
+		levels, trail = append(levels, h.Level), append(trail, h.Slug)
+	}
+	if len(trail) == 0 {
+		return "comment/document"
+	}
+	return "comment/" + strings.Join(trail, "/")
+}
+
+// commentDirectiveForms are the comments tools read in Markdown files.
+var commentDirectiveForms = []markup.DirectiveForm{
+	markup.Truncate, voicePointer, generatedRegion,
+	markup.Markdownlint, markup.PrettierIgnore, markup.FormatterToggle, markup.Suppress,
+}
 
 // voicePointer bounds the region kapi writes into an agent instructions file,
 // from `<!-- kapi:voice -->` to `<!-- /kapi:voice -->`.
@@ -170,24 +225,42 @@ func commentsUnlocated(format string, args ...any) error {
 
 type mdComment struct {
 	start, end, close int
-	subject           string
 }
 
 type commentRange struct{ start, end int }
 
-type mdSection struct {
-	level int
-	slug  string
-}
-
-// mdCommentWalk collects a document's comments and the ranges where a comment
-// marker is content, in document order, with offsets into the whole file.
+// mdCommentWalk collects a document's comments, the ranges where a comment
+// marker is content, and its headings, with offsets into the whole file.
 type mdCommentWalk struct {
 	src, body []byte
 	base      int
 	comments  []mdComment
 	content   []commentRange
-	sections  []mdSection
+	code      []commentRange
+	headings  []Heading
+}
+
+// addCode records a range of code, which is content too.
+func (w *mdCommentWalk) addCode(start, end int) {
+	w.content = append(w.content, commentRange{start, end})
+	w.code = append(w.code, commentRange{start, end})
+}
+
+// walkComments reads a document's front matter bounds, parses its body and
+// walks it.
+func walkComments(src []byte) (*mdCommentWalk, error) {
+	_, _, bodyStart, hasFrontMatter := frontMatterBounds(src)
+	body := src[bodyStart:]
+	doc := goldmark.New(goldmark.WithExtensions(extension.GFM)).Parser().Parse(text.NewReader(body))
+	w := &mdCommentWalk{src: src, body: body, base: bodyStart}
+	if hasFrontMatter {
+		w.content = append(w.content, commentRange{0, bodyStart})
+	}
+	if err := ast.Walk(doc, w.visit); err != nil {
+		return nil, err
+	}
+	slices.SortFunc(w.comments, func(a, b mdComment) int { return a.start - b.start })
+	return w, nil
 }
 
 func (w *mdCommentWalk) visit(n ast.Node, entering bool) (ast.WalkStatus, error) {
@@ -196,22 +269,21 @@ func (w *mdCommentWalk) visit(n ast.Node, entering bool) (ast.WalkStatus, error)
 	}
 	switch n := n.(type) {
 	case *ast.Heading:
-		for len(w.sections) > 0 && w.sections[len(w.sections)-1].level >= n.Level {
-			w.sections = w.sections[:len(w.sections)-1]
+		if s, e := blockRange(n, w.body); e > s {
+			slug := headingSlug(headingPlainText(n, w.body))
+			if slug == "" {
+				slug = "heading"
+			}
+			w.headings = append(w.headings, Heading{Offset: w.base + s, Level: n.Level, Slug: slug})
 		}
-		slug := headingSlug(headingPlainText(n, w.body))
-		if slug == "" {
-			slug = "heading"
-		}
-		w.sections = append(w.sections, mdSection{level: n.Level, slug: slug})
 	case *ast.FencedCodeBlock, *ast.CodeBlock:
 		s, e := blockRange(n, w.body)
-		w.content = append(w.content, commentRange{w.base + s, w.base + e})
+		w.addCode(w.base+s, w.base+e)
 		return ast.WalkSkipChildren, nil
 	case *ast.CodeSpan:
 		for c := n.FirstChild(); c != nil; c = c.NextSibling() {
 			if t, ok := c.(*ast.Text); ok {
-				w.content = append(w.content, commentRange{w.base + t.Segment.Start, w.base + t.Segment.Stop})
+				w.addCode(w.base+t.Segment.Start, w.base+t.Segment.Stop)
 			}
 		}
 		return ast.WalkSkipChildren, nil
@@ -266,15 +338,7 @@ func (w *mdCommentWalk) add(start, end, closeLen int) error {
 	if bytes.Contains(w.src[start:end], []byte("--!>")) {
 		return commentsUnlocated("the comment at byte %d holds `--!>`, which the Markdown parser and an HTML parser close in different places", start)
 	}
-	subject := "comment/document"
-	if len(w.sections) > 0 {
-		slugs := make([]string, len(w.sections))
-		for i, s := range w.sections {
-			slugs[i] = s.slug
-		}
-		subject = "comment/" + strings.Join(slugs, "/")
-	}
-	w.comments = append(w.comments, mdComment{start: start, end: end, close: closeLen, subject: subject})
+	w.comments = append(w.comments, mdComment{start: start, end: end, close: closeLen})
 	return nil
 }
 
