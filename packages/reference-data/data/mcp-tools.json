@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-09-14T21:57:11Z",
+  "generatedAt": "2026-09-14T22:59:40Z",
   "tools": [
     {
       "name": "apply_edits",
-      "description": "Apply a typed change-set: the one write verb. For document wording, each entry uses kind=content, file, id, content_hash and text (the new wording). Read block IDs and hashes with extract_content. The replacement field is for voice rules. Content edits land through the byte-faithful round-trip (structure and inline codes preserved, drift-guarded by content_hash); asset edits (terms entry, content memory pair, voice rule, recipe field) are written to their committed source and compiled into the cache. No AI provider is used. Read the context://\u003cproject-relative-path\u003e resource before editing content, then run check_file on each changed file to review findings and analyzer coverage.",
+      "description": "Apply a typed change-set: the one write verb. For document wording, each entry uses kind=content, file, id, content_hash and text (the new wording). Read block IDs and hashes with extract_content. The replacement field is for voice rules. Content edits land through the byte-faithful round-trip (structure and inline codes preserved, drift-guarded by content_hash); asset edits (terms entry, content memory pair, voice rule, recipe field) are written to their committed source and compiled into the cache. No AI provider is used. Read the context://\u003cproject-relative-path\u003e resource before editing content, then run check_file on each changed file to review findings and analyzer coverage. For a code comment, an entry uses kind=comment, file, id (the comment's id as check_file reports it, such as func/Parse), lines (the lines check_file reported) and text (the comment's prose without comment markers). Every byte outside the comment is kept, the result must parse and the language's formatter must agree; a directive, a generated file's comment, a block comment, a moved comment and text that drops a code block or reference are refused with a reason and write nothing. Each written file's result carries a check scoped to the change.",
       "surface": "default",
       "params": [
         {

@@ -27,7 +27,9 @@ type applyEditsInput struct {
 
 // applyEditsMCPOutput reports the per-block content outcome and per-entry asset
 // outcomes; OK is false when any edit drifted (stale) or was rejected by the
-// inline-code guard, signalling the caller to re-inspect and retry.
+// inline-code guard, signalling the caller to re-inspect and retry. Comments
+// holds each file's comment edits and the check of what they wrote, and OK is
+// false when one was refused, did not run, or left that check not passing.
 type applyEditsMCPOutput struct {
 	OK      bool          `json:"ok"`
 	Applied []string      `json:"applied,omitempty"`
@@ -35,6 +37,8 @@ type applyEditsMCPOutput struct {
 	Stale   []string      `json:"stale,omitempty"`
 	Guard   []string      `json:"guard_failed,omitempty"`
 	Assets  []assetResult `json:"assets,omitempty"`
+
+	Comments []commentFileResult `json:"comments,omitempty"`
 }
 
 func registerEditMCPTools(server *mcp.Server, a *App) {
@@ -47,7 +51,12 @@ func registerEditMCPTools(server *mcp.Server, a *App) {
 			"asset edits (terms entry, content memory pair, voice rule, recipe field) are written to their " +
 			"committed source and compiled into the cache. No AI provider is used. Read the " +
 			"context://<project-relative-path> resource before editing content, then run check_file on " +
-			"each changed file to review findings and analyzer coverage.",
+			"each changed file to review findings and analyzer coverage. For a code comment, an entry uses kind=comment, file, " +
+			"id (the comment's id as check_file reports it, such as func/Parse), lines (the lines check_file reported) and " +
+			"text (the comment's prose without comment markers). Every byte outside the comment is kept, the result must " +
+			"parse and the language's formatter must agree; a directive, a generated file's comment, a block comment, a " +
+			"moved comment and text that drops a code block or reference are refused with a reason and write nothing. " +
+			"Each written file's result carries a check scoped to the change.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, in applyEditsInput) (*mcp.CallToolResult, applyEditsMCPOutput, error) {
 		return a.applyEditsMCP(ctx, in)
 	})
@@ -61,6 +70,7 @@ func (a *App) applyEditsMCP(ctx context.Context, in applyEditsInput) (*mcp.CallT
 
 	byFile := map[string][]changeEntry{}
 	var fileOrder []string
+	var comments []changeEntry
 	// A bare command carries the context for the asset appliers' project
 	// resolution (they walk up from cwd); no flags are set, so they take their
 	// project-default paths.
@@ -76,6 +86,8 @@ func (a *App) applyEditsMCP(ctx context.Context, in applyEditsInput) (*mcp.CallT
 				fileOrder = append(fileOrder, e.File)
 			}
 			byFile[e.File] = append(byFile[e.File], e)
+		case kindComment:
+			comments = append(comments, e)
 		case kindTerm, kindMemory, kindVoice, kindRecipe:
 			out.Assets = append(out.Assets, a.applyAssetEntry(ctx, cmd, e))
 		case "":
@@ -97,13 +109,23 @@ func (a *App) applyEditsMCP(ctx context.Context, in applyEditsInput) (*mcp.CallT
 		out.Content.Stale = append(out.Content.Stale, report.Stale...)
 		out.Content.GuardFailed = append(out.Content.GuardFailed, report.GuardFailed...)
 	}
+	if len(comments) > 0 {
+		// The check of a written comment resolves governance from the project
+		// the server was started for, as check_file does.
+		checkCmd := NewEnvCommand(ctx, "apply-edits")
+		if a.mcpRecipePath != "" {
+			checkCmd.Flags().String(projectFlagName, a.mcpRecipePath, "")
+		}
+		out.Comments = a.applyComments(ctx, checkCmd, comments, false, "")
+	}
 
 	return nil, applyEditsMCPOutput{
-		OK:      out.ok(),
-		Applied: out.Content.Applied,
-		Skipped: out.Content.Skipped,
-		Stale:   out.Content.Stale,
-		Guard:   out.Content.GuardFailed,
-		Assets:  out.Assets,
+		OK:       out.ok(),
+		Applied:  out.Content.Applied,
+		Skipped:  out.Content.Skipped,
+		Stale:    out.Content.Stale,
+		Guard:    out.Content.GuardFailed,
+		Assets:   out.Assets,
+		Comments: out.Comments,
 	}, nil
 }

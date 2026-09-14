@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tool"
 	coretools "github.com/neokapi/neokapi/core/tools"
@@ -30,20 +31,26 @@ const (
 	kindVoice   changeKind = "voice"
 	kindRecipe  changeKind = "recipe"
 	kindReview  changeKind = "review"
+	kindComment changeKind = "comment"
 )
 
 // changeEntry is one line of a `kapi apply` change-set (JSONL; one entry per
 // line). Only the fields relevant to its Kind are populated. Content edits carry
 // the block address (file + id + content_hash) and the new placeholder-rendered
-// text; asset edits carry an op and the per-asset fields.
+// text; asset edits carry an op and the per-asset fields. Comment edits carry
+// the file, the comment's id, the lines it was read at and its new prose.
 type changeEntry struct {
-	Kind changeKind `json:"kind" jsonschema:"change kind; use content for document wording"`
+	Kind changeKind `json:"kind" jsonschema:"change kind; use content for document wording and comment for a code comment"`
 
-	// content
+	// content and comment
 	File        string `json:"file,omitempty"`
-	ID          string `json:"id,omitempty"`
+	ID          string `json:"id,omitempty" jsonschema:"the block id; for kind=comment the comment's id as check_file reports it, such as func/Parse"`
 	ContentHash string `json:"content_hash,omitempty"`
-	Text        string `json:"text,omitempty" jsonschema:"new block wording for kind=content; preserve inline placeholders from extract_content"`
+	Text        string `json:"text,omitempty" jsonschema:"the new wording: for kind=content the block text with the inline placeholders extract_content shows; for kind=comment the comment's prose without comment markers"`
+
+	// comment
+	Lines *format.LineRange `json:"lines,omitempty" jsonschema:"for kind=comment: the lines the comment spanned when it was read, as check_file reports them; a comment spanning other lines is refused as stale"`
+	Width int               `json:"width,omitempty" jsonschema:"for kind=comment: the column a line of prose wraps at; 0 keeps the width of the comment being rewritten, and never less than 80"`
 
 	// asset common
 	Op string `json:"op,omitempty"`
@@ -95,9 +102,18 @@ type applyOutput struct {
 		GuardFailed []string `json:"guard_failed,omitempty"`
 	} `json:"content"`
 	Assets []assetResult `json:"assets,omitempty"`
+	// Comments holds each file's comment edits, the diff they made and the
+	// check of it. A refused edit, an edit that did not run, or a check that
+	// did not pass means the change-set did not fully land.
+	Comments []commentFileResult `json:"comments,omitempty"`
 }
 
 func (o *applyOutput) ok() bool {
+	for _, c := range o.Comments {
+		if !c.ok() {
+			return false
+		}
+	}
 	return len(o.Content.Stale) == 0 && len(o.Content.GuardFailed) == 0 && !o.assetErr()
 }
 
@@ -125,6 +141,7 @@ func (a *App) RunApply(cmd Command, path string, diff bool, backupSuffix string,
 	// Content entries grouped by file → one faithful round-trip per file.
 	byFile := map[string][]changeEntry{}
 	var fileOrder []string
+	var comments []changeEntry
 	for _, e := range entries {
 		switch e.Kind {
 		case kindContent:
@@ -135,6 +152,8 @@ func (a *App) RunApply(cmd Command, path string, diff bool, backupSuffix string,
 				fileOrder = append(fileOrder, e.File)
 			}
 			byFile[e.File] = append(byFile[e.File], e)
+		case kindComment:
+			comments = append(comments, e)
 		case kindTerm, kindMemory, kindVoice, kindRecipe:
 			res := a.applyAssetEntry(ctx, cmd, e)
 			out.Assets = append(out.Assets, res)
@@ -172,6 +191,17 @@ func (a *App) RunApply(cmd Command, path string, diff bool, backupSuffix string,
 		out.Content.Stale = append(out.Content.Stale, report.Stale...)
 		out.Content.GuardFailed = append(out.Content.GuardFailed, report.GuardFailed...)
 	}
+	if len(comments) > 0 {
+		out.Comments = a.applyComments(ctx, cmd, comments, diff, backupSuffix)
+		if diff {
+			for _, f := range out.Comments {
+				fmt.Fprint(cmd.OutOrStdout(), f.Diff)
+			}
+			if !asJSON {
+				printCommentResults(cmd.ErrOrStderr(), out.Comments)
+			}
+		}
+	}
 
 	if asJSON {
 		enc := json.NewEncoder(cmd.OutOrStdout())
@@ -197,6 +227,19 @@ func validateContentWording(entries []changeEntry) error {
 	for i, e := range entries {
 		if e.Kind == kindContent && e.Replacement != "" {
 			return fmt.Errorf("content entry %d for block %q: put the new wording in \"text\"; \"replacement\" belongs to voice rules", i+1, e.ID)
+		}
+		if e.Kind != kindComment {
+			continue
+		}
+		switch {
+		case e.File == "":
+			return fmt.Errorf("comment entry %d for %q has no \"file\"", i+1, e.ID)
+		case e.ID == "":
+			return fmt.Errorf("comment entry %d in %s has no \"id\"; use the comment's id as kapi check reports it", i+1, e.File)
+		case e.Replacement != "":
+			return fmt.Errorf("comment entry %d for %q: put the new prose in \"text\"; \"replacement\" belongs to voice rules", i+1, e.ID)
+		case e.ContentHash != "":
+			return fmt.Errorf("comment entry %d for %q: a comment is anchored by the \"lines\" kapi check reports, not by \"content_hash\"", i+1, e.ID)
 		}
 	}
 	return nil
@@ -344,4 +387,5 @@ func printApplyReport(w io.Writer, out *applyOutput) {
 		}
 		fmt.Fprintln(w)
 	}
+	printCommentResults(w, out.Comments)
 }

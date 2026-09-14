@@ -26,6 +26,82 @@ type Rewriter interface {
 	// text. name is the file's path. Text the comment cannot hold where it
 	// sits is refused with a *Refusal.
 	Render(name string, src []byte, c Comment, text string, opts RenderOptions) ([]byte, error)
+	// RewriteCanary returns a file whose comment VerifyRewriter rewrites before
+	// any comment of the language is written.
+	RewriteCanary() RewriteCanary
+}
+
+// RewriteFunc has the signature of Rewrite, so a caller runs the rewrite canary
+// through the function it rewrites real comments with.
+type RewriteFunc func(p Provider, name string, src []byte, declared Directives, target Target, text string, opts RenderOptions) (*Rewritten, error)
+
+// RewriteCanary is a small file in a provider's language that a rewrite must
+// handle correctly before a real comment of that language is written.
+type RewriteCanary struct {
+	// Name is the path the file is located under.
+	Name   string
+	Source []byte
+	// Block is the id Blocks gives the comment the canary rewrites.
+	Block string
+	// Refused is text a rewrite of Block must refuse.
+	Refused string
+}
+
+// VerifyRewriter runs p's rewrite canary through rewrite and Contain, and
+// returns what failed, or nil when p's comments can be written. Rewriting the
+// canary's comment with its own prose must leave the file as it is. Rewriting
+// it with the refused text must be refused. A rewrite spliced one byte before
+// the comment's span must be refused as uncontained.
+func VerifyRewriter(p Provider, rewrite RewriteFunc) error {
+	r, ok := p.(Rewriter)
+	if !ok {
+		return fmt.Errorf("comments in %s are read and not written", p.Language())
+	}
+	c := r.RewriteCanary()
+	located, err := Locate(p, c.Name, c.Source, nil)
+	if err != nil {
+		return fmt.Errorf("the rewrite canary could not be located: %w", err)
+	}
+	_, ids := located.names()
+	index := slices.Index(ids, c.Block)
+	if index < 0 {
+		return fmt.Errorf("the rewrite canary holds no comment named %s", c.Block)
+	}
+	target := located.Comments[index]
+	prose, err := r.Prose(c.Source, target)
+	if err != nil {
+		return fmt.Errorf("the rewrite canary's prose could not be read: %w", err)
+	}
+	same, err := rewrite(p, c.Name, c.Source, nil, Target{ID: c.Block, Lines: &target.Lines}, prose, RenderOptions{})
+	if err != nil {
+		return fmt.Errorf("rewriting the canary's comment with its own prose: %w", err)
+	}
+	if !bytes.Equal(same.Source, c.Source) {
+		return errors.New("rewriting the canary's comment with its own prose changed the file")
+	}
+	_, err = rewrite(p, c.Name, c.Source, nil, Target{ID: c.Block}, c.Refused, RenderOptions{})
+	if err == nil {
+		return fmt.Errorf("the canary's comment was rewritten with %q, which must be refused", c.Refused)
+	}
+	if _, ok := AsRefusal(err); !ok {
+		return fmt.Errorf("rewriting the canary's comment with %q failed without a refusal: %w", c.Refused, err)
+	}
+	span, err := r.Render(c.Name, c.Source, target, prose, RenderOptions{})
+	if err != nil {
+		return fmt.Errorf("the canary's comment could not be rendered: %w", err)
+	}
+	if target.Start == 0 {
+		return errors.New("the canary's comment opens its file, so no byte sits before it")
+	}
+	early := slices.Concat(c.Source[:target.Start-1], span, c.Source[target.End:])
+	_, err = Contain(p, c.Name, c.Source, early, nil, located, index)
+	if err == nil {
+		return errors.New("a rewrite spliced one byte before the canary's comment was accepted")
+	}
+	if refusal, ok := AsRefusal(err); !ok || refusal.Reason != RefusedContainment {
+		return fmt.Errorf("a rewrite spliced one byte before the canary's comment was not refused as uncontained: %w", err)
+	}
+	return nil
 }
 
 // DefaultWidth is the narrowest column a rewrite wraps prose at when no width
