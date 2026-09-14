@@ -1,0 +1,13 @@
+#![allow(dead_code)]
+//! The crate's parser.
+//!
+//! It reads `kapi.yaml`.
+
+/*! More crate documentation, in a block. */
+
+mod lexer {
+    /*! The lexer. */
+
+    // A plain comment inside a module.
+    pub(crate) fn lex() {}
+}

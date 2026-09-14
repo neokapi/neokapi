@@ -1,0 +1,92 @@
+//! Splits a recipe expression into tokens.
+//!
+//! The tokenizer never allocates for a token: each [`Token`] borrows its text
+//! from the input.
+
+use std::iter::Peekable;
+use std::str::CharIndices;
+
+/// A token and the text it covers.
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum Token<'a> {
+    /// A name, such as `collections`.
+    Ident(&'a str),
+    /// A quoted string, without its quotes.
+    Str(&'a str),
+    /// A single punctuation character.
+    Punct(char),
+}
+
+/// Reads tokens from an expression.
+pub struct Tokenizer<'a> {
+    src: &'a str,
+    chars: Peekable<CharIndices<'a>>,
+}
+
+impl<'a> Tokenizer<'a> {
+    /// Starts reading `src` from its first byte.
+    pub fn new(src: &'a str) -> Self {
+        Tokenizer { src, chars: src.char_indices().peekable() }
+    }
+
+    /// Skips spaces and `#` comments, which run to the end of the line.
+    fn skip_trivia(&mut self) {
+        while let Some(&(_, c)) = self.chars.peek() {
+            match c {
+                ' ' | '\t' | '\n' => {
+                    self.chars.next();
+                }
+                '#' => {
+                    // A comment in the expression language, not in Rust.
+                    while let Some((_, c)) = self.chars.next() {
+                        if c == '\n' {
+                            break;
+                        }
+                    }
+                }
+                _ => break,
+            }
+        }
+    }
+}
+
+impl<'a> Iterator for Tokenizer<'a> {
+    type Item = Token<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.skip_trivia();
+        let (start, c) = self.chars.next()?;
+        if c == '"' {
+            // Find the closing quote; an unterminated string runs to the end.
+            let end = self
+                .chars
+                .find(|&(_, c)| c == '"')
+                .map_or(self.src.len(), |(i, _)| i);
+            return Some(Token::Str(&self.src[start + 1..end]));
+        }
+        if c.is_alphanumeric() || c == '_' {
+            let mut end = start + c.len_utf8();
+            while let Some(&(i, c)) = self.chars.peek() {
+                if !(c.is_alphanumeric() || c == '_') {
+                    break;
+                }
+                end = i + c.len_utf8();
+                self.chars.next();
+            }
+            return Some(Token::Ident(&self.src[start..end]));
+        }
+        Some(Token::Punct(c)) /* anything else stands alone */
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // The string "// here" is a token, not a comment.
+    #[test]
+    fn reads_a_string_holding_slashes() {
+        let tokens: Vec<_> = Tokenizer::new("name = \"// here\"").collect();
+        assert_eq!(tokens, vec![Token::Ident("name"), Token::Punct('='), Token::Str("// here")]);
+    }
+}

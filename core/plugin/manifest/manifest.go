@@ -556,6 +556,9 @@ type CommentMarkers struct {
 type CommentBlockMarker struct {
 	Open  string `json:"open"`
 	Close string `json:"close"`
+	// Nested marks a delimited comment that holds comments of its own, as in
+	// Rust, and closes only once each comment opened inside it has closed.
+	Nested bool `json:"nested,omitempty"`
 }
 
 // validate checks a comment language's structure: a name the analyzer id and

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/neokapi/neokapi/core/comment"
 )
@@ -36,4 +37,20 @@ func TestMarkersLineText(t *testing.T) {
 		_, _, whole := comment.Markers{}.LineText([]byte("// a comment"))
 		assert.False(t, whole)
 	})
+}
+
+func TestMarkersLineTextNested(t *testing.T) {
+	nested := comment.Markers{Block: []comment.BlockMarker{{Open: "/*", Close: "*/", Nested: true}}}
+	n, text, whole := nested.LineText([]byte("/* a /* b */ c */ code"))
+	require.True(t, whole)
+	assert.Equal(t, len("/* a /* b */ c */"), n)
+	assert.Equal(t, " a /* b */ c ", text)
+
+	_, _, whole = nested.LineText([]byte("/* a /* b */ still open"))
+	assert.False(t, whole, "a nested comment closes only once the comment opened inside it has closed")
+
+	flat := comment.Markers{Block: []comment.BlockMarker{{Open: "/*", Close: "*/"}}}
+	n, _, whole = flat.LineText([]byte("/* a /* b */ c */"))
+	require.True(t, whole)
+	assert.Equal(t, len("/* a /* b */"), n, "a comment that does not nest closes at its first close")
 }

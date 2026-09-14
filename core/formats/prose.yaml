@@ -33,6 +33,9 @@ languages:
   ruby:
     name: Ruby
     provider: sourcecode
+  rust:
+    name: Rust
+    provider: sourcecode
   tsx:
     name: TSX
     provider: sourcecode

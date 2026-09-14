@@ -112,6 +112,32 @@
         }
       },
       {
+        "language": "rust",
+        "display_name": "Rust",
+        "extensions": [
+          ".rs"
+        ],
+        "markers": {
+          "line": [
+            "///",
+            "//!",
+            "//"
+          ],
+          "block": [
+            {
+              "open": "/*",
+              "close": "*/",
+              "nested": true
+            }
+          ]
+        },
+        "canary": {
+          "name": "a Rust doc comment with a doubled word, below a licence tag and above a string holding a comment marker",
+          "source": "// SPDX-License-Identifier: Apache-2.0\n/// Parses the the input.\npub fn parse(text: &str) -> &str {\n    let _ = \"// not a comment\";\n    text\n}\n",
+          "block": "func/parse"
+        }
+      },
+      {
         "language": "tsx",
         "display_name": "TSX",
         "extensions": [

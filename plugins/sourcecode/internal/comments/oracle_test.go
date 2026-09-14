@@ -23,9 +23,10 @@ import (
 )
 
 // Each language is held to comment spans read without the grammar the plugin
-// reads it with. TypeScript, TSX and JavaScript are held to @babel/parser, and
-// Python to the tokenize module of its standard library; scripts in testdata
-// run those and write a golden beside each fixture. Bash is held to the parser
+// reads it with. TypeScript, TSX and JavaScript are held to @babel/parser,
+// Python to the tokenize module of its standard library, and Rust to rustc's
+// own lexer; scripts in testdata run those and write a golden beside each
+// fixture. Bash is held to the parser
 // of mvdan.cc/sh and CSS to the lexer of github.com/tdewolff/parse, both run
 // by the test itself. Grouping and directives are decided here from the bytes,
 // with rules written for this test and nothing shared with the provider.
@@ -56,6 +57,7 @@ var oracles = map[string]oracle{
 	"python":     {name: "tokenize", golden: ".tokenize", script: "testdata/python-goldens.py", line: "#", directive: pythonDirective},
 	"bash":       {name: "mvdan.cc/sh", scan: shellSpans, line: "#", directive: shellDirective},
 	"css":        {name: "tdewolff/parse", scan: cssSpans, directive: cssDirective},
+	"rust":       {name: "rustc's lexer", golden: ".rustc", script: "testdata/rust-goldens.py", line: "//", directive: rustDirective},
 }
 
 // golden is one fixture's spans as a reader outside the test recorded them.
@@ -213,6 +215,14 @@ var cssDirectiveForm = regexp.MustCompile(`^/\*\s*(stylelint-(disable|enable)|pr
 
 func cssDirective(src []byte, s [4]int) bool {
 	return cssDirectiveForm.Match(src[s[0]:s[1]])
+}
+
+// rustDirectiveForm is a comment a tool reads in Rust source: an SPDX licence
+// tag, which licence scanners read, or a folding marker rust-analyzer reads.
+var rustDirectiveForm = regexp.MustCompile(`^(//|/\*)\s*SPDX-License-Identifier:|^//\s*(region|endregion)\b`)
+
+func rustDirective(src []byte, s [4]int) bool {
+	return rustDirectiveForm.Match(src[s[0]:s[1]])
 }
 
 // shellSpans reads the comments of a Bash script with mvdan.cc/sh.

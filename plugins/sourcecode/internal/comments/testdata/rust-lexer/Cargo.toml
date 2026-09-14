@@ -1,0 +1,10 @@
+[package]
+name = "rust-lexer"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+ra-ap-rustc_lexer = "=0.174.0"
+
+[workspace]

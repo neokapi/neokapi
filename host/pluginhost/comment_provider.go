@@ -43,7 +43,7 @@ func (p *daemonCommentProvider) Extensions() []string { return p.lang.Extensions
 func (p *daemonCommentProvider) LineText(line []byte) (int, string, bool) {
 	m := comment.Markers{Line: p.lang.Markers.Line}
 	for _, b := range p.lang.Markers.Block {
-		m.Block = append(m.Block, comment.BlockMarker{Open: b.Open, Close: b.Close})
+		m.Block = append(m.Block, comment.BlockMarker{Open: b.Open, Close: b.Close, Nested: b.Nested})
 	}
 	return m.LineText(line)
 }

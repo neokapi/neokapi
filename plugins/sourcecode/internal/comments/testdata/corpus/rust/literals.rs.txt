@@ -1,0 +1,17 @@
+// Holds comment markers as content.
+fn markers() {
+    let a = "// not a comment";
+    let b = r#"/* not a comment */"#;
+    let c = b"// not a comment either";
+    let d = '/';
+    let e = "a \" // not a comment after an escaped quote";
+    let f: &'static str = r"// not a comment in a raw string";
+    let g = format!("{}", "/* not a comment */");
+    /* outer /* nested */ still the same comment */
+    let _ = (a, b, c, d, e, f, g);
+}
+
+macro_rules! noted {
+    // A comment inside a macro rule.
+    () => { "// not a comment in a macro" };
+}

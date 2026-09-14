@@ -1,0 +1,14 @@
+# comment spans from rustc's lexer, ra-ap-rustc_lexer 0.174.0
+# source authored
+# sha256 aaafbd295173a8c1e1088b42d4a5362b80d8ee1b74c3ab98dd5bd1a305ced6f1
+0 39 3 0
+54 58 2 2
+80 125 2 2
+141 144 3 0
+145 193 3 0
+194 197 3 0
+213 241 3 0
+242 245 3 0
+246 253 3 0
+254 286 3 0
+287 294 3 0

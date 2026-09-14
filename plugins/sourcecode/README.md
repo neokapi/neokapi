@@ -63,19 +63,20 @@ as their openers, which is what makes the pairing safe.
 ## Comments
 
 `internal/comments` locates the comments of the languages `manifest.json` lists
-under `capabilities.comments`: TypeScript, TSX, JavaScript, Python, Bash and CSS.
-kapi sends a file's bytes over the `LocateComments` RPC and reads back what a built-in comment
+under `capabilities.comments`: TypeScript, TSX, JavaScript, Python, Bash, CSS
+and Rust. kapi sends a file's bytes over the `LocateComments` RPC and reads back what a built-in comment
 provider such as Go's returns: each comment's byte span and lines, its subject,
 whether it documents a declaration, its runs, and the comments set aside with
 their reason. A recipe reaches it with `comments: true` on a content item.
 
 What the provider decides:
 
-- **Grouping.** Consecutive line comments (`//`, or `#` in Python and Bash), each
-  alone on its line, form one comment.
+- **Grouping.** Consecutive line comments of one kind (`//`, or `#` in Python and
+  Bash), each alone on its line, form one comment. Rust's `///`, `//!` and `//`
+  are three kinds.
   A comment after code on its line, and every block comment, stands alone. A
-  directive line splits a group, and a blank line at either edge of a comment is
-  set aside.
+  directive line splits a group, and a line with nothing after its comment
+  marker at either edge of a comment is set aside.
 - **Directives.** A comment a tool reads is set aside with its form:
   `eslint-disable*` and the other ESLint forms, `oxlint-*`, `biome-ignore`,
   `tslint:`, `@ts-expect-error` and the other TypeScript pragmas,
@@ -86,27 +87,33 @@ What the provider decides:
   `# type:`, `# noqa`, `# pragma:`, `# nosec`, and the `pylint:`, `fmt:`,
   `mypy:`, `pyright:`, `ruff:` and `isort:` markers. Bash sets aside the shebang
   and `# shellcheck`, and CSS `stylelint-disable`, `stylelint-enable`,
-  `prettier-ignore` and source-map comments. The tables are `jsDirectives`,
-  `pythonDirectives`, `bashDirectives` and `cssDirectives`, and each language's
+  `prettier-ignore` and source-map comments. Rust sets aside an SPDX licence tag
+  and rust-analyzer's `// region:` folding markers. The tables are
+  `jsDirectives`, `pythonDirectives`, `bashDirectives`, `cssDirectives` and
+  `rustDirectives`, and each language's
   `testdata/corpus/<language>/directives.*.txt` holds a comment only each form
   matches.
 - **Generated files.** A generator phrase with an instruction not to edit, or
   `@generated`, in the comments on a file's first three non-empty lines sets
   every comment in the file aside.
 - **Doc comments.** In TypeScript and JavaScript a `/** */` block documents a
-  declaration when nothing but whitespace separates the two. Python, Bash and CSS
-  comments document nothing, and a Python docstring is a string. In its runs a block tag with its type and name, a
+  declaration when nothing but whitespace separates the two. In Rust `///` and
+  `/** */` document the item after them, with attributes allowed between, and
+  `//!` and `/*! */` the module they sit in, following rustc's rule that `////`,
+  `/***` and `/**/` are plain comments. Python, Bash and CSS comments document
+  nothing, and a Python docstring is a string. In its runs a block tag with its type and name, a
   tag that holds a value, an `@example` section, an inline tag such as
   `{@link Parser}`, a code span and a URL are placeholders, so a check reads
   sentences only. `@deprecated` sets the deprecated flag.
 - **Subjects.** A comment is named for what it sits on, in the Go provider's
   shape: `func/parse`, `class/Parser/run`, `interface/Options/keep`,
   `namespace/Util/const/join`, `var/OUT` in Bash, `rule/.header` and
-  `media/rule/.c` in CSS, or `comment` when it sits on nothing. A comment after
+  `media/rule/.c` in CSS, `impl/Point/origin` and `module` in Rust, or `comment`
+  when it sits on nothing. A comment after
   code on its line sits on nothing after it.
 - **Literals.** A marker inside a string, a template literal, a regular
   expression, JSX text, a heredoc, a parameter expansion such as
-  `${name#prefix}`, or an unquoted CSS `url()` is content.
+  `${name#prefix}`, a Rust raw string, or an unquoted CSS `url()` is content.
 - **Files that do not parse.** A tree with a syntax error in it is not located,
   and kapi reports the file's comment check as not run.
 
@@ -126,18 +133,22 @@ shares no code with the grammars. The fixtures in
 - the `tokenize` module of Python's standard library for Python, whose spans sit
   beside each fixture in `<fixture>.tokenize`, its character columns converted
   to byte offsets;
+- rustc's own lexer, published as `ra-ap-rustc_lexer`, for Rust, run by the
+  program in `testdata/rust-lexer/`, whose spans sit beside each fixture in
+  `<fixture>.rustc`;
 - the `mvdan.cc/sh` parser for Bash and the `tdewolff/parse` CSS lexer for CSS,
   both run by the Go tests themselves.
 
-A golden records its fixture's sha256, so the Go tests need neither node nor
-Python and fail when a fixture changes without its golden. Grouping and
+A golden records its fixture's sha256, so the Go tests need none of node, Python
+or cargo, and fail when a fixture changes without its golden. Grouping and
 directives in the oracle come from rules written in `oracle_test.go`, apart from
 the provider's.
 
 The corpus is drawn from this repository, plus authored fixtures for directives,
 literals, subjects, generated files, doc comments, CRLF line endings and
-multibyte text. A copied fixture is named for the last two segments of its path.
-From the repository root, with node, Python 3 and the pnpm store installed:
+multibyte text. Rust has no source in this repository, so its fixtures are
+authored. A copied fixture is named for the last two segments of its path.
+From the repository root, with node, Python 3, cargo and the pnpm store installed:
 
 ```bash
 node plugins/sourcecode/internal/comments/testdata/babel-goldens.mjs --add tsx web/src/theme/Root.tsx
