@@ -1,0 +1,6 @@
+// Greeting is prose.
+export const greeting = "// not a comment";
+export const single = '/* not a comment */';
+export const template = `// not a comment ${greeting /* but this is one */}`;
+export const url = `https://example.com/path`;
+export const pattern = /\/\/ not a comment/g;

@@ -1,0 +1,13 @@
+/**
+ * Parses the input.
+ *
+ * @param src the source text
+ */
+export function parse(src: string): string {
+  /* A block
+     over two lines. */
+  return src;
+}
+// First line.
+// Second line.
+export const x = "// not a comment";

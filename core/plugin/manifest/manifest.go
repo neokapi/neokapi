@@ -216,6 +216,11 @@ type Capabilities struct {
 	// config schema, dispatched over the daemon's Segment RPC.
 	Segmenters []Segmenter `json:"segmenters,omitempty"`
 
+	// Comments declares languages whose comments the plugin locates for the
+	// comment layer (Mode C). The host registers a comment provider for each
+	// language's extensions, dispatched over the daemon's LocateComments RPC.
+	Comments []CommentLanguage `json:"comments,omitempty"`
+
 	// SourceConnectors declares source connectors the plugin provides
 	// (Mode C). A connector typically implements project synchronization
 	// (push/pull) against an external system.
@@ -501,6 +506,89 @@ type Segmenter struct {
 	Schema string `json:"schema,omitempty"`
 }
 
+// CommentLanguage describes one language whose comments the plugin locates
+// (Mode C). The host registers a comment provider for Extensions and sends each
+// file's bytes to the daemon's LocateComments RPC with Language.
+type CommentLanguage struct {
+	// Language names the language as the comment layer reports it, such as
+	// "typescript". A check records the extraction as comments.<language>.
+	Language string `json:"language"`
+
+	// DisplayName is the human-readable name, such as "TypeScript".
+	DisplayName string `json:"display_name,omitempty"`
+
+	// Extensions lists the file extensions, with the dot, whose comments the
+	// plugin locates.
+	Extensions []string `json:"extensions"`
+
+	// Markers are the delimiters the language writes its comments with. The
+	// host reads one comment line through them to find the directives a recipe
+	// declares.
+	Markers CommentMarkers `json:"markers"`
+
+	// Canary is a small file the plugin must read correctly. The host locates it
+	// through the same RPC beside every real file, and a plugin that misses its
+	// comment leaves the check invalid.
+	Canary CommentCanary `json:"canary"`
+}
+
+// CommentCanary is a comment language's canary file (core/comment.Canary).
+type CommentCanary struct {
+	// Name says what the canary exercises.
+	Name string `json:"name,omitempty"`
+	// Source is the file's text. Locating it must yield the comment Block names,
+	// holding a doubled word the hygiene check flags.
+	Source string `json:"source"`
+	// Block is the block id of that comment.
+	Block string `json:"block"`
+}
+
+// CommentMarkers are a comment language's delimiters (core/comment.Markers).
+type CommentMarkers struct {
+	// Line are the markers of comments that run to the end of their line, such
+	// as "//".
+	Line []string `json:"line,omitempty"`
+	// Block are the delimiters of comments that close, such as "/*" and "*/".
+	Block []CommentBlockMarker `json:"block,omitempty"`
+}
+
+// CommentBlockMarker opens and closes a delimited comment.
+type CommentBlockMarker struct {
+	Open  string `json:"open"`
+	Close string `json:"close"`
+}
+
+// validate checks a comment language's structure: a name the analyzer id and
+// the Prose axis can carry, extensions to register it for, and a canary.
+func (c CommentLanguage) validate() error {
+	if c.Language == "" {
+		return errors.New("language is required")
+	}
+	for i, r := range c.Language {
+		if (r < 'a' || r > 'z') && (i == 0 || r < '0' || r > '9') {
+			return fmt.Errorf("invalid language %q (must match [a-z][a-z0-9]*)", c.Language)
+		}
+	}
+	if len(c.Extensions) == 0 {
+		return fmt.Errorf("language %q declares no extensions", c.Language)
+	}
+	for _, ext := range c.Extensions {
+		if len(ext) < 2 || ext[0] != '.' || strings.ContainsAny(ext, `/\`) {
+			return fmt.Errorf("language %q: invalid extension %q (want a dot and a suffix, such as \".ts\")", c.Language, ext)
+		}
+	}
+	if len(c.Markers.Line) == 0 && len(c.Markers.Block) == 0 {
+		return fmt.Errorf("language %q declares no comment markers", c.Language)
+	}
+	if slices.Contains(c.Markers.Line, "") || slices.ContainsFunc(c.Markers.Block, func(b CommentBlockMarker) bool { return b.Open == "" || b.Close == "" }) {
+		return fmt.Errorf("language %q declares an empty comment marker", c.Language)
+	}
+	if c.Canary.Source == "" || c.Canary.Block == "" {
+		return fmt.Errorf("language %q: canary source and block are required", c.Language)
+	}
+	return nil
+}
+
 // SourceConnector describes one source connector (Mode C).
 type SourceConnector struct {
 	ID          string `json:"id"`
@@ -564,11 +652,11 @@ type Handshake struct {
 }
 
 // IsModeC reports whether the manifest declares Mode-C transport.
-// True when the manifest provides any format, tool, segmenter, or source
-// connector.
+// True when the manifest provides any format, tool, segmenter, comment
+// language, or source connector.
 func (m *Manifest) IsModeC() bool {
 	c := m.Capabilities
-	return len(c.Formats) > 0 || len(c.Tools) > 0 || len(c.Segmenters) > 0 || len(c.SourceConnectors) > 0
+	return len(c.Formats) > 0 || len(c.Tools) > 0 || len(c.Segmenters) > 0 || len(c.Comments) > 0 || len(c.SourceConnectors) > 0
 }
 
 // IsModeB reports whether the manifest declares Mode-B transport.
@@ -609,10 +697,10 @@ func (m *Manifest) Validate() error {
 		return err
 	}
 	if m.IsModeC() && m.Daemon == nil {
-		return errors.New("daemon block is required when capabilities include formats, tools, segmenters, or source_connectors")
+		return errors.New("daemon block is required when capabilities include formats, tools, segmenters, comments, or source_connectors")
 	}
 	if m.Daemon != nil && !m.IsModeC() {
-		return errors.New("daemon block is only valid when capabilities include formats, tools, segmenters, or source_connectors")
+		return errors.New("daemon block is only valid when capabilities include formats, tools, segmenters, comments, or source_connectors")
 	}
 	for i, c := range m.Capabilities.Commands {
 		if c.Name == "" {
@@ -640,6 +728,11 @@ func (m *Manifest) Validate() error {
 	for i, s := range m.Capabilities.Segmenters {
 		if s.Name == "" {
 			return fmt.Errorf("capabilities.segmenters[%d]: name is required", i)
+		}
+	}
+	for i, c := range m.Capabilities.Comments {
+		if err := c.validate(); err != nil {
+			return fmt.Errorf("capabilities.comments[%d]: %w", i, err)
 		}
 	}
 	for i, sc := range m.Capabilities.SourceConnectors {

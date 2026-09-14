@@ -173,10 +173,12 @@ paragraph. A finding's `location.lines` gives the lines of its block. Rules that
 hold over a whole document, such as a voice profile's required patterns, read
 the whole changed file.
 
-In a Go source file the unit is the comment. A changed line inside a comment
-checks that comment whole, and a change to code or to directives alone leaves
-the file `untouched`. The formatter compares only the comments the change
-touched, and it catches its canary as it does when kapi checks the whole file.
+In a source file read for its comments, such as a Go file, or a TypeScript,
+TSX or JavaScript file the sourcecode plugin reads, the unit is the comment. A
+changed line inside a comment checks that comment whole, and a change to code or
+to directives alone leaves the file `untouched`. Where the language has a
+formatter, it compares only the comments the change touched, and it catches its
+canary as it does when kapi checks the whole file.
 When a recipe declares the comments of a file a reader parses, such as a YAML,
 XML or HTML file with `comments: true`, each comment is a block beside the
 reader's blocks, and a changed line takes whichever block it sits in.

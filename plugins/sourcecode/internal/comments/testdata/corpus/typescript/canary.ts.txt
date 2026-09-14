@@ -1,0 +1,5 @@
+// eslint-disable-next-line no-console
+/** Parses the the input. */
+export function parse(src: string): string {
+  return "// not a comment" + src;
+}

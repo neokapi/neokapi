@@ -1,0 +1,14 @@
+# comment spans from @babel/parser 7.29.8
+# source packages/ui/src/components/editor/pluralCellPreview.ts
+# sha256 8e7d690b639359dba5065e76f84625d400a0b58a58e1aab7f8a3e2b79b686103
+0 624 2 2
+893 948 2 2
+993 1041 2 2
+1069 1145 2 2
+1180 1207 2 2
+1228 1962 2 2
+2916 3092 2 0
+3094 3577 2 2
+4247 4310 2 0
+4317 4363 2 0
+5450 5491 2 0

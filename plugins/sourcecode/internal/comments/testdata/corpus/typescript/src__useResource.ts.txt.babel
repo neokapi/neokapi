@@ -1,0 +1,12 @@
+# comment spans from @babel/parser 7.29.8
+# source packages/concept-ui/src/useResource.ts
+# sha256 e5100905ac8c8d62cceaff59830f0a8189e4656302ae36de7d6bc8024221c31f
+0 82 2 0
+83 162 2 0
+163 242 2 0
+243 324 2 0
+325 359 2 0
+559 607 2 2
+633 869 2 2
+1958 2026 2 0
+2031 2086 2 0

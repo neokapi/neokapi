@@ -1,0 +1,21 @@
+// Parses the input.
+// okapi-skip: ParseTest#testEmpty
+//
+// It returns an error for empty input.
+export function parse(): void {}
+
+// okapi-unmapped: FormatTest#testAll
+// okapi-skip: FormatTest#testNone
+export function format(): void {
+  const x = 1; // okapi-skip: FormatTest#testTrailing
+  /* okapi-unmapped: FormatTest#testDelimited */
+  void x;
+}
+
+/**
+ * okapi-skip: inside a doc comment over several lines
+ */
+export function render(): void {}
+
+// See the okapi-skip: markers; OKAPI-SKIP: in capitals is prose too.
+export function sort(): void {}

@@ -452,6 +452,22 @@ only. A provider is not a format: nothing registers one in the format registry,
 and a recipe declares such files with `comments: true` on a content item, which
 convergence, flow runs and source coverage then pass over.
 
+A plugin can supply language providers too. The sourcecode plugin lists the
+languages it reads in its manifest, such as TypeScript, TSX and JavaScript, and
+the host registers a provider for each language's extensions that sends a file's
+bytes to the plugin and reads back the located comments. The plugin parses each
+file with the language's tree-sitter grammar, so a marker inside a string, a
+template literal, a regular expression or JSX text is content. It sets aside the
+directives the language's tools read, such as `eslint-disable`,
+`@ts-expect-error` and the shebang, every comment in a file whose header says a
+generator owns it, and blank comment lines. A `/** */` block is a doc comment
+only when nothing but whitespace separates it from a declaration, and its tags,
+inline links and code spans are placeholders. A file the grammar cannot parse
+whole is not located, and its comment check did not run. The canary comes from
+the plugin's manifest and goes through the plugin beside every real file. When no
+installed plugin reads a declared file's language, a check over the project
+reports the file unread and names the plugin to install.
+
 A format whose reader parses a file can supply that file's comments too. Such a
 provider scans the bytes and refuses a document whose comments its scan and the
 format's parser disagree about, so a comment is never placed approximately. The

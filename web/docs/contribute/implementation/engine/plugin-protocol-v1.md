@@ -83,6 +83,7 @@ under a discovery root, with a `manifest.json` at its root:
     "formats": [],
     "tools": [],
     "segmenters": [],
+    "comments": [],
     "source_connectors": [],
     "schema_extensions": [],
     "command_contributions": [],
@@ -116,7 +117,8 @@ the conformance suite checks each one by name.
 | `plugin` matches the install directory's name, and matches `[a-z0-9][a-z0-9-]*`                              | Discovery verifies the two agree and drops the plugin when they do not.                         |
 | `binary` is relative to the plugin directory, resolves inside it, and is executable                         | Every transport execs this path.                                                               |
 | At least one capability section is populated                                                                | A plugin with no capabilities cannot be dispatched to.                                          |
-| `daemon` is present **exactly** when a `formats`, `tools`, `segmenters`, or `source_connectors` is declared    | The host reads the daemon's timeouts and handshake shape before it execs it.                     |
+| `daemon` is present **exactly** when a `formats`, `tools`, `segmenters`, `comments`, or `source_connectors` is declared | The host reads the daemon's timeouts and handshake shape before it execs it.                     |
+| Every `comments[]` entry names a `language` matching `[a-z][a-z0-9]*`, its `extensions`, its comment `markers` (`line`, `block`), and a `canary` with `source` and `block` | The host reads every file with one of those extensions through the plugin, beside the canary, and reads single comment lines through the markers. |
 | Every referenced JSON Schema resolves inside the plugin directory and parses                                | An unreadable schema degrades recipe validation to a structural-only check.                      |
 | Every non-bundled `models[].files[]` pins a 64-hex lowercase `sha256` and an `https` URL                     | The signed manifest is the only trust root for model bytes; the host refuses an unpinned one.     |
 | At most one model asset is `default`                                                                        | Otherwise "the default model" is ambiguous.                                                    |
@@ -180,6 +182,7 @@ may declare any subset.
 | `formats`               | Mode C    | `<binary> daemon`                       |
 | `tools`                 | Mode C    | `<binary> daemon`                       |
 | `segmenters`            | Mode C    | `<binary> daemon`                       |
+| `comments`              | Mode C    | `<binary> daemon`                       |
 | `source_connectors`     | Mode C    | `<binary> daemon`                       |
 | `schema_extensions`     | none      | validated in-process by kapi            |
 
@@ -279,19 +282,52 @@ service BridgeService {
   // Segment one run of text with a declared segmentation engine.
   rpc Segment(SegmentRequest) returns (SegmentResponse);
 
+  // Locate the comments in one source file, for a declared comment language.
+  rpc LocateComments(LocateCommentsRequest) returns (LocateCommentsResponse);
+
   // Shut down gracefully.
   rpc Shutdown(ShutdownRequest) returns (ShutdownResponse);
 }
 ```
 
 Only the RPCs backing declared capabilities need real implementations: a
-formats-only plugin may leave `Segment` unimplemented, and a segmenter-only
-plugin may leave `Process` unimplemented. `Shutdown` is recommended but optional;
+formats-only plugin may leave `Segment` and `LocateComments` unimplemented, and a
+segmenter-only plugin may leave `Process` unimplemented. `Shutdown` is recommended but optional;
 the host falls back to SIGTERM.
 
 A daemon that serves gRPC without registering `BridgeService` answers every call
 with `Unimplemented`, which is indistinguishable from a plugin that provides
 nothing. The conformance suite probes for this explicitly.
+
+### LocateComments
+
+A plugin that declares `capabilities.comments` answers `LocateComments` for each
+language it lists. The request carries the language, the file's path and the
+file's bytes. The response is the comment layer's `comment.File` on the wire:
+every addressable comment as a `CommentSpan` (a half-open byte span into the bytes
+sent, an inclusive line range, the style, the subject, the doc and deprecated
+flags, and the runs) and every comment set aside as a `CommentExclusion` with its
+reason and, for a directive, its form. Between them they account for every
+comment in the file, each exactly once. A line comment's span runs from its
+marker to the end of its line, and a block comment's span holds both delimiters.
+
+A file the plugin read and could not place the comments of exactly, such as one
+that does not parse, sets `unlocated` with the reason in `error`, and the host
+reports the language's comment check as not run. Any other failure is `error`
+alone. The host refuses a response whose spans fall outside the bytes it sent.
+
+An entry's `markers` name the language's comment delimiters: each `line` marker
+runs to the end of its line, and each `block` marker opens and closes. The host
+reads one comment line through them for the comment layer's `LineText`, with no
+call to the plugin. A line comment is whole to the end of its line, and a
+delimited comment only when it closes on the line it opens on. When a recipe
+declares comment directives, the host locates a file a second time with the
+marker lines blanked, so what the plugin locates must depend on the bytes alone.
+
+Each entry's `canary` is a small file in the language whose comment `block` holds
+a doubled word. The host sends it through `LocateComments` beside every real file
+and runs the hygiene check over the comment that comes back, so a plugin that
+misses the comment, or answers with other text, leaves the check invalid.
 
 ### Process lifecycle
 
@@ -551,7 +587,7 @@ without running anything, so CI can diff coverage over time.
 | `binary`   | The [standard verbs](#standard-verbs): `version` succeeds and agrees with the manifest, `doctor` succeeds when `selfcheck` is declared, an unknown verb is rejected                                                        |
 | `modeA`    | An undeclared command is rejected; optionally, one declared command is invoked and its exit code and output asserted                                                                                                       |
 | `modeB`    | The MCP handshake completes, `tools/list` covers every declared tool, stdout carries only JSON-RPC, and closing stdin ends the process                                                                                     |
-| `modeC`    | The handshake line, the bound socket and its permissions, gRPC reaching `READY`, `BridgeService` being registered, `Segment` answering for declared segmenters, `Shutdown`, and SIGTERM termination with the socket released |
+| `modeC`    | The handshake line, the bound socket and its permissions, gRPC reaching `READY`, `BridgeService` being registered, `Segment` answering for declared segmenters, `LocateComments` locating each declared comment language's canary, `Shutdown`, and SIGTERM termination with the socket released |
 
 A check is **required** or **advisory**. An advisory failure is reported but does
 not clear `report.OK()`: it names something the host tolerates today that a

@@ -1,0 +1,5 @@
+#!/usr/bin/env node
+/** Reads the the config. */
+export function read() {
+  return `// not a comment`;
+}

@@ -5,8 +5,11 @@ package pluginhost
 
 import (
 	"fmt"
+	"maps"
 	"os"
+	"slices"
 	"sort"
+	"strings"
 	"sync"
 
 	"github.com/neokapi/neokapi/core/plugin/manifest"
@@ -66,6 +69,7 @@ type Host struct {
 	mcpDispatch       map[string]*MCPRoute             // MCP tool name → owning plugin + manifest entry
 	formatDispatch    map[string]*FormatRoute          // format name → owning plugin + manifest entry
 	segmenterDispatch map[string]*SegmenterRoute       // segmenter engine name → owning plugin + manifest entry
+	commentDispatch   map[string]*CommentRoute         // comment language → owning plugin + manifest entry
 	schemaExt         []SchemaExtensionRegistration    // recipe schema extensions surfaced from manifests
 	contributions     []*ContributionRoute             // contributions to built-in commands
 	configNS          map[string]*ConfigNamespaceRoute // `kapi config` key prefix → owning plugin
@@ -101,6 +105,13 @@ type FormatRoute struct {
 type SegmenterRoute struct {
 	Plugin    *Plugin
 	Segmenter manifest.Segmenter
+}
+
+// CommentRoute names a comment language and the plugin that locates its
+// comments.
+type CommentRoute struct {
+	Plugin   *Plugin
+	Language manifest.CommentLanguage
 }
 
 // ConfigNamespaceRoute names a `kapi config` key prefix and the plugin that
@@ -140,6 +151,7 @@ func NewHost(plugins []*Plugin, conflicts func(msg string)) *Host {
 		mcpDispatch:       map[string]*MCPRoute{},
 		formatDispatch:    map[string]*FormatRoute{},
 		segmenterDispatch: map[string]*SegmenterRoute{},
+		commentDispatch:   map[string]*CommentRoute{},
 		configNS:          map[string]*ConfigNamespaceRoute{},
 	}
 
@@ -216,6 +228,14 @@ func NewHost(plugins []*Plugin, conflicts func(msg string)) *Host {
 			}
 			h.segmenterDispatch[s.Name] = &SegmenterRoute{Plugin: p, Segmenter: s}
 		}
+		for _, c := range p.Manifest.Capabilities.Comments {
+			if existing, ok := h.commentDispatch[c.Language]; ok {
+				conflicts(fmt.Sprintf("comments in %q are read by plugins %q and %q, and neither will be used until one is removed", c.Language, existing.Plugin.Name(), p.Name()))
+				delete(h.commentDispatch, c.Language)
+				continue
+			}
+			h.commentDispatch[c.Language] = &CommentRoute{Plugin: p, Language: c}
+		}
 		for _, ext := range p.Manifest.Capabilities.SchemaExtensions {
 			h.schemaExt = append(h.schemaExt, SchemaExtensionRegistration{Plugin: p, Extension: ext})
 		}
@@ -232,6 +252,26 @@ func NewHost(plugins []*Plugin, conflicts func(msg string)) *Host {
 				continue
 			}
 			h.configNS[ns.Prefix] = &ConfigNamespaceRoute{Plugin: p, Namespace: ns}
+		}
+	}
+
+	// A file extension belongs to one comment language. Two languages claiming
+	// one leave neither in use for any extension.
+	claims := map[string][]string{}
+	for language, r := range h.commentDispatch {
+		for _, ext := range r.Language.Extensions {
+			claims[strings.ToLower(ext)] = append(claims[strings.ToLower(ext)], language)
+		}
+	}
+	for _, ext := range slices.Sorted(maps.Keys(claims)) {
+		languages := claims[ext]
+		if len(languages) < 2 {
+			continue
+		}
+		slices.Sort(languages)
+		conflicts(fmt.Sprintf("comments in %s files are claimed by the languages %s, and none will be used until one is removed", ext, strings.Join(languages, ", ")))
+		for _, language := range languages {
+			delete(h.commentDispatch, language)
 		}
 	}
 
@@ -329,6 +369,11 @@ func (h *Host) dropPluginLocked(p *Plugin) {
 			delete(h.segmenterDispatch, k)
 		}
 	}
+	for k, r := range h.commentDispatch {
+		if r.Plugin == p {
+			delete(h.commentDispatch, k)
+		}
+	}
 	for k, r := range h.configNS {
 		if r.Plugin == p {
 			delete(h.configNS, k)
@@ -389,6 +434,21 @@ func (h *Host) SegmenterRoutes() []*SegmenterRoute {
 	}
 	sort.SliceStable(out, func(i, j int) bool {
 		return out[i].Segmenter.Name < out[j].Segmenter.Name
+	})
+	return out
+}
+
+// CommentRoutes returns every comment language a plugin reads, sorted by
+// language.
+func (h *Host) CommentRoutes() []*CommentRoute {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	out := make([]*CommentRoute, 0, len(h.commentDispatch))
+	for _, r := range h.commentDispatch {
+		out = append(out, r)
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		return out[i].Language.Language < out[j].Language.Language
 	})
 	return out
 }

@@ -1299,6 +1299,11 @@ build-sourcecode-plugin: ## Build the kapi-sourcecode reader plugin → bin/kapi
 test-sourcecode-plugin: ## Run kapi-sourcecode tests (grammar-driven prose extraction)
 	cd plugins/sourcecode && GOWORK=off CGO_ENABLED=1 $(GO) test ./...
 
+# The comment tests hold the plugin to comment spans @babel/parser reads, written
+# beside each fixture. Needs node and the parser from the pnpm store (vp install).
+sourcecode-comment-goldens: ## Regenerate the Babel goldens the kapi-sourcecode comment tests compare with
+	node plugins/sourcecode/internal/comments/testdata/babel-goldens.mjs
+
 # Package a signed-ready distribution tarball for the HOST platform: builds
 # kapi-sat -tags onnx, bundles the onnxruntime shared lib at lib/<name> beside
 # the binary (so an installed plugin needs no KAPI_SAT_ORT_LIB), and emits

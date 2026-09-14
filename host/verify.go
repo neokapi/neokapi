@@ -1818,6 +1818,9 @@ func (a *App) recordAndCollectBlocks(ctx context.Context, path, fmtName string, 
 	if fmtName == "" {
 		detected, err := a.FormatReg.Detect(path, registry.DetectOptions{ExtensionOnly: true})
 		if err != nil {
+			if missing := a.missingCommentReader(path); missing != nil {
+				return nil, missing
+			}
 			return nil, fmt.Errorf("detect format for %q: %w", filepath.Base(path), err)
 		}
 		fmtName = string(detected)
@@ -1918,6 +1921,9 @@ func (a *App) readBlocksValidated(ctx context.Context, path, fmtName string, cfg
 	if fmtName == "" {
 		detected, err := a.FormatReg.Detect(path, registry.DetectOptions{ExtensionOnly: true})
 		if err != nil {
+			if missing := a.missingCommentReader(path); missing != nil {
+				return nil, nil, missing
+			}
 			return nil, nil, fmt.Errorf("detect format for %q: %w", filepath.Base(path), err)
 		}
 		fmtName = string(detected)

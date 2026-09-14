@@ -1,0 +1,69 @@
+/** Sits above an import, which declares nothing. */
+import { readFileSync } from "node:fs";
+
+/** Parses the input. */
+export function parse(src: string): string {
+  /** Inside a body, above a statement. */
+  const trimmed = src.trim();
+  return trimmed;
+}
+
+/** Separated by a blank line, and still the documentation. */
+
+export class Parser {
+  /** The source text. */
+  source = "";
+
+  // A line comment above a method sits on it and documents nothing.
+  run(): void {}
+
+  /** Above a directive, so not directly above the method. */
+  // eslint-disable-next-line no-empty-function
+  stop(): void {}
+}
+
+/** Above a re-export, which declares nothing. */
+export { readFileSync };
+
+/**
+ * Options for a parse.
+ *
+ * @deprecated Use {@link ParseConfig} and see https://example.com/parse.
+ */
+export interface Options {
+  /** Whether to keep `whitespace`. */
+  keep: boolean;
+}
+
+/** A kind of input. */
+export enum Kind {
+  /** Plain text. */
+  Text,
+}
+
+/** An identifier. */
+export type Id = string;
+
+namespace Util {
+  /** Joins two parts. */
+  export const join = (a: string, b: string) => a + b;
+}
+
+declare global {
+  /** Extends the window. */
+  interface Window {
+    kapi: unknown;
+  }
+}
+
+/**
+ * Reads a file.
+ *
+ * @param {string} path - the file to read
+ * @returns the file's text, decoded as UTF-8
+ * @example
+ * read("kapi.yaml");
+ */
+export function read(path: string): string {
+  return readFileSync(path, "utf8");
+}

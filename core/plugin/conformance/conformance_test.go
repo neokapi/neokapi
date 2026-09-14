@@ -181,6 +181,14 @@ func probeManifest() map[string]any {
 			"segmenters": []any{
 				map[string]any{"name": "probeseg", "display_name": "Probe segmenter"},
 			},
+			"comments": []any{
+				map[string]any{
+					"language":   "probe",
+					"extensions": []any{".probesrc"},
+					"markers":    map[string]any{"line": []any{"//"}},
+					"canary":     map[string]any{"source": "// Reads the the input.\n", "block": "comment"},
+				},
+			},
 			"selfcheck": true,
 		},
 		"daemon": map[string]any{
@@ -429,7 +437,7 @@ func TestManifestDaemonBlockConsistency(t *testing.T) {
 		})
 		rep := run(t, conformance.Suite{Dir: dir, Timeout: 5 * time.Second, Only: []string{"manifest"}})
 		res := requireStatus(t, rep, "manifest.daemon-block", conformance.Fail)
-		assert.Contains(t, res.Detail, "no format, flow tool, segmenter, or source connector")
+		assert.Contains(t, res.Detail, "no format, flow tool, segmenter, comment language, or source connector")
 	})
 
 	t.Run("unsupported handshake type", func(t *testing.T) {
@@ -763,6 +771,7 @@ func TestModeCDaemonIsConformant(t *testing.T) {
 	requireStatus(t, rep, "modeC.grpc-ready", conformance.Pass)
 	requireStatus(t, rep, "modeC.bridge-service", conformance.Pass)
 	requireStatus(t, rep, "modeC.segment-rpc", conformance.Pass)
+	requireStatus(t, rep, "modeC.comments-rpc", conformance.Pass)
 	requireStatus(t, rep, "modeC.shutdown-rpc", conformance.Pass)
 	requireStatus(t, rep, "modeC.sigterm-exit", conformance.Pass)
 
@@ -1058,6 +1067,27 @@ func TestModeCSegmentProbe(t *testing.T) {
 	})
 }
 
+func TestModeCCommentsRPC(t *testing.T) {
+	skipUnlessModeCSupported(t)
+
+	t.Run("the canary's comment is located", func(t *testing.T) {
+		s := suite(probeDir(t, nil))
+		s.Only = []string{"modeC"}
+		rep := run(t, s)
+		res := requireStatus(t, rep, "modeC.comments-rpc", conformance.Pass)
+		assert.Contains(t, res.Detail, "probe")
+	})
+
+	t.Run("must fail: a plugin that misses its canary's comment", func(t *testing.T) {
+		s := suite(probeDir(t, nil))
+		s.Only = []string{"modeC"}
+		s.Env = []string{"PROBE_COMMENTS_MISS=1"}
+		rep := run(t, s)
+		res := requireStatus(t, rep, "modeC.comments-rpc", conformance.Fail)
+		assert.Contains(t, res.Detail, "located no comment")
+	})
+}
+
 func TestModeCSkippedWhenNotDeclared(t *testing.T) {
 	dir := probeDir(t, func(m map[string]any) {
 		m["capabilities"] = map[string]any{
@@ -1068,7 +1098,7 @@ func TestModeCSkippedWhenNotDeclared(t *testing.T) {
 	rep := run(t, suite(dir))
 	for _, id := range []string{
 		"modeC.handshake", "modeC.grpc-ready", "modeC.bridge-service",
-		"modeC.segment-rpc", "modeC.shutdown-rpc", "modeC.sigterm-exit",
+		"modeC.segment-rpc", "modeC.comments-rpc", "modeC.shutdown-rpc", "modeC.sigterm-exit",
 	} {
 		requireStatus(t, rep, id, conformance.Skip)
 	}

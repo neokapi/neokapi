@@ -26,6 +26,9 @@ import (
 type UnreadSet struct {
 	// formats maps each unread file to the format declared for it.
 	formats map[string]string
+	// readers maps each unread file to the reader it needs: its format's, or
+	// the reader of its language's comments that a plugin supplies.
+	readers map[string]missingReader
 	// files are the unread files in the order the check met them.
 	files []string
 	// outcome is what happened to the content the set names, in the words of
@@ -34,10 +37,34 @@ type UnreadSet struct {
 	outcome string
 }
 
+// missingReader is the reader an unread file needs and the plugin that
+// supplies it.
+type missingReader struct {
+	// what names the reader: `format "sourcecode"`, or `TypeScript comments`.
+	what   string
+	plugin string
+}
+
+// missingReaderOf names the reader err reports missing, for a file declared in
+// format.
+func missingReaderOf(err error, format string) missingReader {
+	if comments, ok := errors.AsType[*noCommentReaderError](err); ok {
+		return missingReader{what: comments.hint.DisplayName + " comments", plugin: comments.hint.Plugin}
+	}
+	return missingReader{what: fmt.Sprintf("format %q", format), plugin: format}
+}
+
+// noReaderReason says that a file was not read, which reader it needs and the
+// plugin to install.
+func noReaderReason(err error, format string) string {
+	r := missingReaderOf(err, format)
+	return fmt.Sprintf("no reader for %s is installed; install the plugin that supplies it (kapi plugins install %s)", r.what, r.plugin)
+}
+
 // NewUnreadSet returns an empty set for a check over the project's declared
 // content, such as the desktop Checks panel's.
 func NewUnreadSet() *UnreadSet {
-	return &UnreadSet{formats: map[string]string{}}
+	return &UnreadSet{formats: map[string]string{}, readers: map[string]missingReader{}}
 }
 
 // newUnreadSet returns the set a check over the project's declared content
@@ -78,8 +105,9 @@ func (a *App) setAside(unread *UnreadSet, root string, rf project.ResolvedFile) 
 	return unread.Skip(err, relativeToRoot(root, rf.Path), rf.Format)
 }
 
-// Skip reports whether err says that no reader for the file's format is
-// installed, and records the file when it does. Such a file was never opened,
+// Skip reports whether err says that no reader for the file is installed, for
+// its format or for the comments of its language, and records the file when it
+// does. Such a file was never opened,
 // so nothing in it counts as checked. Any other error means the file was opened
 // and is broken, and the caller returns it.
 func (u *UnreadSet) Skip(err error, file, format string) bool {
@@ -88,6 +116,7 @@ func (u *UnreadSet) Skip(err error, file, format string) bool {
 	}
 	if _, seen := u.formats[file]; !seen {
 		u.formats[file] = format
+		u.readers[file] = missingReaderOf(err, format)
 		u.files = append(u.files, file)
 	}
 	return true
@@ -161,6 +190,19 @@ func (u *UnreadSet) byFormat() ([]string, map[string][]string) {
 	return slices.Sorted(maps.Keys(files)), files
 }
 
+// byReader groups the unread files by the reader they need, sorted by what the
+// reader reads, with each reader's files in the order the command met them.
+func (u *UnreadSet) byReader() ([]missingReader, map[missingReader][]string) {
+	files := map[missingReader][]string{}
+	if u == nil {
+		return nil, files
+	}
+	for _, file := range u.files {
+		files[u.readers[file]] = append(files[u.readers[file]], file)
+	}
+	return slices.SortedFunc(maps.Keys(files), func(x, y missingReader) int { return strings.Compare(x.what, y.what) }), files
+}
+
 // named lists files for a message, the first three by name.
 func named(files []string) string {
 	s := strings.Join(files[:min(len(files), 3)], ", ")
@@ -191,12 +233,12 @@ func (u *UnreadSet) warnings() []check.Warning {
 	}
 	out := make([]check.Warning, 0, len(u.files))
 	for _, file := range u.files {
-		format := u.formats[file]
+		r := u.readers[file]
 		out = append(out, check.Warning{
 			Code:   check.WarningFormatNoReader,
 			Source: file,
-			Message: fmt.Sprintf("no reader for format %q is installed, so %s was not %s; "+
-				"install the plugin that supplies it (kapi plugins install %s)", format, file, u.verb(), format),
+			Message: fmt.Sprintf("no reader for %s is installed, so %s was not %s; "+
+				"install the plugin that supplies it (kapi plugins install %s)", r.what, file, u.verb(), r.plugin),
 		})
 	}
 	return out
@@ -206,7 +248,7 @@ func (u *UnreadSet) warnings() []check.Warning {
 func (u *UnreadSet) reasons(files []string) []string {
 	out := make([]string, 0, len(files))
 	for _, file := range files {
-		out = append(out, fmt.Sprintf("%s was not checked: no reader for format %q is installed", file, u.formats[file]))
+		out = append(out, fmt.Sprintf("%s was not checked: no reader for %s is installed", file, u.readers[file].what))
 	}
 	return out
 }
@@ -247,10 +289,10 @@ func (u *UnreadSet) warn(a *App, cmd Command) {
 	if u.empty() || a.Quiet {
 		return
 	}
-	formats, files := u.byFormat()
-	for _, format := range formats {
+	readers, files := u.byReader()
+	for _, r := range readers {
 		fmt.Fprintf(cmd.ErrOrStderr(),
-			"warning: no reader for format %q, so %s was not %s; install the plugin that supplies it (kapi plugins install %s)\n",
-			format, named(files[format]), u.verb(), format)
+			"warning: no reader for %s, so %s was not %s; install the plugin that supplies it (kapi plugins install %s)\n",
+			r.what, named(files[r]), u.verb(), r.plugin)
 	}
 }

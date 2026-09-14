@@ -145,7 +145,11 @@ collections:
   (`func/Parse`), and a comment gofmt would rewrite fails the gate as
   `formatter.gofmt`. `kapi up` leaves the files alone. Directives, generated
   files and the code inside doc comments are never read as prose. `kapi check
-  <file>.go` works on a single file with no recipe. On a YAML item, or an item
+  <file>.go` works on a single file with no recipe. TypeScript, TSX and
+  JavaScript comments are read the same way once the sourcecode plugin is
+  installed (`kapi plugins install sourcecode`); without it a project check warns
+  `format.no_reader`, names the plugin, and counts those files as not checked.
+  On a YAML item, or an item
   whose format reads plain XML or HTML files (such as `androidxml`, `resx`,
   `xliff` or `html`), the comments are checked beside the values its reader
   extracts, by `kapi check`, `--ship` and a diff-scoped check alike, and `kapi

@@ -1,0 +1,16 @@
+# comment spans from @babel/parser 7.29.8
+# source web/src/components/ChunkErrorBoundary.tsx
+# sha256 b7d0e609f7603613d5d3dcfdf4c4747decd907f501654592267f4f4b9a9a74de
+123 202 2 0
+203 205 2 0
+206 250 2 0
+251 331 2 0
+332 413 2 0
+414 493 2 0
+494 575 2 0
+576 643 2 0
+644 723 2 0
+724 789 2 0
+840 918 2 2
+1850 1909 2 0
+2669 2839 2 2

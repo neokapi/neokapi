@@ -1,0 +1,10 @@
+/** Shows comment markers as text. */
+export function Markers() {
+  return (
+    <section title="// not a comment">
+      <p>// not a comment</p>
+      <p>/* not a comment */</p>
+      {/* A JSX comment is a comment. */}
+    </section>
+  );
+}

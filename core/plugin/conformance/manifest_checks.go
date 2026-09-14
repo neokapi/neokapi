@@ -223,6 +223,7 @@ func checkManifestTransportDeclared(_ context.Context, r *runner) (Status, strin
 		{"formats", len(c.Formats)},
 		{"tools", len(c.Tools)},
 		{"segmenters", len(c.Segmenters)},
+		{"comments", len(c.Comments)},
 		{"source_connectors", len(c.SourceConnectors)},
 		{"schema_extensions", len(c.SchemaExtensions)},
 		{"command_contributions", len(c.CommandContributions)},
@@ -249,7 +250,7 @@ func checkManifestDaemonBlock(_ context.Context, r *runner) (Status, string, err
 	case isC && d == nil:
 		return Fail, "Mode-C capabilities are declared but there is no daemon block", nil
 	case !isC && d != nil:
-		return Fail, "a daemon block is present but no format, flow tool, segmenter, or source connector is declared", nil
+		return Fail, "a daemon block is present but no format, flow tool, segmenter, comment language, or source connector is declared", nil
 	case !isC:
 		return Pass, "no Mode-C capabilities and no daemon block, consistent", nil
 	}

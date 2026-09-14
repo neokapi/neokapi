@@ -1,0 +1,17 @@
+# comment spans from @babel/parser 7.29.8
+# source web/src/components/commands/commandHelpers.ts
+# sha256 ec60475f25765db5951dbc3cd8de34f7ef17ef8c8d63f6cf7d3ad63ebc385026
+0 79 2 0
+80 156 2 0
+157 172 2 0
+236 315 2 2
+405 484 2 2
+582 647 2 0
+798 1439 2 2
+1653 1942 2 2
+2143 2216 2 0
+2217 2290 2 0
+2291 2366 2 0
+2367 2382 2 0
+2614 2998 2 2
+3363 3593 2 2

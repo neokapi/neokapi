@@ -115,6 +115,17 @@ for row in "asr:kapi-asr/LICENSE" "av:kapi-av/LICENSE" "sourcecode:LICENSE"; do
     rc=1
   fi
 
+  # The grammars compiled into kapi-sourcecode are MIT, whose notice has to
+  # travel with the binary.
+  if [ "$plugin" = sourcecode ]; then
+    notice=$(tar -xOf "$archive" NOTICE 2>/dev/null || true)
+    if [[ $notice != *"tree-sitter"* || $notice != *"MIT License"* ]]; then
+      echo "ERROR: $(basename "$archive") ships no NOTICE for the grammars compiled into it" >&2
+      echo "       Stage plugins/sourcecode/NOTICE in package-sourcecode-plugin.sh." >&2
+      rc=1
+    fi
+  fi
+
   # The copyleft half, for the one plugin that has one.
   if [ "$plugin" = av ]; then
     lgpl=$(tar -xOf "$archive" "kapi-av/COPYING.LGPLv2.1" 2>/dev/null || true)
@@ -157,5 +168,6 @@ done
 [ $rc -eq 0 ] || exit 1
 echo "check-plugin-licenses: every plugin tarball ships its license text"
 echo "  kapi-av also ships the LGPL-2.1 text for its bundled ffmpeg"
+echo "  kapi-sourcecode also ships the MIT notices of its grammars"
 echo "  packaged and read: asr, av, sourcecode"
 echo "  declared only (native SDK build cannot be faked): check, sat, vision, pdfium"
