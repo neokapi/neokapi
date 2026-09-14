@@ -37,10 +37,13 @@ func (d Directives) Match(text string) (string, bool) {
 // A marker inside a comment splits it: the lines on each side are comments of
 // their own, on the subject the whole comment sat on. Their spans and runs come
 // from a second reading of the file by p, with the marker lines blanked. That
-// reading must line up with the first. Away from the markers it locates exactly
-// what the first did, and inside each split comment its pieces and the markers
-// claim every byte that is not whitespace, each once. A reading that does not
-// line up leaves the file's comments unlocated.
+// reading must line up with the first. Away from the markers it locates the
+// same comments and exclusions, with the same spans and text, and inside each
+// split comment its pieces and the markers claim every byte that is not
+// whitespace, each once. A reading that does not line up leaves the file's
+// comments unlocated. What a comment is attached to may differ between the
+// readings, because blanking a line changes what sits between a doc comment and
+// its declaration, so the first reading's attachment is kept.
 func Locate(p Provider, name string, src []byte, declared Directives) (*File, error) {
 	first, err := p.Locate(name, src)
 	if err != nil || len(declared) == 0 {
@@ -154,9 +157,14 @@ func splitAtDirectives(name string, src []byte, first, second *File, marks map[i
 			claims[ci] = append(claims[ci], [2]int{e.Start, e.End})
 		}
 	}
-	same := func(a, b any) bool { return reflect.DeepEqual(a, b) }
-	if !slices.EqualFunc(keptFirst, keptSecond, func(a, b Comment) bool { return same(a, b) }) ||
-		!slices.EqualFunc(first.Excluded, excludedSecond, func(a, b Excluded) bool { return same(a, b) }) {
+	// keptFirst is what the file holds, so the second reading is held to its
+	// spans and text and not to what each comment is attached to.
+	sameComment := func(a, b Comment) bool {
+		b.Subject, b.Doc = a.Subject, a.Doc
+		return reflect.DeepEqual(a, b)
+	}
+	sameExclusion := func(a, b Excluded) bool { return reflect.DeepEqual(a, b) }
+	if !slices.EqualFunc(keptFirst, keptSecond, sameComment) || !slices.EqualFunc(first.Excluded, excludedSecond, sameExclusion) {
 		return nil, unlocated("%s: blanking its declared directives changed the comments around them", name)
 	}
 

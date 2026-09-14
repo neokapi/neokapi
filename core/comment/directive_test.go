@@ -298,6 +298,55 @@ func (p forgetfulProvider) Locate(name string, src []byte) (*comment.File, error
 	return f, nil
 }
 
+// reattachingProvider reads a file a second time with every comment attached as
+// subject and doc say, as a provider may when blanking a marker line changes
+// what sits between a doc comment and its declaration.
+type reattachingProvider struct {
+	golang.Provider
+	subject string
+	doc     bool
+	calls   *int
+}
+
+func (p reattachingProvider) Locate(name string, src []byte) (*comment.File, error) {
+	f, err := p.Provider.Locate(name, src)
+	*p.calls++
+	if err != nil || *p.calls == 1 {
+		return f, err
+	}
+	for i := range f.Comments {
+		f.Comments[i].Subject, f.Comments[i].Doc = p.subject, p.doc
+	}
+	return f, nil
+}
+
+// Blanking a marker can change what a comment is attached to, never what it
+// holds. The file's own attachment is the first reading's, so a second reading
+// that attaches the comments differently, in either direction, still lines up.
+func TestDeclaredDirectivesKeepTheFirstReadingsAttachment(t *testing.T) {
+	src := []byte("package demo\n\n// Parse reads.\nfunc Parse() {}\n\n// Format writes.\n// okapi-skip: FormatTest#testAll\n// It returns.\nfunc Format() {}\n")
+	plain, err := golang.Provider{}.Locate("demo.go", src)
+	require.NoError(t, err)
+	for name, second := range map[string]reattachingProvider{
+		"a second reading that detaches every comment":           {subject: "comment", doc: false},
+		"a second reading that attaches every comment elsewhere": {subject: "func/Other", doc: true},
+	} {
+		t.Run(name, func(t *testing.T) {
+			calls := 0
+			second.calls = &calls
+			got, err := comment.Locate(second, "demo.go", src, declared)
+			require.NoError(t, err)
+			assert.Equal(t, 2, calls, "the file was read a second time")
+			require.Len(t, got.Comments, 3)
+			assert.Equal(t, plain.Comments[0], got.Comments[0], "the comment away from the marker keeps its reading")
+			for _, piece := range got.Comments[1:] {
+				assert.Equal(t, "func/Format", piece.Subject)
+				assert.True(t, piece.Doc)
+			}
+		})
+	}
+}
+
 // The layer takes a split comment's pieces from a second reading of the file
 // with the marker lines blanked, and holds that reading to the first. A
 // provider whose second reading does not line up leaves the file's comments
