@@ -23,8 +23,10 @@ const declaredFixture = `package demo
 // It returns an error for empty input.
 func Parse() {}
 
+// okapi: FormatTest#testMapped
 // okapi-unmapped: FormatTest#testAll
 // okapi-skip: FormatTest#testNone
+// okapi-deferred: FormatTest#testLater
 func Format() {
 	x := 1 // okapi-skip: FormatTest#testTrailing
 	/* okapi-unmapped: FormatTest#testDelimited */
@@ -40,7 +42,7 @@ func Render() {}
 func Sort() {}
 `
 
-var declaredDirectives = comment.Directives{"okapi-skip:", "okapi-unmapped:"}
+var declaredDirectives = comment.Directives{"okapi:", "okapi-skip:", "okapi-unmapped:", "okapi-deferred:"}
 
 func declaredGoSuite(p comment.Provider) commenttest.Suite {
 	s := goSuite(p)
@@ -66,7 +68,7 @@ func TestGoConformanceWithDeclaredDirectives(t *testing.T) {
 			forms++
 		}
 	}
-	assert.Equal(t, 5, forms, "the suite ran over the declared markers")
+	assert.Equal(t, 7, forms, "the suite ran over the declared markers")
 }
 
 // unmarkedGo reads no comment line as whole, so no declared directive is found.

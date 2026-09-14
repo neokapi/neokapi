@@ -469,6 +469,10 @@ type GovernancePoint struct {
 	// item may carry its own `channel:`. A path no item claims falls back to
 	// Collection, then to the project's default point.
 	Path string
+	// Comments asks for the point the comments in the file at Path sit at. The
+	// claiming item's `comments.channel`, then `defaults.comments.channel`, come
+	// before the channels the file's other content resolves through.
+	Comments bool
 	// At is the instant to resolve at — the run's wall clock. A profile whose
 	// window excludes it does not govern, and resolution falls through to the
 	// next binding as if it were absent. The zero value is the AS-DECLARED
@@ -579,26 +583,34 @@ func (p *KapiProject) governanceLadder(pt GovernancePoint) ([]ChannelRef, error)
 // CollectionForPath; a collection is looked up by name, and answers when no item
 // claimed the path.
 func (p *KapiProject) declaredChannelsFor(pt GovernancePoint) ([]string, string, error) {
+	var declared []string
+	subject := ""
+	if pt.Comments {
+		declared, subject = []string{p.Defaults.Comments.Channel}, "defaults.comments"
+	}
 	if pt.Path != "" {
 		if item, i, ok := p.ItemForPath(pt.Path); ok {
 			coll := &p.Collections[i]
-			return []string{item.Channel, coll.Channel}, collectionSubject(i, coll.Name), nil
+			if pt.Comments {
+				declared = append([]string{item.Comments.Channel}, declared...)
+			}
+			return append(declared, item.Channel, coll.Channel), collectionSubject(i, coll.Name), nil
 		}
 		// A path nothing claims falls back to the collection the caller named,
 		// if any: an input outside the declared globs still belongs to the run
 		// that was scoped to that collection.
 	}
 	if pt.Collection == "" {
-		return nil, "", nil
+		return declared, subject, nil
 	}
 	for i := range p.Collections {
 		coll := &p.Collections[i]
 		if coll.Name != pt.Collection {
 			continue
 		}
-		return []string{coll.Channel}, collectionSubject(i, coll.Name), nil
+		return append(declared, coll.Channel), collectionSubject(i, coll.Name), nil
 	}
-	return nil, "", nil
+	return declared, subject, nil
 }
 
 // newGovernanceFallback describes why a binding did not govern at an instant:
@@ -749,17 +761,26 @@ func (p *KapiProject) validateContextSpace() error {
 	if err := p.validateProfiles(); err != nil {
 		return err
 	}
+	if ch := p.Defaults.Comments.Channel; ch != "" {
+		if _, err := p.ResolveChannel(ch); err != nil {
+			return fmt.Errorf("defaults.comments.channel: %w", err)
+		}
+	}
 	for i := range p.Collections {
 		c := &p.Collections[i]
-		// A per-file `channel:` override resolves the same way and must resolve at
-		// load too, so an undeclared axis fails on load rather than when a run
-		// reaches that one file.
+		// A per-file `channel:` override, and the channel an item places its
+		// comments at, resolve the same way and must resolve at load too, so an
+		// undeclared axis fails on load rather than when a run reaches that file.
 		for j := range c.Content {
-			if c.Content[j].Channel == "" {
-				continue
+			if ch := c.Content[j].Channel; ch != "" {
+				if _, err := p.ResolveChannel(ch); err != nil {
+					return fmt.Errorf("%s: content[%d]: %w", collectionSubject(i, c.Name), j, err)
+				}
 			}
-			if _, err := p.ResolveChannel(c.Content[j].Channel); err != nil {
-				return fmt.Errorf("%s: content[%d]: %w", collectionSubject(i, c.Name), j, err)
+			if ch := c.Content[j].Comments.Channel; ch != "" {
+				if _, err := p.ResolveChannel(ch); err != nil {
+					return fmt.Errorf("%s: content[%d]: comments.channel: %w", collectionSubject(i, c.Name), j, err)
+				}
 			}
 		}
 		if c.Channel == "" {

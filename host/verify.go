@@ -56,6 +56,9 @@ type verifyFinding struct {
 	Severity   string `json:"severity"`
 	Message    string `json:"message"`
 	Suggestion string `json:"suggestion,omitempty"`
+	// Point is the governance point the finding's block was checked at, when a
+	// project resolved it.
+	Point *check.Point `json:"point,omitempty"`
 }
 
 // verifyGateResult is the outcome of one gate: whether it passed and the
@@ -814,16 +817,14 @@ func (a *App) verifyVoice(cmd Command, proj *project.KapiProject, root string, a
 	var skipped []string
 	var allFindings []coreprofile.VoiceFinding
 	for _, f := range files {
-		profile, _, perr := voice.forFile(ctx, f)
-		if perr != nil {
-			return nil, perr
+		// A file's comments may sit at a point of their own, with a voice of
+		// their own, so a file is scored when either of its points binds one.
+		g, gerr := a.governFile(ctx, voice, terminology, f, atPoint{})
+		if gerr != nil {
+			return nil, gerr
 		}
-		if profile == nil {
+		if g.content.profile == nil && g.comments.profile == nil {
 			continue
-		}
-		tb, terr := terminology.forFile(ctx, f)
-		if terr != nil {
-			return nil, terr
 		}
 		fmtName, fmtCfg := formats.forFile(a, f)
 		var blocks []*model.Block
@@ -864,34 +865,47 @@ func (a *App) verifyVoice(cmd Command, proj *project.KapiProject, root string, a
 		// Set only once a file has been read, so a gate that read nothing is
 		// never reported as one that scored content.
 		governed = true
-		vocab := coretools.NewVoiceVocabCheckTool(profile, tb).InSourceLocale(model.LocaleID(a.SourceLocale()))
 		gate.Coverage.Files++
-		gate.Coverage.Blocks += len(blocks)
-		start, before := time.Now(), len(gate.Findings)
-		for _, b := range blocks {
-			findings, verr := runVoiceVocabOnBlock(ctx, vocab, b)
-			if verr != nil {
-				return nil, fmt.Errorf("voice: %s: %w", f, verr)
+		for _, group := range (checkRunOptions{}).govern(g).pointGroups(blocks, blocks) {
+			if group.at.profile == nil {
+				continue
 			}
-			for _, fd := range findings {
-				gate.Findings = append(gate.Findings, voiceFindingToVerify(display, blockKey(b), fd))
+			vocab := coretools.NewVoiceVocabCheckTool(group.at.profile, group.at.terms).InSourceLocale(model.LocaleID(a.SourceLocale()))
+			gate.Coverage.Blocks += len(group.blocks)
+			start, before := time.Now(), len(gate.Findings)
+			for _, b := range group.blocks {
+				findings, verr := runVoiceVocabOnBlock(ctx, vocab, b)
+				if verr != nil {
+					return nil, fmt.Errorf("voice: %s: %w", f, verr)
+				}
+				for _, fd := range findings {
+					finding := voiceFindingToVerify(display, blockKey(b), fd)
+					finding.Point = clonePoint(group.at.point)
+					gate.Findings = append(gate.Findings, finding)
+				}
+				allFindings = append(allFindings, findings...)
 			}
-			allFindings = append(allFindings, findings...)
+			// The profile's document-scope rules — its required patterns — are judged
+			// once over the file and reported against it with no block, the way the
+			// file checkset reports them. They score beside the per-block findings:
+			// a rule the profile counts is a rule the ship gate applies.
+			docFindings := coreprofile.DocumentFindings(group.at.profile, documentText(group.doc))
+			for _, fd := range docFindings {
+				finding := voiceFindingToVerify(display, "", fd)
+				finding.Point = clonePoint(group.at.point)
+				gate.Findings = append(gate.Findings, finding)
+			}
+			allFindings = append(allFindings, docFindings...)
+			canary, cerr := probeVoiceRules(ctx, vocab, group.at.profile)
+			if cerr != nil {
+				return nil, fmt.Errorf("voice: %s: %w", f, cerr)
+			}
+			mark := execution.analyzerCount()
+			execution.completed("voice.rules", display, len(gate.Findings)-before, start, canary, false)
+			if group.apart {
+				execution.pointAnalyzers(mark, group.at.point)
+			}
 		}
-		// The profile's document-scope rules — its required patterns — are judged
-		// once over the file and reported against it with no block, the way the
-		// file checkset reports them. They score beside the per-block findings:
-		// a rule the profile counts is a rule the ship gate applies.
-		docFindings := coreprofile.DocumentFindings(profile, documentText(blocks))
-		for _, fd := range docFindings {
-			gate.Findings = append(gate.Findings, voiceFindingToVerify(display, "", fd))
-		}
-		allFindings = append(allFindings, docFindings...)
-		canary, cerr := probeVoiceRules(ctx, vocab, profile)
-		if cerr != nil {
-			return nil, fmt.Errorf("voice: %s: %w", f, cerr)
-		}
-		execution.completed("voice.rules", display, len(gate.Findings)-before, start, canary, false)
 	}
 	gate.addExecution(execution)
 

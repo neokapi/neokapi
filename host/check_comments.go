@@ -121,6 +121,7 @@ func (a *App) checkCommentFile(ctx context.Context, file string, p comment.Provi
 	diags := make([]check.Diagnostic, 0, len(layerDiags)+len(fileDiags))
 	diags = append(diags, layerDiags...)
 	diags = append(diags, fileDiags...)
+	opts.stampPoints(diags, layer.blocks)
 	layer.locate(diags)
 	return layer.blocks, diags, nil
 }

@@ -297,6 +297,16 @@ export class CommentDefaults {
              */
             this["directives"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * Channel is the point, a qualified `profile/channel`, at which the comments
+             * of every item that declares them sit, unless the item names its own. Empty
+             * leaves each item's comments at the item's point.
+             * @member
+             * @type {string | undefined}
+             */
+            this["channel"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }
@@ -349,6 +359,17 @@ export class ContentComments {
              * @type {string[] | undefined}
              */
             this["directives"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Channel is the point, a qualified `profile/channel`, at which the item's
+             * comments sit. It outranks `defaults.comments.channel`, and both outrank the
+             * item's own `channel:` for the comments alone: the content the file's reader
+             * extracts stays at the item's point.
+             * @member
+             * @type {string | undefined}
+             */
+            this["channel"] = undefined;
         }
 
         Object.assign(this, $$source);

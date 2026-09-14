@@ -506,12 +506,23 @@ is an exclusion with `ReasonDirective` and the marker as its form. A marker
 inside a comment splits it. The provider reads the file a second time with the
 marker lines blanked, each piece keeps the subject of the comment it came from,
 and the layer holds that reading to the first byte for byte: away from the
-markers it must locate the same comments, and inside a split comment its pieces
-and the markers must hold every byte once. A reading that disagrees leaves the
-file's comments unlocated. A provider's share of this is `LineText`, which reads
+markers it must locate the same comments with the same bytes, and inside a split
+comment its pieces and the markers must hold every byte once. A reading that
+disagrees leaves the file's comments unlocated. What a comment documents comes
+from the first reading, because blanking a line changes what sits between a doc
+comment and its declaration, and a provider may attach it differently in the
+second. A provider's share of this is `LineText`, which reads
 one comment line and removes its marker. A line inside a delimited comment that
 runs over several lines holds no marker of its own, so no declared directive
 marks it.
+
+A recipe can also place a file's comments at a governance point of their own,
+with an item's `comments: {channel: ...}` or `defaults.comments.channel`. A
+check then holds each comment block to the voice and terms of that point and
+each block the reader extracts to the item's point
+([C-02](/contribute/architecture/context/c-02-coordinates-and-governance)). The
+layer marks its blocks (`comment.IsBlock`), which is how a check tells the two
+apart.
 
 #### Default on, via an inverted opt-out
 

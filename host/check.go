@@ -416,12 +416,14 @@ func (a *App) ComputeCheck(cmd Command, args []string) (check.Report, error) {
 		dnt, _ := cmd.Flags().GetStringSlice("dnt")
 		sourcePath := args[0]
 		contextStart = time.Now()
-		if opts.profile, opts.voiceContext, err = voice.forFile(ctx, sourcePath); err != nil {
-			return check.Report{}, err
+		g, gerr := a.governFile(ctx, voice, vocab, sourcePath, atPoint{})
+		if gerr != nil {
+			return check.Report{}, gerr
 		}
-		if opts.terms, err = vocab.forFile(ctx, sourcePath); err != nil {
-			return check.Report{}, err
-		}
+		// A translated rendering holds no comment layer, so its blocks sit at
+		// the source file's own point.
+		opts = opts.govern(g)
+		opts.comments = nil
 		execution.recordContext(sourcePath, "", opts)
 		execution.Timings.ContextMS += elapsedMS(contextStart)
 		// `--target` names the translated rendering of one source file, so both
@@ -458,6 +460,7 @@ func (a *App) ComputeCheck(cmd Command, args []string) (check.Report, error) {
 		if berr != nil {
 			return check.Report{}, berr
 		}
+		opts.stampPoints(biDiags, blocks)
 		diags = append(diags, biDiags...)
 	} else {
 		// Content-first generic mode: each positional file is a source, checked
@@ -473,14 +476,14 @@ func (a *App) ComputeCheck(cmd Command, args []string) (check.Report, error) {
 			// The governance is resolved per file: a run over a governed
 			// project checks each file against the voice and the vocabulary in
 			// force where that file sits, not against one pair picked for the
-			// whole invocation.
+			// whole invocation. A file's comments are held to the point they sit
+			// at, which the project may place apart from the file's.
 			contextStart = time.Now()
-			if opts.profile, opts.voiceContext, err = voice.forFile(ctx, file); err != nil {
-				return check.Report{}, err
+			g, gerr := a.governFile(ctx, voice, vocab, file, atPoint{})
+			if gerr != nil {
+				return check.Report{}, gerr
 			}
-			if opts.terms, err = vocab.forFile(ctx, file); err != nil {
-				return check.Report{}, err
-			}
+			opts = opts.govern(g)
 			execution.Timings.ContextMS += elapsedMS(contextStart)
 			blocks, fileDiags, ferr := a.checkFileBlocks(ctx, file, validateMode, opts)
 			prog.Advance()
@@ -492,7 +495,7 @@ func (a *App) ComputeCheck(cmd Command, args []string) (check.Report, error) {
 			}
 			// The context is recorded for a file the check read, and a skipped
 			// file has none.
-			execution.recordContext(file, "", opts)
+			execution.recordContexts(file, "", opts, blocks)
 			checked = append(checked, file)
 			totalBlocks += len(blocks)
 			diags = append(diags, fileDiags...)
@@ -585,6 +588,7 @@ func (a *App) checkFileBlocks(ctx context.Context, file string, validateMode for
 		return nil, nil, ferr
 	}
 	diags = append(diags, fileDiags...)
+	opts.stampPoints(diags, blocks)
 	if layer != nil {
 		layer.locate(diags)
 	}
@@ -653,6 +657,12 @@ type checkRunOptions struct {
 	// that hold over a document, where the blocks checked are only some of them
 	// (a diff-scoped check).
 	documentBlocks []*model.Block
+	// point is where the project resolved the governance above, nil outside a
+	// project.
+	point *check.Point
+	// comments is the governance at the point a file's comments sit at, nil
+	// when they share the file's point.
+	comments *atPoint
 }
 
 // collectFileDiagnostics runs the source-side content checkset over one file's
@@ -725,85 +735,105 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 		opts.execution.skipped("pattern", file, "No explicit patterns were configured.")
 	}
 
-	// Voice rules and project terminology share the vocabulary checker.
-	if opts.profile != nil || opts.terms != nil {
-		start = time.Now()
-		before := len(diags)
-		vocab := coretools.NewVoiceVocabCheckTool(opts.profile, opts.terms).InSourceLocale(model.LocaleID(a.SourceLocale()))
-		for _, b := range blocks {
-			if err := RunCheckTool(ctx, vocab, b); err != nil {
-				return nil, fmt.Errorf("voice vocabulary check %s: %w", DisplayName(file), err)
-			}
-			if ann, ok := model.AnnoAs[*profile.VoiceAnnotation](b, "voice"); ok {
-				loc := check.Location{File: DisplayName(file), Block: blockKey(b)}
-				for _, f := range ann.Findings {
-					diags = append(diags, check.DiagnosticFrom(f, "voice", loc))
+	// Voice rules and project terminology share the vocabulary checker. Each
+	// group of blocks is held to the voice and terms of the point it sits at: a
+	// file's comments at their own point when the project places them apart.
+	docBlocks := blocks
+	if opts.documentBlocks != nil {
+		docBlocks = opts.documentBlocks
+	}
+	groups := opts.pointGroups(blocks, docBlocks)
+	for _, g := range groups {
+		mark := opts.execution.analyzerCount()
+		if g.at.profile != nil || g.at.terms != nil {
+			start = time.Now()
+			before := len(diags)
+			vocab := coretools.NewVoiceVocabCheckTool(g.at.profile, g.at.terms).InSourceLocale(model.LocaleID(a.SourceLocale()))
+			for _, b := range g.blocks {
+				if err := RunCheckTool(ctx, vocab, b); err != nil {
+					return nil, fmt.Errorf("voice vocabulary check %s: %w", DisplayName(file), err)
+				}
+				if ann, ok := model.AnnoAs[*profile.VoiceAnnotation](b, "voice"); ok {
+					loc := check.Location{File: DisplayName(file), Block: blockKey(b)}
+					for _, f := range ann.Findings {
+						diags = append(diags, check.DiagnosticFrom(f, "voice", loc))
+					}
 				}
 			}
-		}
-		// The profile's required patterns hold over the document, not over any
-		// one block in it (profile.DocumentFindings): the page carries the
-		// notice, not every paragraph of it. They are reported against the file,
-		// with no block, because an absence sits nowhere in particular.
-		docLoc := check.Location{File: DisplayName(file)}
-		docBlocks := blocks
-		if opts.documentBlocks != nil {
-			docBlocks = opts.documentBlocks
-		}
-		for _, f := range profile.DocumentFindings(opts.profile, documentText(docBlocks)) {
-			diags = append(diags, check.DiagnosticFrom(f, "voice", docLoc))
-		}
-		canary, err := probeVoiceRules(ctx, vocab, opts.profile)
-		if err != nil {
-			return nil, fmt.Errorf("voice vocabulary check %s: %w", DisplayName(file), err)
-		}
-		// A profile named on the command line is an analysis the invocation asked
-		// for. One the project binds is configuration, and may govern tone alone.
-		opts.execution.completed("voice.rules", file, len(diags)-before, start, canary, opts.voiceContext.Selection == "override")
-		for _, resolution := range profile.ConstraintResolutions(opts.profile) {
-			if resolution.Status == "applicable" && resolution.Constraint.Kind == profile.ConstraintGuidance {
-				opts.execution.unsupported("voice.guidance", file,
-					"Applicable guidance requires semantic analysis; deterministic rules do not assess it.")
-				break
+			// The profile's required patterns hold over the document, not over any
+			// one block in it (profile.DocumentFindings): the page carries the
+			// notice, not every paragraph of it. They are reported against the file,
+			// with no block, because an absence sits nowhere in particular.
+			docLoc := check.Location{File: DisplayName(file)}
+			for _, f := range profile.DocumentFindings(g.at.profile, documentText(g.doc)) {
+				d := check.DiagnosticFrom(f, "voice", docLoc)
+				d.Point = clonePoint(g.at.point)
+				diags = append(diags, d)
 			}
+			canary, err := probeVoiceRules(ctx, vocab, g.at.profile)
+			if err != nil {
+				return nil, fmt.Errorf("voice vocabulary check %s: %w", DisplayName(file), err)
+			}
+			// A profile named on the command line is an analysis the invocation asked
+			// for. One the project binds is configuration, and may govern tone alone.
+			opts.execution.completed("voice.rules", file, len(diags)-before, start, canary, g.at.voiceContext.Selection == "override")
+			for _, resolution := range profile.ConstraintResolutions(g.at.profile) {
+				if resolution.Status == "applicable" && resolution.Constraint.Kind == profile.ConstraintGuidance {
+					opts.execution.unsupported("voice.guidance", file,
+						"Applicable guidance requires semantic analysis; deterministic rules do not assess it.")
+					break
+				}
+			}
+		} else {
+			opts.execution.skipped("voice.rules", file, "No voice profile or project terms were bound.")
 		}
-	} else {
-		opts.execution.skipped("voice.rules", file, "No voice profile or project terms were bound.")
+		if g.apart {
+			opts.execution.pointAnalyzers(mark, g.at.point)
+		}
 	}
 
 	// Voice/style similarity (opt-in, --voice): drives the kapi-check plugin.
 	if opts.voice {
-		start = time.Now()
-		before := len(diags)
-		refs := voiceExamples(opts.profile)
-		if len(refs) == 0 {
-			return nil, errors.New("--voice needs a voice profile with examples. Bind one in the recipe, or name it with --profile/--pack/--profile-file")
+		for _, g := range groups {
+			mark := opts.execution.analyzerCount()
+			start = time.Now()
+			before := len(diags)
+			refs := voiceExamples(g.at.profile)
+			if len(refs) == 0 {
+				return nil, errors.New("--voice needs a voice profile with examples. Bind one in the recipe, or name it with --profile/--pack/--profile-file")
+			}
+			t, closeT, derr := dialVoicePlugin(ctx)
+			if derr != nil {
+				return nil, derr
+			}
+			defer closeT()
+			vf, verr := voiceSimilarityFindings(g.blocks, refs, t, opts.voiceMin)
+			if verr != nil {
+				return nil, fmt.Errorf("voice check: %w", verr)
+			}
+			for _, f := range vf {
+				d := check.DiagnosticFrom(f, "voice", check.Location{File: DisplayName(file)})
+				d.Point = clonePoint(g.at.point)
+				diags = append(diags, d)
+			}
+			canary, err := check.Probe([]check.Canary{{Name: "text unlike every example", Block: check.CanaryBlock("0000 1111 2222 3333")}}, "",
+				func(b *model.Block) ([]check.Finding, error) {
+					return voiceSimilarityFindings([]*model.Block{b}, refs, t, opts.voiceMin)
+				})
+			if err != nil {
+				return nil, fmt.Errorf("voice check: %w", err)
+			}
+			opts.execution.completed("voice.similarity", file, len(diags)-before, start, canary, true)
+			if g.apart {
+				opts.execution.pointAnalyzers(mark, g.at.point)
+			}
 		}
-		t, closeT, derr := dialVoicePlugin(ctx)
-		if derr != nil {
-			return nil, derr
-		}
-		defer closeT()
-		vf, verr := voiceSimilarityFindings(blocks, refs, t, opts.voiceMin)
-		if verr != nil {
-			return nil, fmt.Errorf("voice check: %w", verr)
-		}
-		for _, f := range vf {
-			diags = append(diags, check.DiagnosticFrom(f, "voice", check.Location{File: DisplayName(file)}))
-		}
-		canary, err := check.Probe([]check.Canary{{Name: "text unlike every example", Block: check.CanaryBlock("0000 1111 2222 3333")}}, "",
-			func(b *model.Block) ([]check.Finding, error) {
-				return voiceSimilarityFindings([]*model.Block{b}, refs, t, opts.voiceMin)
-			})
-		if err != nil {
-			return nil, fmt.Errorf("voice check: %w", err)
-		}
-		opts.execution.completed("voice.similarity", file, len(diags)-before, start, canary, true)
 	} else {
 		opts.execution.skipped("voice.similarity", file, "Similarity analysis was not requested.")
 	}
 	opts.execution.skipped("voice.llm", file, "This command does not run semantic review.")
 
+	opts.stampPoints(diags, blocks)
 	return diags, nil
 }
 
@@ -1199,7 +1229,21 @@ func (t *checkTerms) forFile(ctx context.Context, file string) (terms.Terminolog
 	if t == nil || t.proj == nil {
 		return nil, nil
 	}
-	point := t.app.governancePointForFile(t.root, file)
+	return t.forPoint(ctx, t.app.governancePointForFile(t.root, file), file)
+}
+
+// resolve returns the governance the project resolves at a point, nil outside
+// a project.
+func (t *checkTerms) resolve(point project.GovernancePoint) (*project.ResolvedGovernance, error) {
+	if t == nil || t.proj == nil {
+		return nil, nil
+	}
+	return t.app.ResolveGovernanceAtPoint(t.cmd, t.proj, point)
+}
+
+// forPoint returns the vocabulary governing a point. file names what is being
+// checked, for an error.
+func (t *checkTerms) forPoint(ctx context.Context, point project.GovernancePoint, file string) (terms.Terminology, error) {
 	rc, err := t.app.ResolveGovernanceAtPoint(t.cmd, t.proj, point)
 	if err != nil {
 		return nil, err
@@ -1244,6 +1288,14 @@ func (a *App) governancePointForFile(root, file string) project.GovernancePoint 
 	return a.GovernancePointFor("", "")
 }
 
+// governancePointForComments is the point the comments in a source file sit
+// at.
+func (a *App) governancePointForComments(root, file string) project.GovernancePoint {
+	point := a.governancePointForFile(root, file)
+	point.Comments = true
+	return point
+}
+
 // checkedVoice caches a loaded profile together with the resolution that selected it.
 type checkedVoice struct {
 	profile *profile.VoiceProfile
@@ -1252,13 +1304,29 @@ type checkedVoice struct {
 
 // forFile returns the effective profile and its selection metadata together.
 func (v *checkVoice) forFile(ctx context.Context, file string) (*profile.VoiceProfile, check.VoiceContext, error) {
+	if v.fixed != nil || v.proj == nil {
+		return v.forPoint(ctx, project.GovernancePoint{})
+	}
+	return v.forPoint(ctx, v.app.governancePointForFile(v.root, file))
+}
+
+// forComments returns the profile governing the comments in one file, at the
+// point they sit at, and its selection metadata.
+func (v *checkVoice) forComments(ctx context.Context, file string) (*profile.VoiceProfile, check.VoiceContext, error) {
+	if v.fixed != nil || v.proj == nil {
+		return v.forPoint(ctx, project.GovernancePoint{})
+	}
+	return v.forPoint(ctx, v.app.governancePointForComments(v.root, file))
+}
+
+// forPoint returns the profile governing a point and its selection metadata.
+func (v *checkVoice) forPoint(ctx context.Context, point project.GovernancePoint) (*profile.VoiceProfile, check.VoiceContext, error) {
 	if v.fixed != nil {
 		return v.fixed, v.fixedContext, nil
 	}
 	if v.proj == nil {
 		return nil, check.VoiceContext{Selection: "none"}, nil
 	}
-	point := v.app.governancePointForFile(v.root, file)
 	rc, err := v.app.ResolveGovernanceAtPoint(v.cmd, v.proj, point)
 	if err != nil {
 		return nil, check.VoiceContext{}, err

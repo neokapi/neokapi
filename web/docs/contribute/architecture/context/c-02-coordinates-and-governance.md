@@ -162,6 +162,7 @@ type GovernancePoint struct {
     Profile    string    // a profile named directly, with no location under it
     Collection string    // a content collection, by name
     Path       string    // a project-relative, slash-separated file path
+    Comments   bool      // the point the comments in the file at Path sit at
     At         time.Time // the run's wall clock; the zero value is the as-declared view
 }
 
@@ -178,6 +179,14 @@ Resolution walks the declared bindings **from the finest to the coarsest**:
    that names a collection rather than a file.
 3. **The project's default point**: `defaults.voice` and the project's own
    terms.
+
+The comments in a file can sit at a point of their own. A point that names them
+(`Comments`) puts two rungs above the first: the claiming item's
+`comments.channel`, then `defaults.comments.channel`. Both take the same
+qualified `profile/channel` form and the same validator as a collection's
+`channel:`. The values a file's reader extracts stay at the item's point, so a
+style written for code comments governs the comments of a YAML file and leaves
+its values to the voice they ship under.
 
 `Profile` outranks both location forms and does not fall through: a caller that
 asked about a specific product is not served by the project default, so a name
@@ -291,14 +300,17 @@ never heard of the context space.
 
 A gate is the exception: `kapi check` reads rather than writes, so it resolves
 per file and holds each one to the voice **and the vocabulary** in force where
-it sits. Both halves resolve through the same point, so a profile that binds its
+it sits. For a file whose comments sit apart it resolves per block: each comment
+is held to its own point and each other block to the file's, and every finding
+and every recorded context names the point its block was checked at. Both halves resolve through the same point, so a profile that binds its
 own `termstore:` governs exactly the files its channels carry, which is how a
 surface keeps a name the vocabulary retired.
 
 ### Not yet built: a point beneath the file
 
-A content item's own `channel:` is the finest declared point, which means the
-finest governed unit is a file, for voice and for vocabulary alike. The case
+A content item's own `channel:` is the finest declared point for a file, and its
+`comments.channel` for the comments in that file, so the finest governed units
+are a file's reader content and its comments, for voice and for vocabulary alike. The case
 that remains open is a passage (*the retired name is permitted in these two
 paragraphs of the migration guide*), which needs a point beneath the file that
 nothing declares yet.

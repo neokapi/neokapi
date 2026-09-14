@@ -34,6 +34,10 @@ type AnalyzerExecution struct {
 	// beside the content. An analyzer that reports passed or findings without
 	// one has not shown that it can fail.
 	Canary *CanaryOutcome `json:"canary,omitempty"`
+	// Point is the governance point of the blocks a governed analyzer ran
+	// over, set when a file's comments sit at a point apart from its other
+	// content and the analyzer ran once for each.
+	Point *Point `json:"point,omitempty"`
 }
 
 // ExecutionTimings measures host work in milliseconds. Total excludes process
@@ -117,6 +121,10 @@ type CheckContext struct {
 	// TermsApplied means a terminology store was supplied to the checks. It
 	// does not assert that its terms matched this input or that findings exist.
 	TermsApplied bool `json:"terms_applied"`
+	// Point is the governance point this guidance was resolved at, set when a
+	// project resolved it. A file whose comments sit apart has one entry for
+	// each point.
+	Point *Point `json:"point,omitempty"`
 }
 
 // VoiceContext records the selection that produced the actual checked profile.

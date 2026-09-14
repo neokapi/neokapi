@@ -156,7 +156,11 @@ collections:
   comments, such as `okapi-skip:`, go under `defaults.comments.directives` for
   the whole project or `comments: {directives: [...]}` on an item: a comment
   line that starts with one is set aside rather than checked, and a marker
-  inside a comment splits it in two.
+  inside a comment splits it in two. `comments: {channel: profile/channel}` on
+  an item, or `defaults.comments.channel`, checks the comments under that
+  point's voice and terms while the rest of the file keeps the item's point;
+  each finding and each `execution.contexts` entry carries the `point` it was
+  checked at.
 - **Terms**: import terms into the project terms store
   (`kapi terms import terms.csv -s en -t fr`); `kapi exec term-check <file>` and
   the translation flow then enforce it with no `--termstore` flag. Rules without
