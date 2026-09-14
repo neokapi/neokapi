@@ -16,15 +16,16 @@ import (
 
 // ConceptDTO is the frontend-facing terms concept.
 type ConceptDTO struct {
-	ID         string            `json:"id"`
-	ProjectID  string            `json:"project_id"`
-	Domain     string            `json:"domain"`
-	Definition string            `json:"definition"`
-	Source     string            `json:"source"` // "terminology" or "brand_vocabulary"
-	Terms      []TermDTO         `json:"terms"`
-	Properties map[string]string `json:"properties,omitempty"`
-	CreatedAt  string            `json:"created_at"`
-	UpdatedAt  string            `json:"updated_at"`
+	ID             string            `json:"id"`
+	ProjectID      string            `json:"project_id"`
+	Domain         string            `json:"domain"`
+	Definition     string            `json:"definition"`
+	Source         string            `json:"source"` // "terminology" or "brand_vocabulary"
+	DoNotTranslate bool              `json:"do_not_translate,omitempty"`
+	Terms          []TermDTO         `json:"terms"`
+	Properties     map[string]string `json:"properties,omitempty"`
+	CreatedAt      string            `json:"created_at"`
+	UpdatedAt      string            `json:"updated_at"`
 }
 
 // TermDTO is the frontend-facing term within a concept.
@@ -56,10 +57,12 @@ type TermsStats struct {
 
 // AddConceptRequest is the request to add a new concept.
 type AddConceptRequest struct {
-	ProjectID  string    `json:"project_id"`
-	Domain     string    `json:"domain"`
-	Definition string    `json:"definition"`
-	Terms      []TermDTO `json:"terms"`
+	ProjectID  string `json:"project_id"`
+	Domain     string `json:"domain"`
+	Definition string `json:"definition"`
+	// DoNotTranslate keeps the concept\'s source term verbatim in every language.
+	DoNotTranslate bool      `json:"do_not_translate,omitempty"`
+	Terms          []TermDTO `json:"terms"`
 }
 
 // UpdateConceptRequest is the request to update a concept.
@@ -89,15 +92,16 @@ func conceptToDTO(c terms.Concept) ConceptDTO {
 		})
 	}
 	return ConceptDTO{
-		ID:         c.ID,
-		ProjectID:  c.ProjectID,
-		Domain:     c.Domain,
-		Definition: c.Definition,
-		Source:     string(c.Source),
-		Terms:      terms,
-		Properties: c.Properties,
-		CreatedAt:  c.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:  c.UpdatedAt.Format(time.RFC3339),
+		ID:             c.ID,
+		ProjectID:      c.ProjectID,
+		Domain:         c.Domain,
+		Definition:     c.Definition,
+		Source:         string(c.Source),
+		DoNotTranslate: c.DoNotTranslate,
+		Terms:          terms,
+		Properties:     c.Properties,
+		CreatedAt:      c.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:      c.UpdatedAt.Format(time.RFC3339),
 	}
 }
 
@@ -270,14 +274,15 @@ func (a *App) AddConcept(handle string, req AddConceptRequest) error {
 		return err
 	}
 	concept := terms.Concept{
-		ID:         id.New(),
-		ProjectID:  req.ProjectID,
-		Domain:     req.Domain,
-		Definition: req.Definition,
-		Source:     terms.TermSourceTerminology,
-		Terms:      terms_,
-		CreatedAt:  time.Now(),
-		UpdatedAt:  time.Now(),
+		ID:             id.New(),
+		ProjectID:      req.ProjectID,
+		Domain:         req.Domain,
+		Definition:     req.Definition,
+		Source:         terms.TermSourceTerminology,
+		DoNotTranslate: req.DoNotTranslate,
+		Terms:          terms_,
+		CreatedAt:      time.Now(),
+		UpdatedAt:      time.Now(),
 	}
 	return tb.AddConcept(context.Background(), concept)
 }

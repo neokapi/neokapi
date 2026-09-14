@@ -393,20 +393,22 @@ func (s *Server) HandleCreateConcept(c echo.Context) error {
 	if governedConceptCreate(termList) {
 		return conceptGovernedConflict(c, "a concept whose term is created as forbidden or preferred")
 	}
+	if req.DoNotTranslate {
+		return conceptGovernedConflict(c, "a concept created with its do-not-translate flag set")
+	}
 
 	tb, err := s.wsStores.getTerms(ws)
 	if err != nil {
 		return serverErrStatus(c, http.StatusServiceUnavailable, err)
 	}
 	concept := terms.Concept{
-		ID:             id.New(),
-		ProjectID:      req.ProjectID,
-		Domain:         req.Domain,
-		Definition:     req.Definition,
-		DoNotTranslate: req.DoNotTranslate,
-		Terms:          termList,
-		CreatedAt:      time.Now(),
-		UpdatedAt:      time.Now(),
+		ID:         id.New(),
+		ProjectID:  req.ProjectID,
+		Domain:     req.Domain,
+		Definition: req.Definition,
+		Terms:      termList,
+		CreatedAt:  time.Now(),
+		UpdatedAt:  time.Now(),
 	}
 	stream := streamParam(c)
 	if stream != "" && stream != "main" {
@@ -485,12 +487,12 @@ func (s *Server) HandleUpdateConcept(c echo.Context) error {
 	if governedConceptUpdate(existing.Terms, newTerms) {
 		return conceptGovernedConflict(c, "a term status transition to/from forbidden or preferred")
 	}
+	if req.DoNotTranslate != nil && *req.DoNotTranslate != existing.DoNotTranslate {
+		return conceptGovernedConflict(c, "setting or clearing a concept's do-not-translate flag")
+	}
 
 	existing.Domain = req.Domain
 	existing.Definition = req.Definition
-	if req.DoNotTranslate != nil {
-		existing.DoNotTranslate = *req.DoNotTranslate
-	}
 	existing.Terms = newTerms
 	existing.UpdatedAt = time.Now()
 

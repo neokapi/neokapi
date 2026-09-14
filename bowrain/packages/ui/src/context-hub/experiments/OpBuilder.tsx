@@ -472,21 +472,26 @@ function EditConceptForm({ busy, error, onSubmit }: FormProps) {
   const [concept, setConcept] = useState<ConceptInfo | null>(null);
   const [definition, setDefinition] = useState("");
   const [domain, setDomain] = useState("");
+  const [doNotTranslate, setDoNotTranslate] = useState(false);
 
   const onPick = (c: ConceptInfo | null) => {
     setConcept(c);
     setDefinition(c?.definition ?? "");
     setDomain(c?.domain ?? "");
+    setDoNotTranslate(c?.do_not_translate ?? false);
   };
 
   const changed =
     concept &&
-    (definition.trim() !== (concept.definition ?? "") || domain.trim() !== (concept.domain ?? ""));
+    (definition.trim() !== (concept.definition ?? "") ||
+      domain.trim() !== (concept.domain ?? "") ||
+      doNotTranslate !== (concept.do_not_translate ?? false));
 
   const reset = () => {
     setConcept(null);
     setDefinition("");
     setDomain("");
+    setDoNotTranslate(false);
   };
 
   const handle = (e: React.FormEvent) => {
@@ -500,6 +505,9 @@ function EditConceptForm({ busy, error, onSubmit }: FormProps) {
           definition:
             definition.trim() !== (concept.definition ?? "") ? definition.trim() : undefined,
           domain: domain.trim() !== (concept.domain ?? "") ? domain.trim() : undefined,
+          // A governed change: the change-set needs a second approval to merge.
+          do_not_translate:
+            doNotTranslate !== (concept.do_not_translate ?? false) ? doNotTranslate : undefined,
         },
       },
       reset,
@@ -533,6 +541,17 @@ function EditConceptForm({ busy, error, onSubmit }: FormProps) {
               onChange={(e) => setDefinition(e.target.value)}
               rows={3}
             />
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              id="edit-dnt"
+              type="checkbox"
+              checked={doNotTranslate}
+              onChange={(e) => setDoNotTranslate(e.target.checked)}
+            />
+            <Label className="text-xs" htmlFor="edit-dnt">
+              Do not translate: keep the term verbatim in every language
+            </Label>
           </div>
         </>
       )}

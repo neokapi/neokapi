@@ -5,68 +5,85 @@ import (
 	"encoding/json"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/terms"
 )
 
-// TestConceptAPI_CarriesDoNotTranslate creates a do-not-translate concept, reads
-// it back, and updates it without and then with the flag. The create stores the
-// flag and both responses carry it; an update that omits the flag keeps the
-// stored value, and one that names it sets it.
-func TestConceptAPI_CarriesDoNotTranslate(t *testing.T) {
+// TestConceptAPI_DoNotTranslateIsGoverned: setting or clearing the flag through
+// the ordinary concept API is refused with the change-set hint, as a governed
+// term status edit is. An update that omits the flag, or repeats the stored
+// value, applies, and a response carries the stored flag.
+func TestConceptAPI_DoNotTranslateIsGoverned(t *testing.T) {
 	h := newKGHarness(t)
 	ctx := context.Background()
+	tb := h.tb(t)
+	now := time.Now()
+	require.NoError(t, tb.AddConcept(ctx, terms.Concept{
+		ID: "c-kapi", Domain: "product", Definition: "The CLI.", DoNotTranslate: true,
+		Terms:     []terms.Term{{Text: "kapi", Locale: "en", Status: model.TermApproved}},
+		CreatedAt: now, UpdatedAt: now,
+	}))
+	stored := func() terms.Concept {
+		t.Helper()
+		c, ok, err := tb.GetConcept(ctx, "c-kapi")
+		require.NoError(t, err)
+		require.True(t, ok)
+		return c
+	}
+	refused := func(code int, body string) {
+		t.Helper()
+		assert.Equal(t, http.StatusConflict, code, body)
+		var got map[string]any
+		require.NoError(t, json.Unmarshal([]byte(body), &got))
+		assert.Equal(t, "governed change requires a change-set", got["error"])
+	}
 
 	c, rec := h.req(http.MethodPost, "/concepts", `{
-		"domain": "product",
-		"definition": "The command-line tool.",
-		"do_not_translate": true,
-		"terms": [{"text": "kapi", "locale": "en", "status": "approved"}]
+		"domain": "product", "do_not_translate": true,
+		"terms": [{"text": "Bowrain", "locale": "en", "status": "approved"}]
 	}`, platauth.PermManageTerms)
 	require.NoError(t, h.srv.HandleCreateConcept(c))
-	require.Equal(t, http.StatusCreated, rec.Code, rec.Body.String())
-	var created map[string]any
-	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &created))
-	assert.Equal(t, true, created["do_not_translate"], "the create response carries the flag")
-	id, _ := created["id"].(string)
-	require.NotEmpty(t, id)
-
-	stored, ok, err := h.tb(t).GetConcept(ctx, id)
+	refused(rec.Code, rec.Body.String())
+	all, err := tb.Concepts(ctx)
 	require.NoError(t, err)
-	require.True(t, ok)
-	assert.True(t, stored.DoNotTranslate, "the create stores the flag")
+	assert.Len(t, all, 1, "a refused create writes nothing")
 
-	c, rec = h.req(http.MethodGet, "/concepts/"+id, "", platauth.PermViewContent, "cid", id)
+	c, rec = h.req(http.MethodGet, "/concepts/c-kapi", "", platauth.PermViewContent, "cid", "c-kapi")
 	require.NoError(t, h.srv.HandleGetConcept(c))
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	var got map[string]any
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &got))
-	assert.Equal(t, true, got["do_not_translate"], "the get response carries the flag")
+	assert.Equal(t, true, got["do_not_translate"], "the response carries the stored flag")
 
-	c, rec = h.req(http.MethodPut, "/concepts/"+id, `{
-		"domain": "product",
-		"definition": "The kapi command-line tool.",
+	c, rec = h.req(http.MethodPut, "/concepts/c-kapi", `{
+		"domain": "product", "definition": "Cleared.", "do_not_translate": false,
 		"terms": [{"text": "kapi", "locale": "en", "status": "approved"}]
-	}`, platauth.PermManageTerms, "cid", id)
+	}`, platauth.PermManageTerms, "cid", "c-kapi")
+	require.NoError(t, h.srv.HandleUpdateConcept(c))
+	refused(rec.Code, rec.Body.String())
+	assert.True(t, stored().DoNotTranslate, "a refused update leaves the flag")
+	assert.Equal(t, "The CLI.", stored().Definition, "a refused update writes nothing")
+
+	c, rec = h.req(http.MethodPut, "/concepts/c-kapi", `{
+		"domain": "product", "definition": "The kapi CLI.",
+		"terms": [{"text": "kapi", "locale": "en", "status": "approved"}]
+	}`, platauth.PermManageTerms, "cid", "c-kapi")
 	require.NoError(t, h.srv.HandleUpdateConcept(c))
 	require.Equal(t, http.StatusNoContent, rec.Code, rec.Body.String())
-	stored, _, err = h.tb(t).GetConcept(ctx, id)
-	require.NoError(t, err)
-	assert.Equal(t, "The kapi command-line tool.", stored.Definition)
-	assert.True(t, stored.DoNotTranslate, "an update that omits the flag keeps it")
+	assert.Equal(t, "The kapi CLI.", stored().Definition)
+	assert.True(t, stored().DoNotTranslate, "an update that omits the flag keeps it")
 
-	c, rec = h.req(http.MethodPut, "/concepts/"+id, `{
-		"domain": "product",
-		"definition": "The kapi command-line tool.",
-		"do_not_translate": false,
+	c, rec = h.req(http.MethodPut, "/concepts/c-kapi", `{
+		"domain": "product", "definition": "The kapi command-line tool.", "do_not_translate": true,
 		"terms": [{"text": "kapi", "locale": "en", "status": "approved"}]
-	}`, platauth.PermManageTerms, "cid", id)
+	}`, platauth.PermManageTerms, "cid", "c-kapi")
 	require.NoError(t, h.srv.HandleUpdateConcept(c))
 	require.Equal(t, http.StatusNoContent, rec.Code, rec.Body.String())
-	stored, _, err = h.tb(t).GetConcept(ctx, id)
-	require.NoError(t, err)
-	assert.False(t, stored.DoNotTranslate, "an update that names the flag sets it")
+	assert.Equal(t, "The kapi command-line tool.", stored().Definition, "repeating the stored flag applies")
 }

@@ -51,10 +51,17 @@ func (s *Server) knowledgeEngineFor(wsSlug string) (*knowledge.Engine, error) {
 // handlers_concepts.go and the change-set handlers in handlers_changesets.go
 // build the same descriptors for the events they fire directly.
 func (s *Server) publishKnowledgeEvents(c echo.Context, events []knowledge.MergeEvent) {
+	fallbackActor, _ := c.Get("user_id").(string)
+	s.publishKnowledgeEventsIn(c.Param("ws"), fallbackActor, events)
+}
+
+// publishKnowledgeEventsIn is publishKnowledgeEvents for a caller outside a
+// request: the workspace slug the events are keyed by, and the actor an event
+// that names none is attributed to.
+func (s *Server) publishKnowledgeEventsIn(wsSlug, fallbackActor string, events []knowledge.MergeEvent) {
 	if s.EventBus == nil || len(events) == 0 {
 		return
 	}
-	fallbackActor, _ := c.Get("user_id").(string)
 	now := time.Now().UTC()
 	for _, ev := range events {
 		actor := ev.Actor
@@ -70,7 +77,7 @@ func (s *Server) publishKnowledgeEvents(c echo.Context, events []knowledge.Merge
 		// The activity recorder and the notification dispatcher both key on the
 		// workspace slug, so an event carrying only the workspace id lands in
 		// the feed under no workspace at all.
-		put("workspace_slug", c.Param("ws"))
+		put("workspace_slug", wsSlug)
 		put("changeset_id", ev.ChangesetID)
 		put("on_behalf_of", ev.OnBehalfOf)
 		put("review_basis", string(ev.ReviewBasis))

@@ -63,6 +63,7 @@ export interface ConceptDTO {
   project_id: string;
   domain: string;
   definition: string;
+  do_not_translate?: boolean;
   source: string;
   terms: TermDTO[];
   properties?: Record<string, string>;

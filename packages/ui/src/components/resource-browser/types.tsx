@@ -246,6 +246,7 @@ export interface ConceptDTO {
   domain: string;
   definition: string;
   source: string;
+  do_not_translate?: boolean;
   terms: TermDTO[];
   properties?: Record<string, string>;
   created_at: string;
@@ -277,6 +278,7 @@ export interface AddConceptRequest {
   project_id?: string;
   domain: string;
   definition: string;
+  do_not_translate?: boolean;
   terms: TermDTO[];
 }
 

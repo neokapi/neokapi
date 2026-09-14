@@ -103,10 +103,17 @@ How an edit applies depends on whether it is governed:
 - **Ordinary edits**, such as adding or correcting a translation, adjusting a
   domain, or moving a term to a non-governed status, apply directly.
 - **Governed edits**, such as setting or clearing a term's `forbidden` or
-  `preferred` status, recording a `replaced_by` relation, or deleting a
-  concept, are bundled into a reviewable
-  [change-set](/server/context#experiments-change-sets-and-pilots) whose blast
-  radius is measured before anyone approves it.
+  `preferred` status, setting or clearing a concept's do-not-translate flag,
+  recording a `replaced_by` relation, or deleting a concept, are bundled into a
+  reviewable [change-set](/server/context#experiments-change-sets-and-pilots)
+  whose blast radius is measured before anyone approves it.
+
+A concept created with its do-not-translate flag set is governed too. Promoting
+an entity marked do-not-translate, approving a context-scan term marked that
+way, or adding such a term through the MCP `term_add` tool proposes the concept
+in a change-set of its own, and the concept appears once that change-set
+merges. Approving a term candidate marked do-not-translate in the review queue
+creates the concept with the flag, because that approval is the review.
 
 ## Deleting concepts
 

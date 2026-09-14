@@ -177,6 +177,9 @@ func applyTermsOp(ctx context.Context, tb terms.Terminology, op ChangeSetOp) err
 			maps.Copy(props, p.Properties)
 			c.Properties = props
 		}
+		if p.DoNotTranslate != nil {
+			c.DoNotTranslate = *p.DoNotTranslate
+		}
 		return tb.AddConcept(ctx, c)
 
 	case OpConceptDelete:

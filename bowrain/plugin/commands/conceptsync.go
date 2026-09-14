@@ -51,6 +51,7 @@ const (
 // are declared here).
 const (
 	opConceptCreate = "concept.create"
+	opConceptUpdate = "concept.update"
 	opConceptDelete = "concept.delete"
 	opTermAdd       = "term.add"
 	opTermRemove    = "term.remove"
@@ -72,6 +73,11 @@ type termStatusPayload struct {
 
 type conceptCreatePayload struct {
 	Concept terms.Concept `json:"concept"`
+}
+
+type conceptUpdatePayload struct {
+	ConceptID      string `json:"concept_id"`
+	DoNotTranslate *bool  `json:"do_not_translate,omitempty"`
 }
 
 type conceptDeletePayload struct {
@@ -565,17 +571,17 @@ func buildPushPlan(local []terms.Concept, localRels []terms.ConceptRelation, bas
 		base, inBaseline := baseline.Concepts[id]
 		if !inBaseline {
 			// A brand-new local concept. Creating a term already forbidden or
-			// preferred is governed (the direct POST would 409), so route the
-			// whole concept through a change-set; otherwise create it directly.
-			if conceptHasGovernedTerm(c) {
+			// preferred, or a concept carrying the do-not-translate flag, is
+			// governed (the direct POST would 409), so route the whole concept
+			// through a change-set; otherwise create it directly.
+			if conceptHasGovernedTerm(c) || c.DoNotTranslate {
 				plan.governed = append(plan.governed, newOp(opConceptCreate, conceptCreatePayload{Concept: c}))
 			} else {
 				plan.creates = append(plan.creates, apiclient.CreateConceptParams{
-					ProjectID:      c.ProjectID,
-					Domain:         c.Domain,
-					Definition:     c.Definition,
-					DoNotTranslate: c.DoNotTranslate,
-					Terms:          termsToInfo(c.Terms),
+					ProjectID:  c.ProjectID,
+					Domain:     c.Domain,
+					Definition: c.Definition,
+					Terms:      termsToInfo(c.Terms),
 				})
 			}
 			continue
@@ -583,14 +589,19 @@ func buildPushPlan(local []terms.Concept, localRels []terms.ConceptRelation, bas
 
 		govOps, ordinaryTerms := diffConceptTerms(id, c, base)
 		plan.governed = append(plan.governed, govOps...)
+		// Setting or clearing do-not-translate is governed: it travels as a
+		// concept.update op in the change-set, never on the ordinary update.
+		if c.DoNotTranslate != base.DoNotTranslate {
+			flag := c.DoNotTranslate
+			plan.governed = append(plan.governed, newOp(opConceptUpdate, conceptUpdatePayload{ConceptID: id, DoNotTranslate: &flag}))
+		}
 		if ordinaryConceptChanged(c, base, ordinaryTerms) {
 			plan.updates = append(plan.updates, conceptUpdate{
 				conceptID: id,
 				params: apiclient.UpdateConceptParams{
-					Domain:         c.Domain,
-					Definition:     c.Definition,
-					DoNotTranslate: &c.DoNotTranslate,
-					Terms:          termsToInfo(ordinaryTerms),
+					Domain:     c.Domain,
+					Definition: c.Definition,
+					Terms:      termsToInfo(ordinaryTerms),
 				},
 			})
 		}
@@ -986,11 +997,11 @@ func conceptHasGovernedTerm(c terms.Concept) bool {
 }
 
 // ordinaryConceptChanged reports whether a concept's ordinary, directly-pushable
-// state (domain, definition, the do-not-translate flag and the neutralized terms
-// list) differs from the baseline. Properties are not diffed, because the direct
-// concept PUT does not carry them.
+// state (domain, definition, and the neutralized terms list) differs from the
+// baseline. Properties are not diffed, because the direct concept PUT does not
+// carry them, and the do-not-translate flag travels as a governed op.
 func ordinaryConceptChanged(local terms.Concept, base bproject.BaselineConcept, ordinaryTerms []terms.Term) bool {
-	if local.Domain != base.Domain || local.Definition != base.Definition || local.DoNotTranslate != base.DoNotTranslate {
+	if local.Domain != base.Domain || local.Definition != base.Definition {
 		return true
 	}
 	return termsSignature(ordinaryTerms) != baselineTermsSignature(base.Terms)

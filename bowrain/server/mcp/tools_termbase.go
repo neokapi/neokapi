@@ -7,6 +7,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/terms"
 )
@@ -93,9 +94,28 @@ type termAddEntry struct {
 	Term       string `json:"term" jsonschema:"the term text"`
 	Definition string `json:"definition,omitempty" jsonschema:"term definition"`
 	Locale     string `json:"locale" jsonschema:"language code for this term"`
+	// DoNotTranslate marks a term that stays the same string in every language.
+	// Creating such a concept is governed, so it is proposed for review.
+	DoNotTranslate bool `json:"do_not_translate,omitempty" jsonschema:"keep the term verbatim in every language; the term is proposed for review in a change-set rather than added"`
 }
 type termAddOutput struct {
 	Added int `json:"added"`
+	// Proposed counts the do-not-translate terms proposed for review, and
+	// ChangeSetIDs names the change-sets that hold them.
+	Proposed     int      `json:"proposed,omitempty"`
+	ChangeSetIDs []string `json:"change_set_ids,omitempty"`
+}
+
+// ChangeSetProposer opens a submitted change-set for a governed change a tool
+// cannot apply directly, such as a term kept verbatim in every language.
+type ChangeSetProposer interface {
+	ProposeConcept(ctx context.Context, workspaceID, actor string, concept terms.Concept) (changeSetID string, err error)
+}
+
+// WithChangeSetProposer lets the terms tools propose governed changes for
+// review. Without it, a governed change is refused.
+func WithChangeSetProposer(p ChangeSetProposer) Option {
+	return func(s *MCPServer) { s.proposer = p }
 }
 
 func (s *MCPServer) handleTermAdd(ctx context.Context, req *mcp.CallToolRequest, input termAddInput) (*mcp.CallToolResult, termAddOutput, error) {
@@ -114,9 +134,10 @@ func (s *MCPServer) handleTermAdd(ctx context.Context, req *mcp.CallToolRequest,
 		return nil, termAddOutput{}, fmt.Errorf("get terms: %w", err)
 	}
 
-	added := 0
+	var out termAddOutput
 	for _, t := range input.Terms {
 		concept := terms.Concept{
+			ID:         id.New(),
 			Definition: t.Definition,
 			Terms: []terms.Term{
 				{
@@ -126,11 +147,26 @@ func (s *MCPServer) handleTermAdd(ctx context.Context, req *mcp.CallToolRequest,
 				},
 			},
 		}
-		if err := tb.AddConcept(ctx, concept); err != nil {
-			return nil, termAddOutput{}, fmt.Errorf("add term: %w", err)
+		if t.DoNotTranslate {
+			// A term kept verbatim in every language is a governed creation, so
+			// it is proposed for review rather than added.
+			if s.proposer == nil {
+				return nil, out, fmt.Errorf("term %q: a do-not-translate term is proposed in a change-set, and this server cannot open one", t.Term)
+			}
+			concept.DoNotTranslate = true
+			csID, err := s.proposer.ProposeConcept(ctx, input.WorkspaceID, callerID(req), concept)
+			if err != nil {
+				return nil, out, fmt.Errorf("propose term %q: %w", t.Term, err)
+			}
+			out.Proposed++
+			out.ChangeSetIDs = append(out.ChangeSetIDs, csID)
+			continue
 		}
-		added++
+		if err := tb.AddConcept(ctx, concept); err != nil {
+			return nil, out, fmt.Errorf("add term: %w", err)
+		}
+		out.Added++
 	}
 
-	return nil, termAddOutput{Added: added}, nil
+	return nil, out, nil
 }

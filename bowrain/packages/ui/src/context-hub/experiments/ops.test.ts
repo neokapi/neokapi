@@ -200,3 +200,47 @@ describe("groupOps + governedOpCount", () => {
     expect(governedOpCount(ops)).toBe(2);
   });
 });
+
+describe("do-not-translate", () => {
+  it("treats setting, clearing or creating with the flag as governed", () => {
+    expect(
+      isGovernedOp(
+        mkOp("concept.update", { concept_id: "c-1", do_not_translate: true } as ChangeSetOpPayload),
+      ),
+    ).toBe(true);
+    expect(
+      isGovernedOp(
+        mkOp("concept.update", {
+          concept_id: "c-1",
+          do_not_translate: false,
+        } as ChangeSetOpPayload),
+      ),
+    ).toBe(true);
+    expect(
+      isGovernedOp(
+        mkOp("concept.create", {
+          concept: { id: "c-1", do_not_translate: true },
+        } as ChangeSetOpPayload),
+      ),
+    ).toBe(true);
+    expect(
+      isGovernedOp(mkOp("concept.create", { concept: { id: "c-2" } } as ChangeSetOpPayload)),
+    ).toBe(false);
+  });
+
+  it("summarises a do-not-translate change", () => {
+    expect(
+      opSummary(
+        mkOp("concept.update", { concept_id: "c-1", do_not_translate: true } as ChangeSetOpPayload),
+      ),
+    ).toBe("Mark concept c-1 do-not-translate");
+    expect(
+      opSummary(
+        mkOp("concept.update", {
+          concept_id: "c-1",
+          do_not_translate: false,
+        } as ChangeSetOpPayload),
+      ),
+    ).toBe("Clear do-not-translate on concept c-1");
+  });
+});

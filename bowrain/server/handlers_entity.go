@@ -276,6 +276,10 @@ func (s *Server) HandlePromoteEntityToConcept(c echo.Context) error {
 	if err != nil {
 		return serverErr(c, err)
 	}
+	if concept.DoNotTranslate {
+		// Proposed for review rather than created: see promoteEntityToConcept.
+		return c.JSON(http.StatusAccepted, map[string]any{"ok": true, "proposed": true, "concept": editorConceptToInfo(concept)})
+	}
 	return c.JSON(http.StatusCreated, map[string]any{"ok": true, "concept": editorConceptToInfo(concept)})
 }
 
@@ -306,10 +310,17 @@ func (s *Server) promoteEntityToConcept(ctx context.Context, wsSlug, wsID, actor
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
-	// Preserve the entity's DNT signal as concept metadata (matching the term
-	// candidate → concept mapping in review_effects.go).
+	// An entity marked do-not-translate yields a concept carrying the flag, and
+	// creating one is governed: it is proposed for review, and nothing is written
+	// until the change-set merges, which publishes concept.created then.
 	if entity.DNT {
-		concept.Properties = map[string]string{"translatability": string(model.TranslatabilityDNT)}
+		concept.DoNotTranslate = true
+		op, err := conceptCreateOp(concept)
+		if err != nil {
+			return concept, err
+		}
+		_, err = s.proposeGovernedChange(ctx, wsSlug, wsID, actor, fmt.Sprintf("Promote %q as do-not-translate", entity.Text), []knowledge.ChangeSetOp{op})
+		return concept, err
 	}
 
 	tb, err := s.wsStores.getTerms(wsSlug)

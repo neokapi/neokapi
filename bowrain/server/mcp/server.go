@@ -78,6 +78,7 @@ type MCPServer struct {
 	wsDefault      voicescope.WorkspaceDefault
 	memoryResolver MemoryResolver
 	tbResolver     TermsResolver
+	proposer       ChangeSetProposer
 	connResolver   ConnectorResolver
 	membership     MembershipChecker
 	sandbox        SandboxExecutor
