@@ -1,0 +1,53 @@
+using System;
+
+namespace Example.Parsing
+{
+    // Sits above nothing: a blank line follows.
+
+    /// <summary>Parses recipes with <see cref="Reader"/>.</summary>
+    /// <remarks>Returns a <c>Recipe</c>.</remarks>
+    [Serializable]
+    public sealed class Parser
+    {
+        /// <summary>The source text.</summary>
+        private readonly string source = "";
+
+        // A plain comment on a field.
+        private int count;
+
+        /// <summary>Makes a parser.</summary>
+        /// <param name="source">The text to read.</param>
+        public Parser(string source) { }
+
+        /// <summary>The parser's name.</summary>
+        public string Name { get; set; }
+
+        /// <summary>Runs the parser.</summary>
+        /// <example>
+        /// <code>
+        /// new Parser("x").Run();
+        /// </code>
+        /// </example>
+        [Obsolete]
+        public int Run()
+        {
+            /// Not documentation: a statement follows it.
+            var blocks = 0;
+            return blocks; // a trailing comment
+        }
+
+        /// <summary>Raised when the parser stops.</summary>
+        public event EventHandler Stopped;
+    }
+
+    /// <summary>The kinds of block.</summary>
+    public enum Kind
+    {
+        /// <summary>Plain text.</summary>
+        Text,
+        Code,
+    }
+
+    /** <summary>A point.</summary> */
+    public record Point(int X, int Y);
+}

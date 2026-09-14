@@ -2,6 +2,7 @@ package comments
 
 import (
 	"bytes"
+	"regexp"
 	"strings"
 
 	ts "github.com/tree-sitter/go-tree-sitter"
@@ -78,6 +79,13 @@ type syntax struct {
 	// docTags reports that a documentation comment's tags are structured, so a
 	// tag and its type and name are placeholders in the runs.
 	docTags bool
+	// markup reports that a documentation comment is written in HTML or XML, so
+	// its tags and code elements are placeholders in the runs.
+	markup bool
+	// generated is a marker that sets a file aside as generated when the
+	// comments on its first lines hold it, beside the phrases every language
+	// shares.
+	generated *regexp.Regexp
 }
 
 // scanner builds one file's comments.
@@ -127,7 +135,7 @@ func (s *scanner) startsLine(offset int) bool {
 
 // file groups the units into comments and exclusions.
 func (s *scanner) file() *comment.File {
-	if generatedHeader(s.src, s.units) {
+	if generatedHeader(s.src, s.units, s.lang.syntax.generated) {
 		for _, u := range s.units {
 			s.exclude(u, comment.ReasonGenerated, "")
 		}
@@ -242,7 +250,7 @@ func (s *scanner) comment(units []unit, texts []commentText, subject string, doc
 		lines = append(lines, t.lines...)
 	}
 	docBlock := units[0].kind.doc() || units[0].kind.innerDoc()
-	runs, deprecated := buildRuns(trimBlankLines(lines), docBlock && s.lang.syntax.docTags)
+	runs, deprecated := buildRuns(trimBlankLines(lines), docBlock && s.lang.syntax.docTags, docBlock && s.lang.syntax.markup)
 	s.out.Comments = append(s.out.Comments, comment.Comment{
 		Start:      start,
 		End:        end,

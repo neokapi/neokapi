@@ -17,6 +17,7 @@ const (
 	subTag     = "jsdoc:tag"
 	subLink    = "jsdoc:link"
 	subExample = "jsdoc:example"
+	subMarkup  = "doc:markup"
 )
 
 var (
@@ -31,6 +32,12 @@ var (
 	// nameRe is a JSDoc parameter or property name, optionally in brackets with
 	// a default, followed by an optional hyphen.
 	nameRe = regexp.MustCompile(`^\s*(\[[^\]]*\]|[\w$.]+)(\s+-(\s|$))?`)
+	// markupRe is an element in a documentation comment written in HTML or XML: a
+	// code element with its content, such as <c>x</c> or <code>x</code>, or any
+	// other tag, such as <summary> or <see cref="Parser"/>.
+	markupRe = regexp.MustCompile(`(?i)(<(?:c|code|tt|pre)\b[^<>]*>.*?</(?:c|code|tt|pre)\s*>)|</?[a-z][\w:.-]*(?:\s[^<>]*)?/?>`)
+	// markupBlockRe opens a code element that holds lines of its own.
+	markupBlockRe = regexp.MustCompile(`(?i)^\s*<(code|pre)\b[^<>]*>`)
 )
 
 // namedTags take a type and a name before their description.
@@ -60,9 +67,10 @@ var valueTags = map[string]bool{
 // spans and fenced code blocks, URLs and JSDoc inline tags are placeholders. In
 // a documentation comment whose tags are structured, a block tag with its type
 // and name is a placeholder, a tag that holds a value is one whole, and an
-// @example section is one. It also reports whether a @deprecated tag is
-// present.
-func buildRuns(lines []string, docTags bool) ([]model.Run, bool) {
+// @example section is one. In a documentation comment written in HTML or XML,
+// each tag is a placeholder and a code element is one with its content. It also
+// reports whether a @deprecated tag is present.
+func buildRuns(lines []string, docTags, markup bool) ([]model.Run, bool) {
 	var b runBuilder
 	deprecated := false
 	for i := 0; i < len(lines); i++ {
@@ -70,6 +78,13 @@ func buildRuns(lines []string, docTags bool) ([]model.Run, bool) {
 			b.text("\n")
 		}
 		line := lines[i]
+		if markup {
+			if end, ok := markupBlockEnd(lines, i); ok {
+				b.placeholder(phCode, subCode, strings.Join(lines[i:end+1], "\n"))
+				i = end
+				continue
+			}
+		}
 		if strings.HasPrefix(strings.TrimSpace(line), "```") {
 			end := i + 1
 			for end < len(lines) && !strings.HasPrefix(strings.TrimSpace(lines[end]), "```") {
@@ -97,7 +112,9 @@ func buildRuns(lines []string, docTags bool) ([]model.Run, bool) {
 					i = end - 1
 					continue
 				}
-				if valueTags[tag] {
+				// Javadoc's @see holds a reference, and its @throws names the
+				// exception before the description.
+				if valueTags[tag] || markup && tag == "see" {
 					b.placeholder(phCode, subTag, line)
 					continue
 				}
@@ -105,7 +122,7 @@ func buildRuns(lines []string, docTags bool) ([]model.Run, bool) {
 				if loc := typeRe.FindStringIndex(line[prefix:]); loc != nil {
 					prefix += loc[1]
 				}
-				if namedTags[tag] {
+				if namedTags[tag] || markup && (tag == "throws" || tag == "exception") {
 					if loc := nameRe.FindStringIndex(line[prefix:]); loc != nil {
 						prefix += loc[1]
 					}
@@ -117,9 +134,52 @@ func buildRuns(lines []string, docTags bool) ([]model.Run, bool) {
 				line = line[prefix:]
 			}
 		}
+		if markup {
+			b.markup(line)
+			continue
+		}
 		b.inline(line)
 	}
 	return b.runs, deprecated
+}
+
+// markupBlockEnd reports the line that closes a code element opening line i and
+// closing on a later line, such as a <pre> block.
+func markupBlockEnd(lines []string, i int) (int, bool) {
+	m := markupBlockRe.FindStringSubmatch(lines[i])
+	if m == nil {
+		return 0, false
+	}
+	closer := "</" + strings.ToLower(m[1])
+	if strings.Contains(strings.ToLower(lines[i]), closer) {
+		return 0, false
+	}
+	for end := i + 1; end < len(lines); end++ {
+		if strings.Contains(strings.ToLower(lines[end]), closer) {
+			return end, true
+		}
+	}
+	return 0, false
+}
+
+// markup appends one line of a documentation comment written in HTML or XML:
+// its tags and code elements are placeholders, and the text between them is
+// read as inline prose.
+func (b *runBuilder) markup(line string) {
+	for {
+		loc := markupRe.FindStringSubmatchIndex(line)
+		if loc == nil {
+			b.inline(line)
+			return
+		}
+		b.inline(line[:loc[0]])
+		sub := subMarkup
+		if loc[2] >= 0 {
+			sub = subCode
+		}
+		b.placeholder(phCode, sub, line[loc[0]:loc[1]])
+		line = line[loc[1]:]
+	}
 }
 
 type runBuilder struct {

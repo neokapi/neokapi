@@ -48,6 +48,30 @@
         }
       },
       {
+        "language": "csharp",
+        "display_name": "C#",
+        "extensions": [
+          ".cs"
+        ],
+        "markers": {
+          "line": [
+            "///",
+            "//"
+          ],
+          "block": [
+            {
+              "open": "/*",
+              "close": "*/"
+            }
+          ]
+        },
+        "canary": {
+          "name": "a C# documentation comment with a doubled word, below a ReSharper directive and above a string holding a comment marker",
+          "source": "// ReSharper disable once UnusedMember.Global\n/// <summary>Parses the the input.</summary>\npublic class Parser\n{\n    private string marker = \"// not a comment\";\n}\n",
+          "block": "class/Parser"
+        }
+      },
+      {
         "language": "css",
         "display_name": "CSS",
         "extensions": [
@@ -65,6 +89,29 @@
           "name": "a CSS comment with a doubled word, below a stylelint directive and above a string holding a comment marker",
           "source": "/* stylelint-disable no-empty-source */\n/* Styles the the header. */\n.header { content: \"/* not a comment */\"; }\n",
           "block": "rule/.header"
+        }
+      },
+      {
+        "language": "java",
+        "display_name": "Java",
+        "extensions": [
+          ".java"
+        ],
+        "markers": {
+          "line": [
+            "//"
+          ],
+          "block": [
+            {
+              "open": "/*",
+              "close": "*/"
+            }
+          ]
+        },
+        "canary": {
+          "name": "a Javadoc comment with a doubled word, below an inspection suppression and above a string holding a comment marker",
+          "source": "//noinspection unused\n/** Parses the the input. */\npublic class Parser {\n    String marker = \"// not a comment\";\n}\n",
+          "block": "class/Parser"
         }
       },
       {

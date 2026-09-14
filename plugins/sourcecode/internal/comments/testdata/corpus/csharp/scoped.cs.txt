@@ -1,0 +1,23 @@
+namespace Example.Scoped;
+
+/// <summary>A shape.</summary>
+public interface IShape
+{
+    /// <summary>The area.</summary>
+    double Area();
+}
+
+/// <summary>A pair.</summary>
+public struct Pair
+{
+    /// <summary>A nested type.</summary>
+    public class Inner { }
+}
+
+/// <summary>A handler.</summary>
+public delegate void Handler(int x);
+
+#if DEBUG
+// Inside a region only a debug build reads.
+public static class DebugOnly { }
+#endif

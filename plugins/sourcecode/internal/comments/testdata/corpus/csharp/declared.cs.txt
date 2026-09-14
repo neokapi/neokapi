@@ -1,0 +1,17 @@
+// Parses the input.
+// okapi-skip: ParseTest#testEmpty
+//
+// It returns an error for empty input.
+public class Declared
+{
+    // okapi-unmapped: FormatTest#testAll
+    // okapi-skip: FormatTest#testNone
+    public void Format()
+    {
+        var x = 1; // okapi-skip: FormatTest#testTrailing
+        /* okapi-unmapped: FormatTest#testDelimited */
+    }
+
+    // See the okapi-skip: markers; OKAPI-SKIP: in capitals is prose too.
+    public void Sort() { }
+}

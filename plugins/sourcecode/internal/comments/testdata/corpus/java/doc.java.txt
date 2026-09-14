@@ -1,0 +1,68 @@
+/** The package of parsers. */
+package com.example.parsing;
+
+import java.util.List;
+
+// Sits above nothing: a blank line follows.
+
+/**
+ * Parses recipes.
+ *
+ * <p>Reads a recipe with {@link java.io.Reader} and returns its <code>Recipe</code>.
+ *
+ * @author Kapi
+ * @see Formatter
+ */
+@Deprecated
+public final class Parser {
+    /** The source text. */
+    private final String source = "";
+
+    // A plain comment on a field.
+    private int count;
+
+    /**
+     * Makes a parser.
+     *
+     * @param source the text to read
+     */
+    public Parser(String source) {}
+
+    /**
+     * Runs the parser.
+     *
+     * <pre>
+     * new Parser("x").run();
+     * </pre>
+     *
+     * @return the number of blocks
+     * @throws IllegalStateException when the parser has stopped
+     */
+    @Override
+    public int run() {
+        /** Not documentation: a statement follows it. */
+        int blocks = 0;
+        return blocks; // a trailing comment
+    }
+
+    /** The kinds of block. */
+    enum Kind {
+        /** Plain text. */
+        TEXT,
+        CODE
+    }
+
+    /** A point. */
+    record Point(int x, int y) {}
+
+    interface Visitor {
+        /** Visits a block. */
+        void visit();
+    }
+}
+
+/** A marker annotation. */
+@interface Marker {
+    /** Its value. */
+    String value();
+}

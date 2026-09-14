@@ -21,9 +21,10 @@ var (
 
 // generatedHeader reports whether the comments on a file's first non-empty
 // lines say a generator owns the file: a generator phrase with an instruction
-// not to edit, or the `@generated` tag. Only comment text counts, so a string
-// that quotes such a header is not one.
-func generatedHeader(src []byte, units []unit) bool {
+// not to edit, the `@generated` tag, or the language's own marker when it has
+// one. Only comment text counts, so a string that quotes such a header is not
+// one.
+func generatedHeader(src []byte, units []unit, marker *regexp.Regexp) bool {
 	var header []byte
 	lines := 0
 	for start := 0; start < len(src) && lines < headerLines; {
@@ -44,7 +45,7 @@ func generatedHeader(src []byte, units []unit) bool {
 		}
 		start = end + 1
 	}
-	if generatedTag.Match(header) {
+	if generatedTag.Match(header) || marker != nil && marker.Match(header) {
 		return true
 	}
 	return generatorPhrase.Match(header) && doNotEdit.Match(header)

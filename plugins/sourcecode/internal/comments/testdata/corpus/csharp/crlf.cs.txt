@@ -1,0 +1,8 @@
+// The first line.
+// The second line.
+
+/// <summary>Parses the input.</summary>
+public class Crlf
+{
+    private string a = "// not a comment"; // trailing
+}

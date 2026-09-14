@@ -464,7 +464,9 @@ a file whose header says a generator owns it, and blank comment lines. In
 TypeScript and JavaScript a `/** */` block is a doc comment only when nothing
 but whitespace separates it from a declaration, and its tags, inline links and
 code spans are placeholders. In Rust `///` and `/** */` document the item after
-them and `//!` and `/*! */` the module they sit in. A file the grammar cannot parse whole is not
+them and `//!` and `/*! */` the module they sit in. Java's Javadoc and C#'s XML
+documentation comments document the declaration after them, and their HTML and
+XML tags are placeholders. A file the grammar cannot parse whole is not
 located, and its comment check did not run. The canary comes from
 the plugin's manifest and goes through the plugin beside every real file. When no
 installed plugin reads a declared file's language, a check over the project

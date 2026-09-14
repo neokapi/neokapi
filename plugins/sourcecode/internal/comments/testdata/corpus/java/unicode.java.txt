@@ -1,0 +1,4 @@
+/** Grüße: the café's naïve résumé, 日本語, and 🎉. */
+class Unicode {
+    String greet = "héllo // ✓"; // ends with an astral 𝒳 character
+}
