@@ -488,6 +488,16 @@ describe("extractDocument — ternary attribute values", () => {
     expect(list).toHaveLength(1);
     expect(list[0].tag).toBe("title");
   });
+
+  it("does not warn when the only literal branch is empty", () => {
+    const warnings = createWarningCollector();
+    const doc = extractDocument('<Field label={showLabel ? label : ""} />', {
+      filename: "T.tsx",
+      warnings,
+    });
+    expect(doc).toBeNull();
+    expect(warnings.list().filter((w) => w.kind === "ternary-attr-complex")).toHaveLength(0);
+  });
 });
 
 describe("extractDocument — icon-tolerant inline content", () => {
