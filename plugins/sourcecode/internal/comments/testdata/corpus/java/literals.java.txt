@@ -1,0 +1,11 @@
+// Holds comment markers as content.
+class Literals {
+    String a = "// not a comment";
+    String b = "/* not a comment */";
+    char c = '/';
+    String d = """
+        // not a comment in a text block
+        /* nor this */
+        """;
+    String e = "a \" // not a comment after an escaped quote";
+}

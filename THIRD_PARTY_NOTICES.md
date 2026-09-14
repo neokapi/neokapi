@@ -36,7 +36,7 @@ plugin** that needs them — `kapi-vision`, `kapi-pdfium`, `kapi-sat`, `kapi-asr
 | **ONNX Runtime** | `kapi-vision`, `kapi-pdfium` (where ONNX) | MIT | bundled / resolved native lib | permissive; attribution only |
 | **PP-OCRv5 / PP-DocLayoutV3 models** | `kapi-vision` | Apache-2.0 (PaddleOCR/PaddleDetection) | bundled / download-on-demand | attribution + NOTICE |
 | **PDFium** | `kapi-pdfium` | BSD-3-Clause (+ Apache-2.0 parts) | bundled native lib | attribution |
-| **tree-sitter** runtime (go-tree-sitter) and grammars (Ruby, TypeScript, JavaScript, Python, Bash, CSS, Rust) | `kapi-sourcecode` | MIT | compiled into the plugin binary | attribution; `NOTICE` in the tarball |
+| **tree-sitter** runtime (go-tree-sitter) and grammars (Ruby, TypeScript, JavaScript, Python, Bash, CSS, Rust, Java, C#) | `kapi-sourcecode` | MIT | compiled into the plugin binary | attribution; `NOTICE` in the tarball |
 | **wtpsplit / SaT models** | `kapi-sat` | see upstream `UPSTREAM-LICENSE` | download-on-demand | verify per-model terms |
 
 In-browser model use (the docs Labs via onnxruntime-web / transformers.js — e.g.

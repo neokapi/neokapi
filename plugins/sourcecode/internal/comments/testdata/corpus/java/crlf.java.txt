@@ -1,0 +1,7 @@
+// The first line.
+// The second line.
+
+/** Parses the input. */
+class Crlf {
+    String a = "// not a comment"; // trailing
+}

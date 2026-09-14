@@ -22,32 +22,40 @@ import (
 // Corpus floors per language. The accounting of each fixture is what catches a
 // provider that loses a comment; the floors catch a corpus that shrank to
 // nothing and still accounted for everything in it.
-var corpusFloors = map[string]int{"typescript": 20, "tsx": 10, "javascript": 5, "python": 15, "bash": 20, "css": 15, "rust": 10}
+var corpusFloors = map[string]int{"typescript": 20, "tsx": 10, "javascript": 5, "python": 15, "bash": 20, "css": 15, "rust": 10, "java": 15, "csharp": 9}
 
 // literalsOf lists, per fixture, the substrings holding a comment marker as
 // content. No comment or exclusion may overlap one.
 var literalsOf = map[string][]string{
-	"literals.ts.txt":  {`"// not a comment"`, `'/* not a comment */'`, "`// not a comment ${", "`https://example.com/path`", `/\/\/ not a comment/g`},
-	"literals.tsx.txt": {`"// not a comment"`, `<p>// not a comment</p>`, `<p>/* not a comment */</p>`},
-	"literals.mjs.txt": {`"// not a comment"`, "`/* not a comment */ ${", `/\/\* not a comment \*\//`},
-	"unicode.ts.txt":   {`"héllo // ✓"`},
-	"crlf.ts.txt":      {`"// not a comment"`},
-	"canary.ts.txt":    {`"// not a comment"`},
-	"canary.tsx.txt":   {`<p>// not a comment `},
-	"canary.mjs.txt":   {"`// not a comment`"},
-	"literals.py.txt":  {`"# not a comment"`, `'# not a comment either'`, "\"\"\"\n# not a comment inside a docstring\n\"\"\"", `f"{greeting} # not a comment in an f-string"`},
-	"unicode.py.txt":   {`"héllo # ✓"`},
-	"crlf.py.txt":      {`"# not a comment"`},
-	"canary.py.txt":    {`"# not a comment"`},
-	"literals.sh.txt":  {`"# not a comment"`, `'# not a comment either'`, `${greeting#prefix}`, `word#not-a-comment`, `$'# not a comment in an ANSI-C string'`, "# not a comment inside a heredoc"},
-	"canary.sh.txt":    {`"# not a comment"`},
-	"literals.css.txt": {`"/* not a comment */"`, `'/* not a comment either */'`, `url(/*not-a-comment*/)`, `url(a/*not*/b.png)`},
-	"canary.css.txt":   {`"/* not a comment */"`},
-	"literals.rs.txt":  {`"// not a comment"`, `r#"/* not a comment */"#`, `b"// not a comment either"`, `'/'`, `"a \" // not a comment after an escaped quote"`, `r"// not a comment in a raw string"`, `"/* not a comment */"`, `"// not a comment in a macro"`},
-	"unicode.rs.txt":   {`"héllo // ✓"`},
-	"crlf.rs.txt":      {`"// not a comment"`},
-	"canary.rs.txt":    {`"// not a comment"`},
-	"tokenizer.rs.txt": {`"name = \"// here\""`, `Token::Str("// here")`},
+	"literals.ts.txt":   {`"// not a comment"`, `'/* not a comment */'`, "`// not a comment ${", "`https://example.com/path`", `/\/\/ not a comment/g`},
+	"literals.tsx.txt":  {`"// not a comment"`, `<p>// not a comment</p>`, `<p>/* not a comment */</p>`},
+	"literals.mjs.txt":  {`"// not a comment"`, "`/* not a comment */ ${", `/\/\* not a comment \*\//`},
+	"unicode.ts.txt":    {`"héllo // ✓"`},
+	"crlf.ts.txt":       {`"// not a comment"`},
+	"canary.ts.txt":     {`"// not a comment"`},
+	"canary.tsx.txt":    {`<p>// not a comment `},
+	"canary.mjs.txt":    {"`// not a comment`"},
+	"literals.py.txt":   {`"# not a comment"`, `'# not a comment either'`, "\"\"\"\n# not a comment inside a docstring\n\"\"\"", `f"{greeting} # not a comment in an f-string"`},
+	"unicode.py.txt":    {`"héllo # ✓"`},
+	"crlf.py.txt":       {`"# not a comment"`},
+	"canary.py.txt":     {`"# not a comment"`},
+	"literals.sh.txt":   {`"# not a comment"`, `'# not a comment either'`, `${greeting#prefix}`, `word#not-a-comment`, `$'# not a comment in an ANSI-C string'`, "# not a comment inside a heredoc"},
+	"canary.sh.txt":     {`"# not a comment"`},
+	"literals.css.txt":  {`"/* not a comment */"`, `'/* not a comment either */'`, `url(/*not-a-comment*/)`, `url(a/*not*/b.png)`},
+	"canary.css.txt":    {`"/* not a comment */"`},
+	"literals.rs.txt":   {`"// not a comment"`, `r#"/* not a comment */"#`, `b"// not a comment either"`, `'/'`, `"a \" // not a comment after an escaped quote"`, `r"// not a comment in a raw string"`, `"/* not a comment */"`, `"// not a comment in a macro"`},
+	"unicode.rs.txt":    {`"héllo // ✓"`},
+	"crlf.rs.txt":       {`"// not a comment"`},
+	"canary.rs.txt":     {`"// not a comment"`},
+	"tokenizer.rs.txt":  {`"name = \"// here\""`, `Token::Str("// here")`},
+	"literals.java.txt": {`"// not a comment"`, `"/* not a comment */"`, `'/'`, "\"\"\"\n        // not a comment in a text block\n        /* nor this */\n        \"\"\"", `"a \" // not a comment after an escaped quote"`},
+	"unicode.java.txt":  {`"héllo // ✓"`},
+	"crlf.java.txt":     {`"// not a comment"`},
+	"canary.java.txt":   {`"// not a comment"`},
+	"literals.cs.txt":   {`"// not a comment"`, `@"/* not a comment */"`, `$"{1} // not a comment in an interpolated string"`, `'/'`, "\"\"\"\n        // not a comment in a raw string\n        \"\"\"", `@"a "" // not a comment after an escaped quote"`},
+	"unicode.cs.txt":    {`"héllo // ✓"`},
+	"crlf.cs.txt":       {`"// not a comment"`},
+	"canary.cs.txt":     {`"// not a comment"`},
 }
 
 // directiveFixtures names, per language, a fixture of directives alone that
@@ -58,6 +66,8 @@ var directiveFixtures = map[string]string{
 	"bash":       "directives.sh.txt",
 	"css":        "directives.css.txt",
 	"rust":       "directives.rs.txt",
+	"java":       "directives.java.txt",
+	"csharp":     "directives.cs.txt",
 }
 
 // declaredFixtures names, per language, a fixture carrying declaredDirectives,
@@ -71,6 +81,8 @@ var declaredFixtures = map[string]struct {
 	"bash":       {"declared.sh.txt", 4},
 	"css":        {"declared.css.txt", 3},
 	"rust":       {"declared.rs.txt", 5},
+	"java":       {"declared.java.txt", 5},
+	"csharp":     {"declared.cs.txt", 5},
 }
 
 // generatedFixtures names, per language, the fixtures a generator's header
@@ -81,6 +93,8 @@ var generatedFixtures = map[string][]string{
 	"bash":       {"generated.sh.txt"},
 	"css":        {"generated.css.txt"},
 	"rust":       {"generated.rs.txt"},
+	"java":       {"generated.java.txt"},
+	"csharp":     {"generated.cs.txt"},
 }
 
 // unparsed holds, per language, a file with a syntax error on its second line.
@@ -90,6 +104,8 @@ var unparsed = map[string]string{
 	"bash":       "# Builds.\nbuild() {\n",
 	"css":        "/* Styles. */\n.header { color: red;\n",
 	"rust":       "/// Parses.\nfn parse( {\n",
+	"java":       "/** Parses. */\npublic class Parser {\n",
+	"csharp":     "/// <summary>Parses.</summary>\npublic class Parser\n{\n",
 }
 
 // fixture is one corpus file and, for an oracle that records its spans, the
@@ -535,6 +551,107 @@ var rustDocSubjects = []string{
 	"const/LIMIT doc=false",
 	"mod/util doc=true",
 	"mod/util/func/clamp doc=true",
+}
+
+func TestProseP1_java(t *testing.T) {
+	proseP1(t, "java")
+	proseSubjects(t, "java", "doc.java.txt", javaDocSubjects)
+
+	t.Run("must fail: every /** */ treated as Javadoc", func(t *testing.T) {
+		src := fixtureBytes(t, "java", "doc.java.txt")
+		p := broken{newProvider(t, "java"), func(src []byte, f *comment.File) {
+			for i := range f.Comments {
+				if strings.HasPrefix(string(src[f.Comments[i].Start:]), "/**") {
+					f.Comments[i].Doc = true
+				}
+			}
+		}}
+		assert.NotEmpty(t, subjectMismatches(t, p, "doc.java.txt", src, javaDocSubjects))
+	})
+
+	t.Run("Javadoc tags, inline tags, HTML and code are placeholders", func(t *testing.T) {
+		got, err := newProvider(t, "java").Locate("doc.java", fixtureBytes(t, "java", "doc.java.txt"))
+		require.NoError(t, err)
+		parser := commentOn(t, got, "class/Parser")
+		assert.Equal(t, []string{"<p>", "{@link java.io.Reader}", "<code>Recipe</code>", "@author Kapi", "@see Formatter"}, placeholders(parser.Runs))
+		run := commentOn(t, got, "class/Parser/run")
+		assert.Equal(t, []string{"<pre>\nnew Parser(\"x\").run();\n</pre>", "@return ", "@throws IllegalStateException "}, placeholders(run.Runs))
+		assert.Equal(t, "Runs the parser.\n\n\n\nthe number of blocks\nwhen the parser has stopped", model.RunsText(run.Runs))
+	})
+}
+
+// javaDocSubjects are the subjects and doc flags doc.java declares.
+var javaDocSubjects = []string{
+	"package doc=true",
+	"comment doc=false",
+	"class/Parser doc=true",
+	"class/Parser/source doc=true",
+	"class/Parser/count doc=false",
+	"class/Parser/Parser doc=true",
+	"class/Parser/run doc=true",
+	"class/Parser/run/comment doc=false",
+	"class/Parser/run/comment doc=false",
+	"class/Parser/enum/Kind doc=true",
+	"class/Parser/enum/Kind/TEXT doc=true",
+	"class/Parser/record/Point doc=true",
+	"class/Parser/interface/Visitor/visit doc=true",
+	"annotation/Marker doc=true",
+	"annotation/Marker/value doc=true",
+}
+
+func TestProseP1_csharp(t *testing.T) {
+	proseP1(t, "csharp")
+	proseSubjects(t, "csharp", "doc.cs.txt", csharpDocSubjects)
+
+	t.Run("must fail: every /// treated as documentation", func(t *testing.T) {
+		src := fixtureBytes(t, "csharp", "doc.cs.txt")
+		p := broken{newProvider(t, "csharp"), func(src []byte, f *comment.File) {
+			for i := range f.Comments {
+				if strings.HasPrefix(string(src[f.Comments[i].Start:]), "///") {
+					f.Comments[i].Doc = true
+				}
+			}
+		}}
+		assert.NotEmpty(t, subjectMismatches(t, p, "doc.cs.txt", src, csharpDocSubjects))
+	})
+
+	t.Run("XML documentation tags and code elements are placeholders", func(t *testing.T) {
+		got, err := newProvider(t, "csharp").Locate("doc.cs", fixtureBytes(t, "csharp", "doc.cs.txt"))
+		require.NoError(t, err)
+		parser := commentOn(t, got, "class/Parser")
+		assert.Equal(t, []string{"<summary>", `<see cref="Reader"/>`, "</summary>", "<remarks>", "<c>Recipe</c>", "</remarks>"}, placeholders(parser.Runs))
+		assert.Equal(t, "Parses recipes with .\nReturns a .", model.RunsText(parser.Runs))
+		run := commentOn(t, got, "class/Parser/Run")
+		assert.Contains(t, placeholders(run.Runs), "<code>\nnew Parser(\"x\").Run();\n</code>")
+	})
+
+	t.Run("a namespace adds nothing to a subject", func(t *testing.T) {
+		assert.Empty(t, subjectMismatches(t, newProvider(t, "csharp"), "scoped.cs.txt", fixtureBytes(t, "csharp", "scoped.cs.txt"), []string{
+			"interface/IShape doc=true",
+			"interface/IShape/Area doc=true",
+			"struct/Pair doc=true",
+			"struct/Pair/class/Inner doc=true",
+			"delegate/Handler doc=true",
+			"comment doc=false",
+		}))
+	})
+}
+
+// csharpDocSubjects are the subjects and doc flags doc.cs declares.
+var csharpDocSubjects = []string{
+	"comment doc=false",
+	"class/Parser doc=true",
+	"class/Parser/source doc=true",
+	"class/Parser/count doc=false",
+	"class/Parser/Parser doc=true",
+	"class/Parser/Name doc=true",
+	"class/Parser/Run doc=true",
+	"class/Parser/Run/comment doc=false",
+	"class/Parser/Run/comment doc=false",
+	"class/Parser/Stopped doc=true",
+	"enum/Kind doc=true",
+	"enum/Kind/Text doc=true",
+	"record/Point doc=true",
 }
 
 // proseSubjects holds a language's comments to the subjects a fixture

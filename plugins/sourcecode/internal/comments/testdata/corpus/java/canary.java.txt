@@ -1,0 +1,5 @@
+//noinspection unused
+/** Parses the the input. */
+public class Parser {
+    String marker = "// not a comment";
+}

@@ -24,9 +24,9 @@ import (
 
 // Each language is held to comment spans read without the grammar the plugin
 // reads it with. TypeScript, TSX and JavaScript are held to @babel/parser,
-// Python to the tokenize module of its standard library, and Rust to rustc's
-// own lexer; scripts in testdata run those and write a golden beside each
-// fixture. Bash is held to the parser
+// Python to the tokenize module of its standard library, Rust to rustc's own
+// lexer, Java to javac's tokenizer and C# to Roslyn; scripts in testdata run
+// those and write a golden beside each fixture. Bash is held to the parser
 // of mvdan.cc/sh and CSS to the lexer of github.com/tdewolff/parse, both run
 // by the test itself. Grouping and directives are decided here from the bytes,
 // with rules written for this test and nothing shared with the provider.
@@ -58,6 +58,8 @@ var oracles = map[string]oracle{
 	"bash":       {name: "mvdan.cc/sh", scan: shellSpans, line: "#", directive: shellDirective},
 	"css":        {name: "tdewolff/parse", scan: cssSpans, directive: cssDirective},
 	"rust":       {name: "rustc's lexer", golden: ".rustc", script: "testdata/rust-goldens.py", line: "//", directive: rustDirective},
+	"java":       {name: "javac's tokenizer", golden: ".javac", script: "testdata/java-goldens.py", line: "//", directive: javaDirective},
+	"csharp":     {name: "Roslyn", golden: ".roslyn", script: "testdata/csharp-goldens.py", line: "//", directive: csharpDirective},
 }
 
 // golden is one fixture's spans as a reader outside the test recorded them.
@@ -223,6 +225,35 @@ var rustDirectiveForm = regexp.MustCompile(`^(//|/\*)\s*SPDX-License-Identifier:
 
 func rustDirective(src []byte, s [4]int) bool {
 	return rustDirectiveForm.Match(src[s[0]:s[1]])
+}
+
+// javaDirectiveForms are the comments a Java tool reads: IntelliJ's inspection
+// suppressions, Checkstyle's switches, the formatter switches Eclipse, IntelliJ
+// and Spotless read, Checkstyle's fall-through relief, Eclipse's
+// externalized-string markers, and Sonar's and PMD's suppressions anywhere in a
+// comment.
+var javaDirectiveForms = []*regexp.Regexp{
+	regexp.MustCompile(`^//\s*noinspection\b`),
+	regexp.MustCompile(`^(//|/\*)\s*(CHECKSTYLE[:.]|@formatter:(on|off)\b|spotless:(on|off)\b|falls?[ -]?thr(u|ough)\b)`),
+	regexp.MustCompile(`^//\s*\$NON-NLS-\d+\$`),
+	regexp.MustCompile(`\b(NOSONAR|NOPMD)\b`),
+}
+
+func javaDirective(src []byte, s [4]int) bool {
+	return slices.ContainsFunc(javaDirectiveForms, func(re *regexp.Regexp) bool { return re.Match(src[s[0]:s[1]]) })
+}
+
+// csharpDirectiveForms are the comments a C# tool reads: ReSharper's
+// inspection switches, the formatter switches Rider and CSharpier read, and
+// Sonar's suppression anywhere in a comment.
+var csharpDirectiveForms = []*regexp.Regexp{
+	regexp.MustCompile(`^//\s*ReSharper\s+(disable|restore|enable)\b`),
+	regexp.MustCompile(`^(//|/\*)\s*(@formatter:(on|off)|csharpier-ignore)\b`),
+	regexp.MustCompile(`\bNOSONAR\b`),
+}
+
+func csharpDirective(src []byte, s [4]int) bool {
+	return slices.ContainsFunc(csharpDirectiveForms, func(re *regexp.Regexp) bool { return re.Match(src[s[0]:s[1]]) })
 }
 
 // shellSpans reads the comments of a Bash script with mvdan.cc/sh.

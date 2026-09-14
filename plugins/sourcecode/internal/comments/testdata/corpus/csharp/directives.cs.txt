@@ -1,0 +1,7 @@
+// ReSharper disable once UnusedMember.Global
+// @formatter:off
+// csharpier-ignore
+public class Directives
+{
+    private int count; // NOSONAR
+}

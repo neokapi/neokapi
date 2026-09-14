@@ -1,0 +1,6 @@
+// ReSharper disable once UnusedMember.Global
+/// <summary>Parses the the input.</summary>
+public class Parser
+{
+    private string marker = "// not a comment";
+}

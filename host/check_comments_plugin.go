@@ -42,7 +42,9 @@ type commentPluginHint struct {
 
 var commentPluginHints = []commentPluginHint{
 	{Plugin: "sourcecode", Language: "bash", DisplayName: "Bash", Extensions: []string{".sh", ".bash"}},
+	{Plugin: "sourcecode", Language: "csharp", DisplayName: "C#", Extensions: []string{".cs"}},
 	{Plugin: "sourcecode", Language: "css", DisplayName: "CSS", Extensions: []string{".css"}},
+	{Plugin: "sourcecode", Language: "java", DisplayName: "Java", Extensions: []string{".java"}},
 	{Plugin: "sourcecode", Language: "javascript", DisplayName: "JavaScript", Extensions: []string{".js", ".jsx", ".mjs", ".cjs"}},
 	{Plugin: "sourcecode", Language: "python", DisplayName: "Python", Extensions: []string{".py"}},
 	{Plugin: "sourcecode", Language: "rust", DisplayName: "Rust", Extensions: []string{".rs"}},

@@ -1,0 +1,5 @@
+/// <summary>Grüße: the café's naïve résumé, 日本語, and 🎉.</summary>
+public class Unicode
+{
+    private string greet = "héllo // ✓"; // ends with an astral 𝒳 character
+}

@@ -1,0 +1,18 @@
+//noinspection unused
+// CHECKSTYLE:OFF
+// @formatter:off
+// spotless:off
+class Directives {
+    String label = "x"; //$NON-NLS-1$
+    int count; // NOSONAR
+    int other; // NOPMD
+    void run(int kind) {
+        switch (kind) {
+            case 1:
+                count++;
+                // fall through
+            default:
+                other++;
+        }
+    }
+}

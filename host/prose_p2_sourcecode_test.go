@@ -164,6 +164,24 @@ var sourcecodeFiles = map[string]sourcecodeFile{
 		directives: "// SPDX-License-Identifier: Apache-2.0\npub const ANSWER: u32 = 42;\n",
 		broken:     "/// Parses the input.\npub fn parse(\n",
 	},
+	"java": {
+		path: "src/Parser.java", ext: ".java",
+		governed: "//noinspection unused\n/** Parse helps you utilize the input. */\npublic class Parser {\n    String word = \"utilize\";\n}\n",
+		block:    "class/Parser", line: 2,
+		clean:      "/** Parses the input. */\npublic class Parser {\n}\n",
+		doubled:    "/** Parses the the input. */\npublic class Parser {\n}\n",
+		directives: "// CHECKSTYLE:OFF\npublic class Parser {\n}\n",
+		broken:     "/** Parses the input. */\npublic class Parser {\n",
+	},
+	"csharp": {
+		path: "src/Parser.cs", ext: ".cs",
+		governed: "// ReSharper disable once UnusedMember.Global\n/// <summary>Parse helps you utilize the input.</summary>\npublic class Parser\n{\n    private string word = \"utilize\";\n}\n",
+		block:    "class/Parser", line: 2,
+		clean:      "/// <summary>Parses the input.</summary>\npublic class Parser\n{\n}\n",
+		doubled:    "/// <summary>Parses the the input.</summary>\npublic class Parser\n{\n}\n",
+		directives: "// ReSharper disable UnusedMember.Global\npublic class Parser\n{\n}\n",
+		broken:     "/// <summary>Parses the input.</summary>\npublic class Parser\n{\n",
+	},
 }
 
 // sourcecodeProject is a project declaring the comments of one file in each
@@ -401,3 +419,7 @@ func TestProseP2_bash(t *testing.T) { proseP2Sourcecode(t, "bash") }
 func TestProseP2_css(t *testing.T) { proseP2Sourcecode(t, "css") }
 
 func TestProseP2_rust(t *testing.T) { proseP2Sourcecode(t, "rust") }
+
+func TestProseP2_java(t *testing.T) { proseP2Sourcecode(t, "java") }
+
+func TestProseP2_csharp(t *testing.T) { proseP2Sourcecode(t, "csharp") }

@@ -1,0 +1,12 @@
+// Holds comment markers as content.
+public class Literals
+{
+    private string a = "// not a comment";
+    private string b = @"/* not a comment */";
+    private string c = $"{1} // not a comment in an interpolated string";
+    private char d = '/';
+    private string e = """
+        // not a comment in a raw string
+        """;
+    private string f = @"a "" // not a comment after an escaped quote";
+}

@@ -44,6 +44,16 @@ tree-sitter-rust
   Copyright (c) 2017 Maxim Sokolov
   Source: https://github.com/tree-sitter/tree-sitter-rust
 
+tree-sitter-java
+  License: MIT
+  Copyright (c) 2017 Ayman Nadeem
+  Source: https://github.com/tree-sitter/tree-sitter-java
+
+tree-sitter-c-sharp
+  License: MIT
+  Copyright (c) 2014-2023 Max Brunsfeld, Damien Guard, Amaan Qureshi, and contributors.
+  Source: https://github.com/tree-sitter/tree-sitter-c-sharp
+
 Each is distributed under the MIT License, which reads, with the copyright line
 of each work above:
 

@@ -19,11 +19,17 @@ languages:
   bash:
     name: Bash
     provider: sourcecode
+  csharp:
+    name: "C#"
+    provider: sourcecode
   css:
     name: CSS
     provider: sourcecode
   go:
     name: Go
+  java:
+    name: Java
+    provider: sourcecode
   javascript:
     name: JavaScript
     provider: sourcecode
