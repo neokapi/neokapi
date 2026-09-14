@@ -203,9 +203,11 @@ Three pipeline tools bring terminology into the flow:
   (`--termstore` outside a project) or from `term_rules:` in a flow step's
   config: the same shape a voice profile's vocabulary uses (one `term`, its
   `replacement`, a `severity`, and optionally a `concept_id` that ties the rule
-  to a concept here). A rule whose `severity` is `minor` warns; any other value,
-  including unset, fails, because a rule resolved from a store carries no
-  severity and must not be silently downgraded.
+  to a concept here). A concept marked do-not-translate yields a rule with no
+  replacement, and the check fails a target that does not keep its term verbatim.
+  A rule whose `severity` is `minor` warns; any other value, including unset,
+  fails, because a rule resolved from a store carries no severity and must not
+  be silently downgraded.
 - **`dnt-check`** (do-not-translate) fails a target where a term listed under
   `--terms` (product names, trademarks, code identifiers) was translated,
   transliterated or dropped. The translate step masks those spans so the model

@@ -75,7 +75,7 @@ func (c *TermCheckConfig) Validate() error {
 		if rule.Term == "" {
 			return fmt.Errorf("term-check: term rule %d has no term", i)
 		}
-		if rule.Replacement == "" {
+		if rule.Replacement == "" && !rule.DoNotTranslate {
 			return fmt.Errorf("term-check: term rule %d (%q) has no replacement: a rule here says what to use INSTEAD, so both halves are required", i, rule.Term)
 		}
 	}
@@ -106,7 +106,9 @@ func NewTermCheckFromConfig(config map[string]any, targetLang string) (tool.Tool
 // demanded. A demanded rule is satisfied when the target contains its
 // replacement, an accepted rendering, or a declared form of either. The target
 // is matched by containment, so a compound or a derivation that contains a
-// rendering satisfies the rule as well.
+// rendering satisfies the rule as well. A do-not-translate rule names no
+// replacement: it is satisfied when the target keeps the term verbatim, as the
+// term, a declared form or the source's own occurrence, in that casing.
 func NewTermCheckTool(cfg *TermCheckConfig) *tool.BaseTool {
 	t := &tool.BaseTool{
 		ToolName:        "term-check",
@@ -152,13 +154,21 @@ func NewTermCheckTool(cfg *TermCheckConfig) *tool.BaseTool {
 func TermCheckViolations(cfg *TermCheckConfig, source, target string) (errs, warns []string) {
 	sourceText := check.TermText(source)
 	targetText := check.TermText(target)
-	for _, i := range sourceUses(sourceText, cfg) {
-		rule := cfg.TermRules[i]
-		renderings := rule.Renderings()
-		if rendered(targetText, renderings, cfg.CaseSensitive || rule.CaseSensitive) {
-			continue
+	for _, use := range sourceUses(sourceText, cfg) {
+		rule := cfg.TermRules[use.index]
+		var msg string
+		if rule.DoNotTranslate {
+			if keptVerbatim(targetText, rule, use.texts) {
+				continue
+			}
+			msg = doNotTranslateViolation(rule)
+		} else {
+			renderings := rule.Renderings()
+			if rendered(targetText, renderings, cfg.CaseSensitive || rule.CaseSensitive) {
+				continue
+			}
+			msg = violation(rule, renderings, cfg.TargetLocale)
 		}
-		msg := violation(rule, renderings, cfg.TargetLocale)
 		if failsTheCheck(rule.Severity) {
 			errs = append(errs, msg)
 		} else {
@@ -168,13 +178,19 @@ func TermCheckViolations(cfg *TermCheckConfig, source, target string) (errs, war
 	return errs, warns
 }
 
-// sourceUses returns, in rule order, the index of every rule that names a
-// replacement and whose term the source uses.
+// sourceUse is a rule the source uses, with the text of each place it does.
+type sourceUse struct {
+	index int
+	texts []string
+}
+
+// sourceUses returns, in rule order, every rule the target is held to whose
+// term the source uses: a rule that names a replacement, and a do-not-translate
+// rule.
 //
 // Every rule that names a term takes part in the longest-declared-match rule,
-// including a do-not-translate name that requires no replacement, because each
-// is a declaration about which words belong to which term.
-func sourceUses(source string, conf *TermCheckConfig) []int {
+// because each is a declaration about which words belong to which term.
+func sourceUses(source string, conf *TermCheckConfig) []sourceUse {
 	p := check.PrepareText(source)
 	english := terms.BaseLanguage(conf.SourceLocale) == "en"
 	var spans []check.DeclaredSpan
@@ -194,14 +210,50 @@ func sourceUses(source string, conf *TermCheckConfig) []int {
 		}
 	}
 
-	var out []int
+	uses := map[int]*sourceUse{}
+	var order []int
 	for _, s := range check.KeepLongestDeclared(spans) {
-		if conf.TermRules[s.Index].Replacement != "" && !slices.Contains(out, s.Index) {
-			out = append(out, s.Index)
+		rule := conf.TermRules[s.Index]
+		if rule.Replacement == "" && !rule.DoNotTranslate {
+			continue
+		}
+		use, ok := uses[s.Index]
+		if !ok {
+			use = &sourceUse{index: s.Index}
+			uses[s.Index] = use
+			order = append(order, s.Index)
+		}
+		use.texts = append(use.texts, source[s.Start:s.End])
+	}
+	slices.Sort(order)
+	out := make([]sourceUse, 0, len(order))
+	for _, i := range order {
+		out = append(out, *uses[i])
+	}
+	return out
+}
+
+// keptVerbatim reports whether target keeps a do-not-translate term as written:
+// the term or a declared form in its own casing, or the source's own occurrence
+// of it, so a term the source capitalises at the start of a sentence is kept
+// when the target capitalises it the same way.
+func keptVerbatim(target string, rule profile.TermRule, occurrences []string) bool {
+	for _, s := range append(rule.AllForms(), occurrences...) {
+		if s != "" && strings.Contains(target, s) {
+			return true
 		}
 	}
-	slices.Sort(out)
-	return out
+	return false
+}
+
+// doNotTranslateViolation words a do-not-translate rule the target does not
+// keep. It never contains "; ", which separates findings.
+func doNotTranslateViolation(rule profile.TermRule) string {
+	msg := fmt.Sprintf("do-not-translate term %q found in source but missing verbatim in target", rule.Term)
+	if rule.ConceptID != "" {
+		msg += " (concept " + rule.ConceptID + ")"
+	}
+	return msg
 }
 
 // rendered reports whether target contains one of the renderings or a declared
@@ -275,7 +327,7 @@ func TermCheckMatching(cfg *TermCheckConfig) check.TermMatching {
 		m.Source = check.TermSourceEnglishInflection
 	}
 	for _, r := range cfg.TermRules {
-		if r.Replacement == "" {
+		if r.Replacement == "" && !r.DoNotTranslate {
 			continue
 		}
 		m.Rules++
@@ -290,37 +342,68 @@ func TermCheckMatching(cfg *TermCheckConfig) check.TermMatching {
 }
 
 // TermCheckCanaries is the known-bad input the term-check tool must flag under
-// cfg, built from the first rule that names a required translation: a block
-// whose target lacks every rendering of the rule, and a block whose target holds
-// a word that opens like the replacement and ends differently. The second is
-// the shape of "Kaiplan" for "kaiplass", and fails a checker that matches a
-// rendering by its opening characters. With no rule that names a translation
-// there is nothing to catch, and uncheckable says so.
+// cfg. For the first rule that names a required translation: a block whose
+// target lacks every rendering of the rule, and a block whose target holds a
+// word that opens like the replacement and ends differently. The second is the
+// shape of "Kaiplan" for "kaiplass", and fails a checker that matches a
+// rendering by its opening characters. For the first do-not-translate rule: a
+// block whose target does not keep the term. With neither kind of rule there is
+// nothing to catch, and uncheckable says so.
 func TermCheckCanaries(cfg *TermCheckConfig) ([]check.Canary, string) {
+	var canaries []check.Canary
+	replacement, doNotTranslate := false, false
 	for _, rule := range cfg.TermRules {
-		if strings.TrimSpace(rule.Term) == "" || rule.Replacement == "" {
+		if strings.TrimSpace(rule.Term) == "" {
 			continue
 		}
-		renderings := rule.Renderings()
-		cased := cfg.CaseSensitive || rule.CaseSensitive
-
-		absent := "0"
-		if rendered(absent, renderings, cased) {
-			absent = "1"
+		switch {
+		case rule.DoNotTranslate && !doNotTranslate:
+			doNotTranslate = true
+			canaries = append(canaries, doNotTranslateCanary(cfg, rule))
+		case !rule.DoNotTranslate && rule.Replacement != "" && !replacement:
+			replacement = true
+			canaries = append(canaries, replacementCanaries(cfg, rule)...)
 		}
-		deleted := check.CanaryBlock(rule.Term)
-		deleted.SetTargetText(cfg.TargetLocale, absent)
-		canaries := []check.Canary{{Name: fmt.Sprintf("term %q without %q", rule.Term, rule.Replacement), Block: deleted}}
-
-		if clipped := check.ClipWord(rule.Replacement); clipped != "" && !rendered(clipped, renderings, cased) {
-			b := check.CanaryBlock(rule.Term)
-			b.SetTargetText(cfg.TargetLocale, clipped)
-			canaries = append(canaries, check.Canary{
-				Name:  fmt.Sprintf("term %q with %q in place of %q", rule.Term, clipped, rule.Replacement),
-				Block: b,
-			})
-		}
-		return canaries, ""
 	}
-	return nil, "no term rule names a required translation"
+	if len(canaries) == 0 {
+		return nil, "no term rule names a required translation or a do-not-translate term"
+	}
+	return canaries, ""
+}
+
+// replacementCanaries is the known-bad input for a rule that names a required
+// translation.
+func replacementCanaries(cfg *TermCheckConfig, rule profile.TermRule) []check.Canary {
+	renderings := rule.Renderings()
+	cased := cfg.CaseSensitive || rule.CaseSensitive
+
+	absent := "0"
+	if rendered(absent, renderings, cased) {
+		absent = "1"
+	}
+	deleted := check.CanaryBlock(rule.Term)
+	deleted.SetTargetText(cfg.TargetLocale, absent)
+	canaries := []check.Canary{{Name: fmt.Sprintf("term %q without %q", rule.Term, rule.Replacement), Block: deleted}}
+
+	if clipped := check.ClipWord(rule.Replacement); clipped != "" && !rendered(clipped, renderings, cased) {
+		b := check.CanaryBlock(rule.Term)
+		b.SetTargetText(cfg.TargetLocale, clipped)
+		canaries = append(canaries, check.Canary{
+			Name:  fmt.Sprintf("term %q with %q in place of %q", rule.Term, clipped, rule.Replacement),
+			Block: b,
+		})
+	}
+	return canaries
+}
+
+// doNotTranslateCanary is the known-bad input for a do-not-translate rule: a
+// block whose target does not keep the term.
+func doNotTranslateCanary(cfg *TermCheckConfig, rule profile.TermRule) check.Canary {
+	absent := "0"
+	if keptVerbatim(absent, rule, nil) {
+		absent = "1"
+	}
+	b := check.CanaryBlock(rule.Term)
+	b.SetTargetText(cfg.TargetLocale, absent)
+	return check.Canary{Name: fmt.Sprintf("do-not-translate term %q not kept", rule.Term), Block: b}
 }

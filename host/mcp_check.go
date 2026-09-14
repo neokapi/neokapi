@@ -258,7 +258,11 @@ func (a *App) checkFileMCP(ctx context.Context, in checkFileInput) (*mcp.CallToo
 			return nil, check.Report{}, ferr
 		}
 		diags = fd
-		biDiags, bderr := a.collectBilingualDiagnostics(ctx, blocks, in.File, model.LocaleID(lang), in.DNT, execution)
+		termRules, terr := vocab.rulesFor(in.File, lang)
+		if terr != nil {
+			return nil, check.Report{}, terr
+		}
+		biDiags, bderr := a.collectBilingualDiagnostics(ctx, blocks, in.File, model.LocaleID(lang), in.DNT, termRules, execution)
 		if bderr != nil {
 			return nil, check.Report{}, bderr
 		}

@@ -379,11 +379,17 @@ The framework ships terminology tools as ordinary pipeline stages:
   terminology decided in the store. Downstream tools use these for context.
 - **`term-check`** (validate): holds a target to the renderings its
   `term_rules:` require, finding source terms by word and renderings by
-  containment as described above. A rule's severity sorts a violation into an
-  error or a warning, and the verify gate reports both while failing only on the
-  first. It probes two canaries under its own configuration: a target with the
-  rendering deleted, and one holding a word that opens like the rendering and
-  ends differently, the shape of "Kaiplan" for `kaiplass`.
+  containment as described above. A do-not-translate rule names no rendering:
+  the target keeps its term verbatim, as the term, a declared form or the
+  source's own occurrence, in that casing, with placeholder names masked on both
+  sides. A rule's severity sorts a violation into an error or a warning, and the
+  verify gate reports both while failing only on the first. It probes canaries
+  under its own configuration: a target with the rendering deleted, one holding
+  a word that opens like the rendering and ends differently, the shape of
+  "Kaiplan" for `kaiplass`, and a target that does not keep a do-not-translate
+  term. The ship terminology gate, `kapi check` with a target in a project, the
+  loop checks behind `kapi status` and `ship.json`, and the platform's
+  compliance predicate all decide through it.
 - **`term-enforce`** (validate): for each known source term, checks that an
   acceptable target-locale translation is present, and flags blocks where it is
   missing. A source term whose concept is forbidden or deprecated redirects
@@ -392,9 +398,9 @@ The framework ships terminology tools as ordinary pipeline stages:
   `voice-vocab-check`'s job, not this one's.
 - **`dnt-check`** (validate): checks that do-not-translate terms survive
   verbatim into the target. It takes `term_rules:` like every governed step and
-  unions the rules marked do-not-translate, which is how the store's
-  `DoNotTranslate` concepts reach it, with the strings a recipe or `--terms`
-  names directly. A store is not required: a recipe may name its terms alone.
+  unions the rules marked do-not-translate with the strings a recipe, `--terms`
+  or `kapi check --dnt` names directly. A store is not required: a recipe may
+  name its terms alone.
 - **`term-extract`** (enrich, model-assisted): extraction of candidate terms
   with a proposed status.
 - **`entity-extract`** (enrich, model-assisted): named-entity annotation. Should
