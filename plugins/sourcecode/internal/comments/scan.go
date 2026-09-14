@@ -22,7 +22,25 @@ const (
 	kindDocBlock
 	// kindShebang is the interpreter line a script opens with.
 	kindShebang
+	// kindDocLine documents what follows it and runs to the end of its line,
+	// such as Rust's `/// text`.
+	kindDocLine
+	// kindInnerDocLine documents what it sits in and runs to the end of its
+	// line, such as Rust's `//! text`.
+	kindInnerDocLine
+	// kindInnerDocBlock is a delimited comment that documents what it sits in,
+	// such as Rust's `/*! text */`.
+	kindInnerDocBlock
 )
+
+// line reports whether a comment of this kind runs to the end of its line.
+func (k unitKind) line() bool { return k == kindLine || k == kindDocLine || k == kindInnerDocLine }
+
+// doc reports whether a comment of this kind documents the declaration after it.
+func (k unitKind) doc() bool { return k == kindDocBlock || k == kindDocLine }
+
+// innerDoc reports whether a comment of this kind documents what encloses it.
+func (k unitKind) innerDoc() bool { return k == kindInnerDocLine || k == kindInnerDocBlock }
 
 // unit is one comment the grammar reports.
 type unit struct {
@@ -54,6 +72,9 @@ type syntax struct {
 	// wrappers are the node kinds that hold a declaration without being one,
 	// such as an export statement. decl unwraps them for the comment above.
 	wrappers map[string]bool
+	// attached are the node kinds that may sit between a declaration and the
+	// comment above it as part of the declaration, such as Rust's attributes.
+	attached map[string]bool
 	// docTags reports that a documentation comment's tags are structured, so a
 	// tag and its type and name are placeholders in the runs.
 	docTags bool
@@ -114,7 +135,7 @@ func (s *scanner) file() *comment.File {
 	}
 	for i := 0; i < len(s.units); {
 		u := s.units[i]
-		if u.kind != kindLine {
+		if !u.kind.line() {
 			s.single(u)
 			i++
 			continue
@@ -132,7 +153,7 @@ func (s *scanner) file() *comment.File {
 // sameGroup reports whether b continues the line comment group a ends: both
 // sit alone on their lines, with nothing but a line break between them.
 func (s *scanner) sameGroup(a, b unit) bool {
-	if a.kind != kindLine || b.kind != kindLine || !a.fullLine || !b.fullLine {
+	if !a.kind.line() || a.kind != b.kind || !a.fullLine || !b.fullLine {
 		return false
 	}
 	gap := s.src[a.end:b.start]
@@ -147,12 +168,12 @@ func (s *scanner) single(u unit) {
 		s.exclude(u, comment.ReasonDirective, form)
 		return
 	}
-	if text.blank() {
+	if s.blank(u) {
 		s.exclude(u, comment.ReasonBlank, "")
 		return
 	}
 	subject, doc := s.subject(u)
-	s.comment([]unit{u}, []commentText{text}, subject, doc && u.kind == kindDocBlock)
+	s.comment([]unit{u}, []commentText{text}, subject, doc && u.kind.doc() || u.kind.innerDoc())
 }
 
 // lineGroup splits a group of line comments at its directives. Each maximal
@@ -160,20 +181,22 @@ func (s *scanner) single(u unit) {
 // either edge of a run is set aside, so a span starts and ends on a line with
 // something written on it.
 func (s *scanner) lineGroup(group []unit) {
-	subject, _ := s.subject(group[len(group)-1])
+	final := group[len(group)-1]
+	subject, doc := s.subject(final)
+	doc = doc && final.kind.doc() || final.kind.innerDoc()
 	var run []unit
 	var texts []commentText
 	flush := func() {
 		first, last := 0, len(run)
-		for first < last && texts[first].blank() {
+		for first < last && s.blank(run[first]) {
 			s.exclude(run[first], comment.ReasonBlank, "")
 			first++
 		}
-		for last > first && texts[last-1].blank() {
+		for last > first && s.blank(run[last-1]) {
 			last--
 		}
 		if first < last {
-			s.comment(run[first:last], texts[first:last], subject, false)
+			s.comment(run[first:last], texts[first:last], subject, doc)
 		}
 		for _, u := range run[last:] {
 			s.exclude(u, comment.ReasonBlank, "")
@@ -211,14 +234,14 @@ func (s *scanner) exclude(u unit, reason comment.Reason, form string) {
 func (s *scanner) comment(units []unit, texts []commentText, subject string, doc bool) {
 	start, end := units[0].start, units[len(units)-1].end
 	style := comment.StyleLine
-	if units[0].kind != kindLine {
+	if !units[0].kind.line() {
 		style = comment.StyleBlock
 	}
 	var lines []string
 	for _, t := range texts {
 		lines = append(lines, t.lines...)
 	}
-	docBlock := units[0].kind == kindDocBlock
+	docBlock := units[0].kind.doc() || units[0].kind.innerDoc()
 	runs, deprecated := buildRuns(trimBlankLines(lines), docBlock && s.lang.syntax.docTags)
 	s.out.Comments = append(s.out.Comments, comment.Comment{
 		Start:      start,
@@ -245,6 +268,12 @@ func (s *scanner) subject(u unit) (string, bool) {
 	syn := s.lang.syntax
 	parent := u.node.Parent()
 	path, structural := s.pathTo(u.node)
+	if u.kind.innerDoc() && structural {
+		if path == "" {
+			return "module", true
+		}
+		return path, true
+	}
 	if u.fullLine && structural && parent != nil && syn.container(parent.Kind(), kindOf(parent.Parent())) {
 		onlyWhitespace, blankLine := true, false
 		prev := u.end
@@ -262,13 +291,17 @@ func (s *scanner) subject(u unit) (string, bool) {
 			if bytes.Count(s.src[prev:start], []byte("\n")) > 1 {
 				blankLine = true
 			}
+			if syn.attached[candidate.Kind()] {
+				prev = int(candidate.EndByte())
+				continue
+			}
 			if _, isComment := syn.unit(candidate, s.src); isComment {
 				onlyWhitespace = false
 				prev = int(candidate.EndByte())
 				continue
 			}
 			segment, ok := syn.decl(candidate, container, s.src)
-			if ok && (onlyWhitespace && u.kind == kindDocBlock || !blankLine) {
+			if ok && (onlyWhitespace && u.kind.doc() || !blankLine) {
 				return joinPath(path, segment), onlyWhitespace
 			}
 			break
@@ -335,14 +368,21 @@ type commentText struct {
 	lines []string
 }
 
-// blank reports whether the comment holds nothing once its markers are removed.
-func (t commentText) blank() bool {
-	for _, l := range t.lines {
-		if strings.TrimSpace(l) != "" {
-			return false
+// blank reports whether a comment holds nothing but whitespace after the
+// markers its language declares, as a reader of the file through those markers
+// sees it. A comment whose text is more marker, such as `////` in TypeScript,
+// is not blank.
+func (s *scanner) blank(u unit) bool {
+	raw := s.src[u.start:u.end]
+	if n, body, whole := s.lang.Markers.LineText(raw); whole && n == len(raw) {
+		return strings.TrimSpace(body) == ""
+	}
+	for _, b := range s.lang.Markers.Block {
+		if len(raw) >= len(b.Open)+len(b.Close) && bytes.HasPrefix(raw, []byte(b.Open)) && bytes.HasSuffix(raw, []byte(b.Close)) {
+			return len(bytes.TrimSpace(raw[len(b.Open):len(raw)-len(b.Close)])) == 0
 		}
 	}
-	return true
+	return false
 }
 
 // first returns the comment's first line with something on it, trimmed.
@@ -364,15 +404,32 @@ func (s *scanner) text(u unit) commentText {
 	t := commentText{kind: u.kind, raw: raw, line: s.idx.Range(u.start, u.end).First}
 	body := raw[u.open : len(raw)-u.close]
 	switch u.kind {
-	case kindLine, kindShebang:
+	case kindLine, kindDocLine, kindInnerDocLine, kindShebang:
 		// A marker written longer, such as `///` or `##`, is still a marker.
 		body = strings.TrimLeft(body, raw[u.open-1:u.open])
 		body = strings.TrimPrefix(body, " ")
 		t.lines = []string{strings.TrimRight(body, " \t\r")}
 	default:
-		t.lines = blockLines(body)
+		t.lines = blockLines(trimStars(body))
 	}
 	return t
+}
+
+// trimStars removes the asterisks a delimited comment's opener or closer is
+// drawn longer with, such as `/*** text ***/`, when text remains on the line
+// beside them.
+func trimStars(body string) string {
+	if rest := strings.TrimLeft(body, "*"); len(rest) < len(body) {
+		if first, _, _ := strings.Cut(rest, "\n"); strings.TrimSpace(first) != "" {
+			body = rest
+		}
+	}
+	if rest := strings.TrimRight(body, "*"); len(rest) < len(body) {
+		if last := rest[strings.LastIndexByte(rest, '\n')+1:]; strings.TrimSpace(last) != "" {
+			body = rest
+		}
+	}
+	return body
 }
 
 // blockLines splits a block comment's body into its content lines.

@@ -1,0 +1,7 @@
+// The first line.
+// The second line.
+
+/// Parses the input.
+pub fn parse() -> &'static str {
+    "// not a comment" // trailing
+}

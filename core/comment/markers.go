@@ -14,9 +14,12 @@ type Markers struct {
 	Block []BlockMarker
 }
 
-// BlockMarker opens and closes a delimited comment.
+// BlockMarker opens and closes a delimited comment. A nested one, as in Rust,
+// holds comments of its own and closes only once each comment opened inside it
+// has closed.
 type BlockMarker struct {
 	Open, Close string
+	Nested      bool
 }
 
 // LineText reads one comment line as Provider.LineText describes. A line
@@ -35,10 +38,34 @@ func (m Markers) LineText(line []byte) (int, string, bool) {
 		if !ok || b.Open == "" || b.Close == "" {
 			continue
 		}
-		if i := strings.Index(body, b.Close); i >= 0 {
+		if i := closeAt(body, b); i >= 0 {
 			return len(b.Open) + i + len(b.Close), body[:i], true
 		}
 		return 0, "", false
 	}
 	return 0, "", false
+}
+
+// closeAt returns where b closes in body, the text after its opener, or -1.
+func closeAt(body string, b BlockMarker) int {
+	if !b.Nested {
+		return strings.Index(body, b.Close)
+	}
+	depth := 1
+	for i := 0; i < len(body); {
+		switch {
+		case strings.HasPrefix(body[i:], b.Close):
+			depth--
+			if depth == 0 {
+				return i
+			}
+			i += len(b.Close)
+		case strings.HasPrefix(body[i:], b.Open):
+			depth++
+			i += len(b.Open)
+		default:
+			i++
+		}
+	}
+	return -1
 }

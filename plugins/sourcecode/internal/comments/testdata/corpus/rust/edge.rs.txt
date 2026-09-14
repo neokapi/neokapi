@@ -1,0 +1,20 @@
+//// Four slashes make a plain comment.
+fn four() {}
+
+/**/
+fn empty_block() {}
+
+/*** Three asterisks make a plain comment. */
+fn three() {}
+
+///
+/// A doc comment with blank lines at its edges.
+///
+fn edges() {}
+
+/// Uses `code` and a fence:
+///
+/// ```
+/// let x = 1; // inside a fence
+/// ```
+fn fenced() {}

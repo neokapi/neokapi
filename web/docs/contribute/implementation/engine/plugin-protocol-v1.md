@@ -317,7 +317,9 @@ reports the language's comment check as not run. Any other failure is `error`
 alone. The host refuses a response whose spans fall outside the bytes it sent.
 
 An entry's `markers` name the language's comment delimiters: each `line` marker
-runs to the end of its line, and each `block` marker opens and closes. The host
+runs to the end of its line, and each `block` marker opens and closes; one marked
+`nested`, as in Rust, closes only once each comment opened inside it has closed.
+The host
 reads one comment line through them for the comment layer's `LineText`, with no
 call to the plugin. A line comment is whole to the end of its line, and a
 delimited comment only when it closes on the line it opens on. When a recipe

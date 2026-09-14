@@ -155,6 +155,15 @@ var sourcecodeFiles = map[string]sourcecodeFile{
 		directives: "/* prettier-ignore */\n.header { color: red; }\n",
 		broken:     "/* Styles the header. */\n.header { color: red;\n",
 	},
+	"rust": {
+		path: "src/parse.rs", ext: ".rs",
+		governed: "// SPDX-License-Identifier: Apache-2.0\n/// Parse helps you utilize the input.\npub fn parse(src: &str) -> String {\n    format!(\"utilize {}\", src)\n}\n",
+		block:    "func/parse", line: 2,
+		clean:      "/// Parses the input.\npub fn parse(src: &str) -> &str {\n    src\n}\n",
+		doubled:    "/// Parses the the input.\npub fn parse(src: &str) -> &str {\n    src\n}\n",
+		directives: "// SPDX-License-Identifier: Apache-2.0\npub const ANSWER: u32 = 42;\n",
+		broken:     "/// Parses the input.\npub fn parse(\n",
+	},
 }
 
 // sourcecodeProject is a project declaring the comments of one file in each
@@ -390,3 +399,5 @@ func TestProseP2_python(t *testing.T) { proseP2Sourcecode(t, "python") }
 func TestProseP2_bash(t *testing.T) { proseP2Sourcecode(t, "bash") }
 
 func TestProseP2_css(t *testing.T) { proseP2Sourcecode(t, "css") }
+
+func TestProseP2_rust(t *testing.T) { proseP2Sourcecode(t, "rust") }

@@ -276,8 +276,8 @@ as in an XML file with `--` inside a comment, which XML does not allow, the chec
 reports that it did not run. kapi has no comment formatter for any of these
 formats, so a report lists the formatter check for those files as unsupported.
 
-The key also checks the comments in TypeScript, TSX, JavaScript, Python, Bash
-and CSS files. The sourcecode plugin reads them, so install it first:
+The key also checks the comments in TypeScript, TSX, JavaScript, Python, Bash,
+CSS and Rust files. The sourcecode plugin reads them, so install it first:
 
 ```bash
 kapi plugins install sourcecode
@@ -299,8 +299,8 @@ collections:
 
 Each comment is one block named for what it documents, such as `func/parse`,
 `interface/Options/keep` or `rule/.header`. Directives a tool reads, such as
-`eslint-disable-next-line`, `@ts-expect-error`, `# noqa`, `# shellcheck` and
-`stylelint-disable`, the shebang, the comments in generated files, and the tags,
+`eslint-disable-next-line`, `@ts-expect-error`, `# noqa`, `# shellcheck`,
+`stylelint-disable` and an SPDX licence tag, the shebang, the comments in generated files, and the tags,
 links and code spans inside a TypeScript or JavaScript `/** */` doc comment stay
 out of the prose. These languages have no formatter comparison. A file that
 does not parse is reported as not checked, never read in part. Without the

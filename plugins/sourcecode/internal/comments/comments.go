@@ -70,7 +70,7 @@ func Lookup(name string) (Language, bool) {
 }
 
 // languages is every language the package reads.
-var languages = slices.Concat(jsLanguages(), pythonLanguages(), bashLanguages(), cssLanguages())
+var languages = slices.Concat(jsLanguages(), pythonLanguages(), bashLanguages(), cssLanguages(), rustLanguages())
 
 // Locate returns the comments in src, a file in the named language. name is
 // the file's path, which the language may consult. A file the grammar cannot

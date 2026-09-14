@@ -1,0 +1,55 @@
+//! A module of shapes.
+
+use std::fmt;
+
+// Sits above nothing: a blank line follows.
+
+/// A point in the plane.
+#[derive(Debug, Clone)]
+pub struct Point {
+    /// The horizontal position.
+    pub x: i32,
+    // A plain comment on a field.
+    pub y: i32,
+}
+
+/// The colours a shape takes.
+pub enum Color {
+    /// Red.
+    Red,
+    Green, // a trailing comment
+}
+
+/// Shapes have an area.
+pub trait Shape {
+    /// The area.
+    fn area(&self) -> f64;
+}
+
+impl Point {
+    /// Makes a point at the origin.
+    pub fn origin() -> Self {
+        /// Not documentation: an item does not follow it.
+        let p = Point { x: 0, y: 0 };
+        p
+    }
+}
+
+impl fmt::Display for Point {
+    /** Writes the point. */
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.x)
+    }
+}
+
+// A plain comment on a constant.
+pub const LIMIT: usize = 10;
+
+pub mod util {
+    //! Helpers.
+
+    /// Clamps a value.
+    pub fn clamp(v: i32) -> i32 {
+        v
+    }
+}

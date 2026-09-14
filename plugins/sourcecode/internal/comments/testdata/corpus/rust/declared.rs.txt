@@ -1,0 +1,16 @@
+// Parses the input.
+// okapi-skip: ParseTest#testEmpty
+//
+// It returns an error for empty input.
+pub fn parse() {}
+
+// okapi-unmapped: FormatTest#testAll
+// okapi-skip: FormatTest#testNone
+pub fn format() {
+    let x = 1; // okapi-skip: FormatTest#testTrailing
+    /* okapi-unmapped: FormatTest#testDelimited */
+    let _ = x;
+}
+
+// See the okapi-skip: markers; OKAPI-SKIP: in capitals is prose too.
+pub fn sort() {}

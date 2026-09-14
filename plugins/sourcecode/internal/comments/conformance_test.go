@@ -22,7 +22,7 @@ import (
 // Corpus floors per language. The accounting of each fixture is what catches a
 // provider that loses a comment; the floors catch a corpus that shrank to
 // nothing and still accounted for everything in it.
-var corpusFloors = map[string]int{"typescript": 20, "tsx": 10, "javascript": 5, "python": 15, "bash": 20, "css": 15}
+var corpusFloors = map[string]int{"typescript": 20, "tsx": 10, "javascript": 5, "python": 15, "bash": 20, "css": 15, "rust": 10}
 
 // literalsOf lists, per fixture, the substrings holding a comment marker as
 // content. No comment or exclusion may overlap one.
@@ -43,6 +43,11 @@ var literalsOf = map[string][]string{
 	"canary.sh.txt":    {`"# not a comment"`},
 	"literals.css.txt": {`"/* not a comment */"`, `'/* not a comment either */'`, `url(/*not-a-comment*/)`, `url(a/*not*/b.png)`},
 	"canary.css.txt":   {`"/* not a comment */"`},
+	"literals.rs.txt":  {`"// not a comment"`, `r#"/* not a comment */"#`, `b"// not a comment either"`, `'/'`, `"a \" // not a comment after an escaped quote"`, `r"// not a comment in a raw string"`, `"/* not a comment */"`, `"// not a comment in a macro"`},
+	"unicode.rs.txt":   {`"héllo // ✓"`},
+	"crlf.rs.txt":      {`"// not a comment"`},
+	"canary.rs.txt":    {`"// not a comment"`},
+	"tokenizer.rs.txt": {`"name = \"// here\""`, `Token::Str("// here")`},
 }
 
 // directiveFixtures names, per language, a fixture of directives alone that
@@ -52,6 +57,7 @@ var directiveFixtures = map[string]string{
 	"python":     "directives.py.txt",
 	"bash":       "directives.sh.txt",
 	"css":        "directives.css.txt",
+	"rust":       "directives.rs.txt",
 }
 
 // declaredFixtures names, per language, a fixture carrying declaredDirectives,
@@ -64,6 +70,7 @@ var declaredFixtures = map[string]struct {
 	"python":     {"declared.py.txt", 4},
 	"bash":       {"declared.sh.txt", 4},
 	"css":        {"declared.css.txt", 3},
+	"rust":       {"declared.rs.txt", 5},
 }
 
 // generatedFixtures names, per language, the fixtures a generator's header
@@ -73,6 +80,7 @@ var generatedFixtures = map[string][]string{
 	"python":     {"generated.py.txt"},
 	"bash":       {"generated.sh.txt"},
 	"css":        {"generated.css.txt"},
+	"rust":       {"generated.rs.txt"},
 }
 
 // unparsed holds, per language, a file with a syntax error on its second line.
@@ -81,6 +89,7 @@ var unparsed = map[string]string{
 	"python":     "# Parses.\ndef parse(\n",
 	"bash":       "# Builds.\nbuild() {\n",
 	"css":        "/* Styles. */\n.header { color: red;\n",
+	"rust":       "/// Parses.\nfn parse( {\n",
 }
 
 // fixture is one corpus file and, for an oracle that records its spans, the
@@ -465,6 +474,67 @@ func TestProseP1_css(t *testing.T) {
 		"rule/.e doc=false",
 		"comment doc=false",
 	})
+}
+
+func TestProseP1_rust(t *testing.T) {
+	proseP1(t, "rust")
+	proseSubjects(t, "rust", "doc.rs.txt", rustDocSubjects)
+
+	t.Run("must fail: every comment with a doc marker read as documentation", func(t *testing.T) {
+		src := fixtureBytes(t, "rust", "doc.rs.txt")
+		p := broken{newProvider(t, "rust"), func(src []byte, f *comment.File) {
+			for i := range f.Comments {
+				text := string(src[f.Comments[i].Start:])
+				if strings.HasPrefix(text, "///") || strings.HasPrefix(text, "/**") {
+					f.Comments[i].Doc = true
+				}
+			}
+		}}
+		assert.NotEmpty(t, subjectMismatches(t, p, "doc.rs.txt", src, rustDocSubjects))
+	})
+
+	t.Run("an inner doc comment documents the module it sits in", func(t *testing.T) {
+		assert.Empty(t, subjectMismatches(t, newProvider(t, "rust"), "module.rs.txt", fixtureBytes(t, "rust", "module.rs.txt"), []string{
+			"module doc=true",
+			"module doc=true",
+			"mod/lexer doc=true",
+			"mod/lexer/func/lex doc=false",
+		}))
+	})
+
+	t.Run("four slashes and three asterisks make plain comments", func(t *testing.T) {
+		src := fixtureBytes(t, "rust", "edge.rs.txt")
+		assert.Empty(t, subjectMismatches(t, newProvider(t, "rust"), "edge.rs.txt", src, []string{
+			"func/four doc=false",
+			"func/three doc=false",
+			"func/edges doc=true",
+			"func/fenced doc=true",
+		}))
+		got, err := newProvider(t, "rust").Locate("edge.rs", src)
+		require.NoError(t, err)
+		edges := commentOn(t, got, "func/edges")
+		assert.Equal(t, "A doc comment with blank lines at its edges.", model.RunsText(edges.Runs))
+	})
+}
+
+// rustDocSubjects are the subjects and doc flags doc.rs declares.
+var rustDocSubjects = []string{
+	"module doc=true",
+	"comment doc=false",
+	"struct/Point doc=true",
+	"struct/Point/x doc=true",
+	"struct/Point/y doc=false",
+	"enum/Color doc=true",
+	"enum/Color/Red doc=true",
+	"enum/Color/comment doc=false",
+	"trait/Shape doc=true",
+	"trait/Shape/area doc=true",
+	"impl/Point/origin doc=true",
+	"impl/Point/origin/comment doc=false",
+	"impl/fmt::Display for Point/fmt doc=true",
+	"const/LIMIT doc=false",
+	"mod/util doc=true",
+	"mod/util/func/clamp doc=true",
 }
 
 // proseSubjects holds a language's comments to the subjects a fixture

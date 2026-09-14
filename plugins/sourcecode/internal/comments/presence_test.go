@@ -29,6 +29,8 @@ func TestProseP0_bash(t *testing.T) { assertPresent(t, "bash") }
 
 func TestProseP0_css(t *testing.T) { assertPresent(t, "css") }
 
+func TestProseP0_rust(t *testing.T) { assertPresent(t, "rust") }
+
 func assertPresent(t *testing.T, language string) {
 	t.Helper()
 	_, ok := comments.Lookup(language)
@@ -72,7 +74,7 @@ func TestManifestDeclaresEveryCommentLanguage(t *testing.T) {
 func markersOf(m comment.Markers) manifest.CommentMarkers {
 	out := manifest.CommentMarkers{Line: m.Line}
 	for _, b := range m.Block {
-		out.Block = append(out.Block, manifest.CommentBlockMarker{Open: b.Open, Close: b.Close})
+		out.Block = append(out.Block, manifest.CommentBlockMarker{Open: b.Open, Close: b.Close, Nested: b.Nested})
 	}
 	return out
 }

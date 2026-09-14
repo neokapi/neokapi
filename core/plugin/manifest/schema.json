@@ -189,7 +189,8 @@
                       "additionalProperties": false,
                       "properties": {
                         "open": { "type": "string", "minLength": 1 },
-                        "close": { "type": "string", "minLength": 1 }
+                        "close": { "type": "string", "minLength": 1 },
+                        "nested": { "type": "boolean" }
                       }
                     }
                   }

@@ -146,8 +146,8 @@ collections:
   `formatter.gofmt`. `kapi up` leaves the files alone. Directives, generated
   files and the code inside doc comments are never read as prose. `kapi check
   <file>.go` works on a single file with no recipe. TypeScript, TSX,
-  JavaScript, Python, Bash and CSS comments are read the same way once the
-  sourcecode plugin is installed (`kapi plugins install sourcecode`); without it
+  JavaScript, Python, Bash, CSS and Rust comments are read the same way once
+  the sourcecode plugin is installed (`kapi plugins install sourcecode`); without it
   a project check warns `format.no_reader`, names the plugin, and counts those
   files as not checked.
   On a YAML item, or an item whose format supplies its files' comments (such as
