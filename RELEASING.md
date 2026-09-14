@@ -10,7 +10,7 @@ against source so a tag can never drift from what actually ships.
 | Public `@neokapi` npm packages | `kapi-format-v*`, `i18n-react-v*`, `contract-types-v*`, `engine-v*` | `publish-npm.yml` |
 | kapi / bowrain binaries + desktop apps + casks | `v[0-9]*` | `release.yml` |
 | Coordinated multi-artifact release | (via `workflow_dispatch`) | `release-coordinated.yml` |
-| Native plugins (sat, pdfium, asr, av, vision) | `sat-v*`, `pdfium-v*`, `asr-v*`, `av-v*`, `vision-v*` | `release-<name>.yml` |
+| Native plugins (sat, pdfium, asr, av, vision, sourcecode) | `sat-v*`, `pdfium-v*`, `asr-v*`, `av-v*`, `vision-v*`, `sourcecode-v*` | `release-<name>.yml` |
 | okapi-bridge / integrations | — | `publish-integrations.yml` |
 | Windows winget / macOS appcast | (post-release) | `winget.yml`, `appcast-windows.yml` |
 
