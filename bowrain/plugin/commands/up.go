@@ -16,6 +16,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/plugin/commands/output"
 	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/core/convergence"
+	"github.com/neokapi/neokapi/core/venue"
 	apiclient "github.com/neokapi/neokapi/host/venue/client"
 	"github.com/neokapi/neokapi/host/venue/project"
 	"github.com/spf13/cobra"
@@ -133,7 +134,10 @@ func pushAfterLocalConverge(cmd *cobra.Command, server *project.ServerSpec) erro
 			fmt.Fprintf(cmd.ErrOrStderr(), "Pushed %d block(s) to the server.\n", pr.BlocksPushed)
 		}
 	}
-	return reportVoicePush(cmd, nil, bres, flagBool(cmd, "json"))
+	if err := reportVoicePush(cmd, nil, bres, flagBool(cmd, "json")); err != nil {
+		return err
+	}
+	return reportPushGovernance(cmd, nil, pr, flagBool(cmd, "json"))
 }
 
 // reportConceptPush says what the terminology fold inside `kapi up`'s push
@@ -262,6 +266,9 @@ func runServerUp(cmd *cobra.Command, server *project.ServerSpec) error {
 		}
 	}
 	if err := reportVoicePush(cmd, jsonStream, bres, jsonOut); err != nil {
+		return err
+	}
+	if err := reportPushGovernance(cmd, jsonStream, pr, jsonOut); err != nil {
 		return err
 	}
 
@@ -413,6 +420,36 @@ func reportVoicePush(cmd *cobra.Command, stream *output.NDJSONStream, res *trans
 		VoiceReason:  res.Reason,
 	}
 	out.FormatVoice(cmd.ErrOrStderr())
+	return nil
+}
+
+// reportPushGovernance surfaces what the venue's review gate did not accept in
+// up's push phase, the way `kapi push` reports it: the same lines (via
+// output.PushOutput) on stderr, or, under --json, one discriminated NDJSON line
+// on stdout with the field names of push's JSON output. Silent when the venue
+// accepted every claim the push carried. --quiet keeps the lines, as it does for
+// `kapi push`: a refused verdict is a result of the push, not its progress.
+//
+// stream is the caller's NDJSON document, as for reportVoicePush.
+func reportPushGovernance(cmd *cobra.Command, stream *output.NDJSONStream, pr *transfer.PushResult, jsonOut bool) error {
+	if pr == nil || ((pr.Governance == nil || pr.Governance.Empty()) && pr.VerdictsRetired == 0) {
+		return nil
+	}
+	out := output.PushOutput{VerdictsRetired: pr.VerdictsRetired}
+	if pr.Governance != nil {
+		out.VerdictsRefused = pr.Governance.Refusals
+	}
+	if jsonOut {
+		if stream == nil {
+			stream = output.NewNDJSONStream(cmd.OutOrStdout())
+		}
+		return stream.Encode(struct {
+			Type    string                  `json:"type"`
+			Refused []venue.DecisionRefusal `json:"verdicts_refused,omitempty"`
+			Retired int                     `json:"verdicts_retired,omitempty"`
+		}{Type: "governance", Refused: out.VerdictsRefused, Retired: out.VerdictsRetired})
+	}
+	out.FormatGovernance(cmd.ErrOrStderr())
 	return nil
 }
 

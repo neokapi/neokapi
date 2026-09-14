@@ -319,7 +319,7 @@ func (o PushOutput) FormatText(w io.Writer) error {
 	o.formatConcepts(w)
 	o.FormatVoice(w)
 	o.formatUndeclared(w)
-	o.formatGovernance(w)
+	o.FormatGovernance(w)
 	o.formatLoopStatus(w)
 	return nil
 }
@@ -390,11 +390,12 @@ func (o PushOutput) formatUndeclared(w io.Writer) {
 		strings.Join(o.UndeclaredCollections, ", "))
 }
 
-// formatGovernance names the verdicts the platform did not accept, one line per
+// FormatGovernance names the verdicts the platform did not accept, one line per
 // language and reason. A push that carried approvals it was not entitled to
 // make still stored its content, so a silent report would read as "approved"
-// to the one person in a position to notice otherwise.
-func (o PushOutput) formatGovernance(w io.Writer) {
+// to the one person in a position to notice otherwise. Exported so `kapi up`'s
+// push phase renders the same lines.
+func (o PushOutput) FormatGovernance(w io.Writer) {
 	for _, r := range o.VerdictsRefused {
 		fmt.Fprintf(w, "%d %s not accepted for %s: %s\n",
 			r.Count, plural(r.Kind, r.Count), r.Locale, r.Reason)

@@ -134,6 +134,14 @@ An edited translation is not a withdrawal: it lands at translated, as an edit
 made in the web app does. Taking back an approval at reviewed is ordinary
 translation work and needs no review permission.
 
+`kapi up` prints the same lines after its push phase, on a connected project and
+after `kapi up --local`. With `--json` it writes them as one `governance` record
+in its NDJSON stream, with the field names `kapi push --json` uses:
+
+```json
+{"type":"governance","verdicts_refused":[{"locale":"nb","kind":"demotion","reason":"the rejection names a translation the platform no longer holds","count":1}],"verdicts_retired":1}
+```
+
 ## Terms edits
 
 When the project is claimed into a workspace and a baseline was pulled (see

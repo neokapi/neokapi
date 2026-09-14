@@ -20,6 +20,10 @@ progress streams back live, results pull down, and parked units enter the team's
 review session. `kapi up --local` runs the loop on this machine and pushes the
 results instead.
 
+The push phase reports the verdicts the server did not accept, per language, in
+the lines [`kapi push`](/cli/commands/push) prints. With `--json` they arrive as
+one `governance` record in the stream.
+
 `kapi push` and `kapi pull` remain as pure transport: they move project state
 and never translate. There is no `kapi sync`; a connected `kapi up` *is* push →
 catch up → pull.
