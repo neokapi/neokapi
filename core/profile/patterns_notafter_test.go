@@ -8,9 +8,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// usedToNotAfter keeps "used to" a violation after a noun or a pronoun, and
-// not after an auxiliary, punctuation or the start of the text.
-const usedToNotAfter = `(?i)(?:(?:\b(?:is|are|was|were|be|been|being|get|gets|got|isn't|aren't|wasn't|weren't)|['’]s)\s+(?:\w+\s+)?|[^\w\s)\]"'\x60’”]\s*|^\s*)$`
+// usedToNotAfter keeps the phrase a violation after a noun or a pronoun, and
+// not after an auxiliary, opening punctuation, an opening quote or the start of
+// the text.
+const usedToNotAfter = `(?i)(?:(?:\b(?:is|are|was|were|be|been|being|get|gets|got|isn't|aren't|wasn't|weren't)|['’]s)\s+(?:\w+\s+)?|[^\w\s)\]"'\x60’”]\s*|(?:^|\s)["“‘'\x60]|^\s*)$`
 
 func TestPatternNotAfter(t *testing.T) {
 	p := &VoiceProfile{Style: StyleRules{ProhibitedPatterns: []Pattern{
@@ -33,6 +34,8 @@ func TestPatternNotAfter(t *testing.T) {
 		{"after a code span", "`kcat some.dmg` used to fall back to plaintext.", 1},
 		{"after a closing parenthesis", "A source edit (the desktop's fix) used to be written back.", 1},
 		{"after an opening parenthesis", "the launcher (used to derive the plugins dir)", 0},
+		{"quoted as a mention", "The phrase \"used to\" reads as history.", 0},
+		{"in single quotes as a mention", "The phrase 'used to' reads as history.", 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			hits := MatchPatterns(p, tc.text)

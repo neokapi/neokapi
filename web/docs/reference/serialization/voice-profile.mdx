@@ -139,7 +139,7 @@ flag" describe what it does:
 style:
   prohibited_patterns:
     - regex: '(?i)\bused to\b'
-      not_after: '(?i)(?:(?:\b(?:is|are|was|were|be|been|being|get|gets|got|isn''t|aren''t|wasn''t|weren''t)|[''’]s)\s+(?:\w+\s+)?|[^\w\s)\]"''\x60’”]\s*|^\s*)$'
+      not_after: '(?i)(?:(?:\b(?:is|are|was|were|be|been|being|get|gets|got|isn''t|aren''t|wasn''t|weren''t)|[''’]s)\s+(?:\w+\s+)?|[^\w\s)\]"''\x60’”]\s*|(?:^|\s)["“‘''\x60]|^\s*)$'
       description: "A comment describes what the code does, not what it used to do."
       severity: major
       scope: prose

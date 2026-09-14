@@ -16,7 +16,7 @@ import (
 func TestVoiceVocabCanaryForAPatternWithNotAfter(t *testing.T) {
 	p := &coreprofile.VoiceProfile{Name: "S", Style: coreprofile.StyleRules{ProhibitedPatterns: []coreprofile.Pattern{{
 		Regex:    `(?i)\bused to\b`,
-		NotAfter: `(?i)(?:(?:\b(?:is|are|was|were|be|been|being|get|gets|got|isn't|aren't|wasn't|weren't)|['’]s)\s+(?:\w+\s+)?|[^\w\s)\]"'\x60’”]\s*|^\s*)$`,
+		NotAfter: `(?i)(?:(?:\b(?:is|are|was|were|be|been|being|get|gets|got|isn't|aren't|wasn't|weren't)|['’]s)\s+(?:\w+\s+)?|[^\w\s)\]"'\x60’”]\s*|(?:^|\s)["“‘'\x60]|^\s*)$`,
 		Scope:    coreprofile.ScopeProse,
 	}}}}
 	canaries, uncheckable, err := NewVoiceVocabCheckTool(p, nil).Canaries(context.Background())
