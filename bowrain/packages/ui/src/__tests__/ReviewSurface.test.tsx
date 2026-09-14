@@ -530,6 +530,18 @@ describe("ReviewSurface — the inspector carries the block's evidence", () => {
       within(screen.getByTestId("inspector-check")).getByText(/Trailing double space/),
     ).toBeInTheDocument();
   });
+
+  it("says the checks did not run when the check request fails, never that nothing was found", async () => {
+    const user = userEvent.setup();
+    renderSurface(testBlocks, (adapter) => {
+      vi.spyOn(adapter, "runFileCheck").mockRejectedValue(new Error("check service unavailable"));
+    });
+    await waitForDocument();
+
+    await user.click(screen.getByTestId("run-check-btn"));
+    expect(await screen.findByTestId("problems-check-failed")).toBeInTheDocument();
+    expect(screen.queryByText(/No issues found/)).not.toBeInTheDocument();
+  });
 });
 
 describe("ReviewSurface — the filter and the histogram are server queries", () => {

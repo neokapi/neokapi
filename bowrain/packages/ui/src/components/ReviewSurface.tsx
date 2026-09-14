@@ -115,7 +115,10 @@ export function ReviewSurface({
     null,
   );
   const [message, setMessage] = useState<string | null>(null);
-  const [fileCheckResults, setFileCheckResults] = useState<FileCheckResult[]>([]);
+  const [fileCheckResults, setFileCheckResults] = useState<FileCheckResult[] | undefined>(
+    undefined,
+  );
+  const [fileCheckError, setFileCheckError] = useState<unknown>(undefined);
   const [checksLoading, setChecksLoading] = useState(false);
   const [showProblems, setShowProblems] = useState(false);
   const [termsByBlock, setTermsByBlock] = useState<Record<string, BlockTermMatch[]>>({});
@@ -516,21 +519,26 @@ export function ReviewSurface({
   const runChecks = useCallback(() => {
     setChecksLoading(true);
     setShowProblems(true);
+    setFileCheckError(undefined);
     api
       .runFileCheck(project.id, fileName, targetLocale)
       .then((r) => setFileCheckResults(r || []))
-      .catch(() => setFileCheckResults([]))
+      .catch((e: unknown) => {
+        // A check that did not complete has no results to show.
+        setFileCheckResults(undefined);
+        setFileCheckError(e);
+      })
       .finally(() => setChecksLoading(false));
   }, [api, project.id, fileName, targetLocale]);
 
   const checkIssueCount = useMemo(
-    () => fileCheckResults.reduce((acc, r) => acc + r.issues.length, 0),
+    () => (fileCheckResults ?? []).reduce((acc, r) => acc + r.issues.length, 0),
     [fileCheckResults],
   );
 
   const checksByBlock = useMemo(() => {
     const m = new Map<string, FileCheckResult>();
-    for (const r of fileCheckResults) m.set(r.blockId, r);
+    for (const r of fileCheckResults ?? []) m.set(r.blockId, r);
     return m;
   }, [fileCheckResults]);
 
@@ -543,7 +551,7 @@ export function ReviewSurface({
   // been opened. Entities ride along on the blocks themselves.
   const evidence = useMemo(() => {
     const out: Record<string, BlockEvidence> = {};
-    for (const r of fileCheckResults) {
+    for (const r of fileCheckResults ?? []) {
       out[r.blockId] = { issues: r.issues, issueLocale: targetLocale };
     }
     for (const [id, terms] of Object.entries(termsByBlock)) {
@@ -926,6 +934,7 @@ export function ReviewSurface({
         <ProblemsPanel
           issues={fileCheckResults}
           loading={checksLoading}
+          error={fileCheckError}
           blocks={blocks}
           targetLocale={targetLocale}
           sourceLocale={project.default_source_language}

@@ -392,3 +392,19 @@ describe("TranslationEditor — term insert", () => {
     expect(req.text).toBe("Au revoir localisation");
   });
 });
+
+describe("TranslationEditor: the problems panel", () => {
+  it("says the checks did not run when the check request fails, never that nothing was found", async () => {
+    const user = userEvent.setup();
+    renderEditor({
+      prepare: (adapter) => {
+        vi.spyOn(adapter, "runFileCheck").mockRejectedValue(new Error("check service unavailable"));
+      },
+    });
+    await waitForBlocks(3);
+
+    await user.click(screen.getByTestId("problems-toggle"));
+    expect(await screen.findByTestId("problems-check-failed")).toBeInTheDocument();
+    expect(screen.queryByText(/No issues found/)).not.toBeInTheDocument();
+  });
+});

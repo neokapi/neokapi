@@ -123,6 +123,7 @@ export function TranslationEditor({
   const [fileCheckResults, setFileCheckResults] = useState<FileCheckResult[] | undefined>(
     undefined,
   );
+  const [fileCheckError, setFileCheckError] = useState<unknown>(undefined);
   const [checksLoading, setChecksLoading] = useState(false);
   const [blockHistory, setBlockHistory] = useState<BlockHistoryEntry[]>([]);
   const [blockNotes, setBlockNotes] = useState<BlockNote[]>([]);
@@ -640,10 +641,15 @@ export function TranslationEditor({
 
   const handleRunFileCheck = useCallback(() => {
     setChecksLoading(true);
+    setFileCheckError(undefined);
     api
       .runFileCheck(project.id, fileName, targetLocale)
       .then((results) => setFileCheckResults(results || []))
-      .catch(() => setFileCheckResults([]))
+      .catch((e: unknown) => {
+        // A check that did not complete has no results to show.
+        setFileCheckResults(undefined);
+        setFileCheckError(e);
+      })
       .finally(() => setChecksLoading(false));
   }, [api, project.id, fileName, targetLocale]);
 
@@ -854,6 +860,7 @@ export function TranslationEditor({
                 presenceSlot={presenceSlot}
                 checkIssues={blockCheckIssues}
                 fileCheckResults={fileCheckResults}
+                fileCheckError={fileCheckError}
                 checksLoading={checksLoading}
                 onRunFileCheck={handleRunFileCheck}
                 history={blockHistory}
