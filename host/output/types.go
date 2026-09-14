@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/neokapi/neokapi/core/check"
 )
 
 // VersionOutput represents version information.
@@ -384,10 +386,16 @@ func (o MergeOutput) FormatText(w io.Writer) error {
 type MergeStoreOutput struct {
 	Written          int  `json:"written"`
 	FromProjectStore bool `json:"from_project_store"`
+	// Warnings name the declared files the merge did not write because no
+	// installed reader opens their format (check.WarningFormatNoReader).
+	Warnings []check.Warning `json:"warnings,omitempty"`
 }
 
 func (o MergeStoreOutput) FormatText(w io.Writer) error {
 	fmt.Fprintf(w, "\nMerge complete. wrote=%d file(s) from the project store.\n", o.Written)
+	for _, warning := range o.Warnings {
+		fmt.Fprintf(w, "  Set aside: %s.\n", warning.Message)
+	}
 	return nil
 }
 

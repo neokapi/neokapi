@@ -304,9 +304,10 @@ removing a verb fails the build until the table follows.
 A collection can name a format that a plugin supplies. The same recipe therefore
 reads on a machine with the plugin installed and fails to read on one without it.
 Every command that works over the project's declared content has to handle
-that: `kapi status`, a bare `kapi check`, `kapi check --ship`, a check scoped to
-a diff, `kapi up` and its plan, and the Checks panel in Kapi Desktop. Each may
-find that one collection out of twenty cannot be opened.
+that: `kapi status` and its review queue, a bare `kapi check`, `kapi check
+--ship`, a check scoped to a diff, `kapi up` and its plan, `kapi merge`, and the
+Checks, Review and convergence views in Kapi Desktop. Each may find that one
+collection out of twenty cannot be opened.
 
 They report that collection as unread and check or measure the rest. Aborting
 would make an entire project unreportable because of one optional dependency,

@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
@@ -23,12 +24,26 @@ type reviewQueueOutput struct {
 	Project   string            `json:"project,omitempty"`
 	Pending   []ReviewQueueItem `json:"pending"`
 	Languages []ReviewLanguage  `json:"languages,omitempty"`
+	// Warnings name the declared files the queue could not read
+	// (check.WarningFormatNoReader).
+	Warnings []check.Warning `json:"warnings,omitempty"`
+	// readNothing says every unit the queue resolved was set aside, so an empty
+	// queue is one over nothing it could read.
+	readNothing bool
 }
 
 // FormatText renders the review queue.
 func (o reviewQueueOutput) FormatText(w io.Writer) error {
+	defer writeSetAside(w, o.Warnings)
 	if len(o.Pending) == 0 {
-		fmt.Fprintln(w, "Review queue empty: no unit in any language is waiting for a person.")
+		switch {
+		case o.readNothing && len(o.Warnings) > 0:
+			fmt.Fprintln(w, "Nothing could be listed for review: no installed reader opens this project's content.")
+		case len(o.Warnings) > 0:
+			fmt.Fprintln(w, "Review queue empty for the content kapi could read: no unit there is waiting for a person.")
+		default:
+			fmt.Fprintln(w, "Review queue empty: no unit in any language is waiting for a person.")
+		}
 		return nil
 	}
 	fmt.Fprintf(w, "%d unit(s) awaiting review:\n\n", len(o.Pending))
@@ -85,7 +100,7 @@ func relativeToRoot(root, path string) string {
 // computeReviewQueue lists the translated units that are not yet approved — the
 // review queue. It is derived (recomputed from content + the project state store),
 // never tracked.
-func (a *App) computeReviewQueue(ctx context.Context, proj *project.KapiProject, root string, units []VerifyUnit) ([]ReviewQueueItem, error) {
+func (a *App) computeReviewQueue(ctx context.Context, proj *project.KapiProject, root string, units []VerifyUnit, unread *UnreadSet) ([]ReviewQueueItem, error) {
 	reviewed, err := a.loadReviewedCorrections(ctx, proj, root)
 	if err != nil {
 		return nil, err
@@ -97,6 +112,9 @@ func (a *App) computeReviewQueue(ctx context.Context, proj *project.KapiProject,
 		if berr != nil {
 			if errors.Is(berr, errTargetUnreadable) {
 				continue // can't read the target (e.g. a compiled .mo) — not reviewable per unit
+			}
+			if unread.skipUnit(nil, berr, root, u) {
+				continue
 			}
 			return nil, berr
 		}
@@ -209,7 +227,7 @@ func (a *App) ReviewQueue(ctx context.Context, projectPath, sourceLang string, o
 
 	var queue ReviewQueue
 	cacheErr := a.withParseCache(root, func() error {
-		q, qerr := a.computeUnifiedReviewQueue(ctx, proj, root, units, srcUnits, opts)
+		q, qerr := a.computeUnifiedReviewQueue(ctx, proj, root, units, srcUnits, opts, a.newUnreadSetFor("listed for review"))
 		queue = q
 		return qerr
 	})
@@ -223,12 +241,16 @@ func (a *App) ReviewQueue(ctx context.Context, projectPath, sourceLang string, o
 // one listing. units are the (source, locale) pairs the target queue measures;
 // srcUnits are the project's source files, which a monolingual project has even
 // when it resolves no pair.
-func (a *App) computeUnifiedReviewQueue(ctx context.Context, proj *project.KapiProject, root string, units, srcUnits []VerifyUnit, opts ReviewQueueOptions) (ReviewQueue, error) {
-	targets, err := a.computeReviewQueue(ctx, proj, root, units)
+//
+// A unit whose source no installed reader opens is left out of the queue and
+// recorded in unread, and the queue names it in its warnings. With unread nil
+// such a unit fails the queue.
+func (a *App) computeUnifiedReviewQueue(ctx context.Context, proj *project.KapiProject, root string, units, srcUnits []VerifyUnit, opts ReviewQueueOptions, unread *UnreadSet) (ReviewQueue, error) {
+	targets, err := a.computeReviewQueue(ctx, proj, root, units, unread)
 	if err != nil {
 		return ReviewQueue{}, err
 	}
-	sources, err := a.computeSourceQueue(ctx, proj, root, srcUnits)
+	sources, err := a.sourceQueue(ctx, proj, root, srcUnits, unread)
 	if err != nil {
 		return ReviewQueue{}, err
 	}
@@ -262,7 +284,7 @@ func (a *App) computeUnifiedReviewQueue(ctx context.Context, proj *project.KapiP
 			}
 		}
 	}
-	return ReviewQueue{Pending: pending, Languages: languages}, nil
+	return ReviewQueue{Pending: pending, Languages: languages, Warnings: unread.warnings()}, nil
 }
 
 // sourceItemAsQueueItem renders one source-queue row as a queue item. The

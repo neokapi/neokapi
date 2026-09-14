@@ -15,6 +15,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/gate"
 	"github.com/neokapi/neokapi/core/model"
 )
@@ -25,6 +26,9 @@ type Report struct {
 	Source  *SourceCoverage   `json:"source,omitempty"`
 	Locales []LocaleCoverage  `json:"locales"`
 	Review  []ReviewQueueItem `json:"review"`
+	// Warnings name content the report could not measure, such as a declared
+	// file in a format no installed reader opens (check.WarningFormatNoReader).
+	Warnings []check.Warning `json:"warnings,omitempty"`
 }
 
 // LocaleCoverage is the ship-gate view for one (collection, locale) scope: the
@@ -210,6 +214,10 @@ type ReviewQueue struct {
 	// whole queue, before any language filter, so a filtered listing still
 	// renders every choice.
 	Languages []ReviewLanguage `json:"languages"`
+	// Warnings name content the queue could not list, such as a declared file
+	// in a format no installed reader opens (check.WarningFormatNoReader). An
+	// empty queue with warnings is not a queue with nothing to review.
+	Warnings []check.Warning `json:"warnings,omitempty"`
 }
 
 // ReviewLanguage is one language present in the review queue.

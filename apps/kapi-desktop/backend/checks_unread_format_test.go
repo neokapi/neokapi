@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neokapi/neokapi/core/check"
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
 )
@@ -44,7 +45,7 @@ vocabulary:
 
 	proj := &project.KapiProject{
 		Version:  project.CurrentVersion,
-		Defaults: project.Defaults{SourceLanguage: "en"},
+		Defaults: project.Defaults{SourceLanguage: "en", TargetLanguages: []model.LocaleID{"fr"}},
 	}
 	if readable != "" {
 		write("locales/en.json", readable)

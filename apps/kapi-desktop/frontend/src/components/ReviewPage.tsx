@@ -46,6 +46,7 @@ import { FilePreview } from "./FilePreview";
 import { SourceUnitPane } from "./review/SourceUnitPane";
 import { useActiveFilter } from "../context/ActiveFilterContext";
 import type {
+  CheckWarning,
   PreReviewPolicy,
   PreReviewResult,
   PreReviewScope,
@@ -76,6 +77,9 @@ export interface ReviewPageProps {
   /** Pre-loaded per-language counts (Storybook/tests). Derived from `items`
    *  when absent. */
   languages?: ReviewLanguage[];
+  /** Pre-loaded queue warnings (Storybook/tests), in place of the ones
+   *  api.reviewQueue() returns. */
+  warnings?: CheckWarning[];
   /** Override the unit loader (Storybook/tests); defaults to api.getReviewUnit. */
   loadUnit?: (item: ReviewItem) => Promise<ReviewUnitDetail | null>;
   /** Override the decision recorder (Storybook/tests); defaults to the Wails calls. */
@@ -206,6 +210,7 @@ export function ReviewPage({
   scope,
   items: propItems,
   languages: propLanguages,
+  warnings: propWarnings,
   loadUnit,
   onDecide,
   onSaveTarget,
@@ -220,6 +225,10 @@ export function ReviewPage({
   const [queueLanguages, setQueueLanguages] = useState<ReviewLanguage[] | null>(
     propLanguages ?? null,
   );
+  // Declared files the queue could not read, such as a collection in a format
+  // no installed plugin supplies. They are named above the queue, and an empty
+  // queue with any of them is not a finished one.
+  const [queueWarnings, setQueueWarnings] = useState<CheckWarning[]>(propWarnings ?? []);
   const [loadingQueue, setLoadingQueue] = useState(!propItems);
   const [chip, setChip] = useState<Chip>("all");
   // The one language control: "" is every language, and the project's source
@@ -272,6 +281,7 @@ export function ReviewPage({
     if (propItems) {
       setQueue(propItems);
       setQueueLanguages(propLanguages ?? null);
+      setQueueWarnings(propWarnings ?? []);
       setLoadingQueue(false);
       return;
     }
@@ -280,14 +290,16 @@ export function ReviewPage({
       const result = await api.reviewQueue(tabID, activeFilter ?? { id: "", name: "" });
       setQueue(result?.pending ?? []);
       setQueueLanguages(result?.languages ?? null);
+      setQueueWarnings(result?.warnings ?? []);
     } catch (err) {
       showError("Failed to load the review queue", err);
       setQueue([]);
       setQueueLanguages(null);
+      setQueueWarnings([]);
     } finally {
       setLoadingQueue(false);
     }
-  }, [tabID, propItems, propLanguages, activeFilter, showError]);
+  }, [tabID, propItems, propLanguages, propWarnings, activeFilter, showError]);
 
   useEffect(() => {
     void refreshQueue();
@@ -1080,15 +1092,32 @@ export function ReviewPage({
         </div>
       )}
 
+      {queueWarnings.length > 0 && (
+        <Card className="mb-3 border-amber-500/40" data-slot="review-unread">
+          <CardContent className="p-3">
+            <p className="mb-1 text-sm font-medium">{t("Some declared content was not read")}</p>
+            <ul className="space-y-1 text-xs text-muted-foreground">
+              {queueWarnings.map((warning) => (
+                <li key={`${warning.source}#${warning.code}`}>{warning.message}</li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+
       {loadingQueue && !queue ? (
         <div className="p-4 text-sm text-muted-foreground">{t("Loading review queue…")}</div>
       ) : visible.length === 0 ? (
         <Card className="border-dashed" data-slot="review-empty">
           <CardContent className="p-10 text-center">
-            <CheckCircle2 size={24} className="mx-auto mb-2 text-success" />
+            {queueWarnings.length === 0 && (
+              <CheckCircle2 size={24} className="mx-auto mb-2 text-success" />
+            )}
             <p className="text-sm text-muted-foreground">
               {(queue ?? []).length === 0
-                ? t("Review queue empty. Every translated unit is reviewed.")
+                ? queueWarnings.length > 0
+                  ? t("Nothing to review in the content this project could read.")
+                  : t("Review queue empty. Every translated unit is reviewed.")
                 : t("Nothing matches this filter.")}
             </p>
           </CardContent>
