@@ -47,3 +47,48 @@ func TestPostgresTerms_FormsRoundTripAndMatch(t *testing.T) {
 	assert.Equal(t, "varsel", matches[0].Term.Text)
 	assert.Equal(t, []string{"varsler"}, matches[0].Term.Forms)
 }
+
+// TestPostgresTerms_LookupFindsDeclaredForms mirrors the framework backends: a
+// term typed as a declared form finds the term exactly, a spelling the term
+// does not declare finds nothing, and Lookup agrees with LookupAll over a query
+// that is one term.
+func TestPostgresTerms_LookupFindsDeclaredForms(t *testing.T) {
+	tb := openTestPostgresTerms(t)
+	ctx := context.Background()
+
+	require.NoError(t, tb.AddConcept(ctx, terms.Concept{
+		ID: "alert",
+		Terms: []terms.Term{
+			{Text: "alert", Locale: model.LocaleEnglish, Status: model.TermPreferred, Forms: []string{"alerts"}},
+			{Text: "varsel", Locale: "nb", Status: model.TermPreferred, Forms: []string{"varsler", "varslene"}},
+		},
+	}))
+	modes := []model.MatchStrategy{model.MatchStrategyExact, model.MatchStrategyNormalized}
+
+	for _, tc := range []struct {
+		query  string
+		locale model.LocaleID
+		term   string
+	}{
+		{"alerts", model.LocaleEnglish, "alert"},
+		{"alert", model.LocaleEnglish, "alert"},
+		{"varsler", "nb", "varsel"},
+	} {
+		matches, err := tb.Lookup(ctx, tc.query, terms.LookupOptions{SourceLocale: tc.locale, MatchModes: modes})
+		require.NoError(t, err)
+		require.Len(t, matches, 1, tc.query)
+		assert.Equal(t, tc.term, matches[0].Term.Text, tc.query)
+		assert.Equal(t, model.MatchStrategyExact, matches[0].MatchType, tc.query)
+
+		all, err := tb.LookupAll(ctx, tc.query, terms.LookupOptions{SourceLocale: tc.locale})
+		require.NoError(t, err)
+		require.Len(t, all, 1, tc.query)
+		assert.Equal(t, matches[0].Term.Text, all[0].Term.Text, tc.query)
+	}
+
+	for _, miss := range []string{"alerting", "alerts fire"} {
+		matches, err := tb.Lookup(ctx, miss, terms.LookupOptions{SourceLocale: model.LocaleEnglish, MatchModes: modes})
+		require.NoError(t, err)
+		assert.Empty(t, matches, miss)
+	}
+}

@@ -55,7 +55,10 @@ whether a target term exists, and it reaches the tools as a `TermRule` with
 definite form, a case ending). `NormalizedConcept` trims them and drops blanks,
 repeats and the term's own text before any backend writes them, so every backend
 reads back the same list; `Term.Surfaces()` is the text followed by the forms,
-which is what a scan matches. The SQL backends keep them as a JSON array in the
+which is what a scan matches. A single-term `Lookup` finds a term in its exact
+tier by a declared form that is the whole query: each SQL backend returns the
+terms with forms (`TermCandidateSource.Forms`), and `LookupTiered` keeps those
+the shared matcher finds spanning the query. The SQL backends keep them as a JSON array in the
 `forms` column of `tb_terms` (SQLite migration 4), the `.terms.json` bundle as a
 `forms` array, and TBX as one `<termNote type="x-surfaceForm">` per form.
 

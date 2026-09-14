@@ -435,6 +435,7 @@ func scanRelations(rows *sql.Rows, scope *graph.Scope) ([]ConceptRelation, error
 func (tb *SQLiteStore) Lookup(ctx context.Context, sourceText string, opts LookupOptions) ([]TermMatch, error) {
 	return LookupTiered(ctx, sourceText, opts, TermCandidateSource{
 		Exact:           tb.queryExactTerms,
+		Forms:           tb.queryFormTerms,
 		Normalized:      tb.queryNormalizedTerms,
 		FuzzyCandidates: tb.queryFuzzyTerms,
 		Concept:         tb.scanConcept,
@@ -896,54 +897,26 @@ func (tb *SQLiteStore) queryExactTerms(ctx context.Context, sourceText string, o
 		searchText = strings.ToLower(sourceText)
 		column = "t.text_lower"
 	}
-
-	where := column + " = ? AND t.locale = ?"
-	args := []any{searchText, string(opts.SourceLocale)}
-
-	needsJoin := false
-	switch opts.ProjectScope {
-	case ProjectScopeOnly:
-		where += " AND c.project_id = ?"
-		args = append(args, opts.ProjectID)
-		needsJoin = true
-	case ProjectScopeExclude:
-		where += " AND c.project_id != ?"
-		args = append(args, opts.ProjectID)
-		needsJoin = true
-	}
-
-	var sourceNeedsJoin bool
-	where, args, sourceNeedsJoin = sourceFilterSQL(where, args, opts.SourceFilter)
-	needsJoin = needsJoin || sourceNeedsJoin
-
-	var q string
-	if needsJoin {
-		q = fmt.Sprintf(`
-			SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.valid_from, t.valid_to, t.tags, t.forms
-			FROM tb_terms t JOIN tb_concepts c ON t.concept_id = c.id
-			WHERE %s
-		`, where)
-	} else {
-		q = fmt.Sprintf(`
-			SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.valid_from, t.valid_to, t.tags, t.forms
-			FROM tb_terms t
-			WHERE %s
-		`, where)
-	}
-
-	rows, err := tb.db.QueryContext(ctx, q, args...)
-	if err != nil {
-		return nil, fmt.Errorf("query exact terms: %w", err)
-	}
-	defer rows.Close()
-
-	return scanTermCandidates(rows)
+	return tb.queryScopedTerms(ctx, "exact terms", column+" = ? AND t.locale = ?",
+		[]any{searchText, string(opts.SourceLocale)}, opts)
 }
 
 func (tb *SQLiteStore) queryNormalizedTerms(ctx context.Context, normalizedSource string, opts LookupOptions) ([]TermCandidate, error) {
-	where := "t.text_lower = ? AND t.locale = ?"
-	args := []any{normalizedSource, string(opts.SourceLocale)}
+	return tb.queryScopedTerms(ctx, "normalized terms", "t.text_lower = ? AND t.locale = ?",
+		[]any{normalizedSource, string(opts.SourceLocale)}, opts)
+}
 
+// queryFormTerms returns the source-locale terms that declare forms. Which of
+// their forms names the query is decided in the shared LookupTiered.
+func (tb *SQLiteStore) queryFormTerms(ctx context.Context, opts LookupOptions) ([]TermCandidate, error) {
+	return tb.queryScopedTerms(ctx, "terms with forms", "t.forms NOT IN ('', '[]') AND t.locale = ?",
+		[]any{string(opts.SourceLocale)}, opts)
+}
+
+// queryScopedTerms selects the term rows matching where, narrowed by the
+// option's project scope and source filter, and joins the concepts table only
+// when one of those reads it. what names the query in an error.
+func (tb *SQLiteStore) queryScopedTerms(ctx context.Context, what, where string, args []any, opts LookupOptions) ([]TermCandidate, error) {
 	needsJoin := false
 	switch opts.ProjectScope {
 	case ProjectScopeOnly:
@@ -977,7 +950,7 @@ func (tb *SQLiteStore) queryNormalizedTerms(ctx context.Context, normalizedSourc
 
 	rows, err := tb.db.QueryContext(ctx, q, args...)
 	if err != nil {
-		return nil, fmt.Errorf("query normalized terms: %w", err)
+		return nil, fmt.Errorf("query %s: %w", what, err)
 	}
 	defer rows.Close()
 

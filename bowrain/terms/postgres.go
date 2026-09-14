@@ -399,6 +399,7 @@ func pgScanRelations(rows *sql.Rows, scope *graph.Scope) ([]fw.ConceptRelation, 
 func (tb *PostgresStore) Lookup(ctx context.Context, sourceText string, opts fw.LookupOptions) ([]fw.TermMatch, error) {
 	return fw.LookupTiered(ctx, sourceText, opts, fw.TermCandidateSource{
 		Exact:           tb.queryExactTerms,
+		Forms:           tb.queryFormTerms,
 		Normalized:      tb.queryNormalizedTerms,
 		FuzzyCandidates: tb.queryFuzzyTerms,
 		Concept:         tb.scanConcept,
@@ -959,6 +960,22 @@ func (tb *PostgresStore) queryNormalizedTerms(ctx context.Context, normalizedSou
 	`, tb.workspaceID, normalizedSource, string(opts.SourceLocale))
 	if err != nil {
 		return nil, fmt.Errorf("query normalized terms: %w", err)
+	}
+	defer rows.Close()
+
+	return pgScanTermCandidates(rows)
+}
+
+// queryFormTerms returns the source-locale terms that declare forms. Which of
+// their forms names the query is decided in the shared fw.LookupTiered.
+func (tb *PostgresStore) queryFormTerms(ctx context.Context, opts fw.LookupOptions) ([]fw.TermCandidate, error) {
+	rows, err := tb.db.QueryContext(ctx, `
+		SELECT `+pgTermSelectCols+`
+		FROM tb_terms t
+		WHERE t.workspace_id = $1 AND t.locale = $2 AND jsonb_array_length(t.forms) > 0
+	`, tb.workspaceID, string(opts.SourceLocale))
+	if err != nil {
+		return nil, fmt.Errorf("query terms with forms: %w", err)
 	}
 	defer rows.Close()
 
