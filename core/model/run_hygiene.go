@@ -1,6 +1,9 @@
 package model
 
-import "strings"
+import (
+	"sort"
+	"strings"
+)
 
 // ObjectReplacement is the sentinel rune standing in for one inline-code run in
 // [RunsHygieneText]: U+FFFC OBJECT REPLACEMENT CHARACTER, whose Unicode purpose
@@ -107,6 +110,9 @@ type HygieneView struct {
 type hygieneSentinel struct {
 	at   int
 	real int
+	// run is the run the sentinel stands for: the inline code, or the opening
+	// half of a collapsed [TypeInlineCode] span.
+	run Run
 }
 
 // NewHygieneView builds the hygiene view of a Run sequence. It is the single
@@ -130,13 +136,13 @@ func (v *HygieneView) flatten(buf *strings.Builder, runs []Run) {
 				// The span, its contents and its closing half stand as one
 				// sentinel: what is inside a code span is bytes the author meant
 				// literally, not prose a shape rule may judge.
-				v.writeSentinel(buf, len(RunsText(runs[i+1:end])))
+				v.writeSentinel(buf, len(RunsText(runs[i+1:end])), r)
 				i = end
 				continue
 			}
-			v.writeSentinel(buf, 0)
+			v.writeSentinel(buf, 0, r)
 		case RunKindPh, RunKindPcClose, RunKindSub:
-			v.writeSentinel(buf, 0)
+			v.writeSentinel(buf, 0, r)
 		case RunKindPlural:
 			if form, ok := r.Plural.Forms[PluralOther]; ok {
 				v.flatten(buf, form)
@@ -159,11 +165,22 @@ func (v *HygieneView) flatten(buf *strings.Builder, runs []Run) {
 	}
 }
 
-// writeSentinel appends one sentinel to the flattening and records how much of
-// the [RunsText] coordinate space the content it stands for occupies.
-func (v *HygieneView) writeSentinel(buf *strings.Builder, real int) {
-	v.sentinels = append(v.sentinels, hygieneSentinel{at: buf.Len(), real: real})
+// writeSentinel appends one sentinel for run to the flattening and records how
+// much of the [RunsText] coordinate space the content it stands for occupies.
+func (v *HygieneView) writeSentinel(buf *strings.Builder, real int, run Run) {
+	v.sentinels = append(v.sentinels, hygieneSentinel{at: buf.Len(), real: real, run: run})
 	buf.WriteString(objectReplacement)
+}
+
+// Code returns the run the sentinel starting at byte offset off of
+// [HygieneView.Text] stands for: an inline code, or the opening half of a
+// collapsed [TypeInlineCode] span. ok is false when no sentinel starts at off.
+func (v *HygieneView) Code(off int) (Run, bool) {
+	i := sort.Search(len(v.sentinels), func(i int) bool { return v.sentinels[i].at >= off })
+	if i < len(v.sentinels) && v.sentinels[i].at == off {
+		return v.sentinels[i].run, true
+	}
+	return Run{}, false
 }
 
 // codeSpanEnd reports the index of the closing half of the [TypeInlineCode] span

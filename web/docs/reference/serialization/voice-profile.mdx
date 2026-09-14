@@ -102,6 +102,7 @@ more than one is an error rather than a silent precedence.
 | `contractions` | string | `always`, `sometimes`, or `never`. |
 | `prohibited_patterns` | Pattern[] | Regex rules whose match is a finding. |
 | `required_patterns` | Pattern[] | Regex rules whose absence is a finding. |
+| `comments` | object | Word limits for the comments in source files (see [Comment limits](#comment-limits)). Optional. |
 
 #### Patterns
 
@@ -127,6 +128,40 @@ style:
 
 The allowance a rate grants is rounded up and never below `max`, so a
 300-word document under a "one per 1,000 words" rule allows one.
+
+#### Comment limits
+
+`style.comments` holds the comments in source files to word limits. A profile
+that sets it asks `kapi check` for the comment limits at every point it
+governs, and each limit left out takes its default, so `comments: {}` applies
+them all. A limit counts words, and a code span, a reference or a link in a
+comment is not a word.
+
+| Field | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `sentence_words.minor` | int | 50 | A sentence over this many words is a minor finding. |
+| `sentence_words.major` | int | 70 | A sentence over this many words is a major finding. Must be above `minor`. |
+| `comment_words` | int | 100 | The most words a comment that documents no declaration may hold. |
+| `doc_words` | int | 150 | The most words a declaration's doc comment may hold. |
+| `package_doc_words` | int | 300 | The most words the doc comment of a package or module may hold. |
+
+A comment over a length limit is a major finding. Each limit is a positive
+number of words: a profile with a zero or negative limit, or a minor sentence
+limit that is not below the major one, fails to load with an error naming the
+key.
+
+```yaml
+style:
+  sentence_length: short
+  comments:
+    sentence_words: { minor: 50, major: 70 }
+    doc_words: 150
+```
+
+`sentence_length` stays guidance for a writer or a model, and the limits are
+what a check enforces. A channel or persona that supplies its own `style` drops
+the profile's comment limits unless it restates them, and validation warns
+about it.
 
 ### Vocabulary and term rules
 

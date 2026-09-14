@@ -50,6 +50,9 @@ type Canary struct {
 	// Expect, when set, is the finding category the canary must produce. Empty
 	// accepts any finding.
 	Expect string
+	// Severity, when set, is the severity that finding must carry, for an
+	// analyzer whose limits grade what they catch.
+	Severity Severity
 }
 
 // CanaryBlock builds a translatable source block holding text.
@@ -61,7 +64,8 @@ func CanaryBlock(text string) *model.Block {
 // configured checker the real content went through and return the findings it
 // produced, and reports what the analyzer made of them.
 //
-// Every canary must produce a finding (of its Expect category, when set). With
+// Every canary must produce a finding (of its Expect category and Severity,
+// when set). With
 // no canary to give, the outcome is CanaryImpossible and uncheckable says why;
 // beside canaries, uncheckable names configured rules that had none, and is kept
 // as the outcome's reason. An error from run is returned: a checker that could
@@ -78,7 +82,7 @@ func Probe(canaries []Canary, uncheckable string, run func(*model.Block) ([]Find
 		if err != nil {
 			return CanaryOutcome{}, fmt.Errorf("canary %q: %w", c.Name, err)
 		}
-		if !flags(findings, c.Expect) {
+		if !flags(findings, c.Expect, c.Severity) {
 			return CanaryOutcome{
 				Status: CanaryMissed,
 				Probes: len(canaries),
@@ -90,9 +94,9 @@ func Probe(canaries []Canary, uncheckable string, run func(*model.Block) ([]Find
 	return CanaryOutcome{Status: CanaryCaught, Probes: len(canaries), Reason: uncheckable}, nil
 }
 
-func flags(findings []Finding, category string) bool {
+func flags(findings []Finding, category string, severity Severity) bool {
 	for _, f := range findings {
-		if category == "" || f.Category == category {
+		if (category == "" || f.Category == category) && (severity == "" || f.Severity == severity) {
 			return true
 		}
 	}

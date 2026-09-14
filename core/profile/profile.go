@@ -26,6 +26,9 @@ func LoadProfileYAML(r io.Reader) (*VoiceProfile, error) {
 	if err := constraintError(&p); err != nil {
 		return nil, err
 	}
+	if err := commentRulesError(&p); err != nil {
+		return nil, fmt.Errorf("parse profile: %w", err)
+	}
 	return &p, nil
 }
 
@@ -90,6 +93,7 @@ func (p *VoiceProfile) Clone() *VoiceProfile {
 	c.Tone.Personality = append([]string(nil), p.Tone.Personality...)
 	c.Style.ProhibitedPatterns = append([]Pattern(nil), p.Style.ProhibitedPatterns...)
 	c.Style.RequiredPatterns = append([]Pattern(nil), p.Style.RequiredPatterns...)
+	c.Style.Comments = p.Style.Comments.clone()
 	c.Vocabulary = cloneVocabulary(p.Vocabulary)
 	c.Examples = append([]VoiceExample(nil), p.Examples...)
 	if p.Locales != nil {
@@ -197,6 +201,9 @@ type StyleRules struct {
 	Contractions       string    `json:"contractions" yaml:"contractions"`       // "always", "sometimes", "never"
 	ProhibitedPatterns []Pattern `json:"prohibited_patterns,omitempty" yaml:"prohibited_patterns,omitempty"`
 	RequiredPatterns   []Pattern `json:"required_patterns,omitempty" yaml:"required_patterns,omitempty"`
+	// Comments are the limits a check holds code comments to. Nil asks for no
+	// comment checks.
+	Comments *CommentRules `json:"comments,omitempty" yaml:"comments,omitempty"`
 }
 
 // Pattern describes a regex-based text pattern rule.

@@ -72,6 +72,9 @@ const (
 	// CodeOverrideDropsPattern is a base style pattern that stops applying where
 	// a channel or persona supplies its own style.
 	CodeOverrideDropsPattern = "voice.override_drops_pattern"
+	// CodeOverrideDropsCommentRules is the profile's comment limits stopping
+	// where a channel or persona supplies its own style without them.
+	CodeOverrideDropsCommentRules = "voice.override_drops_comment_rules"
 )
 
 // DecodeProfileStrict decodes a VoiceProfile from a YAML stream and rejects
@@ -142,6 +145,8 @@ func ValidateProfile(p *VoiceProfile) []ProfileProblem {
 
 	probs = append(probs, validateConstraints(p)...)
 	probs = append(probs, validatePresentationOverrides(p)...)
+	probs = append(probs, validateCommentOverrides(p)...)
+	validateAllCommentRules(add, p)
 
 	// MinScore is an optional 0–100 bar; 0 means "use the default".
 	if p.MinScore < 0 || p.MinScore > 100 {

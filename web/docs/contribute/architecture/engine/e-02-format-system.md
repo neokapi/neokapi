@@ -448,7 +448,9 @@ The Go provider uses `go/parser` for positions and `go/doc/comment` for the
 interior, from the standard library. It classifies directives, generated files,
 the cgo preamble and example output as not addressable, and turns code blocks
 and references to declarations into placeholders, so a check reads sentences
-only. A provider is not a format: nothing registers one in the format registry,
+only. The parser consumes a list item's marker, so each item opens with a
+placeholder of type `list:item` (`comment.TypeListItem`) that keeps one item's
+prose apart from the next. A provider is not a format: nothing registers one in the format registry,
 and a recipe declares such files with `comments: true` on a content item, which
 convergence, flow runs and source coverage then pass over.
 
@@ -592,6 +594,15 @@ each block the reader extracts to the item's point
 ([C-02](/contribute/architecture/context/c-02-coordinates-and-governance)). The
 layer marks its blocks (`comment.IsBlock`), which is how a check tells the two
 apart.
+
+A block also records whether its comment documents a declaration
+(`comment.doc`) and whether it documents the package or module its file belongs
+to (`comment.package`, `comment.PackageDoc`). The Go provider and the sourcecode
+plugin's Java provider give that comment the subject `package`, and the Rust
+provider gives a file's inner doc comment the subject `module`. No other
+provider has one. The comment limits a voice profile sets
+([Checks](/framework/checks#the-check-families)) read both marks to choose the
+limit a comment is held to.
 
 #### Default on, via an inverted opt-out
 

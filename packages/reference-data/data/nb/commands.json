@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-13T21:26:31Z",
+  "generatedAt": "2026-09-14T19:14:34Z",
   "commands": [
     {
       "id": "add",
@@ -8276,8 +8276,9 @@
         "voice",
         "guide"
       ],
-      "use": "guide",
+      "use": "guide [path]",
       "short": "Skriv ut stemmeguiden (injiser i assistentens kontekst)",
+      "long": "Print the voice guide in force.\n\nInside a project, a path selects the voice at the point that file sits at. For a\nfile whose only content is its comments, such as a Go source file, that is the\npoint its comments sit at, and the guide lists the comment limits in force\nthere. --comments asks for the comments' point for any file.",
       "flags": [
         {
           "name": "channel",
@@ -8289,6 +8290,12 @@
           "usage": "colorize output: auto, always, never",
           "default": "auto",
           "type": "string"
+        },
+        {
+          "name": "comments",
+          "usage": "resolve the voice at the point the file's comments sit at",
+          "default": "false",
+          "type": "bool"
         },
         {
           "name": "file",

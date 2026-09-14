@@ -38,7 +38,7 @@ const (
 // SourceCheckIDs returns the ids of every source-side checker, in the order
 // `kapi check` runs them.
 func SourceCheckIDs() []string {
-	return []string{ContentLintID, SourceLengthID, SourcePatternID}
+	return []string{ContentLintID, SourceLengthID, SourcePatternID, CommentStyleID}
 }
 
 // NewContentLintTool creates the generic, source-side content-hygiene checker.
