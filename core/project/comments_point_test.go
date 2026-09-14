@@ -103,6 +103,6 @@ func TestCommentsResolveAtTheirOwnPoint(t *testing.T) {
 		assert.Equal(t, "source/comments", comments.Ref().String())
 		content, err := proj.ResolveGovernanceFor(project.GovernancePoint{Path: "tools/gen.go"})
 		require.NoError(t, err)
-		assert.Equal(t, "", content.Ref().String())
+		assert.Empty(t, content.Ref().String())
 	})
 }

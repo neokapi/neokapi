@@ -19,14 +19,15 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 )
 
-var declared = comment.Directives{"okapi-skip:", "okapi-unmapped:"}
+// declared holds the markers scripts/contract-audit reads in Go test comments.
+var declared = comment.Directives{"okapi:", "okapi-skip:", "okapi-unmapped:", "okapi-deferred:"}
 
 // Corpus floors for the repository's own markers. They catch a walk that
 // reached almost nothing and still accounted for all of it, and sit below the
 // repository's count so ordinary deletions never trip them.
 const (
-	corpusMinFiles   = 30
-	corpusMinMarkers = 600
+	corpusMinFiles   = 40
+	corpusMinMarkers = 1800
 )
 
 func lines(first, last int) format.LineRange { return format.LineRange{First: first, Last: last} }
@@ -164,12 +165,13 @@ func TestDeclaredDirectivesInGo(t *testing.T) {
 	})
 
 	t.Run("a comment of markers alone is set aside whole", func(t *testing.T) {
-		src := []byte("package demo\n\n// okapi-skip: ParseTest#testEmpty\n// okapi-unmapped: ParseTest#testLong\nfunc Parse() {}\n")
+		src := []byte("package demo\n\n// okapi-skip: ParseTest#testEmpty\n// okapi-unmapped: ParseTest#testLong\n// okapi-deferred: ParseTest#testHuge\nfunc Parse() {}\n")
 		_, got := locateBoth(t, golang.Provider{}, "demo.go", src, declared)
 		assert.Empty(t, got.Comments)
 		assert.Equal(t, []comment.Excluded{
 			directive(t, src, "// okapi-skip: ParseTest#testEmpty", "okapi-skip:"),
 			directive(t, src, "// okapi-unmapped: ParseTest#testLong", "okapi-unmapped:"),
+			directive(t, src, "// okapi-deferred: ParseTest#testHuge", "okapi-deferred:"),
 		}, got.Excluded)
 	})
 
@@ -233,7 +235,7 @@ func TestDeclaredDirectivesLeaveProseAlone(t *testing.T) {
 		"a marker later in the line":        "See the okapi-skip: markers in the tests.",
 		"a marker in another case":          "OKAPI-SKIP: ParseTest#testEmpty",
 		"a marker quoted in prose":          "`// okapi-skip: Class#method` markers name a test.",
-		"a marker the recipe does not name": "okapi-deferred: ParseTest#testEmpty",
+		"a marker the recipe does not name": "audit-later: ParseTest#testEmpty",
 		"a marker without its colon":        "okapi-skip ParseTest#testEmpty",
 		"a list item holding a marker":      "- okapi-skip: ParseTest#testEmpty",
 	} {
@@ -316,9 +318,9 @@ func TestDeclaredDirectivesRefuseAReadingThatDoesNotLineUp(t *testing.T) {
 	})
 }
 
-// Every `okapi-skip:` and `okapi-unmapped:` line in a comment of this
-// repository's Go files is set aside, and each file's comments stay accounted
-// for exactly once.
+// Every `okapi:`, `okapi-skip:`, `okapi-unmapped:` and `okapi-deferred:` line in
+// a comment of this repository's Go files is set aside, and each file's comments
+// stay accounted for exactly once.
 func TestDeclaredDirectivesOverTheRepositorysMarkers(t *testing.T) {
 	_, here, _, ok := runtime.Caller(0)
 	require.True(t, ok)
@@ -342,7 +344,11 @@ func TestDeclaredDirectivesOverTheRepositorysMarkers(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		if !bytes.Contains(src, []byte("okapi-skip:")) && !bytes.Contains(src, []byte("okapi-unmapped:")) {
+		carries := false
+		for _, m := range declared {
+			carries = carries || bytes.Contains(src, []byte(m))
+		}
+		if !carries {
 			return nil
 		}
 		files++
@@ -361,7 +367,7 @@ func TestDeclaredDirectivesOverTheRepositorysMarkers(t *testing.T) {
 			}
 		}
 		for _, e := range got.Excluded {
-			if e.Reason == comment.ReasonDirective && (e.Form == "okapi-skip:" || e.Form == "okapi-unmapped:") {
+			if _, ok := declared.Match(e.Form); ok && e.Reason == comment.ReasonDirective {
 				set++
 			}
 		}

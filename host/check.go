@@ -1232,15 +1232,6 @@ func (t *checkTerms) forFile(ctx context.Context, file string) (terms.Terminolog
 	return t.forPoint(ctx, t.app.governancePointForFile(t.root, file), file)
 }
 
-// forComments returns the vocabulary governing the comments in one file, at
-// the point they sit at.
-func (t *checkTerms) forComments(ctx context.Context, file string) (terms.Terminology, error) {
-	if t == nil || t.proj == nil {
-		return nil, nil
-	}
-	return t.forPoint(ctx, t.app.governancePointForComments(t.root, file), file)
-}
-
 // resolve returns the governance the project resolves at a point, nil outside
 // a project.
 func (t *checkTerms) resolve(point project.GovernancePoint) (*project.ResolvedGovernance, error) {

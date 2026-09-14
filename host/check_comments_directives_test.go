@@ -23,14 +23,14 @@ const directiveGo = `package code
 
 // Parse reads the input.
 // okapi-skip: ParseTest#testEmpty the the reason is recorded elsewhere
-// okapi-unmapped: ParseTest#testLong the the harness covers it
+// okapi-deferred: ParseTest#testLong the the port is planned
 // It returns an an error for empty input.
 func Parse() {}
 
-// okapi-skip: FormatTest#testAll no no port exists
+// okapi-unmapped: FormatTest#testAll no no port exists
 func Format() {}
 
-// okapi-deferred: RenderTest#testAll the the port is planned
+// audit-later: RenderTest#testAll the the review is planned
 func Render() {}
 
 // Sort orders the the rows; see the okapi-skip: markers on skipped tests.
@@ -56,8 +56,8 @@ type declares int
 const (
 	// declaresNothing declares both files with `comments: true` alone.
 	declaresNothing declares = iota
-	// declaresDefaults adds `okapi-skip:` and `okapi-unmapped:` under
-	// defaults.comments.
+	// declaresDefaults adds `okapi-skip:`, `okapi-unmapped:` and
+	// `okapi-deferred:` under defaults.comments.
 	declaresDefaults
 	// declaresAll adds `deploy-lock:` on the YAML item as well.
 	declaresAll
@@ -76,7 +76,7 @@ func directiveProject(t *testing.T, d declares) string {
 	}
 	defaults, yamlComments := "", "true"
 	if d >= declaresDefaults {
-		defaults = "  comments:\n    directives: [\"okapi-skip:\", \"okapi-unmapped:\"]\n"
+		defaults = "  comments:\n    directives: [\"okapi-skip:\", \"okapi-unmapped:\", \"okapi-deferred:\"]\n"
 	}
 	if d == declaresAll {
 		yamlComments = "\n          directives: [\"deploy-lock:\"]"

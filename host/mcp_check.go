@@ -151,14 +151,18 @@ func (a *App) resolveTextCheckContext(ctx context.Context, contextPath string, o
 		return fmt.Errorf("resolve context_path voice: %w", err)
 	}
 	defer voice.close()
-	opts.profile, opts.voiceContext, err = voice.forFile(ctx, destination)
-	if err != nil {
-		return fmt.Errorf("resolve context_path voice: %w", err)
-	}
-	opts.terms, err = a.ProjectTermsForFile(ctx, cmd, destination)
+	vocab, err := a.newCheckTerms(cmd)
 	if err != nil {
 		return fmt.Errorf("resolve context_path terms: %w", err)
 	}
+	g, err := a.governFile(ctx, voice, vocab, destination, atPoint{})
+	if err != nil {
+		return fmt.Errorf("resolve context_path governance: %w", err)
+	}
+	// A draft is text for the destination rather than a comment in it, so it
+	// sits at the destination's own point.
+	*opts = opts.govern(g)
+	opts.comments = nil
 	return nil
 }
 
