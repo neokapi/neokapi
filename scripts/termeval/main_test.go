@@ -25,8 +25,8 @@ func TestEvaluationInvariants(t *testing.T) {
 		if r.Mode != modeForms || r.Corpus == "dogfood" {
 			continue
 		}
-		// On the samples, declared forms leave only the reviewed renderings that
-		// use a different word, such as "Kaiplan" for kaiplass.
+		// On the samples, any fail that declared forms leave must be a reviewed
+		// rendering that uses a different word.
 		for class := range r.FailClasses {
 			assert.Equal(t, "different-word", class, "%s %s fails a %s target with declared forms", r.Corpus, r.Lang, class)
 		}
