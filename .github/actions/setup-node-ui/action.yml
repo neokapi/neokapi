@@ -37,10 +37,20 @@ runs:
     #
     # The step is named for what it does, not for the action it wraps, so a
     # failure here is not mistaken for a code failure in the calling job.
+    #
+    # The Vite+ installer for this pinned version runs a second script it
+    # downloads from VP_LEGACY_INSTALLER_URL: install-legacy.ps1 on Windows,
+    # install-legacy.sh elsewhere, by default from viteplus.dev. viteplus.dev
+    # serves both as application/octet-stream, which PowerShell reads as bytes
+    # it cannot run. GitHub serves the same files as text, so the variable
+    # names the one for the runner's platform there, pinned to a vite-plus
+    # commit.
     - name: Install Vite+ and the Node.js runtime
       id: vp-setup
       uses: voidzero-dev/setup-vp@v1
       continue-on-error: true
+      env:
+        VP_LEGACY_INSTALLER_URL: ${{ runner.os == 'Windows' && 'https://raw.githubusercontent.com/voidzero-dev/vite-plus/9fd0d0ae6e775db361d3d5f9f3a18b47bc195420/packages/cli/install-legacy.ps1' || 'https://raw.githubusercontent.com/voidzero-dev/vite-plus/9fd0d0ae6e775db361d3d5f9f3a18b47bc195420/packages/cli/install-legacy.sh' }}
       with:
         version: "0.1.23"
         node-version: ${{ inputs.node-version }}
@@ -58,6 +68,8 @@ runs:
     - name: Install Vite+ and the Node.js runtime (retry)
       if: steps.vp-setup.outcome == 'failure'
       uses: voidzero-dev/setup-vp@v1
+      env:
+        VP_LEGACY_INSTALLER_URL: ${{ runner.os == 'Windows' && 'https://raw.githubusercontent.com/voidzero-dev/vite-plus/9fd0d0ae6e775db361d3d5f9f3a18b47bc195420/packages/cli/install-legacy.ps1' || 'https://raw.githubusercontent.com/voidzero-dev/vite-plus/9fd0d0ae6e775db361d3d5f9f3a18b47bc195420/packages/cli/install-legacy.sh' }}
       with:
         version: "0.1.23"
         node-version: ${{ inputs.node-version }}
