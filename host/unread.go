@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/check"
+	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
 )
 
@@ -27,6 +28,10 @@ type UnreadSet struct {
 	formats map[string]string
 	// files are the unread files in the order the check met them.
 	files []string
+	// outcome is what happened to the content the set names, in the words of
+	// the command that skipped it: "checked" for a check, "converged" for a
+	// run, "priced" for a plan. Empty reads as "checked".
+	outcome string
 }
 
 // NewUnreadSet returns an empty set for a check over the project's declared
@@ -39,10 +44,38 @@ func NewUnreadSet() *UnreadSet {
 // collects into, or nil when --format names the format every file is read
 // under.
 func (a *App) newUnreadSet() *UnreadSet {
+	return a.newUnreadSetFor("")
+}
+
+// newUnreadSetFor is newUnreadSet for a command whose messages report another
+// outcome than "checked", such as "converged" for a run.
+func (a *App) newUnreadSetFor(outcome string) *UnreadSet {
 	if a.FormatFlag != "" {
 		return nil
 	}
-	return NewUnreadSet()
+	u := NewUnreadSet()
+	u.outcome = outcome
+	return u
+}
+
+// setAside reports whether no installed reader opens the format rf declares,
+// and records rf in unread when so. It asks the registry for a reader the way a
+// read does, so a format a plugin loads on demand is not set aside. A nil set
+// sets nothing aside.
+func (a *App) setAside(unread *UnreadSet, root string, rf project.ResolvedFile) bool {
+	if unread == nil || rf.Format == "" {
+		return false
+	}
+	name, _, err := a.resolveFormatRef(rf.Format)
+	if err != nil {
+		return false
+	}
+	reader, err := a.FormatReg.NewReader(registry.FormatID(name))
+	if err == nil {
+		_ = reader.Close()
+		return false
+	}
+	return unread.Skip(err, relativeToRoot(root, rf.Path), rf.Format)
 }
 
 // Skip reports whether err says that no reader for the file's format is
@@ -94,6 +127,63 @@ func (u *UnreadSet) unitsSkipped(root string, units []VerifyUnit) (skipped []str
 	return skipped, readNothing
 }
 
+// holds reports whether the set records file, named the way it was recorded.
+func (u *UnreadSet) holds(file string) bool {
+	if u == nil {
+		return false
+	}
+	_, ok := u.formats[file]
+	return ok
+}
+
+// empty reports whether the set records no file.
+func (u *UnreadSet) empty() bool { return u == nil || len(u.files) == 0 }
+
+// verb is the outcome the set's messages report, "checked" unless the command
+// set another.
+func (u *UnreadSet) verb() string {
+	if u == nil || u.outcome == "" {
+		return "checked"
+	}
+	return u.outcome
+}
+
+// byFormat groups the unread files by their format, with the formats sorted and
+// each format's files in the order the command met them.
+func (u *UnreadSet) byFormat() ([]string, map[string][]string) {
+	files := map[string][]string{}
+	if u == nil {
+		return nil, files
+	}
+	for _, file := range u.files {
+		files[u.formats[file]] = append(files[u.formats[file]], file)
+	}
+	return slices.Sorted(maps.Keys(files)), files
+}
+
+// named lists files for a message, the first three by name.
+func named(files []string) string {
+	s := strings.Join(files[:min(len(files), 3)], ", ")
+	if len(files) > 3 {
+		s += fmt.Sprintf(" and %d more", len(files)-3)
+	}
+	return s
+}
+
+// summary names every unread format with its files and the plugin to install,
+// for a command that could read none of the project's content.
+func (u *UnreadSet) summary() string {
+	formats, files := u.byFormat()
+	declared := make([]string, 0, len(formats))
+	installs := make([]string, 0, len(formats))
+	for _, format := range formats {
+		declared = append(declared, fmt.Sprintf("%q (%s)", format, named(files[format])))
+		installs = append(installs, "kapi plugins install "+format)
+	}
+	return fmt.Sprintf("no installed reader opens any of this project's content, declared in format %s; "+
+		"install the plugin that supplies it (%s)", strings.Join(declared, ", "), strings.Join(installs, ", "))
+}
+
 // warnings returns a WarningFormatNoReader warning for each unread file.
 func (u *UnreadSet) warnings() []check.Warning {
 	if u == nil {
@@ -105,8 +195,8 @@ func (u *UnreadSet) warnings() []check.Warning {
 		out = append(out, check.Warning{
 			Code:   check.WarningFormatNoReader,
 			Source: file,
-			Message: fmt.Sprintf("no reader for format %q is installed, so %s was not checked; "+
-				"install the plugin that supplies it (kapi plugins install %s)", format, file, format),
+			Message: fmt.Sprintf("no reader for format %q is installed, so %s was not %s; "+
+				"install the plugin that supplies it (kapi plugins install %s)", format, file, u.verb(), format),
 		})
 	}
 	return out
@@ -154,21 +244,13 @@ func (u *UnreadSet) settle(g *verifyGateResult, skipped []string, readNothing bo
 // that checked it and found nothing, and this is the line a person at a
 // terminal sees.
 func (u *UnreadSet) warn(a *App, cmd Command) {
-	if u == nil || len(u.files) == 0 || a.Quiet {
+	if u.empty() || a.Quiet {
 		return
 	}
-	byFormat := map[string][]string{}
-	for _, file := range u.files {
-		byFormat[u.formats[file]] = append(byFormat[u.formats[file]], file)
-	}
-	for _, format := range slices.Sorted(maps.Keys(byFormat)) {
-		files := byFormat[format]
-		named := strings.Join(files[:min(len(files), 3)], ", ")
-		if len(files) > 3 {
-			named += fmt.Sprintf(" and %d more", len(files)-3)
-		}
+	formats, files := u.byFormat()
+	for _, format := range formats {
 		fmt.Fprintf(cmd.ErrOrStderr(),
-			"warning: no reader for format %q, so %s was not checked; install the plugin that supplies it (kapi plugins install %s)\n",
-			format, named, format)
+			"warning: no reader for format %q, so %s was not %s; install the plugin that supplies it (kapi plugins install %s)\n",
+			format, named(files[format]), u.verb(), format)
 	}
 }

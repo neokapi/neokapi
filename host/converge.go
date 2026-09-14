@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/model"
@@ -142,6 +143,10 @@ type ConvergeOutput struct {
 	ConceptsProposed int    `json:"conceptsProposed,omitempty"`
 	ChangesetID      string `json:"changesetId,omitempty"`
 	ChangesetURL     string `json:"changesetUrl,omitempty"`
+	// Warnings name what the run could not take in, such as a declared file in
+	// a format no installed reader opens (check.WarningFormatNoReader). The run
+	// set that content aside and converged the rest.
+	Warnings []check.Warning `json:"warnings,omitempty"`
 }
 
 // StaleUnits totals the units held out of shipping because their source moved
@@ -176,6 +181,7 @@ func (o ConvergeOutput) RedraftedUnits() int {
 
 // FormatText renders the convergence summary.
 func (o ConvergeOutput) FormatText(w io.Writer) error {
+	defer writeSetAside(w, o.Warnings)
 	if o.Monolingual {
 		return o.formatMonolingual(w)
 	}
@@ -326,10 +332,18 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 	}
 	// A file declared for its comments alone is checked, and has nothing a
 	// convergence run could read, translate or write back.
+	//
+	// A file whose declared format no installed reader opens, usually a
+	// plugin's, is set aside: the run converges the rest and names it.
+	// --fail-on-unknown keeps it in, and the run fails on it.
+	var unread *UnreadSet
+	if !failOnUnknown(cmd) {
+		unread = a.newUnreadSetFor("converged")
+	}
 	var sources []string
 	kept := resolved[:0]
 	for _, rf := range resolved {
-		if rf.CommentsOnly() {
+		if rf.CommentsOnly() || a.setAside(unread, filepath.Dir(projectPath), rf) {
 			continue
 		}
 		kept = append(kept, rf)
@@ -337,6 +351,11 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 	}
 	resolved = kept
 	if len(sources) == 0 {
+		if !unread.empty() {
+			// Nothing a run could read is nothing converged, never a run that
+			// found every scope shippable.
+			return fmt.Errorf("nothing was converged: %s", unread.summary())
+		}
 		return errors.New("no content to catch up (add content patterns to the project)")
 	}
 
@@ -440,7 +459,12 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 
 	onEvent := opts.onEvent
 	emitter := convergence.NewEmitter(onEvent)
-	facts := &convergeFacts{monolingual: monolingual}
+	facts := &convergeFacts{monolingual: monolingual, unread: unread}
+	announceSetAside(emitter, unread)
+	if onEvent == nil {
+		// No event consumer: the set-aside lines go to stderr instead.
+		unread.warn(a, cmd)
+	}
 
 	// The venue-neutral loop (core/convergence.Loop) owns the semantics —
 	// pass barrier, per-locale fan-out, stall-parks-the-rest; these closures
@@ -460,7 +484,7 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 	}
 	funcs := convergence.LoopFuncs{
 		Derive: func(ctx context.Context) (convergence.PassState, error) {
-			cov, excl, err := a.deriveCoverage(ctx, cmd, proj, root, !opts.noChecks)
+			cov, excl, err := a.deriveCoverage(ctx, cmd, proj, root, !opts.noChecks, unread)
 			if err != nil {
 				return convergence.PassState{}, err
 			}
@@ -644,6 +668,24 @@ type convergeFacts struct {
 	// Guarded because the loop fans its passes out across locales in parallel.
 	mu     sync.Mutex
 	passed map[string]bool
+	// unread names the content the run set aside because no installed reader
+	// opens its format. Nil when --fail-on-unknown keeps it in.
+	unread *UnreadSet
+}
+
+// announceSetAside emits a run log event for each format no installed reader
+// opens, naming its files and the plugin to install, the way the source settle
+// names a format it could not read.
+func announceSetAside(emitter *convergence.Emitter, unread *UnreadSet) {
+	formats, files := unread.byFormat()
+	for _, format := range formats {
+		emitter.Emit(convergence.Event{
+			Type:  convergence.EventLog,
+			Stage: convergence.StageSync,
+			Message: fmt.Sprintf("No reader for format %q: %s set aside and not converged. "+
+				"Install the plugin that supplies it (kapi plugins install %s).", format, named(files[format]), format),
+		})
+	}
 }
 
 // notePassed records that a pass ran for this locale.
@@ -799,19 +841,19 @@ func describeDrift(d project.StoreDrift) string {
 // never tracked). With withChecks it first runs the project's bound checks over
 // the produced units and feeds the failing set into the coverage rollup as an
 // exclusion (#1078 G4), returning it so callers can report per-locale counts.
-func (a *App) deriveCoverage(ctx context.Context, cmd Command, proj *project.KapiProject, root string, withChecks bool) ([]LocaleCoverage, *CheckExclusions, error) {
+func (a *App) deriveCoverage(ctx context.Context, cmd Command, proj *project.KapiProject, root string, withChecks bool, unread *UnreadSet) ([]LocaleCoverage, *CheckExclusions, error) {
 	units, err := a.UnitsFromProject(proj, root, "")
 	if err != nil {
 		return nil, nil, err
 	}
 	var excl *CheckExclusions
 	if withChecks {
-		excl, err = a.computeLoopCheckExclusions(ctx, cmd, proj, root, units)
+		excl, err = a.loopCheckExclusions(ctx, cmd, proj, root, units, unread)
 		if err != nil {
 			return nil, nil, err
 		}
 	}
-	cov, err := a.ComputeShipCoverage(ctx, proj, root, units, excl)
+	cov, err := a.shipCoverage(ctx, proj, root, units, excl, unread)
 	return cov, excl, err
 }
 
@@ -903,6 +945,7 @@ func producedUnits(cov []LocaleCoverage) int {
 // their content isn't at the bar yet.
 func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.KapiProject, projectPath, flowName string, passes int, cov []LocaleCoverage, locales []model.LocaleID, sourceGate model.SourceGateLevel, blockedOnSource, totalSource int, facts *convergeFacts, opts ConvergeOptions, emit func(convergence.Event)) error {
 	out := buildConvergeOutput(flowName, passes, cov, locales, facts.redraftable)
+	out.Warnings = facts.unread.warnings()
 	out.Monolingual = facts.monolingual
 	out.ExtractedFiles = facts.extractedFiles
 	out.ExtractedBlocks = facts.extractedBlocks
@@ -972,7 +1015,7 @@ func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.Kap
 			}
 			// Per-file progress lines go nowhere: the structured result carries
 			// the counts, and stray lines would corrupt --json output.
-			n, merr := a.materializeFromProjectStore(ctx, io.Discard, proj, projectPath, []model.LocaleID{model.LocaleID(lc.Locale)}, false)
+			n, merr := a.materializeProject(ctx, io.Discard, proj, projectPath, []model.LocaleID{model.LocaleID(lc.Locale)}, false, facts.unread)
 			if merr != nil {
 				return fmt.Errorf("materialize %s: %w", lc.Locale, merr)
 			}
@@ -1005,7 +1048,7 @@ func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.Kap
 		// cleared, and each of those holds on the delivered file too. What moves
 		// is that the numbers become true.
 		a.endConvergeDrafts()
-		cov, _, rerr := a.deriveCoverage(ctx, cmd, proj, filepath.Dir(projectPath), !opts.noChecks)
+		cov, _, rerr := a.deriveCoverage(ctx, cmd, proj, filepath.Dir(projectPath), !opts.noChecks, facts.unread)
 		if rerr != nil {
 			return fmt.Errorf("re-derive the delivered standing: %w", rerr)
 		}
@@ -1026,7 +1069,7 @@ func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.Kap
 	// Everything this run wrote is the store's own output. Stamping it as
 	// absorbed is what keeps the next run from reading its own materialization
 	// back as a statement from git; see stampCommittedRecord.
-	a.stampCommittedRecord(ctx, proj, projectPath)
+	a.stampCommittedRecord(ctx, proj, projectPath, facts.unread)
 
 	// And the basis for each translation it wrote, so the next run can see a
 	// source rewritten under an undecided one. Reported and never fatal: the run

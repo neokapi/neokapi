@@ -19,10 +19,23 @@ func formatPlanLine(plan UpPlanOutput) string {
 	if plan.Monolingual {
 		return "plan: no target languages, reconciling the source only"
 	}
+	if plan.readNothing && len(plan.Warnings) > 0 {
+		return fmt.Sprintf("plan: nothing priced: no installed reader opens this project's content (%d file(s) set aside)",
+			len(plan.Warnings))
+	}
+	// Content set aside for want of a reader is named on every other line, so a
+	// plan over part of the project never reads as a plan over all of it.
+	aside := ""
+	if n := len(plan.Warnings); n > 0 {
+		aside = fmt.Sprintf(" · %d file(s) set aside: no reader installed", n)
+	}
 	if t.MissingTarget == 0 && t.Stale == 0 && t.Unanswered == 0 {
 		if t.UnreadTargets > 0 {
 			return fmt.Sprintf("plan: %d produced unit(s) not priced: the store has not read their committed "+
-				"translations yet, and this run reads them first", t.UnreadTargets)
+				"translations yet, and this run reads them first", t.UnreadTargets) + aside
+		}
+		if aside != "" {
+			return "plan: every unit it could read has a committed target the content memory answers, so this run verifies gates" + aside
 		}
 		return "plan: every unit has a committed target the content memory answers, so this run verifies gates"
 	}
@@ -59,7 +72,7 @@ func formatPlanLine(plan UpPlanOutput) string {
 			line += " · " + plan.Provider
 		}
 	}
-	return line
+	return line + aside
 }
 
 // compactTokens renders a token estimate at header scale (61k, 1.2M).

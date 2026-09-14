@@ -8,6 +8,9 @@ import { Create as $Create } from "@wailsio/runtime";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as check$0 from "../core/check/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as convergence$0 from "../core/convergence/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -1170,6 +1173,16 @@ export class ConvergeOutput {
              */
             this["changesetUrl"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * Warnings name what the run could not take in, such as a declared file in
+             * a format no installed reader opens (check.WarningFormatNoReader). The run
+             * set that content aside and converged the rest.
+             * @member
+             * @type {check$0.Warning[] | undefined}
+             */
+            this["warnings"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }
@@ -1182,12 +1195,16 @@ export class ConvergeOutput {
     static createFrom($$source = {}) {
         const $$createField3_0 = $$createType17;
         const $$createField4_0 = $$createType19;
+        const $$createField15_0 = $$createType21;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("locales" in $$parsedSource) {
             $$parsedSource["locales"] = $$createField3_0($$parsedSource["locales"]);
         }
         if ("parkedScopes" in $$parsedSource) {
             $$parsedSource["parkedScopes"] = $$createField4_0($$parsedSource["parkedScopes"]);
+        }
+        if ("warnings" in $$parsedSource) {
+            $$parsedSource["warnings"] = $$createField15_0($$parsedSource["warnings"]);
         }
         return new ConvergeOutput(/** @type {Partial<ConvergeOutput>} */($$parsedSource));
     }
@@ -1389,6 +1406,16 @@ export class UpPlanOutput {
              */
             this["monolingual"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * Warnings name what the plan could not price, such as a declared file in a
+             * format no installed reader opens (check.WarningFormatNoReader). A run sets
+             * that content aside.
+             * @member
+             * @type {check$0.Warning[] | undefined}
+             */
+            this["warnings"] = undefined;
+        }
         if (!("note" in $$source)) {
             /**
              * Note documents the estimation method for agents reading the JSON.
@@ -1407,14 +1434,18 @@ export class UpPlanOutput {
      * @returns {UpPlanOutput}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType21;
-        const $$createField4_0 = $$createType20;
+        const $$createField3_0 = $$createType23;
+        const $$createField4_0 = $$createType22;
+        const $$createField8_0 = $$createType21;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("scopes" in $$parsedSource) {
             $$parsedSource["scopes"] = $$createField3_0($$parsedSource["scopes"]);
         }
         if ("totals" in $$parsedSource) {
             $$parsedSource["totals"] = $$createField4_0($$parsedSource["totals"]);
+        }
+        if ("warnings" in $$parsedSource) {
+            $$parsedSource["warnings"] = $$createField8_0($$parsedSource["warnings"]);
         }
         return new UpPlanOutput(/** @type {Partial<UpPlanOutput>} */($$parsedSource));
     }
@@ -1612,5 +1643,7 @@ const $$createType16 = ConvergeLocaleResult.createFrom;
 const $$createType17 = $Create.Array($$createType16);
 const $$createType18 = ParkedScope.createFrom;
 const $$createType19 = $Create.Array($$createType18);
-const $$createType20 = UpPlanScope.createFrom;
+const $$createType20 = check$0.Warning.createFrom;
 const $$createType21 = $Create.Array($$createType20);
+const $$createType22 = UpPlanScope.createFrom;
+const $$createType23 = $Create.Array($$createType22);

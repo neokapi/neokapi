@@ -16,6 +16,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
+	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/state"
 	coretools "github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/memory"
@@ -340,6 +341,13 @@ func (a *App) absorbCommittedRecord(ctx context.Context, db *projectdb.DB, proj 
 			continue
 		}
 		blocks, uerr := a.pairedRecordBlocks(ctx, u, sourceLocale)
+		if uerr != nil && !errors.Is(uerr, errTargetUnreadable) && errors.Is(uerr, registry.ErrUnknownFormat) {
+			// No reader for the source's format is installed, so neither file was
+			// opened. The pair records no stamp and is absorbed on a machine that
+			// can read it. The run and the plan name the collection.
+			delete(next, u.targetRel)
+			continue
+		}
 		if uerr != nil {
 			if errors.Is(uerr, errTargetUnreadable) {
 				// A target that cannot be parsed back (a compiled catalog)
@@ -461,7 +469,7 @@ func (a *App) absorbCommittedRecord(ctx context.Context, db *projectdb.DB, proj 
 //
 // Best-effort: the stamp is an optimization of correctness, not its carrier, and
 // a store that cannot record it re-absorbs its own output next run.
-func (a *App) stampCommittedRecord(ctx context.Context, proj *project.KapiProject, projectPath string) {
+func (a *App) stampCommittedRecord(ctx context.Context, proj *project.KapiProject, projectPath string, unread *UnreadSet) {
 	layout, err := project.LayoutFor(projectPath)
 	if err != nil {
 		return
@@ -476,6 +484,11 @@ func (a *App) stampCommittedRecord(ctx context.Context, proj *project.KapiProjec
 	}
 	stamps := loadRecordDigests(ctx, db)
 	for _, u := range units {
+		// A collection the run set aside wrote nothing, and its committed
+		// translations are still to be absorbed where a reader for them exists.
+		if unread.holds(u.sourceRel) {
+			continue
+		}
 		digest, ok, derr := recordDigest(u)
 		if derr != nil || !ok {
 			continue
