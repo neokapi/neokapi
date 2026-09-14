@@ -29,6 +29,7 @@ var commentFormatFiles = []struct {
 	{"resx", "Resources.resx", "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<root>\n  <!-- Greets the the reader. -->\n  <data name=\"Greeting\" xml:space=\"preserve\">\n    <value>Hello world</value>\n  </data>\n</root>\n", "comment/root/data[Greeting]", 3},
 	{"xml", "config/app.xml", "<root>\n  <!-- Greets the the reader. -->\n  <greeting>Hello world</greeting>\n</root>\n", "comment/root/greeting", 2},
 	{"html", "site/index.html", "<!DOCTYPE html>\n<html>\n<body>\n  <!-- Greets the the reader. -->\n  <p id=\"greeting\">Hello world</p>\n</body>\n</html>\n", "comment/p[greeting]", 4},
+	{"markdown", "docs/guide.md", "# Guide\n\n<!-- Greets the the reader. -->\n\nHello world.\n", "comment/guide", 3},
 }
 
 // commentFormatsProject writes an isolated project declaring each file of
@@ -78,7 +79,7 @@ func runCheckJSON(t *testing.T, recipe string) check.Report {
 }
 
 // TestCheck_DeclaredCommentsInMarkupFormats is `kapi check` over a project that
-// declares the comments of files whose readers parse XML or HTML.
+// declares the comments of files whose readers parse XML, HTML or Markdown.
 func TestCheck_DeclaredCommentsInMarkupFormats(t *testing.T) {
 	t.Run("each format's comment is checked and located", func(t *testing.T) {
 		report := runCheckJSON(t, commentFormatsProject(t, true))
