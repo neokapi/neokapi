@@ -229,7 +229,7 @@ const PORT_TYPES: Record<PortType, PortTypeDef> = {
     family: "suggestion",
     icon: Database,
     get description() {
-      return t("Translation-memory matches.");
+      return t("Content memory matches.");
     },
   },
   "alt-translation": {
