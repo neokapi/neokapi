@@ -1359,6 +1359,7 @@ func (s *Server) HandleGetTranslationDashboard(c echo.Context) error {
 	if err := applyShipStates(ctx, s.ContentStore, s.VoiceStore, proj.ID, stream, gate, stats); err != nil {
 		return serverErr(c, err)
 	}
+	s.announceShipGates(ctx, proj, stream, stats)
 
 	// Cache the full result; each request slices its own page from it.
 	s.dashboardCache.Store(cacheKey, &dashboardCacheEntry{

@@ -212,10 +212,10 @@ func (d *NotificationDispatcher) mapEventToNotification(ev platev.Event) *bstore
 	// project alongside them, twice.
 	case platev.EventQualityGateFail:
 		n.Type = bstore.NotificationGateFailed
-		n.Title = "Quality gate failed"
-		n.Body = "A quality gate check failed"
+		n.Title, n.Body = qualityGateFailText(ev.Data)
 		n.Category = string(bstore.CategoryQuality)
 		n.Priority = "high"
+		n.GroupKey = platev.QualityGateGroupKey(ev)
 
 	case platev.EventVoiceDrift:
 		n.Type = bstore.NotificationVoiceDrift
@@ -271,9 +271,9 @@ func (d *NotificationDispatcher) handleAutoMute(ev platev.Event) {
 
 	switch ev.Type {
 	case platev.EventQualityGatePass:
-		// When a gate passes, mute related gate-failed notifications.
-		groupKey := ev.Data["gate_name"] + ":" + ev.Data["locale"]
-		if groupKey != ":" {
+		// A passing gate marks read the failure notifications for the same gate,
+		// language, stream and project.
+		if groupKey := platev.QualityGateGroupKey(ev); groupKey != "" {
 			if err := d.store.MarkReadByGroupKey(ctx, groupKey); err != nil {
 				slog.Warn("auto-mute failed for group key", "id", groupKey, "error", err)
 			}
@@ -473,4 +473,33 @@ func (d *NotificationDispatcher) DispatchToUsers(ctx context.Context, userIDs []
 			d.sender.NotifyUser(userID, &n)
 		}
 	}
+}
+
+// qualityGateFailText is the title and body of a quality gate failure
+// notification: which gate a language no longer meets, and by how much. An
+// event that names no gate reads as a failure of an unnamed gate.
+func qualityGateFailText(data map[string]string) (title, body string) {
+	gate, locale := data["gate_name"], data["locale"]
+	if gate == "" || locale == "" {
+		return "Quality gate failed", "A quality gate check failed"
+	}
+	title = "Quality gate failed: " + gate + " (" + locale + ")"
+	actual, required := data["actual"], data["required"]
+	switch {
+	case data["not_checked"] == "true" && gate == "translated":
+		body = locale + " has no content to ship."
+	case data["not_checked"] == "true":
+		body = actual + " block(s) in " + locale + " have no " + gate + " result."
+	case gate == "translated":
+		body = actual + " of " + required + " blocks are translated into " + locale + "."
+	case gate == "checks":
+		body = actual + " block(s) in " + locale + " fail the checks."
+	case gate == "stale":
+		body = actual + " block(s) in " + locale + " hold a decision on source that has changed."
+	case gate == "rejected":
+		body = actual + " rejected block(s) in " + locale + " wait for a new draft."
+	default:
+		body = locale + " does not meet the " + gate + " gate."
+	}
+	return title, body
 }

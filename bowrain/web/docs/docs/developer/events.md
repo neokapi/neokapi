@@ -57,13 +57,12 @@ webhook delivery live in `bowrain/event`.
 | `flow.started`               | A flow begins execution                        |
 | `flow.completed` / `flow.failed` | Declared; no execution path emits them, so no automation trigger fires on a flow finishing |
 | `extraction.completed`       | Term extraction completes                      |
-| `quality.gate.pass` / `quality.gate.fail` | A quality gate is evaluated         |
+| `quality.gate.pass` / `quality.gate.fail` | A language's ship-gate result changes |
 | `source.review.completed`    | A source review task is completed              |
 | `review.completed`           | A project's review queue is emptied            |
 | `review.decided`             | One block's target is approved, rejected, or un-reviewed |
 | `review.bulk_approved`       | An approve-passing pass promotes a language's passing targets |
 | `voice.check.started` / `voice.check.completed` | A voice check runs            |
-| `voice.gate.passed` / `voice.gate.failed` | A voice gate is evaluated           |
 | `voice.drift` / `voice.corrected` / `voice.profile.updated` | The voice loop moves |
 | `stream.created` / `stream.merged` / `stream.deleted` / `stream.locked` / `stream.unlocked` / `stream.tagged` | A stream changes |
 | `member.*`, `role.template.*`, `invite.*`, `token.*`, `auth.*`, `session.grant.created`, `authz.denied` | Membership and access |
@@ -110,25 +109,38 @@ engine.Start(ctx)
 
 Automation chains are tracked via `CausationID`. If a chain exceeds the maximum depth (default 5), it is automatically broken to prevent infinite loops.
 
-## Quality Gates
+## Quality gate events
 
-Quality gates evaluate content quality and can block or advise:
+The server publishes `quality.gate.fail` and `quality.gate.pass` from the ship
+gate (`bowrain/server/shipgate_events.go`). Each time it derives a project's
+ship states, on a dashboard or ship-feed read and when a convergence run ends,
+it compares each language's gates (`store.ShipGateResults`) with the failures
+it has already announced, which the content store keeps in `ship_gate_failures`:
 
-```go
-gates := []event.QualityGate{
-    {
-        Name:      "min-coverage",
-        Type:      event.GateBlocking,
-        Threshold: 0.9,
-        Evaluate: func(projectID string) (float64, error) {
-            // Return coverage score
-            return 0.95, nil
-        },
-    },
-}
+- An unmet gate with no announced failure, or whose `not_checked` value
+  changed, publishes `quality.gate.fail` and is recorded.
+- An announced failure whose gate is met again publishes `quality.gate.pass`
+  and is cleared.
+- Any other result publishes nothing. A gate the derivation did not evaluate,
+  such as the checks below full coverage, opens and clears nothing.
 
-results, err := event.EvaluateGates(gates, projectID)
-```
+The gates are `translated`, `checks`, `terms`, `stale` and `rejected`. Each
+event carries the project in `ProjectID` and this data:
+
+| Key | Value |
+| --- | --- |
+| `gate_name` | The gate |
+| `locale` | The language |
+| `stream` | The stream the content is on |
+| `actual` | Translated blocks for `translated`, and blocks at fault for every other gate |
+| `required` | Total blocks for `translated`, and `0` for every other gate |
+| `not_checked` | `true` when the gate is unmet because the language has no content or a check has no result |
+| `ship_state` | The language's derived ship state |
+| `workspace_id`, `workspace_slug` | The project's workspace |
+
+A failure notification carries the group key
+`quality-gate:<project>:<stream>:<gate>:<locale>` (`event.QualityGateGroupKey`),
+and the pass for the same gate marks it read. The events block no operation.
 
 ## Webhooks
 

@@ -116,3 +116,32 @@ func TestActivityRecorder_Close(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, result.Activities)
 }
+
+// A quality gate event files a feed entry that names the gate and the language
+// it moved for, so a reader sees what changed without opening the dashboard.
+func TestActivityRecorder_QualityGateEventsNameTheGateAndLocale(t *testing.T) {
+	bus := NewChannelEventBus()
+	defer bus.Close()
+
+	store := newTestActivityStore(t)
+	recorder := NewActivityRecorder(store, bus)
+
+	data := func() map[string]string {
+		return map[string]string{
+			"workspace_slug": "ws-1", "stream": "main", "locale": "nb",
+			"gate_name": "translated", "actual": "1", "required": "2", "not_checked": "false",
+		}
+	}
+	bus.Publish(platev.Event{ID: "gate-fail", Type: platev.EventQualityGateFail, ProjectID: "proj-1", Data: data()})
+	bus.Publish(platev.Event{ID: "gate-pass", Type: platev.EventQualityGatePass, ProjectID: "proj-1", Data: data()})
+	recorder.Close()
+
+	result, err := store.List(t.Context(), bstore.ActivityQuery{WorkspaceID: "ws-1"})
+	require.NoError(t, err)
+	summaries := map[bstore.ActivityType]string{}
+	for _, a := range result.Activities {
+		summaries[a.Type] = a.Summary
+	}
+	assert.Equal(t, "quality gate translated failed for nb", summaries[bstore.ActivityGateFailed])
+	assert.Equal(t, "quality gate translated passed for nb", summaries[bstore.ActivityGatePassed])
+}

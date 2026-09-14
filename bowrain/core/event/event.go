@@ -1,5 +1,5 @@
 // Package event provides an event bus for publishing and subscribing to
-// events in the neokapi platform, plus automation rules and quality gates.
+// events in the neokapi platform.
 package event
 
 import (
@@ -121,8 +121,6 @@ const (
 	// Voice events
 	EventVoiceCheckStarted   EventType = "voice.check.started"
 	EventVoiceCheckCompleted EventType = "voice.check.completed"
-	EventVoiceGateFailed     EventType = "voice.gate.failed"
-	EventVoiceGatePassed     EventType = "voice.gate.passed"
 	EventVoiceDrift          EventType = "voice.drift"
 	EventVoiceCorrected      EventType = "voice.corrected"
 	EventVoiceProfileUpdated EventType = "voice.profile.updated"

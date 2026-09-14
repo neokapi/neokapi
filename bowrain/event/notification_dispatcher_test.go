@@ -13,13 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// createNotification drops the created verdict for the tests that only care
-// that the insert succeeded.
-func createNotification(ctx context.Context, ns *bstore.NotificationStore, n *bstore.Notification) error {
-	_, err := ns.Create(ctx, n)
-	return err
-}
-
 type mockSender struct {
 	mu            sync.Mutex
 	notifications []*bstore.Notification
@@ -329,6 +322,9 @@ func TestNotificationDispatcher_DispatchDeadlineApproaching(t *testing.T) {
 	assert.Contains(t, notifs[0].Body, "Translate homepage")
 }
 
+// A passing gate marks read the failure notifications for the same gate,
+// language and project, and leaves another project's failure of the same gate
+// unread.
 func TestNotificationDispatcher_AutoMuteOnGatePass(t *testing.T) {
 	bus := NewChannelEventBus()
 	defer bus.Close()
@@ -344,35 +340,31 @@ func TestNotificationDispatcher_AutoMuteOnGatePass(t *testing.T) {
 	defer d.Close()
 
 	ctx := t.Context()
-
-	// First: create a gate-failed notification with a group key.
-	failedNotif := &bstore.Notification{
-		UserID:   "user-1",
-		Type:     bstore.NotificationGateFailed,
-		Title:    "Gate failed",
-		Body:     "Terminology check failed",
-		Category: "quality",
-		GroupKey: "terminology:fr-FR",
-		Priority: "high",
+	gate := func(eventID string, typ platev.EventType, projectID string) platev.Event {
+		return platev.Event{ID: eventID, Type: typ, ProjectID: projectID, Data: map[string]string{
+			"workspace_slug": "ws-1", "stream": "main", "locale": "nb", "gate_name": "translated",
+			"actual": "1", "required": "2", "not_checked": "false",
+		}}
 	}
-	require.NoError(t, createNotification(ctx, notifStore, failedNotif))
+	unread := func(want int) func() bool {
+		return func() bool {
+			count, err := notifStore.UnreadCount(ctx, "user-1")
+			return err == nil && count == want
+		}
+	}
 
-	// Verify it's unread.
-	unread, err := notifStore.UnreadCount(ctx, "user-1")
+	bus.Publish(gate("fail-1", platev.EventQualityGateFail, "proj-1"))
+	bus.Publish(gate("fail-2", platev.EventQualityGateFail, "proj-2"))
+	require.Eventually(t, unread(2), 2*time.Second, 10*time.Millisecond)
+
+	bus.Publish(gate("pass-1", platev.EventQualityGatePass, "proj-1"))
+	require.Eventually(t, unread(1), 2*time.Second, 10*time.Millisecond,
+		"the pass marks the failure it clears as read")
+
+	left, err := notifStore.List(ctx, "user-1", 10, true)
 	require.NoError(t, err)
-	assert.Equal(t, 1, unread)
-
-	// Publish gate pass event — should auto-mute the failed notification.
-	bus.Publish(platev.Event{
-		Type:      platev.EventQualityGatePass,
-		ProjectID: "proj-1",
-		Data:      map[string]string{"gate_name": "terminology", "locale": "fr-FR", "workspace_slug": "ws-1"},
-	})
-
-	require.Eventually(t, func() bool {
-		count, err := notifStore.UnreadCount(ctx, "user-1")
-		return err == nil && count == 0
-	}, 2*time.Second, 10*time.Millisecond)
+	require.Len(t, left, 1)
+	assert.Equal(t, "proj-2", left[0].ProjectID, "another project's failure of the same gate stays unread")
 }
 
 func TestNotificationDispatcher_TaskNotificationSkipsNoAssignee(t *testing.T) {

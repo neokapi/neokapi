@@ -25,8 +25,8 @@ cannot:
   reach every connected client
 - **Connectors**: every route in, from content platforms and design tools to
   repositories and a developer's checkout
-- **Server-side automation**: event-driven rules run flows, quality gates, and
-  notifications when content arrives
+- **Server-side automation**: event-driven rules run flows and send
+  notifications when content arrives or a language's ship-gate result changes
 - **Workspace access control**: role-based membership (owner, admin, member,
   viewer) across multiple workspaces, with grants bound to a language or a
   point
