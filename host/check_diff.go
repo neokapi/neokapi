@@ -74,17 +74,19 @@ func oneDiffSource(named ...string) error {
 	return fmt.Errorf("%s and %s each name a diff; pass one", strings.Join(named[:last], ", "), named[last])
 }
 
-// diffSourceFromFlags reads the diff named by --diff-file, --diff-against or
-// --staged, or returns nil when the check is not scoped to a diff.
+// diffSourceFromFlags reads the diff named by --diff-file, --diff-against,
+// --staged or --diff-range, or returns nil when the check is not scoped to a
+// diff.
 func (a *App) diffSourceFromFlags(cmd Command) (*diffSource, error) {
 	file, _ := cmd.Flags().GetString("diff-file")
 	against, _ := cmd.Flags().GetString("diff-against")
 	staged, _ := cmd.Flags().GetBool("staged")
+	commits, _ := cmd.Flags().GetString("diff-range")
 	var named []string
 	for _, source := range []struct {
 		flag string
 		set  bool
-	}{{"--diff-file", file != ""}, {"--diff-against", against != ""}, {"--staged", staged}} {
+	}{{"--diff-file", file != ""}, {"--diff-against", against != ""}, {"--staged", staged}, {"--diff-range", commits != ""}} {
 		if source.set {
 			named = append(named, source.flag)
 		}
@@ -100,6 +102,12 @@ func (a *App) diffSourceFromFlags(cmd Command) (*diffSource, error) {
 			return nil, err
 		}
 		return gitDiffStaged(ctx, cwd)
+	case commits != "":
+		cwd, err := os.Getwd()
+		if err != nil {
+			return nil, err
+		}
+		return gitDiffRange(ctx, cwd, commits)
 	case file != "":
 		var data []byte
 		var err error
