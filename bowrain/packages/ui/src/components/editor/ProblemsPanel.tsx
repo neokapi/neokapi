@@ -1,13 +1,22 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, type ReactNode } from "react";
+import { One, Other, Plural } from "@neokapi/i18n-react/runtime";
 import { FindingSnippet, checkIssueTone } from "@neokapi/ui-primitives";
 import type { Run } from "@neokapi/contract-types";
 import type { BlockInfo, FileCheckResult, CheckIssue } from "../../types/api";
+import { ErrorNotice } from "../../errors";
 import { X, Check, AlertTriangle, Info, FileText } from "../icons";
 import { getTargetText } from "./blockStatus";
 
 interface ProblemsPanelProps {
-  issues: FileCheckResult[];
+  /**
+   * What the last completed check found: one row per block it read, with no
+   * issues for a clean block. Absent until a check completes, and after one
+   * that failed.
+   */
+  issues?: FileCheckResult[];
   loading?: boolean;
+  /** Why the last check did not complete, when it failed. */
+  error?: unknown;
   onNavigateToBlock: (blockId: string) => void;
   onClose: () => void;
   /**
@@ -50,6 +59,7 @@ function targetRunsOf(block: BlockInfo, locale: string | undefined): Run[] | und
 export function ProblemsPanel({
   issues,
   loading,
+  error,
   onNavigateToBlock,
   onClose,
   blocks,
@@ -66,7 +76,7 @@ export function ProblemsPanel({
 
   const flatIssues = useMemo(() => {
     const flat: FlatIssue[] = [];
-    for (const result of issues) {
+    for (const result of issues ?? []) {
       for (const issue of result.issues) {
         flat.push({ blockId: result.blockId, issue });
       }
@@ -95,6 +105,58 @@ export function ProblemsPanel({
     [flatIssues],
   );
   const totalCount = flatIssues.length;
+  const checked = !loading && error === undefined && issues !== undefined;
+
+  // What the panel says when it lists no issue. Only a check that read at least
+  // one block can report that it found nothing.
+  let emptyState: ReactNode = null;
+  if (error !== undefined) {
+    emptyState = (
+      <div className="px-4 py-4" data-testid="problems-check-failed">
+        <ErrorNotice
+          error={error}
+          title="The checks did not run"
+          hint="Nothing in this file was checked, so there is nothing to report."
+          variant="inline"
+        />
+      </div>
+    );
+  } else if (issues === undefined) {
+    emptyState = (
+      <div className="flex items-center justify-center py-8" data-testid="problems-not-run">
+        <span className="text-sm text-muted-foreground">The checks have not run on this file.</span>
+      </div>
+    );
+  } else if (issues.length === 0) {
+    emptyState = (
+      <div className="flex items-center justify-center py-8" data-testid="problems-nothing-checked">
+        <span className="text-sm text-muted-foreground">
+          Nothing was checked: this file has no blocks to check.
+        </span>
+      </div>
+    );
+  } else if (filtered.length === 0 && totalCount > 0) {
+    emptyState = (
+      <div className="flex items-center justify-center py-8">
+        <span className="text-sm text-muted-foreground">No errors found</span>
+      </div>
+    );
+  } else if (filtered.length === 0) {
+    const checkedBlocks = issues.length;
+    emptyState = (
+      <div className="flex flex-col items-center justify-center py-8 gap-2">
+        <div className="rounded-full p-2 bg-success/10">
+          <Check className="w-5 h-5 text-success" />
+        </div>
+        <span className="text-sm text-muted-foreground">
+          <Plural count={checkedBlocks}>
+            <One>No issues found in {checkedBlocks} checked block</One>
+            <Other>No issues found in {checkedBlocks} checked blocks</Other>
+          </Plural>
+        </span>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-border/50 bg-card shadow-[0_-4px_24px_rgba(0,0,0,0.15)] dark:shadow-[0_-4px_24px_rgba(0,0,0,0.4)] flex flex-col max-h-[40vh]">
@@ -102,12 +164,12 @@ export function ProblemsPanel({
       <div className="flex items-center justify-between px-4 py-2 border-b border-border/30 shrink-0">
         <div className="flex items-center gap-3">
           <h3 className="text-sm font-semibold text-foreground">Problems</h3>
-          {!loading && (
+          {checked && (
             <span className="text-xs px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">
               {totalCount}
             </span>
           )}
-          {!loading && totalCount > 0 && (
+          {checked && totalCount > 0 && (
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
               <AlertTriangle className="w-3 h-3 text-destructive" />
               <span>{errorCount}</span>
@@ -157,13 +219,8 @@ export function ProblemsPanel({
             <div className="animate-spin rounded-full h-5 w-5 border-2 border-primary border-t-transparent" />
             <span className="ml-2 text-sm text-muted-foreground">Running checks...</span>
           </div>
-        ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-8 gap-2">
-            <div className="rounded-full p-2 bg-success/10">
-              <Check className="w-5 h-5 text-success" />
-            </div>
-            <span className="text-sm text-muted-foreground">No issues found</span>
-          </div>
+        ) : emptyState ? (
+          emptyState
         ) : (
           <table className="w-full text-sm">
             <thead className="sticky top-0 bg-card">

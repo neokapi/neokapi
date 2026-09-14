@@ -372,13 +372,72 @@ describe("ProblemsPanel", () => {
     return render(<ProblemsPanel {...props} />);
   }
 
-  it("shows 'No issues found' when issues list is empty", async () => {
+  // The check returns one row per block it read, so a row with no issues is a
+  // clean block and an empty list is a file with no block checked.
+  it("says no issues were found, and over how many blocks, when the checks read clean blocks", async () => {
+    await renderComponent({
+      issues: [
+        { blockId: "b1", issues: [] },
+        { blockId: "b2", issues: [] },
+      ],
+      onNavigateToBlock: vi.fn(),
+      onClose: vi.fn(),
+    });
+    expect(screen.getByText("No issues found in 2 checked blocks")).toBeInTheDocument();
+  });
+
+  it("says nothing was checked when the checks read no block", async () => {
     await renderComponent({
       issues: [],
       onNavigateToBlock: vi.fn(),
       onClose: vi.fn(),
     });
-    expect(screen.getByText("No issues found")).toBeInTheDocument();
+    expect(screen.getByTestId("problems-nothing-checked")).toHaveTextContent(
+      "Nothing was checked: this file has no blocks to check.",
+    );
+    expect(screen.queryByText(/No issues found/)).not.toBeInTheDocument();
+  });
+
+  it("says the checks have not run before any check completes", async () => {
+    await renderComponent({
+      issues: undefined,
+      onNavigateToBlock: vi.fn(),
+      onClose: vi.fn(),
+    });
+    expect(screen.getByTestId("problems-not-run")).toHaveTextContent(
+      "The checks have not run on this file.",
+    );
+    expect(screen.queryByText(/No issues found/)).not.toBeInTheDocument();
+  });
+
+  it("says the checks did not run when the check failed", async () => {
+    await renderComponent({
+      issues: undefined,
+      error: new Error("check service unavailable"),
+      onNavigateToBlock: vi.fn(),
+      onClose: vi.fn(),
+    });
+    const failed = screen.getByTestId("problems-check-failed");
+    expect(failed).toHaveTextContent("The checks did not run");
+    expect(failed).toHaveTextContent("Nothing in this file was checked");
+    expect(screen.queryByText(/No issues found/)).not.toBeInTheDocument();
+  });
+
+  it("says no errors, not no issues, when only warnings are filtered out", async () => {
+    const user = userEvent.setup();
+    await renderComponent({
+      issues: [
+        {
+          blockId: "b1",
+          issues: [{ type: "whitespace", severity: "warning", message: "Trailing whitespace" }],
+        },
+      ],
+      onNavigateToBlock: vi.fn(),
+      onClose: vi.fn(),
+    });
+    await user.click(screen.getByText("Errors only"));
+    expect(screen.getByText("No errors found")).toBeInTheDocument();
+    expect(screen.queryByText(/No issues found/)).not.toBeInTheDocument();
   });
 
   it("renders problem messages", async () => {

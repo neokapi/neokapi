@@ -54,10 +54,32 @@ export const WithoutBlocks: Story = {
   },
 };
 
-/** No issues found — shows success state */
+/** The checks read every block and found no issue, and say over how many blocks. */
 export const NoIssues: Story = {
   args: {
+    issues: sampleFileCheckResults.map((r) => ({ ...r, issues: [] })),
+  },
+};
+
+/** The checks read no block, so there is nothing to report as clean. */
+export const NothingChecked: Story = {
+  args: {
     issues: [],
+  },
+};
+
+/** No check has completed on this file yet. */
+export const NotRun: Story = {
+  args: {
+    issues: undefined,
+  },
+};
+
+/** The check request failed, so nothing in the file was checked. */
+export const CheckFailed: Story = {
+  args: {
+    issues: undefined,
+    error: new Error("The check service is unavailable"),
   },
 };
 

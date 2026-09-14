@@ -51,6 +51,8 @@ interface VisualEditorLayoutProps {
   // Findings
   checkIssues?: CheckIssue[];
   fileCheckResults?: FileCheckResult[];
+  /** Why the last file check did not complete, when it failed. */
+  fileCheckError?: unknown;
   checksLoading?: boolean;
   onRunFileCheck?: () => void;
   // Block history
@@ -115,6 +117,7 @@ export function VisualEditorLayout({
   presenceSlot,
   checkIssues,
   fileCheckResults,
+  fileCheckError,
   checksLoading,
   onRunFileCheck,
   history,
@@ -420,8 +423,9 @@ export function VisualEditorLayout({
       {/* ── Problems panel (bottom overlay, fixed) ────────────────── */}
       {showProblemsPanel && (
         <ProblemsPanel
-          issues={fileCheckResults || []}
+          issues={fileCheckResults}
           loading={checksLoading}
+          error={fileCheckError}
           blocks={blocks}
           targetLocale={targetLocale}
           sourceLocale={project.default_source_language}
