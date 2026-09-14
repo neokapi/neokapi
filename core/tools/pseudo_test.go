@@ -113,6 +113,7 @@ func TestPseudoTranslateToolPreservesPrintfVerbs(t *testing.T) {
 		{"%[1]s of %[2]d", []string{"%[1]s", "%[2]d", "öƒ"}},
 		{"%1$@ and %lld items", []string{"%1$@", "%lld", "îţéḿš"}},
 		{"%-10s|%.2f|%%", []string{"%-10s", "%.2f", "%%"}},
+		{"%(name)s signed in", []string{"%(name)s", "šîĝñéđ"}},
 		// A space is not a flag: the percent sign in prose is left as it is
 		// and the word after it still accents.
 		{"50% of the text", []string{"50% öƒ"}},

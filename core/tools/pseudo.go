@@ -631,11 +631,13 @@ func accentTransform(text string) string {
 	return b.String()
 }
 
-// printfVerb matches one printf conversion at the start of a string: `%%`, Go's
-// explicit argument index (`%[1]d`), a positional argument (`%1$s`), flags,
-// width and precision, a C length modifier (`%lld`) and Objective-C's `%@`. A
-// space is not read as a flag, so the `% o` in "50% of" stays prose.
-var printfVerb = regexp.MustCompile(`^%(?:%|(?:\[\d+\])?[-+#0]*(?:\d+\$)?(?:\*|\d+)?(?:\.(?:\*|\d+)?)?(?:hh|h|ll|l|L|q|j|z|t)?[A-Za-z@])`)
+// printfVerb matches one printf conversion at the start of a string: `%%`, a
+// Python mapping key (`%(name)s`), Go's explicit argument index (`%[1]d`), a
+// positional argument (`%1$s`), flags, width and precision, a C length
+// modifier (`%lld`) and Objective-C's `%@`. It covers every printf form
+// check.PlaceholderToken recognizes. A space is not read as a flag, so the
+// `% o` in "50% of" stays prose.
+var printfVerb = regexp.MustCompile(`^%(?:%|(?:\([^)]+\))?(?:\[\d+\])?[-+#0]*(?:\d+\$)?(?:\*|\d+)?(?:\.(?:\*|\d+)?)?(?:hh|h|ll|l|L|q|j|z|t)?[A-Za-z@])`)
 
 // effectiveWrap returns the markers to emit, exactly as configured.
 //
