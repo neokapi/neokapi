@@ -159,7 +159,13 @@ did not read because the plugin supplying its format is not installed. Nothing
 in that file was checked: install the plugin the message names before you rely
 on the result for it.
 To check a diff you already hold, pass it with `--diff-file` (`-` reads standard
-input).
+input). To check exactly what the next commit records, use
+`kapi check --staged --json`: each file is read from the index, so unstaged
+edits and untracked files do not count. To check a pull request or any two
+commits, use `kapi check --diff-range origin/main...HEAD --json`: each file is
+read from the second commit and nothing from the working tree, and `A...B`
+checks the change B made since its merge base with A. Finding lines are the
+lines of the version checked.
 
 Read `execution.contexts` to confirm the effective voice selection, profile and
 channel, then read the findings and `execution.analyzers`. Fix relevant findings within

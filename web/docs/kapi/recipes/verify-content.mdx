@@ -72,12 +72,171 @@ Field-by-field, the Report is documented in [Checks](/framework/checks); the fla
 
 **Exit codes are the gate:** `0` pass, `3` gate failed, `4` did not run, `1` operational error, so `kapi check` drops straight into CI. A check did not run when it examined no content, or when one of its checks reported nothing on the known-bad sample it is given beside your content. It never exits `0`. `--strict` fails on any critical or major finding. `--lenient` and `--no-fail` loosen the gate for report-only sweeps, and neither turns a check that did not run into a pass.
 
-**Check only what changed:** `kapi check --diff-against HEAD` checks the content blocks your edits touched, each block whole, and `--diff-file` takes a diff you already have. See [Checking a change](/framework/checks#checking-a-change). `--validate report|strict` folds reader structure/encoding findings into the same Report.
+**Check only what changed:** `kapi check --diff-against HEAD` checks the content blocks your edits touched, each block whole, `--staged` checks what the next commit records, `--diff-range` checks the change between two commits, and `--diff-file` takes a diff you already have. See [Check changes in git](#check-changes-in-git). `--validate report|strict` folds reader structure/encoding findings into the same Report.
 
 **Bilingual checks** (placeholder integrity, do-not-translate, terminology) are opt-in: add `--target <file> --target-lang <lang>` to check a translation against its source.
 
 </TabItem>
 </Tabs>
+
+## Check changes in git
+
+`kapi check` can take a change from git and check only the content blocks the
+change touched, each block whole. See
+[Checking a change](/framework/checks#checking-a-change) for how a changed
+line becomes a block and what the report's `scope` lists.
+
+| Flag | What kapi checks |
+| --- | --- |
+| `--diff-against <rev>` | The working tree against a revision, with untracked files as new |
+| `--staged` | What the next commit records, each file read from the index |
+| `--diff-range A..B` | The change between two commits, each file read from B |
+| `--diff-range A...B` | The change B made since it left A |
+
+The exit code carries the outcome: `0` the check passed, `3` the gate failed,
+`4` the check did not run, and `1` kapi could not run it. A check that did not
+run is never a pass. The recipes below map each code to what the tool around
+them expects.
+
+### Before each commit
+
+A pre-commit hook checks what the commit records:
+
+```sh title=".git/hooks/pre-commit"
+#!/bin/sh
+# Stops a commit whose staged content fails the check. A commit that touches
+# no content kapi reads goes through.
+cause=$(kapi check --staged --strict --jq '.did_not_run_cause' 2> /dev/null)
+status=$?
+if [ "$status" -eq 0 ] || { [ "$status" -eq 4 ] && [ "$cause" = '"nothing_to_check"' ]; }; then
+	exit 0
+fi
+kapi check --staged --strict
+exit "$status"
+```
+
+Make it executable with `chmod +x .git/hooks/pre-commit`. Inside a project, the
+hook applies the rules the recipe binds. An unstaged edit and an untracked file
+leave the result unchanged. A commit that touches only files kapi does not
+check, such as a binary or content the recipe does not declare, exits `4` with
+`nothing_to_check`, and the hook lets that commit through. Any other outcome
+stops the commit and prints the findings. `--strict` stops it on a critical or
+major finding.
+
+### On every pull request
+
+In GitHub Actions, check the change a pull request makes with
+[kapi-action](https://github.com/neokapi/kapi-action):
+
+```yaml title=".github/workflows/content-checks.yml"
+name: Content checks
+on: pull_request
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: neokapi/setup-kapi@v1
+        with:
+          plugins: ""
+      - uses: neokapi/kapi-action@v1
+        with:
+          command: check
+          args: --diff-range origin/${{ github.base_ref }}...HEAD --strict
+```
+
+`fetch-depth: 0` fetches the base branch and the history kapi needs to find the
+merge base. With `A...B`, the job checks only what the pull request changed,
+however far the base branch has moved since. A failed gate exits `3`, which the
+action reports as an unmet gate. A check that did not run fails the job too.
+
+### Which commits added findings
+
+A range check reads each file from the commit it names, so it can walk history
+without checking anything out. This script lists the commits since a base whose
+change adds a finding in the Go files it touches:
+
+```bash title="kapi-sweep.sh"
+#!/bin/bash
+# kapi-sweep.sh <base> <voice-profile>
+# Lists the commits since base whose change adds a finding in the Go files it
+# touches, held to the rules in the voice profile. Run it from the top of the
+# repository. A commit that kapi could not check is named on standard error.
+set -u
+base="$1"
+profile="$2"
+for commit in $(git rev-list --reverse "$base..HEAD"); do
+	files=()
+	while IFS= read -r -d '' f; do files+=("$f"); done < <(git diff -z --name-only "$commit^" "$commit" -- '*.go')
+	[ ${#files[@]} -eq 0 ] && continue
+	KAPI_NO_PROJECT=1 kapi check --diff-range "$commit^..$commit" --profile-file "$profile" \
+		--max-major 0 --max-minor 0 "${files[@]}" > /dev/null 2>&1
+	case $? in
+	0) ;;
+	3) git log -1 --format='%h %s' "$commit" ;;
+	4) echo "$(git log -1 --format=%h "$commit"): not checked" >&2 ;;
+	*) echo "$(git log -1 --format=%h "$commit"): kapi check failed" >&2 ;;
+	esac
+done
+```
+
+```bash
+./kapi-sweep.sh origin/main comments.yaml
+```
+
+`KAPI_NO_PROJECT=1` and `--profile-file` hold every commit to the rules in the
+profile you name, whatever the project's recipe said when the commit was made.
+`--max-major 0 --max-minor 0` turns any finding into a failed gate. The script
+names the changed Go files, so a commit that changes only other files is left
+out, and a change to Markdown with no comment to check cannot stop the check
+from running.
+
+### When a file started breaking a rule
+
+`git bisect run` finds the first commit where a file breaks one rule. It
+checks out each commit it tests, so keep kapi and the profile outside the
+repository:
+
+```bash title="kapi-bisect.sh"
+#!/bin/bash
+# kapi-bisect.sh <file> <rule>, for git bisect run.
+# Exits 1 when the commit checked out breaks rule in file, 0 when it does not,
+# and 125, which skips the commit, when kapi could not check it. KAPI names a
+# copy of kapi and PROFILE the voice profile, both kept outside the repository
+# so that every commit is checked by the same binary against today's rules.
+set -u
+file="$1"
+rule="$2"
+[ -e "$file" ] || exit 0
+count=$(KAPI_NO_PROJECT=1 "$KAPI" check --profile-file "$PROFILE" "$file" \
+	--jq "[.findings[] | select(.rule == \"$rule\")] | length" 2> /dev/null)
+case $? in
+0 | 3) ;;
+*) exit 125 ;;
+esac
+case "$count" in
+0) exit 0 ;;
+'' | *[!0-9]*) exit 125 ;;
+*) exit 1 ;;
+esac
+```
+
+```bash
+cp "$(command -v kapi)" /tmp/kapi
+cp comments.yaml /tmp/comments.yaml
+git bisect start HEAD v1.0
+KAPI=/tmp/kapi PROFILE=/tmp/comments.yaml git bisect run ./kapi-bisect.sh internal/parse/parse.go comment.length
+git bisect reset
+```
+
+Exit `0` and `3` both mean the check ran, so the wrapper reads the findings: a
+finding for the rule marks the commit bad, and none marks it good. A check that
+did not run, exit `4`, and a kapi error, exit `1`, skip the commit with `125`,
+because that commit can say nothing about the rule. A commit where the file
+does not exist yet counts as good.
 
 ## In a project: the ship gate
 
