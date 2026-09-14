@@ -16,6 +16,7 @@ import (
 	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/gate"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/venue"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -107,6 +108,14 @@ func getStoredBlock(t *testing.T, cs *bstore.PostgresStore, pid, bid string) *mo
 	sb, err := cs.GetBlock(t.Context(), pid, "main", bid)
 	require.NoError(t, err)
 	return sb.Block
+}
+
+// draftMarks is every draft mark the project's ledger holds on main.
+func draftMarks(t *testing.T, cs *bstore.PostgresStore, pid string) []platstore.DraftBasis {
+	t.Helper()
+	marks, err := cs.ListDraftBases(t.Context(), pid, "main")
+	require.NoError(t, err)
+	return marks
 }
 
 // TestHandleReviewBlockPerLocale: reviewing fr sets fr's Target.Status to
@@ -314,11 +323,29 @@ func TestHandleReviewBlockRejectDemotesToDraft(t *testing.T) {
 	rec := callReviewBlock(t, srv, pid, bid, "fr", true)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 
-	rec, err := callReviewBlockBodyAs(t, srv, pid, bid,
+	// The platform has drafted this unit against its current source: the mark a
+	// rejection has to clear for the unit to be drafted again.
+	ctx := t.Context()
+	var approval venue.UnitDecision
+	rows, err := cs.ListUnitDecisions(ctx, pid, "main")
+	require.NoError(t, err)
+	for _, d := range rows {
+		if d.Variant == "fr" {
+			approval = d
+		}
+	}
+	require.NotEmpty(t, approval.Unit, "the approval is recorded in the ledger")
+	require.NoError(t, cs.RecordDraftBases(ctx, pid, "main", []platstore.DraftBasis{{
+		ItemName: approval.ItemName, Unit: approval.Unit, Variant: approval.Variant, SourceHash: approval.ContentHash,
+	}}))
+	require.Len(t, draftMarks(t, cs, pid), 1)
+
+	rec, err = callReviewBlockBodyAs(t, srv, pid, bid,
 		`{"target_locale":"fr","reviewed":false,"status":"draft","item_name":"greetings.txt"}`, platauth.PermAll)
 	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	assert.Contains(t, rec.Body.String(), `"status":"draft"`)
+	assert.Empty(t, draftMarks(t, cs, pid), "the rejection clears the draft mark, so the unit is drafted again")
 
 	got := getStoredBlock(t, cs, pid, bid)
 	assert.Equal(t, model.TargetStatusDraft, got.Target("fr").Status,

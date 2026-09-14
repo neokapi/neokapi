@@ -90,6 +90,10 @@ func (a pushApply) ListUnitDecisions(ctx context.Context, projectID, stream stri
 	return listUnitDecisionsTx(ctx, a.tx, projectID, stream)
 }
 
+func (a pushApply) RecordDraftBases(ctx context.Context, projectID, stream string, drafts []platstore.DraftBasis) error {
+	return recordDraftBasesTx(ctx, a.tx, projectID, stream, drafts)
+}
+
 func (a pushApply) ListCollections(ctx context.Context, projectID, stream string) ([]*platstore.Collection, error) {
 	return a.s.listCollectionsTx(ctx, a.tx, projectID, stream)
 }

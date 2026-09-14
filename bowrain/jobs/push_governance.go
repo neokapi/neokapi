@@ -701,6 +701,50 @@ func sameVerdict(a, b venue.UnitDecision) bool {
 		a.ContentHash == b.ContentHash
 }
 
+// carriesRejection reports whether any decision record is a rejection.
+func carriesRejection(decisions []venue.UnitDecision) bool {
+	for _, d := range decisions {
+		if d.ReviewState == venue.ReviewStateRejected {
+			return true
+		}
+	}
+	return false
+}
+
+// rejectionsToRedraft names the units whose draft mark this push's rejections
+// clear, the way a rejection in the editor clears it
+// (server.reviewLedger.clearDraftBasis). written is what the push records after
+// vetDecisions, so a rejection the gate refused is not in it, and held is the
+// ledger before the push. A rejection clears the mark only when it is a new
+// decision and judges the translation the venue holds now: a record sent again
+// decides nothing, and a rejection of a translation since replaced judges
+// nothing a new draft would replace.
+func (g *pushGovernor) rejectionsToRedraft(held, written []venue.UnitDecision) []platstore.DraftBasis {
+	ledger := make(map[unitVariantRef]venue.UnitDecision, len(held))
+	for _, d := range held {
+		ledger[unitVariantRef{item: d.ItemName, unit: d.Unit, variant: d.Variant}] = d
+	}
+	var clears []platstore.DraftBasis
+	for _, d := range written {
+		if d.ReviewState != venue.ReviewStateRejected || d.TargetHash == "" {
+			continue
+		}
+		if prior, ok := ledger[unitVariantRef{item: d.ItemName, unit: d.Unit, variant: d.Variant}]; ok && sameVerdict(prior, d) {
+			continue
+		}
+		blockID := g.unitID[unitRef{item: d.ItemName, unit: d.Unit}]
+		locale := decisionLocale(d)
+		if blockID == "" || locale == "" {
+			continue
+		}
+		if g.priorHash[platstore.TargetRef{BlockID: blockID, Locale: locale}] != d.TargetHash {
+			continue
+		}
+		clears = append(clears, platstore.DraftBasis{ItemName: d.ItemName, Unit: d.Unit, Variant: d.Variant})
+	}
+	return clears
+}
+
 // decisionLocale reads the language out of a decision's variant.
 func decisionLocale(d venue.UnitDecision) string {
 	var key model.VariantKey
