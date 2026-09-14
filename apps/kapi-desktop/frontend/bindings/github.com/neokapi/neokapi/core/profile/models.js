@@ -660,6 +660,19 @@ export class Pattern {
              */
             this["scope"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * NotAfter, when set, is a regular expression tested against the text before
+             * a match, which is not a violation when it matches there. Go's regular
+             * expressions have no lookbehind, so a rule whose meaning turns on the
+             * preceding words says so here: the past-habitual "used to" is a
+             * violation, and "is used to" and "an id, used to flag" are not. Anchor it
+             * with `$` to the end of that text.
+             * @member
+             * @type {string | undefined}
+             */
+            this["not_after"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }

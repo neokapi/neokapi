@@ -233,6 +233,14 @@ type Pattern struct {
 	// necessarily contains them. Vale skips code by default; this asks, because
 	// changing what an existing rule matches is not a thing to do silently.
 	Scope string `json:"scope,omitempty" yaml:"scope,omitempty"` // "", "prose", "code", "heading"
+
+	// NotAfter, when set, is a regular expression tested against the text before
+	// a match, which is not a violation when it matches there. Go's regular
+	// expressions have no lookbehind, so a rule whose meaning turns on the
+	// preceding words says so here: the past-habitual "used to" is a
+	// violation, and "is used to" and "an id, used to flag" are not. Anchor it
+	// with `$` to the end of that text.
+	NotAfter string `json:"not_after,omitempty" yaml:"not_after,omitempty"`
 }
 
 // PatternRate is a density ceiling: at most Max matches per Per words.

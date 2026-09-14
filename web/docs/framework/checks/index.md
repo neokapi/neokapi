@@ -236,6 +236,13 @@ checkset):
 - **Text hygiene**: empty content, doubled spaces and words, stray leading/
   trailing whitespace, control characters. Always on.
 
+  In a comment, `hygiene.double-spaces` reports a run of exactly two spaces
+  between two characters on one line. A comment lays text out in columns and
+  quotes literal text, so a run of three or more spaces, a run that ends where a
+  word starts on the line above or below, and a run inside backticks or double
+  quotes are layout and are not reported. A double space in a comment is a major
+  finding, and in other content a minor one.
+
   Hygiene is judged against the block's **content boundaries**, where an inline
   code counts as content. A leading or trailing placeholder is the edge of the
   content, so the space beside it is a separator, not stray whitespace:

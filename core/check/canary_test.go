@@ -48,7 +48,7 @@ func TestProbe(t *testing.T) {
 
 	caught, err := Probe(canaries, "", runTool(NewContentLintTool()))
 	require.NoError(t, err)
-	assert.Equal(t, CanaryOutcome{Status: CanaryCaught, Probes: 1}, caught)
+	assert.Equal(t, CanaryOutcome{Status: CanaryCaught, Probes: 2}, caught)
 
 	missed, err := Probe(canaries, "", inert)
 	require.NoError(t, err)
@@ -113,7 +113,7 @@ func TestSourceCanaries_AreCaughtByTheirCheckers(t *testing.T) {
 		checker  tool.Tool
 		probes   int
 	}{
-		{"hygiene", HygieneCanaries(), NewContentLintTool(), 1},
+		{"hygiene", HygieneCanaries(), NewContentLintTool(), 2},
 		{"length", LengthCanaries(10, 3), length, 2},
 		{"pattern", patternCanaries, pattern, 2},
 	}

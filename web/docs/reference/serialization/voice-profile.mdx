@@ -115,6 +115,7 @@ Each entry under `prohibited_patterns` and `required_patterns` is a **Pattern**:
 | `severity` | string | `minor`, `major`, or `critical`. Decides the score penalty and whether the finding fails a strict check. |
 | `rate` | object | A density ceiling instead of a ban: `max` matches allowed per `per_words` words (`per_words` defaults to 1,000). Under the ceiling nothing is reported; over it, every match is. A `max` of 0 is rejected at validation. Optional. |
 | `scope` | string | Where the rule applies: unset means everywhere; `prose` skips fenced blocks and inline code; `code` applies only inside them; `heading` applies only to headings. Optional. |
+| `not_after` | string | A regular expression tested against the text before each match; a match it matches there is not a violation. Anchor it with `$`. Optional, and only for `prohibited_patterns`. |
 
 ```yaml
 style:
@@ -128,6 +129,21 @@ style:
 
 The allowance a rate grants is rounded up and never below `max`, so a
 300-word document under a "one per 1,000 words" rule allows one.
+
+Go regular expressions have no lookbehind, so a rule whose meaning turns on the
+words before a match states them with `not_after`. The past-habitual "used to"
+describes what code did before a change, while "is used to" and "an id, used to
+flag" describe what it does:
+
+```yaml
+style:
+  prohibited_patterns:
+    - regex: '(?i)\bused to\b'
+      not_after: '(?i)(?:(?:\b(?:is|are|was|were|be|been|being|get|gets|got|isn''t|aren''t|wasn''t|weren''t)|[''’]s)\s+(?:\w+\s+)?|[^\w\s)\]"''\x60’”]\s*|^\s*)$'
+      description: "A comment describes what the code does, not what it used to do."
+      severity: major
+      scope: prose
+```
 
 #### Comment limits
 

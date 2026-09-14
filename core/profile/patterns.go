@@ -89,6 +89,12 @@ func MatchPatterns(p *VoiceProfile, text string) []PatternHit {
 			continue
 		}
 		sev := severityForRule(pat.Severity, SeverityMajor)
+		var notAfter *regexp.Regexp
+		if src := strings.TrimSpace(pat.NotAfter); src != "" {
+			if notAfter = compilePattern(src); notAfter == nil {
+				continue
+			}
+		}
 
 		var found []PatternHit
 		for _, m := range re.FindAllStringIndex(text, -1) {
@@ -98,6 +104,9 @@ func MatchPatterns(p *VoiceProfile, text string) []PatternHit {
 				continue
 			}
 			if !inScope(pat.Scope, text, spans, m[0]) {
+				continue
+			}
+			if notAfter != nil && notAfter.MatchString(text[:m[0]]) {
 				continue
 			}
 			found = append(found, PatternHit{

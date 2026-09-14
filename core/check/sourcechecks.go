@@ -7,6 +7,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/neokapi/neokapi/core/comment"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tool"
 )
@@ -55,7 +56,8 @@ func NewContentLintTool() *tool.BaseTool {
 		if !v.Translatable() {
 			return nil
 		}
-		Annotate(v, ContentLintID, contentLintFindings(HygieneText(v.SourceRuns())))
+		isComment := v.Type() == comment.BlockType && v.Property(comment.PropLanguage) != ""
+		Annotate(v, ContentLintID, contentLintFindings(HygieneText(v.SourceRuns()), isComment))
 		return nil
 	}
 	return t
@@ -67,8 +69,9 @@ func NewContentLintTool() *tool.BaseTool {
 //
 // text must be a [HygieneText] flattening, not a plain SourceText: every
 // predicate here is a judgement about the content's shape, which dropped
-// inline-code runs distort.
-func contentLintFindings(text string) []Finding {
+// inline-code runs distort. isComment selects the double-space rule for a
+// comment's text (CommentDoubleSpaces).
+func contentLintFindings(text string, isComment bool) []Finding {
 	if strings.TrimSpace(text) == "" {
 		return []Finding{{
 			Category: "empty",
@@ -99,10 +102,16 @@ func contentLintFindings(text string) []Finding {
 		})
 	}
 
-	if DoubleSpaces(text) {
+	// A comment reads a rule that leaves its layout out, so what it reports is a
+	// slip the reader sees, and major.
+	doubleSpaces, spaceSeverity := DoubleSpaces, SeverityMinor
+	if isComment {
+		doubleSpaces, spaceSeverity = CommentDoubleSpaces, SeverityMajor
+	}
+	if doubleSpaces(text) {
 		findings = append(findings, Finding{
 			Category: "double-spaces",
-			Severity: SeverityMinor,
+			Severity: spaceSeverity,
 			Message:  "Content contains consecutive spaces",
 		})
 	}
@@ -251,7 +260,14 @@ func NewSourcePatternTool(rules []PatternRule) (*tool.BaseTool, error) {
 
 // HygieneCanaries is the known-bad input the content-hygiene checker must flag.
 func HygieneCanaries() []Canary {
-	return []Canary{{Name: "doubled word", Block: CanaryBlock("A canary with a doubled doubled word."), Expect: "doubled-word"}}
+	return []Canary{
+		{Name: "doubled word", Block: CanaryBlock("A canary with a doubled doubled word."), Expect: "doubled-word"},
+		{
+			Name:   "double space in a comment",
+			Block:  commentCanary("func/Canary", true, "A canary comment with two  spaces.\nIts next line holds no column."),
+			Expect: "double-spaces",
+		},
+	}
 }
 
 // LengthCanaries returns, for each limit that is set, text one past it.

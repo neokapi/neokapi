@@ -284,6 +284,11 @@ func validatePatterns(add func(field, msg string), base string, patterns []Patte
 		}
 		checkEnum(add, f+".severity", pat.Severity, validSeverity)
 		validatePatternRule(add, f, pat)
+		if src := strings.TrimSpace(pat.NotAfter); src != "" {
+			if _, err := regexp.Compile(src); err != nil {
+				add(f+".not_after", fmt.Sprintf("invalid regex %q: %v", pat.NotAfter, err))
+			}
+		}
 	}
 }
 

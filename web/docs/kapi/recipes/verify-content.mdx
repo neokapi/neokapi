@@ -259,6 +259,31 @@ are the defaults. In a check scoped to a diff, the limits apply to the comments
 the change touched. See [Comment limits](/reference/serialization/voice-profile#comment-limits)
 for how sentences and words are counted.
 
+Prohibited patterns in the same profile hold comments to a writing style. These
+report phrasings that read as machine-written or that narrate a change instead
+of describing the code:
+
+```yaml title=".kapi/profiles/acme/voice.yaml"
+style:
+  prohibited_patterns:
+    - regex: "\u2014"
+      description: An em dash; use a comma, a full stop or two sentences.
+      severity: major
+      scope: prose
+    - regex: '(?i)\bused to\b'
+      not_after: '(?i)(?:(?:\b(?:is|are|was|were|be|been|being|get|gets|got|isn''t|aren''t|wasn''t|weren''t)|[''’]s)\s+(?:\w+\s+)?|[^\w\s)\]"''\x60’”]\s*|^\s*)$'
+      description: The past-habitual "used to"; describe what the code does.
+      severity: major
+      scope: prose
+    - regex: "(?i)\\b(?:crucially|importantly|load[- ]bearing|worth noting)\\b"
+      description: A significance label; state the claim.
+      severity: major
+      scope: prose
+```
+
+`not_after` keeps "is used to" and "an id, used to flag" out of the rule, which
+a regular expression alone cannot say.
+
 `kapi voice guide <file>` prints the limits in force for a file whose only
 content is its comments, such as a Go file, so an assistant about to write a
 comment there reads them first. `--comments` asks for the comments' point of
