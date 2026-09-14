@@ -39,6 +39,7 @@ func TestProseP0_go(t *testing.T) {
 // provider.
 func TestProseP0_yaml(t *testing.T)       { proseFormatPresence(t, "yaml") }
 func TestProseP0_xml(t *testing.T)        { proseFormatPresence(t, "xml") }
+func TestProseP0_html(t *testing.T)       { proseFormatPresence(t, "html") }
 func TestProseP0_androidxml(t *testing.T) { proseFormatPresence(t, "androidxml") }
 func TestProseP0_resx(t *testing.T)       { proseFormatPresence(t, "resx") }
 func TestProseP0_tmx(t *testing.T)        { proseFormatPresence(t, "tmx") }

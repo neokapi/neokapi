@@ -146,12 +146,13 @@ collections:
   `formatter.gofmt`. `kapi up` leaves the files alone. Directives, generated
   files and the code inside doc comments are never read as prose. `kapi check
   <file>.go` works on a single file with no recipe. On a YAML item, or an item
-  whose format reads plain XML files (such as `androidxml`, `resx` or `xliff`),
-  the comments are checked beside the values its reader extracts, by `kapi
-  check`, `--ship` and a diff-scoped check alike, and `kapi up` converges the
-  file exactly as it does without the key. An XML comment is named for its
-  element (`comment/resources/string[greeting]`), and commented-out markup and
-  tool suppressions are never read as prose. Markers your own tools read in
+  whose format reads plain XML or HTML files (such as `androidxml`, `resx`,
+  `xliff` or `html`), the comments are checked beside the values its reader
+  extracts, by `kapi check`, `--ship` and a diff-scoped check alike, and `kapi
+  up` converges the file exactly as it does without the key. An XML or HTML
+  comment is named for its element (`comment/resources/string[greeting]`), and
+  commented-out markup, conditional comments and tool suppressions are never
+  read as prose. Markers your own tools read in
   comments, such as `okapi-skip:`, go under `defaults.comments.directives` for
   the whole project or `comments: {directives: [...]}` on an item: a comment
   line that starts with one is set aside rather than checked, and a marker

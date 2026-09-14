@@ -127,3 +127,9 @@ var resharperRe = regexp.MustCompile(`^ReSharper (disable|restore)\b`)
 
 // ReSharper is ReSharper's instruction to disable or restore inspections.
 var ReSharper = DirectiveForm{Name: "ReSharper", Match: resharperRe.MatchString}
+
+// Markdownlint is markdownlint's instruction to turn rules off or on, as in
+// `<!-- markdownlint-disable MD033 -->`.
+var Markdownlint = DirectiveForm{Name: "markdownlint", Match: func(b string) bool {
+	return strings.HasPrefix(b, "markdownlint-")
+}}

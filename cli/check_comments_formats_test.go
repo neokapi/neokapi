@@ -28,6 +28,7 @@ var commentFormatFiles = []struct {
 	{"androidxml", "res/values/strings.xml", "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<resources>\n  <!-- Greets the the reader. -->\n  <string name=\"greeting\">Hello world</string>\n</resources>\n", "comment/resources/string[greeting]", 3},
 	{"resx", "Resources.resx", "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<root>\n  <!-- Greets the the reader. -->\n  <data name=\"Greeting\" xml:space=\"preserve\">\n    <value>Hello world</value>\n  </data>\n</root>\n", "comment/root/data[Greeting]", 3},
 	{"xml", "config/app.xml", "<root>\n  <!-- Greets the the reader. -->\n  <greeting>Hello world</greeting>\n</root>\n", "comment/root/greeting", 2},
+	{"html", "site/index.html", "<!DOCTYPE html>\n<html>\n<body>\n  <!-- Greets the the reader. -->\n  <p id=\"greeting\">Hello world</p>\n</body>\n</html>\n", "comment/p[greeting]", 4},
 }
 
 // commentFormatsProject writes an isolated project declaring each file of
@@ -76,9 +77,9 @@ func runCheckJSON(t *testing.T, recipe string) check.Report {
 	return report
 }
 
-// TestCheck_DeclaredCommentsInXMLFormats is `kapi check` over a project that
-// declares the comments of files whose readers parse XML.
-func TestCheck_DeclaredCommentsInXMLFormats(t *testing.T) {
+// TestCheck_DeclaredCommentsInMarkupFormats is `kapi check` over a project that
+// declares the comments of files whose readers parse XML or HTML.
+func TestCheck_DeclaredCommentsInMarkupFormats(t *testing.T) {
 	t.Run("each format's comment is checked and located", func(t *testing.T) {
 		report := runCheckJSON(t, commentFormatsProject(t, true))
 		assert.Equal(t, check.VerdictPassed, report.Verdict, report.DidNotRun)
