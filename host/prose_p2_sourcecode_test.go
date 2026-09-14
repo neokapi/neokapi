@@ -205,6 +205,18 @@ var sourcecodeFiles = map[string]sourcecodeFile{
 		broken:     "/// Parses the the input.\nclass Parser {\n",
 		tolerant:   true,
 	},
+	// The project's Ruby file is one the sourcecode format reads, so its
+	// comments reach the check beside the format's strings; the named files use
+	// an extension no format claims, so they are read for their comments alone.
+	"ruby": {
+		path: "Casks/kapi.rb", ext: ".rake",
+		governed: "# frozen_string_literal: true\n# Parse helps you utilize the input.\ndef parse(utilize)\n  utilize\nend\n",
+		block:    "func/parse", line: 2,
+		clean:      "# Parses the input.\ndef parse(text)\n  text\nend\n",
+		doubled:    "# Parses the the input.\ndef parse(text)\n  text\nend\n",
+		directives: "# frozen_string_literal: true\nVALUE = 1\n",
+		broken:     "# Parses the input.\ndef parse(text\n",
+	},
 }
 
 // sourcecodeProject is a project declaring the comments of one file in each
@@ -460,3 +472,5 @@ func TestProseP2_csharp(t *testing.T) { proseP2Sourcecode(t, "csharp") }
 func TestProseP2_c(t *testing.T) { proseP2Sourcecode(t, "c") }
 
 func TestProseP2_cpp(t *testing.T) { proseP2Sourcecode(t, "cpp") }
+
+func TestProseP2_ruby(t *testing.T) { proseP2Sourcecode(t, "ruby") }

@@ -219,6 +219,32 @@
         }
       },
       {
+        "language": "ruby",
+        "display_name": "Ruby",
+        "extensions": [
+          ".rb",
+          ".rake",
+          ".gemspec",
+          ".ru"
+        ],
+        "markers": {
+          "line": [
+            "#"
+          ],
+          "block": [
+            {
+              "open": "=begin",
+              "close": "=end"
+            }
+          ]
+        },
+        "canary": {
+          "name": "a Ruby comment with a doubled word, below a magic comment and above a string holding a comment marker",
+          "source": "# frozen_string_literal: true\n\n# Parses the the input.\ndef parse(text)\n  \"# not a comment #{text}\"\nend\n",
+          "block": "func/parse"
+        }
+      },
+      {
         "language": "rust",
         "display_name": "Rust",
         "extensions": [

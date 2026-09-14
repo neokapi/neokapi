@@ -1,0 +1,6 @@
+# frozen_string_literal: true
+
+# Parses the the input.
+def parse(text)
+  "# not a comment #{text}"
+end

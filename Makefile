@@ -1301,13 +1301,14 @@ test-sourcecode-plugin: ## Run kapi-sourcecode tests (grammar-driven prose extra
 
 # The comment tests hold the plugin to comment spans @babel/parser reads, written
 # beside each fixture. Needs node and the parser from the pnpm store (vp install).
-sourcecode-comment-goldens: ## Regenerate the goldens the kapi-sourcecode comment tests compare with (needs node, python3, cargo, a JDK, the .NET SDK and libclang)
+sourcecode-comment-goldens: ## Regenerate the goldens the kapi-sourcecode comment tests compare with (needs node, python3, ruby, cargo, a JDK, the .NET SDK and libclang)
 	node plugins/sourcecode/internal/comments/testdata/babel-goldens.mjs
 	python3 plugins/sourcecode/internal/comments/testdata/python-goldens.py
 	python3 plugins/sourcecode/internal/comments/testdata/rust-goldens.py
 	python3 plugins/sourcecode/internal/comments/testdata/java-goldens.py
 	python3 plugins/sourcecode/internal/comments/testdata/csharp-goldens.py
 	python3 plugins/sourcecode/internal/comments/testdata/clang-goldens.py
+	ruby plugins/sourcecode/internal/comments/testdata/ruby-goldens.rb
 
 # Package a signed-ready distribution tarball for the HOST platform: builds
 # kapi-sat -tags onnx, bundles the onnxruntime shared lib at lib/<name> beside

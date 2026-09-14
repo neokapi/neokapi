@@ -1,0 +1,40 @@
+require "json"
+
+# Sits above nothing: a blank line follows.
+
+# Parses recipes.
+module Kapi
+  # The largest recipe.
+  LIMIT = 10
+
+  # Reads a recipe.
+  #
+  # @param source [String] the recipe's text
+  # @return [Parser] a parser
+  class Parser
+    attr_reader :source # a trailing comment
+
+    # Makes a parser.
+    def initialize(source)
+      # Inside the method.
+      @source = source
+    end
+
+    # Runs the parser.
+    def self.run = new("x")
+  end
+end
+
+# A helper at the top of the file.
+def helper; end
+
+cask "kapi-desktop" do
+  # The app's summary.
+  desc "Desktop workbench"
+end
+
+=begin
+Notes kept above the method, with its documentation between.
+=end
+# Checks the recipe.
+def check; end

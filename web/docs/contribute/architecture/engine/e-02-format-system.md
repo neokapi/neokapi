@@ -469,7 +469,10 @@ documentation comments document the declaration after them, and their HTML and
 XML tags are placeholders. C and C++ files are located even when the grammar
 finds syntax errors, since the preprocessor makes sound code read as malformed;
 a comment on a preprocessor directive's line is lexed from the directive, and a
-measured corpus shows the tree places every other comment exactly. A file the grammar cannot parse whole is not
+measured corpus shows the tree places every other comment exactly. A Ruby file
+the sourcecode format reads has its declared comments read through the same
+plugin's comment provider, beside the format's strings: a format that supplies
+no comments of its own falls back to the provider for the file's language. A file the grammar cannot parse whole is not
 located, and its comment check did not run. The canary comes from
 the plugin's manifest and goes through the plugin beside every real file. When no
 installed plugin reads a declared file's language, a check over the project

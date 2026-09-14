@@ -87,6 +87,9 @@ type syntax struct {
 	// comments on its first lines hold it, beside the phrases every language
 	// shares.
 	generated *regexp.Regexp
+	// yardTypes reports that a documentation comment's tags write their types in
+	// brackets, as YARD's `@param name [String]` does.
+	yardTypes bool
 	// docCommands reports that a documentation comment's tags may open with a
 	// backslash as well as `@`, as Doxygen's `\param` does.
 	docCommands bool
@@ -279,7 +282,13 @@ func (s *scanner) comment(units []unit, texts []commentText, subject string, doc
 		lines = append(lines, t.lines...)
 	}
 	docBlock := units[0].kind.doc() || units[0].kind.innerDoc()
-	runs, deprecated := buildRuns(trimBlankLines(lines), docBlock && s.lang.syntax.docTags, docBlock && s.lang.syntax.markup, docBlock && s.lang.syntax.docCommands)
+	syn := s.lang.syntax
+	runs, deprecated := buildRuns(trimBlankLines(lines), docStyle{
+		tags:      docBlock && syn.docTags,
+		markup:    docBlock && syn.markup,
+		commands:  docBlock && syn.docCommands,
+		yardTypes: docBlock && syn.yardTypes,
+	})
 	s.out.Comments = append(s.out.Comments, comment.Comment{
 		Start:      start,
 		End:        end,

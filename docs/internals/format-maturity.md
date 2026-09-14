@@ -614,10 +614,9 @@ change to the scorer:
   otherwise, so removing a reader turns CI red rather than quietly changing a
   score. A present language with no passing P1 scores P0. Rung tests above P0
   never establish presence, because a package can pass its P1 test while no
-  binary links it. `TestProseP0_ruby` asserts the sourcecode plugin's
-  `Grammars()`. The presence tests of the comment languages the same plugin
-  reads, such as `TestProseP0_typescript`, assert that it holds the language and
-  that its manifest declares it.
+  binary links it. The presence tests of the comment languages the sourcecode
+  plugin reads, such as `TestProseP0_typescript` and `TestProseP0_ruby`, assert
+  that it holds the language and that its manifest declares it.
 - Every subject whose name starts with `canary` is reserved for the probe's
   fixtures.
 - A name that begins `TestProseP` and a digit but breaks the pattern, or that
