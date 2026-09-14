@@ -5,22 +5,60 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/tdewolff/parse/v2"
+	"github.com/tdewolff/parse/v2/css"
+	"mvdan.cc/sh/v3/syntax"
 
 	"github.com/neokapi/neokapi/core/comment/commenttest"
 )
 
-// The oracle for TypeScript, TSX and JavaScript is the comment spans
-// @babel/parser reports, written beside each fixture by
-// testdata/babel-goldens.mjs. Grouping and directives are decided here from the
-// bytes, with rules written for this test and nothing shared with the provider.
+// Each language is held to comment spans read without the grammar the plugin
+// reads it with. TypeScript, TSX and JavaScript are held to @babel/parser, and
+// Python to the tokenize module of its standard library; scripts in testdata
+// run those and write a golden beside each fixture. Bash is held to the parser
+// of mvdan.cc/sh and CSS to the lexer of github.com/tdewolff/parse, both run
+// by the test itself. Grouping and directives are decided here from the bytes,
+// with rules written for this test and nothing shared with the provider.
 
-// golden is one fixture's Babel reading.
+// oracle reads one language's comment spans without the provider. A span is its
+// start and end offsets and the lengths of its opening and closing markers.
+type oracle struct {
+	// name names the reader in a failure.
+	name string
+	// golden is the suffix of the file beside each fixture that records the
+	// reader's spans, and script the script in testdata that writes it. scan,
+	// set instead, reads the spans in the test.
+	golden, script string
+	scan           func(src []byte) ([][4]int, error)
+	// line is the marker a comment that runs to the end of its line opens
+	// with, or empty for a language without one.
+	line string
+	// directive reports whether the comment at span is one a tool reads.
+	directive func(src []byte, span [4]int) bool
+}
+
+var babel = oracle{name: "Babel", golden: ".babel", script: "testdata/babel-goldens.mjs", line: "//", directive: babelDirective}
+
+var oracles = map[string]oracle{
+	"typescript": babel,
+	"tsx":        babel,
+	"javascript": babel,
+	"python":     {name: "tokenize", golden: ".tokenize", script: "testdata/python-goldens.py", line: "#", directive: pythonDirective},
+	"bash":       {name: "mvdan.cc/sh", scan: shellSpans, line: "#", directive: shellDirective},
+	"css":        {name: "tdewolff/parse", scan: cssSpans, directive: cssDirective},
+}
+
+// golden is one fixture's spans as a reader outside the test recorded them.
 type golden struct {
 	fixture string
 	source  string
@@ -28,12 +66,13 @@ type golden struct {
 	spans   [][4]int
 }
 
-// readGolden parses a fixture's .babel file.
-func readGolden(fixture string) (golden, error) {
+// readGolden parses the golden beside a fixture.
+func readGolden(fixture string, o oracle) (golden, error) {
 	g := golden{fixture: fixture}
-	f, err := os.Open(fixture + ".babel")
+	name := filepath.Base(fixture) + o.golden
+	f, err := os.Open(fixture + o.golden)
 	if err != nil {
-		return g, fmt.Errorf("no Babel golden beside %s; run testdata/babel-goldens.mjs: %w", filepath.Base(fixture), err)
+		return g, fmt.Errorf("no %s golden beside %s; run %s: %w", o.name, filepath.Base(fixture), o.script, err)
 	}
 	defer f.Close()
 	sc := bufio.NewScanner(f)
@@ -48,13 +87,13 @@ func readGolden(fixture string) (golden, error) {
 		default:
 			fields := strings.Fields(line)
 			if len(fields) != 4 {
-				return g, fmt.Errorf("%s.babel: malformed span %q", filepath.Base(fixture), line)
+				return g, fmt.Errorf("%s: malformed span %q", name, line)
 			}
 			var span [4]int
 			for i, field := range fields {
 				n, err := strconv.Atoi(field)
 				if err != nil {
-					return g, fmt.Errorf("%s.babel: malformed span %q: %w", filepath.Base(fixture), line, err)
+					return g, fmt.Errorf("%s: malformed span %q: %w", name, line, err)
 				}
 				span[i] = n
 			}
@@ -62,7 +101,7 @@ func readGolden(fixture string) (golden, error) {
 		}
 	}
 	if g.sha256 == "" {
-		return g, fmt.Errorf("%s.babel records no sha256", filepath.Base(fixture))
+		return g, fmt.Errorf("%s records no sha256", name)
 	}
 	return g, sc.Err()
 }
@@ -72,35 +111,35 @@ func sum(src []byte) string {
 	return hex.EncodeToString(h[:])
 }
 
-// oracleUnits turns Babel's spans into the units the conformance suite holds a
+// units turns an oracle's spans into the units the conformance suite holds a
 // provider to. Line comments share a group while each sits alone on its line
 // and the next follows on the very next line. Every other comment is a group
 // of its own.
-func oracleUnits(src []byte, spans [][4]int) []commenttest.Unit {
+func (o oracle) units(src []byte, spans [][4]int) []commenttest.Unit {
 	units := make([]commenttest.Unit, len(spans))
 	group := 0
 	for i, s := range spans {
-		if i > 0 && !continuesGroup(src, spans[i-1], s) {
+		if i > 0 && !o.continuesGroup(src, spans[i-1], s) {
 			group++
 		}
 		units[i] = commenttest.Unit{
 			Start: s[0], End: s[1], Open: s[2], Close: s[3],
-			Group: group, Directive: oracleDirective(src[s[0]:s[1]]),
+			Group: group, Directive: o.directive(src, s),
 		}
 	}
 	return units
 }
 
-func continuesGroup(src []byte, prev, cur [4]int) bool {
-	if !isLineComment(src, prev) || !isLineComment(src, cur) || !aloneOnLine(src, prev[0]) || !aloneOnLine(src, cur[0]) {
+func (o oracle) continuesGroup(src []byte, prev, cur [4]int) bool {
+	if !o.isLineComment(src, prev) || !o.isLineComment(src, cur) || !aloneOnLine(src, prev[0]) || !aloneOnLine(src, cur[0]) {
 		return false
 	}
 	gap := src[prev[1]:cur[0]]
 	return bytes.Count(gap, []byte("\n")) == 1 && len(bytes.TrimSpace(gap)) == 0
 }
 
-func isLineComment(src []byte, s [4]int) bool {
-	return s[3] == 0 && bytes.HasPrefix(src[s[0]:s[1]], []byte("//"))
+func (o oracle) isLineComment(src []byte, s [4]int) bool {
+	return o.line != "" && s[3] == 0 && bytes.HasPrefix(src[s[0]:s[1]], []byte(o.line))
 }
 
 func aloneOnLine(src []byte, start int) bool {
@@ -108,9 +147,9 @@ func aloneOnLine(src []byte, start int) bool {
 	return len(bytes.TrimLeft(src[lineStart:start], " \t")) == 0
 }
 
-// oracleDirectives are the comment forms JavaScript and TypeScript tools read,
+// babelDirectives are the comment forms JavaScript and TypeScript tools read,
 // matched against the comment as written.
-var oracleDirectives = []*regexp.Regexp{
+var babelDirectives = []*regexp.Regexp{
 	regexp.MustCompile(`^#!`),
 	regexp.MustCompile(`^//\s*(eslint-disable|eslint-enable\b|eslint-env\b|oxlint-(disable|enable)|biome-ignore|tslint:|@ts-(expect-error|ignore|nocheck|check)\b|prettier-ignore|(istanbul|c8|v8) ignore\b|@vite-ignore\b|[#@] ?source(Mapping)?URL=|@(vitest|jest)-environment\b|@jsx(ImportSource|Frag|Runtime)?\b)`),
 	regexp.MustCompile(`^///\s*<(reference|amd-module|amd-dependency)`),
@@ -118,10 +157,11 @@ var oracleDirectives = []*regexp.Regexp{
 	regexp.MustCompile(`(?m)^\s*(/\*\*?|\*)?\s*@(vitest-environment|jest-environment|jsx|jsxImportSource|jsxFrag|jsxRuntime)\b`),
 }
 
-func oracleDirective(text []byte) bool {
-	for i, re := range oracleDirectives {
+func babelDirective(src []byte, s [4]int) bool {
+	text := src[s[0]:s[1]]
+	for i, re := range babelDirectives {
 		// The docblock pragma rule reads every line of a block comment.
-		if i == len(oracleDirectives)-1 && !bytes.HasPrefix(text, []byte("/*")) {
+		if i == len(babelDirectives)-1 && !bytes.HasPrefix(text, []byte("/*")) {
 			continue
 		}
 		if re.Match(text) {
@@ -129,4 +169,99 @@ func oracleDirective(text []byte) bool {
 		}
 	}
 	return false
+}
+
+// pythonDirectives are the comments Python tools read: a marker a tool names at
+// the start of the comment, flake8's noqa and Bandit's nosec anywhere in it,
+// and coverage.py's default exclusion.
+var pythonDirectives = []*regexp.Regexp{
+	regexp.MustCompile(`^#\s*(type|pylint|mypy|pyright|ruff|isort):`),
+	regexp.MustCompile(`^#\s*fmt:\s*(on|off|skip)\b`),
+	regexp.MustCompile(`(?i)#\s*noqa\b`),
+	regexp.MustCompile(`#\s*nosec\b`),
+	regexp.MustCompile(`#\s*(pragma|PRAGMA)[:\s]?\s*(no|NO)\s*(cover|COVER|branch|BRANCH)\b`),
+}
+
+// pep263 is the pattern PEP 263 gives for a source encoding declaration, which
+// Python reads on the first two lines.
+var pep263 = regexp.MustCompile(`^[ \t\f]*#.*?coding[:=][ \t]*[-_.a-zA-Z0-9]+`)
+
+func pythonDirective(src []byte, s [4]int) bool {
+	text := src[s[0]:s[1]]
+	if s[0] == 0 && bytes.HasPrefix(text, []byte("#!")) {
+		return true
+	}
+	lineStart := bytes.LastIndexByte(src[:s[0]], '\n') + 1
+	if bytes.Count(src[:s[0]], []byte("\n")) < 2 && pep263.Match(src[lineStart:s[1]]) {
+		return true
+	}
+	return slices.ContainsFunc(pythonDirectives, func(re *regexp.Regexp) bool { return re.Match(text) })
+}
+
+// shellcheckDirective is a ShellCheck directive, a comment naming one of the
+// keys ShellCheck reads.
+var shellcheckDirective = regexp.MustCompile(`^#\s*shellcheck\s+(disable|enable|source|source-path|shell|external-sources)=`)
+
+func shellDirective(src []byte, s [4]int) bool {
+	text := src[s[0]:s[1]]
+	return s[0] == 0 && bytes.HasPrefix(text, []byte("#!")) || shellcheckDirective.Match(text)
+}
+
+// cssDirective is a comment stylelint or Prettier reads, or a source map
+// reference.
+var cssDirectiveForm = regexp.MustCompile(`^/\*\s*(stylelint-(disable|enable)|prettier-ignore\b|[#@]\s?source(Mapping)?URL=)`)
+
+func cssDirective(src []byte, s [4]int) bool {
+	return cssDirectiveForm.Match(src[s[0]:s[1]])
+}
+
+// shellSpans reads the comments of a Bash script with mvdan.cc/sh.
+func shellSpans(src []byte) ([][4]int, error) {
+	f, err := syntax.NewParser(syntax.KeepComments(true), syntax.Variant(syntax.LangBash)).Parse(bytes.NewReader(src), "")
+	if err != nil {
+		return nil, err
+	}
+	var spans [][4]int
+	syntax.Walk(f, func(n syntax.Node) bool {
+		c, ok := n.(*syntax.Comment)
+		if !ok {
+			return true
+		}
+		start, end := int(c.Pos().Offset()), int(c.End().Offset())
+		// The parser counts the line break after a comment that ends in a
+		// backslash into the comment. The shell ends every comment before its
+		// line break.
+		if end > start && src[end-1] == '\n' {
+			end--
+		}
+		spans = append(spans, [4]int{start, end, 1, 0})
+		return true
+	})
+	slices.SortFunc(spans, func(a, b [4]int) int { return a[0] - b[0] })
+	return spans, nil
+}
+
+// cssSpans reads the comments of a stylesheet with the tdewolff CSS lexer,
+// whose tokens cover every byte of the input in order.
+func cssSpans(src []byte) ([][4]int, error) {
+	l := css.NewLexer(parse.NewInputBytes(src))
+	var spans [][4]int
+	offset := 0
+	for {
+		tt, data := l.Next()
+		if tt == css.ErrorToken {
+			break
+		}
+		if tt == css.CommentToken {
+			spans = append(spans, [4]int{offset, offset + len(data), 2, 2})
+		}
+		offset += len(data)
+	}
+	if err := l.Err(); err != nil && !errors.Is(err, io.EOF) {
+		return nil, err
+	}
+	if offset != len(src) {
+		return nil, fmt.Errorf("the CSS lexer read %d of %d bytes", offset, len(src))
+	}
+	return spans, nil
 }

@@ -1,0 +1,225 @@
+#!/usr/bin/env bash
+#
+# gen-brew-formula.sh — emit the kapi-cli and/or bowrain-cli Homebrew formulae.
+#
+# Replaces GoReleaser's `brews:` block (we no longer run GoReleaser for the
+# CLI). Reads the per-archive sha256 from a checksums.txt and writes Ruby
+# formulae that download the matching release archive per OS/arch from the
+# public GitHub release (the repo is public).
+#
+# Usage: gen-brew-formula.sh <version> <repo> <checksums.txt> <out-dir> [channel] [which] [release-tag]
+#   repo         e.g. neokapi/neokapi
+#   out          formulae are written here
+#   channel      "stable" (default) → kapi-cli.rb / bowrain-cli.rb
+#                "beta"             → kapi-cli-beta.rb / bowrain-cli-beta.rb
+#   which        "both" (default) | "kapi" | "bowrain" — which formula(s) to emit.
+#                kapi and bowrain release on separate tracks (v* vs bowrain-v*),
+#                so each track emits only its own formula.
+#   release-tag  GitHub release tag the archives are attached to; forms the
+#                download base URL. Defaults to "v<version>" (kapi track). The
+#                bowrain track passes "bowrain-v<version>" so the kapi-bowrain_*
+#                archives resolve against the bowrain release.
+#
+# The beta variant is a separate `-beta` formula. `brew install
+# neokapi/tap/kapi-cli-beta` opts a user into the beta channel. It conflicts with
+# the stable formula (both install the same `kapi` binary), so a user is on one
+# channel at a time — switching channels, not installing side by side.
+set -euo pipefail
+
+version="${1:?version required}"
+repo="${2:?repo (owner/name) required}"
+checksums="${3:?checksums.txt required}"
+out="${4:?out dir required}"
+channel="${5:-stable}"
+which="${6:-both}"
+release_tag="${7:-v${version}}"
+case "$which" in
+  both | kapi | bowrain) ;;
+  *) echo "gen-brew-formula.sh: unknown which '$which' (want both|kapi|bowrain)" >&2; exit 1 ;;
+esac
+mkdir -p "$out"
+
+# Channel-derived naming. Beta uses a `-beta` suffix, NOT `@beta`: Homebrew's
+# Formulary.class_s only rewrites `@` to `AT` when it precedes a digit
+# (/(.)@(\d)/ → \1AT\2), so `kapi-cli@beta` would expect the class `KapiCli@beta`
+# — an invalid Ruby identifier no class can match. `kapi-cli-beta` maps cleanly to
+# `KapiCliBeta`. Each channel's formula conflicts with the other's (they install
+# the same `kapi` binary) and the beta bowrain formula depends on the beta kapi.
+case "$channel" in
+  stable)
+    kapi_name="kapi-cli";       kapi_class="KapiCli"
+    bowrain_name="bowrain-cli"; bowrain_class="BowrainCli"
+    kapi_dep="neokapi/tap/kapi-cli"
+    kapi_conflict="kapi-cli-beta"
+    bowrain_conflict="bowrain-cli-beta"
+    ;;
+  beta)
+    kapi_name="kapi-cli-beta";       kapi_class="KapiCliBeta"
+    bowrain_name="bowrain-cli-beta"; bowrain_class="BowrainCliBeta"
+    kapi_dep="neokapi/tap/kapi-cli-beta"
+    kapi_conflict="kapi-cli"
+    bowrain_conflict="bowrain-cli"
+    ;;
+  *)
+    echo "gen-brew-formula.sh: unknown channel '$channel' (want stable|beta)" >&2
+    exit 1
+    ;;
+esac
+
+base_url="https://github.com/${repo}/releases/download/${release_tag}"
+
+# sha256 for a release filename, looked up in checksums.txt.
+sha_for() {
+  local f="$1" s
+  s=$(awk -v f="$f" '$2==f {print $1}' "$checksums")
+  [ -n "$s" ] || { echo "gen-brew-formula.sh: no checksum for $f in $checksums" >&2; exit 1; }
+  printf '%s' "$s"
+}
+
+# Emit an `on_macos/on_linux { on_arm/on_intel { url; sha256 } }` body for the
+# archive family $1 (e.g. "kapi" or "kapi-bowrain"), indented 2 spaces. macOS is
+# Apple-Silicon only (no on_intel); Linux covers both arches.
+platform_block() {
+  local fam="$1" ext_darwin="tar.gz" ext_linux="tar.gz"
+  local f_da="${fam}_${version}_darwin_arm64.${ext_darwin}"
+  local f_la="${fam}_${version}_linux_arm64.${ext_linux}"
+  local f_li="${fam}_${version}_linux_amd64.${ext_linux}"
+  cat <<RUBY
+  on_macos do
+    on_arm do
+      url "${base_url}/${f_da}"
+      sha256 "$(sha_for "$f_da")"
+    end
+  end
+
+  on_linux do
+    on_arm do
+      url "${base_url}/${f_la}"
+      sha256 "$(sha_for "$f_la")"
+    end
+    on_intel do
+      url "${base_url}/${f_li}"
+      sha256 "$(sha_for "$f_li")"
+    end
+  end
+RUBY
+}
+
+written=()
+
+# ---- kapi-cli ----
+if [ "$which" = both ] || [ "$which" = kapi ]; then
+{
+  echo "class ${kapi_class} < Formula"
+  # Keep under 80 characters — `brew audit --strict` rejects longer descriptions.
+  echo '  desc "Format-aware content engine — parse, edit and check any format"'
+  echo '  homepage "https://github.com/neokapi/neokapi"'
+  # Declared explicitly, never inferred: Homebrew's Version.detect on a release
+  # URL like .../v1.1.0/kapi_1.1.0_darwin_arm64.tar.gz returns "64" (it latches
+  # onto `arm64`). `brew audit --strict` calls the declaration redundant for
+  # prerelease versions, whose `-rcN` suffix happens to defeat that heuristic —
+  # ignore it; dropping the line would ship a formula versioned 64.
+  echo "  version \"${version}\""
+  echo '  license "Apache-2.0"'
+  echo
+  # Bundle the PDFium-backed PDF reader so it is installed with kapi-cli. The
+  # plugin formula drops into the shared kapi plugins root; no cycle since
+  # kapi-pdfium does not depend on kapi-cli.
+  echo '  depends_on "neokapi/tap/kapi-pdfium"'
+  echo
+  platform_block "kapi-cli"
+  echo
+  # The stable and beta channels install the same `kapi` binary — only one at a
+  # time. Both sides declare it: `brew audit` requires the conflict to be
+  # symmetric, and Homebrew only consults the conflicts of the formula being
+  # installed. Emitted after the on_macos/on_linux blocks — the component order
+  # `brew audit --strict` enforces.
+  echo "  conflicts_with \"${kapi_conflict}\", because: \"both install the kapi binary\""
+  cat <<'RUBY'
+
+  # Install kapi plus its multi-call toolbox aliases. kgrep / ksed / kcat /
+  # kconv / kdiff are symlinks to the kapi binary, which dispatches on its
+  # invocation name (busybox-style) — no extra binaries, no extra download size.
+  def install
+    bin.install "kapi"
+    bin.install_symlink bin/"kapi" => "kgrep"
+    bin.install_symlink bin/"kapi" => "ksed"
+    bin.install_symlink bin/"kapi" => "kcat"
+    bin.install_symlink bin/"kapi" => "kconv"
+    bin.install_symlink bin/"kapi" => "kdiff"
+  end
+
+  # First exec of a newly installed binary pays macOS Gatekeeper's one-time
+  # assessment (an XProtect scan proportional to binary size plus an online
+  # notarization lookup — 1-3s for kapi). Absorb it at install time so the
+  # user's first `kapi` command starts fast. `--version` exits before touching
+  # any user config or project state; elsewhere this is a harmless ~20ms no-op.
+  def post_install
+    system bin/"kapi", "--version"
+  end
+
+  test do
+    system "#{bin}/kapi", "version"
+    assert_match "grep", shell_output("#{bin}/kgrep --help 2>&1")
+    assert_match "diff", shell_output("#{bin}/kdiff --help 2>&1")
+  end
+end
+RUBY
+} > "$out/${kapi_name}.rb"
+written+=("$out/${kapi_name}.rb")
+fi
+
+# ---- bowrain-cli ----
+if [ "$which" = both ] || [ "$which" = bowrain ]; then
+{
+  echo "class ${bowrain_class} < Formula"
+  echo '  desc "Bowrain plugin for kapi — sync .kapi projects with Bowrain Server"'
+  echo '  homepage "https://github.com/neokapi/neokapi"'
+  # See the kapi-cli block: the version is declared, never inferred from the URL.
+  echo "  version \"${version}\""
+  echo '  license "Apache-2.0"'
+  echo
+  echo "  depends_on \"${kapi_dep}\""
+  echo
+  platform_block "kapi-bowrain"
+  echo
+  echo "  conflicts_with \"${bowrain_conflict}\", because: \"both install the bowrain plugin\""
+  cat <<'RUBY'
+
+  # Plugin layout: kapi-bowrain binary + manifest.json, under a single `bowrain/`
+  # top-level directory. Homebrew chdirs into that directory before `install`
+  # runs, so the staged tree is flat — glob "*", not "bowrain/*" (which matches
+  # nothing and installs an empty array). Install the whole tree under the keg's
+  # own share/kapi/plugins/bowrain; Homebrew then links it to
+  # HOMEBREW_PREFIX/share/kapi/plugins/bowrain, the shared kapi plugins root
+  # `kapi` discovers. Installing into the keg (rather than symlinking into
+  # HOMEBREW_PREFIX, which the install sandbox denies with EPERM because that
+  # path belongs to another formula) keeps the install sandbox-safe and lets
+  # `brew uninstall` clean up.
+  def install
+    (share/"kapi/plugins/bowrain").install Dir["*"]
+  end
+
+  # Absorb macOS Gatekeeper's one-time first-exec assessment of the plugin
+  # binary at install time instead of stalling the first bowrain command.
+  # Best-effort: a failure just means the first real exec pays it instead.
+  def post_install
+    system share/"kapi/plugins/bowrain/kapi-bowrain", "version"
+  rescue
+    nil
+  end
+
+  test do
+    # The plugin binary reports the version it was built at; this also proves the
+    # tree actually landed in the shared kapi plugins root rather than being a
+    # silently-empty install.
+    assert_match version.to_s,
+      shell_output("#{share}/kapi/plugins/bowrain/kapi-bowrain version 2>&1")
+  end
+end
+RUBY
+} > "$out/${bowrain_name}.rb"
+written+=("$out/${bowrain_name}.rb")
+fi
+
+echo "wrote ${written[*]} (channel=${channel}, which=${which}, tag=${release_tag})" >&2

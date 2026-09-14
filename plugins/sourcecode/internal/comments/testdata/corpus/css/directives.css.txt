@@ -1,0 +1,4 @@
+/* stylelint-disable no-descending-specificity */
+/* prettier-ignore */
+/*# sourceMappingURL=site.css.map */
+.a { color: red; }

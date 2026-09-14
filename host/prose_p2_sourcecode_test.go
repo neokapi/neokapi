@@ -92,9 +92,12 @@ type sourcecodeFile struct {
 	governed string
 	block    string
 	line     int
-	// clean holds one doc comment with nothing to find, and doubled one with a
+	// clean holds one comment with nothing to find, and doubled one with a
 	// doubled word, on line 1.
 	clean, doubled string
+	// directives holds comments that are all directives, and broken a
+	// commented file that does not parse.
+	directives, broken string
 }
 
 var sourcecodeFiles = map[string]sourcecodeFile{
@@ -102,22 +105,55 @@ var sourcecodeFiles = map[string]sourcecodeFile{
 		path: "src/parse.ts", ext: ".ts",
 		governed: "// eslint-disable-next-line no-console\n/** Parse helps you utilize the input. */\nexport function parse(src: string): string {\n  return \"utilize\" + src;\n}\n",
 		block:    "func/parse", line: 2,
-		clean:   "/** Parses the input. */\nexport function parse(src: string): string {\n  return src;\n}\n",
-		doubled: "/** Parses the the input. */\nexport function parse(src: string): string {\n  return src;\n}\n",
+		clean:      "/** Parses the input. */\nexport function parse(src: string): string {\n  return src;\n}\n",
+		doubled:    "/** Parses the the input. */\nexport function parse(src: string): string {\n  return src;\n}\n",
+		directives: "// eslint-disable-next-line no-console\nexport const answer = 42;\n",
+		broken:     "/** Parses the input. */\nexport function (\n",
 	},
 	"tsx": {
 		path: "ui/Greeting.tsx", ext: ".tsx",
 		governed: "/** Greeting helps you utilize the page. */\nexport function Greeting() {\n  return <p>utilize {/* A comment inside JSX. */}</p>;\n}\n",
 		block:    "func/Greeting", line: 1,
-		clean:   "/** Renders the greeting. */\nexport function Greeting() {\n  return <p>Hello</p>;\n}\n",
-		doubled: "/** Renders the the greeting. */\nexport function Greeting() {\n  return <p>Hello</p>;\n}\n",
+		clean:      "/** Renders the greeting. */\nexport function Greeting() {\n  return <p>Hello</p>;\n}\n",
+		doubled:    "/** Renders the the greeting. */\nexport function Greeting() {\n  return <p>Hello</p>;\n}\n",
+		directives: "// eslint-disable-next-line no-console\nexport const answer = 42;\n",
+		broken:     "/** Renders the greeting. */\nexport function (\n",
 	},
 	"javascript": {
 		path: "scripts/read.mjs", ext: ".mjs",
 		governed: "#!/usr/bin/env node\n/** Read helps you utilize the config. */\nexport function read() {\n  return `utilize`;\n}\n",
 		block:    "func/read", line: 2,
-		clean:   "/** Reads the config. */\nexport function read() {\n  return 1;\n}\n",
-		doubled: "/** Reads the the config. */\nexport function read() {\n  return 1;\n}\n",
+		clean:      "/** Reads the config. */\nexport function read() {\n  return 1;\n}\n",
+		doubled:    "/** Reads the the config. */\nexport function read() {\n  return 1;\n}\n",
+		directives: "// eslint-disable-next-line no-console\nexport const answer = 42;\n",
+		broken:     "/** Reads the config. */\nexport function (\n",
+	},
+	"python": {
+		path: "tools/parse.py", ext: ".py",
+		governed: "# noqa: E501\n# Parse helps you utilize the input.\ndef parse(src):\n    return \"utilize\" + src\n",
+		block:    "func/parse", line: 2,
+		clean:      "# Parses the input.\ndef parse(src):\n    return src\n",
+		doubled:    "# Parses the the input.\ndef parse(src):\n    return src\n",
+		directives: "# -*- coding: utf-8 -*-\nanswer = 42\n",
+		broken:     "# Parses the input.\ndef parse(\n",
+	},
+	"bash": {
+		path: "scripts/build.sh", ext: ".sh",
+		governed: "#!/usr/bin/env bash\n# Build helps you utilize the site.\nbuild() {\n  echo \"utilize\"\n}\n",
+		block:    "func/build", line: 2,
+		clean:      "# Builds the site.\nbuild() {\n  echo done\n}\n",
+		doubled:    "# Builds the the site.\nbuild() {\n  echo done\n}\n",
+		directives: "# shellcheck disable=SC2086\necho $HOME\n",
+		broken:     "# Builds the site.\nbuild() {\n",
+	},
+	"css": {
+		path: "styles/site.css", ext: ".css",
+		governed: "/* stylelint-disable no-descending-specificity */\n/* Header styles utilize the brand color. */\n.header { content: \"utilize\"; }\n",
+		block:    "rule/.header", line: 2,
+		clean:      "/* Styles the header. */\n.header { color: red; }\n",
+		doubled:    "/* Styles the the header. */\n.header { color: red; }\n",
+		directives: "/* prettier-ignore */\n.header { color: red; }\n",
+		broken:     "/* Styles the header. */\n.header { color: red;\n",
 	},
 }
 
@@ -220,14 +256,14 @@ func proseP2Sourcecode(t *testing.T, language string) {
 
 	t.Run("a file with no comment prose did not run", func(t *testing.T) {
 		a := sourcecodeApp(t, nil)
-		report := namedSourceCheck(t, a, "directives"+f.ext, "// eslint-disable-next-line no-console\nexport const answer = 42;\n")
+		report := namedSourceCheck(t, a, "directives"+f.ext, f.directives)
 		assert.Equal(t, check.VerdictDidNotRun, report.Verdict, "zero comments checked is never a pass")
 		assert.False(t, report.Pass)
 	})
 
 	t.Run("a file that does not parse did not run", func(t *testing.T) {
 		a := sourcecodeApp(t, nil)
-		report := namedSourceCheck(t, a, "broken"+f.ext, "/** Parses the input. */\nexport function (\n")
+		report := namedSourceCheck(t, a, "broken"+f.ext, f.broken)
 		run := analyzerRun(t, report, analyzer)
 		assert.Equal(t, check.AnalyzerDidNotRun, run.Status)
 		assert.Contains(t, run.Reason, "does not parse")
@@ -259,7 +295,8 @@ func proseP2Sourcecode(t *testing.T, language string) {
 		writeCheckInput(t, dir, name, f.doubled)
 		t.Chdir(dir)
 		firstLine := f.doubled[:strings.IndexByte(f.doubled, '\n')]
-		patch := "--- a/" + name + "\n+++ b/" + name + "\n@@ -1 +1 @@\n-/** Before. */\n+" + firstLine + "\n"
+		before := strings.Replace(firstLine, "the the", "the", 1)
+		patch := "--- a/" + name + "\n+++ b/" + name + "\n@@ -1 +1 @@\n-" + before + "\n+" + firstLine + "\n"
 		cmd := diffCommand(t)
 		require.NoError(t, cmd.Flags().Set("diff-file", StdinName))
 		cmd.SetIn(bytes.NewBufferString(patch))
@@ -347,3 +384,9 @@ func TestProseP2_typescript(t *testing.T) {
 func TestProseP2_tsx(t *testing.T) { proseP2Sourcecode(t, "tsx") }
 
 func TestProseP2_javascript(t *testing.T) { proseP2Sourcecode(t, "javascript") }
+
+func TestProseP2_python(t *testing.T) { proseP2Sourcecode(t, "python") }
+
+func TestProseP2_bash(t *testing.T) { proseP2Sourcecode(t, "bash") }
+
+func TestProseP2_css(t *testing.T) { proseP2Sourcecode(t, "css") }

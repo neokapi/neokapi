@@ -63,15 +63,16 @@ as their openers, which is what makes the pairing safe.
 ## Comments
 
 `internal/comments` locates the comments of the languages `manifest.json` lists
-under `capabilities.comments`: TypeScript, TSX and JavaScript. kapi sends a file's
-bytes over the `LocateComments` RPC and reads back what a built-in comment
+under `capabilities.comments`: TypeScript, TSX, JavaScript, Python, Bash and CSS.
+kapi sends a file's bytes over the `LocateComments` RPC and reads back what a built-in comment
 provider such as Go's returns: each comment's byte span and lines, its subject,
 whether it documents a declaration, its runs, and the comments set aside with
 their reason. A recipe reaches it with `comments: true` on a content item.
 
 What the provider decides:
 
-- **Grouping.** Consecutive `//` lines, each alone on its line, form one comment.
+- **Grouping.** Consecutive line comments (`//`, or `#` in Python and Bash), each
+  alone on its line, form one comment.
   A comment after code on its line, and every block comment, stands alone. A
   directive line splits a group, and a blank line at either edge of a comment is
   set aside.
@@ -80,43 +81,67 @@ What the provider decides:
   `tslint:`, `@ts-expect-error` and the other TypeScript pragmas,
   `/// <reference>`, `prettier-ignore`, coverage ignores, `#__PURE__`, bundler
   magic comments, `@vite-ignore`, `@vitest-environment` and the JSX pragmas,
-  source-map comments, and the shebang. The table is `jsDirectives` in `jsts.go`,
-  and `testdata/corpus/typescript/directives.ts.txt` holds a comment only each
-  form matches.
+  source-map comments, and the shebang in TypeScript and JavaScript. Python sets
+  aside the shebang, the encoding declaration on a file's first two lines,
+  `# type:`, `# noqa`, `# pragma:`, `# nosec`, and the `pylint:`, `fmt:`,
+  `mypy:`, `pyright:`, `ruff:` and `isort:` markers. Bash sets aside the shebang
+  and `# shellcheck`, and CSS `stylelint-disable`, `stylelint-enable`,
+  `prettier-ignore` and source-map comments. The tables are `jsDirectives`,
+  `pythonDirectives`, `bashDirectives` and `cssDirectives`, and each language's
+  `testdata/corpus/<language>/directives.*.txt` holds a comment only each form
+  matches.
 - **Generated files.** A generator phrase with an instruction not to edit, or
   `@generated`, in the comments on a file's first three non-empty lines sets
   every comment in the file aside.
-- **Doc comments.** A `/** */` block documents a declaration when nothing but
-  whitespace separates the two. In its runs a block tag with its type and name, a
+- **Doc comments.** In TypeScript and JavaScript a `/** */` block documents a
+  declaration when nothing but whitespace separates the two. Python, Bash and CSS
+  comments document nothing, and a Python docstring is a string. In its runs a block tag with its type and name, a
   tag that holds a value, an `@example` section, an inline tag such as
   `{@link Parser}`, a code span and a URL are placeholders, so a check reads
   sentences only. `@deprecated` sets the deprecated flag.
 - **Subjects.** A comment is named for what it sits on, in the Go provider's
   shape: `func/parse`, `class/Parser/run`, `interface/Options/keep`,
-  `namespace/Util/const/join`, or `comment` when it sits on nothing.
+  `namespace/Util/const/join`, `var/OUT` in Bash, `rule/.header` and
+  `media/rule/.c` in CSS, or `comment` when it sits on nothing. A comment after
+  code on its line sits on nothing after it.
+- **Literals.** A marker inside a string, a template literal, a regular
+  expression, JSX text, a heredoc, a parameter expansion such as
+  `${name#prefix}`, or an unquoted CSS `url()` is content.
 - **Files that do not parse.** A tree with a syntax error in it is not located,
   and kapi reports the file's comment check as not run.
 
-Each language's canary and comment markers are declared twice, in `jsts.go` and
-in `manifest.json`, and a test holds the two equal. kapi sends the manifest's
+Each language's canary and comment markers are declared twice, in its Go file
+(such as `jsts.go`) and in `manifest.json`, and a test holds the two equal. kapi sends the manifest's
 canary through the plugin beside every real file, and reads a single comment line
 through the manifest's markers when a recipe declares comment directives.
 
 ### The oracle
 
-The conformance tests hold the provider to comment spans read by a parser that
-shares no code with the grammars: `@babel/parser`. The spans for each fixture in
-`internal/comments/testdata/corpus/<language>/` sit beside it in
-`<fixture>.babel`, with the fixture's sha256, so the Go tests need no node and
-fail when a fixture changes without its golden. Grouping and directives in the
-oracle come from rules written in `oracle_test.go`, apart from the provider's.
+The conformance tests hold the provider to comment spans read by a reader that
+shares no code with the grammars. The fixtures in
+`internal/comments/testdata/corpus/<language>/` are read by:
+
+- `@babel/parser` for TypeScript, TSX and JavaScript, whose spans sit beside each
+  fixture in `<fixture>.babel`;
+- the `tokenize` module of Python's standard library for Python, whose spans sit
+  beside each fixture in `<fixture>.tokenize`, its character columns converted
+  to byte offsets;
+- the `mvdan.cc/sh` parser for Bash and the `tdewolff/parse` CSS lexer for CSS,
+  both run by the Go tests themselves.
+
+A golden records its fixture's sha256, so the Go tests need neither node nor
+Python and fail when a fixture changes without its golden. Grouping and
+directives in the oracle come from rules written in `oracle_test.go`, apart from
+the provider's.
 
 The corpus is drawn from this repository, plus authored fixtures for directives,
-literals, doc comments, CRLF line endings and multibyte text. From the repository
-root, with node and the pnpm store installed:
+literals, subjects, generated files, doc comments, CRLF line endings and
+multibyte text. A copied fixture is named for the last two segments of its path.
+From the repository root, with node, Python 3 and the pnpm store installed:
 
 ```bash
 node plugins/sourcecode/internal/comments/testdata/babel-goldens.mjs --add tsx web/src/theme/Root.tsx
+python3 plugins/sourcecode/internal/comments/testdata/python-goldens.py --add scripts/make-sample-docx.py
 make sourcecode-comment-goldens    # regenerates every golden
 ```
 

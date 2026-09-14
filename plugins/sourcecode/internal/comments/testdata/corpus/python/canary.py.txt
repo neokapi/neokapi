@@ -1,0 +1,5 @@
+#!/usr/bin/env python3
+# noqa: E501
+# Parses the the input.
+def parse(text):
+    return "# not a comment" + text

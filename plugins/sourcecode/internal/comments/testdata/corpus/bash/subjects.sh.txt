@@ -1,0 +1,21 @@
+#!/bin/sh
+# Top of the script, above nothing.
+
+set -eu # stop on the first error
+# Where the site is written.
+OUT=dist
+
+# The version, exported for the build.
+export VERSION=1.0.0
+
+# Builds the site.
+build() {
+  # Inside the function.
+  mkdir -p "$OUT" # make the directory
+}
+
+# Separated from what follows by a blank line.
+
+deploy() {
+  :
+}

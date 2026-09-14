@@ -1,0 +1,134 @@
+/*
+ * kapi — teal theme palette (canonical copy)
+ *
+ * Teal accents echo the existing neokapi logo on neutral white and charcoal
+ * surfaces. Dark mode uses a lighter teal with dark button text. Semantic
+ * judgement colours remain independent.
+ *
+ * Import this alongside theme-tokens.css (which maps --color-* → these vars);
+ * apps and sites that ship the kapi look @import this file instead of copying
+ * the palette. The documentation site's Infima variables and the diagram kit's
+ * defaults are computed from it by `make generate-docs-palette`, so a colour
+ * edited here reaches the docs on the next run.
+ *
+ * The judgement colours (--success/--warning/--info) and the coordinate-axis
+ * hues are NOT part of this palette: they mean the same thing on every surface,
+ * so they live once in semantic-colors.css and are imported here.
+ */
+
+@import "./semantic-colors.css";
+
+:root {
+  /* ── Brand faces ───────────────────────────────────────── */
+  /* The stacks the Tailwind --font-* tokens resolve to, and the source the
+     documentation site's --ifm-font-family-* are generated from. */
+  --brand-font-sans:
+    "Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    sans-serif;
+  --brand-font-mono:
+    "JetBrains Mono Variable", "JetBrains Mono", "SF Mono", ui-monospace, monospace;
+
+  /* ── Surfaces ──────────────────────────────────────────── */
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.263829 0.002372 247.9155);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.263829 0.002372 247.9155);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.263829 0.002372 247.9155);
+
+  /* ── Primary ───────────────────────────────────────────── */
+  --primary: oklch(0.496898 0.082149 190.3982);
+  --primary-foreground: oklch(1 0 0);
+
+  /* ── Secondary ─────────────────────────────────────────── */
+  --secondary: oklch(0.974902 0.002522 228.7838);
+  --secondary-foreground: oklch(0.263829 0.002372 247.9155);
+
+  /* ── Muted ─────────────────────────────────────────────── */
+  --muted: oklch(0.974902 0.002522 228.7838);
+  --muted-foreground: oklch(0.471583 0.012302 248.089);
+
+  /* ── Accent ────────────────────────────────────────────── */
+  --accent: oklch(0.945989 0.016966 192.3524);
+  --accent-foreground: oklch(0.263829 0.002372 247.9155);
+
+  /* ── Destructive ───────────────────────────────────────── */
+  --destructive: oklch(0.58 0.2 25); /* warm red */
+  --destructive-foreground: oklch(0.99 0 0);
+
+  /* ── Borders & controls ────────────────────────────────── */
+  --border: oklch(0.89151 0.006823 233.6511);
+  --input: oklch(0.89151 0.006823 233.6511);
+  --ring: oklch(0.496898 0.082149 190.3982);
+
+  --radius: 0.5rem;
+
+  /* ── Chart palette ─────────────────────────────────────── */
+  --chart-1: oklch(0.496898 0.082149 190.3982);
+  --chart-2: oklch(0.65 0.15 160); /* teal */
+  --chart-3: oklch(0.65 0.15 300); /* purple */
+  --chart-4: oklch(0.7 0.15 75); /* amber */
+  --chart-5: oklch(0.6 0.18 25); /* rose */
+
+  /* ── Sidebar ───────────────────────────────────────────── */
+  --sidebar: oklch(0.974902 0.002522 228.7838);
+  --sidebar-foreground: oklch(0.263829 0.002372 247.9155);
+  --sidebar-primary: oklch(0.496898 0.082149 190.3982);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.945989 0.016966 192.3524);
+  --sidebar-accent-foreground: oklch(0.263829 0.002372 247.9155);
+  --sidebar-border: oklch(0.89151 0.006823 233.6511);
+  --sidebar-ring: oklch(0.496898 0.082149 190.3982);
+}
+
+.dark {
+  /* ── Surfaces ──────────────────────────────────────────── */
+  --background: oklch(0.222964 0.003842 286.084);
+  --foreground: oklch(0.948159 0.003445 247.8593);
+  --card: oklch(0.27133 0.0086 255.578);
+  --card-foreground: oklch(0.948159 0.003445 247.8593);
+  --popover: oklch(0.27133 0.0086 255.578);
+  --popover-foreground: oklch(0.948159 0.003445 247.8593);
+
+  /* ── Primary ───────────────────────────────────────────── */
+  --primary: oklch(0.783009 0.079875 191.5847);
+  --primary-foreground: oklch(0.244544 0.016872 189.6923);
+
+  /* ── Secondary ─────────────────────────────────────────── */
+  --secondary: oklch(0.27133 0.0086 255.578);
+  --secondary-foreground: oklch(0.948159 0.003445 247.8593);
+
+  /* ── Muted ─────────────────────────────────────────────── */
+  --muted: oklch(0.27133 0.0086 255.578);
+  --muted-foreground: oklch(0.79623 0.010135 252.8293);
+
+  /* ── Accent ────────────────────────────────────────────── */
+  --accent: oklch(0.326288 0.039811 190.3049);
+  --accent-foreground: oklch(0.948159 0.003445 247.8593);
+
+  /* ── Destructive ───────────────────────────────────────── */
+  --destructive: oklch(0.6 0.19 25);
+  --destructive-foreground: oklch(0.99 0 0);
+
+  /* ── Borders & controls ────────────────────────────────── */
+  --border: oklch(0.409193 0.011468 243.0783);
+  --input: oklch(0.409193 0.011468 243.0783);
+  --ring: oklch(0.783009 0.079875 191.5847);
+
+  /* ── Chart palette ─────────────────────────────────────── */
+  --chart-1: oklch(0.783009 0.079875 191.5847);
+  --chart-2: oklch(0.65 0.15 160);
+  --chart-3: oklch(0.65 0.15 300);
+  --chart-4: oklch(0.7 0.15 75);
+  --chart-5: oklch(0.6 0.18 25);
+
+  /* ── Sidebar ───────────────────────────────────────────── */
+  --sidebar: oklch(0.216479 0.004983 248.0583);
+  --sidebar-foreground: oklch(0.948159 0.003445 247.8593);
+  --sidebar-primary: oklch(0.783009 0.079875 191.5847);
+  --sidebar-primary-foreground: oklch(0.244544 0.016872 189.6923);
+  --sidebar-accent: oklch(0.326288 0.039811 190.3049);
+  --sidebar-accent-foreground: oklch(0.948159 0.003445 247.8593);
+  --sidebar-border: oklch(0.409193 0.011468 243.0783);
+  --sidebar-ring: oklch(0.783009 0.079875 191.5847);
+}

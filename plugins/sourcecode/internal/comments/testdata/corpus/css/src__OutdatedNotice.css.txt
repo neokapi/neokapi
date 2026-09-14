@@ -1,0 +1,59 @@
+/* Banner marking a walkthrough recording as out of date, rendered directly
+   above its player.
+
+   Theme-aware through Docusaurus's `data-theme` attribute (no React context),
+   matching ThemedVideo and PendingMedia.
+
+   Every infima token carries a literal fallback equal to infima's own default,
+   because the component also renders outside a Docusaurus page — in Storybook,
+   where no infima stylesheet is loaded. Without the fallbacks the pill lost its
+   fill and became dark ink on a dark card. The two themes are then set
+   explicitly rather than leaning on infima to flip the *-contrast-* pair, so the
+   rendering is identical with or without infima present.
+
+   Deliberately not an error/danger treatment: the recording still plays and is
+   still useful. Warning is the honest register. */
+
+.outdated-notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4rem 0.7rem;
+  padding: 0.7rem 0.95rem;
+  border: 1px solid var(--ifm-color-warning-dark, #e6a700);
+  border-left-width: 4px;
+  border-radius: 8px;
+  background: var(--ifm-color-warning-contrast-background, #fff8e6);
+  color: #4d3800;
+}
+
+.outdated-notice__label {
+  flex: 0 0 auto;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: var(--ifm-color-warning-dark, #e6a700);
+  /* Fixed dark ink rather than a theme token: the pill's fill is the warning
+     hue in both themes, so the text on it must not follow the page. */
+  color: #241a00;
+}
+
+.outdated-notice__body {
+  flex: 1 1 18rem;
+  min-width: 0;
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+[data-theme="dark"] .outdated-notice {
+  border-color: var(--ifm-color-warning-darker, #d99e00);
+  /* A dim wash of the warning hue instead of infima's saturated dark-mode
+     contrast fill, which overpowers the page and the player beneath it. */
+  background: rgba(255, 186, 0, 0.09);
+  color: #fff8e6;
+}

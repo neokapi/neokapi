@@ -1,0 +1,12 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+import os  # noqa: F401
+import sys  # type: ignore
+x = 1  # pragma: no cover
+y = 2  # nosec B101
+# pylint: disable=invalid-name
+# fmt: off
+# mypy: ignore-errors
+# pyright: basic
+# ruff: isort: skip
+# isort: skip_file

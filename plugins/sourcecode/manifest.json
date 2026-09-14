@@ -16,20 +16,77 @@
         "name": "sourcecode",
         "display_name": "Source code",
         "description": "Product copy held in source files, such as package descriptions and installer notes.",
-        "extensions": [".rb"],
-        "mime_types": ["text/x-ruby"],
-        "capabilities": ["read"],
+        "extensions": [
+          ".rb"
+        ],
+        "mime_types": [
+          "text/x-ruby"
+        ],
+        "capabilities": [
+          "read"
+        ],
         "schema": "formats/sourcecode/schema.json"
       }
     ],
     "comments": [
       {
+        "language": "bash",
+        "display_name": "Bash",
+        "extensions": [
+          ".sh",
+          ".bash"
+        ],
+        "markers": {
+          "line": [
+            "#"
+          ]
+        },
+        "canary": {
+          "name": "a shell comment with a doubled word, below a ShellCheck directive and above a string holding a comment marker",
+          "source": "#!/usr/bin/env bash\n# shellcheck disable=SC2086\n# Builds the the site.\nbuild() {\n  echo \"# not a comment\"\n}\n",
+          "block": "func/build"
+        }
+      },
+      {
+        "language": "css",
+        "display_name": "CSS",
+        "extensions": [
+          ".css"
+        ],
+        "markers": {
+          "block": [
+            {
+              "open": "/*",
+              "close": "*/"
+            }
+          ]
+        },
+        "canary": {
+          "name": "a CSS comment with a doubled word, below a stylelint directive and above a string holding a comment marker",
+          "source": "/* stylelint-disable no-empty-source */\n/* Styles the the header. */\n.header { content: \"/* not a comment */\"; }\n",
+          "block": "rule/.header"
+        }
+      },
+      {
         "language": "javascript",
         "display_name": "JavaScript",
-        "extensions": [".js", ".jsx", ".mjs", ".cjs"],
+        "extensions": [
+          ".js",
+          ".jsx",
+          ".mjs",
+          ".cjs"
+        ],
         "markers": {
-          "line": ["//", "#!"],
-          "block": [{ "open": "/*", "close": "*/" }]
+          "line": [
+            "//",
+            "#!"
+          ],
+          "block": [
+            {
+              "open": "/*",
+              "close": "*/"
+            }
+          ]
         },
         "canary": {
           "name": "a JavaScript doc comment with a doubled word, below a shebang and above a template literal holding a comment marker",
@@ -38,12 +95,39 @@
         }
       },
       {
+        "language": "python",
+        "display_name": "Python",
+        "extensions": [
+          ".py"
+        ],
+        "markers": {
+          "line": [
+            "#"
+          ]
+        },
+        "canary": {
+          "name": "a Python comment with a doubled word, below a directive and above a string holding a comment marker",
+          "source": "#!/usr/bin/env python3\n# noqa: E501\n# Parses the the input.\ndef parse(text):\n    return \"# not a comment\" + text\n",
+          "block": "func/parse"
+        }
+      },
+      {
         "language": "tsx",
         "display_name": "TSX",
-        "extensions": [".tsx"],
+        "extensions": [
+          ".tsx"
+        ],
         "markers": {
-          "line": ["//", "#!"],
-          "block": [{ "open": "/*", "close": "*/" }]
+          "line": [
+            "//",
+            "#!"
+          ],
+          "block": [
+            {
+              "open": "/*",
+              "close": "*/"
+            }
+          ]
         },
         "canary": {
           "name": "a TSX doc comment with a doubled word, above JSX text holding a comment marker",
@@ -54,10 +138,22 @@
       {
         "language": "typescript",
         "display_name": "TypeScript",
-        "extensions": [".ts", ".mts", ".cts"],
+        "extensions": [
+          ".ts",
+          ".mts",
+          ".cts"
+        ],
         "markers": {
-          "line": ["//", "#!"],
-          "block": [{ "open": "/*", "close": "*/" }]
+          "line": [
+            "//",
+            "#!"
+          ],
+          "block": [
+            {
+              "open": "/*",
+              "close": "*/"
+            }
+          ]
         },
         "canary": {
           "name": "a TypeScript doc comment with a doubled word, below a directive and above a string holding a comment marker",
@@ -68,6 +164,12 @@
     ]
   },
   "daemon": {
-    "handshake": { "type": "stdio-handshake", "fields": ["socket", "version"] }
+    "handshake": {
+      "type": "stdio-handshake",
+      "fields": [
+        "socket",
+        "version"
+      ]
+    }
   }
 }
