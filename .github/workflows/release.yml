@@ -341,6 +341,9 @@ jobs:
     name: Package + publish CLI
     needs: [setup, parity-gate, build-cli]
     runs-on: ubuntu-latest
+    outputs:
+      # make_latest for the desktop uploads in build-kapi-desktop.
+      latest: ${{ steps.channel.outputs.latest }}
     # Coordinated releases route this publish job through a manual-approval
     # environment so the kapi tap/registry writes land together with bowrain's.
     # Routine tag pushes resolve to an empty environment (no gate).
@@ -454,7 +457,9 @@ jobs:
       # finals, so beta users never fall behind stable. See
       # docs/internals/auto-update.md, "Release channels", and
       # scripts/release-channel.sh for the outputs and the tag shapes both
-      # release tracks feed it.
+      # release tracks feed it. Its `latest` output is "true" only for a final
+      # vX.Y.Z tag, and every release step in this workflow passes it as
+      # make_latest (scripts/check-plugin-release-latest.sh checks that).
       - name: Resolve release channel
         id: channel
         env:
@@ -493,6 +498,8 @@ jobs:
           # Prerelease tags (vX.Y.Z-rcN) produce a GitHub *prerelease* with
           # downloadable assets but skip every live-channel write below.
           prerelease: ${{ needs.setup.outputs.prerelease == 'true' }}
+          # GitHub's latest goes to a final kapi CLI release and nothing else.
+          make_latest: ${{ steps.channel.outputs.latest }}
           tag_name: ${{ needs.setup.outputs.tag }}
           files: |
             dist/kapi-cli_*.tar.gz
@@ -1114,6 +1121,7 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           prerelease: ${{ needs.setup.outputs.prerelease == 'true' }}
+          make_latest: ${{ needs.package-cli.outputs.latest }}
           tag_name: ${{ needs.setup.outputs.tag }}
           files: "kapi-${{ steps.version.outputs.VERSION }}-macOS-arm64.dmg"
 
@@ -1189,6 +1197,7 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           prerelease: ${{ needs.setup.outputs.prerelease == 'true' }}
+          make_latest: ${{ needs.package-cli.outputs.latest }}
           tag_name: ${{ needs.setup.outputs.tag }}
           files: "kapi-${{ steps.version.outputs.VERSION }}-linux-${{ matrix.build.arch }}.tar.gz"
 

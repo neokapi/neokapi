@@ -13,6 +13,9 @@
 #                 "beta" for a prerelease, "stable beta" for a final.
 #   reg_channel   the registry channel value: "beta" for a prerelease,
 #                 "" (universal — matches every query) for a final.
+#   latest        make_latest for the GitHub release: "true" only for a kapi
+#                 CLI final tag (vX.Y.Z), "false" for every other shape. See
+#                 scripts/check-plugin-release-latest.sh.
 #
 # One script rather than a `case` in each workflow, because the two release
 # tracks feed it different shapes: release.yml tags `vX.Y.Z`, release-bowrain.yml
@@ -41,16 +44,21 @@ strip_prefix() {
   printf '%s' "${raw#v}"
 }
 
-# resolve prints the three outputs for one tag or version.
+# resolve prints the outputs for one tag or version.
 resolve() {
-  local version
+  local version latest=false
   version="$(strip_prefix "$1")"
+  # Only the kapi CLI's final tag takes GitHub's latest. A prerelease, a
+  # track-prefixed tag and a bare version, which names no track, never do.
+  if [[ "$1" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    latest=true
+  fi
   case "$version" in
     *-*)
-      printf 'channel=beta\nchannels=beta\nreg_channel=beta\n'
+      printf 'channel=beta\nchannels=beta\nreg_channel=beta\nlatest=%s\n' "$latest"
       ;;
     *)
-      printf 'channel=stable\nchannels=stable beta\nreg_channel=\n'
+      printf 'channel=stable\nchannels=stable beta\nreg_channel=\nlatest=%s\n' "$latest"
       ;;
   esac
 }
@@ -63,22 +71,24 @@ resolve() {
 
 SELFTEST_STATUS=0
 
-# expect checks that a tag resolves to the named channels.
+# expect checks that a tag resolves to the named channels and latest flag.
 expect() {
-  local tag="$1" want_channel="$2" want_channels="$3" want_reg="$4"
-  local out got_channel got_channels got_reg
+  local tag="$1" want_channel="$2" want_channels="$3" want_reg="$4" want_latest="$5"
+  local out got_channel got_channels got_reg got_latest
   out="$(resolve "$tag")"
   got_channel="$(printf '%s\n' "$out" | sed -n 's/^channel=//p')"
   got_channels="$(printf '%s\n' "$out" | sed -n 's/^channels=//p')"
   got_reg="$(printf '%s\n' "$out" | sed -n 's/^reg_channel=//p')"
+  got_latest="$(printf '%s\n' "$out" | sed -n 's/^latest=//p')"
   if [ "$got_channel" = "$want_channel" ] &&
     [ "$got_channels" = "$want_channels" ] &&
-    [ "$got_reg" = "$want_reg" ]; then
-    echo "✓ self-test: ${tag} → ${want_channel} (${want_channels})"
+    [ "$got_reg" = "$want_reg" ] &&
+    [ "$got_latest" = "$want_latest" ]; then
+    echo "✓ self-test: ${tag} → ${want_channel} (${want_channels}), latest=${want_latest}"
     return
   fi
-  echo "✖ self-test: ${tag} → channel=${got_channel} channels=${got_channels} reg_channel=${got_reg}"
-  echo "             expected channel=${want_channel} channels=${want_channels} reg_channel=${want_reg}"
+  echo "✖ self-test: ${tag} → channel=${got_channel} channels=${got_channels} reg_channel=${got_reg} latest=${got_latest}"
+  echo "             expected channel=${want_channel} channels=${want_channels} reg_channel=${want_reg} latest=${want_latest}"
   SELFTEST_STATUS=1
 }
 
@@ -110,18 +120,20 @@ calls_this_script() {
 }
 
 self_test() {
-  # The kapi track: a plain vX.Y.Z tag.
-  expect "v1.2.0" stable "stable beta" ""
-  expect "v1.2.0-rc25" beta "beta" "beta"
+  # The kapi track: a plain vX.Y.Z tag. Only its final takes GitHub's latest.
+  expect "v1.2.0" stable "stable beta" "" true
+  expect "v10.20.30" stable "stable beta" "" true
+  expect "v1.2.0-rc25" beta "beta" "beta" false
   # The bowrain track: the same versions behind a prefix that carries a hyphen.
-  expect "bowrain-v1.2.0" stable "stable beta" ""
-  expect "bowrain-v1.2.0-rc25" beta "beta" "beta"
-  # Either track may pass the version its setup job already stripped.
-  expect "1.2.0" stable "stable beta" ""
-  expect "1.2.0-rc25" beta "beta" "beta"
+  expect "bowrain-v1.2.0" stable "stable beta" "" false
+  expect "bowrain-v1.2.0-rc25" beta "beta" "beta" false
+  # Either track may pass the version its setup job already stripped. A bare
+  # version names no track, so it never claims latest.
+  expect "1.2.0" stable "stable beta" "" false
+  expect "1.2.0-rc25" beta "beta" "beta" false
   # A per-plugin track, whose prefix carries two hyphens.
-  expect "kapi-asr-v0.3.0" stable "stable beta" ""
-  expect "kapi-asr-v0.3.0-rc1" beta "beta" "beta"
+  expect "kapi-asr-v0.3.0" stable "stable beta" "" false
+  expect "kapi-asr-v0.3.0-rc1" beta "beta" "beta" false
 
   calls_this_script release.yml
   calls_this_script release-bowrain.yml
