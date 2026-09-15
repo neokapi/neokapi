@@ -81,6 +81,12 @@ ledger as it stood before the push wrote anything, so rows the push itself
 removes, such as the decisions of an item its declared tree no longer holds,
 never count against it.
 
+A server run begins by waiting for the project's pushes that are still queued or
+being applied, up to a limit, and settles source only after them. A client
+confirms a push for a few seconds before it may start a run, and a large push
+applies for longer, so settlement reads what the push wrote rather than the
+blocks the push is about to change or remove.
+
 The same routes exist under `/api/v1/projects/:id/sync/:ref/...` for a project
 that has not yet been claimed into a workspace, authenticated by its claim token.
 See [`kapi push`](/cli/commands/push) for the protocol as a client sees it.

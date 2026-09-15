@@ -333,6 +333,59 @@ func (o *convergenceOrchestrator) drive(ctx context.Context, run *bstore.Converg
 	})
 }
 
+// pushApplyPollInterval and pushApplyWaitLimit bound how long a run waits for
+// the project's in-flight pushes before it settles source.
+var (
+	pushApplyPollInterval = 2 * time.Second
+	pushApplyWaitLimit    = 15 * time.Minute
+)
+
+// awaitPushApplies holds a run until no sync push for its project's stream is
+// queued or being applied. Settlement reads every block and writes back the
+// ones whose status moved, so a run that settles while a push is applying reads
+// blocks that push is about to change or remove. A client confirms a push for a
+// few seconds and then may start a run, and a large push applies for longer, so
+// the ordering is kept here rather than left to the client's timing. The wait
+// ends at pushApplyWaitLimit, so a push job left queued by a stopped worker
+// delays a run rather than holding it for good, and it ends with the run.
+func (o *convergenceOrchestrator) awaitPushApplies(ctx context.Context, run *bstore.ConvergenceRun, emit *convergence.Emitter) {
+	js := o.server.JobStore
+	if js == nil {
+		return
+	}
+	deadline := time.Now().Add(pushApplyWaitLimit)
+	announced := false
+	for {
+		n, err := js.CountActivePushApplies(ctx, run.ProjectID, run.Stream)
+		if err != nil {
+			slog.WarnContext(ctx, "convergence: could not read in-flight pushes; settling source without waiting",
+				"run", run.ID, "error", err)
+			return
+		}
+		if n == 0 {
+			return
+		}
+		if !announced {
+			emit.Emit(convergence.Event{
+				Type:    convergence.EventLog,
+				Stage:   convergence.StageSettleSource,
+				Message: "Waiting for pushes still applying to this project before settling source…",
+			})
+			announced = true
+		}
+		if time.Now().After(deadline) {
+			slog.WarnContext(ctx, "convergence: pushes still applying after the wait limit; settling source now",
+				"run", run.ID, "pushes", n)
+			return
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(pushApplyPollInterval):
+		}
+	}
+}
+
 // runSettleSource is the server run's source-first phase (epic 019): it settles
 // the source once at the start of a run — before any target locale is produced —
 // stamps each source block's SourceStatus, and reports how many blocks remain
@@ -446,6 +499,7 @@ func (o *convergenceOrchestrator) driveWith(ctx context.Context, run *bstore.Con
 	// terminates the run with source_not_ready when a locale has nothing
 	// producible. Settlement is a no-op when the block store is absent (the
 	// in-memory driveWith tests) or the gate is `none`.
+	o.awaitPushApplies(ctx, run, emit)
 	o.runSettleSource(ctx, run, emit)
 
 	res, loopErr := convergence.Loop(ctx, convergence.LoopOptions{

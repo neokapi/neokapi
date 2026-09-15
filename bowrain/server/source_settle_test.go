@@ -293,6 +293,12 @@ func TestParkedStallReason_NeverSourceNotReady(t *testing.T) {
 // calling any method would panic, which is the point — the hold path must not.
 type noopJobStore struct{ jobs.JobStore }
 
+// CountActivePushApplies reports no push in flight, which is what a run over a
+// project nothing is pushing to reads.
+func (noopJobStore) CountActivePushApplies(context.Context, string, string) (int, error) {
+	return 0, nil
+}
+
 // noopQueue satisfies jobs.Queue with the same never-called contract.
 type noopQueue struct{ jobs.Queue }
 

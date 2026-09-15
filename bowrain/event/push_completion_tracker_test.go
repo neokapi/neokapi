@@ -68,6 +68,9 @@ func (s *stubJobStore) SweepStaleProcessing(ctx context.Context, olderThan time.
 func (s *stubJobStore) RevertSweepRequeue(ctx context.Context, id string, staleThreshold time.Duration) error {
 	return nil
 }
+func (s *stubJobStore) CountActivePushApplies(ctx context.Context, projectID, stream string) (int, error) {
+	return 0, nil
+}
 func (s *stubJobStore) ListJobsByPushID(ctx context.Context, pushID string) ([]*jobs.TranslationJob, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
