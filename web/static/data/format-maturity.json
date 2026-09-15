@@ -148,8 +148,8 @@
         "P0": 0,
         "P1": 0,
         "P2": 9,
-        "P3": 3,
-        "P4": 1
+        "P3": 0,
+        "P4": 4
       }
     }
   },
@@ -8411,13 +8411,13 @@
       "provider": "sourcecode",
       "presence": "present",
       "presence_reason": "TestProseP0_javascript passed",
-      "level": "P3",
-      "next": "P4",
+      "level": "P4",
+      "next": "—",
       "dims": {
         "located": "complete",
         "governed": "complete",
         "editable": "complete",
-        "allforms": "none"
+        "allforms": "complete"
       },
       "rungs": {
         "P1": {
@@ -8433,8 +8433,8 @@
           "reason": "passed"
         },
         "P4": {
-          "outcome": "not-met",
-          "reason": "no test"
+          "outcome": "met",
+          "reason": "passed"
         }
       }
     },
@@ -8543,13 +8543,13 @@
       "provider": "sourcecode",
       "presence": "present",
       "presence_reason": "TestProseP0_tsx passed",
-      "level": "P3",
-      "next": "P4",
+      "level": "P4",
+      "next": "—",
       "dims": {
         "located": "complete",
         "governed": "complete",
         "editable": "complete",
-        "allforms": "none"
+        "allforms": "complete"
       },
       "rungs": {
         "P1": {
@@ -8565,8 +8565,8 @@
           "reason": "passed"
         },
         "P4": {
-          "outcome": "not-met",
-          "reason": "no test"
+          "outcome": "met",
+          "reason": "passed"
         }
       }
     },
@@ -8576,13 +8576,13 @@
       "provider": "sourcecode",
       "presence": "present",
       "presence_reason": "TestProseP0_typescript passed",
-      "level": "P3",
-      "next": "P4",
+      "level": "P4",
+      "next": "—",
       "dims": {
         "located": "complete",
         "governed": "complete",
         "editable": "complete",
-        "allforms": "none"
+        "allforms": "complete"
       },
       "rungs": {
         "P1": {
@@ -8598,8 +8598,8 @@
           "reason": "passed"
         },
         "P4": {
-          "outcome": "not-met",
-          "reason": "no test"
+          "outcome": "met",
+          "reason": "passed"
         }
       }
     }
