@@ -241,6 +241,30 @@ func applyStagedPush(
 	// keep.
 	gov.vetTargets(staged)
 
+	// The decisions ledger is read, and the decisions assertion made, before
+	// this push writes anything. The assertion is about the ledger the client
+	// observed. A removal or a rename this push applies below can take rows out
+	// of it, and an assertion made after them compares the client's ref with a
+	// ledger the push itself changed. The same read tells the governance applied
+	// with the upsert which verdicts the platform already holds.
+	var held []venue.UnitDecision
+	if len(decisions) > 0 {
+		if expected.Decisions != "" || gov.judging() || carriesRejection(decisions) {
+			var herr error
+			if held, herr = tx.ListUnitDecisions(ctx, projectID, stream); herr != nil {
+				return nil, fmt.Errorf("read the decision ledger: %w", herr)
+			}
+		}
+		// Only records that decide something assert the decisions component.
+		// Records of what was produced merge by record time, and a server run
+		// writes its own between any client's pull and push.
+		if venue.CarriesDecision(decisions) {
+			if err := assertDecisionsHeld(expected, held); err != nil {
+				return nil, err
+			}
+		}
+	}
+
 	// Identity first, before any content lands. A file that moved keeps the
 	// item that carries its approvals, so its blocks are written to that item
 	// rather than minting a second one at the new path.
@@ -304,29 +328,10 @@ func applyStagedPush(
 
 	// The decisions ledger settles last, so decisions that arrived with the
 	// content they judge can resolve their rows and project their status. The
-	// expected-ref assertion reads through the same transaction as the write it
-	// guards, which is what makes it a compare-and-swap rather than a look
-	// followed by a hope.
+	// ledger it asserted against and judges with was read above, on the same
+	// transaction, before the push wrote anything, which is what makes the
+	// assertion a compare-and-swap rather than a look followed by a hope.
 	if len(decisions) > 0 {
-		// One read of the ledger answers every question asked of it: whether
-		// the governance this push asserted still stands, which of the verdicts
-		// it carries the platform already holds, and which of its rejections
-		// are new.
-		var held []venue.UnitDecision
-		if expected.Decisions != "" || gov.judging() || carriesRejection(decisions) {
-			var herr error
-			if held, herr = tx.ListUnitDecisions(ctx, projectID, stream); herr != nil {
-				return nil, fmt.Errorf("read the decision ledger: %w", herr)
-			}
-		}
-		// Only records that decide something assert the decisions component.
-		// Records of what was produced merge by record time, and a server run
-		// writes its own between any client's pull and push.
-		if venue.CarriesDecision(decisions) {
-			if err := assertDecisionsHeld(expected, held); err != nil {
-				return nil, err
-			}
-		}
 		// A verdict the pusher may not make is kept as the basis it carries
 		// and nothing more, so the venue records that the translation exists
 		// without recording an approval nobody was entitled to give.
