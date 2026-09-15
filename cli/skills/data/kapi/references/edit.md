@@ -132,10 +132,11 @@ kapi apply edits.jsonl
   the project's formatter, which runs code the project controls. Without the
   plugin the edit reports `did-not-run` with the reason `no-reader`. Without a
   formatter that runs on the file, or without that trust, the reason is
-  `formatter`. None of these writes anything. Trust comes from the user:
-  `kapi apply --trust-project-formatters`, `kapi mcp --trust-project-formatters`,
-  or a directory in `formatters.trusted_dirs` in kapi's configuration. Report a
-  `formatter` result to the user rather than granting the trust yourself. Keep JSDoc tags such as `@param` and every `{@link}`: dropping one
+  `formatter`. None of these writes anything. The trust is execution trust: the
+  user answers the prompt `kapi apply` shows in a terminal, once per formatter
+  configuration, and MCP `apply_edits` runs a formatter only after that. Report
+  a `formatter` result to the user rather than setting `KAPI_TRUST_EXEC` or
+  answering the prompt yourself. Keep JSDoc tags such as `@param` and every `{@link}`: dropping one
   refuses the edit.
 - The result carries a check scoped to what was written. If it reports a
   finding, send another edit for it. Then check the whole change

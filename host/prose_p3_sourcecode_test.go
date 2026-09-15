@@ -289,16 +289,17 @@ func proseP3Sourcecode(t *testing.T, language string) {
 		assertUnchanged(t, file, f.src)
 	})
 
-	t.Run("must fail: an edit whose project formatter nobody trusted did not run", func(t *testing.T) {
+	t.Run("must fail: an edit whose project formatter no one allowed did not run", func(t *testing.T) {
 		a := tsRewriteApp(t, nil)
-		a.TrustProjectFormatters = false
+		t.Setenv(execTrustEnvVar, "")
+		a.isTTY = func() bool { return false }
 		file := rewriteProject(t, f, nil)
 		out, err := applyWith(t, a, pluginCommentEntry(t, a, file, f.lineID, "Anything."))
 		assert.Equal(t, ExitGate, ExitCode(nil, err))
 		edit := out.Comments[0].Edits[0]
 		assert.Equal(t, commentNotRun, edit.Status)
 		assert.Equal(t, string(comment.RefusedFormatter), edit.Reason, edit.Detail)
-		assert.Contains(t, edit.Detail, "--trust-project-formatters")
+		assert.Contains(t, edit.Detail, "no one has allowed it to run")
 		assertUnchanged(t, file, f.src)
 	})
 

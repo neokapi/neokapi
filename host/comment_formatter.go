@@ -15,7 +15,6 @@ import (
 
 	"github.com/neokapi/neokapi/core/comment"
 	"github.com/neokapi/neokapi/core/plugin/manifest"
-	"github.com/neokapi/neokapi/host/config"
 )
 
 // commentFormatterTimeout bounds one run of a comment language's formatter.
@@ -38,68 +37,14 @@ type formattedRewriter struct {
 
 // withCommentFormatter returns p held to the formatter file's project uses when
 // p writes a language a plugin declares writable, and p itself otherwise. The
-// formatter runs only when trust trusts file.
-func withCommentFormatter(p comment.Provider, file string, trust formatterTrust) comment.Provider {
+// formatter runs only when trust allows it.
+func withCommentFormatter(p comment.Provider, file string, trust *formatterTrust) comment.Provider {
 	d, ok := p.(commentRewriteDeclarer)
 	r, writes := p.(comment.Rewriter)
 	if !ok || !writes || d.Rewrite() == nil {
 		return p
 	}
 	return &formattedRewriter{Provider: p, Rewriter: r, commentFormatter: resolveCommentFormatter(p, file, d.Rewrite(), trust)}
-}
-
-// formatterTrust says for which files a comment edit may run the formatter the
-// file's project uses. That formatter runs code the project controls: its
-// executable when the project installs it, and wherever it is installed, the
-// configuration and plugins it loads from the project. So a person trusts a
-// project from outside it. A command started with --trust-project-formatters
-// trusts every project it edits, and formatters.trusted_dirs in kapi's own
-// configuration trusts the projects under the directories it lists. No recipe
-// key grants it, since the recipe belongs to the project.
-type formatterTrust struct {
-	// all is set by --trust-project-formatters.
-	all bool
-	// dirs are the absolute directories formatters.trusted_dirs lists, with
-	// their symbolic links resolved.
-	dirs []string
-}
-
-// commentFormatterTrust returns the trust a's comment edits run under.
-func (a *App) commentFormatterTrust() formatterTrust {
-	trust := formatterTrust{all: a.TrustProjectFormatters}
-	cfg := a.Config
-	if cfg == nil {
-		cfg = config.NewAppConfig()
-		if err := cfg.Load(); err != nil {
-			return trust
-		}
-	}
-	for _, dir := range cfg.FormattersTrustedDirs() {
-		// A relative directory is read against the working directory, which
-		// can be the project itself.
-		if !filepath.IsAbs(dir) {
-			continue
-		}
-		if resolved, err := filepath.EvalSymlinks(dir); err == nil {
-			dir = resolved
-		}
-		trust.dirs = append(trust.dirs, filepath.Clean(dir))
-	}
-	return trust
-}
-
-// trusts reports whether a formatter may run for the file at abs, a path with
-// its symbolic links resolved.
-func (t formatterTrust) trusts(abs string) bool {
-	if t.all {
-		return true
-	}
-	for _, dir := range t.dirs {
-		if rel, err := filepath.Rel(dir, abs); err == nil && filepath.IsLocal(rel) {
-			return true
-		}
-	}
-	return false
 }
 
 // commentFormatter runs a formatter a plugin declares for a comment language
@@ -113,7 +58,7 @@ func (t formatterTrust) trusts(abs string) bool {
 // the configuration and ignore files that apply to the file apply to what it
 // is given.
 //
-// A formatter did not run when the user has not trusted its project
+// A formatter did not run when execution trust does not allow it
 // (formatterTrust), when it is not installed, or when it leaves a file at the
 // path it is given as it is. Every call then returns an error wrapping
 // comment.ErrFormatterNotRun, so a rewrite is written only when a formatter that
@@ -138,9 +83,10 @@ var _ comment.Formatter = (*commentFormatter)(nil)
 // resolveCommentFormatter finds the formatter the project of file uses. The
 // directories from file's up to the root are searched in turn for the markers
 // each declared formatter lists, and the nearest directory holding one decides.
-// When trust trusts file, the formatter's executable is looked for in
-// node_modules/.bin in that directory and above it, and then on PATH.
-func resolveCommentFormatter(p comment.Provider, file string, decl *manifest.CommentRewrite, trust formatterTrust) *commentFormatter {
+// The formatter's executable is looked for in node_modules/.bin in that
+// directory and above it, and then on PATH, and the formatter runs only when
+// trust allows the command the marker selects.
+func resolveCommentFormatter(p comment.Provider, file string, decl *manifest.CommentRewrite, trust *formatterTrust) *commentFormatter {
 	f := &commentFormatter{
 		provider:  p,
 		canary:    []byte(decl.FormatterCanary),
@@ -156,11 +102,6 @@ func resolveCommentFormatter(p comment.Provider, file string, decl *manifest.Com
 		for _, candidate := range decl.Formatters {
 			if marker, ok := formatterMarkerIn(dir, candidate.Detect); ok {
 				f.decl, f.dir = candidate, dir
-				if !trust.trusts(abs) {
-					f.notRun = fmt.Sprintf("%s formats the files under %s, as %s says, and it runs code the project controls, such as its configuration and plugins, so kapi runs it only for a project you trust: start kapi apply or kapi mcp with --trust-project-formatters, or list a directory holding the project in formatters.trusted_dirs with kapi config set",
-						candidate.Name, DisplayName(dir), marker)
-					return f
-				}
 				bin, skipped, found := findFormatterBinary(dir, candidate.Command[0])
 				if !found {
 					f.notRun = fmt.Sprintf("%s formats the files under %s, as %s says, and %s is not installed in node_modules/.bin there or above it, or on PATH",
@@ -170,7 +111,12 @@ func resolveCommentFormatter(p comment.Provider, file string, decl *manifest.Com
 					}
 					return f
 				}
-				f.command = append([]string{bin}, candidate.Command[1:]...)
+				command := append([]string{bin}, candidate.Command[1:]...)
+				if err := trust.allow(marker, candidate.Name, command); err != nil {
+					f.notRun = err.Error()
+					return f
+				}
+				f.command = command
 				return f
 			}
 		}

@@ -100,7 +100,7 @@ func heldRewriter(t *testing.T, a *App, file string) (comment.Provider, *formatt
 	t.Helper()
 	p, ok := a.commentProviderFor(file)
 	require.True(t, ok, "no comment provider reads %s", file)
-	held, ok := withCommentFormatter(p, file, formatterTrust{all: true}).(*formattedRewriter)
+	held, ok := withCommentFormatter(p, file, newFormatterTrust(true)).(*formattedRewriter)
 	require.True(t, ok, "comments in %s are not held to a formatter", p.Language())
 	require.Empty(t, held.notRun)
 	return p, held

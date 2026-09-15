@@ -689,20 +689,22 @@ Running that formatter runs code the project controls. The project can install
 the executable in `node_modules/.bin`, and a formatter installed anywhere loads
 the project's configuration: prettier imports a JavaScript configuration file and
 the plugins a `.prettierrc` names, and the vite-plus `oxfmt` evaluates
-`vite.config.ts`. So the host runs a project's formatter only for a project a
-person trusts from outside it. A `kapi apply` or `kapi mcp` started with
-`--trust-project-formatters` trusts every project it edits, and
-`formatters.trusted_dirs` in kapi's own configuration lists absolute directories
-whose projects are trusted. `kapi config set formatters.trusted_dirs` stores them
-joined by the path list separator. No recipe key grants trust, because the recipe
-belongs to the project, and kapi reads its own configuration from the user's
-configuration directory rather than the working directory. An edit in a project
-nobody trusted did not run, with the reason `formatter` and a detail naming both
-ways to trust it. When the host looks for the executable on `PATH`, it skips an
-entry that is not an absolute path, since such an entry names a directory
-relative to the working directory, and a not-installed detail lists the entries
-it skipped. A Go comment is held to `go/format`, the library gofmt is built on,
-inside the kapi binary, so a Go edit runs no formatter executable.
+`vite.config.ts`. So the formatter is an exec site under execution trust
+([E-06](e-06-execution-trust.md)), decided when an edit would run it. Its record
+is keyed by the configuration file that selected it, and its digest holds the
+formatter's name and command, the resolved executable's bytes and that file's
+bytes, so a new executable or an edited configuration asks again. Modules either
+one imports are outside the digest. `kapi apply` runs the formatter under
+`KAPI_TRUST_EXEC`, on a recorded allow, or after asking a person at a terminal,
+whose answer it records, and a change-set read from standard input leaves no one
+to ask. MCP `apply_edits` runs it only on a recorded allow, since a project's own
+MCP client configuration can set the server's environment. Without trust the edit
+did not run, with the reason `formatter`, and no formatter process starts. When
+the host looks for the executable on `PATH`, it skips an entry that is not an
+absolute path, since such an entry names a directory relative to the working
+directory, and a not-installed detail lists the entries it skipped. A Go comment
+is held to `go/format`, the library gofmt is built on, inside the kapi binary, so
+a Go edit runs no formatter executable.
 
 TypeScript, TSX and JavaScript are declared writable. A JSDoc block's tags,
 their types and names, and its `{@link}` references are placeholders, so a

@@ -321,14 +321,13 @@ the edit with a reason when the comment has changed since the check, the text
 drops or adds a code block or reference, the text holds `*/` inside a `/* */`
 comment, the result would not parse, or the formatter would rewrite it. A
 comment in a language whose formatter is not installed, or does not format the
-file, is not written, and the edit reports that it did not run. The same holds
-for a project nobody trusted. A formatter runs code its project controls, such as
-its configuration and plugins, so `apply_edits` runs one only when the server was
-started with `kapi mcp --trust-project-formatters`, or when the project sits under
-a directory that `formatters.trusted_dirs` in kapi's own configuration lists. The
-flag, passed in a client configuration shared across projects, trusts every
-project an assistant opens there, and the directory list trusts only the projects
-it names. Each written file's result carries a check scoped to what was written.
+file, is not written, and the edit reports that it did not run. A formatter runs
+code its project controls, such as its configuration and plugins, so it falls
+under execution trust: `apply_edits` runs one only when a person has already
+allowed it, by answering the prompt `kapi apply` shows in a terminal for a
+comment edit in that project. It never asks, and it does not read
+`KAPI_TRUST_EXEC`. Without that allow the edit reports that it did not run, with
+the reason `formatter`. Each written file's result carries a check scoped to what was written.
 
 | `kind`    | What the entry changes                       |
 | --------- | -------------------------------------------- |

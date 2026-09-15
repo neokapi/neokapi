@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"sort"
 	"strings"
 	"unicode"
@@ -41,14 +42,15 @@ func IsExecClassTool(id string) bool { return execClassTools[id] }
 // IsExecClassFormat reports whether a format name runs recipe-supplied code.
 func IsExecClassFormat(name string) bool { return execClassFormats[name] }
 
-// ExecSite is one place in a recipe that arms code execution: a flow step, a
+// ExecSite is one place that arms code execution: in a recipe, a flow step, a
 // per-tool config preset that would supply such a step's argv, or a content
-// item bound to a format that shells out.
+// item bound to a format that shells out; and outside it, the formatter a
+// project configures for comment edits (FormatterExecSite).
 type ExecSite struct {
 	// Where locates the site in the recipe, in the recipe's own vocabulary
 	// (e.g. `flows.default.steps[2]`, `defaults.locales.nb.tools`).
 	Where string
-	// Kind is "tool" or "format".
+	// Kind is "tool", "format" or "formatter".
 	Kind string
 	// Name is the tool ID or format name.
 	Name string
@@ -60,6 +62,23 @@ type ExecSite struct {
 	// config is the canonical form of the site's configuration, used for the
 	// digest so that changing an argv invalidates a previous decision.
 	config map[string]any
+}
+
+// FormatterExecSite is the exec site of a formatter a project configures, which
+// a comment edit runs on the project's files. The file that selected the
+// formatter, configFile, locates the site, and command is what would run under
+// name. The digest also holds facts, such as hashes of the executable and of
+// configFile, so a change to either gives a different digest.
+func FormatterExecSite(configFile, name string, command []string, facts map[string]any) ExecSite {
+	config := map[string]any{"command": command}
+	maps.Copy(config, facts)
+	return ExecSite{
+		Where:  sanitizeForDisplay(configFile),
+		Kind:   "formatter",
+		Name:   sanitizeForDisplay(name),
+		Detail: sanitizeForDisplay(clip(strings.Join(command, " "), 320)),
+		config: config,
+	}
 }
 
 // ExecSurface enumerates every site in a recipe that would run code the recipe

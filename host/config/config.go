@@ -204,18 +204,6 @@ func (c *AppConfig) PluginDirectory() string {
 	return c.v.GetString(KeyPluginsDirectory)
 }
 
-// FormattersTrustedDirs returns the directories formatters.trusted_dirs lists.
-// A comment edit may run the formatter of a project under one of them, since
-// that formatter runs code the project controls. The value is a YAML list, or
-// directories joined by the OS path list separator, which is how `kapi config
-// set` stores one.
-func (c *AppConfig) FormattersTrustedDirs() []string {
-	if list, ok := c.v.Get(KeyFormattersTrustedDirs).(string); ok {
-		return slices.DeleteFunc(filepath.SplitList(list), func(dir string) bool { return dir == "" })
-	}
-	return parseStringSlice(c.v.Get(KeyFormattersTrustedDirs))
-}
-
 // Language returns the configured target locale for CLI/UI output
 // (BCP-47, e.g. "fr"). Empty when unset — the i18n.Resolve chain
 // then falls back to KAPI_LANG / LC_ALL / LANG.
@@ -289,10 +277,6 @@ const (
 	// inline config, or project recipe default still wins.
 	KeyAIProvider = "ai.provider"
 	KeyAIModel    = "ai.model"
-	// KeyFormattersTrustedDirs lists the directories under which a comment
-	// edit may run the formatter a project configures. See
-	// FormattersTrustedDirs.
-	KeyFormattersTrustedDirs = "formatters.trusted_dirs"
 )
 
 // Registries returns the configured list of plugin registries.
