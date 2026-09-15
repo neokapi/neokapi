@@ -24,6 +24,9 @@ steps:
   - uses: actions/checkout@v7
 
   - uses: neokapi/setup-kapi@v1
+    with:
+      version: "1.2.0-rc32"
+      plugins: bowrain@1.2.0-rc32
 ```
 
 The action downloads the correct binary for the runner platform (Linux, macOS, or Windows), verifies its SHA-256 checksum, and adds it to `PATH`. The built-in workflow token covers public release downloads, so no `token` input is required. On subsequent runs, the binary is restored from cache.
@@ -32,7 +35,7 @@ The action downloads the correct binary for the runner platform (Linux, macOS, o
 
 | Input        | Description                                                | Default  |
 | ------------ | ---------------------------------------------------------- | -------- |
-| `version`    | CLI version (for example `1.1.0` or `latest`)              | `latest` |
+| `version`    | CLI version to install, or `latest`                        | `latest` |
 | `plugins`    | Comma or newline-separated plugin refs to install, as the registry names them (`''` to install nothing) | `bowrain` |
 | `auth-token` | Bowrain server JWT (exported as `BOWRAIN_AUTH_TOKEN`)      | `""`     |
 | `server`     | Bowrain server URL (exported as `BOWRAIN_SERVER_URL`); self-hosted only, the hosted service is the default | `""`     |
@@ -245,6 +248,8 @@ jobs:
 
       - uses: neokapi/setup-kapi@v1
         with:
+          version: "1.2.0-rc32"
+          plugins: bowrain@1.2.0-rc32
           auth-token: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
           server: https://dev.bowrain.cloud
 
@@ -320,6 +325,8 @@ jobs:
 
       - uses: neokapi/setup-kapi@v1
         with:
+          version: "1.2.0-rc32"
+          plugins: bowrain@1.2.0-rc32
           auth-token: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
           server: https://dev.bowrain.cloud
 
@@ -378,8 +385,9 @@ The `plugins` input defaults to `bowrain`, the plugin that provides sync, push, 
 ```yaml
 - uses: neokapi/setup-kapi@v1
   with:
+    version: "1.2.0-rc32"
     plugins: |
-      bowrain
+      bowrain@1.2.0-rc32
       okapi-bridge
 ```
 
@@ -392,10 +400,10 @@ Pin the CLI version to avoid surprises from new releases:
 ```yaml
 - uses: neokapi/setup-kapi@v1
   with:
-    version: "1.1.0"
+    version: "1.2.0-rc32"
 ```
 
-`latest` (the default) installs the newest stable release. A release candidate is reachable only through a pin, so a workflow that runs a command a stable release does not have yet, such as `kapi up` or `kapi check --ship`, pins a 1.2.0 release candidate.
+`latest` (the default) installs the newest stable release, and `kapi up`, `kapi check --ship` and the other commands these examples run need 1.2.0 or later.
 
 ## Related
 
