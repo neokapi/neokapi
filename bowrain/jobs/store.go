@@ -50,6 +50,9 @@ type JobStore interface {
 	CompleteJob(ctx context.Context, id string, epoch int64) (owner bool, err error)
 	DeleteJob(ctx context.Context, id string) error
 	ListJobsByPushID(ctx context.Context, pushID string) ([]*TranslationJob, error)
+	// CountActivePushApplies counts the sync pushes for a project's stream that
+	// are queued or being applied. An empty stream is main.
+	CountActivePushApplies(ctx context.Context, projectID, stream string) (int, error)
 	// SetPushGovernance records what a push's review gate did not accept, on
 	// the job row the producer polls. A push is answered with 202 and applied
 	// by this worker afterwards, so the refusal is discovered long after the
@@ -587,6 +590,22 @@ func (s *jobStore) ListJobsByPushID(ctx context.Context, pushID string) ([]*Tran
 	}
 	defer rows.Close()
 	return scanJobs(rows)
+}
+
+func (s *jobStore) CountActivePushApplies(ctx context.Context, projectID, stream string) (int, error) {
+	if stream == "" {
+		stream = "main"
+	}
+	var n int
+	err := s.db.QueryRowContext(ctx,
+		`SELECT count(*) FROM translation_jobs
+		 WHERE project_id = $1 AND item_name = $2 AND status IN ($3, $4)
+		   AND COALESCE(NULLIF(stream, ''), 'main') = $5`,
+		projectID, SyncPushItemName, string(StatusQueued), string(StatusProcessing), stream).Scan(&n)
+	if err != nil {
+		return 0, fmt.Errorf("count active push applies: %w", err)
+	}
+	return n, nil
 }
 
 // scanJob scans a single TranslationJob from a sql.Row.
