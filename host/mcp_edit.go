@@ -59,7 +59,7 @@ func registerEditMCPTools(server *mcp.Server, a *App) {
 			"Every byte outside the comment is kept, a /* */ comment keeps its layout, the result must " +
 			"parse and the language's formatter must agree; a directive, a generated file's comment, a changed comment, " +
 			"text holding */ in a /* */ comment and text that drops a code block or reference are refused with a reason and write nothing. " +
-			"A comment in a language whose formatter is not installed, or does not format the file, did not run and is not written. " +
+			"A comment in a language whose plugin or formatter is not installed, or whose formatter does not format the file, did not run and is not written. " +
 			"Each written file's result carries a check scoped to the change.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, in applyEditsInput) (*mcp.CallToolResult, applyEditsMCPOutput, error) {
 		return a.applyEditsMCP(ctx, in)

@@ -43,16 +43,16 @@ func runOxfmt(t *testing.T, path string, src []byte) []byte {
 	return out
 }
 
-// tsRewriteApp returns an App reading TypeScript comments through the
-// sourcecode plugin built from this repository, with the formatters its
-// manifest declares for TypeScript run from this repository's node_modules.
-// edit, when set, changes the TypeScript rewrite declaration further.
+// tsRewriteApp returns an App reading comments through the sourcecode plugin
+// built from this repository, with the oxfmt its manifest declares for each
+// writable language run from this repository's node_modules. edit, when set,
+// changes each language's rewrite declaration further.
 func tsRewriteApp(t *testing.T, edit func(rewrite map[string]any)) *App {
 	t.Helper()
 	oxfmt := repoOxfmt(t)
 	return sourcecodeApp(t, func(l map[string]any) {
 		rewrite, ok := l["rewrite"].(map[string]any)
-		if l["language"] != "typescript" || !ok {
+		if !ok {
 			return
 		}
 		for _, f := range rewrite["formatters"].([]any) {
