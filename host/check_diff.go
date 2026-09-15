@@ -367,7 +367,7 @@ func (a *App) checkDiffFile(ctx context.Context, run diffCheckRun, f diffscope.F
 	read, err := locate(ctx, content)
 	if format, _ := run.opts.formats.forFile(a, abs); run.unread.Skip(err, entry.Path, format) {
 		entry.Status = check.ScopeNoReader
-		entry.Reason = noReaderReason(err, format)
+		entry.Reason = noReaderReason(err, format, a.discoveredPlugins()...)
 		return nil, 0, nil
 	}
 	if err != nil {

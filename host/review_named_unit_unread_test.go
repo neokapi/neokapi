@@ -18,11 +18,11 @@ import (
 // to install, and records nothing. It never approves a unit it could not read.
 
 // requireInstallHint holds an error to the sentinel and to naming the plugin.
-func requireInstallHint(t *testing.T, err error, format string) {
+func requireInstallHint(t *testing.T, err error, plugin string) {
 	t.Helper()
 	require.Error(t, err)
 	require.ErrorIs(t, err, registry.ErrUnknownFormat)
-	assert.Contains(t, err.Error(), "kapi plugins install "+format)
+	assert.Contains(t, err.Error(), "(kapi plugins install "+plugin+")")
 }
 
 // readableReviewKey returns the key of the readable translation awaiting review,
@@ -46,7 +46,7 @@ func TestApproveReviewUnitWithNoReaderFailsAndRecordsNothing(t *testing.T) {
 	ctx := context.Background()
 
 	ok, err := (&App{}).ApproveReviewUnit(ctx, recipe, "en", "fr", "pkg/doc.fr.idml", "hello", "reviewed")
-	requireInstallHint(t, err, "okf_idml")
+	requireInstallHint(t, err, "okapi-bridge")
 	assert.False(t, ok)
 	st, serr := (&App{}).OpenProjectState(ctx, root)
 	require.NoError(t, serr)
@@ -66,7 +66,7 @@ func TestReviewUnitWithNoReaderNamesThePlugin(t *testing.T) {
 	ctx := context.Background()
 
 	_, err := (&App{}).ReviewUnit(ctx, recipe, "en", ReviewUnitRef{File: "pkg/doc.fr.idml", Key: "hello", Locale: "fr"})
-	requireInstallHint(t, err, "okf_idml")
+	requireInstallHint(t, err, "okapi-bridge")
 
 	info, err := (&App{}).ReviewUnit(ctx, recipe, "en", ReviewUnitRef{File: "fr.json", Key: readableReviewKey(t, recipe), Locale: "fr"})
 	require.NoError(t, err)
@@ -79,7 +79,7 @@ func TestRecordAIReviewsWithNoReaderNamesThePlugin(t *testing.T) {
 
 	n, err := (&App{}).RecordAIReviews(context.Background(), recipe, "en", "fr", "pkg/doc.fr.idml",
 		map[string]state.AIReview{"hello": {Score: 90}})
-	requireInstallHint(t, err, "okf_idml")
+	requireInstallHint(t, err, "okapi-bridge")
 	assert.Zero(t, n)
 }
 
@@ -91,10 +91,10 @@ func TestSourceUnitReviewAndApprovalWithNoReaderNameThePlugin(t *testing.T) {
 	ctx := context.Background()
 
 	_, err := (&App{}).ReviewUnit(ctx, recipe, "en", ReviewUnitRef{File: "pkg/doc.idml", Key: "hello", Locale: "en"})
-	requireInstallHint(t, err, "okf_idml")
+	requireInstallHint(t, err, "okapi-bridge")
 
 	ok, err := (&App{}).ApproveSourceUnit(ctx, recipe, "en", SourceUnitRef{File: "pkg/doc.idml", Key: "hello"})
-	requireInstallHint(t, err, "okf_idml")
+	requireInstallHint(t, err, "okapi-bridge")
 	assert.False(t, ok)
 }
 
@@ -110,10 +110,10 @@ func TestNamedTargetCheckWithNoReaderNamesThePlugin(t *testing.T) {
 	cmd.Flags().String("target", filepath.Join("pkg", "doc.fr.idml"), "")
 	cmd.Flags().String("target-lang", "fr", "")
 	_, err := (&App{SourceLang: "en"}).ComputeCheck(cmd, []string{filepath.Join("pkg", "doc.idml")})
-	requireInstallHint(t, err, "okf_idml")
+	requireInstallHint(t, err, "okapi-bridge")
 
 	_, _, err = (&App{SourceLang: "en", mcpRecipePath: filepath.Join(root, "kapi.yaml")}).checkFileMCP(t.Context(), checkFileInput{
 		File: filepath.Join(root, "pkg", "doc.idml"), Target: filepath.Join(root, "pkg", "doc.fr.idml"), TargetLang: string(model.LocaleID("fr")),
 	})
-	requireInstallHint(t, err, "okf_idml")
+	requireInstallHint(t, err, "okapi-bridge")
 }

@@ -133,14 +133,14 @@ func (a *App) reviewUnitBlocks(ctx context.Context, op *openProject, rf project.
 	fmtCfg := pctx.FormatConfigFor(rf.Format, rf.Item)
 	passBlocks, err := a.readBlocksForChecks(ctx, rf.Path, rf.Format, fmtCfg, sourceLang)
 	if err != nil {
-		return nil, nil, host.NoReaderError(err, rf.Relative, rf.Format)
+		return nil, nil, host.NoReaderError(err, rf.Relative, rf.Format, a.discoveredPlugins()...)
 	}
 	if _, serr := os.Stat(tgtPath); serr != nil {
 		return nil, nil, fmt.Errorf("target file %q not found: %w", tgtPath, serr)
 	}
 	targetBlocks, err := a.readBlocksForChecks(ctx, tgtPath, rf.Format, fmtCfg, sourceLang)
 	if err != nil {
-		return nil, nil, host.NoReaderError(err, rf.Relative, rf.Format)
+		return nil, nil, host.NoReaderError(err, rf.Relative, rf.Format, a.discoveredPlugins()...)
 	}
 	host.OverlayTargets(passBlocks, targetBlocks, model.LocaleID(locale))
 	byKey := make(map[string]*model.Block, len(passBlocks))
@@ -616,7 +616,7 @@ func (a *App) UpdateReviewTarget(tabID, locale, file, key, text string) error {
 		applied = true
 	}
 	if err := a.rewriteFile(ctx, tgtPath, fmtName, sourceLang, pctx, rf.Item, transform); err != nil {
-		return host.NoReaderError(err, rf.Relative, fmtName)
+		return host.NoReaderError(err, rf.Relative, fmtName, a.discoveredPlugins()...)
 	}
 	if applyErr != nil {
 		return applyErr

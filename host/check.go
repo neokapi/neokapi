@@ -460,7 +460,7 @@ func (a *App) computeCheck(cmd Command, args []string, declared bool) (check.Rep
 		execution.Timings.ExtractionMS += elapsedMS(extractionStart)
 		execution.skipped("reader.validation", sourcePath, "Reader validation was not requested.")
 		if berr != nil {
-			return check.Report{}, NoReaderError(berr, DisplayName(sourcePath), fmtName)
+			return check.Report{}, NoReaderError(berr, DisplayName(sourcePath), fmtName, a.discoveredPlugins()...)
 		}
 		if missing {
 			return check.Report{}, fmt.Errorf("target file %q does not exist", targetFile)

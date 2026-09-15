@@ -193,7 +193,7 @@ func (a *App) ApplyReviewDecisionAs(ctx context.Context, projectPath, sourceLang
 			if errors.Is(berr, errTargetUnreadable) {
 				continue // unreadable target (e.g. a compiled .mo) — not decidable per unit
 			}
-			return false, NoReaderError(berr, relativeToRoot(root, u.SourcePath), u.SourceFormat)
+			return false, NoReaderError(berr, relativeToRoot(root, u.SourcePath), u.SourceFormat, a.discoveredPlugins()...)
 		}
 		if missing {
 			continue
@@ -387,7 +387,7 @@ func (a *App) RecordAIReviews(ctx context.Context, projectPath, sourceLang, loca
 			if errors.Is(berr, errTargetUnreadable) {
 				continue
 			}
-			return recorded, NoReaderError(berr, relativeToRoot(root, u.SourcePath), u.SourceFormat)
+			return recorded, NoReaderError(berr, relativeToRoot(root, u.SourcePath), u.SourceFormat, a.discoveredPlugins()...)
 		}
 		if missing {
 			continue
@@ -528,7 +528,7 @@ func (a *App) ReviewUnitWithOptions(ctx context.Context, projectPath, sourceLang
 			if errors.Is(berr, errTargetUnreadable) {
 				continue
 			}
-			return nil, NoReaderError(berr, relativeToRoot(root, u.SourcePath), u.SourceFormat)
+			return nil, NoReaderError(berr, relativeToRoot(root, u.SourcePath), u.SourceFormat, a.discoveredPlugins()...)
 		}
 		if missing {
 			continue

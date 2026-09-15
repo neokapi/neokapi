@@ -19,11 +19,11 @@ func TestReviewUnitRequestsWithNoReaderNameThePlugin(t *testing.T) {
 
 	_, err := app.GetReviewUnit(tabID, "fr", "pkg/doc.fr.idml", "hello")
 	require.ErrorIs(t, err, registry.ErrUnknownFormat)
-	assert.Contains(t, err.Error(), "kapi plugins install okf_idml")
+	assert.Contains(t, err.Error(), "kapi plugins install okapi-bridge")
 
 	err = app.UpdateReviewTarget(tabID, "fr", "pkg/doc.fr.idml", "hello", "Bonjour")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "kapi plugins install okf_idml")
+	assert.Contains(t, err.Error(), "kapi plugins install okapi-bridge")
 
 	unit, err := app.GetReviewUnit(tabID, "fr", "locales/fr.json", "greeting")
 	require.NoError(t, err)

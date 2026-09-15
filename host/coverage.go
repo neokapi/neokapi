@@ -704,7 +704,7 @@ func (a *App) warnUnreadableFormats(cmd Command, unreadable []string) {
 	for _, f := range unreadable {
 		fmt.Fprintf(cmd.ErrOrStderr(),
 			"warning: no reader for format %q, so content declaring it was not measured; "+
-				"install the plugin that supplies it (kapi plugins install %s)\n", f, f)
+				"%s\n", f, formatInstallClause(a.discoveredPlugins(), f))
 	}
 }
 

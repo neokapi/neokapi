@@ -659,10 +659,9 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 			// is indistinguishable from one that read it and found it clean.
 			for _, f := range unreadable {
 				emitter.Emit(convergence.Event{
-					Type:  convergence.EventLog,
-					Stage: convergence.StageSettleSource,
-					Message: fmt.Sprintf("No reader for format %q: its content is not counted in the source gate. "+
-						"Install the plugin that supplies it (kapi plugins install %s).", f, f),
+					Type:    convergence.EventLog,
+					Stage:   convergence.StageSettleSource,
+					Message: sourceGateUnreadMessage(a.discoveredPlugins(), f),
 				})
 			}
 			emitter.Emit(convergence.Event{
@@ -724,8 +723,8 @@ func announceSetAside(emitter *convergence.Emitter, unread *UnreadSet) {
 		emitter.Emit(convergence.Event{
 			Type:  convergence.EventLog,
 			Stage: convergence.StageSync,
-			Message: fmt.Sprintf("No reader for format %q: %s set aside and not converged. "+
-				"Install the plugin that supplies it (kapi plugins install %s).", format, named(files[format]), format),
+			Message: fmt.Sprintf("No reader for format %q: %s set aside and not converged. %s.",
+				format, named(files[format]), sentenceCase(installClause(unread.readers[files[format][0]].plugin))),
 		})
 	}
 }
