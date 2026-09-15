@@ -1207,6 +1207,8 @@ jobs:
         run: ./scripts/check-plugin-release-latest.sh
       - name: "Guard: the apt/yum repository publishes only when it is turned on"
         run: ./scripts/check-packages-publish-gate.sh
+      - name: "Guard: the release casks carry no install hook or retired vocabulary"
+        run: ./scripts/check-cask-heredocs.sh
 
       # The gate itself runs only in the nightly convergence, where nothing
       # exercises it on a pull request. Its self-test does: it drives the real

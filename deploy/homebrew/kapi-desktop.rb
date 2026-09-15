@@ -17,12 +17,6 @@ cask "kapi-desktop" do
 
   app "Kapi.app"
 
-  postflight do
-    system_command "/usr/bin/xattr",
-                  args: ["-dr", "com.apple.quarantine", "#{appdir}/Kapi.app"],
-                  sudo: false
-  end
-
   caveats <<~EOS
     The kapi CLI is provided by the kapi-cli formula (installed automatically).
 
@@ -34,9 +28,10 @@ cask "kapi-desktop" do
   EOS
 
   zap trash: [
-    "~/Library/Application Support/Kapi",
-    "~/Library/Preferences/io.github.neokapi.kapi-desktop.plist",
-    "~/Library/Caches/Kapi",
     "~/.config/kapi-desktop",
+    "~/Library/Application Support/kapi-desktop",
+    "~/Library/Caches/io.github.neokapi.kapi-desktop",
+    "~/Library/Preferences/io.github.neokapi.kapi-desktop.plist",
+    "~/Library/WebKit/io.github.neokapi.kapi-desktop",
   ]
 end
