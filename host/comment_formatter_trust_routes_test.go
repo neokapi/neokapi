@@ -1,6 +1,7 @@
 package host
 
 import (
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -48,9 +49,7 @@ func prettierProject(t *testing.T, files map[string]string) (file, marker, dir s
 	t.Helper()
 	skipShellFixture(t)
 	withoutOxfmt := map[string]string{".oxfmtrc.json": ""}
-	for name, body := range files {
-		withoutOxfmt[name] = body
-	}
+	maps.Copy(withoutOxfmt, files)
 	file = tsProject(t, withoutOxfmt)
 	dir = filepath.Dir(file)
 	marker = filepath.Join(t.TempDir(), "ran")
