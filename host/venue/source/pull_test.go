@@ -254,6 +254,80 @@ func TestPull_UnreadableFormatHoldsTheCursor(t *testing.T) {
 		"the cursor must not advance past translations that could not be written")
 }
 
+// TestPull_BlockWithoutAnItemDoesNotHoldTheCursor pins the nightly wedge: the
+// server served translated blocks whose item name was empty. Grouped under "",
+// the item resolved to the project root, no format claimed it, and the pull
+// joined a write failure and held the cursor, so every later pull received the
+// same blocks and failed the same way.
+//
+// A block with no item, or with an item that is not a path inside the project,
+// can never be written by any checkout. The pull skips it and advances, and the
+// items around it are still written.
+func TestPull_BlockWithoutAnItemDoesNotHoldTheCursor(t *testing.T) {
+	const startCursor = int64(5)
+	const serverCursor = int64(42)
+	targetLangs := []string{"fr"}
+
+	unaddressed := func(itemName, id string) apiclient.SyncBlock {
+		return apiclient.SyncBlock{
+			ID:         id,
+			ItemName:   itemName,
+			Name:       "orphan",
+			SourceText: "Orphan",
+			Targets: map[string][]apiclient.SyncSegment{
+				"fr": {{Runs: []apiclient.SyncRun{{Text: &apiclient.SyncTextRun{Text: "Orphelin"}}}}},
+			},
+		}
+	}
+	outside := filepath.Join(t.TempDir(), "outside.json")
+
+	mux := http.NewServeMux()
+	metaPath := "/api/v1/projects/proj123"
+	mux.HandleFunc(metaPath, func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(apiclient.ProjectMetadata{
+			ID: "proj123", DefaultSourceLanguage: "en", TargetLanguages: targetLangs,
+		})
+	})
+	mux.HandleFunc(metaPath+"/sync/main/pull", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(apiclient.RichPullResponse{
+			Cursor: serverCursor,
+			Blocks: []apiclient.SyncBlock{
+				unaddressed("", "b-empty"),
+				unaddressed(outside, "b-absolute"),
+				unaddressed("../escape.json", "b-escape"),
+				{
+					ItemName: "locales/en.json", Name: "greeting", SourceText: "Hello",
+					Targets: map[string][]apiclient.SyncSegment{
+						"fr": {{Runs: []apiclient.SyncRun{{Text: &apiclient.SyncTextRun{Text: "Bonjour"}}}}},
+					},
+				},
+			},
+		})
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	conn := newPullTestConnector(t, srv, targetLangs, startCursor)
+	defer conn.Close()
+
+	res, err := conn.Pull(context.Background(), bowrainconn.PullOptions{})
+	require.NoError(t, err, "a block no checkout can write must not fail the pull")
+	require.NotNil(t, res)
+	assert.Equal(t, 1, res.FilesWritten, "the addressed item is still written")
+
+	assert.Equal(t, serverCursor, reloadRefs(t, conn).Ref("main").Content,
+		"the cursor moves past blocks that name no writable item")
+
+	frBytes, readErr := os.ReadFile(filepath.Join(conn.project.Root, "locales", "fr.json"))
+	require.NoError(t, readErr)
+	assert.Contains(t, string(frBytes), "Bonjour")
+
+	_, statErr := os.Stat(outside)
+	require.ErrorIs(t, statErr, os.ErrNotExist, "nothing is written outside the project")
+	_, statErr = os.Stat(filepath.Join(filepath.Dir(conn.project.Root), "escape.json"))
+	require.ErrorIs(t, statErr, os.ErrNotExist, "nothing is written above the project root")
+}
+
 // TestPull_AllWritesSucceedAdvancesCursor is the happy-path counterpart: when
 // every target file writes cleanly, the cursor advances to the server cursor and
 // is saved, and Pull returns the written-file count.

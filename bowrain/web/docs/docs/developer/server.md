@@ -52,6 +52,12 @@ PUT  /api/v1/:ws/:id/sync/:ref/push/chunks/:uploadId/:chunkIndex   # Proxied chu
 POST /api/v1/:ws/:id/sync/:ref/push/commit      # Commit the manifest (202; a worker applies it)
 ```
 
+A pull walks the stream's change log forward from the client's cursor and
+serves each changed block under the item it belongs to. A block row that
+belongs to no item is left out of the response, and the cursor the response
+returns still moves past its change, so every client continues from the same
+place. The server logs how many such rows a pull left out.
+
 The same routes exist under `/api/v1/projects/:id/sync/:ref/...` for a project
 that has not yet been claimed into a workspace, authenticated by its claim token.
 See [`kapi push`](/cli/commands/push) for the protocol as a client sees it.
