@@ -11,6 +11,12 @@ Bowrain 1.2.0 is the first stable release on the Bowrain track, which now releas
 - A push carries the project's declared structure, its voice profile and its terms, and the server applies it in one transaction. The plugin computes the change against the server's tree, so renames and deletions arrive as renames and deletions.
 - `kapi pull` writes an approved recipe change into the working tree, and writes no translation for content without a target.
 - `kapi up` prints the server's governance refusals for a push. Content declared only for its comments stays out of the push scope.
+- A pull skips blocks that belong to no item and serves each block once.
+- Server jobs do not recreate removed content or revert pushed source.
+- An unchanged push uploads nothing, and blocks keep their keys across server runs.
+- After `kapi pull` and `kapi commit`, a push is not refused for decisions it did not change.
+- The server settles source only after a project's pushes apply, and a push that arrives while a server run is writing still applies.
+- A push updates the workspace's context graph with the project's term uses and collection membership.
 - The plugin is licensed Apache-2.0.
 
 ## Review and sign off
@@ -59,7 +65,7 @@ Bowrain 1.2.0 is the first stable release on the Bowrain track, which now releas
 ## Upgrading from 1.1.0
 
 - `kapi sync` is removed. Use `kapi up`, or `kapi push` and `kapi pull`.
-- `kapi push` and `kapi pull` no longer take `--concepts` or `--no-brand`. A push carries the whole project.
+- `kapi push` no longer takes `--concepts` or `--no-brand`. A push carries the whole project.
 - The recipe's `server:` block is now `bowrain:`.
 - The API names voice where it named brand: `/:ws/brand-profiles` is `/:ws/voice-profiles`, `/:ws/brand-scans` is `/:ws/context-scans`, the `brand.voice.*` events are `voice.*`, and the `manage_brand` permission is `manage_voice`.
 - The push protocol changed, and `/push/diff` is removed. Upgrade the plugin and the server together.
