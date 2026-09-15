@@ -74,6 +74,7 @@ superset avoids that, at the cost of beta builds sometimes running a *final*
 | Homebrew formulae | `kapi-cli-beta` / `bowrain-cli-beta` only | **both** `kapi-cli` + `kapi-cli-beta` (and bowrain) at the final version |
 | Desktop appcast feeds | `…-beta.xml` only | **both** `….xml` and `…-beta.xml` |
 | Desktop casks | `kapi@beta` / `bowrain@beta` only | **both** `kapi` + `kapi@beta` (and bowrain) |
+| GitHub release `latest` | never | the kapi CLI release only (`latest` output of `scripts/release-channel.sh`); Bowrain and plugin releases pass `make_latest: false` |
 
 So a final reaches beta users on every install method (Homebrew formula, tarball
 self-update via `cli.json`, and the desktop cask/appcast).

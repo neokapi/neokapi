@@ -193,8 +193,8 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           # This plugin has its own tag line; it must NOT become the repo's
-          # "latest" release, or setup-kapi's resolve-version (which reads
-          # releases/latest) would resolve the kapi CLI to this tag.
+          # "latest" release, or https://github.com/neokapi/neokapi/releases/latest,
+          # where `kapi update` sends users to download kapi, opens this plugin.
           make_latest: false
           files: |
             sourcecode-release/*.tar.gz
