@@ -27,6 +27,7 @@ Bowrain 1.2.0 is the first stable release on the Bowrain track, which now releas
 - Sign off is available on the review surfaces for content that needs a final approval.
 - Reviewers are notified by task, email, banner and badge, and see what approving a change-set affects.
 - A unit a reviewer rejects is drafted again by the next pass. Approvals and sign-offs that arrive by push are held to the same governance.
+- An editor save, a review decision or an MCP `update_block` made against an older read of a unit is refused, and returns the unit as it now stands.
 - In-context review shows an item inside the component that ships it.
 
 ## Govern context
