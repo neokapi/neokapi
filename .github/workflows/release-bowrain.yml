@@ -1149,10 +1149,17 @@ jobs:
           for ch in $CHANNELS; do
           if [ "$ch" = beta ]; then
             CASK_NAME="bowrain@beta"; DEP="bowrain-cli-beta"
-            CONFLICTS='  conflicts_with cask: "bowrain"'
+            CONFLICTS=$'  conflicts_with cask: "bowrain"\n'
           else
             CASK_NAME="bowrain"; DEP="bowrain-cli"; CONFLICTS=""
           fi
+          # Stanza order and grouping follow `brew style`; the conflicts line
+          # carries its own newline so the stable cask has no empty line in its
+          # place. The app is notarized and stapled, so the cask has no
+          # postflight block, and zap names only the app's own data: on a
+          # case-insensitive volume "Application Support/Bowrain" is the bowrain
+          # plugin's sign-in and config. scripts/check-cask-heredocs.sh holds
+          # all three.
           cat > "homebrew-tap/Casks/${CASK_NAME}.rb" << CASK
           cask "${CASK_NAME}" do
             version "${VERSION}"
@@ -1163,26 +1170,22 @@ jobs:
             desc "AI-native translation editor"
             homepage "https://github.com/neokapi/neokapi"
 
-            depends_on formula: "neokapi/tap/${DEP}"
-          ${CONFLICTS}
+          ${CONFLICTS}  depends_on formula: "neokapi/tap/${DEP}"
+            depends_on :macos
+
             app "Bowrain.app"
 
-            postflight do
-              system_command "/usr/bin/xattr",
-                            args: ["-dr", "com.apple.quarantine", "#{appdir}/Bowrain.app"],
-                            sudo: false
-            end
+            zap trash: [
+              "~/Library/Application Support/bowrain-desktop",
+              "~/Library/Caches/io.github.neokapi.bowrain",
+              "~/Library/Preferences/io.github.neokapi.bowrain.plist",
+              "~/Library/WebKit/io.github.neokapi.bowrain",
+            ]
 
             caveats <<~EOS
-              The bowrain CLI is provided by the ${DEP} formula (installed
-              automatically). Run "bowrain ui" to launch the desktop app.
+              kapi and the bowrain plugin come from the ${DEP} formula
+              (installed automatically). Run "kapi ui" to launch the desktop app.
             EOS
-
-            zap trash: [
-              "~/Library/Application Support/Bowrain",
-              "~/Library/Preferences/com.wails.bowrain.plist",
-              "~/Library/Caches/Bowrain",
-            ]
           end
           CASK
           done

@@ -1289,10 +1289,16 @@ jobs:
           for ch in $CHANNELS; do
           if [ "$ch" = beta ]; then
             CASK_NAME="kapi@beta"; DEP="kapi-cli-beta"
-            CONFLICTS='  conflicts_with cask: "kapi"'
+            CONFLICTS=$'  conflicts_with cask: "kapi"\n'
           else
             CASK_NAME="kapi"; DEP="kapi-cli"; CONFLICTS=""
           fi
+          # Stanza order and grouping follow `brew style`; the conflicts line
+          # carries its own newline so the stable cask has no empty line in its
+          # place. The app is notarized and stapled, so the cask has no
+          # postflight block, and zap names only the app's own data: on a
+          # case-insensitive volume "Application Support/Kapi" is the CLI's
+          # config. scripts/check-cask-heredocs.sh holds all three.
           cat > "homebrew-tap/Casks/${CASK_NAME}.rb" << CASK
           cask "${CASK_NAME}" do
             version "${VERSION}"
@@ -1300,29 +1306,25 @@ jobs:
 
             url "https://github.com/neokapi/neokapi/releases/download/v#{version}/kapi-#{version}-macOS-arm64.dmg"
             name "Kapi"
-            desc "Localization toolkit - powered by neokapi"
+            desc "Desktop workbench for a project's content context"
             homepage "https://github.com/neokapi/neokapi"
 
-            depends_on formula: "neokapi/tap/${DEP}"
-          ${CONFLICTS}
+          ${CONFLICTS}  depends_on formula: "neokapi/tap/${DEP}"
+            depends_on :macos
+
             app "Kapi.app"
 
-            postflight do
-              system_command "/usr/bin/xattr",
-                            args: ["-dr", "com.apple.quarantine", "#{appdir}/Kapi.app"],
-                            sudo: false
-            end
+            zap trash: [
+              "~/Library/Application Support/kapi-desktop",
+              "~/Library/Caches/io.github.neokapi.kapi-desktop",
+              "~/Library/Preferences/io.github.neokapi.kapi-desktop.plist",
+              "~/Library/WebKit/io.github.neokapi.kapi-desktop",
+            ]
 
             caveats <<~EOS
               The kapi CLI is provided by the ${DEP} formula (installed
               automatically). Run "kapi" for command-line usage.
             EOS
-
-            zap trash: [
-              "~/Library/Application Support/Kapi",
-              "~/Library/Preferences/io.github.neokapi.kapi-desktop.plist",
-              "~/Library/Caches/Kapi",
-            ]
           end
           CASK
           done

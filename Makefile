@@ -244,7 +244,7 @@ vet: ## Run go vet (all modules)
 	@$(MAKE) --no-print-directory _fw-vet
 	@$(MAKE) -C bowrain vet
 
-lint: check-abs-paths check-em-dashes check-docs-palette check-eval-publishable check-local-actions check-deploy-paths check-vocabulary check-desktop-interchange check-vocab-packs check-comment-history check-reference-provenance check-run-projection check-walk-selectors check-locale-display check-sidebar-ids check-package-licenses check-archive-licenses check-plugin-licenses check-plugin-release-latest check-packages-publish-gate check-tracked-binaries check-extract-fixtures check-gofmt ## Run golangci-lint (all modules) + repo hygiene guards
+lint: check-abs-paths check-em-dashes check-docs-palette check-eval-publishable check-local-actions check-deploy-paths check-vocabulary check-desktop-interchange check-vocab-packs check-comment-history check-reference-provenance check-run-projection check-walk-selectors check-locale-display check-sidebar-ids check-package-licenses check-archive-licenses check-plugin-licenses check-plugin-release-latest check-packages-publish-gate check-cask-heredocs check-tracked-binaries check-extract-fixtures check-gofmt ## Run golangci-lint (all modules) + repo hygiene guards
 	@$(MAKE) --no-print-directory _fw-lint
 	@$(MAKE) --no-print-directory kapi-desktop-lint
 	@$(MAKE) --no-print-directory harness-check
@@ -326,6 +326,9 @@ check-plugin-release-latest: ## Guard: no plugin release claims the repo's "late
 
 check-packages-publish-gate: ## Guard: the apt/yum repository publishes only when PUBLISH_PACKAGES is "true"
 	@./scripts/check-packages-publish-gate.sh
+
+check-cask-heredocs: ## Guard: the release casks carry no pre/postflight block and no retired vocabulary in desc
+	@./scripts/check-cask-heredocs.sh
 
 check-tracked-binaries: ## Guard: no compiled executable (ELF/Mach-O/PE) is tracked in git
 	@./scripts/check-tracked-binaries.sh
