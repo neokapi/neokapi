@@ -564,6 +564,10 @@ func (s *EventEmittingStore) GetChanges(ctx context.Context, projectID, stream s
 	return s.inner.GetChanges(ctx, projectID, stream, sinceCursor, locales, limit)
 }
 
+func (s *EventEmittingStore) GetLatestChanges(ctx context.Context, projectID, stream string, sinceCursor int64, locales []string, limit int) (*store.ChangeSet, error) {
+	return s.inner.GetLatestChanges(ctx, projectID, stream, sinceCursor, locales, limit)
+}
+
 func (s *EventEmittingStore) LatestCursor(ctx context.Context, projectID, stream string) (int64, error) {
 	return s.inner.LatestCursor(ctx, projectID, stream)
 }

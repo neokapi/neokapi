@@ -182,6 +182,12 @@ type VersionStore interface {
 // ChangeFeed exposes the incremental sync change log (stream-scoped).
 type ChangeFeed interface {
 	GetChanges(ctx context.Context, projectID, stream string, sinceCursor int64, locales []string, limit int) (*ChangeSet, error)
+	// GetLatestChanges returns one entry per block changed since the cursor:
+	// its latest change within the locale scope, ordered and paged by that
+	// change's seq. A pull serves each block's current state, so a page of
+	// these serves every block once, and a block that changes after its page
+	// has a later entry past that page's cursor.
+	GetLatestChanges(ctx context.Context, projectID, stream string, sinceCursor int64, locales []string, limit int) (*ChangeSet, error)
 	LatestCursor(ctx context.Context, projectID, stream string) (int64, error)
 	CompactChangeLog(ctx context.Context, projectID, stream string, retainDays int) (int64, error)
 }

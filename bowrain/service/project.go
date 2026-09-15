@@ -149,6 +149,12 @@ func (s *ProjectService) GetChanges(ctx context.Context, projectID, stream strin
 	return s.store.GetChanges(ctx, projectID, stream, sinceCursor, locales, limit)
 }
 
+// GetLatestChanges returns each changed block's latest change since a cursor on
+// one stream (see store.ChangeFeed).
+func (s *ProjectService) GetLatestChanges(ctx context.Context, projectID, stream string, sinceCursor int64, locales []string, limit int) (*store.ChangeSet, error) {
+	return s.store.GetLatestChanges(ctx, projectID, stream, sinceCursor, locales, limit)
+}
+
 // LatestCursor returns the most recent change log sequence number on a stream —
 // the ref's content component.
 func (s *ProjectService) LatestCursor(ctx context.Context, projectID, stream string) (int64, error) {

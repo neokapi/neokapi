@@ -53,7 +53,10 @@ POST /api/v1/:ws/:id/sync/:ref/push/commit      # Commit the manifest (202; a wo
 ```
 
 A pull walks the stream's change log forward from the client's cursor and
-serves each changed block under the item it belongs to. A block row that
+serves each changed block under the item it belongs to. A page carries each
+block once, at its latest change since the cursor, so a pull from the start
+serves every block once, and a block that changes after its page arrives again
+on a later page. A block row that
 belongs to no item is left out of the response, and the cursor the response
 returns still moves past its change, so every client continues from the same
 place. The server logs how many such rows a pull left out.
