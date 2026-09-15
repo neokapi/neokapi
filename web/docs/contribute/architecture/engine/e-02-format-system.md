@@ -660,6 +660,31 @@ own prose, and `TestProseP4_go` does the same for every `/* */` comment in the
 repository and in the Go toolchain's source tree, and requires each file to
 stay byte-identical.
 
+A comment in a language the sourcecode plugin reads is written when the plugin's
+manifest declares that language writable (`rewrite` on a `capabilities.comments`
+entry). The host writes it, never the plugin. It reads the comment's layout from
+the file's bytes through the markers the manifest names, `comment.ParseLayout`
+for a delimited comment and `comment.ParseLineLayout` for a group of line
+comments, renders the text into that layout and splices it in. `Contain` then
+has the plugin locate the rewritten file through `LocateComments`, so the check
+a rewrite is held to runs in the plugin's grammar and shares no code with the
+renderer. The text is not reflowed, and the entry's `width` does not apply.
+
+Such a rewrite is held to the formatter the file's project uses, which runs in
+the host because its configuration and ignore files belong to the project and
+the plugin sees only bytes. The host looks for the marker files each formatter
+the manifest lists, such as `.prettierrc` or a `vite.config.ts` that loads
+vite-plus, in the file's directory and the directories above it, and runs the
+nearest one's command on the file's bytes, from `node_modules/.bin` or `PATH`.
+The path it gives the formatter has its symbolic links resolved, since a
+formatter matches its ignore files against that path. Before its output is
+trusted, the formatter must rewrite the manifest's formatter canary at the
+file's own path. A formatter that is not configured, not installed, or leaves the
+canary as it is did not run: `Contain` returns `comment.ErrFormatterNotRun`, and
+the entry reports did-not-run with the reason `formatter` and writes nothing. A
+check of a file in such a language does not run the formatter, which it reports
+as unsupported.
+
 `kapi apply` and MCP `apply_edits` reach the rewrite through a `comment` entry,
 addressed by file and the id a check reports. A check gives each finding on a
 comment `location.comment_sha256`, the SHA-256 of the comment's bytes

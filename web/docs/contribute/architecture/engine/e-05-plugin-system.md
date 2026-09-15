@@ -552,6 +552,15 @@ canary's bytes and sends them through the same RPC beside every real file. The
 manifest also names each language's comment markers, which the host reads a
 single comment line through when a recipe declares comment directives.
 
+A language whose entry declares `rewrite` has its comments written back by the
+host, and the plugin still writes nothing. The host renders the text into the
+comment's layout and splices it into the file, then sends the rewritten bytes
+through `LocateComments`, so the plugin's reading of the result is the check the
+rewrite is held to and no call exists for writing. The declaration carries a
+write canary and the formatters a project in the language may use; the host runs
+the one the file's project configures and writes nothing when none runs
+([E-02](e-02-format-system.md#the-comment-layer)).
+
 A **separately-licensed platform plugin** demonstrates the licence boundary the
 model exists for: it attaches over the manifest model, is distributed on its own
 terms through its own Homebrew formula (which depends on `kapi` and drops its

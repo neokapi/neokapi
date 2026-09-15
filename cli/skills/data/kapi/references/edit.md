@@ -127,6 +127,10 @@ kapi apply edits.jsonl
   line. kapi writes the text back in the comment's own layout. Text holding
   `*/` is refused as `terminator`, because the comment would end there:
   reword it.
+- A TypeScript comment is written when the sourcecode plugin is installed and
+  the project configures oxfmt or prettier. Without a formatter that runs on the
+  file, the edit reports `did-not-run` with the reason `formatter` and writes
+  nothing.
 - The result carries a check scoped to what was written. If it reports a
   finding, send another edit for it. Then check the whole change
   (`kapi check --diff-against <base>` or `--staged`) before you report done.

@@ -206,6 +206,53 @@
                   "source": { "type": "string", "minLength": 1 },
                   "block": { "type": "string", "minLength": 1 }
                 }
+              },
+              "rewrite": {
+                "type": "object",
+                "required": ["canary", "formatters", "formatter_canary"],
+                "additionalProperties": false,
+                "properties": {
+                  "canary": {
+                    "type": "object",
+                    "required": ["name", "source", "block", "refused"],
+                    "additionalProperties": false,
+                    "properties": {
+                      "name": { "type": "string", "minLength": 1 },
+                      "source": { "type": "string", "minLength": 1 },
+                      "block": { "type": "string", "minLength": 1 },
+                      "refused": { "type": "string", "minLength": 1 },
+                      "delimited": { "type": "string", "minLength": 1 },
+                      "terminator": { "type": "string", "minLength": 1 }
+                    }
+                  },
+                  "formatters": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "type": "object",
+                      "required": ["name", "detect", "command"],
+                      "additionalProperties": false,
+                      "properties": {
+                        "name": { "type": "string", "minLength": 1 },
+                        "detect": {
+                          "type": "array",
+                          "minItems": 1,
+                          "items": {
+                            "type": "object",
+                            "required": ["file"],
+                            "additionalProperties": false,
+                            "properties": {
+                              "file": { "type": "string", "pattern": "^[^/\\\\]+$" },
+                              "contains": { "type": "string", "minLength": 1 }
+                            }
+                          }
+                        },
+                        "command": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } }
+                      }
+                    }
+                  },
+                  "formatter_canary": { "type": "string", "minLength": 1 }
+                }
               }
             }
           }

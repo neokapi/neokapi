@@ -69,6 +69,12 @@ provider such as Go's returns: each comment's byte span and lines, its subject,
 whether it documents a declaration, its runs, and the comments set aside with
 their reason. A recipe reaches it with `comments: true` on a content item.
 
+The plugin never writes a file. For a language whose manifest entry declares
+`rewrite`, TypeScript at present, `kapi apply` writes a comment back: kapi
+renders the text into the comment's layout, has this plugin locate the rewritten
+file, and writes it only when the project's formatter, oxfmt or prettier, runs
+and agrees.
+
 What the provider decides:
 
 - **Grouping.** Consecutive line comments of one kind (`//`, or `#` in Python and

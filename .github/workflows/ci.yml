@@ -514,6 +514,10 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-go-modules
+      # A comment rewrite in a language the sourcecode plugin declares writable
+      # is held to the project's formatter, and host's tests hold TypeScript to
+      # the oxfmt this workspace installs, so they need node_modules.
+      - uses: ./.github/actions/setup-node-ui
 
       - name: Run cli tests
         id: run-tests

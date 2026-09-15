@@ -66,7 +66,7 @@ func (Provider) Render(name string, src []byte, c layer.Comment, text string, op
 	if c.Style != layer.StyleLine {
 		return renderBlock(name, src, c, text, opts)
 	}
-	lines, err := textLines(text)
+	lines, err := layer.TextLines(text)
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +143,7 @@ func renderBlock(name string, src []byte, c layer.Comment, text string, opts lay
 	if err != nil {
 		return nil, err
 	}
-	lines, err := textLines(text)
+	lines, err := layer.TextLines(text)
 	if err != nil {
 		return nil, err
 	}
@@ -195,51 +195,6 @@ func marked(line string) string {
 	default:
 		return "// " + line
 	}
-}
-
-// textLines splits text into lines, refusing what a Go comment must not hold
-// and dropping blank lines at either edge.
-func textLines(text string) ([]string, error) {
-	if !utf8.ValidString(text) {
-		return nil, &layer.Refusal{Reason: layer.RefusedText, Detail: "the text is not valid UTF-8"}
-	}
-	text = strings.ReplaceAll(text, "\r\n", "\n")
-	for _, r := range text {
-		if reason := unwritable(r); reason != "" {
-			return nil, &layer.Refusal{Reason: layer.RefusedText, Detail: fmt.Sprintf("the text holds %s (U+%04X)", reason, r)}
-		}
-	}
-	lines := strings.Split(text, "\n")
-	for len(lines) > 0 && strings.TrimSpace(lines[0]) == "" {
-		lines = lines[1:]
-	}
-	for len(lines) > 0 && strings.TrimSpace(lines[len(lines)-1]) == "" {
-		lines = lines[:len(lines)-1]
-	}
-	if len(lines) == 0 {
-		return nil, &layer.Refusal{Reason: layer.RefusedText, Detail: "the text is empty, and a comment is rewritten here, never removed"}
-	}
-	return lines, nil
-}
-
-// unwritable names what r is when a comment must not hold it, and returns ""
-// for a character it may hold.
-func unwritable(r rune) string {
-	switch {
-	case r == '\n' || r == '\t':
-		return ""
-	case r == '\r':
-		return "a carriage return that ends no line"
-	case r < 0x20 || r == 0x7f || (r >= 0x80 && r < 0xa0):
-		return "a control character"
-	case r == '\uFEFF':
-		return "a byte order mark"
-	case r == '\u2028' || r == '\u2029':
-		return "a line or paragraph separator, which an editor may show as a line break"
-	case (r >= '\u202A' && r <= '\u202E') || (r >= '\u2066' && r <= '\u2069'):
-		return "a bidirectional control, which can make the code around the comment display out of order"
-	}
-	return ""
 }
 
 // widest is the width of the comment's widest line, from the start of its

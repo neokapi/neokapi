@@ -3,6 +3,7 @@ package host
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -87,10 +88,11 @@ func (r commentFileResult) ok() bool {
 // applyComments applies a change-set's comment entries, one file at a time.
 //
 // A language's write canary runs before the first comment of that language is
-// written in the run, and when it fails no entry in the language runs. A
-// file's entries are applied from its last comment to its first, so an edit
-// never moves the lines of a comment still to come, and each rewrite is held
-// to comment.Contain. The file is read again before it is written, and a file
+// written in the run, and when it fails no entry in the language runs. Entries
+// in a plugin language are held to the project's formatter, and run only when
+// it does. A file's entries are applied from its last comment to its first, so
+// an edit never moves the lines of a comment still to come, and each rewrite is
+// held to comment.Contain. The file is read again before it is written, and a file
 // that changed meanwhile is left alone. After writing, the bytes on disk are
 // read back and compared with the rewrite, and a check scoped to the written
 // change runs over the file.
@@ -176,6 +178,11 @@ func (w *commentFileWrite) apply(ctx context.Context, formats *checkFormats, can
 		}
 		return
 	}
+	p = withCommentFormatter(p, w.file)
+	if f, ok := p.(*formattedRewriter); ok && f.notRun != "" {
+		w.notRun(string(comment.RefusedFormatter), f.notRun+"; nothing was written")
+		return
+	}
 	if _, verified := canaries[lang]; !verified {
 		canaries[lang] = comment.VerifyRewriter(p, rewriteComment)
 	}
@@ -199,8 +206,12 @@ func (w *commentFileWrite) apply(ctx context.Context, formats *checkFormats, can
 			w.refuse(i, string(refusal.Reason), refusal.Detail)
 			continue
 		}
+		reason := reasonIO
+		if errors.Is(err, comment.ErrFormatterNotRun) {
+			reason = string(comment.RefusedFormatter)
+		}
 		if err != nil {
-			w.result.Edits[i].Status, w.result.Edits[i].Reason, w.result.Edits[i].Detail = commentNotRun, reasonIO, err.Error()
+			w.result.Edits[i].Status, w.result.Edits[i].Reason, w.result.Edits[i].Detail = commentNotRun, reason, err.Error()
 			continue
 		}
 		w.result.Edits[i].Status = commentUnchanged
