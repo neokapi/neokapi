@@ -182,6 +182,10 @@ matches across directories (e.g. `src/**/*.json`) and `{a,b,c}` matches any of
 the listed alternatives (e.g. `input/store/*.{json,yaml,html}`). One glob can
 therefore cover a whole directory of mixed content; the format is auto-detected
 per file unless you pin `format`. Patterns resolve relative to the project root.
+`**` does not follow a symbolic link into another directory, so the linked
+packages a package manager keeps under `node_modules` stay out of a match. A
+link to a file that the pattern matches is read, and so is a linked directory
+that the pattern names before its first wildcard.
 
 A file belongs to exactly one item. Items are matched in the order they are
 written, across all collections, and the first item whose `path` matches a file
