@@ -466,7 +466,9 @@ require it.
   `github.com/bmatcuk/doublestar/v4`; recursive `**` directory matching is
   supported (e.g. `src/**/*.json`). `ExpandGlob` filters out any match that
   matches one of the `defaults.exclude` glob patterns (matched with
-  `doublestar.Match`)
+  `doublestar.Match`). A lookup that starts from a path applies the same
+  patterns: `KapiProject.ItemForPath` claims no excluded path, so a named
+  excluded file sits at the project's default point
 - Patterns are resolved relative to the project root (the recipe's parent
   directory)
 - `target` is expanded per source file and target language by

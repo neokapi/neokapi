@@ -265,7 +265,10 @@ kapi context docs/guide.md
 
 It resolves through the same seam a run, a check and a push resolve through, so
 the voice you read for a file is the voice a run applies to it, including a
-content item's own `channel:` and a profile whose window has closed.
+content item's own `channel:` and a profile whose window has closed. The answer
+is for the file's own content. An item that declares a file for its comments
+alone governs only those comments, so the answer comes from the next item that
+claims the file, or from the project's default point.
 
 With no file in hand (an ad-hoc draft, a starter pack), name a profile instead:
 

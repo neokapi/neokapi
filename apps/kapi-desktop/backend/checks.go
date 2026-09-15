@@ -207,7 +207,7 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 
 			// The point this file sits at, resolved the way a run resolves it,
 			// so every finding on it can name where it is scoped.
-			filePoint, _, ptErr := contextPoint(op.Project, rf.Collection, rf.Relative, at)
+			filePoint, _, ptErr := contextPoint(op.Project, rf.Collection, rf.Relative, rf.Format == "", at)
 			if ptErr != nil {
 				return fmt.Errorf("resolve check point %s: %w", rf.Relative, ptErr)
 			}
@@ -473,7 +473,7 @@ func checkComments(ctx context.Context, capp *host.App, projectPath string, file
 	for _, rf := range files {
 		paths = append(paths, rf.Path)
 	}
-	report, err := capp.ComputeCheck(cmd, paths) //nolint:contextcheck // ctx travels on cmd (host.NewEnvCommand), which ComputeCheck reads through CmdContext
+	report, err := capp.ComputeDeclaredCheck(cmd, paths) //nolint:contextcheck // ctx travels on cmd (host.NewEnvCommand), which ComputeCheck reads through CmdContext
 	if err != nil {
 		return out, err
 	}

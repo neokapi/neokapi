@@ -163,6 +163,7 @@ type GovernancePoint struct {
     Collection string    // a content collection, by name
     Path       string    // a project-relative, slash-separated file path
     Comments   bool      // the point the comments in the file at Path sit at
+    NoReader   bool      // no installed format reader parses the file at Path
     At         time.Time // the run's wall clock; the zero value is the as-declared view
 }
 
@@ -174,11 +175,23 @@ Resolution walks the declared bindings **from the finest to the coarsest**:
 1. **A content item's own `channel:`**. A file is the finest declared point, so
    one file in a collection can ship on a different channel, or under a different
    profile, than its neighbours. A path is matched against every item with the
-   same first-match-wins glob walk that assigns a file to its collection.
+   same first-match-wins glob walk that assigns a file to its collection. An
+   item that claims only the file's comments governs only those comments, so a
+   point for the file's own content passes over it to the next item that
+   claims the path. An item claims only the comments when it declares
+   `comments: {only: true}`, or when it declares the comments of a file no
+   reader parses (`NoReader`) and names no format.
 2. **The collection's `channel:`**, for a path no item claims and for a caller
    that names a collection rather than a file.
 3. **The project's default point**: `defaults.voice` and the project's own
    terms.
+
+`kapi voice guide`, `kapi context` and a check of files named on the command
+line or through MCP `check_file` answer for a file's own content. Every block
+the project reads from a file whose item claims only its comments is a comment
+(`ClaimsOnlyComments`), so a surface holding those blocks resolves them at the
+comments' point: a check of the project's declared content, the review of a
+source unit, and the places `context_search` reports a term in use.
 
 The comments in a file can sit at a point of their own. A point that names them
 (`Comments`) puts two rungs above the first: the claiming item's

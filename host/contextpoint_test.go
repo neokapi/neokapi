@@ -100,11 +100,11 @@ func resolveAt(t *testing.T, proj *project.KapiProject, req host.ContextPointReq
 	}
 	src.Recipe = proj
 	src.Path = req.Path
-	rc, err := host.ResolveContextGovernance(proj, req, req.Path, src.At)
+	rc, err := host.ResolveContextGovernance(proj, req, project.GovernancePoint{Path: req.Path, At: src.At})
 	require.NoError(t, err)
 	src.Governance = rc
 	if proj != nil && req.Path != "" {
-		src.Collection = proj.CollectionForPath(req.Path)
+		src.Collection = proj.ContentCollectionForPath(req.Path, false)
 	}
 	res, err := host.ResolveContextAt(t.Context(), src, req)
 	require.NoError(t, err)

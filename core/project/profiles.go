@@ -3,6 +3,7 @@ package project
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -467,12 +468,19 @@ type GovernancePoint struct {
 	// Path is a project-relative, slash-separated file path. An item that claims
 	// it wins over Collection, because a file is the finest declared point: that
 	// item may carry its own `channel:`. A path no item claims falls back to
-	// Collection, then to the project's default point.
+	// Collection, then to the project's default point. An item that claims only
+	// the file's comments governs only the comments: the file's own content
+	// resolves past it to the next item that claims the path (ContentItemForPath).
 	Path string
 	// Comments asks for the point the comments in the file at Path sit at. The
 	// claiming item's `comments.channel`, then `defaults.comments.channel`, come
 	// before the channels the file's other content resolves through.
 	Comments bool
+	// NoReader reports that no installed format reader parses the file at Path,
+	// so an item that declares its comments and names no format claims only
+	// those comments. A caller holding the format registry sets it; the zero
+	// value treats the file as readable.
+	NoReader bool
 	// At is the instant to resolve at — the run's wall clock. A profile whose
 	// window excludes it does not govern, and resolution falls through to the
 	// next binding as if it were absent. The zero value is the AS-DECLARED
@@ -580,8 +588,9 @@ func (p *KapiProject) governanceLadder(pt GovernancePoint) ([]ChannelRef, error)
 // declaredChannelsFor returns the `channel:` references a point declares, finest
 // first, together with the recipe subject to name in an error. A path is matched
 // against every item with the same first-match-wins glob walk as
-// CollectionForPath; a collection is looked up by name, and answers when no item
-// claimed the path.
+// CollectionForPath, and a point for the file's own content passes over an item
+// that claims only its comments (ContentItemForPath); a collection is looked up
+// by name, and answers when no item claimed the path.
 func (p *KapiProject) declaredChannelsFor(pt GovernancePoint) ([]string, string, error) {
 	var declared []string
 	subject := ""
@@ -589,7 +598,11 @@ func (p *KapiProject) declaredChannelsFor(pt GovernancePoint) ([]string, string,
 		declared, subject = []string{p.Defaults.Comments.Channel}, "defaults.comments"
 	}
 	if pt.Path != "" {
-		if item, i, ok := p.ItemForPath(pt.Path); ok {
+		item, i, ok := p.ItemForPath(pt.Path)
+		if !pt.Comments {
+			item, i, ok = p.ContentItemForPath(pt.Path, pt.NoReader)
+		}
+		if ok {
 			coll := &p.Collections[i]
 			if pt.Comments {
 				declared = append([]string{item.Comments.Channel}, declared...)
@@ -719,7 +732,8 @@ func (p *KapiProject) BindsTermsByProfile() bool {
 // slash-separated path: the first item in recipe order, across collections,
 // whose pattern matches it, with its collection's base and languages folded in
 // (EffectiveItems). The index of that collection comes back beside it; ok is
-// false when no item claims the path.
+// false when no item claims the path. No item claims a path that
+// `defaults.exclude` matches.
 //
 // This is the one path-to-item rule. ProjectContext.ResolveContent applies it
 // when it expands the recipe into files, and every lookup that starts from a
@@ -733,6 +747,9 @@ func (p *KapiProject) ItemForPath(relPath string) (item ContentItem, collIdx int
 // itemForPath is ItemForPath with the item's position among its collection's
 // EffectiveItems as well.
 func (p *KapiProject) itemForPath(relPath string) (item ContentItem, collIdx, itemIdx int, ok bool) {
+	if p.excludes(relPath) {
+		return ContentItem{}, -1, -1, false
+	}
 	for i := range p.Collections {
 		for j, candidate := range p.Collections[i].EffectiveItems() {
 			if candidate.Path == "" || !MatchGlob(candidate.Path, relPath) {
@@ -742,6 +759,11 @@ func (p *KapiProject) itemForPath(relPath string) (item ContentItem, collIdx, it
 		}
 	}
 	return ContentItem{}, -1, -1, false
+}
+
+// excludes reports that relPath matches a pattern under `defaults.exclude`.
+func (p *KapiProject) excludes(relPath string) bool {
+	return slices.ContainsFunc(p.Defaults.Exclude, func(exc string) bool { return MatchGlob(exc, relPath) })
 }
 
 // CollectionForPath returns the name of the content collection whose item
@@ -755,6 +777,46 @@ func (p *KapiProject) CollectionForPath(relPath string) string {
 		return p.Collections[i].Name
 	}
 	return ""
+}
+
+// ContentItemForPath returns the item that governs relPath's own content: the
+// first item in recipe order whose pattern matches it and that claims more than
+// the file's comments. An item declared `comments: {only: true}` claims only
+// the comments, and so does an item that declares the comments of a file no
+// reader parses (noReader) and names no format. Resolution passes over such an
+// item as if the recipe did not declare it; ok is false when no other item
+// matches.
+func (p *KapiProject) ContentItemForPath(relPath string, noReader bool) (item ContentItem, collIdx int, ok bool) {
+	if p.excludes(relPath) {
+		return ContentItem{}, -1, false
+	}
+	for i := range p.Collections {
+		for _, candidate := range p.Collections[i].EffectiveItems() {
+			if candidate.Path == "" || !MatchGlob(candidate.Path, relPath) || candidate.claimsOnlyComments(noReader) {
+				continue
+			}
+			return candidate, i, true
+		}
+	}
+	return ContentItem{}, -1, false
+}
+
+// ContentCollectionForPath is CollectionForPath for a file's own content: the
+// name of the collection whose item ContentItemForPath names.
+func (p *KapiProject) ContentCollectionForPath(relPath string, noReader bool) string {
+	if _, i, ok := p.ContentItemForPath(relPath, noReader); ok {
+		return p.Collections[i].Name
+	}
+	return ""
+}
+
+// ClaimsOnlyComments reports that the item claiming relPath, the first in recipe
+// order whose pattern matches it, claims only the file's comments. Every block
+// the project reads from such a file is a comment, so a caller holding those
+// blocks resolves them with GovernancePoint.Comments.
+func (p *KapiProject) ClaimsOnlyComments(relPath string, noReader bool) bool {
+	item, _, ok := p.ItemForPath(relPath)
+	return ok && item.claimsOnlyComments(noReader)
 }
 
 // ---------------------------------------------------------------------------

@@ -111,10 +111,12 @@ func newVoiceGuideCmd(a *App) *cobra.Command {
 		Short: "Print the voice guide (inject into your assistant's context)",
 		Long: `Print the voice guide in force.
 
-Inside a project, a path selects the voice at the point that file sits at. For a
-file whose only content is its comments, such as a Go source file, that is the
-point its comments sit at, and the guide lists the comment limits in force
-there. --comments asks for the comments' point for any file.`,
+Inside a project, a path selects the voice for that file's own content. An item
+that declares a file for its comments alone governs only those comments, so the
+content resolves to the next item that claims the file, or to the project's
+default point. --comments asks for the point the file's comments sit at instead,
+and lists the comment limits in force there. Ask with --comments before writing
+a comment, in a Go source file or any other.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			profile, _, err := a.ResolveVoiceProfileCmd(cmd, args...)
 			if err != nil {

@@ -132,6 +132,20 @@ func (item *ContentItem) validateCommentsOnly(at string) error {
 	return nil
 }
 
+// claimsOnlyComments reports an item whose claim on a file is the file's
+// comments alone: one declared `only`, or one that declares the comments of a
+// file no reader parses (noReader) and names no format. It is
+// ResolvedFile.CommentsOnly for a lookup that starts from a path.
+func (item *ContentItem) claimsOnlyComments(noReader bool) bool {
+	if !item.Comments.Declared {
+		return false
+	}
+	if item.Comments.Only {
+		return true
+	}
+	return noReader && (item.Format == nil || ResolveFormat(item.Format.Name) == "")
+}
+
 // CommentDirectives returns the directives in force in the comments of this
 // item's files: the ones under `defaults.comments`, then the item's own.
 func (item *ContentItem) CommentDirectives(defaults Defaults) []string {

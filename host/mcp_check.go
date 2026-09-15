@@ -281,6 +281,7 @@ func (a *App) checkFileMCP(ctx context.Context, in checkFileInput) (*mcp.CallToo
 		opts.stampPoints(biDiags, blocks)
 		diags = append(diags, biDiags...)
 	} else {
+		opts.named = true
 		blocks, fileDiags, ferr := a.checkFileBlocks(ctx, in.File, validateMode, opts)
 		if ferr != nil {
 			return nil, check.Report{}, ferr

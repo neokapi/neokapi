@@ -82,10 +82,10 @@ Apply the tone, style, and preferred terms; never use the forbidden or competito
 terms (use the listed replacements). Then draft, and check the result.
 
 Inside a project, name the file you are about to edit: `kapi voice guide <file>`
-answers for the point that file sits at. For a source file whose comments a
-project checks, such as a Go file, the guide lists the comment limits in force
-there under "Code comments"; keep each sentence and each comment within them.
-`kapi voice guide --comments <file>` asks for the comments' point of any file.
+answers for that file's own content. Before writing a comment, in a Go file or
+any other, ask `kapi voice guide --comments <file>`: it answers for the point
+the comments sit at and lists the comment limits in force there under "Code
+comments"; keep each sentence and each comment within them.
 
 ## 2. Check a draft
 
