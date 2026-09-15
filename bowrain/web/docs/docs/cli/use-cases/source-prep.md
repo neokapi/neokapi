@@ -164,8 +164,8 @@ jobs:
 
       - uses: neokapi/setup-kapi@v1
         with:
-          version: "1.2.0-rc32"
-          plugins: bowrain@1.2.0-rc32
+          version: "1.2.0"
+          plugins: bowrain@1.2.0
 
       - name: Run the source checks
         run: kapi run source-checks
