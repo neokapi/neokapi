@@ -62,7 +62,7 @@ func (a *App) groupInputsByBinding(cmd Command, proj *project.KapiProject, proje
 	index := make(map[string]int, 2)
 	for _, in := range inputPaths {
 		point := a.GovernancePointFor("", "")
-		if rel, ok := projectRelPath(projectDir, in); ok {
+		if rel, ok := projectRelPath(projectDir, in); ok && !ProjectIgnores(projectDir, rel) {
 			point = a.GovernancePointFor("", rel)
 		}
 		rc, rerr := a.ResolveGovernanceAtPoint(cmd, proj, point)

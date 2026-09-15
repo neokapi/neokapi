@@ -469,6 +469,13 @@ require it.
   `doublestar.Match`). A lookup that starts from a path applies the same
   patterns: `KapiProject.ItemForPath` claims no excluded path, so a named
   excluded file sits at the project's default point
+- Content resolution also skips a file the project's ignore rules match:
+  `.kapiignore`, `KAPI_IGNORE` and the default rules (`core/ignore`). A
+  `KapiProject` holds no project directory, so the hosts apply those rules
+  where they turn a named path into a point (`host.ProjectIgnores`): a named
+  ignored file sits at the project's default point and in no collection, for
+  `kapi check`, `kapi voice guide`, `kapi context`, a run's bindings and the
+  desktop context panes
 - Patterns are resolved relative to the project root (the recipe's parent
   directory)
 - `target` is expanded per source file and target language by

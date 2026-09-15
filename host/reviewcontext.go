@@ -193,8 +193,14 @@ func (r *ReviewPointResolver) resolve(ctx context.Context, collection, rel, loca
 		src, cleanup := r.app.ContextSourcesAt(r.cmd, req)
 		defer cleanup()
 		if src.Recipe != nil && src.Path != "" {
-			point = contextPathPoint(src.Recipe, req, src.Path, r.app.NoReaderFor(abs), point.At)
-			point.Collection = collection
+			if ProjectIgnores(r.root, src.Path) {
+				// A file the project's ignore rules match is content the project does
+				// not declare: it is reviewed at the default point, in no collection.
+				point = r.app.GovernancePointFor("", "")
+			} else {
+				point = contextPathPoint(src.Recipe, req, src.Path, r.app.NoReaderFor(abs), point.At)
+				point.Collection = collection
+			}
 		}
 		e.voice = src.Voice
 		if answer, err := ResolveContextAt(ctx, src, req); err == nil {

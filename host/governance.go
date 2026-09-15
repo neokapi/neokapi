@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/neokapi/neokapi/core/ignore"
 	"github.com/neokapi/neokapi/core/project"
 )
 
@@ -52,6 +53,15 @@ func (a *App) GovernanceInstant() time.Time { return a.ensureGovernance().at }
 // point.
 func (a *App) GovernancePointFor(collection, relPath string) project.GovernancePoint {
 	return project.GovernancePoint{Collection: collection, Path: relPath, At: a.GovernanceInstant()}
+}
+
+// ProjectIgnores reports that the ignore rules of the project at root match rel,
+// a project-relative slash-separated path: its .kapiignore, KAPI_IGNORE and the
+// default rules, as content resolution applies them. Content resolution leaves
+// such a file out, so a point for it names no path and it sits where a path no
+// item claims sits.
+func ProjectIgnores(root, rel string) bool {
+	return root != "" && rel != "" && ignore.ForProjectDir(root).Match(rel, false)
 }
 
 // ResolveGovernanceAtPoint resolves the governance in force at a point and

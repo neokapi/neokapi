@@ -45,7 +45,7 @@ func TestContextPointResolvesContentPastACommentsOnlyItem(t *testing.T) {
 	recipe := filepath.Join(root, "kapi.yaml")
 	require.NoError(t, project.Save(recipe, proj))
 
-	_, content, err := contextPoint(proj, "", "config/app.yaml", false, time.Now())
+	_, content, err := contextPoint(proj, "", "config/app.yaml", false, false, time.Now())
 	require.NoError(t, err)
 	defaults, err := proj.ResolveGovernanceFor(project.GovernancePoint{})
 	require.NoError(t, err)
