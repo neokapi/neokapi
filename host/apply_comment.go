@@ -194,7 +194,7 @@ func (w *commentFileWrite) apply(ctx context.Context, formats *checkFormats, can
 			continue
 		}
 		seen[e.ID] = true
-		r, err := rewriteComment(p, w.file, out, directives, comment.Target{ID: e.ID, Lines: e.Lines}, e.Text, comment.RenderOptions{Width: e.Width})
+		r, err := rewriteComment(p, w.file, out, directives, comment.Target{ID: e.ID, Fingerprint: e.CommentSHA256, Prose: e.CurrentText, Lines: e.Lines}, e.Text, comment.RenderOptions{Width: e.Width})
 		if refusal, ok := comment.AsRefusal(err); ok {
 			w.refuse(i, string(refusal.Reason), refusal.Detail)
 			continue

@@ -314,11 +314,11 @@ since it was read, the edit is refused rather than applied to different text.
 Asset edits carry an `op` and the fields for their kind.
 
 A comment edit addresses one code comment by `file` and the `id` that
-`check_file` reports, with the `lines` it reported as the drift anchor, and
+`check_file` reports, is guarded by the `comment_sha256` reported with it, and
 carries the comment's prose in `text`. kapi keeps every byte outside the
-comment. It refuses the edit with a reason when the comment has moved, the text
-drops or adds a code block or reference, the result would not parse, or the
-formatter would rewrite it. Each written file's result carries a check scoped to
+comment. It refuses the edit with a reason when the comment has changed since
+the check, the text drops or adds a code block or reference, the result would
+not parse, or the formatter would rewrite it. Each written file's result carries a check scoped to
 what was written.
 
 | `kind`    | What the entry changes                       |

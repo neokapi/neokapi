@@ -102,11 +102,11 @@ project release gates.
 
 Repair a finding on a code comment, such as `func/Parse` in a Go file, with a
 `comment` entry. Do not edit the file around the comment. The entry names the
-`file`, the comment's `id` and the `lines` from the finding, and `text` holds
-the new prose without `//` markers:
+`file`, the comment's `id`, and the `lines` and `comment_sha256` from the finding
+in `kapi check --json`, and `text` holds the new prose without `//` markers:
 
 ```json
-{"kind":"comment","file":"internal/parse/parse.go","id":"func/Parse","lines":{"first":5,"last":7},"text":"Parse reads the input.\n\nIt stops at the end."}
+{"kind":"comment","file":"internal/parse/parse.go","id":"func/Parse","lines":{"first":5,"last":7},"comment_sha256":"<location.comment_sha256 from the finding>","text":"Parse reads the input.\n\nIt stops at the end."}
 ```
 
 ```bash
@@ -115,8 +115,11 @@ kapi apply edits.jsonl
 
 - Keep the comment's code blocks, `[references]`, list items and any
   `Deprecated:` paragraph. Dropping or adding one refuses the edit.
-- Use the `lines` of the finding you are fixing. A comment that has moved since
-  is refused as `stale`; check again and use the new lines.
+- Copy `comment_sha256` from the finding you are fixing. A comment someone
+  changed after the check is refused as `changed`: check again and write the
+  edit against what it now says. A comment that only moved keeps its
+  fingerprint and is still written. Without a fingerprint, pass the prose you
+  read in `current_text`; an entry with neither is rejected.
 - A refused edit writes nothing, reports a `reason` and `detail`, and exits on
   the gate code (3). Directives, generated files, the cgo preamble, example
   output and `/* */` comments are refused.

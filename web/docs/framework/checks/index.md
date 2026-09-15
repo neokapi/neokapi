@@ -197,7 +197,9 @@ findings and a `git bisect run` wrapper built on these flags.
 
 A diff names lines, and kapi widens each changed line to the content block it
 belongs to: a one-line edit inside a seven-line paragraph checks the whole
-paragraph. A finding's `location.lines` gives the lines of its block. Rules that
+paragraph. A finding's `location.lines` gives the lines of its block, and a
+finding on a comment also gives `location.comment_sha256`, the SHA-256 of the
+comment's bytes, which a comment edit carries back to `kapi apply`. Rules that
 hold over a whole document, such as a voice profile's required patterns, read
 the whole changed file.
 

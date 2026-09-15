@@ -466,9 +466,16 @@ func (a *App) checkDiffFile(ctx context.Context, run diffCheckRun, f diffscope.F
 	}
 	diags = append(diags, fileDiags...)
 	opts.stampPoints(diags, touched)
+	fingerprints := map[string]string{}
+	if read.comments != nil {
+		for i, b := range read.comments.Blocks() {
+			fingerprints[blockKey(b)] = comment.Fingerprint(content, read.comments.Comments[i])
+		}
+	}
 	for i := range diags {
 		if l, ok := byKey[diags[i].Location.Block]; ok && diags[i].Location.Block != "" {
 			diags[i].Location.Lines = &l
+			diags[i].Location.CommentSHA256 = fingerprints[diags[i].Location.Block]
 		}
 	}
 	return diags, len(touched), nil

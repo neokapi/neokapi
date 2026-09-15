@@ -91,8 +91,10 @@ type commentLayer struct {
 	located *comment.File
 	// extents locate each block in the file, in the order of blocks.
 	extents []format.Extent
-	// lines maps each block's location key to the lines it spans in the file.
-	lines map[string]format.LineRange
+	// lines maps each block's location key to the lines it spans in the file,
+	// and fingerprints to the comment.Fingerprint of its comment.
+	lines        map[string]format.LineRange
+	fingerprints map[string]string
 	// analyzers are the comment extraction and the language's formatter, run
 	// over whichever comments a check has in scope.
 	analyzers []providerAnalyzer
@@ -103,9 +105,13 @@ type commentLayer struct {
 }
 
 // locate gives every diagnostic on a comment block the lines that comment
-// spans, so a finding reads as a place in the file as well as a block.
+// spans and the fingerprint of its bytes, so a finding reads as a place in the
+// file as well as a block, and an edit of the comment can be guarded by it.
 func (l *commentLayer) locate(diags []check.Diagnostic) {
 	for i := range diags {
+		if sum, ok := l.fingerprints[diags[i].Location.Block]; ok && diags[i].Location.CommentSHA256 == "" {
+			diags[i].Location.CommentSHA256 = sum
+		}
 		if diags[i].Location.Lines != nil {
 			continue
 		}
@@ -203,8 +209,10 @@ func locateComments(file string, src []byte, p comment.Provider, directives comm
 		return nil, fmt.Errorf("locate the comments in %s: %w", DisplayName(file), err)
 	}
 	layer := &commentLayer{blocks: located.Blocks(), located: located, extents: located.Extents(), lines: map[string]format.LineRange{}}
+	layer.fingerprints = make(map[string]string, len(layer.blocks))
 	for i, extent := range layer.extents {
 		layer.lines[blockKey(layer.blocks[i])] = extent.Lines
+		layer.fingerprints[blockKey(layer.blocks[i])] = comment.Fingerprint(src, located.Comments[i])
 	}
 	layer.analyzers = []providerAnalyzer{extractionAnalyzer(p, directives)}
 	f, ok := p.(comment.Formatter)

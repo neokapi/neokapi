@@ -9,8 +9,19 @@
           "items": {
             "additionalProperties": false,
             "properties": {
+              "comment_sha256": {
+                "description": "for kind=comment: the comment_sha256 check_file reports for the comment; an edit to a comment whose bytes differ is refused as changed",
+                "type": "string"
+              },
               "content_hash": {
                 "type": "string"
+              },
+              "current_text": {
+                "description": "for kind=comment: the comment's prose as you read it, without comment markers; guards the edit when comment_sha256 is not given",
+                "type": [
+                  "null",
+                  "string"
+                ]
               },
               "do_not_translate": {
                 "description": "for kind=term: true keeps the term verbatim in every language, false clears that, omitted leaves it",
@@ -32,7 +43,7 @@
               },
               "lines": {
                 "additionalProperties": false,
-                "description": "for kind=comment: the lines the comment spanned when it was read, as check_file reports them; a comment spanning other lines is refused as stale",
+                "description": "for kind=comment: the lines check_file reported for the comment",
                 "properties": {
                   "first": {
                     "type": "integer"

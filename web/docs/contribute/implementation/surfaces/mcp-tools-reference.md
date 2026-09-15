@@ -158,10 +158,12 @@ rules. Both the CLI and MCP reject content entries carrying a nonempty
 `replacement` before applying any entry, with an error identifying the expected
 `text` field.
 
-A comment entry uses `kind: "comment"`, `file`, the comment's `id` as
-`check_file` reports it, the `lines` the check reported, and `text` for the
-comment's prose without comment markers. `width` optionally sets the wrap
-column. Its outcome sits under `comments`, one record per file. Each edit is
+A comment entry uses `kind: "comment"`, `file`, the comment's `id` and `lines`
+as `check_file` reports them, and `text` for the comment's prose without comment
+markers. It is guarded by the `comment_sha256` the check reported for the
+comment, or by the prose as read in `current_text`, and an entry with neither is
+rejected before any entry is applied. A comment whose bytes or prose differ is
+refused with the reason `changed`. `width` optionally sets the wrap column. Its outcome sits under `comments`, one record per file. Each edit is
 `written`, `unchanged`, `refused` or `did-not-run`, the last two with a `reason`
 and `detail`. `diff` is the change written, and `check` is a `kapi.check/v1`
 Report scoped to that diff. `ok` is false when an edit was refused or did not

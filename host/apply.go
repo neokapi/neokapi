@@ -38,7 +38,8 @@ const (
 // line). Only the fields relevant to its Kind are populated. Content edits carry
 // the block address (file + id + content_hash) and the new placeholder-rendered
 // text; asset edits carry an op and the per-asset fields. Comment edits carry
-// the file, the comment's id, the lines it was read at and its new prose.
+// the file, the comment's id, the fingerprint or prose it was read with and
+// its new prose.
 type changeEntry struct {
 	Kind changeKind `json:"kind" jsonschema:"change kind; use content for document wording and comment for a code comment"`
 
@@ -49,8 +50,10 @@ type changeEntry struct {
 	Text        string `json:"text,omitempty" jsonschema:"the new wording: for kind=content the block text with the inline placeholders extract_content shows; for kind=comment the comment's prose without comment markers"`
 
 	// comment
-	Lines *format.LineRange `json:"lines,omitempty" jsonschema:"for kind=comment: the lines the comment spanned when it was read, as check_file reports them; a comment spanning other lines is refused as stale"`
-	Width int               `json:"width,omitempty" jsonschema:"for kind=comment: the column a line of prose wraps at; 0 keeps the width of the comment being rewritten, and never less than 80"`
+	CommentSHA256 string            `json:"comment_sha256,omitempty" jsonschema:"for kind=comment: the comment_sha256 check_file reports for the comment; an edit to a comment whose bytes differ is refused as changed"`
+	CurrentText   *string           `json:"current_text,omitempty" jsonschema:"for kind=comment: the comment's prose as you read it, without comment markers; guards the edit when comment_sha256 is not given"`
+	Lines         *format.LineRange `json:"lines,omitempty" jsonschema:"for kind=comment: the lines check_file reported for the comment"`
+	Width         int               `json:"width,omitempty" jsonschema:"for kind=comment: the column a line of prose wraps at; 0 keeps the width of the comment being rewritten, and never less than 80"`
 
 	// asset common
 	Op string `json:"op,omitempty"`
@@ -239,7 +242,9 @@ func validateContentWording(entries []changeEntry) error {
 		case e.Replacement != "":
 			return fmt.Errorf("comment entry %d for %q: put the new prose in \"text\"; \"replacement\" belongs to voice rules", i+1, e.ID)
 		case e.ContentHash != "":
-			return fmt.Errorf("comment entry %d for %q: a comment is anchored by the \"lines\" kapi check reports, not by \"content_hash\"", i+1, e.ID)
+			return fmt.Errorf("comment entry %d for %q: a comment is guarded by the \"comment_sha256\" kapi check reports, not by \"content_hash\"", i+1, e.ID)
+		case e.CommentSHA256 == "" && e.CurrentText == nil:
+			return fmt.Errorf("comment entry %d for %q has no guard: pass the \"comment_sha256\" kapi check reports for the comment, or its prose as you read it in \"current_text\"", i+1, e.ID)
 		}
 	}
 	return nil
