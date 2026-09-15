@@ -200,10 +200,10 @@ func ResolveContextGovernance(proj *project.KapiProject, req ContextPointRequest
 }
 
 // contextPathPoint is the point a by-location request resolves for the file at
-// rel, relative to the project root, at the instant at: the point of the file's
-// own content, or of its comments for a Declared request about a file an item
-// declares for its comments alone. noReader is project.GovernancePoint.NoReader
-// for the file.
+// rel, relative to the project root, at the instant at. It is the point of the
+// file's own content. A Declared request about a file an item declares for its
+// comments alone gets the point of its comments. noReader is
+// project.GovernancePoint.NoReader for the file.
 func contextPathPoint(proj *project.KapiProject, req ContextPointRequest, rel string, noReader bool, at time.Time) project.GovernancePoint {
 	return project.GovernancePoint{Path: rel, NoReader: noReader, Comments: req.Declared && proj.ClaimsOnlyComments(rel, noReader), At: at}
 }
