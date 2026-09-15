@@ -267,7 +267,7 @@ func (s *Server) applySourceProposal(ctx context.Context, p *bstore.ProposedSour
 	}
 	block := sb.Block
 
-	s.invalidateDashboardCache(p.WorkspaceID, p.ProjectID)
+	s.shipInputsChanged(ctx, p.WorkspaceID, p.ProjectID, stream)
 	s.publishEditorBlockChange(p.ProjectID, block.ID, p.ItemName, stream, "updated", actor, "")
 
 	// A mark-dnt proposal additionally records the (new) source string as

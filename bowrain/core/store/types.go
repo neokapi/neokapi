@@ -698,6 +698,9 @@ type LocaleTranslationStats struct {
 	// ShipState is the derived per-locale ship state (see DeriveShipState).
 	// Empty when the producer did not derive it.
 	ShipState ShipState `json:"ship_state,omitempty"`
+	// ShipGates are the gates ShipState was decided on (EvaluateShipState), which
+	// the quality gate events announce. Not serialized: surfaces read ShipState.
+	ShipGates []ShipGateResult `json:"-"`
 	// CompliantBlocks counts translated blocks that pass, with a result, every
 	// dimension governing their locale: the rule-based checks with no
 	// error-severity finding, terminology where terms or voice profile rules

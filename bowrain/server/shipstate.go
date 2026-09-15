@@ -154,7 +154,7 @@ func applyShipStates(ctx context.Context, cs store.ContentStore, voiceStore core
 		ls.StaleAwaitingReviewBlocks = b.Stale - b.Owed
 		ls.RejectedAwaitingDraftBlocks = b.RejectedOwed
 		ls.BasisUnknownBlocks = b.BasisUnknown
-		ls.ShipState = store.DeriveShipState(store.ShipStateInputs{
+		ls.ShipState, ls.ShipGates = store.EvaluateShipState(store.ShipStateInputs{
 			TranslatedBlocks:      ls.TranslatedBlocks,
 			TotalBlocks:           ls.TotalBlocks,
 			ApprovedBlocks:        ls.ApprovedBlocks,

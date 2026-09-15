@@ -17,10 +17,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// The quality gate events come from the ship gate. Each read of the dashboard
-// derives every language's ship state, and a gate whose result changed since
-// the last announcement is announced once: a fail when a gate that withholds
-// the language becomes unmet, a pass when a failure announced earlier clears.
+// The quality gate events come from the ship gate. Each write that changes what
+// a project's ship states derive from (shipInputsChanged) derives every
+// language's ship state, and a gate whose result changed since the last
+// announcement is announced once: a fail when a gate that withholds the language
+// becomes unmet, a pass when a failure announced earlier clears.
 
 // gateSentinel marks a point in the bus, so a test can read every gate event
 // published before it.
@@ -118,11 +119,11 @@ func storeGateBlocks(t *testing.T, srv *Server, projectID string, locale model.L
 }
 
 func TestShipGateEvents_WithheldLocalePublishesFail(t *testing.T) {
-	srv, token := newTestServer(t)
+	srv, _ := newTestServer(t)
 	events := captureGateEvents(t, srv)
 	pid := seedGateProject(t, srv, "nb", "Setning 1", "")
 
-	getDashboard(t, srv, token, pid, "")
+	srv.shipInputsChanged(t.Context(), "test-ws", pid, "main")
 
 	got := events.drain(t, srv)
 	require.Equal(t, []string{"quality.gate.fail translated nb actual=1 required=2 not_checked=false"}, gateLines(got),
@@ -137,44 +138,44 @@ func TestShipGateEvents_WithheldLocalePublishesFail(t *testing.T) {
 }
 
 func TestShipGateEvents_RecoveryPublishesPass(t *testing.T) {
-	srv, token := newTestServer(t)
+	srv, _ := newTestServer(t)
 	events := captureGateEvents(t, srv)
 	pid := seedGateProject(t, srv, "nb", "Setning 1", "")
-	getDashboard(t, srv, token, pid, "")
+	srv.shipInputsChanged(t.Context(), "test-ws", pid, "main")
 	require.Len(t, events.drain(t, srv), 1)
 
 	storeGateBlocks(t, srv, pid, "nb", "Setning 1", "Setning 2")
-	getDashboard(t, srv, token, pid, "")
+	srv.shipInputsChanged(t.Context(), "test-ws", pid, "main")
 
 	assert.Equal(t, []string{"quality.gate.pass translated nb actual=2 required=2 not_checked=false"}, gateLines(events.drain(t, srv)),
 		"the announced failure clears with a pass for the same gate and language")
 }
 
 func TestShipGateEvents_UnchangedVerdictPublishesNothing(t *testing.T) {
-	srv, token := newTestServer(t)
+	srv, _ := newTestServer(t)
 	events := captureGateEvents(t, srv)
 	pid := seedGateProject(t, srv, "nb", "Setning 1", "")
-	getDashboard(t, srv, token, pid, "")
+	srv.shipInputsChanged(t.Context(), "test-ws", pid, "main")
 	require.Len(t, events.drain(t, srv), 1)
 
 	srv.invalidateDashboardCache("test-ws", pid)
-	getDashboard(t, srv, token, pid, "")
+	srv.shipInputsChanged(t.Context(), "test-ws", pid, "main")
 	assert.Empty(t, events.drain(t, srv), "a withheld language that stays withheld is not announced again")
 
 	storeGateBlocks(t, srv, pid, "nb", "Setning 1", "Setning 2")
-	getDashboard(t, srv, token, pid, "")
+	srv.shipInputsChanged(t.Context(), "test-ws", pid, "main")
 	require.Len(t, events.drain(t, srv), 1)
 	srv.invalidateDashboardCache("test-ws", pid)
-	getDashboard(t, srv, token, pid, "")
+	srv.shipInputsChanged(t.Context(), "test-ws", pid, "main")
 	assert.Empty(t, events.drain(t, srv), "a recovered language that stays shippable is not announced again")
 }
 
 func TestShipGateEvents_FirstShippableVerdictPublishesNothing(t *testing.T) {
-	srv, token := newTestServer(t)
+	srv, _ := newTestServer(t)
 	events := captureGateEvents(t, srv)
 	pid := seedGateProject(t, srv, "nb", "Setning 1", "Setning 2")
 
-	getDashboard(t, srv, token, pid, "")
+	srv.shipInputsChanged(t.Context(), "test-ws", pid, "main")
 	assert.Empty(t, events.drain(t, srv), "a language whose first verdict is shippable has no failure to clear")
 }
 
@@ -183,7 +184,7 @@ func TestShipGateEvents_FirstShippableVerdictPublishesNothing(t *testing.T) {
 // gate was not checked. When coverage then drops, terminology is not evaluated
 // at all, and no pass is announced for it.
 func TestShipGateEvents_NotCheckedTermsPublishFailAndNeverPass(t *testing.T) {
-	srv, token := newTestServer(t)
+	srv, _ := newTestServer(t)
 	seedCheckedTerminology(t, srv, "test")
 	events := captureGateEvents(t, srv)
 
@@ -202,7 +203,7 @@ func TestShipGateEvents_NotCheckedTermsPublishFailAndNeverPass(t *testing.T) {
 	}
 	require.NoError(t, srv.ContentStore.StoreBlocksForItem(t.Context(), proj.ID, "main", "en.json", []*model.Block{codeOnly()}))
 
-	getDashboard(t, srv, token, proj.ID, "")
+	srv.shipInputsChanged(t.Context(), "test-ws", proj.ID, "main")
 	assert.Equal(t, []string{"quality.gate.fail terms fr actual=1 required=0 not_checked=true"}, gateLines(events.drain(t, srv)))
 
 	untranslated := &model.Block{ID: "later", Translatable: true}
@@ -210,7 +211,7 @@ func TestShipGateEvents_NotCheckedTermsPublishFailAndNeverPass(t *testing.T) {
 	require.NoError(t, srv.ContentStore.StoreBlocksForItem(t.Context(), proj.ID, "main", "en.json", []*model.Block{codeOnly(), untranslated}))
 	srv.invalidateDashboardCache("test-ws", proj.ID)
 
-	getDashboard(t, srv, token, proj.ID, "")
+	srv.shipInputsChanged(t.Context(), "test-ws", proj.ID, "main")
 	got := events.drain(t, srv)
 	assert.Equal(t, []string{"quality.gate.fail translated fr actual=1 required=2 not_checked=false"}, gateLines(got),
 		"terminology below full coverage is not evaluated, so it announces no pass")
@@ -219,12 +220,15 @@ func TestShipGateEvents_NotCheckedTermsPublishFailAndNeverPass(t *testing.T) {
 // A stored automation rule on the quality.gate.fail trigger runs when the ship
 // gate announces a failure for its project.
 func TestShipGateEvents_QualityGateFailTriggerRunsItsRule(t *testing.T) {
-	srv, token := newTestServer(t)
+	srv, _ := newTestServer(t)
 	pg := srv.ContentStore.(*bstore.PostgresStore)
 	srv.AutomationRunStore = bstore.NewAutomationRunStore(pg.SQLDB())
 	srv.AutomationRuleStore = event.NewRuleStore(pg.SQLDB())
 	bus := event.NewChannelEventBus()
 	t.Cleanup(bus.Close)
+	// The server subscribed its consumers to the bus it was built with, and
+	// shutdown closes only the bus it holds, so close that one before replacing it.
+	srv.EventBus.Close()
 	srv.EventBus = bus
 	if srv.AutomationEngine != nil {
 		srv.AutomationEngine.Close()
@@ -245,7 +249,7 @@ func TestShipGateEvents_QualityGateFailTriggerRunsItsRule(t *testing.T) {
 	}))
 	srv.reloadAutomationRules()
 
-	getDashboard(t, srv, token, pid, "")
+	srv.shipInputsChanged(t.Context(), "test-ws", pid, "main")
 
 	require.Eventually(t, func() bool {
 		runs, err := srv.AutomationRunStore.ListRuns(context.Background(), pid, "", 10, 0)

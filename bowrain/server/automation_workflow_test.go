@@ -32,6 +32,9 @@ func newWorkflowTestServer(t *testing.T) (*Server, string, string) {
 	// Create event bus + task store.
 	bus := event.NewChannelEventBus()
 	t.Cleanup(func() { bus.Close() })
+	// The server subscribed its consumers to the bus it was built with, and
+	// shutdown closes only the bus it holds, so close that one before replacing it.
+	srv.EventBus.Close()
 	srv.EventBus = bus
 
 	pgStore := srv.ContentStore.(*bstore.PostgresStore)

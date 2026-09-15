@@ -74,15 +74,55 @@ type ShipStateInputs struct {
 // would ship a translation on the strength of a machine's opinion over a
 // person's (#2564). It clears when the loop drafts something else.
 func DeriveShipState(in ShipStateInputs) ShipState {
-	if in.TotalBlocks == 0 || in.TranslatedBlocks < in.TotalBlocks || in.FailingChecks > 0 ||
-		in.StaleBlocks > 0 || in.RejectedBlocks > 0 || in.TermsNotCheckedBlocks > 0 {
-		return ShipStatePending
+	state, _ := EvaluateShipState(in)
+	return state
+}
+
+// EvaluateShipState derives a locale scope's ship state and the gates the state
+// was decided on, from one set of counts, so the state a surface serves and the
+// quality gate events announced for it cannot disagree. The scope is pending
+// exactly when one of the gates is unmet.
+//
+// Review is not among the gates: a scope that is not fully reviewed ships as
+// ai_shippable. The checks and terms gates are evaluated only at full coverage,
+// which is where applyShipStates counts them, and terms only where terminology
+// governs the locale or a block has no terminology result. A scope below full
+// coverage has no result for either, so both are left out.
+func EvaluateShipState(in ShipStateInputs) (ShipState, []ShipGateResult) {
+	covered := in.TotalBlocks > 0 && in.TranslatedBlocks >= in.TotalBlocks
+	gates := []ShipGateResult{{
+		Gate:       ShipGateNameTranslated,
+		Met:        covered,
+		NotChecked: in.TotalBlocks == 0,
+		Actual:     in.TranslatedBlocks,
+		Required:   in.TotalBlocks,
+	}}
+	if covered {
+		gates = append(gates, ShipGateResult{Gate: ShipGateNameChecks, Met: in.FailingChecks == 0, Actual: in.FailingChecks})
+		if in.TermsGoverned || in.TermsNotCheckedBlocks > 0 {
+			gates = append(gates, ShipGateResult{
+				Gate:       ShipGateNameTerms,
+				Met:        in.TermsNotCheckedBlocks == 0,
+				NotChecked: in.TermsNotCheckedBlocks > 0,
+				Actual:     in.TermsNotCheckedBlocks,
+			})
+		}
 	}
-	if in.ApprovedBlocks < in.TotalBlocks {
-		return ShipStateAIShippable
+	gates = append(gates,
+		ShipGateResult{Gate: ShipGateNameStale, Met: in.StaleBlocks == 0, Actual: in.StaleBlocks},
+		ShipGateResult{Gate: ShipGateNameRejected, Met: in.RejectedBlocks == 0, Actual: in.RejectedBlocks},
+	)
+	for _, g := range gates {
+		if !g.Met {
+			return ShipStatePending, gates
+		}
 	}
-	if !in.TermsGoverned {
-		return ShipStateApproved
+	switch {
+	case in.ApprovedBlocks < in.TotalBlocks:
+		return ShipStateAIShippable, gates
+	case !in.TermsGoverned:
+		return ShipStateApproved, gates
+	default:
+		return ShipStateGoverned, gates
 	}
-	return ShipStateGoverned
 }
