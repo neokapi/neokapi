@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -290,34 +291,15 @@ func BlockRuleCount(p *VoiceProfile) int {
 // span is a half-open byte range of the text.
 type span struct{ start, end int }
 
-// codeSpans finds fenced blocks, indented blocks and inline code spans.
-//
-// Byte ranges rather than a parse: this runs over whatever text a caller has,
-// which may be a Markdown document, a paragraph out of one, or a block's runs
-// joined together. A tolerant scan gets the common shapes right and never
-// refuses to answer.
+// codeSpans finds fenced blocks and inline code spans (check.CodeSpans).
 func codeSpans(text string) []span {
-	var out []span
-
-	// Fenced blocks, ``` or ~~~, to the matching fence or the end of the text.
-	for _, m := range fencePattern.FindAllStringSubmatchIndex(text, -1) {
-		out = append(out, span{m[0], m[1]})
-	}
-	// Inline spans, `like this`, outside any fence already found.
-	for _, m := range inlineCodePattern.FindAllStringIndex(text, -1) {
-		if !within(out, m[0]) {
-			out = append(out, span{m[0], m[1]})
-		}
+	found := check.CodeSpans(text)
+	out := make([]span, 0, len(found))
+	for _, sp := range found {
+		out = append(out, span{sp[0], sp[1]})
 	}
 	return out
 }
-
-// fencePattern matches a fenced block including its fences. Non-greedy to the
-// next fence, and tolerant of a block nobody closed.
-var fencePattern = regexp.MustCompile("(?s)(?:^|\n)(?:```|~~~).*?(?:\n(?:```|~~~)|$)")
-
-// inlineCodePattern matches a single-backtick span on one line.
-var inlineCodePattern = regexp.MustCompile("`[^`\n]+`")
 
 // headingLine reports whether the line containing pos is a Markdown heading.
 func headingLine(text string, pos int) bool {

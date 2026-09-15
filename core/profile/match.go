@@ -75,9 +75,11 @@ type TermRuleSet struct {
 // [MatchVocabulary], and the term-locating pass through this entry point
 // directly, so a word is a hit for the whole gate or for none of it.
 func MatchTermRules(sets []TermRuleSet, text string) []VocabHit {
-	// A placeholder's name is not a use of a term (check.TermText). The
-	// projection keeps every offset, so a hit indexes the caller's text.
-	text = check.TermText(text)
+	// A placeholder's name is not a use of a term (check.PlaceholderText). Code
+	// stays readable, so a rule that names no scope still finds a name written
+	// wrongly in a code sample. The projection keeps every offset, so a hit
+	// indexes the caller's text.
+	text = check.PlaceholderText(text)
 
 	// Where code sits, computed once and only when a rule asks: an unscoped
 	// vocabulary — which is every profile written before scopes existed — pays
