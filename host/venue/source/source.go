@@ -2130,13 +2130,22 @@ func (c *BowrainSourceConnector) ServerTargetLocales() []model.LocaleID {
 // enforces it.
 func (c *BowrainSourceConnector) pushScope(paths []string) venue.Scope {
 	recipe := c.project.Recipe
+	claims := c.commentsOnly()
 
 	var scope venue.Scope
 	if len(paths) == 0 {
-		for _, it := range recipe.IterateContent() {
-			lang := string(it.Item.ResolvedSourceLanguage(it.Collection, recipe.Defaults))
-			if pattern := coreproj.ResolvePathPattern(it.Item.Path, lang); pattern != "" {
-				scope = append(scope, pattern)
+		for ci := range recipe.Collections {
+			coll := &recipe.Collections[ci]
+			for ii, item := range coll.EffectiveItems() {
+				// An item that holds nothing a push sends declares no pattern,
+				// or the venue would delete what the pattern covers.
+				if item.Comments.Only || claims.items[[2]int{ci, ii}] {
+					continue
+				}
+				lang := string(item.ResolvedSourceLanguage(coll, recipe.Defaults))
+				if pattern := coreproj.ResolvePathPattern(item.Path, lang); pattern != "" {
+					scope = append(scope, pattern)
+				}
 			}
 		}
 	} else {
@@ -2148,7 +2157,15 @@ func (c *BowrainSourceConnector) pushScope(paths []string) venue.Scope {
 				// this producer never reads.
 				continue
 			}
-			scope = append(scope, filepath.ToSlash(rel))
+			rel = filepath.ToSlash(rel)
+			// A named file that holds nothing a push sends declares no path.
+			if claims.files[rel] {
+				continue
+			}
+			if item, _, ok := recipe.ItemForPath(rel); ok && item.Comments.Only {
+				continue
+			}
+			scope = append(scope, rel)
 		}
 	}
 	if len(scope) == 0 {
@@ -2160,6 +2177,39 @@ func (c *BowrainSourceConnector) pushScope(paths []string) venue.Scope {
 		}
 	}
 	return scope
+}
+
+// commentsOnlyClaims is what a recipe declares for comments alone: the files
+// that are (project.ResolvedFile.CommentsOnly), and the items, keyed by
+// collection and item index, whose every claimed file is.
+type commentsOnlyClaims struct {
+	items map[[2]int]bool
+	files map[string]bool
+}
+
+// commentsOnly resolves the recipe's content and collects its comments-only
+// claims. A recipe that does not resolve collects none, and an item's own
+// `comments.only` still decides for it.
+func (c *BowrainSourceConnector) commentsOnly() commentsOnlyClaims {
+	claims := commentsOnlyClaims{items: map[[2]int]bool{}, files: map[string]bool{}}
+	resolved, err := c.projectContext().ResolveContent(c.formatReg)
+	if err != nil {
+		return claims
+	}
+	values := map[[2]int]bool{}
+	for _, rf := range resolved {
+		key := [2]int{rf.CollectionIndex, rf.ItemIndex}
+		if !rf.CommentsOnly() {
+			values[key] = true
+			delete(claims.items, key)
+			continue
+		}
+		claims.files[filepath.ToSlash(rf.Relative)] = true
+		if !values[key] {
+			claims.items[key] = true
+		}
+	}
+	return claims
 }
 
 // lookupCachedHashForItem finds a block's cached hash for a specific item.
