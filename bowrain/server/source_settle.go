@@ -107,7 +107,7 @@ func (o *convergenceOrchestrator) settleBatch(
 	blocks []*venue.StoredBlock,
 	res *settleResult,
 ) error {
-	var changed []*model.Block
+	var changed []*venue.StoredBlock
 	for _, sb := range blocks {
 		if sb == nil || sb.Block == nil || !sb.Block.Translatable {
 			continue
@@ -140,12 +140,15 @@ func (o *convergenceOrchestrator) settleBatch(
 		// skipped, so a steady-state run rewrites nothing (re-gate ONLY the
 		// changed block — epic 019 acceptance #6).
 		if b.SourceStatus != before || settledHash(b) != beforeHash {
-			changed = append(changed, b)
+			changed = append(changed, sb)
 		}
 	}
 
+	// Written back to the rows this batch was read from. A block a push removed
+	// or rewrote since the read is left alone; the next settle reads it as it
+	// now is.
 	if len(changed) > 0 {
-		if err := o.server.ContentStore.StoreBlocks(ctx, projectID, "main", changed); err != nil {
+		if _, err := o.server.ContentStore.WriteBackBlocks(ctx, projectID, "main", changed); err != nil {
 			return fmt.Errorf("persist settled source: %w", err)
 		}
 	}

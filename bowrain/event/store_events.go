@@ -406,6 +406,29 @@ func (s *EventEmittingStore) StoreBlocks(ctx context.Context, projectID, stream 
 	return nil
 }
 
+func (s *EventEmittingStore) WriteBackBlocks(ctx context.Context, projectID, stream string, reads []*venue.StoredBlock) (store.WriteBackResult, error) {
+	res, err := s.inner.WriteBackBlocks(ctx, projectID, stream, reads)
+	if err != nil {
+		return res, err
+	}
+	skipped := make(map[string]bool, len(res.Skipped))
+	for _, id := range res.Skipped {
+		skipped[id] = true
+	}
+	for _, r := range reads {
+		if r == nil || r.Block == nil || skipped[r.Block.ID] {
+			continue
+		}
+		s.publish(ctx, platev.Event{
+			Type:      platev.EventBlockUpdated,
+			Source:    "store",
+			ProjectID: projectID,
+			Data:      map[string]string{"block_id": r.Block.ID},
+		})
+	}
+	return res, nil
+}
+
 func (s *EventEmittingStore) StoreBlocksForItem(ctx context.Context, projectID, stream, itemName string, blocks []*model.Block) error {
 	if err := s.inner.StoreBlocksForItem(ctx, projectID, stream, itemName, blocks); err != nil {
 		return err

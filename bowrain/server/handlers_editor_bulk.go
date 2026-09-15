@@ -338,7 +338,7 @@ func (s *Server) HandleBulkApplyMemory(c echo.Context) error {
 	}
 
 	if len(toStore) > 0 && !req.Preview {
-		if err := s.ContentStore.StoreBlocks(ctx, pid, stream, toStore); err != nil {
+		if err := writeBackEdited(ctx, s.ContentStore, pid, stream, stored, toStore); err != nil {
 			return serverErr(c, fmt.Errorf("store blocks: %w", err))
 		}
 		for _, b := range toStore {

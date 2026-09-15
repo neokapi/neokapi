@@ -634,11 +634,24 @@ func (s *PostgresStore) GetItemByID(ctx context.Context, projectID, stream, item
 // ---------------------------------------------------------------------------
 
 func (s *PostgresStore) StoreBlocks(ctx context.Context, projectID, stream string, blocks []*model.Block) error {
-	return s.storeBlocks(ctx, projectID, stream, "", blocks)
+	return s.storeBlocks(ctx, projectID, stream, "", blocks, nil)
 }
 
 func (s *PostgresStore) StoreBlocksForItem(ctx context.Context, projectID, stream, itemName string, blocks []*model.Block) error {
-	return s.storeBlocks(ctx, projectID, stream, itemName, blocks)
+	return s.storeBlocks(ctx, projectID, stream, itemName, blocks, nil)
+}
+
+// WriteBackBlocks writes blocks back to the rows they were read from. See
+// store.BlockStore for the contract.
+func (s *PostgresStore) WriteBackBlocks(ctx context.Context, projectID, stream string, reads []*venue.StoredBlock) (platstore.WriteBackResult, error) {
+	wb, blocks := storeutil.NewWriteBack(reads)
+	if len(blocks) == 0 {
+		return platstore.WriteBackResult{}, nil
+	}
+	if err := s.storeBlocks(ctx, projectID, stream, "", blocks, wb); err != nil {
+		return platstore.WriteBackResult{}, err
+	}
+	return platstore.WriteBackResult{Written: len(blocks) - len(wb.Skipped()), Skipped: wb.Skipped()}, nil
 }
 
 // PruneItemBlocks removes the blocks of one item the producer no longer
@@ -816,21 +829,27 @@ func setBlockOrderTx(ctx context.Context, tx Runner, projectID, stream, itemName
 	return nil
 }
 
-func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, itemName string, blocks []*model.Block) error {
+func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, itemName string, blocks []*model.Block, wb *storeutil.WriteBack) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	if err := storeBlocksTx(ctx, tx, projectID, stream, itemName, blocks); err != nil {
+	if err := storeBlocksTx(ctx, tx, projectID, stream, itemName, blocks, wb); err != nil {
 		return err
 	}
 	return tx.Commit()
 }
 
 // storeBlocksTx is the work, on whatever executor the caller brings.
-func storeBlocksTx(ctx context.Context, tx Runner, projectID, stream, itemName string, blocks []*model.Block) error {
+//
+// A non-nil wb makes it a write-back of item-less blocks read from this store:
+// a block is written only to an existing row that still holds the content hash
+// the caller read, by an UPDATE that checks that hash itself, so a push that
+// commits between this call's own read and its write is caught too. Every
+// other block is recorded on wb as skipped, and nothing else is written for it.
+func storeBlocksTx(ctx context.Context, tx Runner, projectID, stream, itemName string, blocks []*model.Block, wb *storeutil.WriteBack) error {
 	stream = storeutil.DefaultStream(stream)
 
 	// When storing blocks for a specific item, map format-reader IDs (source_id)
@@ -937,6 +956,18 @@ func storeBlocksTx(ctx context.Context, tx Runner, projectID, stream, itemName s
 		return fmt.Errorf("prepare stmt: %w", err)
 	}
 	defer stmt.Close()
+
+	var guarded *sql.Stmt
+	if wb != nil {
+		guarded, err = tx.PrepareContext(ctx,
+			`UPDATE blocks SET name=$1, type=$2, mime_type=$3, translatable=$4, content_hash=$5, context_hash=$6,
+				source_json=$7, properties=$8, overlays=$9, word_count=$10, updated_at=$11
+			 WHERE project_id=$12 AND stream=$13 AND id=$14 AND content_hash=$15`)
+		if err != nil {
+			return fmt.Errorf("prepare write-back stmt: %w", err)
+		}
+		defer guarded.Close()
+	}
 
 	// Batch-load existing block source hashes + prior target locales
 	// for change-log diffing. Targets live in the translations table
@@ -1075,6 +1106,9 @@ func storeBlocksTx(ctx context.Context, tx Runner, projectID, stream, itemName s
 		isNew := !isExisting
 		existingHash := existing.contentHash
 		_ = existingHash // used in change detection below
+		if wb != nil && !wb.Admits(internalID, isExisting, existingHash) {
+			continue
+		}
 
 		sourceJSON, err := json.Marshal(b.Source)
 		if err != nil {
@@ -1096,13 +1130,31 @@ func storeBlocksTx(ctx context.Context, tx Runner, projectID, stream, itemName s
 			return fmt.Errorf("marshal overlays for block %s: %w", internalID, err)
 		}
 
-		_, err = stmt.ExecContext(ctx,
-			internalID, projectID, stream, itemName, itemID, sourceID, b.Name, b.Type, b.MimeType, b.Translatable,
-			identity.ContentHash, identity.ContextHash,
-			string(sourceJSON), string(propsJSON), string(overlaysJSON),
-			model.CountWordsInRunsJSON(string(sourceJSON)), now, now)
-		if err != nil {
-			return fmt.Errorf("store block %s: %w", internalID, err)
+		if wb != nil {
+			res, err := guarded.ExecContext(ctx,
+				b.Name, b.Type, b.MimeType, b.Translatable,
+				identity.ContentHash, identity.ContextHash,
+				string(sourceJSON), string(propsJSON), string(overlaysJSON),
+				model.CountWordsInRunsJSON(string(sourceJSON)), now,
+				projectID, stream, internalID, wb.Base(internalID))
+			if err != nil {
+				return fmt.Errorf("write back block %s: %w", internalID, err)
+			}
+			if n, _ := res.RowsAffected(); n == 0 {
+				// The row was removed or its source changed after the
+				// prefetch above read it.
+				wb.Skip(internalID)
+				continue
+			}
+		} else {
+			_, err = stmt.ExecContext(ctx,
+				internalID, projectID, stream, itemName, itemID, sourceID, b.Name, b.Type, b.MimeType, b.Translatable,
+				identity.ContentHash, identity.ContextHash,
+				string(sourceJSON), string(propsJSON), string(overlaysJSON),
+				model.CountWordsInRunsJSON(string(sourceJSON)), now, now)
+			if err != nil {
+				return fmt.Errorf("store block %s: %w", internalID, err)
+			}
 		}
 
 		// Write targets + annotations into the kind-specific tables.

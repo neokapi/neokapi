@@ -179,7 +179,7 @@ func (s *Server) HandleApprovePassing(c echo.Context) error {
 			}
 			sod.quiet()
 
-			var toStore []*model.Block
+			var toStore []*venue.StoredBlock
 			var decisions []venue.UnitDecision
 			for _, sb := range batch {
 				if sb == nil || sb.Block == nil || !sb.Block.Translatable {
@@ -218,12 +218,12 @@ func (s *Server) HandleApprovePassing(c echo.Context) error {
 					}
 				}
 				if modified {
-					toStore = append(toStore, sb.Block)
+					toStore = append(toStore, sb)
 				}
 			}
 
 			if len(toStore) > 0 {
-				if err := s.ContentStore.StoreBlocks(ctx, pid, stream, toStore); err != nil {
+				if _, err := s.ContentStore.WriteBackBlocks(ctx, pid, stream, toStore); err != nil {
 					return fmt.Errorf("store blocks: %w", err)
 				}
 			}

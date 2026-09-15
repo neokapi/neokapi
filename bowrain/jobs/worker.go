@@ -693,17 +693,18 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 		} else {
 			memoryFilled = res.memoryCount
 			if len(res.filled) > 0 {
-				if err := deps.ContentStore.StoreBlocks(ctx, job.ProjectID, jobStream, res.filled); err != nil {
+				filled, err := writeBackDrafts(ctx, deps.ContentStore, job.ProjectID, jobStream, unitByBlockID, res.filled)
+				if err != nil {
 					return fmt.Errorf("store recycled blocks: %w", err)
 				}
-				recordProducedBasis(ctx, deps.ContentStore, job.ProjectID, jobStream, ledger, unitByBlockID, res.filled, tgtLocale)
+				recordProducedBasis(ctx, deps.ContentStore, job.ProjectID, jobStream, ledger, unitByBlockID, filled, tgtLocale)
 				emitLog(deps, job.StepID, "info",
 					fmt.Sprintf("Recycled %d block(s) from content memory (skipping AI)", memoryFilled),
 					map[string]string{"via_tm": strconv.Itoa(memoryFilled)})
 				// Score the recycled drafts against the standing voice profile
 				// (deterministic vocabulary check, zero AI) so the compliant
 				// rate covers content memory output too.
-				persistDraftVoiceScores(ctx, deps, job, draftProfile(), res.filled, tgtLocale)
+				persistDraftVoiceScores(ctx, deps, job, draftProfile(), filled, tgtLocale)
 			}
 			// Rebuild the stored-block slice for the AI loop as the remainder —
 			// only genuinely-new segments cost credits. StoredBlock carries more
@@ -869,7 +870,8 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 		// directly.
 		blocks := partsToBlocks(outParts)
 		if len(blocks) > 0 {
-			if err := deps.ContentStore.StoreBlocks(ctx, job.ProjectID, jobStream, blocks); err != nil {
+			blocks, err = writeBackDrafts(ctx, deps.ContentStore, job.ProjectID, jobStream, unitByBlockID, blocks)
+			if err != nil {
 				return fmt.Errorf("store blocks: %w", err)
 			}
 			// The source each draft was translated from, so the next pass can
@@ -1169,6 +1171,49 @@ func chunkBillingRef(jobID string, chunk []*venue.StoredBlock, offset int) strin
 		return jobID + ":" + chunk[0].Block.ID
 	}
 	return fmt.Sprintf("%s:%d", jobID, offset)
+}
+
+// writeBackDrafts writes blocks a job read and changed back to the rows it read
+// them from, and returns the ones that landed. read maps each block id to the
+// row the job read. A block whose row a push removed, or whose source it
+// changed, after the read does not land: its draft belongs to content the store
+// no longer holds, and the next pass drafts what the store holds now.
+func writeBackDrafts(ctx context.Context, cs store.ContentStore, projectID, stream string, read map[string]*venue.StoredBlock, blocks []*model.Block) ([]*model.Block, error) {
+	reads := make([]*venue.StoredBlock, 0, len(blocks))
+	for _, b := range blocks {
+		if sb := read[b.ID]; sb != nil {
+			reads = append(reads, &venue.StoredBlock{Block: b, ItemName: sb.ItemName, ContentHash: sb.ContentHash})
+		}
+	}
+	res, err := cs.WriteBackBlocks(ctx, projectID, stream, reads)
+	if err != nil {
+		return nil, err
+	}
+	if len(res.Skipped) == 0 && len(reads) == len(blocks) {
+		return blocks, nil
+	}
+	skipped := make(map[string]bool, len(res.Skipped))
+	for _, id := range res.Skipped {
+		skipped[id] = true
+	}
+	landed := make([]*model.Block, 0, len(reads))
+	for _, r := range reads {
+		if !skipped[r.Block.ID] {
+			landed = append(landed, r.Block)
+		}
+	}
+	return landed, nil
+}
+
+// storedByID indexes blocks read from the store by id.
+func storedByID(stored []*venue.StoredBlock) map[string]*venue.StoredBlock {
+	byID := make(map[string]*venue.StoredBlock, len(stored))
+	for _, sb := range stored {
+		if sb != nil && sb.Block != nil {
+			byID[sb.Block.ID] = sb
+		}
+	}
+	return byID
 }
 
 // partsToBlocks extracts model.Block objects from parts (same as editor.go).
